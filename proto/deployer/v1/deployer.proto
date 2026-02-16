@@ -1,0 +1,65 @@
+syntax = "proto3";
+
+package deployer.v1;
+
+option go_package = "github.com/zeitlos/lucity/gen/go/deployer/v1;deployerv1";
+
+service DeployerService {
+  // CreateArgoApp creates an ArgoCD Application for an environment.
+  rpc CreateArgoApp(CreateArgoAppRequest) returns (CreateArgoAppResponse);
+
+  // DeleteArgoApp removes an ArgoCD Application.
+  rpc DeleteArgoApp(DeleteArgoAppRequest) returns (DeleteArgoAppResponse);
+
+  // GetSyncStatus returns the current sync status of an environment.
+  rpc GetSyncStatus(GetSyncStatusRequest) returns (GetSyncStatusResponse);
+
+  // SyncEnvironment triggers an ArgoCD sync for an environment.
+  rpc SyncEnvironment(SyncEnvironmentRequest) returns (SyncEnvironmentResponse);
+}
+
+message CreateArgoAppRequest {
+  string project = 1;
+  string environment = 2;
+  string gitops_repo_url = 3;
+  string target_namespace = 4;
+}
+
+message CreateArgoAppResponse {
+  string app_name = 1;
+}
+
+message DeleteArgoAppRequest {
+  string project = 1;
+  string environment = 2;
+}
+
+message DeleteArgoAppResponse {}
+
+message GetSyncStatusRequest {
+  string project = 1;
+  string environment = 2;
+}
+
+message GetSyncStatusResponse {
+  SyncStatus status = 1;
+  string message = 2;
+}
+
+enum SyncStatus {
+  SYNC_STATUS_UNSPECIFIED = 0;
+  SYNC_STATUS_SYNCED = 1;
+  SYNC_STATUS_OUT_OF_SYNC = 2;
+  SYNC_STATUS_PROGRESSING = 3;
+  SYNC_STATUS_DEGRADED = 4;
+  SYNC_STATUS_UNKNOWN = 5;
+}
+
+message SyncEnvironmentRequest {
+  string project = 1;
+  string environment = 2;
+}
+
+message SyncEnvironmentResponse {
+  SyncStatus status = 1;
+}

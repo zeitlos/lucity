@@ -1,0 +1,44 @@
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+vendor/
+
+# Frontend
+node_modules/
+dist/
+.output/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Generated
+*.gen.go
+
+# Build
+bin/
+/gateway
+/builder
+/packager
+/deployer
+/webhook
+
+# Proto generated
+gen/

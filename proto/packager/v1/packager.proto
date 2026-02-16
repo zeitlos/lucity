@@ -1,0 +1,94 @@
+syntax = "proto3";
+
+package packager.v1;
+
+option go_package = "github.com/zeitlos/lucity/gen/go/packager/v1;packagerv1";
+
+service PackagerService {
+  // InitProject creates a new GitOps repository for a project.
+  rpc InitProject(InitProjectRequest) returns (InitProjectResponse);
+
+  // AddService adds a service definition to the project's base values.
+  rpc AddService(AddServiceRequest) returns (AddServiceResponse);
+
+  // RemoveService removes a service definition from the project's base values.
+  rpc RemoveService(RemoveServiceRequest) returns (RemoveServiceResponse);
+
+  // CreateEnvironment creates a new environment in the GitOps repo.
+  rpc CreateEnvironment(CreateEnvironmentRequest) returns (CreateEnvironmentResponse);
+
+  // DeleteEnvironment removes an environment from the GitOps repo.
+  rpc DeleteEnvironment(DeleteEnvironmentRequest) returns (DeleteEnvironmentResponse);
+
+  // Promote copies an image tag from one environment to another.
+  rpc Promote(PromoteRequest) returns (PromoteResponse);
+
+  // Eject exports the complete project configuration for independent operation.
+  rpc Eject(EjectRequest) returns (EjectResponse);
+}
+
+message InitProjectRequest {
+  string project = 1;
+  string source_url = 2;
+}
+
+message InitProjectResponse {
+  string gitops_repo_url = 1;
+}
+
+message AddServiceRequest {
+  string project = 1;
+  string service = 2;
+  string image = 3;
+  int32 port = 4;
+  bool public = 5;
+}
+
+message AddServiceResponse {}
+
+message RemoveServiceRequest {
+  string project = 1;
+  string service = 2;
+}
+
+message RemoveServiceResponse {}
+
+message CreateEnvironmentRequest {
+  string project = 1;
+  string environment = 2;
+  // Source environment to copy configuration from.
+  string from_environment = 3;
+  // Whether this is an ephemeral (PR preview) environment.
+  bool ephemeral = 4;
+}
+
+message CreateEnvironmentResponse {
+  string namespace = 1;
+}
+
+message DeleteEnvironmentRequest {
+  string project = 1;
+  string environment = 2;
+}
+
+message DeleteEnvironmentResponse {}
+
+message PromoteRequest {
+  string project = 1;
+  string service = 2;
+  string from_environment = 3;
+  string to_environment = 4;
+}
+
+message PromoteResponse {
+  string image_tag = 1;
+}
+
+message EjectRequest {
+  string project = 1;
+}
+
+message EjectResponse {
+  // Base64-encoded tar.gz of the ejected project.
+  bytes archive = 1;
+}

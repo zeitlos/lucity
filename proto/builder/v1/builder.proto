@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package builder.v1;
+
+option go_package = "github.com/zeitlos/lucity/gen/go/builder/v1;builderv1";
+
+service BuilderService {
+  // BuildImage builds a container image from source code using nixpack
+  // and pushes it to the OCI registry.
+  rpc BuildImage(BuildImageRequest) returns (BuildImageResponse);
+}
+
+message BuildImageRequest {
+  // URL of the source repository to build from.
+  string source_url = 1;
+
+  // Git ref to build (branch, tag, or commit SHA).
+  string git_ref = 2;
+
+  // Name of the service within the project.
+  string service = 3;
+
+  // Registry URL to push the built image to.
+  string registry = 4;
+
+  // Path to the Dockerfile or build context within the repo.
+  // Empty means repository root.
+  string context_path = 5;
+}
+
+message BuildImageResponse {
+  // Full image reference (e.g., registry.example.com/myapp/api:a1b2c3d).
+  string image_ref = 1;
+
+  // Image digest (e.g., sha256:...).
+  string digest = 2;
+}

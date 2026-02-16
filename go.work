@@ -1,0 +1,13 @@
+go 1.26.0
+
+use (
+	./pkg/auth
+	./pkg/graceful
+	./pkg/labels
+	./pkg/logger
+	./services/builder
+	./services/deployer
+	./services/gateway
+	./services/packager
+	./services/webhook
+)

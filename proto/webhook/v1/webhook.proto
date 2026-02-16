@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+package webhook.v1;
+
+option go_package = "github.com/zeitlos/lucity/gen/go/webhook/v1;webhookv1";
+
+service WebhookService {
+  // HandlePushEvent processes a git push event.
+  rpc HandlePushEvent(PushEventRequest) returns (PushEventResponse);
+
+  // HandlePREvent processes a pull request event (opened, closed, merged).
+  rpc HandlePREvent(PREventRequest) returns (PREventResponse);
+}
+
+message PushEventRequest {
+  string repository_url = 1;
+  string ref = 2;
+  string commit_sha = 3;
+  string sender = 4;
+}
+
+message PushEventResponse {
+  // Whether a build was triggered.
+  bool build_triggered = 1;
+}
+
+message PREventRequest {
+  string repository_url = 1;
+  int64 pr_number = 2;
+  PRAction action = 3;
+  string head_sha = 4;
+  string head_ref = 5;
+  string sender = 6;
+}
+
+enum PRAction {
+  PR_ACTION_UNSPECIFIED = 0;
+  PR_ACTION_OPENED = 1;
+  PR_ACTION_SYNCHRONIZE = 2;
+  PR_ACTION_CLOSED = 3;
+  PR_ACTION_MERGED = 4;
+}
+
+message PREventResponse {
+  // Whether a preview environment was created/updated/deleted.
+  bool environment_affected = 1;
+  string environment_name = 2;
+}
