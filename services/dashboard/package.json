@@ -11,19 +11,31 @@
     "type-check": "vue-tsc --build",
     "lint": "run-s lint:*",
     "lint:oxlint": "oxlint . --fix",
-    "lint:eslint": "eslint . --fix --cache"
+    "lint:eslint": "eslint . --fix --cache",
+    "shadcn": "shadcn-vue"
   },
   "dependencies": {
     "@apollo/client": "^3.14.0",
     "@tailwindcss/vite": "^4.1.18",
+    "@unovis/ts": "^1.6.4",
+    "@unovis/vue": "^1.6.4",
+    "@vee-validate/zod": "^4.15.1",
     "@vue/apollo-composable": "^4.2.2",
+    "@vueuse/core": "^14.2.1",
+    "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "embla-carousel-vue": "^8.6.0",
     "graphql": "^16.12.0",
     "lucide-vue-next": "^0.564.0",
+    "reka-ui": "^2.8.0",
     "tailwind-merge": "^3.4.1",
     "tailwindcss": "^4.1.18",
+    "vaul-vue": "^0.4.1",
+    "vee-validate": "^4.15.1",
     "vue": "^3.5.28",
-    "vue-router": "^5.0.2"
+    "vue-router": "^5.0.2",
+    "vue-sonner": "^2.0.9",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@tsconfig/node24": "^24.0.4",
@@ -37,6 +49,7 @@
     "jiti": "^2.6.1",
     "npm-run-all2": "^8.0.4",
     "oxlint": "~1.47.0",
+    "shadcn-vue": "^2.4.3",
     "typescript": "~5.9.3",
     "vite": "^7.3.1",
     "vite-plugin-vue-devtools": "^8.0.6",
