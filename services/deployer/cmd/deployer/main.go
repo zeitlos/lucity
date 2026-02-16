@@ -8,6 +8,7 @@ import (
 
 	"github.com/zeitlos/lucity/pkg/graceful"
 	"github.com/zeitlos/lucity/pkg/logger"
+	deployergrpc "github.com/zeitlos/lucity/services/deployer/grpc"
 )
 
 type Config struct {
@@ -27,10 +28,8 @@ func main() {
 	ctx, cancel := graceful.Context()
 	defer cancel()
 
-	slog.Info("deployer starting", "port", config.Port)
+	svc := deployergrpc.NewServer()
+	grpcServer := deployergrpc.NewGRPCServer(":"+config.Port, svc)
 
-	// TODO: initialize gRPC server with DeployerService implementation
-	// TODO: initialize ArgoCD client
-
-	_ = ctx
+	graceful.Serve(ctx, grpcServer)
 }

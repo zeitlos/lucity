@@ -8,6 +8,7 @@ import (
 
 	"github.com/zeitlos/lucity/pkg/graceful"
 	"github.com/zeitlos/lucity/pkg/logger"
+	packagergrpc "github.com/zeitlos/lucity/services/packager/grpc"
 )
 
 type Config struct {
@@ -27,10 +28,8 @@ func main() {
 	ctx, cancel := graceful.Context()
 	defer cancel()
 
-	slog.Info("packager starting", "port", config.Port)
+	svc := packagergrpc.NewServer()
+	grpcServer := packagergrpc.NewGRPCServer(":"+config.Port, svc)
 
-	// TODO: initialize gRPC server with PackagerService implementation
-	// TODO: initialize Soft-serve client for GitOps repo management
-
-	_ = ctx
+	graceful.Serve(ctx, grpcServer)
 }

@@ -8,6 +8,7 @@ import (
 
 	"github.com/zeitlos/lucity/pkg/graceful"
 	"github.com/zeitlos/lucity/pkg/logger"
+	buildergrpc "github.com/zeitlos/lucity/services/builder/grpc"
 )
 
 type Config struct {
@@ -27,9 +28,8 @@ func main() {
 	ctx, cancel := graceful.Context()
 	defer cancel()
 
-	slog.Info("builder starting", "port", config.Port)
+	svc := buildergrpc.NewServer()
+	grpcServer := buildergrpc.NewGRPCServer(":"+config.Port, svc)
 
-	// TODO: initialize gRPC server with BuilderService implementation
-
-	_ = ctx
+	graceful.Serve(ctx, grpcServer)
 }

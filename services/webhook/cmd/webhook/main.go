@@ -8,12 +8,13 @@ import (
 
 	"github.com/zeitlos/lucity/pkg/graceful"
 	"github.com/zeitlos/lucity/pkg/logger"
+	webhookhttp "github.com/zeitlos/lucity/services/webhook/http"
 )
 
 type Config struct {
 	Port          string `envconfig:"PORT" default:"9004"`
 	LogLevel      string `envconfig:"LOG_LEVEL" default:"info"`
-	WebhookSecret string `envconfig:"WEBHOOK_SECRET" required:"true"`
+	WebhookSecret string `envconfig:"WEBHOOK_SECRET" default:"dev-secret"`
 }
 
 func main() {
@@ -28,10 +29,7 @@ func main() {
 	ctx, cancel := graceful.Context()
 	defer cancel()
 
-	slog.Info("webhook starting", "port", config.Port)
+	httpServer := webhookhttp.NewServer(config.Port)
 
-	// TODO: initialize HTTP server for GitHub webhook reception
-	// TODO: initialize gRPC client connections to builder, packager, deployer
-
-	_ = ctx
+	graceful.Serve(ctx, httpServer)
 }

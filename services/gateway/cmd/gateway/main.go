@@ -8,6 +8,7 @@ import (
 
 	"github.com/zeitlos/lucity/pkg/graceful"
 	"github.com/zeitlos/lucity/pkg/logger"
+	"github.com/zeitlos/lucity/services/gateway/handler"
 )
 
 type Config struct {
@@ -27,10 +28,8 @@ func main() {
 	ctx, cancel := graceful.Context()
 	defer cancel()
 
-	slog.Info("gateway starting", "port", config.Port)
+	api := handler.New()
+	graphqlServer := NewGraphQLServer(config.Port, api)
 
-	// TODO: initialize gqlgen server
-	// TODO: initialize gRPC client connections to builder, packager, deployer
-
-	_ = ctx
+	graceful.Serve(ctx, graphqlServer)
 }
