@@ -1,0 +1,65 @@
+syntax = "proto3";
+
+package deployer;
+
+option go_package = "./deployer";
+
+service DeployerService {
+  // DeployEnvironment creates a deployment for an environment.
+  rpc DeployEnvironment(DeployEnvironmentRequest) returns (DeployEnvironmentResponse);
+
+  // RemoveDeployment removes the deployment for an environment.
+  rpc RemoveDeployment(RemoveDeploymentRequest) returns (RemoveDeploymentResponse);
+
+  // GetDeploymentStatus returns the current deployment status of an environment.
+  rpc GetDeploymentStatus(GetDeploymentStatusRequest) returns (GetDeploymentStatusResponse);
+
+  // SyncDeployment triggers a sync for an environment's deployment.
+  rpc SyncDeployment(SyncDeploymentRequest) returns (SyncDeploymentResponse);
+}
+
+message DeployEnvironmentRequest {
+  string project = 1;
+  string environment = 2;
+  string gitops_repo_url = 3;
+  string target_namespace = 4;
+}
+
+message DeployEnvironmentResponse {
+  string deployment_name = 1;
+}
+
+message RemoveDeploymentRequest {
+  string project = 1;
+  string environment = 2;
+}
+
+message RemoveDeploymentResponse {}
+
+message GetDeploymentStatusRequest {
+  string project = 1;
+  string environment = 2;
+}
+
+message GetDeploymentStatusResponse {
+  DeploymentStatus status = 1;
+  string message = 2;
+}
+
+enum DeploymentStatus {
+  DEPLOYMENT_STATUS_UNSPECIFIED = 0;
+  DEPLOYMENT_STATUS_SYNCED = 1;
+  DEPLOYMENT_STATUS_OUT_OF_SYNC = 2;
+  DEPLOYMENT_STATUS_PROGRESSING = 3;
+  DEPLOYMENT_STATUS_DEGRADED = 4;
+  DEPLOYMENT_STATUS_UNKNOWN = 5;
+}
+
+message SyncDeploymentRequest {
+  string project = 1;
+  string environment = 2;
+}
+
+message SyncDeploymentResponse {
+  DeploymentStatus status = 1;
+}

@@ -2,9 +2,13 @@ go 1.26.0
 
 use (
 	./pkg/auth
+	./pkg/builder
+	./pkg/deployer
 	./pkg/graceful
 	./pkg/labels
 	./pkg/logger
+	./pkg/packager
+	./pkg/webhook
 	./services/builder
 	./services/deployer
 	./services/gateway

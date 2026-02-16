@@ -1,8 +1,8 @@
 syntax = "proto3";
 
-package webhook.v1;
+package webhook;
 
-option go_package = "github.com/zeitlos/lucity/gen/go/webhook/v1;webhookv1";
+option go_package = "./webhook";
 
 service WebhookService {
   // HandlePushEvent processes a git push event.

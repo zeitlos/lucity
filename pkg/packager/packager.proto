@@ -1,8 +1,8 @@
 syntax = "proto3";
 
-package packager.v1;
+package packager;
 
-option go_package = "github.com/zeitlos/lucity/gen/go/packager/v1;packagerv1";
+option go_package = "./packager";
 
 service PackagerService {
   // InitProject creates a new GitOps repository for a project.
