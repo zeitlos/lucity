@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "lucity.fullname" . }}-webhook
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+    app.kubernetes.io/component: webhook
+spec:
+  replicas: {{ .Values.webhook.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "lucity.selectorLabels" (dict "name" "webhook" "release" .Release.Name) | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "lucity.labels" . | nindent 8 }}
+        {{- include "lucity.selectorLabels" (dict "name" "webhook" "release" .Release.Name) | nindent 8 }}
+    spec:
+      containers:
+        - name: webhook
+          image: "{{ .Values.webhook.image.repository }}:{{ .Values.webhook.image.tag }}"
+          imagePullPolicy: {{ .Values.webhook.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.webhook.port }}
+              protocol: TCP
+          resources:
+            {{- toYaml .Values.webhook.resources | nindent 12 }}

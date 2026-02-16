@@ -1,0 +1,21 @@
+{{- range $name, $svc := .Values.services }}
+{{- if $svc.public }}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ include "lucity-app.fullname" $ }}-{{ $name }}
+  labels:
+    {{- include "lucity-app.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $name }}
+spec:
+  {{- if $svc.host }}
+  hostnames:
+    - {{ $svc.host | quote }}
+  {{- end }}
+  rules:
+    - backendRefs:
+        - name: {{ include "lucity-app.fullname" $ }}-{{ $name }}
+          port: {{ $svc.port }}
+{{- end }}
+{{- end }}

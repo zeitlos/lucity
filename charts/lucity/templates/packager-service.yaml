@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "lucity.fullname" . }}-packager
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+    app.kubernetes.io/component: packager
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.packager.port }}
+      targetPort: grpc
+      protocol: TCP
+      name: grpc
+  selector:
+    {{- include "lucity.selectorLabels" (dict "name" "packager" "release" .Release.Name) | nindent 4 }}

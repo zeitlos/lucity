@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "lucity.fullname" . }}-deployer
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+    app.kubernetes.io/component: deployer
+spec:
+  replicas: {{ .Values.deployer.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "lucity.selectorLabels" (dict "name" "deployer" "release" .Release.Name) | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "lucity.labels" . | nindent 8 }}
+        {{- include "lucity.selectorLabels" (dict "name" "deployer" "release" .Release.Name) | nindent 8 }}
+    spec:
+      containers:
+        - name: deployer
+          image: "{{ .Values.deployer.image.repository }}:{{ .Values.deployer.image.tag }}"
+          imagePullPolicy: {{ .Values.deployer.image.pullPolicy }}
+          ports:
+            - name: grpc
+              containerPort: {{ .Values.deployer.port }}
+              protocol: TCP
+          resources:
+            {{- toYaml .Values.deployer.resources | nindent 12 }}

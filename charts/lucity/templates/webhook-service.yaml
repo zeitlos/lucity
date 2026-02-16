@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "lucity.fullname" . }}-webhook
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+    app.kubernetes.io/component: webhook
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.webhook.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "lucity.selectorLabels" (dict "name" "webhook" "release" .Release.Name) | nindent 4 }}

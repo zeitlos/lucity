@@ -1,0 +1,6 @@
+apiVersion: v2
+name: lucity-app
+description: Lucity application chart for user workloads
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

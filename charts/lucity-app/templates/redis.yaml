@@ -1,0 +1,49 @@
+{{- range $name, $redis := .Values.databases.redis }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "lucity-app.fullname" $ }}-redis-{{ $name }}
+  labels:
+    {{- include "lucity-app.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: redis-{{ $name }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "lucity-app.selectorLabels" (dict "name" (printf "redis-%s" $name) "release" $.Release.Name) | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "lucity-app.labels" $ | nindent 8 }}
+        {{- include "lucity-app.selectorLabels" (dict "name" (printf "redis-%s" $name) "release" $.Release.Name) | nindent 8 }}
+    spec:
+      containers:
+        - name: redis
+          image: {{ $redis.image | default "redis:7-alpine" }}
+          ports:
+            - name: redis
+              containerPort: 6379
+              protocol: TCP
+          {{- if $redis.resources }}
+          resources:
+            {{- toYaml $redis.resources | nindent 12 }}
+          {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "lucity-app.fullname" $ }}-redis-{{ $name }}
+  labels:
+    {{- include "lucity-app.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: redis-{{ $name }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: 6379
+      targetPort: redis
+      protocol: TCP
+      name: redis
+  selector:
+    {{- include "lucity-app.selectorLabels" (dict "name" (printf "redis-%s" $name) "release" $.Release.Name) | nindent 4 }}
+{{- end }}

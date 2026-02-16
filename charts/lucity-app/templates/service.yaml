@@ -1,0 +1,19 @@
+{{- range $name, $svc := .Values.services }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "lucity-app.fullname" $ }}-{{ $name }}
+  labels:
+    {{- include "lucity-app.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $name }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ $svc.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "lucity-app.selectorLabels" (dict "name" $name "release" $.Release.Name) | nindent 4 }}
+{{- end }}

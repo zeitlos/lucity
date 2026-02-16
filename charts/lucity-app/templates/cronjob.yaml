@@ -1,0 +1,44 @@
+{{- range $name, $job := .Values.cronJobs }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "lucity-app.fullname" $ }}-{{ $name }}
+  labels:
+    {{- include "lucity-app.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $name }}
+spec:
+  schedule: {{ $job.schedule | quote }}
+  concurrencyPolicy: {{ $job.concurrencyPolicy | default "Forbid" }}
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            {{- include "lucity-app.labels" $ | nindent 12 }}
+            {{- include "lucity-app.selectorLabels" (dict "name" $name "release" $.Release.Name) | nindent 12 }}
+        spec:
+          restartPolicy: {{ $job.restartPolicy | default "OnFailure" }}
+          containers:
+            - name: {{ $name }}
+              image: "{{ $job.image.repository }}:{{ $job.image.tag | default "latest" }}"
+              {{- if $job.command }}
+              command:
+                {{- toYaml $job.command | nindent 16 }}
+              {{- end }}
+              {{- if $job.args }}
+              args:
+                {{- toYaml $job.args | nindent 16 }}
+              {{- end }}
+              {{- if $job.env }}
+              env:
+                {{- range $key, $val := $job.env }}
+                - name: {{ $key }}
+                  value: {{ $val | quote }}
+                {{- end }}
+              {{- end }}
+              {{- if $job.resources }}
+              resources:
+                {{- toYaml $job.resources | nindent 16 }}
+              {{- end }}
+{{- end }}

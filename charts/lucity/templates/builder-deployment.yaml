@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "lucity.fullname" . }}-builder
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+    app.kubernetes.io/component: builder
+spec:
+  replicas: {{ .Values.builder.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "lucity.selectorLabels" (dict "name" "builder" "release" .Release.Name) | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "lucity.labels" . | nindent 8 }}
+        {{- include "lucity.selectorLabels" (dict "name" "builder" "release" .Release.Name) | nindent 8 }}
+    spec:
+      containers:
+        - name: builder
+          image: "{{ .Values.builder.image.repository }}:{{ .Values.builder.image.tag }}"
+          imagePullPolicy: {{ .Values.builder.image.pullPolicy }}
+          ports:
+            - name: grpc
+              containerPort: {{ .Values.builder.port }}
+              protocol: TCP
+          resources:
+            {{- toYaml .Values.builder.resources | nindent 12 }}

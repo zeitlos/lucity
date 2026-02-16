@@ -1,0 +1,21 @@
+{{- range $name, $pg := .Values.databases.postgres }}
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: {{ include "lucity-app.fullname" $ }}-pg-{{ $name }}
+  labels:
+    {{- include "lucity-app.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: postgres-{{ $name }}
+spec:
+  instances: {{ $pg.instances | default 1 }}
+  {{- if $pg.version }}
+  imageName: ghcr.io/cloudnative-pg/postgresql:{{ $pg.version }}
+  {{- end }}
+  storage:
+    size: {{ $pg.size | default "10Gi" }}
+  {{- if $pg.resources }}
+  resources:
+    {{- toYaml $pg.resources | nindent 4 }}
+  {{- end }}
+{{- end }}

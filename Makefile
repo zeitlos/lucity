@@ -1,0 +1,44 @@
+.PHONY: build proto dev-gateway dev-builder dev-packager dev-deployer dev-webhook dev-dashboard generate-graphql lint
+
+# Build all Go services
+build:
+	go build ./services/gateway/cmd/gateway/...
+	go build ./services/builder/cmd/builder/...
+	go build ./services/packager/cmd/packager/...
+	go build ./services/deployer/cmd/deployer/...
+	go build ./services/webhook/cmd/webhook/...
+
+# Generate protobuf code (requires buf)
+proto:
+	cd proto && buf generate
+
+# Generate GraphQL resolvers (requires gqlgen)
+generate-graphql:
+	cd services/gateway && go generate ./graphql/resolver.go
+
+# Run individual services
+dev-gateway:
+	cd services/gateway && source .env 2>/dev/null; go run ./cmd/gateway/...
+
+dev-builder:
+	cd services/builder && source .env 2>/dev/null; go run ./cmd/builder/...
+
+dev-packager:
+	cd services/packager && source .env 2>/dev/null; go run ./cmd/packager/...
+
+dev-deployer:
+	cd services/deployer && source .env 2>/dev/null; go run ./cmd/deployer/...
+
+dev-webhook:
+	cd services/webhook && source .env 2>/dev/null; go run ./cmd/webhook/...
+
+dev-dashboard:
+	cd services/dashboard && npm run dev
+
+# Lint
+lint:
+	cd services/dashboard && npm run lint
+
+# Sync workspace
+sync:
+	go work sync
