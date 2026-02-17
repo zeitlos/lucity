@@ -61,7 +61,7 @@ import {
 import EmptyState from '@/components/EmptyState.vue';
 import FrameworkIcon from '@/components/FrameworkIcon.vue';
 import { errorMessage } from '@/lib/utils';
-import { useBuild } from '@/composables/useBuild';
+import { useBuild, type BuildState } from '@/composables/useBuild';
 
 const route = useRoute();
 const projectId = computed(() => route.params.id as string);
@@ -169,7 +169,7 @@ async function handleRemoveService(service: string) {
 }
 
 // Build
-const builds = ref<Record<string, ReturnType<typeof useBuild>>>({});
+const builds = ref<Record<string, BuildState>>({});
 
 function getBuild(service: string) {
   if (!builds.value[service]) {
@@ -480,16 +480,16 @@ function syncStatusVariant(status: string) {
                       <div class="flex items-center gap-1">
                         <!-- Build phase badge -->
                         <Badge
-                          v-if="builds[svc.name]?.phase.value"
-                          :variant="buildPhaseVariant(builds[svc.name].phase.value!)"
+                          v-if="builds[svc.name]?.phase"
+                          :variant="buildPhaseVariant(builds[svc.name].phase!)"
                           class="mr-1"
                         >
                           <Loader2
-                            v-if="builds[svc.name]?.isBuilding.value"
+                            v-if="builds[svc.name]?.isBuilding"
                             :size="12"
                             class="mr-1 animate-spin"
                           />
-                          {{ builds[svc.name].phase.value }}
+                          {{ builds[svc.name].phase }}
                         </Badge>
 
                         <!-- Build button -->
@@ -497,7 +497,7 @@ function syncStatusVariant(status: string) {
                           variant="outline"
                           size="icon"
                           class="h-7 w-7"
-                          :disabled="builds[svc.name]?.isBuilding.value"
+                          :disabled="builds[svc.name]?.isBuilding"
                           @click="handleBuild(svc.name)"
                         >
                           <Hammer :size="14" />

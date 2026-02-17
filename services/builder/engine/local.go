@@ -67,16 +67,17 @@ func (e *LocalEngine) Build(ctx context.Context, opts BuildOpts) (*BuildResult, 
 		buildDir = filepath.Join(opts.RepoPath, opts.ContextPath)
 	}
 
-	// Build with railpack
+	// Build with railpack (requires BuildKit daemon)
 	slog.Info("building image with railpack", "image", opts.ImageName, "dir", buildDir)
 	buildCmd := exec.CommandContext(ctx, "railpack", "build", ".", "--name", opts.ImageName)
 	buildCmd.Dir = buildDir
-	buildCmd.Stdout = os.Stdout
-	buildCmd.Stderr = os.Stderr
 
-	if err := buildCmd.Run(); err != nil {
-		return nil, fmt.Errorf("railpack build failed: %w", err)
+	buildOutput, err := buildCmd.CombinedOutput()
+	if err != nil {
+		slog.Error("railpack build failed", "error", err, "output", string(buildOutput))
+		return nil, fmt.Errorf("railpack build failed: %w: %s", err, string(buildOutput))
 	}
+	slog.Info("railpack build completed", "image", opts.ImageName)
 
 	// Login to registry
 	loginCmd := exec.CommandContext(ctx, "docker", "login", registryHost(opts.ImageName),
