@@ -18,7 +18,7 @@ type Config struct {
 
 	// GitHub App (for installation tokens to manage GitOps repos)
 	GitHubAppID          int64  `envconfig:"GITHUB_APP_ID" required:"true"`
-	GitHubPrivateKeyPath string `envconfig:"GITHUB_PRIVATE_KEY_PATH" required:"true"`
+	GitHubPrivateKeyPath string `envconfig:"GITHUB_PRIVATE_KEY_PATH"`
 
 	// Auth
 	JWTSecret string `envconfig:"JWT_SECRET" required:"true"`

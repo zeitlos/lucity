@@ -24,7 +24,7 @@ type Config struct {
 	GitHubClientID       string `envconfig:"GITHUB_CLIENT_ID" required:"true"`
 	GitHubClientSecret   string `envconfig:"GITHUB_CLIENT_SECRET" required:"true"`
 	GitHubWebhookSecret  string `envconfig:"GITHUB_WEBHOOK_SECRET" default:"dev-secret"`
-	GitHubPrivateKeyPath string `envconfig:"GITHUB_PRIVATE_KEY_PATH" required:"true"`
+	GitHubPrivateKeyPath string `envconfig:"GITHUB_PRIVATE_KEY_PATH"`
 
 	// Auth
 	JWTSecret    string `envconfig:"JWT_SECRET" required:"true"`

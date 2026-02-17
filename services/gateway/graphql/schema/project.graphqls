@@ -39,13 +39,13 @@ enum SyncStatus {
 }
 
 input CreateProjectInput {
-  name: String! @constraint(constraint: "^[a-z0-9-]+/[a-z][a-z0-9-]{1,62}$")
+  name: String! @constraint(constraint: "min=3,max=128")
   sourceUrl: String!
 }
 
 input CreateEnvironmentInput {
   projectId: ID!
-  name: String! @constraint(constraint: "^[a-z][a-z0-9-]{1,62}$")
+  name: String! @constraint(constraint: "min=2,max=63")
   fromEnvironment: String
 }
 

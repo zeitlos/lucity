@@ -30,7 +30,7 @@ func (s *Server) provider(ctx context.Context) (gitops.Provider, error) {
 	if claims.InstallationID == 0 {
 		return nil, fmt.Errorf("no github app installation")
 	}
-	return gitops.NewGitHubProvider(s.app, claims.InstallationID), nil
+	return gitops.NewGitHubProvider(s.app, claims.InstallationID, claims.GitHubToken), nil
 }
 
 func (s *Server) InitProject(ctx context.Context, req *packager.InitProjectRequest) (*packager.InitProjectResponse, error) {

@@ -70,18 +70,29 @@ func (a *App) Repositories(ctx context.Context, installationID int64) ([]Reposit
 	return repos, nil
 }
 
-// CreateRepository creates a new repository in the given org using installation credentials.
-func (a *App) CreateRepository(ctx context.Context, installationID int64, org, name string, private bool) (*Repository, error) {
+// CreateRepository creates a new repository in the given org or user account.
+// For organizations, it uses the installation token. For personal accounts,
+// GitHub App installation tokens cannot call POST /user/repos, so the user's
+// OAuth token is required.
+func (a *App) CreateRepository(ctx context.Context, installationID int64, org, name, userToken string, private bool) (*Repository, error) {
+	repoOpts := &gh.Repository{
+		Name:     gh.Ptr(name),
+		Private:  gh.Ptr(private),
+		AutoInit: gh.Ptr(false),
+	}
+
+	// Try org endpoint with installation token first
 	client, err := a.InstallationClient(ctx, installationID)
 	if err != nil {
 		return nil, err
 	}
 
-	repo, _, err := client.Repositories.Create(ctx, org, &gh.Repository{
-		Name:    gh.Ptr(name),
-		Private: gh.Ptr(private),
-		AutoInit: gh.Ptr(false),
-	})
+	repo, _, err := client.Repositories.Create(ctx, org, repoOpts)
+	if err != nil && userToken != "" {
+		// Org endpoint failed (likely a personal account) — use OAuth token
+		oauthClient := gh.NewClient(nil).WithAuthToken(userToken)
+		repo, _, err = oauthClient.Repositories.Create(ctx, "", repoOpts)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to create repository %s/%s: %w", org, name, err)
 	}

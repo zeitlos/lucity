@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { useQuery } from '@vue/apollo-composable';
 import { RouterLink } from 'vue-router';
-import { Plus, GitBranch, ExternalLink } from 'lucide-vue-next';
+import { computed } from 'vue';
+import { Plus, GitBranch, ExternalLink, FolderGit2 } from 'lucide-vue-next';
 import { ProjectsQuery } from '@/graphql/projects';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -9,6 +10,8 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const { result, loading, error } = useQuery(ProjectsQuery);
+
+const projects = computed(() => result.value?.projects ?? []);
 
 function syncStatusVariant(status: string) {
   switch (status) {
@@ -53,9 +56,28 @@ function syncStatusVariant(status: string) {
       Failed to load projects: {{ error.message }}
     </div>
 
+    <div
+      v-else-if="projects.length === 0"
+      class="flex flex-col items-center justify-center rounded-lg border border-dashed border-gray-300 py-20"
+    >
+      <div class="mb-4 rounded-full bg-gray-100 p-4">
+        <FolderGit2 :size="32" class="text-gray-400" />
+      </div>
+      <h2 class="text-lg font-medium text-gray-900">No projects yet</h2>
+      <p class="mt-1 mb-6 text-sm text-gray-500">
+        Get started by connecting a GitHub repository.
+      </p>
+      <RouterLink :to="{ name: 'new-project' }">
+        <Button>
+          <Plus :size="16" class="mr-2" />
+          New Project
+        </Button>
+      </RouterLink>
+    </div>
+
     <div v-else class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
       <RouterLink
-        v-for="project in result?.projects"
+        v-for="project in projects"
         :key="project.id"
         :to="{ name: 'project', params: { id: project.id } }"
         class="block"

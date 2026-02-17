@@ -99,6 +99,7 @@ func handleGitHubCallback(app *gh.App, jwtSecret, dashboardURL string) http.Hand
 			AvatarURL:      user.AvatarURL,
 			Roles:          []auth.Role{auth.RoleUser},
 			InstallationID: installationID,
+			GitHubToken:    token.AccessToken,
 		}
 
 		jwt, err := auth.NewToken(claims, jwtSecret, tokenExpiry)

@@ -15,6 +15,7 @@ type jwtClaims struct {
 	AvatarURL      string `json:"avatar_url"`
 	Roles          []Role `json:"roles"`
 	InstallationID int64  `json:"iid,omitempty"`
+	GitHubToken    string `json:"ght,omitempty"`
 }
 
 // NewToken creates a signed JWT token from the given claims.
@@ -31,6 +32,7 @@ func NewToken(claims *Claims, secret string, expiry time.Duration) (string, erro
 		AvatarURL:      claims.AvatarURL,
 		Roles:          claims.Roles,
 		InstallationID: claims.InstallationID,
+		GitHubToken:    claims.GitHubToken,
 	})
 
 	signed, err := token.SignedString([]byte(secret))
@@ -64,5 +66,6 @@ func ParseToken(tokenString, secret string) (*Claims, error) {
 		AvatarURL:      jc.AvatarURL,
 		Roles:          jc.Roles,
 		InstallationID: jc.InstallationID,
+		GitHubToken:    jc.GitHubToken,
 	}, nil
 }

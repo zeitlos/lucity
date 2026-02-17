@@ -3774,7 +3774,7 @@ func (ec *executionContext) unmarshalInputCreateEnvironmentInput(ctx context.Con
 			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNString2string(ctx, v) }
 
 			directive1 := func(ctx context.Context) (any, error) {
-				constraint, err := ec.unmarshalNString2string(ctx, "^[a-z][a-z0-9-]{1,62}$")
+				constraint, err := ec.unmarshalNString2string(ctx, "min=2,max=63")
 				if err != nil {
 					var zeroVal string
 					return zeroVal, err
@@ -3828,7 +3828,7 @@ func (ec *executionContext) unmarshalInputCreateProjectInput(ctx context.Context
 			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNString2string(ctx, v) }
 
 			directive1 := func(ctx context.Context) (any, error) {
-				constraint, err := ec.unmarshalNString2string(ctx, "^[a-z0-9-]+/[a-z][a-z0-9-]{1,62}$")
+				constraint, err := ec.unmarshalNString2string(ctx, "min=3,max=128")
 				if err != nil {
 					var zeroVal string
 					return zeroVal, err

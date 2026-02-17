@@ -21,6 +21,7 @@ type Claims struct {
 	GitHubLogin    string
 	AvatarURL      string
 	InstallationID int64
+	GitHubToken    string // OAuth access token for user-scoped GitHub API calls
 }
 
 // HasRole checks if the claims include the given role.

@@ -23,13 +23,15 @@ const repoSuffix = "-gitops"
 type GitHubProvider struct {
 	app            *gh.App
 	installationID int64
+	userToken      string // OAuth token for user-scoped API calls (e.g. repo creation on personal accounts)
 }
 
 // NewGitHubProvider creates a Provider backed by GitHub repositories.
-func NewGitHubProvider(app *gh.App, installationID int64) *GitHubProvider {
+func NewGitHubProvider(app *gh.App, installationID int64, userToken string) *GitHubProvider {
 	return &GitHubProvider{
 		app:            app,
 		installationID: installationID,
+		userToken:      userToken,
 	}
 }
 
@@ -44,27 +46,21 @@ func (p *GitHubProvider) CreateRepo(ctx context.Context, project, sourceURL stri
 	repoName := name + repoSuffix
 
 	// Create the repo on GitHub
-	repo, err := p.app.CreateRepository(ctx, p.installationID, org, repoName, true)
+	repo, err := p.app.CreateRepository(ctx, p.installationID, org, repoName, p.userToken, true)
 	if err != nil {
 		return "", fmt.Errorf("failed to create gitops repo: %w", err)
 	}
 
 	slog.Info("created gitops repo", "repo", repo.FullName)
 
-	// Get an installation token for git auth
-	client, err := p.app.InstallationClient(ctx, p.installationID)
+	// Get a token for git auth — prefer installation token, fall back to user OAuth token
+	gitToken, err := p.gitAuthToken(ctx)
 	if err != nil {
-		return "", fmt.Errorf("failed to create installation client: %w", err)
-	}
-
-	// Get the installation token for HTTPS git auth
-	token, _, err := client.Apps.CreateInstallationToken(ctx, p.installationID, nil)
-	if err != nil {
-		return "", fmt.Errorf("failed to create installation token: %w", err)
+		return "", fmt.Errorf("failed to get git auth token: %w", err)
 	}
 
 	// Clone, populate, commit, and push
-	if err := p.initRepoContents(repo.CloneURL, token.GetToken(), project, sourceURL); err != nil {
+	if err := p.initRepoContents(repo.CloneURL, gitToken, project, sourceURL); err != nil {
 		return "", fmt.Errorf("failed to initialize repo contents: %w", err)
 	}
 
@@ -273,6 +269,26 @@ func (p *GitHubProvider) initRepoContents(cloneURL, token, project, sourceURL st
 
 	slog.Info("initialized gitops repo", "project", project)
 	return nil
+}
+
+// gitAuthToken returns a token for HTTPS git operations.
+// Tries an installation token first; falls back to the user's OAuth token.
+func (p *GitHubProvider) gitAuthToken(ctx context.Context) (string, error) {
+	client, err := p.app.InstallationClient(ctx, p.installationID)
+	if err == nil {
+		token, _, err := client.Apps.CreateInstallationToken(ctx, p.installationID, nil)
+		if err == nil {
+			return token.GetToken(), nil
+		}
+		slog.Warn("installation token failed, falling back to user token", "error", err)
+	} else {
+		slog.Warn("installation client failed, falling back to user token", "error", err)
+	}
+
+	if p.userToken != "" {
+		return p.userToken, nil
+	}
+	return "", fmt.Errorf("no authentication token available for git operations")
 }
 
 // splitProject splits "org/name" into org and name.

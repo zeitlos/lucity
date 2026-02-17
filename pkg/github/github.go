@@ -40,10 +40,15 @@ type Repository struct {
 
 // NewApp creates a new GitHub App client.
 // privateKeyPath is the path to the GitHub App's PEM private key file.
+// If empty, the app will work for OAuth but installation token features will be unavailable.
 func NewApp(appID int64, clientID, clientSecret, webhookSecret, callbackURL, privateKeyPath string) (*App, error) {
-	key, err := os.ReadFile(privateKeyPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read private key: %w", err)
+	var key []byte
+	if privateKeyPath != "" {
+		var err error
+		key, err = os.ReadFile(privateKeyPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read private key: %w", err)
+		}
 	}
 
 	return &App{
@@ -57,7 +62,7 @@ func NewApp(appID int64, clientID, clientSecret, webhookSecret, callbackURL, pri
 			ClientSecret: clientSecret,
 			Endpoint:     githubOAuth.Endpoint,
 			RedirectURL:  callbackURL,
-			Scopes:       []string{"read:user", "user:email"},
+			Scopes:       []string{},
 		},
 	}, nil
 }
