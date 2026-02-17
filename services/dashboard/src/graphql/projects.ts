@@ -51,6 +51,7 @@ export const ProjectQuery = gql`
         image
         port
         public
+        framework
       }
     }
   }
