@@ -115,14 +115,6 @@ func (e *LocalEngine) Build(ctx context.Context, opts BuildOpts) (*BuildResult, 
 		"--progress", "plain",
 	}
 
-	// OCI image labels — links the GHCR package to the source repo
-	if opts.SourceURL != "" {
-		args = append(args, "--label", "org.opencontainers.image.source="+opts.SourceURL)
-	}
-	if opts.GitSHA != "" {
-		args = append(args, "--label", "org.opencontainers.image.revision="+opts.GitSHA)
-	}
-
 	args = append(args, buildDir)
 
 	buildCmd := exec.CommandContext(ctx, "docker", args...)
@@ -133,6 +125,15 @@ func (e *LocalEngine) Build(ctx context.Context, opts BuildOpts) (*BuildResult, 
 		slog.Error("build failed", "error", err, "output", string(buildOutput))
 		return nil, fmt.Errorf("build failed: %w: %s", err, string(buildOutput))
 	}
+
+	// Apply OCI labels in a post-build step. The railpack BuildKit frontend
+	// ignores --label flags passed to `docker buildx build`, so we layer them
+	// on top with a tiny inline Dockerfile. This only updates image metadata,
+	// no new filesystem layers are created.
+	if err := applyLabels(ctx, opts); err != nil {
+		return nil, fmt.Errorf("failed to apply labels: %w", err)
+	}
+
 	slog.Info("build completed, pushing image", "image", opts.ImageName)
 
 	// Create a temporary Docker config with registry credentials embedded directly.
@@ -236,6 +237,38 @@ func extractDigest(output string) string {
 		}
 	}
 	return ""
+}
+
+// applyLabels re-tags an already-loaded image with OCI labels using an inline
+// Dockerfile. The railpack BuildKit frontend ignores --label flags, so we apply
+// them in a separate build step that only updates image metadata (no new layers).
+func applyLabels(ctx context.Context, opts BuildOpts) error {
+	var labels []string
+	if opts.SourceURL != "" {
+		labels = append(labels, fmt.Sprintf("LABEL org.opencontainers.image.source=%q", opts.SourceURL))
+	}
+	if opts.GitSHA != "" {
+		labels = append(labels, fmt.Sprintf("LABEL org.opencontainers.image.revision=%q", opts.GitSHA))
+	}
+	if len(labels) == 0 {
+		return nil
+	}
+
+	dockerfile := fmt.Sprintf("FROM %s\n%s\n", opts.ImageName, strings.Join(labels, "\n"))
+
+	cmd := exec.CommandContext(ctx, "docker", "build",
+		"--tag", opts.ImageName,
+		"--file", "-",
+		".",
+	)
+	cmd.Stdin = strings.NewReader(dockerfile)
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		slog.Error("label application failed", "error", err, "output", string(output))
+		return fmt.Errorf("docker build for labels failed: %w: %s", err, string(output))
+	}
+	return nil
 }
 
 // detectFramework determines the specific framework from the provider and metadata.
