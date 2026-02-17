@@ -1,5 +1,5 @@
 import { ref } from 'vue';
-import { useMutation, useLazyQuery } from '@vue/apollo-composable';
+import { apolloClient } from '@/lib/apollo';
 import { BuildServiceMutation, BuildStatusQuery, DeployBuildMutation } from '@/graphql/services';
 import { toast } from '@/components/ui/sonner';
 import { errorMessage } from '@/lib/utils';
@@ -12,14 +12,6 @@ export function useBuild() {
   const imageRef = ref<string | null>(null);
   const digest = ref<string | null>(null);
 
-  const { mutate: buildServiceMutate } = useMutation(BuildServiceMutation);
-  const { mutate: deployBuildMutate } = useMutation(DeployBuildMutation);
-  const { load: loadBuildStatus, result: statusResult, onResult: onStatusResult, onError: onStatusError } = useLazyQuery(BuildStatusQuery, () => ({
-    id: buildId.value!,
-  }), {
-    fetchPolicy: 'network-only',
-  });
-
   let pollTimer: ReturnType<typeof setInterval> | null = null;
 
   function stopPolling() {
@@ -29,32 +21,40 @@ export function useBuild() {
     }
   }
 
-  onStatusError((err) => {
-    stopPolling();
-    isBuilding.value = false;
-    error.value = err.message;
-    toast.error('Build status check failed', { description: err.message });
-  });
+  async function pollBuildStatus() {
+    if (!buildId.value) return;
 
-  onStatusResult((result) => {
-    const status = result.data?.buildStatus;
-    if (!status) return;
+    try {
+      const { data } = await apolloClient.query({
+        query: BuildStatusQuery,
+        variables: { id: buildId.value },
+        fetchPolicy: 'network-only',
+      });
 
-    phase.value = status.phase;
+      const status = data?.buildStatus;
+      if (!status) return;
 
-    if (status.phase === 'SUCCEEDED') {
+      phase.value = status.phase;
+
+      if (status.phase === 'SUCCEEDED') {
+        stopPolling();
+        isBuilding.value = false;
+        imageRef.value = status.imageRef ?? null;
+        digest.value = status.digest ?? null;
+        toast.success('Build succeeded');
+      } else if (status.phase === 'FAILED') {
+        stopPolling();
+        isBuilding.value = false;
+        error.value = status.error ?? 'Build failed';
+        toast.error('Build failed', { description: status.error });
+      }
+    } catch (e: unknown) {
       stopPolling();
       isBuilding.value = false;
-      imageRef.value = status.imageRef ?? null;
-      digest.value = status.digest ?? null;
-      toast.success('Build succeeded');
-    } else if (status.phase === 'FAILED') {
-      stopPolling();
-      isBuilding.value = false;
-      error.value = status.error ?? 'Build failed';
-      toast.error('Build failed', { description: status.error });
+      error.value = errorMessage(e);
+      toast.error('Build status check failed', { description: error.value });
     }
-  });
+  }
 
   async function startBuild(projectId: string, service: string, gitRef?: string, contextPath?: string) {
     error.value = null;
@@ -64,12 +64,15 @@ export function useBuild() {
     digest.value = null;
 
     try {
-      const res = await buildServiceMutate({
-        input: {
-          projectId,
-          service,
-          gitRef: gitRef || undefined,
-          contextPath: contextPath || undefined,
+      const res = await apolloClient.mutate({
+        mutation: BuildServiceMutation,
+        variables: {
+          input: {
+            projectId,
+            service,
+            gitRef: gitRef || undefined,
+            contextPath: contextPath || undefined,
+          },
         },
       });
 
@@ -81,9 +84,7 @@ export function useBuild() {
       phase.value = res.data.buildService.phase;
 
       // Start polling every 2 seconds
-      pollTimer = setInterval(() => {
-        loadBuildStatus();
-      }, 2000);
+      pollTimer = setInterval(pollBuildStatus, 2000);
 
       toast.info('Build started', { description: `Building ${service}...` });
     } catch (e: unknown) {
@@ -95,13 +96,16 @@ export function useBuild() {
 
   async function deploy(projectId: string, service: string, environment: string, tag: string, buildDigest?: string) {
     try {
-      await deployBuildMutate({
-        input: {
-          projectId,
-          service,
-          environment,
-          tag,
-          digest: buildDigest || undefined,
+      await apolloClient.mutate({
+        mutation: DeployBuildMutation,
+        variables: {
+          input: {
+            projectId,
+            service,
+            environment,
+            tag,
+            digest: buildDigest || undefined,
+          },
         },
       });
       toast.success('Deployed', { description: `${service} deployed to ${environment}` });
