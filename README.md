@@ -23,7 +23,7 @@ GitHub Repo ──webhook──► Lucity ──GitOps──► ArgoCD ──syn
                     │      │      │
                  Builder Packager Deployer
                     │      │      │
-                 nixpack  Helm   ArgoCD
+                 railpack Helm   ArgoCD
                     │    values    │
                     ▼      ▼      ▼
                  OCI Reg  Git   K8s Cluster

@@ -45,7 +45,7 @@ Each Lucity instance serves one organization. No organization header or multi-te
 | Service | Port | Protocol | Purpose |
 |---------|------|----------|---------|
 | Gateway | 8080 | HTTP/GraphQL | API entry point, delegates to backend services |
-| Builder | 9001 | gRPC | Source-to-image via nixpack, OCI push to Zot |
+| Builder | 9001 | gRPC | Source-to-image via railpack, OCI push to registry |
 | Packager | 9002 | gRPC | Helm values generation, Soft-serve repo management, ejection |
 | Deployer | 9003 | gRPC | ArgoCD Application lifecycle, sync status, promotion |
 | Webhook | 9004 | HTTP | GitHub webhook reception, event routing |
