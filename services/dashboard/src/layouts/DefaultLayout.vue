@@ -4,6 +4,7 @@ import { LayoutDashboard, Settings, LogOut, Sun, Moon } from 'lucide-vue-next';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/composables/useAuth';
 import { useTheme } from '@/composables/useTheme';
+import BaseLogo from '@/components/BaseLogo.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -29,9 +30,12 @@ async function handleLogout() {
 <template>
   <div class="flex min-h-screen">
     <aside class="flex w-64 flex-col border-r border-sidebar-border bg-sidebar px-4 py-6">
-      <div class="mb-8 px-2">
-        <h1 class="text-xl font-bold text-sidebar-foreground">Lucity</h1>
-        <p class="text-xs text-muted-foreground">PaaS Dashboard</p>
+      <div class="mb-8 flex items-center gap-3 px-2">
+        <BaseLogo :size="32" />
+        <div>
+          <h1 class="text-xl font-bold text-sidebar-foreground">Lucity</h1>
+          <p class="text-xs text-muted-foreground">PaaS Dashboard</p>
+        </div>
       </div>
 
       <nav class="flex-1 space-y-1">
