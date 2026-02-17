@@ -1,0 +1,10 @@
+{
+  "recommendations": [
+    "GraphQL.vscode-graphql",
+    "GraphQL.vscode-graphql-syntax",
+    "dbaeumer.vscode-eslint",
+    "Vue.volar",
+    "bradlc.vscode-tailwindcss",
+    "golang.go"
+  ]
+}

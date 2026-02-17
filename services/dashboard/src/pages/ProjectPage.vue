@@ -6,7 +6,6 @@ import { ArrowLeft, GitBranch, Container, Globe, Lock } from 'lucide-vue-next';
 import { ProjectQuery } from '@/graphql/projects';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import {

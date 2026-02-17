@@ -48,6 +48,9 @@ const emit = defineEmits<{
 ## UI Libraries
 
 - shadcn-vue + Reka UI (`components/ui/`)
+- **Never use `export` inside `<script setup>`** — `<script setup>` cannot contain ES module exports. If a component needs to export a value (e.g. `cva` variants), use a separate `<script lang="ts">` block for the export and keep component logic in `<script setup lang="ts">`
+- shadcn-vue components live in `src/components/ui/` and are exempt from `vue/multi-word-component-names` via eslint config
+- Never manually edit shadcn-vue components unless fixing a build/lint issue — regenerate with the CLI instead
 
 ## Imports
 
@@ -67,3 +70,5 @@ const emit = defineEmits<{
 - Semicolons required
 - Max 3 attributes per single-line element
 - Props don't require defaults
+- Always run `npx eslint .` from `services/dashboard/` before committing frontend changes
+- shadcn-vue overrides in `eslint.config.ts`: `multi-word-component-names`, `no-explicit-any`, `no-unused-vars` are off for `src/components/ui/**`

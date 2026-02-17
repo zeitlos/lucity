@@ -1,7 +1,4 @@
-<script setup lang="ts">
-import type { HTMLAttributes } from 'vue';
-import { AvatarRoot } from 'reka-ui';
-import { cn } from '@/lib/utils';
+<script lang="ts">
 import { type VariantProps, cva } from 'class-variance-authority';
 
 export const avatarVariants = cva(
@@ -21,6 +18,12 @@ export const avatarVariants = cva(
 );
 
 type AvatarVariants = VariantProps<typeof avatarVariants>;
+</script>
+
+<script setup lang="ts">
+import type { HTMLAttributes } from 'vue';
+import { AvatarRoot } from 'reka-ui';
+import { cn } from '@/lib/utils';
 
 const props = defineProps<{
   class?: HTMLAttributes['class'];

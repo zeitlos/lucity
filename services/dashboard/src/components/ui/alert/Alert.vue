@@ -1,7 +1,5 @@
-<script setup lang="ts">
-import type { HTMLAttributes } from 'vue';
+<script lang="ts">
 import { type VariantProps, cva } from 'class-variance-authority';
-import { cn } from '@/lib/utils';
 
 export const alertVariants = cva(
   'relative w-full rounded-lg border p-4 [&>svg~*]:pl-7 [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4 [&>svg]:text-foreground',
@@ -19,6 +17,11 @@ export const alertVariants = cva(
 );
 
 type AlertVariants = VariantProps<typeof alertVariants>;
+</script>
+
+<script setup lang="ts">
+import type { HTMLAttributes } from 'vue';
+import { cn } from '@/lib/utils';
 
 const props = defineProps<{
   class?: HTMLAttributes['class'];

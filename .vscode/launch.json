@@ -1,0 +1,50 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "gateway",
+      "type": "go",
+      "request": "launch",
+      "mode": "debug",
+      "program": "${workspaceFolder}/services/gateway/cmd/gateway",
+      "cwd": "${workspaceFolder}/services/gateway",
+      "envFile": "${workspaceFolder}/services/gateway/.env"
+    },
+    {
+      "name": "builder",
+      "type": "go",
+      "request": "launch",
+      "mode": "debug",
+      "program": "${workspaceFolder}/services/builder/cmd/builder",
+      "cwd": "${workspaceFolder}/services/builder",
+      "envFile": "${workspaceFolder}/services/builder/.env"
+    },
+    {
+      "name": "packager",
+      "type": "go",
+      "request": "launch",
+      "mode": "debug",
+      "program": "${workspaceFolder}/services/packager/cmd/packager",
+      "cwd": "${workspaceFolder}/services/packager",
+      "envFile": "${workspaceFolder}/services/packager/.env"
+    },
+    {
+      "name": "deployer",
+      "type": "go",
+      "request": "launch",
+      "mode": "debug",
+      "program": "${workspaceFolder}/services/deployer/cmd/deployer",
+      "cwd": "${workspaceFolder}/services/deployer",
+      "envFile": "${workspaceFolder}/services/deployer/.env"
+    },
+    {
+      "name": "webhook",
+      "type": "go",
+      "request": "launch",
+      "mode": "debug",
+      "program": "${workspaceFolder}/services/webhook/cmd/webhook",
+      "cwd": "${workspaceFolder}/services/webhook",
+      "envFile": "${workspaceFolder}/services/webhook/.env"
+    }
+  ]
+}
