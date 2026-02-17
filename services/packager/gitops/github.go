@@ -12,26 +12,25 @@ import (
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
+	gh "github.com/google/go-github/v68/github"
 	"gopkg.in/yaml.v3"
-
-	gh "github.com/zeitlos/lucity/pkg/github"
 )
 
 const repoSuffix = "-gitops"
 
 // GitHubProvider implements Provider using GitHub as the git backend.
+// Uses the user's OAuth token for all GitHub API operations.
 type GitHubProvider struct {
-	app            *gh.App
-	installationID int64
-	userToken      string // OAuth token for user-scoped API calls (e.g. repo creation on personal accounts)
+	client *gh.Client
+	token  string // OAuth token for HTTPS git auth
 }
 
 // NewGitHubProvider creates a Provider backed by GitHub repositories.
-func NewGitHubProvider(app *gh.App, installationID int64, userToken string) *GitHubProvider {
+// The token is a user OAuth access token from the GitHub App.
+func NewGitHubProvider(token string) *GitHubProvider {
 	return &GitHubProvider{
-		app:            app,
-		installationID: installationID,
-		userToken:      userToken,
+		client: gh.NewClient(nil).WithAuthToken(token),
+		token:  token,
 	}
 }
 
@@ -44,78 +43,64 @@ func (p *GitHubProvider) CreateRepo(ctx context.Context, project, sourceURL stri
 	}
 
 	repoName := name + repoSuffix
-
-	// Create the repo on GitHub
-	repo, err := p.app.CreateRepository(ctx, p.installationID, org, repoName, p.userToken, true)
-	if err != nil {
-		return "", fmt.Errorf("failed to create gitops repo: %w", err)
+	repoOpts := &gh.Repository{
+		Name:     gh.Ptr(repoName),
+		Private:  gh.Ptr(true),
+		AutoInit: gh.Ptr(false),
 	}
 
-	slog.Info("created gitops repo", "repo", repo.FullName)
-
-	// Get a token for git auth — prefer installation token, fall back to user OAuth token
-	gitToken, err := p.gitAuthToken(ctx)
+	// Try org endpoint first; fall back to user endpoint for personal accounts
+	repo, _, err := p.client.Repositories.Create(ctx, org, repoOpts)
 	if err != nil {
-		return "", fmt.Errorf("failed to get git auth token: %w", err)
+		// Personal accounts can't use POST /orgs/{org}/repos — use POST /user/repos
+		repo, _, err = p.client.Repositories.Create(ctx, "", repoOpts)
 	}
+	if err != nil {
+		return "", fmt.Errorf("failed to create gitops repo %s/%s: %w", org, repoName, err)
+	}
+
+	slog.Info("created gitops repo", "repo", repo.GetFullName())
 
 	// Clone, populate, commit, and push
-	if err := p.initRepoContents(repo.CloneURL, gitToken, project, sourceURL); err != nil {
+	if err := p.initRepoContents(repo.GetCloneURL(), project, sourceURL); err != nil {
 		return "", fmt.Errorf("failed to initialize repo contents: %w", err)
 	}
 
-	return repo.CloneURL, nil
+	return repo.GetCloneURL(), nil
 }
 
-// Repos lists all GitOps repos (projects) accessible via the installation.
+// Repos lists all GitOps repos (projects) accessible to the user.
 func (p *GitHubProvider) Repos(ctx context.Context) ([]ProjectMeta, error) {
-	repos, err := p.app.Repositories(ctx, p.installationID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list repos: %w", err)
-	}
-
-	client, err := p.app.InstallationClient(ctx, p.installationID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create installation client: %w", err)
-	}
-
 	var projects []ProjectMeta
-	for _, r := range repos {
-		if !strings.HasSuffix(r.Name, repoSuffix) {
-			continue
-		}
+	opts := &gh.RepositoryListOptions{
+		ListOptions: gh.ListOptions{PerPage: 100},
+	}
 
-		// Fetch project.yaml from repo root
-		content, _, _, err := client.Repositories.GetContents(ctx, r.Owner, r.Name, "project.yaml", nil)
+	for {
+		repos, resp, err := p.client.Repositories.List(ctx, "", opts)
 		if err != nil {
-			slog.Warn("skipping repo without project.yaml", "repo", r.FullName, "error", err)
-			continue
+			return nil, fmt.Errorf("failed to list repos: %w", err)
 		}
 
-		raw, err := content.GetContent()
-		if err != nil {
-			slog.Warn("failed to decode project.yaml", "repo", r.FullName, "error", err)
-			continue
-		}
-
-		meta, err := parseProjectYAML([]byte(raw))
-		if err != nil {
-			slog.Warn("failed to parse project.yaml", "repo", r.FullName, "error", err)
-			continue
-		}
-		meta.RepoURL = r.CloneURL
-
-		// List environments by checking environments/ directory
-		_, dirContents, _, err := client.Repositories.GetContents(ctx, r.Owner, r.Name, "environments", nil)
-		if err == nil {
-			for _, entry := range dirContents {
-				if entry.GetType() == "dir" {
-					meta.Environments = append(meta.Environments, entry.GetName())
-				}
+		for _, r := range repos {
+			if !strings.HasSuffix(r.GetName(), repoSuffix) {
+				continue
 			}
+
+			meta, err := p.readProjectMeta(ctx, r.GetOwner().GetLogin(), r.GetName())
+			if err != nil {
+				slog.Warn("skipping repo", "repo", r.GetFullName(), "error", err)
+				continue
+			}
+			meta.RepoURL = r.GetCloneURL()
+
+			projects = append(projects, *meta)
 		}
 
-		projects = append(projects, *meta)
+		if resp.NextPage == 0 {
+			break
+		}
+		opts.Page = resp.NextPage
 	}
 
 	return projects, nil
@@ -130,42 +115,16 @@ func (p *GitHubProvider) Repo(ctx context.Context, project string) (*ProjectMeta
 
 	repoName := name + repoSuffix
 
-	client, err := p.app.InstallationClient(ctx, p.installationID)
+	meta, err := p.readProjectMeta(ctx, org, repoName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create installation client: %w", err)
+		return nil, err
 	}
 
-	content, _, _, err := client.Repositories.GetContents(ctx, org, repoName, "project.yaml", nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get project.yaml from %s/%s: %w", org, repoName, err)
-	}
-
-	raw, err := content.GetContent()
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode project.yaml: %w", err)
-	}
-
-	meta, err := parseProjectYAML([]byte(raw))
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse project.yaml: %w", err)
-	}
-
-	// Get the repo info for clone URL
-	ghRepo, _, err := client.Repositories.Get(ctx, org, repoName)
+	ghRepo, _, err := p.client.Repositories.Get(ctx, org, repoName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get repo info: %w", err)
 	}
 	meta.RepoURL = ghRepo.GetCloneURL()
-
-	// List environments
-	_, dirContents, _, err := client.Repositories.GetContents(ctx, org, repoName, "environments", nil)
-	if err == nil {
-		for _, entry := range dirContents {
-			if entry.GetType() == "dir" {
-				meta.Environments = append(meta.Environments, entry.GetName())
-			}
-		}
-	}
 
 	return meta, nil
 }
@@ -179,12 +138,7 @@ func (p *GitHubProvider) DeleteRepo(ctx context.Context, project string) error {
 
 	repoName := name + repoSuffix
 
-	client, err := p.app.InstallationClient(ctx, p.installationID)
-	if err != nil {
-		return fmt.Errorf("failed to create installation client: %w", err)
-	}
-
-	_, err = client.Repositories.Delete(ctx, org, repoName)
+	_, err = p.client.Repositories.Delete(ctx, org, repoName)
 	if err != nil {
 		return fmt.Errorf("failed to delete repo %s/%s: %w", org, repoName, err)
 	}
@@ -193,9 +147,39 @@ func (p *GitHubProvider) DeleteRepo(ctx context.Context, project string) error {
 	return nil
 }
 
+// readProjectMeta fetches and parses project.yaml + environments from a repo.
+func (p *GitHubProvider) readProjectMeta(ctx context.Context, owner, repoName string) (*ProjectMeta, error) {
+	content, _, _, err := p.client.Repositories.GetContents(ctx, owner, repoName, "project.yaml", nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get project.yaml from %s/%s: %w", owner, repoName, err)
+	}
+
+	raw, err := content.GetContent()
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode project.yaml: %w", err)
+	}
+
+	meta, err := parseProjectYAML([]byte(raw))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse project.yaml: %w", err)
+	}
+
+	// List environments
+	_, dirContents, _, err := p.client.Repositories.GetContents(ctx, owner, repoName, "environments", nil)
+	if err == nil {
+		for _, entry := range dirContents {
+			if entry.GetType() == "dir" {
+				meta.Environments = append(meta.Environments, entry.GetName())
+			}
+		}
+	}
+
+	return meta, nil
+}
+
 // initRepoContents clones the empty repo, creates the GitOps directory structure,
 // commits, and pushes.
-func (p *GitHubProvider) initRepoContents(cloneURL, token, project, sourceURL string) error {
+func (p *GitHubProvider) initRepoContents(cloneURL, project, sourceURL string) error {
 	tmpDir, err := os.MkdirTemp("", "lucity-gitops-*")
 	if err != nil {
 		return fmt.Errorf("failed to create temp dir: %w", err)
@@ -225,9 +209,9 @@ func (p *GitHubProvider) initRepoContents(cloneURL, token, project, sourceURL st
 
 	// Create directory structure and files
 	files := map[string]string{
-		"project.yaml":                       projectYAML(project, sourceURL, now),
-		"base/Chart.yaml":                    baseChartYAML(project),
-		"base/values.yaml":                   baseValuesYAML,
+		"project.yaml":                         projectYAML(project, sourceURL, now),
+		"base/Chart.yaml":                      baseChartYAML(project),
+		"base/values.yaml":                     baseValuesYAML,
 		"environments/development/values.yaml": environmentValuesYAML,
 	}
 
@@ -260,7 +244,7 @@ func (p *GitHubProvider) initRepoContents(cloneURL, token, project, sourceURL st
 		RemoteName: "origin",
 		Auth: &githttp.BasicAuth{
 			Username: "x-access-token",
-			Password: token,
+			Password: p.token,
 		},
 	})
 	if err != nil {
@@ -269,26 +253,6 @@ func (p *GitHubProvider) initRepoContents(cloneURL, token, project, sourceURL st
 
 	slog.Info("initialized gitops repo", "project", project)
 	return nil
-}
-
-// gitAuthToken returns a token for HTTPS git operations.
-// Tries an installation token first; falls back to the user's OAuth token.
-func (p *GitHubProvider) gitAuthToken(ctx context.Context) (string, error) {
-	client, err := p.app.InstallationClient(ctx, p.installationID)
-	if err == nil {
-		token, _, err := client.Apps.CreateInstallationToken(ctx, p.installationID, nil)
-		if err == nil {
-			return token.GetToken(), nil
-		}
-		slog.Warn("installation token failed, falling back to user token", "error", err)
-	} else {
-		slog.Warn("installation client failed, falling back to user token", "error", err)
-	}
-
-	if p.userToken != "" {
-		return p.userToken, nil
-	}
-	return "", fmt.Errorf("no authentication token available for git operations")
 }
 
 // splitProject splits "org/name" into org and name.

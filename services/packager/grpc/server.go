@@ -6,31 +6,29 @@ import (
 	"log/slog"
 
 	"github.com/zeitlos/lucity/pkg/auth"
-	gh "github.com/zeitlos/lucity/pkg/github"
 	"github.com/zeitlos/lucity/pkg/packager"
 	"github.com/zeitlos/lucity/services/packager/gitops"
 )
 
 type Server struct {
 	packager.UnimplementedPackagerServiceServer
-	app *gh.App
 }
 
-func NewServer(app *gh.App) *Server {
-	return &Server{app: app}
+func NewServer() *Server {
+	return &Server{}
 }
 
 // provider creates a GitOps provider for the current request using
-// the installation ID from the JWT claims in context.
+// the OAuth token from the JWT claims in context.
 func (s *Server) provider(ctx context.Context) (gitops.Provider, error) {
 	claims := auth.FromContext(ctx)
 	if claims == nil {
 		return nil, fmt.Errorf("unauthenticated")
 	}
-	if claims.InstallationID == 0 {
-		return nil, fmt.Errorf("no github app installation")
+	if claims.GitHubToken == "" {
+		return nil, fmt.Errorf("no github token in session")
 	}
-	return gitops.NewGitHubProvider(s.app, claims.InstallationID, claims.GitHubToken), nil
+	return gitops.NewGitHubProvider(claims.GitHubToken), nil
 }
 
 func (s *Server) InitProject(ctx context.Context, req *packager.InitProjectRequest) (*packager.InitProjectResponse, error) {

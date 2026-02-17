@@ -32,6 +32,7 @@ func (a *App) InstallationID(ctx context.Context, userToken *oauth2.Token) (int6
 
 // InstallationClient creates an authenticated GitHub client for the given installation.
 // Uses the App's private key to generate a short-lived installation access token.
+// This is used for automated operations where no user OAuth token is available.
 func (a *App) InstallationClient(ctx context.Context, installationID int64) (*gh.Client, error) {
 	transport, err := ghinstallation.New(http.DefaultTransport, a.appID, installationID, a.privateKey)
 	if err != nil {
@@ -39,66 +40,6 @@ func (a *App) InstallationClient(ctx context.Context, installationID int64) (*gh
 	}
 
 	return gh.NewClient(&http.Client{Transport: transport}), nil
-}
-
-// Repositories lists all repositories accessible via the given installation.
-func (a *App) Repositories(ctx context.Context, installationID int64) ([]Repository, error) {
-	client, err := a.InstallationClient(ctx, installationID)
-	if err != nil {
-		return nil, err
-	}
-
-	var repos []Repository
-	opts := &gh.ListOptions{PerPage: 100}
-
-	for {
-		result, resp, err := client.Apps.ListRepos(ctx, opts)
-		if err != nil {
-			return nil, fmt.Errorf("failed to list installation repos: %w", err)
-		}
-
-		for _, r := range result.Repositories {
-			repos = append(repos, repoFromGitHub(r))
-		}
-
-		if resp.NextPage == 0 {
-			break
-		}
-		opts.Page = resp.NextPage
-	}
-
-	return repos, nil
-}
-
-// CreateRepository creates a new repository in the given org or user account.
-// For organizations, it uses the installation token. For personal accounts,
-// GitHub App installation tokens cannot call POST /user/repos, so the user's
-// OAuth token is required.
-func (a *App) CreateRepository(ctx context.Context, installationID int64, org, name, userToken string, private bool) (*Repository, error) {
-	repoOpts := &gh.Repository{
-		Name:     gh.Ptr(name),
-		Private:  gh.Ptr(private),
-		AutoInit: gh.Ptr(false),
-	}
-
-	// Try org endpoint with installation token first
-	client, err := a.InstallationClient(ctx, installationID)
-	if err != nil {
-		return nil, err
-	}
-
-	repo, _, err := client.Repositories.Create(ctx, org, repoOpts)
-	if err != nil && userToken != "" {
-		// Org endpoint failed (likely a personal account) — use OAuth token
-		oauthClient := gh.NewClient(nil).WithAuthToken(userToken)
-		repo, _, err = oauthClient.Repositories.Create(ctx, "", repoOpts)
-	}
-	if err != nil {
-		return nil, fmt.Errorf("failed to create repository %s/%s: %w", org, name, err)
-	}
-
-	r := repoFromGitHub(repo)
-	return &r, nil
 }
 
 func repoFromGitHub(r *gh.Repository) Repository {

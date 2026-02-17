@@ -72,7 +72,7 @@ func main() {
 
 	packagerClient := packager.NewPackagerServiceClient(packagerConn)
 
-	api := handler.New(githubApp, packagerClient)
+	api := handler.New(packagerClient)
 	graphqlServer := NewGraphQLServer(config.Port, api, githubApp, config.JWTSecret, config.DashboardURL)
 
 	graceful.Serve(ctx, graphqlServer)
