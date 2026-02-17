@@ -2,6 +2,7 @@ import { ref } from 'vue';
 import { useMutation, useLazyQuery } from '@vue/apollo-composable';
 import { BuildServiceMutation, BuildStatusQuery, DeployBuildMutation } from '@/graphql/services';
 import { toast } from '@/components/ui/sonner';
+import { errorMessage } from '@/lib/utils';
 
 export function useBuild() {
   const buildId = ref<string | null>(null);
@@ -87,9 +88,8 @@ export function useBuild() {
       toast.info('Build started', { description: `Building ${service}...` });
     } catch (e: unknown) {
       isBuilding.value = false;
-      const msg = e instanceof Error ? e.message : String(e);
-      error.value = msg;
-      toast.error('Failed to start build', { description: msg });
+      error.value = errorMessage(e);
+      toast.error('Failed to start build', { description: error.value });
     }
   }
 
@@ -107,7 +107,7 @@ export function useBuild() {
       toast.success('Deployed', { description: `${service} deployed to ${environment}` });
       return true;
     } catch (e: unknown) {
-      toast.error('Deploy failed', { description: e instanceof Error ? e.message : String(e) });
+      toast.error('Deploy failed', { description: errorMessage(e) });
       return false;
     }
   }

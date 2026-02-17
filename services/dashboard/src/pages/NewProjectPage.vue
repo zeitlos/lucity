@@ -10,6 +10,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { toast } from '@/components/ui/sonner';
+import { errorMessage } from '@/lib/utils';
 import EmptyState from '@/components/EmptyState.vue';
 
 const router = useRouter();
@@ -34,15 +36,19 @@ function selectRepo(repo: { fullName: string; htmlUrl: string }) {
 async function handleCreate() {
   if (!selectedRepo.value) return;
 
-  const res = await createProject({
-    input: {
-      name: selectedRepo.value.fullName,
-      sourceUrl: selectedRepo.value.htmlUrl,
-    },
-  });
+  try {
+    const res = await createProject({
+      input: {
+        name: selectedRepo.value.fullName,
+        sourceUrl: selectedRepo.value.htmlUrl,
+      },
+    });
 
-  if (res?.data?.createProject) {
-    router.push({ name: 'project', params: { id: res.data.createProject.id } });
+    if (res?.data?.createProject) {
+      router.push({ name: 'project', params: { id: res.data.createProject.id } });
+    }
+  } catch (e: unknown) {
+    toast.error('Failed to create project', { description: errorMessage(e) });
   }
 }
 </script>

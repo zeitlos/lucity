@@ -60,6 +60,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import EmptyState from '@/components/EmptyState.vue';
 import FrameworkIcon from '@/components/FrameworkIcon.vue';
+import { errorMessage } from '@/lib/utils';
 import { useBuild } from '@/composables/useBuild';
 
 const route = useRoute();
@@ -120,7 +121,7 @@ async function confirmDetectedService(detected: {
     showDetectionPanel.value = false;
     refetch();
   } catch (e: unknown) {
-    toast.error('Failed to add service', { description: e instanceof Error ? e.message : String(e) });
+    toast.error('Failed to add service', { description: errorMessage(e) });
   }
 }
 
@@ -147,7 +148,7 @@ async function handleAddService() {
     newServicePublic.value = true;
     refetch();
   } catch (e: unknown) {
-    toast.error('Failed to add service', { description: e instanceof Error ? e.message : String(e) });
+    toast.error('Failed to add service', { description: errorMessage(e) });
   }
 }
 
@@ -163,7 +164,7 @@ async function handleRemoveService(service: string) {
     toast.success('Service removed');
     refetch();
   } catch (e: unknown) {
-    toast.error('Failed to remove service', { description: e instanceof Error ? e.message : String(e) });
+    toast.error('Failed to remove service', { description: errorMessage(e) });
   }
 }
 
