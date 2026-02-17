@@ -3,10 +3,12 @@ package handler
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/builder"
+	"github.com/zeitlos/lucity/pkg/deployer"
 	"github.com/zeitlos/lucity/pkg/packager"
 )
 
@@ -59,16 +61,10 @@ func (c *Client) DetectServices(ctx context.Context, projectID string) ([]Detect
 func (c *Client) AddService(ctx context.Context, projectID, name string, port int, public bool, framework string) (*Service, error) {
 	ctx = auth.OutgoingContext(ctx)
 
-	// Get project owner from the project name (format: "owner/repo-gitops")
-	resp, err := c.Packager.GetProject(ctx, &packager.GetProjectRequest{Project: projectID})
-	if err != nil {
-		return nil, fmt.Errorf("failed to get project: %w", err)
-	}
+	// Derive image path: registry/project/service (e.g., "localhost:5000/myapp/web")
+	image := deriveImagePath(c.RegistryURL, projectID, name)
 
-	// Derive image path from source URL: github.com/owner/repo → ghcr.io/owner/repo/service
-	image := deriveImagePath(c.RegistryURL, resp.Project.SourceUrl, name)
-
-	_, err = c.Packager.AddService(ctx, &packager.AddServiceRequest{
+	_, err := c.Packager.AddService(ctx, &packager.AddServiceRequest{
 		Project:   projectID,
 		Service:   name,
 		Image:     image,
@@ -111,7 +107,7 @@ func (c *Client) StartBuild(ctx context.Context, projectID, service, gitRef, con
 		return nil, fmt.Errorf("failed to get project: %w", err)
 	}
 
-	registry := deriveImagePath(c.RegistryURL, resp.Project.SourceUrl, service)
+	registry := deriveImagePath(c.RegistryURL, projectID, service)
 
 	buildResp, err := c.Builder.StartBuild(ctx, &builder.StartBuildRequest{
 		SourceUrl:   resp.Project.SourceUrl,
@@ -160,20 +156,30 @@ func (c *Client) DeployBuild(ctx context.Context, projectID, service, environmen
 	if err != nil {
 		return false, fmt.Errorf("failed to deploy build: %w", err)
 	}
+
+	// Trigger ArgoCD sync (best-effort — auto-sync will pick it up anyway)
+	_, err = c.Deployer.SyncDeployment(ctx, &deployer.SyncDeploymentRequest{
+		Project:     projectID,
+		Environment: environment,
+	})
+	if err != nil {
+		slog.Warn("failed to trigger sync", "project", projectID, "environment", environment, "error", err)
+	}
+
 	return true, nil
 }
 
-// deriveImagePath builds a registry image path from a source URL.
-// "https://github.com/owner/repo" + service "web" → "ghcr.io/owner/repo/web"
-func deriveImagePath(registryURL, sourceURL, service string) string {
-	// Strip protocol and github.com prefix
-	path := sourceURL
-	path = strings.TrimPrefix(path, "https://")
-	path = strings.TrimPrefix(path, "http://")
-	path = strings.TrimPrefix(path, "github.com/")
-	path = strings.TrimSuffix(path, ".git")
-
-	return registryURL + "/" + path + "/" + service
+// deriveImagePath builds a registry image path from a project name.
+// Project "zeitlos/myapp" + service "web" → "localhost:5000/myapp/web"
+// The org prefix is stripped — OCI paths use only the short project name.
+func deriveImagePath(registryURL, project, service string) string {
+	// Use only the short name (after the slash) for the image namespace
+	parts := strings.SplitN(project, "/", 2)
+	name := project
+	if len(parts) == 2 {
+		name = parts[1]
+	}
+	return registryURL + "/" + name + "/" + service
 }
 
 func buildPhaseToString(phase builder.BuildPhase) string {

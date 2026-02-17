@@ -3,9 +3,12 @@ package handler
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/zeitlos/lucity/pkg/auth"
+	"github.com/zeitlos/lucity/pkg/deployer"
 	"github.com/zeitlos/lucity/pkg/packager"
 )
 
@@ -80,6 +83,18 @@ func (c *Client) CreateProject(ctx context.Context, name, sourceURL string) (*Pr
 		return nil, fmt.Errorf("failed to create project: %w", err)
 	}
 
+	// Deploy the default development environment via ArgoCD
+	ns := namespaceFor(name, "development")
+	_, err = c.Deployer.DeployEnvironment(ctx, &deployer.DeployEnvironmentRequest{
+		Project:         name,
+		Environment:     "development",
+		GitopsRepoUrl:   resp.GitopsRepoUrl,
+		TargetNamespace: ns,
+	})
+	if err != nil {
+		slog.Warn("failed to deploy development environment", "project", name, "error", err)
+	}
+
 	return &Project{
 		ID:        name,
 		Name:      name,
@@ -89,14 +104,8 @@ func (c *Client) CreateProject(ctx context.Context, name, sourceURL string) (*Pr
 			{
 				ID:         name + "/development",
 				Name:       "development",
-				Namespace:  name + "-development",
+				Namespace:  ns,
 				SyncStatus: "PROGRESSING",
-			},
-		},
-		Services: []Service{
-			{
-				Name:  "gitops",
-				Image: resp.GitopsRepoUrl,
 			},
 		},
 	}, nil
@@ -124,6 +133,16 @@ func (c *Client) CreateEnvironment(ctx context.Context, projectID, name, fromEnv
 		return nil, fmt.Errorf("failed to create environment: %w", err)
 	}
 
+	// Deploy the new environment via ArgoCD
+	_, err = c.Deployer.DeployEnvironment(ctx, &deployer.DeployEnvironmentRequest{
+		Project:         projectID,
+		Environment:     name,
+		TargetNamespace: resp.Namespace,
+	})
+	if err != nil {
+		slog.Warn("failed to deploy environment", "project", projectID, "environment", name, "error", err)
+	}
+
 	return &Environment{
 		ID:         projectID + "/" + name,
 		Name:       name,
@@ -135,7 +154,17 @@ func (c *Client) CreateEnvironment(ctx context.Context, projectID, name, fromEnv
 func (c *Client) DeleteEnvironment(ctx context.Context, projectID, environment string) (bool, error) {
 	ctx = auth.OutgoingContext(ctx)
 
-	_, err := c.Packager.DeleteEnvironment(ctx, &packager.DeleteEnvironmentRequest{
+	// Remove ArgoCD Application first (cascade deletes managed resources)
+	_, err := c.Deployer.RemoveDeployment(ctx, &deployer.RemoveDeploymentRequest{
+		Project:     projectID,
+		Environment: environment,
+	})
+	if err != nil {
+		slog.Warn("failed to remove deployment", "project", projectID, "environment", environment, "error", err)
+	}
+
+	// Then remove from GitOps repo
+	_, err = c.Packager.DeleteEnvironment(ctx, &packager.DeleteEnvironmentRequest{
 		Project:     projectID,
 		Environment: environment,
 	})
@@ -162,6 +191,17 @@ func (c *Client) Promote(ctx context.Context, projectID, service, fromEnv, toEnv
 		Name:     service,
 		ImageTag: resp.ImageTag,
 	}, nil
+}
+
+// namespaceFor derives the K8s namespace from project and environment.
+// "zeitlos/myapp" + "production" → "myapp-production"
+func namespaceFor(project, environment string) string {
+	parts := strings.SplitN(project, "/", 2)
+	name := project
+	if len(parts) == 2 {
+		name = parts[1]
+	}
+	return name + "-" + environment
 }
 
 func projectFromProto(p *packager.ProjectInfo) Project {

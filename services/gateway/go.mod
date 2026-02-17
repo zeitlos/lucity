@@ -5,6 +5,7 @@ go 1.26.0
 replace (
 	github.com/zeitlos/lucity/pkg/auth => ../../pkg/auth
 	github.com/zeitlos/lucity/pkg/builder => ../../pkg/builder
+	github.com/zeitlos/lucity/pkg/deployer => ../../pkg/deployer
 	github.com/zeitlos/lucity/pkg/github => ../../pkg/github
 	github.com/zeitlos/lucity/pkg/graceful => ../../pkg/graceful
 	github.com/zeitlos/lucity/pkg/logger => ../../pkg/logger
@@ -20,6 +21,7 @@ require (
 	github.com/vektah/gqlparser/v2 v2.5.31
 	github.com/zeitlos/lucity/pkg/auth v0.0.0-00010101000000-000000000000
 	github.com/zeitlos/lucity/pkg/builder v0.0.0-00010101000000-000000000000
+	github.com/zeitlos/lucity/pkg/deployer v0.0.0-00010101000000-000000000000
 	github.com/zeitlos/lucity/pkg/github v0.0.0-00010101000000-000000000000
 	github.com/zeitlos/lucity/pkg/graceful v0.0.0-00010101000000-000000000000
 	github.com/zeitlos/lucity/pkg/logger v0.0.0-00010101000000-000000000000

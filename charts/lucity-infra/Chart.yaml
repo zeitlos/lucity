@@ -1,0 +1,12 @@
+apiVersion: v2
+name: lucity-infra
+description: Lucity platform infrastructure — OCI registry (Zot) and Git server (Soft-serve)
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+
+dependencies:
+  - name: zot
+    version: "0.1.98"
+    repository: "http://zotregistry.dev/helm-charts"
+    condition: zot.enabled

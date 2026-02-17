@@ -2,7 +2,12 @@ package gitops
 
 import (
 	"fmt"
+	"io/fs"
+	"os"
+	"path/filepath"
 	"time"
+
+	"github.com/zeitlos/lucity/charts"
 )
 
 // projectYAML generates the project.yaml metadata file content.
@@ -23,7 +28,7 @@ version: 0.1.0
 dependencies:
   - name: lucity-app
     version: "0.1.0"
-    repository: "file://../../charts/lucity-app"
+    repository: "file://../../chart"
 `, project)
 }
 
@@ -34,3 +39,32 @@ const baseValuesYAML = `services: {}
 // environmentValuesYAML generates the per-environment values.yaml override file.
 const environmentValuesYAML = `# Environment-specific overrides
 `
+
+// writeEmbeddedChart writes the embedded lucity-app chart to a "chart/" directory
+// inside the given root directory. Used during GitOps repo initialization so that
+// ArgoCD can resolve the chart dependency locally.
+func writeEmbeddedChart(rootDir string) error {
+	return fs.WalkDir(charts.LucityApp, "lucity-app", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Map "lucity-app/..." to "chart/..."
+		rel, err := filepath.Rel("lucity-app", path)
+		if err != nil {
+			return err
+		}
+		target := filepath.Join(rootDir, "chart", rel)
+
+		if d.IsDir() {
+			return os.MkdirAll(target, 0o755)
+		}
+
+		data, err := fs.ReadFile(charts.LucityApp, path)
+		if err != nil {
+			return fmt.Errorf("failed to read embedded file %s: %w", path, err)
+		}
+
+		return os.WriteFile(target, data, 0o644)
+	})
+}

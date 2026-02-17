@@ -1,0 +1,38 @@
+# Lucity infrastructure chart — Zot (OCI registry) + Soft-serve (Git server)
+
+# -- Zot OCI Registry
+zot:
+  enabled: true
+  service:
+    type: ClusterIP
+    port: 5000
+
+# -- Soft-serve Git Server
+softServe:
+  enabled: true
+  image:
+    repository: charmcli/soft-serve
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    sshPort: 23231
+    httpPort: 23232
+    statsPort: 23233
+    gitPort: 9418
+  persistence:
+    enabled: true
+    size: 5Gi
+    storageClass: ""
+    accessMode: ReadWriteOnce
+  # SSH public key for the initial admin user.
+  # Generate with: ssh-keygen -t ed25519 -f lucity-admin
+  # Then paste the .pub contents here.
+  initialAdminKey: ""
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi

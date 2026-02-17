@@ -1,0 +1,19 @@
+{{- if and .Values.softServe.enabled .Values.softServe.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-soft-serve-data
+  labels:
+    app.kubernetes.io/name: soft-serve
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: git-server
+spec:
+  accessModes:
+    - {{ .Values.softServe.persistence.accessMode }}
+  {{- if .Values.softServe.persistence.storageClass }}
+  storageClassName: {{ .Values.softServe.persistence.storageClass | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.softServe.persistence.size }}
+{{- end }}

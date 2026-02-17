@@ -16,8 +16,6 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-const repoSuffix = "-gitops"
-
 // GitHubProvider implements Provider using GitHub as the git backend.
 // Uses the user's OAuth token for all GitHub API operations.
 type GitHubProvider struct {
@@ -37,12 +35,12 @@ func NewGitHubProvider(token string) *GitHubProvider {
 // CreateRepo creates a GitOps repo in the project's org on GitHub.
 // Project name is org-scoped: "zeitlos/myapp" → creates repo "zeitlos/myapp-gitops".
 func (p *GitHubProvider) CreateRepo(ctx context.Context, project, sourceURL string) (string, error) {
-	org, name, err := splitProject(project)
+	org, name, err := SplitProject(project)
 	if err != nil {
 		return "", err
 	}
 
-	repoName := name + repoSuffix
+	repoName := name + RepoSuffix
 	repoOpts := &gh.Repository{
 		Name:     gh.Ptr(repoName),
 		Private:  gh.Ptr(true),
@@ -83,7 +81,7 @@ func (p *GitHubProvider) Repos(ctx context.Context) ([]ProjectMeta, error) {
 		}
 
 		for _, r := range repos {
-			if !strings.HasSuffix(r.GetName(), repoSuffix) {
+			if !strings.HasSuffix(r.GetName(), RepoSuffix) {
 				continue
 			}
 
@@ -108,12 +106,12 @@ func (p *GitHubProvider) Repos(ctx context.Context) ([]ProjectMeta, error) {
 
 // Repo reads a single project's metadata from its GitOps repo.
 func (p *GitHubProvider) Repo(ctx context.Context, project string) (*ProjectMeta, error) {
-	org, name, err := splitProject(project)
+	org, name, err := SplitProject(project)
 	if err != nil {
 		return nil, err
 	}
 
-	repoName := name + repoSuffix
+	repoName := name + RepoSuffix
 
 	meta, err := p.readProjectMeta(ctx, org, repoName)
 	if err != nil {
@@ -131,12 +129,12 @@ func (p *GitHubProvider) Repo(ctx context.Context, project string) (*ProjectMeta
 
 // DeleteRepo removes a project's GitOps repository from GitHub.
 func (p *GitHubProvider) DeleteRepo(ctx context.Context, project string) error {
-	org, name, err := splitProject(project)
+	org, name, err := SplitProject(project)
 	if err != nil {
 		return err
 	}
 
-	repoName := name + repoSuffix
+	repoName := name + RepoSuffix
 
 	_, err = p.client.Repositories.Delete(ctx, org, repoName)
 	if err != nil {
@@ -149,11 +147,11 @@ func (p *GitHubProvider) DeleteRepo(ctx context.Context, project string) error {
 
 // AddService adds a service definition to the project's base/values.yaml.
 func (p *GitHubProvider) AddService(ctx context.Context, project string, svc ServiceDef) error {
-	org, name, err := splitProject(project)
+	org, name, err := SplitProject(project)
 	if err != nil {
 		return err
 	}
-	repoName := name + repoSuffix
+	repoName := name + RepoSuffix
 
 	values, sha, err := p.readValuesYAML(ctx, org, repoName, "base/values.yaml")
 	if err != nil {
@@ -191,11 +189,11 @@ func (p *GitHubProvider) AddService(ctx context.Context, project string, svc Ser
 
 // RemoveService removes a service definition from the project's base/values.yaml.
 func (p *GitHubProvider) RemoveService(ctx context.Context, project, service string) error {
-	org, name, err := splitProject(project)
+	org, name, err := SplitProject(project)
 	if err != nil {
 		return err
 	}
-	repoName := name + repoSuffix
+	repoName := name + RepoSuffix
 
 	values, sha, err := p.readValuesYAML(ctx, org, repoName, "base/values.yaml")
 	if err != nil {
@@ -225,11 +223,11 @@ func (p *GitHubProvider) RemoveService(ctx context.Context, project, service str
 
 // UpdateImageTag updates the image tag for a service in an environment's values.yaml.
 func (p *GitHubProvider) UpdateImageTag(ctx context.Context, project, environment, service, tag, digest string) error {
-	org, name, err := splitProject(project)
+	org, name, err := SplitProject(project)
 	if err != nil {
 		return err
 	}
-	repoName := name + repoSuffix
+	repoName := name + RepoSuffix
 
 	filePath := fmt.Sprintf("environments/%s/values.yaml", environment)
 	values, sha, err := p.readValuesYAML(ctx, org, repoName, filePath)
@@ -269,11 +267,11 @@ func (p *GitHubProvider) UpdateImageTag(ctx context.Context, project, environmen
 
 // Services reads the services defined in the project's base/values.yaml.
 func (p *GitHubProvider) Services(ctx context.Context, project string) ([]ServiceDef, error) {
-	org, name, err := splitProject(project)
+	org, name, err := SplitProject(project)
 	if err != nil {
 		return nil, err
 	}
-	repoName := name + repoSuffix
+	repoName := name + RepoSuffix
 
 	values, _, err := p.readValuesYAML(ctx, org, repoName, "base/values.yaml")
 	if err != nil {
@@ -441,6 +439,14 @@ func (p *GitHubProvider) initRepoContents(cloneURL, project, sourceURL string) e
 		}
 	}
 
+	// Write the embedded lucity-app chart so ArgoCD can resolve the dependency
+	if err := writeEmbeddedChart(tmpDir); err != nil {
+		return fmt.Errorf("failed to write embedded chart: %w", err)
+	}
+	if _, err := wt.Add("chart"); err != nil {
+		return fmt.Errorf("failed to stage chart: %w", err)
+	}
+
 	_, err = wt.Commit(fmt.Sprintf("init: %s from %s", project, sourceURL), &git.CommitOptions{
 		Author: &object.Signature{
 			Name:  "Lucity",
@@ -467,13 +473,118 @@ func (p *GitHubProvider) initRepoContents(cloneURL, project, sourceURL string) e
 	return nil
 }
 
-// splitProject splits "org/name" into org and name.
-func splitProject(project string) (org, name string, err error) {
-	parts := strings.SplitN(project, "/", 2)
-	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-		return "", "", fmt.Errorf("invalid project name %q: must be org/name", project)
+// CreateEnvironment creates a new environment directory in the GitOps repo.
+func (p *GitHubProvider) CreateEnvironment(ctx context.Context, project, environment, fromEnvironment string) error {
+	org, name, err := SplitProject(project)
+	if err != nil {
+		return err
 	}
-	return parts[0], parts[1], nil
+	repoName := name + RepoSuffix
+
+	var content []byte
+	if fromEnvironment != "" {
+		// Copy values from the source environment
+		srcPath := fmt.Sprintf("environments/%s/values.yaml", fromEnvironment)
+		values, _, err := p.readValuesYAML(ctx, org, repoName, srcPath)
+		if err != nil {
+			return fmt.Errorf("failed to read source environment %s: %w", fromEnvironment, err)
+		}
+		content, err = yaml.Marshal(values)
+		if err != nil {
+			return fmt.Errorf("failed to marshal values: %w", err)
+		}
+	} else {
+		content = []byte(environmentValuesYAML)
+	}
+
+	filePath := fmt.Sprintf("environments/%s/values.yaml", environment)
+	_, _, err = p.client.Repositories.CreateFile(ctx, org, repoName, filePath, &gh.RepositoryContentFileOptions{
+		Message: gh.Ptr(fmt.Sprintf("env(create): %s", environment)),
+		Content: content,
+		Author: &gh.CommitAuthor{
+			Name:  gh.Ptr("Lucity"),
+			Email: gh.Ptr("lucity@localhost"),
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create environment %s: %w", environment, err)
+	}
+
+	slog.Info("created environment in gitops repo", "project", project, "environment", environment)
+	return nil
+}
+
+// DeleteEnvironment removes an environment directory from the GitOps repo.
+func (p *GitHubProvider) DeleteEnvironment(ctx context.Context, project, environment string) error {
+	org, name, err := SplitProject(project)
+	if err != nil {
+		return err
+	}
+	repoName := name + RepoSuffix
+
+	filePath := fmt.Sprintf("environments/%s/values.yaml", environment)
+	content, _, _, err := p.client.Repositories.GetContents(ctx, org, repoName, filePath, nil)
+	if err != nil {
+		return fmt.Errorf("failed to get environment file %s: %w", filePath, err)
+	}
+
+	_, _, err = p.client.Repositories.DeleteFile(ctx, org, repoName, filePath, &gh.RepositoryContentFileOptions{
+		Message: gh.Ptr(fmt.Sprintf("env(delete): %s", environment)),
+		SHA:     gh.Ptr(content.GetSHA()),
+		Author: &gh.CommitAuthor{
+			Name:  gh.Ptr("Lucity"),
+			Email: gh.Ptr("lucity@localhost"),
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to delete environment %s: %w", environment, err)
+	}
+
+	slog.Info("deleted environment from gitops repo", "project", project, "environment", environment)
+	return nil
+}
+
+// Promote copies the image tag for a service from one environment to another.
+func (p *GitHubProvider) Promote(ctx context.Context, project, service, fromEnv, toEnv string) (string, error) {
+	org, name, err := SplitProject(project)
+	if err != nil {
+		return "", err
+	}
+	repoName := name + RepoSuffix
+
+	// Read the source environment's values
+	srcPath := fmt.Sprintf("environments/%s/values.yaml", fromEnv)
+	srcValues, _, err := p.readValuesYAML(ctx, org, repoName, srcPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read source environment %s: %w", fromEnv, err)
+	}
+
+	// Extract the image tag for the service
+	services, ok := srcValues["services"].(map[string]any)
+	if !ok {
+		return "", fmt.Errorf("no services in %s", srcPath)
+	}
+	svcEntry, ok := services[service].(map[string]any)
+	if !ok {
+		return "", fmt.Errorf("service %q not found in %s", service, srcPath)
+	}
+	imageEntry, ok := svcEntry["image"].(map[string]any)
+	if !ok {
+		return "", fmt.Errorf("no image entry for service %q in %s", service, srcPath)
+	}
+	tag, ok := imageEntry["tag"].(string)
+	if !ok || tag == "" {
+		return "", fmt.Errorf("no image tag for service %q in %s", service, srcPath)
+	}
+
+	// Write the tag to the target environment
+	if err := p.UpdateImageTag(ctx, project, toEnv, service, tag, ""); err != nil {
+		return "", fmt.Errorf("failed to promote to %s: %w", toEnv, err)
+	}
+
+	slog.Info("promoted service", "project", project, "service", service,
+		"from", fromEnv, "to", toEnv, "tag", tag)
+	return tag, nil
 }
 
 // projectYAMLData matches the structure of project.yaml for parsing.

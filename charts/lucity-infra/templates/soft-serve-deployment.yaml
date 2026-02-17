@@ -1,0 +1,62 @@
+{{- if .Values.softServe.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-soft-serve
+  labels:
+    app.kubernetes.io/name: soft-serve
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: git-server
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: soft-serve
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: soft-serve
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: git-server
+    spec:
+      containers:
+        - name: soft-serve
+          image: "{{ .Values.softServe.image.repository }}:{{ .Values.softServe.image.tag }}"
+          imagePullPolicy: {{ .Values.softServe.image.pullPolicy }}
+          env:
+            {{- if .Values.softServe.initialAdminKey }}
+            - name: SOFT_SERVE_INITIAL_ADMIN_KEYS
+              value: {{ .Values.softServe.initialAdminKey | quote }}
+            {{- end }}
+          ports:
+            - name: ssh
+              containerPort: 23231
+              protocol: TCP
+            - name: http
+              containerPort: 23232
+              protocol: TCP
+            - name: stats
+              containerPort: 23233
+              protocol: TCP
+            - name: git
+              containerPort: 9418
+              protocol: TCP
+          volumeMounts:
+            - name: data
+              mountPath: /soft-serve
+          {{- with .Values.softServe.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      volumes:
+        - name: data
+          {{- if .Values.softServe.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-soft-serve-data
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+{{- end }}

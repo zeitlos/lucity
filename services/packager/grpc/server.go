@@ -12,15 +12,29 @@ import (
 
 type Server struct {
 	packager.UnimplementedPackagerServiceServer
+	// sharedProvider is used for non-GitHub backends (e.g., Soft-serve)
+	// where the provider does not depend on per-request auth context.
+	sharedProvider gitops.Provider
 }
 
+// NewServer creates a server that uses the GitHub provider (per-request OAuth token).
 func NewServer() *Server {
 	return &Server{}
 }
 
-// provider creates a GitOps provider for the current request using
-// the OAuth token from the JWT claims in context.
+// NewServerWithProvider creates a server that uses a shared provider instance.
+func NewServerWithProvider(provider gitops.Provider) *Server {
+	return &Server{sharedProvider: provider}
+}
+
+// provider returns the GitOps provider for the current request.
+// If a shared provider is configured, it's returned directly.
+// Otherwise, creates a GitHub provider from the JWT claims.
 func (s *Server) provider(ctx context.Context) (gitops.Provider, error) {
+	if s.sharedProvider != nil {
+		return s.sharedProvider, nil
+	}
+
 	claims := auth.FromContext(ctx)
 	if claims == nil {
 		return nil, fmt.Errorf("unauthenticated")
@@ -65,12 +79,12 @@ func (s *Server) ListProjects(ctx context.Context, req *packager.ListProjectsReq
 	var infos []*packager.ProjectInfo
 	for _, proj := range projects {
 		infos = append(infos, &packager.ProjectInfo{
-			Name:         proj.Name,
-			SourceUrl:    proj.SourceURL,
+			Name:          proj.Name,
+			SourceUrl:     proj.SourceURL,
 			GitopsRepoUrl: proj.RepoURL,
-			Environments: proj.Environments,
-			CreatedAt:    proj.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
-			Services:     serviceInfosFromDefs(proj.Services),
+			Environments:  proj.Environments,
+			CreatedAt:     proj.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+			Services:      serviceInfosFromDefs(proj.Services),
 		})
 	}
 
@@ -97,12 +111,12 @@ func (s *Server) GetProject(ctx context.Context, req *packager.GetProjectRequest
 
 	return &packager.GetProjectResponse{
 		Project: &packager.ProjectInfo{
-			Name:         proj.Name,
-			SourceUrl:    proj.SourceURL,
+			Name:          proj.Name,
+			SourceUrl:     proj.SourceURL,
 			GitopsRepoUrl: proj.RepoURL,
-			Environments: proj.Environments,
-			CreatedAt:    proj.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
-			Services:     serviceInfosFromDefs(svcs),
+			Environments:  proj.Environments,
+			CreatedAt:     proj.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+			Services:      serviceInfosFromDefs(svcs),
 		},
 	}, nil
 }
@@ -175,20 +189,51 @@ func (s *Server) UpdateImageTag(ctx context.Context, req *packager.UpdateImageTa
 
 func (s *Server) CreateEnvironment(ctx context.Context, req *packager.CreateEnvironmentRequest) (*packager.CreateEnvironmentResponse, error) {
 	slog.Info("CreateEnvironment called", "project", req.Project, "environment", req.Environment)
+
+	p, err := s.provider(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := p.CreateEnvironment(ctx, req.Project, req.Environment, req.FromEnvironment); err != nil {
+		return nil, fmt.Errorf("failed to create environment: %w", err)
+	}
+
 	return &packager.CreateEnvironmentResponse{
-		Namespace: req.Project + "-" + req.Environment,
+		Namespace: gitops.NamespaceFor(req.Project, req.Environment),
 	}, nil
 }
 
 func (s *Server) DeleteEnvironment(ctx context.Context, req *packager.DeleteEnvironmentRequest) (*packager.DeleteEnvironmentResponse, error) {
 	slog.Info("DeleteEnvironment called", "project", req.Project, "environment", req.Environment)
+
+	p, err := s.provider(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := p.DeleteEnvironment(ctx, req.Project, req.Environment); err != nil {
+		return nil, fmt.Errorf("failed to delete environment: %w", err)
+	}
+
 	return &packager.DeleteEnvironmentResponse{}, nil
 }
 
 func (s *Server) Promote(ctx context.Context, req *packager.PromoteRequest) (*packager.PromoteResponse, error) {
 	slog.Info("Promote called", "project", req.Project, "service", req.Service, "from", req.FromEnvironment, "to", req.ToEnvironment)
+
+	p, err := s.provider(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	imageTag, err := p.Promote(ctx, req.Project, req.Service, req.FromEnvironment, req.ToEnvironment)
+	if err != nil {
+		return nil, fmt.Errorf("failed to promote: %w", err)
+	}
+
 	return &packager.PromoteResponse{
-		ImageTag: "promoted-tag",
+		ImageTag: imageTag,
 	}, nil
 }
 

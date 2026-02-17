@@ -1,0 +1,11 @@
+# Lucity infrastructure values for minikube
+
+zot:
+  persistence:
+    enabled: true
+    size: 5Gi
+
+softServe:
+  persistence:
+    size: 2Gi
+  initialAdminKey: "" # TODO: set to your admin SSH public key

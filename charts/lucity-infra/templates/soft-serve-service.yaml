@@ -1,0 +1,32 @@
+{{- if .Values.softServe.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-soft-serve
+  labels:
+    app.kubernetes.io/name: soft-serve
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: git-server
+spec:
+  type: {{ .Values.softServe.service.type }}
+  ports:
+    - name: ssh
+      port: {{ .Values.softServe.service.sshPort }}
+      targetPort: ssh
+      protocol: TCP
+    - name: http
+      port: {{ .Values.softServe.service.httpPort }}
+      targetPort: http
+      protocol: TCP
+    - name: stats
+      port: {{ .Values.softServe.service.statsPort }}
+      targetPort: stats
+      protocol: TCP
+    - name: git
+      port: {{ .Values.softServe.service.gitPort }}
+      targetPort: git
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: soft-serve
+    app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}

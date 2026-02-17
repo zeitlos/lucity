@@ -9,6 +9,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/zeitlos/lucity/pkg/builder"
+	"github.com/zeitlos/lucity/pkg/deployer"
 	gh "github.com/zeitlos/lucity/pkg/github"
 	"github.com/zeitlos/lucity/pkg/graceful"
 	"github.com/zeitlos/lucity/pkg/logger"
@@ -35,6 +36,7 @@ type Config struct {
 	// Backend services
 	BuilderAddr  string `envconfig:"BUILDER_ADDR" default:"localhost:9001"`
 	PackagerAddr string `envconfig:"PACKAGER_ADDR" default:"localhost:9002"`
+	DeployerAddr string `envconfig:"DEPLOYER_ADDR" default:"localhost:9003"`
 
 	// Registry
 	RegistryURL string `envconfig:"REGISTRY_URL" default:"ghcr.io"`
@@ -89,7 +91,19 @@ func main() {
 
 	packagerClient := packager.NewPackagerServiceClient(packagerConn)
 
-	api := handler.New(packagerClient, builderClient, config.RegistryURL)
+	// Connect to deployer
+	deployerConn, err := grpc.NewClient(config.DeployerAddr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	if err != nil {
+		slog.Error("failed to connect to deployer", "error", err, "addr", config.DeployerAddr)
+		os.Exit(1)
+	}
+	defer deployerConn.Close()
+
+	deployerClient := deployer.NewDeployerServiceClient(deployerConn)
+
+	api := handler.New(packagerClient, builderClient, deployerClient, config.RegistryURL)
 	graphqlServer := NewGraphQLServer(config.Port, api, githubApp, config.JWTSecret, config.DashboardURL)
 
 	graceful.Serve(ctx, graphqlServer)

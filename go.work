@@ -1,6 +1,7 @@
 go 1.26.0
 
 use (
+	./charts
 	./pkg/auth
 	./pkg/builder
 	./pkg/deployer

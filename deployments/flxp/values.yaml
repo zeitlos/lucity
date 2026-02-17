@@ -1,0 +1,13 @@
+# Lucity infrastructure values for flxp cluster
+
+zot:
+  persistence:
+    enabled: true
+    size: 20Gi
+    storageClassName: longhorn
+
+softServe:
+  persistence:
+    size: 10Gi
+    storageClass: longhorn
+  initialAdminKey: "" # TODO: set to your admin SSH public key

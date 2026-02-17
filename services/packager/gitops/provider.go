@@ -2,8 +2,13 @@ package gitops
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"time"
 )
+
+// RepoSuffix is appended to project names to form GitOps repo names.
+const RepoSuffix = "-gitops"
 
 // ServiceDef describes a service configured in the project's GitOps repo.
 type ServiceDef struct {
@@ -41,6 +46,17 @@ type Provider interface {
 
 	// Services reads the services defined in the project's base/values.yaml.
 	Services(ctx context.Context, project string) ([]ServiceDef, error)
+
+	// CreateEnvironment creates a new environment directory with values.yaml
+	// in the GitOps repo. If fromEnvironment is set, copies its values as a starting point.
+	CreateEnvironment(ctx context.Context, project, environment, fromEnvironment string) error
+
+	// DeleteEnvironment removes an environment directory from the GitOps repo.
+	DeleteEnvironment(ctx context.Context, project, environment string) error
+
+	// Promote copies the image tag for a service from one environment to another.
+	// Returns the promoted image tag.
+	Promote(ctx context.Context, project, service, fromEnv, toEnv string) (imageTag string, err error)
 }
 
 // ProjectMeta holds metadata about a project, read from its GitOps repo.
@@ -51,4 +67,23 @@ type ProjectMeta struct {
 	Environments []string
 	Services     []ServiceDef
 	CreatedAt    time.Time
+}
+
+// SplitProject splits "org/name" into org and name.
+func SplitProject(project string) (org, name string, err error) {
+	parts := strings.SplitN(project, "/", 2)
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		return "", "", fmt.Errorf("invalid project name %q: must be org/name", project)
+	}
+	return parts[0], parts[1], nil
+}
+
+// NamespaceFor derives the K8s namespace from a project and environment name.
+// "zeitlos/myapp" + "production" → "myapp-production"
+func NamespaceFor(project, environment string) string {
+	_, name, err := SplitProject(project)
+	if err != nil {
+		return project + "-" + environment
+	}
+	return name + "-" + environment
 }

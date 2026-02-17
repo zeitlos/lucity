@@ -1,4 +1,4 @@
-.PHONY: build proto dev dev-gateway dev-builder dev-packager dev-deployer dev-webhook dev-dashboard dev-logs dev-stop generate-graphql lint test-integration test-integration-short
+.PHONY: build proto dev dev-gateway dev-builder dev-packager dev-deployer dev-webhook dev-dashboard dev-logs dev-stop generate-graphql lint test-integration test-integration-short infra infra-down
 
 # Build all Go services
 build:
@@ -67,6 +67,28 @@ test-integration:
 
 test-integration-short:
 	cd tests && go test -v -count=1 -short ./...
+
+# Deploy infrastructure (Zot + Soft-serve) to a cluster
+# Usage: make infra CLUSTER=flxp
+CLUSTER ?= minikube
+infra:
+	helm dependency update charts/lucity-infra
+	helm upgrade --install lucity-infra charts/lucity-infra \
+		-n lucity-system --create-namespace \
+		-f deployments/$(CLUSTER)/values.yaml
+
+infra-down:
+	helm uninstall lucity-infra -n lucity-system
+
+# Port-forward infrastructure services for local development
+infra-forward:
+	@echo "Port-forwarding Zot (5000) and Soft-serve (23231, 23232)..."
+	@kubectl port-forward svc/lucity-infra-zot 5000:5000 -n lucity-system &
+	@kubectl port-forward svc/lucity-infra-soft-serve 23231:23231 23232:23232 -n lucity-system &
+	@echo "Ready. Use 'make infra-forward-stop' to stop."
+
+infra-forward-stop:
+	@lsof -ti :5000 :23231 :23232 | xargs kill 2>/dev/null || true
 
 # Sync workspace
 sync:
