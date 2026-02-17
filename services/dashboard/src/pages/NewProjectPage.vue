@@ -58,19 +58,19 @@ async function handleCreate() {
         <ArrowLeft :size="16" class="mr-2" />
         Back to Projects
       </Button>
-      <h1 class="text-2xl font-semibold text-gray-900">New Project</h1>
-      <p class="mt-1 text-sm text-gray-500">
+      <h1 class="text-2xl font-semibold text-foreground">New Project</h1>
+      <p class="mt-1 text-sm text-muted-foreground">
         Select a repository to create a project from.
       </p>
     </div>
 
     <!-- Selected repo confirmation -->
     <div v-if="selectedRepo" class="mb-8">
-      <Card class="border-blue-200 bg-blue-50">
+      <Card class="border-primary/30 bg-primary/10">
         <CardContent class="flex items-center justify-between pt-6">
           <div>
-            <p class="text-sm text-gray-500">Creating project from</p>
-            <p class="font-medium text-gray-900">{{ selectedRepo.fullName }}</p>
+            <p class="text-sm text-muted-foreground">Creating project from</p>
+            <p class="font-medium text-foreground">{{ selectedRepo.fullName }}</p>
           </div>
           <div class="flex gap-2">
             <Button variant="outline" size="sm" @click="selectedRepo = null">
@@ -90,7 +90,7 @@ async function handleCreate() {
 
     <!-- Search -->
     <div v-if="!selectedRepo" class="relative mb-6">
-      <Search :size="16" class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+      <Search :size="16" class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
       <Input
         v-model="search"
         placeholder="Search repositories..."
@@ -113,7 +113,7 @@ async function handleCreate() {
     <!-- Error -->
     <div
       v-else-if="error && !selectedRepo"
-      class="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700"
+      class="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive"
     >
       Failed to load repositories: {{ error.message }}
     </div>
@@ -131,12 +131,12 @@ async function handleCreate() {
       >
         <CardHeader class="pb-2">
           <CardTitle class="flex items-center gap-2 text-base">
-            <component :is="repo.private ? Lock : Globe" :size="14" class="text-gray-400" />
+            <component :is="repo.private ? Lock : Globe" :size="14" class="text-muted-foreground" />
             {{ repo.name }}
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p class="text-sm text-gray-500">{{ repo.fullName }}</p>
+          <p class="text-sm text-muted-foreground">{{ repo.fullName }}</p>
           <div class="mt-2 flex items-center gap-2">
             <Badge variant="outline">{{ repo.defaultBranch }}</Badge>
             <Badge v-if="repo.private" variant="secondary">Private</Badge>
@@ -146,7 +146,7 @@ async function handleCreate() {
 
       <div
         v-if="filteredRepos.length === 0"
-        class="col-span-full py-12 text-center text-gray-500"
+        class="col-span-full py-12 text-center text-muted-foreground"
       >
         No repositories found{{ search ? ' matching your search' : '' }}.
       </div>

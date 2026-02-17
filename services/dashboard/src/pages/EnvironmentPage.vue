@@ -48,7 +48,7 @@ function syncStatusVariant(status: string) {
       <Skeleton class="h-48 w-full" />
     </div>
 
-    <div v-else-if="error" class="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+    <div v-else-if="error" class="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
       Failed to load environment: {{ error.message }}
     </div>
 
@@ -56,26 +56,26 @@ function syncStatusVariant(status: string) {
       <div class="mb-6">
         <RouterLink
           :to="{ name: 'project', params: { id: project.id } }"
-          class="mb-4 inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
+          class="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft :size="14" />
           {{ project.name }}
         </RouterLink>
 
         <div class="flex items-center gap-3">
-          <GitBranch :size="20" class="text-gray-400" />
-          <h1 class="text-2xl font-semibold text-gray-900">{{ environment.name }}</h1>
+          <GitBranch :size="20" class="text-muted-foreground" />
+          <h1 class="text-2xl font-semibold text-foreground">{{ environment.name }}</h1>
           <Badge :variant="syncStatusVariant(environment.syncStatus)">
             {{ environment.syncStatus }}
           </Badge>
         </div>
-        <p class="mt-1 text-sm text-gray-500">
+        <p class="mt-1 text-sm text-muted-foreground">
           Namespace: <span class="font-mono">{{ environment.namespace }}</span>
         </p>
       </div>
 
       <section>
-        <h2 class="mb-4 text-lg font-medium text-gray-900">Deployed Services</h2>
+        <h2 class="mb-4 text-lg font-medium text-foreground">Deployed Services</h2>
         <Card>
           <Table>
             <TableHeader>

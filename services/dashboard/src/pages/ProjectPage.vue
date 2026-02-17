@@ -48,7 +48,7 @@ function syncStatusVariant(status: string) {
       </div>
     </div>
 
-    <div v-else-if="error" class="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+    <div v-else-if="error" class="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
       Failed to load project: {{ error.message }}
     </div>
 
@@ -56,18 +56,18 @@ function syncStatusVariant(status: string) {
       <div class="mb-6">
         <RouterLink
           :to="{ name: 'projects' }"
-          class="mb-4 inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
+          class="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft :size="14" />
           Projects
         </RouterLink>
-        <h1 class="text-2xl font-semibold text-gray-900">{{ project.name }}</h1>
-        <p class="mt-1 text-sm text-gray-500">{{ project.sourceUrl }}</p>
+        <h1 class="text-2xl font-semibold text-foreground">{{ project.name }}</h1>
+        <p class="mt-1 text-sm text-muted-foreground">{{ project.sourceUrl }}</p>
       </div>
 
       <div class="space-y-8">
         <section>
-          <h2 class="mb-4 text-lg font-medium text-gray-900">Environments</h2>
+          <h2 class="mb-4 text-lg font-medium text-foreground">Environments</h2>
           <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             <RouterLink
               v-for="env in project.environments"
@@ -91,7 +91,7 @@ function syncStatusVariant(status: string) {
                   <CardDescription>{{ env.namespace }}</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <p class="text-xs text-gray-400">
+                  <p class="text-xs text-muted-foreground">
                     {{ env.services.length }} service{{ env.services.length !== 1 ? 's' : '' }} deployed
                   </p>
                 </CardContent>
@@ -103,7 +103,7 @@ function syncStatusVariant(status: string) {
         <Separator />
 
         <section>
-          <h2 class="mb-4 text-lg font-medium text-gray-900">Services</h2>
+          <h2 class="mb-4 text-lg font-medium text-foreground">Services</h2>
           <Card>
             <Table>
               <TableHeader>
@@ -122,7 +122,7 @@ function syncStatusVariant(status: string) {
                       {{ svc.name }}
                     </div>
                   </TableCell>
-                  <TableCell class="font-mono text-sm text-gray-500">{{ svc.image }}</TableCell>
+                  <TableCell class="font-mono text-sm text-muted-foreground">{{ svc.image }}</TableCell>
                   <TableCell>{{ svc.port || '—' }}</TableCell>
                   <TableCell>
                     <Badge :variant="svc.public ? 'default' : 'secondary'">

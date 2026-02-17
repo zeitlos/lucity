@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
-import { LayoutDashboard, Settings, LogOut } from 'lucide-vue-next';
+import { LayoutDashboard, Settings, LogOut, Sun, Moon } from 'lucide-vue-next';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/composables/useAuth';
+import { useTheme } from '@/composables/useTheme';
 
 const route = useRoute();
 const router = useRouter();
 const { user, logout } = useAuth();
+const { theme, toggleTheme } = useTheme();
 
 const navItems = [
   { label: 'Projects', route: '/', icon: LayoutDashboard },
@@ -26,10 +28,10 @@ async function handleLogout() {
 
 <template>
   <div class="flex min-h-screen">
-    <aside class="flex w-64 flex-col border-r bg-white px-4 py-6">
+    <aside class="flex w-64 flex-col border-r border-sidebar-border bg-sidebar px-4 py-6">
       <div class="mb-8 px-2">
-        <h1 class="text-xl font-bold text-gray-900">Lucity</h1>
-        <p class="text-xs text-gray-500">PaaS Dashboard</p>
+        <h1 class="text-xl font-bold text-sidebar-foreground">Lucity</h1>
+        <p class="text-xs text-muted-foreground">PaaS Dashboard</p>
       </div>
 
       <nav class="flex-1 space-y-1">
@@ -40,8 +42,8 @@ async function handleLogout() {
           :class="cn(
             'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
             isActive(item.route)
-              ? 'bg-gray-100 text-gray-900'
-              : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+              ? 'bg-sidebar-accent text-sidebar-foreground'
+              : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground'
           )"
         >
           <component :is="item.icon" :size="18" />
@@ -49,9 +51,20 @@ async function handleLogout() {
         </RouterLink>
       </nav>
 
+      <div class="border-t border-sidebar-border pt-4">
+        <button
+          class="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+          @click="toggleTheme"
+        >
+          <Sun v-if="theme === 'dark'" :size="18" />
+          <Moon v-else :size="18" />
+          {{ theme === 'dark' ? 'Light Mode' : 'Dark Mode' }}
+        </button>
+      </div>
+
       <div
         v-if="user"
-        class="border-t pt-4"
+        class="border-t border-sidebar-border pt-4"
       >
         <div class="flex items-center gap-3 px-2">
           <img
@@ -60,15 +73,15 @@ async function handleLogout() {
             class="h-8 w-8 rounded-full"
           >
           <div class="min-w-0 flex-1">
-            <p class="truncate text-sm font-medium text-gray-900">
+            <p class="truncate text-sm font-medium text-sidebar-foreground">
               {{ user.name || user.login }}
             </p>
-            <p class="truncate text-xs text-gray-500">
+            <p class="truncate text-xs text-muted-foreground">
               {{ user.login }}
             </p>
           </div>
           <button
-            class="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+            class="rounded p-1 text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground"
             title="Sign out"
             @click="handleLogout"
           >
@@ -78,7 +91,7 @@ async function handleLogout() {
       </div>
     </aside>
 
-    <main class="flex-1 bg-gray-50">
+    <main class="flex-1 bg-background">
       <RouterView />
     </main>
   </div>

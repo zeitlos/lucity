@@ -25,8 +25,8 @@ function syncStatusVariant(status: string) {
   <div class="p-8">
     <div class="mb-8 flex items-center justify-between">
       <div>
-        <h1 class="text-2xl font-semibold text-gray-900">Projects</h1>
-        <p class="mt-1 text-sm text-gray-500">Your deployed applications.</p>
+        <h1 class="text-2xl font-semibold text-foreground">Projects</h1>
+        <p class="mt-1 text-sm text-muted-foreground">Your deployed applications.</p>
       </div>
       <RouterLink :to="{ name: 'new-project' }">
         <Button>
@@ -49,7 +49,7 @@ function syncStatusVariant(status: string) {
       </Card>
     </div>
 
-    <div v-else-if="error" class="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+    <div v-else-if="error" class="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
       Failed to load projects: {{ error.message }}
     </div>
 
@@ -79,7 +79,7 @@ function syncStatusVariant(status: string) {
                 {{ env.name }}
               </Badge>
             </div>
-            <p class="mt-3 text-xs text-gray-400">
+            <p class="mt-3 text-xs text-muted-foreground">
               {{ project.environments.length }} environment{{ project.environments.length !== 1 ? 's' : '' }}
             </p>
           </CardContent>
