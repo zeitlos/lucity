@@ -22,8 +22,8 @@ const emits = defineEmits<{
   (e: 'init-api', api: CarouselApi): void;
 }>();
 
-const carouselOptions = ref({ ...props.opts, axis: props.orientation === 'horizontal' ? 'x' : 'y' } as Parameters<typeof useEmblaCarousel>[0]);
-const [emblaNode, emblaApi] = useEmblaCarousel(carouselOptions, props.plugins);
+const carouselOptions = ref({ ...props.opts, axis: props.orientation === 'horizontal' ? 'x' : 'y' });
+const [emblaNode, emblaApi] = useEmblaCarousel(carouselOptions as Parameters<typeof useEmblaCarousel>[0], props.plugins);
 const canScrollPrev = ref(false);
 const canScrollNext = ref(false);
 

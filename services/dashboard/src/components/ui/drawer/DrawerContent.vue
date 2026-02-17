@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import type { HTMLAttributes } from 'vue';
-import { type DrawerContentProps, DrawerContent, DrawerOverlay, DrawerPortal } from 'vaul-vue';
+import { DrawerContent, DrawerOverlay, DrawerPortal } from 'vaul-vue';
 import { cn } from '@/lib/utils';
 
-const props = defineProps<DrawerContentProps & { class?: HTMLAttributes['class'] }>();
+const props = defineProps<{ class?: HTMLAttributes['class'] }>();
 </script>
 
 <template>

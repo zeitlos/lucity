@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { HTMLAttributes } from 'vue';
-import { MenubarContent, type MenubarContentEmits, type MenubarContentProps, MenubarPortal, useForwardPropsEmits } from 'reka-ui';
+import { MenubarContent, type MenubarContentProps, MenubarPortal, useForwardProps } from 'reka-ui';
 import { cn } from '@/lib/utils';
 
 const props = withDefaults(defineProps<MenubarContentProps & { class?: HTMLAttributes['class'] }>(), {
@@ -8,9 +8,8 @@ const props = withDefaults(defineProps<MenubarContentProps & { class?: HTMLAttri
   alignOffset: -4,
   sideOffset: 8,
 });
-const emits = defineEmits<MenubarContentEmits>();
 
-const forwarded = useForwardPropsEmits(props, emits);
+const forwarded = useForwardProps(props);
 </script>
 
 <template>
