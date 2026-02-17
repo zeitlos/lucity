@@ -22,7 +22,9 @@ type BuildOpts struct {
 	RepoPath    string // cloned source directory
 	ImageName   string // full registry path with tag
 	ContextPath string // subdirectory within repo, empty = root
-	Token       string // OAuth token for registry push auth
+	Token       string // registry push auth token
+	SourceURL   string // source repository URL (e.g., https://github.com/user/repo)
+	GitSHA      string // full git commit SHA
 }
 
 // Engine abstracts the build backend.

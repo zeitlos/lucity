@@ -107,14 +107,25 @@ func (e *LocalEngine) Build(ctx context.Context, opts BuildOpts) (*BuildResult, 
 	// (which runs on the host and respects DOCKER_CONFIG), we get reliable auth.
 	slog.Info("building image with railpack frontend", "image", opts.ImageName, "dir", buildDir)
 
-	buildCmd := exec.CommandContext(ctx, "docker", "buildx", "build",
+	args := []string{"buildx", "build",
 		"--build-arg", "BUILDKIT_SYNTAX=ghcr.io/railwayapp/railpack-frontend",
 		"-f", planFile,
 		"--tag", opts.ImageName,
 		"--load",
 		"--progress", "plain",
-		buildDir,
-	)
+	}
+
+	// OCI image labels — links the GHCR package to the source repo
+	if opts.SourceURL != "" {
+		args = append(args, "--label", "org.opencontainers.image.source="+opts.SourceURL)
+	}
+	if opts.GitSHA != "" {
+		args = append(args, "--label", "org.opencontainers.image.revision="+opts.GitSHA)
+	}
+
+	args = append(args, buildDir)
+
+	buildCmd := exec.CommandContext(ctx, "docker", args...)
 	buildCmd.Dir = buildDir
 
 	buildOutput, err := buildCmd.CombinedOutput()

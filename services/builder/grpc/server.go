@@ -122,8 +122,12 @@ func (s *Server) runBuild(buildID, token string, req *builder.StartBuildRequest)
 	}
 	defer os.RemoveAll(repoPath)
 
-	// Get short SHA for the image tag
-	tag := shortSHA(repoPath)
+	// Get git SHA for the image tag and OCI labels
+	full := fullSHA(repoPath)
+	tag := full
+	if len(tag) >= 7 {
+		tag = tag[:7]
+	}
 	imageName := req.Registry + ":" + tag
 
 	// Build + push (use registry token for GHCR push — GitHub App OAuth tokens can't push to GHCR)
@@ -133,6 +137,8 @@ func (s *Server) runBuild(buildID, token string, req *builder.StartBuildRequest)
 		ImageName:   imageName,
 		ContextPath: req.ContextPath,
 		Token:       s.registryToken,
+		SourceURL:   req.SourceUrl,
+		GitSHA:      full,
 	})
 	if err != nil {
 		s.tracker.Fail(buildID, fmt.Sprintf("build failed: %v", err))
@@ -170,8 +176,8 @@ func (s *Server) cloneRepo(ctx context.Context, sourceURL, gitRef, token string)
 	return tmpDir, nil
 }
 
-// shortSHA returns the short git SHA of HEAD in the given repo path.
-func shortSHA(repoPath string) string {
+// fullSHA returns the full git SHA of HEAD in the given repo path.
+func fullSHA(repoPath string) string {
 	repo, err := git.PlainOpen(repoPath)
 	if err != nil {
 		return "latest"
@@ -180,9 +186,5 @@ func shortSHA(repoPath string) string {
 	if err != nil {
 		return "latest"
 	}
-	hash := head.Hash().String()
-	if len(hash) >= 7 {
-		return hash[:7]
-	}
-	return hash
+	return head.Hash().String()
 }
