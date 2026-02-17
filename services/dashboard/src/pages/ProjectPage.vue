@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import { useRoute, RouterLink } from 'vue-router';
 import { useQuery } from '@vue/apollo-composable';
-import { ArrowLeft, GitBranch, Container, Globe, Lock } from 'lucide-vue-next';
+import { ArrowLeft, GitBranch, Container, Globe, Lock, Layers } from 'lucide-vue-next';
 import { ProjectQuery } from '@/graphql/projects';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -15,7 +15,9 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TableEmpty,
 } from '@/components/ui/table';
+import EmptyState from '@/components/EmptyState.vue';
 
 const route = useRoute();
 const projectId = computed(() => route.params.id as string);
@@ -68,7 +70,13 @@ function syncStatusVariant(status: string) {
       <div class="space-y-8">
         <section>
           <h2 class="mb-4 text-lg font-medium text-foreground">Environments</h2>
-          <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <EmptyState
+            v-if="project.environments.length === 0"
+            :icon="GitBranch"
+            title="No environments"
+            description="Environments will appear here once the project is deployed."
+          />
+          <div v-else class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             <RouterLink
               v-for="env in project.environments"
               :key="env.id"
@@ -115,22 +123,33 @@ function syncStatusVariant(status: string) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                <TableRow v-for="svc in project.services" :key="svc.name">
-                  <TableCell class="font-medium">
-                    <div class="flex items-center gap-2">
-                      <Container :size="14" />
-                      {{ svc.name }}
+                <template v-if="project.services.length === 0">
+                  <TableEmpty :colspan="4">
+                    <div class="flex flex-col items-center py-6">
+                      <Layers :size="24" class="mb-2 text-muted-foreground" />
+                      <p>No services configured yet.</p>
+                      <p class="mt-1 text-xs">Services will appear once detected from your repository.</p>
                     </div>
-                  </TableCell>
-                  <TableCell class="font-mono text-sm text-muted-foreground">{{ svc.image }}</TableCell>
-                  <TableCell>{{ svc.port || '—' }}</TableCell>
-                  <TableCell>
-                    <Badge :variant="svc.public ? 'default' : 'secondary'">
-                      <component :is="svc.public ? Globe : Lock" :size="12" class="mr-1" />
-                      {{ svc.public ? 'Public' : 'Private' }}
-                    </Badge>
-                  </TableCell>
-                </TableRow>
+                  </TableEmpty>
+                </template>
+                <template v-else>
+                  <TableRow v-for="svc in project.services" :key="svc.name">
+                    <TableCell class="font-medium">
+                      <div class="flex items-center gap-2">
+                        <Container :size="14" />
+                        {{ svc.name }}
+                      </div>
+                    </TableCell>
+                    <TableCell class="font-mono text-sm text-muted-foreground">{{ svc.image }}</TableCell>
+                    <TableCell>{{ svc.port || '—' }}</TableCell>
+                    <TableCell>
+                      <Badge :variant="svc.public ? 'default' : 'secondary'">
+                        <component :is="svc.public ? Globe : Lock" :size="12" class="mr-1" />
+                        {{ svc.public ? 'Public' : 'Private' }}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                </template>
               </TableBody>
             </Table>
           </Card>

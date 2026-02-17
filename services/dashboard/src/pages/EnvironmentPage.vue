@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import { useRoute, RouterLink } from 'vue-router';
 import { useQuery } from '@vue/apollo-composable';
-import { ArrowLeft, GitBranch, CheckCircle, XCircle } from 'lucide-vue-next';
+import { ArrowLeft, GitBranch, CheckCircle, XCircle, Container } from 'lucide-vue-next';
 import { ProjectQuery } from '@/graphql/projects';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -14,6 +14,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TableEmpty,
 } from '@/components/ui/table';
 
 const route = useRoute();
@@ -87,23 +88,34 @@ function syncStatusVariant(status: string) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              <TableRow v-for="svc in environment.services" :key="svc.name">
-                <TableCell class="font-medium">{{ svc.name }}</TableCell>
-                <TableCell>
-                  <Badge variant="outline" class="font-mono">{{ svc.imageTag }}</Badge>
-                </TableCell>
-                <TableCell>{{ svc.replicas }}</TableCell>
-                <TableCell>
-                  <div class="flex items-center gap-2">
-                    <component
-                      :is="svc.ready ? CheckCircle : XCircle"
-                      :size="16"
-                      :class="svc.ready ? 'text-green-500' : 'text-red-500'"
-                    />
-                    {{ svc.ready ? 'Ready' : 'Not Ready' }}
+              <template v-if="environment.services.length === 0">
+                <TableEmpty :colspan="4">
+                  <div class="flex flex-col items-center py-6">
+                    <Container :size="24" class="mb-2 text-muted-foreground" />
+                    <p>No services deployed yet.</p>
+                    <p class="mt-1 text-xs">Services will appear here after the first deployment.</p>
                   </div>
-                </TableCell>
-              </TableRow>
+                </TableEmpty>
+              </template>
+              <template v-else>
+                <TableRow v-for="svc in environment.services" :key="svc.name">
+                  <TableCell class="font-medium">{{ svc.name }}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline" class="font-mono">{{ svc.imageTag }}</Badge>
+                  </TableCell>
+                  <TableCell>{{ svc.replicas }}</TableCell>
+                  <TableCell>
+                    <div class="flex items-center gap-2">
+                      <component
+                        :is="svc.ready ? CheckCircle : XCircle"
+                        :size="16"
+                        :class="svc.ready ? 'text-green-500' : 'text-red-500'"
+                      />
+                      {{ svc.ready ? 'Ready' : 'Not Ready' }}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              </template>
             </TableBody>
           </Table>
         </Card>

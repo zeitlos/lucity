@@ -8,6 +8,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import EmptyState from '@/components/EmptyState.vue';
 
 const { result, loading, error } = useQuery(ProjectsQuery);
 
@@ -56,24 +57,21 @@ function syncStatusVariant(status: string) {
       Failed to load projects: {{ error.message }}
     </div>
 
-    <div
+    <EmptyState
       v-else-if="projects.length === 0"
-      class="flex flex-col items-center justify-center rounded-lg border border-dashed border-gray-300 py-20"
+      :icon="FolderGit2"
+      title="No projects yet"
+      description="Get started by connecting a GitHub repository."
     >
-      <div class="mb-4 rounded-full bg-gray-100 p-4">
-        <FolderGit2 :size="32" class="text-gray-400" />
-      </div>
-      <h2 class="text-lg font-medium text-gray-900">No projects yet</h2>
-      <p class="mt-1 mb-6 text-sm text-gray-500">
-        Get started by connecting a GitHub repository.
-      </p>
-      <RouterLink :to="{ name: 'new-project' }">
-        <Button>
-          <Plus :size="16" class="mr-2" />
-          New Project
-        </Button>
-      </RouterLink>
-    </div>
+      <template #action>
+        <RouterLink :to="{ name: 'new-project' }">
+          <Button>
+            <Plus :size="16" class="mr-2" />
+            New Project
+          </Button>
+        </RouterLink>
+      </template>
+    </EmptyState>
 
     <div v-else class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
       <RouterLink

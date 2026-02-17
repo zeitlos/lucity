@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useQuery, useMutation } from '@vue/apollo-composable';
-import { ArrowLeft, Lock, Globe, Search } from 'lucide-vue-next';
+import { ArrowLeft, Lock, Globe, Search, FolderGit2 } from 'lucide-vue-next';
 import { GitHubRepositoriesQuery } from '@/graphql/github';
 import { CreateProjectMutation } from '@/graphql/projects';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import EmptyState from '@/components/EmptyState.vue';
 
 const router = useRouter();
 
@@ -144,11 +145,19 @@ async function handleCreate() {
         </CardContent>
       </Card>
 
-      <div
-        v-if="filteredRepos.length === 0"
-        class="col-span-full py-12 text-center text-muted-foreground"
-      >
-        No repositories found{{ search ? ' matching your search' : '' }}.
+      <div v-if="filteredRepos.length === 0" class="col-span-full">
+        <EmptyState
+          v-if="search"
+          :icon="Search"
+          title="No results"
+          :description="`No repositories matching &quot;${search}&quot;.`"
+        />
+        <EmptyState
+          v-else
+          :icon="FolderGit2"
+          title="No repositories found"
+          description="Make sure the Lucity GitHub App is installed and has access to your repositories."
+        />
       </div>
     </div>
   </div>
