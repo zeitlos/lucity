@@ -21,19 +21,21 @@ import (
 // Server implements the BuilderService gRPC API.
 type Server struct {
 	builder.UnimplementedBuilderServiceServer
-	engine      engine.Engine
-	tracker     *build.Tracker
-	registryURL string
-	workDir     string
+	engine        engine.Engine
+	tracker       *build.Tracker
+	registryURL   string
+	registryToken string
+	workDir       string
 }
 
 // NewServer creates a new builder gRPC server.
-func NewServer(eng engine.Engine, registryURL, workDir string) *Server {
+func NewServer(eng engine.Engine, registryURL, registryToken, workDir string) *Server {
 	return &Server{
-		engine:      eng,
-		tracker:     build.NewTracker(),
-		registryURL: registryURL,
-		workDir:     workDir,
+		engine:        eng,
+		tracker:       build.NewTracker(),
+		registryURL:   registryURL,
+		registryToken: registryToken,
+		workDir:       workDir,
 	}
 }
 
@@ -124,13 +126,13 @@ func (s *Server) runBuild(buildID, token string, req *builder.StartBuildRequest)
 	tag := shortSHA(repoPath)
 	imageName := req.Registry + ":" + tag
 
-	// Build + push
+	// Build + push (use registry token for GHCR push — GitHub App OAuth tokens can't push to GHCR)
 	s.tracker.Update(buildID, builder.BuildPhase_BUILD_PHASE_BUILDING)
 	result, err := s.engine.Build(ctx, engine.BuildOpts{
 		RepoPath:    repoPath,
 		ImageName:   imageName,
 		ContextPath: req.ContextPath,
-		Token:       token,
+		Token:       s.registryToken,
 	})
 	if err != nil {
 		s.tracker.Fail(buildID, fmt.Sprintf("build failed: %v", err))

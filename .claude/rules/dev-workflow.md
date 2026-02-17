@@ -114,18 +114,19 @@ cp services/gateway/.env.example services/gateway/.env
 **Services with required env vars (no defaults):**
 
 - **Gateway**: `GITHUB_APP_ID`, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `JWT_SECRET`
+- **Builder**: `JWT_SECRET`, `REGISTRY_TOKEN`
 - **Packager**: `JWT_SECRET`
 
 **Services with only optional/defaulted vars:**
 
-- **Builder** (port 9001), **Deployer** (port 9003), **Webhook** (port 9004) — work without any `.env` file
+- **Deployer** (port 9003), **Webhook** (port 9004) — work without any `.env` file
 
 ## Service Quick Reference
 
 | Service | Port | Protocol | Verify | Required Env |
 |---------|------|----------|--------|-------------|
 | Gateway | 8080 | HTTP | `curl -sf localhost:8080/health` | GITHUB_APP_ID, GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, JWT_SECRET |
-| Builder | 9001 | gRPC | `lsof -i :9001 \| grep LISTEN` | none |
+| Builder | 9001 | gRPC | `lsof -i :9001 \| grep LISTEN` | JWT_SECRET, REGISTRY_TOKEN |
 | Packager | 9002 | gRPC | `lsof -i :9002 \| grep LISTEN` | JWT_SECRET |
 | Deployer | 9003 | gRPC | `lsof -i :9003 \| grep LISTEN` | none |
 | Webhook | 9004 | HTTP | `curl -sf localhost:9004/health` | none |

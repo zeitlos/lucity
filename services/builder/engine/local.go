@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -98,25 +99,20 @@ func (e *LocalEngine) Build(ctx context.Context, opts BuildOpts) (*BuildResult, 
 	}
 	defer os.Remove(planFile)
 
-	// Login to registry before building (buildx push needs credentials)
-	loginCmd := exec.CommandContext(ctx, "docker", "login", registryHost(opts.ImageName),
-		"-u", "x-access-token", "--password-stdin")
-	loginCmd.Stdin = strings.NewReader(opts.Token)
-
-	if output, err := loginCmd.CombinedOutput(); err != nil {
-		return nil, fmt.Errorf("docker login failed: %w: %s", err, output)
-	}
-
-	// Build and push with docker buildx using the railpack frontend.
-	// This builds the image via BuildKit and pushes directly to registry.
+	// Build the image and load it into the local Docker image store.
+	// We split build and push into two steps because BuildKit's push (via the
+	// docker driver) uses the Docker daemon's credential store inside the VM,
+	// which doesn't reliably pick up credentials set via DOCKER_CONFIG or
+	// docker login on the host. By loading first, then pushing with `docker push`
+	// (which runs on the host and respects DOCKER_CONFIG), we get reliable auth.
 	slog.Info("building image with railpack frontend", "image", opts.ImageName, "dir", buildDir)
 
 	buildCmd := exec.CommandContext(ctx, "docker", "buildx", "build",
 		"--build-arg", "BUILDKIT_SYNTAX=ghcr.io/railwayapp/railpack-frontend",
 		"-f", planFile,
-		"--output", fmt.Sprintf("type=image,name=%s,push=true", opts.ImageName),
+		"--tag", opts.ImageName,
+		"--load",
 		"--progress", "plain",
-		"--metadata-file", filepath.Join(buildDir, "buildx-metadata.json"),
 		buildDir,
 	)
 	buildCmd.Dir = buildDir
@@ -126,14 +122,29 @@ func (e *LocalEngine) Build(ctx context.Context, opts BuildOpts) (*BuildResult, 
 		slog.Error("build failed", "error", err, "output", string(buildOutput))
 		return nil, fmt.Errorf("build failed: %w: %s", err, string(buildOutput))
 	}
-	slog.Info("build and push completed", "image", opts.ImageName)
+	slog.Info("build completed, pushing image", "image", opts.ImageName)
 
-	// Extract digest from buildx metadata
-	digest := extractBuildxDigest(filepath.Join(buildDir, "buildx-metadata.json"))
-	if digest == "" {
-		// Fallback: parse from build output
-		digest = extractDigest(string(buildOutput))
+	// Create a temporary Docker config with registry credentials embedded directly.
+	// This bypasses Docker Desktop's credsStore helper which can be unreliable.
+	dockerConfigDir, err := writeDockerConfig(registryHost(opts.ImageName), opts.Token)
+	if err != nil {
+		return nil, fmt.Errorf("failed to write docker config: %w", err)
 	}
+	defer os.RemoveAll(dockerConfigDir)
+
+	// Push the image using `docker push` which respects DOCKER_CONFIG on the host.
+	pushCmd := exec.CommandContext(ctx, "docker", "push", opts.ImageName)
+	pushCmd.Env = append(os.Environ(), "DOCKER_CONFIG="+dockerConfigDir)
+
+	pushOutput, err := pushCmd.CombinedOutput()
+	if err != nil {
+		slog.Error("push failed", "error", err, "output", string(pushOutput))
+		return nil, fmt.Errorf("push failed: %w: %s", err, string(pushOutput))
+	}
+	slog.Info("push completed", "image", opts.ImageName)
+
+	// Extract digest from push output
+	digest := extractDigest(string(pushOutput))
 
 	return &BuildResult{
 		ImageRef: opts.ImageName,
@@ -156,6 +167,38 @@ func extractBuildxDigest(metadataFile string) string {
 		return ""
 	}
 	return metadata.Digest
+}
+
+// writeDockerConfig creates a temporary directory with a config.json containing
+// registry credentials embedded directly (no credential helper). This ensures
+// BuildKit inside Docker Desktop's VM can authenticate to push images.
+func writeDockerConfig(host, token string) (string, error) {
+	dir, err := os.MkdirTemp("", "docker-config-*")
+	if err != nil {
+		return "", err
+	}
+
+	auth := base64.StdEncoding.EncodeToString([]byte("x-access-token:" + token))
+	config := map[string]any{
+		"auths": map[string]any{
+			host: map[string]string{
+				"auth": auth,
+			},
+		},
+	}
+
+	data, err := json.Marshal(config)
+	if err != nil {
+		os.RemoveAll(dir)
+		return "", err
+	}
+
+	if err := os.WriteFile(filepath.Join(dir, "config.json"), data, 0600); err != nil {
+		os.RemoveAll(dir)
+		return "", err
+	}
+
+	return dir, nil
 }
 
 // registryHost extracts the registry host from an image reference.
