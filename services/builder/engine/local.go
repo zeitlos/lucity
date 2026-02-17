@@ -1,7 +1,6 @@
 package engine
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -10,6 +9,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/railwayapp/railpack/core"
+	"github.com/railwayapp/railpack/core/app"
 )
 
 // LocalEngine builds images locally using railpack CLI and Docker.
@@ -21,51 +23,40 @@ func NewLocalEngine() *LocalEngine {
 	return &LocalEngine{}
 }
 
-// railpackPlan is the JSON output structure from `railpack plan`.
-type railpackPlan struct {
-	Providers []string          `json:"providers"`
-	Metadata  map[string]string `json:"metadata"`
-	Plan      struct {
-		Deploy struct {
-			StartCmd string `json:"startCmd"`
-		} `json:"deploy"`
-	} `json:"plan"`
-}
-
 func (e *LocalEngine) Detect(ctx context.Context, repoPath string) ([]DetectResult, error) {
-	// Run railpack plan to get detection info
-	cmd := exec.CommandContext(ctx, "railpack", "plan", ".")
-	cmd.Dir = repoPath
-
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	if err := cmd.Run(); err != nil {
-		return nil, fmt.Errorf("railpack plan failed: %w: %s", err, stderr.String())
+	a, err := app.NewApp(repoPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read app: %w", err)
 	}
 
-	var plan railpackPlan
-	if err := json.Unmarshal(stdout.Bytes(), &plan); err != nil {
-		return nil, fmt.Errorf("failed to parse railpack plan output: %w", err)
+	env := app.NewEnvironment(nil)
+	result := core.GenerateBuildPlan(a, env, &core.GenerateBuildPlanOptions{})
+
+	if !result.Success || len(result.DetectedProviders) == 0 {
+		return nil, nil
 	}
 
-	provider := ""
-	if len(plan.Providers) > 0 {
-		provider = plan.Providers[0]
+	provider := result.DetectedProviders[0]
+
+	startCmd := ""
+	if result.Plan != nil {
+		startCmd = result.Plan.Deploy.StartCmd
 	}
 
-	if provider == "" {
-		return nil, nil // no provider detected
-	}
+	framework := detectFramework(provider, result.Metadata, repoPath)
 
-	framework := detectFramework(provider, plan.Metadata, repoPath)
+	slog.Info("detected service",
+		"provider", provider,
+		"framework", framework,
+		"startCommand", startCmd,
+		"providers", result.DetectedProviders,
+	)
 
 	return []DetectResult{{
 		Name:          serviceName(framework, provider),
 		Provider:      provider,
 		Framework:     framework,
-		StartCommand:  plan.Plan.Deploy.StartCmd,
+		StartCommand:  startCmd,
 		SuggestedPort: defaultPort(provider),
 	}}, nil
 }
