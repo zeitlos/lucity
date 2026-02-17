@@ -28,10 +28,11 @@ type Environment struct {
 }
 
 type Service struct {
-	Name   string
-	Image  string
-	Port   int
-	Public bool
+	Name      string
+	Image     string
+	Port      int
+	Public    bool
+	Framework string
 }
 
 type DeployedService struct {
@@ -179,6 +180,16 @@ func projectFromProto(p *packager.ProjectInfo) Project {
 			Name:       envName,
 			Namespace:  p.Name + "-" + envName,
 			SyncStatus: "UNKNOWN",
+		})
+	}
+
+	for _, svc := range p.Services {
+		proj.Services = append(proj.Services, Service{
+			Name:      svc.Name,
+			Image:     svc.Image,
+			Port:      int(svc.Port),
+			Public:    svc.Public,
+			Framework: svc.Framework,
 		})
 	}
 

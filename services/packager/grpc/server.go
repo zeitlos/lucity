@@ -70,6 +70,7 @@ func (s *Server) ListProjects(ctx context.Context, req *packager.ListProjectsReq
 			GitopsRepoUrl: proj.RepoURL,
 			Environments: proj.Environments,
 			CreatedAt:    proj.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+			Services:     serviceInfosFromDefs(proj.Services),
 		})
 	}
 
@@ -89,6 +90,11 @@ func (s *Server) GetProject(ctx context.Context, req *packager.GetProjectRequest
 		return nil, fmt.Errorf("failed to get project: %w", err)
 	}
 
+	svcs, err := p.Services(ctx, req.Project)
+	if err != nil {
+		slog.Warn("failed to read services", "project", req.Project, "error", err)
+	}
+
 	return &packager.GetProjectResponse{
 		Project: &packager.ProjectInfo{
 			Name:         proj.Name,
@@ -96,6 +102,7 @@ func (s *Server) GetProject(ctx context.Context, req *packager.GetProjectRequest
 			GitopsRepoUrl: proj.RepoURL,
 			Environments: proj.Environments,
 			CreatedAt:    proj.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+			Services:     serviceInfosFromDefs(svcs),
 		},
 	}, nil
 }
@@ -117,12 +124,53 @@ func (s *Server) DeleteProject(ctx context.Context, req *packager.DeleteProjectR
 
 func (s *Server) AddService(ctx context.Context, req *packager.AddServiceRequest) (*packager.AddServiceResponse, error) {
 	slog.Info("AddService called", "project", req.Project, "service", req.Service, "image", req.Image)
+
+	p, err := s.provider(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := p.AddService(ctx, req.Project, gitops.ServiceDef{
+		Name:      req.Service,
+		Image:     req.Image,
+		Port:      int(req.Port),
+		Public:    req.Public,
+		Framework: req.Framework,
+	}); err != nil {
+		return nil, fmt.Errorf("failed to add service: %w", err)
+	}
+
 	return &packager.AddServiceResponse{}, nil
 }
 
 func (s *Server) RemoveService(ctx context.Context, req *packager.RemoveServiceRequest) (*packager.RemoveServiceResponse, error) {
 	slog.Info("RemoveService called", "project", req.Project, "service", req.Service)
+
+	p, err := s.provider(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := p.RemoveService(ctx, req.Project, req.Service); err != nil {
+		return nil, fmt.Errorf("failed to remove service: %w", err)
+	}
+
 	return &packager.RemoveServiceResponse{}, nil
+}
+
+func (s *Server) UpdateImageTag(ctx context.Context, req *packager.UpdateImageTagRequest) (*packager.UpdateImageTagResponse, error) {
+	slog.Info("UpdateImageTag called", "project", req.Project, "environment", req.Environment, "service", req.Service, "tag", req.Tag)
+
+	p, err := s.provider(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := p.UpdateImageTag(ctx, req.Project, req.Environment, req.Service, req.Tag, req.Digest); err != nil {
+		return nil, fmt.Errorf("failed to update image tag: %w", err)
+	}
+
+	return &packager.UpdateImageTagResponse{}, nil
 }
 
 func (s *Server) CreateEnvironment(ctx context.Context, req *packager.CreateEnvironmentRequest) (*packager.CreateEnvironmentResponse, error) {
@@ -149,4 +197,21 @@ func (s *Server) Eject(ctx context.Context, req *packager.EjectRequest) (*packag
 	return &packager.EjectResponse{
 		Archive: []byte("mock-ejected-archive"),
 	}, nil
+}
+
+func serviceInfosFromDefs(defs []gitops.ServiceDef) []*packager.ServiceInfo {
+	if len(defs) == 0 {
+		return nil
+	}
+	infos := make([]*packager.ServiceInfo, len(defs))
+	for i, d := range defs {
+		infos[i] = &packager.ServiceInfo{
+			Name:      d.Name,
+			Image:     d.Image,
+			Port:      int32(d.Port),
+			Public:    d.Public,
+			Framework: d.Framework,
+		}
+	}
+	return infos
 }

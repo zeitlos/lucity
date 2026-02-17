@@ -10,6 +10,29 @@ import (
 	"time"
 )
 
+type AddServiceInput struct {
+	ProjectID string  `json:"projectId"`
+	Name      string  `json:"name"`
+	Port      int     `json:"port"`
+	Public    bool    `json:"public"`
+	Framework *string `json:"framework,omitempty"`
+}
+
+type Build struct {
+	ID       string     `json:"id"`
+	Phase    BuildPhase `json:"phase"`
+	ImageRef *string    `json:"imageRef,omitempty"`
+	Digest   *string    `json:"digest,omitempty"`
+	Error    *string    `json:"error,omitempty"`
+}
+
+type BuildServiceInput struct {
+	ProjectID   string  `json:"projectId"`
+	Service     string  `json:"service"`
+	GitRef      *string `json:"gitRef,omitempty"`
+	ContextPath *string `json:"contextPath,omitempty"`
+}
+
 type CreateEnvironmentInput struct {
 	ProjectID       string  `json:"projectId"`
 	Name            string  `json:"name"`
@@ -21,11 +44,27 @@ type CreateProjectInput struct {
 	SourceURL string `json:"sourceUrl"`
 }
 
+type DeployBuildInput struct {
+	ProjectID   string  `json:"projectId"`
+	Service     string  `json:"service"`
+	Environment string  `json:"environment"`
+	Tag         string  `json:"tag"`
+	Digest      *string `json:"digest,omitempty"`
+}
+
 type DeployedService struct {
 	Name     string `json:"name"`
 	ImageTag string `json:"imageTag"`
 	Ready    bool   `json:"ready"`
 	Replicas int    `json:"replicas"`
+}
+
+type DetectedService struct {
+	Name          string `json:"name"`
+	Provider      string `json:"provider"`
+	Framework     string `json:"framework"`
+	StartCommand  string `json:"startCommand"`
+	SuggestedPort int    `json:"suggestedPort"`
 }
 
 type Environment struct {
@@ -69,10 +108,11 @@ type Query struct {
 }
 
 type Service struct {
-	Name   string `json:"name"`
-	Image  string `json:"image"`
-	Port   *int   `json:"port,omitempty"`
-	Public bool   `json:"public"`
+	Name      string  `json:"name"`
+	Image     string  `json:"image"`
+	Port      *int    `json:"port,omitempty"`
+	Public    bool    `json:"public"`
+	Framework *string `json:"framework,omitempty"`
 }
 
 type User struct {
@@ -80,6 +120,69 @@ type User struct {
 	Name      *string `json:"name,omitempty"`
 	Email     *string `json:"email,omitempty"`
 	AvatarURL string  `json:"avatarUrl"`
+}
+
+type BuildPhase string
+
+const (
+	BuildPhaseQueued    BuildPhase = "QUEUED"
+	BuildPhaseCloning   BuildPhase = "CLONING"
+	BuildPhaseBuilding  BuildPhase = "BUILDING"
+	BuildPhasePushing   BuildPhase = "PUSHING"
+	BuildPhaseSucceeded BuildPhase = "SUCCEEDED"
+	BuildPhaseFailed    BuildPhase = "FAILED"
+)
+
+var AllBuildPhase = []BuildPhase{
+	BuildPhaseQueued,
+	BuildPhaseCloning,
+	BuildPhaseBuilding,
+	BuildPhasePushing,
+	BuildPhaseSucceeded,
+	BuildPhaseFailed,
+}
+
+func (e BuildPhase) IsValid() bool {
+	switch e {
+	case BuildPhaseQueued, BuildPhaseCloning, BuildPhaseBuilding, BuildPhasePushing, BuildPhaseSucceeded, BuildPhaseFailed:
+		return true
+	}
+	return false
+}
+
+func (e BuildPhase) String() string {
+	return string(e)
+}
+
+func (e *BuildPhase) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = BuildPhase(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid BuildPhase", str)
+	}
+	return nil
+}
+
+func (e BuildPhase) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *BuildPhase) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e BuildPhase) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
 }
 
 type Role string

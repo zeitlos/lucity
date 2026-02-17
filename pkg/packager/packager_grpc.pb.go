@@ -25,6 +25,7 @@ const (
 	PackagerService_DeleteProject_FullMethodName     = "/packager.PackagerService/DeleteProject"
 	PackagerService_AddService_FullMethodName        = "/packager.PackagerService/AddService"
 	PackagerService_RemoveService_FullMethodName     = "/packager.PackagerService/RemoveService"
+	PackagerService_UpdateImageTag_FullMethodName    = "/packager.PackagerService/UpdateImageTag"
 	PackagerService_CreateEnvironment_FullMethodName = "/packager.PackagerService/CreateEnvironment"
 	PackagerService_DeleteEnvironment_FullMethodName = "/packager.PackagerService/DeleteEnvironment"
 	PackagerService_Promote_FullMethodName           = "/packager.PackagerService/Promote"
@@ -47,6 +48,8 @@ type PackagerServiceClient interface {
 	AddService(ctx context.Context, in *AddServiceRequest, opts ...grpc.CallOption) (*AddServiceResponse, error)
 	// RemoveService removes a service definition from the project's base values.
 	RemoveService(ctx context.Context, in *RemoveServiceRequest, opts ...grpc.CallOption) (*RemoveServiceResponse, error)
+	// UpdateImageTag updates the image tag for a service in a specific environment.
+	UpdateImageTag(ctx context.Context, in *UpdateImageTagRequest, opts ...grpc.CallOption) (*UpdateImageTagResponse, error)
 	// CreateEnvironment creates a new environment in the GitOps repo.
 	CreateEnvironment(ctx context.Context, in *CreateEnvironmentRequest, opts ...grpc.CallOption) (*CreateEnvironmentResponse, error)
 	// DeleteEnvironment removes an environment from the GitOps repo.
@@ -125,6 +128,16 @@ func (c *packagerServiceClient) RemoveService(ctx context.Context, in *RemoveSer
 	return out, nil
 }
 
+func (c *packagerServiceClient) UpdateImageTag(ctx context.Context, in *UpdateImageTagRequest, opts ...grpc.CallOption) (*UpdateImageTagResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateImageTagResponse)
+	err := c.cc.Invoke(ctx, PackagerService_UpdateImageTag_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *packagerServiceClient) CreateEnvironment(ctx context.Context, in *CreateEnvironmentRequest, opts ...grpc.CallOption) (*CreateEnvironmentResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(CreateEnvironmentResponse)
@@ -181,6 +194,8 @@ type PackagerServiceServer interface {
 	AddService(context.Context, *AddServiceRequest) (*AddServiceResponse, error)
 	// RemoveService removes a service definition from the project's base values.
 	RemoveService(context.Context, *RemoveServiceRequest) (*RemoveServiceResponse, error)
+	// UpdateImageTag updates the image tag for a service in a specific environment.
+	UpdateImageTag(context.Context, *UpdateImageTagRequest) (*UpdateImageTagResponse, error)
 	// CreateEnvironment creates a new environment in the GitOps repo.
 	CreateEnvironment(context.Context, *CreateEnvironmentRequest) (*CreateEnvironmentResponse, error)
 	// DeleteEnvironment removes an environment from the GitOps repo.
@@ -216,6 +231,9 @@ func (UnimplementedPackagerServiceServer) AddService(context.Context, *AddServic
 }
 func (UnimplementedPackagerServiceServer) RemoveService(context.Context, *RemoveServiceRequest) (*RemoveServiceResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RemoveService not implemented")
+}
+func (UnimplementedPackagerServiceServer) UpdateImageTag(context.Context, *UpdateImageTagRequest) (*UpdateImageTagResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateImageTag not implemented")
 }
 func (UnimplementedPackagerServiceServer) CreateEnvironment(context.Context, *CreateEnvironmentRequest) (*CreateEnvironmentResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateEnvironment not implemented")
@@ -358,6 +376,24 @@ func _PackagerService_RemoveService_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _PackagerService_UpdateImageTag_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateImageTagRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PackagerServiceServer).UpdateImageTag(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PackagerService_UpdateImageTag_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PackagerServiceServer).UpdateImageTag(ctx, req.(*UpdateImageTagRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _PackagerService_CreateEnvironment_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(CreateEnvironmentRequest)
 	if err := dec(in); err != nil {
@@ -460,6 +496,10 @@ var PackagerService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RemoveService",
 			Handler:    _PackagerService_RemoveService_Handler,
+		},
+		{
+			MethodName: "UpdateImageTag",
+			Handler:    _PackagerService_UpdateImageTag_Handler,
 		},
 		{
 			MethodName: "CreateEnvironment",

@@ -19,16 +19,23 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	BuilderService_BuildImage_FullMethodName = "/builder.BuilderService/BuildImage"
+	BuilderService_DetectServices_FullMethodName = "/builder.BuilderService/DetectServices"
+	BuilderService_StartBuild_FullMethodName     = "/builder.BuilderService/StartBuild"
+	BuilderService_BuildStatus_FullMethodName    = "/builder.BuilderService/BuildStatus"
 )
 
 // BuilderServiceClient is the client API for BuilderService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type BuilderServiceClient interface {
-	// BuildImage builds a container image from source code using nixpack
-	// and pushes it to the OCI registry.
-	BuildImage(ctx context.Context, in *BuildImageRequest, opts ...grpc.CallOption) (*BuildImageResponse, error)
+	// DetectServices scans a source repository and returns detected services
+	// with their language, framework, and suggested configuration.
+	DetectServices(ctx context.Context, in *DetectServicesRequest, opts ...grpc.CallOption) (*DetectServicesResponse, error)
+	// StartBuild starts an asynchronous container image build from source code
+	// using railpack and returns a build ID for status polling.
+	StartBuild(ctx context.Context, in *StartBuildRequest, opts ...grpc.CallOption) (*StartBuildResponse, error)
+	// BuildStatus returns the current status of an in-progress or completed build.
+	BuildStatus(ctx context.Context, in *BuildStatusRequest, opts ...grpc.CallOption) (*BuildStatusResponse, error)
 }
 
 type builderServiceClient struct {
@@ -39,10 +46,30 @@ func NewBuilderServiceClient(cc grpc.ClientConnInterface) BuilderServiceClient {
 	return &builderServiceClient{cc}
 }
 
-func (c *builderServiceClient) BuildImage(ctx context.Context, in *BuildImageRequest, opts ...grpc.CallOption) (*BuildImageResponse, error) {
+func (c *builderServiceClient) DetectServices(ctx context.Context, in *DetectServicesRequest, opts ...grpc.CallOption) (*DetectServicesResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(BuildImageResponse)
-	err := c.cc.Invoke(ctx, BuilderService_BuildImage_FullMethodName, in, out, cOpts...)
+	out := new(DetectServicesResponse)
+	err := c.cc.Invoke(ctx, BuilderService_DetectServices_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *builderServiceClient) StartBuild(ctx context.Context, in *StartBuildRequest, opts ...grpc.CallOption) (*StartBuildResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(StartBuildResponse)
+	err := c.cc.Invoke(ctx, BuilderService_StartBuild_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *builderServiceClient) BuildStatus(ctx context.Context, in *BuildStatusRequest, opts ...grpc.CallOption) (*BuildStatusResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(BuildStatusResponse)
+	err := c.cc.Invoke(ctx, BuilderService_BuildStatus_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -53,9 +80,14 @@ func (c *builderServiceClient) BuildImage(ctx context.Context, in *BuildImageReq
 // All implementations must embed UnimplementedBuilderServiceServer
 // for forward compatibility.
 type BuilderServiceServer interface {
-	// BuildImage builds a container image from source code using nixpack
-	// and pushes it to the OCI registry.
-	BuildImage(context.Context, *BuildImageRequest) (*BuildImageResponse, error)
+	// DetectServices scans a source repository and returns detected services
+	// with their language, framework, and suggested configuration.
+	DetectServices(context.Context, *DetectServicesRequest) (*DetectServicesResponse, error)
+	// StartBuild starts an asynchronous container image build from source code
+	// using railpack and returns a build ID for status polling.
+	StartBuild(context.Context, *StartBuildRequest) (*StartBuildResponse, error)
+	// BuildStatus returns the current status of an in-progress or completed build.
+	BuildStatus(context.Context, *BuildStatusRequest) (*BuildStatusResponse, error)
 	mustEmbedUnimplementedBuilderServiceServer()
 }
 
@@ -66,8 +98,14 @@ type BuilderServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedBuilderServiceServer struct{}
 
-func (UnimplementedBuilderServiceServer) BuildImage(context.Context, *BuildImageRequest) (*BuildImageResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method BuildImage not implemented")
+func (UnimplementedBuilderServiceServer) DetectServices(context.Context, *DetectServicesRequest) (*DetectServicesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DetectServices not implemented")
+}
+func (UnimplementedBuilderServiceServer) StartBuild(context.Context, *StartBuildRequest) (*StartBuildResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method StartBuild not implemented")
+}
+func (UnimplementedBuilderServiceServer) BuildStatus(context.Context, *BuildStatusRequest) (*BuildStatusResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method BuildStatus not implemented")
 }
 func (UnimplementedBuilderServiceServer) mustEmbedUnimplementedBuilderServiceServer() {}
 func (UnimplementedBuilderServiceServer) testEmbeddedByValue()                        {}
@@ -90,20 +128,56 @@ func RegisterBuilderServiceServer(s grpc.ServiceRegistrar, srv BuilderServiceSer
 	s.RegisterService(&BuilderService_ServiceDesc, srv)
 }
 
-func _BuilderService_BuildImage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(BuildImageRequest)
+func _BuilderService_DetectServices_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DetectServicesRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(BuilderServiceServer).BuildImage(ctx, in)
+		return srv.(BuilderServiceServer).DetectServices(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: BuilderService_BuildImage_FullMethodName,
+		FullMethod: BuilderService_DetectServices_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(BuilderServiceServer).BuildImage(ctx, req.(*BuildImageRequest))
+		return srv.(BuilderServiceServer).DetectServices(ctx, req.(*DetectServicesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BuilderService_StartBuild_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StartBuildRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BuilderServiceServer).StartBuild(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BuilderService_StartBuild_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BuilderServiceServer).StartBuild(ctx, req.(*StartBuildRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BuilderService_BuildStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BuildStatusRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BuilderServiceServer).BuildStatus(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BuilderService_BuildStatus_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BuilderServiceServer).BuildStatus(ctx, req.(*BuildStatusRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -116,8 +190,16 @@ var BuilderService_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*BuilderServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "BuildImage",
-			Handler:    _BuilderService_BuildImage_Handler,
+			MethodName: "DetectServices",
+			Handler:    _BuilderService_DetectServices_Handler,
+		},
+		{
+			MethodName: "StartBuild",
+			Handler:    _BuilderService_StartBuild_Handler,
+		},
+		{
+			MethodName: "BuildStatus",
+			Handler:    _BuilderService_BuildStatus_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

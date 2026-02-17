@@ -147,6 +147,218 @@ func (p *GitHubProvider) DeleteRepo(ctx context.Context, project string) error {
 	return nil
 }
 
+// AddService adds a service definition to the project's base/values.yaml.
+func (p *GitHubProvider) AddService(ctx context.Context, project string, svc ServiceDef) error {
+	org, name, err := splitProject(project)
+	if err != nil {
+		return err
+	}
+	repoName := name + repoSuffix
+
+	values, sha, err := p.readValuesYAML(ctx, org, repoName, "base/values.yaml")
+	if err != nil {
+		return fmt.Errorf("failed to read base/values.yaml: %w", err)
+	}
+
+	services, ok := values["services"].(map[string]any)
+	if !ok {
+		services = make(map[string]any)
+	}
+
+	svcEntry := map[string]any{
+		"image": map[string]any{
+			"repository": svc.Image,
+			"tag":        "latest",
+		},
+		"port":     svc.Port,
+		"replicas": 1,
+		"public":   svc.Public,
+	}
+	if svc.Framework != "" {
+		svcEntry["framework"] = svc.Framework
+	}
+	services[svc.Name] = svcEntry
+	values["services"] = services
+
+	if err := p.writeValuesYAML(ctx, org, repoName, "base/values.yaml", values, sha,
+		fmt.Sprintf("config: add service %s", svc.Name)); err != nil {
+		return fmt.Errorf("failed to update base/values.yaml: %w", err)
+	}
+
+	slog.Info("added service to gitops repo", "project", project, "service", svc.Name)
+	return nil
+}
+
+// RemoveService removes a service definition from the project's base/values.yaml.
+func (p *GitHubProvider) RemoveService(ctx context.Context, project, service string) error {
+	org, name, err := splitProject(project)
+	if err != nil {
+		return err
+	}
+	repoName := name + repoSuffix
+
+	values, sha, err := p.readValuesYAML(ctx, org, repoName, "base/values.yaml")
+	if err != nil {
+		return fmt.Errorf("failed to read base/values.yaml: %w", err)
+	}
+
+	services, ok := values["services"].(map[string]any)
+	if !ok {
+		return fmt.Errorf("no services found in base/values.yaml")
+	}
+
+	if _, exists := services[service]; !exists {
+		return fmt.Errorf("service %q not found", service)
+	}
+
+	delete(services, service)
+	values["services"] = services
+
+	if err := p.writeValuesYAML(ctx, org, repoName, "base/values.yaml", values, sha,
+		fmt.Sprintf("config: remove service %s", service)); err != nil {
+		return fmt.Errorf("failed to update base/values.yaml: %w", err)
+	}
+
+	slog.Info("removed service from gitops repo", "project", project, "service", service)
+	return nil
+}
+
+// UpdateImageTag updates the image tag for a service in an environment's values.yaml.
+func (p *GitHubProvider) UpdateImageTag(ctx context.Context, project, environment, service, tag, digest string) error {
+	org, name, err := splitProject(project)
+	if err != nil {
+		return err
+	}
+	repoName := name + repoSuffix
+
+	filePath := fmt.Sprintf("environments/%s/values.yaml", environment)
+	values, sha, err := p.readValuesYAML(ctx, org, repoName, filePath)
+	if err != nil {
+		return fmt.Errorf("failed to read %s: %w", filePath, err)
+	}
+
+	// Ensure services map exists
+	services, ok := values["services"].(map[string]any)
+	if !ok {
+		services = make(map[string]any)
+	}
+
+	// Set image tag for this service
+	svcEntry, ok := services[service].(map[string]any)
+	if !ok {
+		svcEntry = make(map[string]any)
+	}
+	imageEntry, ok := svcEntry["image"].(map[string]any)
+	if !ok {
+		imageEntry = make(map[string]any)
+	}
+	imageEntry["tag"] = tag
+	svcEntry["image"] = imageEntry
+	services[service] = svcEntry
+	values["services"] = services
+
+	commitMsg := fmt.Sprintf("deploy(%s): %s %s", environment, service, tag)
+	if err := p.writeValuesYAML(ctx, org, repoName, filePath, values, sha, commitMsg); err != nil {
+		return fmt.Errorf("failed to update %s: %w", filePath, err)
+	}
+
+	slog.Info("updated image tag in gitops repo",
+		"project", project, "environment", environment, "service", service, "tag", tag)
+	return nil
+}
+
+// Services reads the services defined in the project's base/values.yaml.
+func (p *GitHubProvider) Services(ctx context.Context, project string) ([]ServiceDef, error) {
+	org, name, err := splitProject(project)
+	if err != nil {
+		return nil, err
+	}
+	repoName := name + repoSuffix
+
+	values, _, err := p.readValuesYAML(ctx, org, repoName, "base/values.yaml")
+	if err != nil {
+		return nil, fmt.Errorf("failed to read base/values.yaml: %w", err)
+	}
+
+	services, ok := values["services"].(map[string]any)
+	if !ok {
+		return nil, nil
+	}
+
+	var result []ServiceDef
+	for svcName, svcRaw := range services {
+		svcMap, ok := svcRaw.(map[string]any)
+		if !ok {
+			continue
+		}
+
+		def := ServiceDef{Name: svcName}
+
+		if imageMap, ok := svcMap["image"].(map[string]any); ok {
+			if repo, ok := imageMap["repository"].(string); ok {
+				def.Image = repo
+			}
+		}
+		if port, ok := svcMap["port"].(int); ok {
+			def.Port = port
+		}
+		if public, ok := svcMap["public"].(bool); ok {
+			def.Public = public
+		}
+		if framework, ok := svcMap["framework"].(string); ok {
+			def.Framework = framework
+		}
+
+		result = append(result, def)
+	}
+
+	return result, nil
+}
+
+// readValuesYAML reads and parses a YAML file from the GitOps repo.
+// Returns the parsed map, file SHA (for updates), and any error.
+func (p *GitHubProvider) readValuesYAML(ctx context.Context, owner, repoName, filePath string) (map[string]any, string, error) {
+	content, _, _, err := p.client.Repositories.GetContents(ctx, owner, repoName, filePath, nil)
+	if err != nil {
+		return nil, "", err
+	}
+
+	raw, err := content.GetContent()
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to decode %s: %w", filePath, err)
+	}
+
+	var values map[string]any
+	if err := yaml.Unmarshal([]byte(raw), &values); err != nil {
+		return nil, "", fmt.Errorf("failed to parse %s: %w", filePath, err)
+	}
+
+	if values == nil {
+		values = make(map[string]any)
+	}
+
+	return values, content.GetSHA(), nil
+}
+
+// writeValuesYAML marshals a map to YAML and commits it to the GitOps repo.
+func (p *GitHubProvider) writeValuesYAML(ctx context.Context, owner, repoName, filePath string, values map[string]any, sha, commitMsg string) error {
+	updated, err := yaml.Marshal(values)
+	if err != nil {
+		return fmt.Errorf("failed to marshal %s: %w", filePath, err)
+	}
+
+	_, _, err = p.client.Repositories.UpdateFile(ctx, owner, repoName, filePath, &gh.RepositoryContentFileOptions{
+		Message: gh.Ptr(commitMsg),
+		Content: updated,
+		SHA:     gh.Ptr(sha),
+		Author: &gh.CommitAuthor{
+			Name:  gh.Ptr("Lucity"),
+			Email: gh.Ptr("lucity@localhost"),
+		},
+	})
+	return err
+}
+
 // readProjectMeta fetches and parses project.yaml + environments from a repo.
 func (p *GitHubProvider) readProjectMeta(ctx context.Context, owner, repoName string) (*ProjectMeta, error) {
 	content, _, _, err := p.client.Repositories.GetContents(ctx, owner, repoName, "project.yaml", nil)

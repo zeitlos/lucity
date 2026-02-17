@@ -1,0 +1,59 @@
+type DetectedService {
+  name: String!
+  provider: String!
+  framework: String!
+  startCommand: String!
+  suggestedPort: Int!
+}
+
+input AddServiceInput {
+  projectId: ID!
+  name: String! @constraint(constraint: "min=2,max=63")
+  port: Int!
+  public: Boolean!
+  framework: String
+}
+
+input BuildServiceInput {
+  projectId: ID!
+  service: String!
+  gitRef: String
+  contextPath: String
+}
+
+input DeployBuildInput {
+  projectId: ID!
+  service: String!
+  environment: String!
+  tag: String!
+  digest: String
+}
+
+type Build {
+  id: ID!
+  phase: BuildPhase!
+  imageRef: String
+  digest: String
+  error: String
+}
+
+enum BuildPhase {
+  QUEUED
+  CLONING
+  BUILDING
+  PUSHING
+  SUCCEEDED
+  FAILED
+}
+
+extend type Query {
+  detectServices(projectId: ID!): [DetectedService!]! @hasRole(role: [USER])
+  buildStatus(id: ID!): Build @hasRole(role: [USER])
+}
+
+extend type Mutation {
+  addService(input: AddServiceInput!): Service! @hasRole(role: [USER])
+  removeService(projectId: ID!, service: String!): Boolean! @hasRole(role: [USER])
+  buildService(input: BuildServiceInput!): Build! @hasRole(role: [USER])
+  deployBuild(input: DeployBuildInput!): Boolean! @hasRole(role: [USER])
+}

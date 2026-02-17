@@ -5,33 +5,92 @@ package builder;
 option go_package = "./builder";
 
 service BuilderService {
-  // BuildImage builds a container image from source code using nixpack
-  // and pushes it to the OCI registry.
-  rpc BuildImage(BuildImageRequest) returns (BuildImageResponse);
+  // DetectServices scans a source repository and returns detected services
+  // with their language, framework, and suggested configuration.
+  rpc DetectServices(DetectServicesRequest) returns (DetectServicesResponse);
+
+  // StartBuild starts an asynchronous container image build from source code
+  // using railpack and returns a build ID for status polling.
+  rpc StartBuild(StartBuildRequest) returns (StartBuildResponse);
+
+  // BuildStatus returns the current status of an in-progress or completed build.
+  rpc BuildStatus(BuildStatusRequest) returns (BuildStatusResponse);
 }
 
-message BuildImageRequest {
+message DetectServicesRequest {
+  // URL of the source repository to scan.
+  string source_url = 1;
+
+  // Git ref to scan (branch, tag, or commit SHA). Empty means default branch.
+  string git_ref = 2;
+}
+
+message DetectServicesResponse {
+  repeated DetectedService services = 1;
+}
+
+message DetectedService {
+  // Suggested service name (e.g., "web").
+  string name = 1;
+
+  // Language provider that matched (e.g., "node", "go", "python").
+  string provider = 2;
+
+  // Detected framework (e.g., "nextjs", "vite", "nuxt", "django", "rails").
+  string framework = 3;
+
+  // Detected start command from the build plan.
+  string start_command = 4;
+
+  // Suggested port based on framework heuristics.
+  int32 suggested_port = 5;
+}
+
+message StartBuildRequest {
   // URL of the source repository to build from.
   string source_url = 1;
 
-  // Git ref to build (branch, tag, or commit SHA).
+  // Git ref to build (branch, tag, or commit SHA). Empty means default branch.
   string git_ref = 2;
 
   // Name of the service within the project.
   string service = 3;
 
-  // Registry URL to push the built image to.
+  // Full image repository path (e.g., ghcr.io/user/myapp/api).
   string registry = 4;
 
-  // Path to the Dockerfile or build context within the repo.
-  // Empty means repository root.
+  // Path to the build context within the repo. Empty means repository root.
   string context_path = 5;
 }
 
-message BuildImageResponse {
-  // Full image reference (e.g., registry.example.com/myapp/api:a1b2c3d).
-  string image_ref = 1;
+message StartBuildResponse {
+  // Unique build ID for polling status.
+  string build_id = 1;
+}
 
-  // Image digest (e.g., sha256:...).
-  string digest = 2;
+message BuildStatusRequest {
+  string build_id = 1;
+}
+
+message BuildStatusResponse {
+  BuildPhase phase = 1;
+
+  // Full image reference, set when phase is SUCCEEDED.
+  string image_ref = 2;
+
+  // Image digest (e.g., sha256:...), set when phase is SUCCEEDED.
+  string digest = 3;
+
+  // Error message, set when phase is FAILED.
+  string error = 4;
+}
+
+enum BuildPhase {
+  BUILD_PHASE_UNSPECIFIED = 0;
+  BUILD_PHASE_QUEUED = 1;
+  BUILD_PHASE_CLONING = 2;
+  BUILD_PHASE_BUILDING = 3;
+  BUILD_PHASE_PUSHING = 4;
+  BUILD_PHASE_SUCCEEDED = 5;
+  BUILD_PHASE_FAILED = 6;
 }

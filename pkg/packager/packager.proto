@@ -23,6 +23,9 @@ service PackagerService {
   // RemoveService removes a service definition from the project's base values.
   rpc RemoveService(RemoveServiceRequest) returns (RemoveServiceResponse);
 
+  // UpdateImageTag updates the image tag for a service in a specific environment.
+  rpc UpdateImageTag(UpdateImageTagRequest) returns (UpdateImageTagResponse);
+
   // CreateEnvironment creates a new environment in the GitOps repo.
   rpc CreateEnvironment(CreateEnvironmentRequest) returns (CreateEnvironmentResponse);
 
@@ -36,6 +39,15 @@ service PackagerService {
   rpc Eject(EjectRequest) returns (EjectResponse);
 }
 
+// ServiceInfo describes a service configured in the project's GitOps repo.
+message ServiceInfo {
+  string name = 1;
+  string image = 2;       // image repository path (e.g., ghcr.io/user/myapp/api)
+  int32 port = 3;
+  bool public = 4;
+  string framework = 5;   // detected framework for dashboard icons (e.g., "nextjs", "vite")
+}
+
 // ProjectInfo holds metadata about a project read from its GitOps repo.
 message ProjectInfo {
   string name = 1;           // org-scoped: "zeitlos/myapp"
@@ -43,6 +55,7 @@ message ProjectInfo {
   string gitops_repo_url = 3;
   repeated string environments = 4;
   string created_at = 5;     // RFC3339
+  repeated ServiceInfo services = 6;
 }
 
 message InitProjectRequest {
@@ -80,6 +93,7 @@ message AddServiceRequest {
   string image = 3;
   int32 port = 4;
   bool public = 5;
+  string framework = 6;
 }
 
 message AddServiceResponse {}
@@ -90,6 +104,16 @@ message RemoveServiceRequest {
 }
 
 message RemoveServiceResponse {}
+
+message UpdateImageTagRequest {
+  string project = 1;
+  string environment = 2;
+  string service = 3;
+  string tag = 4;
+  string digest = 5;
+}
+
+message UpdateImageTagResponse {}
 
 message CreateEnvironmentRequest {
   string project = 1;

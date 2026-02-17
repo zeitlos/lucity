@@ -8,6 +8,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
+	"github.com/zeitlos/lucity/pkg/builder"
 	gh "github.com/zeitlos/lucity/pkg/github"
 	"github.com/zeitlos/lucity/pkg/graceful"
 	"github.com/zeitlos/lucity/pkg/logger"
@@ -32,7 +33,11 @@ type Config struct {
 	CallbackURL  string `envconfig:"CALLBACK_URL" default:"http://localhost:8080/auth/github/callback"`
 
 	// Backend services
+	BuilderAddr  string `envconfig:"BUILDER_ADDR" default:"localhost:9001"`
 	PackagerAddr string `envconfig:"PACKAGER_ADDR" default:"localhost:9002"`
+
+	// Registry
+	RegistryURL string `envconfig:"REGISTRY_URL" default:"ghcr.io"`
 }
 
 func main() {
@@ -60,6 +65,18 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Connect to builder
+	builderConn, err := grpc.NewClient(config.BuilderAddr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	if err != nil {
+		slog.Error("failed to connect to builder", "error", err, "addr", config.BuilderAddr)
+		os.Exit(1)
+	}
+	defer builderConn.Close()
+
+	builderClient := builder.NewBuilderServiceClient(builderConn)
+
 	// Connect to packager
 	packagerConn, err := grpc.NewClient(config.PackagerAddr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
@@ -72,7 +89,7 @@ func main() {
 
 	packagerClient := packager.NewPackagerServiceClient(packagerConn)
 
-	api := handler.New(packagerClient)
+	api := handler.New(packagerClient, builderClient, config.RegistryURL)
 	graphqlServer := NewGraphQLServer(config.Port, api, githubApp, config.JWTSecret, config.DashboardURL)
 
 	graceful.Serve(ctx, graphqlServer)

@@ -45,7 +45,37 @@ func convertService(s handler.Service) model.Service {
 		port := s.Port
 		svc.Port = &port
 	}
+	if s.Framework != "" {
+		svc.Framework = &s.Framework
+	}
 	return svc
+}
+
+func convertDetectedService(s handler.DetectedService) model.DetectedService {
+	return model.DetectedService{
+		Name:          s.Name,
+		Provider:      s.Provider,
+		Framework:     s.Framework,
+		StartCommand:  s.StartCommand,
+		SuggestedPort: s.SuggestedPort,
+	}
+}
+
+func convertBuild(b handler.Build) model.Build {
+	build := model.Build{
+		ID:    b.ID,
+		Phase: model.BuildPhase(b.Phase),
+	}
+	if b.ImageRef != "" {
+		build.ImageRef = &b.ImageRef
+	}
+	if b.Digest != "" {
+		build.Digest = &b.Digest
+	}
+	if b.Error != "" {
+		build.Error = &b.Error
+	}
+	return build
 }
 
 func convertDeployedService(ds handler.DeployedService) model.DeployedService {
