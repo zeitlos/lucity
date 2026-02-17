@@ -33,11 +33,11 @@ Thumbs.db
 
 # Build
 bin/
-gateway
-builder
-packager
-deployer
-webhook
+/gateway
+/builder
+/packager
+/deployer
+/webhook
 
 # Proto generated
 gen/
