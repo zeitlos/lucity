@@ -10,14 +10,15 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/railwayapp/railpack/buildkit"
 	"github.com/railwayapp/railpack/core"
 	"github.com/railwayapp/railpack/core/app"
 	rplog "github.com/railwayapp/railpack/core/logger"
 )
 
-// LocalEngine builds images locally using railpack and BuildKit.
-// Requires a BuildKit daemon (BUILDKIT_HOST) and Docker for pushing.
+// LocalEngine builds images locally using railpack and docker buildx.
+// Uses the railpack Go library for detection/plan generation and the
+// railpack BuildKit frontend (ghcr.io/railwayapp/railpack-frontend)
+// for building via docker buildx.
 type LocalEngine struct{}
 
 // NewLocalEngine creates a LocalEngine.
@@ -85,19 +86,19 @@ func (e *LocalEngine) Build(ctx context.Context, opts BuildOpts) (*BuildResult, 
 		return nil, fmt.Errorf("railpack plan generation failed: %s", errMsg)
 	}
 
-	// Build image with BuildKit (loads into local Docker daemon)
-	slog.Info("building image with railpack", "image", opts.ImageName, "dir", buildDir)
-	err = buildkit.BuildWithBuildkitClient(buildDir, result.Plan, buildkit.BuildWithBuildkitClientOptions{
-		ImageName:    opts.ImageName,
-		ProgressMode: "plain",
-	})
+	// Write build plan to a temp file for the BuildKit frontend
+	planJSON, err := json.Marshal(result.Plan)
 	if err != nil {
-		slog.Error("railpack build failed", "error", err)
-		return nil, fmt.Errorf("railpack build failed: %w", err)
+		return nil, fmt.Errorf("failed to marshal build plan: %w", err)
 	}
-	slog.Info("railpack build completed", "image", opts.ImageName)
 
-	// Login to registry
+	planFile := filepath.Join(buildDir, "railpack-plan.json")
+	if err := os.WriteFile(planFile, planJSON, 0644); err != nil {
+		return nil, fmt.Errorf("failed to write build plan: %w", err)
+	}
+	defer os.Remove(planFile)
+
+	// Login to registry before building (buildx push needs credentials)
 	loginCmd := exec.CommandContext(ctx, "docker", "login", registryHost(opts.ImageName),
 		"-u", "x-access-token", "--password-stdin")
 	loginCmd.Stdin = strings.NewReader(opts.Token)
@@ -106,21 +107,55 @@ func (e *LocalEngine) Build(ctx context.Context, opts BuildOpts) (*BuildResult, 
 		return nil, fmt.Errorf("docker login failed: %w: %s", err, output)
 	}
 
-	// Push image
-	slog.Info("pushing image", "image", opts.ImageName)
-	pushCmd := exec.CommandContext(ctx, "docker", "push", opts.ImageName)
-	pushOutput, err := pushCmd.CombinedOutput()
-	if err != nil {
-		return nil, fmt.Errorf("docker push failed: %w: %s", err, pushOutput)
-	}
+	// Build and push with docker buildx using the railpack frontend.
+	// This builds the image via BuildKit and pushes directly to registry.
+	slog.Info("building image with railpack frontend", "image", opts.ImageName, "dir", buildDir)
 
-	// Extract digest from push output
-	digest := extractDigest(string(pushOutput))
+	buildCmd := exec.CommandContext(ctx, "docker", "buildx", "build",
+		"--build-arg", "BUILDKIT_SYNTAX=ghcr.io/railwayapp/railpack-frontend",
+		"-f", planFile,
+		"--output", fmt.Sprintf("type=image,name=%s,push=true", opts.ImageName),
+		"--progress", "plain",
+		"--metadata-file", filepath.Join(buildDir, "buildx-metadata.json"),
+		buildDir,
+	)
+	buildCmd.Dir = buildDir
+
+	buildOutput, err := buildCmd.CombinedOutput()
+	if err != nil {
+		slog.Error("build failed", "error", err, "output", string(buildOutput))
+		return nil, fmt.Errorf("build failed: %w: %s", err, string(buildOutput))
+	}
+	slog.Info("build and push completed", "image", opts.ImageName)
+
+	// Extract digest from buildx metadata
+	digest := extractBuildxDigest(filepath.Join(buildDir, "buildx-metadata.json"))
+	if digest == "" {
+		// Fallback: parse from build output
+		digest = extractDigest(string(buildOutput))
+	}
 
 	return &BuildResult{
 		ImageRef: opts.ImageName,
 		Digest:   digest,
 	}, nil
+}
+
+// extractBuildxDigest reads the digest from docker buildx metadata JSON.
+func extractBuildxDigest(metadataFile string) string {
+	data, err := os.ReadFile(metadataFile)
+	if err != nil {
+		return ""
+	}
+	defer os.Remove(metadataFile)
+
+	var metadata struct {
+		Digest string `json:"containerimage.digest"`
+	}
+	if err := json.Unmarshal(data, &metadata); err != nil {
+		return ""
+	}
+	return metadata.Digest
 }
 
 // registryHost extracts the registry host from an image reference.
