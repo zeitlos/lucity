@@ -66,6 +66,13 @@ type Service struct {
 	Public bool   `json:"public"`
 }
 
+type User struct {
+	Login     string  `json:"login"`
+	Name      *string `json:"name,omitempty"`
+	Email     *string `json:"email,omitempty"`
+	AvatarURL string  `json:"avatarUrl"`
+}
+
 type Role string
 
 const (

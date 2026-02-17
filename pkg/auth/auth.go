@@ -15,9 +15,11 @@ type contextKey struct{}
 
 // Claims represents the authenticated user's identity and roles.
 type Claims struct {
-	Subject string
-	Email   string
-	Roles   []Role
+	Subject     string
+	Email       string
+	Roles       []Role
+	GitHubLogin string
+	AvatarURL   string
 }
 
 // HasRole checks if the claims include the given role.

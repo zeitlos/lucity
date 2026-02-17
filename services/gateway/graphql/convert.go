@@ -56,3 +56,20 @@ func convertDeployedService(ds handler.DeployedService) model.DeployedService {
 		Replicas: ds.Replicas,
 	}
 }
+
+func convertUser(u *handler.User) *model.User {
+	if u == nil {
+		return nil
+	}
+	user := &model.User{
+		Login:     u.Login,
+		AvatarURL: u.AvatarURL,
+	}
+	if u.Name != "" {
+		user.Name = &u.Name
+	}
+	if u.Email != "" {
+		user.Email = &u.Email
+	}
+	return user
+}

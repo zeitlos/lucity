@@ -1,0 +1,10 @@
+type User {
+  login: String!
+  name: String
+  email: String
+  avatarUrl: String!
+}
+
+extend type Query {
+  me: User! @hasRole(role: [USER])
+}

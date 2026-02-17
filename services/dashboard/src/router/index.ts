@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import DefaultLayout from '@/layouts/DefaultLayout.vue';
+import { useAuth } from '@/composables/useAuth';
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -7,6 +8,7 @@ const router = createRouter({
     {
       path: '/',
       component: DefaultLayout,
+      meta: { requiresAuth: true },
       children: [
         {
           path: '',
@@ -31,6 +33,20 @@ const router = createRouter({
       component: () => import('@/pages/LoginPage.vue'),
     },
   ],
+});
+
+router.beforeEach(async (to) => {
+  if (!to.meta.requiresAuth) return;
+
+  const { isAuthenticated, loading, fetchUser } = useAuth();
+
+  if (loading.value) {
+    await fetchUser();
+  }
+
+  if (!isAuthenticated.value) {
+    return { name: 'login' };
+  }
 });
 
 export default router;

@@ -11,6 +11,9 @@ import (
 	"github.com/zeitlos/lucity/services/gateway/graphql/model"
 	"github.com/zeitlos/lucity/services/gateway/handler"
 
+	"github.com/zeitlos/lucity/pkg/auth"
+	gh "github.com/zeitlos/lucity/pkg/github"
+
 	gqlgen "github.com/99designs/gqlgen/graphql"
 	gqlhandler "github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/handler/extension"
@@ -26,7 +29,7 @@ type GraphQLServer struct {
 	port   string
 }
 
-func NewGraphQLServer(port string, api *handler.Client) *GraphQLServer {
+func NewGraphQLServer(port string, api *handler.Client, githubApp *gh.App, jwtSecret, dashboardURL string) *GraphQLServer {
 	resolver := gatewaygraphql.Resolver{
 		API: api,
 	}
@@ -38,8 +41,26 @@ func NewGraphQLServer(port string, api *handler.Client) *GraphQLServer {
 		Directives: gatewaygraphql.DirectiveRoot{
 			Constraint: constraintDir.Validate,
 			HasRole: func(ctx context.Context, obj interface{}, next gqlgen.Resolver, role []model.Role) (interface{}, error) {
-				// No-op: auth will be enforced at operation level in a future phase
-				return next(ctx)
+				claims := auth.FromContext(ctx)
+
+				// Allow ANONYMOUS access
+				for _, r := range role {
+					if r == model.RoleAnonymous {
+						return next(ctx)
+					}
+				}
+
+				if claims == nil {
+					return nil, fmt.Errorf("unauthorized")
+				}
+
+				for _, required := range role {
+					if claims.HasRole(auth.Role(required)) {
+						return next(ctx)
+					}
+				}
+
+				return nil, fmt.Errorf("forbidden: insufficient role")
 			},
 		},
 	}))
@@ -51,6 +72,7 @@ func NewGraphQLServer(port string, api *handler.Client) *GraphQLServer {
 
 	mux := http.NewServeMux()
 
+	// Health endpoints
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{"status":"UP"}`))
@@ -62,11 +84,18 @@ func NewGraphQLServer(port string, api *handler.Client) *GraphQLServer {
 		w.WriteHeader(http.StatusOK)
 	})
 
+	// Auth endpoints
+	registerAuthRoutes(mux, githubApp, jwtSecret, dashboardURL)
+
+	// GraphQL endpoints
 	mux.Handle("/playground", playground.Handler("GraphQL playground", "/graphql"))
 	mux.Handle("/graphql", srv)
 
+	// Apply auth middleware then CORS
+	authMiddleware := auth.Middleware(jwtSecret)
+
 	corsHandler := cors.New(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:5173"},
+		AllowedOrigins:   []string{"http://localhost:5173", dashboardURL},
 		AllowedMethods:   []string{"GET", "POST", "OPTIONS"},
 		AllowedHeaders:   []string{"Content-Type", "Authorization"},
 		AllowCredentials: true,
@@ -76,7 +105,7 @@ func NewGraphQLServer(port string, api *handler.Client) *GraphQLServer {
 		port: port,
 		server: &http.Server{
 			Addr:    ":" + port,
-			Handler: corsHandler.Handler(mux),
+			Handler: corsHandler.Handler(authMiddleware(mux)),
 		},
 	}
 }

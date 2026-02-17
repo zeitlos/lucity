@@ -4,6 +4,7 @@ use (
 	./pkg/auth
 	./pkg/builder
 	./pkg/deployer
+	./pkg/github
 	./pkg/graceful
 	./pkg/labels
 	./pkg/logger
