@@ -33,6 +33,7 @@ Thumbs.db
 
 # Build
 bin/
+tmp/
 /gateway
 /builder
 /packager

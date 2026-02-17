@@ -1,8 +1,39 @@
 # Development Workflow
 
-## Starting Services
+## Starting All Services
 
-Always use the Makefile targets. Never manually pass env vars on the command line or use `go run` directly.
+Use `make dev` to start everything with hot reload:
+
+```sh
+make dev
+```
+
+This starts all 5 Go services with `air` (auto-rebuild on file changes) and the dashboard with Vite (HMR). All logs go to `tmp/logs/`.
+
+- Kills stale processes on all ports before starting
+- Truncates log files at the start of each session
+- Ctrl+C stops everything cleanly
+
+## Viewing Logs
+
+```sh
+make dev-logs            # all services combined
+make dev-logs-gateway    # single service
+make dev-logs-builder    # single service
+```
+
+Log files are at `tmp/logs/<service>.log`. Claude should read these files to verify changes are working.
+
+## Stopping Services
+
+```sh
+make dev-stop            # kill all service ports
+# or Ctrl+C if make dev is running in the foreground
+```
+
+## Starting Individual Services (without air)
+
+For running a single service without hot reload:
 
 ```sh
 make dev-gateway    # HTTP on :8080
@@ -13,33 +44,18 @@ make dev-webhook    # HTTP on :9004
 make dev-dashboard  # HTTP on :5173
 ```
 
-The Makefile targets `cd` into the service directory, export variables from the local `.env` file via `set -a`, then run the service. This is where secrets like `JWT_SECRET` and `GITHUB_CLIENT_ID` live.
+## Integration Tests
 
-Never do this:
-
-```sh
-# BAD — bypasses .env, error-prone, hard to reproduce
-GITHUB_APP_ID=123 GITHUB_CLIENT_ID=abc JWT_SECRET=foo go run ./services/gateway/cmd/gateway/...
-```
-
-## Port Cleanup Before Starting
-
-Before starting a service, kill any existing process on its port. Stale processes from previous runs cause "address already in use" errors and phantom debugging.
+Run against a live stack (requires `make dev` running):
 
 ```sh
-lsof -ti :8080 | xargs kill 2>/dev/null   # before gateway
-lsof -ti :9001 | xargs kill 2>/dev/null   # before builder
-lsof -ti :9002 | xargs kill 2>/dev/null   # before packager
-lsof -ti :9003 | xargs kill 2>/dev/null   # before deployer
-lsof -ti :9004 | xargs kill 2>/dev/null   # before webhook
-lsof -ti :5173 | xargs kill 2>/dev/null   # before dashboard
+make test-integration          # full suite (needs all services + Docker)
+make test-integration-short    # tier 1+2 only (no Docker needed)
 ```
 
-Use `kill` (SIGTERM) — all Go services use the `graceful` package which handles SIGTERM cleanly. Only use `kill -9` if a process is stuck.
+Tests are in `tests/` — a separate Go module that hits the GraphQL API. Uses JWT tokens generated from `pkg/auth` for authentication.
 
 ## Verifying Services
-
-After starting a service in the background, always verify it is actually running. Never assume it started successfully.
 
 **HTTP services** — curl the health endpoint:
 
@@ -57,39 +73,17 @@ lsof -i :9002 | grep LISTEN   # packager
 lsof -i :9003 | grep LISTEN   # deployer
 ```
 
-Allow 2-3 seconds after starting before checking — Go compilation + startup takes a moment.
+## Air Configuration
 
-## Restarting After Code Changes
-
-When code changes require a restart:
-
-1. Kill the running process on its port
-2. Start the service again with `make dev-<service>`
-3. Wait for startup
-4. Verify it came back up
-
-```sh
-lsof -ti :8080 | xargs kill 2>/dev/null
-make dev-gateway &
-sleep 3
-curl -sf http://localhost:8080/health
-```
-
-Never leave a stale process running while starting a new one on the same port. The new process will fail silently with "address already in use".
-
-## Session Cleanup
-
-At the end of a development session, clean up all Lucity processes:
-
-```sh
-for port in 8080 9001 9002 9003 9004 5173; do
-    lsof -ti :$port | xargs kill 2>/dev/null
-done
-```
+Each Go service has an `.air.toml` in its directory. Air:
+- Watches the service directory and its `pkg/` dependencies
+- Loads `.env` via `env_files = [".env"]`
+- Builds to `tmp/air/<service>/`
+- Sends SIGINT for graceful shutdown
 
 ## Paths
 
-Always use absolute literal paths. Never use `$HOME` or `~` in commands — they may not expand in all shell contexts (Makefile recipes, subshells, tool invocations).
+Always use absolute literal paths. Never use `$HOME` or `~` in commands.
 
 ```sh
 # Good
@@ -102,24 +96,14 @@ $HOME/Code/lucity/services/gateway/.env
 
 ## Environment Files
 
-Each service that requires env vars has a `.env.example` in its directory. To set up a new service:
+Each service that requires env vars has a `.env.example` in its directory:
 
 ```sh
 cp services/gateway/.env.example services/gateway/.env
 # Edit .env with actual values
 ```
 
-`.env` files are gitignored. Never commit them. The `.env.example` files document required variables.
-
-**Services with required env vars (no defaults):**
-
-- **Gateway**: `GITHUB_APP_ID`, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `JWT_SECRET`
-- **Builder**: `JWT_SECRET`, `REGISTRY_TOKEN`
-- **Packager**: `JWT_SECRET`
-
-**Services with only optional/defaulted vars:**
-
-- **Deployer** (port 9003), **Webhook** (port 9004) — work without any `.env` file
+`.env` files are gitignored. Never commit them.
 
 ## Service Quick Reference
 

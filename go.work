@@ -15,4 +15,5 @@ use (
 	./services/gateway
 	./services/packager
 	./services/webhook
+	./tests
 )

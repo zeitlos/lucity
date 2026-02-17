@@ -1,4 +1,4 @@
-.PHONY: build proto dev-gateway dev-builder dev-packager dev-deployer dev-webhook dev-dashboard generate-graphql lint
+.PHONY: build proto dev dev-gateway dev-builder dev-packager dev-deployer dev-webhook dev-dashboard dev-logs dev-stop generate-graphql lint test-integration test-integration-short
 
 # Build all Go services
 build:
@@ -19,7 +19,26 @@ proto:
 generate-graphql:
 	cd services/gateway && go generate ./graphql/resolver.go
 
-# Run individual services
+# Start all services with hot reload (air + vite)
+dev:
+	@bash scripts/dev.sh
+
+# View all service logs
+dev-logs:
+	@tail -f tmp/logs/*.log
+
+# View specific service logs (e.g., make dev-logs-gateway)
+dev-logs-%:
+	@tail -f tmp/logs/$*.log
+
+# Stop all dev services
+dev-stop:
+	@for port in 8080 9001 9002 9003 9004 5173; do \
+		lsof -ti :$$port | xargs kill 2>/dev/null || true; \
+	done
+	@echo "All services stopped."
+
+# Run individual services (without air)
 dev-gateway:
 	cd services/gateway && set -a && . .env 2>/dev/null && set +a && go run ./cmd/gateway/...
 
@@ -41,6 +60,13 @@ dev-dashboard:
 # Lint
 lint:
 	cd services/dashboard && npm run lint
+
+# Integration tests (requires services running via make dev)
+test-integration:
+	cd tests && go test -v -count=1 ./...
+
+test-integration-short:
+	cd tests && go test -v -count=1 -short ./...
 
 # Sync workspace
 sync:
