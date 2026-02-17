@@ -10,12 +10,14 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/railwayapp/railpack/buildkit"
 	"github.com/railwayapp/railpack/core"
 	"github.com/railwayapp/railpack/core/app"
+	rplog "github.com/railwayapp/railpack/core/logger"
 )
 
-// LocalEngine builds images locally using railpack CLI and Docker.
-// Requires railpack and Docker to be available on the host.
+// LocalEngine builds images locally using railpack and BuildKit.
+// Requires a BuildKit daemon (BUILDKIT_HOST) and Docker for pushing.
 type LocalEngine struct{}
 
 // NewLocalEngine creates a LocalEngine.
@@ -67,15 +69,31 @@ func (e *LocalEngine) Build(ctx context.Context, opts BuildOpts) (*BuildResult, 
 		buildDir = filepath.Join(opts.RepoPath, opts.ContextPath)
 	}
 
-	// Build with railpack (requires BuildKit daemon)
-	slog.Info("building image with railpack", "image", opts.ImageName, "dir", buildDir)
-	buildCmd := exec.CommandContext(ctx, "railpack", "build", ".", "--name", opts.ImageName)
-	buildCmd.Dir = buildDir
-
-	buildOutput, err := buildCmd.CombinedOutput()
+	// Generate build plan using railpack library
+	a, err := app.NewApp(buildDir)
 	if err != nil {
-		slog.Error("railpack build failed", "error", err, "output", string(buildOutput))
-		return nil, fmt.Errorf("railpack build failed: %w: %s", err, string(buildOutput))
+		return nil, fmt.Errorf("failed to read app: %w", err)
+	}
+
+	env := app.NewEnvironment(nil)
+	result := core.GenerateBuildPlan(a, env, &core.GenerateBuildPlanOptions{})
+	if !result.Success || result.Plan == nil {
+		errMsg := "unknown error"
+		if errs := errorLogs(result.Logs); len(errs) > 0 {
+			errMsg = strings.Join(errs, "; ")
+		}
+		return nil, fmt.Errorf("railpack plan generation failed: %s", errMsg)
+	}
+
+	// Build image with BuildKit (loads into local Docker daemon)
+	slog.Info("building image with railpack", "image", opts.ImageName, "dir", buildDir)
+	err = buildkit.BuildWithBuildkitClient(buildDir, result.Plan, buildkit.BuildWithBuildkitClientOptions{
+		ImageName:    opts.ImageName,
+		ProgressMode: "plain",
+	})
+	if err != nil {
+		slog.Error("railpack build failed", "error", err)
+		return nil, fmt.Errorf("railpack build failed: %w", err)
 	}
 	slog.Info("railpack build completed", "image", opts.ImageName)
 
@@ -269,4 +287,15 @@ func fileContains(repoPath, relPath, substr string) bool {
 		return false
 	}
 	return strings.Contains(strings.ToLower(string(data)), strings.ToLower(substr))
+}
+
+// errorLogs extracts error-level messages from railpack logs.
+func errorLogs(logs []rplog.Msg) []string {
+	var errs []string
+	for _, l := range logs {
+		if l.Level == rplog.Error {
+			errs = append(errs, l.Msg)
+		}
+	}
+	return errs
 }
