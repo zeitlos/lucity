@@ -76,9 +76,12 @@ const {
   load: loadDetection,
   result: detectResult,
   loading: detecting,
+  error: detectError,
 } = useLazyQuery(DetectServicesQuery, () => ({
   projectId: projectId.value,
-}));
+}), {
+  fetchPolicy: 'network-only',
+});
 
 const detectedServices = computed(() => detectResult.value?.detectServices ?? []);
 const showDetectionPanel = ref(false);
@@ -250,6 +253,14 @@ function syncStatusVariant(status: string) {
                 Scanning repository...
               </div>
 
+              <div
+                v-else-if="detectError"
+                class="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"
+              >
+                <p class="font-medium">Detection failed</p>
+                <p class="mt-1 text-xs">{{ detectError.message }}</p>
+              </div>
+
               <div v-else-if="detectedServices.length > 0" class="space-y-4">
                 <div
                   v-for="detected in detectedServices"
@@ -286,7 +297,15 @@ function syncStatusVariant(status: string) {
 
               <div class="mt-4 flex gap-2">
                 <Button
-                  v-if="detectedServices.length === 0"
+                  v-if="detectError"
+                  variant="outline"
+                  size="sm"
+                  @click="loadDetection(undefined, { fetchPolicy: 'network-only' })"
+                >
+                  Retry
+                </Button>
+                <Button
+                  v-if="detectedServices.length === 0 || detectError"
                   variant="outline"
                   size="sm"
                   @click="showDetectionPanel = false"

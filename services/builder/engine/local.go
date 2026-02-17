@@ -34,7 +34,7 @@ type railpackPlan struct {
 
 func (e *LocalEngine) Detect(ctx context.Context, repoPath string) ([]DetectResult, error) {
 	// Run railpack plan to get detection info
-	cmd := exec.CommandContext(ctx, "railpack", "plan", ".", "--format", "json")
+	cmd := exec.CommandContext(ctx, "railpack", "plan", ".")
 	cmd.Dir = repoPath
 
 	var stdout, stderr bytes.Buffer

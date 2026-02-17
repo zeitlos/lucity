@@ -13,7 +13,7 @@ export function useBuild() {
 
   const { mutate: buildServiceMutate } = useMutation(BuildServiceMutation);
   const { mutate: deployBuildMutate } = useMutation(DeployBuildMutation);
-  const { load: loadBuildStatus, result: statusResult, onResult: onStatusResult } = useLazyQuery(BuildStatusQuery, () => ({
+  const { load: loadBuildStatus, result: statusResult, onResult: onStatusResult, onError: onStatusError } = useLazyQuery(BuildStatusQuery, () => ({
     id: buildId.value!,
   }), {
     fetchPolicy: 'network-only',
@@ -27,6 +27,13 @@ export function useBuild() {
       pollTimer = null;
     }
   }
+
+  onStatusError((err) => {
+    stopPolling();
+    isBuilding.value = false;
+    error.value = err.message;
+    toast.error('Build status check failed', { description: err.message });
+  });
 
   onStatusResult((result) => {
     const status = result.data?.buildStatus;
