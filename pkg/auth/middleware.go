@@ -27,6 +27,7 @@ func Middleware(secret string) func(http.Handler) http.Handler {
 			}
 
 			ctx := WithClaims(r.Context(), claims)
+			ctx = WithToken(ctx, tokenString)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}

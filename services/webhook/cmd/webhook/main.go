@@ -29,7 +29,7 @@ func main() {
 	ctx, cancel := graceful.Context()
 	defer cancel()
 
-	httpServer := webhookhttp.NewServer(config.Port)
+	httpServer := webhookhttp.NewServer(config.Port, config.WebhookSecret)
 
 	graceful.Serve(ctx, httpServer)
 }

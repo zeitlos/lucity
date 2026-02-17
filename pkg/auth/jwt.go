@@ -10,10 +10,11 @@ import (
 // jwtClaims is the JWT claims structure stored in the token.
 type jwtClaims struct {
 	jwt.RegisteredClaims
-	Email       string `json:"email,omitempty"`
-	GitHubLogin string `json:"github_login"`
-	AvatarURL   string `json:"avatar_url"`
-	Roles       []Role `json:"roles"`
+	Email          string `json:"email,omitempty"`
+	GitHubLogin    string `json:"github_login"`
+	AvatarURL      string `json:"avatar_url"`
+	Roles          []Role `json:"roles"`
+	InstallationID int64  `json:"iid,omitempty"`
 }
 
 // NewToken creates a signed JWT token from the given claims.
@@ -25,10 +26,11 @@ func NewToken(claims *Claims, secret string, expiry time.Duration) (string, erro
 			IssuedAt:  jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(now.Add(expiry)),
 		},
-		Email:       claims.Email,
-		GitHubLogin: claims.GitHubLogin,
-		AvatarURL:   claims.AvatarURL,
-		Roles:       claims.Roles,
+		Email:          claims.Email,
+		GitHubLogin:    claims.GitHubLogin,
+		AvatarURL:      claims.AvatarURL,
+		Roles:          claims.Roles,
+		InstallationID: claims.InstallationID,
 	})
 
 	signed, err := token.SignedString([]byte(secret))
@@ -56,10 +58,11 @@ func ParseToken(tokenString, secret string) (*Claims, error) {
 	}
 
 	return &Claims{
-		Subject:     jc.Subject,
-		Email:       jc.Email,
-		GitHubLogin: jc.GitHubLogin,
-		AvatarURL:   jc.AvatarURL,
-		Roles:       jc.Roles,
+		Subject:        jc.Subject,
+		Email:          jc.Email,
+		GitHubLogin:    jc.GitHubLogin,
+		AvatarURL:      jc.AvatarURL,
+		Roles:          jc.Roles,
+		InstallationID: jc.InstallationID,
 	}, nil
 }

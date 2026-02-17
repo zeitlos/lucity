@@ -1,10 +1,19 @@
 package handler
 
-// Client holds all dependencies for the gateway's business logic.
-// In this phase, it serves mock data. In future phases, it will hold
-// gRPC client connections to builder, packager, and deployer.
-type Client struct{}
+import (
+	gh "github.com/zeitlos/lucity/pkg/github"
+	"github.com/zeitlos/lucity/pkg/packager"
+)
 
-func New() *Client {
-	return &Client{}
+// Client holds all dependencies for the gateway's business logic.
+type Client struct {
+	GitHubApp *gh.App
+	Packager  packager.PackagerServiceClient
+}
+
+func New(githubApp *gh.App, packagerClient packager.PackagerServiceClient) *Client {
+	return &Client{
+		GitHubApp: githubApp,
+		Packager:  packagerClient,
+	}
 }

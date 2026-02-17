@@ -5,10 +5,13 @@ import (
 	"os"
 
 	"github.com/kelseyhightower/envconfig"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	gh "github.com/zeitlos/lucity/pkg/github"
 	"github.com/zeitlos/lucity/pkg/graceful"
 	"github.com/zeitlos/lucity/pkg/logger"
+	"github.com/zeitlos/lucity/pkg/packager"
 	"github.com/zeitlos/lucity/services/gateway/handler"
 )
 
@@ -17,15 +20,19 @@ type Config struct {
 	LogLevel string `envconfig:"LOG_LEVEL" default:"info"`
 
 	// GitHub App
-	GitHubAppID        int64  `envconfig:"GITHUB_APP_ID" required:"true"`
-	GitHubClientID     string `envconfig:"GITHUB_CLIENT_ID" required:"true"`
-	GitHubClientSecret string `envconfig:"GITHUB_CLIENT_SECRET" required:"true"`
-	GitHubWebhookSecret string `envconfig:"GITHUB_WEBHOOK_SECRET" default:"dev-secret"`
+	GitHubAppID          int64  `envconfig:"GITHUB_APP_ID" required:"true"`
+	GitHubClientID       string `envconfig:"GITHUB_CLIENT_ID" required:"true"`
+	GitHubClientSecret   string `envconfig:"GITHUB_CLIENT_SECRET" required:"true"`
+	GitHubWebhookSecret  string `envconfig:"GITHUB_WEBHOOK_SECRET" default:"dev-secret"`
+	GitHubPrivateKeyPath string `envconfig:"GITHUB_PRIVATE_KEY_PATH" required:"true"`
 
 	// Auth
 	JWTSecret    string `envconfig:"JWT_SECRET" required:"true"`
 	DashboardURL string `envconfig:"DASHBOARD_URL" default:"http://localhost:5173"`
 	CallbackURL  string `envconfig:"CALLBACK_URL" default:"http://localhost:8080/auth/github/callback"`
+
+	// Backend services
+	PackagerAddr string `envconfig:"PACKAGER_ADDR" default:"localhost:9002"`
 }
 
 func main() {
@@ -40,15 +47,32 @@ func main() {
 	ctx, cancel := graceful.Context()
 	defer cancel()
 
-	githubApp := gh.NewApp(
+	githubApp, err := gh.NewApp(
 		config.GitHubAppID,
 		config.GitHubClientID,
 		config.GitHubClientSecret,
 		config.GitHubWebhookSecret,
 		config.CallbackURL,
+		config.GitHubPrivateKeyPath,
 	)
+	if err != nil {
+		slog.Error("failed to initialize github app", "error", err)
+		os.Exit(1)
+	}
 
-	api := handler.New()
+	// Connect to packager
+	packagerConn, err := grpc.NewClient(config.PackagerAddr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	if err != nil {
+		slog.Error("failed to connect to packager", "error", err, "addr", config.PackagerAddr)
+		os.Exit(1)
+	}
+	defer packagerConn.Close()
+
+	packagerClient := packager.NewPackagerServiceClient(packagerConn)
+
+	api := handler.New(githubApp, packagerClient)
 	graphqlServer := NewGraphQLServer(config.Port, api, githubApp, config.JWTSecret, config.DashboardURL)
 
 	graceful.Serve(ctx, graphqlServer)

@@ -20,6 +20,9 @@ const _ = grpc.SupportPackageIsVersion9
 
 const (
 	PackagerService_InitProject_FullMethodName       = "/packager.PackagerService/InitProject"
+	PackagerService_ListProjects_FullMethodName      = "/packager.PackagerService/ListProjects"
+	PackagerService_GetProject_FullMethodName        = "/packager.PackagerService/GetProject"
+	PackagerService_DeleteProject_FullMethodName     = "/packager.PackagerService/DeleteProject"
 	PackagerService_AddService_FullMethodName        = "/packager.PackagerService/AddService"
 	PackagerService_RemoveService_FullMethodName     = "/packager.PackagerService/RemoveService"
 	PackagerService_CreateEnvironment_FullMethodName = "/packager.PackagerService/CreateEnvironment"
@@ -34,6 +37,12 @@ const (
 type PackagerServiceClient interface {
 	// InitProject creates a new GitOps repository for a project.
 	InitProject(ctx context.Context, in *InitProjectRequest, opts ...grpc.CallOption) (*InitProjectResponse, error)
+	// ListProjects returns all projects managed by the packager.
+	ListProjects(ctx context.Context, in *ListProjectsRequest, opts ...grpc.CallOption) (*ListProjectsResponse, error)
+	// GetProject returns a single project by name.
+	GetProject(ctx context.Context, in *GetProjectRequest, opts ...grpc.CallOption) (*GetProjectResponse, error)
+	// DeleteProject removes a project and its GitOps repository.
+	DeleteProject(ctx context.Context, in *DeleteProjectRequest, opts ...grpc.CallOption) (*DeleteProjectResponse, error)
 	// AddService adds a service definition to the project's base values.
 	AddService(ctx context.Context, in *AddServiceRequest, opts ...grpc.CallOption) (*AddServiceResponse, error)
 	// RemoveService removes a service definition from the project's base values.
@@ -60,6 +69,36 @@ func (c *packagerServiceClient) InitProject(ctx context.Context, in *InitProject
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(InitProjectResponse)
 	err := c.cc.Invoke(ctx, PackagerService_InitProject_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *packagerServiceClient) ListProjects(ctx context.Context, in *ListProjectsRequest, opts ...grpc.CallOption) (*ListProjectsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListProjectsResponse)
+	err := c.cc.Invoke(ctx, PackagerService_ListProjects_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *packagerServiceClient) GetProject(ctx context.Context, in *GetProjectRequest, opts ...grpc.CallOption) (*GetProjectResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetProjectResponse)
+	err := c.cc.Invoke(ctx, PackagerService_GetProject_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *packagerServiceClient) DeleteProject(ctx context.Context, in *DeleteProjectRequest, opts ...grpc.CallOption) (*DeleteProjectResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeleteProjectResponse)
+	err := c.cc.Invoke(ctx, PackagerService_DeleteProject_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -132,6 +171,12 @@ func (c *packagerServiceClient) Eject(ctx context.Context, in *EjectRequest, opt
 type PackagerServiceServer interface {
 	// InitProject creates a new GitOps repository for a project.
 	InitProject(context.Context, *InitProjectRequest) (*InitProjectResponse, error)
+	// ListProjects returns all projects managed by the packager.
+	ListProjects(context.Context, *ListProjectsRequest) (*ListProjectsResponse, error)
+	// GetProject returns a single project by name.
+	GetProject(context.Context, *GetProjectRequest) (*GetProjectResponse, error)
+	// DeleteProject removes a project and its GitOps repository.
+	DeleteProject(context.Context, *DeleteProjectRequest) (*DeleteProjectResponse, error)
 	// AddService adds a service definition to the project's base values.
 	AddService(context.Context, *AddServiceRequest) (*AddServiceResponse, error)
 	// RemoveService removes a service definition from the project's base values.
@@ -156,6 +201,15 @@ type UnimplementedPackagerServiceServer struct{}
 
 func (UnimplementedPackagerServiceServer) InitProject(context.Context, *InitProjectRequest) (*InitProjectResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method InitProject not implemented")
+}
+func (UnimplementedPackagerServiceServer) ListProjects(context.Context, *ListProjectsRequest) (*ListProjectsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListProjects not implemented")
+}
+func (UnimplementedPackagerServiceServer) GetProject(context.Context, *GetProjectRequest) (*GetProjectResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetProject not implemented")
+}
+func (UnimplementedPackagerServiceServer) DeleteProject(context.Context, *DeleteProjectRequest) (*DeleteProjectResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteProject not implemented")
 }
 func (UnimplementedPackagerServiceServer) AddService(context.Context, *AddServiceRequest) (*AddServiceResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AddService not implemented")
@@ -210,6 +264,60 @@ func _PackagerService_InitProject_Handler(srv interface{}, ctx context.Context, 
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(PackagerServiceServer).InitProject(ctx, req.(*InitProjectRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PackagerService_ListProjects_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListProjectsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PackagerServiceServer).ListProjects(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PackagerService_ListProjects_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PackagerServiceServer).ListProjects(ctx, req.(*ListProjectsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PackagerService_GetProject_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetProjectRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PackagerServiceServer).GetProject(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PackagerService_GetProject_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PackagerServiceServer).GetProject(ctx, req.(*GetProjectRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PackagerService_DeleteProject_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteProjectRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PackagerServiceServer).DeleteProject(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PackagerService_DeleteProject_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PackagerServiceServer).DeleteProject(ctx, req.(*DeleteProjectRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -332,6 +440,18 @@ var PackagerService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "InitProject",
 			Handler:    _PackagerService_InitProject_Handler,
+		},
+		{
+			MethodName: "ListProjects",
+			Handler:    _PackagerService_ListProjects_Handler,
+		},
+		{
+			MethodName: "GetProject",
+			Handler:    _PackagerService_GetProject_Handler,
+		},
+		{
+			MethodName: "DeleteProject",
+			Handler:    _PackagerService_DeleteProject_Handler,
 		},
 		{
 			MethodName: "AddService",

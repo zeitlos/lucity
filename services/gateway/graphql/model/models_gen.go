@@ -37,6 +37,15 @@ type Environment struct {
 	Services   []DeployedService `json:"services"`
 }
 
+type GitHubRepository struct {
+	ID            string `json:"id"`
+	Name          string `json:"name"`
+	FullName      string `json:"fullName"`
+	HTMLURL       string `json:"htmlUrl"`
+	DefaultBranch string `json:"defaultBranch"`
+	Private       bool   `json:"private"`
+}
+
 type Mutation struct {
 }
 

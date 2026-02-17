@@ -2,24 +2,119 @@ package grpc
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 
+	"github.com/zeitlos/lucity/pkg/auth"
+	gh "github.com/zeitlos/lucity/pkg/github"
 	"github.com/zeitlos/lucity/pkg/packager"
+	"github.com/zeitlos/lucity/services/packager/gitops"
 )
 
 type Server struct {
 	packager.UnimplementedPackagerServiceServer
+	app *gh.App
 }
 
-func NewServer() *Server {
-	return &Server{}
+func NewServer(app *gh.App) *Server {
+	return &Server{app: app}
+}
+
+// provider creates a GitOps provider for the current request using
+// the installation ID from the JWT claims in context.
+func (s *Server) provider(ctx context.Context) (gitops.Provider, error) {
+	claims := auth.FromContext(ctx)
+	if claims == nil {
+		return nil, fmt.Errorf("unauthenticated")
+	}
+	if claims.InstallationID == 0 {
+		return nil, fmt.Errorf("no github app installation")
+	}
+	return gitops.NewGitHubProvider(s.app, claims.InstallationID), nil
 }
 
 func (s *Server) InitProject(ctx context.Context, req *packager.InitProjectRequest) (*packager.InitProjectResponse, error) {
 	slog.Info("InitProject called", "project", req.Project, "source_url", req.SourceUrl)
+
+	p, err := s.provider(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	repoURL, err := p.CreateRepo(ctx, req.Project, req.SourceUrl)
+	if err != nil {
+		return nil, fmt.Errorf("failed to init project: %w", err)
+	}
+
 	return &packager.InitProjectResponse{
-		GitopsRepoUrl: "ssh://git@localhost:23231/" + req.Project + ".git",
+		GitopsRepoUrl: repoURL,
 	}, nil
+}
+
+func (s *Server) ListProjects(ctx context.Context, req *packager.ListProjectsRequest) (*packager.ListProjectsResponse, error) {
+	slog.Info("ListProjects called")
+
+	p, err := s.provider(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	projects, err := p.Repos(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list projects: %w", err)
+	}
+
+	var infos []*packager.ProjectInfo
+	for _, proj := range projects {
+		infos = append(infos, &packager.ProjectInfo{
+			Name:         proj.Name,
+			SourceUrl:    proj.SourceURL,
+			GitopsRepoUrl: proj.RepoURL,
+			Environments: proj.Environments,
+			CreatedAt:    proj.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		})
+	}
+
+	return &packager.ListProjectsResponse{Projects: infos}, nil
+}
+
+func (s *Server) GetProject(ctx context.Context, req *packager.GetProjectRequest) (*packager.GetProjectResponse, error) {
+	slog.Info("GetProject called", "project", req.Project)
+
+	p, err := s.provider(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	proj, err := p.Repo(ctx, req.Project)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get project: %w", err)
+	}
+
+	return &packager.GetProjectResponse{
+		Project: &packager.ProjectInfo{
+			Name:         proj.Name,
+			SourceUrl:    proj.SourceURL,
+			GitopsRepoUrl: proj.RepoURL,
+			Environments: proj.Environments,
+			CreatedAt:    proj.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		},
+	}, nil
+}
+
+func (s *Server) DeleteProject(ctx context.Context, req *packager.DeleteProjectRequest) (*packager.DeleteProjectResponse, error) {
+	slog.Info("DeleteProject called", "project", req.Project)
+
+	p, err := s.provider(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := p.DeleteRepo(ctx, req.Project); err != nil {
+		return nil, fmt.Errorf("failed to delete project: %w", err)
+	}
+
+	return &packager.DeleteProjectResponse{}, nil
 }
 
 func (s *Server) AddService(ctx context.Context, req *packager.AddServiceRequest) (*packager.AddServiceResponse, error) {

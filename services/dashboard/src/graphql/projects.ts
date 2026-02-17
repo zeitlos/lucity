@@ -16,6 +16,16 @@ export const ProjectsQuery = gql`
   }
 `;
 
+export const CreateProjectMutation = gql`
+  mutation CreateProject($input: CreateProjectInput!) {
+    createProject(input: $input) {
+      id
+      name
+      sourceUrl
+    }
+  }
+`;
+
 export const ProjectQuery = gql`
   query Project($id: ID!) {
     project(id: $id) {

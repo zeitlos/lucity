@@ -39,7 +39,7 @@ enum SyncStatus {
 }
 
 input CreateProjectInput {
-  name: String! @constraint(constraint: "^[a-z][a-z0-9-]{1,62}$")
+  name: String! @constraint(constraint: "^[a-z0-9-]+/[a-z][a-z0-9-]{1,62}$")
   sourceUrl: String!
 }
 

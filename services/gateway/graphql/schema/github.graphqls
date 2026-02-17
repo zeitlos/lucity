@@ -1,0 +1,12 @@
+type GitHubRepository {
+  id: ID!
+  name: String!
+  fullName: String!
+  htmlUrl: String!
+  defaultBranch: String!
+  private: Boolean!
+}
+
+extend type Query {
+  githubRepositories: [GitHubRepository!]! @hasRole(role: [USER])
+}

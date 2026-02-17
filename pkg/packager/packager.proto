@@ -8,6 +8,15 @@ service PackagerService {
   // InitProject creates a new GitOps repository for a project.
   rpc InitProject(InitProjectRequest) returns (InitProjectResponse);
 
+  // ListProjects returns all projects managed by the packager.
+  rpc ListProjects(ListProjectsRequest) returns (ListProjectsResponse);
+
+  // GetProject returns a single project by name.
+  rpc GetProject(GetProjectRequest) returns (GetProjectResponse);
+
+  // DeleteProject removes a project and its GitOps repository.
+  rpc DeleteProject(DeleteProjectRequest) returns (DeleteProjectResponse);
+
   // AddService adds a service definition to the project's base values.
   rpc AddService(AddServiceRequest) returns (AddServiceResponse);
 
@@ -27,6 +36,15 @@ service PackagerService {
   rpc Eject(EjectRequest) returns (EjectResponse);
 }
 
+// ProjectInfo holds metadata about a project read from its GitOps repo.
+message ProjectInfo {
+  string name = 1;           // org-scoped: "zeitlos/myapp"
+  string source_url = 2;
+  string gitops_repo_url = 3;
+  repeated string environments = 4;
+  string created_at = 5;     // RFC3339
+}
+
 message InitProjectRequest {
   string project = 1;
   string source_url = 2;
@@ -35,6 +53,26 @@ message InitProjectRequest {
 message InitProjectResponse {
   string gitops_repo_url = 1;
 }
+
+message ListProjectsRequest {}
+
+message ListProjectsResponse {
+  repeated ProjectInfo projects = 1;
+}
+
+message GetProjectRequest {
+  string project = 1;
+}
+
+message GetProjectResponse {
+  ProjectInfo project = 1;
+}
+
+message DeleteProjectRequest {
+  string project = 1;
+}
+
+message DeleteProjectResponse {}
 
 message AddServiceRequest {
   string project = 1;

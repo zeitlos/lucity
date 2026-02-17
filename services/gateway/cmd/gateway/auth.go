@@ -83,13 +83,22 @@ func handleGitHubCallback(app *gh.App, jwtSecret, dashboardURL string) http.Hand
 			return
 		}
 
+		// Discover GitHub App installation for this user
+		installationID, err := app.InstallationID(r.Context(), token)
+		if err != nil {
+			slog.Warn("github app not installed for user", "login", user.Login, "error", err)
+			http.Redirect(w, r, dashboardURL+"/login?error=no_installation", http.StatusTemporaryRedirect)
+			return
+		}
+
 		// Create JWT
 		claims := &auth.Claims{
-			Subject:     user.Name,
-			Email:       user.Email,
-			GitHubLogin: user.Login,
-			AvatarURL:   user.AvatarURL,
-			Roles:       []auth.Role{auth.RoleUser},
+			Subject:        user.Name,
+			Email:          user.Email,
+			GitHubLogin:    user.Login,
+			AvatarURL:      user.AvatarURL,
+			Roles:          []auth.Role{auth.RoleUser},
+			InstallationID: installationID,
 		}
 
 		jwt, err := auth.NewToken(claims, jwtSecret, tokenExpiry)

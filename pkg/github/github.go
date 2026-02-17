@@ -1,6 +1,9 @@
 package github
 
 import (
+	"fmt"
+	"os"
+
 	"golang.org/x/oauth2"
 	githubOAuth "golang.org/x/oauth2/github"
 )
@@ -11,6 +14,7 @@ type App struct {
 	clientID      string
 	clientSecret  string
 	webhookSecret string
+	privateKey    []byte
 	oauthConfig   *oauth2.Config
 }
 
@@ -22,13 +26,32 @@ type User struct {
 	AvatarURL string
 }
 
+// Repository represents a GitHub repository.
+type Repository struct {
+	ID            int64
+	Name          string
+	FullName      string // "org/repo"
+	CloneURL      string
+	HTMLURL       string
+	DefaultBranch string
+	Private       bool
+	Owner         string // org or user login
+}
+
 // NewApp creates a new GitHub App client.
-func NewApp(appID int64, clientID, clientSecret, webhookSecret, callbackURL string) *App {
+// privateKeyPath is the path to the GitHub App's PEM private key file.
+func NewApp(appID int64, clientID, clientSecret, webhookSecret, callbackURL, privateKeyPath string) (*App, error) {
+	key, err := os.ReadFile(privateKeyPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read private key: %w", err)
+	}
+
 	return &App{
 		appID:         appID,
 		clientID:      clientID,
 		clientSecret:  clientSecret,
 		webhookSecret: webhookSecret,
+		privateKey:    key,
 		oauthConfig: &oauth2.Config{
 			ClientID:     clientID,
 			ClientSecret: clientSecret,
@@ -36,7 +59,7 @@ func NewApp(appID int64, clientID, clientSecret, webhookSecret, callbackURL stri
 			RedirectURL:  callbackURL,
 			Scopes:       []string{"read:user", "user:email"},
 		},
-	}
+	}, nil
 }
 
 // WebhookSecret returns the configured webhook secret for signature validation.

@@ -66,6 +66,15 @@ type ComplexityRoot struct {
 		SyncStatus func(childComplexity int) int
 	}
 
+	GitHubRepository struct {
+		DefaultBranch func(childComplexity int) int
+		FullName      func(childComplexity int) int
+		HTMLURL       func(childComplexity int) int
+		ID            func(childComplexity int) int
+		Name          func(childComplexity int) int
+		Private       func(childComplexity int) int
+	}
+
 	Mutation struct {
 		CreateEnvironment func(childComplexity int, input model.CreateEnvironmentInput) int
 		CreateProject     func(childComplexity int, input model.CreateProjectInput) int
@@ -84,9 +93,10 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
-		Me       func(childComplexity int) int
-		Project  func(childComplexity int, id string) int
-		Projects func(childComplexity int) int
+		GithubRepositories func(childComplexity int) int
+		Me                 func(childComplexity int) int
+		Project            func(childComplexity int, id string) int
+		Projects           func(childComplexity int) int
 	}
 
 	Service struct {
@@ -113,6 +123,7 @@ type MutationResolver interface {
 }
 type QueryResolver interface {
 	Me(ctx context.Context) (*model.User, error)
+	GithubRepositories(ctx context.Context) ([]model.GitHubRepository, error)
 	Projects(ctx context.Context) ([]model.Project, error)
 	Project(ctx context.Context, id string) (*model.Project, error)
 }
@@ -197,6 +208,43 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Environment.SyncStatus(childComplexity), true
+
+	case "GitHubRepository.defaultBranch":
+		if e.complexity.GitHubRepository.DefaultBranch == nil {
+			break
+		}
+
+		return e.complexity.GitHubRepository.DefaultBranch(childComplexity), true
+	case "GitHubRepository.fullName":
+		if e.complexity.GitHubRepository.FullName == nil {
+			break
+		}
+
+		return e.complexity.GitHubRepository.FullName(childComplexity), true
+	case "GitHubRepository.htmlUrl":
+		if e.complexity.GitHubRepository.HTMLURL == nil {
+			break
+		}
+
+		return e.complexity.GitHubRepository.HTMLURL(childComplexity), true
+	case "GitHubRepository.id":
+		if e.complexity.GitHubRepository.ID == nil {
+			break
+		}
+
+		return e.complexity.GitHubRepository.ID(childComplexity), true
+	case "GitHubRepository.name":
+		if e.complexity.GitHubRepository.Name == nil {
+			break
+		}
+
+		return e.complexity.GitHubRepository.Name(childComplexity), true
+	case "GitHubRepository.private":
+		if e.complexity.GitHubRepository.Private == nil {
+			break
+		}
+
+		return e.complexity.GitHubRepository.Private(childComplexity), true
 
 	case "Mutation.createEnvironment":
 		if e.complexity.Mutation.CreateEnvironment == nil {
@@ -291,6 +339,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Project.SourceURL(childComplexity), true
 
+	case "Query.githubRepositories":
+		if e.complexity.Query.GithubRepositories == nil {
+			break
+		}
+
+		return e.complexity.Query.GithubRepositories(childComplexity), true
 	case "Query.me":
 		if e.complexity.Query.Me == nil {
 			break
@@ -472,7 +526,7 @@ func (ec *executionContext) introspectType(name string) (*introspection.Type, er
 	return introspection.WrapTypeFromDef(ec.Schema(), ec.Schema().Types[name]), nil
 }
 
-//go:embed "schema/auth.graphqls" "schema/project.graphqls" "schema/schema.graphqls"
+//go:embed "schema/auth.graphqls" "schema/github.graphqls" "schema/project.graphqls" "schema/schema.graphqls"
 var sourcesFS embed.FS
 
 func sourceData(filename string) string {
@@ -485,6 +539,7 @@ func sourceData(filename string) string {
 
 var sources = []*ast.Source{
 	{Name: "schema/auth.graphqls", Input: sourceData("schema/auth.graphqls"), BuiltIn: false},
+	{Name: "schema/github.graphqls", Input: sourceData("schema/github.graphqls"), BuiltIn: false},
 	{Name: "schema/project.graphqls", Input: sourceData("schema/project.graphqls"), BuiltIn: false},
 	{Name: "schema/schema.graphqls", Input: sourceData("schema/schema.graphqls"), BuiltIn: false},
 }
@@ -945,6 +1000,180 @@ func (ec *executionContext) fieldContext_Environment_services(_ context.Context,
 				return ec.fieldContext_DeployedService_replicas(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type DeployedService", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GitHubRepository_id(ctx context.Context, field graphql.CollectedField, obj *model.GitHubRepository) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GitHubRepository_id,
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GitHubRepository_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GitHubRepository",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GitHubRepository_name(ctx context.Context, field graphql.CollectedField, obj *model.GitHubRepository) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GitHubRepository_name,
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GitHubRepository_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GitHubRepository",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GitHubRepository_fullName(ctx context.Context, field graphql.CollectedField, obj *model.GitHubRepository) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GitHubRepository_fullName,
+		func(ctx context.Context) (any, error) {
+			return obj.FullName, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GitHubRepository_fullName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GitHubRepository",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GitHubRepository_htmlUrl(ctx context.Context, field graphql.CollectedField, obj *model.GitHubRepository) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GitHubRepository_htmlUrl,
+		func(ctx context.Context) (any, error) {
+			return obj.HTMLURL, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GitHubRepository_htmlUrl(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GitHubRepository",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GitHubRepository_defaultBranch(ctx context.Context, field graphql.CollectedField, obj *model.GitHubRepository) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GitHubRepository_defaultBranch,
+		func(ctx context.Context) (any, error) {
+			return obj.DefaultBranch, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GitHubRepository_defaultBranch(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GitHubRepository",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GitHubRepository_private(ctx context.Context, field graphql.CollectedField, obj *model.GitHubRepository) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GitHubRepository_private,
+		func(ctx context.Context) (any, error) {
+			return obj.Private, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GitHubRepository_private(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GitHubRepository",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
 		},
 	}
 	return fc, nil
@@ -1533,6 +1762,67 @@ func (ec *executionContext) fieldContext_Query_me(_ context.Context, field graph
 				return ec.fieldContext_User_avatarUrl(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_githubRepositories(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_githubRepositories,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Query().GithubRepositories(ctx)
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				if err != nil {
+					var zeroVal []model.GitHubRepository
+					return zeroVal, err
+				}
+				if ec.directives.HasRole == nil {
+					var zeroVal []model.GitHubRepository
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNGitHubRepository2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐGitHubRepositoryᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_githubRepositories(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_GitHubRepository_id(ctx, field)
+			case "name":
+				return ec.fieldContext_GitHubRepository_name(ctx, field)
+			case "fullName":
+				return ec.fieldContext_GitHubRepository_fullName(ctx, field)
+			case "htmlUrl":
+				return ec.fieldContext_GitHubRepository_htmlUrl(ctx, field)
+			case "defaultBranch":
+				return ec.fieldContext_GitHubRepository_defaultBranch(ctx, field)
+			case "private":
+				return ec.fieldContext_GitHubRepository_private(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type GitHubRepository", field.Name)
 		},
 	}
 	return fc, nil
@@ -3538,7 +3828,7 @@ func (ec *executionContext) unmarshalInputCreateProjectInput(ctx context.Context
 			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNString2string(ctx, v) }
 
 			directive1 := func(ctx context.Context) (any, error) {
-				constraint, err := ec.unmarshalNString2string(ctx, "^[a-z][a-z0-9-]{1,62}$")
+				constraint, err := ec.unmarshalNString2string(ctx, "^[a-z0-9-]+/[a-z][a-z0-9-]{1,62}$")
 				if err != nil {
 					var zeroVal string
 					return zeroVal, err
@@ -3747,6 +4037,70 @@ func (ec *executionContext) _Environment(ctx context.Context, sel ast.SelectionS
 	return out
 }
 
+var gitHubRepositoryImplementors = []string{"GitHubRepository"}
+
+func (ec *executionContext) _GitHubRepository(ctx context.Context, sel ast.SelectionSet, obj *model.GitHubRepository) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, gitHubRepositoryImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("GitHubRepository")
+		case "id":
+			out.Values[i] = ec._GitHubRepository_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "name":
+			out.Values[i] = ec._GitHubRepository_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "fullName":
+			out.Values[i] = ec._GitHubRepository_fullName(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "htmlUrl":
+			out.Values[i] = ec._GitHubRepository_htmlUrl(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "defaultBranch":
+			out.Values[i] = ec._GitHubRepository_defaultBranch(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "private":
+			out.Values[i] = ec._GitHubRepository_private(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var mutationImplementors = []string{"Mutation"}
 
 func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet) graphql.Marshaler {
@@ -3917,6 +4271,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_me(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "githubRepositories":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_githubRepositories(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -4575,6 +4951,54 @@ func (ec *executionContext) marshalNEnvironment2ᚖgithubᚗcomᚋzeitlosᚋluci
 		return graphql.Null
 	}
 	return ec._Environment(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNGitHubRepository2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐGitHubRepository(ctx context.Context, sel ast.SelectionSet, v model.GitHubRepository) graphql.Marshaler {
+	return ec._GitHubRepository(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNGitHubRepository2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐGitHubRepositoryᚄ(ctx context.Context, sel ast.SelectionSet, v []model.GitHubRepository) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNGitHubRepository2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐGitHubRepository(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
 }
 
 func (ec *executionContext) unmarshalNID2string(ctx context.Context, v any) (string, error) {

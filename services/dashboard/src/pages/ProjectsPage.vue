@@ -28,10 +28,12 @@ function syncStatusVariant(status: string) {
         <h1 class="text-2xl font-semibold text-gray-900">Projects</h1>
         <p class="mt-1 text-sm text-gray-500">Your deployed applications.</p>
       </div>
-      <Button>
-        <Plus :size="16" class="mr-2" />
-        New Project
-      </Button>
+      <RouterLink :to="{ name: 'new-project' }">
+        <Button>
+          <Plus :size="16" class="mr-2" />
+          New Project
+        </Button>
+      </RouterLink>
     </div>
 
     <div v-if="loading" class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">

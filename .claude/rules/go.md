@@ -38,6 +38,7 @@ Always use full module paths. No relative imports.
 - **Method receivers**: short names — `s *Server`, `c *Client`, `b *Builder`
 - **Interfaces**: semantic names (Builder, Packager, Deployer). No forced `-er` suffix.
 - **Packages**: single lowercase word (`auth`, `labels`, `argocd`, `gitops`)
+- **No `Get`/`List` prefixes**: follow stdlib convention — `Repositories()` not `GetRepositories()` or `ListRepositories()`. Use the noun directly. `Create`, `Delete`, `Update` verbs are fine since they denote actions.
 
 ## Error Handling
 

@@ -57,6 +57,17 @@ func convertDeployedService(ds handler.DeployedService) model.DeployedService {
 	}
 }
 
+func convertGitHubRepository(r handler.GitHubRepository) model.GitHubRepository {
+	return model.GitHubRepository{
+		ID:            r.ID,
+		Name:          r.Name,
+		FullName:      r.FullName,
+		HTMLURL:       r.HTMLURL,
+		DefaultBranch: r.DefaultBranch,
+		Private:       r.Private,
+	}
+}
+
 func convertUser(u *handler.User) *model.User {
 	if u == nil {
 		return nil
