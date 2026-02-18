@@ -97,8 +97,8 @@ infra-forward-stop:
 # Requires: infra-forward running (ArgoCD on localhost:8443)
 argocd-token:
 	@ADMIN_PASS=$$(kubectl get secret argocd-initial-admin-secret -n lucity-system -o jsonpath='{.data.password}' | base64 -d) && \
-	SESSION=$$(curl -sk http://localhost:8443/api/v1/session -d "{\"username\":\"admin\",\"password\":\"$$ADMIN_PASS\"}" | jq -r '.token') && \
-	TOKEN=$$(curl -sk -H "Authorization: Bearer $$SESSION" -X POST http://localhost:8443/api/v1/account/lucity/token | jq -r '.token') && \
+	SESSION=$$(curl -sk -H "Content-Type: application/json" http://localhost:8443/api/v1/session -d "{\"username\":\"admin\",\"password\":\"$$ADMIN_PASS\"}" | jq -r '.token') && \
+	TOKEN=$$(curl -sk -H "Content-Type: application/json" -H "Authorization: Bearer $$SESSION" -X POST http://localhost:8443/api/v1/account/lucity/token | jq -r '.token') && \
 	echo "ARGOCD_TOKEN=$$TOKEN"
 
 # Sync workspace
