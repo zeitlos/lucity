@@ -8,7 +8,7 @@ import {
   Globe,
   Lock,
   Layers,
-  Hammer,
+  Rocket,
   Trash2,
   Plus,
   Scan,
@@ -202,17 +202,29 @@ function getBuild(service: string) {
   return builds.value[service];
 }
 
-async function handleBuild(service: string) {
+async function handleBuildAndDeploy(service: string) {
   const build = getBuild(service);
-  await build.startBuild(projectId.value, service);
+  await build.buildAndDeploy(projectId.value, service, 'development');
 }
+
+// Refetch project when any build reaches DEPLOYED to update env sync status
+watch(
+  () => Object.values(builds.value).map(b => b.phase),
+  (phases) => {
+    if (phases.some(p => p === 'DEPLOYED')) {
+      refetch();
+    }
+  },
+);
 
 function buildPhaseVariant(phase: string) {
   switch (phase) {
+    case 'DEPLOYED': return 'default';
     case 'SUCCEEDED': return 'default';
     case 'FAILED': return 'destructive';
     case 'BUILDING': return 'secondary';
     case 'PUSHING': return 'secondary';
+    case 'DEPLOYING': return 'secondary';
     default: return 'outline';
   }
 }
@@ -516,15 +528,16 @@ function syncStatusVariant(status: string) {
                           {{ builds[svc.name].phase }}
                         </Badge>
 
-                        <!-- Build button -->
+                        <!-- Build & Deploy button -->
                         <Button
                           variant="outline"
                           size="icon"
                           class="h-7 w-7"
+                          title="Build & Deploy"
                           :disabled="builds[svc.name]?.isBuilding"
-                          @click="handleBuild(svc.name)"
+                          @click="handleBuildAndDeploy(svc.name)"
                         >
-                          <Hammer :size="14" />
+                          <Rocket :size="14" />
                         </Button>
 
                         <!-- Remove button -->

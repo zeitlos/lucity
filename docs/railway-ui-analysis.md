@@ -387,7 +387,90 @@ Railway uses **illustrated empty states** consistently:
 
 ---
 
-## 11. Key UX Patterns to Adopt for Lucity
+## 11. Deployment Pipeline UX (Deep Dive)
+
+### Build + Deploy as One Atomic Operation
+
+Railway treats build and deploy as a **single unified pipeline**. There is no separate "deploy" button. When code is pushed to GitHub (or when the user clicks "Redeploy" from the three-dot menu), Railway runs the full pipeline automatically:
+
+1. **Initialization** (clone, detect, plan)
+2. **Build** (railpack/nixpacks/dockerfile)
+3. **Deploy** (rolling update)
+4. **Post-deploy** (health checks, teardown of old deployment)
+
+Each phase shows a **checkmark** on completion with a **duration** in `(MM:SS)` format. The phases are displayed in an expandable section below the deployment card — collapsed by default, showing just the green "Deployment successful" summary with a chevron to expand.
+
+### Deployment Detail View (In-Panel Drill-Down)
+
+Clicking "View logs" on a deployment navigates **within the same panel** to a deployment detail view. The panel header becomes a breadcrumb:
+
+```
+zeitlos-website / 2295d8ef  [Active]    Feb 18, 2026, 9:09 AM GMT+1
+zeitlos-website-staging.up.railway.app
+```
+
+**Tabs**: Details | Build Logs | Deploy Logs | HTTP Logs | Network Flow Logs
+
+#### Details Tab
+- **Status banner**: "Deployment successful" with "View more" expand (shows the 4 phases)
+- **Variable count**: "0 Variables"
+- **Source info**: "Deployed via GitHub" — commit message, repo name (`cblaettl/zeitlos-website`), branch icon + `main`
+- **Configuration** section with **Pretty** / **Code** toggle:
+  - **Build** card: Builder = Railpack
+  - **Deploy** card: Region, Number of replicas, Restart policy, Restart policy max retries
+
+#### Build Logs Tab
+Standard log viewer with timestamp + data columns, search/filter bar, download button.
+
+#### Deploy Logs Tab
+Same log format. Shows container startup messages (e.g., "Starting Container").
+
+### Three-Dot Menu on Deployments
+
+Each deployment card has a three-dot (⋮) menu with:
+1. **Restart** — restarts the running deployment without rebuilding
+2. **Redeploy** — triggers a full build + deploy pipeline from the same commit
+3. **Remove** (red text) — removes the deployment
+
+### Deployment Statuses
+
+| Badge | Meaning |
+|-------|---------|
+| `ACTIVE` (green) | Currently running deployment |
+| `REMOVED` (gray) | Previous deployment, no longer active |
+| `BUILDING` (during pipeline) | Build in progress |
+| `DEPLOYING` (during pipeline) | Deploy in progress |
+| `CRASHED` (red) | Deployment failed health checks |
+
+---
+
+## 12. Build & Deploy Settings (Deep Dive)
+
+### Build Settings (`Settings > Build`)
+
+- **Builder**: Dropdown selector — Railpack (Default), Dockerfile, Nixpacks
+- **Metal Build Environment**: Toggle — "Use our new Metal-based build environment. Faster and will be the default for all builds in the coming months."
+- **Custom Build Command**: "+ Build Command" button — override the default build command
+- **Watch Paths**: Gitignore-style rules to trigger a new deployment based on what file paths have changed
+
+### Deploy Settings (`Settings > Deploy`)
+
+- **Custom Start Command**: "+ Start Command" — command that will be run to start new deployments
+- **Pre-deploy step**: "+ Add pre-deploy step" — runs before the main deployment (e.g., DB migrations)
+- **Teardown**: Toggle — configure old deployment termination when a new one is started
+- **Cron Schedule**: "+ Add Schedule" — run the service on a cron schedule instead of continuously
+- **Healthcheck Path**: "+ Healthcheck Path" — endpoint to verify the new deployment is healthy before marking it live
+
+### Source Settings (`Settings > Source`)
+
+- **Source Repo**: GitHub repo card with edit + "Disconnect" button
+- **Root Directory**: Optional, used for build and deploy steps in monorepos
+- **Branch connected to [environment]**: Branch dropdown + "Disconnect" — changes to this branch auto-trigger deployments for this environment
+- **Wait for CI**: Toggle — trigger deployments only after all GitHub Actions have completed successfully
+
+---
+
+## 13. Key UX Patterns to Adopt for Lucity
 
 ### Must-Have Patterns
 1. **Architecture canvas** (via vue-flow) as the primary project view — services as draggable cards with status, environment-scoped
