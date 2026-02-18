@@ -3,6 +3,11 @@
 # -- Zot OCI Registry
 zot:
   enabled: true
+  persistence: false
+  pvc:
+    create: false
+    storage: 8Gi
+    storageClassName: null
   service:
     type: ClusterIP
     port: 5000

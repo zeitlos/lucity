@@ -1,9 +1,10 @@
 # Lucity infrastructure values for minikube
 
 zot:
-  persistence:
-    enabled: true
-    size: 5Gi
+  persistence: true
+  pvc:
+    create: true
+    storage: 5Gi
 
 softServe:
   persistence:

@@ -1,9 +1,10 @@
 # Lucity infrastructure values for flxp cluster
 
 zot:
-  persistence:
-    enabled: true
-    size: 20Gi
+  persistence: true
+  pvc:
+    create: true
+    storage: 20Gi
     storageClassName: longhorn
 
 softServe:
