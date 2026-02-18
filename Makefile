@@ -1,4 +1,4 @@
-.PHONY: build proto dev dev-gateway dev-builder dev-packager dev-deployer dev-webhook dev-dashboard dev-logs dev-stop generate-graphql lint test-integration test-integration-short infra infra-down
+.PHONY: build proto dev dev-gateway dev-builder dev-packager dev-deployer dev-webhook dev-dashboard dev-logs dev-stop generate-graphql lint test-integration test-integration-short infra infra-down argocd-token
 
 # Build all Go services
 build:
@@ -82,13 +82,22 @@ infra-down:
 
 # Port-forward infrastructure services for local development
 infra-forward:
-	@echo "Port-forwarding Zot (5000) and Soft-serve (23231, 23232)..."
+	@echo "Port-forwarding Zot (5000), Soft-serve (23231, 23232), and ArgoCD (8443)..."
 	@kubectl port-forward svc/lucity-infra-zot 5000:5000 -n lucity-system &
 	@kubectl port-forward svc/lucity-infra-soft-serve 23231:23231 23232:23232 -n lucity-system &
+	@kubectl port-forward svc/lucity-infra-argo-cd-server 8443:80 -n lucity-system &
 	@echo "Ready. Use 'make infra-forward-stop' to stop."
 
 infra-forward-stop:
-	@lsof -ti :5000 :23231 :23232 | xargs kill 2>/dev/null || true
+	@lsof -ti :5000 :23231 :23232 :8443 | xargs kill 2>/dev/null || true
+
+# Generate an ArgoCD API token for the lucity service account
+# Requires: infra-forward running (ArgoCD on localhost:8443)
+argocd-token:
+	@ADMIN_PASS=$$(kubectl get secret argocd-initial-admin-secret -n lucity-system -o jsonpath='{.data.password}' | base64 -d) && \
+	SESSION=$$(curl -sk http://localhost:8443/api/v1/session -d "{\"username\":\"admin\",\"password\":\"$$ADMIN_PASS\"}" | jq -r '.token') && \
+	TOKEN=$$(curl -sk -H "Authorization: Bearer $$SESSION" -X POST http://localhost:8443/api/v1/account/lucity/token | jq -r '.token') && \
+	echo "ARGOCD_TOKEN=$$TOKEN"
 
 # Sync workspace
 sync:

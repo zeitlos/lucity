@@ -1,6 +1,6 @@
 apiVersion: v2
 name: lucity-infra
-description: Lucity platform infrastructure — OCI registry (Zot) and Git server (Soft-serve)
+description: Lucity platform infrastructure — OCI registry (Zot), Git server (Soft-serve), and GitOps (ArgoCD)
 type: application
 version: 0.1.0
 appVersion: "0.1.0"
@@ -10,3 +10,7 @@ dependencies:
     version: "0.1.98"
     repository: "http://zotregistry.dev/helm-charts"
     condition: zot.enabled
+  - name: argo-cd
+    version: "7.8.13"
+    repository: "https://argoproj.github.io/argo-helm"
+    condition: argo-cd.enabled

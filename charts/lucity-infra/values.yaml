@@ -1,4 +1,4 @@
-# Lucity infrastructure chart — Zot (OCI registry) + Soft-serve (Git server)
+# Lucity infrastructure chart — Zot (OCI registry) + Soft-serve (Git server) + ArgoCD (GitOps)
 
 # -- Zot OCI Registry
 zot:
@@ -36,3 +36,61 @@ softServe:
     limits:
       cpu: 500m
       memory: 256Mi
+
+# -- ArgoCD GitOps Controller
+argo-cd:
+  enabled: true
+
+  # Single-replica, non-HA, dev-friendly defaults
+  global:
+    logging:
+      format: text
+      level: info
+
+  # Disable components we don't need for dev
+  dex:
+    enabled: false
+  notifications:
+    enabled: false
+  applicationSet:
+    enabled: false
+
+  # Server: insecure mode (HTTP), ClusterIP
+  server:
+    replicas: 1
+    service:
+      type: ClusterIP
+
+  # Controller: single replica
+  controller:
+    replicas: 1
+
+  # Redis: standard (not HA)
+  redis:
+    enabled: true
+  redis-ha:
+    enabled: false
+
+  configs:
+    # Run server without TLS (dev only)
+    params:
+      server.insecure: true
+
+    # Enable admin account, create lucity service account for API tokens
+    cm:
+      admin.enabled: "true"
+      accounts.lucity: apiKey
+      timeout.reconciliation: 180s
+
+    # RBAC: give lucity account full app and repo management
+    rbac:
+      policy.csv: |
+        p, role:lucity, applications, *, */*, allow
+        p, role:lucity, repositories, *, *, allow
+        g, lucity, role:lucity
+
+    # Credential template so ArgoCD trusts any repo on Soft-serve (no auth needed)
+    credentialTemplates:
+      soft-serve:
+        url: http://lucity-infra-soft-serve.lucity-system.svc.cluster.local:23232
+        type: git

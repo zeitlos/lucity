@@ -2,5 +2,8 @@ dependencies:
 - name: zot
   repository: http://zotregistry.dev/helm-charts
   version: 0.1.98
-digest: sha256:9904954ecb5b10fb6dc60ef5250982665a02f512264ee60702243e8ca57419f5
-generated: "2026-02-17T16:48:55.325384+01:00"
+- name: argo-cd
+  repository: https://argoproj.github.io/argo-helm
+  version: 7.8.13
+digest: sha256:b20c4ee0d40c2b8cb2c82b2957b109280e9f5e075d828a7d78320a881c8d4b88
+generated: "2026-02-18T07:39:28.128201+01:00"

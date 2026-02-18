@@ -3,6 +3,7 @@ package argocd
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -11,7 +12,7 @@ import (
 
 // Client is a thin HTTP client for the ArgoCD REST API.
 type Client struct {
-	baseURL    string // e.g., "https://argocd.example.com"
+	baseURL    string // e.g., "http://localhost:8443"
 	token      string
 	httpClient *http.Client
 }
@@ -20,7 +21,7 @@ type Client struct {
 func NewClient(baseURL, token string, insecure bool) *Client {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	if insecure {
-		transport.TLSClientConfig.InsecureSkipVerify = true
+		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	}
 
 	return &Client{

@@ -11,3 +11,7 @@ softServe:
     size: 10Gi
     storageClass: longhorn
   initialAdminKey: "" # TODO: set to your admin SSH public key
+
+# ArgoCD is already installed in the flxp cluster — skip
+argo-cd:
+  enabled: false

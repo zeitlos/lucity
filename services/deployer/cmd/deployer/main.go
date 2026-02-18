@@ -18,7 +18,7 @@ type Config struct {
 	ArgocdAddr    string `envconfig:"ARGOCD_ADDR" required:"true"`
 	ArgocdToken   string `envconfig:"ARGOCD_TOKEN" required:"true"`
 	ArgocdInsecure bool  `envconfig:"ARGOCD_INSECURE" default:"false"`
-	SoftServeHTTP string `envconfig:"SOFTSERVE_HTTP_ADDR" default:"http://soft-serve.lucity-system.svc.cluster.local:23232"`
+	SoftServeHTTP string `envconfig:"SOFTSERVE_HTTP_ADDR" default:"http://lucity-infra-soft-serve.lucity-system.svc.cluster.local:23232"`
 }
 
 func main() {
