@@ -19,7 +19,7 @@ export interface BuildState {
 
 function extractTag(imageRef: string): string {
   const parts = imageRef.split(':');
-  return parts.length > 1 ? parts[parts.length - 1] : imageRef;
+  return parts.length > 1 ? parts[parts.length - 1]! : imageRef;
 }
 
 export function useBuild(): BuildState {

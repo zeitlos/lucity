@@ -1,27 +1,27 @@
 <script setup lang="ts">
 import { useQuery } from '@vue/apollo-composable';
 import { RouterLink } from 'vue-router';
-import { computed } from 'vue';
-import { Plus, GitBranch, ExternalLink, FolderGit2 } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
+import { Plus, ExternalLink, FolderGit2 } from 'lucide-vue-next';
 import { ProjectsQuery } from '@/graphql/projects';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import EmptyState from '@/components/EmptyState.vue';
+import CreateCommandPalette from '@/components/CreateCommandPalette.vue';
 
 const { result, loading, error } = useQuery(ProjectsQuery);
 
 const projects = computed(() => result.value?.projects ?? []);
+const paletteOpen = ref(false);
 
-function syncStatusVariant(status: string) {
-  switch (status) {
-    case 'SYNCED': return 'default';
-    case 'PROGRESSING': return 'secondary';
-    case 'OUT_OF_SYNC': return 'outline';
-    case 'DEGRADED': return 'destructive';
-    default: return 'outline';
-  }
+function envStatusColor(environments: { syncStatus: string }[]) {
+  if (environments.length === 0) return 'bg-muted-foreground/50';
+  const hasDegraded = environments.some(e => e.syncStatus === 'DEGRADED');
+  if (hasDegraded) return 'bg-red-500';
+  const allSynced = environments.every(e => e.syncStatus === 'SYNCED');
+  if (allSynced) return 'bg-green-500';
+  return 'bg-yellow-500';
 }
 </script>
 
@@ -32,12 +32,10 @@ function syncStatusVariant(status: string) {
         <h1 class="text-2xl font-semibold text-foreground">Projects</h1>
         <p class="mt-1 text-sm text-muted-foreground">Your deployed applications.</p>
       </div>
-      <RouterLink :to="{ name: 'new-project' }">
-        <Button>
-          <Plus :size="16" class="mr-2" />
-          New Project
-        </Button>
-      </RouterLink>
+      <Button @click="paletteOpen = true">
+        <Plus :size="16" class="mr-2" />
+        New
+      </Button>
     </div>
 
     <div v-if="loading" class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -53,7 +51,10 @@ function syncStatusVariant(status: string) {
       </Card>
     </div>
 
-    <div v-else-if="error" class="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+    <div
+      v-else-if="error"
+      class="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive"
+    >
       Failed to load projects: {{ error.message }}
     </div>
 
@@ -64,12 +65,10 @@ function syncStatusVariant(status: string) {
       description="Get started by connecting a GitHub repository."
     >
       <template #action>
-        <RouterLink :to="{ name: 'new-project' }">
-          <Button>
-            <Plus :size="16" class="mr-2" />
-            New Project
-          </Button>
-        </RouterLink>
+        <Button @click="paletteOpen = true">
+          <Plus :size="16" class="mr-2" />
+          New Project
+        </Button>
       </template>
     </EmptyState>
 
@@ -89,22 +88,20 @@ function syncStatusVariant(status: string) {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div class="flex flex-wrap gap-2">
-              <Badge
-                v-for="env in project.environments"
-                :key="env.id"
-                :variant="syncStatusVariant(env.syncStatus)"
-              >
-                <GitBranch :size="12" class="mr-1" />
-                {{ env.name }}
-              </Badge>
-            </div>
-            <p class="mt-3 text-xs text-muted-foreground">
+            <div class="flex items-center gap-2 text-xs text-muted-foreground">
+              <span
+                :class="['h-2 w-2 rounded-full', envStatusColor(project.environments)]"
+              />
               {{ project.environments.length }} environment{{ project.environments.length !== 1 ? 's' : '' }}
-            </p>
+            </div>
           </CardContent>
         </Card>
       </RouterLink>
     </div>
+
+    <CreateCommandPalette
+      v-model:open="paletteOpen"
+      context="projects"
+    />
   </div>
 </template>

@@ -1,25 +1,28 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
-import { LayoutDashboard, Settings, LogOut, Sun, Moon } from 'lucide-vue-next';
-import { cn } from '@/lib/utils';
+import { LogOut, Sun, Moon } from 'lucide-vue-next';
 import { useAuth } from '@/composables/useAuth';
 import { useTheme } from '@/composables/useTheme';
 import BaseLogo from '@/components/BaseLogo.vue';
+import ProjectBreadcrumb from '@/components/ProjectBreadcrumb.vue';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 const route = useRoute();
 const router = useRouter();
 const { user, logout } = useAuth();
 const { theme, toggleTheme } = useTheme();
 
-const navItems = [
-  { label: 'Projects', route: '/', icon: LayoutDashboard },
-  { label: 'Settings', route: '/settings', icon: Settings },
-];
-
-function isActive(path: string) {
-  if (path === '/') return route.path === '/' || route.path.startsWith('/projects');
-  return route.path.startsWith(path);
-}
+const isProjectRoute = computed(() => route.name === 'project');
+const projectId = computed(() => route.params.id as string | undefined);
 
 async function handleLogout() {
   await logout();
@@ -28,72 +31,60 @@ async function handleLogout() {
 </script>
 
 <template>
-  <div class="flex min-h-screen">
-    <aside class="flex w-64 flex-col border-r border-sidebar-border bg-sidebar px-4 py-6">
-      <div class="mb-8 flex items-center gap-3 px-2">
-        <BaseLogo :size="32" />
-        <div>
-          <h1 class="text-xl font-bold text-sidebar-foreground">Lucity</h1>
-          <p class="text-xs text-muted-foreground">PaaS Dashboard</p>
-        </div>
+  <div class="flex min-h-screen flex-col">
+    <header class="flex h-[52px] shrink-0 items-center justify-between border-b bg-background px-4">
+      <!-- Left: Logo + Breadcrumb -->
+      <div class="flex items-center gap-3">
+        <RouterLink
+          to="/"
+          class="flex items-center gap-2 transition-opacity hover:opacity-80"
+        >
+          <BaseLogo :size="24" />
+          <span class="text-sm font-semibold text-foreground">Lucity</span>
+        </RouterLink>
+
+        <ProjectBreadcrumb
+          v-if="isProjectRoute && projectId"
+          :project-name="projectId"
+          class="ml-2"
+        />
       </div>
 
-      <nav class="flex-1 space-y-1">
-        <RouterLink
-          v-for="item in navItems"
-          :key="item.route"
-          :to="item.route"
-          :class="cn(
-            'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-            isActive(item.route)
-              ? 'bg-sidebar-accent text-sidebar-foreground'
-              : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground'
-          )"
-        >
-          <component :is="item.icon" :size="18" />
-          {{ item.label }}
-        </RouterLink>
-      </nav>
-
-      <div class="mb-4 border-t border-sidebar-border pt-4">
-        <button
-          class="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+      <!-- Right: Theme + User -->
+      <div class="flex items-center gap-2">
+        <Button
+          variant="ghost"
+          size="icon"
+          class="h-8 w-8"
           @click="toggleTheme"
         >
-          <Sun v-if="theme === 'dark'" :size="18" />
-          <Moon v-else :size="18" />
-          {{ theme === 'dark' ? 'Light Mode' : 'Dark Mode' }}
-        </button>
-      </div>
+          <Sun v-if="theme === 'dark'" :size="16" />
+          <Moon v-else :size="16" />
+        </Button>
 
-      <div
-        v-if="user"
-        class="border-t border-sidebar-border pt-4"
-      >
-        <div class="flex items-center gap-3 px-2">
-          <img
-            :src="user.avatarUrl"
-            :alt="user.login"
-            class="h-8 w-8 rounded-full"
-          >
-          <div class="min-w-0 flex-1">
-            <p class="truncate text-sm font-medium text-sidebar-foreground">
-              {{ user.name || user.login }}
-            </p>
-            <p class="truncate text-xs text-muted-foreground">
-              {{ user.login }}
-            </p>
-          </div>
-          <button
-            class="rounded p-1 text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground"
-            title="Sign out"
-            @click="handleLogout"
-          >
-            <LogOut :size="16" />
-          </button>
-        </div>
+        <DropdownMenu v-if="user">
+          <DropdownMenuTrigger as-child>
+            <button class="rounded-full transition-opacity hover:opacity-80">
+              <Avatar class="h-7 w-7">
+                <AvatarImage :src="user.avatarUrl" :alt="user.login" />
+                <AvatarFallback>{{ (user.name || user.login).charAt(0).toUpperCase() }}</AvatarFallback>
+              </Avatar>
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" class="w-48">
+            <div class="px-2 py-1.5">
+              <p class="text-sm font-medium">{{ user.name || user.login }}</p>
+              <p class="text-xs text-muted-foreground">{{ user.login }}</p>
+            </div>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem @select="handleLogout">
+              <LogOut :size="14" class="mr-2" />
+              Sign out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
-    </aside>
+    </header>
 
     <main class="flex-1 bg-background">
       <RouterView />
