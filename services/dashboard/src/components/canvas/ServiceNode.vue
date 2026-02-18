@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { Handle, Position } from '@vue-flow/core';
-import { Globe, Lock } from 'lucide-vue-next';
 import FrameworkIcon from '@/components/FrameworkIcon.vue';
 
 const props = defineProps<{
@@ -29,32 +28,33 @@ const statusColor = computed(() => {
 <template>
   <div
     :class="[
-      'group cursor-pointer rounded-xl border bg-card px-4 py-3 shadow-sm transition-all duration-200',
+      'group cursor-pointer rounded-xl border bg-card px-4 py-3.5 shadow-sm transition-all duration-200',
       'hover:shadow-md',
       selected ? 'border-primary shadow-md' : 'border-border',
     ]"
-    style="min-width: 220px;"
+    style="width: 220px;"
     @click="emit('select')"
   >
-    <div class="flex items-center gap-3">
+    <!-- Header: icon + name -->
+    <div class="flex items-center gap-2.5">
       <FrameworkIcon :framework="data.framework" :size="24" />
-      <div class="min-w-0 flex-1">
-        <div class="flex items-center gap-2">
-          <span class="truncate text-sm font-semibold text-foreground">{{ data.name }}</span>
-          <span :class="['h-2 w-2 shrink-0 rounded-full', statusColor]" />
-        </div>
-        <div
-          v-if="data.imageTag"
-          class="mt-0.5 truncate text-xs text-muted-foreground"
-        >
-          {{ data.imageTag }}
-        </div>
-      </div>
-      <component
-        :is="data.public ? Globe : Lock"
-        :size="14"
-        class="shrink-0 text-muted-foreground"
-      />
+      <span class="truncate text-sm font-semibold text-foreground">{{ data.name }}</span>
+    </div>
+
+    <!-- URL / image tag -->
+    <div
+      v-if="data.imageTag"
+      class="mt-1 truncate text-xs text-muted-foreground"
+    >
+      {{ data.imageTag }}
+    </div>
+
+    <!-- Status -->
+    <div class="mt-3 flex items-center gap-1.5">
+      <span :class="['h-2 w-2 shrink-0 rounded-full', statusColor]" />
+      <span class="text-xs text-muted-foreground">
+        {{ data.ready === undefined ? 'Unknown' : data.ready ? 'Online' : 'Not Ready' }}
+      </span>
     </div>
 
     <!-- Vue Flow handles (invisible, for potential edges) -->

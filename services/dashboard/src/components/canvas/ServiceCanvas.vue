@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed, watch, ref } from 'vue';
+import { computed, watch, ref, onMounted } from 'vue';
 import { VueFlow, useVueFlow } from '@vue-flow/core';
 import { Controls } from '@vue-flow/controls';
-import { MiniMap } from '@vue-flow/minimap';
+import { Background } from '@vue-flow/background';
 import { Plus } from 'lucide-vue-next';
 import { useEnvironment } from '@/composables/useEnvironment';
 import { usePanel } from '@/composables/usePanel';
@@ -11,7 +11,6 @@ import { Button } from '@/components/ui/button';
 import '@vue-flow/core/dist/style.css';
 import '@vue-flow/core/dist/theme-default.css';
 import '@vue-flow/controls/dist/style.css';
-import '@vue-flow/minimap/dist/style.css';
 
 const props = defineProps<{
   services: {
@@ -40,7 +39,7 @@ const nodes = computed(() => {
     return {
       id: svc.name,
       type: 'service',
-      position: { x: 0, y: index * 160 },
+      position: { x: 0, y: index * 130 },
       data: {
         name: svc.name,
         framework: svc.framework,
@@ -60,9 +59,14 @@ function handleNodeClick(event: { node: { id: string; data: { name: string } } }
   openPanel({ type: 'service', id: event.node.id, label: event.node.data.name });
 }
 
+// Fit view on mount with max zoom capped at 1x
+onMounted(() => {
+  setTimeout(() => fitView({ padding: 0.3, maxZoom: 1 }), 200);
+});
+
 // Re-fit view when services change
 watch(() => props.services.length, () => {
-  setTimeout(() => fitView({ padding: 0.3 }), 100);
+  setTimeout(() => fitView({ padding: 0.3, maxZoom: 1 }), 100);
 });
 </script>
 
@@ -76,8 +80,6 @@ watch(() => props.services.length, () => {
       :max-zoom="2"
       :snap-to-grid="true"
       :snap-grid="[20, 20]"
-      fit-view-on-init
-      :fit-view-on-init-padding="0.3"
       class="canvas-bg"
       @node-click="handleNodeClick"
     >
@@ -89,8 +91,8 @@ watch(() => props.services.length, () => {
         />
       </template>
 
+      <Background variant="dots" :gap="24" :size="1" class="canvas-dots" />
       <Controls position="top-left" class="!border-border !bg-card !shadow-sm" />
-      <MiniMap class="!border-border !bg-card" />
     </VueFlow>
 
     <!-- Create button (floating top-right) -->
@@ -109,9 +111,11 @@ watch(() => props.services.length, () => {
 
 <style scoped>
 .canvas-bg {
-  background-color: hsl(var(--background));
-  background-image: radial-gradient(circle, hsl(var(--border)) 1px, transparent 1px);
-  background-size: 20px 20px;
+  background-color: var(--background);
+}
+
+:deep(.canvas-dots pattern circle) {
+  fill: color-mix(in oklch, var(--muted-foreground) 25%, transparent);
 }
 
 :deep(.vue-flow__controls) {
@@ -123,19 +127,14 @@ watch(() => props.services.length, () => {
 }
 
 :deep(.vue-flow__controls-button) {
-  background-color: hsl(var(--card));
-  border-color: hsl(var(--border));
-  color: hsl(var(--foreground));
+  background-color: var(--card);
+  border-color: var(--border);
+  color: var(--foreground);
   width: 28px;
   height: 28px;
 }
 
 :deep(.vue-flow__controls-button:hover) {
-  background-color: hsl(var(--accent));
-}
-
-:deep(.vue-flow__minimap) {
-  border-radius: 8px;
-  overflow: hidden;
+  background-color: var(--accent);
 }
 </style>

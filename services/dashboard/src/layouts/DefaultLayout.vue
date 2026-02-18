@@ -33,24 +33,31 @@ async function handleLogout() {
 <template>
   <div class="flex min-h-screen flex-col">
     <header class="flex h-[52px] shrink-0 items-center justify-between border-b bg-background px-4">
-      <!-- Left: Logo + Breadcrumb -->
+      <!-- Left: Logo + Avatar + Breadcrumb -->
       <div class="flex items-center gap-3">
         <RouterLink
           to="/"
-          class="flex items-center gap-2 transition-opacity hover:opacity-80"
+          class="flex items-center transition-opacity hover:opacity-80"
         >
-          <BaseLogo :size="24" />
-          <span class="text-sm font-semibold text-foreground">Lucity</span>
+          <BaseLogo :size="24" class="logo-bold" />
         </RouterLink>
+
+        <!-- User avatar next to logo (non-clickable, like Railway) -->
+        <template v-if="user">
+          <div class="h-4 w-px bg-border" />
+          <Avatar class="h-6 w-6">
+            <AvatarImage :src="user.avatarUrl" :alt="user.login" />
+            <AvatarFallback class="text-[10px]">{{ (user.name || user.login).charAt(0).toUpperCase() }}</AvatarFallback>
+          </Avatar>
+        </template>
 
         <ProjectBreadcrumb
           v-if="isProjectRoute && projectId"
           :project-name="projectId"
-          class="ml-2"
         />
       </div>
 
-      <!-- Right: Theme + User -->
+      <!-- Right: Theme + User menu -->
       <div class="flex items-center gap-2">
         <Button
           variant="ghost"
@@ -91,3 +98,11 @@ async function handleLogout() {
     </main>
   </div>
 </template>
+
+<style scoped>
+.logo-bold {
+  --primary: var(--foreground);
+  --accent: var(--foreground);
+  --accent-foreground: var(--foreground);
+}
+</style>

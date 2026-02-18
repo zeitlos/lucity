@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { Slash } from 'lucide-vue-next';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -21,13 +20,13 @@ defineProps<{
         <BreadcrumbLink href="/">Projects</BreadcrumbLink>
       </BreadcrumbItem>
       <BreadcrumbSeparator>
-        <Slash :size="14" />
+        <span class="text-border">/</span>
       </BreadcrumbSeparator>
       <BreadcrumbItem>
         <span class="text-sm font-medium text-foreground">{{ projectName }}</span>
       </BreadcrumbItem>
       <BreadcrumbSeparator>
-        <Slash :size="14" />
+        <span class="text-border">/</span>
       </BreadcrumbSeparator>
       <BreadcrumbItem>
         <EnvironmentSwitcher />
