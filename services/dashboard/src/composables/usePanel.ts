@@ -18,7 +18,13 @@ export function usePanel() {
   const isOpen = computed(() => panelStack.value.length > 0);
 
   function openPanel(entry: PanelEntry) {
-    panelStack.value.push(entry);
+    // Service-level panels replace the stack (selecting a different service)
+    // Sub-views (deployments, etc.) push onto the stack for breadcrumb navigation
+    if (entry.type === 'service') {
+      panelStack.value = [entry];
+    } else {
+      panelStack.value.push(entry);
+    }
   }
 
   function closePanel() {
