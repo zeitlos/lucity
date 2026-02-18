@@ -60,7 +60,6 @@ import {
 } from '@/components/ui/alert-dialog';
 import EmptyState from '@/components/EmptyState.vue';
 import FrameworkIcon from '@/components/FrameworkIcon.vue';
-import { errorMessage } from '@/lib/utils';
 import { useBuild, type BuildState } from '@/composables/useBuild';
 
 const route = useRoute();
@@ -100,28 +99,29 @@ watch(
 );
 
 // Add Service
-const { mutate: addServiceMutate, loading: addingService } = useMutation(AddServiceMutation);
+const { mutate: addServiceMutate, loading: addingService, onError: onAddError } = useMutation(AddServiceMutation);
+onAddError((error) => {
+  toast.error('Failed to add service', { description: error.message });
+});
 
 async function confirmDetectedService(detected: {
   name: string;
   framework: string;
   suggestedPort: number;
 }) {
-  try {
-    await addServiceMutate({
-      input: {
-        projectId: projectId.value,
-        name: detected.name,
-        port: detected.suggestedPort,
-        public: true,
-        framework: detected.framework || undefined,
-      },
-    });
+  const res = await addServiceMutate({
+    input: {
+      projectId: projectId.value,
+      name: detected.name,
+      port: detected.suggestedPort,
+      public: true,
+      framework: detected.framework || undefined,
+    },
+  });
+  if (res?.data) {
     toast.success('Service added', { description: `${detected.name} configured` });
     showDetectionPanel.value = false;
     refetch();
-  } catch (e: unknown) {
-    toast.error('Failed to add service', { description: errorMessage(e) });
   }
 }
 
@@ -132,39 +132,38 @@ const newServicePort = ref(3000);
 const newServicePublic = ref(true);
 
 async function handleAddService() {
-  try {
-    await addServiceMutate({
-      input: {
-        projectId: projectId.value,
-        name: newServiceName.value,
-        port: newServicePort.value,
-        public: newServicePublic.value,
-      },
-    });
+  const res = await addServiceMutate({
+    input: {
+      projectId: projectId.value,
+      name: newServiceName.value,
+      port: newServicePort.value,
+      public: newServicePublic.value,
+    },
+  });
+  if (res?.data) {
     toast.success('Service added');
     addDialogOpen.value = false;
     newServiceName.value = 'web';
     newServicePort.value = 3000;
     newServicePublic.value = true;
     refetch();
-  } catch (e: unknown) {
-    toast.error('Failed to add service', { description: errorMessage(e) });
   }
 }
 
 // Remove service
-const { mutate: removeServiceMutate } = useMutation(RemoveServiceMutation);
+const { mutate: removeServiceMutate, onError: onRemoveError } = useMutation(RemoveServiceMutation);
+onRemoveError((error) => {
+  toast.error('Failed to remove service', { description: error.message });
+});
 
 async function handleRemoveService(service: string) {
-  try {
-    await removeServiceMutate({
-      projectId: projectId.value,
-      service,
-    });
+  const res = await removeServiceMutate({
+    projectId: projectId.value,
+    service,
+  });
+  if (res?.data) {
     toast.success('Service removed');
     refetch();
-  } catch (e: unknown) {
-    toast.error('Failed to remove service', { description: errorMessage(e) });
   }
 }
 
