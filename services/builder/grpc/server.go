@@ -21,21 +21,23 @@ import (
 // Server implements the BuilderService gRPC API.
 type Server struct {
 	builder.UnimplementedBuilderServiceServer
-	engine        engine.Engine
-	tracker       *build.Tracker
-	registryURL   string
-	registryToken string
-	workDir       string
+	engine           engine.Engine
+	tracker          *build.Tracker
+	registryURL      string
+	registryToken    string
+	registryInsecure bool
+	workDir          string
 }
 
 // NewServer creates a new builder gRPC server.
-func NewServer(eng engine.Engine, registryURL, registryToken, workDir string) *Server {
+func NewServer(eng engine.Engine, registryURL, registryToken string, registryInsecure bool, workDir string) *Server {
 	return &Server{
-		engine:        eng,
-		tracker:       build.NewTracker(),
-		registryURL:   registryURL,
-		registryToken: registryToken,
-		workDir:       workDir,
+		engine:           eng,
+		tracker:          build.NewTracker(),
+		registryURL:      registryURL,
+		registryToken:    registryToken,
+		registryInsecure: registryInsecure,
+		workDir:          workDir,
 	}
 }
 
@@ -139,6 +141,7 @@ func (s *Server) runBuild(buildID, token string, req *builder.StartBuildRequest)
 		Token:       s.registryToken,
 		SourceURL:   req.SourceUrl,
 		GitSHA:      full,
+		Insecure:    s.registryInsecure,
 	})
 	if err != nil {
 		s.tracker.Fail(buildID, fmt.Sprintf("build failed: %v", err))

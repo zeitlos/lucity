@@ -2,7 +2,6 @@ package engine
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -136,27 +135,10 @@ func (e *LocalEngine) Build(ctx context.Context, opts BuildOpts) (*BuildResult, 
 
 	slog.Info("build completed, pushing image", "image", opts.ImageName)
 
-	// Create a temporary Docker config with registry credentials embedded directly.
-	// This bypasses Docker Desktop's credsStore helper which can be unreliable.
-	dockerConfigDir, err := writeDockerConfig(registryHost(opts.ImageName), opts.Token)
+	digest, err := pushImage(ctx, opts)
 	if err != nil {
-		return nil, fmt.Errorf("failed to write docker config: %w", err)
+		return nil, err
 	}
-	defer os.RemoveAll(dockerConfigDir)
-
-	// Push the image using `docker push` which respects DOCKER_CONFIG on the host.
-	pushCmd := exec.CommandContext(ctx, "docker", "push", opts.ImageName)
-	pushCmd.Env = append(os.Environ(), "DOCKER_CONFIG="+dockerConfigDir)
-
-	pushOutput, err := pushCmd.CombinedOutput()
-	if err != nil {
-		slog.Error("push failed", "error", err, "output", string(pushOutput))
-		return nil, fmt.Errorf("push failed: %w: %s", err, string(pushOutput))
-	}
-	slog.Info("push completed", "image", opts.ImageName)
-
-	// Extract digest from push output
-	digest := extractDigest(string(pushOutput))
 
 	return &BuildResult{
 		ImageRef: opts.ImageName,
@@ -164,76 +146,52 @@ func (e *LocalEngine) Build(ctx context.Context, opts BuildOpts) (*BuildResult, 
 	}, nil
 }
 
-// extractBuildxDigest reads the digest from docker buildx metadata JSON.
-func extractBuildxDigest(metadataFile string) string {
-	data, err := os.ReadFile(metadataFile)
+// pushImage saves the image from the Docker daemon to a tarball and pushes it
+// to the registry using crane. This runs entirely on the host, avoiding Docker
+// Desktop's daemon-level TLS enforcement which breaks pushes to HTTP registries
+// like a local Zot instance.
+func pushImage(ctx context.Context, opts BuildOpts) (string, error) {
+	// Save the image from the Docker daemon to a tarball
+	tarFile, err := os.CreateTemp("", "image-*.tar")
 	if err != nil {
-		return ""
+		return "", fmt.Errorf("failed to create temp file: %w", err)
 	}
-	defer os.Remove(metadataFile)
+	tarPath := tarFile.Name()
+	tarFile.Close()
+	defer os.Remove(tarPath)
 
-	var metadata struct {
-		Digest string `json:"containerimage.digest"`
+	saveCmd := exec.CommandContext(ctx, "docker", "save", opts.ImageName, "-o", tarPath)
+	if output, err := saveCmd.CombinedOutput(); err != nil {
+		slog.Error("docker save failed", "error", err, "output", string(output))
+		return "", fmt.Errorf("docker save failed: %w: %s", err, string(output))
 	}
-	if err := json.Unmarshal(data, &metadata); err != nil {
-		return ""
+
+	// Push using crane (runs on the host, supports --insecure for HTTP registries)
+	args := []string{"push", tarPath, opts.ImageName}
+	if opts.Insecure {
+		args = append(args, "--insecure")
 	}
-	return metadata.Digest
+
+	pushCmd := exec.CommandContext(ctx, "crane", args...)
+	pushOutput, err := pushCmd.CombinedOutput()
+	if err != nil {
+		slog.Error("push failed", "error", err, "output", string(pushOutput))
+		return "", fmt.Errorf("push failed: %w: %s", err, string(pushOutput))
+	}
+	slog.Info("push completed", "image", opts.ImageName)
+
+	// crane outputs "registry/repo@sha256:..." on success — extract the digest
+	digest := extractCraneDigest(string(pushOutput))
+	return digest, nil
 }
 
-// writeDockerConfig creates a temporary directory with a config.json containing
-// registry credentials embedded directly (no credential helper). This ensures
-// BuildKit inside Docker Desktop's VM can authenticate to push images.
-func writeDockerConfig(host, token string) (string, error) {
-	dir, err := os.MkdirTemp("", "docker-config-*")
-	if err != nil {
-		return "", err
-	}
-
-	auth := base64.StdEncoding.EncodeToString([]byte("x-access-token:" + token))
-	config := map[string]any{
-		"auths": map[string]any{
-			host: map[string]string{
-				"auth": auth,
-			},
-		},
-	}
-
-	data, err := json.Marshal(config)
-	if err != nil {
-		os.RemoveAll(dir)
-		return "", err
-	}
-
-	if err := os.WriteFile(filepath.Join(dir, "config.json"), data, 0600); err != nil {
-		os.RemoveAll(dir)
-		return "", err
-	}
-
-	return dir, nil
-}
-
-// registryHost extracts the registry host from an image reference.
-// "ghcr.io/user/proj/svc:tag" → "ghcr.io"
-func registryHost(imageRef string) string {
-	parts := strings.SplitN(imageRef, "/", 2)
-	if len(parts) > 0 && (strings.Contains(parts[0], ".") || strings.Contains(parts[0], ":")) {
-		return parts[0]
-	}
-	return "docker.io"
-}
-
-// extractDigest parses the digest from docker push output.
-// Looks for "digest: sha256:..." in the output.
-func extractDigest(output string) string {
-	for _, line := range strings.Split(output, "\n") {
+// extractCraneDigest parses the digest from crane push output.
+// crane outputs lines like "registry/repo@sha256:abc123..." on success.
+func extractCraneDigest(output string) string {
+	for _, line := range strings.Split(strings.TrimSpace(output), "\n") {
 		line = strings.TrimSpace(line)
-		if idx := strings.Index(strings.ToLower(line), "digest:"); idx >= 0 {
-			rest := strings.TrimSpace(line[idx+7:])
-			// Take just the sha256:... part
-			if parts := strings.Fields(rest); len(parts) > 0 {
-				return parts[0]
-			}
+		if idx := strings.Index(line, "@sha256:"); idx >= 0 {
+			return line[idx+1:] // return "sha256:..."
 		}
 	}
 	return ""

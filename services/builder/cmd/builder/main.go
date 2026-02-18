@@ -16,9 +16,10 @@ type Config struct {
 	Port          string `envconfig:"PORT" default:"9001"`
 	LogLevel      string `envconfig:"LOG_LEVEL" default:"info"`
 	JWTSecret     string `envconfig:"JWT_SECRET" required:"true"`
-	RegistryURL   string `envconfig:"REGISTRY_URL" default:"ghcr.io"`
-	RegistryToken string `envconfig:"REGISTRY_TOKEN" required:"true"`
-	WorkDir       string `envconfig:"WORK_DIR" default:"/tmp/lucity-builds"`
+	RegistryURL      string `envconfig:"REGISTRY_URL" default:"ghcr.io"`
+	RegistryToken    string `envconfig:"REGISTRY_TOKEN" required:"true"`
+	RegistryInsecure bool   `envconfig:"REGISTRY_INSECURE" default:"false"`
+	WorkDir          string `envconfig:"WORK_DIR" default:"/tmp/lucity-builds"`
 }
 
 func main() {
@@ -40,7 +41,7 @@ func main() {
 	defer cancel()
 
 	eng := engine.NewLocalEngine()
-	svc := buildergrpc.NewServer(eng, config.RegistryURL, config.RegistryToken, config.WorkDir)
+	svc := buildergrpc.NewServer(eng, config.RegistryURL, config.RegistryToken, config.RegistryInsecure, config.WorkDir)
 	grpcServer := buildergrpc.NewGRPCServer(":"+config.Port, config.JWTSecret, svc)
 
 	graceful.Serve(ctx, grpcServer)

@@ -25,6 +25,7 @@ type BuildOpts struct {
 	Token       string // registry push auth token
 	SourceURL   string // source repository URL (e.g., https://github.com/user/repo)
 	GitSHA      string // full git commit SHA
+	Insecure    bool   // allow HTTP (non-TLS) registry connections
 }
 
 // Engine abstracts the build backend.
