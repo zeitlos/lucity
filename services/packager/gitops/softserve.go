@@ -45,19 +45,31 @@ func (p *SoftServeProvider) CreateRepo(ctx context.Context, project, sourceURL s
 		return "", err
 	}
 	repoName := name + RepoSuffix
+	cloneURL := p.repoHTTPURL(repoName)
 
-	// Create the repo via SSH
-	if _, err := p.sshCmd("repo", "create", repoName); err != nil {
-		return "", fmt.Errorf("failed to create repo %s: %w", repoName, err)
+	// Create the repo via SSH (idempotent: handle "already exists")
+	_, err = p.sshCmd("repo", "create", repoName)
+	if err != nil {
+		if !strings.Contains(err.Error(), "already exists") {
+			return "", fmt.Errorf("failed to create repo %s: %w", repoName, err)
+		}
+
+		slog.Info("repo already exists, checking state", "repo", repoName)
+
+		if p.repoHasContent(repoName) {
+			slog.Info("repo already initialized", "repo", repoName)
+			return cloneURL, nil
+		}
+
+		slog.Info("repo exists but empty, re-initializing", "repo", repoName)
 	}
 
-	// Make it private
+	// Make it private (idempotent)
 	if _, err := p.sshCmd("repo", "private", repoName, "true"); err != nil {
 		slog.Warn("failed to set repo private", "repo", repoName, "error", err)
 	}
 
-	cloneURL := p.repoHTTPURL(repoName)
-	slog.Info("created softserve repo", "repo", repoName, "url", cloneURL)
+	slog.Info("initializing softserve repo", "repo", repoName, "url", cloneURL)
 
 	// Initialize with directory structure and files
 	if err := p.initRepoContents(cloneURL, project, sourceURL); err != nil {
@@ -65,6 +77,18 @@ func (p *SoftServeProvider) CreateRepo(ctx context.Context, project, sourceURL s
 	}
 
 	return cloneURL, nil
+}
+
+// repoHasContent checks whether a Soft-serve repo has been initialized with project.yaml.
+func (p *SoftServeProvider) repoHasContent(repoName string) bool {
+	dir, cleanup, err := p.cloneRepo(repoName)
+	if err != nil {
+		return false
+	}
+	defer cleanup()
+
+	_, err = os.Stat(filepath.Join(dir, "project.yaml"))
+	return err == nil
 }
 
 // Repos lists all GitOps repos on Soft-serve.
@@ -83,7 +107,9 @@ func (p *SoftServeProvider) Repos(ctx context.Context) ([]ProjectMeta, error) {
 
 		meta, err := p.readProjectMeta(repoName)
 		if err != nil {
-			slog.Warn("skipping repo", "repo", repoName, "error", err)
+			slog.Warn("skipping repo with unreadable metadata",
+				"repo", repoName, "error", err,
+				"hint", "retry creating the project to recover")
 			continue
 		}
 		meta.RepoURL = p.repoHTTPURL(repoName)

@@ -58,6 +58,16 @@ Features should be operable by a small team. Ask:
 
 If a feature can't be run without a dedicated on-call team, it's too complex.
 
+## Idempotent Operations
+
+Operations that touch external state — creating repos, deploying ArgoCD apps, pushing images, creating namespaces — must be idempotent. If something already exists, detect it and handle it gracefully instead of failing.
+
+- **Create operations**: check if the resource already exists and is in the expected state. If yes, return success. If it exists but is incomplete (partial failure), recover by completing the remaining steps.
+- **Delete operations**: if the resource is already gone, return success — don't error on "not found".
+- **Update operations**: verify current state before applying changes. Don't assume a clean slate.
+
+This matters because the platform is stateless and distributed. Retries, crashes, and partial failures are normal. Every operation should be safe to repeat.
+
 ## Don't Reinvent
 
 If ArgoCD, Helm, a Kubernetes operator, or the OCI registry already manages a piece of state, use it. Don't duplicate it. Don't wrap it in an unnecessary abstraction. Leverage what's already there.

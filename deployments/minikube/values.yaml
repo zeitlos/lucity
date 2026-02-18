@@ -9,4 +9,4 @@ zot:
 softServe:
   persistence:
     size: 2Gi
-  initialAdminKey: "" # TODO: set to your admin SSH public key
+  initialAdminKey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHWFwhUiR9NfDEQYZpx5Th1WC+9wG7ZJAClNNt1Rmee2"
