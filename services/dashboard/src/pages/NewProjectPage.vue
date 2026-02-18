@@ -17,9 +17,7 @@ import EmptyState from '@/components/EmptyState.vue';
 const router = useRouter();
 
 const { result, loading, error } = useQuery(GitHubRepositoriesQuery);
-const { mutate: createProject, loading: creating } = useMutation(CreateProjectMutation, {
-  throws: 'always',
-});
+const { mutate: createProject, loading: creating } = useMutation(CreateProjectMutation);
 
 const search = ref('');
 const selectedRepo = ref<{ fullName: string; htmlUrl: string } | null>(null);
@@ -45,6 +43,13 @@ async function handleCreate() {
         sourceUrl: selectedRepo.value.htmlUrl,
       },
     });
+
+    if (res?.errors?.length) {
+      toast.error('Failed to create project', {
+        description: res.errors.map(e => e.message).join(', '),
+      });
+      return;
+    }
 
     if (res?.data?.createProject) {
       router.push({ name: 'project', params: { id: res.data.createProject.id } });

@@ -100,9 +100,7 @@ watch(
 );
 
 // Add Service
-const { mutate: addServiceMutate, loading: addingService } = useMutation(AddServiceMutation, {
-  throws: 'always',
-});
+const { mutate: addServiceMutate, loading: addingService } = useMutation(AddServiceMutation);
 
 async function confirmDetectedService(detected: {
   name: string;
@@ -110,7 +108,7 @@ async function confirmDetectedService(detected: {
   suggestedPort: number;
 }) {
   try {
-    await addServiceMutate({
+    const res = await addServiceMutate({
       input: {
         projectId: projectId.value,
         name: detected.name,
@@ -119,6 +117,14 @@ async function confirmDetectedService(detected: {
         framework: detected.framework || undefined,
       },
     });
+
+    if (res?.errors?.length) {
+      toast.error('Failed to add service', {
+        description: res.errors.map(e => e.message).join(', '),
+      });
+      return;
+    }
+
     toast.success('Service added', { description: `${detected.name} configured` });
     showDetectionPanel.value = false;
     refetch();
@@ -135,7 +141,7 @@ const newServicePublic = ref(true);
 
 async function handleAddService() {
   try {
-    await addServiceMutate({
+    const res = await addServiceMutate({
       input: {
         projectId: projectId.value,
         name: newServiceName.value,
@@ -143,6 +149,14 @@ async function handleAddService() {
         public: newServicePublic.value,
       },
     });
+
+    if (res?.errors?.length) {
+      toast.error('Failed to add service', {
+        description: res.errors.map(e => e.message).join(', '),
+      });
+      return;
+    }
+
     toast.success('Service added');
     addDialogOpen.value = false;
     newServiceName.value = 'web';
@@ -155,16 +169,22 @@ async function handleAddService() {
 }
 
 // Remove service
-const { mutate: removeServiceMutate } = useMutation(RemoveServiceMutation, {
-  throws: 'always',
-});
+const { mutate: removeServiceMutate } = useMutation(RemoveServiceMutation);
 
 async function handleRemoveService(service: string) {
   try {
-    await removeServiceMutate({
+    const res = await removeServiceMutate({
       projectId: projectId.value,
       service,
     });
+
+    if (res?.errors?.length) {
+      toast.error('Failed to remove service', {
+        description: res.errors.map(e => e.message).join(', '),
+      });
+      return;
+    }
+
     toast.success('Service removed');
     refetch();
   } catch (e: unknown) {

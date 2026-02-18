@@ -1,4 +1,5 @@
 import './assets/main.css';
+import 'vue-sonner/style.css';
 
 import { createApp } from 'vue';
 import { DefaultApolloClient } from '@vue/apollo-composable';
