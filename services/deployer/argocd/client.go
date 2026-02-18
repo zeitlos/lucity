@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 )
 
 // Client is a thin HTTP client for the ArgoCD REST API.
@@ -105,6 +106,29 @@ func (c *Client) SyncApplication(ctx context.Context, name string) (*Application
 		return nil, fmt.Errorf("failed to sync application %s: %w", name, err)
 	}
 	return &result, nil
+}
+
+// CreateRepository registers a Git repository in ArgoCD.
+// Idempotent: returns success if the repository already exists.
+func (c *Client) CreateRepository(ctx context.Context, repo Repository) error {
+	body, err := json.Marshal(repo)
+	if err != nil {
+		return fmt.Errorf("failed to marshal repository: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
+		c.baseURL+"/api/v1/repositories", bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+
+	if err := c.do(req, nil); err != nil {
+		if strings.Contains(err.Error(), "already exists") {
+			return nil
+		}
+		return fmt.Errorf("failed to create repository: %w", err)
+	}
+	return nil
 }
 
 func (c *Client) do(req *http.Request, result any) error {

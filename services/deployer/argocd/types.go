@@ -63,3 +63,11 @@ type SyncStatus struct {
 type SyncRequest struct {
 	Prune bool `json:"prune"`
 }
+
+// Repository represents an ArgoCD repository connection.
+type Repository struct {
+	Repo     string `json:"repo"`
+	Username string `json:"username,omitempty"`
+	Password string `json:"password,omitempty"`
+	Type     string `json:"type,omitempty"`
+}

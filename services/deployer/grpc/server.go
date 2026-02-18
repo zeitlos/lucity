@@ -16,17 +16,44 @@ type Server struct {
 
 	// softServeHTTP is the cluster-internal Soft-serve HTTP URL for ArgoCD to clone from.
 	softServeHTTP string
+	// softServeToken is the Soft-serve access token for HTTP git operations.
+	softServeToken string
 }
 
-func NewServer(argo *argocd.Client, softServeHTTP string) *Server {
+func NewServer(argo *argocd.Client, softServeHTTP, softServeToken string) *Server {
 	return &Server{
-		argo:          argo,
-		softServeHTTP: softServeHTTP,
+		argo:           argo,
+		softServeHTTP:  softServeHTTP,
+		softServeToken: softServeToken,
 	}
 }
 
 func (s *Server) DeployEnvironment(ctx context.Context, req *deployer.DeployEnvironmentRequest) (*deployer.DeployEnvironmentResponse, error) {
 	appName := applicationName(req.Project, req.Environment)
+
+	// Idempotent: if the application already exists, return it.
+	existing, err := s.argo.Application(ctx, appName)
+	if err == nil && existing != nil {
+		slog.Info("ArgoCD application already exists",
+			"app", appName,
+			"project", req.Project,
+			"environment", req.Environment,
+		)
+		return &deployer.DeployEnvironmentResponse{
+			DeploymentName: existing.Metadata.Name,
+		}, nil
+	}
+
+	// Ensure the GitOps repo is registered in ArgoCD with credentials.
+	repoURL := s.repoURL(req.Project)
+	if err := s.argo.CreateRepository(ctx, argocd.Repository{
+		Repo:     repoURL,
+		Username: "lucity",
+		Password: s.softServeToken,
+		Type:     "git",
+	}); err != nil {
+		return nil, fmt.Errorf("failed to register repository in ArgoCD: %w", err)
+	}
 
 	app := argocd.Application{
 		Metadata: argocd.Metadata{
@@ -34,7 +61,7 @@ func (s *Server) DeployEnvironment(ctx context.Context, req *deployer.DeployEnvi
 		},
 		Spec: argocd.ApplicationSpec{
 			Source: argocd.Source{
-				RepoURL:        s.repoURL(req.Project),
+				RepoURL:        repoURL,
 				Path:           "base",
 				TargetRevision: "HEAD",
 				Helm: &argocd.Helm{

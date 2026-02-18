@@ -18,7 +18,9 @@ type Config struct {
 	ArgocdAddr    string `envconfig:"ARGOCD_ADDR" required:"true"`
 	ArgocdToken   string `envconfig:"ARGOCD_TOKEN" required:"true"`
 	ArgocdInsecure bool  `envconfig:"ARGOCD_INSECURE" default:"false"`
-	SoftServeHTTP string `envconfig:"SOFTSERVE_HTTP_ADDR" default:"http://lucity-infra-soft-serve.lucity-system.svc.cluster.local:23232"`
+	SoftServeHTTP        string `envconfig:"SOFTSERVE_HTTP_ADDR" default:"http://lucity-infra-soft-serve.lucity-system.svc.cluster.local:23232"`
+	SoftServeClusterHTTP string `envconfig:"SOFTSERVE_CLUSTER_HTTP_ADDR"`
+	SoftServeToken       string `envconfig:"SOFTSERVE_TOKEN"`
 }
 
 func main() {
@@ -32,7 +34,12 @@ func main() {
 
 	argoClient := argocd.NewClient(config.ArgocdAddr, config.ArgocdToken, config.ArgocdInsecure)
 
-	svc := deployergrpc.NewServer(argoClient, config.SoftServeHTTP)
+	clusterHTTP := config.SoftServeClusterHTTP
+	if clusterHTTP == "" {
+		clusterHTTP = config.SoftServeHTTP
+	}
+
+	svc := deployergrpc.NewServer(argoClient, clusterHTTP, config.SoftServeToken)
 	grpcServer := deployergrpc.NewGRPCServer(":"+config.Port, svc)
 
 	ctx, cancel := graceful.Context()
