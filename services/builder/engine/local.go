@@ -217,7 +217,7 @@ func writeDockerConfig(host, token string) (string, error) {
 // "ghcr.io/user/proj/svc:tag" → "ghcr.io"
 func registryHost(imageRef string) string {
 	parts := strings.SplitN(imageRef, "/", 2)
-	if len(parts) > 0 && strings.Contains(parts[0], ".") {
+	if len(parts) > 0 && (strings.Contains(parts[0], ".") || strings.Contains(parts[0], ":")) {
 		return parts[0]
 	}
 	return "docker.io"
