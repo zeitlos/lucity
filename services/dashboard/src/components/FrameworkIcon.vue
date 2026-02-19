@@ -1,251 +1,68 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { Container } from 'lucide-vue-next';
+import { useTheme } from '@/composables/useTheme';
 
 const props = defineProps<{
   framework?: string | null;
   size?: number;
 }>();
 
+const { theme } = useTheme();
 const iconSize = computed(() => props.size ?? 16);
 
-// SVG path data for framework icons (viewBox 0 0 24 24 unless noted)
-const frameworkSvg = computed<{ paths: string[]; viewBox?: string; fill?: string } | null>(() => {
+// Frameworks that need -light/-dark suffix (monochrome icons)
+const THEMED = new Set(['nextjs', 'rust', 'django', 'remix', 'flask', 'deno']);
+
+const DEVICON_MAP: Record<string, string> = {
+  nuxt: 'nuxtjs',
+  nextjs: 'nextjs',
+  vue: 'vuejs',
+  vite: 'vitejs',
+  react: 'react',
+  svelte: 'svelte',
+  astro: 'astro',
+  angular: 'angularjs',
+  node: 'nodejs',
+  python: 'python',
+  go: 'go',
+  rust: 'rust',
+  django: 'django',
+  rails: 'rails',
+  php: 'php',
+  laravel: 'laravel',
+  elixir: 'elixir',
+  remix: 'remix',
+  cra: 'react',
+  'react-router': 'react',
+  fastapi: 'fastapi',
+  flask: 'flask',
+  java: 'java',
+  phoenix: 'phoenix',
+  dotnet: 'dotnet',
+  deno: 'deno',
+  ruby: 'ruby',
+};
+
+const iconUrl = computed(() => {
   if (!props.framework) return null;
-
-  const svgs: Record<string, { paths: string[]; viewBox?: string; fill?: string }> = {
-    // Nuxt — green triangle/chevron
-    nuxt: {
-      paths: [
-        'M13.4 2.6a2.6 2.6 0 0 0-4.5 0L.6 17.4A2.6 2.6 0 0 0 2.85 21h5.3a1 1 0 0 0 0-.08L15.5 8.24 13.4 2.6Z',
-        'M21.15 21a2.6 2.6 0 0 0 2.25-3.9l-4.65-8a2.6 2.6 0 0 0-4.5 0l-4.65 8A2.6 2.6 0 0 0 11.85 21h9.3Z',
-      ],
-      fill: '#00DC82',
-    },
-    // Next.js — N in circle
-    nextjs: {
-      paths: [
-        'M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2ZM9.5 8.5h1v4.998L15.013 7H16.5l-6 8.5V8.5Z',
-      ],
-      fill: 'currentColor',
-    },
-    // Vue — V shape
-    vue: {
-      paths: [
-        'M2 3h3.5L12 14.5 18.5 3H22L12 21 2 3Z',
-        'M7.5 3L12 10.75 16.5 3H13l-1 1.75L11 3H7.5Z',
-      ],
-      fill: '#42b883',
-    },
-    // Vite — lightning bolt
-    vite: {
-      paths: [
-        'M21.9 1.5l-10.4 21a.5.5 0 0 1-.93-.14L8.1 12.5 1.5 10.9a.5.5 0 0 1-.12-.91L21.1 1.1a.5.5 0 0 1 .8.4Z',
-      ],
-      fill: '#646CFF',
-    },
-    // React — atom
-    react: {
-      paths: [
-        'M12 13.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z',
-        'M12 7.5c3.5 0 6.5.7 8.3 1.8.9.6 1.7 1.4 1.7 2.7s-.8 2.1-1.7 2.7c-1.8 1.1-4.8 1.8-8.3 1.8s-6.5-.7-8.3-1.8C2.8 14.1 2 13.3 2 12s.8-2.1 1.7-2.7C5.5 8.2 8.5 7.5 12 7.5Z',
-        'M8.2 9.7c1.7-3 3.9-5.3 5.9-6.3 1-.5 2.1-.7 3 0 .9.6 1.2 1.6 1.1 2.9-.2 2.1-1.3 4.8-3 7.8s-3.9 5.3-5.9 6.3c-1 .5-2.1.7-3 0-.9-.6-1.2-1.6-1.1-2.9.2-2.1 1.3-4.8 3-7.8Z',
-        'M8.2 14.3c-1.7-3-2.8-5.7-3-7.8-.1-1.3.2-2.3 1.1-2.9.9-.7 2-.5 3 0 2 1 4.2 3.3 5.9 6.3s2.8 5.7 3 7.8c.1 1.3-.2 2.3-1.1 2.9-.9.7-2 .5-3 0-2-1-4.2-3.3-5.9-6.3Z',
-      ],
-      fill: '#61DAFB',
-    },
-    // Svelte — S flame
-    svelte: {
-      paths: [
-        'M18.5 3.3C16.2.6 12-.3 8.7 1 5.2 2.3 3.4 5.8 4 9.2c.1.7.3 1.3.6 2l-.3-.4C2.5 8.1 2.4 4.2 4.9 2 7.2-.1 10.7-.2 13.2 1.1c2.8 1.5 4.6 4.6 4.3 7.8-.3 2.5-1.8 4.7-3.8 6l1.6-3.6c.6-1.4.5-3-.3-4.3-.9-1.4-2.5-2.2-4.1-1.9l-1 .3c-1.3.6-2.2 1.8-2.3 3.2 0 .8.2 1.6.7 2.2l.3.4c1.8 2.7 1.9 6.6-.6 8.8-2.3 2.1-5.8 2.2-8.3.9C-1 20.4-2.8 17.3-2.5 14.1c.3-2.5 1.8-4.7 3.8-6L-.3 11.7c-.6 1.4-.5 3 .3 4.3.9 1.4 2.5 2.2 4.1 1.9l1-.3c1.3-.6 2.2-1.8 2.3-3.2 0-.8-.2-1.6-.7-2.2',
-      ],
-      viewBox: '-4 -2 28 28',
-      fill: '#FF3E00',
-    },
-    // Astro — A rocket
-    astro: {
-      paths: [
-        'M16.9 17.3c-.7-1.5-2.2-2.3-4.5-2.3h-.8c-2.3 0-3.8.8-4.5 2.3-.5 1.1-.4 2.4.3 3.7.2.4.7.4.9 0 .4-.8 1-1.2 1.7-1.2h4c.7 0 1.3.4 1.7 1.2.2.4.7.4.9 0 .7-1.3.8-2.6.3-3.7Z',
-        'M8.4 3.3c1-2.7 1.5-4 2.6-4.2.2 0 .4 0 .6 0 .4 0 .7.2 1 .5.6.7 1 1.8 1.6 4l2.9 9.8c-1.4-.8-3.1-1.2-5.1-1.2s-3.7.4-5.1 1.2L8.4 3.3Z',
-      ],
-      viewBox: '0 -2 24 26',
-      fill: '#FF5D01',
-    },
-    // Angular — shield
-    angular: {
-      paths: [
-        'M12 2L3.5 5.5l1.3 11.3L12 22l7.2-5.2 1.3-11.3L12 2Zm0 2.2l6 3L17.1 16 12 19.4 6.9 16 5.9 7.2l6.1-3ZM12 7l-4 8.5h1.5l.8-1.8h3.4l.8 1.8H16L12 7Zm0 3.2L13.2 13h-2.4L12 10.2Z',
-      ],
-      fill: '#DD0031',
-    },
-    // Node.js — hexagon
-    node: {
-      paths: [
-        'M12 2l8.7 5v10L12 22l-8.7-5V7L12 2Zm0 2.3L5.3 8v8l6.7 3.7L18.7 16V8L12 4.3Z',
-        'M12 8v8l-3.5-2V10L12 8Z',
-        'M12 8l3.5 2v4L12 16V8Z',
-      ],
-      fill: '#339933',
-    },
-    // Python — two snakes
-    python: {
-      paths: [
-        'M12 2c-1.7 0-3 .3-4 .8C6.5 3.5 6 4.8 6 6.5V8h6v1H5.5C3.6 9 2 10.5 2 13.5S3.6 18 5.5 18H8v-2.5C8 13.6 9.5 12 11.5 12h5c1.4 0 2.5-1.1 2.5-2.5V6.5c0-1.7-.5-3-2-3.7-1-.5-2.3-.8-4-.8h-1Zm-2.5 2.5a1 1 0 1 1 0 2 1 1 0 0 1 0-2Z',
-        'M12 22c1.7 0 3-.3 4-.8 1.5-.7 2-2 2-3.7V16h-6v-1h6.5c1.9 0 3.5-1.5 3.5-4.5S20.4 6 18.5 6H16v2.5c0 1.9-1.5 3.5-3.5 3.5h-5C6.1 12 5 13.1 5 14.5v3c0 1.7.5 3 2 3.7 1 .5 2.3.8 4 .8h1Zm2.5-2.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z',
-      ],
-      fill: '#3776AB',
-    },
-    // Go — stylized G
-    go: {
-      paths: [
-        'M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2Zm3.5 14.5h-2V14h-3v2.5h-2v-9h7v9Zm0-7h-5V7.5h5v2Z',
-      ],
-      fill: '#00ADD8',
-    },
-    // Rust — gear
-    rust: {
-      paths: [
-        'M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2Zm0 15a5 5 0 1 1 0-10 5 5 0 0 1 0 10Z',
-        'M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z',
-      ],
-      fill: '#CE422B',
-    },
-    // Django — D
-    django: {
-      paths: [
-        'M3 2h7c4.4 0 7 2.6 7 6.5 0 3.2-1.8 5.5-4.8 6.3V22H8.7V16H5V13h3.7V8.7C8.7 6.3 9.5 5 11.3 5h1.4c1.1 0 1.8.7 1.8 1.8v1.9c0 2-1 3.3-3 3.3H8.7V5H3V2Z',
-      ],
-      fill: '#092E20',
-    },
-    // Rails — R on rails
-    rails: {
-      paths: [
-        'M4 3h8c3.3 0 5 1.7 5 4.5 0 2-1 3.4-2.7 4L17 16h-3.5l-2.3-4H7.5v4H4V3Zm3.5 3v3h4c1 0 1.5-.6 1.5-1.5S12.5 6 11.5 6H7.5Z',
-        'M3 19h18v2H3v-2Z',
-        'M3 18h18v.5H3v-.5Z',
-      ],
-      fill: '#CC0000',
-    },
-    // PHP — elephant (simplified)
-    php: {
-      paths: [
-        'M12 5C6.5 5 2 7.7 2 11s4.5 6 10 6 10-2.7 10-6-4.5-6-10-6ZM7 13.5c-.8 0-1.5-.3-1.5-1V10c0-.7.7-1 1.5-1h1.5c.8 0 1.5.3 1.5 1v.5H9V10H7.5v2.5H9v.5c0 .3-.7.5-1.5.5H7Zm6 0c-.8 0-1.5-.3-1.5-1V10c0-.7.7-1 1.5-1h1.5c.8 0 1.5.3 1.5 1v.5H15V10h-1.5v2.5H15v.5c0 .3-.7.5-1.5.5H13Zm5.5 0H17V9h1.5v1.5H19c.6 0 1 .4 1 1v1c0 .6-.4 1-1 1Z',
-      ],
-      fill: '#777BB4',
-    },
-    // Laravel — L flame
-    laravel: {
-      paths: [
-        'M6 2c-.6 0-1 .4-1.3.9L2.2 8.3c-.2.3-.2.7 0 1l7.5 12.8c.3.5 1 .5 1.3 0l1.5-2.5L6 8.8V5l2.7 4.6 6.8 11.5c.3.5 1 .5 1.3 0l3-5.1c.2-.3.2-.7 0-1L12.3 2.9C12 2.4 11.4 2 10.8 2H6Z',
-      ],
-      fill: '#FF2D20',
-    },
-    // Elixir — drop
-    elixir: {
-      paths: [
-        'M12 2C8.6 7.5 5 11.4 5 15.5 5 19.6 8.1 22 12 22s7-2.4 7-6.5C19 11.4 15.4 7.5 12 2Zm0 17c-2.2 0-4-1.5-4-3.8 0-1.5.8-3 2-4.5.4-.5 1.2-.5 1.6 0 .3.4.6.8.8 1.2.5.9.8 1.5.8 2.1 0 .3-.1.5-.2.7-.3.5-.5 1-1 1.5-.2.2-.5.3-.8.3H12l-1-.3c-.3.5-.4 1.2 0 1.8.5.6 1.3.7 2 .5.7-.2 1.3-.7 1.6-1.4.2-.4.4-.8.4-1.3',
-      ],
-      fill: '#4B275F',
-    },
-    // Remix — R
-    remix: {
-      paths: [
-        'M3 3h8.5c3 0 5.5 2 5.5 5 0 2.3-1.5 4-3.5 4.6L17 18h-4l-3-5H7v5H3V3Zm4 3v4h4c1.1 0 2-.9 2-2s-.9-2-2-2H7Z',
-        'M3 20h14v2H3v-2Z',
-      ],
-      fill: '#3992FF',
-    },
-    cra: {
-      paths: [
-        'M12 13.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z',
-        'M12 7.5c3.5 0 6.5.7 8.3 1.8.9.6 1.7 1.4 1.7 2.7s-.8 2.1-1.7 2.7c-1.8 1.1-4.8 1.8-8.3 1.8s-6.5-.7-8.3-1.8C2.8 14.1 2 13.3 2 12s.8-2.1 1.7-2.7C5.5 8.2 8.5 7.5 12 7.5Z',
-        'M8.2 9.7c1.7-3 3.9-5.3 5.9-6.3 1-.5 2.1-.7 3 0 .9.6 1.2 1.6 1.1 2.9-.2 2.1-1.3 4.8-3 7.8s-3.9 5.3-5.9 6.3c-1 .5-2.1.7-3 0-.9-.6-1.2-1.6-1.1-2.9.2-2.1 1.3-4.8 3-7.8Z',
-        'M8.2 14.3c-1.7-3-2.8-5.7-3-7.8-.1-1.3.2-2.3 1.1-2.9.9-.7 2-.5 3 0 2 1 4.2 3.3 5.9 6.3s2.8 5.7 3 7.8c.1 1.3-.2 2.3-1.1 2.9-.9.7-2 .5-3 0-2-1-4.2-3.3-5.9-6.3Z',
-      ],
-      fill: '#61DAFB',
-    },
-    'react-router': {
-      paths: [
-        'M12 13.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z',
-        'M12 7.5c3.5 0 6.5.7 8.3 1.8.9.6 1.7 1.4 1.7 2.7s-.8 2.1-1.7 2.7c-1.8 1.1-4.8 1.8-8.3 1.8s-6.5-.7-8.3-1.8C2.8 14.1 2 13.3 2 12s.8-2.1 1.7-2.7C5.5 8.2 8.5 7.5 12 7.5Z',
-        'M8.2 9.7c1.7-3 3.9-5.3 5.9-6.3 1-.5 2.1-.7 3 0 .9.6 1.2 1.6 1.1 2.9-.2 2.1-1.3 4.8-3 7.8s-3.9 5.3-5.9 6.3c-1 .5-2.1.7-3 0-.9-.6-1.2-1.6-1.1-2.9.2-2.1 1.3-4.8 3-7.8Z',
-        'M8.2 14.3c-1.7-3-2.8-5.7-3-7.8-.1-1.3.2-2.3 1.1-2.9.9-.7 2-.5 3 0 2 1 4.2 3.3 5.9 6.3s2.8 5.7 3 7.8c.1 1.3-.2 2.3-1.1 2.9-.9.7-2 .5-3 0-2-1-4.2-3.3-5.9-6.3Z',
-      ],
-      fill: '#F44250',
-    },
-    // FastAPI — bolt
-    fastapi: {
-      paths: [
-        'M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2Zm1 3l-5 8h4l-1 8 5-8h-4l1-8Z',
-      ],
-      fill: '#009688',
-    },
-    // Flask — flask
-    flask: {
-      paths: [
-        'M9 2h6v2h-1v5l4 7.5c.6 1.1-.1 2.5-1.4 2.5H7.4c-1.3 0-2-1.4-1.4-2.5L10 9V4H9V2Zm2 2v5.5L7.5 17h9L13 9.5V4h-2Z',
-      ],
-      fill: '#000000',
-    },
-    // Java — coffee cup
-    java: {
-      paths: [
-        'M5 4h10v10c0 2.2-1.8 4-4 4H9c-2.2 0-4-1.8-4-4V4Zm2 2v8c0 1.1.9 2 2 2h2c1.1 0 2-.9 2-2V6H7Z',
-        'M16 7h2c1.1 0 2 .9 2 2v2c0 1.1-.9 2-2 2h-2v-2h2V9h-2V7Z',
-        'M4 20h14v2H4v-2Z',
-      ],
-      fill: '#E76F00',
-    },
-    // Phoenix — flame
-    phoenix: {
-      paths: [
-        'M12 2c-1.5 3-5 6-5 10 0 3 2 5.5 5 5.5s5-2.5 5-5.5c0-4-3.5-7-5-10Zm0 13c-1.4 0-2.5-1.1-2.5-2.5S10.6 10 12 10s2.5 1.1 2.5 2.5S13.4 15 12 15Z',
-        'M12 18c-2 0-3.5 1-3.5 2.5S10 22 12 22s3.5-.5 3.5-1.5S14 18 12 18Z',
-      ],
-      fill: '#FD4F00',
-    },
-    // .NET — purple dot
-    dotnet: {
-      paths: [
-        'M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2Zm-3 14.5L5.5 12 9 7.5 10.2 9 7.5 12l2.7 3L9 16.5Zm6 0L13.8 15l2.7-3-2.7-3L15 7.5 18.5 12 15 16.5Z',
-      ],
-      fill: '#512BD4',
-    },
-    // Deno — dinosaur
-    deno: {
-      paths: [
-        'M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2Zm-.5 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Zm3 2c.7 0 2 .5 2 2s-.5 3-2 4-3 1.5-4.5 1.5v-2c1 0 2-.3 3-1s1.5-1.5 1.5-2.5c0-.5-.3-1-1-1-.5 0-1.5.5-2.5 1.5l-1.5-1.5c1.5-1.5 3-2 4-2h1Z',
-      ],
-      fill: '#000000',
-    },
-    // Ruby — gem
-    ruby: {
-      paths: [
-        'M4.5 8L12 2l7.5 6-7.5 14L4.5 8Zm2.3.5L12 4.5l5.2 4L12 19 6.8 8.5Z',
-      ],
-      fill: '#CC342D',
-    },
-  };
-
-  return svgs[props.framework] ?? null;
+  const base = DEVICON_MAP[props.framework];
+  if (!base) return null;
+  const suffix = THEMED.has(base)
+    ? theme.value === 'dark' ? '-light' : '-dark'
+    : '';
+  return `https://devicons.railway.com/i/${base}${suffix}.svg`;
 });
 </script>
 
 <template>
-  <svg
-    v-if="frameworkSvg"
+  <img
+    v-if="iconUrl"
+    :src="iconUrl"
     :width="iconSize"
     :height="iconSize"
-    :viewBox="frameworkSvg.viewBox ?? '0 0 24 24'"
-    xmlns="http://www.w3.org/2000/svg"
     class="shrink-0"
-  >
-    <path
-      v-for="(d, i) in frameworkSvg.paths"
-      :key="i"
-      :d="d"
-      :fill="frameworkSvg.fill"
-    />
-  </svg>
+    alt=""
+  />
   <Container v-else :size="iconSize" class="shrink-0 text-muted-foreground" />
 </template>
