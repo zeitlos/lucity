@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-import { Rocket, Loader2, CheckCircle, XCircle, Clock } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
+import { Rocket, Loader2, Check, Circle, ChevronRight, AlertCircle, Tag } from 'lucide-vue-next';
 import { useEnvironment } from '@/composables/useEnvironment';
 import { useDeploy } from '@/composables/useDeploy';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import EmptyState from '@/components/EmptyState.vue';
 
 const props = defineProps<{
@@ -28,19 +29,35 @@ const envService = computed(() =>
 const deployments = computed(() => envService.value?.deployments ?? []);
 const hasDeployments = computed(() => deployments.value.length > 0);
 
+const expandedId = ref<string | null>(null);
+
+function toggleExpanded(id: string) {
+  expandedId.value = expandedId.value === id ? null : id;
+}
+
 async function handleDeploy() {
   const envName = activeEnvironment.value?.name ?? 'development';
   await deploy.startDeploy(props.projectId, props.service.name, envName);
 }
 
-function phaseVariant(phase: string) {
+// Deploy pipeline stages
+const STAGES = ['Initializing', 'Building', 'Deploying'] as const;
+
+// Map DeployPhase enum to stage index (0-based, -1 = not started)
+function phaseToStageIndex(phase: string): number {
   switch (phase) {
-    case 'SUCCEEDED': return 'default';
-    case 'FAILED': return 'destructive';
-    case 'BUILDING': return 'secondary';
-    case 'PUSHING': return 'secondary';
-    case 'DEPLOYING': return 'secondary';
-    default: return 'outline';
+    case 'QUEUED':
+    case 'CLONING':
+      return 0;
+    case 'BUILDING':
+    case 'PUSHING':
+      return 1;
+    case 'DEPLOYING':
+      return 2;
+    case 'SUCCEEDED':
+      return 3; // all complete
+    default:
+      return -1;
   }
 }
 
@@ -80,7 +97,7 @@ function formatRelativeTime(timestamp: string): string {
 
       <Badge
         v-if="deploy.phase"
-        :variant="phaseVariant(deploy.phase)"
+        :variant="deploy.phase === 'SUCCEEDED' ? 'default' : deploy.phase === 'FAILED' ? 'destructive' : 'secondary'"
         :hide-dot="deploy.isDeploying"
       >
         <Loader2
@@ -92,53 +109,128 @@ function formatRelativeTime(timestamp: string): string {
       </Badge>
     </div>
 
+    <!-- In-flight deploy stages -->
+    <div
+      v-if="deploy.isDeploying && deploy.phase"
+      class="rounded-lg border border-border/60 bg-muted/30"
+    >
+      <div class="px-3 py-2.5">
+        <div class="space-y-1">
+          <div
+            v-for="(stage, idx) in STAGES"
+            :key="stage"
+            class="flex items-center gap-2.5 py-1"
+          >
+            <!-- Stage indicator -->
+            <div class="flex h-4 w-4 items-center justify-center">
+              <Check
+                v-if="phaseToStageIndex(deploy.phase!) > idx"
+                :size="14"
+                class="text-[var(--status-ok)]"
+              />
+              <Loader2
+                v-else-if="!deploy.error && phaseToStageIndex(deploy.phase!) === idx"
+                :size="14"
+                class="animate-spin text-[var(--primary)]"
+              />
+              <AlertCircle
+                v-else-if="deploy.error"
+                :size="14"
+                class="text-[var(--status-danger)]"
+              />
+              <Circle
+                v-else
+                :size="8"
+                class="text-muted-foreground/40"
+              />
+            </div>
+            <span
+              class="text-xs"
+              :class="phaseToStageIndex(deploy.phase!) >= idx
+                ? 'text-foreground'
+                : 'text-muted-foreground/60'"
+            >
+              {{ stage }}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Deployment History -->
     <div v-if="hasDeployments" class="space-y-3">
       <h3 class="text-sm font-medium text-muted-foreground">Deployment History</h3>
       <div class="space-y-2">
-        <div
+        <Collapsible
           v-for="dep in deployments"
           :key="dep.id"
-          class="rounded-lg border p-3 transition-colors"
-          :class="dep.active ? 'border-green-500/30 bg-green-500/5' : ''"
+          :open="expandedId === dep.id"
         >
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2">
-              <component
-                v-if="dep.active"
-                :is="envService!.ready ? CheckCircle : XCircle"
-                :size="14"
-                :class="envService!.ready ? 'text-green-500' : 'text-red-500'"
-              />
-              <Clock
-                v-else
-                :size="14"
-                class="text-muted-foreground"
-              />
-              <Badge
-                v-if="dep.active"
-                variant="default"
-                class="text-xs"
-              >
-                Active
-              </Badge>
-              <Badge variant="outline" class="font-mono text-xs">
-                {{ dep.imageTag }}
-              </Badge>
-            </div>
-            <span
-              v-if="dep.timestamp"
-              class="text-xs text-muted-foreground"
+          <CollapsibleTrigger
+            class="w-full cursor-pointer"
+            @click="toggleExpanded(dep.id)"
+          >
+            <div
+              class="rounded-lg border px-3 py-2.5 text-left transition-colors hover:bg-muted/50"
+              :class="dep.active ? 'border-[var(--primary)]/30 border-l-2 border-l-[var(--primary)]' : 'border-border/60'"
             >
-              {{ formatRelativeTime(dep.timestamp) }}
-            </span>
-          </div>
-          <div v-if="dep.active && envService" class="mt-1 pl-6">
-            <p class="text-xs text-muted-foreground">
-              {{ envService.replicas }} replica{{ envService.replicas !== 1 ? 's' : '' }}
-            </p>
-          </div>
-        </div>
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <ChevronRight
+                    :size="14"
+                    class="text-muted-foreground transition-transform"
+                    :class="expandedId === dep.id ? 'rotate-90' : ''"
+                  />
+                  <Badge
+                    v-if="dep.active"
+                    variant="default"
+                    class="text-xs"
+                  >
+                    Active
+                  </Badge>
+                  <Badge variant="outline" class="font-mono text-xs">
+                    <Tag :size="10" class="shrink-0" />
+                    {{ dep.imageTag }}
+                  </Badge>
+                </div>
+                <span
+                  v-if="dep.timestamp"
+                  class="text-xs text-muted-foreground"
+                >
+                  {{ formatRelativeTime(dep.timestamp) }}
+                </span>
+              </div>
+            </div>
+          </CollapsibleTrigger>
+
+          <CollapsibleContent>
+            <div class="ml-3 border-l border-border/40 py-2 pl-4">
+              <!-- Stages (historical — all succeeded) -->
+              <div class="space-y-1">
+                <div
+                  v-for="stage in STAGES"
+                  :key="stage"
+                  class="flex items-center gap-2.5 py-0.5"
+                >
+                  <Check :size="12" class="text-[var(--status-ok)]" />
+                  <span class="text-xs text-foreground">{{ stage }}</span>
+                </div>
+              </div>
+
+              <!-- Details -->
+              <div class="mt-3 space-y-1 text-xs text-muted-foreground">
+                <p v-if="dep.active && envService">
+                  {{ envService.replicas }} replica{{ envService.replicas !== 1 ? 's' : '' }}
+                  <template v-if="envService.ready"> &middot; healthy</template>
+                  <template v-else> &middot; not ready</template>
+                </p>
+                <p v-if="dep.message" class="font-mono">
+                  {{ dep.message }}
+                </p>
+              </div>
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
       </div>
     </div>
 
