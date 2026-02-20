@@ -595,22 +595,49 @@ func (p *SoftServeProvider) readProjectMeta(repoName string) (*ProjectMeta, erro
 		return nil, err
 	}
 
-	// List environments
-	envDir := filepath.Join(dir, "environments")
-	entries, err := os.ReadDir(envDir)
-	if err == nil {
-		for _, entry := range entries {
-			if entry.IsDir() {
-				meta.Environments = append(meta.Environments, entry.Name())
-			}
-		}
-	}
-
-	// Read services
+	// Read services from base
 	values, err := readLocalValuesYAML(filepath.Join(dir, "base", "values.yaml"))
 	if err == nil {
 		if services, ok := values["services"].(map[string]any); ok {
 			meta.Services = parseServiceDefs(services)
+		}
+	}
+
+	// List environments and read per-env service image tags
+	envDir := filepath.Join(dir, "environments")
+	entries, err := os.ReadDir(envDir)
+	if err == nil {
+		for _, entry := range entries {
+			if !entry.IsDir() {
+				continue
+			}
+			envName := entry.Name()
+			meta.Environments = append(meta.Environments, envName)
+
+			envMeta := EnvironmentMeta{Name: envName}
+			envValues, readErr := readLocalValuesYAML(filepath.Join(envDir, envName, "values.yaml"))
+			if readErr == nil {
+				if envSvcs, ok := envValues["services"].(map[string]any); ok {
+					for svcName, svcRaw := range envSvcs {
+						svcMap, ok := svcRaw.(map[string]any)
+						if !ok {
+							continue
+						}
+						imageMap, ok := svcMap["image"].(map[string]any)
+						if !ok {
+							continue
+						}
+						tag, _ := imageMap["tag"].(string)
+						if tag != "" {
+							envMeta.Services = append(envMeta.Services, EnvironmentServiceMeta{
+								Name:     svcName,
+								ImageTag: tag,
+							})
+						}
+					}
+				}
+			}
+			meta.EnvironmentInfos = append(meta.EnvironmentInfos, envMeta)
 		}
 	}
 

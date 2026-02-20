@@ -48,14 +48,27 @@ message ServiceInfo {
   string framework = 5;   // detected framework for dashboard icons (e.g., "nextjs", "vite")
 }
 
+// EnvironmentServiceInfo describes a service's deployed state in a specific environment.
+message EnvironmentServiceInfo {
+  string name = 1;
+  string image_tag = 2;    // current image tag in this environment's values.yaml
+}
+
+// EnvironmentInfo holds metadata about a project environment.
+message EnvironmentInfo {
+  string name = 1;
+  repeated EnvironmentServiceInfo services = 2;
+}
+
 // ProjectInfo holds metadata about a project read from its GitOps repo.
 message ProjectInfo {
   string name = 1;           // org-scoped: "zeitlos/myapp"
   string source_url = 2;
   string gitops_repo_url = 3;
-  repeated string environments = 4;
-  string created_at = 5;     // RFC3339
-  repeated ServiceInfo services = 6;
+  repeated string environments = 4;         // environment names (kept for backward compat)
+  string created_at = 5;                    // RFC3339
+  repeated ServiceInfo services = 6;        // base service definitions
+  repeated EnvironmentInfo environment_infos = 7;  // per-environment service state
 }
 
 message InitProjectRequest {

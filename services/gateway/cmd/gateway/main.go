@@ -39,7 +39,8 @@ type Config struct {
 	DeployerAddr string `envconfig:"DEPLOYER_ADDR" default:"localhost:9003"`
 
 	// Registry
-	RegistryURL string `envconfig:"REGISTRY_URL" default:"ghcr.io"`
+	RegistryURL         string `envconfig:"REGISTRY_URL" default:"ghcr.io"`
+	RegistryImagePrefix string `envconfig:"REGISTRY_IMAGE_PREFIX"` // cluster-internal address for image refs; defaults to REGISTRY_URL
 }
 
 func main() {
@@ -103,7 +104,11 @@ func main() {
 
 	deployerClient := deployer.NewDeployerServiceClient(deployerConn)
 
-	api := handler.New(packagerClient, builderClient, deployerClient, config.RegistryURL)
+	registryImagePrefix := config.RegistryImagePrefix
+	if registryImagePrefix == "" {
+		registryImagePrefix = config.RegistryURL
+	}
+	api := handler.New(packagerClient, builderClient, deployerClient, config.RegistryURL, registryImagePrefix)
 	graphqlServer := NewGraphQLServer(config.Port, api, githubApp, config.JWTSecret, config.DashboardURL)
 
 	graceful.Serve(ctx, graphqlServer)

@@ -79,12 +79,13 @@ func (s *Server) ListProjects(ctx context.Context, req *packager.ListProjectsReq
 	var infos []*packager.ProjectInfo
 	for _, proj := range projects {
 		infos = append(infos, &packager.ProjectInfo{
-			Name:          proj.Name,
-			SourceUrl:     proj.SourceURL,
-			GitopsRepoUrl: proj.RepoURL,
-			Environments:  proj.Environments,
-			CreatedAt:     proj.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
-			Services:      serviceInfosFromDefs(proj.Services),
+			Name:             proj.Name,
+			SourceUrl:        proj.SourceURL,
+			GitopsRepoUrl:    proj.RepoURL,
+			Environments:     proj.Environments,
+			EnvironmentInfos: envInfosFromMeta(proj.EnvironmentInfos),
+			CreatedAt:        proj.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+			Services:         serviceInfosFromDefs(proj.Services),
 		})
 	}
 
@@ -111,12 +112,13 @@ func (s *Server) GetProject(ctx context.Context, req *packager.GetProjectRequest
 
 	return &packager.GetProjectResponse{
 		Project: &packager.ProjectInfo{
-			Name:          proj.Name,
-			SourceUrl:     proj.SourceURL,
-			GitopsRepoUrl: proj.RepoURL,
-			Environments:  proj.Environments,
-			CreatedAt:     proj.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
-			Services:      serviceInfosFromDefs(svcs),
+			Name:             proj.Name,
+			SourceUrl:        proj.SourceURL,
+			GitopsRepoUrl:    proj.RepoURL,
+			Environments:     proj.Environments,
+			EnvironmentInfos: envInfosFromMeta(proj.EnvironmentInfos),
+			CreatedAt:        proj.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+			Services:         serviceInfosFromDefs(svcs),
 		},
 	}, nil
 }
@@ -242,6 +244,27 @@ func (s *Server) Eject(ctx context.Context, req *packager.EjectRequest) (*packag
 	return &packager.EjectResponse{
 		Archive: []byte("mock-ejected-archive"),
 	}, nil
+}
+
+func envInfosFromMeta(metas []gitops.EnvironmentMeta) []*packager.EnvironmentInfo {
+	if len(metas) == 0 {
+		return nil
+	}
+	infos := make([]*packager.EnvironmentInfo, len(metas))
+	for i, m := range metas {
+		var svcs []*packager.EnvironmentServiceInfo
+		for _, s := range m.Services {
+			svcs = append(svcs, &packager.EnvironmentServiceInfo{
+				Name:     s.Name,
+				ImageTag: s.ImageTag,
+			})
+		}
+		infos[i] = &packager.EnvironmentInfo{
+			Name:     m.Name,
+			Services: svcs,
+		}
+	}
+	return infos
 }
 
 func serviceInfosFromDefs(defs []gitops.ServiceDef) []*packager.ServiceInfo {

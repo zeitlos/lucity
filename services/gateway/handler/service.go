@@ -61,8 +61,8 @@ func (c *Client) DetectServices(ctx context.Context, projectID string) ([]Detect
 func (c *Client) AddService(ctx context.Context, projectID, name string, port int, public bool, framework string) (*Service, error) {
 	ctx = auth.OutgoingContext(ctx)
 
-	// Derive image path: registry/project/service (e.g., "localhost:5000/myapp/web")
-	image := deriveImagePath(c.RegistryURL, projectID, name)
+	// Derive image path using cluster-internal address so pods can pull it.
+	image := deriveImagePath(c.RegistryImagePrefix, projectID, name)
 
 	_, err := c.Packager.AddService(ctx, &packager.AddServiceRequest{
 		Project:   projectID,
@@ -107,7 +107,7 @@ func (c *Client) StartBuild(ctx context.Context, projectID, service, gitRef, con
 		return nil, fmt.Errorf("failed to get project: %w", err)
 	}
 
-	registry := deriveImagePath(c.RegistryURL, projectID, service)
+	registry := deriveImagePath(c.RegistryPushURL, projectID, service)
 
 	buildResp, err := c.Builder.StartBuild(ctx, &builder.StartBuildRequest{
 		SourceUrl:   resp.Project.SourceUrl,

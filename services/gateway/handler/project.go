@@ -55,7 +55,9 @@ func (c *Client) Projects(ctx context.Context) ([]Project, error) {
 
 	result := make([]Project, 0, len(resp.Projects))
 	for _, p := range resp.Projects {
-		result = append(result, projectFromProto(p))
+		proj := projectFromProto(p)
+		c.enrichSyncStatus(ctx, &proj)
+		result = append(result, proj)
 	}
 	return result, nil
 }
@@ -69,6 +71,7 @@ func (c *Client) Project(ctx context.Context, id string) (*Project, error) {
 	}
 
 	p := projectFromProto(resp.Project)
+	c.enrichSyncStatus(ctx, &p)
 	return &p, nil
 }
 
@@ -204,6 +207,38 @@ func namespaceFor(project, environment string) string {
 	return name + "-" + environment
 }
 
+// enrichSyncStatus queries the deployer for each environment's ArgoCD sync status.
+// Best-effort: logs warnings on failure and leaves status as "UNKNOWN".
+func (c *Client) enrichSyncStatus(ctx context.Context, proj *Project) {
+	for i := range proj.Environments {
+		env := &proj.Environments[i]
+		resp, err := c.Deployer.GetDeploymentStatus(ctx, &deployer.GetDeploymentStatusRequest{
+			Project:     proj.ID,
+			Environment: env.Name,
+		})
+		if err != nil {
+			slog.Debug("failed to get deployment status", "project", proj.ID, "environment", env.Name, "error", err)
+			continue
+		}
+		env.SyncStatus = deploymentStatusToString(resp.Status)
+	}
+}
+
+func deploymentStatusToString(status deployer.DeploymentStatus) string {
+	switch status {
+	case deployer.DeploymentStatus_DEPLOYMENT_STATUS_SYNCED:
+		return "SYNCED"
+	case deployer.DeploymentStatus_DEPLOYMENT_STATUS_OUT_OF_SYNC:
+		return "OUT_OF_SYNC"
+	case deployer.DeploymentStatus_DEPLOYMENT_STATUS_PROGRESSING:
+		return "PROGRESSING"
+	case deployer.DeploymentStatus_DEPLOYMENT_STATUS_DEGRADED:
+		return "DEGRADED"
+	default:
+		return "UNKNOWN"
+	}
+}
+
 func projectFromProto(p *packager.ProjectInfo) Project {
 	createdAt, _ := time.Parse(time.RFC3339, p.CreatedAt)
 
@@ -214,13 +249,30 @@ func projectFromProto(p *packager.ProjectInfo) Project {
 		CreatedAt: createdAt,
 	}
 
+	// Build a lookup of per-env service info from the richer EnvironmentInfos.
+	envInfoMap := make(map[string][]*packager.EnvironmentServiceInfo, len(p.EnvironmentInfos))
+	for _, ei := range p.EnvironmentInfos {
+		envInfoMap[ei.Name] = ei.Services
+	}
+
 	for _, envName := range p.Environments {
-		proj.Environments = append(proj.Environments, Environment{
+		env := Environment{
 			ID:         p.Name + "/" + envName,
 			Name:       envName,
-			Namespace:  p.Name + "-" + envName,
+			Namespace:  namespaceFor(p.Name, envName),
 			SyncStatus: "UNKNOWN",
-		})
+		}
+
+		// Populate deployed service info from environment values
+		for _, svc := range envInfoMap[envName] {
+			env.Services = append(env.Services, DeployedService{
+				Name:     svc.Name,
+				ImageTag: svc.ImageTag,
+				Replicas: 1, // default until we query K8s
+			})
+		}
+
+		proj.Environments = append(proj.Environments, env)
 	}
 
 	for _, svc := range p.Services {

@@ -59,14 +59,27 @@ type Provider interface {
 	Promote(ctx context.Context, project, service, fromEnv, toEnv string) (imageTag string, err error)
 }
 
+// EnvironmentServiceMeta describes a service's state in a specific environment.
+type EnvironmentServiceMeta struct {
+	Name     string
+	ImageTag string
+}
+
+// EnvironmentMeta holds metadata about a project environment.
+type EnvironmentMeta struct {
+	Name     string
+	Services []EnvironmentServiceMeta
+}
+
 // ProjectMeta holds metadata about a project, read from its GitOps repo.
 type ProjectMeta struct {
-	Name         string    // org-scoped: "zeitlos/myapp"
-	SourceURL    string
-	RepoURL      string
-	Environments []string
-	Services     []ServiceDef
-	CreatedAt    time.Time
+	Name             string    // org-scoped: "zeitlos/myapp"
+	SourceURL        string
+	RepoURL          string
+	Environments     []string
+	EnvironmentInfos []EnvironmentMeta
+	Services         []ServiceDef
+	CreatedAt        time.Time
 }
 
 // SplitProject splits "org/name" into org and name.
