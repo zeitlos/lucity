@@ -12,7 +12,7 @@ export const buttonVariants = cva(
         secondary: 'bg-secondary text-secondary-foreground border border-border shadow-[0_2px_12px_-2px_oklch(0.50_0.02_55/0.06)] hover:border-muted-foreground',
         ghost: 'hover:bg-muted hover:text-foreground',
         link: 'text-primary underline-offset-4 hover:underline',
-        accent: 'bg-accent text-accent-foreground shadow-[var(--shadow-accent-button)] hover:brightness-[0.92] hover:-translate-y-px active:translate-y-0',
+        accent: 'bg-accent-pop text-accent-pop-foreground shadow-[var(--shadow-accent-button)] hover:brightness-[0.92] hover:-translate-y-px active:translate-y-0',
       },
       size: {
         default: 'h-10 px-4 py-2',
