@@ -34,7 +34,7 @@ dev-logs-%:
 # Stop all dev services
 dev-stop:
 	@for port in 8080 9001 9002 9003 9004 5173; do \
-		lsof -ti :$$port | xargs kill 2>/dev/null || true; \
+		lsof -ti :$$port -sTCP:LISTEN | xargs kill 2>/dev/null || true; \
 	done
 	@echo "All services stopped."
 

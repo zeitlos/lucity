@@ -38,9 +38,9 @@ done
 # Clean status files
 rm -f "$STATUS_DIR"/*.status
 
-# Kill stale processes
+# Kill stale processes (only listeners, not clients like browsers)
 for port in "${PORTS[@]}"; do
-    lsof -ti :"$port" | xargs kill 2>/dev/null || true
+    lsof -ti :"$port" -sTCP:LISTEN | xargs kill 2>/dev/null || true
 done
 sleep 1
 
@@ -158,60 +158,68 @@ while true; do
     printf '\033[%dA' "$TABLE_LINES"
 
     # Header
-    printf '  %s%-13s %-12s %-10s %s%s%s\n' "$BOLD" "SERVICE" "STATUS" "BUILD" "UPTIME" "$RESET" "$CLEAR_LINE"
+    printf '  %-14s%-12s%-10s%s%s\n' "SERVICE" "STATUS" "BUILD" "UPTIME" "$CLEAR_LINE"
 
     for svc in "${ALL_SERVICES[@]}"; do
-        local_file="$STATUS_DIR/$svc.status"
-        state=$(read_status "$local_file" "state" "starting")
-        build_duration=$(read_status "$local_file" "build_duration" "")
-        run_start=$(read_status "$local_file" "run_start" "$now")
-        build_start=$(read_status "$local_file" "build_start" "0")
+        svc_file="$STATUS_DIR/$svc.status"
+        state=$(read_status "$svc_file" "state" "starting")
+        build_duration=$(read_status "$svc_file" "build_duration" "")
+        run_start=$(read_status "$svc_file" "run_start" "$now")
+        build_start=$(read_status "$svc_file" "build_start" "0")
 
-        status_str=""
-        build_str=""
-        uptime_str=""
+        status_text=""; build_text=""; uptime_text=""
+        status_color="$DIM"; build_color="$DIM"
 
         case "$state" in
             running)
-                status_str="${GREEN}● running${RESET}"
+                status_text="● running"
+                status_color="$GREEN"
                 if [[ -n "$build_duration" && "$build_duration" != "0" ]]; then
-                    build_str="${DIM}${build_duration}s${RESET}"
+                    build_text="${build_duration}s"
                 fi
                 if [[ -n "$run_start" && "$run_start" -gt 0 ]]; then
-                    uptime_str=$(format_duration $((now - run_start)))
+                    uptime_text=$(format_duration $((now - run_start)))
                 fi
                 ;;
             building)
-                elapsed=""
+                status_text="● building"
+                status_color="$YELLOW"
                 if [[ -n "$build_start" && "$build_start" -gt 0 ]]; then
-                    elapsed="$((now - build_start))s"
+                    build_text="$((now - build_start))s"
+                else
+                    build_text="..."
                 fi
-                status_str="${YELLOW}● building${RESET}"
-                build_str="${YELLOW}${elapsed:-...}${RESET}"
+                build_color="$YELLOW"
                 ;;
             failed)
-                status_str="${RED}✗ failed${RESET}"
+                status_text="✗ failed"
+                status_color="$RED"
                 if [[ -n "$build_duration" ]]; then
-                    build_str="${DIM}${build_duration}s${RESET}"
+                    build_text="${build_duration}s"
                 fi
                 ;;
             starting)
-                status_str="${DIM}○ starting${RESET}"
+                status_text="○ starting"
                 ;;
             stopped)
-                status_str="${RED}○ stopped${RESET}"
+                status_text="○ stopped"
+                status_color="$RED"
                 ;;
             *)
-                status_str="${DIM}○ ${state}${RESET}"
+                status_text="○ ${state}"
                 ;;
         esac
 
-        # Print the row — use %b for ANSI interpretation
-        printf '  %-13s ' "$svc"
-        printf '%-22b' "$status_str"
-        printf '%-16b' "$build_str"
-        printf '%-10s' "$uptime_str"
-        printf '%s\n' "$CLEAR_LINE"
+        # Pad each field to fixed width as plain text, then colorize
+        col_svc=$(printf '%-14s' "$svc")
+        col_status=$(printf '%-12s' "$status_text")
+        col_build=$(printf '%-10s' "$build_text")
+
+        printf '  %s%s%s%s%s%s%s%s\n' \
+            "$col_svc" \
+            "$status_color" "$col_status" "$RESET" \
+            "$build_color" "$col_build" "$RESET" \
+            "$uptime_text$CLEAR_LINE"
     done
 
     printf '%s\n' "$CLEAR_LINE"
