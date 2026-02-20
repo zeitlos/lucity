@@ -84,8 +84,8 @@
     --card-foreground: oklch(0.90 0.03 80);
     --popover: oklch(0.24 0.03 55);
     --popover-foreground: oklch(0.90 0.03 80);
-    --primary: oklch(0.80 0.18 160);
-    --primary-foreground: oklch(0.98 0.02 160);
+    --primary: oklch(0.72 0.16 160);
+    --primary-foreground: oklch(0.18 0.04 160);
     --secondary: oklch(0.30 0.025 55);
     --secondary-foreground: oklch(0.85 0.03 80);
     --muted: oklch(0.28 0.02 55);
@@ -98,20 +98,20 @@
     --destructive-foreground: oklch(0.20 0.03 55);
     --border: oklch(0.32 0.03 55);
     --input: oklch(0.26 0.025 55);
-    --ring: oklch(0.80 0.18 160);
-    --chart-1: oklch(0.80 0.18 160);
+    --ring: oklch(0.72 0.16 160);
+    --chart-1: oklch(0.72 0.16 160);
     --chart-2: oklch(0.75 0.22 0);
     --chart-3: oklch(0.85 0.15 95);
     --chart-4: oklch(0.72 0.18 30);
     --chart-5: oklch(0.72 0.14 300);
     --sidebar: oklch(0.18 0.025 55);
     --sidebar-foreground: oklch(0.90 0.03 80);
-    --sidebar-primary: oklch(0.80 0.18 160);
-    --sidebar-primary-foreground: oklch(0.20 0.03 55);
+    --sidebar-primary: oklch(0.72 0.16 160);
+    --sidebar-primary-foreground: oklch(0.18 0.04 160);
     --sidebar-accent: oklch(0.28 0.02 55);
     --sidebar-accent-foreground: oklch(0.90 0.03 80);
     --sidebar-border: oklch(0.26 0.025 55);
-    --sidebar-ring: oklch(0.80 0.18 160);
+    --sidebar-ring: oklch(0.72 0.16 160);
 
     /* Status colors — slightly brighter for dark backgrounds */
     --status-ok: oklch(0.72 0.20 155);
@@ -122,23 +122,23 @@
     /* Dark gradients */
     --gradient-subtle: linear-gradient(135deg, oklch(0.20 0.03 55) 0%, oklch(0.22 0.035 45) 100%);
     --gradient-card: linear-gradient(180deg, oklch(0.24 0.03 55) 0%, oklch(0.23 0.025 50) 100%);
-    --gradient-primary: linear-gradient(135deg, oklch(0.80 0.18 160) 0%, oklch(0.75 0.16 145) 100%);
+    --gradient-primary: linear-gradient(135deg, oklch(0.72 0.16 160) 0%, oklch(0.67 0.14 145) 100%);
     --gradient-accent: linear-gradient(135deg, oklch(0.75 0.22 0) 0%, oklch(0.70 0.20 350) 100%);
     --pattern-dots: radial-gradient(oklch(0.28 0.025 55) 1px, transparent 1px);
 
     /* Dark shadows — more prominent depth glow */
     --shadow-2xs: 0 1px 8px -2px oklch(0.10 0.02 55 / 0.10);
     --shadow-xs: 0 2px 12px -3px oklch(0.10 0.02 55 / 0.15);
-    --shadow-sm: 0 2px 16px -3px oklch(0.80 0.10 160 / 0.04), 0 4px 24px -6px oklch(0.10 0.02 55 / 0.15);
-    --shadow: 0 2px 24px -4px oklch(0.80 0.10 160 / 0.05), 0 12px 60px -12px oklch(0.10 0.02 55 / 0.20);
-    --shadow-md: 0 4px 30px -6px oklch(0.80 0.12 160 / 0.06), 0 8px 50px -10px oklch(0.10 0.02 55 / 0.18);
-    --shadow-lg: 0 8px 50px -10px oklch(0.80 0.14 160 / 0.08), 0 20px 100px -20px oklch(0.10 0.02 55 / 0.30);
-    --shadow-xl: 0 8px 50px -10px oklch(0.80 0.14 160 / 0.08), 0 20px 100px -20px oklch(0.10 0.02 55 / 0.30);
-    --shadow-2xl: 0 12px 60px -10px oklch(0.80 0.16 160 / 0.10), 0 24px 120px -20px oklch(0.10 0.02 55 / 0.35);
-    --shadow-button: 0 4px 20px -4px oklch(0.80 0.18 160 / 0.20), 0 8px 40px -8px oklch(0.80 0.18 160 / 0.08);
+    --shadow-sm: 0 2px 16px -3px oklch(0.72 0.10 160 / 0.04), 0 4px 24px -6px oklch(0.10 0.02 55 / 0.15);
+    --shadow: 0 2px 24px -4px oklch(0.72 0.10 160 / 0.05), 0 12px 60px -12px oklch(0.10 0.02 55 / 0.20);
+    --shadow-md: 0 4px 30px -6px oklch(0.72 0.12 160 / 0.06), 0 8px 50px -10px oklch(0.10 0.02 55 / 0.18);
+    --shadow-lg: 0 8px 50px -10px oklch(0.72 0.14 160 / 0.08), 0 20px 100px -20px oklch(0.10 0.02 55 / 0.30);
+    --shadow-xl: 0 8px 50px -10px oklch(0.72 0.14 160 / 0.08), 0 20px 100px -20px oklch(0.10 0.02 55 / 0.30);
+    --shadow-2xl: 0 12px 60px -10px oklch(0.72 0.16 160 / 0.10), 0 24px 120px -20px oklch(0.10 0.02 55 / 0.35);
+    --shadow-button: 0 4px 20px -4px oklch(0.72 0.16 160 / 0.25), 0 8px 40px -8px oklch(0.72 0.16 160 / 0.10);
     --shadow-accent-button: 0 4px 20px -4px oklch(0.75 0.22 0 / 0.20), 0 8px 40px -8px oklch(0.75 0.22 0 / 0.08);
     --shadow-destructive-button: 0 4px 20px -4px oklch(0.68 0.25 25 / 0.20), 0 8px 40px -8px oklch(0.68 0.25 25 / 0.08);
-    --shadow-input-focus: 0 0 0 3px oklch(0.80 0.18 160 / 0.15), 0 4px 30px -6px oklch(0.80 0.18 160 / 0.10);
+    --shadow-input-focus: 0 0 0 3px oklch(0.72 0.16 160 / 0.15), 0 4px 30px -6px oklch(0.72 0.16 160 / 0.10);
   }
 }
 
