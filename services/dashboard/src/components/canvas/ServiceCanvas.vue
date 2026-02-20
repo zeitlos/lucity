@@ -1,16 +1,14 @@
 <script setup lang="ts">
 import { computed, watch, ref, onMounted } from 'vue';
-import { VueFlow, useVueFlow } from '@vue-flow/core';
-import { Controls } from '@vue-flow/controls';
+import { VueFlow, useVueFlow, Panel } from '@vue-flow/core';
 import { Background } from '@vue-flow/background';
-import { Plus } from 'lucide-vue-next';
+import { Plus, Maximize2 } from 'lucide-vue-next';
 import { useEnvironment } from '@/composables/useEnvironment';
 import { usePanel } from '@/composables/usePanel';
 import ServiceNode from './ServiceNode.vue';
 import { Button } from '@/components/ui/button';
 import '@vue-flow/core/dist/style.css';
 import '@vue-flow/core/dist/theme-default.css';
-import '@vue-flow/controls/dist/style.css';
 
 const props = defineProps<{
   services: {
@@ -39,7 +37,7 @@ const nodes = computed(() => {
     return {
       id: svc.name,
       type: 'service',
-      position: { x: 0, y: index * 130 },
+      position: { x: 0, y: index * 180 },
       data: {
         name: svc.name,
         framework: svc.framework,
@@ -47,6 +45,7 @@ const nodes = computed(() => {
         public: svc.public,
         ready: envService?.ready,
         imageTag: envService?.imageTag,
+        replicas: envService?.replicas,
       },
       selected: currentPanel.value?.id === svc.name,
     };
@@ -59,15 +58,31 @@ function handleNodeClick(event: { node: { id: string; data: { name: string } } }
   openPanel({ type: 'service', id: event.node.id, label: event.node.data.name });
 }
 
-// Fit view on mount with max zoom capped at 1x
+function handleFitView() {
+  fitView({ padding: 0.3, maxZoom: 1 });
+}
+
+// Fit view on mount
 onMounted(() => {
-  setTimeout(() => fitView({ padding: 0.3, maxZoom: 1 }), 200);
+  setTimeout(() => handleFitView(), 200);
 });
 
 // Re-fit view when services change
 watch(() => props.services.length, () => {
-  setTimeout(() => fitView({ padding: 0.3, maxZoom: 1 }), 100);
+  setTimeout(() => handleFitView(), 100);
 });
+
+// Center selected card when panel opens, re-fit all when it closes
+watch(
+  () => currentPanel.value,
+  (panel, oldPanel) => {
+    if (panel?.type === 'service') {
+      fitView({ nodes: [panel.id], padding: 0.5, maxZoom: 1 });
+    } else if (!panel && oldPanel) {
+      handleFitView();
+    }
+  },
+);
 </script>
 
 <template>
@@ -76,8 +91,13 @@ watch(() => props.services.length, () => {
       :nodes="nodes"
       :edges="edges"
       :default-viewport="{ zoom: 1, x: 0, y: 0 }"
-      :min-zoom="0.25"
-      :max-zoom="2"
+      :min-zoom="1"
+      :max-zoom="1"
+      :zoom-on-scroll="false"
+      :zoom-on-double-click="false"
+      :zoom-on-pinch="false"
+      :pan-on-scroll="true"
+      :pan-on-scroll-mode="'vertical'"
       :snap-to-grid="true"
       :snap-grid="[20, 20]"
       class="canvas-bg"
@@ -92,7 +112,16 @@ watch(() => props.services.length, () => {
       </template>
 
       <Background variant="dots" :gap="24" :size="1" class="canvas-dots" />
-      <Controls position="top-left" class="!border-border !bg-card !shadow-sm" />
+
+      <Panel position="top-left" class="!m-3">
+        <button
+          class="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-foreground"
+          title="Fit view"
+          @click="handleFitView"
+        >
+          <Maximize2 :size="14" />
+        </button>
+      </Panel>
     </VueFlow>
 
     <!-- Create button (floating top-right) -->
@@ -116,25 +145,5 @@ watch(() => props.services.length, () => {
 
 :deep(.canvas-dots pattern circle) {
   fill: color-mix(in oklch, var(--muted-foreground) 25%, transparent);
-}
-
-:deep(.vue-flow__controls) {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-:deep(.vue-flow__controls-button) {
-  background-color: var(--card);
-  border-color: var(--border);
-  color: var(--foreground);
-  width: 28px;
-  height: 28px;
-}
-
-:deep(.vue-flow__controls-button:hover) {
-  background-color: var(--accent);
 }
 </style>

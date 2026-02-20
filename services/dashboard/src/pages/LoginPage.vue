@@ -33,22 +33,6 @@ function onMouseMove(e: MouseEvent) {
   mouse.y = e.clientY / window.innerHeight;
 }
 
-// --- Card 3D tilt ---
-const cardRef = ref<HTMLElement | null>(null);
-const cardTransform = ref('');
-
-function onCardMouseMove(e: MouseEvent) {
-  if (!cardRef.value) return;
-  const rect = cardRef.value.getBoundingClientRect();
-  const x = (e.clientX - rect.left) / rect.width - 0.5;
-  const y = (e.clientY - rect.top) / rect.height - 0.5;
-  cardTransform.value = `perspective(800px) rotateY(${x * 6}deg) rotateX(${-y * 6}deg)`;
-}
-
-function onCardMouseLeave() {
-  cardTransform.value = '';
-}
-
 // --- Konami code easter egg ---
 const KONAMI = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
 const konamiProgress = ref(0);
@@ -90,66 +74,60 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="relative h-screen w-screen overflow-hidden">
-    <!-- Background images with parallax (two stacked for cross-fade) -->
-    <div
-      class="absolute inset-0"
-      :style="parallaxStyle"
-    >
-      <img
-        :src="alpsHarborImg"
-        alt=""
-        class="absolute inset-0 h-full w-full object-cover transition-opacity duration-1000"
-        :class="easterEggActive ? 'opacity-0' : 'opacity-100'"
-      >
-      <img
-        :src="gopherShipImg"
-        alt=""
-        class="absolute inset-0 h-full w-full object-cover transition-opacity duration-1000"
-        :class="easterEggActive ? 'opacity-100' : 'opacity-0'"
-      >
-    </div>
+  <div class="flex min-h-screen items-center justify-center p-6 lg:p-8">
+    <!-- Main card wrapper -->
+    <div class="login-wrapper flex w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-border shadow-lg lg:flex-row">
+      <!-- Left panel: image -->
+      <div class="image-panel relative h-[36vh] overflow-hidden lg:h-auto lg:flex-[3]">
+        <div
+          class="absolute inset-0"
+          :style="parallaxStyle"
+        >
+          <img
+            :src="alpsHarborImg"
+            alt=""
+            class="absolute inset-0 h-full w-full object-cover transition-opacity duration-1000"
+            :class="easterEggActive ? 'opacity-0' : 'opacity-100'"
+          >
+          <img
+            :src="gopherShipImg"
+            alt=""
+            class="absolute inset-0 h-full w-full object-cover transition-opacity duration-1000"
+            :class="easterEggActive ? 'opacity-100' : 'opacity-0'"
+          >
+        </div>
+        <!-- Inset shadow overlay -->
+        <div class="image-inset pointer-events-none absolute inset-0" />
+      </div>
 
-    <!-- Dimming overlay -->
-    <div class="absolute inset-0 bg-black/30 dark:bg-black/50" />
-
-    <!-- Content -->
-    <div class="relative z-10 flex h-full items-center justify-center p-6 lg:justify-end lg:pr-[12%]">
-      <!-- Frosted glass card -->
-      <div
-        ref="cardRef"
-        class="login-card relative w-full max-w-sm overflow-hidden rounded-xl border border-white/20 bg-white/15 p-8 shadow-2xl backdrop-blur-xl dark:border-white/10 dark:bg-black/25"
-        :style="{ transform: cardTransform }"
-        @mousemove="onCardMouseMove"
-        @mouseleave="onCardMouseLeave"
-      >
+      <!-- Right panel: login form -->
+      <div class="relative flex flex-[2] flex-col items-center justify-center bg-card px-8 py-12 lg:px-12">
         <!-- Pattern texture -->
-        <div class="pattern-crosshatch pointer-events-none absolute inset-0 opacity-[0.04]" />
+        <div class="pattern-crosshatch pointer-events-none absolute inset-0 opacity-[0.03]" />
 
-        <!-- Card content -->
-        <div class="relative z-10 space-y-6">
+        <div class="relative z-10 w-full max-w-xs space-y-6">
           <!-- Logo -->
           <div class="flex justify-center">
             <BaseLogo
               :size="96"
-              :class="['login-logo', { 'logo-breathing': logoLoaded }]"
+              :class="{ 'logo-breathing': logoLoaded }"
             />
           </div>
 
           <!-- Wordmark -->
-          <h1 class="text-center font-serif text-4xl tracking-tight text-white drop-shadow-sm">
+          <h1 class="text-center font-serif text-4xl tracking-tight text-foreground">
             Lucity
           </h1>
 
           <!-- Subtitle -->
-          <p class="text-center text-sm text-white/70">
+          <p class="text-center text-sm text-muted-foreground">
             Connect your GitHub account to start deploying.
           </p>
 
           <!-- Error message -->
           <div
             v-if="errorMessage"
-            class="rounded-lg border border-red-400/30 bg-red-500/15 p-3 text-sm text-white/90 backdrop-blur-sm"
+            class="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-foreground"
           >
             {{ errorMessage }}
           </div>
@@ -174,38 +152,36 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-/* Card tilt spring-back + entry animation */
-.login-card {
-  transition: transform 0.4s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.3s ease;
-  will-change: transform;
-  animation: card-enter 0.6s cubic-bezier(0.23, 1, 0.32, 1) both;
+/* Wrapper entry animation */
+.login-wrapper {
+  animation: wrapper-enter 0.5s cubic-bezier(0.23, 1, 0.32, 1) both;
 }
 
-.login-card:hover {
-  box-shadow:
-    0 20px 80px -20px rgba(0, 0, 0, 0.3),
-    0 8px 40px -10px oklch(0.75 0.12 160 / 0.15);
-}
-
-@keyframes card-enter {
+@keyframes wrapper-enter {
   from {
     opacity: 0;
-    transform: translateY(20px) scale(0.97);
+    transform: scale(0.98) translateY(8px);
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: scale(1) translateY(0);
   }
 }
 
-/* Logo breathing animation */
-.login-logo {
-  --primary: oklch(0.95 0.02 160);
-  --accent: oklch(0.90 0.03 80);
-  --accent-foreground: oklch(0.90 0.03 80);
-  transition: transform 0.3s ease, filter 0.3s ease;
+/* Inset shadow over the image — vignette / recessed look */
+.image-inset {
+  box-shadow:
+    inset 0 4px 30px oklch(0 0 0 / 0.15),
+    inset 0 0 80px oklch(0 0 0 / 0.06);
 }
 
+:global(.dark) .image-inset {
+  box-shadow:
+    inset 0 4px 30px oklch(0 0 0 / 0.3),
+    inset 0 0 80px oklch(0 0 0 / 0.12);
+}
+
+/* Logo breathing animation */
 .logo-breathing {
   animation: breathe 4s ease-in-out infinite;
 }
