@@ -29,12 +29,13 @@ import { cn } from '@/lib/utils';
 const props = defineProps<{
   class?: HTMLAttributes['class'];
   variant?: BadgeVariants['variant'];
+  hideDot?: boolean;
 }>();
 </script>
 
 <template>
   <div :class="cn(badgeVariants({ variant }), props.class)">
-    <span class="badge-dot h-[7px] w-[7px] shrink-0 rounded-full" />
+    <span v-if="!hideDot" class="badge-dot h-[7px] w-[7px] shrink-0 rounded-full" />
     <slot />
   </div>
 </template>

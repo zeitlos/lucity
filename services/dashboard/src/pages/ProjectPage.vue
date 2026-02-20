@@ -131,7 +131,7 @@ function handleCreateFromPalette() {
 </script>
 
 <template>
-  <div class="flex h-[calc(100vh-52px)] flex-col">
+  <div class="flex h-[calc(100vh-52px-0.75rem)] flex-col">
     <!-- Loading -->
     <div v-if="loading" class="flex flex-1 items-center justify-center">
       <div class="space-y-4 text-center">
@@ -203,11 +203,11 @@ function handleCreateFromPalette() {
       </div>
 
       <!-- Canvas + Panel split -->
-      <div class="flex flex-1 overflow-hidden">
+      <div class="flex flex-1 overflow-hidden p-3 pt-3 gap-3">
         <!-- Canvas -->
         <div
           :class="[
-            'transition-all duration-300 ease-in-out',
+            'transition-all duration-300 ease-in-out overflow-hidden rounded-lg border bg-card/80 shadow-sm backdrop-blur-sm [background-image:var(--gradient-card)]',
             isOpen ? 'w-[45%]' : 'w-full',
           ]"
         >

@@ -111,7 +111,7 @@ watch(() => props.services.length, () => {
 
 <style scoped>
 .canvas-bg {
-  background-color: var(--background);
+  background-color: transparent;
 }
 
 :deep(.canvas-dots pattern circle) {

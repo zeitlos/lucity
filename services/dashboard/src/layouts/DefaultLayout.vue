@@ -33,8 +33,8 @@ async function handleLogout() {
 </script>
 
 <template>
-  <div class="relative z-1 flex min-h-screen flex-col">
-    <header class="flex h-[52px] shrink-0 items-center justify-between border-b bg-background px-4">
+  <div class="relative z-1 flex min-h-screen flex-col p-3 pb-0">
+    <header class="flex h-[52px] shrink-0 items-center justify-between rounded-lg border bg-card/80 px-4 shadow-sm backdrop-blur-sm [background-image:var(--gradient-card)]">
       <!-- Left: Logo + Avatar + Breadcrumb -->
       <div class="flex items-center gap-3">
         <RouterLink
@@ -106,7 +106,7 @@ async function handleLogout() {
       </div>
     </header>
 
-    <main class="flex-1 bg-background">
+    <main class="flex-1">
       <RouterView />
     </main>
 

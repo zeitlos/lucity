@@ -47,7 +47,7 @@ onKeyStroke('Escape', () => {
 </script>
 
 <template>
-  <div class="flex h-full flex-col border-l bg-background">
+  <div class="flex h-full flex-col rounded-lg border bg-card/80 shadow-sm backdrop-blur-sm [background-image:var(--gradient-card)]">
     <!-- Header -->
     <div class="flex shrink-0 items-center justify-between border-b px-4 py-3">
       <div class="flex items-center gap-3">

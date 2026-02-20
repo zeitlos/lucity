@@ -65,6 +65,7 @@ function buildPhaseVariant(phase: string) {
       <Badge
         v-if="build.phase"
         :variant="buildPhaseVariant(build.phase)"
+        :hide-dot="build.isBuilding"
       >
         <Loader2
           v-if="build.isBuilding"
