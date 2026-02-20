@@ -29,7 +29,7 @@ function envStatusColor(environments: { syncStatus: string }[]) {
   <div class="p-8">
     <div class="mb-8 flex items-center justify-between">
       <div>
-        <h1 class="text-2xl font-semibold text-foreground">Projects</h1>
+        <h1 class="font-serif text-3xl text-foreground">Projects</h1>
         <p class="mt-1 text-sm text-muted-foreground">Your deployed applications.</p>
       </div>
       <Button @click="paletteOpen = true">

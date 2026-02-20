@@ -1,0 +1,68 @@
+/* Dots */
+.pattern-dots {
+  background-image: var(--pattern-dots);
+  background-size: 20px 20px;
+}
+
+/* Diagonal lines (hatching) */
+.pattern-diagonal {
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 14px,
+    oklch(from var(--border) l c h / 0.5) 14px,
+    oklch(from var(--border) l c h / 0.5) 14.5px
+  );
+}
+
+/* Crosshatch */
+.pattern-crosshatch {
+  background-image:
+    repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 14px,
+      oklch(from var(--border) l c h / 0.5) 14px,
+      oklch(from var(--border) l c h / 0.5) 14.5px
+    ),
+    repeating-linear-gradient(
+      -45deg,
+      transparent,
+      transparent 14px,
+      oklch(from var(--border) l c h / 0.5) 14px,
+      oklch(from var(--border) l c h / 0.5) 14.5px
+    );
+}
+
+/* Isometric dots (offset rows) */
+.pattern-iso-dots {
+  background-image:
+    radial-gradient(circle 1px, var(--border) 1px, transparent 1px),
+    radial-gradient(circle 1px, var(--border) 1px, transparent 1px);
+  background-size: 18px 18px;
+  background-position: 0 0, 9px 9px;
+}
+
+/* Plus signs / crosses */
+.pattern-plus {
+  background-image:
+    linear-gradient(oklch(from var(--border) l c h / 0.5) 0.5px, transparent 0.5px),
+    linear-gradient(90deg, oklch(from var(--border) l c h / 0.5) 0.5px, transparent 0.5px);
+  background-size: 5px 22px, 22px 5px;
+  background-position: 11px 8.5px, 8.5px 11px;
+}
+
+/* Concentric circles / radar rings */
+.pattern-circles {
+  background-image:
+    radial-gradient(circle 30px at 50% 50%, transparent 29px, var(--border) 29px, var(--border) 29.5px, transparent 29.5px),
+    radial-gradient(circle 60px at 50% 50%, transparent 59px, var(--border) 59px, var(--border) 59.5px, transparent 59.5px),
+    radial-gradient(circle 90px at 50% 50%, transparent 89px, var(--border) 89px, var(--border) 89.5px, transparent 89.5px),
+    radial-gradient(circle 120px at 50% 50%, transparent 119px, var(--border) 119px, var(--border) 119.5px, transparent 119.5px),
+    radial-gradient(circle 150px at 50% 50%, transparent 149px, var(--border) 149px, var(--border) 149.5px, transparent 149.5px),
+    radial-gradient(circle 180px at 50% 50%, transparent 179px, var(--border) 179px, var(--border) 179.5px, transparent 179.5px),
+    radial-gradient(circle 210px at 50% 50%, transparent 209px, var(--border) 209px, var(--border) 209.5px, transparent 209.5px),
+    radial-gradient(circle 240px at 50% 50%, transparent 239px, var(--border) 239px, var(--border) 239.5px, transparent 239.5px),
+    radial-gradient(circle 270px at 50% 50%, transparent 269px, var(--border) 269px, var(--border) 269.5px, transparent 269.5px),
+    radial-gradient(circle 300px at 50% 50%, transparent 299px, var(--border) 299px, var(--border) 299.5px, transparent 299.5px);
+}

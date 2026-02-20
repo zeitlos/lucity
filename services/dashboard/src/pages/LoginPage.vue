@@ -18,7 +18,7 @@ const errorMessage = computed(() => {
 <template>
   <div class="flex min-h-screen items-center justify-center">
     <div class="w-full max-w-sm space-y-6 p-8">
-      <h1 class="text-2xl font-semibold text-foreground">Sign in to Lucity</h1>
+      <h1 class="font-serif text-3xl text-foreground">Sign in to Lucity</h1>
       <p class="text-muted-foreground">Connect your GitHub account to get started.</p>
       <div
         v-if="errorMessage"

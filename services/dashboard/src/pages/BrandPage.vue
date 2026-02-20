@@ -53,7 +53,7 @@ const chartColors = [
       <div class="mb-4 flex items-center gap-4">
         <BaseLogo :size="48" />
         <div>
-          <h1 class="text-3xl font-bold text-foreground">
+          <h1 class="font-serif text-4xl text-foreground">
             Brand
           </h1>
           <p class="text-muted-foreground">
@@ -66,7 +66,7 @@ const chartColors = [
 
       <!-- Logo -->
       <section class="mb-16">
-        <h2 class="mb-2 text-xl font-semibold text-foreground">
+        <h2 class="mb-2 font-serif text-2xl text-foreground">
           Logo
         </h2>
         <p class="mb-8 text-sm text-muted-foreground">
@@ -124,7 +124,7 @@ const chartColors = [
 
       <!-- Colors -->
       <section class="mb-16">
-        <h2 class="mb-2 text-xl font-semibold text-foreground">
+        <h2 class="mb-2 font-serif text-2xl text-foreground">
           Colors
         </h2>
         <p class="mb-8 text-sm text-muted-foreground">
@@ -221,7 +221,7 @@ const chartColors = [
 
       <!-- Typography -->
       <section class="mb-16">
-        <h2 class="mb-2 text-xl font-semibold text-foreground">
+        <h2 class="mb-2 font-serif text-2xl text-foreground">
           Typography
         </h2>
         <p class="mb-8 text-sm text-muted-foreground">
@@ -251,7 +251,7 @@ const chartColors = [
 
       <!-- Components -->
       <section class="mb-16">
-        <h2 class="mb-2 text-xl font-semibold text-foreground">
+        <h2 class="mb-2 font-serif text-2xl text-foreground">
           Components
         </h2>
         <p class="mb-8 text-sm text-muted-foreground">

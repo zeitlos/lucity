@@ -33,7 +33,7 @@ async function handleLogout() {
 </script>
 
 <template>
-  <div class="flex min-h-screen flex-col">
+  <div class="relative z-1 flex min-h-screen flex-col">
     <header class="flex h-[52px] shrink-0 items-center justify-between border-b bg-background px-4">
       <!-- Left: Logo + Avatar + Breadcrumb -->
       <div class="flex items-center gap-3">
