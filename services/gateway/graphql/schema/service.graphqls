@@ -77,6 +77,7 @@ extend type Query {
   detectServices(projectId: ID!): [DetectedService!]! @hasRole(role: [USER])
   buildStatus(id: ID!): Build @hasRole(role: [USER])
   deployStatus(id: ID!): DeploymentOp @hasRole(role: [USER])
+  activeDeployment(projectId: ID!, service: String!, environment: String!): DeploymentOp @hasRole(role: [USER])
 }
 
 extend type Mutation {

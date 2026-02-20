@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, onMounted } from 'vue';
 import { Rocket, Loader2, Check, Circle, ChevronRight, AlertCircle, Tag } from 'lucide-vue-next';
 import { useEnvironment } from '@/composables/useEnvironment';
 import { useDeploy } from '@/composables/useDeploy';
+import { apolloClient } from '@/lib/apollo';
+import { ActiveDeploymentQuery } from '@/graphql/services';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -21,6 +23,27 @@ const props = defineProps<{
 
 const { activeEnvironment } = useEnvironment();
 const deploy = useDeploy();
+
+onMounted(async () => {
+  const envName = activeEnvironment.value?.name;
+  if (!envName) return;
+
+  try {
+    const { data } = await apolloClient.query({
+      query: ActiveDeploymentQuery,
+      variables: { projectId: props.projectId, service: props.service.name, environment: envName },
+      fetchPolicy: 'network-only',
+    });
+
+    const active = data?.activeDeployment;
+    if (active?.id) {
+      deploy.pollDeploy(active.id);
+      deploy.phase = active.phase;
+    }
+  } catch {
+    // No active deployment — nothing to resume.
+  }
+});
 
 const envService = computed(() =>
   activeEnvironment.value?.services.find(s => s.name === props.service.name)

@@ -126,6 +126,7 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
+		ActiveDeployment   func(childComplexity int, projectID string, service string, environment string) int
 		BuildStatus        func(childComplexity int, id string) int
 		DeployStatus       func(childComplexity int, id string) int
 		DetectServices     func(childComplexity int, projectID string) int
@@ -184,6 +185,7 @@ type QueryResolver interface {
 	DetectServices(ctx context.Context, projectID string) ([]model.DetectedService, error)
 	BuildStatus(ctx context.Context, id string) (*model.Build, error)
 	DeployStatus(ctx context.Context, id string) (*model.DeploymentOp, error)
+	ActiveDeployment(ctx context.Context, projectID string, service string, environment string) (*model.DeploymentOp, error)
 }
 
 type executableSchema struct {
@@ -569,6 +571,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Project.SourceURL(childComplexity), true
 
+	case "Query.activeDeployment":
+		if e.complexity.Query.ActiveDeployment == nil {
+			break
+		}
+
+		args, err := ec.field_Query_activeDeployment_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.ActiveDeployment(childComplexity, args["projectId"].(string), args["service"].(string), args["environment"].(string)), true
 	case "Query.buildStatus":
 		if e.complexity.Query.BuildStatus == nil {
 			break
@@ -1033,6 +1046,27 @@ func (ec *executionContext) field_Query___type_args(ctx context.Context, rawArgs
 		return nil, err
 	}
 	args["name"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_activeDeployment_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "projectId", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["projectId"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "service", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["service"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "environment", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["environment"] = arg2
 	return args, nil
 }
 
@@ -3609,6 +3643,79 @@ func (ec *executionContext) fieldContext_Query_deployStatus(ctx context.Context,
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_deployStatus_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_activeDeployment(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_activeDeployment,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Query().ActiveDeployment(ctx, fc.Args["projectId"].(string), fc.Args["service"].(string), fc.Args["environment"].(string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				if err != nil {
+					var zeroVal *model.DeploymentOp
+					return zeroVal, err
+				}
+				if ec.directives.HasRole == nil {
+					var zeroVal *model.DeploymentOp
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalODeploymentOp2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐDeploymentOp,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_activeDeployment(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_DeploymentOp_id(ctx, field)
+			case "phase":
+				return ec.fieldContext_DeploymentOp_phase(ctx, field)
+			case "buildId":
+				return ec.fieldContext_DeploymentOp_buildId(ctx, field)
+			case "imageRef":
+				return ec.fieldContext_DeploymentOp_imageRef(ctx, field)
+			case "digest":
+				return ec.fieldContext_DeploymentOp_digest(ctx, field)
+			case "error":
+				return ec.fieldContext_DeploymentOp_error(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type DeploymentOp", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_activeDeployment_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -6806,6 +6913,25 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_deployStatus(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "activeDeployment":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_activeDeployment(ctx, field)
 				return res
 			}
 

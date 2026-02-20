@@ -107,3 +107,16 @@ func (r *queryResolver) DeployStatus(ctx context.Context, id string) (*model.Dep
 	result := convertDeploymentOp(*d)
 	return &result, nil
 }
+
+// ActiveDeployment is the resolver for the activeDeployment field.
+func (r *queryResolver) ActiveDeployment(ctx context.Context, projectID string, service string, environment string) (*model.DeploymentOp, error) {
+	d, err := r.API.ActiveDeployment(ctx, projectID, service, environment)
+	if err != nil {
+		return nil, err
+	}
+	if d == nil {
+		return nil, nil
+	}
+	result := convertDeploymentOp(*d)
+	return &result, nil
+}

@@ -252,7 +252,7 @@ func (c *Client) Deploy(ctx context.Context, projectID, service, environment, gi
 	}
 
 	deployID := uuid.New().String()
-	c.DeployTracker.Create(deployID, buildResp.BuildId)
+	c.DeployTracker.Create(deployID, buildResp.BuildId, projectID, service, environment)
 
 	// Run the deploy pipeline in the background.
 	// Extract the token before spawning the goroutine — the HTTP request context
@@ -268,6 +268,15 @@ func (c *Client) DeployStatus(ctx context.Context, deployID string) (*DeployOp, 
 	s := c.DeployTracker.Get(deployID)
 	if s == nil {
 		return nil, fmt.Errorf("deploy %q not found", deployID)
+	}
+	return deployOpFromState(s), nil
+}
+
+// ActiveDeployment returns the in-flight deploy for a project/service/environment, or nil.
+func (c *Client) ActiveDeployment(ctx context.Context, projectID, service, environment string) (*DeployOp, error) {
+	s := c.DeployTracker.ActiveForService(projectID, service, environment)
+	if s == nil {
+		return nil, nil
 	}
 	return deployOpFromState(s), nil
 }

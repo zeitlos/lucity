@@ -85,3 +85,16 @@ export const DeployStatusQuery = gql`
     }
   }
 `;
+
+export const ActiveDeploymentQuery = gql`
+  query ActiveDeployment($projectId: ID!, $service: String!, $environment: String!) {
+    activeDeployment(projectId: $projectId, service: $service, environment: $environment) {
+      id
+      phase
+      buildId
+      imageRef
+      digest
+      error
+    }
+  }
+`;
