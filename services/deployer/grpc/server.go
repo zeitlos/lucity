@@ -80,6 +80,7 @@ func (s *Server) DeployEnvironment(ctx context.Context, req *deployer.DeployEnvi
 					Prune:    true,
 					SelfHeal: true,
 				},
+				SyncOptions: []string{"CreateNamespace=true"},
 			},
 		},
 	}

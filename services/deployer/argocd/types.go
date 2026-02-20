@@ -36,7 +36,8 @@ type Destination struct {
 }
 
 type SyncPolicy struct {
-	Automated *Automated `json:"automated,omitempty"`
+	Automated   *Automated `json:"automated,omitempty"`
+	SyncOptions []string   `json:"syncOptions,omitempty"`
 }
 
 type Automated struct {
