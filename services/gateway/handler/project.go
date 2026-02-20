@@ -8,17 +8,19 @@ import (
 	"time"
 
 	"github.com/zeitlos/lucity/pkg/auth"
+	"github.com/zeitlos/lucity/pkg/builder"
 	"github.com/zeitlos/lucity/pkg/deployer"
 	"github.com/zeitlos/lucity/pkg/packager"
 )
 
 type Project struct {
-	ID           string
-	Name         string
-	SourceURL    string
-	Environments []Environment
-	Services     []Service
-	CreatedAt    time.Time
+	ID             string
+	Name           string
+	SourceURL      string
+	Environments   []Environment
+	Services       []Service
+	InitialDeploys []DeployOp
+	CreatedAt      time.Time
 }
 
 type Environment struct {
@@ -87,6 +89,7 @@ func (c *Client) Project(ctx context.Context, id string) (*Project, error) {
 func (c *Client) CreateProject(ctx context.Context, name, sourceURL string) (*Project, error) {
 	ctx = auth.OutgoingContext(ctx)
 
+	// 1. Create GitOps repo
 	resp, err := c.Packager.InitProject(ctx, &packager.InitProjectRequest{
 		Project:   name,
 		SourceUrl: sourceURL,
@@ -95,7 +98,39 @@ func (c *Client) CreateProject(ctx context.Context, name, sourceURL string) (*Pr
 		return nil, fmt.Errorf("failed to create project: %w", err)
 	}
 
-	// Deploy the default development environment via ArgoCD
+	// 2. Detect services from source repo (non-fatal on failure)
+	var services []Service
+	detectResp, err := c.Builder.DetectServices(ctx, &builder.DetectServicesRequest{
+		SourceUrl: sourceURL,
+	})
+	if err != nil {
+		slog.Warn("failed to detect services", "project", name, "error", err)
+	} else {
+		for _, detected := range detectResp.Services {
+			image := deriveImagePath(c.RegistryImagePrefix, name, detected.Name)
+			_, addErr := c.Packager.AddService(ctx, &packager.AddServiceRequest{
+				Project:   name,
+				Service:   detected.Name,
+				Image:     image,
+				Port:      detected.SuggestedPort,
+				Public:    true,
+				Framework: detected.Framework,
+			})
+			if addErr != nil {
+				slog.Warn("failed to add detected service", "project", name, "service", detected.Name, "error", addErr)
+				continue
+			}
+			services = append(services, Service{
+				Name:      detected.Name,
+				Image:     image,
+				Port:      int(detected.SuggestedPort),
+				Public:    true,
+				Framework: detected.Framework,
+			})
+		}
+	}
+
+	// 3. Deploy the default development environment via ArgoCD
 	ns := namespaceFor(name, "development")
 	_, err = c.Deployer.DeployEnvironment(ctx, &deployer.DeployEnvironmentRequest{
 		Project:         name,
@@ -107,11 +142,23 @@ func (c *Client) CreateProject(ctx context.Context, name, sourceURL string) (*Pr
 		slog.Warn("failed to deploy development environment", "project", name, "error", err)
 	}
 
+	// 4. Auto-deploy each detected service
+	var initialDeploys []DeployOp
+	for _, svc := range services {
+		deployOp, deployErr := c.Deploy(ctx, name, svc.Name, "development", "", "")
+		if deployErr != nil {
+			slog.Warn("failed to start initial deploy", "project", name, "service", svc.Name, "error", deployErr)
+			continue
+		}
+		initialDeploys = append(initialDeploys, *deployOp)
+	}
+
 	return &Project{
 		ID:        name,
 		Name:      name,
 		SourceURL: sourceURL,
 		CreatedAt: time.Now(),
+		Services:  services,
 		Environments: []Environment{
 			{
 				ID:         name + "/development",
@@ -120,6 +167,7 @@ func (c *Client) CreateProject(ctx context.Context, name, sourceURL string) (*Pr
 				SyncStatus: "PROGRESSING",
 			},
 		},
+		InitialDeploys: initialDeploys,
 	}, nil
 }
 

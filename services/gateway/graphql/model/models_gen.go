@@ -52,11 +52,28 @@ type DeployBuildInput struct {
 	Digest      *string `json:"digest,omitempty"`
 }
 
+type DeployInput struct {
+	ProjectID   string  `json:"projectId"`
+	Service     string  `json:"service"`
+	Environment string  `json:"environment"`
+	GitRef      *string `json:"gitRef,omitempty"`
+	ContextPath *string `json:"contextPath,omitempty"`
+}
+
 type Deployment struct {
 	ID        string     `json:"id"`
 	ImageTag  string     `json:"imageTag"`
 	Active    bool       `json:"active"`
 	Timestamp *time.Time `json:"timestamp,omitempty"`
+}
+
+type DeploymentOp struct {
+	ID       string      `json:"id"`
+	Phase    DeployPhase `json:"phase"`
+	BuildID  *string     `json:"buildId,omitempty"`
+	ImageRef *string     `json:"imageRef,omitempty"`
+	Digest   *string     `json:"digest,omitempty"`
+	Error    *string     `json:"error,omitempty"`
 }
 
 type DetectedService struct {
@@ -89,12 +106,13 @@ type Mutation struct {
 }
 
 type Project struct {
-	ID           string        `json:"id"`
-	Name         string        `json:"name"`
-	SourceURL    string        `json:"sourceUrl"`
-	Environments []Environment `json:"environments"`
-	Services     []Service     `json:"services"`
-	CreatedAt    time.Time     `json:"createdAt"`
+	ID             string         `json:"id"`
+	Name           string         `json:"name"`
+	SourceURL      string         `json:"sourceUrl"`
+	Environments   []Environment  `json:"environments"`
+	Services       []Service      `json:"services"`
+	CreatedAt      time.Time      `json:"createdAt"`
+	InitialDeploys []DeploymentOp `json:"initialDeploys,omitempty"`
 }
 
 type PromoteInput struct {
@@ -190,6 +208,71 @@ func (e *BuildPhase) UnmarshalJSON(b []byte) error {
 }
 
 func (e BuildPhase) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type DeployPhase string
+
+const (
+	DeployPhaseQueued    DeployPhase = "QUEUED"
+	DeployPhaseCloning   DeployPhase = "CLONING"
+	DeployPhaseBuilding  DeployPhase = "BUILDING"
+	DeployPhasePushing   DeployPhase = "PUSHING"
+	DeployPhaseDeploying DeployPhase = "DEPLOYING"
+	DeployPhaseSucceeded DeployPhase = "SUCCEEDED"
+	DeployPhaseFailed    DeployPhase = "FAILED"
+)
+
+var AllDeployPhase = []DeployPhase{
+	DeployPhaseQueued,
+	DeployPhaseCloning,
+	DeployPhaseBuilding,
+	DeployPhasePushing,
+	DeployPhaseDeploying,
+	DeployPhaseSucceeded,
+	DeployPhaseFailed,
+}
+
+func (e DeployPhase) IsValid() bool {
+	switch e {
+	case DeployPhaseQueued, DeployPhaseCloning, DeployPhaseBuilding, DeployPhasePushing, DeployPhaseDeploying, DeployPhaseSucceeded, DeployPhaseFailed:
+		return true
+	}
+	return false
+}
+
+func (e DeployPhase) String() string {
+	return string(e)
+}
+
+func (e *DeployPhase) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = DeployPhase(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid DeployPhase", str)
+	}
+	return nil
+}
+
+func (e DeployPhase) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *DeployPhase) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e DeployPhase) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

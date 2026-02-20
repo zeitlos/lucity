@@ -22,6 +22,17 @@ export const CreateProjectMutation = gql`
       id
       name
       sourceUrl
+      services {
+        name
+        image
+        port
+        public
+        framework
+      }
+      initialDeploys {
+        id
+        phase
+      }
     }
   }
 `;

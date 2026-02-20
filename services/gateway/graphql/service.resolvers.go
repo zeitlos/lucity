@@ -57,6 +57,24 @@ func (r *mutationResolver) DeployBuild(ctx context.Context, input model.DeployBu
 	return r.API.DeployBuild(ctx, input.ProjectID, input.Service, input.Environment, input.Tag, digest)
 }
 
+// Deploy is the resolver for the deploy field.
+func (r *mutationResolver) Deploy(ctx context.Context, input model.DeployInput) (*model.DeploymentOp, error) {
+	gitRef := ""
+	if input.GitRef != nil {
+		gitRef = *input.GitRef
+	}
+	contextPath := ""
+	if input.ContextPath != nil {
+		contextPath = *input.ContextPath
+	}
+	d, err := r.API.Deploy(ctx, input.ProjectID, input.Service, input.Environment, gitRef, contextPath)
+	if err != nil {
+		return nil, err
+	}
+	result := convertDeploymentOp(*d)
+	return &result, nil
+}
+
 // DetectServices is the resolver for the detectServices field.
 func (r *queryResolver) DetectServices(ctx context.Context, projectID string) ([]model.DetectedService, error) {
 	services, err := r.API.DetectServices(ctx, projectID)
@@ -77,5 +95,15 @@ func (r *queryResolver) BuildStatus(ctx context.Context, id string) (*model.Buil
 		return nil, err
 	}
 	result := convertBuild(*b)
+	return &result, nil
+}
+
+// DeployStatus is the resolver for the deployStatus field.
+func (r *queryResolver) DeployStatus(ctx context.Context, id string) (*model.DeploymentOp, error) {
+	d, err := r.API.DeployStatus(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	result := convertDeploymentOp(*d)
 	return &result, nil
 }

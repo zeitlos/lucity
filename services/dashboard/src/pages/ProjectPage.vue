@@ -1,21 +1,16 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
-import { useQuery, useMutation, useLazyQuery } from '@vue/apollo-composable';
-import { Loader2, Scan } from 'lucide-vue-next';
+import { useQuery } from '@vue/apollo-composable';
 import { ProjectQuery } from '@/graphql/projects';
-import { DetectServicesQuery, AddServiceMutation } from '@/graphql/services';
 import { Skeleton } from '@/components/ui/skeleton';
-import { toast } from '@/components/ui/sonner';
 import { Button } from '@/components/ui/button';
 import ServiceCanvas from '@/components/canvas/ServiceCanvas.vue';
 import ServicePanel from '@/components/panel/ServicePanel.vue';
-import FrameworkIcon from '@/components/FrameworkIcon.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import CreateCommandPalette from '@/components/CreateCommandPalette.vue';
 import { useEnvironment } from '@/composables/useEnvironment';
 import { usePanel } from '@/composables/usePanel';
-import { errorMessage } from '@/lib/utils';
 
 const route = useRoute();
 const projectId = computed(() => route.params.id as string);
@@ -59,67 +54,6 @@ const selectedService = computed(() => {
 // Command palette
 const paletteOpen = ref(false);
 
-// Detection
-const {
-  load: loadDetection,
-  result: detectResult,
-  loading: detecting,
-  error: detectError,
-} = useLazyQuery(DetectServicesQuery, () => ({
-  projectId: projectId.value,
-}), {
-  fetchPolicy: 'network-only',
-});
-
-const detectedServices = computed(() => detectResult.value?.detectServices ?? []);
-const showDetectionBanner = ref(false);
-
-// Auto-detect when project has no services
-watch(
-  () => project.value,
-  (proj) => {
-    if (proj && proj.services.length === 0 && !detectResult.value) {
-      showDetectionBanner.value = true;
-      loadDetection();
-    }
-  },
-  { immediate: true },
-);
-
-// Add service
-const { mutate: addServiceMutate, loading: addingService } = useMutation(AddServiceMutation);
-
-async function confirmDetectedService(detected: {
-  name: string;
-  framework: string;
-  suggestedPort: number;
-}) {
-  try {
-    const res = await addServiceMutate({
-      input: {
-        projectId: projectId.value,
-        name: detected.name,
-        port: detected.suggestedPort,
-        public: true,
-        framework: detected.framework || undefined,
-      },
-    });
-
-    if (res?.errors?.length) {
-      toast.error('Failed to add service', {
-        description: res.errors.map(e => e.message).join(', '),
-      });
-      return;
-    }
-
-    toast.success('Service added', { description: `${detected.name} configured` });
-    showDetectionBanner.value = false;
-    refetch();
-  } catch (e: unknown) {
-    toast.error('Failed to add service', { description: errorMessage(e) });
-  }
-}
-
 function handleServiceRemoved() {
   closePanel();
   refetch();
@@ -151,66 +85,10 @@ function handleCreateFromPalette() {
     </div>
 
     <template v-else-if="project">
-      <!-- Detection banner (shows above canvas when no services) -->
-      <div
-        v-if="showDetectionBanner && project.services.length === 0"
-        class="shrink-0 border-b bg-card px-4 py-3"
-      >
-        <div v-if="detecting" class="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 :size="16" class="animate-spin" />
-          Scanning repository for services...
-        </div>
-
-        <div
-          v-else-if="detectError"
-          class="flex items-center justify-between"
-        >
-          <span class="text-sm text-destructive">Detection failed: {{ detectError.message }}</span>
-          <Button
-            variant="outline"
-            size="sm"
-            @click="loadDetection()"
-          >
-            Retry
-          </Button>
-        </div>
-
-        <div
-          v-else-if="detectedServices.length > 0"
-          class="space-y-2"
-        >
-          <div
-            v-for="detected in detectedServices"
-            :key="detected.name"
-            class="flex items-center justify-between"
-          >
-            <div class="flex items-center gap-2">
-              <FrameworkIcon :framework="detected.framework" :size="20" />
-              <span class="text-sm">
-                {{ detected.framework || detected.provider }} app detected
-                <span class="text-muted-foreground">(port {{ detected.suggestedPort }})</span>
-              </span>
-            </div>
-            <Button
-              size="sm"
-              :disabled="addingService"
-              @click="confirmDetectedService(detected)"
-            >
-              {{ addingService ? 'Adding...' : 'Confirm & Add' }}
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Canvas + Panel split -->
-      <div class="flex flex-1 overflow-hidden p-3 pt-3 gap-3">
-        <!-- Canvas -->
-        <div
-          :class="[
-            'transition-all duration-300 ease-in-out overflow-hidden rounded-lg border bg-card/80 shadow-sm backdrop-blur-sm [background-image:var(--gradient-card)]',
-            isOpen ? 'w-[45%]' : 'w-full',
-          ]"
-        >
+      <!-- Canvas + Panel overlay -->
+      <div class="relative flex-1 overflow-hidden p-3">
+        <!-- Canvas (always full width) -->
+        <div class="h-full w-full overflow-hidden rounded-lg border bg-card/80 shadow-sm backdrop-blur-sm [background-image:var(--gradient-card)]">
           <template v-if="project.services.length > 0">
             <ServiceCanvas
               :services="project.services"
@@ -221,34 +99,24 @@ function handleCreateFromPalette() {
             <div class="flex h-full items-center justify-center">
               <EmptyState
                 title="No services yet"
-                description="Detect services from your repository or create one manually."
+                description="Create a service manually to get started."
                 pattern="crosshatch"
               >
                 <template #action>
-                  <div class="flex gap-2">
-                    <Button
-                      v-if="!showDetectionBanner"
-                      variant="outline"
-                      @click="showDetectionBanner = true; loadDetection();"
-                    >
-                      <Scan :size="14" class="mr-2" />
-                      Detect Services
-                    </Button>
-                    <Button @click="paletteOpen = true">
-                      Create Service
-                    </Button>
-                  </div>
+                  <Button @click="paletteOpen = true">
+                    Create Service
+                  </Button>
                 </template>
               </EmptyState>
             </div>
           </template>
         </div>
 
-        <!-- Service Detail Panel -->
+        <!-- Service Detail Panel (overlays from right) -->
         <Transition name="slide-panel">
           <div
             v-if="isOpen && selectedService"
-            class="w-[55%] shrink-0"
+            class="absolute inset-y-3 right-3 w-[55%] shadow-xl"
           >
             <ServicePanel
               :project-id="projectId"

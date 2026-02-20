@@ -5,6 +5,7 @@ type Project {
   environments: [Environment!]!
   services: [Service!]!
   createdAt: Time!
+  initialDeploys: [DeploymentOp!]
 }
 
 type Environment {

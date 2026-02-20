@@ -18,6 +18,10 @@ func convertProject(p handler.Project) model.Project {
 	for _, s := range p.Services {
 		result.Services = append(result.Services, convertService(s))
 	}
+	for _, d := range p.InitialDeploys {
+		op := convertDeploymentOp(d)
+		result.InitialDeploys = append(result.InitialDeploys, op)
+	}
 	return result
 }
 
@@ -97,6 +101,26 @@ func convertServiceInstance(si handler.ServiceInstance) model.ServiceInstance {
 		}
 	}
 	return result
+}
+
+func convertDeploymentOp(d handler.DeployOp) model.DeploymentOp {
+	op := model.DeploymentOp{
+		ID:    d.ID,
+		Phase: model.DeployPhase(d.Phase),
+	}
+	if d.BuildID != "" {
+		op.BuildID = &d.BuildID
+	}
+	if d.ImageRef != "" {
+		op.ImageRef = &d.ImageRef
+	}
+	if d.Digest != "" {
+		op.Digest = &d.Digest
+	}
+	if d.Error != "" {
+		op.Error = &d.Error
+	}
+	return op
 }
 
 func convertGitHubRepository(r handler.GitHubRepository) model.GitHubRepository {

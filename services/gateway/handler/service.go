@@ -5,11 +5,15 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/builder"
 	"github.com/zeitlos/lucity/pkg/deployer"
 	"github.com/zeitlos/lucity/pkg/packager"
+	"github.com/zeitlos/lucity/services/gateway/deploy"
 )
 
 type DetectedService struct {
@@ -199,4 +203,155 @@ func buildPhaseToString(phase builder.BuildPhase) string {
 	default:
 		return "UNKNOWN"
 	}
+}
+
+// DeployOp represents the state of a unified build+deploy operation.
+type DeployOp struct {
+	ID       string
+	Phase    string
+	BuildID  string
+	ImageRef string
+	Digest   string
+	Error    string
+}
+
+func deployOpFromState(s *deploy.State) *DeployOp {
+	return &DeployOp{
+		ID:       s.ID,
+		Phase:    string(s.Phase),
+		BuildID:  s.BuildID,
+		ImageRef: s.ImageRef,
+		Digest:   s.Digest,
+		Error:    s.Error,
+	}
+}
+
+// Deploy starts a unified build+deploy operation. It triggers a build and,
+// on success, automatically updates the image tag and syncs ArgoCD.
+func (c *Client) Deploy(ctx context.Context, projectID, service, environment, gitRef, contextPath string) (*DeployOp, error) {
+	ctx = auth.OutgoingContext(ctx)
+
+	// Get source URL from packager
+	resp, err := c.Packager.GetProject(ctx, &packager.GetProjectRequest{Project: projectID})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get project: %w", err)
+	}
+
+	registry := deriveImagePath(c.RegistryPushURL, projectID, service)
+
+	// Start the build
+	buildResp, err := c.Builder.StartBuild(ctx, &builder.StartBuildRequest{
+		SourceUrl:   resp.Project.SourceUrl,
+		GitRef:      gitRef,
+		Service:     service,
+		Registry:    registry,
+		ContextPath: contextPath,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to start build: %w", err)
+	}
+
+	deployID := uuid.New().String()
+	c.DeployTracker.Create(deployID, buildResp.BuildId)
+
+	// Run the deploy pipeline in the background
+	go c.runDeploy(deployID, projectID, service, environment, buildResp.BuildId)
+
+	return deployOpFromState(c.DeployTracker.Get(deployID)), nil
+}
+
+// DeployStatus returns the current state of a deploy operation.
+func (c *Client) DeployStatus(ctx context.Context, deployID string) (*DeployOp, error) {
+	s := c.DeployTracker.Get(deployID)
+	if s == nil {
+		return nil, fmt.Errorf("deploy %q not found", deployID)
+	}
+	return deployOpFromState(s), nil
+}
+
+// runDeploy polls the builder for build status and, on success, deploys the image.
+func (c *Client) runDeploy(deployID, projectID, service, environment, buildID string) {
+	ctx := context.Background()
+	ctx = auth.OutgoingContext(ctx)
+
+	for {
+		time.Sleep(2 * time.Second)
+
+		status, err := c.Builder.BuildStatus(ctx, &builder.BuildStatusRequest{BuildId: buildID})
+		if err != nil {
+			slog.Error("deploy: failed to poll build status", "deployId", deployID, "buildId", buildID, "error", err)
+			c.DeployTracker.Fail(deployID, fmt.Sprintf("failed to poll build status: %v", err))
+			return
+		}
+
+		phase := buildPhaseToDeployPhase(status.Phase)
+		c.DeployTracker.Update(deployID, phase)
+
+		switch status.Phase {
+		case builder.BuildPhase_BUILD_PHASE_SUCCEEDED:
+			c.finalizeDeploy(ctx, deployID, projectID, service, environment, status.ImageRef, status.Digest)
+			return
+		case builder.BuildPhase_BUILD_PHASE_FAILED:
+			c.DeployTracker.Fail(deployID, status.Error)
+			return
+		}
+	}
+}
+
+// finalizeDeploy updates the GitOps repo and triggers ArgoCD sync.
+func (c *Client) finalizeDeploy(ctx context.Context, deployID, projectID, service, environment, imageRef, digest string) {
+	c.DeployTracker.Update(deployID, deploy.PhaseDeploying)
+
+	tag := extractTag(imageRef)
+
+	_, err := c.Packager.UpdateImageTag(ctx, &packager.UpdateImageTagRequest{
+		Project:     projectID,
+		Environment: environment,
+		Service:     service,
+		Tag:         tag,
+		Digest:      digest,
+	})
+	if err != nil {
+		c.DeployTracker.Fail(deployID, fmt.Sprintf("failed to update image tag: %v", err))
+		return
+	}
+
+	// Trigger ArgoCD sync (best-effort)
+	_, err = c.Deployer.SyncDeployment(ctx, &deployer.SyncDeploymentRequest{
+		Project:     projectID,
+		Environment: environment,
+	})
+	if err != nil {
+		slog.Warn("deploy: failed to trigger sync", "deployId", deployID, "error", err)
+	}
+
+	c.DeployTracker.Succeed(deployID, imageRef, digest)
+	slog.Info("deploy succeeded", "deployId", deployID, "project", projectID, "service", service, "environment", environment, "tag", tag)
+}
+
+func buildPhaseToDeployPhase(phase builder.BuildPhase) deploy.Phase {
+	switch phase {
+	case builder.BuildPhase_BUILD_PHASE_QUEUED:
+		return deploy.PhaseQueued
+	case builder.BuildPhase_BUILD_PHASE_CLONING:
+		return deploy.PhaseCloning
+	case builder.BuildPhase_BUILD_PHASE_BUILDING:
+		return deploy.PhaseBuilding
+	case builder.BuildPhase_BUILD_PHASE_PUSHING:
+		return deploy.PhasePushing
+	case builder.BuildPhase_BUILD_PHASE_SUCCEEDED:
+		return deploy.PhaseSucceeded
+	case builder.BuildPhase_BUILD_PHASE_FAILED:
+		return deploy.PhaseFailed
+	default:
+		return deploy.PhaseQueued
+	}
+}
+
+func extractTag(imageRef string) string {
+	parts := strings.SplitN(imageRef, ":", 2)
+	if len(parts) == 2 {
+		return parts[1]
+	}
+	return imageRef
 }

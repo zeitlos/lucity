@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import { Rocket, Loader2, CheckCircle, XCircle } from 'lucide-vue-next';
 import { useEnvironment } from '@/composables/useEnvironment';
-import { useBuild } from '@/composables/useBuild';
+import { useDeploy } from '@/composables/useDeploy';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import EmptyState from '@/components/EmptyState.vue';
@@ -19,7 +19,7 @@ const props = defineProps<{
 }>();
 
 const { activeEnvironment } = useEnvironment();
-const build = useBuild();
+const deploy = useDeploy();
 
 const envService = computed(() =>
   activeEnvironment.value?.services.find(s => s.name === props.service.name)
@@ -27,14 +27,13 @@ const envService = computed(() =>
 
 const hasDeployment = computed(() => !!envService.value?.deployment);
 
-async function handleBuildAndDeploy() {
+async function handleDeploy() {
   const envName = activeEnvironment.value?.name ?? 'development';
-  await build.buildAndDeploy(props.projectId, props.service.name, envName);
+  await deploy.startDeploy(props.projectId, props.service.name, envName);
 }
 
-function buildPhaseVariant(phase: string) {
+function phaseVariant(phase: string) {
   switch (phase) {
-    case 'DEPLOYED': return 'default';
     case 'SUCCEEDED': return 'default';
     case 'FAILED': return 'destructive';
     case 'BUILDING': return 'secondary';
@@ -47,32 +46,32 @@ function buildPhaseVariant(phase: string) {
 
 <template>
   <div class="space-y-6">
-    <!-- Build & Deploy Action -->
+    <!-- Deploy Action -->
     <div class="flex items-center gap-3">
       <Button
-        :disabled="build.isBuilding"
-        @click="handleBuildAndDeploy"
+        :disabled="deploy.isDeploying"
+        @click="handleDeploy"
       >
         <Loader2
-          v-if="build.isBuilding"
+          v-if="deploy.isDeploying"
           :size="14"
           class="mr-2 animate-spin"
         />
         <Rocket v-else :size="14" class="mr-2" />
-        {{ build.isBuilding ? 'Building...' : 'Build & Deploy' }}
+        {{ deploy.isDeploying ? 'Deploying...' : 'Deploy' }}
       </Button>
 
       <Badge
-        v-if="build.phase"
-        :variant="buildPhaseVariant(build.phase)"
-        :hide-dot="build.isBuilding"
+        v-if="deploy.phase"
+        :variant="phaseVariant(deploy.phase)"
+        :hide-dot="deploy.isDeploying"
       >
         <Loader2
-          v-if="build.isBuilding"
+          v-if="deploy.isDeploying"
           :size="12"
           class="mr-1 animate-spin"
         />
-        {{ build.phase }}
+        {{ deploy.phase }}
       </Badge>
     </div>
 
@@ -107,7 +106,7 @@ function buildPhaseVariant(phase: string) {
     <EmptyState
       v-else
       title="No deployment"
-      description="This service hasn't been deployed to this environment yet. Click Build & Deploy to get started."
+      description="This service hasn't been deployed to this environment yet. Click Deploy to get started."
       pattern="diagonal"
     />
   </div>

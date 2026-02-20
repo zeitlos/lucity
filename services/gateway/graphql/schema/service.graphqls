@@ -46,9 +46,37 @@ enum BuildPhase {
   FAILED
 }
 
+type DeploymentOp {
+  id: ID!
+  phase: DeployPhase!
+  buildId: String
+  imageRef: String
+  digest: String
+  error: String
+}
+
+enum DeployPhase {
+  QUEUED
+  CLONING
+  BUILDING
+  PUSHING
+  DEPLOYING
+  SUCCEEDED
+  FAILED
+}
+
+input DeployInput {
+  projectId: ID!
+  service: String!
+  environment: String!
+  gitRef: String
+  contextPath: String
+}
+
 extend type Query {
   detectServices(projectId: ID!): [DetectedService!]! @hasRole(role: [USER])
   buildStatus(id: ID!): Build @hasRole(role: [USER])
+  deployStatus(id: ID!): DeploymentOp @hasRole(role: [USER])
 }
 
 extend type Mutation {
@@ -56,4 +84,5 @@ extend type Mutation {
   removeService(projectId: ID!, service: String!): Boolean! @hasRole(role: [USER])
   buildService(input: BuildServiceInput!): Build! @hasRole(role: [USER])
   deployBuild(input: DeployBuildInput!): Boolean! @hasRole(role: [USER])
+  deploy(input: DeployInput!): DeploymentOp! @hasRole(role: [USER])
 }

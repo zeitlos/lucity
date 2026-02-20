@@ -59,3 +59,29 @@ export const DeployBuildMutation = gql`
     deployBuild(input: $input)
   }
 `;
+
+export const DeployMutation = gql`
+  mutation Deploy($input: DeployInput!) {
+    deploy(input: $input) {
+      id
+      phase
+      buildId
+      imageRef
+      digest
+      error
+    }
+  }
+`;
+
+export const DeployStatusQuery = gql`
+  query DeployStatus($id: ID!) {
+    deployStatus(id: $id) {
+      id
+      phase
+      buildId
+      imageRef
+      digest
+      error
+    }
+  }
+`;
