@@ -27,7 +27,7 @@ const emit = defineEmits<{
 const { activeEnvServices } = useEnvironment();
 const { openPanel, currentPanel } = usePanel();
 
-const { fitView } = useVueFlow({
+const { fitView, findNode, setCenter, dimensions } = useVueFlow({
   id: 'service-canvas',
 });
 
@@ -72,12 +72,18 @@ watch(() => props.services.length, () => {
   setTimeout(() => handleFitView(), 100);
 });
 
-// Center selected card when panel opens, re-fit all when it closes
+// Center selected card in the visible left portion (panel overlays 55% from right)
 watch(
   () => currentPanel.value,
   (panel, oldPanel) => {
     if (panel?.type === 'service') {
-      fitView({ nodes: [panel.id], padding: 0.5, maxZoom: 1 });
+      const node = findNode(panel.id);
+      if (node) {
+        const nodeCenterX = node.position.x + (node.dimensions.width / 2);
+        const nodeCenterY = node.position.y + (node.dimensions.height / 2);
+        const panelOffset = (dimensions.value.width * 0.55) / 2;
+        setCenter(nodeCenterX + panelOffset, nodeCenterY, { zoom: 1 });
+      }
     } else if (!panel && oldPanel) {
       handleFitView();
     }
