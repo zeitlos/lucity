@@ -629,7 +629,7 @@ func (p *SoftServeProvider) readProjectMeta(repoName string) (*ProjectMeta, erro
 						}
 						tag, _ := imageMap["tag"].(string)
 						if tag != "" {
-							envMeta.Services = append(envMeta.Services, EnvironmentServiceMeta{
+							envMeta.Services = append(envMeta.Services, ServiceInstanceMeta{
 								Name:     svcName,
 								ImageTag: tag,
 							})

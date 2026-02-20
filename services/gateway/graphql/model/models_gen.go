@@ -52,11 +52,11 @@ type DeployBuildInput struct {
 	Digest      *string `json:"digest,omitempty"`
 }
 
-type DeployedService struct {
-	Name     string `json:"name"`
-	ImageTag string `json:"imageTag"`
-	Ready    bool   `json:"ready"`
-	Replicas int    `json:"replicas"`
+type Deployment struct {
+	ID        string     `json:"id"`
+	ImageTag  string     `json:"imageTag"`
+	Active    bool       `json:"active"`
+	Timestamp *time.Time `json:"timestamp,omitempty"`
 }
 
 type DetectedService struct {
@@ -73,7 +73,7 @@ type Environment struct {
 	Namespace  string            `json:"namespace"`
 	Ephemeral  bool              `json:"ephemeral"`
 	SyncStatus SyncStatus        `json:"syncStatus"`
-	Services   []DeployedService `json:"services"`
+	Services   []ServiceInstance `json:"services"`
 }
 
 type GitHubRepository struct {
@@ -108,11 +108,21 @@ type Query struct {
 }
 
 type Service struct {
-	Name      string  `json:"name"`
-	Image     string  `json:"image"`
-	Port      *int    `json:"port,omitempty"`
-	Public    bool    `json:"public"`
-	Framework *string `json:"framework,omitempty"`
+	Name      string            `json:"name"`
+	Image     string            `json:"image"`
+	Port      *int              `json:"port,omitempty"`
+	Public    bool              `json:"public"`
+	Framework *string           `json:"framework,omitempty"`
+	Instances []ServiceInstance `json:"instances"`
+}
+
+type ServiceInstance struct {
+	Name        string      `json:"name"`
+	Environment string      `json:"environment"`
+	ImageTag    string      `json:"imageTag"`
+	Ready       bool        `json:"ready"`
+	Replicas    int         `json:"replicas"`
+	Deployment  *Deployment `json:"deployment,omitempty"`
 }
 
 type User struct {

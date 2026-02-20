@@ -13,7 +13,7 @@ type Environment {
   namespace: String!
   ephemeral: Boolean!
   syncStatus: SyncStatus!
-  services: [DeployedService!]!
+  services: [ServiceInstance!]!
 }
 
 type Service {
@@ -22,13 +22,23 @@ type Service {
   port: Int
   public: Boolean!
   framework: String
+  instances: [ServiceInstance!]!
 }
 
-type DeployedService {
+type ServiceInstance {
   name: String!
+  environment: String!
   imageTag: String!
   ready: Boolean!
   replicas: Int!
+  deployment: Deployment
+}
+
+type Deployment {
+  id: ID!
+  imageTag: String!
+  active: Boolean!
+  timestamp: Time
 }
 
 enum SyncStatus {
@@ -60,6 +70,7 @@ input PromoteInput {
 extend type Query {
   projects: [Project!]! @hasRole(role: [USER])
   project(id: ID!): Project @hasRole(role: [USER])
+  service(projectId: ID!, name: String!): Service @hasRole(role: [USER])
 }
 
 extend type Mutation {
@@ -67,5 +78,5 @@ extend type Mutation {
   deleteProject(id: ID!): Boolean! @hasRole(role: [USER])
   createEnvironment(input: CreateEnvironmentInput!): Environment! @hasRole(role: [USER])
   deleteEnvironment(projectId: ID!, environment: String!): Boolean! @hasRole(role: [USER])
-  promote(input: PromoteInput!): DeployedService! @hasRole(role: [USER])
+  promote(input: PromoteInput!): ServiceInstance! @hasRole(role: [USER])
 }

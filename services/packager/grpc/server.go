@@ -252,9 +252,9 @@ func envInfosFromMeta(metas []gitops.EnvironmentMeta) []*packager.EnvironmentInf
 	}
 	infos := make([]*packager.EnvironmentInfo, len(metas))
 	for i, m := range metas {
-		var svcs []*packager.EnvironmentServiceInfo
+		var svcs []*packager.ServiceInstanceInfo
 		for _, s := range m.Services {
-			svcs = append(svcs, &packager.EnvironmentServiceInfo{
+			svcs = append(svcs, &packager.ServiceInstanceInfo{
 				Name:     s.Name,
 				ImageTag: s.ImageTag,
 			})

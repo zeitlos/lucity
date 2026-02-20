@@ -47,9 +47,15 @@ export const ProjectQuery = gql`
         syncStatus
         services {
           name
+          environment
           imageTag
           ready
           replicas
+          deployment {
+            id
+            imageTag
+            active
+          }
         }
       }
       services {
@@ -58,6 +64,17 @@ export const ProjectQuery = gql`
         port
         public
         framework
+        instances {
+          environment
+          imageTag
+          ready
+          replicas
+          deployment {
+            id
+            imageTag
+            active
+          }
+        }
       }
     }
   }

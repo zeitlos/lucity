@@ -25,7 +25,7 @@ const envService = computed(() =>
   activeEnvironment.value?.services.find(s => s.name === props.service.name)
 );
 
-const hasDeployment = computed(() => !!envService.value);
+const hasDeployment = computed(() => !!envService.value?.deployment);
 
 async function handleBuildAndDeploy() {
   const envName = activeEnvironment.value?.name ?? 'development';

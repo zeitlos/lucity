@@ -58,11 +58,11 @@ type ComplexityRoot struct {
 		Phase    func(childComplexity int) int
 	}
 
-	DeployedService struct {
-		ImageTag func(childComplexity int) int
-		Name     func(childComplexity int) int
-		Ready    func(childComplexity int) int
-		Replicas func(childComplexity int) int
+	Deployment struct {
+		Active    func(childComplexity int) int
+		ID        func(childComplexity int) int
+		ImageTag  func(childComplexity int) int
+		Timestamp func(childComplexity int) int
 	}
 
 	DetectedService struct {
@@ -119,14 +119,25 @@ type ComplexityRoot struct {
 		Me                 func(childComplexity int) int
 		Project            func(childComplexity int, id string) int
 		Projects           func(childComplexity int) int
+		Service            func(childComplexity int, projectID string, name string) int
 	}
 
 	Service struct {
 		Framework func(childComplexity int) int
 		Image     func(childComplexity int) int
+		Instances func(childComplexity int) int
 		Name      func(childComplexity int) int
 		Port      func(childComplexity int) int
 		Public    func(childComplexity int) int
+	}
+
+	ServiceInstance struct {
+		Deployment  func(childComplexity int) int
+		Environment func(childComplexity int) int
+		ImageTag    func(childComplexity int) int
+		Name        func(childComplexity int) int
+		Ready       func(childComplexity int) int
+		Replicas    func(childComplexity int) int
 	}
 
 	User struct {
@@ -142,7 +153,7 @@ type MutationResolver interface {
 	DeleteProject(ctx context.Context, id string) (bool, error)
 	CreateEnvironment(ctx context.Context, input model.CreateEnvironmentInput) (*model.Environment, error)
 	DeleteEnvironment(ctx context.Context, projectID string, environment string) (bool, error)
-	Promote(ctx context.Context, input model.PromoteInput) (*model.DeployedService, error)
+	Promote(ctx context.Context, input model.PromoteInput) (*model.ServiceInstance, error)
 	AddService(ctx context.Context, input model.AddServiceInput) (*model.Service, error)
 	RemoveService(ctx context.Context, projectID string, service string) (bool, error)
 	BuildService(ctx context.Context, input model.BuildServiceInput) (*model.Build, error)
@@ -153,6 +164,7 @@ type QueryResolver interface {
 	GithubRepositories(ctx context.Context) ([]model.GitHubRepository, error)
 	Projects(ctx context.Context) ([]model.Project, error)
 	Project(ctx context.Context, id string) (*model.Project, error)
+	Service(ctx context.Context, projectID string, name string) (*model.Service, error)
 	DetectServices(ctx context.Context, projectID string) ([]model.DetectedService, error)
 	BuildStatus(ctx context.Context, id string) (*model.Build, error)
 }
@@ -207,30 +219,30 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Build.Phase(childComplexity), true
 
-	case "DeployedService.imageTag":
-		if e.complexity.DeployedService.ImageTag == nil {
+	case "Deployment.active":
+		if e.complexity.Deployment.Active == nil {
 			break
 		}
 
-		return e.complexity.DeployedService.ImageTag(childComplexity), true
-	case "DeployedService.name":
-		if e.complexity.DeployedService.Name == nil {
+		return e.complexity.Deployment.Active(childComplexity), true
+	case "Deployment.id":
+		if e.complexity.Deployment.ID == nil {
 			break
 		}
 
-		return e.complexity.DeployedService.Name(childComplexity), true
-	case "DeployedService.ready":
-		if e.complexity.DeployedService.Ready == nil {
+		return e.complexity.Deployment.ID(childComplexity), true
+	case "Deployment.imageTag":
+		if e.complexity.Deployment.ImageTag == nil {
 			break
 		}
 
-		return e.complexity.DeployedService.Ready(childComplexity), true
-	case "DeployedService.replicas":
-		if e.complexity.DeployedService.Replicas == nil {
+		return e.complexity.Deployment.ImageTag(childComplexity), true
+	case "Deployment.timestamp":
+		if e.complexity.Deployment.Timestamp == nil {
 			break
 		}
 
-		return e.complexity.DeployedService.Replicas(childComplexity), true
+		return e.complexity.Deployment.Timestamp(childComplexity), true
 
 	case "DetectedService.framework":
 		if e.complexity.DetectedService.Framework == nil {
@@ -525,6 +537,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Query.Projects(childComplexity), true
+	case "Query.service":
+		if e.complexity.Query.Service == nil {
+			break
+		}
+
+		args, err := ec.field_Query_service_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.Service(childComplexity, args["projectId"].(string), args["name"].(string)), true
 
 	case "Service.framework":
 		if e.complexity.Service.Framework == nil {
@@ -538,6 +561,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Service.Image(childComplexity), true
+	case "Service.instances":
+		if e.complexity.Service.Instances == nil {
+			break
+		}
+
+		return e.complexity.Service.Instances(childComplexity), true
 	case "Service.name":
 		if e.complexity.Service.Name == nil {
 			break
@@ -556,6 +585,43 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Service.Public(childComplexity), true
+
+	case "ServiceInstance.deployment":
+		if e.complexity.ServiceInstance.Deployment == nil {
+			break
+		}
+
+		return e.complexity.ServiceInstance.Deployment(childComplexity), true
+	case "ServiceInstance.environment":
+		if e.complexity.ServiceInstance.Environment == nil {
+			break
+		}
+
+		return e.complexity.ServiceInstance.Environment(childComplexity), true
+	case "ServiceInstance.imageTag":
+		if e.complexity.ServiceInstance.ImageTag == nil {
+			break
+		}
+
+		return e.complexity.ServiceInstance.ImageTag(childComplexity), true
+	case "ServiceInstance.name":
+		if e.complexity.ServiceInstance.Name == nil {
+			break
+		}
+
+		return e.complexity.ServiceInstance.Name(childComplexity), true
+	case "ServiceInstance.ready":
+		if e.complexity.ServiceInstance.Ready == nil {
+			break
+		}
+
+		return e.complexity.ServiceInstance.Ready(childComplexity), true
+	case "ServiceInstance.replicas":
+		if e.complexity.ServiceInstance.Replicas == nil {
+			break
+		}
+
+		return e.complexity.ServiceInstance.Replicas(childComplexity), true
 
 	case "User.avatarUrl":
 		if e.complexity.User.AvatarURL == nil {
@@ -891,6 +957,22 @@ func (ec *executionContext) field_Query_project_args(ctx context.Context, rawArg
 	return args, nil
 }
 
+func (ec *executionContext) field_Query_service_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "projectId", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["projectId"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "name", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["name"] = arg1
+	return args, nil
+}
+
 func (ec *executionContext) field___Directive_args_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -1088,41 +1170,41 @@ func (ec *executionContext) fieldContext_Build_error(_ context.Context, field gr
 	return fc, nil
 }
 
-func (ec *executionContext) _DeployedService_name(ctx context.Context, field graphql.CollectedField, obj *model.DeployedService) (ret graphql.Marshaler) {
+func (ec *executionContext) _Deployment_id(ctx context.Context, field graphql.CollectedField, obj *model.Deployment) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_DeployedService_name,
+		ec.fieldContext_Deployment_id,
 		func(ctx context.Context) (any, error) {
-			return obj.Name, nil
+			return obj.ID, nil
 		},
 		nil,
-		ec.marshalNString2string,
+		ec.marshalNID2string,
 		true,
 		true,
 	)
 }
 
-func (ec *executionContext) fieldContext_DeployedService_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Deployment_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "DeployedService",
+		Object:     "Deployment",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
+			return nil, errors.New("field of type ID does not have child fields")
 		},
 	}
 	return fc, nil
 }
 
-func (ec *executionContext) _DeployedService_imageTag(ctx context.Context, field graphql.CollectedField, obj *model.DeployedService) (ret graphql.Marshaler) {
+func (ec *executionContext) _Deployment_imageTag(ctx context.Context, field graphql.CollectedField, obj *model.Deployment) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_DeployedService_imageTag,
+		ec.fieldContext_Deployment_imageTag,
 		func(ctx context.Context) (any, error) {
 			return obj.ImageTag, nil
 		},
@@ -1133,9 +1215,9 @@ func (ec *executionContext) _DeployedService_imageTag(ctx context.Context, field
 	)
 }
 
-func (ec *executionContext) fieldContext_DeployedService_imageTag(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Deployment_imageTag(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "DeployedService",
+		Object:     "Deployment",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -1146,14 +1228,14 @@ func (ec *executionContext) fieldContext_DeployedService_imageTag(_ context.Cont
 	return fc, nil
 }
 
-func (ec *executionContext) _DeployedService_ready(ctx context.Context, field graphql.CollectedField, obj *model.DeployedService) (ret graphql.Marshaler) {
+func (ec *executionContext) _Deployment_active(ctx context.Context, field graphql.CollectedField, obj *model.Deployment) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_DeployedService_ready,
+		ec.fieldContext_Deployment_active,
 		func(ctx context.Context) (any, error) {
-			return obj.Ready, nil
+			return obj.Active, nil
 		},
 		nil,
 		ec.marshalNBoolean2bool,
@@ -1162,9 +1244,9 @@ func (ec *executionContext) _DeployedService_ready(ctx context.Context, field gr
 	)
 }
 
-func (ec *executionContext) fieldContext_DeployedService_ready(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Deployment_active(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "DeployedService",
+		Object:     "Deployment",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -1175,30 +1257,30 @@ func (ec *executionContext) fieldContext_DeployedService_ready(_ context.Context
 	return fc, nil
 }
 
-func (ec *executionContext) _DeployedService_replicas(ctx context.Context, field graphql.CollectedField, obj *model.DeployedService) (ret graphql.Marshaler) {
+func (ec *executionContext) _Deployment_timestamp(ctx context.Context, field graphql.CollectedField, obj *model.Deployment) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_DeployedService_replicas,
+		ec.fieldContext_Deployment_timestamp,
 		func(ctx context.Context) (any, error) {
-			return obj.Replicas, nil
+			return obj.Timestamp, nil
 		},
 		nil,
-		ec.marshalNInt2int,
+		ec.marshalOTime2ᚖtimeᚐTime,
 		true,
-		true,
+		false,
 	)
 }
 
-func (ec *executionContext) fieldContext_DeployedService_replicas(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Deployment_timestamp(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "DeployedService",
+		Object:     "Deployment",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
+			return nil, errors.New("field of type Time does not have child fields")
 		},
 	}
 	return fc, nil
@@ -1504,7 +1586,7 @@ func (ec *executionContext) _Environment_services(ctx context.Context, field gra
 			return obj.Services, nil
 		},
 		nil,
-		ec.marshalNDeployedService2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐDeployedServiceᚄ,
+		ec.marshalNServiceInstance2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐServiceInstanceᚄ,
 		true,
 		true,
 	)
@@ -1519,15 +1601,19 @@ func (ec *executionContext) fieldContext_Environment_services(_ context.Context,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "name":
-				return ec.fieldContext_DeployedService_name(ctx, field)
+				return ec.fieldContext_ServiceInstance_name(ctx, field)
+			case "environment":
+				return ec.fieldContext_ServiceInstance_environment(ctx, field)
 			case "imageTag":
-				return ec.fieldContext_DeployedService_imageTag(ctx, field)
+				return ec.fieldContext_ServiceInstance_imageTag(ctx, field)
 			case "ready":
-				return ec.fieldContext_DeployedService_ready(ctx, field)
+				return ec.fieldContext_ServiceInstance_ready(ctx, field)
 			case "replicas":
-				return ec.fieldContext_DeployedService_replicas(ctx, field)
+				return ec.fieldContext_ServiceInstance_replicas(ctx, field)
+			case "deployment":
+				return ec.fieldContext_ServiceInstance_deployment(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type DeployedService", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type ServiceInstance", field.Name)
 		},
 	}
 	return fc, nil
@@ -1794,7 +1880,7 @@ func (ec *executionContext) _Mutation_deleteProject(ctx context.Context, field g
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"ADMIN"})
+				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
 				if err != nil {
 					var zeroVal bool
 					return zeroVal, err
@@ -1987,11 +2073,11 @@ func (ec *executionContext) _Mutation_promote(ctx context.Context, field graphql
 			directive1 := func(ctx context.Context) (any, error) {
 				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
 				if err != nil {
-					var zeroVal *model.DeployedService
+					var zeroVal *model.ServiceInstance
 					return zeroVal, err
 				}
 				if ec.directives.HasRole == nil {
-					var zeroVal *model.DeployedService
+					var zeroVal *model.ServiceInstance
 					return zeroVal, errors.New("directive hasRole is not implemented")
 				}
 				return ec.directives.HasRole(ctx, nil, directive0, role)
@@ -2000,7 +2086,7 @@ func (ec *executionContext) _Mutation_promote(ctx context.Context, field graphql
 			next = directive1
 			return next
 		},
-		ec.marshalNDeployedService2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐDeployedService,
+		ec.marshalNServiceInstance2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐServiceInstance,
 		true,
 		true,
 	)
@@ -2015,15 +2101,19 @@ func (ec *executionContext) fieldContext_Mutation_promote(ctx context.Context, f
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "name":
-				return ec.fieldContext_DeployedService_name(ctx, field)
+				return ec.fieldContext_ServiceInstance_name(ctx, field)
+			case "environment":
+				return ec.fieldContext_ServiceInstance_environment(ctx, field)
 			case "imageTag":
-				return ec.fieldContext_DeployedService_imageTag(ctx, field)
+				return ec.fieldContext_ServiceInstance_imageTag(ctx, field)
 			case "ready":
-				return ec.fieldContext_DeployedService_ready(ctx, field)
+				return ec.fieldContext_ServiceInstance_ready(ctx, field)
 			case "replicas":
-				return ec.fieldContext_DeployedService_replicas(ctx, field)
+				return ec.fieldContext_ServiceInstance_replicas(ctx, field)
+			case "deployment":
+				return ec.fieldContext_ServiceInstance_deployment(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type DeployedService", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type ServiceInstance", field.Name)
 		},
 	}
 	defer func() {
@@ -2093,6 +2183,8 @@ func (ec *executionContext) fieldContext_Mutation_addService(ctx context.Context
 				return ec.fieldContext_Service_public(ctx, field)
 			case "framework":
 				return ec.fieldContext_Service_framework(ctx, field)
+			case "instances":
+				return ec.fieldContext_Service_instances(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Service", field.Name)
 		},
@@ -2464,6 +2556,8 @@ func (ec *executionContext) fieldContext_Project_services(_ context.Context, fie
 				return ec.fieldContext_Service_public(ctx, field)
 			case "framework":
 				return ec.fieldContext_Service_framework(ctx, field)
+			case "instances":
+				return ec.fieldContext_Service_instances(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Service", field.Name)
 		},
@@ -2746,6 +2840,79 @@ func (ec *executionContext) fieldContext_Query_project(ctx context.Context, fiel
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_project_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_service(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_service,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Query().Service(ctx, fc.Args["projectId"].(string), fc.Args["name"].(string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				if err != nil {
+					var zeroVal *model.Service
+					return zeroVal, err
+				}
+				if ec.directives.HasRole == nil {
+					var zeroVal *model.Service
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalOService2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐService,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_service(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "name":
+				return ec.fieldContext_Service_name(ctx, field)
+			case "image":
+				return ec.fieldContext_Service_image(ctx, field)
+			case "port":
+				return ec.fieldContext_Service_port(ctx, field)
+			case "public":
+				return ec.fieldContext_Service_public(ctx, field)
+			case "framework":
+				return ec.fieldContext_Service_framework(ctx, field)
+			case "instances":
+				return ec.fieldContext_Service_instances(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Service", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_service_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -3142,6 +3309,233 @@ func (ec *executionContext) fieldContext_Service_framework(_ context.Context, fi
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Service_instances(ctx context.Context, field graphql.CollectedField, obj *model.Service) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Service_instances,
+		func(ctx context.Context) (any, error) {
+			return obj.Instances, nil
+		},
+		nil,
+		ec.marshalNServiceInstance2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐServiceInstanceᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Service_instances(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Service",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "name":
+				return ec.fieldContext_ServiceInstance_name(ctx, field)
+			case "environment":
+				return ec.fieldContext_ServiceInstance_environment(ctx, field)
+			case "imageTag":
+				return ec.fieldContext_ServiceInstance_imageTag(ctx, field)
+			case "ready":
+				return ec.fieldContext_ServiceInstance_ready(ctx, field)
+			case "replicas":
+				return ec.fieldContext_ServiceInstance_replicas(ctx, field)
+			case "deployment":
+				return ec.fieldContext_ServiceInstance_deployment(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ServiceInstance", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ServiceInstance_name(ctx context.Context, field graphql.CollectedField, obj *model.ServiceInstance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ServiceInstance_name,
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ServiceInstance_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ServiceInstance",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ServiceInstance_environment(ctx context.Context, field graphql.CollectedField, obj *model.ServiceInstance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ServiceInstance_environment,
+		func(ctx context.Context) (any, error) {
+			return obj.Environment, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ServiceInstance_environment(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ServiceInstance",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ServiceInstance_imageTag(ctx context.Context, field graphql.CollectedField, obj *model.ServiceInstance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ServiceInstance_imageTag,
+		func(ctx context.Context) (any, error) {
+			return obj.ImageTag, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ServiceInstance_imageTag(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ServiceInstance",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ServiceInstance_ready(ctx context.Context, field graphql.CollectedField, obj *model.ServiceInstance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ServiceInstance_ready,
+		func(ctx context.Context) (any, error) {
+			return obj.Ready, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ServiceInstance_ready(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ServiceInstance",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ServiceInstance_replicas(ctx context.Context, field graphql.CollectedField, obj *model.ServiceInstance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ServiceInstance_replicas,
+		func(ctx context.Context) (any, error) {
+			return obj.Replicas, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ServiceInstance_replicas(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ServiceInstance",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ServiceInstance_deployment(ctx context.Context, field graphql.CollectedField, obj *model.ServiceInstance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ServiceInstance_deployment,
+		func(ctx context.Context) (any, error) {
+			return obj.Deployment, nil
+		},
+		nil,
+		ec.marshalODeployment2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐDeployment,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_ServiceInstance_deployment(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ServiceInstance",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Deployment_id(ctx, field)
+			case "imageTag":
+				return ec.fieldContext_Deployment_imageTag(ctx, field)
+			case "active":
+				return ec.fieldContext_Deployment_active(ctx, field)
+			case "timestamp":
+				return ec.fieldContext_Deployment_timestamp(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Deployment", field.Name)
 		},
 	}
 	return fc, nil
@@ -5108,37 +5502,34 @@ func (ec *executionContext) _Build(ctx context.Context, sel ast.SelectionSet, ob
 	return out
 }
 
-var deployedServiceImplementors = []string{"DeployedService"}
+var deploymentImplementors = []string{"Deployment"}
 
-func (ec *executionContext) _DeployedService(ctx context.Context, sel ast.SelectionSet, obj *model.DeployedService) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, deployedServiceImplementors)
+func (ec *executionContext) _Deployment(ctx context.Context, sel ast.SelectionSet, obj *model.Deployment) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, deploymentImplementors)
 
 	out := graphql.NewFieldSet(fields)
 	deferred := make(map[string]*graphql.FieldSet)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
-			out.Values[i] = graphql.MarshalString("DeployedService")
-		case "name":
-			out.Values[i] = ec._DeployedService_name(ctx, field, obj)
+			out.Values[i] = graphql.MarshalString("Deployment")
+		case "id":
+			out.Values[i] = ec._Deployment_id(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
 		case "imageTag":
-			out.Values[i] = ec._DeployedService_imageTag(ctx, field, obj)
+			out.Values[i] = ec._Deployment_imageTag(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "ready":
-			out.Values[i] = ec._DeployedService_ready(ctx, field, obj)
+		case "active":
+			out.Values[i] = ec._Deployment_active(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "replicas":
-			out.Values[i] = ec._DeployedService_replicas(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
+		case "timestamp":
+			out.Values[i] = ec._Deployment_timestamp(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -5622,6 +6013,25 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "service":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_service(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "detectServices":
 			field := field
 
@@ -5724,6 +6134,72 @@ func (ec *executionContext) _Service(ctx context.Context, sel ast.SelectionSet, 
 			}
 		case "framework":
 			out.Values[i] = ec._Service_framework(ctx, field, obj)
+		case "instances":
+			out.Values[i] = ec._Service_instances(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var serviceInstanceImplementors = []string{"ServiceInstance"}
+
+func (ec *executionContext) _ServiceInstance(ctx context.Context, sel ast.SelectionSet, obj *model.ServiceInstance) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, serviceInstanceImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ServiceInstance")
+		case "name":
+			out.Values[i] = ec._ServiceInstance_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "environment":
+			out.Values[i] = ec._ServiceInstance_environment(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "imageTag":
+			out.Values[i] = ec._ServiceInstance_imageTag(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "ready":
+			out.Values[i] = ec._ServiceInstance_ready(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "replicas":
+			out.Values[i] = ec._ServiceInstance_replicas(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "deployment":
+			out.Values[i] = ec._ServiceInstance_deployment(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -6195,64 +6671,6 @@ func (ec *executionContext) unmarshalNDeployBuildInput2githubᚗcomᚋzeitlosᚋ
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNDeployedService2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐDeployedService(ctx context.Context, sel ast.SelectionSet, v model.DeployedService) graphql.Marshaler {
-	return ec._DeployedService(ctx, sel, &v)
-}
-
-func (ec *executionContext) marshalNDeployedService2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐDeployedServiceᚄ(ctx context.Context, sel ast.SelectionSet, v []model.DeployedService) graphql.Marshaler {
-	ret := make(graphql.Array, len(v))
-	var wg sync.WaitGroup
-	isLen1 := len(v) == 1
-	if !isLen1 {
-		wg.Add(len(v))
-	}
-	for i := range v {
-		i := i
-		fc := &graphql.FieldContext{
-			Index:  &i,
-			Result: &v[i],
-		}
-		ctx := graphql.WithFieldContext(ctx, fc)
-		f := func(i int) {
-			defer func() {
-				if r := recover(); r != nil {
-					ec.Error(ctx, ec.Recover(ctx, r))
-					ret = nil
-				}
-			}()
-			if !isLen1 {
-				defer wg.Done()
-			}
-			ret[i] = ec.marshalNDeployedService2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐDeployedService(ctx, sel, v[i])
-		}
-		if isLen1 {
-			f(i)
-		} else {
-			go f(i)
-		}
-
-	}
-	wg.Wait()
-
-	for _, e := range ret {
-		if e == graphql.Null {
-			return graphql.Null
-		}
-	}
-
-	return ret
-}
-
-func (ec *executionContext) marshalNDeployedService2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐDeployedService(ctx context.Context, sel ast.SelectionSet, v *model.DeployedService) graphql.Marshaler {
-	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
-		return graphql.Null
-	}
-	return ec._DeployedService(ctx, sel, v)
-}
-
 func (ec *executionContext) marshalNDetectedService2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐDetectedService(ctx context.Context, sel ast.SelectionSet, v model.DetectedService) graphql.Marshaler {
 	return ec._DetectedService(ctx, sel, &v)
 }
@@ -6629,6 +7047,64 @@ func (ec *executionContext) marshalNService2ᚖgithubᚗcomᚋzeitlosᚋlucity�
 	return ec._Service(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNServiceInstance2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐServiceInstance(ctx context.Context, sel ast.SelectionSet, v model.ServiceInstance) graphql.Marshaler {
+	return ec._ServiceInstance(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNServiceInstance2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐServiceInstanceᚄ(ctx context.Context, sel ast.SelectionSet, v []model.ServiceInstance) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNServiceInstance2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐServiceInstance(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNServiceInstance2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐServiceInstance(ctx context.Context, sel ast.SelectionSet, v *model.ServiceInstance) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._ServiceInstance(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalNString2string(ctx context.Context, v any) (string, error) {
 	res, err := graphql.UnmarshalString(v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -6975,6 +7451,13 @@ func (ec *executionContext) marshalOBuild2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋs
 	return ec._Build(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalODeployment2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐDeployment(ctx context.Context, sel ast.SelectionSet, v *model.Deployment) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._Deployment(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalOInt2ᚖint(ctx context.Context, v any) (*int, error) {
 	if v == nil {
 		return nil, nil
@@ -6998,6 +7481,13 @@ func (ec *executionContext) marshalOProject2ᚖgithubᚗcomᚋzeitlosᚋlucity�
 		return graphql.Null
 	}
 	return ec._Project(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOService2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐService(ctx context.Context, sel ast.SelectionSet, v *model.Service) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._Service(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalOString2ᚕstringᚄ(ctx context.Context, v any) ([]string, error) {
@@ -7051,6 +7541,24 @@ func (ec *executionContext) marshalOString2ᚖstring(ctx context.Context, sel as
 	_ = sel
 	_ = ctx
 	res := graphql.MarshalString(*v)
+	return res
+}
+
+func (ec *executionContext) unmarshalOTime2ᚖtimeᚐTime(ctx context.Context, v any) (*time.Time, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := graphql.UnmarshalTime(v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOTime2ᚖtimeᚐTime(ctx context.Context, sel ast.SelectionSet, v *time.Time) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	_ = sel
+	_ = ctx
+	res := graphql.MarshalTime(*v)
 	return res
 }
 

@@ -1,4 +1,20 @@
-import { ref, computed, watch } from 'vue';
+import { ref, computed } from 'vue';
+
+export interface DeploymentInfo {
+  id: string;
+  imageTag: string;
+  active: boolean;
+  timestamp?: string;
+}
+
+export interface ServiceInstance {
+  name: string;
+  environment: string;
+  imageTag: string;
+  ready: boolean;
+  replicas: number;
+  deployment: DeploymentInfo | null;
+}
 
 export interface Environment {
   id: string;
@@ -6,12 +22,7 @@ export interface Environment {
   namespace: string;
   ephemeral: boolean;
   syncStatus: string;
-  services: {
-    name: string;
-    imageTag: string;
-    ready: boolean;
-    replicas: number;
-  }[];
+  services: ServiceInstance[];
 }
 
 const activeEnvironment = ref<Environment | null>(null);

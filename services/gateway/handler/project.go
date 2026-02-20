@@ -27,7 +27,7 @@ type Environment struct {
 	Namespace  string
 	Ephemeral  bool
 	SyncStatus string
-	Services   []DeployedService
+	Services   []ServiceInstance
 }
 
 type Service struct {
@@ -36,13 +36,22 @@ type Service struct {
 	Port      int
 	Public    bool
 	Framework string
+	Instances []ServiceInstance
 }
 
-type DeployedService struct {
-	Name     string
-	ImageTag string
-	Ready    bool
-	Replicas int
+type ServiceInstance struct {
+	Name        string
+	Environment string
+	ImageTag    string
+	Ready       bool
+	Replicas    int
+}
+
+type Deployment struct {
+	ID        string
+	ImageTag  string
+	Active    bool
+	Timestamp time.Time
 }
 
 func (c *Client) Projects(ctx context.Context) ([]Project, error) {
@@ -177,7 +186,7 @@ func (c *Client) DeleteEnvironment(ctx context.Context, projectID, environment s
 	return true, nil
 }
 
-func (c *Client) Promote(ctx context.Context, projectID, service, fromEnv, toEnv string) (*DeployedService, error) {
+func (c *Client) Promote(ctx context.Context, projectID, service, fromEnv, toEnv string) (*ServiceInstance, error) {
 	ctx = auth.OutgoingContext(ctx)
 
 	resp, err := c.Packager.Promote(ctx, &packager.PromoteRequest{
@@ -190,10 +199,25 @@ func (c *Client) Promote(ctx context.Context, projectID, service, fromEnv, toEnv
 		return nil, fmt.Errorf("failed to promote: %w", err)
 	}
 
-	return &DeployedService{
-		Name:     service,
-		ImageTag: resp.ImageTag,
+	return &ServiceInstance{
+		Name:        service,
+		Environment: toEnv,
+		ImageTag:    resp.ImageTag,
 	}, nil
+}
+
+func (c *Client) Service(ctx context.Context, projectID, name string) (*Service, error) {
+	proj, err := c.Project(ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, svc := range proj.Services {
+		if svc.Name == name {
+			return &svc, nil
+		}
+	}
+	return nil, nil
 }
 
 // namespaceFor derives the K8s namespace from project and environment.
@@ -250,7 +274,7 @@ func projectFromProto(p *packager.ProjectInfo) Project {
 	}
 
 	// Build a lookup of per-env service info from the richer EnvironmentInfos.
-	envInfoMap := make(map[string][]*packager.EnvironmentServiceInfo, len(p.EnvironmentInfos))
+	envInfoMap := make(map[string][]*packager.ServiceInstanceInfo, len(p.EnvironmentInfos))
 	for _, ei := range p.EnvironmentInfos {
 		envInfoMap[ei.Name] = ei.Services
 	}
@@ -263,12 +287,13 @@ func projectFromProto(p *packager.ProjectInfo) Project {
 			SyncStatus: "UNKNOWN",
 		}
 
-		// Populate deployed service info from environment values
+		// Populate service instances from environment values
 		for _, svc := range envInfoMap[envName] {
-			env.Services = append(env.Services, DeployedService{
-				Name:     svc.Name,
-				ImageTag: svc.ImageTag,
-				Replicas: 1, // default until we query K8s
+			env.Services = append(env.Services, ServiceInstance{
+				Name:        svc.Name,
+				Environment: envName,
+				ImageTag:    svc.ImageTag,
+				Replicas:    1, // default until we query K8s
 			})
 		}
 
@@ -283,6 +308,17 @@ func projectFromProto(p *packager.ProjectInfo) Project {
 			Public:    svc.Public,
 			Framework: svc.Framework,
 		})
+	}
+
+	// Cross-reference: collect all service instances across environments onto each Service
+	for i, svc := range proj.Services {
+		for _, env := range proj.Environments {
+			for _, si := range env.Services {
+				if si.Name == svc.Name {
+					proj.Services[i].Instances = append(proj.Services[i].Instances, si)
+				}
+			}
+		}
 	}
 
 	return proj

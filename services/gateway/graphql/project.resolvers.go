@@ -46,12 +46,12 @@ func (r *mutationResolver) DeleteEnvironment(ctx context.Context, projectID stri
 }
 
 // Promote is the resolver for the promote field.
-func (r *mutationResolver) Promote(ctx context.Context, input model.PromoteInput) (*model.DeployedService, error) {
-	ds, err := r.API.Promote(ctx, input.ProjectID, input.Service, input.FromEnvironment, input.ToEnvironment)
+func (r *mutationResolver) Promote(ctx context.Context, input model.PromoteInput) (*model.ServiceInstance, error) {
+	si, err := r.API.Promote(ctx, input.ProjectID, input.Service, input.FromEnvironment, input.ToEnvironment)
 	if err != nil {
 		return nil, err
 	}
-	result := convertDeployedService(*ds)
+	result := convertServiceInstance(*si)
 	return &result, nil
 }
 
@@ -75,5 +75,18 @@ func (r *queryResolver) Project(ctx context.Context, id string) (*model.Project,
 		return nil, err
 	}
 	result := convertProject(*p)
+	return &result, nil
+}
+
+// Service is the resolver for the service field.
+func (r *queryResolver) Service(ctx context.Context, projectID string, name string) (*model.Service, error) {
+	s, err := r.API.Service(ctx, projectID, name)
+	if err != nil {
+		return nil, err
+	}
+	if s == nil {
+		return nil, nil
+	}
+	result := convertService(*s)
 	return &result, nil
 }

@@ -59,8 +59,8 @@ type Provider interface {
 	Promote(ctx context.Context, project, service, fromEnv, toEnv string) (imageTag string, err error)
 }
 
-// EnvironmentServiceMeta describes a service's state in a specific environment.
-type EnvironmentServiceMeta struct {
+// ServiceInstanceMeta describes a service's state in a specific environment.
+type ServiceInstanceMeta struct {
 	Name     string
 	ImageTag string
 }
@@ -68,7 +68,7 @@ type EnvironmentServiceMeta struct {
 // EnvironmentMeta holds metadata about a project environment.
 type EnvironmentMeta struct {
 	Name     string
-	Services []EnvironmentServiceMeta
+	Services []ServiceInstanceMeta
 }
 
 // ProjectMeta holds metadata about a project, read from its GitOps repo.

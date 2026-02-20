@@ -48,8 +48,8 @@ message ServiceInfo {
   string framework = 5;   // detected framework for dashboard icons (e.g., "nextjs", "vite")
 }
 
-// EnvironmentServiceInfo describes a service's deployed state in a specific environment.
-message EnvironmentServiceInfo {
+// ServiceInstanceInfo describes a service's state in a specific environment.
+message ServiceInstanceInfo {
   string name = 1;
   string image_tag = 2;    // current image tag in this environment's values.yaml
 }
@@ -57,7 +57,7 @@ message EnvironmentServiceInfo {
 // EnvironmentInfo holds metadata about a project environment.
 message EnvironmentInfo {
   string name = 1;
-  repeated EnvironmentServiceInfo services = 2;
+  repeated ServiceInstanceInfo services = 2;
 }
 
 // ProjectInfo holds metadata about a project read from its GitOps repo.

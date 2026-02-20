@@ -29,8 +29,8 @@ func convertEnvironment(e handler.Environment) model.Environment {
 		Ephemeral:  e.Ephemeral,
 		SyncStatus: model.SyncStatus(e.SyncStatus),
 	}
-	for _, ds := range e.Services {
-		result.Services = append(result.Services, convertDeployedService(ds))
+	for _, si := range e.Services {
+		result.Services = append(result.Services, convertServiceInstance(si))
 	}
 	return result
 }
@@ -47,6 +47,9 @@ func convertService(s handler.Service) model.Service {
 	}
 	if s.Framework != "" {
 		svc.Framework = &s.Framework
+	}
+	for _, si := range s.Instances {
+		svc.Instances = append(svc.Instances, convertServiceInstance(si))
 	}
 	return svc
 }
@@ -78,13 +81,22 @@ func convertBuild(b handler.Build) model.Build {
 	return build
 }
 
-func convertDeployedService(ds handler.DeployedService) model.DeployedService {
-	return model.DeployedService{
-		Name:     ds.Name,
-		ImageTag: ds.ImageTag,
-		Ready:    ds.Ready,
-		Replicas: ds.Replicas,
+func convertServiceInstance(si handler.ServiceInstance) model.ServiceInstance {
+	result := model.ServiceInstance{
+		Name:        si.Name,
+		Environment: si.Environment,
+		ImageTag:    si.ImageTag,
+		Ready:       si.Ready,
+		Replicas:    si.Replicas,
 	}
+	if si.ImageTag != "" {
+		result.Deployment = &model.Deployment{
+			ID:       si.ImageTag,
+			ImageTag: si.ImageTag,
+			Active:   true,
+		}
+	}
+	return result
 }
 
 func convertGitHubRepository(r handler.GitHubRepository) model.GitHubRepository {
