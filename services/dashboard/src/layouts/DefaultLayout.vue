@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
-import { LogOut, Sun, Moon } from 'lucide-vue-next';
+import { LogOut, Sun, Moon, Settings } from 'lucide-vue-next';
 import { useAuth } from '@/composables/useAuth';
 import { useTheme } from '@/composables/useTheme';
 import BaseLogo from '@/components/BaseLogo.vue';
 import ProjectBreadcrumb from '@/components/ProjectBreadcrumb.vue';
+import ProjectSettingsDialog from '@/components/ProjectSettingsDialog.vue';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -23,6 +24,7 @@ const { theme, toggleTheme } = useTheme();
 
 const isProjectRoute = computed(() => route.name === 'project');
 const projectId = computed(() => route.params.id as string | undefined);
+const settingsOpen = ref(false);
 
 async function handleLogout() {
   await logout();
@@ -57,8 +59,19 @@ async function handleLogout() {
         />
       </div>
 
-      <!-- Right: Theme + User menu -->
+      <!-- Right: Project nav + Theme + User menu -->
       <div class="flex items-center gap-2">
+        <Button
+          v-if="isProjectRoute"
+          variant="ghost"
+          size="sm"
+          class="text-muted-foreground"
+          @click="settingsOpen = true"
+        >
+          <Settings :size="14" class="mr-1.5" />
+          Settings
+        </Button>
+
         <Button
           variant="ghost"
           size="icon"
@@ -96,6 +109,13 @@ async function handleLogout() {
     <main class="flex-1 bg-background">
       <RouterView />
     </main>
+
+    <ProjectSettingsDialog
+      v-if="isProjectRoute && projectId"
+      v-model:open="settingsOpen"
+      :project-id="projectId"
+      :project-name="projectId"
+    />
   </div>
 </template>
 

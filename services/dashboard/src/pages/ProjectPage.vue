@@ -1,29 +1,13 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { useRoute } from 'vue-router';
 import { useQuery, useMutation, useLazyQuery } from '@vue/apollo-composable';
-import { Loader2, Scan, Layers, EllipsisVertical, Trash2 } from 'lucide-vue-next';
-import { ProjectQuery, DeleteProjectMutation } from '@/graphql/projects';
+import { Loader2, Scan, Layers } from 'lucide-vue-next';
+import { ProjectQuery } from '@/graphql/projects';
 import { DetectServicesQuery, AddServiceMutation } from '@/graphql/services';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from '@/components/ui/sonner';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import ServiceCanvas from '@/components/canvas/ServiceCanvas.vue';
 import ServicePanel from '@/components/panel/ServicePanel.vue';
 import FrameworkIcon from '@/components/FrameworkIcon.vue';
@@ -34,7 +18,6 @@ import { usePanel } from '@/composables/usePanel';
 import { errorMessage } from '@/lib/utils';
 
 const route = useRoute();
-const router = useRouter();
 const projectId = computed(() => route.params.id as string);
 
 const { result, loading, error, refetch } = useQuery(ProjectQuery, () => ({
@@ -75,28 +58,6 @@ const selectedService = computed(() => {
 
 // Command palette
 const paletteOpen = ref(false);
-
-// Delete project
-const deleteDialogOpen = ref(false);
-const { mutate: deleteProjectMutate, loading: deleting } = useMutation(DeleteProjectMutation);
-
-async function handleDeleteProject() {
-  try {
-    const res = await deleteProjectMutate({ id: projectId.value });
-
-    if (res?.errors?.length) {
-      toast.error('Failed to delete project', {
-        description: res.errors.map(e => e.message).join(', '),
-      });
-      return;
-    }
-
-    toast.success('Project deleted');
-    router.push({ name: 'projects' });
-  } catch (e: unknown) {
-    toast.error('Failed to delete project', { description: errorMessage(e) });
-  }
-}
 
 // Detection
 const {
@@ -190,48 +151,6 @@ function handleCreateFromPalette() {
     </div>
 
     <template v-else-if="project">
-      <!-- Project actions -->
-      <div class="flex shrink-0 items-center justify-end border-b px-4 py-2">
-        <DropdownMenu>
-          <DropdownMenuTrigger as-child>
-            <Button variant="ghost" size="icon" class="h-8 w-8">
-              <EllipsisVertical :size="16" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem
-              class="text-destructive focus:text-destructive"
-              @click="deleteDialogOpen = true"
-            >
-              <Trash2 :size="14" class="mr-2" />
-              Delete Project
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <AlertDialog v-model:open="deleteDialogOpen">
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Delete project</AlertDialogTitle>
-              <AlertDialogDescription>
-                This will permanently delete <strong>{{ project.name }}</strong> and its
-                GitOps repository. All environments and deployments will be removed.
-                This action cannot be undone.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                :disabled="deleting"
-                @click="handleDeleteProject"
-              >
-                {{ deleting ? 'Deleting...' : 'Delete' }}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </div>
-
       <!-- Detection banner (shows above canvas when no services) -->
       <div
         v-if="showDetectionBanner && project.services.length === 0"
