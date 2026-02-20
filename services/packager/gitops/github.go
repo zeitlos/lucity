@@ -330,6 +330,24 @@ func (p *GitHubProvider) writeValuesYAML(ctx context.Context, owner, repoName, f
 	return err
 }
 
+// readSubchartValuesGH reads the lucity-app subchart values via the GitHub API.
+func (p *GitHubProvider) readSubchartValuesGH(ctx context.Context, owner, repoName, filePath string) (map[string]any, string, error) {
+	values, sha, err := p.readValuesYAML(ctx, owner, repoName, filePath)
+	if err != nil {
+		return nil, "", err
+	}
+	inner, ok := values[subchartKey].(map[string]any)
+	if !ok {
+		inner = make(map[string]any)
+	}
+	return inner, sha, nil
+}
+
+// writeSubchartValuesGH writes values nested under the subchart key via the GitHub API.
+func (p *GitHubProvider) writeSubchartValuesGH(ctx context.Context, owner, repoName, filePath string, inner map[string]any, sha, commitMsg string) error {
+	return p.writeValuesYAML(ctx, owner, repoName, filePath, map[string]any{subchartKey: inner}, sha, commitMsg)
+}
+
 // readProjectMeta fetches and parses project.yaml + environments from a repo.
 func (p *GitHubProvider) readProjectMeta(ctx context.Context, owner, repoName string) (*ProjectMeta, error) {
 	content, _, _, err := p.client.Repositories.GetContents(ctx, owner, repoName, "project.yaml", nil)
@@ -527,13 +545,13 @@ func (p *GitHubProvider) Promote(ctx context.Context, project, service, fromEnv,
 
 	// Read the source environment's values
 	srcPath := fmt.Sprintf("environments/%s/values.yaml", fromEnv)
-	srcValues, _, err := p.readValuesYAML(ctx, org, repoName, srcPath)
+	srcInner, _, err := p.readSubchartValuesGH(ctx, org, repoName, srcPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to read source environment %s: %w", fromEnv, err)
 	}
 
 	// Extract the image tag for the service
-	services, ok := srcValues["services"].(map[string]any)
+	services, ok := srcInner["services"].(map[string]any)
 	if !ok {
 		return "", fmt.Errorf("no services in %s", srcPath)
 	}
@@ -550,7 +568,7 @@ func (p *GitHubProvider) Promote(ctx context.Context, project, service, fromEnv,
 		return "", fmt.Errorf("no image tag for service %q in %s", service, srcPath)
 	}
 
-	// Write the tag to the target environment
+	// Write the tag to the target environment (UpdateImageTag already handles subchart scoping)
 	if err := p.UpdateImageTag(ctx, project, toEnv, service, tag, ""); err != nil {
 		return "", fmt.Errorf("failed to promote to %s: %w", toEnv, err)
 	}
