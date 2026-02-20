@@ -2,7 +2,7 @@
 import { useQuery } from '@vue/apollo-composable';
 import { RouterLink } from 'vue-router';
 import { computed, ref } from 'vue';
-import { Plus, ExternalLink, FolderGit2 } from 'lucide-vue-next';
+import { Plus, ExternalLink } from 'lucide-vue-next';
 import { ProjectsQuery } from '@/graphql/projects';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -60,9 +60,9 @@ function envStatusColor(environments: { syncStatus: string }[]) {
 
     <EmptyState
       v-else-if="projects.length === 0"
-      :icon="FolderGit2"
       title="No projects yet"
       description="Get started by connecting a GitHub repository."
+      pattern="dots"
     >
       <template #action>
         <Button @click="paletteOpen = true">

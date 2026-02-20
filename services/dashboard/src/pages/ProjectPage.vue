@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useQuery, useMutation, useLazyQuery } from '@vue/apollo-composable';
-import { Loader2, Scan, Layers } from 'lucide-vue-next';
+import { Loader2, Scan } from 'lucide-vue-next';
 import { ProjectQuery } from '@/graphql/projects';
 import { DetectServicesQuery, AddServiceMutation } from '@/graphql/services';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -220,9 +220,9 @@ function handleCreateFromPalette() {
           <template v-else>
             <div class="flex h-full items-center justify-center">
               <EmptyState
-                :icon="Layers"
                 title="No services yet"
                 description="Detect services from your repository or create one manually."
+                pattern="crosshatch"
               >
                 <template #action>
                   <div class="flex gap-2">

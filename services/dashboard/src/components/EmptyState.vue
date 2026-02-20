@@ -22,23 +22,34 @@ const patternClass: Record<string, string> = {
 <template>
   <div
     :class="[
-      'flex flex-col items-center justify-center px-8 py-16',
-      pattern
-        ? ['relative overflow-hidden rounded-lg', pattern !== 'topo' ? patternClass[pattern] : '']
-        : 'rounded-lg border border-dashed',
+      'overflow-hidden rounded-lg border border-border',
+      pattern ? 'bg-card' : '',
     ]"
   >
-    <PatternTopo v-if="pattern === 'topo'" />
+    <div
+      :class="[
+        'flex flex-col items-center justify-center px-8 py-[4.5rem] text-center',
+        pattern && pattern !== 'topo' ? ['relative', patternClass[pattern]] : '',
+        pattern === 'topo' ? 'relative' : '',
+      ]"
+    >
+      <PatternTopo v-if="pattern === 'topo'" />
 
-    <div v-if="icon" class="relative mb-4 rounded-full bg-muted p-4">
-      <component :is="icon" :size="32" class="text-muted-foreground" />
-    </div>
-    <h2 class="relative font-serif text-3xl text-foreground">{{ title }}</h2>
-    <p v-if="description" class="relative mt-1 mb-6 max-w-sm text-center text-sm text-muted-foreground">
-      {{ description }}
-    </p>
-    <div v-if="$slots.action" :class="['relative', description ? '' : 'mt-4']">
-      <slot name="action" />
+      <div v-if="icon" class="relative mb-4 rounded-full bg-muted p-4">
+        <component :is="icon" :size="32" class="text-muted-foreground" />
+      </div>
+      <h2 class="relative font-serif text-[3.2rem] leading-[1.1] tracking-[-0.02em] text-foreground">
+        {{ title }}
+      </h2>
+      <p
+        v-if="description"
+        class="relative mt-6 mb-10 max-w-[460px] text-base leading-[1.75] text-muted-foreground"
+      >
+        {{ description }}
+      </p>
+      <div v-if="$slots.action" :class="['relative', description ? '' : 'mt-6']">
+        <slot name="action" />
+      </div>
     </div>
   </div>
 </template>

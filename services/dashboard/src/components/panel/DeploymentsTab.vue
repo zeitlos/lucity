@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { Rocket, Loader2, CheckCircle, XCircle, Container } from 'lucide-vue-next';
+import { Rocket, Loader2, CheckCircle, XCircle } from 'lucide-vue-next';
 import { useEnvironment } from '@/composables/useEnvironment';
 import { useBuild } from '@/composables/useBuild';
 import { Badge } from '@/components/ui/badge';
@@ -105,9 +105,9 @@ function buildPhaseVariant(phase: string) {
     <!-- No deployment -->
     <EmptyState
       v-else
-      :icon="Container"
       title="No deployment"
       description="This service hasn't been deployed to this environment yet. Click Build & Deploy to get started."
+      pattern="diagonal"
     />
   </div>
 </template>
