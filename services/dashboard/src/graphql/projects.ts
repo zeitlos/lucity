@@ -67,6 +67,14 @@ export const ProjectQuery = gql`
             imageTag
             active
           }
+          deployments {
+            id
+            imageTag
+            active
+            timestamp
+            revision
+            message
+          }
         }
       }
       services {
@@ -84,6 +92,14 @@ export const ProjectQuery = gql`
             id
             imageTag
             active
+          }
+          deployments {
+            id
+            imageTag
+            active
+            timestamp
+            revision
+            message
           }
         }
       }

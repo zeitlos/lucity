@@ -360,6 +360,59 @@ func (p *SoftServeProvider) Promote(ctx context.Context, project, service, fromE
 	return promotedTag, err
 }
 
+// DeploymentHistory returns deployment history for a service in an environment
+// by parsing the GitOps repo's git log for matching commit messages.
+func (p *SoftServeProvider) DeploymentHistory(ctx context.Context, project, environment, service string) ([]DeploymentEntry, error) {
+	_, name, err := SplitProject(project)
+	if err != nil {
+		return nil, err
+	}
+	repoName := name + RepoSuffix
+
+	dir, cleanup, err := p.cloneRepoWithDepth(repoName, 0)
+	if err != nil {
+		return nil, fmt.Errorf("failed to clone repo for history: %w", err)
+	}
+	defer cleanup()
+
+	repo, err := git.PlainOpen(dir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open repo: %w", err)
+	}
+
+	commits, err := repo.Log(&git.LogOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to read git log: %w", err)
+	}
+	defer commits.Close()
+
+	var entries []DeploymentEntry
+	err = commits.ForEach(func(c *object.Commit) error {
+		if len(entries) >= maxDeploymentHistory {
+			return fmt.Errorf("stop") // break iteration
+		}
+
+		tag, ok := parseDeployCommit(c.Message, environment, service)
+		if !ok {
+			return nil
+		}
+
+		entries = append(entries, DeploymentEntry{
+			ImageTag:  tag,
+			Revision:  c.Hash.String(),
+			Timestamp: c.Author.When,
+			Author:    c.Author.Name,
+		})
+		return nil
+	})
+	// The "stop" error is our break signal, not a real error
+	if err != nil && err.Error() != "stop" {
+		return nil, fmt.Errorf("failed to iterate commits: %w", err)
+	}
+
+	return entries, nil
+}
+
 // sshCmd executes a command on the Soft-serve SSH server.
 func (p *SoftServeProvider) sshCmd(args ...string) (string, error) {
 	sshConfig := &ssh.ClientConfig{
@@ -399,9 +452,15 @@ func (p *SoftServeProvider) repoHTTPURL(repoName string) string {
 	return strings.TrimSuffix(p.httpAddr, "/") + "/" + repoName + ".git"
 }
 
-// cloneRepo clones a Soft-serve repo to a temp directory.
+// cloneRepo clones a Soft-serve repo to a temp directory (shallow, depth=1).
 // Returns the directory path and a cleanup function.
 func (p *SoftServeProvider) cloneRepo(repoName string) (string, func(), error) {
+	return p.cloneRepoWithDepth(repoName, 1)
+}
+
+// cloneRepoWithDepth clones a Soft-serve repo with the given depth.
+// Use depth=0 for a full clone (needed for git log).
+func (p *SoftServeProvider) cloneRepoWithDepth(repoName string, depth int) (string, func(), error) {
 	tmpDir, err := os.MkdirTemp("", "lucity-gitops-*")
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to create temp dir: %w", err)
@@ -409,14 +468,18 @@ func (p *SoftServeProvider) cloneRepo(repoName string) (string, func(), error) {
 	cleanup := func() { os.RemoveAll(tmpDir) }
 
 	cloneURL := p.repoHTTPURL(repoName)
-	_, err = git.PlainClone(tmpDir, false, &git.CloneOptions{
+	opts := &git.CloneOptions{
 		URL: cloneURL,
 		Auth: &githttp.BasicAuth{
 			Username: "admin",
 			Password: p.token,
 		},
-		Depth: 1,
-	})
+	}
+	if depth > 0 {
+		opts.Depth = depth
+	}
+
+	_, err = git.PlainClone(tmpDir, false, opts)
 	if err != nil {
 		cleanup()
 		return "", nil, fmt.Errorf("failed to clone %s: %w", cloneURL, err)

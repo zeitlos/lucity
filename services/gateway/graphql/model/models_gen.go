@@ -65,6 +65,8 @@ type Deployment struct {
 	ImageTag  string     `json:"imageTag"`
 	Active    bool       `json:"active"`
 	Timestamp *time.Time `json:"timestamp,omitempty"`
+	Revision  *string    `json:"revision,omitempty"`
+	Message   *string    `json:"message,omitempty"`
 }
 
 type DeploymentOp struct {
@@ -135,12 +137,13 @@ type Service struct {
 }
 
 type ServiceInstance struct {
-	Name        string      `json:"name"`
-	Environment string      `json:"environment"`
-	ImageTag    string      `json:"imageTag"`
-	Ready       bool        `json:"ready"`
-	Replicas    int         `json:"replicas"`
-	Deployment  *Deployment `json:"deployment,omitempty"`
+	Name        string       `json:"name"`
+	Environment string       `json:"environment"`
+	ImageTag    string       `json:"imageTag"`
+	Ready       bool         `json:"ready"`
+	Replicas    int          `json:"replicas"`
+	Deployment  *Deployment  `json:"deployment,omitempty"`
+	Deployments []Deployment `json:"deployments"`
 }
 
 type User struct {

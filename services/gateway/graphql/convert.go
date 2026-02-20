@@ -93,14 +93,43 @@ func convertServiceInstance(si handler.ServiceInstance) model.ServiceInstance {
 		Ready:       si.Ready,
 		Replicas:    si.Replicas,
 	}
-	if si.ImageTag != "" {
+
+	// Convert deployment history
+	for _, d := range si.Deployments {
+		result.Deployments = append(result.Deployments, convertDeployment(d))
+	}
+
+	// Backward compat: deployment (singular) = first entry from history, or synthesize from imageTag
+	if len(result.Deployments) > 0 {
+		first := result.Deployments[0]
+		result.Deployment = &first
+	} else if si.ImageTag != "" {
 		result.Deployment = &model.Deployment{
 			ID:       si.ImageTag,
 			ImageTag: si.ImageTag,
 			Active:   true,
 		}
 	}
+
 	return result
+}
+
+func convertDeployment(d handler.Deployment) model.Deployment {
+	dep := model.Deployment{
+		ID:       d.ID,
+		ImageTag: d.ImageTag,
+		Active:   d.Active,
+	}
+	if !d.Timestamp.IsZero() {
+		dep.Timestamp = &d.Timestamp
+	}
+	if d.Revision != "" {
+		dep.Revision = &d.Revision
+	}
+	if d.Message != "" {
+		dep.Message = &d.Message
+	}
+	return dep
 }
 
 func convertDeploymentOp(d handler.DeployOp) model.DeploymentOp {

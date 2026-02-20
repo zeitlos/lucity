@@ -57,6 +57,49 @@ type Provider interface {
 	// Promote copies the image tag for a service from one environment to another.
 	// Returns the promoted image tag.
 	Promote(ctx context.Context, project, service, fromEnv, toEnv string) (imageTag string, err error)
+
+	// DeploymentHistory returns the deployment history for a service in an environment,
+	// parsed from the GitOps repo's git log. Returns entries in reverse chronological order.
+	DeploymentHistory(ctx context.Context, project, environment, service string) ([]DeploymentEntry, error)
+}
+
+// DeploymentEntry represents a single deployment event parsed from a git commit.
+type DeploymentEntry struct {
+	ImageTag  string
+	Revision  string // git commit SHA
+	Timestamp time.Time
+	Author    string
+}
+
+// maxDeploymentHistory is the maximum number of deployment history entries to return.
+const maxDeploymentHistory = 20
+
+// parseDeployCommit checks if a commit message represents a deployment of the given
+// service to the given environment. Returns the image tag if matched.
+func parseDeployCommit(message, environment, service string) (imageTag string, ok bool) {
+	// Match: deploy(<env>): <service> <tag>
+	deployPrefix := fmt.Sprintf("deploy(%s): %s ", environment, service)
+	if strings.HasPrefix(message, deployPrefix) {
+		tag := strings.TrimSpace(message[len(deployPrefix):])
+		if tag != "" {
+			return tag, true
+		}
+	}
+
+	// Match: promote(<env>): <service> ...
+	promotePrefix := fmt.Sprintf("promote(%s): %s ", environment, service)
+	if strings.HasPrefix(message, promotePrefix) {
+		// Softserve format: promote(<toEnv>): <service> <fromEnv> <toEnv>
+		// The tag isn't in the message — mark as promoted.
+		rest := strings.TrimSpace(message[len(promotePrefix):])
+		parts := strings.Fields(rest)
+		if len(parts) >= 1 {
+			return fmt.Sprintf("promoted from %s", parts[0]), true
+		}
+		return "promoted", true
+	}
+
+	return "", false
 }
 
 // ServiceInstanceMeta describes a service's state in a specific environment.

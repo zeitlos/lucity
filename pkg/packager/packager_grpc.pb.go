@@ -30,6 +30,7 @@ const (
 	PackagerService_DeleteEnvironment_FullMethodName = "/packager.PackagerService/DeleteEnvironment"
 	PackagerService_Promote_FullMethodName           = "/packager.PackagerService/Promote"
 	PackagerService_Eject_FullMethodName             = "/packager.PackagerService/Eject"
+	PackagerService_DeploymentHistory_FullMethodName = "/packager.PackagerService/DeploymentHistory"
 )
 
 // PackagerServiceClient is the client API for PackagerService service.
@@ -58,6 +59,8 @@ type PackagerServiceClient interface {
 	Promote(ctx context.Context, in *PromoteRequest, opts ...grpc.CallOption) (*PromoteResponse, error)
 	// Eject exports the complete project configuration for independent operation.
 	Eject(ctx context.Context, in *EjectRequest, opts ...grpc.CallOption) (*EjectResponse, error)
+	// DeploymentHistory returns the deployment history for a service in an environment.
+	DeploymentHistory(ctx context.Context, in *DeploymentHistoryRequest, opts ...grpc.CallOption) (*DeploymentHistoryResponse, error)
 }
 
 type packagerServiceClient struct {
@@ -178,6 +181,16 @@ func (c *packagerServiceClient) Eject(ctx context.Context, in *EjectRequest, opt
 	return out, nil
 }
 
+func (c *packagerServiceClient) DeploymentHistory(ctx context.Context, in *DeploymentHistoryRequest, opts ...grpc.CallOption) (*DeploymentHistoryResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeploymentHistoryResponse)
+	err := c.cc.Invoke(ctx, PackagerService_DeploymentHistory_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // PackagerServiceServer is the server API for PackagerService service.
 // All implementations must embed UnimplementedPackagerServiceServer
 // for forward compatibility.
@@ -204,6 +217,8 @@ type PackagerServiceServer interface {
 	Promote(context.Context, *PromoteRequest) (*PromoteResponse, error)
 	// Eject exports the complete project configuration for independent operation.
 	Eject(context.Context, *EjectRequest) (*EjectResponse, error)
+	// DeploymentHistory returns the deployment history for a service in an environment.
+	DeploymentHistory(context.Context, *DeploymentHistoryRequest) (*DeploymentHistoryResponse, error)
 	mustEmbedUnimplementedPackagerServiceServer()
 }
 
@@ -246,6 +261,9 @@ func (UnimplementedPackagerServiceServer) Promote(context.Context, *PromoteReque
 }
 func (UnimplementedPackagerServiceServer) Eject(context.Context, *EjectRequest) (*EjectResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Eject not implemented")
+}
+func (UnimplementedPackagerServiceServer) DeploymentHistory(context.Context, *DeploymentHistoryRequest) (*DeploymentHistoryResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeploymentHistory not implemented")
 }
 func (UnimplementedPackagerServiceServer) mustEmbedUnimplementedPackagerServiceServer() {}
 func (UnimplementedPackagerServiceServer) testEmbeddedByValue()                         {}
@@ -466,6 +484,24 @@ func _PackagerService_Eject_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
+func _PackagerService_DeploymentHistory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeploymentHistoryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PackagerServiceServer).DeploymentHistory(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PackagerService_DeploymentHistory_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PackagerServiceServer).DeploymentHistory(ctx, req.(*DeploymentHistoryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // PackagerService_ServiceDesc is the grpc.ServiceDesc for PackagerService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -516,6 +552,10 @@ var PackagerService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Eject",
 			Handler:    _PackagerService_Eject_Handler,
+		},
+		{
+			MethodName: "DeploymentHistory",
+			Handler:    _PackagerService_DeploymentHistory_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

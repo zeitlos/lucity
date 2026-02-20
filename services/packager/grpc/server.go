@@ -239,6 +239,32 @@ func (s *Server) Promote(ctx context.Context, req *packager.PromoteRequest) (*pa
 	}, nil
 }
 
+func (s *Server) DeploymentHistory(ctx context.Context, req *packager.DeploymentHistoryRequest) (*packager.DeploymentHistoryResponse, error) {
+	slog.Info("DeploymentHistory called", "project", req.Project, "environment", req.Environment, "service", req.Service)
+
+	p, err := s.provider(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	entries, err := p.DeploymentHistory(ctx, req.Project, req.Environment, req.Service)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get deployment history: %w", err)
+	}
+
+	var protoEntries []*packager.DeploymentHistoryEntry
+	for _, e := range entries {
+		protoEntries = append(protoEntries, &packager.DeploymentHistoryEntry{
+			ImageTag:   e.ImageTag,
+			Revision:   e.Revision,
+			DeployedAt: e.Timestamp.Format("2006-01-02T15:04:05Z07:00"),
+			Author:     e.Author,
+		})
+	}
+
+	return &packager.DeploymentHistoryResponse{Entries: protoEntries}, nil
+}
+
 func (s *Server) Eject(ctx context.Context, req *packager.EjectRequest) (*packager.EjectResponse, error) {
 	slog.Info("Eject called", "project", req.Project)
 	return &packager.EjectResponse{

@@ -33,6 +33,7 @@ type ServiceInstance {
   ready: Boolean!
   replicas: Int!
   deployment: Deployment
+  deployments: [Deployment!]!
 }
 
 type Deployment {
@@ -40,6 +41,8 @@ type Deployment {
   imageTag: String!
   active: Boolean!
   timestamp: Time
+  revision: String
+  message: String
 }
 
 enum SyncStatus {

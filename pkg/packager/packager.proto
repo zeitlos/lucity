@@ -37,6 +37,9 @@ service PackagerService {
 
   // Eject exports the complete project configuration for independent operation.
   rpc Eject(EjectRequest) returns (EjectResponse);
+
+  // DeploymentHistory returns the deployment history for a service in an environment.
+  rpc DeploymentHistory(DeploymentHistoryRequest) returns (DeploymentHistoryResponse);
 }
 
 // ServiceInfo describes a service configured in the project's GitOps repo.
@@ -166,4 +169,21 @@ message EjectRequest {
 message EjectResponse {
   // Base64-encoded tar.gz of the ejected project.
   bytes archive = 1;
+}
+
+message DeploymentHistoryRequest {
+  string project = 1;
+  string environment = 2;
+  string service = 3;
+}
+
+message DeploymentHistoryEntry {
+  string image_tag = 1;
+  string revision = 2;       // git commit SHA
+  string deployed_at = 3;    // RFC3339
+  string author = 4;
+}
+
+message DeploymentHistoryResponse {
+  repeated DeploymentHistoryEntry entries = 1;
 }

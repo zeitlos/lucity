@@ -587,6 +587,48 @@ func (p *GitHubProvider) Promote(ctx context.Context, project, service, fromEnv,
 	return tag, nil
 }
 
+// DeploymentHistory returns deployment history for a service in an environment
+// by querying the GitHub Commits API and parsing commit messages.
+func (p *GitHubProvider) DeploymentHistory(ctx context.Context, project, environment, service string) ([]DeploymentEntry, error) {
+	org, name, err := SplitProject(project)
+	if err != nil {
+		return nil, err
+	}
+	repoName := name + RepoSuffix
+
+	// Filter commits by the environment's values file path
+	filePath := fmt.Sprintf("environments/%s/values.yaml", environment)
+	commits, _, err := p.client.Repositories.ListCommits(ctx, org, repoName, &gh.CommitsListOptions{
+		Path:        filePath,
+		ListOptions: gh.ListOptions{PerPage: 50},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list commits: %w", err)
+	}
+
+	var entries []DeploymentEntry
+	for _, c := range commits {
+		if len(entries) >= maxDeploymentHistory {
+			break
+		}
+
+		msg := c.GetCommit().GetMessage()
+		tag, ok := parseDeployCommit(msg, environment, service)
+		if !ok {
+			continue
+		}
+
+		entries = append(entries, DeploymentEntry{
+			ImageTag:  tag,
+			Revision:  c.GetSHA(),
+			Timestamp: c.GetCommit().GetAuthor().GetDate().Time,
+			Author:    c.GetCommit().GetAuthor().GetName(),
+		})
+	}
+
+	return entries, nil
+}
+
 // projectYAMLData matches the structure of project.yaml for parsing.
 type projectYAMLData struct {
 	Name      string `yaml:"name"`

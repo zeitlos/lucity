@@ -47,6 +47,7 @@ type ServiceInstance struct {
 	ImageTag    string
 	Ready       bool
 	Replicas    int
+	Deployments []Deployment
 }
 
 type Deployment struct {
@@ -54,6 +55,8 @@ type Deployment struct {
 	ImageTag  string
 	Active    bool
 	Timestamp time.Time
+	Revision  string
+	Message   string
 }
 
 func (c *Client) Projects(ctx context.Context) ([]Project, error) {
@@ -68,6 +71,7 @@ func (c *Client) Projects(ctx context.Context) ([]Project, error) {
 	for _, p := range resp.Projects {
 		proj := projectFromProto(p)
 		c.enrichSyncStatus(ctx, &proj)
+		c.enrichDeploymentHistory(ctx, &proj)
 		result = append(result, proj)
 	}
 	return result, nil
@@ -83,6 +87,7 @@ func (c *Client) Project(ctx context.Context, id string) (*Project, error) {
 
 	p := projectFromProto(resp.Project)
 	c.enrichSyncStatus(ctx, &p)
+	c.enrichDeploymentHistory(ctx, &p)
 	return &p, nil
 }
 
@@ -293,6 +298,53 @@ func (c *Client) enrichSyncStatus(ctx context.Context, proj *Project) {
 			continue
 		}
 		env.SyncStatus = deploymentStatusToString(resp.Status)
+	}
+}
+
+// enrichDeploymentHistory fetches deployment history from the packager for each
+// service instance in every environment and attaches it.
+func (c *Client) enrichDeploymentHistory(ctx context.Context, proj *Project) {
+	for i := range proj.Environments {
+		env := &proj.Environments[i]
+		for j := range env.Services {
+			si := &env.Services[j]
+			resp, err := c.Packager.DeploymentHistory(ctx, &packager.DeploymentHistoryRequest{
+				Project:     proj.ID,
+				Environment: env.Name,
+				Service:     si.Name,
+			})
+			if err != nil {
+				slog.Debug("failed to get deployment history", "project", proj.ID, "environment", env.Name, "service", si.Name, "error", err)
+				continue
+			}
+
+			for k, e := range resp.Entries {
+				deployedAt, _ := time.Parse(time.RFC3339, e.DeployedAt)
+				si.Deployments = append(si.Deployments, Deployment{
+					ID:        fmt.Sprintf("%s/%s/%s/%d", proj.ID, env.Name, si.Name, k),
+					ImageTag:  e.ImageTag,
+					Active:    k == 0, // first entry is the active deployment
+					Timestamp: deployedAt,
+					Revision:  e.Revision,
+					Message:   fmt.Sprintf("deploy(%s): %s %s", env.Name, si.Name, e.ImageTag),
+				})
+			}
+		}
+	}
+
+	// Also attach to the cross-referenced Service.Instances
+	for i, svc := range proj.Services {
+		for j := range svc.Instances {
+			inst := &proj.Services[i].Instances[j]
+			// Find matching env service instance with deployments
+			for _, env := range proj.Environments {
+				for _, esi := range env.Services {
+					if esi.Name == inst.Name && esi.Environment == inst.Environment {
+						inst.Deployments = esi.Deployments
+					}
+				}
+			}
+		}
 	}
 }
 
