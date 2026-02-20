@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
-import { LogOut, Sun, Moon, Settings } from 'lucide-vue-next';
+import { LogOut, Settings } from 'lucide-vue-next';
 import { useAuth } from '@/composables/useAuth';
-import { useTheme } from '@/composables/useTheme';
 import BaseLogo from '@/components/BaseLogo.vue';
 import ProjectBreadcrumb from '@/components/ProjectBreadcrumb.vue';
+import ThemeToggle from '@/components/ThemeToggle.vue';
 import ProjectSettingsDialog from '@/components/ProjectSettingsDialog.vue';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -20,7 +20,6 @@ import {
 const route = useRoute();
 const router = useRouter();
 const { user, logout } = useAuth();
-const { theme, toggleTheme } = useTheme();
 
 const isProjectRoute = computed(() => route.name === 'project');
 const projectId = computed(() => route.params.id as string | undefined);
@@ -72,15 +71,7 @@ async function handleLogout() {
           Settings
         </Button>
 
-        <Button
-          variant="ghost"
-          size="icon"
-          class="h-8 w-8"
-          @click="toggleTheme"
-        >
-          <Sun v-if="theme === 'dark'" :size="16" />
-          <Moon v-else :size="16" />
-        </Button>
+        <ThemeToggle />
 
         <DropdownMenu v-if="user">
           <DropdownMenuTrigger as-child>
