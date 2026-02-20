@@ -39,11 +39,14 @@ dependencies:
 }
 
 // baseValuesYAML generates the base values.yaml with empty service definitions.
-const baseValuesYAML = `services: {}
+// Values are scoped under the "lucity-app" key because the chart is a subchart
+// dependency — Helm requires subchart values to be namespaced this way.
+const baseValuesYAML = `lucity-app:
+  services: {}
 `
 
 // environmentValuesYAML generates the per-environment values.yaml override file.
-const environmentValuesYAML = `# Environment-specific overrides
+const environmentValuesYAML = `lucity-app: {}
 `
 
 // writeEmbeddedChart writes the embedded lucity-app chart to a "chart/" directory

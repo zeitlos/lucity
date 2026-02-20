@@ -155,12 +155,13 @@ func (p *SoftServeProvider) DeleteRepo(ctx context.Context, project string) erro
 // AddService adds a service to base/values.yaml.
 func (p *SoftServeProvider) AddService(ctx context.Context, project string, svc ServiceDef) error {
 	return p.modifyRepo(ctx, project, fmt.Sprintf("config: add service %s", svc.Name), func(dir string) error {
-		values, err := readLocalValuesYAML(filepath.Join(dir, "base", "values.yaml"))
+		path := filepath.Join(dir, "base", "values.yaml")
+		inner, err := readSubchartValues(path)
 		if err != nil {
 			return err
 		}
 
-		services, ok := values["services"].(map[string]any)
+		services, ok := inner["services"].(map[string]any)
 		if !ok {
 			services = make(map[string]any)
 		}
@@ -178,21 +179,22 @@ func (p *SoftServeProvider) AddService(ctx context.Context, project string, svc 
 			svcEntry["framework"] = svc.Framework
 		}
 		services[svc.Name] = svcEntry
-		values["services"] = services
+		inner["services"] = services
 
-		return writeLocalValuesYAML(filepath.Join(dir, "base", "values.yaml"), values)
+		return writeSubchartValues(path, inner)
 	})
 }
 
 // RemoveService removes a service from base/values.yaml.
 func (p *SoftServeProvider) RemoveService(ctx context.Context, project, service string) error {
 	return p.modifyRepo(ctx, project, fmt.Sprintf("config: remove service %s", service), func(dir string) error {
-		values, err := readLocalValuesYAML(filepath.Join(dir, "base", "values.yaml"))
+		path := filepath.Join(dir, "base", "values.yaml")
+		inner, err := readSubchartValues(path)
 		if err != nil {
 			return err
 		}
 
-		services, ok := values["services"].(map[string]any)
+		services, ok := inner["services"].(map[string]any)
 		if !ok {
 			return fmt.Errorf("no services found in base/values.yaml")
 		}
@@ -202,9 +204,9 @@ func (p *SoftServeProvider) RemoveService(ctx context.Context, project, service 
 		}
 
 		delete(services, service)
-		values["services"] = services
+		inner["services"] = services
 
-		return writeLocalValuesYAML(filepath.Join(dir, "base", "values.yaml"), values)
+		return writeSubchartValues(path, inner)
 	})
 }
 
@@ -212,12 +214,12 @@ func (p *SoftServeProvider) RemoveService(ctx context.Context, project, service 
 func (p *SoftServeProvider) UpdateImageTag(ctx context.Context, project, environment, service, tag, digest string) error {
 	return p.modifyRepo(ctx, project, fmt.Sprintf("deploy(%s): %s %s", environment, service, tag), func(dir string) error {
 		filePath := filepath.Join(dir, "environments", environment, "values.yaml")
-		values, err := readLocalValuesYAML(filePath)
+		inner, err := readSubchartValues(filePath)
 		if err != nil {
 			return err
 		}
 
-		services, ok := values["services"].(map[string]any)
+		services, ok := inner["services"].(map[string]any)
 		if !ok {
 			services = make(map[string]any)
 		}
@@ -233,9 +235,9 @@ func (p *SoftServeProvider) UpdateImageTag(ctx context.Context, project, environ
 		imageEntry["tag"] = tag
 		svcEntry["image"] = imageEntry
 		services[service] = svcEntry
-		values["services"] = services
+		inner["services"] = services
 
-		return writeLocalValuesYAML(filePath, values)
+		return writeSubchartValues(filePath, inner)
 	})
 }
 
@@ -253,12 +255,12 @@ func (p *SoftServeProvider) Services(ctx context.Context, project string) ([]Ser
 	}
 	defer cleanup()
 
-	values, err := readLocalValuesYAML(filepath.Join(dir, "base", "values.yaml"))
+	inner, err := readSubchartValues(filepath.Join(dir, "base", "values.yaml"))
 	if err != nil {
 		return nil, err
 	}
 
-	services, ok := values["services"].(map[string]any)
+	services, ok := inner["services"].(map[string]any)
 	if !ok {
 		return nil, nil
 	}
@@ -306,13 +308,13 @@ func (p *SoftServeProvider) Promote(ctx context.Context, project, service, fromE
 		fmt.Sprintf("promote(%s): %s %s from %s", toEnv, service, fromEnv, toEnv), func(dir string) error {
 			// Read source environment
 			srcPath := filepath.Join(dir, "environments", fromEnv, "values.yaml")
-			srcValues, err := readLocalValuesYAML(srcPath)
+			srcInner, err := readSubchartValues(srcPath)
 			if err != nil {
 				return fmt.Errorf("failed to read source environment %s: %w", fromEnv, err)
 			}
 
 			// Extract tag
-			services, ok := srcValues["services"].(map[string]any)
+			services, ok := srcInner["services"].(map[string]any)
 			if !ok {
 				return fmt.Errorf("no services in %s", fromEnv)
 			}
@@ -332,12 +334,12 @@ func (p *SoftServeProvider) Promote(ctx context.Context, project, service, fromE
 
 			// Write to target environment
 			dstPath := filepath.Join(dir, "environments", toEnv, "values.yaml")
-			dstValues, err := readLocalValuesYAML(dstPath)
+			dstInner, err := readSubchartValues(dstPath)
 			if err != nil {
 				return fmt.Errorf("failed to read target environment %s: %w", toEnv, err)
 			}
 
-			dstServices, ok := dstValues["services"].(map[string]any)
+			dstServices, ok := dstInner["services"].(map[string]any)
 			if !ok {
 				dstServices = make(map[string]any)
 			}
@@ -352,9 +354,9 @@ func (p *SoftServeProvider) Promote(ctx context.Context, project, service, fromE
 			dstImg["tag"] = tag
 			dstSvc["image"] = dstImg
 			dstServices[service] = dstSvc
-			dstValues["services"] = dstServices
+			dstInner["services"] = dstServices
 
-			return writeLocalValuesYAML(dstPath, dstValues)
+			return writeSubchartValues(dstPath, dstInner)
 		})
 
 	return promotedTag, err
@@ -659,9 +661,9 @@ func (p *SoftServeProvider) readProjectMeta(repoName string) (*ProjectMeta, erro
 	}
 
 	// Read services from base
-	values, err := readLocalValuesYAML(filepath.Join(dir, "base", "values.yaml"))
+	baseInner, err := readSubchartValues(filepath.Join(dir, "base", "values.yaml"))
 	if err == nil {
-		if services, ok := values["services"].(map[string]any); ok {
+		if services, ok := baseInner["services"].(map[string]any); ok {
 			meta.Services = parseServiceDefs(services)
 		}
 	}
@@ -678,9 +680,9 @@ func (p *SoftServeProvider) readProjectMeta(repoName string) (*ProjectMeta, erro
 			meta.Environments = append(meta.Environments, envName)
 
 			envMeta := EnvironmentMeta{Name: envName}
-			envValues, readErr := readLocalValuesYAML(filepath.Join(envDir, envName, "values.yaml"))
+			envInner, readErr := readSubchartValues(filepath.Join(envDir, envName, "values.yaml"))
 			if readErr == nil {
-				if envSvcs, ok := envValues["services"].(map[string]any); ok {
+				if envSvcs, ok := envInner["services"].(map[string]any); ok {
 					for svcName, svcRaw := range envSvcs {
 						svcMap, ok := svcRaw.(map[string]any)
 						if !ok {
@@ -726,6 +728,28 @@ func addAll(wt *git.Worktree, dir string) error {
 		_, err = wt.Add(rel)
 		return err
 	})
+}
+
+// subchartKey is the Helm dependency name used in GitOps repos.
+// Values must be scoped under this key for Helm to pass them to the subchart.
+const subchartKey = "lucity-app"
+
+// readSubchartValues reads the lucity-app subchart values from a local values.yaml.
+func readSubchartValues(path string) (map[string]any, error) {
+	values, err := readLocalValuesYAML(path)
+	if err != nil {
+		return nil, err
+	}
+	inner, ok := values[subchartKey].(map[string]any)
+	if !ok {
+		inner = make(map[string]any)
+	}
+	return inner, nil
+}
+
+// writeSubchartValues writes values nested under the subchart key.
+func writeSubchartValues(path string, inner map[string]any) error {
+	return writeLocalValuesYAML(path, map[string]any{subchartKey: inner})
 }
 
 // readLocalValuesYAML reads and parses a local YAML file.

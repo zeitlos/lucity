@@ -153,12 +153,12 @@ func (p *GitHubProvider) AddService(ctx context.Context, project string, svc Ser
 	}
 	repoName := name + RepoSuffix
 
-	values, sha, err := p.readValuesYAML(ctx, org, repoName, "base/values.yaml")
+	inner, sha, err := p.readSubchartValuesGH(ctx, org, repoName, "base/values.yaml")
 	if err != nil {
 		return fmt.Errorf("failed to read base/values.yaml: %w", err)
 	}
 
-	services, ok := values["services"].(map[string]any)
+	services, ok := inner["services"].(map[string]any)
 	if !ok {
 		services = make(map[string]any)
 	}
@@ -176,9 +176,9 @@ func (p *GitHubProvider) AddService(ctx context.Context, project string, svc Ser
 		svcEntry["framework"] = svc.Framework
 	}
 	services[svc.Name] = svcEntry
-	values["services"] = services
+	inner["services"] = services
 
-	if err := p.writeValuesYAML(ctx, org, repoName, "base/values.yaml", values, sha,
+	if err := p.writeSubchartValuesGH(ctx, org, repoName, "base/values.yaml", inner, sha,
 		fmt.Sprintf("config: add service %s", svc.Name)); err != nil {
 		return fmt.Errorf("failed to update base/values.yaml: %w", err)
 	}
@@ -195,12 +195,12 @@ func (p *GitHubProvider) RemoveService(ctx context.Context, project, service str
 	}
 	repoName := name + RepoSuffix
 
-	values, sha, err := p.readValuesYAML(ctx, org, repoName, "base/values.yaml")
+	inner, sha, err := p.readSubchartValuesGH(ctx, org, repoName, "base/values.yaml")
 	if err != nil {
 		return fmt.Errorf("failed to read base/values.yaml: %w", err)
 	}
 
-	services, ok := values["services"].(map[string]any)
+	services, ok := inner["services"].(map[string]any)
 	if !ok {
 		return fmt.Errorf("no services found in base/values.yaml")
 	}
@@ -210,9 +210,9 @@ func (p *GitHubProvider) RemoveService(ctx context.Context, project, service str
 	}
 
 	delete(services, service)
-	values["services"] = services
+	inner["services"] = services
 
-	if err := p.writeValuesYAML(ctx, org, repoName, "base/values.yaml", values, sha,
+	if err := p.writeSubchartValuesGH(ctx, org, repoName, "base/values.yaml", inner, sha,
 		fmt.Sprintf("config: remove service %s", service)); err != nil {
 		return fmt.Errorf("failed to update base/values.yaml: %w", err)
 	}
@@ -230,13 +230,13 @@ func (p *GitHubProvider) UpdateImageTag(ctx context.Context, project, environmen
 	repoName := name + RepoSuffix
 
 	filePath := fmt.Sprintf("environments/%s/values.yaml", environment)
-	values, sha, err := p.readValuesYAML(ctx, org, repoName, filePath)
+	inner, sha, err := p.readSubchartValuesGH(ctx, org, repoName, filePath)
 	if err != nil {
 		return fmt.Errorf("failed to read %s: %w", filePath, err)
 	}
 
 	// Ensure services map exists
-	services, ok := values["services"].(map[string]any)
+	services, ok := inner["services"].(map[string]any)
 	if !ok {
 		services = make(map[string]any)
 	}
@@ -253,10 +253,10 @@ func (p *GitHubProvider) UpdateImageTag(ctx context.Context, project, environmen
 	imageEntry["tag"] = tag
 	svcEntry["image"] = imageEntry
 	services[service] = svcEntry
-	values["services"] = services
+	inner["services"] = services
 
 	commitMsg := fmt.Sprintf("deploy(%s): %s %s", environment, service, tag)
-	if err := p.writeValuesYAML(ctx, org, repoName, filePath, values, sha, commitMsg); err != nil {
+	if err := p.writeSubchartValuesGH(ctx, org, repoName, filePath, inner, sha, commitMsg); err != nil {
 		return fmt.Errorf("failed to update %s: %w", filePath, err)
 	}
 
@@ -273,44 +273,17 @@ func (p *GitHubProvider) Services(ctx context.Context, project string) ([]Servic
 	}
 	repoName := name + RepoSuffix
 
-	values, _, err := p.readValuesYAML(ctx, org, repoName, "base/values.yaml")
+	inner, _, err := p.readSubchartValuesGH(ctx, org, repoName, "base/values.yaml")
 	if err != nil {
 		return nil, fmt.Errorf("failed to read base/values.yaml: %w", err)
 	}
 
-	services, ok := values["services"].(map[string]any)
+	services, ok := inner["services"].(map[string]any)
 	if !ok {
 		return nil, nil
 	}
 
-	var result []ServiceDef
-	for svcName, svcRaw := range services {
-		svcMap, ok := svcRaw.(map[string]any)
-		if !ok {
-			continue
-		}
-
-		def := ServiceDef{Name: svcName}
-
-		if imageMap, ok := svcMap["image"].(map[string]any); ok {
-			if repo, ok := imageMap["repository"].(string); ok {
-				def.Image = repo
-			}
-		}
-		if port, ok := svcMap["port"].(int); ok {
-			def.Port = port
-		}
-		if public, ok := svcMap["public"].(bool); ok {
-			def.Public = public
-		}
-		if framework, ok := svcMap["framework"].(string); ok {
-			def.Framework = framework
-		}
-
-		result = append(result, def)
-	}
-
-	return result, nil
+	return parseServiceDefs(services), nil
 }
 
 // readValuesYAML reads and parses a YAML file from the GitOps repo.
