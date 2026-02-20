@@ -26,6 +26,12 @@ export const CreateProjectMutation = gql`
   }
 `;
 
+export const DeleteProjectMutation = gql`
+  mutation DeleteProject($id: ID!) {
+    deleteProject(id: $id)
+  }
+`;
+
 export const ProjectQuery = gql`
   query Project($id: ID!) {
     project(id: $id) {
