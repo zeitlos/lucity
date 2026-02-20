@@ -3,6 +3,7 @@ import { useRouter } from 'vue-router';
 import { useMutation } from '@vue/apollo-composable';
 import { Trash2 } from 'lucide-vue-next';
 import { DeleteProjectMutation } from '@/graphql/projects';
+import { apolloClient } from '@/lib/apollo';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -47,6 +48,9 @@ async function handleDeleteProject() {
       });
       return;
     }
+
+    apolloClient.cache.evict({ id: `Project:${props.projectId}` });
+    apolloClient.cache.gc();
 
     emit('update:open', false);
     toast.success('Project deleted');
