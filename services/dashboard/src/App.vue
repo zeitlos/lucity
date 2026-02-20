@@ -10,5 +10,5 @@ const { theme } = useTheme();
 <template>
   <BackgroundGrid />
   <RouterView />
-  <Sonner position="bottom-right" rich-colors :theme="theme" />
+  <Sonner position="bottom-right" rich-colors close-button :theme="theme" />
 </template>
