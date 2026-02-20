@@ -15,4 +15,4 @@ env_files = [".env"]
   stop_on_error = true
 
 [log]
-  main_only = true
+  main_only = false
