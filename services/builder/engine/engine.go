@@ -13,7 +13,7 @@ type DetectResult struct {
 
 // BuildResult holds the output of a successful build.
 type BuildResult struct {
-	ImageRef string // full image reference with tag (e.g., ghcr.io/user/proj/svc:abc123)
+	ImageRef string // full image reference with tag (e.g., localhost:5000/proj/svc:abc123)
 	Digest   string // image digest (e.g., sha256:...)
 }
 

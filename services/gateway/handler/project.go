@@ -179,7 +179,35 @@ func (c *Client) CreateProject(ctx context.Context, name, sourceURL string) (*Pr
 func (c *Client) DeleteProject(ctx context.Context, id string) (bool, error) {
 	ctx = auth.OutgoingContext(ctx)
 
-	_, err := c.Packager.DeleteProject(ctx, &packager.DeleteProjectRequest{Project: id})
+	// 1. Fetch project to discover all environments
+	resp, err := c.Packager.GetProject(ctx, &packager.GetProjectRequest{Project: id})
+	if err != nil {
+		return false, fmt.Errorf("failed to get project for deletion: %w", err)
+	}
+
+	// 2. Remove ArgoCD Application for each environment (best-effort)
+	for _, env := range resp.Project.Environments {
+		_, err := c.Deployer.RemoveDeployment(ctx, &deployer.RemoveDeploymentRequest{
+			Project:     id,
+			Environment: env,
+		})
+		if err != nil {
+			slog.Warn("failed to remove deployment during project deletion",
+				"project", id, "environment", env, "error", err)
+		}
+	}
+
+	// 3. Remove ArgoCD repository credential (best-effort)
+	_, err = c.Deployer.DeleteRepository(ctx, &deployer.DeleteRepositoryRequest{
+		Project: id,
+	})
+	if err != nil {
+		slog.Warn("failed to delete ArgoCD repository credential",
+			"project", id, "error", err)
+	}
+
+	// 4. Delete GitOps repo
+	_, err = c.Packager.DeleteProject(ctx, &packager.DeleteProjectRequest{Project: id})
 	if err != nil {
 		return false, fmt.Errorf("failed to delete project: %w", err)
 	}

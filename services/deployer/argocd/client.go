@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -106,6 +107,25 @@ func (c *Client) SyncApplication(ctx context.Context, name string) (*Application
 		return nil, fmt.Errorf("failed to sync application %s: %w", name, err)
 	}
 	return &result, nil
+}
+
+// DeleteRepository removes a Git repository credential from ArgoCD.
+// Idempotent: returns success if the repository doesn't exist.
+func (c *Client) DeleteRepository(ctx context.Context, repoURL string) error {
+	encoded := url.QueryEscape(repoURL)
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete,
+		c.baseURL+"/api/v1/repositories/"+encoded, nil)
+	if err != nil {
+		return err
+	}
+
+	if err := c.do(req, nil); err != nil {
+		if strings.Contains(err.Error(), "404") {
+			return nil
+		}
+		return fmt.Errorf("failed to delete repository: %w", err)
+	}
+	return nil
 }
 
 // CreateRepository registers a Git repository in ArgoCD.

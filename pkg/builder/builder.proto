@@ -56,7 +56,7 @@ message StartBuildRequest {
   // Name of the service within the project.
   string service = 3;
 
-  // Full image repository path (e.g., ghcr.io/user/myapp/api).
+  // Full image repository path (e.g., localhost:5000/myapp/api).
   string registry = 4;
 
   // Path to the build context within the repo. Empty means repository root.

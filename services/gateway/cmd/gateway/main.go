@@ -39,7 +39,7 @@ type Config struct {
 	DeployerAddr string `envconfig:"DEPLOYER_ADDR" default:"localhost:9003"`
 
 	// Registry
-	RegistryURL         string `envconfig:"REGISTRY_URL" default:"ghcr.io"`
+	RegistryURL         string `envconfig:"REGISTRY_URL" default:"localhost:5000"`
 	RegistryImagePrefix string `envconfig:"REGISTRY_IMAGE_PREFIX"` // cluster-internal address for image refs; defaults to REGISTRY_URL
 }
 

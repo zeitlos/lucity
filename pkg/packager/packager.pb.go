@@ -24,7 +24,7 @@ const (
 type ServiceInfo struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Image         string                 `protobuf:"bytes,2,opt,name=image,proto3" json:"image,omitempty"` // image repository path (e.g., ghcr.io/user/myapp/api)
+	Image         string                 `protobuf:"bytes,2,opt,name=image,proto3" json:"image,omitempty"` // image repository path (e.g., localhost:5000/myapp/api)
 	Port          int32                  `protobuf:"varint,3,opt,name=port,proto3" json:"port,omitempty"`
 	Public        bool                   `protobuf:"varint,4,opt,name=public,proto3" json:"public,omitempty"`
 	Framework     string                 `protobuf:"bytes,5,opt,name=framework,proto3" json:"framework,omitempty"` // detected framework for dashboard icons (e.g., "nextjs", "vite")

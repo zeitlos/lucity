@@ -45,7 +45,7 @@ service PackagerService {
 // ServiceInfo describes a service configured in the project's GitOps repo.
 message ServiceInfo {
   string name = 1;
-  string image = 2;       // image repository path (e.g., ghcr.io/user/myapp/api)
+  string image = 2;       // image repository path (e.g., localhost:5000/myapp/api)
   int32 port = 3;
   bool public = 4;
   string framework = 5;   // detected framework for dashboard icons (e.g., "nextjs", "vite")

@@ -16,7 +16,7 @@ func TestBuildService(t *testing.T) {
 	// This test requires:
 	// 1. A project with a real GitHub source URL
 	// 2. Builder service running with Docker daemon available
-	// 3. REGISTRY_TOKEN set for GHCR push
+	// 3. REGISTRY_TOKEN set for registry push (Zot)
 	//
 	// Test the build flow: start build → poll status → verify completion.
 	resp := doGraphQL(t, token, `

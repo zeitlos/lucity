@@ -7,7 +7,8 @@ Open-source PaaS on Kubernetes with full ejectability. Monorepo with Go backend 
 - **Go workspace**: `go.work` with multi-module layout (Go 1.26)
 - **Module path**: `github.com/zeitlos/lucity`
 - **Monorepo**: `services/` (6 services), `pkg/` (4 shared packages), `charts/` (Helm), `proto/` (protobuf)
-- **Container registry**: `ghcr.io/zeitlos/lucity`
+- **Platform images**: `ghcr.io/zeitlos/lucity` (GHCR for Lucity's own service images)
+- **User workload images**: Zot (self-hosted OCI registry, `localhost:5000` in dev)
 - **Coding rules**: see `.claude/rules/` for Go, Vue, GraphQL, GitOps, general, architecture, and marketing conventions
 
 ## Build & Run

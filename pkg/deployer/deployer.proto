@@ -16,6 +16,9 @@ service DeployerService {
 
   // SyncDeployment triggers a sync for an environment's deployment.
   rpc SyncDeployment(SyncDeploymentRequest) returns (SyncDeploymentResponse);
+
+  // DeleteRepository removes the ArgoCD repository credential for a project.
+  rpc DeleteRepository(DeleteRepositoryRequest) returns (DeleteRepositoryResponse);
 }
 
 message DeployEnvironmentRequest {
@@ -63,3 +66,9 @@ message SyncDeploymentRequest {
 message SyncDeploymentResponse {
   DeploymentStatus status = 1;
 }
+
+message DeleteRepositoryRequest {
+  string project = 1;
+}
+
+message DeleteRepositoryResponse {}

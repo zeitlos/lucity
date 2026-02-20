@@ -23,6 +23,7 @@ const (
 	DeployerService_RemoveDeployment_FullMethodName    = "/deployer.DeployerService/RemoveDeployment"
 	DeployerService_GetDeploymentStatus_FullMethodName = "/deployer.DeployerService/GetDeploymentStatus"
 	DeployerService_SyncDeployment_FullMethodName      = "/deployer.DeployerService/SyncDeployment"
+	DeployerService_DeleteRepository_FullMethodName    = "/deployer.DeployerService/DeleteRepository"
 )
 
 // DeployerServiceClient is the client API for DeployerService service.
@@ -37,6 +38,8 @@ type DeployerServiceClient interface {
 	GetDeploymentStatus(ctx context.Context, in *GetDeploymentStatusRequest, opts ...grpc.CallOption) (*GetDeploymentStatusResponse, error)
 	// SyncDeployment triggers a sync for an environment's deployment.
 	SyncDeployment(ctx context.Context, in *SyncDeploymentRequest, opts ...grpc.CallOption) (*SyncDeploymentResponse, error)
+	// DeleteRepository removes the ArgoCD repository credential for a project.
+	DeleteRepository(ctx context.Context, in *DeleteRepositoryRequest, opts ...grpc.CallOption) (*DeleteRepositoryResponse, error)
 }
 
 type deployerServiceClient struct {
@@ -87,6 +90,16 @@ func (c *deployerServiceClient) SyncDeployment(ctx context.Context, in *SyncDepl
 	return out, nil
 }
 
+func (c *deployerServiceClient) DeleteRepository(ctx context.Context, in *DeleteRepositoryRequest, opts ...grpc.CallOption) (*DeleteRepositoryResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeleteRepositoryResponse)
+	err := c.cc.Invoke(ctx, DeployerService_DeleteRepository_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DeployerServiceServer is the server API for DeployerService service.
 // All implementations must embed UnimplementedDeployerServiceServer
 // for forward compatibility.
@@ -99,6 +112,8 @@ type DeployerServiceServer interface {
 	GetDeploymentStatus(context.Context, *GetDeploymentStatusRequest) (*GetDeploymentStatusResponse, error)
 	// SyncDeployment triggers a sync for an environment's deployment.
 	SyncDeployment(context.Context, *SyncDeploymentRequest) (*SyncDeploymentResponse, error)
+	// DeleteRepository removes the ArgoCD repository credential for a project.
+	DeleteRepository(context.Context, *DeleteRepositoryRequest) (*DeleteRepositoryResponse, error)
 	mustEmbedUnimplementedDeployerServiceServer()
 }
 
@@ -120,6 +135,9 @@ func (UnimplementedDeployerServiceServer) GetDeploymentStatus(context.Context, *
 }
 func (UnimplementedDeployerServiceServer) SyncDeployment(context.Context, *SyncDeploymentRequest) (*SyncDeploymentResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SyncDeployment not implemented")
+}
+func (UnimplementedDeployerServiceServer) DeleteRepository(context.Context, *DeleteRepositoryRequest) (*DeleteRepositoryResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteRepository not implemented")
 }
 func (UnimplementedDeployerServiceServer) mustEmbedUnimplementedDeployerServiceServer() {}
 func (UnimplementedDeployerServiceServer) testEmbeddedByValue()                         {}
@@ -214,6 +232,24 @@ func _DeployerService_SyncDeployment_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _DeployerService_DeleteRepository_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteRepositoryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DeployerServiceServer).DeleteRepository(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DeployerService_DeleteRepository_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DeployerServiceServer).DeleteRepository(ctx, req.(*DeleteRepositoryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // DeployerService_ServiceDesc is the grpc.ServiceDesc for DeployerService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -236,6 +272,10 @@ var DeployerService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SyncDeployment",
 			Handler:    _DeployerService_SyncDeployment_Handler,
+		},
+		{
+			MethodName: "DeleteRepository",
+			Handler:    _DeployerService_DeleteRepository_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

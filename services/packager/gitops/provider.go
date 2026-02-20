@@ -13,7 +13,7 @@ const RepoSuffix = "-gitops"
 // ServiceDef describes a service configured in the project's GitOps repo.
 type ServiceDef struct {
 	Name      string
-	Image     string // image repository path (e.g., ghcr.io/user/myapp/api)
+	Image     string // image repository path (e.g., localhost:5000/myapp/api)
 	Port      int
 	Public    bool
 	Framework string // detected framework for dashboard icons (e.g., "nextjs", "vite")

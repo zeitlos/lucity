@@ -1,6 +1,6 @@
 # Builder
 
-Source-to-image service. Detects services from source code using railpack, builds container images, and pushes them to the OCI registry (GHCR).
+Source-to-image service. Detects services from source code using railpack, builds container images, and pushes them to the OCI registry (Zot).
 
 ## Run
 
@@ -34,5 +34,5 @@ Defined in `pkg/builder/builder.proto`:
 - `PORT` — gRPC listen port (default: 9001)
 - `LOG_LEVEL` — Log level (default: info)
 - `JWT_SECRET` — JWT secret for auth (required)
-- `REGISTRY_URL` — OCI registry URL (default: ghcr.io)
+- `REGISTRY_URL` — OCI registry URL (default: localhost:5000)
 - `WORK_DIR` — Temp directory for cloning and building (default: /tmp/lucity-builds)

@@ -268,7 +268,7 @@ type StartBuildRequest struct {
 	GitRef string `protobuf:"bytes,2,opt,name=git_ref,json=gitRef,proto3" json:"git_ref,omitempty"`
 	// Name of the service within the project.
 	Service string `protobuf:"bytes,3,opt,name=service,proto3" json:"service,omitempty"`
-	// Full image repository path (e.g., ghcr.io/user/myapp/api).
+	// Full image repository path (e.g., localhost:5000/myapp/api).
 	Registry string `protobuf:"bytes,4,opt,name=registry,proto3" json:"registry,omitempty"`
 	// Path to the build context within the repo. Empty means repository root.
 	ContextPath   string `protobuf:"bytes,5,opt,name=context_path,json=contextPath,proto3" json:"context_path,omitempty"`

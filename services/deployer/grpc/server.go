@@ -106,11 +106,27 @@ func (s *Server) RemoveDeployment(ctx context.Context, req *deployer.RemoveDeplo
 	appName := applicationName(req.Project, req.Environment)
 
 	if err := s.argo.DeleteApplication(ctx, appName, true); err != nil {
+		// Idempotent: if the application is already gone, that's fine.
+		if strings.Contains(err.Error(), "404") {
+			slog.Info("ArgoCD application already deleted", "app", appName)
+			return &deployer.RemoveDeploymentResponse{}, nil
+		}
 		return nil, fmt.Errorf("failed to delete ArgoCD application: %w", err)
 	}
 
 	slog.Info("deleted ArgoCD application", "app", appName)
 	return &deployer.RemoveDeploymentResponse{}, nil
+}
+
+func (s *Server) DeleteRepository(ctx context.Context, req *deployer.DeleteRepositoryRequest) (*deployer.DeleteRepositoryResponse, error) {
+	repoURL := s.repoURL(req.Project)
+
+	if err := s.argo.DeleteRepository(ctx, repoURL); err != nil {
+		return nil, fmt.Errorf("failed to delete ArgoCD repository: %w", err)
+	}
+
+	slog.Info("deleted ArgoCD repository", "repo", repoURL)
+	return &deployer.DeleteRepositoryResponse{}, nil
 }
 
 func (s *Server) GetDeploymentStatus(ctx context.Context, req *deployer.GetDeploymentStatusRequest) (*deployer.GetDeploymentStatusResponse, error) {

@@ -132,7 +132,7 @@ func (s *Server) runBuild(buildID, token string, req *builder.StartBuildRequest)
 	}
 	imageName := req.Registry + ":" + tag
 
-	// Build + push (use registry token for GHCR push — GitHub App OAuth tokens can't push to GHCR)
+	// Build + push
 	s.tracker.Update(buildID, builder.BuildPhase_BUILD_PHASE_BUILDING)
 	result, err := s.engine.Build(ctx, engine.BuildOpts{
 		RepoPath:    repoPath,
