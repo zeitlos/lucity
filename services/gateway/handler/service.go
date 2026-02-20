@@ -254,8 +254,11 @@ func (c *Client) Deploy(ctx context.Context, projectID, service, environment, gi
 	deployID := uuid.New().String()
 	c.DeployTracker.Create(deployID, buildResp.BuildId)
 
-	// Run the deploy pipeline in the background
-	go c.runDeploy(deployID, projectID, service, environment, buildResp.BuildId)
+	// Run the deploy pipeline in the background.
+	// Extract the token before spawning the goroutine — the HTTP request context
+	// will be cancelled when the response is sent.
+	token := auth.TokenFrom(ctx)
+	go c.runDeploy(token, deployID, projectID, service, environment, buildResp.BuildId)
 
 	return deployOpFromState(c.DeployTracker.Get(deployID)), nil
 }
@@ -270,8 +273,8 @@ func (c *Client) DeployStatus(ctx context.Context, deployID string) (*DeployOp, 
 }
 
 // runDeploy polls the builder for build status and, on success, deploys the image.
-func (c *Client) runDeploy(deployID, projectID, service, environment, buildID string) {
-	ctx := context.Background()
+func (c *Client) runDeploy(token, deployID, projectID, service, environment, buildID string) {
+	ctx := auth.WithToken(context.Background(), token)
 	ctx = auth.OutgoingContext(ctx)
 
 	for {
@@ -349,9 +352,12 @@ func buildPhaseToDeployPhase(phase builder.BuildPhase) deploy.Phase {
 }
 
 func extractTag(imageRef string) string {
-	parts := strings.SplitN(imageRef, ":", 2)
-	if len(parts) == 2 {
-		return parts[1]
+	// Find the last ":" that comes after the last "/" to avoid splitting on
+	// the port in registry URLs like "localhost:5000/myapp/web:0a04266".
+	if i := strings.LastIndex(imageRef, ":"); i >= 0 {
+		if j := strings.LastIndex(imageRef, "/"); i > j {
+			return imageRef[i+1:]
+		}
 	}
 	return imageRef
 }
