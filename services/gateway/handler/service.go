@@ -67,7 +67,7 @@ func (c *Client) DetectServices(ctx context.Context, projectID string) ([]Detect
 	return result, nil
 }
 
-func (c *Client) AddService(ctx context.Context, projectID, name string, port int, public bool, framework string) (*Service, error) {
+func (c *Client) AddService(ctx context.Context, projectID, name string, port int, framework string) (*Service, error) {
 	ctx = auth.OutgoingContext(ctx)
 
 	// Derive image path using cluster-internal address so pods can pull it.
@@ -80,7 +80,6 @@ func (c *Client) AddService(ctx context.Context, projectID, name string, port in
 		Service:   name,
 		Image:     image,
 		Port:      int32(port),
-		Public:    public,
 		Framework: framework,
 	})
 	if err != nil {
@@ -91,7 +90,6 @@ func (c *Client) AddService(ctx context.Context, projectID, name string, port in
 		Name:      name,
 		Image:     image,
 		Port:      port,
-		Public:    public,
 		Framework: framework,
 	}, nil
 }
@@ -537,22 +535,6 @@ func (c *Client) DeployLogs(ctx context.Context, deployID string) (<-chan string
 	}()
 
 	return out, unsub, nil
-}
-
-func (c *Client) UpdateServiceConfig(ctx context.Context, projectID, service string, public *bool) (bool, error) {
-	ctx = auth.OutgoingContext(ctx)
-
-	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
-	defer cancel()
-	_, err := c.Packager.UpdateServiceConfig(callCtx, &packager.UpdateServiceConfigRequest{
-		Project: projectID,
-		Service: service,
-		Public:  public,
-	})
-	if err != nil {
-		return false, fmt.Errorf("failed to update service config: %w", err)
-	}
-	return true, nil
 }
 
 func (c *Client) SetServiceDomain(ctx context.Context, projectID, service, environment, host string) (bool, error) {

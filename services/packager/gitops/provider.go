@@ -17,8 +17,6 @@ type ServiceDef struct {
 	Name      string
 	Image     string // image repository path (e.g., localhost:5000/myapp/api)
 	Port      int
-	Public    bool
-	Host      string // domain hostname (optional, from base values)
 	Framework string // detected framework for dashboard icons (e.g., "nextjs", "vite")
 }
 
@@ -64,9 +62,6 @@ type Provider interface {
 	// DeploymentHistory returns the deployment history for a service in an environment,
 	// parsed from the GitOps repo's git log. Returns entries in reverse chronological order.
 	DeploymentHistory(ctx context.Context, project, environment, service string) ([]DeploymentEntry, error)
-
-	// UpdateServiceConfig updates a service's base configuration (e.g., public visibility).
-	UpdateServiceConfig(ctx context.Context, project, service string, public *bool) error
 
 	// SetServiceDomain sets or removes the domain hostname for a service in an environment.
 	// Pass empty string to remove the domain.

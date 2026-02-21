@@ -15,7 +15,6 @@ const props = defineProps<{
     name: string;
     image: string;
     port: number;
-    public: boolean;
     framework?: string;
   }[];
 }>();
@@ -42,7 +41,7 @@ const nodes = computed(() => {
         name: svc.name,
         framework: svc.framework,
         port: svc.port,
-        public: svc.public,
+        host: envService?.host,
         ready: envService?.ready,
         imageTag: envService?.imageTag,
         replicas: envService?.replicas,

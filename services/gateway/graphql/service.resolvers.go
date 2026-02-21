@@ -17,7 +17,7 @@ func (r *mutationResolver) AddService(ctx context.Context, input model.AddServic
 	if input.Framework != nil {
 		framework = *input.Framework
 	}
-	svc, err := r.API.AddService(ctx, input.ProjectID, input.Name, input.Port, input.Public, framework)
+	svc, err := r.API.AddService(ctx, input.ProjectID, input.Name, input.Port, framework)
 	if err != nil {
 		return nil, err
 	}
@@ -73,11 +73,6 @@ func (r *mutationResolver) Deploy(ctx context.Context, input model.DeployInput) 
 	}
 	result := convertDeploymentOp(*d)
 	return &result, nil
-}
-
-// UpdateServiceConfig is the resolver for the updateServiceConfig field.
-func (r *mutationResolver) UpdateServiceConfig(ctx context.Context, input model.UpdateServiceConfigInput) (bool, error) {
-	return r.API.UpdateServiceConfig(ctx, input.ProjectID, input.Service, input.Public)
 }
 
 // SetServiceDomain is the resolver for the setServiceDomain field.

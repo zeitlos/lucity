@@ -115,7 +115,6 @@ async function handleAddManualService() {
         projectId: props.projectId,
         name: newServiceName.value,
         port: newServicePort.value,
-        public: true,
       },
     });
 

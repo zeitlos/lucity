@@ -10,7 +10,6 @@ input AddServiceInput {
   projectId: ID!
   name: String! @constraint(constraint: "min=2,max=63")
   port: Int!
-  public: Boolean!
   framework: String
 }
 
@@ -77,12 +76,6 @@ input DeployInput {
   contextPath: String
 }
 
-input UpdateServiceConfigInput {
-  projectId: ID!
-  service: String!
-  public: Boolean
-}
-
 input SetServiceDomainInput {
   projectId: ID!
   service: String!
@@ -104,7 +97,6 @@ extend type Mutation {
   buildService(input: BuildServiceInput!): Build! @hasRole(role: [USER])
   deployBuild(input: DeployBuildInput!): Boolean! @hasRole(role: [USER])
   deploy(input: DeployInput!): DeployRun! @hasRole(role: [USER])
-  updateServiceConfig(input: UpdateServiceConfigInput!): Boolean! @hasRole(role: [USER])
   setServiceDomain(input: SetServiceDomainInput!): Boolean! @hasRole(role: [USER])
 }
 

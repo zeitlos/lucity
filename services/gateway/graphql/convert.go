@@ -41,9 +41,8 @@ func convertEnvironment(e handler.Environment) model.Environment {
 
 func convertService(s handler.Service) model.Service {
 	svc := model.Service{
-		Name:   s.Name,
-		Image:  s.Image,
-		Public: s.Public,
+		Name:  s.Name,
+		Image: s.Image,
 	}
 	if s.Port > 0 {
 		port := s.Port

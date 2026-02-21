@@ -23,7 +23,6 @@ defineProps<{
     name: string;
     image: string;
     port: number;
-    public: boolean;
     framework?: string;
   };
 }>();

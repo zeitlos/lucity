@@ -21,7 +21,6 @@ type Service {
   name: String!
   image: String!
   port: Int
-  public: Boolean!
   framework: String
   instances: [ServiceInstance!]!
 }

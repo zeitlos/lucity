@@ -18,7 +18,6 @@ export const AddServiceMutation = gql`
       name
       image
       port
-      public
       framework
     }
   }
@@ -100,12 +99,6 @@ export const ActiveDeploymentQuery = gql`
       rolloutHealth
       rolloutMessage
     }
-  }
-`;
-
-export const UpdateServiceConfigMutation = gql`
-  mutation UpdateServiceConfig($input: UpdateServiceConfigInput!) {
-    updateServiceConfig(input: $input)
   }
 `;
 

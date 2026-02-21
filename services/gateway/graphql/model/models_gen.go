@@ -14,7 +14,6 @@ type AddServiceInput struct {
 	ProjectID string  `json:"projectId"`
 	Name      string  `json:"name"`
 	Port      int     `json:"port"`
-	Public    bool    `json:"public"`
 	Framework *string `json:"framework,omitempty"`
 }
 
@@ -135,7 +134,6 @@ type Service struct {
 	Name      string            `json:"name"`
 	Image     string            `json:"image"`
 	Port      *int              `json:"port,omitempty"`
-	Public    bool              `json:"public"`
 	Framework *string           `json:"framework,omitempty"`
 	Instances []ServiceInstance `json:"instances"`
 }
@@ -159,12 +157,6 @@ type SetServiceDomainInput struct {
 }
 
 type Subscription struct {
-}
-
-type UpdateServiceConfigInput struct {
-	ProjectID string `json:"projectId"`
-	Service   string `json:"service"`
-	Public    *bool  `json:"public,omitempty"`
 }
 
 type User struct {

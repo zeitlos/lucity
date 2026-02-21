@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { Handle, Position } from '@vue-flow/core';
-import { Globe, Lock } from 'lucide-vue-next';
+import { Globe } from 'lucide-vue-next';
 import FrameworkIcon from '@/components/FrameworkIcon.vue';
 import { Badge } from '@/components/ui/badge';
 import { Chip } from '@/components/ui/chip';
@@ -11,7 +11,7 @@ const props = defineProps<{
     name: string;
     framework?: string;
     port?: number;
-    public?: boolean;
+    host?: string;
     ready?: boolean;
     imageTag?: string;
     replicas?: number;
@@ -57,13 +57,12 @@ const statusLabel = computed(() => {
       <span class="truncate font-semibold text-foreground">{{ data.name }}</span>
     </div>
 
-    <!-- Meta row: port + visibility + replicas -->
+    <!-- Meta row: port + domain + replicas -->
     <div class="mt-4 flex items-center gap-3 border-t border-border/50 pt-4 text-xs text-muted-foreground">
       <span v-if="data.port" class="font-mono">:{{ data.port }}</span>
-      <span class="flex items-center gap-1">
-        <Globe v-if="data.public" :size="12" />
-        <Lock v-else :size="12" />
-        {{ data.public ? 'Public' : 'Private' }}
+      <span v-if="data.host" class="flex items-center gap-1 truncate">
+        <Globe :size="12" class="shrink-0" />
+        <span class="truncate">{{ data.host }}</span>
       </span>
       <span v-if="data.replicas !== undefined" class="ml-auto">
         {{ data.replicas }} {{ data.replicas === 1 ? 'replica' : 'replicas' }}

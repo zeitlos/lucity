@@ -2,12 +2,11 @@
 import { ref, computed } from 'vue';
 import { useMutation } from '@vue/apollo-composable';
 import { Trash2, Copy, X } from 'lucide-vue-next';
-import { RemoveServiceMutation, UpdateServiceConfigMutation, SetServiceDomainMutation } from '@/graphql/services';
+import { RemoveServiceMutation, SetServiceDomainMutation } from '@/graphql/services';
 import { useEnvironment } from '@/composables/useEnvironment';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { toast } from '@/components/ui/sonner';
 import {
@@ -29,7 +28,6 @@ const props = defineProps<{
     name: string;
     image: string;
     port: number;
-    public: boolean;
     framework?: string;
   };
 }>();
@@ -64,32 +62,7 @@ const internalDns = computed(() => {
 
 // Mutations
 const { mutate: removeServiceMutate, loading: removing } = useMutation(RemoveServiceMutation);
-const { mutate: updateConfigMutate, loading: updatingConfig } = useMutation(UpdateServiceConfigMutation);
 const { mutate: setDomainMutate, loading: settingDomain } = useMutation(SetServiceDomainMutation);
-
-async function handleTogglePublic() {
-  try {
-    const res = await updateConfigMutate({
-      input: {
-        projectId: props.projectId,
-        service: props.service.name,
-        public: !props.service.public,
-      },
-    });
-
-    if (res?.errors?.length) {
-      toast.error('Failed to update visibility', {
-        description: res.errors.map(e => e.message).join(', '),
-      });
-      return;
-    }
-
-    toast.success(`Service is now ${props.service.public ? 'private' : 'public'}`);
-    emit('updated');
-  } catch (e: unknown) {
-    toast.error('Failed to update visibility', { description: errorMessage(e) });
-  }
-}
 
 async function handleSetDomain() {
   const host = domainInput.value.trim();
@@ -210,92 +183,73 @@ async function handleRemoveService() {
       <h3 class="text-sm font-medium text-muted-foreground">Networking</h3>
 
       <div class="space-y-4 rounded-lg border p-4">
-        <!-- Visibility toggle -->
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-sm font-medium text-foreground">Public</p>
-            <p class="text-xs text-muted-foreground">
-              Expose this service to the internet via Gateway API.
-            </p>
+        <!-- Domain -->
+        <div>
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm font-medium text-foreground">Domain</p>
+              <p class="text-xs text-muted-foreground">
+                Assign a hostname to expose this service publicly in {{ activeEnvironment?.name ?? 'this environment' }}.
+              </p>
+            </div>
+            <Badge v-if="currentHost" variant="outline" class="font-mono text-xs">
+              {{ currentHost }}
+            </Badge>
           </div>
-          <Switch
-            :checked="service.public"
-            :disabled="updatingConfig"
-            @update:checked="handleTogglePublic"
-          />
+
+          <!-- Current domain with remove option -->
+          <div v-if="currentHost && !editingDomain" class="mt-3 flex items-center gap-2">
+            <div class="flex-1 rounded-md border bg-muted/50 px-3 py-2">
+              <span class="font-mono text-sm">{{ currentHost }}</span>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              class="h-8 w-8 shrink-0"
+              @click="copyToClipboard(currentHost)"
+            >
+              <Copy :size="14" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              class="h-8 w-8 shrink-0 text-destructive"
+              :disabled="settingDomain"
+              @click="handleRemoveDomain"
+            >
+              <X :size="14" />
+            </Button>
+          </div>
+
+          <!-- Edit/add domain input -->
+          <div v-if="!currentHost || editingDomain" class="mt-3 flex items-center gap-2">
+            <Input
+              v-model="domainInput"
+              placeholder="api.example.com"
+              class="flex-1 font-mono text-sm"
+              @keyup.enter="handleSetDomain"
+            />
+            <Button
+              size="sm"
+              :disabled="!domainInput.trim() || settingDomain"
+              @click="handleSetDomain"
+            >
+              {{ settingDomain ? 'Saving...' : 'Save' }}
+            </Button>
+          </div>
+
+          <!-- Change button when domain is set -->
+          <div v-if="currentHost && !editingDomain" class="mt-2">
+            <Button
+              variant="link"
+              size="sm"
+              class="h-auto p-0 text-xs"
+              @click="editingDomain = true; domainInput = currentHost"
+            >
+              Change domain
+            </Button>
+          </div>
         </div>
-
-        <!-- Domain (only when public) -->
-        <template v-if="service.public">
-          <Separator />
-
-          <div>
-            <div class="flex items-center justify-between">
-              <div>
-                <p class="text-sm font-medium text-foreground">Domain</p>
-                <p class="text-xs text-muted-foreground">
-                  Custom hostname for {{ activeEnvironment?.name ?? 'this environment' }}.
-                </p>
-              </div>
-              <Badge v-if="currentHost" variant="outline" class="font-mono text-xs">
-                {{ currentHost }}
-              </Badge>
-            </div>
-
-            <!-- Current domain with remove option -->
-            <div v-if="currentHost && !editingDomain" class="mt-3 flex items-center gap-2">
-              <div class="flex-1 rounded-md border bg-muted/50 px-3 py-2">
-                <span class="font-mono text-sm">{{ currentHost }}</span>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                class="h-8 w-8 shrink-0"
-                @click="copyToClipboard(currentHost)"
-              >
-                <Copy :size="14" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                class="h-8 w-8 shrink-0 text-destructive"
-                :disabled="settingDomain"
-                @click="handleRemoveDomain"
-              >
-                <X :size="14" />
-              </Button>
-            </div>
-
-            <!-- Edit/add domain input -->
-            <div v-if="!currentHost || editingDomain" class="mt-3 flex items-center gap-2">
-              <Input
-                v-model="domainInput"
-                placeholder="api.example.com"
-                class="flex-1 font-mono text-sm"
-                @keyup.enter="handleSetDomain"
-              />
-              <Button
-                size="sm"
-                :disabled="!domainInput.trim() || settingDomain"
-                @click="handleSetDomain"
-              >
-                {{ settingDomain ? 'Saving...' : 'Save' }}
-              </Button>
-            </div>
-
-            <!-- Change button when domain is set -->
-            <div v-if="currentHost && !editingDomain" class="mt-2">
-              <Button
-                variant="link"
-                size="sm"
-                class="h-auto p-0 text-xs"
-                @click="editingDomain = true; domainInput = currentHost"
-              >
-                Change domain
-              </Button>
-            </div>
-          </div>
-        </template>
 
         <!-- Internal DNS -->
         <Separator />

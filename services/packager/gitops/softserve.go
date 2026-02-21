@@ -173,7 +173,6 @@ func (p *SoftServeProvider) AddService(ctx context.Context, project string, svc 
 			},
 			"port":     svc.Port,
 			"replicas": 1,
-			"public":   svc.Public,
 		}
 		if svc.Framework != "" {
 			svcEntry["framework"] = svc.Framework
@@ -413,35 +412,6 @@ func (p *SoftServeProvider) DeploymentHistory(ctx context.Context, project, envi
 	}
 
 	return entries, nil
-}
-
-// UpdateServiceConfig updates a service's base configuration in base/values.yaml.
-func (p *SoftServeProvider) UpdateServiceConfig(ctx context.Context, project, service string, public *bool) error {
-	return p.modifyRepo(ctx, project, fmt.Sprintf("config(service): update %s", service), func(dir string) error {
-		path := filepath.Join(dir, "base", "values.yaml")
-		inner, err := readSubchartValues(path)
-		if err != nil {
-			return err
-		}
-
-		services, ok := inner["services"].(map[string]any)
-		if !ok {
-			return fmt.Errorf("no services found in base/values.yaml")
-		}
-
-		svcEntry, ok := services[service].(map[string]any)
-		if !ok {
-			return fmt.Errorf("service %q not found", service)
-		}
-
-		if public != nil {
-			svcEntry["public"] = *public
-		}
-		services[service] = svcEntry
-		inner["services"] = services
-
-		return writeSubchartValues(path, inner)
-	})
 }
 
 // SetServiceDomain sets or removes the domain hostname for a service in an environment.
@@ -924,14 +894,8 @@ func parseServiceDefs(services map[string]any) []ServiceDef {
 		if port, ok := svcMap["port"].(int); ok {
 			def.Port = port
 		}
-		if public, ok := svcMap["public"].(bool); ok {
-			def.Public = public
-		}
 		if framework, ok := svcMap["framework"].(string); ok {
 			def.Framework = framework
-		}
-		if host, ok := svcMap["host"].(string); ok {
-			def.Host = host
 		}
 
 		result = append(result, def)

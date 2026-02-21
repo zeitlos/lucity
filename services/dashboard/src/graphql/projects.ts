@@ -26,7 +26,6 @@ export const CreateProjectMutation = gql`
         name
         image
         port
-        public
         framework
       }
       initialDeploys {
@@ -77,7 +76,6 @@ export const ProjectQuery = gql`
         name
         image
         port
-        public
         framework
         instances {
           environment

@@ -19,20 +19,19 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	PackagerService_InitProject_FullMethodName         = "/packager.PackagerService/InitProject"
-	PackagerService_ListProjects_FullMethodName        = "/packager.PackagerService/ListProjects"
-	PackagerService_GetProject_FullMethodName          = "/packager.PackagerService/GetProject"
-	PackagerService_DeleteProject_FullMethodName       = "/packager.PackagerService/DeleteProject"
-	PackagerService_AddService_FullMethodName          = "/packager.PackagerService/AddService"
-	PackagerService_RemoveService_FullMethodName       = "/packager.PackagerService/RemoveService"
-	PackagerService_UpdateImageTag_FullMethodName      = "/packager.PackagerService/UpdateImageTag"
-	PackagerService_CreateEnvironment_FullMethodName   = "/packager.PackagerService/CreateEnvironment"
-	PackagerService_DeleteEnvironment_FullMethodName   = "/packager.PackagerService/DeleteEnvironment"
-	PackagerService_Promote_FullMethodName             = "/packager.PackagerService/Promote"
-	PackagerService_Eject_FullMethodName               = "/packager.PackagerService/Eject"
-	PackagerService_DeploymentHistory_FullMethodName   = "/packager.PackagerService/DeploymentHistory"
-	PackagerService_UpdateServiceConfig_FullMethodName = "/packager.PackagerService/UpdateServiceConfig"
-	PackagerService_SetServiceDomain_FullMethodName    = "/packager.PackagerService/SetServiceDomain"
+	PackagerService_InitProject_FullMethodName       = "/packager.PackagerService/InitProject"
+	PackagerService_ListProjects_FullMethodName      = "/packager.PackagerService/ListProjects"
+	PackagerService_GetProject_FullMethodName        = "/packager.PackagerService/GetProject"
+	PackagerService_DeleteProject_FullMethodName     = "/packager.PackagerService/DeleteProject"
+	PackagerService_AddService_FullMethodName        = "/packager.PackagerService/AddService"
+	PackagerService_RemoveService_FullMethodName     = "/packager.PackagerService/RemoveService"
+	PackagerService_UpdateImageTag_FullMethodName    = "/packager.PackagerService/UpdateImageTag"
+	PackagerService_CreateEnvironment_FullMethodName = "/packager.PackagerService/CreateEnvironment"
+	PackagerService_DeleteEnvironment_FullMethodName = "/packager.PackagerService/DeleteEnvironment"
+	PackagerService_Promote_FullMethodName           = "/packager.PackagerService/Promote"
+	PackagerService_Eject_FullMethodName             = "/packager.PackagerService/Eject"
+	PackagerService_DeploymentHistory_FullMethodName = "/packager.PackagerService/DeploymentHistory"
+	PackagerService_SetServiceDomain_FullMethodName  = "/packager.PackagerService/SetServiceDomain"
 )
 
 // PackagerServiceClient is the client API for PackagerService service.
@@ -63,8 +62,6 @@ type PackagerServiceClient interface {
 	Eject(ctx context.Context, in *EjectRequest, opts ...grpc.CallOption) (*EjectResponse, error)
 	// DeploymentHistory returns the deployment history for a service in an environment.
 	DeploymentHistory(ctx context.Context, in *DeploymentHistoryRequest, opts ...grpc.CallOption) (*DeploymentHistoryResponse, error)
-	// UpdateServiceConfig updates a service's base configuration (public visibility).
-	UpdateServiceConfig(ctx context.Context, in *UpdateServiceConfigRequest, opts ...grpc.CallOption) (*UpdateServiceConfigResponse, error)
 	// SetServiceDomain sets or removes the domain hostname for a service in an environment.
 	SetServiceDomain(ctx context.Context, in *SetServiceDomainRequest, opts ...grpc.CallOption) (*SetServiceDomainResponse, error)
 }
@@ -197,16 +194,6 @@ func (c *packagerServiceClient) DeploymentHistory(ctx context.Context, in *Deplo
 	return out, nil
 }
 
-func (c *packagerServiceClient) UpdateServiceConfig(ctx context.Context, in *UpdateServiceConfigRequest, opts ...grpc.CallOption) (*UpdateServiceConfigResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(UpdateServiceConfigResponse)
-	err := c.cc.Invoke(ctx, PackagerService_UpdateServiceConfig_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *packagerServiceClient) SetServiceDomain(ctx context.Context, in *SetServiceDomainRequest, opts ...grpc.CallOption) (*SetServiceDomainResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(SetServiceDomainResponse)
@@ -245,8 +232,6 @@ type PackagerServiceServer interface {
 	Eject(context.Context, *EjectRequest) (*EjectResponse, error)
 	// DeploymentHistory returns the deployment history for a service in an environment.
 	DeploymentHistory(context.Context, *DeploymentHistoryRequest) (*DeploymentHistoryResponse, error)
-	// UpdateServiceConfig updates a service's base configuration (public visibility).
-	UpdateServiceConfig(context.Context, *UpdateServiceConfigRequest) (*UpdateServiceConfigResponse, error)
 	// SetServiceDomain sets or removes the domain hostname for a service in an environment.
 	SetServiceDomain(context.Context, *SetServiceDomainRequest) (*SetServiceDomainResponse, error)
 	mustEmbedUnimplementedPackagerServiceServer()
@@ -294,9 +279,6 @@ func (UnimplementedPackagerServiceServer) Eject(context.Context, *EjectRequest) 
 }
 func (UnimplementedPackagerServiceServer) DeploymentHistory(context.Context, *DeploymentHistoryRequest) (*DeploymentHistoryResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeploymentHistory not implemented")
-}
-func (UnimplementedPackagerServiceServer) UpdateServiceConfig(context.Context, *UpdateServiceConfigRequest) (*UpdateServiceConfigResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method UpdateServiceConfig not implemented")
 }
 func (UnimplementedPackagerServiceServer) SetServiceDomain(context.Context, *SetServiceDomainRequest) (*SetServiceDomainResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetServiceDomain not implemented")
@@ -538,24 +520,6 @@ func _PackagerService_DeploymentHistory_Handler(srv interface{}, ctx context.Con
 	return interceptor(ctx, in, info, handler)
 }
 
-func _PackagerService_UpdateServiceConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(UpdateServiceConfigRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(PackagerServiceServer).UpdateServiceConfig(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: PackagerService_UpdateServiceConfig_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(PackagerServiceServer).UpdateServiceConfig(ctx, req.(*UpdateServiceConfigRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _PackagerService_SetServiceDomain_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(SetServiceDomainRequest)
 	if err := dec(in); err != nil {
@@ -628,10 +592,6 @@ var PackagerService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DeploymentHistory",
 			Handler:    _PackagerService_DeploymentHistory_Handler,
-		},
-		{
-			MethodName: "UpdateServiceConfig",
-			Handler:    _PackagerService_UpdateServiceConfig_Handler,
 		},
 		{
 			MethodName: "SetServiceDomain",

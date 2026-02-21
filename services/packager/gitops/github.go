@@ -170,7 +170,6 @@ func (p *GitHubProvider) AddService(ctx context.Context, project string, svc Ser
 		},
 		"port":     svc.Port,
 		"replicas": 1,
-		"public":   svc.Public,
 	}
 	if svc.Framework != "" {
 		svcEntry["framework"] = svc.Framework
@@ -618,44 +617,6 @@ func (p *GitHubProvider) DeploymentHistory(ctx context.Context, project, environ
 	}
 
 	return entries, nil
-}
-
-// UpdateServiceConfig updates a service's base configuration in base/values.yaml.
-func (p *GitHubProvider) UpdateServiceConfig(ctx context.Context, project, service string, public *bool) error {
-	org, name, err := SplitProject(project)
-	if err != nil {
-		return err
-	}
-	repoName := name + RepoSuffix
-
-	inner, sha, err := p.readSubchartValuesGH(ctx, org, repoName, "base/values.yaml")
-	if err != nil {
-		return fmt.Errorf("failed to read base/values.yaml: %w", err)
-	}
-
-	services, ok := inner["services"].(map[string]any)
-	if !ok {
-		return fmt.Errorf("no services found in base/values.yaml")
-	}
-
-	svcEntry, ok := services[service].(map[string]any)
-	if !ok {
-		return fmt.Errorf("service %q not found", service)
-	}
-
-	if public != nil {
-		svcEntry["public"] = *public
-	}
-	services[service] = svcEntry
-	inner["services"] = services
-
-	if err := p.writeSubchartValuesGH(ctx, org, repoName, "base/values.yaml", inner, sha,
-		fmt.Sprintf("config(service): update %s", service)); err != nil {
-		return fmt.Errorf("failed to update base/values.yaml: %w", err)
-	}
-
-	slog.Info("updated service config", "project", project, "service", service)
-	return nil
 }
 
 // SetServiceDomain sets or removes the domain hostname for a service in an environment.

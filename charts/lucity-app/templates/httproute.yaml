@@ -1,5 +1,5 @@
 {{- range $name, $svc := .Values.services }}
-{{- if $svc.public }}
+{{- if $svc.host }}
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
@@ -14,10 +14,8 @@ spec:
       {{- if $.Values.gateway.namespace }}
       namespace: {{ $.Values.gateway.namespace }}
       {{- end }}
-  {{- if $svc.host }}
   hostnames:
     - {{ $svc.host | quote }}
-  {{- end }}
   rules:
     - backendRefs:
         - name: {{ include "lucity-app.fullname" $ }}-{{ $name }}

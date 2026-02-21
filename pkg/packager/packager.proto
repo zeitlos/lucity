@@ -43,9 +43,6 @@ service PackagerService {
   // DeploymentHistory returns the deployment history for a service in an environment.
   rpc DeploymentHistory(DeploymentHistoryRequest) returns (DeploymentHistoryResponse);
 
-  // UpdateServiceConfig updates a service's base configuration (public visibility).
-  rpc UpdateServiceConfig(UpdateServiceConfigRequest) returns (UpdateServiceConfigResponse);
-
   // SetServiceDomain sets or removes the domain hostname for a service in an environment.
   rpc SetServiceDomain(SetServiceDomainRequest) returns (SetServiceDomainResponse);
 }
@@ -55,7 +52,8 @@ message ServiceInfo {
   string name = 1;
   string image = 2;       // image repository path (e.g., localhost:5000/myapp/api)
   int32 port = 3;
-  bool public = 4;
+  reserved 4;
+  reserved "public";
   string framework = 5;   // detected framework for dashboard icons (e.g., "nextjs", "vite")
 }
 
@@ -117,7 +115,8 @@ message AddServiceRequest {
   string service = 2;
   string image = 3;
   int32 port = 4;
-  bool public = 5;
+  reserved 5;
+  reserved "public";
   string framework = 6;
 }
 
@@ -196,14 +195,6 @@ message DeploymentHistoryEntry {
 message DeploymentHistoryResponse {
   repeated DeploymentHistoryEntry entries = 1;
 }
-
-message UpdateServiceConfigRequest {
-  string project = 1;
-  string service = 2;
-  optional bool public = 3;
-}
-
-message UpdateServiceConfigResponse {}
 
 message SetServiceDomainRequest {
   string project = 1;

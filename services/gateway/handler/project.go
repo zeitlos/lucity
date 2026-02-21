@@ -44,7 +44,6 @@ type Service struct {
 	Name      string
 	Image     string
 	Port      int
-	Public    bool
 	Framework string
 	Instances []ServiceInstance
 }
@@ -136,7 +135,6 @@ func (c *Client) CreateProject(ctx context.Context, name, sourceURL string) (*Pr
 				Service:   detected.Name,
 				Image:     image,
 				Port:      detected.SuggestedPort,
-				Public:    true,
 				Framework: detected.Framework,
 			})
 			addCancel()
@@ -148,7 +146,6 @@ func (c *Client) CreateProject(ctx context.Context, name, sourceURL string) (*Pr
 				Name:      detected.Name,
 				Image:     image,
 				Port:      int(detected.SuggestedPort),
-				Public:    true,
 				Framework: detected.Framework,
 			})
 		}
@@ -486,7 +483,6 @@ func projectFromProto(p *packager.ProjectInfo) Project {
 			Name:      svc.Name,
 			Image:     svc.Image,
 			Port:      int(svc.Port),
-			Public:    svc.Public,
 			Framework: svc.Framework,
 		})
 	}

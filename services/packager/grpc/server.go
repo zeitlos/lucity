@@ -168,7 +168,6 @@ func (s *Server) AddService(ctx context.Context, req *packager.AddServiceRequest
 		Name:      req.Service,
 		Image:     req.Image,
 		Port:      int(req.Port),
-		Public:    req.Public,
 		Framework: req.Framework,
 	}); err != nil {
 		return nil, fmt.Errorf("failed to add service: %w", err)
@@ -283,21 +282,6 @@ func (s *Server) DeploymentHistory(ctx context.Context, req *packager.Deployment
 	return &packager.DeploymentHistoryResponse{Entries: protoEntries}, nil
 }
 
-func (s *Server) UpdateServiceConfig(ctx context.Context, req *packager.UpdateServiceConfigRequest) (*packager.UpdateServiceConfigResponse, error) {
-	slog.Info("UpdateServiceConfig called", "project", req.Project, "service", req.Service)
-
-	p, err := s.provider(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := p.UpdateServiceConfig(ctx, req.Project, req.Service, req.Public); err != nil {
-		return nil, fmt.Errorf("failed to update service config: %w", err)
-	}
-
-	return &packager.UpdateServiceConfigResponse{}, nil
-}
-
 func (s *Server) SetServiceDomain(ctx context.Context, req *packager.SetServiceDomainRequest) (*packager.SetServiceDomainResponse, error) {
 	slog.Info("SetServiceDomain called", "project", req.Project, "environment", req.Environment, "service", req.Service, "host", req.Host)
 
@@ -362,7 +346,6 @@ func serviceInfosFromDefs(defs []gitops.ServiceDef) []*packager.ServiceInfo {
 			Name:      d.Name,
 			Image:     d.Image,
 			Port:      int32(d.Port),
-			Public:    d.Public,
 			Framework: d.Framework,
 		}
 	}
