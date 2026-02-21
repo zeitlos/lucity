@@ -1,4 +1,4 @@
-.PHONY: build proto dev dev-gateway dev-builder dev-packager dev-deployer dev-webhook dev-dashboard dev-logs dev-stop generate-graphql lint test-integration test-integration-short infra infra-down argocd-token
+.PHONY: build proto dev dev-gateway dev-builder dev-packager dev-deployer dev-webhook dev-dashboard dev-logs dev-stop generate-graphql lint test-integration test-integration-short minikube infra infra-down infra-forward infra-forward-stop infra-tokens argocd-token softserve-token
 
 # Build all Go services
 build:
@@ -68,10 +68,17 @@ test-integration:
 test-integration-short:
 	cd tests && go test -v -count=1 -short ./...
 
-# Deploy infrastructure (Zot + Soft-serve) to a cluster
+# Create minikube cluster for local development
+# Configures Docker to trust the in-cluster Zot registry over HTTP
+minikube:
+	minikube start --insecure-registry="lucity-infra-zot.lucity-system.svc.cluster.local:5000"
+
+# Deploy infrastructure (Zot + Soft-serve + ArgoCD) to a cluster
+# Also installs Gateway API CRDs required for public services
 # Usage: make infra CLUSTER=flxp
 CLUSTER ?= minikube
 infra:
+	kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.1/standard-install.yaml
 	helm dependency update charts/lucity-infra
 	helm upgrade --install lucity-infra charts/lucity-infra \
 		-n lucity-system --create-namespace \
@@ -93,6 +100,10 @@ infra-forward-stop:
 		lsof -ti :$$port | xargs kill 2>/dev/null || true; \
 	done
 
+# Generate API tokens for infrastructure services
+# Requires: infra-forward running
+infra-tokens: argocd-token softserve-token
+
 # Generate an ArgoCD API token for the lucity service account
 # Requires: infra-forward running (ArgoCD on localhost:8443)
 argocd-token:
@@ -100,6 +111,11 @@ argocd-token:
 	SESSION=$$(curl -sk -H "Content-Type: application/json" http://localhost:8443/api/v1/session -d "{\"username\":\"admin\",\"password\":\"$$ADMIN_PASS\"}" | jq -r '.token') && \
 	TOKEN=$$(curl -sk -H "Content-Type: application/json" -H "Authorization: Bearer $$SESSION" -X POST http://localhost:8443/api/v1/account/lucity/token | jq -r '.token') && \
 	echo "ARGOCD_TOKEN=$$TOKEN"
+
+# Generate a Soft-serve access token for the packager
+# Requires: infra-forward running (Soft-serve SSH on localhost:23231)
+softserve-token:
+	@ssh -i ~/.ssh/lucity-admin-minikube -o IdentitiesOnly=yes -p 23231 localhost token create 'packager'
 
 # Sync workspace
 sync:
