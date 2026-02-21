@@ -34,11 +34,15 @@ export function useDeployLogs(deployId: Ref<string | null>) {
     }
   });
 
+  function clear() {
+    lines.value = [];
+  }
+
   function reset() {
     lines.value = [];
     isActive.value = false;
     stop();
   }
 
-  return { lines, isActive, reset };
+  return { lines, isActive, clear, stop, restart, reset };
 }

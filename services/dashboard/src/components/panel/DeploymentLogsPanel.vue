@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, watch, nextTick, onUnmounted } from 'vue';
-import { X, Loader2 } from 'lucide-vue-next';
+import { ref, computed, watch, nextTick } from 'vue';
+import { X, Loader2, Trash2, Pause, Play } from 'lucide-vue-next';
 import { onKeyStroke } from '@vueuse/core';
 import { useDeployLogs } from '@/composables/useDeployLogs';
 import { useDeploy } from '@/composables/useDeploy';
@@ -19,11 +19,12 @@ const emit = defineEmits<{
 onKeyStroke('Escape', () => emit('close'));
 
 const deployIdRef = computed(() => props.deployId);
-const { lines, isActive } = useDeployLogs(deployIdRef);
+const { lines, isActive, clear, stop, restart } = useDeployLogs(deployIdRef);
 const deploy = useDeploy();
 
 const logContainer = ref<HTMLElement | null>(null);
 const userScrolled = ref(false);
+const paused = ref(false);
 
 function handleScroll() {
   if (!logContainer.value) return;
@@ -33,7 +34,7 @@ function handleScroll() {
 }
 
 watch(lines, async () => {
-  if (userScrolled.value) return;
+  if (userScrolled.value || paused.value) return;
   await nextTick();
   if (logContainer.value) {
     logContainer.value.scrollTop = logContainer.value.scrollHeight;
@@ -44,9 +45,14 @@ const isTerminal = computed(() =>
   deploy.phase === 'SUCCEEDED' || deploy.phase === 'FAILED'
 );
 
-onUnmounted(() => {
-  // Composable cleanup handled by Vue reactivity
-});
+function togglePause() {
+  paused.value = !paused.value;
+  if (paused.value) {
+    stop();
+  } else {
+    restart();
+  }
+}
 </script>
 
 <template>
@@ -71,14 +77,39 @@ onUnmounted(() => {
         </Badge>
       </div>
 
-      <Button
-        variant="ghost"
-        size="icon"
-        class="h-7 w-7 text-zinc-400 hover:text-zinc-200"
-        @click="emit('close')"
-      >
-        <X :size="16" />
-      </Button>
+      <div class="flex items-center gap-1">
+        <Button
+          variant="ghost"
+          size="icon"
+          class="h-6 w-6 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+          @click="togglePause"
+        >
+          <Pause
+            v-if="!paused"
+            :size="12"
+          />
+          <Play
+            v-else
+            :size="12"
+          />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          class="h-6 w-6 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+          @click="clear"
+        >
+          <Trash2 :size="12" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          class="h-7 w-7 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+          @click="emit('close')"
+        >
+          <X :size="16" />
+        </Button>
+      </div>
     </div>
 
     <!-- Log output -->
@@ -87,21 +118,33 @@ onUnmounted(() => {
       class="flex-1 overflow-auto p-4 font-mono text-xs leading-relaxed text-zinc-300"
       @scroll="handleScroll"
     >
-      <div v-if="lines.length === 0 && !isTerminal" class="flex items-center gap-2 text-zinc-500">
-        <Loader2 :size="12" class="animate-spin" />
+      <div
+        v-if="lines.length === 0 && !isTerminal"
+        class="flex items-center gap-2 text-zinc-500"
+      >
+        <Loader2
+          :size="12"
+          class="animate-spin"
+        />
         <span>Waiting for logs...</span>
       </div>
 
-      <div v-for="(line, idx) in lines" :key="idx">
+      <div
+        v-for="(line, idx) in lines"
+        :key="idx"
+      >
         <span class="select-none pr-3 text-zinc-600">{{ String(idx + 1).padStart(4, ' ') }}</span>
         <span class="whitespace-pre-wrap break-all">{{ line }}</span>
       </div>
 
       <div
-        v-if="isActive && !isTerminal && lines.length > 0"
+        v-if="isActive && !isTerminal && lines.length > 0 && !paused"
         class="mt-2 flex items-center gap-2 text-zinc-500"
       >
-        <Loader2 :size="12" class="animate-spin" />
+        <Loader2
+          :size="12"
+          class="animate-spin"
+        />
       </div>
     </div>
   </div>
