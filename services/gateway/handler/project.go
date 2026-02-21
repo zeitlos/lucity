@@ -360,6 +360,12 @@ func (c *Client) enrichSyncStatus(ctx context.Context, proj *Project) {
 				return
 			}
 			env.SyncStatus = deploymentStatusToString(resp.Status)
+
+			// Derive per-service readiness from environment health.
+			ready := resp.Status == deployer.DeploymentStatus_DEPLOYMENT_STATUS_SYNCED
+			for j := range env.Services {
+				env.Services[j].Ready = ready
+			}
 		}()
 	}
 	wg.Wait()
@@ -413,6 +419,7 @@ func (c *Client) enrichDeploymentHistory(ctx context.Context, proj *Project) {
 				for _, esi := range env.Services {
 					if esi.Name == inst.Name && esi.Environment == inst.Environment {
 						inst.Deployments = esi.Deployments
+						inst.Ready = esi.Ready
 					}
 				}
 			}
