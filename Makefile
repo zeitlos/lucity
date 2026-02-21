@@ -1,4 +1,4 @@
-.PHONY: build proto dev dev-gateway dev-builder dev-packager dev-deployer dev-webhook dev-dashboard dev-docs dev-logs dev-stop generate-graphql lint test-integration test-integration-short minikube infra infra-down infra-forward infra-forward-stop argocd-password infra-tokens argocd-token softserve-token
+.PHONY: build proto dev dev-gateway dev-builder dev-packager dev-deployer dev-webhook dev-dashboard dev-docs dev-logs dev-stop generate-graphql lint test-integration test-integration-short minikube dns infra infra-down infra-forward infra-forward-stop argocd-password infra-tokens argocd-token softserve-token
 
 # Build all Go services
 build:
@@ -76,6 +76,24 @@ test-integration-short:
 # See: https://minikube.sigs.k8s.io/docs/handbook/registry/#enabling-insecure-registries
 minikube:
 	minikube start --insecure-registry="10.96.0.0/12"
+
+# Set up local DNS so *.lucity.app resolves to 127.0.0.1 (requires Homebrew)
+# Run once — survives reboots. Uses dnsmasq instead of /etc/hosts (no wildcard support).
+dns:
+	@if ! command -v dnsmasq >/dev/null 2>&1; then \
+		echo "Installing dnsmasq..."; \
+		brew install dnsmasq; \
+	fi
+	@if ! grep -q 'address=/lucity.app/' /opt/homebrew/etc/dnsmasq.conf 2>/dev/null; then \
+		echo "address=/lucity.app/127.0.0.1" >> /opt/homebrew/etc/dnsmasq.conf; \
+		echo "Added *.lucity.app → 127.0.0.1 to dnsmasq config."; \
+	else \
+		echo "dnsmasq already configured for *.lucity.app."; \
+	fi
+	@sudo mkdir -p /etc/resolver
+	@echo "nameserver 127.0.0.1" | sudo tee /etc/resolver/lucity.app > /dev/null
+	@sudo brew services restart dnsmasq
+	@echo "Done. All *.lucity.app domains now resolve to 127.0.0.1."
 
 # Deploy infrastructure (Zot + Soft-serve + ArgoCD + Envoy Gateway + CNPG) to a cluster
 # Envoy Gateway is installed separately — it needs its own namespace for cert management.
