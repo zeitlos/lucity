@@ -115,7 +115,8 @@ argocd-token:
 # Generate a Soft-serve access token for the packager
 # Requires: infra-forward running (Soft-serve SSH on localhost:23231)
 softserve-token:
-	@ssh -i ~/.ssh/lucity-admin-minikube -o IdentitiesOnly=yes -p 23231 localhost token create 'packager'
+	@ssh-keygen -R "[localhost]:23231" 2>/dev/null || true
+	@ssh -i ~/.ssh/lucity-admin-minikube -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -p 23231 localhost token create 'packager'
 
 # Sync workspace
 sync:
