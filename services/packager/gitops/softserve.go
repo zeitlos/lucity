@@ -578,6 +578,12 @@ func (p *SoftServeProvider) modifyRepo(ctx context.Context, project, commitMsg s
 		return err
 	}
 
+	// Keep the embedded chart in sync on every write.
+	// If the chart hasn't changed, git won't see a diff.
+	if err := writeEmbeddedChart(dir); err != nil {
+		return fmt.Errorf("failed to sync embedded chart: %w", err)
+	}
+
 	// Open the repo, add all changes, commit, and push
 	repo, err := git.PlainOpen(dir)
 	if err != nil {
@@ -1043,7 +1049,13 @@ func (p *SoftServeProvider) SetServiceVariables(ctx context.Context, project, en
 	})
 }
 
-// parseServiceDefs converts a raw YAML services map to ServiceDef slice.
+// SyncChart updates the embedded lucity-app chart in the GitOps repo.
+func (p *SoftServeProvider) SyncChart(ctx context.Context, project string) error {
+	return p.modifyRepo(ctx, project, "chart(sync): update lucity-app chart", func(dir string) error {
+		return writeEmbeddedChart(dir)
+	})
+}
+
 // AddDatabase adds a PostgreSQL database definition to base/values.yaml.
 func (p *SoftServeProvider) AddDatabase(ctx context.Context, project string, db DatabaseDef) error {
 	return p.modifyRepo(ctx, project, fmt.Sprintf("config: add database %s", db.Name), func(dir string) error {

@@ -55,6 +55,11 @@ func (r *mutationResolver) Promote(ctx context.Context, input model.PromoteInput
 	return &result, nil
 }
 
+// SyncChart is the resolver for the syncChart field.
+func (r *mutationResolver) SyncChart(ctx context.Context, projectID string) (bool, error) {
+	return r.API.SyncChart(ctx, projectID)
+}
+
 // Projects is the resolver for the projects field.
 func (r *queryResolver) Projects(ctx context.Context) ([]model.Project, error) {
 	projects, err := r.API.Projects(ctx)

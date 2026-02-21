@@ -1106,6 +1106,85 @@ func (p *GitHubProvider) Databases(ctx context.Context, project string) ([]Datab
 	return parseDatabaseDefs(inner), nil
 }
 
+// SyncChart updates the embedded lucity-app chart in the GitOps repo.
+// Clones the repo, overwrites the chart/ directory, and pushes if changed.
+func (p *GitHubProvider) SyncChart(ctx context.Context, project string) error {
+	org, name, err := SplitProject(project)
+	if err != nil {
+		return err
+	}
+	repoName := name + RepoSuffix
+
+	ghRepo, _, err := p.client.Repositories.Get(ctx, org, repoName)
+	if err != nil {
+		return fmt.Errorf("failed to get repo info: %w", err)
+	}
+
+	tmpDir, err := os.MkdirTemp("", "lucity-gitops-*")
+	if err != nil {
+		return fmt.Errorf("failed to create temp dir: %w", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	repo, err := git.PlainClone(tmpDir, false, &git.CloneOptions{
+		URL: ghRepo.GetCloneURL(),
+		Auth: &githttp.BasicAuth{
+			Username: "x-access-token",
+			Password: p.token,
+		},
+		Depth: 1,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to clone: %w", err)
+	}
+
+	if err := writeEmbeddedChart(tmpDir); err != nil {
+		return fmt.Errorf("failed to write embedded chart: %w", err)
+	}
+
+	wt, err := repo.Worktree()
+	if err != nil {
+		return fmt.Errorf("failed to get worktree: %w", err)
+	}
+
+	if err := addAll(wt, tmpDir); err != nil {
+		return fmt.Errorf("failed to stage changes: %w", err)
+	}
+
+	status, err := wt.Status()
+	if err != nil {
+		return fmt.Errorf("failed to get status: %w", err)
+	}
+	if status.IsClean() {
+		slog.Debug("chart already up to date", "project", project)
+		return nil
+	}
+
+	_, err = wt.Commit("chart(sync): update lucity-app chart", &git.CommitOptions{
+		Author: &object.Signature{
+			Name:  "Lucity",
+			Email: "lucity@localhost",
+			When:  time.Now().UTC(),
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to commit: %w", err)
+	}
+
+	err = repo.Push(&git.PushOptions{
+		Auth: &githttp.BasicAuth{
+			Username: "x-access-token",
+			Password: p.token,
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to push: %w", err)
+	}
+
+	slog.Info("synced chart in gitops repo", "project", project)
+	return nil
+}
+
 // parseDatabaseDefs extracts database definitions from the inner values map.
 func parseDatabaseDefs(inner map[string]any) []DatabaseDef {
 	databases, ok := inner["databases"].(map[string]any)

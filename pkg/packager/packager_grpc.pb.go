@@ -38,6 +38,7 @@ const (
 	PackagerService_SetServiceVariables_FullMethodName = "/packager.PackagerService/SetServiceVariables"
 	PackagerService_AddDatabase_FullMethodName         = "/packager.PackagerService/AddDatabase"
 	PackagerService_RemoveDatabase_FullMethodName      = "/packager.PackagerService/RemoveDatabase"
+	PackagerService_SyncChart_FullMethodName           = "/packager.PackagerService/SyncChart"
 )
 
 // PackagerServiceClient is the client API for PackagerService service.
@@ -84,6 +85,9 @@ type PackagerServiceClient interface {
 	AddDatabase(ctx context.Context, in *AddDatabaseRequest, opts ...grpc.CallOption) (*AddDatabaseResponse, error)
 	// RemoveDatabase removes a PostgreSQL database from the project's base values.
 	RemoveDatabase(ctx context.Context, in *RemoveDatabaseRequest, opts ...grpc.CallOption) (*RemoveDatabaseResponse, error)
+	// SyncChart updates the embedded lucity-app Helm chart in the project's GitOps repo.
+	// Called to propagate chart template changes (e.g., new Gateway config) to existing repos.
+	SyncChart(ctx context.Context, in *SyncChartRequest, opts ...grpc.CallOption) (*SyncChartResponse, error)
 }
 
 type packagerServiceClient struct {
@@ -284,6 +288,16 @@ func (c *packagerServiceClient) RemoveDatabase(ctx context.Context, in *RemoveDa
 	return out, nil
 }
 
+func (c *packagerServiceClient) SyncChart(ctx context.Context, in *SyncChartRequest, opts ...grpc.CallOption) (*SyncChartResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SyncChartResponse)
+	err := c.cc.Invoke(ctx, PackagerService_SyncChart_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // PackagerServiceServer is the server API for PackagerService service.
 // All implementations must embed UnimplementedPackagerServiceServer
 // for forward compatibility.
@@ -328,6 +342,9 @@ type PackagerServiceServer interface {
 	AddDatabase(context.Context, *AddDatabaseRequest) (*AddDatabaseResponse, error)
 	// RemoveDatabase removes a PostgreSQL database from the project's base values.
 	RemoveDatabase(context.Context, *RemoveDatabaseRequest) (*RemoveDatabaseResponse, error)
+	// SyncChart updates the embedded lucity-app Helm chart in the project's GitOps repo.
+	// Called to propagate chart template changes (e.g., new Gateway config) to existing repos.
+	SyncChart(context.Context, *SyncChartRequest) (*SyncChartResponse, error)
 	mustEmbedUnimplementedPackagerServiceServer()
 }
 
@@ -394,6 +411,9 @@ func (UnimplementedPackagerServiceServer) AddDatabase(context.Context, *AddDatab
 }
 func (UnimplementedPackagerServiceServer) RemoveDatabase(context.Context, *RemoveDatabaseRequest) (*RemoveDatabaseResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RemoveDatabase not implemented")
+}
+func (UnimplementedPackagerServiceServer) SyncChart(context.Context, *SyncChartRequest) (*SyncChartResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SyncChart not implemented")
 }
 func (UnimplementedPackagerServiceServer) mustEmbedUnimplementedPackagerServiceServer() {}
 func (UnimplementedPackagerServiceServer) testEmbeddedByValue()                         {}
@@ -758,6 +778,24 @@ func _PackagerService_RemoveDatabase_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _PackagerService_SyncChart_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SyncChartRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PackagerServiceServer).SyncChart(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PackagerService_SyncChart_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PackagerServiceServer).SyncChart(ctx, req.(*SyncChartRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // PackagerService_ServiceDesc is the grpc.ServiceDesc for PackagerService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -840,6 +878,10 @@ var PackagerService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RemoveDatabase",
 			Handler:    _PackagerService_RemoveDatabase_Handler,
+		},
+		{
+			MethodName: "SyncChart",
+			Handler:    _PackagerService_SyncChart_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -65,6 +65,10 @@ service PackagerService {
 
   // RemoveDatabase removes a PostgreSQL database from the project's base values.
   rpc RemoveDatabase(RemoveDatabaseRequest) returns (RemoveDatabaseResponse);
+
+  // SyncChart updates the embedded lucity-app Helm chart in the project's GitOps repo.
+  // Called to propagate chart template changes (e.g., new Gateway config) to existing repos.
+  rpc SyncChart(SyncChartRequest) returns (SyncChartResponse);
 }
 
 // ServiceInfo describes a service configured in the project's GitOps repo.
@@ -298,3 +302,9 @@ message RemoveDatabaseRequest {
 }
 
 message RemoveDatabaseResponse {}
+
+message SyncChartRequest {
+  string project = 1;
+}
+
+message SyncChartResponse {}

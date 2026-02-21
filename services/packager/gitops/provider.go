@@ -108,6 +108,10 @@ type Provider interface {
 
 	// Databases reads the database definitions from base/values.yaml.
 	Databases(ctx context.Context, project string) ([]DatabaseDef, error)
+
+	// SyncChart overwrites the embedded lucity-app chart in the project's GitOps repo
+	// with the current version. No-op if the chart is already up to date.
+	SyncChart(ctx context.Context, project string) error
 }
 
 // DeploymentEntry represents a single deployment event parsed from a git commit.

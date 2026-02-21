@@ -169,6 +169,12 @@ func (s *Server) AddService(ctx context.Context, req *packager.AddServiceRequest
 		return nil, err
 	}
 
+	// Sync chart before adding service so new templates (e.g., HTTPRoute parentRefs)
+	// are available when ArgoCD renders the Helm chart after deployment.
+	if err := p.SyncChart(ctx, req.Project); err != nil {
+		slog.Warn("failed to sync chart before adding service", "project", req.Project, "error", err)
+	}
+
 	if err := p.AddService(ctx, req.Project, gitops.ServiceDef{
 		Name:        req.Service,
 		Image:       req.Image,
@@ -403,6 +409,21 @@ func envInfosFromMeta(metas []gitops.EnvironmentMeta) []*packager.EnvironmentInf
 		}
 	}
 	return infos
+}
+
+func (s *Server) SyncChart(ctx context.Context, req *packager.SyncChartRequest) (*packager.SyncChartResponse, error) {
+	slog.Info("SyncChart called", "project", req.Project)
+
+	p, err := s.provider(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := p.SyncChart(ctx, req.Project); err != nil {
+		return nil, fmt.Errorf("failed to sync chart: %w", err)
+	}
+
+	return &packager.SyncChartResponse{}, nil
 }
 
 func (s *Server) AddDatabase(ctx context.Context, req *packager.AddDatabaseRequest) (*packager.AddDatabaseResponse, error) {

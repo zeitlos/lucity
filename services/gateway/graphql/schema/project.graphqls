@@ -83,4 +83,5 @@ extend type Mutation {
   createEnvironment(input: CreateEnvironmentInput!): Environment! @hasRole(role: [USER])
   deleteEnvironment(projectId: ID!, environment: String!): Boolean! @hasRole(role: [USER])
   promote(input: PromoteInput!): ServiceInstance! @hasRole(role: [USER])
+  syncChart(projectId: ID!): Boolean! @hasRole(role: [USER])
 }
