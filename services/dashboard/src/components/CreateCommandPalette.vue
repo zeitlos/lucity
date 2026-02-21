@@ -12,6 +12,7 @@ import { toast } from '@/components/ui/sonner';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { errorMessage } from '@/lib/utils';
+import { generateName } from '@/lib/names';
 
 const props = defineProps<{
   open: boolean;
@@ -116,7 +117,7 @@ async function handleCreateProjectFromRepo(repo: { fullName: string; htmlUrl: st
 // Detect services from a repo and add them to a project
 const detectingServices = ref(false);
 
-async function detectAndAddServices(projectId: string, repo: { fullName: string; htmlUrl: string }) {
+async function detectAndAddServices(projectId: string, repo: { fullName: string; htmlUrl: string }, useGeneratedNames = false) {
   const client = resolveClient();
   const { data } = await client.query({
     query: DetectServicesQuery,
@@ -131,19 +132,20 @@ async function detectAndAddServices(projectId: string, repo: { fullName: string;
 
   let added = 0;
   for (const svc of detected) {
+    const name = useGeneratedNames ? generateName() : svc.name;
     try {
       await addServiceMutate({
         input: {
           projectId,
-          name: svc.name,
+          name,
           port: svc.suggestedPort,
           framework: svc.framework || undefined,
           sourceUrl: repo.htmlUrl,
         },
       });
       added++;
-    } catch {
-      // continue with remaining services
+    } catch (e: unknown) {
+      toast.error(`Failed to add service ${name}`, { description: errorMessage(e) });
     }
   }
 
@@ -159,7 +161,7 @@ async function handleAddServicesFromRepo(repo: { fullName: string; htmlUrl: stri
 
   detectingServices.value = true;
   try {
-    await detectAndAddServices(props.projectId, repo);
+    await detectAndAddServices(props.projectId, repo, true);
     close();
     emit('created');
   } catch (e: unknown) {
