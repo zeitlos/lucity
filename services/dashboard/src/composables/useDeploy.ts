@@ -11,6 +11,8 @@ export interface DeployState {
   isDeploying: boolean;
   imageRef: string | null;
   digest: string | null;
+  argoHealth: string | null;
+  argoMessage: string | null;
   startDeploy: (projectId: string, service: string, environment: string, gitRef?: string, contextPath?: string) => Promise<void>;
   pollDeploy: (deployId: string) => void;
   reset: () => void;
@@ -41,6 +43,8 @@ export function useDeploy(): DeployState {
         if (!status) return;
 
         state.phase = status.phase;
+        state.argoHealth = status.argoHealth ?? null;
+        state.argoMessage = status.argoMessage ?? null;
 
         if (status.phase === 'SUCCEEDED') {
           stopPolling();
@@ -70,6 +74,8 @@ export function useDeploy(): DeployState {
     isDeploying: false,
     imageRef: null,
     digest: null,
+    argoHealth: null,
+    argoMessage: null,
 
     async startDeploy(projectId: string, service: string, environment: string, gitRef?: string, contextPath?: string) {
       state.error = null;
@@ -77,6 +83,8 @@ export function useDeploy(): DeployState {
       state.isDeploying = true;
       state.imageRef = null;
       state.digest = null;
+      state.argoHealth = null;
+      state.argoMessage = null;
 
       try {
         const res = await apolloClient.mutate({
@@ -122,6 +130,8 @@ export function useDeploy(): DeployState {
       state.isDeploying = false;
       state.imageRef = null;
       state.digest = null;
+      state.argoHealth = null;
+      state.argoMessage = null;
     },
   });
 

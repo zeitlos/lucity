@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, onMounted } from 'vue';
-import { Rocket, Loader2, Check, Circle, ChevronRight, AlertCircle, Tag } from 'lucide-vue-next';
+import { Rocket, Loader2, Check, Circle, ChevronRight, AlertCircle, Tag, TriangleAlert } from 'lucide-vue-next';
 import { useEnvironment } from '@/composables/useEnvironment';
 import { useDeploy } from '@/composables/useDeploy';
 import { apolloClient } from '@/lib/apollo';
@@ -39,6 +39,8 @@ onMounted(async () => {
     if (active?.id) {
       deploy.pollDeploy(active.id);
       deploy.phase = active.phase;
+      deploy.argoHealth = active.argoHealth ?? null;
+      deploy.argoMessage = active.argoMessage ?? null;
     }
   } catch {
     // No active deployment — nothing to resume.
@@ -176,6 +178,58 @@ function formatRelativeTime(timestamp: string): string {
               {{ stage }}
             </span>
           </div>
+        </div>
+
+        <!-- ArgoCD health status during DEPLOYING phase -->
+        <div
+          v-if="deploy.phase === 'DEPLOYING' && deploy.argoHealth"
+          class="mt-2 rounded-md px-2.5 py-2"
+          :class="deploy.argoHealth === 'DEGRADED'
+            ? 'bg-[var(--status-danger)]/10'
+            : 'bg-muted/50'"
+        >
+          <div class="flex items-start gap-2">
+            <TriangleAlert
+              v-if="deploy.argoHealth === 'DEGRADED'"
+              :size="13"
+              class="mt-0.5 shrink-0 text-[var(--status-danger)]"
+            />
+            <Loader2
+              v-else-if="deploy.argoHealth === 'PROGRESSING'"
+              :size="13"
+              class="mt-0.5 shrink-0 animate-spin text-[var(--status-warn)]"
+            />
+            <div class="min-w-0 space-y-0.5">
+              <p class="text-xs font-medium text-foreground">
+                {{ deploy.argoHealth === 'DEGRADED' ? 'Rollout degraded' : 'Waiting for pods' }}
+              </p>
+              <p
+                v-if="deploy.argoMessage"
+                class="break-words font-mono text-[11px] text-muted-foreground"
+              >
+                {{ deploy.argoMessage }}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Deploy error (FAILED phase) -->
+    <div
+      v-if="deploy.phase === 'FAILED' && (deploy.error || deploy.argoMessage)"
+      class="rounded-lg border border-[var(--status-danger)]/30 bg-[var(--status-danger)]/5 px-3 py-2.5"
+    >
+      <div class="flex items-start gap-2">
+        <AlertCircle
+          :size="14"
+          class="mt-0.5 shrink-0 text-[var(--status-danger)]"
+        />
+        <div class="min-w-0 space-y-0.5">
+          <p class="text-xs font-medium text-[var(--status-danger)]">Deploy failed</p>
+          <p class="break-words font-mono text-[11px] text-muted-foreground">
+            {{ deploy.error || deploy.argoMessage }}
+          </p>
         </div>
       </div>
     </div>

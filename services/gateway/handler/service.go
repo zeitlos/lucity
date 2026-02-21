@@ -207,22 +207,26 @@ func buildPhaseToString(phase builder.BuildPhase) string {
 
 // DeployOp represents the state of a unified build+deploy operation.
 type DeployOp struct {
-	ID       string
-	Phase    string
-	BuildID  string
-	ImageRef string
-	Digest   string
-	Error    string
+	ID          string
+	Phase       string
+	BuildID     string
+	ImageRef    string
+	Digest      string
+	Error       string
+	ArgoHealth  string
+	ArgoMessage string
 }
 
 func deployOpFromState(s *deploy.State) *DeployOp {
 	return &DeployOp{
-		ID:       s.ID,
-		Phase:    string(s.Phase),
-		BuildID:  s.BuildID,
-		ImageRef: s.ImageRef,
-		Digest:   s.Digest,
-		Error:    s.Error,
+		ID:          s.ID,
+		Phase:       string(s.Phase),
+		BuildID:     s.BuildID,
+		ImageRef:    s.ImageRef,
+		Digest:      s.Digest,
+		Error:       s.Error,
+		ArgoHealth:  s.ArgoHealth,
+		ArgoMessage: s.ArgoMessage,
 	}
 }
 
@@ -310,7 +314,7 @@ func (c *Client) runDeploy(token, deployID, projectID, service, environment, bui
 	}
 }
 
-// finalizeDeploy updates the GitOps repo and triggers ArgoCD sync.
+// finalizeDeploy updates the GitOps repo, triggers ArgoCD sync, and monitors rollout health.
 func (c *Client) finalizeDeploy(ctx context.Context, deployID, projectID, service, environment, imageRef, digest string) {
 	c.DeployTracker.Update(deployID, deploy.PhaseDeploying)
 
@@ -337,8 +341,43 @@ func (c *Client) finalizeDeploy(ctx context.Context, deployID, projectID, servic
 		slog.Warn("deploy: failed to trigger sync", "deployId", deployID, "error", err)
 	}
 
+	// Poll ArgoCD for rollout health. This catches ImagePullBackOff, CrashLoopBackOff, etc.
+	// Timeout after 2 minutes — pods should start well within that window.
+	deadline := time.Now().Add(2 * time.Minute)
+	for time.Now().Before(deadline) {
+		time.Sleep(3 * time.Second)
+
+		resp, err := c.Deployer.GetDeploymentStatus(ctx, &deployer.GetDeploymentStatusRequest{
+			Project:     projectID,
+			Environment: environment,
+		})
+		if err != nil {
+			slog.Debug("deploy: failed to poll ArgoCD status", "deployId", deployID, "error", err)
+			continue
+		}
+
+		health := deploymentStatusToString(resp.Status)
+		c.DeployTracker.UpdateArgoHealth(deployID, health, resp.Message)
+
+		switch resp.Status {
+		case deployer.DeploymentStatus_DEPLOYMENT_STATUS_SYNCED:
+			// Healthy + Synced — rollout succeeded
+			c.DeployTracker.Succeed(deployID, imageRef, digest)
+			slog.Info("deploy succeeded", "deployId", deployID, "project", projectID, "service", service, "environment", environment, "tag", tag)
+			return
+		case deployer.DeploymentStatus_DEPLOYMENT_STATUS_DEGRADED:
+			// Degraded — pods failed (ImagePullBackOff, CrashLoopBackOff, etc.)
+			c.DeployTracker.Fail(deployID, resp.Message)
+			slog.Warn("deploy failed: ArgoCD reports degraded", "deployId", deployID, "project", projectID, "environment", environment, "message", resp.Message)
+			return
+		}
+		// PROGRESSING, OUT_OF_SYNC, UNKNOWN — keep polling
+	}
+
+	// Timeout: mark succeeded but with the last known health status.
+	// The rollout may still be in progress — we just stop tracking.
 	c.DeployTracker.Succeed(deployID, imageRef, digest)
-	slog.Info("deploy succeeded", "deployId", deployID, "project", projectID, "service", service, "environment", environment, "tag", tag)
+	slog.Info("deploy completed (ArgoCD still progressing)", "deployId", deployID, "project", projectID, "service", service, "environment", environment, "tag", tag)
 }
 
 func buildPhaseToDeployPhase(phase builder.BuildPhase) deploy.Phase {

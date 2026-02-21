@@ -68,12 +68,14 @@ type ComplexityRoot struct {
 	}
 
 	DeploymentOp struct {
-		BuildID  func(childComplexity int) int
-		Digest   func(childComplexity int) int
-		Error    func(childComplexity int) int
-		ID       func(childComplexity int) int
-		ImageRef func(childComplexity int) int
-		Phase    func(childComplexity int) int
+		ArgoHealth  func(childComplexity int) int
+		ArgoMessage func(childComplexity int) int
+		BuildID     func(childComplexity int) int
+		Digest      func(childComplexity int) int
+		Error       func(childComplexity int) int
+		ID          func(childComplexity int) int
+		ImageRef    func(childComplexity int) int
+		Phase       func(childComplexity int) int
 	}
 
 	DetectedService struct {
@@ -275,6 +277,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Deployment.Timestamp(childComplexity), true
 
+	case "DeploymentOp.argoHealth":
+		if e.complexity.DeploymentOp.ArgoHealth == nil {
+			break
+		}
+
+		return e.complexity.DeploymentOp.ArgoHealth(childComplexity), true
+	case "DeploymentOp.argoMessage":
+		if e.complexity.DeploymentOp.ArgoMessage == nil {
+			break
+		}
+
+		return e.complexity.DeploymentOp.ArgoMessage(childComplexity), true
 	case "DeploymentOp.buildId":
 		if e.complexity.DeploymentOp.BuildID == nil {
 			break
@@ -1675,6 +1689,64 @@ func (ec *executionContext) fieldContext_DeploymentOp_error(_ context.Context, f
 	return fc, nil
 }
 
+func (ec *executionContext) _DeploymentOp_argoHealth(ctx context.Context, field graphql.CollectedField, obj *model.DeploymentOp) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DeploymentOp_argoHealth,
+		func(ctx context.Context) (any, error) {
+			return obj.ArgoHealth, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_DeploymentOp_argoHealth(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DeploymentOp",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DeploymentOp_argoMessage(ctx context.Context, field graphql.CollectedField, obj *model.DeploymentOp) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DeploymentOp_argoMessage,
+		func(ctx context.Context) (any, error) {
+			return obj.ArgoMessage, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_DeploymentOp_argoMessage(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DeploymentOp",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _DetectedService_name(ctx context.Context, field graphql.CollectedField, obj *model.DetectedService) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -2842,6 +2914,10 @@ func (ec *executionContext) fieldContext_Mutation_deploy(ctx context.Context, fi
 				return ec.fieldContext_DeploymentOp_digest(ctx, field)
 			case "error":
 				return ec.fieldContext_DeploymentOp_error(ctx, field)
+			case "argoHealth":
+				return ec.fieldContext_DeploymentOp_argoHealth(ctx, field)
+			case "argoMessage":
+				return ec.fieldContext_DeploymentOp_argoMessage(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type DeploymentOp", field.Name)
 		},
@@ -3098,6 +3174,10 @@ func (ec *executionContext) fieldContext_Project_initialDeploys(_ context.Contex
 				return ec.fieldContext_DeploymentOp_digest(ctx, field)
 			case "error":
 				return ec.fieldContext_DeploymentOp_error(ctx, field)
+			case "argoHealth":
+				return ec.fieldContext_DeploymentOp_argoHealth(ctx, field)
+			case "argoMessage":
+				return ec.fieldContext_DeploymentOp_argoMessage(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type DeploymentOp", field.Name)
 		},
@@ -3631,6 +3711,10 @@ func (ec *executionContext) fieldContext_Query_deployStatus(ctx context.Context,
 				return ec.fieldContext_DeploymentOp_digest(ctx, field)
 			case "error":
 				return ec.fieldContext_DeploymentOp_error(ctx, field)
+			case "argoHealth":
+				return ec.fieldContext_DeploymentOp_argoHealth(ctx, field)
+			case "argoMessage":
+				return ec.fieldContext_DeploymentOp_argoMessage(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type DeploymentOp", field.Name)
 		},
@@ -3704,6 +3788,10 @@ func (ec *executionContext) fieldContext_Query_activeDeployment(ctx context.Cont
 				return ec.fieldContext_DeploymentOp_digest(ctx, field)
 			case "error":
 				return ec.fieldContext_DeploymentOp_error(ctx, field)
+			case "argoHealth":
+				return ec.fieldContext_DeploymentOp_argoHealth(ctx, field)
+			case "argoMessage":
+				return ec.fieldContext_DeploymentOp_argoMessage(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type DeploymentOp", field.Name)
 		},
@@ -6351,6 +6439,10 @@ func (ec *executionContext) _DeploymentOp(ctx context.Context, sel ast.Selection
 			out.Values[i] = ec._DeploymentOp_digest(ctx, field, obj)
 		case "error":
 			out.Values[i] = ec._DeploymentOp_error(ctx, field, obj)
+		case "argoHealth":
+			out.Values[i] = ec._DeploymentOp_argoHealth(ctx, field, obj)
+		case "argoMessage":
+			out.Values[i] = ec._DeploymentOp_argoMessage(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}

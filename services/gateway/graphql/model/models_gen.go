@@ -76,6 +76,10 @@ type DeploymentOp struct {
 	ImageRef *string     `json:"imageRef,omitempty"`
 	Digest   *string     `json:"digest,omitempty"`
 	Error    *string     `json:"error,omitempty"`
+	// ArgoCD health status: Healthy, Progressing, Degraded, etc.
+	ArgoHealth *string `json:"argoHealth,omitempty"`
+	// ArgoCD health message with details like ImagePullBackOff, CrashLoopBackOff.
+	ArgoMessage *string `json:"argoMessage,omitempty"`
 }
 
 type DetectedService struct {

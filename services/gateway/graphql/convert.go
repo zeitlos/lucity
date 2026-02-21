@@ -149,6 +149,12 @@ func convertDeploymentOp(d handler.DeployOp) model.DeploymentOp {
 	if d.Error != "" {
 		op.Error = &d.Error
 	}
+	if d.ArgoHealth != "" {
+		op.ArgoHealth = &d.ArgoHealth
+	}
+	if d.ArgoMessage != "" {
+		op.ArgoMessage = &d.ArgoMessage
+	}
 	return op
 }
 
