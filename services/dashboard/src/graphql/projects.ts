@@ -62,11 +62,6 @@ export const ProjectQuery = gql`
           imageTag
           ready
           replicas
-          deployment {
-            id
-            imageTag
-            active
-          }
           deployments {
             id
             imageTag
@@ -88,11 +83,6 @@ export const ProjectQuery = gql`
           imageTag
           ready
           replicas
-          deployment {
-            id
-            imageTag
-            active
-          }
           deployments {
             id
             imageTag

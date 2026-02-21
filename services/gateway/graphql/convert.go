@@ -61,7 +61,7 @@ func convertService(s handler.Service) model.Service {
 func convertDetectedService(s handler.DetectedService) model.DetectedService {
 	return model.DetectedService{
 		Name:          s.Name,
-		Provider:      s.Provider,
+		Language:      s.Provider,
 		Framework:     s.Framework,
 		StartCommand:  s.StartCommand,
 		SuggestedPort: s.SuggestedPort,
@@ -99,18 +99,6 @@ func convertServiceInstance(si handler.ServiceInstance) model.ServiceInstance {
 		result.Deployments = append(result.Deployments, convertDeployment(d))
 	}
 
-	// Backward compat: deployment (singular) = first entry from history, or synthesize from imageTag
-	if len(result.Deployments) > 0 {
-		first := result.Deployments[0]
-		result.Deployment = &first
-	} else if si.ImageTag != "" {
-		result.Deployment = &model.Deployment{
-			ID:       si.ImageTag,
-			ImageTag: si.ImageTag,
-			Active:   true,
-		}
-	}
-
 	return result
 }
 
@@ -132,8 +120,8 @@ func convertDeployment(d handler.Deployment) model.Deployment {
 	return dep
 }
 
-func convertDeploymentOp(d handler.DeployOp) model.DeploymentOp {
-	op := model.DeploymentOp{
+func convertDeploymentOp(d handler.DeployOp) model.DeployRun {
+	op := model.DeployRun{
 		ID:    d.ID,
 		Phase: model.DeployPhase(d.Phase),
 	}
@@ -149,11 +137,12 @@ func convertDeploymentOp(d handler.DeployOp) model.DeploymentOp {
 	if d.Error != "" {
 		op.Error = &d.Error
 	}
-	if d.ArgoHealth != "" {
-		op.RolloutHealth = &d.ArgoHealth
+	if d.RolloutHealth != "" {
+		health := model.SyncStatus(d.RolloutHealth)
+		op.RolloutHealth = &health
 	}
-	if d.ArgoMessage != "" {
-		op.RolloutMessage = &d.ArgoMessage
+	if d.RolloutMessage != "" {
+		op.RolloutMessage = &d.RolloutMessage
 	}
 	return op
 }

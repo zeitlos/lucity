@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log/slog"
 
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/packager"
 	"github.com/zeitlos/lucity/services/packager/gitops"
@@ -84,7 +86,7 @@ func (s *Server) ListProjects(ctx context.Context, req *packager.ListProjectsReq
 			GitopsRepoUrl:    proj.RepoURL,
 			Environments:     proj.Environments,
 			EnvironmentInfos: envInfosFromMeta(proj.EnvironmentInfos),
-			CreatedAt:        proj.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+			CreatedAt:        timestamppb.New(proj.CreatedAt),
 			Services:         serviceInfosFromDefs(proj.Services),
 		})
 	}
@@ -117,7 +119,7 @@ func (s *Server) GetProject(ctx context.Context, req *packager.GetProjectRequest
 			GitopsRepoUrl:    proj.RepoURL,
 			Environments:     proj.Environments,
 			EnvironmentInfos: envInfosFromMeta(proj.EnvironmentInfos),
-			CreatedAt:        proj.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+			CreatedAt:        timestamppb.New(proj.CreatedAt),
 			Services:         serviceInfosFromDefs(svcs),
 		},
 	}, nil
@@ -257,7 +259,7 @@ func (s *Server) DeploymentHistory(ctx context.Context, req *packager.Deployment
 		protoEntries = append(protoEntries, &packager.DeploymentHistoryEntry{
 			ImageTag:   e.ImageTag,
 			Revision:   e.Revision,
-			DeployedAt: e.Timestamp.Format("2006-01-02T15:04:05Z07:00"),
+			DeployedAt: timestamppb.New(e.Timestamp),
 			Author:     e.Author,
 		})
 	}

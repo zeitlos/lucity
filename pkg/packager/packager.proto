@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package packager;
 
+import "google/protobuf/timestamp.proto";
+
 option go_package = "./packager";
 
 service PackagerService {
@@ -69,7 +71,7 @@ message ProjectInfo {
   string source_url = 2;
   string gitops_repo_url = 3;
   repeated string environments = 4;         // environment names (kept for backward compat)
-  string created_at = 5;                    // RFC3339
+  google.protobuf.Timestamp created_at = 5;
   repeated ServiceInfo services = 6;        // base service definitions
   repeated EnvironmentInfo environment_infos = 7;  // per-environment service state
 }
@@ -136,8 +138,8 @@ message CreateEnvironmentRequest {
   string environment = 2;
   // Source environment to copy configuration from.
   string from_environment = 3;
-  // Whether this is an ephemeral (PR preview) environment.
-  bool ephemeral = 4;
+  reserved 4;
+  reserved "ephemeral";
 }
 
 message CreateEnvironmentResponse {
@@ -180,7 +182,7 @@ message DeploymentHistoryRequest {
 message DeploymentHistoryEntry {
   string image_tag = 1;
   string revision = 2;       // git commit SHA
-  string deployed_at = 3;    // RFC3339
+  google.protobuf.Timestamp deployed_at = 3;
   string author = 4;
 }
 

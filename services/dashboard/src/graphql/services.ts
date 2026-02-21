@@ -4,7 +4,7 @@ export const DetectServicesQuery = gql`
   query DetectServices($projectId: ID!) {
     detectServices(projectId: $projectId) {
       name
-      provider
+      language
       framework
       startCommand
       suggestedPort

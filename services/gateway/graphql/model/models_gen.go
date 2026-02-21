@@ -60,6 +60,19 @@ type DeployInput struct {
 	ContextPath *string `json:"contextPath,omitempty"`
 }
 
+type DeployRun struct {
+	ID       string      `json:"id"`
+	Phase    DeployPhase `json:"phase"`
+	BuildID  *string     `json:"buildId,omitempty"`
+	ImageRef *string     `json:"imageRef,omitempty"`
+	Digest   *string     `json:"digest,omitempty"`
+	Error    *string     `json:"error,omitempty"`
+	// Rollout health status from the deployment system.
+	RolloutHealth *SyncStatus `json:"rolloutHealth,omitempty"`
+	// Rollout status detail, e.g. ImagePullBackOff, CrashLoopBackOff.
+	RolloutMessage *string `json:"rolloutMessage,omitempty"`
+}
+
 type Deployment struct {
 	ID        string     `json:"id"`
 	ImageTag  string     `json:"imageTag"`
@@ -69,22 +82,9 @@ type Deployment struct {
 	Message   *string    `json:"message,omitempty"`
 }
 
-type DeploymentOp struct {
-	ID       string      `json:"id"`
-	Phase    DeployPhase `json:"phase"`
-	BuildID  *string     `json:"buildId,omitempty"`
-	ImageRef *string     `json:"imageRef,omitempty"`
-	Digest   *string     `json:"digest,omitempty"`
-	Error    *string     `json:"error,omitempty"`
-	// Rollout health: SYNCED, PROGRESSING, DEGRADED, OUT_OF_SYNC, or UNKNOWN.
-	RolloutHealth *string `json:"rolloutHealth,omitempty"`
-	// Rollout status detail, e.g. ImagePullBackOff, CrashLoopBackOff.
-	RolloutMessage *string `json:"rolloutMessage,omitempty"`
-}
-
 type DetectedService struct {
 	Name          string `json:"name"`
-	Provider      string `json:"provider"`
+	Language      string `json:"language"`
 	Framework     string `json:"framework"`
 	StartCommand  string `json:"startCommand"`
 	SuggestedPort int    `json:"suggestedPort"`
@@ -112,13 +112,13 @@ type Mutation struct {
 }
 
 type Project struct {
-	ID             string         `json:"id"`
-	Name           string         `json:"name"`
-	SourceURL      string         `json:"sourceUrl"`
-	Environments   []Environment  `json:"environments"`
-	Services       []Service      `json:"services"`
-	CreatedAt      time.Time      `json:"createdAt"`
-	InitialDeploys []DeploymentOp `json:"initialDeploys,omitempty"`
+	ID             string        `json:"id"`
+	Name           string        `json:"name"`
+	SourceURL      string        `json:"sourceUrl"`
+	Environments   []Environment `json:"environments"`
+	Services       []Service     `json:"services"`
+	CreatedAt      time.Time     `json:"createdAt"`
+	InitialDeploys []DeployRun   `json:"initialDeploys,omitempty"`
 }
 
 type PromoteInput struct {
@@ -146,7 +146,6 @@ type ServiceInstance struct {
 	ImageTag    string       `json:"imageTag"`
 	Ready       bool         `json:"ready"`
 	Replicas    int          `json:"replicas"`
-	Deployment  *Deployment  `json:"deployment,omitempty"`
 	Deployments []Deployment `json:"deployments"`
 }
 

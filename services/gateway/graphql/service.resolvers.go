@@ -58,7 +58,7 @@ func (r *mutationResolver) DeployBuild(ctx context.Context, input model.DeployBu
 }
 
 // Deploy is the resolver for the deploy field.
-func (r *mutationResolver) Deploy(ctx context.Context, input model.DeployInput) (*model.DeploymentOp, error) {
+func (r *mutationResolver) Deploy(ctx context.Context, input model.DeployInput) (*model.DeployRun, error) {
 	gitRef := ""
 	if input.GitRef != nil {
 		gitRef = *input.GitRef
@@ -99,7 +99,7 @@ func (r *queryResolver) BuildStatus(ctx context.Context, id string) (*model.Buil
 }
 
 // DeployStatus is the resolver for the deployStatus field.
-func (r *queryResolver) DeployStatus(ctx context.Context, id string) (*model.DeploymentOp, error) {
+func (r *queryResolver) DeployStatus(ctx context.Context, id string) (*model.DeployRun, error) {
 	d, err := r.API.DeployStatus(ctx, id)
 	if err != nil {
 		return nil, err
@@ -109,7 +109,7 @@ func (r *queryResolver) DeployStatus(ctx context.Context, id string) (*model.Dep
 }
 
 // ActiveDeployment is the resolver for the activeDeployment field.
-func (r *queryResolver) ActiveDeployment(ctx context.Context, projectID string, service string, environment string) (*model.DeploymentOp, error) {
+func (r *queryResolver) ActiveDeployment(ctx context.Context, projectID string, service string, environment string) (*model.DeployRun, error) {
 	d, err := r.API.ActiveDeployment(ctx, projectID, service, environment)
 	if err != nil {
 		return nil, err

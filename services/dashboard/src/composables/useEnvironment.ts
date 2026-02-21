@@ -13,7 +13,7 @@ export interface ServiceInstance {
   imageTag: string;
   ready: boolean;
   replicas: number;
-  deployment: DeploymentInfo | null;
+  deployments: DeploymentInfo[];
 }
 
 export interface Environment {

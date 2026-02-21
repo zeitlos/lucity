@@ -89,7 +89,7 @@ function handleCreateFromPalette() {
 
     <template v-else-if="project">
       <!-- Canvas + Panel overlay -->
-      <div class="relative flex-1 overflow-hidden p-3">
+      <div class="relative flex-1 p-3">
         <!-- Canvas (always full width) -->
         <div class="h-full w-full overflow-hidden rounded-lg border bg-card/80 shadow-sm backdrop-blur-sm [background-image:var(--gradient-card)]">
           <template v-if="project.services.length > 0">
@@ -134,7 +134,8 @@ function handleCreateFromPalette() {
         <Transition name="slide-panel">
           <div
             v-if="logsPanel.isOpen.value"
-            class="absolute inset-y-3 right-3 z-10 w-[55%] shadow-2xl"
+            class="absolute -top-1 -right-1 bottom-6 z-10 shadow-2xl"
+            style="left: calc(45% + 12px + 2rem)"
           >
             <DeploymentLogsPanel
               :deploy-id="logsPanel.deployId.value!"

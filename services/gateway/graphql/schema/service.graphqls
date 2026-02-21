@@ -1,6 +1,6 @@
 type DetectedService {
   name: String!
-  provider: String!
+  language: String!
   framework: String!
   startCommand: String!
   suggestedPort: Int!
@@ -46,15 +46,15 @@ enum BuildPhase {
   FAILED
 }
 
-type DeploymentOp {
+type DeployRun {
   id: ID!
   phase: DeployPhase!
   buildId: String
   imageRef: String
   digest: String
   error: String
-  """Rollout health: SYNCED, PROGRESSING, DEGRADED, OUT_OF_SYNC, or UNKNOWN."""
-  rolloutHealth: String
+  """Rollout health status from the deployment system."""
+  rolloutHealth: SyncStatus
   """Rollout status detail, e.g. ImagePullBackOff, CrashLoopBackOff."""
   rolloutMessage: String
 }
@@ -80,8 +80,8 @@ input DeployInput {
 extend type Query {
   detectServices(projectId: ID!): [DetectedService!]! @hasRole(role: [USER])
   buildStatus(id: ID!): Build @hasRole(role: [USER])
-  deployStatus(id: ID!): DeploymentOp @hasRole(role: [USER])
-  activeDeployment(projectId: ID!, service: String!, environment: String!): DeploymentOp @hasRole(role: [USER])
+  deployStatus(id: ID!): DeployRun @hasRole(role: [USER])
+  activeDeployment(projectId: ID!, service: String!, environment: String!): DeployRun @hasRole(role: [USER])
 }
 
 extend type Mutation {
@@ -89,7 +89,7 @@ extend type Mutation {
   removeService(projectId: ID!, service: String!): Boolean! @hasRole(role: [USER])
   buildService(input: BuildServiceInput!): Build! @hasRole(role: [USER])
   deployBuild(input: DeployBuildInput!): Boolean! @hasRole(role: [USER])
-  deploy(input: DeployInput!): DeploymentOp! @hasRole(role: [USER])
+  deploy(input: DeployInput!): DeployRun! @hasRole(role: [USER])
 }
 
 extend type Subscription {

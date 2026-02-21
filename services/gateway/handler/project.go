@@ -4,13 +4,21 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"strings"
+	"sync"
 	"time"
 
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/builder"
 	"github.com/zeitlos/lucity/pkg/deployer"
+	"github.com/zeitlos/lucity/pkg/labels"
 	"github.com/zeitlos/lucity/pkg/packager"
+)
+
+// gRPC call timeouts. Short for quick lookups, long for operations that
+// clone repos or touch external systems.
+const (
+	grpcTimeout     = 10 * time.Second
+	grpcLongTimeout = 60 * time.Second
 )
 
 type Project struct {
@@ -62,7 +70,9 @@ type Deployment struct {
 func (c *Client) Projects(ctx context.Context) ([]Project, error) {
 	ctx = auth.OutgoingContext(ctx)
 
-	resp, err := c.Packager.ListProjects(ctx, &packager.ListProjectsRequest{})
+	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
+	defer cancel()
+	resp, err := c.Packager.ListProjects(callCtx, &packager.ListProjectsRequest{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list projects: %w", err)
 	}
@@ -80,7 +90,9 @@ func (c *Client) Projects(ctx context.Context) ([]Project, error) {
 func (c *Client) Project(ctx context.Context, id string) (*Project, error) {
 	ctx = auth.OutgoingContext(ctx)
 
-	resp, err := c.Packager.GetProject(ctx, &packager.GetProjectRequest{Project: id})
+	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
+	defer cancel()
+	resp, err := c.Packager.GetProject(callCtx, &packager.GetProjectRequest{Project: id})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get project: %w", err)
 	}
@@ -95,7 +107,9 @@ func (c *Client) CreateProject(ctx context.Context, name, sourceURL string) (*Pr
 	ctx = auth.OutgoingContext(ctx)
 
 	// 1. Create GitOps repo
-	resp, err := c.Packager.InitProject(ctx, &packager.InitProjectRequest{
+	initCtx, initCancel := context.WithTimeout(ctx, grpcLongTimeout)
+	defer initCancel()
+	resp, err := c.Packager.InitProject(initCtx, &packager.InitProjectRequest{
 		Project:   name,
 		SourceUrl: sourceURL,
 	})
@@ -105,7 +119,9 @@ func (c *Client) CreateProject(ctx context.Context, name, sourceURL string) (*Pr
 
 	// 2. Detect services from source repo (non-fatal on failure)
 	var services []Service
-	detectResp, err := c.Builder.DetectServices(ctx, &builder.DetectServicesRequest{
+	detectCtx, detectCancel := context.WithTimeout(ctx, grpcLongTimeout)
+	defer detectCancel()
+	detectResp, err := c.Builder.DetectServices(detectCtx, &builder.DetectServicesRequest{
 		SourceUrl: sourceURL,
 	})
 	if err != nil {
@@ -113,7 +129,8 @@ func (c *Client) CreateProject(ctx context.Context, name, sourceURL string) (*Pr
 	} else {
 		for _, detected := range detectResp.Services {
 			image := deriveImagePath(c.RegistryImagePrefix, name, detected.Name)
-			_, addErr := c.Packager.AddService(ctx, &packager.AddServiceRequest{
+			addCtx, addCancel := context.WithTimeout(ctx, grpcTimeout)
+			_, addErr := c.Packager.AddService(addCtx, &packager.AddServiceRequest{
 				Project:   name,
 				Service:   detected.Name,
 				Image:     image,
@@ -121,6 +138,7 @@ func (c *Client) CreateProject(ctx context.Context, name, sourceURL string) (*Pr
 				Public:    true,
 				Framework: detected.Framework,
 			})
+			addCancel()
 			if addErr != nil {
 				slog.Warn("failed to add detected service", "project", name, "service", detected.Name, "error", addErr)
 				continue
@@ -136,8 +154,10 @@ func (c *Client) CreateProject(ctx context.Context, name, sourceURL string) (*Pr
 	}
 
 	// 3. Deploy the default development environment via ArgoCD
-	ns := namespaceFor(name, "development")
-	_, err = c.Deployer.DeployEnvironment(ctx, &deployer.DeployEnvironmentRequest{
+	ns := labels.NamespaceFor(name, "development")
+	deployCtx, deployCancel := context.WithTimeout(ctx, grpcTimeout)
+	defer deployCancel()
+	_, err = c.Deployer.DeployEnvironment(deployCtx, &deployer.DeployEnvironmentRequest{
 		Project:         name,
 		Environment:     "development",
 		GitopsRepoUrl:   resp.GitopsRepoUrl,
@@ -180,17 +200,21 @@ func (c *Client) DeleteProject(ctx context.Context, id string) (bool, error) {
 	ctx = auth.OutgoingContext(ctx)
 
 	// 1. Fetch project to discover all environments
-	resp, err := c.Packager.GetProject(ctx, &packager.GetProjectRequest{Project: id})
+	getCtx, getCancel := context.WithTimeout(ctx, grpcTimeout)
+	defer getCancel()
+	resp, err := c.Packager.GetProject(getCtx, &packager.GetProjectRequest{Project: id})
 	if err != nil {
 		return false, fmt.Errorf("failed to get project for deletion: %w", err)
 	}
 
 	// 2. Remove ArgoCD Application for each environment (best-effort)
 	for _, env := range resp.Project.Environments {
-		_, err := c.Deployer.RemoveDeployment(ctx, &deployer.RemoveDeploymentRequest{
+		rmCtx, rmCancel := context.WithTimeout(ctx, grpcTimeout)
+		_, err := c.Deployer.RemoveDeployment(rmCtx, &deployer.RemoveDeploymentRequest{
 			Project:     id,
 			Environment: env,
 		})
+		rmCancel()
 		if err != nil {
 			slog.Warn("failed to remove deployment during project deletion",
 				"project", id, "environment", env, "error", err)
@@ -198,7 +222,9 @@ func (c *Client) DeleteProject(ctx context.Context, id string) (bool, error) {
 	}
 
 	// 3. Remove ArgoCD repository credential (best-effort)
-	_, err = c.Deployer.DeleteRepository(ctx, &deployer.DeleteRepositoryRequest{
+	repoCtx, repoCancel := context.WithTimeout(ctx, grpcTimeout)
+	defer repoCancel()
+	_, err = c.Deployer.DeleteRepository(repoCtx, &deployer.DeleteRepositoryRequest{
 		Project: id,
 	})
 	if err != nil {
@@ -207,7 +233,9 @@ func (c *Client) DeleteProject(ctx context.Context, id string) (bool, error) {
 	}
 
 	// 4. Delete GitOps repo
-	_, err = c.Packager.DeleteProject(ctx, &packager.DeleteProjectRequest{Project: id})
+	delCtx, delCancel := context.WithTimeout(ctx, grpcTimeout)
+	defer delCancel()
+	_, err = c.Packager.DeleteProject(delCtx, &packager.DeleteProjectRequest{Project: id})
 	if err != nil {
 		return false, fmt.Errorf("failed to delete project: %w", err)
 	}
@@ -217,7 +245,9 @@ func (c *Client) DeleteProject(ctx context.Context, id string) (bool, error) {
 func (c *Client) CreateEnvironment(ctx context.Context, projectID, name, fromEnvironment string) (*Environment, error) {
 	ctx = auth.OutgoingContext(ctx)
 
-	resp, err := c.Packager.CreateEnvironment(ctx, &packager.CreateEnvironmentRequest{
+	createCtx, createCancel := context.WithTimeout(ctx, grpcLongTimeout)
+	defer createCancel()
+	resp, err := c.Packager.CreateEnvironment(createCtx, &packager.CreateEnvironmentRequest{
 		Project:         projectID,
 		Environment:     name,
 		FromEnvironment: fromEnvironment,
@@ -227,7 +257,9 @@ func (c *Client) CreateEnvironment(ctx context.Context, projectID, name, fromEnv
 	}
 
 	// Deploy the new environment via ArgoCD
-	_, err = c.Deployer.DeployEnvironment(ctx, &deployer.DeployEnvironmentRequest{
+	envDeployCtx, envDeployCancel := context.WithTimeout(ctx, grpcTimeout)
+	defer envDeployCancel()
+	_, err = c.Deployer.DeployEnvironment(envDeployCtx, &deployer.DeployEnvironmentRequest{
 		Project:         projectID,
 		Environment:     name,
 		TargetNamespace: resp.Namespace,
@@ -248,7 +280,9 @@ func (c *Client) DeleteEnvironment(ctx context.Context, projectID, environment s
 	ctx = auth.OutgoingContext(ctx)
 
 	// Remove ArgoCD Application first (cascade deletes managed resources)
-	_, err := c.Deployer.RemoveDeployment(ctx, &deployer.RemoveDeploymentRequest{
+	rmCtx, rmCancel := context.WithTimeout(ctx, grpcTimeout)
+	defer rmCancel()
+	_, err := c.Deployer.RemoveDeployment(rmCtx, &deployer.RemoveDeploymentRequest{
 		Project:     projectID,
 		Environment: environment,
 	})
@@ -257,7 +291,9 @@ func (c *Client) DeleteEnvironment(ctx context.Context, projectID, environment s
 	}
 
 	// Then remove from GitOps repo
-	_, err = c.Packager.DeleteEnvironment(ctx, &packager.DeleteEnvironmentRequest{
+	delEnvCtx, delEnvCancel := context.WithTimeout(ctx, grpcTimeout)
+	defer delEnvCancel()
+	_, err = c.Packager.DeleteEnvironment(delEnvCtx, &packager.DeleteEnvironmentRequest{
 		Project:     projectID,
 		Environment: environment,
 	})
@@ -270,7 +306,9 @@ func (c *Client) DeleteEnvironment(ctx context.Context, projectID, environment s
 func (c *Client) Promote(ctx context.Context, projectID, service, fromEnv, toEnv string) (*ServiceInstance, error) {
 	ctx = auth.OutgoingContext(ctx)
 
-	resp, err := c.Packager.Promote(ctx, &packager.PromoteRequest{
+	promoteCtx, promoteCancel := context.WithTimeout(ctx, grpcLongTimeout)
+	defer promoteCancel()
+	resp, err := c.Packager.Promote(promoteCtx, &packager.PromoteRequest{
 		Project:         projectID,
 		Service:         service,
 		FromEnvironment: fromEnv,
@@ -301,70 +339,76 @@ func (c *Client) Service(ctx context.Context, projectID, name string) (*Service,
 	return nil, nil
 }
 
-// namespaceFor derives the K8s namespace from project and environment.
-// "zeitlos/myapp" + "production" → "myapp-production"
-func namespaceFor(project, environment string) string {
-	parts := strings.SplitN(project, "/", 2)
-	name := project
-	if len(parts) == 2 {
-		name = parts[1]
-	}
-	return name + "-" + environment
-}
-
 // enrichSyncStatus queries the deployer for each environment's ArgoCD sync status.
 // Best-effort: logs warnings on failure and leaves status as "UNKNOWN".
+// Calls are made concurrently to avoid serial N+1 latency.
 func (c *Client) enrichSyncStatus(ctx context.Context, proj *Project) {
+	var wg sync.WaitGroup
 	for i := range proj.Environments {
 		env := &proj.Environments[i]
-		resp, err := c.Deployer.GetDeploymentStatus(ctx, &deployer.GetDeploymentStatusRequest{
-			Project:     proj.ID,
-			Environment: env.Name,
-		})
-		if err != nil {
-			slog.Debug("failed to get deployment status", "project", proj.ID, "environment", env.Name, "error", err)
-			continue
-		}
-		env.SyncStatus = deploymentStatusToString(resp.Status)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			statusCtx, statusCancel := context.WithTimeout(ctx, grpcTimeout)
+			defer statusCancel()
+			resp, err := c.Deployer.GetDeploymentStatus(statusCtx, &deployer.GetDeploymentStatusRequest{
+				Project:     proj.ID,
+				Environment: env.Name,
+			})
+			if err != nil {
+				slog.Debug("failed to get deployment status", "project", proj.ID, "environment", env.Name, "error", err)
+				return
+			}
+			env.SyncStatus = deploymentStatusToString(resp.Status)
+		}()
 	}
+	wg.Wait()
 }
 
 // enrichDeploymentHistory fetches deployment history from the packager for each
 // service instance in every environment and attaches it.
+// Calls are made concurrently — each goroutine writes to its own ServiceInstance.
 func (c *Client) enrichDeploymentHistory(ctx context.Context, proj *Project) {
+	var wg sync.WaitGroup
 	for i := range proj.Environments {
 		env := &proj.Environments[i]
 		for j := range env.Services {
 			si := &env.Services[j]
-			resp, err := c.Packager.DeploymentHistory(ctx, &packager.DeploymentHistoryRequest{
-				Project:     proj.ID,
-				Environment: env.Name,
-				Service:     si.Name,
-			})
-			if err != nil {
-				slog.Debug("failed to get deployment history", "project", proj.ID, "environment", env.Name, "service", si.Name, "error", err)
-				continue
-			}
-
-			for k, e := range resp.Entries {
-				deployedAt, _ := time.Parse(time.RFC3339, e.DeployedAt)
-				si.Deployments = append(si.Deployments, Deployment{
-					ID:        fmt.Sprintf("%s/%s/%s/%d", proj.ID, env.Name, si.Name, k),
-					ImageTag:  e.ImageTag,
-					Active:    k == 0, // first entry is the active deployment
-					Timestamp: deployedAt,
-					Revision:  e.Revision,
-					Message:   fmt.Sprintf("deploy(%s): %s %s", env.Name, si.Name, e.ImageTag),
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				histCtx, histCancel := context.WithTimeout(ctx, grpcTimeout)
+				defer histCancel()
+				resp, err := c.Packager.DeploymentHistory(histCtx, &packager.DeploymentHistoryRequest{
+					Project:     proj.ID,
+					Environment: env.Name,
+					Service:     si.Name,
 				})
-			}
+				if err != nil {
+					slog.Debug("failed to get deployment history", "project", proj.ID, "environment", env.Name, "service", si.Name, "error", err)
+					return
+				}
+
+				for k, e := range resp.Entries {
+					deployedAt := e.DeployedAt.AsTime()
+					si.Deployments = append(si.Deployments, Deployment{
+						ID:        fmt.Sprintf("%s/%s/%s/%d", proj.ID, env.Name, si.Name, k),
+						ImageTag:  e.ImageTag,
+						Active:    k == 0,
+						Timestamp: deployedAt,
+						Revision:  e.Revision,
+						Message:   fmt.Sprintf("deploy(%s): %s %s", env.Name, si.Name, e.ImageTag),
+					})
+				}
+			}()
 		}
 	}
+	wg.Wait()
 
 	// Also attach to the cross-referenced Service.Instances
 	for i, svc := range proj.Services {
 		for j := range svc.Instances {
 			inst := &proj.Services[i].Instances[j]
-			// Find matching env service instance with deployments
 			for _, env := range proj.Environments {
 				for _, esi := range env.Services {
 					if esi.Name == inst.Name && esi.Environment == inst.Environment {
@@ -392,7 +436,7 @@ func deploymentStatusToString(status deployer.DeploymentStatus) string {
 }
 
 func projectFromProto(p *packager.ProjectInfo) Project {
-	createdAt, _ := time.Parse(time.RFC3339, p.CreatedAt)
+	createdAt := p.CreatedAt.AsTime()
 
 	proj := Project{
 		ID:        p.Name,
@@ -411,7 +455,7 @@ func projectFromProto(p *packager.ProjectInfo) Project {
 		env := Environment{
 			ID:         p.Name + "/" + envName,
 			Name:       envName,
-			Namespace:  namespaceFor(p.Name, envName),
+			Namespace:  labels.NamespaceFor(p.Name, envName),
 			SyncStatus: "UNKNOWN",
 		}
 

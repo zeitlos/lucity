@@ -5,7 +5,7 @@ type Project {
   environments: [Environment!]!
   services: [Service!]!
   createdAt: Time!
-  initialDeploys: [DeploymentOp!]
+  initialDeploys: [DeployRun!]
 }
 
 type Environment {
@@ -32,7 +32,6 @@ type ServiceInstance {
   imageTag: String!
   ready: Boolean!
   replicas: Int!
-  deployment: Deployment
   deployments: [Deployment!]!
 }
 
@@ -79,7 +78,7 @@ extend type Query {
 
 extend type Mutation {
   createProject(input: CreateProjectInput!): Project! @hasRole(role: [USER])
-  deleteProject(id: ID!): Boolean! @hasRole(role: [USER])
+  deleteProject(id: ID!): Boolean! @hasRole(role: [ADMIN])
   createEnvironment(input: CreateEnvironmentInput!): Environment! @hasRole(role: [USER])
   deleteEnvironment(projectId: ID!, environment: String!): Boolean! @hasRole(role: [USER])
   promote(input: PromoteInput!): ServiceInstance! @hasRole(role: [USER])

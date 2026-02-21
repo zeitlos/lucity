@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/zeitlos/lucity/pkg/deployer"
+	"github.com/zeitlos/lucity/pkg/labels"
 	"github.com/zeitlos/lucity/services/deployer/argocd"
 )
 
@@ -164,22 +165,12 @@ func (s *Server) SyncDeployment(ctx context.Context, req *deployer.SyncDeploymen
 // applicationName derives the ArgoCD Application name from project and environment.
 // "zeitlos/myapp" + "production" → "myapp-production"
 func applicationName(project, environment string) string {
-	parts := strings.SplitN(project, "/", 2)
-	name := project
-	if len(parts) == 2 {
-		name = parts[1]
-	}
-	return name + "-" + environment
+	return labels.NamespaceFor(project, environment)
 }
 
 // repoURL returns the Soft-serve HTTP clone URL for a project's GitOps repo.
 func (s *Server) repoURL(project string) string {
-	parts := strings.SplitN(project, "/", 2)
-	name := project
-	if len(parts) == 2 {
-		name = parts[1]
-	}
-	return strings.TrimSuffix(s.softServeHTTP, "/") + "/" + name + "-gitops.git"
+	return strings.TrimSuffix(s.softServeHTTP, "/") + "/" + labels.ShortName(project) + "-gitops.git"
 }
 
 // mapStatus converts ArgoCD health/sync status to proto DeploymentStatus.

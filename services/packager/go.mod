@@ -7,6 +7,7 @@ replace (
 	github.com/zeitlos/lucity/pkg/auth => ../../pkg/auth
 	github.com/zeitlos/lucity/pkg/github => ../../pkg/github
 	github.com/zeitlos/lucity/pkg/graceful => ../../pkg/graceful
+	github.com/zeitlos/lucity/pkg/labels => ../../pkg/labels
 	github.com/zeitlos/lucity/pkg/logger => ../../pkg/logger
 	github.com/zeitlos/lucity/pkg/packager => ../../pkg/packager
 )
@@ -18,6 +19,7 @@ require (
 	github.com/zeitlos/lucity/charts v0.0.0-00010101000000-000000000000
 	github.com/zeitlos/lucity/pkg/auth v0.0.0-00010101000000-000000000000
 	github.com/zeitlos/lucity/pkg/graceful v0.0.0-00010101000000-000000000000
+	github.com/zeitlos/lucity/pkg/labels v0.0.0-00010101000000-000000000000
 	github.com/zeitlos/lucity/pkg/logger v0.0.0-00010101000000-000000000000
 	github.com/zeitlos/lucity/pkg/packager v0.0.0-00010101000000-000000000000
 	golang.org/x/crypto v0.46.0

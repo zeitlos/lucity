@@ -37,13 +37,17 @@ func (c *Client) DetectServices(ctx context.Context, projectID string) ([]Detect
 	ctx = auth.OutgoingContext(ctx)
 
 	// Get source URL from packager
-	resp, err := c.Packager.GetProject(ctx, &packager.GetProjectRequest{Project: projectID})
+	getCtx, getCancel := context.WithTimeout(ctx, grpcTimeout)
+	defer getCancel()
+	resp, err := c.Packager.GetProject(getCtx, &packager.GetProjectRequest{Project: projectID})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get project: %w", err)
 	}
 
-	// Call builder to detect services
-	detectResp, err := c.Builder.DetectServices(ctx, &builder.DetectServicesRequest{
+	// Call builder to detect services (long — clones repo)
+	detectCtx, detectCancel := context.WithTimeout(ctx, grpcLongTimeout)
+	defer detectCancel()
+	detectResp, err := c.Builder.DetectServices(detectCtx, &builder.DetectServicesRequest{
 		SourceUrl: resp.Project.SourceUrl,
 	})
 	if err != nil {
@@ -69,7 +73,9 @@ func (c *Client) AddService(ctx context.Context, projectID, name string, port in
 	// Derive image path using cluster-internal address so pods can pull it.
 	image := deriveImagePath(c.RegistryImagePrefix, projectID, name)
 
-	_, err := c.Packager.AddService(ctx, &packager.AddServiceRequest{
+	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
+	defer cancel()
+	_, err := c.Packager.AddService(callCtx, &packager.AddServiceRequest{
 		Project:   projectID,
 		Service:   name,
 		Image:     image,
@@ -93,7 +99,9 @@ func (c *Client) AddService(ctx context.Context, projectID, name string, port in
 func (c *Client) RemoveService(ctx context.Context, projectID, service string) (bool, error) {
 	ctx = auth.OutgoingContext(ctx)
 
-	_, err := c.Packager.RemoveService(ctx, &packager.RemoveServiceRequest{
+	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
+	defer cancel()
+	_, err := c.Packager.RemoveService(callCtx, &packager.RemoveServiceRequest{
 		Project: projectID,
 		Service: service,
 	})
@@ -107,14 +115,18 @@ func (c *Client) StartBuild(ctx context.Context, projectID, service, gitRef, con
 	ctx = auth.OutgoingContext(ctx)
 
 	// Get source URL and image path from packager
-	resp, err := c.Packager.GetProject(ctx, &packager.GetProjectRequest{Project: projectID})
+	getCtx, getCancel := context.WithTimeout(ctx, grpcTimeout)
+	defer getCancel()
+	resp, err := c.Packager.GetProject(getCtx, &packager.GetProjectRequest{Project: projectID})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get project: %w", err)
 	}
 
 	registry := deriveImagePath(c.RegistryPushURL, projectID, service)
 
-	buildResp, err := c.Builder.StartBuild(ctx, &builder.StartBuildRequest{
+	buildCtx, buildCancel := context.WithTimeout(ctx, grpcTimeout)
+	defer buildCancel()
+	buildResp, err := c.Builder.StartBuild(buildCtx, &builder.StartBuildRequest{
 		SourceUrl:   resp.Project.SourceUrl,
 		GitRef:      gitRef,
 		Service:     service,
@@ -134,7 +146,9 @@ func (c *Client) StartBuild(ctx context.Context, projectID, service, gitRef, con
 func (c *Client) BuildStatus(ctx context.Context, buildID string) (*Build, error) {
 	ctx = auth.OutgoingContext(ctx)
 
-	resp, err := c.Builder.BuildStatus(ctx, &builder.BuildStatusRequest{BuildId: buildID})
+	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
+	defer cancel()
+	resp, err := c.Builder.BuildStatus(callCtx, &builder.BuildStatusRequest{BuildId: buildID})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get build status: %w", err)
 	}
@@ -151,7 +165,9 @@ func (c *Client) BuildStatus(ctx context.Context, buildID string) (*Build, error
 func (c *Client) DeployBuild(ctx context.Context, projectID, service, environment, tag, digest string) (bool, error) {
 	ctx = auth.OutgoingContext(ctx)
 
-	_, err := c.Packager.UpdateImageTag(ctx, &packager.UpdateImageTagRequest{
+	updateCtx, updateCancel := context.WithTimeout(ctx, grpcTimeout)
+	defer updateCancel()
+	_, err := c.Packager.UpdateImageTag(updateCtx, &packager.UpdateImageTagRequest{
 		Project:     projectID,
 		Environment: environment,
 		Service:     service,
@@ -163,7 +179,9 @@ func (c *Client) DeployBuild(ctx context.Context, projectID, service, environmen
 	}
 
 	// Trigger ArgoCD sync (best-effort — auto-sync will pick it up anyway)
-	_, err = c.Deployer.SyncDeployment(ctx, &deployer.SyncDeploymentRequest{
+	syncCtx, syncCancel := context.WithTimeout(ctx, grpcTimeout)
+	defer syncCancel()
+	_, err = c.Deployer.SyncDeployment(syncCtx, &deployer.SyncDeploymentRequest{
 		Project:     projectID,
 		Environment: environment,
 	})
@@ -214,8 +232,8 @@ type DeployOp struct {
 	ImageRef    string
 	Digest      string
 	Error       string
-	ArgoHealth  string
-	ArgoMessage string
+	RolloutHealth  string
+	RolloutMessage string
 }
 
 func deployOpFromState(s *deploy.State) *DeployOp {
@@ -226,8 +244,8 @@ func deployOpFromState(s *deploy.State) *DeployOp {
 		ImageRef:    s.ImageRef,
 		Digest:      s.Digest,
 		Error:       s.Error,
-		ArgoHealth:  s.ArgoHealth,
-		ArgoMessage: s.ArgoMessage,
+		RolloutHealth:  s.RolloutHealth,
+		RolloutMessage: s.RolloutMessage,
 	}
 }
 
@@ -237,7 +255,9 @@ func (c *Client) Deploy(ctx context.Context, projectID, service, environment, gi
 	ctx = auth.OutgoingContext(ctx)
 
 	// Get source URL from packager
-	resp, err := c.Packager.GetProject(ctx, &packager.GetProjectRequest{Project: projectID})
+	getCtx, getCancel := context.WithTimeout(ctx, grpcTimeout)
+	defer getCancel()
+	resp, err := c.Packager.GetProject(getCtx, &packager.GetProjectRequest{Project: projectID})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get project: %w", err)
 	}
@@ -245,7 +265,9 @@ func (c *Client) Deploy(ctx context.Context, projectID, service, environment, gi
 	registry := deriveImagePath(c.RegistryPushURL, projectID, service)
 
 	// Start the build
-	buildResp, err := c.Builder.StartBuild(ctx, &builder.StartBuildRequest{
+	startCtx, startCancel := context.WithTimeout(ctx, grpcTimeout)
+	defer startCancel()
+	buildResp, err := c.Builder.StartBuild(startCtx, &builder.StartBuildRequest{
 		SourceUrl:   resp.Project.SourceUrl,
 		GitRef:      gitRef,
 		Service:     service,
@@ -286,6 +308,10 @@ func (c *Client) ActiveDeployment(ctx context.Context, projectID, service, envir
 	return deployOpFromState(s), nil
 }
 
+// maxBuildDuration is the maximum time to wait for a build to complete
+// before failing the deploy. Prevents goroutine leaks from hung builds.
+const maxBuildDuration = 30 * time.Minute
+
 // runDeploy streams build logs from the builder and, on success, deploys the image.
 func (c *Client) runDeploy(token, deployID, projectID, service, environment, buildID string) {
 	ctx := auth.WithToken(context.Background(), token)
@@ -297,7 +323,8 @@ func (c *Client) runDeploy(token, deployID, projectID, service, environment, bui
 	go c.streamBuildLogs(ctx, deployID, buildID)
 
 	// Poll build status for phase transitions.
-	for {
+	deadline := time.Now().Add(maxBuildDuration)
+	for time.Now().Before(deadline) {
 		time.Sleep(2 * time.Second)
 
 		status, err := c.Builder.BuildStatus(ctx, &builder.BuildStatusRequest{BuildId: buildID})
@@ -321,6 +348,11 @@ func (c *Client) runDeploy(token, deployID, projectID, service, environment, bui
 			return
 		}
 	}
+
+	// Build timed out — fail the deploy to prevent goroutine leaks.
+	c.DeployTracker.AppendLog(deployID, fmt.Sprintf("Build timed out after %s", maxBuildDuration))
+	c.DeployTracker.Fail(deployID, fmt.Sprintf("build timed out after %s", maxBuildDuration))
+	slog.Error("deploy: build timed out", "deployId", deployID, "buildId", buildID, "timeout", maxBuildDuration)
 }
 
 // streamBuildLogs opens a gRPC stream to the builder and forwards log lines
@@ -394,7 +426,7 @@ func (c *Client) finalizeDeploy(ctx context.Context, deployID, projectID, servic
 		}
 
 		health := deploymentStatusToString(resp.Status)
-		c.DeployTracker.UpdateArgoHealth(deployID, health, resp.Message)
+		c.DeployTracker.UpdateRolloutHealth(deployID, health, resp.Message)
 
 		// Log health changes.
 		if health != lastHealth {

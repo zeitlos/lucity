@@ -29,9 +29,9 @@ type State struct {
 	Service     string
 	Environment string
 
-	// ArgoCD health status, populated during DEPLOYING phase and after SUCCEEDED.
-	ArgoHealth  string // "Healthy", "Progressing", "Degraded", "Missing", "Unknown"
-	ArgoMessage string // detailed reason, e.g. "ImagePullBackOff on web-abc123"
+	// Rollout health status, populated during DEPLOYING phase and after SUCCEEDED.
+	RolloutHealth  string // SYNCED, PROGRESSING, DEGRADED, OUT_OF_SYNC, UNKNOWN
+	RolloutMessage string // detailed reason, e.g. "ImagePullBackOff on web-abc123"
 
 	logs      []string
 	listeners []chan string
@@ -138,13 +138,13 @@ func (t *Tracker) Fail(id, errMsg string) {
 	}
 }
 
-// UpdateArgoHealth updates the ArgoCD health status for a deploy.
-func (t *Tracker) UpdateArgoHealth(id, health, message string) {
+// UpdateRolloutHealth updates the rollout health status for a deploy.
+func (t *Tracker) UpdateRolloutHealth(id, health, message string) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	if s := t.deploys[id]; s != nil {
-		s.ArgoHealth = health
-		s.ArgoMessage = message
+		s.RolloutHealth = health
+		s.RolloutMessage = message
 	}
 }
 

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/zeitlos/lucity/pkg/labels"
 )
 
 // RepoSuffix is appended to project names to form GitOps repo names.
@@ -127,19 +129,11 @@ type ProjectMeta struct {
 
 // SplitProject splits "org/name" into org and name.
 func SplitProject(project string) (org, name string, err error) {
-	parts := strings.SplitN(project, "/", 2)
-	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-		return "", "", fmt.Errorf("invalid project name %q: must be org/name", project)
-	}
-	return parts[0], parts[1], nil
+	return labels.SplitProject(project)
 }
 
 // NamespaceFor derives the K8s namespace from a project and environment name.
 // "zeitlos/myapp" + "production" → "myapp-production"
 func NamespaceFor(project, environment string) string {
-	_, name, err := SplitProject(project)
-	if err != nil {
-		return project + "-" + environment
-	}
-	return name + "-" + environment
+	return labels.NamespaceFor(project, environment)
 }
