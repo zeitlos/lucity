@@ -77,7 +77,7 @@ test-integration-short:
 minikube:
 	minikube start --insecure-registry="10.96.0.0/12"
 
-# Set up local DNS so *.lucity.app resolves to 127.0.0.1 (requires Homebrew)
+# Set up local DNS so *.lucity.local resolves to 127.0.0.1 (requires Homebrew)
 # Run once — survives reboots. Uses dnsmasq on port 5380 (unprivileged) with
 # macOS /etc/resolver pointing to it. No root needed for dnsmasq itself.
 dns:
@@ -89,16 +89,16 @@ dns:
 		echo "port=5380" >> /opt/homebrew/etc/dnsmasq.conf; \
 		echo "Set dnsmasq to listen on port 5380."; \
 	fi
-	@if ! grep -q 'address=/lucity.app/' /opt/homebrew/etc/dnsmasq.conf 2>/dev/null; then \
-		echo "address=/lucity.app/127.0.0.1" >> /opt/homebrew/etc/dnsmasq.conf; \
-		echo "Added *.lucity.app → 127.0.0.1 to dnsmasq config."; \
+	@if ! grep -q 'address=/lucity.local/' /opt/homebrew/etc/dnsmasq.conf 2>/dev/null; then \
+		echo "address=/lucity.local/127.0.0.1" >> /opt/homebrew/etc/dnsmasq.conf; \
+		echo "Added *.lucity.local → 127.0.0.1 to dnsmasq config."; \
 	else \
-		echo "dnsmasq already configured for *.lucity.app."; \
+		echo "dnsmasq already configured for *.lucity.local."; \
 	fi
 	@sudo mkdir -p /etc/resolver
-	@printf "nameserver 127.0.0.1\nport 5380\n" | sudo tee /etc/resolver/lucity.app > /dev/null
+	@printf "nameserver 127.0.0.1\nport 5380\n" | sudo tee /etc/resolver/lucity.local > /dev/null
 	@brew services restart dnsmasq
-	@echo "Done. All *.lucity.app domains now resolve to 127.0.0.1."
+	@echo "Done. All *.lucity.local domains now resolve to 127.0.0.1."
 
 # Deploy infrastructure (Zot + Soft-serve + ArgoCD + Envoy Gateway + CNPG) to a cluster
 # Envoy Gateway is installed separately — it needs its own namespace for cert management.
