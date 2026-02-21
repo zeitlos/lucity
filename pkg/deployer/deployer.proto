@@ -19,6 +19,9 @@ service DeployerService {
 
   // DeleteRepository removes the ArgoCD repository credential for a project.
   rpc DeleteRepository(DeleteRepositoryRequest) returns (DeleteRepositoryResponse);
+
+  // ServiceLogs streams real-time stdout/stderr from running pods for a service.
+  rpc ServiceLogs(ServiceLogsRequest) returns (stream ServiceLogEntry);
 }
 
 message DeployEnvironmentRequest {
@@ -72,3 +75,18 @@ message DeleteRepositoryRequest {
 }
 
 message DeleteRepositoryResponse {}
+
+message ServiceLogsRequest {
+  string project = 1;
+  string environment = 2;
+  string service = 3;
+  // Number of recent log lines to include at the start. 0 = no history.
+  int32 tail_lines = 4;
+}
+
+message ServiceLogEntry {
+  // Log line text.
+  string line = 1;
+  // Pod name that produced this line.
+  string pod = 2;
+}

@@ -24,6 +24,7 @@ const (
 	DeployerService_GetDeploymentStatus_FullMethodName = "/deployer.DeployerService/GetDeploymentStatus"
 	DeployerService_SyncDeployment_FullMethodName      = "/deployer.DeployerService/SyncDeployment"
 	DeployerService_DeleteRepository_FullMethodName    = "/deployer.DeployerService/DeleteRepository"
+	DeployerService_ServiceLogs_FullMethodName         = "/deployer.DeployerService/ServiceLogs"
 )
 
 // DeployerServiceClient is the client API for DeployerService service.
@@ -40,6 +41,8 @@ type DeployerServiceClient interface {
 	SyncDeployment(ctx context.Context, in *SyncDeploymentRequest, opts ...grpc.CallOption) (*SyncDeploymentResponse, error)
 	// DeleteRepository removes the ArgoCD repository credential for a project.
 	DeleteRepository(ctx context.Context, in *DeleteRepositoryRequest, opts ...grpc.CallOption) (*DeleteRepositoryResponse, error)
+	// ServiceLogs streams real-time stdout/stderr from running pods for a service.
+	ServiceLogs(ctx context.Context, in *ServiceLogsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ServiceLogEntry], error)
 }
 
 type deployerServiceClient struct {
@@ -100,6 +103,25 @@ func (c *deployerServiceClient) DeleteRepository(ctx context.Context, in *Delete
 	return out, nil
 }
 
+func (c *deployerServiceClient) ServiceLogs(ctx context.Context, in *ServiceLogsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ServiceLogEntry], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &DeployerService_ServiceDesc.Streams[0], DeployerService_ServiceLogs_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[ServiceLogsRequest, ServiceLogEntry]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type DeployerService_ServiceLogsClient = grpc.ServerStreamingClient[ServiceLogEntry]
+
 // DeployerServiceServer is the server API for DeployerService service.
 // All implementations must embed UnimplementedDeployerServiceServer
 // for forward compatibility.
@@ -114,6 +136,8 @@ type DeployerServiceServer interface {
 	SyncDeployment(context.Context, *SyncDeploymentRequest) (*SyncDeploymentResponse, error)
 	// DeleteRepository removes the ArgoCD repository credential for a project.
 	DeleteRepository(context.Context, *DeleteRepositoryRequest) (*DeleteRepositoryResponse, error)
+	// ServiceLogs streams real-time stdout/stderr from running pods for a service.
+	ServiceLogs(*ServiceLogsRequest, grpc.ServerStreamingServer[ServiceLogEntry]) error
 	mustEmbedUnimplementedDeployerServiceServer()
 }
 
@@ -138,6 +162,9 @@ func (UnimplementedDeployerServiceServer) SyncDeployment(context.Context, *SyncD
 }
 func (UnimplementedDeployerServiceServer) DeleteRepository(context.Context, *DeleteRepositoryRequest) (*DeleteRepositoryResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteRepository not implemented")
+}
+func (UnimplementedDeployerServiceServer) ServiceLogs(*ServiceLogsRequest, grpc.ServerStreamingServer[ServiceLogEntry]) error {
+	return status.Errorf(codes.Unimplemented, "method ServiceLogs not implemented")
 }
 func (UnimplementedDeployerServiceServer) mustEmbedUnimplementedDeployerServiceServer() {}
 func (UnimplementedDeployerServiceServer) testEmbeddedByValue()                         {}
@@ -250,6 +277,17 @@ func _DeployerService_DeleteRepository_Handler(srv interface{}, ctx context.Cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _DeployerService_ServiceLogs_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(ServiceLogsRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(DeployerServiceServer).ServiceLogs(m, &grpc.GenericServerStream[ServiceLogsRequest, ServiceLogEntry]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type DeployerService_ServiceLogsServer = grpc.ServerStreamingServer[ServiceLogEntry]
+
 // DeployerService_ServiceDesc is the grpc.ServiceDesc for DeployerService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -278,6 +316,12 @@ var DeployerService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _DeployerService_DeleteRepository_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "ServiceLogs",
+			Handler:       _DeployerService_ServiceLogs_Handler,
+			ServerStreams: true,
+		},
+	},
 	Metadata: "deployer.proto",
 }

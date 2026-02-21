@@ -148,6 +148,13 @@ type ServiceInstance struct {
 	Deployments []Deployment `json:"deployments"`
 }
 
+type ServiceLogEntry struct {
+	// Log line text. Prefixed with [pod-suffix] when multiple replicas exist.
+	Line string `json:"line"`
+	// Name of the pod that produced this line.
+	Pod string `json:"pod"`
+}
+
 type ServiceVariable struct {
 	Key        string `json:"key"`
 	Value      string `json:"value"`

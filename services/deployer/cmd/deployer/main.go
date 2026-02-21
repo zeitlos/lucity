@@ -5,6 +5,9 @@ import (
 	"os"
 
 	"github.com/kelseyhightower/envconfig"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/zeitlos/lucity/pkg/graceful"
 	"github.com/zeitlos/lucity/pkg/logger"
@@ -21,6 +24,7 @@ type Config struct {
 	SoftServeHTTP        string `envconfig:"SOFTSERVE_HTTP_ADDR" default:"http://lucity-infra-soft-serve.lucity-system.svc.cluster.local:23232"`
 	SoftServeClusterHTTP string `envconfig:"SOFTSERVE_CLUSTER_HTTP_ADDR"`
 	SoftServeToken       string `envconfig:"SOFTSERVE_TOKEN"`
+	Kubeconfig           string `envconfig:"KUBECONFIG"`
 }
 
 func main() {
@@ -39,7 +43,29 @@ func main() {
 		clusterHTTP = config.SoftServeHTTP
 	}
 
-	svc := deployergrpc.NewServer(argoClient, clusterHTTP, config.SoftServeToken)
+	// Build K8s config: in-cluster when running in K8s, kubeconfig for local dev.
+	var k8sConfig *rest.Config
+	var k8sErr error
+	if config.Kubeconfig != "" {
+		k8sConfig, k8sErr = clientcmd.BuildConfigFromFlags("", config.Kubeconfig)
+	} else {
+		k8sConfig, k8sErr = rest.InClusterConfig()
+		if k8sErr != nil {
+			k8sConfig, k8sErr = clientcmd.BuildConfigFromFlags("", clientcmd.RecommendedHomeFile)
+		}
+	}
+	if k8sErr != nil {
+		slog.Error("failed to create k8s config", "error", k8sErr)
+		os.Exit(1)
+	}
+
+	k8sClient, err := kubernetes.NewForConfig(k8sConfig)
+	if err != nil {
+		slog.Error("failed to create k8s client", "error", err)
+		os.Exit(1)
+	}
+
+	svc := deployergrpc.NewServer(argoClient, clusterHTTP, config.SoftServeToken, k8sClient)
 	grpcServer := deployergrpc.NewGRPCServer(":"+config.Port, svc)
 
 	ctx, cancel := graceful.Context()

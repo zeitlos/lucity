@@ -163,6 +163,11 @@ type ComplexityRoot struct {
 		Replicas    func(childComplexity int) int
 	}
 
+	ServiceLogEntry struct {
+		Line func(childComplexity int) int
+		Pod  func(childComplexity int) int
+	}
+
 	ServiceVariable struct {
 		FromShared func(childComplexity int) int
 		Key        func(childComplexity int) int
@@ -170,7 +175,8 @@ type ComplexityRoot struct {
 	}
 
 	Subscription struct {
-		DeployLogs func(childComplexity int, id string) int
+		DeployLogs  func(childComplexity int, id string) int
+		ServiceLogs func(childComplexity int, projectID string, service string, environment string, tailLines *int) int
 	}
 
 	User struct {
@@ -215,6 +221,7 @@ type QueryResolver interface {
 	ServiceVariables(ctx context.Context, projectID string, environment string, service string) ([]model.ServiceVariable, error)
 }
 type SubscriptionResolver interface {
+	ServiceLogs(ctx context.Context, projectID string, service string, environment string, tailLines *int) (<-chan *model.ServiceLogEntry, error)
 	DeployLogs(ctx context.Context, id string) (<-chan string, error)
 }
 
@@ -827,6 +834,19 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.ServiceInstance.Replicas(childComplexity), true
 
+	case "ServiceLogEntry.line":
+		if e.complexity.ServiceLogEntry.Line == nil {
+			break
+		}
+
+		return e.complexity.ServiceLogEntry.Line(childComplexity), true
+	case "ServiceLogEntry.pod":
+		if e.complexity.ServiceLogEntry.Pod == nil {
+			break
+		}
+
+		return e.complexity.ServiceLogEntry.Pod(childComplexity), true
+
 	case "ServiceVariable.fromShared":
 		if e.complexity.ServiceVariable.FromShared == nil {
 			break
@@ -857,6 +877,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Subscription.DeployLogs(childComplexity, args["id"].(string)), true
+	case "Subscription.serviceLogs":
+		if e.complexity.Subscription.ServiceLogs == nil {
+			break
+		}
+
+		args, err := ec.field_Subscription_serviceLogs_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Subscription.ServiceLogs(childComplexity, args["projectId"].(string), args["service"].(string), args["environment"].(string), args["tailLines"].(*int)), true
 
 	case "User.avatarUrl":
 		if e.complexity.User.AvatarURL == nil {
@@ -1027,7 +1058,7 @@ func (ec *executionContext) introspectType(name string) (*introspection.Type, er
 	return introspection.WrapTypeFromDef(ec.Schema(), ec.Schema().Types[name]), nil
 }
 
-//go:embed "schema/auth.graphqls" "schema/github.graphqls" "schema/project.graphqls" "schema/schema.graphqls" "schema/service.graphqls" "schema/variable.graphqls"
+//go:embed "schema/auth.graphqls" "schema/github.graphqls" "schema/logs.graphqls" "schema/project.graphqls" "schema/schema.graphqls" "schema/service.graphqls" "schema/variable.graphqls"
 var sourcesFS embed.FS
 
 func sourceData(filename string) string {
@@ -1041,6 +1072,7 @@ func sourceData(filename string) string {
 var sources = []*ast.Source{
 	{Name: "schema/auth.graphqls", Input: sourceData("schema/auth.graphqls"), BuiltIn: false},
 	{Name: "schema/github.graphqls", Input: sourceData("schema/github.graphqls"), BuiltIn: false},
+	{Name: "schema/logs.graphqls", Input: sourceData("schema/logs.graphqls"), BuiltIn: false},
 	{Name: "schema/project.graphqls", Input: sourceData("schema/project.graphqls"), BuiltIn: false},
 	{Name: "schema/schema.graphqls", Input: sourceData("schema/schema.graphqls"), BuiltIn: false},
 	{Name: "schema/service.graphqls", Input: sourceData("schema/service.graphqls"), BuiltIn: false},
@@ -1389,6 +1421,32 @@ func (ec *executionContext) field_Subscription_deployLogs_args(ctx context.Conte
 		return nil, err
 	}
 	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Subscription_serviceLogs_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "projectId", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["projectId"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "service", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["service"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "environment", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["environment"] = arg2
+	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "tailLines", ec.unmarshalOInt2ᚖint)
+	if err != nil {
+		return nil, err
+	}
+	args["tailLines"] = arg3
 	return args, nil
 }
 
@@ -4847,6 +4905,64 @@ func (ec *executionContext) fieldContext_ServiceInstance_deployments(_ context.C
 	return fc, nil
 }
 
+func (ec *executionContext) _ServiceLogEntry_line(ctx context.Context, field graphql.CollectedField, obj *model.ServiceLogEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ServiceLogEntry_line,
+		func(ctx context.Context) (any, error) {
+			return obj.Line, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ServiceLogEntry_line(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ServiceLogEntry",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ServiceLogEntry_pod(ctx context.Context, field graphql.CollectedField, obj *model.ServiceLogEntry) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ServiceLogEntry_pod,
+		func(ctx context.Context) (any, error) {
+			return obj.Pod, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ServiceLogEntry_pod(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ServiceLogEntry",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _ServiceVariable_key(ctx context.Context, field graphql.CollectedField, obj *model.ServiceVariable) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -4930,6 +5046,71 @@ func (ec *executionContext) fieldContext_ServiceVariable_fromShared(_ context.Co
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Boolean does not have child fields")
 		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Subscription_serviceLogs(ctx context.Context, field graphql.CollectedField) (ret func(ctx context.Context) graphql.Marshaler) {
+	return graphql.ResolveFieldStream(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Subscription_serviceLogs,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Subscription().ServiceLogs(ctx, fc.Args["projectId"].(string), fc.Args["service"].(string), fc.Args["environment"].(string), fc.Args["tailLines"].(*int))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				if err != nil {
+					var zeroVal *model.ServiceLogEntry
+					return zeroVal, err
+				}
+				if ec.directives.HasRole == nil {
+					var zeroVal *model.ServiceLogEntry
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNServiceLogEntry2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐServiceLogEntry,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Subscription_serviceLogs(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Subscription",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "line":
+				return ec.fieldContext_ServiceLogEntry_line(ctx, field)
+			case "pod":
+				return ec.fieldContext_ServiceLogEntry_pod(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ServiceLogEntry", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Subscription_serviceLogs_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
 	}
 	return fc, nil
 }
@@ -8076,6 +8257,50 @@ func (ec *executionContext) _ServiceInstance(ctx context.Context, sel ast.Select
 	return out
 }
 
+var serviceLogEntryImplementors = []string{"ServiceLogEntry"}
+
+func (ec *executionContext) _ServiceLogEntry(ctx context.Context, sel ast.SelectionSet, obj *model.ServiceLogEntry) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, serviceLogEntryImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ServiceLogEntry")
+		case "line":
+			out.Values[i] = ec._ServiceLogEntry_line(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "pod":
+			out.Values[i] = ec._ServiceLogEntry_pod(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var serviceVariableImplementors = []string{"ServiceVariable"}
 
 func (ec *executionContext) _ServiceVariable(ctx context.Context, sel ast.SelectionSet, obj *model.ServiceVariable) graphql.Marshaler {
@@ -8138,6 +8363,8 @@ func (ec *executionContext) _Subscription(ctx context.Context, sel ast.Selection
 	}
 
 	switch fields[0].Name {
+	case "serviceLogs":
+		return ec._Subscription_serviceLogs(ctx, fields[0])
 	case "deployLogs":
 		return ec._Subscription_deployLogs(ctx, fields[0])
 	default:
@@ -9146,6 +9373,20 @@ func (ec *executionContext) marshalNServiceInstance2ᚖgithubᚗcomᚋzeitlosᚋ
 		return graphql.Null
 	}
 	return ec._ServiceInstance(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNServiceLogEntry2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐServiceLogEntry(ctx context.Context, sel ast.SelectionSet, v model.ServiceLogEntry) graphql.Marshaler {
+	return ec._ServiceLogEntry(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNServiceLogEntry2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐServiceLogEntry(ctx context.Context, sel ast.SelectionSet, v *model.ServiceLogEntry) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._ServiceLogEntry(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNServiceVariable2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐServiceVariable(ctx context.Context, sel ast.SelectionSet, v model.ServiceVariable) graphql.Marshaler {

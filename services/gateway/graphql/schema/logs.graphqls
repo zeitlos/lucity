@@ -1,0 +1,17 @@
+type ServiceLogEntry {
+  """Log line text. Prefixed with [pod-suffix] when multiple replicas exist."""
+  line: String!
+  """Name of the pod that produced this line."""
+  pod: String!
+}
+
+extend type Subscription {
+  """Stream real-time stdout/stderr from running pods for a service."""
+  serviceLogs(
+    projectId: ID!
+    service: String!
+    environment: String!
+    """Number of recent log lines to include at the start. Defaults to 100."""
+    tailLines: Int
+  ): ServiceLogEntry! @hasRole(role: [USER])
+}

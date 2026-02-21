@@ -113,3 +113,12 @@ export const DeployLogsSubscription = gql`
     deployLogs(id: $id)
   }
 `;
+
+export const ServiceLogsSubscription = gql`
+  subscription ServiceLogs($projectId: ID!, $service: String!, $environment: String!, $tailLines: Int) {
+    serviceLogs(projectId: $projectId, service: $service, environment: $environment, tailLines: $tailLines) {
+      line
+      pod
+    }
+  }
+`;

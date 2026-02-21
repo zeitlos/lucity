@@ -1,19 +1,28 @@
 package grpc
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"log/slog"
 	"strings"
+	"sync"
+
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 
 	"github.com/zeitlos/lucity/pkg/deployer"
 	"github.com/zeitlos/lucity/pkg/labels"
 	"github.com/zeitlos/lucity/services/deployer/argocd"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type Server struct {
 	deployer.UnimplementedDeployerServiceServer
 	argo *argocd.Client
+	k8s  kubernetes.Interface
 
 	// softServeHTTP is the cluster-internal Soft-serve HTTP URL for ArgoCD to clone from.
 	softServeHTTP string
@@ -21,9 +30,10 @@ type Server struct {
 	softServeToken string
 }
 
-func NewServer(argo *argocd.Client, softServeHTTP, softServeToken string) *Server {
+func NewServer(argo *argocd.Client, softServeHTTP, softServeToken string, k8s kubernetes.Interface) *Server {
 	return &Server{
 		argo:           argo,
+		k8s:            k8s,
 		softServeHTTP:  softServeHTTP,
 		softServeToken: softServeToken,
 	}
@@ -171,6 +181,96 @@ func applicationName(project, environment string) string {
 // repoURL returns the Soft-serve HTTP clone URL for a project's GitOps repo.
 func (s *Server) repoURL(project string) string {
 	return strings.TrimSuffix(s.softServeHTTP, "/") + "/" + labels.ShortName(project) + "-gitops.git"
+}
+
+func (s *Server) ServiceLogs(req *deployer.ServiceLogsRequest, stream deployer.DeployerService_ServiceLogsServer) error {
+	ctx := stream.Context()
+	namespace := labels.NamespaceFor(req.Project, req.Environment)
+
+	labelSelector := fmt.Sprintf("app.kubernetes.io/name=%s,app.kubernetes.io/instance=%s",
+		req.Service, namespace)
+
+	podList, err := s.k8s.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: labelSelector,
+	})
+	if err != nil {
+		return status.Errorf(codes.Internal, "failed to list pods: %v", err)
+	}
+	if len(podList.Items) == 0 {
+		return status.Errorf(codes.NotFound, "no pods found for service %q in %q", req.Service, namespace)
+	}
+
+	multiplePods := len(podList.Items) > 1
+
+	tailLines := int64(100)
+	if req.TailLines > 0 {
+		tailLines = int64(req.TailLines)
+	}
+
+	lines := make(chan *deployer.ServiceLogEntry, 128)
+	var wg sync.WaitGroup
+
+	for _, pod := range podList.Items {
+		wg.Add(1)
+		go func(podName string) {
+			defer wg.Done()
+			s.streamPodLogs(ctx, namespace, podName, req.Service, tailLines, multiplePods, lines)
+		}(pod.Name)
+	}
+
+	go func() {
+		wg.Wait()
+		close(lines)
+	}()
+
+	for entry := range lines {
+		if err := stream.Send(entry); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// streamPodLogs follows logs from a single pod/container and sends entries to the channel.
+func (s *Server) streamPodLogs(ctx context.Context, namespace, podName, container string, tailLines int64, prefixPod bool, out chan<- *deployer.ServiceLogEntry) {
+	opts := &corev1.PodLogOptions{
+		Container: container,
+		Follow:    true,
+		TailLines: &tailLines,
+	}
+
+	logStream, err := s.k8s.CoreV1().Pods(namespace).GetLogs(podName, opts).Stream(ctx)
+	if err != nil {
+		slog.Debug("failed to open log stream", "pod", podName, "error", err)
+		return
+	}
+	defer logStream.Close()
+
+	podSuffix := shortPodID(podName)
+	scanner := bufio.NewScanner(logStream)
+	scanner.Buffer(make([]byte, 0, 256*1024), 256*1024)
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		if prefixPod {
+			line = fmt.Sprintf("[%s] %s", podSuffix, line)
+		}
+		select {
+		case out <- &deployer.ServiceLogEntry{Line: line, Pod: podName}:
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+// shortPodID extracts the unique suffix from a pod name.
+func shortPodID(podName string) string {
+	parts := strings.Split(podName, "-")
+	if len(parts) > 0 {
+		return parts[len(parts)-1]
+	}
+	return podName
 }
 
 // mapStatus converts ArgoCD health/sync status to proto DeploymentStatus.
