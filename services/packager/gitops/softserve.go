@@ -1044,6 +1044,87 @@ func (p *SoftServeProvider) SetServiceVariables(ctx context.Context, project, en
 }
 
 // parseServiceDefs converts a raw YAML services map to ServiceDef slice.
+// AddDatabase adds a PostgreSQL database definition to base/values.yaml.
+func (p *SoftServeProvider) AddDatabase(ctx context.Context, project string, db DatabaseDef) error {
+	return p.modifyRepo(ctx, project, fmt.Sprintf("config: add database %s", db.Name), func(dir string) error {
+		path := filepath.Join(dir, "base", "values.yaml")
+		inner, err := readSubchartValues(path)
+		if err != nil {
+			return err
+		}
+
+		databases, ok := inner["databases"].(map[string]any)
+		if !ok {
+			databases = make(map[string]any)
+		}
+		postgres, ok := databases["postgres"].(map[string]any)
+		if !ok {
+			postgres = make(map[string]any)
+		}
+
+		postgres[db.Name] = map[string]any{
+			"instances": db.Instances,
+			"size":      db.Size,
+			"version":   db.Version,
+		}
+		databases["postgres"] = postgres
+		inner["databases"] = databases
+
+		return writeSubchartValues(path, inner)
+	})
+}
+
+// RemoveDatabase removes a database definition from base/values.yaml.
+func (p *SoftServeProvider) RemoveDatabase(ctx context.Context, project, name string) error {
+	return p.modifyRepo(ctx, project, fmt.Sprintf("config: remove database %s", name), func(dir string) error {
+		path := filepath.Join(dir, "base", "values.yaml")
+		inner, err := readSubchartValues(path)
+		if err != nil {
+			return err
+		}
+
+		databases, ok := inner["databases"].(map[string]any)
+		if !ok {
+			return fmt.Errorf("no databases found in base/values.yaml")
+		}
+		postgres, ok := databases["postgres"].(map[string]any)
+		if !ok {
+			return fmt.Errorf("no postgres databases found")
+		}
+		if _, exists := postgres[name]; !exists {
+			return fmt.Errorf("database %q not found", name)
+		}
+
+		delete(postgres, name)
+		databases["postgres"] = postgres
+		inner["databases"] = databases
+
+		return writeSubchartValues(path, inner)
+	})
+}
+
+// Databases reads the database definitions from base/values.yaml.
+func (p *SoftServeProvider) Databases(ctx context.Context, project string) ([]DatabaseDef, error) {
+	_, name, err := SplitProject(project)
+	if err != nil {
+		return nil, err
+	}
+	repoName := name + RepoSuffix
+
+	dir, cleanup, err := p.cloneRepo(repoName)
+	if err != nil {
+		return nil, err
+	}
+	defer cleanup()
+
+	inner, err := readSubchartValues(filepath.Join(dir, "base", "values.yaml"))
+	if err != nil {
+		return nil, err
+	}
+
+	return parseDatabaseDefs(inner), nil
+}
+
 func parseServiceDefs(services map[string]any) []ServiceDef {
 	var result []ServiceDef
 	for svcName, svcRaw := range services {

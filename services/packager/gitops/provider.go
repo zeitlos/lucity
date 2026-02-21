@@ -22,6 +22,14 @@ type ServiceDef struct {
 	ContextPath string // subdirectory within the repo (monorepo support)
 }
 
+// DatabaseDef describes a PostgreSQL database configured in the project's GitOps repo.
+type DatabaseDef struct {
+	Name      string
+	Version   string // e.g., "16"
+	Instances int    // CNPG cluster instances
+	Size      string // e.g., "10Gi"
+}
+
 // Provider abstracts Git repository operations for GitOps repos.
 // Implementations: GitHub (default), Soft-serve (future).
 type Provider interface {
@@ -91,6 +99,15 @@ type Provider interface {
 	// Direct values come from vars. Keys listed in sharedRefs are resolved from the
 	// environment's shared variables and merged into the service's env map.
 	SetServiceVariables(ctx context.Context, project, environment, service string, vars map[string]string, sharedRefs []string) error
+
+	// AddDatabase adds a PostgreSQL database definition to base/values.yaml.
+	AddDatabase(ctx context.Context, project string, db DatabaseDef) error
+
+	// RemoveDatabase removes a database definition from base/values.yaml.
+	RemoveDatabase(ctx context.Context, project, name string) error
+
+	// Databases reads the database definitions from base/values.yaml.
+	Databases(ctx context.Context, project string) ([]DatabaseDef, error)
 }
 
 // DeploymentEntry represents a single deployment event parsed from a git commit.
@@ -152,6 +169,7 @@ type ProjectMeta struct {
 	Environments     []string
 	EnvironmentInfos []EnvironmentMeta
 	Services         []ServiceDef
+	Databases        []DatabaseDef
 	CreatedAt        time.Time
 }
 

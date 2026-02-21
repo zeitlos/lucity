@@ -17,6 +17,9 @@ func convertProject(p handler.Project) model.Project {
 	for _, s := range p.Services {
 		result.Services = append(result.Services, convertService(s))
 	}
+	for _, d := range p.Databases {
+		result.Databases = append(result.Databases, convertDatabase(d))
+	}
 	for _, d := range p.InitialDeploys {
 		op := convertDeploymentOp(d)
 		result.InitialDeploys = append(result.InitialDeploys, op)
@@ -180,4 +183,13 @@ func convertUser(u *handler.User) *model.User {
 		user.Email = &u.Email
 	}
 	return user
+}
+
+func convertDatabase(d handler.Database) model.Database {
+	return model.Database{
+		Name:      d.Name,
+		Version:   d.Version,
+		Instances: d.Instances,
+		Size:      d.Size,
+	}
 }

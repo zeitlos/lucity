@@ -33,6 +33,14 @@ type BuildServiceInput struct {
 	GitRef    *string `json:"gitRef,omitempty"`
 }
 
+type CreateDatabaseInput struct {
+	ProjectID string  `json:"projectId"`
+	Name      string  `json:"name"`
+	Version   *string `json:"version,omitempty"`
+	Instances *int    `json:"instances,omitempty"`
+	Size      *string `json:"size,omitempty"`
+}
+
 type CreateEnvironmentInput struct {
 	ProjectID       string  `json:"projectId"`
 	Name            string  `json:"name"`
@@ -41,6 +49,13 @@ type CreateEnvironmentInput struct {
 
 type CreateProjectInput struct {
 	Name string `json:"name"`
+}
+
+type Database struct {
+	Name      string `json:"name"`
+	Version   string `json:"version"`
+	Instances int    `json:"instances"`
+	Size      string `json:"size"`
 }
 
 type DeployBuildInput struct {
@@ -114,6 +129,7 @@ type Project struct {
 	Name           string        `json:"name"`
 	Environments   []Environment `json:"environments"`
 	Services       []Service     `json:"services"`
+	Databases      []Database    `json:"databases"`
 	CreatedAt      time.Time     `json:"createdAt"`
 	InitialDeploys []DeployRun   `json:"initialDeploys,omitempty"`
 }

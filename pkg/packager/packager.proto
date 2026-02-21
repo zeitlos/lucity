@@ -59,6 +59,12 @@ service PackagerService {
   // SetServiceVariables replaces all variables for a service in an environment.
   // Shared refs are resolved from the environment's shared variables.
   rpc SetServiceVariables(SetServiceVariablesRequest) returns (SetServiceVariablesResponse);
+
+  // AddDatabase adds a PostgreSQL database definition to the project's base values.
+  rpc AddDatabase(AddDatabaseRequest) returns (AddDatabaseResponse);
+
+  // RemoveDatabase removes a PostgreSQL database from the project's base values.
+  rpc RemoveDatabase(RemoveDatabaseRequest) returns (RemoveDatabaseResponse);
 }
 
 // ServiceInfo describes a service configured in the project's GitOps repo.
@@ -96,6 +102,7 @@ message ProjectInfo {
   google.protobuf.Timestamp created_at = 5;
   repeated ServiceInfo services = 6;        // base service definitions
   repeated EnvironmentInfo environment_infos = 7;  // per-environment service state
+  repeated DatabaseInfo databases = 8;     // base database definitions
 }
 
 message InitProjectRequest {
@@ -264,3 +271,30 @@ message SetServiceVariablesRequest {
 }
 
 message SetServiceVariablesResponse {}
+
+// --- Database management ---
+
+// DatabaseInfo describes a PostgreSQL database configured in the project's GitOps repo.
+message DatabaseInfo {
+  string name = 1;       // e.g., "main", "analytics"
+  string version = 2;    // PostgreSQL version, e.g., "16"
+  int32 instances = 3;   // CNPG cluster instances
+  string size = 4;       // storage size, e.g., "10Gi"
+}
+
+message AddDatabaseRequest {
+  string project = 1;
+  string name = 2;       // database name (e.g., "main")
+  string version = 3;    // optional, defaults to "16"
+  int32 instances = 4;   // optional, defaults to 1
+  string size = 5;       // optional, defaults to "10Gi"
+}
+
+message AddDatabaseResponse {}
+
+message RemoveDatabaseRequest {
+  string project = 1;
+  string name = 2;
+}
+
+message RemoveDatabaseResponse {}

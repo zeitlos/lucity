@@ -6,6 +6,7 @@ import { Plus, Maximize2 } from 'lucide-vue-next';
 import { useEnvironment } from '@/composables/useEnvironment';
 import { usePanel } from '@/composables/usePanel';
 import ServiceNode from './ServiceNode.vue';
+import DatabaseNode from './DatabaseNode.vue';
 import { Button } from '@/components/ui/button';
 import '@vue-flow/core/dist/style.css';
 import '@vue-flow/core/dist/theme-default.css';
@@ -17,6 +18,12 @@ const props = defineProps<{
     port: number;
     framework?: string;
     sourceUrl?: string;
+  }[];
+  databases?: {
+    name: string;
+    version: string;
+    instances: number;
+    size: string;
   }[];
 }>();
 
@@ -32,7 +39,7 @@ const { fitView, findNode, setCenter, dimensions } = useVueFlow({
 });
 
 const nodes = computed(() => {
-  return props.services.map((svc, index) => {
+  const serviceNodes = props.services.map((svc, index) => {
     const envService = activeEnvServices.value.find(es => es.name === svc.name);
     return {
       id: svc.name,
@@ -48,15 +55,34 @@ const nodes = computed(() => {
         imageTag: envService?.imageTag,
         replicas: envService?.replicas,
       },
-      selected: currentPanel.value?.id === svc.name,
+      selected: currentPanel.value?.id === svc.name && currentPanel.value?.type === 'service',
     };
   });
+
+  const databaseNodes = (props.databases ?? []).map((db, index) => ({
+    id: `db-${db.name}`,
+    type: 'database',
+    position: { x: 340, y: index * 180 },
+    data: {
+      name: db.name,
+      version: db.version,
+      instances: db.instances,
+      size: db.size,
+    },
+    selected: currentPanel.value?.id === db.name && currentPanel.value?.type === 'database',
+  }));
+
+  return [...serviceNodes, ...databaseNodes];
 });
 
 const edges = ref([]);
 
-function handleNodeClick(event: { node: { id: string; data: { name: string } } }) {
-  openPanel({ type: 'service', id: event.node.id, label: event.node.data.name });
+function handleNodeClick(event: { node: { id: string; type: string; data: { name: string } } }) {
+  if (event.node.type === 'database') {
+    openPanel({ type: 'database', id: event.node.data.name, label: event.node.data.name });
+  } else {
+    openPanel({ type: 'service', id: event.node.id, label: event.node.data.name });
+  }
 }
 
 function handleFitView() {
@@ -68,8 +94,9 @@ onMounted(() => {
   setTimeout(() => handleFitView(), 200);
 });
 
-// Re-fit view when services change
-watch(() => props.services.length, () => {
+// Re-fit view when services or databases change
+const totalNodes = computed(() => props.services.length + (props.databases?.length ?? 0));
+watch(totalNodes, () => {
   setTimeout(() => handleFitView(), 100);
 });
 
@@ -77,8 +104,9 @@ watch(() => props.services.length, () => {
 watch(
   () => currentPanel.value,
   (panel, oldPanel) => {
-    if (panel?.type === 'service') {
-      const node = findNode(panel.id);
+    if (panel?.type === 'service' || panel?.type === 'database') {
+      const nodeId = panel.type === 'database' ? `db-${panel.id}` : panel.id;
+      const node = findNode(nodeId);
       if (node) {
         const nodeCenterX = node.position.x + (node.dimensions.width / 2);
         const nodeCenterY = node.position.y + (node.dimensions.height / 2);
@@ -115,6 +143,14 @@ watch(
           :data="nodeProps.data"
           :selected="nodeProps.selected"
           @select="openPanel({ type: 'service', id: nodeProps.id, label: nodeProps.data.name })"
+        />
+      </template>
+
+      <template #node-database="nodeProps">
+        <DatabaseNode
+          :data="nodeProps.data"
+          :selected="nodeProps.selected"
+          @select="openPanel({ type: 'database', id: nodeProps.data.name, label: nodeProps.data.name })"
         />
       </template>
 

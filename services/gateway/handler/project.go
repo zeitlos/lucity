@@ -25,6 +25,7 @@ type Project struct {
 	Name           string
 	Environments   []Environment
 	Services       []Service
+	Databases      []Database
 	InitialDeploys []DeployOp
 	CreatedAt      time.Time
 }
@@ -436,6 +437,15 @@ func projectFromProto(p *packager.ProjectInfo) Project {
 			Framework:   svc.Framework,
 			SourceURL:   svc.SourceUrl,
 			ContextPath: svc.ContextPath,
+		})
+	}
+
+	for _, db := range p.Databases {
+		proj.Databases = append(proj.Databases, Database{
+			Name:      db.Name,
+			Version:   db.Version,
+			Instances: int(db.Instances),
+			Size:      db.Size,
 		})
 	}
 

@@ -1,0 +1,23 @@
+type Database {
+  name: String!
+  version: String!
+  instances: Int!
+  size: String!
+}
+
+input CreateDatabaseInput {
+  projectId: ID!
+  name: String! @constraint(constraint: "min=2,max=63")
+  version: String
+  instances: Int
+  size: String
+}
+
+extend type Query {
+  databases(projectId: ID!): [Database!]! @hasRole(role: [USER])
+}
+
+extend type Mutation {
+  createDatabase(input: CreateDatabaseInput!): Database! @hasRole(role: [USER])
+  deleteDatabase(projectId: ID!, name: String!): Boolean! @hasRole(role: [USER])
+}

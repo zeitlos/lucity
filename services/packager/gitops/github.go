@@ -1012,3 +1012,128 @@ func parseProjectYAML(data []byte) (*ProjectMeta, error) {
 		CreatedAt: createdAt,
 	}, nil
 }
+
+// AddDatabase adds a PostgreSQL database definition to the project's base/values.yaml.
+func (p *GitHubProvider) AddDatabase(ctx context.Context, project string, db DatabaseDef) error {
+	org, name, err := SplitProject(project)
+	if err != nil {
+		return err
+	}
+	repoName := name + RepoSuffix
+
+	inner, sha, err := p.readSubchartValuesGH(ctx, org, repoName, "base/values.yaml")
+	if err != nil {
+		return fmt.Errorf("failed to read base/values.yaml: %w", err)
+	}
+
+	databases, ok := inner["databases"].(map[string]any)
+	if !ok {
+		databases = make(map[string]any)
+	}
+	postgres, ok := databases["postgres"].(map[string]any)
+	if !ok {
+		postgres = make(map[string]any)
+	}
+
+	postgres[db.Name] = map[string]any{
+		"instances": db.Instances,
+		"size":      db.Size,
+		"version":   db.Version,
+	}
+	databases["postgres"] = postgres
+	inner["databases"] = databases
+
+	if err := p.writeSubchartValuesGH(ctx, org, repoName, "base/values.yaml", inner, sha,
+		fmt.Sprintf("config: add database %s", db.Name)); err != nil {
+		return fmt.Errorf("failed to update base/values.yaml: %w", err)
+	}
+
+	slog.Info("added database to gitops repo", "project", project, "database", db.Name)
+	return nil
+}
+
+// RemoveDatabase removes a database definition from the project's base/values.yaml.
+func (p *GitHubProvider) RemoveDatabase(ctx context.Context, project, name string) error {
+	org, projName, err := SplitProject(project)
+	if err != nil {
+		return err
+	}
+	repoName := projName + RepoSuffix
+
+	inner, sha, err := p.readSubchartValuesGH(ctx, org, repoName, "base/values.yaml")
+	if err != nil {
+		return fmt.Errorf("failed to read base/values.yaml: %w", err)
+	}
+
+	databases, ok := inner["databases"].(map[string]any)
+	if !ok {
+		return fmt.Errorf("no databases found in base/values.yaml")
+	}
+	postgres, ok := databases["postgres"].(map[string]any)
+	if !ok {
+		return fmt.Errorf("no postgres databases found")
+	}
+	if _, exists := postgres[name]; !exists {
+		return fmt.Errorf("database %q not found", name)
+	}
+
+	delete(postgres, name)
+	databases["postgres"] = postgres
+	inner["databases"] = databases
+
+	if err := p.writeSubchartValuesGH(ctx, org, repoName, "base/values.yaml", inner, sha,
+		fmt.Sprintf("config: remove database %s", name)); err != nil {
+		return fmt.Errorf("failed to update base/values.yaml: %w", err)
+	}
+
+	slog.Info("removed database from gitops repo", "project", project, "database", name)
+	return nil
+}
+
+// Databases reads the database definitions from the project's base/values.yaml.
+func (p *GitHubProvider) Databases(ctx context.Context, project string) ([]DatabaseDef, error) {
+	org, name, err := SplitProject(project)
+	if err != nil {
+		return nil, err
+	}
+	repoName := name + RepoSuffix
+
+	inner, _, err := p.readSubchartValuesGH(ctx, org, repoName, "base/values.yaml")
+	if err != nil {
+		return nil, fmt.Errorf("failed to read base/values.yaml: %w", err)
+	}
+
+	return parseDatabaseDefs(inner), nil
+}
+
+// parseDatabaseDefs extracts database definitions from the inner values map.
+func parseDatabaseDefs(inner map[string]any) []DatabaseDef {
+	databases, ok := inner["databases"].(map[string]any)
+	if !ok {
+		return nil
+	}
+	postgres, ok := databases["postgres"].(map[string]any)
+	if !ok {
+		return nil
+	}
+
+	var result []DatabaseDef
+	for dbName, dbRaw := range postgres {
+		dbMap, ok := dbRaw.(map[string]any)
+		if !ok {
+			continue
+		}
+		def := DatabaseDef{Name: dbName}
+		if v, ok := dbMap["version"].(string); ok {
+			def.Version = v
+		}
+		if v, ok := dbMap["instances"].(int); ok {
+			def.Instances = v
+		}
+		if v, ok := dbMap["size"].(string); ok {
+			def.Size = v
+		}
+		result = append(result, def)
+	}
+	return result
+}

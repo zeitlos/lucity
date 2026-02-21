@@ -88,6 +88,7 @@ func (s *Server) ListProjects(ctx context.Context, req *packager.ListProjectsReq
 			EnvironmentInfos: envInfosFromMeta(proj.EnvironmentInfos),
 			CreatedAt:        timestamppb.New(proj.CreatedAt),
 			Services:         serviceInfosFromDefs(proj.Services),
+			Databases:        databaseInfosFromDefs(proj.Databases),
 		})
 	}
 
@@ -110,6 +111,11 @@ func (s *Server) GetProject(ctx context.Context, req *packager.GetProjectRequest
 	svcs, err := p.Services(ctx, req.Project)
 	if err != nil {
 		slog.Warn("failed to read services", "project", req.Project, "error", err)
+	}
+
+	dbs, err := p.Databases(ctx, req.Project)
+	if err != nil {
+		slog.Warn("failed to read databases", "project", req.Project, "error", err)
 	}
 
 	// If EnvironmentInfos is not populated (e.g., GitHub provider), read per-env data.
@@ -135,6 +141,7 @@ func (s *Server) GetProject(ctx context.Context, req *packager.GetProjectRequest
 			EnvironmentInfos: envInfosFromMeta(envInfos),
 			CreatedAt:        timestamppb.New(proj.CreatedAt),
 			Services:         serviceInfosFromDefs(svcs),
+			Databases:        databaseInfosFromDefs(dbs),
 		},
 	}, nil
 }
@@ -393,6 +400,70 @@ func envInfosFromMeta(metas []gitops.EnvironmentMeta) []*packager.EnvironmentInf
 		infos[i] = &packager.EnvironmentInfo{
 			Name:     m.Name,
 			Services: svcs,
+		}
+	}
+	return infos
+}
+
+func (s *Server) AddDatabase(ctx context.Context, req *packager.AddDatabaseRequest) (*packager.AddDatabaseResponse, error) {
+	slog.Info("AddDatabase called", "project", req.Project, "database", req.Name)
+
+	p, err := s.provider(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	version := req.Version
+	if version == "" {
+		version = "16"
+	}
+	instances := int(req.Instances)
+	if instances == 0 {
+		instances = 1
+	}
+	size := req.Size
+	if size == "" {
+		size = "10Gi"
+	}
+
+	if err := p.AddDatabase(ctx, req.Project, gitops.DatabaseDef{
+		Name:      req.Name,
+		Version:   version,
+		Instances: instances,
+		Size:      size,
+	}); err != nil {
+		return nil, fmt.Errorf("failed to add database: %w", err)
+	}
+
+	return &packager.AddDatabaseResponse{}, nil
+}
+
+func (s *Server) RemoveDatabase(ctx context.Context, req *packager.RemoveDatabaseRequest) (*packager.RemoveDatabaseResponse, error) {
+	slog.Info("RemoveDatabase called", "project", req.Project, "database", req.Name)
+
+	p, err := s.provider(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := p.RemoveDatabase(ctx, req.Project, req.Name); err != nil {
+		return nil, fmt.Errorf("failed to remove database: %w", err)
+	}
+
+	return &packager.RemoveDatabaseResponse{}, nil
+}
+
+func databaseInfosFromDefs(defs []gitops.DatabaseDef) []*packager.DatabaseInfo {
+	if len(defs) == 0 {
+		return nil
+	}
+	infos := make([]*packager.DatabaseInfo, len(defs))
+	for i, d := range defs {
+		infos[i] = &packager.DatabaseInfo{
+			Name:      d.Name,
+			Version:   d.Version,
+			Instances: int32(d.Instances),
+			Size:      d.Size,
 		}
 	}
 	return infos

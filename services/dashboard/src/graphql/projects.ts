@@ -15,6 +15,10 @@ export const ProjectsQuery = gql`
         name
         sourceUrl
       }
+      databases {
+        name
+        version
+      }
     }
   }
 `;
@@ -89,6 +93,12 @@ export const ProjectQuery = gql`
             message
           }
         }
+      }
+      databases {
+        name
+        version
+        instances
+        size
       }
     }
   }

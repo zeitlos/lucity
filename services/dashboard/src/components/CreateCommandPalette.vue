@@ -2,11 +2,12 @@
 import { ref, computed, watch, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { useQuery, useMutation, useApolloClient } from '@vue/apollo-composable';
-import { Github, FolderPlus, Plus, Lock, Globe, ArrowLeft, Search, X } from 'lucide-vue-next';
+import { Github, FolderPlus, Plus, Lock, Globe, ArrowLeft, Search, X, Database } from 'lucide-vue-next';
 import { onKeyStroke } from '@vueuse/core';
 import { GitHubRepositoriesQuery } from '@/graphql/github';
 import { CreateProjectMutation } from '@/graphql/projects';
 import { AddServiceMutation, DetectServicesQuery } from '@/graphql/services';
+import { CreateDatabaseMutation } from '@/graphql/databases';
 import { toast } from '@/components/ui/sonner';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -27,7 +28,7 @@ const router = useRouter();
 const { resolveClient } = useApolloClient();
 
 // Drill-down state
-type PaletteView = 'main' | 'github-repos' | 'manual-service';
+type PaletteView = 'main' | 'github-repos' | 'manual-service' | 'database';
 const view = ref<PaletteView>('main');
 const search = ref('');
 const inputRef = ref<HTMLInputElement>();
@@ -166,6 +167,36 @@ const { mutate: addServiceMutate, loading: addingService } = useMutation(AddServ
 const newServiceName = ref('web');
 const newServicePort = ref(3000);
 
+// Create database (within project context)
+const { mutate: createDatabaseMutate, loading: creatingDatabase } = useMutation(CreateDatabaseMutation);
+const newDatabaseName = ref('main');
+
+async function handleCreateDatabase() {
+  if (!props.projectId) return;
+
+  try {
+    const res = await createDatabaseMutate({
+      input: {
+        projectId: props.projectId,
+        name: newDatabaseName.value,
+      },
+    });
+
+    if (res?.errors?.length) {
+      toast.error('Failed to create database', {
+        description: res.errors.map(e => e.message).join(', '),
+      });
+      return;
+    }
+
+    toast.success('Database created');
+    close();
+    emit('created');
+  } catch (e: unknown) {
+    toast.error('Failed to create database', { description: errorMessage(e) });
+  }
+}
+
 async function handleAddManualService() {
   if (!props.projectId) return;
 
@@ -203,6 +234,7 @@ const mainItems = computed(() => {
     : [
         { id: 'github-repo', label: 'GitHub Repository', icon: Github, action: () => { view.value = 'github-repos'; } },
         { id: 'manual-service', label: 'Manual Service', icon: Plus, action: () => { view.value = 'manual-service'; } },
+        { id: 'database', label: 'PostgreSQL Database', icon: Database, action: () => { view.value = 'database'; } },
       ];
 
   if (!search.value) return items;
@@ -356,6 +388,44 @@ const mainItems = computed(() => {
                 @click="handleAddManualService"
               >
                 {{ addingService ? 'Adding...' : 'Add Service' }}
+              </button>
+            </div>
+          </template>
+
+          <!-- Database view -->
+          <template v-if="view === 'database'">
+            <div class="flex h-12 items-center border-b px-3">
+              <button
+                class="mr-1 shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"
+                @click="view = 'main'"
+              >
+                <ArrowLeft :size="16" />
+              </button>
+              <Badge variant="secondary">PostgreSQL Database</Badge>
+              <div class="flex-1" />
+              <button
+                class="shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"
+                @click="close"
+              >
+                <X :size="16" />
+              </button>
+            </div>
+            <div class="space-y-4 p-4">
+              <div class="space-y-2">
+                <label class="text-sm font-medium text-foreground">Database Name</label>
+                <input
+                  v-model="newDatabaseName"
+                  class="flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  placeholder="main"
+                />
+                <p class="text-xs text-muted-foreground">PostgreSQL 16 &middot; 1 instance &middot; 10Gi storage</p>
+              </div>
+              <button
+                class="inline-flex h-9 w-full items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+                :disabled="creatingDatabase || !newDatabaseName"
+                @click="handleCreateDatabase"
+              >
+                {{ creatingDatabase ? 'Creating...' : 'Create Database' }}
               </button>
             </div>
           </template>

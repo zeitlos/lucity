@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import ServiceCanvas from '@/components/canvas/ServiceCanvas.vue';
 import ServicePanel from '@/components/panel/ServicePanel.vue';
+import DatabasePanel from '@/components/panel/DatabasePanel.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import CreateCommandPalette from '@/components/CreateCommandPalette.vue';
 import DeploymentLogsPanel from '@/components/panel/DeploymentLogsPanel.vue';
@@ -48,16 +49,24 @@ watch(
 
 // Selected service for the panel
 const selectedService = computed(() => {
-  if (!currentPanel.value || !project.value) return null;
+  if (!currentPanel.value || currentPanel.value.type !== 'service' || !project.value) return null;
   return project.value.services.find(
     (s: { name: string }) => s.name === currentPanel.value!.id
+  ) ?? null;
+});
+
+// Selected database for the panel
+const selectedDatabase = computed(() => {
+  if (!currentPanel.value || currentPanel.value.type !== 'database' || !project.value) return null;
+  return project.value.databases?.find(
+    (d: { name: string }) => d.name === currentPanel.value!.id
   ) ?? null;
 });
 
 // Command palette
 const paletteOpen = ref(false);
 
-function handleServiceRemoved() {
+function handleResourceRemoved() {
   closePanel();
   refetch();
 }
@@ -65,6 +74,12 @@ function handleServiceRemoved() {
 function handleCreateFromPalette() {
   refetch();
 }
+
+// Whether we have any resources to show on the canvas
+const hasResources = computed(() => {
+  if (!project.value) return false;
+  return project.value.services.length > 0 || (project.value.databases?.length ?? 0) > 0;
+});
 </script>
 
 <template>
@@ -92,22 +107,23 @@ function handleCreateFromPalette() {
       <div class="relative flex-1 p-3">
         <!-- Canvas (always full width) -->
         <div class="h-full w-full overflow-hidden rounded-lg border bg-card/80 shadow-sm backdrop-blur-sm [background-image:var(--gradient-card)]">
-          <template v-if="project.services.length > 0">
+          <template v-if="hasResources">
             <ServiceCanvas
               :services="project.services"
+              :databases="project.databases"
               @create="paletteOpen = true"
             />
           </template>
           <template v-else>
             <div class="flex h-full items-center justify-center">
               <EmptyState
-                title="No services yet"
-                description="Create a service manually to get started."
+                title="No resources yet"
+                description="Create a service or database to get started."
                 pattern="crosshatch"
               >
                 <template #action>
                   <Button @click="paletteOpen = true">
-                    Create Service
+                    Create Resource
                   </Button>
                 </template>
               </EmptyState>
@@ -125,8 +141,23 @@ function handleCreateFromPalette() {
               :project-id="projectId"
               :service="selectedService"
               @close="closePanel"
-              @service-removed="handleServiceRemoved"
+              @service-removed="handleResourceRemoved"
               @updated="refetch()"
+            />
+          </div>
+        </Transition>
+
+        <!-- Database Detail Panel (overlays from right) -->
+        <Transition name="slide-panel">
+          <div
+            v-if="isOpen && selectedDatabase"
+            class="absolute inset-y-3 right-3 w-[55%] shadow-xl"
+          >
+            <DatabasePanel
+              :project-id="projectId"
+              :database="selectedDatabase"
+              @close="closePanel"
+              @database-removed="handleResourceRemoved"
             />
           </div>
         </Transition>

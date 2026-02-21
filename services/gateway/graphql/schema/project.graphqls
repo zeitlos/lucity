@@ -3,6 +3,7 @@ type Project {
   name: String!
   environments: [Environment!]!
   services: [Service!]!
+  databases: [Database!]!
   createdAt: Time!
   initialDeploys: [DeployRun!]
 }
