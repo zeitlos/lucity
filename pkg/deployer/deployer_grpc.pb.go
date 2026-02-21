@@ -25,6 +25,9 @@ const (
 	DeployerService_SyncDeployment_FullMethodName      = "/deployer.DeployerService/SyncDeployment"
 	DeployerService_DeleteRepository_FullMethodName    = "/deployer.DeployerService/DeleteRepository"
 	DeployerService_ServiceLogs_FullMethodName         = "/deployer.DeployerService/ServiceLogs"
+	DeployerService_DatabaseTables_FullMethodName      = "/deployer.DeployerService/DatabaseTables"
+	DeployerService_DatabaseTableData_FullMethodName   = "/deployer.DeployerService/DatabaseTableData"
+	DeployerService_DatabaseQuery_FullMethodName       = "/deployer.DeployerService/DatabaseQuery"
 )
 
 // DeployerServiceClient is the client API for DeployerService service.
@@ -43,6 +46,12 @@ type DeployerServiceClient interface {
 	DeleteRepository(ctx context.Context, in *DeleteRepositoryRequest, opts ...grpc.CallOption) (*DeleteRepositoryResponse, error)
 	// ServiceLogs streams real-time stdout/stderr from running pods for a service.
 	ServiceLogs(ctx context.Context, in *ServiceLogsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ServiceLogEntry], error)
+	// DatabaseTables returns the tables and their schema for a database.
+	DatabaseTables(ctx context.Context, in *DatabaseTablesRequest, opts ...grpc.CallOption) (*DatabaseTablesResponse, error)
+	// DatabaseTableData returns paginated rows from a table.
+	DatabaseTableData(ctx context.Context, in *DatabaseTableDataRequest, opts ...grpc.CallOption) (*DatabaseTableDataResponse, error)
+	// DatabaseQuery executes an arbitrary SQL query and returns results.
+	DatabaseQuery(ctx context.Context, in *DatabaseQueryRequest, opts ...grpc.CallOption) (*DatabaseQueryResponse, error)
 }
 
 type deployerServiceClient struct {
@@ -122,6 +131,36 @@ func (c *deployerServiceClient) ServiceLogs(ctx context.Context, in *ServiceLogs
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type DeployerService_ServiceLogsClient = grpc.ServerStreamingClient[ServiceLogEntry]
 
+func (c *deployerServiceClient) DatabaseTables(ctx context.Context, in *DatabaseTablesRequest, opts ...grpc.CallOption) (*DatabaseTablesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DatabaseTablesResponse)
+	err := c.cc.Invoke(ctx, DeployerService_DatabaseTables_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *deployerServiceClient) DatabaseTableData(ctx context.Context, in *DatabaseTableDataRequest, opts ...grpc.CallOption) (*DatabaseTableDataResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DatabaseTableDataResponse)
+	err := c.cc.Invoke(ctx, DeployerService_DatabaseTableData_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *deployerServiceClient) DatabaseQuery(ctx context.Context, in *DatabaseQueryRequest, opts ...grpc.CallOption) (*DatabaseQueryResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DatabaseQueryResponse)
+	err := c.cc.Invoke(ctx, DeployerService_DatabaseQuery_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DeployerServiceServer is the server API for DeployerService service.
 // All implementations must embed UnimplementedDeployerServiceServer
 // for forward compatibility.
@@ -138,6 +177,12 @@ type DeployerServiceServer interface {
 	DeleteRepository(context.Context, *DeleteRepositoryRequest) (*DeleteRepositoryResponse, error)
 	// ServiceLogs streams real-time stdout/stderr from running pods for a service.
 	ServiceLogs(*ServiceLogsRequest, grpc.ServerStreamingServer[ServiceLogEntry]) error
+	// DatabaseTables returns the tables and their schema for a database.
+	DatabaseTables(context.Context, *DatabaseTablesRequest) (*DatabaseTablesResponse, error)
+	// DatabaseTableData returns paginated rows from a table.
+	DatabaseTableData(context.Context, *DatabaseTableDataRequest) (*DatabaseTableDataResponse, error)
+	// DatabaseQuery executes an arbitrary SQL query and returns results.
+	DatabaseQuery(context.Context, *DatabaseQueryRequest) (*DatabaseQueryResponse, error)
 	mustEmbedUnimplementedDeployerServiceServer()
 }
 
@@ -165,6 +210,15 @@ func (UnimplementedDeployerServiceServer) DeleteRepository(context.Context, *Del
 }
 func (UnimplementedDeployerServiceServer) ServiceLogs(*ServiceLogsRequest, grpc.ServerStreamingServer[ServiceLogEntry]) error {
 	return status.Errorf(codes.Unimplemented, "method ServiceLogs not implemented")
+}
+func (UnimplementedDeployerServiceServer) DatabaseTables(context.Context, *DatabaseTablesRequest) (*DatabaseTablesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DatabaseTables not implemented")
+}
+func (UnimplementedDeployerServiceServer) DatabaseTableData(context.Context, *DatabaseTableDataRequest) (*DatabaseTableDataResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DatabaseTableData not implemented")
+}
+func (UnimplementedDeployerServiceServer) DatabaseQuery(context.Context, *DatabaseQueryRequest) (*DatabaseQueryResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DatabaseQuery not implemented")
 }
 func (UnimplementedDeployerServiceServer) mustEmbedUnimplementedDeployerServiceServer() {}
 func (UnimplementedDeployerServiceServer) testEmbeddedByValue()                         {}
@@ -288,6 +342,60 @@ func _DeployerService_ServiceLogs_Handler(srv interface{}, stream grpc.ServerStr
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type DeployerService_ServiceLogsServer = grpc.ServerStreamingServer[ServiceLogEntry]
 
+func _DeployerService_DatabaseTables_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DatabaseTablesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DeployerServiceServer).DatabaseTables(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DeployerService_DatabaseTables_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DeployerServiceServer).DatabaseTables(ctx, req.(*DatabaseTablesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DeployerService_DatabaseTableData_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DatabaseTableDataRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DeployerServiceServer).DatabaseTableData(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DeployerService_DatabaseTableData_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DeployerServiceServer).DatabaseTableData(ctx, req.(*DatabaseTableDataRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DeployerService_DatabaseQuery_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DatabaseQueryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DeployerServiceServer).DatabaseQuery(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DeployerService_DatabaseQuery_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DeployerServiceServer).DatabaseQuery(ctx, req.(*DatabaseQueryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // DeployerService_ServiceDesc is the grpc.ServiceDesc for DeployerService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -314,6 +422,18 @@ var DeployerService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DeleteRepository",
 			Handler:    _DeployerService_DeleteRepository_Handler,
+		},
+		{
+			MethodName: "DatabaseTables",
+			Handler:    _DeployerService_DatabaseTables_Handler,
+		},
+		{
+			MethodName: "DatabaseTableData",
+			Handler:    _DeployerService_DatabaseTableData_Handler,
+		},
+		{
+			MethodName: "DatabaseQuery",
+			Handler:    _DeployerService_DatabaseQuery_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

@@ -193,3 +193,37 @@ func convertDatabase(d handler.Database) model.Database {
 		Size:      d.Size,
 	}
 }
+
+func convertDatabaseTable(t handler.DatabaseTable) model.DatabaseTable {
+	cols := make([]model.DatabaseColumn, 0, len(t.Columns))
+	for _, c := range t.Columns {
+		cols = append(cols, model.DatabaseColumn{
+			Name:       c.Name,
+			Type:       c.Type,
+			Nullable:   c.Nullable,
+			PrimaryKey: c.PrimaryKey,
+		})
+	}
+	return model.DatabaseTable{
+		Name:          t.Name,
+		Schema:        t.Schema,
+		EstimatedRows: t.EstimatedRows,
+		Columns:       cols,
+	}
+}
+
+func convertDatabaseTableData(d *handler.DatabaseTableData) *model.DatabaseTableData {
+	return &model.DatabaseTableData{
+		Columns:            d.Columns,
+		Rows:               d.Rows,
+		TotalEstimatedRows: d.TotalEstimatedRows,
+	}
+}
+
+func convertQueryResult(r *handler.QueryResult) *model.QueryResult {
+	return &model.QueryResult{
+		Columns:      r.Columns,
+		Rows:         r.Rows,
+		AffectedRows: r.AffectedRows,
+	}
+}

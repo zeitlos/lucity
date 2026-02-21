@@ -38,6 +38,15 @@ func (r *mutationResolver) DeleteDatabase(ctx context.Context, projectID string,
 	return r.API.DeleteDatabase(ctx, projectID, name)
 }
 
+// ExecuteQuery is the resolver for the executeQuery field.
+func (r *mutationResolver) ExecuteQuery(ctx context.Context, input model.DatabaseQueryInput) (*model.QueryResult, error) {
+	result, err := r.API.ExecuteQuery(ctx, input.ProjectID, input.Environment, input.Database, input.Query)
+	if err != nil {
+		return nil, err
+	}
+	return convertQueryResult(result), nil
+}
+
 // Databases is the resolver for the databases field.
 func (r *queryResolver) Databases(ctx context.Context, projectID string) ([]model.Database, error) {
 	dbs, err := r.API.Databases(ctx, projectID)
@@ -49,4 +58,38 @@ func (r *queryResolver) Databases(ctx context.Context, projectID string) ([]mode
 		result = append(result, convertDatabase(d))
 	}
 	return result, nil
+}
+
+// DatabaseTables is the resolver for the databaseTables field.
+func (r *queryResolver) DatabaseTables(ctx context.Context, projectID string, environment string, database string) ([]model.DatabaseTable, error) {
+	tables, err := r.API.DatabaseTables(ctx, projectID, environment, database)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]model.DatabaseTable, 0, len(tables))
+	for _, t := range tables {
+		result = append(result, convertDatabaseTable(t))
+	}
+	return result, nil
+}
+
+// DatabaseTableData is the resolver for the databaseTableData field.
+func (r *queryResolver) DatabaseTableData(ctx context.Context, projectID string, environment string, database string, table string, schema *string, limit *int, offset *int) (*model.DatabaseTableData, error) {
+	s := "public"
+	if schema != nil {
+		s = *schema
+	}
+	l := 50
+	if limit != nil {
+		l = *limit
+	}
+	o := 0
+	if offset != nil {
+		o = *offset
+	}
+	data, err := r.API.DatabaseTableData(ctx, projectID, environment, database, table, s, l, o)
+	if err != nil {
+		return nil, err
+	}
+	return convertDatabaseTableData(data), nil
 }

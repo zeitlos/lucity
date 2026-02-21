@@ -66,6 +66,26 @@ type ComplexityRoot struct {
 		Version   func(childComplexity int) int
 	}
 
+	DatabaseColumn struct {
+		Name       func(childComplexity int) int
+		Nullable   func(childComplexity int) int
+		PrimaryKey func(childComplexity int) int
+		Type       func(childComplexity int) int
+	}
+
+	DatabaseTable struct {
+		Columns       func(childComplexity int) int
+		EstimatedRows func(childComplexity int) int
+		Name          func(childComplexity int) int
+		Schema        func(childComplexity int) int
+	}
+
+	DatabaseTableData struct {
+		Columns            func(childComplexity int) int
+		Rows               func(childComplexity int) int
+		TotalEstimatedRows func(childComplexity int) int
+	}
+
 	DeployRun struct {
 		BuildID        func(childComplexity int) int
 		Digest         func(childComplexity int) int
@@ -123,6 +143,7 @@ type ComplexityRoot struct {
 		DeleteProject       func(childComplexity int, id string) int
 		Deploy              func(childComplexity int, input model.DeployInput) int
 		DeployBuild         func(childComplexity int, input model.DeployBuildInput) int
+		ExecuteQuery        func(childComplexity int, input model.DatabaseQueryInput) int
 		Promote             func(childComplexity int, input model.PromoteInput) int
 		RemoveService       func(childComplexity int, projectID string, service string) int
 		SetServiceDomain    func(childComplexity int, input model.SetServiceDomainInput) int
@@ -144,6 +165,8 @@ type ComplexityRoot struct {
 	Query struct {
 		ActiveDeployment   func(childComplexity int, projectID string, service string, environment string) int
 		BuildStatus        func(childComplexity int, id string) int
+		DatabaseTableData  func(childComplexity int, projectID string, environment string, database string, table string, schema *string, limit *int, offset *int) int
+		DatabaseTables     func(childComplexity int, projectID string, environment string, database string) int
 		Databases          func(childComplexity int, projectID string) int
 		DeployStatus       func(childComplexity int, id string) int
 		DetectServices     func(childComplexity int, sourceURL string) int
@@ -154,6 +177,12 @@ type ComplexityRoot struct {
 		Service            func(childComplexity int, projectID string, name string) int
 		ServiceVariables   func(childComplexity int, projectID string, environment string, service string) int
 		SharedVariables    func(childComplexity int, projectID string, environment string) int
+	}
+
+	QueryResult struct {
+		AffectedRows func(childComplexity int) int
+		Columns      func(childComplexity int) int
+		Rows         func(childComplexity int) int
 	}
 
 	Service struct {
@@ -208,6 +237,7 @@ type ComplexityRoot struct {
 type MutationResolver interface {
 	CreateDatabase(ctx context.Context, input model.CreateDatabaseInput) (*model.Database, error)
 	DeleteDatabase(ctx context.Context, projectID string, name string) (bool, error)
+	ExecuteQuery(ctx context.Context, input model.DatabaseQueryInput) (*model.QueryResult, error)
 	CreateProject(ctx context.Context, input model.CreateProjectInput) (*model.Project, error)
 	DeleteProject(ctx context.Context, id string) (bool, error)
 	CreateEnvironment(ctx context.Context, input model.CreateEnvironmentInput) (*model.Environment, error)
@@ -226,6 +256,8 @@ type MutationResolver interface {
 type QueryResolver interface {
 	Me(ctx context.Context) (*model.User, error)
 	Databases(ctx context.Context, projectID string) ([]model.Database, error)
+	DatabaseTables(ctx context.Context, projectID string, environment string, database string) ([]model.DatabaseTable, error)
+	DatabaseTableData(ctx context.Context, projectID string, environment string, database string, table string, schema *string, limit *int, offset *int) (*model.DatabaseTableData, error)
 	GithubRepositories(ctx context.Context) ([]model.GitHubRepository, error)
 	Projects(ctx context.Context) ([]model.Project, error)
 	Project(ctx context.Context, id string) (*model.Project, error)
@@ -316,6 +348,75 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Database.Version(childComplexity), true
+
+	case "DatabaseColumn.name":
+		if e.complexity.DatabaseColumn.Name == nil {
+			break
+		}
+
+		return e.complexity.DatabaseColumn.Name(childComplexity), true
+	case "DatabaseColumn.nullable":
+		if e.complexity.DatabaseColumn.Nullable == nil {
+			break
+		}
+
+		return e.complexity.DatabaseColumn.Nullable(childComplexity), true
+	case "DatabaseColumn.primaryKey":
+		if e.complexity.DatabaseColumn.PrimaryKey == nil {
+			break
+		}
+
+		return e.complexity.DatabaseColumn.PrimaryKey(childComplexity), true
+	case "DatabaseColumn.type":
+		if e.complexity.DatabaseColumn.Type == nil {
+			break
+		}
+
+		return e.complexity.DatabaseColumn.Type(childComplexity), true
+
+	case "DatabaseTable.columns":
+		if e.complexity.DatabaseTable.Columns == nil {
+			break
+		}
+
+		return e.complexity.DatabaseTable.Columns(childComplexity), true
+	case "DatabaseTable.estimatedRows":
+		if e.complexity.DatabaseTable.EstimatedRows == nil {
+			break
+		}
+
+		return e.complexity.DatabaseTable.EstimatedRows(childComplexity), true
+	case "DatabaseTable.name":
+		if e.complexity.DatabaseTable.Name == nil {
+			break
+		}
+
+		return e.complexity.DatabaseTable.Name(childComplexity), true
+	case "DatabaseTable.schema":
+		if e.complexity.DatabaseTable.Schema == nil {
+			break
+		}
+
+		return e.complexity.DatabaseTable.Schema(childComplexity), true
+
+	case "DatabaseTableData.columns":
+		if e.complexity.DatabaseTableData.Columns == nil {
+			break
+		}
+
+		return e.complexity.DatabaseTableData.Columns(childComplexity), true
+	case "DatabaseTableData.rows":
+		if e.complexity.DatabaseTableData.Rows == nil {
+			break
+		}
+
+		return e.complexity.DatabaseTableData.Rows(childComplexity), true
+	case "DatabaseTableData.totalEstimatedRows":
+		if e.complexity.DatabaseTableData.TotalEstimatedRows == nil {
+			break
+		}
+
+		return e.complexity.DatabaseTableData.TotalEstimatedRows(childComplexity), true
 
 	case "DeployRun.buildId":
 		if e.complexity.DeployRun.BuildID == nil {
@@ -618,6 +719,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.DeployBuild(childComplexity, args["input"].(model.DeployBuildInput)), true
+	case "Mutation.executeQuery":
+		if e.complexity.Mutation.ExecuteQuery == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_executeQuery_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.ExecuteQuery(childComplexity, args["input"].(model.DatabaseQueryInput)), true
 	case "Mutation.promote":
 		if e.complexity.Mutation.Promote == nil {
 			break
@@ -750,6 +862,28 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Query.BuildStatus(childComplexity, args["id"].(string)), true
+	case "Query.databaseTableData":
+		if e.complexity.Query.DatabaseTableData == nil {
+			break
+		}
+
+		args, err := ec.field_Query_databaseTableData_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.DatabaseTableData(childComplexity, args["projectId"].(string), args["environment"].(string), args["database"].(string), args["table"].(string), args["schema"].(*string), args["limit"].(*int), args["offset"].(*int)), true
+	case "Query.databaseTables":
+		if e.complexity.Query.DatabaseTables == nil {
+			break
+		}
+
+		args, err := ec.field_Query_databaseTables_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.DatabaseTables(childComplexity, args["projectId"].(string), args["environment"].(string), args["database"].(string)), true
 	case "Query.databases":
 		if e.complexity.Query.Databases == nil {
 			break
@@ -845,6 +979,25 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Query.SharedVariables(childComplexity, args["projectId"].(string), args["environment"].(string)), true
+
+	case "QueryResult.affectedRows":
+		if e.complexity.QueryResult.AffectedRows == nil {
+			break
+		}
+
+		return e.complexity.QueryResult.AffectedRows(childComplexity), true
+	case "QueryResult.columns":
+		if e.complexity.QueryResult.Columns == nil {
+			break
+		}
+
+		return e.complexity.QueryResult.Columns(childComplexity), true
+	case "QueryResult.rows":
+		if e.complexity.QueryResult.Rows == nil {
+			break
+		}
+
+		return e.complexity.QueryResult.Rows(childComplexity), true
 
 	case "Service.contextPath":
 		if e.complexity.Service.ContextPath == nil {
@@ -1038,6 +1191,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputCreateDatabaseInput,
 		ec.unmarshalInputCreateEnvironmentInput,
 		ec.unmarshalInputCreateProjectInput,
+		ec.unmarshalInputDatabaseQueryInput,
 		ec.unmarshalInputDeployBuildInput,
 		ec.unmarshalInputDeployInput,
 		ec.unmarshalInputPromoteInput,
@@ -1326,6 +1480,17 @@ func (ec *executionContext) field_Mutation_deploy_args(ctx context.Context, rawA
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_executeQuery_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNDatabaseQueryInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐDatabaseQueryInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_promote_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -1462,6 +1627,68 @@ func (ec *executionContext) field_Query_buildStatus_args(ctx context.Context, ra
 		return nil, err
 	}
 	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_databaseTableData_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "projectId", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["projectId"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "environment", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["environment"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "database", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["database"] = arg2
+	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "table", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["table"] = arg3
+	arg4, err := graphql.ProcessArgField(ctx, rawArgs, "schema", ec.unmarshalOString2ᚖstring)
+	if err != nil {
+		return nil, err
+	}
+	args["schema"] = arg4
+	arg5, err := graphql.ProcessArgField(ctx, rawArgs, "limit", ec.unmarshalOInt2ᚖint)
+	if err != nil {
+		return nil, err
+	}
+	args["limit"] = arg5
+	arg6, err := graphql.ProcessArgField(ctx, rawArgs, "offset", ec.unmarshalOInt2ᚖint)
+	if err != nil {
+		return nil, err
+	}
+	args["offset"] = arg6
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_databaseTables_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "projectId", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["projectId"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "environment", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["environment"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "database", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["database"] = arg2
 	return args, nil
 }
 
@@ -1907,6 +2134,335 @@ func (ec *executionContext) fieldContext_Database_size(_ context.Context, field 
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DatabaseColumn_name(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseColumn) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DatabaseColumn_name,
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DatabaseColumn_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DatabaseColumn",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DatabaseColumn_type(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseColumn) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DatabaseColumn_type,
+		func(ctx context.Context) (any, error) {
+			return obj.Type, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DatabaseColumn_type(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DatabaseColumn",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DatabaseColumn_nullable(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseColumn) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DatabaseColumn_nullable,
+		func(ctx context.Context) (any, error) {
+			return obj.Nullable, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DatabaseColumn_nullable(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DatabaseColumn",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DatabaseColumn_primaryKey(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseColumn) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DatabaseColumn_primaryKey,
+		func(ctx context.Context) (any, error) {
+			return obj.PrimaryKey, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DatabaseColumn_primaryKey(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DatabaseColumn",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DatabaseTable_name(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseTable) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DatabaseTable_name,
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DatabaseTable_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DatabaseTable",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DatabaseTable_schema(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseTable) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DatabaseTable_schema,
+		func(ctx context.Context) (any, error) {
+			return obj.Schema, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DatabaseTable_schema(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DatabaseTable",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DatabaseTable_estimatedRows(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseTable) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DatabaseTable_estimatedRows,
+		func(ctx context.Context) (any, error) {
+			return obj.EstimatedRows, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DatabaseTable_estimatedRows(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DatabaseTable",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DatabaseTable_columns(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseTable) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DatabaseTable_columns,
+		func(ctx context.Context) (any, error) {
+			return obj.Columns, nil
+		},
+		nil,
+		ec.marshalNDatabaseColumn2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐDatabaseColumnᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DatabaseTable_columns(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DatabaseTable",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "name":
+				return ec.fieldContext_DatabaseColumn_name(ctx, field)
+			case "type":
+				return ec.fieldContext_DatabaseColumn_type(ctx, field)
+			case "nullable":
+				return ec.fieldContext_DatabaseColumn_nullable(ctx, field)
+			case "primaryKey":
+				return ec.fieldContext_DatabaseColumn_primaryKey(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type DatabaseColumn", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DatabaseTableData_columns(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseTableData) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DatabaseTableData_columns,
+		func(ctx context.Context) (any, error) {
+			return obj.Columns, nil
+		},
+		nil,
+		ec.marshalNString2ᚕstringᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DatabaseTableData_columns(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DatabaseTableData",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DatabaseTableData_rows(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseTableData) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DatabaseTableData_rows,
+		func(ctx context.Context) (any, error) {
+			return obj.Rows, nil
+		},
+		nil,
+		ec.marshalNString2ᚕᚕᚖstring,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DatabaseTableData_rows(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DatabaseTableData",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DatabaseTableData_totalEstimatedRows(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseTableData) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DatabaseTableData_totalEstimatedRows,
+		func(ctx context.Context) (any, error) {
+			return obj.TotalEstimatedRows, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DatabaseTableData_totalEstimatedRows(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DatabaseTableData",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
 		},
 	}
 	return fc, nil
@@ -2949,6 +3505,73 @@ func (ec *executionContext) fieldContext_Mutation_deleteDatabase(ctx context.Con
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_deleteDatabase_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_executeQuery(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_executeQuery,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().ExecuteQuery(ctx, fc.Args["input"].(model.DatabaseQueryInput))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				if err != nil {
+					var zeroVal *model.QueryResult
+					return zeroVal, err
+				}
+				if ec.directives.HasRole == nil {
+					var zeroVal *model.QueryResult
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNQueryResult2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐQueryResult,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_executeQuery(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "columns":
+				return ec.fieldContext_QueryResult_columns(ctx, field)
+			case "rows":
+				return ec.fieldContext_QueryResult_rows(ctx, field)
+			case "affectedRows":
+				return ec.fieldContext_QueryResult_affectedRows(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type QueryResult", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_executeQuery_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -4260,6 +4883,142 @@ func (ec *executionContext) fieldContext_Query_databases(ctx context.Context, fi
 	return fc, nil
 }
 
+func (ec *executionContext) _Query_databaseTables(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_databaseTables,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Query().DatabaseTables(ctx, fc.Args["projectId"].(string), fc.Args["environment"].(string), fc.Args["database"].(string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				if err != nil {
+					var zeroVal []model.DatabaseTable
+					return zeroVal, err
+				}
+				if ec.directives.HasRole == nil {
+					var zeroVal []model.DatabaseTable
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNDatabaseTable2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐDatabaseTableᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_databaseTables(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "name":
+				return ec.fieldContext_DatabaseTable_name(ctx, field)
+			case "schema":
+				return ec.fieldContext_DatabaseTable_schema(ctx, field)
+			case "estimatedRows":
+				return ec.fieldContext_DatabaseTable_estimatedRows(ctx, field)
+			case "columns":
+				return ec.fieldContext_DatabaseTable_columns(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type DatabaseTable", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_databaseTables_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_databaseTableData(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_databaseTableData,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Query().DatabaseTableData(ctx, fc.Args["projectId"].(string), fc.Args["environment"].(string), fc.Args["database"].(string), fc.Args["table"].(string), fc.Args["schema"].(*string), fc.Args["limit"].(*int), fc.Args["offset"].(*int))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				if err != nil {
+					var zeroVal *model.DatabaseTableData
+					return zeroVal, err
+				}
+				if ec.directives.HasRole == nil {
+					var zeroVal *model.DatabaseTableData
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNDatabaseTableData2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐDatabaseTableData,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_databaseTableData(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "columns":
+				return ec.fieldContext_DatabaseTableData_columns(ctx, field)
+			case "rows":
+				return ec.fieldContext_DatabaseTableData_rows(ctx, field)
+			case "totalEstimatedRows":
+				return ec.fieldContext_DatabaseTableData_totalEstimatedRows(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type DatabaseTableData", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_databaseTableData_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_githubRepositories(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -5065,6 +5824,93 @@ func (ec *executionContext) fieldContext_Query___schema(_ context.Context, field
 				return ec.fieldContext___Schema_directives(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type __Schema", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _QueryResult_columns(ctx context.Context, field graphql.CollectedField, obj *model.QueryResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_QueryResult_columns,
+		func(ctx context.Context) (any, error) {
+			return obj.Columns, nil
+		},
+		nil,
+		ec.marshalNString2ᚕstringᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_QueryResult_columns(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "QueryResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _QueryResult_rows(ctx context.Context, field graphql.CollectedField, obj *model.QueryResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_QueryResult_rows,
+		func(ctx context.Context) (any, error) {
+			return obj.Rows, nil
+		},
+		nil,
+		ec.marshalNString2ᚕᚕᚖstring,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_QueryResult_rows(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "QueryResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _QueryResult_affectedRows(ctx context.Context, field graphql.CollectedField, obj *model.QueryResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_QueryResult_affectedRows,
+		func(ctx context.Context) (any, error) {
+			return obj.AffectedRows, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_QueryResult_affectedRows(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "QueryResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
 		},
 	}
 	return fc, nil
@@ -7701,6 +8547,54 @@ func (ec *executionContext) unmarshalInputCreateProjectInput(ctx context.Context
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputDatabaseQueryInput(ctx context.Context, obj any) (model.DatabaseQueryInput, error) {
+	var it model.DatabaseQueryInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"projectId", "environment", "database", "query"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "projectId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("projectId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ProjectID = data
+		case "environment":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("environment"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Environment = data
+		case "database":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("database"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Database = data
+		case "query":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("query"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Query = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputDeployBuildInput(ctx context.Context, obj any) (model.DeployBuildInput, error) {
 	var it model.DeployBuildInput
 	asMap := map[string]any{}
@@ -8087,6 +8981,163 @@ func (ec *executionContext) _Database(ctx context.Context, sel ast.SelectionSet,
 	return out
 }
 
+var databaseColumnImplementors = []string{"DatabaseColumn"}
+
+func (ec *executionContext) _DatabaseColumn(ctx context.Context, sel ast.SelectionSet, obj *model.DatabaseColumn) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, databaseColumnImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("DatabaseColumn")
+		case "name":
+			out.Values[i] = ec._DatabaseColumn_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "type":
+			out.Values[i] = ec._DatabaseColumn_type(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "nullable":
+			out.Values[i] = ec._DatabaseColumn_nullable(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "primaryKey":
+			out.Values[i] = ec._DatabaseColumn_primaryKey(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var databaseTableImplementors = []string{"DatabaseTable"}
+
+func (ec *executionContext) _DatabaseTable(ctx context.Context, sel ast.SelectionSet, obj *model.DatabaseTable) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, databaseTableImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("DatabaseTable")
+		case "name":
+			out.Values[i] = ec._DatabaseTable_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "schema":
+			out.Values[i] = ec._DatabaseTable_schema(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "estimatedRows":
+			out.Values[i] = ec._DatabaseTable_estimatedRows(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "columns":
+			out.Values[i] = ec._DatabaseTable_columns(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var databaseTableDataImplementors = []string{"DatabaseTableData"}
+
+func (ec *executionContext) _DatabaseTableData(ctx context.Context, sel ast.SelectionSet, obj *model.DatabaseTableData) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, databaseTableDataImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("DatabaseTableData")
+		case "columns":
+			out.Values[i] = ec._DatabaseTableData_columns(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "rows":
+			out.Values[i] = ec._DatabaseTableData_rows(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "totalEstimatedRows":
+			out.Values[i] = ec._DatabaseTableData_totalEstimatedRows(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var deployRunImplementors = []string{"DeployRun"}
 
 func (ec *executionContext) _DeployRun(ctx context.Context, sel ast.SelectionSet, obj *model.DeployRun) graphql.Marshaler {
@@ -8418,6 +9469,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "executeQuery":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_executeQuery(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "createProject":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_createProject(ctx, field)
@@ -8668,6 +9726,50 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "databaseTables":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_databaseTables(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "databaseTableData":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_databaseTableData(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "githubRepositories":
 			field := field
 
@@ -8881,6 +9983,55 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Query___schema(ctx, field)
 			})
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var queryResultImplementors = []string{"QueryResult"}
+
+func (ec *executionContext) _QueryResult(ctx context.Context, sel ast.SelectionSet, obj *model.QueryResult) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, queryResultImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("QueryResult")
+		case "columns":
+			out.Values[i] = ec._QueryResult_columns(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "rows":
+			out.Values[i] = ec._QueryResult_rows(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "affectedRows":
+			out.Values[i] = ec._QueryResult_affectedRows(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -9692,6 +10843,121 @@ func (ec *executionContext) marshalNDatabase2ᚖgithubᚗcomᚋzeitlosᚋlucity�
 	return ec._Database(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNDatabaseColumn2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐDatabaseColumn(ctx context.Context, sel ast.SelectionSet, v model.DatabaseColumn) graphql.Marshaler {
+	return ec._DatabaseColumn(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNDatabaseColumn2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐDatabaseColumnᚄ(ctx context.Context, sel ast.SelectionSet, v []model.DatabaseColumn) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNDatabaseColumn2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐDatabaseColumn(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) unmarshalNDatabaseQueryInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐDatabaseQueryInput(ctx context.Context, v any) (model.DatabaseQueryInput, error) {
+	res, err := ec.unmarshalInputDatabaseQueryInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNDatabaseTable2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐDatabaseTable(ctx context.Context, sel ast.SelectionSet, v model.DatabaseTable) graphql.Marshaler {
+	return ec._DatabaseTable(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNDatabaseTable2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐDatabaseTableᚄ(ctx context.Context, sel ast.SelectionSet, v []model.DatabaseTable) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNDatabaseTable2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐDatabaseTable(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNDatabaseTableData2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐDatabaseTableData(ctx context.Context, sel ast.SelectionSet, v model.DatabaseTableData) graphql.Marshaler {
+	return ec._DatabaseTableData(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNDatabaseTableData2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐDatabaseTableData(ctx context.Context, sel ast.SelectionSet, v *model.DatabaseTableData) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._DatabaseTableData(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalNDeployBuildInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐDeployBuildInput(ctx context.Context, v any) (model.DeployBuildInput, error) {
 	res, err := ec.unmarshalInputDeployBuildInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -10023,6 +11289,20 @@ func (ec *executionContext) unmarshalNPromoteInput2githubᚗcomᚋzeitlosᚋluci
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) marshalNQueryResult2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐQueryResult(ctx context.Context, sel ast.SelectionSet, v model.QueryResult) graphql.Marshaler {
+	return ec._QueryResult(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNQueryResult2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐQueryResult(ctx context.Context, sel ast.SelectionSet, v *model.QueryResult) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._QueryResult(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐRole(ctx context.Context, v any) (model.Role, error) {
 	var res model.Role
 	err := res.UnmarshalGQL(v)
@@ -10309,6 +11589,60 @@ func (ec *executionContext) marshalNString2string(ctx context.Context, sel ast.S
 		}
 	}
 	return res
+}
+
+func (ec *executionContext) unmarshalNString2ᚕstringᚄ(ctx context.Context, v any) ([]string, error) {
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]string, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNString2string(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalNString2ᚕstringᚄ(ctx context.Context, sel ast.SelectionSet, v []string) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	for i := range v {
+		ret[i] = ec.marshalNString2string(ctx, sel, v[i])
+	}
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) unmarshalNString2ᚕᚕᚖstring(ctx context.Context, v any) ([][]*string, error) {
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([][]*string, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalOString2ᚕᚖstring(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalNString2ᚕᚕᚖstring(ctx context.Context, sel ast.SelectionSet, v [][]*string) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	for i := range v {
+		ret[i] = ec.marshalOString2ᚕᚖstring(ctx, sel, v[i])
+	}
+
+	return ret
 }
 
 func (ec *executionContext) unmarshalNSyncStatus2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐSyncStatus(ctx context.Context, v any) (model.SyncStatus, error) {
@@ -10826,6 +12160,36 @@ func (ec *executionContext) marshalOString2ᚕstringᚄ(ctx context.Context, sel
 		if e == graphql.Null {
 			return graphql.Null
 		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) unmarshalOString2ᚕᚖstring(ctx context.Context, v any) ([]*string, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]*string, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalOString2ᚖstring(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalOString2ᚕᚖstring(ctx context.Context, sel ast.SelectionSet, v []*string) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	for i := range v {
+		ret[i] = ec.marshalOString2ᚖstring(ctx, sel, v[i])
 	}
 
 	return ret

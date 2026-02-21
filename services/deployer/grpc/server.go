@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"strings"
 	"sync"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -15,6 +16,7 @@ import (
 	"github.com/zeitlos/lucity/pkg/deployer"
 	"github.com/zeitlos/lucity/pkg/labels"
 	"github.com/zeitlos/lucity/services/deployer/argocd"
+	"github.com/zeitlos/lucity/services/deployer/database"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -271,6 +273,85 @@ func shortPodID(podName string) string {
 		return parts[len(parts)-1]
 	}
 	return podName
+}
+
+const dbQueryTimeout = 30 * time.Second
+
+func (s *Server) DatabaseTables(ctx context.Context, req *deployer.DatabaseTablesRequest) (*deployer.DatabaseTablesResponse, error) {
+	creds, err := database.CredentialsFromSecret(ctx, s.k8s, req.Project, req.Environment, req.Database)
+	if err != nil {
+		return nil, status.Errorf(codes.NotFound, "database credentials not found: %v", err)
+	}
+
+	queryCtx, cancel := context.WithTimeout(ctx, dbQueryTimeout)
+	defer cancel()
+
+	conn, err := database.Connect(queryCtx, creds)
+	if err != nil {
+		return nil, status.Errorf(codes.Unavailable, "failed to connect to database: %v", err)
+	}
+	defer conn.Close(queryCtx)
+
+	tables, err := database.Tables(queryCtx, conn)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to list tables: %v", err)
+	}
+
+	return &deployer.DatabaseTablesResponse{Tables: tables}, nil
+}
+
+func (s *Server) DatabaseTableData(ctx context.Context, req *deployer.DatabaseTableDataRequest) (*deployer.DatabaseTableDataResponse, error) {
+	creds, err := database.CredentialsFromSecret(ctx, s.k8s, req.Project, req.Environment, req.Database)
+	if err != nil {
+		return nil, status.Errorf(codes.NotFound, "database credentials not found: %v", err)
+	}
+
+	queryCtx, cancel := context.WithTimeout(ctx, dbQueryTimeout)
+	defer cancel()
+
+	conn, err := database.Connect(queryCtx, creds)
+	if err != nil {
+		return nil, status.Errorf(codes.Unavailable, "failed to connect to database: %v", err)
+	}
+	defer conn.Close(queryCtx)
+
+	columns, rows, estimatedRows, err := database.TableData(queryCtx, conn, req.Schema, req.Table, int(req.Limit), int(req.Offset))
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to query table data: %v", err)
+	}
+
+	return &deployer.DatabaseTableDataResponse{
+		Columns:            columns,
+		Rows:               rows,
+		TotalEstimatedRows: estimatedRows,
+	}, nil
+}
+
+func (s *Server) DatabaseQuery(ctx context.Context, req *deployer.DatabaseQueryRequest) (*deployer.DatabaseQueryResponse, error) {
+	creds, err := database.CredentialsFromSecret(ctx, s.k8s, req.Project, req.Environment, req.Database)
+	if err != nil {
+		return nil, status.Errorf(codes.NotFound, "database credentials not found: %v", err)
+	}
+
+	queryCtx, cancel := context.WithTimeout(ctx, dbQueryTimeout)
+	defer cancel()
+
+	conn, err := database.Connect(queryCtx, creds)
+	if err != nil {
+		return nil, status.Errorf(codes.Unavailable, "failed to connect to database: %v", err)
+	}
+	defer conn.Close(queryCtx)
+
+	columns, rows, affected, err := database.Query(queryCtx, conn, req.Query)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "query failed: %v", err)
+	}
+
+	return &deployer.DatabaseQueryResponse{
+		Columns:      columns,
+		Rows:         rows,
+		AffectedRows: affected,
+	}, nil
 }
 
 // mapStatus converts ArgoCD health/sync status to proto DeploymentStatus.

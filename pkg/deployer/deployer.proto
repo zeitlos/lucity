@@ -22,6 +22,15 @@ service DeployerService {
 
   // ServiceLogs streams real-time stdout/stderr from running pods for a service.
   rpc ServiceLogs(ServiceLogsRequest) returns (stream ServiceLogEntry);
+
+  // DatabaseTables returns the tables and their schema for a database.
+  rpc DatabaseTables(DatabaseTablesRequest) returns (DatabaseTablesResponse);
+
+  // DatabaseTableData returns paginated rows from a table.
+  rpc DatabaseTableData(DatabaseTableDataRequest) returns (DatabaseTableDataResponse);
+
+  // DatabaseQuery executes an arbitrary SQL query and returns results.
+  rpc DatabaseQuery(DatabaseQueryRequest) returns (DatabaseQueryResponse);
 }
 
 message DeployEnvironmentRequest {
@@ -89,4 +98,68 @@ message ServiceLogEntry {
   string line = 1;
   // Pod name that produced this line.
   string pod = 2;
+}
+
+// Database exploration messages.
+
+message DatabaseTablesRequest {
+  string project = 1;
+  string environment = 2;
+  string database = 3;
+}
+
+message DatabaseTablesResponse {
+  repeated DatabaseTable tables = 1;
+}
+
+message DatabaseTable {
+  string name = 1;
+  string schema = 2;
+  int64 estimated_rows = 3;
+  repeated DatabaseColumn columns = 4;
+}
+
+message DatabaseColumn {
+  string name = 1;
+  string type = 2;
+  bool nullable = 3;
+  bool primary_key = 4;
+}
+
+message DatabaseTableDataRequest {
+  string project = 1;
+  string environment = 2;
+  string database = 3;
+  string table = 4;
+  string schema = 5;
+  int32 limit = 6;
+  int32 offset = 7;
+}
+
+message DatabaseTableDataResponse {
+  repeated string columns = 1;
+  repeated DatabaseRow rows = 2;
+  int64 total_estimated_rows = 3;
+}
+
+message DatabaseRow {
+  repeated DatabaseCell cells = 1;
+}
+
+message DatabaseCell {
+  string value = 1;
+  bool is_null = 2;
+}
+
+message DatabaseQueryRequest {
+  string project = 1;
+  string environment = 2;
+  string database = 3;
+  string query = 4;
+}
+
+message DatabaseQueryResponse {
+  repeated string columns = 1;
+  repeated DatabaseRow rows = 2;
+  int64 affected_rows = 3;
 }

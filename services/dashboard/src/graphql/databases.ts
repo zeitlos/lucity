@@ -16,3 +16,55 @@ export const DeleteDatabaseMutation = gql`
     deleteDatabase(projectId: $projectId, name: $name)
   }
 `;
+
+export const DatabaseTablesQuery = gql`
+  query DatabaseTables($projectId: ID!, $environment: String!, $database: String!) {
+    databaseTables(projectId: $projectId, environment: $environment, database: $database) {
+      name
+      schema
+      estimatedRows
+      columns {
+        name
+        type
+        nullable
+        primaryKey
+      }
+    }
+  }
+`;
+
+export const DatabaseTableDataQuery = gql`
+  query DatabaseTableData(
+    $projectId: ID!
+    $environment: String!
+    $database: String!
+    $table: String!
+    $schema: String
+    $limit: Int
+    $offset: Int
+  ) {
+    databaseTableData(
+      projectId: $projectId
+      environment: $environment
+      database: $database
+      table: $table
+      schema: $schema
+      limit: $limit
+      offset: $offset
+    ) {
+      columns
+      rows
+      totalEstimatedRows
+    }
+  }
+`;
+
+export const ExecuteQueryMutation = gql`
+  mutation ExecuteQuery($input: DatabaseQueryInput!) {
+    executeQuery(input: $input) {
+      columns
+      rows
+      affectedRows
+    }
+  }
+`;

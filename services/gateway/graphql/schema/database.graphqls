@@ -5,6 +5,32 @@ type Database {
   size: String!
 }
 
+type DatabaseTable {
+  name: String!
+  schema: String!
+  estimatedRows: Int!
+  columns: [DatabaseColumn!]!
+}
+
+type DatabaseColumn {
+  name: String!
+  type: String!
+  nullable: Boolean!
+  primaryKey: Boolean!
+}
+
+type DatabaseTableData {
+  columns: [String!]!
+  rows: [[String]]!
+  totalEstimatedRows: Int!
+}
+
+type QueryResult {
+  columns: [String!]!
+  rows: [[String]]!
+  affectedRows: Int!
+}
+
 input CreateDatabaseInput {
   projectId: ID!
   name: String! @constraint(constraint: "min=2,max=63")
@@ -13,11 +39,29 @@ input CreateDatabaseInput {
   size: String
 }
 
+input DatabaseQueryInput {
+  projectId: ID!
+  environment: String!
+  database: String!
+  query: String!
+}
+
 extend type Query {
   databases(projectId: ID!): [Database!]! @hasRole(role: [USER])
+  databaseTables(projectId: ID!, environment: String!, database: String!): [DatabaseTable!]! @hasRole(role: [USER])
+  databaseTableData(
+    projectId: ID!
+    environment: String!
+    database: String!
+    table: String!
+    schema: String
+    limit: Int
+    offset: Int
+  ): DatabaseTableData! @hasRole(role: [USER])
 }
 
 extend type Mutation {
   createDatabase(input: CreateDatabaseInput!): Database! @hasRole(role: [USER])
   deleteDatabase(projectId: ID!, name: String!): Boolean! @hasRole(role: [USER])
+  executeQuery(input: DatabaseQueryInput!): QueryResult! @hasRole(role: [USER])
 }

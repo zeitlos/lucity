@@ -58,6 +58,33 @@ type Database struct {
 	Size      string `json:"size"`
 }
 
+type DatabaseColumn struct {
+	Name       string `json:"name"`
+	Type       string `json:"type"`
+	Nullable   bool   `json:"nullable"`
+	PrimaryKey bool   `json:"primaryKey"`
+}
+
+type DatabaseQueryInput struct {
+	ProjectID   string `json:"projectId"`
+	Environment string `json:"environment"`
+	Database    string `json:"database"`
+	Query       string `json:"query"`
+}
+
+type DatabaseTable struct {
+	Name          string           `json:"name"`
+	Schema        string           `json:"schema"`
+	EstimatedRows int              `json:"estimatedRows"`
+	Columns       []DatabaseColumn `json:"columns"`
+}
+
+type DatabaseTableData struct {
+	Columns            []string    `json:"columns"`
+	Rows               [][]*string `json:"rows"`
+	TotalEstimatedRows int         `json:"totalEstimatedRows"`
+}
+
 type DeployBuildInput struct {
 	ProjectID   string  `json:"projectId"`
 	Service     string  `json:"service"`
@@ -142,6 +169,12 @@ type PromoteInput struct {
 }
 
 type Query struct {
+}
+
+type QueryResult struct {
+	Columns      []string    `json:"columns"`
+	Rows         [][]*string `json:"rows"`
+	AffectedRows int         `json:"affectedRows"`
 }
 
 type Service struct {
