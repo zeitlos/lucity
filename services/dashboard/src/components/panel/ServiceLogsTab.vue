@@ -80,7 +80,7 @@ function clearLogs() {
         <Button
           variant="ghost"
           size="icon"
-          class="h-6 w-6 text-zinc-400 hover:text-zinc-200"
+          class="h-6 w-6 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
           @click="togglePause"
         >
           <Pause
@@ -95,7 +95,7 @@ function clearLogs() {
         <Button
           variant="ghost"
           size="icon"
-          class="h-6 w-6 text-zinc-400 hover:text-zinc-200"
+          class="h-6 w-6 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
           @click="clearLogs"
         >
           <Trash2 :size="12" />

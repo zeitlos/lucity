@@ -6,7 +6,6 @@ import (
 
 	"github.com/kelseyhightower/envconfig"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/zeitlos/lucity/pkg/graceful"
@@ -24,7 +23,6 @@ type Config struct {
 	SoftServeHTTP        string `envconfig:"SOFTSERVE_HTTP_ADDR" default:"http://lucity-infra-soft-serve.lucity-system.svc.cluster.local:23232"`
 	SoftServeClusterHTTP string `envconfig:"SOFTSERVE_CLUSTER_HTTP_ADDR"`
 	SoftServeToken       string `envconfig:"SOFTSERVE_TOKEN"`
-	Kubeconfig           string `envconfig:"KUBECONFIG"`
 }
 
 func main() {
@@ -43,17 +41,12 @@ func main() {
 		clusterHTTP = config.SoftServeHTTP
 	}
 
-	// Build K8s config: in-cluster when running in K8s, kubeconfig for local dev.
-	var k8sConfig *rest.Config
-	var k8sErr error
-	if config.Kubeconfig != "" {
-		k8sConfig, k8sErr = clientcmd.BuildConfigFromFlags("", config.Kubeconfig)
-	} else {
-		k8sConfig, k8sErr = rest.InClusterConfig()
-		if k8sErr != nil {
-			k8sConfig, k8sErr = clientcmd.BuildConfigFromFlags("", clientcmd.RecommendedHomeFile)
-		}
-	}
+	// Build K8s config using standard loading rules.
+	// Handles KUBECONFIG with multiple paths, in-cluster config, and ~/.kube/config fallback.
+	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
+	k8sConfig, k8sErr := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+		loadingRules, &clientcmd.ConfigOverrides{},
+	).ClientConfig()
 	if k8sErr != nil {
 		slog.Error("failed to create k8s config", "error", k8sErr)
 		os.Exit(1)
