@@ -314,6 +314,68 @@ func (s *Server) Eject(ctx context.Context, req *packager.EjectRequest) (*packag
 	return &packager.EjectResponse{Archive: archive}, nil
 }
 
+func (s *Server) SharedVariables(ctx context.Context, req *packager.SharedVariablesRequest) (*packager.SharedVariablesResponse, error) {
+	slog.Info("SharedVariables called", "project", req.Project, "environment", req.Environment)
+
+	p, err := s.provider(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	vars, err := p.SharedVariables(ctx, req.Project, req.Environment)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get shared variables: %w", err)
+	}
+
+	return &packager.SharedVariablesResponse{Variables: vars}, nil
+}
+
+func (s *Server) SetSharedVariables(ctx context.Context, req *packager.SetSharedVariablesRequest) (*packager.SetSharedVariablesResponse, error) {
+	slog.Info("SetSharedVariables called", "project", req.Project, "environment", req.Environment)
+
+	p, err := s.provider(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := p.SetSharedVariables(ctx, req.Project, req.Environment, req.Variables); err != nil {
+		return nil, fmt.Errorf("failed to set shared variables: %w", err)
+	}
+
+	return &packager.SetSharedVariablesResponse{}, nil
+}
+
+func (s *Server) ServiceVariables(ctx context.Context, req *packager.ServiceVariablesRequest) (*packager.ServiceVariablesResponse, error) {
+	slog.Info("ServiceVariables called", "project", req.Project, "environment", req.Environment, "service", req.Service)
+
+	p, err := s.provider(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	vars, refs, err := p.ServiceVariables(ctx, req.Project, req.Environment, req.Service)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get service variables: %w", err)
+	}
+
+	return &packager.ServiceVariablesResponse{Variables: vars, SharedRefs: refs}, nil
+}
+
+func (s *Server) SetServiceVariables(ctx context.Context, req *packager.SetServiceVariablesRequest) (*packager.SetServiceVariablesResponse, error) {
+	slog.Info("SetServiceVariables called", "project", req.Project, "environment", req.Environment, "service", req.Service)
+
+	p, err := s.provider(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := p.SetServiceVariables(ctx, req.Project, req.Environment, req.Service, req.Variables, req.SharedRefs); err != nil {
+		return nil, fmt.Errorf("failed to set service variables: %w", err)
+	}
+
+	return &packager.SetServiceVariablesResponse{}, nil
+}
+
 func envInfosFromMeta(metas []gitops.EnvironmentMeta) []*packager.EnvironmentInfo {
 	if len(metas) == 0 {
 		return nil

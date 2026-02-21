@@ -875,6 +875,168 @@ func (p *SoftServeProvider) RepoFiles(ctx context.Context, project string) (map[
 	return files, nil
 }
 
+// SharedVariables returns all shared variables for an environment.
+func (p *SoftServeProvider) SharedVariables(ctx context.Context, project, environment string) (map[string]string, error) {
+	_, name, err := SplitProject(project)
+	if err != nil {
+		return nil, err
+	}
+	repoName := name + RepoSuffix
+
+	dir, cleanup, err := p.cloneRepo(repoName)
+	if err != nil {
+		return nil, err
+	}
+	defer cleanup()
+
+	filePath := filepath.Join(dir, "environments", environment, "values.yaml")
+	inner, err := readSubchartValues(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read %s: %w", filePath, err)
+	}
+
+	return parseStringMap(inner, "sharedVariables"), nil
+}
+
+// SetSharedVariables replaces all shared variables for an environment.
+func (p *SoftServeProvider) SetSharedVariables(ctx context.Context, project, environment string, vars map[string]string) error {
+	return p.modifyRepo(ctx, project, fmt.Sprintf("config(%s): update shared variables", environment), func(dir string) error {
+		filePath := filepath.Join(dir, "environments", environment, "values.yaml")
+		inner, err := readSubchartValues(filePath)
+		if err != nil {
+			return err
+		}
+
+		if len(vars) > 0 {
+			inner["sharedVariables"] = stringMapToAny(vars)
+		} else {
+			delete(inner, "sharedVariables")
+		}
+
+		// Propagate to services with sharedRefs
+		services, _ := inner["services"].(map[string]any)
+		for svcName, svcRaw := range services {
+			svcMap, ok := svcRaw.(map[string]any)
+			if !ok {
+				continue
+			}
+			refs := parseStringSlice(svcMap, "sharedRefs")
+			if len(refs) == 0 {
+				continue
+			}
+			env, _ := svcMap["env"].(map[string]any)
+			if env == nil {
+				env = make(map[string]any)
+			}
+			var validRefs []any
+			for _, refKey := range refs {
+				if val, ok := vars[refKey]; ok {
+					env[refKey] = val
+					validRefs = append(validRefs, refKey)
+				} else {
+					delete(env, refKey)
+				}
+			}
+			if len(env) > 0 {
+				svcMap["env"] = env
+			} else {
+				delete(svcMap, "env")
+			}
+			if len(validRefs) > 0 {
+				svcMap["sharedRefs"] = validRefs
+			} else {
+				delete(svcMap, "sharedRefs")
+			}
+			services[svcName] = svcMap
+		}
+		if len(services) > 0 {
+			inner["services"] = services
+		}
+
+		return writeSubchartValues(filePath, inner)
+	})
+}
+
+// ServiceVariables returns all variables and shared refs for a service in an environment.
+func (p *SoftServeProvider) ServiceVariables(ctx context.Context, project, environment, service string) (map[string]string, []string, error) {
+	_, name, err := SplitProject(project)
+	if err != nil {
+		return nil, nil, err
+	}
+	repoName := name + RepoSuffix
+
+	dir, cleanup, err := p.cloneRepo(repoName)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer cleanup()
+
+	filePath := filepath.Join(dir, "environments", environment, "values.yaml")
+	inner, err := readSubchartValues(filePath)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to read %s: %w", filePath, err)
+	}
+
+	services, _ := inner["services"].(map[string]any)
+	svcMap, _ := services[service].(map[string]any)
+	if svcMap == nil {
+		return nil, nil, nil
+	}
+
+	vars := parseStringMap(svcMap, "env")
+	refs := parseStringSlice(svcMap, "sharedRefs")
+	return vars, refs, nil
+}
+
+// SetServiceVariables replaces all variables for a service in an environment.
+func (p *SoftServeProvider) SetServiceVariables(ctx context.Context, project, environment, service string, vars map[string]string, sharedRefs []string) error {
+	return p.modifyRepo(ctx, project, fmt.Sprintf("config(%s): update variables for %s", environment, service), func(dir string) error {
+		filePath := filepath.Join(dir, "environments", environment, "values.yaml")
+		inner, err := readSubchartValues(filePath)
+		if err != nil {
+			return err
+		}
+
+		env := make(map[string]any, len(vars)+len(sharedRefs))
+		for k, v := range vars {
+			env[k] = v
+		}
+
+		sharedVars := parseStringMap(inner, "sharedVariables")
+		var validRefs []any
+		for _, refKey := range sharedRefs {
+			if val, ok := sharedVars[refKey]; ok {
+				env[refKey] = val
+				validRefs = append(validRefs, refKey)
+			}
+		}
+
+		services, _ := inner["services"].(map[string]any)
+		if services == nil {
+			services = make(map[string]any)
+		}
+		svcMap, _ := services[service].(map[string]any)
+		if svcMap == nil {
+			svcMap = make(map[string]any)
+		}
+
+		if len(env) > 0 {
+			svcMap["env"] = env
+		} else {
+			delete(svcMap, "env")
+		}
+		if len(validRefs) > 0 {
+			svcMap["sharedRefs"] = validRefs
+		} else {
+			delete(svcMap, "sharedRefs")
+		}
+		services[service] = svcMap
+		inner["services"] = services
+
+		return writeSubchartValues(filePath, inner)
+	})
+}
+
 // parseServiceDefs converts a raw YAML services map to ServiceDef slice.
 func parseServiceDefs(services map[string]any) []ServiceDef {
 	var result []ServiceDef

@@ -19,19 +19,23 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	PackagerService_InitProject_FullMethodName       = "/packager.PackagerService/InitProject"
-	PackagerService_ListProjects_FullMethodName      = "/packager.PackagerService/ListProjects"
-	PackagerService_GetProject_FullMethodName        = "/packager.PackagerService/GetProject"
-	PackagerService_DeleteProject_FullMethodName     = "/packager.PackagerService/DeleteProject"
-	PackagerService_AddService_FullMethodName        = "/packager.PackagerService/AddService"
-	PackagerService_RemoveService_FullMethodName     = "/packager.PackagerService/RemoveService"
-	PackagerService_UpdateImageTag_FullMethodName    = "/packager.PackagerService/UpdateImageTag"
-	PackagerService_CreateEnvironment_FullMethodName = "/packager.PackagerService/CreateEnvironment"
-	PackagerService_DeleteEnvironment_FullMethodName = "/packager.PackagerService/DeleteEnvironment"
-	PackagerService_Promote_FullMethodName           = "/packager.PackagerService/Promote"
-	PackagerService_Eject_FullMethodName             = "/packager.PackagerService/Eject"
-	PackagerService_DeploymentHistory_FullMethodName = "/packager.PackagerService/DeploymentHistory"
-	PackagerService_SetServiceDomain_FullMethodName  = "/packager.PackagerService/SetServiceDomain"
+	PackagerService_InitProject_FullMethodName         = "/packager.PackagerService/InitProject"
+	PackagerService_ListProjects_FullMethodName        = "/packager.PackagerService/ListProjects"
+	PackagerService_GetProject_FullMethodName          = "/packager.PackagerService/GetProject"
+	PackagerService_DeleteProject_FullMethodName       = "/packager.PackagerService/DeleteProject"
+	PackagerService_AddService_FullMethodName          = "/packager.PackagerService/AddService"
+	PackagerService_RemoveService_FullMethodName       = "/packager.PackagerService/RemoveService"
+	PackagerService_UpdateImageTag_FullMethodName      = "/packager.PackagerService/UpdateImageTag"
+	PackagerService_CreateEnvironment_FullMethodName   = "/packager.PackagerService/CreateEnvironment"
+	PackagerService_DeleteEnvironment_FullMethodName   = "/packager.PackagerService/DeleteEnvironment"
+	PackagerService_Promote_FullMethodName             = "/packager.PackagerService/Promote"
+	PackagerService_Eject_FullMethodName               = "/packager.PackagerService/Eject"
+	PackagerService_DeploymentHistory_FullMethodName   = "/packager.PackagerService/DeploymentHistory"
+	PackagerService_SetServiceDomain_FullMethodName    = "/packager.PackagerService/SetServiceDomain"
+	PackagerService_SharedVariables_FullMethodName     = "/packager.PackagerService/SharedVariables"
+	PackagerService_SetSharedVariables_FullMethodName  = "/packager.PackagerService/SetSharedVariables"
+	PackagerService_ServiceVariables_FullMethodName    = "/packager.PackagerService/ServiceVariables"
+	PackagerService_SetServiceVariables_FullMethodName = "/packager.PackagerService/SetServiceVariables"
 )
 
 // PackagerServiceClient is the client API for PackagerService service.
@@ -64,6 +68,16 @@ type PackagerServiceClient interface {
 	DeploymentHistory(ctx context.Context, in *DeploymentHistoryRequest, opts ...grpc.CallOption) (*DeploymentHistoryResponse, error)
 	// SetServiceDomain sets or removes the domain hostname for a service in an environment.
 	SetServiceDomain(ctx context.Context, in *SetServiceDomainRequest, opts ...grpc.CallOption) (*SetServiceDomainResponse, error)
+	// SharedVariables returns all shared variables for an environment.
+	SharedVariables(ctx context.Context, in *SharedVariablesRequest, opts ...grpc.CallOption) (*SharedVariablesResponse, error)
+	// SetSharedVariables replaces all shared variables for an environment.
+	// Also propagates changes to any services that reference shared vars via sharedRefs.
+	SetSharedVariables(ctx context.Context, in *SetSharedVariablesRequest, opts ...grpc.CallOption) (*SetSharedVariablesResponse, error)
+	// ServiceVariables returns all variables for a service in an environment.
+	ServiceVariables(ctx context.Context, in *ServiceVariablesRequest, opts ...grpc.CallOption) (*ServiceVariablesResponse, error)
+	// SetServiceVariables replaces all variables for a service in an environment.
+	// Shared refs are resolved from the environment's shared variables.
+	SetServiceVariables(ctx context.Context, in *SetServiceVariablesRequest, opts ...grpc.CallOption) (*SetServiceVariablesResponse, error)
 }
 
 type packagerServiceClient struct {
@@ -204,6 +218,46 @@ func (c *packagerServiceClient) SetServiceDomain(ctx context.Context, in *SetSer
 	return out, nil
 }
 
+func (c *packagerServiceClient) SharedVariables(ctx context.Context, in *SharedVariablesRequest, opts ...grpc.CallOption) (*SharedVariablesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SharedVariablesResponse)
+	err := c.cc.Invoke(ctx, PackagerService_SharedVariables_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *packagerServiceClient) SetSharedVariables(ctx context.Context, in *SetSharedVariablesRequest, opts ...grpc.CallOption) (*SetSharedVariablesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SetSharedVariablesResponse)
+	err := c.cc.Invoke(ctx, PackagerService_SetSharedVariables_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *packagerServiceClient) ServiceVariables(ctx context.Context, in *ServiceVariablesRequest, opts ...grpc.CallOption) (*ServiceVariablesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ServiceVariablesResponse)
+	err := c.cc.Invoke(ctx, PackagerService_ServiceVariables_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *packagerServiceClient) SetServiceVariables(ctx context.Context, in *SetServiceVariablesRequest, opts ...grpc.CallOption) (*SetServiceVariablesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SetServiceVariablesResponse)
+	err := c.cc.Invoke(ctx, PackagerService_SetServiceVariables_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // PackagerServiceServer is the server API for PackagerService service.
 // All implementations must embed UnimplementedPackagerServiceServer
 // for forward compatibility.
@@ -234,6 +288,16 @@ type PackagerServiceServer interface {
 	DeploymentHistory(context.Context, *DeploymentHistoryRequest) (*DeploymentHistoryResponse, error)
 	// SetServiceDomain sets or removes the domain hostname for a service in an environment.
 	SetServiceDomain(context.Context, *SetServiceDomainRequest) (*SetServiceDomainResponse, error)
+	// SharedVariables returns all shared variables for an environment.
+	SharedVariables(context.Context, *SharedVariablesRequest) (*SharedVariablesResponse, error)
+	// SetSharedVariables replaces all shared variables for an environment.
+	// Also propagates changes to any services that reference shared vars via sharedRefs.
+	SetSharedVariables(context.Context, *SetSharedVariablesRequest) (*SetSharedVariablesResponse, error)
+	// ServiceVariables returns all variables for a service in an environment.
+	ServiceVariables(context.Context, *ServiceVariablesRequest) (*ServiceVariablesResponse, error)
+	// SetServiceVariables replaces all variables for a service in an environment.
+	// Shared refs are resolved from the environment's shared variables.
+	SetServiceVariables(context.Context, *SetServiceVariablesRequest) (*SetServiceVariablesResponse, error)
 	mustEmbedUnimplementedPackagerServiceServer()
 }
 
@@ -282,6 +346,18 @@ func (UnimplementedPackagerServiceServer) DeploymentHistory(context.Context, *De
 }
 func (UnimplementedPackagerServiceServer) SetServiceDomain(context.Context, *SetServiceDomainRequest) (*SetServiceDomainResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetServiceDomain not implemented")
+}
+func (UnimplementedPackagerServiceServer) SharedVariables(context.Context, *SharedVariablesRequest) (*SharedVariablesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SharedVariables not implemented")
+}
+func (UnimplementedPackagerServiceServer) SetSharedVariables(context.Context, *SetSharedVariablesRequest) (*SetSharedVariablesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetSharedVariables not implemented")
+}
+func (UnimplementedPackagerServiceServer) ServiceVariables(context.Context, *ServiceVariablesRequest) (*ServiceVariablesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ServiceVariables not implemented")
+}
+func (UnimplementedPackagerServiceServer) SetServiceVariables(context.Context, *SetServiceVariablesRequest) (*SetServiceVariablesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetServiceVariables not implemented")
 }
 func (UnimplementedPackagerServiceServer) mustEmbedUnimplementedPackagerServiceServer() {}
 func (UnimplementedPackagerServiceServer) testEmbeddedByValue()                         {}
@@ -538,6 +614,78 @@ func _PackagerService_SetServiceDomain_Handler(srv interface{}, ctx context.Cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _PackagerService_SharedVariables_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SharedVariablesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PackagerServiceServer).SharedVariables(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PackagerService_SharedVariables_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PackagerServiceServer).SharedVariables(ctx, req.(*SharedVariablesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PackagerService_SetSharedVariables_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetSharedVariablesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PackagerServiceServer).SetSharedVariables(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PackagerService_SetSharedVariables_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PackagerServiceServer).SetSharedVariables(ctx, req.(*SetSharedVariablesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PackagerService_ServiceVariables_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ServiceVariablesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PackagerServiceServer).ServiceVariables(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PackagerService_ServiceVariables_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PackagerServiceServer).ServiceVariables(ctx, req.(*ServiceVariablesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PackagerService_SetServiceVariables_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetServiceVariablesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PackagerServiceServer).SetServiceVariables(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PackagerService_SetServiceVariables_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PackagerServiceServer).SetServiceVariables(ctx, req.(*SetServiceVariablesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // PackagerService_ServiceDesc is the grpc.ServiceDesc for PackagerService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -596,6 +744,22 @@ var PackagerService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SetServiceDomain",
 			Handler:    _PackagerService_SetServiceDomain_Handler,
+		},
+		{
+			MethodName: "SharedVariables",
+			Handler:    _PackagerService_SharedVariables_Handler,
+		},
+		{
+			MethodName: "SetSharedVariables",
+			Handler:    _PackagerService_SetSharedVariables_Handler,
+		},
+		{
+			MethodName: "ServiceVariables",
+			Handler:    _PackagerService_ServiceVariables_Handler,
+		},
+		{
+			MethodName: "SetServiceVariables",
+			Handler:    _PackagerService_SetServiceVariables_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

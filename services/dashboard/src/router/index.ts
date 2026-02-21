@@ -20,6 +20,11 @@ const router = createRouter({
           name: 'project',
           component: () => import('@/pages/ProjectPage.vue'),
         },
+        {
+          path: 'projects/:id/settings',
+          name: 'project-settings',
+          component: () => import('@/pages/ProjectSettingsPage.vue'),
+        },
       ],
     },
     {

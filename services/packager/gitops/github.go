@@ -765,6 +765,228 @@ func (p *GitHubProvider) readFileToMap(ctx context.Context, files map[string][]b
 	return nil
 }
 
+// SharedVariables returns all shared variables for an environment.
+func (p *GitHubProvider) SharedVariables(ctx context.Context, project, environment string) (map[string]string, error) {
+	org, name, err := SplitProject(project)
+	if err != nil {
+		return nil, err
+	}
+	repoName := name + RepoSuffix
+
+	filePath := fmt.Sprintf("environments/%s/values.yaml", environment)
+	inner, _, err := p.readSubchartValuesGH(ctx, org, repoName, filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read %s: %w", filePath, err)
+	}
+
+	return parseStringMap(inner, "sharedVariables"), nil
+}
+
+// SetSharedVariables replaces all shared variables for an environment.
+// Propagates value changes to services that reference shared vars via sharedRefs.
+func (p *GitHubProvider) SetSharedVariables(ctx context.Context, project, environment string, vars map[string]string) error {
+	org, name, err := SplitProject(project)
+	if err != nil {
+		return err
+	}
+	repoName := name + RepoSuffix
+
+	filePath := fmt.Sprintf("environments/%s/values.yaml", environment)
+	inner, sha, err := p.readSubchartValuesGH(ctx, org, repoName, filePath)
+	if err != nil {
+		return fmt.Errorf("failed to read %s: %w", filePath, err)
+	}
+
+	// Replace shared variables
+	if len(vars) > 0 {
+		inner["sharedVariables"] = stringMapToAny(vars)
+	} else {
+		delete(inner, "sharedVariables")
+	}
+
+	// Propagate to services that have sharedRefs
+	services, _ := inner["services"].(map[string]any)
+	for svcName, svcRaw := range services {
+		svcMap, ok := svcRaw.(map[string]any)
+		if !ok {
+			continue
+		}
+		refs := parseStringSlice(svcMap, "sharedRefs")
+		if len(refs) == 0 {
+			continue
+		}
+		env, _ := svcMap["env"].(map[string]any)
+		if env == nil {
+			env = make(map[string]any)
+		}
+		for _, refKey := range refs {
+			if val, ok := vars[refKey]; ok {
+				env[refKey] = val
+			} else {
+				// Shared var was removed — remove from env and refs
+				delete(env, refKey)
+			}
+		}
+		// Clean up refs that no longer exist in shared vars
+		var validRefs []any
+		for _, refKey := range refs {
+			if _, ok := vars[refKey]; ok {
+				validRefs = append(validRefs, refKey)
+			}
+		}
+		if len(env) > 0 {
+			svcMap["env"] = env
+		} else {
+			delete(svcMap, "env")
+		}
+		if len(validRefs) > 0 {
+			svcMap["sharedRefs"] = validRefs
+		} else {
+			delete(svcMap, "sharedRefs")
+		}
+		services[svcName] = svcMap
+	}
+	if len(services) > 0 {
+		inner["services"] = services
+	}
+
+	if err := p.writeSubchartValuesGH(ctx, org, repoName, filePath, inner, sha,
+		fmt.Sprintf("config(%s): update shared variables", environment)); err != nil {
+		return fmt.Errorf("failed to update %s: %w", filePath, err)
+	}
+
+	slog.Info("updated shared variables", "project", project, "environment", environment, "count", len(vars))
+	return nil
+}
+
+// ServiceVariables returns all variables and shared refs for a service in an environment.
+func (p *GitHubProvider) ServiceVariables(ctx context.Context, project, environment, service string) (map[string]string, []string, error) {
+	org, name, err := SplitProject(project)
+	if err != nil {
+		return nil, nil, err
+	}
+	repoName := name + RepoSuffix
+
+	filePath := fmt.Sprintf("environments/%s/values.yaml", environment)
+	inner, _, err := p.readSubchartValuesGH(ctx, org, repoName, filePath)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to read %s: %w", filePath, err)
+	}
+
+	services, _ := inner["services"].(map[string]any)
+	svcMap, _ := services[service].(map[string]any)
+	if svcMap == nil {
+		return nil, nil, nil
+	}
+
+	vars := parseStringMap(svcMap, "env")
+	refs := parseStringSlice(svcMap, "sharedRefs")
+	return vars, refs, nil
+}
+
+// SetServiceVariables replaces all variables for a service in an environment.
+// Direct values come from vars. Keys in sharedRefs are resolved from the
+// environment's shared variables and merged into the service's env.
+func (p *GitHubProvider) SetServiceVariables(ctx context.Context, project, environment, service string, vars map[string]string, sharedRefs []string) error {
+	org, name, err := SplitProject(project)
+	if err != nil {
+		return err
+	}
+	repoName := name + RepoSuffix
+
+	filePath := fmt.Sprintf("environments/%s/values.yaml", environment)
+	inner, sha, err := p.readSubchartValuesGH(ctx, org, repoName, filePath)
+	if err != nil {
+		return fmt.Errorf("failed to read %s: %w", filePath, err)
+	}
+
+	// Build the merged env map: direct values + resolved shared refs
+	env := make(map[string]any, len(vars)+len(sharedRefs))
+	for k, v := range vars {
+		env[k] = v
+	}
+
+	// Resolve shared refs
+	sharedVars := parseStringMap(inner, "sharedVariables")
+	var validRefs []any
+	for _, refKey := range sharedRefs {
+		if val, ok := sharedVars[refKey]; ok {
+			env[refKey] = val
+			validRefs = append(validRefs, refKey)
+		} else {
+			slog.Warn("shared variable not found for ref", "key", refKey, "environment", environment)
+		}
+	}
+
+	// Update the service entry
+	services, _ := inner["services"].(map[string]any)
+	if services == nil {
+		services = make(map[string]any)
+	}
+	svcMap, _ := services[service].(map[string]any)
+	if svcMap == nil {
+		svcMap = make(map[string]any)
+	}
+
+	if len(env) > 0 {
+		svcMap["env"] = env
+	} else {
+		delete(svcMap, "env")
+	}
+	if len(validRefs) > 0 {
+		svcMap["sharedRefs"] = validRefs
+	} else {
+		delete(svcMap, "sharedRefs")
+	}
+	services[service] = svcMap
+	inner["services"] = services
+
+	if err := p.writeSubchartValuesGH(ctx, org, repoName, filePath, inner, sha,
+		fmt.Sprintf("config(%s): update variables for %s", environment, service)); err != nil {
+		return fmt.Errorf("failed to update %s: %w", filePath, err)
+	}
+
+	slog.Info("updated service variables", "project", project, "environment", environment, "service", service)
+	return nil
+}
+
+// parseStringMap extracts a map[string]string from a nested YAML map.
+func parseStringMap(m map[string]any, key string) map[string]string {
+	raw, ok := m[key].(map[string]any)
+	if !ok {
+		return nil
+	}
+	result := make(map[string]string, len(raw))
+	for k, v := range raw {
+		result[k] = fmt.Sprintf("%v", v)
+	}
+	return result
+}
+
+// parseStringSlice extracts a []string from a nested YAML list.
+func parseStringSlice(m map[string]any, key string) []string {
+	raw, ok := m[key].([]any)
+	if !ok {
+		return nil
+	}
+	result := make([]string, 0, len(raw))
+	for _, v := range raw {
+		if s, ok := v.(string); ok {
+			result = append(result, s)
+		}
+	}
+	return result
+}
+
+// stringMapToAny converts map[string]string to map[string]any for YAML marshaling.
+func stringMapToAny(m map[string]string) map[string]any {
+	result := make(map[string]any, len(m))
+	for k, v := range m {
+		result[k] = v
+	}
+	return result
+}
+
 // projectYAMLData matches the structure of project.yaml for parsing.
 type projectYAMLData struct {
 	Name      string `yaml:"name"`

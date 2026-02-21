@@ -15,6 +15,7 @@ import {
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
 import DeploymentsTab from './DeploymentsTab.vue';
+import ServiceVariablesTab from './ServiceVariablesTab.vue';
 import ServiceSettingsTab from './ServiceSettingsTab.vue';
 
 defineProps<{
@@ -94,12 +95,20 @@ onKeyStroke('Escape', () => {
         <div class="px-4 pt-2">
           <TabsList class="w-full">
             <TabsTrigger value="deployments">Deployments</TabsTrigger>
+            <TabsTrigger value="variables">Variables</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
         </div>
 
         <TabsContent value="deployments" class="px-4 py-4">
           <DeploymentsTab
+            :project-id="projectId"
+            :service="service"
+          />
+        </TabsContent>
+
+        <TabsContent value="variables" class="px-4 py-4">
+          <ServiceVariablesTab
             :project-id="projectId"
             :service="service"
           />

@@ -148,6 +148,20 @@ type ServiceInstance struct {
 	Deployments []Deployment `json:"deployments"`
 }
 
+type ServiceVariable struct {
+	Key        string `json:"key"`
+	Value      string `json:"value"`
+	FromShared bool   `json:"fromShared"`
+}
+
+type ServiceVariableInput struct {
+	Key string `json:"key"`
+	// Direct value. Required when fromShared is false, ignored when true.
+	Value *string `json:"value,omitempty"`
+	// If true, value is resolved from the shared variable with the same key.
+	FromShared *bool `json:"fromShared,omitempty"`
+}
+
 type SetServiceDomainInput struct {
 	ProjectID   string `json:"projectId"`
 	Service     string `json:"service"`
@@ -164,6 +178,16 @@ type User struct {
 	Name      *string `json:"name,omitempty"`
 	Email     *string `json:"email,omitempty"`
 	AvatarURL string  `json:"avatarUrl"`
+}
+
+type Variable struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
+}
+
+type VariableInput struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
 }
 
 type BuildPhase string

@@ -74,6 +74,21 @@ type Provider interface {
 	// RepoFiles returns raw file contents from the GitOps repo, keyed by relative path.
 	// Excludes the chart/ directory (the embedded chart is used instead during ejection).
 	RepoFiles(ctx context.Context, project string) (map[string][]byte, error)
+
+	// SharedVariables returns all shared variables for an environment.
+	SharedVariables(ctx context.Context, project, environment string) (map[string]string, error)
+
+	// SetSharedVariables replaces all shared variables for an environment.
+	// Also propagates value changes to any services that reference shared vars via sharedRefs.
+	SetSharedVariables(ctx context.Context, project, environment string, vars map[string]string) error
+
+	// ServiceVariables returns all variables and shared refs for a service in an environment.
+	ServiceVariables(ctx context.Context, project, environment, service string) (vars map[string]string, sharedRefs []string, err error)
+
+	// SetServiceVariables replaces all variables for a service in an environment.
+	// Direct values come from vars. Keys listed in sharedRefs are resolved from the
+	// environment's shared variables and merged into the service's env map.
+	SetServiceVariables(ctx context.Context, project, environment, service string, vars map[string]string, sharedRefs []string) error
 }
 
 // DeploymentEntry represents a single deployment event parsed from a git commit.

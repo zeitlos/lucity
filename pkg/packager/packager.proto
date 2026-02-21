@@ -45,6 +45,20 @@ service PackagerService {
 
   // SetServiceDomain sets or removes the domain hostname for a service in an environment.
   rpc SetServiceDomain(SetServiceDomainRequest) returns (SetServiceDomainResponse);
+
+  // SharedVariables returns all shared variables for an environment.
+  rpc SharedVariables(SharedVariablesRequest) returns (SharedVariablesResponse);
+
+  // SetSharedVariables replaces all shared variables for an environment.
+  // Also propagates changes to any services that reference shared vars via sharedRefs.
+  rpc SetSharedVariables(SetSharedVariablesRequest) returns (SetSharedVariablesResponse);
+
+  // ServiceVariables returns all variables for a service in an environment.
+  rpc ServiceVariables(ServiceVariablesRequest) returns (ServiceVariablesResponse);
+
+  // SetServiceVariables replaces all variables for a service in an environment.
+  // Shared refs are resolved from the environment's shared variables.
+  rpc SetServiceVariables(SetServiceVariablesRequest) returns (SetServiceVariablesResponse);
 }
 
 // ServiceInfo describes a service configured in the project's GitOps repo.
@@ -204,3 +218,43 @@ message SetServiceDomainRequest {
 }
 
 message SetServiceDomainResponse {}
+
+// --- Variable management ---
+
+message SharedVariablesRequest {
+  string project = 1;
+  string environment = 2;
+}
+
+message SharedVariablesResponse {
+  map<string, string> variables = 1;
+}
+
+message SetSharedVariablesRequest {
+  string project = 1;
+  string environment = 2;
+  map<string, string> variables = 3;
+}
+
+message SetSharedVariablesResponse {}
+
+message ServiceVariablesRequest {
+  string project = 1;
+  string environment = 2;
+  string service = 3;
+}
+
+message ServiceVariablesResponse {
+  map<string, string> variables = 1;
+  repeated string shared_refs = 2;  // keys in variables that reference shared vars
+}
+
+message SetServiceVariablesRequest {
+  string project = 1;
+  string environment = 2;
+  string service = 3;
+  map<string, string> variables = 4;     // direct variable values
+  repeated string shared_refs = 5;       // keys to resolve from shared variables
+}
+
+message SetServiceVariablesResponse {}

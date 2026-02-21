@@ -1,0 +1,35 @@
+type Variable {
+  key: String!
+  value: String!
+}
+
+type ServiceVariable {
+  key: String!
+  value: String!
+  fromShared: Boolean!
+}
+
+input VariableInput {
+  key: String!
+  value: String!
+}
+
+input ServiceVariableInput {
+  key: String!
+  """Direct value. Required when fromShared is false, ignored when true."""
+  value: String
+  """If true, value is resolved from the shared variable with the same key."""
+  fromShared: Boolean
+}
+
+extend type Query {
+  sharedVariables(projectId: ID!, environment: String!): [Variable!]! @hasRole(role: [USER])
+  serviceVariables(projectId: ID!, environment: String!, service: String!): [ServiceVariable!]! @hasRole(role: [USER])
+}
+
+extend type Mutation {
+  """Replace all shared variables for an environment. Propagates changes to services referencing them."""
+  setSharedVariables(projectId: ID!, environment: String!, variables: [VariableInput!]!): Boolean! @hasRole(role: [USER])
+  """Replace all variables for a service in an environment."""
+  setServiceVariables(projectId: ID!, environment: String!, service: String!, variables: [ServiceVariableInput!]!): Boolean! @hasRole(role: [USER])
+}

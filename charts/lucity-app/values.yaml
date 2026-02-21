@@ -7,7 +7,6 @@
 #       tag: latest
 #     port: 3000
 #     replicas: 1
-#     public: true
 #     host: api.example.com
 #     resources:
 #       requests:
@@ -31,6 +30,10 @@
 #       limits:
 #         cpu: 200m
 #         memory: 128Mi
+#
+# sharedVariables:
+#   DATABASE_URL: postgres://localhost/myapp
+#   REDIS_URL: redis://localhost:6379
 #
 # config:
 #   app-config:
@@ -58,9 +61,11 @@ services: {}
 
 gateway:
   name: lucity-gateway
-  namespace: ""
+  namespace: lucity-system
 
 cronJobs: {}
+
+sharedVariables: {}
 
 config: {}
 

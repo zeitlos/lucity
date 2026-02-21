@@ -6,7 +6,6 @@ import { useAuth } from '@/composables/useAuth';
 import BaseLogo from '@/components/BaseLogo.vue';
 import ProjectBreadcrumb from '@/components/ProjectBreadcrumb.vue';
 import ThemeToggle from '@/components/ThemeToggle.vue';
-import ProjectSettingsDialog from '@/components/ProjectSettingsDialog.vue';
 import ProjectEjectDialog from '@/components/ProjectEjectDialog.vue';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -22,9 +21,8 @@ const route = useRoute();
 const router = useRouter();
 const { user, logout } = useAuth();
 
-const isProjectRoute = computed(() => route.name === 'project');
+const isProjectRoute = computed(() => route.name === 'project' || route.name === 'project-settings');
 const projectId = computed(() => route.params.id as string | undefined);
-const settingsOpen = ref(false);
 const ejectOpen = ref(false);
 
 async function handleLogout() {
@@ -74,11 +72,11 @@ async function handleLogout() {
         </Button>
 
         <Button
-          v-if="isProjectRoute"
+          v-if="isProjectRoute && projectId"
           variant="ghost"
           size="sm"
           class="text-muted-foreground"
-          @click="settingsOpen = true"
+          @click="router.push({ name: 'project-settings', params: { id: projectId } })"
         >
           <Settings :size="14" class="mr-1.5" />
           Settings
@@ -113,13 +111,6 @@ async function handleLogout() {
     <main class="flex-1">
       <RouterView />
     </main>
-
-    <ProjectSettingsDialog
-      v-if="isProjectRoute && projectId"
-      v-model:open="settingsOpen"
-      :project-id="projectId"
-      :project-name="projectId"
-    />
 
     <ProjectEjectDialog
       v-if="isProjectRoute && projectId"
