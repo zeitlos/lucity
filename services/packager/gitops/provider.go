@@ -75,6 +75,10 @@ type Provider interface {
 	// EnvironmentServices reads per-environment service state (image tags, host)
 	// from the environment's values.yaml.
 	EnvironmentServices(ctx context.Context, project, environment string) ([]ServiceInstanceMeta, error)
+
+	// RepoFiles returns raw file contents from the GitOps repo, keyed by relative path.
+	// Excludes the chart/ directory (the embedded chart is used instead during ejection).
+	RepoFiles(ctx context.Context, project string) (map[string][]byte, error)
 }
 
 // DeploymentEntry represents a single deployment event parsed from a git commit.

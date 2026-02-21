@@ -9,6 +9,7 @@ import (
 
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/packager"
+	"github.com/zeitlos/lucity/services/packager/eject"
 	"github.com/zeitlos/lucity/services/packager/gitops"
 )
 
@@ -313,10 +314,20 @@ func (s *Server) SetServiceDomain(ctx context.Context, req *packager.SetServiceD
 }
 
 func (s *Server) Eject(ctx context.Context, req *packager.EjectRequest) (*packager.EjectResponse, error) {
-	slog.Info("Eject called", "project", req.Project)
-	return &packager.EjectResponse{
-		Archive: []byte("mock-ejected-archive"),
-	}, nil
+	slog.Info("eject started", "project", req.Project)
+
+	p, err := s.provider(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get provider: %w", err)
+	}
+
+	archive, err := eject.Build(ctx, p, req.Project)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build ejection archive: %w", err)
+	}
+
+	slog.Info("eject completed", "project", req.Project, "size", len(archive))
+	return &packager.EjectResponse{Archive: archive}, nil
 }
 
 func envInfosFromMeta(metas []gitops.EnvironmentMeta) []*packager.EnvironmentInfo {

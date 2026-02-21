@@ -857,6 +857,54 @@ func writeLocalValuesYAML(path string, values map[string]any) error {
 	return os.WriteFile(path, data, 0o644)
 }
 
+// RepoFiles returns raw file contents from the GitOps repo, keyed by relative path.
+// Clones the repo and reads all files except .git/ and chart/.
+func (p *SoftServeProvider) RepoFiles(ctx context.Context, project string) (map[string][]byte, error) {
+	_, name, err := SplitProject(project)
+	if err != nil {
+		return nil, err
+	}
+	repoName := name + RepoSuffix
+
+	dir, cleanup, err := p.cloneRepo(repoName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to clone repo for eject: %w", err)
+	}
+	defer cleanup()
+
+	files := make(map[string][]byte)
+	err = filepath.WalkDir(dir, func(path string, d fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+
+		rel, err := filepath.Rel(dir, path)
+		if err != nil {
+			return err
+		}
+
+		// Skip .git and chart directories.
+		if d.IsDir() {
+			if rel == ".git" || rel == "chart" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return nil
+		}
+		files[rel] = data
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to walk repo directory: %w", err)
+	}
+
+	return files, nil
+}
+
 // parseServiceDefs converts a raw YAML services map to ServiceDef slice.
 func parseServiceDefs(services map[string]any) []ServiceDef {
 	var result []ServiceDef

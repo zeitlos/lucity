@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
-import { LogOut, Settings } from 'lucide-vue-next';
+import { Download, LogOut, Settings } from 'lucide-vue-next';
 import { useAuth } from '@/composables/useAuth';
 import BaseLogo from '@/components/BaseLogo.vue';
 import ProjectBreadcrumb from '@/components/ProjectBreadcrumb.vue';
 import ThemeToggle from '@/components/ThemeToggle.vue';
 import ProjectSettingsDialog from '@/components/ProjectSettingsDialog.vue';
+import ProjectEjectDialog from '@/components/ProjectEjectDialog.vue';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -24,6 +25,7 @@ const { user, logout } = useAuth();
 const isProjectRoute = computed(() => route.name === 'project');
 const projectId = computed(() => route.params.id as string | undefined);
 const settingsOpen = ref(false);
+const ejectOpen = ref(false);
 
 async function handleLogout() {
   await logout();
@@ -60,6 +62,17 @@ async function handleLogout() {
 
       <!-- Right: Project nav + Theme + User menu -->
       <div class="flex items-center gap-2">
+        <Button
+          v-if="isProjectRoute"
+          variant="ghost"
+          size="sm"
+          class="text-muted-foreground"
+          @click="ejectOpen = true"
+        >
+          <Download :size="14" class="mr-1.5" />
+          Eject
+        </Button>
+
         <Button
           v-if="isProjectRoute"
           variant="ghost"
@@ -104,6 +117,13 @@ async function handleLogout() {
     <ProjectSettingsDialog
       v-if="isProjectRoute && projectId"
       v-model:open="settingsOpen"
+      :project-id="projectId"
+      :project-name="projectId"
+    />
+
+    <ProjectEjectDialog
+      v-if="isProjectRoute && projectId"
+      v-model:open="ejectOpen"
       :project-id="projectId"
       :project-name="projectId"
     />

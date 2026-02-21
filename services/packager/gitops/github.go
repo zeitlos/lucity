@@ -748,6 +748,62 @@ func parseServiceInstanceMetas(services map[string]any) []ServiceInstanceMeta {
 	return result
 }
 
+// RepoFiles returns raw file contents from the GitOps repo, keyed by relative path.
+// Reads project.yaml, base/, and environments/ — skips chart/ since the embedded
+// version is used during ejection.
+func (p *GitHubProvider) RepoFiles(ctx context.Context, project string) (map[string][]byte, error) {
+	org, name, err := SplitProject(project)
+	if err != nil {
+		return nil, err
+	}
+	repoName := name + RepoSuffix
+
+	files := make(map[string][]byte)
+
+	// Read project.yaml
+	if err := p.readFileToMap(ctx, files, org, repoName, "project.yaml"); err != nil {
+		slog.Warn("failed to read project.yaml during eject", "error", err)
+	}
+
+	// Read base/ directory
+	if err := p.readFileToMap(ctx, files, org, repoName, "base/Chart.yaml"); err != nil {
+		slog.Warn("failed to read base/Chart.yaml during eject", "error", err)
+	}
+	if err := p.readFileToMap(ctx, files, org, repoName, "base/values.yaml"); err != nil {
+		slog.Warn("failed to read base/values.yaml during eject", "error", err)
+	}
+
+	// List environments and read each values.yaml
+	_, dirContents, _, err := p.client.Repositories.GetContents(ctx, org, repoName, "environments", nil)
+	if err == nil {
+		for _, entry := range dirContents {
+			if entry.GetType() == "dir" {
+				envPath := "environments/" + entry.GetName() + "/values.yaml"
+				if err := p.readFileToMap(ctx, files, org, repoName, envPath); err != nil {
+					slog.Warn("failed to read environment values during eject",
+						"environment", entry.GetName(), "error", err)
+				}
+			}
+		}
+	}
+
+	return files, nil
+}
+
+// readFileToMap reads a single file from GitHub and adds it to the map.
+func (p *GitHubProvider) readFileToMap(ctx context.Context, files map[string][]byte, owner, repoName, path string) error {
+	content, _, _, err := p.client.Repositories.GetContents(ctx, owner, repoName, path, nil)
+	if err != nil {
+		return err
+	}
+	raw, err := content.GetContent()
+	if err != nil {
+		return fmt.Errorf("failed to decode %s: %w", path, err)
+	}
+	files[path] = []byte(raw)
+	return nil
+}
+
 // projectYAMLData matches the structure of project.yaml for parsing.
 type projectYAMLData struct {
 	Name      string `yaml:"name"`
