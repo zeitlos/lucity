@@ -10,6 +10,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 const { activeEnvironment, environments, setEnvironment } = useEnvironment();
 
@@ -36,28 +42,39 @@ function handleSelect(env: Environment) {
       {{ activeEnvironment?.name ?? 'No environment' }}
       <ChevronDown :size="14" class="text-muted-foreground" />
     </DropdownMenuTrigger>
-    <DropdownMenuContent align="start" class="w-56">
+    <DropdownMenuContent align="start" class="w-64">
       <DropdownMenuCheckboxItem
         v-for="env in environments"
         :key="env.id"
         :checked="env.id === activeEnvironment?.id"
         @select="handleSelect(env)"
       >
-        <div class="flex w-full items-center justify-between">
-          <span>{{ env.name }}</span>
+        <div class="flex w-full items-center justify-between gap-2">
+          <span class="truncate">{{ env.name }}</span>
           <Badge
             :variant="syncStatusVariant(env.syncStatus)"
-            class="ml-2 text-[10px]"
+            class="shrink-0 text-[10px]"
           >
             {{ env.syncStatus }}
           </Badge>
         </div>
       </DropdownMenuCheckboxItem>
       <DropdownMenuSeparator />
-      <DropdownMenuItem disabled class="text-muted-foreground">
-        <Plus :size="14" class="mr-2" />
-        New Environment
-      </DropdownMenuItem>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger as-child>
+            <div>
+              <DropdownMenuItem disabled class="text-muted-foreground">
+                <Plus :size="14" class="mr-2" />
+                New Environment
+              </DropdownMenuItem>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
+            <p>Coming soon</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     </DropdownMenuContent>
   </DropdownMenu>
 </template>
