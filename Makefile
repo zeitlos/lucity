@@ -1,4 +1,4 @@
-.PHONY: build proto dev dev-gateway dev-builder dev-packager dev-deployer dev-webhook dev-dashboard dev-logs dev-stop generate-graphql lint test-integration test-integration-short minikube infra infra-down infra-forward infra-forward-stop argocd-password infra-tokens argocd-token softserve-token
+.PHONY: build proto dev dev-gateway dev-builder dev-packager dev-deployer dev-webhook dev-dashboard dev-docs dev-logs dev-stop generate-graphql lint test-integration test-integration-short minikube infra infra-down infra-forward infra-forward-stop argocd-password infra-tokens argocd-token softserve-token
 
 # Build all Go services
 build:
@@ -56,6 +56,9 @@ dev-webhook:
 
 dev-dashboard:
 	cd services/dashboard && npm run dev
+
+dev-docs:
+	cd docs && npm run dev
 
 # Lint
 lint:
