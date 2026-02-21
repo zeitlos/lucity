@@ -211,7 +211,9 @@ function gradId(lineId: string): string {
 }
 
 // Mark variant: circle with logo cut out as negative space.
-// Compute bounding circle from all logo geometry (tiles + scaled triangle).
+// Optically center the logo in the circle — the L-shape's visual
+// weight pulls down-left, so we nudge the circle center upward to
+// compensate and achieve perceived balance.
 const mark = computed(() => {
   const allPts: Point[] = L_CELLS.flatMap(([c, r]) => [
     project(c, r),
@@ -229,15 +231,35 @@ const mark = computed(() => {
 
   const xs = allPts.map(p => p[0]);
   const ys = allPts.map(p => p[1]);
-  const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
-  const cy = (Math.min(...ys) + Math.max(...ys)) / 2;
+
+  // Geometric bounding-box center
+  const bboxCx = (Math.min(...xs) + Math.max(...xs)) / 2;
+  const bboxCy = (Math.min(...ys) + Math.max(...ys)) / 2;
+
+  // Area-weighted centroid (tiles + triangle).
+  // Each tile ≈ equal area; triangle ≈ half a tile.
+  const tileCentroids = L_CELLS.map(([c, r]) => {
+    const corners = [project(c, r), project(c + 1, r), project(c + 1, r + 1), project(c, r + 1)];
+    return [corners.reduce((s, p) => s + p[0], 0) / 4, corners.reduce((s, p) => s + p[1], 0) / 4] as Point;
+  });
+  const triCentroid: Point = [triNudged.reduce((s, p) => s + p[0], 0) / 3, triNudged.reduce((s, p) => s + p[1], 0) / 3];
+  const tileWeight = 4; // 4 tiles × 1.0
+  const triWeight = 0.5; // triangle ≈ half a tile
+  const totalWeight = tileWeight + triWeight;
+  const massCx = (tileCentroids.reduce((s, p) => s + p[0], 0) + triCentroid[0] * triWeight) / totalWeight;
+  const massCy = (tileCentroids.reduce((s, p) => s + p[1], 0) + triCentroid[1] * triWeight) / totalWeight;
+
+  // Optical center: blend bbox center toward the mass center so the
+  // circle feels balanced rather than mathematically centered.
+  const cx = (bboxCx + massCx) / 2;
+  const cy = (bboxCy + massCy) / 2;
 
   let maxDist = 0;
   for (const [px, py] of allPts) {
     const d = Math.sqrt((px - cx) ** 2 + (py - cy) ** 2);
     if (d > maxDist) maxDist = d;
   }
-  const r = maxDist * 1.18;
+  const r = maxDist * 1.15;
 
   return {
     cx, cy, r,
