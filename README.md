@@ -58,9 +58,19 @@ Starts minikube with `--insecure-registry "10.96.0.0/12"` so Docker on the node 
 make infra
 ```
 
-Installs Gateway API CRDs and deploys Zot (OCI registry), Soft-serve (Git server), and ArgoCD via Helm into the `lucity-system` namespace.
+Installs Gateway API CRDs, Envoy Gateway, and deploys Zot (OCI registry), Soft-serve (Git server), ArgoCD, and a Gateway resource via Helm into the `lucity-system` namespace.
 
-### 3. Port-forward infrastructure
+### 3. Set up local DNS
+
+```sh
+make dns
+```
+
+Configures [dnsmasq](https://thekelleys.org.uk/dnsmasq/doc.html) so `*.lucity.local` resolves to `127.0.0.1`. Run once — survives reboots. Requires Homebrew (installs dnsmasq if not present).
+
+This lets you access deployed services by hostname, e.g. `http://myapp.lucity.local:8880`.
+
+### 4. Port-forward infrastructure
 
 ```sh
 make infra-forward
@@ -74,12 +84,17 @@ Exposes infrastructure on localhost:
 | Soft-serve (SSH) | `:23231` |
 | Soft-serve (HTTP) | `:23232` |
 | ArgoCD | `:8443` |
+| Envoy Gateway | `:8880` |
 
-### 4. Generate API tokens
+Deployed services with a configured hostname are accessible at `http://<name>.lucity.local:8880` via Envoy Gateway and Gateway API HTTPRoutes.
+
+### 5. Generate API tokens
 
 ```sh
 make infra-tokens
 ```
+
+> Requires `make infra-forward` to be running.
 
 Prints an ArgoCD token and a Soft-serve token. Add them to the service `.env` files:
 
@@ -88,7 +103,7 @@ Prints an ArgoCD token and a Soft-serve token. Add them to the service `.env` fi
 | `ARGOCD_TOKEN` | `services/deployer/.env` |
 | `SOFTSERVE_TOKEN` | `services/deployer/.env`, `services/packager/.env` |
 
-### 5. Configure services
+### 6. Configure services
 
 Each service has a `.env.example`. Copy and fill in the values:
 
@@ -116,7 +131,7 @@ REGISTRY_IMAGE_PREFIX=10.96.100.50:5000
 
 > **Why a ClusterIP, not a DNS name?** Docker on minikube uses the host DNS resolver, not CoreDNS. Cluster-internal DNS names like `*.svc.cluster.local` don't resolve for image pulls. The fixed ClusterIP works because `--insecure-registry` already covers the service CIDR.
 
-### 6. Start all services
+### 7. Start all services
 
 ```sh
 make dev
@@ -128,10 +143,11 @@ Dashboard at http://localhost:5173, GraphQL playground at http://localhost:8080/
 
 ```sh
 make minikube        # 1. Create cluster (one-time)
-make infra           # 2. CRDs + Helm deploy
-make infra-forward   # 3. Port-forward services
-make infra-tokens    # 4. Generate tokens → paste into .env files
-make dev             # 5. Start services with hot reload
+make infra           # 2. CRDs + Envoy Gateway + Helm deploy
+make dns             # 3. Wildcard DNS for *.lucity.local (one-time)
+make infra-forward   # 4. Port-forward services
+make infra-tokens    # 5. Generate tokens → paste into .env files
+make dev             # 6. Start services with hot reload
 ```
 
 ## Services
@@ -150,7 +166,8 @@ make dev             # 5. Start services with hot reload
 | Target | Description |
 |--------|-------------|
 | `make minikube` | Create minikube cluster with insecure registry config |
-| `make infra` | Install CRDs + deploy Zot, Soft-serve, ArgoCD |
+| `make infra` | Install CRDs + Envoy Gateway + deploy Zot, Soft-serve, ArgoCD |
+| `make dns` | Set up wildcard DNS for `*.lucity.local` (one-time) |
 | `make infra-forward` | Port-forward infrastructure to localhost |
 | `make infra-tokens` | Generate ArgoCD + Soft-serve API tokens |
 | `make dev` | Start all services with hot reload |
