@@ -50,7 +50,7 @@ GitHub Repo ──webhook──► Lucity ──GitOps──► ArgoCD ──syn
 make minikube
 ```
 
-Starts minikube with `--insecure-registry` so the in-cluster Docker daemon trusts the Zot OCI registry over HTTP.
+Starts minikube with `--insecure-registry "10.96.0.0/12"` so Docker on the node trusts any ClusterIP-based registry over HTTP. This covers the entire Kubernetes service CIDR. See [minikube registry docs](https://minikube.sigs.k8s.io/docs/handbook/registry/#enabling-insecure-registries).
 
 ### 2. Deploy infrastructure
 
@@ -108,11 +108,13 @@ Key configuration:
 | Packager | `SOFTSERVE_SSH_KEY_PATH`, `SOFTSERVE_TOKEN` |
 | Deployer | `ARGOCD_TOKEN`, `SOFTSERVE_TOKEN` |
 
-Set `REGISTRY_IMAGE_PREFIX` to the cluster-internal Zot address:
+Set `REGISTRY_IMAGE_PREFIX` to Zot's fixed ClusterIP (assigned in `deployments/minikube/values.yaml`):
 
 ```
-REGISTRY_IMAGE_PREFIX=lucity-infra-zot.lucity-system.svc.cluster.local:5000
+REGISTRY_IMAGE_PREFIX=10.96.100.50:5000
 ```
+
+> **Why a ClusterIP, not a DNS name?** Docker on minikube uses the host DNS resolver, not CoreDNS. Cluster-internal DNS names like `*.svc.cluster.local` don't resolve for image pulls. The fixed ClusterIP works because `--insecure-registry` already covers the service CIDR.
 
 ### 6. Start all services
 

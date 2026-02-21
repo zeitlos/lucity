@@ -1,4 +1,4 @@
-.PHONY: build proto dev dev-gateway dev-builder dev-packager dev-deployer dev-webhook dev-dashboard dev-logs dev-stop generate-graphql lint test-integration test-integration-short minikube infra infra-down infra-forward infra-forward-stop infra-tokens argocd-token softserve-token
+.PHONY: build proto dev dev-gateway dev-builder dev-packager dev-deployer dev-webhook dev-dashboard dev-logs dev-stop generate-graphql lint test-integration test-integration-short minikube infra infra-down infra-forward infra-forward-stop argocd-password infra-tokens argocd-token softserve-token
 
 # Build all Go services
 build:
@@ -69,9 +69,10 @@ test-integration-short:
 	cd tests && go test -v -count=1 -short ./...
 
 # Create minikube cluster for local development
-# Configures Docker to trust the in-cluster Zot registry over HTTP
+# --insecure-registry covers the entire service CIDR so Docker trusts Zot over HTTP.
+# See: https://minikube.sigs.k8s.io/docs/handbook/registry/#enabling-insecure-registries
 minikube:
-	minikube start --insecure-registry="lucity-infra-zot.lucity-system.svc.cluster.local:5000"
+	minikube start --insecure-registry="10.96.0.0/12"
 
 # Deploy infrastructure (Zot + Soft-serve + ArgoCD) to a cluster
 # Also installs Gateway API CRDs required for public services
@@ -99,6 +100,10 @@ infra-forward-stop:
 	@for port in 5000 23231 23232 8443; do \
 		lsof -ti :$$port | xargs kill 2>/dev/null || true; \
 	done
+
+# Print the ArgoCD admin password (auto-generated, stored in K8s secret)
+argocd-password:
+	@kubectl get secret argocd-initial-admin-secret -n lucity-system -o jsonpath='{.data.password}' | base64 -d && echo
 
 # Generate API tokens for infrastructure services
 # Requires: infra-forward running

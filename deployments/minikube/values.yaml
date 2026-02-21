@@ -5,6 +5,11 @@ zot:
   pvc:
     create: true
     storage: 5Gi
+  # Fixed ClusterIP so image refs work without DNS resolution in Docker daemon.
+  # Docker on minikube uses host DNS (not CoreDNS), so cluster-internal DNS names
+  # don't resolve for image pulls. A fixed IP in the service CIDR solves this.
+  service:
+    clusterIP: 10.96.100.50
 
 softServe:
   persistence:
