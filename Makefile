@@ -118,8 +118,8 @@ infra-forward: infra-forward-stop
 	@kubectl port-forward svc/lucity-infra-zot 5000:5000 -n lucity-system &
 	@kubectl port-forward svc/lucity-infra-soft-serve 23231:23231 23232:23232 -n lucity-system &
 	@kubectl port-forward svc/lucity-infra-argocd-server 8443:80 -n lucity-system &
-	@GATEWAY_SVC=$$(kubectl get svc -n envoy-gateway-system -l gateway.envoyproxy.io/owning-gateway-name=lucity-gateway -o name 2>/dev/null) && \
-		[ -n "$$GATEWAY_SVC" ] && kubectl port-forward $$GATEWAY_SVC 8880:80 -n envoy-gateway-system & || true
+	@(GATEWAY_SVC=$$(kubectl get svc -n envoy-gateway-system -l gateway.envoyproxy.io/owning-gateway-name=lucity-gateway -o name 2>/dev/null) && \
+		[ -n "$$GATEWAY_SVC" ] && kubectl port-forward $$GATEWAY_SVC 8880:80 -n envoy-gateway-system &) 2>/dev/null || true
 	@echo "Ready. Use 'make infra-forward-stop' to stop."
 
 infra-forward-stop:
