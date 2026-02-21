@@ -1,4 +1,4 @@
-# Lucity infrastructure chart — Zot (OCI registry) + Soft-serve (Git server) + ArgoCD (GitOps) + Envoy Gateway (Gateway API)
+# Lucity infrastructure chart — Zot (OCI registry) + Soft-serve (Git server) + ArgoCD (GitOps) + Envoy Gateway (Gateway API) + CNPG (PostgreSQL)
 
 # -- Zot OCI Registry
 zot:
@@ -100,13 +100,14 @@ argo-cd:
         url: http://lucity-infra-soft-serve.lucity-system.svc.cluster.local:23232
         type: git
 
-# -- Envoy Gateway (Gateway API controller for local dev, disable when using Cilium)
-envoyGateway:
-  enabled: true
-
 # -- Gateway resource configuration
+# The Gateway resource is always created. The className determines which controller handles it.
+# Envoy Gateway is installed separately (make infra installs it into envoy-gateway-system).
+# For Cilium clusters, set className to "cilium" and skip Envoy Gateway installation.
 gateway:
   name: lucity-gateway
   className: eg  # "eg" for Envoy Gateway, "cilium" for Cilium
 
-gateway-helm: {}
+# -- CloudNativePG Operator (PostgreSQL)
+cloudnative-pg:
+  enabled: true

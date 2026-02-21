@@ -5,8 +5,8 @@ dependencies:
 - name: argo-cd
   repository: https://argoproj.github.io/argo-helm
   version: 7.8.13
-- name: gateway-helm
-  repository: oci://docker.io/envoyproxy
-  version: 1.2.6
-digest: sha256:fb4ed7491e66e8882e2cca21b38a20e0632c59447c6565dcbf48066194285c4d
-generated: "2026-02-21T15:26:18.948443+01:00"
+- name: cloudnative-pg
+  repository: https://cloudnative-pg.github.io/charts
+  version: 0.27.1
+digest: sha256:5be2925c2da85721ff96b5a0eb22bbd7f68635fa5f43e89d2672633d94585301
+generated: "2026-02-21T16:32:49.000423+01:00"
