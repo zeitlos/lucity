@@ -5,12 +5,15 @@ export const ProjectsQuery = gql`
     projects {
       id
       name
-      sourceUrl
       createdAt
       environments {
         id
         name
         syncStatus
+      }
+      services {
+        name
+        sourceUrl
       }
     }
   }
@@ -21,13 +24,6 @@ export const CreateProjectMutation = gql`
     createProject(input: $input) {
       id
       name
-      sourceUrl
-      services {
-        name
-        image
-        port
-        framework
-      }
       initialDeploys {
         id
         phase
@@ -47,7 +43,6 @@ export const ProjectQuery = gql`
     project(id: $id) {
       id
       name
-      sourceUrl
       createdAt
       environments {
         id
@@ -77,6 +72,8 @@ export const ProjectQuery = gql`
         image
         port
         framework
+        sourceUrl
+        contextPath
         instances {
           environment
           imageTag

@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
-import { useQuery, useMutation } from '@vue/apollo-composable';
+import { useQuery, useMutation, useApolloClient } from '@vue/apollo-composable';
 import { Github, FolderPlus, Plus, Lock, Globe, ArrowLeft, Search, X } from 'lucide-vue-next';
 import { onKeyStroke } from '@vueuse/core';
 import { GitHubRepositoriesQuery } from '@/graphql/github';
 import { CreateProjectMutation } from '@/graphql/projects';
-import { AddServiceMutation } from '@/graphql/services';
+import { AddServiceMutation, DetectServicesQuery } from '@/graphql/services';
 import { toast } from '@/components/ui/sonner';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -24,6 +24,7 @@ const emit = defineEmits<{
 }>();
 
 const router = useRouter();
+const { resolveClient } = useApolloClient();
 
 // Drill-down state
 type PaletteView = 'main' | 'github-repos' | 'manual-service';
@@ -62,7 +63,7 @@ function close() {
 
 // GitHub repos
 const { result: reposResult, loading: reposLoading } = useQuery(GitHubRepositoriesQuery, null, () => ({
-  enabled: props.open && view.value === 'github-repos' && props.context === 'projects',
+  enabled: props.open && view.value === 'github-repos',
 }));
 
 const repos = computed(() => {
@@ -76,11 +77,18 @@ const repos = computed(() => {
 const { mutate: createProject, loading: creating } = useMutation(CreateProjectMutation);
 
 async function handleSelectRepo(repo: { fullName: string; htmlUrl: string }) {
+  if (props.context === 'projects') {
+    await handleCreateProjectFromRepo(repo);
+  } else {
+    await handleAddServicesFromRepo(repo);
+  }
+}
+
+async function handleCreateProjectFromRepo(repo: { fullName: string; htmlUrl: string }) {
   try {
     const res = await createProject({
       input: {
         name: repo.fullName,
-        sourceUrl: repo.htmlUrl,
       },
     });
 
@@ -97,6 +105,58 @@ async function handleSelectRepo(repo: { fullName: string; htmlUrl: string }) {
     }
   } catch (e: unknown) {
     toast.error('Failed to create project', { description: errorMessage(e) });
+  }
+}
+
+// Detect services from a repo and add them to the current project
+const detectingServices = ref(false);
+
+async function handleAddServicesFromRepo(repo: { fullName: string; htmlUrl: string }) {
+  if (!props.projectId) return;
+
+  detectingServices.value = true;
+  try {
+    const client = resolveClient();
+    const { data } = await client.query({
+      query: DetectServicesQuery,
+      variables: { sourceUrl: repo.htmlUrl },
+    });
+
+    const detected = data?.detectServices ?? [];
+    if (detected.length === 0) {
+      toast.info('No services detected', { description: `No services found in ${repo.fullName}` });
+      detectingServices.value = false;
+      return;
+    }
+
+    // Add each detected service
+    let added = 0;
+    for (const svc of detected) {
+      try {
+        await addServiceMutate({
+          input: {
+            projectId: props.projectId,
+            name: svc.name,
+            port: svc.suggestedPort,
+            framework: svc.framework || undefined,
+            sourceUrl: repo.htmlUrl,
+          },
+        });
+        added++;
+      } catch {
+        // continue with remaining services
+      }
+    }
+
+    toast.success(`Added ${added} service${added !== 1 ? 's' : ''}`, {
+      description: `from ${repo.fullName}`,
+    });
+    close();
+    emit('created');
+  } catch (e: unknown) {
+    toast.error('Failed to detect services', { description: errorMessage(e) });
+  } finally {
+    detectingServices.value = false;
   }
 }
 
@@ -141,6 +201,7 @@ const mainItems = computed(() => {
         { id: 'empty-project', label: 'Empty Project', icon: FolderPlus, action: () => { router.push('/'); close(); } },
       ]
     : [
+        { id: 'github-repo', label: 'GitHub Repository', icon: Github, action: () => { view.value = 'github-repos'; } },
         { id: 'manual-service', label: 'Manual Service', icon: Plus, action: () => { view.value = 'manual-service'; } },
       ];
 
@@ -237,7 +298,7 @@ const mainItems = computed(() => {
                     v-for="repo in repos"
                     :key="repo.id"
                     class="flex w-full items-center gap-2 rounded-lg px-2 py-2.5 text-sm text-popover-foreground transition-colors hover:bg-accent disabled:opacity-50"
-                    :disabled="creating"
+                    :disabled="creating || detectingServices"
                     @click="handleSelectRepo(repo)"
                   >
                     <component

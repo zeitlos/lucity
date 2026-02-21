@@ -13,7 +13,7 @@ import (
 
 // CreateProject is the resolver for the createProject field.
 func (r *mutationResolver) CreateProject(ctx context.Context, input model.CreateProjectInput) (*model.Project, error) {
-	p, err := r.API.CreateProject(ctx, input.Name, input.SourceURL)
+	p, err := r.API.CreateProject(ctx, input.Name)
 	if err != nil {
 		return nil, err
 	}

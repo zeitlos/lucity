@@ -34,7 +34,7 @@ func NewGitHubProvider(token string) *GitHubProvider {
 
 // CreateRepo creates a GitOps repo in the project's org on GitHub.
 // Project name is org-scoped: "zeitlos/myapp" → creates repo "zeitlos/myapp-gitops".
-func (p *GitHubProvider) CreateRepo(ctx context.Context, project, sourceURL string) (string, error) {
+func (p *GitHubProvider) CreateRepo(ctx context.Context, project string) (string, error) {
 	org, name, err := SplitProject(project)
 	if err != nil {
 		return "", err
@@ -60,7 +60,7 @@ func (p *GitHubProvider) CreateRepo(ctx context.Context, project, sourceURL stri
 	slog.Info("created gitops repo", "repo", repo.GetFullName())
 
 	// Clone, populate, commit, and push
-	if err := p.initRepoContents(repo.GetCloneURL(), project, sourceURL); err != nil {
+	if err := p.initRepoContents(repo.GetCloneURL(), project); err != nil {
 		return "", fmt.Errorf("failed to initialize repo contents: %w", err)
 	}
 
@@ -173,6 +173,12 @@ func (p *GitHubProvider) AddService(ctx context.Context, project string, svc Ser
 	}
 	if svc.Framework != "" {
 		svcEntry["framework"] = svc.Framework
+	}
+	if svc.SourceURL != "" {
+		svcEntry["sourceUrl"] = svc.SourceURL
+	}
+	if svc.ContextPath != "" {
+		svcEntry["contextPath"] = svc.ContextPath
 	}
 	services[svc.Name] = svcEntry
 	inner["services"] = services
@@ -379,7 +385,7 @@ func (p *GitHubProvider) readProjectMeta(ctx context.Context, owner, repoName st
 
 // initRepoContents clones the empty repo, creates the GitOps directory structure,
 // commits, and pushes.
-func (p *GitHubProvider) initRepoContents(cloneURL, project, sourceURL string) error {
+func (p *GitHubProvider) initRepoContents(cloneURL, project string) error {
 	tmpDir, err := os.MkdirTemp("", "lucity-gitops-*")
 	if err != nil {
 		return fmt.Errorf("failed to create temp dir: %w", err)
@@ -409,7 +415,7 @@ func (p *GitHubProvider) initRepoContents(cloneURL, project, sourceURL string) e
 
 	// Create directory structure and files
 	files := map[string]string{
-		"project.yaml":                         projectYAML(project, sourceURL, now),
+		"project.yaml":                         projectYAML(project, now),
 		"base/Chart.yaml":                      baseChartYAML(project),
 		"base/values.yaml":                     baseValuesYAML,
 		"environments/development/values.yaml": environmentValuesYAML,
@@ -437,7 +443,7 @@ func (p *GitHubProvider) initRepoContents(cloneURL, project, sourceURL string) e
 		return fmt.Errorf("failed to stage chart: %w", err)
 	}
 
-	_, err = wt.Commit(fmt.Sprintf("init: %s from %s", project, sourceURL), &git.CommitOptions{
+	_, err = wt.Commit(fmt.Sprintf("init: %s", project), &git.CommitOptions{
 		Author: &object.Signature{
 			Name:  "Lucity",
 			Email: "lucity@localhost",
@@ -990,7 +996,6 @@ func stringMapToAny(m map[string]string) map[string]any {
 // projectYAMLData matches the structure of project.yaml for parsing.
 type projectYAMLData struct {
 	Name      string `yaml:"name"`
-	SourceURL string `yaml:"source_url"`
 	CreatedAt string `yaml:"created_at"`
 }
 
@@ -1004,7 +1009,6 @@ func parseProjectYAML(data []byte) (*ProjectMeta, error) {
 
 	return &ProjectMeta{
 		Name:      d.Name,
-		SourceURL: d.SourceURL,
 		CreatedAt: createdAt,
 	}, nil
 }

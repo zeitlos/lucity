@@ -9,7 +9,6 @@ func convertProject(p handler.Project) model.Project {
 	result := model.Project{
 		ID:        p.ID,
 		Name:      p.Name,
-		SourceURL: p.SourceURL,
 		CreatedAt: p.CreatedAt,
 	}
 	for _, e := range p.Environments {
@@ -50,6 +49,12 @@ func convertService(s handler.Service) model.Service {
 	}
 	if s.Framework != "" {
 		svc.Framework = &s.Framework
+	}
+	if s.SourceURL != "" {
+		svc.SourceURL = &s.SourceURL
+	}
+	if s.ContextPath != "" {
+		svc.ContextPath = &s.ContextPath
 	}
 	for _, si := range s.Instances {
 		svc.Instances = append(svc.Instances, convertServiceInstance(si))

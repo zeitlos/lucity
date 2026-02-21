@@ -11,10 +11,12 @@ import (
 )
 
 type AddServiceInput struct {
-	ProjectID string  `json:"projectId"`
-	Name      string  `json:"name"`
-	Port      int     `json:"port"`
-	Framework *string `json:"framework,omitempty"`
+	ProjectID   string  `json:"projectId"`
+	Name        string  `json:"name"`
+	Port        int     `json:"port"`
+	Framework   *string `json:"framework,omitempty"`
+	SourceURL   *string `json:"sourceUrl,omitempty"`
+	ContextPath *string `json:"contextPath,omitempty"`
 }
 
 type Build struct {
@@ -26,10 +28,9 @@ type Build struct {
 }
 
 type BuildServiceInput struct {
-	ProjectID   string  `json:"projectId"`
-	Service     string  `json:"service"`
-	GitRef      *string `json:"gitRef,omitempty"`
-	ContextPath *string `json:"contextPath,omitempty"`
+	ProjectID string  `json:"projectId"`
+	Service   string  `json:"service"`
+	GitRef    *string `json:"gitRef,omitempty"`
 }
 
 type CreateEnvironmentInput struct {
@@ -39,8 +40,7 @@ type CreateEnvironmentInput struct {
 }
 
 type CreateProjectInput struct {
-	Name      string `json:"name"`
-	SourceURL string `json:"sourceUrl"`
+	Name string `json:"name"`
 }
 
 type DeployBuildInput struct {
@@ -56,7 +56,6 @@ type DeployInput struct {
 	Service     string  `json:"service"`
 	Environment string  `json:"environment"`
 	GitRef      *string `json:"gitRef,omitempty"`
-	ContextPath *string `json:"contextPath,omitempty"`
 }
 
 type DeployRun struct {
@@ -113,7 +112,6 @@ type Mutation struct {
 type Project struct {
 	ID             string        `json:"id"`
 	Name           string        `json:"name"`
-	SourceURL      string        `json:"sourceUrl"`
 	Environments   []Environment `json:"environments"`
 	Services       []Service     `json:"services"`
 	CreatedAt      time.Time     `json:"createdAt"`
@@ -131,11 +129,13 @@ type Query struct {
 }
 
 type Service struct {
-	Name      string            `json:"name"`
-	Image     string            `json:"image"`
-	Port      *int              `json:"port,omitempty"`
-	Framework *string           `json:"framework,omitempty"`
-	Instances []ServiceInstance `json:"instances"`
+	Name        string            `json:"name"`
+	Image       string            `json:"image"`
+	Port        *int              `json:"port,omitempty"`
+	Framework   *string           `json:"framework,omitempty"`
+	SourceURL   *string           `json:"sourceUrl,omitempty"`
+	ContextPath *string           `json:"contextPath,omitempty"`
+	Instances   []ServiceInstance `json:"instances"`
 }
 
 type ServiceInstance struct {

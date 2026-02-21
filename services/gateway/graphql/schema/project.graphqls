@@ -1,7 +1,6 @@
 type Project {
   id: ID!
   name: String!
-  sourceUrl: String!
   environments: [Environment!]!
   services: [Service!]!
   createdAt: Time!
@@ -22,6 +21,8 @@ type Service {
   image: String!
   port: Int
   framework: String
+  sourceUrl: String
+  contextPath: String
   instances: [ServiceInstance!]!
 }
 
@@ -54,7 +55,6 @@ enum SyncStatus {
 
 input CreateProjectInput {
   name: String! @constraint(constraint: "min=3,max=128")
-  sourceUrl: String!
 }
 
 input CreateEnvironmentInput {

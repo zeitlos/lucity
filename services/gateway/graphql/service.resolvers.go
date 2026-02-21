@@ -17,7 +17,15 @@ func (r *mutationResolver) AddService(ctx context.Context, input model.AddServic
 	if input.Framework != nil {
 		framework = *input.Framework
 	}
-	svc, err := r.API.AddService(ctx, input.ProjectID, input.Name, input.Port, framework)
+	sourceURL := ""
+	if input.SourceURL != nil {
+		sourceURL = *input.SourceURL
+	}
+	contextPath := ""
+	if input.ContextPath != nil {
+		contextPath = *input.ContextPath
+	}
+	svc, err := r.API.AddService(ctx, input.ProjectID, input.Name, input.Port, framework, sourceURL, contextPath)
 	if err != nil {
 		return nil, err
 	}
@@ -36,11 +44,7 @@ func (r *mutationResolver) BuildService(ctx context.Context, input model.BuildSe
 	if input.GitRef != nil {
 		gitRef = *input.GitRef
 	}
-	contextPath := ""
-	if input.ContextPath != nil {
-		contextPath = *input.ContextPath
-	}
-	b, err := r.API.StartBuild(ctx, input.ProjectID, input.Service, gitRef, contextPath)
+	b, err := r.API.StartBuild(ctx, input.ProjectID, input.Service, gitRef)
 	if err != nil {
 		return nil, err
 	}
@@ -63,11 +67,7 @@ func (r *mutationResolver) Deploy(ctx context.Context, input model.DeployInput) 
 	if input.GitRef != nil {
 		gitRef = *input.GitRef
 	}
-	contextPath := ""
-	if input.ContextPath != nil {
-		contextPath = *input.ContextPath
-	}
-	d, err := r.API.Deploy(ctx, input.ProjectID, input.Service, input.Environment, gitRef, contextPath)
+	d, err := r.API.Deploy(ctx, input.ProjectID, input.Service, input.Environment, gitRef)
 	if err != nil {
 		return nil, err
 	}
@@ -81,8 +81,8 @@ func (r *mutationResolver) SetServiceDomain(ctx context.Context, input model.Set
 }
 
 // DetectServices is the resolver for the detectServices field.
-func (r *queryResolver) DetectServices(ctx context.Context, projectID string) ([]model.DetectedService, error) {
-	services, err := r.API.DetectServices(ctx, projectID)
+func (r *queryResolver) DetectServices(ctx context.Context, sourceURL string) ([]model.DetectedService, error) {
+	services, err := r.API.DetectServices(ctx, sourceURL)
 	if err != nil {
 		return nil, err
 	}

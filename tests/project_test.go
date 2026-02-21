@@ -13,9 +13,8 @@ func TestProjectsQuery(t *testing.T) {
 			projects {
 				id
 				name
-				sourceUrl
 				environments { id name }
-				services { name }
+				services { name sourceUrl }
 			}
 		}
 	`, nil)

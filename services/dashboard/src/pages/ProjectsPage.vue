@@ -2,7 +2,7 @@
 import { useQuery } from '@vue/apollo-composable';
 import { RouterLink } from 'vue-router';
 import { computed, ref } from 'vue';
-import { Plus, ExternalLink } from 'lucide-vue-next';
+import { Plus, Github, Box } from 'lucide-vue-next';
 import { ProjectsQuery } from '@/graphql/projects';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -22,6 +22,11 @@ function envStatusColor(environments: { syncStatus: string }[]) {
   const allSynced = environments.every(e => e.syncStatus === 'SYNCED');
   if (allSynced) return 'bg-green-500';
   return 'bg-yellow-500';
+}
+
+function uniqueRepoCount(services: { sourceUrl?: string }[]): number {
+  const urls = services.filter(s => s.sourceUrl).map(s => s.sourceUrl);
+  return new Set(urls).size;
 }
 </script>
 
@@ -82,9 +87,15 @@ function envStatusColor(environments: { syncStatus: string }[]) {
         <Card class="transition-shadow hover:shadow-md">
           <CardHeader>
             <CardTitle class="text-lg">{{ project.name }}</CardTitle>
-            <CardDescription class="flex items-center gap-1">
-              <ExternalLink :size="12" />
-              {{ project.sourceUrl }}
+            <CardDescription class="flex items-center gap-3">
+              <span v-if="project.services?.length" class="flex items-center gap-1">
+                <Box :size="12" />
+                {{ project.services.length }} service{{ project.services.length !== 1 ? 's' : '' }}
+              </span>
+              <span v-if="uniqueRepoCount(project.services ?? [])" class="flex items-center gap-1">
+                <Github :size="12" />
+                {{ uniqueRepoCount(project.services) }} repo{{ uniqueRepoCount(project.services) !== 1 ? 's' : '' }}
+              </span>
             </CardDescription>
           </CardHeader>
           <CardContent>

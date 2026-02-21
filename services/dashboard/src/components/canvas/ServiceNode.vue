@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { Handle, Position } from '@vue-flow/core';
-import { Globe } from 'lucide-vue-next';
+import { Github, Globe } from 'lucide-vue-next';
 import FrameworkIcon from '@/components/FrameworkIcon.vue';
 import { Badge } from '@/components/ui/badge';
 import { Chip } from '@/components/ui/chip';
@@ -11,6 +11,7 @@ const props = defineProps<{
     name: string;
     framework?: string;
     port?: number;
+    sourceUrl?: string;
     host?: string;
     ready?: boolean;
     imageTag?: string;
@@ -31,6 +32,11 @@ const badgeVariant = computed(() => {
 const statusLabel = computed(() => {
   if (props.data.ready === undefined) return 'Unknown';
   return props.data.ready ? 'Online' : 'Not Ready';
+});
+
+const shortRepoName = computed(() => {
+  if (!props.data.sourceUrl) return null;
+  return props.data.sourceUrl.replace('https://github.com/', '');
 });
 </script>
 
@@ -57,9 +63,13 @@ const statusLabel = computed(() => {
       <span class="truncate font-semibold text-foreground">{{ data.name }}</span>
     </div>
 
-    <!-- Meta row: port + domain + replicas -->
+    <!-- Meta row: port + repo + domain + replicas -->
     <div class="mt-4 flex items-center gap-3 border-t border-border/50 pt-4 text-xs text-muted-foreground">
       <span v-if="data.port" class="font-mono">:{{ data.port }}</span>
+      <span v-if="shortRepoName" class="flex items-center gap-1 truncate">
+        <Github :size="12" class="shrink-0" />
+        <span class="truncate">{{ shortRepoName }}</span>
+      </span>
       <span v-if="data.host" class="flex items-center gap-1 truncate">
         <Globe :size="12" class="shrink-0" />
         <span class="truncate">{{ data.host }}</span>

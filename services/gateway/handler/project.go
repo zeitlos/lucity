@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/zeitlos/lucity/pkg/auth"
-	"github.com/zeitlos/lucity/pkg/builder"
 	"github.com/zeitlos/lucity/pkg/deployer"
 	"github.com/zeitlos/lucity/pkg/labels"
 	"github.com/zeitlos/lucity/pkg/packager"
@@ -24,7 +23,6 @@ const (
 type Project struct {
 	ID             string
 	Name           string
-	SourceURL      string
 	Environments   []Environment
 	Services       []Service
 	InitialDeploys []DeployOp
@@ -41,11 +39,13 @@ type Environment struct {
 }
 
 type Service struct {
-	Name      string
-	Image     string
-	Port      int
-	Framework string
-	Instances []ServiceInstance
+	Name        string
+	Image       string
+	Port        int
+	Framework   string
+	SourceURL   string
+	ContextPath string
+	Instances   []ServiceInstance
 }
 
 type ServiceInstance struct {
@@ -103,55 +103,20 @@ func (c *Client) Project(ctx context.Context, id string) (*Project, error) {
 	return &p, nil
 }
 
-func (c *Client) CreateProject(ctx context.Context, name, sourceURL string) (*Project, error) {
+func (c *Client) CreateProject(ctx context.Context, name string) (*Project, error) {
 	ctx = auth.OutgoingContext(ctx)
 
 	// 1. Create GitOps repo
 	initCtx, initCancel := context.WithTimeout(ctx, grpcLongTimeout)
 	defer initCancel()
 	resp, err := c.Packager.InitProject(initCtx, &packager.InitProjectRequest{
-		Project:   name,
-		SourceUrl: sourceURL,
+		Project: name,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create project: %w", err)
 	}
 
-	// 2. Detect services from source repo (non-fatal on failure)
-	var services []Service
-	detectCtx, detectCancel := context.WithTimeout(ctx, grpcLongTimeout)
-	defer detectCancel()
-	detectResp, err := c.Builder.DetectServices(detectCtx, &builder.DetectServicesRequest{
-		SourceUrl: sourceURL,
-	})
-	if err != nil {
-		slog.Warn("failed to detect services", "project", name, "error", err)
-	} else {
-		for _, detected := range detectResp.Services {
-			image := deriveImagePath(c.RegistryImagePrefix, name, detected.Name)
-			addCtx, addCancel := context.WithTimeout(ctx, grpcTimeout)
-			_, addErr := c.Packager.AddService(addCtx, &packager.AddServiceRequest{
-				Project:   name,
-				Service:   detected.Name,
-				Image:     image,
-				Port:      detected.SuggestedPort,
-				Framework: detected.Framework,
-			})
-			addCancel()
-			if addErr != nil {
-				slog.Warn("failed to add detected service", "project", name, "service", detected.Name, "error", addErr)
-				continue
-			}
-			services = append(services, Service{
-				Name:      detected.Name,
-				Image:     image,
-				Port:      int(detected.SuggestedPort),
-				Framework: detected.Framework,
-			})
-		}
-	}
-
-	// 3. Deploy the default development environment via ArgoCD
+	// 2. Deploy the default development environment via ArgoCD
 	ns := labels.NamespaceFor(name, "development")
 	deployCtx, deployCancel := context.WithTimeout(ctx, grpcTimeout)
 	defer deployCancel()
@@ -165,23 +130,10 @@ func (c *Client) CreateProject(ctx context.Context, name, sourceURL string) (*Pr
 		slog.Warn("failed to deploy development environment", "project", name, "error", err)
 	}
 
-	// 4. Auto-deploy each detected service
-	var initialDeploys []DeployOp
-	for _, svc := range services {
-		deployOp, deployErr := c.Deploy(ctx, name, svc.Name, "development", "", "")
-		if deployErr != nil {
-			slog.Warn("failed to start initial deploy", "project", name, "service", svc.Name, "error", deployErr)
-			continue
-		}
-		initialDeploys = append(initialDeploys, *deployOp)
-	}
-
 	return &Project{
 		ID:        name,
 		Name:      name,
-		SourceURL: sourceURL,
 		CreatedAt: time.Now(),
-		Services:  services,
 		Environments: []Environment{
 			{
 				ID:         name + "/development",
@@ -190,7 +142,6 @@ func (c *Client) CreateProject(ctx context.Context, name, sourceURL string) (*Pr
 				SyncStatus: "PROGRESSING",
 			},
 		},
-		InitialDeploys: initialDeploys,
 	}, nil
 }
 
@@ -446,7 +397,6 @@ func projectFromProto(p *packager.ProjectInfo) Project {
 	proj := Project{
 		ID:        p.Name,
 		Name:      p.Name,
-		SourceURL: p.SourceUrl,
 		CreatedAt: createdAt,
 	}
 
@@ -480,10 +430,12 @@ func projectFromProto(p *packager.ProjectInfo) Project {
 
 	for _, svc := range p.Services {
 		proj.Services = append(proj.Services, Service{
-			Name:      svc.Name,
-			Image:     svc.Image,
-			Port:      int(svc.Port),
-			Framework: svc.Framework,
+			Name:        svc.Name,
+			Image:       svc.Image,
+			Port:        int(svc.Port),
+			Framework:   svc.Framework,
+			SourceURL:   svc.SourceUrl,
+			ContextPath: svc.ContextPath,
 		})
 	}
 

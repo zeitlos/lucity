@@ -11,8 +11,8 @@ export interface BuildState {
   isBuilding: boolean;
   imageRef: string | null;
   digest: string | null;
-  startBuild: (projectId: string, service: string, gitRef?: string, contextPath?: string) => Promise<void>;
-  buildAndDeploy: (projectId: string, service: string, environment: string, gitRef?: string, contextPath?: string) => Promise<void>;
+  startBuild: (projectId: string, service: string, gitRef?: string) => Promise<void>;
+  buildAndDeploy: (projectId: string, service: string, environment: string, gitRef?: string) => Promise<void>;
   deploy: (projectId: string, service: string, environment: string, tag: string, buildDigest?: string) => Promise<boolean>;
   reset: () => void;
 }
@@ -86,7 +86,7 @@ export function useBuild(): BuildState {
     imageRef: null,
     digest: null,
 
-    async startBuild(projectId: string, service: string, gitRef?: string, contextPath?: string) {
+    async startBuild(projectId: string, service: string, gitRef?: string) {
       state.error = null;
       state.phase = 'QUEUED';
       state.isBuilding = true;
@@ -102,7 +102,6 @@ export function useBuild(): BuildState {
               projectId,
               service,
               gitRef: gitRef || undefined,
-              contextPath: contextPath || undefined,
             },
           },
         });
@@ -122,7 +121,7 @@ export function useBuild(): BuildState {
       }
     },
 
-    async buildAndDeploy(projectId: string, service: string, environment: string, gitRef?: string, contextPath?: string) {
+    async buildAndDeploy(projectId: string, service: string, environment: string, gitRef?: string) {
       state.error = null;
       state.phase = 'QUEUED';
       state.isBuilding = true;
@@ -153,7 +152,6 @@ export function useBuild(): BuildState {
               projectId,
               service,
               gitRef: gitRef || undefined,
-              contextPath: contextPath || undefined,
             },
           },
         });

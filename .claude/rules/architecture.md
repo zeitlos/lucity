@@ -68,6 +68,10 @@ Operations that touch external state — creating repos, deploying ArgoCD apps, 
 
 This matters because the platform is stateless and distributed. Retries, crashes, and partial failures are normal. Every operation should be safe to repeat.
 
+## No Backward Compatibility
+
+Don't support legacy API versions. Just change APIs directly — no fallbacks, no deprecation shims, no version negotiation. This is an early-stage project with no external consumers. Clean breaks are better than compatibility layers.
+
 ## Don't Reinvent
 
 If ArgoCD, Helm, a Kubernetes operator, or the OCI registry already manages a piece of state, use it. Don't duplicate it. Don't wrap it in an unnecessary abstraction. Leverage what's already there.

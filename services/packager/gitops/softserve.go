@@ -39,7 +39,7 @@ func NewSoftServeProvider(sshAddr, httpAddr string, sshKey ssh.Signer, token str
 }
 
 // CreateRepo creates a GitOps repo on Soft-serve and populates it.
-func (p *SoftServeProvider) CreateRepo(ctx context.Context, project, sourceURL string) (string, error) {
+func (p *SoftServeProvider) CreateRepo(ctx context.Context, project string) (string, error) {
 	_, name, err := SplitProject(project)
 	if err != nil {
 		return "", err
@@ -72,7 +72,7 @@ func (p *SoftServeProvider) CreateRepo(ctx context.Context, project, sourceURL s
 	slog.Info("initializing softserve repo", "repo", repoName, "url", cloneURL)
 
 	// Initialize with directory structure and files
-	if err := p.initRepoContents(cloneURL, project, sourceURL); err != nil {
+	if err := p.initRepoContents(cloneURL, project); err != nil {
 		return "", fmt.Errorf("failed to initialize repo contents: %w", err)
 	}
 
@@ -176,6 +176,12 @@ func (p *SoftServeProvider) AddService(ctx context.Context, project string, svc 
 		}
 		if svc.Framework != "" {
 			svcEntry["framework"] = svc.Framework
+		}
+		if svc.SourceURL != "" {
+			svcEntry["sourceUrl"] = svc.SourceURL
+		}
+		if svc.ContextPath != "" {
+			svcEntry["contextPath"] = svc.ContextPath
 		}
 		services[svc.Name] = svcEntry
 		inner["services"] = services
@@ -623,7 +629,7 @@ func (p *SoftServeProvider) modifyRepo(ctx context.Context, project, commitMsg s
 }
 
 // initRepoContents initializes a new GitOps repo with the standard directory structure.
-func (p *SoftServeProvider) initRepoContents(cloneURL, project, sourceURL string) error {
+func (p *SoftServeProvider) initRepoContents(cloneURL, project string) error {
 	tmpDir, err := os.MkdirTemp("", "lucity-gitops-*")
 	if err != nil {
 		return fmt.Errorf("failed to create temp dir: %w", err)
@@ -651,7 +657,7 @@ func (p *SoftServeProvider) initRepoContents(cloneURL, project, sourceURL string
 	now := time.Now().UTC()
 
 	files := map[string]string{
-		"project.yaml":                         projectYAML(project, sourceURL, now),
+		"project.yaml":                         projectYAML(project, now),
 		"base/Chart.yaml":                      baseChartYAML(project),
 		"base/values.yaml":                     baseValuesYAML,
 		"environments/development/values.yaml": environmentValuesYAML,
@@ -679,7 +685,7 @@ func (p *SoftServeProvider) initRepoContents(cloneURL, project, sourceURL string
 		return fmt.Errorf("failed to stage chart: %w", err)
 	}
 
-	_, err = wt.Commit(fmt.Sprintf("init: %s from %s", project, sourceURL), &git.CommitOptions{
+	_, err = wt.Commit(fmt.Sprintf("init: %s", project), &git.CommitOptions{
 		Author: &object.Signature{
 			Name:  "Lucity",
 			Email: "lucity@localhost",
@@ -1058,6 +1064,12 @@ func parseServiceDefs(services map[string]any) []ServiceDef {
 		}
 		if framework, ok := svcMap["framework"].(string); ok {
 			def.Framework = framework
+		}
+		if sourceURL, ok := svcMap["sourceUrl"].(string); ok {
+			def.SourceURL = sourceURL
+		}
+		if contextPath, ok := svcMap["contextPath"].(string); ok {
+			def.ContextPath = contextPath
 		}
 
 		result = append(result, def)

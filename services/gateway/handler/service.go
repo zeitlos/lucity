@@ -33,22 +33,14 @@ type Build struct {
 	Error    string
 }
 
-func (c *Client) DetectServices(ctx context.Context, projectID string) ([]DetectedService, error) {
+func (c *Client) DetectServices(ctx context.Context, sourceURL string) ([]DetectedService, error) {
 	ctx = auth.OutgoingContext(ctx)
-
-	// Get source URL from packager
-	getCtx, getCancel := context.WithTimeout(ctx, grpcTimeout)
-	defer getCancel()
-	resp, err := c.Packager.GetProject(getCtx, &packager.GetProjectRequest{Project: projectID})
-	if err != nil {
-		return nil, fmt.Errorf("failed to get project: %w", err)
-	}
 
 	// Call builder to detect services (long — clones repo)
 	detectCtx, detectCancel := context.WithTimeout(ctx, grpcLongTimeout)
 	defer detectCancel()
 	detectResp, err := c.Builder.DetectServices(detectCtx, &builder.DetectServicesRequest{
-		SourceUrl: resp.Project.SourceUrl,
+		SourceUrl: sourceURL,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to detect services: %w", err)
@@ -67,7 +59,7 @@ func (c *Client) DetectServices(ctx context.Context, projectID string) ([]Detect
 	return result, nil
 }
 
-func (c *Client) AddService(ctx context.Context, projectID, name string, port int, framework string) (*Service, error) {
+func (c *Client) AddService(ctx context.Context, projectID, name string, port int, framework, sourceURL, contextPath string) (*Service, error) {
 	ctx = auth.OutgoingContext(ctx)
 
 	// Derive image path using cluster-internal address so pods can pull it.
@@ -76,21 +68,25 @@ func (c *Client) AddService(ctx context.Context, projectID, name string, port in
 	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
 	defer cancel()
 	_, err := c.Packager.AddService(callCtx, &packager.AddServiceRequest{
-		Project:   projectID,
-		Service:   name,
-		Image:     image,
-		Port:      int32(port),
-		Framework: framework,
+		Project:     projectID,
+		Service:     name,
+		Image:       image,
+		Port:        int32(port),
+		Framework:   framework,
+		SourceUrl:   sourceURL,
+		ContextPath: contextPath,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to add service: %w", err)
 	}
 
 	return &Service{
-		Name:      name,
-		Image:     image,
-		Port:      port,
-		Framework: framework,
+		Name:        name,
+		Image:       image,
+		Port:        port,
+		Framework:   framework,
+		SourceURL:   sourceURL,
+		ContextPath: contextPath,
 	}, nil
 }
 
@@ -109,15 +105,13 @@ func (c *Client) RemoveService(ctx context.Context, projectID, service string) (
 	return true, nil
 }
 
-func (c *Client) StartBuild(ctx context.Context, projectID, service, gitRef, contextPath string) (*Build, error) {
+func (c *Client) StartBuild(ctx context.Context, projectID, service, gitRef string) (*Build, error) {
 	ctx = auth.OutgoingContext(ctx)
 
-	// Get source URL and image path from packager
-	getCtx, getCancel := context.WithTimeout(ctx, grpcTimeout)
-	defer getCancel()
-	resp, err := c.Packager.GetProject(getCtx, &packager.GetProjectRequest{Project: projectID})
+	// Look up source URL and context path from the service definition
+	sourceURL, contextPath, err := c.serviceSourceInfo(ctx, projectID, service)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get project: %w", err)
+		return nil, err
 	}
 
 	registry := deriveImagePath(c.RegistryPushURL, projectID, service)
@@ -125,7 +119,7 @@ func (c *Client) StartBuild(ctx context.Context, projectID, service, gitRef, con
 	buildCtx, buildCancel := context.WithTimeout(ctx, grpcTimeout)
 	defer buildCancel()
 	buildResp, err := c.Builder.StartBuild(buildCtx, &builder.StartBuildRequest{
-		SourceUrl:   resp.Project.SourceUrl,
+		SourceUrl:   sourceURL,
 		GitRef:      gitRef,
 		Service:     service,
 		Registry:    registry,
@@ -190,6 +184,24 @@ func (c *Client) DeployBuild(ctx context.Context, projectID, service, environmen
 	return true, nil
 }
 
+// serviceSourceInfo looks up the source URL and context path for a service
+// from the project's service definitions in the GitOps repo.
+func (c *Client) serviceSourceInfo(ctx context.Context, projectID, service string) (sourceURL, contextPath string, err error) {
+	getCtx, getCancel := context.WithTimeout(ctx, grpcTimeout)
+	defer getCancel()
+	resp, err := c.Packager.GetProject(getCtx, &packager.GetProjectRequest{Project: projectID})
+	if err != nil {
+		return "", "", fmt.Errorf("failed to get project: %w", err)
+	}
+
+	for _, svc := range resp.Project.Services {
+		if svc.Name == service {
+			return svc.SourceUrl, svc.ContextPath, nil
+		}
+	}
+	return "", "", fmt.Errorf("service %q not found in project %q", service, projectID)
+}
+
 // deriveImagePath builds a registry image path from a project name.
 // Project "zeitlos/myapp" + service "web" → "localhost:5000/myapp/web"
 // The org prefix is stripped — OCI paths use only the short project name.
@@ -249,15 +261,13 @@ func deployOpFromState(s *deploy.State) *DeployOp {
 
 // Deploy starts a unified build+deploy operation. It triggers a build and,
 // on success, automatically updates the image tag and syncs ArgoCD.
-func (c *Client) Deploy(ctx context.Context, projectID, service, environment, gitRef, contextPath string) (*DeployOp, error) {
+func (c *Client) Deploy(ctx context.Context, projectID, service, environment, gitRef string) (*DeployOp, error) {
 	ctx = auth.OutgoingContext(ctx)
 
-	// Get source URL from packager
-	getCtx, getCancel := context.WithTimeout(ctx, grpcTimeout)
-	defer getCancel()
-	resp, err := c.Packager.GetProject(getCtx, &packager.GetProjectRequest{Project: projectID})
+	// Look up source URL and context path from the service definition
+	sourceURL, contextPath, err := c.serviceSourceInfo(ctx, projectID, service)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get project: %w", err)
+		return nil, err
 	}
 
 	registry := deriveImagePath(c.RegistryPushURL, projectID, service)
@@ -266,7 +276,7 @@ func (c *Client) Deploy(ctx context.Context, projectID, service, environment, gi
 	startCtx, startCancel := context.WithTimeout(ctx, grpcTimeout)
 	defer startCancel()
 	buildResp, err := c.Builder.StartBuild(startCtx, &builder.StartBuildRequest{
-		SourceUrl:   resp.Project.SourceUrl,
+		SourceUrl:   sourceURL,
 		GitRef:      gitRef,
 		Service:     service,
 		Registry:    registry,

@@ -1,8 +1,8 @@
 import gql from 'graphql-tag';
 
 export const DetectServicesQuery = gql`
-  query DetectServices($projectId: ID!) {
-    detectServices(projectId: $projectId) {
+  query DetectServices($sourceUrl: String!) {
+    detectServices(sourceUrl: $sourceUrl) {
       name
       language
       framework
@@ -19,6 +19,8 @@ export const AddServiceMutation = gql`
       image
       port
       framework
+      sourceUrl
+      contextPath
     }
   }
 `;

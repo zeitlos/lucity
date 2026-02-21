@@ -49,14 +49,14 @@ func (s *Server) provider(ctx context.Context) (gitops.Provider, error) {
 }
 
 func (s *Server) InitProject(ctx context.Context, req *packager.InitProjectRequest) (*packager.InitProjectResponse, error) {
-	slog.Info("InitProject called", "project", req.Project, "source_url", req.SourceUrl)
+	slog.Info("InitProject called", "project", req.Project)
 
 	p, err := s.provider(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	repoURL, err := p.CreateRepo(ctx, req.Project, req.SourceUrl)
+	repoURL, err := p.CreateRepo(ctx, req.Project)
 	if err != nil {
 		return nil, fmt.Errorf("failed to init project: %w", err)
 	}
@@ -83,7 +83,6 @@ func (s *Server) ListProjects(ctx context.Context, req *packager.ListProjectsReq
 	for _, proj := range projects {
 		infos = append(infos, &packager.ProjectInfo{
 			Name:             proj.Name,
-			SourceUrl:        proj.SourceURL,
 			GitopsRepoUrl:    proj.RepoURL,
 			Environments:     proj.Environments,
 			EnvironmentInfos: envInfosFromMeta(proj.EnvironmentInfos),
@@ -131,7 +130,6 @@ func (s *Server) GetProject(ctx context.Context, req *packager.GetProjectRequest
 	return &packager.GetProjectResponse{
 		Project: &packager.ProjectInfo{
 			Name:             proj.Name,
-			SourceUrl:        proj.SourceURL,
 			GitopsRepoUrl:    proj.RepoURL,
 			Environments:     proj.Environments,
 			EnvironmentInfos: envInfosFromMeta(envInfos),
@@ -165,10 +163,12 @@ func (s *Server) AddService(ctx context.Context, req *packager.AddServiceRequest
 	}
 
 	if err := p.AddService(ctx, req.Project, gitops.ServiceDef{
-		Name:      req.Service,
-		Image:     req.Image,
-		Port:      int(req.Port),
-		Framework: req.Framework,
+		Name:        req.Service,
+		Image:       req.Image,
+		Port:        int(req.Port),
+		Framework:   req.Framework,
+		SourceURL:   req.SourceUrl,
+		ContextPath: req.ContextPath,
 	}); err != nil {
 		return nil, fmt.Errorf("failed to add service: %w", err)
 	}
@@ -405,10 +405,12 @@ func serviceInfosFromDefs(defs []gitops.ServiceDef) []*packager.ServiceInfo {
 	infos := make([]*packager.ServiceInfo, len(defs))
 	for i, d := range defs {
 		infos[i] = &packager.ServiceInfo{
-			Name:      d.Name,
-			Image:     d.Image,
-			Port:      int32(d.Port),
-			Framework: d.Framework,
+			Name:        d.Name,
+			Image:       d.Image,
+			Port:        int32(d.Port),
+			Framework:   d.Framework,
+			SourceUrl:   d.SourceURL,
+			ContextPath: d.ContextPath,
 		}
 	}
 	return infos

@@ -9,11 +9,16 @@ import { Chip } from '@/components/ui/chip';
 import { Separator } from '@/components/ui/separator';
 import BaseLogo from '@/components/BaseLogo.vue';
 import ThemeToggle from '@/components/ThemeToggle.vue';
+import { useTheme } from '@/composables/useTheme';
 import alpsHarborImg from '../../assets/img/alps_harbor.webp';
+import mountainCityImg from '../../assets/img/mountain_city.webp';
 import gopherShipImg from '../../assets/img/gopher_ship.webp';
 
 const route = useRoute();
 const { login } = useAuth();
+const { theme } = useTheme();
+
+const isDark = computed(() => theme.value === 'dark');
 
 const errorMessage = computed(() => {
   if (route.query.error === 'no_installation') {
@@ -71,18 +76,33 @@ onUnmounted(() => {
   <div class="h-screen w-screen p-4">
     <!-- Image frame: inset from viewport edges, rounded, with inner shadow -->
     <div class="image-frame relative flex h-full items-center justify-center overflow-hidden rounded-2xl bg-muted">
-      <!-- Image layer -->
+      <!-- Image layer: both images stacked, crossfade on theme change -->
       <div
         class="absolute inset-0 transition-opacity duration-700"
         :class="imageLoaded ? 'opacity-100' : 'opacity-0'"
       >
+        <!-- Light mode image (always at bottom) -->
         <img
           :src="alpsHarborImg"
           alt=""
-          class="absolute inset-0 h-full w-full object-cover transition-opacity duration-1000"
-          :class="easterEggActive ? 'opacity-0' : 'opacity-100'"
+          class="bg-image absolute inset-0 h-full w-full object-cover"
+          :class="[
+            easterEggActive ? 'opacity-0' : 'opacity-100',
+            isDark ? 'scale-105' : 'scale-100',
+          ]"
           @load="onImageLoad"
         >
+        <!-- Dark mode image (fades in on top) -->
+        <img
+          :src="mountainCityImg"
+          alt=""
+          class="bg-image absolute inset-0 h-full w-full object-cover"
+          :class="[
+            easterEggActive ? 'opacity-0' : (isDark ? 'opacity-100' : 'opacity-0'),
+            isDark ? 'scale-100' : 'scale-105',
+          ]"
+        >
+        <!-- Easter egg gopher -->
         <img
           :src="gopherShipImg"
           alt=""
@@ -209,6 +229,13 @@ onUnmounted(() => {
 @keyframes fade-in {
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* Background image crossfade — slow dissolve with subtle zoom */
+.bg-image {
+  transition:
+    opacity 1.2s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 1.8s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Logo breathing animation */

@@ -11,13 +11,14 @@ input AddServiceInput {
   name: String! @constraint(constraint: "min=2,max=63")
   port: Int!
   framework: String
+  sourceUrl: String
+  contextPath: String
 }
 
 input BuildServiceInput {
   projectId: ID!
   service: String!
   gitRef: String
-  contextPath: String
 }
 
 input DeployBuildInput {
@@ -73,7 +74,6 @@ input DeployInput {
   service: String!
   environment: String!
   gitRef: String
-  contextPath: String
 }
 
 input SetServiceDomainInput {
@@ -85,7 +85,7 @@ input SetServiceDomainInput {
 }
 
 extend type Query {
-  detectServices(projectId: ID!): [DetectedService!]! @hasRole(role: [USER])
+  detectServices(sourceUrl: String!): [DetectedService!]! @hasRole(role: [USER])
   buildStatus(id: ID!): Build @hasRole(role: [USER])
   deployStatus(id: ID!): DeployRun @hasRole(role: [USER])
   activeDeployment(projectId: ID!, service: String!, environment: String!): DeployRun @hasRole(role: [USER])

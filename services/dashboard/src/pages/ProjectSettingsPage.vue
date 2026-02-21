@@ -136,20 +136,6 @@ async function handleDeleteProject() {
                     <span class="text-sm text-muted-foreground">Name</span>
                     <span class="text-sm font-medium text-foreground">{{ project.name }}</span>
                   </div>
-                  <div
-                    v-if="project.sourceUrl"
-                    class="flex items-center justify-between"
-                  >
-                    <span class="text-sm text-muted-foreground">Source</span>
-                    <a
-                      :href="project.sourceUrl"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      class="text-sm font-medium text-foreground underline-offset-4 hover:underline"
-                    >
-                      {{ project.sourceUrl.replace('https://github.com/', '') }}
-                    </a>
-                  </div>
                   <div v-if="project.createdAt" class="flex items-center justify-between">
                     <span class="text-sm text-muted-foreground">Created</span>
                     <span class="text-sm text-foreground">

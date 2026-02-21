@@ -14,10 +14,12 @@ const RepoSuffix = "-gitops"
 
 // ServiceDef describes a service configured in the project's GitOps repo.
 type ServiceDef struct {
-	Name      string
-	Image     string // image repository path (e.g., localhost:5000/myapp/api)
-	Port      int
-	Framework string // detected framework for dashboard icons (e.g., "nextjs", "vite")
+	Name        string
+	Image       string // image repository path (e.g., localhost:5000/myapp/api)
+	Port        int
+	Framework   string // detected framework for dashboard icons (e.g., "nextjs", "vite")
+	SourceURL   string // GitHub repo URL for this service
+	ContextPath string // subdirectory within the repo (monorepo support)
 }
 
 // Provider abstracts Git repository operations for GitOps repos.
@@ -25,7 +27,7 @@ type ServiceDef struct {
 type Provider interface {
 	// CreateRepo creates a GitOps repo with the standard directory structure
 	// and an initial commit. Returns the repo clone URL.
-	CreateRepo(ctx context.Context, project, sourceURL string) (repoURL string, err error)
+	CreateRepo(ctx context.Context, project string) (repoURL string, err error)
 
 	// Repos lists all project GitOps repos and their metadata.
 	Repos(ctx context.Context) ([]ProjectMeta, error)
@@ -145,8 +147,7 @@ type EnvironmentMeta struct {
 
 // ProjectMeta holds metadata about a project, read from its GitOps repo.
 type ProjectMeta struct {
-	Name             string    // org-scoped: "zeitlos/myapp"
-	SourceURL        string
+	Name             string // org-scoped: "zeitlos/myapp"
 	RepoURL          string
 	Environments     []string
 	EnvironmentInfos []EnvironmentMeta

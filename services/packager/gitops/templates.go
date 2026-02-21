@@ -12,11 +12,10 @@ import (
 )
 
 // projectYAML generates the project.yaml metadata file content.
-func projectYAML(name, sourceURL string, createdAt time.Time) string {
+func projectYAML(name string, createdAt time.Time) string {
 	return fmt.Sprintf(`name: %s
-source_url: %s
 created_at: %s
-`, name, sourceURL, createdAt.Format(time.RFC3339))
+`, name, createdAt.Format(time.RFC3339))
 }
 
 // baseChartYAML generates the base Chart.yaml that depends on lucity-app.

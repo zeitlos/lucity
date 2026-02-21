@@ -13,7 +13,7 @@ export interface DeployState {
   digest: string | null;
   rolloutHealth: string | null;
   rolloutMessage: string | null;
-  startDeploy: (projectId: string, service: string, environment: string, gitRef?: string, contextPath?: string) => Promise<void>;
+  startDeploy: (projectId: string, service: string, environment: string, gitRef?: string) => Promise<void>;
   pollDeploy: (deployId: string) => void;
   reset: () => void;
 }
@@ -77,7 +77,7 @@ export function useDeploy(): DeployState {
     rolloutHealth: null,
     rolloutMessage: null,
 
-    async startDeploy(projectId: string, service: string, environment: string, gitRef?: string, contextPath?: string) {
+    async startDeploy(projectId: string, service: string, environment: string, gitRef?: string) {
       state.error = null;
       state.phase = 'QUEUED';
       state.isDeploying = true;
@@ -95,7 +95,6 @@ export function useDeploy(): DeployState {
               service,
               environment,
               gitRef: gitRef || undefined,
-              contextPath: contextPath || undefined,
             },
           },
         });

@@ -128,14 +128,13 @@ type ComplexityRoot struct {
 		InitialDeploys func(childComplexity int) int
 		Name           func(childComplexity int) int
 		Services       func(childComplexity int) int
-		SourceURL      func(childComplexity int) int
 	}
 
 	Query struct {
 		ActiveDeployment   func(childComplexity int, projectID string, service string, environment string) int
 		BuildStatus        func(childComplexity int, id string) int
 		DeployStatus       func(childComplexity int, id string) int
-		DetectServices     func(childComplexity int, projectID string) int
+		DetectServices     func(childComplexity int, sourceURL string) int
 		GithubRepositories func(childComplexity int) int
 		Me                 func(childComplexity int) int
 		Project            func(childComplexity int, id string) int
@@ -146,11 +145,13 @@ type ComplexityRoot struct {
 	}
 
 	Service struct {
-		Framework func(childComplexity int) int
-		Image     func(childComplexity int) int
-		Instances func(childComplexity int) int
-		Name      func(childComplexity int) int
-		Port      func(childComplexity int) int
+		ContextPath func(childComplexity int) int
+		Framework   func(childComplexity int) int
+		Image       func(childComplexity int) int
+		Instances   func(childComplexity int) int
+		Name        func(childComplexity int) int
+		Port        func(childComplexity int) int
+		SourceURL   func(childComplexity int) int
 	}
 
 	ServiceInstance struct {
@@ -213,7 +214,7 @@ type QueryResolver interface {
 	Projects(ctx context.Context) ([]model.Project, error)
 	Project(ctx context.Context, id string) (*model.Project, error)
 	Service(ctx context.Context, projectID string, name string) (*model.Service, error)
-	DetectServices(ctx context.Context, projectID string) ([]model.DetectedService, error)
+	DetectServices(ctx context.Context, sourceURL string) ([]model.DetectedService, error)
 	BuildStatus(ctx context.Context, id string) (*model.Build, error)
 	DeployStatus(ctx context.Context, id string) (*model.DeployRun, error)
 	ActiveDeployment(ctx context.Context, projectID string, service string, environment string) (*model.DeployRun, error)
@@ -646,12 +647,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Project.Services(childComplexity), true
-	case "Project.sourceUrl":
-		if e.complexity.Project.SourceURL == nil {
-			break
-		}
-
-		return e.complexity.Project.SourceURL(childComplexity), true
 
 	case "Query.activeDeployment":
 		if e.complexity.Query.ActiveDeployment == nil {
@@ -696,7 +691,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Query.DetectServices(childComplexity, args["projectId"].(string)), true
+		return e.complexity.Query.DetectServices(childComplexity, args["sourceUrl"].(string)), true
 	case "Query.githubRepositories":
 		if e.complexity.Query.GithubRepositories == nil {
 			break
@@ -760,6 +755,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Query.SharedVariables(childComplexity, args["projectId"].(string), args["environment"].(string)), true
 
+	case "Service.contextPath":
+		if e.complexity.Service.ContextPath == nil {
+			break
+		}
+
+		return e.complexity.Service.ContextPath(childComplexity), true
 	case "Service.framework":
 		if e.complexity.Service.Framework == nil {
 			break
@@ -790,6 +791,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Service.Port(childComplexity), true
+	case "Service.sourceUrl":
+		if e.complexity.Service.SourceURL == nil {
+			break
+		}
+
+		return e.complexity.Service.SourceURL(childComplexity), true
 
 	case "ServiceInstance.deployments":
 		if e.complexity.ServiceInstance.Deployments == nil {
@@ -1341,11 +1348,11 @@ func (ec *executionContext) field_Query_deployStatus_args(ctx context.Context, r
 func (ec *executionContext) field_Query_detectServices_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "projectId", ec.unmarshalNID2string)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "sourceUrl", ec.unmarshalNString2string)
 	if err != nil {
 		return nil, err
 	}
-	args["projectId"] = arg0
+	args["sourceUrl"] = arg0
 	return args, nil
 }
 
@@ -2609,8 +2616,6 @@ func (ec *executionContext) fieldContext_Mutation_createProject(ctx context.Cont
 				return ec.fieldContext_Project_id(ctx, field)
 			case "name":
 				return ec.fieldContext_Project_name(ctx, field)
-			case "sourceUrl":
-				return ec.fieldContext_Project_sourceUrl(ctx, field)
 			case "environments":
 				return ec.fieldContext_Project_environments(ctx, field)
 			case "services":
@@ -2954,6 +2959,10 @@ func (ec *executionContext) fieldContext_Mutation_addService(ctx context.Context
 				return ec.fieldContext_Service_port(ctx, field)
 			case "framework":
 				return ec.fieldContext_Service_framework(ctx, field)
+			case "sourceUrl":
+				return ec.fieldContext_Service_sourceUrl(ctx, field)
+			case "contextPath":
+				return ec.fieldContext_Service_contextPath(ctx, field)
 			case "instances":
 				return ec.fieldContext_Service_instances(ctx, field)
 			}
@@ -3475,35 +3484,6 @@ func (ec *executionContext) fieldContext_Project_name(_ context.Context, field g
 	return fc, nil
 }
 
-func (ec *executionContext) _Project_sourceUrl(ctx context.Context, field graphql.CollectedField, obj *model.Project) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Project_sourceUrl,
-		func(ctx context.Context) (any, error) {
-			return obj.SourceURL, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Project_sourceUrl(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Project",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _Project_environments(ctx context.Context, field graphql.CollectedField, obj *model.Project) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -3579,6 +3559,10 @@ func (ec *executionContext) fieldContext_Project_services(_ context.Context, fie
 				return ec.fieldContext_Service_port(ctx, field)
 			case "framework":
 				return ec.fieldContext_Service_framework(ctx, field)
+			case "sourceUrl":
+				return ec.fieldContext_Service_sourceUrl(ctx, field)
+			case "contextPath":
+				return ec.fieldContext_Service_contextPath(ctx, field)
 			case "instances":
 				return ec.fieldContext_Service_instances(ctx, field)
 			}
@@ -3828,8 +3812,6 @@ func (ec *executionContext) fieldContext_Query_projects(_ context.Context, field
 				return ec.fieldContext_Project_id(ctx, field)
 			case "name":
 				return ec.fieldContext_Project_name(ctx, field)
-			case "sourceUrl":
-				return ec.fieldContext_Project_sourceUrl(ctx, field)
 			case "environments":
 				return ec.fieldContext_Project_environments(ctx, field)
 			case "services":
@@ -3892,8 +3874,6 @@ func (ec *executionContext) fieldContext_Query_project(ctx context.Context, fiel
 				return ec.fieldContext_Project_id(ctx, field)
 			case "name":
 				return ec.fieldContext_Project_name(ctx, field)
-			case "sourceUrl":
-				return ec.fieldContext_Project_sourceUrl(ctx, field)
 			case "environments":
 				return ec.fieldContext_Project_environments(ctx, field)
 			case "services":
@@ -3971,6 +3951,10 @@ func (ec *executionContext) fieldContext_Query_service(ctx context.Context, fiel
 				return ec.fieldContext_Service_port(ctx, field)
 			case "framework":
 				return ec.fieldContext_Service_framework(ctx, field)
+			case "sourceUrl":
+				return ec.fieldContext_Service_sourceUrl(ctx, field)
+			case "contextPath":
+				return ec.fieldContext_Service_contextPath(ctx, field)
 			case "instances":
 				return ec.fieldContext_Service_instances(ctx, field)
 			}
@@ -3999,7 +3983,7 @@ func (ec *executionContext) _Query_detectServices(ctx context.Context, field gra
 		ec.fieldContext_Query_detectServices,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Query().DetectServices(ctx, fc.Args["projectId"].(string))
+			return ec.resolvers.Query().DetectServices(ctx, fc.Args["sourceUrl"].(string))
 		},
 		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
 			directive0 := next
@@ -4631,6 +4615,64 @@ func (ec *executionContext) _Service_framework(ctx context.Context, field graphq
 }
 
 func (ec *executionContext) fieldContext_Service_framework(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Service",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Service_sourceUrl(ctx context.Context, field graphql.CollectedField, obj *model.Service) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Service_sourceUrl,
+		func(ctx context.Context) (any, error) {
+			return obj.SourceURL, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Service_sourceUrl(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Service",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Service_contextPath(ctx context.Context, field graphql.CollectedField, obj *model.Service) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Service_contextPath,
+		func(ctx context.Context) (any, error) {
+			return obj.ContextPath, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Service_contextPath(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Service",
 		Field:      field,
@@ -6801,7 +6843,7 @@ func (ec *executionContext) unmarshalInputAddServiceInput(ctx context.Context, o
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"projectId", "name", "port", "framework"}
+	fieldsInOrder := [...]string{"projectId", "name", "port", "framework", "sourceUrl", "contextPath"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -6856,6 +6898,20 @@ func (ec *executionContext) unmarshalInputAddServiceInput(ctx context.Context, o
 				return it, err
 			}
 			it.Framework = data
+		case "sourceUrl":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("sourceUrl"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.SourceURL = data
+		case "contextPath":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("contextPath"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ContextPath = data
 		}
 	}
 
@@ -6869,7 +6925,7 @@ func (ec *executionContext) unmarshalInputBuildServiceInput(ctx context.Context,
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"projectId", "service", "gitRef", "contextPath"}
+	fieldsInOrder := [...]string{"projectId", "service", "gitRef"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -6897,13 +6953,6 @@ func (ec *executionContext) unmarshalInputBuildServiceInput(ctx context.Context,
 				return it, err
 			}
 			it.GitRef = data
-		case "contextPath":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("contextPath"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ContextPath = data
 		}
 	}
 
@@ -6978,7 +7027,7 @@ func (ec *executionContext) unmarshalInputCreateProjectInput(ctx context.Context
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "sourceUrl"}
+	fieldsInOrder := [...]string{"name"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -7012,13 +7061,6 @@ func (ec *executionContext) unmarshalInputCreateProjectInput(ctx context.Context
 				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
 				return it, graphql.ErrorOnPath(ctx, err)
 			}
-		case "sourceUrl":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("sourceUrl"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.SourceURL = data
 		}
 	}
 
@@ -7087,7 +7129,7 @@ func (ec *executionContext) unmarshalInputDeployInput(ctx context.Context, obj a
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"projectId", "service", "environment", "gitRef", "contextPath"}
+	fieldsInOrder := [...]string{"projectId", "service", "environment", "gitRef"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -7122,13 +7164,6 @@ func (ec *executionContext) unmarshalInputDeployInput(ctx context.Context, obj a
 				return it, err
 			}
 			it.GitRef = data
-		case "contextPath":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("contextPath"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ContextPath = data
 		}
 	}
 
@@ -7816,11 +7851,6 @@ func (ec *executionContext) _Project(ctx context.Context, sel ast.SelectionSet, 
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "sourceUrl":
-			out.Values[i] = ec._Project_sourceUrl(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
 		case "environments":
 			out.Values[i] = ec._Project_environments(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -8163,6 +8193,10 @@ func (ec *executionContext) _Service(ctx context.Context, sel ast.SelectionSet, 
 			out.Values[i] = ec._Service_port(ctx, field, obj)
 		case "framework":
 			out.Values[i] = ec._Service_framework(ctx, field, obj)
+		case "sourceUrl":
+			out.Values[i] = ec._Service_sourceUrl(ctx, field, obj)
+		case "contextPath":
+			out.Values[i] = ec._Service_contextPath(ctx, field, obj)
 		case "instances":
 			out.Values[i] = ec._Service_instances(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
