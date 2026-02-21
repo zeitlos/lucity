@@ -102,22 +102,20 @@ onKeyStroke('Escape', () => {
     <!-- Tab Content -->
     <ScrollArea class="flex-1">
       <Tabs default-value="deployments" class="h-full">
-        <div class="flex items-center gap-1 px-4 pt-2">
-          <TabsList class="flex-1">
+        <div class="px-4 pt-2">
+          <TabsList class="w-full">
             <TabsTrigger value="deployments">Deployments</TabsTrigger>
+            <button
+              class="inline-flex items-center justify-center gap-1 whitespace-nowrap border-b-2 border-transparent px-1 pb-2.5 pt-2 text-sm font-medium text-muted-foreground transition-all hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
+              :disabled="!activeEnvironment"
+              @click="openLogs"
+            >
+              Logs
+              <SquareArrowOutUpRight :size="11" class="opacity-50" />
+            </button>
             <TabsTrigger value="variables">Variables</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
-          <Button
-            variant="ghost"
-            size="sm"
-            class="h-8 gap-1.5 text-xs text-muted-foreground"
-            :disabled="!activeEnvironment"
-            @click="openLogs"
-          >
-            Logs
-            <SquareArrowOutUpRight :size="12" />
-          </Button>
         </div>
 
         <TabsContent value="deployments" class="px-4 py-4">
