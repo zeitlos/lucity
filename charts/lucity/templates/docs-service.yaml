@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "lucity.fullname" . }}-docs
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+    app.kubernetes.io/component: docs
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.docs.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "lucity.selectorLabels" (dict "name" "docs" "release" .Release.Name) | nindent 4 }}
