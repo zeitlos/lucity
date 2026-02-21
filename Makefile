@@ -78,11 +78,16 @@ minikube:
 	minikube start --insecure-registry="10.96.0.0/12"
 
 # Set up local DNS so *.lucity.app resolves to 127.0.0.1 (requires Homebrew)
-# Run once — survives reboots. Uses dnsmasq instead of /etc/hosts (no wildcard support).
+# Run once — survives reboots. Uses dnsmasq on port 5380 (unprivileged) with
+# macOS /etc/resolver pointing to it. No root needed for dnsmasq itself.
 dns:
 	@if ! command -v dnsmasq >/dev/null 2>&1; then \
 		echo "Installing dnsmasq..."; \
 		brew install dnsmasq; \
+	fi
+	@if ! grep -q 'port=5380' /opt/homebrew/etc/dnsmasq.conf 2>/dev/null; then \
+		echo "port=5380" >> /opt/homebrew/etc/dnsmasq.conf; \
+		echo "Set dnsmasq to listen on port 5380."; \
 	fi
 	@if ! grep -q 'address=/lucity.app/' /opt/homebrew/etc/dnsmasq.conf 2>/dev/null; then \
 		echo "address=/lucity.app/127.0.0.1" >> /opt/homebrew/etc/dnsmasq.conf; \
@@ -91,8 +96,8 @@ dns:
 		echo "dnsmasq already configured for *.lucity.app."; \
 	fi
 	@sudo mkdir -p /etc/resolver
-	@echo "nameserver 127.0.0.1" | sudo tee /etc/resolver/lucity.app > /dev/null
-	@sudo brew services restart dnsmasq
+	@printf "nameserver 127.0.0.1\nport 5380\n" | sudo tee /etc/resolver/lucity.app > /dev/null
+	@brew services restart dnsmasq
 	@echo "Done. All *.lucity.app domains now resolve to 127.0.0.1."
 
 # Deploy infrastructure (Zot + Soft-serve + ArgoCD + Envoy Gateway + CNPG) to a cluster
