@@ -88,9 +88,13 @@ async function handleSelectRepo(repo: { fullName: string; htmlUrl: string }) {
 
 async function handleCreateProjectFromRepo(repo: { fullName: string; htmlUrl: string }) {
   try {
+    // Use org prefix + generated name (e.g., "cblaettl/cosmic-panda")
+    const org = repo.fullName.split('/')[0];
+    const projectName = `${org}/${generateName()}`;
+
     const res = await createProject({
       input: {
-        name: repo.fullName,
+        name: projectName,
       },
     });
 
@@ -117,7 +121,7 @@ async function handleCreateProjectFromRepo(repo: { fullName: string; htmlUrl: st
 // Detect services from a repo and add them to a project
 const detectingServices = ref(false);
 
-async function detectAndAddServices(projectId: string, repo: { fullName: string; htmlUrl: string }, useGeneratedNames = false) {
+async function detectAndAddServices(projectId: string, repo: { fullName: string; htmlUrl: string }) {
   const client = resolveClient();
   const { data } = await client.query({
     query: DetectServicesQuery,
@@ -130,9 +134,14 @@ async function detectAndAddServices(projectId: string, repo: { fullName: string;
     return;
   }
 
+  // Use repo short name as the service name (e.g., "cblaettl/beast-website" → "beast-website")
+  const repoName = repo.fullName.split('/').pop()!;
+
   let added = 0;
   for (const svc of detected) {
-    const name = useGeneratedNames ? generateName() : svc.name;
+    // For single-service repos, use the repo name directly.
+    // For multi-service repos (monorepos), suffix with the detected name.
+    const name = detected.length === 1 ? repoName : `${repoName}-${svc.name}`;
     try {
       await addServiceMutate({
         input: {
@@ -161,7 +170,7 @@ async function handleAddServicesFromRepo(repo: { fullName: string; htmlUrl: stri
 
   detectingServices.value = true;
   try {
-    await detectAndAddServices(props.projectId, repo, true);
+    await detectAndAddServices(props.projectId, repo);
     close();
     emit('created');
   } catch (e: unknown) {
