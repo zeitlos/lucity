@@ -6,8 +6,8 @@ export const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: 'btn-primary bg-primary text-primary-foreground shadow-[var(--shadow-button)] hover:brightness-[0.92] hover:-translate-y-px hover:shadow-[0_6px_28px_-4px_oklch(0.75_0.18_160/0.35),0_12px_50px_-8px_oklch(0.75_0.18_160/0.18)] active:translate-y-0 active:brightness-[0.88] active:shadow-[inset_0_2px_6px_oklch(0/0.25),inset_0_1px_2px_oklch(0/0.15)]',
-        destructive: 'bg-destructive text-destructive-foreground shadow-[var(--shadow-destructive-button)] hover:brightness-[0.92] hover:-translate-y-px active:translate-y-0',
+        default: 'btn-blueprint bg-primary text-primary-foreground shadow-[var(--shadow-button)] hover:brightness-[0.92] hover:-translate-y-px hover:shadow-[0_6px_28px_-4px_oklch(0.75_0.18_160/0.35),0_12px_50px_-8px_oklch(0.75_0.18_160/0.18)] active:translate-y-0 active:brightness-[0.88] active:shadow-[inset_0_2px_6px_oklch(0/0.25),inset_0_1px_2px_oklch(0/0.15)]',
+        destructive: 'btn-blueprint bg-destructive text-destructive-foreground shadow-[var(--shadow-destructive-button)] hover:brightness-[0.92] hover:-translate-y-px active:translate-y-0 active:brightness-[0.88] active:shadow-[inset_0_2px_6px_oklch(0/0.25),inset_0_1px_2px_oklch(0/0.15)]',
         outline: 'border border-input bg-background hover:border-primary hover:text-primary',
         secondary: 'bg-secondary text-secondary-foreground border border-border shadow-[0_2px_12px_-2px_oklch(0.50_0.02_55/0.06)] hover:border-muted-foreground',
         ghost: 'hover:bg-muted hover:text-foreground',
@@ -59,11 +59,11 @@ const props = withDefaults(defineProps<Props>(), {
  * Eight background gradients: 2 per corner (horizontal + vertical),
  * each fading from the corner outward.
  */
-.btn-primary {
+.btn-blueprint {
   position: relative;
 }
 
-.btn-primary::before {
+.btn-blueprint::before {
   --line-color: oklch(0.50 0.04 55 / 0.18);
   --line-w: 1px;
   --line-len: 10px;
@@ -92,11 +92,11 @@ const props = withDefaults(defineProps<Props>(), {
   transition: opacity 0.15s ease;
 }
 
-.btn-primary:active::before {
+.btn-blueprint:active::before {
   opacity: 0;
 }
 
-:root.dark .btn-primary::before {
+:root.dark .btn-blueprint::before {
   --line-color: oklch(0.80 0.03 55 / 0.15);
 }
 </style>
