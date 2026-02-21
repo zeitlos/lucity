@@ -256,7 +256,7 @@ const mainItems = computed(() => {
 
           <!-- Manual service view -->
           <template v-if="view === 'manual-service'">
-            <div class="flex items-center border-b px-3">
+            <div class="flex h-12 items-center border-b px-3">
               <button
                 class="mr-1 shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"
                 @click="view = 'main'"
