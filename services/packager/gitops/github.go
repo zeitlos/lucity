@@ -620,6 +620,134 @@ func (p *GitHubProvider) DeploymentHistory(ctx context.Context, project, environ
 	return entries, nil
 }
 
+// UpdateServiceConfig updates a service's base configuration in base/values.yaml.
+func (p *GitHubProvider) UpdateServiceConfig(ctx context.Context, project, service string, public *bool) error {
+	org, name, err := SplitProject(project)
+	if err != nil {
+		return err
+	}
+	repoName := name + RepoSuffix
+
+	inner, sha, err := p.readSubchartValuesGH(ctx, org, repoName, "base/values.yaml")
+	if err != nil {
+		return fmt.Errorf("failed to read base/values.yaml: %w", err)
+	}
+
+	services, ok := inner["services"].(map[string]any)
+	if !ok {
+		return fmt.Errorf("no services found in base/values.yaml")
+	}
+
+	svcEntry, ok := services[service].(map[string]any)
+	if !ok {
+		return fmt.Errorf("service %q not found", service)
+	}
+
+	if public != nil {
+		svcEntry["public"] = *public
+	}
+	services[service] = svcEntry
+	inner["services"] = services
+
+	if err := p.writeSubchartValuesGH(ctx, org, repoName, "base/values.yaml", inner, sha,
+		fmt.Sprintf("config(service): update %s", service)); err != nil {
+		return fmt.Errorf("failed to update base/values.yaml: %w", err)
+	}
+
+	slog.Info("updated service config", "project", project, "service", service)
+	return nil
+}
+
+// SetServiceDomain sets or removes the domain hostname for a service in an environment.
+func (p *GitHubProvider) SetServiceDomain(ctx context.Context, project, environment, service, host string) error {
+	org, name, err := SplitProject(project)
+	if err != nil {
+		return err
+	}
+	repoName := name + RepoSuffix
+
+	filePath := fmt.Sprintf("environments/%s/values.yaml", environment)
+	inner, sha, err := p.readSubchartValuesGH(ctx, org, repoName, filePath)
+	if err != nil {
+		return fmt.Errorf("failed to read %s: %w", filePath, err)
+	}
+
+	services, ok := inner["services"].(map[string]any)
+	if !ok {
+		services = make(map[string]any)
+	}
+
+	svcEntry, ok := services[service].(map[string]any)
+	if !ok {
+		svcEntry = make(map[string]any)
+	}
+
+	if host == "" {
+		delete(svcEntry, "host")
+	} else {
+		svcEntry["host"] = host
+	}
+	services[service] = svcEntry
+	inner["services"] = services
+
+	commitMsg := fmt.Sprintf("config(%s): set domain for %s", environment, service)
+	if host == "" {
+		commitMsg = fmt.Sprintf("config(%s): remove domain for %s", environment, service)
+	}
+	if err := p.writeSubchartValuesGH(ctx, org, repoName, filePath, inner, sha, commitMsg); err != nil {
+		return fmt.Errorf("failed to update %s: %w", filePath, err)
+	}
+
+	slog.Info("set service domain", "project", project, "environment", environment, "service", service, "host", host)
+	return nil
+}
+
+// EnvironmentServices reads per-environment service state from the environment's values.yaml.
+func (p *GitHubProvider) EnvironmentServices(ctx context.Context, project, environment string) ([]ServiceInstanceMeta, error) {
+	org, name, err := SplitProject(project)
+	if err != nil {
+		return nil, err
+	}
+	repoName := name + RepoSuffix
+
+	filePath := fmt.Sprintf("environments/%s/values.yaml", environment)
+	inner, _, err := p.readSubchartValuesGH(ctx, org, repoName, filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read %s: %w", filePath, err)
+	}
+
+	services, ok := inner["services"].(map[string]any)
+	if !ok {
+		return nil, nil
+	}
+
+	return parseServiceInstanceMetas(services), nil
+}
+
+// parseServiceInstanceMetas extracts per-environment service state from a raw YAML services map.
+func parseServiceInstanceMetas(services map[string]any) []ServiceInstanceMeta {
+	var result []ServiceInstanceMeta
+	for svcName, svcRaw := range services {
+		svcMap, ok := svcRaw.(map[string]any)
+		if !ok {
+			continue
+		}
+
+		meta := ServiceInstanceMeta{Name: svcName}
+		if imageMap, ok := svcMap["image"].(map[string]any); ok {
+			if tag, ok := imageMap["tag"].(string); ok {
+				meta.ImageTag = tag
+			}
+		}
+		if host, ok := svcMap["host"].(string); ok {
+			meta.Host = host
+		}
+
+		result = append(result, meta)
+	}
+	return result
+}
+
 // projectYAMLData matches the structure of project.yaml for parsing.
 type projectYAMLData struct {
 	Name      string `yaml:"name"`

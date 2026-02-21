@@ -106,16 +106,18 @@ type ComplexityRoot struct {
 	}
 
 	Mutation struct {
-		AddService        func(childComplexity int, input model.AddServiceInput) int
-		BuildService      func(childComplexity int, input model.BuildServiceInput) int
-		CreateEnvironment func(childComplexity int, input model.CreateEnvironmentInput) int
-		CreateProject     func(childComplexity int, input model.CreateProjectInput) int
-		DeleteEnvironment func(childComplexity int, projectID string, environment string) int
-		DeleteProject     func(childComplexity int, id string) int
-		Deploy            func(childComplexity int, input model.DeployInput) int
-		DeployBuild       func(childComplexity int, input model.DeployBuildInput) int
-		Promote           func(childComplexity int, input model.PromoteInput) int
-		RemoveService     func(childComplexity int, projectID string, service string) int
+		AddService          func(childComplexity int, input model.AddServiceInput) int
+		BuildService        func(childComplexity int, input model.BuildServiceInput) int
+		CreateEnvironment   func(childComplexity int, input model.CreateEnvironmentInput) int
+		CreateProject       func(childComplexity int, input model.CreateProjectInput) int
+		DeleteEnvironment   func(childComplexity int, projectID string, environment string) int
+		DeleteProject       func(childComplexity int, id string) int
+		Deploy              func(childComplexity int, input model.DeployInput) int
+		DeployBuild         func(childComplexity int, input model.DeployBuildInput) int
+		Promote             func(childComplexity int, input model.PromoteInput) int
+		RemoveService       func(childComplexity int, projectID string, service string) int
+		SetServiceDomain    func(childComplexity int, input model.SetServiceDomainInput) int
+		UpdateServiceConfig func(childComplexity int, input model.UpdateServiceConfigInput) int
 	}
 
 	Project struct {
@@ -152,6 +154,7 @@ type ComplexityRoot struct {
 	ServiceInstance struct {
 		Deployments func(childComplexity int) int
 		Environment func(childComplexity int) int
+		Host        func(childComplexity int) int
 		ImageTag    func(childComplexity int) int
 		Name        func(childComplexity int) int
 		Ready       func(childComplexity int) int
@@ -181,6 +184,8 @@ type MutationResolver interface {
 	BuildService(ctx context.Context, input model.BuildServiceInput) (*model.Build, error)
 	DeployBuild(ctx context.Context, input model.DeployBuildInput) (bool, error)
 	Deploy(ctx context.Context, input model.DeployInput) (*model.DeployRun, error)
+	UpdateServiceConfig(ctx context.Context, input model.UpdateServiceConfigInput) (bool, error)
+	SetServiceDomain(ctx context.Context, input model.SetServiceDomainInput) (bool, error)
 }
 type QueryResolver interface {
 	Me(ctx context.Context) (*model.User, error)
@@ -548,6 +553,28 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.RemoveService(childComplexity, args["projectId"].(string), args["service"].(string)), true
+	case "Mutation.setServiceDomain":
+		if e.complexity.Mutation.SetServiceDomain == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setServiceDomain_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.SetServiceDomain(childComplexity, args["input"].(model.SetServiceDomainInput)), true
+	case "Mutation.updateServiceConfig":
+		if e.complexity.Mutation.UpdateServiceConfig == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateServiceConfig_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.UpdateServiceConfig(childComplexity, args["input"].(model.UpdateServiceConfigInput)), true
 
 	case "Project.createdAt":
 		if e.complexity.Project.CreatedAt == nil {
@@ -726,6 +753,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ServiceInstance.Environment(childComplexity), true
+	case "ServiceInstance.host":
+		if e.complexity.ServiceInstance.Host == nil {
+			break
+		}
+
+		return e.complexity.ServiceInstance.Host(childComplexity), true
 	case "ServiceInstance.imageTag":
 		if e.complexity.ServiceInstance.ImageTag == nil {
 			break
@@ -803,6 +836,8 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputDeployBuildInput,
 		ec.unmarshalInputDeployInput,
 		ec.unmarshalInputPromoteInput,
+		ec.unmarshalInputSetServiceDomainInput,
+		ec.unmarshalInputUpdateServiceConfigInput,
 	)
 	first := true
 
@@ -1079,6 +1114,28 @@ func (ec *executionContext) field_Mutation_removeService_args(ctx context.Contex
 		return nil, err
 	}
 	args["service"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_setServiceDomain_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNSetServiceDomainInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐSetServiceDomainInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_updateServiceConfig_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNUpdateServiceConfigInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐUpdateServiceConfigInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
 	return args, nil
 }
 
@@ -2112,6 +2169,8 @@ func (ec *executionContext) fieldContext_Environment_services(_ context.Context,
 				return ec.fieldContext_ServiceInstance_ready(ctx, field)
 			case "replicas":
 				return ec.fieldContext_ServiceInstance_replicas(ctx, field)
+			case "host":
+				return ec.fieldContext_ServiceInstance_host(ctx, field)
 			case "deployments":
 				return ec.fieldContext_ServiceInstance_deployments(ctx, field)
 			}
@@ -2614,6 +2673,8 @@ func (ec *executionContext) fieldContext_Mutation_promote(ctx context.Context, f
 				return ec.fieldContext_ServiceInstance_ready(ctx, field)
 			case "replicas":
 				return ec.fieldContext_ServiceInstance_replicas(ctx, field)
+			case "host":
+				return ec.fieldContext_ServiceInstance_host(ctx, field)
 			case "deployments":
 				return ec.fieldContext_ServiceInstance_deployments(ctx, field)
 			}
@@ -2967,6 +3028,124 @@ func (ec *executionContext) fieldContext_Mutation_deploy(ctx context.Context, fi
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_deploy_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_updateServiceConfig(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_updateServiceConfig,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().UpdateServiceConfig(ctx, fc.Args["input"].(model.UpdateServiceConfigInput))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				if err != nil {
+					var zeroVal bool
+					return zeroVal, err
+				}
+				if ec.directives.HasRole == nil {
+					var zeroVal bool
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_updateServiceConfig(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_updateServiceConfig_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_setServiceDomain(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_setServiceDomain,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().SetServiceDomain(ctx, fc.Args["input"].(model.SetServiceDomainInput))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				if err != nil {
+					var zeroVal bool
+					return zeroVal, err
+				}
+				if ec.directives.HasRole == nil {
+					var zeroVal bool
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_setServiceDomain(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_setServiceDomain_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -4134,6 +4313,8 @@ func (ec *executionContext) fieldContext_Service_instances(_ context.Context, fi
 				return ec.fieldContext_ServiceInstance_ready(ctx, field)
 			case "replicas":
 				return ec.fieldContext_ServiceInstance_replicas(ctx, field)
+			case "host":
+				return ec.fieldContext_ServiceInstance_host(ctx, field)
 			case "deployments":
 				return ec.fieldContext_ServiceInstance_deployments(ctx, field)
 			}
@@ -4283,6 +4464,35 @@ func (ec *executionContext) fieldContext_ServiceInstance_replicas(_ context.Cont
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ServiceInstance_host(ctx context.Context, field graphql.CollectedField, obj *model.ServiceInstance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ServiceInstance_host,
+		func(ctx context.Context) (any, error) {
+			return obj.Host, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_ServiceInstance_host(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ServiceInstance",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -6348,6 +6558,95 @@ func (ec *executionContext) unmarshalInputPromoteInput(ctx context.Context, obj 
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputSetServiceDomainInput(ctx context.Context, obj any) (model.SetServiceDomainInput, error) {
+	var it model.SetServiceDomainInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"projectId", "service", "environment", "host"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "projectId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("projectId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ProjectID = data
+		case "service":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("service"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Service = data
+		case "environment":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("environment"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Environment = data
+		case "host":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("host"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Host = data
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputUpdateServiceConfigInput(ctx context.Context, obj any) (model.UpdateServiceConfigInput, error) {
+	var it model.UpdateServiceConfigInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"projectId", "service", "public"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "projectId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("projectId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ProjectID = data
+		case "service":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("service"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Service = data
+		case "public":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("public"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Public = data
+		}
+	}
+
+	return it, nil
+}
+
 // endregion **************************** input.gotpl *****************************
 
 // region    ************************** interface.gotpl ***************************
@@ -6793,6 +7092,20 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "updateServiceConfig":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_updateServiceConfig(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "setServiceDomain":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_setServiceDomain(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -7209,6 +7522,8 @@ func (ec *executionContext) _ServiceInstance(ctx context.Context, sel ast.Select
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "host":
+			out.Values[i] = ec._ServiceInstance_host(ctx, field, obj)
 		case "deployments":
 			out.Values[i] = ec._ServiceInstance_deployments(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -8216,6 +8531,11 @@ func (ec *executionContext) marshalNServiceInstance2ᚖgithubᚗcomᚋzeitlosᚋ
 	return ec._ServiceInstance(ctx, sel, v)
 }
 
+func (ec *executionContext) unmarshalNSetServiceDomainInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐSetServiceDomainInput(ctx context.Context, v any) (model.SetServiceDomainInput, error) {
+	res, err := ec.unmarshalInputSetServiceDomainInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) unmarshalNString2string(ctx context.Context, v any) (string, error) {
 	res, err := graphql.UnmarshalString(v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -8256,6 +8576,11 @@ func (ec *executionContext) marshalNTime2timeᚐTime(ctx context.Context, sel as
 		}
 	}
 	return res
+}
+
+func (ec *executionContext) unmarshalNUpdateServiceConfigInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐUpdateServiceConfigInput(ctx context.Context, v any) (model.UpdateServiceConfigInput, error) {
+	res, err := ec.unmarshalInputUpdateServiceConfigInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalNUser2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐUser(ctx context.Context, sel ast.SelectionSet, v model.User) graphql.Marshaler {

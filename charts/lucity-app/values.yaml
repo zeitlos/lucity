@@ -56,6 +56,10 @@
 
 services: {}
 
+gateway:
+  name: lucity-gateway
+  namespace: ""
+
 cronJobs: {}
 
 config: {}

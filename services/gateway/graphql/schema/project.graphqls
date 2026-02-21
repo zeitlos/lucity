@@ -32,6 +32,7 @@ type ServiceInstance {
   imageTag: String!
   ready: Boolean!
   replicas: Int!
+  host: String
   deployments: [Deployment!]!
 }
 

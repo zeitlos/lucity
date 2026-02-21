@@ -146,10 +146,25 @@ type ServiceInstance struct {
 	ImageTag    string       `json:"imageTag"`
 	Ready       bool         `json:"ready"`
 	Replicas    int          `json:"replicas"`
+	Host        *string      `json:"host,omitempty"`
 	Deployments []Deployment `json:"deployments"`
 }
 
+type SetServiceDomainInput struct {
+	ProjectID   string `json:"projectId"`
+	Service     string `json:"service"`
+	Environment string `json:"environment"`
+	// Domain hostname to set, or empty string to remove.
+	Host string `json:"host"`
+}
+
 type Subscription struct {
+}
+
+type UpdateServiceConfigInput struct {
+	ProjectID string `json:"projectId"`
+	Service   string `json:"service"`
+	Public    *bool  `json:"public,omitempty"`
 }
 
 type User struct {

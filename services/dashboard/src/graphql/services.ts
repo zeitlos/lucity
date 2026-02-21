@@ -103,6 +103,18 @@ export const ActiveDeploymentQuery = gql`
   }
 `;
 
+export const UpdateServiceConfigMutation = gql`
+  mutation UpdateServiceConfig($input: UpdateServiceConfigInput!) {
+    updateServiceConfig(input: $input)
+  }
+`;
+
+export const SetServiceDomainMutation = gql`
+  mutation SetServiceDomain($input: SetServiceDomainInput!) {
+    setServiceDomain(input: $input)
+  }
+`;
+
 export const DeployLogsSubscription = gql`
   subscription DeployLogs($id: ID!) {
     deployLogs(id: $id)

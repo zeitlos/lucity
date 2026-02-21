@@ -93,6 +93,9 @@ func convertServiceInstance(si handler.ServiceInstance) model.ServiceInstance {
 		Ready:       si.Ready,
 		Replicas:    si.Replicas,
 	}
+	if si.Host != "" {
+		result.Host = &si.Host
+	}
 
 	// Convert deployment history
 	for _, d := range si.Deployments {

@@ -9,6 +9,11 @@ metadata:
     {{- include "lucity-app.labels" $ | nindent 4 }}
     app.kubernetes.io/component: {{ $name }}
 spec:
+  parentRefs:
+    - name: {{ $.Values.gateway.name | default "lucity-gateway" }}
+      {{- if $.Values.gateway.namespace }}
+      namespace: {{ $.Values.gateway.namespace }}
+      {{- end }}
   {{- if $svc.host }}
   hostnames:
     - {{ $svc.host | quote }}

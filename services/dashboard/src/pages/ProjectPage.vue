@@ -126,6 +126,7 @@ function handleCreateFromPalette() {
               :service="selectedService"
               @close="closePanel"
               @service-removed="handleServiceRemoved"
+              @updated="refetch()"
             />
           </div>
         </Transition>

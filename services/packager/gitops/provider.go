@@ -18,6 +18,7 @@ type ServiceDef struct {
 	Image     string // image repository path (e.g., localhost:5000/myapp/api)
 	Port      int
 	Public    bool
+	Host      string // domain hostname (optional, from base values)
 	Framework string // detected framework for dashboard icons (e.g., "nextjs", "vite")
 }
 
@@ -63,6 +64,17 @@ type Provider interface {
 	// DeploymentHistory returns the deployment history for a service in an environment,
 	// parsed from the GitOps repo's git log. Returns entries in reverse chronological order.
 	DeploymentHistory(ctx context.Context, project, environment, service string) ([]DeploymentEntry, error)
+
+	// UpdateServiceConfig updates a service's base configuration (e.g., public visibility).
+	UpdateServiceConfig(ctx context.Context, project, service string, public *bool) error
+
+	// SetServiceDomain sets or removes the domain hostname for a service in an environment.
+	// Pass empty string to remove the domain.
+	SetServiceDomain(ctx context.Context, project, environment, service, host string) error
+
+	// EnvironmentServices reads per-environment service state (image tags, host)
+	// from the environment's values.yaml.
+	EnvironmentServices(ctx context.Context, project, environment string) ([]ServiceInstanceMeta, error)
 }
 
 // DeploymentEntry represents a single deployment event parsed from a git commit.
@@ -108,6 +120,7 @@ func parseDeployCommit(message, environment, service string) (imageTag string, o
 type ServiceInstanceMeta struct {
 	Name     string
 	ImageTag string
+	Host     string // domain hostname from per-environment values.yaml
 }
 
 // EnvironmentMeta holds metadata about a project environment.

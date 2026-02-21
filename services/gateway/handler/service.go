@@ -539,6 +539,51 @@ func (c *Client) DeployLogs(ctx context.Context, deployID string) (<-chan string
 	return out, unsub, nil
 }
 
+func (c *Client) UpdateServiceConfig(ctx context.Context, projectID, service string, public *bool) (bool, error) {
+	ctx = auth.OutgoingContext(ctx)
+
+	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
+	defer cancel()
+	_, err := c.Packager.UpdateServiceConfig(callCtx, &packager.UpdateServiceConfigRequest{
+		Project: projectID,
+		Service: service,
+		Public:  public,
+	})
+	if err != nil {
+		return false, fmt.Errorf("failed to update service config: %w", err)
+	}
+	return true, nil
+}
+
+func (c *Client) SetServiceDomain(ctx context.Context, projectID, service, environment, host string) (bool, error) {
+	ctx = auth.OutgoingContext(ctx)
+
+	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
+	defer cancel()
+	_, err := c.Packager.SetServiceDomain(callCtx, &packager.SetServiceDomainRequest{
+		Project:     projectID,
+		Environment: environment,
+		Service:     service,
+		Host:        host,
+	})
+	if err != nil {
+		return false, fmt.Errorf("failed to set service domain: %w", err)
+	}
+
+	// Trigger ArgoCD sync so the domain change is picked up
+	syncCtx, syncCancel := context.WithTimeout(ctx, grpcTimeout)
+	defer syncCancel()
+	_, err = c.Deployer.SyncDeployment(syncCtx, &deployer.SyncDeploymentRequest{
+		Project:     projectID,
+		Environment: environment,
+	})
+	if err != nil {
+		slog.Warn("failed to trigger sync after domain change", "project", projectID, "environment", environment, "error", err)
+	}
+
+	return true, nil
+}
+
 func extractTag(imageRef string) string {
 	// Find the last ":" that comes after the last "/" to avoid splitting on
 	// the port in registry URLs like "localhost:5000/myapp/web:0a04266".

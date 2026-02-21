@@ -13,6 +13,7 @@ export interface ServiceInstance {
   imageTag: string;
   ready: boolean;
   replicas: number;
+  host?: string;
   deployments: DeploymentInfo[];
 }
 

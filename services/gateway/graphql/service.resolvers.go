@@ -75,6 +75,16 @@ func (r *mutationResolver) Deploy(ctx context.Context, input model.DeployInput) 
 	return &result, nil
 }
 
+// UpdateServiceConfig is the resolver for the updateServiceConfig field.
+func (r *mutationResolver) UpdateServiceConfig(ctx context.Context, input model.UpdateServiceConfigInput) (bool, error) {
+	return r.API.UpdateServiceConfig(ctx, input.ProjectID, input.Service, input.Public)
+}
+
+// SetServiceDomain is the resolver for the setServiceDomain field.
+func (r *mutationResolver) SetServiceDomain(ctx context.Context, input model.SetServiceDomainInput) (bool, error) {
+	return r.API.SetServiceDomain(ctx, input.ProjectID, input.Service, input.Environment, input.Host)
+}
+
 // DetectServices is the resolver for the detectServices field.
 func (r *queryResolver) DetectServices(ctx context.Context, projectID string) ([]model.DetectedService, error) {
 	services, err := r.API.DetectServices(ctx, projectID)

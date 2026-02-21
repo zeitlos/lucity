@@ -42,6 +42,12 @@ service PackagerService {
 
   // DeploymentHistory returns the deployment history for a service in an environment.
   rpc DeploymentHistory(DeploymentHistoryRequest) returns (DeploymentHistoryResponse);
+
+  // UpdateServiceConfig updates a service's base configuration (public visibility).
+  rpc UpdateServiceConfig(UpdateServiceConfigRequest) returns (UpdateServiceConfigResponse);
+
+  // SetServiceDomain sets or removes the domain hostname for a service in an environment.
+  rpc SetServiceDomain(SetServiceDomainRequest) returns (SetServiceDomainResponse);
 }
 
 // ServiceInfo describes a service configured in the project's GitOps repo.
@@ -57,6 +63,7 @@ message ServiceInfo {
 message ServiceInstanceInfo {
   string name = 1;
   string image_tag = 2;    // current image tag in this environment's values.yaml
+  string host = 3;         // domain hostname from this environment's values.yaml
 }
 
 // EnvironmentInfo holds metadata about a project environment.
@@ -189,3 +196,20 @@ message DeploymentHistoryEntry {
 message DeploymentHistoryResponse {
   repeated DeploymentHistoryEntry entries = 1;
 }
+
+message UpdateServiceConfigRequest {
+  string project = 1;
+  string service = 2;
+  optional bool public = 3;
+}
+
+message UpdateServiceConfigResponse {}
+
+message SetServiceDomainRequest {
+  string project = 1;
+  string environment = 2;
+  string service = 3;
+  string host = 4;  // empty string to remove domain
+}
+
+message SetServiceDomainResponse {}

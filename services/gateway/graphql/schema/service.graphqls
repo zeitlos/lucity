@@ -77,6 +77,20 @@ input DeployInput {
   contextPath: String
 }
 
+input UpdateServiceConfigInput {
+  projectId: ID!
+  service: String!
+  public: Boolean
+}
+
+input SetServiceDomainInput {
+  projectId: ID!
+  service: String!
+  environment: String!
+  """Domain hostname to set, or empty string to remove."""
+  host: String!
+}
+
 extend type Query {
   detectServices(projectId: ID!): [DetectedService!]! @hasRole(role: [USER])
   buildStatus(id: ID!): Build @hasRole(role: [USER])
@@ -90,6 +104,8 @@ extend type Mutation {
   buildService(input: BuildServiceInput!): Build! @hasRole(role: [USER])
   deployBuild(input: DeployBuildInput!): Boolean! @hasRole(role: [USER])
   deploy(input: DeployInput!): DeployRun! @hasRole(role: [USER])
+  updateServiceConfig(input: UpdateServiceConfigInput!): Boolean! @hasRole(role: [USER])
+  setServiceDomain(input: SetServiceDomainInput!): Boolean! @hasRole(role: [USER])
 }
 
 extend type Subscription {

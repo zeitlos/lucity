@@ -415,6 +415,99 @@ func (p *SoftServeProvider) DeploymentHistory(ctx context.Context, project, envi
 	return entries, nil
 }
 
+// UpdateServiceConfig updates a service's base configuration in base/values.yaml.
+func (p *SoftServeProvider) UpdateServiceConfig(ctx context.Context, project, service string, public *bool) error {
+	return p.modifyRepo(ctx, project, fmt.Sprintf("config(service): update %s", service), func(dir string) error {
+		path := filepath.Join(dir, "base", "values.yaml")
+		inner, err := readSubchartValues(path)
+		if err != nil {
+			return err
+		}
+
+		services, ok := inner["services"].(map[string]any)
+		if !ok {
+			return fmt.Errorf("no services found in base/values.yaml")
+		}
+
+		svcEntry, ok := services[service].(map[string]any)
+		if !ok {
+			return fmt.Errorf("service %q not found", service)
+		}
+
+		if public != nil {
+			svcEntry["public"] = *public
+		}
+		services[service] = svcEntry
+		inner["services"] = services
+
+		return writeSubchartValues(path, inner)
+	})
+}
+
+// SetServiceDomain sets or removes the domain hostname for a service in an environment.
+func (p *SoftServeProvider) SetServiceDomain(ctx context.Context, project, environment, service, host string) error {
+	commitMsg := fmt.Sprintf("config(%s): set domain for %s", environment, service)
+	if host == "" {
+		commitMsg = fmt.Sprintf("config(%s): remove domain for %s", environment, service)
+	}
+
+	return p.modifyRepo(ctx, project, commitMsg, func(dir string) error {
+		filePath := filepath.Join(dir, "environments", environment, "values.yaml")
+		inner, err := readSubchartValues(filePath)
+		if err != nil {
+			return err
+		}
+
+		services, ok := inner["services"].(map[string]any)
+		if !ok {
+			services = make(map[string]any)
+		}
+
+		svcEntry, ok := services[service].(map[string]any)
+		if !ok {
+			svcEntry = make(map[string]any)
+		}
+
+		if host == "" {
+			delete(svcEntry, "host")
+		} else {
+			svcEntry["host"] = host
+		}
+		services[service] = svcEntry
+		inner["services"] = services
+
+		return writeSubchartValues(filePath, inner)
+	})
+}
+
+// EnvironmentServices reads per-environment service state from the environment's values.yaml.
+func (p *SoftServeProvider) EnvironmentServices(ctx context.Context, project, environment string) ([]ServiceInstanceMeta, error) {
+	_, name, err := SplitProject(project)
+	if err != nil {
+		return nil, err
+	}
+	repoName := name + RepoSuffix
+
+	dir, cleanup, err := p.cloneRepo(repoName)
+	if err != nil {
+		return nil, err
+	}
+	defer cleanup()
+
+	filePath := filepath.Join(dir, "environments", environment, "values.yaml")
+	inner, err := readSubchartValues(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read %s: %w", filePath, err)
+	}
+
+	services, ok := inner["services"].(map[string]any)
+	if !ok {
+		return nil, nil
+	}
+
+	return parseServiceInstanceMetas(services), nil
+}
+
 // sshCmd executes a command on the Soft-serve SSH server.
 func (p *SoftServeProvider) sshCmd(args ...string) (string, error) {
 	sshConfig := &ssh.ClientConfig{
@@ -683,23 +776,7 @@ func (p *SoftServeProvider) readProjectMeta(repoName string) (*ProjectMeta, erro
 			envInner, readErr := readSubchartValues(filepath.Join(envDir, envName, "values.yaml"))
 			if readErr == nil {
 				if envSvcs, ok := envInner["services"].(map[string]any); ok {
-					for svcName, svcRaw := range envSvcs {
-						svcMap, ok := svcRaw.(map[string]any)
-						if !ok {
-							continue
-						}
-						imageMap, ok := svcMap["image"].(map[string]any)
-						if !ok {
-							continue
-						}
-						tag, _ := imageMap["tag"].(string)
-						if tag != "" {
-							envMeta.Services = append(envMeta.Services, ServiceInstanceMeta{
-								Name:     svcName,
-								ImageTag: tag,
-							})
-						}
-					}
+					envMeta.Services = parseServiceInstanceMetas(envSvcs)
 				}
 			}
 			meta.EnvironmentInfos = append(meta.EnvironmentInfos, envMeta)
@@ -804,6 +881,9 @@ func parseServiceDefs(services map[string]any) []ServiceDef {
 		}
 		if framework, ok := svcMap["framework"].(string); ok {
 			def.Framework = framework
+		}
+		if host, ok := svcMap["host"].(string); ok {
+			def.Host = host
 		}
 
 		result = append(result, def)
