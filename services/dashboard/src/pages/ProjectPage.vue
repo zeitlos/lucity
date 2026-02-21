@@ -11,9 +11,11 @@ import DatabasePanel from '@/components/panel/DatabasePanel.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import CreateCommandPalette from '@/components/CreateCommandPalette.vue';
 import DeploymentLogsPanel from '@/components/panel/DeploymentLogsPanel.vue';
+import ServiceLogsPanel from '@/components/panel/ServiceLogsPanel.vue';
 import { useEnvironment } from '@/composables/useEnvironment';
 import { usePanel } from '@/composables/usePanel';
 import { useDeploymentLogsPanel } from '@/composables/useDeploymentLogsPanel';
+import { useServiceLogsPanel } from '@/composables/useServiceLogsPanel';
 
 const route = useRoute();
 const projectId = computed(() => route.params.id as string);
@@ -28,6 +30,7 @@ const project = computed(() => result.value?.project);
 const { setEnvironments, refreshActiveEnvironment } = useEnvironment();
 const { isOpen, currentPanel, closePanel } = usePanel();
 const logsPanel = useDeploymentLogsPanel();
+const serviceLogsPanel = useServiceLogsPanel();
 
 watch(
   () => project.value?.environments,
@@ -158,6 +161,22 @@ const hasResources = computed(() => {
               :database="selectedDatabase"
               @close="closePanel"
               @database-removed="handleResourceRemoved"
+            />
+          </div>
+        </Transition>
+
+        <!-- Service Runtime Logs Panel (stacks on top of service panel) -->
+        <Transition name="slide-panel">
+          <div
+            v-if="serviceLogsPanel.isOpen.value"
+            class="absolute -top-1 -right-1 bottom-6 z-10 shadow-2xl"
+            style="left: calc(45% + 12px + 2rem)"
+          >
+            <ServiceLogsPanel
+              :project-id="serviceLogsPanel.projectId.value!"
+              :service-name="serviceLogsPanel.serviceName.value"
+              :environment="serviceLogsPanel.environment.value!"
+              @close="serviceLogsPanel.close()"
             />
           </div>
         </Transition>

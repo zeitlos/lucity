@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { X } from 'lucide-vue-next';
+import { X, SquareArrowOutUpRight } from 'lucide-vue-next';
 import { onKeyStroke } from '@vueuse/core';
 import { usePanel } from '@/composables/usePanel';
+import { useEnvironment } from '@/composables/useEnvironment';
+import { useServiceLogsPanel } from '@/composables/useServiceLogsPanel';
 import FrameworkIcon from '@/components/FrameworkIcon.vue';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -15,11 +17,10 @@ import {
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
 import DeploymentsTab from './DeploymentsTab.vue';
-import ServiceLogsTab from './ServiceLogsTab.vue';
 import ServiceVariablesTab from './ServiceVariablesTab.vue';
 import ServiceSettingsTab from './ServiceSettingsTab.vue';
 
-defineProps<{
+const props = defineProps<{
   projectId: string;
   service: {
     name: string;
@@ -36,8 +37,16 @@ const emit = defineEmits<{
 }>();
 
 const { panelStack, currentPanel, popPanel } = usePanel();
+const { activeEnvironment } = useEnvironment();
+const serviceLogsPanel = useServiceLogsPanel();
 
 const isNestedView = computed(() => panelStack.value.length > 1);
+
+function openLogs() {
+  if (activeEnvironment.value) {
+    serviceLogsPanel.open(props.projectId, props.service.name, activeEnvironment.value.name);
+  }
+}
 
 onKeyStroke('Escape', () => {
   if (isNestedView.value) {
@@ -93,24 +102,26 @@ onKeyStroke('Escape', () => {
     <!-- Tab Content -->
     <ScrollArea class="flex-1">
       <Tabs default-value="deployments" class="h-full">
-        <div class="px-4 pt-2">
-          <TabsList class="w-full">
+        <div class="flex items-center gap-1 px-4 pt-2">
+          <TabsList class="flex-1">
             <TabsTrigger value="deployments">Deployments</TabsTrigger>
-            <TabsTrigger value="logs">Logs</TabsTrigger>
             <TabsTrigger value="variables">Variables</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
+          <Button
+            variant="ghost"
+            size="sm"
+            class="h-8 gap-1.5 text-xs text-muted-foreground"
+            :disabled="!activeEnvironment"
+            @click="openLogs"
+          >
+            Logs
+            <SquareArrowOutUpRight :size="12" />
+          </Button>
         </div>
 
         <TabsContent value="deployments" class="px-4 py-4">
           <DeploymentsTab
-            :project-id="projectId"
-            :service="service"
-          />
-        </TabsContent>
-
-        <TabsContent value="logs" class="px-4 py-4">
-          <ServiceLogsTab
             :project-id="projectId"
             :service="service"
           />

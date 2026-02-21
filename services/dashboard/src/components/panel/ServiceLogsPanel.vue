@@ -1,25 +1,25 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from 'vue';
-import { Loader2, Trash2, Pause, Play } from 'lucide-vue-next';
-import { useEnvironment } from '@/composables/useEnvironment';
+import { X, Loader2, Trash2, Pause, Play } from 'lucide-vue-next';
+import { onKeyStroke } from '@vueuse/core';
 import { useServiceLogs } from '@/composables/useServiceLogs';
 import { Button } from '@/components/ui/button';
 
 const props = defineProps<{
   projectId: string;
-  service: {
-    name: string;
-    image: string;
-    port: number;
-    framework?: string;
-  };
+  serviceName: string;
+  environment: string;
 }>();
 
-const { activeEnvironment } = useEnvironment();
+const emit = defineEmits<{
+  (e: 'close'): void;
+}>();
+
+onKeyStroke('Escape', () => emit('close'));
 
 const projectIdRef = computed(() => props.projectId);
-const serviceRef = computed(() => props.service.name);
-const envRef = computed(() => activeEnvironment.value?.name ?? null);
+const serviceRef = computed(() => props.serviceName);
+const envRef = computed(() => props.environment as string | null);
 const enabled = ref(true);
 
 const { lines, isActive, clear, stop, restart } = useServiceLogs(
@@ -64,19 +64,19 @@ function clearLogs() {
 </script>
 
 <template>
-  <div class="flex h-[500px] flex-col rounded-lg border bg-zinc-950">
-    <!-- Toolbar -->
-    <div class="flex shrink-0 items-center justify-between border-b border-zinc-800 px-3 py-2">
-      <div class="flex items-center gap-2">
-        <span class="text-xs font-medium text-zinc-200">Runtime Logs</span>
-        <span
-          v-if="envRef"
-          class="text-xs text-zinc-500"
-        >
-          {{ envRef }}
+  <div class="flex h-full flex-col rounded-lg border bg-zinc-950 shadow-2xl">
+    <!-- Header -->
+    <div class="flex shrink-0 items-center justify-between border-b border-zinc-800 px-4 py-3">
+      <div class="flex items-center gap-3">
+        <h2 class="text-sm font-semibold text-zinc-200">
+          {{ serviceName }}
+        </h2>
+        <span class="text-xs text-zinc-500">
+          {{ environment }}
         </span>
       </div>
-      <div class="flex gap-1">
+
+      <div class="flex items-center gap-1">
         <Button
           variant="ghost"
           size="icon"
@@ -100,26 +100,32 @@ function clearLogs() {
         >
           <Trash2 :size="12" />
         </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          class="h-7 w-7 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+          @click="emit('close')"
+        >
+          <X :size="16" />
+        </Button>
       </div>
     </div>
 
     <!-- Log output -->
     <div
       ref="logContainer"
-      class="flex-1 overflow-auto p-3 font-mono text-xs leading-relaxed text-zinc-300"
+      class="flex-1 overflow-auto p-4 font-mono text-xs leading-relaxed text-zinc-300"
       @scroll="handleScroll"
     >
       <div
         v-if="lines.length === 0 && !isActive"
-        class="flex h-full items-center justify-center text-zinc-500"
+        class="flex items-center gap-2 text-zinc-500"
       >
-        <div class="flex items-center gap-2">
-          <Loader2
-            :size="12"
-            class="animate-spin"
-          />
-          <span>Waiting for logs...</span>
-        </div>
+        <Loader2
+          :size="12"
+          class="animate-spin"
+        />
+        <span>Waiting for logs...</span>
       </div>
 
       <div
