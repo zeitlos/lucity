@@ -5,5 +5,8 @@ dependencies:
 - name: argo-cd
   repository: https://argoproj.github.io/argo-helm
   version: 7.8.13
-digest: sha256:b20c4ee0d40c2b8cb2c82b2957b109280e9f5e075d828a7d78320a881c8d4b88
-generated: "2026-02-18T07:39:28.128201+01:00"
+- name: gateway-helm
+  repository: oci://docker.io/envoyproxy
+  version: 1.2.6
+digest: sha256:fb4ed7491e66e8882e2cca21b38a20e0632c59447c6565dcbf48066194285c4d
+generated: "2026-02-21T15:26:18.948443+01:00"

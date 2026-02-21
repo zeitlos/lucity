@@ -14,3 +14,7 @@ dependencies:
     version: "7.8.13"
     repository: "https://argoproj.github.io/argo-helm"
     condition: argo-cd.enabled
+  - name: gateway-helm
+    version: "1.2.6"
+    repository: "oci://docker.io/envoyproxy"
+    condition: envoyGateway.enabled

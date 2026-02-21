@@ -1,4 +1,4 @@
-# Lucity infrastructure chart — Zot (OCI registry) + Soft-serve (Git server) + ArgoCD (GitOps)
+# Lucity infrastructure chart — Zot (OCI registry) + Soft-serve (Git server) + ArgoCD (GitOps) + Envoy Gateway (Gateway API)
 
 # -- Zot OCI Registry
 zot:
@@ -99,3 +99,14 @@ argo-cd:
       soft-serve:
         url: http://lucity-infra-soft-serve.lucity-system.svc.cluster.local:23232
         type: git
+
+# -- Envoy Gateway (Gateway API controller for local dev, disable when using Cilium)
+envoyGateway:
+  enabled: true
+
+# -- Gateway resource configuration
+gateway:
+  name: lucity-gateway
+  className: eg  # "eg" for Envoy Gateway, "cilium" for Cilium
+
+gateway-helm: {}

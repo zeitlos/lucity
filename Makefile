@@ -77,8 +77,8 @@ test-integration-short:
 minikube:
 	minikube start --insecure-registry="10.96.0.0/12"
 
-# Deploy infrastructure (Zot + Soft-serve + ArgoCD) to a cluster
-# Also installs Gateway API CRDs required for public services
+# Deploy infrastructure (Zot + Soft-serve + ArgoCD + Envoy Gateway) to a cluster
+# Also installs Gateway API CRDs required for HTTPRoutes
 # Usage: make infra CLUSTER=flxp
 CLUSTER ?= minikube
 infra:
@@ -93,14 +93,15 @@ infra-down:
 
 # Port-forward infrastructure services for local development
 infra-forward: infra-forward-stop
-	@echo "Port-forwarding Zot (5000), Soft-serve (23231, 23232), and ArgoCD (8443)..."
+	@echo "Port-forwarding Zot (5000), Soft-serve (23231, 23232), ArgoCD (8443), and Gateway (8880)..."
 	@kubectl port-forward svc/lucity-infra-zot 5000:5000 -n lucity-system &
 	@kubectl port-forward svc/lucity-infra-soft-serve 23231:23231 23232:23232 -n lucity-system &
 	@kubectl port-forward svc/lucity-infra-argocd-server 8443:80 -n lucity-system &
+	@kubectl port-forward svc/envoy-lucity-system-lucity-gateway 8880:80 -n envoy-gateway-system 2>/dev/null &
 	@echo "Ready. Use 'make infra-forward-stop' to stop."
 
 infra-forward-stop:
-	@for port in 5000 23231 23232 8443; do \
+	@for port in 5000 23231 23232 8443 8880; do \
 		lsof -ti :$$port | xargs kill 2>/dev/null || true; \
 	done
 
