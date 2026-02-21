@@ -13,9 +13,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertCircle, Check, Rocket, Zap } from 'lucide-vue-next';
 
 const colors = [
-  { name: 'Primary', var: '--primary', fg: '--primary-foreground', desc: 'Brand purple' },
-  { name: 'Secondary', var: '--secondary', fg: '--secondary-foreground', desc: 'Light purple' },
-  { name: 'Accent', var: '--accent', fg: '--accent-foreground', desc: 'Coral highlight' },
+  { name: 'Primary', var: '--primary', fg: '--primary-foreground', desc: 'Brand teal' },
+  { name: 'Secondary', var: '--secondary', fg: '--secondary-foreground', desc: 'Warm beige' },
+  { name: 'Accent', var: '--accent', fg: '--accent-foreground', desc: 'Soft warm' },
   { name: 'Destructive', var: '--destructive', fg: '--destructive-foreground', desc: 'Danger red' },
   { name: 'Muted', var: '--muted', fg: '--muted-foreground', desc: 'Subdued elements' },
 ];
@@ -73,7 +73,7 @@ const chartColors = [
           Isometric 3x3 grid with an L-shape in primary and an accent triangle.
         </p>
 
-        <div class="grid grid-cols-2 gap-8">
+        <div class="grid grid-cols-3 gap-8">
           <Card>
             <CardHeader>
               <CardTitle>Construction</CardTitle>
@@ -82,7 +82,7 @@ const chartColors = [
               </CardDescription>
             </CardHeader>
             <CardContent class="flex justify-center">
-              <BaseLogo :size="280" debug />
+              <BaseLogo :size="220" debug />
             </CardContent>
           </Card>
 
@@ -90,33 +90,64 @@ const chartColors = [
             <CardHeader>
               <CardTitle>Clean</CardTitle>
               <CardDescription>
-                Final mark without construction lines
+                Colored tiles and accent triangle
               </CardDescription>
             </CardHeader>
             <CardContent class="flex justify-center">
-              <BaseLogo :size="280" />
+              <BaseLogo :size="220" />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Mark</CardTitle>
+              <CardDescription>
+                Knockout circle for compact use
+              </CardDescription>
+            </CardHeader>
+            <CardContent class="flex items-center justify-center gap-6">
+              <BaseLogo :size="120" variant="mark" />
+              <BaseLogo :size="120" variant="mark" class="text-primary" />
             </CardContent>
           </Card>
         </div>
 
-        <div class="mt-8">
-          <h3 class="mb-4 text-sm font-medium text-muted-foreground">
-            Optical sizes
-          </h3>
-          <p class="mb-6 text-xs text-muted-foreground">
-            Small sizes show only the mark with an enlarged triangle. Grid lines and gradient fills appear at 96px+.
-          </p>
-          <div class="flex items-end gap-8">
-            <div
-              v-for="size in [24, 32, 48, 64, 96, 128]"
-              :key="size"
-              class="flex flex-col items-center gap-2"
-            >
-              <BaseLogo :size="size" />
-              <span class="font-mono text-xs text-muted-foreground">{{ size }}</span>
-              <span class="text-[10px] text-muted-foreground/60">
-                {{ size >= 96 ? 'detail' : size <= 32 ? 'bold' : 'standard' }}
-              </span>
+        <div class="mt-8 space-y-8">
+          <div>
+            <h3 class="mb-4 text-sm font-medium text-muted-foreground">
+              Optical sizes — Default
+            </h3>
+            <p class="mb-6 text-xs text-muted-foreground">
+              Small sizes show only the mark with an enlarged triangle. Grid lines and gradient fills appear at 96px+.
+            </p>
+            <div class="flex items-end gap-8">
+              <div
+                v-for="size in [24, 32, 48, 64, 96, 128]"
+                :key="size"
+                class="flex flex-col items-center gap-2"
+              >
+                <BaseLogo :size="size" />
+                <span class="font-mono text-xs text-muted-foreground">{{ size }}</span>
+                <span class="text-[10px] text-muted-foreground/60">
+                  {{ size >= 96 ? 'detail' : size <= 32 ? 'bold' : 'standard' }}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h3 class="mb-4 text-sm font-medium text-muted-foreground">
+              Optical sizes — Mark
+            </h3>
+            <div class="flex items-end gap-8">
+              <div
+                v-for="size in [16, 24, 32, 48, 64]"
+                :key="'mark-' + size"
+                class="flex flex-col items-center gap-2"
+              >
+                <BaseLogo :size="size" variant="mark" />
+                <span class="font-mono text-xs text-muted-foreground">{{ size }}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -225,7 +256,7 @@ const chartColors = [
           Typography
         </h2>
         <p class="mb-8 text-sm text-muted-foreground">
-          Oxanium for headings and body. Fira Code for monospace.
+          Sora for headings and body. Instrument Serif for display. Fira Code for monospace.
         </p>
 
         <Card>
