@@ -120,3 +120,17 @@ func (r *queryResolver) ActiveDeployment(ctx context.Context, projectID string, 
 	result := convertDeploymentOp(*d)
 	return &result, nil
 }
+
+// DeployLogs is the resolver for the deployLogs field.
+func (r *subscriptionResolver) DeployLogs(ctx context.Context, id string) (<-chan string, error) {
+	ch, unsub, err := r.API.DeployLogs(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	// Unsubscribe when the client disconnects.
+	go func() {
+		<-ctx.Done()
+		unsub()
+	}()
+	return ch, nil
+}

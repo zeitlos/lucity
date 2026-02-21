@@ -16,3 +16,5 @@ enum Role {
 type Query
 
 type Mutation
+
+type Subscription

@@ -15,6 +15,10 @@ service BuilderService {
 
   // BuildStatus returns the current status of an in-progress or completed build.
   rpc BuildStatus(BuildStatusRequest) returns (BuildStatusResponse);
+
+  // BuildLogs streams build log lines in real time. Sends existing lines from
+  // the given offset, then continues streaming new lines until the build completes.
+  rpc BuildLogs(BuildLogsRequest) returns (stream BuildLogEntry);
 }
 
 message DetectServicesRequest {
@@ -83,6 +87,16 @@ message BuildStatusResponse {
 
   // Error message, set when phase is FAILED.
   string error = 4;
+}
+
+message BuildLogsRequest {
+  string build_id = 1;
+  // Start streaming from this line index (0-based).
+  int32 offset = 2;
+}
+
+message BuildLogEntry {
+  string line = 1;
 }
 
 enum BuildPhase {

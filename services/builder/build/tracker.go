@@ -6,6 +6,8 @@ import (
 	"github.com/zeitlos/lucity/pkg/builder"
 )
 
+const maxLogLines = 5000
+
 // BuildState holds the current state of a build.
 type BuildState struct {
 	ID       string
@@ -13,6 +15,7 @@ type BuildState struct {
 	ImageRef string
 	Digest   string
 	Error    string
+	Logs     []string
 }
 
 // Tracker manages in-memory build state for async builds.
@@ -79,4 +82,50 @@ func (t *Tracker) Fail(id, errMsg string) {
 		s.Phase = builder.BuildPhase_BUILD_PHASE_FAILED
 		s.Error = errMsg
 	}
+}
+
+// AppendLog adds a log line to a build. Capped at maxLogLines.
+func (t *Tracker) AppendLog(id, line string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	s := t.builds[id]
+	if s == nil || len(s.Logs) >= maxLogLines {
+		return
+	}
+	s.Logs = append(s.Logs, line)
+}
+
+// LogLines returns log lines starting from offset, or nil if build not found.
+func (t *Tracker) LogLines(id string, offset int) []string {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	s := t.builds[id]
+	if s == nil || offset >= len(s.Logs) {
+		return nil
+	}
+	// Return a copy of the slice segment.
+	lines := make([]string, len(s.Logs)-offset)
+	copy(lines, s.Logs[offset:])
+	return lines
+}
+
+// LogCount returns the number of log lines for a build.
+func (t *Tracker) LogCount(id string) int {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	if s := t.builds[id]; s != nil {
+		return len(s.Logs)
+	}
+	return 0
+}
+
+// IsTerminal returns true if the build is in a terminal phase (SUCCEEDED or FAILED).
+func (t *Tracker) IsTerminal(id string) bool {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	s := t.builds[id]
+	if s == nil {
+		return true // not found = treat as done
+	}
+	return s.Phase == builder.BuildPhase_BUILD_PHASE_SUCCEEDED || s.Phase == builder.BuildPhase_BUILD_PHASE_FAILED
 }

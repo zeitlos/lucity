@@ -9,8 +9,10 @@ import ServiceCanvas from '@/components/canvas/ServiceCanvas.vue';
 import ServicePanel from '@/components/panel/ServicePanel.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import CreateCommandPalette from '@/components/CreateCommandPalette.vue';
+import DeploymentLogsPanel from '@/components/panel/DeploymentLogsPanel.vue';
 import { useEnvironment } from '@/composables/useEnvironment';
 import { usePanel } from '@/composables/usePanel';
+import { useDeploymentLogsPanel } from '@/composables/useDeploymentLogsPanel';
 
 const route = useRoute();
 const projectId = computed(() => route.params.id as string);
@@ -24,6 +26,7 @@ const project = computed(() => result.value?.project);
 // Environment management
 const { setEnvironments, refreshActiveEnvironment } = useEnvironment();
 const { isOpen, currentPanel, closePanel } = usePanel();
+const logsPanel = useDeploymentLogsPanel();
 
 watch(
   () => project.value?.environments,
@@ -123,6 +126,20 @@ function handleCreateFromPalette() {
               :service="selectedService"
               @close="closePanel"
               @service-removed="handleServiceRemoved"
+            />
+          </div>
+        </Transition>
+
+        <!-- Deployment Logs Panel (stacks on top of service panel) -->
+        <Transition name="slide-panel">
+          <div
+            v-if="logsPanel.isOpen.value"
+            class="absolute inset-y-3 right-3 z-10 w-[55%] shadow-2xl"
+          >
+            <DeploymentLogsPanel
+              :deploy-id="logsPanel.deployId.value!"
+              :service-name="logsPanel.serviceName.value"
+              @close="logsPanel.close()"
             />
           </div>
         </Transition>

@@ -22,6 +22,7 @@ const (
 	BuilderService_DetectServices_FullMethodName = "/builder.BuilderService/DetectServices"
 	BuilderService_StartBuild_FullMethodName     = "/builder.BuilderService/StartBuild"
 	BuilderService_BuildStatus_FullMethodName    = "/builder.BuilderService/BuildStatus"
+	BuilderService_BuildLogs_FullMethodName      = "/builder.BuilderService/BuildLogs"
 )
 
 // BuilderServiceClient is the client API for BuilderService service.
@@ -36,6 +37,9 @@ type BuilderServiceClient interface {
 	StartBuild(ctx context.Context, in *StartBuildRequest, opts ...grpc.CallOption) (*StartBuildResponse, error)
 	// BuildStatus returns the current status of an in-progress or completed build.
 	BuildStatus(ctx context.Context, in *BuildStatusRequest, opts ...grpc.CallOption) (*BuildStatusResponse, error)
+	// BuildLogs streams build log lines in real time. Sends existing lines from
+	// the given offset, then continues streaming new lines until the build completes.
+	BuildLogs(ctx context.Context, in *BuildLogsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[BuildLogEntry], error)
 }
 
 type builderServiceClient struct {
@@ -76,6 +80,25 @@ func (c *builderServiceClient) BuildStatus(ctx context.Context, in *BuildStatusR
 	return out, nil
 }
 
+func (c *builderServiceClient) BuildLogs(ctx context.Context, in *BuildLogsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[BuildLogEntry], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &BuilderService_ServiceDesc.Streams[0], BuilderService_BuildLogs_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[BuildLogsRequest, BuildLogEntry]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type BuilderService_BuildLogsClient = grpc.ServerStreamingClient[BuildLogEntry]
+
 // BuilderServiceServer is the server API for BuilderService service.
 // All implementations must embed UnimplementedBuilderServiceServer
 // for forward compatibility.
@@ -88,6 +111,9 @@ type BuilderServiceServer interface {
 	StartBuild(context.Context, *StartBuildRequest) (*StartBuildResponse, error)
 	// BuildStatus returns the current status of an in-progress or completed build.
 	BuildStatus(context.Context, *BuildStatusRequest) (*BuildStatusResponse, error)
+	// BuildLogs streams build log lines in real time. Sends existing lines from
+	// the given offset, then continues streaming new lines until the build completes.
+	BuildLogs(*BuildLogsRequest, grpc.ServerStreamingServer[BuildLogEntry]) error
 	mustEmbedUnimplementedBuilderServiceServer()
 }
 
@@ -106,6 +132,9 @@ func (UnimplementedBuilderServiceServer) StartBuild(context.Context, *StartBuild
 }
 func (UnimplementedBuilderServiceServer) BuildStatus(context.Context, *BuildStatusRequest) (*BuildStatusResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method BuildStatus not implemented")
+}
+func (UnimplementedBuilderServiceServer) BuildLogs(*BuildLogsRequest, grpc.ServerStreamingServer[BuildLogEntry]) error {
+	return status.Errorf(codes.Unimplemented, "method BuildLogs not implemented")
 }
 func (UnimplementedBuilderServiceServer) mustEmbedUnimplementedBuilderServiceServer() {}
 func (UnimplementedBuilderServiceServer) testEmbeddedByValue()                        {}
@@ -182,6 +211,17 @@ func _BuilderService_BuildStatus_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
+func _BuilderService_BuildLogs_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(BuildLogsRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(BuilderServiceServer).BuildLogs(m, &grpc.GenericServerStream[BuildLogsRequest, BuildLogEntry]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type BuilderService_BuildLogsServer = grpc.ServerStreamingServer[BuildLogEntry]
+
 // BuilderService_ServiceDesc is the grpc.ServiceDesc for BuilderService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -202,6 +242,12 @@ var BuilderService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _BuilderService_BuildStatus_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "BuildLogs",
+			Handler:       _BuilderService_BuildLogs_Handler,
+			ServerStreams: true,
+		},
+	},
 	Metadata: "builder.proto",
 }

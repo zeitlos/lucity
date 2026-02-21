@@ -102,3 +102,9 @@ export const ActiveDeploymentQuery = gql`
     }
   }
 `;
+
+export const DeployLogsSubscription = gql`
+  subscription DeployLogs($id: ID!) {
+    deployLogs(id: $id)
+  }
+`;

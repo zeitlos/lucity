@@ -91,3 +91,8 @@ extend type Mutation {
   deployBuild(input: DeployBuildInput!): Boolean! @hasRole(role: [USER])
   deploy(input: DeployInput!): DeploymentOp! @hasRole(role: [USER])
 }
+
+extend type Subscription {
+  """Stream deploy log lines in real time. Emits existing lines then new lines as they arrive."""
+  deployLogs(id: ID!): String! @hasRole(role: [USER])
+}

@@ -30,6 +30,7 @@
     "clsx": "^2.1.1",
     "embla-carousel-vue": "^8.6.0",
     "graphql": "^16.12.0",
+    "graphql-ws": "^6.0.7",
     "lucide-vue-next": "^0.564.0",
     "reka-ui": "^2.8.0",
     "tailwind-merge": "^3.4.1",

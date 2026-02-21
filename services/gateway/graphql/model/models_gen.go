@@ -150,6 +150,9 @@ type ServiceInstance struct {
 	Deployments []Deployment `json:"deployments"`
 }
 
+type Subscription struct {
+}
+
 type User struct {
 	Login     string  `json:"login"`
 	Name      *string `json:"name,omitempty"`

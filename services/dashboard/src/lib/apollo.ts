@@ -1,5 +1,8 @@
-import { ApolloClient, InMemoryCache, createHttpLink, from } from '@apollo/client/core';
+import { ApolloClient, InMemoryCache, createHttpLink, from, split } from '@apollo/client/core';
 import { onError } from '@apollo/client/link/error';
+import { GraphQLWsLink } from '@apollo/client/link/subscriptions';
+import { getMainDefinition } from '@apollo/client/utilities';
+import { createClient } from 'graphql-ws';
 import router from '@/router';
 
 const httpLink = createHttpLink({
@@ -18,7 +21,33 @@ const errorLink = onError(({ graphQLErrors }) => {
   }
 });
 
+function getToken(): string {
+  const match = document.cookie.match(/(?:^|;\s*)lucity_token=([^;]*)/);
+  return match ? decodeURIComponent(match[1]) : '';
+}
+
+const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+
+const wsLink = new GraphQLWsLink(createClient({
+  url: `${wsProtocol}//${window.location.host}/graphql`,
+  connectionParams: () => {
+    const token = getToken();
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  },
+  lazy: true,
+  retryAttempts: 3,
+}));
+
+const splitLink = split(
+  ({ query }) => {
+    const def = getMainDefinition(query);
+    return def.kind === 'OperationDefinition' && def.operation === 'subscription';
+  },
+  wsLink,
+  from([errorLink, httpLink]),
+);
+
 export const apolloClient = new ApolloClient({
-  link: from([errorLink, httpLink]),
+  link: splitLink,
   cache: new InMemoryCache(),
 });

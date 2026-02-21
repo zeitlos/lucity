@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"strings"
 	"time"
@@ -285,11 +286,17 @@ func (c *Client) ActiveDeployment(ctx context.Context, projectID, service, envir
 	return deployOpFromState(s), nil
 }
 
-// runDeploy polls the builder for build status and, on success, deploys the image.
+// runDeploy streams build logs from the builder and, on success, deploys the image.
 func (c *Client) runDeploy(token, deployID, projectID, service, environment, buildID string) {
 	ctx := auth.WithToken(context.Background(), token)
 	ctx = auth.OutgoingContext(ctx)
 
+	c.DeployTracker.AppendLog(deployID, "Queued for build...")
+
+	// Stream build logs in a background goroutine.
+	go c.streamBuildLogs(ctx, deployID, buildID)
+
+	// Poll build status for phase transitions.
 	for {
 		time.Sleep(2 * time.Second)
 
@@ -305,12 +312,35 @@ func (c *Client) runDeploy(token, deployID, projectID, service, environment, bui
 
 		switch status.Phase {
 		case builder.BuildPhase_BUILD_PHASE_SUCCEEDED:
+			c.DeployTracker.AppendLog(deployID, "Build succeeded")
 			c.finalizeDeploy(ctx, deployID, projectID, service, environment, status.ImageRef, status.Digest)
 			return
 		case builder.BuildPhase_BUILD_PHASE_FAILED:
+			c.DeployTracker.AppendLog(deployID, fmt.Sprintf("Build failed: %s", status.Error))
 			c.DeployTracker.Fail(deployID, status.Error)
 			return
 		}
+	}
+}
+
+// streamBuildLogs opens a gRPC stream to the builder and forwards log lines
+// into the deploy tracker. Runs until the stream ends or an error occurs.
+func (c *Client) streamBuildLogs(ctx context.Context, deployID, buildID string) {
+	stream, err := c.Builder.BuildLogs(ctx, &builder.BuildLogsRequest{BuildId: buildID, Offset: 0})
+	if err != nil {
+		slog.Debug("deploy: failed to open build log stream", "deployId", deployID, "error", err)
+		return
+	}
+	for {
+		entry, err := stream.Recv()
+		if err == io.EOF {
+			return
+		}
+		if err != nil {
+			slog.Debug("deploy: build log stream ended", "deployId", deployID, "error", err)
+			return
+		}
+		c.DeployTracker.AppendLog(deployID, entry.Line)
 	}
 }
 
@@ -320,6 +350,7 @@ func (c *Client) finalizeDeploy(ctx context.Context, deployID, projectID, servic
 
 	tag := extractTag(imageRef)
 
+	c.DeployTracker.AppendLog(deployID, fmt.Sprintf("Updating GitOps repo (tag: %s)", tag))
 	_, err := c.Packager.UpdateImageTag(ctx, &packager.UpdateImageTagRequest{
 		Project:     projectID,
 		Environment: environment,
@@ -328,10 +359,12 @@ func (c *Client) finalizeDeploy(ctx context.Context, deployID, projectID, servic
 		Digest:      digest,
 	})
 	if err != nil {
+		c.DeployTracker.AppendLog(deployID, fmt.Sprintf("Failed to update image tag: %v", err))
 		c.DeployTracker.Fail(deployID, fmt.Sprintf("failed to update image tag: %v", err))
 		return
 	}
 
+	c.DeployTracker.AppendLog(deployID, "Triggering ArgoCD sync...")
 	// Trigger ArgoCD sync (best-effort)
 	_, err = c.Deployer.SyncDeployment(ctx, &deployer.SyncDeploymentRequest{
 		Project:     projectID,
@@ -339,11 +372,15 @@ func (c *Client) finalizeDeploy(ctx context.Context, deployID, projectID, servic
 	})
 	if err != nil {
 		slog.Warn("deploy: failed to trigger sync", "deployId", deployID, "error", err)
+		c.DeployTracker.AppendLog(deployID, fmt.Sprintf("Warning: sync trigger failed (%v), relying on auto-sync", err))
 	}
+
+	c.DeployTracker.AppendLog(deployID, "Waiting for rollout...")
 
 	// Poll ArgoCD for rollout health. This catches ImagePullBackOff, CrashLoopBackOff, etc.
 	// Timeout after 2 minutes — pods should start well within that window.
 	deadline := time.Now().Add(2 * time.Minute)
+	lastHealth := ""
 	for time.Now().Before(deadline) {
 		time.Sleep(3 * time.Second)
 
@@ -359,14 +396,26 @@ func (c *Client) finalizeDeploy(ctx context.Context, deployID, projectID, servic
 		health := deploymentStatusToString(resp.Status)
 		c.DeployTracker.UpdateArgoHealth(deployID, health, resp.Message)
 
+		// Log health changes.
+		if health != lastHealth {
+			msg := fmt.Sprintf("ArgoCD: %s", health)
+			if resp.Message != "" {
+				msg += fmt.Sprintf(" — %s", resp.Message)
+			}
+			c.DeployTracker.AppendLog(deployID, msg)
+			lastHealth = health
+		}
+
 		switch resp.Status {
 		case deployer.DeploymentStatus_DEPLOYMENT_STATUS_SYNCED:
 			// Healthy + Synced — rollout succeeded
+			c.DeployTracker.AppendLog(deployID, "Deploy succeeded")
 			c.DeployTracker.Succeed(deployID, imageRef, digest)
 			slog.Info("deploy succeeded", "deployId", deployID, "project", projectID, "service", service, "environment", environment, "tag", tag)
 			return
 		case deployer.DeploymentStatus_DEPLOYMENT_STATUS_DEGRADED:
 			// Degraded — pods failed (ImagePullBackOff, CrashLoopBackOff, etc.)
+			c.DeployTracker.AppendLog(deployID, fmt.Sprintf("Deploy failed: %s", resp.Message))
 			c.DeployTracker.Fail(deployID, resp.Message)
 			slog.Warn("deploy failed: ArgoCD reports degraded", "deployId", deployID, "project", projectID, "environment", environment, "message", resp.Message)
 			return
@@ -376,6 +425,7 @@ func (c *Client) finalizeDeploy(ctx context.Context, deployID, projectID, servic
 
 	// Timeout: mark succeeded but with the last known health status.
 	// The rollout may still be in progress — we just stop tracking.
+	c.DeployTracker.AppendLog(deployID, "Deploy completed (ArgoCD still progressing)")
 	c.DeployTracker.Succeed(deployID, imageRef, digest)
 	slog.Info("deploy completed (ArgoCD still progressing)", "deployId", deployID, "project", projectID, "service", service, "environment", environment, "tag", tag)
 }
@@ -397,6 +447,64 @@ func buildPhaseToDeployPhase(phase builder.BuildPhase) deploy.Phase {
 	default:
 		return deploy.PhaseQueued
 	}
+}
+
+// DeployLogs returns a channel of log lines for a deploy. The channel receives
+// existing log lines (backlog) followed by new lines as they arrive. The channel
+// is closed when the deploy reaches a terminal phase. The returned function
+// unsubscribes from further updates.
+func (c *Client) DeployLogs(ctx context.Context, deployID string) (<-chan string, func(), error) {
+	s := c.DeployTracker.Get(deployID)
+	if s == nil {
+		return nil, nil, fmt.Errorf("deploy %q not found", deployID)
+	}
+
+	out := make(chan string, 128)
+	sub, unsub := c.DeployTracker.Subscribe(deployID)
+
+	go func() {
+		defer close(out)
+
+		// Send backlog.
+		backlog := c.DeployTracker.LogLines(deployID, 0)
+		for _, line := range backlog {
+			select {
+			case out <- line:
+			case <-ctx.Done():
+				return
+			}
+		}
+
+		// Stream new lines from subscriber channel.
+		done := c.DeployTracker.Done(deployID)
+		for {
+			select {
+			case line, ok := <-sub:
+				if !ok {
+					return // deploy finished, channel closed
+				}
+				select {
+				case out <- line:
+				case <-ctx.Done():
+					return
+				}
+			case <-done:
+				// Drain any remaining lines in the subscriber channel.
+				for line := range sub {
+					select {
+					case out <- line:
+					case <-ctx.Done():
+						return
+					}
+				}
+				return
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	return out, unsub, nil
 }
 
 func extractTag(imageRef string) string {

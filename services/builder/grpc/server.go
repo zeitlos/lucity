@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"time"
 
 	"github.com/go-git/go-git/v5"
 	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
@@ -111,6 +112,47 @@ func (s *Server) BuildStatus(ctx context.Context, req *builder.BuildStatusReques
 	}, nil
 }
 
+// BuildLogs streams build log lines in real time. It sends existing lines
+// from the given offset, then continues sending new lines until the build
+// reaches a terminal phase and all lines have been sent.
+func (s *Server) BuildLogs(req *builder.BuildLogsRequest, stream builder.BuilderService_BuildLogsServer) error {
+	state := s.tracker.Get(req.BuildId)
+	if state == nil {
+		return status.Error(codes.NotFound, "build not found")
+	}
+
+	offset := int(req.Offset)
+
+	for {
+		lines := s.tracker.LogLines(req.BuildId, offset)
+		for _, line := range lines {
+			if err := stream.Send(&builder.BuildLogEntry{Line: line}); err != nil {
+				return err
+			}
+		}
+		offset += len(lines)
+
+		// If the build is done and we've sent all lines, we're finished.
+		if s.tracker.IsTerminal(req.BuildId) {
+			// Drain any final lines that appeared between the last check and now.
+			final := s.tracker.LogLines(req.BuildId, offset)
+			for _, line := range final {
+				if err := stream.Send(&builder.BuildLogEntry{Line: line}); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+
+		// Wait before checking for new lines.
+		select {
+		case <-stream.Context().Done():
+			return stream.Context().Err()
+		case <-time.After(200 * time.Millisecond):
+		}
+	}
+}
+
 // runBuild executes the full build pipeline in a background goroutine.
 func (s *Server) runBuild(buildID, token string, req *builder.StartBuildRequest) {
 	ctx := context.Background()
@@ -142,6 +184,7 @@ func (s *Server) runBuild(buildID, token string, req *builder.StartBuildRequest)
 		SourceURL:   req.SourceUrl,
 		GitSHA:      full,
 		Insecure:    s.registryInsecure,
+		LogFunc:     func(line string) { s.tracker.AppendLog(buildID, line) },
 	})
 	if err != nil {
 		s.tracker.Fail(buildID, fmt.Sprintf("build failed: %v", err))

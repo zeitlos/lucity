@@ -26,6 +26,7 @@ type BuildOpts struct {
 	SourceURL   string // source repository URL (e.g., https://github.com/user/repo)
 	GitSHA      string // full git commit SHA
 	Insecure    bool   // allow HTTP (non-TLS) registry connections
+	LogFunc     func(line string) // called per line of build output, nil = discard
 }
 
 // Engine abstracts the build backend.

@@ -1,9 +1,11 @@
 package engine
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"os/exec"
@@ -119,7 +121,7 @@ func (e *LocalEngine) Build(ctx context.Context, opts BuildOpts) (*BuildResult, 
 	buildCmd := exec.CommandContext(ctx, "docker", args...)
 	buildCmd.Dir = buildDir
 
-	buildOutput, err := buildCmd.CombinedOutput()
+	buildOutput, err := runAndStream(buildCmd, opts.LogFunc)
 	if err != nil {
 		slog.Error("build failed", "error", err, "output", string(buildOutput))
 		return nil, fmt.Errorf("build failed: %w: %s", err, string(buildOutput))
@@ -173,7 +175,7 @@ func pushImage(ctx context.Context, opts BuildOpts) (string, error) {
 	}
 
 	pushCmd := exec.CommandContext(ctx, "crane", args...)
-	pushOutput, err := pushCmd.CombinedOutput()
+	pushOutput, err := runAndStream(pushCmd, opts.LogFunc)
 	if err != nil {
 		slog.Error("push failed", "error", err, "output", string(pushOutput))
 		return "", fmt.Errorf("push failed: %w: %s", err, string(pushOutput))
@@ -183,6 +185,43 @@ func pushImage(ctx context.Context, opts BuildOpts) (string, error) {
 	// crane outputs "registry/repo@sha256:..." on success — extract the digest
 	digest := extractCraneDigest(string(pushOutput))
 	return digest, nil
+}
+
+// runAndStream runs a command, streaming each output line to logFunc (if non-nil),
+// and returns all combined output for error reporting.
+func runAndStream(cmd *exec.Cmd, logFunc func(string)) ([]byte, error) {
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create stdout pipe: %w", err)
+	}
+	cmd.Stderr = cmd.Stdout // merge stderr into stdout
+
+	if err := cmd.Start(); err != nil {
+		return nil, fmt.Errorf("failed to start command: %w", err)
+	}
+
+	var output []byte
+	scanner := bufio.NewScanner(stdout)
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024) // handle long lines
+	for scanner.Scan() {
+		line := scanner.Text()
+		output = append(output, line...)
+		output = append(output, '\n')
+		if logFunc != nil {
+			logFunc(line)
+		}
+	}
+
+	// Drain any remaining data if scanner hit an error
+	if scanner.Err() != nil {
+		remaining, _ := io.ReadAll(stdout)
+		output = append(output, remaining...)
+	}
+
+	if err := cmd.Wait(); err != nil {
+		return output, err
+	}
+	return output, nil
 }
 
 // extractCraneDigest parses the digest from crane push output.

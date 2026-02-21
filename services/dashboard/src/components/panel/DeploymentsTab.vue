@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, ref, onMounted } from 'vue';
-import { Rocket, Loader2, Check, Circle, ChevronRight, AlertCircle, Tag, TriangleAlert } from 'lucide-vue-next';
+import { Rocket, Loader2, Check, Circle, ChevronRight, AlertCircle, Tag, TriangleAlert, Terminal } from 'lucide-vue-next';
 import { useEnvironment } from '@/composables/useEnvironment';
 import { useDeploy } from '@/composables/useDeploy';
+import { useDeploymentLogsPanel } from '@/composables/useDeploymentLogsPanel';
 import { apolloClient } from '@/lib/apollo';
 import { ActiveDeploymentQuery } from '@/graphql/services';
 import { Badge } from '@/components/ui/badge';
@@ -23,6 +24,13 @@ const props = defineProps<{
 
 const { activeEnvironment } = useEnvironment();
 const deploy = useDeploy();
+const logsPanel = useDeploymentLogsPanel();
+
+function showLogs() {
+  if (deploy.deployId) {
+    logsPanel.open(deploy.deployId, props.service.name);
+  }
+}
 
 onMounted(async () => {
   const envName = activeEnvironment.value?.name;
@@ -213,6 +221,19 @@ function formatRelativeTime(timestamp: string): string {
           </div>
         </div>
       </div>
+
+      <!-- Show Logs button -->
+      <div class="border-t border-border/40 px-3 py-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          class="h-7 text-xs text-muted-foreground"
+          @click="showLogs"
+        >
+          <Terminal :size="13" class="mr-1.5" />
+          Show Logs
+        </Button>
+      </div>
     </div>
 
     <!-- Deploy error (FAILED phase) -->
@@ -230,6 +251,12 @@ function formatRelativeTime(timestamp: string): string {
           <p class="break-words font-mono text-[11px] text-muted-foreground">
             {{ deploy.error || deploy.rolloutMessage }}
           </p>
+          <button
+            class="mt-1 text-[11px] text-muted-foreground underline decoration-muted-foreground/40 underline-offset-2 hover:text-foreground"
+            @click="showLogs"
+          >
+            Show Logs
+          </button>
         </div>
       </div>
     </div>
