@@ -77,12 +77,15 @@ test-integration-short:
 minikube:
 	minikube start --insecure-registry="10.96.0.0/12"
 
-# Deploy infrastructure (Zot + Soft-serve + ArgoCD + Envoy Gateway) to a cluster
-# Also installs Gateway API CRDs required for HTTPRoutes
+# Deploy infrastructure (Zot + Soft-serve + ArgoCD + Envoy Gateway + CNPG) to a cluster
+# Envoy Gateway is installed separately — it needs its own namespace for cert management.
 # Usage: make infra CLUSTER=flxp
 CLUSTER ?= minikube
 infra:
 	kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.1/standard-install.yaml
+	helm upgrade --install envoy-gateway oci://docker.io/envoyproxy/gateway-helm \
+		--version v1.2.6 -n envoy-gateway-system --create-namespace --skip-crds
+	@kubectl apply -f - <<< '{"apiVersion":"gateway.networking.k8s.io/v1","kind":"GatewayClass","metadata":{"name":"eg"},"spec":{"controllerName":"gateway.envoyproxy.io/gatewayclass-controller"}}'
 	helm dependency update charts/lucity-infra
 	helm upgrade --install lucity-infra charts/lucity-infra \
 		-n lucity-system --create-namespace \
@@ -97,7 +100,8 @@ infra-forward: infra-forward-stop
 	@kubectl port-forward svc/lucity-infra-zot 5000:5000 -n lucity-system &
 	@kubectl port-forward svc/lucity-infra-soft-serve 23231:23231 23232:23232 -n lucity-system &
 	@kubectl port-forward svc/lucity-infra-argocd-server 8443:80 -n lucity-system &
-	@kubectl port-forward svc/envoy-lucity-system-lucity-gateway 8880:80 -n envoy-gateway-system 2>/dev/null &
+	@GATEWAY_SVC=$$(kubectl get svc -n envoy-gateway-system -l gateway.envoyproxy.io/owning-gateway-name=lucity-gateway -o name 2>/dev/null) && \
+		[ -n "$$GATEWAY_SVC" ] && kubectl port-forward $$GATEWAY_SVC 8880:80 -n envoy-gateway-system & || true
 	@echo "Ready. Use 'make infra-forward-stop' to stop."
 
 infra-forward-stop:
