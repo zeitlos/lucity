@@ -25,7 +25,7 @@ func (c *Client) ServiceLogs(ctx context.Context, projectID, service, environmen
 		Project:     projectID,
 		Environment: environment,
 		Service:     service,
-		TailLines:   100,
+		TailLines:   1000,
 	}
 	if tailLines != nil {
 		req.TailLines = int32(*tailLines)

@@ -22,7 +22,7 @@ export function useServiceLogs(
       projectId: projectId.value,
       service: service.value,
       environment: environment.value!,
-      tailLines: 100,
+      tailLines: 1000,
     }),
     () => ({ enabled: enabled.value && !!environment.value }),
   );

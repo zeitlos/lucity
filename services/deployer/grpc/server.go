@@ -202,7 +202,7 @@ func (s *Server) ServiceLogs(req *deployer.ServiceLogsRequest, stream deployer.D
 
 	multiplePods := len(podList.Items) > 1
 
-	tailLines := int64(100)
+	tailLines := int64(1000)
 	if req.TailLines > 0 {
 		tailLines = int64(req.TailLines)
 	}
