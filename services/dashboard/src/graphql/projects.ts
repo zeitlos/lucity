@@ -42,6 +42,18 @@ export const DeleteProjectMutation = gql`
   }
 `;
 
+export const CreateEnvironmentMutation = gql`
+  mutation CreateEnvironment($input: CreateEnvironmentInput!) {
+    createEnvironment(input: $input) {
+      id
+      name
+      namespace
+      ephemeral
+      syncStatus
+    }
+  }
+`;
+
 export const ProjectQuery = gql`
   query Project($id: ID!) {
     project(id: $id) {

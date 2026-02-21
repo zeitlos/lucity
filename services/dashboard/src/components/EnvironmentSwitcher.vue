@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { ref } from 'vue';
+import { useRoute } from 'vue-router';
 import { ChevronDown, Plus } from 'lucide-vue-next';
 import { useEnvironment, type Environment } from '@/composables/useEnvironment';
 import { Badge } from '@/components/ui/badge';
@@ -10,14 +12,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import CreateEnvironmentDialog from '@/components/CreateEnvironmentDialog.vue';
 
+const route = useRoute();
 const { activeEnvironment, environments, setEnvironment } = useEnvironment();
+
+const dialogOpen = ref(false);
 
 function syncStatusVariant(status: string) {
   switch (status) {
@@ -32,6 +32,7 @@ function syncStatusVariant(status: string) {
 function handleSelect(env: Environment) {
   setEnvironment(env);
 }
+
 </script>
 
 <template>
@@ -60,21 +61,15 @@ function handleSelect(env: Environment) {
         </div>
       </DropdownMenuCheckboxItem>
       <DropdownMenuSeparator />
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger as-child>
-            <div>
-              <DropdownMenuItem disabled class="text-muted-foreground">
-                <Plus :size="14" class="mr-2" />
-                New Environment
-              </DropdownMenuItem>
-            </div>
-          </TooltipTrigger>
-          <TooltipContent side="bottom">
-            <p>Coming soon</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+      <DropdownMenuItem @select="dialogOpen = true">
+        <Plus :size="14" class="mr-2" />
+        New Environment
+      </DropdownMenuItem>
     </DropdownMenuContent>
   </DropdownMenu>
+
+  <CreateEnvironmentDialog
+    v-model:open="dialogOpen"
+    :project-id="(route.params.id as string)"
+  />
 </template>
