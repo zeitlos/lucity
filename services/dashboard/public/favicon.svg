@@ -1,9 +1,13 @@
-<svg width="32" height="32" viewBox="-53.96 8.00 90.60 54.00" xmlns="http://www.w3.org/2000/svg">
-  <!-- L-shape tiles -->
-  <polygon points="-34.64,20 -17.32,30 -34.64,40 -51.96,30" fill="#48b89f"/>
-  <polygon points="-17.32,30 0,40 -17.32,50 -34.64,40" fill="#48b89f"/>
-  <polygon points="0,40 17.32,50 0,60 -17.32,50" fill="#48b89f"/>
-  <polygon points="17.32,30 34.64,40 17.32,50 0,40" fill="#48b89f"/>
-  <!-- Triangle (scaled for small sizes) -->
-  <polygon points="-34.64,3.67 34.64,3.67 0,23.67" fill="#e8e0d4"/>
+<svg width="32" height="32" viewBox="-69.61 -29.12 121.91 121.91" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <mask id="m">
+      <circle cx="-8.66" cy="31.83" r="60.95" fill="white"/>
+      <polygon points="-34.64,20 -17.32,30 -34.64,40 -51.96,30" fill="black" stroke="black" stroke-width="0.5" stroke-linejoin="round"/>
+      <polygon points="-17.32,30 0,40 -17.32,50 -34.64,40" fill="black" stroke="black" stroke-width="0.5" stroke-linejoin="round"/>
+      <polygon points="0,40 17.32,50 0,60 -17.32,50" fill="black" stroke="black" stroke-width="0.5" stroke-linejoin="round"/>
+      <polygon points="17.32,30 34.64,40 17.32,50 0,40" fill="black" stroke="black" stroke-width="0.5" stroke-linejoin="round"/>
+      <polygon points="-34.64,3.67 34.64,3.67 0,23.67" fill="black"/>
+    </mask>
+  </defs>
+  <circle cx="-8.66" cy="31.83" r="60.95" fill="#1a1a1a" mask="url(#m)"/>
 </svg>

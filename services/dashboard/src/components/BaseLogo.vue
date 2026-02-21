@@ -7,10 +7,12 @@ type Point = [number, number];
 const props = withDefaults(defineProps<{
   size?: number;
   debug?: boolean;
+  variant?: 'default' | 'mark';
   class?: string;
 }>(), {
   size: 40,
   debug: false,
+  variant: 'default',
 });
 
 const CELL = 20;
@@ -207,10 +209,89 @@ const gridLabels = computed(() => {
 function gradId(lineId: string): string {
   return `fade-${uid}-${lineId}`;
 }
+
+// Mark variant: circle with logo cut out as negative space.
+// Compute bounding circle from all logo geometry (tiles + scaled triangle).
+const mark = computed(() => {
+  const allPts: Point[] = L_CELLS.flatMap(([c, r]) => [
+    project(c, r),
+    project(c + 1, r),
+    project(c + 1, r + 1),
+    project(c, r + 1),
+  ]);
+
+  // Use small-size triangle (scale=2.0, nudge=-3) for the mark since
+  // it's always rendered at compact sizes.
+  const triProjected = TRIANGLE_VERTICES.map(([x, y]) => project(x, y));
+  const triScaled = scaleFromCentroid(triProjected, 2.0);
+  const triNudged = triScaled.map(([x, y]) => [x, y - 3] as Point);
+  triNudged.forEach(p => allPts.push(p));
+
+  const xs = allPts.map(p => p[0]);
+  const ys = allPts.map(p => p[1]);
+  const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
+  const cy = (Math.min(...ys) + Math.max(...ys)) / 2;
+
+  let maxDist = 0;
+  for (const [px, py] of allPts) {
+    const d = Math.sqrt((px - cx) ** 2 + (py - cy) ** 2);
+    if (d > maxDist) maxDist = d;
+  }
+  const r = maxDist * 1.18;
+
+  return {
+    cx, cy, r,
+    viewBox: `${cx - r} ${cy - r} ${r * 2} ${r * 2}`,
+    tiles: L_CELLS.map(([c, row]) => pts([
+      project(c, row),
+      project(c + 1, row),
+      project(c + 1, row + 1),
+      project(c, row + 1),
+    ])),
+    triangle: pts(triNudged),
+  };
+});
 </script>
 
 <template>
+  <!-- Mark variant: circle with logo knocked out -->
   <svg
+    v-if="variant === 'mark'"
+    :width="props.size"
+    :height="props.size"
+    :viewBox="mark.viewBox"
+    :class="cn('inline-block', props.class)"
+    xmlns="http://www.w3.org/2000/svg"
+    role="img"
+    aria-label="Lucity logo"
+  >
+    <defs>
+      <mask :id="`mark-mask-${uid}`">
+        <circle :cx="mark.cx" :cy="mark.cy" :r="mark.r" fill="white" />
+        <polygon
+          v-for="(tilePts, i) in mark.tiles"
+          :key="'mt-' + i"
+          :points="tilePts"
+          fill="black"
+          stroke="black"
+          stroke-width="0.5"
+          stroke-linejoin="round"
+        />
+        <polygon :points="mark.triangle" fill="black" />
+      </mask>
+    </defs>
+    <circle
+      :cx="mark.cx"
+      :cy="mark.cy"
+      :r="mark.r"
+      fill="currentColor"
+      :mask="`url(#mark-mask-${uid})`"
+    />
+  </svg>
+
+  <!-- Default variant: colored tiles + triangle -->
+  <svg
+    v-else
     :width="props.size"
     :height="svgHeight"
     :viewBox="viewBox.str"

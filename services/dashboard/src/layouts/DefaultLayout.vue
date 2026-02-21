@@ -40,7 +40,7 @@ async function handleLogout() {
           to="/"
           class="flex items-center transition-opacity hover:opacity-80"
         >
-          <BaseLogo :size="24" class="logo-bold" />
+          <BaseLogo :size="24" variant="mark" />
         </RouterLink>
 
         <!-- User avatar next to logo (non-clickable, like Railway) -->
@@ -110,10 +110,3 @@ async function handleLogout() {
   </div>
 </template>
 
-<style scoped>
-.logo-bold {
-  --primary: var(--foreground);
-  --accent: var(--foreground);
-  --accent-foreground: var(--foreground);
-}
-</style>
