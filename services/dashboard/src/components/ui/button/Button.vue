@@ -6,7 +6,7 @@ export const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: 'bg-primary text-primary-foreground shadow-[var(--shadow-button)] hover:brightness-[0.92] hover:-translate-y-px hover:shadow-[0_6px_28px_-4px_oklch(0.75_0.18_160/0.35),0_12px_50px_-8px_oklch(0.75_0.18_160/0.18)] active:translate-y-0 active:shadow-[inset_0_2px_4px_oklch(0/0.15)]',
+        default: 'btn-primary bg-primary text-primary-foreground shadow-[var(--shadow-button)] hover:brightness-[0.92] hover:-translate-y-px hover:shadow-[0_6px_28px_-4px_oklch(0.75_0.18_160/0.35),0_12px_50px_-8px_oklch(0.75_0.18_160/0.18)] active:translate-y-0 active:brightness-[0.88] active:shadow-[inset_0_2px_6px_oklch(0/0.25),inset_0_1px_2px_oklch(0/0.15)]',
         destructive: 'bg-destructive text-destructive-foreground shadow-[var(--shadow-destructive-button)] hover:brightness-[0.92] hover:-translate-y-px active:translate-y-0',
         outline: 'border border-input bg-background hover:border-primary hover:text-primary',
         secondary: 'bg-secondary text-secondary-foreground border border-border shadow-[0_2px_12px_-2px_oklch(0.50_0.02_55/0.06)] hover:border-muted-foreground',
@@ -52,3 +52,51 @@ const props = withDefaults(defineProps<Props>(), {
     <slot />
   </Primitive>
 </template>
+
+<style>
+/*
+ * Blueprint corner lines — fading pencil marks at each corner.
+ * Eight background gradients: 2 per corner (horizontal + vertical),
+ * each fading from the corner outward.
+ */
+.btn-primary {
+  position: relative;
+}
+
+.btn-primary::before {
+  --line-color: oklch(0.50 0.04 55 / 0.18);
+  --line-w: 1px;
+  --line-len: 10px;
+  --offset: -4px;
+  content: '';
+  position: absolute;
+  inset: var(--offset);
+  pointer-events: none;
+  background:
+    /* Top-left horizontal */
+    linear-gradient(to right, var(--line-color), transparent) left top / var(--line-len) var(--line-w) no-repeat,
+    /* Top-left vertical */
+    linear-gradient(to bottom, var(--line-color), transparent) left top / var(--line-w) var(--line-len) no-repeat,
+    /* Top-right horizontal */
+    linear-gradient(to left, var(--line-color), transparent) right top / var(--line-len) var(--line-w) no-repeat,
+    /* Top-right vertical */
+    linear-gradient(to bottom, var(--line-color), transparent) right top / var(--line-w) var(--line-len) no-repeat,
+    /* Bottom-left horizontal */
+    linear-gradient(to right, var(--line-color), transparent) left bottom / var(--line-len) var(--line-w) no-repeat,
+    /* Bottom-left vertical */
+    linear-gradient(to top, var(--line-color), transparent) left bottom / var(--line-w) var(--line-len) no-repeat,
+    /* Bottom-right horizontal */
+    linear-gradient(to left, var(--line-color), transparent) right bottom / var(--line-len) var(--line-w) no-repeat,
+    /* Bottom-right vertical */
+    linear-gradient(to top, var(--line-color), transparent) right bottom / var(--line-w) var(--line-len) no-repeat;
+  transition: opacity 0.15s ease;
+}
+
+.btn-primary:active::before {
+  opacity: 0;
+}
+
+:root.dark .btn-primary::before {
+  --line-color: oklch(0.80 0.03 55 / 0.15);
+}
+</style>
