@@ -100,58 +100,66 @@ async function handleCreateProjectFromRepo(repo: { fullName: string; htmlUrl: st
       return;
     }
 
+    const projectId = res?.data?.createProject?.id;
+    if (!projectId) return;
+
+    // Detect and add services from the selected repo
+    await detectAndAddServices(projectId, repo);
+
     close();
-    if (res?.data?.createProject) {
-      router.push({ name: 'project', params: { id: res.data.createProject.id } });
-    }
+    router.push({ name: 'project', params: { id: projectId } });
   } catch (e: unknown) {
     toast.error('Failed to create project', { description: errorMessage(e) });
   }
 }
 
-// Detect services from a repo and add them to the current project
+// Detect services from a repo and add them to a project
 const detectingServices = ref(false);
+
+async function detectAndAddServices(projectId: string, repo: { fullName: string; htmlUrl: string }) {
+  const client = resolveClient();
+  const { data } = await client.query({
+    query: DetectServicesQuery,
+    variables: { sourceUrl: repo.htmlUrl },
+  });
+
+  const detected = data?.detectServices ?? [];
+  if (detected.length === 0) {
+    toast.info('No services detected', { description: `No services found in ${repo.fullName}` });
+    return;
+  }
+
+  let added = 0;
+  for (const svc of detected) {
+    try {
+      await addServiceMutate({
+        input: {
+          projectId,
+          name: svc.name,
+          port: svc.suggestedPort,
+          framework: svc.framework || undefined,
+          sourceUrl: repo.htmlUrl,
+        },
+      });
+      added++;
+    } catch {
+      // continue with remaining services
+    }
+  }
+
+  if (added > 0) {
+    toast.success(`Added ${added} service${added !== 1 ? 's' : ''}`, {
+      description: `from ${repo.fullName}`,
+    });
+  }
+}
 
 async function handleAddServicesFromRepo(repo: { fullName: string; htmlUrl: string }) {
   if (!props.projectId) return;
 
   detectingServices.value = true;
   try {
-    const client = resolveClient();
-    const { data } = await client.query({
-      query: DetectServicesQuery,
-      variables: { sourceUrl: repo.htmlUrl },
-    });
-
-    const detected = data?.detectServices ?? [];
-    if (detected.length === 0) {
-      toast.info('No services detected', { description: `No services found in ${repo.fullName}` });
-      detectingServices.value = false;
-      return;
-    }
-
-    // Add each detected service
-    let added = 0;
-    for (const svc of detected) {
-      try {
-        await addServiceMutate({
-          input: {
-            projectId: props.projectId,
-            name: svc.name,
-            port: svc.suggestedPort,
-            framework: svc.framework || undefined,
-            sourceUrl: repo.htmlUrl,
-          },
-        });
-        added++;
-      } catch {
-        // continue with remaining services
-      }
-    }
-
-    toast.success(`Added ${added} service${added !== 1 ? 's' : ''}`, {
-      description: `from ${repo.fullName}`,
-    });
+    await detectAndAddServices(props.projectId, repo);
     close();
     emit('created');
   } catch (e: unknown) {
