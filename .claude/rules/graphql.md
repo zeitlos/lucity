@@ -47,6 +47,17 @@ Each Lucity instance serves one organization. There is no organization header or
 
 `@goModel`, `@goField`, `@goTag`, `@goExtraField` — for mapping GraphQL types to Go structs.
 
+## Vendor-Agnostic Naming
+
+The GraphQL API is a complete abstraction over the underlying technology. **Never leak implementation details into the schema.** The consumer should not know or care whether the platform uses ArgoCD, Helm, Soft-serve, or any other tool.
+
+- `rolloutHealth`, not `argoHealth`
+- `syncStatus`, not `argoSyncStatus`
+- `gitopsRepo`, not `softServeRepo`
+- `registry`, not `zotRegistry`
+
+This applies to type names, field names, enum values, and descriptions. Implementation-specific names belong in Go code, not in the API surface.
+
 ## Resolvers
 
 Thin resolvers that delegate to the `handler` package. Type conversion in `convert.go` files using `convert<Type>` functions.

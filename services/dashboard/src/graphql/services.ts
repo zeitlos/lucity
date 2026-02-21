@@ -82,8 +82,8 @@ export const DeployStatusQuery = gql`
       imageRef
       digest
       error
-      argoHealth
-      argoMessage
+      rolloutHealth
+      rolloutMessage
     }
   }
 `;
@@ -97,8 +97,8 @@ export const ActiveDeploymentQuery = gql`
       imageRef
       digest
       error
-      argoHealth
-      argoMessage
+      rolloutHealth
+      rolloutMessage
     }
   }
 `;

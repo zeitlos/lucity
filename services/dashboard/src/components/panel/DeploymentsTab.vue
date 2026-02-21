@@ -39,8 +39,8 @@ onMounted(async () => {
     if (active?.id) {
       deploy.pollDeploy(active.id);
       deploy.phase = active.phase;
-      deploy.argoHealth = active.argoHealth ?? null;
-      deploy.argoMessage = active.argoMessage ?? null;
+      deploy.rolloutHealth = active.rolloutHealth ?? null;
+      deploy.rolloutMessage = active.rolloutMessage ?? null;
     }
   } catch {
     // No active deployment — nothing to resume.
@@ -180,34 +180,34 @@ function formatRelativeTime(timestamp: string): string {
           </div>
         </div>
 
-        <!-- ArgoCD health status during DEPLOYING phase -->
+        <!-- Rollout health status during DEPLOYING phase -->
         <div
-          v-if="deploy.phase === 'DEPLOYING' && deploy.argoHealth"
+          v-if="deploy.phase === 'DEPLOYING' && deploy.rolloutHealth"
           class="mt-2 rounded-md px-2.5 py-2"
-          :class="deploy.argoHealth === 'DEGRADED'
+          :class="deploy.rolloutHealth === 'DEGRADED'
             ? 'bg-[var(--status-danger)]/10'
             : 'bg-muted/50'"
         >
           <div class="flex items-start gap-2">
             <TriangleAlert
-              v-if="deploy.argoHealth === 'DEGRADED'"
+              v-if="deploy.rolloutHealth === 'DEGRADED'"
               :size="13"
               class="mt-0.5 shrink-0 text-[var(--status-danger)]"
             />
             <Loader2
-              v-else-if="deploy.argoHealth === 'PROGRESSING'"
+              v-else-if="deploy.rolloutHealth === 'PROGRESSING'"
               :size="13"
               class="mt-0.5 shrink-0 animate-spin text-[var(--status-warn)]"
             />
             <div class="min-w-0 space-y-0.5">
               <p class="text-xs font-medium text-foreground">
-                {{ deploy.argoHealth === 'DEGRADED' ? 'Rollout degraded' : 'Waiting for pods' }}
+                {{ deploy.rolloutHealth === 'DEGRADED' ? 'Rollout degraded' : 'Waiting for pods' }}
               </p>
               <p
-                v-if="deploy.argoMessage"
+                v-if="deploy.rolloutMessage"
                 class="break-words font-mono text-[11px] text-muted-foreground"
               >
-                {{ deploy.argoMessage }}
+                {{ deploy.rolloutMessage }}
               </p>
             </div>
           </div>
@@ -217,7 +217,7 @@ function formatRelativeTime(timestamp: string): string {
 
     <!-- Deploy error (FAILED phase) -->
     <div
-      v-if="deploy.phase === 'FAILED' && (deploy.error || deploy.argoMessage)"
+      v-if="deploy.phase === 'FAILED' && (deploy.error || deploy.rolloutMessage)"
       class="rounded-lg border border-[var(--status-danger)]/30 bg-[var(--status-danger)]/5 px-3 py-2.5"
     >
       <div class="flex items-start gap-2">
@@ -228,7 +228,7 @@ function formatRelativeTime(timestamp: string): string {
         <div class="min-w-0 space-y-0.5">
           <p class="text-xs font-medium text-[var(--status-danger)]">Deploy failed</p>
           <p class="break-words font-mono text-[11px] text-muted-foreground">
-            {{ deploy.error || deploy.argoMessage }}
+            {{ deploy.error || deploy.rolloutMessage }}
           </p>
         </div>
       </div>

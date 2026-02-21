@@ -53,10 +53,10 @@ type DeploymentOp {
   imageRef: String
   digest: String
   error: String
-  """ArgoCD health status: Healthy, Progressing, Degraded, etc."""
-  argoHealth: String
-  """ArgoCD health message with details like ImagePullBackOff, CrashLoopBackOff."""
-  argoMessage: String
+  """Rollout health: SYNCED, PROGRESSING, DEGRADED, OUT_OF_SYNC, or UNKNOWN."""
+  rolloutHealth: String
+  """Rollout status detail, e.g. ImagePullBackOff, CrashLoopBackOff."""
+  rolloutMessage: String
 }
 
 enum DeployPhase {
