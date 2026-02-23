@@ -1,0 +1,90 @@
+<svg width="200" height="120" viewBox="-61.89 -7.00 123.78 74.00" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Lucity logo">
+  <defs>
+    <!-- Grid line fade gradients -->
+    <linearGradient id="fade-h0" gradientUnits="userSpaceOnUse" x1="-6.93" y1="-4.00" x2="58.89" y2="34.00">
+      <stop offset="0%" stop-color="#8f7c6f" stop-opacity="0"/>
+      <stop offset="15%" stop-color="#8f7c6f" stop-opacity="0.25"/>
+      <stop offset="85%" stop-color="#8f7c6f" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#8f7c6f" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="fade-h1" gradientUnits="userSpaceOnUse" x1="-24.25" y1="6.00" x2="41.57" y2="44.00">
+      <stop offset="0%" stop-color="#8f7c6f" stop-opacity="0"/>
+      <stop offset="15%" stop-color="#8f7c6f" stop-opacity="0.25"/>
+      <stop offset="85%" stop-color="#8f7c6f" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#8f7c6f" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="fade-h2" gradientUnits="userSpaceOnUse" x1="-41.57" y1="16.00" x2="24.25" y2="54.00">
+      <stop offset="0%" stop-color="#8f7c6f" stop-opacity="0"/>
+      <stop offset="15%" stop-color="#8f7c6f" stop-opacity="0.25"/>
+      <stop offset="85%" stop-color="#8f7c6f" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#8f7c6f" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="fade-h3" gradientUnits="userSpaceOnUse" x1="-58.89" y1="26.00" x2="6.93" y2="64.00">
+      <stop offset="0%" stop-color="#8f7c6f" stop-opacity="0"/>
+      <stop offset="15%" stop-color="#8f7c6f" stop-opacity="0.25"/>
+      <stop offset="85%" stop-color="#8f7c6f" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#8f7c6f" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="fade-v0" gradientUnits="userSpaceOnUse" x1="6.93" y1="-4.00" x2="-58.89" y2="34.00">
+      <stop offset="0%" stop-color="#8f7c6f" stop-opacity="0"/>
+      <stop offset="15%" stop-color="#8f7c6f" stop-opacity="0.25"/>
+      <stop offset="85%" stop-color="#8f7c6f" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#8f7c6f" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="fade-v1" gradientUnits="userSpaceOnUse" x1="24.25" y1="6.00" x2="-41.57" y2="44.00">
+      <stop offset="0%" stop-color="#8f7c6f" stop-opacity="0"/>
+      <stop offset="15%" stop-color="#8f7c6f" stop-opacity="0.25"/>
+      <stop offset="85%" stop-color="#8f7c6f" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#8f7c6f" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="fade-v2" gradientUnits="userSpaceOnUse" x1="41.57" y1="16.00" x2="-24.25" y2="54.00">
+      <stop offset="0%" stop-color="#8f7c6f" stop-opacity="0"/>
+      <stop offset="15%" stop-color="#8f7c6f" stop-opacity="0.25"/>
+      <stop offset="85%" stop-color="#8f7c6f" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#8f7c6f" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="fade-v3" gradientUnits="userSpaceOnUse" x1="58.89" y1="26.00" x2="-6.93" y2="64.00">
+      <stop offset="0%" stop-color="#8f7c6f" stop-opacity="0"/>
+      <stop offset="15%" stop-color="#8f7c6f" stop-opacity="0.25"/>
+      <stop offset="85%" stop-color="#8f7c6f" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#8f7c6f" stop-opacity="0"/>
+    </linearGradient>
+
+    <!-- Tile depth gradient (top-light to bottom-dark) -->
+    <linearGradient id="tile-depth" gradientUnits="userSpaceOnUse" x1="-51.96" y1="20.00" x2="-51.96" y2="60.00">
+      <stop offset="0%" stop-color="#3ad693"/>
+      <stop offset="100%" stop-color="#00af6f"/>
+    </linearGradient>
+
+    <!-- Triangle depth gradient (accent-foreground in dark mode) -->
+    <linearGradient id="tri-depth" gradientUnits="userSpaceOnUse" x1="-17.32" y1="10.00" x2="-17.32" y2="20.00">
+      <stop offset="0%" stop-color="#fdf0dc"/>
+      <stop offset="100%" stop-color="#dccfbc"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Grid lines -->
+  <g>
+    <line x1="-6.93" y1="-4.00" x2="58.89" y2="34.00" stroke="url(#fade-h0)" stroke-width="0.35" fill="none"/>
+    <line x1="-24.25" y1="6.00" x2="41.57" y2="44.00" stroke="url(#fade-h1)" stroke-width="0.35" fill="none"/>
+    <line x1="-41.57" y1="16.00" x2="24.25" y2="54.00" stroke="url(#fade-h2)" stroke-width="0.35" fill="none"/>
+    <line x1="-58.89" y1="26.00" x2="6.93" y2="64.00" stroke="url(#fade-h3)" stroke-width="0.35" fill="none"/>
+    <line x1="6.93" y1="-4.00" x2="-58.89" y2="34.00" stroke="url(#fade-v0)" stroke-width="0.35" fill="none"/>
+    <line x1="24.25" y1="6.00" x2="-41.57" y2="44.00" stroke="url(#fade-v1)" stroke-width="0.35" fill="none"/>
+    <line x1="41.57" y1="16.00" x2="-24.25" y2="54.00" stroke="url(#fade-v2)" stroke-width="0.35" fill="none"/>
+    <line x1="58.89" y1="26.00" x2="-6.93" y2="64.00" stroke="url(#fade-v3)" stroke-width="0.35" fill="none"/>
+  </g>
+
+  <!-- L-shape tiles -->
+  <g>
+    <polygon points="-34.64,20.00 -17.32,30.00 -34.64,40.00 -51.96,30.00" fill="url(#tile-depth)" stroke="url(#tile-depth)" stroke-width="0.5" stroke-linejoin="round"/>
+    <polygon points="-17.32,30.00 0.00,40.00 -17.32,50.00 -34.64,40.00" fill="url(#tile-depth)" stroke="url(#tile-depth)" stroke-width="0.5" stroke-linejoin="round"/>
+    <polygon points="0.00,40.00 17.32,50.00 0.00,60.00 -17.32,50.00" fill="url(#tile-depth)" stroke="url(#tile-depth)" stroke-width="0.5" stroke-linejoin="round"/>
+    <polygon points="17.32,30.00 34.64,40.00 17.32,50.00 0.00,40.00" fill="url(#tile-depth)" stroke="url(#tile-depth)" stroke-width="0.5" stroke-linejoin="round"/>
+  </g>
+
+  <!-- Accent triangle -->
+  <g>
+    <polygon points="-17.32,10.00 17.32,10.00 0.00,20.00" fill="url(#tri-depth)" stroke="none"/>
+  </g>
+</svg>

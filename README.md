@@ -1,185 +1,155 @@
-# Lucity
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.svg">
+    <img src="assets/logo.svg" alt="Lucity" width="200">
+  </picture>
+</p>
 
-Open-source Platform-as-a-Service on Kubernetes. Railway/Heroku-like developer experience with full ejectability.
+<h1 align="center">Lucity</h1>
 
-## What is Lucity?
+<p align="center">
+  Open-source PaaS on Kubernetes. Railway-like DX, full ejectability.
+</p>
 
-Lucity gives you the simplicity of a managed PaaS with the freedom of owning your infrastructure. Connect a GitHub repo, and Lucity builds, packages, and deploys your app to Kubernetes. When you're ready to move on, eject and take your standard Helm charts and ArgoCD configs with you.
+<p align="center">
+  <a href="https://github.com/zeitlos/lucity/actions/workflows/release.yml">
+    <img src="https://github.com/zeitlos/lucity/actions/workflows/release.yml/badge.svg?branch=main" alt="CI">
+  </a>
+  <a href="https://github.com/zeitlos/lucity/blob/main/LICENSE">
+    <img src="https://img.shields.io/github/license/zeitlos/lucity?color=blue" alt="License">
+  </a>
+  <a href="https://go.dev/">
+    <img src="https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white" alt="Go 1.26">
+  </a>
+</p>
 
-## Key Principles
+---
 
-- **Ejectability** — leave anytime with standard K8s/Helm/ArgoCD configs
-- **Stateless** — no platform database; state lives in Git, K8s, OCI Registry, and your IDP
-- **Your repo is sacred** — the platform never writes to your source repository
-- **Discovery over definition** — standard K8s labels, no custom CRDs
-- **Standard tools** — Helm, ArgoCD, Gateway API, CloudNativePG, all open source
+Lucity is a self-hosted PaaS that deploys your apps to Kubernetes from a GitHub repo. It gives you the developer experience of Railway or Heroku with the control of owning your infrastructure. When you're ready to move on, `lucity eject` gives you standard Helm charts and ArgoCD configs — zero lock-in, zero vendor dependency.
+
+<!-- TODO: Demo GIF
+     Record with VHS (https://github.com/charmbracelet/vhs) or screen-record the dashboard:
+     1. Create project from GitHub repo
+     2. Service auto-detection
+     3. Build + deploy with live logs
+     4. Open the running app via platform domain
+     Place at assets/demo.gif and uncomment:
+     <p align="center">
+       <img src="assets/demo.gif" alt="Lucity deploy flow" width="800">
+     </p>
+-->
+
+## Features
+
+**Deploy**
+
+- [x] Git push to deploy from any GitHub repo
+- [x] Auto-detect language, framework, and port
+- [x] Async builds with real-time log streaming
+- [x] Rolling deployments with rollback
+
+**Environments**
+
+- [x] Development, staging, and production out of the box
+- [x] Ephemeral PR preview environments
+- [x] Promote between environments without rebuilding
+
+**Infrastructure**
+
+- [x] PostgreSQL databases via CloudNativePG
+- [x] Redis instances
+- [x] Cron jobs
+- [x] Custom domains with DNS verification
+
+**Operations**
+
+- [x] Environment variables — shared, per-service, database refs
+- [x] Database explorer with query execution
+- [x] Deploy and service log streaming
+- [x] Full GraphQL API
+
+**Ejectability**
+
+- [x] `lucity eject` exports your Helm charts and ArgoCD configs
+- [x] Ejected output is fully self-contained — zero Lucity dependencies
+- [x] Standard tools all the way down: Helm, ArgoCD, Gateway API, CloudNativePG
 
 ## Architecture
 
+```mermaid
+flowchart LR
+    GH["GitHub Repo"]
+    WH["Webhook"]
+    GW["Gateway"]
+    BU["Builder"]
+    PA["Packager"]
+    DE["Deployer"]
+    ZO["OCI Registry"]
+    SS["Git Server"]
+    AR["ArgoCD"]
+    K8["Kubernetes"]
+    UI["Dashboard"]
+
+    GH -- "webhook" --> WH
+    WH --> GW
+    UI -- "GraphQL" --> GW
+    GW -- "gRPC" --> BU
+    GW -- "gRPC" --> PA
+    GW -- "gRPC" --> DE
+    BU -- "push image" --> ZO
+    PA -- "commit values" --> SS
+    DE -- "sync" --> AR
+    AR -- "deploy" --> K8
+    ZO -. "pull" .-> K8
+    SS -. "watch" .-> AR
 ```
-GitHub Repo ──webhook──► Lucity ──GitOps──► ArgoCD ──sync──► Kubernetes
-                           │
-                    ┌──────┼──────┐
-                    │      │      │
-                 Builder Packager Deployer
-                    │      │      │
-                 railpack Helm   ArgoCD
-                    │    values    │
-                    ▼      ▼      ▼
-                 OCI Reg  Git   K8s Cluster
-                 (Zot)  (Soft-serve)
-```
 
-## Prerequisites
+The platform is **stateless** — no central database. All state lives in Git (Soft-serve), Kubernetes, and the OCI registry (Zot). Your source repo is read-only to the platform; all managed configuration lives in a separate GitOps repo. If the platform goes down, your workloads keep running.
 
-- [Go 1.26+](https://go.dev/dl/)
-- [Node.js 20+](https://nodejs.org/)
-- [Docker](https://docs.docker.com/get-docker/)
-- [Minikube](https://minikube.sigs.k8s.io/docs/start/)
-- [Helm](https://helm.sh/docs/intro/install/)
-- [kubectl](https://kubernetes.io/docs/tasks/tools/)
-- [crane](https://github.com/google/go-containerregistry/tree/main/cmd/crane) (image push)
-- [air](https://github.com/air-verse/air) (hot reload)
-- A [GitHub App](https://docs.github.com/en/apps/creating-github-apps) configured for OAuth
+## Quick Start
 
-## Getting Started
-
-### 1. Create the cluster
+Install with Helm:
 
 ```sh
-make minikube
+helm install lucity oci://ghcr.io/zeitlos/lucity/charts/lucity \
+  --namespace lucity-system --create-namespace
 ```
 
-Starts minikube with `--insecure-registry "10.96.0.0/12"` so Docker on the node trusts any ClusterIP-based registry over HTTP. This covers the entire Kubernetes service CIDR. See [minikube registry docs](https://minikube.sigs.k8s.io/docs/handbook/registry/#enabling-insecure-registries).
+For local development, see the [Contributing guide](CONTRIBUTING.md).
 
-### 2. Deploy infrastructure
+## Tech Stack
 
-```sh
-make infra
-```
+| Component | Technology |
+|-----------|-----------|
+| Runtime | Kubernetes |
+| Builds | [railpack](https://github.com/nichochar/railpack) |
+| GitOps | [ArgoCD](https://argoproj.github.io/cd/) + [Helm](https://helm.sh/) |
+| Networking | [Gateway API](https://gateway-api.sigs.k8s.io/) (Envoy) |
+| Databases | [CloudNativePG](https://cloudnative-pg.io/) |
+| Registry | [Zot](https://zotregistry.dev/) (OCI) |
+| Git Server | [Soft-serve](https://github.com/charmbracelet/soft-serve) |
+| API | GraphQL ([gqlgen](https://gqlgen.com/)) + gRPC |
+| Dashboard | [Vue 3](https://vuejs.org/) + [Vite](https://vite.dev/) |
+| Language | [Go 1.26](https://go.dev/) |
 
-Installs Gateway API CRDs, Envoy Gateway, and deploys Zot (OCI registry), Soft-serve (Git server), ArgoCD, and a Gateway resource via Helm into the `lucity-system` namespace.
+## Documentation
 
-### 3. Set up local DNS
+Full documentation at **[lucity.dev](https://lucity.dev)**.
 
-```sh
-make dns
-```
+- [Quick Start](https://lucity.dev/getting-started/quick-start) — set up a local development environment
+- [Concepts](https://lucity.dev/getting-started/concepts) — projects, services, environments
+- [Architecture](https://lucity.dev/architecture/how-it-works) — how the pieces fit together
+- [Ejectability](https://lucity.dev/features/eject) — what you get when you leave
 
-Configures [dnsmasq](https://thekelleys.org.uk/dnsmasq/doc.html) so `*.lucity.local` resolves to `127.0.0.1`. Run once — survives reboots. Requires Homebrew (installs dnsmasq if not present).
+## Lucity Cloud
 
-This lets you access deployed services by hostname, e.g. `http://myapp.lucity.local:8880`.
+Don't want to run Kubernetes yourself? **Lucity Cloud** is a managed version of everything above — same open-source platform, zero infrastructure to maintain.
 
-### 4. Port-forward infrastructure
+[Join the waitlist](https://lucity.dev/cloud) — or just self-host. We're cool either way.
 
-```sh
-make infra-forward
-```
+## Contributing
 
-Exposes infrastructure on localhost:
-
-| Service | Local Port |
-|---------|-----------|
-| Zot (OCI registry) | `:5000` |
-| Soft-serve (SSH) | `:23231` |
-| Soft-serve (HTTP) | `:23232` |
-| ArgoCD | `:8443` |
-| Envoy Gateway | `:8880` |
-
-Deployed services with a configured hostname are accessible at `http://<name>.lucity.local:8880` via Envoy Gateway and Gateway API HTTPRoutes.
-
-### 5. Generate API tokens
-
-```sh
-make infra-tokens
-```
-
-> Requires `make infra-forward` to be running.
-
-Prints an ArgoCD token and a Soft-serve token. Add them to the service `.env` files:
-
-| Token | Goes into |
-|-------|-----------|
-| `ARGOCD_TOKEN` | `services/deployer/.env` |
-| `SOFTSERVE_TOKEN` | `services/deployer/.env`, `services/packager/.env` |
-
-### 6. Configure services
-
-Each service has a `.env.example`. Copy and fill in the values:
-
-```sh
-cp services/gateway/.env.example services/gateway/.env
-cp services/builder/.env.example services/builder/.env
-cp services/packager/.env.example services/packager/.env
-cp services/deployer/.env.example services/deployer/.env
-```
-
-Key configuration:
-
-| Service | Required Variables |
-|---------|-------------------|
-| Gateway | `GITHUB_APP_ID`, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `REGISTRY_IMAGE_PREFIX` |
-| Builder | `REGISTRY_INSECURE=true` (default for local Zot) |
-| Packager | `SOFTSERVE_SSH_KEY_PATH`, `SOFTSERVE_TOKEN` |
-| Deployer | `ARGOCD_TOKEN`, `SOFTSERVE_TOKEN` |
-
-Set `REGISTRY_IMAGE_PREFIX` to Zot's fixed ClusterIP (assigned in `deployments/minikube/values.yaml`):
-
-```
-REGISTRY_IMAGE_PREFIX=10.96.100.50:5000
-```
-
-> **Why a ClusterIP, not a DNS name?** Docker on minikube uses the host DNS resolver, not CoreDNS. Cluster-internal DNS names like `*.svc.cluster.local` don't resolve for image pulls. The fixed ClusterIP works because `--insecure-registry` already covers the service CIDR.
-
-### 7. Start all services
-
-```sh
-make dev
-```
-
-Dashboard at http://localhost:5173, GraphQL playground at http://localhost:8080/playground.
-
-### Quick reference
-
-```sh
-make minikube        # 1. Create cluster (one-time)
-make infra           # 2. CRDs + Envoy Gateway + Helm deploy
-make dns             # 3. Wildcard DNS for *.lucity.local (one-time)
-make infra-forward   # 4. Port-forward services
-make infra-tokens    # 5. Generate tokens → paste into .env files
-make dev             # 6. Start services with hot reload
-```
-
-## Services
-
-| Service | Port | Protocol | Purpose |
-|---------|------|----------|---------|
-| Gateway | 8080 | HTTP/GraphQL | API entry point, delegates to backend services |
-| Builder | 9001 | gRPC | Source-to-image builds via railpack, pushes to Zot |
-| Packager | 9002 | gRPC | GitOps repo management, Helm values generation |
-| Deployer | 9003 | gRPC | ArgoCD Application lifecycle, sync, promotion |
-| Webhook | 9004 | HTTP | GitHub webhook reception and event routing |
-| Dashboard | 5173 | HTTP | Vue 3 SPA for project and environment management |
-
-## Makefile Targets
-
-| Target | Description |
-|--------|-------------|
-| `make minikube` | Create minikube cluster with insecure registry config |
-| `make infra` | Install CRDs + Envoy Gateway + deploy Zot, Soft-serve, ArgoCD |
-| `make dns` | Set up wildcard DNS for `*.lucity.local` (one-time) |
-| `make infra-forward` | Port-forward infrastructure to localhost |
-| `make infra-tokens` | Generate ArgoCD + Soft-serve API tokens |
-| `make dev` | Start all services with hot reload |
-| `make dev-<service>` | Start one service (e.g. `make dev-gateway`) |
-| `make dev-logs` | Tail all service logs |
-| `make dev-stop` | Stop all services |
-| `make build` | Build all Go services |
-| `make proto` | Regenerate protobuf code |
-| `make generate-graphql` | Regenerate GraphQL resolvers |
-| `make lint` | Run dashboard linter |
-| `make test-integration` | Run integration tests (requires `make dev`) |
-| `make infra-down` | Uninstall infrastructure from cluster |
+We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, architecture overview, and how to get started.
 
 ## License
 
