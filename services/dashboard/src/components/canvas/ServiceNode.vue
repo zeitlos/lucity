@@ -1,10 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref, watch, onUnmounted } from 'vue';
 import { Handle, Position } from '@vue-flow/core';
-import { Github, Globe } from 'lucide-vue-next';
+import { Github, Globe, Loader2 } from 'lucide-vue-next';
 import FrameworkIcon from '@/components/FrameworkIcon.vue';
 import { Badge } from '@/components/ui/badge';
-import { Chip } from '@/components/ui/chip';
 
 const props = defineProps<{
   data: {
@@ -16,6 +15,8 @@ const props = defineProps<{
     ready?: boolean;
     imageTag?: string;
     replicas?: number;
+    activeDeployPhase?: string | null;
+    activeDeployStartedAt?: number | null;
   };
   selected?: boolean;
 }>();
@@ -38,6 +39,52 @@ const shortRepoName = computed(() => {
   if (!props.data.sourceUrl) return null;
   return props.data.sourceUrl.replace('https://github.com/', '');
 });
+
+// Deploy timer
+const elapsed = ref(0);
+let timer: ReturnType<typeof setInterval> | null = null;
+
+function clearTimer() {
+  if (timer) {
+    clearInterval(timer);
+    timer = null;
+  }
+}
+
+watch(() => props.data.activeDeployPhase, (phase) => {
+  clearTimer();
+  if (phase && phase !== 'SUCCEEDED' && phase !== 'FAILED') {
+    elapsed.value = props.data.activeDeployStartedAt
+      ? Math.floor((Date.now() - props.data.activeDeployStartedAt) / 1000)
+      : 0;
+    timer = setInterval(() => elapsed.value++, 1000);
+  }
+}, { immediate: true });
+
+onUnmounted(clearTimer);
+
+const deployLabel = computed(() => {
+  switch (props.data.activeDeployPhase) {
+    case 'QUEUED':
+    case 'CLONING':
+      return 'Initializing';
+    case 'BUILDING':
+    case 'PUSHING':
+      return 'Building';
+    case 'DEPLOYING':
+      return 'Deploying';
+    default:
+      return null;
+  }
+});
+
+const formattedElapsed = computed(() => {
+  const mins = Math.floor(elapsed.value / 60);
+  const secs = elapsed.value % 60;
+  return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+});
+
+const replicas = computed(() => props.data.replicas ?? 0);
 </script>
 
 <template>
@@ -46,36 +93,36 @@ const shortRepoName = computed(() => {
       'service-node group cursor-pointer rounded-xl border px-6 py-5 shadow-sm transition-all duration-200',
       'hover:shadow-md',
       selected ? 'border-primary shadow-md' : 'border-border',
+      replicas >= 2 && 'has-stack',
+      replicas >= 3 && 'has-stack-deep',
     ]"
     style="width: 280px;"
     @click="emit('select')"
   >
-    <!-- Chip label -->
-    <div class="mb-4 flex items-center justify-between">
-      <Chip v-if="data.framework">{{ data.framework }}</Chip>
-      <Chip v-else>service</Chip>
-      <Badge :variant="badgeVariant" class="text-[0.65rem]">{{ statusLabel }}</Badge>
-    </div>
-
     <!-- Header: icon + name -->
     <div class="flex items-center gap-3">
       <FrameworkIcon :framework="data.framework" :size="28" />
       <span class="truncate font-semibold text-foreground">{{ data.name }}</span>
     </div>
 
-    <!-- Meta row: port + repo + domain + replicas -->
-    <div class="mt-4 flex items-center gap-3 border-t border-border/50 pt-4 text-xs text-muted-foreground">
-      <span v-if="data.port" class="font-mono">:{{ data.port }}</span>
-      <span v-if="shortRepoName" class="flex items-center gap-1 truncate">
+    <!-- Domain + repo -->
+    <div v-if="data.host || shortRepoName" class="mt-3 space-y-1">
+      <div v-if="data.host" class="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <Globe :size="12" class="shrink-0" />
+        <span class="truncate font-mono">{{ data.host }}</span>
+      </div>
+      <div v-if="shortRepoName" class="flex items-center gap-1.5 text-xs text-muted-foreground">
         <Github :size="12" class="shrink-0" />
         <span class="truncate">{{ shortRepoName }}</span>
-      </span>
-      <span v-if="data.host" class="flex items-center gap-1 truncate">
-        <Globe :size="12" class="shrink-0" />
-        <span class="truncate">{{ data.host }}</span>
-      </span>
-      <span v-if="data.replicas !== undefined" class="ml-auto">
-        {{ data.replicas }} {{ data.replicas === 1 ? 'replica' : 'replicas' }}
+      </div>
+    </div>
+
+    <!-- Status row -->
+    <div class="mt-4 flex items-center justify-between border-t border-border/50 pt-4">
+      <Badge :variant="badgeVariant" class="text-[0.65rem]">{{ statusLabel }}</Badge>
+      <span v-if="deployLabel" class="flex items-center gap-1.5 text-[0.65rem] text-muted-foreground">
+        <Loader2 :size="12" class="animate-spin text-primary" />
+        {{ deployLabel }} ({{ formattedElapsed }})
       </span>
     </div>
 
@@ -87,10 +134,38 @@ const shortRepoName = computed(() => {
 
 <style scoped>
 .service-node {
+  position: relative;
+  z-index: 1;
   background: linear-gradient(
     to bottom,
     var(--card) 0%,
     color-mix(in oklch, var(--card) 94%, var(--muted)) 100%
   );
+}
+
+/* First stacked card (2+ replicas) */
+.has-stack::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  border: 1px solid var(--border);
+  background: var(--card);
+  transform: translateY(6px) scale(0.97);
+  opacity: 0.7;
+}
+
+/* Second stacked card (3+ replicas) */
+.has-stack-deep::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  border-radius: inherit;
+  border: 1px solid var(--border);
+  background: var(--card);
+  transform: translateY(12px) scale(0.94);
+  opacity: 0.4;
 }
 </style>

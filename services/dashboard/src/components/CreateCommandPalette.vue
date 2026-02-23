@@ -6,7 +6,7 @@ import { Github, FolderPlus, Plus, Lock, Globe, ArrowLeft, Search, X, Database }
 import { onKeyStroke } from '@vueuse/core';
 import { GitHubRepositoriesQuery } from '@/graphql/github';
 import { CreateProjectMutation } from '@/graphql/projects';
-import { AddServiceMutation, DetectServicesQuery } from '@/graphql/services';
+import { AddServiceMutation, DetectServicesQuery, DeployMutation } from '@/graphql/services';
 import { CreateDatabaseMutation } from '@/graphql/databases';
 import { toast } from '@/components/ui/sonner';
 import { Badge } from '@/components/ui/badge';
@@ -135,7 +135,7 @@ async function detectAndAddServices(projectId: string, repo: { fullName: string;
   // Use repo short name as the service name (e.g., "cblaettl/beast-website" → "beast-website")
   const repoName = repo.fullName.split('/').pop()!;
 
-  let added = 0;
+  const addedNames: string[] = [];
   for (const svc of detected) {
     // For single-service repos, use the repo name directly.
     // For multi-service repos (monorepos), suffix with the detected name.
@@ -150,16 +150,34 @@ async function detectAndAddServices(projectId: string, repo: { fullName: string;
           sourceUrl: repo.htmlUrl,
         },
       });
-      added++;
+      addedNames.push(name);
     } catch (e: unknown) {
       toast.error(`Failed to add service ${name}`, { description: errorMessage(e) });
     }
   }
 
-  if (added > 0) {
-    toast.success(`Added ${added} service${added !== 1 ? 's' : ''}`, {
+  if (addedNames.length > 0) {
+    toast.success(`Added ${addedNames.length} service${addedNames.length !== 1 ? 's' : ''}`, {
       description: `from ${repo.fullName}`,
     });
+
+    // Trigger initial deploy for each added service
+    for (const name of addedNames) {
+      try {
+        await client.mutate({
+          mutation: DeployMutation,
+          variables: {
+            input: {
+              projectId,
+              service: name,
+              environment: 'development',
+            },
+          },
+        });
+      } catch {
+        // Initial deploy is best-effort — canvas will show status
+      }
+    }
   }
 }
 

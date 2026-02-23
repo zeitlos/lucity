@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, watch, ref, onMounted } from 'vue';
+import { computed, watch, ref, onMounted, toRef } from 'vue';
 import { VueFlow, useVueFlow, Panel } from '@vue-flow/core';
 import { Background } from '@vue-flow/background';
 import { Plus, Maximize2 } from 'lucide-vue-next';
 import { useEnvironment } from '@/composables/useEnvironment';
 import { usePanel } from '@/composables/usePanel';
+import { useCanvasDeployStatus } from '@/composables/useCanvasDeployStatus';
 import ServiceNode from './ServiceNode.vue';
 import DatabaseNode from './DatabaseNode.vue';
 import { Button } from '@/components/ui/button';
@@ -12,6 +13,7 @@ import '@vue-flow/core/dist/style.css';
 import '@vue-flow/core/dist/theme-default.css';
 
 const props = defineProps<{
+  projectId: string;
   services: {
     name: string;
     image: string;
@@ -29,10 +31,18 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'create'): void;
+  (e: 'deploy-completed'): void;
 }>();
 
-const { activeEnvServices } = useEnvironment();
+const { activeEnvServices, activeEnvironment } = useEnvironment();
 const { openPanel, currentPanel } = usePanel();
+
+const serviceNames = computed(() => props.services.map(s => s.name));
+const envName = computed(() => activeEnvironment.value?.name ?? null);
+const { statusMap } = useCanvasDeployStatus(
+  toRef(props, 'projectId'), envName, serviceNames,
+  () => emit('deploy-completed'),
+);
 
 const { fitView, findNode, setCenter, dimensions } = useVueFlow({
   id: 'service-canvas',
@@ -41,6 +51,7 @@ const { fitView, findNode, setCenter, dimensions } = useVueFlow({
 const nodes = computed(() => {
   const serviceNodes = props.services.map((svc, index) => {
     const envService = activeEnvServices.value.find(es => es.name === svc.name);
+    const deployInfo = statusMap.value[svc.name];
     return {
       id: svc.name,
       type: 'service',
@@ -54,6 +65,8 @@ const nodes = computed(() => {
         ready: envService?.ready,
         imageTag: envService?.imageTag,
         replicas: envService?.replicas,
+        activeDeployPhase: deployInfo?.phase ?? null,
+        activeDeployStartedAt: deployInfo?.startedAt ?? null,
       },
       selected: currentPanel.value?.id === svc.name && currentPanel.value?.type === 'service',
     };

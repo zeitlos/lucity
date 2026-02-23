@@ -112,9 +112,11 @@ const hasResources = computed(() => {
         <div class="h-full w-full overflow-hidden rounded-lg border bg-card/80 shadow-sm backdrop-blur-sm [background-image:var(--gradient-card)]">
           <template v-if="hasResources">
             <ServiceCanvas
+              :project-id="projectId"
               :services="project.services"
               :databases="project.databases"
               @create="paletteOpen = true"
+              @deploy-completed="refetch()"
             />
           </template>
           <template v-else>
