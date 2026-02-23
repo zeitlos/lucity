@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch, onUnmounted } from 'vue';
 import { Handle, Position } from '@vue-flow/core';
-import { Github, Globe, Loader2 } from 'lucide-vue-next';
+import { ExternalLink, Github, Globe, Loader2 } from 'lucide-vue-next';
 import FrameworkIcon from '@/components/FrameworkIcon.vue';
 import { Badge } from '@/components/ui/badge';
 
@@ -85,6 +85,14 @@ const formattedElapsed = computed(() => {
 });
 
 const replicas = computed(() => props.data.replicas ?? 0);
+
+const hostUrl = computed(() => {
+  if (!props.data.host) return null;
+  if (props.data.host.endsWith('.local')) {
+    return `http://${props.data.host}:8880`;
+  }
+  return `https://${props.data.host}`;
+});
 </script>
 
 <template>
@@ -107,10 +115,18 @@ const replicas = computed(() => props.data.replicas ?? 0);
 
     <!-- Domain + repo -->
     <div v-if="data.host || shortRepoName" class="mt-3 space-y-1">
-      <div v-if="data.host" class="flex items-center gap-1.5 text-xs text-muted-foreground">
+      <a
+        v-if="data.host"
+        :href="hostUrl!"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+        @click.stop
+      >
         <Globe :size="12" class="shrink-0" />
-        <span class="truncate font-mono">{{ data.host }}</span>
-      </div>
+        <span class="truncate hover:underline">{{ data.host }}</span>
+        <ExternalLink :size="10" class="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+      </a>
       <div v-if="shortRepoName" class="flex items-center gap-1.5 text-xs text-muted-foreground">
         <Github :size="12" class="shrink-0" />
         <span class="truncate">{{ shortRepoName }}</span>
