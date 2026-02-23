@@ -64,11 +64,7 @@ func testEnvironment(t *testing.T) {
 			"environment": "staging",
 		})
 
-		if len(resp.Errors) > 0 {
-			// Known issue: packager may fail with "clean working tree" if no changes to commit
-			t.Logf("deleteEnvironment error (may be known issue): %s", resp.Errors[0].Message)
-			return
-		}
+		requireNoErrors(t, resp)
 
 		deleted := extractBool(t, resp.Data, "deleteEnvironment")
 		if !deleted {

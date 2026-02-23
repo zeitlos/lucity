@@ -795,9 +795,10 @@ func (p *SoftServeProvider) readProjectMeta(repoName string) (*ProjectMeta, erro
 	return meta, nil
 }
 
-// addAll stages all changes in the working tree.
+// addAll stages all changes in the working tree (additions, modifications, and deletions).
 func addAll(wt *git.Worktree, dir string) error {
-	return filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+	// Stage new and modified files
+	if err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -813,7 +814,24 @@ func addAll(wt *git.Worktree, dir string) error {
 		}
 		_, err = wt.Add(rel)
 		return err
-	})
+	}); err != nil {
+		return err
+	}
+
+	// Stage deleted files (removed from disk but still tracked in the index)
+	status, err := wt.Status()
+	if err != nil {
+		return err
+	}
+	for path, s := range status {
+		if s.Worktree == git.Deleted {
+			if _, err := wt.Remove(path); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
 // subchartKey is the Helm dependency name used in GitOps repos.

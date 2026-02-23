@@ -84,10 +84,7 @@ func testPromote(t *testing.T) {
 			"environment": "staging",
 		})
 
-		if len(resp.Errors) > 0 {
-			t.Logf("deleteEnvironment error (non-fatal): %s", resp.Errors[0].Message)
-			return
-		}
+		requireNoErrors(t, resp)
 
 		waitForNamespaceGone(t, namespace("staging"), 60*time.Second)
 		t.Log("staging environment cleaned up")
