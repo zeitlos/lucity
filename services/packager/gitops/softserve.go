@@ -142,7 +142,7 @@ func (p *SoftServeProvider) DeleteRepo(ctx context.Context, project string) erro
 
 // AddService adds a service to base/values.yaml.
 func (p *SoftServeProvider) AddService(ctx context.Context, project string, svc ServiceDef) error {
-	return p.modifyRepo(ctx, project, fmt.Sprintf("config: add service %s", svc.Name), func(dir string) error {
+	return p.modifyRepo(ctx, project, fmt.Sprintf("config: add service %s", svc.Name), false, func(dir string) error {
 		path := filepath.Join(dir, "base", "values.yaml")
 		inner, err := readSubchartValues(path)
 		if err != nil {
@@ -180,7 +180,7 @@ func (p *SoftServeProvider) AddService(ctx context.Context, project string, svc 
 
 // RemoveService removes a service from base/values.yaml.
 func (p *SoftServeProvider) RemoveService(ctx context.Context, project, service string) error {
-	return p.modifyRepo(ctx, project, fmt.Sprintf("config: remove service %s", service), func(dir string) error {
+	return p.modifyRepo(ctx, project, fmt.Sprintf("config: remove service %s", service), false, func(dir string) error {
 		path := filepath.Join(dir, "base", "values.yaml")
 		inner, err := readSubchartValues(path)
 		if err != nil {
@@ -208,7 +208,7 @@ func (p *SoftServeProvider) UpdateImageTag(ctx context.Context, project, environ
 	if commitPrefix == "" {
 		commitPrefix = "deploy"
 	}
-	return p.modifyRepo(ctx, project, fmt.Sprintf("%s(%s): %s %s", commitPrefix, environment, service, tag), func(dir string) error {
+	return p.modifyRepo(ctx, project, fmt.Sprintf("%s(%s): %s %s", commitPrefix, environment, service, tag), true, func(dir string) error {
 		filePath := filepath.Join(dir, "environments", environment, "values.yaml")
 		inner, err := readSubchartValues(filePath)
 		if err != nil {
@@ -262,7 +262,7 @@ func (p *SoftServeProvider) Services(ctx context.Context, project string) ([]Ser
 
 // CreateEnvironment creates a new environment directory.
 func (p *SoftServeProvider) CreateEnvironment(ctx context.Context, project, environment, fromEnvironment string) error {
-	return p.modifyRepo(ctx, project, fmt.Sprintf("env(create): %s", environment), func(dir string) error {
+	return p.modifyRepo(ctx, project, fmt.Sprintf("env(create): %s", environment), false, func(dir string) error {
 		envDir := filepath.Join(dir, "environments", environment)
 		if err := os.MkdirAll(envDir, 0o755); err != nil {
 			return fmt.Errorf("failed to create environment dir: %w", err)
@@ -286,7 +286,7 @@ func (p *SoftServeProvider) CreateEnvironment(ctx context.Context, project, envi
 
 // DeleteEnvironment removes an environment directory.
 func (p *SoftServeProvider) DeleteEnvironment(ctx context.Context, project, environment string) error {
-	return p.modifyRepo(ctx, project, fmt.Sprintf("env(delete): %s", environment), func(dir string) error {
+	return p.modifyRepo(ctx, project, fmt.Sprintf("env(delete): %s", environment), false, func(dir string) error {
 		envDir := filepath.Join(dir, "environments", environment)
 		return os.RemoveAll(envDir)
 	})
@@ -297,7 +297,7 @@ func (p *SoftServeProvider) Promote(ctx context.Context, project, service, fromE
 	var promotedTag string
 
 	err := p.modifyRepo(ctx, project,
-		fmt.Sprintf("promote(%s): %s %s from %s", toEnv, service, fromEnv, toEnv), func(dir string) error {
+		fmt.Sprintf("promote(%s): %s %s from %s", toEnv, service, fromEnv, toEnv), true, func(dir string) error {
 			// Read source environment
 			srcPath := filepath.Join(dir, "environments", fromEnv, "values.yaml")
 			srcInner, err := readSubchartValues(srcPath)
@@ -410,7 +410,7 @@ func (p *SoftServeProvider) SetServiceDomain(ctx context.Context, project, envir
 		commitMsg = fmt.Sprintf("config(%s): remove domain for %s", environment, service)
 	}
 
-	return p.modifyRepo(ctx, project, commitMsg, func(dir string) error {
+	return p.modifyRepo(ctx, project, commitMsg, false, func(dir string) error {
 		filePath := filepath.Join(dir, "environments", environment, "values.yaml")
 		inner, err := readSubchartValues(filePath)
 		if err != nil {
@@ -539,7 +539,7 @@ func (p *SoftServeProvider) cloneRepoWithDepth(repoName string, depth int) (stri
 }
 
 // modifyRepo clones a repo, applies a modification function, commits, and pushes.
-func (p *SoftServeProvider) modifyRepo(ctx context.Context, project, commitMsg string, modify func(dir string) error) error {
+func (p *SoftServeProvider) modifyRepo(ctx context.Context, project, commitMsg string, forceCommit bool, modify func(dir string) error) error {
 	repoName := project + RepoSuffix
 
 	dir, cleanup, err := p.cloneRepo(repoName)
@@ -580,12 +580,13 @@ func (p *SoftServeProvider) modifyRepo(ctx context.Context, project, commitMsg s
 	if err != nil {
 		return fmt.Errorf("failed to get status: %w", err)
 	}
-	if status.IsClean() {
+	if status.IsClean() && !forceCommit {
 		slog.Debug("no changes to commit", "project", project)
 		return nil
 	}
 
 	_, err = wt.Commit(commitMsg, &git.CommitOptions{
+		AllowEmptyCommits: status.IsClean(),
 		Author: &object.Signature{
 			Name:  "Lucity",
 			Email: "lucity@localhost",
@@ -879,7 +880,7 @@ func (p *SoftServeProvider) SharedVariables(ctx context.Context, project, enviro
 
 // SetSharedVariables replaces all shared variables for an environment.
 func (p *SoftServeProvider) SetSharedVariables(ctx context.Context, project, environment string, vars map[string]string) error {
-	return p.modifyRepo(ctx, project, fmt.Sprintf("config(%s): update shared variables", environment), func(dir string) error {
+	return p.modifyRepo(ctx, project, fmt.Sprintf("config(%s): update shared variables", environment), false, func(dir string) error {
 		filePath := filepath.Join(dir, "environments", environment, "values.yaml")
 		inner, err := readSubchartValues(filePath)
 		if err != nil {
@@ -965,7 +966,7 @@ func (p *SoftServeProvider) ServiceVariables(ctx context.Context, project, envir
 
 // SetServiceVariables replaces all variables for a service in an environment.
 func (p *SoftServeProvider) SetServiceVariables(ctx context.Context, project, environment, service string, vars map[string]string, sharedRefs []string) error {
-	return p.modifyRepo(ctx, project, fmt.Sprintf("config(%s): update variables for %s", environment, service), func(dir string) error {
+	return p.modifyRepo(ctx, project, fmt.Sprintf("config(%s): update variables for %s", environment, service), false, func(dir string) error {
 		filePath := filepath.Join(dir, "environments", environment, "values.yaml")
 		inner, err := readSubchartValues(filePath)
 		if err != nil {
@@ -1014,14 +1015,14 @@ func (p *SoftServeProvider) SetServiceVariables(ctx context.Context, project, en
 
 // SyncChart updates the embedded lucity-app chart in the GitOps repo.
 func (p *SoftServeProvider) SyncChart(ctx context.Context, project string) error {
-	return p.modifyRepo(ctx, project, "chart(sync): update lucity-app chart", func(dir string) error {
+	return p.modifyRepo(ctx, project, "chart(sync): update lucity-app chart", false, func(dir string) error {
 		return writeEmbeddedChart(dir)
 	})
 }
 
 // AddDatabase adds a PostgreSQL database definition to base/values.yaml.
 func (p *SoftServeProvider) AddDatabase(ctx context.Context, project string, db DatabaseDef) error {
-	return p.modifyRepo(ctx, project, fmt.Sprintf("config: add database %s", db.Name), func(dir string) error {
+	return p.modifyRepo(ctx, project, fmt.Sprintf("config: add database %s", db.Name), false, func(dir string) error {
 		path := filepath.Join(dir, "base", "values.yaml")
 		inner, err := readSubchartValues(path)
 		if err != nil {
@@ -1051,7 +1052,7 @@ func (p *SoftServeProvider) AddDatabase(ctx context.Context, project string, db 
 
 // RemoveDatabase removes a database definition from base/values.yaml.
 func (p *SoftServeProvider) RemoveDatabase(ctx context.Context, project, name string) error {
-	return p.modifyRepo(ctx, project, fmt.Sprintf("config: remove database %s", name), func(dir string) error {
+	return p.modifyRepo(ctx, project, fmt.Sprintf("config: remove database %s", name), false, func(dir string) error {
 		path := filepath.Join(dir, "base", "values.yaml")
 		inner, err := readSubchartValues(path)
 		if err != nil {
