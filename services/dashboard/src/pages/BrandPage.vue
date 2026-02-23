@@ -106,12 +106,30 @@ function isoProject(x: number, y: number): PreviewPoint {
 function drawLogo(ctx: CanvasRenderingContext2D, cx: number, cy: number, logoHeight: number) {
   const L_CELLS: PreviewPoint[] = [[0, 2], [1, 2], [2, 2], [2, 1]];
   const TRI_VERTS: PreviewPoint[] = [[0, 1], [1, 0], [1, 1]];
+  const EXT = 0.4;
 
+  // Grid lines in raw isometric space
+  const gridLines: { x1: number; y1: number; x2: number; y2: number }[] = [];
+  for (let r = 0; r <= 3; r++) {
+    const [gx1, gy1] = isoProject(-EXT, r);
+    const [gx2, gy2] = isoProject(3 + EXT, r);
+    gridLines.push({ x1: gx1, y1: gy1, x2: gx2, y2: gy2 });
+  }
+  for (let c = 0; c <= 3; c++) {
+    const [gx1, gy1] = isoProject(c, -EXT);
+    const [gx2, gy2] = isoProject(c, 3 + EXT);
+    gridLines.push({ x1: gx1, y1: gy1, x2: gx2, y2: gy2 });
+  }
+
+  // Bounding box includes grid lines (matches BaseLogo viewBox)
   const allPts: PreviewPoint[] = [];
   for (const [c, r] of L_CELLS) {
     allPts.push(isoProject(c, r), isoProject(c + 1, r), isoProject(c + 1, r + 1), isoProject(c, r + 1));
   }
   for (const [x, y] of TRI_VERTS) allPts.push(isoProject(x, y));
+  for (const line of gridLines) {
+    allPts.push([line.x1, line.y1], [line.x2, line.y2]);
+  }
 
   const xs = allPts.map((p) => p[0]);
   const ys = allPts.map((p) => p[1]);
@@ -126,6 +144,27 @@ function drawLogo(ctx: CanvasRenderingContext2D, cx: number, cy: number, logoHei
   function project(x: number, y: number): PreviewPoint {
     const [px, py] = isoProject(x, y);
     return [cx + (px - minX - rawW / 2) * scale, cy + (py - minY - rawH / 2) * scale];
+  }
+
+  function projectRaw(px: number, py: number): PreviewPoint {
+    return [cx + (px - minX - rawW / 2) * scale, cy + (py - minY - rawH / 2) * scale];
+  }
+
+  // Grid lines with fade (drawn first, behind tiles)
+  ctx.lineWidth = Math.max(0.3, 0.35 * scale);
+  for (const line of gridLines) {
+    const [sx1, sy1] = projectRaw(line.x1, line.y1);
+    const [sx2, sy2] = projectRaw(line.x2, line.y2);
+    const grad = ctx.createLinearGradient(sx1, sy1, sx2, sy2);
+    grad.addColorStop(0, 'rgba(255,255,255,0)');
+    grad.addColorStop(0.15, 'rgba(255,255,255,0.25)');
+    grad.addColorStop(0.85, 'rgba(255,255,255,0.25)');
+    grad.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.strokeStyle = grad;
+    ctx.beginPath();
+    ctx.moveTo(sx1, sy1);
+    ctx.lineTo(sx2, sy2);
+    ctx.stroke();
   }
 
   // L-shape tiles — use exact brand OKLCH values
