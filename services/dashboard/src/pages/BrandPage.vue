@@ -128,9 +128,9 @@ function drawLogo(ctx: CanvasRenderingContext2D, cx: number, cy: number, logoHei
     return [cx + (px - minX - rawW / 2) * scale, cy + (py - minY - rawH / 2) * scale];
   }
 
-  // L-shape tiles
-  ctx.fillStyle = '#55d4ab';
-  ctx.strokeStyle = '#55d4ab';
+  // L-shape tiles — use exact brand OKLCH values
+  ctx.fillStyle = 'oklch(0.75 0.18 160)';
+  ctx.strokeStyle = 'oklch(0.75 0.18 160)';
   ctx.lineWidth = Math.max(0.5, 0.5 * scale);
   ctx.lineJoin = 'round';
 
@@ -149,8 +149,8 @@ function drawLogo(ctx: CanvasRenderingContext2D, cx: number, cy: number, logoHei
     ctx.stroke();
   }
 
-  // Triangle accent
-  ctx.fillStyle = '#e8ddd0';
+  // Triangle accent — warm beige from brand palette
+  ctx.fillStyle = 'oklch(0.92 0.02 75)';
   ctx.beginPath();
   for (let i = 0; i < TRI_VERTS.length; i++) {
     const [px, py] = project(TRI_VERTS[i][0], TRI_VERTS[i][1]);
@@ -213,7 +213,7 @@ function drawCanvas() {
   ctx.fillStyle = 'white';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
-  ctx.font = 'italic 72px "Instrument Serif", Georgia, serif';
+  ctx.font = '72px "Instrument Serif", Georgia, serif';
   ctx.fillText(previewHeadline.value, W / 2, H / 2 + 5);
 
   // Tagline
