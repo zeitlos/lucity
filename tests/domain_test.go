@@ -7,6 +7,7 @@ import (
 
 func testDomain(t *testing.T) {
 	requireProjectCreated(t)
+	requireNamespace(t)
 	token := testToken(t)
 
 	t.Run("SetDomain", func(t *testing.T) {

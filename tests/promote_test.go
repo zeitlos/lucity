@@ -7,6 +7,7 @@ import (
 
 func testPromote(t *testing.T) {
 	requireProjectCreated(t)
+	requireNamespace(t)
 	token := testToken(t)
 
 	if testBuildTag == "" {

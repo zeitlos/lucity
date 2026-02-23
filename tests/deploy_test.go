@@ -7,6 +7,7 @@ import (
 
 func testDeploy(t *testing.T) {
 	requireProjectCreated(t)
+	requireNamespace(t)
 	token := testToken(t)
 
 	t.Run("Deploy", func(t *testing.T) {

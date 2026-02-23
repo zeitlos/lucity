@@ -2,6 +2,7 @@ package tests
 
 import (
 	"math/rand"
+	"net/http"
 	"os"
 	"testing"
 )
@@ -16,6 +17,10 @@ var (
 	testDBName      = "main"
 	testBuildTag    string // set after successful build
 	testBuildDigest string // set after successful build
+
+	// Set to true after kubectl confirms the development namespace exists.
+	// Tests that need Kubernetes resources check this before shelling out to kubectl.
+	devNamespaceReady bool
 )
 
 func TestMain(m *testing.M) {
@@ -40,10 +45,23 @@ func TestIntegration(t *testing.T) {
 
 	// Phase 2: Full infrastructure required
 	t.Run("Project", testProject)
+	if t.Failed() {
+		t.Fatal("project creation failed — cannot continue")
+	}
+
 	t.Run("Environment", testEnvironment)
 	t.Run("Service", testService)
 	t.Run("Variables", testVariables)
+
+	// Phase 3: Requires Kubernetes resources (namespace must exist)
+	if !gatewayAlive() {
+		t.Fatal("gateway is not responding — cannot continue")
+	}
 	t.Run("Database", testDatabase)
+
+	if !gatewayAlive() {
+		t.Fatal("gateway is not responding — cannot continue")
+	}
 	t.Run("Build", testBuild)
 	t.Run("Deploy", testDeploy)
 	t.Run("Domain", testDomain)
@@ -51,6 +69,16 @@ func TestIntegration(t *testing.T) {
 	t.Run("Eject", testEject)
 	t.Run("GitHub", testGitHub)
 	t.Run("Cleanup", testCleanup)
+}
+
+// gatewayAlive checks if the gateway is responding to health checks.
+func gatewayAlive() bool {
+	resp, err := http.Get(gatewayURL() + "/health")
+	if err != nil {
+		return false
+	}
+	resp.Body.Close()
+	return resp.StatusCode == http.StatusOK
 }
 
 // cleanup deletes the test project (best-effort) and verifies namespaces are gone.

@@ -63,7 +63,21 @@ func githubToken() string {
 	if t := os.Getenv("GITHUB_TOKEN"); t != "" {
 		return t
 	}
-	out, err := exec.Command("gh", "auth", "token").Output()
+	// Try gh CLI — check common install locations
+	ghPath, err := exec.LookPath("gh")
+	if err != nil {
+		// Try common Homebrew locations
+		for _, p := range []string{"/opt/homebrew/bin/gh", "/usr/local/bin/gh"} {
+			if _, err := os.Stat(p); err == nil {
+				ghPath = p
+				break
+			}
+		}
+	}
+	if ghPath == "" {
+		return ""
+	}
+	out, err := exec.Command(ghPath, "auth", "token").Output()
 	if err != nil {
 		return ""
 	}

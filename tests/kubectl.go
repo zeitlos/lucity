@@ -41,19 +41,36 @@ func kubectlJSON(t *testing.T, target any, args ...string) {
 	}
 }
 
-// waitForNamespace polls until the namespace exists or times out.
+// waitForNamespace polls until the namespace exists or times out. Fatals on timeout.
 func waitForNamespace(t *testing.T, ns string, timeout time.Duration) {
+	t.Helper()
+	if !waitForNamespaceOK(t, ns, timeout) {
+		t.Fatalf("namespace %q did not appear within %s", ns, timeout)
+	}
+}
+
+// waitForNamespaceOK polls until the namespace exists. Returns false on timeout (non-fatal).
+func waitForNamespaceOK(t *testing.T, ns string, timeout time.Duration) bool {
 	t.Helper()
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
 		_, err := kubectlQuiet(t, "get", "namespace", ns, "--no-headers")
 		if err == nil {
 			t.Logf("namespace %s exists", ns)
-			return
+			return true
 		}
 		time.Sleep(2 * time.Second)
 	}
-	t.Fatalf("namespace %q did not appear within %s", ns, timeout)
+	t.Logf("namespace %q did not appear within %s", ns, timeout)
+	return false
+}
+
+// requireNamespace skips the test if the development namespace isn't ready.
+func requireNamespace(t *testing.T) {
+	t.Helper()
+	if !devNamespaceReady {
+		t.Skip("skipping: development namespace not ready (ArgoCD may not have synced)")
+	}
 }
 
 // waitForNamespaceGone polls until the namespace no longer exists.

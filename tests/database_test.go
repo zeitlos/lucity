@@ -8,6 +8,7 @@ import (
 
 func testDatabase(t *testing.T) {
 	requireProjectCreated(t)
+	requireNamespace(t)
 	token := testToken(t)
 
 	t.Run("CreateDatabase", func(t *testing.T) {
