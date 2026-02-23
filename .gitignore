@@ -42,3 +42,6 @@ tmp/
 
 # Proto generated
 gen/
+
+# Internal docs (not for public repo)
+docs/internal/
