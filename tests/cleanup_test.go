@@ -12,6 +12,9 @@ func testCleanup(t *testing.T) {
 	requireProjectCreated(t)
 	token := testToken(t)
 
+	// Save the project name before deletion clears it — verification subtests need it.
+	cleanupProjectName := testProjectName
+
 	t.Run("RemoveService", func(t *testing.T) {
 		resp := doGraphQL(t, token, `
 			mutation($projectId: ID!, $service: String!) {
@@ -43,11 +46,7 @@ func testCleanup(t *testing.T) {
 		`, map[string]any{"id": testProjectName})
 
 		if len(resp.Errors) > 0 {
-			t.Logf("deleteProject error: %s", resp.Errors[0].Message)
-			t.Log("project deletion failed — manual cleanup may be needed")
-			t.Logf("  kubectl delete ns %s-development --ignore-not-found", testProjectName)
-			t.Logf("  kubectl delete ns %s-staging --ignore-not-found", testProjectName)
-			return
+			t.Fatalf("deleteProject error: %s", resp.Errors[0].Message)
 		}
 
 		deleted := extractBool(t, resp.Data, "deleteProject")
@@ -56,81 +55,78 @@ func testCleanup(t *testing.T) {
 		}
 		t.Logf("deleted project %s", testProjectName)
 
-		// Subsystem cleanup verification (all non-fatal).
-		// ArgoCD cascade deletion is async — the API returns immediately but resource
-		// cleanup (CNPG finalizers, pod termination) takes time. We verify the control
-		// plane artifacts are gone, not that every K8s resource has been finalized.
+		// Clear the project name so cleanup() in TestMain is a no-op
+		testProjectName = ""
+	})
 
-		// 1. Soft-serve: GitOps repo should be gone
-		httpResp, httpErr := http.Get("http://localhost:23232/" + testProjectName + "-gitops.git")
-		if httpErr != nil {
-			t.Log("WARNING: could not reach Soft-serve to verify repo deletion (port-forward may be down)")
-		} else {
-			httpResp.Body.Close()
-			if httpResp.StatusCode == http.StatusNotFound {
-				t.Log("Soft-serve gitops repo removed")
-			} else {
-				t.Logf("WARNING: Soft-serve gitops repo may still exist (HTTP %d)", httpResp.StatusCode)
-			}
+	// Subsystem verification — each check is its own subtest so failures are
+	// clearly attributable and don't block other checks.
+
+	t.Run("VerifySoftServeRepoGone", func(t *testing.T) {
+		httpResp, err := http.Get("http://localhost:23232/" + cleanupProjectName + "-gitops.git")
+		if err != nil {
+			t.Fatalf("could not reach Soft-serve: %v", err)
 		}
-
-		// 2. Zot registry: image tags should be gone or empty
-		httpResp, httpErr = http.Get("http://localhost:5000/v2/" + testProjectName + "/" + testServiceName + "/tags/list")
-		if httpErr != nil {
-			t.Log("WARNING: could not reach Zot registry (port-forward may be down)")
-		} else {
-			body, _ := io.ReadAll(httpResp.Body)
-			httpResp.Body.Close()
-			if httpResp.StatusCode == http.StatusNotFound {
-				t.Log("Zot registry: no images for project")
-			} else if httpResp.StatusCode == http.StatusOK {
-				t.Logf("WARNING: Zot registry still has image data (expected — builder doesn't delete images): %s", string(body))
-			} else {
-				t.Logf("WARNING: Zot registry unexpected status %d", httpResp.StatusCode)
-			}
+		httpResp.Body.Close()
+		if httpResp.StatusCode != http.StatusNotFound {
+			t.Errorf("Soft-serve gitops repo still exists (HTTP %d)", httpResp.StatusCode)
 		}
+	})
 
-		// 3. ArgoCD repo credentials: secret for this project's gitops URL should be gone
+	t.Run("VerifyArgoCDRepoCredGone", func(t *testing.T) {
 		out, err := kubectlQuiet(t, "get", "secrets", "-n", "lucity-system",
 			"-l", "argocd.argoproj.io/secret-type=repository",
 			"-o", "jsonpath={.items[*].metadata.name}")
 		if err != nil {
-			t.Log("WARNING: could not check ArgoCD repo secrets")
-		} else if strings.Contains(out, testProjectName) {
-			t.Logf("WARNING: ArgoCD repo credential secret may still exist: %s", out)
-		} else {
-			t.Log("ArgoCD repo credential removed")
+			t.Fatalf("could not check ArgoCD repo secrets: %v", err)
 		}
+		if strings.Contains(out, cleanupProjectName) {
+			t.Errorf("ArgoCD repo credential secret still exists: %s", out)
+		}
+	})
 
-		// 4. ArgoCD applications — cascade delete is async, so give it a short grace period
+	t.Run("VerifyArgoCDAppsGone", func(t *testing.T) {
 		for _, env := range []string{"development", "staging"} {
-			appName := testProjectName + "-" + env
+			appName := cleanupProjectName + "-" + env
 			gone := false
-			for range 5 {
+			for range 15 {
 				if _, err := kubectlQuiet(t, "get", "application.argoproj.io", appName, "-n", "lucity-system"); err != nil {
 					gone = true
 					break
 				}
 				time.Sleep(2 * time.Second)
 			}
-			if gone {
-				t.Logf("ArgoCD application %s removed", appName)
-			} else {
-				t.Logf("ArgoCD application %s still finalizing (cascade delete is async)", appName)
+			if !gone {
+				t.Errorf("ArgoCD application %s still exists after 30s", appName)
 			}
 		}
+	})
 
-		// 5. Namespace — don't wait long. ArgoCD cascade + CNPG finalizers can take
-		// minutes. A quick check is enough; the namespace will eventually be cleaned up.
-		if devNamespaceReady {
-			if waitForNamespaceGoneOK(t, namespace("development"), 10*time.Second) {
-				t.Log("development namespace removed")
-			} else {
-				t.Log("development namespace still finalizing (CNPG finalizers, expected)")
+	t.Run("VerifyNamespacesGone", func(t *testing.T) {
+		if !devNamespaceReady {
+			t.Skip("namespace was never ready")
+		}
+		for _, env := range []string{"development", "staging"} {
+			ns := cleanupProjectName + "-" + env
+			if !waitForNamespaceGoneOK(t, ns, 2*time.Minute) {
+				t.Errorf("namespace %s still exists after 2 minutes", ns)
 			}
 		}
+	})
 
-		// Clear the project name so cleanup() in TestMain is a no-op
-		testProjectName = ""
+	t.Run("VerifyZotImagesGone", func(t *testing.T) {
+		httpResp, err := http.Get("http://localhost:5000/v2/" + cleanupProjectName + "/" + testServiceName + "/tags/list")
+		if err != nil {
+			t.Fatalf("could not reach Zot registry: %v", err)
+		}
+		body, _ := io.ReadAll(httpResp.Body)
+		httpResp.Body.Close()
+		if httpResp.StatusCode == http.StatusOK {
+			t.Errorf("Zot registry still has images: %s", string(body))
+		}
+		// 404 = good (no images), anything else = unexpected
+		if httpResp.StatusCode != http.StatusNotFound && httpResp.StatusCode != http.StatusOK {
+			t.Errorf("Zot registry unexpected status %d", httpResp.StatusCode)
+		}
 	})
 }
