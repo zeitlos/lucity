@@ -22,8 +22,12 @@ func parseServiceInstanceMetas(services map[string]any) []ServiceInstanceMeta {
 				meta.ImageTag = tag
 			}
 		}
-		if host, ok := svcMap["host"].(string); ok {
-			meta.Host = host
+		if domains, ok := svcMap["domains"].([]any); ok {
+			for _, d := range domains {
+				if s, ok := d.(string); ok {
+					meta.Domains = append(meta.Domains, s)
+				}
+			}
 		}
 
 		result = append(result, meta)

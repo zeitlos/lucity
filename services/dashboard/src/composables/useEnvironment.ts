@@ -9,13 +9,19 @@ export interface DeploymentInfo {
   sourceUrl?: string;
 }
 
+export interface DomainInfo {
+  hostname: string;
+  type: 'PLATFORM' | 'CUSTOM';
+  dnsStatus: 'VALID' | 'PENDING' | 'ERROR';
+}
+
 export interface ServiceInstance {
   name: string;
   environment: string;
   imageTag: string;
   ready: boolean;
   replicas: number;
-  host?: string;
+  domains: DomainInfo[];
   deployments: DeploymentInfo[];
 }
 

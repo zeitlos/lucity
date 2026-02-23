@@ -10,29 +10,55 @@ func testDomain(t *testing.T) {
 	requireNamespace(t)
 	token := testToken(t)
 
-	t.Run("SetDomain", func(t *testing.T) {
+	t.Run("PlatformConfig", func(t *testing.T) {
+		resp := doGraphQL(t, token, `
+			query {
+				platformConfig {
+					workloadDomain
+					domainTarget
+				}
+			}
+		`, nil)
+		requireNoErrors(t, resp)
+
+		wd := extractString(t, resp.Data, "platformConfig", "workloadDomain")
+		if wd == "" {
+			t.Fatal("platformConfig.workloadDomain is empty")
+		}
+		t.Logf("workloadDomain: %s", wd)
+	})
+
+	t.Run("GenerateDomain", func(t *testing.T) {
 		if testBuildTag == "" {
 			t.Skip("no deployment — build/deploy must have failed")
 		}
 
 		resp := doGraphQL(t, token, `
-			mutation($input: SetServiceDomainInput!) {
-				setServiceDomain(input: $input)
+			mutation($input: GenerateDomainInput!) {
+				generateDomain(input: $input) {
+					hostname
+					type
+					dnsStatus
+				}
 			}
 		`, map[string]any{
 			"input": map[string]any{
 				"projectId":   testProjectName,
 				"service":     testServiceName,
 				"environment": "development",
-				"host":        testServiceName + ".lucity.local",
 			},
 		})
 		requireNoErrors(t, resp)
 
-		ok := extractBool(t, resp.Data, "setServiceDomain")
-		if !ok {
-			t.Fatal("setServiceDomain returned false")
+		hostname := extractString(t, resp.Data, "generateDomain", "hostname")
+		if hostname == "" {
+			t.Fatal("generateDomain returned empty hostname")
 		}
+		domainType := extractString(t, resp.Data, "generateDomain", "type")
+		if domainType != "PLATFORM" {
+			t.Fatalf("expected domain type PLATFORM, got %s", domainType)
+		}
+		t.Logf("generated platform domain: %s", hostname)
 
 		// kubectl: verify httproute exists (give ArgoCD a moment to sync)
 		time.Sleep(5 * time.Second)
@@ -44,29 +70,63 @@ func testDomain(t *testing.T) {
 		}
 	})
 
-	t.Run("RemoveDomain", func(t *testing.T) {
+	t.Run("AddCustomDomain", func(t *testing.T) {
 		if testBuildTag == "" {
 			t.Skip("no deployment — build/deploy must have failed")
 		}
 
 		resp := doGraphQL(t, token, `
-			mutation($input: SetServiceDomainInput!) {
-				setServiceDomain(input: $input)
+			mutation($input: AddCustomDomainInput!) {
+				addCustomDomain(input: $input) {
+					hostname
+					type
+					dnsStatus
+				}
 			}
 		`, map[string]any{
 			"input": map[string]any{
 				"projectId":   testProjectName,
 				"service":     testServiceName,
 				"environment": "development",
-				"host":        "",
+				"hostname":    "custom.example.com",
 			},
 		})
 		requireNoErrors(t, resp)
 
-		ok := extractBool(t, resp.Data, "setServiceDomain")
-		if !ok {
-			t.Fatal("setServiceDomain (remove) returned false")
+		hostname := extractString(t, resp.Data, "addCustomDomain", "hostname")
+		if hostname != "custom.example.com" {
+			t.Fatalf("expected hostname custom.example.com, got %s", hostname)
 		}
-		t.Log("domain removed")
+		domainType := extractString(t, resp.Data, "addCustomDomain", "type")
+		if domainType != "CUSTOM" {
+			t.Fatalf("expected domain type CUSTOM, got %s", domainType)
+		}
+		t.Logf("added custom domain: %s (dns: %s)", hostname, extractString(t, resp.Data, "addCustomDomain", "dnsStatus"))
+	})
+
+	t.Run("RemoveDomain", func(t *testing.T) {
+		if testBuildTag == "" {
+			t.Skip("no deployment — build/deploy must have failed")
+		}
+
+		resp := doGraphQL(t, token, `
+			mutation($input: RemoveDomainInput!) {
+				removeDomain(input: $input)
+			}
+		`, map[string]any{
+			"input": map[string]any{
+				"projectId":   testProjectName,
+				"service":     testServiceName,
+				"environment": "development",
+				"hostname":    "custom.example.com",
+			},
+		})
+		requireNoErrors(t, resp)
+
+		ok := extractBool(t, resp.Data, "removeDomain")
+		if !ok {
+			t.Fatal("removeDomain returned false")
+		}
+		t.Log("custom domain removed")
 	})
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"strings"
 	"time"
 
@@ -600,22 +601,92 @@ func (c *Client) Rollback(ctx context.Context, projectID, service, environment, 
 	return true, nil
 }
 
-func (c *Client) SetServiceDomain(ctx context.Context, projectID, service, environment, host string) (bool, error) {
+// Domain represents a domain hostname with its type and DNS status.
+type Domain struct {
+	Hostname  string
+	Type      string // "PLATFORM" or "CUSTOM"
+	DnsStatus string // "VALID", "PENDING", or "ERROR"
+}
+
+// PlatformConfig returns platform-level configuration for domain management.
+func (c *Client) PlatformConfig() (workloadDomain, domainTarget string) {
+	return c.WorkloadDomain, c.DomainTarget
+}
+
+// IsPlatformDomain checks if a hostname is a platform-generated domain.
+func (c *Client) IsPlatformDomain(hostname string) bool {
+	return strings.HasSuffix(hostname, "."+c.WorkloadDomain)
+}
+
+// CheckDnsStatus checks the DNS resolution status of a domain.
+func (c *Client) CheckDnsStatus(hostname string) string {
+	if c.IsPlatformDomain(hostname) {
+		return "VALID"
+	}
+
+	lookupCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	resolver := &net.Resolver{}
+	addrs, err := resolver.LookupHost(lookupCtx, hostname)
+	if err != nil || len(addrs) == 0 {
+		return "PENDING"
+	}
+	return "VALID"
+}
+
+// BuildDomain constructs a Domain struct with type and DNS status.
+func (c *Client) BuildDomain(hostname string) Domain {
+	domainType := "CUSTOM"
+	if c.IsPlatformDomain(hostname) {
+		domainType = "PLATFORM"
+	}
+	return Domain{
+		Hostname:  hostname,
+		Type:      domainType,
+		DnsStatus: c.CheckDnsStatus(hostname),
+	}
+}
+
+// GenerateDomain creates a platform domain for a service in an environment.
+// Format: {service}-{env}.{workloadDomain}. Appends a numeric suffix on collision.
+func (c *Client) GenerateDomain(ctx context.Context, projectID, service, environment string) (*Domain, error) {
 	ctx = auth.OutgoingContext(ctx)
 
-	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
-	defer cancel()
-	_, err := c.Packager.SetServiceDomain(callCtx, &packager.SetServiceDomainRequest{
+	// Get all existing domains for collision detection
+	allCtx, allCancel := context.WithTimeout(ctx, grpcTimeout)
+	defer allCancel()
+	allResp, err := c.Packager.AllDomains(allCtx, &packager.AllDomainsRequest{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list all domains: %w", err)
+	}
+
+	existing := make(map[string]bool, len(allResp.Hostnames))
+	for _, h := range allResp.Hostnames {
+		existing[h] = true
+	}
+
+	// Generate hostname: {service}-{env}.{workloadDomain}
+	base := fmt.Sprintf("%s-%s.%s", service, environment, c.WorkloadDomain)
+	hostname := base
+	for i := 2; existing[hostname]; i++ {
+		hostname = fmt.Sprintf("%s-%s-%d.%s", service, environment, i, c.WorkloadDomain)
+	}
+
+	// Add the domain
+	addCtx, addCancel := context.WithTimeout(ctx, grpcTimeout)
+	defer addCancel()
+	_, err = c.Packager.AddDomain(addCtx, &packager.AddDomainRequest{
 		Project:     projectID,
 		Environment: environment,
 		Service:     service,
-		Host:        host,
+		Hostname:    hostname,
 	})
 	if err != nil {
-		return false, fmt.Errorf("failed to set service domain: %w", err)
+		return nil, fmt.Errorf("failed to add platform domain: %w", err)
 	}
 
-	// Trigger ArgoCD sync so the domain change is picked up
+	// Trigger ArgoCD sync
 	syncCtx, syncCancel := context.WithTimeout(ctx, grpcTimeout)
 	defer syncCancel()
 	_, err = c.Deployer.SyncDeployment(syncCtx, &deployer.SyncDeploymentRequest{
@@ -623,7 +694,69 @@ func (c *Client) SetServiceDomain(ctx context.Context, projectID, service, envir
 		Environment: environment,
 	})
 	if err != nil {
-		slog.Warn("failed to trigger sync after domain change", "project", projectID, "environment", environment, "error", err)
+		slog.Warn("failed to trigger sync after domain add", "project", projectID, "environment", environment, "error", err)
+	}
+
+	d := c.BuildDomain(hostname)
+	return &d, nil
+}
+
+// AddCustomDomain adds a user-specified custom domain to a service.
+func (c *Client) AddCustomDomain(ctx context.Context, projectID, service, environment, hostname string) (*Domain, error) {
+	ctx = auth.OutgoingContext(ctx)
+
+	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
+	defer cancel()
+	_, err := c.Packager.AddDomain(callCtx, &packager.AddDomainRequest{
+		Project:     projectID,
+		Environment: environment,
+		Service:     service,
+		Hostname:    hostname,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to add custom domain: %w", err)
+	}
+
+	// Trigger ArgoCD sync
+	syncCtx, syncCancel := context.WithTimeout(ctx, grpcTimeout)
+	defer syncCancel()
+	_, err = c.Deployer.SyncDeployment(syncCtx, &deployer.SyncDeploymentRequest{
+		Project:     projectID,
+		Environment: environment,
+	})
+	if err != nil {
+		slog.Warn("failed to trigger sync after domain add", "project", projectID, "environment", environment, "error", err)
+	}
+
+	d := c.BuildDomain(hostname)
+	return &d, nil
+}
+
+// RemoveDomain removes a domain from a service in an environment.
+func (c *Client) RemoveDomain(ctx context.Context, projectID, service, environment, hostname string) (bool, error) {
+	ctx = auth.OutgoingContext(ctx)
+
+	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
+	defer cancel()
+	_, err := c.Packager.RemoveDomain(callCtx, &packager.RemoveDomainRequest{
+		Project:     projectID,
+		Environment: environment,
+		Service:     service,
+		Hostname:    hostname,
+	})
+	if err != nil {
+		return false, fmt.Errorf("failed to remove domain: %w", err)
+	}
+
+	// Trigger ArgoCD sync
+	syncCtx, syncCancel := context.WithTimeout(ctx, grpcTimeout)
+	defer syncCancel()
+	_, err = c.Deployer.SyncDeployment(syncCtx, &deployer.SyncDeploymentRequest{
+		Project:     projectID,
+		Environment: environment,
+	})
+	if err != nil {
+		slog.Warn("failed to trigger sync after domain remove", "project", projectID, "environment", environment, "error", err)
 	}
 
 	return true, nil

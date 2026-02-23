@@ -13,6 +13,12 @@ enum Role {
   ADMIN
 }
 
+type PlatformConfig {
+  workloadDomain: String!
+  """CNAME target for custom domains. Empty if not configured."""
+  domainTarget: String!
+}
+
 type Query
 
 type Mutation

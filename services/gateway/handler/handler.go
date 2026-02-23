@@ -15,9 +15,11 @@ type Client struct {
 	DeployTracker       *deploy.Tracker
 	RegistryPushURL     string // for builder push, e.g. "localhost:5000"
 	RegistryImagePrefix string // for image refs in values.yaml, e.g. cluster-internal address
+	WorkloadDomain      string // base domain for platform-generated domains (e.g., "lucity.local")
+	DomainTarget        string // CNAME target for custom domains (e.g., "lb.lucity.app")
 }
 
-func New(packagerClient packager.PackagerServiceClient, builderClient builder.BuilderServiceClient, deployerClient deployer.DeployerServiceClient, registryPushURL, registryImagePrefix string) *Client {
+func New(packagerClient packager.PackagerServiceClient, builderClient builder.BuilderServiceClient, deployerClient deployer.DeployerServiceClient, registryPushURL, registryImagePrefix, workloadDomain, domainTarget string) *Client {
 	return &Client{
 		Packager:            packagerClient,
 		Builder:             builderClient,
@@ -25,5 +27,7 @@ func New(packagerClient packager.PackagerServiceClient, builderClient builder.Bu
 		DeployTracker:       deploy.NewTracker(),
 		RegistryPushURL:     registryPushURL,
 		RegistryImagePrefix: registryImagePrefix,
+		WorkloadDomain:      workloadDomain,
+		DomainTarget:        domainTarget,
 	}
 }

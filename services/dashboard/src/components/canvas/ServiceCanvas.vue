@@ -61,7 +61,7 @@ const nodes = computed(() => {
         framework: svc.framework,
         port: svc.port,
         sourceUrl: svc.sourceUrl,
-        host: envService?.host,
+        domains: envService?.domains ?? [],
         ready: envService?.ready,
         imageTag: envService?.imageTag,
         replicas: envService?.replicas,

@@ -31,7 +31,9 @@ const (
 	PackagerService_Promote_FullMethodName             = "/packager.PackagerService/Promote"
 	PackagerService_Eject_FullMethodName               = "/packager.PackagerService/Eject"
 	PackagerService_DeploymentHistory_FullMethodName   = "/packager.PackagerService/DeploymentHistory"
-	PackagerService_SetServiceDomain_FullMethodName    = "/packager.PackagerService/SetServiceDomain"
+	PackagerService_AddDomain_FullMethodName           = "/packager.PackagerService/AddDomain"
+	PackagerService_RemoveDomain_FullMethodName        = "/packager.PackagerService/RemoveDomain"
+	PackagerService_AllDomains_FullMethodName          = "/packager.PackagerService/AllDomains"
 	PackagerService_SharedVariables_FullMethodName     = "/packager.PackagerService/SharedVariables"
 	PackagerService_SetSharedVariables_FullMethodName  = "/packager.PackagerService/SetSharedVariables"
 	PackagerService_ServiceVariables_FullMethodName    = "/packager.PackagerService/ServiceVariables"
@@ -69,8 +71,12 @@ type PackagerServiceClient interface {
 	Eject(ctx context.Context, in *EjectRequest, opts ...grpc.CallOption) (*EjectResponse, error)
 	// DeploymentHistory returns the deployment history for a service in an environment.
 	DeploymentHistory(ctx context.Context, in *DeploymentHistoryRequest, opts ...grpc.CallOption) (*DeploymentHistoryResponse, error)
-	// SetServiceDomain sets or removes the domain hostname for a service in an environment.
-	SetServiceDomain(ctx context.Context, in *SetServiceDomainRequest, opts ...grpc.CallOption) (*SetServiceDomainResponse, error)
+	// AddDomain adds a domain hostname to a service in an environment.
+	AddDomain(ctx context.Context, in *AddDomainRequest, opts ...grpc.CallOption) (*AddDomainResponse, error)
+	// RemoveDomain removes a domain hostname from a service in an environment.
+	RemoveDomain(ctx context.Context, in *RemoveDomainRequest, opts ...grpc.CallOption) (*RemoveDomainResponse, error)
+	// AllDomains returns all domain hostnames across all projects and environments (for collision detection).
+	AllDomains(ctx context.Context, in *AllDomainsRequest, opts ...grpc.CallOption) (*AllDomainsResponse, error)
 	// SharedVariables returns all shared variables for an environment.
 	SharedVariables(ctx context.Context, in *SharedVariablesRequest, opts ...grpc.CallOption) (*SharedVariablesResponse, error)
 	// SetSharedVariables replaces all shared variables for an environment.
@@ -218,10 +224,30 @@ func (c *packagerServiceClient) DeploymentHistory(ctx context.Context, in *Deplo
 	return out, nil
 }
 
-func (c *packagerServiceClient) SetServiceDomain(ctx context.Context, in *SetServiceDomainRequest, opts ...grpc.CallOption) (*SetServiceDomainResponse, error) {
+func (c *packagerServiceClient) AddDomain(ctx context.Context, in *AddDomainRequest, opts ...grpc.CallOption) (*AddDomainResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(SetServiceDomainResponse)
-	err := c.cc.Invoke(ctx, PackagerService_SetServiceDomain_FullMethodName, in, out, cOpts...)
+	out := new(AddDomainResponse)
+	err := c.cc.Invoke(ctx, PackagerService_AddDomain_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *packagerServiceClient) RemoveDomain(ctx context.Context, in *RemoveDomainRequest, opts ...grpc.CallOption) (*RemoveDomainResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RemoveDomainResponse)
+	err := c.cc.Invoke(ctx, PackagerService_RemoveDomain_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *packagerServiceClient) AllDomains(ctx context.Context, in *AllDomainsRequest, opts ...grpc.CallOption) (*AllDomainsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AllDomainsResponse)
+	err := c.cc.Invoke(ctx, PackagerService_AllDomains_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -326,8 +352,12 @@ type PackagerServiceServer interface {
 	Eject(context.Context, *EjectRequest) (*EjectResponse, error)
 	// DeploymentHistory returns the deployment history for a service in an environment.
 	DeploymentHistory(context.Context, *DeploymentHistoryRequest) (*DeploymentHistoryResponse, error)
-	// SetServiceDomain sets or removes the domain hostname for a service in an environment.
-	SetServiceDomain(context.Context, *SetServiceDomainRequest) (*SetServiceDomainResponse, error)
+	// AddDomain adds a domain hostname to a service in an environment.
+	AddDomain(context.Context, *AddDomainRequest) (*AddDomainResponse, error)
+	// RemoveDomain removes a domain hostname from a service in an environment.
+	RemoveDomain(context.Context, *RemoveDomainRequest) (*RemoveDomainResponse, error)
+	// AllDomains returns all domain hostnames across all projects and environments (for collision detection).
+	AllDomains(context.Context, *AllDomainsRequest) (*AllDomainsResponse, error)
 	// SharedVariables returns all shared variables for an environment.
 	SharedVariables(context.Context, *SharedVariablesRequest) (*SharedVariablesResponse, error)
 	// SetSharedVariables replaces all shared variables for an environment.
@@ -391,8 +421,14 @@ func (UnimplementedPackagerServiceServer) Eject(context.Context, *EjectRequest) 
 func (UnimplementedPackagerServiceServer) DeploymentHistory(context.Context, *DeploymentHistoryRequest) (*DeploymentHistoryResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeploymentHistory not implemented")
 }
-func (UnimplementedPackagerServiceServer) SetServiceDomain(context.Context, *SetServiceDomainRequest) (*SetServiceDomainResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SetServiceDomain not implemented")
+func (UnimplementedPackagerServiceServer) AddDomain(context.Context, *AddDomainRequest) (*AddDomainResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AddDomain not implemented")
+}
+func (UnimplementedPackagerServiceServer) RemoveDomain(context.Context, *RemoveDomainRequest) (*RemoveDomainResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RemoveDomain not implemented")
+}
+func (UnimplementedPackagerServiceServer) AllDomains(context.Context, *AllDomainsRequest) (*AllDomainsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AllDomains not implemented")
 }
 func (UnimplementedPackagerServiceServer) SharedVariables(context.Context, *SharedVariablesRequest) (*SharedVariablesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SharedVariables not implemented")
@@ -652,20 +688,56 @@ func _PackagerService_DeploymentHistory_Handler(srv interface{}, ctx context.Con
 	return interceptor(ctx, in, info, handler)
 }
 
-func _PackagerService_SetServiceDomain_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SetServiceDomainRequest)
+func _PackagerService_AddDomain_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AddDomainRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(PackagerServiceServer).SetServiceDomain(ctx, in)
+		return srv.(PackagerServiceServer).AddDomain(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: PackagerService_SetServiceDomain_FullMethodName,
+		FullMethod: PackagerService_AddDomain_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(PackagerServiceServer).SetServiceDomain(ctx, req.(*SetServiceDomainRequest))
+		return srv.(PackagerServiceServer).AddDomain(ctx, req.(*AddDomainRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PackagerService_RemoveDomain_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RemoveDomainRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PackagerServiceServer).RemoveDomain(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PackagerService_RemoveDomain_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PackagerServiceServer).RemoveDomain(ctx, req.(*RemoveDomainRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PackagerService_AllDomains_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AllDomainsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PackagerServiceServer).AllDomains(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PackagerService_AllDomains_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PackagerServiceServer).AllDomains(ctx, req.(*AllDomainsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -852,8 +924,16 @@ var PackagerService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _PackagerService_DeploymentHistory_Handler,
 		},
 		{
-			MethodName: "SetServiceDomain",
-			Handler:    _PackagerService_SetServiceDomain_Handler,
+			MethodName: "AddDomain",
+			Handler:    _PackagerService_AddDomain_Handler,
+		},
+		{
+			MethodName: "RemoveDomain",
+			Handler:    _PackagerService_RemoveDomain_Handler,
+		},
+		{
+			MethodName: "AllDomains",
+			Handler:    _PackagerService_AllDomains_Handler,
 		},
 		{
 			MethodName: "SharedVariables",

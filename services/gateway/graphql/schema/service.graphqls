@@ -84,12 +84,24 @@ input RollbackInput {
   imageTag: String!
 }
 
-input SetServiceDomainInput {
+input GenerateDomainInput {
   projectId: ID!
   service: String!
   environment: String!
-  """Domain hostname to set, or empty string to remove."""
-  host: String!
+}
+
+input AddCustomDomainInput {
+  projectId: ID!
+  service: String!
+  environment: String!
+  hostname: String! @constraint(constraint: "min=4,max=253")
+}
+
+input RemoveDomainInput {
+  projectId: ID!
+  service: String!
+  environment: String!
+  hostname: String!
 }
 
 extend type Query {
@@ -97,6 +109,7 @@ extend type Query {
   buildStatus(id: ID!): Build @hasRole(role: [USER])
   deployStatus(id: ID!): DeployRun @hasRole(role: [USER])
   activeDeployment(projectId: ID!, service: String!, environment: String!): DeployRun @hasRole(role: [USER])
+  platformConfig: PlatformConfig! @hasRole(role: [USER])
 }
 
 extend type Mutation {
@@ -107,7 +120,12 @@ extend type Mutation {
   deploy(input: DeployInput!): DeployRun! @hasRole(role: [USER])
   """Roll back to a previous image tag without rebuilding."""
   rollback(input: RollbackInput!): Boolean! @hasRole(role: [USER])
-  setServiceDomain(input: SetServiceDomainInput!): Boolean! @hasRole(role: [USER])
+  """Generate a platform domain ({service}-{env}.{workloadDomain}). Handles collisions with a suffix."""
+  generateDomain(input: GenerateDomainInput!): Domain! @hasRole(role: [USER])
+  """Add a custom domain hostname."""
+  addCustomDomain(input: AddCustomDomainInput!): Domain! @hasRole(role: [USER])
+  """Remove any domain (platform or custom)."""
+  removeDomain(input: RemoveDomainInput!): Boolean! @hasRole(role: [USER])
 }
 
 extend type Subscription {

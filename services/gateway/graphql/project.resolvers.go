@@ -17,7 +17,7 @@ func (r *mutationResolver) CreateProject(ctx context.Context, input model.Create
 	if err != nil {
 		return nil, err
 	}
-	result := convertProject(*p)
+	result := convertProject(*p, r.API.WorkloadDomain)
 	return &result, nil
 }
 
@@ -36,7 +36,7 @@ func (r *mutationResolver) CreateEnvironment(ctx context.Context, input model.Cr
 	if err != nil {
 		return nil, err
 	}
-	result := convertEnvironment(*e)
+	result := convertEnvironment(*e, r.API.WorkloadDomain)
 	return &result, nil
 }
 
@@ -51,7 +51,7 @@ func (r *mutationResolver) Promote(ctx context.Context, input model.PromoteInput
 	if err != nil {
 		return nil, err
 	}
-	result := convertServiceInstance(*si)
+	result := convertServiceInstance(*si, r.API.WorkloadDomain)
 	return &result, nil
 }
 
@@ -68,7 +68,7 @@ func (r *queryResolver) Projects(ctx context.Context) ([]model.Project, error) {
 	}
 	result := make([]model.Project, 0, len(projects))
 	for _, p := range projects {
-		result = append(result, convertProject(p))
+		result = append(result, convertProject(p, r.API.WorkloadDomain))
 	}
 	return result, nil
 }
@@ -79,7 +79,7 @@ func (r *queryResolver) Project(ctx context.Context, id string) (*model.Project,
 	if err != nil {
 		return nil, err
 	}
-	result := convertProject(*p)
+	result := convertProject(*p, r.API.WorkloadDomain)
 	return &result, nil
 }
 
@@ -92,6 +92,6 @@ func (r *queryResolver) Service(ctx context.Context, projectID string, name stri
 	if s == nil {
 		return nil, nil
 	}
-	result := convertService(*s)
+	result := convertService(*s, r.API.WorkloadDomain)
 	return &result, nil
 }

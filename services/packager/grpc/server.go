@@ -269,17 +269,41 @@ func (s *Server) DeploymentHistory(ctx context.Context, req *packager.Deployment
 	return &packager.DeploymentHistoryResponse{Entries: protoEntries}, nil
 }
 
-func (s *Server) SetServiceDomain(ctx context.Context, req *packager.SetServiceDomainRequest) (*packager.SetServiceDomainResponse, error) {
-	slog.Info("SetServiceDomain called", "project", req.Project, "environment", req.Environment, "service", req.Service, "host", req.Host)
+func (s *Server) AddDomain(ctx context.Context, req *packager.AddDomainRequest) (*packager.AddDomainResponse, error) {
+	slog.Info("AddDomain called", "project", req.Project, "environment", req.Environment, "service", req.Service, "hostname", req.Hostname)
 
 	p := s.provider
 
-	if err := p.SetServiceDomain(ctx, req.Project, req.Environment, req.Service, req.Host); err != nil {
-		return nil, fmt.Errorf("failed to set service domain: %w", err)
+	if err := p.AddDomain(ctx, req.Project, req.Environment, req.Service, req.Hostname); err != nil {
+		return nil, fmt.Errorf("failed to add domain: %w", err)
 	}
 
 	s.syncEnvironment(ctx, req.Project, req.Environment)
-	return &packager.SetServiceDomainResponse{}, nil
+	return &packager.AddDomainResponse{}, nil
+}
+
+func (s *Server) RemoveDomain(ctx context.Context, req *packager.RemoveDomainRequest) (*packager.RemoveDomainResponse, error) {
+	slog.Info("RemoveDomain called", "project", req.Project, "environment", req.Environment, "service", req.Service, "hostname", req.Hostname)
+
+	p := s.provider
+
+	if err := p.RemoveDomain(ctx, req.Project, req.Environment, req.Service, req.Hostname); err != nil {
+		return nil, fmt.Errorf("failed to remove domain: %w", err)
+	}
+
+	s.syncEnvironment(ctx, req.Project, req.Environment)
+	return &packager.RemoveDomainResponse{}, nil
+}
+
+func (s *Server) AllDomains(ctx context.Context, req *packager.AllDomainsRequest) (*packager.AllDomainsResponse, error) {
+	slog.Info("AllDomains called")
+
+	hostnames, err := s.provider.AllDomains(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list all domains: %w", err)
+	}
+
+	return &packager.AllDomainsResponse{Hostnames: hostnames}, nil
 }
 
 func (s *Server) Eject(ctx context.Context, req *packager.EjectRequest) (*packager.EjectResponse, error) {
@@ -364,7 +388,7 @@ func envInfosFromMeta(metas []gitops.EnvironmentMeta) []*packager.EnvironmentInf
 			svcs = append(svcs, &packager.ServiceInstanceInfo{
 				Name:     s.Name,
 				ImageTag: s.ImageTag,
-				Host:     s.Host,
+				Domains:  s.Domains,
 			})
 		}
 		infos[i] = &packager.EnvironmentInfo{

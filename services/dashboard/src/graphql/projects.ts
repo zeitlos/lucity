@@ -72,7 +72,11 @@ export const ProjectQuery = gql`
           imageTag
           ready
           replicas
-          host
+          domains {
+            hostname
+            type
+            dnsStatus
+          }
           deployments {
             id
             imageTag
@@ -112,7 +116,11 @@ export const ProjectQuery = gql`
           imageTag
           ready
           replicas
-          host
+          domains {
+            hostname
+            type
+            dnsStatus
+          }
           deployments {
             id
             imageTag

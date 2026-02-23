@@ -7,7 +7,9 @@
 #       tag: latest
 #     port: 3000
 #     replicas: 1
-#     host: api.example.com
+#     domains:
+#       - api-production.lucity.app
+#       - api.example.com
 #     resources:
 #       requests:
 #         cpu: 100m

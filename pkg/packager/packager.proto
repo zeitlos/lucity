@@ -43,8 +43,14 @@ service PackagerService {
   // DeploymentHistory returns the deployment history for a service in an environment.
   rpc DeploymentHistory(DeploymentHistoryRequest) returns (DeploymentHistoryResponse);
 
-  // SetServiceDomain sets or removes the domain hostname for a service in an environment.
-  rpc SetServiceDomain(SetServiceDomainRequest) returns (SetServiceDomainResponse);
+  // AddDomain adds a domain hostname to a service in an environment.
+  rpc AddDomain(AddDomainRequest) returns (AddDomainResponse);
+
+  // RemoveDomain removes a domain hostname from a service in an environment.
+  rpc RemoveDomain(RemoveDomainRequest) returns (RemoveDomainResponse);
+
+  // AllDomains returns all domain hostnames across all projects and environments (for collision detection).
+  rpc AllDomains(AllDomainsRequest) returns (AllDomainsResponse);
 
   // SharedVariables returns all shared variables for an environment.
   rpc SharedVariables(SharedVariablesRequest) returns (SharedVariablesResponse);
@@ -86,8 +92,8 @@ message ServiceInfo {
 // ServiceInstanceInfo describes a service's state in a specific environment.
 message ServiceInstanceInfo {
   string name = 1;
-  string image_tag = 2;    // current image tag in this environment's values.yaml
-  string host = 3;         // domain hostname from this environment's values.yaml
+  string image_tag = 2;       // current image tag in this environment's values.yaml
+  repeated string domains = 3; // domain hostnames from this environment's values.yaml
 }
 
 // EnvironmentInfo holds metadata about a project environment.
@@ -229,14 +235,29 @@ message DeploymentHistoryResponse {
   repeated DeploymentHistoryEntry entries = 1;
 }
 
-message SetServiceDomainRequest {
+message AddDomainRequest {
   string project = 1;
   string environment = 2;
   string service = 3;
-  string host = 4;  // empty string to remove domain
+  string hostname = 4;
 }
 
-message SetServiceDomainResponse {}
+message AddDomainResponse {}
+
+message RemoveDomainRequest {
+  string project = 1;
+  string environment = 2;
+  string service = 3;
+  string hostname = 4;
+}
+
+message RemoveDomainResponse {}
+
+message AllDomainsRequest {}
+
+message AllDomainsResponse {
+  repeated string hostnames = 1;
+}
 
 // --- Variable management ---
 

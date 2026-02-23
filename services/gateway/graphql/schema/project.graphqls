@@ -34,8 +34,27 @@ type ServiceInstance {
   imageTag: String!
   ready: Boolean!
   replicas: Int!
-  host: String
+  domains: [Domain!]!
   deployments: [Deployment!]!
+}
+
+type Domain {
+  hostname: String!
+  """PLATFORM domains use wildcard DNS on the workload domain. CUSTOM domains require user DNS config."""
+  type: DomainType!
+  """DNS resolution status. Always VALID for platform domains. Checked via DNS lookup for custom domains."""
+  dnsStatus: DnsStatus!
+}
+
+enum DomainType {
+  PLATFORM
+  CUSTOM
+}
+
+enum DnsStatus {
+  VALID
+  PENDING
+  ERROR
 }
 
 type Deployment {

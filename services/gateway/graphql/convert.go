@@ -1,21 +1,23 @@
 package graphql
 
 import (
+	"strings"
+
 	"github.com/zeitlos/lucity/services/gateway/graphql/model"
 	"github.com/zeitlos/lucity/services/gateway/handler"
 )
 
-func convertProject(p handler.Project) model.Project {
+func convertProject(p handler.Project, workloadDomain string) model.Project {
 	result := model.Project{
 		ID:        p.ID,
 		Name:      p.Name,
 		CreatedAt: p.CreatedAt,
 	}
 	for _, e := range p.Environments {
-		result.Environments = append(result.Environments, convertEnvironment(e))
+		result.Environments = append(result.Environments, convertEnvironment(e, workloadDomain))
 	}
 	for _, s := range p.Services {
-		result.Services = append(result.Services, convertService(s))
+		result.Services = append(result.Services, convertService(s, workloadDomain))
 	}
 	for _, d := range p.Databases {
 		result.Databases = append(result.Databases, convertDatabase(d))
@@ -27,7 +29,7 @@ func convertProject(p handler.Project) model.Project {
 	return result
 }
 
-func convertEnvironment(e handler.Environment) model.Environment {
+func convertEnvironment(e handler.Environment, workloadDomain string) model.Environment {
 	result := model.Environment{
 		ID:         e.ID,
 		Name:       e.Name,
@@ -36,7 +38,7 @@ func convertEnvironment(e handler.Environment) model.Environment {
 		SyncStatus: model.SyncStatus(e.SyncStatus),
 	}
 	for _, si := range e.Services {
-		result.Services = append(result.Services, convertServiceInstance(si))
+		result.Services = append(result.Services, convertServiceInstance(si, workloadDomain))
 	}
 	for _, di := range e.Databases {
 		result.Databases = append(result.Databases, convertDatabaseInstance(di))
@@ -44,7 +46,7 @@ func convertEnvironment(e handler.Environment) model.Environment {
 	return result
 }
 
-func convertService(s handler.Service) model.Service {
+func convertService(s handler.Service, workloadDomain string) model.Service {
 	svc := model.Service{
 		Name:  s.Name,
 		Image: s.Image,
@@ -63,7 +65,7 @@ func convertService(s handler.Service) model.Service {
 		svc.ContextPath = &s.ContextPath
 	}
 	for _, si := range s.Instances {
-		svc.Instances = append(svc.Instances, convertServiceInstance(si))
+		svc.Instances = append(svc.Instances, convertServiceInstance(si, workloadDomain))
 	}
 	return svc
 }
@@ -95,7 +97,7 @@ func convertBuild(b handler.Build) model.Build {
 	return build
 }
 
-func convertServiceInstance(si handler.ServiceInstance) model.ServiceInstance {
+func convertServiceInstance(si handler.ServiceInstance, workloadDomain string) model.ServiceInstance {
 	result := model.ServiceInstance{
 		Name:        si.Name,
 		Environment: si.Environment,
@@ -103,8 +105,20 @@ func convertServiceInstance(si handler.ServiceInstance) model.ServiceInstance {
 		Ready:       si.Ready,
 		Replicas:    si.Replicas,
 	}
-	if si.Host != "" {
-		result.Host = &si.Host
+
+	// Convert domains with type derived from workload domain suffix
+	for _, hostname := range si.Domains {
+		domainType := model.DomainTypeCustom
+		dnsStatus := model.DNSStatusPending
+		if strings.HasSuffix(hostname, "."+workloadDomain) {
+			domainType = model.DomainTypePlatform
+			dnsStatus = model.DNSStatusValid
+		}
+		result.Domains = append(result.Domains, model.Domain{
+			Hostname:  hostname,
+			Type:      domainType,
+			DNSStatus: dnsStatus,
+		})
 	}
 
 	// Convert deployment history
@@ -113,6 +127,14 @@ func convertServiceInstance(si handler.ServiceInstance) model.ServiceInstance {
 	}
 
 	return result
+}
+
+func convertDomain(d handler.Domain) *model.Domain {
+	return &model.Domain{
+		Hostname:  d.Hostname,
+		Type:      model.DomainType(d.Type),
+		DNSStatus: model.DNSStatus(d.DnsStatus),
+	}
 }
 
 func convertDeployment(d handler.Deployment) model.Deployment {

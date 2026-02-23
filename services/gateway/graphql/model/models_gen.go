@@ -10,6 +10,13 @@ import (
 	"time"
 )
 
+type AddCustomDomainInput struct {
+	ProjectID   string `json:"projectId"`
+	Service     string `json:"service"`
+	Environment string `json:"environment"`
+	Hostname    string `json:"hostname"`
+}
+
 type AddServiceInput struct {
 	ProjectID   string  `json:"projectId"`
 	Name        string  `json:"name"`
@@ -155,6 +162,14 @@ type DetectedService struct {
 	SuggestedPort int    `json:"suggestedPort"`
 }
 
+type Domain struct {
+	Hostname string `json:"hostname"`
+	// PLATFORM domains use wildcard DNS on the workload domain. CUSTOM domains require user DNS config.
+	Type DomainType `json:"type"`
+	// DNS resolution status. Always VALID for platform domains. Checked via DNS lookup for custom domains.
+	DNSStatus DNSStatus `json:"dnsStatus"`
+}
+
 type Environment struct {
 	ID         string             `json:"id"`
 	Name       string             `json:"name"`
@@ -163,6 +178,12 @@ type Environment struct {
 	SyncStatus SyncStatus         `json:"syncStatus"`
 	Services   []ServiceInstance  `json:"services"`
 	Databases  []DatabaseInstance `json:"databases"`
+}
+
+type GenerateDomainInput struct {
+	ProjectID   string `json:"projectId"`
+	Service     string `json:"service"`
+	Environment string `json:"environment"`
 }
 
 type GitHubRepository struct {
@@ -175,6 +196,12 @@ type GitHubRepository struct {
 }
 
 type Mutation struct {
+}
+
+type PlatformConfig struct {
+	WorkloadDomain string `json:"workloadDomain"`
+	// CNAME target for custom domains. Empty if not configured.
+	DomainTarget string `json:"domainTarget"`
 }
 
 type Project struct {
@@ -203,6 +230,13 @@ type QueryResult struct {
 	AffectedRows int         `json:"affectedRows"`
 }
 
+type RemoveDomainInput struct {
+	ProjectID   string `json:"projectId"`
+	Service     string `json:"service"`
+	Environment string `json:"environment"`
+	Hostname    string `json:"hostname"`
+}
+
 type RollbackInput struct {
 	ProjectID   string `json:"projectId"`
 	Service     string `json:"service"`
@@ -227,7 +261,7 @@ type ServiceInstance struct {
 	ImageTag    string       `json:"imageTag"`
 	Ready       bool         `json:"ready"`
 	Replicas    int          `json:"replicas"`
-	Host        *string      `json:"host,omitempty"`
+	Domains     []Domain     `json:"domains"`
 	Deployments []Deployment `json:"deployments"`
 }
 
@@ -265,14 +299,6 @@ type ServiceVariableInput struct {
 	DatabaseRef *DatabaseRefInput `json:"databaseRef,omitempty"`
 	// Reference to another service's internal URL.
 	ServiceRef *ServiceRefInput `json:"serviceRef,omitempty"`
-}
-
-type SetServiceDomainInput struct {
-	ProjectID   string `json:"projectId"`
-	Service     string `json:"service"`
-	Environment string `json:"environment"`
-	// Domain hostname to set, or empty string to remove.
-	Host string `json:"host"`
 }
 
 type Subscription struct {
@@ -426,6 +452,118 @@ func (e *DeployPhase) UnmarshalJSON(b []byte) error {
 }
 
 func (e DeployPhase) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type DNSStatus string
+
+const (
+	DNSStatusValid   DNSStatus = "VALID"
+	DNSStatusPending DNSStatus = "PENDING"
+	DNSStatusError   DNSStatus = "ERROR"
+)
+
+var AllDNSStatus = []DNSStatus{
+	DNSStatusValid,
+	DNSStatusPending,
+	DNSStatusError,
+}
+
+func (e DNSStatus) IsValid() bool {
+	switch e {
+	case DNSStatusValid, DNSStatusPending, DNSStatusError:
+		return true
+	}
+	return false
+}
+
+func (e DNSStatus) String() string {
+	return string(e)
+}
+
+func (e *DNSStatus) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = DNSStatus(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid DnsStatus", str)
+	}
+	return nil
+}
+
+func (e DNSStatus) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *DNSStatus) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e DNSStatus) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type DomainType string
+
+const (
+	DomainTypePlatform DomainType = "PLATFORM"
+	DomainTypeCustom   DomainType = "CUSTOM"
+)
+
+var AllDomainType = []DomainType{
+	DomainTypePlatform,
+	DomainTypeCustom,
+}
+
+func (e DomainType) IsValid() bool {
+	switch e {
+	case DomainTypePlatform, DomainTypeCustom:
+		return true
+	}
+	return false
+}
+
+func (e DomainType) String() string {
+	return string(e)
+}
+
+func (e *DomainType) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = DomainType(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid DomainType", str)
+	}
+	return nil
+}
+
+func (e DomainType) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *DomainType) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e DomainType) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

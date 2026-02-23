@@ -1,9 +1,16 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { useMutation } from '@vue/apollo-composable';
-import { Trash2, Copy, X } from 'lucide-vue-next';
-import { RemoveServiceMutation, SetServiceDomainMutation } from '@/graphql/services';
+import { useMutation, useQuery } from '@vue/apollo-composable';
+import { Trash2, Copy, X, Globe, Plus, CircleCheck, CircleAlert, HelpCircle } from 'lucide-vue-next';
+import {
+  RemoveServiceMutation,
+  GenerateDomainMutation,
+  AddCustomDomainMutation,
+  RemoveDomainMutation,
+  PlatformConfigQuery,
+} from '@/graphql/services';
 import { useEnvironment } from '@/composables/useEnvironment';
+import type { DomainInfo } from '@/composables/useEnvironment';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,6 +27,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { errorMessage } from '@/lib/utils';
 
 const props = defineProps<{
@@ -44,11 +59,20 @@ const activeInstance = computed(() => {
   return activeEnvironment.value?.services.find(s => s.name === props.service.name);
 });
 
-const currentHost = computed(() => activeInstance.value?.host ?? '');
+const domains = computed<DomainInfo[]>(() => activeInstance.value?.domains ?? []);
+const platformDomain = computed(() => domains.value.find(d => d.type === 'PLATFORM'));
+const customDomains = computed(() => domains.value.filter(d => d.type === 'CUSTOM'));
 
-// Domain input state
-const domainInput = ref('');
-const editingDomain = ref(false);
+// Platform config
+const { result: platformConfigResult } = useQuery(PlatformConfigQuery);
+const domainTarget = computed(() => platformConfigResult.value?.platformConfig?.domainTarget ?? '');
+
+// Custom domain input
+const customDomainInput = ref('');
+
+// DNS help modal
+const dnsHelpOpen = ref(false);
+const dnsHelpDomain = ref('');
 
 // Internal DNS name
 const internalDns = computed(() => {
@@ -62,52 +86,81 @@ const internalDns = computed(() => {
 
 // Mutations
 const { mutate: removeServiceMutate, loading: removing } = useMutation(RemoveServiceMutation);
-const { mutate: setDomainMutate, loading: settingDomain } = useMutation(SetServiceDomainMutation);
+const { mutate: generateDomainMutate, loading: generatingDomain } = useMutation(GenerateDomainMutation);
+const { mutate: addCustomDomainMutate, loading: addingCustomDomain } = useMutation(AddCustomDomainMutation);
+const { mutate: removeDomainMutate } = useMutation(RemoveDomainMutation);
 
-async function handleSetDomain() {
-  const host = domainInput.value.trim();
-  if (!host) return;
-
+async function handleGenerateDomain() {
   const envName = activeEnvironment.value?.name;
   if (!envName) return;
 
   try {
-    const res = await setDomainMutate({
+    const res = await generateDomainMutate({
       input: {
         projectId: props.projectId,
         service: props.service.name,
         environment: envName,
-        host,
       },
     });
 
     if (res?.errors?.length) {
-      toast.error('Failed to set domain', {
+      toast.error('Failed to generate domain', {
         description: res.errors.map(e => e.message).join(', '),
       });
       return;
     }
 
-    toast.success(`Domain set to ${host}`);
-    domainInput.value = '';
-    editingDomain.value = false;
+    const hostname = res?.data?.generateDomain?.hostname;
+    toast.success(`Domain generated: ${hostname}`);
     emit('updated');
   } catch (e: unknown) {
-    toast.error('Failed to set domain', { description: errorMessage(e) });
+    toast.error('Failed to generate domain', { description: errorMessage(e) });
   }
 }
 
-async function handleRemoveDomain() {
+async function handleAddCustomDomain() {
+  const hostname = customDomainInput.value.trim();
+  if (!hostname) return;
+
   const envName = activeEnvironment.value?.name;
   if (!envName) return;
 
   try {
-    const res = await setDomainMutate({
+    const res = await addCustomDomainMutate({
       input: {
         projectId: props.projectId,
         service: props.service.name,
         environment: envName,
-        host: '',
+        hostname,
+      },
+    });
+
+    if (res?.errors?.length) {
+      toast.error('Failed to add custom domain', {
+        description: res.errors.map(e => e.message).join(', '),
+      });
+      return;
+    }
+
+    toast.success(`Custom domain added: ${hostname}`);
+    customDomainInput.value = '';
+    emit('updated');
+  } catch (e: unknown) {
+    toast.error('Failed to add custom domain', { description: errorMessage(e) });
+  }
+}
+
+async function handleRemoveDomain(hostname: string) {
+  const envName = activeEnvironment.value?.name;
+  if (!envName) return;
+
+  try {
+    const res = await removeDomainMutate({
+      input: {
+        projectId: props.projectId,
+        service: props.service.name,
+        environment: envName,
+        hostname,
       },
     });
 
@@ -123,6 +176,11 @@ async function handleRemoveDomain() {
   } catch (e: unknown) {
     toast.error('Failed to remove domain', { description: errorMessage(e) });
   }
+}
+
+function showDnsHelp(hostname: string) {
+  dnsHelpDomain.value = hostname;
+  dnsHelpOpen.value = true;
 }
 
 function copyToClipboard(text: string) {
@@ -183,30 +241,41 @@ async function handleRemoveService() {
       <h3 class="text-sm font-medium text-muted-foreground">Networking</h3>
 
       <div class="space-y-4 rounded-lg border p-4">
-        <!-- Domain -->
+        <!-- Platform Domain -->
         <div>
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-sm font-medium text-foreground">Domain</p>
+              <p class="text-sm font-medium text-foreground">Platform Domain</p>
               <p class="text-xs text-muted-foreground">
-                Assign a hostname to expose this service publicly in {{ activeEnvironment?.name ?? 'this environment' }}.
+                Auto-generated domain for {{ activeEnvironment?.name ?? 'this environment' }}.
               </p>
             </div>
-            <Badge v-if="currentHost" variant="outline" class="font-mono text-xs">
-              {{ currentHost }}
-            </Badge>
           </div>
 
-          <!-- Current domain with remove option -->
-          <div v-if="currentHost && !editingDomain" class="mt-3 flex items-center gap-2">
-            <div class="flex-1 rounded-md border bg-muted/50 px-3 py-2">
-              <span class="font-mono text-sm">{{ currentHost }}</span>
+          <!-- No platform domain yet: show generate button -->
+          <div v-if="!platformDomain" class="mt-3">
+            <Button
+              size="sm"
+              variant="outline"
+              :disabled="generatingDomain"
+              @click="handleGenerateDomain"
+            >
+              <Globe :size="14" class="mr-1.5" />
+              {{ generatingDomain ? 'Generating...' : 'Generate Domain' }}
+            </Button>
+          </div>
+
+          <!-- Platform domain exists -->
+          <div v-else class="mt-3 flex items-center gap-2">
+            <div class="flex flex-1 items-center gap-2 rounded-md border bg-muted/50 px-3 py-2">
+              <CircleCheck :size="14" class="shrink-0 text-green-500" />
+              <span class="truncate font-mono text-sm">{{ platformDomain.hostname }}</span>
             </div>
             <Button
               variant="ghost"
               size="icon"
               class="h-8 w-8 shrink-0"
-              @click="copyToClipboard(currentHost)"
+              @click="copyToClipboard(platformDomain.hostname)"
             >
               <Copy :size="14" />
             </Button>
@@ -214,39 +283,85 @@ async function handleRemoveService() {
               variant="ghost"
               size="icon"
               class="h-8 w-8 shrink-0 text-destructive"
-              :disabled="settingDomain"
-              @click="handleRemoveDomain"
+              @click="handleRemoveDomain(platformDomain.hostname)"
             >
               <X :size="14" />
             </Button>
           </div>
+        </div>
 
-          <!-- Edit/add domain input -->
-          <div v-if="!currentHost || editingDomain" class="mt-3 flex items-center gap-2">
+        <Separator />
+
+        <!-- Custom Domains -->
+        <div>
+          <p class="text-sm font-medium text-foreground">Custom Domains</p>
+          <p class="text-xs text-muted-foreground">
+            Add your own domains. Requires DNS configuration.
+          </p>
+
+          <!-- List of custom domains -->
+          <div v-if="customDomains.length" class="mt-3 space-y-2">
+            <div
+              v-for="domain in customDomains"
+              :key="domain.hostname"
+              class="flex items-center gap-2 rounded-md border bg-muted/50 px-3 py-2"
+            >
+              <CircleCheck
+                v-if="domain.dnsStatus === 'VALID'"
+                :size="14"
+                class="shrink-0 text-green-500"
+              />
+              <CircleAlert
+                v-else
+                :size="14"
+                class="shrink-0 text-yellow-500"
+              />
+              <span class="flex-1 truncate font-mono text-sm">{{ domain.hostname }}</span>
+              <Button
+                v-if="domain.dnsStatus !== 'VALID' && domainTarget"
+                variant="ghost"
+                size="icon"
+                class="h-7 w-7 shrink-0"
+                title="Show DNS configuration"
+                @click="showDnsHelp(domain.hostname)"
+              >
+                <HelpCircle :size="14" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                class="h-7 w-7 shrink-0"
+                @click="copyToClipboard(domain.hostname)"
+              >
+                <Copy :size="14" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                class="h-7 w-7 shrink-0 text-destructive"
+                @click="handleRemoveDomain(domain.hostname)"
+              >
+                <X :size="14" />
+              </Button>
+            </div>
+          </div>
+
+          <!-- Add custom domain input -->
+          <div class="mt-3 flex items-center gap-2">
             <Input
-              v-model="domainInput"
+              v-model="customDomainInput"
               placeholder="api.example.com"
               class="flex-1 font-mono text-sm"
-              @keyup.enter="handleSetDomain"
+              @keyup.enter="handleAddCustomDomain"
             />
             <Button
               size="sm"
-              :disabled="!domainInput.trim() || settingDomain"
-              @click="handleSetDomain"
+              variant="outline"
+              :disabled="!customDomainInput.trim() || addingCustomDomain"
+              @click="handleAddCustomDomain"
             >
-              {{ settingDomain ? 'Saving...' : 'Save' }}
-            </Button>
-          </div>
-
-          <!-- Change button when domain is set -->
-          <div v-if="currentHost && !editingDomain" class="mt-2">
-            <Button
-              variant="link"
-              size="sm"
-              class="h-auto p-0 text-xs"
-              @click="editingDomain = true; domainInput = currentHost"
-            >
-              Change domain
+              <Plus :size="14" class="mr-1" />
+              {{ addingCustomDomain ? 'Adding...' : 'Add' }}
             </Button>
           </div>
         </div>
@@ -318,5 +433,60 @@ async function handleRemoveService() {
         </div>
       </div>
     </section>
+
+    <!-- DNS Help Dialog -->
+    <Dialog v-model:open="dnsHelpOpen">
+      <DialogContent class="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Configure DNS Records</DialogTitle>
+          <DialogDescription>
+            Add the following DNS record to point <strong class="font-mono">{{ dnsHelpDomain }}</strong> to your application.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div class="rounded-md border">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b bg-muted/50">
+                <th class="px-3 py-2 text-left font-medium text-muted-foreground">Type</th>
+                <th class="px-3 py-2 text-left font-medium text-muted-foreground">Name</th>
+                <th class="px-3 py-2 text-left font-medium text-muted-foreground">Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="px-3 py-2">
+                  <Badge variant="outline" class="font-mono text-xs">CNAME</Badge>
+                </td>
+                <td class="px-3 py-2 font-mono text-xs">{{ dnsHelpDomain }}</td>
+                <td class="px-3 py-2">
+                  <div class="flex items-center gap-1">
+                    <span class="font-mono text-xs">{{ domainTarget }}</span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      class="h-6 w-6 shrink-0"
+                      @click="copyToClipboard(domainTarget)"
+                    >
+                      <Copy :size="12" />
+                    </Button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p class="text-xs text-muted-foreground">
+          DNS changes can take up to 48 hours to propagate. The status will update automatically once the record is detected.
+        </p>
+
+        <DialogFooter>
+          <Button variant="outline" @click="dnsHelpOpen = false">
+            Done
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   </div>
 </template>

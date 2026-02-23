@@ -41,6 +41,10 @@ type Config struct {
 	// Registry
 	RegistryURL         string `envconfig:"REGISTRY_URL" default:"localhost:5000"`
 	RegistryImagePrefix string `envconfig:"REGISTRY_IMAGE_PREFIX"` // cluster-internal address for image refs; defaults to REGISTRY_URL
+
+	// Domains
+	WorkloadDomain string `envconfig:"WORKLOAD_DOMAIN" default:"lucity.local"`
+	DomainTarget   string `envconfig:"DOMAIN_TARGET"` // CNAME target for custom domains (e.g., lb.lucity.app)
 }
 
 func main() {
@@ -108,7 +112,7 @@ func main() {
 	if registryImagePrefix == "" {
 		registryImagePrefix = config.RegistryURL
 	}
-	api := handler.New(packagerClient, builderClient, deployerClient, config.RegistryURL, registryImagePrefix)
+	api := handler.New(packagerClient, builderClient, deployerClient, config.RegistryURL, registryImagePrefix, config.WorkloadDomain, config.DomainTarget)
 	graphqlServer := NewGraphQLServer(config.Port, api, githubApp, config.JWTSecret, config.DashboardURL)
 
 	graceful.Serve(ctx, graphqlServer)

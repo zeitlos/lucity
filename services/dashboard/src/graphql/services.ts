@@ -110,9 +110,38 @@ export const RollbackMutation = gql`
   }
 `;
 
-export const SetServiceDomainMutation = gql`
-  mutation SetServiceDomain($input: SetServiceDomainInput!) {
-    setServiceDomain(input: $input)
+export const GenerateDomainMutation = gql`
+  mutation GenerateDomain($input: GenerateDomainInput!) {
+    generateDomain(input: $input) {
+      hostname
+      type
+      dnsStatus
+    }
+  }
+`;
+
+export const AddCustomDomainMutation = gql`
+  mutation AddCustomDomain($input: AddCustomDomainInput!) {
+    addCustomDomain(input: $input) {
+      hostname
+      type
+      dnsStatus
+    }
+  }
+`;
+
+export const RemoveDomainMutation = gql`
+  mutation RemoveDomain($input: RemoveDomainInput!) {
+    removeDomain(input: $input)
+  }
+`;
+
+export const PlatformConfigQuery = gql`
+  query PlatformConfig {
+    platformConfig {
+      workloadDomain
+      domainTarget
+    }
   }
 `;
 

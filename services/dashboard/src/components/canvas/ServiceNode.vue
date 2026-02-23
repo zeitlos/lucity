@@ -2,6 +2,7 @@
 import { computed, ref, watch, onUnmounted } from 'vue';
 import { Handle, Position } from '@vue-flow/core';
 import { ExternalLink, Github, Globe, Loader2 } from 'lucide-vue-next';
+import type { DomainInfo } from '@/composables/useEnvironment';
 import FrameworkIcon from '@/components/FrameworkIcon.vue';
 import { Badge } from '@/components/ui/badge';
 
@@ -11,7 +12,7 @@ const props = defineProps<{
     framework?: string;
     port?: number;
     sourceUrl?: string;
-    host?: string;
+    domains: DomainInfo[];
     ready?: boolean;
     imageTag?: string;
     replicas?: number;
@@ -86,12 +87,14 @@ const formattedElapsed = computed(() => {
 
 const replicas = computed(() => props.data.replicas ?? 0);
 
+const primaryDomain = computed(() => props.data.domains?.[0]?.hostname ?? null);
+
 const hostUrl = computed(() => {
-  if (!props.data.host) return null;
-  if (props.data.host.endsWith('.local')) {
-    return `http://${props.data.host}:8880`;
+  if (!primaryDomain.value) return null;
+  if (primaryDomain.value.endsWith('.local')) {
+    return `http://${primaryDomain.value}:8880`;
   }
-  return `https://${props.data.host}`;
+  return `https://${primaryDomain.value}`;
 });
 </script>
 
@@ -114,9 +117,9 @@ const hostUrl = computed(() => {
     </div>
 
     <!-- Domain + repo -->
-    <div v-if="data.host || shortRepoName" class="mt-3 space-y-1">
+    <div v-if="primaryDomain || shortRepoName" class="mt-3 space-y-1">
       <a
-        v-if="data.host"
+        v-if="primaryDomain"
         :href="hostUrl!"
         target="_blank"
         rel="noopener noreferrer"
@@ -124,7 +127,7 @@ const hostUrl = computed(() => {
         @click.stop
       >
         <Globe :size="12" class="shrink-0" />
-        <span class="truncate hover:underline">{{ data.host }}</span>
+        <span class="truncate hover:underline">{{ primaryDomain }}</span>
         <ExternalLink :size="10" class="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
       </a>
       <div v-if="shortRepoName" class="flex items-center gap-1.5 text-xs text-muted-foreground">

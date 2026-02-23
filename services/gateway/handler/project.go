@@ -61,7 +61,7 @@ type ServiceInstance struct {
 	ImageTag    string
 	Ready       bool
 	Replicas    int
-	Host        string
+	Domains     []string
 	Deployments []Deployment
 }
 
@@ -658,7 +658,7 @@ func projectFromProto(p *packager.ProjectInfo) Project {
 				Name:        svc.Name,
 				Environment: envName,
 				ImageTag:    svc.ImageTag,
-				Host:        svc.Host,
+				Domains:     svc.Domains,
 				Replicas:    1, // default until we query K8s
 			})
 		}

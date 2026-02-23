@@ -131,6 +131,12 @@ type ComplexityRoot struct {
 		SuggestedPort func(childComplexity int) int
 	}
 
+	Domain struct {
+		DNSStatus func(childComplexity int) int
+		Hostname  func(childComplexity int) int
+		Type      func(childComplexity int) int
+	}
+
 	Environment struct {
 		Databases  func(childComplexity int) int
 		Ephemeral  func(childComplexity int) int
@@ -151,6 +157,7 @@ type ComplexityRoot struct {
 	}
 
 	Mutation struct {
+		AddCustomDomain     func(childComplexity int, input model.AddCustomDomainInput) int
 		AddService          func(childComplexity int, input model.AddServiceInput) int
 		BuildService        func(childComplexity int, input model.BuildServiceInput) int
 		CreateDatabase      func(childComplexity int, input model.CreateDatabaseInput) int
@@ -162,13 +169,19 @@ type ComplexityRoot struct {
 		Deploy              func(childComplexity int, input model.DeployInput) int
 		DeployBuild         func(childComplexity int, input model.DeployBuildInput) int
 		ExecuteQuery        func(childComplexity int, input model.DatabaseQueryInput) int
+		GenerateDomain      func(childComplexity int, input model.GenerateDomainInput) int
 		Promote             func(childComplexity int, input model.PromoteInput) int
+		RemoveDomain        func(childComplexity int, input model.RemoveDomainInput) int
 		RemoveService       func(childComplexity int, projectID string, service string) int
 		Rollback            func(childComplexity int, input model.RollbackInput) int
-		SetServiceDomain    func(childComplexity int, input model.SetServiceDomainInput) int
 		SetServiceVariables func(childComplexity int, projectID string, environment string, service string, variables []model.ServiceVariableInput) int
 		SetSharedVariables  func(childComplexity int, projectID string, environment string, variables []model.VariableInput) int
 		SyncChart           func(childComplexity int, projectID string) int
+	}
+
+	PlatformConfig struct {
+		DomainTarget   func(childComplexity int) int
+		WorkloadDomain func(childComplexity int) int
 	}
 
 	Project struct {
@@ -191,6 +204,7 @@ type ComplexityRoot struct {
 		DetectServices     func(childComplexity int, sourceURL string) int
 		GithubRepositories func(childComplexity int) int
 		Me                 func(childComplexity int) int
+		PlatformConfig     func(childComplexity int) int
 		Project            func(childComplexity int, id string) int
 		Projects           func(childComplexity int) int
 		Service            func(childComplexity int, projectID string, name string) int
@@ -216,8 +230,8 @@ type ComplexityRoot struct {
 
 	ServiceInstance struct {
 		Deployments func(childComplexity int) int
+		Domains     func(childComplexity int) int
 		Environment func(childComplexity int) int
-		Host        func(childComplexity int) int
 		ImageTag    func(childComplexity int) int
 		Name        func(childComplexity int) int
 		Ready       func(childComplexity int) int
@@ -283,7 +297,9 @@ type MutationResolver interface {
 	DeployBuild(ctx context.Context, input model.DeployBuildInput) (bool, error)
 	Deploy(ctx context.Context, input model.DeployInput) (*model.DeployRun, error)
 	Rollback(ctx context.Context, input model.RollbackInput) (bool, error)
-	SetServiceDomain(ctx context.Context, input model.SetServiceDomainInput) (bool, error)
+	GenerateDomain(ctx context.Context, input model.GenerateDomainInput) (*model.Domain, error)
+	AddCustomDomain(ctx context.Context, input model.AddCustomDomainInput) (*model.Domain, error)
+	RemoveDomain(ctx context.Context, input model.RemoveDomainInput) (bool, error)
 	SetSharedVariables(ctx context.Context, projectID string, environment string, variables []model.VariableInput) (bool, error)
 	SetServiceVariables(ctx context.Context, projectID string, environment string, service string, variables []model.ServiceVariableInput) (bool, error)
 }
@@ -300,6 +316,7 @@ type QueryResolver interface {
 	BuildStatus(ctx context.Context, id string) (*model.Build, error)
 	DeployStatus(ctx context.Context, id string) (*model.DeployRun, error)
 	ActiveDeployment(ctx context.Context, projectID string, service string, environment string) (*model.DeployRun, error)
+	PlatformConfig(ctx context.Context) (*model.PlatformConfig, error)
 	SharedVariables(ctx context.Context, projectID string, environment string) ([]model.Variable, error)
 	ServiceVariables(ctx context.Context, projectID string, environment string, service string) ([]model.ServiceVariable, error)
 }
@@ -637,6 +654,25 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.DetectedService.SuggestedPort(childComplexity), true
 
+	case "Domain.dnsStatus":
+		if e.complexity.Domain.DNSStatus == nil {
+			break
+		}
+
+		return e.complexity.Domain.DNSStatus(childComplexity), true
+	case "Domain.hostname":
+		if e.complexity.Domain.Hostname == nil {
+			break
+		}
+
+		return e.complexity.Domain.Hostname(childComplexity), true
+	case "Domain.type":
+		if e.complexity.Domain.Type == nil {
+			break
+		}
+
+		return e.complexity.Domain.Type(childComplexity), true
+
 	case "Environment.databases":
 		if e.complexity.Environment.Databases == nil {
 			break
@@ -717,6 +753,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.GitHubRepository.Private(childComplexity), true
 
+	case "Mutation.addCustomDomain":
+		if e.complexity.Mutation.AddCustomDomain == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_addCustomDomain_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.AddCustomDomain(childComplexity, args["input"].(model.AddCustomDomainInput)), true
 	case "Mutation.addService":
 		if e.complexity.Mutation.AddService == nil {
 			break
@@ -838,6 +885,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.ExecuteQuery(childComplexity, args["input"].(model.DatabaseQueryInput)), true
+	case "Mutation.generateDomain":
+		if e.complexity.Mutation.GenerateDomain == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_generateDomain_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.GenerateDomain(childComplexity, args["input"].(model.GenerateDomainInput)), true
 	case "Mutation.promote":
 		if e.complexity.Mutation.Promote == nil {
 			break
@@ -849,6 +907,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.Promote(childComplexity, args["input"].(model.PromoteInput)), true
+	case "Mutation.removeDomain":
+		if e.complexity.Mutation.RemoveDomain == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_removeDomain_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.RemoveDomain(childComplexity, args["input"].(model.RemoveDomainInput)), true
 	case "Mutation.removeService":
 		if e.complexity.Mutation.RemoveService == nil {
 			break
@@ -871,17 +940,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.Rollback(childComplexity, args["input"].(model.RollbackInput)), true
-	case "Mutation.setServiceDomain":
-		if e.complexity.Mutation.SetServiceDomain == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_setServiceDomain_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Mutation.SetServiceDomain(childComplexity, args["input"].(model.SetServiceDomainInput)), true
 	case "Mutation.setServiceVariables":
 		if e.complexity.Mutation.SetServiceVariables == nil {
 			break
@@ -915,6 +973,19 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.SyncChart(childComplexity, args["projectId"].(string)), true
+
+	case "PlatformConfig.domainTarget":
+		if e.complexity.PlatformConfig.DomainTarget == nil {
+			break
+		}
+
+		return e.complexity.PlatformConfig.DomainTarget(childComplexity), true
+	case "PlatformConfig.workloadDomain":
+		if e.complexity.PlatformConfig.WorkloadDomain == nil {
+			break
+		}
+
+		return e.complexity.PlatformConfig.WorkloadDomain(childComplexity), true
 
 	case "Project.createdAt":
 		if e.complexity.Project.CreatedAt == nil {
@@ -1048,6 +1119,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Query.Me(childComplexity), true
+	case "Query.platformConfig":
+		if e.complexity.Query.PlatformConfig == nil {
+			break
+		}
+
+		return e.complexity.Query.PlatformConfig(childComplexity), true
 	case "Query.project":
 		if e.complexity.Query.Project == nil {
 			break
@@ -1167,18 +1244,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ServiceInstance.Deployments(childComplexity), true
+	case "ServiceInstance.domains":
+		if e.complexity.ServiceInstance.Domains == nil {
+			break
+		}
+
+		return e.complexity.ServiceInstance.Domains(childComplexity), true
 	case "ServiceInstance.environment":
 		if e.complexity.ServiceInstance.Environment == nil {
 			break
 		}
 
 		return e.complexity.ServiceInstance.Environment(childComplexity), true
-	case "ServiceInstance.host":
-		if e.complexity.ServiceInstance.Host == nil {
-			break
-		}
-
-		return e.complexity.ServiceInstance.Host(childComplexity), true
 	case "ServiceInstance.imageTag":
 		if e.complexity.ServiceInstance.ImageTag == nil {
 			break
@@ -1355,6 +1432,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 	opCtx := graphql.GetOperationContext(ctx)
 	ec := executionContext{opCtx, e, 0, 0, make(chan graphql.DeferredResult)}
 	inputUnmarshalMap := graphql.BuildUnmarshalerMap(
+		ec.unmarshalInputAddCustomDomainInput,
 		ec.unmarshalInputAddServiceInput,
 		ec.unmarshalInputBuildServiceInput,
 		ec.unmarshalInputCreateDatabaseInput,
@@ -1364,11 +1442,12 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputDatabaseRefInput,
 		ec.unmarshalInputDeployBuildInput,
 		ec.unmarshalInputDeployInput,
+		ec.unmarshalInputGenerateDomainInput,
 		ec.unmarshalInputPromoteInput,
+		ec.unmarshalInputRemoveDomainInput,
 		ec.unmarshalInputRollbackInput,
 		ec.unmarshalInputServiceRefInput,
 		ec.unmarshalInputServiceVariableInput,
-		ec.unmarshalInputSetServiceDomainInput,
 		ec.unmarshalInputVariableInput,
 	)
 	first := true
@@ -1532,6 +1611,17 @@ func (ec *executionContext) dir_hasRole_args(ctx context.Context, rawArgs map[st
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_addCustomDomain_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNAddCustomDomainInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐAddCustomDomainInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_addService_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -1663,10 +1753,32 @@ func (ec *executionContext) field_Mutation_executeQuery_args(ctx context.Context
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_generateDomain_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNGenerateDomainInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐGenerateDomainInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_promote_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNPromoteInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐPromoteInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_removeDomain_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNRemoveDomainInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐRemoveDomainInput)
 	if err != nil {
 		return nil, err
 	}
@@ -1694,17 +1806,6 @@ func (ec *executionContext) field_Mutation_rollback_args(ctx context.Context, ra
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNRollbackInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐRollbackInput)
-	if err != nil {
-		return nil, err
-	}
-	args["input"] = arg0
-	return args, nil
-}
-
-func (ec *executionContext) field_Mutation_setServiceDomain_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNSetServiceDomainInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐSetServiceDomainInput)
 	if err != nil {
 		return nil, err
 	}
@@ -3533,6 +3634,93 @@ func (ec *executionContext) fieldContext_DetectedService_suggestedPort(_ context
 	return fc, nil
 }
 
+func (ec *executionContext) _Domain_hostname(ctx context.Context, field graphql.CollectedField, obj *model.Domain) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Domain_hostname,
+		func(ctx context.Context) (any, error) {
+			return obj.Hostname, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Domain_hostname(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Domain",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Domain_type(ctx context.Context, field graphql.CollectedField, obj *model.Domain) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Domain_type,
+		func(ctx context.Context) (any, error) {
+			return obj.Type, nil
+		},
+		nil,
+		ec.marshalNDomainType2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐDomainType,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Domain_type(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Domain",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type DomainType does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Domain_dnsStatus(ctx context.Context, field graphql.CollectedField, obj *model.Domain) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Domain_dnsStatus,
+		func(ctx context.Context) (any, error) {
+			return obj.DNSStatus, nil
+		},
+		nil,
+		ec.marshalNDnsStatus2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐDNSStatus,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Domain_dnsStatus(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Domain",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type DnsStatus does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Environment_id(ctx context.Context, field graphql.CollectedField, obj *model.Environment) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -3712,8 +3900,8 @@ func (ec *executionContext) fieldContext_Environment_services(_ context.Context,
 				return ec.fieldContext_ServiceInstance_ready(ctx, field)
 			case "replicas":
 				return ec.fieldContext_ServiceInstance_replicas(ctx, field)
-			case "host":
-				return ec.fieldContext_ServiceInstance_host(ctx, field)
+			case "domains":
+				return ec.fieldContext_ServiceInstance_domains(ctx, field)
 			case "deployments":
 				return ec.fieldContext_ServiceInstance_deployments(ctx, field)
 			}
@@ -4458,8 +4646,8 @@ func (ec *executionContext) fieldContext_Mutation_promote(ctx context.Context, f
 				return ec.fieldContext_ServiceInstance_ready(ctx, field)
 			case "replicas":
 				return ec.fieldContext_ServiceInstance_replicas(ctx, field)
-			case "host":
-				return ec.fieldContext_ServiceInstance_host(ctx, field)
+			case "domains":
+				return ec.fieldContext_ServiceInstance_domains(ctx, field)
 			case "deployments":
 				return ec.fieldContext_ServiceInstance_deployments(ctx, field)
 			}
@@ -4939,15 +5127,149 @@ func (ec *executionContext) fieldContext_Mutation_rollback(ctx context.Context, 
 	return fc, nil
 }
 
-func (ec *executionContext) _Mutation_setServiceDomain(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+func (ec *executionContext) _Mutation_generateDomain(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_Mutation_setServiceDomain,
+		ec.fieldContext_Mutation_generateDomain,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().SetServiceDomain(ctx, fc.Args["input"].(model.SetServiceDomainInput))
+			return ec.resolvers.Mutation().GenerateDomain(ctx, fc.Args["input"].(model.GenerateDomainInput))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				if err != nil {
+					var zeroVal *model.Domain
+					return zeroVal, err
+				}
+				if ec.directives.HasRole == nil {
+					var zeroVal *model.Domain
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNDomain2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐDomain,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_generateDomain(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "hostname":
+				return ec.fieldContext_Domain_hostname(ctx, field)
+			case "type":
+				return ec.fieldContext_Domain_type(ctx, field)
+			case "dnsStatus":
+				return ec.fieldContext_Domain_dnsStatus(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Domain", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_generateDomain_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_addCustomDomain(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_addCustomDomain,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().AddCustomDomain(ctx, fc.Args["input"].(model.AddCustomDomainInput))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				if err != nil {
+					var zeroVal *model.Domain
+					return zeroVal, err
+				}
+				if ec.directives.HasRole == nil {
+					var zeroVal *model.Domain
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNDomain2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐDomain,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_addCustomDomain(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "hostname":
+				return ec.fieldContext_Domain_hostname(ctx, field)
+			case "type":
+				return ec.fieldContext_Domain_type(ctx, field)
+			case "dnsStatus":
+				return ec.fieldContext_Domain_dnsStatus(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Domain", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_addCustomDomain_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_removeDomain(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_removeDomain,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().RemoveDomain(ctx, fc.Args["input"].(model.RemoveDomainInput))
 		},
 		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
 			directive0 := next
@@ -4974,7 +5296,7 @@ func (ec *executionContext) _Mutation_setServiceDomain(ctx context.Context, fiel
 	)
 }
 
-func (ec *executionContext) fieldContext_Mutation_setServiceDomain(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Mutation_removeDomain(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Mutation",
 		Field:      field,
@@ -4991,7 +5313,7 @@ func (ec *executionContext) fieldContext_Mutation_setServiceDomain(ctx context.C
 		}
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_setServiceDomain_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+	if fc.Args, err = ec.field_Mutation_removeDomain_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -5112,6 +5434,64 @@ func (ec *executionContext) fieldContext_Mutation_setServiceVariables(ctx contex
 	if fc.Args, err = ec.field_Mutation_setServiceVariables_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PlatformConfig_workloadDomain(ctx context.Context, field graphql.CollectedField, obj *model.PlatformConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_PlatformConfig_workloadDomain,
+		func(ctx context.Context) (any, error) {
+			return obj.WorkloadDomain, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_PlatformConfig_workloadDomain(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PlatformConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PlatformConfig_domainTarget(ctx context.Context, field graphql.CollectedField, obj *model.PlatformConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_PlatformConfig_domainTarget,
+		func(ctx context.Context) (any, error) {
+			return obj.DomainTarget, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_PlatformConfig_domainTarget(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PlatformConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
 	}
 	return fc, nil
 }
@@ -6211,6 +6591,59 @@ func (ec *executionContext) fieldContext_Query_activeDeployment(ctx context.Cont
 	return fc, nil
 }
 
+func (ec *executionContext) _Query_platformConfig(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_platformConfig,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Query().PlatformConfig(ctx)
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				if err != nil {
+					var zeroVal *model.PlatformConfig
+					return zeroVal, err
+				}
+				if ec.directives.HasRole == nil {
+					var zeroVal *model.PlatformConfig
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNPlatformConfig2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐPlatformConfig,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_platformConfig(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "workloadDomain":
+				return ec.fieldContext_PlatformConfig_workloadDomain(ctx, field)
+			case "domainTarget":
+				return ec.fieldContext_PlatformConfig_domainTarget(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type PlatformConfig", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_sharedVariables(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -6750,8 +7183,8 @@ func (ec *executionContext) fieldContext_Service_instances(_ context.Context, fi
 				return ec.fieldContext_ServiceInstance_ready(ctx, field)
 			case "replicas":
 				return ec.fieldContext_ServiceInstance_replicas(ctx, field)
-			case "host":
-				return ec.fieldContext_ServiceInstance_host(ctx, field)
+			case "domains":
+				return ec.fieldContext_ServiceInstance_domains(ctx, field)
 			case "deployments":
 				return ec.fieldContext_ServiceInstance_deployments(ctx, field)
 			}
@@ -6906,30 +7339,38 @@ func (ec *executionContext) fieldContext_ServiceInstance_replicas(_ context.Cont
 	return fc, nil
 }
 
-func (ec *executionContext) _ServiceInstance_host(ctx context.Context, field graphql.CollectedField, obj *model.ServiceInstance) (ret graphql.Marshaler) {
+func (ec *executionContext) _ServiceInstance_domains(ctx context.Context, field graphql.CollectedField, obj *model.ServiceInstance) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_ServiceInstance_host,
+		ec.fieldContext_ServiceInstance_domains,
 		func(ctx context.Context) (any, error) {
-			return obj.Host, nil
+			return obj.Domains, nil
 		},
 		nil,
-		ec.marshalOString2ᚖstring,
+		ec.marshalNDomain2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐDomainᚄ,
 		true,
-		false,
+		true,
 	)
 }
 
-func (ec *executionContext) fieldContext_ServiceInstance_host(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_ServiceInstance_domains(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "ServiceInstance",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
+			switch field.Name {
+			case "hostname":
+				return ec.fieldContext_Domain_hostname(ctx, field)
+			case "type":
+				return ec.fieldContext_Domain_type(ctx, field)
+			case "dnsStatus":
+				return ec.fieldContext_Domain_dnsStatus(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Domain", field.Name)
 		},
 	}
 	return fc, nil
@@ -9113,6 +9554,74 @@ func (ec *executionContext) fieldContext___Type_isOneOf(_ context.Context, field
 
 // region    **************************** input.gotpl *****************************
 
+func (ec *executionContext) unmarshalInputAddCustomDomainInput(ctx context.Context, obj any) (model.AddCustomDomainInput, error) {
+	var it model.AddCustomDomainInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"projectId", "service", "environment", "hostname"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "projectId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("projectId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ProjectID = data
+		case "service":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("service"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Service = data
+		case "environment":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("environment"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Environment = data
+		case "hostname":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("hostname"))
+			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNString2string(ctx, v) }
+
+			directive1 := func(ctx context.Context) (any, error) {
+				constraint, err := ec.unmarshalNString2string(ctx, "min=4,max=253")
+				if err != nil {
+					var zeroVal string
+					return zeroVal, err
+				}
+				if ec.directives.Constraint == nil {
+					var zeroVal string
+					return zeroVal, errors.New("directive constraint is not implemented")
+				}
+				return ec.directives.Constraint(ctx, obj, directive0, constraint)
+			}
+
+			tmp, err := directive1(ctx)
+			if err != nil {
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+			if data, ok := tmp.(string); ok {
+				it.Hostname = data
+			} else {
+				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputAddServiceInput(ctx context.Context, obj any) (model.AddServiceInput, error) {
 	var it model.AddServiceInput
 	asMap := map[string]any{}
@@ -9604,6 +10113,47 @@ func (ec *executionContext) unmarshalInputDeployInput(ctx context.Context, obj a
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputGenerateDomainInput(ctx context.Context, obj any) (model.GenerateDomainInput, error) {
+	var it model.GenerateDomainInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"projectId", "service", "environment"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "projectId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("projectId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ProjectID = data
+		case "service":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("service"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Service = data
+		case "environment":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("environment"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Environment = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputPromoteInput(ctx context.Context, obj any) (model.PromoteInput, error) {
 	var it model.PromoteInput
 	asMap := map[string]any{}
@@ -9646,6 +10196,54 @@ func (ec *executionContext) unmarshalInputPromoteInput(ctx context.Context, obj 
 				return it, err
 			}
 			it.ToEnvironment = data
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputRemoveDomainInput(ctx context.Context, obj any) (model.RemoveDomainInput, error) {
+	var it model.RemoveDomainInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"projectId", "service", "environment", "hostname"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "projectId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("projectId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ProjectID = data
+		case "service":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("service"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Service = data
+		case "environment":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("environment"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Environment = data
+		case "hostname":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("hostname"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Hostname = data
 		}
 	}
 
@@ -9776,54 +10374,6 @@ func (ec *executionContext) unmarshalInputServiceVariableInput(ctx context.Conte
 				return it, err
 			}
 			it.ServiceRef = data
-		}
-	}
-
-	return it, nil
-}
-
-func (ec *executionContext) unmarshalInputSetServiceDomainInput(ctx context.Context, obj any) (model.SetServiceDomainInput, error) {
-	var it model.SetServiceDomainInput
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"projectId", "service", "environment", "host"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
-		case "projectId":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("projectId"))
-			data, err := ec.unmarshalNID2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ProjectID = data
-		case "service":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("service"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Service = data
-		case "environment":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("environment"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Environment = data
-		case "host":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("host"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Host = data
 		}
 	}
 
@@ -10417,6 +10967,55 @@ func (ec *executionContext) _DetectedService(ctx context.Context, sel ast.Select
 	return out
 }
 
+var domainImplementors = []string{"Domain"}
+
+func (ec *executionContext) _Domain(ctx context.Context, sel ast.SelectionSet, obj *model.Domain) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, domainImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Domain")
+		case "hostname":
+			out.Values[i] = ec._Domain_hostname(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "type":
+			out.Values[i] = ec._Domain_type(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "dnsStatus":
+			out.Values[i] = ec._Domain_dnsStatus(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var environmentImplementors = []string{"Environment"}
 
 func (ec *executionContext) _Environment(ctx context.Context, sel ast.SelectionSet, obj *model.Environment) graphql.Marshaler {
@@ -10674,9 +11273,23 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "setServiceDomain":
+		case "generateDomain":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_setServiceDomain(ctx, field)
+				return ec._Mutation_generateDomain(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "addCustomDomain":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_addCustomDomain(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "removeDomain":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_removeDomain(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -10692,6 +11305,50 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_setServiceVariables(ctx, field)
 			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var platformConfigImplementors = []string{"PlatformConfig"}
+
+func (ec *executionContext) _PlatformConfig(ctx context.Context, sel ast.SelectionSet, obj *model.PlatformConfig) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, platformConfigImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("PlatformConfig")
+		case "workloadDomain":
+			out.Values[i] = ec._PlatformConfig_workloadDomain(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "domainTarget":
+			out.Values[i] = ec._PlatformConfig_domainTarget(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -11052,6 +11709,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "platformConfig":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_platformConfig(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "sharedVariables":
 			field := field
 
@@ -11269,8 +11948,11 @@ func (ec *executionContext) _ServiceInstance(ctx context.Context, sel ast.Select
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "host":
-			out.Values[i] = ec._ServiceInstance_host(ctx, field, obj)
+		case "domains":
+			out.Values[i] = ec._ServiceInstance_domains(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "deployments":
 			out.Values[i] = ec._ServiceInstance_deployments(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -11943,6 +12625,11 @@ func (ec *executionContext) ___Type(ctx context.Context, sel ast.SelectionSet, o
 
 // region    ***************************** type.gotpl *****************************
 
+func (ec *executionContext) unmarshalNAddCustomDomainInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐAddCustomDomainInput(ctx context.Context, v any) (model.AddCustomDomainInput, error) {
+	res, err := ec.unmarshalInputAddCustomDomainInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) unmarshalNAddServiceInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐAddServiceInput(ctx context.Context, v any) (model.AddServiceInput, error) {
 	res, err := ec.unmarshalInputAddServiceInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -12359,6 +13046,84 @@ func (ec *executionContext) marshalNDetectedService2ᚕgithubᚗcomᚋzeitlosᚋ
 	return ret
 }
 
+func (ec *executionContext) unmarshalNDnsStatus2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐDNSStatus(ctx context.Context, v any) (model.DNSStatus, error) {
+	var res model.DNSStatus
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNDnsStatus2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐDNSStatus(ctx context.Context, sel ast.SelectionSet, v model.DNSStatus) graphql.Marshaler {
+	return v
+}
+
+func (ec *executionContext) marshalNDomain2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐDomain(ctx context.Context, sel ast.SelectionSet, v model.Domain) graphql.Marshaler {
+	return ec._Domain(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNDomain2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐDomainᚄ(ctx context.Context, sel ast.SelectionSet, v []model.Domain) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNDomain2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐDomain(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNDomain2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐDomain(ctx context.Context, sel ast.SelectionSet, v *model.Domain) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._Domain(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNDomainType2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐDomainType(ctx context.Context, v any) (model.DomainType, error) {
+	var res model.DomainType
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNDomainType2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐDomainType(ctx context.Context, sel ast.SelectionSet, v model.DomainType) graphql.Marshaler {
+	return v
+}
+
 func (ec *executionContext) marshalNEnvironment2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐEnvironment(ctx context.Context, sel ast.SelectionSet, v model.Environment) graphql.Marshaler {
 	return ec._Environment(ctx, sel, &v)
 }
@@ -12415,6 +13180,11 @@ func (ec *executionContext) marshalNEnvironment2ᚖgithubᚗcomᚋzeitlosᚋluci
 		return graphql.Null
 	}
 	return ec._Environment(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNGenerateDomainInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐGenerateDomainInput(ctx context.Context, v any) (model.GenerateDomainInput, error) {
+	res, err := ec.unmarshalInputGenerateDomainInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalNGitHubRepository2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐGitHubRepository(ctx context.Context, sel ast.SelectionSet, v model.GitHubRepository) graphql.Marshaler {
@@ -12497,6 +13267,20 @@ func (ec *executionContext) marshalNInt2int(ctx context.Context, sel ast.Selecti
 	return res
 }
 
+func (ec *executionContext) marshalNPlatformConfig2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐPlatformConfig(ctx context.Context, sel ast.SelectionSet, v model.PlatformConfig) graphql.Marshaler {
+	return ec._PlatformConfig(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNPlatformConfig2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐPlatformConfig(ctx context.Context, sel ast.SelectionSet, v *model.PlatformConfig) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._PlatformConfig(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalNProject2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐProject(ctx context.Context, sel ast.SelectionSet, v model.Project) graphql.Marshaler {
 	return ec._Project(ctx, sel, &v)
 }
@@ -12572,6 +13356,11 @@ func (ec *executionContext) marshalNQueryResult2ᚖgithubᚗcomᚋzeitlosᚋluci
 		return graphql.Null
 	}
 	return ec._QueryResult(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNRemoveDomainInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐRemoveDomainInput(ctx context.Context, v any) (model.RemoveDomainInput, error) {
+	res, err := ec.unmarshalInputRemoveDomainInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐRole(ctx context.Context, v any) (model.Role, error) {
@@ -12844,11 +13633,6 @@ func (ec *executionContext) unmarshalNServiceVariableInput2ᚕgithubᚗcomᚋzei
 		}
 	}
 	return res, nil
-}
-
-func (ec *executionContext) unmarshalNSetServiceDomainInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐSetServiceDomainInput(ctx context.Context, v any) (model.SetServiceDomainInput, error) {
-	res, err := ec.unmarshalInputSetServiceDomainInput(ctx, v)
-	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) unmarshalNString2string(ctx context.Context, v any) (string, error) {

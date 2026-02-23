@@ -86,11 +86,16 @@ type Provider interface {
 	// parsed from the GitOps repo's git log. Returns entries in reverse chronological order.
 	DeploymentHistory(ctx context.Context, project, environment, service string) ([]DeploymentEntry, error)
 
-	// SetServiceDomain sets or removes the domain hostname for a service in an environment.
-	// Pass empty string to remove the domain.
-	SetServiceDomain(ctx context.Context, project, environment, service, host string) error
+	// AddDomain adds a domain hostname to a service in an environment.
+	AddDomain(ctx context.Context, project, environment, service, hostname string) error
 
-	// EnvironmentServices reads per-environment service state (image tags, host)
+	// RemoveDomain removes a domain hostname from a service in an environment.
+	RemoveDomain(ctx context.Context, project, environment, service, hostname string) error
+
+	// AllDomains returns all domain hostnames across all projects and environments.
+	AllDomains(ctx context.Context) ([]string, error)
+
+	// EnvironmentServices reads per-environment service state (image tags, domains)
 	// from the environment's values.yaml.
 	EnvironmentServices(ctx context.Context, project, environment string) ([]ServiceInstanceMeta, error)
 
@@ -173,7 +178,7 @@ func parseDeployCommit(message, environment, service string) (imageTag string, o
 type ServiceInstanceMeta struct {
 	Name     string
 	ImageTag string
-	Host     string // domain hostname from per-environment values.yaml
+	Domains  []string // domain hostnames from per-environment values.yaml
 }
 
 // EnvironmentMeta holds metadata about a project environment.

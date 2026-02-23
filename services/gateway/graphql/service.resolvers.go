@@ -29,7 +29,7 @@ func (r *mutationResolver) AddService(ctx context.Context, input model.AddServic
 	if err != nil {
 		return nil, err
 	}
-	result := convertService(*svc)
+	result := convertService(*svc, r.API.WorkloadDomain)
 	return &result, nil
 }
 
@@ -80,9 +80,27 @@ func (r *mutationResolver) Rollback(ctx context.Context, input model.RollbackInp
 	return r.API.Rollback(ctx, input.ProjectID, input.Service, input.Environment, input.ImageTag)
 }
 
-// SetServiceDomain is the resolver for the setServiceDomain field.
-func (r *mutationResolver) SetServiceDomain(ctx context.Context, input model.SetServiceDomainInput) (bool, error) {
-	return r.API.SetServiceDomain(ctx, input.ProjectID, input.Service, input.Environment, input.Host)
+// GenerateDomain is the resolver for the generateDomain field.
+func (r *mutationResolver) GenerateDomain(ctx context.Context, input model.GenerateDomainInput) (*model.Domain, error) {
+	d, err := r.API.GenerateDomain(ctx, input.ProjectID, input.Service, input.Environment)
+	if err != nil {
+		return nil, err
+	}
+	return convertDomain(*d), nil
+}
+
+// AddCustomDomain is the resolver for the addCustomDomain field.
+func (r *mutationResolver) AddCustomDomain(ctx context.Context, input model.AddCustomDomainInput) (*model.Domain, error) {
+	d, err := r.API.AddCustomDomain(ctx, input.ProjectID, input.Service, input.Environment, input.Hostname)
+	if err != nil {
+		return nil, err
+	}
+	return convertDomain(*d), nil
+}
+
+// RemoveDomain is the resolver for the removeDomain field.
+func (r *mutationResolver) RemoveDomain(ctx context.Context, input model.RemoveDomainInput) (bool, error) {
+	return r.API.RemoveDomain(ctx, input.ProjectID, input.Service, input.Environment, input.Hostname)
 }
 
 // DetectServices is the resolver for the detectServices field.
@@ -129,6 +147,15 @@ func (r *queryResolver) ActiveDeployment(ctx context.Context, projectID string, 
 	}
 	result := convertDeploymentOp(*d)
 	return &result, nil
+}
+
+// PlatformConfig is the resolver for the platformConfig field.
+func (r *queryResolver) PlatformConfig(ctx context.Context) (*model.PlatformConfig, error) {
+	wd, dt := r.API.PlatformConfig()
+	return &model.PlatformConfig{
+		WorkloadDomain: wd,
+		DomainTarget:   dt,
+	}, nil
 }
 
 // DeployLogs is the resolver for the deployLogs field.
