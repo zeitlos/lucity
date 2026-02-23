@@ -6,7 +6,10 @@ import (
 
 	"github.com/kelseyhightower/envconfig"
 	"golang.org/x/crypto/ssh"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
+	"github.com/zeitlos/lucity/pkg/deployer"
 	"github.com/zeitlos/lucity/pkg/graceful"
 	"github.com/zeitlos/lucity/pkg/logger"
 	"github.com/zeitlos/lucity/services/packager/gitops"
@@ -25,6 +28,9 @@ type Config struct {
 	SoftServeHTTP    string `envconfig:"SOFTSERVE_HTTP_ADDR" default:"http://localhost:23232"`
 	SoftServeKeyPath string `envconfig:"SOFTSERVE_SSH_KEY_PATH" required:"true"`
 	SoftServeToken   string `envconfig:"SOFTSERVE_TOKEN"`
+
+	// Backend services
+	DeployerAddr string `envconfig:"DEPLOYER_ADDR" default:"localhost:9003"`
 }
 
 func main() {
@@ -45,7 +51,19 @@ func main() {
 		os.Exit(1)
 	}
 
-	svc := packagergrpc.NewServer(provider)
+	// Connect to deployer for triggering ArgoCD syncs after commits.
+	deployerConn, err := grpc.NewClient(config.DeployerAddr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	if err != nil {
+		slog.Error("failed to connect to deployer", "error", err, "addr", config.DeployerAddr)
+		os.Exit(1)
+	}
+	defer deployerConn.Close()
+
+	deployerClient := deployer.NewDeployerServiceClient(deployerConn)
+
+	svc := packagergrpc.NewServer(provider, deployerClient)
 	grpcServer := packagergrpc.NewGRPCServer(":"+config.Port, config.JWTSecret, svc)
 	graceful.Serve(ctx, grpcServer)
 }

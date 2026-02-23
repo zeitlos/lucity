@@ -7,6 +7,7 @@ import (
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/zeitlos/lucity/pkg/deployer"
 	"github.com/zeitlos/lucity/pkg/packager"
 	"github.com/zeitlos/lucity/services/packager/eject"
 	"github.com/zeitlos/lucity/services/packager/gitops"
@@ -15,11 +16,39 @@ import (
 type Server struct {
 	packager.UnimplementedPackagerServiceServer
 	provider gitops.Provider
+	deployer deployer.DeployerServiceClient
 }
 
 // NewServer creates a packager server with the given GitOps provider.
-func NewServer(provider gitops.Provider) *Server {
-	return &Server{provider: provider}
+func NewServer(provider gitops.Provider, deployerClient deployer.DeployerServiceClient) *Server {
+	return &Server{provider: provider, deployer: deployerClient}
+}
+
+// syncEnvironment triggers an ArgoCD sync for a single environment.
+// Best-effort: logs on failure but never returns an error.
+func (s *Server) syncEnvironment(ctx context.Context, project, environment string) {
+	_, err := s.deployer.SyncDeployment(ctx, &deployer.SyncDeploymentRequest{
+		Project:     project,
+		Environment: environment,
+	})
+	if err != nil {
+		slog.Warn("failed to trigger sync", "project", project, "environment", environment, "error", err)
+		return
+	}
+	slog.Info("triggered ArgoCD sync", "project", project, "environment", environment)
+}
+
+// syncAllEnvironments triggers an ArgoCD sync for every environment in a project.
+// Used after base-level changes (services, databases, chart) that affect all environments.
+func (s *Server) syncAllEnvironments(ctx context.Context, project string) {
+	meta, err := s.provider.Repo(ctx, project)
+	if err != nil {
+		slog.Warn("failed to read project for sync", "project", project, "error", err)
+		return
+	}
+	for _, env := range meta.Environments {
+		s.syncEnvironment(ctx, project, env)
+	}
 }
 
 func (s *Server) InitProject(ctx context.Context, req *packager.InitProjectRequest) (*packager.InitProjectResponse, error) {
@@ -145,6 +174,7 @@ func (s *Server) AddService(ctx context.Context, req *packager.AddServiceRequest
 		return nil, fmt.Errorf("failed to add service: %w", err)
 	}
 
+	s.syncAllEnvironments(ctx, req.Project)
 	return &packager.AddServiceResponse{}, nil
 }
 
@@ -157,6 +187,7 @@ func (s *Server) RemoveService(ctx context.Context, req *packager.RemoveServiceR
 		return nil, fmt.Errorf("failed to remove service: %w", err)
 	}
 
+	s.syncAllEnvironments(ctx, req.Project)
 	return &packager.RemoveServiceResponse{}, nil
 }
 
@@ -169,6 +200,7 @@ func (s *Server) UpdateImageTag(ctx context.Context, req *packager.UpdateImageTa
 		return nil, fmt.Errorf("failed to update image tag: %w", err)
 	}
 
+	s.syncEnvironment(ctx, req.Project, req.Environment)
 	return &packager.UpdateImageTagResponse{}, nil
 }
 
@@ -208,6 +240,7 @@ func (s *Server) Promote(ctx context.Context, req *packager.PromoteRequest) (*pa
 		return nil, fmt.Errorf("failed to promote: %w", err)
 	}
 
+	s.syncEnvironment(ctx, req.Project, req.ToEnvironment)
 	return &packager.PromoteResponse{
 		ImageTag: imageTag,
 	}, nil
@@ -245,6 +278,7 @@ func (s *Server) SetServiceDomain(ctx context.Context, req *packager.SetServiceD
 		return nil, fmt.Errorf("failed to set service domain: %w", err)
 	}
 
+	s.syncEnvironment(ctx, req.Project, req.Environment)
 	return &packager.SetServiceDomainResponse{}, nil
 }
 
@@ -284,6 +318,7 @@ func (s *Server) SetSharedVariables(ctx context.Context, req *packager.SetShared
 		return nil, fmt.Errorf("failed to set shared variables: %w", err)
 	}
 
+	s.syncEnvironment(ctx, req.Project, req.Environment)
 	return &packager.SetSharedVariablesResponse{}, nil
 }
 
@@ -314,6 +349,7 @@ func (s *Server) SetServiceVariables(ctx context.Context, req *packager.SetServi
 		return nil, fmt.Errorf("failed to set service variables: %w", err)
 	}
 
+	s.syncEnvironment(ctx, req.Project, req.Environment)
 	return &packager.SetServiceVariablesResponse{}, nil
 }
 
@@ -348,6 +384,7 @@ func (s *Server) SyncChart(ctx context.Context, req *packager.SyncChartRequest) 
 		return nil, fmt.Errorf("failed to sync chart: %w", err)
 	}
 
+	s.syncAllEnvironments(ctx, req.Project)
 	return &packager.SyncChartResponse{}, nil
 }
 
@@ -378,6 +415,7 @@ func (s *Server) AddDatabase(ctx context.Context, req *packager.AddDatabaseReque
 		return nil, fmt.Errorf("failed to add database: %w", err)
 	}
 
+	s.syncAllEnvironments(ctx, req.Project)
 	return &packager.AddDatabaseResponse{}, nil
 }
 
@@ -390,6 +428,7 @@ func (s *Server) RemoveDatabase(ctx context.Context, req *packager.RemoveDatabas
 		return nil, fmt.Errorf("failed to remove database: %w", err)
 	}
 
+	s.syncAllEnvironments(ctx, req.Project)
 	return &packager.RemoveDatabaseResponse{}, nil
 }
 

@@ -5,6 +5,7 @@ go 1.26.0
 replace (
 	github.com/zeitlos/lucity/charts => ../../charts
 	github.com/zeitlos/lucity/pkg/auth => ../../pkg/auth
+	github.com/zeitlos/lucity/pkg/deployer => ../../pkg/deployer
 	github.com/zeitlos/lucity/pkg/graceful => ../../pkg/graceful
 	github.com/zeitlos/lucity/pkg/labels => ../../pkg/labels
 	github.com/zeitlos/lucity/pkg/logger => ../../pkg/logger
@@ -16,6 +17,7 @@ require (
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/zeitlos/lucity/charts v0.0.0-00010101000000-000000000000
 	github.com/zeitlos/lucity/pkg/auth v0.0.0-00010101000000-000000000000
+	github.com/zeitlos/lucity/pkg/deployer v0.0.0-00010101000000-000000000000
 	github.com/zeitlos/lucity/pkg/graceful v0.0.0-00010101000000-000000000000
 	github.com/zeitlos/lucity/pkg/labels v0.0.0-00010101000000-000000000000
 	github.com/zeitlos/lucity/pkg/logger v0.0.0-00010101000000-000000000000
