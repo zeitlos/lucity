@@ -1,6 +1,9 @@
 package tests
 
 import (
+	"io"
+	"net/http"
+	"strings"
 	"testing"
 	"time"
 )
@@ -62,15 +65,61 @@ func testCleanup(t *testing.T) {
 			} else {
 				t.Log("WARNING: development namespace still exists (may need manual cleanup)")
 			}
-
-			// ArgoCD app should be removed by the deployer
-			if _, err := kubectlQuiet(t, "get", "application.argoproj.io", testProjectName+"-development", "-n", "lucity-system"); err != nil {
-				t.Log("ArgoCD application removed")
-			} else {
-				t.Log("WARNING: ArgoCD application still exists (may take time to finalize)")
-			}
 		} else {
 			t.Log("skipping namespace verification (namespace was never ready)")
+		}
+
+		// Subsystem cleanup verification (all non-fatal)
+
+		// 1. Soft-serve: GitOps repo should be gone
+		httpResp, httpErr := http.Get("http://localhost:23232/" + testProjectName + "-gitops.git")
+		if httpErr != nil {
+			t.Log("WARNING: could not reach Soft-serve to verify repo deletion (port-forward may be down)")
+		} else {
+			httpResp.Body.Close()
+			if httpResp.StatusCode == http.StatusNotFound {
+				t.Log("Soft-serve gitops repo removed")
+			} else {
+				t.Logf("WARNING: Soft-serve gitops repo may still exist (HTTP %d)", httpResp.StatusCode)
+			}
+		}
+
+		// 2. Zot registry: image tags should be gone or empty
+		httpResp, httpErr = http.Get("http://localhost:5000/v2/" + testProjectName + "/" + testServiceName + "/tags/list")
+		if httpErr != nil {
+			t.Log("WARNING: could not reach Zot registry (port-forward may be down)")
+		} else {
+			body, _ := io.ReadAll(httpResp.Body)
+			httpResp.Body.Close()
+			if httpResp.StatusCode == http.StatusNotFound {
+				t.Log("Zot registry: no images for project")
+			} else if httpResp.StatusCode == http.StatusOK {
+				t.Logf("WARNING: Zot registry still has image data (expected — builder doesn't delete images): %s", string(body))
+			} else {
+				t.Logf("WARNING: Zot registry unexpected status %d", httpResp.StatusCode)
+			}
+		}
+
+		// 3. ArgoCD repo credentials: secret for this project's gitops URL should be gone
+		out, err := kubectlQuiet(t, "get", "secrets", "-n", "lucity-system",
+			"-l", "argocd.argoproj.io/secret-type=repository",
+			"-o", "jsonpath={.items[*].metadata.name}")
+		if err != nil {
+			t.Log("WARNING: could not check ArgoCD repo secrets")
+		} else if strings.Contains(out, testProjectName) {
+			t.Logf("WARNING: ArgoCD repo credential secret may still exist: %s", out)
+		} else {
+			t.Log("ArgoCD repo credential removed")
+		}
+
+		// 4. All ArgoCD applications for the project should be gone
+		for _, env := range []string{"development", "staging"} {
+			appName := testProjectName + "-" + env
+			if _, err := kubectlQuiet(t, "get", "application.argoproj.io", appName, "-n", "lucity-system"); err != nil {
+				t.Logf("ArgoCD application %s removed", appName)
+			} else {
+				t.Logf("WARNING: ArgoCD application %s still exists (may take time to finalize)", appName)
+			}
 		}
 
 		// Clear the project name so cleanup() in TestMain is a no-op
