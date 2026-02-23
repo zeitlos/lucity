@@ -185,10 +185,15 @@ message CreateEnvironmentRequest {
   string from_environment = 3;
   reserved 4;
   reserved "ephemeral";
+  // Workload domain for generating platform domains (e.g., "lucity.local").
+  // Only used when from_environment is set.
+  string workload_domain = 5;
 }
 
 message CreateEnvironmentResponse {
   string namespace = 1;
+  // Service names that received new platform domains.
+  repeated string services_with_domains = 2;
 }
 
 message DeleteEnvironmentRequest {

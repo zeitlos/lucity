@@ -701,9 +701,56 @@ func (c *Client) GenerateDomain(ctx context.Context, projectID, service, environ
 	return &d, nil
 }
 
+// validateHostname checks that a hostname is a valid domain name.
+func validateHostname(hostname string) error {
+	// Strip common protocol prefixes users might paste.
+	for _, prefix := range []string{"https://", "http://", "www."} {
+		hostname = strings.TrimPrefix(hostname, prefix)
+	}
+	// Strip trailing dot (FQDN notation).
+	hostname = strings.TrimSuffix(hostname, ".")
+	// Strip trailing slash.
+	hostname = strings.TrimRight(hostname, "/")
+
+	if len(hostname) < 4 || len(hostname) > 253 {
+		return fmt.Errorf("hostname must be between 4 and 253 characters")
+	}
+
+	// Must contain at least one dot (e.g. "example.com").
+	if !strings.Contains(hostname, ".") {
+		return fmt.Errorf("hostname must be a fully qualified domain name (e.g. api.example.com)")
+	}
+
+	labels := strings.Split(hostname, ".")
+	for _, label := range labels {
+		if len(label) == 0 || len(label) > 63 {
+			return fmt.Errorf("each part of the hostname must be between 1 and 63 characters")
+		}
+		if label[0] == '-' || label[len(label)-1] == '-' {
+			return fmt.Errorf("hostname labels cannot start or end with a hyphen")
+		}
+		for _, ch := range label {
+			if !((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '-') {
+				return fmt.Errorf("hostname contains invalid character %q — only letters, digits, and hyphens are allowed", ch)
+			}
+		}
+	}
+
+	return nil
+}
+
 // AddCustomDomain adds a user-specified custom domain to a service.
 func (c *Client) AddCustomDomain(ctx context.Context, projectID, service, environment, hostname string) (*Domain, error) {
 	ctx = auth.OutgoingContext(ctx)
+
+	if err := validateHostname(hostname); err != nil {
+		return nil, fmt.Errorf("invalid hostname: %w", err)
+	}
+
+	// Reject platform domains — those should use GenerateDomain.
+	if c.IsPlatformDomain(hostname) {
+		return nil, fmt.Errorf("cannot add a platform domain as a custom domain — use Generate Domain instead")
+	}
 
 	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
 	defer cancel()

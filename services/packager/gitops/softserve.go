@@ -319,27 +319,102 @@ func (p *SoftServeProvider) Services(ctx context.Context, project string) ([]Ser
 }
 
 // CreateEnvironment creates a new environment directory.
-func (p *SoftServeProvider) CreateEnvironment(ctx context.Context, project, environment, fromEnvironment string) error {
-	return p.modifyRepo(ctx, project, fmt.Sprintf("env(create): %s", environment), false, func(dir string) error {
+// When duplicating from another environment, strips all domains and regenerates
+// platform domains using the workload domain. Returns service names that received domains.
+func (p *SoftServeProvider) CreateEnvironment(ctx context.Context, project, environment, fromEnvironment, workloadDomain string) ([]string, error) {
+	if fromEnvironment == "" {
+		err := p.modifyRepo(ctx, project, fmt.Sprintf("env(create): %s", environment), false, func(dir string) error {
+			envDir := filepath.Join(dir, "environments", environment)
+			if err := os.MkdirAll(envDir, 0o755); err != nil {
+				return fmt.Errorf("failed to create environment dir: %w", err)
+			}
+			return os.WriteFile(filepath.Join(envDir, "values.yaml"), []byte(environmentValuesYAML), 0o644)
+		})
+		return nil, err
+	}
+
+	// Collect existing domains for collision detection when regenerating.
+	var allExisting map[string]bool
+	if workloadDomain != "" {
+		domains, err := p.AllDomains(ctx)
+		if err != nil {
+			slog.Warn("failed to fetch domains for collision check", "error", err)
+		} else {
+			allExisting = make(map[string]bool, len(domains))
+			for _, d := range domains {
+				allExisting[d] = true
+			}
+		}
+	}
+
+	var serviceNames []string
+	commitMsg := fmt.Sprintf("env(create): %s from %s", environment, fromEnvironment)
+
+	err := p.modifyRepo(ctx, project, commitMsg, false, func(dir string) error {
 		envDir := filepath.Join(dir, "environments", environment)
 		if err := os.MkdirAll(envDir, 0o755); err != nil {
 			return fmt.Errorf("failed to create environment dir: %w", err)
 		}
 
-		var content []byte
-		if fromEnvironment != "" {
-			srcPath := filepath.Join(dir, "environments", fromEnvironment, "values.yaml")
-			var err error
-			content, err = os.ReadFile(srcPath)
-			if err != nil {
-				return fmt.Errorf("failed to read source environment %s: %w", fromEnvironment, err)
-			}
-		} else {
-			content = []byte(environmentValuesYAML)
+		srcPath := filepath.Join(dir, "environments", fromEnvironment, "values.yaml")
+		content, err := os.ReadFile(srcPath)
+		if err != nil {
+			return fmt.Errorf("failed to read source environment %s: %w", fromEnvironment, err)
 		}
 
-		return os.WriteFile(filepath.Join(envDir, "values.yaml"), content, 0o644)
+		dstPath := filepath.Join(envDir, "values.yaml")
+
+		// If no workload domain, copy as-is but strip all domains.
+		// If workload domain is set, strip and regenerate platform domains.
+		inner, err := readSubchartValuesFromBytes(content)
+		if err != nil {
+			// Fallback: write raw content if we can't parse
+			return os.WriteFile(dstPath, content, 0o644)
+		}
+
+		services, ok := inner["services"].(map[string]any)
+		if !ok {
+			return os.WriteFile(dstPath, content, 0o644)
+		}
+
+		for svcName, svcRaw := range services {
+			svcMap, ok := svcRaw.(map[string]any)
+			if !ok {
+				continue
+			}
+
+			rawDomains, hasDomains := svcMap["domains"].([]any)
+			if !hasDomains || len(rawDomains) == 0 {
+				continue
+			}
+
+			if workloadDomain != "" && allExisting != nil {
+				hostname := generatePlatformDomain(svcName, environment, workloadDomain, allExisting)
+				allExisting[hostname] = true
+				svcMap["domains"] = []any{hostname}
+				serviceNames = append(serviceNames, svcName)
+			} else {
+				delete(svcMap, "domains")
+			}
+
+			services[svcName] = svcMap
+		}
+
+		inner["services"] = services
+		return writeSubchartValues(dstPath, inner)
 	})
+
+	return serviceNames, err
+}
+
+// generatePlatformDomain creates a platform domain with collision avoidance.
+func generatePlatformDomain(service, environment, workloadDomain string, existing map[string]bool) string {
+	base := fmt.Sprintf("%s-%s.%s", service, environment, workloadDomain)
+	hostname := base
+	for i := 2; existing[hostname]; i++ {
+		hostname = fmt.Sprintf("%s-%s-%d.%s", service, environment, i, workloadDomain)
+	}
+	return hostname
 }
 
 // DeleteEnvironment removes an environment directory.
@@ -953,6 +1028,22 @@ func readSubchartValues(path string) (map[string]any, error) {
 	values, err := readLocalValuesYAML(path)
 	if err != nil {
 		return nil, err
+	}
+	inner, ok := values[subchartKey].(map[string]any)
+	if !ok {
+		inner = make(map[string]any)
+	}
+	return inner, nil
+}
+
+// readSubchartValuesFromBytes parses raw YAML bytes and extracts the subchart values.
+func readSubchartValuesFromBytes(data []byte) (map[string]any, error) {
+	var values map[string]any
+	if err := yaml.Unmarshal(data, &values); err != nil {
+		return nil, fmt.Errorf("failed to parse values: %w", err)
+	}
+	if values == nil {
+		values = make(map[string]any)
 	}
 	inner, ok := values[subchartKey].(map[string]any)
 	if !ok {

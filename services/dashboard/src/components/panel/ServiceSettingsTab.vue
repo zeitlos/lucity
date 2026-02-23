@@ -82,6 +82,35 @@ function domainUrl(hostname: string) {
 // Custom domain input
 const customDomainInput = ref('');
 
+// Hostname validation
+const hostnamePattern = /^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/;
+
+function normalizeHostname(input: string): string {
+  let h = input.trim();
+  h = h.replace(/^https?:\/\//, '');
+  h = h.replace(/^www\./, '');
+  h = h.replace(/\/+$/, '');
+  return h;
+}
+
+const hostnameError = computed(() => {
+  const raw = customDomainInput.value.trim();
+  if (!raw) return '';
+  const hostname = normalizeHostname(raw);
+  if (!hostnamePattern.test(hostname)) {
+    return 'Enter a valid domain (e.g. api.example.com)';
+  }
+  if (domains.value.some(d => d.hostname === hostname)) {
+    return 'This domain is already added';
+  }
+  return '';
+});
+
+const canAddDomain = computed(() => {
+  const raw = customDomainInput.value.trim();
+  return raw.length > 0 && !hostnameError.value && !addingCustomDomain.value;
+});
+
 // DNS help modal
 const dnsHelpOpen = ref(false);
 const dnsHelpDomain = ref('');
@@ -133,8 +162,8 @@ async function handleGenerateDomain() {
 }
 
 async function handleAddCustomDomain() {
-  const hostname = customDomainInput.value.trim();
-  if (!hostname) return;
+  const hostname = normalizeHostname(customDomainInput.value);
+  if (!hostname || hostnameError.value) return;
 
   const envName = activeEnvironment.value?.name;
   if (!envName) return;
@@ -428,22 +457,28 @@ async function handleRemoveService() {
               </div>
 
               <!-- Add custom domain input -->
-              <div class="flex items-center gap-2">
-                <Input
-                  v-model="customDomainInput"
-                  placeholder="api.example.com"
-                  class="flex-1 font-mono text-sm"
-                  @keyup.enter="handleAddCustomDomain"
-                />
-                <Button
-                  size="sm"
-                  variant="outline"
-                  :disabled="!customDomainInput.trim() || addingCustomDomain"
-                  @click="handleAddCustomDomain"
-                >
-                  <Plus :size="14" class="mr-1" />
-                  {{ addingCustomDomain ? 'Adding...' : 'Add' }}
-                </Button>
+              <div class="space-y-1.5">
+                <div class="flex items-center gap-2">
+                  <Input
+                    v-model="customDomainInput"
+                    placeholder="api.example.com"
+                    class="flex-1 font-mono text-sm"
+                    :class="{ 'border-destructive': hostnameError }"
+                    @keyup.enter="canAddDomain && handleAddCustomDomain()"
+                  />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    :disabled="!canAddDomain"
+                    @click="handleAddCustomDomain"
+                  >
+                    <Plus :size="14" class="mr-1" />
+                    {{ addingCustomDomain ? 'Adding...' : 'Add' }}
+                  </Button>
+                </div>
+                <p v-if="hostnameError" class="px-1 text-xs text-destructive">
+                  {{ hostnameError }}
+                </p>
               </div>
             </div>
           </CollapsibleContent>

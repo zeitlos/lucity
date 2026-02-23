@@ -205,16 +205,16 @@ func (s *Server) UpdateImageTag(ctx context.Context, req *packager.UpdateImageTa
 }
 
 func (s *Server) CreateEnvironment(ctx context.Context, req *packager.CreateEnvironmentRequest) (*packager.CreateEnvironmentResponse, error) {
-	slog.Info("CreateEnvironment called", "project", req.Project, "environment", req.Environment)
+	slog.Info("CreateEnvironment called", "project", req.Project, "environment", req.Environment, "from", req.FromEnvironment)
 
-	p := s.provider
-
-	if err := p.CreateEnvironment(ctx, req.Project, req.Environment, req.FromEnvironment); err != nil {
+	serviceNames, err := s.provider.CreateEnvironment(ctx, req.Project, req.Environment, req.FromEnvironment, req.WorkloadDomain)
+	if err != nil {
 		return nil, fmt.Errorf("failed to create environment: %w", err)
 	}
 
 	return &packager.CreateEnvironmentResponse{
-		Namespace: gitops.NamespaceFor(req.Project, req.Environment),
+		Namespace:           gitops.NamespaceFor(req.Project, req.Environment),
+		ServicesWithDomains: serviceNames,
 	}, nil
 }
 

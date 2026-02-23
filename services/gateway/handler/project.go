@@ -224,6 +224,7 @@ func (c *Client) CreateEnvironment(ctx context.Context, projectID, name, fromEnv
 		Project:         projectID,
 		Environment:     name,
 		FromEnvironment: fromEnvironment,
+		WorkloadDomain:  c.WorkloadDomain,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create environment: %w", err)
@@ -239,6 +240,17 @@ func (c *Client) CreateEnvironment(ctx context.Context, projectID, name, fromEnv
 	})
 	if err != nil {
 		slog.Warn("failed to deploy environment", "project", projectID, "environment", name, "error", err)
+	}
+
+	// Trigger immediate sync so the environment deploys right away
+	syncCtx, syncCancel := context.WithTimeout(ctx, grpcTimeout)
+	defer syncCancel()
+	_, err = c.Deployer.SyncDeployment(syncCtx, &deployer.SyncDeploymentRequest{
+		Project:     projectID,
+		Environment: name,
+	})
+	if err != nil {
+		slog.Warn("failed to trigger sync after environment create", "project", projectID, "environment", name, "error", err)
 	}
 
 	return &Environment{

@@ -72,8 +72,10 @@ type Provider interface {
 	Services(ctx context.Context, project string) ([]ServiceDef, error)
 
 	// CreateEnvironment creates a new environment directory with values.yaml
-	// in the GitOps repo. If fromEnvironment is set, copies its values as a starting point.
-	CreateEnvironment(ctx context.Context, project, environment, fromEnvironment string) error
+	// in the GitOps repo. If fromEnvironment is set, copies its values as a starting point,
+	// strips all domains, and regenerates platform domains using workloadDomain.
+	// Returns the names of services that received new platform domains.
+	CreateEnvironment(ctx context.Context, project, environment, fromEnvironment, workloadDomain string) (serviceNames []string, err error)
 
 	// DeleteEnvironment removes an environment directory from the GitOps repo.
 	DeleteEnvironment(ctx context.Context, project, environment string) error
