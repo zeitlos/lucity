@@ -3,6 +3,7 @@ package tests
 import (
 	"encoding/json"
 	"testing"
+	"time"
 )
 
 func testService(t *testing.T) {
@@ -110,6 +111,17 @@ func testService(t *testing.T) {
 			t.Errorf("expected port %d, got %d", testServicePort, data.Service.Port)
 		}
 		t.Logf("service: %s port=%d framework=%s", data.Service.Name, data.Service.Port, data.Service.Framework)
+	})
+
+	// Now that a service has been added, ArgoCD has resources to deploy.
+	// Wait for the namespace to appear (ArgoCD creates it via CreateNamespace=true).
+	t.Run("WaitForNamespace", func(t *testing.T) {
+		if waitForNamespaceOK(t, namespace("development"), 5*time.Minute) {
+			devNamespaceReady = true
+			assertResourceExists(t, "application.argoproj.io", testProjectName+"-development", "lucity-system")
+		} else {
+			t.Log("WARNING: namespace did not appear — kubectl-dependent tests will be skipped")
+		}
 	})
 
 	t.Run("GetProject_WithService", func(t *testing.T) {
