@@ -26,16 +26,13 @@ func testCleanup(t *testing.T) {
 		})
 
 		if len(resp.Errors) > 0 {
-			// Service removal may fail if packager is down — log and continue
-			t.Logf("removeService error (non-fatal): %s", resp.Errors[0].Message)
-		} else {
-			removed := extractBool(t, resp.Data, "removeService")
-			if !removed {
-				t.Log("removeService returned false (service may already be gone)")
-			} else {
-				t.Logf("removed service %s", testServiceName)
-			}
+			t.Fatalf("removeService error: %s", resp.Errors[0].Message)
 		}
+		removed := extractBool(t, resp.Data, "removeService")
+		if !removed {
+			t.Fatal("removeService returned false")
+		}
+		t.Logf("removed service %s", testServiceName)
 	})
 
 	t.Run("DeleteProject", func(t *testing.T) {
@@ -48,7 +45,6 @@ func testCleanup(t *testing.T) {
 		if len(resp.Errors) > 0 {
 			t.Fatalf("deleteProject error: %s", resp.Errors[0].Message)
 		}
-
 		deleted := extractBool(t, resp.Data, "deleteProject")
 		if !deleted {
 			t.Fatal("deleteProject returned false")
@@ -60,7 +56,7 @@ func testCleanup(t *testing.T) {
 	})
 
 	// Subsystem verification — each check is its own subtest so failures are
-	// clearly attributable and don't block other checks.
+	// clearly attributable. All checks use tight timeouts and fail on timeout.
 
 	t.Run("VerifySoftServeRepoGone", func(t *testing.T) {
 		httpResp, err := http.Get("http://localhost:23232/" + cleanupProjectName + "-gitops.git")
@@ -69,7 +65,7 @@ func testCleanup(t *testing.T) {
 		}
 		httpResp.Body.Close()
 		if httpResp.StatusCode != http.StatusNotFound {
-			t.Errorf("Soft-serve gitops repo still exists (HTTP %d)", httpResp.StatusCode)
+			t.Fatalf("Soft-serve gitops repo still exists (HTTP %d)", httpResp.StatusCode)
 		}
 	})
 
@@ -81,23 +77,23 @@ func testCleanup(t *testing.T) {
 			t.Fatalf("could not check ArgoCD repo secrets: %v", err)
 		}
 		if strings.Contains(out, cleanupProjectName) {
-			t.Errorf("ArgoCD repo credential secret still exists: %s", out)
+			t.Fatalf("ArgoCD repo credential secret still exists: %s", out)
 		}
 	})
 
 	t.Run("VerifyArgoCDAppsGone", func(t *testing.T) {
+		deadline := time.Now().Add(90 * time.Second)
 		for _, env := range []string{"development", "staging"} {
 			appName := cleanupProjectName + "-" + env
-			gone := false
-			for range 15 {
+			for {
 				if _, err := kubectlQuiet(t, "get", "application.argoproj.io", appName, "-n", "lucity-system"); err != nil {
-					gone = true
+					t.Logf("ArgoCD application %s removed", appName)
 					break
 				}
-				time.Sleep(2 * time.Second)
-			}
-			if !gone {
-				t.Errorf("ArgoCD application %s still exists after 30s", appName)
+				if time.Now().After(deadline) {
+					t.Fatalf("ArgoCD application %s still exists after 90s", appName)
+				}
+				time.Sleep(3 * time.Second)
 			}
 		}
 	})
@@ -108,9 +104,10 @@ func testCleanup(t *testing.T) {
 		}
 		for _, env := range []string{"development", "staging"} {
 			ns := cleanupProjectName + "-" + env
-			if !waitForNamespaceGoneOK(t, ns, 2*time.Minute) {
-				t.Errorf("namespace %s still exists after 2 minutes", ns)
+			if !waitForNamespaceGoneOK(t, ns, 90*time.Second) {
+				t.Fatalf("namespace %s still exists after 90s", ns)
 			}
+			t.Logf("namespace %s removed", ns)
 		}
 	})
 
@@ -121,12 +118,18 @@ func testCleanup(t *testing.T) {
 		}
 		body, _ := io.ReadAll(httpResp.Body)
 		httpResp.Body.Close()
-		if httpResp.StatusCode == http.StatusOK {
-			t.Errorf("Zot registry still has images: %s", string(body))
-		}
-		// 404 = good (no images), anything else = unexpected
-		if httpResp.StatusCode != http.StatusNotFound && httpResp.StatusCode != http.StatusOK {
-			t.Errorf("Zot registry unexpected status %d", httpResp.StatusCode)
+
+		switch httpResp.StatusCode {
+		case http.StatusNotFound:
+			// Repo gone entirely
+		case http.StatusOK:
+			// Repo metadata may linger in Zot after manifests are deleted.
+			// Accept if tags list is empty.
+			if !strings.Contains(string(body), `"tags":[]`) && !strings.Contains(string(body), `"tags":null`) {
+				t.Fatalf("Zot registry still has tagged images: %s", string(body))
+			}
+		default:
+			t.Fatalf("Zot registry unexpected status %d: %s", httpResp.StatusCode, string(body))
 		}
 	})
 }

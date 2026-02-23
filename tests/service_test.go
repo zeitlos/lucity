@@ -114,13 +114,13 @@ func testService(t *testing.T) {
 	})
 
 	// Now that a service has been added, ArgoCD has resources to deploy.
-	// Wait for the namespace to appear (ArgoCD creates it via CreateNamespace=true).
+	// The deployer creates the namespace explicitly before the ArgoCD Application.
 	t.Run("WaitForNamespace", func(t *testing.T) {
-		if waitForNamespaceOK(t, namespace("development"), 5*time.Minute) {
+		if waitForNamespaceOK(t, namespace("development"), 30*time.Second) {
 			devNamespaceReady = true
 			assertResourceExists(t, "application.argoproj.io", testProjectName+"-development", "lucity-system")
 		} else {
-			t.Log("WARNING: namespace did not appear — kubectl-dependent tests will be skipped")
+			t.Fatal("namespace did not appear within 30s")
 		}
 	})
 

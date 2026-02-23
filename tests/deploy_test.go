@@ -33,7 +33,7 @@ func testDeploy(t *testing.T) {
 		t.Logf("deploy started: id=%s phase=%s", deployID, phase)
 
 		// Poll deploy status until completion
-		deadline := time.Now().Add(7 * time.Minute)
+		deadline := time.Now().Add(90 * time.Second)
 		for time.Now().Before(deadline) {
 			time.Sleep(3 * time.Second)
 
@@ -73,11 +73,9 @@ func testDeploy(t *testing.T) {
 					t.Logf("deploy succeeded: image=%s", *data.DeployStatus.ImageRef)
 				}
 
-				// kubectl: verify deployment exists and pod is running
-				// ArgoCD may not have synced the actual Deployment resource yet,
-				// so these checks are non-fatal (the deploy itself succeeded via GraphQL).
+				// kubectl: verify deployment exists and pod is running (non-fatal)
 				if _, err := kubectlQuiet(t, "get", "deployment", testServiceName, "-n", namespace("development")); err != nil {
-					t.Logf("deployment not yet visible via kubectl (ArgoCD sync lag): %v", err)
+					t.Logf("deployment not yet visible via kubectl: %v", err)
 				} else {
 					t.Log("deployment exists in Kubernetes")
 					waitForPod(t, namespace("development"), "app.kubernetes.io/name="+testServiceName, 60*time.Second)
@@ -148,9 +146,9 @@ func testDeploy(t *testing.T) {
 		}
 		t.Logf("rollback succeeded to tag=%s", testBuildTag)
 
-		// kubectl: verify the deployment still exists after rollback (non-fatal — ArgoCD sync lag)
+		// kubectl: verify the deployment still exists after rollback (non-fatal)
 		if _, err := kubectlQuiet(t, "get", "deployment", testServiceName, "-n", namespace("development")); err != nil {
-			t.Logf("deployment not visible after rollback (ArgoCD sync lag): %v", err)
+			t.Logf("deployment not visible after rollback: %v", err)
 		} else {
 			t.Log("deployment still exists after rollback")
 		}

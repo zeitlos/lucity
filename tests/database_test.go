@@ -55,12 +55,12 @@ func testDatabase(t *testing.T) {
 		}
 		t.Logf("created database: %s", name)
 
-		// kubectl: CNPG Cluster CRD may not appear immediately (ArgoCD sync lag)
+		// kubectl: CNPG Cluster CRD may not appear immediately
 		// Helm generates the CNPG cluster name as: {namespace}-lucity-app-pg-{dbname}
 		cnpgName := namespace("development") + "-lucity-app-pg-" + testDBName
 		out, err := kubectlQuiet(t, "get", "cluster.postgresql.cnpg.io", cnpgName, "-n", namespace("development"))
 		if err != nil {
-			t.Logf("CNPG cluster %s not yet visible via kubectl (ArgoCD sync lag)", cnpgName)
+			t.Logf("CNPG cluster %s not yet visible via kubectl", cnpgName)
 		} else {
 			t.Logf("CNPG cluster exists: %s", out)
 		}
@@ -72,7 +72,7 @@ func testDatabase(t *testing.T) {
 		cnpgClusterName := namespace("development") + "-lucity-app-pg-" + testDBName
 		t.Logf("waiting for CNPG cluster %s to be Ready", cnpgClusterName)
 
-		deadline := time.Now().Add(3 * time.Minute)
+		deadline := time.Now().Add(60 * time.Second)
 		for time.Now().Before(deadline) {
 			out, err := kubectlQuiet(t,
 				"get", "cluster.postgresql.cnpg.io", cnpgClusterName,
@@ -86,7 +86,7 @@ func testDatabase(t *testing.T) {
 			}
 			time.Sleep(3 * time.Second)
 		}
-		t.Log("WARNING: CNPG cluster did not become Ready within 3 minutes — database query tests will be skipped")
+		t.Fatal("CNPG cluster did not become Ready within 60s")
 	})
 
 	t.Run("PortForward", func(t *testing.T) {

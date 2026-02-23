@@ -41,7 +41,7 @@ func testBuild(t *testing.T) {
 			t.Fatal("no build ID — StartBuild must have failed")
 		}
 
-		deadline := time.Now().Add(5 * time.Minute)
+		deadline := time.Now().Add(90 * time.Second)
 		for time.Now().Before(deadline) {
 			time.Sleep(3 * time.Second)
 

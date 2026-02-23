@@ -32,9 +32,9 @@ func testEnvironment(t *testing.T) {
 		}
 		t.Logf("created environment: staging")
 
-		// kubectl: verify namespace (ArgoCD sync can take a few minutes)
+		// kubectl: verify namespace
 		if devNamespaceReady {
-			waitForNamespaceOK(t, namespace("staging"), 3*time.Minute)
+			waitForNamespaceOK(t, namespace("staging"), 30*time.Second)
 			assertResourceExists(t, "application.argoproj.io", testProjectName+"-staging", "lucity-system")
 		}
 	})
