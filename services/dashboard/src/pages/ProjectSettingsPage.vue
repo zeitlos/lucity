@@ -86,12 +86,13 @@ const { mutate: deleteEnvironmentMutate, loading: deletingEnv } = useMutation(De
 const envToDelete = ref<string | null>(null);
 
 async function handleDeleteEnvironment() {
-  if (!envToDelete.value) return;
+  const name = envToDelete.value;
+  if (!name) return;
 
   try {
     const res = await deleteEnvironmentMutate({
       projectId: projectId.value,
-      environment: envToDelete.value,
+      environment: name,
     });
 
     if (res?.errors?.length) {
@@ -102,15 +103,14 @@ async function handleDeleteEnvironment() {
     }
 
     // If the deleted environment was active, switch to another one
-    if (activeEnvironment.value?.name === envToDelete.value) {
-      const remaining = environments.value.filter(e => e.name !== envToDelete.value);
+    if (activeEnvironment.value?.name === name) {
+      const remaining = environments.value.filter(e => e.name !== name);
       if (remaining.length > 0) {
         setEnvironment(remaining[0]);
       }
     }
 
-    toast.success(`Environment "${envToDelete.value}" deleted`);
-    envToDelete.value = null;
+    toast.success(`Environment "${name}" deleted`);
   } catch (e: unknown) {
     toast.error('Failed to delete environment', { description: errorMessage(e) });
   }
@@ -235,7 +235,7 @@ async function handleDeleteEnvironment() {
                 <p class="text-sm text-muted-foreground">Manage environments for this project.</p>
               </div>
 
-              <div class="overflow-hidden rounded-lg border">
+              <div v-if="project.environments?.length" class="overflow-hidden rounded-lg border">
                 <div class="divide-y">
                   <div
                     v-for="env in project.environments"
@@ -251,51 +251,51 @@ async function handleDeleteEnvironment() {
                         ephemeral
                       </span>
                     </div>
-                    <AlertDialog
-                      :open="envToDelete === env.name"
-                      @update:open="(open: boolean) => { if (!open) envToDelete = null; }"
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      class="h-8 w-8 text-muted-foreground hover:text-destructive"
+                      @click="envToDelete = env.name"
                     >
-                      <AlertDialogTrigger as-child>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          class="h-8 w-8 text-muted-foreground hover:text-destructive"
-                          @click="envToDelete = env.name"
-                        >
-                          <Trash2 :size="14" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete environment "{{ env.name }}"?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This will remove the environment and its ArgoCD application.
-                            All deployments in this environment will be deleted.
-                            This action cannot be undone.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            :disabled="deletingEnv"
-                            class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                            @click="handleDeleteEnvironment"
-                          >
-                            {{ deletingEnv ? 'Deleting...' : 'Delete' }}
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                      <Trash2 :size="14" />
+                    </Button>
                   </div>
                 </div>
               </div>
 
               <p
-                v-if="!project.environments?.length"
+                v-else
                 class="text-sm text-muted-foreground"
               >
                 No environments found.
               </p>
+
+              <!-- Delete confirmation dialog -->
+              <AlertDialog
+                :open="!!envToDelete"
+                @update:open="(open: boolean) => { if (!open) envToDelete = null; }"
+              >
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete environment "{{ envToDelete }}"?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will remove the environment and its ArgoCD application.
+                      All deployments in this environment will be deleted.
+                      This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      :disabled="deletingEnv"
+                      class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      @click="handleDeleteEnvironment"
+                    >
+                      {{ deletingEnv ? 'Deleting...' : 'Delete' }}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
 
             <!-- Variables -->
