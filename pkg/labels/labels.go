@@ -1,9 +1,6 @@
 package labels
 
-import (
-	"fmt"
-	"strings"
-)
+import "fmt"
 
 // Label key constants for Kubernetes resource discovery.
 const (
@@ -32,27 +29,14 @@ func Selector(key, value string) string {
 	return fmt.Sprintf("%s=%s", key, value)
 }
 
-// SplitProject splits "org/name" into org and name.
-func SplitProject(project string) (org, name string, err error) {
-	parts := strings.SplitN(project, "/", 2)
-	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-		return "", "", fmt.Errorf("invalid project name %q: must be org/name", project)
-	}
-	return parts[0], parts[1], nil
-}
-
-// ShortName extracts the short name from a project identifier.
-// "zeitlos/myapp" → "myapp", "myapp" → "myapp"
+// ShortName returns the project name. Kept for backward compatibility with
+// callers that used the old org/name format.
 func ShortName(project string) string {
-	_, name, err := SplitProject(project)
-	if err != nil {
-		return project
-	}
-	return name
+	return project
 }
 
 // NamespaceFor derives the K8s namespace from a project and environment name.
-// "zeitlos/myapp" + "production" → "myapp-production"
+// "warm-wren" + "production" → "warm-wren-production"
 func NamespaceFor(project, environment string) string {
-	return ShortName(project) + "-" + environment
+	return project + "-" + environment
 }

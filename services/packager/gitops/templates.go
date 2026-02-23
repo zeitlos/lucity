@@ -5,7 +5,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/zeitlos/lucity/charts"
@@ -20,11 +19,6 @@ created_at: %s
 
 // baseChartYAML generates the base Chart.yaml that depends on lucity-app.
 func baseChartYAML(project string) string {
-	// Helm chart names can't contain slashes — use only the short name.
-	name := project
-	if parts := strings.SplitN(project, "/", 2); len(parts) == 2 {
-		name = parts[1]
-	}
 	return fmt.Sprintf(`apiVersion: v2
 name: %s
 type: application
@@ -34,7 +28,7 @@ dependencies:
   - name: lucity-app
     version: "0.1.0"
     repository: "file://../chart"
-`, name)
+`, project)
 }
 
 // baseValuesYAML generates the base values.yaml with empty service definitions.

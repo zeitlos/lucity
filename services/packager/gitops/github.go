@@ -21,26 +21,28 @@ import (
 type GitHubProvider struct {
 	client *gh.Client
 	token  string // OAuth token for HTTPS git auth
+	owner  string // GitHub user or org that owns GitOps repos
 }
 
 // NewGitHubProvider creates a Provider backed by GitHub repositories.
 // The token is a user OAuth access token from the GitHub App.
-func NewGitHubProvider(token string) *GitHubProvider {
+// The owner is the GitHub login (user or org) under which repos are managed.
+func NewGitHubProvider(token, owner string) *GitHubProvider {
 	return &GitHubProvider{
 		client: gh.NewClient(nil).WithAuthToken(token),
 		token:  token,
+		owner:  owner,
 	}
 }
 
-// CreateRepo creates a GitOps repo in the project's org on GitHub.
-// Project name is org-scoped: "zeitlos/myapp" → creates repo "zeitlos/myapp-gitops".
-func (p *GitHubProvider) CreateRepo(ctx context.Context, project string) (string, error) {
-	org, name, err := SplitProject(project)
-	if err != nil {
-		return "", err
-	}
+// repoName returns the GitOps repo name for a project.
+func (p *GitHubProvider) repoName(project string) string {
+	return project + RepoSuffix
+}
 
-	repoName := name + RepoSuffix
+// CreateRepo creates a GitOps repo under the provider's owner on GitHub.
+func (p *GitHubProvider) CreateRepo(ctx context.Context, project string) (string, error) {
+	repoName := p.repoName(project)
 	repoOpts := &gh.Repository{
 		Name:     gh.Ptr(repoName),
 		Private:  gh.Ptr(true),
@@ -48,13 +50,13 @@ func (p *GitHubProvider) CreateRepo(ctx context.Context, project string) (string
 	}
 
 	// Try org endpoint first; fall back to user endpoint for personal accounts
-	repo, _, err := p.client.Repositories.Create(ctx, org, repoOpts)
+	repo, _, err := p.client.Repositories.Create(ctx, p.owner, repoOpts)
 	if err != nil {
 		// Personal accounts can't use POST /orgs/{org}/repos — use POST /user/repos
 		repo, _, err = p.client.Repositories.Create(ctx, "", repoOpts)
 	}
 	if err != nil {
-		return "", fmt.Errorf("failed to create gitops repo %s/%s: %w", org, repoName, err)
+		return "", fmt.Errorf("failed to create gitops repo %s/%s: %w", p.owner, repoName, err)
 	}
 
 	slog.Info("created gitops repo", "repo", repo.GetFullName())
@@ -106,19 +108,14 @@ func (p *GitHubProvider) Repos(ctx context.Context) ([]ProjectMeta, error) {
 
 // Repo reads a single project's metadata from its GitOps repo.
 func (p *GitHubProvider) Repo(ctx context.Context, project string) (*ProjectMeta, error) {
-	org, name, err := SplitProject(project)
+	repoName := p.repoName(project)
+
+	meta, err := p.readProjectMeta(ctx, p.owner, repoName)
 	if err != nil {
 		return nil, err
 	}
 
-	repoName := name + RepoSuffix
-
-	meta, err := p.readProjectMeta(ctx, org, repoName)
-	if err != nil {
-		return nil, err
-	}
-
-	ghRepo, _, err := p.client.Repositories.Get(ctx, org, repoName)
+	ghRepo, _, err := p.client.Repositories.Get(ctx, p.owner, repoName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get repo info: %w", err)
 	}
@@ -129,31 +126,22 @@ func (p *GitHubProvider) Repo(ctx context.Context, project string) (*ProjectMeta
 
 // DeleteRepo removes a project's GitOps repository from GitHub.
 func (p *GitHubProvider) DeleteRepo(ctx context.Context, project string) error {
-	org, name, err := SplitProject(project)
+	repoName := p.repoName(project)
+
+	_, err := p.client.Repositories.Delete(ctx, p.owner, repoName)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to delete repo %s/%s: %w", p.owner, repoName, err)
 	}
 
-	repoName := name + RepoSuffix
-
-	_, err = p.client.Repositories.Delete(ctx, org, repoName)
-	if err != nil {
-		return fmt.Errorf("failed to delete repo %s/%s: %w", org, repoName, err)
-	}
-
-	slog.Info("deleted gitops repo", "org", org, "repo", repoName)
+	slog.Info("deleted gitops repo", "owner", p.owner, "repo", repoName)
 	return nil
 }
 
 // AddService adds a service definition to the project's base/values.yaml.
 func (p *GitHubProvider) AddService(ctx context.Context, project string, svc ServiceDef) error {
-	org, name, err := SplitProject(project)
-	if err != nil {
-		return err
-	}
-	repoName := name + RepoSuffix
+	repoName := p.repoName(project)
 
-	inner, sha, err := p.readSubchartValuesGH(ctx, org, repoName, "base/values.yaml")
+	inner, sha, err := p.readSubchartValuesGH(ctx, p.owner, repoName, "base/values.yaml")
 	if err != nil {
 		return fmt.Errorf("failed to read base/values.yaml: %w", err)
 	}
@@ -183,7 +171,7 @@ func (p *GitHubProvider) AddService(ctx context.Context, project string, svc Ser
 	services[svc.Name] = svcEntry
 	inner["services"] = services
 
-	if err := p.writeSubchartValuesGH(ctx, org, repoName, "base/values.yaml", inner, sha,
+	if err := p.writeSubchartValuesGH(ctx, p.owner, repoName, "base/values.yaml", inner, sha,
 		fmt.Sprintf("config: add service %s", svc.Name)); err != nil {
 		return fmt.Errorf("failed to update base/values.yaml: %w", err)
 	}
@@ -194,13 +182,9 @@ func (p *GitHubProvider) AddService(ctx context.Context, project string, svc Ser
 
 // RemoveService removes a service definition from the project's base/values.yaml.
 func (p *GitHubProvider) RemoveService(ctx context.Context, project, service string) error {
-	org, name, err := SplitProject(project)
-	if err != nil {
-		return err
-	}
-	repoName := name + RepoSuffix
+	repoName := p.repoName(project)
 
-	inner, sha, err := p.readSubchartValuesGH(ctx, org, repoName, "base/values.yaml")
+	inner, sha, err := p.readSubchartValuesGH(ctx, p.owner, repoName, "base/values.yaml")
 	if err != nil {
 		return fmt.Errorf("failed to read base/values.yaml: %w", err)
 	}
@@ -217,7 +201,7 @@ func (p *GitHubProvider) RemoveService(ctx context.Context, project, service str
 	delete(services, service)
 	inner["services"] = services
 
-	if err := p.writeSubchartValuesGH(ctx, org, repoName, "base/values.yaml", inner, sha,
+	if err := p.writeSubchartValuesGH(ctx, p.owner, repoName, "base/values.yaml", inner, sha,
 		fmt.Sprintf("config: remove service %s", service)); err != nil {
 		return fmt.Errorf("failed to update base/values.yaml: %w", err)
 	}
@@ -228,14 +212,10 @@ func (p *GitHubProvider) RemoveService(ctx context.Context, project, service str
 
 // UpdateImageTag updates the image tag for a service in an environment's values.yaml.
 func (p *GitHubProvider) UpdateImageTag(ctx context.Context, project, environment, service, tag, digest string) error {
-	org, name, err := SplitProject(project)
-	if err != nil {
-		return err
-	}
-	repoName := name + RepoSuffix
+	repoName := p.repoName(project)
 
 	filePath := fmt.Sprintf("environments/%s/values.yaml", environment)
-	inner, sha, err := p.readSubchartValuesGH(ctx, org, repoName, filePath)
+	inner, sha, err := p.readSubchartValuesGH(ctx, p.owner, repoName, filePath)
 	if err != nil {
 		return fmt.Errorf("failed to read %s: %w", filePath, err)
 	}
@@ -261,7 +241,7 @@ func (p *GitHubProvider) UpdateImageTag(ctx context.Context, project, environmen
 	inner["services"] = services
 
 	commitMsg := fmt.Sprintf("deploy(%s): %s %s", environment, service, tag)
-	if err := p.writeSubchartValuesGH(ctx, org, repoName, filePath, inner, sha, commitMsg); err != nil {
+	if err := p.writeSubchartValuesGH(ctx, p.owner, repoName, filePath, inner, sha, commitMsg); err != nil {
 		return fmt.Errorf("failed to update %s: %w", filePath, err)
 	}
 
@@ -272,13 +252,9 @@ func (p *GitHubProvider) UpdateImageTag(ctx context.Context, project, environmen
 
 // Services reads the services defined in the project's base/values.yaml.
 func (p *GitHubProvider) Services(ctx context.Context, project string) ([]ServiceDef, error) {
-	org, name, err := SplitProject(project)
-	if err != nil {
-		return nil, err
-	}
-	repoName := name + RepoSuffix
+	repoName := p.repoName(project)
 
-	inner, _, err := p.readSubchartValuesGH(ctx, org, repoName, "base/values.yaml")
+	inner, _, err := p.readSubchartValuesGH(ctx, p.owner, repoName, "base/values.yaml")
 	if err != nil {
 		return nil, fmt.Errorf("failed to read base/values.yaml: %w", err)
 	}
@@ -471,17 +447,13 @@ func (p *GitHubProvider) initRepoContents(cloneURL, project string) error {
 
 // CreateEnvironment creates a new environment directory in the GitOps repo.
 func (p *GitHubProvider) CreateEnvironment(ctx context.Context, project, environment, fromEnvironment string) error {
-	org, name, err := SplitProject(project)
-	if err != nil {
-		return err
-	}
-	repoName := name + RepoSuffix
+	repoName := p.repoName(project)
 
 	var content []byte
 	if fromEnvironment != "" {
 		// Copy values from the source environment
 		srcPath := fmt.Sprintf("environments/%s/values.yaml", fromEnvironment)
-		values, _, err := p.readValuesYAML(ctx, org, repoName, srcPath)
+		values, _, err := p.readValuesYAML(ctx, p.owner, repoName, srcPath)
 		if err != nil {
 			return fmt.Errorf("failed to read source environment %s: %w", fromEnvironment, err)
 		}
@@ -494,7 +466,7 @@ func (p *GitHubProvider) CreateEnvironment(ctx context.Context, project, environ
 	}
 
 	filePath := fmt.Sprintf("environments/%s/values.yaml", environment)
-	_, _, err = p.client.Repositories.CreateFile(ctx, org, repoName, filePath, &gh.RepositoryContentFileOptions{
+	_, _, err := p.client.Repositories.CreateFile(ctx, p.owner, repoName, filePath, &gh.RepositoryContentFileOptions{
 		Message: gh.Ptr(fmt.Sprintf("env(create): %s", environment)),
 		Content: content,
 		Author: &gh.CommitAuthor{
@@ -512,19 +484,15 @@ func (p *GitHubProvider) CreateEnvironment(ctx context.Context, project, environ
 
 // DeleteEnvironment removes an environment directory from the GitOps repo.
 func (p *GitHubProvider) DeleteEnvironment(ctx context.Context, project, environment string) error {
-	org, name, err := SplitProject(project)
-	if err != nil {
-		return err
-	}
-	repoName := name + RepoSuffix
+	repoName := p.repoName(project)
 
 	filePath := fmt.Sprintf("environments/%s/values.yaml", environment)
-	content, _, _, err := p.client.Repositories.GetContents(ctx, org, repoName, filePath, nil)
+	content, _, _, err := p.client.Repositories.GetContents(ctx, p.owner, repoName, filePath, nil)
 	if err != nil {
 		return fmt.Errorf("failed to get environment file %s: %w", filePath, err)
 	}
 
-	_, _, err = p.client.Repositories.DeleteFile(ctx, org, repoName, filePath, &gh.RepositoryContentFileOptions{
+	_, _, err = p.client.Repositories.DeleteFile(ctx, p.owner, repoName, filePath, &gh.RepositoryContentFileOptions{
 		Message: gh.Ptr(fmt.Sprintf("env(delete): %s", environment)),
 		SHA:     gh.Ptr(content.GetSHA()),
 		Author: &gh.CommitAuthor{
@@ -542,15 +510,11 @@ func (p *GitHubProvider) DeleteEnvironment(ctx context.Context, project, environ
 
 // Promote copies the image tag for a service from one environment to another.
 func (p *GitHubProvider) Promote(ctx context.Context, project, service, fromEnv, toEnv string) (string, error) {
-	org, name, err := SplitProject(project)
-	if err != nil {
-		return "", err
-	}
-	repoName := name + RepoSuffix
+	repoName := p.repoName(project)
 
 	// Read the source environment's values
 	srcPath := fmt.Sprintf("environments/%s/values.yaml", fromEnv)
-	srcInner, _, err := p.readSubchartValuesGH(ctx, org, repoName, srcPath)
+	srcInner, _, err := p.readSubchartValuesGH(ctx, p.owner, repoName, srcPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to read source environment %s: %w", fromEnv, err)
 	}
@@ -586,15 +550,11 @@ func (p *GitHubProvider) Promote(ctx context.Context, project, service, fromEnv,
 // DeploymentHistory returns deployment history for a service in an environment
 // by querying the GitHub Commits API and parsing commit messages.
 func (p *GitHubProvider) DeploymentHistory(ctx context.Context, project, environment, service string) ([]DeploymentEntry, error) {
-	org, name, err := SplitProject(project)
-	if err != nil {
-		return nil, err
-	}
-	repoName := name + RepoSuffix
+	repoName := p.repoName(project)
 
 	// Filter commits by the environment's values file path
 	filePath := fmt.Sprintf("environments/%s/values.yaml", environment)
-	commits, _, err := p.client.Repositories.ListCommits(ctx, org, repoName, &gh.CommitsListOptions{
+	commits, _, err := p.client.Repositories.ListCommits(ctx, p.owner, repoName, &gh.CommitsListOptions{
 		Path:        filePath,
 		ListOptions: gh.ListOptions{PerPage: 50},
 	})
@@ -627,14 +587,10 @@ func (p *GitHubProvider) DeploymentHistory(ctx context.Context, project, environ
 
 // SetServiceDomain sets or removes the domain hostname for a service in an environment.
 func (p *GitHubProvider) SetServiceDomain(ctx context.Context, project, environment, service, host string) error {
-	org, name, err := SplitProject(project)
-	if err != nil {
-		return err
-	}
-	repoName := name + RepoSuffix
+	repoName := p.repoName(project)
 
 	filePath := fmt.Sprintf("environments/%s/values.yaml", environment)
-	inner, sha, err := p.readSubchartValuesGH(ctx, org, repoName, filePath)
+	inner, sha, err := p.readSubchartValuesGH(ctx, p.owner, repoName, filePath)
 	if err != nil {
 		return fmt.Errorf("failed to read %s: %w", filePath, err)
 	}
@@ -661,7 +617,7 @@ func (p *GitHubProvider) SetServiceDomain(ctx context.Context, project, environm
 	if host == "" {
 		commitMsg = fmt.Sprintf("config(%s): remove domain for %s", environment, service)
 	}
-	if err := p.writeSubchartValuesGH(ctx, org, repoName, filePath, inner, sha, commitMsg); err != nil {
+	if err := p.writeSubchartValuesGH(ctx, p.owner, repoName, filePath, inner, sha, commitMsg); err != nil {
 		return fmt.Errorf("failed to update %s: %w", filePath, err)
 	}
 
@@ -671,14 +627,10 @@ func (p *GitHubProvider) SetServiceDomain(ctx context.Context, project, environm
 
 // EnvironmentServices reads per-environment service state from the environment's values.yaml.
 func (p *GitHubProvider) EnvironmentServices(ctx context.Context, project, environment string) ([]ServiceInstanceMeta, error) {
-	org, name, err := SplitProject(project)
-	if err != nil {
-		return nil, err
-	}
-	repoName := name + RepoSuffix
+	repoName := p.repoName(project)
 
 	filePath := fmt.Sprintf("environments/%s/values.yaml", environment)
-	inner, _, err := p.readSubchartValuesGH(ctx, org, repoName, filePath)
+	inner, _, err := p.readSubchartValuesGH(ctx, p.owner, repoName, filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read %s: %w", filePath, err)
 	}
@@ -719,34 +671,30 @@ func parseServiceInstanceMetas(services map[string]any) []ServiceInstanceMeta {
 // Reads project.yaml, base/, and environments/ — skips chart/ since the embedded
 // version is used during ejection.
 func (p *GitHubProvider) RepoFiles(ctx context.Context, project string) (map[string][]byte, error) {
-	org, name, err := SplitProject(project)
-	if err != nil {
-		return nil, err
-	}
-	repoName := name + RepoSuffix
+	repoName := p.repoName(project)
 
 	files := make(map[string][]byte)
 
 	// Read project.yaml
-	if err := p.readFileToMap(ctx, files, org, repoName, "project.yaml"); err != nil {
+	if err := p.readFileToMap(ctx, files, p.owner, repoName, "project.yaml"); err != nil {
 		slog.Warn("failed to read project.yaml during eject", "error", err)
 	}
 
 	// Read base/ directory
-	if err := p.readFileToMap(ctx, files, org, repoName, "base/Chart.yaml"); err != nil {
+	if err := p.readFileToMap(ctx, files, p.owner, repoName, "base/Chart.yaml"); err != nil {
 		slog.Warn("failed to read base/Chart.yaml during eject", "error", err)
 	}
-	if err := p.readFileToMap(ctx, files, org, repoName, "base/values.yaml"); err != nil {
+	if err := p.readFileToMap(ctx, files, p.owner, repoName, "base/values.yaml"); err != nil {
 		slog.Warn("failed to read base/values.yaml during eject", "error", err)
 	}
 
 	// List environments and read each values.yaml
-	_, dirContents, _, err := p.client.Repositories.GetContents(ctx, org, repoName, "environments", nil)
+	_, dirContents, _, err := p.client.Repositories.GetContents(ctx, p.owner, repoName, "environments", nil)
 	if err == nil {
 		for _, entry := range dirContents {
 			if entry.GetType() == "dir" {
 				envPath := "environments/" + entry.GetName() + "/values.yaml"
-				if err := p.readFileToMap(ctx, files, org, repoName, envPath); err != nil {
+				if err := p.readFileToMap(ctx, files, p.owner, repoName, envPath); err != nil {
 					slog.Warn("failed to read environment values during eject",
 						"environment", entry.GetName(), "error", err)
 				}
@@ -773,14 +721,10 @@ func (p *GitHubProvider) readFileToMap(ctx context.Context, files map[string][]b
 
 // SharedVariables returns all shared variables for an environment.
 func (p *GitHubProvider) SharedVariables(ctx context.Context, project, environment string) (map[string]string, error) {
-	org, name, err := SplitProject(project)
-	if err != nil {
-		return nil, err
-	}
-	repoName := name + RepoSuffix
+	repoName := p.repoName(project)
 
 	filePath := fmt.Sprintf("environments/%s/values.yaml", environment)
-	inner, _, err := p.readSubchartValuesGH(ctx, org, repoName, filePath)
+	inner, _, err := p.readSubchartValuesGH(ctx, p.owner, repoName, filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read %s: %w", filePath, err)
 	}
@@ -791,14 +735,10 @@ func (p *GitHubProvider) SharedVariables(ctx context.Context, project, environme
 // SetSharedVariables replaces all shared variables for an environment.
 // Propagates value changes to services that reference shared vars via sharedRefs.
 func (p *GitHubProvider) SetSharedVariables(ctx context.Context, project, environment string, vars map[string]string) error {
-	org, name, err := SplitProject(project)
-	if err != nil {
-		return err
-	}
-	repoName := name + RepoSuffix
+	repoName := p.repoName(project)
 
 	filePath := fmt.Sprintf("environments/%s/values.yaml", environment)
-	inner, sha, err := p.readSubchartValuesGH(ctx, org, repoName, filePath)
+	inner, sha, err := p.readSubchartValuesGH(ctx, p.owner, repoName, filePath)
 	if err != nil {
 		return fmt.Errorf("failed to read %s: %w", filePath, err)
 	}
@@ -856,7 +796,7 @@ func (p *GitHubProvider) SetSharedVariables(ctx context.Context, project, enviro
 		inner["services"] = services
 	}
 
-	if err := p.writeSubchartValuesGH(ctx, org, repoName, filePath, inner, sha,
+	if err := p.writeSubchartValuesGH(ctx, p.owner, repoName, filePath, inner, sha,
 		fmt.Sprintf("config(%s): update shared variables", environment)); err != nil {
 		return fmt.Errorf("failed to update %s: %w", filePath, err)
 	}
@@ -867,14 +807,10 @@ func (p *GitHubProvider) SetSharedVariables(ctx context.Context, project, enviro
 
 // ServiceVariables returns all variables and shared refs for a service in an environment.
 func (p *GitHubProvider) ServiceVariables(ctx context.Context, project, environment, service string) (map[string]string, []string, error) {
-	org, name, err := SplitProject(project)
-	if err != nil {
-		return nil, nil, err
-	}
-	repoName := name + RepoSuffix
+	repoName := p.repoName(project)
 
 	filePath := fmt.Sprintf("environments/%s/values.yaml", environment)
-	inner, _, err := p.readSubchartValuesGH(ctx, org, repoName, filePath)
+	inner, _, err := p.readSubchartValuesGH(ctx, p.owner, repoName, filePath)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to read %s: %w", filePath, err)
 	}
@@ -894,14 +830,10 @@ func (p *GitHubProvider) ServiceVariables(ctx context.Context, project, environm
 // Direct values come from vars. Keys in sharedRefs are resolved from the
 // environment's shared variables and merged into the service's env.
 func (p *GitHubProvider) SetServiceVariables(ctx context.Context, project, environment, service string, vars map[string]string, sharedRefs []string) error {
-	org, name, err := SplitProject(project)
-	if err != nil {
-		return err
-	}
-	repoName := name + RepoSuffix
+	repoName := p.repoName(project)
 
 	filePath := fmt.Sprintf("environments/%s/values.yaml", environment)
-	inner, sha, err := p.readSubchartValuesGH(ctx, org, repoName, filePath)
+	inner, sha, err := p.readSubchartValuesGH(ctx, p.owner, repoName, filePath)
 	if err != nil {
 		return fmt.Errorf("failed to read %s: %w", filePath, err)
 	}
@@ -947,7 +879,7 @@ func (p *GitHubProvider) SetServiceVariables(ctx context.Context, project, envir
 	services[service] = svcMap
 	inner["services"] = services
 
-	if err := p.writeSubchartValuesGH(ctx, org, repoName, filePath, inner, sha,
+	if err := p.writeSubchartValuesGH(ctx, p.owner, repoName, filePath, inner, sha,
 		fmt.Sprintf("config(%s): update variables for %s", environment, service)); err != nil {
 		return fmt.Errorf("failed to update %s: %w", filePath, err)
 	}
@@ -1015,13 +947,9 @@ func parseProjectYAML(data []byte) (*ProjectMeta, error) {
 
 // AddDatabase adds a PostgreSQL database definition to the project's base/values.yaml.
 func (p *GitHubProvider) AddDatabase(ctx context.Context, project string, db DatabaseDef) error {
-	org, name, err := SplitProject(project)
-	if err != nil {
-		return err
-	}
-	repoName := name + RepoSuffix
+	repoName := p.repoName(project)
 
-	inner, sha, err := p.readSubchartValuesGH(ctx, org, repoName, "base/values.yaml")
+	inner, sha, err := p.readSubchartValuesGH(ctx, p.owner, repoName, "base/values.yaml")
 	if err != nil {
 		return fmt.Errorf("failed to read base/values.yaml: %w", err)
 	}
@@ -1043,7 +971,7 @@ func (p *GitHubProvider) AddDatabase(ctx context.Context, project string, db Dat
 	databases["postgres"] = postgres
 	inner["databases"] = databases
 
-	if err := p.writeSubchartValuesGH(ctx, org, repoName, "base/values.yaml", inner, sha,
+	if err := p.writeSubchartValuesGH(ctx, p.owner, repoName, "base/values.yaml", inner, sha,
 		fmt.Sprintf("config: add database %s", db.Name)); err != nil {
 		return fmt.Errorf("failed to update base/values.yaml: %w", err)
 	}
@@ -1054,13 +982,9 @@ func (p *GitHubProvider) AddDatabase(ctx context.Context, project string, db Dat
 
 // RemoveDatabase removes a database definition from the project's base/values.yaml.
 func (p *GitHubProvider) RemoveDatabase(ctx context.Context, project, name string) error {
-	org, projName, err := SplitProject(project)
-	if err != nil {
-		return err
-	}
-	repoName := projName + RepoSuffix
+	repoName := p.repoName(project)
 
-	inner, sha, err := p.readSubchartValuesGH(ctx, org, repoName, "base/values.yaml")
+	inner, sha, err := p.readSubchartValuesGH(ctx, p.owner, repoName, "base/values.yaml")
 	if err != nil {
 		return fmt.Errorf("failed to read base/values.yaml: %w", err)
 	}
@@ -1081,7 +1005,7 @@ func (p *GitHubProvider) RemoveDatabase(ctx context.Context, project, name strin
 	databases["postgres"] = postgres
 	inner["databases"] = databases
 
-	if err := p.writeSubchartValuesGH(ctx, org, repoName, "base/values.yaml", inner, sha,
+	if err := p.writeSubchartValuesGH(ctx, p.owner, repoName, "base/values.yaml", inner, sha,
 		fmt.Sprintf("config: remove database %s", name)); err != nil {
 		return fmt.Errorf("failed to update base/values.yaml: %w", err)
 	}
@@ -1092,13 +1016,9 @@ func (p *GitHubProvider) RemoveDatabase(ctx context.Context, project, name strin
 
 // Databases reads the database definitions from the project's base/values.yaml.
 func (p *GitHubProvider) Databases(ctx context.Context, project string) ([]DatabaseDef, error) {
-	org, name, err := SplitProject(project)
-	if err != nil {
-		return nil, err
-	}
-	repoName := name + RepoSuffix
+	repoName := p.repoName(project)
 
-	inner, _, err := p.readSubchartValuesGH(ctx, org, repoName, "base/values.yaml")
+	inner, _, err := p.readSubchartValuesGH(ctx, p.owner, repoName, "base/values.yaml")
 	if err != nil {
 		return nil, fmt.Errorf("failed to read base/values.yaml: %w", err)
 	}
@@ -1109,13 +1029,9 @@ func (p *GitHubProvider) Databases(ctx context.Context, project string) ([]Datab
 // SyncChart updates the embedded lucity-app chart in the GitOps repo.
 // Clones the repo, overwrites the chart/ directory, and pushes if changed.
 func (p *GitHubProvider) SyncChart(ctx context.Context, project string) error {
-	org, name, err := SplitProject(project)
-	if err != nil {
-		return err
-	}
-	repoName := name + RepoSuffix
+	repoName := p.repoName(project)
 
-	ghRepo, _, err := p.client.Repositories.Get(ctx, org, repoName)
+	ghRepo, _, err := p.client.Repositories.Get(ctx, p.owner, repoName)
 	if err != nil {
 		return fmt.Errorf("failed to get repo info: %w", err)
 	}

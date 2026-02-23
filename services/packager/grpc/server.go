@@ -45,7 +45,7 @@ func (s *Server) provider(ctx context.Context) (gitops.Provider, error) {
 	if claims.GitHubToken == "" {
 		return nil, fmt.Errorf("no github token in session")
 	}
-	return gitops.NewGitHubProvider(claims.GitHubToken), nil
+	return gitops.NewGitHubProvider(claims.GitHubToken, claims.GitHubLogin), nil
 }
 
 func (s *Server) InitProject(ctx context.Context, req *packager.InitProjectRequest) (*packager.InitProjectResponse, error) {

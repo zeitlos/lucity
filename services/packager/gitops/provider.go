@@ -168,7 +168,7 @@ type EnvironmentMeta struct {
 
 // ProjectMeta holds metadata about a project, read from its GitOps repo.
 type ProjectMeta struct {
-	Name             string // org-scoped: "zeitlos/myapp"
+	Name             string // e.g., "warm-wren"
 	RepoURL          string
 	Environments     []string
 	EnvironmentInfos []EnvironmentMeta
@@ -177,13 +177,8 @@ type ProjectMeta struct {
 	CreatedAt        time.Time
 }
 
-// SplitProject splits "org/name" into org and name.
-func SplitProject(project string) (org, name string, err error) {
-	return labels.SplitProject(project)
-}
-
 // NamespaceFor derives the K8s namespace from a project and environment name.
-// "zeitlos/myapp" + "production" → "myapp-production"
+// "warm-wren" + "production" → "warm-wren-production"
 func NamespaceFor(project, environment string) string {
 	return labels.NamespaceFor(project, environment)
 }

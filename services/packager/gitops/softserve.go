@@ -40,15 +40,11 @@ func NewSoftServeProvider(sshAddr, httpAddr string, sshKey ssh.Signer, token str
 
 // CreateRepo creates a GitOps repo on Soft-serve and populates it.
 func (p *SoftServeProvider) CreateRepo(ctx context.Context, project string) (string, error) {
-	_, name, err := SplitProject(project)
-	if err != nil {
-		return "", err
-	}
-	repoName := name + RepoSuffix
+	repoName := project + RepoSuffix
 	cloneURL := p.repoHTTPURL(repoName)
 
 	// Create the repo via SSH (idempotent: handle "already exists")
-	_, err = p.sshCmd("repo", "create", repoName)
+	_, err := p.sshCmd("repo", "create", repoName)
 	if err != nil {
 		if !strings.Contains(err.Error(), "already exists") {
 			return "", fmt.Errorf("failed to create repo %s: %w", repoName, err)
@@ -121,11 +117,7 @@ func (p *SoftServeProvider) Repos(ctx context.Context) ([]ProjectMeta, error) {
 
 // Repo reads a single project's metadata.
 func (p *SoftServeProvider) Repo(ctx context.Context, project string) (*ProjectMeta, error) {
-	_, name, err := SplitProject(project)
-	if err != nil {
-		return nil, err
-	}
-	repoName := name + RepoSuffix
+	repoName := project + RepoSuffix
 
 	meta, err := p.readProjectMeta(repoName)
 	if err != nil {
@@ -138,11 +130,7 @@ func (p *SoftServeProvider) Repo(ctx context.Context, project string) (*ProjectM
 
 // DeleteRepo removes a repo from Soft-serve.
 func (p *SoftServeProvider) DeleteRepo(ctx context.Context, project string) error {
-	_, name, err := SplitProject(project)
-	if err != nil {
-		return err
-	}
-	repoName := name + RepoSuffix
+	repoName := project + RepoSuffix
 
 	if _, err := p.sshCmd("repo", "delete", repoName); err != nil {
 		return fmt.Errorf("failed to delete repo %s: %w", repoName, err)
@@ -248,11 +236,7 @@ func (p *SoftServeProvider) UpdateImageTag(ctx context.Context, project, environ
 
 // Services reads the services from base/values.yaml.
 func (p *SoftServeProvider) Services(ctx context.Context, project string) ([]ServiceDef, error) {
-	_, name, err := SplitProject(project)
-	if err != nil {
-		return nil, err
-	}
-	repoName := name + RepoSuffix
+	repoName := project + RepoSuffix
 
 	dir, cleanup, err := p.cloneRepo(repoName)
 	if err != nil {
@@ -370,11 +354,7 @@ func (p *SoftServeProvider) Promote(ctx context.Context, project, service, fromE
 // DeploymentHistory returns deployment history for a service in an environment
 // by parsing the GitOps repo's git log for matching commit messages.
 func (p *SoftServeProvider) DeploymentHistory(ctx context.Context, project, environment, service string) ([]DeploymentEntry, error) {
-	_, name, err := SplitProject(project)
-	if err != nil {
-		return nil, err
-	}
-	repoName := name + RepoSuffix
+	repoName := project + RepoSuffix
 
 	dir, cleanup, err := p.cloneRepoWithDepth(repoName, 0)
 	if err != nil {
@@ -458,11 +438,7 @@ func (p *SoftServeProvider) SetServiceDomain(ctx context.Context, project, envir
 
 // EnvironmentServices reads per-environment service state from the environment's values.yaml.
 func (p *SoftServeProvider) EnvironmentServices(ctx context.Context, project, environment string) ([]ServiceInstanceMeta, error) {
-	_, name, err := SplitProject(project)
-	if err != nil {
-		return nil, err
-	}
-	repoName := name + RepoSuffix
+	repoName := project + RepoSuffix
 
 	dir, cleanup, err := p.cloneRepo(repoName)
 	if err != nil {
@@ -561,11 +537,7 @@ func (p *SoftServeProvider) cloneRepoWithDepth(repoName string, depth int) (stri
 
 // modifyRepo clones a repo, applies a modification function, commits, and pushes.
 func (p *SoftServeProvider) modifyRepo(ctx context.Context, project, commitMsg string, modify func(dir string) error) error {
-	_, name, err := SplitProject(project)
-	if err != nil {
-		return err
-	}
-	repoName := name + RepoSuffix
+	repoName := project + RepoSuffix
 
 	dir, cleanup, err := p.cloneRepo(repoName)
 	if err != nil {
@@ -842,11 +814,7 @@ func writeLocalValuesYAML(path string, values map[string]any) error {
 // RepoFiles returns raw file contents from the GitOps repo, keyed by relative path.
 // Clones the repo and reads all files except .git/ and chart/.
 func (p *SoftServeProvider) RepoFiles(ctx context.Context, project string) (map[string][]byte, error) {
-	_, name, err := SplitProject(project)
-	if err != nil {
-		return nil, err
-	}
-	repoName := name + RepoSuffix
+	repoName := project + RepoSuffix
 
 	dir, cleanup, err := p.cloneRepo(repoName)
 	if err != nil {
@@ -889,11 +857,7 @@ func (p *SoftServeProvider) RepoFiles(ctx context.Context, project string) (map[
 
 // SharedVariables returns all shared variables for an environment.
 func (p *SoftServeProvider) SharedVariables(ctx context.Context, project, environment string) (map[string]string, error) {
-	_, name, err := SplitProject(project)
-	if err != nil {
-		return nil, err
-	}
-	repoName := name + RepoSuffix
+	repoName := project + RepoSuffix
 
 	dir, cleanup, err := p.cloneRepo(repoName)
 	if err != nil {
@@ -971,11 +935,7 @@ func (p *SoftServeProvider) SetSharedVariables(ctx context.Context, project, env
 
 // ServiceVariables returns all variables and shared refs for a service in an environment.
 func (p *SoftServeProvider) ServiceVariables(ctx context.Context, project, environment, service string) (map[string]string, []string, error) {
-	_, name, err := SplitProject(project)
-	if err != nil {
-		return nil, nil, err
-	}
-	repoName := name + RepoSuffix
+	repoName := project + RepoSuffix
 
 	dir, cleanup, err := p.cloneRepo(repoName)
 	if err != nil {
@@ -1117,11 +1077,7 @@ func (p *SoftServeProvider) RemoveDatabase(ctx context.Context, project, name st
 
 // Databases reads the database definitions from base/values.yaml.
 func (p *SoftServeProvider) Databases(ctx context.Context, project string) ([]DatabaseDef, error) {
-	_, name, err := SplitProject(project)
-	if err != nil {
-		return nil, err
-	}
-	repoName := name + RepoSuffix
+	repoName := project + RepoSuffix
 
 	dir, cleanup, err := p.cloneRepo(repoName)
 	if err != nil {
