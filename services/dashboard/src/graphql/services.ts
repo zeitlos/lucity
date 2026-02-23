@@ -136,6 +136,18 @@ export const RemoveDomainMutation = gql`
   }
 `;
 
+export const CheckDnsStatusQuery = gql`
+  query CheckDnsStatus($hostname: String!) {
+    checkDnsStatus(hostname: $hostname) {
+      hostname
+      status
+      cnameTarget
+      expectedTarget
+      message
+    }
+  }
+`;
+
 export const PlatformConfigQuery = gql`
   query PlatformConfig {
     platformConfig {

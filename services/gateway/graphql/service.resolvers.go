@@ -158,6 +158,12 @@ func (r *queryResolver) PlatformConfig(ctx context.Context) (*model.PlatformConf
 	}, nil
 }
 
+// CheckDNSStatus is the resolver for the checkDnsStatus field.
+func (r *queryResolver) CheckDNSStatus(ctx context.Context, hostname string) (*model.DNSCheck, error) {
+	check := r.API.CheckDns(hostname)
+	return convertDnsCheck(check), nil
+}
+
 // DeployLogs is the resolver for the deployLogs field.
 func (r *subscriptionResolver) DeployLogs(ctx context.Context, id string) (<-chan string, error) {
 	ch, unsub, err := r.API.DeployLogs(ctx, id)

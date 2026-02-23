@@ -54,6 +54,7 @@ enum DomainType {
 enum DnsStatus {
   VALID
   PENDING
+  MISCONFIGURED
   ERROR
 }
 

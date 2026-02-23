@@ -12,7 +12,7 @@ export interface DeploymentInfo {
 export interface DomainInfo {
   hostname: string;
   type: 'PLATFORM' | 'CUSTOM';
-  dnsStatus: 'VALID' | 'PENDING' | 'ERROR';
+  dnsStatus: 'VALID' | 'PENDING' | 'MISCONFIGURED' | 'ERROR';
 }
 
 export interface ServiceInstance {

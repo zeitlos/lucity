@@ -605,7 +605,16 @@ func (c *Client) Rollback(ctx context.Context, projectID, service, environment, 
 type Domain struct {
 	Hostname  string
 	Type      string // "PLATFORM" or "CUSTOM"
-	DnsStatus string // "VALID", "PENDING", or "ERROR"
+	DnsStatus string // "VALID", "PENDING", "MISCONFIGURED", or "ERROR"
+}
+
+// DnsCheck holds the result of a live DNS verification.
+type DnsCheck struct {
+	Hostname       string
+	Status         string // "VALID", "PENDING", "MISCONFIGURED", "ERROR"
+	CnameTarget    string // actual CNAME target found, empty if none
+	ExpectedTarget string // platform's domain target
+	Message        string // human-readable explanation
 }
 
 // PlatformConfig returns platform-level configuration for domain management.
@@ -618,21 +627,59 @@ func (c *Client) IsPlatformDomain(hostname string) bool {
 	return strings.HasSuffix(hostname, "."+c.WorkloadDomain)
 }
 
-// CheckDnsStatus checks the DNS resolution status of a domain.
-func (c *Client) CheckDnsStatus(hostname string) string {
-	if c.IsPlatformDomain(hostname) {
-		return "VALID"
+// CheckDns performs a live DNS check for a custom domain.
+// It verifies that the domain has a CNAME record pointing to the platform's domain target.
+func (c *Client) CheckDns(hostname string) DnsCheck {
+	result := DnsCheck{
+		Hostname:       hostname,
+		ExpectedTarget: c.DomainTarget,
 	}
 
-	lookupCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	if c.IsPlatformDomain(hostname) {
+		result.Status = "VALID"
+		result.Message = "Platform domain"
+		return result
+	}
+
+	lookupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	resolver := &net.Resolver{}
-	addrs, err := resolver.LookupHost(lookupCtx, hostname)
-	if err != nil || len(addrs) == 0 {
-		return "PENDING"
+
+	// Check CNAME record.
+	// Go's LookupCNAME returns the hostname itself (with trailing dot) when no CNAME exists.
+	cname, err := resolver.LookupCNAME(lookupCtx, hostname)
+	if err == nil && cname != "" {
+		cname = strings.TrimSuffix(cname, ".")
+		normalized := strings.TrimSuffix(hostname, ".")
+
+		// If CNAME differs from the input hostname, a real CNAME record exists.
+		if !strings.EqualFold(cname, normalized) {
+			result.CnameTarget = cname
+			expected := strings.TrimSuffix(c.DomainTarget, ".")
+			if strings.EqualFold(cname, expected) {
+				result.Status = "VALID"
+				result.Message = "CNAME record verified"
+				return result
+			}
+			result.Status = "MISCONFIGURED"
+			result.Message = fmt.Sprintf("CNAME record points to %s, expected %s", cname, c.DomainTarget)
+			return result
+		}
 	}
-	return "VALID"
+
+	// No CNAME found. Check if the domain resolves at all (A record).
+	addrs, lookupErr := resolver.LookupHost(lookupCtx, hostname)
+	if lookupErr != nil || len(addrs) == 0 {
+		result.Status = "PENDING"
+		result.Message = "No DNS record found. Add a CNAME record pointing to " + c.DomainTarget
+		return result
+	}
+
+	// Domain resolves via A record but has no CNAME to the platform target.
+	result.Status = "MISCONFIGURED"
+	result.Message = fmt.Sprintf("Domain resolves via A record (%s) but has no CNAME to %s", addrs[0], c.DomainTarget)
+	return result
 }
 
 // BuildDomain constructs a Domain struct with type and DNS status.
@@ -641,10 +688,11 @@ func (c *Client) BuildDomain(hostname string) Domain {
 	if c.IsPlatformDomain(hostname) {
 		domainType = "PLATFORM"
 	}
+	check := c.CheckDns(hostname)
 	return Domain{
 		Hostname:  hostname,
 		Type:      domainType,
-		DnsStatus: c.CheckDnsStatus(hostname),
+		DnsStatus: check.Status,
 	}
 }
 

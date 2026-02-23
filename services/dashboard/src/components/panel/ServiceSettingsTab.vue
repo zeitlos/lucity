@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { useMutation, useQuery } from '@vue/apollo-composable';
 import {
   Trash2, Copy, X, Globe, Plus, CircleCheck, CircleAlert,
-  HelpCircle, ChevronDown, Network, ExternalLink,
+  CircleX, ChevronDown, Network, ExternalLink, Loader2,
 } from 'lucide-vue-next';
 import {
   RemoveServiceMutation,
@@ -14,6 +14,7 @@ import {
 } from '@/graphql/services';
 import { useEnvironment } from '@/composables/useEnvironment';
 import type { DomainInfo } from '@/composables/useEnvironment';
+import { useDnsPolling } from '@/composables/useDnsPolling';
 import FrameworkIcon from '@/components/FrameworkIcon.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -35,14 +36,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { errorMessage } from '@/lib/utils';
 
 const props = defineProps<{
@@ -73,6 +66,32 @@ const customDomains = computed(() => domains.value.filter(d => d.type === 'CUSTO
 // Platform config
 const { result: platformConfigResult } = useQuery(PlatformConfigQuery);
 const domainTarget = computed(() => platformConfigResult.value?.platformConfig?.domainTarget ?? '');
+
+// DNS polling for custom domains
+const dnsPolling = useDnsPolling();
+
+// Start polling for unverified custom domains when they change
+watch(customDomains, (domains) => {
+  const unverified = domains
+    .filter(d => d.dnsStatus !== 'VALID')
+    .map(d => d.hostname);
+  dnsPolling.trackHostnames(unverified);
+}, { immediate: true });
+
+// Get live DNS status for a custom domain (from polling, or fallback to static)
+function dnsStatus(hostname: string): 'VALID' | 'PENDING' | 'MISCONFIGURED' | 'ERROR' {
+  return dnsPolling.checks[hostname]?.status
+    ?? customDomains.value.find(d => d.hostname === hostname)?.dnsStatus
+    ?? 'PENDING';
+}
+
+function dnsMessage(hostname: string): string | null {
+  return dnsPolling.checks[hostname]?.message ?? null;
+}
+
+function expectedTarget(hostname: string): string {
+  return dnsPolling.checks[hostname]?.expectedTarget ?? domainTarget.value;
+}
 
 function domainUrl(hostname: string) {
   if (hostname.endsWith('.local')) return `http://${hostname}:8880`;
@@ -110,10 +129,6 @@ const canAddDomain = computed(() => {
   const raw = customDomainInput.value.trim();
   return raw.length > 0 && !hostnameError.value && !addingCustomDomain.value;
 });
-
-// DNS help modal
-const dnsHelpOpen = ref(false);
-const dnsHelpDomain = ref('');
 
 // Internal DNS name
 const internalDns = computed(() => {
@@ -188,6 +203,7 @@ async function handleAddCustomDomain() {
     const domain = res?.data?.addCustomDomain;
     if (domain) {
       updateServiceDomains(props.service.name, [...domains.value, domain]);
+      dnsPolling.addHostname(hostname);
     }
     toast.success(`Custom domain added: ${hostname}`);
     customDomainInput.value = '';
@@ -217,16 +233,12 @@ async function handleRemoveDomain(hostname: string) {
       return;
     }
 
+    dnsPolling.removeHostname(hostname);
     updateServiceDomains(props.service.name, domains.value.filter(d => d.hostname !== hostname));
     toast.success('Domain removed');
   } catch (e: unknown) {
     toast.error('Failed to remove domain', { description: errorMessage(e) });
   }
-}
-
-function showDnsHelp(hostname: string) {
-  dnsHelpDomain.value = hostname;
-  dnsHelpOpen.value = true;
 }
 
 function copyToClipboard(text: string) {
@@ -403,56 +415,154 @@ async function handleRemoveService() {
           <CollapsibleContent>
             <div class="space-y-3 border-t px-4 py-3">
               <!-- List of custom domains -->
-              <div v-if="customDomains.length" class="space-y-2">
+              <div v-if="customDomains.length" class="space-y-3">
                 <div
                   v-for="domain in customDomains"
                   :key="domain.hostname"
-                  class="flex items-center gap-2 rounded-md border bg-muted/50 px-3 py-2"
+                  class="space-y-2"
                 >
-                  <CircleCheck
-                    v-if="domain.dnsStatus === 'VALID'"
-                    :size="14"
-                    class="shrink-0 text-green-500"
-                  />
-                  <CircleAlert
-                    v-else
-                    :size="14"
-                    class="shrink-0 text-yellow-500"
-                  />
-                  <a
-                    :href="domainUrl(domain.hostname)"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="flex-1 truncate font-mono text-sm hover:underline"
+                  <!-- Domain row -->
+                  <div class="flex items-center gap-2 rounded-md border bg-muted/50 px-3 py-2">
+                    <!-- Status icon -->
+                    <CircleCheck
+                      v-if="dnsStatus(domain.hostname) === 'VALID'"
+                      :size="14"
+                      class="shrink-0 text-green-500"
+                    />
+                    <Loader2
+                      v-else-if="dnsStatus(domain.hostname) === 'PENDING'"
+                      :size="14"
+                      class="shrink-0 animate-spin text-muted-foreground"
+                    />
+                    <CircleAlert
+                      v-else-if="dnsStatus(domain.hostname) === 'MISCONFIGURED'"
+                      :size="14"
+                      class="shrink-0 text-orange-500"
+                    />
+                    <CircleX
+                      v-else
+                      :size="14"
+                      class="shrink-0 text-destructive"
+                    />
+                    <a
+                      :href="domainUrl(domain.hostname)"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="min-w-0 flex-1 truncate font-mono text-sm hover:underline"
+                    >
+                      {{ domain.hostname }}
+                    </a>
+                    <!-- Status badge -->
+                    <Badge
+                      v-if="dnsStatus(domain.hostname) === 'VALID'"
+                      variant="default"
+                      class="text-[0.6rem]"
+                    >
+                      Verified
+                    </Badge>
+                    <Badge
+                      v-else-if="dnsStatus(domain.hostname) === 'PENDING'"
+                      variant="secondary"
+                      class="text-[0.6rem]"
+                    >
+                      Pending
+                    </Badge>
+                    <Badge
+                      v-else-if="dnsStatus(domain.hostname) === 'MISCONFIGURED'"
+                      variant="outline"
+                      class="border-orange-500/30 text-[0.6rem] text-orange-500"
+                    >
+                      Misconfigured
+                    </Badge>
+                    <Badge
+                      v-else
+                      variant="destructive"
+                      class="text-[0.6rem]"
+                    >
+                      Error
+                    </Badge>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      class="h-7 w-7 shrink-0"
+                      @click="copyToClipboard(domain.hostname)"
+                    >
+                      <Copy :size="14" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      class="h-7 w-7 shrink-0 text-destructive"
+                      @click="handleRemoveDomain(domain.hostname)"
+                    >
+                      <X :size="14" />
+                    </Button>
+                  </div>
+
+                  <!-- Inline DNS instructions for unverified domains -->
+                  <div
+                    v-if="dnsStatus(domain.hostname) !== 'VALID' && expectedTarget(domain.hostname)"
+                    class="ml-5 space-y-2 rounded-md border border-dashed bg-muted/30 p-3"
                   >
-                    {{ domain.hostname }}
-                  </a>
-                  <Button
-                    v-if="domain.dnsStatus !== 'VALID' && domainTarget"
-                    variant="ghost"
-                    size="icon"
-                    class="h-7 w-7 shrink-0"
-                    title="Show DNS configuration"
-                    @click="showDnsHelp(domain.hostname)"
-                  >
-                    <HelpCircle :size="14" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    class="h-7 w-7 shrink-0"
-                    @click="copyToClipboard(domain.hostname)"
-                  >
-                    <Copy :size="14" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    class="h-7 w-7 shrink-0 text-destructive"
-                    @click="handleRemoveDomain(domain.hostname)"
-                  >
-                    <X :size="14" />
-                  </Button>
+                    <div class="rounded-md border">
+                      <table class="w-full text-sm">
+                        <thead>
+                          <tr class="border-b bg-muted/50">
+                            <th class="px-3 py-1.5 text-left text-xs font-medium text-muted-foreground">
+                              Type
+                            </th>
+                            <th class="px-3 py-1.5 text-left text-xs font-medium text-muted-foreground">
+                              Name
+                            </th>
+                            <th class="px-3 py-1.5 text-left text-xs font-medium text-muted-foreground">
+                              Value
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr>
+                            <td class="px-3 py-1.5">
+                              <Badge
+                                variant="outline"
+                                class="font-mono text-xs"
+                              >
+                                CNAME
+                              </Badge>
+                            </td>
+                            <td class="px-3 py-1.5 font-mono text-xs">
+                              {{ domain.hostname }}
+                            </td>
+                            <td class="px-3 py-1.5">
+                              <div class="flex items-center gap-1">
+                                <span class="font-mono text-xs">{{ expectedTarget(domain.hostname) }}</span>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  class="h-5 w-5 shrink-0"
+                                  @click="copyToClipboard(expectedTarget(domain.hostname))"
+                                >
+                                  <Copy :size="10" />
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                    <p
+                      v-if="dnsMessage(domain.hostname)"
+                      class="text-xs"
+                      :class="dnsStatus(domain.hostname) === 'MISCONFIGURED' ? 'text-orange-500' : 'text-muted-foreground'"
+                    >
+                      {{ dnsMessage(domain.hostname) }}
+                    </p>
+                    <p
+                      v-else
+                      class="text-xs text-muted-foreground"
+                    >
+                      Add this DNS record at your domain registrar. Verification usually takes a few minutes.
+                    </p>
+                  </div>
                 </div>
               </div>
 
@@ -572,60 +682,5 @@ async function handleRemoveService() {
         </div>
       </div>
     </section>
-
-    <!-- DNS Help Dialog -->
-    <Dialog v-model:open="dnsHelpOpen">
-      <DialogContent class="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Configure DNS Records</DialogTitle>
-          <DialogDescription>
-            Add the following DNS record to point <strong class="font-mono">{{ dnsHelpDomain }}</strong> to your application.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div class="rounded-md border">
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="border-b bg-muted/50">
-                <th class="px-3 py-2 text-left font-medium text-muted-foreground">Type</th>
-                <th class="px-3 py-2 text-left font-medium text-muted-foreground">Name</th>
-                <th class="px-3 py-2 text-left font-medium text-muted-foreground">Value</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td class="px-3 py-2">
-                  <Badge variant="outline" class="font-mono text-xs">CNAME</Badge>
-                </td>
-                <td class="px-3 py-2 font-mono text-xs">{{ dnsHelpDomain }}</td>
-                <td class="px-3 py-2">
-                  <div class="flex items-center gap-1">
-                    <span class="font-mono text-xs">{{ domainTarget }}</span>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      class="h-6 w-6 shrink-0"
-                      @click="copyToClipboard(domainTarget)"
-                    >
-                      <Copy :size="12" />
-                    </Button>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <p class="text-xs text-muted-foreground">
-          DNS changes can take up to 48 hours to propagate. The status will update automatically once the record is detected.
-        </p>
-
-        <DialogFooter>
-          <Button variant="outline" @click="dnsHelpOpen = false">
-            Done
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   </div>
 </template>

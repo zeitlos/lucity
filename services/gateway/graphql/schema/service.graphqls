@@ -104,12 +104,27 @@ input RemoveDomainInput {
   hostname: String!
 }
 
+"""Result of a live DNS verification for a custom domain."""
+type DnsCheck {
+  hostname: String!
+  """Current DNS status after live lookup."""
+  status: DnsStatus!
+  """The CNAME target found in DNS, if any."""
+  cnameTarget: String
+  """The expected CNAME target for this platform."""
+  expectedTarget: String!
+  """Human-readable message explaining the current status."""
+  message: String
+}
+
 extend type Query {
   detectServices(sourceUrl: String!): [DetectedService!]! @hasRole(role: [USER])
   buildStatus(id: ID!): Build @hasRole(role: [USER])
   deployStatus(id: ID!): DeployRun @hasRole(role: [USER])
   activeDeployment(projectId: ID!, service: String!, environment: String!): DeployRun @hasRole(role: [USER])
   platformConfig: PlatformConfig! @hasRole(role: [USER])
+  """Perform a live DNS check for a custom domain. Returns current CNAME status and whether it points to the correct target."""
+  checkDnsStatus(hostname: String!): DnsCheck! @hasRole(role: [USER])
 }
 
 extend type Mutation {

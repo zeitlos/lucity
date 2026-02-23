@@ -137,6 +137,21 @@ func convertDomain(d handler.Domain) *model.Domain {
 	}
 }
 
+func convertDnsCheck(d handler.DnsCheck) *model.DNSCheck {
+	result := &model.DNSCheck{
+		Hostname:       d.Hostname,
+		Status:         model.DNSStatus(d.Status),
+		ExpectedTarget: d.ExpectedTarget,
+	}
+	if d.CnameTarget != "" {
+		result.CnameTarget = &d.CnameTarget
+	}
+	if d.Message != "" {
+		result.Message = &d.Message
+	}
+	return result
+}
+
 func convertDeployment(d handler.Deployment) model.Deployment {
 	dep := model.Deployment{
 		ID:       d.ID,

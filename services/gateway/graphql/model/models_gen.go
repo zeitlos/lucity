@@ -171,6 +171,19 @@ type DetectedService struct {
 	SuggestedPort int    `json:"suggestedPort"`
 }
 
+// Result of a live DNS verification for a custom domain.
+type DNSCheck struct {
+	Hostname string `json:"hostname"`
+	// Current DNS status after live lookup.
+	Status DNSStatus `json:"status"`
+	// The CNAME target found in DNS, if any.
+	CnameTarget *string `json:"cnameTarget,omitempty"`
+	// The expected CNAME target for this platform.
+	ExpectedTarget string `json:"expectedTarget"`
+	// Human-readable message explaining the current status.
+	Message *string `json:"message,omitempty"`
+}
+
 type Domain struct {
 	Hostname string `json:"hostname"`
 	// PLATFORM domains use wildcard DNS on the workload domain. CUSTOM domains require user DNS config.
@@ -469,20 +482,22 @@ func (e DeployPhase) MarshalJSON() ([]byte, error) {
 type DNSStatus string
 
 const (
-	DNSStatusValid   DNSStatus = "VALID"
-	DNSStatusPending DNSStatus = "PENDING"
-	DNSStatusError   DNSStatus = "ERROR"
+	DNSStatusValid         DNSStatus = "VALID"
+	DNSStatusPending       DNSStatus = "PENDING"
+	DNSStatusMisconfigured DNSStatus = "MISCONFIGURED"
+	DNSStatusError         DNSStatus = "ERROR"
 )
 
 var AllDNSStatus = []DNSStatus{
 	DNSStatusValid,
 	DNSStatusPending,
+	DNSStatusMisconfigured,
 	DNSStatusError,
 }
 
 func (e DNSStatus) IsValid() bool {
 	switch e {
-	case DNSStatusValid, DNSStatusPending, DNSStatusError:
+	case DNSStatusValid, DNSStatusPending, DNSStatusMisconfigured, DNSStatusError:
 		return true
 	}
 	return false
