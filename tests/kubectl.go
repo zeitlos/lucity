@@ -73,24 +73,33 @@ func requireNamespace(t *testing.T) {
 	}
 }
 
-// waitForNamespaceGone polls until the namespace no longer exists.
+// waitForNamespaceGone polls until the namespace no longer exists. Fatals on timeout.
 func waitForNamespaceGone(t *testing.T, ns string, timeout time.Duration) {
+	t.Helper()
+	if !waitForNamespaceGoneOK(t, ns, timeout) {
+		t.Fatalf("namespace %q still exists after %s", ns, timeout)
+	}
+}
+
+// waitForNamespaceGoneOK polls until the namespace no longer exists. Returns false on timeout (non-fatal).
+func waitForNamespaceGoneOK(t *testing.T, ns string, timeout time.Duration) bool {
 	t.Helper()
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
 		out, err := kubectlQuiet(t, "get", "namespace", ns, "--no-headers")
 		if err != nil {
 			t.Logf("namespace %s is gone", ns)
-			return
+			return true
 		}
 		// Also accept Terminating
 		if strings.Contains(out, "Terminating") {
 			t.Logf("namespace %s is terminating", ns)
-			return
+			return true
 		}
 		time.Sleep(2 * time.Second)
 	}
-	t.Fatalf("namespace %q still exists after %s", ns, timeout)
+	t.Logf("namespace %q still exists after %s", ns, timeout)
+	return false
 }
 
 // waitForPod polls until at least one pod matching the label selector is Running.
