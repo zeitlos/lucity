@@ -5,10 +5,19 @@ import (
 	"fmt"
 	"time"
 
+	"google.golang.org/grpc/codes"
+	grpcstatus "google.golang.org/grpc/status"
+
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/deployer"
 	"github.com/zeitlos/lucity/pkg/packager"
 )
+
+// DatabaseProvisioningError indicates the database is still being provisioned
+// and is not yet ready for queries.
+type DatabaseProvisioningError struct{}
+
+func (e *DatabaseProvisioningError) Error() string { return "database is provisioning" }
 
 // dbQueryTimeout is longer than grpcTimeout because database queries can be slow.
 const dbQueryTimeout = 35 * time.Second
@@ -44,6 +53,22 @@ type QueryResult struct {
 	Columns      []string
 	Rows         [][]*string
 	AffectedRows int
+}
+
+type DatabaseInstance struct {
+	Name        string
+	Environment string
+	Ready       bool
+	Instances   int
+	Version     string
+	Size        string
+	Volume      *Volume
+}
+
+type Volume struct {
+	Name          string
+	Size          string
+	RequestedSize string
 }
 
 func (c *Client) CreateDatabase(ctx context.Context, projectID, name, version string, instances int, size string) (*Database, error) {
@@ -114,6 +139,9 @@ func (c *Client) DatabaseTables(ctx context.Context, projectID, environment, dat
 		Database:    database,
 	})
 	if err != nil {
+		if s, ok := grpcstatus.FromError(err); ok && s.Code() == codes.FailedPrecondition {
+			return nil, &DatabaseProvisioningError{}
+		}
 		return nil, fmt.Errorf("failed to get database tables: %w", err)
 	}
 
@@ -152,6 +180,9 @@ func (c *Client) DatabaseTableData(ctx context.Context, projectID, environment, 
 		Offset:      int32(offset),
 	})
 	if err != nil {
+		if s, ok := grpcstatus.FromError(err); ok && s.Code() == codes.FailedPrecondition {
+			return nil, &DatabaseProvisioningError{}
+		}
 		return nil, fmt.Errorf("failed to get table data: %w", err)
 	}
 
@@ -174,6 +205,9 @@ func (c *Client) ExecuteQuery(ctx context.Context, projectID, environment, datab
 		Query:       query,
 	})
 	if err != nil {
+		if s, ok := grpcstatus.FromError(err); ok && s.Code() == codes.FailedPrecondition {
+			return nil, &DatabaseProvisioningError{}
+		}
 		return nil, fmt.Errorf("query failed: %w", err)
 	}
 

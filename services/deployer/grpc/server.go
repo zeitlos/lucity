@@ -3,6 +3,7 @@ package grpc
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -280,6 +281,9 @@ const dbQueryTimeout = 30 * time.Second
 func (s *Server) DatabaseTables(ctx context.Context, req *deployer.DatabaseTablesRequest) (*deployer.DatabaseTablesResponse, error) {
 	creds, err := database.CredentialsFromSecret(ctx, s.k8s, req.Project, req.Environment, req.Database)
 	if err != nil {
+		if errors.Is(err, database.ErrNotReady) {
+			return nil, status.Errorf(codes.FailedPrecondition, "database is provisioning")
+		}
 		return nil, status.Errorf(codes.NotFound, "database credentials not found: %v", err)
 	}
 
@@ -303,6 +307,9 @@ func (s *Server) DatabaseTables(ctx context.Context, req *deployer.DatabaseTable
 func (s *Server) DatabaseTableData(ctx context.Context, req *deployer.DatabaseTableDataRequest) (*deployer.DatabaseTableDataResponse, error) {
 	creds, err := database.CredentialsFromSecret(ctx, s.k8s, req.Project, req.Environment, req.Database)
 	if err != nil {
+		if errors.Is(err, database.ErrNotReady) {
+			return nil, status.Errorf(codes.FailedPrecondition, "database is provisioning")
+		}
 		return nil, status.Errorf(codes.NotFound, "database credentials not found: %v", err)
 	}
 
@@ -330,6 +337,9 @@ func (s *Server) DatabaseTableData(ctx context.Context, req *deployer.DatabaseTa
 func (s *Server) DatabaseQuery(ctx context.Context, req *deployer.DatabaseQueryRequest) (*deployer.DatabaseQueryResponse, error) {
 	creds, err := database.CredentialsFromSecret(ctx, s.k8s, req.Project, req.Environment, req.Database)
 	if err != nil {
+		if errors.Is(err, database.ErrNotReady) {
+			return nil, status.Errorf(codes.FailedPrecondition, "database is provisioning")
+		}
 		return nil, status.Errorf(codes.NotFound, "database credentials not found: %v", err)
 	}
 
@@ -351,6 +361,61 @@ func (s *Server) DatabaseQuery(ctx context.Context, req *deployer.DatabaseQueryR
 		Columns:      columns,
 		Rows:         rows,
 		AffectedRows: affected,
+	}, nil
+}
+
+func (s *Server) DatabaseStatus(ctx context.Context, req *deployer.DatabaseStatusRequest) (*deployer.DatabaseStatusResponse, error) {
+	namespace := labels.NamespaceFor(req.Project, req.Environment)
+	clusterName := namespace + "-lucity-app-pg-" + req.Database
+	labelSelector := fmt.Sprintf("cnpg.io/cluster=%s", clusterName)
+
+	// Check CNPG pods for readiness.
+	podList, err := s.k8s.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: labelSelector,
+	})
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to list database pods: %v", err)
+	}
+
+	var runningInstances int32
+	for _, pod := range podList.Items {
+		if pod.Status.Phase != corev1.PodRunning {
+			continue
+		}
+		for _, cond := range pod.Status.Conditions {
+			if cond.Type == corev1.PodReady && cond.Status == corev1.ConditionTrue {
+				runningInstances++
+				break
+			}
+		}
+	}
+
+	// Read PVC info.
+	var volumeInfo *deployer.VolumeInfo
+	pvcList, err := s.k8s.CoreV1().PersistentVolumeClaims(namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: labelSelector,
+	})
+	if err == nil && len(pvcList.Items) > 0 {
+		pvc := pvcList.Items[0]
+		capacity := ""
+		if qty, ok := pvc.Status.Capacity[corev1.ResourceStorage]; ok {
+			capacity = qty.String()
+		}
+		requested := ""
+		if qty, ok := pvc.Spec.Resources.Requests[corev1.ResourceStorage]; ok {
+			requested = qty.String()
+		}
+		volumeInfo = &deployer.VolumeInfo{
+			Name:          pvc.Name,
+			Size:          capacity,
+			RequestedSize: requested,
+		}
+	}
+
+	return &deployer.DatabaseStatusResponse{
+		Ready:     runningInstances > 0,
+		Instances: runningInstances,
+		Volume:    volumeInfo,
 	}, nil
 }
 

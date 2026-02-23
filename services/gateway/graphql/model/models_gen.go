@@ -65,6 +65,16 @@ type DatabaseColumn struct {
 	PrimaryKey bool   `json:"primaryKey"`
 }
 
+type DatabaseInstance struct {
+	Name        string  `json:"name"`
+	Environment string  `json:"environment"`
+	Ready       bool    `json:"ready"`
+	Instances   int     `json:"instances"`
+	Version     string  `json:"version"`
+	Size        string  `json:"size"`
+	Volume      *Volume `json:"volume,omitempty"`
+}
+
 type DatabaseQueryInput struct {
 	ProjectID   string `json:"projectId"`
 	Environment string `json:"environment"`
@@ -135,12 +145,13 @@ type DetectedService struct {
 }
 
 type Environment struct {
-	ID         string            `json:"id"`
-	Name       string            `json:"name"`
-	Namespace  string            `json:"namespace"`
-	Ephemeral  bool              `json:"ephemeral"`
-	SyncStatus SyncStatus        `json:"syncStatus"`
-	Services   []ServiceInstance `json:"services"`
+	ID         string             `json:"id"`
+	Name       string             `json:"name"`
+	Namespace  string             `json:"namespace"`
+	Ephemeral  bool               `json:"ephemeral"`
+	SyncStatus SyncStatus         `json:"syncStatus"`
+	Services   []ServiceInstance  `json:"services"`
+	Databases  []DatabaseInstance `json:"databases"`
 }
 
 type GitHubRepository struct {
@@ -256,6 +267,12 @@ type Variable struct {
 type VariableInput struct {
 	Key   string `json:"key"`
 	Value string `json:"value"`
+}
+
+type Volume struct {
+	Name          string `json:"name"`
+	Size          string `json:"size"`
+	RequestedSize string `json:"requestedSize"`
 }
 
 type BuildPhase string

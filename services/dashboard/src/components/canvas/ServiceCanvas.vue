@@ -34,7 +34,7 @@ const emit = defineEmits<{
   (e: 'deploy-completed'): void;
 }>();
 
-const { activeEnvServices, activeEnvironment } = useEnvironment();
+const { activeEnvServices, activeEnvDatabases, activeEnvironment } = useEnvironment();
 const { openPanel, currentPanel } = usePanel();
 
 const serviceNames = computed(() => props.services.map(s => s.name));
@@ -72,18 +72,23 @@ const nodes = computed(() => {
     };
   });
 
-  const databaseNodes = (props.databases ?? []).map((db, index) => ({
-    id: `db-${db.name}`,
-    type: 'database',
-    position: { x: 340, y: index * 180 },
-    data: {
-      name: db.name,
-      version: db.version,
-      instances: db.instances,
-      size: db.size,
-    },
-    selected: currentPanel.value?.id === db.name && currentPanel.value?.type === 'database',
-  }));
+  const databaseNodes = (props.databases ?? []).map((db, index) => {
+    const envDb = activeEnvDatabases.value.find(ed => ed.name === db.name);
+    return {
+      id: `db-${db.name}`,
+      type: 'database',
+      position: { x: 340, y: index * 220 },
+      data: {
+        name: db.name,
+        version: db.version,
+        instances: envDb?.instances ?? db.instances,
+        size: envDb?.size ?? db.size,
+        ready: envDb?.ready,
+        volume: envDb?.volume ?? null,
+      },
+      selected: currentPanel.value?.id === db.name && currentPanel.value?.type === 'database',
+    };
+  });
 
   return [...serviceNodes, ...databaseNodes];
 });

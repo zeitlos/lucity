@@ -84,6 +84,19 @@ export const ProjectQuery = gql`
             sourceUrl
           }
         }
+        databases {
+          name
+          environment
+          ready
+          instances
+          version
+          size
+          volume {
+            name
+            size
+            requestedSize
+          }
+        }
       }
       services {
         name

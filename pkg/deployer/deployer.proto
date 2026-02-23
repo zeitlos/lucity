@@ -31,6 +31,9 @@ service DeployerService {
 
   // DatabaseQuery executes an arbitrary SQL query and returns results.
   rpc DatabaseQuery(DatabaseQueryRequest) returns (DatabaseQueryResponse);
+
+  // DatabaseStatus returns the runtime status of a database in an environment.
+  rpc DatabaseStatus(DatabaseStatusRequest) returns (DatabaseStatusResponse);
 }
 
 message DeployEnvironmentRequest {
@@ -162,4 +165,24 @@ message DatabaseQueryResponse {
   repeated string columns = 1;
   repeated DatabaseRow rows = 2;
   int64 affected_rows = 3;
+}
+
+// Database status messages.
+
+message DatabaseStatusRequest {
+  string project = 1;
+  string environment = 2;
+  string database = 3;
+}
+
+message DatabaseStatusResponse {
+  bool ready = 1;
+  int32 instances = 2;
+  VolumeInfo volume = 3;
+}
+
+message VolumeInfo {
+  string name = 1;
+  string size = 2;
+  string requested_size = 3;
 }

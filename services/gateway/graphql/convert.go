@@ -38,6 +38,9 @@ func convertEnvironment(e handler.Environment) model.Environment {
 	for _, si := range e.Services {
 		result.Services = append(result.Services, convertServiceInstance(si))
 	}
+	for _, di := range e.Databases {
+		result.Databases = append(result.Databases, convertDatabaseInstance(di))
+	}
 	return result
 }
 
@@ -198,6 +201,25 @@ func convertDatabase(d handler.Database) model.Database {
 		Instances: d.Instances,
 		Size:      d.Size,
 	}
+}
+
+func convertDatabaseInstance(di handler.DatabaseInstance) model.DatabaseInstance {
+	result := model.DatabaseInstance{
+		Name:        di.Name,
+		Environment: di.Environment,
+		Ready:       di.Ready,
+		Instances:   di.Instances,
+		Version:     di.Version,
+		Size:        di.Size,
+	}
+	if di.Volume != nil {
+		result.Volume = &model.Volume{
+			Name:          di.Volume.Name,
+			Size:          di.Volume.Size,
+			RequestedSize: di.Volume.RequestedSize,
+		}
+	}
+	return result
 }
 
 func convertDatabaseTable(t handler.DatabaseTable) model.DatabaseTable {

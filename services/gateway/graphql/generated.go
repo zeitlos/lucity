@@ -73,6 +73,16 @@ type ComplexityRoot struct {
 		Type       func(childComplexity int) int
 	}
 
+	DatabaseInstance struct {
+		Environment func(childComplexity int) int
+		Instances   func(childComplexity int) int
+		Name        func(childComplexity int) int
+		Ready       func(childComplexity int) int
+		Size        func(childComplexity int) int
+		Version     func(childComplexity int) int
+		Volume      func(childComplexity int) int
+	}
+
 	DatabaseTable struct {
 		Columns       func(childComplexity int) int
 		EstimatedRows func(childComplexity int) int
@@ -117,6 +127,7 @@ type ComplexityRoot struct {
 	}
 
 	Environment struct {
+		Databases  func(childComplexity int) int
 		Ephemeral  func(childComplexity int) int
 		ID         func(childComplexity int) int
 		Name       func(childComplexity int) int
@@ -234,6 +245,12 @@ type ComplexityRoot struct {
 	Variable struct {
 		Key   func(childComplexity int) int
 		Value func(childComplexity int) int
+	}
+
+	Volume struct {
+		Name          func(childComplexity int) int
+		RequestedSize func(childComplexity int) int
+		Size          func(childComplexity int) int
 	}
 }
 
@@ -377,6 +394,49 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.DatabaseColumn.Type(childComplexity), true
+
+	case "DatabaseInstance.environment":
+		if e.complexity.DatabaseInstance.Environment == nil {
+			break
+		}
+
+		return e.complexity.DatabaseInstance.Environment(childComplexity), true
+	case "DatabaseInstance.instances":
+		if e.complexity.DatabaseInstance.Instances == nil {
+			break
+		}
+
+		return e.complexity.DatabaseInstance.Instances(childComplexity), true
+	case "DatabaseInstance.name":
+		if e.complexity.DatabaseInstance.Name == nil {
+			break
+		}
+
+		return e.complexity.DatabaseInstance.Name(childComplexity), true
+	case "DatabaseInstance.ready":
+		if e.complexity.DatabaseInstance.Ready == nil {
+			break
+		}
+
+		return e.complexity.DatabaseInstance.Ready(childComplexity), true
+	case "DatabaseInstance.size":
+		if e.complexity.DatabaseInstance.Size == nil {
+			break
+		}
+
+		return e.complexity.DatabaseInstance.Size(childComplexity), true
+	case "DatabaseInstance.version":
+		if e.complexity.DatabaseInstance.Version == nil {
+			break
+		}
+
+		return e.complexity.DatabaseInstance.Version(childComplexity), true
+	case "DatabaseInstance.volume":
+		if e.complexity.DatabaseInstance.Volume == nil {
+			break
+		}
+
+		return e.complexity.DatabaseInstance.Volume(childComplexity), true
 
 	case "DatabaseTable.columns":
 		if e.complexity.DatabaseTable.Columns == nil {
@@ -551,6 +611,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.DetectedService.SuggestedPort(childComplexity), true
 
+	case "Environment.databases":
+		if e.complexity.Environment.Databases == nil {
+			break
+		}
+
+		return e.complexity.Environment.Databases(childComplexity), true
 	case "Environment.ephemeral":
 		if e.complexity.Environment.Ephemeral == nil {
 			break
@@ -1204,6 +1270,25 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Variable.Value(childComplexity), true
+
+	case "Volume.name":
+		if e.complexity.Volume.Name == nil {
+			break
+		}
+
+		return e.complexity.Volume.Name(childComplexity), true
+	case "Volume.requestedSize":
+		if e.complexity.Volume.RequestedSize == nil {
+			break
+		}
+
+		return e.complexity.Volume.RequestedSize(childComplexity), true
+	case "Volume.size":
+		if e.complexity.Volume.Size == nil {
+			break
+		}
+
+		return e.complexity.Volume.Size(childComplexity), true
 
 	}
 	return 0, false
@@ -2294,6 +2379,217 @@ func (ec *executionContext) fieldContext_DatabaseColumn_primaryKey(_ context.Con
 	return fc, nil
 }
 
+func (ec *executionContext) _DatabaseInstance_name(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseInstance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DatabaseInstance_name,
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DatabaseInstance_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DatabaseInstance",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DatabaseInstance_environment(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseInstance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DatabaseInstance_environment,
+		func(ctx context.Context) (any, error) {
+			return obj.Environment, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DatabaseInstance_environment(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DatabaseInstance",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DatabaseInstance_ready(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseInstance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DatabaseInstance_ready,
+		func(ctx context.Context) (any, error) {
+			return obj.Ready, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DatabaseInstance_ready(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DatabaseInstance",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DatabaseInstance_instances(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseInstance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DatabaseInstance_instances,
+		func(ctx context.Context) (any, error) {
+			return obj.Instances, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DatabaseInstance_instances(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DatabaseInstance",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DatabaseInstance_version(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseInstance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DatabaseInstance_version,
+		func(ctx context.Context) (any, error) {
+			return obj.Version, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DatabaseInstance_version(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DatabaseInstance",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DatabaseInstance_size(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseInstance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DatabaseInstance_size,
+		func(ctx context.Context) (any, error) {
+			return obj.Size, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DatabaseInstance_size(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DatabaseInstance",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DatabaseInstance_volume(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseInstance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DatabaseInstance_volume,
+		func(ctx context.Context) (any, error) {
+			return obj.Volume, nil
+		},
+		nil,
+		ec.marshalOVolume2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐVolume,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_DatabaseInstance_volume(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DatabaseInstance",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "name":
+				return ec.fieldContext_Volume_name(ctx, field)
+			case "size":
+				return ec.fieldContext_Volume_size(ctx, field)
+			case "requestedSize":
+				return ec.fieldContext_Volume_requestedSize(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Volume", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _DatabaseTable_name(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseTable) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -3306,6 +3602,51 @@ func (ec *executionContext) fieldContext_Environment_services(_ context.Context,
 	return fc, nil
 }
 
+func (ec *executionContext) _Environment_databases(ctx context.Context, field graphql.CollectedField, obj *model.Environment) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Environment_databases,
+		func(ctx context.Context) (any, error) {
+			return obj.Databases, nil
+		},
+		nil,
+		ec.marshalNDatabaseInstance2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐDatabaseInstanceᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Environment_databases(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Environment",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "name":
+				return ec.fieldContext_DatabaseInstance_name(ctx, field)
+			case "environment":
+				return ec.fieldContext_DatabaseInstance_environment(ctx, field)
+			case "ready":
+				return ec.fieldContext_DatabaseInstance_ready(ctx, field)
+			case "instances":
+				return ec.fieldContext_DatabaseInstance_instances(ctx, field)
+			case "version":
+				return ec.fieldContext_DatabaseInstance_version(ctx, field)
+			case "size":
+				return ec.fieldContext_DatabaseInstance_size(ctx, field)
+			case "volume":
+				return ec.fieldContext_DatabaseInstance_volume(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type DatabaseInstance", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _GitHubRepository_id(ctx context.Context, field graphql.CollectedField, obj *model.GitHubRepository) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -3864,6 +4205,8 @@ func (ec *executionContext) fieldContext_Mutation_createEnvironment(ctx context.
 				return ec.fieldContext_Environment_syncStatus(ctx, field)
 			case "services":
 				return ec.fieldContext_Environment_services(ctx, field)
+			case "databases":
+				return ec.fieldContext_Environment_databases(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Environment", field.Name)
 		},
@@ -4746,6 +5089,8 @@ func (ec *executionContext) fieldContext_Project_environments(_ context.Context,
 				return ec.fieldContext_Environment_syncStatus(ctx, field)
 			case "services":
 				return ec.fieldContext_Environment_services(ctx, field)
+			case "databases":
+				return ec.fieldContext_Environment_databases(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Environment", field.Name)
 		},
@@ -6945,6 +7290,93 @@ func (ec *executionContext) _Variable_value(ctx context.Context, field graphql.C
 func (ec *executionContext) fieldContext_Variable_value(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Variable",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Volume_name(ctx context.Context, field graphql.CollectedField, obj *model.Volume) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Volume_name,
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Volume_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Volume",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Volume_size(ctx context.Context, field graphql.CollectedField, obj *model.Volume) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Volume_size,
+		func(ctx context.Context) (any, error) {
+			return obj.Size, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Volume_size(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Volume",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Volume_requestedSize(ctx context.Context, field graphql.CollectedField, obj *model.Volume) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Volume_requestedSize,
+		func(ctx context.Context) (any, error) {
+			return obj.RequestedSize, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Volume_requestedSize(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Volume",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -9243,6 +9675,72 @@ func (ec *executionContext) _DatabaseColumn(ctx context.Context, sel ast.Selecti
 	return out
 }
 
+var databaseInstanceImplementors = []string{"DatabaseInstance"}
+
+func (ec *executionContext) _DatabaseInstance(ctx context.Context, sel ast.SelectionSet, obj *model.DatabaseInstance) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, databaseInstanceImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("DatabaseInstance")
+		case "name":
+			out.Values[i] = ec._DatabaseInstance_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "environment":
+			out.Values[i] = ec._DatabaseInstance_environment(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "ready":
+			out.Values[i] = ec._DatabaseInstance_ready(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "instances":
+			out.Values[i] = ec._DatabaseInstance_instances(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "version":
+			out.Values[i] = ec._DatabaseInstance_version(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "size":
+			out.Values[i] = ec._DatabaseInstance_size(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "volume":
+			out.Values[i] = ec._DatabaseInstance_volume(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var databaseTableImplementors = []string{"DatabaseTable"}
 
 func (ec *executionContext) _DatabaseTable(ctx context.Context, sel ast.SelectionSet, obj *model.DatabaseTable) graphql.Marshaler {
@@ -9558,6 +10056,11 @@ func (ec *executionContext) _Environment(ctx context.Context, sel ast.SelectionS
 			}
 		case "services":
 			out.Values[i] = ec._Environment_services(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "databases":
+			out.Values[i] = ec._Environment_databases(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -10604,6 +11107,55 @@ func (ec *executionContext) _Variable(ctx context.Context, sel ast.SelectionSet,
 	return out
 }
 
+var volumeImplementors = []string{"Volume"}
+
+func (ec *executionContext) _Volume(ctx context.Context, sel ast.SelectionSet, obj *model.Volume) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, volumeImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Volume")
+		case "name":
+			out.Values[i] = ec._Volume_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "size":
+			out.Values[i] = ec._Volume_size(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "requestedSize":
+			out.Values[i] = ec._Volume_requestedSize(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var __DirectiveImplementors = []string{"__Directive"}
 
 func (ec *executionContext) ___Directive(ctx context.Context, sel ast.SelectionSet, obj *introspection.Directive) graphql.Marshaler {
@@ -11091,6 +11643,54 @@ func (ec *executionContext) marshalNDatabaseColumn2ᚕgithubᚗcomᚋzeitlosᚋl
 				defer wg.Done()
 			}
 			ret[i] = ec.marshalNDatabaseColumn2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐDatabaseColumn(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNDatabaseInstance2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐDatabaseInstance(ctx context.Context, sel ast.SelectionSet, v model.DatabaseInstance) graphql.Marshaler {
+	return ec._DatabaseInstance(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNDatabaseInstance2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐDatabaseInstanceᚄ(ctx context.Context, sel ast.SelectionSet, v []model.DatabaseInstance) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNDatabaseInstance2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐDatabaseInstance(ctx, sel, v[i])
 		}
 		if isLen1 {
 			f(i)
@@ -12469,6 +13069,13 @@ func (ec *executionContext) marshalOTime2ᚖtimeᚐTime(ctx context.Context, sel
 	_ = ctx
 	res := graphql.MarshalTime(*v)
 	return res
+}
+
+func (ec *executionContext) marshalOVolume2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐVolume(ctx context.Context, sel ast.SelectionSet, v *model.Volume) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._Volume(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalO__EnumValue2ᚕgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐEnumValueᚄ(ctx context.Context, sel ast.SelectionSet, v []introspection.EnumValue) graphql.Marshaler {

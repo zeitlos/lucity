@@ -41,6 +41,7 @@ type Environment struct {
 	Ephemeral  bool
 	SyncStatus string
 	Services   []ServiceInstance
+	Databases  []DatabaseInstance
 }
 
 type Service struct {
@@ -88,6 +89,7 @@ func (c *Client) Projects(ctx context.Context) ([]Project, error) {
 	for _, p := range resp.Projects {
 		proj := projectFromProto(p)
 		c.enrichSyncStatus(ctx, &proj)
+		c.enrichDatabaseStatus(ctx, &proj)
 		c.enrichDeploymentHistory(ctx, &proj)
 		c.enrichCommitMessages(ctx, &proj)
 		result = append(result, proj)
@@ -107,6 +109,7 @@ func (c *Client) Project(ctx context.Context, id string) (*Project, error) {
 
 	p := projectFromProto(resp.Project)
 	c.enrichSyncStatus(ctx, &p)
+	c.enrichDatabaseStatus(ctx, &p)
 	c.enrichDeploymentHistory(ctx, &p)
 	c.enrichCommitMessages(ctx, &p)
 	return &p, nil
@@ -337,6 +340,59 @@ func (c *Client) enrichSyncStatus(ctx context.Context, proj *Project) {
 				env.Services[j].Ready = ready
 			}
 		}()
+	}
+	wg.Wait()
+}
+
+// enrichDatabaseStatus queries the deployer for each database's runtime status
+// per environment. Best-effort: logs warnings on failure.
+func (c *Client) enrichDatabaseStatus(ctx context.Context, proj *Project) {
+	if len(proj.Databases) == 0 {
+		return
+	}
+
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+	for i := range proj.Environments {
+		env := &proj.Environments[i]
+		for _, db := range proj.Databases {
+			wg.Add(1)
+			go func(envPtr *Environment, dbInfo Database) {
+				defer wg.Done()
+				statusCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
+				defer cancel()
+				resp, err := c.Deployer.DatabaseStatus(statusCtx, &deployer.DatabaseStatusRequest{
+					Project:     proj.ID,
+					Environment: envPtr.Name,
+					Database:    dbInfo.Name,
+				})
+				inst := DatabaseInstance{
+					Name:        dbInfo.Name,
+					Environment: envPtr.Name,
+					Version:     dbInfo.Version,
+					Size:        dbInfo.Size,
+					Instances:   dbInfo.Instances,
+				}
+				if err != nil {
+					slog.Debug("failed to get database status", "project", proj.ID, "environment", envPtr.Name, "database", dbInfo.Name, "error", err)
+				} else {
+					inst.Ready = resp.Ready
+					if resp.Instances > 0 {
+						inst.Instances = int(resp.Instances)
+					}
+					if resp.Volume != nil {
+						inst.Volume = &Volume{
+							Name:          resp.Volume.Name,
+							Size:          resp.Volume.Size,
+							RequestedSize: resp.Volume.RequestedSize,
+						}
+					}
+				}
+				mu.Lock()
+				envPtr.Databases = append(envPtr.Databases, inst)
+				mu.Unlock()
+			}(env, db)
+		}
 	}
 	wg.Wait()
 }

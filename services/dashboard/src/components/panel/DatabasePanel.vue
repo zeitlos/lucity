@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { X, Database } from 'lucide-vue-next';
+import { X } from 'lucide-vue-next';
 import { onKeyStroke } from '@vueuse/core';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -33,7 +33,13 @@ onKeyStroke('Escape', () => {
     <!-- Header -->
     <div class="flex shrink-0 items-center justify-between border-b px-4 py-3">
       <div class="flex items-center gap-3">
-        <Database :size="24" class="text-blue-500" />
+        <img
+          src="https://devicons.railway.com/i/postgresql.svg"
+          :width="24"
+          :height="24"
+          class="shrink-0"
+          alt=""
+        />
         <h2 class="text-lg font-semibold text-foreground">{{ database.name }}</h2>
       </div>
 

@@ -15,6 +15,7 @@ type Environment {
   ephemeral: Boolean!
   syncStatus: SyncStatus!
   services: [ServiceInstance!]!
+  databases: [DatabaseInstance!]!
 }
 
 type Service {

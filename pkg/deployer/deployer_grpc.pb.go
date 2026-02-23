@@ -28,6 +28,7 @@ const (
 	DeployerService_DatabaseTables_FullMethodName      = "/deployer.DeployerService/DatabaseTables"
 	DeployerService_DatabaseTableData_FullMethodName   = "/deployer.DeployerService/DatabaseTableData"
 	DeployerService_DatabaseQuery_FullMethodName       = "/deployer.DeployerService/DatabaseQuery"
+	DeployerService_DatabaseStatus_FullMethodName      = "/deployer.DeployerService/DatabaseStatus"
 )
 
 // DeployerServiceClient is the client API for DeployerService service.
@@ -52,6 +53,8 @@ type DeployerServiceClient interface {
 	DatabaseTableData(ctx context.Context, in *DatabaseTableDataRequest, opts ...grpc.CallOption) (*DatabaseTableDataResponse, error)
 	// DatabaseQuery executes an arbitrary SQL query and returns results.
 	DatabaseQuery(ctx context.Context, in *DatabaseQueryRequest, opts ...grpc.CallOption) (*DatabaseQueryResponse, error)
+	// DatabaseStatus returns the runtime status of a database in an environment.
+	DatabaseStatus(ctx context.Context, in *DatabaseStatusRequest, opts ...grpc.CallOption) (*DatabaseStatusResponse, error)
 }
 
 type deployerServiceClient struct {
@@ -161,6 +164,16 @@ func (c *deployerServiceClient) DatabaseQuery(ctx context.Context, in *DatabaseQ
 	return out, nil
 }
 
+func (c *deployerServiceClient) DatabaseStatus(ctx context.Context, in *DatabaseStatusRequest, opts ...grpc.CallOption) (*DatabaseStatusResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DatabaseStatusResponse)
+	err := c.cc.Invoke(ctx, DeployerService_DatabaseStatus_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DeployerServiceServer is the server API for DeployerService service.
 // All implementations must embed UnimplementedDeployerServiceServer
 // for forward compatibility.
@@ -183,6 +196,8 @@ type DeployerServiceServer interface {
 	DatabaseTableData(context.Context, *DatabaseTableDataRequest) (*DatabaseTableDataResponse, error)
 	// DatabaseQuery executes an arbitrary SQL query and returns results.
 	DatabaseQuery(context.Context, *DatabaseQueryRequest) (*DatabaseQueryResponse, error)
+	// DatabaseStatus returns the runtime status of a database in an environment.
+	DatabaseStatus(context.Context, *DatabaseStatusRequest) (*DatabaseStatusResponse, error)
 	mustEmbedUnimplementedDeployerServiceServer()
 }
 
@@ -219,6 +234,9 @@ func (UnimplementedDeployerServiceServer) DatabaseTableData(context.Context, *Da
 }
 func (UnimplementedDeployerServiceServer) DatabaseQuery(context.Context, *DatabaseQueryRequest) (*DatabaseQueryResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DatabaseQuery not implemented")
+}
+func (UnimplementedDeployerServiceServer) DatabaseStatus(context.Context, *DatabaseStatusRequest) (*DatabaseStatusResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DatabaseStatus not implemented")
 }
 func (UnimplementedDeployerServiceServer) mustEmbedUnimplementedDeployerServiceServer() {}
 func (UnimplementedDeployerServiceServer) testEmbeddedByValue()                         {}
@@ -396,6 +414,24 @@ func _DeployerService_DatabaseQuery_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _DeployerService_DatabaseStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DatabaseStatusRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DeployerServiceServer).DatabaseStatus(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DeployerService_DatabaseStatus_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DeployerServiceServer).DatabaseStatus(ctx, req.(*DatabaseStatusRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // DeployerService_ServiceDesc is the grpc.ServiceDesc for DeployerService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -434,6 +470,10 @@ var DeployerService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DatabaseQuery",
 			Handler:    _DeployerService_DatabaseQuery_Handler,
+		},
+		{
+			MethodName: "DatabaseStatus",
+			Handler:    _DeployerService_DatabaseStatus_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

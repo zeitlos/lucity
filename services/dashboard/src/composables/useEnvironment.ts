@@ -19,6 +19,22 @@ export interface ServiceInstance {
   deployments: DeploymentInfo[];
 }
 
+export interface VolumeInfo {
+  name: string;
+  size: string;
+  requestedSize: string;
+}
+
+export interface DatabaseInstance {
+  name: string;
+  environment: string;
+  ready: boolean;
+  instances: number;
+  version: string;
+  size: string;
+  volume?: VolumeInfo;
+}
+
 export interface Environment {
   id: string;
   name: string;
@@ -26,6 +42,7 @@ export interface Environment {
   ephemeral: boolean;
   syncStatus: string;
   services: ServiceInstance[];
+  databases: DatabaseInstance[];
 }
 
 const activeEnvironment = ref<Environment | null>(null);
@@ -46,6 +63,7 @@ export function useEnvironment() {
   }
 
   const activeEnvServices = computed(() => activeEnvironment.value?.services ?? []);
+  const activeEnvDatabases = computed(() => activeEnvironment.value?.databases ?? []);
 
   function refreshActiveEnvironment(envs: Environment[]) {
     if (activeEnvironment.value) {
@@ -60,6 +78,7 @@ export function useEnvironment() {
     activeEnvironment,
     environments,
     activeEnvServices,
+    activeEnvDatabases,
     setEnvironments,
     setEnvironment,
     refreshActiveEnvironment,
