@@ -106,7 +106,7 @@ async function handleDeleteEnvironment() {
     if (activeEnvironment.value?.name === name) {
       const remaining = environments.value.filter(e => e.name !== name);
       if (remaining.length > 0) {
-        setEnvironment(remaining[0]);
+        setEnvironment(remaining[0]!);
       }
     }
 
