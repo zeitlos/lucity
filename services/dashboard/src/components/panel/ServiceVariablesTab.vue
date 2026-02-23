@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
 import { useQuery, useMutation } from '@vue/apollo-composable';
-import { Plus, Trash2, Link, Database, Globe, ChevronDown } from 'lucide-vue-next';
+import { Plus, Trash2, Link, Database, Globe } from 'lucide-vue-next';
 import { ServiceVariablesQuery, SetServiceVariablesMutation, SharedVariablesQuery } from '@/graphql/variables';
 import { useEnvironment } from '@/composables/useEnvironment';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
@@ -162,7 +161,7 @@ const refGroups = computed(() => {
 
 const rows = ref<VarRow[]>([]);
 const hasChanges = ref(false);
-const refPopoverOpen = ref(false);
+const openPopoverIndex = ref<number | null>(null);
 
 watch(
   () => result.value?.serviceVariables,
@@ -194,18 +193,25 @@ function addRow() {
   hasChanges.value = true;
 }
 
-function addRef(opt: RefOption) {
-  const row: VarRow = {
+function selectRef(index: number, opt: RefOption) {
+  rows.value[index] = {
     key: opt.displayName,
     value: opt.displayValue,
     fromShared: opt.type === 'shared',
     databaseRef: opt.databaseRef,
     serviceRef: opt.serviceRef,
-    isNew: true,
   };
-  rows.value.push(row);
   hasChanges.value = true;
-  refPopoverOpen.value = false;
+  openPopoverIndex.value = null;
+}
+
+function clearRef(index: number) {
+  const row = rows.value[index]!;
+  row.databaseRef = undefined;
+  row.serviceRef = undefined;
+  row.fromShared = false;
+  row.value = '';
+  hasChanges.value = true;
 }
 
 function removeRow(index: number) {
@@ -221,12 +227,6 @@ function markChanged() {
 
 function isRefRow(row: VarRow): boolean {
   return !!row.databaseRef || !!row.serviceRef || row.fromShared;
-}
-
-function refBadgeLabel(row: VarRow): string {
-  if (row.databaseRef) return row.databaseRef.database;
-  if (row.serviceRef) return row.serviceRef.service;
-  return 'shared';
 }
 
 // ── Save ──────────────────────────────────────────────────────────────
@@ -291,85 +291,34 @@ async function handleSave() {
         :key="index"
         class="flex items-center gap-2"
       >
-        <!-- Reference row (database, service, or shared) -->
-        <template v-if="isRefRow(row)">
+        <!-- Key input with integrated reference picker -->
+        <div class="flex flex-1">
           <Input
             v-model="row.key"
             placeholder="KEY"
-            class="flex-1 font-mono text-sm uppercase"
+            class="font-mono text-sm uppercase rounded-r-none border-r-0"
+            :readonly="isRefRow(row)"
             @input="markChanged"
           />
-          <div class="flex flex-1 items-center gap-2">
-            <div
-              class="flex h-9 flex-1 items-center rounded-md bg-muted px-3 font-mono text-sm text-muted-foreground"
-            >
-              {{ row.value }}
-            </div>
-            <Badge
-              variant="secondary"
-              class="shrink-0 gap-1 text-xs"
-            >
-              <Database v-if="row.databaseRef" :size="10" />
-              <Globe v-else-if="row.serviceRef" :size="10" />
-              <Link v-else :size="10" />
-              {{ refBadgeLabel(row) }}
-            </Badge>
-          </div>
-        </template>
-
-        <!-- Direct variable row -->
-        <template v-else>
-          <Input
-            v-model="row.key"
-            placeholder="KEY"
-            class="flex-1 font-mono text-sm uppercase"
-            @input="markChanged"
-          />
-          <Input
-            v-model="row.value"
-            placeholder="value"
-            class="flex-1 font-mono text-sm"
-            @input="markChanged"
-          />
-        </template>
-
-        <Button
-          variant="ghost"
-          size="icon"
-          class="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
-          @click="removeRow(index)"
-        >
-          <Trash2 :size="14" />
-        </Button>
-      </div>
-
-      <div v-if="rows.length === 0" class="rounded-lg border border-dashed p-6 text-center">
-        <p class="text-sm text-muted-foreground">No variables configured for this service.</p>
-      </div>
-
-      <!-- Actions -->
-      <div class="flex items-center justify-between pt-2">
-        <div class="flex items-center gap-2">
-          <Button variant="outline" size="sm" @click="addRow">
-            <Plus :size="14" class="mr-1" />
-            Add Variable
-          </Button>
-
-          <Popover v-model:open="refPopoverOpen">
+          <Popover
+            :open="openPopoverIndex === index"
+            @update:open="(v: boolean) => openPopoverIndex = v ? index : null"
+          >
             <PopoverTrigger as-child>
               <Button
-                v-if="availableRefs.length > 0"
                 variant="outline"
-                size="sm"
+                size="icon"
+                class="shrink-0 rounded-l-none"
+                :disabled="availableRefs.length === 0"
               >
-                <Link :size="14" class="mr-1" />
-                Add Reference
-                <ChevronDown :size="12" class="ml-1 opacity-50" />
+                <Database v-if="row.databaseRef" :size="14" />
+                <Globe v-else-if="row.serviceRef" :size="14" />
+                <Link v-else :size="14" class="opacity-50" />
               </Button>
             </PopoverTrigger>
             <PopoverContent
               class="w-80 p-0"
-              align="start"
+              align="end"
             >
               <Command>
                 <CommandInput placeholder="Search references..." />
@@ -390,31 +339,74 @@ async function handleSave() {
                         :key="opt.key"
                         :value="opt.key"
                         class="flex items-center justify-between"
-                        @select="addRef(opt)"
+                        @select="selectRef(index, opt)"
                       >
                         <span class="font-mono text-xs">{{ opt.displayName }}</span>
                         <span class="text-xs text-muted-foreground">{{ opt.displayValue }}</span>
                       </CommandItem>
                     </CommandGroup>
                   </template>
+                  <!-- Clear reference option -->
+                  <CommandGroup v-if="isRefRow(row)">
+                    <CommandItem
+                      value="__clear__"
+                      class="text-muted-foreground"
+                      @select="clearRef(index)"
+                    >
+                      Clear reference
+                    </CommandItem>
+                  </CommandGroup>
                 </CommandList>
               </Command>
             </PopoverContent>
           </Popover>
         </div>
 
-        <div class="flex items-center gap-2">
-          <Badge v-if="hasChanges" variant="secondary" class="text-xs">
-            Unsaved changes
-          </Badge>
-          <Button
-            size="sm"
-            :disabled="!hasChanges || saving"
-            @click="handleSave"
-          >
-            {{ saving ? 'Saving...' : 'Save' }}
-          </Button>
+        <!-- Value -->
+        <div
+          v-if="isRefRow(row)"
+          class="flex h-9 flex-1 items-center rounded-md border border-input bg-muted px-3 font-mono text-xs text-muted-foreground"
+        >
+          {{ row.value }}
         </div>
+        <Input
+          v-else
+          v-model="row.value"
+          placeholder="value"
+          class="flex-1 font-mono text-sm"
+          @input="markChanged"
+        />
+
+        <!-- Delete -->
+        <Button
+          variant="ghost"
+          size="icon"
+          class="h-9 w-9 shrink-0 text-muted-foreground hover:text-destructive"
+          @click="removeRow(index)"
+        >
+          <Trash2 :size="14" />
+        </Button>
+      </div>
+
+      <!-- Empty state -->
+      <div v-if="rows.length === 0" class="rounded-lg border border-dashed p-6 text-center">
+        <p class="text-sm text-muted-foreground">No variables configured for this service.</p>
+      </div>
+
+      <!-- Actions -->
+      <div class="flex items-center justify-between pt-2">
+        <Button variant="outline" size="sm" @click="addRow">
+          <Plus :size="14" class="mr-1" />
+          Add Variable
+        </Button>
+
+        <Button
+          size="sm"
+          :disabled="!hasChanges || saving"
+          @click="handleSave"
+        >
+          {{ saving ? 'Saving...' : 'Save' }}
+        </Button>
       </div>
     </div>
   </div>
