@@ -38,7 +38,7 @@ const errorLink = onError(({ graphQLErrors, networkError, operation }) => {
 
 function getToken(): string {
   const match = document.cookie.match(/(?:^|;\s*)lucity_token=([^;]*)/);
-  return match ? decodeURIComponent(match[1]) : '';
+  return match ? decodeURIComponent(match[1]!) : '';
 }
 
 const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';

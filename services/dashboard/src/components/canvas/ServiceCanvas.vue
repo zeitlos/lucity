@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, watch, ref, onMounted, toRef } from 'vue';
-import { VueFlow, useVueFlow, Panel } from '@vue-flow/core';
+import { VueFlow, useVueFlow, Panel, PanOnScrollMode } from '@vue-flow/core';
 import { Background } from '@vue-flow/background';
 import { Plus, Maximize2 } from 'lucide-vue-next';
 import { useEnvironment } from '@/composables/useEnvironment';
@@ -150,7 +150,7 @@ watch(
       :zoom-on-double-click="false"
       :zoom-on-pinch="false"
       :pan-on-scroll="true"
-      :pan-on-scroll-mode="'vertical'"
+      :pan-on-scroll-mode="PanOnScrollMode.Vertical"
       :snap-to-grid="true"
       :snap-grid="[20, 20]"
       class="canvas-bg"

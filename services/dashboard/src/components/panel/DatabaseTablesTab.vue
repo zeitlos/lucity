@@ -52,7 +52,7 @@ const tables = computed(() => tablesResult.value?.databaseTables ?? []);
 // Detect provisioning state from GraphQL error extension code
 const isProvisioning = computed(() => {
   if (!tablesError.value) return false;
-  const gqlErrors = (tablesError.value as { graphQLErrors?: { extensions?: { code?: string } }[] }).graphQLErrors;
+  const gqlErrors = (tablesError.value as unknown as { graphQLErrors?: { extensions?: { code?: string } }[] }).graphQLErrors;
   return gqlErrors?.some(e => e.extensions?.code === 'DATABASE_PROVISIONING') ?? false;
 });
 

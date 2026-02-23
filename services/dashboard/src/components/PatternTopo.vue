@@ -20,17 +20,17 @@ function generateTopo(canvas: HTMLCanvasElement) {
   for (let i = 0; i < 256; i++) p[i] = i;
   for (let i = 255; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
-    [p[i], p[j]] = [p[j], p[i]];
+    [p[i], p[j]] = [p[j]!, p[i]!];
   }
-  for (let i = 0; i < 512; i++) perm[i] = p[i & 255];
+  for (let i = 0; i < 512; i++) perm[i] = p[i & 255]!;
 
   const grad = [
     [1, 1], [-1, 1], [1, -1], [-1, -1],
     [1, 0], [-1, 0], [0, 1], [0, -1],
   ];
   function dot(gi: number, x: number, y: number) {
-    const g = grad[gi % 8];
-    return g[0] * x + g[1] * y;
+    const g = grad[gi % 8]!;
+    return g[0]! * x + g[1]! * y;
   }
   function fade(t: number) { return t * t * t * (t * (t * 6 - 15) + 10); }
   function lerp(a: number, b: number, t: number) { return a + t * (b - a); }
@@ -42,10 +42,10 @@ function generateTopo(canvas: HTMLCanvasElement) {
     const yf = y - Math.floor(y);
     const u = fade(xf);
     const v = fade(yf);
-    const aa = perm[perm[xi] + yi];
-    const ab = perm[perm[xi] + yi + 1];
-    const ba = perm[perm[xi + 1] + yi];
-    const bb = perm[perm[xi + 1] + yi + 1];
+    const aa = perm[perm[xi]! + yi]!;
+    const ab = perm[perm[xi]! + yi + 1]!;
+    const ba = perm[perm[xi + 1]! + yi]!;
+    const bb = perm[perm[xi + 1]! + yi + 1]!;
     return lerp(
       lerp(dot(aa, xf, yf), dot(ba, xf - 1, yf), u),
       lerp(dot(ab, xf, yf - 1), dot(bb, xf - 1, yf - 1), u),
@@ -89,10 +89,10 @@ function generateTopo(canvas: HTMLCanvasElement) {
     ctx.beginPath();
     for (let j = 0; j < rows - 1; j++) {
       for (let i = 0; i < cols - 1; i++) {
-        const tl = field[j * cols + i];
-        const tr = field[j * cols + i + 1];
-        const br = field[(j + 1) * cols + i + 1];
-        const bl = field[(j + 1) * cols + i];
+        const tl = field[j * cols + i]!;
+        const tr = field[j * cols + i + 1]!;
+        const br = field[(j + 1) * cols + i + 1]!;
+        const bl = field[(j + 1) * cols + i]!;
         let code = 0;
         if (tl >= threshold) code |= 8;
         if (tr >= threshold) code |= 4;

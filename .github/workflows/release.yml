@@ -40,14 +40,15 @@ jobs:
             echo "is_release=true" >> "$GITHUB_OUTPUT"
           else
             # Snapshot: use git describe for 26.2.1-21-g3e43772 format
-            # If no tags exist yet, fall back to 0.0.0-<count>-g<sha>
-            VERSION=$(git describe --tags --always 2>/dev/null | sed 's/^v//')
-            if [[ "$VERSION" == *-g* ]] || [[ "$VERSION" =~ ^[0-9a-f]+$ ]]; then
-              # git describe gave us a good snapshot or bare commit hash
-              echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+            # If no calver tags exist yet, fall back to 0.0.0-<count>-g<sha>
+            if git describe --tags --match 'v*' HEAD >/dev/null 2>&1; then
+              VERSION=$(git describe --tags --match 'v*' HEAD | sed 's/^v//')
             else
-              echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+              COUNT=$(git rev-list --count HEAD)
+              SHA=$(git rev-parse --short HEAD)
+              VERSION="0.0.0-${COUNT}-g${SHA}"
             fi
+            echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
             echo "is_release=false" >> "$GITHUB_OUTPUT"
           fi
           echo "Resolved version: $(cat "$GITHUB_OUTPUT" | grep version | head -1)"

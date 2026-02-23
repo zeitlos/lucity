@@ -34,7 +34,7 @@ const creds = computed(() => result.value?.databaseCredentials ?? null);
 
 const isProvisioning = computed(() => {
   if (!error.value) return false;
-  const gqlErrors = (error.value as { graphQLErrors?: { extensions?: { code?: string } }[] }).graphQLErrors;
+  const gqlErrors = (error.value as unknown as { graphQLErrors?: { extensions?: { code?: string } }[] }).graphQLErrors;
   return gqlErrors?.some(e => e.extensions?.code === 'DATABASE_PROVISIONING') ?? false;
 });
 

@@ -129,7 +129,7 @@ onUnmounted(() => {
           <div class="flex justify-center">
             <BaseLogo
               :size="128"
-              :class="{ 'logo-breathing': logoLoaded }"
+              :class="logoLoaded ? 'logo-breathing' : ''"
             />
           </div>
 
