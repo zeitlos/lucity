@@ -203,7 +203,7 @@ func (p *SoftServeProvider) RemoveService(ctx context.Context, project, service 
 			return err
 		}
 
-		// Clean up serviceRefs referencing the deleted service across all environments.
+		// Clean up the deleted service and any serviceRefs pointing to it across all environments.
 		envFiles, _ := filepath.Glob(filepath.Join(dir, "environments", "*", "values.yaml"))
 		for _, envPath := range envFiles {
 			envInner, readErr := readSubchartValues(envPath)
@@ -215,6 +215,13 @@ func (p *SoftServeProvider) RemoveService(ctx context.Context, project, service 
 				continue
 			}
 			modified := false
+
+			// Remove the deleted service's own entry from this environment.
+			if _, exists := envSvcs[service]; exists {
+				delete(envSvcs, service)
+				modified = true
+			}
+
 			for svcName, svcRaw := range envSvcs {
 				svcMap, ok := svcRaw.(map[string]any)
 				if !ok {
@@ -454,12 +461,9 @@ func (p *SoftServeProvider) DeploymentHistory(ctx context.Context, project, envi
 	return entries, nil
 }
 
-// SetServiceDomain sets or removes the domain hostname for a service in an environment.
-func (p *SoftServeProvider) SetServiceDomain(ctx context.Context, project, environment, service, host string) error {
-	commitMsg := fmt.Sprintf("config(%s): set domain for %s", environment, service)
-	if host == "" {
-		commitMsg = fmt.Sprintf("config(%s): remove domain for %s", environment, service)
-	}
+// AddDomain adds a domain hostname to a service in an environment.
+func (p *SoftServeProvider) AddDomain(ctx context.Context, project, environment, service, hostname string) error {
+	commitMsg := fmt.Sprintf("config(%s): add domain %s for %s", environment, hostname, service)
 
 	return p.modifyRepo(ctx, project, commitMsg, false, func(dir string) error {
 		filePath := filepath.Join(dir, "environments", environment, "values.yaml")
@@ -478,16 +482,122 @@ func (p *SoftServeProvider) SetServiceDomain(ctx context.Context, project, envir
 			svcEntry = make(map[string]any)
 		}
 
-		if host == "" {
-			delete(svcEntry, "host")
+		// Read existing domains and append (dedup)
+		var domains []string
+		if raw, ok := svcEntry["domains"].([]any); ok {
+			for _, d := range raw {
+				if s, ok := d.(string); ok {
+					domains = append(domains, s)
+				}
+			}
+		}
+		for _, d := range domains {
+			if d == hostname {
+				return nil // already exists
+			}
+		}
+		domains = append(domains, hostname)
+
+		// Convert to []any for YAML marshaling
+		domainsAny := make([]any, len(domains))
+		for i, d := range domains {
+			domainsAny[i] = d
+		}
+		svcEntry["domains"] = domainsAny
+		services[service] = svcEntry
+		inner["services"] = services
+
+		return writeSubchartValues(filePath, inner)
+	})
+}
+
+// RemoveDomain removes a domain hostname from a service in an environment.
+func (p *SoftServeProvider) RemoveDomain(ctx context.Context, project, environment, service, hostname string) error {
+	commitMsg := fmt.Sprintf("config(%s): remove domain %s for %s", environment, hostname, service)
+
+	return p.modifyRepo(ctx, project, commitMsg, false, func(dir string) error {
+		filePath := filepath.Join(dir, "environments", environment, "values.yaml")
+		inner, err := readSubchartValues(filePath)
+		if err != nil {
+			return err
+		}
+
+		services, ok := inner["services"].(map[string]any)
+		if !ok {
+			return nil
+		}
+
+		svcEntry, ok := services[service].(map[string]any)
+		if !ok {
+			return nil
+		}
+
+		raw, ok := svcEntry["domains"].([]any)
+		if !ok {
+			return nil
+		}
+
+		var filtered []any
+		for _, d := range raw {
+			if s, ok := d.(string); ok && s != hostname {
+				filtered = append(filtered, d)
+			}
+		}
+
+		if len(filtered) == 0 {
+			delete(svcEntry, "domains")
 		} else {
-			svcEntry["host"] = host
+			svcEntry["domains"] = filtered
 		}
 		services[service] = svcEntry
 		inner["services"] = services
 
 		return writeSubchartValues(filePath, inner)
 	})
+}
+
+// AllDomains returns all domain hostnames across all projects and environments.
+func (p *SoftServeProvider) AllDomains(ctx context.Context) ([]string, error) {
+	output, err := p.sshCmd("repo", "list")
+	if err != nil {
+		return nil, fmt.Errorf("failed to list repos: %w", err)
+	}
+
+	var allDomains []string
+	for _, line := range strings.Split(strings.TrimSpace(output), "\n") {
+		repoName := strings.TrimSpace(line)
+		if repoName == "" || !strings.HasSuffix(repoName, RepoSuffix) {
+			continue
+		}
+
+		dir, cleanup, err := p.cloneRepo(repoName)
+		if err != nil {
+			continue
+		}
+
+		envDir := filepath.Join(dir, "environments")
+		entries, readErr := os.ReadDir(envDir)
+		if readErr == nil {
+			for _, entry := range entries {
+				if !entry.IsDir() {
+					continue
+				}
+				envInner, readErr := readSubchartValues(filepath.Join(envDir, entry.Name(), "values.yaml"))
+				if readErr != nil {
+					continue
+				}
+				if svcs, ok := envInner["services"].(map[string]any); ok {
+					for _, meta := range parseServiceInstanceMetas(svcs) {
+						allDomains = append(allDomains, meta.Domains...)
+					}
+				}
+			}
+		}
+
+		cleanup()
+	}
+
+	return allDomains, nil
 }
 
 // EnvironmentServices reads per-environment service state from the environment's values.yaml.
