@@ -547,6 +547,37 @@ func (c *Client) DeployLogs(ctx context.Context, deployID string) (<-chan string
 	return out, unsub, nil
 }
 
+// Rollback updates the image tag to a previous value without rebuilding.
+func (c *Client) Rollback(ctx context.Context, projectID, service, environment, imageTag string) (bool, error) {
+	ctx = auth.OutgoingContext(ctx)
+
+	updateCtx, updateCancel := context.WithTimeout(ctx, grpcTimeout)
+	defer updateCancel()
+	_, err := c.Packager.UpdateImageTag(updateCtx, &packager.UpdateImageTagRequest{
+		Project:      projectID,
+		Environment:  environment,
+		Service:      service,
+		Tag:          imageTag,
+		CommitPrefix: "rollback",
+	})
+	if err != nil {
+		return false, fmt.Errorf("failed to rollback: %w", err)
+	}
+
+	// Trigger ArgoCD sync
+	syncCtx, syncCancel := context.WithTimeout(ctx, grpcTimeout)
+	defer syncCancel()
+	_, err = c.Deployer.SyncDeployment(syncCtx, &deployer.SyncDeploymentRequest{
+		Project:     projectID,
+		Environment: environment,
+	})
+	if err != nil {
+		slog.Warn("failed to trigger sync after rollback", "project", projectID, "environment", environment, "error", err)
+	}
+
+	return true, nil
+}
+
 func (c *Client) SetServiceDomain(ctx context.Context, projectID, service, environment, host string) (bool, error) {
 	ctx = auth.OutgoingContext(ctx)
 

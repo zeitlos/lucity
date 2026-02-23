@@ -127,6 +127,12 @@ func convertDeployment(d handler.Deployment) model.Deployment {
 	if d.Message != "" {
 		dep.Message = &d.Message
 	}
+	if d.SourceCommitMessage != "" {
+		dep.SourceCommitMessage = &d.SourceCommitMessage
+	}
+	if d.SourceURL != "" {
+		dep.SourceURL = &d.SourceURL
+	}
 	return dep
 }
 

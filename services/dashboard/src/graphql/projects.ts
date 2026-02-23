@@ -80,6 +80,8 @@ export const ProjectQuery = gql`
             timestamp
             revision
             message
+            sourceCommitMessage
+            sourceUrl
           }
         }
       }
@@ -103,6 +105,8 @@ export const ProjectQuery = gql`
             timestamp
             revision
             message
+            sourceCommitMessage
+            sourceUrl
           }
         }
       }

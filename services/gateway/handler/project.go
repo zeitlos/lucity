@@ -4,8 +4,12 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"regexp"
+	"strings"
 	"sync"
 	"time"
+
+	gh "github.com/google/go-github/v68/github"
 
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/deployer"
@@ -60,12 +64,14 @@ type ServiceInstance struct {
 }
 
 type Deployment struct {
-	ID        string
-	ImageTag  string
-	Active    bool
-	Timestamp time.Time
-	Revision  string
-	Message   string
+	ID                  string
+	ImageTag            string
+	Active              bool
+	Timestamp           time.Time
+	Revision            string
+	Message             string
+	SourceCommitMessage string
+	SourceURL           string // full URL to commit on GitHub
 }
 
 func (c *Client) Projects(ctx context.Context) ([]Project, error) {
@@ -83,6 +89,7 @@ func (c *Client) Projects(ctx context.Context) ([]Project, error) {
 		proj := projectFromProto(p)
 		c.enrichSyncStatus(ctx, &proj)
 		c.enrichDeploymentHistory(ctx, &proj)
+		c.enrichCommitMessages(ctx, &proj)
 		result = append(result, proj)
 	}
 	return result, nil
@@ -101,6 +108,7 @@ func (c *Client) Project(ctx context.Context, id string) (*Project, error) {
 	p := projectFromProto(resp.Project)
 	c.enrichSyncStatus(ctx, &p)
 	c.enrichDeploymentHistory(ctx, &p)
+	c.enrichCommitMessages(ctx, &p)
 	return &p, nil
 }
 
@@ -387,6 +395,153 @@ func (c *Client) enrichDeploymentHistory(ctx context.Context, proj *Project) {
 			}
 		}
 	}
+}
+
+// shaPattern matches a hex string of 7+ characters (git short SHA).
+var shaPattern = regexp.MustCompile(`^[0-9a-f]{7,}$`)
+
+// enrichCommitMessages fetches source commit messages from GitHub for
+// deployment entries whose imageTag is a git SHA. Best-effort — failures
+// are silently ignored. Also sets SourceURL for each SHA-based deployment.
+func (c *Client) enrichCommitMessages(ctx context.Context, proj *Project) {
+	claims := auth.FromContext(ctx)
+	if claims == nil || claims.GitHubToken == "" {
+		return
+	}
+
+	// Build service name → sourceURL lookup
+	sourceURLs := make(map[string]string, len(proj.Services))
+	for _, svc := range proj.Services {
+		if svc.SourceURL != "" {
+			sourceURLs[svc.Name] = svc.SourceURL
+		}
+	}
+
+	// Collect unique (owner/repo, sha) pairs that need fetching
+	type commitKey struct{ owner, repo, sha string }
+	type commitResult struct{ message, url string }
+
+	needed := make(map[commitKey]bool)
+	for _, env := range proj.Environments {
+		for _, si := range env.Services {
+			srcURL := sourceURLs[si.Name]
+			if srcURL == "" {
+				continue
+			}
+			owner, repo := parseGitHubRepoURL(srcURL)
+			if owner == "" {
+				continue
+			}
+			for _, dep := range si.Deployments {
+				if shaPattern.MatchString(dep.ImageTag) {
+					needed[commitKey{owner, repo, dep.ImageTag}] = true
+				}
+			}
+		}
+	}
+
+	if len(needed) == 0 {
+		return
+	}
+
+	// Fetch commit messages concurrently
+	client := gh.NewClient(nil).WithAuthToken(claims.GitHubToken)
+	results := make(map[commitKey]commitResult, len(needed))
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+
+	for key := range needed {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			fetchCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+			defer cancel()
+
+			commit, _, err := client.Repositories.GetCommit(fetchCtx, key.owner, key.repo, key.sha, nil)
+			if err != nil {
+				slog.Debug("failed to fetch commit message", "owner", key.owner, "repo", key.repo, "sha", key.sha, "error", err)
+				return
+			}
+
+			msg := commit.GetCommit().GetMessage()
+			// Use first line only
+			if idx := strings.IndexByte(msg, '\n'); idx >= 0 {
+				msg = msg[:idx]
+			}
+
+			mu.Lock()
+			results[key] = commitResult{
+				message: msg,
+				url:     fmt.Sprintf("https://github.com/%s/%s/commit/%s", key.owner, key.repo, key.sha),
+			}
+			mu.Unlock()
+		}()
+	}
+	wg.Wait()
+
+	// Apply results to all deployments
+	for i := range proj.Environments {
+		env := &proj.Environments[i]
+		for j := range env.Services {
+			si := &env.Services[j]
+			srcURL := sourceURLs[si.Name]
+			if srcURL == "" {
+				continue
+			}
+			owner, repo := parseGitHubRepoURL(srcURL)
+			if owner == "" {
+				continue
+			}
+			for k := range si.Deployments {
+				dep := &si.Deployments[k]
+				if r, ok := results[commitKey{owner, repo, dep.ImageTag}]; ok {
+					dep.SourceCommitMessage = r.message
+					dep.SourceURL = r.url
+				}
+			}
+		}
+	}
+
+	// Also update the cross-referenced Service.Instances
+	for i := range proj.Services {
+		for j := range proj.Services[i].Instances {
+			inst := &proj.Services[i].Instances[j]
+			srcURL := sourceURLs[inst.Name]
+			if srcURL == "" {
+				continue
+			}
+			owner, repo := parseGitHubRepoURL(srcURL)
+			if owner == "" {
+				continue
+			}
+			for k := range inst.Deployments {
+				dep := &inst.Deployments[k]
+				if r, ok := results[commitKey{owner, repo, dep.ImageTag}]; ok {
+					dep.SourceCommitMessage = r.message
+					dep.SourceURL = r.url
+				}
+			}
+		}
+	}
+}
+
+// parseGitHubRepoURL extracts owner and repo name from a GitHub URL.
+// Supports "https://github.com/owner/repo" and "https://github.com/owner/repo.git".
+func parseGitHubRepoURL(rawURL string) (owner, repo string) {
+	// Strip protocol and host
+	idx := strings.Index(rawURL, "github.com/")
+	if idx < 0 {
+		return "", ""
+	}
+	path := rawURL[idx+len("github.com/"):]
+	path = strings.TrimSuffix(path, ".git")
+	path = strings.TrimSuffix(path, "/")
+
+	parts := strings.SplitN(path, "/", 3)
+	if len(parts) < 2 {
+		return "", ""
+	}
+	return parts[0], parts[1]
 }
 
 func deploymentStatusToString(status deployer.DeploymentStatus) string {

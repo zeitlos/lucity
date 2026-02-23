@@ -44,6 +44,10 @@ type Deployment {
   timestamp: Time
   revision: String
   message: String
+  """First line of the source commit message (fetched from GitHub)."""
+  sourceCommitMessage: String
+  """URL to the source commit on GitHub."""
+  sourceUrl: String
 }
 
 enum SyncStatus {

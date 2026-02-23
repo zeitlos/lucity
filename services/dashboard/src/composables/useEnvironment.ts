@@ -5,6 +5,8 @@ export interface DeploymentInfo {
   imageTag: string;
   active: boolean;
   timestamp?: string;
+  sourceCommitMessage?: string;
+  sourceUrl?: string;
 }
 
 export interface ServiceInstance {

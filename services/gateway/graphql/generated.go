@@ -98,12 +98,14 @@ type ComplexityRoot struct {
 	}
 
 	Deployment struct {
-		Active    func(childComplexity int) int
-		ID        func(childComplexity int) int
-		ImageTag  func(childComplexity int) int
-		Message   func(childComplexity int) int
-		Revision  func(childComplexity int) int
-		Timestamp func(childComplexity int) int
+		Active              func(childComplexity int) int
+		ID                  func(childComplexity int) int
+		ImageTag            func(childComplexity int) int
+		Message             func(childComplexity int) int
+		Revision            func(childComplexity int) int
+		SourceCommitMessage func(childComplexity int) int
+		SourceURL           func(childComplexity int) int
+		Timestamp           func(childComplexity int) int
 	}
 
 	DetectedService struct {
@@ -146,6 +148,7 @@ type ComplexityRoot struct {
 		ExecuteQuery        func(childComplexity int, input model.DatabaseQueryInput) int
 		Promote             func(childComplexity int, input model.PromoteInput) int
 		RemoveService       func(childComplexity int, projectID string, service string) int
+		Rollback            func(childComplexity int, input model.RollbackInput) int
 		SetServiceDomain    func(childComplexity int, input model.SetServiceDomainInput) int
 		SetServiceVariables func(childComplexity int, projectID string, environment string, service string, variables []model.ServiceVariableInput) int
 		SetSharedVariables  func(childComplexity int, projectID string, environment string, variables []model.VariableInput) int
@@ -249,6 +252,7 @@ type MutationResolver interface {
 	BuildService(ctx context.Context, input model.BuildServiceInput) (*model.Build, error)
 	DeployBuild(ctx context.Context, input model.DeployBuildInput) (bool, error)
 	Deploy(ctx context.Context, input model.DeployInput) (*model.DeployRun, error)
+	Rollback(ctx context.Context, input model.RollbackInput) (bool, error)
 	SetServiceDomain(ctx context.Context, input model.SetServiceDomainInput) (bool, error)
 	SetSharedVariables(ctx context.Context, projectID string, environment string, variables []model.VariableInput) (bool, error)
 	SetServiceVariables(ctx context.Context, projectID string, environment string, service string, variables []model.ServiceVariableInput) (bool, error)
@@ -497,6 +501,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Deployment.Revision(childComplexity), true
+	case "Deployment.sourceCommitMessage":
+		if e.complexity.Deployment.SourceCommitMessage == nil {
+			break
+		}
+
+		return e.complexity.Deployment.SourceCommitMessage(childComplexity), true
+	case "Deployment.sourceUrl":
+		if e.complexity.Deployment.SourceURL == nil {
+			break
+		}
+
+		return e.complexity.Deployment.SourceURL(childComplexity), true
 	case "Deployment.timestamp":
 		if e.complexity.Deployment.Timestamp == nil {
 			break
@@ -752,6 +768,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.RemoveService(childComplexity, args["projectId"].(string), args["service"].(string)), true
+	case "Mutation.rollback":
+		if e.complexity.Mutation.Rollback == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_rollback_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.Rollback(childComplexity, args["input"].(model.RollbackInput)), true
 	case "Mutation.setServiceDomain":
 		if e.complexity.Mutation.SetServiceDomain == nil {
 			break
@@ -1195,6 +1222,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputDeployBuildInput,
 		ec.unmarshalInputDeployInput,
 		ec.unmarshalInputPromoteInput,
+		ec.unmarshalInputRollbackInput,
 		ec.unmarshalInputServiceVariableInput,
 		ec.unmarshalInputSetServiceDomainInput,
 		ec.unmarshalInputVariableInput,
@@ -1515,6 +1543,17 @@ func (ec *executionContext) field_Mutation_removeService_args(ctx context.Contex
 		return nil, err
 	}
 	args["service"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_rollback_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNRollbackInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐRollbackInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
 	return args, nil
 }
 
@@ -2862,6 +2901,64 @@ func (ec *executionContext) _Deployment_message(ctx context.Context, field graph
 }
 
 func (ec *executionContext) fieldContext_Deployment_message(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Deployment",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Deployment_sourceCommitMessage(ctx context.Context, field graphql.CollectedField, obj *model.Deployment) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Deployment_sourceCommitMessage,
+		func(ctx context.Context) (any, error) {
+			return obj.SourceCommitMessage, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Deployment_sourceCommitMessage(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Deployment",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Deployment_sourceUrl(ctx context.Context, field graphql.CollectedField, obj *model.Deployment) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Deployment_sourceUrl,
+		func(ctx context.Context) (any, error) {
+			return obj.SourceURL, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Deployment_sourceUrl(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Deployment",
 		Field:      field,
@@ -4313,6 +4410,65 @@ func (ec *executionContext) fieldContext_Mutation_deploy(ctx context.Context, fi
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_deploy_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_rollback(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_rollback,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().Rollback(ctx, fc.Args["input"].(model.RollbackInput))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				if err != nil {
+					var zeroVal bool
+					return zeroVal, err
+				}
+				if ec.directives.HasRole == nil {
+					var zeroVal bool
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_rollback(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_rollback_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -6345,6 +6501,10 @@ func (ec *executionContext) fieldContext_ServiceInstance_deployments(_ context.C
 				return ec.fieldContext_Deployment_revision(ctx, field)
 			case "message":
 				return ec.fieldContext_Deployment_message(ctx, field)
+			case "sourceCommitMessage":
+				return ec.fieldContext_Deployment_sourceCommitMessage(ctx, field)
+			case "sourceUrl":
+				return ec.fieldContext_Deployment_sourceUrl(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Deployment", field.Name)
 		},
@@ -8746,6 +8906,54 @@ func (ec *executionContext) unmarshalInputPromoteInput(ctx context.Context, obj 
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputRollbackInput(ctx context.Context, obj any) (model.RollbackInput, error) {
+	var it model.RollbackInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"projectId", "service", "environment", "imageTag"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "projectId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("projectId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ProjectID = data
+		case "service":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("service"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Service = data
+		case "environment":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("environment"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Environment = data
+		case "imageTag":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("imageTag"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ImageTag = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputServiceVariableInput(ctx context.Context, obj any) (model.ServiceVariableInput, error) {
 	var it model.ServiceVariableInput
 	asMap := map[string]any{}
@@ -9226,6 +9434,10 @@ func (ec *executionContext) _Deployment(ctx context.Context, sel ast.SelectionSe
 			out.Values[i] = ec._Deployment_revision(ctx, field, obj)
 		case "message":
 			out.Values[i] = ec._Deployment_message(ctx, field, obj)
+		case "sourceCommitMessage":
+			out.Values[i] = ec._Deployment_sourceCommitMessage(ctx, field, obj)
+		case "sourceUrl":
+			out.Values[i] = ec._Deployment_sourceUrl(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -9549,6 +9761,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "deploy":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_deploy(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "rollback":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_rollback(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -11370,6 +11589,11 @@ func (ec *executionContext) marshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋse
 	}
 
 	return ret
+}
+
+func (ec *executionContext) unmarshalNRollbackInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐRollbackInput(ctx context.Context, v any) (model.RollbackInput, error) {
+	res, err := ec.unmarshalInputRollbackInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalNService2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐService(ctx context.Context, sel ast.SelectionSet, v model.Service) graphql.Marshaler {

@@ -9,14 +9,17 @@ import (
 
 // Event is a normalized representation of a GitHub webhook event.
 type Event struct {
-	Type         string // e.g. "push", "pull_request", "installation"
-	Action       string // e.g. "opened", "closed", "synchronize"
-	RepoFullName string // e.g. "zeitlos/myapp"
-	RepoCloneURL string
-	Ref          string // e.g. "refs/heads/main"
-	CommitSHA    string
-	Sender       string // GitHub login of the actor
-	PRNumber     int
+	Type           string // e.g. "push", "pull_request", "installation"
+	Action         string // e.g. "opened", "closed", "synchronize"
+	RepoFullName   string // e.g. "zeitlos/myapp"
+	RepoCloneURL   string
+	Ref            string // e.g. "refs/heads/main"
+	CommitSHA      string
+	Sender         string // GitHub login of the actor
+	PRNumber       int
+	CommitMessage  string // first line of the head commit message (push only)
+	InstallationID int64  // GitHub App installation ID
+	DefaultBranch  string // repo's default branch (e.g., "main")
 }
 
 // ValidateAndParse validates the webhook HMAC signature and parses
@@ -42,6 +45,11 @@ func ValidateAndParse(secret []byte, r *http.Request) (*Event, error) {
 		event.Ref = e.GetRef()
 		event.CommitSHA = e.GetAfter()
 		event.Sender = e.GetSender().GetLogin()
+		event.DefaultBranch = e.GetRepo().GetDefaultBranch()
+		event.InstallationID = e.GetInstallation().GetID()
+		if hc := e.GetHeadCommit(); hc != nil {
+			event.CommitMessage = hc.GetMessage()
+		}
 
 	case *gh.PullRequestEvent:
 		event.Action = e.GetAction()

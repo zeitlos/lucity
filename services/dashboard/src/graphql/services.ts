@@ -104,6 +104,12 @@ export const ActiveDeploymentQuery = gql`
   }
 `;
 
+export const RollbackMutation = gql`
+  mutation Rollback($input: RollbackInput!) {
+    rollback(input: $input)
+  }
+`;
+
 export const SetServiceDomainMutation = gql`
   mutation SetServiceDomain($input: SetServiceDomainInput!) {
     setServiceDomain(input: $input)

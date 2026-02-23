@@ -211,7 +211,10 @@ func (p *GitHubProvider) RemoveService(ctx context.Context, project, service str
 }
 
 // UpdateImageTag updates the image tag for a service in an environment's values.yaml.
-func (p *GitHubProvider) UpdateImageTag(ctx context.Context, project, environment, service, tag, digest string) error {
+func (p *GitHubProvider) UpdateImageTag(ctx context.Context, project, environment, service, tag, digest, commitPrefix string) error {
+	if commitPrefix == "" {
+		commitPrefix = "deploy"
+	}
 	repoName := p.repoName(project)
 
 	filePath := fmt.Sprintf("environments/%s/values.yaml", environment)
@@ -240,7 +243,7 @@ func (p *GitHubProvider) UpdateImageTag(ctx context.Context, project, environmen
 	services[service] = svcEntry
 	inner["services"] = services
 
-	commitMsg := fmt.Sprintf("deploy(%s): %s %s", environment, service, tag)
+	commitMsg := fmt.Sprintf("%s(%s): %s %s", commitPrefix, environment, service, tag)
 	if err := p.writeSubchartValuesGH(ctx, p.owner, repoName, filePath, inner, sha, commitMsg); err != nil {
 		return fmt.Errorf("failed to update %s: %w", filePath, err)
 	}
@@ -538,7 +541,7 @@ func (p *GitHubProvider) Promote(ctx context.Context, project, service, fromEnv,
 	}
 
 	// Write the tag to the target environment (UpdateImageTag already handles subchart scoping)
-	if err := p.UpdateImageTag(ctx, project, toEnv, service, tag, ""); err != nil {
+	if err := p.UpdateImageTag(ctx, project, toEnv, service, tag, "", "promote"); err != nil {
 		return "", fmt.Errorf("failed to promote to %s: %w", toEnv, err)
 	}
 

@@ -53,7 +53,9 @@ type Provider interface {
 	RemoveService(ctx context.Context, project, service string) error
 
 	// UpdateImageTag updates the image tag for a service in an environment's values.yaml.
-	UpdateImageTag(ctx context.Context, project, environment, service, tag, digest string) error
+	// commitPrefix controls the git commit message prefix (e.g., "deploy", "rollback").
+	// If empty, defaults to "deploy".
+	UpdateImageTag(ctx context.Context, project, environment, service, tag, digest, commitPrefix string) error
 
 	// Services reads the services defined in the project's base/values.yaml.
 	Services(ctx context.Context, project string) ([]ServiceDef, error)
@@ -129,11 +131,14 @@ const maxDeploymentHistory = 20
 // service to the given environment. Returns the image tag if matched.
 func parseDeployCommit(message, environment, service string) (imageTag string, ok bool) {
 	// Match: deploy(<env>): <service> <tag>
-	deployPrefix := fmt.Sprintf("deploy(%s): %s ", environment, service)
-	if strings.HasPrefix(message, deployPrefix) {
-		tag := strings.TrimSpace(message[len(deployPrefix):])
-		if tag != "" {
-			return tag, true
+	// Match: rollback(<env>): <service> <tag>
+	for _, prefix := range []string{"deploy", "rollback"} {
+		full := fmt.Sprintf("%s(%s): %s ", prefix, environment, service)
+		if strings.HasPrefix(message, full) {
+			tag := strings.TrimSpace(message[len(full):])
+			if tag != "" {
+				return tag, true
+			}
 		}
 	}
 

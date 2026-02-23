@@ -42,6 +42,22 @@ func (a *App) InstallationClient(ctx context.Context, installationID int64) (*gh
 	return gh.NewClient(&http.Client{Transport: transport}), nil
 }
 
+// InstallationToken creates a short-lived installation access token string.
+// This is used by the webhook service to authenticate gRPC calls when no user session exists.
+func (a *App) InstallationToken(ctx context.Context, installationID int64) (string, error) {
+	transport, err := ghinstallation.New(http.DefaultTransport, a.appID, installationID, a.privateKey)
+	if err != nil {
+		return "", fmt.Errorf("failed to create installation transport: %w", err)
+	}
+
+	token, err := transport.Token(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed to get installation token: %w", err)
+	}
+
+	return token, nil
+}
+
 func repoFromGitHub(r *gh.Repository) Repository {
 	repo := Repository{
 		ID:            r.GetID(),

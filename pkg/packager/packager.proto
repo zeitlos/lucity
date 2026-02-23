@@ -166,6 +166,8 @@ message UpdateImageTagRequest {
   string service = 3;
   string tag = 4;
   string digest = 5;
+  // Commit message prefix: "deploy" (default), "rollback", etc.
+  string commit_prefix = 6;
 }
 
 message UpdateImageTagResponse {}

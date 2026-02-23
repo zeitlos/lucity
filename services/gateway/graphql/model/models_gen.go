@@ -120,6 +120,10 @@ type Deployment struct {
 	Timestamp *time.Time `json:"timestamp,omitempty"`
 	Revision  *string    `json:"revision,omitempty"`
 	Message   *string    `json:"message,omitempty"`
+	// First line of the source commit message (fetched from GitHub).
+	SourceCommitMessage *string `json:"sourceCommitMessage,omitempty"`
+	// URL to the source commit on GitHub.
+	SourceURL *string `json:"sourceUrl,omitempty"`
 }
 
 type DetectedService struct {
@@ -175,6 +179,14 @@ type QueryResult struct {
 	Columns      []string    `json:"columns"`
 	Rows         [][]*string `json:"rows"`
 	AffectedRows int         `json:"affectedRows"`
+}
+
+type RollbackInput struct {
+	ProjectID   string `json:"projectId"`
+	Service     string `json:"service"`
+	Environment string `json:"environment"`
+	// Image tag to roll back to (typically a short git SHA).
+	ImageTag string `json:"imageTag"`
 }
 
 type Service struct {

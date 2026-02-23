@@ -75,6 +75,11 @@ func (r *mutationResolver) Deploy(ctx context.Context, input model.DeployInput) 
 	return &result, nil
 }
 
+// Rollback is the resolver for the rollback field.
+func (r *mutationResolver) Rollback(ctx context.Context, input model.RollbackInput) (bool, error) {
+	return r.API.Rollback(ctx, input.ProjectID, input.Service, input.Environment, input.ImageTag)
+}
+
 // SetServiceDomain is the resolver for the setServiceDomain field.
 func (r *mutationResolver) SetServiceDomain(ctx context.Context, input model.SetServiceDomainInput) (bool, error) {
 	return r.API.SetServiceDomain(ctx, input.ProjectID, input.Service, input.Environment, input.Host)

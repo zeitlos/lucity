@@ -204,8 +204,11 @@ func (p *SoftServeProvider) RemoveService(ctx context.Context, project, service 
 }
 
 // UpdateImageTag updates the image tag for a service in an environment's values.yaml.
-func (p *SoftServeProvider) UpdateImageTag(ctx context.Context, project, environment, service, tag, digest string) error {
-	return p.modifyRepo(ctx, project, fmt.Sprintf("deploy(%s): %s %s", environment, service, tag), func(dir string) error {
+func (p *SoftServeProvider) UpdateImageTag(ctx context.Context, project, environment, service, tag, digest, commitPrefix string) error {
+	if commitPrefix == "" {
+		commitPrefix = "deploy"
+	}
+	return p.modifyRepo(ctx, project, fmt.Sprintf("%s(%s): %s %s", commitPrefix, environment, service, tag), func(dir string) error {
 		filePath := filepath.Join(dir, "environments", environment, "values.yaml")
 		inner, err := readSubchartValues(filePath)
 		if err != nil {

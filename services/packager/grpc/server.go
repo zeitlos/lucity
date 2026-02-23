@@ -212,7 +212,7 @@ func (s *Server) UpdateImageTag(ctx context.Context, req *packager.UpdateImageTa
 		return nil, err
 	}
 
-	if err := p.UpdateImageTag(ctx, req.Project, req.Environment, req.Service, req.Tag, req.Digest); err != nil {
+	if err := p.UpdateImageTag(ctx, req.Project, req.Environment, req.Service, req.Tag, req.Digest, req.CommitPrefix); err != nil {
 		return nil, fmt.Errorf("failed to update image tag: %w", err)
 	}
 

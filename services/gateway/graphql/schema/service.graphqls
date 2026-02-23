@@ -76,6 +76,14 @@ input DeployInput {
   gitRef: String
 }
 
+input RollbackInput {
+  projectId: ID!
+  service: String!
+  environment: String!
+  """Image tag to roll back to (typically a short git SHA)."""
+  imageTag: String!
+}
+
 input SetServiceDomainInput {
   projectId: ID!
   service: String!
@@ -97,6 +105,8 @@ extend type Mutation {
   buildService(input: BuildServiceInput!): Build! @hasRole(role: [USER])
   deployBuild(input: DeployBuildInput!): Boolean! @hasRole(role: [USER])
   deploy(input: DeployInput!): DeployRun! @hasRole(role: [USER])
+  """Roll back to a previous image tag without rebuilding."""
+  rollback(input: RollbackInput!): Boolean! @hasRole(role: [USER])
   setServiceDomain(input: SetServiceDomainInput!): Boolean! @hasRole(role: [USER])
 }
 

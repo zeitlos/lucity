@@ -1,15 +1,17 @@
 <script setup lang="ts">
 import { computed, ref, onMounted } from 'vue';
-import { Rocket, Loader2, Check, Circle, ChevronRight, AlertCircle, Tag, TriangleAlert, Terminal } from 'lucide-vue-next';
+import { Rocket, Loader2, Check, Circle, ChevronRight, AlertCircle, TriangleAlert, Terminal, ExternalLink, GitCommitHorizontal, RotateCcw, RefreshCw } from 'lucide-vue-next';
 import { useEnvironment } from '@/composables/useEnvironment';
 import { useDeploy } from '@/composables/useDeploy';
 import { useDeploymentLogsPanel } from '@/composables/useDeploymentLogsPanel';
 import { apolloClient } from '@/lib/apollo';
-import { ActiveDeploymentQuery } from '@/graphql/services';
+import { ActiveDeploymentQuery, RollbackMutation } from '@/graphql/services';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import EmptyState from '@/components/EmptyState.vue';
+import { toast } from '@/components/ui/sonner';
+import { errorMessage } from '@/lib/utils';
 
 const props = defineProps<{
   projectId: string;
@@ -70,6 +72,33 @@ function toggleExpanded(id: string) {
 async function handleDeploy() {
   const envName = activeEnvironment.value?.name ?? 'development';
   await deploy.startDeploy(props.projectId, props.service.name, envName);
+}
+
+async function handleRollback(imageTag: string) {
+  const envName = activeEnvironment.value?.name;
+  if (!envName) return;
+
+  try {
+    await apolloClient.mutate({
+      mutation: RollbackMutation,
+      variables: {
+        input: {
+          projectId: props.projectId,
+          service: props.service.name,
+          environment: envName,
+          imageTag,
+        },
+      },
+    });
+    toast.success('Rollback initiated', { description: `Rolling back to ${imageTag}` });
+  } catch (e: unknown) {
+    toast.error('Rollback failed', { description: errorMessage(e) });
+  }
+}
+
+async function handleRedeploy(imageTag: string) {
+  const envName = activeEnvironment.value?.name ?? 'development';
+  await deploy.startDeploy(props.projectId, props.service.name, envName, imageTag);
 }
 
 // Deploy pipeline stages
@@ -277,31 +306,51 @@ function formatRelativeTime(timestamp: string): string {
               class="rounded-lg border px-3 py-2.5 text-left transition-colors hover:bg-muted/50"
               :class="dep.active ? 'border-[var(--primary)]/30 border-l-2 border-l-[var(--primary)]' : 'border-border/60'"
             >
-              <div class="flex items-center justify-between">
-                <div class="flex items-center gap-2">
+              <div class="flex items-center justify-between gap-2">
+                <div class="flex min-w-0 items-center gap-2">
                   <ChevronRight
                     :size="14"
-                    class="text-muted-foreground transition-transform"
+                    class="shrink-0 text-muted-foreground transition-transform"
                     :class="expandedId === dep.id ? 'rotate-90' : ''"
                   />
                   <Badge
                     v-if="dep.active"
                     variant="default"
-                    class="text-xs"
+                    class="shrink-0 text-xs"
                   >
                     Active
                   </Badge>
-                  <Badge variant="outline" class="font-mono text-xs">
-                    <Tag :size="10" class="shrink-0" />
+                  <span
+                    v-if="dep.sourceCommitMessage"
+                    class="truncate text-xs text-foreground"
+                    :title="dep.sourceCommitMessage"
+                  >
+                    {{ dep.sourceCommitMessage }}
+                  </span>
+                  <Badge variant="outline" class="shrink-0 font-mono text-xs">
+                    <GitCommitHorizontal :size="10" class="shrink-0" />
                     {{ dep.imageTag }}
                   </Badge>
                 </div>
-                <span
-                  v-if="dep.timestamp"
-                  class="text-xs text-muted-foreground"
-                >
-                  {{ formatRelativeTime(dep.timestamp) }}
-                </span>
+                <div class="flex shrink-0 items-center gap-2">
+                  <a
+                    v-if="dep.sourceUrl"
+                    :href="dep.sourceUrl"
+                    target="_blank"
+                    rel="noopener"
+                    class="text-muted-foreground hover:text-foreground"
+                    title="View commit on GitHub"
+                    @click.stop
+                  >
+                    <ExternalLink :size="12" />
+                  </a>
+                  <span
+                    v-if="dep.timestamp"
+                    class="text-xs text-muted-foreground"
+                  >
+                    {{ formatRelativeTime(dep.timestamp) }}
+                  </span>
+                </div>
               </div>
             </div>
           </CollapsibleTrigger>
@@ -330,6 +379,31 @@ function formatRelativeTime(timestamp: string): string {
                 <p v-if="dep.message" class="font-mono">
                   {{ dep.message }}
                 </p>
+              </div>
+
+              <!-- Actions -->
+              <div class="mt-3 flex gap-2">
+                <Button
+                  v-if="!dep.active"
+                  variant="outline"
+                  size="sm"
+                  class="h-7 text-xs"
+                  :disabled="deploy.isDeploying"
+                  @click.stop="handleRollback(dep.imageTag)"
+                >
+                  <RotateCcw :size="12" class="mr-1.5" />
+                  Rollback
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  class="h-7 text-xs"
+                  :disabled="deploy.isDeploying"
+                  @click.stop="handleRedeploy(dep.imageTag)"
+                >
+                  <RefreshCw :size="12" class="mr-1.5" />
+                  Redeploy
+                </Button>
               </div>
             </div>
           </CollapsibleContent>
