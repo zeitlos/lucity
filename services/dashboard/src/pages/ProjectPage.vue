@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import ServiceCanvas from '@/components/canvas/ServiceCanvas.vue';
 import ServicePanel from '@/components/panel/ServicePanel.vue';
 import DatabasePanel from '@/components/panel/DatabasePanel.vue';
+import VolumePanel from '@/components/panel/VolumePanel.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import CreateCommandPalette from '@/components/CreateCommandPalette.vue';
 import DeploymentLogsPanel from '@/components/panel/DeploymentLogsPanel.vue';
@@ -27,7 +28,7 @@ const { result, loading, error, refetch } = useQuery(ProjectQuery, () => ({
 const project = computed(() => result.value?.project);
 
 // Environment management
-const { setEnvironments, refreshActiveEnvironment } = useEnvironment();
+const { setEnvironments, refreshActiveEnvironment, activeEnvDatabases } = useEnvironment();
 const { isOpen, currentPanel, closePanel } = usePanel();
 const logsPanel = useDeploymentLogsPanel();
 const serviceLogsPanel = useServiceLogsPanel();
@@ -64,6 +65,19 @@ const selectedDatabase = computed(() => {
   return project.value.databases?.find(
     (d: { name: string }) => d.name === currentPanel.value!.id
   ) ?? null;
+});
+
+// Selected volume for the panel (ID = database name)
+const selectedVolume = computed(() => {
+  if (!currentPanel.value || currentPanel.value.type !== 'volume') return null;
+  const dbName = currentPanel.value.id;
+  const dbInstance = activeEnvDatabases.value.find(d => d.name === dbName);
+  return dbInstance?.volume ?? null;
+});
+
+const volumeDatabaseName = computed(() => {
+  if (!currentPanel.value || currentPanel.value.type !== 'volume') return '';
+  return currentPanel.value.id;
 });
 
 // Command palette
@@ -163,6 +177,21 @@ const hasResources = computed(() => {
               :database="selectedDatabase"
               @close="closePanel"
               @database-removed="handleResourceRemoved"
+            />
+          </div>
+        </Transition>
+
+        <!-- Volume Detail Panel (overlays from right) -->
+        <Transition name="slide-panel">
+          <div
+            v-if="isOpen && selectedVolume"
+            class="absolute inset-y-3 right-3 w-[55%] shadow-xl"
+          >
+            <VolumePanel
+              :volume="selectedVolume"
+              :database-name="volumeDatabaseName"
+              @close="closePanel"
+              @back="closePanel"
             />
           </div>
         </Transition>

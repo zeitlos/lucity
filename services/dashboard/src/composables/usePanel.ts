@@ -20,7 +20,7 @@ export function usePanel() {
   function openPanel(entry: PanelEntry) {
     // Service-level panels replace the stack (selecting a different service)
     // Sub-views (deployments, etc.) push onto the stack for breadcrumb navigation
-    if (entry.type === 'service' || entry.type === 'database') {
+    if (entry.type === 'service' || entry.type === 'database' || entry.type === 'volume') {
       panelStack.value = [entry];
     } else {
       panelStack.value.push(entry);

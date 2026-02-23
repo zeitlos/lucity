@@ -97,7 +97,7 @@ const usageLabel = computed(() => {
       v-if="data.volume"
       class="volume-bar relative mt-2 flex cursor-pointer items-center gap-2 overflow-hidden rounded-lg border border-border/70 px-3 py-2 text-xs text-muted-foreground transition-colors hover:border-border hover:bg-card/80"
       style="width: 240px; margin-left: 20px;"
-      @click.stop="emit('select-volume', data.volume.name)"
+      @click.stop="emit('select-volume', data.name)"
     >
       <div
         v-if="usagePercent > 0"
