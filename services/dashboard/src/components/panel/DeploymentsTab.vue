@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { computed, ref, onMounted } from 'vue';
-import { Rocket, Loader2, Check, Circle, ChevronRight, AlertCircle, TriangleAlert, Terminal, ExternalLink, GitCommitHorizontal, RotateCcw, RefreshCw } from 'lucide-vue-next';
+import {
+  Rocket, Loader2, Check, AlertCircle, TriangleAlert, Terminal,
+  ExternalLink, GitCommitHorizontal, RotateCcw, RefreshCw,
+  MoreVertical, ChevronDown, Circle,
+} from 'lucide-vue-next';
 import { useEnvironment } from '@/composables/useEnvironment';
 import { useDeploy } from '@/composables/useDeploy';
 import { useDeploymentLogsPanel } from '@/composables/useDeploymentLogsPanel';
@@ -9,6 +13,13 @@ import { ActiveDeploymentQuery, RollbackMutation } from '@/graphql/services';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
 import EmptyState from '@/components/EmptyState.vue';
 import { toast } from '@/components/ui/sonner';
 import { errorMessage } from '@/lib/utils';
@@ -62,12 +73,10 @@ const envService = computed(() =>
 
 const deployments = computed(() => envService.value?.deployments ?? []);
 const hasDeployments = computed(() => deployments.value.length > 0);
+const activeDeployment = computed(() => deployments.value.find(d => d.active));
+const pastDeployments = computed(() => deployments.value.filter(d => !d.active));
 
-const expandedId = ref<string | null>(null);
-
-function toggleExpanded(id: string) {
-  expandedId.value = expandedId.value === id ? null : id;
-}
+const showActiveDetails = ref(false);
 
 async function handleDeploy() {
   const envName = activeEnvironment.value?.name ?? 'development';
@@ -104,7 +113,6 @@ async function handleRedeploy(imageTag: string) {
 // Deploy pipeline stages
 const STAGES = ['Initializing', 'Building', 'Deploying'] as const;
 
-// Map DeployPhase enum to stage index (0-based, -1 = not started)
 function phaseToStageIndex(phase: string): number {
   switch (phase) {
     case 'QUEUED':
@@ -116,7 +124,7 @@ function phaseToStageIndex(phase: string): number {
     case 'DEPLOYING':
       return 2;
     case 'SUCCEEDED':
-      return 3; // all complete
+      return 3;
     default:
       return -1;
   }
@@ -137,10 +145,14 @@ function formatRelativeTime(timestamp: string): string {
   if (diffDays < 30) return `${diffDays}d ago`;
   return date.toLocaleDateString();
 }
+
+function deployLabel(dep: { sourceCommitMessage?: string; imageTag: string }): string {
+  return dep.sourceCommitMessage || dep.imageTag;
+}
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="space-y-4">
     <!-- Deploy Action -->
     <div class="flex items-center gap-3">
       <Button
@@ -182,7 +194,6 @@ function formatRelativeTime(timestamp: string): string {
             :key="stage"
             class="flex items-center gap-2.5 py-1"
           >
-            <!-- Stage indicator -->
             <div class="flex h-4 w-4 items-center justify-center">
               <Check
                 v-if="phaseToStageIndex(deploy.phase!) > idx"
@@ -216,7 +227,7 @@ function formatRelativeTime(timestamp: string): string {
           </div>
         </div>
 
-        <!-- Rollout health status during DEPLOYING phase -->
+        <!-- Rollout health status -->
         <div
           v-if="deploy.phase === 'DEPLOYING' && deploy.rolloutHealth"
           class="mt-2 rounded-md px-2.5 py-2"
@@ -250,7 +261,6 @@ function formatRelativeTime(timestamp: string): string {
         </div>
       </div>
 
-      <!-- Show Logs button -->
       <div class="border-t border-border/40 px-3 py-2">
         <Button
           variant="ghost"
@@ -264,7 +274,7 @@ function formatRelativeTime(timestamp: string): string {
       </div>
     </div>
 
-    <!-- Deploy error (FAILED phase) -->
+    <!-- Deploy error -->
     <div
       v-if="deploy.phase === 'FAILED' && (deploy.error || deploy.rolloutMessage)"
       class="rounded-lg border border-[var(--status-danger)]/30 bg-[var(--status-danger)]/5 px-3 py-2.5"
@@ -289,121 +299,94 @@ function formatRelativeTime(timestamp: string): string {
       </div>
     </div>
 
-    <!-- Deployment History -->
-    <div v-if="hasDeployments" class="space-y-3">
-      <h3 class="text-sm font-medium text-muted-foreground">Deployment History</h3>
-      <div class="space-y-2">
-        <Collapsible
-          v-for="dep in deployments"
-          :key="dep.id"
-          :open="expandedId === dep.id"
-        >
-          <CollapsibleTrigger
-            class="w-full cursor-pointer"
-            @click="toggleExpanded(dep.id)"
+    <!-- Active Deployment Card -->
+    <div v-if="activeDeployment" class="space-y-0">
+      <div class="rounded-lg border border-border/60 bg-card">
+        <!-- Main row -->
+        <div class="flex items-start gap-3 px-4 py-3">
+          <Badge
+            variant="default"
+            class="mt-0.5 shrink-0"
           >
-            <div
-              class="rounded-lg border px-3 py-2.5 text-left transition-colors hover:bg-muted/50"
-              :class="dep.active ? 'border-[var(--primary)]/30 border-l-2 border-l-[var(--primary)]' : 'border-border/60'"
+            Active
+          </Badge>
+
+          <div class="min-w-0 flex-1">
+            <p
+              class="truncate text-sm font-medium text-foreground"
+              :title="activeDeployment.sourceCommitMessage || activeDeployment.imageTag"
             >
-              <div class="flex items-center justify-between gap-2">
-                <div class="flex min-w-0 items-center gap-2">
-                  <ChevronRight
-                    :size="14"
-                    class="shrink-0 text-muted-foreground transition-transform"
-                    :class="expandedId === dep.id ? 'rotate-90' : ''"
-                  />
-                  <Badge
-                    v-if="dep.active"
-                    variant="default"
-                    class="shrink-0 text-xs"
-                  >
-                    Active
-                  </Badge>
-                  <span
-                    v-if="dep.sourceCommitMessage"
-                    class="truncate text-xs text-foreground"
-                    :title="dep.sourceCommitMessage"
-                  >
-                    {{ dep.sourceCommitMessage }}
-                  </span>
-                  <Badge variant="outline" class="shrink-0 font-mono text-xs">
-                    <GitCommitHorizontal :size="10" class="shrink-0" />
-                    {{ dep.imageTag }}
-                  </Badge>
-                </div>
-                <div class="flex shrink-0 items-center gap-2">
+              {{ deployLabel(activeDeployment) }}
+            </p>
+            <div class="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+              <span v-if="activeDeployment.timestamp">{{ formatRelativeTime(activeDeployment.timestamp) }}</span>
+              <span v-if="activeDeployment.sourceUrl">via GitHub</span>
+            </div>
+          </div>
+
+          <div class="flex shrink-0 items-center gap-1.5">
+            <Button
+              v-if="deploy.deployId"
+              variant="outline"
+              size="sm"
+              class="h-8 text-xs"
+              @click="showLogs"
+            >
+              View logs
+            </Button>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger as-child>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  class="h-8 w-8 p-0"
+                >
+                  <MoreVertical :size="16" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem @click="handleRedeploy(activeDeployment.imageTag)">
+                  <RefreshCw :size="14" class="mr-2" />
+                  Redeploy
+                </DropdownMenuItem>
+                <DropdownMenuSeparator v-if="activeDeployment.sourceUrl" />
+                <DropdownMenuItem v-if="activeDeployment.sourceUrl" as-child>
                   <a
-                    v-if="dep.sourceUrl"
-                    :href="dep.sourceUrl"
+                    :href="activeDeployment.sourceUrl"
                     target="_blank"
                     rel="noopener"
-                    class="text-muted-foreground hover:text-foreground"
-                    title="View commit on GitHub"
-                    @click.stop
                   >
-                    <ExternalLink :size="12" />
+                    <ExternalLink :size="14" class="mr-2" />
+                    View on GitHub
                   </a>
-                  <span
-                    v-if="dep.timestamp"
-                    class="text-xs text-muted-foreground"
-                  >
-                    {{ formatRelativeTime(dep.timestamp) }}
-                  </span>
-                </div>
-              </div>
-            </div>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+
+        <!-- Deployment successful expandable -->
+        <Collapsible v-model:open="showActiveDetails">
+          <CollapsibleTrigger class="flex w-full cursor-pointer items-center gap-2 border-t border-border/40 px-4 py-2.5 text-left">
+            <Check :size="14" class="shrink-0 text-[var(--status-ok)]" />
+            <span class="flex-1 text-xs font-medium text-[var(--status-ok)]">Deployment successful</span>
+            <ChevronDown
+              :size="14"
+              class="shrink-0 text-muted-foreground transition-transform"
+              :class="showActiveDetails ? 'rotate-180' : ''"
+            />
           </CollapsibleTrigger>
-
           <CollapsibleContent>
-            <div class="ml-3 border-l border-border/40 py-2 pl-4">
-              <!-- Stages (historical — all succeeded) -->
-              <div class="space-y-1">
-                <div
-                  v-for="stage in STAGES"
-                  :key="stage"
-                  class="flex items-center gap-2.5 py-0.5"
-                >
-                  <Check :size="12" class="text-[var(--status-ok)]" />
-                  <span class="text-xs text-foreground">{{ stage }}</span>
-                </div>
+            <div class="space-y-2 border-t border-border/40 px-4 py-3">
+              <div class="flex items-center gap-2">
+                <GitCommitHorizontal :size="12" class="shrink-0 text-muted-foreground" />
+                <span class="font-mono text-xs text-muted-foreground">{{ activeDeployment.imageTag }}</span>
               </div>
-
-              <!-- Details -->
-              <div class="mt-3 space-y-1 text-xs text-muted-foreground">
-                <p v-if="dep.active && envService">
-                  {{ envService.replicas }} replica{{ envService.replicas !== 1 ? 's' : '' }}
-                  <template v-if="envService.ready"> &middot; healthy</template>
-                  <template v-else> &middot; not ready</template>
-                </p>
-                <p v-if="dep.message" class="font-mono">
-                  {{ dep.message }}
-                </p>
-              </div>
-
-              <!-- Actions -->
-              <div class="mt-3 flex gap-2">
-                <Button
-                  v-if="!dep.active"
-                  variant="outline"
-                  size="sm"
-                  class="h-7 text-xs"
-                  :disabled="deploy.isDeploying"
-                  @click.stop="handleRollback(dep.imageTag)"
-                >
-                  <RotateCcw :size="12" class="mr-1.5" />
-                  Rollback
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  class="h-7 text-xs"
-                  :disabled="deploy.isDeploying"
-                  @click.stop="handleRedeploy(dep.imageTag)"
-                >
-                  <RefreshCw :size="12" class="mr-1.5" />
-                  Redeploy
-                </Button>
+              <div v-if="envService" class="text-xs text-muted-foreground">
+                {{ envService.replicas }} replica{{ envService.replicas !== 1 ? 's' : '' }}
+                <template v-if="envService.ready"> &middot; healthy</template>
+                <template v-else> &middot; not ready</template>
               </div>
             </div>
           </CollapsibleContent>
@@ -411,9 +394,78 @@ function formatRelativeTime(timestamp: string): string {
       </div>
     </div>
 
+    <!-- History Section -->
+    <div v-if="pastDeployments.length > 0" class="space-y-2">
+      <h3 class="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        History
+      </h3>
+
+      <div class="space-y-2">
+        <div
+          v-for="dep in pastDeployments"
+          :key="dep.id"
+          class="flex items-start gap-3 rounded-lg border border-border/60 bg-muted/30 px-4 py-3"
+        >
+          <div class="min-w-0 flex-1">
+            <p
+              class="truncate text-sm text-foreground"
+              :title="dep.sourceCommitMessage || dep.imageTag"
+            >
+              {{ deployLabel(dep) }}
+            </p>
+            <div class="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+              <GitCommitHorizontal :size="10" class="shrink-0" />
+              <span class="font-mono">{{ dep.imageTag }}</span>
+              <span v-if="dep.timestamp">&middot; {{ formatRelativeTime(dep.timestamp) }}</span>
+              <span v-if="dep.sourceUrl">&middot; via GitHub</span>
+            </div>
+          </div>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger as-child>
+              <Button
+                variant="ghost"
+                size="sm"
+                class="h-8 w-8 shrink-0 p-0"
+              >
+                <MoreVertical :size="16" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                :disabled="deploy.isDeploying"
+                @click="handleRollback(dep.imageTag)"
+              >
+                <RotateCcw :size="14" class="mr-2" />
+                Rollback
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                :disabled="deploy.isDeploying"
+                @click="handleRedeploy(dep.imageTag)"
+              >
+                <RefreshCw :size="14" class="mr-2" />
+                Redeploy
+              </DropdownMenuItem>
+              <DropdownMenuSeparator v-if="dep.sourceUrl" />
+              <DropdownMenuItem v-if="dep.sourceUrl" as-child>
+                <a
+                  :href="dep.sourceUrl"
+                  target="_blank"
+                  rel="noopener"
+                >
+                  <ExternalLink :size="14" class="mr-2" />
+                  View on GitHub
+                </a>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+    </div>
+
     <!-- No deployment -->
     <EmptyState
-      v-else-if="!deploy.isDeploying"
+      v-else-if="!hasDeployments && !deploy.isDeploying"
       title="No deployment"
       description="This service hasn't been deployed to this environment yet. Click Deploy to get started."
       pattern="diagonal"
