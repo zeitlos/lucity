@@ -84,10 +84,12 @@ export function useEnvironment() {
 
   function updateServiceDomains(serviceName: string, domains: DomainInfo[]) {
     if (!activeEnvironment.value) return;
-    const svc = activeEnvironment.value.services.find(s => s.name === serviceName);
-    if (svc) {
-      svc.domains = domains;
-    }
+    activeEnvironment.value = {
+      ...activeEnvironment.value,
+      services: activeEnvironment.value.services.map(s =>
+        s.name === serviceName ? { ...s, domains } : s,
+      ),
+    };
   }
 
   return {
