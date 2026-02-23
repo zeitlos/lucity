@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ref, watch, onMounted, nextTick } from 'vue';
 import BaseLogo from '@/components/BaseLogo.vue';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -10,7 +11,21 @@ import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AlertCircle, Check, Rocket, Zap } from 'lucide-vue-next';
+import { AlertCircle, Check, Download, Rocket, Zap } from 'lucide-vue-next';
+
+import alpsHarborImg from '../../assets/img/alps_harbor.webp';
+import mountainCityImg from '../../assets/img/mountain_city.webp';
+import mountainCityNightImg from '../../assets/img/mountain_city_night.webp';
+import branchingRiverImg from '../../assets/img/branching_river.webp';
+import containerHarborImg from '../../assets/img/container_harbor.webp';
+import mountainShipImg from '../../assets/img/mountain_ship.webp';
+import mountainPlaneImg from '../../assets/img/mountain_plane.webp';
+import cablecarImg from '../../assets/img/cablecar.webp';
+import lakeImg from '../../assets/img/lake.webp';
+import hotairBaloonImg from '../../assets/img/hotair_baloon.webp';
+import planeParkedImg from '../../assets/img/plane_parked.webp';
+import octopusRiverImg from '../../assets/img/octopus_river.webp';
+import gopherShipImg from '../../assets/img/gopher_ship.webp';
 
 const colors = [
   { name: 'Primary', var: '--primary', fg: '--primary-foreground', desc: 'Brand teal' },
@@ -45,6 +60,186 @@ const chartColors = [
   { name: 'Chart 4', var: '--chart-4' },
   { name: 'Chart 5', var: '--chart-5' },
 ];
+
+// --- Social Preview Canvas ---
+
+type PreviewPoint = [number, number];
+
+const canvasRef = ref<HTMLCanvasElement | null>(null);
+const selectedWallpaper = ref(0);
+const previewHeadline = ref('Lucity');
+const previewTagline = ref('The ejectable PaaS on Kubernetes');
+const loadedImages = new Map<string, HTMLImageElement>();
+
+const wallpapers = [
+  { name: 'Alps Harbor', src: alpsHarborImg },
+  { name: 'Mountain City', src: mountainCityImg },
+  { name: 'Night City', src: mountainCityNightImg },
+  { name: 'Container Harbor', src: containerHarborImg },
+  { name: 'Mountain Ship', src: mountainShipImg },
+  { name: 'Mountain Plane', src: mountainPlaneImg },
+  { name: 'Branching River', src: branchingRiverImg },
+  { name: 'Lake', src: lakeImg },
+  { name: 'Cablecar', src: cablecarImg },
+  { name: 'Hot Air Balloon', src: hotairBaloonImg },
+  { name: 'Parked Plane', src: planeParkedImg },
+  { name: 'Octopus River', src: octopusRiverImg },
+  { name: 'Gopher Ship', src: gopherShipImg },
+];
+
+function preloadWallpapers() {
+  wallpapers.forEach((wp) => {
+    const img = new Image();
+    img.onload = () => {
+      loadedImages.set(wp.src, img);
+      if (wallpapers[selectedWallpaper.value].src === wp.src) drawCanvas();
+    };
+    img.src = wp.src;
+  });
+}
+
+function isoProject(x: number, y: number): PreviewPoint {
+  const CELL = 20;
+  return [(x - y) * CELL * 0.866, (x + y) * CELL * 0.5];
+}
+
+function drawLogo(ctx: CanvasRenderingContext2D, cx: number, cy: number, logoHeight: number) {
+  const L_CELLS: PreviewPoint[] = [[0, 2], [1, 2], [2, 2], [2, 1]];
+  const TRI_VERTS: PreviewPoint[] = [[0, 1], [1, 0], [1, 1]];
+
+  const allPts: PreviewPoint[] = [];
+  for (const [c, r] of L_CELLS) {
+    allPts.push(isoProject(c, r), isoProject(c + 1, r), isoProject(c + 1, r + 1), isoProject(c, r + 1));
+  }
+  for (const [x, y] of TRI_VERTS) allPts.push(isoProject(x, y));
+
+  const xs = allPts.map((p) => p[0]);
+  const ys = allPts.map((p) => p[1]);
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+  const rawW = maxX - minX;
+  const rawH = maxY - minY;
+  const scale = logoHeight / rawH;
+
+  function project(x: number, y: number): PreviewPoint {
+    const [px, py] = isoProject(x, y);
+    return [cx + (px - minX - rawW / 2) * scale, cy + (py - minY - rawH / 2) * scale];
+  }
+
+  // L-shape tiles
+  ctx.fillStyle = '#55d4ab';
+  ctx.strokeStyle = '#55d4ab';
+  ctx.lineWidth = Math.max(0.5, 0.5 * scale);
+  ctx.lineJoin = 'round';
+
+  for (const [c, r] of L_CELLS) {
+    const [x1, y1] = project(c, r);
+    const [x2, y2] = project(c + 1, r);
+    const [x3, y3] = project(c + 1, r + 1);
+    const [x4, y4] = project(c, r + 1);
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.lineTo(x3, y3);
+    ctx.lineTo(x4, y4);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  // Triangle accent
+  ctx.fillStyle = '#e8ddd0';
+  ctx.beginPath();
+  for (let i = 0; i < TRI_VERTS.length; i++) {
+    const [px, py] = project(TRI_VERTS[i][0], TRI_VERTS[i][1]);
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawCanvas() {
+  const canvas = canvasRef.value;
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  const W = 1280;
+  const H = 640;
+  ctx.clearRect(0, 0, W, H);
+
+  // Background wallpaper
+  const wp = wallpapers[selectedWallpaper.value];
+  const img = loadedImages.get(wp.src);
+
+  if (img) {
+    // Cover fit
+    const imgRatio = img.width / img.height;
+    const canvasRatio = W / H;
+    let sx = 0;
+    let sy = 0;
+    let sw = img.width;
+    let sh = img.height;
+    if (imgRatio > canvasRatio) {
+      sw = img.height * canvasRatio;
+      sx = (img.width - sw) / 2;
+    } else {
+      sh = img.width / canvasRatio;
+      sy = (img.height - sh) / 2;
+    }
+    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, W, H);
+  } else {
+    const grad = ctx.createLinearGradient(0, 0, W, H);
+    grad.addColorStop(0, '#1a3a2f');
+    grad.addColorStop(1, '#0d1b16');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  // Vignette overlay
+  const vig = ctx.createRadialGradient(W / 2, H / 2, H * 0.15, W / 2, H / 2, W * 0.75);
+  vig.addColorStop(0, 'rgba(0,0,0,0.2)');
+  vig.addColorStop(1, 'rgba(0,0,0,0.6)');
+  ctx.fillStyle = vig;
+  ctx.fillRect(0, 0, W, H);
+
+  // Logo
+  drawLogo(ctx, W / 2, H / 2 - 90, 140);
+
+  // Headline
+  ctx.fillStyle = 'white';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.font = 'italic 72px "Instrument Serif", Georgia, serif';
+  ctx.fillText(previewHeadline.value, W / 2, H / 2 + 5);
+
+  // Tagline
+  ctx.font = '300 22px "Sora", system-ui, sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.7)';
+  ctx.fillText(previewTagline.value, W / 2, H / 2 + 90);
+}
+
+function downloadPreview(format: 'png' | 'jpg') {
+  const canvas = canvasRef.value;
+  if (!canvas) return;
+  const mimeType = format === 'png' ? 'image/png' : 'image/jpeg';
+  const link = document.createElement('a');
+  link.download = `lucity-social-preview.${format}`;
+  link.href = canvas.toDataURL(mimeType, 0.95);
+  link.click();
+}
+
+watch([selectedWallpaper, previewHeadline, previewTagline], () => drawCanvas());
+
+onMounted(async () => {
+  preloadWallpapers();
+  await document.fonts.ready;
+  await nextTick();
+  drawCanvas();
+});
 </script>
 
 <template>
@@ -514,6 +709,89 @@ const chartColors = [
             </div>
           </TabsContent>
         </Tabs>
+      </section>
+
+      <!-- Social Preview -->
+      <section class="mb-16">
+        <h2 class="mb-2 font-serif text-2xl text-foreground">
+          Social Preview
+        </h2>
+        <p class="mb-8 text-sm text-muted-foreground">
+          Generate og:image for link sharing. 1280 &times; 640px.
+        </p>
+
+        <!-- Canvas preview -->
+        <Card>
+          <CardContent class="pt-6">
+            <canvas
+              ref="canvasRef"
+              width="1280"
+              height="640"
+              class="w-full rounded-lg"
+            />
+          </CardContent>
+        </Card>
+
+        <!-- Controls -->
+        <div class="mt-6 grid grid-cols-[1fr_auto] gap-8">
+          <!-- Wallpaper selector -->
+          <div>
+            <p class="mb-3 text-sm font-medium text-muted-foreground">
+              Background
+            </p>
+            <div class="grid grid-cols-7 gap-2">
+              <button
+                v-for="(wp, i) in wallpapers"
+                :key="wp.name"
+                class="group relative overflow-hidden rounded-lg border-2 transition-all"
+                :class="selectedWallpaper === i ? 'border-primary' : 'border-transparent hover:border-border'"
+                @click="selectedWallpaper = i"
+              >
+                <img
+                  :src="wp.src"
+                  :alt="wp.name"
+                  class="aspect-video w-full object-cover"
+                >
+                <span
+                  class="absolute inset-x-0 bottom-0 bg-black/50 px-1 py-0.5 text-[10px] text-white opacity-0 transition-opacity group-hover:opacity-100"
+                >
+                  {{ wp.name }}
+                </span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Text controls + download -->
+          <div class="w-64 space-y-4">
+            <div class="space-y-2">
+              <Label>Headline</Label>
+              <Input v-model="previewHeadline" />
+            </div>
+            <div class="space-y-2">
+              <Label>Tagline</Label>
+              <Input v-model="previewTagline" />
+            </div>
+            <Separator />
+            <div class="flex gap-2">
+              <Button
+                variant="outline"
+                class="flex-1 gap-1.5"
+                @click="downloadPreview('png')"
+              >
+                <Download :size="14" />
+                PNG
+              </Button>
+              <Button
+                variant="outline"
+                class="flex-1 gap-1.5"
+                @click="downloadPreview('jpg')"
+              >
+                <Download :size="14" />
+                JPG
+              </Button>
+            </div>
+          </div>
+        </div>
       </section>
     </div>
   </div>
