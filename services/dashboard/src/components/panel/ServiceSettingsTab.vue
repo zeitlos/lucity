@@ -49,10 +49,9 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'removed'): void;
-  (e: 'updated'): void;
 }>();
 
-const { activeEnvironment } = useEnvironment();
+const { activeEnvironment, updateServiceDomains } = useEnvironment();
 
 // Derive the current service instance for the active environment
 const activeInstance = computed(() => {
@@ -110,9 +109,11 @@ async function handleGenerateDomain() {
       return;
     }
 
-    const hostname = res?.data?.generateDomain?.hostname;
-    toast.success(`Domain generated: ${hostname}`);
-    emit('updated');
+    const domain = res?.data?.generateDomain;
+    if (domain) {
+      updateServiceDomains(props.service.name, [...domains.value, domain]);
+    }
+    toast.success(`Domain generated: ${domain?.hostname}`);
   } catch (e: unknown) {
     toast.error('Failed to generate domain', { description: errorMessage(e) });
   }
@@ -142,9 +143,12 @@ async function handleAddCustomDomain() {
       return;
     }
 
+    const domain = res?.data?.addCustomDomain;
+    if (domain) {
+      updateServiceDomains(props.service.name, [...domains.value, domain]);
+    }
     toast.success(`Custom domain added: ${hostname}`);
     customDomainInput.value = '';
-    emit('updated');
   } catch (e: unknown) {
     toast.error('Failed to add custom domain', { description: errorMessage(e) });
   }
@@ -171,8 +175,8 @@ async function handleRemoveDomain(hostname: string) {
       return;
     }
 
+    updateServiceDomains(props.service.name, domains.value.filter(d => d.hostname !== hostname));
     toast.success('Domain removed');
-    emit('updated');
   } catch (e: unknown) {
     toast.error('Failed to remove domain', { description: errorMessage(e) });
   }

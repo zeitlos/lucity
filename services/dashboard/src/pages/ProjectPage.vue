@@ -161,7 +161,6 @@ const hasResources = computed(() => {
               :service="selectedService"
               @close="closePanel"
               @service-removed="handleResourceRemoved"
-              @updated="refetch()"
             />
           </div>
         </Transition>

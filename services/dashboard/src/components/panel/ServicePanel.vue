@@ -33,7 +33,6 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'close'): void;
   (e: 'service-removed'): void;
-  (e: 'updated'): void;
 }>();
 
 const { panelStack, currentPanel, popPanel } = usePanel();
@@ -137,7 +136,6 @@ onKeyStroke('Escape', () => {
             :project-id="projectId"
             :service="service"
             @removed="emit('service-removed')"
-            @updated="emit('updated')"
           />
         </TabsContent>
       </Tabs>

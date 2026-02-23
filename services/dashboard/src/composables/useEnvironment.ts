@@ -82,6 +82,14 @@ export function useEnvironment() {
     }
   }
 
+  function updateServiceDomains(serviceName: string, domains: DomainInfo[]) {
+    if (!activeEnvironment.value) return;
+    const svc = activeEnvironment.value.services.find(s => s.name === serviceName);
+    if (svc) {
+      svc.domains = domains;
+    }
+  }
+
   return {
     activeEnvironment,
     environments,
@@ -90,5 +98,6 @@ export function useEnvironment() {
     setEnvironments,
     setEnvironment,
     refreshActiveEnvironment,
+    updateServiceDomains,
   };
 }
