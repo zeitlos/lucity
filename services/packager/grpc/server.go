@@ -7,7 +7,6 @@ import (
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/packager"
 	"github.com/zeitlos/lucity/services/packager/eject"
 	"github.com/zeitlos/lucity/services/packager/gitops"
@@ -15,46 +14,18 @@ import (
 
 type Server struct {
 	packager.UnimplementedPackagerServiceServer
-	// sharedProvider is used for non-GitHub backends (e.g., Soft-serve)
-	// where the provider does not depend on per-request auth context.
-	sharedProvider gitops.Provider
+	provider gitops.Provider
 }
 
-// NewServer creates a server that uses the GitHub provider (per-request OAuth token).
-func NewServer() *Server {
-	return &Server{}
-}
-
-// NewServerWithProvider creates a server that uses a shared provider instance.
-func NewServerWithProvider(provider gitops.Provider) *Server {
-	return &Server{sharedProvider: provider}
-}
-
-// provider returns the GitOps provider for the current request.
-// If a shared provider is configured, it's returned directly.
-// Otherwise, creates a GitHub provider from the JWT claims.
-func (s *Server) provider(ctx context.Context) (gitops.Provider, error) {
-	if s.sharedProvider != nil {
-		return s.sharedProvider, nil
-	}
-
-	claims := auth.FromContext(ctx)
-	if claims == nil {
-		return nil, fmt.Errorf("unauthenticated")
-	}
-	if claims.GitHubToken == "" {
-		return nil, fmt.Errorf("no github token in session")
-	}
-	return gitops.NewGitHubProvider(claims.GitHubToken, claims.GitHubLogin), nil
+// NewServer creates a packager server with the given GitOps provider.
+func NewServer(provider gitops.Provider) *Server {
+	return &Server{provider: provider}
 }
 
 func (s *Server) InitProject(ctx context.Context, req *packager.InitProjectRequest) (*packager.InitProjectResponse, error) {
 	slog.Info("InitProject called", "project", req.Project)
 
-	p, err := s.provider(ctx)
-	if err != nil {
-		return nil, err
-	}
+	p := s.provider
 
 	repoURL, err := p.CreateRepo(ctx, req.Project)
 	if err != nil {
@@ -69,10 +40,7 @@ func (s *Server) InitProject(ctx context.Context, req *packager.InitProjectReque
 func (s *Server) ListProjects(ctx context.Context, req *packager.ListProjectsRequest) (*packager.ListProjectsResponse, error) {
 	slog.Info("ListProjects called")
 
-	p, err := s.provider(ctx)
-	if err != nil {
-		return nil, err
-	}
+	p := s.provider
 
 	projects, err := p.Repos(ctx)
 	if err != nil {
@@ -98,10 +66,7 @@ func (s *Server) ListProjects(ctx context.Context, req *packager.ListProjectsReq
 func (s *Server) GetProject(ctx context.Context, req *packager.GetProjectRequest) (*packager.GetProjectResponse, error) {
 	slog.Info("GetProject called", "project", req.Project)
 
-	p, err := s.provider(ctx)
-	if err != nil {
-		return nil, err
-	}
+	p := s.provider
 
 	proj, err := p.Repo(ctx, req.Project)
 	if err != nil {
@@ -118,7 +83,7 @@ func (s *Server) GetProject(ctx context.Context, req *packager.GetProjectRequest
 		slog.Warn("failed to read databases", "project", req.Project, "error", err)
 	}
 
-	// If EnvironmentInfos is not populated (e.g., GitHub provider), read per-env data.
+	// If EnvironmentInfos is not populated, read per-env data.
 	envInfos := proj.EnvironmentInfos
 	if len(envInfos) == 0 && len(proj.Environments) > 0 {
 		for _, envName := range proj.Environments {
@@ -149,10 +114,7 @@ func (s *Server) GetProject(ctx context.Context, req *packager.GetProjectRequest
 func (s *Server) DeleteProject(ctx context.Context, req *packager.DeleteProjectRequest) (*packager.DeleteProjectResponse, error) {
 	slog.Info("DeleteProject called", "project", req.Project)
 
-	p, err := s.provider(ctx)
-	if err != nil {
-		return nil, err
-	}
+	p := s.provider
 
 	if err := p.DeleteRepo(ctx, req.Project); err != nil {
 		return nil, fmt.Errorf("failed to delete project: %w", err)
@@ -164,10 +126,7 @@ func (s *Server) DeleteProject(ctx context.Context, req *packager.DeleteProjectR
 func (s *Server) AddService(ctx context.Context, req *packager.AddServiceRequest) (*packager.AddServiceResponse, error) {
 	slog.Info("AddService called", "project", req.Project, "service", req.Service, "image", req.Image)
 
-	p, err := s.provider(ctx)
-	if err != nil {
-		return nil, err
-	}
+	p := s.provider
 
 	// Sync chart before adding service so new templates (e.g., HTTPRoute parentRefs)
 	// are available when ArgoCD renders the Helm chart after deployment.
@@ -192,10 +151,7 @@ func (s *Server) AddService(ctx context.Context, req *packager.AddServiceRequest
 func (s *Server) RemoveService(ctx context.Context, req *packager.RemoveServiceRequest) (*packager.RemoveServiceResponse, error) {
 	slog.Info("RemoveService called", "project", req.Project, "service", req.Service)
 
-	p, err := s.provider(ctx)
-	if err != nil {
-		return nil, err
-	}
+	p := s.provider
 
 	if err := p.RemoveService(ctx, req.Project, req.Service); err != nil {
 		return nil, fmt.Errorf("failed to remove service: %w", err)
@@ -207,10 +163,7 @@ func (s *Server) RemoveService(ctx context.Context, req *packager.RemoveServiceR
 func (s *Server) UpdateImageTag(ctx context.Context, req *packager.UpdateImageTagRequest) (*packager.UpdateImageTagResponse, error) {
 	slog.Info("UpdateImageTag called", "project", req.Project, "environment", req.Environment, "service", req.Service, "tag", req.Tag)
 
-	p, err := s.provider(ctx)
-	if err != nil {
-		return nil, err
-	}
+	p := s.provider
 
 	if err := p.UpdateImageTag(ctx, req.Project, req.Environment, req.Service, req.Tag, req.Digest, req.CommitPrefix); err != nil {
 		return nil, fmt.Errorf("failed to update image tag: %w", err)
@@ -222,10 +175,7 @@ func (s *Server) UpdateImageTag(ctx context.Context, req *packager.UpdateImageTa
 func (s *Server) CreateEnvironment(ctx context.Context, req *packager.CreateEnvironmentRequest) (*packager.CreateEnvironmentResponse, error) {
 	slog.Info("CreateEnvironment called", "project", req.Project, "environment", req.Environment)
 
-	p, err := s.provider(ctx)
-	if err != nil {
-		return nil, err
-	}
+	p := s.provider
 
 	if err := p.CreateEnvironment(ctx, req.Project, req.Environment, req.FromEnvironment); err != nil {
 		return nil, fmt.Errorf("failed to create environment: %w", err)
@@ -239,10 +189,7 @@ func (s *Server) CreateEnvironment(ctx context.Context, req *packager.CreateEnvi
 func (s *Server) DeleteEnvironment(ctx context.Context, req *packager.DeleteEnvironmentRequest) (*packager.DeleteEnvironmentResponse, error) {
 	slog.Info("DeleteEnvironment called", "project", req.Project, "environment", req.Environment)
 
-	p, err := s.provider(ctx)
-	if err != nil {
-		return nil, err
-	}
+	p := s.provider
 
 	if err := p.DeleteEnvironment(ctx, req.Project, req.Environment); err != nil {
 		return nil, fmt.Errorf("failed to delete environment: %w", err)
@@ -254,10 +201,7 @@ func (s *Server) DeleteEnvironment(ctx context.Context, req *packager.DeleteEnvi
 func (s *Server) Promote(ctx context.Context, req *packager.PromoteRequest) (*packager.PromoteResponse, error) {
 	slog.Info("Promote called", "project", req.Project, "service", req.Service, "from", req.FromEnvironment, "to", req.ToEnvironment)
 
-	p, err := s.provider(ctx)
-	if err != nil {
-		return nil, err
-	}
+	p := s.provider
 
 	imageTag, err := p.Promote(ctx, req.Project, req.Service, req.FromEnvironment, req.ToEnvironment)
 	if err != nil {
@@ -272,10 +216,7 @@ func (s *Server) Promote(ctx context.Context, req *packager.PromoteRequest) (*pa
 func (s *Server) DeploymentHistory(ctx context.Context, req *packager.DeploymentHistoryRequest) (*packager.DeploymentHistoryResponse, error) {
 	slog.Info("DeploymentHistory called", "project", req.Project, "environment", req.Environment, "service", req.Service)
 
-	p, err := s.provider(ctx)
-	if err != nil {
-		return nil, err
-	}
+	p := s.provider
 
 	entries, err := p.DeploymentHistory(ctx, req.Project, req.Environment, req.Service)
 	if err != nil {
@@ -298,10 +239,7 @@ func (s *Server) DeploymentHistory(ctx context.Context, req *packager.Deployment
 func (s *Server) SetServiceDomain(ctx context.Context, req *packager.SetServiceDomainRequest) (*packager.SetServiceDomainResponse, error) {
 	slog.Info("SetServiceDomain called", "project", req.Project, "environment", req.Environment, "service", req.Service, "host", req.Host)
 
-	p, err := s.provider(ctx)
-	if err != nil {
-		return nil, err
-	}
+	p := s.provider
 
 	if err := p.SetServiceDomain(ctx, req.Project, req.Environment, req.Service, req.Host); err != nil {
 		return nil, fmt.Errorf("failed to set service domain: %w", err)
@@ -313,10 +251,7 @@ func (s *Server) SetServiceDomain(ctx context.Context, req *packager.SetServiceD
 func (s *Server) Eject(ctx context.Context, req *packager.EjectRequest) (*packager.EjectResponse, error) {
 	slog.Info("eject started", "project", req.Project)
 
-	p, err := s.provider(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get provider: %w", err)
-	}
+	p := s.provider
 
 	archive, err := eject.Build(ctx, p, req.Project)
 	if err != nil {
@@ -330,10 +265,7 @@ func (s *Server) Eject(ctx context.Context, req *packager.EjectRequest) (*packag
 func (s *Server) SharedVariables(ctx context.Context, req *packager.SharedVariablesRequest) (*packager.SharedVariablesResponse, error) {
 	slog.Info("SharedVariables called", "project", req.Project, "environment", req.Environment)
 
-	p, err := s.provider(ctx)
-	if err != nil {
-		return nil, err
-	}
+	p := s.provider
 
 	vars, err := p.SharedVariables(ctx, req.Project, req.Environment)
 	if err != nil {
@@ -346,10 +278,7 @@ func (s *Server) SharedVariables(ctx context.Context, req *packager.SharedVariab
 func (s *Server) SetSharedVariables(ctx context.Context, req *packager.SetSharedVariablesRequest) (*packager.SetSharedVariablesResponse, error) {
 	slog.Info("SetSharedVariables called", "project", req.Project, "environment", req.Environment)
 
-	p, err := s.provider(ctx)
-	if err != nil {
-		return nil, err
-	}
+	p := s.provider
 
 	if err := p.SetSharedVariables(ctx, req.Project, req.Environment, req.Variables); err != nil {
 		return nil, fmt.Errorf("failed to set shared variables: %w", err)
@@ -361,10 +290,7 @@ func (s *Server) SetSharedVariables(ctx context.Context, req *packager.SetShared
 func (s *Server) ServiceVariables(ctx context.Context, req *packager.ServiceVariablesRequest) (*packager.ServiceVariablesResponse, error) {
 	slog.Info("ServiceVariables called", "project", req.Project, "environment", req.Environment, "service", req.Service)
 
-	p, err := s.provider(ctx)
-	if err != nil {
-		return nil, err
-	}
+	p := s.provider
 
 	vars, refs, err := p.ServiceVariables(ctx, req.Project, req.Environment, req.Service)
 	if err != nil {
@@ -377,10 +303,7 @@ func (s *Server) ServiceVariables(ctx context.Context, req *packager.ServiceVari
 func (s *Server) SetServiceVariables(ctx context.Context, req *packager.SetServiceVariablesRequest) (*packager.SetServiceVariablesResponse, error) {
 	slog.Info("SetServiceVariables called", "project", req.Project, "environment", req.Environment, "service", req.Service)
 
-	p, err := s.provider(ctx)
-	if err != nil {
-		return nil, err
-	}
+	p := s.provider
 
 	if err := p.SetServiceVariables(ctx, req.Project, req.Environment, req.Service, req.Variables, req.SharedRefs); err != nil {
 		return nil, fmt.Errorf("failed to set service variables: %w", err)
@@ -414,10 +337,7 @@ func envInfosFromMeta(metas []gitops.EnvironmentMeta) []*packager.EnvironmentInf
 func (s *Server) SyncChart(ctx context.Context, req *packager.SyncChartRequest) (*packager.SyncChartResponse, error) {
 	slog.Info("SyncChart called", "project", req.Project)
 
-	p, err := s.provider(ctx)
-	if err != nil {
-		return nil, err
-	}
+	p := s.provider
 
 	if err := p.SyncChart(ctx, req.Project); err != nil {
 		return nil, fmt.Errorf("failed to sync chart: %w", err)
@@ -429,10 +349,7 @@ func (s *Server) SyncChart(ctx context.Context, req *packager.SyncChartRequest) 
 func (s *Server) AddDatabase(ctx context.Context, req *packager.AddDatabaseRequest) (*packager.AddDatabaseResponse, error) {
 	slog.Info("AddDatabase called", "project", req.Project, "database", req.Name)
 
-	p, err := s.provider(ctx)
-	if err != nil {
-		return nil, err
-	}
+	p := s.provider
 
 	version := req.Version
 	if version == "" {
@@ -462,10 +379,7 @@ func (s *Server) AddDatabase(ctx context.Context, req *packager.AddDatabaseReque
 func (s *Server) RemoveDatabase(ctx context.Context, req *packager.RemoveDatabaseRequest) (*packager.RemoveDatabaseResponse, error) {
 	slog.Info("RemoveDatabase called", "project", req.Project, "database", req.Name)
 
-	p, err := s.provider(ctx)
-	if err != nil {
-		return nil, err
-	}
+	p := s.provider
 
 	if err := p.RemoveDatabase(ctx, req.Project, req.Name); err != nil {
 		return nil, fmt.Errorf("failed to remove database: %w", err)

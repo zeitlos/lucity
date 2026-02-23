@@ -31,7 +31,7 @@ type DatabaseDef struct {
 }
 
 // Provider abstracts Git repository operations for GitOps repos.
-// Implementations: GitHub (default), Soft-serve (future).
+// Implementation: Soft-serve.
 type Provider interface {
 	// CreateRepo creates a GitOps repo with the standard directory structure
 	// and an initial commit. Returns the repo clone URL.

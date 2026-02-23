@@ -20,13 +20,10 @@ type Config struct {
 	// Auth
 	JWTSecret string `envconfig:"JWT_SECRET" required:"true"`
 
-	// Git provider: "softserve" or "github"
-	GitProvider string `envconfig:"GIT_PROVIDER" default:"softserve"`
-
-	// Soft-serve config (when GIT_PROVIDER=softserve)
+	// Soft-serve config
 	SoftServeSSH     string `envconfig:"SOFTSERVE_SSH_ADDR" default:"localhost:23231"`
 	SoftServeHTTP    string `envconfig:"SOFTSERVE_HTTP_ADDR" default:"http://localhost:23232"`
-	SoftServeKeyPath string `envconfig:"SOFTSERVE_SSH_KEY_PATH"`
+	SoftServeKeyPath string `envconfig:"SOFTSERVE_SSH_KEY_PATH" required:"true"`
 	SoftServeToken   string `envconfig:"SOFTSERVE_TOKEN"`
 }
 
@@ -42,33 +39,18 @@ func main() {
 	ctx, cancel := graceful.Context()
 	defer cancel()
 
-	var svc *packagergrpc.Server
-
-	switch config.GitProvider {
-	case "softserve":
-		provider, err := buildSoftServeProvider(config)
-		if err != nil {
-			slog.Error("failed to create softserve provider", "error", err)
-			os.Exit(1)
-		}
-		svc = packagergrpc.NewServerWithProvider(provider)
-	case "github":
-		svc = packagergrpc.NewServer()
-	default:
-		slog.Error("unknown git provider", "provider", config.GitProvider)
+	provider, err := buildSoftServeProvider(config)
+	if err != nil {
+		slog.Error("failed to create softserve provider", "error", err)
 		os.Exit(1)
 	}
 
+	svc := packagergrpc.NewServer(provider)
 	grpcServer := packagergrpc.NewGRPCServer(":"+config.Port, config.JWTSecret, svc)
 	graceful.Serve(ctx, grpcServer)
 }
 
 func buildSoftServeProvider(config Config) (*gitops.SoftServeProvider, error) {
-	if config.SoftServeKeyPath == "" {
-		slog.Error("SOFTSERVE_SSH_KEY_PATH is required when GIT_PROVIDER=softserve")
-		os.Exit(1)
-	}
-
 	keyData, err := os.ReadFile(config.SoftServeKeyPath)
 	if err != nil {
 		return nil, err

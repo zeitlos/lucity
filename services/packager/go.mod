@@ -5,7 +5,6 @@ go 1.26.0
 replace (
 	github.com/zeitlos/lucity/charts => ../../charts
 	github.com/zeitlos/lucity/pkg/auth => ../../pkg/auth
-	github.com/zeitlos/lucity/pkg/github => ../../pkg/github
 	github.com/zeitlos/lucity/pkg/graceful => ../../pkg/graceful
 	github.com/zeitlos/lucity/pkg/labels => ../../pkg/labels
 	github.com/zeitlos/lucity/pkg/logger => ../../pkg/logger
@@ -14,7 +13,6 @@ replace (
 
 require (
 	github.com/go-git/go-git/v5 v5.16.5
-	github.com/google/go-github/v68 v68.0.0
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/zeitlos/lucity/charts v0.0.0-00010101000000-000000000000
 	github.com/zeitlos/lucity/pkg/auth v0.0.0-00010101000000-000000000000
@@ -24,6 +22,7 @@ require (
 	github.com/zeitlos/lucity/pkg/packager v0.0.0-00010101000000-000000000000
 	golang.org/x/crypto v0.46.0
 	google.golang.org/grpc v1.79.1
+	google.golang.org/protobuf v1.36.11
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -38,7 +37,6 @@ require (
 	github.com/go-git/go-billy/v5 v5.6.2 // indirect
 	github.com/golang-jwt/jwt/v5 v5.2.3 // indirect
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
-	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
 	github.com/lmittmann/tint v1.1.3 // indirect
@@ -50,6 +48,5 @@ require (
 	golang.org/x/sys v0.39.0 // indirect
 	golang.org/x/text v0.33.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251202230838-ff82c1b0f217 // indirect
-	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 )
