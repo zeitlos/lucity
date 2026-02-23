@@ -273,6 +273,8 @@ type Volume struct {
 	Name          string `json:"name"`
 	Size          string `json:"size"`
 	RequestedSize string `json:"requestedSize"`
+	UsedBytes     int    `json:"usedBytes"`
+	CapacityBytes int    `json:"capacityBytes"`
 }
 
 type BuildPhase string

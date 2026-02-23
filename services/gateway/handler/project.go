@@ -385,6 +385,8 @@ func (c *Client) enrichDatabaseStatus(ctx context.Context, proj *Project) {
 							Name:          resp.Volume.Name,
 							Size:          resp.Volume.Size,
 							RequestedSize: resp.Volume.RequestedSize,
+							UsedBytes:     resp.Volume.UsedBytes,
+							CapacityBytes: resp.Volume.CapacityBytes,
 						}
 					}
 				}

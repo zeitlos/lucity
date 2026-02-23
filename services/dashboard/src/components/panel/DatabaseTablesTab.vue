@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onUnmounted } from 'vue';
 import { useQuery } from '@vue/apollo-composable';
 import { useApolloClient } from '@vue/apollo-composable';
-import { ArrowLeft, Table2, Key, ChevronLeft, ChevronRight, Loader2 } from 'lucide-vue-next';
+import { ArrowLeft, Table2, Key, ChevronLeft, ChevronRight, Loader2, DatabaseZap } from 'lucide-vue-next';
 import { useEnvironment } from '@/composables/useEnvironment';
 import { DatabaseTablesQuery, DatabaseTableDataQuery } from '@/graphql/databases';
 import {
@@ -41,13 +41,41 @@ const queryVars = computed(() => ({
   database: props.database.name,
 }));
 
-const { result: tablesResult, loading: tablesLoading, error: tablesError } = useQuery(
+const { result: tablesResult, loading: tablesLoading, error: tablesError, refetch: refetchTables } = useQuery(
   DatabaseTablesQuery,
   queryVars,
   () => ({ enabled: queryEnabled.value }),
 );
 
 const tables = computed(() => tablesResult.value?.databaseTables ?? []);
+
+// Detect provisioning state from GraphQL error extension code
+const isProvisioning = computed(() => {
+  if (!tablesError.value) return false;
+  const gqlErrors = (tablesError.value as { graphQLErrors?: { extensions?: { code?: string } }[] }).graphQLErrors;
+  return gqlErrors?.some(e => e.extensions?.code === 'DATABASE_PROVISIONING') ?? false;
+});
+
+// Auto-retry when provisioning — poll every 5s until ready
+let provisioningTimer: ReturnType<typeof setInterval> | null = null;
+
+watch(isProvisioning, (provisioning) => {
+  if (provisioning && !provisioningTimer) {
+    provisioningTimer = setInterval(() => {
+      refetchTables();
+    }, 5000);
+  } else if (!provisioning && provisioningTimer) {
+    clearInterval(provisioningTimer);
+    provisioningTimer = null;
+  }
+});
+
+onUnmounted(() => {
+  if (provisioningTimer) {
+    clearInterval(provisioningTimer);
+    provisioningTimer = null;
+  }
+});
 
 // Selected table for data view
 const selectedTable = ref<string | null>(null);
@@ -233,6 +261,19 @@ watch(() => activeEnvironment.value?.name, () => {
       <!-- Loading -->
       <div v-if="tablesLoading" class="space-y-2">
         <Skeleton v-for="i in 4" :key="i" class="h-12 w-full" />
+      </div>
+
+      <!-- Provisioning -->
+      <div
+        v-else-if="isProvisioning"
+        class="flex flex-col items-center justify-center gap-3 py-12 text-center"
+      >
+        <DatabaseZap :size="24" class="text-muted-foreground" />
+        <div class="space-y-1">
+          <p class="text-sm font-medium">Database is provisioning</p>
+          <p class="text-xs text-muted-foreground">Waiting for PostgreSQL to become ready (~30–60s)</p>
+        </div>
+        <Loader2 :size="16" class="animate-spin text-muted-foreground" />
       </div>
 
       <!-- Error -->

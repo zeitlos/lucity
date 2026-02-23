@@ -23,6 +23,8 @@ export interface VolumeInfo {
   name: string;
   size: string;
   requestedSize: string;
+  usedBytes: number;
+  capacityBytes: number;
 }
 
 export interface DatabaseInstance {

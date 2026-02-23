@@ -217,6 +217,8 @@ func convertDatabaseInstance(di handler.DatabaseInstance) model.DatabaseInstance
 			Name:          di.Volume.Name,
 			Size:          di.Volume.Size,
 			RequestedSize: di.Volume.RequestedSize,
+			UsedBytes:     int(di.Volume.UsedBytes),
+			CapacityBytes: int(di.Volume.CapacityBytes),
 		}
 	}
 	return result

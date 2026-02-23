@@ -47,6 +47,11 @@ func (r *mutationResolver) ExecuteQuery(ctx context.Context, input model.Databas
 	return convertQueryResult(result), nil
 }
 
+// ConnectDatabase is the resolver for the connectDatabase field.
+func (r *mutationResolver) ConnectDatabase(ctx context.Context, projectID string, environment string, database string) (bool, error) {
+	return r.API.ConnectDatabase(ctx, projectID, environment, database)
+}
+
 // Databases is the resolver for the databases field.
 func (r *queryResolver) Databases(ctx context.Context, projectID string) ([]model.Database, error) {
 	dbs, err := r.API.Databases(ctx, projectID)

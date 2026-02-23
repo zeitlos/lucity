@@ -19,6 +19,8 @@ type Volume {
   name: String!
   size: String!
   requestedSize: String!
+  usedBytes: Int!
+  capacityBytes: Int!
 }
 
 type DatabaseTable {
@@ -80,4 +82,10 @@ extend type Mutation {
   createDatabase(input: CreateDatabaseInput!): Database! @hasRole(role: [USER])
   deleteDatabase(projectId: ID!, name: String!): Boolean! @hasRole(role: [USER])
   executeQuery(input: DatabaseQueryInput!): QueryResult! @hasRole(role: [USER])
+  """
+  Reads connection credentials from the database and creates a shared
+  variable (DATABASE_URL) for the given environment. Idempotent — safe
+  to call multiple times.
+  """
+  connectDatabase(projectId: ID!, environment: String!, database: String!): Boolean! @hasRole(role: [USER])
 }

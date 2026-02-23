@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"google.golang.org/grpc/codes"
@@ -69,6 +70,8 @@ type Volume struct {
 	Name          string
 	Size          string
 	RequestedSize string
+	UsedBytes     int64
+	CapacityBytes int64
 }
 
 func (c *Client) CreateDatabase(ctx context.Context, projectID, name, version string, instances int, size string) (*Database, error) {
@@ -103,6 +106,60 @@ func (c *Client) CreateDatabase(ctx context.Context, projectID, name, version st
 		Instances: instances,
 		Size:      size,
 	}, nil
+}
+
+// ConnectDatabase reads the CNPG credentials for a database and creates a
+// shared variable with the connection string. Idempotent — safe to call
+// multiple times; existing variables are preserved.
+func (c *Client) ConnectDatabase(ctx context.Context, projectID, environment, database string) (bool, error) {
+	ctx = auth.OutgoingContext(ctx)
+
+	// 1. Fetch credentials from deployer.
+	credCtx, credCancel := context.WithTimeout(ctx, grpcTimeout)
+	defer credCancel()
+	creds, err := c.Deployer.DatabaseCredentials(credCtx, &deployer.DatabaseCredentialsRequest{
+		Project:     projectID,
+		Environment: environment,
+		Database:    database,
+	})
+	if err != nil {
+		return false, fmt.Errorf("failed to get database credentials: %w", err)
+	}
+
+	dsn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
+		creds.User, creds.Password, creds.Host, creds.Port, creds.Dbname)
+
+	// 2. Determine variable name: DATABASE_URL for "main", {UPPER}_DATABASE_URL otherwise.
+	varName := "DATABASE_URL"
+	if database != "main" {
+		varName = strings.ToUpper(database) + "_DATABASE_URL"
+	}
+
+	// 3. Read existing shared variables and merge.
+	existing, err := c.SharedVariables(ctx, projectID, environment)
+	if err != nil {
+		return false, fmt.Errorf("failed to read shared variables: %w", err)
+	}
+	merged := make([]Variable, 0, len(existing)+1)
+	found := false
+	for _, v := range existing {
+		if v.Key == varName {
+			merged = append(merged, Variable{Key: varName, Value: dsn})
+			found = true
+		} else {
+			merged = append(merged, v)
+		}
+	}
+	if !found {
+		merged = append(merged, Variable{Key: varName, Value: dsn})
+	}
+
+	// 4. Write back.
+	if _, err := c.SetSharedVariables(ctx, projectID, environment, merged); err != nil {
+		return false, fmt.Errorf("failed to set database variable: %w", err)
+	}
+
+	return true, nil
 }
 
 func (c *Client) DeleteDatabase(ctx context.Context, projectID, name string) (bool, error) {

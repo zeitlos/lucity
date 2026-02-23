@@ -148,6 +148,7 @@ type ComplexityRoot struct {
 	Mutation struct {
 		AddService          func(childComplexity int, input model.AddServiceInput) int
 		BuildService        func(childComplexity int, input model.BuildServiceInput) int
+		ConnectDatabase     func(childComplexity int, projectID string, environment string, database string) int
 		CreateDatabase      func(childComplexity int, input model.CreateDatabaseInput) int
 		CreateEnvironment   func(childComplexity int, input model.CreateEnvironmentInput) int
 		CreateProject       func(childComplexity int, input model.CreateProjectInput) int
@@ -248,9 +249,11 @@ type ComplexityRoot struct {
 	}
 
 	Volume struct {
+		CapacityBytes func(childComplexity int) int
 		Name          func(childComplexity int) int
 		RequestedSize func(childComplexity int) int
 		Size          func(childComplexity int) int
+		UsedBytes     func(childComplexity int) int
 	}
 }
 
@@ -258,6 +261,7 @@ type MutationResolver interface {
 	CreateDatabase(ctx context.Context, input model.CreateDatabaseInput) (*model.Database, error)
 	DeleteDatabase(ctx context.Context, projectID string, name string) (bool, error)
 	ExecuteQuery(ctx context.Context, input model.DatabaseQueryInput) (*model.QueryResult, error)
+	ConnectDatabase(ctx context.Context, projectID string, environment string, database string) (bool, error)
 	CreateProject(ctx context.Context, input model.CreateProjectInput) (*model.Project, error)
 	DeleteProject(ctx context.Context, id string) (bool, error)
 	CreateEnvironment(ctx context.Context, input model.CreateEnvironmentInput) (*model.Environment, error)
@@ -713,6 +717,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.BuildService(childComplexity, args["input"].(model.BuildServiceInput)), true
+	case "Mutation.connectDatabase":
+		if e.complexity.Mutation.ConnectDatabase == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_connectDatabase_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.ConnectDatabase(childComplexity, args["projectId"].(string), args["environment"].(string), args["database"].(string)), true
 	case "Mutation.createDatabase":
 		if e.complexity.Mutation.CreateDatabase == nil {
 			break
@@ -1271,6 +1286,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Variable.Value(childComplexity), true
 
+	case "Volume.capacityBytes":
+		if e.complexity.Volume.CapacityBytes == nil {
+			break
+		}
+
+		return e.complexity.Volume.CapacityBytes(childComplexity), true
 	case "Volume.name":
 		if e.complexity.Volume.Name == nil {
 			break
@@ -1289,6 +1310,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Volume.Size(childComplexity), true
+	case "Volume.usedBytes":
+		if e.complexity.Volume.UsedBytes == nil {
+			break
+		}
+
+		return e.complexity.Volume.UsedBytes(childComplexity), true
 
 	}
 	return 0, false
@@ -1492,6 +1519,27 @@ func (ec *executionContext) field_Mutation_buildService_args(ctx context.Context
 		return nil, err
 	}
 	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_connectDatabase_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "projectId", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["projectId"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "environment", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["environment"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "database", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["database"] = arg2
 	return args, nil
 }
 
@@ -2583,6 +2631,10 @@ func (ec *executionContext) fieldContext_DatabaseInstance_volume(_ context.Conte
 				return ec.fieldContext_Volume_size(ctx, field)
 			case "requestedSize":
 				return ec.fieldContext_Volume_requestedSize(ctx, field)
+			case "usedBytes":
+				return ec.fieldContext_Volume_usedBytes(ctx, field)
+			case "capacityBytes":
+				return ec.fieldContext_Volume_capacityBytes(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Volume", field.Name)
 		},
@@ -4010,6 +4062,65 @@ func (ec *executionContext) fieldContext_Mutation_executeQuery(ctx context.Conte
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_executeQuery_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_connectDatabase(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_connectDatabase,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().ConnectDatabase(ctx, fc.Args["projectId"].(string), fc.Args["environment"].(string), fc.Args["database"].(string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				if err != nil {
+					var zeroVal bool
+					return zeroVal, err
+				}
+				if ec.directives.HasRole == nil {
+					var zeroVal bool
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_connectDatabase(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_connectDatabase_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -7387,6 +7498,64 @@ func (ec *executionContext) fieldContext_Volume_requestedSize(_ context.Context,
 	return fc, nil
 }
 
+func (ec *executionContext) _Volume_usedBytes(ctx context.Context, field graphql.CollectedField, obj *model.Volume) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Volume_usedBytes,
+		func(ctx context.Context) (any, error) {
+			return obj.UsedBytes, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Volume_usedBytes(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Volume",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Volume_capacityBytes(ctx context.Context, field graphql.CollectedField, obj *model.Volume) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Volume_capacityBytes,
+		func(ctx context.Context) (any, error) {
+			return obj.CapacityBytes, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Volume_capacityBytes(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Volume",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) ___Directive_name(ctx context.Context, field graphql.CollectedField, obj *introspection.Directive) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -10191,6 +10360,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "connectDatabase":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_connectDatabase(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "createProject":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_createProject(ctx, field)
@@ -11130,6 +11306,16 @@ func (ec *executionContext) _Volume(ctx context.Context, sel ast.SelectionSet, o
 			}
 		case "requestedSize":
 			out.Values[i] = ec._Volume_requestedSize(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "usedBytes":
+			out.Values[i] = ec._Volume_usedBytes(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "capacityBytes":
+			out.Values[i] = ec._Volume_capacityBytes(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}

@@ -1,4 +1,4 @@
-.PHONY: build proto dev dev-gateway dev-builder dev-packager dev-deployer dev-webhook dev-dashboard dev-docs dev-logs dev-stop generate-graphql lint test-integration test-integration-short minikube dns infra infra-down infra-forward infra-forward-stop argocd-password infra-tokens argocd-token softserve-token
+.PHONY: build proto dev dev-gateway dev-builder dev-packager dev-deployer dev-webhook dev-dashboard dev-docs dev-logs dev-stop generate-graphql lint test-integration test-integration-short minikube dns infra infra-down infra-forward infra-forward-stop argocd-password infra-tokens argocd-token softserve-token db-forward
 
 # Build all Go services
 build:
@@ -153,6 +153,10 @@ argocd-token:
 softserve-token:
 	@ssh-keygen -R "[localhost]:23231" 2>/dev/null || true
 	@ssh -i ~/.ssh/lucity-admin-minikube -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -p 23231 localhost token create 'packager'
+
+# Port-forward a project's database for local development (interactive picker)
+db-forward:
+	@bash scripts/db-forward.sh
 
 # Sync workspace
 sync:

@@ -3,6 +3,7 @@ package grpc
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -410,12 +411,109 @@ func (s *Server) DatabaseStatus(ctx context.Context, req *deployer.DatabaseStatu
 			Size:          capacity,
 			RequestedSize: requested,
 		}
+
+		// Try to get actual disk usage from kubelet stats.
+		usedBytes, capacityBytes := s.pvcUsage(ctx, namespace, pvc.Name, podList.Items)
+		volumeInfo.UsedBytes = usedBytes
+		volumeInfo.CapacityBytes = capacityBytes
 	}
 
 	return &deployer.DatabaseStatusResponse{
 		Ready:     runningInstances > 0,
 		Instances: runningInstances,
 		Volume:    volumeInfo,
+	}, nil
+}
+
+// pvcUsage queries the kubelet stats API via the Kubernetes API proxy to get
+// actual disk usage for a PVC. Returns (usedBytes, capacityBytes) or (0, 0)
+// if the stats cannot be retrieved.
+func (s *Server) pvcUsage(ctx context.Context, namespace, pvcName string, pods []corev1.Pod) (int64, int64) {
+	// Find a running pod to query for volume stats.
+	var nodeName string
+	var podNamespace, podName string
+	for _, pod := range pods {
+		if pod.Status.Phase == corev1.PodRunning && pod.Spec.NodeName != "" {
+			nodeName = pod.Spec.NodeName
+			podNamespace = pod.Namespace
+			podName = pod.Name
+			break
+		}
+	}
+	if nodeName == "" {
+		return 0, 0
+	}
+
+	// Query kubelet stats via API server proxy.
+	path := fmt.Sprintf("/api/v1/nodes/%s/proxy/stats/summary", nodeName)
+	raw, err := s.k8s.CoreV1().RESTClient().Get().AbsPath(path).DoRaw(ctx)
+	if err != nil {
+		slog.Debug("failed to query kubelet stats", "node", nodeName, "error", err)
+		return 0, 0
+	}
+
+	var summary kubeletStatsSummary
+	if err := json.Unmarshal(raw, &summary); err != nil {
+		slog.Debug("failed to parse kubelet stats", "error", err)
+		return 0, 0
+	}
+
+	// Find the pod and its volume stats matching the PVC.
+	for _, ps := range summary.Pods {
+		if ps.PodRef.Namespace != podNamespace || ps.PodRef.Name != podName {
+			continue
+		}
+		for _, vs := range ps.VolumeStats {
+			if vs.PVCRef.Name == pvcName && vs.PVCRef.Namespace == namespace {
+				return vs.UsedBytes, vs.CapacityBytes
+			}
+		}
+	}
+	return 0, 0
+}
+
+// kubelet stats API response types (minimal subset).
+
+type kubeletStatsSummary struct {
+	Pods []kubeletPodStats `json:"pods"`
+}
+
+type kubeletPodStats struct {
+	PodRef      kubeletPodRef       `json:"podRef"`
+	VolumeStats []kubeletVolumeStats `json:"volume"`
+}
+
+type kubeletPodRef struct {
+	Name      string `json:"name"`
+	Namespace string `json:"namespace"`
+}
+
+type kubeletVolumeStats struct {
+	UsedBytes     int64           `json:"usedBytes"`
+	CapacityBytes int64           `json:"capacityBytes"`
+	PVCRef        kubeletPVCRef   `json:"pvcRef"`
+}
+
+type kubeletPVCRef struct {
+	Name      string `json:"name"`
+	Namespace string `json:"namespace"`
+}
+
+func (s *Server) DatabaseCredentials(ctx context.Context, req *deployer.DatabaseCredentialsRequest) (*deployer.DatabaseCredentialsResponse, error) {
+	creds, err := database.CredentialsFromSecret(ctx, s.k8s, req.Project, req.Environment, req.Database)
+	if err != nil {
+		if errors.Is(err, database.ErrNotReady) {
+			return nil, status.Errorf(codes.FailedPrecondition, "database is provisioning")
+		}
+		return nil, status.Errorf(codes.NotFound, "database credentials not found: %v", err)
+	}
+
+	return &deployer.DatabaseCredentialsResponse{
+		Host:     creds.Host,
+		Port:     creds.Port,
+		Dbname:   creds.DBName,
+		User:     creds.User,
+		Password: creds.Password,
 	}, nil
 }
 

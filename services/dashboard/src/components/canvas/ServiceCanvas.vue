@@ -6,6 +6,7 @@ import { Plus, Maximize2 } from 'lucide-vue-next';
 import { useEnvironment } from '@/composables/useEnvironment';
 import { usePanel } from '@/composables/usePanel';
 import { useCanvasDeployStatus } from '@/composables/useCanvasDeployStatus';
+import { useDatabaseAutoConnect } from '@/composables/useDatabaseAutoConnect';
 import ServiceNode from './ServiceNode.vue';
 import DatabaseNode from './DatabaseNode.vue';
 import { Button } from '@/components/ui/button';
@@ -43,6 +44,9 @@ const { statusMap } = useCanvasDeployStatus(
   toRef(props, 'projectId'), envName, serviceNames,
   () => emit('deploy-completed'),
 );
+
+// Auto-create DATABASE_URL shared variables when databases become ready.
+useDatabaseAutoConnect(toRef(props, 'projectId'), envName, activeEnvDatabases);
 
 const { fitView, findNode, setCenter, dimensions } = useVueFlow({
   id: 'service-canvas',
@@ -169,6 +173,7 @@ watch(
           :data="nodeProps.data"
           :selected="nodeProps.selected"
           @select="openPanel({ type: 'database', id: nodeProps.data.name, label: nodeProps.data.name })"
+          @select-volume="openPanel({ type: 'volume', id: $event, label: 'Volume' })"
         />
       </template>
 

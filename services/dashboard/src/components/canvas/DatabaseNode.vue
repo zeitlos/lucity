@@ -3,7 +3,6 @@ import { computed } from 'vue';
 import { Handle, Position } from '@vue-flow/core';
 import { HardDrive } from 'lucide-vue-next';
 import { Badge } from '@/components/ui/badge';
-import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 
 const props = defineProps<{
   data: {
@@ -16,6 +15,8 @@ const props = defineProps<{
       name: string;
       size: string;
       requestedSize: string;
+      usedBytes: number;
+      capacityBytes: number;
     } | null;
   };
   selected?: boolean;
@@ -23,6 +24,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'select'): void;
+  (e: 'select-volume', volumeName: string): void;
 }>();
 
 const badgeVariant = computed(() => {
@@ -36,6 +38,18 @@ const statusLabel = computed(() => {
 });
 
 const instances = computed(() => props.data.instances ?? 0);
+
+const usagePercent = computed(() => {
+  if (!props.data.volume || props.data.volume.capacityBytes <= 0) return 0;
+  return Math.min(100, Math.round((props.data.volume.usedBytes / props.data.volume.capacityBytes) * 100));
+});
+
+const usageLabel = computed(() => {
+  if (!props.data.volume || props.data.volume.capacityBytes <= 0) {
+    return props.data.volume?.size || props.data.size;
+  }
+  return `${usagePercent.value}% of ${props.data.volume.size}`;
+});
 </script>
 
 <template>
@@ -79,34 +93,21 @@ const instances = computed(() => props.data.instances ?? 0);
     </div>
 
     <!-- Volume sub-element -->
-    <Popover v-if="data.volume">
-      <PopoverTrigger as-child>
-        <div
-          class="volume-bar mt-2 flex cursor-pointer items-center gap-2 rounded-lg border border-border/70 px-3 py-2 text-xs text-muted-foreground transition-colors hover:border-border hover:bg-card/80"
-          style="width: 240px; margin-left: 20px;"
-          @click.stop
-        >
-          <HardDrive :size="12" class="shrink-0" />
-          <span>Volume</span>
-          <span class="ml-auto font-mono">{{ data.volume.size || data.size }}</span>
-        </div>
-      </PopoverTrigger>
-      <PopoverContent class="w-56" :side-offset="8">
-        <div class="space-y-2 text-sm">
-          <div class="font-semibold text-foreground">{{ data.volume.name }}</div>
-          <div class="space-y-1.5">
-            <div class="flex justify-between text-muted-foreground">
-              <span>Provisioned</span>
-              <span class="font-mono">{{ data.volume.size }}</span>
-            </div>
-            <div class="flex justify-between text-muted-foreground">
-              <span>Requested</span>
-              <span class="font-mono">{{ data.volume.requestedSize }}</span>
-            </div>
-          </div>
-        </div>
-      </PopoverContent>
-    </Popover>
+    <div
+      v-if="data.volume"
+      class="volume-bar relative mt-2 flex cursor-pointer items-center gap-2 overflow-hidden rounded-lg border border-border/70 px-3 py-2 text-xs text-muted-foreground transition-colors hover:border-border hover:bg-card/80"
+      style="width: 240px; margin-left: 20px;"
+      @click.stop="emit('select-volume', data.volume.name)"
+    >
+      <div
+        v-if="usagePercent > 0"
+        class="usage-fill absolute inset-y-0 left-0"
+        :style="{ width: usagePercent + '%' }"
+      />
+      <HardDrive :size="12" class="relative z-10 shrink-0" />
+      <span class="relative z-10">Volume</span>
+      <span class="relative z-10 ml-auto font-mono">{{ usageLabel }}</span>
+    </div>
 
     <!-- Vue Flow handles -->
     <Handle type="source" :position="Position.Bottom" class="!invisible" />
@@ -160,5 +161,9 @@ const instances = computed(() => props.data.instances ?? 0);
 .volume-bar {
   background: color-mix(in oklch, var(--card) 60%, transparent);
   backdrop-filter: blur(4px);
+}
+
+.usage-fill {
+  background: color-mix(in oklch, var(--primary) 15%, transparent);
 }
 </style>

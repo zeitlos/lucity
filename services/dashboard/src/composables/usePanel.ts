@@ -1,7 +1,7 @@
 import { ref, computed } from 'vue';
 
 export interface PanelEntry {
-  type: 'service' | 'database' | 'deployment';
+  type: 'service' | 'database' | 'volume';
   id: string;
   label: string;
 }

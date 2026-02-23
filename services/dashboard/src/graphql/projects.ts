@@ -95,6 +95,8 @@ export const ProjectQuery = gql`
             name
             size
             requestedSize
+            usedBytes
+            capacityBytes
           }
         }
       }

@@ -106,6 +106,13 @@ func NewGraphQLServer(port string, api *handler.Client, githubApp *gh.App, jwtSe
 				Extensions: map[string]interface{}{"code": "GITHUB_TOKEN_EXPIRED"},
 			}
 		}
+		var dbProv *handler.DatabaseProvisioningError
+		if errors.As(err, &dbProv) {
+			return &gqlerror.Error{
+				Message:    "Database is provisioning",
+				Extensions: map[string]interface{}{"code": "DATABASE_PROVISIONING"},
+			}
+		}
 		return gqlgen.DefaultErrorPresenter(ctx, err)
 	})
 

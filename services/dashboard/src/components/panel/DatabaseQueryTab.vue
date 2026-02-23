@@ -65,7 +65,14 @@ async function executeQuery() {
     rows.value = data.executeQuery.rows ?? [];
     affectedRows.value = data.executeQuery.affectedRows ?? 0;
   } catch (e: unknown) {
-    error.value = e instanceof Error ? e.message : String(e);
+    const msg = e instanceof Error ? e.message : String(e);
+    // Detect provisioning error from GraphQL extension
+    const gqlErrors = (e as { graphQLErrors?: { extensions?: { code?: string } }[] }).graphQLErrors;
+    if (gqlErrors?.some(err => err.extensions?.code === 'DATABASE_PROVISIONING')) {
+      error.value = 'Database is still provisioning. Please wait for PostgreSQL to become ready (~30–60s).';
+    } else {
+      error.value = msg;
+    }
     columns.value = [];
     rows.value = [];
     affectedRows.value = 0;
