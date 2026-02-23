@@ -11,6 +11,10 @@ Vue 3 + Vite + TypeScript. Always use `<script setup lang="ts">`.
 - Feature or domain prefix for page-specific components
 - Polymorphic components: use `useAttrs()` to detect `to`/`href` and render `RouterLink`, `<a>`, or `<button>`
 
+## Navigation
+
+App-local links must use `RouterLink` (or `router.push`) for SPA navigation — never plain `<a href>` which causes full page reloads. For shadcn/Reka components that render `<a>` by default (e.g. `BreadcrumbLink`), use `as-child` with a `RouterLink` slot. External links use `<a>` as normal.
+
 ## Props & Events
 
 ```vue
@@ -25,6 +29,10 @@ const emit = defineEmits<{
 }>();
 </script>
 ```
+
+## Global Context
+
+The header breadcrumb provides project and environment context via `useEnvironment()`. Components must read `activeEnvironment` from this composable — never add local environment selectors or project pickers. The global `EnvironmentSwitcher` is the single control for environment selection. Same applies to project context from the route.
 
 ## Composables
 

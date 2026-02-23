@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import { useQuery, useMutation } from '@vue/apollo-composable';
 import { Plus, Trash2 } from 'lucide-vue-next';
 import { SharedVariablesQuery, SetSharedVariablesMutation } from '@/graphql/variables';
@@ -7,13 +7,6 @@ import { useEnvironment } from '@/composables/useEnvironment';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from '@/components/ui/sonner';
@@ -23,27 +16,14 @@ const props = defineProps<{
   projectId: string;
 }>();
 
-const { environments, activeEnvironment, setEnvironment } = useEnvironment();
-
-const selectedEnv = ref(activeEnvironment.value?.name ?? '');
-
-watch(activeEnvironment, (env) => {
-  if (env && !selectedEnv.value) {
-    selectedEnv.value = env.name;
-  }
-});
-
-function handleEnvChange(envName: string) {
-  selectedEnv.value = envName;
-  const env = environments.value.find(e => e.name === envName);
-  if (env) setEnvironment(env);
-}
+const { activeEnvironment } = useEnvironment();
+const envName = computed(() => activeEnvironment.value?.name ?? '');
 
 const { result, loading, refetch } = useQuery(SharedVariablesQuery, () => ({
   projectId: props.projectId,
-  environment: selectedEnv.value,
+  environment: envName.value,
 }), () => ({
-  enabled: !!selectedEnv.value,
+  enabled: !!envName.value,
 }));
 
 interface VarRow {
@@ -90,7 +70,7 @@ async function handleSave() {
   try {
     const res = await setVarsMutate({
       projectId: props.projectId,
-      environment: selectedEnv.value,
+      environment: envName.value,
       variables: validRows.map(r => ({ key: r.key.trim(), value: r.value })),
     });
 
@@ -112,28 +92,11 @@ async function handleSave() {
 
 <template>
   <div class="space-y-4">
-    <!-- Environment selector -->
-    <div class="flex items-center justify-between">
-      <div>
-        <h3 class="text-sm font-medium text-foreground">Shared Variables</h3>
-        <p class="text-xs text-muted-foreground">
-          Variables available for services to reference in this environment.
-        </p>
-      </div>
-      <Select :model-value="selectedEnv" @update:model-value="handleEnvChange">
-        <SelectTrigger class="w-[180px]">
-          <SelectValue placeholder="Select environment" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem
-            v-for="env in environments"
-            :key="env.name"
-            :value="env.name"
-          >
-            {{ env.name }}
-          </SelectItem>
-        </SelectContent>
-      </Select>
+    <div>
+      <h3 class="text-sm font-medium text-foreground">Shared Variables</h3>
+      <p class="text-xs text-muted-foreground">
+        Variables available for services to reference in {{ envName || 'this environment' }}.
+      </p>
     </div>
 
     <Separator />

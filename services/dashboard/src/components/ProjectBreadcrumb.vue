@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { RouterLink } from 'vue-router';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -17,13 +18,19 @@ defineProps<{
   <Breadcrumb>
     <BreadcrumbList>
       <BreadcrumbItem>
-        <BreadcrumbLink href="/">Projects</BreadcrumbLink>
+        <BreadcrumbLink as-child>
+          <RouterLink to="/">Projects</RouterLink>
+        </BreadcrumbLink>
       </BreadcrumbItem>
       <BreadcrumbSeparator>
         <span class="text-border">/</span>
       </BreadcrumbSeparator>
       <BreadcrumbItem>
-        <span class="text-sm font-medium text-foreground">{{ projectName }}</span>
+        <BreadcrumbLink as-child class="font-medium">
+          <RouterLink :to="`/projects/${projectName}`">
+            {{ projectName }}
+          </RouterLink>
+        </BreadcrumbLink>
       </BreadcrumbItem>
       <BreadcrumbSeparator>
         <span class="text-border">/</span>
