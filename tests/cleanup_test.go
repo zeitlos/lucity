@@ -56,20 +56,10 @@ func testCleanup(t *testing.T) {
 		}
 		t.Logf("deleted project %s", testProjectName)
 
-		// kubectl: verify namespaces are gone (only if we could talk to the cluster earlier)
-		if devNamespaceReady {
-			// Namespace deletion can take a while (finalizers, pod termination, etc.)
-			// Use non-fatal check — the important thing is that deleteProject succeeded at the API level.
-			if waitForNamespaceGoneOK(t, namespace("development"), 3*time.Minute) {
-				t.Log("development namespace removed")
-			} else {
-				t.Log("WARNING: development namespace still exists (may need manual cleanup)")
-			}
-		} else {
-			t.Log("skipping namespace verification (namespace was never ready)")
-		}
-
-		// Subsystem cleanup verification (all non-fatal)
+		// Subsystem cleanup verification (all non-fatal).
+		// ArgoCD cascade deletion is async — the API returns immediately but resource
+		// cleanup (CNPG finalizers, pod termination) takes time. We verify the control
+		// plane artifacts are gone, not that every K8s resource has been finalized.
 
 		// 1. Soft-serve: GitOps repo should be gone
 		httpResp, httpErr := http.Get("http://localhost:23232/" + testProjectName + "-gitops.git")
@@ -112,13 +102,31 @@ func testCleanup(t *testing.T) {
 			t.Log("ArgoCD repo credential removed")
 		}
 
-		// 4. All ArgoCD applications for the project should be gone
+		// 4. ArgoCD applications — cascade delete is async, so give it a short grace period
 		for _, env := range []string{"development", "staging"} {
 			appName := testProjectName + "-" + env
-			if _, err := kubectlQuiet(t, "get", "application.argoproj.io", appName, "-n", "lucity-system"); err != nil {
+			gone := false
+			for range 5 {
+				if _, err := kubectlQuiet(t, "get", "application.argoproj.io", appName, "-n", "lucity-system"); err != nil {
+					gone = true
+					break
+				}
+				time.Sleep(2 * time.Second)
+			}
+			if gone {
 				t.Logf("ArgoCD application %s removed", appName)
 			} else {
-				t.Logf("WARNING: ArgoCD application %s still exists (may take time to finalize)", appName)
+				t.Logf("ArgoCD application %s still finalizing (cascade delete is async)", appName)
+			}
+		}
+
+		// 5. Namespace — don't wait long. ArgoCD cascade + CNPG finalizers can take
+		// minutes. A quick check is enough; the namespace will eventually be cleaned up.
+		if devNamespaceReady {
+			if waitForNamespaceGoneOK(t, namespace("development"), 10*time.Second) {
+				t.Log("development namespace removed")
+			} else {
+				t.Log("development namespace still finalizing (CNPG finalizers, expected)")
 			}
 		}
 
