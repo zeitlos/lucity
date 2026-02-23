@@ -12,6 +12,7 @@ import (
 	gh "github.com/google/go-github/v68/github"
 
 	"github.com/zeitlos/lucity/pkg/auth"
+	"github.com/zeitlos/lucity/pkg/builder"
 	"github.com/zeitlos/lucity/pkg/deployer"
 	"github.com/zeitlos/lucity/pkg/labels"
 	"github.com/zeitlos/lucity/pkg/packager"
@@ -193,7 +194,18 @@ func (c *Client) DeleteProject(ctx context.Context, id string) (bool, error) {
 			"project", id, "error", err)
 	}
 
-	// 4. Delete GitOps repo
+	// 4. Delete OCI images from registry (best-effort)
+	imgCtx, imgCancel := context.WithTimeout(ctx, grpcTimeout)
+	defer imgCancel()
+	_, err = c.Builder.DeleteImages(imgCtx, &builder.DeleteImagesRequest{
+		Project: id,
+	})
+	if err != nil {
+		slog.Warn("failed to delete registry images",
+			"project", id, "error", err)
+	}
+
+	// 5. Delete GitOps repo
 	delCtx, delCancel := context.WithTimeout(ctx, grpcTimeout)
 	defer delCancel()
 	_, err = c.Packager.DeleteProject(delCtx, &packager.DeleteProjectRequest{Project: id})

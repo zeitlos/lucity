@@ -153,6 +153,37 @@ func (s *Server) BuildLogs(req *builder.BuildLogsRequest, stream builder.Builder
 	}
 }
 
+func (s *Server) DeleteImages(ctx context.Context, req *builder.DeleteImagesRequest) (*builder.DeleteImagesResponse, error) {
+	if auth.FromContext(ctx) == nil {
+		return nil, status.Error(codes.Unauthenticated, "unauthenticated")
+	}
+
+	slog.Info("DeleteImages called", "project", req.Project)
+
+	repos, err := s.projectRepositories(ctx, req.Project)
+	if err != nil {
+		slog.Warn("failed to discover project repositories", "project", req.Project, "error", err)
+		return &builder.DeleteImagesResponse{}, nil
+	}
+
+	if len(repos) == 0 {
+		slog.Info("no repositories found for project", "project", req.Project)
+		return &builder.DeleteImagesResponse{}, nil
+	}
+
+	var deleted []string
+	for _, repo := range repos {
+		if err := s.deleteRepository(ctx, repo); err != nil {
+			slog.Warn("failed to delete repository", "repo", repo, "error", err)
+			continue
+		}
+		slog.Info("deleted repository", "repo", repo)
+		deleted = append(deleted, repo)
+	}
+
+	return &builder.DeleteImagesResponse{DeletedRepositories: deleted}, nil
+}
+
 // runBuild executes the full build pipeline in a background goroutine.
 func (s *Server) runBuild(buildID, token string, req *builder.StartBuildRequest) {
 	ctx := context.Background()

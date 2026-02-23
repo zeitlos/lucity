@@ -19,6 +19,9 @@ service BuilderService {
   // BuildLogs streams build log lines in real time. Sends existing lines from
   // the given offset, then continues streaming new lines until the build completes.
   rpc BuildLogs(BuildLogsRequest) returns (stream BuildLogEntry);
+
+  // DeleteImages removes all OCI images for a project from the registry.
+  rpc DeleteImages(DeleteImagesRequest) returns (DeleteImagesResponse);
 }
 
 message DetectServicesRequest {
@@ -97,6 +100,16 @@ message BuildLogsRequest {
 
 message BuildLogEntry {
   string line = 1;
+}
+
+message DeleteImagesRequest {
+  // Project name (e.g., "myapp" or "org/myapp").
+  string project = 1;
+}
+
+message DeleteImagesResponse {
+  // Repositories that were deleted (e.g., "myapp/api", "myapp/web").
+  repeated string deleted_repositories = 1;
 }
 
 enum BuildPhase {

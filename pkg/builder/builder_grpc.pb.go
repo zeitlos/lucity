@@ -23,6 +23,7 @@ const (
 	BuilderService_StartBuild_FullMethodName     = "/builder.BuilderService/StartBuild"
 	BuilderService_BuildStatus_FullMethodName    = "/builder.BuilderService/BuildStatus"
 	BuilderService_BuildLogs_FullMethodName      = "/builder.BuilderService/BuildLogs"
+	BuilderService_DeleteImages_FullMethodName   = "/builder.BuilderService/DeleteImages"
 )
 
 // BuilderServiceClient is the client API for BuilderService service.
@@ -40,6 +41,8 @@ type BuilderServiceClient interface {
 	// BuildLogs streams build log lines in real time. Sends existing lines from
 	// the given offset, then continues streaming new lines until the build completes.
 	BuildLogs(ctx context.Context, in *BuildLogsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[BuildLogEntry], error)
+	// DeleteImages removes all OCI images for a project from the registry.
+	DeleteImages(ctx context.Context, in *DeleteImagesRequest, opts ...grpc.CallOption) (*DeleteImagesResponse, error)
 }
 
 type builderServiceClient struct {
@@ -99,6 +102,16 @@ func (c *builderServiceClient) BuildLogs(ctx context.Context, in *BuildLogsReque
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type BuilderService_BuildLogsClient = grpc.ServerStreamingClient[BuildLogEntry]
 
+func (c *builderServiceClient) DeleteImages(ctx context.Context, in *DeleteImagesRequest, opts ...grpc.CallOption) (*DeleteImagesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeleteImagesResponse)
+	err := c.cc.Invoke(ctx, BuilderService_DeleteImages_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // BuilderServiceServer is the server API for BuilderService service.
 // All implementations must embed UnimplementedBuilderServiceServer
 // for forward compatibility.
@@ -114,6 +127,8 @@ type BuilderServiceServer interface {
 	// BuildLogs streams build log lines in real time. Sends existing lines from
 	// the given offset, then continues streaming new lines until the build completes.
 	BuildLogs(*BuildLogsRequest, grpc.ServerStreamingServer[BuildLogEntry]) error
+	// DeleteImages removes all OCI images for a project from the registry.
+	DeleteImages(context.Context, *DeleteImagesRequest) (*DeleteImagesResponse, error)
 	mustEmbedUnimplementedBuilderServiceServer()
 }
 
@@ -135,6 +150,9 @@ func (UnimplementedBuilderServiceServer) BuildStatus(context.Context, *BuildStat
 }
 func (UnimplementedBuilderServiceServer) BuildLogs(*BuildLogsRequest, grpc.ServerStreamingServer[BuildLogEntry]) error {
 	return status.Errorf(codes.Unimplemented, "method BuildLogs not implemented")
+}
+func (UnimplementedBuilderServiceServer) DeleteImages(context.Context, *DeleteImagesRequest) (*DeleteImagesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteImages not implemented")
 }
 func (UnimplementedBuilderServiceServer) mustEmbedUnimplementedBuilderServiceServer() {}
 func (UnimplementedBuilderServiceServer) testEmbeddedByValue()                        {}
@@ -222,6 +240,24 @@ func _BuilderService_BuildLogs_Handler(srv interface{}, stream grpc.ServerStream
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type BuilderService_BuildLogsServer = grpc.ServerStreamingServer[BuildLogEntry]
 
+func _BuilderService_DeleteImages_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteImagesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BuilderServiceServer).DeleteImages(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BuilderService_DeleteImages_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BuilderServiceServer).DeleteImages(ctx, req.(*DeleteImagesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // BuilderService_ServiceDesc is the grpc.ServiceDesc for BuilderService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -240,6 +276,10 @@ var BuilderService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "BuildStatus",
 			Handler:    _BuilderService_BuildStatus_Handler,
+		},
+		{
+			MethodName: "DeleteImages",
+			Handler:    _BuilderService_DeleteImages_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{
