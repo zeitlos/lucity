@@ -72,15 +72,6 @@ func testDeploy(t *testing.T) {
 					testBuildTag = extractTagFromImageRef(*data.DeployStatus.ImageRef)
 					t.Logf("deploy succeeded: image=%s", *data.DeployStatus.ImageRef)
 				}
-
-				// kubectl: verify deployment exists and pod is running (non-fatal)
-				if _, err := kubectlQuiet(t, "get", "deployment", testServiceName, "-n", namespace("development")); err != nil {
-					t.Logf("deployment not yet visible via kubectl: %v", err)
-				} else {
-					t.Log("deployment exists in Kubernetes")
-					waitForPod(t, namespace("development"), "app.kubernetes.io/name="+testServiceName, 60*time.Second)
-					t.Log("pod is running")
-				}
 				return
 			case "FAILED":
 				errMsg := ""
@@ -91,7 +82,25 @@ func testDeploy(t *testing.T) {
 			}
 		}
 
-		t.Fatal("deploy timed out after 7 minutes")
+		t.Fatal("deploy timed out after 90s")
+	})
+
+	// Wait for the actual pod to appear and verify the service is reachable.
+	t.Run("VerifyRunning", func(t *testing.T) {
+		if testBuildTag == "" {
+			t.Skip("no build tag — deploy must have failed")
+		}
+
+		ns := namespace("development")
+
+		waitForPod(t, ns, "app.kubernetes.io/name="+testServiceName, 60*time.Second)
+
+		svc := k8sServiceName(ns, testServiceName)
+		cmd := portForward(t, ns, svc, 18080, testServicePort)
+		defer stopPortForward(t, cmd)
+
+		waitForHTTP(t, "http://localhost:18080", 15*time.Second)
+		t.Log("service is responding via port-forward")
 	})
 
 	t.Run("DeployBuild", func(t *testing.T) {
@@ -145,12 +154,5 @@ func testDeploy(t *testing.T) {
 			t.Fatal("rollback returned false")
 		}
 		t.Logf("rollback succeeded to tag=%s", testBuildTag)
-
-		// kubectl: verify the deployment still exists after rollback (non-fatal)
-		if _, err := kubectlQuiet(t, "get", "deployment", testServiceName, "-n", namespace("development")); err != nil {
-			t.Logf("deployment not visible after rollback: %v", err)
-		} else {
-			t.Log("deployment still exists after rollback")
-		}
 	})
 }

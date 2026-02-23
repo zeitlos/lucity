@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/http"
 	"os/exec"
 	"strings"
 	"testing"
@@ -191,6 +192,32 @@ func stopPortForward(t *testing.T, cmd *exec.Cmd) {
 	cmd.Process.Kill()
 	cmd.Wait()
 	t.Log("port-forward stopped")
+}
+
+// k8sServiceName returns the Kubernetes Service name for a lucity-app service.
+// The Helm chart generates: {release}-lucity-app-{serviceName}
+// where release = namespace (ArgoCD convention).
+func k8sServiceName(ns, service string) string {
+	return ns + "-lucity-app-" + service
+}
+
+// waitForHTTP polls a URL until it returns a 2xx status code.
+func waitForHTTP(t *testing.T, url string, timeout time.Duration) {
+	t.Helper()
+	client := &http.Client{Timeout: 2 * time.Second}
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		resp, err := client.Get(url)
+		if err == nil {
+			resp.Body.Close()
+			if resp.StatusCode >= 200 && resp.StatusCode < 400 {
+				t.Logf("HTTP %d from %s", resp.StatusCode, url)
+				return
+			}
+		}
+		time.Sleep(2 * time.Second)
+	}
+	t.Fatalf("no successful HTTP response from %s within %s", url, timeout)
 }
 
 // getDeploymentImage returns the container image of a deployment.
