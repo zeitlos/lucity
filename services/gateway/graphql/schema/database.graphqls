@@ -49,6 +49,15 @@ type QueryResult {
   affectedRows: Int!
 }
 
+type DatabaseCredentials {
+  host: String!
+  port: String!
+  dbname: String!
+  user: String!
+  password: String!
+  uri: String!
+}
+
 input CreateDatabaseInput {
   projectId: ID!
   name: String! @constraint(constraint: "min=2,max=63")
@@ -76,6 +85,7 @@ extend type Query {
     limit: Int
     offset: Int
   ): DatabaseTableData! @hasRole(role: [USER])
+  databaseCredentials(projectId: ID!, environment: String!, database: String!): DatabaseCredentials! @hasRole(role: [USER])
 }
 
 extend type Mutation {

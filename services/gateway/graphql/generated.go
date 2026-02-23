@@ -73,6 +73,15 @@ type ComplexityRoot struct {
 		Type       func(childComplexity int) int
 	}
 
+	DatabaseCredentials struct {
+		Dbname   func(childComplexity int) int
+		Host     func(childComplexity int) int
+		Password func(childComplexity int) int
+		Port     func(childComplexity int) int
+		URI      func(childComplexity int) int
+		User     func(childComplexity int) int
+	}
+
 	DatabaseInstance struct {
 		Environment func(childComplexity int) int
 		Instances   func(childComplexity int) int
@@ -195,21 +204,22 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
-		ActiveDeployment   func(childComplexity int, projectID string, service string, environment string) int
-		BuildStatus        func(childComplexity int, id string) int
-		DatabaseTableData  func(childComplexity int, projectID string, environment string, database string, table string, schema *string, limit *int, offset *int) int
-		DatabaseTables     func(childComplexity int, projectID string, environment string, database string) int
-		Databases          func(childComplexity int, projectID string) int
-		DeployStatus       func(childComplexity int, id string) int
-		DetectServices     func(childComplexity int, sourceURL string) int
-		GithubRepositories func(childComplexity int) int
-		Me                 func(childComplexity int) int
-		PlatformConfig     func(childComplexity int) int
-		Project            func(childComplexity int, id string) int
-		Projects           func(childComplexity int) int
-		Service            func(childComplexity int, projectID string, name string) int
-		ServiceVariables   func(childComplexity int, projectID string, environment string, service string) int
-		SharedVariables    func(childComplexity int, projectID string, environment string) int
+		ActiveDeployment    func(childComplexity int, projectID string, service string, environment string) int
+		BuildStatus         func(childComplexity int, id string) int
+		DatabaseCredentials func(childComplexity int, projectID string, environment string, database string) int
+		DatabaseTableData   func(childComplexity int, projectID string, environment string, database string, table string, schema *string, limit *int, offset *int) int
+		DatabaseTables      func(childComplexity int, projectID string, environment string, database string) int
+		Databases           func(childComplexity int, projectID string) int
+		DeployStatus        func(childComplexity int, id string) int
+		DetectServices      func(childComplexity int, sourceURL string) int
+		GithubRepositories  func(childComplexity int) int
+		Me                  func(childComplexity int) int
+		PlatformConfig      func(childComplexity int) int
+		Project             func(childComplexity int, id string) int
+		Projects            func(childComplexity int) int
+		Service             func(childComplexity int, projectID string, name string) int
+		ServiceVariables    func(childComplexity int, projectID string, environment string, service string) int
+		SharedVariables     func(childComplexity int, projectID string, environment string) int
 	}
 
 	QueryResult struct {
@@ -308,6 +318,7 @@ type QueryResolver interface {
 	Databases(ctx context.Context, projectID string) ([]model.Database, error)
 	DatabaseTables(ctx context.Context, projectID string, environment string, database string) ([]model.DatabaseTable, error)
 	DatabaseTableData(ctx context.Context, projectID string, environment string, database string, table string, schema *string, limit *int, offset *int) (*model.DatabaseTableData, error)
+	DatabaseCredentials(ctx context.Context, projectID string, environment string, database string) (*model.DatabaseCredentials, error)
 	GithubRepositories(ctx context.Context) ([]model.GitHubRepository, error)
 	Projects(ctx context.Context) ([]model.Project, error)
 	Project(ctx context.Context, id string) (*model.Project, error)
@@ -424,6 +435,43 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.DatabaseColumn.Type(childComplexity), true
+
+	case "DatabaseCredentials.dbname":
+		if e.complexity.DatabaseCredentials.Dbname == nil {
+			break
+		}
+
+		return e.complexity.DatabaseCredentials.Dbname(childComplexity), true
+	case "DatabaseCredentials.host":
+		if e.complexity.DatabaseCredentials.Host == nil {
+			break
+		}
+
+		return e.complexity.DatabaseCredentials.Host(childComplexity), true
+	case "DatabaseCredentials.password":
+		if e.complexity.DatabaseCredentials.Password == nil {
+			break
+		}
+
+		return e.complexity.DatabaseCredentials.Password(childComplexity), true
+	case "DatabaseCredentials.port":
+		if e.complexity.DatabaseCredentials.Port == nil {
+			break
+		}
+
+		return e.complexity.DatabaseCredentials.Port(childComplexity), true
+	case "DatabaseCredentials.uri":
+		if e.complexity.DatabaseCredentials.URI == nil {
+			break
+		}
+
+		return e.complexity.DatabaseCredentials.URI(childComplexity), true
+	case "DatabaseCredentials.user":
+		if e.complexity.DatabaseCredentials.User == nil {
+			break
+		}
+
+		return e.complexity.DatabaseCredentials.User(childComplexity), true
 
 	case "DatabaseInstance.environment":
 		if e.complexity.DatabaseInstance.Environment == nil {
@@ -1052,6 +1100,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Query.BuildStatus(childComplexity, args["id"].(string)), true
+	case "Query.databaseCredentials":
+		if e.complexity.Query.DatabaseCredentials == nil {
+			break
+		}
+
+		args, err := ec.field_Query_databaseCredentials_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.DatabaseCredentials(childComplexity, args["projectId"].(string), args["environment"].(string), args["database"].(string)), true
 	case "Query.databaseTableData":
 		if e.complexity.Query.DatabaseTableData == nil {
 			break
@@ -1914,6 +1973,27 @@ func (ec *executionContext) field_Query_buildStatus_args(ctx context.Context, ra
 	return args, nil
 }
 
+func (ec *executionContext) field_Query_databaseCredentials_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "projectId", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["projectId"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "environment", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["environment"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "database", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["database"] = arg2
+	return args, nil
+}
+
 func (ec *executionContext) field_Query_databaseTableData_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -2534,6 +2614,180 @@ func (ec *executionContext) fieldContext_DatabaseColumn_primaryKey(_ context.Con
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DatabaseCredentials_host(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseCredentials) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DatabaseCredentials_host,
+		func(ctx context.Context) (any, error) {
+			return obj.Host, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DatabaseCredentials_host(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DatabaseCredentials",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DatabaseCredentials_port(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseCredentials) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DatabaseCredentials_port,
+		func(ctx context.Context) (any, error) {
+			return obj.Port, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DatabaseCredentials_port(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DatabaseCredentials",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DatabaseCredentials_dbname(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseCredentials) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DatabaseCredentials_dbname,
+		func(ctx context.Context) (any, error) {
+			return obj.Dbname, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DatabaseCredentials_dbname(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DatabaseCredentials",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DatabaseCredentials_user(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseCredentials) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DatabaseCredentials_user,
+		func(ctx context.Context) (any, error) {
+			return obj.User, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DatabaseCredentials_user(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DatabaseCredentials",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DatabaseCredentials_password(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseCredentials) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DatabaseCredentials_password,
+		func(ctx context.Context) (any, error) {
+			return obj.Password, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DatabaseCredentials_password(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DatabaseCredentials",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DatabaseCredentials_uri(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseCredentials) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DatabaseCredentials_uri,
+		func(ctx context.Context) (any, error) {
+			return obj.URI, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_DatabaseCredentials_uri(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DatabaseCredentials",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -6015,6 +6269,79 @@ func (ec *executionContext) fieldContext_Query_databaseTableData(ctx context.Con
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_databaseTableData_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_databaseCredentials(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_databaseCredentials,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Query().DatabaseCredentials(ctx, fc.Args["projectId"].(string), fc.Args["environment"].(string), fc.Args["database"].(string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				if err != nil {
+					var zeroVal *model.DatabaseCredentials
+					return zeroVal, err
+				}
+				if ec.directives.HasRole == nil {
+					var zeroVal *model.DatabaseCredentials
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNDatabaseCredentials2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐDatabaseCredentials,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_databaseCredentials(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "host":
+				return ec.fieldContext_DatabaseCredentials_host(ctx, field)
+			case "port":
+				return ec.fieldContext_DatabaseCredentials_port(ctx, field)
+			case "dbname":
+				return ec.fieldContext_DatabaseCredentials_dbname(ctx, field)
+			case "user":
+				return ec.fieldContext_DatabaseCredentials_user(ctx, field)
+			case "password":
+				return ec.fieldContext_DatabaseCredentials_password(ctx, field)
+			case "uri":
+				return ec.fieldContext_DatabaseCredentials_uri(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type DatabaseCredentials", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_databaseCredentials_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -10580,6 +10907,70 @@ func (ec *executionContext) _DatabaseColumn(ctx context.Context, sel ast.Selecti
 	return out
 }
 
+var databaseCredentialsImplementors = []string{"DatabaseCredentials"}
+
+func (ec *executionContext) _DatabaseCredentials(ctx context.Context, sel ast.SelectionSet, obj *model.DatabaseCredentials) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, databaseCredentialsImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("DatabaseCredentials")
+		case "host":
+			out.Values[i] = ec._DatabaseCredentials_host(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "port":
+			out.Values[i] = ec._DatabaseCredentials_port(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "dbname":
+			out.Values[i] = ec._DatabaseCredentials_dbname(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "user":
+			out.Values[i] = ec._DatabaseCredentials_user(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "password":
+			out.Values[i] = ec._DatabaseCredentials_password(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "uri":
+			out.Values[i] = ec._DatabaseCredentials_uri(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var databaseInstanceImplementors = []string{"DatabaseInstance"}
 
 func (ec *executionContext) _DatabaseInstance(ctx context.Context, sel ast.SelectionSet, obj *model.DatabaseInstance) graphql.Marshaler {
@@ -11536,6 +11927,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_databaseTableData(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "databaseCredentials":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_databaseCredentials(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -12799,6 +13212,20 @@ func (ec *executionContext) marshalNDatabaseColumn2ᚕgithubᚗcomᚋzeitlosᚋl
 	}
 
 	return ret
+}
+
+func (ec *executionContext) marshalNDatabaseCredentials2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐDatabaseCredentials(ctx context.Context, sel ast.SelectionSet, v model.DatabaseCredentials) graphql.Marshaler {
+	return ec._DatabaseCredentials(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNDatabaseCredentials2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐDatabaseCredentials(ctx context.Context, sel ast.SelectionSet, v *model.DatabaseCredentials) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._DatabaseCredentials(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNDatabaseInstance2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐDatabaseInstance(ctx context.Context, sel ast.SelectionSet, v model.DatabaseInstance) graphql.Marshaler {

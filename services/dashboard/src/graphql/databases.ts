@@ -59,6 +59,19 @@ export const DatabaseTableDataQuery = gql`
   }
 `;
 
+export const DatabaseCredentialsQuery = gql`
+  query DatabaseCredentials($projectId: ID!, $environment: String!, $database: String!) {
+    databaseCredentials(projectId: $projectId, environment: $environment, database: $database) {
+      host
+      port
+      dbname
+      user
+      password
+      uri
+    }
+  }
+`;
+
 export const ExecuteQueryMutation = gql`
   mutation ExecuteQuery($input: DatabaseQueryInput!) {
     executeQuery(input: $input) {

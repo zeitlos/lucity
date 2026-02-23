@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useMutation } from '@vue/apollo-composable';
-import { Trash2 } from 'lucide-vue-next';
+import { Trash2, Database, Server, HardDrive, Wrench } from 'lucide-vue-next';
 import { DeleteDatabaseMutation } from '@/graphql/databases';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -54,68 +53,82 @@ async function handleDelete() {
 <template>
   <div class="space-y-6">
     <!-- Configuration -->
-    <section class="space-y-3">
-      <h3 class="text-sm font-medium text-foreground">Configuration</h3>
-      <div class="rounded-lg border p-4">
-        <dl class="grid grid-cols-2 gap-4 text-sm">
-          <div>
-            <dt class="text-muted-foreground">Version</dt>
-            <dd class="mt-1 font-medium">
-              <Badge variant="secondary">PostgreSQL {{ database.version }}</Badge>
-            </dd>
+    <section class="space-y-2">
+      <h3 class="px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        Configuration
+      </h3>
+
+      <div class="overflow-hidden rounded-lg border">
+        <div class="divide-y">
+          <div class="flex items-center gap-3 px-4 py-3">
+            <Database :size="16" class="shrink-0 text-muted-foreground" />
+            <span class="flex-1 text-sm text-muted-foreground">Version</span>
+            <span class="font-mono text-sm font-medium text-foreground">PostgreSQL {{ database.version }}</span>
           </div>
-          <div>
-            <dt class="text-muted-foreground">Instances</dt>
-            <dd class="mt-1 font-medium">{{ database.instances }}</dd>
+          <div class="flex items-center gap-3 px-4 py-3">
+            <Server :size="16" class="shrink-0 text-muted-foreground" />
+            <span class="flex-1 text-sm text-muted-foreground">Instances</span>
+            <span class="text-sm font-medium text-foreground">{{ database.instances }}</span>
           </div>
-          <div>
-            <dt class="text-muted-foreground">Storage</dt>
-            <dd class="mt-1 font-mono font-medium">{{ database.size }}</dd>
+          <div class="flex items-center gap-3 px-4 py-3">
+            <HardDrive :size="16" class="shrink-0 text-muted-foreground" />
+            <span class="flex-1 text-sm text-muted-foreground">Storage</span>
+            <span class="font-mono text-sm font-medium text-foreground">{{ database.size }}</span>
           </div>
-          <div>
-            <dt class="text-muted-foreground">Operator</dt>
-            <dd class="mt-1 font-medium text-muted-foreground">CloudNativePG</dd>
+          <div class="flex items-center gap-3 px-4 py-3">
+            <Wrench :size="16" class="shrink-0 text-muted-foreground" />
+            <span class="flex-1 text-sm text-muted-foreground">Operator</span>
+            <span class="text-sm text-muted-foreground">CloudNativePG</span>
           </div>
-        </dl>
+        </div>
       </div>
     </section>
 
     <!-- Danger Zone -->
-    <section class="space-y-3">
-      <h3 class="text-sm font-medium text-destructive">Danger Zone</h3>
-      <div class="rounded-lg border border-destructive/30 p-4">
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-sm font-medium text-foreground">Delete Database</p>
-            <p class="text-xs text-muted-foreground">This will remove the database from the GitOps configuration.</p>
+    <section class="mt-8">
+      <div class="relative overflow-hidden rounded-lg border border-destructive/20">
+        <div class="pattern-crosshatch pointer-events-none absolute inset-0 opacity-[0.04]" />
+        <div class="relative border-b border-destructive/15 bg-destructive/[0.03] px-4 py-2.5">
+          <h3 class="text-xs font-semibold uppercase tracking-wider text-destructive/70">
+            Danger Zone
+          </h3>
+        </div>
+        <div class="relative px-4 py-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm font-medium text-foreground">Delete Database</p>
+              <p class="text-xs text-muted-foreground">
+                This will remove the database from the GitOps configuration.
+              </p>
+            </div>
+            <AlertDialog v-model:open="deleteDialogOpen">
+              <AlertDialogTrigger as-child>
+                <Button variant="destructive" size="sm">
+                  <Trash2 :size="14" class="mr-1" />
+                  Delete
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete database "{{ database.name }}"?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will remove the PostgreSQL cluster definition from the project configuration.
+                    The CNPG operator will delete the cluster and its data.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    :disabled="deleting"
+                    class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    @click="handleDelete"
+                  >
+                    {{ deleting ? 'Deleting...' : 'Delete Database' }}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
-          <AlertDialog v-model:open="deleteDialogOpen">
-            <AlertDialogTrigger as-child>
-              <Button variant="destructive" size="sm">
-                <Trash2 :size="14" class="mr-1" />
-                Delete
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete database "{{ database.name }}"?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This will remove the PostgreSQL cluster definition from the project configuration.
-                  The CNPG operator will delete the cluster and its data.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  :disabled="deleting"
-                  class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  @click="handleDelete"
-                >
-                  {{ deleting ? 'Deleting...' : 'Delete Database' }}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
         </div>
       </div>
     </section>

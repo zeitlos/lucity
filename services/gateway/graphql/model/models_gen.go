@@ -72,6 +72,15 @@ type DatabaseColumn struct {
 	PrimaryKey bool   `json:"primaryKey"`
 }
 
+type DatabaseCredentials struct {
+	Host     string `json:"host"`
+	Port     string `json:"port"`
+	Dbname   string `json:"dbname"`
+	User     string `json:"user"`
+	Password string `json:"password"`
+	URI      string `json:"uri"`
+}
+
 type DatabaseInstance struct {
 	Name        string  `json:"name"`
 	Environment string  `json:"environment"`

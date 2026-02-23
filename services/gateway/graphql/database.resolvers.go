@@ -93,3 +93,19 @@ func (r *queryResolver) DatabaseTableData(ctx context.Context, projectID string,
 	}
 	return convertDatabaseTableData(data), nil
 }
+
+// DatabaseCredentials is the resolver for the databaseCredentials field.
+func (r *queryResolver) DatabaseCredentials(ctx context.Context, projectID string, environment string, database string) (*model.DatabaseCredentials, error) {
+	creds, err := r.API.DatabaseCredentials(ctx, projectID, environment, database)
+	if err != nil {
+		return nil, err
+	}
+	return &model.DatabaseCredentials{
+		Host:     creds.Host,
+		Port:     creds.Port,
+		Dbname:   creds.DBName,
+		User:     creds.User,
+		Password: creds.Password,
+		URI:      creds.URI,
+	}, nil
+}

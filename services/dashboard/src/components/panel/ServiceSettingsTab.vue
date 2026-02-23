@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { useMutation, useQuery } from '@vue/apollo-composable';
-import { Trash2, Copy, X, Globe, Plus, CircleCheck, CircleAlert, HelpCircle } from 'lucide-vue-next';
+import {
+  Trash2, Copy, X, Globe, Plus, CircleCheck, CircleAlert,
+  HelpCircle, ChevronDown, Network,
+} from 'lucide-vue-next';
 import {
   RemoveServiceMutation,
   GenerateDomainMutation,
@@ -11,11 +14,16 @@ import {
 } from '@/graphql/services';
 import { useEnvironment } from '@/composables/useEnvironment';
 import type { DomainInfo } from '@/composables/useEnvironment';
+import FrameworkIcon from '@/components/FrameworkIcon.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Separator } from '@/components/ui/separator';
 import { toast } from '@/components/ui/sonner';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -216,224 +224,298 @@ async function handleRemoveService() {
 
 <template>
   <div class="space-y-6">
-    <!-- Service Info -->
-    <section class="space-y-4">
-      <h3 class="text-sm font-medium text-muted-foreground">Service Info</h3>
-
-      <div class="space-y-3 rounded-lg border p-4">
-        <div class="flex items-center justify-between">
-          <span class="text-sm text-muted-foreground">Name</span>
-          <span class="text-sm font-medium text-foreground">{{ service.name }}</span>
+    <!-- Identity Header -->
+    <div class="relative overflow-hidden rounded-lg border p-5">
+      <div class="pattern-dots pointer-events-none absolute inset-0 opacity-[0.12]" />
+      <div class="relative flex items-start gap-4">
+        <div class="rounded-xl bg-muted/60 p-2.5">
+          <FrameworkIcon :framework="service.framework" :size="36" />
         </div>
-        <div class="flex items-center justify-between">
-          <span class="text-sm text-muted-foreground">Port</span>
-          <span class="text-sm font-medium text-foreground">{{ service.port || '---' }}</span>
-        </div>
-        <div v-if="service.image" class="flex items-center justify-between">
-          <span class="text-sm text-muted-foreground">Image</span>
-          <span class="max-w-[200px] truncate font-mono text-xs text-muted-foreground">
-            {{ service.image }}
-          </span>
+        <div class="min-w-0 flex-1 space-y-2">
+          <h3 class="truncate text-base font-semibold text-foreground">{{ service.name }}</h3>
+          <div class="flex flex-wrap items-center gap-2">
+            <Badge variant="secondary" class="font-mono text-xs">
+              :{{ service.port || '---' }}
+            </Badge>
+            <Badge
+              v-if="service.framework"
+              variant="outline"
+              class="text-xs"
+            >
+              {{ service.framework }}
+            </Badge>
+          </div>
+          <div v-if="service.image" class="group flex items-center gap-1.5">
+            <span class="max-w-[220px] truncate font-mono text-[11px] text-muted-foreground">
+              {{ service.image }}
+            </span>
+            <Button
+              variant="ghost"
+              size="icon"
+              class="h-5 w-5 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
+              @click="copyToClipboard(service.image)"
+            >
+              <Copy :size="10" />
+            </Button>
+          </div>
         </div>
       </div>
-    </section>
-
-    <Separator />
+    </div>
 
     <!-- Networking -->
-    <section class="space-y-4">
-      <h3 class="text-sm font-medium text-muted-foreground">Networking</h3>
+    <section class="space-y-2">
+      <h3 class="px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        Networking
+      </h3>
 
-      <div class="space-y-4 rounded-lg border p-4">
-        <!-- Platform Domain -->
-        <div>
-          <div class="flex items-center justify-between">
-            <div>
+      <!-- Platform Domain -->
+      <Collapsible default-open>
+        <div class="overflow-hidden rounded-lg border">
+          <CollapsibleTrigger class="flex w-full items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/30">
+            <Globe :size="16" class="shrink-0 text-primary" />
+            <div class="min-w-0 flex-1 text-left">
               <p class="text-sm font-medium text-foreground">Platform Domain</p>
-              <p class="text-xs text-muted-foreground">
-                Auto-generated domain for {{ activeEnvironment?.name ?? 'this environment' }}.
+              <p class="truncate text-xs text-muted-foreground">
+                {{ platformDomain ? platformDomain.hostname : 'Not configured' }}
               </p>
             </div>
-          </div>
-
-          <!-- No platform domain yet: show generate button -->
-          <div v-if="!platformDomain" class="mt-3">
-            <Button
-              size="sm"
-              variant="outline"
-              :disabled="generatingDomain"
-              @click="handleGenerateDomain"
+            <Badge
+              v-if="platformDomain"
+              variant="default"
+              class="text-[0.6rem]"
             >
-              <Globe :size="14" class="mr-1.5" />
-              {{ generatingDomain ? 'Generating...' : 'Generate Domain' }}
-            </Button>
-          </div>
-
-          <!-- Platform domain exists -->
-          <div v-else class="mt-3 flex items-center gap-2">
-            <div class="flex flex-1 items-center gap-2 rounded-md border bg-muted/50 px-3 py-2">
-              <CircleCheck :size="14" class="shrink-0 text-green-500" />
-              <span class="truncate font-mono text-sm">{{ platformDomain.hostname }}</span>
-            </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              class="h-8 w-8 shrink-0"
-              @click="copyToClipboard(platformDomain.hostname)"
-            >
-              <Copy :size="14" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              class="h-8 w-8 shrink-0 text-destructive"
-              @click="handleRemoveDomain(platformDomain.hostname)"
-            >
-              <X :size="14" />
-            </Button>
-          </div>
-        </div>
-
-        <Separator />
-
-        <!-- Custom Domains -->
-        <div>
-          <p class="text-sm font-medium text-foreground">Custom Domains</p>
-          <p class="text-xs text-muted-foreground">
-            Add your own domains. Requires DNS configuration.
-          </p>
-
-          <!-- List of custom domains -->
-          <div v-if="customDomains.length" class="mt-3 space-y-2">
-            <div
-              v-for="domain in customDomains"
-              :key="domain.hostname"
-              class="flex items-center gap-2 rounded-md border bg-muted/50 px-3 py-2"
-            >
-              <CircleCheck
-                v-if="domain.dnsStatus === 'VALID'"
-                :size="14"
-                class="shrink-0 text-green-500"
-              />
-              <CircleAlert
-                v-else
-                :size="14"
-                class="shrink-0 text-yellow-500"
-              />
-              <span class="flex-1 truncate font-mono text-sm">{{ domain.hostname }}</span>
-              <Button
-                v-if="domain.dnsStatus !== 'VALID' && domainTarget"
-                variant="ghost"
-                size="icon"
-                class="h-7 w-7 shrink-0"
-                title="Show DNS configuration"
-                @click="showDnsHelp(domain.hostname)"
-              >
-                <HelpCircle :size="14" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                class="h-7 w-7 shrink-0"
-                @click="copyToClipboard(domain.hostname)"
-              >
-                <Copy :size="14" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                class="h-7 w-7 shrink-0 text-destructive"
-                @click="handleRemoveDomain(domain.hostname)"
-              >
-                <X :size="14" />
-              </Button>
-            </div>
-          </div>
-
-          <!-- Add custom domain input -->
-          <div class="mt-3 flex items-center gap-2">
-            <Input
-              v-model="customDomainInput"
-              placeholder="api.example.com"
-              class="flex-1 font-mono text-sm"
-              @keyup.enter="handleAddCustomDomain"
+              Active
+            </Badge>
+            <Badge v-else variant="secondary" class="text-[0.6rem]">Off</Badge>
+            <ChevronDown
+              :size="14"
+              class="shrink-0 text-muted-foreground transition-transform duration-200 [[data-state=open]>&]:rotate-180"
             />
-            <Button
-              size="sm"
-              variant="outline"
-              :disabled="!customDomainInput.trim() || addingCustomDomain"
-              @click="handleAddCustomDomain"
-            >
-              <Plus :size="14" class="mr-1" />
-              {{ addingCustomDomain ? 'Adding...' : 'Add' }}
-            </Button>
-          </div>
-        </div>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div class="space-y-3 border-t px-4 py-3">
+              <!-- No platform domain yet -->
+              <div v-if="!platformDomain">
+                <p class="mb-2 text-xs text-muted-foreground">
+                  Auto-generated domain for {{ activeEnvironment?.name ?? 'this environment' }}.
+                </p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  :disabled="generatingDomain"
+                  @click="handleGenerateDomain"
+                >
+                  <Globe :size="14" class="mr-1.5" />
+                  {{ generatingDomain ? 'Generating...' : 'Generate Domain' }}
+                </Button>
+              </div>
 
-        <!-- Internal DNS -->
-        <Separator />
-        <div>
-          <p class="text-sm font-medium text-foreground">Private Networking</p>
-          <p class="text-xs text-muted-foreground">
-            Internal DNS name for service-to-service communication.
-          </p>
-          <div v-if="internalDns" class="mt-2 flex items-center gap-2">
-            <div class="flex-1 overflow-x-auto rounded-md border bg-muted/50 px-3 py-2">
-              <span class="whitespace-nowrap font-mono text-xs">{{ internalDns }}</span>
+              <!-- Platform domain exists -->
+              <div v-else class="flex items-center gap-2">
+                <div class="flex flex-1 items-center gap-2 rounded-md border bg-muted/50 px-3 py-2">
+                  <CircleCheck :size="14" class="shrink-0 text-green-500" />
+                  <span class="truncate font-mono text-sm">{{ platformDomain.hostname }}</span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  class="h-8 w-8 shrink-0"
+                  @click="copyToClipboard(platformDomain.hostname)"
+                >
+                  <Copy :size="14" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  class="h-8 w-8 shrink-0 text-destructive"
+                  @click="handleRemoveDomain(platformDomain.hostname)"
+                >
+                  <X :size="14" />
+                </Button>
+              </div>
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              class="h-8 w-8 shrink-0"
-              @click="copyToClipboard(internalDns)"
-            >
-              <Copy :size="14" />
-            </Button>
-          </div>
+          </CollapsibleContent>
         </div>
-      </div>
+      </Collapsible>
+
+      <!-- Custom Domains -->
+      <Collapsible>
+        <div class="overflow-hidden rounded-lg border">
+          <CollapsibleTrigger class="flex w-full items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/30">
+            <Globe :size="16" class="shrink-0 text-muted-foreground" />
+            <div class="min-w-0 flex-1 text-left">
+              <p class="text-sm font-medium text-foreground">Custom Domains</p>
+              <p class="text-xs text-muted-foreground">
+                {{ customDomains.length }} domain{{ customDomains.length !== 1 ? 's' : '' }} configured
+              </p>
+            </div>
+            <span
+              v-if="customDomains.length"
+              class="flex h-5 w-5 items-center justify-center rounded-full bg-muted text-[0.6rem] font-medium text-muted-foreground"
+            >
+              {{ customDomains.length }}
+            </span>
+            <ChevronDown
+              :size="14"
+              class="shrink-0 text-muted-foreground transition-transform duration-200 [[data-state=open]>&]:rotate-180"
+            />
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div class="space-y-3 border-t px-4 py-3">
+              <!-- List of custom domains -->
+              <div v-if="customDomains.length" class="space-y-2">
+                <div
+                  v-for="domain in customDomains"
+                  :key="domain.hostname"
+                  class="flex items-center gap-2 rounded-md border bg-muted/50 px-3 py-2"
+                >
+                  <CircleCheck
+                    v-if="domain.dnsStatus === 'VALID'"
+                    :size="14"
+                    class="shrink-0 text-green-500"
+                  />
+                  <CircleAlert
+                    v-else
+                    :size="14"
+                    class="shrink-0 text-yellow-500"
+                  />
+                  <span class="flex-1 truncate font-mono text-sm">{{ domain.hostname }}</span>
+                  <Button
+                    v-if="domain.dnsStatus !== 'VALID' && domainTarget"
+                    variant="ghost"
+                    size="icon"
+                    class="h-7 w-7 shrink-0"
+                    title="Show DNS configuration"
+                    @click="showDnsHelp(domain.hostname)"
+                  >
+                    <HelpCircle :size="14" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    class="h-7 w-7 shrink-0"
+                    @click="copyToClipboard(domain.hostname)"
+                  >
+                    <Copy :size="14" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    class="h-7 w-7 shrink-0 text-destructive"
+                    @click="handleRemoveDomain(domain.hostname)"
+                  >
+                    <X :size="14" />
+                  </Button>
+                </div>
+              </div>
+
+              <!-- Add custom domain input -->
+              <div class="flex items-center gap-2">
+                <Input
+                  v-model="customDomainInput"
+                  placeholder="api.example.com"
+                  class="flex-1 font-mono text-sm"
+                  @keyup.enter="handleAddCustomDomain"
+                />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  :disabled="!customDomainInput.trim() || addingCustomDomain"
+                  @click="handleAddCustomDomain"
+                >
+                  <Plus :size="14" class="mr-1" />
+                  {{ addingCustomDomain ? 'Adding...' : 'Add' }}
+                </Button>
+              </div>
+            </div>
+          </CollapsibleContent>
+        </div>
+      </Collapsible>
+
+      <!-- Private Networking -->
+      <Collapsible>
+        <div class="overflow-hidden rounded-lg border">
+          <CollapsibleTrigger class="flex w-full items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/30">
+            <Network :size="16" class="shrink-0 text-muted-foreground" />
+            <div class="min-w-0 flex-1 text-left">
+              <p class="text-sm font-medium text-foreground">Private Networking</p>
+              <p class="max-w-[220px] truncate text-xs text-muted-foreground">
+                {{ internalDns || 'Internal DNS' }}
+              </p>
+            </div>
+            <ChevronDown
+              :size="14"
+              class="shrink-0 text-muted-foreground transition-transform duration-200 [[data-state=open]>&]:rotate-180"
+            />
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div class="space-y-3 border-t px-4 py-3">
+              <p class="text-xs text-muted-foreground">
+                Internal DNS name for service-to-service communication.
+              </p>
+              <div v-if="internalDns" class="group flex items-center gap-2">
+                <div class="flex-1 overflow-x-auto rounded-md border bg-muted/50 px-3 py-2">
+                  <span class="whitespace-nowrap font-mono text-xs">{{ internalDns }}</span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  class="h-8 w-8 shrink-0"
+                  @click="copyToClipboard(internalDns)"
+                >
+                  <Copy :size="14" />
+                </Button>
+              </div>
+            </div>
+          </CollapsibleContent>
+        </div>
+      </Collapsible>
     </section>
 
-    <Separator />
-
     <!-- Danger Zone -->
-    <section class="space-y-4">
-      <h3 class="text-sm font-medium text-destructive">Danger Zone</h3>
-
-      <div class="rounded-lg border border-destructive/30 p-4">
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-sm font-medium text-foreground">Delete Service</p>
-            <p class="text-xs text-muted-foreground">
-              Permanently remove this service from the project.
-            </p>
+    <section class="mt-8">
+      <div class="relative overflow-hidden rounded-lg border border-destructive/20">
+        <div class="pattern-crosshatch pointer-events-none absolute inset-0 opacity-[0.04]" />
+        <div class="relative border-b border-destructive/15 bg-destructive/[0.03] px-4 py-2.5">
+          <h3 class="text-xs font-semibold uppercase tracking-wider text-destructive/70">
+            Danger Zone
+          </h3>
+        </div>
+        <div class="relative px-4 py-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm font-medium text-foreground">Delete Service</p>
+              <p class="text-xs text-muted-foreground">
+                Permanently remove this service from the project.
+              </p>
+            </div>
+            <AlertDialog>
+              <AlertDialogTrigger as-child>
+                <Button variant="destructive" size="sm">
+                  <Trash2 :size="14" class="mr-1" />
+                  Delete
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Remove service</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will remove <strong>{{ service.name }}</strong> from the project
+                    configuration. This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    :disabled="removing"
+                    @click="handleRemoveService"
+                  >
+                    {{ removing ? 'Removing...' : 'Remove' }}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
-          <AlertDialog>
-            <AlertDialogTrigger as-child>
-              <Button variant="destructive" size="sm">
-                <Trash2 :size="14" class="mr-1" />
-                Delete
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Remove service</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This will remove <strong>{{ service.name }}</strong> from the project
-                  configuration. This action cannot be undone.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  :disabled="removing"
-                  @click="handleRemoveService"
-                >
-                  {{ removing ? 'Removing...' : 'Remove' }}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
         </div>
       </div>
     </section>

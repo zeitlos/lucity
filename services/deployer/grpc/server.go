@@ -545,3 +545,24 @@ func mapStatus(status *argocd.AppStatus) (deployer.DeploymentStatus, string) {
 		return deployer.DeploymentStatus_DEPLOYMENT_STATUS_UNKNOWN, status.Health.Status
 	}
 }
+
+func (s *Server) DatabaseCredentials(ctx context.Context, req *deployer.DatabaseCredentialsRequest) (*deployer.DatabaseCredentialsResponse, error) {
+	creds, err := database.CredentialsFromSecret(ctx, s.k8s, req.Project, req.Environment, req.Database)
+	if err != nil {
+		if errors.Is(err, database.ErrNotReady) {
+			return nil, status.Errorf(codes.FailedPrecondition, "database is provisioning")
+		}
+		return nil, status.Errorf(codes.Internal, "failed to read credentials: %v", err)
+	}
+
+	uri := fmt.Sprintf("postgres://%s:%s@%s:%s/%s", creds.User, creds.Password, creds.Host, creds.Port, creds.DBName)
+
+	return &deployer.DatabaseCredentialsResponse{
+		Host:     creds.Host,
+		Port:     creds.Port,
+		Dbname:   creds.DBName,
+		User:     creds.User,
+		Password: creds.Password,
+		Uri:      uri,
+	}, nil
+}

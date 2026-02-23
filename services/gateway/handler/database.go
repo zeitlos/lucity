@@ -220,6 +220,42 @@ func (c *Client) ExecuteQuery(ctx context.Context, projectID, environment, datab
 	}, nil
 }
 
+type DatabaseCredentials struct {
+	Host     string
+	Port     string
+	DBName   string
+	User     string
+	Password string
+	URI      string
+}
+
+func (c *Client) DatabaseCredentials(ctx context.Context, projectID, environment, database string) (*DatabaseCredentials, error) {
+	ctx = auth.OutgoingContext(ctx)
+
+	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
+	defer cancel()
+	resp, err := c.Deployer.DatabaseCredentials(callCtx, &deployer.DatabaseCredentialsRequest{
+		Project:     projectID,
+		Environment: environment,
+		Database:    database,
+	})
+	if err != nil {
+		if s, ok := grpcstatus.FromError(err); ok && s.Code() == codes.FailedPrecondition {
+			return nil, &DatabaseProvisioningError{}
+		}
+		return nil, fmt.Errorf("failed to get database credentials: %w", err)
+	}
+
+	return &DatabaseCredentials{
+		Host:     resp.Host,
+		Port:     resp.Port,
+		DBName:   resp.Dbname,
+		User:     resp.User,
+		Password: resp.Password,
+		URI:      resp.Uri,
+	}, nil
+}
+
 // convertDatabaseRows converts proto DatabaseRow messages to [][]*string for GraphQL.
 func convertDatabaseRows(rows []*deployer.DatabaseRow) [][]*string {
 	result := make([][]*string, 0, len(rows))

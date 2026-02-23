@@ -4,6 +4,7 @@ import { onKeyStroke } from '@vueuse/core';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import DatabaseConnectionTab from './DatabaseConnectionTab.vue';
 import DatabaseTablesTab from './DatabaseTablesTab.vue';
 import DatabaseQueryTab from './DatabaseQueryTab.vue';
 import DatabaseSettingsTab from './DatabaseSettingsTab.vue';
@@ -55,14 +56,22 @@ onKeyStroke('Escape', () => {
 
     <!-- Tab Content -->
     <ScrollArea class="flex-1">
-      <Tabs default-value="tables" class="h-full">
+      <Tabs default-value="connect" class="h-full">
         <div class="px-4 pt-2">
           <TabsList class="w-full">
+            <TabsTrigger value="connect">Connect</TabsTrigger>
             <TabsTrigger value="tables">Tables</TabsTrigger>
             <TabsTrigger value="query">Query</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
         </div>
+
+        <TabsContent value="connect" class="px-4 py-4">
+          <DatabaseConnectionTab
+            :project-id="projectId"
+            :database="database"
+          />
+        </TabsContent>
 
         <TabsContent value="tables" class="px-4 py-4">
           <DatabaseTablesTab
