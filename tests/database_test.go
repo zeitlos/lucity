@@ -50,21 +50,26 @@ func testDatabase(t *testing.T) {
 		t.Logf("created database: %s", name)
 
 		// kubectl: CNPG Cluster CRD may not appear immediately (ArgoCD sync lag)
-		out, err := kubectlQuiet(t, "get", "cluster.postgresql.cnpg.io", testDBName, "-n", namespace("development"))
+		// Helm generates the CNPG cluster name as: {namespace}-lucity-app-pg-{dbname}
+		cnpgName := namespace("development") + "-lucity-app-pg-" + testDBName
+		out, err := kubectlQuiet(t, "get", "cluster.postgresql.cnpg.io", cnpgName, "-n", namespace("development"))
 		if err != nil {
-			t.Logf("CNPG cluster not yet visible via kubectl (ArgoCD sync lag): %v", err)
+			t.Logf("CNPG cluster %s not yet visible via kubectl (ArgoCD sync lag)", cnpgName)
 		} else {
 			t.Logf("CNPG cluster exists: %s", out)
 		}
 	})
 
 	t.Run("WaitForReady", func(t *testing.T) {
-		// CNPG clusters can take a while to provision (image pull, init, etc.)
-		deadline := time.Now().Add(5 * time.Minute)
+		// CNPG cluster name is Helm-generated: {namespace}-lucity-app-pg-{dbname}
+		cnpgClusterName := namespace("development") + "-lucity-app-pg-" + testDBName
+		t.Logf("waiting for CNPG pod with label cnpg.io/cluster=%s", cnpgClusterName)
+
+		deadline := time.Now().Add(3 * time.Minute)
 		for time.Now().Before(deadline) {
 			out, err := kubectlQuiet(t,
 				"get", "pods", "-n", namespace("development"),
-				"-l", "cnpg.io/cluster="+testDBName,
+				"-l", "cnpg.io/cluster="+cnpgClusterName,
 				"--no-headers",
 				"-o", "custom-columns=:status.phase",
 			)
@@ -75,7 +80,7 @@ func testDatabase(t *testing.T) {
 			}
 			time.Sleep(3 * time.Second)
 		}
-		t.Log("WARNING: CNPG pod did not become ready within 5 minutes — database query tests will be skipped")
+		t.Log("WARNING: CNPG pod did not become ready within 3 minutes — database query tests will be skipped")
 	})
 
 	t.Run("DatabaseRef", func(t *testing.T) {
@@ -338,8 +343,9 @@ func testDatabase(t *testing.T) {
 		}
 
 		// kubectl: verify CNPG cluster is gone (with some delay for cleanup)
+		cnpgName := namespace("development") + "-lucity-app-pg-" + testDBName
 		time.Sleep(5 * time.Second)
-		if _, err := kubectlQuiet(t, "get", "cluster.postgresql.cnpg.io", testDBName, "-n", namespace("development")); err != nil {
+		if _, err := kubectlQuiet(t, "get", "cluster.postgresql.cnpg.io", cnpgName, "-n", namespace("development")); err != nil {
 			t.Log("database deleted and CNPG cluster removed")
 		} else {
 			t.Log("WARNING: CNPG cluster still exists (may take time to finalize)")
