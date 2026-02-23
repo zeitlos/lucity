@@ -1,0 +1,14 @@
+.git
+.github
+.claude
+tmp
+tests
+deployments
+docs
+scripts
+*.md
+!charts/**/*.md
+LICENSE
+Makefile
+go.work
+go.work.sum

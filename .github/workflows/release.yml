@@ -1,0 +1,182 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_BASE: ghcr.io/zeitlos/lucity
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Calculate CalVer version from git tags
+  # ---------------------------------------------------------------------------
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      is_release: ${{ steps.version.outputs.is_release }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Calculate version
+        id: version
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            # Release or RC: strip the v prefix
+            VERSION="${GITHUB_REF#refs/tags/v}"
+            echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+            echo "is_release=true" >> "$GITHUB_OUTPUT"
+          else
+            # Snapshot: use git describe for 26.2.1-21-g3e43772 format
+            # If no tags exist yet, fall back to 0.0.0-<count>-g<sha>
+            VERSION=$(git describe --tags --always 2>/dev/null | sed 's/^v//')
+            if [[ "$VERSION" == *-g* ]] || [[ "$VERSION" =~ ^[0-9a-f]+$ ]]; then
+              # git describe gave us a good snapshot or bare commit hash
+              echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+            else
+              echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+            fi
+            echo "is_release=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "Resolved version: $(cat "$GITHUB_OUTPUT" | grep version | head -1)"
+
+  # ---------------------------------------------------------------------------
+  # Build and push container images
+  # ---------------------------------------------------------------------------
+  build:
+    runs-on: ubuntu-latest
+    needs: version
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [gateway, builder, packager, deployer, webhook, dashboard, docs]
+        include:
+          # Go services use the root Dockerfile with SERVICE build arg
+          - service: gateway
+            dockerfile: Dockerfile
+            context: .
+          - service: builder
+            dockerfile: Dockerfile
+            context: .
+          - service: packager
+            dockerfile: Dockerfile
+            context: .
+          - service: deployer
+            dockerfile: Dockerfile
+            context: .
+          - service: webhook
+            dockerfile: Dockerfile
+            context: .
+          # Dashboard and docs use their own Dockerfiles
+          - service: dashboard
+            dockerfile: services/dashboard/Dockerfile
+            context: services/dashboard
+          - service: docs
+            dockerfile: docs/Dockerfile
+            context: docs
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_BASE }}/${{ matrix.service }}
+          tags: |
+            # CalVer version tag (release + snapshot)
+            type=raw,value=${{ needs.version.outputs.version }}
+            # latest tag only for stable releases (no rc, no snapshot)
+            type=raw,value=latest,enable=${{ needs.version.outputs.is_release == 'true' && !contains(needs.version.outputs.version, '-') }}
+            # Branch name tag for main pushes
+            type=ref,event=branch
+            # PR number tag
+            type=ref,event=pr
+          labels: |
+            org.opencontainers.image.title=${{ matrix.service }}
+            org.opencontainers.image.description=Lucity ${{ matrix.service }} service
+            org.opencontainers.image.version=${{ needs.version.outputs.version }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.licenses=AGPL-3.0
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          build-args: |
+            SERVICE=${{ matrix.service }}
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=${{ env.IMAGE_BASE }}/${{ matrix.service }}:buildcache
+          cache-to: ${{ github.event_name != 'pull_request' && format('type=registry,ref={0}/{1}:buildcache,mode=max', env.IMAGE_BASE, matrix.service) || '' }}
+
+  # ---------------------------------------------------------------------------
+  # Package and push Helm charts
+  # ---------------------------------------------------------------------------
+  helm:
+    runs-on: ubuntu-latest
+    needs: version
+    if: github.event_name != 'pull_request'
+    strategy:
+      matrix:
+        chart: [lucity, lucity-app, lucity-infra]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
+
+      - name: Set chart version
+        run: |
+          VERSION="${{ needs.version.outputs.version }}"
+          CHART_DIR="charts/${{ matrix.chart }}"
+
+          # Update version and appVersion in Chart.yaml
+          sed -i "s/^version:.*/version: ${VERSION}/" "${CHART_DIR}/Chart.yaml"
+          sed -i "s/^appVersion:.*/appVersion: \"${VERSION}\"/" "${CHART_DIR}/Chart.yaml"
+
+          echo "Chart.yaml after version update:"
+          cat "${CHART_DIR}/Chart.yaml"
+
+      - name: Update dependencies
+        if: matrix.chart == 'lucity-infra'
+        run: helm dependency update charts/${{ matrix.chart }}
+
+      - name: Package chart
+        run: helm package charts/${{ matrix.chart }} --destination .helm-packages
+
+      - name: Push chart
+        run: |
+          VERSION="${{ needs.version.outputs.version }}"
+          helm push ".helm-packages/${{ matrix.chart }}-${VERSION}.tgz" oci://${{ env.REGISTRY }}/zeitlos/lucity/charts
