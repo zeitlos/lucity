@@ -3,10 +3,32 @@ type Variable {
   value: String!
 }
 
+"""A reference to a CNPG database secret key (resolved at pod startup via secretKeyRef)."""
+type DatabaseRef {
+  database: String!
+  key: String!
+}
+
+"""A reference to another service's internal URL (computed by Helm template)."""
+type ServiceRef {
+  service: String!
+}
+
+input DatabaseRefInput {
+  database: String!
+  key: String!
+}
+
+input ServiceRefInput {
+  service: String!
+}
+
 type ServiceVariable {
   key: String!
   value: String!
   fromShared: Boolean!
+  databaseRef: DatabaseRef
+  serviceRef: ServiceRef
 }
 
 input VariableInput {
@@ -16,10 +38,14 @@ input VariableInput {
 
 input ServiceVariableInput {
   key: String!
-  """Direct value. Required when fromShared is false, ignored when true."""
+  """Direct value. Required when no ref is set."""
   value: String
   """If true, value is resolved from the shared variable with the same key."""
   fromShared: Boolean
+  """Reference to a database secret key."""
+  databaseRef: DatabaseRefInput
+  """Reference to another service's internal URL."""
+  serviceRef: ServiceRefInput
 }
 
 extend type Query {

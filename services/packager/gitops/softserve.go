@@ -199,7 +199,58 @@ func (p *SoftServeProvider) RemoveService(ctx context.Context, project, service 
 		delete(services, service)
 		inner["services"] = services
 
-		return writeSubchartValues(path, inner)
+		if err := writeSubchartValues(path, inner); err != nil {
+			return err
+		}
+
+		// Clean up serviceRefs referencing the deleted service across all environments.
+		envFiles, _ := filepath.Glob(filepath.Join(dir, "environments", "*", "values.yaml"))
+		for _, envPath := range envFiles {
+			envInner, readErr := readSubchartValues(envPath)
+			if readErr != nil {
+				continue
+			}
+			envSvcs, ok := envInner["services"].(map[string]any)
+			if !ok {
+				continue
+			}
+			modified := false
+			for svcName, svcRaw := range envSvcs {
+				svcMap, ok := svcRaw.(map[string]any)
+				if !ok {
+					continue
+				}
+				refs := parseServiceRefs(svcMap)
+				if refs == nil {
+					continue
+				}
+				changed := false
+				for refName, ref := range refs {
+					if ref.Service == service {
+						delete(refs, refName)
+						changed = true
+					}
+				}
+				if !changed {
+					continue
+				}
+				if len(refs) == 0 {
+					delete(svcMap, "serviceRefs")
+				} else {
+					svcMap["serviceRefs"] = serviceRefsToAny(refs)
+				}
+				envSvcs[svcName] = svcMap
+				modified = true
+			}
+			if modified {
+				envInner["services"] = envSvcs
+				if writeErr := writeSubchartValues(envPath, envInner); writeErr != nil {
+					return writeErr
+				}
+			}
+		}
+
+		return nil
 	})
 }
 
@@ -938,34 +989,36 @@ func (p *SoftServeProvider) SetSharedVariables(ctx context.Context, project, env
 }
 
 // ServiceVariables returns all variables and shared refs for a service in an environment.
-func (p *SoftServeProvider) ServiceVariables(ctx context.Context, project, environment, service string) (map[string]string, []string, error) {
+func (p *SoftServeProvider) ServiceVariables(ctx context.Context, project, environment, service string) (map[string]string, []string, map[string]DatabaseRef, map[string]ServiceRef, error) {
 	repoName := project + RepoSuffix
 
 	dir, cleanup, err := p.cloneRepo(repoName)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 	defer cleanup()
 
 	filePath := filepath.Join(dir, "environments", environment, "values.yaml")
 	inner, err := readSubchartValues(filePath)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to read %s: %w", filePath, err)
+		return nil, nil, nil, nil, fmt.Errorf("failed to read %s: %w", filePath, err)
 	}
 
 	services, _ := inner["services"].(map[string]any)
 	svcMap, _ := services[service].(map[string]any)
 	if svcMap == nil {
-		return nil, nil, nil
+		return nil, nil, nil, nil, nil
 	}
 
 	vars := parseStringMap(svcMap, "env")
 	refs := parseStringSlice(svcMap, "sharedRefs")
-	return vars, refs, nil
+	databaseRefs := parseDatabaseRefs(svcMap)
+	serviceRefs := parseServiceRefs(svcMap)
+	return vars, refs, databaseRefs, serviceRefs, nil
 }
 
 // SetServiceVariables replaces all variables for a service in an environment.
-func (p *SoftServeProvider) SetServiceVariables(ctx context.Context, project, environment, service string, vars map[string]string, sharedRefs []string) error {
+func (p *SoftServeProvider) SetServiceVariables(ctx context.Context, project, environment, service string, vars map[string]string, sharedRefs []string, databaseRefs map[string]DatabaseRef, serviceRefs map[string]ServiceRef) error {
 	return p.modifyRepo(ctx, project, fmt.Sprintf("config(%s): update variables for %s", environment, service), false, func(dir string) error {
 		filePath := filepath.Join(dir, "environments", environment, "values.yaml")
 		inner, err := readSubchartValues(filePath)
@@ -1005,6 +1058,16 @@ func (p *SoftServeProvider) SetServiceVariables(ctx context.Context, project, en
 			svcMap["sharedRefs"] = validRefs
 		} else {
 			delete(svcMap, "sharedRefs")
+		}
+		if len(databaseRefs) > 0 {
+			svcMap["databaseRefs"] = databaseRefsToAny(databaseRefs)
+		} else {
+			delete(svcMap, "databaseRefs")
+		}
+		if len(serviceRefs) > 0 {
+			svcMap["serviceRefs"] = serviceRefsToAny(serviceRefs)
+		} else {
+			delete(svcMap, "serviceRefs")
 		}
 		services[service] = svcMap
 		inner["services"] = services
@@ -1050,7 +1113,8 @@ func (p *SoftServeProvider) AddDatabase(ctx context.Context, project string, db 
 	})
 }
 
-// RemoveDatabase removes a database definition from base/values.yaml.
+// RemoveDatabase removes a database definition from base/values.yaml and cleans
+// up databaseRefs that reference it across all environment values files.
 func (p *SoftServeProvider) RemoveDatabase(ctx context.Context, project, name string) error {
 	return p.modifyRepo(ctx, project, fmt.Sprintf("config: remove database %s", name), false, func(dir string) error {
 		path := filepath.Join(dir, "base", "values.yaml")
@@ -1075,7 +1139,58 @@ func (p *SoftServeProvider) RemoveDatabase(ctx context.Context, project, name st
 		databases["postgres"] = postgres
 		inner["databases"] = databases
 
-		return writeSubchartValues(path, inner)
+		if err := writeSubchartValues(path, inner); err != nil {
+			return err
+		}
+
+		// Clean up databaseRefs referencing the deleted database across all environments.
+		envFiles, _ := filepath.Glob(filepath.Join(dir, "environments", "*", "values.yaml"))
+		for _, envPath := range envFiles {
+			envInner, readErr := readSubchartValues(envPath)
+			if readErr != nil {
+				continue
+			}
+			envSvcs, ok := envInner["services"].(map[string]any)
+			if !ok {
+				continue
+			}
+			modified := false
+			for svcName, svcRaw := range envSvcs {
+				svcMap, ok := svcRaw.(map[string]any)
+				if !ok {
+					continue
+				}
+				refs := parseDatabaseRefs(svcMap)
+				if refs == nil {
+					continue
+				}
+				changed := false
+				for refName, ref := range refs {
+					if ref.Database == name {
+						delete(refs, refName)
+						changed = true
+					}
+				}
+				if !changed {
+					continue
+				}
+				if len(refs) == 0 {
+					delete(svcMap, "databaseRefs")
+				} else {
+					svcMap["databaseRefs"] = databaseRefsToAny(refs)
+				}
+				envSvcs[svcName] = svcMap
+				modified = true
+			}
+			if modified {
+				envInner["services"] = envSvcs
+				if writeErr := writeSubchartValues(envPath, envInner); writeErr != nil {
+					return writeErr
+				}
+			}
+		}
+
+		return nil
 	})
 }
 

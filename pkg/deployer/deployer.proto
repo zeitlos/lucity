@@ -34,9 +34,6 @@ service DeployerService {
 
   // DatabaseStatus returns the runtime status of a database in an environment.
   rpc DatabaseStatus(DatabaseStatusRequest) returns (DatabaseStatusResponse);
-
-  // DatabaseCredentials returns the connection credentials for a database.
-  rpc DatabaseCredentials(DatabaseCredentialsRequest) returns (DatabaseCredentialsResponse);
 }
 
 message DeployEnvironmentRequest {
@@ -192,18 +189,3 @@ message VolumeInfo {
   int64 capacity_bytes = 5;
 }
 
-// Database credentials messages.
-
-message DatabaseCredentialsRequest {
-  string project = 1;
-  string environment = 2;
-  string database = 3;
-}
-
-message DatabaseCredentialsResponse {
-  string host = 1;
-  string port = 2;
-  string dbname = 3;
-  string user = 4;
-  string password = 5;
-}

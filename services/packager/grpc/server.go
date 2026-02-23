@@ -292,12 +292,17 @@ func (s *Server) ServiceVariables(ctx context.Context, req *packager.ServiceVari
 
 	p := s.provider
 
-	vars, refs, err := p.ServiceVariables(ctx, req.Project, req.Environment, req.Service)
+	vars, refs, databaseRefs, serviceRefs, err := p.ServiceVariables(ctx, req.Project, req.Environment, req.Service)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get service variables: %w", err)
 	}
 
-	return &packager.ServiceVariablesResponse{Variables: vars, SharedRefs: refs}, nil
+	return &packager.ServiceVariablesResponse{
+		Variables:    vars,
+		SharedRefs:   refs,
+		DatabaseRefs: databaseRefsToProto(databaseRefs),
+		ServiceRefs:  serviceRefsToProto(serviceRefs),
+	}, nil
 }
 
 func (s *Server) SetServiceVariables(ctx context.Context, req *packager.SetServiceVariablesRequest) (*packager.SetServiceVariablesResponse, error) {
@@ -305,7 +310,7 @@ func (s *Server) SetServiceVariables(ctx context.Context, req *packager.SetServi
 
 	p := s.provider
 
-	if err := p.SetServiceVariables(ctx, req.Project, req.Environment, req.Service, req.Variables, req.SharedRefs); err != nil {
+	if err := p.SetServiceVariables(ctx, req.Project, req.Environment, req.Service, req.Variables, req.SharedRefs, databaseRefsFromProto(req.DatabaseRefs), serviceRefsFromProto(req.ServiceRefs)); err != nil {
 		return nil, fmt.Errorf("failed to set service variables: %w", err)
 	}
 
@@ -420,4 +425,58 @@ func serviceInfosFromDefs(defs []gitops.ServiceDef) []*packager.ServiceInfo {
 		}
 	}
 	return infos
+}
+
+func databaseRefsToProto(refs map[string]gitops.DatabaseRef) map[string]*packager.DatabaseRef {
+	if len(refs) == 0 {
+		return nil
+	}
+	result := make(map[string]*packager.DatabaseRef, len(refs))
+	for k, v := range refs {
+		result[k] = &packager.DatabaseRef{
+			Database: v.Database,
+			Key:      v.Key,
+		}
+	}
+	return result
+}
+
+func serviceRefsToProto(refs map[string]gitops.ServiceRef) map[string]*packager.ServiceRef {
+	if len(refs) == 0 {
+		return nil
+	}
+	result := make(map[string]*packager.ServiceRef, len(refs))
+	for k, v := range refs {
+		result[k] = &packager.ServiceRef{
+			Service: v.Service,
+		}
+	}
+	return result
+}
+
+func databaseRefsFromProto(refs map[string]*packager.DatabaseRef) map[string]gitops.DatabaseRef {
+	if len(refs) == 0 {
+		return nil
+	}
+	result := make(map[string]gitops.DatabaseRef, len(refs))
+	for k, v := range refs {
+		result[k] = gitops.DatabaseRef{
+			Database: v.Database,
+			Key:      v.Key,
+		}
+	}
+	return result
+}
+
+func serviceRefsFromProto(refs map[string]*packager.ServiceRef) map[string]gitops.ServiceRef {
+	if len(refs) == 0 {
+		return nil
+	}
+	result := make(map[string]gitops.ServiceRef, len(refs))
+	for k, v := range refs {
+		result[k] = gitops.ServiceRef{
+			Service: v.Service,
+		}
+	}
+	return result
 }

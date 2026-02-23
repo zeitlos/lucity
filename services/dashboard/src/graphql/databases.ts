@@ -69,8 +69,3 @@ export const ExecuteQueryMutation = gql`
   }
 `;
 
-export const ConnectDatabaseMutation = gql`
-  mutation ConnectDatabase($projectId: ID!, $environment: String!, $database: String!) {
-    connectDatabase(projectId: $projectId, environment: $environment, database: $database)
-  }
-`;

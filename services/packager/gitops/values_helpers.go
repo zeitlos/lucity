@@ -59,6 +59,68 @@ func parseStringSlice(m map[string]any, key string) []string {
 	return result
 }
 
+// parseDatabaseRefs extracts database references from a YAML service map.
+func parseDatabaseRefs(m map[string]any) map[string]DatabaseRef {
+	raw, ok := m["databaseRefs"].(map[string]any)
+	if !ok {
+		return nil
+	}
+	result := make(map[string]DatabaseRef, len(raw))
+	for k, v := range raw {
+		ref, ok := v.(map[string]any)
+		if !ok {
+			continue
+		}
+		result[k] = DatabaseRef{
+			Database: fmt.Sprintf("%v", ref["database"]),
+			Key:      fmt.Sprintf("%v", ref["key"]),
+		}
+	}
+	return result
+}
+
+// parseServiceRefs extracts service references from a YAML service map.
+func parseServiceRefs(m map[string]any) map[string]ServiceRef {
+	raw, ok := m["serviceRefs"].(map[string]any)
+	if !ok {
+		return nil
+	}
+	result := make(map[string]ServiceRef, len(raw))
+	for k, v := range raw {
+		ref, ok := v.(map[string]any)
+		if !ok {
+			continue
+		}
+		result[k] = ServiceRef{
+			Service: fmt.Sprintf("%v", ref["service"]),
+		}
+	}
+	return result
+}
+
+// databaseRefsToAny converts database refs to map[string]any for YAML marshaling.
+func databaseRefsToAny(refs map[string]DatabaseRef) map[string]any {
+	result := make(map[string]any, len(refs))
+	for k, v := range refs {
+		result[k] = map[string]any{
+			"database": v.Database,
+			"key":      v.Key,
+		}
+	}
+	return result
+}
+
+// serviceRefsToAny converts service refs to map[string]any for YAML marshaling.
+func serviceRefsToAny(refs map[string]ServiceRef) map[string]any {
+	result := make(map[string]any, len(refs))
+	for k, v := range refs {
+		result[k] = map[string]any{
+			"service": v.Service,
+		}
+	}
+	return result
+}
+
 // stringMapToAny converts map[string]string to map[string]any for YAML marshaling.
 func stringMapToAny(m map[string]string) map[string]any {
 	result := make(map[string]any, len(m))

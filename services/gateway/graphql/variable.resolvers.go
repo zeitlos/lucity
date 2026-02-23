@@ -25,11 +25,18 @@ func (r *mutationResolver) SetSharedVariables(ctx context.Context, projectID str
 func (r *mutationResolver) SetServiceVariables(ctx context.Context, projectID string, environment string, service string, variables []model.ServiceVariableInput) (bool, error) {
 	var directVars []handler.Variable
 	var sharedRefs []string
+	dbRefs := make(map[string]handler.DatabaseRef)
+	svcRefs := make(map[string]handler.ServiceRef)
 
 	for _, v := range variables {
-		if v.FromShared != nil && *v.FromShared {
+		switch {
+		case v.DatabaseRef != nil:
+			dbRefs[v.Key] = handler.DatabaseRef{Database: v.DatabaseRef.Database, Key: v.DatabaseRef.Key}
+		case v.ServiceRef != nil:
+			svcRefs[v.Key] = handler.ServiceRef{Service: v.ServiceRef.Service}
+		case v.FromShared != nil && *v.FromShared:
 			sharedRefs = append(sharedRefs, v.Key)
-		} else {
+		default:
 			val := ""
 			if v.Value != nil {
 				val = *v.Value
@@ -38,7 +45,7 @@ func (r *mutationResolver) SetServiceVariables(ctx context.Context, projectID st
 		}
 	}
 
-	return r.API.SetServiceVariables(ctx, projectID, environment, service, directVars, sharedRefs)
+	return r.API.SetServiceVariables(ctx, projectID, environment, service, directVars, sharedRefs, dbRefs, svcRefs)
 }
 
 // SharedVariables is the resolver for the sharedVariables field.
@@ -64,11 +71,23 @@ func (r *queryResolver) ServiceVariables(ctx context.Context, projectID string, 
 
 	result := make([]model.ServiceVariable, len(vars))
 	for i, v := range vars {
-		result[i] = model.ServiceVariable{
+		sv := model.ServiceVariable{
 			Key:        v.Key,
 			Value:      v.Value,
 			FromShared: v.FromShared,
 		}
+		if v.DatabaseRef != nil {
+			sv.DatabaseRef = &model.DatabaseRef{
+				Database: v.DatabaseRef.Database,
+				Key:      v.DatabaseRef.Key,
+			}
+		}
+		if v.ServiceRef != nil {
+			sv.ServiceRef = &model.ServiceRef{
+				Service: v.ServiceRef.Service,
+			}
+		}
+		result[i] = sv
 	}
 	return result, nil
 }

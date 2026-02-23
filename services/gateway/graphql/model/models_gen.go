@@ -82,6 +82,17 @@ type DatabaseQueryInput struct {
 	Query       string `json:"query"`
 }
 
+// A reference to a CNPG database secret key (resolved at pod startup via secretKeyRef).
+type DatabaseRef struct {
+	Database string `json:"database"`
+	Key      string `json:"key"`
+}
+
+type DatabaseRefInput struct {
+	Database string `json:"database"`
+	Key      string `json:"key"`
+}
+
 type DatabaseTable struct {
 	Name          string           `json:"name"`
 	Schema        string           `json:"schema"`
@@ -227,18 +238,33 @@ type ServiceLogEntry struct {
 	Pod string `json:"pod"`
 }
 
+// A reference to another service's internal URL (computed by Helm template).
+type ServiceRef struct {
+	Service string `json:"service"`
+}
+
+type ServiceRefInput struct {
+	Service string `json:"service"`
+}
+
 type ServiceVariable struct {
-	Key        string `json:"key"`
-	Value      string `json:"value"`
-	FromShared bool   `json:"fromShared"`
+	Key         string       `json:"key"`
+	Value       string       `json:"value"`
+	FromShared  bool         `json:"fromShared"`
+	DatabaseRef *DatabaseRef `json:"databaseRef,omitempty"`
+	ServiceRef  *ServiceRef  `json:"serviceRef,omitempty"`
 }
 
 type ServiceVariableInput struct {
 	Key string `json:"key"`
-	// Direct value. Required when fromShared is false, ignored when true.
+	// Direct value. Required when no ref is set.
 	Value *string `json:"value,omitempty"`
 	// If true, value is resolved from the shared variable with the same key.
 	FromShared *bool `json:"fromShared,omitempty"`
+	// Reference to a database secret key.
+	DatabaseRef *DatabaseRefInput `json:"databaseRef,omitempty"`
+	// Reference to another service's internal URL.
+	ServiceRef *ServiceRefInput `json:"serviceRef,omitempty"`
 }
 
 type SetServiceDomainInput struct {

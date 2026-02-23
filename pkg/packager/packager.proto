@@ -266,6 +266,8 @@ message ServiceVariablesRequest {
 message ServiceVariablesResponse {
   map<string, string> variables = 1;
   repeated string shared_refs = 2;  // keys in variables that reference shared vars
+  map<string, DatabaseRef> database_refs = 3;  // env var name -> database secret reference
+  map<string, ServiceRef> service_refs = 4;    // env var name -> service URL reference
 }
 
 message SetServiceVariablesRequest {
@@ -274,9 +276,22 @@ message SetServiceVariablesRequest {
   string service = 3;
   map<string, string> variables = 4;     // direct variable values
   repeated string shared_refs = 5;       // keys to resolve from shared variables
+  map<string, DatabaseRef> database_refs = 6;  // env var name -> database secret reference
+  map<string, ServiceRef> service_refs = 7;    // env var name -> service URL reference
 }
 
 message SetServiceVariablesResponse {}
+
+// DatabaseRef references a key in a CNPG-generated Kubernetes Secret.
+message DatabaseRef {
+  string database = 1;  // database name (e.g., "main")
+  string key = 2;       // CNPG secret key: "uri", "host", "port", "dbname", "user", "password"
+}
+
+// ServiceRef references another service's internal URL (computed by Helm template).
+message ServiceRef {
+  string service = 1;   // service name (e.g., "api")
+}
 
 // --- Database management ---
 

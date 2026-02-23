@@ -499,24 +499,6 @@ type kubeletPVCRef struct {
 	Namespace string `json:"namespace"`
 }
 
-func (s *Server) DatabaseCredentials(ctx context.Context, req *deployer.DatabaseCredentialsRequest) (*deployer.DatabaseCredentialsResponse, error) {
-	creds, err := database.CredentialsFromSecret(ctx, s.k8s, req.Project, req.Environment, req.Database)
-	if err != nil {
-		if errors.Is(err, database.ErrNotReady) {
-			return nil, status.Errorf(codes.FailedPrecondition, "database is provisioning")
-		}
-		return nil, status.Errorf(codes.NotFound, "database credentials not found: %v", err)
-	}
-
-	return &deployer.DatabaseCredentialsResponse{
-		Host:     creds.Host,
-		Port:     creds.Port,
-		Dbname:   creds.DBName,
-		User:     creds.User,
-		Password: creds.Password,
-	}, nil
-}
-
 // mapStatus converts ArgoCD health/sync status to proto DeploymentStatus.
 func mapStatus(status *argocd.AppStatus) (deployer.DeploymentStatus, string) {
 	if status == nil {

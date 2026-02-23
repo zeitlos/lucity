@@ -26,11 +26,23 @@ spec:
             - name: http
               containerPort: {{ $svc.port }}
               protocol: TCP
-          {{- if $svc.env }}
+          {{- if or $svc.env $svc.databaseRefs $svc.serviceRefs }}
           env:
             {{- range $key, $val := $svc.env }}
             - name: {{ $key }}
               value: {{ $val | quote }}
+            {{- end }}
+            {{- range $key, $ref := $svc.databaseRefs }}
+            - name: {{ $key }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "lucity-app.fullname" $ }}-pg-{{ $ref.database }}-app
+                  key: {{ $ref.key }}
+            {{- end }}
+            {{- range $key, $ref := $svc.serviceRefs }}
+            {{- $target := index $.Values.services $ref.service }}
+            - name: {{ $key }}
+              value: {{ printf "http://%s-%s:%d" (include "lucity-app.fullname" $) $ref.service ($target.port | int) | quote }}
             {{- end }}
           {{- end }}
           {{- if $svc.resources }}

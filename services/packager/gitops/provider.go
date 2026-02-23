@@ -30,6 +30,17 @@ type DatabaseDef struct {
 	Size      string // e.g., "10Gi"
 }
 
+// DatabaseRef references a key in a CNPG-generated Kubernetes Secret.
+type DatabaseRef struct {
+	Database string
+	Key      string
+}
+
+// ServiceRef references another service's internal URL.
+type ServiceRef struct {
+	Service string
+}
+
 // Provider abstracts Git repository operations for GitOps repos.
 // Implementation: Soft-serve.
 type Provider interface {
@@ -95,12 +106,12 @@ type Provider interface {
 	SetSharedVariables(ctx context.Context, project, environment string, vars map[string]string) error
 
 	// ServiceVariables returns all variables and shared refs for a service in an environment.
-	ServiceVariables(ctx context.Context, project, environment, service string) (vars map[string]string, sharedRefs []string, err error)
+	ServiceVariables(ctx context.Context, project, environment, service string) (vars map[string]string, sharedRefs []string, databaseRefs map[string]DatabaseRef, serviceRefs map[string]ServiceRef, err error)
 
 	// SetServiceVariables replaces all variables for a service in an environment.
 	// Direct values come from vars. Keys listed in sharedRefs are resolved from the
 	// environment's shared variables and merged into the service's env map.
-	SetServiceVariables(ctx context.Context, project, environment, service string, vars map[string]string, sharedRefs []string) error
+	SetServiceVariables(ctx context.Context, project, environment, service string, vars map[string]string, sharedRefs []string, databaseRefs map[string]DatabaseRef, serviceRefs map[string]ServiceRef) error
 
 	// AddDatabase adds a PostgreSQL database definition to base/values.yaml.
 	AddDatabase(ctx context.Context, project string, db DatabaseDef) error

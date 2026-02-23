@@ -21,6 +21,13 @@ export const ServiceVariablesQuery = gql`
       key
       value
       fromShared
+      databaseRef {
+        database
+        key
+      }
+      serviceRef {
+        service
+      }
     }
   }
 `;
