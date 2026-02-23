@@ -113,6 +113,8 @@ async function handleDeleteEnvironment() {
     toast.success(`Environment "${name}" deleted`);
   } catch (e: unknown) {
     toast.error('Failed to delete environment', { description: errorMessage(e) });
+  } finally {
+    envToDelete.value = null;
   }
 }
 </script>
@@ -271,10 +273,7 @@ async function handleDeleteEnvironment() {
               </p>
 
               <!-- Delete confirmation dialog -->
-              <AlertDialog
-                :open="!!envToDelete"
-                @update:open="(open: boolean) => { if (!open) envToDelete = null; }"
-              >
+              <AlertDialog :open="!!envToDelete">
                 <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle>Delete environment "{{ envToDelete }}"?</AlertDialogTitle>
@@ -285,14 +284,14 @@ async function handleDeleteEnvironment() {
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction
+                    <AlertDialogCancel @click="envToDelete = null">Cancel</AlertDialogCancel>
+                    <Button
+                      variant="destructive"
                       :disabled="deletingEnv"
-                      class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                       @click="handleDeleteEnvironment"
                     >
                       {{ deletingEnv ? 'Deleting...' : 'Delete' }}
-                    </AlertDialogAction>
+                    </Button>
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
