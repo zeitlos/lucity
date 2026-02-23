@@ -2,6 +2,9 @@ package tests
 
 import (
 	"encoding/json"
+	"fmt"
+	"io"
+	"net"
 	"os/exec"
 	"strings"
 	"testing"
@@ -145,6 +148,49 @@ func assertResourceGone(t *testing.T, resource, name, ns string) {
 		t.Fatalf("expected %s/%s to be gone in %s, but it still exists", resource, name, ns)
 	}
 	t.Logf("%s/%s is gone in %s", resource, name, ns)
+}
+
+// portForward starts kubectl port-forward in the background and returns the
+// command so the caller can kill it later. It waits for the port to become
+// connectable before returning.
+func portForward(t *testing.T, ns, svc string, localPort, remotePort int) *exec.Cmd {
+	t.Helper()
+	cmd := exec.Command("kubectl", "port-forward",
+		fmt.Sprintf("svc/%s", svc), fmt.Sprintf("%d:%d", localPort, remotePort),
+		"-n", ns,
+	)
+	cmd.Stdout = io.Discard
+	cmd.Stderr = io.Discard
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("failed to start port-forward for %s/%s: %v", ns, svc, err)
+	}
+
+	deadline := time.Now().Add(10 * time.Second)
+	for time.Now().Before(deadline) {
+		conn, err := net.DialTimeout("tcp", fmt.Sprintf("localhost:%d", localPort), 500*time.Millisecond)
+		if err == nil {
+			conn.Close()
+			t.Logf("port-forward ready: localhost:%d -> %s/%s:%d", localPort, ns, svc, remotePort)
+			return cmd
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+
+	cmd.Process.Kill()
+	cmd.Wait()
+	t.Fatalf("port-forward for %s/%s did not become ready within 10s", ns, svc)
+	return nil
+}
+
+// stopPortForward kills a port-forward process.
+func stopPortForward(t *testing.T, cmd *exec.Cmd) {
+	t.Helper()
+	if cmd == nil || cmd.Process == nil {
+		return
+	}
+	cmd.Process.Kill()
+	cmd.Wait()
+	t.Log("port-forward stopped")
 }
 
 // getDeploymentImage returns the container image of a deployment.

@@ -2,6 +2,7 @@ package tests
 
 import (
 	"encoding/json"
+	"os/exec"
 	"testing"
 	"time"
 )
@@ -9,6 +10,10 @@ import (
 // dbReady is set to true once the CNPG cluster pod is running.
 // Tests that need a connectable database check this before proceeding.
 var dbReady bool
+
+// dbPortForward holds the kubectl port-forward process for the CNPG service.
+// Started after the database pod is ready, killed after DeleteDatabase.
+var dbPortForward *exec.Cmd
 
 func requireDBReady(t *testing.T) {
 	t.Helper()
@@ -81,6 +86,14 @@ func testDatabase(t *testing.T) {
 			time.Sleep(3 * time.Second)
 		}
 		t.Log("WARNING: CNPG pod did not become ready within 3 minutes — database query tests will be skipped")
+	})
+
+	t.Run("PortForward", func(t *testing.T) {
+		requireDBReady(t)
+
+		ns := namespace("development")
+		svc := ns + "-lucity-app-pg-" + testDBName + "-rw"
+		dbPortForward = portForward(t, ns, svc, 5432, 5432)
 	})
 
 	t.Run("DatabaseRef", func(t *testing.T) {
@@ -350,6 +363,11 @@ func testDatabase(t *testing.T) {
 		} else {
 			t.Log("WARNING: CNPG cluster still exists (may take time to finalize)")
 		}
+	})
+
+	t.Run("StopPortForward", func(t *testing.T) {
+		stopPortForward(t, dbPortForward)
+		dbPortForward = nil
 	})
 }
 
