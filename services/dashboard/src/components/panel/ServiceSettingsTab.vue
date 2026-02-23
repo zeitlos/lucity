@@ -615,7 +615,7 @@ async function handleRemoveService() {
 
     <!-- DNS Records Modal -->
     <Dialog v-model:open="dnsModalOpen">
-      <DialogContent class="sm:max-w-md">
+      <DialogContent class="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Configure DNS Records</DialogTitle>
           <DialogDescription>
