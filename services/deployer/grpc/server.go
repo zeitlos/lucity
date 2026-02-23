@@ -12,6 +12,7 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
@@ -57,6 +58,21 @@ func (s *Server) DeployEnvironment(ctx context.Context, req *deployer.DeployEnvi
 		return &deployer.DeployEnvironmentResponse{
 			DeploymentName: existing.Metadata.Name,
 		}, nil
+	}
+
+	// Ensure the namespace exists with platform labels.
+	ns := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: req.TargetNamespace,
+			Labels: map[string]string{
+				labels.Project:     req.Project,
+				labels.Environment: req.Environment,
+				labels.ManagedBy:   labels.ManagedByLucity,
+			},
+		},
+	}
+	if _, err := s.k8s.CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{}); err != nil && !apierrors.IsAlreadyExists(err) {
+		return nil, fmt.Errorf("failed to create namespace %s: %w", req.TargetNamespace, err)
 	}
 
 	// Ensure the GitOps repo is registered in ArgoCD with credentials.
@@ -121,15 +137,22 @@ func (s *Server) RemoveDeployment(ctx context.Context, req *deployer.RemoveDeplo
 	appName := applicationName(req.Project, req.Environment)
 
 	if err := s.argo.DeleteApplication(ctx, appName, true); err != nil {
-		// Idempotent: if the application is already gone, that's fine.
-		if strings.Contains(err.Error(), "404") {
-			slog.Info("ArgoCD application already deleted", "app", appName)
-			return &deployer.RemoveDeploymentResponse{}, nil
+		// Idempotent: if the application is already gone, that's fine — still clean up the namespace.
+		if !strings.Contains(err.Error(), "404") {
+			return nil, fmt.Errorf("failed to delete ArgoCD application: %w", err)
 		}
-		return nil, fmt.Errorf("failed to delete ArgoCD application: %w", err)
+		slog.Info("ArgoCD application already deleted", "app", appName)
+	} else {
+		slog.Info("deleted ArgoCD application", "app", appName)
 	}
 
-	slog.Info("deleted ArgoCD application", "app", appName)
+	// Delete the namespace. ArgoCD cascade already cleaned up resources inside.
+	ns := labels.NamespaceFor(req.Project, req.Environment)
+	if err := s.k8s.CoreV1().Namespaces().Delete(ctx, ns, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+		return nil, fmt.Errorf("failed to delete namespace %s: %w", ns, err)
+	}
+	slog.Info("deleted namespace", "namespace", ns)
+
 	return &deployer.RemoveDeploymentResponse{}, nil
 }
 

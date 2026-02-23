@@ -11,6 +11,7 @@ const (
 	Ephemeral   = Prefix + "ephemeral"
 	Service     = Prefix + "service"
 	BuiltBy     = Prefix + "built-by"
+	ManagedBy   = Prefix + "managed-by"
 )
 
 // OCI image label constants.
@@ -21,7 +22,8 @@ const (
 
 // Values for well-known label values.
 const (
-	BuiltByBuilder = "lucity-builder"
+	BuiltByBuilder  = "lucity-builder"
+	ManagedByLucity = "lucity"
 )
 
 // Selector returns a Kubernetes label selector string for the given key-value pair.
