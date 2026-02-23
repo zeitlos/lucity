@@ -3,7 +3,7 @@ import { ref, computed } from 'vue';
 import { useMutation, useQuery } from '@vue/apollo-composable';
 import {
   Trash2, Copy, X, Globe, Plus, CircleCheck, CircleAlert,
-  HelpCircle, ChevronDown, Network,
+  HelpCircle, ChevronDown, Network, ExternalLink,
 } from 'lucide-vue-next';
 import {
   RemoveServiceMutation,
@@ -73,6 +73,11 @@ const customDomains = computed(() => domains.value.filter(d => d.type === 'CUSTO
 // Platform config
 const { result: platformConfigResult } = useQuery(PlatformConfigQuery);
 const domainTarget = computed(() => platformConfigResult.value?.platformConfig?.domainTarget ?? '');
+
+function domainUrl(hostname: string) {
+  if (hostname.endsWith('.local')) return `http://${hostname}:8880`;
+  return `https://${hostname}`;
+}
 
 // Custom domain input
 const customDomainInput = ref('');
@@ -312,10 +317,16 @@ async function handleRemoveService() {
 
               <!-- Platform domain exists -->
               <div v-else class="flex items-center gap-2">
-                <div class="flex flex-1 items-center gap-2 rounded-md border bg-muted/50 px-3 py-2">
+                <a
+                  :href="domainUrl(platformDomain.hostname)"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="flex flex-1 items-center gap-2 rounded-md border bg-muted/50 px-3 py-2 transition-colors hover:bg-muted/80"
+                >
                   <CircleCheck :size="14" class="shrink-0 text-green-500" />
-                  <span class="truncate font-mono text-sm">{{ platformDomain.hostname }}</span>
-                </div>
+                  <span class="truncate font-mono text-sm hover:underline">{{ platformDomain.hostname }}</span>
+                  <ExternalLink :size="12" class="ml-auto shrink-0 text-muted-foreground" />
+                </a>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -379,7 +390,14 @@ async function handleRemoveService() {
                     :size="14"
                     class="shrink-0 text-yellow-500"
                   />
-                  <span class="flex-1 truncate font-mono text-sm">{{ domain.hostname }}</span>
+                  <a
+                    :href="domainUrl(domain.hostname)"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="flex-1 truncate font-mono text-sm hover:underline"
+                  >
+                    {{ domain.hostname }}
+                  </a>
                   <Button
                     v-if="domain.dnsStatus !== 'VALID' && domainTarget"
                     variant="ghost"
