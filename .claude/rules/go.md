@@ -89,6 +89,14 @@ Server interface: `Label() string`, `Start() error`, `Shutdown(context.Context) 
 - **Structure within file**: package decl, imports, types/interfaces, constructors, methods, helpers
 - **Tests**: `_test.go` suffix. Standard `testing` package.
 
+## Dependencies
+
+After adding, removing, or upgrading dependencies, run `go mod tidy` in **every affected service directory**. Docker builds use `GOWORK=off`, so each service needs a complete `go.sum` — the workspace won't save you in CI. When in doubt, tidy all services:
+
+```sh
+for svc in services/*/; do (cd "$svc" && go mod tidy); done
+```
+
 ## Patterns
 
 - **Context**: always first parameter — `ctx context.Context`
