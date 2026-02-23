@@ -6,5 +6,19 @@ export default defineAppConfig({
     socials: {
       github: 'zeitlos/lucity'
     }
+  },
+  ui: {
+    colors: {
+      primary: 'teal',
+      neutral: 'stone'
+    }
+  },
+  header: {
+    title: 'Lucity',
+    logo: {
+      light: '/logo-light.svg',
+      dark: '/logo-dark.svg',
+      alt: 'Lucity'
+    }
   }
 });

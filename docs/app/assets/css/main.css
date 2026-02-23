@@ -1,0 +1,78 @@
+@import "tailwindcss";
+@import "@nuxt/ui";
+
+@theme {
+  /* Fonts — exact match to dashboard */
+  --font-sans: 'Sora', system-ui, sans-serif;
+  --font-serif: 'Instrument Serif', Georgia, serif;
+  --font-mono: 'Fira Code', monospace;
+
+  /* Primary palette — hue 160, chroma 0.18 at 500 */
+  /* Dashboard --primary: oklch(0.75 0.18 160) → mapped to 500 */
+  --color-teal-50:  oklch(0.97 0.02 160);
+  --color-teal-100: oklch(0.94 0.04 160);
+  --color-teal-200: oklch(0.89 0.08 160);
+  --color-teal-300: oklch(0.83 0.12 160);
+  --color-teal-400: oklch(0.79 0.16 160);
+  --color-teal-500: oklch(0.75 0.18 160);
+  --color-teal-600: oklch(0.65 0.17 160);
+  --color-teal-700: oklch(0.55 0.15 160);
+  --color-teal-800: oklch(0.44 0.12 160);
+  --color-teal-900: oklch(0.35 0.09 160);
+  --color-teal-950: oklch(0.26 0.06 160);
+
+  /* Neutral palette — warm grays, hues 55-80 from dashboard */
+  /* Derived directly from dashboard tokens:                  */
+  /*   --card:             oklch(0.97 0.015 80) → 50          */
+  /*   --background:       oklch(0.95 0.02 80)  → 100         */
+  /*   --muted:            oklch(0.90 0.02 80)  → 200         */
+  /*   --border:           oklch(0.85 0.03 75)  → 300         */
+  /*   --muted-foreground: oklch(0.50 0.04 55)  → 600         */
+  /*   --foreground:       oklch(0.25 0.04 55)  → 900         */
+  /*   --card (dark):      oklch(0.24 0.03 55)  → 900         */
+  /*   --background (dark):oklch(0.20 0.03 55)  → 950         */
+  --color-stone-50:  oklch(0.98 0.01 80);
+  --color-stone-100: oklch(0.95 0.02 80);
+  --color-stone-200: oklch(0.90 0.02 80);
+  --color-stone-300: oklch(0.85 0.03 75);
+  --color-stone-400: oklch(0.70 0.03 65);
+  --color-stone-500: oklch(0.55 0.03 55);
+  --color-stone-600: oklch(0.50 0.04 55);
+  --color-stone-700: oklch(0.40 0.03 55);
+  --color-stone-800: oklch(0.30 0.03 55);
+  --color-stone-900: oklch(0.24 0.03 55);
+  --color-stone-950: oklch(0.20 0.03 55);
+}
+
+/*
+ * Nuxt UI resolves palette names at build time into --ui-color-* variables.
+ * Override those directly with the exact dashboard OKLCH values.
+ */
+:root {
+  /* Primary — dashboard hue 160 */
+  --ui-color-primary-50:  oklch(0.97 0.02 160);
+  --ui-color-primary-100: oklch(0.94 0.04 160);
+  --ui-color-primary-200: oklch(0.89 0.08 160);
+  --ui-color-primary-300: oklch(0.83 0.12 160);
+  --ui-color-primary-400: oklch(0.79 0.16 160);
+  --ui-color-primary-500: oklch(0.75 0.18 160);
+  --ui-color-primary-600: oklch(0.65 0.17 160);
+  --ui-color-primary-700: oklch(0.55 0.15 160);
+  --ui-color-primary-800: oklch(0.44 0.12 160);
+  --ui-color-primary-900: oklch(0.35 0.09 160);
+  --ui-color-primary-950: oklch(0.26 0.06 160);
+  --ui-primary: oklch(0.75 0.18 160);
+
+  /* Neutral — dashboard warm grays (hues 55-80) */
+  --ui-color-neutral-50:  oklch(0.98 0.01 80);
+  --ui-color-neutral-100: oklch(0.95 0.02 80);
+  --ui-color-neutral-200: oklch(0.90 0.02 80);
+  --ui-color-neutral-300: oklch(0.85 0.03 75);
+  --ui-color-neutral-400: oklch(0.70 0.03 65);
+  --ui-color-neutral-500: oklch(0.55 0.03 55);
+  --ui-color-neutral-600: oklch(0.50 0.04 55);
+  --ui-color-neutral-700: oklch(0.40 0.03 55);
+  --ui-color-neutral-800: oklch(0.30 0.03 55);
+  --ui-color-neutral-900: oklch(0.24 0.03 55);
+  --ui-color-neutral-950: oklch(0.20 0.03 55);
+}
