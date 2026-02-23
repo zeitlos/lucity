@@ -21,7 +21,7 @@ func New() *Constraint {
 func (c *Constraint) Validate(ctx context.Context, obj interface{}, next graphql.Resolver, constraint string) (interface{}, error) {
 	val, err := next(ctx)
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("invalid value for %s", graphql.GetPathContext(ctx).Path())
 	}
 
 	path := graphql.GetPathContext(ctx).Path()

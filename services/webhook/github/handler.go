@@ -61,10 +61,12 @@ func ValidateAndParse(secret []byte, r *http.Request) (*Event, error) {
 		event.PRNumber = e.GetNumber()
 
 	case *gh.InstallationEvent:
+		// Placeholder for future installation lifecycle management (app installed/uninstalled).
 		event.Action = e.GetAction()
 		event.Sender = e.GetSender().GetLogin()
 
 	case *gh.InstallationRepositoriesEvent:
+		// Placeholder for future repo add/remove tracking on existing installations.
 		event.Action = e.GetAction()
 		event.Sender = e.GetSender().GetLogin()
 

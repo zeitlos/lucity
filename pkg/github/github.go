@@ -26,18 +26,6 @@ type User struct {
 	AvatarURL string
 }
 
-// Repository represents a GitHub repository.
-type Repository struct {
-	ID            int64
-	Name          string
-	FullName      string // "org/repo"
-	CloneURL      string
-	HTMLURL       string
-	DefaultBranch string
-	Private       bool
-	Owner         string // org or user login
-}
-
 // NewApp creates a new GitHub App client.
 // privateKeyPath is the path to the GitHub App's PEM private key file.
 // If empty, the app will work for OAuth but installation token features will be unavailable.
