@@ -4,24 +4,14 @@ go 1.26.0
 
 replace (
 	github.com/zeitlos/lucity/charts => ../../charts
-	github.com/zeitlos/lucity/pkg/auth => ../../pkg/auth
-	github.com/zeitlos/lucity/pkg/deployer => ../../pkg/deployer
-	github.com/zeitlos/lucity/pkg/graceful => ../../pkg/graceful
-	github.com/zeitlos/lucity/pkg/labels => ../../pkg/labels
-	github.com/zeitlos/lucity/pkg/logger => ../../pkg/logger
-	github.com/zeitlos/lucity/pkg/packager => ../../pkg/packager
+	github.com/zeitlos/lucity/pkg => ../../pkg
 )
 
 require (
 	github.com/go-git/go-git/v5 v5.16.5
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/zeitlos/lucity/charts v0.0.0-00010101000000-000000000000
-	github.com/zeitlos/lucity/pkg/auth v0.0.0-00010101000000-000000000000
-	github.com/zeitlos/lucity/pkg/deployer v0.0.0-00010101000000-000000000000
-	github.com/zeitlos/lucity/pkg/graceful v0.0.0-00010101000000-000000000000
-	github.com/zeitlos/lucity/pkg/labels v0.0.0-00010101000000-000000000000
-	github.com/zeitlos/lucity/pkg/logger v0.0.0-00010101000000-000000000000
-	github.com/zeitlos/lucity/pkg/packager v0.0.0-00010101000000-000000000000
+	github.com/zeitlos/lucity/pkg v0.0.0-00010101000000-000000000000
 	golang.org/x/crypto v0.46.0
 	google.golang.org/grpc v1.79.1
 	google.golang.org/protobuf v1.36.11
@@ -29,11 +19,12 @@ require (
 )
 
 require (
-	dario.cat/mergo v1.0.0 // indirect
+	dario.cat/mergo v1.0.1 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/ProtonMail/go-crypto v1.1.6 // indirect
 	github.com/cloudflare/circl v1.6.1 // indirect
 	github.com/cyphar/filepath-securejoin v0.4.1 // indirect
+	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
 	github.com/go-git/go-billy/v5 v5.6.2 // indirect
@@ -43,12 +34,15 @@ require (
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
 	github.com/lmittmann/tint v1.1.3 // indirect
 	github.com/pjbgf/sha1cd v0.3.2 // indirect
+	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/sergi/go-diff v1.3.2-0.20230802210424-5b0b94c5c0d3 // indirect
 	github.com/skeema/knownhosts v1.3.1 // indirect
+	github.com/stretchr/testify v1.11.1 // indirect
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
+	golang.org/x/exp v0.0.0-20240909161429-701f63a606c0 // indirect
 	golang.org/x/net v0.48.0 // indirect
 	golang.org/x/sys v0.39.0 // indirect
 	golang.org/x/text v0.33.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20251202230838-ff82c1b0f217 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260203192932-546029d2fa20 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 )
