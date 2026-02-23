@@ -54,11 +54,47 @@ jobs:
           echo "Resolved version: $(cat "$GITHUB_OUTPUT" | grep version | head -1)"
 
   # ---------------------------------------------------------------------------
-  # Build and push container images
+  # CI: fast compile + typecheck on every push and PR
+  # ---------------------------------------------------------------------------
+  ci:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: go
+            run: go build ./services/gateway/cmd/gateway/... ./services/builder/cmd/builder/... ./services/packager/cmd/packager/... ./services/deployer/cmd/deployer/... ./services/webhook/cmd/webhook/...
+          - name: dashboard
+            run: cd services/dashboard && npm ci && npm run build
+          - name: docs
+            run: cd docs && npm ci && npm run build
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        if: matrix.name == 'go'
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.work
+
+      - name: Set up Node
+        if: matrix.name != 'go'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: ${{ matrix.name == 'dashboard' && 'services/dashboard/package-lock.json' || 'docs/package-lock.json' }}
+
+      - name: Build
+        run: ${{ matrix.run }}
+
+  # ---------------------------------------------------------------------------
+  # Build and push container images (main + tags only)
   # ---------------------------------------------------------------------------
   build:
     runs-on: ubuntu-latest
-    needs: version
+    needs: [version, ci]
+    if: github.event_name != 'pull_request'
     strategy:
       fail-fast: false
       matrix:
@@ -91,11 +127,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
 
       - name: Log in to GHCR
-        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
@@ -114,8 +148,6 @@ jobs:
             type=raw,value=latest,enable=${{ needs.version.outputs.is_release == 'true' && !contains(needs.version.outputs.version, '-') }}
             # Branch name tag for main pushes
             type=ref,event=branch
-            # PR number tag
-            type=ref,event=pr
           labels: |
             org.opencontainers.image.title=${{ matrix.service }}
             org.opencontainers.image.description=Lucity ${{ matrix.service }} service
@@ -131,15 +163,15 @@ jobs:
           file: ${{ matrix.dockerfile }}
           build-args: |
             SERVICE=${{ matrix.service }}
-          platforms: linux/amd64,linux/arm64
-          push: ${{ github.event_name != 'pull_request' }}
+          platforms: linux/amd64
+          push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=registry,ref=${{ env.IMAGE_BASE }}/${{ matrix.service }}:buildcache
-          cache-to: ${{ github.event_name != 'pull_request' && format('type=registry,ref={0}/{1}:buildcache,mode=max', env.IMAGE_BASE, matrix.service) || '' }}
+          cache-to: type=registry,ref=${{ env.IMAGE_BASE }}/${{ matrix.service }}:buildcache,mode=max
 
   # ---------------------------------------------------------------------------
-  # Package and push Helm charts
+  # Package and push Helm charts (main + tags only)
   # ---------------------------------------------------------------------------
   helm:
     runs-on: ubuntu-latest
