@@ -7,6 +7,8 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
+	"strings"
 	"testing"
 	"time"
 
@@ -50,8 +52,22 @@ func makeToken() (string, error) {
 		GitHubLogin: "testuser",
 		AvatarURL:   "https://github.com/testuser.png",
 		Roles:       []auth.Role{auth.RoleUser, auth.RoleAdmin},
+		GitHubToken: githubToken(),
 	}
 	return auth.NewToken(claims, jwtSecret(), 1*time.Hour)
+}
+
+// githubToken returns a GitHub OAuth token for API tests.
+// Checks GITHUB_TOKEN env var first, then falls back to `gh auth token`.
+func githubToken() string {
+	if t := os.Getenv("GITHUB_TOKEN"); t != "" {
+		return t
+	}
+	out, err := exec.Command("gh", "auth", "token").Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
 }
 
 type graphqlRequest struct {

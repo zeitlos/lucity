@@ -1,17 +1,15 @@
 package tests
 
 import (
-	"os"
 	"testing"
 )
 
 func testGitHub(t *testing.T) {
 	t.Run("Repositories", func(t *testing.T) {
-		// This test requires a real GitHub OAuth token.
-		// The token must be in the JWT claims (set during OAuth login).
-		// Skip if not configured — user interaction is required for OAuth.
-		if os.Getenv("GITHUB_TOKEN") == "" {
-			t.Skip("skipping: GITHUB_TOKEN not set (requires OAuth login)")
+		// This test requires a GitHub OAuth token embedded in the JWT.
+		// The token is auto-detected from GITHUB_TOKEN env or `gh auth token`.
+		if githubToken() == "" {
+			t.Skip("skipping: no GitHub token (set GITHUB_TOKEN or run `gh auth login`)")
 		}
 
 		token := testToken(t)
@@ -27,13 +25,6 @@ func testGitHub(t *testing.T) {
 				}
 			}
 		`, nil)
-
-		if len(resp.Errors) > 0 {
-			// GitHubAuthError is expected if the token doesn't have GitHub OAuth
-			t.Logf("github repositories returned error (expected without OAuth): %s", resp.Errors[0].Message)
-			return
-		}
-
 		requireNoErrors(t, resp)
 
 		var data struct {
@@ -48,8 +39,7 @@ func testGitHub(t *testing.T) {
 		unmarshalData(t, resp, &data)
 
 		if len(data.GitHubRepositories) == 0 {
-			t.Log("no repositories returned (user may have no accessible repos)")
-			return
+			t.Fatal("expected at least one repository")
 		}
 
 		t.Logf("found %d repositories", len(data.GitHubRepositories))
