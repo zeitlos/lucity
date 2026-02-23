@@ -49,7 +49,7 @@
  * Override those directly with the exact dashboard OKLCH values.
  */
 :root {
-  /* Primary — dashboard hue 160 */
+  /* Primary palette — dashboard hue 160 */
   --ui-color-primary-50:  oklch(0.97 0.02 160);
   --ui-color-primary-100: oklch(0.94 0.04 160);
   --ui-color-primary-200: oklch(0.89 0.08 160);
@@ -61,9 +61,8 @@
   --ui-color-primary-800: oklch(0.44 0.12 160);
   --ui-color-primary-900: oklch(0.35 0.09 160);
   --ui-color-primary-950: oklch(0.26 0.06 160);
-  --ui-primary: oklch(0.75 0.18 160);
 
-  /* Neutral — dashboard warm grays (hues 55-80) */
+  /* Neutral palette — dashboard warm grays (hues 55-80) */
   --ui-color-neutral-50:  oklch(0.98 0.01 80);
   --ui-color-neutral-100: oklch(0.95 0.02 80);
   --ui-color-neutral-200: oklch(0.90 0.02 80);
@@ -75,4 +74,42 @@
   --ui-color-neutral-800: oklch(0.30 0.03 55);
   --ui-color-neutral-900: oklch(0.24 0.03 55);
   --ui-color-neutral-950: oklch(0.20 0.03 55);
+
+  /*
+   * Semantic overrides — Nuxt UI's auto-mapping doesn't match the dashboard.
+   * Values taken directly from dashboard :root (light mode).
+   */
+  --ui-bg:               oklch(0.95 0.02 80);   /* --background */
+  --ui-bg-elevated:      oklch(0.97 0.015 80);  /* --card */
+  --ui-bg-muted:         oklch(0.90 0.02 80);   /* --muted */
+  --ui-bg-inverted:      oklch(0.25 0.04 55);   /* --foreground */
+  --ui-border:           oklch(0.85 0.03 75);   /* --border */
+  --ui-border-muted:     oklch(0.90 0.02 80);   /* --muted */
+  --ui-border-inverted:  oklch(0.25 0.04 55);   /* --foreground */
+  --ui-text:             oklch(0.25 0.04 55);   /* --foreground */
+  --ui-text-dimmed:      oklch(0.50 0.04 55);   /* --muted-foreground */
+  --ui-text-muted:       oklch(0.50 0.04 55);   /* --muted-foreground */
+  --ui-text-highlighted: oklch(0.25 0.04 55);   /* --foreground */
+  --ui-text-inverted:    oklch(0.97 0.015 80);  /* --card */
+  --ui-primary:          oklch(0.75 0.18 160);  /* --primary */
+}
+
+.dark {
+  /*
+   * Semantic overrides — dark mode.
+   * Values taken directly from dashboard .dark block.
+   */
+  --ui-bg:               oklch(0.20 0.03 55);   /* --background */
+  --ui-bg-elevated:      oklch(0.24 0.03 55);   /* --card */
+  --ui-bg-muted:         oklch(0.28 0.02 55);   /* --muted */
+  --ui-bg-inverted:      oklch(0.90 0.03 80);   /* --foreground */
+  --ui-border:           oklch(0.32 0.03 55);   /* --border */
+  --ui-border-muted:     oklch(0.28 0.02 55);   /* --muted */
+  --ui-border-inverted:  oklch(0.90 0.03 80);   /* --foreground */
+  --ui-text:             oklch(0.90 0.03 80);   /* --foreground */
+  --ui-text-dimmed:      oklch(0.60 0.03 55);   /* --muted-foreground */
+  --ui-text-muted:       oklch(0.60 0.03 55);   /* --muted-foreground */
+  --ui-text-highlighted: oklch(0.90 0.03 80);   /* --foreground */
+  --ui-text-inverted:    oklch(0.24 0.03 55);   /* --card */
+  --ui-primary:          oklch(0.72 0.16 160);  /* --primary (dark) */
 }
