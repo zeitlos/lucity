@@ -58,8 +58,8 @@ func testProject(t *testing.T) {
 
 	t.Run("WaitForNamespace", func(t *testing.T) {
 		// ArgoCD needs to sync before the namespace appears.
-		// This can take up to 3 minutes depending on sync interval.
-		if waitForNamespaceOK(t, namespace("development"), 3*time.Minute) {
+		// This can take up to 5 minutes depending on sync interval and cluster load.
+		if waitForNamespaceOK(t, namespace("development"), 5*time.Minute) {
 			devNamespaceReady = true
 			assertResourceExists(t, "application.argoproj.io", testProjectName+"-development", "lucity-system")
 		} else {
