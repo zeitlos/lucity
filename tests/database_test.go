@@ -3,6 +3,7 @@ package tests
 import (
 	"encoding/json"
 	"os/exec"
+	"strings"
 	"testing"
 	"time"
 )
@@ -66,26 +67,26 @@ func testDatabase(t *testing.T) {
 	})
 
 	t.Run("WaitForReady", func(t *testing.T) {
-		// CNPG cluster name is Helm-generated: {namespace}-lucity-app-pg-{dbname}
+		// Wait for the CNPG cluster's Ready condition, not just pod Running.
+		// Pod Running doesn't mean PostgreSQL has finished initialization with credentials.
 		cnpgClusterName := namespace("development") + "-lucity-app-pg-" + testDBName
-		t.Logf("waiting for CNPG pod with label cnpg.io/cluster=%s", cnpgClusterName)
+		t.Logf("waiting for CNPG cluster %s to be Ready", cnpgClusterName)
 
 		deadline := time.Now().Add(3 * time.Minute)
 		for time.Now().Before(deadline) {
 			out, err := kubectlQuiet(t,
-				"get", "pods", "-n", namespace("development"),
-				"-l", "cnpg.io/cluster="+cnpgClusterName,
-				"--no-headers",
-				"-o", "custom-columns=:status.phase",
+				"get", "cluster.postgresql.cnpg.io", cnpgClusterName,
+				"-n", namespace("development"),
+				"-o", "jsonpath={.status.conditions[?(@.type==\"Ready\")].status}",
 			)
-			if err == nil && containsRunning(out) {
+			if err == nil && strings.TrimSpace(out) == "True" {
 				dbReady = true
-				t.Log("database pod is running")
+				t.Log("CNPG cluster is Ready")
 				return
 			}
 			time.Sleep(3 * time.Second)
 		}
-		t.Log("WARNING: CNPG pod did not become ready within 3 minutes — database query tests will be skipped")
+		t.Log("WARNING: CNPG cluster did not become Ready within 3 minutes — database query tests will be skipped")
 	})
 
 	t.Run("PortForward", func(t *testing.T) {
