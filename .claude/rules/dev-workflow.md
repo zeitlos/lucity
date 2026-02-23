@@ -20,11 +20,20 @@ After editing code, read the relevant log file(s) in `tmp/logs/` to check for er
 ## Integration Tests
 
 ```sh
-make test-integration          # full suite (needs all services + Docker)
-make test-integration-short    # quick tests only (gateway sufficient)
+make test-integration          # full suite (all services + Minikube infrastructure)
+make test-integration-short    # quick tests (gateway only)
+make test-watch                # auto-rerun on file changes (requires watchexec)
 ```
 
-Tests are in `tests/` — a separate Go module that hits the GraphQL API with generated JWT tokens.
+Tests are in `tests/` — a separate Go module that hits the GraphQL API with generated JWT tokens. Tests verify side effects with `kubectl` (namespaces, ArgoCD apps, deployments, CNPG clusters) and `psql`.
+
+| Runner | Log file | Status file |
+|--------|----------|-------------|
+| Tests  | `tmp/logs/tests.log` | `tmp/dev/tests.status` |
+
+After making changes that affect the GraphQL API or backend services, read `tmp/logs/tests.log` to verify integration tests still pass. If the test runner is in watch mode (`make test-watch`), tests re-run automatically.
+
+See `tests/CLAUDE.md` for test organization, infrastructure requirements, and cleanup instructions.
 
 ## Paths
 

@@ -102,6 +102,16 @@ make dev-deployer   # gRPC on :9003
 make dev-webhook    # HTTP on :9004
 ```
 
+### Integration Tests
+
+```sh
+make test-integration          # full suite (all services + Minikube)
+make test-integration-short    # quick tests (gateway only)
+make test-watch                # auto-rerun on file changes (requires watchexec)
+```
+
+Test output is logged to `tmp/logs/tests.log`. After running tests, read this file to check results. Look for `--- FAIL` to find failures and `ok`/`FAIL` for overall status. See `tests/CLAUDE.md` for full details.
+
 ## Known Issues
 
 _None yet — this is a fresh scaffold._

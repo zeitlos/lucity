@@ -1,107 +1,108 @@
 package tests
 
 import (
-	"encoding/json"
 	"testing"
 	"time"
 )
 
-func TestBuildService(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping build test in short mode (needs builder + Docker)")
-	}
-
+func testBuild(t *testing.T) {
+	requireProjectCreated(t)
 	token := testToken(t)
 
-	// This test requires:
-	// 1. A project with a real GitHub source URL
-	// 2. Builder service running with Docker daemon available
-	// 3. REGISTRY_TOKEN set for registry push (Zot)
-	//
-	// Test the build flow: start build → poll status → verify completion.
-	resp := doGraphQL(t, token, `
-		mutation($input: BuildServiceInput!) {
-			buildService(input: $input) {
-				id
-				phase
-			}
-		}
-	`, map[string]any{
-		"input": map[string]any{
-			"projectId": "test-project",
-			"service":   "api",
-		},
-	})
+	var buildID string
 
-	// If no project exists, we expect an error — that's fine for the scaffolding test
-	if len(resp.Errors) > 0 {
-		t.Logf("build returned error (expected if no project exists): %v", resp.Errors[0].Message)
-		return
-	}
-
-	var startData struct {
-		BuildService struct {
-			ID    string `json:"id"`
-			Phase string `json:"phase"`
-		} `json:"buildService"`
-	}
-	if err := json.Unmarshal(resp.Data, &startData); err != nil {
-		t.Fatalf("failed to decode build start response: %v", err)
-	}
-
-	buildID := startData.BuildService.ID
-	t.Logf("build started: id=%s phase=%s", buildID, startData.BuildService.Phase)
-
-	// Poll build status until completion or timeout
-	deadline := time.Now().Add(5 * time.Minute)
-	for time.Now().Before(deadline) {
-		time.Sleep(3 * time.Second)
-
-		statusResp := doGraphQL(t, token, `
-			query($id: ID!) {
-				buildStatus(id: $id) {
+	t.Run("StartBuild", func(t *testing.T) {
+		resp := doGraphQL(t, token, `
+			mutation($input: BuildServiceInput!) {
+				buildService(input: $input) {
 					id
 					phase
-					imageRef
-					digest
-					error
 				}
 			}
-		`, map[string]any{"id": buildID})
-		requireNoErrors(t, statusResp)
+		`, map[string]any{
+			"input": map[string]any{
+				"projectId": testProjectName,
+				"service":   testServiceName,
+			},
+		})
+		requireNoErrors(t, resp)
 
-		var statusData struct {
-			BuildStatus struct {
-				ID       string  `json:"id"`
-				Phase    string  `json:"phase"`
-				ImageRef *string `json:"imageRef"`
-				Digest   *string `json:"digest"`
-				Error    *string `json:"error"`
-			} `json:"buildStatus"`
+		buildID = extractString(t, resp.Data, "buildService", "id")
+		phase := extractString(t, resp.Data, "buildService", "phase")
+
+		if buildID == "" {
+			t.Fatal("buildService returned empty id")
 		}
-		if err := json.Unmarshal(statusResp.Data, &statusData); err != nil {
-			t.Fatalf("failed to decode build status: %v", err)
+		t.Logf("build started: id=%s phase=%s", buildID, phase)
+	})
+
+	t.Run("PollBuildStatus", func(t *testing.T) {
+		if buildID == "" {
+			t.Fatal("no build ID — StartBuild must have failed")
 		}
 
-		phase := statusData.BuildStatus.Phase
-		t.Logf("build %s: phase=%s", buildID, phase)
+		deadline := time.Now().Add(5 * time.Minute)
+		for time.Now().Before(deadline) {
+			time.Sleep(3 * time.Second)
 
-		switch phase {
-		case "SUCCEEDED":
-			if statusData.BuildStatus.ImageRef == nil {
-				t.Error("build succeeded but imageRef is nil")
-			} else {
-				t.Logf("build succeeded: image=%s", *statusData.BuildStatus.ImageRef)
+			resp := doGraphQL(t, token, `
+				query($id: ID!) {
+					buildStatus(id: $id) {
+						id
+						phase
+						imageRef
+						digest
+						error
+					}
+				}
+			`, map[string]any{"id": buildID})
+			requireNoErrors(t, resp)
+
+			var data struct {
+				BuildStatus struct {
+					ID       string  `json:"id"`
+					Phase    string  `json:"phase"`
+					ImageRef *string `json:"imageRef"`
+					Digest   *string `json:"digest"`
+					Error    *string `json:"error"`
+				} `json:"buildStatus"`
 			}
-			return
-		case "FAILED":
-			errMsg := ""
-			if statusData.BuildStatus.Error != nil {
-				errMsg = *statusData.BuildStatus.Error
+			unmarshalData(t, resp, &data)
+
+			phase := data.BuildStatus.Phase
+			t.Logf("build %s: phase=%s", buildID, phase)
+
+			switch phase {
+			case "SUCCEEDED":
+				if data.BuildStatus.ImageRef == nil || *data.BuildStatus.ImageRef == "" {
+					t.Fatal("build succeeded but imageRef is empty")
+				}
+				if data.BuildStatus.Digest != nil {
+					testBuildDigest = *data.BuildStatus.Digest
+				}
+				// Extract tag from imageRef (format: registry/project/service:tag)
+				testBuildTag = extractTagFromImageRef(*data.BuildStatus.ImageRef)
+				t.Logf("build succeeded: image=%s tag=%s digest=%s", *data.BuildStatus.ImageRef, testBuildTag, testBuildDigest)
+				return
+			case "FAILED":
+				errMsg := ""
+				if data.BuildStatus.Error != nil {
+					errMsg = *data.BuildStatus.Error
+				}
+				t.Fatalf("build failed: %s", errMsg)
 			}
-			t.Fatalf("build failed: %s", errMsg)
+		}
+
+		t.Fatal("build timed out after 5 minutes")
+	})
+}
+
+// extractTagFromImageRef extracts the tag from an image reference like "registry/project/service:tag".
+func extractTagFromImageRef(imageRef string) string {
+	for i := len(imageRef) - 1; i >= 0; i-- {
+		if imageRef[i] == ':' {
+			return imageRef[i+1:]
 		}
 	}
-
-	t.Fatal("build timed out after 5 minutes")
+	return imageRef
 }

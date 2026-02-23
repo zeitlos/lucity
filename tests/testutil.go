@@ -3,6 +3,7 @@ package tests
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -34,6 +35,15 @@ func jwtSecret() string {
 // testToken generates a JWT token for integration tests.
 func testToken(t *testing.T) string {
 	t.Helper()
+	token, err := makeToken()
+	if err != nil {
+		t.Fatalf("failed to create test token: %v", err)
+	}
+	return token
+}
+
+// makeToken generates a JWT token without requiring a *testing.T (for cleanup).
+func makeToken() (string, error) {
 	claims := &auth.Claims{
 		Subject:     "test-user",
 		Email:       "test@example.com",
@@ -41,11 +51,7 @@ func testToken(t *testing.T) string {
 		AvatarURL:   "https://github.com/testuser.png",
 		Roles:       []auth.Role{auth.RoleUser, auth.RoleAdmin},
 	}
-	token, err := auth.NewToken(claims, jwtSecret(), 1*time.Hour)
-	if err != nil {
-		t.Fatalf("failed to create test token: %v", err)
-	}
-	return token
+	return auth.NewToken(claims, jwtSecret(), 1*time.Hour)
 }
 
 type graphqlRequest struct {
@@ -63,18 +69,26 @@ type graphqlResponse struct {
 // doGraphQL sends a GraphQL query to the gateway and returns the parsed response.
 func doGraphQL(t *testing.T, token, query string, variables map[string]any) *graphqlResponse {
 	t.Helper()
+	resp, err := doGraphQLRaw(token, query, variables)
+	if err != nil {
+		t.Fatalf("graphql request failed: %v", err)
+	}
+	return resp
+}
 
+// doGraphQLRaw sends a GraphQL query without requiring a *testing.T (for cleanup).
+func doGraphQLRaw(token, query string, variables map[string]any) (*graphqlResponse, error) {
 	body, err := json.Marshal(graphqlRequest{
 		Query:     query,
 		Variables: variables,
 	})
 	if err != nil {
-		t.Fatalf("failed to marshal request: %v", err)
+		return nil, fmt.Errorf("marshal request: %w", err)
 	}
 
 	req, err := http.NewRequest("POST", gatewayURL()+"/graphql", bytes.NewReader(body))
 	if err != nil {
-		t.Fatalf("failed to create request: %v", err)
+		return nil, fmt.Errorf("create request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	if token != "" {
@@ -83,25 +97,25 @@ func doGraphQL(t *testing.T, token, query string, variables map[string]any) *gra
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		t.Fatalf("graphql request failed: %v", err)
+		return nil, fmt.Errorf("http request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		t.Fatalf("failed to read response: %v", err)
+		return nil, fmt.Errorf("read response: %w", err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("unexpected status %d: %s", resp.StatusCode, string(respBody))
+		return nil, fmt.Errorf("unexpected status %d: %s", resp.StatusCode, string(respBody))
 	}
 
 	var gqlResp graphqlResponse
 	if err := json.Unmarshal(respBody, &gqlResp); err != nil {
-		t.Fatalf("failed to decode response: %s", string(respBody))
+		return nil, fmt.Errorf("decode response: %s", string(respBody))
 	}
 
-	return &gqlResp
+	return &gqlResp, nil
 }
 
 // requireNoErrors fails the test if the GraphQL response contains errors.
@@ -114,4 +128,104 @@ func requireNoErrors(t *testing.T, resp *graphqlResponse) {
 		}
 		t.Fatalf("graphql errors: %v", msgs)
 	}
+}
+
+// requireErrors fails the test if the GraphQL response has no errors.
+func requireErrors(t *testing.T, resp *graphqlResponse) {
+	t.Helper()
+	if len(resp.Errors) == 0 {
+		t.Fatal("expected graphql errors but got none")
+	}
+}
+
+// unmarshalData decodes the GraphQL response data into target.
+func unmarshalData(t *testing.T, resp *graphqlResponse, target any) {
+	t.Helper()
+	if err := json.Unmarshal(resp.Data, target); err != nil {
+		t.Fatalf("failed to decode response data: %v\nraw: %s", err, string(resp.Data))
+	}
+}
+
+// extractString extracts a string value from a nested JSON path.
+// Example: extractString(t, resp.Data, "createProject", "id")
+func extractString(t *testing.T, raw json.RawMessage, keys ...string) string {
+	t.Helper()
+	var current json.RawMessage = raw
+	for _, key := range keys {
+		var m map[string]json.RawMessage
+		if err := json.Unmarshal(current, &m); err != nil {
+			t.Fatalf("failed to extract key %q: %v", key, err)
+		}
+		val, ok := m[key]
+		if !ok {
+			t.Fatalf("key %q not found in response", key)
+		}
+		current = val
+	}
+
+	var s string
+	if err := json.Unmarshal(current, &s); err != nil {
+		t.Fatalf("value at path is not a string: %s", string(current))
+	}
+	return s
+}
+
+// extractBool extracts a boolean value from a nested JSON path.
+func extractBool(t *testing.T, raw json.RawMessage, keys ...string) bool {
+	t.Helper()
+	var current json.RawMessage = raw
+	for _, key := range keys {
+		var m map[string]json.RawMessage
+		if err := json.Unmarshal(current, &m); err != nil {
+			t.Fatalf("failed to extract key %q: %v", key, err)
+		}
+		val, ok := m[key]
+		if !ok {
+			t.Fatalf("key %q not found in response", key)
+		}
+		current = val
+	}
+
+	var b bool
+	if err := json.Unmarshal(current, &b); err != nil {
+		t.Fatalf("value at path is not a bool: %s", string(current))
+	}
+	return b
+}
+
+// doHTTP performs an HTTP request and returns the response body and status code.
+func doHTTP(t *testing.T, method, url, token string) ([]byte, int) {
+	t.Helper()
+	req, err := http.NewRequest(method, url, nil)
+	if err != nil {
+		t.Fatalf("failed to create request: %v", err)
+	}
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("http request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("failed to read response body: %v", err)
+	}
+	return body, resp.StatusCode
+}
+
+// requireProjectCreated fatals if the test project hasn't been created yet.
+func requireProjectCreated(t *testing.T) {
+	t.Helper()
+	if testProjectName == "" {
+		t.Fatal("test project not created — earlier test must have failed")
+	}
+}
+
+// namespace returns the Kubernetes namespace for the test project and environment.
+func namespace(env string) string {
+	return testProjectName + "-" + env
 }
