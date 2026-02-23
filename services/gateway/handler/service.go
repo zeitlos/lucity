@@ -80,6 +80,28 @@ func (c *Client) AddService(ctx context.Context, projectID, name string, port in
 		return nil, fmt.Errorf("failed to add service: %w", err)
 	}
 
+	// Fire-and-forget: build the service so it has an image immediately.
+	registry := deriveImagePath(c.RegistryPushURL, projectID, name)
+	token := auth.TokenFrom(ctx)
+	go func() {
+		buildCtx := auth.WithToken(context.Background(), token)
+		buildCtx = auth.OutgoingContext(buildCtx)
+		buildCtx, cancel := context.WithTimeout(buildCtx, grpcTimeout)
+		defer cancel()
+		_, err := c.Builder.StartBuild(buildCtx, &builder.StartBuildRequest{
+			SourceUrl:   sourceURL,
+			GitRef:      "",
+			Service:     name,
+			Registry:    registry,
+			ContextPath: contextPath,
+		})
+		if err != nil {
+			slog.Warn("failed to start initial build", "project", projectID, "service", name, "error", err)
+		} else {
+			slog.Info("started initial build", "project", projectID, "service", name)
+		}
+	}()
+
 	return &Service{
 		Name:        name,
 		Image:       image,
