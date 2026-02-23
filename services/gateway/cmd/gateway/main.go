@@ -112,7 +112,13 @@ func main() {
 	if registryImagePrefix == "" {
 		registryImagePrefix = config.RegistryURL
 	}
-	api := handler.New(packagerClient, builderClient, deployerClient, config.RegistryURL, registryImagePrefix, config.WorkloadDomain, config.DomainTarget)
+
+	domainTarget := config.DomainTarget
+	if domainTarget == "" {
+		domainTarget = "lb." + config.WorkloadDomain
+	}
+
+	api := handler.New(packagerClient, builderClient, deployerClient, config.RegistryURL, registryImagePrefix, config.WorkloadDomain, domainTarget)
 	graphqlServer := NewGraphQLServer(config.Port, api, githubApp, config.JWTSecret, config.DashboardURL)
 
 	graceful.Serve(ctx, graphqlServer)
