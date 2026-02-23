@@ -89,8 +89,28 @@ func (c *Client) DeleteApplication(ctx context.Context, name string, cascade boo
 	return nil
 }
 
+// RefreshApplication forces ArgoCD to re-fetch the Git repo and update its cache.
+func (c *Client) RefreshApplication(ctx context.Context, name string) (*Application, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
+		c.baseURL+"/api/v1/applications/"+name+"?refresh=hard", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var result Application
+	if err := c.do(req, &result); err != nil {
+		return nil, fmt.Errorf("failed to refresh application %s: %w", name, err)
+	}
+	return &result, nil
+}
+
 // SyncApplication triggers a sync for an ArgoCD Application.
+// It performs a hard refresh first to ensure ArgoCD has the latest Git revision.
 func (c *Client) SyncApplication(ctx context.Context, name string) (*Application, error) {
+	if _, err := c.RefreshApplication(ctx, name); err != nil {
+		return nil, fmt.Errorf("failed to refresh before sync: %w", err)
+	}
+
 	body, err := json.Marshal(SyncRequest{Prune: true})
 	if err != nil {
 		return nil, err
