@@ -54,6 +54,12 @@ export const CreateEnvironmentMutation = gql`
   }
 `;
 
+export const DeleteEnvironmentMutation = gql`
+  mutation DeleteEnvironment($projectId: ID!, $environment: String!) {
+    deleteEnvironment(projectId: $projectId, environment: $environment)
+  }
+`;
+
 export const ProjectQuery = gql`
   query Project($id: ID!) {
     project(id: $id) {

@@ -3,7 +3,7 @@ import { computed, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuery, useMutation } from '@vue/apollo-composable';
 import { ArrowLeft, Trash2 } from 'lucide-vue-next';
-import { ProjectQuery, DeleteProjectMutation } from '@/graphql/projects';
+import { ProjectQuery, DeleteProjectMutation, DeleteEnvironmentMutation } from '@/graphql/projects';
 import { apolloClient } from '@/lib/apollo';
 import { useEnvironment } from '@/composables/useEnvironment';
 import SharedVariablesEditor from '@/components/SharedVariablesEditor.vue';
@@ -35,7 +35,7 @@ const { result, loading } = useQuery(ProjectQuery, () => ({
 const project = computed(() => result.value?.project);
 
 // Environment management — reuse global composable so SharedVariablesEditor picks them up
-const { setEnvironments } = useEnvironment();
+const { setEnvironments, environments, activeEnvironment, setEnvironment } = useEnvironment();
 
 import { watch } from 'vue';
 watch(
@@ -51,6 +51,7 @@ const activeSection = ref('general');
 
 const sections = [
   { id: 'general', label: 'General' },
+  { id: 'environments', label: 'Environments' },
   { id: 'variables', label: 'Variables' },
 ];
 
@@ -75,6 +76,43 @@ async function handleDeleteProject() {
     router.push({ name: 'projects' });
   } catch (e: unknown) {
     toast.error('Failed to delete project', { description: errorMessage(e) });
+  }
+}
+
+// Delete environment
+const { mutate: deleteEnvironmentMutate, loading: deletingEnv } = useMutation(DeleteEnvironmentMutation, {
+  refetchQueries: () => [{ query: ProjectQuery, variables: { id: projectId.value } }],
+});
+const envToDelete = ref<string | null>(null);
+
+async function handleDeleteEnvironment() {
+  if (!envToDelete.value) return;
+
+  try {
+    const res = await deleteEnvironmentMutate({
+      projectId: projectId.value,
+      environment: envToDelete.value,
+    });
+
+    if (res?.errors?.length) {
+      toast.error('Failed to delete environment', {
+        description: res.errors.map((e: { message: string }) => e.message).join(', '),
+      });
+      return;
+    }
+
+    // If the deleted environment was active, switch to another one
+    if (activeEnvironment.value?.name === envToDelete.value) {
+      const remaining = environments.value.filter(e => e.name !== envToDelete.value);
+      if (remaining.length > 0) {
+        setEnvironment(remaining[0]);
+      }
+    }
+
+    toast.success(`Environment "${envToDelete.value}" deleted`);
+    envToDelete.value = null;
+  } catch (e: unknown) {
+    toast.error('Failed to delete environment', { description: errorMessage(e) });
   }
 }
 </script>
@@ -188,6 +226,76 @@ async function handleDeleteProject() {
                   </div>
                 </div>
               </section>
+            </div>
+
+            <!-- Environments -->
+            <div v-if="activeSection === 'environments'" class="space-y-6">
+              <div>
+                <h2 class="text-lg font-semibold text-foreground">Environments</h2>
+                <p class="text-sm text-muted-foreground">Manage environments for this project.</p>
+              </div>
+
+              <div class="overflow-hidden rounded-lg border">
+                <div class="divide-y">
+                  <div
+                    v-for="env in project.environments"
+                    :key="env.id"
+                    class="flex items-center justify-between px-4 py-3"
+                  >
+                    <div class="flex items-center gap-3">
+                      <span class="text-sm font-medium text-foreground">{{ env.name }}</span>
+                      <span
+                        v-if="env.ephemeral"
+                        class="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
+                      >
+                        ephemeral
+                      </span>
+                    </div>
+                    <AlertDialog
+                      :open="envToDelete === env.name"
+                      @update:open="(open: boolean) => { if (!open) envToDelete = null; }"
+                    >
+                      <AlertDialogTrigger as-child>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          class="h-8 w-8 text-muted-foreground hover:text-destructive"
+                          @click="envToDelete = env.name"
+                        >
+                          <Trash2 :size="14" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete environment "{{ env.name }}"?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This will remove the environment and its ArgoCD application.
+                            All deployments in this environment will be deleted.
+                            This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            :disabled="deletingEnv"
+                            class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            @click="handleDeleteEnvironment"
+                          >
+                            {{ deletingEnv ? 'Deleting...' : 'Delete' }}
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </div>
+              </div>
+
+              <p
+                v-if="!project.environments?.length"
+                class="text-sm text-muted-foreground"
+              >
+                No environments found.
+              </p>
             </div>
 
             <!-- Variables -->
