@@ -1,7 +1,13 @@
-<svg viewBox="-55 0.5 93 63" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Lucity logo">
-  <polygon points="-34.64,20 -17.32,30 -34.64,40 -51.96,30" fill="#00cf85" stroke="#00cf85" stroke-width="0.5" stroke-linejoin="round"/>
-  <polygon points="-17.32,30 0,40 -17.32,50 -34.64,40" fill="#00cf85" stroke="#00cf85" stroke-width="0.5" stroke-linejoin="round"/>
-  <polygon points="0,40 17.32,50 0,60 -17.32,50" fill="#00cf85" stroke="#00cf85" stroke-width="0.5" stroke-linejoin="round"/>
-  <polygon points="17.32,30 34.64,40 17.32,50 0,40" fill="#00cf85" stroke="#00cf85" stroke-width="0.5" stroke-linejoin="round"/>
-  <polygon points="-34.64,3.67 34.64,3.67 0,23.67" fill="#ede3d6"/>
+<svg width="32" height="32" viewBox="-68.70 -26.26 121.05 121.05" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Lucity mark">
+  <defs>
+    <mask id="m">
+      <circle cx="-8.18" cy="34.27" r="60.52" fill="white"/>
+      <polygon points="-34.64,20 -17.32,30 -34.64,40 -51.96,30" fill="black" stroke="black" stroke-width="0.5" stroke-linejoin="round"/>
+      <polygon points="-17.32,30 0,40 -17.32,50 -34.64,40" fill="black" stroke="black" stroke-width="0.5" stroke-linejoin="round"/>
+      <polygon points="0,40 17.32,50 0,60 -17.32,50" fill="black" stroke="black" stroke-width="0.5" stroke-linejoin="round"/>
+      <polygon points="17.32,30 34.64,40 17.32,50 0,40" fill="black" stroke="black" stroke-width="0.5" stroke-linejoin="round"/>
+      <polygon points="-34.64,3.67 34.64,3.67 0,23.67" fill="black"/>
+    </mask>
+  </defs>
+  <circle cx="-8.18" cy="34.27" r="60.52" fill="#301c0e" mask="url(#m)"/>
 </svg>
