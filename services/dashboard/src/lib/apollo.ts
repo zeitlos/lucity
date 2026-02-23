@@ -4,20 +4,35 @@ import { GraphQLWsLink } from '@apollo/client/link/subscriptions';
 import { getMainDefinition } from '@apollo/client/utilities';
 import { createClient } from 'graphql-ws';
 import router from '@/router';
+import { toast } from '@/components/ui/sonner';
 
 const httpLink = createHttpLink({
   uri: '/graphql',
   credentials: 'include',
 });
 
-const errorLink = onError(({ graphQLErrors }) => {
+const errorLink = onError(({ graphQLErrors, networkError, operation }) => {
   if (graphQLErrors) {
     for (const err of graphQLErrors) {
       if (err.message === 'unauthorized') {
         router.push('/login');
         return;
       }
+      if (err.extensions?.code === 'GITHUB_TOKEN_EXPIRED') {
+        window.location.href = '/auth/github';
+        return;
+      }
     }
+
+    // Toast query errors globally (mutations handle errors at component level)
+    const def = getMainDefinition(operation.query);
+    if (def.kind === 'OperationDefinition' && def.operation === 'query') {
+      toast.error(graphQLErrors.map(e => e.message).join(', '));
+    }
+  }
+
+  if (networkError) {
+    toast.error('Network error', { description: networkError.message });
   }
 });
 

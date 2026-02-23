@@ -64,7 +64,7 @@ function close() {
 }
 
 // GitHub repos
-const { result: reposResult, loading: reposLoading } = useQuery(GitHubRepositoriesQuery, null, () => ({
+const { result: reposResult, loading: reposLoading, error: reposError } = useQuery(GitHubRepositoriesQuery, null, () => ({
   enabled: props.open && view.value === 'github-repos',
 }));
 
@@ -88,9 +88,7 @@ async function handleSelectRepo(repo: { fullName: string; htmlUrl: string }) {
 
 async function handleCreateProjectFromRepo(repo: { fullName: string; htmlUrl: string }) {
   try {
-    // Use org prefix + generated name (e.g., "cblaettl/cosmic-panda")
-    const org = repo.fullName.split('/')[0];
-    const projectName = `${org}/${generateName()}`;
+    const projectName = generateName();
 
     const res = await createProject({
       input: {
@@ -340,6 +338,9 @@ const mainItems = computed(() => {
                 <p class="px-2 py-1.5 text-xs font-medium text-muted-foreground">Repositories</p>
                 <template v-if="reposLoading">
                   <p class="px-2 py-6 text-center text-sm text-muted-foreground">Loading repositories...</p>
+                </template>
+                <template v-else-if="reposError">
+                  <p class="px-2 py-6 text-center text-sm text-destructive">Failed to load repositories.</p>
                 </template>
                 <template v-else-if="repos.length === 0">
                   <p class="px-2 py-6 text-center text-sm text-muted-foreground">No repositories found.</p>

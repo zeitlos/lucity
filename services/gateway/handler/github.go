@@ -2,11 +2,20 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/http"
+
+	gh "github.com/google/go-github/v68/github"
 
 	"github.com/zeitlos/lucity/pkg/auth"
-	gh "github.com/google/go-github/v68/github"
 )
+
+// GitHubAuthError indicates the user's GitHub OAuth token is invalid or expired.
+type GitHubAuthError struct{ Err error }
+
+func (e *GitHubAuthError) Error() string { return e.Err.Error() }
+func (e *GitHubAuthError) Unwrap() error { return e.Err }
 
 // GitHubRepository represents a repo accessible to the authenticated user.
 type GitHubRepository struct {
@@ -39,6 +48,10 @@ func (c *Client) GitHubRepositories(ctx context.Context) ([]GitHubRepository, er
 	for {
 		repos, resp, err := client.Repositories.List(ctx, "", opts)
 		if err != nil {
+			var ghErr *gh.ErrorResponse
+			if errors.As(err, &ghErr) && ghErr.Response.StatusCode == http.StatusUnauthorized {
+				return nil, &GitHubAuthError{Err: err}
+			}
 			return nil, fmt.Errorf("failed to list repositories: %w", err)
 		}
 

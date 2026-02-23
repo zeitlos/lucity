@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -25,6 +26,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/rs/cors"
 	"github.com/vektah/gqlparser/v2/ast"
+	"github.com/vektah/gqlparser/v2/gqlerror"
 )
 
 type GraphQLServer struct {
@@ -95,6 +97,17 @@ func NewGraphQLServer(port string, api *handler.Client, githubApp *gh.App, jwtSe
 	})
 	srv.SetQueryCache(lru.New[*ast.QueryDocument](1000))
 	srv.Use(extension.Introspection{})
+
+	srv.SetErrorPresenter(func(ctx context.Context, err error) *gqlerror.Error {
+		var ghAuth *handler.GitHubAuthError
+		if errors.As(err, &ghAuth) {
+			return &gqlerror.Error{
+				Message:    "GitHub session expired",
+				Extensions: map[string]interface{}{"code": "GITHUB_TOKEN_EXPIRED"},
+			}
+		}
+		return gqlgen.DefaultErrorPresenter(ctx, err)
+	})
 
 	mux := http.NewServeMux()
 
