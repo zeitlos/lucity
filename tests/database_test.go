@@ -172,6 +172,104 @@ func testDatabase(t *testing.T) {
 		}
 	})
 
+	t.Run("ListDatabases", func(t *testing.T) {
+		resp := doGraphQL(t, token, `
+			query($projectId: ID!) {
+				databases(projectId: $projectId) {
+					name
+					version
+					instances
+					size
+				}
+			}
+		`, map[string]any{
+			"projectId": testProjectName,
+		})
+		requireNoErrors(t, resp)
+
+		var data struct {
+			Databases []struct {
+				Name      string `json:"name"`
+				Version   string `json:"version"`
+				Instances int    `json:"instances"`
+				Size      string `json:"size"`
+			} `json:"databases"`
+		}
+		unmarshalData(t, resp, &data)
+
+		found := false
+		for _, db := range data.Databases {
+			if db.Name == testDBName {
+				found = true
+				if db.Version != "16" {
+					t.Errorf("expected version 16, got %s", db.Version)
+				}
+				if db.Instances != 1 {
+					t.Errorf("expected 1 instance, got %d", db.Instances)
+				}
+				t.Logf("database: %s version=%s instances=%d size=%s", db.Name, db.Version, db.Instances, db.Size)
+			}
+		}
+		if !found {
+			t.Fatalf("database %s not found in databases list", testDBName)
+		}
+	})
+
+	t.Run("DatabaseCredentials", func(t *testing.T) {
+		requireDBReady(t)
+
+		resp := doGraphQL(t, token, `
+			query($projectId: ID!, $environment: String!, $database: String!) {
+				databaseCredentials(projectId: $projectId, environment: $environment, database: $database) {
+					host
+					port
+					dbname
+					user
+					password
+					uri
+				}
+			}
+		`, map[string]any{
+			"projectId":   testProjectName,
+			"environment": "development",
+			"database":    testDBName,
+		})
+		requireNoErrors(t, resp)
+
+		var data struct {
+			DatabaseCredentials struct {
+				Host     string `json:"host"`
+				Port     string `json:"port"`
+				Dbname   string `json:"dbname"`
+				User     string `json:"user"`
+				Password string `json:"password"`
+				URI      string `json:"uri"`
+			} `json:"databaseCredentials"`
+		}
+		unmarshalData(t, resp, &data)
+
+		creds := data.DatabaseCredentials
+		if creds.Host == "" {
+			t.Error("databaseCredentials.host is empty")
+		}
+		if creds.Port == "" {
+			t.Error("databaseCredentials.port is empty")
+		}
+		if creds.Dbname == "" {
+			t.Error("databaseCredentials.dbname is empty")
+		}
+		if creds.User == "" {
+			t.Error("databaseCredentials.user is empty")
+		}
+		if creds.Password == "" {
+			t.Error("databaseCredentials.password is empty")
+		}
+		if creds.URI == "" {
+			t.Error("databaseCredentials.uri is empty")
+		}
+		t.Logf("credentials: host=%s port=%s dbname=%s user=%s uri=postgres://...", creds.Host, creds.Port, creds.Dbname, creds.User)
+	})
+
 	t.Run("ExecuteQuery_CreateTable", func(t *testing.T) {
 		requireDBReady(t)
 

@@ -103,6 +103,58 @@ func testDeploy(t *testing.T) {
 		t.Log("service is responding via port-forward")
 	})
 
+	t.Run("ActiveDeployment", func(t *testing.T) {
+		if testBuildTag == "" {
+			t.Skip("no build tag — deploy must have failed")
+		}
+
+		resp := doGraphQL(t, token, `
+			query($projectId: ID!, $service: String!, $environment: String!) {
+				activeDeployment(projectId: $projectId, service: $service, environment: $environment) {
+					id
+					phase
+					imageRef
+					digest
+					rolloutHealth
+					rolloutMessage
+				}
+			}
+		`, map[string]any{
+			"projectId":   testProjectName,
+			"service":     testServiceName,
+			"environment": "development",
+		})
+		requireNoErrors(t, resp)
+
+		var data struct {
+			ActiveDeployment *struct {
+				ID             string  `json:"id"`
+				Phase          string  `json:"phase"`
+				ImageRef       *string `json:"imageRef"`
+				RolloutHealth  *string `json:"rolloutHealth"`
+				RolloutMessage *string `json:"rolloutMessage"`
+			} `json:"activeDeployment"`
+		}
+		unmarshalData(t, resp, &data)
+
+		if data.ActiveDeployment == nil {
+			t.Fatal("activeDeployment returned null — expected a running deployment")
+		}
+
+		ad := data.ActiveDeployment
+		if ad.Phase != "SUCCEEDED" {
+			t.Errorf("expected phase SUCCEEDED, got %s", ad.Phase)
+		}
+		if ad.ImageRef != nil {
+			t.Logf("activeDeployment: id=%s phase=%s imageRef=%s", ad.ID, ad.Phase, *ad.ImageRef)
+		} else {
+			t.Logf("activeDeployment: id=%s phase=%s", ad.ID, ad.Phase)
+		}
+		if ad.RolloutHealth != nil {
+			t.Logf("rollout: health=%s", *ad.RolloutHealth)
+		}
+	})
+
 	t.Run("DeployBuild", func(t *testing.T) {
 		if testBuildTag == "" {
 			t.Skip("no build tag — build or deploy must have failed")

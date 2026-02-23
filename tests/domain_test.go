@@ -104,6 +104,54 @@ func testDomain(t *testing.T) {
 		t.Logf("added custom domain: %s (dns: %s)", hostname, extractString(t, resp.Data, "addCustomDomain", "dnsStatus"))
 	})
 
+	t.Run("CheckDnsStatus", func(t *testing.T) {
+		if testBuildTag == "" {
+			t.Skip("no deployment — build/deploy must have failed")
+		}
+
+		resp := doGraphQL(t, token, `
+			query($hostname: String!) {
+				checkDnsStatus(hostname: $hostname) {
+					hostname
+					status
+					cnameTarget
+					expectedTarget
+					message
+				}
+			}
+		`, map[string]any{
+			"hostname": "custom.example.com",
+		})
+		requireNoErrors(t, resp)
+
+		var data struct {
+			CheckDnsStatus struct {
+				Hostname       string  `json:"hostname"`
+				Status         string  `json:"status"`
+				CnameTarget    *string `json:"cnameTarget"`
+				ExpectedTarget string  `json:"expectedTarget"`
+				Message        *string `json:"message"`
+			} `json:"checkDnsStatus"`
+		}
+		unmarshalData(t, resp, &data)
+
+		dns := data.CheckDnsStatus
+		if dns.Hostname != "custom.example.com" {
+			t.Errorf("expected hostname custom.example.com, got %s", dns.Hostname)
+		}
+		if dns.ExpectedTarget == "" {
+			t.Error("expectedTarget is empty")
+		}
+		// In test/dev environment, custom.example.com won't resolve — expect MISSING or INCORRECT
+		t.Logf("dns check: hostname=%s status=%s expectedTarget=%s", dns.Hostname, dns.Status, dns.ExpectedTarget)
+		if dns.CnameTarget != nil {
+			t.Logf("  cnameTarget=%s", *dns.CnameTarget)
+		}
+		if dns.Message != nil {
+			t.Logf("  message=%s", *dns.Message)
+		}
+	})
+
 	t.Run("RemoveDomain", func(t *testing.T) {
 		if testBuildTag == "" {
 			t.Skip("no deployment — build/deploy must have failed")
