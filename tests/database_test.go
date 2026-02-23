@@ -98,8 +98,9 @@ func testDatabase(t *testing.T) {
 	})
 
 	t.Run("DatabaseRef", func(t *testing.T) {
-		// Set a service variable with a databaseRef (replaces old connectDatabase).
-		// This tests the secretKeyRef-based database reference mechanism.
+		// Add a databaseRef to existing service variables.
+		// setServiceVariables is a full replacement, so we must include existing
+		// variables (PORT, APP_ENV from shared) to avoid wiping them.
 		resp := doGraphQL(t, token, `
 			mutation($projectId: ID!, $environment: String!, $service: String!, $variables: [ServiceVariableInput!]!) {
 				setServiceVariables(projectId: $projectId, environment: $environment, service: $service, variables: $variables)
@@ -109,6 +110,8 @@ func testDatabase(t *testing.T) {
 			"environment": "development",
 			"service":     testServiceName,
 			"variables": []map[string]any{
+				{"key": "PORT", "value": "3000"},
+				{"key": "APP_ENV", "fromShared": true},
 				{
 					"key": "DATABASE_URL",
 					"databaseRef": map[string]any{
