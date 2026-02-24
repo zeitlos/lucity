@@ -98,6 +98,55 @@ watch(visible, (v) => {
         </defs>
       </svg>
 
+      <!-- Horizontal lightning bolt (mobile only) -->
+      <svg
+        class="vs-lightning-h"
+        :class="{ 'vs-lightning-visible': phase >= 2 }"
+        viewBox="0 0 400 40"
+        preserveAspectRatio="none"
+      >
+        <path
+          d="M0 20 L60 14 L80 26 L140 12 L170 30 L230 10 L260 28 L320 14 L350 24 L400 20"
+          fill="none"
+          stroke="url(#lightning-gradient-h)"
+          stroke-width="3"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          class="vs-bolt"
+        />
+        <path
+          d="M0 20 L60 14 L80 26 L140 12 L170 30 L230 10 L260 28 L320 14 L350 24 L400 20"
+          fill="none"
+          stroke="url(#lightning-gradient-h)"
+          stroke-width="8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          class="vs-bolt-glow"
+        />
+        <defs>
+          <linearGradient
+            id="lightning-gradient-h"
+            x1="0"
+            y1="0"
+            x2="1"
+            y2="0"
+          >
+            <stop
+              offset="0%"
+              stop-color="oklch(0.95 0.15 85)"
+            />
+            <stop
+              offset="50%"
+              stop-color="oklch(0.90 0.20 85)"
+            />
+            <stop
+              offset="100%"
+              stop-color="oklch(0.95 0.15 85)"
+            />
+          </linearGradient>
+        </defs>
+      </svg>
+
       <!-- VS badge -->
       <div
         class="vs-badge"
@@ -292,7 +341,8 @@ watch(visible, (v) => {
 }
 
 /* ── Lightning ── */
-.vs-lightning {
+.vs-lightning,
+.vs-lightning-h {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -300,6 +350,11 @@ watch(visible, (v) => {
   opacity: 0;
   filter: drop-shadow(0 0 6px oklch(0.90 0.18 85 / 0.6));
   transition: opacity 0.3s ease;
+}
+
+/* Desktop: vertical visible, horizontal hidden */
+.vs-lightning-h {
+  display: none;
 }
 
 .vs-lightning-visible {
@@ -418,6 +473,10 @@ watch(visible, (v) => {
 
   .vs-lightning {
     display: none;
+  }
+
+  .vs-lightning-h {
+    display: block;
   }
 
   .vs-badge {
