@@ -97,7 +97,7 @@ const navLinks = [
         </UButton>
       </div>
 
-      <USeparator />
+      <USeparator class="mb-2" />
 
       <AppHeaderBody />
     </template>
