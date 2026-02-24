@@ -67,8 +67,8 @@ type PreviewPoint = [number, number];
 
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 const selectedWallpaper = ref(0);
-const previewHeadline = ref('Lucity');
-const previewTagline = ref('The ejectable PaaS on Kubernetes');
+const previewHeadline = ref('The PaaS you can leave.');
+const previewTagline = ref('Open-source · Kubernetes-native · Ejectable');
 const loadedImages = new Map<string, HTMLImageElement>();
 
 const wallpapers = [
@@ -238,27 +238,27 @@ function drawCanvas() {
     ctx.fillRect(0, 0, W, H);
   }
 
-  // Vignette overlay
-  const vig = ctx.createRadialGradient(W / 2, H / 2, H * 0.15, W / 2, H / 2, W * 0.75);
-  vig.addColorStop(0, 'rgba(0,0,0,0.2)');
-  vig.addColorStop(1, 'rgba(0,0,0,0.6)');
+  // Vignette overlay — stronger for text legibility
+  const vig = ctx.createRadialGradient(W / 2, H / 2, H * 0.1, W / 2, H / 2, W * 0.72);
+  vig.addColorStop(0, 'rgba(0,0,0,0.3)');
+  vig.addColorStop(1, 'rgba(0,0,0,0.7)');
   ctx.fillStyle = vig;
   ctx.fillRect(0, 0, W, H);
 
-  // Logo
-  drawLogo(ctx, W / 2, H / 2 - 90, 140);
+  // Logo — smaller, upper portion (brand mark, not the star)
+  drawLogo(ctx, W / 2, H / 2 - 135, 100);
 
-  // Headline
+  // Headline — large enough to read at card size (~400px wide display)
   ctx.fillStyle = 'white';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
-  ctx.font = '72px "Instrument Serif", Georgia, serif';
+  ctx.font = '88px "Instrument Serif", Georgia, serif';
   ctx.fillText(previewHeadline.value, W / 2, H / 2 + 5);
 
   // Tagline
-  ctx.font = '300 22px "Sora", system-ui, sans-serif';
+  ctx.font = '300 32px "Sora", system-ui, sans-serif';
   ctx.fillStyle = 'rgba(255,255,255,0.7)';
-  ctx.fillText(previewTagline.value, W / 2, H / 2 + 90);
+  ctx.fillText(previewTagline.value, W / 2, H / 2 + 110);
 }
 
 function downloadPreview(format: 'png' | 'jpg') {
