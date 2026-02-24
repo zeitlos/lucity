@@ -10,7 +10,7 @@ const sideUi = {
 };
 
 const proUi = {
-  root: 'pricing-card rounded-2xl bg-gradient-to-b from-[var(--ui-bg-elevated)] to-[var(--ui-bg-elevated)]/60 relative overflow-hidden shadow-[0_4px_32px_-6px_oklch(0_0_0/0.12),0_2px_6px_-2px_oklch(0_0_0/0.06)]',
+  root: 'pricing-card rounded-2xl bg-gradient-to-b from-[var(--ui-bg-elevated)] to-[var(--ui-bg)] relative overflow-hidden shadow-[0_4px_32px_-6px_oklch(0_0_0/0.12),0_2px_6px_-2px_oklch(0_0_0/0.06)]',
   title: baseUi.title,
 };
 
@@ -140,9 +140,9 @@ const business = {
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: radial-gradient(circle, oklch(1 0 0) 1px, transparent 1px);
+  background: radial-gradient(circle, currentColor 1px, transparent 1px);
   background-size: 14px 14px;
-  opacity: 0.12;
+  opacity: 0.07;
   pointer-events: none;
   z-index: 1;
 }
