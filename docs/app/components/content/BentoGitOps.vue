@@ -25,6 +25,11 @@ watch(visible, (v) => {
     ref="root"
     class="bento-gitops"
   >
+    <!-- River wallpaper background -->
+    <div class="bento-river-bg" />
+    <!-- Inset shadow overlay -->
+    <div class="bento-inset-shadow" />
+
     <!-- Git log -->
     <div class="bento-log">
       <div
@@ -74,8 +79,40 @@ watch(visible, (v) => {
   overflow: hidden;
 }
 
+/* River wallpaper background */
+.bento-river-bg {
+  position: absolute;
+  inset: 0;
+  background: url('/img/branching_river.webp') center / cover no-repeat;
+  opacity: 0.15;
+  pointer-events: none;
+  z-index: 0;
+}
+
+:global(.dark) .bento-river-bg {
+  opacity: 0.08;
+}
+
+/* Inset shadow for depth */
+.bento-inset-shadow {
+  position: absolute;
+  inset: 0;
+  box-shadow:
+    inset 0 0 60px oklch(0 0 0 / 0.10),
+    inset 0 2px 15px oklch(0 0 0 / 0.06);
+  pointer-events: none;
+  z-index: 1;
+}
+
+:global(.dark) .bento-inset-shadow {
+  box-shadow:
+    inset 0 0 60px oklch(0 0 0 / 0.25),
+    inset 0 2px 15px oklch(0 0 0 / 0.15);
+}
+
 .bento-log {
   position: relative;
+  z-index: 2;
   display: flex;
   flex-direction: column;
   gap: 0;

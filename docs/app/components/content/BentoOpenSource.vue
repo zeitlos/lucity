@@ -1,18 +1,21 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import { useBentoVisible } from './useBentoVisible';
 
 const root = ref<HTMLElement | null>(null);
 const visible = useBentoVisible(root);
 const shown = ref(0);
 
+const colorMode = useColorMode();
+const isDark = computed(() => colorMode.value === 'dark');
+
 const tools = [
-  { name: 'ArgoCD', icon: 'i-simple-icons-argo' },
-  { name: 'Helm', icon: 'i-simple-icons-helm' },
-  { name: 'CloudNativePG', icon: 'i-simple-icons-postgresql' },
-  { name: 'Zot', icon: 'i-lucide-package' },
-  { name: 'Soft-serve', icon: 'i-lucide-git-branch' },
-  { name: 'Gateway API', icon: 'i-simple-icons-kubernetes' },
+  { name: 'ArgoCD', icon: 'i-simple-icons-argo', color: 'oklch(0.52 0.18 30)', darkColor: 'oklch(0.70 0.16 30)' },
+  { name: 'Helm', icon: 'i-simple-icons-helm', color: 'oklch(0.50 0.16 250)', darkColor: 'oklch(0.70 0.14 250)' },
+  { name: 'CloudNativePG', icon: 'i-simple-icons-postgresql', color: 'oklch(0.50 0.16 250)', darkColor: 'oklch(0.70 0.14 250)' },
+  { name: 'Zot', icon: 'i-lucide-package', color: 'oklch(0.55 0.16 30)', darkColor: 'oklch(0.72 0.14 30)' },
+  { name: 'Soft-serve', icon: 'i-lucide-git-branch', color: 'oklch(0.50 0.16 140)', darkColor: 'oklch(0.70 0.14 140)' },
+  { name: 'Gateway API', icon: 'i-simple-icons-kubernetes', color: 'oklch(0.50 0.16 250)', darkColor: 'oklch(0.70 0.14 250)' },
 ];
 
 watch(visible, (v) => {
@@ -28,7 +31,7 @@ watch(visible, (v) => {
     ref="root"
     class="bento-opensource"
   >
-    <div class="bento-grid">
+    <div class="bento-tools-grid">
       <div
         v-for="(tool, i) in tools"
         :key="tool.name"
@@ -38,9 +41,10 @@ watch(visible, (v) => {
       >
         <UIcon
           :name="tool.icon"
-          class="size-3.5 text-(--ui-text-muted)"
+          class="size-5 sm:size-7"
+          :style="{ color: isDark ? tool.darkColor : tool.color }"
         />
-        <span class="text-[11px] font-medium">{{ tool.name }}</span>
+        <span class="text-xs font-medium sm:text-sm">{{ tool.name }}</span>
       </div>
     </div>
     <div
@@ -49,37 +53,61 @@ watch(visible, (v) => {
     >
       AGPL-3.0 &middot; Forever open
     </div>
+
+    <!-- Gopher mascot overflowing bottom-right -->
+    <img
+      src="/img/gopher_ship.webp"
+      alt=""
+      class="bento-gopher"
+    >
   </div>
 </template>
 
 <style scoped>
 .bento-opensource {
   min-height: 140px;
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 20px;
-  gap: 12px;
+  gap: 14px;
+  overflow: visible;
 }
 
-.bento-grid {
+.bento-tools-grid {
   display: grid;
   grid-template-columns: repeat(3, auto);
-  gap: 8px;
+  gap: 10px;
   justify-content: center;
+  position: relative;
+  z-index: 1;
+}
+
+@media (min-width: 640px) {
+  .bento-tools-grid {
+    gap: 12px;
+  }
 }
 
 .bento-tool {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 12px;
-  border-radius: 16px;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 20px;
   border: 1px solid var(--ui-border);
   background: var(--ui-bg-elevated);
   color: var(--ui-text);
   opacity: 0;
+}
+
+@media (min-width: 640px) {
+  .bento-tool {
+    padding: 8px 18px;
+    gap: 10px;
+  }
 }
 
 .bento-tool-visible {
@@ -93,6 +121,31 @@ watch(visible, (v) => {
   letter-spacing: 0.02em;
   animation: bento-fade-in 0.5s ease both;
   animation-delay: 0.3s;
+  position: relative;
+  z-index: 1;
+}
+
+/* Gopher image — overflows bottom-right corner */
+.bento-gopher {
+  position: absolute;
+  bottom: -16px;
+  right: -12px;
+  width: 90px;
+  opacity: 0.18;
+  pointer-events: none;
+  z-index: 0;
+}
+
+@media (min-width: 640px) {
+  .bento-gopher {
+    width: 130px;
+    bottom: -20px;
+    right: -16px;
+  }
+}
+
+:global(.dark) .bento-gopher {
+  opacity: 0.10;
 }
 
 @keyframes bento-tool-in {

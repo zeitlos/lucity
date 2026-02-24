@@ -134,6 +134,13 @@ h1, h2 {
 
 [class*="bento-card-"] {
   --tw-ring-color: transparent !important;
+  border: 1px solid var(--ui-border) !important;
+}
+
+/* Highlighted words in card descriptions — colored with the card's accent */
+[class*="bento-card-"] .bento-hl {
+  color: var(--bento-accent);
+  font-weight: 600;
 }
 
 .bento-card-deploy {
@@ -169,17 +176,6 @@ h1, h2 {
   --bento-accent-glow: oklch(0.50 0.16 140 / 0.3);
   --bento-accent-subtle: oklch(0.50 0.16 140 / 0.12);
   background: oklch(0.93 0.09 140) !important;
-  position: relative;
-  overflow: hidden;
-}
-
-.bento-card-gitops::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: url('/img/branching_river.webp') center / cover no-repeat;
-  opacity: 0.12;
-  pointer-events: none;
 }
 
 .bento-card-oss {
@@ -224,10 +220,6 @@ h1, h2 {
   --bento-accent-glow: oklch(0.70 0.14 140 / 0.3);
   --bento-accent-subtle: oklch(0.70 0.14 140 / 0.12);
   background: oklch(0.24 0.05 140) !important;
-}
-
-.dark .bento-card-gitops::before {
-  opacity: 0.06;
 }
 
 .dark .bento-card-oss {

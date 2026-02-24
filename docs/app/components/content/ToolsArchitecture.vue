@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted } from 'vue';
+import { ref, watch } from 'vue';
 import { useBentoVisible } from './useBentoVisible';
 
 const root = ref<HTMLElement | null>(null);
@@ -7,9 +7,9 @@ const visible = useBentoVisible(root, 0.15);
 const step = ref(0);
 const showSubtitle = ref(false);
 
-// Periodic traveling dots
-const activeDot = ref(-1);
-let dotInterval: ReturnType<typeof setInterval> | null = null;
+// Flowing dots along edges
+const DOTS_PER_EDGE = 3;
+const DOT_DUR = 4; // seconds per loop
 
 interface ArchNode {
   id: string;
@@ -71,30 +71,51 @@ function getNode(id: string) {
   return nodes.find(n => n.id === id)!;
 }
 
+// Icon radius in SVG viewBox units (approximate at ~900px container width)
+const ICON_R = 42; // 72px icon → ~80 viewBox units → radius ~42
+const LUCITY_R = 52; // 88px icon → ~98 viewBox units → radius ~52
+
+function nodeRadius(id: string): number {
+  return id === 'lucity' ? LUCITY_R : ICON_R;
+}
+
 function edgePath(edge: ArchEdge): string {
   const from = getNode(edge.from);
   const to = getNode(edge.to);
 
-  const x1 = from.x * 10;
-  const y1 = from.y * 6;
-  const x2 = to.x * 10;
-  const y2 = to.y * 6;
+  // Map percentage coords to viewBox (1000 x 750)
+  let x1 = from.x * 10;
+  let y1 = from.y * 7.5;
+  let x2 = to.x * 10;
+  let y2 = to.y * 7.5;
 
-  // Compute a control point for the quadratic bezier
-  const mx = (x1 + x2) / 2;
-  const my = (y1 + y2) / 2;
-
-  // Add a slight curve perpendicular to the line
+  // Shorten path to stop at icon edges
   const dx = x2 - x1;
   const dy = y2 - y1;
   const len = Math.sqrt(dx * dx + dy * dy);
 
   if (len === 0) return `M${x1},${y1}`;
 
+  const nx = dx / len;
+  const ny = dy / len;
+
+  const fromR = nodeRadius(from.id);
+  const toR = nodeRadius(to.id);
+
+  x1 += nx * fromR;
+  y1 += ny * fromR;
+  x2 -= nx * toR;
+  y2 -= ny * toR;
+
+  // Compute a control point for the quadratic bezier
+  const mx = (x1 + x2) / 2;
+  const my = (y1 + y2) / 2;
+
   // Perpendicular offset for curve (small, playful)
-  const offset = len * 0.08;
-  const cx = mx + (-dy / len) * offset;
-  const cy = my + (dx / len) * offset;
+  const shortenedLen = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+  const offset = shortenedLen * 0.08;
+  const cx = mx + (-ny) * offset;
+  const cy = my + (nx) * offset;
 
   return `M${x1},${y1} Q${cx},${cy} ${x2},${y2}`;
 }
@@ -104,8 +125,11 @@ function edgeLength(edge: ArchEdge): number {
   const from = getNode(edge.from);
   const to = getNode(edge.to);
   const dx = (to.x - from.x) * 10;
-  const dy = (to.y - from.y) * 6;
-  return Math.sqrt(dx * dx + dy * dy) * 1.1;
+  const dy = (to.y - from.y) * 7.5;
+  const fullLen = Math.sqrt(dx * dx + dy * dy);
+  // Account for shortened endpoints
+  const shortened = fullLen - nodeRadius(from.id) - nodeRadius(to.id);
+  return Math.max(shortened, 10) * 1.1;
 }
 
 function edgeLabelPos(edge: ArchEdge): { x: number; y: number } {
@@ -113,7 +137,7 @@ function edgeLabelPos(edge: ArchEdge): { x: number; y: number } {
   const to = getNode(edge.to);
   return {
     x: ((from.x + to.x) / 2) * 10,
-    y: ((from.y + to.y) / 2) * 6 - 8,
+    y: ((from.y + to.y) / 2) * 7.5 - 8,
   };
 }
 
@@ -124,19 +148,6 @@ watch(visible, (v) => {
     setTimeout(() => { step.value = i + 1; }, delay);
   });
   setTimeout(() => { showSubtitle.value = true; }, 3400);
-
-  // Start periodic dot animation after initial sequence
-  setTimeout(() => {
-    dotInterval = setInterval(() => {
-      const idx = Math.floor(Math.random() * edges.length);
-      activeDot.value = idx;
-      setTimeout(() => { activeDot.value = -1; }, 800);
-    }, 4000);
-  }, 4000);
-});
-
-onUnmounted(() => {
-  if (dotInterval) clearInterval(dotInterval);
 });
 </script>
 
@@ -150,25 +161,20 @@ onUnmounted(() => {
       <!-- SVG connections -->
       <svg
         class="arch-connections"
-        viewBox="0 0 1000 600"
+        viewBox="0 0 1000 750"
         preserveAspectRatio="xMidYMid meet"
         fill="none"
         role="img"
         aria-label="Architecture diagram showing how Lucity orchestrates Kubernetes deployments using standard open-source tools"
       >
 
-        <!-- Edge paths -->
+        <!-- Edge paths (faint ghost trail) -->
         <path
           v-for="(edge, i) in edges"
           :key="`edge-${edge.from}-${edge.to}`"
           :d="edgePath(edge)"
           class="arch-edge"
           :class="{ 'arch-edge-active': step >= edge.phase }"
-          :style="{
-            strokeDasharray: edgeLength(edge),
-            strokeDashoffset: step >= edge.phase ? 0 : edgeLength(edge),
-            transitionDelay: `${(edge.phase - 1) * 0.15}s`,
-          }"
           :stroke="`var(--arch-${edge.to}-color)`"
         />
 
@@ -185,22 +191,28 @@ onUnmounted(() => {
           {{ edge.label }}
         </text>
 
-        <!-- Traveling dots -->
-        <circle
+        <!-- Flowing dots along edges -->
+        <template
           v-for="(edge, i) in edges"
-          :key="`dot-${i}`"
-          r="4"
-          class="arch-travel-dot"
-          :class="{ 'arch-travel-dot-active': activeDot === i }"
-          :fill="`var(--arch-${edge.to}-color)`"
+          :key="`dots-${i}`"
         >
-          <animateMotion
-            v-if="activeDot === i"
-            :path="edgePath(edge)"
-            dur="0.8s"
-            fill="freeze"
-          />
-        </circle>
+          <circle
+            v-for="d in DOTS_PER_EDGE"
+            :key="`dot-${i}-${d}`"
+            :r="2 + (d % 2)"
+            class="arch-flow-dot"
+            :class="{ 'arch-flow-dot-active': step >= edge.phase }"
+            :fill="`var(--arch-${edge.to}-color)`"
+          >
+            <animateMotion
+              :path="edgePath(edge)"
+              :dur="`${DOT_DUR}s`"
+              :begin="`${(d - 1) * (DOT_DUR / DOTS_PER_EDGE)}s`"
+              repeatCount="indefinite"
+              calcMode="linear"
+            />
+          </circle>
+        </template>
       </svg>
 
       <!-- Node cards -->
@@ -224,7 +236,7 @@ onUnmounted(() => {
         <div class="arch-node-icon">
           <svg
             v-if="node.isLucity"
-            class="size-7"
+            class="size-10"
             viewBox="-68.70 -26.26 121.05 121.05"
             xmlns="http://www.w3.org/2000/svg"
           >
@@ -281,7 +293,7 @@ onUnmounted(() => {
           <UIcon
             v-else
             :name="node.icon"
-            class="size-5"
+            class="size-7"
           />
         </div>
 
@@ -456,6 +468,10 @@ onUnmounted(() => {
   max-width: 900px;
   margin: 0 auto;
   aspect-ratio: 4 / 3;
+  background-image: radial-gradient(circle, var(--ui-border) 1px, transparent 1px);
+  background-size: 28px 28px;
+  background-position: center center;
+  border-radius: 20px;
 }
 
 @media (width >= 64rem) {
@@ -475,22 +491,18 @@ onUnmounted(() => {
 
 .arch-edge {
   fill: none;
-  stroke-width: 2;
+  stroke-width: 1.5;
   stroke-linecap: round;
-  stroke-dasharray: 6 4;
   opacity: 0;
-  transition:
-    stroke-dashoffset 0.8s cubic-bezier(0.16, 1, 0.3, 1),
-    opacity 0.4s ease;
+  transition: opacity 0.6s ease;
 }
 
 .arch-edge-active {
-  opacity: 0.5;
-  stroke-dasharray: 6 4;
+  opacity: 0.15;
 }
 
 .dark .arch-edge-active {
-  opacity: 0.6;
+  opacity: 0.2;
 }
 
 .arch-edge-label {
@@ -505,12 +517,17 @@ onUnmounted(() => {
   opacity: 1;
 }
 
-.arch-travel-dot {
+.arch-flow-dot {
   opacity: 0;
+  transition: opacity 0.6s ease;
 }
 
-.arch-travel-dot-active {
-  opacity: 0.8;
+.arch-flow-dot-active {
+  opacity: 0.6;
+}
+
+.dark .arch-flow-dot-active {
+  opacity: 0.7;
 }
 
 /* ── Nodes ── */
@@ -519,7 +536,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 5px;
+  gap: 7px;
   transform: translate(-50%, -50%) scale(0.8);
   opacity: 0;
   transition:
@@ -535,11 +552,11 @@ onUnmounted(() => {
 
 .arch-node-glow {
   position: absolute;
-  width: 56px;
-  height: 56px;
+  width: 84px;
+  height: 84px;
   border-radius: 50%;
   opacity: 0;
-  filter: blur(14px);
+  filter: blur(18px);
   pointer-events: none;
   transition: opacity 0.6s ease;
 }
@@ -550,8 +567,8 @@ onUnmounted(() => {
 }
 
 .arch-node-lucity .arch-node-glow {
-  width: 72px;
-  height: 72px;
+  width: 100px;
+  height: 100px;
   opacity: 0;
 }
 
@@ -560,9 +577,9 @@ onUnmounted(() => {
 }
 
 .arch-node-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 14px;
+  width: 72px;
+  height: 72px;
+  border-radius: 20px;
   border: 1.5px solid var(--ui-border);
   background: var(--ui-bg-elevated);
   display: flex;
@@ -575,27 +592,27 @@ onUnmounted(() => {
 }
 
 .arch-node-lucity .arch-node-icon {
-  width: 60px;
-  height: 60px;
-  border-radius: 18px;
+  width: 88px;
+  height: 88px;
+  border-radius: 24px;
   border-color: var(--arch-lucity-color);
-  box-shadow: 0 0 20px oklch(0.75 0.18 160 / 0.15);
+  box-shadow: 0 0 24px oklch(0.75 0.18 160 / 0.15);
   color: var(--arch-lucity-color);
 }
 
 .dark .arch-node-lucity .arch-node-icon {
-  box-shadow: 0 0 20px oklch(0.72 0.16 160 / 0.2);
+  box-shadow: 0 0 24px oklch(0.72 0.16 160 / 0.2);
 }
 
 .arch-node-label {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--ui-text);
   white-space: nowrap;
 }
 
 .arch-node-role {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--ui-text-muted);
   white-space: nowrap;
 }
@@ -747,8 +764,7 @@ onUnmounted(() => {
 
   .arch-edge {
     transition: none !important;
-    opacity: 0.35 !important;
-    stroke-dashoffset: 0 !important;
+    opacity: 0.15 !important;
   }
 
   .arch-edge-label {
@@ -760,7 +776,7 @@ onUnmounted(() => {
     animation: none !important;
   }
 
-  .arch-travel-dot {
+  .arch-flow-dot {
     display: none;
   }
 }

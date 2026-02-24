@@ -12,12 +12,18 @@ export default defineAppConfig({
       primary: 'teal',
       neutral: 'stone'
     },
+    pageSection: {
+      slots: {
+        title: 'text-4xl sm:text-5xl lg:text-6xl text-pretty tracking-tight font-bold text-highlighted',
+        description: 'text-base sm:text-lg text-muted text-center text-balance mt-6 mb-14'
+      }
+    },
     pageCard: {
       slots: {
-        container: 'relative flex flex-col flex-1 lg:grid gap-x-10 gap-y-2 p-8 sm:p-12',
+        container: 'font-sans relative flex flex-col flex-1 lg:grid gap-x-10 gap-y-2 p-8 sm:p-12',
         wrapper: 'flex flex-col flex-1 items-start text-left',
-        title: 'font-serif text-3xl sm:text-5xl font-normal text-highlighted',
-        description: 'font-sans text-base sm:text-lg text-pretty mt-4'
+        title: 'font-serif text-3xl sm:text-4xl font-normal text-highlighted',
+        description: 'font-sans text-base sm:text-lg text-pretty mt-4 !text-muted'
       }
     },
     pageHeader: {
