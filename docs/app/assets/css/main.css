@@ -94,6 +94,12 @@
   --ui-primary:          oklch(0.75 0.18 160);  /* --primary */
 }
 
+/* Serif font for headings — matches dashboard title style */
+h1, h2, h3, h4 {
+  font-family: var(--font-serif);
+  font-weight: normal;
+}
+
 .dark {
   /*
    * Semantic overrides — dark mode.
