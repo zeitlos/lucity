@@ -64,11 +64,11 @@ watch(visible, (v) => {
 
 <style scoped>
 .bento-batteries {
-  min-height: 120px;
+  min-height: 140px;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px;
+  padding: 20px;
 }
 
 .bento-table {

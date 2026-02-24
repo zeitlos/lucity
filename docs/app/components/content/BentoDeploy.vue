@@ -73,7 +73,7 @@ watch(visible, (v) => {
 
 <style scoped>
 .bento-deploy {
-  min-height: 80px;
+  min-height: 100px;
 }
 
 .bento-node {
@@ -92,12 +92,12 @@ watch(visible, (v) => {
 }
 
 .bento-node-active {
-  border-color: var(--ui-primary);
+  border-color: var(--bento-accent);
   color: var(--ui-text);
 }
 
 .bento-node-current {
-  box-shadow: 0 0 12px oklch(0.75 0.18 160 / 0.25);
+  box-shadow: 0 0 12px var(--bento-accent-glow);
 }
 
 .bento-check {
@@ -107,7 +107,7 @@ watch(visible, (v) => {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: var(--ui-primary);
+  background: var(--bento-accent);
   color: white;
   font-size: 10px;
   display: flex;
@@ -127,7 +127,7 @@ watch(visible, (v) => {
 }
 
 .bento-line-active {
-  background: var(--ui-primary);
+  background: var(--bento-accent);
 }
 
 .bento-dot {
@@ -138,9 +138,9 @@ watch(visible, (v) => {
   height: 8px;
   margin-top: -4px;
   border-radius: 50%;
-  background: var(--ui-primary);
+  background: var(--bento-accent);
   animation: bento-travel 0.5s ease-in-out forwards;
-  box-shadow: 0 0 8px oklch(0.75 0.18 160 / 0.5);
+  box-shadow: 0 0 8px var(--bento-accent-glow);
 }
 
 @keyframes bento-travel {

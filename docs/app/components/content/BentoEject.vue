@@ -49,7 +49,7 @@ watch(visible, (v) => {
           cy="20"
           r="16"
           fill="none"
-          stroke="var(--ui-primary)"
+          stroke="var(--bento-accent)"
           stroke-width="3"
           stroke-linecap="round"
           stroke-dasharray="80"
@@ -72,7 +72,7 @@ watch(visible, (v) => {
       >
         <UIcon
           :name="item.icon"
-          class="size-4 shrink-0 text-(--ui-primary)"
+          class="size-4 shrink-0 text-(--bento-accent)"
         />
         <div class="min-w-0">
           <div class="text-xs font-medium text-(--ui-text)">
@@ -95,11 +95,11 @@ watch(visible, (v) => {
 
 <style scoped>
 .bento-eject {
-  min-height: 120px;
+  min-height: 140px;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px;
+  padding: 20px;
 }
 
 .bento-spinner-wrap {

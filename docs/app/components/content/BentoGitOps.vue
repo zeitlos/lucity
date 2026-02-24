@@ -25,9 +25,6 @@ watch(visible, (v) => {
     ref="root"
     class="bento-gitops"
   >
-    <!-- River background -->
-    <div class="bento-river" />
-
     <!-- Git log -->
     <div class="bento-log">
       <div
@@ -68,23 +65,13 @@ watch(visible, (v) => {
 
 <style scoped>
 .bento-gitops {
-  min-height: 120px;
+  min-height: 160px;
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px 20px;
+  padding: 20px 24px;
   overflow: hidden;
-}
-
-.bento-river {
-  position: absolute;
-  inset: 0;
-  background-image: url('/img/branching_river.webp');
-  background-size: cover;
-  background-position: center;
-  opacity: 0.06;
-  pointer-events: none;
 }
 
 .bento-log {
@@ -113,7 +100,7 @@ watch(visible, (v) => {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--ui-primary);
+  background: var(--bento-accent);
   flex-shrink: 0;
   position: relative;
   z-index: 1;
@@ -147,8 +134,8 @@ watch(visible, (v) => {
   margin-top: 6px;
   padding: 3px 10px;
   border-radius: 10px;
-  background: oklch(0.75 0.18 160 / 0.15);
-  color: var(--ui-primary);
+  background: var(--bento-accent-subtle);
+  color: var(--bento-accent);
   font-size: 11px;
   font-weight: 500;
   width: fit-content;

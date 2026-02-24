@@ -68,11 +68,11 @@ watch(visible, (v) => {
 
 <style scoped>
 .bento-envs {
-  min-height: 120px;
+  min-height: 140px;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px 24px;
+  padding: 20px 24px;
 }
 
 .bento-env {
@@ -106,8 +106,8 @@ watch(visible, (v) => {
   margin-left: auto;
   padding: 2px 8px;
   border-radius: 10px;
-  background: oklch(0.75 0.18 160 / 0.15);
-  color: var(--ui-primary);
+  background: var(--bento-accent-subtle);
+  color: var(--bento-accent);
   font-size: 10px;
   font-weight: 500;
   animation: bento-fade-in 0.3s ease both;

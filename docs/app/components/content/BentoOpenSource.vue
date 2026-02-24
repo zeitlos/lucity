@@ -54,12 +54,12 @@ watch(visible, (v) => {
 
 <style scoped>
 .bento-opensource {
-  min-height: 120px;
+  min-height: 140px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 16px;
+  padding: 20px;
   gap: 12px;
 }
 
@@ -88,7 +88,8 @@ watch(visible, (v) => {
 
 .bento-license {
   font-size: 11px;
-  color: var(--ui-text-muted);
+  color: var(--bento-accent);
+  font-weight: 500;
   letter-spacing: 0.02em;
   animation: bento-fade-in 0.5s ease both;
   animation-delay: 0.3s;
