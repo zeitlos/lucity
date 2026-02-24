@@ -64,10 +64,13 @@ const grayPalette = [
   { shadow: '#868686', body: '#ececec', highlight: '#f8f8f8' },
 ];
 
-/* Routing: mostly straight down, a few ±1 crossovers for organic look */
+/* Routing: mostly straight down, a few swap-pairs for organic crossovers */
+const swapPairs: [number, number][] = [[3, 4], [9, 10], [14, 15]];
 const cableRouting: [number, number][] = Array.from({ length: BOT_COUNT }, (_, i) => {
-  if (i === 3 || i === 9 || i === 16) return [i, Math.min(i + 1, BOT_COUNT - 1)] as [number, number];
-  if (i === 5 || i === 12 || i === 18) return [i, Math.max(i - 1, 0)] as [number, number];
+  for (const [a, b] of swapPairs) {
+    if (i === a) return [i, b] as [number, number];
+    if (i === b) return [i, a] as [number, number];
+  }
   return [i, i] as [number, number];
 });
 
@@ -255,6 +258,7 @@ onUnmounted(() => { observer?.disconnect(); });
                 rx="1"
                 :fill="cableColorByTopPort[i - 1]"
                 opacity="0.8"
+                class="port-plug"
               />
             </g>
 
@@ -334,6 +338,7 @@ onUnmounted(() => { observer?.disconnect(); });
                 rx="1"
                 :fill="cableColorByBottomPort[i - 1]"
                 opacity="0.8"
+                class="port-plug"
               />
               <!-- LED indicator below port -->
               <circle
@@ -372,7 +377,7 @@ onUnmounted(() => { observer?.disconnect(); });
                 fill="none"
                 opacity="0.35"
                 transform="translate(1, 1)"
-                class="cable-layer"
+                class="cable-layer cable-shadow"
               />
               <!-- Body layer — centered -->
               <path
@@ -381,7 +386,7 @@ onUnmounted(() => { observer?.disconnect(); });
                 stroke-width="2.5"
                 stroke-linecap="round"
                 fill="none"
-                class="cable-layer"
+                class="cable-layer cable-body"
               />
               <!-- Highlight layer — offset up-left -->
               <path
@@ -392,7 +397,7 @@ onUnmounted(() => { observer?.disconnect(); });
                 fill="none"
                 opacity="0.5"
                 transform="translate(-0.5, -0.5)"
-                class="cable-layer"
+                class="cable-layer cable-highlight"
               />
             </g>
           </svg>
@@ -1696,5 +1701,23 @@ onUnmounted(() => { observer?.disconnect(); });
 .dark .rack-wrapper .storage-faceplate {
   background: oklch(0.16 0.01 55);
   border-color: oklch(0.24 0.01 55);
+}
+
+/* ── Dark: Cables — darker gray ── */
+
+.dark .rack-wrapper .cable-shadow {
+  stroke: #404040 !important;
+}
+
+.dark .rack-wrapper .cable-body {
+  stroke: #808080 !important;
+}
+
+.dark .rack-wrapper .cable-highlight {
+  stroke: #999999 !important;
+}
+
+.dark .rack-wrapper .port-plug {
+  fill: #808080 !important;
 }
 </style>
