@@ -38,6 +38,7 @@ watch(visible, (v) => {
           to="/getting-started/quick-start"
           color="white"
           variant="solid"
+          icon="i-lucide-server"
           trailing-icon="i-lucide-arrow-right"
         >
           Quick Start
@@ -125,6 +126,7 @@ watch(visible, (v) => {
           to="/cloud"
           color="white"
           variant="solid"
+          icon="i-lucide-cloud"
           trailing-icon="i-lucide-arrow-right"
         >
           Join the waitlist
@@ -140,7 +142,7 @@ watch(visible, (v) => {
   display: flex;
   border-radius: 20px;
   overflow: hidden;
-  min-height: 380px;
+  min-height: 520px;
   isolation: isolate;
 }
 
@@ -212,18 +214,18 @@ watch(visible, (v) => {
 .vs-gradient-left {
   background: linear-gradient(
     to top,
-    oklch(0.15 0.06 240 / 0.95) 0%,
-    oklch(0.15 0.06 240 / 0.7) 35%,
-    transparent 70%
+    oklch(0.15 0.06 240 / 0.97) 0%,
+    oklch(0.15 0.06 240 / 0.8) 40%,
+    transparent 75%
   );
 }
 
 .vs-gradient-right {
   background: linear-gradient(
     to top,
-    oklch(0.18 0.06 25 / 0.95) 0%,
-    oklch(0.18 0.06 25 / 0.7) 35%,
-    transparent 70%
+    oklch(0.18 0.06 25 / 0.97) 0%,
+    oklch(0.18 0.06 25 / 0.8) 40%,
+    transparent 75%
   );
 }
 
@@ -231,29 +233,47 @@ watch(visible, (v) => {
 .vs-content {
   position: relative;
   z-index: 3;
-  padding: 32px 28px;
+  padding: 40px 36px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
   width: 100%;
 }
 
 .vs-title {
   font-family: var(--font-serif);
   font-weight: normal;
-  font-size: 1.6rem;
+  font-size: 2.8rem;
+  line-height: 1.1;
   color: white;
   margin: 0;
-  text-shadow: 0 2px 12px oklch(0 0 0 / 0.5);
+  text-shadow: 0 2px 16px oklch(0 0 0 / 0.6);
 }
 
 .vs-desc {
-  font-size: 0.9rem;
-  line-height: 1.5;
-  color: oklch(0.88 0.02 80);
+  font-size: 1.1rem;
+  line-height: 1.6;
+  color: oklch(0.90 0.02 80);
   margin: 0;
-  max-width: 340px;
-  text-shadow: 0 1px 6px oklch(0 0 0 / 0.4);
+  max-width: 400px;
+  text-shadow: 0 1px 8px oklch(0 0 0 / 0.5);
+}
+
+/* Force buttons to always look white on the dark image backgrounds */
+.vs-content :deep(.btn),
+.vs-content :deep(a),
+.vs-content :deep(button) {
+  color: white !important;
+  border-color: oklch(1 0 0 / 0.3) !important;
+  background: oklch(1 0 0 / 0.12) !important;
+  backdrop-filter: blur(8px);
+  transition: background 0.2s ease;
+}
+
+.vs-content :deep(.btn:hover),
+.vs-content :deep(a:hover),
+.vs-content :deep(button:hover) {
+  background: oklch(1 0 0 / 0.25) !important;
 }
 
 /* ── Center divider ── */
@@ -319,14 +339,27 @@ watch(visible, (v) => {
   position: relative;
   z-index: 11;
   font-family: var(--font-sans);
-  font-size: 2rem;
-  font-weight: 800;
-  letter-spacing: 0.05em;
-  color: oklch(0.92 0.18 85);
-  text-shadow:
-    0 0 20px oklch(0.85 0.20 85 / 0.8),
-    0 0 40px oklch(0.80 0.18 85 / 0.4),
-    0 2px 4px oklch(0 0 0 / 0.5);
+  font-size: 3.4rem;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  /* Fiery red-to-yellow gradient text */
+  background: linear-gradient(
+    to top,
+    oklch(0.55 0.25 25) 0%,
+    oklch(0.65 0.28 30) 30%,
+    oklch(0.75 0.22 45) 60%,
+    oklch(0.88 0.18 80) 100%
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-stroke: 1.5px oklch(0.30 0.12 25 / 0.6);
+  paint-order: stroke fill;
+  filter:
+    drop-shadow(0 0 12px oklch(0.65 0.25 30 / 0.7))
+    drop-shadow(0 0 30px oklch(0.60 0.22 25 / 0.4))
+    drop-shadow(0 2px 3px oklch(0 0 0 / 0.6));
   opacity: 0;
   transform: scale(0);
 }
