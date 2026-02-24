@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
-import { useBentoVisible } from './content/useBentoVisible';
+import { ref, onMounted, onUnmounted } from 'vue';
 
 const root = ref<HTMLElement | null>(null);
-const visible = useBentoVisible(root);
 const lineCount = ref(0);
+let observer: IntersectionObserver | null = null;
+let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
 
 interface ReceiptLine {
   type: 'separator' | 'dash' | 'center' | 'center-muted' | 'line' | 'label' | 'justify' | 'item' | 'subtotal-dash' | 'total-dash' | 'total';
@@ -41,11 +41,40 @@ const lines: ReceiptLine[] = [
   { type: 'center-muted', text: 'No lock-in. Ever.' },
 ];
 
-watch(visible, (v) => {
-  if (!v) return;
+function startPrinting() {
+  if (lineCount.value > 0) return;
   lines.forEach((_, i) => {
     setTimeout(() => { lineCount.value = i + 1; }, 150 + i * 80);
   });
+}
+
+onMounted(() => {
+  if (!root.value) return;
+
+  // Fallback: start printing after 2s even if IntersectionObserver doesn't fire
+  fallbackTimer = setTimeout(startPrinting, 2000);
+
+  if (typeof IntersectionObserver === 'undefined') {
+    startPrinting();
+    return;
+  }
+
+  observer = new IntersectionObserver(
+    ([entry]) => {
+      if (entry.isIntersecting) {
+        if (fallbackTimer) clearTimeout(fallbackTimer);
+        startPrinting();
+        observer?.disconnect();
+      }
+    },
+    { threshold: 0.3 },
+  );
+  observer.observe(root.value);
+});
+
+onUnmounted(() => {
+  observer?.disconnect();
+  if (fallbackTimer) clearTimeout(fallbackTimer);
 });
 </script>
 
