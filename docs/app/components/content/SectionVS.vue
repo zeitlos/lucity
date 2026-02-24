@@ -308,21 +308,61 @@ watch(visible, (v) => {
   text-shadow: 0 1px 8px oklch(0 0 0 / 0.5);
 }
 
-/* Force buttons to always look white on the dark image backgrounds */
-.vs-content :deep(.btn),
+/* ── Arcade buttons ── */
 .vs-content :deep(a),
 .vs-content :deep(button) {
   color: white !important;
-  border-color: oklch(1 0 0 / 0.3) !important;
-  background: oklch(1 0 0 / 0.12) !important;
-  backdrop-filter: blur(8px);
-  transition: background 0.2s ease;
+  font-weight: 600 !important;
+  letter-spacing: 0.02em;
+  border: none !important;
+  border-top: 1.5px solid oklch(1 0 0 / 0.4) !important;
+  border-radius: 10px !important;
+  padding: 10px 20px !important;
+  box-shadow:
+    0 4px 12px oklch(0 0 0 / 0.5),
+    0 1px 0 oklch(1 0 0 / 0.1) inset,
+    0 -2px 6px oklch(0 0 0 / 0.3) inset;
+  backdrop-filter: blur(6px);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
 }
 
-.vs-content :deep(.btn:hover),
 .vs-content :deep(a:hover),
 .vs-content :deep(button:hover) {
-  background: oklch(1 0 0 / 0.25) !important;
+  transform: translateY(-1px);
+  filter: brightness(1.15);
+  box-shadow:
+    0 6px 20px oklch(0 0 0 / 0.5),
+    0 1px 0 oklch(1 0 0 / 0.15) inset,
+    0 -2px 6px oklch(0 0 0 / 0.3) inset;
+}
+
+.vs-content :deep(a:active),
+.vs-content :deep(button:active) {
+  transform: translateY(1px);
+  box-shadow:
+    0 2px 6px oklch(0 0 0 / 0.5),
+    0 1px 0 oklch(1 0 0 / 0.05) inset,
+    0 -1px 4px oklch(0 0 0 / 0.4) inset;
+}
+
+/* Left side: blue arcade button */
+.vs-side-left .vs-content :deep(a),
+.vs-side-left .vs-content :deep(button) {
+  background: linear-gradient(
+    to bottom,
+    oklch(0.45 0.14 240) 0%,
+    oklch(0.32 0.12 240) 100%
+  ) !important;
+}
+
+/* Right side: red/orange arcade button */
+.vs-side-right .vs-content :deep(a),
+.vs-side-right .vs-content :deep(button) {
+  background: linear-gradient(
+    to bottom,
+    oklch(0.50 0.18 25) 0%,
+    oklch(0.36 0.15 25) 100%
+  ) !important;
 }
 
 /* ── Center divider ── */
