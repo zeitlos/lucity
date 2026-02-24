@@ -99,8 +99,10 @@ watch(visible, (v) => {
 </template>
 
 <style scoped>
+/* Fixed height — prevents the grid from shifting when the
+   tagline and artifact cards animate in. */
 .bento-eject {
-  min-height: 160px;
+  height: 230px;
   display: flex;
   flex-direction: column;
   align-items: center;

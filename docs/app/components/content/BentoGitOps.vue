@@ -69,8 +69,10 @@ watch(visible, (v) => {
 </template>
 
 <style scoped>
+/* Fixed height — prevents the grid from shifting when the
+   commit log and synced badge animate in. */
 .bento-gitops {
-  min-height: 160px;
+  height: 200px;
   position: relative;
   display: flex;
   align-items: center;

@@ -65,8 +65,10 @@ watch(visible, (v) => {
 </template>
 
 <style scoped>
+/* Fixed height — prevents the grid from shifting when the
+   tool pills and license badge animate in. */
 .bento-opensource {
-  min-height: 140px;
+  height: 180px;
   position: relative;
   display: flex;
   flex-direction: column;
