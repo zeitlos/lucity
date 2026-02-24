@@ -1,14 +1,14 @@
 ---
-title: "Lucity — Open-source PaaS on Kubernetes"
-description: "Deploy like Railway with the freedom to eject to standard Helm charts and ArgoCD configs at any time. Open-source, self-hostable, no lock-in."
+title: "Lucity — The PaaS you can leave"
+description: "Open-source PaaS on Kubernetes. Git push to deploy, eject to standard Helm charts and ArgoCD configs at any time. Self-hostable, no lock-in."
 ---
 
 ::u-page-hero
 #title
-Lucity
+The PaaS you can leave.
 
 #description
-Open-source PaaS on Kubernetes. Deploy like Railway. Eject like it's yours. (Because it is.)
+Open-source PaaS on Kubernetes. Git push to deploy, environments out of the box, and a real exit door — `lucity eject` gives you standard Helm charts and ArgoCD configs.
 
 #links
   :::u-button
