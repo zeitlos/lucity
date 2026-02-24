@@ -6,6 +6,7 @@
   --font-sans: 'Sora', system-ui, sans-serif;
   --font-serif: 'Instrument Serif', Georgia, serif;
   --font-mono: 'Fira Code', monospace;
+  --font-lcd: 'VT323', monospace;
 
   /* Primary palette — hue 160, chroma 0.18 at 500 */
   /* Dashboard --primary: oklch(0.75 0.18 160) → mapped to 500 */
