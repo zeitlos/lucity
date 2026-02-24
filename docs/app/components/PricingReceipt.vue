@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 
 const root = ref<HTMLElement | null>(null);
-const lineCount = ref(0);
+const paperSlide = ref<HTMLElement | null>(null);
+const offset = ref(-999); // starts off-screen (real value set after mount)
+const printing = ref(false);
 let observer: IntersectionObserver | null = null;
 let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -41,48 +43,34 @@ const lines: ReceiptLine[] = [
   { type: 'center-muted', text: 'No lock-in. Ever.' },
 ];
 
-/* ---- Height calculations ---- */
+const STEP = 20; // pixels per feed step
 
-const LINE_H = 20.4;   // 12px × 1.7 line-height
-const SEP_H = 12;      // separator/dash lines are shorter
-const PAD_TOP = 28;
-const PAD_BOTTOM = 32;
-const TEAR_H = 12;
-const PRINTER_BODY_H = 18;
-
-function heightForLine(type: string): number {
-  if (type === 'separator' || type === 'dash' || type === 'subtotal-dash' || type === 'total-dash') return SEP_H;
-  if (type === 'line') return LINE_H * 0.5;
-  return LINE_H;
+function randomPause(): number {
+  return 20 + Math.random() * 180; // 20–200ms
 }
 
-// Pre-calculate total height so the container is fixed
-const totalPaperH = PAD_TOP + lines.reduce((sum, l) => sum + heightForLine(l.type), 0) + PAD_BOTTOM + TEAR_H;
-const reservedHeight = `${PRINTER_BODY_H + totalPaperH}px`;
+async function startPrinting() {
+  if (printing.value) return;
+  printing.value = true;
 
-// Current feed height — grows per line (instant, no transition)
-const feedHeight = computed(() => {
-  if (lineCount.value === 0) return '0px';
-  let h = PAD_TOP;
-  for (let i = 0; i < lineCount.value && i < lines.length; i++) {
-    h += heightForLine(lines[i].type);
+  const el = paperSlide.value;
+  if (!el) return;
+
+  const totalHeight = el.scrollHeight;
+  offset.value = -totalHeight;
+
+  // Step through in ~20px increments
+  while (offset.value < 0) {
+    await new Promise(r => setTimeout(r, randomPause()));
+    offset.value = Math.min(offset.value + STEP, 0);
   }
-  // Include tear + bottom padding when fully printed
-  h += lineCount.value >= lines.length ? PAD_BOTTOM + TEAR_H : 8;
-  return `${h}px`;
-});
-
-/* ---- Printing trigger ---- */
-
-function startPrinting() {
-  if (lineCount.value > 0) return;
-  lines.forEach((_, i) => {
-    setTimeout(() => { lineCount.value = i + 1; }, 300 + i * 100);
-  });
 }
 
 onMounted(() => {
-  if (!root.value) return;
+  if (!root.value || !paperSlide.value) return;
+
+  // Set initial offset to hide paper above mask
+  offset.value = -paperSlide.value.scrollHeight;
 
   fallbackTimer = setTimeout(startPrinting, 2000);
 
@@ -114,16 +102,18 @@ onUnmounted(() => {
   <div
     ref="root"
     class="receipt-printer"
-    :style="{ minHeight: reservedHeight }"
   >
-    <!-- Paper area — fixed-height wrapper, paper grows upward inside -->
-    <div
-      class="paper-area"
-      :style="{ height: `${totalPaperH}px` }"
-    >
+    <!-- Printer body at top -->
+    <div class="printer-body">
+      <div class="printer-slit" />
+    </div>
+
+    <!-- Paper mask — clips everything, only shows what's below the slit -->
+    <div class="paper-mask">
       <div
-        class="paper-feed"
-        :style="{ maxHeight: feedHeight }"
+        ref="paperSlide"
+        class="paper-slide"
+        :style="{ transform: `perspective(600px) rotateX(-6deg) translateY(${offset}px)` }"
       >
         <div class="receipt-paper">
           <div
@@ -132,59 +122,40 @@ onUnmounted(() => {
             class="receipt-line"
             :class="[
               `receipt-${line.type}`,
-              {
-                'receipt-line-visible': lineCount > i,
-                'receipt-highlight': line.highlight,
-              },
+              { 'receipt-highlight': line.highlight },
             ]"
           >
-            <!-- separator (full-width solid rule) -->
             <template v-if="line.type === 'separator'" />
-
-            <!-- dash (full-width dashed rule) -->
             <template v-else-if="line.type === 'dash'" />
 
-            <!-- center / center-muted -->
             <template v-else-if="line.type === 'center' || line.type === 'center-muted'">
               {{ line.text }}
             </template>
 
-            <!-- justify / total (left + right) -->
             <template v-else-if="line.type === 'justify' || line.type === 'total'">
               <span>{{ line.left }}</span>
               <span>{{ line.right }}</span>
             </template>
 
-            <!-- item (desc + amount) -->
             <template v-else-if="line.type === 'item'">
               <span class="receipt-item-desc">{{ line.desc }}</span>
               <span>{{ line.amount }}</span>
             </template>
 
-            <!-- subtotal-dash / total-dash (right-aligned partial rule) -->
             <template v-else-if="line.type === 'subtotal-dash' || line.type === 'total-dash'">
               <span />
               <span :class="line.type === 'total-dash' ? 'rule-double' : 'rule-single'" />
             </template>
 
-            <!-- label / line (plain text) -->
             <template v-else>
               {{ line.text }}
             </template>
           </div>
         </div>
 
-        <!-- Zigzag torn edge — right above the printer slit -->
-        <div
-          class="receipt-tear"
-          :class="{ 'receipt-tear-visible': lineCount >= lines.length }"
-        />
+        <!-- Zigzag torn edge — trailing edge, last to emerge -->
+        <div class="receipt-tear" />
       </div>
-    </div>
-
-    <!-- Printer body at bottom -->
-    <div class="printer-body">
-      <div class="printer-slit" />
     </div>
   </div>
 </template>
@@ -197,56 +168,74 @@ onUnmounted(() => {
   padding: 0 16px;
 }
 
-/* ---- Paper area (fixed-height wrapper) ---- */
-
-.paper-area {
-  position: relative;
-  width: 100%;
-  max-width: 380px;
-}
-
-/* ---- Paper feed — grows upward from the printer slit ---- */
-
-.paper-feed {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  max-height: 0;
-  overflow: hidden;
-  /* No transition — instant height snaps for old-school printer feel */
-}
-
-/* ---- Printer body (at bottom) ---- */
+/* ---- Printer body (at top) ---- */
 
 .printer-body {
   --printer-bg: oklch(0.28 0.01 55);
   width: 100%;
   max-width: 380px;
   height: 18px;
-  background: linear-gradient(0deg,
-    oklch(0.34 0.01 55) 0%,
-    var(--printer-bg) 100%
+  background: linear-gradient(180deg,
+    var(--printer-bg) 0%,
+    oklch(0.34 0.01 55) 100%
   );
-  border-radius: 0 0 10px 10px;
+  border-radius: 10px 10px 0 0;
   position: relative;
   z-index: 2;
   box-shadow:
-    inset 0 -1px 0 oklch(0.42 0.01 55 / 0.4),
+    inset 0 1px 0 oklch(0.42 0.01 55 / 0.4),
     0 2px 8px oklch(0 0 0 / 0.2);
 }
 
 .printer-slit {
   position: absolute;
-  top: -1px;
+  bottom: -1px;
   left: 8%;
   right: 8%;
   height: 3px;
   background: oklch(0.10 0.005 55);
-  border-radius: 3px 3px 0 0;
+  border-radius: 0 0 3px 3px;
   box-shadow:
-    inset 0 -1px 2px oklch(0 0 0 / 0.6),
-    0 -1px 3px oklch(0 0 0 / 0.3);
+    inset 0 1px 2px oklch(0 0 0 / 0.6),
+    0 1px 3px oklch(0 0 0 / 0.3);
+}
+
+/* ---- Paper mask — clips to reveal area below slit ---- */
+
+.paper-mask {
+  width: 100%;
+  max-width: 380px;
+  overflow: hidden;
+}
+
+/* ---- Paper slide — moves downward in steps ---- */
+
+.paper-slide {
+  transform-origin: top center;
+}
+
+/* ---- Torn edge (leading edge — first to emerge) ---- */
+
+.receipt-tear {
+  width: 100%;
+  max-width: 340px;
+  margin: 0 auto;
+  height: 12px;
+  background: oklch(0.97 0.005 80);
+  clip-path: polygon(
+    0% 0%, 2.5% 100%, 5% 0%, 7.5% 100%, 10% 0%,
+    12.5% 100%, 15% 0%, 17.5% 100%, 20% 0%, 22.5% 100%,
+    25% 0%, 27.5% 100%, 30% 0%, 32.5% 100%, 35% 0%,
+    37.5% 100%, 40% 0%, 42.5% 100%, 45% 0%, 47.5% 100%,
+    50% 0%, 52.5% 100%, 55% 0%, 57.5% 100%, 60% 0%,
+    62.5% 100%, 65% 0%, 67.5% 100%, 70% 0%, 72.5% 100%,
+    75% 0%, 77.5% 100%, 80% 0%, 82.5% 100%, 85% 0%,
+    87.5% 100%, 90% 0%, 92.5% 100%, 95% 0%, 97.5% 100%, 100% 0%
+  );
+}
+
+.dark .receipt-tear {
+  background: oklch(0.94 0.005 80);
 }
 
 /* ---- Receipt paper ---- */
@@ -279,19 +268,12 @@ onUnmounted(() => {
     -2px 0 12px oklch(0 0 0 / 0.25);
 }
 
-/* ---- Line animation (instant snap — dot-matrix style) ---- */
+/* ---- Lines ---- */
 
 .receipt-line {
-  opacity: 0;
   white-space: pre;
   min-height: 1.7em;
 }
-
-.receipt-line-visible {
-  opacity: 1;
-}
-
-/* ---- Separator lines (full-width CSS rules) ---- */
 
 .receipt-separator {
   min-height: 0;
@@ -306,8 +288,6 @@ onUnmounted(() => {
   padding: 4px 0;
   border-top: 1px dashed var(--receipt-muted);
 }
-
-/* ---- Line types ---- */
 
 .receipt-center {
   text-align: center;
@@ -372,48 +352,11 @@ onUnmounted(() => {
   font-weight: 500;
 }
 
-/* ---- Torn edge ---- */
-
-.receipt-tear {
-  width: 100%;
-  max-width: 340px;
-  margin: 0 auto;
-  height: 12px;
-  background: oklch(0.97 0.005 80);
-  opacity: 0;
-  clip-path: polygon(
-    0% 0%, 2.5% 100%, 5% 0%, 7.5% 100%, 10% 0%,
-    12.5% 100%, 15% 0%, 17.5% 100%, 20% 0%, 22.5% 100%,
-    25% 0%, 27.5% 100%, 30% 0%, 32.5% 100%, 35% 0%,
-    37.5% 100%, 40% 0%, 42.5% 100%, 45% 0%, 47.5% 100%,
-    50% 0%, 52.5% 100%, 55% 0%, 57.5% 100%, 60% 0%,
-    62.5% 100%, 65% 0%, 67.5% 100%, 70% 0%, 72.5% 100%,
-    75% 0%, 77.5% 100%, 80% 0%, 82.5% 100%, 85% 0%,
-    87.5% 100%, 90% 0%, 92.5% 100%, 95% 0%, 97.5% 100%, 100% 0%
-  );
-}
-
-.dark .receipt-tear {
-  background: oklch(0.94 0.005 80);
-}
-
-.receipt-tear-visible {
-  opacity: 1;
-}
-
 /* ---- Reduced motion ---- */
 
 @media (prefers-reduced-motion: reduce) {
-  .paper-feed {
-    position: static !important;
-    max-height: none !important;
-    overflow: visible !important;
-  }
-  .receipt-line {
-    opacity: 1 !important;
-  }
-  .receipt-tear {
-    opacity: 1 !important;
+  .paper-slide {
+    transform: none !important;
   }
 }
 </style>
