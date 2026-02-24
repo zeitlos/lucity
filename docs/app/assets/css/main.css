@@ -100,6 +100,11 @@ h1, h2, h3, h4 {
   font-weight: normal;
 }
 
+h1 { font-size: 3rem !important; }      /* 48px ← was 36px (text-4xl) */
+h2 { font-size: 1.875rem !important; }  /* 30px ← was 24px (text-2xl) */
+h3 { font-size: 1.5rem !important; }    /* 24px ← was 20px (text-xl) */
+h4 { font-size: 1.25rem !important; }   /* 20px ← was 18px (text-lg) */
+
 .dark {
   /*
    * Semantic overrides — dark mode.
