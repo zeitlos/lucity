@@ -342,6 +342,7 @@ onMounted(async () => {
             <CardContent class="flex items-center justify-center gap-6">
               <BaseLogo :size="120" variant="mark" />
               <BaseLogo :size="120" variant="mark" class="text-primary" />
+              <BaseLogo :size="120" variant="mark" debug />
             </CardContent>
           </Card>
         </div>
