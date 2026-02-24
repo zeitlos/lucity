@@ -66,13 +66,15 @@ const grayPalette = [
 
 /* Routing: mostly straight down, a few swap-pairs for organic crossovers */
 const swapPairs: [number, number][] = [[3, 4], [9, 10], [14, 15]];
+const emptyPorts = new Set([7, 13]); // leave unplugged to show port detail
 const cableRouting: [number, number][] = Array.from({ length: BOT_COUNT }, (_, i) => {
+  if (emptyPorts.has(i)) return null;
   for (const [a, b] of swapPairs) {
     if (i === a) return [i, b] as [number, number];
     if (i === b) return [i, a] as [number, number];
   }
   return [i, i] as [number, number];
-});
+}).filter((r): r is [number, number] => r !== null);
 
 const cables: Cable[] = cableRouting.map(([from, to], idx) => ({
   fromPort: from,
