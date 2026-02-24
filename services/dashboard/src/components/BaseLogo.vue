@@ -210,6 +210,15 @@ function gradId(lineId: string): string {
   return `fade-${uid}-${lineId}`;
 }
 
+// Scale cutout shapes up from circle center at small mark sizes
+// so the logo fills more of the circle and stays legible.
+const markContentScale = computed(() => {
+  if (props.size <= 24) return 1.12;
+  if (props.size <= 32) return 1.08;
+  if (props.size <= 48) return 1.04;
+  return 1.0;
+});
+
 // Mark variant: circle with logo cut out as negative space.
 // The circle's central axis is aligned with the L corner at grid(2,2),
 // which projects to x=0 in isometric space. The triangle's lowest
@@ -273,16 +282,18 @@ const mark = computed(() => {
     <defs>
       <mask :id="`mark-mask-${uid}`">
         <circle :cx="mark.cx" :cy="mark.cy" :r="mark.r" fill="white" />
-        <polygon
-          v-for="(tilePts, i) in mark.tiles"
-          :key="'mt-' + i"
-          :points="tilePts"
-          fill="black"
-          stroke="black"
-          stroke-width="0.5"
-          stroke-linejoin="round"
-        />
-        <polygon :points="mark.triangle" fill="black" />
+        <g :transform="`translate(${mark.cx}, ${mark.cy}) scale(${markContentScale}) translate(${-mark.cx}, ${-mark.cy})`">
+          <polygon
+            v-for="(tilePts, i) in mark.tiles"
+            :key="'mt-' + i"
+            :points="tilePts"
+            fill="black"
+            stroke="black"
+            stroke-width="0.5"
+            stroke-linejoin="round"
+          />
+          <polygon :points="mark.triangle" fill="black" />
+        </g>
       </mask>
     </defs>
     <circle
