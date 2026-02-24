@@ -39,108 +39,61 @@ Open-source PaaS on Kubernetes. Git push to deploy, environments out of the box,
 What you can do
 
   :::u-page-grid
-    ::::u-page-card
-    ---
-    spotlight: true
-    class: col-span-2
-    to: /features/builds
-    variant: outline
-    ---
-    ```sh
-    $ git push origin main
-    → Detected: Node.js 22 + Next.js
-    → Building image…
-    → Pushed to registry
-    → Deployed to development ✓
-    ```
+    ::::u-page-card{spotlight class="col-span-2" variant="outline"}
+    :bento-deploy
 
     #title
-    :u-icon{name="i-lucide-rocket" class="text-primary"} Push to deploy
+    Push to deploy
 
     #description
-    Connect your GitHub repo. Lucity detects your framework, builds a container image, and deploys it. Zero Dockerfiles required.
+    Connect your GitHub repo. Push your code, watch it flow through the pipeline and land on Kubernetes. Zero Dockerfiles required.
     ::::
 
-    ::::u-page-card
-    ---
-    spotlight: true
-    class: col-span-2 lg:col-span-1
-    to: /features/environments
-    variant: outline
-    ---
+    ::::u-page-card{spotlight class="col-span-2 lg:col-span-1" variant="outline"}
+    :bento-environments
 
     #title
-    :u-icon{name="i-lucide-layers" class="text-primary"} Multi-environment
+    Multi-environment
 
     #description
-    Development, staging, production, and PR preview environments out of the box. Promote images between them without rebuilding.
+    Dev, staging, production, and PR previews. Clone environments in seconds. Promote images without rebuilding.
     ::::
 
-    ::::u-page-card
-    ---
-    spotlight: true
-    class: col-span-2 lg:col-span-1
-    to: /infrastructure/databases
-    variant: outline
-    ---
+    ::::u-page-card{spotlight class="col-span-2 lg:col-span-1" variant="outline"}
+    :bento-batteries
 
     #title
-    :u-icon{name="i-lucide-database" class="text-primary"} Batteries included
+    Batteries included
 
     #description
     PostgreSQL via CloudNativePG, Redis, cron jobs, and HTTP routing via Gateway API. Everything your app needs.
     ::::
 
-    ::::u-page-card
-    ---
-    spotlight: true
-    class: col-span-2
-    to: /features/eject
-    variant: outline
-    ---
-    ```
-    $ lucity eject --project myapp
-    Ejecting project "myapp"…
-    ✓ Helm chart        → ejected/chart/
-    ✓ ArgoCD apps       → ejected/argocd/
-    ✓ Environment values → ejected/environments/
-    ✓ README            → ejected/README.md
-    Done. Your infrastructure is yours.
-    ```
+    ::::u-page-card{spotlight class="col-span-2" variant="outline"}
+    :bento-eject
 
     #title
-    :u-icon{name="i-lucide-door-open" class="text-primary"} Eject anytime
+    Eject anytime
 
     #description
-    Export your entire setup as standard Helm charts and ArgoCD configs. No lock-in. Your infrastructure, always.
+    One command. Standard Helm charts, ArgoCD configs, environment values, and a README. Your infrastructure is yours.
     ::::
 
-    ::::u-page-card
-    ---
-    spotlight: true
-    class: col-span-2 lg:col-span-1
-    to: /architecture/gitops
-    variant: outline
-    ---
+    ::::u-page-card{spotlight class="col-span-2 lg:col-span-1" variant="outline"}
+    :bento-git-ops
 
     #title
-    :u-icon{name="i-lucide-git-branch" class="text-primary"} GitOps native
+    GitOps native
 
     #description
-    Every deployment is a Git commit. ArgoCD syncs your workloads. Full audit trail, real rollbacks.
+    How the big players do it — just cleverly automated. Every deploy is a Git commit. ArgoCD syncs your workloads.
     ::::
 
-    ::::u-page-card
-    ---
-    spotlight: true
-    class: col-span-2 lg:col-span-1
-    to: https://github.com/zeitlos/lucity
-    variant: outline
-    target: _blank
-    ---
+    ::::u-page-card{spotlight class="col-span-2 lg:col-span-1" variant="outline"}
+    :bento-open-source
 
     #title
-    :u-icon{name="i-lucide-heart" class="text-primary"} Open source
+    Open source
 
     #description
     AGPL-3.0 licensed. Self-host on your own Kubernetes cluster. Built on ArgoCD, Helm, CloudNativePG, and friends.

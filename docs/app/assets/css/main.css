@@ -95,7 +95,9 @@
 }
 
 /* Serif font for headings — matches dashboard title style */
-h1, h2, h3, h4 {
+/* Serif only for large display headings (h1/h2).
+   h3/h4 (card titles, section subheadings) use Sora for readability at small sizes. */
+h1, h2 {
   font-family: var(--font-serif);
   font-weight: normal;
 }
