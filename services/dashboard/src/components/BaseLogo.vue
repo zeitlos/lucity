@@ -210,19 +210,6 @@ function gradId(lineId: string): string {
   return `fade-${uid}-${lineId}`;
 }
 
-// Size-dependent circle-to-logo ratio for the mark.
-// Small sizes: the logo overflows the circle, clipping the L arms and
-// triangle tips against the circle edge to form a distinctive silhouette
-// with better legibility. Large sizes: fully contained with padding.
-const markRadiusFactor = computed(() => {
-  if (props.size <= 16) return 0.68;
-  if (props.size <= 24) return 0.75;
-  if (props.size <= 32) return 0.84;
-  if (props.size <= 48) return 0.94;
-  if (props.size <= 64) return 1.05;
-  return 1.15;
-});
-
 // Mark variant: circle with logo cut out as negative space.
 // The circle's central axis is aligned with the L corner at grid(2,2),
 // which projects to x=0 in isometric space. The triangle's lowest
@@ -253,7 +240,7 @@ const mark = computed(() => {
     const d = Math.sqrt((px - cx) ** 2 + (py - cy) ** 2);
     if (d > maxDist) maxDist = d;
   }
-  const r = maxDist * markRadiusFactor.value;
+  const r = maxDist * 1.15;
 
   return {
     cx, cy, r,
