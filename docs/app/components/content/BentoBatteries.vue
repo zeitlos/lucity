@@ -6,22 +6,23 @@ const root = ref<HTMLElement | null>(null);
 const visible = useBentoVisible(root);
 const rowCount = ref(0);
 
-const columns = ['id', 'name', 'email', 'role'];
+const columns = ['id', 'name', 'email', 'role', 'created_at'];
 const rows = [
-  ['1', 'alice', 'alice@acme.com', 'admin'],
-  ['2', 'bob', 'bob@acme.com', 'dev'],
-  ['3', 'carol', 'carol@acme.com', 'dev'],
-  ['4', 'dave', 'dave@acme.com', 'viewer'],
-  ['5', 'eve', 'eve@acme.com', 'dev'],
+  ['1', 'alice', 'alice@acme.com', 'admin', '2025-01-12'],
+  ['2', 'bob', 'bob@acme.com', 'dev', '2025-02-03'],
+  ['3', 'carol', 'carol@acme.com', 'dev', '2025-02-14'],
+  ['4', 'dave', 'dave@acme.com', 'viewer', '2025-03-01'],
+  ['5', 'eve', 'eve@acme.com', 'dev', '2025-03-22'],
+  ['6', 'frank', 'frank@acme.com', 'dev', '2025-04-08'],
+  ['7', 'grace', 'grace@acme.com', 'admin', '2025-05-15'],
+  ['8', 'heidi', 'heidi@acme.com', 'viewer', '2025-06-01'],
 ];
 
 watch(visible, (v) => {
   if (!v) return;
-  setTimeout(() => { rowCount.value = 1; }, 300);
-  setTimeout(() => { rowCount.value = 2; }, 550);
-  setTimeout(() => { rowCount.value = 3; }, 800);
-  setTimeout(() => { rowCount.value = 4; }, 1050);
-  setTimeout(() => { rowCount.value = 5; }, 1300);
+  rows.forEach((_, i) => {
+    setTimeout(() => { rowCount.value = i + 1; }, 250 + i * 200);
+  });
 });
 </script>
 
@@ -30,7 +31,7 @@ watch(visible, (v) => {
     ref="root"
     class="bento-batteries"
   >
-    <!-- Table positioned to bleed bottom-left -->
+    <!-- Table positioned to bleed bottom-left — most of it is off-screen -->
     <div class="bento-table-wrap">
       <div class="bento-table">
         <!-- Window chrome bar -->
@@ -56,7 +57,7 @@ watch(visible, (v) => {
           :key="i"
           class="bento-row"
           :class="{ 'bento-row-visible': rowCount > i }"
-          :style="{ animationDelay: `${i * 80}ms` }"
+          :style="{ animationDelay: `${i * 60}ms` }"
         >
           <span
             v-for="(cell, j) in row"
@@ -67,10 +68,10 @@ watch(visible, (v) => {
 
         <!-- Footer -->
         <div
-          v-if="rowCount >= 5"
+          v-if="rowCount >= rows.length"
           class="bento-footer"
         >
-          5 rows &middot; 8ms
+          {{ rows.length }} rows &middot; 8ms
         </div>
       </div>
     </div>
@@ -79,28 +80,31 @@ watch(visible, (v) => {
 
 <style scoped>
 .bento-batteries {
-  min-height: 180px;
+  height: 200px;
   position: relative;
   overflow: visible;
   padding: 0;
 }
 
+/* Table is positioned so only the top-left corner peeks into the card.
+   It bleeds off the right and bottom edges.
+   The card's overflow:hidden (on .bento-card in BentoGrid) clips the rest. */
 .bento-table-wrap {
   position: absolute;
-  bottom: -20px;
-  left: -36px;
+  bottom: -80px;
+  right: -140px;
   z-index: 1;
 }
 
 @media (min-width: 640px) {
   .bento-table-wrap {
-    bottom: -24px;
-    left: -44px;
+    bottom: -90px;
+    right: -160px;
   }
 }
 
 .bento-table {
-  width: 380px;
+  width: 520px;
   border: 1px solid var(--ui-border);
   border-radius: 10px;
   background: var(--ui-bg-elevated);
@@ -110,7 +114,7 @@ watch(visible, (v) => {
 
 @media (min-width: 640px) {
   .bento-table {
-    width: 440px;
+    width: 600px;
   }
 }
 
@@ -144,7 +148,7 @@ watch(visible, (v) => {
 
 .bento-row {
   display: grid;
-  grid-template-columns: 36px 1fr 1.6fr 0.7fr;
+  grid-template-columns: 36px 80px 1.4fr 60px 90px;
   gap: 0;
   opacity: 0;
 }
