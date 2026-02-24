@@ -27,7 +27,10 @@ const navLinks = [
     :title="appConfig.header?.title || site.name"
   >
     <template #title>
-      <AppHeaderLogo class="h-6 w-auto shrink-0" />
+      <div class="flex items-center gap-2">
+        <AppHeaderLogo class="h-6 w-auto shrink-0" />
+        <span class="font-serif text-xl tracking-tight">Lucity</span>
+      </div>
     </template>
 
     <div class="hidden lg:flex items-center gap-1">
@@ -43,14 +46,16 @@ const navLinks = [
       </UButton>
     </div>
 
-    <UContentSearchButton
-      :collapsed="false"
-      class="w-full max-w-64"
-      variant="soft"
-      :ui="{ leadingIcon: 'size-4 mr-1' }"
-    />
-
     <template #right>
+      <UContentSearchButton
+        :collapsed="false"
+        class="hidden lg:inline-flex w-full max-w-56"
+        variant="soft"
+        :ui="{ leadingIcon: 'size-4 mr-1' }"
+      />
+
+      <UContentSearchButton class="lg:hidden" />
+
       <ClientOnly>
         <UColorModeButton />
 
