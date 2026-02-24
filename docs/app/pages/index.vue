@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, nextTick } from 'vue';
 
 definePageMeta({
   layout: 'default',
@@ -41,9 +41,15 @@ const ASIDE_PATHS = [
 /* Filter out spaces (no path data) and track visible character indices */
 const visiblePaths = ASIDE_PATHS.filter(p => p.d);
 
+const maskRef = ref<SVGPathElement | null>(null);
+const maskLength = ref(0);
 const asideDrawn = ref(false);
 
-onMounted(() => {
+onMounted(async () => {
+  await nextTick();
+  if (maskRef.value) {
+    maskLength.value = maskRef.value.getTotalLength();
+  }
   setTimeout(() => { asideDrawn.value = true; }, 800);
 });
 </script>
@@ -58,14 +64,31 @@ onMounted(() => {
           :viewBox="ASIDE_VIEWBOX"
           aria-hidden="true"
         >
-          <path
-            v-for="(glyph, i) in visiblePaths"
-            :key="i"
-            :d="glyph.d"
-            class="hero-glyph"
-            :class="{ 'hero-glyph-drawn': asideDrawn }"
-            :style="{ transitionDelay: asideDrawn ? `${i * 100}ms` : '0ms' }"
-          />
+          <defs>
+            <mask id="hero-writing-mask">
+              <path
+                ref="maskRef"
+                d="M -5,20 C 20,18 45,22 70,19 C 95,17 125,22 155,19 C 175,17 190,21 196,20"
+                fill="none"
+                stroke="white"
+                stroke-width="50"
+                stroke-linecap="round"
+                class="hero-mask-path"
+                :style="{
+                  strokeDasharray: maskLength || 210,
+                  strokeDashoffset: asideDrawn ? 0 : (maskLength || 210),
+                }"
+              />
+            </mask>
+          </defs>
+          <g mask="url(#hero-writing-mask)">
+            <path
+              v-for="(glyph, i) in visiblePaths"
+              :key="i"
+              :d="glyph.d"
+              class="hero-glyph"
+            />
+          </g>
         </svg>
       </span>
     </template>
@@ -145,16 +168,14 @@ onMounted(() => {
   overflow: visible;
 }
 
-/* Per-character glyph paths.
-   Each path wipes in left-to-right via clip-path, already filled. */
+/* Glyph paths — always filled, revealed by the mask sweep. */
 .hero-glyph {
   fill: var(--ui-primary);
   fill-opacity: 0.8;
-  clip-path: inset(0 100% 0 0);
-  transition: clip-path 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.hero-glyph-drawn {
-  clip-path: inset(0 0% 0 0);
+/* Mask stroke sweeps left-to-right like a pen. */
+.hero-mask-path {
+  transition: stroke-dashoffset 1.8s cubic-bezier(0.4, 0, 0.2, 1);
 }
 </style>
