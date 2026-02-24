@@ -22,7 +22,7 @@ const navLinks = [
 
 <template>
   <UHeader
-    :ui="{ center: 'flex-1' }"
+    :ui="{ center: 'flex-1 justify-center' }"
     to="/"
     :title="appConfig.header?.title || site.name"
   >
