@@ -119,11 +119,11 @@ const business = {
   }
 
   .pricing-left {
-    margin-right: -24px;
+    margin-right: -16px;
   }
 
   .pricing-right {
-    margin-left: -24px;
+    margin-left: -16px;
   }
 
   .pricing-center {
