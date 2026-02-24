@@ -8,46 +8,53 @@ import BentoGitOps from './BentoGitOps.vue';
 import BentoOpenSource from './BentoOpenSource.vue';
 
 const cards = [
+  /* Row 1: 50 / 50 */
   {
     id: 'deploy',
     component: BentoDeploy,
-    span: 'bento-span-full',
+    span: 'bento-span-3',
+    corner: 'bento-corner-tl',
     title: 'Push to deploy',
     description: 'Connect your GitHub repo. Push your code, watch it flow through the pipeline and land on <span class="bento-hl">Kubernetes</span>. Zero Dockerfiles required.',
   },
   {
-    id: 'envs',
-    component: BentoEnvironments,
-    span: 'bento-span-half',
-    title: 'Multi-environment',
-    description: 'Dev, staging, production, and <span class="bento-hl">PR previews</span>. Clone environments in seconds. Promote images without rebuilding.',
-  },
-  {
     id: 'batteries',
     component: BentoBatteries,
-    span: 'bento-span-half',
+    span: 'bento-span-3',
+    corner: 'bento-corner-tr',
     textFirst: true,
     title: 'Batteries included',
     description: '<span class="bento-hl">PostgreSQL</span> via CloudNativePG, <span class="bento-hl">Redis</span>, cron jobs, and HTTP routing via Gateway API. Everything your app needs.',
   },
+  /* Row 2: 66 / 33 */
   {
     id: 'eject',
     component: BentoEject,
-    span: 'bento-span-full',
+    span: 'bento-span-4',
     title: 'Eject anytime',
     description: 'One command. Standard <span class="bento-hl">Helm charts</span>, <span class="bento-hl">ArgoCD configs</span>, environment values, and a README. No lock-in, no strings attached.',
   },
   {
     id: 'gitops',
     component: BentoGitOps,
-    span: 'bento-span-half',
+    span: 'bento-span-2',
     title: 'GitOps native',
-    description: 'How the big players do it, just cleverly automated. Every deploy is a <span class="bento-hl">Git commit</span>. ArgoCD syncs your workloads.',
+    description: 'Every deploy is a <span class="bento-hl">Git commit</span>. ArgoCD syncs it to your cluster. The enterprise workflow, minus the enterprise.',
+  },
+  /* Row 3: 33 / 66 */
+  {
+    id: 'envs',
+    component: BentoEnvironments,
+    span: 'bento-span-2',
+    corner: 'bento-corner-bl',
+    title: 'Multi-environment',
+    description: 'Dev, staging, production, and <span class="bento-hl">PR previews</span>. Clone environments in seconds. Promote images without rebuilding.',
   },
   {
     id: 'oss',
     component: BentoOpenSource,
-    span: 'bento-span-full',
+    span: 'bento-span-4',
+    corner: 'bento-corner-br',
     textFirst: true,
     title: 'Open source',
     description: '<span class="bento-hl">AGPL-3.0</span> licensed. Self-host on your own Kubernetes cluster. Built on ArgoCD, Helm, CloudNativePG, and friends.',
@@ -81,6 +88,7 @@ function onMouseLeave() {
         'bento-card-wrap',
         `bento-card-${card.id}`,
         card.span,
+        card.corner,
       ]"
       @mousemove="(e) => onMouseMove(e, card.id)"
       @mouseleave="onMouseLeave"
@@ -159,22 +167,21 @@ function onMouseLeave() {
 
 @media (min-width: 1024px) {
   .bento-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(6, 1fr);
   }
 }
 
-.bento-span-full {
-  grid-column: 1 / -1;
-}
-
-.bento-span-half {
+/* All spans are full-width on mobile */
+.bento-span-2,
+.bento-span-3,
+.bento-span-4 {
   grid-column: 1 / -1;
 }
 
 @media (min-width: 1024px) {
-  .bento-span-half {
-    grid-column: span 1;
-  }
+  .bento-span-2 { grid-column: span 2; }
+  .bento-span-3 { grid-column: span 3; }
+  .bento-span-4 { grid-column: span 4; }
 }
 
 /* Outer wrapper — 1px padding acts as the "border".
@@ -185,6 +192,21 @@ function onMouseLeave() {
   border-radius: 17px;
   padding: 1px;
   background: var(--ui-border);
+}
+
+/* Large corner radius on grid edges (desktop only) */
+@media (min-width: 1024px) {
+  .bento-corner-tl { border-top-left-radius: 49px; }
+  .bento-corner-tl .bento-card { border-top-left-radius: 48px; }
+
+  .bento-corner-tr { border-top-right-radius: 49px; }
+  .bento-corner-tr .bento-card { border-top-right-radius: 48px; }
+
+  .bento-corner-bl { border-bottom-left-radius: 49px; }
+  .bento-corner-bl .bento-card { border-bottom-left-radius: 48px; }
+
+  .bento-corner-br { border-bottom-right-radius: 49px; }
+  .bento-corner-br .bento-card { border-bottom-right-radius: 48px; }
 }
 
 /* Gradient border glow — radial gradient at cursor position */
@@ -202,13 +224,16 @@ function onMouseLeave() {
   to { opacity: 1; }
 }
 
-/* Inner card — solid bg, fits snugly inside the 1px border gap */
+/* Inner card — solid bg, fits snugly inside the 1px border gap.
+   height: 100% ensures the card fills the wrapper so the 1px
+   border (padding) doesn't show as a thick gap at the bottom. */
 .bento-card {
   position: relative;
   border-radius: 16px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  height: 100%;
   background: var(--bento-card-bg, var(--ui-bg-elevated));
   z-index: 1;
 }
@@ -243,6 +268,20 @@ function onMouseLeave() {
   min-height: 0;
 }
 
+/* GitOps card — full-bleed background image.
+   Visual is taken out of flow; text pushed to bottom via auto margin. */
+.bento-card-gitops .bento-visual {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.bento-card-gitops .bento-text {
+  position: relative;
+  z-index: 3;
+  margin-top: auto;
+}
+
 .bento-text {
   position: relative;
   z-index: 1;
@@ -257,7 +296,7 @@ function onMouseLeave() {
 
 .bento-title {
   font-family: var(--font-serif);
-  font-size: 1.5rem;
+  font-size: 1.75rem;
   font-weight: normal;
   color: var(--ui-text);
   line-height: 1.2;
@@ -265,7 +304,7 @@ function onMouseLeave() {
 
 @media (min-width: 640px) {
   .bento-title {
-    font-size: 1.875rem;
+    font-size: 2.125rem;
   }
 }
 

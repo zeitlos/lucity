@@ -54,12 +54,12 @@ watch(visible, (v) => {
       AGPL-3.0 &middot; Forever open
     </div>
 
-    <!-- Gopher mascot overflowing bottom-right -->
+    <!-- Gopher with heart balloon — flies up, then hovers -->
     <img
-      src="/img/gopher_ship.webp"
+      src="/img/gopher_balloon.svg"
       alt=""
       class="bento-gopher"
-      :style="{ opacity: isDark ? 0.10 : 0.18 }"
+      :class="{ 'bento-gopher-visible': shown >= tools.length }"
     >
   </div>
 </template>
@@ -128,27 +128,30 @@ watch(visible, (v) => {
   z-index: 1;
 }
 
-/* Gopher image — overflows bottom-right corner */
+/* Gopher balloon — starts below the card, floats up slowly, then bobs.
+   Dark mode opacity handled via inline :style binding. */
 .bento-gopher {
   position: absolute;
-  bottom: -16px;
-  right: -12px;
-  width: 90px;
-  opacity: 0.18;
+  bottom: -10px;
+  right: 8px;
+  width: 100px;
   pointer-events: none;
   z-index: 0;
-  /* Dark mode opacity handled via inline :style binding (isDark ternary).
-     DO NOT use :global(.dark) in scoped CSS — it breaks scoping and
-     applies styles to <html class="dark"> itself, lowering the opacity
-     of the entire page. */
+  transform: translateY(300px);
 }
 
 @media (min-width: 640px) {
   .bento-gopher {
-    width: 130px;
-    bottom: -20px;
-    right: -16px;
+    width: 140px;
+    right: 12px;
   }
+}
+
+/* Slow float-up entrance + perpetual hover bob. */
+.bento-gopher-visible {
+  animation:
+    bento-gopher-fly-up 5s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both,
+    bento-gopher-hover 3s ease-in-out 5.2s infinite;
 }
 
 @keyframes bento-tool-in {
@@ -159,5 +162,19 @@ watch(visible, (v) => {
 @keyframes bento-fade-in {
   from { opacity: 0; }
   to { opacity: 1; }
+}
+
+@keyframes bento-gopher-fly-up {
+  from {
+    transform: translateY(300px);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes bento-gopher-hover {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
 }
 </style>

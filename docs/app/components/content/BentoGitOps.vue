@@ -69,15 +69,14 @@ watch(visible, (v) => {
 </template>
 
 <style scoped>
-/* Fixed height — prevents the grid from shifting when the
-   commit log and synced badge animate in. */
+/* Fill the entire card area (visual is position:absolute in the grid) */
 .bento-gitops {
-  height: 200px;
+  height: 100%;
   position: relative;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  padding: 20px 24px;
+  padding: 48px 16px 0;
   overflow: hidden;
 }
 
@@ -90,14 +89,18 @@ watch(visible, (v) => {
   z-index: 0;
 }
 
-/* Vignette — darkens edges so the git log stays readable */
+/* Gradient overlay — transparent at top (river visible),
+   fades to --bento-card-bg at bottom (text readability).
+   Uses color-mix for broad browser support. */
 .bento-vignette {
   position: absolute;
   inset: 0;
-  background: radial-gradient(
-    ellipse at center,
-    transparent 30%,
-    oklch(0 0 0 / 0.35) 100%
+  background: linear-gradient(
+    to bottom,
+    color-mix(in oklch, var(--bento-card-bg) 15%, transparent) 0%,
+    color-mix(in oklch, var(--bento-card-bg) 30%, transparent) 40%,
+    color-mix(in oklch, var(--bento-card-bg) 75%, transparent) 70%,
+    var(--bento-card-bg) 100%
   );
   pointer-events: none;
   z-index: 1;
@@ -140,9 +143,10 @@ watch(visible, (v) => {
   position: absolute;
   left: 3.5px;
   top: 16px;
-  width: 1px;
+  width: 2px;
   height: calc(100% + 4px);
-  background: var(--ui-border);
+  background: var(--bento-accent);
+  opacity: 0.5;
 }
 
 .bento-commit-msg {
@@ -164,7 +168,8 @@ watch(visible, (v) => {
   margin-top: 6px;
   padding: 3px 10px;
   border-radius: 10px;
-  background: var(--bento-accent-subtle);
+  background: var(--ui-bg-elevated);
+  border: 1px solid var(--ui-border);
   color: var(--bento-accent);
   font-size: 11px;
   font-weight: 500;
