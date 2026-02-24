@@ -39,7 +39,7 @@ Open-source PaaS on Kubernetes. Git push to deploy, environments out of the box,
 What you can do
 
   :::u-page-grid
-    ::::u-page-card{spotlight class="col-span-2" variant="outline"}
+    ::::u-page-card{spotlight class="col-span-2 bento-card-deploy" variant="subtle"}
     :bento-deploy
 
     #title
@@ -49,7 +49,7 @@ What you can do
     Connect your GitHub repo. Push your code, watch it flow through the pipeline and land on Kubernetes. Zero Dockerfiles required.
     ::::
 
-    ::::u-page-card{spotlight class="col-span-2 lg:col-span-1" variant="outline"}
+    ::::u-page-card{spotlight class="col-span-2 lg:col-span-1 bento-card-envs" variant="subtle"}
     :bento-environments
 
     #title
@@ -59,7 +59,7 @@ What you can do
     Dev, staging, production, and PR previews. Clone environments in seconds. Promote images without rebuilding.
     ::::
 
-    ::::u-page-card{spotlight class="col-span-2 lg:col-span-1" variant="outline"}
+    ::::u-page-card{spotlight class="col-span-2 lg:col-span-1 bento-card-batteries" variant="subtle"}
     :bento-batteries
 
     #title
@@ -69,7 +69,7 @@ What you can do
     PostgreSQL via CloudNativePG, Redis, cron jobs, and HTTP routing via Gateway API. Everything your app needs.
     ::::
 
-    ::::u-page-card{spotlight class="col-span-2" variant="outline"}
+    ::::u-page-card{spotlight class="col-span-2 bento-card-eject" variant="subtle"}
     :bento-eject
 
     #title
@@ -79,7 +79,7 @@ What you can do
     One command. Standard Helm charts, ArgoCD configs, environment values, and a README. Your infrastructure is yours.
     ::::
 
-    ::::u-page-card{spotlight class="col-span-2 lg:col-span-1" variant="outline"}
+    ::::u-page-card{spotlight class="col-span-2 lg:col-span-1 bento-card-gitops" variant="subtle"}
     :bento-git-ops
 
     #title
@@ -89,7 +89,7 @@ What you can do
     How the big players do it — just cleverly automated. Every deploy is a Git commit. ArgoCD syncs your workloads.
     ::::
 
-    ::::u-page-card{spotlight class="col-span-2 lg:col-span-1" variant="outline"}
+    ::::u-page-card{spotlight class="col-span-2 lg:col-span-1 bento-card-oss" variant="subtle"}
     :bento-open-source
 
     #title

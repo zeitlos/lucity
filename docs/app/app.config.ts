@@ -12,6 +12,14 @@ export default defineAppConfig({
       primary: 'teal',
       neutral: 'stone'
     },
+    pageCard: {
+      slots: {
+        container: 'relative flex flex-col flex-1 lg:grid gap-x-8 gap-y-4 p-6 sm:p-8',
+        wrapper: 'flex flex-col flex-1 items-start text-left',
+        title: 'text-xl font-semibold text-highlighted',
+        description: 'text-base text-pretty mt-2'
+      }
+    },
     pageHeader: {
       slots: {
         title: 'text-4xl sm:text-5xl'
