@@ -1,4 +1,9 @@
 <script setup lang="ts">
+const planUi = {
+  root: 'rounded-2xl bg-gradient-to-b from-[var(--ui-bg-elevated)]/60 to-transparent',
+  title: 'font-serif text-3xl sm:text-4xl font-normal',
+};
+
 const plans = [
   {
     title: 'Starter',
@@ -18,6 +23,7 @@ const plans = [
       to: '/cloud',
       color: 'neutral' as const,
     },
+    ui: planUi,
   },
   {
     title: 'Pro',
@@ -36,6 +42,7 @@ const plans = [
       label: 'Join the waitlist',
       to: '/cloud',
     },
+    ui: planUi,
   },
   {
     title: 'Business',
@@ -55,12 +62,16 @@ const plans = [
       to: 'mailto:hello@zeitlos.software',
       color: 'neutral' as const,
     },
+    ui: planUi,
   },
 ];
 </script>
 
 <template>
-  <UPricingPlans scale>
+  <UPricingPlans
+    scale
+    class="-mx-4 lg:-mx-8"
+  >
     <UPricingPlan
       v-for="plan in plans"
       :key="plan.title"
