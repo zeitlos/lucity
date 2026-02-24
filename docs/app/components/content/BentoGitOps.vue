@@ -1,13 +1,10 @@
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue';
+import { ref, watch } from 'vue';
 import { useBentoVisible } from './useBentoVisible';
 
 const root = ref<HTMLElement | null>(null);
 const visible = useBentoVisible(root);
 const commitCount = ref(0);
-
-const colorMode = useColorMode();
-const isDark = computed(() => colorMode.value === 'dark');
 
 const commits = [
   { msg: 'deploy(dev): api a1b2c3d', icon: 'i-lucide-arrow-up-circle' },
@@ -28,19 +25,10 @@ watch(visible, (v) => {
     ref="root"
     class="bento-gitops"
   >
-    <!-- River wallpaper background -->
-    <div
-      class="bento-river-bg"
-      :style="{ opacity: isDark ? 0.08 : 0.15 }"
-    />
-    <!-- Inset shadow overlay -->
-    <div
-      class="bento-inset-shadow"
-      :style="{ boxShadow: isDark
-        ? 'inset 0 0 60px oklch(0 0 0 / 0.25), inset 0 2px 15px oklch(0 0 0 / 0.15)'
-        : 'inset 0 0 60px oklch(0 0 0 / 0.10), inset 0 2px 15px oklch(0 0 0 / 0.06)'
-      }"
-    />
+    <!-- River wallpaper background (full opacity, covers entire card) -->
+    <div class="bento-river-bg" />
+    <!-- Vignette overlay for readability -->
+    <div class="bento-vignette" />
 
     <!-- Git log -->
     <div class="bento-log">
@@ -91,23 +79,24 @@ watch(visible, (v) => {
   overflow: hidden;
 }
 
-/* River wallpaper background */
+/* River wallpaper — full opacity, no tint, covers entire visual area */
 .bento-river-bg {
   position: absolute;
   inset: 0;
   background: url('/img/branching_river.webp') center / cover no-repeat;
   pointer-events: none;
   z-index: 0;
-  /* Dark mode opacity + box-shadow handled via inline :style bindings.
-     DO NOT use :global(.dark) in scoped CSS — it breaks scoping and
-     applies styles to <html class="dark"> itself, lowering the opacity
-     of the entire page. */
 }
 
-/* Inset shadow for depth */
-.bento-inset-shadow {
+/* Vignette — darkens edges so the git log stays readable */
+.bento-vignette {
   position: absolute;
   inset: 0;
+  background: radial-gradient(
+    ellipse at center,
+    transparent 30%,
+    oklch(0 0 0 / 0.35) 100%
+  );
   pointer-events: none;
   z-index: 1;
 }

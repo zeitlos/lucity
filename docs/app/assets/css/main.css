@@ -178,7 +178,7 @@ h1, h2 {
   --bento-accent: oklch(0.50 0.16 140);
   --bento-accent-glow: oklch(0.50 0.16 140 / 0.3);
   --bento-accent-subtle: oklch(0.50 0.16 140 / 0.12);
-  background: oklch(0.96 0.03 140) !important;
+  /* No background — the river wallpaper image covers the card */
 }
 
 .bento-card-oss {
