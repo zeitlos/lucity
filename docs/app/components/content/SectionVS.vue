@@ -464,7 +464,7 @@ watch(visible, (v) => {
     height: 48px;
     transform: none;
     background: linear-gradient(
-      to right,
+      to bottom,
       oklch(0.18 0.08 240) 0%,
       oklch(0.14 0.04 55) 50%,
       oklch(0.18 0.08 25) 100%
