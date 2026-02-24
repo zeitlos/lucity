@@ -25,7 +25,7 @@
 
 ---
 
-Lucity gives you the developer experience of Railway or Heroku — git push to deploy, automatic builds, preview environments — on top of Kubernetes you control. When you outgrow the platform or just want to take over, `lucity eject` hands you standard Helm charts and ArgoCD configs. No proprietary exports. No migration project. Just your infrastructure, ready to run independently.
+Lucity is a self-hosted PaaS that deploys your apps to Kubernetes from a GitHub repo. It gives you the developer experience of Railway or Heroku with the control of owning your infrastructure. When you're ready to move on, `lucity eject` gives you standard Helm charts and ArgoCD configs — zero lock-in, zero vendor dependency.
 
 <!-- TODO: Demo GIF
      Record with VHS (https://github.com/charmbracelet/vhs) or screen-record the dashboard:
@@ -111,7 +111,7 @@ flowchart LR
     SS -. "watch" .-> AR
 ```
 
-Six Go services, one Vue dashboard, zero central databases. Your source repo is read-only to the platform — all managed configuration lives in a separate GitOps repo on Soft-serve.
+The platform is **stateless** — no central database. All state lives in Git (Soft-serve), Kubernetes, and the OCI registry (Zot). Your source repo is read-only to the platform; all managed configuration lives in a separate GitOps repo. If the platform goes down, your workloads keep running.
 
 ## Quick Start
 
@@ -150,7 +150,7 @@ Full documentation at **[lucity.dev](https://lucity.dev)**.
 
 ## Lucity Cloud
 
-Don't want to run Kubernetes yourself? **Lucity Cloud** is a managed version of everything above — same open-source platform, hosted in Switzerland, zero infrastructure to maintain.
+Don't want to run Kubernetes yourself? **Lucity Cloud** is a managed version of everything above — same open-source platform, zero infrastructure to maintain.
 
 [Join the waitlist](https://lucity.dev/cloud) — or just self-host. We're cool either way.
 
