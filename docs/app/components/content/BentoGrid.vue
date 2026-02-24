@@ -143,6 +143,12 @@ function onMouseLeave() {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  transition: border-color 0.3s ease;
+}
+
+/* Hover: reveal accent-colored border (like the old Nuxt UI spotlight) */
+.bento-card:hover {
+  border-color: var(--bento-accent);
 }
 
 /* Spotlight overlay */
@@ -151,7 +157,7 @@ function onMouseLeave() {
   inset: 0;
   pointer-events: none;
   z-index: 0;
-  opacity: 0.6;
+  opacity: 0.5;
   transition: opacity 0.2s ease;
 }
 
