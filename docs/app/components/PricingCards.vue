@@ -10,7 +10,7 @@ const sideUi = {
 };
 
 const proUi = {
-  root: `${baseUi.root} shadow-[0_4px_32px_-6px_oklch(0_0_0/0.12),0_2px_6px_-2px_oklch(0_0_0/0.06)]`,
+  root: 'pricing-card rounded-2xl bg-[var(--ui-bg-elevated)] relative overflow-hidden shadow-[0_4px_32px_-6px_oklch(0_0_0/0.12),0_2px_6px_-2px_oklch(0_0_0/0.06)]',
   title: baseUi.title,
 };
 
