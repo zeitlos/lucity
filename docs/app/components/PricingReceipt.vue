@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 
 const root = ref<HTMLElement | null>(null);
 const lineCount = ref(0);
@@ -17,41 +17,73 @@ interface ReceiptLine {
 }
 
 const lines: ReceiptLine[] = [
-  { type: 'separator', text: '================================' },
-  { type: 'center',    text: 'LUCITY CLOUD' },
+  { type: 'separator' },
+  { type: 'center',       text: 'LUCITY CLOUD' },
   { type: 'center-muted', text: 'Monthly Usage Receipt' },
-  { type: 'separator', text: '================================' },
-  { type: 'justify',   left: 'Date: Feb 2026', right: '' },
-  { type: 'justify',   left: 'Plan: Starter', right: '5.00' },
-  { type: 'dash',      text: '--------------------------------' },
-  { type: 'line',      text: '' },
-  { type: 'label',     text: 'Resources:' },
-  { type: 'item',      desc: '1x vCPU    @ CHF 10.00', amount: '10.00' },
-  { type: 'item',      desc: '512 MB RAM @ CHF  5/GB', amount: '2.50' },
-  { type: 'item',      desc: '10 GB Disk @ CHF  0.10', amount: '1.00' },
-  { type: 'item',      desc: '5 GB Egrs  @ CHF  0.02', amount: '0.10' },
+  { type: 'separator' },
+  { type: 'justify',      left: 'Date: Feb 2026', right: '' },
+  { type: 'justify',      left: 'Plan: Starter', right: '5.00' },
+  { type: 'dash' },
+  { type: 'line' },
+  { type: 'label',        text: 'Resources:' },
+  { type: 'item',         desc: '1x vCPU    @ CHF 10.00', amount: '10.00' },
+  { type: 'item',         desc: '512 MB RAM @ CHF  5/GB', amount: '2.50' },
+  { type: 'item',         desc: '10 GB Disk @ CHF  0.10', amount: '1.00' },
+  { type: 'item',         desc: '5 GB Egrs  @ CHF  0.02', amount: '0.10' },
   { type: 'subtotal-dash' },
-  { type: 'justify',   left: 'Subtotal:', right: '13.60' },
-  { type: 'justify',   left: 'Credits:', right: '-5.00', highlight: true },
+  { type: 'justify',      left: 'Subtotal:', right: '13.60' },
+  { type: 'justify',      left: 'Credits:', right: '-5.00', highlight: true },
   { type: 'total-dash' },
-  { type: 'total',     left: 'TOTAL:       CHF', right: '8.60' },
-  { type: 'separator', text: '================================' },
-  { type: 'line',      text: '' },
-  { type: 'center',    text: 'Thank you for shipping!' },
+  { type: 'total',        left: 'TOTAL:       CHF', right: '8.60' },
+  { type: 'separator' },
+  { type: 'line' },
+  { type: 'center',       text: 'Thank you for shipping!' },
   { type: 'center-muted', text: 'No lock-in. Ever.' },
 ];
+
+/* ---- Height calculations ---- */
+
+const LINE_H = 20.4;   // 12px × 1.7 line-height
+const SEP_H = 12;      // separator/dash lines are shorter
+const PAD_TOP = 28;
+const PAD_BOTTOM = 32;
+const TEAR_H = 12;
+const PRINTER_BODY_H = 18;
+
+function heightForLine(type: string): number {
+  if (type === 'separator' || type === 'dash' || type === 'subtotal-dash' || type === 'total-dash') return SEP_H;
+  if (type === 'line') return LINE_H * 0.5;
+  return LINE_H;
+}
+
+// Pre-calculate total height so the container is fixed
+const totalPaperH = PAD_TOP + lines.reduce((sum, l) => sum + heightForLine(l.type), 0) + PAD_BOTTOM + TEAR_H;
+const reservedHeight = `${PRINTER_BODY_H + totalPaperH}px`;
+
+// Current feed height — grows per line (instant, no transition)
+const feedHeight = computed(() => {
+  if (lineCount.value === 0) return '0px';
+  let h = PAD_TOP;
+  for (let i = 0; i < lineCount.value && i < lines.length; i++) {
+    h += heightForLine(lines[i].type);
+  }
+  // Include tear + bottom padding when fully printed
+  h += lineCount.value >= lines.length ? PAD_BOTTOM + TEAR_H : 8;
+  return `${h}px`;
+});
+
+/* ---- Printing trigger ---- */
 
 function startPrinting() {
   if (lineCount.value > 0) return;
   lines.forEach((_, i) => {
-    setTimeout(() => { lineCount.value = i + 1; }, 150 + i * 80);
+    setTimeout(() => { lineCount.value = i + 1; }, 300 + i * 100);
   });
 }
 
 onMounted(() => {
   if (!root.value) return;
 
-  // Fallback: start printing after 2s even if IntersectionObserver doesn't fire
   fallbackTimer = setTimeout(startPrinting, 2000);
 
   if (typeof IntersectionObserver === 'undefined') {
@@ -67,7 +99,7 @@ onMounted(() => {
         observer?.disconnect();
       }
     },
-    { threshold: 0.3 },
+    { threshold: 0.15 },
   );
   observer.observe(root.value);
 });
@@ -81,53 +113,66 @@ onUnmounted(() => {
 <template>
   <div
     ref="root"
-    class="receipt-container"
+    class="receipt-printer"
+    :style="{ minHeight: reservedHeight }"
   >
-    <div class="receipt-paper">
-      <div
-        v-for="(line, i) in lines"
-        :key="i"
-        class="receipt-line"
-        :class="[
-          `receipt-${line.type}`,
-          {
-            'receipt-line-visible': lineCount > i,
-            'receipt-highlight': line.highlight,
-          },
-        ]"
-      >
-        <!-- separator / dash -->
-        <template v-if="line.type === 'separator' || line.type === 'dash'">
-          {{ line.text }}
-        </template>
+    <!-- Printer body with slit -->
+    <div class="printer-body">
+      <div class="printer-slit" />
+    </div>
 
-        <!-- center / center-muted -->
-        <template v-else-if="line.type === 'center' || line.type === 'center-muted'">
-          {{ line.text }}
-        </template>
+    <!-- Paper feed — overflow hidden, height snaps per line -->
+    <div
+      class="paper-feed"
+      :style="{ maxHeight: feedHeight }"
+    >
+      <div class="receipt-paper">
+        <div
+          v-for="(line, i) in lines"
+          :key="i"
+          class="receipt-line"
+          :class="[
+            `receipt-${line.type}`,
+            {
+              'receipt-line-visible': lineCount > i,
+              'receipt-highlight': line.highlight,
+            },
+          ]"
+        >
+          <!-- separator (full-width solid rule) -->
+          <template v-if="line.type === 'separator'" />
 
-        <!-- justify / total (left + right) -->
-        <template v-else-if="line.type === 'justify' || line.type === 'total'">
-          <span>{{ line.left }}</span>
-          <span>{{ line.right }}</span>
-        </template>
+          <!-- dash (full-width dashed rule) -->
+          <template v-else-if="line.type === 'dash'" />
 
-        <!-- item (desc + amount) -->
-        <template v-else-if="line.type === 'item'">
-          <span class="receipt-item-desc">{{ line.desc }}</span>
-          <span>{{ line.amount }}</span>
-        </template>
+          <!-- center / center-muted -->
+          <template v-else-if="line.type === 'center' || line.type === 'center-muted'">
+            {{ line.text }}
+          </template>
 
-        <!-- subtotal-dash / total-dash (right-aligned rule) -->
-        <template v-else-if="line.type === 'subtotal-dash' || line.type === 'total-dash'">
-          <span />
-          <span>{{ line.type === 'total-dash' ? '======' : '------' }}</span>
-        </template>
+          <!-- justify / total (left + right) -->
+          <template v-else-if="line.type === 'justify' || line.type === 'total'">
+            <span>{{ line.left }}</span>
+            <span>{{ line.right }}</span>
+          </template>
 
-        <!-- label / line (plain text) -->
-        <template v-else>
-          {{ line.text }}
-        </template>
+          <!-- item (desc + amount) -->
+          <template v-else-if="line.type === 'item'">
+            <span class="receipt-item-desc">{{ line.desc }}</span>
+            <span>{{ line.amount }}</span>
+          </template>
+
+          <!-- subtotal-dash / total-dash (right-aligned partial rule) -->
+          <template v-else-if="line.type === 'subtotal-dash' || line.type === 'total-dash'">
+            <span />
+            <span :class="line.type === 'total-dash' ? 'rule-double' : 'rule-single'" />
+          </template>
+
+          <!-- label / line (plain text) -->
+          <template v-else>
+            {{ line.text }}
+          </template>
+        </div>
       </div>
 
       <!-- Zigzag torn edge -->
@@ -140,18 +185,61 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-.receipt-container {
+.receipt-printer {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
   padding: 0 16px;
 }
+
+/* ---- Printer body ---- */
+
+.printer-body {
+  --printer-bg: oklch(0.28 0.01 55);
+  width: 100%;
+  max-width: 380px;
+  height: 18px;
+  background: linear-gradient(180deg,
+    oklch(0.34 0.01 55) 0%,
+    var(--printer-bg) 100%
+  );
+  border-radius: 10px 10px 0 0;
+  position: relative;
+  z-index: 2;
+  box-shadow:
+    inset 0 1px 0 oklch(0.42 0.01 55 / 0.4),
+    0 2px 8px oklch(0 0 0 / 0.2);
+}
+
+.printer-slit {
+  position: absolute;
+  bottom: -1px;
+  left: 8%;
+  right: 8%;
+  height: 3px;
+  background: oklch(0.10 0.005 55);
+  border-radius: 0 0 3px 3px;
+  box-shadow:
+    inset 0 1px 2px oklch(0 0 0 / 0.6),
+    0 1px 3px oklch(0 0 0 / 0.3);
+}
+
+/* ---- Paper feed ---- */
+
+.paper-feed {
+  max-height: 0;
+  overflow: hidden;
+  /* No transition — instant height snaps for old-school printer feel */
+  position: relative;
+}
+
+/* ---- Receipt paper ---- */
 
 .receipt-paper {
   --receipt-bg: oklch(0.97 0.005 80);
   --receipt-text: oklch(0.25 0.02 55);
   --receipt-muted: oklch(0.50 0.03 55);
 
-  position: relative;
   background: var(--receipt-bg);
   font-family: var(--font-mono);
   font-size: 12px;
@@ -160,53 +248,50 @@ onUnmounted(() => {
   padding: 28px 24px 32px;
   width: 100%;
   max-width: 340px;
-  border-radius: 4px 4px 0 0;
+  margin: 0 auto;
   box-shadow:
-    0 2px 8px oklch(0.3 0.02 55 / 0.08),
-    0 1px 2px oklch(0.3 0.02 55 / 0.04);
+    2px 0 6px oklch(0.3 0.02 55 / 0.06),
+    -2px 0 6px oklch(0.3 0.02 55 / 0.06);
 }
 
-/* Receipt stays paper-colored in dark mode — like a real receipt */
 .dark .receipt-paper {
   --receipt-bg: oklch(0.94 0.005 80);
   --receipt-text: oklch(0.22 0.02 55);
   --receipt-muted: oklch(0.42 0.03 55);
   box-shadow:
-    0 4px 16px oklch(0 0 0 / 0.3),
-    0 2px 4px oklch(0 0 0 / 0.2);
+    2px 0 12px oklch(0 0 0 / 0.25),
+    -2px 0 12px oklch(0 0 0 / 0.25);
 }
 
-/* ---- Line animation ---- */
+/* ---- Line animation (instant snap — dot-matrix style) ---- */
 
 .receipt-line {
   opacity: 0;
-  transform: translateY(-3px);
   white-space: pre;
   min-height: 1.7em;
 }
 
 .receipt-line-visible {
-  animation: receipt-line-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  opacity: 1;
 }
 
-@keyframes receipt-line-in {
-  from {
-    opacity: 0;
-    transform: translateY(-3px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+/* ---- Separator lines (full-width CSS rules) ---- */
+
+.receipt-separator {
+  min-height: 0;
+  height: 0;
+  padding: 4px 0;
+  border-top: 1.5px solid var(--receipt-text);
+}
+
+.receipt-dash {
+  min-height: 0;
+  height: 0;
+  padding: 4px 0;
+  border-top: 1px dashed var(--receipt-muted);
 }
 
 /* ---- Line types ---- */
-
-.receipt-separator,
-.receipt-dash {
-  color: var(--receipt-muted);
-  letter-spacing: -0.5px;
-}
 
 .receipt-center {
   text-align: center;
@@ -246,8 +331,19 @@ onUnmounted(() => {
 .receipt-total-dash {
   display: flex;
   justify-content: flex-end;
-  color: var(--receipt-muted);
-  padding-right: 0;
+  min-height: 0;
+  height: 0;
+  padding: 4px 0;
+}
+
+.rule-single {
+  width: 60px;
+  border-top: 1px solid var(--receipt-muted);
+}
+
+.rule-double {
+  width: 60px;
+  border-top: 2.5px double var(--receipt-text);
 }
 
 .receipt-total {
@@ -260,20 +356,14 @@ onUnmounted(() => {
   font-weight: 500;
 }
 
-.receipt-line.receipt-line:is([class*="line"]) {
-  min-height: 0.85em;
-}
-
 /* ---- Torn edge ---- */
 
 .receipt-tear {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 10px;
-  background: var(--receipt-bg);
-  transform: translateY(100%);
+  width: 100%;
+  max-width: 340px;
+  margin: 0 auto;
+  height: 12px;
+  background: oklch(0.97 0.005 80);
   opacity: 0;
   clip-path: polygon(
     0% 0%, 2.5% 100%, 5% 0%, 7.5% 100%, 10% 0%,
@@ -287,26 +377,26 @@ onUnmounted(() => {
   );
 }
 
-.receipt-tear-visible {
-  animation: receipt-tear-in 0.4s ease forwards;
+.dark .receipt-tear {
+  background: oklch(0.94 0.005 80);
 }
 
-@keyframes receipt-tear-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+.receipt-tear-visible {
+  opacity: 1;
 }
 
 /* ---- Reduced motion ---- */
 
 @media (prefers-reduced-motion: reduce) {
+  .paper-feed {
+    max-height: none !important;
+    overflow: visible !important;
+  }
   .receipt-line {
     opacity: 1 !important;
-    transform: none !important;
-    animation: none !important;
   }
   .receipt-tear {
     opacity: 1 !important;
-    animation: none !important;
   }
 }
 </style>

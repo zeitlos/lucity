@@ -22,8 +22,27 @@ useSeo({
 
   <UPageSection
     title="Resource pricing"
-    description="Here's what a typical small app costs per month."
+    description="Pay only for what your apps actually use. Here's a sample monthly bill."
   >
+    <div class="resource-prices">
+      <div class="resource-item">
+        <span class="resource-label">vCPU</span>
+        <span class="resource-price">CHF 10 <span class="resource-unit">/ core / mo</span></span>
+      </div>
+      <div class="resource-item">
+        <span class="resource-label">Memory</span>
+        <span class="resource-price">CHF 5 <span class="resource-unit">/ GB / mo</span></span>
+      </div>
+      <div class="resource-item">
+        <span class="resource-label">Disk</span>
+        <span class="resource-price">CHF 0.10 <span class="resource-unit">/ GB / mo</span></span>
+      </div>
+      <div class="resource-item">
+        <span class="resource-label">Egress</span>
+        <span class="resource-price">CHF 0.02 <span class="resource-unit">/ GB</span></span>
+      </div>
+    </div>
+
     <PricingReceipt />
   </UPageSection>
 
@@ -48,3 +67,52 @@ useSeo({
     </UPageCard>
   </UPageSection>
 </template>
+
+<style scoped>
+.resource-prices {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px 16px;
+  max-width: 420px;
+  margin: 0 auto 32px;
+  font-family: var(--font-mono);
+}
+
+@media (min-width: 640px) {
+  .resource-prices {
+    grid-template-columns: repeat(4, 1fr);
+    max-width: 640px;
+  }
+}
+
+.resource-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 8px;
+  border-radius: 8px;
+  background: var(--ui-bg-elevated);
+  border: 1px solid var(--ui-border);
+}
+
+.resource-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ui-text-muted);
+}
+
+.resource-price {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ui-text);
+}
+
+.resource-unit {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--ui-text-muted);
+}
+</style>
