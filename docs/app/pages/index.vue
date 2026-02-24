@@ -146,14 +146,15 @@ onMounted(() => {
 }
 
 /* Per-character glyph paths.
-   Each path fades in sequentially via staggered transition-delay. */
+   Each path wipes in left-to-right via clip-path, already filled. */
 .hero-glyph {
   fill: var(--ui-primary);
-  fill-opacity: 0;
-  transition: fill-opacity 0.3s ease;
+  fill-opacity: 0.8;
+  clip-path: inset(0 100% 0 0);
+  transition: clip-path 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .hero-glyph-drawn {
-  fill-opacity: 0.8;
+  clip-path: inset(0 0% 0 0);
 }
 </style>
