@@ -1,5 +1,5 @@
 ---
-title: "Lucity — The PaaS you can leave"
+title: "Lucity: The PaaS you can leave"
 description: "Open-source PaaS on Kubernetes. Git push to deploy, eject to standard Helm charts and ArgoCD configs at any time. Self-hostable, no lock-in."
 ---
 
@@ -8,7 +8,7 @@ description: "Open-source PaaS on Kubernetes. Git push to deploy, eject to stand
 The PaaS you can leave.
 
 #description
-Open-source PaaS on Kubernetes. Git push to deploy, environments out of the box, and a real exit door — `lucity eject` gives you standard Helm charts and ArgoCD configs.
+Open-source PaaS on Kubernetes. Git push to deploy, environments out of the box, and a real exit door. `lucity eject` gives you standard Helm charts and ArgoCD configs.
 
 #links
   :::u-button
@@ -33,6 +33,8 @@ Open-source PaaS on Kubernetes. Git push to deploy, environments out of the box,
   View on GitHub
   :::
 ::
+
+:hero-demo
 
 ::u-page-section
 #title
@@ -86,7 +88,7 @@ What you can do
     GitOps native
 
     #description
-    How the big players do it — just cleverly automated. Every deploy is a Git commit. ArgoCD syncs your workloads.
+    How the big players do it, just cleverly automated. Every deploy is a Git commit. ArgoCD syncs your workloads.
     ::::
 
     ::::u-page-card{spotlight class="col-span-2 lg:col-span-1 bento-card-oss" variant="subtle"}
@@ -161,7 +163,7 @@ Built on tools you already know
     Or let us run it
 
     #description
-    Lucity Cloud is the managed version — same open-source platform, hosted in Switzerland, zero infrastructure to maintain.
+    Lucity Cloud is the managed version. Same open-source platform, hosted in Switzerland, zero infrastructure to maintain.
 
       :::::u-button
       ---
