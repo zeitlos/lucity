@@ -116,70 +116,75 @@ onUnmounted(() => {
     class="receipt-printer"
     :style="{ minHeight: reservedHeight }"
   >
-    <!-- Printer body with slit -->
-    <div class="printer-body">
-      <div class="printer-slit" />
+    <!-- Paper area — fixed-height wrapper, paper grows upward inside -->
+    <div
+      class="paper-area"
+      :style="{ height: `${totalPaperH}px` }"
+    >
+      <div
+        class="paper-feed"
+        :style="{ maxHeight: feedHeight }"
+      >
+        <div class="receipt-paper">
+          <div
+            v-for="(line, i) in lines"
+            :key="i"
+            class="receipt-line"
+            :class="[
+              `receipt-${line.type}`,
+              {
+                'receipt-line-visible': lineCount > i,
+                'receipt-highlight': line.highlight,
+              },
+            ]"
+          >
+            <!-- separator (full-width solid rule) -->
+            <template v-if="line.type === 'separator'" />
+
+            <!-- dash (full-width dashed rule) -->
+            <template v-else-if="line.type === 'dash'" />
+
+            <!-- center / center-muted -->
+            <template v-else-if="line.type === 'center' || line.type === 'center-muted'">
+              {{ line.text }}
+            </template>
+
+            <!-- justify / total (left + right) -->
+            <template v-else-if="line.type === 'justify' || line.type === 'total'">
+              <span>{{ line.left }}</span>
+              <span>{{ line.right }}</span>
+            </template>
+
+            <!-- item (desc + amount) -->
+            <template v-else-if="line.type === 'item'">
+              <span class="receipt-item-desc">{{ line.desc }}</span>
+              <span>{{ line.amount }}</span>
+            </template>
+
+            <!-- subtotal-dash / total-dash (right-aligned partial rule) -->
+            <template v-else-if="line.type === 'subtotal-dash' || line.type === 'total-dash'">
+              <span />
+              <span :class="line.type === 'total-dash' ? 'rule-double' : 'rule-single'" />
+            </template>
+
+            <!-- label / line (plain text) -->
+            <template v-else>
+              {{ line.text }}
+            </template>
+          </div>
+        </div>
+
+        <!-- Zigzag torn edge — right above the printer slit -->
+        <div
+          class="receipt-tear"
+          :class="{ 'receipt-tear-visible': lineCount >= lines.length }"
+        />
+      </div>
     </div>
 
-    <!-- Paper feed — overflow hidden, height snaps per line -->
-    <div
-      class="paper-feed"
-      :style="{ maxHeight: feedHeight }"
-    >
-      <div class="receipt-paper">
-        <div
-          v-for="(line, i) in lines"
-          :key="i"
-          class="receipt-line"
-          :class="[
-            `receipt-${line.type}`,
-            {
-              'receipt-line-visible': lineCount > i,
-              'receipt-highlight': line.highlight,
-            },
-          ]"
-        >
-          <!-- separator (full-width solid rule) -->
-          <template v-if="line.type === 'separator'" />
-
-          <!-- dash (full-width dashed rule) -->
-          <template v-else-if="line.type === 'dash'" />
-
-          <!-- center / center-muted -->
-          <template v-else-if="line.type === 'center' || line.type === 'center-muted'">
-            {{ line.text }}
-          </template>
-
-          <!-- justify / total (left + right) -->
-          <template v-else-if="line.type === 'justify' || line.type === 'total'">
-            <span>{{ line.left }}</span>
-            <span>{{ line.right }}</span>
-          </template>
-
-          <!-- item (desc + amount) -->
-          <template v-else-if="line.type === 'item'">
-            <span class="receipt-item-desc">{{ line.desc }}</span>
-            <span>{{ line.amount }}</span>
-          </template>
-
-          <!-- subtotal-dash / total-dash (right-aligned partial rule) -->
-          <template v-else-if="line.type === 'subtotal-dash' || line.type === 'total-dash'">
-            <span />
-            <span :class="line.type === 'total-dash' ? 'rule-double' : 'rule-single'" />
-          </template>
-
-          <!-- label / line (plain text) -->
-          <template v-else>
-            {{ line.text }}
-          </template>
-        </div>
-      </div>
-
-      <!-- Zigzag torn edge -->
-      <div
-        class="receipt-tear"
-        :class="{ 'receipt-tear-visible': lineCount >= lines.length }"
-      />
+    <!-- Printer body at bottom -->
+    <div class="printer-body">
+      <div class="printer-slit" />
     </div>
   </div>
 </template>
@@ -192,45 +197,56 @@ onUnmounted(() => {
   padding: 0 16px;
 }
 
-/* ---- Printer body ---- */
+/* ---- Paper area (fixed-height wrapper) ---- */
+
+.paper-area {
+  position: relative;
+  width: 100%;
+  max-width: 380px;
+}
+
+/* ---- Paper feed — grows upward from the printer slit ---- */
+
+.paper-feed {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  max-height: 0;
+  overflow: hidden;
+  /* No transition — instant height snaps for old-school printer feel */
+}
+
+/* ---- Printer body (at bottom) ---- */
 
 .printer-body {
   --printer-bg: oklch(0.28 0.01 55);
   width: 100%;
   max-width: 380px;
   height: 18px;
-  background: linear-gradient(180deg,
+  background: linear-gradient(0deg,
     oklch(0.34 0.01 55) 0%,
     var(--printer-bg) 100%
   );
-  border-radius: 10px 10px 0 0;
+  border-radius: 0 0 10px 10px;
   position: relative;
   z-index: 2;
   box-shadow:
-    inset 0 1px 0 oklch(0.42 0.01 55 / 0.4),
+    inset 0 -1px 0 oklch(0.42 0.01 55 / 0.4),
     0 2px 8px oklch(0 0 0 / 0.2);
 }
 
 .printer-slit {
   position: absolute;
-  bottom: -1px;
+  top: -1px;
   left: 8%;
   right: 8%;
   height: 3px;
   background: oklch(0.10 0.005 55);
-  border-radius: 0 0 3px 3px;
+  border-radius: 3px 3px 0 0;
   box-shadow:
-    inset 0 1px 2px oklch(0 0 0 / 0.6),
-    0 1px 3px oklch(0 0 0 / 0.3);
-}
-
-/* ---- Paper feed ---- */
-
-.paper-feed {
-  max-height: 0;
-  overflow: hidden;
-  /* No transition — instant height snaps for old-school printer feel */
-  position: relative;
+    inset 0 -1px 2px oklch(0 0 0 / 0.6),
+    0 -1px 3px oklch(0 0 0 / 0.3);
 }
 
 /* ---- Receipt paper ---- */
@@ -389,6 +405,7 @@ onUnmounted(() => {
 
 @media (prefers-reduced-motion: reduce) {
   .paper-feed {
+    position: static !important;
     max-height: none !important;
     overflow: visible !important;
   }
