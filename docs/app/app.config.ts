@@ -11,6 +11,33 @@ export default defineAppConfig({
     colors: {
       primary: 'teal',
       neutral: 'stone'
+    },
+    pageHeader: {
+      slots: {
+        title: 'text-4xl sm:text-5xl'
+      }
+    },
+    prose: {
+      h1: {
+        slots: {
+          base: 'text-5xl'
+        }
+      },
+      h2: {
+        slots: {
+          base: 'text-3xl'
+        }
+      },
+      h3: {
+        slots: {
+          base: 'text-2xl'
+        }
+      },
+      h4: {
+        slots: {
+          base: 'text-xl'
+        }
+      }
     }
   },
   header: {
