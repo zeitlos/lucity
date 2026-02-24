@@ -194,23 +194,45 @@ watch(visible, (v) => {
 }
 
 /* Connector line with dot.
-   Extends leftward behind the door icon using negative margin.
-   The door section's z-index:2 ensures the icon renders on top. */
+   The ::before pseudo extends the line leftward behind the door icon
+   without affecting flex layout. The door section's z-index:2 ensures
+   the icon renders above the extended line. */
 .bento-connector {
   display: flex;
   align-items: center;
-  width: 60px;
-  margin-left: -50px;
+  width: 28px;
   flex-shrink: 0;
   position: relative;
-  z-index: 1;
 }
 
 @media (min-width: 640px) {
   .bento-connector {
-    width: 70px;
-    margin-left: -60px;
+    width: 40px;
   }
+}
+
+/* Line extension behind the door icon — absolutely positioned
+   so it doesn't shift artifact cards. */
+.bento-connector::before {
+  content: '';
+  position: absolute;
+  right: 100%;
+  top: 50%;
+  height: 1.5px;
+  width: 50px;
+  background: var(--ui-border);
+  transform: translateY(-50%);
+  transition: background 0.3s ease;
+}
+
+@media (min-width: 640px) {
+  .bento-connector::before {
+    width: 60px;
+  }
+}
+
+.bento-connector-active::before {
+  background: var(--bento-accent);
 }
 
 .bento-line {

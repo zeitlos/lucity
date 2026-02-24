@@ -151,8 +151,10 @@ watch(visible, (v) => {
 </template>
 
 <style scoped>
+/* Fixed height prevents the grid from bumping down when the
+   tagline animates in after the pipeline completes. */
 .bento-deploy {
-  min-height: 120px;
+  height: 200px;
   display: flex;
   flex-direction: column;
   align-items: center;
