@@ -26,6 +26,7 @@ const cards = [
     id: 'batteries',
     component: BentoBatteries,
     span: 'bento-span-half',
+    textFirst: true,
     title: 'Batteries included',
     description: '<span class="bento-hl">PostgreSQL</span> via CloudNativePG, <span class="bento-hl">Redis</span>, cron jobs, and HTTP routing via Gateway API. Everything your app needs.',
   },
@@ -47,6 +48,7 @@ const cards = [
     id: 'oss',
     component: BentoOpenSource,
     span: 'bento-span-full',
+    textFirst: true,
     title: 'Open source',
     description: '<span class="bento-hl">AGPL-3.0</span> licensed. Self-host on your own Kubernetes cluster. Built on ArgoCD, Helm, CloudNativePG, and friends.',
   },
@@ -75,7 +77,12 @@ function onMouseLeave() {
     <div
       v-for="card in cards"
       :key="card.id"
-      :class="['bento-card', `bento-card-${card.id}`, card.span]"
+      :class="[
+        'bento-card',
+        `bento-card-${card.id}`,
+        card.span,
+        { 'bento-card-lit': spotlightCard === card.id },
+      ]"
       @mousemove="(e) => onMouseMove(e, card.id)"
       @mouseleave="onMouseLeave"
     >
@@ -88,13 +95,31 @@ function onMouseLeave() {
         }"
       />
 
-      <!-- Visual area (overflow hidden happens on .bento-card) -->
+      <!-- Text content (shows first when textFirst) -->
+      <div
+        v-if="card.textFirst"
+        class="bento-text"
+      >
+        <h3 class="bento-title">
+          {{ card.title }}
+        </h3>
+        <!-- eslint-disable-next-line vue/no-v-html -->
+        <p
+          class="bento-desc"
+          v-html="card.description"
+        />
+      </div>
+
+      <!-- Visual area -->
       <div class="bento-visual">
         <component :is="card.component" />
       </div>
 
-      <!-- Text content -->
-      <div class="bento-text">
+      <!-- Text content (shows after visual when not textFirst) -->
+      <div
+        v-if="!card.textFirst"
+        class="bento-text"
+      >
         <h3 class="bento-title">
           {{ card.title }}
         </h3>
@@ -146,8 +171,8 @@ function onMouseLeave() {
   transition: border-color 0.3s ease;
 }
 
-/* Hover: reveal accent-colored border (like the old Nuxt UI spotlight) */
-.bento-card:hover {
+/* Border only highlights when spotlight is active (cursor on card) */
+.bento-card-lit {
   border-color: var(--bento-accent);
 }
 
