@@ -78,56 +78,72 @@ function onMouseLeave() {
       v-for="card in cards"
       :key="card.id"
       :class="[
-        'bento-card',
+        'bento-card-wrap',
         `bento-card-${card.id}`,
         card.span,
-        { 'bento-card-lit': spotlightCard === card.id },
       ]"
       @mousemove="(e) => onMouseMove(e, card.id)"
       @mouseleave="onMouseLeave"
     >
-      <!-- Spotlight glow -->
+      <!-- Gradient border glow — cursor-following accent edge.
+           The 1px padding on the wrapper creates a "border" gap.
+           This gradient overlays it with the accent color at the cursor. -->
       <div
         v-if="spotlightCard === card.id"
-        class="bento-spotlight"
+        class="bento-border-glow"
         :style="{
-          background: `radial-gradient(400px circle at ${spotlightX}px ${spotlightY}px, var(--bento-accent-glow), transparent 70%)`,
+          background: `radial-gradient(400px circle at ${spotlightX}px ${spotlightY}px, var(--bento-accent), transparent 60%)`,
         }"
       />
 
-      <!-- Text content (shows first when textFirst) -->
-      <div
-        v-if="card.textFirst"
-        class="bento-text"
-      >
-        <h3 class="bento-title">
-          {{ card.title }}
-        </h3>
-        <!-- eslint-disable-next-line vue/no-v-html -->
-        <p
-          class="bento-desc"
-          v-html="card.description"
+      <!-- Inner card shell -->
+      <div class="bento-card">
+        <!-- Surface spotlight glow -->
+        <div
+          v-if="spotlightCard === card.id"
+          class="bento-spotlight"
+          :style="{
+            background: `radial-gradient(400px circle at ${spotlightX}px ${spotlightY}px, var(--bento-accent-glow), transparent 70%)`,
+          }"
         />
-      </div>
 
-      <!-- Visual area -->
-      <div class="bento-visual">
-        <component :is="card.component" />
-      </div>
+        <!-- Depth gradient — slight highlight at top, shadow at bottom -->
+        <div class="bento-depth" />
 
-      <!-- Text content (shows after visual when not textFirst) -->
-      <div
-        v-if="!card.textFirst"
-        class="bento-text"
-      >
-        <h3 class="bento-title">
-          {{ card.title }}
-        </h3>
-        <!-- eslint-disable-next-line vue/no-v-html -->
-        <p
-          class="bento-desc"
-          v-html="card.description"
-        />
+        <!-- Text content (shows first when textFirst) -->
+        <div
+          v-if="card.textFirst"
+          class="bento-text"
+        >
+          <h3 class="bento-title">
+            {{ card.title }}
+          </h3>
+          <!-- eslint-disable-next-line vue/no-v-html -->
+          <p
+            class="bento-desc"
+            v-html="card.description"
+          />
+        </div>
+
+        <!-- Visual area -->
+        <div class="bento-visual">
+          <component :is="card.component" />
+        </div>
+
+        <!-- Text content (shows after visual when not textFirst) -->
+        <div
+          v-if="!card.textFirst"
+          class="bento-text"
+        >
+          <h3 class="bento-title">
+            {{ card.title }}
+          </h3>
+          <!-- eslint-disable-next-line vue/no-v-html -->
+          <p
+            class="bento-desc"
+            v-html="card.description"
+          />
+        </div>
       </div>
     </div>
   </div>
@@ -161,29 +177,63 @@ function onMouseLeave() {
   }
 }
 
+/* Outer wrapper — 1px padding acts as the "border".
+   Default fill is --ui-border (subtle gray line).
+   On hover, bento-border-glow overlays an accent gradient. */
+.bento-card-wrap {
+  position: relative;
+  border-radius: 17px;
+  padding: 1px;
+  background: var(--ui-border);
+}
+
+/* Gradient border glow — radial gradient at cursor position */
+.bento-border-glow {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 0;
+  animation: bento-glow-in 0.25s ease both;
+}
+
+@keyframes bento-glow-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Inner card — solid bg, fits snugly inside the 1px border gap */
 .bento-card {
   position: relative;
   border-radius: 16px;
-  border: 1px solid var(--ui-border);
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  transition: border-color 0.3s ease;
+  background: var(--bento-card-bg, var(--ui-bg-elevated));
+  z-index: 1;
 }
 
-/* Border only highlights when spotlight is active (cursor on card) */
-.bento-card-lit {
-  border-color: var(--bento-accent);
-}
-
-/* Spotlight overlay */
+/* Surface spotlight glow */
 .bento-spotlight {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  z-index: 0;
+  z-index: 2;
   opacity: 0.5;
-  transition: opacity 0.2s ease;
+}
+
+/* Subtle depth gradient — works in both light and dark modes */
+.bento-depth {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  background: linear-gradient(
+    180deg,
+    oklch(1 0 0 / 0.04) 0%,
+    transparent 40%,
+    oklch(0 0 0 / 0.03) 100%
+  );
 }
 
 .bento-visual {
@@ -225,6 +275,7 @@ function onMouseLeave() {
   color: var(--ui-text-muted);
   line-height: 1.6;
   margin-top: 12px;
+  max-width: 640px;
   text-wrap: pretty;
 }
 

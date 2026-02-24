@@ -67,12 +67,15 @@ watch(visible, (v) => {
 </template>
 
 <style scoped>
+/* Fixed height prevents layout shift when the clone env animates in.
+   Tall enough to fit 4 env pills (3 permanent + 1 PR clone) from the start. */
 .bento-envs {
-  min-height: 140px;
+  height: 220px;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 20px 24px;
+  overflow: hidden;
 }
 
 .bento-env {

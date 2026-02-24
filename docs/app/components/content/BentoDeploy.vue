@@ -63,36 +63,39 @@ watch(visible, (v) => {
         </template>
       </div>
 
-      <!-- Snake connector: Build → down → left → up → Registry -->
-      <svg
-        class="bento-snake"
-        viewBox="0 0 200 28"
-        preserveAspectRatio="none"
-      >
-        <!-- Background path -->
-        <path
-          d="M 170 0 V 14 H 30 V 28"
-          fill="none"
-          :stroke="step > 3 ? 'var(--bento-accent)' : 'var(--ui-border)'"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          class="bento-snake-path"
-        />
-        <!-- Traveling dot -->
-        <circle
-          v-if="step === 4"
-          r="4"
-          :fill="'var(--bento-accent)'"
-          class="bento-snake-dot"
+      <!-- Snake connector: Build → down → left → up → Registry.
+           Wrapper has same padding as rows so horizontal positions align. -->
+      <div class="bento-snake-wrap">
+        <svg
+          class="bento-snake"
+          viewBox="0 0 200 28"
+          preserveAspectRatio="none"
         >
-          <animateMotion
-            dur="0.6s"
-            fill="freeze"
-            path="M 170 0 V 14 H 30 V 28"
+          <!-- Background path — x=186 aligns with Build center, x=14 with Registry -->
+          <path
+            d="M 186 0 V 14 H 14 V 28"
+            fill="none"
+            :stroke="step > 3 ? 'var(--bento-accent)' : 'var(--ui-border)'"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            class="bento-snake-path"
           />
-        </circle>
-      </svg>
+          <!-- Traveling dot -->
+          <circle
+            v-if="step === 4"
+            r="4"
+            :fill="'var(--bento-accent)'"
+            class="bento-snake-dot"
+          >
+            <animateMotion
+              dur="0.6s"
+              fill="freeze"
+              path="M 186 0 V 14 H 14 V 28"
+            />
+          </circle>
+        </svg>
+      </div>
 
       <!-- Bottom row: Registry → ArgoCD → K8s -->
       <div class="bento-row">
@@ -162,6 +165,8 @@ watch(visible, (v) => {
   flex-direction: column;
   align-items: stretch;
   width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
 }
 
 .bento-row {
@@ -255,7 +260,17 @@ watch(visible, (v) => {
   box-shadow: 0 0 8px var(--bento-accent-glow);
 }
 
-/* Snake SVG connector */
+/* Snake SVG connector — wrapper matches row padding for alignment */
+.bento-snake-wrap {
+  padding: 0 4px;
+}
+
+@media (min-width: 640px) {
+  .bento-snake-wrap {
+    padding: 0 8px;
+  }
+}
+
 .bento-snake {
   width: 100%;
   height: 28px;

@@ -142,50 +142,50 @@ h1, h2 {
   font-weight: 600;
 }
 
-/* Light mode: super-subtle pastel tints (low chroma ~0.04).
-   The spotlight hover reveals the accent-colored border — the
-   background itself stays quiet. */
+/* Light mode: super-subtle pastel tints (low chroma ~0.03).
+   --bento-card-bg is picked up by the inner .bento-card in BentoGrid.
+   The outer wrapper uses padding:1px + gradient for the spotlight border. */
 
 .bento-card-deploy {
   --bento-accent: oklch(0.50 0.18 165);
   --bento-accent-glow: oklch(0.50 0.18 165 / 0.3);
   --bento-accent-subtle: oklch(0.50 0.18 165 / 0.12);
-  background: oklch(0.96 0.03 165) !important;
+  --bento-card-bg: oklch(0.96 0.03 165);
 }
 
 .bento-card-envs {
   --bento-accent: oklch(0.58 0.16 55);
   --bento-accent-glow: oklch(0.58 0.16 55 / 0.3);
   --bento-accent-subtle: oklch(0.58 0.16 55 / 0.12);
-  background: oklch(0.96 0.03 55) !important;
+  --bento-card-bg: oklch(0.96 0.03 55);
 }
 
 .bento-card-batteries {
   --bento-accent: oklch(0.52 0.16 250);
   --bento-accent-glow: oklch(0.52 0.16 250 / 0.3);
   --bento-accent-subtle: oklch(0.52 0.16 250 / 0.12);
-  background: oklch(0.96 0.03 250) !important;
+  --bento-card-bg: oklch(0.96 0.03 250);
 }
 
 .bento-card-eject {
   --bento-accent: oklch(0.58 0.20 30);
   --bento-accent-glow: oklch(0.58 0.20 30 / 0.3);
   --bento-accent-subtle: oklch(0.58 0.20 30 / 0.12);
-  background: oklch(0.96 0.03 30) !important;
+  --bento-card-bg: oklch(0.96 0.03 30);
 }
 
 .bento-card-gitops {
   --bento-accent: oklch(0.50 0.16 140);
   --bento-accent-glow: oklch(0.50 0.16 140 / 0.3);
   --bento-accent-subtle: oklch(0.50 0.16 140 / 0.12);
-  /* No background — the river wallpaper image covers the card */
+  --bento-card-bg: oklch(0.96 0.03 140);
 }
 
 .bento-card-oss {
   --bento-accent: oklch(0.52 0.16 290);
   --bento-accent-glow: oklch(0.52 0.16 290 / 0.3);
   --bento-accent-subtle: oklch(0.52 0.16 290 / 0.12);
-  background: oklch(0.96 0.03 290) !important;
+  --bento-card-bg: oklch(0.96 0.03 290);
 }
 
 /* ── Dark mode ── */
@@ -194,40 +194,40 @@ h1, h2 {
   --bento-accent: oklch(0.72 0.16 165);
   --bento-accent-glow: oklch(0.72 0.16 165 / 0.3);
   --bento-accent-subtle: oklch(0.72 0.16 165 / 0.12);
-  background: oklch(0.22 0.02 165) !important;
+  --bento-card-bg: oklch(0.22 0.02 165);
 }
 
 .dark .bento-card-envs {
   --bento-accent: oklch(0.72 0.14 55);
   --bento-accent-glow: oklch(0.72 0.14 55 / 0.3);
   --bento-accent-subtle: oklch(0.72 0.14 55 / 0.12);
-  background: oklch(0.22 0.02 55) !important;
+  --bento-card-bg: oklch(0.22 0.02 55);
 }
 
 .dark .bento-card-batteries {
   --bento-accent: oklch(0.70 0.14 250);
   --bento-accent-glow: oklch(0.70 0.14 250 / 0.3);
   --bento-accent-subtle: oklch(0.70 0.14 250 / 0.12);
-  background: oklch(0.22 0.02 250) !important;
+  --bento-card-bg: oklch(0.22 0.02 250);
 }
 
 .dark .bento-card-eject {
   --bento-accent: oklch(0.72 0.18 30);
   --bento-accent-glow: oklch(0.72 0.18 30 / 0.3);
   --bento-accent-subtle: oklch(0.72 0.18 30 / 0.12);
-  background: oklch(0.22 0.02 30) !important;
+  --bento-card-bg: oklch(0.22 0.02 30);
 }
 
 .dark .bento-card-gitops {
   --bento-accent: oklch(0.70 0.14 140);
   --bento-accent-glow: oklch(0.70 0.14 140 / 0.3);
   --bento-accent-subtle: oklch(0.70 0.14 140 / 0.12);
-  background: oklch(0.22 0.02 140) !important;
+  --bento-card-bg: oklch(0.22 0.02 140);
 }
 
 .dark .bento-card-oss {
   --bento-accent: oklch(0.70 0.14 290);
   --bento-accent-glow: oklch(0.70 0.14 290 / 0.3);
   --bento-accent-subtle: oklch(0.70 0.14 290 / 0.12);
-  background: oklch(0.22 0.02 290) !important;
+  --bento-card-bg: oklch(0.22 0.02 290);
 }

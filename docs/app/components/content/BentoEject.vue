@@ -117,7 +117,9 @@ watch(visible, (v) => {
   max-width: 460px;
 }
 
-/* Left section: door icon + command */
+/* Left section: door icon + command.
+   z-index ensures the door renders above the connector lines
+   that extend behind it from the artifacts. */
 .bento-door-section {
   display: flex;
   flex-direction: column;
@@ -125,6 +127,8 @@ watch(visible, (v) => {
   gap: 8px;
   flex-shrink: 0;
   width: 100px;
+  position: relative;
+  z-index: 2;
 }
 
 @media (min-width: 640px) {
@@ -167,6 +171,11 @@ watch(visible, (v) => {
   font-weight: 500;
   animation: bento-fade-in 0.4s ease both;
   white-space: nowrap;
+  /* Inline code styling */
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--ui-border);
+  background: var(--ui-bg-muted);
 }
 
 /* Right section: stacked artifacts */
@@ -184,17 +193,23 @@ watch(visible, (v) => {
   gap: 0;
 }
 
-/* Connector line with dot */
+/* Connector line with dot.
+   Extends leftward behind the door icon using negative margin.
+   The door section's z-index:2 ensures the icon renders on top. */
 .bento-connector {
   display: flex;
   align-items: center;
-  width: 28px;
+  width: 60px;
+  margin-left: -50px;
   flex-shrink: 0;
+  position: relative;
+  z-index: 1;
 }
 
 @media (min-width: 640px) {
   .bento-connector {
-    width: 40px;
+    width: 70px;
+    margin-left: -60px;
   }
 }
 
