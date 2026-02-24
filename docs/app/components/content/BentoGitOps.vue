@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import { useBentoVisible } from './useBentoVisible';
 
 const root = ref<HTMLElement | null>(null);
 const visible = useBentoVisible(root);
 const commitCount = ref(0);
+
+const colorMode = useColorMode();
+const isDark = computed(() => colorMode.value === 'dark');
 
 const commits = [
   { msg: 'deploy(dev): api a1b2c3d', icon: 'i-lucide-arrow-up-circle' },
@@ -26,9 +29,18 @@ watch(visible, (v) => {
     class="bento-gitops"
   >
     <!-- River wallpaper background -->
-    <div class="bento-river-bg" />
+    <div
+      class="bento-river-bg"
+      :style="{ opacity: isDark ? 0.08 : 0.15 }"
+    />
     <!-- Inset shadow overlay -->
-    <div class="bento-inset-shadow" />
+    <div
+      class="bento-inset-shadow"
+      :style="{ boxShadow: isDark
+        ? 'inset 0 0 60px oklch(0 0 0 / 0.25), inset 0 2px 15px oklch(0 0 0 / 0.15)'
+        : 'inset 0 0 60px oklch(0 0 0 / 0.10), inset 0 2px 15px oklch(0 0 0 / 0.06)'
+      }"
+    />
 
     <!-- Git log -->
     <div class="bento-log">
@@ -84,30 +96,20 @@ watch(visible, (v) => {
   position: absolute;
   inset: 0;
   background: url('/img/branching_river.webp') center / cover no-repeat;
-  opacity: 0.15;
   pointer-events: none;
   z-index: 0;
-}
-
-:global(.dark) .bento-river-bg {
-  opacity: 0.08;
+  /* Dark mode opacity + box-shadow handled via inline :style bindings.
+     DO NOT use :global(.dark) in scoped CSS — it breaks scoping and
+     applies styles to <html class="dark"> itself, lowering the opacity
+     of the entire page. */
 }
 
 /* Inset shadow for depth */
 .bento-inset-shadow {
   position: absolute;
   inset: 0;
-  box-shadow:
-    inset 0 0 60px oklch(0 0 0 / 0.10),
-    inset 0 2px 15px oklch(0 0 0 / 0.06);
   pointer-events: none;
   z-index: 1;
-}
-
-:global(.dark) .bento-inset-shadow {
-  box-shadow:
-    inset 0 0 60px oklch(0 0 0 / 0.25),
-    inset 0 2px 15px oklch(0 0 0 / 0.15);
 }
 
 .bento-log {

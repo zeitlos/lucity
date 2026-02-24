@@ -59,6 +59,7 @@ watch(visible, (v) => {
       src="/img/gopher_ship.webp"
       alt=""
       class="bento-gopher"
+      :style="{ opacity: isDark ? 0.10 : 0.18 }"
     >
   </div>
 </template>
@@ -134,6 +135,10 @@ watch(visible, (v) => {
   opacity: 0.18;
   pointer-events: none;
   z-index: 0;
+  /* Dark mode opacity handled via inline :style binding (isDark ternary).
+     DO NOT use :global(.dark) in scoped CSS — it breaks scoping and
+     applies styles to <html class="dark"> itself, lowering the opacity
+     of the entire page. */
 }
 
 @media (min-width: 640px) {
@@ -142,10 +147,6 @@ watch(visible, (v) => {
     bottom: -20px;
     right: -16px;
   }
-}
-
-:global(.dark) .bento-gopher {
-  opacity: 0.10;
 }
 
 @keyframes bento-tool-in {
