@@ -101,9 +101,15 @@ const business = {
 @media (min-width: 1024px) {
   .pricing-stack {
     flex-direction: row;
-    align-items: center;
+    align-items: stretch;
     justify-content: center;
     gap: 0;
+  }
+
+  /* Cards fill their wrapper height */
+  .pricing-side :deep(.pricing-card),
+  .pricing-center :deep(.pricing-card) {
+    height: 100%;
   }
 
   .pricing-side {
