@@ -30,15 +30,15 @@ interface ArchEdge {
 }
 
 const nodes: ArchNode[] = [
-  { id: 'lucity', icon: '', label: 'Lucity', role: 'Orchestrator', x: 50, y: 30, phase: 1, isLucity: true },
-  { id: 'github', icon: 'i-simple-icons-github', label: 'GitHub', role: 'Source code', x: 50, y: 7, phase: 2 },
-  { id: 'zot', icon: 'i-lucide-container', label: 'Zot', role: 'Container registry', x: 78, y: 30, phase: 3 },
-  { id: 'softserve', icon: 'i-lucide-git-branch', label: 'Soft-serve', role: 'GitOps repo', x: 22, y: 30, phase: 3 },
-  { id: 'helm', icon: 'i-simple-icons-helm', label: 'Helm', role: 'Package manager', x: 22, y: 55, phase: 4 },
-  { id: 'argocd', icon: 'i-simple-icons-argo', label: 'ArgoCD', role: 'Continuous delivery', x: 50, y: 55, phase: 4 },
-  { id: 'kubernetes', icon: 'i-simple-icons-kubernetes', label: 'Kubernetes', role: 'Your cluster', x: 50, y: 76, phase: 5 },
-  { id: 'gateway', icon: 'i-lucide-globe', label: 'Gateway API', role: 'Ingress traffic', x: 30, y: 92, phase: 6 },
-  { id: 'cnpg', icon: 'i-simple-icons-postgresql', label: 'CloudNativePG', role: 'Managed Postgres', x: 70, y: 92, phase: 6 },
+  { id: 'lucity', icon: '', label: 'Lucity', role: 'Orchestrator', x: 50, y: 28, phase: 1, isLucity: true },
+  { id: 'github', icon: 'i-simple-icons-github', label: 'GitHub', role: 'Source code', x: 50, y: 8, phase: 2 },
+  { id: 'zot', icon: 'i-lucide-container', label: 'Zot', role: 'Container registry', x: 78, y: 28, phase: 3 },
+  { id: 'softserve', icon: 'i-lucide-git-branch', label: 'Soft-serve', role: 'GitOps repo', x: 22, y: 28, phase: 3 },
+  { id: 'helm', icon: 'i-simple-icons-helm', label: 'Helm', role: 'Package manager', x: 22, y: 48, phase: 4 },
+  { id: 'argocd', icon: 'i-simple-icons-argo', label: 'ArgoCD', role: 'Continuous delivery', x: 50, y: 48, phase: 4 },
+  { id: 'kubernetes', icon: 'i-simple-icons-kubernetes', label: 'Kubernetes', role: 'Your cluster', x: 50, y: 68, phase: 5 },
+  { id: 'gateway', icon: 'i-lucide-globe', label: 'Gateway API', role: 'Ingress traffic', x: 30, y: 86, phase: 6 },
+  { id: 'cnpg', icon: 'i-simple-icons-postgresql', label: 'CloudNativePG', role: 'Managed Postgres', x: 70, y: 86, phase: 6 },
 ];
 
 const edges: ArchEdge[] = [
@@ -71,23 +71,35 @@ function getNode(id: string) {
   return nodes.find(n => n.id === id)!;
 }
 
-// Icon radius in SVG viewBox units (approximate at ~900px container width)
-const ICON_R = 42; // 72px icon → ~80 viewBox units → radius ~42
-const LUCITY_R = 52; // 88px icon → ~98 viewBox units → radius ~52
+// Container is 900px at max-width, viewBox is 1000x1000 → scale factor 0.9
+// CSS translate(-50%,-50%) centers the WHOLE node (icon + gap + label + role).
+// The icon center sits above the node center by (gap + label + role) / 2 in px.
+// gap(7) + label(~17) + gap(7) + role(~14) = 45px below icon → icon center
+// is 45/2 ≈ 22.5px above node center → 22.5 / 0.9 ≈ 25 viewBox units.
+const ICON_Y_OFFSET = 25;
+const ICON_R = 40; // 72px / 0.9 / 2
+const LUCITY_R = 49; // 88px / 0.9 / 2
 
 function nodeRadius(id: string): number {
   return id === 'lucity' ? LUCITY_R : ICON_R;
 }
 
-function edgePath(edge: ArchEdge): string {
-  const from = getNode(edge.from);
-  const to = getNode(edge.to);
+// Get icon center in viewBox coords (accounting for label offset)
+function iconCenter(node: ArchNode): { x: number; y: number } {
+  return {
+    x: node.x * 10,
+    y: node.y * 10 - ICON_Y_OFFSET,
+  };
+}
 
-  // Map percentage coords to viewBox (1000 x 750)
-  let x1 = from.x * 10;
-  let y1 = from.y * 7.5;
-  let x2 = to.x * 10;
-  let y2 = to.y * 7.5;
+function edgePath(edge: ArchEdge): string {
+  const from = iconCenter(getNode(edge.from));
+  const to = iconCenter(getNode(edge.to));
+
+  let x1 = from.x;
+  let y1 = from.y;
+  let x2 = to.x;
+  let y2 = to.y;
 
   // Shorten path to stop at icon edges
   const dx = x2 - x1;
@@ -99,8 +111,8 @@ function edgePath(edge: ArchEdge): string {
   const nx = dx / len;
   const ny = dy / len;
 
-  const fromR = nodeRadius(from.id);
-  const toR = nodeRadius(to.id);
+  const fromR = nodeRadius(getNode(edge.from).id);
+  const toR = nodeRadius(getNode(edge.to).id);
 
   x1 += nx * fromR;
   y1 += ny * fromR;
@@ -120,24 +132,12 @@ function edgePath(edge: ArchEdge): string {
   return `M${x1},${y1} Q${cx},${cy} ${x2},${y2}`;
 }
 
-function edgeLength(edge: ArchEdge): number {
-  // Approximate path length for stroke-dasharray
-  const from = getNode(edge.from);
-  const to = getNode(edge.to);
-  const dx = (to.x - from.x) * 10;
-  const dy = (to.y - from.y) * 7.5;
-  const fullLen = Math.sqrt(dx * dx + dy * dy);
-  // Account for shortened endpoints
-  const shortened = fullLen - nodeRadius(from.id) - nodeRadius(to.id);
-  return Math.max(shortened, 10) * 1.1;
-}
-
 function edgeLabelPos(edge: ArchEdge): { x: number; y: number } {
-  const from = getNode(edge.from);
-  const to = getNode(edge.to);
+  const from = iconCenter(getNode(edge.from));
+  const to = iconCenter(getNode(edge.to));
   return {
-    x: ((from.x + to.x) / 2) * 10,
-    y: ((from.y + to.y) / 2) * 7.5 - 8,
+    x: (from.x + to.x) / 2,
+    y: (from.y + to.y) / 2 - 8,
   };
 }
 
@@ -161,7 +161,7 @@ watch(visible, (v) => {
       <!-- SVG connections -->
       <svg
         class="arch-connections"
-        viewBox="0 0 1000 750"
+        viewBox="0 0 1000 1000"
         preserveAspectRatio="xMidYMid meet"
         fill="none"
         role="img"
@@ -467,7 +467,7 @@ watch(visible, (v) => {
   width: 100%;
   max-width: 900px;
   margin: 0 auto;
-  aspect-ratio: 4 / 3;
+  aspect-ratio: 1 / 1;
   background-image: radial-gradient(circle, var(--ui-border) 1px, transparent 1px);
   background-size: 28px 28px;
   background-position: center center;

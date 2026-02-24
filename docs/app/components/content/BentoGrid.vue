@@ -234,7 +234,11 @@ function onMouseLeave() {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--bento-card-bg, var(--ui-bg-elevated));
+  background: linear-gradient(
+    180deg,
+    var(--bento-card-bg, var(--ui-bg-elevated)) 0%,
+    var(--ui-bg-elevated) 100%
+  );
   z-index: 1;
 }
 

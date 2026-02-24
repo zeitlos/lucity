@@ -29,7 +29,7 @@ const navLinks = [
     <template #title>
       <div class="flex items-center gap-2">
         <AppHeaderLogo class="h-6 w-auto shrink-0" />
-        <span class="font-serif text-xl tracking-tight">Lucity</span>
+        <span class="font-serif text-2xl tracking-tight">Lucity</span>
       </div>
     </template>
 

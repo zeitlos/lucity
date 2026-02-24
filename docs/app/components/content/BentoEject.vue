@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, watch, nextTick } from 'vue';
 import { useBentoVisible } from './useBentoVisible';
 
 const root = ref<HTMLElement | null>(null);
+const rightRef = ref<HTMLElement | null>(null);
 const visible = useBentoVisible(root);
 const phase = ref<'idle' | 'door' | 'lines' | 'done'>('idle');
 const artifactCount = ref(0);
@@ -14,8 +15,52 @@ const outputs = [
   { icon: 'i-lucide-file-text', label: 'README', path: 'ejected/README.md' },
 ];
 
-watch(visible, (v) => {
+/* SVG path data — computed from actual DOM positions */
+interface ConnectorPath { d: string; endX: number; endY: number; len: number }
+const svgHeight = ref(200);
+const connectorPaths = ref<ConnectorPath[]>([]);
+
+function computePaths() {
+  const container = rightRef.value;
+  if (!container) return;
+
+  const cards = container.querySelectorAll('.bento-output');
+  if (cards.length === 0) return;
+
+  const rect = container.getBoundingClientRect();
+  svgHeight.value = rect.height;
+  const centerY = rect.height / 2;
+  const endX = 70;
+
+  connectorPaths.value = Array.from(cards).map((el) => {
+    const cardRect = el.getBoundingClientRect();
+    const y = cardRect.top - rect.top + cardRect.height / 2;
+    /* Cubic bezier: horizontal departure from origin, horizontal arrival at endpoint */
+    const cp1x = endX * 0.5;
+    const cp2x = endX * 0.65;
+    const d = `M 0,${centerY} C ${cp1x},${centerY} ${cp2x},${y} ${endX},${y}`;
+    return { d, endX, endY: y, len: 0 };
+  });
+
+  /* Measure path lengths for stroke-dasharray animation */
+  nextTick(() => {
+    const svg = container.querySelector('.bento-connectors');
+    if (!svg) return;
+    const pathEls = svg.querySelectorAll('path');
+    pathEls.forEach((p, i) => {
+      if (connectorPaths.value[i]) {
+        connectorPaths.value[i].len = (p as SVGPathElement).getTotalLength();
+      }
+    });
+  });
+}
+
+watch(visible, async (v) => {
   if (!v) return;
+  /* Compute connector paths from DOM positions */
+  await nextTick();
+  computePaths();
+  /* Animation sequence */
   setTimeout(() => { phase.value = 'door'; }, 300);
   setTimeout(() => { phase.value = 'lines'; }, 900);
   setTimeout(() => { artifactCount.value = 1; }, 1100);
@@ -49,24 +94,45 @@ watch(visible, (v) => {
         >lucity eject</code>
       </div>
 
-      <!-- Right: stacked artifacts with connector lines -->
-      <div class="bento-artifacts">
-        <div
-          v-for="(item, i) in outputs"
-          :key="item.label"
-          class="bento-artifact-row"
+      <!-- Right: connector SVG + artifact cards -->
+      <div
+        ref="rightRef"
+        class="bento-right"
+      >
+        <!-- Curved connector paths — single SVG, all lines originate from door center -->
+        <svg
+          class="bento-connectors"
+          :viewBox="`0 0 80 ${svgHeight}`"
+          fill="none"
         >
-          <!-- Horizontal connector line with dot -->
-          <div
-            class="bento-connector"
-            :class="{ 'bento-connector-active': artifactCount > i }"
-          >
-            <div class="bento-line" />
-            <div class="bento-dot" />
-          </div>
+          <path
+            v-for="(p, i) in connectorPaths"
+            :key="i"
+            :d="p.d"
+            :stroke="artifactCount > i ? 'var(--bento-accent)' : 'var(--ui-border)'"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            :stroke-dasharray="p.len || 'none'"
+            :stroke-dashoffset="phase === 'idle' || phase === 'door' ? (p.len || 0) : 0"
+            class="bento-path"
+          />
+          <circle
+            v-for="(p, i) in connectorPaths"
+            :key="`dot-${i}`"
+            :cx="p.endX"
+            :cy="p.endY"
+            r="3"
+            :fill="artifactCount > i ? 'var(--bento-accent)' : 'var(--ui-border)'"
+            class="bento-endpoint"
+            :class="{ 'bento-endpoint-active': artifactCount > i }"
+          />
+        </svg>
 
-          <!-- Artifact card -->
+        <!-- Artifact cards -->
+        <div class="bento-artifacts">
           <div
+            v-for="(item, i) in outputs"
+            :key="item.label"
             class="bento-output"
             :class="{ 'bento-output-visible': artifactCount > i }"
             :style="{ animationDelay: `${i * 60}ms` }"
@@ -88,10 +154,10 @@ watch(visible, (v) => {
       </div>
     </div>
 
-    <!-- Tagline -->
+    <!-- Tagline — always rendered (opacity-only) so it doesn't shift centering -->
     <div
-      v-if="phase === 'done'"
       class="bento-tagline"
+      :class="{ 'bento-tagline-visible': phase === 'done' }"
     >
       No lock-in. Standard tools.
     </div>
@@ -102,12 +168,12 @@ watch(visible, (v) => {
 /* Fixed height — prevents the grid from shifting when the
    tagline and artifact cards animate in. */
 .bento-eject {
-  height: 230px;
+  height: 275px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 24px 20px 16px;
+  padding: 44px 20px 16px;
   gap: 14px;
 }
 
@@ -120,8 +186,8 @@ watch(visible, (v) => {
 }
 
 /* Left section: door icon + command.
-   z-index ensures the door renders above the connector lines
-   that extend behind it from the artifacts. */
+   z-index ensures the door renders above the connector SVG
+   that extends behind it. */
 .bento-door-section {
   display: flex;
   flex-direction: column;
@@ -180,86 +246,49 @@ watch(visible, (v) => {
   background: var(--ui-bg-muted);
 }
 
-/* Right section: stacked artifacts */
-.bento-artifacts {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+/* Right section: connector SVG + artifact cards */
+.bento-right {
+  position: relative;
   flex: 1;
   min-width: 0;
 }
 
-.bento-artifact-row {
-  display: flex;
-  align-items: center;
-  gap: 0;
-}
-
-/* Connector line with dot.
-   The ::before pseudo extends the line leftward behind the door icon
-   without affecting flex layout. The door section's z-index:2 ensures
-   the icon renders above the extended line. */
-.bento-connector {
-  display: flex;
-  align-items: center;
-  width: 28px;
-  flex-shrink: 0;
-  position: relative;
-}
-
-@media (min-width: 640px) {
-  .bento-connector {
-    width: 40px;
-  }
-}
-
-/* Line extension behind the door icon — absolutely positioned
-   so it doesn't shift artifact cards. */
-.bento-connector::before {
-  content: '';
+/* Single SVG for all connector curves.
+   Extends left behind the door icon via negative margin + extra width. */
+.bento-connectors {
   position: absolute;
-  right: 100%;
-  top: 50%;
-  height: 1.5px;
-  width: 50px;
-  background: var(--ui-border);
-  transform: translateY(-50%);
-  transition: background 0.3s ease;
+  left: -50px;
+  top: 0;
+  width: 80px;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
 }
 
 @media (min-width: 640px) {
-  .bento-connector::before {
-    width: 60px;
+  .bento-connectors {
+    left: -60px;
   }
 }
 
-.bento-connector-active::before {
-  background: var(--bento-accent);
+.bento-path {
+  transition: stroke 0.3s ease, stroke-dashoffset 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.bento-line {
-  flex: 1;
-  height: 1.5px;
-  background: var(--ui-border);
-  transition: background 0.3s ease;
+.bento-endpoint {
+  transition: fill 0.3s ease;
 }
 
-.bento-connector-active .bento-line {
-  background: var(--bento-accent);
+.bento-endpoint-active {
+  filter: drop-shadow(0 0 4px var(--bento-accent-glow));
 }
 
-.bento-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--ui-border);
-  flex-shrink: 0;
-  transition: all 0.3s ease;
-}
-
-.bento-connector-active .bento-dot {
-  background: var(--bento-accent);
-  box-shadow: 0 0 6px var(--bento-accent-glow);
+/* Stacked artifact cards */
+.bento-artifacts {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-left: 16px;
 }
 
 /* Artifact cards */
@@ -281,11 +310,16 @@ watch(visible, (v) => {
   animation: bento-artifact-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+/* Tagline — always in DOM for stable centering, shown via opacity */
 .bento-tagline {
   text-align: center;
   font-size: 11px;
   font-weight: 500;
   color: var(--bento-accent);
+  opacity: 0;
+}
+
+.bento-tagline-visible {
   animation: bento-fade-in 0.6s ease both;
 }
 

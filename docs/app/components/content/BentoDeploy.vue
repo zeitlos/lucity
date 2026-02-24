@@ -154,12 +154,12 @@ watch(visible, (v) => {
 /* Fixed height prevents the grid from bumping down when the
    tagline animates in after the pipeline completes. */
 .bento-deploy {
-  height: 200px;
+  height: 235px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 10px;
-  padding: 20px 12px 16px;
+  padding: 44px 12px 16px;
 }
 
 .bento-pipeline {
@@ -167,7 +167,7 @@ watch(visible, (v) => {
   flex-direction: column;
   align-items: stretch;
   width: 100%;
-  max-width: 480px;
+  max-width: 420px;
   margin: 0 auto;
 }
 

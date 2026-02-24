@@ -150,42 +150,42 @@ h1, h2 {
   --bento-accent: oklch(0.50 0.18 165);
   --bento-accent-glow: oklch(0.50 0.18 165 / 0.3);
   --bento-accent-subtle: oklch(0.50 0.18 165 / 0.12);
-  --bento-card-bg: oklch(0.96 0.03 165);
+  --bento-card-bg: oklch(0.95 0.04 165);
 }
 
 .bento-card-envs {
   --bento-accent: oklch(0.58 0.16 55);
   --bento-accent-glow: oklch(0.58 0.16 55 / 0.3);
   --bento-accent-subtle: oklch(0.58 0.16 55 / 0.12);
-  --bento-card-bg: oklch(0.96 0.03 55);
+  --bento-card-bg: oklch(0.95 0.04 55);
 }
 
 .bento-card-batteries {
   --bento-accent: oklch(0.52 0.16 250);
   --bento-accent-glow: oklch(0.52 0.16 250 / 0.3);
   --bento-accent-subtle: oklch(0.52 0.16 250 / 0.12);
-  --bento-card-bg: oklch(0.96 0.03 250);
+  --bento-card-bg: oklch(0.95 0.04 250);
 }
 
 .bento-card-eject {
   --bento-accent: oklch(0.58 0.20 30);
   --bento-accent-glow: oklch(0.58 0.20 30 / 0.3);
   --bento-accent-subtle: oklch(0.58 0.20 30 / 0.12);
-  --bento-card-bg: oklch(0.96 0.03 30);
+  --bento-card-bg: oklch(0.95 0.04 30);
 }
 
 .bento-card-gitops {
   --bento-accent: oklch(0.50 0.16 140);
   --bento-accent-glow: oklch(0.50 0.16 140 / 0.3);
   --bento-accent-subtle: oklch(0.50 0.16 140 / 0.12);
-  --bento-card-bg: oklch(0.96 0.03 140);
+  --bento-card-bg: oklch(0.95 0.04 140);
 }
 
 .bento-card-oss {
   --bento-accent: oklch(0.52 0.16 290);
   --bento-accent-glow: oklch(0.52 0.16 290 / 0.3);
   --bento-accent-subtle: oklch(0.52 0.16 290 / 0.12);
-  --bento-card-bg: oklch(0.96 0.03 290);
+  --bento-card-bg: oklch(0.95 0.04 290);
 }
 
 /* ── Dark mode ── */
