@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, nextTick } from 'vue';
+import { ref, onMounted } from 'vue';
 
 definePageMeta({
   layout: 'default',
@@ -41,15 +41,9 @@ const ASIDE_PATHS = [
 /* Filter out spaces (no path data) and track visible character indices */
 const visiblePaths = ASIDE_PATHS.filter(p => p.d);
 
-const pathRefs = ref<SVGPathElement[]>([]);
-const pathLengths = ref<number[]>([]);
 const asideDrawn = ref(false);
 
-onMounted(async () => {
-  await nextTick();
-  /* Measure each path's total length for stroke-dasharray */
-  pathLengths.value = pathRefs.value.map(el => el?.getTotalLength?.() ?? 200);
-  /* Start the writing animation after a beat */
+onMounted(() => {
   setTimeout(() => { asideDrawn.value = true; }, 800);
 });
 </script>
@@ -67,17 +61,10 @@ onMounted(async () => {
           <path
             v-for="(glyph, i) in visiblePaths"
             :key="i"
-            ref="pathRefs"
             :d="glyph.d"
             class="hero-glyph"
             :class="{ 'hero-glyph-drawn': asideDrawn }"
-            :style="{
-              strokeDasharray: pathLengths[i] ?? 200,
-              strokeDashoffset: asideDrawn ? 0 : (pathLengths[i] ?? 200),
-              transitionDelay: asideDrawn
-                ? `${i * 100}ms, ${visiblePaths.length * 100 + 400}ms, ${visiblePaths.length * 100 + 400}ms`
-                : '0ms',
-            }"
+            :style="{ transitionDelay: asideDrawn ? `${i * 100}ms` : '0ms' }"
           />
         </svg>
       </span>
@@ -159,24 +146,14 @@ onMounted(async () => {
 }
 
 /* Per-character glyph paths.
-   Each path starts fully hidden (dashoffset = length), then draws in
-   sequentially via staggered transition-delay set in :style. */
+   Each path fades in sequentially via staggered transition-delay. */
 .hero-glyph {
   fill: var(--ui-primary);
   fill-opacity: 0;
-  stroke: var(--ui-primary);
-  stroke-opacity: 0.7;
-  stroke-width: 0.8;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  transition:
-    stroke-dashoffset 0.4s cubic-bezier(0.4, 0, 0.2, 1),
-    fill-opacity 0.3s ease,
-    stroke-opacity 0.3s ease;
+  transition: fill-opacity 0.3s ease;
 }
 
 .hero-glyph-drawn {
   fill-opacity: 0.8;
-  stroke-opacity: 0;
 }
 </style>
