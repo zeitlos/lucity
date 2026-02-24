@@ -193,6 +193,9 @@ watch(visible, (v) => {
   overflow: hidden;
   min-height: 520px;
   isolation: isolate;
+  box-shadow:
+    0 8px 60px oklch(0 0 0 / 0.25),
+    0 2px 20px oklch(0 0 0 / 0.15);
 }
 
 /* ── Sides ── */
@@ -203,7 +206,21 @@ watch(visible, (v) => {
   align-items: flex-end;
   overflow: hidden;
   opacity: 0;
+  cursor: pointer;
   transition: opacity 0.5s ease, transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.vs-side-visible:hover .vs-bg {
+  transform: scale(1.04);
+  filter: brightness(1.1);
+}
+
+.vs-side-visible:hover .vs-tint {
+  opacity: 0.7;
+}
+
+.vs-side-visible:hover .vs-content {
+  transform: translateY(-3px);
 }
 
 .vs-side-left {
@@ -226,6 +243,7 @@ watch(visible, (v) => {
   background-size: cover;
   background-position: center;
   z-index: 0;
+  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1), filter 0.5s ease;
 }
 
 .vs-bg-left {
@@ -242,6 +260,7 @@ watch(visible, (v) => {
   inset: 0;
   z-index: 1;
   pointer-events: none;
+  transition: opacity 0.5s ease;
 }
 
 .vs-tint-left {
@@ -287,6 +306,7 @@ watch(visible, (v) => {
   flex-direction: column;
   gap: 16px;
   width: 100%;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .vs-title {
@@ -311,6 +331,7 @@ watch(visible, (v) => {
 /* ── Arcade buttons ── */
 .vs-content :deep(a),
 .vs-content :deep(button) {
+  width: fit-content !important;
   color: white !important;
   font-weight: 600 !important;
   letter-spacing: 0.02em;
