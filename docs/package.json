@@ -10,6 +10,7 @@
   "dependencies": {
     "better-sqlite3": "^12.5.0",
     "docus": "latest",
+    "flo-mat": "^3.0.3",
     "nuxt": "^4.2.2"
   },
   "devDependencies": {
