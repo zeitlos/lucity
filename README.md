@@ -113,6 +113,25 @@ flowchart LR
 
 The platform is **stateless** — no central database. All state lives in Git (Soft-serve), Kubernetes, and the OCI registry (Zot). Your source repo is read-only to the platform; all managed configuration lives in a separate GitOps repo. If the platform goes down, your workloads keep running.
 
+## Concepts
+
+Every Lucity concept maps to standard Kubernetes and GitOps primitives — no proprietary abstractions.
+
+| Concept | Source of Truth | Kubernetes |
+|---------|----------------|------------|
+| **Project** | GitOps repo on Soft-serve | Namespaces via `lucity.dev/project` label |
+| **Environment** | `environments/{env}/values.yaml` | Namespace + ArgoCD Application |
+| **Service** | `base/values.yaml` → `services.{name}` | Deployment + ClusterIP Service |
+| **Database** | `base/values.yaml` → `databases.postgres.{name}` | CloudNativePG `Cluster` + `Secret` |
+| **Build** | OCI image in Zot registry | Tagged with commit SHA |
+| **Deployment** | Git commit in GitOps repo | ArgoCD sync → rolling update |
+| **Promotion** | Image tag copied between env values | Same digest, no rebuild |
+| **Domain** | `services.{name}.domains[]` | Gateway API `HTTPRoute` |
+| **Cron Job** | `cronJobs.{name}` in env values | `CronJob` |
+| **Variables** | Helm values (shared, per-service, DB refs) | `ConfigMap`, pod env, CNPG `Secret` |
+
+See [Concepts](https://lucity.dev/getting-started/concepts) in the docs for the full breakdown.
+
 ## Quick Start
 
 Install with Helm:
