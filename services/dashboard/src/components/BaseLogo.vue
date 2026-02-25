@@ -262,7 +262,7 @@ const mark = computed(() => {
     ])),
     triangle: pts(triNudged),
     lCorner: project(2, 2) as Point,
-    triBottom: triNudged[2],
+    triBottom: triNudged[2] as Point,
   };
 });
 </script>

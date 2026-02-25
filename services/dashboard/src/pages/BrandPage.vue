@@ -92,7 +92,7 @@ function preloadWallpapers() {
     const img = new Image();
     img.onload = () => {
       loadedImages.set(wp.src, img);
-      if (wallpapers[selectedWallpaper.value].src === wp.src) drawCanvas();
+      if (wallpapers[selectedWallpaper.value]?.src === wp.src) drawCanvas();
     };
     img.src = wp.src;
   });
@@ -191,11 +191,11 @@ function drawLogo(ctx: CanvasRenderingContext2D, cx: number, cy: number, logoHei
   // Triangle accent — warm beige from brand palette
   ctx.fillStyle = 'oklch(0.92 0.02 75)';
   ctx.beginPath();
-  for (let i = 0; i < TRI_VERTS.length; i++) {
-    const [px, py] = project(TRI_VERTS[i][0], TRI_VERTS[i][1]);
+  TRI_VERTS.forEach((vert, i) => {
+    const [px, py] = project(vert[0], vert[1]);
     if (i === 0) ctx.moveTo(px, py);
     else ctx.lineTo(px, py);
-  }
+  });
   ctx.closePath();
   ctx.fill();
 }
@@ -211,7 +211,7 @@ function drawCanvas() {
   ctx.clearRect(0, 0, W, H);
 
   // Background wallpaper
-  const wp = wallpapers[selectedWallpaper.value];
+  const wp = wallpapers[selectedWallpaper.value]!;
   const img = loadedImages.get(wp.src);
 
   if (img) {
