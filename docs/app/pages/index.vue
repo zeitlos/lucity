@@ -82,7 +82,7 @@ onMounted(async () => {
 
     <template #description>
       Open-source PaaS on Kubernetes. Git push to deploy, environments out of the box, and a real exit door.
-      <code>lucity eject</code> gives you standard Helm charts and ArgoCD configs.
+      <code class="eject-cmd">lucity eject</code> gives you standard Helm charts and ArgoCD configs.
     </template>
 
     <template #links>
@@ -153,6 +153,20 @@ onMounted(async () => {
   height: 0.55em;
   transform: rotate(-3deg);
   overflow: visible;
+}
+
+/* Neon rainbow inline code — uses the four video-tab colors.
+   Gradient text via background-clip. Glow via box-shadow. */
+.eject-cmd {
+  font-weight: 600;
+  padding: 0.05em 0.35em;
+  border-radius: 5px;
+  background: linear-gradient(90deg, oklch(0.78 0.18 160), oklch(0.85 0.15 95), oklch(0.72 0.22 15), oklch(0.75 0.16 300));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  box-shadow: 0 0 20px oklch(0.5 0.04 200 / 0.2);
+  border: 1px solid oklch(0.6 0.1 160 / 0.25);
 }
 
 /* Center-line glyph strokes — animated with stroke-dashoffset for handwriting effect. */
