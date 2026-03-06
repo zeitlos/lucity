@@ -259,26 +259,28 @@ func buildPhaseToString(phase builder.BuildPhase) string {
 
 // DeployOp represents the state of a unified build+deploy operation.
 type DeployOp struct {
-	ID          string
-	Phase       string
-	BuildID     string
-	ImageRef    string
-	Digest      string
-	Error       string
+	ID             string
+	Phase          string
+	BuildID        string
+	ImageRef       string
+	Digest         string
+	Error          string
 	RolloutHealth  string
 	RolloutMessage string
+	StartedAt      time.Time
 }
 
 func deployOpFromState(s *deploy.State) *DeployOp {
 	return &DeployOp{
-		ID:          s.ID,
-		Phase:       string(s.Phase),
-		BuildID:     s.BuildID,
-		ImageRef:    s.ImageRef,
-		Digest:      s.Digest,
-		Error:       s.Error,
+		ID:             s.ID,
+		Phase:          string(s.Phase),
+		BuildID:        s.BuildID,
+		ImageRef:       s.ImageRef,
+		Digest:         s.Digest,
+		Error:          s.Error,
 		RolloutHealth:  s.RolloutHealth,
 		RolloutMessage: s.RolloutMessage,
+		StartedAt:      s.StartedAt,
 	}
 }
 

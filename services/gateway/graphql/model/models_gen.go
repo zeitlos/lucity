@@ -144,6 +144,8 @@ type DeployRun struct {
 	ImageRef *string     `json:"imageRef,omitempty"`
 	Digest   *string     `json:"digest,omitempty"`
 	Error    *string     `json:"error,omitempty"`
+	// When the deploy operation started.
+	StartedAt *time.Time `json:"startedAt,omitempty"`
 	// Rollout health status from the deployment system.
 	RolloutHealth *SyncStatus `json:"rolloutHealth,omitempty"`
 	// Rollout status detail, e.g. ImagePullBackOff, CrashLoopBackOff.

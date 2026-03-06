@@ -193,6 +193,9 @@ func convertDeploymentOp(d handler.DeployOp) model.DeployRun {
 	if d.Error != "" {
 		op.Error = &d.Error
 	}
+	if !d.StartedAt.IsZero() {
+		op.StartedAt = &d.StartedAt
+	}
 	if d.RolloutHealth != "" {
 		health := model.SyncStatus(d.RolloutHealth)
 		op.RolloutHealth = &health

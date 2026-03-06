@@ -70,6 +70,7 @@ export const DeployMutation = gql`
       imageRef
       digest
       error
+      startedAt
     }
   }
 `;
@@ -83,6 +84,7 @@ export const DeployStatusQuery = gql`
       imageRef
       digest
       error
+      startedAt
       rolloutHealth
       rolloutMessage
     }
@@ -98,6 +100,7 @@ export const ActiveDeploymentQuery = gql`
       imageRef
       digest
       error
+      startedAt
       rolloutHealth
       rolloutMessage
     }

@@ -53,6 +53,8 @@ type DeployRun {
   imageRef: String
   digest: String
   error: String
+  """When the deploy operation started."""
+  startedAt: Time
   """Rollout health status from the deployment system."""
   rolloutHealth: SyncStatus
   """Rollout status detail, e.g. ImagePullBackOff, CrashLoopBackOff."""

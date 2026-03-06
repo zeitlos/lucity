@@ -1,6 +1,9 @@
 package deploy
 
-import "sync"
+import (
+	"sync"
+	"time"
+)
 
 // Phase represents a stage in the unified deploy pipeline.
 type Phase string
@@ -28,6 +31,7 @@ type State struct {
 	Project     string
 	Service     string
 	Environment string
+	StartedAt   time.Time
 
 	// Rollout health status, populated during DEPLOYING phase and after SUCCEEDED.
 	RolloutHealth  string // SYNCED, PROGRESSING, DEGRADED, OUT_OF_SYNC, UNKNOWN
@@ -70,6 +74,7 @@ func (t *Tracker) Create(id, buildID, project, service, environment string) {
 		Project:     project,
 		Service:     service,
 		Environment: environment,
+		StartedAt:   time.Now(),
 		done:        make(chan struct{}),
 	}
 	t.byService[serviceKey(project, service, environment)] = id

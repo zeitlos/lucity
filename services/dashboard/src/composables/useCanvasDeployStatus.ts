@@ -33,10 +33,9 @@ export function useCanvasDeployStatus(
           });
           const active = data?.activeDeployment;
           if (active?.id && active.phase !== 'SUCCEEDED' && active.phase !== 'FAILED') {
-            const existing = prev[svc];
             results[svc] = {
               phase: active.phase,
-              startedAt: existing ? existing.startedAt : Date.now(),
+              startedAt: active.startedAt ? new Date(active.startedAt).getTime() : Date.now(),
             };
           }
         } catch {

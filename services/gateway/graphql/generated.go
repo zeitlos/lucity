@@ -119,6 +119,7 @@ type ComplexityRoot struct {
 		Phase          func(childComplexity int) int
 		RolloutHealth  func(childComplexity int) int
 		RolloutMessage func(childComplexity int) int
+		StartedAt      func(childComplexity int) int
 	}
 
 	Deployment struct {
@@ -631,6 +632,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.DeployRun.RolloutMessage(childComplexity), true
+	case "DeployRun.startedAt":
+		if e.complexity.DeployRun.StartedAt == nil {
+			break
+		}
+
+		return e.complexity.DeployRun.StartedAt(childComplexity), true
 
 	case "Deployment.active":
 		if e.complexity.Deployment.Active == nil {
@@ -3516,6 +3523,35 @@ func (ec *executionContext) fieldContext_DeployRun_error(_ context.Context, fiel
 	return fc, nil
 }
 
+func (ec *executionContext) _DeployRun_startedAt(ctx context.Context, field graphql.CollectedField, obj *model.DeployRun) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DeployRun_startedAt,
+		func(ctx context.Context) (any, error) {
+			return obj.StartedAt, nil
+		},
+		nil,
+		ec.marshalOTime2ᚖtimeᚐTime,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_DeployRun_startedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DeployRun",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _DeployRun_rolloutHealth(ctx context.Context, field graphql.CollectedField, obj *model.DeployRun) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -5508,6 +5544,8 @@ func (ec *executionContext) fieldContext_Mutation_deploy(ctx context.Context, fi
 				return ec.fieldContext_DeployRun_digest(ctx, field)
 			case "error":
 				return ec.fieldContext_DeployRun_error(ctx, field)
+			case "startedAt":
+				return ec.fieldContext_DeployRun_startedAt(ctx, field)
 			case "rolloutHealth":
 				return ec.fieldContext_DeployRun_rolloutHealth(ctx, field)
 			case "rolloutMessage":
@@ -6210,6 +6248,8 @@ func (ec *executionContext) fieldContext_Project_initialDeploys(_ context.Contex
 				return ec.fieldContext_DeployRun_digest(ctx, field)
 			case "error":
 				return ec.fieldContext_DeployRun_error(ctx, field)
+			case "startedAt":
+				return ec.fieldContext_DeployRun_startedAt(ctx, field)
 			case "rolloutHealth":
 				return ec.fieldContext_DeployRun_rolloutHealth(ctx, field)
 			case "rolloutMessage":
@@ -7027,6 +7067,8 @@ func (ec *executionContext) fieldContext_Query_deployStatus(ctx context.Context,
 				return ec.fieldContext_DeployRun_digest(ctx, field)
 			case "error":
 				return ec.fieldContext_DeployRun_error(ctx, field)
+			case "startedAt":
+				return ec.fieldContext_DeployRun_startedAt(ctx, field)
 			case "rolloutHealth":
 				return ec.fieldContext_DeployRun_rolloutHealth(ctx, field)
 			case "rolloutMessage":
@@ -7104,6 +7146,8 @@ func (ec *executionContext) fieldContext_Query_activeDeployment(ctx context.Cont
 				return ec.fieldContext_DeployRun_digest(ctx, field)
 			case "error":
 				return ec.fieldContext_DeployRun_error(ctx, field)
+			case "startedAt":
+				return ec.fieldContext_DeployRun_startedAt(ctx, field)
 			case "rolloutHealth":
 				return ec.fieldContext_DeployRun_rolloutHealth(ctx, field)
 			case "rolloutMessage":
@@ -11492,6 +11536,8 @@ func (ec *executionContext) _DeployRun(ctx context.Context, sel ast.SelectionSet
 			out.Values[i] = ec._DeployRun_digest(ctx, field, obj)
 		case "error":
 			out.Values[i] = ec._DeployRun_error(ctx, field, obj)
+		case "startedAt":
+			out.Values[i] = ec._DeployRun_startedAt(ctx, field, obj)
 		case "rolloutHealth":
 			out.Values[i] = ec._DeployRun_rolloutHealth(ctx, field, obj)
 		case "rolloutMessage":
