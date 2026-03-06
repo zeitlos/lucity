@@ -37,11 +37,13 @@ Thumbs.db
 # Build
 bin/
 tmp/
-/gateway
-/builder
-/packager
-/deployer
-/webhook
+
+# Go binaries (match anywhere, not just repo root)
+gateway
+builder
+packager
+deployer
+webhook
 
 # Proto generated
 gen/
