@@ -18,21 +18,35 @@ type BuildState struct {
 	Logs     []string
 }
 
-// Tracker manages in-memory build state for async builds.
-type Tracker struct {
+// Tracker tracks build state. Implementations may store state in-memory
+// or read it from external systems like Kubernetes.
+type Tracker interface {
+	Create(id string)
+	Get(id string) *BuildState
+	Update(id string, phase builder.BuildPhase)
+	Succeed(id, imageRef, digest string)
+	Fail(id, errMsg string)
+	AppendLog(id, line string)
+	LogLines(id string, offset int) []string
+	LogCount(id string) int
+	IsTerminal(id string) bool
+}
+
+// InMemoryTracker manages build state in-memory for async builds.
+type InMemoryTracker struct {
 	mu     sync.RWMutex
 	builds map[string]*BuildState
 }
 
-// NewTracker creates a new build state tracker.
-func NewTracker() *Tracker {
-	return &Tracker{
+// NewInMemoryTracker creates a new in-memory build state tracker.
+func NewInMemoryTracker() *InMemoryTracker {
+	return &InMemoryTracker{
 		builds: make(map[string]*BuildState),
 	}
 }
 
 // Create registers a new build with QUEUED phase.
-func (t *Tracker) Create(id string) {
+func (t *InMemoryTracker) Create(id string) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	t.builds[id] = &BuildState{
@@ -42,7 +56,7 @@ func (t *Tracker) Create(id string) {
 }
 
 // Get returns the current state of a build, or nil if not found.
-func (t *Tracker) Get(id string) *BuildState {
+func (t *InMemoryTracker) Get(id string) *BuildState {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 	s := t.builds[id]
@@ -55,7 +69,7 @@ func (t *Tracker) Get(id string) *BuildState {
 }
 
 // Update sets the phase of a build.
-func (t *Tracker) Update(id string, phase builder.BuildPhase) {
+func (t *InMemoryTracker) Update(id string, phase builder.BuildPhase) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	if s := t.builds[id]; s != nil {
@@ -64,7 +78,7 @@ func (t *Tracker) Update(id string, phase builder.BuildPhase) {
 }
 
 // Succeed marks a build as succeeded with the image ref and digest.
-func (t *Tracker) Succeed(id, imageRef, digest string) {
+func (t *InMemoryTracker) Succeed(id, imageRef, digest string) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	if s := t.builds[id]; s != nil {
@@ -75,7 +89,7 @@ func (t *Tracker) Succeed(id, imageRef, digest string) {
 }
 
 // Fail marks a build as failed with an error message.
-func (t *Tracker) Fail(id, errMsg string) {
+func (t *InMemoryTracker) Fail(id, errMsg string) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	if s := t.builds[id]; s != nil {
@@ -85,7 +99,7 @@ func (t *Tracker) Fail(id, errMsg string) {
 }
 
 // AppendLog adds a log line to a build. Capped at maxLogLines.
-func (t *Tracker) AppendLog(id, line string) {
+func (t *InMemoryTracker) AppendLog(id, line string) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	s := t.builds[id]
@@ -96,7 +110,7 @@ func (t *Tracker) AppendLog(id, line string) {
 }
 
 // LogLines returns log lines starting from offset, or nil if build not found.
-func (t *Tracker) LogLines(id string, offset int) []string {
+func (t *InMemoryTracker) LogLines(id string, offset int) []string {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 	s := t.builds[id]
@@ -110,7 +124,7 @@ func (t *Tracker) LogLines(id string, offset int) []string {
 }
 
 // LogCount returns the number of log lines for a build.
-func (t *Tracker) LogCount(id string) int {
+func (t *InMemoryTracker) LogCount(id string) int {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 	if s := t.builds[id]; s != nil {
@@ -120,7 +134,7 @@ func (t *Tracker) LogCount(id string) int {
 }
 
 // IsTerminal returns true if the build is in a terminal phase (SUCCEEDED or FAILED).
-func (t *Tracker) IsTerminal(id string) bool {
+func (t *InMemoryTracker) IsTerminal(id string) bool {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 	s := t.builds[id]

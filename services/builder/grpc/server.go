@@ -23,7 +23,7 @@ import (
 type Server struct {
 	builder.UnimplementedBuilderServiceServer
 	engine           engine.Engine
-	tracker          *build.Tracker
+	tracker          build.Tracker
 	registryURL      string
 	registryToken    string
 	registryInsecure bool
@@ -31,10 +31,10 @@ type Server struct {
 }
 
 // NewServer creates a new builder gRPC server.
-func NewServer(eng engine.Engine, registryURL, registryToken string, registryInsecure bool, workDir string) *Server {
+func NewServer(eng engine.Engine, tracker build.Tracker, registryURL, registryToken string, registryInsecure bool, workDir string) *Server {
 	return &Server{
 		engine:           eng,
-		tracker:          build.NewTracker(),
+		tracker:          tracker,
 		registryURL:      registryURL,
 		registryToken:    registryToken,
 		registryInsecure: registryInsecure,
@@ -213,12 +213,16 @@ func (s *Server) runBuild(buildID, token string, req *builder.StartBuildRequest)
 	// Build + push
 	s.tracker.Update(buildID, builder.BuildPhase_BUILD_PHASE_BUILDING)
 	result, err := s.engine.Build(ctx, engine.BuildOpts{
+		BuildID:     buildID,
 		RepoPath:    repoPath,
 		ImageName:   imageName,
 		ContextPath: req.ContextPath,
 		Token:       s.registryToken,
 		SourceURL:   req.SourceUrl,
+		GitRef:      req.GitRef,
 		GitSHA:      full,
+		GitHubToken: token,
+		Registry:    req.Registry,
 		Insecure:    s.registryInsecure,
 		LogFunc:     func(line string) { s.tracker.AppendLog(buildID, line) },
 	})

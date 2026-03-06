@@ -38,9 +38,15 @@ gateway:
     GITHUB_WEBHOOK_SECRET: GITHUB_WEBHOOK_SECRET
 
 builder:
+  serviceAccount:
+    create: true
+  registryHost: lucity-infra-zot.lucity-system.svc.cluster.local:5000
   env:
     REGISTRY_URL: lucity-infra-zot.lucity-system.svc.cluster.local:5000
     REGISTRY_INSECURE: "true"
+    BUILD_ENGINE: kubernetes
+    BUILD_IMAGE: ghcr.io/zeitlos/lucity/builder:latest
+    BUILD_NAMESPACE: lucity-system
   envSecret:
     JWT_SECRET: JWT_SECRET
 

@@ -22,6 +22,9 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- if .Values.builder.serviceAccount.create }}
+      serviceAccountName: {{ include "lucity.fullname" . }}-builder
+      {{- end }}
       containers:
         - name: builder
           image: "{{ .Values.builder.image.repository }}:{{ .Values.builder.image.tag | default .Chart.AppVersion }}"

@@ -53,6 +53,10 @@ builder:
   port: 9001
   env: {}
   envSecret: {}
+  serviceAccount:
+    create: false
+  # -- Registry host for BuildKit config (used in buildkitd.toml for build Jobs)
+  registryHost: ""
   resources:
     requests:
       cpu: 200m

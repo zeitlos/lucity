@@ -1,0 +1,44 @@
+{{- if .Values.builder.serviceAccount.create }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "lucity.fullname" . }}-builder
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+    app.kubernetes.io/component: builder
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "lucity.fullname" . }}-builder
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+rules:
+  # Builder service: create and monitor build Jobs
+  - apiGroups: ["batch"]
+    resources: [jobs]
+    verbs: [get, list, watch, create]
+  # Builder service: read build pod logs
+  - apiGroups: [""]
+    resources: [pods, pods/log]
+    verbs: [get, list]
+  # Build runner (inside Job pods): annotate own Job with result
+  - apiGroups: ["batch"]
+    resources: [jobs]
+    verbs: [patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "lucity.fullname" . }}-builder
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "lucity.fullname" . }}-builder
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "lucity.fullname" . }}-builder
+    namespace: {{ .Release.Namespace }}
+{{- end }}
