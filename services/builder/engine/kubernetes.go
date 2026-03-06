@@ -121,34 +121,17 @@ func (e *KubernetesEngine) buildJob(name string, opts BuildOpts) *batchv1.Job {
 					},
 				},
 				Spec: corev1.PodSpec{
-					ShareProcessNamespace: boolPtr(true),
-					NodeSelector:          e.nodeSelector,
-					RestartPolicy:         corev1.RestartPolicyNever,
-					ServiceAccountName:    "lucity-builder",
-					Containers: []corev1.Container{
+					NodeSelector:       e.nodeSelector,
+					RestartPolicy:      corev1.RestartPolicyNever,
+					ServiceAccountName: "lucity-builder",
+					// BuildKit runs as a native sidecar (init container with restartPolicy: Always).
+					// K8s automatically stops it when the main container exits, and the sidecar's
+					// exit code doesn't affect the Job's success/failure status.
+					InitContainers: []corev1.Container{
 						{
-							Name:    "build",
-							Image:   e.buildImage,
-							Command: []string{"/app", "run-build"},
-							Env:     env,
-							VolumeMounts: []corev1.VolumeMount{
-								{Name: "buildkit-socket", MountPath: "/run/buildkit"},
-								{Name: "work", MountPath: "/tmp/lucity-builds"},
-							},
-							Resources: corev1.ResourceRequirements{
-								Requests: corev1.ResourceList{
-									corev1.ResourceCPU:    mustParseQuantity("500m"),
-									corev1.ResourceMemory: mustParseQuantity("512Mi"),
-								},
-								Limits: corev1.ResourceList{
-									corev1.ResourceCPU:    mustParseQuantity("2"),
-									corev1.ResourceMemory: mustParseQuantity("2Gi"),
-								},
-							},
-						},
-						{
-							Name:  "buildkitd",
-							Image: "moby/buildkit:rootless",
+							Name:          "buildkitd",
+							Image:         "moby/buildkit:rootless",
+							RestartPolicy: ptr(corev1.ContainerRestartPolicyAlways),
 							Args: []string{
 								"--addr", "unix:///run/buildkit/buildkitd.sock",
 								"--oci-worker-no-process-sandbox",
@@ -172,6 +155,28 @@ func (e *KubernetesEngine) buildJob(name string, opts BuildOpts) *batchv1.Job {
 								},
 								InitialDelaySeconds: 2,
 								PeriodSeconds:       2,
+							},
+						},
+					},
+					Containers: []corev1.Container{
+						{
+							Name:    "build",
+							Image:   e.buildImage,
+							Command: []string{"/app", "run-build"},
+							Env:     env,
+							VolumeMounts: []corev1.VolumeMount{
+								{Name: "buildkit-socket", MountPath: "/run/buildkit"},
+								{Name: "work", MountPath: "/tmp/lucity-builds"},
+							},
+							Resources: corev1.ResourceRequirements{
+								Requests: corev1.ResourceList{
+									corev1.ResourceCPU:    mustParseQuantity("500m"),
+									corev1.ResourceMemory: mustParseQuantity("512Mi"),
+								},
+								Limits: corev1.ResourceList{
+									corev1.ResourceCPU:    mustParseQuantity("2"),
+									corev1.ResourceMemory: mustParseQuantity("2Gi"),
+								},
 							},
 						},
 					},
@@ -258,7 +263,7 @@ func (e *KubernetesEngine) readResult(job *batchv1.Job) (*BuildResult, error) {
 	}, nil
 }
 
-func boolPtr(b bool) *bool { return &b }
+func ptr[T any](v T) *T { return &v }
 
 func mustParseQuantity(s string) resource.Quantity {
 	q, err := resource.ParseQuantity(s)
