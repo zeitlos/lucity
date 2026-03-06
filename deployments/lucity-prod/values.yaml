@@ -9,9 +9,6 @@
 #   --set-file githubPrivateKey=<path-to-github-app.pem>
 #   --set-file softserveKey=~/.ssh/lucity-admin-prod
 
-imagePullSecrets:
-  - name: ghcr-pull-secret
-
 routes:
   enabled: true
   gatewayName: lucity-gateway
@@ -45,7 +42,6 @@ builder:
     REGISTRY_URL: lucity-infra-zot.lucity-system.svc.cluster.local:5000
     REGISTRY_INSECURE: "true"
     BUILD_ENGINE: kubernetes
-    BUILD_IMAGE: ghcr.io/zeitlos/lucity/builder:latest
     BUILD_NAMESPACE: lucity-system
   envSecret:
     JWT_SECRET: JWT_SECRET

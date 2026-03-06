@@ -25,8 +25,8 @@ type Config struct {
 	RegistryInsecure bool   `envconfig:"REGISTRY_INSECURE" default:"true"`
 	WorkDir          string `envconfig:"WORK_DIR" default:"/tmp/lucity-builds"`
 	BuildEngine      string `envconfig:"BUILD_ENGINE" default:"local"`
-	BuildImage       string `envconfig:"BUILD_IMAGE"`
-	BuildNamespace   string `envconfig:"BUILD_NAMESPACE" default:"lucity-system"`
+	BuildImage     string `envconfig:"BUILD_IMAGE"`
+	BuildNamespace string `envconfig:"BUILD_NAMESPACE" default:"lucity-system"`
 }
 
 func main() {

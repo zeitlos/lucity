@@ -36,6 +36,10 @@ spec:
           env:
             - name: PORT
               value: {{ .Values.builder.port | quote }}
+            {{- if .Values.builder.serviceAccount.create }}
+            - name: BUILD_IMAGE
+              value: "{{ .Values.builder.image.repository }}:{{ .Values.builder.image.tag | default .Chart.AppVersion }}"
+            {{- end }}
             {{- range $key, $value := .Values.builder.env }}
             - name: {{ $key }}
               value: {{ $value | quote }}
