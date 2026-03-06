@@ -265,6 +265,7 @@ func buildWithBuildctl(buildkitAddr, buildDir, planFile, imageName string, insec
 	args := []string{
 		"--addr", buildkitAddr,
 		"build",
+		"--progress", "plain",
 		"--frontend", "gateway.v0",
 		"--opt", "source=ghcr.io/railwayapp/railpack-frontend",
 		"--opt", "filename=railpack-plan.json",

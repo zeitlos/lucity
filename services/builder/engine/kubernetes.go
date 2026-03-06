@@ -148,7 +148,10 @@ func (e *KubernetesEngine) buildJob(name string, opts BuildOpts) *batchv1.Job {
 						{
 							Name:  "buildkitd",
 							Image: "moby/buildkit:rootless",
-							Args:  []string{"--addr", "unix:///run/buildkit/buildkitd.sock"},
+							Args: []string{
+								"--addr", "unix:///run/buildkit/buildkitd.sock",
+								"--oci-worker-no-process-sandbox",
+							},
 							SecurityContext: &corev1.SecurityContext{
 								Privileged:     &privileged,
 								SeccompProfile: &seccompUnconfined,
