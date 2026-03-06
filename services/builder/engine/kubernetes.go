@@ -121,9 +121,10 @@ func (e *KubernetesEngine) buildJob(name string, opts BuildOpts) *batchv1.Job {
 					},
 				},
 				Spec: corev1.PodSpec{
-					NodeSelector:       e.nodeSelector,
-					RestartPolicy:      corev1.RestartPolicyNever,
-					ServiceAccountName: "lucity-builder",
+					ShareProcessNamespace: boolPtr(true),
+					NodeSelector:          e.nodeSelector,
+					RestartPolicy:         corev1.RestartPolicyNever,
+					ServiceAccountName:    "lucity-builder",
 					Containers: []corev1.Container{
 						{
 							Name:    "build",
@@ -256,6 +257,8 @@ func (e *KubernetesEngine) readResult(job *batchv1.Job) (*BuildResult, error) {
 		Digest:   result.Digest,
 	}, nil
 }
+
+func boolPtr(b bool) *bool { return &b }
 
 func mustParseQuantity(s string) resource.Quantity {
 	q, err := resource.ParseQuantity(s)

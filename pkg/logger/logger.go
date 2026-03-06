@@ -8,23 +8,29 @@ import (
 	"github.com/lmittmann/tint"
 )
 
-// Setup configures the default slog logger with colored output via tint.
+// Setup configures the default slog logger. Output is plain text by default.
+// Set LOG_COLOR=true to enable colored output via tint (useful in interactive terminals).
 func Setup(level string) {
-	var l slog.Level
+	if strings.ToLower(os.Getenv("LOG_COLOR")) == "true" {
+		slog.SetDefault(slog.New(tint.NewHandler(os.Stderr, &tint.Options{
+			Level: parseLevel(level),
+		})))
+		return
+	}
+	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+		Level: parseLevel(level),
+	})))
+}
+
+func parseLevel(level string) slog.Level {
 	switch strings.ToLower(level) {
 	case "debug":
-		l = slog.LevelDebug
+		return slog.LevelDebug
 	case "warn":
-		l = slog.LevelWarn
+		return slog.LevelWarn
 	case "error":
-		l = slog.LevelError
+		return slog.LevelError
 	default:
-		l = slog.LevelInfo
+		return slog.LevelInfo
 	}
-
-	handler := tint.NewHandler(os.Stderr, &tint.Options{
-		Level: l,
-	})
-
-	slog.SetDefault(slog.New(handler))
 }

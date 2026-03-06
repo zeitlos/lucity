@@ -9,7 +9,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/go-git/go-git/v5"
@@ -77,8 +79,11 @@ func runBuild() {
 			slog.Error("failed to annotate job with error", "error", annotateErr)
 		}
 
+		killSidecar()
 		os.Exit(1)
 	}
+
+	killSidecar()
 }
 
 func executeBuild(cfg runBuildConfig, k8sClient kubernetes.Interface) error {
@@ -290,6 +295,38 @@ func buildWithBuildctl(buildkitAddr, buildDir, planFile, imageName string, insec
 	}
 
 	return nil
+}
+
+// killSidecar terminates the buildkitd sidecar process so the Job pod can exit.
+// This requires shareProcessNamespace: true in the pod spec.
+func killSidecar() {
+	entries, err := os.ReadDir("/proc")
+	if err != nil {
+		slog.Warn("failed to read /proc", "error", err)
+		return
+	}
+
+	for _, entry := range entries {
+		pid, err := strconv.Atoi(entry.Name())
+		if err != nil || pid <= 1 {
+			continue
+		}
+
+		cmdline, err := os.ReadFile(fmt.Sprintf("/proc/%d/cmdline", pid))
+		if err != nil {
+			continue
+		}
+
+		if strings.Contains(string(cmdline), "buildkitd") {
+			slog.Info("killing buildkitd sidecar", "pid", pid)
+			if err := syscall.Kill(pid, syscall.SIGTERM); err != nil {
+				slog.Warn("failed to kill buildkitd", "pid", pid, "error", err)
+			}
+			return
+		}
+	}
+
+	slog.Warn("buildkitd process not found — sidecar may not stop")
 }
 
 func inClusterClient() (kubernetes.Interface, error) {
