@@ -38,7 +38,12 @@ Thumbs.db
 bin/
 tmp/
 
-# Go binaries (produced by `go build` in service dirs)
+# Go binaries (at repo root and in service dirs)
+/gateway
+/builder
+/packager
+/deployer
+/webhook
 services/*/gateway
 services/*/builder
 services/*/packager
