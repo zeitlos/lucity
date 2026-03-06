@@ -30,7 +30,7 @@ gateway:
   replicaCount: 1
   image:
     repository: ghcr.io/zeitlos/lucity/gateway
-    tag: latest
+    tag: main
     pullPolicy: IfNotPresent
   port: 8080
   env: {}
@@ -48,7 +48,7 @@ builder:
   replicaCount: 1
   image:
     repository: ghcr.io/zeitlos/lucity/builder
-    tag: latest
+    tag: main
     pullPolicy: IfNotPresent
   port: 9001
   env: {}
@@ -66,7 +66,7 @@ packager:
   replicaCount: 1
   image:
     repository: ghcr.io/zeitlos/lucity/packager
-    tag: latest
+    tag: main
     pullPolicy: IfNotPresent
   port: 9002
   env: {}
@@ -84,7 +84,7 @@ deployer:
   replicaCount: 1
   image:
     repository: ghcr.io/zeitlos/lucity/deployer
-    tag: latest
+    tag: main
     pullPolicy: IfNotPresent
   port: 9003
   env: {}
@@ -104,7 +104,7 @@ webhook:
   replicaCount: 1
   image:
     repository: ghcr.io/zeitlos/lucity/webhook
-    tag: latest
+    tag: main
     pullPolicy: IfNotPresent
   port: 9004
   env: {}
@@ -122,7 +122,7 @@ dashboard:
   replicaCount: 1
   image:
     repository: ghcr.io/zeitlos/lucity/dashboard
-    tag: latest
+    tag: main
     pullPolicy: IfNotPresent
   port: 80
   resources:
@@ -138,7 +138,7 @@ docs:
   replicaCount: 1
   image:
     repository: ghcr.io/zeitlos/lucity/docs
-    tag: latest
+    tag: main
     pullPolicy: IfNotPresent
   port: 80
   resources:

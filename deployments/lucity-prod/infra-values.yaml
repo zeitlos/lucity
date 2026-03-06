@@ -26,6 +26,11 @@ gateway:
   enabled: true
   className: cilium
   name: lucity-gateway
+  infrastructure:
+    annotations:
+      flexplane.io/provider: hetzner
+      load-balancer.hetzner.cloud/location: nbg1
+      load-balancer.hetzner.cloud/name: flexplane-lucity-prod-gateway
   listeners:
     - name: platform-http
       protocol: HTTP
