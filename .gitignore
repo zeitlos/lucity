@@ -38,12 +38,12 @@ Thumbs.db
 bin/
 tmp/
 
-# Go binaries (match anywhere, not just repo root)
-gateway
-builder
-packager
-deployer
-webhook
+# Go binaries (produced by `go build` in service dirs)
+services/*/gateway
+services/*/builder
+services/*/packager
+services/*/deployer
+services/*/webhook
 
 # Proto generated
 gen/
