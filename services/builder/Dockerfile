@@ -36,6 +36,6 @@ COPY --from=builder /app /app
 
 # buildctl is needed by the run-build subcommand (K8s Job pods) to submit
 # builds to the BuildKit sidecar. Copied from the official BuildKit image.
-COPY --from=moby/buildkit:v0.21 /usr/bin/buildctl /usr/bin/buildctl
+COPY --from=moby/buildkit:v0.28.0 /usr/bin/buildctl /usr/bin/buildctl
 
 ENTRYPOINT ["/app"]
