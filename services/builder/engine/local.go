@@ -38,6 +38,12 @@ func (e *LocalEngine) Detect(ctx context.Context, repoPath string) ([]DetectResu
 	result := core.GenerateBuildPlan(a, env, &core.GenerateBuildPlanOptions{})
 
 	if !result.Success || len(result.DetectedProviders) == 0 {
+		// Log railpack errors when detection fails to help diagnose issues
+		for _, l := range result.Logs {
+			if l.Level == rplog.Error {
+				slog.Warn("railpack detection error", "msg", l.Msg)
+			}
+		}
 		return nil, nil
 	}
 

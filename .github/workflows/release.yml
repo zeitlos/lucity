@@ -69,7 +69,7 @@ jobs:
             dockerfile: Dockerfile
             context: .
           - service: builder
-            dockerfile: Dockerfile
+            dockerfile: services/builder/Dockerfile
             context: .
           - service: packager
             dockerfile: Dockerfile
