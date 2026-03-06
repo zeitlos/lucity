@@ -148,9 +148,13 @@ func (e *KubernetesEngine) buildJob(name string, opts BuildOpts) *batchv1.Job {
 						{
 							Name:  "buildkitd",
 							Image: "moby/buildkit:rootless",
+							Args:  []string{"--addr", "unix:///run/buildkit/buildkitd.sock"},
 							SecurityContext: &corev1.SecurityContext{
 								Privileged:     &privileged,
 								SeccompProfile: &seccompUnconfined,
+							},
+							Env: []corev1.EnvVar{
+								{Name: "BUILDKIT_HOST", Value: "unix:///run/buildkit/buildkitd.sock"},
 							},
 							VolumeMounts: []corev1.VolumeMount{
 								{Name: "buildkit-socket", MountPath: "/run/buildkit"},
