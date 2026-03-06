@@ -1,0 +1,50 @@
+{{- if .Values.rybbit.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-rybbit-client
+  labels:
+    app.kubernetes.io/name: rybbit-client
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: analytics
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: rybbit-client
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: rybbit-client
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: analytics
+    spec:
+      containers:
+        - name: client
+          image: "{{ .Values.rybbit.client.image.repository }}:{{ .Values.rybbit.client.image.tag }}"
+          imagePullPolicy: {{ .Values.rybbit.client.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.rybbit.client.port }}
+              protocol: TCP
+          env:
+            - name: NODE_ENV
+              value: production
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          {{- with .Values.rybbit.client.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+{{- end }}

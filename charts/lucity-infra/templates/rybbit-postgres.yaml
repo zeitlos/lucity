@@ -1,0 +1,24 @@
+{{- if .Values.rybbit.enabled }}
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: {{ .Release.Name }}-rybbit-pg
+  labels:
+    app.kubernetes.io/name: rybbit-postgres
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: analytics
+spec:
+  instances: {{ .Values.rybbit.postgres.instances | default 1 }}
+  {{- if .Values.rybbit.postgres.version }}
+  imageName: ghcr.io/cloudnative-pg/postgresql:{{ .Values.rybbit.postgres.version }}
+  {{- end }}
+  bootstrap:
+    initdb:
+      database: {{ .Values.rybbit.postgres.database | default "analytics" }}
+      owner: app
+  storage:
+    size: {{ .Values.rybbit.postgres.size | default "5Gi" }}
+    {{- if .Values.rybbit.postgres.storageClass }}
+    storageClass: {{ .Values.rybbit.postgres.storageClass | quote }}
+    {{- end }}
+{{- end }}

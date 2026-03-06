@@ -1,0 +1,100 @@
+{{- if .Values.rybbit.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-rybbit-backend
+  labels:
+    app.kubernetes.io/name: rybbit-backend
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: analytics
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: rybbit-backend
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      annotations:
+        checksum/secret: {{ include (print $.Template.BasePath "/rybbit-secret.yaml") . | sha256sum }}
+      labels:
+        app.kubernetes.io/name: rybbit-backend
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: analytics
+    spec:
+      containers:
+        - name: backend
+          image: "{{ .Values.rybbit.backend.image.repository }}:{{ .Values.rybbit.backend.image.tag }}"
+          imagePullPolicy: {{ .Values.rybbit.backend.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.rybbit.backend.port }}
+              protocol: TCP
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: BASE_URL
+              value: {{ .Values.rybbit.backend.baseUrl | quote }}
+            - name: DISABLE_SIGNUP
+              value: {{ .Values.rybbit.backend.disableSignup | quote }}
+            # ClickHouse
+            - name: CLICKHOUSE_HOST
+              value: "http://{{ .Release.Name }}-rybbit-clickhouse:{{ .Values.rybbit.clickhouse.port }}"
+            - name: CLICKHOUSE_DB
+              value: {{ .Values.rybbit.clickhouse.database | quote }}
+            - name: CLICKHOUSE_USER
+              value: {{ .Values.rybbit.clickhouse.user | quote }}
+            - name: CLICKHOUSE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-rybbit
+                  key: clickhouse-password
+            # PostgreSQL (from CNPG auto-generated secret)
+            - name: POSTGRES_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-rybbit-pg-app
+                  key: host
+            - name: POSTGRES_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-rybbit-pg-app
+                  key: port
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-rybbit-pg-app
+                  key: dbname
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-rybbit-pg-app
+                  key: username
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-rybbit-pg-app
+                  key: password
+            # Auth
+            - name: BETTER_AUTH_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-rybbit
+                  key: better-auth-secret
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          {{- with .Values.rybbit.backend.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+{{- end }}

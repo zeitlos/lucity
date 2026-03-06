@@ -1,0 +1,95 @@
+{{- if .Values.rybbit.enabled }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .Release.Name }}-rybbit-clickhouse
+  labels:
+    app.kubernetes.io/name: rybbit-clickhouse
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: analytics
+spec:
+  serviceName: {{ .Release.Name }}-rybbit-clickhouse
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: rybbit-clickhouse
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: rybbit-clickhouse
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: analytics
+    spec:
+      containers:
+        - name: clickhouse
+          image: "{{ .Values.rybbit.clickhouse.image.repository }}:{{ .Values.rybbit.clickhouse.image.tag }}"
+          imagePullPolicy: {{ .Values.rybbit.clickhouse.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8123
+              protocol: TCP
+          env:
+            - name: CLICKHOUSE_DB
+              value: {{ .Values.rybbit.clickhouse.database | quote }}
+            - name: CLICKHOUSE_USER
+              value: {{ .Values.rybbit.clickhouse.user | quote }}
+            - name: CLICKHOUSE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-rybbit
+                  key: clickhouse-password
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/clickhouse
+            - name: config
+              mountPath: /etc/clickhouse-server/config.d/network.xml
+              subPath: network.xml
+            - name: config
+              mountPath: /etc/clickhouse-server/config.d/enable_json.xml
+              subPath: enable_json.xml
+            - name: config
+              mountPath: /etc/clickhouse-server/config.d/logging_rules.xml
+              subPath: logging_rules.xml
+            - name: config
+              mountPath: /etc/clickhouse-server/config.d/user_logging.xml
+              subPath: user_logging.xml
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          {{- with .Values.rybbit.clickhouse.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ .Release.Name }}-rybbit-clickhouse
+        {{- if not .Values.rybbit.clickhouse.persistence.enabled }}
+        - name: data
+          emptyDir: {}
+        {{- end }}
+  {{- if .Values.rybbit.clickhouse.persistence.enabled }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - {{ .Values.rybbit.clickhouse.persistence.accessMode }}
+        {{- if .Values.rybbit.clickhouse.persistence.storageClass }}
+        storageClassName: {{ .Values.rybbit.clickhouse.persistence.storageClass | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.rybbit.clickhouse.persistence.size }}
+  {{- end }}
+{{- end }}

@@ -118,3 +118,70 @@ certificates: []
 # -- CloudNativePG Operator (PostgreSQL)
 cloudnative-pg:
   enabled: true
+
+# -- Rybbit Web Analytics (ClickHouse + CNPG PostgreSQL + Backend + Client)
+rybbit:
+  enabled: false
+  hostname: ""
+
+  backend:
+    image:
+      repository: ghcr.io/rybbit-io/rybbit-backend
+      tag: latest
+      pullPolicy: IfNotPresent
+    port: 3001
+    baseUrl: ""
+    disableSignup: true
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+
+  client:
+    image:
+      repository: ghcr.io/rybbit-io/rybbit-client
+      tag: latest
+      pullPolicy: IfNotPresent
+    port: 3002
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
+
+  clickhouse:
+    image:
+      repository: clickhouse/clickhouse-server
+      tag: "25.4.2"
+      pullPolicy: IfNotPresent
+    port: 8123
+    database: analytics
+    user: default
+    persistence:
+      enabled: true
+      size: 10Gi
+      storageClass: ""
+      accessMode: ReadWriteOnce
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        cpu: "1"
+        memory: 1Gi
+
+  postgres:
+    instances: 1
+    size: 5Gi
+    storageClass: ""
+    version: "17"
+    database: analytics
+
+  secrets:
+    clickhousePassword: ""
+    betterAuthSecret: ""
