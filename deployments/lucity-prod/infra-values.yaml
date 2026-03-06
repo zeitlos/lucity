@@ -6,6 +6,8 @@ zot:
     create: true
     storage: 20Gi
     storageClassName: hcloud-volumes
+  service:
+    clusterIP: "10.96.100.100"
 
 softServe:
   persistence:
@@ -56,6 +58,18 @@ gateway:
         mode: Terminate
         certificateRefs:
           - name: lucity-app-wildcard-tls
+    - name: analytics-http
+      protocol: HTTP
+      port: 80
+      hostname: p.lucity.cloud
+    - name: analytics-https
+      protocol: HTTPS
+      port: 443
+      hostname: p.lucity.cloud
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: p-lucity-cloud-tls
 
 certificates:
   - name: lucity-cloud-tls
@@ -70,3 +84,26 @@ certificates:
       name: letsencrypt-dns01
     dnsNames:
       - "*.lucity.app"
+  - name: p-lucity-cloud-tls
+    secretName: p-lucity-cloud-tls
+    issuerRef:
+      name: letsencrypt-dns01
+    dnsNames:
+      - p.lucity.cloud
+
+# Rybbit Web Analytics
+rybbit:
+  enabled: true
+  hostname: p.lucity.cloud
+  backend:
+    baseUrl: "https://p.lucity.cloud"
+    disableSignup: true
+  clickhouse:
+    persistence:
+      storageClass: hcloud-volumes
+      size: 10Gi
+  postgres:
+    storageClass: hcloud-volumes
+  secrets:
+    clickhousePassword: ""   # --set rybbit.secrets.clickhousePassword
+    betterAuthSecret: ""     # --set rybbit.secrets.betterAuthSecret

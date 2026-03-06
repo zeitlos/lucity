@@ -26,7 +26,7 @@ gateway:
     PACKAGER_ADDR: lucity-packager:9002
     DEPLOYER_ADDR: lucity-deployer:9003
     REGISTRY_URL: lucity-infra-zot.lucity-system.svc.cluster.local:5000
-    REGISTRY_IMAGE_PREFIX: lucity-infra-zot.lucity-system.svc.cluster.local:5000
+    REGISTRY_IMAGE_PREFIX: 10.96.100.100:5000
     WORKLOAD_DOMAIN: lucity.app
     DOMAIN_TARGET: lucity.cloud
   envSecret:
