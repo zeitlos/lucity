@@ -208,7 +208,13 @@ func AnnotateJobResult(client kubernetes.Interface, namespace, buildID, imageRef
 		return fmt.Errorf("failed to marshal result: %w", err)
 	}
 
-	patch := fmt.Sprintf(`{"metadata":{"annotations":{"lucity.dev/result":%s}}}`, string(res))
+	// Annotation values must be strings — encode the JSON as a string value
+	resStr, err := json.Marshal(string(res))
+	if err != nil {
+		return fmt.Errorf("failed to encode result string: %w", err)
+	}
+
+	patch := fmt.Sprintf(`{"metadata":{"annotations":{"lucity.dev/result":%s}}}`, string(resStr))
 	_, err = client.BatchV1().Jobs(namespace).Patch(
 		context.Background(),
 		job.Name,
