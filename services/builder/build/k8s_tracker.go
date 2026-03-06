@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"sync"
 	"time"
 
 	batchv1 "k8s.io/api/batch/v1"
@@ -24,10 +25,13 @@ type buildResult struct {
 }
 
 // K8sTracker reads build state from Kubernetes Jobs and pod logs.
-// It is used with the KubernetesEngine where build state lives in K8s.
+// It tracks known build IDs in memory so it can return a QUEUED state
+// before the K8s Job is created.
 type K8sTracker struct {
 	client    kubernetes.Interface
 	namespace string
+	known     map[string]bool
+	mu        sync.RWMutex
 }
 
 // NewK8sTracker creates a tracker that reads build state from Kubernetes.
@@ -35,16 +39,32 @@ func NewK8sTracker(client kubernetes.Interface, namespace string) *K8sTracker {
 	return &K8sTracker{
 		client:    client,
 		namespace: namespace,
+		known:     make(map[string]bool),
 	}
 }
 
-// Create is a no-op — K8s Jobs are created by the engine, not the tracker.
-func (t *K8sTracker) Create(id string) {}
+// Create registers a build ID so we can return QUEUED before the Job exists.
+func (t *K8sTracker) Create(id string) {
+	t.mu.Lock()
+	t.known[id] = true
+	t.mu.Unlock()
+}
 
 // Get returns the current build state by querying the K8s Job.
+// If the build ID is known but the Job doesn't exist yet, returns QUEUED.
 func (t *K8sTracker) Get(id string) *BuildState {
 	job, err := t.findJob(id)
 	if err != nil || job == nil {
+		t.mu.RLock()
+		isKnown := t.known[id]
+		t.mu.RUnlock()
+
+		if isKnown {
+			return &BuildState{
+				ID:    id,
+				Phase: builder.BuildPhase_BUILD_PHASE_QUEUED,
+			}
+		}
 		return nil
 	}
 
@@ -76,8 +96,13 @@ func (t *K8sTracker) Update(id string, phase builder.BuildPhase) {}
 // Succeed is a no-op — the build runner annotates the Job directly.
 func (t *K8sTracker) Succeed(id, imageRef, digest string) {}
 
-// Fail is a no-op — the build runner annotates the Job directly.
-func (t *K8sTracker) Fail(id, errMsg string) {}
+// Fail stores an error for builds that fail before the Job is created
+// (e.g. during clone). For in-Job failures, the build runner annotates directly.
+func (t *K8sTracker) Fail(id, errMsg string) {
+	t.mu.Lock()
+	delete(t.known, id)
+	t.mu.Unlock()
+}
 
 // AppendLog is a no-op — logs come from pod stdout via K8s API.
 func (t *K8sTracker) AppendLog(id, line string) {}
@@ -123,7 +148,11 @@ func (t *K8sTracker) LogCount(id string) int {
 func (t *K8sTracker) IsTerminal(id string) bool {
 	job, err := t.findJob(id)
 	if err != nil || job == nil {
-		return true // not found = treat as done
+		// If we know about it but no Job exists, it's still pending
+		t.mu.RLock()
+		isKnown := t.known[id]
+		t.mu.RUnlock()
+		return !isKnown
 	}
 
 	phase := jobPhase(job)
@@ -176,23 +205,10 @@ func jobPhase(job *batchv1.Job) builder.BuildPhase {
 	}
 
 	if job.Status.Active > 0 {
-		// Check if the pod is still initializing
-		pod, err := findPodForJob(job)
-		if err == nil && pod != "" {
-			return builder.BuildPhase_BUILD_PHASE_BUILDING
-		}
 		return builder.BuildPhase_BUILD_PHASE_BUILDING
 	}
 
-	// No active pods and no conditions — Job is pending
 	return builder.BuildPhase_BUILD_PHASE_QUEUED
-}
-
-// findPodForJob is a placeholder — the actual pod lookup happens via findBuildPod.
-func findPodForJob(job *batchv1.Job) (string, error) {
-	// Pod discovery is done via label selector in findBuildPod.
-	// This helper exists for jobPhase readability.
-	return "", fmt.Errorf("use findBuildPod instead")
 }
 
 // AnnotateJobResult annotates a Job with the build result. Called by the build

@@ -190,10 +190,35 @@ func (s *Server) DeleteImages(ctx context.Context, req *builder.DeleteImagesRequ
 }
 
 // runBuild executes the full build pipeline in a background goroutine.
+// For the KubernetesEngine, this creates a Job and polls for completion — the Job
+// pod handles clone/build/push. For LocalEngine, clone and build happen in-process.
 func (s *Server) runBuild(buildID, token string, req *builder.StartBuildRequest) {
 	ctx := context.Background()
 
-	// Clone
+	// For KubernetesEngine, skip the local clone — the Job pod clones the repo.
+	// We pass SourceURL/GitRef/GitHubToken via BuildOpts so the Job has what it needs.
+	if _, ok := s.engine.(*engine.KubernetesEngine); ok {
+		s.tracker.Update(buildID, builder.BuildPhase_BUILD_PHASE_BUILDING)
+		result, err := s.engine.Build(ctx, engine.BuildOpts{
+			BuildID:     buildID,
+			ContextPath: req.ContextPath,
+			Token:       s.registryToken,
+			SourceURL:   req.SourceUrl,
+			GitRef:      req.GitRef,
+			GitHubToken: token,
+			Registry:    req.Registry,
+			Insecure:    s.registryInsecure,
+		})
+		if err != nil {
+			s.tracker.Fail(buildID, fmt.Sprintf("build failed: %v", err))
+			return
+		}
+		s.tracker.Succeed(buildID, result.ImageRef, result.Digest)
+		slog.Info("build succeeded", "build_id", buildID, "image", result.ImageRef)
+		return
+	}
+
+	// LocalEngine: clone locally, build in-process.
 	s.tracker.Update(buildID, builder.BuildPhase_BUILD_PHASE_CLONING)
 	repoPath, err := s.cloneRepo(ctx, req.SourceUrl, req.GitRef, token)
 	if err != nil {
