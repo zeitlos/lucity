@@ -17,7 +17,7 @@ func readmeContent(project string, environments []string, services []serviceInfo
 	b.WriteString(fmt.Sprintf(`# %s — Ejected from Lucity
 
 This directory contains a fully self-contained deployment configuration
-ejected from [Lucity](https://lucity.dev). You can run it independently
+ejected from [Lucity](https://lucity.cloud). You can run it independently
 with standard Kubernetes, Helm, and ArgoCD tooling. No Lucity dependency remains.
 
 ## Prerequisites

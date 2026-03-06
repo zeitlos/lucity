@@ -155,6 +155,6 @@ make dev             # 6. Start services with hot reload
 
 ## Further Reading
 
-- [Quick Start](https://lucity.dev/getting-started/quick-start) — full walkthrough with screenshots
-- [Architecture](https://lucity.dev/architecture/how-it-works) — how the pieces fit together
-- [Concepts](https://lucity.dev/getting-started/concepts) — projects, services, environments
+- [Quick Start](https://lucity.cloud/getting-started/quick-start) — full walkthrough with screenshots
+- [Architecture](https://lucity.cloud/architecture/how-it-works) — how the pieces fit together
+- [Concepts](https://lucity.cloud/getting-started/concepts) — projects, services, environments

@@ -16,7 +16,7 @@
       "name": "Lucity",
       "description": "Open-source PaaS on Kubernetes with full ejectability. Deploy like Railway, eject to standard Helm and ArgoCD when you're ready. No lock-in, no database, no magic.",
       "webpageUrl": {
-        "url": "https://lucity.dev"
+        "url": "https://lucity.cloud"
       },
       "repositoryUrl": {
         "url": "https://github.com/zeitlos/lucity"

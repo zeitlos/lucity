@@ -28,11 +28,11 @@
 Lucity is a self-hosted PaaS that deploys your apps to Kubernetes from a GitHub repo. It gives you the developer experience of Railway or Heroku with the control of owning your infrastructure. When you're ready to move on, `lucity eject` gives you standard Helm charts and ArgoCD configs — zero lock-in, zero vendor dependency.
 
 <p align="center">
-  <a href="https://lucity.dev">
+  <a href="https://lucity.cloud">
     <img src="assets/demo-thumbnail.png" alt="Lucity demo — deploy in 60 seconds" width="800">
   </a>
   <br>
-  <sub>Deploy in 60 seconds — <a href="https://lucity.dev">watch the full demo</a></sub>
+  <sub>Deploy in 60 seconds — <a href="https://lucity.cloud">watch the full demo</a></sub>
 </p>
 
 ## Why Lucity?
@@ -126,7 +126,7 @@ Every Lucity concept maps to standard Kubernetes and GitOps primitives — no pr
 | **Cron Job** | `cronJobs.{name}` in env values | `CronJob` |
 | **Variables** | Helm values (shared, per-service, DB refs) | `ConfigMap`, pod env, CNPG `Secret` |
 
-See [Concepts](https://lucity.dev/getting-started/concepts) in the docs for the full breakdown.
+See [Concepts](https://lucity.cloud/getting-started/concepts) in the docs for the full breakdown.
 
 ## Quick Start
 
@@ -156,18 +156,18 @@ For local development, see the [Contributing guide](CONTRIBUTING.md).
 
 ## Documentation
 
-Full documentation at **[lucity.dev](https://lucity.dev)**.
+Full documentation at **[lucity.cloud](https://lucity.cloud)**.
 
-- [Quick Start](https://lucity.dev/getting-started/quick-start) — set up a local development environment
-- [Concepts](https://lucity.dev/getting-started/concepts) — projects, services, environments
-- [Architecture](https://lucity.dev/architecture/how-it-works) — how the pieces fit together
-- [Ejectability](https://lucity.dev/features/eject) — what you get when you leave
+- [Quick Start](https://lucity.cloud/getting-started/quick-start) — set up a local development environment
+- [Concepts](https://lucity.cloud/getting-started/concepts) — projects, services, environments
+- [Architecture](https://lucity.cloud/architecture/how-it-works) — how the pieces fit together
+- [Ejectability](https://lucity.cloud/features/eject) — what you get when you leave
 
 ## Lucity Cloud
 
 Don't want to run Kubernetes yourself? **Lucity Cloud** is a managed version of everything above — same open-source platform, zero infrastructure to maintain.
 
-[Join the waitlist](https://lucity.dev/cloud) — or just self-host. We're cool either way.
+[Join the waitlist](https://lucity.cloud/cloud) — or just self-host. We're cool either way.
 
 ## Built by zeitlos
 
