@@ -53,15 +53,20 @@ func (s *Server) DetectServices(ctx context.Context, req *builder.DetectServices
 	// Clone the repo
 	repoPath, err := s.cloneRepo(ctx, req.SourceUrl, req.GitRef, claims.GitHubToken)
 	if err != nil {
+		slog.Error("clone failed", "source_url", req.SourceUrl, "error", err)
 		return nil, status.Errorf(codes.Internal, "failed to clone repo: %v", err)
 	}
 	defer os.RemoveAll(repoPath)
+	slog.Info("clone succeeded", "source_url", req.SourceUrl, "path", repoPath)
 
 	// Run detection
 	results, err := s.engine.Detect(ctx, repoPath)
 	if err != nil {
+		slog.Error("detection failed", "source_url", req.SourceUrl, "error", err)
 		return nil, status.Errorf(codes.Internal, "detection failed: %v", err)
 	}
+
+	slog.Info("detection complete", "source_url", req.SourceUrl, "services_found", len(results))
 
 	var services []*builder.DetectedService
 	for _, r := range results {
