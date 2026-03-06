@@ -162,8 +162,9 @@ db-forward:
 	@bash scripts/db-forward.sh
 
 # Production deployment from OCI registry charts
-# Usage: make deploy-prod VERSION=0.0.0-85-gabcdef0 HELM_ARGS="--set secrets.JWT_SECRET=..."
-# Without VERSION, deploys the latest chart (and matching images via appVersion).
+# Usage: make deploy-prod VERSION=0.0.0-85-gabcdef0 HELM_ARGS="..."
+# Secrets are stored in deployments/lucity-prod/secrets.yaml (gitignored).
+# First deploy: create secrets.yaml from secrets.yaml.example, then run deploy-prod.
 PROD_CONTEXT ?= lucity-prod
 VERSION ?=
 
@@ -177,12 +178,14 @@ deploy-prod-infra:
 		$(HELM_ARGS)
 
 deploy-prod:
+	@test -f deployments/lucity-prod/secrets.yaml || { echo "Error: deployments/lucity-prod/secrets.yaml not found. Copy secrets.yaml.example and fill in values."; exit 1; }
 	helm upgrade --install lucity \
 		oci://ghcr.io/zeitlos/lucity/charts/lucity \
 		$(if $(VERSION),--version $(VERSION)) \
 		--kube-context $(PROD_CONTEXT) \
 		-n lucity-system --create-namespace \
 		-f deployments/lucity-prod/values.yaml \
+		-f deployments/lucity-prod/secrets.yaml \
 		$(HELM_ARGS)
 
 # Sync workspace

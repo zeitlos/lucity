@@ -18,6 +18,9 @@ dist/
 .env.local
 .env.*.local
 
+# Deployment secrets
+deployments/*/secrets.yaml
+
 # IDE
 .idea/
 *.swp
