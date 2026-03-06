@@ -232,6 +232,8 @@ func (s *Server) runBuild(buildID, token string, req *builder.StartBuildRequest)
 }
 
 // cloneRepo clones a source repository to a temp directory.
+// It wraps go-git's PlainCloneContext in a goroutine because go-git does not
+// reliably cancel on context expiry during HTTP I/O.
 func (s *Server) cloneRepo(ctx context.Context, sourceURL, gitRef, token string) (string, error) {
 	tmpDir, err := os.MkdirTemp(s.workDir, "build-*")
 	if err != nil {
@@ -248,14 +250,32 @@ func (s *Server) cloneRepo(ctx context.Context, sourceURL, gitRef, token string)
 		SingleBranch: true,
 	}
 
-	slog.Info("cloning repo", "url", sourceURL, "ref", gitRef)
-	_, err = git.PlainCloneContext(ctx, tmpDir, false, cloneOpts)
-	if err != nil {
-		os.RemoveAll(tmpDir)
-		return "", fmt.Errorf("git clone failed: %w", err)
-	}
+	slog.Info("cloning repo", "url", sourceURL, "ref", gitRef, "has_token", token != "", "token_len", len(token))
 
-	return tmpDir, nil
+	type cloneResult struct{ err error }
+	done := make(chan cloneResult, 1)
+	go func() {
+		_, err := git.PlainCloneContext(ctx, tmpDir, false, cloneOpts)
+		done <- cloneResult{err}
+	}()
+
+	select {
+	case result := <-done:
+		if result.err != nil {
+			os.RemoveAll(tmpDir)
+			return "", fmt.Errorf("git clone failed: %w", result.err)
+		}
+		return tmpDir, nil
+	case <-ctx.Done():
+		// go-git doesn't always honour context cancellation during HTTP I/O.
+		// Return immediately so the gRPC handler isn't blocked.
+		slog.Warn("clone context expired, returning early", "url", sourceURL, "error", ctx.Err())
+		go func() {
+			<-done // wait for goroutine to finish before cleaning up
+			os.RemoveAll(tmpDir)
+		}()
+		return "", fmt.Errorf("git clone timed out: %w", ctx.Err())
+	}
 }
 
 // fullSHA returns the full git SHA of HEAD in the given repo path.
