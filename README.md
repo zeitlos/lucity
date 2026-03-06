@@ -27,17 +27,13 @@
 
 Lucity is a self-hosted PaaS that deploys your apps to Kubernetes from a GitHub repo. It gives you the developer experience of Railway or Heroku with the control of owning your infrastructure. When you're ready to move on, `lucity eject` gives you standard Helm charts and ArgoCD configs — zero lock-in, zero vendor dependency.
 
-<!-- TODO: Demo GIF
-     Record with VHS (https://github.com/charmbracelet/vhs) or screen-record the dashboard:
-     1. Create project from GitHub repo
-     2. Service auto-detection
-     3. Build + deploy with live logs
-     4. Open the running app via platform domain
-     Place at assets/demo.gif and uncomment:
-     <p align="center">
-       <img src="assets/demo.gif" alt="Lucity deploy flow" width="800">
-     </p>
--->
+<p align="center">
+  <a href="https://lucity.dev">
+    <img src="assets/demo-thumbnail.png" alt="Lucity demo — deploy in 60 seconds" width="800">
+  </a>
+  <br>
+  <sub>Deploy in 60 seconds — <a href="https://lucity.dev">watch the full demo</a></sub>
+</p>
 
 ## Why Lucity?
 

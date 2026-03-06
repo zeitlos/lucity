@@ -1,0 +1,79 @@
+{
+  "version": "v1.0.0",
+  "entity": {
+    "type": "individual",
+    "role": "owner",
+    "name": "zeitlos.software",
+    "email": "hello@zeitlos.software",
+    "description": "Swiss software studio building open-source infrastructure tooling. Sole developer of Lucity.",
+    "webpageUrl": {
+      "url": "https://zeitlos.software"
+    }
+  },
+  "projects": [
+    {
+      "guid": "lucity",
+      "name": "Lucity",
+      "description": "Open-source PaaS on Kubernetes with full ejectability. Deploy like Railway, eject to standard Helm and ArgoCD when you're ready. No lock-in, no database, no magic.",
+      "webpageUrl": {
+        "url": "https://lucity.dev"
+      },
+      "repositoryUrl": {
+        "url": "https://github.com/zeitlos/lucity"
+      },
+      "licenses": [
+        "AGPL-3.0-or-later"
+      ],
+      "tags": [
+        "paas",
+        "kubernetes",
+        "helm",
+        "argocd",
+        "gitops",
+        "self-hosted",
+        "open-source",
+        "infrastructure",
+        "developer-tools",
+        "go",
+        "vue"
+      ]
+    }
+  ],
+  "funding": {
+    "channels": [
+      {
+        "guid": "github-sponsors",
+        "type": "payment-provider",
+        "address": "https://github.com/sponsors/zeitlos",
+        "description": "GitHub Sponsors"
+      }
+    ],
+    "plans": [
+      {
+        "guid": "sponsor-monthly",
+        "status": "active",
+        "name": "Monthly sponsorship",
+        "description": "Recurring monthly sponsorship to support ongoing development of Lucity.",
+        "amount": 10,
+        "currency": "USD",
+        "frequency": "monthly",
+        "channels": [
+          "github-sponsors"
+        ]
+      },
+      {
+        "guid": "sponsor-one-time",
+        "status": "active",
+        "name": "One-time contribution",
+        "description": "One-time contribution to support Lucity development.",
+        "amount": 50,
+        "currency": "USD",
+        "frequency": "one-time",
+        "channels": [
+          "github-sponsors"
+        ]
+      }
+    ],
+    "history": []
+  }
+}
