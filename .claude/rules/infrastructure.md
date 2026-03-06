@@ -31,6 +31,25 @@
 - **`lucity`** — platform services: gateway, builder, packager, deployer, webhook, dashboard, docs
 - **Deployment profiles**: `deployments/lucity-prod/` (infra-values.yaml + values.yaml)
 
+## Registry
+
+User workload images are stored in Zot (self-hosted OCI registry) at `lucity-infra-zot.lucity-system.svc.cluster.local:5000`.
+
+- **Pods** access the registry via cluster DNS (works because CoreDNS resolves `*.svc.cluster.local`)
+- **Kubelet** (containerd) accesses the registry via fixed ClusterIP `10.96.100.100:5000` (kubelet uses node DNS, not CoreDNS)
+- **Insecure (HTTP)**: containerd is configured with `/etc/containerd/certs.d/10.96.100.100:5000/hosts.toml` on each node
+- **Gateway config**: `REGISTRY_URL` (for pod-to-registry) uses DNS; `REGISTRY_IMAGE_PREFIX` (for image refs in Helm values) uses ClusterIP
+
+### Containerd Insecure Registry Config
+
+The worker nodes run Flatcar Linux with a read-only `/usr/share/containerd/config.toml`. To enable insecure HTTP registry access:
+
+1. `/etc/containerd/config.toml` — copy of base config + registry `config_path`
+2. `/etc/containerd/certs.d/10.96.100.100:5000/hosts.toml` — insecure HTTP config
+3. `/etc/systemd/system/containerd.service.d/override.conf` — points `CONTAINERD_CONFIG` to `/etc/containerd/config.toml`
+
+This config is not persisted by flex.plane — if nodes are replaced, it must be reapplied. Future: automate via DaemonSet or flex.plane MachineDeployment bootstrap config.
+
 ## Images
 
 All service images published to `ghcr.io/zeitlos/lucity/<service>` tagged with `main` (from CI) and commit-based semver.
