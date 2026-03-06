@@ -250,7 +250,7 @@ func (s *Server) cloneRepo(ctx context.Context, sourceURL, gitRef, token string)
 		SingleBranch: true,
 	}
 
-	slog.Info("cloning repo", "url", sourceURL, "ref", gitRef, "has_token", token != "", "token_len", len(token))
+	slog.Info("cloning repo", "url", sourceURL, "ref", gitRef)
 
 	type cloneResult struct{ err error }
 	done := make(chan cloneResult, 1)
