@@ -12,6 +12,8 @@ spec:
       {{- include "lucity.selectorLabels" (dict "name" "webhook" "release" .Release.Name) | nindent 6 }}
   template:
     metadata:
+      annotations:
+        checksum/secrets: {{ include (print $.Template.BasePath "/secrets.yaml") . | sha256sum }}
       labels:
         {{- include "lucity.labels" . | nindent 8 }}
         {{- include "lucity.selectorLabels" (dict "name" "webhook" "release" .Release.Name) | nindent 8 }}
@@ -24,5 +26,31 @@ spec:
             - name: http
               containerPort: {{ .Values.webhook.port }}
               protocol: TCP
+          env:
+            - name: PORT
+              value: {{ .Values.webhook.port | quote }}
+            {{- range $key, $value := .Values.webhook.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+            {{- range $key, $value := .Values.webhook.envSecret }}
+            - name: {{ $key }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "lucity.fullname" $ }}
+                  key: {{ $value }}
+            {{- end }}
+          {{- if .Values.githubPrivateKey }}
+          volumeMounts:
+            - name: github-app-key
+              mountPath: /secrets/github
+              readOnly: true
+          {{- end }}
           resources:
             {{- toYaml .Values.webhook.resources | nindent 12 }}
+      {{- if .Values.githubPrivateKey }}
+      volumes:
+        - name: github-app-key
+          secret:
+            secretName: {{ include "lucity.fullname" . }}-github-app
+      {{- end }}

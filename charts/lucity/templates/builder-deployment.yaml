@@ -12,6 +12,8 @@ spec:
       {{- include "lucity.selectorLabels" (dict "name" "builder" "release" .Release.Name) | nindent 6 }}
   template:
     metadata:
+      annotations:
+        checksum/secrets: {{ include (print $.Template.BasePath "/secrets.yaml") . | sha256sum }}
       labels:
         {{- include "lucity.labels" . | nindent 8 }}
         {{- include "lucity.selectorLabels" (dict "name" "builder" "release" .Release.Name) | nindent 8 }}
@@ -24,5 +26,19 @@ spec:
             - name: grpc
               containerPort: {{ .Values.builder.port }}
               protocol: TCP
+          env:
+            - name: PORT
+              value: {{ .Values.builder.port | quote }}
+            {{- range $key, $value := .Values.builder.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+            {{- range $key, $value := .Values.builder.envSecret }}
+            - name: {{ $key }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "lucity.fullname" $ }}
+                  key: {{ $value }}
+            {{- end }}
           resources:
             {{- toYaml .Values.builder.resources | nindent 12 }}

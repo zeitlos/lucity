@@ -84,6 +84,7 @@ jobs:
           - service: dashboard
             dockerfile: services/dashboard/Dockerfile
             context: services/dashboard
+            build-args: VITE_BASE_PATH=/app/
           - service: docs
             dockerfile: docs/Dockerfile
             context: docs
@@ -130,6 +131,7 @@ jobs:
           file: ${{ matrix.dockerfile }}
           build-args: |
             SERVICE=${{ matrix.service }}
+            ${{ matrix.build-args || '' }}
           platforms: linux/amd64
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}

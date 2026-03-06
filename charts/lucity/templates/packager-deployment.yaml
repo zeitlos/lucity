@@ -12,6 +12,8 @@ spec:
       {{- include "lucity.selectorLabels" (dict "name" "packager" "release" .Release.Name) | nindent 6 }}
   template:
     metadata:
+      annotations:
+        checksum/secrets: {{ include (print $.Template.BasePath "/secrets.yaml") . | sha256sum }}
       labels:
         {{- include "lucity.labels" . | nindent 8 }}
         {{- include "lucity.selectorLabels" (dict "name" "packager" "release" .Release.Name) | nindent 8 }}
@@ -24,5 +26,31 @@ spec:
             - name: grpc
               containerPort: {{ .Values.packager.port }}
               protocol: TCP
+          env:
+            - name: PORT
+              value: {{ .Values.packager.port | quote }}
+            {{- range $key, $value := .Values.packager.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+            {{- range $key, $value := .Values.packager.envSecret }}
+            - name: {{ $key }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "lucity.fullname" $ }}
+                  key: {{ $value }}
+            {{- end }}
+          {{- if .Values.softserveKey }}
+          volumeMounts:
+            - name: softserve-key
+              mountPath: /secrets/softserve
+              readOnly: true
+          {{- end }}
           resources:
             {{- toYaml .Values.packager.resources | nindent 12 }}
+      {{- if .Values.softserveKey }}
+      volumes:
+        - name: softserve-key
+          secret:
+            secretName: {{ include "lucity.fullname" . }}-softserve-key
+      {{- end }}

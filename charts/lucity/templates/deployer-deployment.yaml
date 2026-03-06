@@ -12,10 +12,15 @@ spec:
       {{- include "lucity.selectorLabels" (dict "name" "deployer" "release" .Release.Name) | nindent 6 }}
   template:
     metadata:
+      annotations:
+        checksum/secrets: {{ include (print $.Template.BasePath "/secrets.yaml") . | sha256sum }}
       labels:
         {{- include "lucity.labels" . | nindent 8 }}
         {{- include "lucity.selectorLabels" (dict "name" "deployer" "release" .Release.Name) | nindent 8 }}
     spec:
+      {{- if .Values.deployer.serviceAccount.create }}
+      serviceAccountName: {{ include "lucity.fullname" . }}-deployer
+      {{- end }}
       containers:
         - name: deployer
           image: "{{ .Values.deployer.image.repository }}:{{ .Values.deployer.image.tag }}"
@@ -24,5 +29,19 @@ spec:
             - name: grpc
               containerPort: {{ .Values.deployer.port }}
               protocol: TCP
+          env:
+            - name: PORT
+              value: {{ .Values.deployer.port | quote }}
+            {{- range $key, $value := .Values.deployer.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+            {{- range $key, $value := .Values.deployer.envSecret }}
+            - name: {{ $key }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "lucity.fullname" $ }}
+                  key: {{ $value }}
+            {{- end }}
           resources:
             {{- toYaml .Values.deployer.resources | nindent 12 }}

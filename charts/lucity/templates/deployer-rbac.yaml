@@ -1,0 +1,44 @@
+{{- if .Values.deployer.serviceAccount.create }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "lucity.fullname" . }}-deployer
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+    app.kubernetes.io/component: deployer
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "lucity.fullname" . }}-deployer
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: [namespaces, services, configmaps, secrets]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [apps]
+    resources: [deployments, statefulsets]
+    verbs: [get, list, watch]
+  - apiGroups: [postgresql.cnpg.io]
+    resources: [clusters]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [gateway.networking.k8s.io]
+    resources: [httproutes]
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "lucity.fullname" . }}-deployer
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "lucity.fullname" . }}-deployer
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "lucity.fullname" . }}-deployer
+    namespace: {{ .Release.Namespace }}
+{{- end }}

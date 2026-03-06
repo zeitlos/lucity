@@ -1,0 +1,67 @@
+# Lucity infrastructure values for lucity-prod (Hetzner)
+
+zot:
+  persistence: true
+  pvc:
+    create: true
+    storage: 20Gi
+    storageClassName: hcloud-volumes
+
+softServe:
+  persistence:
+    size: 10Gi
+    storageClass: hcloud-volumes
+  initialAdminKey: "" # --set softServe.initialAdminKey="$(cat ~/.ssh/lucity-admin-prod.pub)"
+
+argo-cd:
+  enabled: true
+  configs:
+    params:
+      server.insecure: true
+
+cloudnative-pg:
+  enabled: true
+
+gateway:
+  enabled: true
+  className: cilium
+  name: lucity-gateway
+  listeners:
+    - name: platform-http
+      protocol: HTTP
+      port: 80
+      hostname: lucity.cloud
+    - name: platform-https
+      protocol: HTTPS
+      port: 443
+      hostname: lucity.cloud
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: lucity-cloud-tls
+    - name: workload-http
+      protocol: HTTP
+      port: 80
+      hostname: "*.lucity.app"
+    - name: workload-https
+      protocol: HTTPS
+      port: 443
+      hostname: "*.lucity.app"
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: lucity-app-wildcard-tls
+
+certificates:
+  - name: lucity-cloud-tls
+    secretName: lucity-cloud-tls
+    issuerRef:
+      name: letsencrypt-dns01
+    dnsNames:
+      - lucity.cloud
+  - name: lucity-app-wildcard-tls
+    secretName: lucity-app-wildcard-tls
+    issuerRef:
+      name: letsencrypt-dns01
+    dnsNames:
+      - "*.lucity.app"

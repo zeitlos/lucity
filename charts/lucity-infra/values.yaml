@@ -101,12 +101,19 @@ argo-cd:
         type: git
 
 # -- Gateway resource configuration
-# The Gateway resource is always created. The className determines which controller handles it.
-# Envoy Gateway is installed separately (make infra installs it into envoy-gateway-system).
-# For Cilium clusters, set className to "cilium" and skip Envoy Gateway installation.
+# Set enabled: true and configure listeners for your environment.
+# className: "eg" for Envoy Gateway, "cilium" for Cilium Gateway API.
 gateway:
+  enabled: true
   name: lucity-gateway
-  className: eg  # "eg" for Envoy Gateway, "cilium" for Cilium
+  className: eg
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 80
+
+# -- cert-manager Certificate resources
+certificates: []
 
 # -- CloudNativePG Operator (PostgreSQL)
 cloudnative-pg:

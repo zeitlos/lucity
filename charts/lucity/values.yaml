@@ -1,3 +1,28 @@
+# -- Shared secrets (stored in a single K8s Secret)
+secrets: {}
+  # JWT_SECRET: ""
+  # GITHUB_CLIENT_SECRET: ""
+  # GITHUB_WEBHOOK_SECRET: ""
+  # ARGOCD_TOKEN: ""
+  # SOFTSERVE_TOKEN: ""
+
+# -- GitHub App private key (mounted as file)
+githubPrivateKey: ""
+
+# -- Soft-serve admin SSH key (mounted as file)
+softserveKey: ""
+
+# -- Shared config (stored in a ConfigMap)
+config: {}
+
+# -- Platform routing via Gateway API
+routes:
+  enabled: false
+  gatewayName: lucity-gateway
+  gatewayNamespace: lucity-system
+  hostname: lucity.cloud
+
+# -- Gateway (GraphQL API)
 gateway:
   replicaCount: 1
   image:
@@ -5,6 +30,8 @@ gateway:
     tag: latest
     pullPolicy: IfNotPresent
   port: 8080
+  env: {}
+  envSecret: {}
   resources:
     requests:
       cpu: 100m
@@ -13,6 +40,7 @@ gateway:
       cpu: 500m
       memory: 256Mi
 
+# -- Builder (source-to-image)
 builder:
   replicaCount: 1
   image:
@@ -20,6 +48,8 @@ builder:
     tag: latest
     pullPolicy: IfNotPresent
   port: 9001
+  env: {}
+  envSecret: {}
   resources:
     requests:
       cpu: 200m
@@ -28,6 +58,7 @@ builder:
       cpu: "1"
       memory: 512Mi
 
+# -- Packager (GitOps repo management)
 packager:
   replicaCount: 1
   image:
@@ -35,6 +66,8 @@ packager:
     tag: latest
     pullPolicy: IfNotPresent
   port: 9002
+  env: {}
+  envSecret: {}
   resources:
     requests:
       cpu: 100m
@@ -43,6 +76,7 @@ packager:
       cpu: 500m
       memory: 256Mi
 
+# -- Deployer (ArgoCD lifecycle)
 deployer:
   replicaCount: 1
   image:
@@ -50,6 +84,10 @@ deployer:
     tag: latest
     pullPolicy: IfNotPresent
   port: 9003
+  env: {}
+  envSecret: {}
+  serviceAccount:
+    create: false
   resources:
     requests:
       cpu: 100m
@@ -58,6 +96,7 @@ deployer:
       cpu: 500m
       memory: 256Mi
 
+# -- Webhook (GitHub event routing)
 webhook:
   replicaCount: 1
   image:
@@ -65,6 +104,8 @@ webhook:
     tag: latest
     pullPolicy: IfNotPresent
   port: 9004
+  env: {}
+  envSecret: {}
   resources:
     requests:
       cpu: 100m
@@ -73,6 +114,7 @@ webhook:
       cpu: 500m
       memory: 256Mi
 
+# -- Dashboard (Vue SPA)
 dashboard:
   replicaCount: 1
   image:
@@ -88,6 +130,7 @@ dashboard:
       cpu: 200m
       memory: 128Mi
 
+# -- Docs
 docs:
   replicaCount: 1
   image:
