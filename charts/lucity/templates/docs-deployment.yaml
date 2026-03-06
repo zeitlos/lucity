@@ -16,6 +16,10 @@ spec:
         {{- include "lucity.labels" . | nindent 8 }}
         {{- include "lucity.selectorLabels" (dict "name" "docs" "release" .Release.Name) | nindent 8 }}
     spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: docs
           image: "{{ .Values.docs.image.repository }}:{{ .Values.docs.image.tag }}"

@@ -18,6 +18,10 @@ spec:
         {{- include "lucity.labels" . | nindent 8 }}
         {{- include "lucity.selectorLabels" (dict "name" "webhook" "release" .Release.Name) | nindent 8 }}
     spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: webhook
           image: "{{ .Values.webhook.image.repository }}:{{ .Values.webhook.image.tag }}"

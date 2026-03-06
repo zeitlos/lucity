@@ -12,6 +12,9 @@ githubPrivateKey: ""
 # -- Soft-serve admin SSH key (mounted as file)
 softserveKey: ""
 
+# -- Image pull secrets for private registries
+imagePullSecrets: []
+
 # -- Shared config (stored in a ConfigMap)
 config: {}
 

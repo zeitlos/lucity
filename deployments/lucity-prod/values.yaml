@@ -9,6 +9,9 @@
 #   --set-file githubPrivateKey=<path-to-github-app.pem>
 #   --set-file softserveKey=~/.ssh/lucity-admin-prod
 
+imagePullSecrets:
+  - name: ghcr-pull-secret
+
 routes:
   enabled: true
   gatewayName: lucity-gateway
