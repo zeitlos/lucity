@@ -24,7 +24,7 @@ spec:
       {{- end }}
       containers:
         - name: packager
-          image: "{{ .Values.packager.image.repository }}:{{ .Values.packager.image.tag }}"
+          image: "{{ .Values.packager.image.repository }}:{{ .Values.packager.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.packager.image.pullPolicy }}
           ports:
             - name: grpc

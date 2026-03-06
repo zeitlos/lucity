@@ -24,7 +24,7 @@ spec:
       {{- end }}
       containers:
         - name: builder
-          image: "{{ .Values.builder.image.repository }}:{{ .Values.builder.image.tag }}"
+          image: "{{ .Values.builder.image.repository }}:{{ .Values.builder.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.builder.image.pullPolicy }}
           ports:
             - name: grpc

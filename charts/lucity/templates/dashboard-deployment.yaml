@@ -22,7 +22,7 @@ spec:
       {{- end }}
       containers:
         - name: dashboard
-          image: "{{ .Values.dashboard.image.repository }}:{{ .Values.dashboard.image.tag }}"
+          image: "{{ .Values.dashboard.image.repository }}:{{ .Values.dashboard.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.dashboard.image.pullPolicy }}
           ports:
             - name: http

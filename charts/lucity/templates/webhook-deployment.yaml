@@ -24,7 +24,7 @@ spec:
       {{- end }}
       containers:
         - name: webhook
-          image: "{{ .Values.webhook.image.repository }}:{{ .Values.webhook.image.tag }}"
+          image: "{{ .Values.webhook.image.repository }}:{{ .Values.webhook.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.webhook.image.pullPolicy }}
           ports:
             - name: http

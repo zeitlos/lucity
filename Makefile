@@ -1,4 +1,4 @@
-.PHONY: build proto dev dev-gateway dev-builder dev-packager dev-deployer dev-webhook dev-dashboard dev-docs dev-logs dev-stop generate-graphql lint test-integration test-integration-short test-watch minikube dns infra infra-down infra-forward infra-forward-stop argocd-password infra-tokens argocd-token softserve-token db-forward
+.PHONY: build proto dev dev-gateway dev-builder dev-packager dev-deployer dev-webhook dev-dashboard dev-docs dev-logs dev-stop generate-graphql lint test-integration test-integration-short test-watch minikube dns infra infra-down infra-forward infra-forward-stop argocd-password infra-tokens argocd-token softserve-token db-forward deploy-prod deploy-prod-infra
 
 # Build all Go services
 build:
@@ -160,6 +160,30 @@ softserve-token:
 # Port-forward a project's database for local development (interactive picker)
 db-forward:
 	@bash scripts/db-forward.sh
+
+# Production deployment from OCI registry charts
+# Usage: make deploy-prod VERSION=0.0.0-85-gabcdef0 HELM_ARGS="--set secrets.JWT_SECRET=..."
+# Without VERSION, deploys the latest chart (and matching images via appVersion).
+PROD_CONTEXT ?= lucity-prod
+VERSION ?=
+
+deploy-prod-infra:
+	helm upgrade --install lucity-infra \
+		oci://ghcr.io/zeitlos/lucity/charts/lucity-infra \
+		$(if $(VERSION),--version $(VERSION)) \
+		--kube-context $(PROD_CONTEXT) \
+		-n lucity-system --create-namespace \
+		-f deployments/lucity-prod/infra-values.yaml \
+		$(HELM_ARGS)
+
+deploy-prod:
+	helm upgrade --install lucity \
+		oci://ghcr.io/zeitlos/lucity/charts/lucity \
+		$(if $(VERSION),--version $(VERSION)) \
+		--kube-context $(PROD_CONTEXT) \
+		-n lucity-system --create-namespace \
+		-f deployments/lucity-prod/values.yaml \
+		$(HELM_ARGS)
 
 # Sync workspace
 sync:

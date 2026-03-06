@@ -27,7 +27,7 @@ spec:
       {{- end }}
       containers:
         - name: deployer
-          image: "{{ .Values.deployer.image.repository }}:{{ .Values.deployer.image.tag }}"
+          image: "{{ .Values.deployer.image.repository }}:{{ .Values.deployer.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.deployer.image.pullPolicy }}
           ports:
             - name: grpc

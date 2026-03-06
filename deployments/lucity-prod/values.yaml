@@ -20,8 +20,8 @@ routes:
 
 gateway:
   env:
-    GITHUB_APP_ID: ""          # --set gateway.env.GITHUB_APP_ID=<app-id>
-    GITHUB_CLIENT_ID: ""       # --set gateway.env.GITHUB_CLIENT_ID=<client-id>
+    GITHUB_APP_ID: "2882801"
+    GITHUB_CLIENT_ID: Iv23liMzm79VIgvNtglX
     GITHUB_PRIVATE_KEY_PATH: /secrets/github/github-app.pem
     DASHBOARD_URL: https://lucity.cloud/app
     CALLBACK_URL: https://lucity.cloud/auth/github/callback
@@ -68,7 +68,7 @@ deployer:
 
 webhook:
   env:
-    GITHUB_APP_ID: ""          # --set webhook.env.GITHUB_APP_ID=<app-id>
+    GITHUB_APP_ID: "2882801"
     GITHUB_PRIVATE_KEY_PATH: /secrets/github/github-app.pem
     BUILDER_ADDR: lucity-builder:9001
     PACKAGER_ADDR: lucity-packager:9002
