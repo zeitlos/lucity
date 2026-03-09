@@ -24,11 +24,22 @@ func (c *Client) Groups(ctx context.Context) ([]Group, error) {
 }
 
 // CreateGroup creates a new Rauthy group and returns it.
+// Idempotent: if the group already exists, returns the existing group.
 func (c *Client) CreateGroup(ctx context.Context, name string) (*Group, error) {
 	payload, _ := json.Marshal(map[string]string{"group": name})
 
 	var group Group
 	if err := c.doJSON(ctx, "POST", "/groups", bytes.NewReader(payload), &group); err != nil {
+		// Handle "already exists" — return the existing group
+		if strings.Contains(err.Error(), "already exists") {
+			existing, findErr := c.GroupByName(ctx, name)
+			if findErr != nil {
+				return nil, fmt.Errorf("group %q already exists but failed to look up: %w", name, findErr)
+			}
+			if existing != nil {
+				return existing, nil
+			}
+		}
 		return nil, fmt.Errorf("failed to create group %q: %w", name, err)
 	}
 	return &group, nil
