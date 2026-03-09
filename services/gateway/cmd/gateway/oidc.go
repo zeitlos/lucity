@@ -196,12 +196,19 @@ func handleCallback(provider *OIDCProvider, api *handler.Client, jwtSecret, dash
 				return
 			}
 
-			// Create a service-level context with auth for gRPC calls
-			svcCtx := auth.WithClaims(r.Context(), &auth.Claims{
+			// Mint a temporary JWT so gRPC calls to backend services are authenticated
+			tmpClaims := &auth.Claims{
 				Subject: idToken.Subject,
 				Email:   oidcClaims.Email,
 				Roles:   []auth.Role{auth.RoleUser},
-			})
+			}
+			tmpToken, err := auth.NewToken(tmpClaims, jwtSecret, 5*time.Minute)
+			if err != nil {
+				slog.Error("failed to create temp token for workspace setup", "error", err)
+				http.Error(w, "failed to create workspace", http.StatusInternalServerError)
+				return
+			}
+			svcCtx := auth.WithToken(auth.WithClaims(r.Context(), tmpClaims), tmpToken)
 
 			wsID, err := api.EnsurePersonalWorkspace(svcCtx, idToken.Subject, oidcClaims.PreferredUsername)
 			if err != nil {
