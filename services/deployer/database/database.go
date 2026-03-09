@@ -29,11 +29,11 @@ type Credentials struct {
 }
 
 // CredentialsFromSecret reads CNPG connection credentials from the K8s secret.
-// CNPG cluster naming: {namespace}-lucity-app-pg-{dbname}
+// CNPG cluster naming: {project}-pg-{dbname} (matches fullnameOverride = project)
 // CNPG secret naming: {clustername}-app
-func CredentialsFromSecret(ctx context.Context, k8s kubernetes.Interface, project, environment, database string) (*Credentials, error) {
-	namespace := labels.NamespaceFor(project, environment)
-	clusterName := namespace + "-lucity-app-pg-" + database
+func CredentialsFromSecret(ctx context.Context, k8s kubernetes.Interface, workspace, project, environment, database string) (*Credentials, error) {
+	namespace := labels.NamespaceFor(workspace, project, environment)
+	clusterName := project + "-pg-" + database
 	secretName := clusterName + "-app"
 
 	secret, err := k8s.CoreV1().Secrets(namespace).Get(ctx, secretName, metav1.GetOptions{})

@@ -16,6 +16,7 @@ import (
 	"github.com/zeitlos/lucity/pkg/deployer"
 	"github.com/zeitlos/lucity/pkg/labels"
 	"github.com/zeitlos/lucity/pkg/packager"
+	"github.com/zeitlos/lucity/pkg/tenant"
 )
 
 // gRPC call timeouts. Short for quick lookups, long for operations that
@@ -77,7 +78,12 @@ type Deployment struct {
 }
 
 func (c *Client) Projects(ctx context.Context) ([]Project, error) {
+	ws, err := tenant.Require(ctx)
+	if err != nil {
+		return nil, err
+	}
 	ctx = auth.OutgoingContext(ctx)
+	ctx = tenant.OutgoingContext(ctx)
 
 	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
 	defer cancel()
@@ -88,7 +94,7 @@ func (c *Client) Projects(ctx context.Context) ([]Project, error) {
 
 	result := make([]Project, 0, len(resp.Projects))
 	for _, p := range resp.Projects {
-		proj := projectFromProto(p)
+		proj := projectFromProto(ws, p)
 		c.enrichSyncStatus(ctx, &proj)
 		c.enrichDatabaseStatus(ctx, &proj)
 		c.enrichDeploymentHistory(ctx, &proj)
@@ -99,7 +105,12 @@ func (c *Client) Projects(ctx context.Context) ([]Project, error) {
 }
 
 func (c *Client) Project(ctx context.Context, id string) (*Project, error) {
+	ws, err := tenant.Require(ctx)
+	if err != nil {
+		return nil, err
+	}
 	ctx = auth.OutgoingContext(ctx)
+	ctx = tenant.OutgoingContext(ctx)
 
 	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
 	defer cancel()
@@ -108,7 +119,7 @@ func (c *Client) Project(ctx context.Context, id string) (*Project, error) {
 		return nil, fmt.Errorf("failed to get project: %w", err)
 	}
 
-	p := projectFromProto(resp.Project)
+	p := projectFromProto(ws, resp.Project)
 	c.enrichSyncStatus(ctx, &p)
 	c.enrichDatabaseStatus(ctx, &p)
 	c.enrichDeploymentHistory(ctx, &p)
@@ -117,7 +128,12 @@ func (c *Client) Project(ctx context.Context, id string) (*Project, error) {
 }
 
 func (c *Client) CreateProject(ctx context.Context, name string) (*Project, error) {
+	ws, err := tenant.Require(ctx)
+	if err != nil {
+		return nil, err
+	}
 	ctx = auth.OutgoingContext(ctx)
+	ctx = tenant.OutgoingContext(ctx)
 
 	// 1. Create GitOps repo
 	initCtx, initCancel := context.WithTimeout(ctx, grpcLongTimeout)
@@ -130,7 +146,7 @@ func (c *Client) CreateProject(ctx context.Context, name string) (*Project, erro
 	}
 
 	// 2. Deploy the default development environment via ArgoCD
-	ns := labels.NamespaceFor(name, "development")
+	ns := labels.NamespaceFor(ws, name, "development")
 	deployCtx, deployCancel := context.WithTimeout(ctx, grpcTimeout)
 	defer deployCancel()
 	_, err = c.Deployer.DeployEnvironment(deployCtx, &deployer.DeployEnvironmentRequest{
@@ -159,7 +175,11 @@ func (c *Client) CreateProject(ctx context.Context, name string) (*Project, erro
 }
 
 func (c *Client) DeleteProject(ctx context.Context, id string) (bool, error) {
+	if _, err := tenant.Require(ctx); err != nil {
+		return false, err
+	}
 	ctx = auth.OutgoingContext(ctx)
+	ctx = tenant.OutgoingContext(ctx)
 
 	// 1. Fetch project to discover all environments
 	getCtx, getCancel := context.WithTimeout(ctx, grpcTimeout)
@@ -216,7 +236,11 @@ func (c *Client) DeleteProject(ctx context.Context, id string) (bool, error) {
 }
 
 func (c *Client) CreateEnvironment(ctx context.Context, projectID, name, fromEnvironment string) (*Environment, error) {
+	if _, err := tenant.Require(ctx); err != nil {
+		return nil, err
+	}
 	ctx = auth.OutgoingContext(ctx)
+	ctx = tenant.OutgoingContext(ctx)
 
 	createCtx, createCancel := context.WithTimeout(ctx, grpcLongTimeout)
 	defer createCancel()
@@ -262,7 +286,11 @@ func (c *Client) CreateEnvironment(ctx context.Context, projectID, name, fromEnv
 }
 
 func (c *Client) DeleteEnvironment(ctx context.Context, projectID, environment string) (bool, error) {
+	if _, err := tenant.Require(ctx); err != nil {
+		return false, err
+	}
 	ctx = auth.OutgoingContext(ctx)
+	ctx = tenant.OutgoingContext(ctx)
 
 	// Remove ArgoCD Application first (cascade deletes managed resources)
 	rmCtx, rmCancel := context.WithTimeout(ctx, grpcTimeout)
@@ -289,7 +317,11 @@ func (c *Client) DeleteEnvironment(ctx context.Context, projectID, environment s
 }
 
 func (c *Client) Promote(ctx context.Context, projectID, service, fromEnv, toEnv string) (*ServiceInstance, error) {
+	if _, err := tenant.Require(ctx); err != nil {
+		return nil, err
+	}
 	ctx = auth.OutgoingContext(ctx)
+	ctx = tenant.OutgoingContext(ctx)
 
 	promoteCtx, promoteCancel := context.WithTimeout(ctx, grpcLongTimeout)
 	defer promoteCancel()
@@ -311,7 +343,11 @@ func (c *Client) Promote(ctx context.Context, projectID, service, fromEnv, toEnv
 }
 
 func (c *Client) SyncChart(ctx context.Context, projectID string) (bool, error) {
+	if _, err := tenant.Require(ctx); err != nil {
+		return false, err
+	}
 	ctx = auth.OutgoingContext(ctx)
+	ctx = tenant.OutgoingContext(ctx)
 
 	callCtx, callCancel := context.WithTimeout(ctx, grpcLongTimeout)
 	defer callCancel()
@@ -641,7 +677,7 @@ func deploymentStatusToString(status deployer.DeploymentStatus) string {
 	}
 }
 
-func projectFromProto(p *packager.ProjectInfo) Project {
+func projectFromProto(ws string, p *packager.ProjectInfo) Project {
 	createdAt := p.CreatedAt.AsTime()
 
 	proj := Project{
@@ -660,7 +696,7 @@ func projectFromProto(p *packager.ProjectInfo) Project {
 		env := Environment{
 			ID:         p.Name + "/" + envName,
 			Name:       envName,
-			Namespace:  labels.NamespaceFor(p.Name, envName),
+			Namespace:  labels.NamespaceFor(ws, p.Name, envName),
 			SyncStatus: "UNKNOWN",
 		}
 

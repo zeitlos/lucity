@@ -8,6 +8,7 @@ import (
 
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/deployer"
+	"github.com/zeitlos/lucity/pkg/tenant"
 )
 
 // ServiceLogEntry represents a single runtime log line from a running pod.
@@ -19,7 +20,11 @@ type ServiceLogEntry struct {
 // ServiceLogs returns a channel of log entries from running pods.
 // The channel is closed when the stream ends or the context is cancelled.
 func (c *Client) ServiceLogs(ctx context.Context, projectID, service, environment string, tailLines *int) (<-chan ServiceLogEntry, error) {
+	if _, err := tenant.Require(ctx); err != nil {
+		return nil, err
+	}
 	ctx = auth.OutgoingContext(ctx)
+	ctx = tenant.OutgoingContext(ctx)
 
 	req := &deployer.ServiceLogsRequest{
 		Project:     projectID,

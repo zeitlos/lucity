@@ -121,6 +121,7 @@ func doGraphQLRaw(token, query string, variables map[string]any) (*graphqlRespon
 		return nil, fmt.Errorf("create request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Lucity-Workspace", "default")
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
@@ -257,5 +258,5 @@ func requireProjectCreated(t *testing.T) {
 
 // namespace returns the Kubernetes namespace for the test project and environment.
 func namespace(env string) string {
-	return testProjectName + "-" + env
+	return "default-" + testProjectName + "-" + env
 }

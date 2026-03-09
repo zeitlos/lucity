@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/zeitlos/lucity/charts"
-	"github.com/zeitlos/lucity/pkg/labels"
+	"github.com/zeitlos/lucity/pkg/tenant"
 	"github.com/zeitlos/lucity/services/packager/gitops"
 
 	"gopkg.in/yaml.v3"
@@ -19,8 +19,8 @@ import (
 // It reads all files from the GitOps repo, bundles the embedded Helm chart,
 // generates ArgoCD manifests, a build script, and a README.
 func Build(ctx context.Context, provider gitops.Provider, project string) ([]byte, error) {
-	shortName := labels.ShortName(project)
-	prefix := shortName + "-ejected/"
+	ws := tenant.FromContext(ctx)
+	prefix := project + "-ejected/"
 
 	// Read raw files from the GitOps repo.
 	repoFiles, err := provider.RepoFiles(ctx, project)
@@ -49,8 +49,8 @@ func Build(ctx context.Context, provider gitops.Provider, project string) ([]byt
 
 	// 3. Generate ArgoCD Application manifests.
 	for _, env := range environments {
-		content := applicationYAML(project, env)
-		appName := labels.NamespaceFor(project, env)
+		content := applicationYAML(ws, project, env)
+		appName := gitops.NamespaceFor(ws, project, env)
 		path := fmt.Sprintf("argocd/applications/%s.yaml", appName)
 		if err := writeZipFile(zw, prefix+path, []byte(content)); err != nil {
 			return nil, fmt.Errorf("failed to write ArgoCD manifest for %s: %w", env, err)

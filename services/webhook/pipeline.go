@@ -10,6 +10,7 @@ import (
 	"github.com/zeitlos/lucity/pkg/builder"
 	"github.com/zeitlos/lucity/pkg/deployer"
 	"github.com/zeitlos/lucity/pkg/packager"
+	"github.com/zeitlos/lucity/pkg/tenant"
 )
 
 // Pipeline orchestrates build+deploy for webhook-triggered CI/CD.
@@ -24,10 +25,11 @@ type Pipeline struct {
 // Run executes the full build+deploy pipeline for a service.
 // Blocks until completion — callers should run this in a goroutine.
 func (p *Pipeline) Run(ctx context.Context, project, service, environment, gitRef, sourceURL, contextPath string) {
+	ws := tenant.FromContext(ctx)
 	log := slog.With("project", project, "service", service, "environment", environment, "gitRef", gitRef)
 	log.Info("pipeline: starting build")
 
-	registry := deriveImagePath(p.RegistryPushURL, project, service)
+	registry := deriveImagePath(p.RegistryPushURL, ws, project, service)
 
 	buildResp, err := p.Builder.StartBuild(ctx, &builder.StartBuildRequest{
 		SourceUrl:   sourceURL,
@@ -96,14 +98,9 @@ func (p *Pipeline) finalize(ctx context.Context, log *slog.Logger, project, serv
 	log.Info("pipeline: deploy complete", "tag", tag)
 }
 
-// deriveImagePath builds a registry image path from a project name.
-func deriveImagePath(registryURL, project, service string) string {
-	parts := strings.SplitN(project, "/", 2)
-	name := project
-	if len(parts) == 2 {
-		name = parts[1]
-	}
-	return fmt.Sprintf("%s/%s/%s", registryURL, name, service)
+// deriveImagePath builds a workspace-scoped registry image path.
+func deriveImagePath(registryURL, workspace, project, service string) string {
+	return fmt.Sprintf("%s/%s/%s/%s", registryURL, workspace, project, service)
 }
 
 // extractTag extracts the tag from a fully-qualified image reference.

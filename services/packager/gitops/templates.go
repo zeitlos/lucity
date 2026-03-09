@@ -34,9 +34,14 @@ dependencies:
 // baseValuesYAML generates the base values.yaml with empty service definitions.
 // Values are scoped under the "lucity-app" key because the chart is a subchart
 // dependency — Helm requires subchart values to be namespaced this way.
-const baseValuesYAML = `lucity-app:
+// fullnameOverride is set to the project name so K8s resource names are concise
+// (e.g., "beast-web" instead of "acme-beast-dev-lucity-app-web").
+func baseValuesYAML(project string) string {
+	return fmt.Sprintf(`lucity-app:
+  fullnameOverride: "%s"
   services: {}
-`
+`, project)
+}
 
 // environmentValuesYAML generates the per-environment values.yaml override file.
 const environmentValuesYAML = `lucity-app: {}

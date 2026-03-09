@@ -10,16 +10,6 @@ import (
 	"strings"
 )
 
-// projectShortName extracts the short name from a project ID.
-// "zeitlos/myapp" → "myapp", "myapp" → "myapp".
-func projectShortName(project string) string {
-	parts := strings.SplitN(project, "/", 2)
-	if len(parts) == 2 {
-		return parts[1]
-	}
-	return project
-}
-
 // registryBaseURL returns the base URL for OCI Distribution Spec API calls.
 func (s *Server) registryBaseURL() string {
 	scheme := "https"
@@ -51,9 +41,9 @@ type tagsResponse struct {
 }
 
 // projectRepositories returns all OCI repositories belonging to a project
-// by querying the catalog and filtering by the project's short name prefix.
-func (s *Server) projectRepositories(ctx context.Context, project string) ([]string, error) {
-	prefix := projectShortName(project) + "/"
+// by querying the catalog and filtering by the workspace/project prefix.
+func (s *Server) projectRepositories(ctx context.Context, workspace, project string) ([]string, error) {
+	prefix := workspace + "/" + project + "/"
 	url := s.registryBaseURL() + "/v2/_catalog"
 
 	req, err := s.registryRequest(ctx, http.MethodGet, url)

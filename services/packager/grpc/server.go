@@ -9,6 +9,7 @@ import (
 
 	"github.com/zeitlos/lucity/pkg/deployer"
 	"github.com/zeitlos/lucity/pkg/packager"
+	"github.com/zeitlos/lucity/pkg/tenant"
 	"github.com/zeitlos/lucity/services/packager/eject"
 	"github.com/zeitlos/lucity/services/packager/gitops"
 )
@@ -212,8 +213,9 @@ func (s *Server) CreateEnvironment(ctx context.Context, req *packager.CreateEnvi
 		return nil, fmt.Errorf("failed to create environment: %w", err)
 	}
 
+	ws := tenant.FromContext(ctx)
 	return &packager.CreateEnvironmentResponse{
-		Namespace:           gitops.NamespaceFor(req.Project, req.Environment),
+		Namespace:           gitops.NamespaceFor(ws, req.Project, req.Environment),
 		ServicesWithDomains: serviceNames,
 	}, nil
 }

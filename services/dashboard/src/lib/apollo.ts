@@ -1,4 +1,5 @@
 import { ApolloClient, InMemoryCache, createHttpLink, from, split } from '@apollo/client/core';
+import { setContext } from '@apollo/client/link/context';
 import { onError } from '@apollo/client/link/error';
 import { GraphQLWsLink } from '@apollo/client/link/subscriptions';
 import { getMainDefinition } from '@apollo/client/utilities';
@@ -6,10 +7,20 @@ import { createClient } from 'graphql-ws';
 import router from '@/router';
 import { toast } from '@/components/ui/sonner';
 
+// Phase 1: hardcoded workspace. Phase 2 will read from user's active workspace.
+const WORKSPACE = 'default';
+
 const httpLink = createHttpLink({
   uri: '/graphql',
   credentials: 'include',
 });
+
+const workspaceLink = setContext((_, { headers }) => ({
+  headers: {
+    ...headers,
+    'X-Lucity-Workspace': WORKSPACE,
+  },
+}));
 
 const errorLink = onError(({ graphQLErrors, networkError, operation }) => {
   if (graphQLErrors) {
@@ -47,7 +58,10 @@ const wsLink = new GraphQLWsLink(createClient({
   url: `${wsProtocol}//${window.location.host}/graphql`,
   connectionParams: () => {
     const token = getToken();
-    return token ? { Authorization: `Bearer ${token}` } : {};
+    return {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      'X-Lucity-Workspace': WORKSPACE,
+    };
   },
   lazy: true,
   retryAttempts: 3,
@@ -59,7 +73,7 @@ const splitLink = split(
     return def.kind === 'OperationDefinition' && def.operation === 'subscription';
   },
   wsLink,
-  from([errorLink, httpLink]),
+  from([errorLink, workspaceLink, httpLink]),
 );
 
 export const apolloClient = new ApolloClient({

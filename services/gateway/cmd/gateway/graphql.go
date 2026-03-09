@@ -16,6 +16,7 @@ import (
 
 	"github.com/zeitlos/lucity/pkg/auth"
 	gh "github.com/zeitlos/lucity/pkg/github"
+	"github.com/zeitlos/lucity/pkg/tenant"
 
 	gqlgen "github.com/99designs/gqlgen/graphql"
 	gqlhandler "github.com/99designs/gqlgen/graphql/handler"
@@ -92,6 +93,12 @@ func NewGraphQLServer(port string, api *handler.Client, githubApp *gh.App, jwtSe
 			}
 			ctx = auth.WithClaims(ctx, claims)
 			ctx = auth.WithToken(ctx, token)
+
+			// Extract workspace from WebSocket connection params
+			if ws, ok := initPayload[tenant.Header].(string); ok && ws != "" {
+				ctx = tenant.WithWorkspace(ctx, ws)
+			}
+
 			return ctx, &initPayload, nil
 		},
 	})
@@ -146,7 +153,7 @@ func NewGraphQLServer(port string, api *handler.Client, githubApp *gh.App, jwtSe
 	corsHandler := cors.New(cors.Options{
 		AllowedOrigins:   []string{"http://localhost:5173", dashboardURL},
 		AllowedMethods:   []string{"GET", "POST", "OPTIONS"},
-		AllowedHeaders:   []string{"Content-Type", "Authorization"},
+		AllowedHeaders:   []string{"Content-Type", "Authorization", tenant.Header},
 		AllowCredentials: true,
 	})
 
@@ -154,7 +161,7 @@ func NewGraphQLServer(port string, api *handler.Client, githubApp *gh.App, jwtSe
 		port: port,
 		server: &http.Server{
 			Addr:    ":" + port,
-			Handler: corsHandler.Handler(authMiddleware(mux)),
+			Handler: corsHandler.Handler(authMiddleware(tenant.Middleware(mux))),
 		},
 	}
 }

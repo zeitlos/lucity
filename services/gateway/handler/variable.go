@@ -7,6 +7,7 @@ import (
 
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/packager"
+	"github.com/zeitlos/lucity/pkg/tenant"
 )
 
 type Variable struct {
@@ -42,7 +43,11 @@ var cnpgKeyDisplayNames = map[string]string{
 }
 
 func (c *Client) SharedVariables(ctx context.Context, projectID, environment string) ([]Variable, error) {
+	if _, err := tenant.Require(ctx); err != nil {
+		return nil, err
+	}
 	ctx = auth.OutgoingContext(ctx)
+	ctx = tenant.OutgoingContext(ctx)
 
 	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
 	defer cancel()
@@ -62,7 +67,11 @@ func (c *Client) SharedVariables(ctx context.Context, projectID, environment str
 }
 
 func (c *Client) SetSharedVariables(ctx context.Context, projectID, environment string, vars []Variable) (bool, error) {
+	if _, err := tenant.Require(ctx); err != nil {
+		return false, err
+	}
 	ctx = auth.OutgoingContext(ctx)
+	ctx = tenant.OutgoingContext(ctx)
 
 	m := make(map[string]string, len(vars))
 	for _, v := range vars {
@@ -83,7 +92,11 @@ func (c *Client) SetSharedVariables(ctx context.Context, projectID, environment 
 }
 
 func (c *Client) ServiceVariables(ctx context.Context, projectID, environment, service string) ([]ServiceVariable, error) {
+	if _, err := tenant.Require(ctx); err != nil {
+		return nil, err
+	}
 	ctx = auth.OutgoingContext(ctx)
+	ctx = tenant.OutgoingContext(ctx)
 
 	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
 	defer cancel()
@@ -136,7 +149,11 @@ func (c *Client) ServiceVariables(ctx context.Context, projectID, environment, s
 }
 
 func (c *Client) SetServiceVariables(ctx context.Context, projectID, environment, service string, vars []Variable, sharedRefs []string, dbRefs map[string]DatabaseRef, svcRefs map[string]ServiceRef) (bool, error) {
+	if _, err := tenant.Require(ctx); err != nil {
+		return false, err
+	}
 	ctx = auth.OutgoingContext(ctx)
+	ctx = tenant.OutgoingContext(ctx)
 
 	m := make(map[string]string, len(vars))
 	for _, v := range vars {

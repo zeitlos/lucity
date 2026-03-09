@@ -23,6 +23,7 @@ type Config struct {
 	SoftServeHTTP        string `envconfig:"SOFTSERVE_HTTP_ADDR" default:"http://lucity-infra-soft-serve.lucity-system.svc.cluster.local:23232"`
 	SoftServeClusterHTTP string `envconfig:"SOFTSERVE_CLUSTER_HTTP_ADDR"`
 	SoftServeToken       string `envconfig:"SOFTSERVE_TOKEN"`
+	JWTSecret            string `envconfig:"JWT_SECRET" required:"true"`
 }
 
 func main() {
@@ -59,7 +60,7 @@ func main() {
 	}
 
 	svc := deployergrpc.NewServer(argoClient, clusterHTTP, config.SoftServeToken, k8sClient)
-	grpcServer := deployergrpc.NewGRPCServer(":"+config.Port, svc)
+	grpcServer := deployergrpc.NewGRPCServer(":"+config.Port, config.JWTSecret, svc)
 
 	ctx, cancel := graceful.Context()
 	defer cancel()

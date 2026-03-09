@@ -15,6 +15,7 @@ import (
 	"github.com/zeitlos/lucity/pkg/builder"
 	"github.com/zeitlos/lucity/pkg/deployer"
 	"github.com/zeitlos/lucity/pkg/packager"
+	"github.com/zeitlos/lucity/pkg/tenant"
 	"github.com/zeitlos/lucity/services/gateway/deploy"
 )
 
@@ -35,7 +36,11 @@ type Build struct {
 }
 
 func (c *Client) DetectServices(ctx context.Context, sourceURL string) ([]DetectedService, error) {
+	if _, err := tenant.Require(ctx); err != nil {
+		return nil, err
+	}
 	ctx = auth.OutgoingContext(ctx)
+	ctx = tenant.OutgoingContext(ctx)
 
 	// Call builder to detect services (long — clones repo)
 	detectCtx, detectCancel := context.WithTimeout(ctx, grpcLongTimeout)
@@ -61,14 +66,19 @@ func (c *Client) DetectServices(ctx context.Context, sourceURL string) ([]Detect
 }
 
 func (c *Client) AddService(ctx context.Context, projectID, name string, port int, framework, sourceURL, contextPath string) (*Service, error) {
+	ws, err := tenant.Require(ctx)
+	if err != nil {
+		return nil, err
+	}
 	ctx = auth.OutgoingContext(ctx)
+	ctx = tenant.OutgoingContext(ctx)
 
 	// Derive image path using cluster-internal address so pods can pull it.
-	image := deriveImagePath(c.RegistryImagePrefix, projectID, name)
+	image := deriveImagePath(c.RegistryImagePrefix, ws, projectID, name)
 
 	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
 	defer cancel()
-	_, err := c.Packager.AddService(callCtx, &packager.AddServiceRequest{
+	_, err = c.Packager.AddService(callCtx, &packager.AddServiceRequest{
 		Project:     projectID,
 		Service:     name,
 		Image:       image,
@@ -82,11 +92,13 @@ func (c *Client) AddService(ctx context.Context, projectID, name string, port in
 	}
 
 	// Fire-and-forget: build the service so it has an image immediately.
-	registry := deriveImagePath(c.RegistryPushURL, projectID, name)
+	registry := deriveImagePath(c.RegistryPushURL, ws, projectID, name)
 	token := auth.TokenFrom(ctx)
 	go func() {
 		buildCtx := auth.WithToken(context.Background(), token)
+		buildCtx = tenant.WithWorkspace(buildCtx, ws)
 		buildCtx = auth.OutgoingContext(buildCtx)
+		buildCtx = tenant.OutgoingContext(buildCtx)
 		buildCtx, cancel := context.WithTimeout(buildCtx, grpcTimeout)
 		defer cancel()
 		_, err := c.Builder.StartBuild(buildCtx, &builder.StartBuildRequest{
@@ -114,7 +126,11 @@ func (c *Client) AddService(ctx context.Context, projectID, name string, port in
 }
 
 func (c *Client) RemoveService(ctx context.Context, projectID, service string) (bool, error) {
+	if _, err := tenant.Require(ctx); err != nil {
+		return false, err
+	}
 	ctx = auth.OutgoingContext(ctx)
+	ctx = tenant.OutgoingContext(ctx)
 
 	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
 	defer cancel()
@@ -129,7 +145,12 @@ func (c *Client) RemoveService(ctx context.Context, projectID, service string) (
 }
 
 func (c *Client) StartBuild(ctx context.Context, projectID, service, gitRef string) (*Build, error) {
+	ws, err := tenant.Require(ctx)
+	if err != nil {
+		return nil, err
+	}
 	ctx = auth.OutgoingContext(ctx)
+	ctx = tenant.OutgoingContext(ctx)
 
 	// Look up source URL and context path from the service definition
 	sourceURL, contextPath, err := c.serviceSourceInfo(ctx, projectID, service)
@@ -137,7 +158,7 @@ func (c *Client) StartBuild(ctx context.Context, projectID, service, gitRef stri
 		return nil, err
 	}
 
-	registry := deriveImagePath(c.RegistryPushURL, projectID, service)
+	registry := deriveImagePath(c.RegistryPushURL, ws, projectID, service)
 
 	buildCtx, buildCancel := context.WithTimeout(ctx, grpcTimeout)
 	defer buildCancel()
@@ -159,7 +180,11 @@ func (c *Client) StartBuild(ctx context.Context, projectID, service, gitRef stri
 }
 
 func (c *Client) BuildStatus(ctx context.Context, buildID string) (*Build, error) {
+	if _, err := tenant.Require(ctx); err != nil {
+		return nil, err
+	}
 	ctx = auth.OutgoingContext(ctx)
+	ctx = tenant.OutgoingContext(ctx)
 
 	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
 	defer cancel()
@@ -178,7 +203,11 @@ func (c *Client) BuildStatus(ctx context.Context, buildID string) (*Build, error
 }
 
 func (c *Client) DeployBuild(ctx context.Context, projectID, service, environment, tag, digest string) (bool, error) {
+	if _, err := tenant.Require(ctx); err != nil {
+		return false, err
+	}
 	ctx = auth.OutgoingContext(ctx)
+	ctx = tenant.OutgoingContext(ctx)
 
 	updateCtx, updateCancel := context.WithTimeout(ctx, grpcTimeout)
 	defer updateCancel()
@@ -225,17 +254,10 @@ func (c *Client) serviceSourceInfo(ctx context.Context, projectID, service strin
 	return "", "", fmt.Errorf("service %q not found in project %q", service, projectID)
 }
 
-// deriveImagePath builds a registry image path from a project name.
-// Project "zeitlos/myapp" + service "web" → "localhost:5000/myapp/web"
-// The org prefix is stripped — OCI paths use only the short project name.
-func deriveImagePath(registryURL, project, service string) string {
-	// Use only the short name (after the slash) for the image namespace
-	parts := strings.SplitN(project, "/", 2)
-	name := project
-	if len(parts) == 2 {
-		name = parts[1]
-	}
-	return registryURL + "/" + name + "/" + service
+// deriveImagePath builds a registry image path scoped by workspace.
+// workspace "acme" + project "api" + service "web" → "localhost:5000/acme/api/web"
+func deriveImagePath(registryURL, workspace, project, service string) string {
+	return registryURL + "/" + workspace + "/" + project + "/" + service
 }
 
 func buildPhaseToString(phase builder.BuildPhase) string {
@@ -287,7 +309,12 @@ func deployOpFromState(s *deploy.State) *DeployOp {
 // Deploy starts a unified build+deploy operation. It triggers a build and,
 // on success, automatically updates the image tag and syncs ArgoCD.
 func (c *Client) Deploy(ctx context.Context, projectID, service, environment, gitRef string) (*DeployOp, error) {
+	ws, err := tenant.Require(ctx)
+	if err != nil {
+		return nil, err
+	}
 	ctx = auth.OutgoingContext(ctx)
+	ctx = tenant.OutgoingContext(ctx)
 
 	// Look up source URL and context path from the service definition
 	sourceURL, contextPath, err := c.serviceSourceInfo(ctx, projectID, service)
@@ -295,7 +322,7 @@ func (c *Client) Deploy(ctx context.Context, projectID, service, environment, gi
 		return nil, err
 	}
 
-	registry := deriveImagePath(c.RegistryPushURL, projectID, service)
+	registry := deriveImagePath(c.RegistryPushURL, ws, projectID, service)
 
 	// Start the build
 	startCtx, startCancel := context.WithTimeout(ctx, grpcTimeout)
@@ -318,7 +345,7 @@ func (c *Client) Deploy(ctx context.Context, projectID, service, environment, gi
 	// Extract the token before spawning the goroutine — the HTTP request context
 	// will be cancelled when the response is sent.
 	token := auth.TokenFrom(ctx)
-	go c.runDeploy(token, deployID, projectID, service, environment, buildResp.BuildId)
+	go c.runDeploy(token, ws, deployID, projectID, service, environment, buildResp.BuildId)
 
 	return deployOpFromState(c.DeployTracker.Get(deployID)), nil
 }
@@ -346,9 +373,11 @@ func (c *Client) ActiveDeployment(ctx context.Context, projectID, service, envir
 const maxBuildDuration = 30 * time.Minute
 
 // runDeploy streams build logs from the builder and, on success, deploys the image.
-func (c *Client) runDeploy(token, deployID, projectID, service, environment, buildID string) {
+func (c *Client) runDeploy(token, workspace, deployID, projectID, service, environment, buildID string) {
 	ctx := auth.WithToken(context.Background(), token)
+	ctx = tenant.WithWorkspace(ctx, workspace)
 	ctx = auth.OutgoingContext(ctx)
+	ctx = tenant.OutgoingContext(ctx)
 
 	c.DeployTracker.AppendLog(deployID, "Queued for build...")
 
@@ -574,7 +603,11 @@ func (c *Client) DeployLogs(ctx context.Context, deployID string) (<-chan string
 
 // Rollback updates the image tag to a previous value without rebuilding.
 func (c *Client) Rollback(ctx context.Context, projectID, service, environment, imageTag string) (bool, error) {
+	if _, err := tenant.Require(ctx); err != nil {
+		return false, err
+	}
 	ctx = auth.OutgoingContext(ctx)
+	ctx = tenant.OutgoingContext(ctx)
 
 	updateCtx, updateCancel := context.WithTimeout(ctx, grpcTimeout)
 	defer updateCancel()
@@ -701,7 +734,11 @@ func (c *Client) BuildDomain(hostname string) Domain {
 // GenerateDomain creates a platform domain for a service in an environment.
 // Format: {service}-{env}.{workloadDomain}. Appends a numeric suffix on collision.
 func (c *Client) GenerateDomain(ctx context.Context, projectID, service, environment string) (*Domain, error) {
+	if _, err := tenant.Require(ctx); err != nil {
+		return nil, err
+	}
 	ctx = auth.OutgoingContext(ctx)
+	ctx = tenant.OutgoingContext(ctx)
 
 	// Get all existing domains for collision detection
 	allCtx, allCancel := context.WithTimeout(ctx, grpcTimeout)
@@ -791,7 +828,11 @@ func validateHostname(hostname string) error {
 
 // AddCustomDomain adds a user-specified custom domain to a service.
 func (c *Client) AddCustomDomain(ctx context.Context, projectID, service, environment, hostname string) (*Domain, error) {
+	if _, err := tenant.Require(ctx); err != nil {
+		return nil, err
+	}
 	ctx = auth.OutgoingContext(ctx)
+	ctx = tenant.OutgoingContext(ctx)
 
 	if err := validateHostname(hostname); err != nil {
 		return nil, fmt.Errorf("invalid hostname: %w", err)
@@ -831,7 +872,11 @@ func (c *Client) AddCustomDomain(ctx context.Context, projectID, service, enviro
 
 // RemoveDomain removes a domain from a service in an environment.
 func (c *Client) RemoveDomain(ctx context.Context, projectID, service, environment, hostname string) (bool, error) {
+	if _, err := tenant.Require(ctx); err != nil {
+		return false, err
+	}
 	ctx = auth.OutgoingContext(ctx)
+	ctx = tenant.OutgoingContext(ctx)
 
 	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
 	defer cancel()

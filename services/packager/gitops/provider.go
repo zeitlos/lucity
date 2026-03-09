@@ -200,8 +200,8 @@ type ProjectMeta struct {
 	CreatedAt        time.Time
 }
 
-// NamespaceFor derives the K8s namespace from a project and environment name.
-// "warm-wren" + "production" → "warm-wren-production"
-func NamespaceFor(project, environment string) string {
-	return labels.NamespaceFor(project, environment)
+// NamespaceFor derives the K8s namespace from workspace, project, and environment.
+// "acme" + "api" + "production" → "acme-api-production"
+func NamespaceFor(workspace, project, environment string) string {
+	return labels.NamespaceFor(workspace, project, environment)
 }

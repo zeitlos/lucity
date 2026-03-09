@@ -40,6 +40,43 @@ func UnaryServerInterceptor(jwtSecret string) grpc.UnaryServerInterceptor {
 	}
 }
 
+// StreamServerInterceptor returns a gRPC stream interceptor that extracts
+// and validates JWT tokens from the "authorization" metadata key.
+func StreamServerInterceptor(jwtSecret string) grpc.StreamServerInterceptor {
+	return func(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+		ctx := ss.Context()
+		md, ok := metadata.FromIncomingContext(ctx)
+		if !ok {
+			return status.Error(codes.Unauthenticated, "missing metadata")
+		}
+
+		values := md.Get(authHeader)
+		if len(values) == 0 {
+			return status.Error(codes.Unauthenticated, "missing authorization token")
+		}
+
+		token := values[0]
+		token = strings.TrimPrefix(token, "Bearer ")
+
+		claims, err := ParseToken(token, jwtSecret)
+		if err != nil {
+			return status.Errorf(codes.Unauthenticated, "invalid token: %v", err)
+		}
+
+		ctx = WithClaims(ctx, claims)
+		return handler(srv, &wrappedAuthStream{ServerStream: ss, ctx: ctx})
+	}
+}
+
+type wrappedAuthStream struct {
+	grpc.ServerStream
+	ctx context.Context
+}
+
+func (s *wrappedAuthStream) Context() context.Context {
+	return s.ctx
+}
+
 // TokenFromContext extracts the raw JWT token string from the HTTP request context.
 // This is used by the gateway to propagate the token to gRPC calls.
 type tokenContextKey struct{}

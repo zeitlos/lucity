@@ -6,6 +6,7 @@ import "fmt"
 const (
 	Prefix = "lucity.dev/"
 
+	Workspace   = Prefix + "workspace"
 	Project     = Prefix + "project"
 	Environment = Prefix + "environment"
 	Ephemeral   = Prefix + "ephemeral"
@@ -31,14 +32,8 @@ func Selector(key, value string) string {
 	return fmt.Sprintf("%s=%s", key, value)
 }
 
-// ShortName returns the project name. Kept for backward compatibility with
-// callers that used the old org/name format.
-func ShortName(project string) string {
-	return project
-}
-
-// NamespaceFor derives the K8s namespace from a project and environment name.
-// "warm-wren" + "production" → "warm-wren-production"
-func NamespaceFor(project, environment string) string {
-	return project + "-" + environment
+// NamespaceFor derives the K8s namespace from workspace, project, and environment.
+// "acme" + "api" + "production" → "acme-api-production"
+func NamespaceFor(workspace, project, environment string) string {
+	return workspace + "-" + project + "-" + environment
 }

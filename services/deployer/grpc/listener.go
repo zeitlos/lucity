@@ -4,7 +4,9 @@ import (
 	"context"
 	"net"
 
+	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/deployer"
+	"github.com/zeitlos/lucity/pkg/tenant"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
@@ -14,8 +16,17 @@ type GRPCServer struct {
 	addr   string
 }
 
-func NewGRPCServer(addr string, svc *Server) *GRPCServer {
-	s := grpc.NewServer()
+func NewGRPCServer(addr, jwtSecret string, svc *Server) *GRPCServer {
+	s := grpc.NewServer(
+		grpc.ChainUnaryInterceptor(
+			auth.UnaryServerInterceptor(jwtSecret),
+			tenant.UnaryServerInterceptor(),
+		),
+		grpc.ChainStreamInterceptor(
+			auth.StreamServerInterceptor(jwtSecret),
+			tenant.StreamServerInterceptor(),
+		),
+	)
 	deployer.RegisterDeployerServiceServer(s, svc)
 	reflection.Register(s)
 

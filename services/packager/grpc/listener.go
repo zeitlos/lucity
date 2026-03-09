@@ -6,6 +6,7 @@ import (
 
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/packager"
+	"github.com/zeitlos/lucity/pkg/tenant"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
@@ -17,7 +18,10 @@ type GRPCServer struct {
 
 func NewGRPCServer(addr, jwtSecret string, svc *Server) *GRPCServer {
 	s := grpc.NewServer(
-		grpc.UnaryInterceptor(auth.UnaryServerInterceptor(jwtSecret)),
+		grpc.ChainUnaryInterceptor(
+			auth.UnaryServerInterceptor(jwtSecret),
+			tenant.UnaryServerInterceptor(),
+		),
 	)
 	packager.RegisterPackagerServiceServer(s, svc)
 	reflection.Register(s)

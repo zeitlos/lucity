@@ -18,6 +18,7 @@ import (
 
 	"github.com/zeitlos/lucity/pkg/deployer"
 	"github.com/zeitlos/lucity/pkg/labels"
+	"github.com/zeitlos/lucity/pkg/tenant"
 	"github.com/zeitlos/lucity/services/deployer/argocd"
 	"github.com/zeitlos/lucity/services/deployer/database"
 	"google.golang.org/grpc/codes"
@@ -45,7 +46,8 @@ func NewServer(argo *argocd.Client, softServeHTTP, softServeToken string, k8s ku
 }
 
 func (s *Server) DeployEnvironment(ctx context.Context, req *deployer.DeployEnvironmentRequest) (*deployer.DeployEnvironmentResponse, error) {
-	appName := applicationName(req.Project, req.Environment)
+	ws := tenant.FromContext(ctx)
+	appName := applicationName(ws, req.Project, req.Environment)
 
 	// Idempotent: if the application already exists, return it.
 	existing, err := s.argo.Application(ctx, appName)
@@ -65,6 +67,7 @@ func (s *Server) DeployEnvironment(ctx context.Context, req *deployer.DeployEnvi
 		ObjectMeta: metav1.ObjectMeta{
 			Name: req.TargetNamespace,
 			Labels: map[string]string{
+				labels.Workspace:   ws,
 				labels.Project:     req.Project,
 				labels.Environment: req.Environment,
 				labels.ManagedBy:   labels.ManagedByLucity,
@@ -76,7 +79,7 @@ func (s *Server) DeployEnvironment(ctx context.Context, req *deployer.DeployEnvi
 	}
 
 	// Ensure the GitOps repo is registered in ArgoCD with credentials.
-	repoURL := s.repoURL(req.Project)
+	repoURL := s.repoURL(ws, req.Project)
 	if err := s.argo.CreateRepository(ctx, argocd.Repository{
 		Repo:     repoURL,
 		Username: "lucity",
@@ -134,7 +137,8 @@ func (s *Server) DeployEnvironment(ctx context.Context, req *deployer.DeployEnvi
 }
 
 func (s *Server) RemoveDeployment(ctx context.Context, req *deployer.RemoveDeploymentRequest) (*deployer.RemoveDeploymentResponse, error) {
-	appName := applicationName(req.Project, req.Environment)
+	ws := tenant.FromContext(ctx)
+	appName := applicationName(ws, req.Project, req.Environment)
 
 	if err := s.argo.DeleteApplication(ctx, appName, true); err != nil {
 		// Idempotent: if the application is already gone, that's fine — still clean up the namespace.
@@ -147,7 +151,7 @@ func (s *Server) RemoveDeployment(ctx context.Context, req *deployer.RemoveDeplo
 	}
 
 	// Delete the namespace. ArgoCD cascade already cleaned up resources inside.
-	ns := labels.NamespaceFor(req.Project, req.Environment)
+	ns := labels.NamespaceFor(ws, req.Project, req.Environment)
 	if err := s.k8s.CoreV1().Namespaces().Delete(ctx, ns, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
 		return nil, fmt.Errorf("failed to delete namespace %s: %w", ns, err)
 	}
@@ -157,7 +161,8 @@ func (s *Server) RemoveDeployment(ctx context.Context, req *deployer.RemoveDeplo
 }
 
 func (s *Server) DeleteRepository(ctx context.Context, req *deployer.DeleteRepositoryRequest) (*deployer.DeleteRepositoryResponse, error) {
-	repoURL := s.repoURL(req.Project)
+	ws := tenant.FromContext(ctx)
+	repoURL := s.repoURL(ws, req.Project)
 
 	if err := s.argo.DeleteRepository(ctx, repoURL); err != nil {
 		return nil, fmt.Errorf("failed to delete ArgoCD repository: %w", err)
@@ -168,7 +173,8 @@ func (s *Server) DeleteRepository(ctx context.Context, req *deployer.DeleteRepos
 }
 
 func (s *Server) GetDeploymentStatus(ctx context.Context, req *deployer.GetDeploymentStatusRequest) (*deployer.GetDeploymentStatusResponse, error) {
-	appName := applicationName(req.Project, req.Environment)
+	ws := tenant.FromContext(ctx)
+	appName := applicationName(ws, req.Project, req.Environment)
 
 	app, err := s.argo.Application(ctx, appName)
 	if err != nil {
@@ -184,7 +190,8 @@ func (s *Server) GetDeploymentStatus(ctx context.Context, req *deployer.GetDeplo
 }
 
 func (s *Server) SyncDeployment(ctx context.Context, req *deployer.SyncDeploymentRequest) (*deployer.SyncDeploymentResponse, error) {
-	appName := applicationName(req.Project, req.Environment)
+	ws := tenant.FromContext(ctx)
+	appName := applicationName(ws, req.Project, req.Environment)
 
 	app, err := s.argo.SyncApplication(ctx, appName)
 	if err != nil {
@@ -199,23 +206,23 @@ func (s *Server) SyncDeployment(ctx context.Context, req *deployer.SyncDeploymen
 	}, nil
 }
 
-// applicationName derives the ArgoCD Application name from project and environment.
-// "zeitlos/myapp" + "production" → "myapp-production"
-func applicationName(project, environment string) string {
-	return labels.NamespaceFor(project, environment)
+// applicationName derives the ArgoCD Application name from workspace, project, and environment.
+func applicationName(workspace, project, environment string) string {
+	return labels.NamespaceFor(workspace, project, environment)
 }
 
 // repoURL returns the Soft-serve HTTP clone URL for a project's GitOps repo.
-func (s *Server) repoURL(project string) string {
-	return strings.TrimSuffix(s.softServeHTTP, "/") + "/" + labels.ShortName(project) + "-gitops.git"
+func (s *Server) repoURL(workspace, project string) string {
+	return strings.TrimSuffix(s.softServeHTTP, "/") + "/" + workspace + "-" + project + "-gitops.git"
 }
 
 func (s *Server) ServiceLogs(req *deployer.ServiceLogsRequest, stream deployer.DeployerService_ServiceLogsServer) error {
 	ctx := stream.Context()
-	namespace := labels.NamespaceFor(req.Project, req.Environment)
+	ws := tenant.FromContext(ctx)
+	namespace := labels.NamespaceFor(ws, req.Project, req.Environment)
 
 	labelSelector := fmt.Sprintf("app.kubernetes.io/name=%s,app.kubernetes.io/instance=%s",
-		req.Service, namespace)
+		req.Service, req.Project)
 
 	podList, err := s.k8s.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: labelSelector,
@@ -303,7 +310,7 @@ func shortPodID(podName string) string {
 const dbQueryTimeout = 30 * time.Second
 
 func (s *Server) DatabaseTables(ctx context.Context, req *deployer.DatabaseTablesRequest) (*deployer.DatabaseTablesResponse, error) {
-	creds, err := database.CredentialsFromSecret(ctx, s.k8s, req.Project, req.Environment, req.Database)
+	creds, err := database.CredentialsFromSecret(ctx, s.k8s, tenant.FromContext(ctx), req.Project, req.Environment, req.Database)
 	if err != nil {
 		if errors.Is(err, database.ErrNotReady) {
 			return nil, status.Errorf(codes.FailedPrecondition, "database is provisioning")
@@ -330,7 +337,7 @@ func (s *Server) DatabaseTables(ctx context.Context, req *deployer.DatabaseTable
 }
 
 func (s *Server) DatabaseTableData(ctx context.Context, req *deployer.DatabaseTableDataRequest) (*deployer.DatabaseTableDataResponse, error) {
-	creds, err := database.CredentialsFromSecret(ctx, s.k8s, req.Project, req.Environment, req.Database)
+	creds, err := database.CredentialsFromSecret(ctx, s.k8s, tenant.FromContext(ctx), req.Project, req.Environment, req.Database)
 	if err != nil {
 		if errors.Is(err, database.ErrNotReady) {
 			return nil, status.Errorf(codes.FailedPrecondition, "database is provisioning")
@@ -361,7 +368,7 @@ func (s *Server) DatabaseTableData(ctx context.Context, req *deployer.DatabaseTa
 }
 
 func (s *Server) DatabaseQuery(ctx context.Context, req *deployer.DatabaseQueryRequest) (*deployer.DatabaseQueryResponse, error) {
-	creds, err := database.CredentialsFromSecret(ctx, s.k8s, req.Project, req.Environment, req.Database)
+	creds, err := database.CredentialsFromSecret(ctx, s.k8s, tenant.FromContext(ctx), req.Project, req.Environment, req.Database)
 	if err != nil {
 		if errors.Is(err, database.ErrNotReady) {
 			return nil, status.Errorf(codes.FailedPrecondition, "database is provisioning")
@@ -392,8 +399,9 @@ func (s *Server) DatabaseQuery(ctx context.Context, req *deployer.DatabaseQueryR
 }
 
 func (s *Server) DatabaseStatus(ctx context.Context, req *deployer.DatabaseStatusRequest) (*deployer.DatabaseStatusResponse, error) {
-	namespace := labels.NamespaceFor(req.Project, req.Environment)
-	clusterName := namespace + "-lucity-app-pg-" + req.Database
+	ws := tenant.FromContext(ctx)
+	namespace := labels.NamespaceFor(ws, req.Project, req.Environment)
+	clusterName := req.Project + "-pg-" + req.Database
 	labelSelector := fmt.Sprintf("cnpg.io/cluster=%s", clusterName)
 
 	// Check CNPG pods for readiness.
@@ -550,7 +558,7 @@ func mapStatus(status *argocd.AppStatus) (deployer.DeploymentStatus, string) {
 }
 
 func (s *Server) DatabaseCredentials(ctx context.Context, req *deployer.DatabaseCredentialsRequest) (*deployer.DatabaseCredentialsResponse, error) {
-	creds, err := database.CredentialsFromSecret(ctx, s.k8s, req.Project, req.Environment, req.Database)
+	creds, err := database.CredentialsFromSecret(ctx, s.k8s, tenant.FromContext(ctx), req.Project, req.Environment, req.Database)
 	if err != nil {
 		if errors.Is(err, database.ErrNotReady) {
 			return nil, status.Errorf(codes.FailedPrecondition, "database is provisioning")

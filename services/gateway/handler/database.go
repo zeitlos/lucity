@@ -11,6 +11,7 @@ import (
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/deployer"
 	"github.com/zeitlos/lucity/pkg/packager"
+	"github.com/zeitlos/lucity/pkg/tenant"
 )
 
 // DatabaseProvisioningError indicates the database is still being provisioned
@@ -74,7 +75,11 @@ type Volume struct {
 }
 
 func (c *Client) CreateDatabase(ctx context.Context, projectID, name, version string, instances int, size string) (*Database, error) {
+	if _, err := tenant.Require(ctx); err != nil {
+		return nil, err
+	}
 	ctx = auth.OutgoingContext(ctx)
+	ctx = tenant.OutgoingContext(ctx)
 
 	if version == "" {
 		version = "16"
@@ -108,7 +113,11 @@ func (c *Client) CreateDatabase(ctx context.Context, projectID, name, version st
 }
 
 func (c *Client) DeleteDatabase(ctx context.Context, projectID, name string) (bool, error) {
+	if _, err := tenant.Require(ctx); err != nil {
+		return false, err
+	}
 	ctx = auth.OutgoingContext(ctx)
+	ctx = tenant.OutgoingContext(ctx)
 
 	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
 	defer cancel()
@@ -131,7 +140,11 @@ func (c *Client) Databases(ctx context.Context, projectID string) ([]Database, e
 }
 
 func (c *Client) DatabaseTables(ctx context.Context, projectID, environment, database string) ([]DatabaseTable, error) {
+	if _, err := tenant.Require(ctx); err != nil {
+		return nil, err
+	}
 	ctx = auth.OutgoingContext(ctx)
+	ctx = tenant.OutgoingContext(ctx)
 
 	callCtx, cancel := context.WithTimeout(ctx, dbQueryTimeout)
 	defer cancel()
@@ -168,7 +181,11 @@ func (c *Client) DatabaseTables(ctx context.Context, projectID, environment, dat
 }
 
 func (c *Client) DatabaseTableData(ctx context.Context, projectID, environment, database, table, schema string, limit, offset int) (*DatabaseTableData, error) {
+	if _, err := tenant.Require(ctx); err != nil {
+		return nil, err
+	}
 	ctx = auth.OutgoingContext(ctx)
+	ctx = tenant.OutgoingContext(ctx)
 
 	callCtx, cancel := context.WithTimeout(ctx, dbQueryTimeout)
 	defer cancel()
@@ -196,7 +213,11 @@ func (c *Client) DatabaseTableData(ctx context.Context, projectID, environment, 
 }
 
 func (c *Client) ExecuteQuery(ctx context.Context, projectID, environment, database, query string) (*QueryResult, error) {
+	if _, err := tenant.Require(ctx); err != nil {
+		return nil, err
+	}
 	ctx = auth.OutgoingContext(ctx)
+	ctx = tenant.OutgoingContext(ctx)
 
 	callCtx, cancel := context.WithTimeout(ctx, dbQueryTimeout)
 	defer cancel()
@@ -230,7 +251,11 @@ type DatabaseCredentials struct {
 }
 
 func (c *Client) DatabaseCredentials(ctx context.Context, projectID, environment, database string) (*DatabaseCredentials, error) {
+	if _, err := tenant.Require(ctx); err != nil {
+		return nil, err
+	}
 	ctx = auth.OutgoingContext(ctx)
+	ctx = tenant.OutgoingContext(ctx)
 
 	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
 	defer cancel()

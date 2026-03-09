@@ -95,7 +95,7 @@ func testDeploy(t *testing.T) {
 
 		waitForPod(t, ns, "app.kubernetes.io/name="+testServiceName, 60*time.Second)
 
-		svc := k8sServiceName(ns, testServiceName)
+		svc := k8sServiceName(testProjectName, testServiceName)
 		cmd := portForward(t, ns, svc, 18080, testServicePort)
 		defer stopPortForward(t, cmd)
 

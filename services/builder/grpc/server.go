@@ -15,6 +15,7 @@ import (
 
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/builder"
+	"github.com/zeitlos/lucity/pkg/tenant"
 	"github.com/zeitlos/lucity/services/builder/build"
 	"github.com/zeitlos/lucity/services/builder/engine"
 )
@@ -165,7 +166,8 @@ func (s *Server) DeleteImages(ctx context.Context, req *builder.DeleteImagesRequ
 
 	slog.Info("DeleteImages called", "project", req.Project)
 
-	repos, err := s.projectRepositories(ctx, req.Project)
+	ws := tenant.FromContext(ctx)
+	repos, err := s.projectRepositories(ctx, ws, req.Project)
 	if err != nil {
 		slog.Warn("failed to discover project repositories", "project", req.Project, "error", err)
 		return &builder.DeleteImagesResponse{}, nil

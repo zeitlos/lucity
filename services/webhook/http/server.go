@@ -11,6 +11,7 @@ import (
 	"github.com/zeitlos/lucity/pkg/auth"
 	ghpkg "github.com/zeitlos/lucity/pkg/github"
 	"github.com/zeitlos/lucity/pkg/packager"
+	"github.com/zeitlos/lucity/pkg/tenant"
 	webhook "github.com/zeitlos/lucity/services/webhook"
 	"github.com/zeitlos/lucity/services/webhook/github"
 )
@@ -119,8 +120,11 @@ func (h *Handler) handlePush(event *github.Event) {
 		return
 	}
 
+	// Phase 1: hardcode workspace. Phase 2 will look up workspace by installation ID.
+	ctx = tenant.WithWorkspace(ctx, "default")
 	ctx = auth.WithToken(ctx, jwt)
 	ctx = auth.OutgoingContext(ctx)
+	ctx = tenant.OutgoingContext(ctx)
 
 	// List all projects and find services matching this repo.
 	resp, err := h.Pipeline.Packager.ListProjects(ctx, &packager.ListProjectsRequest{})

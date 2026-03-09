@@ -56,8 +56,8 @@ func testDatabase(t *testing.T) {
 		t.Logf("created database: %s", name)
 
 		// kubectl: CNPG Cluster CRD may not appear immediately
-		// Helm generates the CNPG cluster name as: {namespace}-lucity-app-pg-{dbname}
-		cnpgName := namespace("development") + "-lucity-app-pg-" + testDBName
+		// Helm generates the CNPG cluster name as: {project}-pg-{dbname} (fullnameOverride = project)
+		cnpgName := testProjectName + "-pg-" + testDBName
 		out, err := kubectlQuiet(t, "get", "cluster.postgresql.cnpg.io", cnpgName, "-n", namespace("development"))
 		if err != nil {
 			t.Logf("CNPG cluster %s not yet visible via kubectl", cnpgName)
@@ -69,7 +69,7 @@ func testDatabase(t *testing.T) {
 	t.Run("WaitForReady", func(t *testing.T) {
 		// Wait for the CNPG cluster's Ready condition, not just pod Running.
 		// Pod Running doesn't mean PostgreSQL has finished initialization with credentials.
-		cnpgClusterName := namespace("development") + "-lucity-app-pg-" + testDBName
+		cnpgClusterName := testProjectName + "-pg-" + testDBName
 		t.Logf("waiting for CNPG cluster %s to be Ready", cnpgClusterName)
 
 		deadline := time.Now().Add(60 * time.Second)
@@ -93,7 +93,7 @@ func testDatabase(t *testing.T) {
 		requireDBReady(t)
 
 		ns := namespace("development")
-		svc := ns + "-lucity-app-pg-" + testDBName + "-rw"
+		svc := testProjectName + "-pg-" + testDBName + "-rw"
 		dbPortForward = portForward(t, ns, svc, 5432, 5432)
 	})
 
@@ -458,7 +458,7 @@ func testDatabase(t *testing.T) {
 		}
 
 		// kubectl: verify CNPG cluster is gone (with some delay for cleanup)
-		cnpgName := namespace("development") + "-lucity-app-pg-" + testDBName
+		cnpgName := testProjectName + "-pg-" + testDBName
 		time.Sleep(5 * time.Second)
 		if _, err := kubectlQuiet(t, "get", "cluster.postgresql.cnpg.io", cnpgName, "-n", namespace("development")); err != nil {
 			t.Log("database deleted and CNPG cluster removed")

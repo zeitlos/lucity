@@ -3,12 +3,12 @@ package eject
 import (
 	"fmt"
 
-	"github.com/zeitlos/lucity/pkg/labels"
+	"github.com/zeitlos/lucity/services/packager/gitops"
 )
 
 // applicationYAML generates an ArgoCD Application manifest for a single environment.
-func applicationYAML(project, environment string) string {
-	appName := labels.NamespaceFor(project, environment)
+func applicationYAML(workspace, project, environment string) string {
+	appName := gitops.NamespaceFor(workspace, project, environment)
 
 	return fmt.Sprintf(`apiVersion: argoproj.io/v1alpha1
 kind: Application

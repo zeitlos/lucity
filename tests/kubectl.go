@@ -195,10 +195,9 @@ func stopPortForward(t *testing.T, cmd *exec.Cmd) {
 }
 
 // k8sServiceName returns the Kubernetes Service name for a lucity-app service.
-// The Helm chart generates: {release}-lucity-app-{serviceName}
-// where release = namespace (ArgoCD convention).
-func k8sServiceName(ns, service string) string {
-	return ns + "-lucity-app-" + service
+// With fullnameOverride = project, the Helm chart generates: {project}-{serviceName}.
+func k8sServiceName(project, service string) string {
+	return project + "-" + service
 }
 
 // waitForHTTP polls a URL until it returns a 2xx status code.
