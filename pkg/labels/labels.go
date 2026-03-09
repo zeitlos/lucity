@@ -6,13 +6,14 @@ import "fmt"
 const (
 	Prefix = "lucity.dev/"
 
-	Workspace   = Prefix + "workspace"
-	Project     = Prefix + "project"
-	Environment = Prefix + "environment"
-	Ephemeral   = Prefix + "ephemeral"
-	Service     = Prefix + "service"
-	BuiltBy     = Prefix + "built-by"
-	ManagedBy   = Prefix + "managed-by"
+	Workspace    = Prefix + "workspace"
+	Project      = Prefix + "project"
+	Environment  = Prefix + "environment"
+	Ephemeral    = Prefix + "ephemeral"
+	Service      = Prefix + "service"
+	BuiltBy      = Prefix + "built-by"
+	ManagedBy    = Prefix + "managed-by"
+	ResourceType = Prefix + "resource-type"
 )
 
 // OCI image label constants.
@@ -26,6 +27,9 @@ const (
 	BuiltByBuilder  = "lucity-builder"
 	ManagedByLucity = "lucity"
 )
+
+// Well-known namespace.
+const LucityNamespace = "lucity-system"
 
 // Selector returns a Kubernetes label selector string for the given key-value pair.
 func Selector(key, value string) string {

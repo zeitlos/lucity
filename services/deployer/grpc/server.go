@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -513,7 +514,7 @@ type kubeletStatsSummary struct {
 }
 
 type kubeletPodStats struct {
-	PodRef      kubeletPodRef       `json:"podRef"`
+	PodRef      kubeletPodRef        `json:"podRef"`
 	VolumeStats []kubeletVolumeStats `json:"volume"`
 }
 
@@ -523,9 +524,9 @@ type kubeletPodRef struct {
 }
 
 type kubeletVolumeStats struct {
-	UsedBytes     int64           `json:"usedBytes"`
-	CapacityBytes int64           `json:"capacityBytes"`
-	PVCRef        kubeletPVCRef   `json:"pvcRef"`
+	UsedBytes     int64         `json:"usedBytes"`
+	CapacityBytes int64         `json:"capacityBytes"`
+	PVCRef        kubeletPVCRef `json:"pvcRef"`
 }
 
 type kubeletPVCRef struct {
@@ -555,6 +556,60 @@ func mapStatus(status *argocd.AppStatus) (deployer.DeploymentStatus, string) {
 		}
 		return deployer.DeploymentStatus_DEPLOYMENT_STATUS_UNKNOWN, status.Health.Status
 	}
+}
+
+func (s *Server) WorkspaceMetadata(ctx context.Context, req *deployer.WorkspaceMetadataRequest) (*deployer.WorkspaceMetadataResponse, error) {
+	cmName := fmt.Sprintf("workspace-%s", req.Workspace)
+
+	cm, err := s.k8s.CoreV1().ConfigMaps(labels.LucityNamespace).Get(ctx, cmName, metav1.GetOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil, status.Errorf(codes.NotFound, "workspace %q not found", req.Workspace)
+		}
+		return nil, status.Errorf(codes.Internal, "failed to get workspace ConfigMap: %v", err)
+	}
+
+	personal, _ := strconv.ParseBool(cm.Data["personal"])
+
+	var installationID int64
+	if raw := cm.Data["github_installation_id"]; raw != "" {
+		installationID, err = strconv.ParseInt(raw, 10, 64)
+		if err != nil {
+			slog.Warn("failed to parse github_installation_id", "workspace", req.Workspace, "value", raw, "error", err)
+		}
+	}
+
+	return &deployer.WorkspaceMetadataResponse{
+		Name:                 cm.Data["name"],
+		Personal:             personal,
+		GithubInstallationId: installationID,
+	}, nil
+}
+
+func (s *Server) WorkspaceByInstallationID(ctx context.Context, req *deployer.WorkspaceByInstallationIDRequest) (*deployer.WorkspaceByInstallationIDResponse, error) {
+	selector := labels.Selector(labels.ResourceType, "workspace-metadata")
+
+	cmList, err := s.k8s.CoreV1().ConfigMaps(labels.LucityNamespace).List(ctx, metav1.ListOptions{
+		LabelSelector: selector,
+	})
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to list workspace ConfigMaps: %v", err)
+	}
+
+	targetID := strconv.FormatInt(req.InstallationId, 10)
+	for _, cm := range cmList.Items {
+		if cm.Data["github_installation_id"] == targetID {
+			ws := cm.Labels[labels.Workspace]
+			if ws == "" {
+				return nil, status.Errorf(codes.Internal, "workspace ConfigMap %q missing workspace label", cm.Name)
+			}
+			return &deployer.WorkspaceByInstallationIDResponse{
+				Workspace: ws,
+			}, nil
+		}
+	}
+
+	return nil, status.Errorf(codes.NotFound, "no workspace found for installation ID %d", req.InstallationId)
 }
 
 func (s *Server) DatabaseCredentials(ctx context.Context, req *deployer.DatabaseCredentialsRequest) (*deployer.DatabaseCredentialsResponse, error) {
