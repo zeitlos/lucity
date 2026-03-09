@@ -32,7 +32,8 @@ type contextKey struct{}
 
 // Claims represents the authenticated user's identity and roles.
 type Claims struct {
-	Subject    string
+	Subject    string // Rauthy user ID (stable identifier for API calls)
+	Name       string // Display name
 	Email      string
 	Roles      []Role
 	AvatarURL  string

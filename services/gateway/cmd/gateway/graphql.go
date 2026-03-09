@@ -34,7 +34,7 @@ type GraphQLServer struct {
 	port   string
 }
 
-func NewGraphQLServer(port string, api *handler.Client, oidcProvider *OIDCProvider, jwtSecret, dashboardURL string) *GraphQLServer {
+func NewGraphQLServer(port string, api *handler.Client, oidcProvider *OIDCProvider, jwtSecret, dashboardURL, githubAppSlug string) *GraphQLServer {
 	resolver := gatewaygraphql.Resolver{
 		API: api,
 	}
@@ -130,7 +130,7 @@ func NewGraphQLServer(port string, api *handler.Client, oidcProvider *OIDCProvid
 	})
 
 	// Auth endpoints
-	registerAuthRoutes(mux, oidcProvider, jwtSecret, dashboardURL)
+	registerAuthRoutes(mux, oidcProvider, api, jwtSecret, dashboardURL, githubAppSlug)
 
 	// REST API endpoints
 	mux.HandleFunc("/api/eject/", ejectHandler(api))

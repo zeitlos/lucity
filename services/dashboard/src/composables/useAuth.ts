@@ -52,6 +52,20 @@ export function useAuth() {
     localStorage.setItem('lucity_workspace', ws);
   }
 
+  async function refreshToken() {
+    try {
+      const res = await fetch('/auth/refresh', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      if (res.ok) {
+        await fetchUser();
+      }
+    } catch {
+      // Token refresh failed — user will need to re-login on next protected action
+    }
+  }
+
   return {
     user,
     loading,
@@ -61,5 +75,6 @@ export function useAuth() {
     logout,
     login,
     setActiveWorkspace,
+    refreshToken,
   };
 }

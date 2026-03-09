@@ -16,6 +16,7 @@ type jwtWorkspaceMembership struct {
 // jwtClaims is the JWT claims structure stored in the token.
 type jwtClaims struct {
 	jwt.RegisteredClaims
+	Name       string                   `json:"name,omitempty"`
 	Email      string                   `json:"email,omitempty"`
 	AvatarURL  string                   `json:"avatar_url"`
 	Roles      []Role                   `json:"roles"`
@@ -40,6 +41,7 @@ func NewToken(claims *Claims, secret string, expiry time.Duration) (string, erro
 			IssuedAt:  jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(now.Add(expiry)),
 		},
+		Name:       claims.Name,
 		Email:      claims.Email,
 		AvatarURL:  claims.AvatarURL,
 		Roles:      claims.Roles,
@@ -80,6 +82,7 @@ func ParseToken(tokenString, secret string) (*Claims, error) {
 
 	return &Claims{
 		Subject:    jc.Subject,
+		Name:       jc.Name,
 		Email:      jc.Email,
 		AvatarURL:  jc.AvatarURL,
 		Roles:      jc.Roles,

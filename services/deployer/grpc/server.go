@@ -612,6 +612,110 @@ func (s *Server) WorkspaceByInstallationID(ctx context.Context, req *deployer.Wo
 	return nil, status.Errorf(codes.NotFound, "no workspace found for installation ID %d", req.InstallationId)
 }
 
+func (s *Server) CreateWorkspaceMetadata(ctx context.Context, req *deployer.CreateWorkspaceMetadataRequest) (*deployer.CreateWorkspaceMetadataResponse, error) {
+	cmName := fmt.Sprintf("workspace-%s", req.Workspace)
+
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      cmName,
+			Namespace: labels.LucityNamespace,
+			Labels: map[string]string{
+				labels.ManagedBy:    labels.ManagedByLucity,
+				labels.ResourceType: "workspace-metadata",
+				labels.Workspace:    req.Workspace,
+			},
+		},
+		Data: map[string]string{
+			"name":     req.Name,
+			"personal": strconv.FormatBool(req.Personal),
+		},
+	}
+
+	_, err := s.k8s.CoreV1().ConfigMaps(labels.LucityNamespace).Create(ctx, cm, metav1.CreateOptions{})
+	if err != nil {
+		if apierrors.IsAlreadyExists(err) {
+			return &deployer.CreateWorkspaceMetadataResponse{}, nil // idempotent
+		}
+		return nil, status.Errorf(codes.Internal, "failed to create workspace ConfigMap: %v", err)
+	}
+	return &deployer.CreateWorkspaceMetadataResponse{}, nil
+}
+
+func (s *Server) UpdateWorkspaceMetadata(ctx context.Context, req *deployer.UpdateWorkspaceMetadataRequest) (*deployer.UpdateWorkspaceMetadataResponse, error) {
+	cmName := fmt.Sprintf("workspace-%s", req.Workspace)
+
+	cm, err := s.k8s.CoreV1().ConfigMaps(labels.LucityNamespace).Get(ctx, cmName, metav1.GetOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil, status.Errorf(codes.NotFound, "workspace %q not found", req.Workspace)
+		}
+		return nil, status.Errorf(codes.Internal, "failed to get workspace ConfigMap: %v", err)
+	}
+
+	if req.Name != "" {
+		cm.Data["name"] = req.Name
+	}
+	if req.GithubInstallationId > 0 {
+		cm.Data["github_installation_id"] = strconv.FormatInt(req.GithubInstallationId, 10)
+	} else if req.GithubInstallationId == 0 {
+		// Explicitly clear when set to 0 (unlink)
+		delete(cm.Data, "github_installation_id")
+	}
+
+	_, err = s.k8s.CoreV1().ConfigMaps(labels.LucityNamespace).Update(ctx, cm, metav1.UpdateOptions{})
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to update workspace ConfigMap: %v", err)
+	}
+	return &deployer.UpdateWorkspaceMetadataResponse{}, nil
+}
+
+func (s *Server) DeleteWorkspaceMetadata(ctx context.Context, req *deployer.DeleteWorkspaceMetadataRequest) (*deployer.DeleteWorkspaceMetadataResponse, error) {
+	cmName := fmt.Sprintf("workspace-%s", req.Workspace)
+
+	err := s.k8s.CoreV1().ConfigMaps(labels.LucityNamespace).Delete(ctx, cmName, metav1.DeleteOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return &deployer.DeleteWorkspaceMetadataResponse{}, nil // idempotent
+		}
+		return nil, status.Errorf(codes.Internal, "failed to delete workspace ConfigMap: %v", err)
+	}
+	return &deployer.DeleteWorkspaceMetadataResponse{}, nil
+}
+
+func (s *Server) ListWorkspaces(ctx context.Context, req *deployer.ListWorkspacesRequest) (*deployer.ListWorkspacesResponse, error) {
+	selector := labels.Selector(labels.ResourceType, "workspace-metadata")
+
+	cmList, err := s.k8s.CoreV1().ConfigMaps(labels.LucityNamespace).List(ctx, metav1.ListOptions{
+		LabelSelector: selector,
+	})
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to list workspace ConfigMaps: %v", err)
+	}
+
+	workspaces := make([]*deployer.WorkspaceInfo, 0, len(cmList.Items))
+	for _, cm := range cmList.Items {
+		ws := cm.Labels[labels.Workspace]
+		if ws == "" {
+			continue
+		}
+
+		personal, _ := strconv.ParseBool(cm.Data["personal"])
+		var installationID int64
+		if raw := cm.Data["github_installation_id"]; raw != "" {
+			installationID, _ = strconv.ParseInt(raw, 10, 64)
+		}
+
+		workspaces = append(workspaces, &deployer.WorkspaceInfo{
+			Id:                   ws,
+			Name:                 cm.Data["name"],
+			Personal:             personal,
+			GithubInstallationId: installationID,
+		})
+	}
+
+	return &deployer.ListWorkspacesResponse{Workspaces: workspaces}, nil
+}
+
 func (s *Server) DatabaseCredentials(ctx context.Context, req *deployer.DatabaseCredentialsRequest) (*deployer.DatabaseCredentialsResponse, error) {
 	creds, err := database.CredentialsFromSecret(ctx, s.k8s, tenant.FromContext(ctx), req.Project, req.Environment, req.Database)
 	if err != nil {

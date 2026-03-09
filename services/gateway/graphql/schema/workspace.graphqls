@@ -1,0 +1,50 @@
+type Workspace {
+  id: ID!
+  name: String!
+  personal: Boolean!
+  githubLinked: Boolean!
+  githubInstallUrl: String
+  members: [WorkspaceMember!]!
+}
+
+type WorkspaceMember {
+  id: ID!
+  email: String!
+  name: String
+  role: WorkspaceRole!
+}
+
+input CreateWorkspaceInput {
+  id: String!
+  name: String!
+}
+
+input UpdateWorkspaceInput {
+  name: String!
+}
+
+input InviteMemberInput {
+  email: String!
+  role: WorkspaceRole!
+}
+
+input UpdateMemberRoleInput {
+  userId: ID!
+  role: WorkspaceRole!
+}
+
+extend type Query {
+  workspace: Workspace! @hasRole(role: [USER])
+  workspaces: [Workspace!]! @hasRole(role: [USER])
+}
+
+extend type Mutation {
+  createWorkspace(input: CreateWorkspaceInput!): Workspace! @hasRole(role: [USER])
+  updateWorkspace(input: UpdateWorkspaceInput!): Workspace! @hasRole(role: [USER])
+  deleteWorkspace: Boolean! @hasRole(role: [USER])
+  inviteMember(input: InviteMemberInput!): WorkspaceMember! @hasRole(role: [USER])
+  removeMember(userId: ID!): Boolean! @hasRole(role: [USER])
+  updateMemberRole(input: UpdateMemberRoleInput!): WorkspaceMember! @hasRole(role: [USER])
+  linkGithubInstallation(installationId: ID!): Workspace! @hasRole(role: [USER])
+  unlinkGithubInstallation: Workspace! @hasRole(role: [USER])
+}

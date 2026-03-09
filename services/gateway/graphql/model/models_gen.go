@@ -58,6 +58,11 @@ type CreateProjectInput struct {
 	Name string `json:"name"`
 }
 
+type CreateWorkspaceInput struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
 type Database struct {
 	Name      string `json:"name"`
 	Version   string `json:"version"`
@@ -219,6 +224,11 @@ type GitHubRepository struct {
 	Private       bool   `json:"private"`
 }
 
+type InviteMemberInput struct {
+	Email string        `json:"email"`
+	Role  WorkspaceRole `json:"role"`
+}
+
 type Mutation struct {
 }
 
@@ -328,6 +338,15 @@ type ServiceVariableInput struct {
 type Subscription struct {
 }
 
+type UpdateMemberRoleInput struct {
+	UserID string        `json:"userId"`
+	Role   WorkspaceRole `json:"role"`
+}
+
+type UpdateWorkspaceInput struct {
+	Name string `json:"name"`
+}
+
 type User struct {
 	Name       *string               `json:"name,omitempty"`
 	Email      *string               `json:"email,omitempty"`
@@ -351,6 +370,22 @@ type Volume struct {
 	RequestedSize string `json:"requestedSize"`
 	UsedBytes     int    `json:"usedBytes"`
 	CapacityBytes int    `json:"capacityBytes"`
+}
+
+type Workspace struct {
+	ID               string            `json:"id"`
+	Name             string            `json:"name"`
+	Personal         bool              `json:"personal"`
+	GithubLinked     bool              `json:"githubLinked"`
+	GithubInstallURL *string           `json:"githubInstallUrl,omitempty"`
+	Members          []WorkspaceMember `json:"members"`
+}
+
+type WorkspaceMember struct {
+	ID    string        `json:"id"`
+	Email string        `json:"email"`
+	Name  *string       `json:"name,omitempty"`
+	Role  WorkspaceRole `json:"role"`
 }
 
 type WorkspaceMembership struct {

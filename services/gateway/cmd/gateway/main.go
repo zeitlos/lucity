@@ -15,6 +15,7 @@ import (
 	"github.com/zeitlos/lucity/pkg/logger"
 	"github.com/zeitlos/lucity/pkg/packager"
 	"github.com/zeitlos/lucity/services/gateway/handler"
+	"github.com/zeitlos/lucity/services/gateway/rauthy"
 )
 
 type Config struct {
@@ -46,6 +47,13 @@ type Config struct {
 	// Domains
 	WorkloadDomain string `envconfig:"WORKLOAD_DOMAIN" default:"lucity.local"`
 	DomainTarget   string `envconfig:"DOMAIN_TARGET"` // CNAME target for custom domains (e.g., lb.lucity.app)
+
+	// Rauthy admin API (for workspace/member management)
+	RauthyAPIURL string `envconfig:"RAUTHY_API_URL"` // e.g. "https://id.lucity.cloud/auth/v1"
+	RauthyAPIKey string `envconfig:"RAUTHY_API_KEY"`
+
+	// GitHub App (for workspace installation linking)
+	GitHubAppSlug string `envconfig:"GITHUB_APP_SLUG"` // e.g. "lucity-dev"
 }
 
 func main() {
@@ -126,8 +134,17 @@ func main() {
 		domainTarget = "lb." + config.WorkloadDomain
 	}
 
-	api := handler.New(packagerClient, builderClient, deployerClient, githubApp, config.RegistryURL, registryImagePrefix, config.WorkloadDomain, domainTarget)
-	graphqlServer := NewGraphQLServer(config.Port, api, oidcProvider, config.JWTSecret, config.DashboardURL)
+	// Initialize Rauthy client for workspace/member management (optional)
+	var rauthyClient *rauthy.Client
+	if config.RauthyAPIURL != "" && config.RauthyAPIKey != "" {
+		rauthyClient = rauthy.New(config.RauthyAPIURL, config.RauthyAPIKey)
+		slog.Info("rauthy admin API configured", "url", config.RauthyAPIURL)
+	} else {
+		slog.Info("rauthy admin API not configured — workspace management disabled")
+	}
+
+	api := handler.New(packagerClient, builderClient, deployerClient, githubApp, rauthyClient, config.RegistryURL, registryImagePrefix, config.WorkloadDomain, domainTarget, config.GitHubAppSlug)
+	graphqlServer := NewGraphQLServer(config.Port, api, oidcProvider, config.JWTSecret, config.DashboardURL, config.GitHubAppSlug)
 
 	graceful.Serve(ctx, graphqlServer)
 }

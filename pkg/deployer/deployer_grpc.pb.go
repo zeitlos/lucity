@@ -32,6 +32,10 @@ const (
 	DeployerService_DatabaseCredentials_FullMethodName       = "/deployer.DeployerService/DatabaseCredentials"
 	DeployerService_WorkspaceMetadata_FullMethodName         = "/deployer.DeployerService/WorkspaceMetadata"
 	DeployerService_WorkspaceByInstallationID_FullMethodName = "/deployer.DeployerService/WorkspaceByInstallationID"
+	DeployerService_CreateWorkspaceMetadata_FullMethodName   = "/deployer.DeployerService/CreateWorkspaceMetadata"
+	DeployerService_UpdateWorkspaceMetadata_FullMethodName   = "/deployer.DeployerService/UpdateWorkspaceMetadata"
+	DeployerService_DeleteWorkspaceMetadata_FullMethodName   = "/deployer.DeployerService/DeleteWorkspaceMetadata"
+	DeployerService_ListWorkspaces_FullMethodName            = "/deployer.DeployerService/ListWorkspaces"
 )
 
 // DeployerServiceClient is the client API for DeployerService service.
@@ -64,6 +68,14 @@ type DeployerServiceClient interface {
 	WorkspaceMetadata(ctx context.Context, in *WorkspaceMetadataRequest, opts ...grpc.CallOption) (*WorkspaceMetadataResponse, error)
 	// WorkspaceByInstallationID finds a workspace by its GitHub App installation ID.
 	WorkspaceByInstallationID(ctx context.Context, in *WorkspaceByInstallationIDRequest, opts ...grpc.CallOption) (*WorkspaceByInstallationIDResponse, error)
+	// CreateWorkspaceMetadata creates a workspace ConfigMap in lucity-system.
+	CreateWorkspaceMetadata(ctx context.Context, in *CreateWorkspaceMetadataRequest, opts ...grpc.CallOption) (*CreateWorkspaceMetadataResponse, error)
+	// UpdateWorkspaceMetadata updates a workspace ConfigMap.
+	UpdateWorkspaceMetadata(ctx context.Context, in *UpdateWorkspaceMetadataRequest, opts ...grpc.CallOption) (*UpdateWorkspaceMetadataResponse, error)
+	// DeleteWorkspaceMetadata deletes a workspace ConfigMap.
+	DeleteWorkspaceMetadata(ctx context.Context, in *DeleteWorkspaceMetadataRequest, opts ...grpc.CallOption) (*DeleteWorkspaceMetadataResponse, error)
+	// ListWorkspaces lists all workspace ConfigMaps.
+	ListWorkspaces(ctx context.Context, in *ListWorkspacesRequest, opts ...grpc.CallOption) (*ListWorkspacesResponse, error)
 }
 
 type deployerServiceClient struct {
@@ -213,6 +225,46 @@ func (c *deployerServiceClient) WorkspaceByInstallationID(ctx context.Context, i
 	return out, nil
 }
 
+func (c *deployerServiceClient) CreateWorkspaceMetadata(ctx context.Context, in *CreateWorkspaceMetadataRequest, opts ...grpc.CallOption) (*CreateWorkspaceMetadataResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreateWorkspaceMetadataResponse)
+	err := c.cc.Invoke(ctx, DeployerService_CreateWorkspaceMetadata_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *deployerServiceClient) UpdateWorkspaceMetadata(ctx context.Context, in *UpdateWorkspaceMetadataRequest, opts ...grpc.CallOption) (*UpdateWorkspaceMetadataResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateWorkspaceMetadataResponse)
+	err := c.cc.Invoke(ctx, DeployerService_UpdateWorkspaceMetadata_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *deployerServiceClient) DeleteWorkspaceMetadata(ctx context.Context, in *DeleteWorkspaceMetadataRequest, opts ...grpc.CallOption) (*DeleteWorkspaceMetadataResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeleteWorkspaceMetadataResponse)
+	err := c.cc.Invoke(ctx, DeployerService_DeleteWorkspaceMetadata_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *deployerServiceClient) ListWorkspaces(ctx context.Context, in *ListWorkspacesRequest, opts ...grpc.CallOption) (*ListWorkspacesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListWorkspacesResponse)
+	err := c.cc.Invoke(ctx, DeployerService_ListWorkspaces_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DeployerServiceServer is the server API for DeployerService service.
 // All implementations must embed UnimplementedDeployerServiceServer
 // for forward compatibility.
@@ -243,6 +295,14 @@ type DeployerServiceServer interface {
 	WorkspaceMetadata(context.Context, *WorkspaceMetadataRequest) (*WorkspaceMetadataResponse, error)
 	// WorkspaceByInstallationID finds a workspace by its GitHub App installation ID.
 	WorkspaceByInstallationID(context.Context, *WorkspaceByInstallationIDRequest) (*WorkspaceByInstallationIDResponse, error)
+	// CreateWorkspaceMetadata creates a workspace ConfigMap in lucity-system.
+	CreateWorkspaceMetadata(context.Context, *CreateWorkspaceMetadataRequest) (*CreateWorkspaceMetadataResponse, error)
+	// UpdateWorkspaceMetadata updates a workspace ConfigMap.
+	UpdateWorkspaceMetadata(context.Context, *UpdateWorkspaceMetadataRequest) (*UpdateWorkspaceMetadataResponse, error)
+	// DeleteWorkspaceMetadata deletes a workspace ConfigMap.
+	DeleteWorkspaceMetadata(context.Context, *DeleteWorkspaceMetadataRequest) (*DeleteWorkspaceMetadataResponse, error)
+	// ListWorkspaces lists all workspace ConfigMaps.
+	ListWorkspaces(context.Context, *ListWorkspacesRequest) (*ListWorkspacesResponse, error)
 	mustEmbedUnimplementedDeployerServiceServer()
 }
 
@@ -291,6 +351,18 @@ func (UnimplementedDeployerServiceServer) WorkspaceMetadata(context.Context, *Wo
 }
 func (UnimplementedDeployerServiceServer) WorkspaceByInstallationID(context.Context, *WorkspaceByInstallationIDRequest) (*WorkspaceByInstallationIDResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method WorkspaceByInstallationID not implemented")
+}
+func (UnimplementedDeployerServiceServer) CreateWorkspaceMetadata(context.Context, *CreateWorkspaceMetadataRequest) (*CreateWorkspaceMetadataResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateWorkspaceMetadata not implemented")
+}
+func (UnimplementedDeployerServiceServer) UpdateWorkspaceMetadata(context.Context, *UpdateWorkspaceMetadataRequest) (*UpdateWorkspaceMetadataResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateWorkspaceMetadata not implemented")
+}
+func (UnimplementedDeployerServiceServer) DeleteWorkspaceMetadata(context.Context, *DeleteWorkspaceMetadataRequest) (*DeleteWorkspaceMetadataResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteWorkspaceMetadata not implemented")
+}
+func (UnimplementedDeployerServiceServer) ListWorkspaces(context.Context, *ListWorkspacesRequest) (*ListWorkspacesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListWorkspaces not implemented")
 }
 func (UnimplementedDeployerServiceServer) mustEmbedUnimplementedDeployerServiceServer() {}
 func (UnimplementedDeployerServiceServer) testEmbeddedByValue()                         {}
@@ -540,6 +612,78 @@ func _DeployerService_WorkspaceByInstallationID_Handler(srv interface{}, ctx con
 	return interceptor(ctx, in, info, handler)
 }
 
+func _DeployerService_CreateWorkspaceMetadata_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateWorkspaceMetadataRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DeployerServiceServer).CreateWorkspaceMetadata(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DeployerService_CreateWorkspaceMetadata_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DeployerServiceServer).CreateWorkspaceMetadata(ctx, req.(*CreateWorkspaceMetadataRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DeployerService_UpdateWorkspaceMetadata_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateWorkspaceMetadataRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DeployerServiceServer).UpdateWorkspaceMetadata(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DeployerService_UpdateWorkspaceMetadata_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DeployerServiceServer).UpdateWorkspaceMetadata(ctx, req.(*UpdateWorkspaceMetadataRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DeployerService_DeleteWorkspaceMetadata_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteWorkspaceMetadataRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DeployerServiceServer).DeleteWorkspaceMetadata(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DeployerService_DeleteWorkspaceMetadata_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DeployerServiceServer).DeleteWorkspaceMetadata(ctx, req.(*DeleteWorkspaceMetadataRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DeployerService_ListWorkspaces_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListWorkspacesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DeployerServiceServer).ListWorkspaces(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DeployerService_ListWorkspaces_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DeployerServiceServer).ListWorkspaces(ctx, req.(*ListWorkspacesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // DeployerService_ServiceDesc is the grpc.ServiceDesc for DeployerService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -594,6 +738,22 @@ var DeployerService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "WorkspaceByInstallationID",
 			Handler:    _DeployerService_WorkspaceByInstallationID_Handler,
+		},
+		{
+			MethodName: "CreateWorkspaceMetadata",
+			Handler:    _DeployerService_CreateWorkspaceMetadata_Handler,
+		},
+		{
+			MethodName: "UpdateWorkspaceMetadata",
+			Handler:    _DeployerService_UpdateWorkspaceMetadata_Handler,
+		},
+		{
+			MethodName: "DeleteWorkspaceMetadata",
+			Handler:    _DeployerService_DeleteWorkspaceMetadata_Handler,
+		},
+		{
+			MethodName: "ListWorkspaces",
+			Handler:    _DeployerService_ListWorkspaces_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

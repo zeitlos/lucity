@@ -7,6 +7,7 @@ import BaseLogo from '@/components/BaseLogo.vue';
 import ProjectBreadcrumb from '@/components/ProjectBreadcrumb.vue';
 import ThemeToggle from '@/components/ThemeToggle.vue';
 import ProjectEjectDialog from '@/components/ProjectEjectDialog.vue';
+import WorkspaceSwitcher from '@/components/WorkspaceSwitcher.vue';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -43,13 +44,9 @@ async function handleLogout() {
           <BaseLogo :size="24" variant="mark" />
         </RouterLink>
 
-        <!-- User avatar next to logo (non-clickable, like Railway) -->
         <template v-if="user">
           <div class="h-4 w-px bg-border" />
-          <Avatar class="h-6 w-6">
-            <AvatarImage :src="user.avatarUrl" :alt="user.name || user.email || ''" />
-            <AvatarFallback class="text-[10px]">{{ (user.name || user.email || '?').charAt(0).toUpperCase() }}</AvatarFallback>
-          </Avatar>
+          <WorkspaceSwitcher />
         </template>
 
         <ProjectBreadcrumb
@@ -98,6 +95,11 @@ async function handleLogout() {
               <p class="text-sm font-medium">{{ user.name || user.email }}</p>
               <p class="text-xs text-muted-foreground">{{ user.email }}</p>
             </div>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem @select="router.push({ name: 'workspace-settings' })">
+              <Settings :size="14" class="mr-2" />
+              Workspace settings
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem @select="handleLogout">
               <LogOut :size="14" class="mr-2" />
