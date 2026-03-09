@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -43,8 +44,15 @@ func CredentialsFromSecret(ctx context.Context, k8s kubernetes.Interface, projec
 		return nil, fmt.Errorf("failed to get CNPG secret %q in namespace %q: %w", secretName, namespace, err)
 	}
 
+	// CNPG stores the short service name (e.g. "myns-lucity-app-pg-main-rw").
+	// Qualify with namespace for cross-namespace DNS resolution.
+	host := string(secret.Data["host"])
+	if !strings.Contains(host, ".") {
+		host = host + "." + namespace + ".svc.cluster.local"
+	}
+
 	return &Credentials{
-		Host:     string(secret.Data["host"]),
+		Host:     host,
 		Port:     string(secret.Data["port"]),
 		DBName:   string(secret.Data["dbname"]),
 		User:     string(secret.Data["user"]),
@@ -71,8 +79,11 @@ func Connect(ctx context.Context, creds *Credentials) (*pgx.Conn, error) {
 	conn, err := pgx.Connect(ctx, dsn)
 	if err != nil {
 		if host == "localhost" {
-			return nil, fmt.Errorf("database unreachable (port-forward not running? try: kubectl port-forward svc/%s %s:%s): %w",
-				creds.Host, creds.Port, creds.Port, err)
+			slog.Debug("database unreachable via localhost, port-forward may not be running",
+				"originalHost", creds.Host,
+				"hint", fmt.Sprintf("kubectl port-forward svc/%s %s:%s", creds.Host, creds.Port, creds.Port),
+				"error", err,
+			)
 		}
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}

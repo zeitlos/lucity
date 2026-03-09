@@ -316,7 +316,8 @@ func (s *Server) DatabaseTables(ctx context.Context, req *deployer.DatabaseTable
 
 	conn, err := database.Connect(queryCtx, creds)
 	if err != nil {
-		return nil, status.Errorf(codes.Unavailable, "failed to connect to database: %v", err)
+		slog.Error("failed to connect to database", "project", req.Project, "environment", req.Environment, "database", req.Database, "error", err)
+		return nil, status.Errorf(codes.Unavailable, "database connection failed")
 	}
 	defer conn.Close(queryCtx)
 
@@ -342,7 +343,8 @@ func (s *Server) DatabaseTableData(ctx context.Context, req *deployer.DatabaseTa
 
 	conn, err := database.Connect(queryCtx, creds)
 	if err != nil {
-		return nil, status.Errorf(codes.Unavailable, "failed to connect to database: %v", err)
+		slog.Error("failed to connect to database", "project", req.Project, "environment", req.Environment, "database", req.Database, "error", err)
+		return nil, status.Errorf(codes.Unavailable, "database connection failed")
 	}
 	defer conn.Close(queryCtx)
 
@@ -372,7 +374,8 @@ func (s *Server) DatabaseQuery(ctx context.Context, req *deployer.DatabaseQueryR
 
 	conn, err := database.Connect(queryCtx, creds)
 	if err != nil {
-		return nil, status.Errorf(codes.Unavailable, "failed to connect to database: %v", err)
+		slog.Error("failed to connect to database", "project", req.Project, "environment", req.Environment, "database", req.Database, "error", err)
+		return nil, status.Errorf(codes.Unavailable, "database connection failed")
 	}
 	defer conn.Close(queryCtx)
 
