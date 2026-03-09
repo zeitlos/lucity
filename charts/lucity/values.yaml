@@ -121,6 +121,26 @@ webhook:
       cpu: 500m
       memory: 256Mi
 
+# -- Cashier (Stripe billing)
+cashier:
+  enabled: false
+  replicaCount: 1
+  image:
+    repository: ghcr.io/zeitlos/lucity/cashier
+    tag: ""
+    pullPolicy: IfNotPresent
+  port: 9005
+  webhookPort: 9006
+  env: {}
+  envSecret: {}
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
 # -- Dashboard (Vue SPA)
 dashboard:
   replicaCount: 1

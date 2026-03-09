@@ -1,0 +1,55 @@
+{{- if .Values.cashier.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "lucity.fullname" . }}-cashier
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+    app.kubernetes.io/component: cashier
+spec:
+  replicas: {{ .Values.cashier.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "lucity.selectorLabels" (dict "name" "cashier" "release" .Release.Name) | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/secrets: {{ include (print $.Template.BasePath "/secrets.yaml") . | sha256sum }}
+      labels:
+        {{- include "lucity.labels" . | nindent 8 }}
+        {{- include "lucity.selectorLabels" (dict "name" "cashier" "release" .Release.Name) | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: cashier
+          image: "{{ .Values.cashier.image.repository }}:{{ .Values.cashier.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.cashier.image.pullPolicy }}
+          ports:
+            - name: grpc
+              containerPort: {{ .Values.cashier.port }}
+              protocol: TCP
+            - name: http
+              containerPort: {{ .Values.cashier.webhookPort }}
+              protocol: TCP
+          env:
+            - name: PORT
+              value: {{ .Values.cashier.port | quote }}
+            - name: WEBHOOK_PORT
+              value: {{ .Values.cashier.webhookPort | quote }}
+            {{- range $key, $value := .Values.cashier.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+            {{- range $key, $value := .Values.cashier.envSecret }}
+            - name: {{ $key }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "lucity.fullname" $ }}
+                  key: {{ $value }}
+            {{- end }}
+          resources:
+            {{- toYaml .Values.cashier.resources | nindent 12 }}
+{{- end }}

@@ -1,4 +1,4 @@
-.PHONY: build proto dev dev-gateway dev-builder dev-packager dev-deployer dev-webhook dev-dashboard dev-docs dev-logs dev-stop generate-graphql lint test-integration test-integration-short test-watch minikube dns infra infra-down infra-forward infra-forward-stop argocd-password infra-tokens argocd-token softserve-token db-forward deploy-prod deploy-prod-infra
+.PHONY: build proto dev dev-gateway dev-builder dev-packager dev-deployer dev-cashier dev-webhook dev-dashboard dev-docs dev-logs dev-stop generate-graphql lint test-integration test-integration-short test-watch minikube dns infra infra-down infra-forward infra-forward-stop argocd-password infra-tokens argocd-token softserve-token db-forward deploy-prod deploy-prod-infra
 
 # Build all Go services
 build:
@@ -7,6 +7,7 @@ build:
 	go build ./services/packager/cmd/packager/...
 	go build ./services/deployer/cmd/deployer/...
 	go build ./services/webhook/cmd/webhook/...
+	go build ./services/cashier/cmd/cashier/...
 
 # Generate protobuf code (requires protoc, protoc-gen-go, protoc-gen-go-grpc)
 proto:
@@ -30,7 +31,7 @@ dev-logs-%:
 
 # Stop all dev services
 dev-stop:
-	@for port in 8080 9001 9002 9003 9004 5173; do \
+	@for port in 8080 9001 9002 9003 9004 9005 9006 5173; do \
 		lsof -ti :$$port -sTCP:LISTEN | xargs kill 2>/dev/null || true; \
 	done
 	@echo "All services stopped."
@@ -50,6 +51,9 @@ dev-deployer:
 
 dev-webhook:
 	cd services/webhook && set -a && . .env 2>/dev/null && set +a && go run ./cmd/webhook/...
+
+dev-cashier:
+	cd services/cashier && set -a && . .env 2>/dev/null && set +a && go run ./cmd/cashier/...
 
 dev-dashboard:
 	cd services/dashboard && npm run dev

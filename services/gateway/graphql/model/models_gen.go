@@ -26,6 +26,17 @@ type AddServiceInput struct {
 	ContextPath *string `json:"contextPath,omitempty"`
 }
 
+type BillingPortalURL struct {
+	URL string `json:"url"`
+}
+
+type BillingSubscription struct {
+	Plan              Plan               `json:"plan"`
+	Status            SubscriptionStatus `json:"status"`
+	CurrentPeriodEnd  time.Time          `json:"currentPeriodEnd"`
+	CreditAmountCents int                `json:"creditAmountCents"`
+}
+
 type Build struct {
 	ID       string     `json:"id"`
 	Phase    BuildPhase `json:"phase"`
@@ -367,6 +378,12 @@ type UpdateWorkspaceInput struct {
 	Name string `json:"name"`
 }
 
+type UsageSummary struct {
+	ResourceCostCents   int `json:"resourceCostCents"`
+	CreditsCents        int `json:"creditsCents"`
+	EstimatedTotalCents int `json:"estimatedTotalCents"`
+}
+
 type User struct {
 	Name       *string               `json:"name,omitempty"`
 	Email      *string               `json:"email,omitempty"`
@@ -655,6 +672,61 @@ func (e DomainType) MarshalJSON() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+type Plan string
+
+const (
+	PlanHobby Plan = "HOBBY"
+	PlanPro   Plan = "PRO"
+)
+
+var AllPlan = []Plan{
+	PlanHobby,
+	PlanPro,
+}
+
+func (e Plan) IsValid() bool {
+	switch e {
+	case PlanHobby, PlanPro:
+		return true
+	}
+	return false
+}
+
+func (e Plan) String() string {
+	return string(e)
+}
+
+func (e *Plan) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = Plan(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid Plan", str)
+	}
+	return nil
+}
+
+func (e Plan) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *Plan) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e Plan) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
 type ResourceTier string
 
 const (
@@ -762,6 +834,67 @@ func (e *Role) UnmarshalJSON(b []byte) error {
 }
 
 func (e Role) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type SubscriptionStatus string
+
+const (
+	SubscriptionStatusActive     SubscriptionStatus = "ACTIVE"
+	SubscriptionStatusPastDue    SubscriptionStatus = "PAST_DUE"
+	SubscriptionStatusCanceled   SubscriptionStatus = "CANCELED"
+	SubscriptionStatusIncomplete SubscriptionStatus = "INCOMPLETE"
+	SubscriptionStatusTrialing   SubscriptionStatus = "TRIALING"
+)
+
+var AllSubscriptionStatus = []SubscriptionStatus{
+	SubscriptionStatusActive,
+	SubscriptionStatusPastDue,
+	SubscriptionStatusCanceled,
+	SubscriptionStatusIncomplete,
+	SubscriptionStatusTrialing,
+}
+
+func (e SubscriptionStatus) IsValid() bool {
+	switch e {
+	case SubscriptionStatusActive, SubscriptionStatusPastDue, SubscriptionStatusCanceled, SubscriptionStatusIncomplete, SubscriptionStatusTrialing:
+		return true
+	}
+	return false
+}
+
+func (e SubscriptionStatus) String() string {
+	return string(e)
+}
+
+func (e *SubscriptionStatus) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = SubscriptionStatus(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid SubscriptionStatus", str)
+	}
+	return nil
+}
+
+func (e SubscriptionStatus) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *SubscriptionStatus) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e SubscriptionStatus) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

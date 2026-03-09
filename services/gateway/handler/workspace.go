@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/zeitlos/lucity/pkg/auth"
+	"github.com/zeitlos/lucity/pkg/cashier"
 	"github.com/zeitlos/lucity/pkg/deployer"
 	"github.com/zeitlos/lucity/pkg/packager"
 	"github.com/zeitlos/lucity/pkg/tenant"
@@ -251,6 +252,9 @@ func (c *Client) CreateWorkspace(ctx context.Context, id, name string) (*Workspa
 	}
 
 	slog.Info("workspace created", "id", id, "name", name, "creator", claims.Email)
+
+	// Best-effort: set up Stripe customer + subscription
+	c.setupBilling(ctx, id, name, claims.Email)
 
 	return &Workspace{
 		ID:   id,
@@ -615,6 +619,10 @@ func (c *Client) EnsurePersonalWorkspace(ctx context.Context, rauthyUserID, gith
 	}
 
 	slog.Info("personal workspace created", "id", wsID, "user", rauthyUserID)
+
+	// Best-effort: set up Stripe customer + subscription
+	c.setupBilling(ctx, wsID, githubLogin, user.Email)
+
 	return wsID, nil
 }
 
@@ -648,6 +656,42 @@ func (c *Client) LinkGitHubInstallationDirect(ctx context.Context, workspace str
 		Personal:             resp.Personal,
 		GithubInstallationID: resp.GithubInstallationId,
 	}, nil
+}
+
+// setupBilling creates a Stripe customer and subscription for a new workspace.
+// Best-effort — logs warnings on failure but never returns errors.
+func (c *Client) setupBilling(ctx context.Context, workspace, name, email string) {
+	if c.Cashier == nil {
+		return
+	}
+
+	outCtx := auth.OutgoingContext(ctx)
+
+	custCtx, custCancel := context.WithTimeout(outCtx, grpcTimeout)
+	defer custCancel()
+	custResp, err := c.Cashier.CreateCustomer(custCtx, &cashier.CreateCustomerRequest{
+		Workspace: workspace,
+		Name:      name,
+		Email:     email,
+	})
+	if err != nil {
+		slog.Warn("failed to create Stripe customer for workspace", "workspace", workspace, "error", err)
+		return
+	}
+
+	subCtx, subCancel := context.WithTimeout(outCtx, grpcTimeout)
+	defer subCancel()
+	_, err = c.Cashier.CreateSubscription(subCtx, &cashier.CreateSubscriptionRequest{
+		Workspace:  workspace,
+		CustomerId: custResp.CustomerId,
+		Plan:       cashier.Plan_PLAN_HOBBY,
+	})
+	if err != nil {
+		slog.Warn("failed to create Stripe subscription for workspace", "workspace", workspace, "error", err)
+		return
+	}
+
+	slog.Info("billing setup complete", "workspace", workspace)
 }
 
 // requireWorkspaceAdmin checks that the current user is an admin of the given workspace.

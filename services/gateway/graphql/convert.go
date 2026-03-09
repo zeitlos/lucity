@@ -298,6 +298,15 @@ func convertEnvironmentResources(r handler.EnvironmentResources) model.Environme
 	}
 }
 
+func convertBillingSubscription(s *handler.BillingSubscription) *model.BillingSubscription {
+	return &model.BillingSubscription{
+		Plan:              model.Plan(s.Plan),
+		Status:            model.SubscriptionStatus(s.Status),
+		CurrentPeriodEnd:  s.CurrentPeriodEnd,
+		CreditAmountCents: s.CreditAmountCents,
+	}
+}
+
 func convertDatabase(d handler.Database) model.Database {
 	return model.Database{
 		Name:      d.Name,

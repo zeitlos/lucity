@@ -243,6 +243,8 @@ message WorkspaceMetadataResponse {
   string name = 1;
   bool personal = 2;
   int64 github_installation_id = 3;
+  string stripe_customer_id = 4;
+  string stripe_subscription_id = 5;
 }
 
 message WorkspaceByInstallationIDRequest {
@@ -265,6 +267,8 @@ message UpdateWorkspaceMetadataRequest {
   string workspace = 1;
   string name = 2;
   int64 github_installation_id = 3;
+  string stripe_customer_id = 4;
+  string stripe_subscription_id = 5;
 }
 
 message UpdateWorkspaceMetadataResponse {}

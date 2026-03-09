@@ -2,6 +2,7 @@ package handler
 
 import (
 	"github.com/zeitlos/lucity/pkg/builder"
+	"github.com/zeitlos/lucity/pkg/cashier"
 	"github.com/zeitlos/lucity/pkg/deployer"
 	ghpkg "github.com/zeitlos/lucity/pkg/github"
 	"github.com/zeitlos/lucity/pkg/packager"
@@ -14,7 +15,8 @@ type Client struct {
 	Packager            packager.PackagerServiceClient
 	Builder             builder.BuilderServiceClient
 	Deployer            deployer.DeployerServiceClient
-	GitHubApp           *ghpkg.App // for minting installation tokens (repo access)
+	Cashier             cashier.CashierServiceClient // nil if billing disabled
+	GitHubApp           *ghpkg.App                   // for minting installation tokens (repo access)
 	Rauthy              *rauthy.Client
 	DeployTracker       *deploy.Tracker
 	RegistryPushURL     string // for builder push, e.g. "localhost:5000"
@@ -24,11 +26,12 @@ type Client struct {
 	GitHubAppSlug       string // GitHub App slug for installation URL generation
 }
 
-func New(packagerClient packager.PackagerServiceClient, builderClient builder.BuilderServiceClient, deployerClient deployer.DeployerServiceClient, githubApp *ghpkg.App, rauthyClient *rauthy.Client, registryPushURL, registryImagePrefix, workloadDomain, domainTarget, githubAppSlug string) *Client {
+func New(packagerClient packager.PackagerServiceClient, builderClient builder.BuilderServiceClient, deployerClient deployer.DeployerServiceClient, cashierClient cashier.CashierServiceClient, githubApp *ghpkg.App, rauthyClient *rauthy.Client, registryPushURL, registryImagePrefix, workloadDomain, domainTarget, githubAppSlug string) *Client {
 	return &Client{
 		Packager:            packagerClient,
 		Builder:             builderClient,
 		Deployer:            deployerClient,
+		Cashier:             cashierClient,
 		GitHubApp:           githubApp,
 		Rauthy:              rauthyClient,
 		DeployTracker:       deploy.NewTracker(),

@@ -1,0 +1,102 @@
+syntax = "proto3";
+
+package cashier;
+
+option go_package = "./cashier";
+
+service CashierService {
+  // CreateCustomer creates a Stripe Customer for a workspace.
+  rpc CreateCustomer(CreateCustomerRequest) returns (CreateCustomerResponse);
+
+  // CreateSubscription creates a Stripe Subscription for a workspace.
+  rpc CreateSubscription(CreateSubscriptionRequest) returns (CreateSubscriptionResponse);
+
+  // ChangePlan switches a workspace between Hobby and Pro plans.
+  rpc ChangePlan(ChangePlanRequest) returns (ChangePlanResponse);
+
+  // Subscription returns the current subscription for a workspace.
+  rpc Subscription(SubscriptionRequest) returns (SubscriptionResponse);
+
+  // BillingPortalURL returns a Stripe Billing Portal session URL.
+  rpc BillingPortalURL(BillingPortalURLRequest) returns (BillingPortalURLResponse);
+
+  // UsageSummary returns the current billing period's usage summary.
+  rpc UsageSummary(UsageSummaryRequest) returns (UsageSummaryResponse);
+}
+
+enum Plan {
+  PLAN_UNSPECIFIED = 0;
+  PLAN_HOBBY = 1;
+  PLAN_PRO = 2;
+}
+
+enum SubscriptionStatus {
+  SUBSCRIPTION_STATUS_UNSPECIFIED = 0;
+  SUBSCRIPTION_STATUS_ACTIVE = 1;
+  SUBSCRIPTION_STATUS_PAST_DUE = 2;
+  SUBSCRIPTION_STATUS_CANCELED = 3;
+  SUBSCRIPTION_STATUS_INCOMPLETE = 4;
+  SUBSCRIPTION_STATUS_TRIALING = 5;
+}
+
+message CreateCustomerRequest {
+  string workspace = 1;
+  string name = 2;
+  string email = 3;
+}
+
+message CreateCustomerResponse {
+  string customer_id = 1;
+}
+
+message CreateSubscriptionRequest {
+  string workspace = 1;
+  string customer_id = 2;
+  Plan plan = 3;
+}
+
+message CreateSubscriptionResponse {
+  string subscription_id = 1;
+}
+
+message ChangePlanRequest {
+  string workspace = 1;
+  Plan plan = 2;
+}
+
+message ChangePlanResponse {
+  Plan plan = 1;
+  SubscriptionStatus status = 2;
+  int64 current_period_end = 3;
+  int32 credit_amount_cents = 4;
+}
+
+message SubscriptionRequest {
+  string workspace = 1;
+}
+
+message SubscriptionResponse {
+  Plan plan = 1;
+  SubscriptionStatus status = 2;
+  int64 current_period_end = 3;
+  int32 credit_amount_cents = 4;
+}
+
+message BillingPortalURLRequest {
+  string workspace = 1;
+  string return_url = 2;
+}
+
+message BillingPortalURLResponse {
+  string url = 1;
+}
+
+message UsageSummaryRequest {
+  string workspace = 1;
+}
+
+message UsageSummaryResponse {
+  int32 resource_cost_cents = 1;
+  int32 credits_cents = 2;
+  int32 estimated_total_cents = 3;
+}

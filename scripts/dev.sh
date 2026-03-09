@@ -9,7 +9,7 @@ MONITOR="$ROOT/scripts/dev-monitor.sh"
 
 SERVICES=(gateway builder packager deployer webhook)
 ALL_SERVICES=(gateway builder packager deployer webhook dashboard)
-PORTS=(8080 9001 9002 9003 9004 5173)
+PORTS=(8080 9001 9002 9003 9004 9005 9006 5173)
 
 # Colors
 GREEN=$'\033[32m'
@@ -28,7 +28,7 @@ fi
 
 # Create directories
 mkdir -p "$LOG_DIR" "$STATUS_DIR"
-mkdir -p "$ROOT/tmp/air"/{gateway,builder,packager,deployer,webhook}
+mkdir -p "$ROOT/tmp/air"/{gateway,builder,packager,deployer,webhook,cashier}
 
 # Truncate logs (fresh session)
 for svc in "${ALL_SERVICES[@]}"; do

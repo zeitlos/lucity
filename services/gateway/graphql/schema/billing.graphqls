@@ -20,10 +20,41 @@ input SetEnvironmentResourcesInput {
   diskMB: Int! @constraint(constraint: "min=0,max=102400")
 }
 
+enum Plan { HOBBY, PRO }
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  INCOMPLETE
+  TRIALING
+}
+
+type BillingSubscription {
+  plan: Plan!
+  status: SubscriptionStatus!
+  currentPeriodEnd: Time!
+  creditAmountCents: Int!
+}
+
+type UsageSummary {
+  resourceCostCents: Int!
+  creditsCents: Int!
+  estimatedTotalCents: Int!
+}
+
+type BillingPortalUrl {
+  url: String!
+}
+
 extend type Query {
   environmentResources(projectId: ID!, environment: String!): EnvironmentResources @hasRole(role: [USER])
+  subscription: BillingSubscription @hasRole(role: [USER])
+  usageSummary: UsageSummary @hasRole(role: [USER])
 }
 
 extend type Mutation {
   setEnvironmentResources(input: SetEnvironmentResourcesInput!): EnvironmentResources! @hasRole(role: [USER])
+  changePlan(plan: Plan!): BillingSubscription! @hasRole(role: [ADMIN])
+  billingPortalUrl: BillingPortalUrl! @hasRole(role: [ADMIN])
 }

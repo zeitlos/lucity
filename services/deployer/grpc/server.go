@@ -584,6 +584,8 @@ func (s *Server) WorkspaceMetadata(ctx context.Context, req *deployer.WorkspaceM
 		Name:                 cm.Data["name"],
 		Personal:             personal,
 		GithubInstallationId: installationID,
+		StripeCustomerId:     cm.Data["stripe_customer_id"],
+		StripeSubscriptionId: cm.Data["stripe_subscription_id"],
 	}, nil
 }
 
@@ -661,6 +663,12 @@ func (s *Server) UpdateWorkspaceMetadata(ctx context.Context, req *deployer.Upda
 	} else if req.GithubInstallationId == 0 {
 		// Explicitly clear when set to 0 (unlink)
 		delete(cm.Data, "github_installation_id")
+	}
+	if req.StripeCustomerId != "" {
+		cm.Data["stripe_customer_id"] = req.StripeCustomerId
+	}
+	if req.StripeSubscriptionId != "" {
+		cm.Data["stripe_subscription_id"] = req.StripeSubscriptionId
 	}
 
 	_, err = s.k8s.CoreV1().ConfigMaps(labels.LucityNamespace).Update(ctx, cm, metav1.UpdateOptions{})

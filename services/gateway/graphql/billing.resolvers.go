@@ -21,6 +21,24 @@ func (r *mutationResolver) SetEnvironmentResources(ctx context.Context, input mo
 	return &result, nil
 }
 
+// ChangePlan is the resolver for the changePlan field.
+func (r *mutationResolver) ChangePlan(ctx context.Context, plan model.Plan) (*model.BillingSubscription, error) {
+	res, err := r.API.ChangePlan(ctx, string(plan))
+	if err != nil {
+		return nil, err
+	}
+	return convertBillingSubscription(res), nil
+}
+
+// BillingPortalURL is the resolver for the billingPortalUrl field.
+func (r *mutationResolver) BillingPortalURL(ctx context.Context) (*model.BillingPortalURL, error) {
+	res, err := r.API.BillingPortalURL(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &model.BillingPortalURL{URL: res.URL}, nil
+}
+
 // EnvironmentResources is the resolver for the environmentResources field.
 func (r *queryResolver) EnvironmentResources(ctx context.Context, projectID string, environment string) (*model.EnvironmentResources, error) {
 	res, err := r.API.EnvironmentResources(ctx, projectID, environment)
@@ -29,4 +47,26 @@ func (r *queryResolver) EnvironmentResources(ctx context.Context, projectID stri
 	}
 	result := convertEnvironmentResources(*res)
 	return &result, nil
+}
+
+// Subscription is the resolver for the subscription field.
+func (r *queryResolver) Subscription(ctx context.Context) (*model.BillingSubscription, error) {
+	res, err := r.API.Subscription(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return convertBillingSubscription(res), nil
+}
+
+// UsageSummary is the resolver for the usageSummary field.
+func (r *queryResolver) UsageSummary(ctx context.Context) (*model.UsageSummary, error) {
+	res, err := r.API.UsageSummary(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &model.UsageSummary{
+		ResourceCostCents:   res.ResourceCostCents,
+		CreditsCents:        res.CreditsCents,
+		EstimatedTotalCents: res.EstimatedTotalCents,
+	}, nil
 }

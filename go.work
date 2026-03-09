@@ -4,6 +4,7 @@ use (
 	./charts
 	./pkg
 	./services/builder
+	./services/cashier
 	./services/deployer
 	./services/gateway
 	./services/packager

@@ -46,6 +46,15 @@ spec:
       backendRefs:
         - name: {{ include "lucity.fullname" . }}-dashboard
           port: 80
+    {{- if .Values.cashier.enabled }}
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /webhooks/stripe
+      backendRefs:
+        - name: {{ include "lucity.fullname" . }}-cashier
+          port: {{ .Values.cashier.webhookPort }}
+    {{- end }}
     - matches:
         - path:
             type: PathPrefix

@@ -9,6 +9,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/zeitlos/lucity/pkg/builder"
+	"github.com/zeitlos/lucity/pkg/cashier"
 	"github.com/zeitlos/lucity/pkg/deployer"
 	ghpkg "github.com/zeitlos/lucity/pkg/github"
 	"github.com/zeitlos/lucity/pkg/graceful"
@@ -47,6 +48,9 @@ type Config struct {
 	// Domains
 	WorkloadDomain string `envconfig:"WORKLOAD_DOMAIN" default:"lucity.local"`
 	DomainTarget   string `envconfig:"DOMAIN_TARGET"` // CNAME target for custom domains (e.g., lb.lucity.app)
+
+	// Billing (optional — disabled when not configured)
+	CashierAddr string `envconfig:"CASHIER_ADDR"`
 
 	// Rauthy admin API (for workspace/member management)
 	RauthyAPIURL string `envconfig:"RAUTHY_API_URL"` // e.g. "https://id.lucity.cloud/auth/v1"
@@ -134,6 +138,23 @@ func main() {
 		domainTarget = "lb." + config.WorkloadDomain
 	}
 
+	// Connect to cashier (optional — billing disabled without it)
+	var cashierClient cashier.CashierServiceClient
+	if config.CashierAddr != "" {
+		cashierConn, err := grpc.NewClient(config.CashierAddr,
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+		)
+		if err != nil {
+			slog.Error("failed to connect to cashier", "error", err, "addr", config.CashierAddr)
+			os.Exit(1)
+		}
+		defer cashierConn.Close()
+		cashierClient = cashier.NewCashierServiceClient(cashierConn)
+		slog.Info("billing enabled", "addr", config.CashierAddr)
+	} else {
+		slog.Info("cashier not configured — billing disabled")
+	}
+
 	// Initialize Rauthy client for workspace/member management (optional)
 	var rauthyClient *rauthy.Client
 	if config.RauthyAPIURL != "" && config.RauthyAPIKey != "" {
@@ -143,7 +164,7 @@ func main() {
 		slog.Info("rauthy admin API not configured — workspace management disabled")
 	}
 
-	api := handler.New(packagerClient, builderClient, deployerClient, githubApp, rauthyClient, config.RegistryURL, registryImagePrefix, config.WorkloadDomain, domainTarget, config.GitHubAppSlug)
+	api := handler.New(packagerClient, builderClient, deployerClient, cashierClient, githubApp, rauthyClient, config.RegistryURL, registryImagePrefix, config.WorkloadDomain, domainTarget, config.GitHubAppSlug)
 	graphqlServer := NewGraphQLServer(config.Port, api, oidcProvider, config.JWTSecret, config.DashboardURL, config.GitHubAppSlug)
 
 	graceful.Serve(ctx, graphqlServer)

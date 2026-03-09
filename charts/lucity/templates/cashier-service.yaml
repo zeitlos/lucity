@@ -1,0 +1,22 @@
+{{- if .Values.cashier.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "lucity.fullname" . }}-cashier
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+    app.kubernetes.io/component: cashier
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.cashier.port }}
+      targetPort: grpc
+      protocol: TCP
+      name: grpc
+    - port: {{ .Values.cashier.webhookPort }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "lucity.selectorLabels" (dict "name" "cashier" "release" .Release.Name) | nindent 4 }}
+{{- end }}

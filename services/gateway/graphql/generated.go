@@ -51,6 +51,17 @@ type DirectiveRoot struct {
 }
 
 type ComplexityRoot struct {
+	BillingPortalUrl struct {
+		URL func(childComplexity int) int
+	}
+
+	BillingSubscription struct {
+		CreditAmountCents func(childComplexity int) int
+		CurrentPeriodEnd  func(childComplexity int) int
+		Plan              func(childComplexity int) int
+		Status            func(childComplexity int) int
+	}
+
 	Build struct {
 		Digest   func(childComplexity int) int
 		Error    func(childComplexity int) int
@@ -182,7 +193,9 @@ type ComplexityRoot struct {
 	Mutation struct {
 		AddCustomDomain          func(childComplexity int, input model.AddCustomDomainInput) int
 		AddService               func(childComplexity int, input model.AddServiceInput) int
+		BillingPortalURL         func(childComplexity int) int
 		BuildService             func(childComplexity int, input model.BuildServiceInput) int
+		ChangePlan               func(childComplexity int, plan model.Plan) int
 		CreateDatabase           func(childComplexity int, input model.CreateDatabaseInput) int
 		CreateEnvironment        func(childComplexity int, input model.CreateEnvironmentInput) int
 		CreateProject            func(childComplexity int, input model.CreateProjectInput) int
@@ -245,6 +258,8 @@ type ComplexityRoot struct {
 		Service              func(childComplexity int, projectID string, name string) int
 		ServiceVariables     func(childComplexity int, projectID string, environment string, service string) int
 		SharedVariables      func(childComplexity int, projectID string, environment string) int
+		Subscription         func(childComplexity int) int
+		UsageSummary         func(childComplexity int) int
 		Workspace            func(childComplexity int) int
 		Workspaces           func(childComplexity int) int
 	}
@@ -303,6 +318,12 @@ type ComplexityRoot struct {
 		ServiceLogs func(childComplexity int, projectID string, service string, environment string, tailLines *int) int
 	}
 
+	UsageSummary struct {
+		CreditsCents        func(childComplexity int) int
+		EstimatedTotalCents func(childComplexity int) int
+		ResourceCostCents   func(childComplexity int) int
+	}
+
 	User struct {
 		AvatarURL  func(childComplexity int) int
 		Email      func(childComplexity int) int
@@ -347,6 +368,8 @@ type ComplexityRoot struct {
 
 type MutationResolver interface {
 	SetEnvironmentResources(ctx context.Context, input model.SetEnvironmentResourcesInput) (*model.EnvironmentResources, error)
+	ChangePlan(ctx context.Context, plan model.Plan) (*model.BillingSubscription, error)
+	BillingPortalURL(ctx context.Context) (*model.BillingPortalURL, error)
 	CreateDatabase(ctx context.Context, input model.CreateDatabaseInput) (*model.Database, error)
 	DeleteDatabase(ctx context.Context, projectID string, name string) (bool, error)
 	ExecuteQuery(ctx context.Context, input model.DatabaseQueryInput) (*model.QueryResult, error)
@@ -379,6 +402,8 @@ type MutationResolver interface {
 type QueryResolver interface {
 	Me(ctx context.Context) (*model.User, error)
 	EnvironmentResources(ctx context.Context, projectID string, environment string) (*model.EnvironmentResources, error)
+	Subscription(ctx context.Context) (*model.BillingSubscription, error)
+	UsageSummary(ctx context.Context) (*model.UsageSummary, error)
 	Databases(ctx context.Context, projectID string) ([]model.Database, error)
 	DatabaseTables(ctx context.Context, projectID string, environment string, database string) ([]model.DatabaseTable, error)
 	DatabaseTableData(ctx context.Context, projectID string, environment string, database string, table string, schema *string, limit *int, offset *int) (*model.DatabaseTableData, error)
@@ -421,6 +446,38 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 	ec := executionContext{nil, e, 0, 0, nil}
 	_ = ec
 	switch typeName + "." + field {
+
+	case "BillingPortalUrl.url":
+		if e.complexity.BillingPortalUrl.URL == nil {
+			break
+		}
+
+		return e.complexity.BillingPortalUrl.URL(childComplexity), true
+
+	case "BillingSubscription.creditAmountCents":
+		if e.complexity.BillingSubscription.CreditAmountCents == nil {
+			break
+		}
+
+		return e.complexity.BillingSubscription.CreditAmountCents(childComplexity), true
+	case "BillingSubscription.currentPeriodEnd":
+		if e.complexity.BillingSubscription.CurrentPeriodEnd == nil {
+			break
+		}
+
+		return e.complexity.BillingSubscription.CurrentPeriodEnd(childComplexity), true
+	case "BillingSubscription.plan":
+		if e.complexity.BillingSubscription.Plan == nil {
+			break
+		}
+
+		return e.complexity.BillingSubscription.Plan(childComplexity), true
+	case "BillingSubscription.status":
+		if e.complexity.BillingSubscription.Status == nil {
+			break
+		}
+
+		return e.complexity.BillingSubscription.Status(childComplexity), true
 
 	case "Build.digest":
 		if e.complexity.Build.Digest == nil {
@@ -940,6 +997,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.AddService(childComplexity, args["input"].(model.AddServiceInput)), true
+	case "Mutation.billingPortalUrl":
+		if e.complexity.Mutation.BillingPortalURL == nil {
+			break
+		}
+
+		return e.complexity.Mutation.BillingPortalURL(childComplexity), true
 	case "Mutation.buildService":
 		if e.complexity.Mutation.BuildService == nil {
 			break
@@ -951,6 +1014,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.BuildService(childComplexity, args["input"].(model.BuildServiceInput)), true
+	case "Mutation.changePlan":
+		if e.complexity.Mutation.ChangePlan == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_changePlan_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.ChangePlan(childComplexity, args["plan"].(model.Plan)), true
 	case "Mutation.createDatabase":
 		if e.complexity.Mutation.CreateDatabase == nil {
 			break
@@ -1462,6 +1536,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Query.SharedVariables(childComplexity, args["projectId"].(string), args["environment"].(string)), true
+	case "Query.subscription":
+		if e.complexity.Query.Subscription == nil {
+			break
+		}
+
+		return e.complexity.Query.Subscription(childComplexity), true
+	case "Query.usageSummary":
+		if e.complexity.Query.UsageSummary == nil {
+			break
+		}
+
+		return e.complexity.Query.UsageSummary(childComplexity), true
 	case "Query.workspace":
 		if e.complexity.Query.Workspace == nil {
 			break
@@ -1672,6 +1758,25 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Subscription.ServiceLogs(childComplexity, args["projectId"].(string), args["service"].(string), args["environment"].(string), args["tailLines"].(*int)), true
+
+	case "UsageSummary.creditsCents":
+		if e.complexity.UsageSummary.CreditsCents == nil {
+			break
+		}
+
+		return e.complexity.UsageSummary.CreditsCents(childComplexity), true
+	case "UsageSummary.estimatedTotalCents":
+		if e.complexity.UsageSummary.EstimatedTotalCents == nil {
+			break
+		}
+
+		return e.complexity.UsageSummary.EstimatedTotalCents(childComplexity), true
+	case "UsageSummary.resourceCostCents":
+		if e.complexity.UsageSummary.ResourceCostCents == nil {
+			break
+		}
+
+		return e.complexity.UsageSummary.ResourceCostCents(childComplexity), true
 
 	case "User.avatarUrl":
 		if e.complexity.User.AvatarURL == nil {
@@ -2041,6 +2146,17 @@ func (ec *executionContext) field_Mutation_buildService_args(ctx context.Context
 		return nil, err
 	}
 	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_changePlan_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "plan", ec.unmarshalNPlan2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐPlan)
+	if err != nil {
+		return nil, err
+	}
+	args["plan"] = arg0
 	return args, nil
 }
 
@@ -2686,6 +2802,151 @@ func (ec *executionContext) field___Type_fields_args(ctx context.Context, rawArg
 // endregion ************************** directives.gotpl **************************
 
 // region    **************************** field.gotpl *****************************
+
+func (ec *executionContext) _BillingPortalUrl_url(ctx context.Context, field graphql.CollectedField, obj *model.BillingPortalURL) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_BillingPortalUrl_url,
+		func(ctx context.Context) (any, error) {
+			return obj.URL, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_BillingPortalUrl_url(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BillingPortalUrl",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BillingSubscription_plan(ctx context.Context, field graphql.CollectedField, obj *model.BillingSubscription) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_BillingSubscription_plan,
+		func(ctx context.Context) (any, error) {
+			return obj.Plan, nil
+		},
+		nil,
+		ec.marshalNPlan2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐPlan,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_BillingSubscription_plan(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BillingSubscription",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Plan does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BillingSubscription_status(ctx context.Context, field graphql.CollectedField, obj *model.BillingSubscription) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_BillingSubscription_status,
+		func(ctx context.Context) (any, error) {
+			return obj.Status, nil
+		},
+		nil,
+		ec.marshalNSubscriptionStatus2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐSubscriptionStatus,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_BillingSubscription_status(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BillingSubscription",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type SubscriptionStatus does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BillingSubscription_currentPeriodEnd(ctx context.Context, field graphql.CollectedField, obj *model.BillingSubscription) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_BillingSubscription_currentPeriodEnd,
+		func(ctx context.Context) (any, error) {
+			return obj.CurrentPeriodEnd, nil
+		},
+		nil,
+		ec.marshalNTime2timeᚐTime,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_BillingSubscription_currentPeriodEnd(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BillingSubscription",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BillingSubscription_creditAmountCents(ctx context.Context, field graphql.CollectedField, obj *model.BillingSubscription) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_BillingSubscription_creditAmountCents,
+		func(ctx context.Context) (any, error) {
+			return obj.CreditAmountCents, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_BillingSubscription_creditAmountCents(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BillingSubscription",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
 
 func (ec *executionContext) _Build_id(ctx context.Context, field graphql.CollectedField, obj *model.Build) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
@@ -5134,6 +5395,126 @@ func (ec *executionContext) fieldContext_Mutation_setEnvironmentResources(ctx co
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_changePlan(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_changePlan,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().ChangePlan(ctx, fc.Args["plan"].(model.Plan))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"ADMIN"})
+				if err != nil {
+					var zeroVal *model.BillingSubscription
+					return zeroVal, err
+				}
+				if ec.directives.HasRole == nil {
+					var zeroVal *model.BillingSubscription
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNBillingSubscription2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐBillingSubscription,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_changePlan(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "plan":
+				return ec.fieldContext_BillingSubscription_plan(ctx, field)
+			case "status":
+				return ec.fieldContext_BillingSubscription_status(ctx, field)
+			case "currentPeriodEnd":
+				return ec.fieldContext_BillingSubscription_currentPeriodEnd(ctx, field)
+			case "creditAmountCents":
+				return ec.fieldContext_BillingSubscription_creditAmountCents(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type BillingSubscription", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_changePlan_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_billingPortalUrl(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_billingPortalUrl,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Mutation().BillingPortalURL(ctx)
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"ADMIN"})
+				if err != nil {
+					var zeroVal *model.BillingPortalURL
+					return zeroVal, err
+				}
+				if ec.directives.HasRole == nil {
+					var zeroVal *model.BillingPortalURL
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNBillingPortalUrl2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐBillingPortalURL,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_billingPortalUrl(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "url":
+				return ec.fieldContext_BillingPortalUrl_url(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type BillingPortalUrl", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_createDatabase(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -7409,6 +7790,118 @@ func (ec *executionContext) fieldContext_Query_environmentResources(ctx context.
 	if fc.Args, err = ec.field_Query_environmentResources_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_subscription(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_subscription,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Query().Subscription(ctx)
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				if err != nil {
+					var zeroVal *model.BillingSubscription
+					return zeroVal, err
+				}
+				if ec.directives.HasRole == nil {
+					var zeroVal *model.BillingSubscription
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalOBillingSubscription2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐBillingSubscription,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_subscription(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "plan":
+				return ec.fieldContext_BillingSubscription_plan(ctx, field)
+			case "status":
+				return ec.fieldContext_BillingSubscription_status(ctx, field)
+			case "currentPeriodEnd":
+				return ec.fieldContext_BillingSubscription_currentPeriodEnd(ctx, field)
+			case "creditAmountCents":
+				return ec.fieldContext_BillingSubscription_creditAmountCents(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type BillingSubscription", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_usageSummary(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_usageSummary,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Query().UsageSummary(ctx)
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				if err != nil {
+					var zeroVal *model.UsageSummary
+					return zeroVal, err
+				}
+				if ec.directives.HasRole == nil {
+					var zeroVal *model.UsageSummary
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalOUsageSummary2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐUsageSummary,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_usageSummary(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "resourceCostCents":
+				return ec.fieldContext_UsageSummary_resourceCostCents(ctx, field)
+			case "creditsCents":
+				return ec.fieldContext_UsageSummary_creditsCents(ctx, field)
+			case "estimatedTotalCents":
+				return ec.fieldContext_UsageSummary_estimatedTotalCents(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type UsageSummary", field.Name)
+		},
 	}
 	return fc, nil
 }
@@ -9739,6 +10232,93 @@ func (ec *executionContext) fieldContext_Subscription_deployLogs(ctx context.Con
 	if fc.Args, err = ec.field_Subscription_deployLogs_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _UsageSummary_resourceCostCents(ctx context.Context, field graphql.CollectedField, obj *model.UsageSummary) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_UsageSummary_resourceCostCents,
+		func(ctx context.Context) (any, error) {
+			return obj.ResourceCostCents, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_UsageSummary_resourceCostCents(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "UsageSummary",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _UsageSummary_creditsCents(ctx context.Context, field graphql.CollectedField, obj *model.UsageSummary) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_UsageSummary_creditsCents,
+		func(ctx context.Context) (any, error) {
+			return obj.CreditsCents, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_UsageSummary_creditsCents(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "UsageSummary",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _UsageSummary_estimatedTotalCents(ctx context.Context, field graphql.CollectedField, obj *model.UsageSummary) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_UsageSummary_estimatedTotalCents,
+		func(ctx context.Context) (any, error) {
+			return obj.EstimatedTotalCents, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_UsageSummary_estimatedTotalCents(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "UsageSummary",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
 	}
 	return fc, nil
 }
@@ -12991,6 +13571,99 @@ func (ec *executionContext) unmarshalInputVariableInput(ctx context.Context, obj
 
 // region    **************************** object.gotpl ****************************
 
+var billingPortalUrlImplementors = []string{"BillingPortalUrl"}
+
+func (ec *executionContext) _BillingPortalUrl(ctx context.Context, sel ast.SelectionSet, obj *model.BillingPortalURL) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, billingPortalUrlImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("BillingPortalUrl")
+		case "url":
+			out.Values[i] = ec._BillingPortalUrl_url(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var billingSubscriptionImplementors = []string{"BillingSubscription"}
+
+func (ec *executionContext) _BillingSubscription(ctx context.Context, sel ast.SelectionSet, obj *model.BillingSubscription) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, billingSubscriptionImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("BillingSubscription")
+		case "plan":
+			out.Values[i] = ec._BillingSubscription_plan(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "status":
+			out.Values[i] = ec._BillingSubscription_status(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "currentPeriodEnd":
+			out.Values[i] = ec._BillingSubscription_currentPeriodEnd(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "creditAmountCents":
+			out.Values[i] = ec._BillingSubscription_creditAmountCents(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var buildImplementors = []string{"Build"}
 
 func (ec *executionContext) _Build(ctx context.Context, sel ast.SelectionSet, obj *model.Build) graphql.Marshaler {
@@ -13907,6 +14580,20 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "changePlan":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_changePlan(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "billingPortalUrl":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_billingPortalUrl(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "createDatabase":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_createDatabase(ctx, field)
@@ -14287,6 +14974,44 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_environmentResources(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "subscription":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_subscription(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "usageSummary":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_usageSummary(ctx, field)
 				return res
 			}
 
@@ -15090,6 +15815,55 @@ func (ec *executionContext) _Subscription(ctx context.Context, sel ast.Selection
 	}
 }
 
+var usageSummaryImplementors = []string{"UsageSummary"}
+
+func (ec *executionContext) _UsageSummary(ctx context.Context, sel ast.SelectionSet, obj *model.UsageSummary) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, usageSummaryImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("UsageSummary")
+		case "resourceCostCents":
+			out.Values[i] = ec._UsageSummary_resourceCostCents(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "creditsCents":
+			out.Values[i] = ec._UsageSummary_creditsCents(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "estimatedTotalCents":
+			out.Values[i] = ec._UsageSummary_estimatedTotalCents(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var userImplementors = []string{"User"}
 
 func (ec *executionContext) _User(ctx context.Context, sel ast.SelectionSet, obj *model.User) graphql.Marshaler {
@@ -15740,6 +16514,34 @@ func (ec *executionContext) unmarshalNAddCustomDomainInput2githubᚗcomᚋzeitlo
 func (ec *executionContext) unmarshalNAddServiceInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐAddServiceInput(ctx context.Context, v any) (model.AddServiceInput, error) {
 	res, err := ec.unmarshalInputAddServiceInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNBillingPortalUrl2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐBillingPortalURL(ctx context.Context, sel ast.SelectionSet, v model.BillingPortalURL) graphql.Marshaler {
+	return ec._BillingPortalUrl(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNBillingPortalUrl2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐBillingPortalURL(ctx context.Context, sel ast.SelectionSet, v *model.BillingPortalURL) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._BillingPortalUrl(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNBillingSubscription2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐBillingSubscription(ctx context.Context, sel ast.SelectionSet, v model.BillingSubscription) graphql.Marshaler {
+	return ec._BillingSubscription(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNBillingSubscription2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐBillingSubscription(ctx context.Context, sel ast.SelectionSet, v *model.BillingSubscription) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._BillingSubscription(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNBoolean2bool(ctx context.Context, v any) (bool, error) {
@@ -16426,6 +17228,16 @@ func (ec *executionContext) unmarshalNInviteMemberInput2githubᚗcomᚋzeitlos�
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) unmarshalNPlan2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐPlan(ctx context.Context, v any) (model.Plan, error) {
+	var res model.Plan
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNPlan2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐPlan(ctx context.Context, sel ast.SelectionSet, v model.Plan) graphql.Marshaler {
+	return v
+}
+
 func (ec *executionContext) marshalNPlatformConfig2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐPlatformConfig(ctx context.Context, sel ast.SelectionSet, v model.PlatformConfig) graphql.Marshaler {
 	return ec._PlatformConfig(ctx, sel, &v)
 }
@@ -16887,6 +17699,16 @@ func (ec *executionContext) marshalNString2ᚕᚕᚖstring(ctx context.Context, 
 	}
 
 	return ret
+}
+
+func (ec *executionContext) unmarshalNSubscriptionStatus2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐSubscriptionStatus(ctx context.Context, v any) (model.SubscriptionStatus, error) {
+	var res model.SubscriptionStatus
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNSubscriptionStatus2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐSubscriptionStatus(ctx context.Context, sel ast.SelectionSet, v model.SubscriptionStatus) graphql.Marshaler {
+	return v
 }
 
 func (ec *executionContext) unmarshalNSyncStatus2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐSyncStatus(ctx context.Context, v any) (model.SyncStatus, error) {
@@ -17434,6 +18256,13 @@ func (ec *executionContext) marshalN__TypeKind2string(ctx context.Context, sel a
 	return res
 }
 
+func (ec *executionContext) marshalOBillingSubscription2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐBillingSubscription(ctx context.Context, sel ast.SelectionSet, v *model.BillingSubscription) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._BillingSubscription(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalOBoolean2bool(ctx context.Context, v any) (bool, error) {
 	res, err := graphql.UnmarshalBoolean(v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -17710,6 +18539,13 @@ func (ec *executionContext) marshalOTime2ᚖtimeᚐTime(ctx context.Context, sel
 	_ = ctx
 	res := graphql.MarshalTime(*v)
 	return res
+}
+
+func (ec *executionContext) marshalOUsageSummary2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐUsageSummary(ctx context.Context, sel ast.SelectionSet, v *model.UsageSummary) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._UsageSummary(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalOVolume2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐVolume(ctx context.Context, sel ast.SelectionSet, v *model.Volume) graphql.Marshaler {
