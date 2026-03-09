@@ -125,8 +125,9 @@ func executeBuild(cfg runBuildConfig, k8sClient kubernetes.Interface) error {
 	defer os.Remove(planFile)
 
 	// 5. Build with buildctl
-	slog.Info("building image", "image", imageName)
-	if err := buildWithBuildctl(cfg.BuildkitAddr, buildDir, planFile, imageName, cfg.Insecure); err != nil {
+	cacheRef := cfg.Registry + ":buildcache"
+	slog.Info("building image", "image", imageName, "cache", cacheRef)
+	if err := buildWithBuildctl(cfg.BuildkitAddr, buildDir, planFile, imageName, cacheRef, cfg.Insecure); err != nil {
 		return err
 	}
 
@@ -261,7 +262,8 @@ func generatePlan(buildDir string) (string, error) {
 }
 
 // buildWithBuildctl invokes buildctl to build and push the image via BuildKit.
-func buildWithBuildctl(buildkitAddr, buildDir, planFile, imageName string, insecure bool) error {
+// cacheRef is the registry reference for layer caching (e.g., "registry:5000/proj/svc:buildcache").
+func buildWithBuildctl(buildkitAddr, buildDir, planFile, imageName, cacheRef string, insecure bool) error {
 	args := []string{
 		"--addr", buildkitAddr,
 		"build",
@@ -273,6 +275,20 @@ func buildWithBuildctl(buildkitAddr, buildDir, planFile, imageName string, insec
 		"--local", "dockerfile=" + buildDir,
 		"--metadata-file", "/tmp/lucity-builds/build-metadata.json",
 	}
+
+	// Import layer cache from registry (cache miss on first build is handled gracefully)
+	importCache := "type=registry,ref=" + cacheRef
+	if insecure {
+		importCache += ",registry.insecure=true"
+	}
+	args = append(args, "--import-cache", importCache)
+
+	// Export layer cache to registry for future builds (mode=max includes all intermediate layers)
+	exportCache := "type=registry,ref=" + cacheRef + ",mode=max"
+	if insecure {
+		exportCache += ",registry.insecure=true"
+	}
+	args = append(args, "--export-cache", exportCache)
 
 	// Output configuration: build and push to registry
 	output := fmt.Sprintf("type=image,name=%s,push=true", imageName)
