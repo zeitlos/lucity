@@ -185,3 +185,33 @@ rybbit:
   secrets:
     clickhousePassword: ""
     betterAuthSecret: ""
+
+# -- Rauthy Identity Provider (OIDC)
+rauthy:
+  enabled: true
+  image:
+    repository: ghcr.io/sebadob/rauthy
+    tag: "0.34.3"
+    pullPolicy: IfNotPresent
+  hostname: ""
+  adminEmail: admin@localhost
+  service:
+    type: ClusterIP
+    httpPort: 8080
+    httpsPort: 8443
+  persistence:
+    size: 128Mi
+    storageClass: ""
+  resources:
+    requests:
+      cpu: 100m
+      memory: 64Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+  secrets:
+    adminPassword: ""       # BOOTSTRAP_ADMIN_PASSWORD_PLAIN (first run only)
+    raftSecret: ""           # cluster.secret_raft (min 16 chars)
+    apiSecret: ""            # cluster.secret_api (min 16 chars)
+    encryptionKey: ""        # format: "hexId/base64Key" (32 bytes)
+    encryptionKeyId: ""      # hex prefix from encryptionKey

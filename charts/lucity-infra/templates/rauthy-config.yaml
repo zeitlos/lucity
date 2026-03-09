@@ -1,0 +1,40 @@
+{{- if .Values.rauthy.enabled }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ .Release.Name }}-rauthy-config
+  labels:
+    app.kubernetes.io/name: rauthy
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: identity-provider
+type: Opaque
+stringData:
+  config.toml: |
+    [server]
+    listen_address = '0.0.0.0'
+    port_http = 8080
+    port_https = 8443
+    scheme = 'http'
+    pub_url = '{{ .Values.rauthy.hostname }}'
+    proxy_mode = true
+
+    [cluster]
+    node_id_from = 'k8s'
+    secret_raft = '{{ .Values.rauthy.secrets.raftSecret }}'
+    secret_api = '{{ .Values.rauthy.secrets.apiSecret }}'
+
+    [database]
+    hiqlite = true
+
+    [encryption]
+    keys = ['{{ .Values.rauthy.secrets.encryptionKey }}']
+    key_active = '{{ .Values.rauthy.secrets.encryptionKeyId }}'
+
+    [bootstrap]
+    admin_email = '{{ .Values.rauthy.adminEmail }}'
+
+    [webauthn]
+    rp_id = '{{ .Values.rauthy.hostname }}'
+    rp_origin = 'https://{{ .Values.rauthy.hostname }}'
+    rp_name = 'Lucity'
+{{- end }}

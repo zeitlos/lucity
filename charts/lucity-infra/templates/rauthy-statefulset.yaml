@@ -1,0 +1,100 @@
+{{- if .Values.rauthy.enabled }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .Release.Name }}-rauthy
+  labels:
+    app.kubernetes.io/name: rauthy
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: identity-provider
+spec:
+  serviceName: {{ .Release.Name }}-rauthy-headless
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: rauthy
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: rauthy
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: identity-provider
+    spec:
+      securityContext:
+        fsGroup: 10001
+      containers:
+        - name: rauthy
+          image: "{{ .Values.rauthy.image.repository }}:{{ .Values.rauthy.image.tag }}"
+          imagePullPolicy: {{ .Values.rauthy.image.pullPolicy }}
+          securityContext:
+            capabilities:
+              drop:
+                - ALL
+            runAsUser: 10001
+            runAsGroup: 10001
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+          ports:
+            - name: hiqlite-raft
+              containerPort: 8100
+              protocol: TCP
+            - name: hiqlite-api
+              containerPort: 8200
+              protocol: TCP
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+            - name: https
+              containerPort: 8443
+              protocol: TCP
+          {{- if .Values.rauthy.secrets.adminPassword }}
+          env:
+            - name: BOOTSTRAP_ADMIN_PASSWORD_PLAIN
+              value: {{ .Values.rauthy.secrets.adminPassword | quote }}
+          {{- end }}
+          volumeMounts:
+            - name: rauthy-data
+              mountPath: /app/data
+              readOnly: false
+            - name: rauthy-config
+              mountPath: /app/config.toml
+              subPath: config.toml
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              scheme: HTTP
+              port: 8200
+              path: /ready
+            initialDelaySeconds: 5
+            periodSeconds: 3
+            failureThreshold: 2
+          livenessProbe:
+            httpGet:
+              scheme: HTTP
+              port: 8080
+              path: /auth/v1/health
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            failureThreshold: 2
+          {{- with .Values.rauthy.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      volumes:
+        - name: rauthy-config
+          secret:
+            secretName: {{ .Release.Name }}-rauthy-config
+  volumeClaimTemplates:
+    - metadata:
+        name: rauthy-data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        {{- if .Values.rauthy.persistence.storageClass }}
+        storageClassName: {{ .Values.rauthy.persistence.storageClass | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.rauthy.persistence.size }}
+{{- end }}

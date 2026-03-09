@@ -8,6 +8,25 @@ zot:
     storageClassName: hcloud-volumes
   service:
     clusterIP: "10.96.100.100"
+  mountConfig: true
+  configFiles:
+    config.json: |-
+      {
+        "storage": {
+          "rootDirectory": "/var/lib/registry",
+          "gc": true,
+          "gcDelay": "1h",
+          "gcInterval": "24h"
+        },
+        "http": {
+          "address": "0.0.0.0",
+          "port": "5000",
+          "compat": ["docker2s2"]
+        },
+        "log": {
+          "level": "info"
+        }
+      }
 
 softServe:
   persistence:
@@ -70,6 +89,18 @@ gateway:
         mode: Terminate
         certificateRefs:
           - name: p-lucity-cloud-tls
+    - name: auth-http
+      protocol: HTTP
+      port: 80
+      hostname: auth.lucity.cloud
+    - name: auth-https
+      protocol: HTTPS
+      port: 443
+      hostname: auth.lucity.cloud
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: auth-lucity-cloud-tls
 
 certificates:
   - name: lucity-cloud-tls
@@ -90,6 +121,12 @@ certificates:
       name: letsencrypt-dns01
     dnsNames:
       - p.lucity.cloud
+  - name: auth-lucity-cloud-tls
+    secretName: auth-lucity-cloud-tls
+    issuerRef:
+      name: letsencrypt-dns01
+    dnsNames:
+      - auth.lucity.cloud
 
 # Rybbit Web Analytics
 rybbit:
@@ -107,3 +144,12 @@ rybbit:
   secrets:
     clickhousePassword: ""   # --set rybbit.secrets.clickhousePassword
     betterAuthSecret: ""     # --set rybbit.secrets.betterAuthSecret
+
+# Rauthy Identity Provider
+rauthy:
+  enabled: true
+  hostname: auth.lucity.cloud
+  adminEmail: christian@zeitlos.software
+  persistence:
+    storageClass: hcloud-volumes
+    size: 1Gi
