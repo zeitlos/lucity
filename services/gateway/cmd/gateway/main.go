@@ -10,6 +10,7 @@ import (
 
 	"github.com/zeitlos/lucity/pkg/builder"
 	"github.com/zeitlos/lucity/pkg/deployer"
+	ghpkg "github.com/zeitlos/lucity/pkg/github"
 	"github.com/zeitlos/lucity/pkg/graceful"
 	"github.com/zeitlos/lucity/pkg/logger"
 	"github.com/zeitlos/lucity/pkg/packager"
@@ -38,6 +39,10 @@ type Config struct {
 	// Registry
 	RegistryURL         string `envconfig:"REGISTRY_URL" default:"localhost:5000"`
 	RegistryImagePrefix string `envconfig:"REGISTRY_IMAGE_PREFIX"` // cluster-internal address for image refs; defaults to REGISTRY_URL
+
+	// GitHub App (for installation tokens — repo access)
+	GitHubAppID          int64  `envconfig:"GITHUB_APP_ID"`
+	GitHubPrivateKeyPath string `envconfig:"GITHUB_PRIVATE_KEY_PATH"`
 
 	// Domains
 	WorkloadDomain string `envconfig:"WORKLOAD_DOMAIN" default:"lucity.local"`
@@ -98,6 +103,20 @@ func main() {
 
 	deployerClient := deployer.NewDeployerServiceClient(deployerConn)
 
+	// Initialize GitHub App for installation tokens (optional — repo features disabled without it)
+	var githubApp *ghpkg.App
+	if config.GitHubAppID != 0 && config.GitHubPrivateKeyPath != "" {
+		var err error
+		githubApp, err = ghpkg.NewApp(config.GitHubAppID, "", "", "", "", config.GitHubPrivateKeyPath)
+		if err != nil {
+			slog.Error("failed to create github app", "error", err)
+			os.Exit(1)
+		}
+		slog.Info("github app initialized", "app_id", config.GitHubAppID)
+	} else {
+		slog.Info("github app not configured — repo listing and commit enrichment disabled")
+	}
+
 	registryImagePrefix := config.RegistryImagePrefix
 	if registryImagePrefix == "" {
 		registryImagePrefix = config.RegistryURL
@@ -108,7 +127,7 @@ func main() {
 		domainTarget = "lb." + config.WorkloadDomain
 	}
 
-	api := handler.New(packagerClient, builderClient, deployerClient, config.RegistryURL, registryImagePrefix, config.WorkloadDomain, domainTarget)
+	api := handler.New(packagerClient, builderClient, deployerClient, githubApp, config.RegistryURL, registryImagePrefix, config.WorkloadDomain, domainTarget)
 	graphqlServer := NewGraphQLServer(config.Port, api, oidcProvider, config.JWTSecret, config.DashboardURL)
 
 	graceful.Serve(ctx, graphqlServer)

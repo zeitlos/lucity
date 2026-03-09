@@ -105,13 +105,6 @@ func NewGraphQLServer(port string, api *handler.Client, oidcProvider *OIDCProvid
 	srv.Use(extension.Introspection{})
 
 	srv.SetErrorPresenter(func(ctx context.Context, err error) *gqlerror.Error {
-		var ghAuth *handler.GitHubAuthError
-		if errors.As(err, &ghAuth) {
-			return &gqlerror.Error{
-				Message:    "GitHub session expired",
-				Extensions: map[string]interface{}{"code": "GITHUB_TOKEN_EXPIRED"},
-			}
-		}
 		var dbProv *handler.DatabaseProvisioningError
 		if errors.As(err, &dbProv) {
 			return &gqlerror.Error{
@@ -160,7 +153,7 @@ func NewGraphQLServer(port string, api *handler.Client, oidcProvider *OIDCProvid
 		port: port,
 		server: &http.Server{
 			Addr:    ":" + port,
-			Handler: corsHandler.Handler(authMiddleware(tenant.Middleware(mux))),
+			Handler: corsHandler.Handler(authMiddleware(tenant.Middleware(tenant.AuthorizeMiddleware(mux)))),
 		},
 	}
 }

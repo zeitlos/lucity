@@ -14,17 +14,17 @@ func (c *Client) Me(ctx context.Context) (*User, error) {
 	}
 
 	return &User{
-		Login:     claims.Email,
-		Name:      claims.Subject,
-		Email:     claims.Email,
-		AvatarURL: claims.AvatarURL,
+		Name:       claims.Subject,
+		Email:      claims.Email,
+		AvatarURL:  claims.AvatarURL,
+		Workspaces: claims.Workspaces,
 	}, nil
 }
 
 // User represents an authenticated user's profile.
 type User struct {
-	Login     string
-	Name      string
-	Email     string
-	AvatarURL string
+	Name       string
+	Email      string
+	AvatarURL  string
+	Workspaces []auth.WorkspaceMembership
 }

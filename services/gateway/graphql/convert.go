@@ -3,6 +3,7 @@ package graphql
 import (
 	"strings"
 
+	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/services/gateway/graphql/model"
 	"github.com/zeitlos/lucity/services/gateway/handler"
 )
@@ -222,8 +223,8 @@ func convertUser(u *handler.User) *model.User {
 		return nil
 	}
 	user := &model.User{
-		Login:     u.Login,
-		AvatarURL: u.AvatarURL,
+		AvatarURL:  u.AvatarURL,
+		Workspaces: convertWorkspaceMemberships(u.Workspaces),
 	}
 	if u.Name != "" {
 		user.Name = &u.Name
@@ -232,6 +233,21 @@ func convertUser(u *handler.User) *model.User {
 		user.Email = &u.Email
 	}
 	return user
+}
+
+func convertWorkspaceMemberships(memberships []auth.WorkspaceMembership) []model.WorkspaceMembership {
+	result := make([]model.WorkspaceMembership, len(memberships))
+	for i, m := range memberships {
+		role := model.WorkspaceRoleUser
+		if m.Role == auth.WorkspaceRoleAdmin {
+			role = model.WorkspaceRoleAdmin
+		}
+		result[i] = model.WorkspaceMembership{
+			Workspace: m.Workspace,
+			Role:      role,
+		}
+	}
+	return result
 }
 
 func convertDatabase(d handler.Database) model.Database {

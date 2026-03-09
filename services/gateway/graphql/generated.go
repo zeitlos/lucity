@@ -281,10 +281,10 @@ type ComplexityRoot struct {
 	}
 
 	User struct {
-		AvatarURL func(childComplexity int) int
-		Email     func(childComplexity int) int
-		Login     func(childComplexity int) int
-		Name      func(childComplexity int) int
+		AvatarURL  func(childComplexity int) int
+		Email      func(childComplexity int) int
+		Name       func(childComplexity int) int
+		Workspaces func(childComplexity int) int
 	}
 
 	Variable struct {
@@ -298,6 +298,11 @@ type ComplexityRoot struct {
 		RequestedSize func(childComplexity int) int
 		Size          func(childComplexity int) int
 		UsedBytes     func(childComplexity int) int
+	}
+
+	WorkspaceMembership struct {
+		Role      func(childComplexity int) int
+		Workspace func(childComplexity int) int
 	}
 }
 
@@ -1485,18 +1490,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.User.Email(childComplexity), true
-	case "User.login":
-		if e.complexity.User.Login == nil {
-			break
-		}
-
-		return e.complexity.User.Login(childComplexity), true
 	case "User.name":
 		if e.complexity.User.Name == nil {
 			break
 		}
 
 		return e.complexity.User.Name(childComplexity), true
+	case "User.workspaces":
+		if e.complexity.User.Workspaces == nil {
+			break
+		}
+
+		return e.complexity.User.Workspaces(childComplexity), true
 
 	case "Variable.key":
 		if e.complexity.Variable.Key == nil {
@@ -1541,6 +1546,19 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Volume.UsedBytes(childComplexity), true
+
+	case "WorkspaceMembership.role":
+		if e.complexity.WorkspaceMembership.Role == nil {
+			break
+		}
+
+		return e.complexity.WorkspaceMembership.Role(childComplexity), true
+	case "WorkspaceMembership.workspace":
+		if e.complexity.WorkspaceMembership.Workspace == nil {
+			break
+		}
+
+		return e.complexity.WorkspaceMembership.Workspace(childComplexity), true
 
 	}
 	return 0, false
@@ -6303,14 +6321,14 @@ func (ec *executionContext) fieldContext_Query_me(_ context.Context, field graph
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
-			case "login":
-				return ec.fieldContext_User_login(ctx, field)
 			case "name":
 				return ec.fieldContext_User_name(ctx, field)
 			case "email":
 				return ec.fieldContext_User_email(ctx, field)
 			case "avatarUrl":
 				return ec.fieldContext_User_avatarUrl(ctx, field)
+			case "workspaces":
+				return ec.fieldContext_User_workspaces(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
 		},
@@ -8439,35 +8457,6 @@ func (ec *executionContext) fieldContext_Subscription_deployLogs(ctx context.Con
 	return fc, nil
 }
 
-func (ec *executionContext) _User_login(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_User_login,
-		func(ctx context.Context) (any, error) {
-			return obj.Login, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_User_login(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "User",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _User_name(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -8550,6 +8539,41 @@ func (ec *executionContext) fieldContext_User_avatarUrl(_ context.Context, field
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _User_workspaces(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_User_workspaces,
+		func(ctx context.Context) (any, error) {
+			return obj.Workspaces, nil
+		},
+		nil,
+		ec.marshalNWorkspaceMembership2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐWorkspaceMembershipᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_User_workspaces(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "workspace":
+				return ec.fieldContext_WorkspaceMembership_workspace(ctx, field)
+			case "role":
+				return ec.fieldContext_WorkspaceMembership_role(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type WorkspaceMembership", field.Name)
 		},
 	}
 	return fc, nil
@@ -8753,6 +8777,64 @@ func (ec *executionContext) fieldContext_Volume_capacityBytes(_ context.Context,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _WorkspaceMembership_workspace(ctx context.Context, field graphql.CollectedField, obj *model.WorkspaceMembership) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_WorkspaceMembership_workspace,
+		func(ctx context.Context) (any, error) {
+			return obj.Workspace, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_WorkspaceMembership_workspace(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "WorkspaceMembership",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _WorkspaceMembership_role(ctx context.Context, field graphql.CollectedField, obj *model.WorkspaceMembership) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_WorkspaceMembership_role,
+		func(ctx context.Context) (any, error) {
+			return obj.Role, nil
+		},
+		nil,
+		ec.marshalNWorkspaceRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐWorkspaceRole,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_WorkspaceMembership_role(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "WorkspaceMembership",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type WorkspaceRole does not have child fields")
 		},
 	}
 	return fc, nil
@@ -12963,17 +13045,17 @@ func (ec *executionContext) _User(ctx context.Context, sel ast.SelectionSet, obj
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("User")
-		case "login":
-			out.Values[i] = ec._User_login(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
 		case "name":
 			out.Values[i] = ec._User_name(ctx, field, obj)
 		case "email":
 			out.Values[i] = ec._User_email(ctx, field, obj)
 		case "avatarUrl":
 			out.Values[i] = ec._User_avatarUrl(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "workspaces":
+			out.Values[i] = ec._User_workspaces(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -13077,6 +13159,50 @@ func (ec *executionContext) _Volume(ctx context.Context, sel ast.SelectionSet, o
 			}
 		case "capacityBytes":
 			out.Values[i] = ec._Volume_capacityBytes(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var workspaceMembershipImplementors = []string{"WorkspaceMembership"}
+
+func (ec *executionContext) _WorkspaceMembership(ctx context.Context, sel ast.SelectionSet, obj *model.WorkspaceMembership) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, workspaceMembershipImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("WorkspaceMembership")
+		case "workspace":
+			out.Values[i] = ec._WorkspaceMembership_workspace(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "role":
+			out.Values[i] = ec._WorkspaceMembership_role(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -14652,6 +14778,64 @@ func (ec *executionContext) unmarshalNVariableInput2ᚕgithubᚗcomᚋzeitlosᚋ
 		}
 	}
 	return res, nil
+}
+
+func (ec *executionContext) marshalNWorkspaceMembership2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐWorkspaceMembership(ctx context.Context, sel ast.SelectionSet, v model.WorkspaceMembership) graphql.Marshaler {
+	return ec._WorkspaceMembership(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNWorkspaceMembership2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐWorkspaceMembershipᚄ(ctx context.Context, sel ast.SelectionSet, v []model.WorkspaceMembership) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNWorkspaceMembership2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐWorkspaceMembership(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) unmarshalNWorkspaceRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐWorkspaceRole(ctx context.Context, v any) (model.WorkspaceRole, error) {
+	var res model.WorkspaceRole
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNWorkspaceRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐWorkspaceRole(ctx context.Context, sel ast.SelectionSet, v model.WorkspaceRole) graphql.Marshaler {
+	return v
 }
 
 func (ec *executionContext) marshalN__Directive2githubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐDirective(ctx context.Context, sel ast.SelectionSet, v introspection.Directive) graphql.Marshaler {

@@ -37,6 +37,12 @@ service DeployerService {
 
   // DatabaseCredentials returns the resolved connection credentials for a database.
   rpc DatabaseCredentials(DatabaseCredentialsRequest) returns (DatabaseCredentialsResponse);
+
+  // WorkspaceMetadata returns metadata for a workspace from K8s ConfigMaps.
+  rpc WorkspaceMetadata(WorkspaceMetadataRequest) returns (WorkspaceMetadataResponse);
+
+  // WorkspaceByInstallationID finds a workspace by its GitHub App installation ID.
+  rpc WorkspaceByInstallationID(WorkspaceByInstallationIDRequest) returns (WorkspaceByInstallationIDResponse);
 }
 
 message DeployEnvironmentRequest {
@@ -207,5 +213,25 @@ message DatabaseCredentialsResponse {
   string user = 4;
   string password = 5;
   string uri = 6;
+}
+
+// Workspace metadata messages.
+
+message WorkspaceMetadataRequest {
+  string workspace = 1;
+}
+
+message WorkspaceMetadataResponse {
+  string name = 1;
+  bool personal = 2;
+  int64 github_installation_id = 3;
+}
+
+message WorkspaceByInstallationIDRequest {
+  int64 installation_id = 1;
+}
+
+message WorkspaceByInstallationIDResponse {
+  string workspace = 1;
 }
 

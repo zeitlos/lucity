@@ -24,6 +24,9 @@ const errorMessage = computed(() => {
   if (route.query.error === 'no_installation') {
     return 'The Lucity GitHub App is not installed on your account. Please install it first, then try signing in again.';
   }
+  if (route.query.error === 'no_workspace') {
+    return 'You are not a member of any workspace. Contact your administrator.';
+  }
   return null;
 });
 
@@ -140,7 +143,7 @@ onUnmounted(() => {
 
           <!-- Subtitle -->
           <p class="text-center text-sm text-muted-foreground">
-            Connect your GitHub account to start deploying.
+            Sign in to start deploying.
           </p>
 
           <!-- Error message -->

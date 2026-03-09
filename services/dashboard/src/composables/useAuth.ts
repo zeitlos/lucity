@@ -1,14 +1,20 @@
 import { ref, computed } from 'vue';
 
+export interface WorkspaceMembership {
+  workspace: string;
+  role: 'user' | 'admin';
+}
+
 export interface AuthUser {
-  login: string;
   name: string | null;
   email: string | null;
   avatarUrl: string;
+  workspaces: WorkspaceMembership[];
 }
 
 const user = ref<AuthUser | null>(null);
 const loading = ref(true);
+const activeWorkspace = ref<string>(localStorage.getItem('lucity_workspace') || '');
 
 export function useAuth() {
   const isAuthenticated = computed(() => user.value !== null);
@@ -18,6 +24,10 @@ export function useAuth() {
       const res = await fetch('/auth/me', { credentials: 'include' });
       if (res.ok) {
         user.value = await res.json();
+        // Default to first workspace if none selected
+        if (user.value && (!activeWorkspace.value || !user.value.workspaces.some(w => w.workspace === activeWorkspace.value))) {
+          setActiveWorkspace(user.value.workspaces[0]?.workspace || '');
+        }
       } else {
         user.value = null;
       }
@@ -34,15 +44,22 @@ export function useAuth() {
   }
 
   function login() {
-    window.location.href = '/auth/github';
+    window.location.href = '/auth/login';
+  }
+
+  function setActiveWorkspace(ws: string) {
+    activeWorkspace.value = ws;
+    localStorage.setItem('lucity_workspace', ws);
   }
 
   return {
     user,
     loading,
     isAuthenticated,
+    activeWorkspace,
     fetchUser,
     logout,
     login,
+    setActiveWorkspace,
   };
 }

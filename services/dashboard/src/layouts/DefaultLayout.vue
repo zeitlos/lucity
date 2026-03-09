@@ -47,8 +47,8 @@ async function handleLogout() {
         <template v-if="user">
           <div class="h-4 w-px bg-border" />
           <Avatar class="h-6 w-6">
-            <AvatarImage :src="user.avatarUrl" :alt="user.login" />
-            <AvatarFallback class="text-[10px]">{{ (user.name || user.login).charAt(0).toUpperCase() }}</AvatarFallback>
+            <AvatarImage :src="user.avatarUrl" :alt="user.name || user.email || ''" />
+            <AvatarFallback class="text-[10px]">{{ (user.name || user.email || '?').charAt(0).toUpperCase() }}</AvatarFallback>
           </Avatar>
         </template>
 
@@ -88,15 +88,15 @@ async function handleLogout() {
           <DropdownMenuTrigger as-child>
             <button class="rounded-full transition-opacity hover:opacity-80">
               <Avatar class="h-7 w-7">
-                <AvatarImage :src="user.avatarUrl" :alt="user.login" />
-                <AvatarFallback>{{ (user.name || user.login).charAt(0).toUpperCase() }}</AvatarFallback>
+                <AvatarImage :src="user.avatarUrl" :alt="user.name || user.email || ''" />
+                <AvatarFallback>{{ (user.name || user.email || '?').charAt(0).toUpperCase() }}</AvatarFallback>
               </Avatar>
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" class="w-48">
             <div class="px-2 py-1.5">
-              <p class="text-sm font-medium">{{ user.name || user.login }}</p>
-              <p class="text-xs text-muted-foreground">{{ user.login }}</p>
+              <p class="text-sm font-medium">{{ user.name || user.email }}</p>
+              <p class="text-xs text-muted-foreground">{{ user.email }}</p>
             </div>
             <DropdownMenuSeparator />
             <DropdownMenuItem @select="handleLogout">

@@ -39,6 +39,7 @@ func (c *Client) DetectServices(ctx context.Context, sourceURL string) ([]Detect
 	if _, err := tenant.Require(ctx); err != nil {
 		return nil, err
 	}
+	ctx = c.withInstallationToken(ctx)
 	ctx = auth.OutgoingContext(ctx)
 	ctx = tenant.OutgoingContext(ctx)
 
@@ -70,6 +71,7 @@ func (c *Client) AddService(ctx context.Context, projectID, name string, port in
 	if err != nil {
 		return nil, err
 	}
+	ctx = c.withInstallationToken(ctx)
 	ctx = auth.OutgoingContext(ctx)
 	ctx = tenant.OutgoingContext(ctx)
 
@@ -94,9 +96,13 @@ func (c *Client) AddService(ctx context.Context, projectID, name string, port in
 	// Fire-and-forget: build the service so it has an image immediately.
 	registry := deriveImagePath(c.RegistryPushURL, ws, projectID, name)
 	token := auth.TokenFrom(ctx)
+	ghToken := auth.GitHubTokenFrom(ctx) // propagate installation token to background build
 	go func() {
 		buildCtx := auth.WithToken(context.Background(), token)
 		buildCtx = tenant.WithWorkspace(buildCtx, ws)
+		if ghToken != "" {
+			buildCtx = auth.WithGitHubToken(buildCtx, ghToken)
+		}
 		buildCtx = auth.OutgoingContext(buildCtx)
 		buildCtx = tenant.OutgoingContext(buildCtx)
 		buildCtx, cancel := context.WithTimeout(buildCtx, grpcTimeout)
@@ -149,6 +155,7 @@ func (c *Client) StartBuild(ctx context.Context, projectID, service, gitRef stri
 	if err != nil {
 		return nil, err
 	}
+	ctx = c.withInstallationToken(ctx)
 	ctx = auth.OutgoingContext(ctx)
 	ctx = tenant.OutgoingContext(ctx)
 
@@ -313,6 +320,7 @@ func (c *Client) Deploy(ctx context.Context, projectID, service, environment, gi
 	if err != nil {
 		return nil, err
 	}
+	ctx = c.withInstallationToken(ctx)
 	ctx = auth.OutgoingContext(ctx)
 	ctx = tenant.OutgoingContext(ctx)
 

@@ -10,7 +10,12 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-const authHeader = "authorization"
+const (
+	authHeader       = "authorization"
+	githubTokenKey   = "x-github-token"
+)
+
+type githubTokenContextKey struct{}
 
 // UnaryServerInterceptor returns a gRPC server interceptor that extracts
 // and validates JWT tokens from the "authorization" metadata key.
@@ -36,6 +41,12 @@ func UnaryServerInterceptor(jwtSecret string) grpc.UnaryServerInterceptor {
 		}
 
 		ctx = WithClaims(ctx, claims)
+
+		// Extract GitHub token from metadata if present (used by builder for repo cloning).
+		if vals := md.Get(githubTokenKey); len(vals) > 0 {
+			ctx = WithGitHubToken(ctx, vals[0])
+		}
+
 		return handler(ctx, req)
 	}
 }
@@ -64,6 +75,11 @@ func StreamServerInterceptor(jwtSecret string) grpc.StreamServerInterceptor {
 		}
 
 		ctx = WithClaims(ctx, claims)
+
+		if vals := md.Get(githubTokenKey); len(vals) > 0 {
+			ctx = WithGitHubToken(ctx, vals[0])
+		}
+
 		return handler(srv, &wrappedAuthStream{ServerStream: ss, ctx: ctx})
 	}
 }
@@ -92,12 +108,28 @@ func TokenFrom(ctx context.Context) string {
 	return token
 }
 
-// OutgoingCredentials returns a grpc.CallOption that attaches the JWT token
+// OutgoingContext attaches the JWT token and GitHub token (if present)
 // from the context as gRPC metadata for outgoing calls.
 func OutgoingContext(ctx context.Context) context.Context {
 	token := TokenFrom(ctx)
-	if token == "" {
-		return ctx
+	if token != "" {
+		ctx = metadata.AppendToOutgoingContext(ctx, authHeader, token)
 	}
-	return metadata.AppendToOutgoingContext(ctx, authHeader, token)
+	ghToken := GitHubTokenFrom(ctx)
+	if ghToken != "" {
+		ctx = metadata.AppendToOutgoingContext(ctx, githubTokenKey, ghToken)
+	}
+	return ctx
+}
+
+// WithGitHubToken attaches a GitHub token to the context for gRPC propagation.
+// Used to pass installation tokens to the builder for repo cloning.
+func WithGitHubToken(ctx context.Context, token string) context.Context {
+	return context.WithValue(ctx, githubTokenContextKey{}, token)
+}
+
+// GitHubTokenFrom extracts the GitHub token from the context.
+func GitHubTokenFrom(ctx context.Context) string {
+	token, _ := ctx.Value(githubTokenContextKey{}).(string)
+	return token
 }

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/zeitlos/lucity/pkg/auth"
+	"github.com/zeitlos/lucity/pkg/deployer"
 	ghpkg "github.com/zeitlos/lucity/pkg/github"
 	"github.com/zeitlos/lucity/pkg/packager"
 	"github.com/zeitlos/lucity/pkg/tenant"
@@ -101,18 +102,20 @@ func (h *Handler) handlePush(event *github.Event) {
 		return
 	}
 
-	// Extract the owner from the repo full name (e.g., "zeitlos/myapp" → "zeitlos").
-	owner := event.RepoFullName
-	if i := strings.IndexByte(owner, '/'); i >= 0 {
-		owner = owner[:i]
+	// Look up workspace by installation ID via the deployer.
+	ws, err := h.lookupWorkspace(ctx, event.InstallationID, ghToken)
+	if err != nil {
+		slog.Error("push: failed to look up workspace", "installation_id", event.InstallationID, "error", err)
+		return
 	}
 
 	// Create a JWT for gRPC auth so downstream services accept the request.
 	claims := &auth.Claims{
-		Subject:     "webhook",
-		GitHubLogin: owner,
-		Roles:       []auth.Role{auth.RoleUser},
-		GitHubToken: ghToken,
+		Subject: "webhook",
+		Roles:   []auth.Role{auth.RoleUser},
+		Workspaces: []auth.WorkspaceMembership{
+			{Workspace: ws, Role: auth.WorkspaceRoleAdmin},
+		},
 	}
 	jwt, err := auth.NewToken(claims, h.JWTSecret, 30*time.Minute)
 	if err != nil {
@@ -120,9 +123,9 @@ func (h *Handler) handlePush(event *github.Event) {
 		return
 	}
 
-	// Phase 1: hardcode workspace. Phase 2 will look up workspace by installation ID.
-	ctx = tenant.WithWorkspace(ctx, "default")
+	ctx = tenant.WithWorkspace(ctx, ws)
 	ctx = auth.WithToken(ctx, jwt)
+	ctx = auth.WithGitHubToken(ctx, ghToken)
 	ctx = auth.OutgoingContext(ctx)
 	ctx = tenant.OutgoingContext(ctx)
 
@@ -147,11 +150,38 @@ func (h *Handler) handlePush(event *github.Event) {
 				"service", svc.Name,
 				"environment", environment,
 				"sha", event.CommitSHA,
+				"workspace", ws,
 			)
 
 			go h.Pipeline.Run(ctx, proj.Name, svc.Name, environment, event.CommitSHA, svc.SourceUrl, svc.ContextPath)
 		}
 	}
+}
+
+// lookupWorkspace resolves the workspace for a GitHub App installation ID
+// by querying the deployer's WorkspaceByInstallationID RPC.
+func (h *Handler) lookupWorkspace(ctx context.Context, installationID int64, ghToken string) (string, error) {
+	// Create a minimal JWT to authenticate the gRPC call.
+	claims := &auth.Claims{
+		Subject: "webhook",
+		Roles:   []auth.Role{auth.RoleUser},
+	}
+	jwt, err := auth.NewToken(claims, h.JWTSecret, 1*time.Minute)
+	if err != nil {
+		return "", fmt.Errorf("failed to create lookup JWT: %w", err)
+	}
+
+	lookupCtx := auth.WithToken(ctx, jwt)
+	lookupCtx = auth.OutgoingContext(lookupCtx)
+
+	resp, err := h.Pipeline.Deployer.WorkspaceByInstallationID(lookupCtx, &deployer.WorkspaceByInstallationIDRequest{
+		InstallationId: installationID,
+	})
+	if err != nil {
+		return "", fmt.Errorf("deployer lookup failed: %w", err)
+	}
+
+	return resp.Workspace, nil
 }
 
 // matchesRepo checks if a service's source URL matches a repo URL.

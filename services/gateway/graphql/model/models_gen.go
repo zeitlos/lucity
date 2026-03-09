@@ -329,10 +329,10 @@ type Subscription struct {
 }
 
 type User struct {
-	Login     string  `json:"login"`
-	Name      *string `json:"name,omitempty"`
-	Email     *string `json:"email,omitempty"`
-	AvatarURL string  `json:"avatarUrl"`
+	Name       *string               `json:"name,omitempty"`
+	Email      *string               `json:"email,omitempty"`
+	AvatarURL  string                `json:"avatarUrl"`
+	Workspaces []WorkspaceMembership `json:"workspaces"`
 }
 
 type Variable struct {
@@ -351,6 +351,11 @@ type Volume struct {
 	RequestedSize string `json:"requestedSize"`
 	UsedBytes     int    `json:"usedBytes"`
 	CapacityBytes int    `json:"capacityBytes"`
+}
+
+type WorkspaceMembership struct {
+	Workspace string        `json:"workspace"`
+	Role      WorkspaceRole `json:"role"`
 }
 
 type BuildPhase string
@@ -708,6 +713,61 @@ func (e *SyncStatus) UnmarshalJSON(b []byte) error {
 }
 
 func (e SyncStatus) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type WorkspaceRole string
+
+const (
+	WorkspaceRoleUser  WorkspaceRole = "USER"
+	WorkspaceRoleAdmin WorkspaceRole = "ADMIN"
+)
+
+var AllWorkspaceRole = []WorkspaceRole{
+	WorkspaceRoleUser,
+	WorkspaceRoleAdmin,
+}
+
+func (e WorkspaceRole) IsValid() bool {
+	switch e {
+	case WorkspaceRoleUser, WorkspaceRoleAdmin:
+		return true
+	}
+	return false
+}
+
+func (e WorkspaceRole) String() string {
+	return string(e)
+}
+
+func (e *WorkspaceRole) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = WorkspaceRole(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid WorkspaceRole", str)
+	}
+	return nil
+}
+
+func (e WorkspaceRole) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *WorkspaceRole) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e WorkspaceRole) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

@@ -1,8 +1,18 @@
 type User {
-  login: String!
   name: String
   email: String
   avatarUrl: String!
+  workspaces: [WorkspaceMembership!]!
+}
+
+type WorkspaceMembership {
+  workspace: String!
+  role: WorkspaceRole!
+}
+
+enum WorkspaceRole {
+  USER
+  ADMIN
 }
 
 extend type Query {

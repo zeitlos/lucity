@@ -6,9 +6,9 @@ import { getMainDefinition } from '@apollo/client/utilities';
 import { createClient } from 'graphql-ws';
 import router from '@/router';
 import { toast } from '@/components/ui/sonner';
+import { useAuth } from '@/composables/useAuth';
 
-// Phase 1: hardcoded workspace. Phase 2 will read from user's active workspace.
-const WORKSPACE = 'default';
+const { activeWorkspace } = useAuth();
 
 const httpLink = createHttpLink({
   uri: '/graphql',
@@ -18,7 +18,7 @@ const httpLink = createHttpLink({
 const workspaceLink = setContext((_, { headers }) => ({
   headers: {
     ...headers,
-    'X-Lucity-Workspace': WORKSPACE,
+    'X-Lucity-Workspace': activeWorkspace.value,
   },
 }));
 
@@ -29,8 +29,8 @@ const errorLink = onError(({ graphQLErrors, networkError, operation }) => {
         router.push('/login');
         return;
       }
-      if (err.extensions?.code === 'GITHUB_TOKEN_EXPIRED') {
-        window.location.href = '/auth/github';
+      if (err.extensions?.code === 'SESSION_EXPIRED') {
+        window.location.href = '/auth/login';
         return;
       }
     }
@@ -60,7 +60,7 @@ const wsLink = new GraphQLWsLink(createClient({
     const token = getToken();
     return {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      'X-Lucity-Workspace': WORKSPACE,
+      'X-Lucity-Workspace': activeWorkspace.value,
     };
   },
   lazy: true,

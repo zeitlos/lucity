@@ -7,32 +7,43 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
+// jwtWorkspaceMembership is the JWT-serializable form of WorkspaceMembership.
+type jwtWorkspaceMembership struct {
+	Workspace string        `json:"ws"`
+	Role      WorkspaceRole `json:"role"`
+}
+
 // jwtClaims is the JWT claims structure stored in the token.
 type jwtClaims struct {
 	jwt.RegisteredClaims
-	Email          string `json:"email,omitempty"`
-	GitHubLogin    string `json:"github_login"`
-	AvatarURL      string `json:"avatar_url"`
-	Roles          []Role `json:"roles"`
-	InstallationID int64  `json:"iid,omitempty"`
-	GitHubToken    string `json:"ght,omitempty"`
+	Email      string                   `json:"email,omitempty"`
+	AvatarURL  string                   `json:"avatar_url"`
+	Roles      []Role                   `json:"roles"`
+	Workspaces []jwtWorkspaceMembership `json:"workspaces,omitempty"`
 }
 
 // NewToken creates a signed JWT token from the given claims.
 func NewToken(claims *Claims, secret string, expiry time.Duration) (string, error) {
 	now := time.Now()
+
+	workspaces := make([]jwtWorkspaceMembership, len(claims.Workspaces))
+	for i, m := range claims.Workspaces {
+		workspaces[i] = jwtWorkspaceMembership{
+			Workspace: m.Workspace,
+			Role:      m.Role,
+		}
+	}
+
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, &jwtClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   claims.Subject,
 			IssuedAt:  jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(now.Add(expiry)),
 		},
-		Email:          claims.Email,
-		GitHubLogin:    claims.GitHubLogin,
-		AvatarURL:      claims.AvatarURL,
-		Roles:          claims.Roles,
-		InstallationID: claims.InstallationID,
-		GitHubToken:    claims.GitHubToken,
+		Email:      claims.Email,
+		AvatarURL:  claims.AvatarURL,
+		Roles:      claims.Roles,
+		Workspaces: workspaces,
 	})
 
 	signed, err := token.SignedString([]byte(secret))
@@ -59,13 +70,19 @@ func ParseToken(tokenString, secret string) (*Claims, error) {
 		return nil, fmt.Errorf("invalid token claims")
 	}
 
+	workspaces := make([]WorkspaceMembership, len(jc.Workspaces))
+	for i, m := range jc.Workspaces {
+		workspaces[i] = WorkspaceMembership{
+			Workspace: m.Workspace,
+			Role:      m.Role,
+		}
+	}
+
 	return &Claims{
-		Subject:        jc.Subject,
-		Email:          jc.Email,
-		GitHubLogin:    jc.GitHubLogin,
-		AvatarURL:      jc.AvatarURL,
-		Roles:          jc.Roles,
-		InstallationID: jc.InstallationID,
-		GitHubToken:    jc.GitHubToken,
+		Subject:    jc.Subject,
+		Email:      jc.Email,
+		AvatarURL:  jc.AvatarURL,
+		Roles:      jc.Roles,
+		Workspaces: workspaces,
 	}, nil
 }

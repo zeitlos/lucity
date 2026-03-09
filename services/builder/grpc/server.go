@@ -51,8 +51,9 @@ func (s *Server) DetectServices(ctx context.Context, req *builder.DetectServices
 
 	slog.Info("DetectServices called", "source_url", req.SourceUrl)
 
-	// Clone the repo
-	repoPath, err := s.cloneRepo(ctx, req.SourceUrl, req.GitRef, claims.GitHubToken)
+	// Clone the repo — GitHub token arrives via gRPC metadata from the gateway.
+	ghToken := auth.GitHubTokenFrom(ctx)
+	repoPath, err := s.cloneRepo(ctx, req.SourceUrl, req.GitRef, ghToken)
 	if err != nil {
 		slog.Error("clone failed", "source_url", req.SourceUrl, "error", err)
 		return nil, status.Errorf(codes.Internal, "failed to clone repo: %v", err)
@@ -98,8 +99,9 @@ func (s *Server) StartBuild(ctx context.Context, req *builder.StartBuildRequest)
 	buildID := uuid.NewString()
 	s.tracker.Create(buildID)
 
-	// Run the build asynchronously
-	go s.runBuild(buildID, claims.GitHubToken, req)
+	// Run the build asynchronously — pass the GitHub token from gRPC metadata.
+	ghToken := auth.GitHubTokenFrom(ctx)
+	go s.runBuild(buildID, ghToken, req)
 
 	return &builder.StartBuildResponse{BuildId: buildID}, nil
 }
