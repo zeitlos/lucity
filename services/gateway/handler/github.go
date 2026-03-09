@@ -28,16 +28,19 @@ type GitHubRepository struct {
 }
 
 // GitHubRepositories lists repos accessible to the authenticated user.
+// Requires a GitHub token in the context (set via auth.WithGitHubToken).
 func (c *Client) GitHubRepositories(ctx context.Context) ([]GitHubRepository, error) {
 	claims := auth.FromContext(ctx)
 	if claims == nil {
 		return nil, fmt.Errorf("unauthenticated")
 	}
-	if claims.GitHubToken == "" {
-		return nil, fmt.Errorf("no github token in session")
+
+	ghToken := auth.GitHubTokenFrom(ctx)
+	if ghToken == "" {
+		return nil, fmt.Errorf("no github token available")
 	}
 
-	client := gh.NewClient(nil).WithAuthToken(claims.GitHubToken)
+	client := gh.NewClient(nil).WithAuthToken(ghToken)
 
 	var result []GitHubRepository
 	opts := &gh.RepositoryListOptions{

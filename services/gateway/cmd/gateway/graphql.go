@@ -15,7 +15,6 @@ import (
 	"github.com/zeitlos/lucity/services/gateway/handler"
 
 	"github.com/zeitlos/lucity/pkg/auth"
-	gh "github.com/zeitlos/lucity/pkg/github"
 	"github.com/zeitlos/lucity/pkg/tenant"
 
 	gqlgen "github.com/99designs/gqlgen/graphql"
@@ -35,7 +34,7 @@ type GraphQLServer struct {
 	port   string
 }
 
-func NewGraphQLServer(port string, api *handler.Client, githubApp *gh.App, jwtSecret, dashboardURL string) *GraphQLServer {
+func NewGraphQLServer(port string, api *handler.Client, oidcProvider *OIDCProvider, jwtSecret, dashboardURL string) *GraphQLServer {
 	resolver := gatewaygraphql.Resolver{
 		API: api,
 	}
@@ -138,7 +137,7 @@ func NewGraphQLServer(port string, api *handler.Client, githubApp *gh.App, jwtSe
 	})
 
 	// Auth endpoints
-	registerAuthRoutes(mux, githubApp, jwtSecret, dashboardURL)
+	registerAuthRoutes(mux, oidcProvider, jwtSecret, dashboardURL)
 
 	// REST API endpoints
 	mux.HandleFunc("/api/eject/", ejectHandler(api))

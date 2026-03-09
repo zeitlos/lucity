@@ -14,7 +14,7 @@ func (c *Client) Me(ctx context.Context) (*User, error) {
 	}
 
 	return &User{
-		Login:     claims.GitHubLogin,
+		Login:     claims.Email,
 		Name:      claims.Subject,
 		Email:     claims.Email,
 		AvatarURL: claims.AvatarURL,

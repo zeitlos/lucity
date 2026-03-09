@@ -10,7 +10,6 @@ import (
 
 	"github.com/zeitlos/lucity/pkg/builder"
 	"github.com/zeitlos/lucity/pkg/deployer"
-	gh "github.com/zeitlos/lucity/pkg/github"
 	"github.com/zeitlos/lucity/pkg/graceful"
 	"github.com/zeitlos/lucity/pkg/logger"
 	"github.com/zeitlos/lucity/pkg/packager"
@@ -21,17 +20,15 @@ type Config struct {
 	Port     string `envconfig:"PORT" default:"8080"`
 	LogLevel string `envconfig:"LOG_LEVEL" default:"info"`
 
-	// GitHub App
-	GitHubAppID          int64  `envconfig:"GITHUB_APP_ID" required:"true"`
-	GitHubClientID       string `envconfig:"GITHUB_CLIENT_ID" required:"true"`
-	GitHubClientSecret   string `envconfig:"GITHUB_CLIENT_SECRET" required:"true"`
-	GitHubWebhookSecret  string `envconfig:"GITHUB_WEBHOOK_SECRET" default:"dev-secret"`
-	GitHubPrivateKeyPath string `envconfig:"GITHUB_PRIVATE_KEY_PATH"`
+	// OIDC
+	OIDCIssuerURL    string `envconfig:"OIDC_ISSUER_URL" required:"true"`
+	OIDCClientID     string `envconfig:"OIDC_CLIENT_ID" required:"true"`
+	OIDCClientSecret string `envconfig:"OIDC_CLIENT_SECRET" required:"true"`
+	OIDCCallbackURL  string `envconfig:"OIDC_CALLBACK_URL" default:"http://localhost:8080/auth/callback"`
 
 	// Auth
 	JWTSecret    string `envconfig:"JWT_SECRET" required:"true"`
 	DashboardURL string `envconfig:"DASHBOARD_URL" default:"http://localhost:5173"`
-	CallbackURL  string `envconfig:"CALLBACK_URL" default:"http://localhost:8080/auth/github/callback"`
 
 	// Backend services
 	BuilderAddr  string `envconfig:"BUILDER_ADDR" default:"localhost:9001"`
@@ -59,16 +56,9 @@ func main() {
 	ctx, cancel := graceful.Context()
 	defer cancel()
 
-	githubApp, err := gh.NewApp(
-		config.GitHubAppID,
-		config.GitHubClientID,
-		config.GitHubClientSecret,
-		config.GitHubWebhookSecret,
-		config.CallbackURL,
-		config.GitHubPrivateKeyPath,
-	)
+	oidcProvider, err := NewOIDCProvider(ctx, config.OIDCIssuerURL, config.OIDCClientID, config.OIDCClientSecret, config.OIDCCallbackURL)
 	if err != nil {
-		slog.Error("failed to initialize github app", "error", err)
+		slog.Error("failed to initialize OIDC provider", "error", err)
 		os.Exit(1)
 	}
 
@@ -119,7 +109,7 @@ func main() {
 	}
 
 	api := handler.New(packagerClient, builderClient, deployerClient, config.RegistryURL, registryImagePrefix, config.WorkloadDomain, domainTarget)
-	graphqlServer := NewGraphQLServer(config.Port, api, githubApp, config.JWTSecret, config.DashboardURL)
+	graphqlServer := NewGraphQLServer(config.Port, api, oidcProvider, config.JWTSecret, config.DashboardURL)
 
 	graceful.Serve(ctx, graphqlServer)
 }

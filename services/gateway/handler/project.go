@@ -522,8 +522,8 @@ var shaPattern = regexp.MustCompile(`^[0-9a-f]{7,}$`)
 // deployment entries whose imageTag is a git SHA. Best-effort — failures
 // are silently ignored. Also sets SourceURL for each SHA-based deployment.
 func (c *Client) enrichCommitMessages(ctx context.Context, proj *Project) {
-	claims := auth.FromContext(ctx)
-	if claims == nil || claims.GitHubToken == "" {
+	ghToken := auth.GitHubTokenFrom(ctx)
+	if ghToken == "" {
 		return
 	}
 
@@ -563,7 +563,7 @@ func (c *Client) enrichCommitMessages(ctx context.Context, proj *Project) {
 	}
 
 	// Fetch commit messages concurrently
-	client := gh.NewClient(nil).WithAuthToken(claims.GitHubToken)
+	client := gh.NewClient(nil).WithAuthToken(ghToken)
 	results := make(map[commitKey]commitResult, len(needed))
 	var mu sync.Mutex
 	var wg sync.WaitGroup
