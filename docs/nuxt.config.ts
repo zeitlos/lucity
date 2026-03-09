@@ -2,6 +2,12 @@ export default defineNuxtConfig({
   css: ['~/assets/css/main.css'],
   app: {
     head: {
+      script: [
+        {
+          innerHTML: ";(function(){var sites={'lucity.cloud':'42cfa77ed96d'};var id=sites[location.hostname];if(!id)return;var el=document.createElement('script');el.defer=true;el.src='https://p.lucity.cloud/api/script.js';el.dataset.siteId=id;document.head.appendChild(el);})()",
+          type: 'text/javascript'
+        }
+      ],
       link: [
         { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
         { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
