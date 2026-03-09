@@ -1,0 +1,29 @@
+enum ResourceTier { ECO, PRODUCTION }
+
+type ResourceAllocation {
+  cpuMillicores: Int!
+  memoryMB: Int!
+  diskMB: Int!
+}
+
+type EnvironmentResources {
+  tier: ResourceTier!
+  allocation: ResourceAllocation!
+}
+
+input SetEnvironmentResourcesInput {
+  projectId: ID!
+  environment: String!
+  tier: ResourceTier!
+  cpuMillicores: Int! @constraint(constraint: "min=100,max=32000")
+  memoryMB: Int! @constraint(constraint: "min=128,max=65536")
+  diskMB: Int! @constraint(constraint: "min=0,max=102400")
+}
+
+extend type Query {
+  environmentResources(projectId: ID!, environment: String!): EnvironmentResources @hasRole(role: [USER])
+}
+
+extend type Mutation {
+  setEnvironmentResources(input: SetEnvironmentResourcesInput!): EnvironmentResources! @hasRole(role: [USER])
+}

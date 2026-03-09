@@ -32,9 +32,6 @@ type Config struct {
 	PackagerAddr string `envconfig:"PACKAGER_ADDR" default:"localhost:9002"`
 	DeployerAddr string `envconfig:"DEPLOYER_ADDR" default:"localhost:9003"`
 
-	// JWT secret for creating service-to-service auth tokens.
-	JWTSecret string `envconfig:"JWT_SECRET"`
-
 	// Registry for image paths.
 	RegistryPushURL string `envconfig:"REGISTRY_PUSH_URL" default:"localhost:5000"`
 }
@@ -50,7 +47,7 @@ func main() {
 
 	// Build the push event handler if GitHub App + gRPC are configured.
 	var handler *webhookhttp.Handler
-	if config.GitHubAppID != 0 && config.GitHubPrivateKeyPath != "" && config.JWTSecret != "" {
+	if config.GitHubAppID != 0 && config.GitHubPrivateKeyPath != "" {
 		app, err := ghpkg.NewApp(config.GitHubAppID, "", "", config.WebhookSecret, "", config.GitHubPrivateKeyPath)
 		if err != nil {
 			slog.Error("failed to create github app", "error", err)
@@ -63,7 +60,6 @@ func main() {
 
 		handler = &webhookhttp.Handler{
 			GitHubApp: app,
-			JWTSecret: config.JWTSecret,
 			Pipeline: &webhook.Pipeline{
 				Builder:         builder.NewBuilderServiceClient(builderConn),
 				Packager:        packager.NewPackagerServiceClient(packagerConn),
@@ -78,7 +74,7 @@ func main() {
 			"deployer", config.DeployerAddr,
 		)
 	} else {
-		slog.Info("webhook CI/CD pipeline disabled (missing GITHUB_APP_ID, GITHUB_PRIVATE_KEY_PATH, or JWT_SECRET)")
+		slog.Info("webhook CI/CD pipeline disabled (missing GITHUB_APP_ID or GITHUB_PRIVATE_KEY_PATH)")
 	}
 
 	ctx, cancel := graceful.Context()

@@ -5,83 +5,72 @@ import (
 	"strings"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
-	"google.golang.org/grpc/status"
 )
 
 const (
-	authHeader       = "authorization"
-	githubTokenKey   = "x-github-token"
+	githubTokenKey = "x-github-token"
+	subjectKey     = "x-lucity-subject"
+	emailKey       = "x-lucity-email"
+	rolesKey       = "x-lucity-roles"
 )
 
 type githubTokenContextKey struct{}
 
 // UnaryServerInterceptor returns a gRPC server interceptor that extracts
-// and validates JWT tokens from the "authorization" metadata key.
-// Valid claims are attached to the request context via WithClaims.
-func UnaryServerInterceptor(jwtSecret string) grpc.UnaryServerInterceptor {
+// user identity from trusted metadata headers set by the gateway.
+// Claims are attached to the request context via WithClaims.
+func UnaryServerInterceptor() grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
-		md, ok := metadata.FromIncomingContext(ctx)
-		if !ok {
-			return nil, status.Error(codes.Unauthenticated, "missing metadata")
-		}
-
-		values := md.Get(authHeader)
-		if len(values) == 0 {
-			return nil, status.Error(codes.Unauthenticated, "missing authorization token")
-		}
-
-		token := values[0]
-		token = strings.TrimPrefix(token, "Bearer ")
-
-		claims, err := ParseToken(token, jwtSecret)
-		if err != nil {
-			return nil, status.Errorf(codes.Unauthenticated, "invalid token: %v", err)
-		}
-
-		ctx = WithClaims(ctx, claims)
-
-		// Extract GitHub token from metadata if present (used by builder for repo cloning).
-		if vals := md.Get(githubTokenKey); len(vals) > 0 {
-			ctx = WithGitHubToken(ctx, vals[0])
-		}
-
+		ctx = extractClaims(ctx)
 		return handler(ctx, req)
 	}
 }
 
 // StreamServerInterceptor returns a gRPC stream interceptor that extracts
-// and validates JWT tokens from the "authorization" metadata key.
-func StreamServerInterceptor(jwtSecret string) grpc.StreamServerInterceptor {
+// user identity from trusted metadata headers set by the gateway.
+func StreamServerInterceptor() grpc.StreamServerInterceptor {
 	return func(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
-		ctx := ss.Context()
-		md, ok := metadata.FromIncomingContext(ctx)
-		if !ok {
-			return status.Error(codes.Unauthenticated, "missing metadata")
-		}
-
-		values := md.Get(authHeader)
-		if len(values) == 0 {
-			return status.Error(codes.Unauthenticated, "missing authorization token")
-		}
-
-		token := values[0]
-		token = strings.TrimPrefix(token, "Bearer ")
-
-		claims, err := ParseToken(token, jwtSecret)
-		if err != nil {
-			return status.Errorf(codes.Unauthenticated, "invalid token: %v", err)
-		}
-
-		ctx = WithClaims(ctx, claims)
-
-		if vals := md.Get(githubTokenKey); len(vals) > 0 {
-			ctx = WithGitHubToken(ctx, vals[0])
-		}
-
+		ctx := extractClaims(ss.Context())
 		return handler(srv, &wrappedAuthStream{ServerStream: ss, ctx: ctx})
 	}
+}
+
+func extractClaims(ctx context.Context) context.Context {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return ctx
+	}
+
+	// Extract user identity from metadata headers
+	subject := firstValue(md, subjectKey)
+	if subject != "" {
+		claims := &Claims{
+			Subject: subject,
+			Email:   firstValue(md, emailKey),
+		}
+		if rolesStr := firstValue(md, rolesKey); rolesStr != "" {
+			for _, r := range strings.Split(rolesStr, ",") {
+				claims.Roles = append(claims.Roles, Role(r))
+			}
+		}
+		ctx = WithClaims(ctx, claims)
+	}
+
+	// Extract GitHub token if present (used by builder for repo cloning).
+	if vals := md.Get(githubTokenKey); len(vals) > 0 {
+		ctx = WithGitHubToken(ctx, vals[0])
+	}
+
+	return ctx
+}
+
+func firstValue(md metadata.MD, key string) string {
+	vals := md.Get(key)
+	if len(vals) == 0 {
+		return ""
+	}
+	return vals[0]
 }
 
 type wrappedAuthStream struct {
@@ -108,13 +97,25 @@ func TokenFrom(ctx context.Context) string {
 	return token
 }
 
-// OutgoingContext attaches the JWT token and GitHub token (if present)
-// from the context as gRPC metadata for outgoing calls.
+// OutgoingContext propagates user identity and GitHub token from the context
+// as gRPC metadata for outgoing calls to backend services.
 func OutgoingContext(ctx context.Context) context.Context {
-	token := TokenFrom(ctx)
-	if token != "" {
-		ctx = metadata.AppendToOutgoingContext(ctx, authHeader, token)
+	// Propagate user identity as plain metadata headers
+	if claims := FromContext(ctx); claims != nil {
+		ctx = metadata.AppendToOutgoingContext(ctx, subjectKey, claims.Subject)
+		if claims.Email != "" {
+			ctx = metadata.AppendToOutgoingContext(ctx, emailKey, claims.Email)
+		}
+		if len(claims.Roles) > 0 {
+			roles := make([]string, len(claims.Roles))
+			for i, r := range claims.Roles {
+				roles[i] = string(r)
+			}
+			ctx = metadata.AppendToOutgoingContext(ctx, rolesKey, strings.Join(roles, ","))
+		}
 	}
+
+	// Propagate GitHub token if present
 	ghToken := GitHubTokenFrom(ctx)
 	if ghToken != "" {
 		ctx = metadata.AppendToOutgoingContext(ctx, githubTokenKey, ghToken)

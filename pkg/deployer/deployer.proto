@@ -55,6 +55,12 @@ service DeployerService {
 
   // ListWorkspaces lists all workspace ConfigMaps.
   rpc ListWorkspaces(ListWorkspacesRequest) returns (ListWorkspacesResponse);
+
+  // SetResourceQuota creates or updates a ResourceQuota, LimitRange, and tier label on a namespace.
+  rpc SetResourceQuota(SetResourceQuotaRequest) returns (SetResourceQuotaResponse);
+
+  // ResourceQuota returns the current resource quota and tier for an environment namespace.
+  rpc ResourceQuota(ResourceQuotaRequest) returns (ResourceQuotaResponse);
 }
 
 message DeployEnvironmentRequest {
@@ -280,5 +286,41 @@ message WorkspaceInfo {
   string name = 2;
   bool personal = 3;
   int64 github_installation_id = 4;
+}
+
+// Resource quota messages.
+
+enum ResourceTier {
+  RESOURCE_TIER_UNSPECIFIED = 0;
+  RESOURCE_TIER_ECO = 1;
+  RESOURCE_TIER_PRODUCTION = 2;
+}
+
+message SetResourceQuotaRequest {
+  string project = 1;
+  string environment = 2;
+  ResourceTier tier = 3;
+  int32 cpu_millicores = 4;
+  int32 memory_mb = 5;
+  int32 disk_mb = 6;
+}
+
+message SetResourceQuotaResponse {
+  ResourceTier tier = 1;
+  int32 cpu_millicores = 2;
+  int32 memory_mb = 3;
+  int32 disk_mb = 4;
+}
+
+message ResourceQuotaRequest {
+  string project = 1;
+  string environment = 2;
+}
+
+message ResourceQuotaResponse {
+  ResourceTier tier = 1;
+  int32 cpu_millicores = 2;
+  int32 memory_mb = 3;
+  int32 disk_mb = 4;
 }
 

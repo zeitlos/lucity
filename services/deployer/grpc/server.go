@@ -13,6 +13,7 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -714,6 +715,194 @@ func (s *Server) ListWorkspaces(ctx context.Context, req *deployer.ListWorkspace
 	}
 
 	return &deployer.ListWorkspacesResponse{Workspaces: workspaces}, nil
+}
+
+const (
+	resourceQuotaName = "lucity-resources"
+	limitRangeName    = "lucity-defaults"
+)
+
+func (s *Server) SetResourceQuota(ctx context.Context, req *deployer.SetResourceQuotaRequest) (*deployer.SetResourceQuotaResponse, error) {
+	ws := tenant.FromContext(ctx)
+	namespace := labels.NamespaceFor(ws, req.Project, req.Environment)
+
+	// 1. Create or update ResourceQuota.
+	cpuQty := fmt.Sprintf("%dm", req.CpuMillicores)
+	memQty := fmt.Sprintf("%dMi", req.MemoryMb)
+	diskQty := fmt.Sprintf("%dMi", req.DiskMb)
+
+	quota := &corev1.ResourceQuota{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      resourceQuotaName,
+			Namespace: namespace,
+			Labels: map[string]string{
+				labels.ManagedBy: labels.ManagedByLucity,
+			},
+		},
+		Spec: corev1.ResourceQuotaSpec{
+			Hard: corev1.ResourceList{
+				corev1.ResourceRequestsCPU:     resource.MustParse(cpuQty),
+				corev1.ResourceRequestsMemory:  resource.MustParse(memQty),
+				corev1.ResourceRequestsStorage: resource.MustParse(diskQty),
+			},
+		},
+	}
+
+	existing, err := s.k8s.CoreV1().ResourceQuotas(namespace).Get(ctx, resourceQuotaName, metav1.GetOptions{})
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			return nil, status.Errorf(codes.Internal, "failed to get resource quota: %v", err)
+		}
+		if _, err := s.k8s.CoreV1().ResourceQuotas(namespace).Create(ctx, quota, metav1.CreateOptions{}); err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to create resource quota: %v", err)
+		}
+	} else {
+		existing.Spec.Hard = quota.Spec.Hard
+		existing.Labels = quota.Labels
+		if _, err := s.k8s.CoreV1().ResourceQuotas(namespace).Update(ctx, existing, metav1.UpdateOptions{}); err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to update resource quota: %v", err)
+		}
+	}
+
+	// 2. Create or update LimitRange.
+	lr := buildLimitRange(namespace, req.Tier)
+	existingLR, err := s.k8s.CoreV1().LimitRanges(namespace).Get(ctx, limitRangeName, metav1.GetOptions{})
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			return nil, status.Errorf(codes.Internal, "failed to get limit range: %v", err)
+		}
+		if _, err := s.k8s.CoreV1().LimitRanges(namespace).Create(ctx, lr, metav1.CreateOptions{}); err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to create limit range: %v", err)
+		}
+	} else {
+		existingLR.Spec = lr.Spec
+		existingLR.Labels = lr.Labels
+		if _, err := s.k8s.CoreV1().LimitRanges(namespace).Update(ctx, existingLR, metav1.UpdateOptions{}); err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to update limit range: %v", err)
+		}
+	}
+
+	// 3. Set resource-tier label on namespace.
+	ns, err := s.k8s.CoreV1().Namespaces().Get(ctx, namespace, metav1.GetOptions{})
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to get namespace: %v", err)
+	}
+	if ns.Labels == nil {
+		ns.Labels = make(map[string]string)
+	}
+	ns.Labels[labels.ResourceTier] = tierToString(req.Tier)
+	if _, err := s.k8s.CoreV1().Namespaces().Update(ctx, ns, metav1.UpdateOptions{}); err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to update namespace tier label: %v", err)
+	}
+
+	slog.Info("set resource quota",
+		"namespace", namespace,
+		"tier", tierToString(req.Tier),
+		"cpu", cpuQty, "memory", memQty, "disk", diskQty,
+	)
+
+	return &deployer.SetResourceQuotaResponse{
+		Tier:          req.Tier,
+		CpuMillicores: req.CpuMillicores,
+		MemoryMb:      req.MemoryMb,
+		DiskMb:        req.DiskMb,
+	}, nil
+}
+
+func (s *Server) ResourceQuota(ctx context.Context, req *deployer.ResourceQuotaRequest) (*deployer.ResourceQuotaResponse, error) {
+	ws := tenant.FromContext(ctx)
+	namespace := labels.NamespaceFor(ws, req.Project, req.Environment)
+
+	quota, err := s.k8s.CoreV1().ResourceQuotas(namespace).Get(ctx, resourceQuotaName, metav1.GetOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil, status.Errorf(codes.NotFound, "no resource quota for %s", namespace)
+		}
+		return nil, status.Errorf(codes.Internal, "failed to get resource quota: %v", err)
+	}
+
+	ns, err := s.k8s.CoreV1().Namespaces().Get(ctx, namespace, metav1.GetOptions{})
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to get namespace: %v", err)
+	}
+
+	tier := tierFromString(ns.Labels[labels.ResourceTier])
+
+	cpuMillis := int32(quota.Spec.Hard.Cpu().MilliValue())
+	memMB := int32(quota.Spec.Hard.Memory().Value() / (1024 * 1024))
+
+	var diskMB int32
+	if storageQty, ok := quota.Spec.Hard[corev1.ResourceRequestsStorage]; ok {
+		diskMB = int32(storageQty.Value() / (1024 * 1024))
+	}
+
+	return &deployer.ResourceQuotaResponse{
+		Tier:          tier,
+		CpuMillicores: cpuMillis,
+		MemoryMb:      memMB,
+		DiskMb:        diskMB,
+	}, nil
+}
+
+func buildLimitRange(namespace string, tier deployer.ResourceTier) *corev1.LimitRange {
+	lr := &corev1.LimitRange{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      limitRangeName,
+			Namespace: namespace,
+			Labels: map[string]string{
+				labels.ManagedBy: labels.ManagedByLucity,
+			},
+		},
+	}
+
+	if tier == deployer.ResourceTier_RESOURCE_TIER_PRODUCTION {
+		// Guaranteed QoS: requests = limits.
+		lr.Spec.Limits = []corev1.LimitRangeItem{{
+			Type: corev1.LimitTypeContainer,
+			Default: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("250m"),
+				corev1.ResourceMemory: resource.MustParse("256Mi"),
+			},
+			DefaultRequest: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("250m"),
+				corev1.ResourceMemory: resource.MustParse("256Mi"),
+			},
+		}}
+	} else {
+		// Burstable QoS: requests < limits.
+		lr.Spec.Limits = []corev1.LimitRangeItem{{
+			Type: corev1.LimitTypeContainer,
+			Default: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("250m"),
+				corev1.ResourceMemory: resource.MustParse("256Mi"),
+			},
+			DefaultRequest: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("100m"),
+				corev1.ResourceMemory: resource.MustParse("128Mi"),
+			},
+		}}
+	}
+	return lr
+}
+
+func tierToString(t deployer.ResourceTier) string {
+	switch t {
+	case deployer.ResourceTier_RESOURCE_TIER_ECO:
+		return "eco"
+	case deployer.ResourceTier_RESOURCE_TIER_PRODUCTION:
+		return "production"
+	default:
+		return "eco"
+	}
+}
+
+func tierFromString(s string) deployer.ResourceTier {
+	switch s {
+	case "production":
+		return deployer.ResourceTier_RESOURCE_TIER_PRODUCTION
+	default:
+		return deployer.ResourceTier_RESOURCE_TIER_ECO
+	}
 }
 
 func (s *Server) DatabaseCredentials(ctx context.Context, req *deployer.DatabaseCredentialsRequest) (*deployer.DatabaseCredentialsResponse, error) {

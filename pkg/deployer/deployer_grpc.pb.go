@@ -36,6 +36,8 @@ const (
 	DeployerService_UpdateWorkspaceMetadata_FullMethodName   = "/deployer.DeployerService/UpdateWorkspaceMetadata"
 	DeployerService_DeleteWorkspaceMetadata_FullMethodName   = "/deployer.DeployerService/DeleteWorkspaceMetadata"
 	DeployerService_ListWorkspaces_FullMethodName            = "/deployer.DeployerService/ListWorkspaces"
+	DeployerService_SetResourceQuota_FullMethodName          = "/deployer.DeployerService/SetResourceQuota"
+	DeployerService_ResourceQuota_FullMethodName             = "/deployer.DeployerService/ResourceQuota"
 )
 
 // DeployerServiceClient is the client API for DeployerService service.
@@ -76,6 +78,10 @@ type DeployerServiceClient interface {
 	DeleteWorkspaceMetadata(ctx context.Context, in *DeleteWorkspaceMetadataRequest, opts ...grpc.CallOption) (*DeleteWorkspaceMetadataResponse, error)
 	// ListWorkspaces lists all workspace ConfigMaps.
 	ListWorkspaces(ctx context.Context, in *ListWorkspacesRequest, opts ...grpc.CallOption) (*ListWorkspacesResponse, error)
+	// SetResourceQuota creates or updates a ResourceQuota, LimitRange, and tier label on a namespace.
+	SetResourceQuota(ctx context.Context, in *SetResourceQuotaRequest, opts ...grpc.CallOption) (*SetResourceQuotaResponse, error)
+	// ResourceQuota returns the current resource quota and tier for an environment namespace.
+	ResourceQuota(ctx context.Context, in *ResourceQuotaRequest, opts ...grpc.CallOption) (*ResourceQuotaResponse, error)
 }
 
 type deployerServiceClient struct {
@@ -265,6 +271,26 @@ func (c *deployerServiceClient) ListWorkspaces(ctx context.Context, in *ListWork
 	return out, nil
 }
 
+func (c *deployerServiceClient) SetResourceQuota(ctx context.Context, in *SetResourceQuotaRequest, opts ...grpc.CallOption) (*SetResourceQuotaResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SetResourceQuotaResponse)
+	err := c.cc.Invoke(ctx, DeployerService_SetResourceQuota_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *deployerServiceClient) ResourceQuota(ctx context.Context, in *ResourceQuotaRequest, opts ...grpc.CallOption) (*ResourceQuotaResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ResourceQuotaResponse)
+	err := c.cc.Invoke(ctx, DeployerService_ResourceQuota_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DeployerServiceServer is the server API for DeployerService service.
 // All implementations must embed UnimplementedDeployerServiceServer
 // for forward compatibility.
@@ -303,6 +329,10 @@ type DeployerServiceServer interface {
 	DeleteWorkspaceMetadata(context.Context, *DeleteWorkspaceMetadataRequest) (*DeleteWorkspaceMetadataResponse, error)
 	// ListWorkspaces lists all workspace ConfigMaps.
 	ListWorkspaces(context.Context, *ListWorkspacesRequest) (*ListWorkspacesResponse, error)
+	// SetResourceQuota creates or updates a ResourceQuota, LimitRange, and tier label on a namespace.
+	SetResourceQuota(context.Context, *SetResourceQuotaRequest) (*SetResourceQuotaResponse, error)
+	// ResourceQuota returns the current resource quota and tier for an environment namespace.
+	ResourceQuota(context.Context, *ResourceQuotaRequest) (*ResourceQuotaResponse, error)
 	mustEmbedUnimplementedDeployerServiceServer()
 }
 
@@ -363,6 +393,12 @@ func (UnimplementedDeployerServiceServer) DeleteWorkspaceMetadata(context.Contex
 }
 func (UnimplementedDeployerServiceServer) ListWorkspaces(context.Context, *ListWorkspacesRequest) (*ListWorkspacesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListWorkspaces not implemented")
+}
+func (UnimplementedDeployerServiceServer) SetResourceQuota(context.Context, *SetResourceQuotaRequest) (*SetResourceQuotaResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetResourceQuota not implemented")
+}
+func (UnimplementedDeployerServiceServer) ResourceQuota(context.Context, *ResourceQuotaRequest) (*ResourceQuotaResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ResourceQuota not implemented")
 }
 func (UnimplementedDeployerServiceServer) mustEmbedUnimplementedDeployerServiceServer() {}
 func (UnimplementedDeployerServiceServer) testEmbeddedByValue()                         {}
@@ -684,6 +720,42 @@ func _DeployerService_ListWorkspaces_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _DeployerService_SetResourceQuota_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetResourceQuotaRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DeployerServiceServer).SetResourceQuota(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DeployerService_SetResourceQuota_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DeployerServiceServer).SetResourceQuota(ctx, req.(*SetResourceQuotaRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DeployerService_ResourceQuota_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ResourceQuotaRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DeployerServiceServer).ResourceQuota(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DeployerService_ResourceQuota_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DeployerServiceServer).ResourceQuota(ctx, req.(*ResourceQuotaRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // DeployerService_ServiceDesc is the grpc.ServiceDesc for DeployerService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -754,6 +826,14 @@ var DeployerService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListWorkspaces",
 			Handler:    _DeployerService_ListWorkspaces_Handler,
+		},
+		{
+			MethodName: "SetResourceQuota",
+			Handler:    _DeployerService_SetResourceQuota_Handler,
+		},
+		{
+			MethodName: "ResourceQuota",
+			Handler:    _DeployerService_ResourceQuota_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

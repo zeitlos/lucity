@@ -16,11 +16,15 @@ type GRPCServer struct {
 	addr   string
 }
 
-func NewGRPCServer(addr, jwtSecret string, svc *Server) *GRPCServer {
+func NewGRPCServer(addr string, svc *Server) *GRPCServer {
 	s := grpc.NewServer(
 		grpc.ChainUnaryInterceptor(
-			auth.UnaryServerInterceptor(jwtSecret),
+			auth.UnaryServerInterceptor(),
 			tenant.UnaryServerInterceptor(),
+		),
+		grpc.ChainStreamInterceptor(
+			auth.StreamServerInterceptor(),
+			tenant.StreamServerInterceptor(),
 		),
 	)
 	packager.RegisterPackagerServiceServer(s, svc)

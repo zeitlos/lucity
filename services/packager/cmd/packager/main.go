@@ -20,9 +20,6 @@ type Config struct {
 	Port     string `envconfig:"PORT" default:"9002"`
 	LogLevel string `envconfig:"LOG_LEVEL" default:"info"`
 
-	// Auth
-	JWTSecret string `envconfig:"JWT_SECRET" required:"true"`
-
 	// Soft-serve config
 	SoftServeSSH     string `envconfig:"SOFTSERVE_SSH_ADDR" default:"localhost:23231"`
 	SoftServeHTTP    string `envconfig:"SOFTSERVE_HTTP_ADDR" default:"http://localhost:23232"`
@@ -64,7 +61,7 @@ func main() {
 	deployerClient := deployer.NewDeployerServiceClient(deployerConn)
 
 	svc := packagergrpc.NewServer(provider, deployerClient)
-	grpcServer := packagergrpc.NewGRPCServer(":"+config.Port, config.JWTSecret, svc)
+	grpcServer := packagergrpc.NewGRPCServer(":"+config.Port, svc)
 	graceful.Serve(ctx, grpcServer)
 }
 

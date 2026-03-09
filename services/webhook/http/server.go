@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/deployer"
@@ -21,7 +20,6 @@ import (
 type Handler struct {
 	GitHubApp *ghpkg.App
 	Pipeline  *webhook.Pipeline
-	JWTSecret string
 }
 
 type Server struct {
@@ -109,22 +107,13 @@ func (h *Handler) handlePush(event *github.Event) {
 		return
 	}
 
-	// Create a JWT for gRPC auth so downstream services accept the request.
-	claims := &auth.Claims{
+	// Set identity and workspace context for gRPC propagation.
+	// No JWT needed — backends trust the gateway/webhook as the auth boundary.
+	ctx = auth.WithClaims(ctx, &auth.Claims{
 		Subject: "webhook",
 		Roles:   []auth.Role{auth.RoleUser},
-		Workspaces: []auth.WorkspaceMembership{
-			{Workspace: ws, Role: auth.WorkspaceRoleAdmin},
-		},
-	}
-	jwt, err := auth.NewToken(claims, h.JWTSecret, 30*time.Minute)
-	if err != nil {
-		slog.Error("push: failed to create JWT", "error", err)
-		return
-	}
-
+	})
 	ctx = tenant.WithWorkspace(ctx, ws)
-	ctx = auth.WithToken(ctx, jwt)
 	ctx = auth.WithGitHubToken(ctx, ghToken)
 	ctx = auth.OutgoingContext(ctx)
 	ctx = tenant.OutgoingContext(ctx)
@@ -161,17 +150,11 @@ func (h *Handler) handlePush(event *github.Event) {
 // lookupWorkspace resolves the workspace for a GitHub App installation ID
 // by querying the deployer's WorkspaceByInstallationID RPC.
 func (h *Handler) lookupWorkspace(ctx context.Context, installationID int64, ghToken string) (string, error) {
-	// Create a minimal JWT to authenticate the gRPC call.
-	claims := &auth.Claims{
+	// Set identity context for gRPC propagation — no JWT needed.
+	lookupCtx := auth.WithClaims(ctx, &auth.Claims{
 		Subject: "webhook",
 		Roles:   []auth.Role{auth.RoleUser},
-	}
-	jwt, err := auth.NewToken(claims, h.JWTSecret, 1*time.Minute)
-	if err != nil {
-		return "", fmt.Errorf("failed to create lookup JWT: %w", err)
-	}
-
-	lookupCtx := auth.WithToken(ctx, jwt)
+	})
 	lookupCtx = auth.OutgoingContext(lookupCtx)
 
 	resp, err := h.Pipeline.Deployer.WorkspaceByInstallationID(lookupCtx, &deployer.WorkspaceByInstallationIDRequest{

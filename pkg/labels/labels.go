@@ -14,6 +14,7 @@ const (
 	BuiltBy      = Prefix + "built-by"
 	ManagedBy    = Prefix + "managed-by"
 	ResourceType = Prefix + "resource-type"
+	ResourceTier = Prefix + "resource-tier"
 )
 
 // OCI image label constants.

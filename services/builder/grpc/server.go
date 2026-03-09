@@ -44,11 +44,6 @@ func NewServer(eng engine.Engine, tracker build.Tracker, registryURL, registryTo
 }
 
 func (s *Server) DetectServices(ctx context.Context, req *builder.DetectServicesRequest) (*builder.DetectServicesResponse, error) {
-	claims := auth.FromContext(ctx)
-	if claims == nil {
-		return nil, status.Error(codes.Unauthenticated, "unauthenticated")
-	}
-
 	slog.Info("DetectServices called", "source_url", req.SourceUrl)
 
 	// Clone the repo — GitHub token arrives via gRPC metadata from the gateway.
@@ -85,11 +80,6 @@ func (s *Server) DetectServices(ctx context.Context, req *builder.DetectServices
 }
 
 func (s *Server) StartBuild(ctx context.Context, req *builder.StartBuildRequest) (*builder.StartBuildResponse, error) {
-	claims := auth.FromContext(ctx)
-	if claims == nil {
-		return nil, status.Error(codes.Unauthenticated, "unauthenticated")
-	}
-
 	slog.Info("StartBuild called",
 		"source_url", req.SourceUrl,
 		"service", req.Service,
@@ -162,10 +152,6 @@ func (s *Server) BuildLogs(req *builder.BuildLogsRequest, stream builder.Builder
 }
 
 func (s *Server) DeleteImages(ctx context.Context, req *builder.DeleteImagesRequest) (*builder.DeleteImagesResponse, error) {
-	if auth.FromContext(ctx) == nil {
-		return nil, status.Error(codes.Unauthenticated, "unauthenticated")
-	}
-
 	slog.Info("DeleteImages called", "project", req.Project)
 
 	ws := tenant.FromContext(ctx)

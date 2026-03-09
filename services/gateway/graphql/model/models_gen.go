@@ -209,6 +209,11 @@ type Environment struct {
 	Databases  []DatabaseInstance `json:"databases"`
 }
 
+type EnvironmentResources struct {
+	Tier       ResourceTier        `json:"tier"`
+	Allocation *ResourceAllocation `json:"allocation"`
+}
+
 type GenerateDomainInput struct {
 	ProjectID   string `json:"projectId"`
 	Service     string `json:"service"`
@@ -269,6 +274,12 @@ type RemoveDomainInput struct {
 	Service     string `json:"service"`
 	Environment string `json:"environment"`
 	Hostname    string `json:"hostname"`
+}
+
+type ResourceAllocation struct {
+	CPUMillicores int `json:"cpuMillicores"`
+	MemoryMb      int `json:"memoryMB"`
+	DiskMb        int `json:"diskMB"`
 }
 
 type RollbackInput struct {
@@ -333,6 +344,15 @@ type ServiceVariableInput struct {
 	DatabaseRef *DatabaseRefInput `json:"databaseRef,omitempty"`
 	// Reference to another service's internal URL.
 	ServiceRef *ServiceRefInput `json:"serviceRef,omitempty"`
+}
+
+type SetEnvironmentResourcesInput struct {
+	ProjectID     string       `json:"projectId"`
+	Environment   string       `json:"environment"`
+	Tier          ResourceTier `json:"tier"`
+	CPUMillicores int          `json:"cpuMillicores"`
+	MemoryMb      int          `json:"memoryMB"`
+	DiskMb        int          `json:"diskMB"`
 }
 
 type Subscription struct {
@@ -630,6 +650,61 @@ func (e *DomainType) UnmarshalJSON(b []byte) error {
 }
 
 func (e DomainType) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type ResourceTier string
+
+const (
+	ResourceTierEco        ResourceTier = "ECO"
+	ResourceTierProduction ResourceTier = "PRODUCTION"
+)
+
+var AllResourceTier = []ResourceTier{
+	ResourceTierEco,
+	ResourceTierProduction,
+}
+
+func (e ResourceTier) IsValid() bool {
+	switch e {
+	case ResourceTierEco, ResourceTierProduction:
+		return true
+	}
+	return false
+}
+
+func (e ResourceTier) String() string {
+	return string(e)
+}
+
+func (e *ResourceTier) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = ResourceTier(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid ResourceTier", str)
+	}
+	return nil
+}
+
+func (e ResourceTier) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *ResourceTier) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e ResourceTier) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

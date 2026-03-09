@@ -287,6 +287,17 @@ func convertWorkspaceMember(m *handler.WorkspaceMember) *model.WorkspaceMember {
 	return result
 }
 
+func convertEnvironmentResources(r handler.EnvironmentResources) model.EnvironmentResources {
+	return model.EnvironmentResources{
+		Tier: model.ResourceTier(r.Tier),
+		Allocation: &model.ResourceAllocation{
+			CPUMillicores: r.CpuMillicores,
+			MemoryMb:      r.MemoryMB,
+			DiskMb:        r.DiskMB,
+		},
+	}
+}
+
 func convertDatabase(d handler.Database) model.Database {
 	return model.Database{
 		Name:      d.Name,
