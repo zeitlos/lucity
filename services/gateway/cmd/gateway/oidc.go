@@ -190,8 +190,9 @@ func handleCallback(provider *OIDCProvider, api *handler.Client, jwtSecret, dash
 
 		// Auto-create personal workspace for new users with no workspace memberships
 		if len(workspaces) == 0 {
-			if oidcClaims.PreferredUsername == "" {
-				slog.Warn("user has no workspaces and no preferred_username for personal workspace", "email", oidcClaims.Email)
+			if api.Rauthy == nil || oidcClaims.PreferredUsername == "" {
+				// No Rauthy or no username — can't create personal workspace
+				slog.Warn("user has no workspaces", "email", oidcClaims.Email, "rauthy_configured", api.Rauthy != nil, "preferred_username", oidcClaims.PreferredUsername)
 				http.Redirect(w, r, dashboardURL+"/login?error=no_workspace", http.StatusTemporaryRedirect)
 				return
 			}
@@ -206,7 +207,7 @@ func handleCallback(provider *OIDCProvider, api *handler.Client, jwtSecret, dash
 			wsID, err := api.EnsurePersonalWorkspace(svcCtx, idToken.Subject, oidcClaims.PreferredUsername)
 			if err != nil {
 				slog.Error("failed to create personal workspace", "error", err, "email", oidcClaims.Email)
-				http.Error(w, "failed to create workspace", http.StatusInternalServerError)
+				http.Redirect(w, r, dashboardURL+"/login?error=workspace_creation_failed", http.StatusTemporaryRedirect)
 				return
 			}
 			workspaces = []auth.WorkspaceMembership{{Workspace: wsID, Role: auth.WorkspaceRoleAdmin}}
