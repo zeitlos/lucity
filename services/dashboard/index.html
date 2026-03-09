@@ -8,6 +8,18 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Instrument+Serif&family=Sora:wght@300..700&display=swap" rel="stylesheet">
     <title>Lucity</title>
+    <script>
+      ;(function() {
+        var sites = {'lucity.cloud': '42cfa77ed96d'};
+        var id = sites[location.hostname];
+        if (!id) return;
+        var el = document.createElement('script');
+        el.defer = true;
+        el.src = 'https://p.lucity.cloud/api/script.js';
+        el.dataset.siteId = id;
+        document.head.appendChild(el);
+      })();
+    </script>
   </head>
   <body>
     <div id="app"></div>
