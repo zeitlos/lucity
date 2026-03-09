@@ -33,7 +33,7 @@ type OIDCProvider struct {
 }
 
 // NewOIDCProvider performs OIDC discovery against the issuer and returns a configured provider.
-// Uses PKCE (S256) — no client secret needed.
+// Uses PKCE (S256) — no client secret needed. The client must be configured as "public" in the IDP.
 func NewOIDCProvider(ctx context.Context, issuerURL, clientID, callbackURL string) (*OIDCProvider, error) {
 	provider, err := oidc.NewProvider(ctx, issuerURL)
 	if err != nil {
@@ -137,7 +137,12 @@ func handleCallback(provider *OIDCProvider, jwtSecret, dashboardURL string) http
 			oauth2.SetAuthURLParam("code_verifier", verifierCookie.Value),
 		)
 		if err != nil {
-			slog.Error("failed to exchange code", "error", err)
+			// Try to extract the OAuth2 error details
+			if rErr, ok := err.(*oauth2.RetrieveError); ok {
+				slog.Error("failed to exchange code", "error", err, "status", rErr.Response.StatusCode, "body", string(rErr.Body))
+			} else {
+				slog.Error("failed to exchange code", "error", err)
+			}
 			http.Error(w, "authentication failed", http.StatusInternalServerError)
 			return
 		}
