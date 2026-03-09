@@ -10,13 +10,13 @@
     <title>Lucity</title>
     <script>
       ;(function() {
-        var u = '%VITE_ANALYTICS_SCRIPT_URL%';
-        var s = '%VITE_ANALYTICS_SITE_ID%';
-        if (!u || u.indexOf('VITE_') !== -1) return;
+        var sites = {'lucity.cloud': '42cfa77ed96d'};
+        var id = sites[location.hostname];
+        if (!id) return;
         var el = document.createElement('script');
         el.defer = true;
-        el.src = u;
-        el.dataset.siteId = s;
+        el.src = 'https://p.lucity.cloud/api/script.js';
+        el.dataset.siteId = id;
         document.head.appendChild(el);
       })();
     </script>
