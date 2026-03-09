@@ -84,7 +84,10 @@ jobs:
           - service: dashboard
             dockerfile: services/dashboard/Dockerfile
             context: services/dashboard
-            build-args: VITE_BASE_PATH=/app/
+            build-args: |
+              VITE_BASE_PATH=/app/
+              VITE_ANALYTICS_SCRIPT_URL=https://p.lucity.cloud/api/script.js
+              VITE_ANALYTICS_SITE_ID=42cfa77ed96d
           - service: docs
             dockerfile: docs/Dockerfile
             context: docs
