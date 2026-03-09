@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useMutation } from '@vue/apollo-composable';
-import { Trash2, Database, Server, HardDrive, Wrench } from 'lucide-vue-next';
+import { Trash2, Database, Server, HardDrive } from 'lucide-vue-next';
 import { DeleteDatabaseMutation } from '@/graphql/databases';
 import { Button } from '@/components/ui/button';
 import {
@@ -75,11 +75,6 @@ async function handleDelete() {
             <span class="flex-1 text-sm text-muted-foreground">Storage</span>
             <span class="font-mono text-sm font-medium text-foreground">{{ database.size }}</span>
           </div>
-          <div class="flex items-center gap-3 px-4 py-3">
-            <Wrench :size="16" class="shrink-0 text-muted-foreground" />
-            <span class="flex-1 text-sm text-muted-foreground">Operator</span>
-            <span class="text-sm text-muted-foreground">CloudNativePG</span>
-          </div>
         </div>
       </div>
     </section>
@@ -98,7 +93,7 @@ async function handleDelete() {
             <div>
               <p class="text-sm font-medium text-foreground">Delete Database</p>
               <p class="text-xs text-muted-foreground">
-                This will remove the database from the GitOps configuration.
+                Permanently delete this database and all its data.
               </p>
             </div>
             <AlertDialog v-model:open="deleteDialogOpen">
@@ -112,8 +107,8 @@ async function handleDelete() {
                 <AlertDialogHeader>
                   <AlertDialogTitle>Delete database "{{ database.name }}"?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This will remove the PostgreSQL cluster definition from the project configuration.
-                    The CNPG operator will delete the cluster and its data.
+                    This will permanently delete the database and all its data.
+                    This action cannot be undone.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>

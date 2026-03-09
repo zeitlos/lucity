@@ -195,8 +195,8 @@ async function handleDeleteEnvironment() {
                     <div>
                       <p class="text-sm font-medium text-foreground">Delete Project</p>
                       <p class="text-xs text-muted-foreground">
-                        Permanently delete this project and its GitOps repository.
-                      </p>
+                        Permanently delete this project and all its data.
+</p>
                     </div>
                     <AlertDialog>
                       <AlertDialogTrigger as-child>
@@ -209,8 +209,8 @@ async function handleDeleteEnvironment() {
                         <AlertDialogHeader>
                           <AlertDialogTitle>Delete project</AlertDialogTitle>
                           <AlertDialogDescription>
-                            This will permanently delete <strong>{{ project.name }}</strong> and its
-                            GitOps repository. All environments and deployments will be removed.
+                            This will permanently delete <strong>{{ project.name }}</strong>.
+                            All environments, services, and deployments will be permanently deleted.
                             This action cannot be undone.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
@@ -278,8 +278,7 @@ async function handleDeleteEnvironment() {
                   <AlertDialogHeader>
                     <AlertDialogTitle>Delete environment "{{ envToDelete }}"?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      This will remove the environment and its ArgoCD application.
-                      All deployments in this environment will be deleted.
+                      This will permanently delete the environment and all its deployments.
                       This action cannot be undone.
                     </AlertDialogDescription>
                   </AlertDialogHeader>

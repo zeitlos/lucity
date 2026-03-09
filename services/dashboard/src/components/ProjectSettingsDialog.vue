@@ -80,7 +80,7 @@ async function handleDeleteProject() {
             <div>
               <p class="text-sm font-medium text-foreground">Delete Project</p>
               <p class="text-xs text-muted-foreground">
-                Permanently delete this project and its GitOps repository.
+                Permanently delete this project and all its data.
               </p>
             </div>
             <AlertDialog>
@@ -94,8 +94,8 @@ async function handleDeleteProject() {
                 <AlertDialogHeader>
                   <AlertDialogTitle>Delete project</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This will permanently delete <strong>{{ projectName }}</strong> and its
-                    GitOps repository. All environments and deployments will be removed.
+                    This will permanently delete <strong>{{ projectName }}</strong>.
+                    All environments, services, and deployments will be permanently deleted.
                     This action cannot be undone.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
