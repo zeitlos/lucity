@@ -13,7 +13,8 @@ type User struct {
 	Email           string   `json:"email"`
 	GivenName       string   `json:"given_name"`
 	FamilyName      string   `json:"family_name"`
-	Groups          []string `json:"groups"`          // group IDs
+	Roles           []string `json:"roles"`           // role names — required for PUT round-trip
+	Groups          []string `json:"groups"`           // group IDs
 	Enabled         bool     `json:"enabled"`
 	EmailVerified   bool     `json:"email_verified"`
 	WebauthnEnabled bool     `json:"webauthn_enabled"`

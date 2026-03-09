@@ -35,7 +35,7 @@ func (c *Client) do(ctx context.Context, method, path string, body io.Reader) (*
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
-	req.Header.Set("Authorization", "Bearer "+c.apiKey)
+	req.Header.Set("Authorization", "API-Key "+c.apiKey)
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}

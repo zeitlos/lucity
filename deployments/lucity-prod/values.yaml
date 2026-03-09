@@ -27,10 +27,12 @@ gateway:
     DEPLOYER_ADDR: lucity-deployer:9003
     REGISTRY_URL: lucity-infra-zot.lucity-system.svc.cluster.local:5000
     REGISTRY_IMAGE_PREFIX: 10.96.100.100:5000
+    RAUTHY_API_URL: https://auth.lucity.cloud/auth/v1
     WORKLOAD_DOMAIN: lucity.app
     DOMAIN_TARGET: lucity.cloud
   envSecret:
     JWT_SECRET: JWT_SECRET
+    RAUTHY_API_KEY: RAUTHY_API_KEY
 
 builder:
   serviceAccount:
