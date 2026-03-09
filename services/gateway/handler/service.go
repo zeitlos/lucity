@@ -393,7 +393,7 @@ func (c *Client) runDeploy(token, deployID, projectID, service, environment, bui
 func (c *Client) streamBuildLogs(ctx context.Context, deployID, buildID string) {
 	stream, err := c.Builder.BuildLogs(ctx, &builder.BuildLogsRequest{BuildId: buildID, Offset: 0})
 	if err != nil {
-		slog.Debug("deploy: failed to open build log stream", "deployId", deployID, "error", err)
+		slog.Warn("deploy: failed to open build log stream", "deployId", deployID, "error", err)
 		return
 	}
 	for {
@@ -402,7 +402,7 @@ func (c *Client) streamBuildLogs(ctx context.Context, deployID, buildID string) 
 			return
 		}
 		if err != nil {
-			slog.Debug("deploy: build log stream ended", "deployId", deployID, "error", err)
+			slog.Warn("deploy: build log stream ended", "deployId", deployID, "error", err)
 			return
 		}
 		c.DeployTracker.AppendLog(deployID, entry.Line)
@@ -454,7 +454,7 @@ func (c *Client) finalizeDeploy(ctx context.Context, deployID, projectID, servic
 			Environment: environment,
 		})
 		if err != nil {
-			slog.Debug("deploy: failed to poll ArgoCD status", "deployId", deployID, "error", err)
+			slog.Warn("deploy: failed to poll ArgoCD status", "deployId", deployID, "error", err)
 			continue
 		}
 

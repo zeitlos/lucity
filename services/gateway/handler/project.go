@@ -353,7 +353,7 @@ func (c *Client) enrichSyncStatus(ctx context.Context, proj *Project) {
 				Environment: env.Name,
 			})
 			if err != nil {
-				slog.Debug("failed to get deployment status", "project", proj.ID, "environment", env.Name, "error", err)
+				slog.Warn("failed to get deployment status", "project", proj.ID, "environment", env.Name, "error", err)
 				return
 			}
 			env.SyncStatus = deploymentStatusToString(resp.Status)
@@ -398,7 +398,7 @@ func (c *Client) enrichDatabaseStatus(ctx context.Context, proj *Project) {
 					Instances:   dbInfo.Instances,
 				}
 				if err != nil {
-					slog.Debug("failed to get database status", "project", proj.ID, "environment", envPtr.Name, "database", dbInfo.Name, "error", err)
+					slog.Warn("failed to get database status", "project", proj.ID, "environment", envPtr.Name, "database", dbInfo.Name, "error", err)
 				} else {
 					inst.Ready = resp.Ready
 					if resp.Instances > 0 {
@@ -443,7 +443,7 @@ func (c *Client) enrichDeploymentHistory(ctx context.Context, proj *Project) {
 					Service:     si.Name,
 				})
 				if err != nil {
-					slog.Debug("failed to get deployment history", "project", proj.ID, "environment", env.Name, "service", si.Name, "error", err)
+					slog.Warn("failed to get deployment history", "project", proj.ID, "environment", env.Name, "service", si.Name, "error", err)
 					return
 				}
 
@@ -541,7 +541,7 @@ func (c *Client) enrichCommitMessages(ctx context.Context, proj *Project) {
 
 			commit, _, err := client.Repositories.GetCommit(fetchCtx, key.owner, key.repo, key.sha, nil)
 			if err != nil {
-				slog.Debug("failed to fetch commit message", "owner", key.owner, "repo", key.repo, "sha", key.sha, "error", err)
+				slog.Warn("failed to fetch commit message", "owner", key.owner, "repo", key.repo, "sha", key.sha, "error", err)
 				return
 			}
 

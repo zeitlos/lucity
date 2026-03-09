@@ -8,7 +8,7 @@ import (
 	"github.com/lmittmann/tint"
 )
 
-// Setup configures the default slog logger. Output is plain text by default.
+// Setup configures the default slog logger. Output is JSON by default (for SigNoz / structured log ingestion).
 // Set LOG_COLOR=true to enable colored output via tint (useful in interactive terminals).
 func Setup(level string) {
 	if strings.ToLower(os.Getenv("LOG_COLOR")) == "true" {
@@ -17,7 +17,7 @@ func Setup(level string) {
 		})))
 		return
 	}
-	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
 		Level: parseLevel(level),
 	})))
 }

@@ -119,7 +119,7 @@ func (s *Server) GetProject(ctx context.Context, req *packager.GetProjectRequest
 			envMeta := gitops.EnvironmentMeta{Name: envName}
 			envSvcs, envErr := p.EnvironmentServices(ctx, req.Project, envName)
 			if envErr != nil {
-				slog.Debug("failed to read environment services", "project", req.Project, "environment", envName, "error", envErr)
+				slog.Warn("failed to read environment services", "project", req.Project, "environment", envName, "error", envErr)
 			} else {
 				envMeta.Services = envSvcs
 			}

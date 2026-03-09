@@ -269,7 +269,7 @@ func (s *Server) streamPodLogs(ctx context.Context, namespace, podName, containe
 
 	logStream, err := s.k8s.CoreV1().Pods(namespace).GetLogs(podName, opts).Stream(ctx)
 	if err != nil {
-		slog.Debug("failed to open log stream", "pod", podName, "error", err)
+		slog.Warn("failed to open log stream", "pod", podName, "error", err)
 		return
 	}
 	defer logStream.Close()
@@ -471,13 +471,13 @@ func (s *Server) pvcUsage(ctx context.Context, namespace, pvcName string, pods [
 	path := fmt.Sprintf("/api/v1/nodes/%s/proxy/stats/summary", nodeName)
 	raw, err := s.k8s.CoreV1().RESTClient().Get().AbsPath(path).DoRaw(ctx)
 	if err != nil {
-		slog.Debug("failed to query kubelet stats", "node", nodeName, "error", err)
+		slog.Warn("failed to query kubelet stats", "node", nodeName, "error", err)
 		return 0, 0
 	}
 
 	var summary kubeletStatsSummary
 	if err := json.Unmarshal(raw, &summary); err != nil {
-		slog.Debug("failed to parse kubelet stats", "error", err)
+		slog.Warn("failed to parse kubelet stats", "error", err)
 		return 0, 0
 	}
 

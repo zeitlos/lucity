@@ -121,7 +121,7 @@ func (t *K8sTracker) LogLines(id string, offset int) []string {
 	req := t.client.CoreV1().Pods(t.namespace).GetLogs(pod.Name, logOpts)
 	stream, err := req.Stream(context.Background())
 	if err != nil {
-		slog.Debug("failed to stream pod logs", "pod", pod.Name, "error", err)
+		slog.Warn("failed to stream pod logs", "pod", pod.Name, "error", err)
 		return nil
 	}
 	defer stream.Close()

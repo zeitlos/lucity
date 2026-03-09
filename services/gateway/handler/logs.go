@@ -45,7 +45,7 @@ func (c *Client) ServiceLogs(ctx context.Context, projectID, service, environmen
 				return
 			}
 			if err != nil {
-				slog.Debug("service log stream ended", "project", projectID, "service", service, "error", err)
+				slog.Warn("service log stream ended", "project", projectID, "service", service, "error", err)
 				return
 			}
 			select {
