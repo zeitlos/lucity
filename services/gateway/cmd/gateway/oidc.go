@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -17,9 +19,10 @@ import (
 )
 
 const (
-	stateCookieName = "lucity_oauth_state"
-	tokenCookieName = "lucity_token"
-	tokenExpiry     = 7 * 24 * time.Hour
+	stateCookieName    = "lucity_oauth_state"
+	verifierCookieName = "lucity_pkce_verifier"
+	tokenCookieName    = "lucity_token"
+	tokenExpiry        = 7 * 24 * time.Hour
 )
 
 // OIDCProvider wraps the OIDC discovery provider, ID token verifier, and OAuth2 config.
@@ -30,18 +33,18 @@ type OIDCProvider struct {
 }
 
 // NewOIDCProvider performs OIDC discovery against the issuer and returns a configured provider.
-func NewOIDCProvider(ctx context.Context, issuerURL, clientID, clientSecret, callbackURL string) (*OIDCProvider, error) {
+// Uses PKCE (S256) — no client secret needed.
+func NewOIDCProvider(ctx context.Context, issuerURL, clientID, callbackURL string) (*OIDCProvider, error) {
 	provider, err := oidc.NewProvider(ctx, issuerURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to discover OIDC provider at %s: %w", issuerURL, err)
 	}
 
 	oauthConfig := oauth2.Config{
-		ClientID:     clientID,
-		ClientSecret: clientSecret,
-		Endpoint:     provider.Endpoint(),
-		RedirectURL:  callbackURL,
-		Scopes:       []string{oidc.ScopeOpenID, "profile", "email", "groups"},
+		ClientID:    clientID,
+		Endpoint:    provider.Endpoint(),
+		RedirectURL: callbackURL,
+		Scopes:      []string{oidc.ScopeOpenID, "profile", "email", "groups"},
 	}
 
 	verifier := provider.Verifier(&oidc.Config{ClientID: clientID})
@@ -61,10 +64,12 @@ func registerAuthRoutes(mux *http.ServeMux, provider *OIDCProvider, jwtSecret, d
 	mux.HandleFunc("/auth/logout", handleLogout(dashboardURL))
 }
 
-// handleLogin redirects to the OIDC provider's authorization page.
+// handleLogin redirects to the OIDC provider's authorization page with PKCE.
 func handleLogin(provider *OIDCProvider) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		state := generateState()
+		verifier := generateCodeVerifier()
+		challenge := codeChallenge(verifier)
 
 		http.SetCookie(w, &http.Cookie{
 			Name:     stateCookieName,
@@ -74,8 +79,20 @@ func handleLogin(provider *OIDCProvider) http.HandlerFunc {
 			HttpOnly: true,
 			SameSite: http.SameSiteLaxMode,
 		})
+		http.SetCookie(w, &http.Cookie{
+			Name:     verifierCookieName,
+			Value:    verifier,
+			Path:     "/",
+			MaxAge:   600,
+			HttpOnly: true,
+			SameSite: http.SameSiteLaxMode,
+		})
 
-		http.Redirect(w, r, provider.oauthConfig.AuthCodeURL(state), http.StatusTemporaryRedirect)
+		url := provider.oauthConfig.AuthCodeURL(state,
+			oauth2.SetAuthURLParam("code_challenge", challenge),
+			oauth2.SetAuthURLParam("code_challenge_method", "S256"),
+		)
+		http.Redirect(w, r, url, http.StatusTemporaryRedirect)
 	}
 }
 
@@ -97,14 +114,28 @@ func handleCallback(provider *OIDCProvider, jwtSecret, dashboardURL string) http
 			MaxAge: -1,
 		})
 
+		// Retrieve PKCE verifier
+		verifierCookie, err := r.Cookie(verifierCookieName)
+		if err != nil {
+			http.Error(w, "missing PKCE verifier", http.StatusBadRequest)
+			return
+		}
+		http.SetCookie(w, &http.Cookie{
+			Name:   verifierCookieName,
+			Path:   "/",
+			MaxAge: -1,
+		})
+
 		code := r.URL.Query().Get("code")
 		if code == "" {
 			http.Error(w, "missing code", http.StatusBadRequest)
 			return
 		}
 
-		// Exchange code for OAuth2 token
-		oauth2Token, err := provider.oauthConfig.Exchange(r.Context(), code)
+		// Exchange code for OAuth2 token (with PKCE verifier)
+		oauth2Token, err := provider.oauthConfig.Exchange(r.Context(), code,
+			oauth2.SetAuthURLParam("code_verifier", verifierCookie.Value),
+		)
 		if err != nil {
 			slog.Error("failed to exchange code", "error", err)
 			http.Error(w, "authentication failed", http.StatusInternalServerError)
@@ -241,4 +272,17 @@ func generateState() string {
 	b := make([]byte, 16)
 	rand.Read(b)
 	return hex.EncodeToString(b)
+}
+
+// generateCodeVerifier creates a random PKCE code verifier (43–128 chars, base64url).
+func generateCodeVerifier() string {
+	b := make([]byte, 32)
+	rand.Read(b)
+	return base64.RawURLEncoding.EncodeToString(b)
+}
+
+// codeChallenge computes the S256 PKCE code challenge from a verifier.
+func codeChallenge(verifier string) string {
+	h := sha256.Sum256([]byte(verifier))
+	return base64.RawURLEncoding.EncodeToString(h[:])
 }

@@ -21,11 +21,10 @@ type Config struct {
 	Port     string `envconfig:"PORT" default:"8080"`
 	LogLevel string `envconfig:"LOG_LEVEL" default:"info"`
 
-	// OIDC
-	OIDCIssuerURL    string `envconfig:"OIDC_ISSUER_URL" required:"true"`
-	OIDCClientID     string `envconfig:"OIDC_CLIENT_ID" required:"true"`
-	OIDCClientSecret string `envconfig:"OIDC_CLIENT_SECRET" required:"true"`
-	OIDCCallbackURL  string `envconfig:"OIDC_CALLBACK_URL" default:"http://localhost:8080/auth/callback"`
+	// OIDC (PKCE — no client secret needed)
+	OIDCIssuerURL   string `envconfig:"OIDC_ISSUER_URL" required:"true"`
+	OIDCClientID    string `envconfig:"OIDC_CLIENT_ID" required:"true"`
+	OIDCCallbackURL string `envconfig:"OIDC_CALLBACK_URL" default:"http://localhost:8080/auth/callback"`
 
 	// Auth
 	JWTSecret    string `envconfig:"JWT_SECRET" required:"true"`
@@ -61,7 +60,7 @@ func main() {
 	ctx, cancel := graceful.Context()
 	defer cancel()
 
-	oidcProvider, err := NewOIDCProvider(ctx, config.OIDCIssuerURL, config.OIDCClientID, config.OIDCClientSecret, config.OIDCCallbackURL)
+	oidcProvider, err := NewOIDCProvider(ctx, config.OIDCIssuerURL, config.OIDCClientID, config.OIDCCallbackURL)
 	if err != nil {
 		slog.Error("failed to initialize OIDC provider", "error", err)
 		os.Exit(1)
