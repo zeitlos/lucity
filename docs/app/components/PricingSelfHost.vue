@@ -695,36 +695,29 @@ onUnmounted(() => { observer?.disconnect(); });
   position: absolute;
   top: 0;
   bottom: 0;
-  width: 30px;
+  width: 24px;
   background: linear-gradient(
     90deg,
-    oklch(0.72 0.005 80) 0%,
-    oklch(0.80 0.005 80) 35%,
-    oklch(0.83 0.005 80) 55%,
-    oklch(0.77 0.005 80) 100%
+    oklch(0.78 0.005 80) 0%,
+    oklch(0.82 0.005 80) 50%,
+    oklch(0.78 0.005 80) 100%
   );
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: space-evenly;
   padding: 8px 0;
-  z-index: 4;
+  z-index: 2;
 }
 
 .rack-rail-left {
   left: 0;
-  border-right: 1px solid oklch(0.65 0.005 80);
-  box-shadow:
-    inset -2px 0 4px oklch(0 0 0 / 0.08),
-    4px 0 10px -2px oklch(0 0 0 / 0.2);
+  border-right: 1px solid oklch(0.72 0.005 80);
 }
 
 .rack-rail-right {
   right: 0;
-  border-left: 1px solid oklch(0.65 0.005 80);
-  box-shadow:
-    inset 2px 0 4px oklch(0 0 0 / 0.08),
-    -4px 0 10px -2px oklch(0 0 0 / 0.2);
+  border-left: 1px solid oklch(0.72 0.005 80);
 }
 
 .screw {
@@ -770,7 +763,7 @@ onUnmounted(() => { observer?.disconnect(); });
 /* ── Rack unit (1U) ── */
 
 .rack-unit {
-  margin: 0 30px;
+  margin: 0 24px;
   border-bottom: 1px solid oklch(0.72 0.005 80);
 }
 
@@ -1423,11 +1416,7 @@ onUnmounted(() => { observer?.disconnect(); });
 
 @media (max-width: 639px) {
   .rack-rail {
-    width: 20px;
-  }
-
-  .rack-unit {
-    margin: 0 20px;
+    width: 16px;
   }
 
   .screw {
@@ -1496,25 +1485,18 @@ onUnmounted(() => { observer?.disconnect(); });
 .dark .rack-wrapper .rack-rail {
   background: linear-gradient(
     90deg,
-    oklch(0.20 0.01 55) 0%,
-    oklch(0.26 0.01 55) 35%,
-    oklch(0.28 0.01 55) 55%,
-    oklch(0.22 0.01 55) 100%
+    oklch(0.28 0.01 55) 0%,
+    oklch(0.32 0.01 55) 50%,
+    oklch(0.28 0.01 55) 100%
   );
 }
 
 .dark .rack-wrapper .rack-rail-left {
-  border-right-color: oklch(0.15 0.01 55);
-  box-shadow:
-    inset -2px 0 4px oklch(0 0 0 / 0.2),
-    4px 0 10px -2px oklch(0 0 0 / 0.4);
+  border-right-color: oklch(0.35 0.01 55);
 }
 
 .dark .rack-wrapper .rack-rail-right {
-  border-left-color: oklch(0.15 0.01 55);
-  box-shadow:
-    inset 2px 0 4px oklch(0 0 0 / 0.2),
-    -4px 0 10px -2px oklch(0 0 0 / 0.4);
+  border-left-color: oklch(0.35 0.01 55);
 }
 
 .dark .rack-wrapper .screw {
