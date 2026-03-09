@@ -1,5 +1,8 @@
 FROM node:20-alpine AS build
 
+ARG NUXT_PUBLIC_ANALYTICS_SCRIPT_URL
+ARG NUXT_PUBLIC_ANALYTICS_SITE_ID
+
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
