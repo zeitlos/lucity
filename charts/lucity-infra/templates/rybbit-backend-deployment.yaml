@@ -22,6 +22,21 @@ spec:
         app.kubernetes.io/instance: {{ .Release.Name }}
         app.kubernetes.io/component: analytics
     spec:
+      initContainers:
+        - name: wait-for-postgres
+          image: busybox:1.37
+          command: ['sh', '-c', 'until nc -z $POSTGRES_HOST $POSTGRES_PORT; do echo "waiting for postgres..."; sleep 2; done']
+          env:
+            - name: POSTGRES_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-rybbit-pg-app
+                  key: host
+            - name: POSTGRES_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-rybbit-pg-app
+                  key: port
       containers:
         - name: backend
           image: "{{ .Values.rybbit.backend.image.repository }}:{{ .Values.rybbit.backend.image.tag }}"
