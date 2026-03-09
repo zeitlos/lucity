@@ -169,12 +169,14 @@ PROD_CONTEXT ?= lucity-prod
 VERSION ?=
 
 deploy-prod-infra:
+	@test -f deployments/lucity-prod/secrets.yaml || { echo "Error: deployments/lucity-prod/secrets.yaml not found. Copy secrets.yaml.example and fill in values."; exit 1; }
 	helm upgrade --install lucity-infra \
 		oci://ghcr.io/zeitlos/lucity/charts/lucity-infra \
 		$(if $(VERSION),--version $(VERSION)) \
 		--kube-context $(PROD_CONTEXT) \
 		-n lucity-system --create-namespace \
 		-f deployments/lucity-prod/infra-values.yaml \
+		-f deployments/lucity-prod/secrets.yaml \
 		$(HELM_ARGS)
 
 deploy-prod:
