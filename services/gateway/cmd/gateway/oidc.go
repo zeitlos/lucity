@@ -491,7 +491,7 @@ func handleGitHubSetup(api *handler.Client, dashboardURL string) http.HandlerFun
 		}
 
 		slog.Info("github installation linked via setup callback", "workspace", workspace, "installation_id", installationID)
-		http.Redirect(w, r, dashboardURL+"/workspace/settings?github=linked", http.StatusTemporaryRedirect)
+		http.Redirect(w, r, dashboardURL+"/?github=connected", http.StatusTemporaryRedirect)
 	}
 }
 

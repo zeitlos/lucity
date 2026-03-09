@@ -10,6 +10,8 @@ import { AddServiceMutation, DetectServicesQuery, DeployMutation } from '@/graph
 import { CreateDatabaseMutation } from '@/graphql/databases';
 import { toast } from '@/components/ui/sonner';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { useAuth } from '@/composables/useAuth';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { errorMessage } from '@/lib/utils';
 import { generateName } from '@/lib/names';
@@ -18,6 +20,7 @@ const props = defineProps<{
   open: boolean;
   context: 'projects' | 'project';
   projectId?: string;
+  initialView?: 'main' | 'github-repos';
 }>();
 
 const emit = defineEmits<{
@@ -27,6 +30,7 @@ const emit = defineEmits<{
 
 const router = useRouter();
 const { resolveClient } = useApolloClient();
+const { activeWorkspace } = useAuth();
 
 // Drill-down state
 type PaletteView = 'main' | 'github-repos' | 'manual-service' | 'database';
@@ -37,7 +41,7 @@ const inputRef = ref<HTMLInputElement>();
 // Reset when palette opens
 watch(() => props.open, (open) => {
   if (open) {
-    view.value = 'main';
+    view.value = props.initialView || 'main';
     search.value = '';
     nextTick(() => inputRef.value?.focus());
   }
@@ -363,7 +367,22 @@ const mainItems = computed(() => {
                   <p class="px-2 py-6 text-center text-sm text-muted-foreground">Loading repositories...</p>
                 </template>
                 <template v-else-if="reposError">
-                  <p class="px-2 py-6 text-center text-sm text-destructive">Failed to load repositories.</p>
+                  <div class="px-4 py-6 text-center">
+                    <Github :size="24" class="mx-auto mb-3 text-muted-foreground" />
+                    <p class="text-sm font-medium text-foreground">GitHub not connected</p>
+                    <p class="mt-1 text-xs text-muted-foreground">
+                      Connect your GitHub account to import repositories.
+                    </p>
+                    <a
+                      :href="`/auth/github/install?workspace=${activeWorkspace}`"
+                      class="mt-3 inline-flex"
+                    >
+                      <Button size="sm">
+                        <Github :size="14" class="mr-1.5" />
+                        Connect GitHub
+                      </Button>
+                    </a>
+                  </div>
                 </template>
                 <template v-else-if="repos.length === 0">
                   <p class="px-2 py-6 text-center text-sm text-muted-foreground">No repositories found.</p>
