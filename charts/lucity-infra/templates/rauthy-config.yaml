@@ -17,6 +17,7 @@ stringData:
     scheme = 'http'
     pub_url = '{{ .Values.rauthy.hostname }}'
     proxy_mode = true
+    trusted_proxies = ['{{ .Values.rauthy.trustedProxies }}']
 
     [cluster]
     node_id_from = 'k8s'
@@ -35,6 +36,6 @@ stringData:
 
     [webauthn]
     rp_id = '{{ .Values.rauthy.hostname }}'
-    rp_origin = 'https://{{ .Values.rauthy.hostname }}'
+    rp_origin = 'https://{{ .Values.rauthy.hostname }}:443'
     rp_name = 'Lucity'
 {{- end }}

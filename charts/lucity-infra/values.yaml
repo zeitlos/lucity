@@ -195,6 +195,7 @@ rauthy:
     pullPolicy: IfNotPresent
   hostname: ""
   adminEmail: admin@localhost
+  trustedProxies: "10.0.0.0/8"
   service:
     type: ClusterIP
     httpPort: 8080
