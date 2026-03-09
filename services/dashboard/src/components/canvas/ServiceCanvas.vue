@@ -107,9 +107,23 @@ function handleFitView() {
   fitView({ padding: 0.3, maxZoom: 1 });
 }
 
-// Fit view on mount
+// Fit view on mount — account for already-open panel (persists across navigation)
 onMounted(() => {
-  setTimeout(() => handleFitView(), 200);
+  setTimeout(() => {
+    const panel = currentPanel.value;
+    if (panel?.type === 'service' || panel?.type === 'database') {
+      const nodeId = panel.type === 'database' ? `db-${panel.id}` : panel.id;
+      const node = findNode(nodeId);
+      if (node) {
+        const nodeCenterX = node.position.x + (node.dimensions.width / 2);
+        const nodeCenterY = node.position.y + (node.dimensions.height / 2);
+        const panelOffset = (dimensions.value.width * 0.55) / 2;
+        setCenter(nodeCenterX + panelOffset, nodeCenterY, { zoom: 1 });
+        return;
+      }
+    }
+    handleFitView();
+  }, 200);
 });
 
 // Re-fit view when services or databases change
