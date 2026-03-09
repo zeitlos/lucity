@@ -357,7 +357,7 @@ onUnmounted(() => { observer?.disconnect(); });
                 r="2"
                 fill="#22C55E"
                 class="port-led"
-                :class="{ 'port-led-on': phase === 'cables' || phase === 'done' }"
+                :class="{ 'port-led-on': bottomPluggedSet.has(i - 1) && (phase === 'cables' || phase === 'done') }"
                 :style="{ '--port-led-delay': `${(i - 1) * 60}ms` }"
               />
             </g>
@@ -695,29 +695,36 @@ onUnmounted(() => { observer?.disconnect(); });
   position: absolute;
   top: 0;
   bottom: 0;
-  width: 24px;
+  width: 30px;
   background: linear-gradient(
     90deg,
-    oklch(0.78 0.005 80) 0%,
-    oklch(0.82 0.005 80) 50%,
-    oklch(0.78 0.005 80) 100%
+    oklch(0.72 0.005 80) 0%,
+    oklch(0.80 0.005 80) 35%,
+    oklch(0.83 0.005 80) 55%,
+    oklch(0.77 0.005 80) 100%
   );
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: space-evenly;
   padding: 8px 0;
-  z-index: 2;
+  z-index: 4;
 }
 
 .rack-rail-left {
   left: 0;
-  border-right: 1px solid oklch(0.72 0.005 80);
+  border-right: 1px solid oklch(0.65 0.005 80);
+  box-shadow:
+    inset -2px 0 4px oklch(0 0 0 / 0.08),
+    4px 0 10px -2px oklch(0 0 0 / 0.2);
 }
 
 .rack-rail-right {
   right: 0;
-  border-left: 1px solid oklch(0.72 0.005 80);
+  border-left: 1px solid oklch(0.65 0.005 80);
+  box-shadow:
+    inset 2px 0 4px oklch(0 0 0 / 0.08),
+    -4px 0 10px -2px oklch(0 0 0 / 0.2);
 }
 
 .screw {
@@ -763,7 +770,7 @@ onUnmounted(() => { observer?.disconnect(); });
 /* ── Rack unit (1U) ── */
 
 .rack-unit {
-  margin: 0 24px;
+  margin: 0 30px;
   border-bottom: 1px solid oklch(0.72 0.005 80);
 }
 
@@ -1416,11 +1423,11 @@ onUnmounted(() => { observer?.disconnect(); });
 
 @media (max-width: 639px) {
   .rack-rail {
-    width: 16px;
+    width: 20px;
   }
 
   .rack-unit {
-    margin: 0 16px;
+    margin: 0 20px;
   }
 
   .screw {
@@ -1489,18 +1496,25 @@ onUnmounted(() => { observer?.disconnect(); });
 .dark .rack-wrapper .rack-rail {
   background: linear-gradient(
     90deg,
-    oklch(0.28 0.01 55) 0%,
-    oklch(0.32 0.01 55) 50%,
-    oklch(0.28 0.01 55) 100%
+    oklch(0.20 0.01 55) 0%,
+    oklch(0.26 0.01 55) 35%,
+    oklch(0.28 0.01 55) 55%,
+    oklch(0.22 0.01 55) 100%
   );
 }
 
 .dark .rack-wrapper .rack-rail-left {
-  border-right-color: oklch(0.35 0.01 55);
+  border-right-color: oklch(0.15 0.01 55);
+  box-shadow:
+    inset -2px 0 4px oklch(0 0 0 / 0.2),
+    4px 0 10px -2px oklch(0 0 0 / 0.4);
 }
 
 .dark .rack-wrapper .rack-rail-right {
-  border-left-color: oklch(0.35 0.01 55);
+  border-left-color: oklch(0.15 0.01 55);
+  box-shadow:
+    inset 2px 0 4px oklch(0 0 0 / 0.2),
+    -4px 0 10px -2px oklch(0 0 0 / 0.4);
 }
 
 .dark .rack-wrapper .screw {
@@ -1540,6 +1554,20 @@ onUnmounted(() => { observer?.disconnect(); });
 .dark .rack-wrapper .led {
   background: oklch(0.15 0.01 55);
   box-shadow: inset 0 0.5px 1px oklch(0 0 0 / 0.4);
+}
+
+.dark .rack-wrapper .led.led-on {
+  background: var(--led-color);
+  box-shadow:
+    0 0 4px var(--led-color),
+    0 0 8px color-mix(in oklch, var(--led-color) 40%, transparent);
+}
+
+.dark .rack-wrapper .led.led-blink {
+  background: var(--led-color);
+  box-shadow:
+    0 0 4px var(--led-color),
+    0 0 8px color-mix(in oklch, var(--led-color) 40%, transparent);
 }
 
 .dark .rack-wrapper .led-label {
@@ -1600,6 +1628,16 @@ onUnmounted(() => { observer?.disconnect(); });
   background: oklch(0.20 0.01 55);
 }
 
+.dark .rack-wrapper .nvme-sled.nvme-sled-on {
+  background: #22C55E;
+  box-shadow: 0 0 3px #22C55E;
+}
+
+.dark .rack-wrapper .nvme-sled.nvme-sled-blink {
+  background: #F59E0B;
+  box-shadow: 0 0 3px #F59E0B;
+}
+
 .dark .rack-wrapper .nvme-usb-port {
   background: oklch(0.06 0.01 55);
   border-color: oklch(0.20 0.01 55);
@@ -1627,6 +1665,11 @@ onUnmounted(() => { observer?.disconnect(); });
 
 .dark .rack-wrapper .hdd-led {
   background: oklch(0.12 0.01 55);
+}
+
+.dark .rack-wrapper .hdd-led.hdd-led-blink {
+  background: #22C55E;
+  box-shadow: 0 0 3px #22C55E;
 }
 
 .dark .rack-wrapper .hdd-tab {
@@ -1682,6 +1725,21 @@ onUnmounted(() => { observer?.disconnect(); });
 
 .dark .rack-wrapper .compute-led {
   background: oklch(0.06 0.01 55);
+}
+
+.dark .rack-wrapper .compute-led.compute-led-on {
+  background: #22C55E;
+  box-shadow: 0 0 4px #22C55E;
+}
+
+.dark .rack-wrapper .compute-led.compute-led-blink {
+  background: #3B82F6;
+  box-shadow: 0 0 3px #3B82F6;
+}
+
+.dark .rack-wrapper .compute-led.compute-led-blink2 {
+  background: #F59E0B;
+  box-shadow: 0 0 3px #F59E0B;
 }
 
 .dark .rack-wrapper .power-button {

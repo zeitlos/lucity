@@ -4,7 +4,7 @@ const baseUi = {
   title: 'font-serif text-3xl sm:text-4xl font-normal',
 };
 
-const sideUi = {
+const hobbyUi = {
   root: `${baseUi.root} shadow-[0_2px_20px_-4px_oklch(0_0_0/0.07),0_1px_3px_-1px_oklch(0_0_0/0.04)]`,
   title: baseUi.title,
 };
@@ -14,39 +14,42 @@ const proUi = {
   title: baseUi.title,
 };
 
-const starter = {
-  title: 'Starter',
-  description: 'For side projects and MVPs.',
-  price: 'CHF 5',
+const hobby = {
+  title: 'Hobby',
+  description: 'For side projects and experiments.',
+  price: '€5',
   billingCycle: '/month',
   variant: 'outline' as const,
-  tagline: 'CHF 5 in credits included',
+  tagline: '€5 in credits included',
   features: [
-    'Up to 3 projects',
-    'EU region',
-    'Email support (best-effort)',
-    'Community GitHub access',
+    'Just you',
+    '1 custom domain',
+    'Eco resources',
+    'Production resources',
+    'Community support',
   ],
   button: {
     label: 'Join the waitlist',
     to: '/cloud',
     color: 'neutral' as const,
   },
-  ui: sideUi,
+  ui: hobbyUi,
 };
 
 const pro = {
   title: 'Pro',
-  description: 'For small teams and agencies.',
-  price: 'CHF 20',
+  description: 'For teams shipping to production.',
+  price: '€25',
   billingCycle: '/month',
   highlight: true,
-  tagline: 'CHF 20 in credits included',
+  tagline: '€25 in credits included',
   features: [
-    'Unlimited projects',
-    'EU region',
-    'Email support (1 business day)',
-    'Priority issue handling',
+    'Unlimited collaborators',
+    'Unlimited custom domains',
+    'Eco resources',
+    'Production resources',
+    'FADP/nDSG compliance ready',
+    'Priority support',
   ],
   button: {
     label: 'Join the waitlist',
@@ -54,39 +57,15 @@ const pro = {
   },
   ui: proUi,
 };
-
-const business = {
-  title: 'Business',
-  description: 'For regulated industries and compliance needs.',
-  price: 'CHF 50',
-  billingCycle: '/month',
-  variant: 'outline' as const,
-  tagline: 'CHF 50 in credits included',
-  features: [
-    'Unlimited projects',
-    'EU region + Swiss data residency (coming soon)',
-    'Email + Slack support (4h response)',
-    'FADP/nDSG compliance ready',
-  ],
-  button: {
-    label: 'Contact us',
-    to: 'mailto:hello@zeitlos.software',
-    color: 'neutral' as const,
-  },
-  ui: sideUi,
-};
 </script>
 
 <template>
   <div class="pricing-stack">
-    <div class="pricing-side pricing-left">
-      <UPricingPlan v-bind="starter" />
+    <div class="pricing-card-wrapper">
+      <UPricingPlan v-bind="hobby" />
     </div>
-    <div class="pricing-center">
+    <div class="pricing-card-wrapper">
       <UPricingPlan v-bind="pro" />
-    </div>
-    <div class="pricing-side pricing-right">
-      <UPricingPlan v-bind="business" />
     </div>
   </div>
 </template>
@@ -96,41 +75,23 @@ const business = {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  max-width: 720px;
+  margin: 0 auto;
 }
 
-@media (min-width: 1024px) {
+@media (min-width: 768px) {
   .pricing-stack {
     flex-direction: row;
     align-items: stretch;
-    justify-content: center;
-    gap: 0;
+    gap: 24px;
   }
 
-  /* Cards fill their wrapper height */
-  .pricing-side :deep(.pricing-card),
-  .pricing-center :deep(.pricing-card) {
+  .pricing-card-wrapper {
+    flex: 1 1 0%;
+  }
+
+  .pricing-card-wrapper :deep(.pricing-card) {
     height: 100%;
-  }
-
-  .pricing-side {
-    flex: 1 1 0%;
-    position: relative;
-    z-index: 1;
-  }
-
-  .pricing-left {
-    margin-right: -16px;
-  }
-
-  .pricing-right {
-    margin-left: -16px;
-  }
-
-  .pricing-center {
-    flex: 1 1 0%;
-    position: relative;
-    z-index: 2;
-    transform: scale(1.05);
   }
 }
 

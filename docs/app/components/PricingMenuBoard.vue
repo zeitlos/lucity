@@ -1,9 +1,37 @@
 <script setup lang="ts">
-const items = [
-  { name: 'vCPU', price: 'CHF 10', unit: '/ core / mo' },
-  { name: 'Memory', price: 'CHF 5', unit: '/ GB / mo' },
-  { name: 'Disk', price: 'CHF 0.10', unit: '/ GB / mo' },
-  { name: 'Egress', price: 'CHF 0.02', unit: '/ GB' },
+interface ResourcePrice {
+  label: string;
+  value: string;
+  unit: string;
+}
+
+interface Tier {
+  name: string;
+  detail: string;
+  prices: ResourcePrice[];
+}
+
+const tiers: Tier[] = [
+  {
+    name: 'Eco',
+    detail: 'Metered · Shared EU',
+    prices: [
+      { label: 'vCPU', value: '€20', unit: '/ core / mo' },
+      { label: 'Memory', value: '€10', unit: '/ GB / mo' },
+      { label: 'Disk', value: '€0.10', unit: '/ GB / mo' },
+      { label: 'Egress', value: '€0.02', unit: '/ GB' },
+    ],
+  },
+  {
+    name: 'Production',
+    detail: 'Predictable · Dedicated EU',
+    prices: [
+      { label: 'vCPU', value: '€50', unit: '/ core / mo' },
+      { label: 'Memory', value: '€25', unit: '/ GB / mo' },
+      { label: 'Disk', value: '€0.25', unit: '/ GB / mo' },
+      { label: 'Egress', value: '€0.05', unit: '/ GB' },
+    ],
+  },
 ];
 </script>
 
@@ -17,15 +45,28 @@ const items = [
 
         <hr class="board-separator">
 
-        <div
-          v-for="(item, i) in items"
-          :key="i"
-          class="board-row"
-        >
-          <span class="board-name">{{ item.name }}</span>
-          <span class="board-dots" />
-          <span class="board-price">{{ item.price }}</span>
-          <span class="board-unit">{{ item.unit }}</span>
+        <div class="board-columns">
+          <div
+            v-for="(tier, i) in tiers"
+            :key="i"
+            class="board-column"
+          >
+            <div class="board-tier-header">
+              <span class="board-tier-name">{{ tier.name }}</span>
+              <span class="board-tier-detail">{{ tier.detail }}</span>
+            </div>
+
+            <div
+              v-for="(price, j) in tier.prices"
+              :key="`${i}-${j}`"
+              class="board-row"
+            >
+              <span class="board-name">{{ price.label }}</span>
+              <span class="board-dots" />
+              <span class="board-price">{{ price.value }}</span>
+              <span class="board-unit">{{ price.unit }}</span>
+            </div>
+          </div>
         </div>
 
         <hr class="board-separator">
@@ -49,12 +90,11 @@ const items = [
   justify-content: center;
   padding: 0 16px;
   margin-bottom: 32px;
-  overflow: visible;
 }
 
 .board-anchor {
   position: relative;
-  max-width: 380px;
+  max-width: 760px;
   width: 100%;
   overflow: visible;
 }
@@ -117,6 +157,58 @@ const items = [
   margin: 6px 0;
 }
 
+/* ---- Two-column layout ---- */
+
+.board-columns {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+@media (min-width: 640px) {
+  .board-columns {
+    flex-direction: row;
+    gap: 24px;
+  }
+
+  .board-column {
+    flex: 1 1 0%;
+  }
+}
+
+/* ---- Divider between columns on desktop ---- */
+
+@media (min-width: 640px) {
+  .board-column + .board-column {
+    border-left: 1px solid oklch(0.22 0.01 55);
+    padding-left: 24px;
+  }
+}
+
+/* ---- Tier headers ---- */
+
+.board-tier-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+
+.board-tier-name {
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 12px;
+  color: oklch(0.82 0.08 65);
+  text-shadow: 0 0 12px oklch(0.8 0.1 65 / 0.2);
+}
+
+.board-tier-detail {
+  font-size: 10px;
+  color: oklch(0.45 0.01 80);
+  letter-spacing: 0.02em;
+}
+
 /* ---- Rows ---- */
 
 .board-row {
@@ -175,7 +267,7 @@ const items = [
   margin-top: 2px;
 }
 
-/* ---- Cable canal ---- */
+/* ---- Cable ---- */
 
 .cable {
   display: none;
@@ -188,7 +280,7 @@ const items = [
     top: 50%;
     left: 100%;
     transform: translateY(-50%);
-    width: 50vw;
+    width: 200vw;
     height: 10px;
     border-radius: 2px;
     z-index: 1;
@@ -207,7 +299,6 @@ const items = [
       inset 0 1px 0 oklch(1 0 0 / 0.12);
   }
 
-  /* Darker cable in dark mode for less contrast */
   .dark .cable {
     background: linear-gradient(180deg,
       oklch(0.35 0.006 250) 0%,
@@ -222,7 +313,6 @@ const items = [
       inset 0 1px 0 oklch(1 0 0 / 0.06);
   }
 
-  /* Mounting bracket at board edge */
   .cable::before {
     content: '';
     position: absolute;
