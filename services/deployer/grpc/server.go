@@ -913,6 +913,59 @@ func tierFromString(s string) deployer.ResourceTier {
 	}
 }
 
+func (s *Server) ListResourceAllocations(ctx context.Context, req *deployer.ListResourceAllocationsRequest) (*deployer.ListResourceAllocationsResponse, error) {
+	// List all namespaces with resource-tier label (managed by Lucity with quotas set).
+	selector := labels.Selector(labels.ManagedBy, labels.ManagedByLucity) + "," + labels.ResourceTier
+
+	nsList, err := s.k8s.CoreV1().Namespaces().List(ctx, metav1.ListOptions{
+		LabelSelector: selector,
+	})
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to list namespaces: %v", err)
+	}
+
+	var allocations []*deployer.ResourceAllocation
+	for _, ns := range nsList.Items {
+		ws := ns.Labels[labels.Workspace]
+		project := ns.Labels[labels.Project]
+		env := ns.Labels[labels.Environment]
+		if ws == "" || project == "" || env == "" {
+			continue
+		}
+
+		tier := tierFromString(ns.Labels[labels.ResourceTier])
+
+		quota, err := s.k8s.CoreV1().ResourceQuotas(ns.Name).Get(ctx, resourceQuotaName, metav1.GetOptions{})
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				continue // No quota set — skip
+			}
+			slog.Warn("failed to get resource quota", "namespace", ns.Name, "error", err)
+			continue
+		}
+
+		cpuMillis := int32(quota.Spec.Hard.Cpu().MilliValue())
+		memMB := int32(quota.Spec.Hard.Memory().Value() / (1024 * 1024))
+
+		var diskMB int32
+		if storageQty, ok := quota.Spec.Hard[corev1.ResourceRequestsStorage]; ok {
+			diskMB = int32(storageQty.Value() / (1024 * 1024))
+		}
+
+		allocations = append(allocations, &deployer.ResourceAllocation{
+			Workspace:     ws,
+			Project:       project,
+			Environment:   env,
+			Tier:          tier,
+			CpuMillicores: cpuMillis,
+			MemoryMb:      memMB,
+			DiskMb:        diskMB,
+		})
+	}
+
+	return &deployer.ListResourceAllocationsResponse{Allocations: allocations}, nil
+}
+
 func (s *Server) DatabaseCredentials(ctx context.Context, req *deployer.DatabaseCredentialsRequest) (*deployer.DatabaseCredentialsResponse, error) {
 	creds, err := database.CredentialsFromSecret(ctx, s.k8s, tenant.FromContext(ctx), req.Project, req.Environment, req.Database)
 	if err != nil {

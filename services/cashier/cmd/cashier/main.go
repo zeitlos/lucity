@@ -3,6 +3,7 @@ package main
 import (
 	"log/slog"
 	"os"
+	"time"
 
 	"github.com/kelseyhightower/envconfig"
 	"google.golang.org/grpc"
@@ -13,6 +14,7 @@ import (
 	"github.com/zeitlos/lucity/pkg/logger"
 	cashiergrpc "github.com/zeitlos/lucity/services/cashier/grpc"
 	cashierhttp "github.com/zeitlos/lucity/services/cashier/http"
+	"github.com/zeitlos/lucity/services/cashier/metering"
 	stripelib "github.com/zeitlos/lucity/services/cashier/stripe"
 )
 
@@ -34,6 +36,13 @@ type Config struct {
 	ProdCPUPriceID  string `envconfig:"STRIPE_PROD_CPU_PRICE_ID" required:"true"`
 	ProdMemPriceID  string `envconfig:"STRIPE_PROD_MEM_PRICE_ID" required:"true"`
 	ProdDiskPriceID string `envconfig:"STRIPE_PROD_DISK_PRICE_ID" required:"true"`
+
+	EcoCPUMeterEvent  string `envconfig:"STRIPE_ECO_CPU_METER_EVENT"`
+	EcoMemMeterEvent  string `envconfig:"STRIPE_ECO_MEM_METER_EVENT"`
+	EcoDiskMeterEvent string `envconfig:"STRIPE_ECO_DISK_METER_EVENT"`
+
+	MeteringInterval    time.Duration `envconfig:"METERING_INTERVAL" default:"1h"`
+	SignozClickhouseDSN string        `envconfig:"SIGNOZ_CLICKHOUSE_DSN"`
 }
 
 func main() {
@@ -68,7 +77,12 @@ func main() {
 		ProdMemPriceID:  config.ProdMemPriceID,
 		ProdDiskPriceID: config.ProdDiskPriceID,
 	}
-	stripeClient := stripelib.NewClient(config.StripeSecretKey, prices)
+	meters := stripelib.MeterConfig{
+		EcoCPUEventName:  config.EcoCPUMeterEvent,
+		EcoMemEventName:  config.EcoMemMeterEvent,
+		EcoDiskEventName: config.EcoDiskMeterEvent,
+	}
+	stripeClient := stripelib.NewClient(config.StripeSecretKey, prices, meters)
 
 	// gRPC server
 	svc := cashiergrpc.NewServer(stripeClient, deployerClient)
@@ -78,8 +92,26 @@ func main() {
 	webhookHandler := stripelib.NewWebhookHandler(config.StripeWebhookSecret, stripeClient, svc)
 	httpServer := cashierhttp.NewServer(config.WebhookPort, webhookHandler)
 
+	servers := []graceful.Server{grpcServer, httpServer}
+
+	// Metering worker (optional — requires SigNoz ClickHouse)
+	if config.SignozClickhouseDSN != "" {
+		signozClient, err := metering.NewSigNozClient(config.SignozClickhouseDSN)
+		if err != nil {
+			slog.Error("failed to connect to SigNoz ClickHouse", "error", err)
+			os.Exit(1)
+		}
+		defer signozClient.Close()
+
+		worker := metering.NewWorker(stripeClient, deployerClient, signozClient, config.MeteringInterval)
+		servers = append(servers, worker)
+		slog.Info("metering enabled", "interval", config.MeteringInterval)
+	} else {
+		slog.Info("metering disabled — SIGNOZ_CLICKHOUSE_DSN not set")
+	}
+
 	ctx, cancel := graceful.Context()
 	defer cancel()
 
-	graceful.Serve(ctx, grpcServer, httpServer)
+	graceful.Serve(ctx, servers...)
 }

@@ -61,6 +61,9 @@ service DeployerService {
 
   // ResourceQuota returns the current resource quota and tier for an environment namespace.
   rpc ResourceQuota(ResourceQuotaRequest) returns (ResourceQuotaResponse);
+
+  // ListResourceAllocations returns resource quotas and tiers for all managed namespaces.
+  rpc ListResourceAllocations(ListResourceAllocationsRequest) returns (ListResourceAllocationsResponse);
 }
 
 message DeployEnvironmentRequest {
@@ -326,5 +329,21 @@ message ResourceQuotaResponse {
   int32 cpu_millicores = 2;
   int32 memory_mb = 3;
   int32 disk_mb = 4;
+}
+
+message ListResourceAllocationsRequest {}
+
+message ResourceAllocation {
+  string workspace = 1;
+  string project = 2;
+  string environment = 3;
+  ResourceTier tier = 4;
+  int32 cpu_millicores = 5;
+  int32 memory_mb = 6;
+  int32 disk_mb = 7;
+}
+
+message ListResourceAllocationsResponse {
+  repeated ResourceAllocation allocations = 1;
 }
 

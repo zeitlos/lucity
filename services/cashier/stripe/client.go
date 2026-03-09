@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	gostripe "github.com/stripe/stripe-go/v82"
+	"github.com/stripe/stripe-go/v82/billing/meterevent"
 	portalsession "github.com/stripe/stripe-go/v82/billingportal/session"
 	"github.com/stripe/stripe-go/v82/customer"
 	"github.com/stripe/stripe-go/v82/invoice"
@@ -25,15 +26,23 @@ type PriceConfig struct {
 	ProdDiskPriceID string
 }
 
+// MeterConfig holds Billing Meter event names for usage-based billing.
+type MeterConfig struct {
+	EcoCPUEventName  string
+	EcoMemEventName  string
+	EcoDiskEventName string
+}
+
 // Client wraps the Stripe API for billing operations.
 type Client struct {
 	Prices PriceConfig
+	Meters MeterConfig
 }
 
 // NewClient creates a Stripe client and sets the global API key.
-func NewClient(secretKey string, prices PriceConfig) *Client {
+func NewClient(secretKey string, prices PriceConfig, meters MeterConfig) *Client {
 	gostripe.Key = secretKey
-	return &Client{Prices: prices}
+	return &Client{Prices: prices, Meters: meters}
 }
 
 // CreateCustomer creates a Stripe Customer for a workspace.
@@ -157,6 +166,47 @@ func (c *Client) AddInvoiceCredit(ctx context.Context, customerID string, amount
 		return fmt.Errorf("failed to add invoice credit: %w", err)
 	}
 	return nil
+}
+
+// ReportMeterEvent reports a billing meter event for usage-based billing.
+// eventName corresponds to a Billing Meter's event_name in Stripe.
+func (c *Client) ReportMeterEvent(ctx context.Context, eventName, customerID string, value int64, timestamp int64) error {
+	params := &gostripe.BillingMeterEventParams{
+		EventName: gostripe.String(eventName),
+		Payload: map[string]string{
+			"stripe_customer_id": customerID,
+			"value":              fmt.Sprintf("%d", value),
+		},
+		Timestamp: gostripe.Int64(timestamp),
+	}
+
+	_, err := meterevent.New(params)
+	if err != nil {
+		return fmt.Errorf("failed to report meter event %q: %w", eventName, err)
+	}
+	return nil
+}
+
+// UpdateItemQuantity updates the quantity on a licensed subscription item.
+func (c *Client) UpdateItemQuantity(ctx context.Context, subscriptionItemID string, quantity int64) error {
+	_, err := subscriptionitem.Update(subscriptionItemID, &gostripe.SubscriptionItemParams{
+		Quantity:          gostripe.Int64(quantity),
+		ProrationBehavior: gostripe.String("create_prorations"),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to update item quantity: %w", err)
+	}
+	return nil
+}
+
+// FindItemByPrice returns the subscription item ID for a given price ID, or empty string if not found.
+func FindItemByPrice(sub *gostripe.Subscription, priceID string) string {
+	for _, item := range sub.Items.Data {
+		if item.Price.ID == priceID {
+			return item.ID
+		}
+	}
+	return ""
 }
 
 // PlanPriceID returns the Stripe Price ID for a plan.

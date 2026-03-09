@@ -38,6 +38,7 @@ const (
 	DeployerService_ListWorkspaces_FullMethodName            = "/deployer.DeployerService/ListWorkspaces"
 	DeployerService_SetResourceQuota_FullMethodName          = "/deployer.DeployerService/SetResourceQuota"
 	DeployerService_ResourceQuota_FullMethodName             = "/deployer.DeployerService/ResourceQuota"
+	DeployerService_ListResourceAllocations_FullMethodName   = "/deployer.DeployerService/ListResourceAllocations"
 )
 
 // DeployerServiceClient is the client API for DeployerService service.
@@ -82,6 +83,8 @@ type DeployerServiceClient interface {
 	SetResourceQuota(ctx context.Context, in *SetResourceQuotaRequest, opts ...grpc.CallOption) (*SetResourceQuotaResponse, error)
 	// ResourceQuota returns the current resource quota and tier for an environment namespace.
 	ResourceQuota(ctx context.Context, in *ResourceQuotaRequest, opts ...grpc.CallOption) (*ResourceQuotaResponse, error)
+	// ListResourceAllocations returns resource quotas and tiers for all managed namespaces.
+	ListResourceAllocations(ctx context.Context, in *ListResourceAllocationsRequest, opts ...grpc.CallOption) (*ListResourceAllocationsResponse, error)
 }
 
 type deployerServiceClient struct {
@@ -291,6 +294,16 @@ func (c *deployerServiceClient) ResourceQuota(ctx context.Context, in *ResourceQ
 	return out, nil
 }
 
+func (c *deployerServiceClient) ListResourceAllocations(ctx context.Context, in *ListResourceAllocationsRequest, opts ...grpc.CallOption) (*ListResourceAllocationsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListResourceAllocationsResponse)
+	err := c.cc.Invoke(ctx, DeployerService_ListResourceAllocations_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DeployerServiceServer is the server API for DeployerService service.
 // All implementations must embed UnimplementedDeployerServiceServer
 // for forward compatibility.
@@ -333,6 +346,8 @@ type DeployerServiceServer interface {
 	SetResourceQuota(context.Context, *SetResourceQuotaRequest) (*SetResourceQuotaResponse, error)
 	// ResourceQuota returns the current resource quota and tier for an environment namespace.
 	ResourceQuota(context.Context, *ResourceQuotaRequest) (*ResourceQuotaResponse, error)
+	// ListResourceAllocations returns resource quotas and tiers for all managed namespaces.
+	ListResourceAllocations(context.Context, *ListResourceAllocationsRequest) (*ListResourceAllocationsResponse, error)
 	mustEmbedUnimplementedDeployerServiceServer()
 }
 
@@ -399,6 +414,9 @@ func (UnimplementedDeployerServiceServer) SetResourceQuota(context.Context, *Set
 }
 func (UnimplementedDeployerServiceServer) ResourceQuota(context.Context, *ResourceQuotaRequest) (*ResourceQuotaResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ResourceQuota not implemented")
+}
+func (UnimplementedDeployerServiceServer) ListResourceAllocations(context.Context, *ListResourceAllocationsRequest) (*ListResourceAllocationsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListResourceAllocations not implemented")
 }
 func (UnimplementedDeployerServiceServer) mustEmbedUnimplementedDeployerServiceServer() {}
 func (UnimplementedDeployerServiceServer) testEmbeddedByValue()                         {}
@@ -756,6 +774,24 @@ func _DeployerService_ResourceQuota_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _DeployerService_ListResourceAllocations_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListResourceAllocationsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DeployerServiceServer).ListResourceAllocations(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DeployerService_ListResourceAllocations_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DeployerServiceServer).ListResourceAllocations(ctx, req.(*ListResourceAllocationsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // DeployerService_ServiceDesc is the grpc.ServiceDesc for DeployerService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -834,6 +870,10 @@ var DeployerService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ResourceQuota",
 			Handler:    _DeployerService_ResourceQuota_Handler,
+		},
+		{
+			MethodName: "ListResourceAllocations",
+			Handler:    _DeployerService_ListResourceAllocations_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{
