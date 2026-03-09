@@ -107,7 +107,12 @@ async function handleCreateProjectFromRepo(repo: { fullName: string; htmlUrl: st
     if (!projectId) return;
 
     // Detect and add services from the selected repo
-    await detectAndAddServices(projectId, repo);
+    detectingServices.value = true;
+    try {
+      await detectAndAddServices(projectId, repo);
+    } finally {
+      detectingServices.value = false;
+    }
 
     close();
     router.push({ name: 'project', params: { id: projectId } });
