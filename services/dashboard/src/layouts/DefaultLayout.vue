@@ -4,10 +4,9 @@ import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
 import { Download, LogOut, Settings } from 'lucide-vue-next';
 import { useAuth } from '@/composables/useAuth';
 import BaseLogo from '@/components/BaseLogo.vue';
-import ProjectBreadcrumb from '@/components/ProjectBreadcrumb.vue';
+import ContextNav from '@/components/ContextNav.vue';
 import ThemeToggle from '@/components/ThemeToggle.vue';
 import ProjectEjectDialog from '@/components/ProjectEjectDialog.vue';
-import WorkspaceSwitcher from '@/components/WorkspaceSwitcher.vue';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -22,7 +21,9 @@ const route = useRoute();
 const router = useRouter();
 const { user, logout } = useAuth();
 
-const isProjectRoute = computed(() => route.name === 'project' || route.name === 'project-settings');
+const isProjectRoute = computed(() =>
+  route.name === 'project' || route.name === 'project-env' || route.name === 'project-settings',
+);
 const projectId = computed(() => route.params.id as string | undefined);
 const ejectOpen = ref(false);
 
@@ -35,7 +36,7 @@ async function handleLogout() {
 <template>
   <div class="relative z-1 flex min-h-screen flex-col p-3 pb-0">
     <header class="flex h-[52px] shrink-0 items-center justify-between rounded-lg border bg-card/80 px-4 shadow-sm backdrop-blur-sm [background-image:var(--gradient-card)]">
-      <!-- Left: Logo + Avatar + Breadcrumb -->
+      <!-- Left: Logo + Context Nav -->
       <div class="flex items-center gap-3">
         <RouterLink
           to="/"
@@ -46,13 +47,8 @@ async function handleLogout() {
 
         <template v-if="user">
           <div class="h-4 w-px bg-border" />
-          <WorkspaceSwitcher />
+          <ContextNav />
         </template>
-
-        <ProjectBreadcrumb
-          v-if="isProjectRoute && projectId"
-          :project-name="projectId"
-        />
       </div>
 
       <!-- Right: Project nav + Theme + User menu -->

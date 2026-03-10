@@ -1,0 +1,212 @@
+<script setup lang="ts">
+import { ref, computed } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { useQuery } from '@vue/apollo-composable';
+import { ChevronDown, Plus, Check, User, Users } from 'lucide-vue-next';
+import { useAuth } from '@/composables/useAuth';
+import { useEnvironment } from '@/composables/useEnvironment';
+import { WorkspacesQuery } from '@/graphql/workspaces';
+import { ProjectsQuery } from '@/graphql/projects';
+import { apolloClient } from '@/lib/apollo';
+import { Badge } from '@/components/ui/badge';
+import CreateWorkspaceDialog from '@/components/CreateWorkspaceDialog.vue';
+import CreateEnvironmentDialog from '@/components/CreateEnvironmentDialog.vue';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+
+const route = useRoute();
+const router = useRouter();
+const { activeWorkspace, setActiveWorkspace } = useAuth();
+const { activeEnvironment, environments } = useEnvironment();
+
+// Workspace data
+const { result: wsResult } = useQuery(WorkspacesQuery);
+const workspaces = computed(() => wsResult.value?.workspaces ?? []);
+const activeWs = computed(() => workspaces.value.find((w: { id: string }) => w.id === activeWorkspace.value));
+
+// Project data (cached by Apollo)
+const { result: projResult } = useQuery(ProjectsQuery);
+const projects = computed(() => projResult.value?.projects ?? []);
+
+// Route state
+const isProjectRoute = computed(() =>
+  route.name === 'project' || route.name === 'project-env' || route.name === 'project-settings',
+);
+const isProjectCanvasRoute = computed(() =>
+  route.name === 'project' || route.name === 'project-env',
+);
+const isWorkspaceSettingsRoute = computed(() => route.name === 'workspace-settings');
+const projectId = computed(() => route.params.id as string | undefined);
+
+// Dialogs
+const wsDialogOpen = ref(false);
+const envDialogOpen = ref(false);
+
+function handleWorkspaceSwitch(id: string) {
+  if (id === activeWorkspace.value) return;
+  setActiveWorkspace(id);
+  apolloClient.resetStore();
+  router.push('/');
+}
+
+function handleProjectSwitch(id: string) {
+  if (id === projectId.value) return;
+  router.push({ name: 'project', params: { id } });
+}
+
+function handleEnvironmentSwitch(envName: string) {
+  if (envName === activeEnvironment.value?.name) return;
+  router.push({ name: 'project-env', params: { id: projectId.value, env: envName } });
+}
+
+function syncStatusVariant(status: string) {
+  switch (status) {
+    case 'SYNCED': return 'default';
+    case 'PROGRESSING': return 'secondary';
+    case 'OUT_OF_SYNC': return 'outline';
+    case 'DEGRADED': return 'destructive';
+    default: return 'outline';
+  }
+}
+</script>
+
+<template>
+  <nav class="flex items-center gap-1.5">
+    <!-- Workspace Dropdown -->
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        class="inline-flex items-center gap-1.5 rounded px-1.5 py-0.5 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+      >
+        <component
+          :is="activeWs?.personal ? User : Users"
+          :size="14"
+          class="text-muted-foreground"
+        />
+        <span class="max-w-[140px] truncate">{{ activeWs?.name ?? activeWorkspace }}</span>
+        <ChevronDown :size="14" class="text-muted-foreground" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" class="w-56">
+        <DropdownMenuItem
+          v-for="ws in workspaces"
+          :key="ws.id"
+          @select="handleWorkspaceSwitch(ws.id)"
+        >
+          <div class="flex w-full items-center gap-2">
+            <component
+              :is="ws.personal ? User : Users"
+              :size="14"
+              class="shrink-0 text-muted-foreground"
+            />
+            <span class="truncate">{{ ws.name }}</span>
+            <Check
+              v-if="ws.id === activeWorkspace"
+              :size="14"
+              class="ml-auto shrink-0"
+            />
+          </div>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem @select="wsDialogOpen = true">
+          <Plus :size="14" class="mr-2" />
+          New Workspace
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+
+    <!-- Separator + Project Dropdown -->
+    <template v-if="isProjectRoute && projectId">
+      <span class="text-sm text-border">/</span>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          class="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+        >
+          <span class="max-w-[160px] truncate">{{ projectId }}</span>
+          <ChevronDown :size="14" class="text-muted-foreground" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" class="w-56">
+          <DropdownMenuItem
+            v-for="project in projects"
+            :key="project.id"
+            @select="handleProjectSwitch(project.id)"
+          >
+            <div class="flex w-full items-center gap-2">
+              <span class="truncate">{{ project.name }}</span>
+              <Check
+                v-if="project.id === projectId"
+                :size="14"
+                class="ml-auto shrink-0"
+              />
+            </div>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </template>
+
+    <!-- Separator + Environment Dropdown -->
+    <template v-if="isProjectCanvasRoute && projectId && activeEnvironment">
+      <span class="text-sm text-border">/</span>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          class="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+        >
+          {{ activeEnvironment.name }}
+          <ChevronDown :size="14" class="text-muted-foreground" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" class="w-64">
+          <DropdownMenuItem
+            v-for="env in environments"
+            :key="env.id"
+            @select="handleEnvironmentSwitch(env.name)"
+          >
+            <div class="flex w-full items-center justify-between gap-2">
+              <div class="flex items-center gap-2">
+                <Check
+                  v-if="env.id === activeEnvironment?.id"
+                  :size="14"
+                  class="shrink-0"
+                />
+                <div v-else class="w-3.5" />
+                <span class="truncate">{{ env.name }}</span>
+              </div>
+              <Badge
+                :variant="syncStatusVariant(env.syncStatus)"
+                class="shrink-0 text-[10px]"
+              >
+                {{ env.syncStatus }}
+              </Badge>
+            </div>
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem @select="envDialogOpen = true">
+            <Plus :size="14" class="mr-2" />
+            New Environment
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </template>
+
+    <!-- Workspace Settings label -->
+    <template v-if="isWorkspaceSettingsRoute">
+      <span class="text-sm text-border">/</span>
+      <span class="px-1.5 py-0.5 text-sm text-muted-foreground">Settings</span>
+    </template>
+
+    <!-- Project Settings label -->
+    <template v-if="route.name === 'project-settings' && projectId">
+      <span class="text-sm text-border">/</span>
+      <span class="px-1.5 py-0.5 text-sm text-muted-foreground">Settings</span>
+    </template>
+  </nav>
+
+  <CreateWorkspaceDialog v-model:open="wsDialogOpen" />
+  <CreateEnvironmentDialog
+    v-if="projectId"
+    v-model:open="envDialogOpen"
+    :project-id="projectId"
+  />
+</template>

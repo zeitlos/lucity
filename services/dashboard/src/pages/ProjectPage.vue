@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { useQuery } from '@vue/apollo-composable';
 import { ProjectQuery } from '@/graphql/projects';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -19,7 +19,9 @@ import { useDeploymentLogsPanel } from '@/composables/useDeploymentLogsPanel';
 import { useServiceLogsPanel } from '@/composables/useServiceLogsPanel';
 
 const route = useRoute();
+const router = useRouter();
 const projectId = computed(() => route.params.id as string);
+const envParam = computed(() => route.params.env as string | undefined);
 
 const { result, loading, error, refetch } = useQuery(ProjectQuery, () => ({
   id: projectId.value,
@@ -28,7 +30,7 @@ const { result, loading, error, refetch } = useQuery(ProjectQuery, () => ({
 const project = computed(() => result.value?.project);
 
 // Environment management
-const { setEnvironments, refreshActiveEnvironment, activeEnvDatabases } = useEnvironment();
+const { setEnvironments, setEnvironmentByName, refreshActiveEnvironment, activeEnvironment, activeEnvDatabases } = useEnvironment();
 const { isOpen, currentPanel, closePanel } = usePanel();
 const logsPanel = useDeploymentLogsPanel();
 const serviceLogsPanel = useServiceLogsPanel();
@@ -37,11 +39,28 @@ watch(
   () => project.value?.environments,
   (envs) => {
     if (envs) {
-      setEnvironments(envs);
+      setEnvironments(envs, envParam.value);
     }
   },
   { immediate: true },
 );
+
+// When environments are loaded and no :env in URL, redirect to include the active env name
+watch(
+  activeEnvironment,
+  (env) => {
+    if (env && route.name === 'project') {
+      router.replace({ name: 'project-env', params: { id: projectId.value, env: env.name } });
+    }
+  },
+);
+
+// Sync composable when route :env param changes (e.g. via ContextNav dropdown)
+watch(envParam, (name) => {
+  if (name) {
+    setEnvironmentByName(name);
+  }
+});
 
 // Refresh env data when project refetches
 watch(

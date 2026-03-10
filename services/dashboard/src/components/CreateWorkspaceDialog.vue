@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import { useRouter } from 'vue-router';
 import { useMutation } from '@vue/apollo-composable';
 import { CreateWorkspaceMutation, WorkspacesQuery } from '@/graphql/workspaces';
 import { useAuth } from '@/composables/useAuth';
@@ -26,6 +27,7 @@ const emit = defineEmits<{
   (e: 'update:open', value: boolean): void;
 }>();
 
+const router = useRouter();
 const { setActiveWorkspace, refreshToken } = useAuth();
 
 const name = ref('');
@@ -70,6 +72,7 @@ async function handleCreate() {
     toast.success(`Workspace "${name.value.trim()}" created`);
     name.value = '';
     emit('update:open', false);
+    router.push('/');
   } catch (e: unknown) {
     toast.error('Failed to create workspace', { description: errorMessage(e) });
   }

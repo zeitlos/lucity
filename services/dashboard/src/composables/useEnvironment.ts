@@ -57,8 +57,16 @@ const activeEnvironment = ref<Environment | null>(null);
 const environments = ref<Environment[]>([]);
 
 export function useEnvironment() {
-  function setEnvironments(envs: Environment[]) {
+  function setEnvironments(envs: Environment[], preferredEnvName?: string) {
     environments.value = envs;
+
+    if (preferredEnvName) {
+      const preferred = envs.find(e => e.name === preferredEnvName);
+      if (preferred) {
+        activeEnvironment.value = preferred;
+        return;
+      }
+    }
 
     if (!activeEnvironment.value || !envs.find(e => e.id === activeEnvironment.value!.id)) {
       const nonEphemeral = envs.find(e => !e.ephemeral);
@@ -68,6 +76,13 @@ export function useEnvironment() {
 
   function setEnvironment(env: Environment) {
     activeEnvironment.value = env;
+  }
+
+  function setEnvironmentByName(name: string) {
+    const env = environments.value.find(e => e.name === name);
+    if (env) {
+      activeEnvironment.value = env;
+    }
   }
 
   const activeEnvServices = computed(() => activeEnvironment.value?.services ?? []);
@@ -99,6 +114,7 @@ export function useEnvironment() {
     activeEnvDatabases,
     setEnvironments,
     setEnvironment,
+    setEnvironmentByName,
     refreshActiveEnvironment,
     updateServiceDomains,
   };
