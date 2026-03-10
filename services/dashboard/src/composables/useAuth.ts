@@ -24,7 +24,23 @@ export function useAuth() {
       const res = await fetch('/auth/me', { credentials: 'include' });
       if (res.ok) {
         user.value = await res.json();
-        // Default to first workspace if none selected
+
+        // If JWT has no workspace claims (e.g., minted before workspace support),
+        // refresh the token to pick up current Rauthy groups.
+        if (user.value && user.value.workspaces.length === 0) {
+          const refreshRes = await fetch('/auth/refresh', {
+            method: 'POST',
+            credentials: 'include',
+          });
+          if (refreshRes.ok) {
+            const meRes = await fetch('/auth/me', { credentials: 'include' });
+            if (meRes.ok) {
+              user.value = await meRes.json();
+            }
+          }
+        }
+
+        // Default to first workspace if none selected or stale
         if (user.value && (!activeWorkspace.value || !user.value.workspaces.some(w => w.workspace === activeWorkspace.value))) {
           setActiveWorkspace(user.value.workspaces[0]?.workspace || '');
         }
