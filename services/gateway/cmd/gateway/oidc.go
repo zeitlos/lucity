@@ -327,7 +327,9 @@ func handleRefresh(api *handler.Client, jwtSecret string) http.HandlerFunc {
 			return
 		}
 
-		// Fetch current user from Rauthy to get updated group list
+		// Fetch current user from Rauthy to get updated group list.
+		// Rauthy returns group names (e.g. "ws:myworkspace", "ws:myworkspace:admin"),
+		// which ParseRauthyGroups can process directly.
 		user, err := api.Rauthy.User(r.Context(), claims.Subject)
 		if err != nil {
 			slog.Error("failed to fetch user for token refresh", "error", err, "subject", claims.Subject)
@@ -335,28 +337,8 @@ func handleRefresh(api *handler.Client, jwtSecret string) http.HandlerFunc {
 			return
 		}
 
-		// Resolve group IDs to group names
-		allGroups, err := api.Rauthy.Groups(r.Context())
-		if err != nil {
-			slog.Error("failed to fetch groups for token refresh", "error", err)
-			http.Error(w, "failed to refresh token", http.StatusInternalServerError)
-			return
-		}
-
-		groupIDToName := make(map[string]string, len(allGroups))
-		for _, g := range allGroups {
-			groupIDToName[g.ID] = g.Name
-		}
-
-		groupNames := make([]string, 0, len(user.Groups))
-		for _, gid := range user.Groups {
-			if name, ok := groupIDToName[gid]; ok {
-				groupNames = append(groupNames, name)
-			}
-		}
-
-		// Parse workspace memberships
-		workspaces := auth.ParseRauthyGroups(groupNames)
+		// Parse workspace memberships from group names
+		workspaces := auth.ParseRauthyGroups(user.Groups)
 
 		roles := []auth.Role{auth.RoleUser}
 		for _, m := range workspaces {

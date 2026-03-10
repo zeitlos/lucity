@@ -240,7 +240,7 @@ func (c *Client) CreateWorkspace(ctx context.Context, id, name string) (*Workspa
 		return nil, fmt.Errorf("failed to fetch current user from rauthy: %w", err)
 	}
 
-	newGroups := append(user.Groups, memberGroup.ID, adminGroup.ID)
+	newGroups := append(user.Groups, memberGroup.Name, adminGroup.Name)
 	if err := c.Rauthy.UpdateUserGroups(ctx, user.ID, newGroups); err != nil {
 		return nil, fmt.Errorf("failed to add creator to workspace groups: %w", err)
 	}
@@ -390,7 +390,7 @@ func (c *Client) InviteMember(ctx context.Context, email string, role auth.Works
 	}
 
 	// Add to member group
-	newGroups := appendUnique(user.Groups, memberGroup.ID)
+	newGroups := appendUnique(user.Groups, memberGroup.Name)
 
 	// Add to admin group if admin role
 	if role == auth.WorkspaceRoleAdmin {
@@ -399,7 +399,7 @@ func (c *Client) InviteMember(ctx context.Context, email string, role auth.Works
 			return nil, fmt.Errorf("failed to find admin group: %w", err)
 		}
 		if adminGroup != nil {
-			newGroups = appendUnique(newGroups, adminGroup.ID)
+			newGroups = appendUnique(newGroups, adminGroup.Name)
 		}
 	}
 
@@ -443,9 +443,9 @@ func (c *Client) RemoveMember(ctx context.Context, userID string) (bool, error) 
 		return false, fmt.Errorf("failed to find workspace groups: %w", err)
 	}
 
-	wsGroupIDs := make(map[string]bool, len(wsGroups))
+	wsGroupNames := make(map[string]bool, len(wsGroups))
 	for _, g := range wsGroups {
-		wsGroupIDs[g.ID] = true
+		wsGroupNames[g.Name] = true
 	}
 
 	// Get user and remove workspace groups
@@ -455,9 +455,9 @@ func (c *Client) RemoveMember(ctx context.Context, userID string) (bool, error) 
 	}
 
 	var remaining []string
-	for _, gid := range user.Groups {
-		if !wsGroupIDs[gid] {
-			remaining = append(remaining, gid)
+	for _, name := range user.Groups {
+		if !wsGroupNames[name] {
+			remaining = append(remaining, name)
 		}
 	}
 
@@ -498,9 +498,9 @@ func (c *Client) UpdateMemberRole(ctx context.Context, userID string, role auth.
 
 	var newGroups []string
 	if role == auth.WorkspaceRoleAdmin {
-		newGroups = appendUnique(user.Groups, adminGroup.ID)
+		newGroups = appendUnique(user.Groups, adminGroup.Name)
 	} else {
-		newGroups = removeFromSlice(user.Groups, adminGroup.ID)
+		newGroups = removeFromSlice(user.Groups, adminGroup.Name)
 	}
 
 	if err := c.Rauthy.UpdateUserGroups(ctx, user.ID, newGroups); err != nil {
@@ -602,8 +602,8 @@ func (c *Client) ensureWorkspaceGroups(ctx context.Context, wsID, rauthyUserID s
 		return fmt.Errorf("failed to fetch user from rauthy: %w", err)
 	}
 
-	newGroups := appendUnique(user.Groups, memberGroup.ID)
-	newGroups = appendUnique(newGroups, adminGroup.ID)
+	newGroups := appendUnique(user.Groups, memberGroup.Name)
+	newGroups = appendUnique(newGroups, adminGroup.Name)
 	if err := c.Rauthy.UpdateUserGroups(ctx, user.ID, newGroups); err != nil {
 		return fmt.Errorf("failed to add user to workspace groups: %w", err)
 	}

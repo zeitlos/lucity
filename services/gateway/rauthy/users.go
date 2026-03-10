@@ -14,7 +14,7 @@ type User struct {
 	GivenName       string   `json:"given_name"`
 	FamilyName      string   `json:"family_name"`
 	Roles           []string `json:"roles"`           // role names — required for PUT round-trip
-	Groups          []string `json:"groups"`           // group IDs
+	Groups          []string `json:"groups"`           // group names (e.g. "ws:myworkspace")
 	Enabled         bool     `json:"enabled"`
 	EmailVerified   bool     `json:"email_verified"`
 	WebauthnEnabled bool     `json:"webauthn_enabled"`
@@ -51,14 +51,15 @@ func (c *Client) User(ctx context.Context, id string) (*User, error) {
 
 // UpdateUserGroups sets the groups for a user by updating the full user object.
 // This requires a PUT with the complete user payload.
-func (c *Client) UpdateUserGroups(ctx context.Context, userID string, groupIDs []string) error {
+// groupNames must contain group names (e.g. "ws:myworkspace"), not IDs.
+func (c *Client) UpdateUserGroups(ctx context.Context, userID string, groupNames []string) error {
 	// First fetch the current user to get all fields
 	user, err := c.User(ctx, userID)
 	if err != nil {
 		return fmt.Errorf("failed to fetch user for group update: %w", err)
 	}
 
-	user.Groups = groupIDs
+	user.Groups = groupNames
 
 	payload, err := json.Marshal(user)
 	if err != nil {
