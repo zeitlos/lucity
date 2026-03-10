@@ -241,51 +241,51 @@ async function handleDelete() {
 </script>
 
 <template>
-  <div class="mx-auto max-w-4xl p-6">
-    <div class="mb-6">
-      <Button
-        variant="ghost"
-        size="sm"
-        class="mb-4 text-muted-foreground"
-        @click="router.push({ name: 'projects' })"
-      >
-        <ArrowLeft :size="14" class="mr-1.5" />
-        Back
-      </Button>
-      <h1 class="text-2xl font-semibold">Workspace Settings</h1>
-      <p class="text-sm text-muted-foreground">
-        Manage your workspace, members, and integrations.
-      </p>
+  <div class="flex h-[calc(100vh-52px-0.75rem)] flex-col">
+    <!-- Loading -->
+    <div v-if="loading" class="flex flex-1 items-center justify-center">
+      <div class="space-y-4 text-center">
+        <Skeleton class="mx-auto h-8 w-48" />
+        <Skeleton class="mx-auto h-4 w-64" />
+      </div>
     </div>
 
-    <template v-if="loading">
-      <Skeleton class="mb-4 h-8 w-64" />
-      <Skeleton class="h-48 w-full" />
-    </template>
-
     <template v-else-if="workspace">
-      <div class="flex gap-8">
-        <!-- Sidebar -->
-        <nav class="w-40 shrink-0">
-          <ul class="space-y-1">
-            <li v-for="section in sections" :key="section.id">
+      <div class="flex flex-1 overflow-hidden p-3">
+        <div class="mx-auto flex w-full max-w-4xl gap-6 overflow-hidden rounded-lg border bg-card/80 shadow-sm backdrop-blur-sm [background-image:var(--gradient-card)]">
+          <!-- Sidebar -->
+          <nav class="w-48 shrink-0 border-r p-4">
+            <div class="mb-4">
               <button
-                class="w-full rounded-md px-3 py-1.5 text-left text-sm transition-colors"
-                :class="activeSection === section.id ? 'bg-accent font-medium' : 'text-muted-foreground hover:bg-accent/50'"
-                @click="activeSection = section.id"
+                class="flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+                @click="router.push({ name: 'projects' })"
               >
-                {{ section.label }}
+                <ArrowLeft :size="12" />
+                Back
               </button>
-            </li>
-          </ul>
-        </nav>
+            </div>
+            <h2 class="mb-3 text-sm font-semibold text-foreground">Settings</h2>
+            <ul class="space-y-1">
+              <li v-for="section in sections" :key="section.id">
+                <button
+                  class="w-full rounded-md px-3 py-1.5 text-left text-sm transition-colors"
+                  :class="activeSection === section.id
+                    ? 'bg-accent text-accent-foreground font-medium'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'"
+                  @click="activeSection = section.id"
+                >
+                  {{ section.label }}
+                </button>
+              </li>
+            </ul>
+          </nav>
 
-        <!-- Content -->
-        <div class="min-w-0 flex-1">
+          <!-- Content -->
+          <div class="flex-1 overflow-y-auto p-6">
           <!-- General -->
           <section v-if="activeSection === 'general'" class="space-y-6">
             <div>
-              <h2 class="text-lg font-medium">General</h2>
+              <h2 class="text-lg font-semibold text-foreground">General</h2>
               <p class="text-sm text-muted-foreground">Basic workspace information.</p>
             </div>
 
@@ -323,7 +323,7 @@ async function handleDelete() {
           <!-- Members -->
           <section v-if="activeSection === 'members'" class="space-y-6">
             <div>
-              <h2 class="text-lg font-medium">Members</h2>
+              <h2 class="text-lg font-semibold text-foreground">Members</h2>
               <p class="text-sm text-muted-foreground">Manage who has access to this workspace.</p>
             </div>
 
@@ -441,7 +441,7 @@ async function handleDelete() {
           <!-- Billing -->
           <section v-if="activeSection === 'billing'" class="space-y-6">
             <div>
-              <h2 class="text-lg font-medium">Billing</h2>
+              <h2 class="text-lg font-semibold text-foreground">Billing</h2>
               <p class="text-sm text-muted-foreground">Manage your subscription, plan, and usage.</p>
             </div>
 
@@ -585,7 +585,7 @@ async function handleDelete() {
           <!-- Danger Zone -->
           <section v-if="activeSection === 'danger'" class="space-y-6">
             <div>
-              <h2 class="text-lg font-medium text-destructive">Danger Zone</h2>
+              <h2 class="text-lg font-semibold text-destructive">Danger Zone</h2>
               <p class="text-sm text-muted-foreground">Irreversible actions.</p>
             </div>
 
@@ -625,6 +625,7 @@ async function handleDelete() {
               </div>
             </div>
           </section>
+          </div>
         </div>
       </div>
     </template>
