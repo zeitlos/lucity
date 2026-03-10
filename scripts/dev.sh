@@ -7,8 +7,8 @@ LOG_DIR="$ROOT/tmp/logs"
 STATUS_DIR="$ROOT/tmp/dev"
 MONITOR="$ROOT/scripts/dev-monitor.sh"
 
-SERVICES=(gateway builder packager deployer webhook)
-ALL_SERVICES=(gateway builder packager deployer webhook dashboard)
+SERVICES=(gateway builder packager deployer webhook cashier)
+ALL_SERVICES=(gateway builder packager deployer webhook cashier dashboard)
 PORTS=(8080 9001 9002 9003 9004 9005 9006 5173)
 
 # Colors

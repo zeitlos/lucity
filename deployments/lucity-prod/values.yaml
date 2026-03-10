@@ -25,6 +25,7 @@ gateway:
     BUILDER_ADDR: lucity-builder:9001
     PACKAGER_ADDR: lucity-packager:9002
     DEPLOYER_ADDR: lucity-deployer:9003
+    CASHIER_ADDR: lucity-cashier:9005
     REGISTRY_URL: lucity-infra-zot.lucity-system.svc.cluster.local:5000
     REGISTRY_IMAGE_PREFIX: 10.96.100.100:5000
     RAUTHY_API_URL: https://auth.lucity.cloud/auth/v1
@@ -74,3 +75,22 @@ webhook:
     REGISTRY_PUSH_URL: lucity-infra-zot.lucity-system.svc.cluster.local:5000
   envSecret:
     WEBHOOK_SECRET: GITHUB_WEBHOOK_SECRET
+
+cashier:
+  enabled: true
+  env:
+    DEPLOYER_ADDR: lucity-deployer:9003
+    STRIPE_HOBBY_PRICE_ID: price_1T9Bl6PRCxbp0B4DiIfDufvn
+    STRIPE_PRO_PRICE_ID: price_1T9BlAPRCxbp0B4DBbELIHX3
+    STRIPE_ECO_CPU_PRICE_ID: price_1T9BlXPRCxbp0B4Dk9kgfzv5
+    STRIPE_ECO_MEM_PRICE_ID: price_1T9BlaPRCxbp0B4DSW2HlgF5
+    STRIPE_ECO_DISK_PRICE_ID: price_1T9BlePRCxbp0B4DmYCA9K7N
+    STRIPE_PROD_CPU_PRICE_ID: price_1T9BlEPRCxbp0B4DqoPQGYpB
+    STRIPE_PROD_MEM_PRICE_ID: price_1T9BlHPRCxbp0B4D173eHowD
+    STRIPE_PROD_DISK_PRICE_ID: price_1T9BlKPRCxbp0B4DOrLCyqFo
+    STRIPE_ECO_CPU_METER_EVENT: eco_cpu_usage
+    STRIPE_ECO_MEM_METER_EVENT: eco_memory_usage
+    STRIPE_ECO_DISK_METER_EVENT: eco_disk_usage
+  envSecret:
+    STRIPE_SECRET_KEY: STRIPE_SECRET_KEY
+    STRIPE_WEBHOOK_SECRET: STRIPE_WEBHOOK_SECRET

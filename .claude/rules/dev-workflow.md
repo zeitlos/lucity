@@ -11,6 +11,7 @@ The user starts services with `make dev` (all services with hot reload via air) 
 | Packager | 9002 | gRPC | `tmp/logs/packager.log` |
 | Deployer | 9003 | gRPC | `tmp/logs/deployer.log` |
 | Webhook | 9004 | HTTP | `tmp/logs/webhook.log` |
+| Cashier | 9005 | gRPC + 9006 HTTP | `tmp/logs/cashier.log` |
 | Dashboard | 5173 | HTTP | `tmp/logs/dashboard.log` |
 
 ## Verifying Changes
