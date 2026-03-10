@@ -353,7 +353,7 @@ const mainItems = computed(() => {
         />
 
         <!-- Palette -->
-        <div class="relative z-10 w-full max-w-lg overflow-hidden rounded-xl border bg-popover shadow-2xl">
+        <div class="relative z-10 w-full max-w-lg rounded-xl border bg-popover shadow-2xl">
           <!-- Main view -->
           <template v-if="view === 'main'">
             <div class="flex items-center border-b px-3">
