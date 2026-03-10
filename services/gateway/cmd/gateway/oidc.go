@@ -186,35 +186,42 @@ func handleCallback(provider *OIDCProvider, api *handler.Client, jwtSecret, dash
 			return
 		}
 
-		// Parse workspace memberships from Rauthy groups
-		workspaces := auth.ParseRauthyGroups(oidcClaims.Groups)
-
-		// Auto-create personal workspace for new users with no workspace memberships
-		if len(workspaces) == 0 {
-			if oidcClaims.PreferredUsername == "" {
-				slog.Warn("user has no workspaces and no preferred_username for personal workspace", "email", oidcClaims.Email)
-				http.Redirect(w, r, dashboardURL+"/login?error=no_workspace", http.StatusTemporaryRedirect)
-				return
-			}
-
-			// Set claims on context so auth.OutgoingContext() can propagate identity
-			// to backend services via gRPC metadata. No JWT needed — backends trust
-			// the gateway as the auth boundary.
-			svcCtx := auth.WithClaims(r.Context(), &auth.Claims{
-				Subject: idToken.Subject,
-				Email:   oidcClaims.Email,
-				Roles:   []auth.Role{auth.RoleUser},
-			})
-
-			wsID, err := api.EnsurePersonalWorkspace(svcCtx, idToken.Subject, oidcClaims.PreferredUsername)
-			if err != nil {
-				slog.Error("failed to create personal workspace", "error", err, "email", oidcClaims.Email)
-				http.Error(w, "failed to create workspace", http.StatusInternalServerError)
-				return
-			}
-			workspaces = []auth.WorkspaceMembership{{Workspace: wsID, Role: auth.WorkspaceRoleAdmin}}
-			slog.Info("personal workspace created for new user", "email", oidcClaims.Email, "workspace", wsID)
+		// Ensure personal workspace exists and user is a member.
+		// This is idempotent — on first login it creates the workspace,
+		// on subsequent logins it ensures the Rauthy group membership is intact.
+		if oidcClaims.PreferredUsername == "" {
+			slog.Warn("no preferred_username for personal workspace", "email", oidcClaims.Email)
+			http.Redirect(w, r, dashboardURL+"/login?error=no_workspace", http.StatusTemporaryRedirect)
+			return
 		}
+
+		// Set claims on context so auth.OutgoingContext() can propagate identity
+		// to backend services via gRPC metadata. No JWT needed — backends trust
+		// the gateway as the auth boundary.
+		svcCtx := auth.WithClaims(r.Context(), &auth.Claims{
+			Subject: idToken.Subject,
+			Email:   oidcClaims.Email,
+			Roles:   []auth.Role{auth.RoleUser},
+		})
+
+		personalWSID, err := api.EnsurePersonalWorkspace(svcCtx, idToken.Subject, oidcClaims.PreferredUsername)
+		if err != nil {
+			slog.Error("failed to ensure personal workspace", "error", err, "email", oidcClaims.Email)
+			http.Error(w, "failed to create workspace", http.StatusInternalServerError)
+			return
+		}
+
+		// Re-read the user's groups from Rauthy after ensuring personal workspace,
+		// since EnsurePersonalWorkspace may have updated group membership.
+		user, err := api.Rauthy.User(r.Context(), idToken.Subject)
+		if err != nil {
+			slog.Error("failed to fetch user after personal workspace setup", "error", err)
+			http.Error(w, "authentication failed", http.StatusInternalServerError)
+			return
+		}
+		workspaces := auth.ParseRauthyGroups(user.Groups)
+
+		slog.Info("personal workspace ensured", "email", oidcClaims.Email, "workspace", personalWSID)
 
 		// Determine roles — admin if member of any workspace as admin
 		roles := []auth.Role{auth.RoleUser}
