@@ -62,7 +62,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [gateway, builder, packager, deployer, webhook, dashboard, docs]
+        service: [gateway, builder, packager, deployer, webhook, cashier, dashboard, docs]
         include:
           # Go services use the root Dockerfile with SERVICE build arg
           - service: gateway
@@ -78,6 +78,9 @@ jobs:
             dockerfile: Dockerfile
             context: .
           - service: webhook
+            dockerfile: Dockerfile
+            context: .
+          - service: cashier
             dockerfile: Dockerfile
             context: .
           # Dashboard and docs use their own Dockerfiles
