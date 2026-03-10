@@ -22,6 +22,7 @@ gateway:
     DASHBOARD_URL: https://lucity.cloud/app
     GITHUB_APP_ID: "2882801"
     GITHUB_PRIVATE_KEY_PATH: /secrets/github/github-app.pem
+    GITHUB_APP_SLUG: lucity-platform
     BUILDER_ADDR: lucity-builder:9001
     PACKAGER_ADDR: lucity-packager:9002
     DEPLOYER_ADDR: lucity-deployer:9003
