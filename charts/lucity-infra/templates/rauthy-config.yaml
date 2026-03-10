@@ -34,6 +34,10 @@ stringData:
     [bootstrap]
     admin_email = '{{ .Values.rauthy.adminEmail }}'
 
+    [suspicious_requests]
+    blacklist = 5
+    log = true
+
     [webauthn]
     rp_id = '{{ .Values.rauthy.hostname }}'
     rp_origin = 'https://{{ .Values.rauthy.hostname }}:443'

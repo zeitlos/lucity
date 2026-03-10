@@ -60,6 +60,12 @@ export function useAuth() {
   }
 
   function login() {
+    const now = Date.now();
+    const last = Number(sessionStorage.getItem('lucity_last_login_redirect') || '0');
+    if (now - last < 10_000) {
+      return;
+    }
+    sessionStorage.setItem('lucity_last_login_redirect', String(now));
     window.location.href = '/auth/login';
   }
 

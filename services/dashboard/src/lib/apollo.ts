@@ -8,7 +8,7 @@ import router from '@/router';
 import { toast } from '@/components/ui/sonner';
 import { useAuth } from '@/composables/useAuth';
 
-const { activeWorkspace } = useAuth();
+const { activeWorkspace, login } = useAuth();
 
 const httpLink = createHttpLink({
   uri: '/graphql',
@@ -30,7 +30,7 @@ const errorLink = onError(({ graphQLErrors, networkError, operation }) => {
         return;
       }
       if (err.extensions?.code === 'SESSION_EXPIRED') {
-        window.location.href = '/auth/login';
+        login();
         return;
       }
     }
@@ -45,7 +45,7 @@ const errorLink = onError(({ graphQLErrors, networkError, operation }) => {
   if (networkError) {
     // 403 from workspace authorization — JWT has stale workspace claims, re-login
     if ('statusCode' in networkError && networkError.statusCode === 403) {
-      window.location.href = '/auth/login';
+      login();
       return;
     }
     toast.error('Network error', { description: networkError.message });

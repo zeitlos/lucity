@@ -48,7 +48,7 @@ const router = createRouter({
 router.beforeEach(async (to) => {
   if (!to.meta.requiresAuth) return;
 
-  const { isAuthenticated, loading, fetchUser, activeWorkspace } = useAuth();
+  const { isAuthenticated, loading, fetchUser, activeWorkspace, login } = useAuth();
 
   if (loading.value) {
     await fetchUser();
@@ -61,7 +61,7 @@ router.beforeEach(async (to) => {
   // If no valid workspace could be resolved (stale JWT, removed from workspace),
   // force a full re-login to get fresh OIDC claims.
   if (!activeWorkspace.value) {
-    window.location.href = '/auth/login';
+    login();
     return false;
   }
 });
