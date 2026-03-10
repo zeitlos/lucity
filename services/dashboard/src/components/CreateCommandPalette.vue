@@ -301,6 +301,26 @@ async function handleAddManualService() {
   }
 }
 
+// Open GitHub App install in a popup
+function openInstallPopup() {
+  const w = 600;
+  const h = 700;
+  const left = window.screenX + (window.outerWidth - w) / 2;
+  const top = window.screenY + (window.outerHeight - h) / 2;
+  window.open('/auth/github/install', 'github-install', `width=${w},height=${h},left=${left},top=${top}`);
+}
+
+// Listen for postMessage from popup after GitHub App install
+if (typeof window !== 'undefined') {
+  window.addEventListener('message', (event) => {
+    if (event.data === 'github-app-installed') {
+      // Refetch sources to pick up the new installation
+      const client = resolveClient();
+      client.refetchQueries({ include: [GitHubSourcesQuery] });
+    }
+  });
+}
+
 // Main menu items filtering
 const mainItems = computed(() => {
   const items = props.context === 'projects'
@@ -461,19 +481,32 @@ const mainItems = computed(() => {
                         class="text-[10px]"
                       >Org</Badge>
                     </button>
-                    <a
-                      href="/auth/github/install"
+                    <button
                       class="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-foreground"
+                      @click="openInstallPopup(); sourcePickerOpen = false"
                     >
                       <Plus :size="14" />
-                      Install on another account
-                    </a>
+                      Add GitHub Account
+                    </button>
                   </div>
                 </div>
               </div>
 
+              <!-- No sources state -->
+              <div v-if="sources.length === 0" class="px-4 py-6 text-center">
+                <Github :size="24" class="mx-auto mb-3 text-muted-foreground" />
+                <p class="text-sm font-medium text-foreground">No GitHub App installations found</p>
+                <p class="mt-1 text-xs text-muted-foreground">
+                  Install the Lucity GitHub App on your account or organization.
+                </p>
+                <Button size="sm" class="mt-3" @click="openInstallPopup()">
+                  <Plus :size="14" class="mr-1.5" />
+                  Add GitHub Account
+                </Button>
+              </div>
+
               <!-- Repo list -->
-              <ScrollArea class="max-h-[320px]">
+              <ScrollArea v-else class="max-h-[320px]">
                 <div class="p-1">
                   <p class="px-2 py-1.5 text-xs font-medium text-muted-foreground">Repositories</p>
                   <template v-if="reposLoading">

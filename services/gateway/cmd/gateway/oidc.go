@@ -417,10 +417,15 @@ func handleGitHubInstall(githubAppSlug string) http.HandlerFunc {
 }
 
 // handleGitHubSetup is the callback from GitHub after App installation.
-// Just redirects back to the dashboard — the new installation shows up in githubSources.
+// Returns an HTML page that signals the opener and closes the popup.
+// Falls back to a redirect if not opened as a popup.
 func handleGitHubSetup(dashboardURL string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, dashboardURL+"/?github=installed", http.StatusTemporaryRedirect)
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		fmt.Fprintf(w, `<!DOCTYPE html><html><head><title>GitHub App Installed</title></head><body><script>
+if (window.opener) { window.opener.postMessage("github-app-installed", %q); window.close(); }
+else { window.location.href = %q; }
+</script><p>GitHub App installed. You can close this window.</p></body></html>`, dashboardURL, dashboardURL+"/?github=installed")
 	}
 }
 

@@ -978,7 +978,7 @@ func (s *Server) DatabaseCredentials(ctx context.Context, req *deployer.Database
 // --- User GitHub token CRUD (K8s Secrets) ---
 
 func githubTokenSecretName(userID string) string {
-	return "github-token-" + userID
+	return "github-token-" + strings.ToLower(userID)
 }
 
 func (s *Server) StoreUserGitHubToken(ctx context.Context, req *deployer.StoreUserGitHubTokenRequest) (*deployer.StoreUserGitHubTokenResponse, error) {
