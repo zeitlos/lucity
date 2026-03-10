@@ -11,7 +11,6 @@ import { CreateDatabaseMutation } from '@/graphql/databases';
 import { toast } from '@/components/ui/sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { errorMessage } from '@/lib/utils';
 import { generateName } from '@/lib/names';
 
@@ -506,7 +505,7 @@ const mainItems = computed(() => {
               </div>
 
               <!-- Repo list -->
-              <ScrollArea v-else class="max-h-[320px]">
+              <div v-else class="max-h-[320px] overflow-y-auto">
                 <div class="p-1">
                   <p class="px-2 py-1.5 text-xs font-medium text-muted-foreground">Repositories</p>
                   <template v-if="reposLoading">
@@ -533,7 +532,7 @@ const mainItems = computed(() => {
                     </button>
                   </template>
                 </div>
-              </ScrollArea>
+              </div>
             </template>
           </template>
 
