@@ -461,6 +461,32 @@ func (s *Server) DatabaseStatus(ctx context.Context, req *deployer.DatabaseStatu
 	}, nil
 }
 
+func (s *Server) ServiceStatus(ctx context.Context, req *deployer.ServiceStatusRequest) (*deployer.ServiceStatusResponse, error) {
+	ws := tenant.FromContext(ctx)
+	namespace := labels.NamespaceFor(ws, req.Project, req.Environment)
+	labelSelector := fmt.Sprintf("app.kubernetes.io/name=%s,app.kubernetes.io/instance=%s",
+		req.Service, req.Project)
+
+	deployList, err := s.k8s.AppsV1().Deployments(namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: labelSelector,
+	})
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to list deployments: %v", err)
+	}
+
+	var totalReplicas, totalReady int32
+	for _, d := range deployList.Items {
+		totalReplicas += d.Status.Replicas
+		totalReady += d.Status.ReadyReplicas
+	}
+
+	return &deployer.ServiceStatusResponse{
+		Ready:         totalReady > 0 && totalReady >= totalReplicas,
+		Replicas:      totalReplicas,
+		ReadyReplicas: totalReady,
+	}, nil
+}
+
 // pvcUsage queries the kubelet stats API via the Kubernetes API proxy to get
 // actual disk usage for a PVC. Returns (usedBytes, capacityBytes) or (0, 0)
 // if the stats cannot be retrieved.

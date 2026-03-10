@@ -35,6 +35,9 @@ service DeployerService {
   // DatabaseStatus returns the runtime status of a database in an environment.
   rpc DatabaseStatus(DatabaseStatusRequest) returns (DatabaseStatusResponse);
 
+  // ServiceStatus returns the runtime status of a service's K8s Deployment in an environment.
+  rpc ServiceStatus(ServiceStatusRequest) returns (ServiceStatusResponse);
+
   // DatabaseCredentials returns the resolved connection credentials for a database.
   rpc DatabaseCredentials(DatabaseCredentialsRequest) returns (DatabaseCredentialsResponse);
 
@@ -226,6 +229,20 @@ message VolumeInfo {
   string requested_size = 3;
   int64 used_bytes = 4;
   int64 capacity_bytes = 5;
+}
+
+// Service status messages.
+
+message ServiceStatusRequest {
+  string project = 1;
+  string environment = 2;
+  string service = 3;
+}
+
+message ServiceStatusResponse {
+  bool ready = 1;
+  int32 replicas = 2;
+  int32 ready_replicas = 3;
 }
 
 // Database credentials messages.

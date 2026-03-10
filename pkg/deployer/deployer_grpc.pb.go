@@ -29,6 +29,7 @@ const (
 	DeployerService_DatabaseTableData_FullMethodName         = "/deployer.DeployerService/DatabaseTableData"
 	DeployerService_DatabaseQuery_FullMethodName             = "/deployer.DeployerService/DatabaseQuery"
 	DeployerService_DatabaseStatus_FullMethodName            = "/deployer.DeployerService/DatabaseStatus"
+	DeployerService_ServiceStatus_FullMethodName             = "/deployer.DeployerService/ServiceStatus"
 	DeployerService_DatabaseCredentials_FullMethodName       = "/deployer.DeployerService/DatabaseCredentials"
 	DeployerService_WorkspaceMetadata_FullMethodName         = "/deployer.DeployerService/WorkspaceMetadata"
 	DeployerService_WorkspaceByInstallationID_FullMethodName = "/deployer.DeployerService/WorkspaceByInstallationID"
@@ -68,6 +69,8 @@ type DeployerServiceClient interface {
 	DatabaseQuery(ctx context.Context, in *DatabaseQueryRequest, opts ...grpc.CallOption) (*DatabaseQueryResponse, error)
 	// DatabaseStatus returns the runtime status of a database in an environment.
 	DatabaseStatus(ctx context.Context, in *DatabaseStatusRequest, opts ...grpc.CallOption) (*DatabaseStatusResponse, error)
+	// ServiceStatus returns the runtime status of a service's K8s Deployment in an environment.
+	ServiceStatus(ctx context.Context, in *ServiceStatusRequest, opts ...grpc.CallOption) (*ServiceStatusResponse, error)
 	// DatabaseCredentials returns the resolved connection credentials for a database.
 	DatabaseCredentials(ctx context.Context, in *DatabaseCredentialsRequest, opts ...grpc.CallOption) (*DatabaseCredentialsResponse, error)
 	// WorkspaceMetadata returns metadata for a workspace from K8s ConfigMaps.
@@ -207,6 +210,16 @@ func (c *deployerServiceClient) DatabaseStatus(ctx context.Context, in *Database
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(DatabaseStatusResponse)
 	err := c.cc.Invoke(ctx, DeployerService_DatabaseStatus_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *deployerServiceClient) ServiceStatus(ctx context.Context, in *ServiceStatusRequest, opts ...grpc.CallOption) (*ServiceStatusResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ServiceStatusResponse)
+	err := c.cc.Invoke(ctx, DeployerService_ServiceStatus_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -367,6 +380,8 @@ type DeployerServiceServer interface {
 	DatabaseQuery(context.Context, *DatabaseQueryRequest) (*DatabaseQueryResponse, error)
 	// DatabaseStatus returns the runtime status of a database in an environment.
 	DatabaseStatus(context.Context, *DatabaseStatusRequest) (*DatabaseStatusResponse, error)
+	// ServiceStatus returns the runtime status of a service's K8s Deployment in an environment.
+	ServiceStatus(context.Context, *ServiceStatusRequest) (*ServiceStatusResponse, error)
 	// DatabaseCredentials returns the resolved connection credentials for a database.
 	DatabaseCredentials(context.Context, *DatabaseCredentialsRequest) (*DatabaseCredentialsResponse, error)
 	// WorkspaceMetadata returns metadata for a workspace from K8s ConfigMaps.
@@ -432,6 +447,9 @@ func (UnimplementedDeployerServiceServer) DatabaseQuery(context.Context, *Databa
 }
 func (UnimplementedDeployerServiceServer) DatabaseStatus(context.Context, *DatabaseStatusRequest) (*DatabaseStatusResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DatabaseStatus not implemented")
+}
+func (UnimplementedDeployerServiceServer) ServiceStatus(context.Context, *ServiceStatusRequest) (*ServiceStatusResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ServiceStatus not implemented")
 }
 func (UnimplementedDeployerServiceServer) DatabaseCredentials(context.Context, *DatabaseCredentialsRequest) (*DatabaseCredentialsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DatabaseCredentials not implemented")
@@ -662,6 +680,24 @@ func _DeployerService_DatabaseStatus_Handler(srv interface{}, ctx context.Contex
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DeployerServiceServer).DatabaseStatus(ctx, req.(*DatabaseStatusRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DeployerService_ServiceStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ServiceStatusRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DeployerServiceServer).ServiceStatus(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DeployerService_ServiceStatus_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DeployerServiceServer).ServiceStatus(ctx, req.(*ServiceStatusRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -942,6 +978,10 @@ var DeployerService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DatabaseStatus",
 			Handler:    _DeployerService_DatabaseStatus_Handler,
+		},
+		{
+			MethodName: "ServiceStatus",
+			Handler:    _DeployerService_ServiceStatus_Handler,
 		},
 		{
 			MethodName: "DatabaseCredentials",

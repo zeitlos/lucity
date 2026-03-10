@@ -97,6 +97,7 @@ func (c *Client) Projects(ctx context.Context) ([]Project, error) {
 	for _, p := range resp.Projects {
 		proj := projectFromProto(ws, p)
 		c.enrichSyncStatus(ctx, &proj)
+		c.enrichServiceStatus(ctx, &proj)
 		c.enrichDatabaseStatus(ctx, &proj)
 		c.enrichDeploymentHistory(ctx, &proj)
 		c.enrichCommitMessages(ctx, &proj)
@@ -122,6 +123,7 @@ func (c *Client) Project(ctx context.Context, id string) (*Project, error) {
 
 	p := projectFromProto(ws, resp.Project)
 	c.enrichSyncStatus(ctx, &p)
+	c.enrichServiceStatus(ctx, &p)
 	c.enrichDatabaseStatus(ctx, &p)
 	c.enrichDeploymentHistory(ctx, &p)
 	c.enrichCommitMessages(ctx, &p)
@@ -394,13 +396,42 @@ func (c *Client) enrichSyncStatus(ctx context.Context, proj *Project) {
 				return
 			}
 			env.SyncStatus = deploymentStatusToString(resp.Status)
-
-			// Derive per-service readiness from environment health.
-			ready := resp.Status == deployer.DeploymentStatus_DEPLOYMENT_STATUS_SYNCED
-			for j := range env.Services {
-				env.Services[j].Ready = ready
-			}
 		}()
+	}
+	wg.Wait()
+}
+
+// enrichServiceStatus queries the deployer for each service's K8s Deployment
+// status per environment. Sets Ready and Replicas from actual pod state.
+// Best-effort: logs warnings on failure.
+func (c *Client) enrichServiceStatus(ctx context.Context, proj *Project) {
+	var wg sync.WaitGroup
+	for i := range proj.Environments {
+		env := &proj.Environments[i]
+		for j := range env.Services {
+			si := &env.Services[j]
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				statusCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
+				defer cancel()
+				resp, err := c.Deployer.ServiceStatus(statusCtx, &deployer.ServiceStatusRequest{
+					Project:     proj.ID,
+					Environment: env.Name,
+					Service:     si.Name,
+				})
+				if err != nil {
+					slog.Warn("failed to get service status",
+						"project", proj.ID,
+						"environment", env.Name,
+						"service", si.Name,
+						"error", err)
+					return
+				}
+				si.Ready = resp.Ready
+				si.Replicas = int(resp.Replicas)
+			}()
+		}
 	}
 	wg.Wait()
 }
@@ -726,7 +757,7 @@ func projectFromProto(ws string, p *packager.ProjectInfo) Project {
 				Environment: envName,
 				ImageTag:    svc.ImageTag,
 				Domains:     svc.Domains,
-				Replicas:    1, // default until we query K8s
+				Replicas:    0, // set by enrichServiceStatus from K8s
 			})
 		}
 

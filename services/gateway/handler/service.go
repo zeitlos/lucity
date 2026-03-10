@@ -558,11 +558,11 @@ func (c *Client) finalizeDeploy(ctx context.Context, deployID, projectID, servic
 		// PROGRESSING, OUT_OF_SYNC, UNKNOWN — keep polling
 	}
 
-	// Timeout: mark succeeded but with the last known health status.
-	// The rollout may still be in progress — we just stop tracking.
-	c.DeployTracker.AppendLog(deployID, "Deploy completed (ArgoCD still progressing)")
+	// Timeout: stop tracking. The image tag is committed — ArgoCD will eventually sync.
+	// Readiness is derived from K8s Deployment status, not from this tracker.
+	c.DeployTracker.AppendLog(deployID, "Deploy tracking complete — pods may still be starting")
 	c.DeployTracker.Succeed(deployID, imageRef, digest)
-	slog.Info("deploy completed (ArgoCD still progressing)", "deployId", deployID, "project", projectID, "service", service, "environment", environment, "tag", tag)
+	slog.Info("deploy tracking complete", "deployId", deployID, "project", projectID, "service", service, "environment", environment, "tag", tag)
 }
 
 func buildPhaseToDeployPhase(phase builder.BuildPhase) deploy.Phase {

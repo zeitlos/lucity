@@ -369,8 +369,14 @@ function deployLabel(dep: { sourceCommitMessage?: string; imageTag: string }): s
         <!-- Deployment successful expandable -->
         <Collapsible v-model:open="showActiveDetails">
           <CollapsibleTrigger class="flex w-full cursor-pointer items-center gap-2 border-t border-border/40 px-4 py-2.5 text-left">
-            <Check :size="14" class="shrink-0 text-[var(--status-ok)]" />
-            <span class="flex-1 text-xs font-medium text-[var(--status-ok)]">Deployment successful</span>
+            <template v-if="envService?.ready">
+              <Check :size="14" class="shrink-0 text-[var(--status-ok)]" />
+              <span class="flex-1 text-xs font-medium text-[var(--status-ok)]">Deployment successful</span>
+            </template>
+            <template v-else>
+              <Loader2 :size="14" class="shrink-0 animate-spin text-[var(--status-warn)]" />
+              <span class="flex-1 text-xs font-medium text-[var(--status-warn)]">Waiting for pods</span>
+            </template>
             <ChevronDown
               :size="14"
               class="shrink-0 text-muted-foreground transition-transform"
