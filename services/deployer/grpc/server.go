@@ -586,6 +586,7 @@ func (s *Server) WorkspaceMetadata(ctx context.Context, req *deployer.WorkspaceM
 		GithubInstallationId: installationID,
 		StripeCustomerId:     cm.Data["stripe_customer_id"],
 		StripeSubscriptionId: cm.Data["stripe_subscription_id"],
+		Owner:                cm.Data["owner"],
 	}, nil
 }
 
@@ -631,6 +632,7 @@ func (s *Server) CreateWorkspaceMetadata(ctx context.Context, req *deployer.Crea
 		Data: map[string]string{
 			"name":     req.Name,
 			"personal": strconv.FormatBool(req.Personal),
+			"owner":    req.Owner,
 		},
 	}
 

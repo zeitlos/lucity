@@ -223,6 +223,15 @@ func (c *Client) CreateWorkspace(ctx context.Context, id, name string) (*Workspa
 		return nil, fmt.Errorf("invalid workspace ID: must be 3-63 lowercase alphanumeric characters or hyphens")
 	}
 
+	// Check if workspace ID is already taken.
+	outCtx := auth.OutgoingContext(ctx)
+	checkCtx, checkCancel := context.WithTimeout(outCtx, grpcTimeout)
+	defer checkCancel()
+	_, err := c.Deployer.WorkspaceMetadata(checkCtx, &deployer.WorkspaceMetadataRequest{Workspace: id})
+	if err == nil {
+		return nil, fmt.Errorf("workspace ID %q is already taken", id)
+	}
+
 	// 1. Create Rauthy groups
 	memberGroup, err := c.Rauthy.CreateGroup(ctx, "ws:"+id)
 	if err != nil {
@@ -246,12 +255,12 @@ func (c *Client) CreateWorkspace(ctx context.Context, id, name string) (*Workspa
 	}
 
 	// 3. Create K8s ConfigMap via deployer
-	outCtx := auth.OutgoingContext(ctx)
 	callCtx, cancel := context.WithTimeout(outCtx, grpcTimeout)
 	defer cancel()
 	_, err = c.Deployer.CreateWorkspaceMetadata(callCtx, &deployer.CreateWorkspaceMetadataRequest{
 		Workspace: id,
 		Name:      name,
+		Owner:     claims.Subject,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create workspace metadata: %w", err)
@@ -589,7 +598,9 @@ func (c *Client) enrichGitHubInstallation(ctx context.Context, ws *Workspace) {
 }
 
 // EnsurePersonalWorkspace creates a personal workspace for a new user if they have none.
-// The workspace ID is the user's GitHub login. Returns the workspace ID.
+// The workspace ID is derived from the user's GitHub login. Idempotent: if the workspace
+// already exists and belongs to this user, re-adds them to the Rauthy groups and returns
+// the existing ID. On genuine collision (different owner), picks {id}-0, {id}-1, etc.
 func (c *Client) EnsurePersonalWorkspace(ctx context.Context, rauthyUserID, githubLogin string) (string, error) {
 	if c.Rauthy == nil {
 		return "", fmt.Errorf("rauthy not configured")
@@ -600,45 +611,43 @@ func (c *Client) EnsurePersonalWorkspace(ctx context.Context, rauthyUserID, gith
 		return "", fmt.Errorf("cannot derive workspace ID from login %q", githubLogin)
 	}
 
-	// Check if workspace already exists (e.g., name collision)
 	outCtx := auth.OutgoingContext(ctx)
+
+	// Check if preferred workspace ID already exists.
 	checkCtx, checkCancel := context.WithTimeout(outCtx, grpcTimeout)
 	defer checkCancel()
-	_, err := c.Deployer.WorkspaceMetadata(checkCtx, &deployer.WorkspaceMetadataRequest{Workspace: wsID})
+	existing, err := c.Deployer.WorkspaceMetadata(checkCtx, &deployer.WorkspaceMetadataRequest{Workspace: wsID})
 	if err == nil {
-		// Workspace already exists — append disambiguator
-		wsID = wsID + "-personal"
+		// Workspace exists. Check if it belongs to this user.
+		// Pre-migration workspaces have no owner — treat personal ones as ours.
+		if existing.Owner == rauthyUserID || (existing.Owner == "" && existing.Personal) {
+			if err := c.ensureWorkspaceGroups(ctx, wsID, rauthyUserID); err != nil {
+				return "", fmt.Errorf("failed to restore workspace groups: %w", err)
+			}
+			slog.Info("personal workspace restored", "id", wsID, "user", rauthyUserID)
+			return wsID, nil
+		}
+
+		// Genuine collision — someone else owns this ID.
+		wsID, err = c.findAvailableWorkspaceID(outCtx, wsID)
+		if err != nil {
+			return "", fmt.Errorf("failed to find available workspace ID: %w", err)
+		}
 	}
 
-	// Create Rauthy groups
-	memberGroup, err := c.Rauthy.CreateGroup(ctx, "ws:"+wsID)
-	if err != nil {
-		return "", fmt.Errorf("failed to create personal workspace member group: %w", err)
+	// Create workspace groups and add user.
+	if err := c.ensureWorkspaceGroups(ctx, wsID, rauthyUserID); err != nil {
+		return "", fmt.Errorf("failed to create workspace groups: %w", err)
 	}
 
-	adminGroup, err := c.Rauthy.CreateGroup(ctx, "ws:"+wsID+":admin")
-	if err != nil {
-		return "", fmt.Errorf("failed to create personal workspace admin group: %w", err)
-	}
-
-	// Add user to both groups
-	user, err := c.Rauthy.User(ctx, rauthyUserID)
-	if err != nil {
-		return "", fmt.Errorf("failed to fetch user from rauthy: %w", err)
-	}
-
-	newGroups := append(user.Groups, memberGroup.ID, adminGroup.ID)
-	if err := c.Rauthy.UpdateUserGroups(ctx, user.ID, newGroups); err != nil {
-		return "", fmt.Errorf("failed to add user to personal workspace groups: %w", err)
-	}
-
-	// Create ConfigMap
+	// Create ConfigMap.
 	createCtx, createCancel := context.WithTimeout(outCtx, grpcTimeout)
 	defer createCancel()
 	_, err = c.Deployer.CreateWorkspaceMetadata(createCtx, &deployer.CreateWorkspaceMetadataRequest{
 		Workspace: wsID,
 		Name:      githubLogin,
 		Personal:  true,
+		Owner:     rauthyUserID,
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to create personal workspace metadata: %w", err)
@@ -647,9 +656,55 @@ func (c *Client) EnsurePersonalWorkspace(ctx context.Context, rauthyUserID, gith
 	slog.Info("personal workspace created", "id", wsID, "user", rauthyUserID)
 
 	// Best-effort: set up Stripe customer + subscription
-	c.setupBilling(ctx, wsID, githubLogin, user.Email)
+	user, _ := c.Rauthy.User(ctx, rauthyUserID)
+	email := ""
+	if user != nil {
+		email = user.Email
+	}
+	c.setupBilling(ctx, wsID, githubLogin, email)
 
 	return wsID, nil
+}
+
+// ensureWorkspaceGroups creates Rauthy groups for a workspace and adds the user to them.
+// Idempotent: CreateGroup returns existing groups, appendUnique avoids duplicate membership.
+func (c *Client) ensureWorkspaceGroups(ctx context.Context, wsID, rauthyUserID string) error {
+	memberGroup, err := c.Rauthy.CreateGroup(ctx, "ws:"+wsID)
+	if err != nil {
+		return fmt.Errorf("failed to create member group: %w", err)
+	}
+
+	adminGroup, err := c.Rauthy.CreateGroup(ctx, "ws:"+wsID+":admin")
+	if err != nil {
+		return fmt.Errorf("failed to create admin group: %w", err)
+	}
+
+	user, err := c.Rauthy.User(ctx, rauthyUserID)
+	if err != nil {
+		return fmt.Errorf("failed to fetch user from rauthy: %w", err)
+	}
+
+	newGroups := appendUnique(user.Groups, memberGroup.ID)
+	newGroups = appendUnique(newGroups, adminGroup.ID)
+	if err := c.Rauthy.UpdateUserGroups(ctx, user.ID, newGroups); err != nil {
+		return fmt.Errorf("failed to add user to workspace groups: %w", err)
+	}
+	return nil
+}
+
+// findAvailableWorkspaceID tries {base}-0, {base}-1, ... up to {base}-9
+// to find an available workspace ID. Returns error if all slots are taken.
+func (c *Client) findAvailableWorkspaceID(ctx context.Context, base string) (string, error) {
+	for i := 0; i < 10; i++ {
+		candidate := fmt.Sprintf("%s-%d", base, i)
+		checkCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
+		_, err := c.Deployer.WorkspaceMetadata(checkCtx, &deployer.WorkspaceMetadataRequest{Workspace: candidate})
+		cancel()
+		if err != nil {
+			return candidate, nil
+		}
+	}
+	return "", fmt.Errorf("all workspace ID slots exhausted for base %q", base)
 }
 
 // LinkGitHubInstallationDirect links a GitHub App installation to a specific workspace.
