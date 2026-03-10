@@ -459,20 +459,33 @@ func handleGitHubSetup(api *handler.Client, dashboardURL string) http.HandlerFun
 			return
 		}
 
-		// Read workspace from cookie
+		// Read workspace from cookie, or fall back to the user's admin workspace.
+		// The cookie may be missing if the user navigated to GitHub directly,
+		// or if the cookie expired (10-minute TTL).
+		var workspace string
 		wsCookie, err := r.Cookie(githubWSCookieName)
-		if err != nil || wsCookie.Value == "" {
-			http.Error(w, "missing workspace context — please try again from workspace settings", http.StatusBadRequest)
-			return
+		if err == nil && wsCookie.Value != "" {
+			workspace = wsCookie.Value
+			// Clear cookie
+			http.SetCookie(w, &http.Cookie{
+				Name:   githubWSCookieName,
+				Path:   "/",
+				MaxAge: -1,
+			})
+		} else {
+			// Fall back to the user's first admin workspace
+			for _, m := range claims.Workspaces {
+				if m.Role == auth.WorkspaceRoleAdmin {
+					workspace = m.Workspace
+					break
+				}
+			}
+			if workspace == "" {
+				http.Error(w, "no admin workspace found — cannot link GitHub installation", http.StatusForbidden)
+				return
+			}
+			slog.Info("github setup: no workspace cookie, falling back to admin workspace", "workspace", workspace)
 		}
-		workspace := wsCookie.Value
-
-		// Clear cookie
-		http.SetCookie(w, &http.Cookie{
-			Name:   githubWSCookieName,
-			Path:   "/",
-			MaxAge: -1,
-		})
 
 		// Verify user is admin
 		if claims.WorkspaceRoleIn(workspace) != auth.WorkspaceRoleAdmin {
