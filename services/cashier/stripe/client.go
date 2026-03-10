@@ -64,7 +64,8 @@ func (c *Client) CreateCustomer(ctx context.Context, workspace, name, email stri
 // Metered items (eco) start with no quantity. Licensed items (production) start at 0.
 func (c *Client) CreateSubscription(ctx context.Context, customerID, workspace string, planPriceID string) (string, error) {
 	params := &gostripe.SubscriptionParams{
-		Customer: gostripe.String(customerID),
+		Customer:        gostripe.String(customerID),
+		PaymentBehavior: gostripe.String("default_incomplete"),
 		Items: []*gostripe.SubscriptionItemsParams{
 			{Price: gostripe.String(planPriceID)},
 			{Price: gostripe.String(c.Prices.EcoCPUPriceID)},
