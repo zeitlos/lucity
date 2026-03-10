@@ -519,6 +519,14 @@ func serviceRefsToProto(refs map[string]gitops.ServiceRef) map[string]*packager.
 	return result
 }
 
+func (s *Server) SetResources(ctx context.Context, req *packager.SetResourcesRequest) (*packager.SetResourcesResponse, error) {
+	if err := s.provider.SetResources(ctx, req.Project, req.Environment, req.Tier, int(req.CpuMillicores), int(req.MemoryMb), int(req.DiskMb)); err != nil {
+		return nil, fmt.Errorf("failed to set resources: %w", err)
+	}
+	s.syncEnvironment(ctx, req.Project, req.Environment)
+	return &packager.SetResourcesResponse{}, nil
+}
+
 func databaseRefsFromProto(refs map[string]*packager.DatabaseRef) map[string]gitops.DatabaseRef {
 	if len(refs) == 0 {
 		return nil

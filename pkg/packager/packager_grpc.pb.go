@@ -41,6 +41,7 @@ const (
 	PackagerService_AddDatabase_FullMethodName         = "/packager.PackagerService/AddDatabase"
 	PackagerService_RemoveDatabase_FullMethodName      = "/packager.PackagerService/RemoveDatabase"
 	PackagerService_SyncChart_FullMethodName           = "/packager.PackagerService/SyncChart"
+	PackagerService_SetResources_FullMethodName        = "/packager.PackagerService/SetResources"
 )
 
 // PackagerServiceClient is the client API for PackagerService service.
@@ -94,6 +95,9 @@ type PackagerServiceClient interface {
 	// SyncChart updates the embedded lucity-app Helm chart in the project's GitOps repo.
 	// Called to propagate chart template changes (e.g., new Gateway config) to existing repos.
 	SyncChart(ctx context.Context, in *SyncChartRequest, opts ...grpc.CallOption) (*SyncChartResponse, error)
+	// SetResources writes resource requests/limits to an environment's values.yaml.
+	// Keeps the GitOps repo in sync with K8s ResourceQuota for ejection purposes.
+	SetResources(ctx context.Context, in *SetResourcesRequest, opts ...grpc.CallOption) (*SetResourcesResponse, error)
 }
 
 type packagerServiceClient struct {
@@ -324,6 +328,16 @@ func (c *packagerServiceClient) SyncChart(ctx context.Context, in *SyncChartRequ
 	return out, nil
 }
 
+func (c *packagerServiceClient) SetResources(ctx context.Context, in *SetResourcesRequest, opts ...grpc.CallOption) (*SetResourcesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SetResourcesResponse)
+	err := c.cc.Invoke(ctx, PackagerService_SetResources_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // PackagerServiceServer is the server API for PackagerService service.
 // All implementations must embed UnimplementedPackagerServiceServer
 // for forward compatibility.
@@ -375,6 +389,9 @@ type PackagerServiceServer interface {
 	// SyncChart updates the embedded lucity-app Helm chart in the project's GitOps repo.
 	// Called to propagate chart template changes (e.g., new Gateway config) to existing repos.
 	SyncChart(context.Context, *SyncChartRequest) (*SyncChartResponse, error)
+	// SetResources writes resource requests/limits to an environment's values.yaml.
+	// Keeps the GitOps repo in sync with K8s ResourceQuota for ejection purposes.
+	SetResources(context.Context, *SetResourcesRequest) (*SetResourcesResponse, error)
 	mustEmbedUnimplementedPackagerServiceServer()
 }
 
@@ -450,6 +467,9 @@ func (UnimplementedPackagerServiceServer) RemoveDatabase(context.Context, *Remov
 }
 func (UnimplementedPackagerServiceServer) SyncChart(context.Context, *SyncChartRequest) (*SyncChartResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SyncChart not implemented")
+}
+func (UnimplementedPackagerServiceServer) SetResources(context.Context, *SetResourcesRequest) (*SetResourcesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetResources not implemented")
 }
 func (UnimplementedPackagerServiceServer) mustEmbedUnimplementedPackagerServiceServer() {}
 func (UnimplementedPackagerServiceServer) testEmbeddedByValue()                         {}
@@ -868,6 +888,24 @@ func _PackagerService_SyncChart_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _PackagerService_SetResources_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetResourcesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PackagerServiceServer).SetResources(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PackagerService_SetResources_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PackagerServiceServer).SetResources(ctx, req.(*SetResourcesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // PackagerService_ServiceDesc is the grpc.ServiceDesc for PackagerService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -962,6 +1000,10 @@ var PackagerService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SyncChart",
 			Handler:    _PackagerService_SyncChart_Handler,
+		},
+		{
+			MethodName: "SetResources",
+			Handler:    _PackagerService_SetResources_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

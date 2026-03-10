@@ -1448,6 +1448,65 @@ func (p *SoftServeProvider) Databases(ctx context.Context, project string) ([]Da
 	return parseDatabaseDefs(inner), nil
 }
 
+// SetResources writes resource requests/limits to an environment's values.yaml.
+func (p *SoftServeProvider) SetResources(ctx context.Context, project, environment, tier string, cpuMillicores, memoryMB, diskMB int) error {
+	commitMsg := fmt.Sprintf("config(%s): set resources tier=%s cpu=%dm mem=%dMi disk=%dMi", environment, tier, cpuMillicores, memoryMB, diskMB)
+
+	return p.modifyRepo(ctx, project, commitMsg, false, func(dir string) error {
+		path := filepath.Join(dir, "environments", environment, "values.yaml")
+		inner, err := readSubchartValues(path)
+		if err != nil {
+			return err
+		}
+
+		cpuStr := fmt.Sprintf("%dm", cpuMillicores)
+		memStr := fmt.Sprintf("%dMi", memoryMB)
+		storageStr := fmt.Sprintf("%dMi", diskMB)
+
+		resources := map[string]any{
+			"tier": strings.ToLower(tier),
+		}
+
+		if strings.EqualFold(tier, "production") {
+			// Guaranteed QoS: requests = limits
+			resources["requests"] = map[string]any{
+				"cpu":    cpuStr,
+				"memory": memStr,
+			}
+			resources["limits"] = map[string]any{
+				"cpu":    cpuStr,
+				"memory": memStr,
+			}
+		} else {
+			// Burstable QoS: requests < limits
+			// Use half of the allocation as requests, full as limits
+			reqCPU := cpuMillicores / 2
+			if reqCPU < 100 {
+				reqCPU = 100
+			}
+			reqMem := memoryMB / 2
+			if reqMem < 128 {
+				reqMem = 128
+			}
+			resources["requests"] = map[string]any{
+				"cpu":    fmt.Sprintf("%dm", reqCPU),
+				"memory": fmt.Sprintf("%dMi", reqMem),
+			}
+			resources["limits"] = map[string]any{
+				"cpu":    cpuStr,
+				"memory": memStr,
+			}
+		}
+
+		if diskMB > 0 {
+			resources["storage"] = storageStr
+		}
+
+		inner["resources"] = resources
+		return writeSubchartValues(path, inner)
+	})
+}
+
 func parseServiceDefs(services map[string]any) []ServiceDef {
 	var result []ServiceDef
 	for svcName, svcRaw := range services {

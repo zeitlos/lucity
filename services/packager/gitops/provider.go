@@ -132,6 +132,10 @@ type Provider interface {
 	// SyncChart overwrites the embedded lucity-app chart in the project's GitOps repo
 	// with the current version. No-op if the chart is already up to date.
 	SyncChart(ctx context.Context, project string) error
+
+	// SetResources writes resource requests/limits to an environment's values.yaml.
+	// Keeps the GitOps repo in sync with K8s ResourceQuota for ejection purposes.
+	SetResources(ctx context.Context, project, environment, tier string, cpuMillicores, memoryMB, diskMB int) error
 }
 
 // DeploymentEntry represents a single deployment event parsed from a git commit.

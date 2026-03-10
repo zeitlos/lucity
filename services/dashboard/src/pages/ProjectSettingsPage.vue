@@ -1,15 +1,27 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, reactive } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuery, useMutation } from '@vue/apollo-composable';
-import { ArrowLeft, Trash2 } from 'lucide-vue-next';
+import { ArrowLeft, Trash2, ChevronDown, ChevronRight } from 'lucide-vue-next';
 import { ProjectQuery, DeleteProjectMutation, DeleteEnvironmentMutation } from '@/graphql/projects';
+import { EnvironmentResourcesQuery, SetEnvironmentResourcesMutation } from '@/graphql/billing';
 import { apolloClient } from '@/lib/apollo';
 import { useEnvironment } from '@/composables/useEnvironment';
 import SharedVariablesEditor from '@/components/SharedVariablesEditor.vue';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Slider } from '@/components/ui/slider';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -76,6 +88,86 @@ async function handleDeleteProject() {
     router.push({ name: 'projects' });
   } catch (e: unknown) {
     toast.error('Failed to delete project', { description: errorMessage(e) });
+  }
+}
+
+// Environment resources
+interface EnvResourceState {
+  loading: boolean;
+  loaded: boolean;
+  saving: boolean;
+  tier: string;
+  cpuMillicores: number;
+  memoryMB: number;
+  diskMB: number;
+}
+
+const expandedEnv = ref<string | null>(null);
+const envResources: Record<string, EnvResourceState> = reactive({});
+
+const { mutate: setResourcesMutate } = useMutation(SetEnvironmentResourcesMutation);
+
+async function toggleEnvExpand(envName: string) {
+  if (expandedEnv.value === envName) {
+    expandedEnv.value = null;
+    return;
+  }
+  expandedEnv.value = envName;
+
+  if (envResources[envName]?.loaded) return;
+
+  envResources[envName] = {
+    loading: true,
+    loaded: false,
+    saving: false,
+    tier: 'ECO',
+    cpuMillicores: 1000,
+    memoryMB: 1024,
+    diskMB: 1024,
+  };
+
+  try {
+    const { data } = await apolloClient.query({
+      query: EnvironmentResourcesQuery,
+      variables: { projectId: projectId.value, environment: envName },
+      fetchPolicy: 'network-only',
+    });
+    if (data?.environmentResources) {
+      const r = data.environmentResources;
+      envResources[envName]!.tier = r.tier;
+      envResources[envName]!.cpuMillicores = r.allocation.cpuMillicores;
+      envResources[envName]!.memoryMB = r.allocation.memoryMB;
+      envResources[envName]!.diskMB = r.allocation.diskMB;
+    }
+  } catch {
+    // No resources set yet — keep defaults
+  } finally {
+    envResources[envName]!.loading = false;
+    envResources[envName]!.loaded = true;
+  }
+}
+
+async function handleSaveResources(envName: string) {
+  const state = envResources[envName];
+  if (!state) return;
+
+  state.saving = true;
+  try {
+    await setResourcesMutate({
+      input: {
+        projectId: projectId.value,
+        environment: envName,
+        tier: state.tier,
+        cpuMillicores: state.cpuMillicores,
+        memoryMB: state.memoryMB,
+        diskMB: state.diskMB,
+      },
+    });
+    toast.success(`Resources updated for "${envName}"`);
+  } catch (e: unknown) {
+    toast.error('Failed to update resources', { description: errorMessage(e) });
+  } finally {
+    state.saving = false;
   }
 }
 
@@ -242,25 +334,178 @@ async function handleDeleteEnvironment() {
                   <div
                     v-for="env in project.environments"
                     :key="env.id"
-                    class="flex items-center justify-between px-4 py-3"
                   >
-                    <div class="flex items-center gap-3">
-                      <span class="text-sm font-medium text-foreground">{{ env.name }}</span>
-                      <span
-                        v-if="env.ephemeral"
-                        class="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
+                    <!-- Environment row -->
+                    <div class="flex items-center justify-between px-4 py-3">
+                      <button
+                        class="flex items-center gap-2 text-left"
+                        @click="toggleEnvExpand(env.name)"
                       >
-                        ephemeral
-                      </span>
+                        <component
+                          :is="expandedEnv === env.name ? ChevronDown : ChevronRight"
+                          :size="14"
+                          class="text-muted-foreground"
+                        />
+                        <span class="text-sm font-medium text-foreground">{{ env.name }}</span>
+                        <span
+                          v-if="env.ephemeral"
+                          class="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
+                        >
+                          ephemeral
+                        </span>
+                        <Badge
+                          v-if="envResources[env.name]?.loaded"
+                          variant="secondary"
+                          class="text-[10px]"
+                        >
+                          {{ envResources[env.name]!.tier === 'PRODUCTION' ? 'Production' : 'Eco' }}
+                        </Badge>
+                      </button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        class="h-8 w-8 text-muted-foreground hover:text-destructive"
+                        @click.stop="envToDelete = env.name"
+                      >
+                        <Trash2 :size="14" />
+                      </Button>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      class="h-8 w-8 text-muted-foreground hover:text-destructive"
-                      @click="envToDelete = env.name"
+
+                    <!-- Expanded resource panel -->
+                    <div
+                      v-if="expandedEnv === env.name"
+                      class="border-t bg-muted/30 px-4 py-4"
                     >
-                      <Trash2 :size="14" />
-                    </Button>
+                      <template v-if="envResources[env.name]?.loading">
+                        <div class="space-y-3">
+                          <Skeleton class="h-8 w-full" />
+                          <Skeleton class="h-8 w-full" />
+                          <Skeleton class="h-8 w-full" />
+                        </div>
+                      </template>
+                      <template v-else-if="envResources[env.name]?.loaded">
+                        <div class="space-y-5">
+                          <!-- Tier -->
+                          <div class="space-y-2">
+                            <Label>Resource tier</Label>
+                            <Select v-model="envResources[env.name]!.tier">
+                              <SelectTrigger class="w-48">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="ECO">
+                                  <div>
+                                    <span class="font-medium">Eco</span>
+                                    <span class="ml-1.5 text-xs text-muted-foreground">Shared, billed by usage</span>
+                                  </div>
+                                </SelectItem>
+                                <SelectItem value="PRODUCTION">
+                                  <div>
+                                    <span class="font-medium">Production</span>
+                                    <span class="ml-1.5 text-xs text-muted-foreground">Dedicated, billed by allocation</span>
+                                  </div>
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <!-- CPU -->
+                          <div class="space-y-2">
+                            <div class="flex items-center justify-between">
+                              <Label>CPU</Label>
+                              <div class="flex items-center gap-1.5">
+                                <Input
+                                  type="number"
+                                  :model-value="envResources[env.name]!.cpuMillicores"
+                                  class="h-7 w-20 text-right text-xs"
+                                  :min="100"
+                                  :max="32000"
+                                  @update:model-value="envResources[env.name]!.cpuMillicores = Number($event)"
+                                />
+                                <span class="text-xs text-muted-foreground">m</span>
+                              </div>
+                            </div>
+                            <Slider
+                              :model-value="[envResources[env.name]!.cpuMillicores]"
+                              :min="100"
+                              :max="32000"
+                              :step="100"
+                              @update:model-value="envResources[env.name]!.cpuMillicores = $event[0]"
+                            />
+                            <p class="text-[11px] text-muted-foreground">
+                              {{ (envResources[env.name]!.cpuMillicores / 1000).toFixed(1) }} vCPU
+                            </p>
+                          </div>
+
+                          <!-- Memory -->
+                          <div class="space-y-2">
+                            <div class="flex items-center justify-between">
+                              <Label>Memory</Label>
+                              <div class="flex items-center gap-1.5">
+                                <Input
+                                  type="number"
+                                  :model-value="envResources[env.name]!.memoryMB"
+                                  class="h-7 w-20 text-right text-xs"
+                                  :min="128"
+                                  :max="65536"
+                                  @update:model-value="envResources[env.name]!.memoryMB = Number($event)"
+                                />
+                                <span class="text-xs text-muted-foreground">MB</span>
+                              </div>
+                            </div>
+                            <Slider
+                              :model-value="[envResources[env.name]!.memoryMB]"
+                              :min="128"
+                              :max="65536"
+                              :step="128"
+                              @update:model-value="envResources[env.name]!.memoryMB = $event[0]"
+                            />
+                            <p class="text-[11px] text-muted-foreground">
+                              {{ (envResources[env.name]!.memoryMB / 1024).toFixed(1) }} GB
+                            </p>
+                          </div>
+
+                          <!-- Disk -->
+                          <div class="space-y-2">
+                            <div class="flex items-center justify-between">
+                              <Label>Disk</Label>
+                              <div class="flex items-center gap-1.5">
+                                <Input
+                                  type="number"
+                                  :model-value="envResources[env.name]!.diskMB"
+                                  class="h-7 w-20 text-right text-xs"
+                                  :min="0"
+                                  :max="102400"
+                                  @update:model-value="envResources[env.name]!.diskMB = Number($event)"
+                                />
+                                <span class="text-xs text-muted-foreground">MB</span>
+                              </div>
+                            </div>
+                            <Slider
+                              :model-value="[envResources[env.name]!.diskMB]"
+                              :min="0"
+                              :max="102400"
+                              :step="512"
+                              @update:model-value="envResources[env.name]!.diskMB = $event[0]"
+                            />
+                            <p class="text-[11px] text-muted-foreground">
+                              {{ (envResources[env.name]!.diskMB / 1024).toFixed(1) }} GB
+                            </p>
+                          </div>
+
+                          <!-- Save -->
+                          <div class="flex justify-end">
+                            <Button
+                              size="sm"
+                              :disabled="envResources[env.name]!.saving"
+                              @click="handleSaveResources(env.name)"
+                            >
+                              {{ envResources[env.name]!.saving ? 'Saving...' : 'Save resources' }}
+                            </Button>
+                          </div>
+                        </div>
+                      </template>
+                    </div>
                   </div>
                 </div>
               </div>

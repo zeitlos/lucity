@@ -75,6 +75,10 @@ service PackagerService {
   // SyncChart updates the embedded lucity-app Helm chart in the project's GitOps repo.
   // Called to propagate chart template changes (e.g., new Gateway config) to existing repos.
   rpc SyncChart(SyncChartRequest) returns (SyncChartResponse);
+
+  // SetResources writes resource requests/limits to an environment's values.yaml.
+  // Keeps the GitOps repo in sync with K8s ResourceQuota for ejection purposes.
+  rpc SetResources(SetResourcesRequest) returns (SetResourcesResponse);
 }
 
 // ServiceInfo describes a service configured in the project's GitOps repo.
@@ -351,3 +355,14 @@ message SyncChartRequest {
 }
 
 message SyncChartResponse {}
+
+message SetResourcesRequest {
+  string project = 1;
+  string environment = 2;
+  string tier = 3;            // "eco" or "production"
+  int32 cpu_millicores = 4;
+  int32 memory_mb = 5;
+  int32 disk_mb = 6;
+}
+
+message SetResourcesResponse {}

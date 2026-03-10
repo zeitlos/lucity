@@ -3,11 +3,14 @@ package handler
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/cashier"
 	"github.com/zeitlos/lucity/pkg/deployer"
+	"github.com/zeitlos/lucity/pkg/packager"
 	"github.com/zeitlos/lucity/pkg/tenant"
 )
 
@@ -62,6 +65,21 @@ func (c *Client) SetEnvironmentResources(ctx context.Context, projectID, environ
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to set resource quota: %w", err)
+	}
+
+	// Best-effort: sync resources to GitOps repo for ejection
+	pkgCtx, pkgCancel := context.WithTimeout(ctx, grpcTimeout)
+	defer pkgCancel()
+	_, pkgErr := c.Packager.SetResources(pkgCtx, &packager.SetResourcesRequest{
+		Project:       projectID,
+		Environment:   environment,
+		Tier:          strings.ToLower(tier),
+		CpuMillicores: int32(cpuMillicores),
+		MemoryMb:      int32(memoryMB),
+		DiskMb:        int32(diskMB),
+	})
+	if pkgErr != nil {
+		slog.Error("failed to sync resources to GitOps repo", "error", pkgErr, "project", projectID, "environment", environment)
 	}
 
 	return &EnvironmentResources{
