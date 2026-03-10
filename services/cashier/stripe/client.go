@@ -129,8 +129,10 @@ func (c *Client) Subscription(ctx context.Context, subscriptionID string) (*gost
 // BillingPortalURL creates a billing portal session and returns the URL.
 func (c *Client) BillingPortalURL(ctx context.Context, customerID, returnURL string) (string, error) {
 	params := &gostripe.BillingPortalSessionParams{
-		Customer:  gostripe.String(customerID),
-		ReturnURL: gostripe.String(returnURL),
+		Customer: gostripe.String(customerID),
+	}
+	if returnURL != "" {
+		params.ReturnURL = gostripe.String(returnURL)
 	}
 
 	session, err := portalsession.New(params)
