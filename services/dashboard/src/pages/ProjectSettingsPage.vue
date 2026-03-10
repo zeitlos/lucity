@@ -430,7 +430,7 @@ async function handleDeleteEnvironment() {
                               :min="100"
                               :max="32000"
                               :step="100"
-                              @update:model-value="envResources[env.name]!.cpuMillicores = $event[0]"
+                              @update:model-value="envResources[env.name]!.cpuMillicores = $event?.[0] ?? envResources[env.name]!.cpuMillicores"
                             />
                             <p class="text-[11px] text-muted-foreground">
                               {{ (envResources[env.name]!.cpuMillicores / 1000).toFixed(1) }} vCPU
@@ -458,7 +458,7 @@ async function handleDeleteEnvironment() {
                               :min="128"
                               :max="65536"
                               :step="128"
-                              @update:model-value="envResources[env.name]!.memoryMB = $event[0]"
+                              @update:model-value="envResources[env.name]!.memoryMB = $event?.[0] ?? envResources[env.name]!.memoryMB"
                             />
                             <p class="text-[11px] text-muted-foreground">
                               {{ (envResources[env.name]!.memoryMB / 1024).toFixed(1) }} GB
@@ -486,7 +486,7 @@ async function handleDeleteEnvironment() {
                               :min="0"
                               :max="102400"
                               :step="512"
-                              @update:model-value="envResources[env.name]!.diskMB = $event[0]"
+                              @update:model-value="envResources[env.name]!.diskMB = $event?.[0] ?? envResources[env.name]!.diskMB"
                             />
                             <p class="text-[11px] text-muted-foreground">
                               {{ (envResources[env.name]!.diskMB / 1024).toFixed(1) }} GB
