@@ -90,10 +90,16 @@ async function handleLogout() {
               </Avatar>
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" class="w-48">
-            <div class="px-2 py-1.5">
-              <p class="text-sm font-medium">{{ user.name || user.email }}</p>
-              <p class="text-xs text-muted-foreground">{{ user.email }}</p>
+          <DropdownMenuContent align="end" class="min-w-56">
+            <div class="flex items-center gap-3 px-3 py-2.5">
+              <Avatar class="h-9 w-9 shrink-0">
+                <AvatarImage :src="user.avatarUrl" :alt="user.name || user.email || ''" />
+                <AvatarFallback>{{ (user.name || user.email || '?').charAt(0).toUpperCase() }}</AvatarFallback>
+              </Avatar>
+              <div class="min-w-0">
+                <p class="truncate text-sm font-medium">{{ user.name || user.email }}</p>
+                <p class="truncate text-xs text-muted-foreground">{{ user.email }}</p>
+              </div>
             </div>
             <DropdownMenuSeparator />
             <DropdownMenuItem @select="router.push({ name: 'workspace-settings' })">
