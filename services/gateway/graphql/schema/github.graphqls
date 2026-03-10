@@ -20,6 +20,10 @@ enum GitHubAccountType {
 }
 
 extend type Query {
-  githubRepositories: [GitHubRepository!]! @hasRole(role: [USER])
-  githubInstallations: [GitHubInstallation!]! @hasRole(role: [ADMIN])
+  """User's accessible GitHub App installations. Requires connected GitHub account."""
+  githubSources: [GitHubInstallation!]! @hasRole(role: [USER])
+  """Repos from a specific installation."""
+  githubRepositories(installationId: ID!): [GitHubRepository!]! @hasRole(role: [USER])
+  """Whether the current user has connected their GitHub account."""
+  githubConnected: Boolean! @hasRole(role: [USER])
 }

@@ -7,6 +7,13 @@ metadata:
   labels:
     {{- include "lucity-app.labels" $ | nindent 4 }}
     app.kubernetes.io/component: {{ $name }}
+    {{- if $svc.githubInstallationId }}
+    lucity.dev/github-installation: {{ $svc.githubInstallationId | quote }}
+    {{- end }}
+  {{- if $svc.sourceUrl }}
+  annotations:
+    lucity.dev/source-repo: {{ $svc.sourceUrl | quote }}
+  {{- end }}
 spec:
   replicas: {{ $svc.replicas | default 1 }}
   selector:

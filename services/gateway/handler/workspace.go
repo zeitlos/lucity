@@ -17,14 +17,10 @@ import (
 
 // Workspace represents a workspace with metadata and members.
 type Workspace struct {
-	ID                     string
-	Name                   string
-	Personal               bool
-	GithubInstallationID   int64
-	GithubAccountLogin     string
-	GithubAccountAvatarURL string
-	GithubAccountType      string // "Organization" or "User"
-	Members                []WorkspaceMember
+	ID       string
+	Name     string
+	Personal bool
+	Members  []WorkspaceMember
 }
 
 // WorkspaceMember represents a user's membership in a workspace.
@@ -75,10 +71,9 @@ func (c *Client) Workspaces(ctx context.Context) ([]Workspace, error) {
 
 			mu.Lock()
 			workspaces = append(workspaces, Workspace{
-				ID:                   membership.Workspace,
-				Name:                 resp.Name,
-				Personal:             resp.Personal,
-				GithubInstallationID: resp.GithubInstallationId,
+				ID:       membership.Workspace,
+				Name:     resp.Name,
+				Personal: resp.Personal,
 			})
 			mu.Unlock()
 		}(m)
@@ -107,14 +102,10 @@ func (c *Client) Workspace(ctx context.Context) (*Workspace, error) {
 	}
 
 	result := &Workspace{
-		ID:                   ws,
-		Name:                 resp.Name,
-		Personal:             resp.Personal,
-		GithubInstallationID: resp.GithubInstallationId,
+		ID:       ws,
+		Name:     resp.Name,
+		Personal: resp.Personal,
 	}
-
-	// Enrich with GitHub installation account details
-	c.enrichGitHubInstallation(ctx, result)
 
 	// Fetch members
 	members, err := c.WorkspaceMembers(ctx)
@@ -524,79 +515,6 @@ func (c *Client) UpdateMemberRole(ctx context.Context, userID string, role auth.
 	}, nil
 }
 
-// LinkGitHubInstallation links a GitHub App installation to the active workspace. Admin-only.
-func (c *Client) LinkGitHubInstallation(ctx context.Context, installationID int64) (*Workspace, error) {
-	ws, err := tenant.Require(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := c.requireWorkspaceAdmin(ctx, ws); err != nil {
-		return nil, err
-	}
-
-	outCtx := auth.OutgoingContext(ctx)
-	callCtx, cancel := context.WithTimeout(outCtx, grpcTimeout)
-	defer cancel()
-	_, err = c.Deployer.UpdateWorkspaceMetadata(callCtx, &deployer.UpdateWorkspaceMetadataRequest{
-		Workspace:            ws,
-		GithubInstallationId: installationID,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to link GitHub installation: %w", err)
-	}
-
-	slog.Info("github installation linked", "workspace", ws, "installation_id", installationID)
-	return c.Workspace(ctx)
-}
-
-// UnlinkGitHubInstallation removes the GitHub App link from the active workspace. Admin-only.
-func (c *Client) UnlinkGitHubInstallation(ctx context.Context) (*Workspace, error) {
-	ws, err := tenant.Require(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := c.requireWorkspaceAdmin(ctx, ws); err != nil {
-		return nil, err
-	}
-
-	outCtx := auth.OutgoingContext(ctx)
-	callCtx, cancel := context.WithTimeout(outCtx, grpcTimeout)
-	defer cancel()
-	// Setting to 0 clears the installation ID
-	_, err = c.Deployer.UpdateWorkspaceMetadata(callCtx, &deployer.UpdateWorkspaceMetadataRequest{
-		Workspace:            ws,
-		GithubInstallationId: 0,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to unlink GitHub installation: %w", err)
-	}
-
-	slog.Info("github installation unlinked", "workspace", ws)
-	return c.Workspace(ctx)
-}
-
-// enrichGitHubInstallation populates the GitHub account fields on a workspace
-// by fetching installation details from the GitHub App API. Best-effort — logs
-// a warning and leaves fields empty on failure.
-func (c *Client) enrichGitHubInstallation(ctx context.Context, ws *Workspace) {
-	if ws.GithubInstallationID == 0 || c.GitHubApp == nil {
-		return
-	}
-
-	inst, err := c.GitHubApp.Installation(ctx, ws.GithubInstallationID)
-	if err != nil {
-		slog.Warn("failed to fetch github installation details",
-			"installation_id", ws.GithubInstallationID, "error", err)
-		return
-	}
-
-	ws.GithubAccountLogin = inst.AccountLogin
-	ws.GithubAccountAvatarURL = inst.AccountAvatar
-	ws.GithubAccountType = inst.AccountType
-}
-
 // EnsurePersonalWorkspace creates a personal workspace for a new user if they have none.
 // The workspace ID is derived from the user's GitHub login. Idempotent: if the workspace
 // already exists and belongs to this user, re-adds them to the Rauthy groups and returns
@@ -705,40 +623,6 @@ func (c *Client) findAvailableWorkspaceID(ctx context.Context, base string) (str
 		}
 	}
 	return "", fmt.Errorf("all workspace ID slots exhausted for base %q", base)
-}
-
-// LinkGitHubInstallationDirect links a GitHub App installation to a specific workspace.
-// Used by the GitHub setup callback where tenant context isn't set via middleware.
-func (c *Client) LinkGitHubInstallationDirect(ctx context.Context, workspace string, installationID int64) (*Workspace, error) {
-	outCtx := auth.OutgoingContext(ctx)
-	callCtx, cancel := context.WithTimeout(outCtx, grpcTimeout)
-	defer cancel()
-	_, err := c.Deployer.UpdateWorkspaceMetadata(callCtx, &deployer.UpdateWorkspaceMetadataRequest{
-		Workspace:            workspace,
-		GithubInstallationId: installationID,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to link GitHub installation: %w", err)
-	}
-
-	slog.Info("github installation linked", "workspace", workspace, "installation_id", installationID)
-
-	// Fetch updated metadata
-	metaCtx, metaCancel := context.WithTimeout(outCtx, grpcTimeout)
-	defer metaCancel()
-	resp, err := c.Deployer.WorkspaceMetadata(metaCtx, &deployer.WorkspaceMetadataRequest{Workspace: workspace})
-	if err != nil {
-		return nil, fmt.Errorf("failed to get workspace metadata: %w", err)
-	}
-
-	result := &Workspace{
-		ID:                   workspace,
-		Name:                 resp.Name,
-		Personal:             resp.Personal,
-		GithubInstallationID: resp.GithubInstallationId,
-	}
-	c.enrichGitHubInstallation(ctx, result)
-	return result, nil
 }
 
 // setupBilling creates a Stripe customer and subscription for a new workspace.

@@ -35,11 +35,13 @@ type Build struct {
 	Error    string
 }
 
-func (c *Client) DetectServices(ctx context.Context, sourceURL string) ([]DetectedService, error) {
+func (c *Client) DetectServices(ctx context.Context, sourceURL string, installationID *int64) ([]DetectedService, error) {
 	if _, err := tenant.Require(ctx); err != nil {
 		return nil, err
 	}
-	ctx = c.withInstallationToken(ctx)
+	if installationID != nil {
+		ctx = c.withInstallationTokenForID(ctx, *installationID)
+	}
 	ctx = auth.OutgoingContext(ctx)
 	ctx = tenant.OutgoingContext(ctx)
 
@@ -66,28 +68,36 @@ func (c *Client) DetectServices(ctx context.Context, sourceURL string) ([]Detect
 	return result, nil
 }
 
-func (c *Client) AddService(ctx context.Context, projectID, name string, port int, framework, sourceURL, contextPath string) (*Service, error) {
+func (c *Client) AddService(ctx context.Context, projectID, name string, port int, framework, sourceURL, contextPath string, installationID *int64) (*Service, error) {
 	ws, err := tenant.Require(ctx)
 	if err != nil {
 		return nil, err
 	}
-	ctx = c.withInstallationToken(ctx)
+	if installationID != nil {
+		ctx = c.withInstallationTokenForID(ctx, *installationID)
+	}
 	ctx = auth.OutgoingContext(ctx)
 	ctx = tenant.OutgoingContext(ctx)
 
 	// Derive image path using cluster-internal address so pods can pull it.
 	image := deriveImagePath(c.RegistryImagePrefix, ws, projectID, name)
 
+	var ghInstallationID int64
+	if installationID != nil {
+		ghInstallationID = *installationID
+	}
+
 	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
 	defer cancel()
 	_, err = c.Packager.AddService(callCtx, &packager.AddServiceRequest{
-		Project:     projectID,
-		Service:     name,
-		Image:       image,
-		Port:        int32(port),
-		Framework:   framework,
-		SourceUrl:   sourceURL,
-		ContextPath: contextPath,
+		Project:              projectID,
+		Service:              name,
+		Image:                image,
+		Port:                 int32(port),
+		Framework:            framework,
+		SourceUrl:            sourceURL,
+		ContextPath:          contextPath,
+		GithubInstallationId: ghInstallationID,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to add service: %w", err)
@@ -122,12 +132,13 @@ func (c *Client) AddService(ctx context.Context, projectID, name string, port in
 	}()
 
 	return &Service{
-		Name:        name,
-		Image:       image,
-		Port:        port,
-		Framework:   framework,
-		SourceURL:   sourceURL,
-		ContextPath: contextPath,
+		Name:                 name,
+		Image:                image,
+		Port:                 port,
+		Framework:            framework,
+		SourceURL:            sourceURL,
+		ContextPath:          contextPath,
+		GitHubInstallationID: ghInstallationID,
 	}, nil
 }
 
@@ -155,14 +166,17 @@ func (c *Client) StartBuild(ctx context.Context, projectID, service, gitRef stri
 	if err != nil {
 		return nil, err
 	}
-	ctx = c.withInstallationToken(ctx)
 	ctx = auth.OutgoingContext(ctx)
 	ctx = tenant.OutgoingContext(ctx)
 
-	// Look up source URL and context path from the service definition
-	sourceURL, contextPath, err := c.serviceSourceInfo(ctx, projectID, service)
+	// Look up source URL, context path, and installation ID from the service definition
+	sourceURL, contextPath, installationID, err := c.serviceSourceInfo(ctx, projectID, service)
 	if err != nil {
 		return nil, err
+	}
+	if installationID != 0 {
+		ctx = c.withInstallationTokenForID(ctx, installationID)
+		ctx = auth.OutgoingContext(ctx) // re-set outgoing metadata with token
 	}
 
 	registry := deriveImagePath(c.RegistryPushURL, ws, projectID, service)
@@ -243,22 +257,38 @@ func (c *Client) DeployBuild(ctx context.Context, projectID, service, environmen
 	return true, nil
 }
 
-// serviceSourceInfo looks up the source URL and context path for a service
-// from the project's service definitions in the GitOps repo.
-func (c *Client) serviceSourceInfo(ctx context.Context, projectID, service string) (sourceURL, contextPath string, err error) {
+// serviceSourceInfo looks up the source URL, context path, and GitHub installation ID
+// for a service from the project's service definitions in the GitOps repo.
+func (c *Client) serviceSourceInfo(ctx context.Context, projectID, service string) (sourceURL, contextPath string, installationID int64, err error) {
 	getCtx, getCancel := context.WithTimeout(ctx, grpcTimeout)
 	defer getCancel()
 	resp, err := c.Packager.GetProject(getCtx, &packager.GetProjectRequest{Project: projectID})
 	if err != nil {
-		return "", "", fmt.Errorf("failed to get project: %w", err)
+		return "", "", 0, fmt.Errorf("failed to get project: %w", err)
 	}
 
 	for _, svc := range resp.Project.Services {
 		if svc.Name == service {
-			return svc.SourceUrl, svc.ContextPath, nil
+			return svc.SourceUrl, svc.ContextPath, svc.GithubInstallationId, nil
 		}
 	}
-	return "", "", fmt.Errorf("service %q not found in project %q", service, projectID)
+	return "", "", 0, fmt.Errorf("service %q not found in project %q", service, projectID)
+}
+
+// withInstallationTokenForID mints a GitHub App installation token for the given
+// installation ID and attaches it to the context for downstream gRPC calls.
+func (c *Client) withInstallationTokenForID(ctx context.Context, installationID int64) context.Context {
+	if c.GitHubApp == nil || installationID == 0 {
+		return ctx
+	}
+
+	token, err := c.GitHubApp.InstallationToken(ctx, installationID)
+	if err != nil {
+		slog.Warn("failed to mint installation token", "installation_id", installationID, "error", err)
+		return ctx
+	}
+
+	return auth.WithGitHubToken(ctx, token)
 }
 
 // deriveImagePath builds a registry image path scoped by workspace.
@@ -320,14 +350,17 @@ func (c *Client) Deploy(ctx context.Context, projectID, service, environment, gi
 	if err != nil {
 		return nil, err
 	}
-	ctx = c.withInstallationToken(ctx)
 	ctx = auth.OutgoingContext(ctx)
 	ctx = tenant.OutgoingContext(ctx)
 
-	// Look up source URL and context path from the service definition
-	sourceURL, contextPath, err := c.serviceSourceInfo(ctx, projectID, service)
+	// Look up source URL, context path, and installation ID from the service definition
+	sourceURL, contextPath, installationID, err := c.serviceSourceInfo(ctx, projectID, service)
 	if err != nil {
 		return nil, err
+	}
+	if installationID != 0 {
+		ctx = c.withInstallationTokenForID(ctx, installationID)
+		ctx = auth.OutgoingContext(ctx) // re-set outgoing metadata with token
 	}
 
 	registry := deriveImagePath(c.RegistryPushURL, ws, projectID, service)

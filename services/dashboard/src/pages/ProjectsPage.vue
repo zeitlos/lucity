@@ -4,29 +4,27 @@ import { RouterLink, useRoute, useRouter } from 'vue-router';
 import { computed, ref, watch } from 'vue';
 import { Plus, Github, Box } from 'lucide-vue-next';
 import { ProjectsQuery } from '@/graphql/projects';
-import { WorkspaceQuery } from '@/graphql/workspaces';
+import { GitHubConnectedQuery } from '@/graphql/github';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import EmptyState from '@/components/EmptyState.vue';
 import CreateCommandPalette from '@/components/CreateCommandPalette.vue';
-import { useAuth } from '@/composables/useAuth';
 
 const route = useRoute();
 const router = useRouter();
-const { activeWorkspace } = useAuth();
 
 const { result, loading, error } = useQuery(ProjectsQuery);
-const { result: wsResult } = useQuery(WorkspaceQuery);
+const { result: ghResult } = useQuery(GitHubConnectedQuery);
 
 const projects = computed(() => result.value?.projects ?? []);
-const githubLinked = computed(() => wsResult.value?.workspace?.githubLinked ?? false);
+const githubConnected = computed(() => ghResult.value?.githubConnected ?? false);
 const paletteOpen = ref(false);
 const initialPaletteView = ref<'main' | 'github-repos'>('main');
 
-// Auto-open palette on github-repos view when returning from GitHub App installation
+// Auto-open palette on github-repos view when returning from GitHub account connection
 watch(() => route.query.github, (val) => {
-  if (val === 'connected') {
+  if (val === 'account_connected') {
     initialPaletteView.value = 'github-repos';
     paletteOpen.value = true;
     router.replace({ query: {} });
@@ -86,16 +84,13 @@ function uniqueRepoCount(services: { sourceUrl?: string }[]): number {
     </div>
 
     <EmptyState
-      v-else-if="projects.length === 0 && !githubLinked"
+      v-else-if="projects.length === 0 && !githubConnected"
       title="Connect GitHub"
-      description="Link your GitHub account to import repositories and deploy your first project."
+      description="Connect your GitHub account to import repositories and deploy your first project."
       pattern="dots"
     >
       <template #action>
-        <a
-          :href="`/auth/github/install?workspace=${activeWorkspace}`"
-          class="inline-flex"
-        >
+        <a href="/auth/github/connect" class="inline-flex">
           <Button>
             <Github :size="16" class="mr-2" />
             Connect GitHub

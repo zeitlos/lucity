@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
@@ -59,7 +58,7 @@ func NewOIDCProvider(ctx context.Context, issuerURL, clientID, callbackURL strin
 }
 
 const (
-	githubWSCookieName = "lucity_github_ws"
+	githubStateCookieName = "lucity_github_state"
 )
 
 // registerAuthRoutes adds OIDC auth endpoints to the mux.
@@ -70,7 +69,9 @@ func registerAuthRoutes(mux *http.ServeMux, provider *OIDCProvider, api *handler
 	mux.HandleFunc("/auth/logout", handleLogout(dashboardURL))
 	mux.HandleFunc("/auth/refresh", handleRefresh(api, jwtSecret))
 	mux.HandleFunc("/auth/github/install", handleGitHubInstall(githubAppSlug))
-	mux.HandleFunc("/auth/github/setup", handleGitHubSetup(api, dashboardURL))
+	mux.HandleFunc("/auth/github/setup", handleGitHubSetup(dashboardURL))
+	mux.HandleFunc("/auth/github/connect", handleGitHubConnect(api))
+	mux.HandleFunc("/auth/github/callback", handleGitHubCallback(api, dashboardURL))
 }
 
 // handleLogin redirects to the OIDC provider's authorization page with PKCE.
@@ -396,7 +397,7 @@ func handleRefresh(api *handler.Client, jwtSecret string) http.HandlerFunc {
 }
 
 // handleGitHubInstall redirects to GitHub App installation page.
-// Sets a cookie to remember which workspace to link after installation.
+// Users can install the GitHub App on new accounts to make them available as sources.
 func handleGitHubInstall(githubAppSlug string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if githubAppSlug == "" {
@@ -410,36 +411,22 @@ func handleGitHubInstall(githubAppSlug string) http.HandlerFunc {
 			return
 		}
 
-		workspace := r.URL.Query().Get("workspace")
-		if workspace == "" {
-			http.Error(w, "missing workspace parameter", http.StatusBadRequest)
-			return
-		}
-
-		// Verify user is admin of this workspace
-		if claims.WorkspaceRoleIn(workspace) != auth.WorkspaceRoleAdmin {
-			http.Error(w, "forbidden: workspace admin role required", http.StatusForbidden)
-			return
-		}
-
-		// Set cookie to remember workspace during GitHub redirect
-		http.SetCookie(w, &http.Cookie{
-			Name:     githubWSCookieName,
-			Value:    workspace,
-			Path:     "/",
-			MaxAge:   600, // 10 minutes
-			HttpOnly: true,
-			SameSite: http.SameSiteLaxMode,
-		})
-
 		installURL := fmt.Sprintf("https://github.com/apps/%s/installations/new", githubAppSlug)
 		http.Redirect(w, r, installURL, http.StatusTemporaryRedirect)
 	}
 }
 
 // handleGitHubSetup is the callback from GitHub after App installation.
-// Links the installation to the workspace stored in the cookie.
-func handleGitHubSetup(api *handler.Client, dashboardURL string) http.HandlerFunc {
+// Just redirects back to the dashboard — the new installation shows up in githubSources.
+func handleGitHubSetup(dashboardURL string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, dashboardURL+"/?github=installed", http.StatusTemporaryRedirect)
+	}
+}
+
+// handleGitHubConnect initiates the GitHub OAuth flow to connect the user's GitHub account.
+// The token is stored per-user and used for listing installations (githubSources query).
+func handleGitHubConnect(api *handler.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims := auth.FromContext(r.Context())
 		if claims == nil {
@@ -447,64 +434,69 @@ func handleGitHubSetup(api *handler.Client, dashboardURL string) http.HandlerFun
 			return
 		}
 
-		installationIDStr := r.URL.Query().Get("installation_id")
-		if installationIDStr == "" {
-			http.Error(w, "missing installation_id", http.StatusBadRequest)
+		if api.GitHubApp == nil {
+			http.Error(w, "GitHub App not configured", http.StatusServiceUnavailable)
 			return
 		}
 
-		installationID, err := strconv.ParseInt(installationIDStr, 10, 64)
+		state := generateState()
+		http.SetCookie(w, &http.Cookie{
+			Name:     githubStateCookieName,
+			Value:    state,
+			Path:     "/",
+			MaxAge:   600, // 10 minutes
+			HttpOnly: true,
+			SameSite: http.SameSiteLaxMode,
+		})
+
+		url := api.GitHubApp.OAuthURL(state)
+		http.Redirect(w, r, url, http.StatusTemporaryRedirect)
+	}
+}
+
+// handleGitHubCallback exchanges the authorization code for a token and stores it.
+func handleGitHubCallback(api *handler.Client, dashboardURL string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		claims := auth.FromContext(r.Context())
+		if claims == nil {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		// Verify state
+		stateCookie, err := r.Cookie(githubStateCookieName)
+		if err != nil || stateCookie.Value != r.URL.Query().Get("state") {
+			http.Error(w, "invalid state", http.StatusBadRequest)
+			return
+		}
+		http.SetCookie(w, &http.Cookie{
+			Name:   githubStateCookieName,
+			Path:   "/",
+			MaxAge: -1,
+		})
+
+		code := r.URL.Query().Get("code")
+		if code == "" {
+			http.Error(w, "missing code", http.StatusBadRequest)
+			return
+		}
+
+		token, err := api.GitHubApp.ExchangeCode(r.Context(), code)
 		if err != nil {
-			http.Error(w, "invalid installation_id", http.StatusBadRequest)
+			slog.Error("failed to exchange github code", "error", err)
+			http.Error(w, "failed to connect GitHub account", http.StatusInternalServerError)
 			return
 		}
 
-		// Read workspace from cookie, or fall back to the user's admin workspace.
-		// The cookie may be missing if the user navigated to GitHub directly,
-		// or if the cookie expired (10-minute TTL).
-		var workspace string
-		wsCookie, err := r.Cookie(githubWSCookieName)
-		if err == nil && wsCookie.Value != "" {
-			workspace = wsCookie.Value
-			// Clear cookie
-			http.SetCookie(w, &http.Cookie{
-				Name:   githubWSCookieName,
-				Path:   "/",
-				MaxAge: -1,
-			})
-		} else {
-			// Fall back to the user's first admin workspace
-			for _, m := range claims.Workspaces {
-				if m.Role == auth.WorkspaceRoleAdmin {
-					workspace = m.Workspace
-					break
-				}
-			}
-			if workspace == "" {
-				http.Error(w, "no admin workspace found — cannot link GitHub installation", http.StatusForbidden)
-				return
-			}
-			slog.Info("github setup: no workspace cookie, falling back to admin workspace", "workspace", workspace)
-		}
-
-		// Verify user is admin
-		if claims.WorkspaceRoleIn(workspace) != auth.WorkspaceRoleAdmin {
-			http.Error(w, "forbidden: workspace admin role required", http.StatusForbidden)
+		// Store the token via deployer
+		if err := api.StoreGitHubToken(r.Context(), claims.Subject, token); err != nil {
+			slog.Error("failed to store github token", "error", err, "user", claims.Subject)
+			http.Error(w, "failed to store GitHub token", http.StatusInternalServerError)
 			return
 		}
 
-		// Create a context with workspace tenant for the handler
-		ctx := auth.WithClaims(r.Context(), claims)
-
-		// Link installation via handler (which needs tenant context)
-		if _, err := api.LinkGitHubInstallationDirect(ctx, workspace, installationID); err != nil {
-			slog.Error("failed to link github installation", "error", err, "workspace", workspace, "installation_id", installationID)
-			http.Error(w, "failed to link GitHub installation", http.StatusInternalServerError)
-			return
-		}
-
-		slog.Info("github installation linked via setup callback", "workspace", workspace, "installation_id", installationID)
-		http.Redirect(w, r, dashboardURL+"/?github=connected", http.StatusTemporaryRedirect)
+		slog.Info("github account connected", "user", claims.Subject)
+		http.Redirect(w, r, dashboardURL+"/?github=account_connected", http.StatusTemporaryRedirect)
 	}
 }
 

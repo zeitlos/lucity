@@ -1,7 +1,6 @@
 package graphql
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/zeitlos/lucity/pkg/auth"
@@ -260,26 +259,11 @@ func convertWorkspaceMemberships(memberships []auth.WorkspaceMembership) []model
 	return result
 }
 
-func convertWorkspace(ws *handler.Workspace, githubAppSlug string) *model.Workspace {
+func convertWorkspace(ws *handler.Workspace) *model.Workspace {
 	result := &model.Workspace{
-		ID:           ws.ID,
-		Name:         ws.Name,
-		Personal:     ws.Personal,
-		GithubLinked: ws.GithubInstallationID > 0,
-	}
-
-	if githubAppSlug != "" && !result.GithubLinked {
-		url := fmt.Sprintf("https://github.com/apps/%s/installations/new", githubAppSlug)
-		result.GithubInstallURL = &url
-	}
-
-	if ws.GithubAccountLogin != "" {
-		result.GithubAccountLogin = &ws.GithubAccountLogin
-		result.GithubAccountAvatarURL = &ws.GithubAccountAvatarURL
-		accountType := model.GitHubAccountType(strings.ToUpper(ws.GithubAccountType))
-		result.GithubAccountType = &accountType
-		id := fmt.Sprintf("%d", ws.GithubInstallationID)
-		result.GithubInstallationID = &id
+		ID:       ws.ID,
+		Name:     ws.Name,
+		Personal: ws.Personal,
 	}
 
 	for _, m := range ws.Members {

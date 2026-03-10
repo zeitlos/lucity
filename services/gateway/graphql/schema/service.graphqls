@@ -13,6 +13,7 @@ input AddServiceInput {
   framework: String
   sourceUrl: String
   contextPath: String
+  installationId: ID
 }
 
 input BuildServiceInput {
@@ -120,7 +121,7 @@ type DnsCheck {
 }
 
 extend type Query {
-  detectServices(sourceUrl: String!): [DetectedService!]! @hasRole(role: [USER])
+  detectServices(sourceUrl: String!, installationId: ID): [DetectedService!]! @hasRole(role: [USER])
   buildStatus(id: ID!): Build @hasRole(role: [USER])
   deployStatus(id: ID!): DeployRun @hasRole(role: [USER])
   activeDeployment(projectId: ID!, service: String!, environment: String!): DeployRun @hasRole(role: [USER])

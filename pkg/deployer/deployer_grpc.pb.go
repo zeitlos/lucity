@@ -39,6 +39,9 @@ const (
 	DeployerService_SetResourceQuota_FullMethodName          = "/deployer.DeployerService/SetResourceQuota"
 	DeployerService_ResourceQuota_FullMethodName             = "/deployer.DeployerService/ResourceQuota"
 	DeployerService_ListResourceAllocations_FullMethodName   = "/deployer.DeployerService/ListResourceAllocations"
+	DeployerService_StoreUserGitHubToken_FullMethodName      = "/deployer.DeployerService/StoreUserGitHubToken"
+	DeployerService_UserGitHubToken_FullMethodName           = "/deployer.DeployerService/UserGitHubToken"
+	DeployerService_DeleteUserGitHubToken_FullMethodName     = "/deployer.DeployerService/DeleteUserGitHubToken"
 )
 
 // DeployerServiceClient is the client API for DeployerService service.
@@ -85,6 +88,12 @@ type DeployerServiceClient interface {
 	ResourceQuota(ctx context.Context, in *ResourceQuotaRequest, opts ...grpc.CallOption) (*ResourceQuotaResponse, error)
 	// ListResourceAllocations returns resource quotas and tiers for all managed namespaces.
 	ListResourceAllocations(ctx context.Context, in *ListResourceAllocationsRequest, opts ...grpc.CallOption) (*ListResourceAllocationsResponse, error)
+	// StoreUserGitHubToken stores a GitHub OAuth token for a user in a K8s Secret.
+	StoreUserGitHubToken(ctx context.Context, in *StoreUserGitHubTokenRequest, opts ...grpc.CallOption) (*StoreUserGitHubTokenResponse, error)
+	// UserGitHubToken retrieves a user's stored GitHub OAuth token.
+	UserGitHubToken(ctx context.Context, in *UserGitHubTokenRequest, opts ...grpc.CallOption) (*UserGitHubTokenResponse, error)
+	// DeleteUserGitHubToken removes a user's stored GitHub OAuth token.
+	DeleteUserGitHubToken(ctx context.Context, in *DeleteUserGitHubTokenRequest, opts ...grpc.CallOption) (*DeleteUserGitHubTokenResponse, error)
 }
 
 type deployerServiceClient struct {
@@ -304,6 +313,36 @@ func (c *deployerServiceClient) ListResourceAllocations(ctx context.Context, in 
 	return out, nil
 }
 
+func (c *deployerServiceClient) StoreUserGitHubToken(ctx context.Context, in *StoreUserGitHubTokenRequest, opts ...grpc.CallOption) (*StoreUserGitHubTokenResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(StoreUserGitHubTokenResponse)
+	err := c.cc.Invoke(ctx, DeployerService_StoreUserGitHubToken_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *deployerServiceClient) UserGitHubToken(ctx context.Context, in *UserGitHubTokenRequest, opts ...grpc.CallOption) (*UserGitHubTokenResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UserGitHubTokenResponse)
+	err := c.cc.Invoke(ctx, DeployerService_UserGitHubToken_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *deployerServiceClient) DeleteUserGitHubToken(ctx context.Context, in *DeleteUserGitHubTokenRequest, opts ...grpc.CallOption) (*DeleteUserGitHubTokenResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeleteUserGitHubTokenResponse)
+	err := c.cc.Invoke(ctx, DeployerService_DeleteUserGitHubToken_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DeployerServiceServer is the server API for DeployerService service.
 // All implementations must embed UnimplementedDeployerServiceServer
 // for forward compatibility.
@@ -348,6 +387,12 @@ type DeployerServiceServer interface {
 	ResourceQuota(context.Context, *ResourceQuotaRequest) (*ResourceQuotaResponse, error)
 	// ListResourceAllocations returns resource quotas and tiers for all managed namespaces.
 	ListResourceAllocations(context.Context, *ListResourceAllocationsRequest) (*ListResourceAllocationsResponse, error)
+	// StoreUserGitHubToken stores a GitHub OAuth token for a user in a K8s Secret.
+	StoreUserGitHubToken(context.Context, *StoreUserGitHubTokenRequest) (*StoreUserGitHubTokenResponse, error)
+	// UserGitHubToken retrieves a user's stored GitHub OAuth token.
+	UserGitHubToken(context.Context, *UserGitHubTokenRequest) (*UserGitHubTokenResponse, error)
+	// DeleteUserGitHubToken removes a user's stored GitHub OAuth token.
+	DeleteUserGitHubToken(context.Context, *DeleteUserGitHubTokenRequest) (*DeleteUserGitHubTokenResponse, error)
 	mustEmbedUnimplementedDeployerServiceServer()
 }
 
@@ -417,6 +462,15 @@ func (UnimplementedDeployerServiceServer) ResourceQuota(context.Context, *Resour
 }
 func (UnimplementedDeployerServiceServer) ListResourceAllocations(context.Context, *ListResourceAllocationsRequest) (*ListResourceAllocationsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListResourceAllocations not implemented")
+}
+func (UnimplementedDeployerServiceServer) StoreUserGitHubToken(context.Context, *StoreUserGitHubTokenRequest) (*StoreUserGitHubTokenResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method StoreUserGitHubToken not implemented")
+}
+func (UnimplementedDeployerServiceServer) UserGitHubToken(context.Context, *UserGitHubTokenRequest) (*UserGitHubTokenResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UserGitHubToken not implemented")
+}
+func (UnimplementedDeployerServiceServer) DeleteUserGitHubToken(context.Context, *DeleteUserGitHubTokenRequest) (*DeleteUserGitHubTokenResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteUserGitHubToken not implemented")
 }
 func (UnimplementedDeployerServiceServer) mustEmbedUnimplementedDeployerServiceServer() {}
 func (UnimplementedDeployerServiceServer) testEmbeddedByValue()                         {}
@@ -792,6 +846,60 @@ func _DeployerService_ListResourceAllocations_Handler(srv interface{}, ctx conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _DeployerService_StoreUserGitHubToken_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StoreUserGitHubTokenRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DeployerServiceServer).StoreUserGitHubToken(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DeployerService_StoreUserGitHubToken_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DeployerServiceServer).StoreUserGitHubToken(ctx, req.(*StoreUserGitHubTokenRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DeployerService_UserGitHubToken_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UserGitHubTokenRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DeployerServiceServer).UserGitHubToken(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DeployerService_UserGitHubToken_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DeployerServiceServer).UserGitHubToken(ctx, req.(*UserGitHubTokenRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DeployerService_DeleteUserGitHubToken_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteUserGitHubTokenRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DeployerServiceServer).DeleteUserGitHubToken(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DeployerService_DeleteUserGitHubToken_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DeployerServiceServer).DeleteUserGitHubToken(ctx, req.(*DeleteUserGitHubTokenRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // DeployerService_ServiceDesc is the grpc.ServiceDesc for DeployerService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -874,6 +982,18 @@ var DeployerService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListResourceAllocations",
 			Handler:    _DeployerService_ListResourceAllocations_Handler,
+		},
+		{
+			MethodName: "StoreUserGitHubToken",
+			Handler:    _DeployerService_StoreUserGitHubToken_Handler,
+		},
+		{
+			MethodName: "UserGitHubToken",
+			Handler:    _DeployerService_UserGitHubToken_Handler,
+		},
+		{
+			MethodName: "DeleteUserGitHubToken",
+			Handler:    _DeployerService_DeleteUserGitHubToken_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

@@ -2,12 +2,6 @@ type Workspace {
   id: ID!
   name: String!
   personal: Boolean!
-  githubLinked: Boolean!
-  githubInstallUrl: String
-  githubAccountLogin: String
-  githubAccountAvatarUrl: String
-  githubAccountType: GitHubAccountType
-  githubInstallationId: ID
   members: [WorkspaceMember!]!
 }
 
@@ -49,6 +43,4 @@ extend type Mutation {
   inviteMember(input: InviteMemberInput!): WorkspaceMember! @hasRole(role: [USER])
   removeMember(userId: ID!): Boolean! @hasRole(role: [USER])
   updateMemberRole(input: UpdateMemberRoleInput!): WorkspaceMember! @hasRole(role: [USER])
-  linkGithubInstallation(installationId: ID!): Workspace! @hasRole(role: [USER])
-  unlinkGithubInstallation: Workspace! @hasRole(role: [USER])
 }

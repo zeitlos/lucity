@@ -14,12 +14,13 @@ const RepoSuffix = "-gitops"
 
 // ServiceDef describes a service configured in the project's GitOps repo.
 type ServiceDef struct {
-	Name        string
-	Image       string // image repository path (e.g., localhost:5000/myapp/api)
-	Port        int
-	Framework   string // detected framework for dashboard icons (e.g., "nextjs", "vite")
-	SourceURL   string // GitHub repo URL for this service
-	ContextPath string // subdirectory within the repo (monorepo support)
+	Name                 string
+	Image                string // image repository path (e.g., localhost:5000/myapp/api)
+	Port                 int
+	Framework            string // detected framework for dashboard icons (e.g., "nextjs", "vite")
+	SourceURL            string // GitHub repo URL for this service
+	ContextPath          string // subdirectory within the repo (monorepo support)
+	GitHubInstallationID int64  // GitHub App installation that owns this repo
 }
 
 // DatabaseDef describes a PostgreSQL database configured in the project's GitOps repo.

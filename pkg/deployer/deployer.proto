@@ -64,6 +64,15 @@ service DeployerService {
 
   // ListResourceAllocations returns resource quotas and tiers for all managed namespaces.
   rpc ListResourceAllocations(ListResourceAllocationsRequest) returns (ListResourceAllocationsResponse);
+
+  // StoreUserGitHubToken stores a GitHub OAuth token for a user in a K8s Secret.
+  rpc StoreUserGitHubToken(StoreUserGitHubTokenRequest) returns (StoreUserGitHubTokenResponse);
+
+  // UserGitHubToken retrieves a user's stored GitHub OAuth token.
+  rpc UserGitHubToken(UserGitHubTokenRequest) returns (UserGitHubTokenResponse);
+
+  // DeleteUserGitHubToken removes a user's stored GitHub OAuth token.
+  rpc DeleteUserGitHubToken(DeleteUserGitHubTokenRequest) returns (DeleteUserGitHubTokenResponse);
 }
 
 message DeployEnvironmentRequest {
@@ -245,7 +254,8 @@ message WorkspaceMetadataRequest {
 message WorkspaceMetadataResponse {
   string name = 1;
   bool personal = 2;
-  int64 github_installation_id = 3;
+  reserved 3;
+  reserved "github_installation_id";
   string stripe_customer_id = 4;
   string stripe_subscription_id = 5;
   string owner = 6;
@@ -271,7 +281,8 @@ message CreateWorkspaceMetadataResponse {}
 message UpdateWorkspaceMetadataRequest {
   string workspace = 1;
   string name = 2;
-  int64 github_installation_id = 3;
+  reserved 3;
+  reserved "github_installation_id";
   string stripe_customer_id = 4;
   string stripe_subscription_id = 5;
 }
@@ -294,7 +305,8 @@ message WorkspaceInfo {
   string id = 1;
   string name = 2;
   bool personal = 3;
-  int64 github_installation_id = 4;
+  reserved 4;
+  reserved "github_installation_id";
 }
 
 // Resource quota messages.
@@ -348,4 +360,32 @@ message ResourceAllocation {
 message ListResourceAllocationsResponse {
   repeated ResourceAllocation allocations = 1;
 }
+
+// User GitHub token messages.
+
+message StoreUserGitHubTokenRequest {
+  string user_id = 1;         // Rauthy subject ID
+  string access_token = 2;
+  string refresh_token = 3;
+  int64 expires_at = 4;       // Unix timestamp
+}
+
+message StoreUserGitHubTokenResponse {}
+
+message UserGitHubTokenRequest {
+  string user_id = 1;
+}
+
+message UserGitHubTokenResponse {
+  bool connected = 1;
+  string access_token = 2;
+  string refresh_token = 3;
+  int64 expires_at = 4;
+}
+
+message DeleteUserGitHubTokenRequest {
+  string user_id = 1;
+}
+
+message DeleteUserGitHubTokenResponse {}
 

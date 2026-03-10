@@ -37,9 +37,9 @@ The platform is non-intrusive — its downtime does not affect running workloads
 - **User's source repo** (GitHub): read-only to the platform, never written to
 - **Platform's GitOps repo** (Soft-serve): managed entirely by the platform, contains Helm values per environment
 
-### Single-Tenant
+### Multi-Tenant (Workspaces)
 
-Each Lucity instance serves one organization. No organization header or multi-tenant scoping — the instance IS the organization.
+Each Lucity instance supports multiple workspaces. A workspace is the tenant boundary — it owns projects, environments, and members. Workspace context is derived from the JWT token (workspace claim). Kubernetes namespaces carry `lucity.dev/workspace` labels for discovery.
 
 ### Services
 

@@ -103,6 +103,38 @@ func (a *App) Installations(ctx context.Context) ([]Installation, error) {
 	return result, nil
 }
 
+// UserInstallations returns all GitHub App installations accessible to the user.
+// Uses the user's OAuth token to query their installations.
+func (a *App) UserInstallations(ctx context.Context, userToken *oauth2.Token) ([]Installation, error) {
+	client := gh.NewClient(a.oauthConfig.Client(ctx, userToken))
+
+	var result []Installation
+	opts := &gh.ListOptions{PerPage: 100}
+
+	for {
+		installations, resp, err := client.Apps.ListUserInstallations(ctx, opts)
+		if err != nil {
+			return nil, fmt.Errorf("failed to list user installations: %w", err)
+		}
+
+		for _, inst := range installations {
+			result = append(result, Installation{
+				ID:            inst.GetID(),
+				AccountLogin:  inst.GetAccount().GetLogin(),
+				AccountAvatar: inst.GetAccount().GetAvatarURL(),
+				AccountType:   inst.GetTargetType(),
+			})
+		}
+
+		if resp.NextPage == 0 {
+			break
+		}
+		opts.Page = resp.NextPage
+	}
+
+	return result, nil
+}
+
 // Installation fetches a single GitHub App installation by ID.
 func (a *App) Installation(ctx context.Context, installationID int64) (*Installation, error) {
 	client, err := a.appClient()

@@ -165,12 +165,13 @@ func (s *Server) AddService(ctx context.Context, req *packager.AddServiceRequest
 	}
 
 	if err := p.AddService(ctx, req.Project, gitops.ServiceDef{
-		Name:        req.Service,
-		Image:       req.Image,
-		Port:        int(req.Port),
-		Framework:   req.Framework,
-		SourceURL:   req.SourceUrl,
-		ContextPath: req.ContextPath,
+		Name:                 req.Service,
+		Image:                req.Image,
+		Port:                 int(req.Port),
+		Framework:            req.Framework,
+		SourceURL:            req.SourceUrl,
+		ContextPath:          req.ContextPath,
+		GitHubInstallationID: req.GithubInstallationId,
 	}); err != nil {
 		return nil, fmt.Errorf("failed to add service: %w", err)
 	}
@@ -481,12 +482,13 @@ func serviceInfosFromDefs(defs []gitops.ServiceDef) []*packager.ServiceInfo {
 	infos := make([]*packager.ServiceInfo, len(defs))
 	for i, d := range defs {
 		infos[i] = &packager.ServiceInfo{
-			Name:        d.Name,
-			Image:       d.Image,
-			Port:        int32(d.Port),
-			Framework:   d.Framework,
-			SourceUrl:   d.SourceURL,
-			ContextPath: d.ContextPath,
+			Name:                 d.Name,
+			Image:                d.Image,
+			Port:                 int32(d.Port),
+			Framework:            d.Framework,
+			SourceUrl:            d.SourceURL,
+			ContextPath:          d.ContextPath,
+			GithubInstallationId: d.GitHubInstallationID,
 		}
 	}
 	return infos

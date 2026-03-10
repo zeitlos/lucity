@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import { useQuery, useMutation, useLazyQuery } from '@vue/apollo-composable';
-import { ArrowLeft, Trash2, Github, UserPlus, X, Shield, User as UserIcon, CreditCard, ExternalLink, Plus } from 'lucide-vue-next';
+import { useQuery, useMutation } from '@vue/apollo-composable';
+import { ArrowLeft, Trash2, UserPlus, X, Shield, User as UserIcon, CreditCard, ExternalLink } from 'lucide-vue-next';
 import {
   WorkspaceQuery,
   WorkspacesQuery,
@@ -11,10 +11,7 @@ import {
   InviteMemberMutation,
   RemoveMemberMutation,
   UpdateMemberRoleMutation,
-  LinkGithubInstallationMutation,
-  UnlinkGithubInstallationMutation,
 } from '@/graphql/workspaces';
-import { GitHubInstallationsQuery } from '@/graphql/github';
 import {
   SubscriptionQuery,
   UsageSummaryQuery,
@@ -48,15 +45,6 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import {
   Table,
   TableBody,
   TableCell,
@@ -86,7 +74,6 @@ const sections = computed(() => {
   const s = [
     { id: 'general', label: 'General' },
     { id: 'members', label: 'Members' },
-    { id: 'github', label: 'GitHub' },
     { id: 'billing', label: 'Billing' },
   ];
   if (isAdmin.value && !workspace.value?.personal) {
@@ -176,58 +163,6 @@ async function handleUpdateRole(userId: string, role: string) {
     toast.error('Failed to update role', { description: errorMessage(e) });
   }
 }
-
-// GitHub
-const { mutate: unlinkGithubMutate, loading: unlinking } = useMutation(UnlinkGithubInstallationMutation);
-
-async function handleUnlinkGithub() {
-  try {
-    await unlinkGithubMutate();
-    toast.success('GitHub disconnected');
-    refetch();
-  } catch (e: unknown) {
-    toast.error('Failed to disconnect GitHub', { description: errorMessage(e) });
-  }
-}
-
-// Installation picker
-const pickerOpen = ref(false);
-const {
-  result: installationsResult,
-  loading: installationsLoading,
-  load: loadInstallations,
-  error: installationsError,
-} = useLazyQuery(GitHubInstallationsQuery);
-const installations = computed(() => installationsResult.value?.githubInstallations ?? []);
-
-watch(pickerOpen, (open) => {
-  if (open) loadInstallations();
-});
-
-const { mutate: linkMutate, loading: linking } = useMutation(LinkGithubInstallationMutation);
-
-async function handleLinkInstallation(installationId: string) {
-  try {
-    await linkMutate({ installationId });
-    toast.success('GitHub connected');
-    pickerOpen.value = false;
-    refetch();
-  } catch (e: unknown) {
-    toast.error('Failed to connect GitHub', { description: errorMessage(e) });
-  }
-}
-
-const githubManageUrl = computed(() => {
-  if (!workspace.value?.githubLinked) return null;
-  const id = workspace.value.githubInstallationId;
-  const login = workspace.value.githubAccountLogin;
-  const type = workspace.value.githubAccountType;
-  if (!id) return null;
-  if (type === 'ORGANIZATION' && login) {
-    return `https://github.com/organizations/${login}/settings/installations/${id}`;
-  }
-  return `https://github.com/settings/installations/${id}`;
-});
 
 // Billing
 const { result: subResult, loading: subLoading, error: subError } = useQuery(SubscriptionQuery);
@@ -503,189 +438,6 @@ async function handleDelete() {
             </Table>
           </section>
 
-          <!-- GitHub -->
-          <section v-if="activeSection === 'github'" class="space-y-6">
-            <div>
-              <h2 class="text-lg font-medium">GitHub</h2>
-              <p class="text-sm text-muted-foreground">Connect a GitHub App installation to access repositories.</p>
-            </div>
-
-            <div class="rounded-lg border p-4">
-              <div class="flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                  <Avatar
-                    v-if="workspace.githubLinked && workspace.githubAccountAvatarUrl"
-                    class="h-10 w-10"
-                  >
-                    <AvatarImage
-                      :src="workspace.githubAccountAvatarUrl"
-                      :alt="workspace.githubAccountLogin"
-                    />
-                    <AvatarFallback>
-                      <Github :size="20" />
-                    </AvatarFallback>
-                  </Avatar>
-                  <Github v-else :size="20" />
-
-                  <div>
-                    <p class="text-sm font-medium">
-                      <template v-if="workspace.githubLinked && workspace.githubAccountLogin">
-                        Connected to {{ workspace.githubAccountLogin }}
-                      </template>
-                      <template v-else-if="workspace.githubLinked">
-                        GitHub connected
-                      </template>
-                      <template v-else>
-                        GitHub not connected
-                      </template>
-                    </p>
-                    <p class="text-xs text-muted-foreground">
-                      <template v-if="workspace.githubLinked">
-                        Your workspace has access to repositories from this installation.
-                      </template>
-                      <template v-else>
-                        Connect GitHub to import repositories and enable automated deployments.
-                      </template>
-                    </p>
-                  </div>
-                </div>
-
-                <div class="flex items-center gap-2">
-                  <template v-if="workspace.githubLinked">
-                    <a
-                      v-if="githubManageUrl"
-                      :href="githubManageUrl"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <Button variant="outline" size="sm">
-                        <ExternalLink :size="14" class="mr-1.5" />
-                        Manage
-                      </Button>
-                    </a>
-                    <AlertDialog v-if="isAdmin">
-                      <AlertDialogTrigger as-child>
-                        <Button variant="outline" size="sm" :disabled="unlinking">
-                          Disconnect
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Disconnect GitHub?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This will remove the GitHub App link. Existing deployments won't be affected, but you won't be able to import new repositories.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction @click="handleUnlinkGithub">
-                            Disconnect
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                    <Badge v-else-if="!isAdmin" variant="default">Connected</Badge>
-                  </template>
-
-                  <template v-else-if="isAdmin">
-                    <Dialog v-model:open="pickerOpen">
-                      <DialogTrigger as-child>
-                        <Button size="sm">
-                          <Github :size="14" class="mr-1.5" />
-                          Connect GitHub
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent class="sm:max-w-md">
-                        <DialogHeader>
-                          <DialogTitle>Connect GitHub</DialogTitle>
-                          <DialogDescription>
-                            Select a GitHub account or organization to connect.
-                          </DialogDescription>
-                        </DialogHeader>
-
-                        <div v-if="installationsLoading" class="space-y-3 py-4">
-                          <Skeleton class="h-12 w-full" />
-                          <Skeleton class="h-12 w-full" />
-                        </div>
-
-                        <div
-                          v-else-if="installationsError"
-                          class="py-6 text-center"
-                        >
-                          <p class="text-sm text-muted-foreground">
-                            Failed to load installations.
-                          </p>
-                        </div>
-
-                        <div
-                          v-else-if="installations.length === 0"
-                          class="py-6 text-center"
-                        >
-                          <Github
-                            :size="24"
-                            class="mx-auto mb-3 text-muted-foreground"
-                          />
-                          <p class="text-sm font-medium">
-                            No installations found
-                          </p>
-                          <p class="mt-1 text-xs text-muted-foreground">
-                            Install the Lucity GitHub App on your organization or account first.
-                          </p>
-                          <a
-                            :href="`/auth/github/install?workspace=${workspace.id}`"
-                            class="mt-3 inline-flex"
-                          >
-                            <Button size="sm">
-                              <Github :size="14" class="mr-1.5" />
-                              Install GitHub App
-                            </Button>
-                          </a>
-                        </div>
-
-                        <div v-else class="max-h-64 space-y-1 overflow-y-auto py-2">
-                          <button
-                            v-for="inst in installations"
-                            :key="inst.id"
-                            class="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left transition-colors hover:bg-accent"
-                            :disabled="linking"
-                            @click="handleLinkInstallation(inst.id)"
-                          >
-                            <Avatar class="h-8 w-8">
-                              <AvatarImage
-                                :src="inst.accountAvatarUrl"
-                                :alt="inst.accountLogin"
-                              />
-                              <AvatarFallback>
-                                {{ inst.accountLogin[0]?.toUpperCase() }}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <p class="text-sm font-medium">
-                                {{ inst.accountLogin }}
-                              </p>
-                              <p class="text-xs text-muted-foreground">
-                                {{ inst.accountType === 'ORGANIZATION' ? 'Organization' : 'Personal account' }}
-                              </p>
-                            </div>
-                          </button>
-
-                          <Separator class="my-2" />
-                          <a
-                            :href="`/auth/github/install?workspace=${workspace.id}`"
-                            class="flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                          >
-                            <Plus :size="16" class="ml-1.5" />
-                            Install on a different account
-                          </a>
-                        </div>
-                      </DialogContent>
-                    </Dialog>
-                  </template>
-                </div>
-              </div>
-            </div>
-          </section>
-
           <!-- Billing -->
           <section v-if="activeSection === 'billing'" class="space-y-6">
             <div>
@@ -856,7 +608,7 @@ async function handleDelete() {
                     <AlertDialogHeader>
                       <AlertDialogTitle>Delete workspace "{{ workspace.name }}"?</AlertDialogTitle>
                       <AlertDialogDescription>
-                        This will permanently delete the workspace, remove all members, and unlink GitHub. All projects must be deleted first.
+                        This will permanently delete the workspace and remove all members. All projects must be deleted first.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

@@ -572,18 +572,9 @@ func (s *Server) WorkspaceMetadata(ctx context.Context, req *deployer.WorkspaceM
 
 	personal, _ := strconv.ParseBool(cm.Data["personal"])
 
-	var installationID int64
-	if raw := cm.Data["github_installation_id"]; raw != "" {
-		installationID, err = strconv.ParseInt(raw, 10, 64)
-		if err != nil {
-			slog.Warn("failed to parse github_installation_id", "workspace", req.Workspace, "value", raw, "error", err)
-		}
-	}
-
 	return &deployer.WorkspaceMetadataResponse{
 		Name:                 cm.Data["name"],
 		Personal:             personal,
-		GithubInstallationId: installationID,
 		StripeCustomerId:     cm.Data["stripe_customer_id"],
 		StripeSubscriptionId: cm.Data["stripe_subscription_id"],
 		Owner:                cm.Data["owner"],
@@ -591,29 +582,35 @@ func (s *Server) WorkspaceMetadata(ctx context.Context, req *deployer.WorkspaceM
 }
 
 func (s *Server) WorkspaceByInstallationID(ctx context.Context, req *deployer.WorkspaceByInstallationIDRequest) (*deployer.WorkspaceByInstallationIDResponse, error) {
-	selector := labels.Selector(labels.ResourceType, "workspace-metadata")
+	// Query Deployments across all namespaces with the github-installation label.
+	installationLabel := fmt.Sprintf("%s=%d", labels.GitHubInstallation, req.InstallationId)
 
-	cmList, err := s.k8s.CoreV1().ConfigMaps(labels.LucityNamespace).List(ctx, metav1.ListOptions{
-		LabelSelector: selector,
+	deployList, err := s.k8s.AppsV1().Deployments("").List(ctx, metav1.ListOptions{
+		LabelSelector: installationLabel,
 	})
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to list workspace ConfigMaps: %v", err)
+		return nil, status.Errorf(codes.Internal, "failed to list deployments: %v", err)
 	}
 
-	targetID := strconv.FormatInt(req.InstallationId, 10)
-	for _, cm := range cmList.Items {
-		if cm.Data["github_installation_id"] == targetID {
-			ws := cm.Labels[labels.Workspace]
-			if ws == "" {
-				return nil, status.Errorf(codes.Internal, "workspace ConfigMap %q missing workspace label", cm.Name)
-			}
-			return &deployer.WorkspaceByInstallationIDResponse{
-				Workspace: ws,
-			}, nil
-		}
+	if len(deployList.Items) == 0 {
+		return nil, status.Errorf(codes.NotFound, "no workspace found for installation ID %d", req.InstallationId)
 	}
 
-	return nil, status.Errorf(codes.NotFound, "no workspace found for installation ID %d", req.InstallationId)
+	// Get the workspace from the namespace's labels.
+	namespace := deployList.Items[0].Namespace
+	ns, err := s.k8s.CoreV1().Namespaces().Get(ctx, namespace, metav1.GetOptions{})
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to get namespace %q: %v", namespace, err)
+	}
+
+	ws := ns.Labels[labels.Workspace]
+	if ws == "" {
+		return nil, status.Errorf(codes.Internal, "namespace %q missing workspace label", namespace)
+	}
+
+	return &deployer.WorkspaceByInstallationIDResponse{
+		Workspace: ws,
+	}, nil
 }
 
 func (s *Server) CreateWorkspaceMetadata(ctx context.Context, req *deployer.CreateWorkspaceMetadataRequest) (*deployer.CreateWorkspaceMetadataResponse, error) {
@@ -660,12 +657,6 @@ func (s *Server) UpdateWorkspaceMetadata(ctx context.Context, req *deployer.Upda
 	if req.Name != "" {
 		cm.Data["name"] = req.Name
 	}
-	if req.GithubInstallationId > 0 {
-		cm.Data["github_installation_id"] = strconv.FormatInt(req.GithubInstallationId, 10)
-	} else if req.GithubInstallationId == 0 {
-		// Explicitly clear when set to 0 (unlink)
-		delete(cm.Data, "github_installation_id")
-	}
 	if req.StripeCustomerId != "" {
 		cm.Data["stripe_customer_id"] = req.StripeCustomerId
 	}
@@ -711,16 +702,11 @@ func (s *Server) ListWorkspaces(ctx context.Context, req *deployer.ListWorkspace
 		}
 
 		personal, _ := strconv.ParseBool(cm.Data["personal"])
-		var installationID int64
-		if raw := cm.Data["github_installation_id"]; raw != "" {
-			installationID, _ = strconv.ParseInt(raw, 10, 64)
-		}
 
 		workspaces = append(workspaces, &deployer.WorkspaceInfo{
-			Id:                   ws,
-			Name:                 cm.Data["name"],
-			Personal:             personal,
-			GithubInstallationId: installationID,
+			Id:       ws,
+			Name:     cm.Data["name"],
+			Personal: personal,
 		})
 	}
 
@@ -987,4 +973,88 @@ func (s *Server) DatabaseCredentials(ctx context.Context, req *deployer.Database
 		Password: creds.Password,
 		Uri:      uri,
 	}, nil
+}
+
+// --- User GitHub token CRUD (K8s Secrets) ---
+
+func githubTokenSecretName(userID string) string {
+	return "github-token-" + userID
+}
+
+func (s *Server) StoreUserGitHubToken(ctx context.Context, req *deployer.StoreUserGitHubTokenRequest) (*deployer.StoreUserGitHubTokenResponse, error) {
+	secretName := githubTokenSecretName(req.UserId)
+
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretName,
+			Namespace: labels.LucityNamespace,
+			Labels: map[string]string{
+				labels.ManagedBy:    labels.ManagedByLucity,
+				labels.ResourceType: "user-github-token",
+			},
+		},
+		StringData: map[string]string{
+			"access_token":  req.AccessToken,
+			"refresh_token": req.RefreshToken,
+			"expires_at":    strconv.FormatInt(req.ExpiresAt, 10),
+		},
+	}
+
+	existing, err := s.k8s.CoreV1().Secrets(labels.LucityNamespace).Get(ctx, secretName, metav1.GetOptions{})
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			return nil, status.Errorf(codes.Internal, "failed to get token secret: %v", err)
+		}
+		if _, err := s.k8s.CoreV1().Secrets(labels.LucityNamespace).Create(ctx, secret, metav1.CreateOptions{}); err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to create token secret: %v", err)
+		}
+	} else {
+		existing.Data = nil // clear binary data, use StringData
+		existing.StringData = secret.StringData
+		existing.Labels = secret.Labels
+		if _, err := s.k8s.CoreV1().Secrets(labels.LucityNamespace).Update(ctx, existing, metav1.UpdateOptions{}); err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to update token secret: %v", err)
+		}
+	}
+
+	slog.Info("stored GitHub token", "user", req.UserId)
+	return &deployer.StoreUserGitHubTokenResponse{}, nil
+}
+
+func (s *Server) UserGitHubToken(ctx context.Context, req *deployer.UserGitHubTokenRequest) (*deployer.UserGitHubTokenResponse, error) {
+	secretName := githubTokenSecretName(req.UserId)
+
+	secret, err := s.k8s.CoreV1().Secrets(labels.LucityNamespace).Get(ctx, secretName, metav1.GetOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return &deployer.UserGitHubTokenResponse{Connected: false}, nil
+		}
+		return nil, status.Errorf(codes.Internal, "failed to get token secret: %v", err)
+	}
+
+	var expiresAt int64
+	if raw := string(secret.Data["expires_at"]); raw != "" {
+		expiresAt, _ = strconv.ParseInt(raw, 10, 64)
+	}
+
+	return &deployer.UserGitHubTokenResponse{
+		Connected:    true,
+		AccessToken:  string(secret.Data["access_token"]),
+		RefreshToken: string(secret.Data["refresh_token"]),
+		ExpiresAt:    expiresAt,
+	}, nil
+}
+
+func (s *Server) DeleteUserGitHubToken(ctx context.Context, req *deployer.DeleteUserGitHubTokenRequest) (*deployer.DeleteUserGitHubTokenResponse, error) {
+	secretName := githubTokenSecretName(req.UserId)
+
+	if err := s.k8s.CoreV1().Secrets(labels.LucityNamespace).Delete(ctx, secretName, metav1.DeleteOptions{}); err != nil {
+		if apierrors.IsNotFound(err) {
+			return &deployer.DeleteUserGitHubTokenResponse{}, nil // idempotent
+		}
+		return nil, status.Errorf(codes.Internal, "failed to delete token secret: %v", err)
+	}
+
+	slog.Info("deleted GitHub token", "user", req.UserId)
+	return &deployer.DeleteUserGitHubTokenResponse{}, nil
 }

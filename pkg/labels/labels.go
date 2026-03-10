@@ -13,8 +13,9 @@ const (
 	Service      = Prefix + "service"
 	BuiltBy      = Prefix + "built-by"
 	ManagedBy    = Prefix + "managed-by"
-	ResourceType = Prefix + "resource-type"
-	ResourceTier = Prefix + "resource-tier"
+	ResourceType       = Prefix + "resource-type"
+	ResourceTier       = Prefix + "resource-tier"
+	GitHubInstallation = Prefix + "github-installation"
 )
 
 // OCI image label constants.

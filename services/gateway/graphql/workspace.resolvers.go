@@ -7,8 +7,6 @@ package graphql
 
 import (
 	"context"
-	"fmt"
-	"strconv"
 
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/services/gateway/graphql/model"
@@ -20,7 +18,7 @@ func (r *mutationResolver) CreateWorkspace(ctx context.Context, input model.Crea
 	if err != nil {
 		return nil, err
 	}
-	return convertWorkspace(ws, r.API.GitHubAppSlug), nil
+	return convertWorkspace(ws), nil
 }
 
 // UpdateWorkspace is the resolver for the updateWorkspace field.
@@ -29,7 +27,7 @@ func (r *mutationResolver) UpdateWorkspace(ctx context.Context, input model.Upda
 	if err != nil {
 		return nil, err
 	}
-	return convertWorkspace(ws, r.API.GitHubAppSlug), nil
+	return convertWorkspace(ws), nil
 }
 
 // DeleteWorkspace is the resolver for the deleteWorkspace field.
@@ -68,35 +66,13 @@ func (r *mutationResolver) UpdateMemberRole(ctx context.Context, input model.Upd
 	return convertWorkspaceMember(m), nil
 }
 
-// LinkGithubInstallation is the resolver for the linkGithubInstallation field.
-func (r *mutationResolver) LinkGithubInstallation(ctx context.Context, installationID string) (*model.Workspace, error) {
-	id, err := strconv.ParseInt(installationID, 10, 64)
-	if err != nil {
-		return nil, fmt.Errorf("invalid installation ID: %w", err)
-	}
-	ws, err := r.API.LinkGitHubInstallation(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	return convertWorkspace(ws, r.API.GitHubAppSlug), nil
-}
-
-// UnlinkGithubInstallation is the resolver for the unlinkGithubInstallation field.
-func (r *mutationResolver) UnlinkGithubInstallation(ctx context.Context) (*model.Workspace, error) {
-	ws, err := r.API.UnlinkGitHubInstallation(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return convertWorkspace(ws, r.API.GitHubAppSlug), nil
-}
-
 // Workspace is the resolver for the workspace field.
 func (r *queryResolver) Workspace(ctx context.Context) (*model.Workspace, error) {
 	ws, err := r.API.Workspace(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return convertWorkspace(ws, r.API.GitHubAppSlug), nil
+	return convertWorkspace(ws), nil
 }
 
 // Workspaces is the resolver for the workspaces field.
@@ -107,7 +83,7 @@ func (r *queryResolver) Workspaces(ctx context.Context) ([]model.Workspace, erro
 	}
 	result := make([]model.Workspace, 0, len(workspaces))
 	for _, ws := range workspaces {
-		result = append(result, *convertWorkspace(&ws, r.API.GitHubAppSlug))
+		result = append(result, *convertWorkspace(&ws))
 	}
 	return result, nil
 }

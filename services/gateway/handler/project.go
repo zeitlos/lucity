@@ -47,13 +47,14 @@ type Environment struct {
 }
 
 type Service struct {
-	Name        string
-	Image       string
-	Port        int
-	Framework   string
-	SourceURL   string
-	ContextPath string
-	Instances   []ServiceInstance
+	Name                 string
+	Image                string
+	Port                 int
+	Framework            string
+	SourceURL            string
+	ContextPath          string
+	GitHubInstallationID int64
+	Instances            []ServiceInstance
 }
 
 type ServiceInstance struct {
@@ -519,82 +520,99 @@ func (c *Client) enrichDeploymentHistory(ctx context.Context, proj *Project) {
 var shaPattern = regexp.MustCompile(`^[0-9a-f]{7,}$`)
 
 // enrichCommitMessages fetches source commit messages from GitHub for
-// deployment entries whose imageTag is a git SHA. Best-effort — failures
+// deployment entries whose imageTag is a git SHA. Uses per-service installation
+// tokens (from the service's GitHubInstallationID). Best-effort — failures
 // are silently ignored. Also sets SourceURL for each SHA-based deployment.
 func (c *Client) enrichCommitMessages(ctx context.Context, proj *Project) {
-	ghToken, err := c.installationToken(ctx)
-	if err != nil {
-		slog.Debug("skipping commit enrichment", "reason", err)
+	if c.GitHubApp == nil {
 		return
 	}
 
-	// Build service name → sourceURL lookup
-	sourceURLs := make(map[string]string, len(proj.Services))
+	// Build service name → info lookup
+	type serviceInfo struct {
+		sourceURL      string
+		installationID int64
+	}
+	services := make(map[string]serviceInfo, len(proj.Services))
 	for _, svc := range proj.Services {
-		if svc.SourceURL != "" {
-			sourceURLs[svc.Name] = svc.SourceURL
+		if svc.SourceURL != "" && svc.GitHubInstallationID != 0 {
+			services[svc.Name] = serviceInfo{
+				sourceURL:      svc.SourceURL,
+				installationID: svc.GitHubInstallationID,
+			}
 		}
 	}
 
-	// Collect unique (owner/repo, sha) pairs that need fetching
+	// Collect unique (owner/repo, sha) pairs that need fetching, grouped by installation
 	type commitKey struct{ owner, repo, sha string }
 	type commitResult struct{ message, url string }
 
-	needed := make(map[commitKey]bool)
+	// installation ID → set of commit keys
+	byInstallation := make(map[int64]map[commitKey]bool)
 	for _, env := range proj.Environments {
 		for _, si := range env.Services {
-			srcURL := sourceURLs[si.Name]
-			if srcURL == "" {
+			info := services[si.Name]
+			if info.sourceURL == "" {
 				continue
 			}
-			owner, repo := parseGitHubRepoURL(srcURL)
+			owner, repo := parseGitHubRepoURL(info.sourceURL)
 			if owner == "" {
 				continue
 			}
 			for _, dep := range si.Deployments {
 				if shaPattern.MatchString(dep.ImageTag) {
-					needed[commitKey{owner, repo, dep.ImageTag}] = true
+					if byInstallation[info.installationID] == nil {
+						byInstallation[info.installationID] = make(map[commitKey]bool)
+					}
+					byInstallation[info.installationID][commitKey{owner, repo, dep.ImageTag}] = true
 				}
 			}
 		}
 	}
 
-	if len(needed) == 0 {
+	if len(byInstallation) == 0 {
 		return
 	}
 
-	// Fetch commit messages concurrently
-	client := gh.NewClient(nil).WithAuthToken(ghToken)
-	results := make(map[commitKey]commitResult, len(needed))
+	// Fetch commit messages concurrently, one token per installation
+	results := make(map[commitKey]commitResult)
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 
-	for key := range needed {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			fetchCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-			defer cancel()
+	for instID, keys := range byInstallation {
+		ghToken, err := c.installationTokenForService(ctx, instID)
+		if err != nil {
+			slog.Debug("skipping commit enrichment for installation", "installation_id", instID, "reason", err)
+			continue
+		}
+		client := gh.NewClient(nil).WithAuthToken(ghToken)
 
-			commit, _, err := client.Repositories.GetCommit(fetchCtx, key.owner, key.repo, key.sha, nil)
-			if err != nil {
-				slog.Warn("failed to fetch commit message", "owner", key.owner, "repo", key.repo, "sha", key.sha, "error", err)
-				return
-			}
+		for key := range keys {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				fetchCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+				defer cancel()
 
-			msg := commit.GetCommit().GetMessage()
-			// Use first line only
-			if idx := strings.IndexByte(msg, '\n'); idx >= 0 {
-				msg = msg[:idx]
-			}
+				commit, _, err := client.Repositories.GetCommit(fetchCtx, key.owner, key.repo, key.sha, nil)
+				if err != nil {
+					slog.Warn("failed to fetch commit message", "owner", key.owner, "repo", key.repo, "sha", key.sha, "error", err)
+					return
+				}
 
-			mu.Lock()
-			results[key] = commitResult{
-				message: msg,
-				url:     fmt.Sprintf("https://github.com/%s/%s/commit/%s", key.owner, key.repo, key.sha),
-			}
-			mu.Unlock()
-		}()
+				msg := commit.GetCommit().GetMessage()
+				if idx := strings.IndexByte(msg, '\n'); idx >= 0 {
+					msg = msg[:idx]
+				}
+
+				mu.Lock()
+				results[key] = commitResult{
+					message: msg,
+					url:     fmt.Sprintf("https://github.com/%s/%s/commit/%s", key.owner, key.repo, key.sha),
+				}
+				mu.Unlock()
+			}()
+		}
 	}
 	wg.Wait()
 
@@ -603,11 +621,11 @@ func (c *Client) enrichCommitMessages(ctx context.Context, proj *Project) {
 		env := &proj.Environments[i]
 		for j := range env.Services {
 			si := &env.Services[j]
-			srcURL := sourceURLs[si.Name]
-			if srcURL == "" {
+			info := services[si.Name]
+			if info.sourceURL == "" {
 				continue
 			}
-			owner, repo := parseGitHubRepoURL(srcURL)
+			owner, repo := parseGitHubRepoURL(info.sourceURL)
 			if owner == "" {
 				continue
 			}
@@ -625,11 +643,11 @@ func (c *Client) enrichCommitMessages(ctx context.Context, proj *Project) {
 	for i := range proj.Services {
 		for j := range proj.Services[i].Instances {
 			inst := &proj.Services[i].Instances[j]
-			srcURL := sourceURLs[inst.Name]
-			if srcURL == "" {
+			info := services[inst.Name]
+			if info.sourceURL == "" {
 				continue
 			}
-			owner, repo := parseGitHubRepoURL(srcURL)
+			owner, repo := parseGitHubRepoURL(info.sourceURL)
 			if owner == "" {
 				continue
 			}
@@ -717,12 +735,13 @@ func projectFromProto(ws string, p *packager.ProjectInfo) Project {
 
 	for _, svc := range p.Services {
 		proj.Services = append(proj.Services, Service{
-			Name:        svc.Name,
-			Image:       svc.Image,
-			Port:        int(svc.Port),
-			Framework:   svc.Framework,
-			SourceURL:   svc.SourceUrl,
-			ContextPath: svc.ContextPath,
+			Name:                 svc.Name,
+			Image:                svc.Image,
+			Port:                 int(svc.Port),
+			Framework:            svc.Framework,
+			SourceURL:            svc.SourceUrl,
+			ContextPath:          svc.ContextPath,
+			GitHubInstallationID: svc.GithubInstallationId,
 		})
 	}
 

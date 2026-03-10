@@ -183,6 +183,9 @@ func (p *SoftServeProvider) AddService(ctx context.Context, project string, svc 
 		if svc.ContextPath != "" {
 			svcEntry["contextPath"] = svc.ContextPath
 		}
+		if svc.GitHubInstallationID != 0 {
+			svcEntry["githubInstallationId"] = svc.GitHubInstallationID
+		}
 		services[svc.Name] = svcEntry
 		inner["services"] = services
 
@@ -1533,6 +1536,9 @@ func parseServiceDefs(services map[string]any) []ServiceDef {
 		}
 		if contextPath, ok := svcMap["contextPath"].(string); ok {
 			def.ContextPath = contextPath
+		}
+		if installID, ok := svcMap["githubInstallationId"].(int); ok {
+			def.GitHubInstallationID = int64(installID)
 		}
 
 		result = append(result, def)

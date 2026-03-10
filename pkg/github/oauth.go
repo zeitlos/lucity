@@ -22,6 +22,18 @@ func (a *App) ExchangeCode(ctx context.Context, code string) (*oauth2.Token, err
 	return token, nil
 }
 
+// RefreshToken returns a fresh token, refreshing it if expired.
+// GitHub App OAuth tokens have a configurable expiry. This uses the standard
+// oauth2 token source to handle refresh transparently.
+func (a *App) RefreshToken(ctx context.Context, token *oauth2.Token) (*oauth2.Token, error) {
+	src := a.oauthConfig.TokenSource(ctx, token)
+	fresh, err := src.Token()
+	if err != nil {
+		return nil, fmt.Errorf("failed to refresh token: %w", err)
+	}
+	return fresh, nil
+}
+
 // GetUser fetches the authenticated user's profile from GitHub.
 func (a *App) GetUser(ctx context.Context, token *oauth2.Token) (*User, error) {
 	client := gh.NewClient(a.oauthConfig.Client(ctx, token))

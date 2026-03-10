@@ -2,16 +2,15 @@
 import { ref, computed, watch, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { useQuery, useMutation, useApolloClient } from '@vue/apollo-composable';
-import { Github, FolderPlus, Plus, Lock, Globe, ArrowLeft, Search, X, Database } from 'lucide-vue-next';
+import { Github, FolderPlus, Plus, Lock, Globe, ArrowLeft, Search, X, Database, ChevronDown } from 'lucide-vue-next';
 import { onKeyStroke } from '@vueuse/core';
-import { GitHubRepositoriesQuery } from '@/graphql/github';
+import { GitHubConnectedQuery, GitHubSourcesQuery, GitHubRepositoriesQuery } from '@/graphql/github';
 import { CreateProjectMutation } from '@/graphql/projects';
 import { AddServiceMutation, DetectServicesQuery, DeployMutation } from '@/graphql/services';
 import { CreateDatabaseMutation } from '@/graphql/databases';
 import { toast } from '@/components/ui/sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { useAuth } from '@/composables/useAuth';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { errorMessage } from '@/lib/utils';
 import { generateName } from '@/lib/names';
@@ -30,7 +29,6 @@ const emit = defineEmits<{
 
 const router = useRouter();
 const { resolveClient } = useApolloClient();
-const { activeWorkspace } = useAuth();
 
 // Drill-down state
 type PaletteView = 'main' | 'github-repos' | 'manual-service' | 'database';
@@ -38,11 +36,17 @@ const view = ref<PaletteView>('main');
 const search = ref('');
 const inputRef = ref<HTMLInputElement>();
 
+// Source picker state
+const selectedSource = ref<{ id: string; accountLogin: string; accountAvatarUrl: string; accountType: string } | null>(null);
+const sourcePickerOpen = ref(false);
+
 // Reset when palette opens
 watch(() => props.open, (open) => {
   if (open) {
     view.value = props.initialView || 'main';
     search.value = '';
+    selectedSource.value = null;
+    sourcePickerOpen.value = false;
     nextTick(() => inputRef.value?.focus());
   }
 });
@@ -56,7 +60,9 @@ watch(view, () => {
 // Close on Escape
 onKeyStroke('Escape', () => {
   if (!props.open) return;
-  if (view.value !== 'main') {
+  if (sourcePickerOpen.value) {
+    sourcePickerOpen.value = false;
+  } else if (view.value !== 'main') {
     view.value = 'main';
   } else {
     close();
@@ -67,9 +73,32 @@ function close() {
   emit('update:open', false);
 }
 
-// GitHub repos
-const { result: reposResult, loading: reposLoading, error: reposError } = useQuery(GitHubRepositoriesQuery, null, () => ({
+// GitHub connected check
+const { result: connectedResult, loading: connectedLoading } = useQuery(GitHubConnectedQuery, null, () => ({
   enabled: props.open && view.value === 'github-repos',
+}));
+
+const githubConnected = computed(() => connectedResult.value?.githubConnected ?? false);
+
+// GitHub sources (installations)
+const { result: sourcesResult, loading: sourcesLoading } = useQuery(GitHubSourcesQuery, null, () => ({
+  enabled: props.open && view.value === 'github-repos' && githubConnected.value,
+}));
+
+const sources = computed(() => sourcesResult.value?.githubSources ?? []);
+
+// Auto-select first source
+watch(sources, (s) => {
+  if (s.length > 0 && !selectedSource.value) {
+    selectedSource.value = s[0];
+  }
+});
+
+// GitHub repos for selected source
+const { result: reposResult, loading: reposLoading } = useQuery(GitHubRepositoriesQuery, () => ({
+  installationId: selectedSource.value?.id,
+}), () => ({
+  enabled: props.open && view.value === 'github-repos' && !!selectedSource.value,
 }));
 
 const repos = computed(() => {
@@ -132,7 +161,10 @@ async function detectAndAddServices(projectId: string, repo: { fullName: string;
   const client = resolveClient();
   const { data } = await client.query({
     query: DetectServicesQuery,
-    variables: { sourceUrl: repo.htmlUrl },
+    variables: {
+      sourceUrl: repo.htmlUrl,
+      installationId: selectedSource.value?.id,
+    },
   });
 
   const detected = data?.detectServices ?? [];
@@ -141,7 +173,7 @@ async function detectAndAddServices(projectId: string, repo: { fullName: string;
     return;
   }
 
-  // Use repo short name as the service name (e.g., "cblaettl/beast-website" → "beast-website")
+  // Use repo short name as the service name (e.g., "cblaettl/beast-website" -> "beast-website")
   const repoName = repo.fullName.split('/').pop()!;
 
   const addedNames: string[] = [];
@@ -157,6 +189,7 @@ async function detectAndAddServices(projectId: string, repo: { fullName: string;
           port: svc.suggestedPort,
           framework: svc.framework || undefined,
           sourceUrl: repo.htmlUrl,
+          installationId: selectedSource.value?.id,
         },
       });
       addedNames.push(name);
@@ -184,7 +217,7 @@ async function detectAndAddServices(projectId: string, repo: { fullName: string;
           },
         });
       } catch {
-        // Initial deploy is best-effort — canvas will show status
+        // Initial deploy is best-effort
       }
     }
   }
@@ -360,52 +393,115 @@ const mainItems = computed(() => {
                 <X :size="16" />
               </button>
             </div>
-            <ScrollArea class="max-h-[320px]">
-              <div class="p-1">
-                <p class="px-2 py-1.5 text-xs font-medium text-muted-foreground">Repositories</p>
-                <template v-if="reposLoading">
-                  <p class="px-2 py-6 text-center text-sm text-muted-foreground">Loading repositories...</p>
-                </template>
-                <template v-else-if="reposError">
-                  <div class="px-4 py-6 text-center">
-                    <Github :size="24" class="mx-auto mb-3 text-muted-foreground" />
-                    <p class="text-sm font-medium text-foreground">GitHub not connected</p>
-                    <p class="mt-1 text-xs text-muted-foreground">
-                      Connect your GitHub account to import repositories.
-                    </p>
-                    <a
-                      :href="`/auth/github/install?workspace=${activeWorkspace}`"
-                      class="mt-3 inline-flex"
+
+            <!-- Not connected state -->
+            <template v-if="connectedLoading || sourcesLoading">
+              <div class="px-2 py-6 text-center text-sm text-muted-foreground">Loading...</div>
+            </template>
+            <template v-else-if="!githubConnected">
+              <div class="px-4 py-6 text-center">
+                <Github :size="24" class="mx-auto mb-3 text-muted-foreground" />
+                <p class="text-sm font-medium text-foreground">Connect your GitHub account</p>
+                <p class="mt-1 text-xs text-muted-foreground">
+                  Link your GitHub account to browse and import repositories.
+                </p>
+                <a href="/auth/github/connect" class="mt-3 inline-flex">
+                  <Button size="sm">
+                    <Github :size="14" class="mr-1.5" />
+                    Connect GitHub
+                  </Button>
+                </a>
+              </div>
+            </template>
+            <template v-else>
+              <!-- Source picker -->
+              <div
+                v-if="sources.length > 0"
+                class="relative border-b px-3 py-2"
+              >
+                <button
+                  class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent"
+                  @click="sourcePickerOpen = !sourcePickerOpen"
+                >
+                  <img
+                    v-if="selectedSource?.accountAvatarUrl"
+                    :src="selectedSource.accountAvatarUrl"
+                    :alt="selectedSource.accountLogin"
+                    class="size-5 rounded-full"
+                  />
+                  <span class="flex-1 text-left font-medium">{{ selectedSource?.accountLogin }}</span>
+                  <Badge
+                    v-if="selectedSource?.accountType === 'ORGANIZATION'"
+                    variant="outline"
+                    class="text-[10px]"
+                  >Org</Badge>
+                  <ChevronDown :size="14" class="text-muted-foreground" />
+                </button>
+                <!-- Source dropdown -->
+                <div
+                  v-if="sourcePickerOpen"
+                  class="absolute left-0 right-0 top-full z-20 border-b bg-popover shadow-lg"
+                >
+                  <div class="p-1">
+                    <button
+                      v-for="source in sources"
+                      :key="source.id"
+                      class="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm hover:bg-accent"
+                      @click="selectedSource = source; sourcePickerOpen = false"
                     >
-                      <Button size="sm">
-                        <Github :size="14" class="mr-1.5" />
-                        Connect GitHub
-                      </Button>
+                      <img
+                        :src="source.accountAvatarUrl"
+                        :alt="source.accountLogin"
+                        class="size-5 rounded-full"
+                      />
+                      <span class="flex-1 text-left">{{ source.accountLogin }}</span>
+                      <Badge
+                        v-if="source.accountType === 'ORGANIZATION'"
+                        variant="outline"
+                        class="text-[10px]"
+                      >Org</Badge>
+                    </button>
+                    <a
+                      href="/auth/github/install"
+                      class="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-foreground"
+                    >
+                      <Plus :size="14" />
+                      Install on another account
                     </a>
                   </div>
-                </template>
-                <template v-else-if="repos.length === 0">
-                  <p class="px-2 py-6 text-center text-sm text-muted-foreground">No repositories found.</p>
-                </template>
-                <template v-else>
-                  <button
-                    v-for="repo in repos"
-                    :key="repo.id"
-                    class="flex w-full items-center gap-2 rounded-lg px-2 py-2.5 text-sm text-popover-foreground transition-colors hover:bg-accent disabled:opacity-50"
-                    :disabled="creating || detectingServices"
-                    @click="handleSelectRepo(repo)"
-                  >
-                    <component
-                      :is="repo.private ? Lock : Globe"
-                      :size="14"
-                      class="shrink-0 text-muted-foreground"
-                    />
-                    <span class="flex-1 truncate text-left">{{ repo.fullName }}</span>
-                    <Badge variant="outline" class="shrink-0 text-[10px]">{{ repo.defaultBranch }}</Badge>
-                  </button>
-                </template>
+                </div>
               </div>
-            </ScrollArea>
+
+              <!-- Repo list -->
+              <ScrollArea class="max-h-[320px]">
+                <div class="p-1">
+                  <p class="px-2 py-1.5 text-xs font-medium text-muted-foreground">Repositories</p>
+                  <template v-if="reposLoading">
+                    <p class="px-2 py-6 text-center text-sm text-muted-foreground">Loading repositories...</p>
+                  </template>
+                  <template v-else-if="repos.length === 0">
+                    <p class="px-2 py-6 text-center text-sm text-muted-foreground">No repositories found.</p>
+                  </template>
+                  <template v-else>
+                    <button
+                      v-for="repo in repos"
+                      :key="repo.id"
+                      class="flex w-full items-center gap-2 rounded-lg px-2 py-2.5 text-sm text-popover-foreground transition-colors hover:bg-accent disabled:opacity-50"
+                      :disabled="creating || detectingServices"
+                      @click="handleSelectRepo(repo)"
+                    >
+                      <component
+                        :is="repo.private ? Lock : Globe"
+                        :size="14"
+                        class="shrink-0 text-muted-foreground"
+                      />
+                      <span class="flex-1 truncate text-left">{{ repo.fullName }}</span>
+                      <Badge variant="outline" class="shrink-0 text-[10px]">{{ repo.defaultBranch }}</Badge>
+                    </button>
+                  </template>
+                </div>
+              </ScrollArea>
+            </template>
           </template>
 
           <!-- Manual service view -->

@@ -11,9 +11,22 @@ import (
 	"github.com/zeitlos/lucity/services/gateway/graphql/model"
 )
 
+// GithubSources is the resolver for the githubSources field.
+func (r *queryResolver) GithubSources(ctx context.Context) ([]model.GitHubInstallation, error) {
+	installations, err := r.API.GitHubSources(ctx)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]model.GitHubInstallation, 0, len(installations))
+	for _, i := range installations {
+		result = append(result, convertGitHubInstallation(i))
+	}
+	return result, nil
+}
+
 // GithubRepositories is the resolver for the githubRepositories field.
-func (r *queryResolver) GithubRepositories(ctx context.Context) ([]model.GitHubRepository, error) {
-	repos, err := r.API.GitHubRepositories(ctx)
+func (r *queryResolver) GithubRepositories(ctx context.Context, installationID string) ([]model.GitHubRepository, error) {
+	repos, err := r.API.GitHubRepositories(ctx, installationID)
 	if err != nil {
 		return nil, err
 	}
@@ -24,15 +37,7 @@ func (r *queryResolver) GithubRepositories(ctx context.Context) ([]model.GitHubR
 	return result, nil
 }
 
-// GithubInstallations is the resolver for the githubInstallations field.
-func (r *queryResolver) GithubInstallations(ctx context.Context) ([]model.GitHubInstallation, error) {
-	installations, err := r.API.GitHubInstallations(ctx)
-	if err != nil {
-		return nil, err
-	}
-	result := make([]model.GitHubInstallation, 0, len(installations))
-	for _, i := range installations {
-		result = append(result, convertGitHubInstallation(i))
-	}
-	return result, nil
+// GithubConnected is the resolver for the githubConnected field.
+func (r *queryResolver) GithubConnected(ctx context.Context) (bool, error) {
+	return r.API.GitHubConnected(ctx)
 }

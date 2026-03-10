@@ -41,9 +41,12 @@ type Config struct {
 	RegistryURL         string `envconfig:"REGISTRY_URL" default:"localhost:5000"`
 	RegistryImagePrefix string `envconfig:"REGISTRY_IMAGE_PREFIX"` // cluster-internal address for image refs; defaults to REGISTRY_URL
 
-	// GitHub App (for installation tokens — repo access)
-	GitHubAppID          int64  `envconfig:"GITHUB_APP_ID"`
-	GitHubPrivateKeyPath string `envconfig:"GITHUB_PRIVATE_KEY_PATH"`
+	// GitHub App (for installation tokens + OAuth)
+	GitHubAppID              int64  `envconfig:"GITHUB_APP_ID"`
+	GitHubPrivateKeyPath     string `envconfig:"GITHUB_PRIVATE_KEY_PATH"`
+	GitHubClientID           string `envconfig:"GITHUB_CLIENT_ID"`
+	GitHubClientSecret       string `envconfig:"GITHUB_CLIENT_SECRET"`
+	GitHubOAuthCallbackURL   string `envconfig:"GITHUB_OAUTH_CALLBACK_URL" default:"http://localhost:8080/auth/github/callback"`
 
 	// Domains
 	WorkloadDomain string `envconfig:"WORKLOAD_DOMAIN" default:"lucity.local"`
@@ -118,7 +121,7 @@ func main() {
 	var githubApp *ghpkg.App
 	if config.GitHubAppID != 0 && config.GitHubPrivateKeyPath != "" {
 		var err error
-		githubApp, err = ghpkg.NewApp(config.GitHubAppID, "", "", "", "", config.GitHubPrivateKeyPath)
+		githubApp, err = ghpkg.NewApp(config.GitHubAppID, config.GitHubClientID, config.GitHubClientSecret, "", config.GitHubOAuthCallbackURL, config.GitHubPrivateKeyPath)
 		if err != nil {
 			slog.Error("failed to create github app", "error", err)
 			os.Exit(1)

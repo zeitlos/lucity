@@ -6,7 +6,6 @@ export const WorkspacesQuery = gql`
       id
       name
       personal
-      githubLinked
     }
   }
 `;
@@ -17,12 +16,6 @@ export const WorkspaceQuery = gql`
       id
       name
       personal
-      githubLinked
-      githubInstallUrl
-      githubAccountLogin
-      githubAccountAvatarUrl
-      githubAccountType
-      githubInstallationId
       members {
         id
         email
@@ -39,7 +32,6 @@ export const CreateWorkspaceMutation = gql`
       id
       name
       personal
-      githubLinked
     }
   }
 `;
@@ -83,25 +75,6 @@ export const UpdateMemberRoleMutation = gql`
       email
       name
       role
-    }
-  }
-`;
-
-export const LinkGithubInstallationMutation = gql`
-  mutation LinkGithubInstallation($installationId: ID!) {
-    linkGithubInstallation(installationId: $installationId) {
-      id
-      githubLinked
-    }
-  }
-`;
-
-export const UnlinkGithubInstallationMutation = gql`
-  mutation UnlinkGithubInstallation {
-    unlinkGithubInstallation {
-      id
-      githubLinked
-      githubInstallUrl
     }
   }
 `;

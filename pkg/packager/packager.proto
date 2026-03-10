@@ -91,6 +91,7 @@ message ServiceInfo {
   string framework = 5;   // detected framework for dashboard icons (e.g., "nextjs", "vite")
   string source_url = 6;     // GitHub repo URL for this service
   string context_path = 7;   // subdirectory within the repo (monorepo support)
+  int64 github_installation_id = 8; // GitHub App installation that owns this repo
 }
 
 // ServiceInstanceInfo describes a service's state in a specific environment.
@@ -159,6 +160,7 @@ message AddServiceRequest {
   string framework = 6;
   string source_url = 7;     // GitHub repo URL for this service
   string context_path = 8;   // subdirectory within the repo (monorepo support)
+  int64 github_installation_id = 9; // GitHub App installation that owns this repo
 }
 
 message AddServiceResponse {}

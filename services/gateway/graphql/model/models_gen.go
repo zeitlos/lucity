@@ -18,12 +18,13 @@ type AddCustomDomainInput struct {
 }
 
 type AddServiceInput struct {
-	ProjectID   string  `json:"projectId"`
-	Name        string  `json:"name"`
-	Port        int     `json:"port"`
-	Framework   *string `json:"framework,omitempty"`
-	SourceURL   *string `json:"sourceUrl,omitempty"`
-	ContextPath *string `json:"contextPath,omitempty"`
+	ProjectID      string  `json:"projectId"`
+	Name           string  `json:"name"`
+	Port           int     `json:"port"`
+	Framework      *string `json:"framework,omitempty"`
+	SourceURL      *string `json:"sourceUrl,omitempty"`
+	ContextPath    *string `json:"contextPath,omitempty"`
+	InstallationID *string `json:"installationId,omitempty"`
 }
 
 type BillingPortalURL struct {
@@ -417,16 +418,10 @@ type Volume struct {
 }
 
 type Workspace struct {
-	ID                     string             `json:"id"`
-	Name                   string             `json:"name"`
-	Personal               bool               `json:"personal"`
-	GithubLinked           bool               `json:"githubLinked"`
-	GithubInstallURL       *string            `json:"githubInstallUrl,omitempty"`
-	GithubAccountLogin     *string            `json:"githubAccountLogin,omitempty"`
-	GithubAccountAvatarURL *string            `json:"githubAccountAvatarUrl,omitempty"`
-	GithubAccountType      *GitHubAccountType `json:"githubAccountType,omitempty"`
-	GithubInstallationID   *string            `json:"githubInstallationId,omitempty"`
-	Members                []WorkspaceMember  `json:"members"`
+	ID       string            `json:"id"`
+	Name     string            `json:"name"`
+	Personal bool              `json:"personal"`
+	Members  []WorkspaceMember `json:"members"`
 }
 
 type WorkspaceMember struct {

@@ -31,9 +31,9 @@ extend type Mutation {
 - `USER` — authenticated user
 - `ADMIN` — admin privileges
 
-## Single-Tenant
+## Multi-Tenant (Workspaces)
 
-Each Lucity instance serves one organization. There is no organization header or multi-tenant scoping in the schema. The instance IS the organization.
+Each Lucity instance supports multiple workspaces. A workspace is the tenant boundary. Workspace context comes from the JWT token — resolvers read the active workspace from auth claims, not from a header or URL parameter.
 
 ## Input Validation
 
