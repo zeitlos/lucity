@@ -459,7 +459,7 @@ const mainItems = computed(() => {
                 <!-- Source dropdown -->
                 <div
                   v-if="sourcePickerOpen"
-                  class="absolute left-0 right-0 top-full z-20 border-b bg-popover shadow-lg"
+                  class="absolute left-0 right-0 top-full z-20 rounded-b-xl border border-t-0 bg-popover shadow-lg"
                 >
                   <div class="p-1">
                     <button
