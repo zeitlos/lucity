@@ -19,6 +19,10 @@ export const WorkspaceQuery = gql`
       personal
       githubLinked
       githubInstallUrl
+      githubAccountLogin
+      githubAccountAvatarUrl
+      githubAccountType
+      githubInstallationId
       members {
         id
         email

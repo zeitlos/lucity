@@ -231,6 +231,13 @@ type GenerateDomainInput struct {
 	Environment string `json:"environment"`
 }
 
+type GitHubInstallation struct {
+	ID               string            `json:"id"`
+	AccountLogin     string            `json:"accountLogin"`
+	AccountAvatarURL string            `json:"accountAvatarUrl"`
+	AccountType      GitHubAccountType `json:"accountType"`
+}
+
 type GitHubRepository struct {
 	ID            string `json:"id"`
 	Name          string `json:"name"`
@@ -410,12 +417,16 @@ type Volume struct {
 }
 
 type Workspace struct {
-	ID               string            `json:"id"`
-	Name             string            `json:"name"`
-	Personal         bool              `json:"personal"`
-	GithubLinked     bool              `json:"githubLinked"`
-	GithubInstallURL *string           `json:"githubInstallUrl,omitempty"`
-	Members          []WorkspaceMember `json:"members"`
+	ID                     string             `json:"id"`
+	Name                   string             `json:"name"`
+	Personal               bool               `json:"personal"`
+	GithubLinked           bool               `json:"githubLinked"`
+	GithubInstallURL       *string            `json:"githubInstallUrl,omitempty"`
+	GithubAccountLogin     *string            `json:"githubAccountLogin,omitempty"`
+	GithubAccountAvatarURL *string            `json:"githubAccountAvatarUrl,omitempty"`
+	GithubAccountType      *GitHubAccountType `json:"githubAccountType,omitempty"`
+	GithubInstallationID   *string            `json:"githubInstallationId,omitempty"`
+	Members                []WorkspaceMember  `json:"members"`
 }
 
 type WorkspaceMember struct {
@@ -667,6 +678,61 @@ func (e *DomainType) UnmarshalJSON(b []byte) error {
 }
 
 func (e DomainType) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type GitHubAccountType string
+
+const (
+	GitHubAccountTypeOrganization GitHubAccountType = "ORGANIZATION"
+	GitHubAccountTypeUser         GitHubAccountType = "USER"
+)
+
+var AllGitHubAccountType = []GitHubAccountType{
+	GitHubAccountTypeOrganization,
+	GitHubAccountTypeUser,
+}
+
+func (e GitHubAccountType) IsValid() bool {
+	switch e {
+	case GitHubAccountTypeOrganization, GitHubAccountTypeUser:
+		return true
+	}
+	return false
+}
+
+func (e GitHubAccountType) String() string {
+	return string(e)
+}
+
+func (e *GitHubAccountType) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = GitHubAccountType(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid GitHubAccountType", str)
+	}
+	return nil
+}
+
+func (e GitHubAccountType) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *GitHubAccountType) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e GitHubAccountType) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

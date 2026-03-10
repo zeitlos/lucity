@@ -46,3 +46,80 @@ func (a *App) InstallationToken(ctx context.Context, installationID int64) (stri
 	return token, nil
 }
 
+// Installation represents a GitHub App installation on an account.
+type Installation struct {
+	ID            int64
+	AccountLogin  string
+	AccountAvatar string
+	AccountType   string // "Organization" or "User"
+}
+
+// appClient creates a go-github client authenticated as the GitHub App (JWT).
+func (a *App) appClient() (*gh.Client, error) {
+	if len(a.privateKey) == 0 {
+		return nil, fmt.Errorf("github app private key not configured")
+	}
+
+	transport, err := ghinstallation.NewAppsTransport(http.DefaultTransport, a.appID, a.privateKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create app transport: %w", err)
+	}
+
+	return gh.NewClient(&http.Client{Transport: transport}), nil
+}
+
+// Installations lists all installations of this GitHub App.
+// Uses the App's private key to authenticate as the app itself (JWT).
+func (a *App) Installations(ctx context.Context) ([]Installation, error) {
+	client, err := a.appClient()
+	if err != nil {
+		return nil, err
+	}
+
+	var result []Installation
+	opts := &gh.ListOptions{PerPage: 100}
+
+	for {
+		installations, resp, err := client.Apps.ListInstallations(ctx, opts)
+		if err != nil {
+			return nil, fmt.Errorf("failed to list installations: %w", err)
+		}
+
+		for _, inst := range installations {
+			result = append(result, Installation{
+				ID:            inst.GetID(),
+				AccountLogin:  inst.GetAccount().GetLogin(),
+				AccountAvatar: inst.GetAccount().GetAvatarURL(),
+				AccountType:   inst.GetTargetType(),
+			})
+		}
+
+		if resp.NextPage == 0 {
+			break
+		}
+		opts.Page = resp.NextPage
+	}
+
+	return result, nil
+}
+
+// Installation fetches a single GitHub App installation by ID.
+func (a *App) Installation(ctx context.Context, installationID int64) (*Installation, error) {
+	client, err := a.appClient()
+	if err != nil {
+		return nil, err
+	}
+
+	inst, _, err := client.Apps.GetInstallation(ctx, installationID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get installation: %w", err)
+	}
+
+	return &Installation{
+		ID:            inst.GetID(),
+		AccountLogin:  inst.GetAccount().GetLogin(),
+		AccountAvatar: inst.GetAccount().GetAvatarURL(),
+		AccountType:   inst.GetTargetType(),
+	}, nil
+}
+

@@ -12,6 +12,14 @@ import (
 	"github.com/zeitlos/lucity/pkg/tenant"
 )
 
+// GitHubInstallation represents a GitHub App installation on an account.
+type GitHubInstallation struct {
+	ID               string
+	AccountLogin     string
+	AccountAvatarURL string
+	AccountType      string // "ORGANIZATION" or "USER"
+}
+
 // GitHubRepository represents a repo accessible via the workspace's GitHub App installation.
 type GitHubRepository struct {
 	ID            string
@@ -61,6 +69,40 @@ func (c *Client) GitHubRepositories(ctx context.Context) ([]GitHubRepository, er
 			break
 		}
 		opts.Page = resp.NextPage
+	}
+
+	return result, nil
+}
+
+// GitHubInstallations lists all installations of the GitHub App.
+// Uses the App's private key to authenticate as the app itself (JWT).
+func (c *Client) GitHubInstallations(ctx context.Context) ([]GitHubInstallation, error) {
+	claims := auth.FromContext(ctx)
+	if claims == nil {
+		return nil, fmt.Errorf("unauthenticated")
+	}
+
+	if c.GitHubApp == nil {
+		return nil, fmt.Errorf("github app not configured")
+	}
+
+	installations, err := c.GitHubApp.Installations(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]GitHubInstallation, 0, len(installations))
+	for _, inst := range installations {
+		accountType := "USER"
+		if inst.AccountType == "Organization" {
+			accountType = "ORGANIZATION"
+		}
+		result = append(result, GitHubInstallation{
+			ID:               fmt.Sprintf("%d", inst.ID),
+			AccountLogin:     inst.AccountLogin,
+			AccountAvatarURL: inst.AccountAvatar,
+			AccountType:      accountType,
+		})
 	}
 
 	return result, nil

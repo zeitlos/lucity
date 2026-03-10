@@ -17,11 +17,14 @@ import (
 
 // Workspace represents a workspace with metadata and members.
 type Workspace struct {
-	ID                   string
-	Name                 string
-	Personal             bool
-	GithubInstallationID int64
-	Members              []WorkspaceMember
+	ID                     string
+	Name                   string
+	Personal               bool
+	GithubInstallationID   int64
+	GithubAccountLogin     string
+	GithubAccountAvatarURL string
+	GithubAccountType      string // "Organization" or "User"
+	Members                []WorkspaceMember
 }
 
 // WorkspaceMember represents a user's membership in a workspace.
@@ -109,6 +112,9 @@ func (c *Client) Workspace(ctx context.Context) (*Workspace, error) {
 		Personal:             resp.Personal,
 		GithubInstallationID: resp.GithubInstallationId,
 	}
+
+	// Enrich with GitHub installation account details
+	c.enrichGitHubInstallation(ctx, result)
 
 	// Fetch members
 	members, err := c.WorkspaceMembers(ctx)
@@ -562,6 +568,26 @@ func (c *Client) UnlinkGitHubInstallation(ctx context.Context) (*Workspace, erro
 	return c.Workspace(ctx)
 }
 
+// enrichGitHubInstallation populates the GitHub account fields on a workspace
+// by fetching installation details from the GitHub App API. Best-effort — logs
+// a warning and leaves fields empty on failure.
+func (c *Client) enrichGitHubInstallation(ctx context.Context, ws *Workspace) {
+	if ws.GithubInstallationID == 0 || c.GitHubApp == nil {
+		return
+	}
+
+	inst, err := c.GitHubApp.Installation(ctx, ws.GithubInstallationID)
+	if err != nil {
+		slog.Warn("failed to fetch github installation details",
+			"installation_id", ws.GithubInstallationID, "error", err)
+		return
+	}
+
+	ws.GithubAccountLogin = inst.AccountLogin
+	ws.GithubAccountAvatarURL = inst.AccountAvatar
+	ws.GithubAccountType = inst.AccountType
+}
+
 // EnsurePersonalWorkspace creates a personal workspace for a new user if they have none.
 // The workspace ID is the user's GitHub login. Returns the workspace ID.
 func (c *Client) EnsurePersonalWorkspace(ctx context.Context, rauthyUserID, githubLogin string) (string, error) {
@@ -650,12 +676,14 @@ func (c *Client) LinkGitHubInstallationDirect(ctx context.Context, workspace str
 		return nil, fmt.Errorf("failed to get workspace metadata: %w", err)
 	}
 
-	return &Workspace{
+	result := &Workspace{
 		ID:                   workspace,
 		Name:                 resp.Name,
 		Personal:             resp.Personal,
 		GithubInstallationID: resp.GithubInstallationId,
-	}, nil
+	}
+	c.enrichGitHubInstallation(ctx, result)
+	return result, nil
 }
 
 // setupBilling creates a Stripe customer and subscription for a new workspace.

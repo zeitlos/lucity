@@ -181,6 +181,13 @@ type ComplexityRoot struct {
 		Tier       func(childComplexity int) int
 	}
 
+	GitHubInstallation struct {
+		AccountAvatarURL func(childComplexity int) int
+		AccountLogin     func(childComplexity int) int
+		AccountType      func(childComplexity int) int
+		ID               func(childComplexity int) int
+	}
+
 	GitHubRepository struct {
 		DefaultBranch func(childComplexity int) int
 		FullName      func(childComplexity int) int
@@ -250,6 +257,7 @@ type ComplexityRoot struct {
 		DeployStatus         func(childComplexity int, id string) int
 		DetectServices       func(childComplexity int, sourceURL string) int
 		EnvironmentResources func(childComplexity int, projectID string, environment string) int
+		GithubInstallations  func(childComplexity int) int
 		GithubRepositories   func(childComplexity int) int
 		Me                   func(childComplexity int) int
 		PlatformConfig       func(childComplexity int) int
@@ -345,12 +353,16 @@ type ComplexityRoot struct {
 	}
 
 	Workspace struct {
-		GithubInstallURL func(childComplexity int) int
-		GithubLinked     func(childComplexity int) int
-		ID               func(childComplexity int) int
-		Members          func(childComplexity int) int
-		Name             func(childComplexity int) int
-		Personal         func(childComplexity int) int
+		GithubAccountAvatarURL func(childComplexity int) int
+		GithubAccountLogin     func(childComplexity int) int
+		GithubAccountType      func(childComplexity int) int
+		GithubInstallURL       func(childComplexity int) int
+		GithubInstallationID   func(childComplexity int) int
+		GithubLinked           func(childComplexity int) int
+		ID                     func(childComplexity int) int
+		Members                func(childComplexity int) int
+		Name                   func(childComplexity int) int
+		Personal               func(childComplexity int) int
 	}
 
 	WorkspaceMember struct {
@@ -409,6 +421,7 @@ type QueryResolver interface {
 	DatabaseTableData(ctx context.Context, projectID string, environment string, database string, table string, schema *string, limit *int, offset *int) (*model.DatabaseTableData, error)
 	DatabaseCredentials(ctx context.Context, projectID string, environment string, database string) (*model.DatabaseCredentials, error)
 	GithubRepositories(ctx context.Context) ([]model.GitHubRepository, error)
+	GithubInstallations(ctx context.Context) ([]model.GitHubInstallation, error)
 	Projects(ctx context.Context) ([]model.Project, error)
 	Project(ctx context.Context, id string) (*model.Project, error)
 	Service(ctx context.Context, projectID string, name string) (*model.Service, error)
@@ -937,6 +950,31 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.EnvironmentResources.Tier(childComplexity), true
+
+	case "GitHubInstallation.accountAvatarUrl":
+		if e.complexity.GitHubInstallation.AccountAvatarURL == nil {
+			break
+		}
+
+		return e.complexity.GitHubInstallation.AccountAvatarURL(childComplexity), true
+	case "GitHubInstallation.accountLogin":
+		if e.complexity.GitHubInstallation.AccountLogin == nil {
+			break
+		}
+
+		return e.complexity.GitHubInstallation.AccountLogin(childComplexity), true
+	case "GitHubInstallation.accountType":
+		if e.complexity.GitHubInstallation.AccountType == nil {
+			break
+		}
+
+		return e.complexity.GitHubInstallation.AccountType(childComplexity), true
+	case "GitHubInstallation.id":
+		if e.complexity.GitHubInstallation.ID == nil {
+			break
+		}
+
+		return e.complexity.GitHubInstallation.ID(childComplexity), true
 
 	case "GitHubRepository.defaultBranch":
 		if e.complexity.GitHubRepository.DefaultBranch == nil {
@@ -1468,6 +1506,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Query.EnvironmentResources(childComplexity, args["projectId"].(string), args["environment"].(string)), true
+	case "Query.githubInstallations":
+		if e.complexity.Query.GithubInstallations == nil {
+			break
+		}
+
+		return e.complexity.Query.GithubInstallations(childComplexity), true
 	case "Query.githubRepositories":
 		if e.complexity.Query.GithubRepositories == nil {
 			break
@@ -1847,12 +1891,36 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Volume.UsedBytes(childComplexity), true
 
+	case "Workspace.githubAccountAvatarUrl":
+		if e.complexity.Workspace.GithubAccountAvatarURL == nil {
+			break
+		}
+
+		return e.complexity.Workspace.GithubAccountAvatarURL(childComplexity), true
+	case "Workspace.githubAccountLogin":
+		if e.complexity.Workspace.GithubAccountLogin == nil {
+			break
+		}
+
+		return e.complexity.Workspace.GithubAccountLogin(childComplexity), true
+	case "Workspace.githubAccountType":
+		if e.complexity.Workspace.GithubAccountType == nil {
+			break
+		}
+
+		return e.complexity.Workspace.GithubAccountType(childComplexity), true
 	case "Workspace.githubInstallUrl":
 		if e.complexity.Workspace.GithubInstallURL == nil {
 			break
 		}
 
 		return e.complexity.Workspace.GithubInstallURL(childComplexity), true
+	case "Workspace.githubInstallationId":
+		if e.complexity.Workspace.GithubInstallationID == nil {
+			break
+		}
+
+		return e.complexity.Workspace.GithubInstallationID(childComplexity), true
 	case "Workspace.githubLinked":
 		if e.complexity.Workspace.GithubLinked == nil {
 			break
@@ -5156,6 +5224,122 @@ func (ec *executionContext) fieldContext_EnvironmentResources_allocation(_ conte
 	return fc, nil
 }
 
+func (ec *executionContext) _GitHubInstallation_id(ctx context.Context, field graphql.CollectedField, obj *model.GitHubInstallation) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GitHubInstallation_id,
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GitHubInstallation_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GitHubInstallation",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GitHubInstallation_accountLogin(ctx context.Context, field graphql.CollectedField, obj *model.GitHubInstallation) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GitHubInstallation_accountLogin,
+		func(ctx context.Context) (any, error) {
+			return obj.AccountLogin, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GitHubInstallation_accountLogin(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GitHubInstallation",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GitHubInstallation_accountAvatarUrl(ctx context.Context, field graphql.CollectedField, obj *model.GitHubInstallation) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GitHubInstallation_accountAvatarUrl,
+		func(ctx context.Context) (any, error) {
+			return obj.AccountAvatarURL, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GitHubInstallation_accountAvatarUrl(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GitHubInstallation",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GitHubInstallation_accountType(ctx context.Context, field graphql.CollectedField, obj *model.GitHubInstallation) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_GitHubInstallation_accountType,
+		func(ctx context.Context) (any, error) {
+			return obj.AccountType, nil
+		},
+		nil,
+		ec.marshalNGitHubAccountType2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐGitHubAccountType,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_GitHubInstallation_accountType(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GitHubInstallation",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type GitHubAccountType does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _GitHubRepository_id(ctx context.Context, field graphql.CollectedField, obj *model.GitHubRepository) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -6878,6 +7062,14 @@ func (ec *executionContext) fieldContext_Mutation_createWorkspace(ctx context.Co
 				return ec.fieldContext_Workspace_githubLinked(ctx, field)
 			case "githubInstallUrl":
 				return ec.fieldContext_Workspace_githubInstallUrl(ctx, field)
+			case "githubAccountLogin":
+				return ec.fieldContext_Workspace_githubAccountLogin(ctx, field)
+			case "githubAccountAvatarUrl":
+				return ec.fieldContext_Workspace_githubAccountAvatarUrl(ctx, field)
+			case "githubAccountType":
+				return ec.fieldContext_Workspace_githubAccountType(ctx, field)
+			case "githubInstallationId":
+				return ec.fieldContext_Workspace_githubInstallationId(ctx, field)
 			case "members":
 				return ec.fieldContext_Workspace_members(ctx, field)
 			}
@@ -6951,6 +7143,14 @@ func (ec *executionContext) fieldContext_Mutation_updateWorkspace(ctx context.Co
 				return ec.fieldContext_Workspace_githubLinked(ctx, field)
 			case "githubInstallUrl":
 				return ec.fieldContext_Workspace_githubInstallUrl(ctx, field)
+			case "githubAccountLogin":
+				return ec.fieldContext_Workspace_githubAccountLogin(ctx, field)
+			case "githubAccountAvatarUrl":
+				return ec.fieldContext_Workspace_githubAccountAvatarUrl(ctx, field)
+			case "githubAccountType":
+				return ec.fieldContext_Workspace_githubAccountType(ctx, field)
+			case "githubInstallationId":
+				return ec.fieldContext_Workspace_githubInstallationId(ctx, field)
 			case "members":
 				return ec.fieldContext_Workspace_members(ctx, field)
 			}
@@ -7268,6 +7468,14 @@ func (ec *executionContext) fieldContext_Mutation_linkGithubInstallation(ctx con
 				return ec.fieldContext_Workspace_githubLinked(ctx, field)
 			case "githubInstallUrl":
 				return ec.fieldContext_Workspace_githubInstallUrl(ctx, field)
+			case "githubAccountLogin":
+				return ec.fieldContext_Workspace_githubAccountLogin(ctx, field)
+			case "githubAccountAvatarUrl":
+				return ec.fieldContext_Workspace_githubAccountAvatarUrl(ctx, field)
+			case "githubAccountType":
+				return ec.fieldContext_Workspace_githubAccountType(ctx, field)
+			case "githubInstallationId":
+				return ec.fieldContext_Workspace_githubInstallationId(ctx, field)
 			case "members":
 				return ec.fieldContext_Workspace_members(ctx, field)
 			}
@@ -7340,6 +7548,14 @@ func (ec *executionContext) fieldContext_Mutation_unlinkGithubInstallation(_ con
 				return ec.fieldContext_Workspace_githubLinked(ctx, field)
 			case "githubInstallUrl":
 				return ec.fieldContext_Workspace_githubInstallUrl(ctx, field)
+			case "githubAccountLogin":
+				return ec.fieldContext_Workspace_githubAccountLogin(ctx, field)
+			case "githubAccountAvatarUrl":
+				return ec.fieldContext_Workspace_githubAccountAvatarUrl(ctx, field)
+			case "githubAccountType":
+				return ec.fieldContext_Workspace_githubAccountType(ctx, field)
+			case "githubInstallationId":
+				return ec.fieldContext_Workspace_githubInstallationId(ctx, field)
 			case "members":
 				return ec.fieldContext_Workspace_members(ctx, field)
 			}
@@ -8245,6 +8461,63 @@ func (ec *executionContext) fieldContext_Query_githubRepositories(_ context.Cont
 	return fc, nil
 }
 
+func (ec *executionContext) _Query_githubInstallations(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_githubInstallations,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Query().GithubInstallations(ctx)
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"ADMIN"})
+				if err != nil {
+					var zeroVal []model.GitHubInstallation
+					return zeroVal, err
+				}
+				if ec.directives.HasRole == nil {
+					var zeroVal []model.GitHubInstallation
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNGitHubInstallation2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐGitHubInstallationᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_githubInstallations(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_GitHubInstallation_id(ctx, field)
+			case "accountLogin":
+				return ec.fieldContext_GitHubInstallation_accountLogin(ctx, field)
+			case "accountAvatarUrl":
+				return ec.fieldContext_GitHubInstallation_accountAvatarUrl(ctx, field)
+			case "accountType":
+				return ec.fieldContext_GitHubInstallation_accountType(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type GitHubInstallation", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_projects(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -9070,6 +9343,14 @@ func (ec *executionContext) fieldContext_Query_workspace(_ context.Context, fiel
 				return ec.fieldContext_Workspace_githubLinked(ctx, field)
 			case "githubInstallUrl":
 				return ec.fieldContext_Workspace_githubInstallUrl(ctx, field)
+			case "githubAccountLogin":
+				return ec.fieldContext_Workspace_githubAccountLogin(ctx, field)
+			case "githubAccountAvatarUrl":
+				return ec.fieldContext_Workspace_githubAccountAvatarUrl(ctx, field)
+			case "githubAccountType":
+				return ec.fieldContext_Workspace_githubAccountType(ctx, field)
+			case "githubInstallationId":
+				return ec.fieldContext_Workspace_githubInstallationId(ctx, field)
 			case "members":
 				return ec.fieldContext_Workspace_members(ctx, field)
 			}
@@ -9131,6 +9412,14 @@ func (ec *executionContext) fieldContext_Query_workspaces(_ context.Context, fie
 				return ec.fieldContext_Workspace_githubLinked(ctx, field)
 			case "githubInstallUrl":
 				return ec.fieldContext_Workspace_githubInstallUrl(ctx, field)
+			case "githubAccountLogin":
+				return ec.fieldContext_Workspace_githubAccountLogin(ctx, field)
+			case "githubAccountAvatarUrl":
+				return ec.fieldContext_Workspace_githubAccountAvatarUrl(ctx, field)
+			case "githubAccountType":
+				return ec.fieldContext_Workspace_githubAccountType(ctx, field)
+			case "githubInstallationId":
+				return ec.fieldContext_Workspace_githubInstallationId(ctx, field)
 			case "members":
 				return ec.fieldContext_Workspace_members(ctx, field)
 			}
@@ -10788,6 +11077,122 @@ func (ec *executionContext) fieldContext_Workspace_githubInstallUrl(_ context.Co
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Workspace_githubAccountLogin(ctx context.Context, field graphql.CollectedField, obj *model.Workspace) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Workspace_githubAccountLogin,
+		func(ctx context.Context) (any, error) {
+			return obj.GithubAccountLogin, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Workspace_githubAccountLogin(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Workspace",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Workspace_githubAccountAvatarUrl(ctx context.Context, field graphql.CollectedField, obj *model.Workspace) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Workspace_githubAccountAvatarUrl,
+		func(ctx context.Context) (any, error) {
+			return obj.GithubAccountAvatarURL, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Workspace_githubAccountAvatarUrl(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Workspace",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Workspace_githubAccountType(ctx context.Context, field graphql.CollectedField, obj *model.Workspace) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Workspace_githubAccountType,
+		func(ctx context.Context) (any, error) {
+			return obj.GithubAccountType, nil
+		},
+		nil,
+		ec.marshalOGitHubAccountType2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐGitHubAccountType,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Workspace_githubAccountType(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Workspace",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type GitHubAccountType does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Workspace_githubInstallationId(ctx context.Context, field graphql.CollectedField, obj *model.Workspace) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Workspace_githubInstallationId,
+		func(ctx context.Context) (any, error) {
+			return obj.GithubInstallationID, nil
+		},
+		nil,
+		ec.marshalOID2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Workspace_githubInstallationId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Workspace",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
 		},
 	}
 	return fc, nil
@@ -14490,6 +14895,60 @@ func (ec *executionContext) _EnvironmentResources(ctx context.Context, sel ast.S
 	return out
 }
 
+var gitHubInstallationImplementors = []string{"GitHubInstallation"}
+
+func (ec *executionContext) _GitHubInstallation(ctx context.Context, sel ast.SelectionSet, obj *model.GitHubInstallation) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, gitHubInstallationImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("GitHubInstallation")
+		case "id":
+			out.Values[i] = ec._GitHubInstallation_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "accountLogin":
+			out.Values[i] = ec._GitHubInstallation_accountLogin(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "accountAvatarUrl":
+			out.Values[i] = ec._GitHubInstallation_accountAvatarUrl(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "accountType":
+			out.Values[i] = ec._GitHubInstallation_accountType(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var gitHubRepositoryImplementors = []string{"GitHubRepository"}
 
 func (ec *executionContext) _GitHubRepository(ctx context.Context, sel ast.SelectionSet, obj *model.GitHubRepository) graphql.Marshaler {
@@ -15119,6 +15578,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_githubRepositories(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "githubInstallations":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_githubInstallations(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -16048,6 +16529,14 @@ func (ec *executionContext) _Workspace(ctx context.Context, sel ast.SelectionSet
 			}
 		case "githubInstallUrl":
 			out.Values[i] = ec._Workspace_githubInstallUrl(ctx, field, obj)
+		case "githubAccountLogin":
+			out.Values[i] = ec._Workspace_githubAccountLogin(ctx, field, obj)
+		case "githubAccountAvatarUrl":
+			out.Values[i] = ec._Workspace_githubAccountAvatarUrl(ctx, field, obj)
+		case "githubAccountType":
+			out.Values[i] = ec._Workspace_githubAccountType(ctx, field, obj)
+		case "githubInstallationId":
+			out.Values[i] = ec._Workspace_githubInstallationId(ctx, field, obj)
 		case "members":
 			out.Values[i] = ec._Workspace_members(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -17141,6 +17630,64 @@ func (ec *executionContext) marshalNEnvironmentResources2ᚖgithubᚗcomᚋzeitl
 func (ec *executionContext) unmarshalNGenerateDomainInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐGenerateDomainInput(ctx context.Context, v any) (model.GenerateDomainInput, error) {
 	res, err := ec.unmarshalInputGenerateDomainInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNGitHubAccountType2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐGitHubAccountType(ctx context.Context, v any) (model.GitHubAccountType, error) {
+	var res model.GitHubAccountType
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNGitHubAccountType2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐGitHubAccountType(ctx context.Context, sel ast.SelectionSet, v model.GitHubAccountType) graphql.Marshaler {
+	return v
+}
+
+func (ec *executionContext) marshalNGitHubInstallation2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐGitHubInstallation(ctx context.Context, sel ast.SelectionSet, v model.GitHubInstallation) graphql.Marshaler {
+	return ec._GitHubInstallation(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNGitHubInstallation2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐGitHubInstallationᚄ(ctx context.Context, sel ast.SelectionSet, v []model.GitHubInstallation) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNGitHubInstallation2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐGitHubInstallation(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
 }
 
 func (ec *executionContext) marshalNGitHubRepository2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐGitHubRepository(ctx context.Context, sel ast.SelectionSet, v model.GitHubRepository) graphql.Marshaler {
@@ -18374,6 +18921,40 @@ func (ec *executionContext) marshalOEnvironmentResources2ᚖgithubᚗcomᚋzeitl
 		return graphql.Null
 	}
 	return ec._EnvironmentResources(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOGitHubAccountType2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐGitHubAccountType(ctx context.Context, v any) (*model.GitHubAccountType, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var res = new(model.GitHubAccountType)
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOGitHubAccountType2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐGitHubAccountType(ctx context.Context, sel ast.SelectionSet, v *model.GitHubAccountType) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return v
+}
+
+func (ec *executionContext) unmarshalOID2ᚖstring(ctx context.Context, v any) (*string, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := graphql.UnmarshalID(v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOID2ᚖstring(ctx context.Context, sel ast.SelectionSet, v *string) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	_ = sel
+	_ = ctx
+	res := graphql.MarshalID(*v)
+	return res
 }
 
 func (ec *executionContext) unmarshalOInt2ᚖint(ctx context.Context, v any) (*int, error) {

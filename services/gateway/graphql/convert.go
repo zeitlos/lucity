@@ -219,6 +219,15 @@ func convertGitHubRepository(r handler.GitHubRepository) model.GitHubRepository 
 	}
 }
 
+func convertGitHubInstallation(i handler.GitHubInstallation) model.GitHubInstallation {
+	return model.GitHubInstallation{
+		ID:               i.ID,
+		AccountLogin:     i.AccountLogin,
+		AccountAvatarURL: i.AccountAvatarURL,
+		AccountType:      model.GitHubAccountType(i.AccountType),
+	}
+}
+
 func convertUser(u *handler.User) *model.User {
 	if u == nil {
 		return nil
@@ -262,6 +271,15 @@ func convertWorkspace(ws *handler.Workspace, githubAppSlug string) *model.Worksp
 	if githubAppSlug != "" && !result.GithubLinked {
 		url := fmt.Sprintf("https://github.com/apps/%s/installations/new", githubAppSlug)
 		result.GithubInstallURL = &url
+	}
+
+	if ws.GithubAccountLogin != "" {
+		result.GithubAccountLogin = &ws.GithubAccountLogin
+		result.GithubAccountAvatarURL = &ws.GithubAccountAvatarURL
+		accountType := model.GitHubAccountType(strings.ToUpper(ws.GithubAccountType))
+		result.GithubAccountType = &accountType
+		id := fmt.Sprintf("%d", ws.GithubInstallationID)
+		result.GithubInstallationID = &id
 	}
 
 	for _, m := range ws.Members {

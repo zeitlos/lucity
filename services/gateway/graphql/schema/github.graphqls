@@ -7,6 +7,19 @@ type GitHubRepository {
   private: Boolean!
 }
 
+type GitHubInstallation {
+  id: ID!
+  accountLogin: String!
+  accountAvatarUrl: String!
+  accountType: GitHubAccountType!
+}
+
+enum GitHubAccountType {
+  ORGANIZATION
+  USER
+}
+
 extend type Query {
   githubRepositories: [GitHubRepository!]! @hasRole(role: [USER])
+  githubInstallations: [GitHubInstallation!]! @hasRole(role: [ADMIN])
 }

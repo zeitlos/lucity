@@ -23,3 +23,16 @@ func (r *queryResolver) GithubRepositories(ctx context.Context) ([]model.GitHubR
 	}
 	return result, nil
 }
+
+// GithubInstallations is the resolver for the githubInstallations field.
+func (r *queryResolver) GithubInstallations(ctx context.Context) ([]model.GitHubInstallation, error) {
+	installations, err := r.API.GitHubInstallations(ctx)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]model.GitHubInstallation, 0, len(installations))
+	for _, i := range installations {
+		result = append(result, convertGitHubInstallation(i))
+	}
+	return result, nil
+}

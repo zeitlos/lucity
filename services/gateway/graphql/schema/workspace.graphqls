@@ -4,6 +4,10 @@ type Workspace {
   personal: Boolean!
   githubLinked: Boolean!
   githubInstallUrl: String
+  githubAccountLogin: String
+  githubAccountAvatarUrl: String
+  githubAccountType: GitHubAccountType
+  githubInstallationId: ID
   members: [WorkspaceMember!]!
 }
 

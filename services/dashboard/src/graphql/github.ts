@@ -12,3 +12,14 @@ export const GitHubRepositoriesQuery = gql`
     }
   }
 `;
+
+export const GitHubInstallationsQuery = gql`
+  query GitHubInstallations {
+    githubInstallations {
+      id
+      accountLogin
+      accountAvatarUrl
+      accountType
+    }
+  }
+`;
