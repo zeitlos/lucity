@@ -698,109 +698,110 @@ async function handleRemoveService() {
         </div>
 
         <!-- Autoscaling settings -->
-        <template v-if="autoscalingEnabled">
-          <div class="space-y-1.5">
-            <Label class="text-xs text-muted-foreground">Min Replicas</Label>
-            <div class="flex items-center gap-1">
-              <Button
-                variant="outline"
-                size="icon"
-                class="h-8 w-8 shrink-0"
-                :disabled="scalingMinReplicas <= 1"
-                @click="scalingMinReplicas = clamp(scalingMinReplicas - 1, 1, 20)"
-              >
-                <Minus :size="14" />
-              </Button>
+        <div class="space-y-1.5">
+          <Label class="text-xs text-muted-foreground">Min Replicas</Label>
+          <div class="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="icon"
+              class="h-8 w-8 shrink-0"
+              :disabled="!autoscalingEnabled || scalingMinReplicas <= 1"
+              @click="scalingMinReplicas = clamp(scalingMinReplicas - 1, 1, 20)"
+            >
+              <Minus :size="14" />
+            </Button>
+            <Input
+              type="number"
+              v-model.number="scalingMinReplicas"
+              class="h-8 w-16 text-center text-sm"
+              :min="1"
+              :max="20"
+              :disabled="!autoscalingEnabled"
+              @blur="scalingMinReplicas = clamp(scalingMinReplicas, 1, 20)"
+            />
+            <Button
+              variant="outline"
+              size="icon"
+              class="h-8 w-8 shrink-0"
+              :disabled="!autoscalingEnabled || scalingMinReplicas >= 20"
+              @click="scalingMinReplicas = clamp(scalingMinReplicas + 1, 1, 20)"
+            >
+              <Plus :size="14" />
+            </Button>
+          </div>
+        </div>
+
+        <div class="space-y-1.5">
+          <Label class="text-xs text-muted-foreground">Max Replicas</Label>
+          <div class="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="icon"
+              class="h-8 w-8 shrink-0"
+              :disabled="!autoscalingEnabled || scalingMaxReplicas <= 1"
+              @click="scalingMaxReplicas = clamp(scalingMaxReplicas - 1, 1, 20)"
+            >
+              <Minus :size="14" />
+            </Button>
+            <Input
+              type="number"
+              v-model.number="scalingMaxReplicas"
+              class="h-8 w-16 text-center text-sm"
+              :min="1"
+              :max="20"
+              :disabled="!autoscalingEnabled"
+              @blur="scalingMaxReplicas = clamp(scalingMaxReplicas, 1, 20)"
+            />
+            <Button
+              variant="outline"
+              size="icon"
+              class="h-8 w-8 shrink-0"
+              :disabled="!autoscalingEnabled || scalingMaxReplicas >= 20"
+              @click="scalingMaxReplicas = clamp(scalingMaxReplicas + 1, 1, 20)"
+            >
+              <Plus :size="14" />
+            </Button>
+          </div>
+        </div>
+
+        <div class="space-y-1.5">
+          <Label class="text-xs text-muted-foreground">Target CPU</Label>
+          <div class="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="icon"
+              class="h-8 w-8 shrink-0"
+              :disabled="!autoscalingEnabled || scalingTargetCPU <= 10"
+              @click="scalingTargetCPU = clamp(scalingTargetCPU - 5, 10, 95)"
+            >
+              <Minus :size="14" />
+            </Button>
+            <div class="flex items-center">
               <Input
                 type="number"
-                v-model.number="scalingMinReplicas"
+                v-model.number="scalingTargetCPU"
                 class="h-8 w-16 text-center text-sm"
-                :min="1"
-                :max="20"
-                @blur="scalingMinReplicas = clamp(scalingMinReplicas, 1, 20)"
+                :min="10"
+                :max="95"
+                :disabled="!autoscalingEnabled"
+                @blur="scalingTargetCPU = clamp(scalingTargetCPU, 10, 95)"
               />
-              <Button
-                variant="outline"
-                size="icon"
-                class="h-8 w-8 shrink-0"
-                :disabled="scalingMinReplicas >= 20"
-                @click="scalingMinReplicas = clamp(scalingMinReplicas + 1, 1, 20)"
-              >
-                <Plus :size="14" />
-              </Button>
+              <span class="ml-1 text-xs text-muted-foreground">%</span>
             </div>
+            <Button
+              variant="outline"
+              size="icon"
+              class="h-8 w-8 shrink-0"
+              :disabled="!autoscalingEnabled || scalingTargetCPU >= 95"
+              @click="scalingTargetCPU = clamp(scalingTargetCPU + 5, 10, 95)"
+            >
+              <Plus :size="14" />
+            </Button>
           </div>
-
-          <div class="space-y-1.5">
-            <Label class="text-xs text-muted-foreground">Max Replicas</Label>
-            <div class="flex items-center gap-1">
-              <Button
-                variant="outline"
-                size="icon"
-                class="h-8 w-8 shrink-0"
-                :disabled="scalingMaxReplicas <= 1"
-                @click="scalingMaxReplicas = clamp(scalingMaxReplicas - 1, 1, 20)"
-              >
-                <Minus :size="14" />
-              </Button>
-              <Input
-                type="number"
-                v-model.number="scalingMaxReplicas"
-                class="h-8 w-16 text-center text-sm"
-                :min="1"
-                :max="20"
-                @blur="scalingMaxReplicas = clamp(scalingMaxReplicas, 1, 20)"
-              />
-              <Button
-                variant="outline"
-                size="icon"
-                class="h-8 w-8 shrink-0"
-                :disabled="scalingMaxReplicas >= 20"
-                @click="scalingMaxReplicas = clamp(scalingMaxReplicas + 1, 1, 20)"
-              >
-                <Plus :size="14" />
-              </Button>
-            </div>
-          </div>
-
-          <div class="space-y-1.5">
-            <Label class="text-xs text-muted-foreground">Target CPU</Label>
-            <div class="flex items-center gap-1">
-              <Button
-                variant="outline"
-                size="icon"
-                class="h-8 w-8 shrink-0"
-                :disabled="scalingTargetCPU <= 10"
-                @click="scalingTargetCPU = clamp(scalingTargetCPU - 5, 10, 95)"
-              >
-                <Minus :size="14" />
-              </Button>
-              <div class="flex items-center">
-                <Input
-                  type="number"
-                  v-model.number="scalingTargetCPU"
-                  class="h-8 w-16 text-center text-sm"
-                  :min="10"
-                  :max="95"
-                  @blur="scalingTargetCPU = clamp(scalingTargetCPU, 10, 95)"
-                />
-                <span class="ml-1 text-xs text-muted-foreground">%</span>
-              </div>
-              <Button
-                variant="outline"
-                size="icon"
-                class="h-8 w-8 shrink-0"
-                :disabled="scalingTargetCPU >= 95"
-                @click="scalingTargetCPU = clamp(scalingTargetCPU + 5, 10, 95)"
-              >
-                <Plus :size="14" />
-              </Button>
-            </div>
-            <p class="text-[11px] text-muted-foreground">
-              Scale up when average CPU exceeds {{ scalingTargetCPU }}%.
-            </p>
-          </div>
-        </template>
+          <p class="text-[11px] text-muted-foreground">
+            Scale up when average CPU exceeds {{ scalingTargetCPU }}%.
+          </p>
+        </div>
 
         <!-- Save -->
         <div class="flex justify-end">
