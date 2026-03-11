@@ -8,6 +8,7 @@ import (
 	"github.com/kelseyhightower/envconfig"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/zeitlos/lucity/pkg/graceful"
 	"github.com/zeitlos/lucity/pkg/logger"
@@ -23,9 +24,10 @@ type Config struct {
 	RegistryToken    string `envconfig:"REGISTRY_TOKEN"`
 	RegistryInsecure bool   `envconfig:"REGISTRY_INSECURE" default:"true"`
 	WorkDir          string `envconfig:"WORK_DIR" default:"/tmp/lucity-builds"`
-	BuildEngine      string `envconfig:"BUILD_ENGINE" default:"local"`
+	BuildEngine    string `envconfig:"BUILD_ENGINE" default:"local"`
 	BuildImage     string `envconfig:"BUILD_IMAGE"`
 	BuildNamespace string `envconfig:"BUILD_NAMESPACE" default:"lucity-system"`
+	KubeContext    string `envconfig:"KUBE_CONTEXT"`
 }
 
 func main() {
@@ -78,7 +80,7 @@ func setupEngine(config Config) (engine.Engine, build.Tracker, error) {
 			return nil, nil, fmt.Errorf("BUILD_IMAGE is required for kubernetes engine")
 		}
 
-		k8sClient, err := kubernetesClient()
+		k8sClient, err := kubernetesClient(config.KubeContext)
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to create k8s client: %w", err)
 		}
@@ -100,10 +102,20 @@ func setupEngine(config Config) (engine.Engine, build.Tracker, error) {
 	}
 }
 
-func kubernetesClient() (kubernetes.Interface, error) {
-	config, err := rest.InClusterConfig()
+func kubernetesClient(kubeContext string) (kubernetes.Interface, error) {
+	// Try in-cluster config first (running inside K8s)
+	cfg, err := rest.InClusterConfig()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get in-cluster config: %w", err)
+		// Fall back to kubeconfig (local dev)
+		rules := clientcmd.NewDefaultClientConfigLoadingRules()
+		overrides := &clientcmd.ConfigOverrides{}
+		if kubeContext != "" {
+			overrides.CurrentContext = kubeContext
+		}
+		cfg, err = clientcmd.NewNonInteractiveDeferredLoadingClientConfig(rules, overrides).ClientConfig()
+		if err != nil {
+			return nil, fmt.Errorf("failed to load kubeconfig: %w", err)
+		}
 	}
-	return kubernetes.NewForConfig(config)
+	return kubernetes.NewForConfig(cfg)
 }
