@@ -8,7 +8,6 @@ import (
 	"github.com/zeitlos/lucity/pkg/packager"
 	"github.com/zeitlos/lucity/pkg/tenant"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/reflection"
 )
 
 type GRPCServer struct {
@@ -28,7 +27,6 @@ func NewGRPCServer(addr string, svc *Server) *GRPCServer {
 		),
 	)
 	packager.RegisterPackagerServiceServer(s, svc)
-	reflection.Register(s)
 
 	return &GRPCServer{
 		server: s,

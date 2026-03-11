@@ -7,7 +7,6 @@ import (
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/cashier"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/reflection"
 )
 
 type GRPCServer struct {
@@ -22,7 +21,6 @@ func NewGRPCServer(addr string, svc *Server) *GRPCServer {
 		),
 	)
 	cashier.RegisterCashierServiceServer(s, svc)
-	reflection.Register(s)
 
 	return &GRPCServer{
 		server: s,
