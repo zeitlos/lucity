@@ -22,13 +22,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/components/ui/sonner';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import {
   Collapsible,
   CollapsibleContent,
@@ -272,7 +266,7 @@ function copyToClipboard(text: string) {
 }
 
 // Scaling
-const scalingMode = ref<'manual' | 'autoscaling'>('manual');
+const autoscalingEnabled = ref(false);
 const scalingReplicas = ref(1);
 const scalingMinReplicas = ref(1);
 const scalingMaxReplicas = ref(10);
@@ -286,13 +280,13 @@ function syncScalingFromService() {
   if (!svc) return;
 
   if (svc.scaling?.autoscaling?.enabled) {
-    scalingMode.value = 'autoscaling';
+    autoscalingEnabled.value = true;
     scalingReplicas.value = svc.scaling.replicas || svc.replicas || 1;
     scalingMinReplicas.value = svc.scaling.autoscaling.minReplicas;
     scalingMaxReplicas.value = svc.scaling.autoscaling.maxReplicas;
     scalingTargetCPU.value = svc.scaling.autoscaling.targetCPU;
   } else {
-    scalingMode.value = 'manual';
+    autoscalingEnabled.value = false;
     scalingReplicas.value = svc.scaling?.replicas || svc.replicas || 1;
     scalingMinReplicas.value = 1;
     scalingMaxReplicas.value = 10;
@@ -319,7 +313,7 @@ async function handleSaveScaling() {
       replicas: scalingReplicas.value,
     };
 
-    if (scalingMode.value === 'autoscaling') {
+    if (autoscalingEnabled.value) {
       input.autoscaling = {
         enabled: true,
         minReplicas: scalingMinReplicas.value,
@@ -654,29 +648,15 @@ async function handleRemoveService() {
       </h3>
 
       <div class="space-y-4 rounded-lg border p-4">
-        <!-- Mode -->
+        <!-- Replicas -->
         <div class="space-y-1.5">
-          <Label class="text-xs text-muted-foreground">Mode</Label>
-          <Select v-model="scalingMode">
-            <SelectTrigger class="w-40">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="manual">Manual</SelectItem>
-              <SelectItem value="autoscaling">Autoscaling</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <!-- Manual: Replicas -->
-        <div v-if="scalingMode === 'manual'" class="space-y-1.5">
           <Label class="text-xs text-muted-foreground">Replicas</Label>
           <div class="flex items-center gap-1">
             <Button
               variant="outline"
               size="icon"
               class="h-8 w-8 shrink-0"
-              :disabled="scalingReplicas <= 1"
+              :disabled="autoscalingEnabled || scalingReplicas <= 1"
               @click="scalingReplicas = clamp(scalingReplicas - 1, 1, 20)"
             >
               <Minus :size="14" />
@@ -687,22 +667,38 @@ async function handleRemoveService() {
               class="h-8 w-16 text-center text-sm"
               :min="1"
               :max="20"
+              :disabled="autoscalingEnabled"
               @blur="scalingReplicas = clamp(scalingReplicas, 1, 20)"
             />
             <Button
               variant="outline"
               size="icon"
               class="h-8 w-8 shrink-0"
-              :disabled="scalingReplicas >= 20"
+              :disabled="autoscalingEnabled || scalingReplicas >= 20"
               @click="scalingReplicas = clamp(scalingReplicas + 1, 1, 20)"
             >
               <Plus :size="14" />
             </Button>
           </div>
+          <p v-if="autoscalingEnabled" class="text-[11px] text-muted-foreground">
+            Managed by autoscaler.
+          </p>
         </div>
 
-        <!-- Autoscaling -->
-        <template v-if="scalingMode === 'autoscaling'">
+        <!-- Autoscaling toggle -->
+        <div class="flex items-center justify-between">
+          <div>
+            <Label class="text-sm">Autoscaling</Label>
+            <p class="text-[11px] text-muted-foreground">Scale replicas based on CPU usage.</p>
+          </div>
+          <Switch
+            :checked="autoscalingEnabled"
+            @update:checked="autoscalingEnabled = $event"
+          />
+        </div>
+
+        <!-- Autoscaling settings -->
+        <template v-if="autoscalingEnabled">
           <div class="space-y-1.5">
             <Label class="text-xs text-muted-foreground">Min Replicas</Label>
             <div class="flex items-center gap-1">
