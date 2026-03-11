@@ -17,7 +17,6 @@ import {
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
 import DeploymentsTab from './DeploymentsTab.vue';
-import ScalingTab from './ScalingTab.vue';
 import ServiceVariablesTab from './ServiceVariablesTab.vue';
 import ServiceSettingsTab from './ServiceSettingsTab.vue';
 
@@ -114,7 +113,6 @@ onKeyStroke('Escape', () => {
               Logs
               <SquareArrowOutUpRight :size="11" class="opacity-50" />
             </button>
-            <TabsTrigger value="scaling">Scaling</TabsTrigger>
             <TabsTrigger value="variables">Variables</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
@@ -122,13 +120,6 @@ onKeyStroke('Escape', () => {
 
         <TabsContent value="deployments" class="px-4 py-4">
           <DeploymentsTab
-            :project-id="projectId"
-            :service="service"
-          />
-        </TabsContent>
-
-        <TabsContent value="scaling" class="px-4 py-4">
-          <ScalingTab
             :project-id="projectId"
             :service="service"
           />

@@ -2,7 +2,7 @@
 import { ref, computed, watch } from 'vue';
 import { useMutation, useQuery } from '@vue/apollo-composable';
 import {
-  Trash2, Copy, X, Globe, Plus, CircleCheck, CircleAlert,
+  Trash2, Copy, X, Globe, Plus, Minus, CircleCheck, CircleAlert,
   ChevronDown, Network, ExternalLink, Loader2,
 } from 'lucide-vue-next';
 import {
@@ -12,6 +12,7 @@ import {
   RemoveDomainMutation,
   PlatformConfigQuery,
 } from '@/graphql/services';
+import { SetServiceScalingMutation } from '@/graphql/projects';
 import { useEnvironment } from '@/composables/useEnvironment';
 import type { DomainInfo } from '@/composables/useEnvironment';
 import { useDnsPolling } from '@/composables/useDnsPolling';
@@ -19,7 +20,15 @@ import FrameworkIcon from '@/components/FrameworkIcon.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { toast } from '@/components/ui/sonner';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Collapsible,
   CollapsibleContent,
@@ -260,6 +269,79 @@ async function handleRemoveDomain(hostname: string) {
 function copyToClipboard(text: string) {
   navigator.clipboard.writeText(text);
   toast.success('Copied to clipboard');
+}
+
+// Scaling
+const scalingMode = ref<'manual' | 'autoscaling'>('manual');
+const scalingReplicas = ref(1);
+const scalingMinReplicas = ref(1);
+const scalingMaxReplicas = ref(10);
+const scalingTargetCPU = ref(70);
+const scalingSaving = ref(false);
+
+const { mutate: setScalingMutate } = useMutation(SetServiceScalingMutation);
+
+function syncScalingFromService() {
+  const svc = activeInstance.value;
+  if (!svc) return;
+
+  if (svc.scaling?.autoscaling?.enabled) {
+    scalingMode.value = 'autoscaling';
+    scalingReplicas.value = svc.scaling.replicas || svc.replicas || 1;
+    scalingMinReplicas.value = svc.scaling.autoscaling.minReplicas;
+    scalingMaxReplicas.value = svc.scaling.autoscaling.maxReplicas;
+    scalingTargetCPU.value = svc.scaling.autoscaling.targetCPU;
+  } else {
+    scalingMode.value = 'manual';
+    scalingReplicas.value = svc.scaling?.replicas || svc.replicas || 1;
+    scalingMinReplicas.value = 1;
+    scalingMaxReplicas.value = 10;
+    scalingTargetCPU.value = 70;
+  }
+}
+
+watch(activeInstance, syncScalingFromService, { immediate: true });
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
+
+async function handleSaveScaling() {
+  const envName = activeEnvironment.value?.name;
+  if (!envName) return;
+
+  scalingSaving.value = true;
+  try {
+    const input: Record<string, unknown> = {
+      projectId: props.projectId,
+      environment: envName,
+      service: props.service.name,
+      replicas: scalingReplicas.value,
+    };
+
+    if (scalingMode.value === 'autoscaling') {
+      input.autoscaling = {
+        enabled: true,
+        minReplicas: scalingMinReplicas.value,
+        maxReplicas: scalingMaxReplicas.value,
+        targetCPU: scalingTargetCPU.value,
+      };
+    } else {
+      input.autoscaling = {
+        enabled: false,
+        minReplicas: 1,
+        maxReplicas: 1,
+        targetCPU: 70,
+      };
+    }
+
+    await setScalingMutate({ input });
+    toast.success('Scaling updated');
+  } catch (e: unknown) {
+    toast.error('Failed to update scaling', { description: errorMessage(e) });
+  } finally {
+    scalingSaving.value = false;
+  }
 }
 
 async function handleRemoveService() {
@@ -563,6 +645,178 @@ async function handleRemoveService() {
           </CollapsibleContent>
         </div>
       </Collapsible>
+    </section>
+
+    <!-- Scaling -->
+    <section class="space-y-2">
+      <h3 class="px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        Scaling
+      </h3>
+
+      <div class="space-y-4 rounded-lg border p-4">
+        <!-- Mode -->
+        <div class="space-y-1.5">
+          <Label class="text-xs text-muted-foreground">Mode</Label>
+          <Select v-model="scalingMode">
+            <SelectTrigger class="w-40">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="manual">Manual</SelectItem>
+              <SelectItem value="autoscaling">Autoscaling</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <!-- Manual: Replicas -->
+        <div v-if="scalingMode === 'manual'" class="space-y-1.5">
+          <Label class="text-xs text-muted-foreground">Replicas</Label>
+          <div class="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="icon"
+              class="h-8 w-8 shrink-0"
+              :disabled="scalingReplicas <= 1"
+              @click="scalingReplicas = clamp(scalingReplicas - 1, 1, 20)"
+            >
+              <Minus :size="14" />
+            </Button>
+            <Input
+              type="number"
+              v-model.number="scalingReplicas"
+              class="h-8 w-16 text-center text-sm"
+              :min="1"
+              :max="20"
+              @blur="scalingReplicas = clamp(scalingReplicas, 1, 20)"
+            />
+            <Button
+              variant="outline"
+              size="icon"
+              class="h-8 w-8 shrink-0"
+              :disabled="scalingReplicas >= 20"
+              @click="scalingReplicas = clamp(scalingReplicas + 1, 1, 20)"
+            >
+              <Plus :size="14" />
+            </Button>
+          </div>
+        </div>
+
+        <!-- Autoscaling -->
+        <template v-if="scalingMode === 'autoscaling'">
+          <div class="space-y-1.5">
+            <Label class="text-xs text-muted-foreground">Min Replicas</Label>
+            <div class="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="icon"
+                class="h-8 w-8 shrink-0"
+                :disabled="scalingMinReplicas <= 1"
+                @click="scalingMinReplicas = clamp(scalingMinReplicas - 1, 1, 20)"
+              >
+                <Minus :size="14" />
+              </Button>
+              <Input
+                type="number"
+                v-model.number="scalingMinReplicas"
+                class="h-8 w-16 text-center text-sm"
+                :min="1"
+                :max="20"
+                @blur="scalingMinReplicas = clamp(scalingMinReplicas, 1, 20)"
+              />
+              <Button
+                variant="outline"
+                size="icon"
+                class="h-8 w-8 shrink-0"
+                :disabled="scalingMinReplicas >= 20"
+                @click="scalingMinReplicas = clamp(scalingMinReplicas + 1, 1, 20)"
+              >
+                <Plus :size="14" />
+              </Button>
+            </div>
+          </div>
+
+          <div class="space-y-1.5">
+            <Label class="text-xs text-muted-foreground">Max Replicas</Label>
+            <div class="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="icon"
+                class="h-8 w-8 shrink-0"
+                :disabled="scalingMaxReplicas <= 1"
+                @click="scalingMaxReplicas = clamp(scalingMaxReplicas - 1, 1, 20)"
+              >
+                <Minus :size="14" />
+              </Button>
+              <Input
+                type="number"
+                v-model.number="scalingMaxReplicas"
+                class="h-8 w-16 text-center text-sm"
+                :min="1"
+                :max="20"
+                @blur="scalingMaxReplicas = clamp(scalingMaxReplicas, 1, 20)"
+              />
+              <Button
+                variant="outline"
+                size="icon"
+                class="h-8 w-8 shrink-0"
+                :disabled="scalingMaxReplicas >= 20"
+                @click="scalingMaxReplicas = clamp(scalingMaxReplicas + 1, 1, 20)"
+              >
+                <Plus :size="14" />
+              </Button>
+            </div>
+          </div>
+
+          <div class="space-y-1.5">
+            <Label class="text-xs text-muted-foreground">Target CPU</Label>
+            <div class="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="icon"
+                class="h-8 w-8 shrink-0"
+                :disabled="scalingTargetCPU <= 10"
+                @click="scalingTargetCPU = clamp(scalingTargetCPU - 5, 10, 95)"
+              >
+                <Minus :size="14" />
+              </Button>
+              <div class="flex items-center">
+                <Input
+                  type="number"
+                  v-model.number="scalingTargetCPU"
+                  class="h-8 w-16 text-center text-sm"
+                  :min="10"
+                  :max="95"
+                  @blur="scalingTargetCPU = clamp(scalingTargetCPU, 10, 95)"
+                />
+                <span class="ml-1 text-xs text-muted-foreground">%</span>
+              </div>
+              <Button
+                variant="outline"
+                size="icon"
+                class="h-8 w-8 shrink-0"
+                :disabled="scalingTargetCPU >= 95"
+                @click="scalingTargetCPU = clamp(scalingTargetCPU + 5, 10, 95)"
+              >
+                <Plus :size="14" />
+              </Button>
+            </div>
+            <p class="text-[11px] text-muted-foreground">
+              Scale up when average CPU exceeds {{ scalingTargetCPU }}%.
+            </p>
+          </div>
+        </template>
+
+        <!-- Save -->
+        <div class="flex justify-end">
+          <Button
+            size="sm"
+            :disabled="scalingSaving"
+            @click="handleSaveScaling"
+          >
+            {{ scalingSaving ? 'Saving...' : 'Save' }}
+          </Button>
+        </div>
+      </div>
     </section>
 
     <!-- Danger Zone -->
