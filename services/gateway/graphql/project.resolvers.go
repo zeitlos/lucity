@@ -56,11 +56,6 @@ func (r *mutationResolver) Promote(ctx context.Context, input model.PromoteInput
 	return &result, nil
 }
 
-// SyncChart is the resolver for the syncChart field.
-func (r *mutationResolver) SyncChart(ctx context.Context, projectID string) (bool, error) {
-	return r.API.SyncChart(ctx, projectID)
-}
-
 // SetServiceScaling is the resolver for the setServiceScaling field.
 func (r *mutationResolver) SetServiceScaling(ctx context.Context, input model.SetServiceScalingInput) (*model.ScalingConfig, error) {
 	var autoscaling *handler.AutoscalingConfig
@@ -115,3 +110,15 @@ func (r *queryResolver) Service(ctx context.Context, projectID string, name stri
 	result := convertService(*s, r.API.WorkloadDomain)
 	return &result, nil
 }
+
+// !!! WARNING !!!
+// The code below was going to be deleted when updating resolvers. It has been copied here so you have
+// one last chance to move it out of harms way if you want. There are two reasons this happens:
+//  - When renaming or deleting a resolver the old code will be put in here. You can safely delete
+//    it when you're done.
+//  - You have helper methods in this file. Move them out to keep these resolver files clean.
+/*
+	func (r *mutationResolver) SyncChart(ctx context.Context, projectID string) (bool, error) {
+	return r.API.SyncChart(ctx, projectID)
+}
+*/

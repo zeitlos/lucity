@@ -358,22 +358,6 @@ func (c *Client) Promote(ctx context.Context, projectID, service, fromEnv, toEnv
 	}, nil
 }
 
-func (c *Client) SyncChart(ctx context.Context, projectID string) (bool, error) {
-	if _, err := tenant.Require(ctx); err != nil {
-		return false, err
-	}
-	ctx = auth.OutgoingContext(ctx)
-	ctx = tenant.OutgoingContext(ctx)
-
-	callCtx, callCancel := context.WithTimeout(ctx, grpcLongTimeout)
-	defer callCancel()
-	_, err := c.Packager.SyncChart(callCtx, &packager.SyncChartRequest{Project: projectID})
-	if err != nil {
-		return false, fmt.Errorf("failed to sync chart: %w", err)
-	}
-	return true, nil
-}
-
 func (c *Client) Service(ctx context.Context, projectID, name string) (*Service, error) {
 	proj, err := c.Project(ctx, projectID)
 	if err != nil {
