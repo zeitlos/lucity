@@ -54,15 +54,8 @@ spec:
             - name: {{ $key }}
               value: {{ printf "http://%s-%s:%d" (include "lucity-app.fullname" $) $ref.service ($target.port | int) | quote }}
             {{- end }}
+          {{- with $svc.resources }}
           resources:
-          {{- if $svc.resources }}
-            {{- toYaml $svc.resources | nindent 12 }}
-          {{- else }}
-            requests:
-              cpu: 100m
-              memory: 256Mi
-            limits:
-              cpu: "1"
-              memory: 512Mi
+            {{- toYaml . | nindent 12 }}
           {{- end }}
 {{- end }}
