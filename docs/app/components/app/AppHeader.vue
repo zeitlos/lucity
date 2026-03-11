@@ -45,11 +45,6 @@ const navItems = [
     icon: 'i-lucide-book-open',
     to: '/getting-started/quick-start',
   },
-  {
-    label: 'Blog',
-    icon: 'i-lucide-pen-line',
-    to: '/blog',
-  },
 ];
 
 const githubLink = computed(() =>
