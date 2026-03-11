@@ -104,9 +104,7 @@ const hostUrl = computed(() => {
       'service-node group cursor-pointer rounded-xl border px-6 py-5 shadow-sm transition-all duration-200',
       'hover:shadow-md',
       selected ? 'border-primary shadow-md' : 'border-border',
-      replicas >= 2 && 'has-stack',
-      replicas >= 3 && 'has-stack-deep',
-    ]"
+]"
     style="width: 280px;"
     @click="emit('select')"
   >
@@ -160,31 +158,5 @@ const hostUrl = computed(() => {
     var(--card) 0%,
     color-mix(in oklch, var(--card) 94%, var(--muted)) 100%
   );
-}
-
-/* First stacked card (2+ replicas) */
-.has-stack::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  border-radius: inherit;
-  border: 1px solid var(--border);
-  background: var(--card);
-  transform: translateY(6px) scale(0.97);
-  opacity: 0.7;
-}
-
-/* Second stacked card (3+ replicas) */
-.has-stack-deep::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -2;
-  border-radius: inherit;
-  border: 1px solid var(--border);
-  background: var(--card);
-  transform: translateY(12px) scale(0.94);
-  opacity: 0.4;
 }
 </style>
