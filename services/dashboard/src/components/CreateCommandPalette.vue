@@ -48,9 +48,6 @@ watch(() => props.open, (open) => {
     selectedSource.value = null;
     sourcePickerOpen.value = false;
     containerImageRef.value = '';
-    containerServiceName.value = '';
-    containerPort.value = 80;
-    imageSelected.value = false;
     nextTick(() => inputRef.value?.focus());
   }
 });
@@ -328,15 +325,11 @@ if (typeof window !== 'undefined') {
 // Container image state
 const containerImageRef = ref('');
 const containerImageDebounced = refDebounced(containerImageRef, 300);
-const containerServiceName = ref('');
-const containerPort = ref(80);
-const imageSelected = ref(false); // true after user picks from autocomplete or stops typing
 
-// Search Docker Hub based on the image input (skip if it looks like a full registry path)
+// Search Docker Hub (skip if it looks like a full registry path with dots)
 const shouldSearchImages = computed(() => {
   const q = containerImageDebounced.value;
-  if (!q || imageSelected.value) return false;
-  // Don't search if it looks like a full registry reference (contains dots like ghcr.io/...)
+  if (!q) return false;
   if (q.includes('.')) return false;
   return true;
 });
@@ -347,58 +340,7 @@ const { result: imageSearchResult, loading: searchingImages } = useQuery(SearchI
   enabled: props.open && view.value === 'container-image' && shouldSearchImages.value,
 }));
 
-const imageResults = computed(() => {
-  if (imageSelected.value) return [];
-  return imageSearchResult.value?.searchImages ?? [];
-});
-
-// Reset imageSelected when user manually edits the input
-let selectingImage = false;
-watch(containerImageRef, () => {
-  if (selectingImage) return;
-  imageSelected.value = false;
-  deriveFromImage(containerImageRef.value);
-});
-
-function selectImage(image: { name: string }) {
-  selectingImage = true;
-  containerImageRef.value = image.name;
-  deriveFromImage(image.name);
-  imageSelected.value = true;
-  nextTick(() => { selectingImage = false; });
-}
-
-const wellKnownPorts: Record<string, number> = {
-  nginx: 80, httpd: 80, caddy: 80, traefik: 80,
-  redis: 6379, valkey: 6379,
-  postgres: 5432, postgresql: 5432,
-  mysql: 3306, mariadb: 3306,
-  mongo: 27017, mongodb: 27017,
-  memcached: 11211, rabbitmq: 5672, nats: 4222,
-  elasticsearch: 9200, opensearch: 9200,
-  minio: 9000, grafana: 3000, prometheus: 9090,
-  clickhouse: 8123, influxdb: 8086,
-  vault: 8200, consul: 8500, etcd: 2379,
-};
-
-function imageBaseName(ref: string): string {
-  // Strip tag (e.g., "nginx:1.25" -> "nginx")
-  const withoutTag = ref.includes(':') ? ref.split(':')[0] ?? ref : ref;
-  // Use last path segment (e.g., "bitnami/redis" -> "redis")
-  const parts = withoutTag.split('/');
-  return parts[parts.length - 1] ?? ref;
-}
-
-function deriveFromImage(ref: string) {
-  if (!ref) {
-    containerServiceName.value = '';
-    containerPort.value = 80;
-    return;
-  }
-  const name = imageBaseName(ref);
-  containerServiceName.value = name;
-  containerPort.value = wellKnownPorts[name] ?? 80;
-}
+const imageResults = computed(() => imageSearchResult.value?.searchImages ?? []);
 
 function formatPullCount(count: number): string {
   if (count >= 1_000_000_000) return `${(count / 1_000_000_000).toFixed(1)}B`;
@@ -407,59 +349,48 @@ function formatPullCount(count: number): string {
   return String(count);
 }
 
-async function handleAddContainerImage() {
+async function handleSelectImage(imageRef: string) {
+  if (!imageRef) return;
+  containerImageRef.value = imageRef;
+
   if (props.context === 'projects') {
-    await handleCreateProjectFromImage();
-  } else {
-    await handleAddImageToProject();
-  }
-}
+    try {
+      const projectName = generateName();
+      const res = await createProject({ input: { name: projectName } });
 
-async function handleCreateProjectFromImage() {
-  try {
-    const projectName = generateName();
-    const res = await createProject({ input: { name: projectName } });
+      if (res?.errors?.length) {
+        toast.error('Failed to create project', {
+          description: res.errors.map(e => e.message).join(', '),
+        });
+        return;
+      }
 
-    if (res?.errors?.length) {
-      toast.error('Failed to create project', {
-        description: res.errors.map(e => e.message).join(', '),
-      });
-      return;
+      const projectId = res?.data?.createProject?.id;
+      if (!projectId) return;
+
+      await addImageService(projectId, imageRef);
+      close();
+      router.push({ name: 'project', params: { id: projectId } });
+    } catch (e: unknown) {
+      toast.error('Failed to create project', { description: errorMessage(e) });
     }
-
-    const projectId = res?.data?.createProject?.id;
-    if (!projectId) return;
-
-    await addImageService(projectId);
-    close();
-    router.push({ name: 'project', params: { id: projectId } });
-  } catch (e: unknown) {
-    toast.error('Failed to create project', { description: errorMessage(e) });
+  } else {
+    if (!props.projectId) return;
+    try {
+      await addImageService(props.projectId, imageRef);
+      close();
+      emit('created');
+    } catch (e: unknown) {
+      toast.error('Failed to add service', { description: errorMessage(e) });
+    }
   }
 }
 
-async function handleAddImageToProject() {
-  if (!props.projectId) return;
-
-  try {
-    await addImageService(props.projectId);
-    close();
-    emit('created');
-  } catch (e: unknown) {
-    toast.error('Failed to add service', { description: errorMessage(e) });
-  }
-}
-
-async function addImageService(projectId: string) {
-  // Only send name/port if user explicitly changed them from the auto-derived defaults
-  const derivedName = imageBaseName(containerImageRef.value);
-  const derivedPort = wellKnownPorts[derivedName] ?? 80;
+async function addImageService(projectId: string, imageRef: string) {
   const res = await addServiceMutate({
     input: {
       projectId,
-      name: containerServiceName.value !== derivedName ? containerServiceName.value : undefined,
-      port: containerPort.value !== derivedPort ? containerPort.value : undefined,
-      image: containerImageRef.value,
+      image: imageRef,
     },
   });
 
@@ -470,7 +401,7 @@ async function addImageService(projectId: string) {
     return;
   }
 
-  toast.success('Service added', { description: containerImageRef.value });
+  toast.success('Service added', { description: imageRef });
 }
 
 // Main menu items filtering
@@ -707,9 +638,10 @@ const mainItems = computed(() => {
                 v-model="containerImageRef"
                 placeholder="Search Docker Hub or enter image..."
                 class="flex h-12 w-full bg-transparent px-3 text-sm outline-none placeholder:text-muted-foreground"
+                @keydown.enter="handleSelectImage(containerImageRef)"
               />
               <Loader2
-                v-if="searchingImages"
+                v-if="searchingImages || addingService"
                 :size="14"
                 class="shrink-0 animate-spin text-muted-foreground"
               />
@@ -731,8 +663,9 @@ const mainItems = computed(() => {
                 <button
                   v-for="img in imageResults"
                   :key="img.name"
-                  class="flex w-full items-start gap-2 rounded-lg px-2 py-2.5 text-left text-sm text-popover-foreground transition-colors hover:bg-accent"
-                  @click="selectImage(img)"
+                  class="flex w-full items-start gap-2 rounded-lg px-2 py-2.5 text-left text-sm text-popover-foreground transition-colors hover:bg-accent disabled:opacity-50"
+                  :disabled="addingService"
+                  @click="handleSelectImage(img.name)"
                 >
                   <Container :size="14" class="mt-0.5 shrink-0 text-muted-foreground" />
                   <div class="min-w-0 flex-1">
@@ -756,46 +689,20 @@ const mainItems = computed(() => {
               </div>
             </div>
 
-            <!-- Form (shown when no search results or after image selected) -->
+            <!-- Empty state -->
             <div
-              v-if="imageResults.length === 0 && containerImageRef"
-              class="space-y-4 p-4"
-            >
-              <p class="text-xs text-muted-foreground">
-                Any public image works — Docker Hub, ghcr.io, quay.io, and others.
-              </p>
-              <div class="space-y-2">
-                <label class="text-sm font-medium text-foreground">Service Name</label>
-                <input
-                  v-model="containerServiceName"
-                  class="flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                  placeholder="nginx"
-                />
-              </div>
-              <div class="space-y-2">
-                <label class="text-sm font-medium text-foreground">Port</label>
-                <input
-                  v-model.number="containerPort"
-                  type="number"
-                  class="flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                  placeholder="80"
-                />
-              </div>
-              <button
-                class="inline-flex h-9 w-full items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
-                :disabled="addingService || !containerImageRef"
-                @click="handleAddContainerImage"
-              >
-                {{ addingService ? 'Adding...' : 'Add Service' }}
-              </button>
-            </div>
-
-            <!-- Empty state hint -->
-            <div
-              v-if="!containerImageRef"
+              v-if="!containerImageRef && imageResults.length === 0"
               class="px-4 py-6 text-center text-sm text-muted-foreground"
             >
-              Search Docker Hub or type any public image reference.
+              Search Docker Hub or type any image reference and press Enter.
+            </div>
+
+            <!-- Hint for custom refs (shown when typing a registry path) -->
+            <div
+              v-if="containerImageRef && containerImageRef.includes('.') && !addingService"
+              class="px-4 py-6 text-center text-sm text-muted-foreground"
+            >
+              Press Enter to deploy <span class="font-medium text-foreground">{{ containerImageRef }}</span>
             </div>
           </template>
 
