@@ -1,6 +1,14 @@
 # Contributing to Lucity
 
-Thanks for your interest in contributing to Lucity! This guide covers the local development setup and common workflows.
+Lucity is still in early development. We're not accepting external contributions yet - the architecture is moving fast and we'd rather not waste your time with PRs that conflict with in-flight changes.
+
+That said, we'd love to hear from you:
+
+- **Bug reports:** open an issue using the bug report template
+- **Feature requests:** open an issue using the feature request template
+- **Questions:** use GitHub Discussions
+
+The rest of this guide covers the local development setup if you want to explore the codebase.
 
 ## Prerequisites
 
@@ -38,7 +46,7 @@ Installs Gateway API CRDs, Envoy Gateway, and deploys Zot (OCI registry), Soft-s
 make dns
 ```
 
-Configures [dnsmasq](https://thekelleys.org.uk/dnsmasq/doc.html) so `*.lucity.local` resolves to `127.0.0.1`. Run once — survives reboots. Requires Homebrew (installs dnsmasq if not present).
+Configures [dnsmasq](https://thekelleys.org.uk/dnsmasq/doc.html) so `*.lucity.local` resolves to `127.0.0.1`. Run once; survives reboots. Requires Homebrew (installs dnsmasq if not present).
 
 This lets you access deployed services by hostname, e.g. `http://myapp.lucity.local:8880`.
 
@@ -155,6 +163,6 @@ make dev             # 6. Start services with hot reload
 
 ## Further Reading
 
-- [Quick Start](https://lucity.cloud/getting-started/quick-start) — full walkthrough with screenshots
-- [Architecture](https://lucity.cloud/architecture/how-it-works) — how the pieces fit together
-- [Concepts](https://lucity.cloud/getting-started/concepts) — projects, services, environments
+- [Quick Start](https://lucity.cloud/getting-started/quick-start): full walkthrough with screenshots
+- [Architecture](https://lucity.cloud/architecture/how-it-works): how the pieces fit together
+- [Concepts](https://lucity.cloud/getting-started/concepts): projects, services, environments
