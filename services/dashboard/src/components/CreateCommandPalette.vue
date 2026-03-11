@@ -352,16 +352,20 @@ const imageResults = computed(() => {
   return imageSearchResult.value?.searchImages ?? [];
 });
 
-// Reset imageSelected when user edits the input
+// Reset imageSelected when user manually edits the input
+let selectingImage = false;
 watch(containerImageRef, () => {
+  if (selectingImage) return;
   imageSelected.value = false;
   deriveFromImage(containerImageRef.value);
 });
 
 function selectImage(image: { name: string }) {
+  selectingImage = true;
   containerImageRef.value = image.name;
   deriveFromImage(image.name);
   imageSelected.value = true;
+  nextTick(() => { selectingImage = false; });
 }
 
 const wellKnownPorts: Record<string, number> = {
