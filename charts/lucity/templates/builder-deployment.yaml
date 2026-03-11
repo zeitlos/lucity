@@ -76,5 +76,11 @@ spec:
                   name: {{ include "lucity.fullname" $ }}
                   key: {{ $value }}
             {{- end }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
           resources:
             {{- toYaml .Values.builder.resources | nindent 12 }}
+      volumes:
+        - name: tmp
+          emptyDir: {}
