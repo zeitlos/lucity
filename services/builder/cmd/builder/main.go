@@ -28,6 +28,7 @@ type Config struct {
 	WorkDir            string `envconfig:"WORK_DIR" default:"/tmp/lucity-builds"`
 	BuildEngine        string `envconfig:"BUILD_ENGINE" default:"local"`
 	BuildImage         string `envconfig:"BUILD_IMAGE"`
+	BuildkitImage      string `envconfig:"BUILDKIT_IMAGE" default:"moby/buildkit:v0.28.0-rootless"`
 	BuildNamespace     string `envconfig:"BUILD_NAMESPACE" default:"lucity-system"`
 	KubeContext        string `envconfig:"KUBE_CONTEXT"`
 }
@@ -91,6 +92,7 @@ func setupEngine(config Config) (engine.Engine, build.Tracker, error) {
 			Client:             k8sClient,
 			Namespace:          config.BuildNamespace,
 			BuildImage:         config.BuildImage,
+			BuildkitImage:      config.BuildkitImage,
 			RegistryURL:        config.RegistryURL,
 			RegistryAuthSecret: config.RegistryAuthSecret,
 			Insecure:           config.RegistryInsecure,

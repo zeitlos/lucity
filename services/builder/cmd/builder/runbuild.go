@@ -283,8 +283,10 @@ func buildWithBuildctl(buildkitAddr, buildDir, planFile, imageName, cacheRef str
 	}
 	args = append(args, "--import-cache", importCache)
 
-	// Export layer cache to registry for future builds (mode=max includes all intermediate layers)
-	exportCache := "type=registry,ref=" + cacheRef + ",mode=max"
+	// Export layer cache to registry for future builds (mode=max includes all intermediate layers).
+	// image-manifest=true forces a standard OCI image manifest instead of an image index —
+	// required for Zot compatibility (https://github.com/project-zot/zot/issues/2728).
+	exportCache := "type=registry,ref=" + cacheRef + ",mode=max,image-manifest=true"
 	if insecure {
 		exportCache += ",registry.insecure=true"
 	}

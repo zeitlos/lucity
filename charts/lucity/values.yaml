@@ -57,6 +57,8 @@ builder:
     create: false
   # -- Registry host for BuildKit config (used in buildkitd.toml for build Jobs)
   registryHost: ""
+  # -- BuildKit sidecar image for build Jobs (pin to match buildctl version in Dockerfile)
+  buildkitImage: moby/buildkit:v0.28.0-rootless
   resources:
     requests:
       cpu: 200m

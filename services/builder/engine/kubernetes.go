@@ -22,6 +22,7 @@ type KubernetesEngine struct {
 	client             kubernetes.Interface
 	namespace          string
 	buildImage         string            // container image for build Jobs (same as builder service)
+	buildkitImage      string            // BuildKit sidecar image (e.g., moby/buildkit:v0.28.0-rootless)
 	nodeSelector       map[string]string // optional: schedule builds on specific nodes
 	registryURL        string            // internal registry URL for pushing images
 	registryAuthSecret string            // K8s Secret with Docker config JSON for registry push auth
@@ -33,6 +34,7 @@ type KubernetesEngineOpts struct {
 	Client             kubernetes.Interface
 	Namespace          string
 	BuildImage         string
+	BuildkitImage      string            // BuildKit sidecar image (default: moby/buildkit:v0.28.0-rootless)
 	NodeSelector       map[string]string
 	RegistryURL        string
 	RegistryAuthSecret string // K8s Secret name containing Docker config JSON for push auth
@@ -41,10 +43,15 @@ type KubernetesEngineOpts struct {
 
 // NewKubernetesEngine creates a KubernetesEngine.
 func NewKubernetesEngine(opts KubernetesEngineOpts) *KubernetesEngine {
+	buildkitImage := opts.BuildkitImage
+	if buildkitImage == "" {
+		buildkitImage = "moby/buildkit:v0.28.0-rootless"
+	}
 	return &KubernetesEngine{
 		client:             opts.Client,
 		namespace:          opts.Namespace,
 		buildImage:         opts.BuildImage,
+		buildkitImage:      buildkitImage,
 		nodeSelector:       opts.NodeSelector,
 		registryURL:        opts.RegistryURL,
 		registryAuthSecret: opts.RegistryAuthSecret,
@@ -133,7 +140,7 @@ func (e *KubernetesEngine) buildJob(name string, opts BuildOpts) *batchv1.Job {
 					InitContainers: []corev1.Container{
 						{
 							Name:          "buildkitd",
-							Image:         "moby/buildkit:rootless",
+							Image:         e.buildkitImage,
 							RestartPolicy: ptr(corev1.ContainerRestartPolicyAlways),
 							Args: []string{
 								"--addr", "unix:///run/buildkit/buildkitd.sock",
