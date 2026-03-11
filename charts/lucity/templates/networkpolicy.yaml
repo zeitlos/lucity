@@ -1,0 +1,181 @@
+# Default deny-all ingress for the namespace.
+# Each service explicitly allows traffic from within the namespace only.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "lucity.fullname" . }}-default-deny
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress: []
+---
+# Gateway: allow ingress from any source (internet-facing via Gateway API)
+# and from within the namespace (other services calling health endpoints)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "lucity.fullname" . }}-gateway
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "lucity.selectorLabels" (dict "name" "gateway" "release" .Release.Name) | nindent 6 }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - ports:
+        - port: {{ .Values.gateway.port }}
+          protocol: TCP
+---
+# Builder: allow gRPC from gateway and webhook within the namespace
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "lucity.fullname" . }}-builder
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "lucity.selectorLabels" (dict "name" "builder" "release" .Release.Name) | nindent 6 }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: {{ .Release.Name }}
+      ports:
+        - port: {{ .Values.builder.port }}
+          protocol: TCP
+---
+# Packager: allow gRPC from gateway and webhook within the namespace
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "lucity.fullname" . }}-packager
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "lucity.selectorLabels" (dict "name" "packager" "release" .Release.Name) | nindent 6 }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: {{ .Release.Name }}
+      ports:
+        - port: {{ .Values.packager.port }}
+          protocol: TCP
+---
+# Deployer: allow gRPC from gateway and webhook within the namespace
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "lucity.fullname" . }}-deployer
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "lucity.selectorLabels" (dict "name" "deployer" "release" .Release.Name) | nindent 6 }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: {{ .Release.Name }}
+      ports:
+        - port: {{ .Values.deployer.port }}
+          protocol: TCP
+---
+# Webhook: allow ingress from any source (internet-facing for GitHub webhooks)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "lucity.fullname" . }}-webhook
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "lucity.selectorLabels" (dict "name" "webhook" "release" .Release.Name) | nindent 6 }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - ports:
+        - port: {{ .Values.webhook.port }}
+          protocol: TCP
+---
+# Dashboard: allow ingress from any source (internet-facing)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "lucity.fullname" . }}-dashboard
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "lucity.selectorLabels" (dict "name" "dashboard" "release" .Release.Name) | nindent 6 }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - ports:
+        - port: {{ .Values.dashboard.port }}
+          protocol: TCP
+---
+# Docs: allow ingress from any source (internet-facing)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "lucity.fullname" . }}-docs
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "lucity.selectorLabels" (dict "name" "docs" "release" .Release.Name) | nindent 6 }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - ports:
+        - port: {{ .Values.docs.port }}
+          protocol: TCP
+---
+{{- if .Values.cashier.enabled }}
+# Cashier: gRPC from gateway (namespace) + HTTP webhook from any source
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "lucity.fullname" . }}-cashier
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "lucity.selectorLabels" (dict "name" "cashier" "release" .Release.Name) | nindent 6 }}
+  policyTypes:
+    - Ingress
+  ingress:
+    # gRPC from within namespace (gateway)
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: {{ .Release.Name }}
+      ports:
+        - port: {{ .Values.cashier.port }}
+          protocol: TCP
+    # Stripe webhook from any source
+    - ports:
+        - port: {{ .Values.cashier.webhookPort }}
+          protocol: TCP
+{{- end }}

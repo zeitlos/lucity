@@ -25,14 +25,33 @@ spec:
       {{- if .Values.builder.serviceAccount.create }}
       serviceAccountName: {{ include "lucity.fullname" . }}-builder
       {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        fsGroup: 65534
       containers:
         - name: builder
           image: "{{ .Values.builder.image.repository }}:{{ .Values.builder.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.builder.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+            readOnlyRootFilesystem: true
           ports:
             - name: grpc
               containerPort: {{ .Values.builder.port }}
               protocol: TCP
+          livenessProbe:
+            tcpSocket:
+              port: grpc
+            initialDelaySeconds: 5
+            periodSeconds: 15
+          readinessProbe:
+            tcpSocket:
+              port: grpc
+            initialDelaySeconds: 3
+            periodSeconds: 10
           env:
             - name: PORT
               value: {{ .Values.builder.port | quote }}

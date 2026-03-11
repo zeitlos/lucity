@@ -26,10 +26,19 @@ spec:
       {{- if .Values.cashier.serviceAccount.create }}
       serviceAccountName: {{ include "lucity.fullname" . }}-cashier
       {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        fsGroup: 65534
       containers:
         - name: cashier
           image: "{{ .Values.cashier.image.repository }}:{{ .Values.cashier.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.cashier.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+            readOnlyRootFilesystem: true
           ports:
             - name: grpc
               containerPort: {{ .Values.cashier.port }}
@@ -37,6 +46,16 @@ spec:
             - name: http
               containerPort: {{ .Values.cashier.webhookPort }}
               protocol: TCP
+          livenessProbe:
+            tcpSocket:
+              port: grpc
+            initialDelaySeconds: 5
+            periodSeconds: 15
+          readinessProbe:
+            tcpSocket:
+              port: grpc
+            initialDelaySeconds: 3
+            periodSeconds: 10
           env:
             - name: PORT
               value: {{ .Values.cashier.port | quote }}

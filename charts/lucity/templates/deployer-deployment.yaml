@@ -25,14 +25,33 @@ spec:
       {{- if .Values.deployer.serviceAccount.create }}
       serviceAccountName: {{ include "lucity.fullname" . }}-deployer
       {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        fsGroup: 65534
       containers:
         - name: deployer
           image: "{{ .Values.deployer.image.repository }}:{{ .Values.deployer.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.deployer.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+            readOnlyRootFilesystem: true
           ports:
             - name: grpc
               containerPort: {{ .Values.deployer.port }}
               protocol: TCP
+          livenessProbe:
+            tcpSocket:
+              port: grpc
+            initialDelaySeconds: 5
+            periodSeconds: 15
+          readinessProbe:
+            tcpSocket:
+              port: grpc
+            initialDelaySeconds: 3
+            periodSeconds: 10
           env:
             - name: PORT
               value: {{ .Values.deployer.port | quote }}

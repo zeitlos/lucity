@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
@@ -61,21 +62,28 @@ const (
 	githubStateCookieName = "lucity_github_state"
 )
 
+// secureCookies returns true if cookies should have the Secure flag set,
+// derived from whether the dashboard URL uses HTTPS.
+func secureCookies(dashboardURL string) bool {
+	return strings.HasPrefix(dashboardURL, "https://")
+}
+
 // registerAuthRoutes adds OIDC auth endpoints to the mux.
 func registerAuthRoutes(mux *http.ServeMux, provider *OIDCProvider, api *handler.Client, jwtSecret, dashboardURL, githubAppSlug string) {
-	mux.HandleFunc("/auth/login", handleLogin(provider))
-	mux.HandleFunc("/auth/callback", handleCallback(provider, api, jwtSecret, dashboardURL))
+	secure := secureCookies(dashboardURL)
+	mux.HandleFunc("/auth/login", handleLogin(provider, secure))
+	mux.HandleFunc("/auth/callback", handleCallback(provider, api, jwtSecret, dashboardURL, secure))
 	mux.HandleFunc("/auth/me", handleMe())
 	mux.HandleFunc("/auth/logout", handleLogout(dashboardURL))
-	mux.HandleFunc("/auth/refresh", handleRefresh(api, jwtSecret))
+	mux.HandleFunc("/auth/refresh", handleRefresh(api, jwtSecret, secure))
 	mux.HandleFunc("/auth/github/install", handleGitHubInstall(githubAppSlug))
 	mux.HandleFunc("/auth/github/setup", handleGitHubSetup(dashboardURL))
-	mux.HandleFunc("/auth/github/connect", handleGitHubConnect(api))
+	mux.HandleFunc("/auth/github/connect", handleGitHubConnect(api, secure))
 	mux.HandleFunc("/auth/github/callback", handleGitHubCallback(api, dashboardURL))
 }
 
 // handleLogin redirects to the OIDC provider's authorization page with PKCE.
-func handleLogin(provider *OIDCProvider) http.HandlerFunc {
+func handleLogin(provider *OIDCProvider, secure bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		state := generateState()
 		verifier := generateCodeVerifier()
@@ -87,6 +95,7 @@ func handleLogin(provider *OIDCProvider) http.HandlerFunc {
 			Path:     "/",
 			MaxAge:   600, // 10 minutes
 			HttpOnly: true,
+			Secure:   secure,
 			SameSite: http.SameSiteLaxMode,
 		})
 		http.SetCookie(w, &http.Cookie{
@@ -95,6 +104,7 @@ func handleLogin(provider *OIDCProvider) http.HandlerFunc {
 			Path:     "/",
 			MaxAge:   600,
 			HttpOnly: true,
+			Secure:   secure,
 			SameSite: http.SameSiteLaxMode,
 		})
 
@@ -108,7 +118,7 @@ func handleLogin(provider *OIDCProvider) http.HandlerFunc {
 
 // handleCallback exchanges the auth code for tokens, verifies the ID token,
 // extracts claims, and creates a Lucity session.
-func handleCallback(provider *OIDCProvider, api *handler.Client, jwtSecret, dashboardURL string) http.HandlerFunc {
+func handleCallback(provider *OIDCProvider, api *handler.Client, jwtSecret, dashboardURL string, secure bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Verify state
 		stateCookie, err := r.Cookie(stateCookieName)
@@ -256,6 +266,7 @@ func handleCallback(provider *OIDCProvider, api *handler.Client, jwtSecret, dash
 			Path:     "/",
 			MaxAge:   int(tokenExpiry.Seconds()),
 			HttpOnly: true,
+			Secure:   secure,
 			SameSite: http.SameSiteLaxMode,
 		})
 
@@ -321,7 +332,7 @@ func handleLogout(dashboardURL string) http.HandlerFunc {
 
 // handleRefresh re-reads the user's Rauthy groups and mints a new JWT.
 // Called by the dashboard after workspace mutations (create, invite, etc.).
-func handleRefresh(api *handler.Client, jwtSecret string) http.HandlerFunc {
+func handleRefresh(api *handler.Client, jwtSecret string, secure bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -382,6 +393,7 @@ func handleRefresh(api *handler.Client, jwtSecret string) http.HandlerFunc {
 			Path:     "/",
 			MaxAge:   int(tokenExpiry.Seconds()),
 			HttpOnly: true,
+			Secure:   secure,
 			SameSite: http.SameSiteLaxMode,
 		})
 
@@ -425,7 +437,7 @@ else { window.location.href = %q; }
 
 // handleGitHubConnect initiates the GitHub OAuth flow to connect the user's GitHub account.
 // The token is stored per-user and used for listing installations (githubSources query).
-func handleGitHubConnect(api *handler.Client) http.HandlerFunc {
+func handleGitHubConnect(api *handler.Client, secure bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims := auth.FromContext(r.Context())
 		if claims == nil {
@@ -445,6 +457,7 @@ func handleGitHubConnect(api *handler.Client) http.HandlerFunc {
 			Path:     "/",
 			MaxAge:   600, // 10 minutes
 			HttpOnly: true,
+			Secure:   secure,
 			SameSite: http.SameSiteLaxMode,
 		})
 

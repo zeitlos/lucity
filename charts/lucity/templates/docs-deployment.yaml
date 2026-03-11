@@ -20,13 +20,33 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        fsGroup: 101
       containers:
         - name: docs
           image: "{{ .Values.docs.image.repository }}:{{ .Values.docs.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.docs.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
           ports:
             - name: http
               containerPort: {{ .Values.docs.port }}
               protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 2
+            periodSeconds: 10
           resources:
             {{- toYaml .Values.docs.resources | nindent 12 }}

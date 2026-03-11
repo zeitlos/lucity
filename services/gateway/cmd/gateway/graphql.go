@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	gatewaygraphql "github.com/zeitlos/lucity/services/gateway/graphql"
@@ -72,10 +73,19 @@ func NewGraphQLServer(port string, api *handler.Client, oidcProvider *OIDCProvid
 
 	srv.AddTransport(transport.Options{})
 	srv.AddTransport(transport.POST{})
+
+	allowedOrigins := map[string]bool{
+		"http://localhost:5173": true,
+		dashboardURL:           true,
+	}
+
 	srv.AddTransport(transport.Websocket{
 		KeepAlivePingInterval: 10 * time.Second,
 		Upgrader: websocket.Upgrader{
-			CheckOrigin:  func(r *http.Request) bool { return true },
+			CheckOrigin: func(r *http.Request) bool {
+				origin := r.Header.Get("Origin")
+				return allowedOrigins[origin]
+			},
 			ReadBufferSize:  1024,
 			WriteBufferSize: 1024,
 		},
@@ -103,6 +113,26 @@ func NewGraphQLServer(port string, api *handler.Client, oidcProvider *OIDCProvid
 	})
 	srv.SetQueryCache(lru.New[*ast.QueryDocument](1000))
 	srv.Use(extension.Introspection{})
+	srv.Use(extension.FixedComplexityLimit(200))
+
+	// Audit logging for mutations
+	srv.AroundOperations(func(ctx context.Context, next gqlgen.OperationHandler) gqlgen.ResponseHandler {
+		oc := gqlgen.GetOperationContext(ctx)
+		if oc.Operation != nil && oc.Operation.Operation == ast.Mutation {
+			claims := auth.FromContext(ctx)
+			email := "anonymous"
+			if claims != nil {
+				email = claims.Email
+			}
+			workspace := tenant.FromContext(ctx)
+			slog.Info("graphql mutation",
+				"operation", oc.OperationName,
+				"user", email,
+				"workspace", workspace,
+			)
+		}
+		return next(ctx)
+	})
 
 	srv.SetErrorPresenter(func(ctx context.Context, err error) *gqlerror.Error {
 		var dbProv *handler.DatabaseProvisioningError
@@ -139,7 +169,7 @@ func NewGraphQLServer(port string, api *handler.Client, oidcProvider *OIDCProvid
 	mux.Handle("/playground", playground.Handler("GraphQL playground", "/graphql"))
 	mux.Handle("/graphql", srv)
 
-	// Apply auth middleware then CORS
+	// Apply middleware chain: rate limit → CORS → security headers → auth → tenant
 	authMiddleware := auth.Middleware(jwtSecret)
 
 	corsHandler := cors.New(cors.Options{
@@ -149,11 +179,26 @@ func NewGraphQLServer(port string, api *handler.Client, oidcProvider *OIDCProvid
 		AllowCredentials: true,
 	})
 
+	handler := rateLimitMiddleware(
+		corsHandler.Handler(
+			securityHeadersMiddleware(
+				authMiddleware(
+					tenant.Middleware(
+						tenant.AuthorizeMiddleware(mux),
+					),
+				),
+			),
+		),
+	)
+
 	return &GraphQLServer{
 		port: port,
 		server: &http.Server{
-			Addr:    ":" + port,
-			Handler: corsHandler.Handler(authMiddleware(tenant.Middleware(tenant.AuthorizeMiddleware(mux)))),
+			Addr:         ":" + port,
+			Handler:      handler,
+			ReadTimeout:  30 * time.Second,
+			WriteTimeout: 60 * time.Second,
+			IdleTimeout:  120 * time.Second,
 		},
 	}
 }
@@ -169,4 +214,91 @@ func (s *GraphQLServer) Shutdown(ctx context.Context) error {
 
 func (s *GraphQLServer) Label() string {
 	return "GraphQL"
+}
+
+// securityHeadersMiddleware adds standard security headers to all responses.
+func securityHeadersMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		w.Header().Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+		w.Header().Set("Strict-Transport-Security", "max-age=63072000; includeSubDomains")
+		next.ServeHTTP(w, r)
+	})
+}
+
+// rateLimitMiddleware implements a simple per-IP token bucket rate limiter.
+// Each IP gets 100 requests per second with a burst of 200.
+func rateLimitMiddleware(next http.Handler) http.Handler {
+	type bucket struct {
+		tokens   float64
+		lastSeen time.Time
+	}
+
+	var (
+		mu      sync.Mutex
+		clients = make(map[string]*bucket)
+	)
+
+	const (
+		rate      = 100.0 // tokens per second
+		burstSize = 200.0
+	)
+
+	// Clean up stale entries periodically
+	go func() {
+		for {
+			time.Sleep(5 * time.Minute)
+			mu.Lock()
+			for ip, b := range clients {
+				if time.Since(b.lastSeen) > 10*time.Minute {
+					delete(clients, ip)
+				}
+			}
+			mu.Unlock()
+		}
+	}()
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Skip rate limiting for health checks
+		if strings.HasPrefix(r.URL.Path, "/health") {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		ip := r.RemoteAddr
+		if fwd := r.Header.Get("X-Forwarded-For"); fwd != "" {
+			ip = strings.Split(fwd, ",")[0]
+			ip = strings.TrimSpace(ip)
+		}
+
+		mu.Lock()
+		b, exists := clients[ip]
+		now := time.Now()
+		if !exists {
+			b = &bucket{tokens: burstSize, lastSeen: now}
+			clients[ip] = b
+		}
+
+		// Refill tokens based on elapsed time
+		elapsed := now.Sub(b.lastSeen).Seconds()
+		b.tokens += elapsed * rate
+		if b.tokens > burstSize {
+			b.tokens = burstSize
+		}
+		b.lastSeen = now
+
+		if b.tokens < 1 {
+			mu.Unlock()
+			w.Header().Set("Retry-After", "1")
+			http.Error(w, "rate limit exceeded", http.StatusTooManyRequests)
+			return
+		}
+
+		b.tokens--
+		mu.Unlock()
+
+		next.ServeHTTP(w, r)
+	})
 }
