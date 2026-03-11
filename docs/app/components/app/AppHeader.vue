@@ -2,24 +2,61 @@
 const appConfig = useAppConfig();
 const site = useSiteConfig();
 
-const links = computed(() => appConfig.github && appConfig.github.url
-  ? [
-      {
-        'icon': 'i-simple-icons-github',
-        'to': appConfig.github.url,
-        'target': '_blank',
-        'aria-label': 'GitHub',
-      },
-    ]
-  : []);
+const appUrl = 'https://lucity.cloud/app';
 
-const navLinks = [
-  { label: 'Docs', to: '/getting-started/quick-start' },
-  { label: 'Pricing', to: '/pricing' },
-  { label: 'Blog', to: '/blog' },
+const navItems = [
+  {
+    label: 'Features',
+    icon: 'i-lucide-sparkles',
+    children: [
+      {
+        label: 'Push to deploy',
+        description: 'Connect GitHub and ship with git push.',
+        icon: 'i-lucide-rocket',
+        to: '/features/builds',
+      },
+      {
+        label: 'Environments',
+        description: 'Dev, staging, production, and PR previews.',
+        icon: 'i-lucide-git-branch',
+        to: '/features/environments',
+      },
+      {
+        label: 'Databases',
+        description: 'Managed PostgreSQL via CloudNativePG.',
+        icon: 'i-lucide-database',
+        to: '/infrastructure/databases',
+      },
+      {
+        label: 'Eject anytime',
+        description: 'Standard Helm charts and ArgoCD configs.',
+        icon: 'i-lucide-door-open',
+        to: '/features/eject',
+      },
+    ],
+  },
+  {
+    label: 'Pricing',
+    icon: 'i-lucide-credit-card',
+    to: '/pricing',
+  },
+  {
+    label: 'Docs',
+    icon: 'i-lucide-book-open',
+    to: '/getting-started/quick-start',
+  },
+  {
+    label: 'Blog',
+    icon: 'i-lucide-pen-line',
+    to: '/blog',
+  },
 ];
 
-const appUrl = 'https://lucity.cloud/app';
+const githubLink = computed(() =>
+  appConfig.github?.url
+    ? { to: appConfig.github.url, target: '_blank' }
+    : null,
+);
 </script>
 
 <template>
@@ -35,18 +72,11 @@ const appUrl = 'https://lucity.cloud/app';
       </div>
     </template>
 
-    <div class="hidden lg:flex items-center gap-1">
-      <UButton
-        v-for="link in navLinks"
-        :key="link.label"
-        :to="link.to"
-        :target="link.target"
-        color="neutral"
-        variant="ghost"
-      >
-        {{ link.label }}
-      </UButton>
-    </div>
+    <UNavigationMenu
+      :items="navItems"
+      variant="link"
+      class="hidden lg:flex"
+    />
 
     <template #right>
       <UContentSearchButton
@@ -66,22 +96,15 @@ const appUrl = 'https://lucity.cloud/app';
         </template>
       </ClientOnly>
 
-      <template v-if="links?.length">
-        <UButton
-          v-for="(link, index) of links"
-          :key="index"
-          v-bind="{ color: 'neutral', variant: 'ghost', ...link }"
-        />
-      </template>
-
       <UButton
-        :to="`${appUrl}/login`"
+        v-if="githubLink"
+        v-bind="githubLink"
+        icon="i-simple-icons-github"
         color="neutral"
         variant="ghost"
-        class="hidden lg:inline-flex"
-      >
-        Sign in
-      </UButton>
+        aria-label="GitHub"
+      />
+
       <UButton
         :to="`${appUrl}/login`"
         color="primary"
@@ -100,32 +123,15 @@ const appUrl = 'https://lucity.cloud/app';
     </template>
 
     <template #body>
-      <div class="flex flex-col gap-1 p-4">
-        <UButton
-          v-for="link in navLinks"
-          :key="link.label"
-          :to="link.to"
-          :target="link.target"
-          color="neutral"
-          variant="ghost"
-          block
-          class="justify-start"
-        >
-          {{ link.label }}
-        </UButton>
-      </div>
+      <UNavigationMenu
+        :items="navItems"
+        orientation="vertical"
+        class="p-2"
+      />
 
-      <USeparator class="mb-2" />
+      <USeparator class="my-2" />
 
-      <div class="flex gap-2 px-4 pb-4">
-        <UButton
-          :to="`${appUrl}/login`"
-          color="neutral"
-          variant="outline"
-          block
-        >
-          Sign in
-        </UButton>
+      <div class="px-4 pb-4">
         <UButton
           :to="`${appUrl}/login`"
           color="primary"
