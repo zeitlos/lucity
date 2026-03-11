@@ -28,6 +28,7 @@ const props = defineProps<{
     port: number;
     framework?: string;
     sourceUrl?: string;
+    contextPath?: string;
   };
 }>();
 

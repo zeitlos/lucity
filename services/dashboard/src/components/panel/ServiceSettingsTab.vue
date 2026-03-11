@@ -3,7 +3,7 @@ import { ref, computed, watch } from 'vue';
 import { useMutation, useQuery } from '@vue/apollo-composable';
 import {
   Trash2, Copy, X, Globe, Plus, Minus, CircleCheck, CircleAlert,
-  ChevronDown, Network, ExternalLink, Loader2,
+  ChevronDown, Network, ExternalLink, Loader2, Scaling, GitBranch, Code,
 } from 'lucide-vue-next';
 import {
   RemoveServiceMutation,
@@ -56,6 +56,8 @@ const props = defineProps<{
     image: string;
     port: number;
     framework?: string;
+    sourceUrl?: string;
+    contextPath?: string;
   };
 }>();
 
@@ -265,6 +267,20 @@ function copyToClipboard(text: string) {
   toast.success('Copied to clipboard');
 }
 
+// Source
+const sourceRepo = computed(() => {
+  const url = props.service.sourceUrl;
+  if (!url) return null;
+  const match = url.match(/github\.com\/([^/]+\/[^/]+)/);
+  return match ? match[1] : url.replace(/^https?:\/\//, '');
+});
+
+const sourceRepoUrl = computed(() => {
+  const url = props.service.sourceUrl;
+  if (!url) return null;
+  return url.startsWith('http') ? url : `https://${url}`;
+});
+
 // Scaling
 const autoscalingEnabled = ref(false);
 const scalingReplicas = ref(1);
@@ -295,6 +311,16 @@ function syncScalingFromService() {
 }
 
 watch(activeInstance, syncScalingFromService, { immediate: true });
+
+const scalingSummary = computed(() => {
+  const svc = activeInstance.value;
+  if (!svc) return 'Not deployed';
+  if (svc.scaling?.autoscaling?.enabled) {
+    return `${svc.scaling.autoscaling.minReplicas}–${svc.scaling.autoscaling.maxReplicas} replicas · autoscaling`;
+  }
+  const r = svc.scaling?.replicas || svc.replicas || 1;
+  return `${r} replica${r !== 1 ? 's' : ''} · manual`;
+});
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
@@ -399,6 +425,58 @@ async function handleRemoveService() {
         </div>
       </div>
     </div>
+
+    <!-- Source -->
+    <section v-if="service.sourceUrl" class="space-y-2">
+      <h3 class="px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        Source
+      </h3>
+
+      <Collapsible>
+        <div class="overflow-hidden rounded-lg border">
+          <CollapsibleTrigger class="flex w-full items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/30">
+            <GitBranch :size="16" class="shrink-0 text-muted-foreground" />
+            <div class="min-w-0 flex-1 text-left">
+              <p class="text-sm font-medium text-foreground">Repository</p>
+              <p class="truncate text-xs text-muted-foreground">
+                {{ sourceRepo ?? 'Not connected' }}
+              </p>
+            </div>
+            <ChevronDown
+              :size="14"
+              class="shrink-0 text-muted-foreground transition-transform duration-200 [[data-state=open]>&]:rotate-180"
+            />
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div class="space-y-3 border-t px-4 py-3">
+              <!-- Source Repo -->
+              <div class="space-y-1.5">
+                <Label class="text-xs text-muted-foreground">Source Repo</Label>
+                <a
+                  v-if="sourceRepoUrl"
+                  :href="sourceRepoUrl"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="flex items-center gap-2 rounded-md border bg-muted/50 px-3 py-2 transition-colors hover:bg-muted/80"
+                >
+                  <span class="min-w-0 flex-1 truncate font-mono text-sm">{{ sourceRepo }}</span>
+                  <ExternalLink :size="12" class="shrink-0 text-muted-foreground" />
+                </a>
+              </div>
+
+              <!-- Context Path -->
+              <div v-if="service.contextPath && service.contextPath !== '.'" class="space-y-1.5">
+                <Label class="text-xs text-muted-foreground">Root Directory</Label>
+                <div class="flex items-center gap-2 rounded-md border bg-muted/50 px-3 py-2">
+                  <Code :size="14" class="shrink-0 text-muted-foreground" />
+                  <span class="truncate font-mono text-sm">{{ service.contextPath }}</span>
+                </div>
+              </div>
+            </div>
+          </CollapsibleContent>
+        </div>
+      </Collapsible>
+    </section>
 
     <!-- Networking -->
     <section class="space-y-2">
@@ -647,166 +725,183 @@ async function handleRemoveService() {
         Scaling
       </h3>
 
-      <div class="space-y-4 rounded-lg border p-4">
-        <!-- Replicas -->
-        <div class="space-y-1.5">
-          <Label class="text-xs text-muted-foreground">Replicas</Label>
-          <div class="flex items-center gap-1">
-            <Button
-              variant="outline"
-              size="icon"
-              class="h-8 w-8 shrink-0"
-              :disabled="autoscalingEnabled || scalingReplicas <= 1"
-              @click="scalingReplicas = clamp(scalingReplicas - 1, 1, 20)"
-            >
-              <Minus :size="14" />
-            </Button>
-            <Input
-              type="number"
-              v-model.number="scalingReplicas"
-              class="h-8 w-16 text-center text-sm"
-              :min="1"
-              :max="20"
-              :disabled="autoscalingEnabled"
-              @blur="scalingReplicas = clamp(scalingReplicas, 1, 20)"
+      <Collapsible>
+        <div class="overflow-hidden rounded-lg border">
+          <CollapsibleTrigger class="flex w-full items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/30">
+            <Scaling :size="16" class="shrink-0 text-muted-foreground" />
+            <div class="min-w-0 flex-1 text-left">
+              <p class="text-sm font-medium text-foreground">Replicas</p>
+              <p class="text-xs text-muted-foreground">{{ scalingSummary }}</p>
+            </div>
+            <ChevronDown
+              :size="14"
+              class="shrink-0 text-muted-foreground transition-transform duration-200 [[data-state=open]>&]:rotate-180"
             />
-            <Button
-              variant="outline"
-              size="icon"
-              class="h-8 w-8 shrink-0"
-              :disabled="autoscalingEnabled || scalingReplicas >= 20"
-              @click="scalingReplicas = clamp(scalingReplicas + 1, 1, 20)"
-            >
-              <Plus :size="14" />
-            </Button>
-          </div>
-          <p v-if="autoscalingEnabled" class="text-[11px] text-muted-foreground">
-            Managed by autoscaler.
-          </p>
-        </div>
-
-        <!-- Autoscaling toggle -->
-        <div class="flex items-center justify-between">
-          <div>
-            <Label class="text-sm">Autoscaling</Label>
-            <p class="text-[11px] text-muted-foreground">Scale replicas based on CPU usage.</p>
-          </div>
-          <Switch v-model:checked="autoscalingEnabled" />
-        </div>
-
-        <!-- Autoscaling settings -->
-        <div v-if="autoscalingEnabled" class="grid grid-cols-3 gap-3">
-          <div class="space-y-1.5">
-            <Label class="text-xs text-muted-foreground">Min</Label>
-            <div class="flex items-center gap-0.5">
-              <Button
-                variant="outline"
-                size="icon"
-                class="h-8 w-8 shrink-0"
-                :disabled="scalingMinReplicas <= 1"
-                @click="scalingMinReplicas = clamp(scalingMinReplicas - 1, 1, 20)"
-              >
-                <Minus :size="12" />
-              </Button>
-              <Input
-                type="number"
-                v-model.number="scalingMinReplicas"
-                class="h-8 w-full min-w-0 text-center text-sm"
-                :min="1"
-                :max="20"
-                @blur="scalingMinReplicas = clamp(scalingMinReplicas, 1, 20)"
-              />
-              <Button
-                variant="outline"
-                size="icon"
-                class="h-8 w-8 shrink-0"
-                :disabled="scalingMinReplicas >= 20"
-                @click="scalingMinReplicas = clamp(scalingMinReplicas + 1, 1, 20)"
-              >
-                <Plus :size="12" />
-              </Button>
-            </div>
-          </div>
-
-          <div class="space-y-1.5">
-            <Label class="text-xs text-muted-foreground">Max</Label>
-            <div class="flex items-center gap-0.5">
-              <Button
-                variant="outline"
-                size="icon"
-                class="h-8 w-8 shrink-0"
-                :disabled="scalingMaxReplicas <= 1"
-                @click="scalingMaxReplicas = clamp(scalingMaxReplicas - 1, 1, 20)"
-              >
-                <Minus :size="12" />
-              </Button>
-              <Input
-                type="number"
-                v-model.number="scalingMaxReplicas"
-                class="h-8 w-full min-w-0 text-center text-sm"
-                :min="1"
-                :max="20"
-                @blur="scalingMaxReplicas = clamp(scalingMaxReplicas, 1, 20)"
-              />
-              <Button
-                variant="outline"
-                size="icon"
-                class="h-8 w-8 shrink-0"
-                :disabled="scalingMaxReplicas >= 20"
-                @click="scalingMaxReplicas = clamp(scalingMaxReplicas + 1, 1, 20)"
-              >
-                <Plus :size="12" />
-              </Button>
-            </div>
-          </div>
-
-          <div class="space-y-1.5">
-            <Label class="text-xs text-muted-foreground">CPU target</Label>
-            <div class="flex items-center gap-0.5">
-              <Button
-                variant="outline"
-                size="icon"
-                class="h-8 w-8 shrink-0"
-                :disabled="scalingTargetCPU <= 10"
-                @click="scalingTargetCPU = clamp(scalingTargetCPU - 5, 10, 95)"
-              >
-                <Minus :size="12" />
-              </Button>
-              <div class="relative flex-1">
-                <Input
-                  type="number"
-                  v-model.number="scalingTargetCPU"
-                  class="h-8 w-full min-w-0 pr-6 text-center text-sm"
-                  :min="10"
-                  :max="95"
-                  @blur="scalingTargetCPU = clamp(scalingTargetCPU, 10, 95)"
-                />
-                <span class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div class="space-y-4 border-t px-4 py-3">
+              <!-- Replicas -->
+              <div class="space-y-1.5">
+                <Label class="text-xs text-muted-foreground">Replicas</Label>
+                <div class="flex items-center gap-1">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    class="h-8 w-8 shrink-0"
+                    :disabled="autoscalingEnabled || scalingReplicas <= 1"
+                    @click="scalingReplicas = clamp(scalingReplicas - 1, 1, 20)"
+                  >
+                    <Minus :size="14" />
+                  </Button>
+                  <Input
+                    type="number"
+                    v-model.number="scalingReplicas"
+                    class="h-8 w-16 text-center text-sm"
+                    :min="1"
+                    :max="20"
+                    :disabled="autoscalingEnabled"
+                    @blur="scalingReplicas = clamp(scalingReplicas, 1, 20)"
+                  />
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    class="h-8 w-8 shrink-0"
+                    :disabled="autoscalingEnabled || scalingReplicas >= 20"
+                    @click="scalingReplicas = clamp(scalingReplicas + 1, 1, 20)"
+                  >
+                    <Plus :size="14" />
+                  </Button>
+                </div>
+                <p v-if="autoscalingEnabled" class="text-[11px] text-muted-foreground">
+                  Managed by autoscaler.
+                </p>
               </div>
-              <Button
-                variant="outline"
-                size="icon"
-                class="h-8 w-8 shrink-0"
-                :disabled="scalingTargetCPU >= 95"
-                @click="scalingTargetCPU = clamp(scalingTargetCPU + 5, 10, 95)"
-              >
-                <Plus :size="12" />
-              </Button>
-            </div>
-          </div>
-        </div>
 
-        <!-- Save -->
-        <div class="flex justify-end">
-          <Button
-            size="sm"
-            :disabled="scalingSaving"
-            @click="handleSaveScaling"
-          >
-            {{ scalingSaving ? 'Saving...' : 'Save' }}
-          </Button>
+              <!-- Autoscaling toggle -->
+              <div class="flex items-center justify-between">
+                <div>
+                  <Label class="text-sm">Autoscaling</Label>
+                  <p class="text-[11px] text-muted-foreground">Scale replicas based on CPU usage.</p>
+                </div>
+                <Switch v-model:checked="autoscalingEnabled" />
+              </div>
+
+              <!-- Autoscaling settings -->
+              <div v-if="autoscalingEnabled" class="grid grid-cols-3 gap-3">
+                <div class="space-y-1.5">
+                  <Label class="text-xs text-muted-foreground">Min</Label>
+                  <div class="flex items-center gap-0.5">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      class="h-8 w-8 shrink-0"
+                      :disabled="scalingMinReplicas <= 1"
+                      @click="scalingMinReplicas = clamp(scalingMinReplicas - 1, 1, 20)"
+                    >
+                      <Minus :size="12" />
+                    </Button>
+                    <Input
+                      type="number"
+                      v-model.number="scalingMinReplicas"
+                      class="h-8 w-full min-w-0 text-center text-sm"
+                      :min="1"
+                      :max="20"
+                      @blur="scalingMinReplicas = clamp(scalingMinReplicas, 1, 20)"
+                    />
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      class="h-8 w-8 shrink-0"
+                      :disabled="scalingMinReplicas >= 20"
+                      @click="scalingMinReplicas = clamp(scalingMinReplicas + 1, 1, 20)"
+                    >
+                      <Plus :size="12" />
+                    </Button>
+                  </div>
+                </div>
+
+                <div class="space-y-1.5">
+                  <Label class="text-xs text-muted-foreground">Max</Label>
+                  <div class="flex items-center gap-0.5">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      class="h-8 w-8 shrink-0"
+                      :disabled="scalingMaxReplicas <= 1"
+                      @click="scalingMaxReplicas = clamp(scalingMaxReplicas - 1, 1, 20)"
+                    >
+                      <Minus :size="12" />
+                    </Button>
+                    <Input
+                      type="number"
+                      v-model.number="scalingMaxReplicas"
+                      class="h-8 w-full min-w-0 text-center text-sm"
+                      :min="1"
+                      :max="20"
+                      @blur="scalingMaxReplicas = clamp(scalingMaxReplicas, 1, 20)"
+                    />
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      class="h-8 w-8 shrink-0"
+                      :disabled="scalingMaxReplicas >= 20"
+                      @click="scalingMaxReplicas = clamp(scalingMaxReplicas + 1, 1, 20)"
+                    >
+                      <Plus :size="12" />
+                    </Button>
+                  </div>
+                </div>
+
+                <div class="space-y-1.5">
+                  <Label class="text-xs text-muted-foreground">CPU target</Label>
+                  <div class="flex items-center gap-0.5">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      class="h-8 w-8 shrink-0"
+                      :disabled="scalingTargetCPU <= 10"
+                      @click="scalingTargetCPU = clamp(scalingTargetCPU - 5, 10, 95)"
+                    >
+                      <Minus :size="12" />
+                    </Button>
+                    <div class="relative flex-1">
+                      <Input
+                        type="number"
+                        v-model.number="scalingTargetCPU"
+                        class="h-8 w-full min-w-0 pr-6 text-center text-sm"
+                        :min="10"
+                        :max="95"
+                        @blur="scalingTargetCPU = clamp(scalingTargetCPU, 10, 95)"
+                      />
+                      <span class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      class="h-8 w-8 shrink-0"
+                      :disabled="scalingTargetCPU >= 95"
+                      @click="scalingTargetCPU = clamp(scalingTargetCPU + 5, 10, 95)"
+                    >
+                      <Plus :size="12" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Save -->
+              <div class="flex justify-end">
+                <Button
+                  size="sm"
+                  :disabled="scalingSaving"
+                  @click="handleSaveScaling"
+                >
+                  {{ scalingSaving ? 'Saving...' : 'Save' }}
+                </Button>
+              </div>
+            </div>
+          </CollapsibleContent>
         </div>
-      </div>
+      </Collapsible>
     </section>
 
     <!-- Danger Zone -->
