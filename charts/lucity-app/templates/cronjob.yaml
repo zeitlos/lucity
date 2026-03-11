@@ -37,8 +37,15 @@ spec:
                   value: {{ $val | quote }}
                 {{- end }}
               {{- end }}
-              {{- if $job.resources }}
               resources:
+              {{- if $job.resources }}
                 {{- toYaml $job.resources | nindent 16 }}
+              {{- else }}
+                requests:
+                  cpu: 50m
+                  memory: 128Mi
+                limits:
+                  cpu: 500m
+                  memory: 256Mi
               {{- end }}
 {{- end }}

@@ -25,9 +25,16 @@ spec:
             - name: redis
               containerPort: 6379
               protocol: TCP
-          {{- if $redis.resources }}
           resources:
+          {{- if $redis.resources }}
             {{- toYaml $redis.resources | nindent 12 }}
+          {{- else }}
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
           {{- end }}
 ---
 apiVersion: v1

@@ -10,13 +10,16 @@
 #     domains:
 #       - api-production.lucity.app
 #       - api.example.com
-#     resources:
+#     resources:                        # optional — overrides chart defaults
 #       requests:
 #         cpu: 100m
 #         memory: 128Mi
 #       limits:
 #         cpu: 500m
 #         memory: 256Mi
+#     # Default resources (when not specified):
+#     #   requests: cpu=100m, memory=256Mi
+#     #   limits:   cpu=1, memory=512Mi
 #
 # cronJobs:
 #   cleanup:
