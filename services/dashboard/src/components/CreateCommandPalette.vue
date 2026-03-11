@@ -2,7 +2,7 @@
 import { ref, computed, watch, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { useQuery, useMutation, useApolloClient } from '@vue/apollo-composable';
-import { Github, FolderPlus, Plus, Lock, Globe, ArrowLeft, Search, X, Database, ChevronDown, Container, Star, Award } from 'lucide-vue-next';
+import { Github, FolderPlus, Plus, Lock, Globe, ArrowLeft, Search, X, Database, ChevronDown, Container, Star, Award, Loader2 } from 'lucide-vue-next';
 import { onKeyStroke, refDebounced } from '@vueuse/core';
 import { GitHubConnectedQuery, GitHubSourcesQuery, GitHubRepositoriesQuery } from '@/graphql/github';
 import { CreateProjectMutation } from '@/graphql/projects';
@@ -47,10 +47,10 @@ watch(() => props.open, (open) => {
     search.value = '';
     selectedSource.value = null;
     sourcePickerOpen.value = false;
-    imageSearch.value = '';
     containerImageRef.value = '';
     containerServiceName.value = '';
     containerPort.value = 80;
+    imageSelected.value = false;
     nextTick(() => inputRef.value?.focus());
   }
 });
@@ -326,26 +326,55 @@ if (typeof window !== 'undefined') {
 }
 
 // Container image state
-const imageSearch = ref('');
-const imageSearchDebounced = refDebounced(imageSearch, 300);
 const containerImageRef = ref('');
+const containerImageDebounced = refDebounced(containerImageRef, 300);
 const containerServiceName = ref('');
 const containerPort = ref(80);
+const imageSelected = ref(false); // true after user picks from autocomplete or stops typing
+
+// Search Docker Hub based on the image input (skip if it looks like a full registry path)
+const shouldSearchImages = computed(() => {
+  const q = containerImageDebounced.value;
+  if (!q || imageSelected.value) return false;
+  // Don't search if it looks like a full registry reference (contains dots like ghcr.io/...)
+  if (q.includes('.')) return false;
+  return true;
+});
 
 const { result: imageSearchResult, loading: searchingImages } = useQuery(SearchImagesQuery, () => ({
-  query: imageSearchDebounced.value,
+  query: containerImageDebounced.value,
 }), () => ({
-  enabled: props.open && view.value === 'container-image' && imageSearchDebounced.value.length > 0,
+  enabled: props.open && view.value === 'container-image' && shouldSearchImages.value,
 }));
 
-const imageResults = computed(() => imageSearchResult.value?.searchImages ?? []);
+const imageResults = computed(() => {
+  if (imageSelected.value) return [];
+  return imageSearchResult.value?.searchImages ?? [];
+});
+
+// Reset imageSelected when user edits the input
+watch(containerImageRef, () => {
+  imageSelected.value = false;
+  // Auto-derive service name as user types
+  deriveServiceName(containerImageRef.value);
+});
 
 function selectImage(image: { name: string }) {
   containerImageRef.value = image.name;
-  // Derive service name from image (e.g., "library/nginx" -> "nginx", "bitnami/redis" -> "redis")
-  const parts = image.name.split('/');
-  containerServiceName.value = parts.pop() ?? image.name;
-  imageSearch.value = '';
+  deriveServiceName(image.name);
+  imageSelected.value = true;
+}
+
+function deriveServiceName(ref: string) {
+  if (!ref) {
+    containerServiceName.value = '';
+    return;
+  }
+  // Strip tag (e.g., "nginx:1.25" -> "nginx")
+  const withoutTag = ref.includes(':') ? ref.split(':')[0] ?? ref : ref;
+  // Use last path segment (e.g., "bitnami/redis" -> "redis", "ghcr.io/foo/bar" -> "bar")
+  const parts = withoutTag.split('/');
+  containerServiceName.value = parts[parts.length - 1] ?? ref;
 }
 
 function formatPullCount(count: number): string {
@@ -638,21 +667,15 @@ const mainItems = computed(() => {
 
           <!-- Container image view -->
           <template v-if="view === 'container-image'">
-            <div class="flex items-center border-b px-3">
+            <div class="flex h-12 items-center border-b px-3">
               <button
                 class="mr-1 shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"
                 @click="view = 'main'"
               >
                 <ArrowLeft :size="16" />
               </button>
-              <Badge variant="secondary" class="mr-2 shrink-0">Container Image</Badge>
-              <Search :size="16" class="shrink-0 text-muted-foreground" />
-              <input
-                ref="inputRef"
-                v-model="imageSearch"
-                placeholder="Search Docker Hub..."
-                class="flex h-12 w-full bg-transparent px-3 text-sm outline-none placeholder:text-muted-foreground"
-              />
+              <Badge variant="secondary">Container Image</Badge>
+              <div class="flex-1" />
               <button
                 class="shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"
                 @click="close"
@@ -661,57 +684,63 @@ const mainItems = computed(() => {
               </button>
             </div>
 
-            <!-- Search results -->
-            <div
-              v-if="imageSearch && (searchingImages || imageResults.length > 0)"
-              class="max-h-[240px] overflow-y-auto border-b"
-            >
-              <div class="p-1">
-                <p class="px-2 py-1.5 text-xs font-medium text-muted-foreground">Docker Hub</p>
-                <template v-if="searchingImages && imageResults.length === 0">
-                  <p class="px-2 py-6 text-center text-sm text-muted-foreground">Searching...</p>
-                </template>
-                <template v-else>
-                  <button
-                    v-for="img in imageResults"
-                    :key="img.name"
-                    class="flex w-full items-start gap-2 rounded-lg px-2 py-2 text-left text-sm text-popover-foreground transition-colors hover:bg-accent"
-                    @click="selectImage(img)"
-                  >
-                    <Container :size="14" class="mt-0.5 shrink-0 text-muted-foreground" />
-                    <div class="min-w-0 flex-1">
-                      <div class="flex items-center gap-1.5">
-                        <span class="font-medium">{{ img.name }}</span>
-                        <Badge v-if="img.official" variant="outline" class="text-[10px]">
-                          <Award :size="10" class="mr-0.5" />
-                          Official
-                        </Badge>
-                      </div>
-                      <p
-                        v-if="img.description"
-                        class="mt-0.5 truncate text-xs text-muted-foreground"
-                      >{{ img.description }}</p>
-                    </div>
-                    <div class="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
-                      <Star :size="10" />
-                      {{ formatPullCount(img.starCount) }}
-                    </div>
-                  </button>
-                </template>
-              </div>
-            </div>
-
-            <!-- Form -->
             <div class="space-y-4 p-4">
-              <div class="space-y-2">
+              <!-- Image input with autocomplete -->
+              <div class="relative space-y-2">
                 <label class="text-sm font-medium text-foreground">Image</label>
-                <input
-                  v-model="containerImageRef"
-                  class="flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                  placeholder="nginx:1.25"
-                />
-                <p class="text-xs text-muted-foreground">Docker Hub image or full registry path</p>
+                <div class="relative">
+                  <input
+                    ref="inputRef"
+                    v-model="containerImageRef"
+                    class="flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    placeholder="nginx:1.25"
+                  />
+                  <Loader2
+                    v-if="searchingImages"
+                    :size="14"
+                    class="absolute right-2.5 top-2.5 animate-spin text-muted-foreground"
+                  />
+                </div>
+
+                <!-- Autocomplete dropdown -->
+                <div
+                  v-if="imageResults.length > 0"
+                  class="absolute left-0 right-0 z-10 mt-1 max-h-[220px] overflow-y-auto rounded-md border bg-popover shadow-lg"
+                >
+                  <div class="p-1">
+                    <button
+                      v-for="img in imageResults"
+                      :key="img.name"
+                      class="flex w-full items-start gap-2 rounded px-2 py-1.5 text-left text-sm text-popover-foreground transition-colors hover:bg-accent"
+                      @click="selectImage(img)"
+                    >
+                      <Container :size="14" class="mt-0.5 shrink-0 text-muted-foreground" />
+                      <div class="min-w-0 flex-1">
+                        <div class="flex items-center gap-1.5">
+                          <span class="font-medium">{{ img.name }}</span>
+                          <Badge v-if="img.official" variant="outline" class="text-[10px]">
+                            <Award :size="10" class="mr-0.5" />
+                            Official
+                          </Badge>
+                        </div>
+                        <p
+                          v-if="img.description"
+                          class="mt-0.5 truncate text-xs text-muted-foreground"
+                        >{{ img.description }}</p>
+                      </div>
+                      <div class="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
+                        <Star :size="10" />
+                        {{ formatPullCount(img.starCount) }}
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                <p class="text-xs text-muted-foreground">
+                  Searches Docker Hub. You can also enter any image from ghcr.io, quay.io, or other public registries.
+                </p>
               </div>
+
               <div class="space-y-2">
                 <label class="text-sm font-medium text-foreground">Service Name</label>
                 <input
