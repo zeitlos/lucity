@@ -519,14 +519,15 @@ func (c *Client) UpdateMemberRole(ctx context.Context, userID string, role auth.
 // The workspace ID is derived from the user's GitHub login. Idempotent: if the workspace
 // already exists and belongs to this user, re-adds them to the Rauthy groups and returns
 // the existing ID. On genuine collision (different owner), picks {id}-0, {id}-1, etc.
-func (c *Client) EnsurePersonalWorkspace(ctx context.Context, rauthyUserID, githubLogin string) (string, error) {
+// Returns the workspace ID and whether it was newly created (true) or restored (false).
+func (c *Client) EnsurePersonalWorkspace(ctx context.Context, rauthyUserID, githubLogin string) (string, bool, error) {
 	if c.Rauthy == nil {
-		return "", fmt.Errorf("rauthy not configured")
+		return "", false, fmt.Errorf("rauthy not configured")
 	}
 
 	wsID := sanitizeWorkspaceID(githubLogin)
 	if wsID == "" {
-		return "", fmt.Errorf("cannot derive workspace ID from login %q", githubLogin)
+		return "", false, fmt.Errorf("cannot derive workspace ID from login %q", githubLogin)
 	}
 
 	outCtx := auth.OutgoingContext(ctx)
@@ -540,22 +541,22 @@ func (c *Client) EnsurePersonalWorkspace(ctx context.Context, rauthyUserID, gith
 		// Pre-migration workspaces have no owner — treat personal ones as ours.
 		if existing.Owner == rauthyUserID || (existing.Owner == "" && existing.Personal) {
 			if err := c.ensureWorkspaceGroups(ctx, wsID, rauthyUserID); err != nil {
-				return "", fmt.Errorf("failed to restore workspace groups: %w", err)
+				return "", false, fmt.Errorf("failed to restore workspace groups: %w", err)
 			}
 			slog.Info("personal workspace restored", "id", wsID, "user", rauthyUserID)
-			return wsID, nil
+			return wsID, false, nil
 		}
 
 		// Genuine collision — someone else owns this ID.
 		wsID, err = c.findAvailableWorkspaceID(outCtx, wsID)
 		if err != nil {
-			return "", fmt.Errorf("failed to find available workspace ID: %w", err)
+			return "", false, fmt.Errorf("failed to find available workspace ID: %w", err)
 		}
 	}
 
 	// Create workspace groups and add user.
 	if err := c.ensureWorkspaceGroups(ctx, wsID, rauthyUserID); err != nil {
-		return "", fmt.Errorf("failed to create workspace groups: %w", err)
+		return "", false, fmt.Errorf("failed to create workspace groups: %w", err)
 	}
 
 	// Create ConfigMap.
@@ -568,12 +569,12 @@ func (c *Client) EnsurePersonalWorkspace(ctx context.Context, rauthyUserID, gith
 		Owner:     rauthyUserID,
 	})
 	if err != nil {
-		return "", fmt.Errorf("failed to create personal workspace metadata: %w", err)
+		return "", false, fmt.Errorf("failed to create personal workspace metadata: %w", err)
 	}
 
 	slog.Info("personal workspace created", "id", wsID, "user", rauthyUserID)
 
-	// Best-effort: set up Stripe customer + subscription
+	// Best-effort: set up Stripe customer + subscription with trial
 	user, _ := c.Rauthy.User(ctx, rauthyUserID)
 	email := ""
 	if user != nil {
@@ -581,7 +582,7 @@ func (c *Client) EnsurePersonalWorkspace(ctx context.Context, rauthyUserID, gith
 	}
 	c.setupBilling(ctx, wsID, githubLogin, email)
 
-	return wsID, nil
+	return wsID, true, nil
 }
 
 // ensureWorkspaceGroups creates Rauthy groups for a workspace and adds the user to them.
@@ -652,6 +653,7 @@ func (c *Client) setupBilling(ctx context.Context, workspace, name, email string
 		Workspace:  workspace,
 		CustomerId: custResp.CustomerId,
 		Plan:       cashier.Plan_PLAN_HOBBY,
+		TrialDays:  14,
 	})
 	if err != nil {
 		slog.Warn("failed to create Stripe subscription for workspace", "workspace", workspace, "error", err)

@@ -115,6 +115,7 @@ type BillingSubscription struct {
 	Status            string
 	CurrentPeriodEnd  time.Time
 	CreditAmountCents int
+	TrialEnd          *time.Time
 }
 
 type UsageSummaryResult struct {
@@ -144,12 +145,17 @@ func (c *Client) Subscription(ctx context.Context) (*BillingSubscription, error)
 		return nil, fmt.Errorf("failed to get subscription: %w", err)
 	}
 
-	return &BillingSubscription{
+	result := &BillingSubscription{
 		Plan:              planProtoToString(resp.Plan),
 		Status:            subscriptionStatusProtoToString(resp.Status),
 		CurrentPeriodEnd:  time.Unix(resp.CurrentPeriodEnd, 0),
 		CreditAmountCents: int(resp.CreditAmountCents),
-	}, nil
+	}
+	if resp.TrialEnd > 0 {
+		t := time.Unix(resp.TrialEnd, 0)
+		result.TrialEnd = &t
+	}
+	return result, nil
 }
 
 func (c *Client) ChangePlan(ctx context.Context, plan string) (*BillingSubscription, error) {
@@ -172,12 +178,17 @@ func (c *Client) ChangePlan(ctx context.Context, plan string) (*BillingSubscript
 		return nil, fmt.Errorf("failed to change plan: %w", err)
 	}
 
-	return &BillingSubscription{
+	result := &BillingSubscription{
 		Plan:              planProtoToString(resp.Plan),
 		Status:            subscriptionStatusProtoToString(resp.Status),
 		CurrentPeriodEnd:  time.Unix(resp.CurrentPeriodEnd, 0),
 		CreditAmountCents: int(resp.CreditAmountCents),
-	}, nil
+	}
+	if resp.TrialEnd > 0 {
+		t := time.Unix(resp.TrialEnd, 0)
+		result.TrialEnd = &t
+	}
+	return result, nil
 }
 
 func (c *Client) BillingPortalURL(ctx context.Context) (*BillingPortalUrlResult, error) {

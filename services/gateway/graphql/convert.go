@@ -306,6 +306,7 @@ func convertBillingSubscription(s *handler.BillingSubscription) *model.BillingSu
 		Status:            model.SubscriptionStatus(s.Status),
 		CurrentPeriodEnd:  s.CurrentPeriodEnd,
 		CreditAmountCents: s.CreditAmountCents,
+		TrialEnd:          s.TrialEnd,
 	}
 }
 

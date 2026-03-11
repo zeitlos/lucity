@@ -192,6 +192,9 @@ func (w *Worker) tick(ctx context.Context) {
 		if err := w.reportWorkspace(ctx, wsID, ws, cpuByNs, memByNs, diskByNs, now, intervalMinutes); err != nil {
 			slog.Error("metering: failed to report workspace", "workspace", wsID, "error", err)
 		}
+
+		// Check if workspace is on trial and has exceeded €5 usage cap.
+		w.checkTrialUsageCap(ctx, wsID, ws)
 	}
 
 	slog.Info("metering tick completed", "duration", time.Since(start), "workspaces", len(workspaces))
@@ -289,4 +292,49 @@ func (w *Worker) reportWorkspace(ctx context.Context, wsID string, ws *workspace
 	}
 
 	return nil
+}
+
+// trialUsageCapCents is the maximum resource cost allowed during a trial (€5).
+const trialUsageCapCents = 500
+
+// checkTrialUsageCap ends a trial early if resource costs exceed €5.
+func (w *Worker) checkTrialUsageCap(ctx context.Context, wsID string, ws *workspaceData) {
+	sub, err := w.stripe.Subscription(ctx, ws.subscriptionID)
+	if err != nil {
+		return
+	}
+
+	// Only check active trials.
+	if sub.TrialEnd == 0 || sub.TrialEnd <= time.Now().Unix() {
+		return
+	}
+
+	inv, err := w.stripe.UpcomingInvoice(ctx, ws.customerID)
+	if err != nil {
+		return
+	}
+
+	// Sum resource line items (everything except plan price).
+	var resourceCost int64
+	for _, line := range inv.Lines.Data {
+		if line.Pricing == nil || line.Pricing.PriceDetails == nil {
+			continue
+		}
+		priceID := line.Pricing.PriceDetails.Price
+		if priceID == w.stripe.Prices.HobbyPriceID || priceID == w.stripe.Prices.ProPriceID {
+			continue
+		}
+		resourceCost += line.Amount
+	}
+
+	if resourceCost > trialUsageCapCents {
+		slog.Info("trial usage exceeded cap, ending trial",
+			"workspace", wsID,
+			"resource_cost_cents", resourceCost,
+			"cap_cents", trialUsageCapCents,
+		)
+		if err := w.stripe.EndTrial(ctx, ws.subscriptionID); err != nil {
+			slog.Error("metering: failed to end trial", "workspace", wsID, "error", err)
+		}
+	}
 }

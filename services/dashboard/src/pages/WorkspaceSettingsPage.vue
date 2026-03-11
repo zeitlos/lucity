@@ -469,8 +469,8 @@ async function handleDelete() {
               <div class="rounded-lg border p-4 space-y-3">
                 <div class="flex items-center justify-between">
                   <h3 class="text-sm font-medium">Subscription</h3>
-                  <Badge :variant="subscription!.status === 'ACTIVE' ? 'default' : 'destructive'">
-                    {{ subscription!.status === 'ACTIVE' ? 'Active' : subscription!.status === 'PAST_DUE' ? 'Past Due' : subscription!.status }}
+                  <Badge :variant="subscription!.status === 'ACTIVE' || subscription!.status === 'TRIALING' ? 'default' : 'destructive'">
+                    {{ subscription!.status === 'ACTIVE' ? 'Active' : subscription!.status === 'TRIALING' ? 'Trial' : subscription!.status === 'PAST_DUE' ? 'Past Due' : subscription!.status }}
                   </Badge>
                 </div>
                 <div class="flex items-center justify-between text-sm">
@@ -485,6 +485,30 @@ async function handleDelete() {
                   <span class="text-muted-foreground">Plan credit</span>
                   <span>{{ formatCents(subscription!.creditAmountCents) }}/mo</span>
                 </div>
+              </div>
+
+              <!-- Trial banner -->
+              <div
+                v-if="subscription!.status === 'TRIALING' && subscription!.trialEnd"
+                class="rounded-lg border border-primary/30 bg-primary/5 p-4"
+              >
+                <p class="text-sm font-medium text-foreground">
+                  Your trial ends on {{ formatDate(subscription!.trialEnd) }} or when you reach €5 in usage.
+                </p>
+                <p class="mt-1 text-xs text-muted-foreground">
+                  Add a payment method to continue after your trial.
+                </p>
+                <Button
+                  v-if="isAdmin"
+                  variant="outline"
+                  size="sm"
+                  class="mt-3"
+                  :disabled="openingPortal"
+                  @click="handleOpenPortal"
+                >
+                  <ExternalLink :size="14" class="mr-1.5" />
+                  {{ openingPortal ? 'Opening...' : 'Open Billing Portal' }}
+                </Button>
               </div>
 
               <!-- Plan switcher (admin only) -->

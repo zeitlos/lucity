@@ -53,6 +53,7 @@ message CreateSubscriptionRequest {
   string workspace = 1;
   string customer_id = 2;
   Plan plan = 3;
+  int32 trial_days = 4;
 }
 
 message CreateSubscriptionResponse {
@@ -69,6 +70,7 @@ message ChangePlanResponse {
   SubscriptionStatus status = 2;
   int64 current_period_end = 3;
   int32 credit_amount_cents = 4;
+  int64 trial_end = 5;
 }
 
 message SubscriptionRequest {
@@ -80,6 +82,7 @@ message SubscriptionResponse {
   SubscriptionStatus status = 2;
   int64 current_period_end = 3;
   int32 credit_amount_cents = 4;
+  int64 trial_end = 5;
 }
 
 message BillingPortalURLRequest {

@@ -10,6 +10,9 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import EmptyState from '@/components/EmptyState.vue';
 import CreateCommandPalette from '@/components/CreateCommandPalette.vue';
+import WelcomeCard from '@/components/WelcomeCard.vue';
+import OnboardingChecklist from '@/components/OnboardingChecklist.vue';
+import { useOnboarding } from '@/composables/useOnboarding';
 
 const route = useRoute();
 const router = useRouter();
@@ -21,6 +24,32 @@ const projects = computed(() => result.value?.projects ?? []);
 const githubConnected = computed(() => ghResult.value?.githubConnected ?? false);
 const paletteOpen = ref(false);
 const initialPaletteView = ref<'main' | 'github-repos'>('main');
+
+const { isWelcome, checklistDismissed, dismissWelcome, dismissChecklist } = useOnboarding();
+
+// Derive checklist state from existing queries
+const hasProjects = computed(() => projects.value.length > 0);
+const hasDeployments = computed(() =>
+  projects.value.some((p: { environments: { services: unknown[] }[] }) =>
+    p.environments?.some((e: { services: unknown[] }) => e.services?.length > 0),
+  ),
+);
+const firstProjectId = computed(() => projects.value[0]?.id);
+
+const showChecklist = computed(() =>
+  !checklistDismissed.value
+  && !isWelcome.value
+  && !(hasProjects.value && hasDeployments.value && githubConnected.value),
+);
+
+function handleWelcomeDismiss() {
+  dismissWelcome();
+}
+
+function handleCreateProject() {
+  dismissWelcome();
+  paletteOpen.value = true;
+}
 
 // Auto-open palette on github-repos view when returning from GitHub account connection
 watch(() => route.query.github, (val) => {
@@ -83,37 +112,70 @@ function uniqueRepoCount(services: { sourceUrl?: string }[]): number {
       Failed to load projects: {{ error.message }}
     </div>
 
-    <EmptyState
-      v-else-if="projects.length === 0 && !githubConnected"
-      title="Connect GitHub"
-      description="Connect your GitHub account to import repositories and deploy your first project."
-      pattern="dots"
-    >
-      <template #action>
-        <a href="/auth/github/connect" class="inline-flex">
-          <Button>
-            <Github :size="16" class="mr-2" />
-            Connect GitHub
+    <!-- Welcome card for new users -->
+    <WelcomeCard
+      v-else-if="isWelcome && projects.length === 0"
+      @dismiss="handleWelcomeDismiss"
+      @create-project="handleCreateProject"
+    />
+
+    <template v-else-if="projects.length === 0">
+      <!-- Onboarding checklist -->
+      <OnboardingChecklist
+        v-if="showChecklist"
+        :github-connected="githubConnected"
+        :has-projects="hasProjects"
+        :has-deployments="hasDeployments"
+        class="mb-6"
+        @dismiss="dismissChecklist"
+        @create-project="paletteOpen = true"
+      />
+
+      <EmptyState
+        v-if="!githubConnected"
+        title="Connect GitHub"
+        description="Connect your GitHub account to import repositories and deploy your first project."
+        pattern="dots"
+      >
+        <template #action>
+          <a href="/auth/github/connect" class="inline-flex">
+            <Button>
+              <Github :size="16" class="mr-2" />
+              Connect GitHub
+            </Button>
+          </a>
+        </template>
+      </EmptyState>
+
+      <EmptyState
+        v-else
+        title="No projects yet"
+        description="Get started by connecting a GitHub repository."
+        pattern="dots"
+      >
+        <template #action>
+          <Button @click="paletteOpen = true">
+            <Plus :size="16" class="mr-2" />
+            New Project
           </Button>
-        </a>
-      </template>
-    </EmptyState>
+        </template>
+      </EmptyState>
+    </template>
 
-    <EmptyState
-      v-else-if="projects.length === 0"
-      title="No projects yet"
-      description="Get started by connecting a GitHub repository."
-      pattern="dots"
-    >
-      <template #action>
-        <Button @click="paletteOpen = true">
-          <Plus :size="16" class="mr-2" />
-          New Project
-        </Button>
-      </template>
-    </EmptyState>
+    <template v-else>
+      <!-- Onboarding checklist for users with projects -->
+      <OnboardingChecklist
+        v-if="showChecklist"
+        :github-connected="githubConnected"
+        :has-projects="hasProjects"
+        :has-deployments="hasDeployments"
+        :first-project-id="firstProjectId"
+        class="mb-6"
+        @dismiss="dismissChecklist"
+        @create-project="paletteOpen = true"
+      />
 
-    <div v-else class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
       <RouterLink
         v-for="project in projects"
         :key="project.id"
@@ -144,7 +206,8 @@ function uniqueRepoCount(services: { sourceUrl?: string }[]): number {
           </CardContent>
         </Card>
       </RouterLink>
-    </div>
+      </div>
+    </template>
 
     <CreateCommandPalette
       v-model:open="paletteOpen"

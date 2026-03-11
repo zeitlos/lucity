@@ -60,6 +60,7 @@ type ComplexityRoot struct {
 		CurrentPeriodEnd  func(childComplexity int) int
 		Plan              func(childComplexity int) int
 		Status            func(childComplexity int) int
+		TrialEnd          func(childComplexity int) int
 	}
 
 	Build struct {
@@ -493,6 +494,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.BillingSubscription.Status(childComplexity), true
+	case "BillingSubscription.trialEnd":
+		if e.complexity.BillingSubscription.TrialEnd == nil {
+			break
+		}
+
+		return e.complexity.BillingSubscription.TrialEnd(childComplexity), true
 
 	case "Build.digest":
 		if e.complexity.Build.Digest == nil {
@@ -3030,6 +3037,35 @@ func (ec *executionContext) fieldContext_BillingSubscription_creditAmountCents(_
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BillingSubscription_trialEnd(ctx context.Context, field graphql.CollectedField, obj *model.BillingSubscription) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_BillingSubscription_trialEnd,
+		func(ctx context.Context) (any, error) {
+			return obj.TrialEnd, nil
+		},
+		nil,
+		ec.marshalOTime2ᚖtimeᚐTime,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_BillingSubscription_trialEnd(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BillingSubscription",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
 		},
 	}
 	return fc, nil
@@ -5794,6 +5830,8 @@ func (ec *executionContext) fieldContext_Mutation_changePlan(ctx context.Context
 				return ec.fieldContext_BillingSubscription_currentPeriodEnd(ctx, field)
 			case "creditAmountCents":
 				return ec.fieldContext_BillingSubscription_creditAmountCents(ctx, field)
+			case "trialEnd":
+				return ec.fieldContext_BillingSubscription_trialEnd(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type BillingSubscription", field.Name)
 		},
@@ -8050,6 +8088,8 @@ func (ec *executionContext) fieldContext_Query_subscription(_ context.Context, f
 				return ec.fieldContext_BillingSubscription_currentPeriodEnd(ctx, field)
 			case "creditAmountCents":
 				return ec.fieldContext_BillingSubscription_creditAmountCents(ctx, field)
+			case "trialEnd":
+				return ec.fieldContext_BillingSubscription_trialEnd(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type BillingSubscription", field.Name)
 		},
@@ -13982,6 +14022,8 @@ func (ec *executionContext) _BillingSubscription(ctx context.Context, sel ast.Se
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "trialEnd":
+			out.Values[i] = ec._BillingSubscription_trialEnd(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}

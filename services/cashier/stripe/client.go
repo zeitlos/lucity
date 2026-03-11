@@ -3,6 +3,7 @@ package stripe
 import (
 	"context"
 	"fmt"
+	"time"
 
 	gostripe "github.com/stripe/stripe-go/v82"
 	"github.com/stripe/stripe-go/v82/billing/meterevent"
@@ -62,7 +63,8 @@ func (c *Client) CreateCustomer(ctx context.Context, workspace, name, email stri
 
 // CreateSubscription creates a subscription with a plan + 6 resource line items.
 // Metered items (eco) start with no quantity. Licensed items (production) start at 0.
-func (c *Client) CreateSubscription(ctx context.Context, customerID, workspace string, planPriceID string) (string, error) {
+// trialDays > 0 starts the subscription with a free trial period.
+func (c *Client) CreateSubscription(ctx context.Context, customerID, workspace string, planPriceID string, trialDays int) (string, error) {
 	params := &gostripe.SubscriptionParams{
 		Customer:        gostripe.String(customerID),
 		PaymentBehavior: gostripe.String("default_incomplete"),
@@ -76,6 +78,9 @@ func (c *Client) CreateSubscription(ctx context.Context, customerID, workspace s
 			{Price: gostripe.String(c.Prices.ProdDiskPriceID), Quantity: gostripe.Int64(0)},
 		},
 	}
+	if trialDays > 0 {
+		params.TrialPeriodDays = gostripe.Int64(int64(trialDays))
+	}
 	params.AddMetadata("workspace", workspace)
 
 	sub, err := subscription.New(params)
@@ -83,6 +88,17 @@ func (c *Client) CreateSubscription(ctx context.Context, customerID, workspace s
 		return "", fmt.Errorf("failed to create stripe subscription: %w", err)
 	}
 	return sub.ID, nil
+}
+
+// EndTrial ends a trial immediately by setting trial_end to now.
+func (c *Client) EndTrial(ctx context.Context, subscriptionID string) error {
+	_, err := subscription.Update(subscriptionID, &gostripe.SubscriptionParams{
+		TrialEnd: gostripe.Int64(time.Now().Unix()),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to end trial: %w", err)
+	}
+	return nil
 }
 
 // ChangePlan swaps the plan subscription item from one price to another.

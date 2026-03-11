@@ -38,6 +38,7 @@ type BillingSubscription struct {
 	Status            SubscriptionStatus `json:"status"`
 	CurrentPeriodEnd  time.Time          `json:"currentPeriodEnd"`
 	CreditAmountCents int                `json:"creditAmountCents"`
+	TrialEnd          *time.Time         `json:"trialEnd,omitempty"`
 }
 
 type Build struct {

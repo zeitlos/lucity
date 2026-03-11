@@ -204,7 +204,7 @@ func handleCallback(provider *OIDCProvider, api *handler.Client, jwtSecret, dash
 			Roles:   []auth.Role{auth.RoleUser},
 		})
 
-		personalWSID, err := api.EnsurePersonalWorkspace(svcCtx, idToken.Subject, oidcClaims.PreferredUsername)
+		personalWSID, isNewUser, err := api.EnsurePersonalWorkspace(svcCtx, idToken.Subject, oidcClaims.PreferredUsername)
 		if err != nil {
 			slog.Error("failed to ensure personal workspace", "error", err, "email", oidcClaims.Email)
 			http.Error(w, "failed to create workspace", http.StatusInternalServerError)
@@ -260,7 +260,12 @@ func handleCallback(provider *OIDCProvider, api *handler.Client, jwtSecret, dash
 		})
 
 		slog.Info("user authenticated", "email", oidcClaims.Email, "workspaces", len(workspaces))
-		http.Redirect(w, r, dashboardURL, http.StatusTemporaryRedirect)
+
+		redirectURL := dashboardURL
+		if isNewUser {
+			redirectURL = dashboardURL + "/?welcome=true"
+		}
+		http.Redirect(w, r, redirectURL, http.StatusTemporaryRedirect)
 	}
 }
 

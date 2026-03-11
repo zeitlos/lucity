@@ -143,7 +143,7 @@ onUnmounted(() => {
 
           <!-- Subtitle -->
           <p class="text-center text-sm text-muted-foreground">
-            Sign in to start deploying.
+            Start deploying in under 5 minutes.
           </p>
 
           <!-- Error message -->
@@ -160,7 +160,7 @@ onUnmounted(() => {
             @click="login"
           >
             <Github :size="18" />
-            Sign in with GitHub
+            Continue with GitHub
           </Button>
 
           <!-- Footer -->

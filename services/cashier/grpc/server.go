@@ -67,7 +67,7 @@ func (s *Server) CreateSubscription(ctx context.Context, req *cashier.CreateSubs
 
 	planPriceID := s.stripe.PlanPriceID(planToString(req.Plan))
 
-	subID, err := s.stripe.CreateSubscription(ctx, req.CustomerId, req.Workspace, planPriceID)
+	subID, err := s.stripe.CreateSubscription(ctx, req.CustomerId, req.Workspace, planPriceID, int(req.TrialDays))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create subscription: %w", err)
 	}
@@ -135,6 +135,7 @@ func (s *Server) Subscription(ctx context.Context, req *cashier.SubscriptionRequ
 		Status:            resp.Status,
 		CurrentPeriodEnd:  resp.CurrentPeriodEnd,
 		CreditAmountCents: resp.CreditAmountCents,
+		TrialEnd:          resp.TrialEnd,
 	}, nil
 }
 
@@ -277,6 +278,7 @@ func subscriptionToResponse(sub *gostripe.Subscription, prices stripelib.PriceCo
 		Status:            mapSubscriptionStatus(sub.Status),
 		CurrentPeriodEnd:  currentPeriodEnd,
 		CreditAmountCents: int32(creditCents),
+		TrialEnd:          sub.TrialEnd,
 	}
 }
 
