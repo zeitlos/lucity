@@ -26,13 +26,13 @@ zot:
             "htpasswd": {
               "path": "/etc/zot/htpasswd"
             }
-          }
-        },
-        "accessControl": {
-          "repositories": {
-            "**": {
-              "anonymousPolicy": ["read"],
-              "defaultPolicy": ["read", "create", "update", "delete"]
+          },
+          "accessControl": {
+            "repositories": {
+              "**": {
+                "anonymousPolicy": ["read"],
+                "defaultPolicy": ["read", "create", "update", "delete"]
+              }
             }
           }
         },

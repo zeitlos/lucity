@@ -65,17 +65,21 @@ spec:
                   name: {{ include "lucity.fullname" $ }}
                   key: {{ $value }}
             {{- end }}
-          {{- if .Values.softserveKey }}
           volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            {{- if .Values.softserveKey }}
             - name: softserve-key
               mountPath: /secrets/softserve
               readOnly: true
-          {{- end }}
+            {{- end }}
           resources:
             {{- toYaml .Values.packager.resources | nindent 12 }}
-      {{- if .Values.softserveKey }}
       volumes:
+        - name: tmp
+          emptyDir: {}
+        {{- if .Values.softserveKey }}
         - name: softserve-key
           secret:
             secretName: {{ include "lucity.fullname" . }}-softserve-key
-      {{- end }}
+        {{- end }}

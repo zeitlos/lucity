@@ -24,6 +24,8 @@ gateway:
     GITHUB_APP_ID: "2882801"
     GITHUB_PRIVATE_KEY_PATH: /secrets/github/github-app.pem
     GITHUB_APP_SLUG: lucity-platform
+    GITHUB_CLIENT_ID: Iv23liMzm79VIgvNtglX
+    GITHUB_OAUTH_CALLBACK_URL: https://lucity.cloud/auth/github/callback
     BUILDER_ADDR: lucity-builder:9001
     PACKAGER_ADDR: lucity-packager:9002
     DEPLOYER_ADDR: lucity-deployer:9003
@@ -36,6 +38,7 @@ gateway:
   envSecret:
     JWT_SECRET: JWT_SECRET
     RAUTHY_API_KEY: RAUTHY_API_KEY
+    GITHUB_CLIENT_SECRET: GITHUB_CLIENT_SECRET
 
 builder:
   serviceAccount:
