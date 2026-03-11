@@ -197,6 +197,14 @@ type ComplexityRoot struct {
 		Private       func(childComplexity int) int
 	}
 
+	ImageSearchResult struct {
+		Description func(childComplexity int) int
+		Name        func(childComplexity int) int
+		Official    func(childComplexity int) int
+		PullCount   func(childComplexity int) int
+		StarCount   func(childComplexity int) int
+	}
+
 	Mutation struct {
 		AddCustomDomain         func(childComplexity int, input model.AddCustomDomainInput) int
 		AddService              func(childComplexity int, input model.AddServiceInput) int
@@ -262,6 +270,7 @@ type ComplexityRoot struct {
 		PlatformConfig       func(childComplexity int) int
 		Project              func(childComplexity int, id string) int
 		Projects             func(childComplexity int) int
+		SearchImages         func(childComplexity int, query string) int
 		Service              func(childComplexity int, projectID string, name string) int
 		ServiceVariables     func(childComplexity int, projectID string, environment string, service string) int
 		SharedVariables      func(childComplexity int, projectID string, environment string) int
@@ -417,6 +426,7 @@ type QueryResolver interface {
 	Projects(ctx context.Context) ([]model.Project, error)
 	Project(ctx context.Context, id string) (*model.Project, error)
 	Service(ctx context.Context, projectID string, name string) (*model.Service, error)
+	SearchImages(ctx context.Context, query string) ([]model.ImageSearchResult, error)
 	DetectServices(ctx context.Context, sourceURL string, installationID *string) ([]model.DetectedService, error)
 	BuildStatus(ctx context.Context, id string) (*model.Build, error)
 	DeployStatus(ctx context.Context, id string) (*model.DeployRun, error)
@@ -1005,6 +1015,37 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.GitHubRepository.Private(childComplexity), true
 
+	case "ImageSearchResult.description":
+		if e.complexity.ImageSearchResult.Description == nil {
+			break
+		}
+
+		return e.complexity.ImageSearchResult.Description(childComplexity), true
+	case "ImageSearchResult.name":
+		if e.complexity.ImageSearchResult.Name == nil {
+			break
+		}
+
+		return e.complexity.ImageSearchResult.Name(childComplexity), true
+	case "ImageSearchResult.official":
+		if e.complexity.ImageSearchResult.Official == nil {
+			break
+		}
+
+		return e.complexity.ImageSearchResult.Official(childComplexity), true
+	case "ImageSearchResult.pullCount":
+		if e.complexity.ImageSearchResult.PullCount == nil {
+			break
+		}
+
+		return e.complexity.ImageSearchResult.PullCount(childComplexity), true
+	case "ImageSearchResult.starCount":
+		if e.complexity.ImageSearchResult.StarCount == nil {
+			break
+		}
+
+		return e.complexity.ImageSearchResult.StarCount(childComplexity), true
+
 	case "Mutation.addCustomDomain":
 		if e.complexity.Mutation.AddCustomDomain == nil {
 			break
@@ -1533,6 +1574,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Query.Projects(childComplexity), true
+	case "Query.searchImages":
+		if e.complexity.Query.SearchImages == nil {
+			break
+		}
+
+		args, err := ec.field_Query_searchImages_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.SearchImages(childComplexity, args["query"].(string)), true
 	case "Query.service":
 		if e.complexity.Query.Service == nil {
 			break
@@ -2083,7 +2135,7 @@ func (ec *executionContext) introspectType(name string) (*introspection.Type, er
 	return introspection.WrapTypeFromDef(ec.Schema(), ec.Schema().Types[name]), nil
 }
 
-//go:embed "schema/auth.graphqls" "schema/billing.graphqls" "schema/database.graphqls" "schema/github.graphqls" "schema/logs.graphqls" "schema/project.graphqls" "schema/schema.graphqls" "schema/service.graphqls" "schema/variable.graphqls" "schema/workspace.graphqls"
+//go:embed "schema/auth.graphqls" "schema/billing.graphqls" "schema/database.graphqls" "schema/github.graphqls" "schema/logs.graphqls" "schema/project.graphqls" "schema/registry.graphqls" "schema/schema.graphqls" "schema/service.graphqls" "schema/variable.graphqls" "schema/workspace.graphqls"
 var sourcesFS embed.FS
 
 func sourceData(filename string) string {
@@ -2101,6 +2153,7 @@ var sources = []*ast.Source{
 	{Name: "schema/github.graphqls", Input: sourceData("schema/github.graphqls"), BuiltIn: false},
 	{Name: "schema/logs.graphqls", Input: sourceData("schema/logs.graphqls"), BuiltIn: false},
 	{Name: "schema/project.graphqls", Input: sourceData("schema/project.graphqls"), BuiltIn: false},
+	{Name: "schema/registry.graphqls", Input: sourceData("schema/registry.graphqls"), BuiltIn: false},
 	{Name: "schema/schema.graphqls", Input: sourceData("schema/schema.graphqls"), BuiltIn: false},
 	{Name: "schema/service.graphqls", Input: sourceData("schema/service.graphqls"), BuiltIn: false},
 	{Name: "schema/variable.graphqls", Input: sourceData("schema/variable.graphqls"), BuiltIn: false},
@@ -2681,6 +2734,17 @@ func (ec *executionContext) field_Query_project_args(ctx context.Context, rawArg
 		return nil, err
 	}
 	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_searchImages_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "query", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["query"] = arg0
 	return args, nil
 }
 
@@ -5459,6 +5523,151 @@ func (ec *executionContext) _GitHubRepository_private(ctx context.Context, field
 func (ec *executionContext) fieldContext_GitHubRepository_private(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "GitHubRepository",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ImageSearchResult_name(ctx context.Context, field graphql.CollectedField, obj *model.ImageSearchResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ImageSearchResult_name,
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ImageSearchResult_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ImageSearchResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ImageSearchResult_description(ctx context.Context, field graphql.CollectedField, obj *model.ImageSearchResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ImageSearchResult_description,
+		func(ctx context.Context) (any, error) {
+			return obj.Description, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ImageSearchResult_description(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ImageSearchResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ImageSearchResult_starCount(ctx context.Context, field graphql.CollectedField, obj *model.ImageSearchResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ImageSearchResult_starCount,
+		func(ctx context.Context) (any, error) {
+			return obj.StarCount, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ImageSearchResult_starCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ImageSearchResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ImageSearchResult_pullCount(ctx context.Context, field graphql.CollectedField, obj *model.ImageSearchResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ImageSearchResult_pullCount,
+		func(ctx context.Context) (any, error) {
+			return obj.PullCount, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ImageSearchResult_pullCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ImageSearchResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ImageSearchResult_official(ctx context.Context, field graphql.CollectedField, obj *model.ImageSearchResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ImageSearchResult_official,
+		func(ctx context.Context) (any, error) {
+			return obj.Official, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ImageSearchResult_official(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ImageSearchResult",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -8565,6 +8774,77 @@ func (ec *executionContext) fieldContext_Query_service(ctx context.Context, fiel
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_service_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_searchImages(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_searchImages,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Query().SearchImages(ctx, fc.Args["query"].(string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				if err != nil {
+					var zeroVal []model.ImageSearchResult
+					return zeroVal, err
+				}
+				if ec.directives.HasRole == nil {
+					var zeroVal []model.ImageSearchResult
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNImageSearchResult2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐImageSearchResultᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_searchImages(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "name":
+				return ec.fieldContext_ImageSearchResult_name(ctx, field)
+			case "description":
+				return ec.fieldContext_ImageSearchResult_description(ctx, field)
+			case "starCount":
+				return ec.fieldContext_ImageSearchResult_starCount(ctx, field)
+			case "pullCount":
+				return ec.fieldContext_ImageSearchResult_pullCount(ctx, field)
+			case "official":
+				return ec.fieldContext_ImageSearchResult_official(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ImageSearchResult", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_searchImages_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -12574,7 +12854,7 @@ func (ec *executionContext) unmarshalInputAddServiceInput(ctx context.Context, o
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"projectId", "name", "port", "framework", "sourceUrl", "contextPath", "installationId"}
+	fieldsInOrder := [...]string{"projectId", "name", "port", "framework", "sourceUrl", "contextPath", "installationId", "image"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -12650,6 +12930,13 @@ func (ec *executionContext) unmarshalInputAddServiceInput(ctx context.Context, o
 				return it, err
 			}
 			it.InstallationID = data
+		case "image":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("image"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Image = data
 		}
 	}
 
@@ -14662,6 +14949,65 @@ func (ec *executionContext) _GitHubRepository(ctx context.Context, sel ast.Selec
 	return out
 }
 
+var imageSearchResultImplementors = []string{"ImageSearchResult"}
+
+func (ec *executionContext) _ImageSearchResult(ctx context.Context, sel ast.SelectionSet, obj *model.ImageSearchResult) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, imageSearchResultImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ImageSearchResult")
+		case "name":
+			out.Values[i] = ec._ImageSearchResult_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "description":
+			out.Values[i] = ec._ImageSearchResult_description(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "starCount":
+			out.Values[i] = ec._ImageSearchResult_starCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "pullCount":
+			out.Values[i] = ec._ImageSearchResult_pullCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "official":
+			out.Values[i] = ec._ImageSearchResult_official(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var mutationImplementors = []string{"Mutation"}
 
 func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet) graphql.Marshaler {
@@ -15320,6 +15666,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_service(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "searchImages":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_searchImages(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
 				return res
 			}
 
@@ -17394,6 +17762,54 @@ func (ec *executionContext) marshalNID2string(ctx context.Context, sel ast.Selec
 		}
 	}
 	return res
+}
+
+func (ec *executionContext) marshalNImageSearchResult2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐImageSearchResult(ctx context.Context, sel ast.SelectionSet, v model.ImageSearchResult) graphql.Marshaler {
+	return ec._ImageSearchResult(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNImageSearchResult2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐImageSearchResultᚄ(ctx context.Context, sel ast.SelectionSet, v []model.ImageSearchResult) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNImageSearchResult2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐImageSearchResult(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
 }
 
 func (ec *executionContext) unmarshalNInt2int(ctx context.Context, v any) (int, error) {

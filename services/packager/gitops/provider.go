@@ -21,6 +21,8 @@ type ServiceDef struct {
 	SourceURL            string // GitHub repo URL for this service
 	ContextPath          string // subdirectory within the repo (monorepo support)
 	GitHubInstallationID int64  // GitHub App installation that owns this repo
+	ImageTag             string // initial image tag (default: "latest")
+	ImagePullPolicy      string // "Always", "IfNotPresent", or "" (chart default)
 }
 
 // DatabaseDef describes a PostgreSQL database configured in the project's GitOps repo.

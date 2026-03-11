@@ -161,6 +161,8 @@ message AddServiceRequest {
   string source_url = 7;     // GitHub repo URL for this service
   string context_path = 8;   // subdirectory within the repo (monorepo support)
   int64 github_installation_id = 9; // GitHub App installation that owns this repo
+  string image_tag = 10;             // initial image tag (default: "latest")
+  string image_pull_policy = 11;     // "Always", "IfNotPresent", or "" (chart default)
 }
 
 message AddServiceResponse {}

@@ -68,7 +68,7 @@ func (c *Client) DetectServices(ctx context.Context, sourceURL string, installat
 	return result, nil
 }
 
-func (c *Client) AddService(ctx context.Context, projectID, name string, port int, framework, sourceURL, contextPath string, installationID *int64) (*Service, error) {
+func (c *Client) AddService(ctx context.Context, projectID, name string, port int, framework, sourceURL, contextPath string, installationID *int64, externalImage string) (*Service, error) {
 	ws, err := tenant.Require(ctx)
 	if err != nil {
 		return nil, err
@@ -79,12 +79,19 @@ func (c *Client) AddService(ctx context.Context, projectID, name string, port in
 	ctx = auth.OutgoingContext(ctx)
 	ctx = tenant.OutgoingContext(ctx)
 
-	// Derive image path using cluster-internal address so pods can pull it.
-	image := deriveImagePath(c.RegistryImagePrefix, ws, projectID, name)
-
 	var ghInstallationID int64
 	if installationID != nil {
 		ghInstallationID = *installationID
+	}
+
+	// For external images, use the provided reference directly.
+	// For source-based services, derive from the internal registry.
+	var image, imageTag, imagePullPolicy string
+	if externalImage != "" {
+		image, imageTag = parseImageRef(externalImage)
+		imagePullPolicy = "Always"
+	} else {
+		image = deriveImagePath(c.RegistryImagePrefix, ws, projectID, name)
 	}
 
 	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
@@ -98,38 +105,42 @@ func (c *Client) AddService(ctx context.Context, projectID, name string, port in
 		SourceUrl:            sourceURL,
 		ContextPath:          contextPath,
 		GithubInstallationId: ghInstallationID,
+		ImageTag:             imageTag,
+		ImagePullPolicy:      imagePullPolicy,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to add service: %w", err)
 	}
 
-	// Fire-and-forget: build the service so it has an image immediately.
-	registry := deriveImagePath(c.RegistryPushURL, ws, projectID, name)
-	token := auth.TokenFrom(ctx)
-	ghToken := auth.GitHubTokenFrom(ctx) // propagate installation token to background build
-	go func() {
-		buildCtx := auth.WithToken(context.Background(), token)
-		buildCtx = tenant.WithWorkspace(buildCtx, ws)
-		if ghToken != "" {
-			buildCtx = auth.WithGitHubToken(buildCtx, ghToken)
-		}
-		buildCtx = auth.OutgoingContext(buildCtx)
-		buildCtx = tenant.OutgoingContext(buildCtx)
-		buildCtx, cancel := context.WithTimeout(buildCtx, grpcTimeout)
-		defer cancel()
-		_, err := c.Builder.StartBuild(buildCtx, &builder.StartBuildRequest{
-			SourceUrl:   sourceURL,
-			GitRef:      "",
-			Service:     name,
-			Registry:    registry,
-			ContextPath: contextPath,
-		})
-		if err != nil {
-			slog.Warn("failed to start initial build", "project", projectID, "service", name, "error", err)
-		} else {
-			slog.Info("started initial build", "project", projectID, "service", name)
-		}
-	}()
+	// Only fire-and-forget build if there's a source URL to build from.
+	if sourceURL != "" {
+		registry := deriveImagePath(c.RegistryPushURL, ws, projectID, name)
+		token := auth.TokenFrom(ctx)
+		ghToken := auth.GitHubTokenFrom(ctx) // propagate installation token to background build
+		go func() {
+			buildCtx := auth.WithToken(context.Background(), token)
+			buildCtx = tenant.WithWorkspace(buildCtx, ws)
+			if ghToken != "" {
+				buildCtx = auth.WithGitHubToken(buildCtx, ghToken)
+			}
+			buildCtx = auth.OutgoingContext(buildCtx)
+			buildCtx = tenant.OutgoingContext(buildCtx)
+			buildCtx, cancel := context.WithTimeout(buildCtx, grpcTimeout)
+			defer cancel()
+			_, err := c.Builder.StartBuild(buildCtx, &builder.StartBuildRequest{
+				SourceUrl:   sourceURL,
+				GitRef:      "",
+				Service:     name,
+				Registry:    registry,
+				ContextPath: contextPath,
+			})
+			if err != nil {
+				slog.Warn("failed to start initial build", "project", projectID, "service", name, "error", err)
+			} else {
+				slog.Info("started initial build", "project", projectID, "service", name)
+			}
+		}()
+	}
 
 	return &Service{
 		Name:                 name,
@@ -140,6 +151,17 @@ func (c *Client) AddService(ctx context.Context, projectID, name string, port in
 		ContextPath:          contextPath,
 		GitHubInstallationID: ghInstallationID,
 	}, nil
+}
+
+// parseImageRef splits a container image reference into repository and tag.
+// Handles registry:port/repo:tag by finding the last ":" after the last "/".
+func parseImageRef(ref string) (repository, tag string) {
+	if i := strings.LastIndex(ref, ":"); i >= 0 {
+		if j := strings.LastIndex(ref, "/"); i > j {
+			return ref[:i], ref[i+1:]
+		}
+	}
+	return ref, "latest"
 }
 
 func (c *Client) RemoveService(ctx context.Context, projectID, service string) (bool, error) {
@@ -173,6 +195,9 @@ func (c *Client) StartBuild(ctx context.Context, projectID, service, gitRef stri
 	sourceURL, contextPath, installationID, err := c.serviceSourceInfo(ctx, projectID, service)
 	if err != nil {
 		return nil, err
+	}
+	if sourceURL == "" {
+		return nil, fmt.Errorf("cannot build %q: service has no source repository (image-based services don't need builds)", service)
 	}
 	if installationID != 0 {
 		ctx = c.withInstallationTokenForID(ctx, installationID)
@@ -357,6 +382,9 @@ func (c *Client) Deploy(ctx context.Context, projectID, service, environment, gi
 	sourceURL, contextPath, installationID, err := c.serviceSourceInfo(ctx, projectID, service)
 	if err != nil {
 		return nil, err
+	}
+	if sourceURL == "" {
+		return nil, fmt.Errorf("cannot deploy %q: service has no source repository (image-based services are deployed automatically)", service)
 	}
 	if installationID != 0 {
 		ctx = c.withInstallationTokenForID(ctx, installationID)

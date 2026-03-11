@@ -2,11 +2,12 @@
 import { ref, computed, watch, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { useQuery, useMutation, useApolloClient } from '@vue/apollo-composable';
-import { Github, FolderPlus, Plus, Lock, Globe, ArrowLeft, Search, X, Database, ChevronDown } from 'lucide-vue-next';
-import { onKeyStroke } from '@vueuse/core';
+import { Github, FolderPlus, Plus, Lock, Globe, ArrowLeft, Search, X, Database, ChevronDown, Container, Star, Award } from 'lucide-vue-next';
+import { onKeyStroke, refDebounced } from '@vueuse/core';
 import { GitHubConnectedQuery, GitHubSourcesQuery, GitHubRepositoriesQuery } from '@/graphql/github';
 import { CreateProjectMutation } from '@/graphql/projects';
 import { AddServiceMutation, DetectServicesQuery, DeployMutation } from '@/graphql/services';
+import { SearchImagesQuery } from '@/graphql/registry';
 import { CreateDatabaseMutation } from '@/graphql/databases';
 import { toast } from '@/components/ui/sonner';
 import { Badge } from '@/components/ui/badge';
@@ -30,7 +31,7 @@ const router = useRouter();
 const { resolveClient } = useApolloClient();
 
 // Drill-down state
-type PaletteView = 'main' | 'github-repos' | 'manual-service' | 'database';
+type PaletteView = 'main' | 'github-repos' | 'manual-service' | 'database' | 'container-image';
 const view = ref<PaletteView>('main');
 const search = ref('');
 const inputRef = ref<HTMLInputElement>();
@@ -46,6 +47,10 @@ watch(() => props.open, (open) => {
     search.value = '';
     selectedSource.value = null;
     sourcePickerOpen.value = false;
+    imageSearch.value = '';
+    containerImageRef.value = '';
+    containerServiceName.value = '';
+    containerPort.value = 80;
     nextTick(() => inputRef.value?.focus());
   }
 });
@@ -320,6 +325,64 @@ if (typeof window !== 'undefined') {
   });
 }
 
+// Container image state
+const imageSearch = ref('');
+const imageSearchDebounced = refDebounced(imageSearch, 300);
+const containerImageRef = ref('');
+const containerServiceName = ref('');
+const containerPort = ref(80);
+
+const { result: imageSearchResult, loading: searchingImages } = useQuery(SearchImagesQuery, () => ({
+  query: imageSearchDebounced.value,
+}), () => ({
+  enabled: props.open && view.value === 'container-image' && imageSearchDebounced.value.length > 0,
+}));
+
+const imageResults = computed(() => imageSearchResult.value?.searchImages ?? []);
+
+function selectImage(image: { name: string }) {
+  containerImageRef.value = image.name;
+  // Derive service name from image (e.g., "library/nginx" -> "nginx", "bitnami/redis" -> "redis")
+  const parts = image.name.split('/');
+  containerServiceName.value = parts.pop() ?? image.name;
+  imageSearch.value = '';
+}
+
+function formatPullCount(count: number): string {
+  if (count >= 1_000_000_000) return `${(count / 1_000_000_000).toFixed(1)}B`;
+  if (count >= 1_000_000) return `${(count / 1_000_000).toFixed(1)}M`;
+  if (count >= 1_000) return `${(count / 1_000).toFixed(1)}K`;
+  return String(count);
+}
+
+async function handleAddContainerImage() {
+  if (!props.projectId) return;
+
+  try {
+    const res = await addServiceMutate({
+      input: {
+        projectId: props.projectId,
+        name: containerServiceName.value,
+        port: containerPort.value,
+        image: containerImageRef.value,
+      },
+    });
+
+    if (res?.errors?.length) {
+      toast.error('Failed to add service', {
+        description: res.errors.map(e => e.message).join(', '),
+      });
+      return;
+    }
+
+    toast.success('Service added', { description: containerImageRef.value });
+    close();
+    emit('created');
+  } catch (e: unknown) {
+    toast.error('Failed to add service', { description: errorMessage(e) });
+  }
+}
+
 // Main menu items filtering
 const mainItems = computed(() => {
   const items = props.context === 'projects'
@@ -329,6 +392,7 @@ const mainItems = computed(() => {
       ]
     : [
         { id: 'github-repo', label: 'GitHub Repository', icon: Github, action: () => { view.value = 'github-repos'; } },
+        { id: 'container-image', label: 'Container Image', icon: Container, action: () => { view.value = 'container-image'; } },
         { id: 'manual-service', label: 'Manual Service', icon: Plus, action: () => { view.value = 'manual-service'; } },
         { id: 'database', label: 'PostgreSQL Database', icon: Database, action: () => { view.value = 'database'; } },
       ];
@@ -534,6 +598,109 @@ const mainItems = computed(() => {
                 </div>
               </div>
             </template>
+          </template>
+
+          <!-- Container image view -->
+          <template v-if="view === 'container-image'">
+            <div class="flex items-center border-b px-3">
+              <button
+                class="mr-1 shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"
+                @click="view = 'main'"
+              >
+                <ArrowLeft :size="16" />
+              </button>
+              <Badge variant="secondary" class="mr-2 shrink-0">Container Image</Badge>
+              <Search :size="16" class="shrink-0 text-muted-foreground" />
+              <input
+                ref="inputRef"
+                v-model="imageSearch"
+                placeholder="Search Docker Hub..."
+                class="flex h-12 w-full bg-transparent px-3 text-sm outline-none placeholder:text-muted-foreground"
+              />
+              <button
+                class="shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"
+                @click="close"
+              >
+                <X :size="16" />
+              </button>
+            </div>
+
+            <!-- Search results -->
+            <div
+              v-if="imageSearch && (searchingImages || imageResults.length > 0)"
+              class="max-h-[240px] overflow-y-auto border-b"
+            >
+              <div class="p-1">
+                <p class="px-2 py-1.5 text-xs font-medium text-muted-foreground">Docker Hub</p>
+                <template v-if="searchingImages && imageResults.length === 0">
+                  <p class="px-2 py-6 text-center text-sm text-muted-foreground">Searching...</p>
+                </template>
+                <template v-else>
+                  <button
+                    v-for="img in imageResults"
+                    :key="img.name"
+                    class="flex w-full items-start gap-2 rounded-lg px-2 py-2 text-left text-sm text-popover-foreground transition-colors hover:bg-accent"
+                    @click="selectImage(img)"
+                  >
+                    <Container :size="14" class="mt-0.5 shrink-0 text-muted-foreground" />
+                    <div class="min-w-0 flex-1">
+                      <div class="flex items-center gap-1.5">
+                        <span class="font-medium">{{ img.name }}</span>
+                        <Badge v-if="img.official" variant="outline" class="text-[10px]">
+                          <Award :size="10" class="mr-0.5" />
+                          Official
+                        </Badge>
+                      </div>
+                      <p
+                        v-if="img.description"
+                        class="mt-0.5 truncate text-xs text-muted-foreground"
+                      >{{ img.description }}</p>
+                    </div>
+                    <div class="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
+                      <Star :size="10" />
+                      {{ formatPullCount(img.starCount) }}
+                    </div>
+                  </button>
+                </template>
+              </div>
+            </div>
+
+            <!-- Form -->
+            <div class="space-y-4 p-4">
+              <div class="space-y-2">
+                <label class="text-sm font-medium text-foreground">Image</label>
+                <input
+                  v-model="containerImageRef"
+                  class="flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  placeholder="nginx:1.25"
+                />
+                <p class="text-xs text-muted-foreground">Docker Hub image or full registry path</p>
+              </div>
+              <div class="space-y-2">
+                <label class="text-sm font-medium text-foreground">Service Name</label>
+                <input
+                  v-model="containerServiceName"
+                  class="flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  placeholder="nginx"
+                />
+              </div>
+              <div class="space-y-2">
+                <label class="text-sm font-medium text-foreground">Port</label>
+                <input
+                  v-model.number="containerPort"
+                  type="number"
+                  class="flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  placeholder="80"
+                />
+              </div>
+              <button
+                class="inline-flex h-9 w-full items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+                :disabled="addingService || !containerImageRef || !containerServiceName"
+                @click="handleAddContainerImage"
+              >
+                {{ addingService ? 'Adding...' : 'Add Service' }}
+              </button>
+            </div>
           </template>
 
           <!-- Manual service view -->

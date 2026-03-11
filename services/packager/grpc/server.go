@@ -172,6 +172,8 @@ func (s *Server) AddService(ctx context.Context, req *packager.AddServiceRequest
 		SourceURL:            req.SourceUrl,
 		ContextPath:          req.ContextPath,
 		GitHubInstallationID: req.GithubInstallationId,
+		ImageTag:             req.ImageTag,
+		ImagePullPolicy:      req.ImagePullPolicy,
 	}); err != nil {
 		return nil, fmt.Errorf("failed to add service: %w", err)
 	}

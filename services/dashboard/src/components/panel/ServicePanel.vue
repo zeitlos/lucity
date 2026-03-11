@@ -27,6 +27,7 @@ const props = defineProps<{
     image: string;
     port: number;
     framework?: string;
+    sourceUrl?: string;
   };
 }>();
 

@@ -25,6 +25,8 @@ type AddServiceInput struct {
 	SourceURL      *string `json:"sourceUrl,omitempty"`
 	ContextPath    *string `json:"contextPath,omitempty"`
 	InstallationID *string `json:"installationId,omitempty"`
+	// External container image reference (e.g. nginx:1.25, ghcr.io/foo/bar:v1). Skips the build step.
+	Image *string `json:"image,omitempty"`
 }
 
 type BillingPortalURL struct {
@@ -246,6 +248,15 @@ type GitHubRepository struct {
 	HTMLURL       string `json:"htmlUrl"`
 	DefaultBranch string `json:"defaultBranch"`
 	Private       bool   `json:"private"`
+}
+
+// A container image from a public registry (Docker Hub).
+type ImageSearchResult struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	StarCount   int    `json:"starCount"`
+	PullCount   int    `json:"pullCount"`
+	Official    bool   `json:"official"`
 }
 
 type InviteMemberInput struct {

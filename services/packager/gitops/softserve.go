@@ -166,11 +166,19 @@ func (p *SoftServeProvider) AddService(ctx context.Context, project string, svc 
 			services = make(map[string]any)
 		}
 
+		tag := "latest"
+		if svc.ImageTag != "" {
+			tag = svc.ImageTag
+		}
+		imageMap := map[string]any{
+			"repository": svc.Image,
+			"tag":        tag,
+		}
+		if svc.ImagePullPolicy != "" {
+			imageMap["pullPolicy"] = svc.ImagePullPolicy
+		}
 		svcEntry := map[string]any{
-			"image": map[string]any{
-				"repository": svc.Image,
-				"tag":        "latest",
-			},
+			"image":    imageMap,
 			"port":     svc.Port,
 			"replicas": 1,
 		}
