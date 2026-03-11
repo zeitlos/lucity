@@ -356,26 +356,41 @@ function formatPullCount(count: number): string {
 }
 
 async function handleAddContainerImage() {
-  if (!props.projectId) return;
+  if (props.context === 'projects') {
+    await handleCreateProjectFromImage();
+  } else {
+    await handleAddImageToProject();
+  }
+}
 
+async function handleCreateProjectFromImage() {
   try {
-    const res = await addServiceMutate({
-      input: {
-        projectId: props.projectId,
-        name: containerServiceName.value,
-        port: containerPort.value,
-        image: containerImageRef.value,
-      },
-    });
+    const projectName = generateName();
+    const res = await createProject({ input: { name: projectName } });
 
     if (res?.errors?.length) {
-      toast.error('Failed to add service', {
+      toast.error('Failed to create project', {
         description: res.errors.map(e => e.message).join(', '),
       });
       return;
     }
 
-    toast.success('Service added', { description: containerImageRef.value });
+    const projectId = res?.data?.createProject?.id;
+    if (!projectId) return;
+
+    await addImageService(projectId);
+    close();
+    router.push({ name: 'project', params: { id: projectId } });
+  } catch (e: unknown) {
+    toast.error('Failed to create project', { description: errorMessage(e) });
+  }
+}
+
+async function handleAddImageToProject() {
+  if (!props.projectId) return;
+
+  try {
+    await addImageService(props.projectId);
     close();
     emit('created');
   } catch (e: unknown) {
@@ -383,11 +398,32 @@ async function handleAddContainerImage() {
   }
 }
 
+async function addImageService(projectId: string) {
+  const res = await addServiceMutate({
+    input: {
+      projectId,
+      name: containerServiceName.value,
+      port: containerPort.value,
+      image: containerImageRef.value,
+    },
+  });
+
+  if (res?.errors?.length) {
+    toast.error('Failed to add service', {
+      description: res.errors.map(e => e.message).join(', '),
+    });
+    return;
+  }
+
+  toast.success('Service added', { description: containerImageRef.value });
+}
+
 // Main menu items filtering
 const mainItems = computed(() => {
   const items = props.context === 'projects'
     ? [
         { id: 'github-repo', label: 'GitHub Repository', icon: Github, action: () => { view.value = 'github-repos'; } },
+        { id: 'container-image', label: 'Container Image', icon: Container, action: () => { view.value = 'container-image'; } },
         { id: 'empty-project', label: 'Empty Project', icon: FolderPlus, action: () => { router.push('/'); close(); } },
       ]
     : [
