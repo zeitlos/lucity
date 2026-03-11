@@ -689,15 +689,26 @@ const mainItems = computed(() => {
 
           <!-- Container image view -->
           <template v-if="view === 'container-image'">
-            <div class="flex h-12 items-center border-b px-3">
+            <div class="flex items-center border-b px-3">
               <button
                 class="mr-1 shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"
                 @click="view = 'main'"
               >
                 <ArrowLeft :size="16" />
               </button>
-              <Badge variant="secondary">Container Image</Badge>
-              <div class="flex-1" />
+              <Badge variant="secondary" class="mr-2 shrink-0">Image</Badge>
+              <Search :size="16" class="shrink-0 text-muted-foreground" />
+              <input
+                ref="inputRef"
+                v-model="containerImageRef"
+                placeholder="Search Docker Hub or enter image..."
+                class="flex h-12 w-full bg-transparent px-3 text-sm outline-none placeholder:text-muted-foreground"
+              />
+              <Loader2
+                v-if="searchingImages"
+                :size="14"
+                class="shrink-0 animate-spin text-muted-foreground"
+              />
               <button
                 class="shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"
                 @click="close"
@@ -706,63 +717,49 @@ const mainItems = computed(() => {
               </button>
             </div>
 
-            <div class="space-y-4 p-4">
-              <!-- Image input with autocomplete -->
-              <div class="relative space-y-2">
-                <label class="text-sm font-medium text-foreground">Image</label>
-                <div class="relative">
-                  <input
-                    ref="inputRef"
-                    v-model="containerImageRef"
-                    class="flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                    placeholder="nginx:1.25"
-                  />
-                  <Loader2
-                    v-if="searchingImages"
-                    :size="14"
-                    class="absolute right-2.5 top-2.5 animate-spin text-muted-foreground"
-                  />
-                </div>
-
-                <!-- Autocomplete dropdown -->
-                <div
-                  v-if="imageResults.length > 0"
-                  class="absolute left-0 right-0 z-10 mt-1 max-h-[220px] overflow-y-auto rounded-md border bg-popover shadow-lg"
+            <!-- Search results -->
+            <div
+              v-if="imageResults.length > 0"
+              class="max-h-[320px] overflow-y-auto"
+            >
+              <div class="p-1">
+                <p class="px-2 py-1.5 text-xs font-medium text-muted-foreground">Docker Hub</p>
+                <button
+                  v-for="img in imageResults"
+                  :key="img.name"
+                  class="flex w-full items-start gap-2 rounded-lg px-2 py-2.5 text-left text-sm text-popover-foreground transition-colors hover:bg-accent"
+                  @click="selectImage(img)"
                 >
-                  <div class="p-1">
-                    <button
-                      v-for="img in imageResults"
-                      :key="img.name"
-                      class="flex w-full items-start gap-2 rounded px-2 py-1.5 text-left text-sm text-popover-foreground transition-colors hover:bg-accent"
-                      @click="selectImage(img)"
-                    >
-                      <Container :size="14" class="mt-0.5 shrink-0 text-muted-foreground" />
-                      <div class="min-w-0 flex-1">
-                        <div class="flex items-center gap-1.5">
-                          <span class="font-medium">{{ img.name }}</span>
-                          <Badge v-if="img.official" variant="outline" class="text-[10px]">
-                            <Award :size="10" class="mr-0.5" />
-                            Official
-                          </Badge>
-                        </div>
-                        <p
-                          v-if="img.description"
-                          class="mt-0.5 truncate text-xs text-muted-foreground"
-                        >{{ img.description }}</p>
-                      </div>
-                      <div class="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
-                        <Star :size="10" />
-                        {{ formatPullCount(img.starCount) }}
-                      </div>
-                    </button>
+                  <Container :size="14" class="mt-0.5 shrink-0 text-muted-foreground" />
+                  <div class="min-w-0 flex-1">
+                    <div class="flex items-center gap-1.5">
+                      <span class="font-medium">{{ img.name }}</span>
+                      <Badge v-if="img.official" variant="outline" class="text-[10px]">
+                        <Award :size="10" class="mr-0.5" />
+                        Official
+                      </Badge>
+                    </div>
+                    <p
+                      v-if="img.description"
+                      class="mt-0.5 truncate text-xs text-muted-foreground"
+                    >{{ img.description }}</p>
                   </div>
-                </div>
-
-                <p class="text-xs text-muted-foreground">
-                  Searches Docker Hub. You can also enter any image from ghcr.io, quay.io, or other public registries.
-                </p>
+                  <div class="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
+                    <Star :size="10" />
+                    {{ formatPullCount(img.starCount) }}
+                  </div>
+                </button>
               </div>
+            </div>
 
+            <!-- Form (shown when no search results or after image selected) -->
+            <div
+              v-if="imageResults.length === 0 && containerImageRef"
+              class="space-y-4 p-4"
+            >
+              <p class="text-xs text-muted-foreground">
+                Any public image works — Docker Hub, ghcr.io, quay.io, and others.
+              </p>
               <div class="space-y-2">
                 <label class="text-sm font-medium text-foreground">Service Name</label>
                 <input
@@ -787,6 +784,14 @@ const mainItems = computed(() => {
               >
                 {{ addingService ? 'Adding...' : 'Add Service' }}
               </button>
+            </div>
+
+            <!-- Empty state hint -->
+            <div
+              v-if="!containerImageRef"
+              class="px-4 py-6 text-center text-sm text-muted-foreground"
+            >
+              Search Docker Hub or type any public image reference.
             </div>
           </template>
 
