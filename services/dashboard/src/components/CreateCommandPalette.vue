@@ -468,7 +468,7 @@ onKeyStroke('Enter', (e) => {
     case 'main':
       if (mainItems.value.length > 0 && focusedIndex.value < mainItems.value.length) {
         e.preventDefault();
-        mainItems.value[focusedIndex.value].action();
+        mainItems.value[focusedIndex.value]?.action();
       }
       break;
     case 'github-repos':
@@ -655,7 +655,7 @@ const mainItems = computed(() => {
                       class="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm"
                       :class="sourcePickerOpen && focusedIndex === index ? 'bg-accent' : 'hover:bg-accent'"
                       @click="selectedSource = source; sourcePickerOpen = false"
-                      @mouseenter="focusedIndex = index"
+                      @mouseenter="focusedIndex = Number(index)"
                     >
                       <img
                         :src="source.accountAvatarUrl"
@@ -715,7 +715,7 @@ const mainItems = computed(() => {
                       :class="focusedIndex === index ? 'bg-accent' : 'hover:bg-accent'"
                       :disabled="creating || detectingServices"
                       @click="handleSelectRepo(repo)"
-                      @mouseenter="focusedIndex = index"
+                      @mouseenter="focusedIndex = Number(index)"
                     >
                       <component
                         :is="repo.private ? Lock : Globe"
@@ -776,7 +776,7 @@ const mainItems = computed(() => {
                   :class="focusedIndex === index ? 'bg-accent' : 'hover:bg-accent'"
                   :disabled="addingService"
                   @click="handleSelectImage(img.name)"
-                  @mouseenter="focusedIndex = index"
+                  @mouseenter="focusedIndex = Number(index)"
                 >
                   <Container :size="14" class="mt-0.5 shrink-0 text-muted-foreground" />
                   <div class="min-w-0 flex-1">
