@@ -18,6 +18,8 @@ const navLinks = [
   { label: 'Pricing', to: '/pricing' },
   { label: 'Blog', to: '/blog' },
 ];
+
+const appUrl = 'https://lucity.cloud/app';
 </script>
 
 <template>
@@ -71,6 +73,22 @@ const navLinks = [
           v-bind="{ color: 'neutral', variant: 'ghost', ...link }"
         />
       </template>
+
+      <UButton
+        :to="`${appUrl}/login`"
+        color="neutral"
+        variant="ghost"
+        class="hidden lg:inline-flex"
+      >
+        Sign in
+      </UButton>
+      <UButton
+        :to="`${appUrl}/login`"
+        color="primary"
+        class="hidden lg:inline-flex"
+      >
+        Get Started
+      </UButton>
     </template>
 
     <template #toggle="{ open, toggle }">
@@ -98,6 +116,24 @@ const navLinks = [
       </div>
 
       <USeparator class="mb-2" />
+
+      <div class="flex gap-2 px-4 pb-4">
+        <UButton
+          :to="`${appUrl}/login`"
+          color="neutral"
+          variant="outline"
+          block
+        >
+          Sign in
+        </UButton>
+        <UButton
+          :to="`${appUrl}/login`"
+          color="primary"
+          block
+        >
+          Get Started
+        </UButton>
+      </div>
 
       <AppHeaderBody />
     </template>

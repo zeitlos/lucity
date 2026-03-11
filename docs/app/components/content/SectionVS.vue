@@ -172,13 +172,13 @@ watch(visible, (v) => {
           Lucity Cloud is the managed version. Same open-source platform, hosted in Switzerland, zero infrastructure to maintain.
         </p>
         <UButton
-          to="/cloud"
+          to="https://lucity.cloud/app/login"
           color="white"
           variant="solid"
           icon="i-lucide-cloud"
           trailing-icon="i-lucide-arrow-right"
         >
-          Join the waitlist
+          Start for free
         </UButton>
       </div>
     </div>

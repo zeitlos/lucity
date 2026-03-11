@@ -29,8 +29,8 @@ const hobby = {
     'Community support',
   ],
   button: {
-    label: 'Join the waitlist',
-    to: '/cloud',
+    label: 'Get Started',
+    to: 'https://lucity.cloud/app/login',
     color: 'neutral' as const,
   },
   ui: hobbyUi,
@@ -52,8 +52,8 @@ const pro = {
     'Priority support',
   ],
   button: {
-    label: 'Join the waitlist',
-    to: '/cloud',
+    label: 'Get Started',
+    to: 'https://lucity.cloud/app/login',
   },
   ui: proUi,
 };

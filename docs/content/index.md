@@ -94,11 +94,11 @@ The enterprise way to deploy Kubernetes apps, cleverly automated. No proprietary
 
       :::::u-button
       ---
-      to: /cloud
+      to: https://lucity.cloud/app/login
       color: neutral
       trailing-icon: i-lucide-arrow-right
       ---
-      Join the waitlist
+      Start for free
       :::::
     ::::
   :::
