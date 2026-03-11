@@ -40,7 +40,7 @@ zot:
           "level": "info"
         }
       }
-    htpasswd: "***REMOVED***"
+    htpasswd: ""  # --set zot.configFiles.htpasswd (generate: htpasswd -bBn builder "$(openssl rand -hex 16)")
 
 softServe:
   persistence:
