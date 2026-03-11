@@ -20,14 +20,17 @@ spec:
     # Allow all traffic within the namespace (service ↔ service, service ↔ postgres, service ↔ redis)
     - from:
         - podSelector: {}
-    # Allow ingress from the Gateway API controller (Cilium) for HTTPRoute traffic.
-    # Cilium runs in host network mode, which means traffic arrives from the node IP
-    # and doesn't match any podSelector. Using an empty ipBlock allows it through.
-    # This is equivalent to allowing the Cilium gateway but without hardcoding its namespace.
+    # Allow ingress from the platform namespace (lucity-system) for internal access.
     - from:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: {{ .Values.gateway.namespace | default "lucity-system" }}
+    # Allow ingress from kube-system where Cilium Envoy (Gateway API dataplane) runs.
+    # Cilium Envoy processes HTTPRoute traffic and forwards it to backend pods.
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
   egress:
     # Allow DNS resolution (CoreDNS in kube-system)
     - to:
