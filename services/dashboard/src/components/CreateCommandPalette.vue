@@ -35,6 +35,7 @@ type PaletteView = 'main' | 'github-repos' | 'manual-service' | 'database' | 'co
 const view = ref<PaletteView>('main');
 const search = ref('');
 const inputRef = ref<HTMLInputElement>();
+const focusedIndex = ref(0);
 
 // Source picker state
 const selectedSource = ref<{ id: string; accountLogin: string; accountAvatarUrl: string; accountType: string } | null>(null);
@@ -48,6 +49,7 @@ watch(() => props.open, (open) => {
     selectedSource.value = null;
     sourcePickerOpen.value = false;
     containerImageRef.value = '';
+    focusedIndex.value = 0;
     nextTick(() => inputRef.value?.focus());
   }
 });
@@ -55,6 +57,7 @@ watch(() => props.open, (open) => {
 // Focus input when view changes
 watch(view, () => {
   search.value = '';
+  focusedIndex.value = 0;
   nextTick(() => inputRef.value?.focus());
 });
 
@@ -404,6 +407,100 @@ async function addImageService(projectId: string, imageRef: string) {
   toast.success('Service added', { description: imageRef });
 }
 
+// Reset focused index when lists change
+watch([search, imageResults, repos], () => {
+  focusedIndex.value = 0;
+});
+
+watch(sourcePickerOpen, (isOpen) => {
+  if (isOpen) focusedIndex.value = 0;
+});
+
+// Keyboard navigation
+const currentItemCount = computed(() => {
+  if (sourcePickerOpen.value) return sources.value.length + 1;
+  switch (view.value) {
+    case 'main': return mainItems.value.length;
+    case 'github-repos': return repos.value.length;
+    case 'container-image': return imageResults.value.length;
+    default: return 0;
+  }
+});
+
+function scrollFocusedIntoView() {
+  document.querySelector('[data-focused="true"]')?.scrollIntoView({ block: 'nearest' });
+}
+
+onKeyStroke('ArrowDown', (e) => {
+  if (!props.open) return;
+  if (view.value === 'manual-service' || view.value === 'database') return;
+  if (currentItemCount.value === 0) return;
+  e.preventDefault();
+  focusedIndex.value = (focusedIndex.value + 1) % currentItemCount.value;
+  nextTick(() => scrollFocusedIntoView());
+});
+
+onKeyStroke('ArrowUp', (e) => {
+  if (!props.open) return;
+  if (view.value === 'manual-service' || view.value === 'database') return;
+  if (currentItemCount.value === 0) return;
+  e.preventDefault();
+  focusedIndex.value = (focusedIndex.value - 1 + currentItemCount.value) % currentItemCount.value;
+  nextTick(() => scrollFocusedIntoView());
+});
+
+onKeyStroke('Enter', (e) => {
+  if (!props.open) return;
+
+  if (sourcePickerOpen.value) {
+    e.preventDefault();
+    if (focusedIndex.value < sources.value.length) {
+      selectedSource.value = sources.value[focusedIndex.value];
+    } else {
+      openInstallPopup();
+    }
+    sourcePickerOpen.value = false;
+    focusedIndex.value = 0;
+    return;
+  }
+
+  switch (view.value) {
+    case 'main':
+      if (mainItems.value.length > 0 && focusedIndex.value < mainItems.value.length) {
+        e.preventDefault();
+        mainItems.value[focusedIndex.value].action();
+      }
+      break;
+    case 'github-repos':
+      if (repos.value.length > 0 && focusedIndex.value < repos.value.length && !creating.value && !detectingServices.value) {
+        e.preventDefault();
+        handleSelectRepo(repos.value[focusedIndex.value]);
+      }
+      break;
+    case 'container-image':
+      if (!containerImageRef.value) break;
+      e.preventDefault();
+      if (imageResults.value.length > 0 && focusedIndex.value < imageResults.value.length) {
+        handleSelectImage(imageResults.value[focusedIndex.value].name);
+      } else {
+        handleSelectImage(containerImageRef.value);
+      }
+      break;
+    case 'manual-service':
+      if (!addingService.value && newServiceName.value) {
+        e.preventDefault();
+        handleAddManualService();
+      }
+      break;
+    case 'database':
+      if (!creatingDatabase.value && newDatabaseName.value) {
+        e.preventDefault();
+        handleCreateDatabase();
+      }
+      break;
+  }
+});
+
 // Main menu items filtering
 const mainItems = computed(() => {
   const items = props.context === 'projects'
@@ -460,10 +557,13 @@ const mainItems = computed(() => {
             <div class="p-1">
               <p class="px-2 py-1.5 text-xs font-medium text-muted-foreground">Create</p>
               <button
-                v-for="item in mainItems"
+                v-for="(item, index) in mainItems"
                 :key="item.id"
-                class="flex w-full items-center gap-2 rounded-lg px-2 py-2.5 text-sm text-popover-foreground transition-colors hover:bg-accent"
+                :data-focused="focusedIndex === index"
+                class="flex w-full items-center gap-2 rounded-lg px-2 py-2.5 text-sm text-popover-foreground transition-colors"
+                :class="focusedIndex === index ? 'bg-accent' : 'hover:bg-accent'"
                 @click="item.action()"
+                @mouseenter="focusedIndex = index"
               >
                 <component :is="item.icon" :size="16" class="text-muted-foreground" />
                 {{ item.label }}
@@ -549,10 +649,13 @@ const mainItems = computed(() => {
                 >
                   <div class="p-1">
                     <button
-                      v-for="source in sources"
+                      v-for="(source, index) in sources"
                       :key="source.id"
-                      class="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm hover:bg-accent"
+                      :data-focused="sourcePickerOpen && focusedIndex === index"
+                      class="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm"
+                      :class="sourcePickerOpen && focusedIndex === index ? 'bg-accent' : 'hover:bg-accent'"
                       @click="selectedSource = source; sourcePickerOpen = false"
+                      @mouseenter="focusedIndex = index"
                     >
                       <img
                         :src="source.accountAvatarUrl"
@@ -567,8 +670,11 @@ const mainItems = computed(() => {
                       >Org</Badge>
                     </button>
                     <button
-                      class="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-foreground"
+                      :data-focused="sourcePickerOpen && focusedIndex === sources.length"
+                      class="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm text-muted-foreground"
+                      :class="sourcePickerOpen && focusedIndex === sources.length ? 'bg-accent text-foreground' : 'hover:bg-accent hover:text-foreground'"
                       @click="openInstallPopup(); sourcePickerOpen = false"
+                      @mouseenter="focusedIndex = sources.length"
                     >
                       <Plus :size="14" />
                       Add GitHub Account
@@ -602,11 +708,14 @@ const mainItems = computed(() => {
                   </template>
                   <template v-else>
                     <button
-                      v-for="repo in repos"
+                      v-for="(repo, index) in repos"
                       :key="repo.id"
-                      class="flex w-full items-center gap-2 rounded-lg px-2 py-2.5 text-sm text-popover-foreground transition-colors hover:bg-accent disabled:opacity-50"
+                      :data-focused="focusedIndex === index"
+                      class="flex w-full items-center gap-2 rounded-lg px-2 py-2.5 text-sm text-popover-foreground transition-colors disabled:opacity-50"
+                      :class="focusedIndex === index ? 'bg-accent' : 'hover:bg-accent'"
                       :disabled="creating || detectingServices"
                       @click="handleSelectRepo(repo)"
+                      @mouseenter="focusedIndex = index"
                     >
                       <component
                         :is="repo.private ? Lock : Globe"
@@ -638,7 +747,6 @@ const mainItems = computed(() => {
                 v-model="containerImageRef"
                 placeholder="Search Docker Hub or enter image..."
                 class="flex h-12 w-full bg-transparent px-3 text-sm outline-none placeholder:text-muted-foreground"
-                @keydown.enter="handleSelectImage(containerImageRef)"
               />
               <Loader2
                 v-if="searchingImages || addingService"
@@ -661,11 +769,14 @@ const mainItems = computed(() => {
               <div class="p-1">
                 <p class="px-2 py-1.5 text-xs font-medium text-muted-foreground">Docker Hub</p>
                 <button
-                  v-for="img in imageResults"
+                  v-for="(img, index) in imageResults"
                   :key="img.name"
-                  class="flex w-full items-start gap-2 rounded-lg px-2 py-2.5 text-left text-sm text-popover-foreground transition-colors hover:bg-accent disabled:opacity-50"
+                  :data-focused="focusedIndex === index"
+                  class="flex w-full items-start gap-2 rounded-lg px-2 py-2.5 text-left text-sm text-popover-foreground transition-colors disabled:opacity-50"
+                  :class="focusedIndex === index ? 'bg-accent' : 'hover:bg-accent'"
                   :disabled="addingService"
                   @click="handleSelectImage(img.name)"
+                  @mouseenter="focusedIndex = index"
                 >
                   <Container :size="14" class="mt-0.5 shrink-0 text-muted-foreground" />
                   <div class="min-w-0 flex-1">
