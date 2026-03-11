@@ -8,8 +8,10 @@ type DetectedService {
 
 input AddServiceInput {
   projectId: ID!
-  name: String! @constraint(constraint: "min=2,max=63")
-  port: Int!
+  """Service name. If omitted when image is set, derived from the image (e.g. nginx:1.25 → nginx)."""
+  name: String @constraint(constraint: "min=2,max=63")
+  """Container port. If omitted when image is set, uses well-known defaults (e.g. redis → 6379)."""
+  port: Int
   framework: String
   sourceUrl: String
   contextPath: String

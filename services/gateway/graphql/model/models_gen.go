@@ -18,9 +18,11 @@ type AddCustomDomainInput struct {
 }
 
 type AddServiceInput struct {
-	ProjectID      string  `json:"projectId"`
-	Name           string  `json:"name"`
-	Port           int     `json:"port"`
+	ProjectID string `json:"projectId"`
+	// Service name. If omitted when image is set, derived from the image (e.g. nginx:1.25 → nginx).
+	Name *string `json:"name,omitempty"`
+	// Container port. If omitted when image is set, uses well-known defaults (e.g. redis → 6379).
+	Port           *int    `json:"port,omitempty"`
 	Framework      *string `json:"framework,omitempty"`
 	SourceURL      *string `json:"sourceUrl,omitempty"`
 	ContextPath    *string `json:"contextPath,omitempty"`

@@ -355,26 +355,45 @@ const imageResults = computed(() => {
 // Reset imageSelected when user edits the input
 watch(containerImageRef, () => {
   imageSelected.value = false;
-  // Auto-derive service name as user types
-  deriveServiceName(containerImageRef.value);
+  deriveFromImage(containerImageRef.value);
 });
 
 function selectImage(image: { name: string }) {
   containerImageRef.value = image.name;
-  deriveServiceName(image.name);
+  deriveFromImage(image.name);
   imageSelected.value = true;
 }
 
-function deriveServiceName(ref: string) {
-  if (!ref) {
-    containerServiceName.value = '';
-    return;
-  }
+const wellKnownPorts: Record<string, number> = {
+  nginx: 80, httpd: 80, caddy: 80, traefik: 80,
+  redis: 6379, valkey: 6379,
+  postgres: 5432, postgresql: 5432,
+  mysql: 3306, mariadb: 3306,
+  mongo: 27017, mongodb: 27017,
+  memcached: 11211, rabbitmq: 5672, nats: 4222,
+  elasticsearch: 9200, opensearch: 9200,
+  minio: 9000, grafana: 3000, prometheus: 9090,
+  clickhouse: 8123, influxdb: 8086,
+  vault: 8200, consul: 8500, etcd: 2379,
+};
+
+function imageBaseName(ref: string): string {
   // Strip tag (e.g., "nginx:1.25" -> "nginx")
   const withoutTag = ref.includes(':') ? ref.split(':')[0] ?? ref : ref;
-  // Use last path segment (e.g., "bitnami/redis" -> "redis", "ghcr.io/foo/bar" -> "bar")
+  // Use last path segment (e.g., "bitnami/redis" -> "redis")
   const parts = withoutTag.split('/');
-  containerServiceName.value = parts[parts.length - 1] ?? ref;
+  return parts[parts.length - 1] ?? ref;
+}
+
+function deriveFromImage(ref: string) {
+  if (!ref) {
+    containerServiceName.value = '';
+    containerPort.value = 80;
+    return;
+  }
+  const name = imageBaseName(ref);
+  containerServiceName.value = name;
+  containerPort.value = wellKnownPorts[name] ?? 80;
 }
 
 function formatPullCount(count: number): string {
@@ -428,11 +447,14 @@ async function handleAddImageToProject() {
 }
 
 async function addImageService(projectId: string) {
+  // Only send name/port if user explicitly changed them from the auto-derived defaults
+  const derivedName = imageBaseName(containerImageRef.value);
+  const derivedPort = wellKnownPorts[derivedName] ?? 80;
   const res = await addServiceMutate({
     input: {
       projectId,
-      name: containerServiceName.value,
-      port: containerPort.value,
+      name: containerServiceName.value !== derivedName ? containerServiceName.value : undefined,
+      port: containerPort.value !== derivedPort ? containerPort.value : undefined,
       image: containerImageRef.value,
     },
   });
@@ -760,7 +782,7 @@ const mainItems = computed(() => {
               </div>
               <button
                 class="inline-flex h-9 w-full items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
-                :disabled="addingService || !containerImageRef || !containerServiceName"
+                :disabled="addingService || !containerImageRef"
                 @click="handleAddContainerImage"
               >
                 {{ addingService ? 'Adding...' : 'Add Service' }}

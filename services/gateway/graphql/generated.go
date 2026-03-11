@@ -12910,16 +12910,16 @@ func (ec *executionContext) unmarshalInputAddServiceInput(ctx context.Context, o
 			it.ProjectID = data
 		case "name":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
-			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNString2string(ctx, v) }
+			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalOString2ᚖstring(ctx, v) }
 
 			directive1 := func(ctx context.Context) (any, error) {
 				constraint, err := ec.unmarshalNString2string(ctx, "min=2,max=63")
 				if err != nil {
-					var zeroVal string
+					var zeroVal *string
 					return zeroVal, err
 				}
 				if ec.directives.Constraint == nil {
-					var zeroVal string
+					var zeroVal *string
 					return zeroVal, errors.New("directive constraint is not implemented")
 				}
 				return ec.directives.Constraint(ctx, obj, directive0, constraint)
@@ -12929,15 +12929,17 @@ func (ec *executionContext) unmarshalInputAddServiceInput(ctx context.Context, o
 			if err != nil {
 				return it, graphql.ErrorOnPath(ctx, err)
 			}
-			if data, ok := tmp.(string); ok {
+			if data, ok := tmp.(*string); ok {
 				it.Name = data
+			} else if tmp == nil {
+				it.Name = nil
 			} else {
-				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
+				err := fmt.Errorf(`unexpected type %T from directive, should be *string`, tmp)
 				return it, graphql.ErrorOnPath(ctx, err)
 			}
 		case "port":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("port"))
-			data, err := ec.unmarshalNInt2int(ctx, v)
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
 			if err != nil {
 				return it, err
 			}

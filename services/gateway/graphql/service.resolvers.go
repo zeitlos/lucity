@@ -35,11 +35,19 @@ func (r *mutationResolver) AddService(ctx context.Context, input model.AddServic
 		}
 		installationID = &id
 	}
+	name := ""
+	if input.Name != nil {
+		name = *input.Name
+	}
+	port := 0
+	if input.Port != nil {
+		port = *input.Port
+	}
 	externalImage := ""
 	if input.Image != nil {
 		externalImage = *input.Image
 	}
-	svc, err := r.API.AddService(ctx, input.ProjectID, input.Name, input.Port, framework, sourceURL, contextPath, installationID, externalImage)
+	svc, err := r.API.AddService(ctx, input.ProjectID, name, port, framework, sourceURL, contextPath, installationID, externalImage)
 	if err != nil {
 		return nil, err
 	}

@@ -84,6 +84,16 @@ func (c *Client) AddService(ctx context.Context, projectID, name string, port in
 		ghInstallationID = *installationID
 	}
 
+	// Derive name and port from image when not explicitly provided.
+	if externalImage != "" {
+		if name == "" {
+			name = deriveServiceName(externalImage)
+		}
+		if port == 0 {
+			port = defaultPortForImage(externalImage)
+		}
+	}
+
 	// For external images, use the provided reference directly.
 	// For source-based services, derive from the internal registry.
 	var image, imageTag, imagePullPolicy string
@@ -151,6 +161,72 @@ func (c *Client) AddService(ctx context.Context, projectID, name string, port in
 		ContextPath:          contextPath,
 		GitHubInstallationID: ghInstallationID,
 	}, nil
+}
+
+// wellKnownPorts maps common container image names to their default ports.
+var wellKnownPorts = map[string]int{
+	"nginx":         80,
+	"httpd":         80,
+	"apache":        80,
+	"caddy":         80,
+	"traefik":       80,
+	"redis":         6379,
+	"valkey":        6379,
+	"postgres":      5432,
+	"postgresql":    5432,
+	"mysql":         3306,
+	"mariadb":       3306,
+	"mongo":         27017,
+	"mongodb":       27017,
+	"memcached":     11211,
+	"rabbitmq":      5672,
+	"nats":          4222,
+	"elasticsearch": 9200,
+	"opensearch":    9200,
+	"minio":         9000,
+	"grafana":       3000,
+	"prometheus":    9090,
+	"clickhouse":    8123,
+	"influxdb":      8086,
+	"vault":         8200,
+	"consul":        8500,
+	"etcd":          2379,
+}
+
+// defaultPortForImage returns a well-known port for the image, or 80 as fallback.
+func defaultPortForImage(imageRef string) int {
+	name := imageRef
+	// Strip tag
+	if i := strings.LastIndex(name, ":"); i >= 0 {
+		if j := strings.LastIndex(name, "/"); i > j {
+			name = name[:i]
+		}
+	}
+	// Use last path segment (e.g., "bitnami/redis" → "redis")
+	if i := strings.LastIndex(name, "/"); i >= 0 {
+		name = name[i+1:]
+	}
+	if port, ok := wellKnownPorts[name]; ok {
+		return port
+	}
+	return 80
+}
+
+// deriveServiceName extracts a service name from an image reference.
+// e.g., "nginx:1.25" → "nginx", "ghcr.io/foo/my-app:v1" → "my-app"
+func deriveServiceName(imageRef string) string {
+	name := imageRef
+	// Strip tag
+	if i := strings.LastIndex(name, ":"); i >= 0 {
+		if j := strings.LastIndex(name, "/"); i > j {
+			name = name[:i]
+		}
+	}
+	// Use last path segment
+	if i := strings.LastIndex(name, "/"); i >= 0 {
+		name = name[i+1:]
+	}
+	return name
 }
 
 // parseImageRef splits a container image reference into repository and tag.
