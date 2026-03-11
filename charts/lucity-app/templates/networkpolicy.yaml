@@ -1,0 +1,54 @@
+# Workload namespace isolation.
+# Pods can talk to each other within the namespace and to the internet,
+# but cannot reach pods in other namespaces (lucity-system, other projects, etc).
+
+# Ingress: deny all traffic from outside the namespace.
+# Pods within the namespace can communicate freely (services ↔ postgres ↔ redis).
+# The Gateway API controller (Cilium) is allowed in for HTTPRoute traffic.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "lucity-app.fullname" . }}-namespace-isolation
+  labels:
+    {{- include "lucity-app.labels" . | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow all traffic within the namespace (service ↔ service, service ↔ postgres, service ↔ redis)
+    - from:
+        - podSelector: {}
+    # Allow ingress from the Gateway API controller (Cilium) for HTTPRoute traffic.
+    # Cilium runs in host network mode, which means traffic arrives from the node IP
+    # and doesn't match any podSelector. Using an empty ipBlock allows it through.
+    # This is equivalent to allowing the Cilium gateway but without hardcoding its namespace.
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.gateway.namespace | default "lucity-system" }}
+  egress:
+    # Allow DNS resolution (CoreDNS in kube-system)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    # Allow all traffic within the namespace (service ↔ service, service ↔ postgres, service ↔ redis)
+    - to:
+        - podSelector: {}
+    # Allow egress to the internet (external APIs, webhooks, etc).
+    # This blocks egress to other cluster namespaces by only allowing
+    # non-cluster IPs (0.0.0.0/0 minus the cluster CIDR ranges).
+    # Pod CIDR (10.244.0.0/16) and Service CIDR (10.96.0.0/12) are excluded.
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.96.0.0/12
+              - 10.244.0.0/16
