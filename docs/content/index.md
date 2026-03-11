@@ -13,7 +13,7 @@ Open-source PaaS on Kubernetes. Git push to deploy, environments out of the box,
 #links
   :::u-button
   ---
-  to: /getting-started/quick-start
+  to: https://lucity.cloud/app/login
   color: neutral
   size: xl
   trailing-icon: i-lucide-arrow-right
