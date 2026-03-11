@@ -783,7 +783,7 @@ async function handleRemoveService() {
                   <Label class="text-sm font-medium">Autoscaling</Label>
                   <p class="text-xs text-muted-foreground">Scale replicas based on CPU usage.</p>
                 </div>
-                <Switch v-model="autoscalingEnabled" />
+                <Switch v-model="autoscalingEnabled" class="data-[state=unchecked]:bg-zinc-300 dark:data-[state=unchecked]:bg-zinc-600" />
               </div>
 
               <!-- Autoscaling settings -->
