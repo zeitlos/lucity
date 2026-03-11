@@ -474,12 +474,12 @@ const mainItems = computed(() => {
   const items = props.context === 'projects'
     ? [
         { id: 'github-repo', label: 'GitHub Repository', icon: Github, action: () => { view.value = 'github-repos'; } },
-        { id: 'container-image', label: 'Container Image', icon: Container, action: () => { view.value = 'container-image'; } },
+        { id: 'container-image', label: 'Container Image', emoji: '🐳', action: () => { view.value = 'container-image'; } },
         { id: 'empty-project', label: 'Empty Project', icon: FolderPlus, action: () => { router.push('/'); close(); } },
       ]
     : [
         { id: 'github-repo', label: 'GitHub Repository', icon: Github, action: () => { view.value = 'github-repos'; } },
-        { id: 'container-image', label: 'Container Image', icon: Container, action: () => { view.value = 'container-image'; } },
+        { id: 'container-image', label: 'Container Image', emoji: '🐳', action: () => { view.value = 'container-image'; } },
         { id: 'manual-service', label: 'Manual Service', icon: Plus, action: () => { view.value = 'manual-service'; } },
         { id: 'database', label: 'PostgreSQL Database', icon: Database, action: () => { view.value = 'database'; } },
       ];
@@ -530,7 +530,8 @@ const mainItems = computed(() => {
                 class="flex w-full items-center gap-2 rounded-lg px-2 py-2.5 text-sm text-popover-foreground transition-colors hover:bg-accent"
                 @click="item.action()"
               >
-                <component :is="item.icon" :size="16" class="text-muted-foreground" />
+                <component :is="item.icon" v-if="item.icon" :size="16" class="text-muted-foreground" />
+                <span v-if="item.emoji" class="text-base leading-none">{{ item.emoji }}</span>
                 {{ item.label }}
               </button>
               <p v-if="mainItems.length === 0" class="px-2 py-6 text-center text-sm text-muted-foreground">
