@@ -2,9 +2,16 @@ package metering
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"math"
+	"strconv"
 	"time"
+
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/deployer"
@@ -12,22 +19,30 @@ import (
 	stripelib "github.com/zeitlos/lucity/services/cashier/stripe"
 )
 
+// maxBackfillDays is the maximum number of days we can backfill (Stripe's meter event limit).
+const maxBackfillDays = 35
+
+const checkpointCMName = "metering-checkpoint"
+const checkpointKey = "last_window_end"
+
 // Worker periodically queries resource usage and reports it to Stripe.
 type Worker struct {
 	stripe   *stripelib.Client
 	deployer deployer.DeployerServiceClient
 	signoz   *SigNozClient
+	k8s      kubernetes.Interface // nil if K8s not available (no checkpoint/backfill)
 	interval time.Duration
 	cancel   context.CancelFunc
 	done     chan struct{}
 }
 
-// NewWorker creates a metering worker.
-func NewWorker(stripeClient *stripelib.Client, deployerClient deployer.DeployerServiceClient, signozClient *SigNozClient, interval time.Duration) *Worker {
+// NewWorker creates a metering worker. k8sClient may be nil (disables checkpoint/backfill).
+func NewWorker(stripeClient *stripelib.Client, deployerClient deployer.DeployerServiceClient, signozClient *SigNozClient, k8sClient kubernetes.Interface, interval time.Duration) *Worker {
 	return &Worker{
 		stripe:   stripeClient,
 		deployer: deployerClient,
 		signoz:   signozClient,
+		k8s:      k8sClient,
 		interval: interval,
 		done:     make(chan struct{}),
 	}
@@ -41,7 +56,10 @@ func (w *Worker) Start() error {
 
 	defer close(w.done)
 
-	// Run once immediately on startup, then on ticker.
+	// Backfill missed windows on startup.
+	w.backfill(ctx)
+
+	// Process the most recently completed window, then tick on schedule.
 	w.tick(ctx)
 
 	ticker := time.NewTicker(w.interval)
@@ -68,6 +86,59 @@ func (w *Worker) Shutdown(ctx context.Context) error {
 	return nil
 }
 
+// alignWindow returns the start and end of the most recently completed aligned window.
+// For a 1h interval at 14:37, this returns (13:00, 14:00).
+func alignWindow(now time.Time, interval time.Duration) (start, end time.Time) {
+	intervalSec := int64(interval.Seconds())
+	nowUnix := now.Unix()
+	endUnix := nowUnix - (nowUnix % intervalSec)
+	return time.Unix(endUnix-intervalSec, 0).UTC(), time.Unix(endUnix, 0).UTC()
+}
+
+// backfill processes all missed metering windows since the last checkpoint.
+func (w *Worker) backfill(ctx context.Context) {
+	if w.k8s == nil {
+		return
+	}
+
+	lastEnd := w.lastCheckpoint(ctx)
+	if lastEnd.IsZero() {
+		slog.Info("metering: no checkpoint found, skipping backfill")
+		return
+	}
+
+	_, currentEnd := alignWindow(time.Now(), w.interval)
+
+	// Cap backfill to Stripe's limit.
+	earliest := time.Now().Add(-maxBackfillDays * 24 * time.Hour)
+	if lastEnd.Before(earliest) {
+		slog.Warn("metering: checkpoint older than 35 days, capping backfill",
+			"checkpoint", lastEnd, "capped_to", earliest)
+		// Re-align the capped time to a proper window boundary.
+		_, lastEnd = alignWindow(earliest, w.interval)
+	}
+
+	// Process each missed window in chronological order.
+	windowStart := lastEnd
+	var count int
+	for windowStart.Add(w.interval).Before(currentEnd) || windowStart.Add(w.interval).Equal(currentEnd) {
+		windowEnd := windowStart.Add(w.interval)
+		count++
+		slog.Info("metering: backfilling window", "start", windowStart, "end", windowEnd, "window", count)
+		w.processWindow(ctx, windowStart, windowEnd)
+		windowStart = windowEnd
+	}
+	if count > 0 {
+		slog.Info("metering: backfill complete", "windows", count)
+	}
+}
+
+func (w *Worker) tick(ctx context.Context) {
+	start, end := alignWindow(time.Now(), w.interval)
+	slog.Info("metering tick", "window_start", start, "window_end", end)
+	w.processWindow(ctx, start, end)
+}
+
 // deployerCtx creates a system-level auth context for calling the deployer.
 func deployerCtx(ctx context.Context) context.Context {
 	ctx = auth.WithClaims(ctx, &auth.Claims{
@@ -79,10 +150,10 @@ func deployerCtx(ctx context.Context) context.Context {
 
 // workspaceData holds billing metadata for a workspace.
 type workspaceData struct {
-	customerID     string
-	subscriptionID string
-	ecoNamespaces  []string
-	ecoAllocations []allocEntry
+	customerID      string
+	subscriptionID  string
+	ecoNamespaces   []string
+	ecoAllocations  []allocEntry
 	prodAllocations []allocEntry
 }
 
@@ -93,10 +164,8 @@ type allocEntry struct {
 	diskMB    int32
 }
 
-func (w *Worker) tick(ctx context.Context) {
-	slog.Info("metering tick started")
+func (w *Worker) processWindow(ctx context.Context, windowStart, windowEnd time.Time) {
 	start := time.Now()
-
 	callCtx := deployerCtx(ctx)
 
 	// 1. List all workspaces and their billing metadata.
@@ -127,6 +196,7 @@ func (w *Worker) tick(ctx context.Context) {
 
 	if len(workspaces) == 0 {
 		slog.Info("metering: no billable workspaces")
+		w.saveCheckpointQuiet(ctx, windowEnd)
 		return
 	}
 
@@ -165,19 +235,19 @@ func (w *Worker) tick(ctx context.Context) {
 	// 5. Query SigNoz for eco namespace usage.
 	var cpuByNs, memByNs, diskByNs map[string]float64
 	if len(allEcoNamespaces) > 0 {
-		cpuByNs, err = w.signoz.CPUByNamespace(ctx, allEcoNamespaces, w.interval)
+		cpuByNs, err = w.signoz.CPUByNamespace(ctx, allEcoNamespaces, windowStart, windowEnd)
 		if err != nil {
 			slog.Error("metering: failed to query CPU usage", "error", err)
 			cpuByNs = make(map[string]float64)
 		}
 
-		memByNs, err = w.signoz.MemoryByNamespace(ctx, allEcoNamespaces, w.interval)
+		memByNs, err = w.signoz.MemoryByNamespace(ctx, allEcoNamespaces, windowStart, windowEnd)
 		if err != nil {
 			slog.Error("metering: failed to query memory usage", "error", err)
 			memByNs = make(map[string]float64)
 		}
 
-		diskByNs, err = w.signoz.DiskByNamespace(ctx, allEcoNamespaces, w.interval)
+		diskByNs, err = w.signoz.DiskByNamespace(ctx, allEcoNamespaces, windowStart, windowEnd)
 		if err != nil {
 			slog.Error("metering: failed to query disk usage", "error", err)
 			diskByNs = make(map[string]float64)
@@ -185,22 +255,38 @@ func (w *Worker) tick(ctx context.Context) {
 	}
 
 	// 6. Report to Stripe per workspace.
-	now := time.Now().Unix()
-	intervalMinutes := w.interval.Minutes()
-
+	var anyError bool
 	for wsID, ws := range workspaces {
-		if err := w.reportWorkspace(ctx, wsID, ws, cpuByNs, memByNs, diskByNs, now, intervalMinutes); err != nil {
+		if err := w.reportWorkspace(ctx, wsID, ws, cpuByNs, memByNs, diskByNs, windowStart, windowEnd); err != nil {
 			slog.Error("metering: failed to report workspace", "workspace", wsID, "error", err)
+			anyError = true
 		}
 
-		// Check if workspace is on trial and has exceeded €5 usage cap.
+		// Check if workspace is on trial and has exceeded usage cap.
 		w.checkTrialUsageCap(ctx, wsID, ws)
 	}
 
-	slog.Info("metering tick completed", "duration", time.Since(start), "workspaces", len(workspaces))
+	// Only checkpoint if all workspaces succeeded — failed windows will be retried,
+	// and Stripe's identifier dedup prevents double-counting for already-reported events.
+	if anyError {
+		slog.Warn("metering: skipping checkpoint due to errors, will retry next tick",
+			"window_start", windowStart, "window_end", windowEnd)
+	} else {
+		w.saveCheckpointQuiet(ctx, windowEnd)
+	}
+
+	slog.Info("metering tick completed",
+		"duration", time.Since(start),
+		"workspaces", len(workspaces),
+		"window_start", windowStart,
+		"window_end", windowEnd,
+	)
 }
 
-func (w *Worker) reportWorkspace(ctx context.Context, wsID string, ws *workspaceData, cpuByNs, memByNs, diskByNs map[string]float64, timestamp int64, intervalMinutes float64) error {
+func (w *Worker) reportWorkspace(ctx context.Context, wsID string, ws *workspaceData, cpuByNs, memByNs, diskByNs map[string]float64, windowStart, windowEnd time.Time) error {
+	intervalMinutes := windowEnd.Sub(windowStart).Minutes()
+	timestamp := windowEnd.Unix()
+
 	// Report eco usage from SigNoz via Billing Meter events.
 	if len(ws.ecoNamespaces) > 0 {
 		var totalCPUSeconds, totalMemBytes, totalDiskBytes float64
@@ -210,26 +296,29 @@ func (w *Worker) reportWorkspace(ctx context.Context, wsID string, ws *workspace
 			totalDiskBytes += diskByNs[ns]
 		}
 
-		// CPU: seconds → vCPU-minutes (Stripe unit).
+		// CPU: seconds -> vCPU-minutes (Stripe unit).
 		cpuMinutes := int64(math.Ceil(totalCPUSeconds / 60))
 		if cpuMinutes > 0 && w.stripe.Meters.EcoCPUEventName != "" {
-			if err := w.stripe.ReportMeterEvent(ctx, w.stripe.Meters.EcoCPUEventName, ws.customerID, cpuMinutes, timestamp); err != nil {
+			id := meterEventID(wsID, w.stripe.Meters.EcoCPUEventName, windowStart)
+			if err := w.stripe.ReportMeterEvent(ctx, w.stripe.Meters.EcoCPUEventName, ws.customerID, cpuMinutes, timestamp, id); err != nil {
 				slog.Error("metering: eco CPU report failed", "workspace", wsID, "error", err)
 			}
 		}
 
-		// Memory: avg bytes → GB-minutes.
+		// Memory: avg bytes -> GB-minutes.
 		gbMinutes := int64(math.Ceil(totalMemBytes / (1024 * 1024 * 1024) * intervalMinutes))
 		if gbMinutes > 0 && w.stripe.Meters.EcoMemEventName != "" {
-			if err := w.stripe.ReportMeterEvent(ctx, w.stripe.Meters.EcoMemEventName, ws.customerID, gbMinutes, timestamp); err != nil {
+			id := meterEventID(wsID, w.stripe.Meters.EcoMemEventName, windowStart)
+			if err := w.stripe.ReportMeterEvent(ctx, w.stripe.Meters.EcoMemEventName, ws.customerID, gbMinutes, timestamp, id); err != nil {
 				slog.Error("metering: eco memory report failed", "workspace", wsID, "error", err)
 			}
 		}
 
-		// Disk: bytes → GB.
+		// Disk: bytes -> GB.
 		diskGB := int64(math.Ceil(totalDiskBytes / (1024 * 1024 * 1024)))
 		if diskGB > 0 && w.stripe.Meters.EcoDiskEventName != "" {
-			if err := w.stripe.ReportMeterEvent(ctx, w.stripe.Meters.EcoDiskEventName, ws.customerID, diskGB, timestamp); err != nil {
+			id := meterEventID(wsID, w.stripe.Meters.EcoDiskEventName, windowStart)
+			if err := w.stripe.ReportMeterEvent(ctx, w.stripe.Meters.EcoDiskEventName, ws.customerID, diskGB, timestamp, id); err != nil {
 				slog.Error("metering: eco disk report failed", "workspace", wsID, "error", err)
 			}
 		}
@@ -256,7 +345,7 @@ func (w *Worker) reportWorkspace(ctx context.Context, wsID string, ws *workspace
 			totalDiskMB += alloc.diskMB
 		}
 
-		// CPU: millicores → vCPU (rounded up).
+		// CPU: millicores -> vCPU (rounded up).
 		cpuUnits := int64(math.Ceil(float64(totalCPUMillis) / 1000))
 		itemID := stripelib.FindItemByPrice(sub, w.stripe.Prices.ProdCPUPriceID)
 		if itemID != "" {
@@ -265,7 +354,7 @@ func (w *Worker) reportWorkspace(ctx context.Context, wsID string, ws *workspace
 			}
 		}
 
-		// Memory: MB → GB (rounded up).
+		// Memory: MB -> GB (rounded up).
 		memUnits := int64(math.Ceil(float64(totalMemMB) / 1024))
 		itemID = stripelib.FindItemByPrice(sub, w.stripe.Prices.ProdMemPriceID)
 		if itemID != "" {
@@ -274,7 +363,7 @@ func (w *Worker) reportWorkspace(ctx context.Context, wsID string, ws *workspace
 			}
 		}
 
-		// Disk: MB → GB (rounded up).
+		// Disk: MB -> GB (rounded up).
 		diskUnits := int64(math.Ceil(float64(totalDiskMB) / 1024))
 		itemID = stripelib.FindItemByPrice(sub, w.stripe.Prices.ProdDiskPriceID)
 		if itemID != "" {
@@ -294,10 +383,17 @@ func (w *Worker) reportWorkspace(ctx context.Context, wsID string, ws *workspace
 	return nil
 }
 
-// trialUsageCapCents is the maximum resource cost allowed during a trial (€5).
+// meterEventID returns a deterministic identifier for Stripe meter event deduplication.
+// Format: {workspace}:{eventName}:{windowStartUnix}
+// Same logical usage period always produces the same ID — Stripe rejects duplicates within 24h.
+func meterEventID(workspace, eventName string, windowStart time.Time) string {
+	return fmt.Sprintf("%s:%s:%d", workspace, eventName, windowStart.Unix())
+}
+
+// trialUsageCapCents is the maximum resource cost allowed during a trial.
 const trialUsageCapCents = 500
 
-// checkTrialUsageCap ends a trial early if resource costs exceed €5.
+// checkTrialUsageCap ends a trial early if resource costs exceed the cap.
 func (w *Worker) checkTrialUsageCap(ctx context.Context, wsID string, ws *workspaceData) {
 	sub, err := w.stripe.Subscription(ctx, ws.subscriptionID)
 	if err != nil {
@@ -336,5 +432,62 @@ func (w *Worker) checkTrialUsageCap(ctx context.Context, wsID string, ws *worksp
 		if err := w.stripe.EndTrial(ctx, ws.subscriptionID); err != nil {
 			slog.Error("metering: failed to end trial", "workspace", wsID, "error", err)
 		}
+	}
+}
+
+// lastCheckpoint reads the last successfully completed window end time from K8s.
+// Returns zero time if no checkpoint exists (first run or lost state).
+func (w *Worker) lastCheckpoint(ctx context.Context) time.Time {
+	if w.k8s == nil {
+		return time.Time{}
+	}
+
+	cm, err := w.k8s.CoreV1().ConfigMaps(labels.LucityNamespace).Get(ctx, checkpointCMName, metav1.GetOptions{})
+	if err != nil {
+		return time.Time{}
+	}
+
+	ts, err := strconv.ParseInt(cm.Data[checkpointKey], 10, 64)
+	if err != nil {
+		return time.Time{}
+	}
+	return time.Unix(ts, 0)
+}
+
+// saveCheckpoint writes the window end time to the ConfigMap (create or update).
+func (w *Worker) saveCheckpoint(ctx context.Context, windowEnd time.Time) error {
+	if w.k8s == nil {
+		return nil
+	}
+
+	data := map[string]string{checkpointKey: strconv.FormatInt(windowEnd.Unix(), 10)}
+
+	cm, err := w.k8s.CoreV1().ConfigMaps(labels.LucityNamespace).Get(ctx, checkpointCMName, metav1.GetOptions{})
+	if errors.IsNotFound(err) {
+		_, err = w.k8s.CoreV1().ConfigMaps(labels.LucityNamespace).Create(ctx, &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      checkpointCMName,
+				Namespace: labels.LucityNamespace,
+				Labels: map[string]string{
+					labels.ManagedBy: labels.ManagedByLucity,
+				},
+			},
+			Data: data,
+		}, metav1.CreateOptions{})
+		return err
+	}
+	if err != nil {
+		return fmt.Errorf("failed to get checkpoint configmap: %w", err)
+	}
+
+	cm.Data = data
+	_, err = w.k8s.CoreV1().ConfigMaps(labels.LucityNamespace).Update(ctx, cm, metav1.UpdateOptions{})
+	return err
+}
+
+// saveCheckpointQuiet saves the checkpoint and logs errors without returning them.
+func (w *Worker) saveCheckpointQuiet(ctx context.Context, windowEnd time.Time) {
+	if err := w.saveCheckpoint(ctx, windowEnd); err != nil {
+		slog.Error("metering: failed to save checkpoint", "error", err)
 	}
 }

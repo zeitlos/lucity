@@ -47,16 +47,15 @@ func namespaceFilter(namespaces []string) string {
 	return strings.Join(quoted, ",")
 }
 
-// CPUByNamespace returns total CPU-seconds consumed per namespace over the given duration.
+// CPUByNamespace returns total CPU-seconds consumed per namespace over the given time range.
 // Uses container.cpu.time (cumulative counter) — delta per time series, summed per namespace.
-func (c *SigNozClient) CPUByNamespace(ctx context.Context, namespaces []string, since time.Duration) (map[string]float64, error) {
+func (c *SigNozClient) CPUByNamespace(ctx context.Context, namespaces []string, start, end time.Time) (map[string]float64, error) {
 	if len(namespaces) == 0 {
 		return nil, nil
 	}
 
-	now := time.Now()
-	sinceMs := now.Add(-since).UnixMilli()
-	nowMs := now.UnixMilli()
+	startMs := start.UnixMilli()
+	endMs := end.UnixMilli()
 	nsFilter := namespaceFilter(namespaces)
 
 	query := fmt.Sprintf(`
@@ -91,20 +90,19 @@ func (c *SigNozClient) CPUByNamespace(ctx context.Context, namespaces []string, 
 			  AND unix_milli < %d
 		) AS ts2 USING (fingerprint)
 		GROUP BY namespace
-	`, sinceMs, nowMs, nsFilter, sinceMs, nowMs, sinceMs, nowMs)
+	`, startMs, endMs, nsFilter, startMs, endMs, startMs, endMs)
 
 	return c.queryFloat64Map(ctx, query)
 }
 
-// MemoryByNamespace returns average memory working set (bytes) per namespace over the given duration.
-func (c *SigNozClient) MemoryByNamespace(ctx context.Context, namespaces []string, since time.Duration) (map[string]float64, error) {
+// MemoryByNamespace returns average memory working set (bytes) per namespace over the given time range.
+func (c *SigNozClient) MemoryByNamespace(ctx context.Context, namespaces []string, start, end time.Time) (map[string]float64, error) {
 	if len(namespaces) == 0 {
 		return nil, nil
 	}
 
-	now := time.Now()
-	sinceMs := now.Add(-since).UnixMilli()
-	nowMs := now.UnixMilli()
+	startMs := start.UnixMilli()
+	endMs := end.UnixMilli()
 	nsFilter := namespaceFilter(namespaces)
 
 	query := fmt.Sprintf(`
@@ -125,20 +123,19 @@ func (c *SigNozClient) MemoryByNamespace(ctx context.Context, namespaces []strin
 		  AND unix_milli >= %d
 		  AND unix_milli < %d
 		GROUP BY namespace
-	`, sinceMs, nowMs, nsFilter, sinceMs, nowMs)
+	`, startMs, endMs, nsFilter, startMs, endMs)
 
 	return c.queryFloat64Map(ctx, query)
 }
 
 // DiskByNamespace returns total PVC capacity (bytes) per namespace (latest value per volume).
-func (c *SigNozClient) DiskByNamespace(ctx context.Context, namespaces []string, since time.Duration) (map[string]float64, error) {
+func (c *SigNozClient) DiskByNamespace(ctx context.Context, namespaces []string, start, end time.Time) (map[string]float64, error) {
 	if len(namespaces) == 0 {
 		return nil, nil
 	}
 
-	now := time.Now()
-	sinceMs := now.Add(-since).UnixMilli()
-	nowMs := now.UnixMilli()
+	startMs := start.UnixMilli()
+	endMs := end.UnixMilli()
 	nsFilter := namespaceFilter(namespaces)
 
 	query := fmt.Sprintf(`
@@ -171,7 +168,7 @@ func (c *SigNozClient) DiskByNamespace(ctx context.Context, namespaces []string,
 			  AND unix_milli < %d
 		) AS ts2 USING (fingerprint)
 		GROUP BY namespace
-	`, sinceMs, nowMs, nsFilter, sinceMs, nowMs, sinceMs, nowMs)
+	`, startMs, endMs, nsFilter, startMs, endMs, startMs, endMs)
 
 	return c.queryFloat64Map(ctx, query)
 }

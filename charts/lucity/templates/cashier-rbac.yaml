@@ -1,0 +1,37 @@
+{{- if .Values.cashier.enabled }}
+{{- if .Values.cashier.serviceAccount.create }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "lucity.fullname" . }}-cashier
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+    app.kubernetes.io/component: cashier
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "lucity.fullname" . }}-cashier
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: [configmaps]
+    verbs: [get, create, update]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "lucity.fullname" . }}-cashier
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "lucity.fullname" . }}-cashier
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "lucity.fullname" . }}-cashier
+    namespace: {{ .Release.Namespace }}
+{{- end }}
+{{- end }}

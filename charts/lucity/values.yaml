@@ -131,6 +131,8 @@ cashier:
     pullPolicy: IfNotPresent
   port: 9005
   webhookPort: 9006
+  serviceAccount:
+    create: true
   env: {}
   envSecret: {}
   resources:

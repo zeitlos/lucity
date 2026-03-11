@@ -189,9 +189,11 @@ func (c *Client) AddInvoiceCredit(ctx context.Context, customerID string, amount
 
 // ReportMeterEvent reports a billing meter event for usage-based billing.
 // eventName corresponds to a Billing Meter's event_name in Stripe.
-func (c *Client) ReportMeterEvent(ctx context.Context, eventName, customerID string, value int64, timestamp int64) error {
+// identifier enables Stripe's 24-hour deduplication window — same identifier = rejected as duplicate.
+func (c *Client) ReportMeterEvent(ctx context.Context, eventName, customerID string, value int64, timestamp int64, identifier string) error {
 	params := &gostripe.BillingMeterEventParams{
-		EventName: gostripe.String(eventName),
+		EventName:  gostripe.String(eventName),
+		Identifier: gostripe.String(identifier),
 		Payload: map[string]string{
 			"stripe_customer_id": customerID,
 			"value":              fmt.Sprintf("%d", value),

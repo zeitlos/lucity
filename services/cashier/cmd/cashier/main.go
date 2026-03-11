@@ -8,6 +8,9 @@ import (
 	"github.com/kelseyhightower/envconfig"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/zeitlos/lucity/pkg/deployer"
 	"github.com/zeitlos/lucity/pkg/graceful"
@@ -103,7 +106,11 @@ func main() {
 		}
 		defer signozClient.Close()
 
-		worker := metering.NewWorker(stripeClient, deployerClient, signozClient, config.MeteringInterval)
+		// K8s client for metering checkpoint persistence. Optional — worker runs
+		// without checkpoint/backfill if unavailable (e.g. local dev without cluster).
+		k8sClient := buildK8sClient()
+
+		worker := metering.NewWorker(stripeClient, deployerClient, signozClient, k8sClient, config.MeteringInterval)
 		servers = append(servers, worker)
 		slog.Info("metering enabled", "interval", config.MeteringInterval)
 	} else {
@@ -114,4 +121,30 @@ func main() {
 	defer cancel()
 
 	graceful.Serve(ctx, servers...)
+}
+
+// buildK8sClient creates a Kubernetes client, trying in-cluster config first
+// then falling back to KUBECONFIG. Returns nil if neither is available.
+func buildK8sClient() kubernetes.Interface {
+	cfg, err := rest.InClusterConfig()
+	if err != nil {
+		// Fallback to kubeconfig (local dev).
+		kubeconfig := os.Getenv("KUBECONFIG")
+		if kubeconfig == "" {
+			slog.Warn("metering: no K8s config available, checkpoint/backfill disabled")
+			return nil
+		}
+		cfg, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
+		if err != nil {
+			slog.Warn("metering: failed to load kubeconfig, checkpoint/backfill disabled", "error", err)
+			return nil
+		}
+	}
+
+	client, err := kubernetes.NewForConfig(cfg)
+	if err != nil {
+		slog.Warn("metering: failed to create K8s client, checkpoint/backfill disabled", "error", err)
+		return nil
+	}
+	return client
 }

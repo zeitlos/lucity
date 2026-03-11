@@ -23,6 +23,9 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- if .Values.cashier.serviceAccount.create }}
+      serviceAccountName: {{ include "lucity.fullname" . }}-cashier
+      {{- end }}
       containers:
         - name: cashier
           image: "{{ .Values.cashier.image.repository }}:{{ .Values.cashier.image.tag | default .Chart.AppVersion }}"
