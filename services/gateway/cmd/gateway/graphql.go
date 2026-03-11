@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -77,6 +78,10 @@ func NewGraphQLServer(port string, api *handler.Client, oidcProvider *OIDCProvid
 	allowedOrigins := map[string]bool{
 		"http://localhost:5173": true,
 		dashboardURL:           true,
+	}
+	// The browser sends the origin without path, so also allow the base URL.
+	if u, err := url.Parse(dashboardURL); err == nil {
+		allowedOrigins[u.Scheme+"://"+u.Host] = true
 	}
 
 	srv.AddTransport(transport.Websocket{
