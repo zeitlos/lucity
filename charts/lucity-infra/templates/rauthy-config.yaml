@@ -35,7 +35,7 @@ stringData:
     admin_email = '{{ .Values.rauthy.adminEmail }}'
 
     [suspicious_requests]
-    blacklist = 5
+    blacklist = 0
     log = true
 
     [webauthn]
