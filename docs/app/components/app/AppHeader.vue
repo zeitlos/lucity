@@ -7,7 +7,6 @@ const appUrl = 'https://lucity.cloud/app';
 const navItems = [
   {
     label: 'Features',
-    icon: 'i-lucide-sparkles',
     children: [
       {
         label: 'Push to deploy',
@@ -37,12 +36,10 @@ const navItems = [
   },
   {
     label: 'Pricing',
-    icon: 'i-lucide-credit-card',
     to: '/pricing',
   },
   {
     label: 'Docs',
-    icon: 'i-lucide-book-open',
     to: '/getting-started/quick-start',
   },
 ];
@@ -56,7 +53,9 @@ const githubLink = computed(() =>
 
 <template>
   <UHeader
-    :ui="{ center: 'flex-1 justify-center' }"
+    :ui="{
+      center: 'flex-[3] justify-center',
+    }"
     to="/"
     :title="appConfig.header?.title || site.name"
   >
@@ -70,13 +69,14 @@ const githubLink = computed(() =>
     <UNavigationMenu
       :items="navItems"
       variant="link"
-      class="hidden lg:flex"
+      content-orientation="horizontal"
+      class="hidden lg:flex w-full justify-center"
     />
 
     <template #right>
       <UContentSearchButton
         :collapsed="false"
-        class="hidden lg:inline-flex w-full max-w-56"
+        class="hidden lg:inline-flex w-full max-w-40"
         variant="soft"
         :ui="{ leadingIcon: 'size-4 mr-1' }"
       />
@@ -103,7 +103,7 @@ const githubLink = computed(() =>
       <UButton
         :to="`${appUrl}/login`"
         color="primary"
-        class="hidden lg:inline-flex"
+        class="whitespace-nowrap"
       >
         Get Started
       </UButton>
