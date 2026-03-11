@@ -80,6 +80,9 @@ func (s *Server) DeployEnvironment(ctx context.Context, req *deployer.DeployEnvi
 		return nil, fmt.Errorf("failed to create namespace %s: %w", req.TargetNamespace, err)
 	}
 
+	// Ensure a default ECO resource quota exists so billing can track this environment.
+	s.ensureDefaultResourceQuota(ctx, req.TargetNamespace)
+
 	// Ensure the GitOps repo is registered in ArgoCD with credentials.
 	repoURL := s.repoURL(ws, req.Project)
 	if err := s.argo.CreateRepository(ctx, argocd.Repository{
@@ -864,6 +867,66 @@ func (s *Server) ResourceQuota(ctx context.Context, req *deployer.ResourceQuotaR
 		MemoryMb:      memMB,
 		DiskMb:        diskMB,
 	}, nil
+}
+
+// ensureDefaultResourceQuota creates an ECO resource quota and limit range if none exists.
+// This ensures every environment is visible to billing from creation. Idempotent — skips
+// if a quota already exists (user may have customized it via SetResourceQuota).
+func (s *Server) ensureDefaultResourceQuota(ctx context.Context, namespace string) {
+	_, err := s.k8s.CoreV1().ResourceQuotas(namespace).Get(ctx, resourceQuotaName, metav1.GetOptions{})
+	if err == nil {
+		return // Already has a quota
+	}
+	if !apierrors.IsNotFound(err) {
+		slog.Warn("failed to check resource quota", "namespace", namespace, "error", err)
+		return
+	}
+
+	tier := deployer.ResourceTier_RESOURCE_TIER_ECO
+
+	// Default ECO allocations: 250m CPU, 256Mi memory, 512Mi disk.
+	quota := &corev1.ResourceQuota{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      resourceQuotaName,
+			Namespace: namespace,
+			Labels: map[string]string{
+				labels.ManagedBy: labels.ManagedByLucity,
+			},
+		},
+		Spec: corev1.ResourceQuotaSpec{
+			Hard: corev1.ResourceList{
+				corev1.ResourceRequestsCPU:     resource.MustParse("250m"),
+				corev1.ResourceRequestsMemory:  resource.MustParse("256Mi"),
+				corev1.ResourceRequestsStorage: resource.MustParse("512Mi"),
+			},
+		},
+	}
+	if _, err := s.k8s.CoreV1().ResourceQuotas(namespace).Create(ctx, quota, metav1.CreateOptions{}); err != nil {
+		slog.Warn("failed to create default resource quota", "namespace", namespace, "error", err)
+		return
+	}
+
+	// Create matching LimitRange.
+	lr := buildLimitRange(namespace, tier)
+	if _, err := s.k8s.CoreV1().LimitRanges(namespace).Create(ctx, lr, metav1.CreateOptions{}); err != nil && !apierrors.IsAlreadyExists(err) {
+		slog.Warn("failed to create default limit range", "namespace", namespace, "error", err)
+	}
+
+	// Set resource-tier label on namespace.
+	ns, err := s.k8s.CoreV1().Namespaces().Get(ctx, namespace, metav1.GetOptions{})
+	if err != nil {
+		slog.Warn("failed to get namespace for tier label", "namespace", namespace, "error", err)
+		return
+	}
+	if ns.Labels == nil {
+		ns.Labels = make(map[string]string)
+	}
+	ns.Labels[labels.ResourceTier] = tierToString(tier)
+	if _, err := s.k8s.CoreV1().Namespaces().Update(ctx, ns, metav1.UpdateOptions{}); err != nil {
+		slog.Warn("failed to set default resource tier label", "namespace", namespace, "error", err)
+	}
+
+	slog.Info("set default ECO resource quota", "namespace", namespace)
 }
 
 func buildLimitRange(namespace string, tier deployer.ResourceTier) *corev1.LimitRange {
