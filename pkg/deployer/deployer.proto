@@ -38,6 +38,9 @@ service DeployerService {
   // ServiceStatus returns the runtime status of a service's K8s Deployment in an environment.
   rpc ServiceStatus(ServiceStatusRequest) returns (ServiceStatusResponse);
 
+  // SetServiceScaling sets the replica count or creates/updates an HPA for a service.
+  rpc SetServiceScaling(SetServiceScalingRequest) returns (SetServiceScalingResponse);
+
   // DatabaseCredentials returns the resolved connection credentials for a database.
   rpc DatabaseCredentials(DatabaseCredentialsRequest) returns (DatabaseCredentialsResponse);
 
@@ -243,7 +246,35 @@ message ServiceStatusResponse {
   bool ready = 1;
   int32 replicas = 2;
   int32 ready_replicas = 3;
+  ServiceScalingConfig scaling = 4;
 }
+
+message ServiceScalingConfig {
+  int32 replicas = 1;
+  bool autoscaling_enabled = 2;
+  int32 min_replicas = 3;
+  int32 max_replicas = 4;
+  int32 target_cpu = 5;
+}
+
+// Service scaling messages.
+
+message SetServiceScalingRequest {
+  string project = 1;
+  string environment = 2;
+  string service = 3;
+  int32 replicas = 4;
+  DeployerAutoscalingConfig autoscaling = 5;
+}
+
+message DeployerAutoscalingConfig {
+  bool enabled = 1;
+  int32 min_replicas = 2;
+  int32 max_replicas = 3;
+  int32 target_cpu = 4;
+}
+
+message SetServiceScalingResponse {}
 
 // Database credentials messages.
 

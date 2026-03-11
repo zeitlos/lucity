@@ -51,6 +51,13 @@ type DirectiveRoot struct {
 }
 
 type ComplexityRoot struct {
+	AutoscalingConfig struct {
+		Enabled     func(childComplexity int) int
+		MaxReplicas func(childComplexity int) int
+		MinReplicas func(childComplexity int) int
+		TargetCPU   func(childComplexity int) int
+	}
+
 	BillingPortalUrl struct {
 		URL func(childComplexity int) int
 	}
@@ -231,6 +238,7 @@ type ComplexityRoot struct {
 		RemoveService           func(childComplexity int, projectID string, service string) int
 		Rollback                func(childComplexity int, input model.RollbackInput) int
 		SetEnvironmentResources func(childComplexity int, input model.SetEnvironmentResourcesInput) int
+		SetServiceScaling       func(childComplexity int, input model.SetServiceScalingInput) int
 		SetServiceVariables     func(childComplexity int, projectID string, environment string, service string, variables []model.ServiceVariableInput) int
 		SetSharedVariables      func(childComplexity int, projectID string, environment string, variables []model.VariableInput) int
 		SyncChart               func(childComplexity int, projectID string) int
@@ -293,6 +301,11 @@ type ComplexityRoot struct {
 		MemoryMb      func(childComplexity int) int
 	}
 
+	ScalingConfig struct {
+		Autoscaling func(childComplexity int) int
+		Replicas    func(childComplexity int) int
+	}
+
 	Service struct {
 		ContextPath func(childComplexity int) int
 		Framework   func(childComplexity int) int
@@ -311,6 +324,7 @@ type ComplexityRoot struct {
 		Name        func(childComplexity int) int
 		Ready       func(childComplexity int) int
 		Replicas    func(childComplexity int) int
+		Scaling     func(childComplexity int) int
 	}
 
 	ServiceLogEntry struct {
@@ -394,6 +408,7 @@ type MutationResolver interface {
 	DeleteEnvironment(ctx context.Context, projectID string, environment string) (bool, error)
 	Promote(ctx context.Context, input model.PromoteInput) (*model.ServiceInstance, error)
 	SyncChart(ctx context.Context, projectID string) (bool, error)
+	SetServiceScaling(ctx context.Context, input model.SetServiceScalingInput) (*model.ScalingConfig, error)
 	AddService(ctx context.Context, input model.AddServiceInput) (*model.Service, error)
 	RemoveService(ctx context.Context, projectID string, service string) (bool, error)
 	BuildService(ctx context.Context, input model.BuildServiceInput) (*model.Build, error)
@@ -462,6 +477,31 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 	ec := executionContext{nil, e, 0, 0, nil}
 	_ = ec
 	switch typeName + "." + field {
+
+	case "AutoscalingConfig.enabled":
+		if e.complexity.AutoscalingConfig.Enabled == nil {
+			break
+		}
+
+		return e.complexity.AutoscalingConfig.Enabled(childComplexity), true
+	case "AutoscalingConfig.maxReplicas":
+		if e.complexity.AutoscalingConfig.MaxReplicas == nil {
+			break
+		}
+
+		return e.complexity.AutoscalingConfig.MaxReplicas(childComplexity), true
+	case "AutoscalingConfig.minReplicas":
+		if e.complexity.AutoscalingConfig.MinReplicas == nil {
+			break
+		}
+
+		return e.complexity.AutoscalingConfig.MinReplicas(childComplexity), true
+	case "AutoscalingConfig.targetCPU":
+		if e.complexity.AutoscalingConfig.TargetCPU == nil {
+			break
+		}
+
+		return e.complexity.AutoscalingConfig.TargetCPU(childComplexity), true
 
 	case "BillingPortalUrl.url":
 		if e.complexity.BillingPortalUrl.URL == nil {
@@ -1307,6 +1347,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.SetEnvironmentResources(childComplexity, args["input"].(model.SetEnvironmentResourcesInput)), true
+	case "Mutation.setServiceScaling":
+		if e.complexity.Mutation.SetServiceScaling == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setServiceScaling_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.SetServiceScaling(childComplexity, args["input"].(model.SetServiceScalingInput)), true
 	case "Mutation.setServiceVariables":
 		if e.complexity.Mutation.SetServiceVariables == nil {
 			break
@@ -1688,6 +1739,19 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.ResourceAllocation.MemoryMb(childComplexity), true
 
+	case "ScalingConfig.autoscaling":
+		if e.complexity.ScalingConfig.Autoscaling == nil {
+			break
+		}
+
+		return e.complexity.ScalingConfig.Autoscaling(childComplexity), true
+	case "ScalingConfig.replicas":
+		if e.complexity.ScalingConfig.Replicas == nil {
+			break
+		}
+
+		return e.complexity.ScalingConfig.Replicas(childComplexity), true
+
 	case "Service.contextPath":
 		if e.complexity.Service.ContextPath == nil {
 			break
@@ -1773,6 +1837,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ServiceInstance.Replicas(childComplexity), true
+	case "ServiceInstance.scaling":
+		if e.complexity.ServiceInstance.Scaling == nil {
+			break
+		}
+
+		return e.complexity.ServiceInstance.Scaling(childComplexity), true
 
 	case "ServiceLogEntry.line":
 		if e.complexity.ServiceLogEntry.Line == nil {
@@ -2009,6 +2079,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 	inputUnmarshalMap := graphql.BuildUnmarshalerMap(
 		ec.unmarshalInputAddCustomDomainInput,
 		ec.unmarshalInputAddServiceInput,
+		ec.unmarshalInputAutoscalingInput,
 		ec.unmarshalInputBuildServiceInput,
 		ec.unmarshalInputCreateDatabaseInput,
 		ec.unmarshalInputCreateEnvironmentInput,
@@ -2026,6 +2097,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputServiceRefInput,
 		ec.unmarshalInputServiceVariableInput,
 		ec.unmarshalInputSetEnvironmentResourcesInput,
+		ec.unmarshalInputSetServiceScalingInput,
 		ec.unmarshalInputUpdateMemberRoleInput,
 		ec.unmarshalInputUpdateWorkspaceInput,
 		ec.unmarshalInputVariableInput,
@@ -2444,6 +2516,17 @@ func (ec *executionContext) field_Mutation_setEnvironmentResources_args(ctx cont
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNSetEnvironmentResourcesInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐSetEnvironmentResourcesInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_setServiceScaling_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNSetServiceScalingInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐSetServiceScalingInput)
 	if err != nil {
 		return nil, err
 	}
@@ -2896,6 +2979,122 @@ func (ec *executionContext) field___Type_fields_args(ctx context.Context, rawArg
 // endregion ************************** directives.gotpl **************************
 
 // region    **************************** field.gotpl *****************************
+
+func (ec *executionContext) _AutoscalingConfig_enabled(ctx context.Context, field graphql.CollectedField, obj *model.AutoscalingConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutoscalingConfig_enabled,
+		func(ctx context.Context) (any, error) {
+			return obj.Enabled, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutoscalingConfig_enabled(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutoscalingConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutoscalingConfig_minReplicas(ctx context.Context, field graphql.CollectedField, obj *model.AutoscalingConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutoscalingConfig_minReplicas,
+		func(ctx context.Context) (any, error) {
+			return obj.MinReplicas, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutoscalingConfig_minReplicas(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutoscalingConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutoscalingConfig_maxReplicas(ctx context.Context, field graphql.CollectedField, obj *model.AutoscalingConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutoscalingConfig_maxReplicas,
+		func(ctx context.Context) (any, error) {
+			return obj.MaxReplicas, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutoscalingConfig_maxReplicas(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutoscalingConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AutoscalingConfig_targetCPU(ctx context.Context, field graphql.CollectedField, obj *model.AutoscalingConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AutoscalingConfig_targetCPU,
+		func(ctx context.Context) (any, error) {
+			return obj.TargetCPU, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AutoscalingConfig_targetCPU(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AutoscalingConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
 
 func (ec *executionContext) _BillingPortalUrl_url(ctx context.Context, field graphql.CollectedField, obj *model.BillingPortalURL) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
@@ -5157,6 +5356,8 @@ func (ec *executionContext) fieldContext_Environment_services(_ context.Context,
 				return ec.fieldContext_ServiceInstance_ready(ctx, field)
 			case "replicas":
 				return ec.fieldContext_ServiceInstance_replicas(ctx, field)
+			case "scaling":
+				return ec.fieldContext_ServiceInstance_scaling(ctx, field)
 			case "domains":
 				return ec.fieldContext_ServiceInstance_domains(ctx, field)
 			case "deployments":
@@ -6417,6 +6618,8 @@ func (ec *executionContext) fieldContext_Mutation_promote(ctx context.Context, f
 				return ec.fieldContext_ServiceInstance_ready(ctx, field)
 			case "replicas":
 				return ec.fieldContext_ServiceInstance_replicas(ctx, field)
+			case "scaling":
+				return ec.fieldContext_ServiceInstance_scaling(ctx, field)
 			case "domains":
 				return ec.fieldContext_ServiceInstance_domains(ctx, field)
 			case "deployments":
@@ -6492,6 +6695,71 @@ func (ec *executionContext) fieldContext_Mutation_syncChart(ctx context.Context,
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_syncChart_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_setServiceScaling(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_setServiceScaling,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().SetServiceScaling(ctx, fc.Args["input"].(model.SetServiceScalingInput))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				if err != nil {
+					var zeroVal *model.ScalingConfig
+					return zeroVal, err
+				}
+				if ec.directives.HasRole == nil {
+					var zeroVal *model.ScalingConfig
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNScalingConfig2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐScalingConfig,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_setServiceScaling(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "replicas":
+				return ec.fieldContext_ScalingConfig_replicas(ctx, field)
+			case "autoscaling":
+				return ec.fieldContext_ScalingConfig_autoscaling(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ScalingConfig", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_setServiceScaling_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -9847,6 +10115,74 @@ func (ec *executionContext) fieldContext_ResourceAllocation_diskMB(_ context.Con
 	return fc, nil
 }
 
+func (ec *executionContext) _ScalingConfig_replicas(ctx context.Context, field graphql.CollectedField, obj *model.ScalingConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ScalingConfig_replicas,
+		func(ctx context.Context) (any, error) {
+			return obj.Replicas, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ScalingConfig_replicas(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ScalingConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ScalingConfig_autoscaling(ctx context.Context, field graphql.CollectedField, obj *model.ScalingConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ScalingConfig_autoscaling,
+		func(ctx context.Context) (any, error) {
+			return obj.Autoscaling, nil
+		},
+		nil,
+		ec.marshalOAutoscalingConfig2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐAutoscalingConfig,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_ScalingConfig_autoscaling(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ScalingConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "enabled":
+				return ec.fieldContext_AutoscalingConfig_enabled(ctx, field)
+			case "minReplicas":
+				return ec.fieldContext_AutoscalingConfig_minReplicas(ctx, field)
+			case "maxReplicas":
+				return ec.fieldContext_AutoscalingConfig_maxReplicas(ctx, field)
+			case "targetCPU":
+				return ec.fieldContext_AutoscalingConfig_targetCPU(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type AutoscalingConfig", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Service_name(ctx context.Context, field graphql.CollectedField, obj *model.Service) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -10055,6 +10391,8 @@ func (ec *executionContext) fieldContext_Service_instances(_ context.Context, fi
 				return ec.fieldContext_ServiceInstance_ready(ctx, field)
 			case "replicas":
 				return ec.fieldContext_ServiceInstance_replicas(ctx, field)
+			case "scaling":
+				return ec.fieldContext_ServiceInstance_scaling(ctx, field)
 			case "domains":
 				return ec.fieldContext_ServiceInstance_domains(ctx, field)
 			case "deployments":
@@ -10206,6 +10544,41 @@ func (ec *executionContext) fieldContext_ServiceInstance_replicas(_ context.Cont
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ServiceInstance_scaling(ctx context.Context, field graphql.CollectedField, obj *model.ServiceInstance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ServiceInstance_scaling,
+		func(ctx context.Context) (any, error) {
+			return obj.Scaling, nil
+		},
+		nil,
+		ec.marshalNScalingConfig2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐScalingConfig,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ServiceInstance_scaling(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ServiceInstance",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "replicas":
+				return ec.fieldContext_ScalingConfig_replicas(ctx, field)
+			case "autoscaling":
+				return ec.fieldContext_ScalingConfig_autoscaling(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ScalingConfig", field.Name)
 		},
 	}
 	return fc, nil
@@ -12985,6 +13358,114 @@ func (ec *executionContext) unmarshalInputAddServiceInput(ctx context.Context, o
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputAutoscalingInput(ctx context.Context, obj any) (model.AutoscalingInput, error) {
+	var it model.AutoscalingInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"enabled", "minReplicas", "maxReplicas", "targetCPU"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "enabled":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("enabled"))
+			data, err := ec.unmarshalNBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Enabled = data
+		case "minReplicas":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("minReplicas"))
+			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNInt2int(ctx, v) }
+
+			directive1 := func(ctx context.Context) (any, error) {
+				constraint, err := ec.unmarshalNString2string(ctx, "min=1,max=20")
+				if err != nil {
+					var zeroVal int
+					return zeroVal, err
+				}
+				if ec.directives.Constraint == nil {
+					var zeroVal int
+					return zeroVal, errors.New("directive constraint is not implemented")
+				}
+				return ec.directives.Constraint(ctx, obj, directive0, constraint)
+			}
+
+			tmp, err := directive1(ctx)
+			if err != nil {
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+			if data, ok := tmp.(int); ok {
+				it.MinReplicas = data
+			} else {
+				err := fmt.Errorf(`unexpected type %T from directive, should be int`, tmp)
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+		case "maxReplicas":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("maxReplicas"))
+			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNInt2int(ctx, v) }
+
+			directive1 := func(ctx context.Context) (any, error) {
+				constraint, err := ec.unmarshalNString2string(ctx, "min=1,max=20")
+				if err != nil {
+					var zeroVal int
+					return zeroVal, err
+				}
+				if ec.directives.Constraint == nil {
+					var zeroVal int
+					return zeroVal, errors.New("directive constraint is not implemented")
+				}
+				return ec.directives.Constraint(ctx, obj, directive0, constraint)
+			}
+
+			tmp, err := directive1(ctx)
+			if err != nil {
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+			if data, ok := tmp.(int); ok {
+				it.MaxReplicas = data
+			} else {
+				err := fmt.Errorf(`unexpected type %T from directive, should be int`, tmp)
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+		case "targetCPU":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("targetCPU"))
+			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNInt2int(ctx, v) }
+
+			directive1 := func(ctx context.Context) (any, error) {
+				constraint, err := ec.unmarshalNString2string(ctx, "min=10,max=95")
+				if err != nil {
+					var zeroVal int
+					return zeroVal, err
+				}
+				if ec.directives.Constraint == nil {
+					var zeroVal int
+					return zeroVal, errors.New("directive constraint is not implemented")
+				}
+				return ec.directives.Constraint(ctx, obj, directive0, constraint)
+			}
+
+			tmp, err := directive1(ctx)
+			if err != nil {
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+			if data, ok := tmp.(int); ok {
+				it.TargetCPU = data
+			} else {
+				err := fmt.Errorf(`unexpected type %T from directive, should be int`, tmp)
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputBuildServiceInput(ctx context.Context, obj any) (model.BuildServiceInput, error) {
 	var it model.BuildServiceInput
 	asMap := map[string]any{}
@@ -13851,6 +14332,81 @@ func (ec *executionContext) unmarshalInputSetEnvironmentResourcesInput(ctx conte
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputSetServiceScalingInput(ctx context.Context, obj any) (model.SetServiceScalingInput, error) {
+	var it model.SetServiceScalingInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"projectId", "environment", "service", "replicas", "autoscaling"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "projectId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("projectId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ProjectID = data
+		case "environment":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("environment"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Environment = data
+		case "service":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("service"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Service = data
+		case "replicas":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("replicas"))
+			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNInt2int(ctx, v) }
+
+			directive1 := func(ctx context.Context) (any, error) {
+				constraint, err := ec.unmarshalNString2string(ctx, "min=1,max=20")
+				if err != nil {
+					var zeroVal int
+					return zeroVal, err
+				}
+				if ec.directives.Constraint == nil {
+					var zeroVal int
+					return zeroVal, errors.New("directive constraint is not implemented")
+				}
+				return ec.directives.Constraint(ctx, obj, directive0, constraint)
+			}
+
+			tmp, err := directive1(ctx)
+			if err != nil {
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+			if data, ok := tmp.(int); ok {
+				it.Replicas = data
+			} else {
+				err := fmt.Errorf(`unexpected type %T from directive, should be int`, tmp)
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+		case "autoscaling":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("autoscaling"))
+			data, err := ec.unmarshalOAutoscalingInput2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐAutoscalingInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Autoscaling = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputUpdateMemberRoleInput(ctx context.Context, obj any) (model.UpdateMemberRoleInput, error) {
 	var it model.UpdateMemberRoleInput
 	asMap := map[string]any{}
@@ -13953,6 +14509,60 @@ func (ec *executionContext) unmarshalInputVariableInput(ctx context.Context, obj
 // endregion ************************** interface.gotpl ***************************
 
 // region    **************************** object.gotpl ****************************
+
+var autoscalingConfigImplementors = []string{"AutoscalingConfig"}
+
+func (ec *executionContext) _AutoscalingConfig(ctx context.Context, sel ast.SelectionSet, obj *model.AutoscalingConfig) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, autoscalingConfigImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AutoscalingConfig")
+		case "enabled":
+			out.Values[i] = ec._AutoscalingConfig_enabled(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "minReplicas":
+			out.Values[i] = ec._AutoscalingConfig_minReplicas(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "maxReplicas":
+			out.Values[i] = ec._AutoscalingConfig_maxReplicas(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "targetCPU":
+			out.Values[i] = ec._AutoscalingConfig_targetCPU(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
 
 var billingPortalUrlImplementors = []string{"BillingPortalUrl"}
 
@@ -15155,6 +15765,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "setServiceScaling":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_setServiceScaling(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "addService":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_addService(ctx, field)
@@ -16081,6 +16698,47 @@ func (ec *executionContext) _ResourceAllocation(ctx context.Context, sel ast.Sel
 	return out
 }
 
+var scalingConfigImplementors = []string{"ScalingConfig"}
+
+func (ec *executionContext) _ScalingConfig(ctx context.Context, sel ast.SelectionSet, obj *model.ScalingConfig) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, scalingConfigImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ScalingConfig")
+		case "replicas":
+			out.Values[i] = ec._ScalingConfig_replicas(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "autoscaling":
+			out.Values[i] = ec._ScalingConfig_autoscaling(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var serviceImplementors = []string{"Service"}
 
 func (ec *executionContext) _Service(ctx context.Context, sel ast.SelectionSet, obj *model.Service) graphql.Marshaler {
@@ -16171,6 +16829,11 @@ func (ec *executionContext) _ServiceInstance(ctx context.Context, sel ast.Select
 			}
 		case "replicas":
 			out.Values[i] = ec._ServiceInstance_replicas(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "scaling":
+			out.Values[i] = ec._ServiceInstance_scaling(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -18077,6 +18740,20 @@ func (ec *executionContext) unmarshalNRollbackInput2githubᚗcomᚋzeitlosᚋluc
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) marshalNScalingConfig2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐScalingConfig(ctx context.Context, sel ast.SelectionSet, v model.ScalingConfig) graphql.Marshaler {
+	return ec._ScalingConfig(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNScalingConfig2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐScalingConfig(ctx context.Context, sel ast.SelectionSet, v *model.ScalingConfig) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._ScalingConfig(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalNService2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐService(ctx context.Context, sel ast.SelectionSet, v model.Service) graphql.Marshaler {
 	return ec._Service(ctx, sel, &v)
 }
@@ -18277,6 +18954,11 @@ func (ec *executionContext) unmarshalNServiceVariableInput2ᚕgithubᚗcomᚋzei
 
 func (ec *executionContext) unmarshalNSetEnvironmentResourcesInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐSetEnvironmentResourcesInput(ctx context.Context, v any) (model.SetEnvironmentResourcesInput, error) {
 	res, err := ec.unmarshalInputSetEnvironmentResourcesInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNSetServiceScalingInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐSetServiceScalingInput(ctx context.Context, v any) (model.SetServiceScalingInput, error) {
+	res, err := ec.unmarshalInputSetServiceScalingInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
@@ -18903,6 +19585,21 @@ func (ec *executionContext) marshalN__TypeKind2string(ctx context.Context, sel a
 		}
 	}
 	return res
+}
+
+func (ec *executionContext) marshalOAutoscalingConfig2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐAutoscalingConfig(ctx context.Context, sel ast.SelectionSet, v *model.AutoscalingConfig) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._AutoscalingConfig(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOAutoscalingInput2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐAutoscalingInput(ctx context.Context, v any) (*model.AutoscalingInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputAutoscalingInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalOBillingSubscription2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐBillingSubscription(ctx context.Context, sel ast.SelectionSet, v *model.BillingSubscription) graphql.Marshaler {

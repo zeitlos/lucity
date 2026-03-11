@@ -139,6 +139,18 @@ type Provider interface {
 	// SetResources writes resource requests/limits to an environment's values.yaml.
 	// Keeps the GitOps repo in sync with K8s ResourceQuota for ejection purposes.
 	SetResources(ctx context.Context, project, environment, tier string, cpuMillicores, memoryMB, diskMB int) error
+
+	// SetServiceScaling writes replica count and autoscaling config for a service
+	// in an environment's values.yaml.
+	SetServiceScaling(ctx context.Context, project, environment, service string, replicas int, autoscaling *AutoscalingConfig) error
+}
+
+// AutoscalingConfig holds HPA settings for a service.
+type AutoscalingConfig struct {
+	Enabled     bool
+	MinReplicas int
+	MaxReplicas int
+	TargetCPU   int
 }
 
 // DeploymentEntry represents a single deployment event parsed from a git commit.

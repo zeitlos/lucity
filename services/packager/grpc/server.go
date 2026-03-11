@@ -531,6 +531,24 @@ func (s *Server) SetResources(ctx context.Context, req *packager.SetResourcesReq
 	return &packager.SetResourcesResponse{}, nil
 }
 
+func (s *Server) SetServiceScaling(ctx context.Context, req *packager.SetServiceScalingRequest) (*packager.SetServiceScalingResponse, error) {
+	var autoscaling *gitops.AutoscalingConfig
+	if req.Autoscaling != nil && req.Autoscaling.Enabled {
+		autoscaling = &gitops.AutoscalingConfig{
+			Enabled:     true,
+			MinReplicas: int(req.Autoscaling.MinReplicas),
+			MaxReplicas: int(req.Autoscaling.MaxReplicas),
+			TargetCPU:   int(req.Autoscaling.TargetCpu),
+		}
+	}
+
+	if err := s.provider.SetServiceScaling(ctx, req.Project, req.Environment, req.Service, int(req.Replicas), autoscaling); err != nil {
+		return nil, fmt.Errorf("failed to set service scaling: %w", err)
+	}
+	s.syncEnvironment(ctx, req.Project, req.Environment)
+	return &packager.SetServiceScalingResponse{}, nil
+}
+
 func databaseRefsFromProto(refs map[string]*packager.DatabaseRef) map[string]gitops.DatabaseRef {
 	if len(refs) == 0 {
 		return nil

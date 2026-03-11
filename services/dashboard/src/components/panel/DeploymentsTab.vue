@@ -407,7 +407,13 @@ function deployLabel(dep: { sourceCommitMessage?: string; imageTag: string }): s
                 <span class="font-mono text-xs text-muted-foreground">{{ activeDeployment.imageTag }}</span>
               </div>
               <div v-if="envService" class="text-xs text-muted-foreground">
-                {{ envService.replicas }} replica{{ envService.replicas !== 1 ? 's' : '' }}
+                <template v-if="envService.scaling?.autoscaling?.enabled">
+                  {{ envService.replicas }} replica{{ envService.replicas !== 1 ? 's' : '' }}
+                  (autoscaling {{ envService.scaling.autoscaling.minReplicas }}&ndash;{{ envService.scaling.autoscaling.maxReplicas }})
+                </template>
+                <template v-else>
+                  {{ envService.replicas }} replica{{ envService.replicas !== 1 ? 's' : '' }}
+                </template>
                 <template v-if="envService.ready"> &middot; healthy</template>
                 <template v-else> &middot; not ready</template>
               </div>

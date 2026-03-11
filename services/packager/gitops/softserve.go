@@ -1518,6 +1518,50 @@ func (p *SoftServeProvider) SetResources(ctx context.Context, project, environme
 	})
 }
 
+// SetServiceScaling writes replica count and autoscaling config for a service.
+func (p *SoftServeProvider) SetServiceScaling(ctx context.Context, project, environment, service string, replicas int, autoscaling *AutoscalingConfig) error {
+	var commitMsg string
+	if autoscaling != nil && autoscaling.Enabled {
+		commitMsg = fmt.Sprintf("scale(%s): %s autoscaling min=%d max=%d cpu=%d%%", environment, service, autoscaling.MinReplicas, autoscaling.MaxReplicas, autoscaling.TargetCPU)
+	} else {
+		commitMsg = fmt.Sprintf("scale(%s): %s replicas=%d", environment, service, replicas)
+	}
+
+	return p.modifyRepo(ctx, project, commitMsg, false, func(dir string) error {
+		path := filepath.Join(dir, "environments", environment, "values.yaml")
+		inner, err := readSubchartValues(path)
+		if err != nil {
+			return err
+		}
+
+		services, _ := inner["services"].(map[string]any)
+		if services == nil {
+			services = make(map[string]any)
+		}
+		svcMap, _ := services[service].(map[string]any)
+		if svcMap == nil {
+			svcMap = make(map[string]any)
+		}
+
+		svcMap["replicas"] = replicas
+
+		if autoscaling != nil && autoscaling.Enabled {
+			svcMap["autoscaling"] = map[string]any{
+				"enabled":     true,
+				"minReplicas": autoscaling.MinReplicas,
+				"maxReplicas": autoscaling.MaxReplicas,
+				"targetCPU":   autoscaling.TargetCPU,
+			}
+		} else {
+			delete(svcMap, "autoscaling")
+		}
+
+		services[service] = svcMap
+		inner["services"] = services
+		return writeSubchartValues(path, inner)
+	})
+}
+
 func parseServiceDefs(services map[string]any) []ServiceDef {
 	var result []ServiceDef
 	for svcName, svcRaw := range services {

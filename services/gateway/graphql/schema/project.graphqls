@@ -34,8 +34,21 @@ type ServiceInstance {
   imageTag: String!
   ready: Boolean!
   replicas: Int!
+  scaling: ScalingConfig!
   domains: [Domain!]!
   deployments: [Deployment!]!
+}
+
+type ScalingConfig {
+  replicas: Int!
+  autoscaling: AutoscalingConfig
+}
+
+type AutoscalingConfig {
+  enabled: Boolean!
+  minReplicas: Int!
+  maxReplicas: Int!
+  targetCPU: Int!
 }
 
 type Domain {
@@ -96,6 +109,21 @@ input PromoteInput {
   toEnvironment: String!
 }
 
+input SetServiceScalingInput {
+  projectId: ID!
+  environment: String!
+  service: String!
+  replicas: Int! @constraint(constraint: "min=1,max=20")
+  autoscaling: AutoscalingInput
+}
+
+input AutoscalingInput {
+  enabled: Boolean!
+  minReplicas: Int! @constraint(constraint: "min=1,max=20")
+  maxReplicas: Int! @constraint(constraint: "min=1,max=20")
+  targetCPU: Int! @constraint(constraint: "min=10,max=95")
+}
+
 extend type Query {
   projects: [Project!]! @hasRole(role: [USER])
   project(id: ID!): Project @hasRole(role: [USER])
@@ -109,4 +137,5 @@ extend type Mutation {
   deleteEnvironment(projectId: ID!, environment: String!): Boolean! @hasRole(role: [USER])
   promote(input: PromoteInput!): ServiceInstance! @hasRole(role: [USER])
   syncChart(projectId: ID!): Boolean! @hasRole(role: [USER])
+  setServiceScaling(input: SetServiceScalingInput!): ScalingConfig! @hasRole(role: [USER])
 }

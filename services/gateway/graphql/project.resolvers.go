@@ -9,6 +9,7 @@ import (
 	"context"
 
 	"github.com/zeitlos/lucity/services/gateway/graphql/model"
+	"github.com/zeitlos/lucity/services/gateway/handler"
 )
 
 // CreateProject is the resolver for the createProject field.
@@ -58,6 +59,25 @@ func (r *mutationResolver) Promote(ctx context.Context, input model.PromoteInput
 // SyncChart is the resolver for the syncChart field.
 func (r *mutationResolver) SyncChart(ctx context.Context, projectID string) (bool, error) {
 	return r.API.SyncChart(ctx, projectID)
+}
+
+// SetServiceScaling is the resolver for the setServiceScaling field.
+func (r *mutationResolver) SetServiceScaling(ctx context.Context, input model.SetServiceScalingInput) (*model.ScalingConfig, error) {
+	var autoscaling *handler.AutoscalingConfig
+	if input.Autoscaling != nil {
+		autoscaling = &handler.AutoscalingConfig{
+			Enabled:     input.Autoscaling.Enabled,
+			MinReplicas: input.Autoscaling.MinReplicas,
+			MaxReplicas: input.Autoscaling.MaxReplicas,
+			TargetCPU:   input.Autoscaling.TargetCPU,
+		}
+	}
+	sc, err := r.API.SetServiceScaling(ctx, input.ProjectID, input.Environment, input.Service, input.Replicas, autoscaling)
+	if err != nil {
+		return nil, err
+	}
+	result := convertScalingConfig(*sc)
+	return &result, nil
 }
 
 // Projects is the resolver for the projects field.

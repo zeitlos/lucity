@@ -98,13 +98,30 @@ func convertBuild(b handler.Build) model.Build {
 	return build
 }
 
+func convertScalingConfig(sc handler.ScalingConfig) model.ScalingConfig {
+	result := model.ScalingConfig{
+		Replicas: sc.Replicas,
+	}
+	if sc.Autoscaling != nil {
+		result.Autoscaling = &model.AutoscalingConfig{
+			Enabled:     sc.Autoscaling.Enabled,
+			MinReplicas: sc.Autoscaling.MinReplicas,
+			MaxReplicas: sc.Autoscaling.MaxReplicas,
+			TargetCPU:   sc.Autoscaling.TargetCPU,
+		}
+	}
+	return result
+}
+
 func convertServiceInstance(si handler.ServiceInstance, workloadDomain string) model.ServiceInstance {
+	scaling := convertScalingConfig(si.Scaling)
 	result := model.ServiceInstance{
 		Name:        si.Name,
 		Environment: si.Environment,
 		ImageTag:    si.ImageTag,
 		Ready:       si.Ready,
 		Replicas:    si.Replicas,
+		Scaling:     &scaling,
 	}
 
 	// Convert domains with type derived from workload domain suffix

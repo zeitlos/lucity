@@ -2906,6 +2906,186 @@ func (*SetResourcesResponse) Descriptor() ([]byte, []int) {
 	return file_packager_proto_rawDescGZIP(), []int{53}
 }
 
+type SetServiceScalingRequest struct {
+	state         protoimpl.MessageState     `protogen:"open.v1"`
+	Project       string                     `protobuf:"bytes,1,opt,name=project,proto3" json:"project,omitempty"`
+	Environment   string                     `protobuf:"bytes,2,opt,name=environment,proto3" json:"environment,omitempty"`
+	Service       string                     `protobuf:"bytes,3,opt,name=service,proto3" json:"service,omitempty"`
+	Replicas      int32                      `protobuf:"varint,4,opt,name=replicas,proto3" json:"replicas,omitempty"`
+	Autoscaling   *PackagerAutoscalingConfig `protobuf:"bytes,5,opt,name=autoscaling,proto3" json:"autoscaling,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetServiceScalingRequest) Reset() {
+	*x = SetServiceScalingRequest{}
+	mi := &file_packager_proto_msgTypes[54]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetServiceScalingRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetServiceScalingRequest) ProtoMessage() {}
+
+func (x *SetServiceScalingRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_packager_proto_msgTypes[54]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetServiceScalingRequest.ProtoReflect.Descriptor instead.
+func (*SetServiceScalingRequest) Descriptor() ([]byte, []int) {
+	return file_packager_proto_rawDescGZIP(), []int{54}
+}
+
+func (x *SetServiceScalingRequest) GetProject() string {
+	if x != nil {
+		return x.Project
+	}
+	return ""
+}
+
+func (x *SetServiceScalingRequest) GetEnvironment() string {
+	if x != nil {
+		return x.Environment
+	}
+	return ""
+}
+
+func (x *SetServiceScalingRequest) GetService() string {
+	if x != nil {
+		return x.Service
+	}
+	return ""
+}
+
+func (x *SetServiceScalingRequest) GetReplicas() int32 {
+	if x != nil {
+		return x.Replicas
+	}
+	return 0
+}
+
+func (x *SetServiceScalingRequest) GetAutoscaling() *PackagerAutoscalingConfig {
+	if x != nil {
+		return x.Autoscaling
+	}
+	return nil
+}
+
+type PackagerAutoscalingConfig struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Enabled       bool                   `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	MinReplicas   int32                  `protobuf:"varint,2,opt,name=min_replicas,json=minReplicas,proto3" json:"min_replicas,omitempty"`
+	MaxReplicas   int32                  `protobuf:"varint,3,opt,name=max_replicas,json=maxReplicas,proto3" json:"max_replicas,omitempty"`
+	TargetCpu     int32                  `protobuf:"varint,4,opt,name=target_cpu,json=targetCpu,proto3" json:"target_cpu,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PackagerAutoscalingConfig) Reset() {
+	*x = PackagerAutoscalingConfig{}
+	mi := &file_packager_proto_msgTypes[55]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PackagerAutoscalingConfig) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PackagerAutoscalingConfig) ProtoMessage() {}
+
+func (x *PackagerAutoscalingConfig) ProtoReflect() protoreflect.Message {
+	mi := &file_packager_proto_msgTypes[55]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PackagerAutoscalingConfig.ProtoReflect.Descriptor instead.
+func (*PackagerAutoscalingConfig) Descriptor() ([]byte, []int) {
+	return file_packager_proto_rawDescGZIP(), []int{55}
+}
+
+func (x *PackagerAutoscalingConfig) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
+}
+
+func (x *PackagerAutoscalingConfig) GetMinReplicas() int32 {
+	if x != nil {
+		return x.MinReplicas
+	}
+	return 0
+}
+
+func (x *PackagerAutoscalingConfig) GetMaxReplicas() int32 {
+	if x != nil {
+		return x.MaxReplicas
+	}
+	return 0
+}
+
+func (x *PackagerAutoscalingConfig) GetTargetCpu() int32 {
+	if x != nil {
+		return x.TargetCpu
+	}
+	return 0
+}
+
+type SetServiceScalingResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetServiceScalingResponse) Reset() {
+	*x = SetServiceScalingResponse{}
+	mi := &file_packager_proto_msgTypes[56]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetServiceScalingResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetServiceScalingResponse) ProtoMessage() {}
+
+func (x *SetServiceScalingResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_packager_proto_msgTypes[56]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetServiceScalingResponse.ProtoReflect.Descriptor instead.
+func (*SetServiceScalingResponse) Descriptor() ([]byte, []int) {
+	return file_packager_proto_rawDescGZIP(), []int{56}
+}
+
 var File_packager_proto protoreflect.FileDescriptor
 
 var file_packager_proto_rawDesc = []byte{
@@ -3289,7 +3469,32 @@ var file_packager_proto_rawDesc = []byte{
 	0x4d, 0x62, 0x12, 0x17, 0x0a, 0x07, 0x64, 0x69, 0x73, 0x6b, 0x5f, 0x6d, 0x62, 0x18, 0x06, 0x20,
 	0x01, 0x28, 0x05, 0x52, 0x06, 0x64, 0x69, 0x73, 0x6b, 0x4d, 0x62, 0x22, 0x16, 0x0a, 0x14, 0x53,
 	0x65, 0x74, 0x52, 0x65, 0x73, 0x6f, 0x75, 0x72, 0x63, 0x65, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f,
-	0x6e, 0x73, 0x65, 0x32, 0xd7, 0x0e, 0x0a, 0x0f, 0x50, 0x61, 0x63, 0x6b, 0x61, 0x67, 0x65, 0x72,
+	0x6e, 0x73, 0x65, 0x22, 0xd3, 0x01, 0x0a, 0x18, 0x53, 0x65, 0x74, 0x53, 0x65, 0x72, 0x76, 0x69,
+	0x63, 0x65, 0x53, 0x63, 0x61, 0x6c, 0x69, 0x6e, 0x67, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
+	0x12, 0x18, 0x0a, 0x07, 0x70, 0x72, 0x6f, 0x6a, 0x65, 0x63, 0x74, 0x18, 0x01, 0x20, 0x01, 0x28,
+	0x09, 0x52, 0x07, 0x70, 0x72, 0x6f, 0x6a, 0x65, 0x63, 0x74, 0x12, 0x20, 0x0a, 0x0b, 0x65, 0x6e,
+	0x76, 0x69, 0x72, 0x6f, 0x6e, 0x6d, 0x65, 0x6e, 0x74, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52,
+	0x0b, 0x65, 0x6e, 0x76, 0x69, 0x72, 0x6f, 0x6e, 0x6d, 0x65, 0x6e, 0x74, 0x12, 0x18, 0x0a, 0x07,
+	0x73, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x18, 0x03, 0x20, 0x01, 0x28, 0x09, 0x52, 0x07, 0x73,
+	0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x12, 0x1a, 0x0a, 0x08, 0x72, 0x65, 0x70, 0x6c, 0x69, 0x63,
+	0x61, 0x73, 0x18, 0x04, 0x20, 0x01, 0x28, 0x05, 0x52, 0x08, 0x72, 0x65, 0x70, 0x6c, 0x69, 0x63,
+	0x61, 0x73, 0x12, 0x45, 0x0a, 0x0b, 0x61, 0x75, 0x74, 0x6f, 0x73, 0x63, 0x61, 0x6c, 0x69, 0x6e,
+	0x67, 0x18, 0x05, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x23, 0x2e, 0x70, 0x61, 0x63, 0x6b, 0x61, 0x67,
+	0x65, 0x72, 0x2e, 0x50, 0x61, 0x63, 0x6b, 0x61, 0x67, 0x65, 0x72, 0x41, 0x75, 0x74, 0x6f, 0x73,
+	0x63, 0x61, 0x6c, 0x69, 0x6e, 0x67, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x52, 0x0b, 0x61, 0x75,
+	0x74, 0x6f, 0x73, 0x63, 0x61, 0x6c, 0x69, 0x6e, 0x67, 0x22, 0x9a, 0x01, 0x0a, 0x19, 0x50, 0x61,
+	0x63, 0x6b, 0x61, 0x67, 0x65, 0x72, 0x41, 0x75, 0x74, 0x6f, 0x73, 0x63, 0x61, 0x6c, 0x69, 0x6e,
+	0x67, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x12, 0x18, 0x0a, 0x07, 0x65, 0x6e, 0x61, 0x62, 0x6c,
+	0x65, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x08, 0x52, 0x07, 0x65, 0x6e, 0x61, 0x62, 0x6c, 0x65,
+	0x64, 0x12, 0x21, 0x0a, 0x0c, 0x6d, 0x69, 0x6e, 0x5f, 0x72, 0x65, 0x70, 0x6c, 0x69, 0x63, 0x61,
+	0x73, 0x18, 0x02, 0x20, 0x01, 0x28, 0x05, 0x52, 0x0b, 0x6d, 0x69, 0x6e, 0x52, 0x65, 0x70, 0x6c,
+	0x69, 0x63, 0x61, 0x73, 0x12, 0x21, 0x0a, 0x0c, 0x6d, 0x61, 0x78, 0x5f, 0x72, 0x65, 0x70, 0x6c,
+	0x69, 0x63, 0x61, 0x73, 0x18, 0x03, 0x20, 0x01, 0x28, 0x05, 0x52, 0x0b, 0x6d, 0x61, 0x78, 0x52,
+	0x65, 0x70, 0x6c, 0x69, 0x63, 0x61, 0x73, 0x12, 0x1d, 0x0a, 0x0a, 0x74, 0x61, 0x72, 0x67, 0x65,
+	0x74, 0x5f, 0x63, 0x70, 0x75, 0x18, 0x04, 0x20, 0x01, 0x28, 0x05, 0x52, 0x09, 0x74, 0x61, 0x72,
+	0x67, 0x65, 0x74, 0x43, 0x70, 0x75, 0x22, 0x1b, 0x0a, 0x19, 0x53, 0x65, 0x74, 0x53, 0x65, 0x72,
+	0x76, 0x69, 0x63, 0x65, 0x53, 0x63, 0x61, 0x6c, 0x69, 0x6e, 0x67, 0x52, 0x65, 0x73, 0x70, 0x6f,
+	0x6e, 0x73, 0x65, 0x32, 0xb5, 0x0f, 0x0a, 0x0f, 0x50, 0x61, 0x63, 0x6b, 0x61, 0x67, 0x65, 0x72,
 	0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x12, 0x4a, 0x0a, 0x0b, 0x49, 0x6e, 0x69, 0x74, 0x50,
 	0x72, 0x6f, 0x6a, 0x65, 0x63, 0x74, 0x12, 0x1c, 0x2e, 0x70, 0x61, 0x63, 0x6b, 0x61, 0x67, 0x65,
 	0x72, 0x2e, 0x49, 0x6e, 0x69, 0x74, 0x50, 0x72, 0x6f, 0x6a, 0x65, 0x63, 0x74, 0x52, 0x65, 0x71,
@@ -3406,9 +3611,15 @@ var file_packager_proto_rawDesc = []byte{
 	0x2e, 0x70, 0x61, 0x63, 0x6b, 0x61, 0x67, 0x65, 0x72, 0x2e, 0x53, 0x65, 0x74, 0x52, 0x65, 0x73,
 	0x6f, 0x75, 0x72, 0x63, 0x65, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1e, 0x2e,
 	0x70, 0x61, 0x63, 0x6b, 0x61, 0x67, 0x65, 0x72, 0x2e, 0x53, 0x65, 0x74, 0x52, 0x65, 0x73, 0x6f,
-	0x75, 0x72, 0x63, 0x65, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x42, 0x0c, 0x5a,
-	0x0a, 0x2e, 0x2f, 0x70, 0x61, 0x63, 0x6b, 0x61, 0x67, 0x65, 0x72, 0x62, 0x06, 0x70, 0x72, 0x6f,
-	0x74, 0x6f, 0x33,
+	0x75, 0x72, 0x63, 0x65, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x5c, 0x0a,
+	0x11, 0x53, 0x65, 0x74, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x53, 0x63, 0x61, 0x6c, 0x69,
+	0x6e, 0x67, 0x12, 0x22, 0x2e, 0x70, 0x61, 0x63, 0x6b, 0x61, 0x67, 0x65, 0x72, 0x2e, 0x53, 0x65,
+	0x74, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x53, 0x63, 0x61, 0x6c, 0x69, 0x6e, 0x67, 0x52,
+	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x23, 0x2e, 0x70, 0x61, 0x63, 0x6b, 0x61, 0x67, 0x65,
+	0x72, 0x2e, 0x53, 0x65, 0x74, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x53, 0x63, 0x61, 0x6c,
+	0x69, 0x6e, 0x67, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x42, 0x0c, 0x5a, 0x0a, 0x2e,
+	0x2f, 0x70, 0x61, 0x63, 0x6b, 0x61, 0x67, 0x65, 0x72, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f,
+	0x33,
 }
 
 var (
@@ -3423,7 +3634,7 @@ func file_packager_proto_rawDescGZIP() []byte {
 	return file_packager_proto_rawDescData
 }
 
-var file_packager_proto_msgTypes = make([]protoimpl.MessageInfo, 62)
+var file_packager_proto_msgTypes = make([]protoimpl.MessageInfo, 65)
 var file_packager_proto_goTypes = []any{
 	(*ServiceInfo)(nil),                 // 0: packager.ServiceInfo
 	(*ServiceInstanceInfo)(nil),         // 1: packager.ServiceInstanceInfo
@@ -3479,89 +3690,95 @@ var file_packager_proto_goTypes = []any{
 	(*SyncChartResponse)(nil),           // 51: packager.SyncChartResponse
 	(*SetResourcesRequest)(nil),         // 52: packager.SetResourcesRequest
 	(*SetResourcesResponse)(nil),        // 53: packager.SetResourcesResponse
-	nil,                                 // 54: packager.SharedVariablesResponse.VariablesEntry
-	nil,                                 // 55: packager.SetSharedVariablesRequest.VariablesEntry
-	nil,                                 // 56: packager.ServiceVariablesResponse.VariablesEntry
-	nil,                                 // 57: packager.ServiceVariablesResponse.DatabaseRefsEntry
-	nil,                                 // 58: packager.ServiceVariablesResponse.ServiceRefsEntry
-	nil,                                 // 59: packager.SetServiceVariablesRequest.VariablesEntry
-	nil,                                 // 60: packager.SetServiceVariablesRequest.DatabaseRefsEntry
-	nil,                                 // 61: packager.SetServiceVariablesRequest.ServiceRefsEntry
-	(*timestamppb.Timestamp)(nil),       // 62: google.protobuf.Timestamp
+	(*SetServiceScalingRequest)(nil),    // 54: packager.SetServiceScalingRequest
+	(*PackagerAutoscalingConfig)(nil),   // 55: packager.PackagerAutoscalingConfig
+	(*SetServiceScalingResponse)(nil),   // 56: packager.SetServiceScalingResponse
+	nil,                                 // 57: packager.SharedVariablesResponse.VariablesEntry
+	nil,                                 // 58: packager.SetSharedVariablesRequest.VariablesEntry
+	nil,                                 // 59: packager.ServiceVariablesResponse.VariablesEntry
+	nil,                                 // 60: packager.ServiceVariablesResponse.DatabaseRefsEntry
+	nil,                                 // 61: packager.ServiceVariablesResponse.ServiceRefsEntry
+	nil,                                 // 62: packager.SetServiceVariablesRequest.VariablesEntry
+	nil,                                 // 63: packager.SetServiceVariablesRequest.DatabaseRefsEntry
+	nil,                                 // 64: packager.SetServiceVariablesRequest.ServiceRefsEntry
+	(*timestamppb.Timestamp)(nil),       // 65: google.protobuf.Timestamp
 }
 var file_packager_proto_depIdxs = []int32{
 	1,  // 0: packager.EnvironmentInfo.services:type_name -> packager.ServiceInstanceInfo
-	62, // 1: packager.ProjectInfo.created_at:type_name -> google.protobuf.Timestamp
+	65, // 1: packager.ProjectInfo.created_at:type_name -> google.protobuf.Timestamp
 	0,  // 2: packager.ProjectInfo.services:type_name -> packager.ServiceInfo
 	2,  // 3: packager.ProjectInfo.environment_infos:type_name -> packager.EnvironmentInfo
 	45, // 4: packager.ProjectInfo.databases:type_name -> packager.DatabaseInfo
 	3,  // 5: packager.ListProjectsResponse.projects:type_name -> packager.ProjectInfo
 	3,  // 6: packager.GetProjectResponse.project:type_name -> packager.ProjectInfo
-	62, // 7: packager.DeploymentHistoryEntry.deployed_at:type_name -> google.protobuf.Timestamp
+	65, // 7: packager.DeploymentHistoryEntry.deployed_at:type_name -> google.protobuf.Timestamp
 	27, // 8: packager.DeploymentHistoryResponse.entries:type_name -> packager.DeploymentHistoryEntry
-	54, // 9: packager.SharedVariablesResponse.variables:type_name -> packager.SharedVariablesResponse.VariablesEntry
-	55, // 10: packager.SetSharedVariablesRequest.variables:type_name -> packager.SetSharedVariablesRequest.VariablesEntry
-	56, // 11: packager.ServiceVariablesResponse.variables:type_name -> packager.ServiceVariablesResponse.VariablesEntry
-	57, // 12: packager.ServiceVariablesResponse.database_refs:type_name -> packager.ServiceVariablesResponse.DatabaseRefsEntry
-	58, // 13: packager.ServiceVariablesResponse.service_refs:type_name -> packager.ServiceVariablesResponse.ServiceRefsEntry
-	59, // 14: packager.SetServiceVariablesRequest.variables:type_name -> packager.SetServiceVariablesRequest.VariablesEntry
-	60, // 15: packager.SetServiceVariablesRequest.database_refs:type_name -> packager.SetServiceVariablesRequest.DatabaseRefsEntry
-	61, // 16: packager.SetServiceVariablesRequest.service_refs:type_name -> packager.SetServiceVariablesRequest.ServiceRefsEntry
-	43, // 17: packager.ServiceVariablesResponse.DatabaseRefsEntry.value:type_name -> packager.DatabaseRef
-	44, // 18: packager.ServiceVariablesResponse.ServiceRefsEntry.value:type_name -> packager.ServiceRef
-	43, // 19: packager.SetServiceVariablesRequest.DatabaseRefsEntry.value:type_name -> packager.DatabaseRef
-	44, // 20: packager.SetServiceVariablesRequest.ServiceRefsEntry.value:type_name -> packager.ServiceRef
-	4,  // 21: packager.PackagerService.InitProject:input_type -> packager.InitProjectRequest
-	6,  // 22: packager.PackagerService.ListProjects:input_type -> packager.ListProjectsRequest
-	8,  // 23: packager.PackagerService.GetProject:input_type -> packager.GetProjectRequest
-	10, // 24: packager.PackagerService.DeleteProject:input_type -> packager.DeleteProjectRequest
-	12, // 25: packager.PackagerService.AddService:input_type -> packager.AddServiceRequest
-	14, // 26: packager.PackagerService.RemoveService:input_type -> packager.RemoveServiceRequest
-	16, // 27: packager.PackagerService.UpdateImageTag:input_type -> packager.UpdateImageTagRequest
-	18, // 28: packager.PackagerService.CreateEnvironment:input_type -> packager.CreateEnvironmentRequest
-	20, // 29: packager.PackagerService.DeleteEnvironment:input_type -> packager.DeleteEnvironmentRequest
-	22, // 30: packager.PackagerService.Promote:input_type -> packager.PromoteRequest
-	24, // 31: packager.PackagerService.Eject:input_type -> packager.EjectRequest
-	26, // 32: packager.PackagerService.DeploymentHistory:input_type -> packager.DeploymentHistoryRequest
-	29, // 33: packager.PackagerService.AddDomain:input_type -> packager.AddDomainRequest
-	31, // 34: packager.PackagerService.RemoveDomain:input_type -> packager.RemoveDomainRequest
-	33, // 35: packager.PackagerService.AllDomains:input_type -> packager.AllDomainsRequest
-	35, // 36: packager.PackagerService.SharedVariables:input_type -> packager.SharedVariablesRequest
-	37, // 37: packager.PackagerService.SetSharedVariables:input_type -> packager.SetSharedVariablesRequest
-	39, // 38: packager.PackagerService.ServiceVariables:input_type -> packager.ServiceVariablesRequest
-	41, // 39: packager.PackagerService.SetServiceVariables:input_type -> packager.SetServiceVariablesRequest
-	46, // 40: packager.PackagerService.AddDatabase:input_type -> packager.AddDatabaseRequest
-	48, // 41: packager.PackagerService.RemoveDatabase:input_type -> packager.RemoveDatabaseRequest
-	50, // 42: packager.PackagerService.SyncChart:input_type -> packager.SyncChartRequest
-	52, // 43: packager.PackagerService.SetResources:input_type -> packager.SetResourcesRequest
-	5,  // 44: packager.PackagerService.InitProject:output_type -> packager.InitProjectResponse
-	7,  // 45: packager.PackagerService.ListProjects:output_type -> packager.ListProjectsResponse
-	9,  // 46: packager.PackagerService.GetProject:output_type -> packager.GetProjectResponse
-	11, // 47: packager.PackagerService.DeleteProject:output_type -> packager.DeleteProjectResponse
-	13, // 48: packager.PackagerService.AddService:output_type -> packager.AddServiceResponse
-	15, // 49: packager.PackagerService.RemoveService:output_type -> packager.RemoveServiceResponse
-	17, // 50: packager.PackagerService.UpdateImageTag:output_type -> packager.UpdateImageTagResponse
-	19, // 51: packager.PackagerService.CreateEnvironment:output_type -> packager.CreateEnvironmentResponse
-	21, // 52: packager.PackagerService.DeleteEnvironment:output_type -> packager.DeleteEnvironmentResponse
-	23, // 53: packager.PackagerService.Promote:output_type -> packager.PromoteResponse
-	25, // 54: packager.PackagerService.Eject:output_type -> packager.EjectResponse
-	28, // 55: packager.PackagerService.DeploymentHistory:output_type -> packager.DeploymentHistoryResponse
-	30, // 56: packager.PackagerService.AddDomain:output_type -> packager.AddDomainResponse
-	32, // 57: packager.PackagerService.RemoveDomain:output_type -> packager.RemoveDomainResponse
-	34, // 58: packager.PackagerService.AllDomains:output_type -> packager.AllDomainsResponse
-	36, // 59: packager.PackagerService.SharedVariables:output_type -> packager.SharedVariablesResponse
-	38, // 60: packager.PackagerService.SetSharedVariables:output_type -> packager.SetSharedVariablesResponse
-	40, // 61: packager.PackagerService.ServiceVariables:output_type -> packager.ServiceVariablesResponse
-	42, // 62: packager.PackagerService.SetServiceVariables:output_type -> packager.SetServiceVariablesResponse
-	47, // 63: packager.PackagerService.AddDatabase:output_type -> packager.AddDatabaseResponse
-	49, // 64: packager.PackagerService.RemoveDatabase:output_type -> packager.RemoveDatabaseResponse
-	51, // 65: packager.PackagerService.SyncChart:output_type -> packager.SyncChartResponse
-	53, // 66: packager.PackagerService.SetResources:output_type -> packager.SetResourcesResponse
-	44, // [44:67] is the sub-list for method output_type
-	21, // [21:44] is the sub-list for method input_type
-	21, // [21:21] is the sub-list for extension type_name
-	21, // [21:21] is the sub-list for extension extendee
-	0,  // [0:21] is the sub-list for field type_name
+	57, // 9: packager.SharedVariablesResponse.variables:type_name -> packager.SharedVariablesResponse.VariablesEntry
+	58, // 10: packager.SetSharedVariablesRequest.variables:type_name -> packager.SetSharedVariablesRequest.VariablesEntry
+	59, // 11: packager.ServiceVariablesResponse.variables:type_name -> packager.ServiceVariablesResponse.VariablesEntry
+	60, // 12: packager.ServiceVariablesResponse.database_refs:type_name -> packager.ServiceVariablesResponse.DatabaseRefsEntry
+	61, // 13: packager.ServiceVariablesResponse.service_refs:type_name -> packager.ServiceVariablesResponse.ServiceRefsEntry
+	62, // 14: packager.SetServiceVariablesRequest.variables:type_name -> packager.SetServiceVariablesRequest.VariablesEntry
+	63, // 15: packager.SetServiceVariablesRequest.database_refs:type_name -> packager.SetServiceVariablesRequest.DatabaseRefsEntry
+	64, // 16: packager.SetServiceVariablesRequest.service_refs:type_name -> packager.SetServiceVariablesRequest.ServiceRefsEntry
+	55, // 17: packager.SetServiceScalingRequest.autoscaling:type_name -> packager.PackagerAutoscalingConfig
+	43, // 18: packager.ServiceVariablesResponse.DatabaseRefsEntry.value:type_name -> packager.DatabaseRef
+	44, // 19: packager.ServiceVariablesResponse.ServiceRefsEntry.value:type_name -> packager.ServiceRef
+	43, // 20: packager.SetServiceVariablesRequest.DatabaseRefsEntry.value:type_name -> packager.DatabaseRef
+	44, // 21: packager.SetServiceVariablesRequest.ServiceRefsEntry.value:type_name -> packager.ServiceRef
+	4,  // 22: packager.PackagerService.InitProject:input_type -> packager.InitProjectRequest
+	6,  // 23: packager.PackagerService.ListProjects:input_type -> packager.ListProjectsRequest
+	8,  // 24: packager.PackagerService.GetProject:input_type -> packager.GetProjectRequest
+	10, // 25: packager.PackagerService.DeleteProject:input_type -> packager.DeleteProjectRequest
+	12, // 26: packager.PackagerService.AddService:input_type -> packager.AddServiceRequest
+	14, // 27: packager.PackagerService.RemoveService:input_type -> packager.RemoveServiceRequest
+	16, // 28: packager.PackagerService.UpdateImageTag:input_type -> packager.UpdateImageTagRequest
+	18, // 29: packager.PackagerService.CreateEnvironment:input_type -> packager.CreateEnvironmentRequest
+	20, // 30: packager.PackagerService.DeleteEnvironment:input_type -> packager.DeleteEnvironmentRequest
+	22, // 31: packager.PackagerService.Promote:input_type -> packager.PromoteRequest
+	24, // 32: packager.PackagerService.Eject:input_type -> packager.EjectRequest
+	26, // 33: packager.PackagerService.DeploymentHistory:input_type -> packager.DeploymentHistoryRequest
+	29, // 34: packager.PackagerService.AddDomain:input_type -> packager.AddDomainRequest
+	31, // 35: packager.PackagerService.RemoveDomain:input_type -> packager.RemoveDomainRequest
+	33, // 36: packager.PackagerService.AllDomains:input_type -> packager.AllDomainsRequest
+	35, // 37: packager.PackagerService.SharedVariables:input_type -> packager.SharedVariablesRequest
+	37, // 38: packager.PackagerService.SetSharedVariables:input_type -> packager.SetSharedVariablesRequest
+	39, // 39: packager.PackagerService.ServiceVariables:input_type -> packager.ServiceVariablesRequest
+	41, // 40: packager.PackagerService.SetServiceVariables:input_type -> packager.SetServiceVariablesRequest
+	46, // 41: packager.PackagerService.AddDatabase:input_type -> packager.AddDatabaseRequest
+	48, // 42: packager.PackagerService.RemoveDatabase:input_type -> packager.RemoveDatabaseRequest
+	50, // 43: packager.PackagerService.SyncChart:input_type -> packager.SyncChartRequest
+	52, // 44: packager.PackagerService.SetResources:input_type -> packager.SetResourcesRequest
+	54, // 45: packager.PackagerService.SetServiceScaling:input_type -> packager.SetServiceScalingRequest
+	5,  // 46: packager.PackagerService.InitProject:output_type -> packager.InitProjectResponse
+	7,  // 47: packager.PackagerService.ListProjects:output_type -> packager.ListProjectsResponse
+	9,  // 48: packager.PackagerService.GetProject:output_type -> packager.GetProjectResponse
+	11, // 49: packager.PackagerService.DeleteProject:output_type -> packager.DeleteProjectResponse
+	13, // 50: packager.PackagerService.AddService:output_type -> packager.AddServiceResponse
+	15, // 51: packager.PackagerService.RemoveService:output_type -> packager.RemoveServiceResponse
+	17, // 52: packager.PackagerService.UpdateImageTag:output_type -> packager.UpdateImageTagResponse
+	19, // 53: packager.PackagerService.CreateEnvironment:output_type -> packager.CreateEnvironmentResponse
+	21, // 54: packager.PackagerService.DeleteEnvironment:output_type -> packager.DeleteEnvironmentResponse
+	23, // 55: packager.PackagerService.Promote:output_type -> packager.PromoteResponse
+	25, // 56: packager.PackagerService.Eject:output_type -> packager.EjectResponse
+	28, // 57: packager.PackagerService.DeploymentHistory:output_type -> packager.DeploymentHistoryResponse
+	30, // 58: packager.PackagerService.AddDomain:output_type -> packager.AddDomainResponse
+	32, // 59: packager.PackagerService.RemoveDomain:output_type -> packager.RemoveDomainResponse
+	34, // 60: packager.PackagerService.AllDomains:output_type -> packager.AllDomainsResponse
+	36, // 61: packager.PackagerService.SharedVariables:output_type -> packager.SharedVariablesResponse
+	38, // 62: packager.PackagerService.SetSharedVariables:output_type -> packager.SetSharedVariablesResponse
+	40, // 63: packager.PackagerService.ServiceVariables:output_type -> packager.ServiceVariablesResponse
+	42, // 64: packager.PackagerService.SetServiceVariables:output_type -> packager.SetServiceVariablesResponse
+	47, // 65: packager.PackagerService.AddDatabase:output_type -> packager.AddDatabaseResponse
+	49, // 66: packager.PackagerService.RemoveDatabase:output_type -> packager.RemoveDatabaseResponse
+	51, // 67: packager.PackagerService.SyncChart:output_type -> packager.SyncChartResponse
+	53, // 68: packager.PackagerService.SetResources:output_type -> packager.SetResourcesResponse
+	56, // 69: packager.PackagerService.SetServiceScaling:output_type -> packager.SetServiceScalingResponse
+	46, // [46:70] is the sub-list for method output_type
+	22, // [22:46] is the sub-list for method input_type
+	22, // [22:22] is the sub-list for extension type_name
+	22, // [22:22] is the sub-list for extension extendee
+	0,  // [0:22] is the sub-list for field type_name
 }
 
 func init() { file_packager_proto_init() }
@@ -3575,7 +3792,7 @@ func file_packager_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_packager_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   62,
+			NumMessages:   65,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

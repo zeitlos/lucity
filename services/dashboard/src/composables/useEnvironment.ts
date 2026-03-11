@@ -15,12 +15,25 @@ export interface DomainInfo {
   dnsStatus: 'VALID' | 'PENDING' | 'MISCONFIGURED' | 'ERROR';
 }
 
+export interface AutoscalingInfo {
+  enabled: boolean;
+  minReplicas: number;
+  maxReplicas: number;
+  targetCPU: number;
+}
+
+export interface ScalingInfo {
+  replicas: number;
+  autoscaling?: AutoscalingInfo;
+}
+
 export interface ServiceInstance {
   name: string;
   environment: string;
   imageTag: string;
   ready: boolean;
   replicas: number;
+  scaling?: ScalingInfo;
   domains: DomainInfo[];
   deployments: DeploymentInfo[];
 }

@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -476,17 +477,179 @@ func (s *Server) ServiceStatus(ctx context.Context, req *deployer.ServiceStatusR
 	}
 
 	var totalReplicas, totalReady int32
+	var configuredReplicas int32
 	for _, d := range deployList.Items {
 		totalReplicas += d.Status.Replicas
 		totalReady += d.Status.ReadyReplicas
+		if d.Spec.Replicas != nil {
+			configuredReplicas = *d.Spec.Replicas
+		}
+	}
+
+	// Check for an HPA targeting this deployment.
+	scaling := &deployer.ServiceScalingConfig{
+		Replicas: configuredReplicas,
+	}
+
+	hpaList, err := s.k8s.AutoscalingV2().HorizontalPodAutoscalers(namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: labelSelector,
+	})
+	if err == nil && len(hpaList.Items) > 0 {
+		hpa := hpaList.Items[0]
+		scaling.AutoscalingEnabled = true
+		scaling.MinReplicas = 1
+		if hpa.Spec.MinReplicas != nil {
+			scaling.MinReplicas = *hpa.Spec.MinReplicas
+		}
+		scaling.MaxReplicas = hpa.Spec.MaxReplicas
+		for _, metric := range hpa.Spec.Metrics {
+			if metric.Type == autoscalingv2.ContainerResourceMetricSourceType && metric.ContainerResource != nil {
+				if metric.ContainerResource.Target.AverageUtilization != nil {
+					scaling.TargetCpu = *metric.ContainerResource.Target.AverageUtilization
+				}
+			}
+		}
 	}
 
 	return &deployer.ServiceStatusResponse{
 		Ready:         totalReady > 0 && totalReady >= totalReplicas,
 		Replicas:      totalReplicas,
 		ReadyReplicas: totalReady,
+		Scaling:       scaling,
 	}, nil
 }
+
+func (s *Server) SetServiceScaling(ctx context.Context, req *deployer.SetServiceScalingRequest) (*deployer.SetServiceScalingResponse, error) {
+	ws := tenant.FromContext(ctx)
+	namespace := labels.NamespaceFor(ws, req.Project, req.Environment)
+	deploymentName := fmt.Sprintf("%s-%s-%s", req.Project, req.Environment, req.Service)
+
+	// Find the deployment by label first (more reliable than guessing the name).
+	labelSelector := fmt.Sprintf("app.kubernetes.io/name=%s", req.Service)
+	deployList, err := s.k8s.AppsV1().Deployments(namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: labelSelector,
+	})
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to list deployments: %v", err)
+	}
+	if len(deployList.Items) == 0 {
+		return nil, status.Errorf(codes.NotFound, "no deployment found for service %q in %q", req.Service, namespace)
+	}
+
+	dep := &deployList.Items[0]
+	deploymentName = dep.Name
+
+	hpaName := deploymentName
+
+	if req.Autoscaling != nil && req.Autoscaling.Enabled {
+		// Autoscaling enabled: create/update HPA, remove replicas from Deployment.
+		minReplicas := req.Autoscaling.MinReplicas
+		if minReplicas < 1 {
+			minReplicas = 1
+		}
+		maxReplicas := req.Autoscaling.MaxReplicas
+		if maxReplicas < minReplicas {
+			maxReplicas = minReplicas
+		}
+		targetCPU := req.Autoscaling.TargetCpu
+		if targetCPU <= 0 {
+			targetCPU = 70
+		}
+
+		hpa := &autoscalingv2.HorizontalPodAutoscaler{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      hpaName,
+				Namespace: namespace,
+				Labels: map[string]string{
+					"app.kubernetes.io/name": req.Service,
+					labels.ManagedBy:         labels.ManagedByLucity,
+				},
+			},
+			Spec: autoscalingv2.HorizontalPodAutoscalerSpec{
+				ScaleTargetRef: autoscalingv2.CrossVersionObjectReference{
+					APIVersion: "apps/v1",
+					Kind:       "Deployment",
+					Name:       deploymentName,
+				},
+				MinReplicas: &minReplicas,
+				MaxReplicas: maxReplicas,
+				Behavior: &autoscalingv2.HorizontalPodAutoscalerBehavior{
+					ScaleUp: &autoscalingv2.HPAScalingRules{
+						StabilizationWindowSeconds: int32Ptr(30),
+					},
+					ScaleDown: &autoscalingv2.HPAScalingRules{
+						StabilizationWindowSeconds: int32Ptr(300),
+						Policies: []autoscalingv2.HPAScalingPolicy{
+							{
+								Type:          autoscalingv2.PodsScalingPolicy,
+								Value:         1,
+								PeriodSeconds: 60,
+							},
+						},
+					},
+				},
+				Metrics: []autoscalingv2.MetricSpec{
+					{
+						Type: autoscalingv2.ContainerResourceMetricSourceType,
+						ContainerResource: &autoscalingv2.ContainerResourceMetricSource{
+							Name:      corev1.ResourceCPU,
+							Container: req.Service,
+							Target: autoscalingv2.MetricTarget{
+								Type:               autoscalingv2.UtilizationMetricType,
+								AverageUtilization: &targetCPU,
+							},
+						},
+					},
+				},
+			},
+		}
+
+		existing, err := s.k8s.AutoscalingV2().HorizontalPodAutoscalers(namespace).Get(ctx, hpaName, metav1.GetOptions{})
+		if err != nil {
+			if !apierrors.IsNotFound(err) {
+				return nil, status.Errorf(codes.Internal, "failed to get HPA: %v", err)
+			}
+			if _, err := s.k8s.AutoscalingV2().HorizontalPodAutoscalers(namespace).Create(ctx, hpa, metav1.CreateOptions{}); err != nil {
+				return nil, status.Errorf(codes.Internal, "failed to create HPA: %v", err)
+			}
+		} else {
+			existing.Spec = hpa.Spec
+			existing.Labels = hpa.Labels
+			if _, err := s.k8s.AutoscalingV2().HorizontalPodAutoscalers(namespace).Update(ctx, existing, metav1.UpdateOptions{}); err != nil {
+				return nil, status.Errorf(codes.Internal, "failed to update HPA: %v", err)
+			}
+		}
+
+		// Remove replicas from Deployment — HPA owns it now.
+		dep.Spec.Replicas = nil
+		if _, err := s.k8s.AppsV1().Deployments(namespace).Update(ctx, dep, metav1.UpdateOptions{}); err != nil {
+			slog.Warn("failed to clear deployment replicas for HPA", "deployment", deploymentName, "error", err)
+		}
+
+		slog.Info("set autoscaling", "deployment", deploymentName, "min", minReplicas, "max", maxReplicas, "targetCPU", targetCPU)
+	} else {
+		// Manual scaling: set replicas on Deployment, delete HPA if it exists.
+		replicas := req.Replicas
+		if replicas < 1 {
+			replicas = 1
+		}
+		dep.Spec.Replicas = &replicas
+		if _, err := s.k8s.AppsV1().Deployments(namespace).Update(ctx, dep, metav1.UpdateOptions{}); err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to scale deployment: %v", err)
+		}
+
+		// Delete HPA if it exists (idempotent).
+		if err := s.k8s.AutoscalingV2().HorizontalPodAutoscalers(namespace).Delete(ctx, hpaName, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+			slog.Warn("failed to delete HPA", "hpa", hpaName, "error", err)
+		}
+
+		slog.Info("set manual scaling", "deployment", deploymentName, "replicas", replicas)
+	}
+
+	return &deployer.SetServiceScalingResponse{}, nil
+}
+
+func int32Ptr(v int32) *int32 { return &v }
 
 // pvcUsage queries the kubelet stats API via the Kubernetes API proxy to get
 // actual disk usage for a PVC. Returns (usedBytes, capacityBytes) or (0, 0)

@@ -15,7 +15,9 @@ metadata:
     lucity.dev/source-repo: {{ $svc.sourceUrl | quote }}
   {{- end }}
 spec:
+  {{- if not (and $svc.autoscaling $svc.autoscaling.enabled) }}
   replicas: {{ $svc.replicas | default 1 }}
+  {{- end }}
   selector:
     matchLabels:
       {{- include "lucity-app.selectorLabels" (dict "name" $name "release" $.Release.Name) | nindent 6 }}

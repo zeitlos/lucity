@@ -60,6 +60,20 @@ export const DeleteEnvironmentMutation = gql`
   }
 `;
 
+export const SetServiceScalingMutation = gql`
+  mutation SetServiceScaling($input: SetServiceScalingInput!) {
+    setServiceScaling(input: $input) {
+      replicas
+      autoscaling {
+        enabled
+        minReplicas
+        maxReplicas
+        targetCPU
+      }
+    }
+  }
+`;
+
 export const ProjectQuery = gql`
   query Project($id: ID!) {
     project(id: $id) {
@@ -78,6 +92,15 @@ export const ProjectQuery = gql`
           imageTag
           ready
           replicas
+          scaling {
+            replicas
+            autoscaling {
+              enabled
+              minReplicas
+              maxReplicas
+              targetCPU
+            }
+          }
           domains {
             hostname
             type
@@ -122,6 +145,15 @@ export const ProjectQuery = gql`
           imageTag
           ready
           replicas
+          scaling {
+            replicas
+            autoscaling {
+              enabled
+              minReplicas
+              maxReplicas
+              targetCPU
+            }
+          }
           domains {
             hostname
             type

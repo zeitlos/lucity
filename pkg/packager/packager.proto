@@ -79,6 +79,9 @@ service PackagerService {
   // SetResources writes resource requests/limits to an environment's values.yaml.
   // Keeps the GitOps repo in sync with K8s ResourceQuota for ejection purposes.
   rpc SetResources(SetResourcesRequest) returns (SetResourcesResponse);
+
+  // SetServiceScaling writes replica count and autoscaling config to an environment's values.yaml.
+  rpc SetServiceScaling(SetServiceScalingRequest) returns (SetServiceScalingResponse);
 }
 
 // ServiceInfo describes a service configured in the project's GitOps repo.
@@ -370,3 +373,20 @@ message SetResourcesRequest {
 }
 
 message SetResourcesResponse {}
+
+message SetServiceScalingRequest {
+  string project = 1;
+  string environment = 2;
+  string service = 3;
+  int32 replicas = 4;
+  PackagerAutoscalingConfig autoscaling = 5;
+}
+
+message PackagerAutoscalingConfig {
+  bool enabled = 1;
+  int32 min_replicas = 2;
+  int32 max_replicas = 3;
+  int32 target_cpu = 4;
+}
+
+message SetServiceScalingResponse {}

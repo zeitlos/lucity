@@ -31,6 +31,20 @@ type AddServiceInput struct {
 	Image *string `json:"image,omitempty"`
 }
 
+type AutoscalingConfig struct {
+	Enabled     bool `json:"enabled"`
+	MinReplicas int  `json:"minReplicas"`
+	MaxReplicas int  `json:"maxReplicas"`
+	TargetCPU   int  `json:"targetCPU"`
+}
+
+type AutoscalingInput struct {
+	Enabled     bool `json:"enabled"`
+	MinReplicas int  `json:"minReplicas"`
+	MaxReplicas int  `json:"maxReplicas"`
+	TargetCPU   int  `json:"targetCPU"`
+}
+
 type BillingPortalURL struct {
 	URL string `json:"url"`
 }
@@ -323,6 +337,11 @@ type RollbackInput struct {
 	ImageTag string `json:"imageTag"`
 }
 
+type ScalingConfig struct {
+	Replicas    int                `json:"replicas"`
+	Autoscaling *AutoscalingConfig `json:"autoscaling,omitempty"`
+}
+
 type Service struct {
 	Name        string            `json:"name"`
 	Image       string            `json:"image"`
@@ -334,13 +353,14 @@ type Service struct {
 }
 
 type ServiceInstance struct {
-	Name        string       `json:"name"`
-	Environment string       `json:"environment"`
-	ImageTag    string       `json:"imageTag"`
-	Ready       bool         `json:"ready"`
-	Replicas    int          `json:"replicas"`
-	Domains     []Domain     `json:"domains"`
-	Deployments []Deployment `json:"deployments"`
+	Name        string         `json:"name"`
+	Environment string         `json:"environment"`
+	ImageTag    string         `json:"imageTag"`
+	Ready       bool           `json:"ready"`
+	Replicas    int            `json:"replicas"`
+	Scaling     *ScalingConfig `json:"scaling"`
+	Domains     []Domain       `json:"domains"`
+	Deployments []Deployment   `json:"deployments"`
 }
 
 type ServiceLogEntry struct {
@@ -386,6 +406,14 @@ type SetEnvironmentResourcesInput struct {
 	CPUMillicores int          `json:"cpuMillicores"`
 	MemoryMb      int          `json:"memoryMB"`
 	DiskMb        int          `json:"diskMB"`
+}
+
+type SetServiceScalingInput struct {
+	ProjectID   string            `json:"projectId"`
+	Environment string            `json:"environment"`
+	Service     string            `json:"service"`
+	Replicas    int               `json:"replicas"`
+	Autoscaling *AutoscalingInput `json:"autoscaling,omitempty"`
 }
 
 type Subscription struct {

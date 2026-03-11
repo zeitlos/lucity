@@ -30,6 +30,7 @@ const (
 	DeployerService_DatabaseQuery_FullMethodName             = "/deployer.DeployerService/DatabaseQuery"
 	DeployerService_DatabaseStatus_FullMethodName            = "/deployer.DeployerService/DatabaseStatus"
 	DeployerService_ServiceStatus_FullMethodName             = "/deployer.DeployerService/ServiceStatus"
+	DeployerService_SetServiceScaling_FullMethodName         = "/deployer.DeployerService/SetServiceScaling"
 	DeployerService_DatabaseCredentials_FullMethodName       = "/deployer.DeployerService/DatabaseCredentials"
 	DeployerService_WorkspaceMetadata_FullMethodName         = "/deployer.DeployerService/WorkspaceMetadata"
 	DeployerService_WorkspaceByInstallationID_FullMethodName = "/deployer.DeployerService/WorkspaceByInstallationID"
@@ -71,6 +72,8 @@ type DeployerServiceClient interface {
 	DatabaseStatus(ctx context.Context, in *DatabaseStatusRequest, opts ...grpc.CallOption) (*DatabaseStatusResponse, error)
 	// ServiceStatus returns the runtime status of a service's K8s Deployment in an environment.
 	ServiceStatus(ctx context.Context, in *ServiceStatusRequest, opts ...grpc.CallOption) (*ServiceStatusResponse, error)
+	// SetServiceScaling sets the replica count or creates/updates an HPA for a service.
+	SetServiceScaling(ctx context.Context, in *SetServiceScalingRequest, opts ...grpc.CallOption) (*SetServiceScalingResponse, error)
 	// DatabaseCredentials returns the resolved connection credentials for a database.
 	DatabaseCredentials(ctx context.Context, in *DatabaseCredentialsRequest, opts ...grpc.CallOption) (*DatabaseCredentialsResponse, error)
 	// WorkspaceMetadata returns metadata for a workspace from K8s ConfigMaps.
@@ -220,6 +223,16 @@ func (c *deployerServiceClient) ServiceStatus(ctx context.Context, in *ServiceSt
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ServiceStatusResponse)
 	err := c.cc.Invoke(ctx, DeployerService_ServiceStatus_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *deployerServiceClient) SetServiceScaling(ctx context.Context, in *SetServiceScalingRequest, opts ...grpc.CallOption) (*SetServiceScalingResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SetServiceScalingResponse)
+	err := c.cc.Invoke(ctx, DeployerService_SetServiceScaling_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -382,6 +395,8 @@ type DeployerServiceServer interface {
 	DatabaseStatus(context.Context, *DatabaseStatusRequest) (*DatabaseStatusResponse, error)
 	// ServiceStatus returns the runtime status of a service's K8s Deployment in an environment.
 	ServiceStatus(context.Context, *ServiceStatusRequest) (*ServiceStatusResponse, error)
+	// SetServiceScaling sets the replica count or creates/updates an HPA for a service.
+	SetServiceScaling(context.Context, *SetServiceScalingRequest) (*SetServiceScalingResponse, error)
 	// DatabaseCredentials returns the resolved connection credentials for a database.
 	DatabaseCredentials(context.Context, *DatabaseCredentialsRequest) (*DatabaseCredentialsResponse, error)
 	// WorkspaceMetadata returns metadata for a workspace from K8s ConfigMaps.
@@ -450,6 +465,9 @@ func (UnimplementedDeployerServiceServer) DatabaseStatus(context.Context, *Datab
 }
 func (UnimplementedDeployerServiceServer) ServiceStatus(context.Context, *ServiceStatusRequest) (*ServiceStatusResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ServiceStatus not implemented")
+}
+func (UnimplementedDeployerServiceServer) SetServiceScaling(context.Context, *SetServiceScalingRequest) (*SetServiceScalingResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetServiceScaling not implemented")
 }
 func (UnimplementedDeployerServiceServer) DatabaseCredentials(context.Context, *DatabaseCredentialsRequest) (*DatabaseCredentialsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DatabaseCredentials not implemented")
@@ -698,6 +716,24 @@ func _DeployerService_ServiceStatus_Handler(srv interface{}, ctx context.Context
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DeployerServiceServer).ServiceStatus(ctx, req.(*ServiceStatusRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DeployerService_SetServiceScaling_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetServiceScalingRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DeployerServiceServer).SetServiceScaling(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DeployerService_SetServiceScaling_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DeployerServiceServer).SetServiceScaling(ctx, req.(*SetServiceScalingRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -982,6 +1018,10 @@ var DeployerService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ServiceStatus",
 			Handler:    _DeployerService_ServiceStatus_Handler,
+		},
+		{
+			MethodName: "SetServiceScaling",
+			Handler:    _DeployerService_SetServiceScaling_Handler,
 		},
 		{
 			MethodName: "DatabaseCredentials",

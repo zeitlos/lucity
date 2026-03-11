@@ -20,6 +20,11 @@
 #     # When omitted, the namespace LimitRange applies:
 #     #   defaultRequest: cpu=100m, memory=256Mi
 #     #   default:        cpu=1, memory=512Mi
+#     autoscaling:                      # optional — HPA configuration
+#       enabled: true
+#       minReplicas: 1
+#       maxReplicas: 10
+#       targetCPU: 70                   # target CPU utilization %
 #
 # cronJobs:
 #   cleanup:

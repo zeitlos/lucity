@@ -1,0 +1,36 @@
+{{- range $name, $svc := .Values.services }}
+{{- if and $svc.autoscaling $svc.autoscaling.enabled }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "lucity-app.fullname" $ }}-{{ $name }}
+  labels:
+    {{- include "lucity-app.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $name }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "lucity-app.fullname" $ }}-{{ $name }}
+  minReplicas: {{ $svc.autoscaling.minReplicas | default 1 }}
+  maxReplicas: {{ $svc.autoscaling.maxReplicas | default 10 }}
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: {{ $svc.autoscaling.scaleUpStabilization | default 30 }}
+    scaleDown:
+      stabilizationWindowSeconds: {{ $svc.autoscaling.scaleDownStabilization | default 300 }}
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 60
+  metrics:
+    - type: ContainerResource
+      containerResource:
+        name: cpu
+        container: {{ $name }}
+        target:
+          type: Utilization
+          averageUtilization: {{ $svc.autoscaling.targetCPU | default 70 }}
+{{- end }}
+{{- end }}

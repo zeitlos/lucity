@@ -63,8 +63,21 @@ type ServiceInstance struct {
 	ImageTag    string
 	Ready       bool
 	Replicas    int
+	Scaling     ScalingConfig
 	Domains     []string
 	Deployments []Deployment
+}
+
+type ScalingConfig struct {
+	Replicas    int
+	Autoscaling *AutoscalingConfig
+}
+
+type AutoscalingConfig struct {
+	Enabled     bool
+	MinReplicas int
+	MaxReplicas int
+	TargetCPU   int
 }
 
 type Deployment struct {
@@ -430,6 +443,19 @@ func (c *Client) enrichServiceStatus(ctx context.Context, proj *Project) {
 				}
 				si.Ready = resp.Ready
 				si.Replicas = int(resp.Replicas)
+				if resp.Scaling != nil {
+					si.Scaling = ScalingConfig{
+						Replicas: int(resp.Scaling.Replicas),
+					}
+					if resp.Scaling.AutoscalingEnabled {
+						si.Scaling.Autoscaling = &AutoscalingConfig{
+							Enabled:     true,
+							MinReplicas: int(resp.Scaling.MinReplicas),
+							MaxReplicas: int(resp.Scaling.MaxReplicas),
+							TargetCPU:   int(resp.Scaling.TargetCpu),
+						}
+					}
+				}
 			}()
 		}
 	}
