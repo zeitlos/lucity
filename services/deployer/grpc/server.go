@@ -224,7 +224,7 @@ func (s *Server) ServiceLogs(req *deployer.ServiceLogsRequest, stream deployer.D
 	namespace := labels.NamespaceFor(ws, req.Project, req.Environment)
 
 	labelSelector := fmt.Sprintf("app.kubernetes.io/name=%s,app.kubernetes.io/instance=%s",
-		req.Service, req.Project)
+		req.Service, namespace)
 
 	podList, err := s.k8s.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: labelSelector,
@@ -465,7 +465,7 @@ func (s *Server) ServiceStatus(ctx context.Context, req *deployer.ServiceStatusR
 	ws := tenant.FromContext(ctx)
 	namespace := labels.NamespaceFor(ws, req.Project, req.Environment)
 	labelSelector := fmt.Sprintf("app.kubernetes.io/name=%s,app.kubernetes.io/instance=%s",
-		req.Service, req.Project)
+		req.Service, namespace)
 
 	deployList, err := s.k8s.AppsV1().Deployments(namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: labelSelector,
