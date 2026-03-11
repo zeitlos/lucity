@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -192,7 +193,9 @@ func (p *SoftServeProvider) AddService(ctx context.Context, project string, svc 
 			svcEntry["contextPath"] = svc.ContextPath
 		}
 		if svc.GitHubInstallationID != 0 {
-			svcEntry["githubInstallationId"] = svc.GitHubInstallationID
+			// Store as string to avoid Helm's float64 scientific notation bug with large integers.
+			// See: https://github.com/helm/helm/issues/13254
+			svcEntry["githubInstallationId"] = fmt.Sprintf("%d", svc.GitHubInstallationID)
 		}
 		services[svc.Name] = svcEntry
 		inner["services"] = services
@@ -1589,7 +1592,12 @@ func parseServiceDefs(services map[string]any) []ServiceDef {
 		if contextPath, ok := svcMap["contextPath"].(string); ok {
 			def.ContextPath = contextPath
 		}
-		if installID, ok := svcMap["githubInstallationId"].(int); ok {
+		if installStr, ok := svcMap["githubInstallationId"].(string); ok {
+			if id, err := strconv.ParseInt(installStr, 10, 64); err == nil {
+				def.GitHubInstallationID = id
+			}
+		} else if installID, ok := svcMap["githubInstallationId"].(int); ok {
+			// Legacy: handle values written as int before the string fix.
 			def.GitHubInstallationID = int64(installID)
 		}
 

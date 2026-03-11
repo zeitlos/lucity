@@ -9,7 +9,7 @@ metadata:
     {{- include "lucity-app.selectorLabels" (dict "name" $name "release" $.Release.Name) | nindent 4 }}
     app.kubernetes.io/component: {{ $name }}
     {{- if $svc.githubInstallationId }}
-    lucity.dev/github-installation: {{ printf "%.0f" $svc.githubInstallationId | quote }}
+    lucity.dev/github-installation: {{ $svc.githubInstallationId | quote }}
     {{- end }}
   {{- if $svc.sourceUrl }}
   annotations:
