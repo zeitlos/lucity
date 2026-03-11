@@ -3,7 +3,7 @@ import { ref, computed, watch } from 'vue';
 import { useMutation, useQuery } from '@vue/apollo-composable';
 import {
   Trash2, Copy, X, Globe, Plus, Minus, CircleCheck, CircleAlert,
-  ChevronDown, Network, ExternalLink, Loader2, Scaling, GitBranch, Code,
+  ChevronDown, Network, ExternalLink, Loader2, Scaling, GitBranch, Github, Code,
 } from 'lucide-vue-next';
 import {
   RemoveServiceMutation,
@@ -435,7 +435,7 @@ async function handleRemoveService() {
       <Collapsible>
         <div class="overflow-hidden rounded-lg border">
           <CollapsibleTrigger class="flex w-full items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/30">
-            <GitBranch :size="16" class="shrink-0 text-muted-foreground" />
+            <Github :size="16" class="shrink-0 text-muted-foreground" />
             <div class="min-w-0 flex-1 text-left">
               <p class="text-sm font-medium text-foreground">Repository</p>
               <p class="truncate text-xs text-muted-foreground">
@@ -451,7 +451,7 @@ async function handleRemoveService() {
             <div class="space-y-3 border-t px-4 py-3">
               <!-- Source Repo -->
               <div class="space-y-1.5">
-                <Label class="text-xs text-muted-foreground">Source Repo</Label>
+                <Label class="text-xs font-medium">Source Repo</Label>
                 <a
                   v-if="sourceRepoUrl"
                   :href="sourceRepoUrl"
@@ -459,17 +459,28 @@ async function handleRemoveService() {
                   rel="noopener noreferrer"
                   class="flex items-center gap-2 rounded-md border bg-muted/50 px-3 py-2 transition-colors hover:bg-muted/80"
                 >
-                  <span class="min-w-0 flex-1 truncate font-mono text-sm">{{ sourceRepo }}</span>
+                  <Github :size="14" class="shrink-0 text-muted-foreground" />
+                  <span class="min-w-0 flex-1 truncate font-mono text-sm">{{ service.sourceUrl }}</span>
                   <ExternalLink :size="12" class="shrink-0 text-muted-foreground" />
                 </a>
               </div>
 
               <!-- Context Path -->
               <div v-if="service.contextPath && service.contextPath !== '.'" class="space-y-1.5">
-                <Label class="text-xs text-muted-foreground">Root Directory</Label>
+                <Label class="text-xs font-medium">Root Directory</Label>
                 <div class="flex items-center gap-2 rounded-md border bg-muted/50 px-3 py-2">
                   <Code :size="14" class="shrink-0 text-muted-foreground" />
                   <span class="truncate font-mono text-sm">{{ service.contextPath }}</span>
+                </div>
+              </div>
+
+              <!-- Branch -->
+              <div class="space-y-1.5">
+                <Label class="text-xs font-medium">Branch</Label>
+                <div class="flex items-center gap-2 rounded-md border bg-muted/50 px-3 py-2">
+                  <GitBranch :size="14" class="shrink-0 text-muted-foreground" />
+                  <span class="font-mono text-sm">Default branch</span>
+                  <span class="text-xs text-muted-foreground">(auto-deploy)</span>
                 </div>
               </div>
             </div>
@@ -783,7 +794,7 @@ async function handleRemoveService() {
                   <Label class="text-sm font-medium">Autoscaling</Label>
                   <p class="text-xs text-muted-foreground">Scale replicas based on CPU usage.</p>
                 </div>
-                <Switch v-model="autoscalingEnabled" class="data-[state=unchecked]:bg-zinc-300 dark:data-[state=unchecked]:bg-zinc-600" />
+                <Switch v-model="autoscalingEnabled" class="data-[state=unchecked]:bg-border" />
               </div>
 
               <!-- Autoscaling settings -->
