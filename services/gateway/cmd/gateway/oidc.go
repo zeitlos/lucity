@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -32,11 +33,28 @@ type OIDCProvider struct {
 	provider    *oidc.Provider
 	verifier    *oidc.IDTokenVerifier
 	oauthConfig oauth2.Config
+	httpClient  *http.Client // custom client for internal routing (nil if not needed)
 }
 
 // NewOIDCProvider performs OIDC discovery against the issuer and returns a configured provider.
 // Uses PKCE (S256) — no client secret needed. The client must be configured as "public" in the IDP.
-func NewOIDCProvider(ctx context.Context, issuerURL, clientID, callbackURL string) (*OIDCProvider, error) {
+//
+// If discoveryURL is set, HTTP requests to the issuer host are rewritten to the discovery URL.
+// This avoids hairpin routing when the issuer's public domain resolves to the same load balancer.
+// The issuer URL is still used for validation (iss claim matching), and the callback URL is
+// unaffected since it's a browser redirect.
+func NewOIDCProvider(ctx context.Context, issuerURL, discoveryURL, clientID, callbackURL string) (*OIDCProvider, error) {
+	var httpClient *http.Client
+	if discoveryURL != "" {
+		var err error
+		httpClient, err = newIssuerRewriteClient(issuerURL, discoveryURL)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create internal HTTP client: %w", err)
+		}
+		ctx = oidc.ClientContext(ctx, httpClient)
+		slog.Info("OIDC using internal discovery URL", "issuer", issuerURL, "discovery", discoveryURL)
+	}
+
 	provider, err := oidc.NewProvider(ctx, issuerURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to discover OIDC provider at %s: %w", issuerURL, err)
@@ -55,6 +73,53 @@ func NewOIDCProvider(ctx context.Context, issuerURL, clientID, callbackURL strin
 		provider:    provider,
 		verifier:    verifier,
 		oauthConfig: oauthConfig,
+		httpClient:  httpClient,
+	}, nil
+}
+
+// httpContext returns a context with the internal HTTP client injected, so that
+// server-side calls (token exchange, JWKS refresh) route through internal DNS.
+func (p *OIDCProvider) httpContext(ctx context.Context) context.Context {
+	if p.httpClient != nil {
+		return oidc.ClientContext(ctx, p.httpClient)
+	}
+	return ctx
+}
+
+// issuerRewriteTransport rewrites HTTP requests from the public issuer host to
+// an internal service URL. This lets the OIDC library validate the issuer normally
+// while all HTTP traffic stays cluster-internal.
+type issuerRewriteTransport struct {
+	publicHost  string
+	internalURL *url.URL
+	base        http.RoundTripper
+}
+
+func (t *issuerRewriteTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if req.URL.Host == t.publicHost {
+		req = req.Clone(req.Context())
+		req.URL.Scheme = t.internalURL.Scheme
+		req.URL.Host = t.internalURL.Host
+	}
+	return t.base.RoundTrip(req)
+}
+
+func newIssuerRewriteClient(issuerURL, discoveryURL string) (*http.Client, error) {
+	pub, err := url.Parse(issuerURL)
+	if err != nil {
+		return nil, fmt.Errorf("invalid issuer URL %q: %w", issuerURL, err)
+	}
+	internal, err := url.Parse(discoveryURL)
+	if err != nil {
+		return nil, fmt.Errorf("invalid discovery URL %q: %w", discoveryURL, err)
+	}
+
+	return &http.Client{
+		Transport: &issuerRewriteTransport{
+			publicHost:  pub.Host,
+			internalURL: internal,
+			base:        http.DefaultTransport,
+		},
 	}, nil
 }
 
@@ -152,8 +217,9 @@ func handleCallback(provider *OIDCProvider, api *handler.Client, jwtSecret, dash
 			return
 		}
 
-		// Exchange code for OAuth2 token (with PKCE verifier)
-		oauth2Token, err := provider.oauthConfig.Exchange(r.Context(), code,
+		// Exchange code for OAuth2 token (with PKCE verifier).
+		// Use httpContext so the token exchange routes through internal DNS.
+		oauth2Token, err := provider.oauthConfig.Exchange(provider.httpContext(r.Context()), code,
 			oauth2.SetAuthURLParam("code_verifier", verifierCookie.Value),
 		)
 		if err != nil {
@@ -175,7 +241,7 @@ func handleCallback(provider *OIDCProvider, api *handler.Client, jwtSecret, dash
 			return
 		}
 
-		idToken, err := provider.verifier.Verify(r.Context(), rawIDToken)
+		idToken, err := provider.verifier.Verify(provider.httpContext(r.Context()), rawIDToken)
 		if err != nil {
 			slog.Error("failed to verify id token", "error", err)
 			http.Error(w, "authentication failed", http.StatusInternalServerError)

@@ -17,6 +17,7 @@ routes:
 gateway:
   env:
     OIDC_ISSUER_URL: https://auth.lucity.cloud/auth/v1
+    OIDC_DISCOVERY_URL: http://lucity-infra-rauthy.lucity-system.svc.cluster.local:8080/auth/v1
     OIDC_CLIENT_ID: lucity-gateway
     OIDC_CALLBACK_URL: https://lucity.cloud/auth/callback
     DASHBOARD_URL: https://lucity.cloud/app
@@ -29,7 +30,7 @@ gateway:
     CASHIER_ADDR: lucity-cashier:9005
     REGISTRY_URL: lucity-infra-zot.lucity-system.svc.cluster.local:5000
     REGISTRY_IMAGE_PREFIX: 10.96.100.100:5000
-    RAUTHY_API_URL: https://auth.lucity.cloud/auth/v1
+    RAUTHY_API_URL: http://lucity-infra-rauthy.lucity-system.svc.cluster.local:8080/auth/v1
     WORKLOAD_DOMAIN: lucity.app
     DOMAIN_TARGET: lucity.cloud
   envSecret:
