@@ -2,13 +2,19 @@
 import { ref, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuery } from '@vue/apollo-composable';
-import { ChevronDown, Plus, Check, User, Users } from 'lucide-vue-next';
+import { ChevronDown, Plus, Check, User, Users, Loader2 } from 'lucide-vue-next';
 import { useAuth } from '@/composables/useAuth';
 import { useEnvironment } from '@/composables/useEnvironment';
 import { WorkspacesQuery } from '@/graphql/workspaces';
 import { ProjectsQuery } from '@/graphql/projects';
 import { apolloClient } from '@/lib/apollo';
 import { Badge } from '@/components/ui/badge';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import CreateWorkspaceDialog from '@/components/CreateWorkspaceDialog.vue';
 import CreateEnvironmentDialog from '@/components/CreateEnvironmentDialog.vue';
 import {
@@ -46,12 +52,18 @@ const projectId = computed(() => route.params.id as string | undefined);
 // Dialogs
 const wsDialogOpen = ref(false);
 const envDialogOpen = ref(false);
+const switchingWorkspace = ref(false);
+const switchingWorkspaceName = ref('');
 
-function handleWorkspaceSwitch(id: string) {
+async function handleWorkspaceSwitch(id: string) {
   if (id === activeWorkspace.value) return;
+  const ws = workspaces.value.find((w: { id: string; name: string }) => w.id === id);
+  switchingWorkspaceName.value = ws?.name ?? id;
+  switchingWorkspace.value = true;
   setActiveWorkspace(id);
-  apolloClient.resetStore();
-  router.push('/');
+  await router.push('/');
+  await apolloClient.resetStore();
+  switchingWorkspace.value = false;
 }
 
 function handleProjectSwitch(id: string) {
@@ -209,4 +221,14 @@ function syncStatusVariant(status: string) {
     v-model:open="envDialogOpen"
     :project-id="projectId"
   />
+
+  <AlertDialog :open="switchingWorkspace">
+    <AlertDialogContent class="flex flex-col items-center gap-4 sm:max-w-sm">
+      <AlertDialogTitle class="sr-only">Switching workspace</AlertDialogTitle>
+      <Loader2 :size="32" class="animate-spin text-muted-foreground" />
+      <AlertDialogDescription class="text-center text-sm">
+        Switching to <span class="font-medium text-foreground">{{ switchingWorkspaceName }}</span>... hang tight
+      </AlertDialogDescription>
+    </AlertDialogContent>
+  </AlertDialog>
 </template>
