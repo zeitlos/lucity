@@ -19,33 +19,36 @@ import (
 // the repo, generates a railpack plan, and uses buildctl to build+push the image
 // via the BuildKit sidecar. Build state is stored in K8s Job status and annotations.
 type KubernetesEngine struct {
-	client       kubernetes.Interface
-	namespace    string
-	buildImage   string            // container image for build Jobs (same as builder service)
-	nodeSelector map[string]string // optional: schedule builds on specific nodes
-	registryURL  string            // internal registry URL for pushing images
-	insecure     bool              // allow HTTP registry
+	client             kubernetes.Interface
+	namespace          string
+	buildImage         string            // container image for build Jobs (same as builder service)
+	nodeSelector       map[string]string // optional: schedule builds on specific nodes
+	registryURL        string            // internal registry URL for pushing images
+	registryAuthSecret string            // K8s Secret with Docker config JSON for registry push auth
+	insecure           bool              // allow HTTP registry
 }
 
 // KubernetesEngineOpts configures the KubernetesEngine.
 type KubernetesEngineOpts struct {
-	Client       kubernetes.Interface
-	Namespace    string
-	BuildImage   string
-	NodeSelector map[string]string
-	RegistryURL  string
-	Insecure     bool
+	Client             kubernetes.Interface
+	Namespace          string
+	BuildImage         string
+	NodeSelector       map[string]string
+	RegistryURL        string
+	RegistryAuthSecret string // K8s Secret name containing Docker config JSON for push auth
+	Insecure           bool
 }
 
 // NewKubernetesEngine creates a KubernetesEngine.
 func NewKubernetesEngine(opts KubernetesEngineOpts) *KubernetesEngine {
 	return &KubernetesEngine{
-		client:       opts.Client,
-		namespace:    opts.Namespace,
-		buildImage:   opts.BuildImage,
-		nodeSelector: opts.NodeSelector,
-		registryURL:  opts.RegistryURL,
-		insecure:     opts.Insecure,
+		client:             opts.Client,
+		namespace:          opts.Namespace,
+		buildImage:         opts.BuildImage,
+		nodeSelector:       opts.NodeSelector,
+		registryURL:        opts.RegistryURL,
+		registryAuthSecret: opts.RegistryAuthSecret,
+		insecure:           opts.Insecure,
 	}
 }
 
@@ -140,13 +143,8 @@ func (e *KubernetesEngine) buildJob(name string, opts BuildOpts) *batchv1.Job {
 								Privileged:     &privileged,
 								SeccompProfile: &seccompUnconfined,
 							},
-							Env: []corev1.EnvVar{
-								{Name: "BUILDKIT_HOST", Value: "unix:///run/buildkit/buildkitd.sock"},
-							},
-							VolumeMounts: []corev1.VolumeMount{
-								{Name: "buildkit-socket", MountPath: "/run/buildkit"},
-								{Name: "buildkit-config", MountPath: "/etc/buildkit", ReadOnly: true},
-							},
+							Env: e.buildkitdEnv(),
+							VolumeMounts: e.buildkitdVolumeMounts(),
 							ReadinessProbe: &corev1.Probe{
 								ProbeHandler: corev1.ProbeHandler{
 									Exec: &corev1.ExecAction{
@@ -180,30 +178,7 @@ func (e *KubernetesEngine) buildJob(name string, opts BuildOpts) *batchv1.Job {
 							},
 						},
 					},
-					Volumes: []corev1.Volume{
-						{
-							Name: "buildkit-socket",
-							VolumeSource: corev1.VolumeSource{
-								EmptyDir: &corev1.EmptyDirVolumeSource{},
-							},
-						},
-						{
-							Name: "work",
-							VolumeSource: corev1.VolumeSource{
-								EmptyDir: &corev1.EmptyDirVolumeSource{},
-							},
-						},
-						{
-							Name: "buildkit-config",
-							VolumeSource: corev1.VolumeSource{
-								ConfigMap: &corev1.ConfigMapVolumeSource{
-									LocalObjectReference: corev1.LocalObjectReference{
-										Name: "lucity-buildkit",
-									},
-								},
-							},
-						},
-					},
+					Volumes: e.buildVolumes(),
 				},
 			},
 		},
@@ -261,6 +236,72 @@ func (e *KubernetesEngine) readResult(job *batchv1.Job) (*BuildResult, error) {
 		ImageRef: result.ImageRef,
 		Digest:   result.Digest,
 	}, nil
+}
+
+// buildkitdEnv returns environment variables for the buildkitd sidecar.
+func (e *KubernetesEngine) buildkitdEnv() []corev1.EnvVar {
+	env := []corev1.EnvVar{
+		{Name: "BUILDKIT_HOST", Value: "unix:///run/buildkit/buildkitd.sock"},
+	}
+	if e.registryAuthSecret != "" {
+		env = append(env, corev1.EnvVar{Name: "DOCKER_CONFIG", Value: "/etc/registry-auth"})
+	}
+	return env
+}
+
+// buildkitdVolumeMounts returns volume mounts for the buildkitd sidecar.
+func (e *KubernetesEngine) buildkitdVolumeMounts() []corev1.VolumeMount {
+	mounts := []corev1.VolumeMount{
+		{Name: "buildkit-socket", MountPath: "/run/buildkit"},
+		{Name: "buildkit-config", MountPath: "/etc/buildkit", ReadOnly: true},
+	}
+	if e.registryAuthSecret != "" {
+		mounts = append(mounts, corev1.VolumeMount{
+			Name:      "registry-auth",
+			MountPath: "/etc/registry-auth",
+			ReadOnly:  true,
+		})
+	}
+	return mounts
+}
+
+// buildVolumes returns the volume list for build Job pods.
+func (e *KubernetesEngine) buildVolumes() []corev1.Volume {
+	volumes := []corev1.Volume{
+		{
+			Name: "buildkit-socket",
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+		{
+			Name: "work",
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+		{
+			Name: "buildkit-config",
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: "lucity-buildkit",
+					},
+				},
+			},
+		},
+	}
+	if e.registryAuthSecret != "" {
+		volumes = append(volumes, corev1.Volume{
+			Name: "registry-auth",
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: e.registryAuthSecret,
+				},
+			},
+		})
+	}
+	return volumes
 }
 
 func ptr[T any](v T) *T { return &v }

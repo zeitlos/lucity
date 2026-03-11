@@ -40,11 +40,15 @@ builder:
   serviceAccount:
     create: true
   registryHost: lucity-infra-zot.lucity-system.svc.cluster.local:5000
+  registryUsername: builder
   env:
     REGISTRY_URL: lucity-infra-zot.lucity-system.svc.cluster.local:5000
+    REGISTRY_USERNAME: builder
     REGISTRY_INSECURE: "true"
     BUILD_ENGINE: kubernetes
     BUILD_NAMESPACE: lucity-system
+  envSecret:
+    REGISTRY_PASSWORD: REGISTRY_PASSWORD
 
 packager:
   env:
@@ -92,6 +96,8 @@ cashier:
     STRIPE_ECO_CPU_METER_EVENT: eco_cpu_usage
     STRIPE_ECO_MEM_METER_EVENT: eco_memory_usage
     STRIPE_ECO_DISK_METER_EVENT: eco_disk_usage
+    METERING_INTERVAL: "5m"
   envSecret:
     STRIPE_SECRET_KEY: STRIPE_SECRET_KEY
     STRIPE_WEBHOOK_SECRET: STRIPE_WEBHOOK_SECRET
+    SIGNOZ_CLICKHOUSE_DSN: SIGNOZ_CLICKHOUSE_DSN

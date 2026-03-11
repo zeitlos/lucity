@@ -21,12 +21,26 @@ zot:
         "http": {
           "address": "0.0.0.0",
           "port": "5000",
-          "compat": ["docker2s2"]
+          "compat": ["docker2s2"],
+          "auth": {
+            "htpasswd": {
+              "path": "/etc/zot/htpasswd"
+            }
+          }
+        },
+        "accessControl": {
+          "repositories": {
+            "**": {
+              "anonymousPolicy": ["read"],
+              "defaultPolicy": ["read", "create", "update", "delete"]
+            }
+          }
         },
         "log": {
           "level": "info"
         }
       }
+    htpasswd: ""  # Generate: htpasswd -bBn builder "$(openssl rand -hex 16)"
 
 softServe:
   persistence:

@@ -18,16 +18,18 @@ import (
 )
 
 type Config struct {
-	Port             string `envconfig:"PORT" default:"9001"`
-	LogLevel         string `envconfig:"LOG_LEVEL" default:"info"`
-	RegistryURL      string `envconfig:"REGISTRY_URL" default:"localhost:5000"`
-	RegistryToken    string `envconfig:"REGISTRY_TOKEN"`
-	RegistryInsecure bool   `envconfig:"REGISTRY_INSECURE" default:"true"`
-	WorkDir          string `envconfig:"WORK_DIR" default:"/tmp/lucity-builds"`
-	BuildEngine    string `envconfig:"BUILD_ENGINE" default:"local"`
-	BuildImage     string `envconfig:"BUILD_IMAGE"`
-	BuildNamespace string `envconfig:"BUILD_NAMESPACE" default:"lucity-system"`
-	KubeContext    string `envconfig:"KUBE_CONTEXT"`
+	Port               string `envconfig:"PORT" default:"9001"`
+	LogLevel           string `envconfig:"LOG_LEVEL" default:"info"`
+	RegistryURL        string `envconfig:"REGISTRY_URL" default:"localhost:5000"`
+	RegistryUsername   string `envconfig:"REGISTRY_USERNAME"`
+	RegistryPassword   string `envconfig:"REGISTRY_PASSWORD"`
+	RegistryAuthSecret string `envconfig:"REGISTRY_AUTH_SECRET"` // K8s Secret with Docker config JSON for BuildKit
+	RegistryInsecure   bool   `envconfig:"REGISTRY_INSECURE" default:"true"`
+	WorkDir            string `envconfig:"WORK_DIR" default:"/tmp/lucity-builds"`
+	BuildEngine        string `envconfig:"BUILD_ENGINE" default:"local"`
+	BuildImage         string `envconfig:"BUILD_IMAGE"`
+	BuildNamespace     string `envconfig:"BUILD_NAMESPACE" default:"lucity-system"`
+	KubeContext        string `envconfig:"KUBE_CONTEXT"`
 }
 
 func main() {
@@ -61,7 +63,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	svc := buildergrpc.NewServer(eng, tracker, config.RegistryURL, config.RegistryToken, config.RegistryInsecure, config.WorkDir)
+	svc := buildergrpc.NewServer(eng, tracker, config.RegistryURL, config.RegistryUsername, config.RegistryPassword, config.RegistryInsecure, config.WorkDir)
 	grpcServer := buildergrpc.NewGRPCServer(":"+config.Port, svc)
 
 	graceful.Serve(ctx, grpcServer)
@@ -86,11 +88,12 @@ func setupEngine(config Config) (engine.Engine, build.Tracker, error) {
 		}
 
 		eng := engine.NewKubernetesEngine(engine.KubernetesEngineOpts{
-			Client:      k8sClient,
-			Namespace:   config.BuildNamespace,
-			BuildImage:  config.BuildImage,
-			RegistryURL: config.RegistryURL,
-			Insecure:    config.RegistryInsecure,
+			Client:             k8sClient,
+			Namespace:          config.BuildNamespace,
+			BuildImage:         config.BuildImage,
+			RegistryURL:        config.RegistryURL,
+			RegistryAuthSecret: config.RegistryAuthSecret,
+			Insecure:           config.RegistryInsecure,
 		})
 
 		tracker := build.NewK8sTracker(k8sClient, config.BuildNamespace)

@@ -23,7 +23,6 @@ type BuildOpts struct {
 	RepoPath    string // cloned source directory (local builds)
 	ImageName   string // full registry path with tag (local builds)
 	ContextPath string // subdirectory within repo, empty = root
-	Token       string // registry push auth token
 	SourceURL   string // source repository URL (e.g., https://github.com/user/repo)
 	GitRef      string // git ref to clone (branch, tag, SHA)
 	GitSHA      string // full git commit SHA

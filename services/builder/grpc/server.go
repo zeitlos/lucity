@@ -26,18 +26,20 @@ type Server struct {
 	engine           engine.Engine
 	tracker          build.Tracker
 	registryURL      string
-	registryToken    string
+	registryUsername string
+	registryPassword string
 	registryInsecure bool
 	workDir          string
 }
 
 // NewServer creates a new builder gRPC server.
-func NewServer(eng engine.Engine, tracker build.Tracker, registryURL, registryToken string, registryInsecure bool, workDir string) *Server {
+func NewServer(eng engine.Engine, tracker build.Tracker, registryURL, registryUsername, registryPassword string, registryInsecure bool, workDir string) *Server {
 	return &Server{
 		engine:           eng,
 		tracker:          tracker,
 		registryURL:      registryURL,
-		registryToken:    registryToken,
+		registryUsername: registryUsername,
+		registryPassword: registryPassword,
 		registryInsecure: registryInsecure,
 		workDir:          workDir,
 	}
@@ -192,7 +194,6 @@ func (s *Server) runBuild(buildID, token string, req *builder.StartBuildRequest)
 		result, err := s.engine.Build(ctx, engine.BuildOpts{
 			BuildID:     buildID,
 			ContextPath: req.ContextPath,
-			Token:       s.registryToken,
 			SourceURL:   req.SourceUrl,
 			GitRef:      req.GitRef,
 			GitHubToken: token,
@@ -232,7 +233,6 @@ func (s *Server) runBuild(buildID, token string, req *builder.StartBuildRequest)
 		RepoPath:    repoPath,
 		ImageName:   imageName,
 		ContextPath: req.ContextPath,
-		Token:       s.registryToken,
 		SourceURL:   req.SourceUrl,
 		GitRef:      req.GitRef,
 		GitSHA:      full,

@@ -19,14 +19,14 @@ func (s *Server) registryBaseURL() string {
 	return scheme + "://" + s.registryURL
 }
 
-// registryRequest creates an HTTP request with optional Bearer auth.
+// registryRequest creates an HTTP request with optional Basic auth.
 func (s *Server) registryRequest(ctx context.Context, method, url string) (*http.Request, error) {
 	req, err := http.NewRequestWithContext(ctx, method, url, nil)
 	if err != nil {
 		return nil, err
 	}
-	if s.registryToken != "" {
-		req.Header.Set("Authorization", "Bearer "+s.registryToken)
+	if s.registryUsername != "" && s.registryPassword != "" {
+		req.SetBasicAuth(s.registryUsername, s.registryPassword)
 	}
 	req.Header.Set("Accept", "application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.v2+json")
 	return req, nil
