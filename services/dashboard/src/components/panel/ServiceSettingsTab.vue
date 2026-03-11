@@ -742,7 +742,7 @@ async function handleRemoveService() {
             <div class="space-y-4 border-t px-4 py-3">
               <!-- Replicas -->
               <div class="space-y-1.5">
-                <Label class="text-xs text-muted-foreground">Replicas</Label>
+                <Label class="text-xs font-medium">Replicas</Label>
                 <div class="flex items-center gap-1">
                   <Button
                     variant="outline"
@@ -756,7 +756,7 @@ async function handleRemoveService() {
                   <Input
                     type="number"
                     v-model.number="scalingReplicas"
-                    class="h-8 w-16 text-center text-sm"
+                    class="h-8 w-16 text-center text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                     :min="1"
                     :max="20"
                     :disabled="autoscalingEnabled"
@@ -780,16 +780,16 @@ async function handleRemoveService() {
               <!-- Autoscaling toggle -->
               <div class="flex items-center justify-between">
                 <div>
-                  <Label class="text-sm">Autoscaling</Label>
-                  <p class="text-[11px] text-muted-foreground">Scale replicas based on CPU usage.</p>
+                  <Label class="text-sm font-medium">Autoscaling</Label>
+                  <p class="text-xs text-muted-foreground">Scale replicas based on CPU usage.</p>
                 </div>
-                <Switch v-model:checked="autoscalingEnabled" />
+                <Switch v-model="autoscalingEnabled" />
               </div>
 
               <!-- Autoscaling settings -->
               <div v-if="autoscalingEnabled" class="grid grid-cols-3 gap-3">
                 <div class="space-y-1.5">
-                  <Label class="text-xs text-muted-foreground">Min</Label>
+                  <Label class="text-xs font-medium">Min</Label>
                   <div class="flex items-center gap-0.5">
                     <Button
                       variant="outline"
@@ -803,7 +803,7 @@ async function handleRemoveService() {
                     <Input
                       type="number"
                       v-model.number="scalingMinReplicas"
-                      class="h-8 w-full min-w-0 text-center text-sm"
+                      class="h-8 w-full min-w-0 text-center text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                       :min="1"
                       :max="20"
                       @blur="scalingMinReplicas = clamp(scalingMinReplicas, 1, 20)"
@@ -821,7 +821,7 @@ async function handleRemoveService() {
                 </div>
 
                 <div class="space-y-1.5">
-                  <Label class="text-xs text-muted-foreground">Max</Label>
+                  <Label class="text-xs font-medium">Max</Label>
                   <div class="flex items-center gap-0.5">
                     <Button
                       variant="outline"
@@ -835,7 +835,7 @@ async function handleRemoveService() {
                     <Input
                       type="number"
                       v-model.number="scalingMaxReplicas"
-                      class="h-8 w-full min-w-0 text-center text-sm"
+                      class="h-8 w-full min-w-0 text-center text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                       :min="1"
                       :max="20"
                       @blur="scalingMaxReplicas = clamp(scalingMaxReplicas, 1, 20)"
@@ -853,7 +853,7 @@ async function handleRemoveService() {
                 </div>
 
                 <div class="space-y-1.5">
-                  <Label class="text-xs text-muted-foreground">CPU target</Label>
+                  <Label class="text-xs font-medium">CPU target</Label>
                   <div class="flex items-center gap-0.5">
                     <Button
                       variant="outline"
@@ -868,7 +868,7 @@ async function handleRemoveService() {
                       <Input
                         type="number"
                         v-model.number="scalingTargetCPU"
-                        class="h-8 w-full min-w-0 pr-6 text-center text-sm"
+                        class="h-8 w-full min-w-0 pr-6 text-center text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                         :min="10"
                         :max="95"
                         @blur="scalingTargetCPU = clamp(scalingTargetCPU, 10, 95)"
