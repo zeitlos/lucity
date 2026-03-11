@@ -45,11 +45,13 @@ tmp/
 /packager
 /deployer
 /webhook
+/cashier
 services/*/gateway
 services/*/builder
 services/*/packager
 services/*/deployer
 services/*/webhook
+services/*/cashier
 
 # Proto generated
 gen/
