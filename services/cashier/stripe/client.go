@@ -333,6 +333,17 @@ func (c *Client) CreateCreditGrantForPeriod(ctx context.Context, customerID stri
 	return nil
 }
 
+// HasPaymentMethod checks if a Stripe customer has a default payment method set.
+// This checks the customer's invoice settings, which is where the billing portal sets
+// the default card — not on the subscription itself.
+func (c *Client) HasPaymentMethod(ctx context.Context, customerID string) (bool, error) {
+	cust, err := customer.Get(customerID, nil)
+	if err != nil {
+		return false, fmt.Errorf("failed to get customer: %w", err)
+	}
+	return cust.InvoiceSettings != nil && cust.InvoiceSettings.DefaultPaymentMethod != nil, nil
+}
+
 // PlanPriceID returns the Stripe Price ID for a plan.
 func (c *Client) PlanPriceID(plan string) string {
 	switch plan {

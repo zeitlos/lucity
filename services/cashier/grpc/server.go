@@ -109,8 +109,12 @@ func (s *Server) ChangePlan(ctx context.Context, req *cashier.ChangePlanRequest)
 		return nil, fmt.Errorf("failed to change plan: %w", err)
 	}
 
+	hasPM, _ := s.stripe.HasPaymentMethod(ctx, meta.StripeCustomerId)
+
 	slog.Info("plan changed", "workspace", req.Workspace, "plan", planToString(req.Plan))
-	return subscriptionToResponse(sub, s.stripe.Prices), nil
+	resp := subscriptionToResponse(sub, s.stripe.Prices)
+	resp.HasPaymentMethod = hasPM
+	return resp, nil
 }
 
 func (s *Server) Subscription(ctx context.Context, req *cashier.SubscriptionRequest) (*cashier.SubscriptionResponse, error) {
@@ -129,6 +133,8 @@ func (s *Server) Subscription(ctx context.Context, req *cashier.SubscriptionRequ
 		return nil, err
 	}
 
+	hasPM, _ := s.stripe.HasPaymentMethod(ctx, meta.StripeCustomerId)
+
 	resp := subscriptionToResponse(sub, s.stripe.Prices)
 	return &cashier.SubscriptionResponse{
 		Plan:              resp.Plan,
@@ -136,7 +142,7 @@ func (s *Server) Subscription(ctx context.Context, req *cashier.SubscriptionRequ
 		CurrentPeriodEnd:  resp.CurrentPeriodEnd,
 		CreditAmountCents: resp.CreditAmountCents,
 		TrialEnd:          resp.TrialEnd,
-		HasPaymentMethod:  resp.HasPaymentMethod,
+		HasPaymentMethod:  hasPM,
 	}, nil
 }
 
@@ -343,7 +349,6 @@ func subscriptionToResponse(sub *gostripe.Subscription, prices stripelib.PriceCo
 		CurrentPeriodEnd:  currentPeriodEnd,
 		CreditAmountCents: int32(creditCents),
 		TrialEnd:          sub.TrialEnd,
-		HasPaymentMethod:  sub.DefaultPaymentMethod != nil,
 	}
 }
 
