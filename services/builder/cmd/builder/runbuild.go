@@ -299,6 +299,8 @@ func buildWithBuildctl(buildkitAddr, buildDir, planFile, imageName, cacheRef str
 	}
 	args = append(args, "--output", output)
 
+	slog.Info("executing buildctl", "args", strings.Join(args, " "))
+
 	cmd := exec.Command("buildctl", args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
