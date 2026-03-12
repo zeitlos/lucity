@@ -105,12 +105,8 @@ func (c *Client) RefreshApplication(ctx context.Context, name string) (*Applicat
 }
 
 // SyncApplication triggers a sync for an ArgoCD Application.
-// It performs a hard refresh first to ensure ArgoCD has the latest Git revision.
+// The sync operation itself fetches the latest Git revision — no separate refresh needed.
 func (c *Client) SyncApplication(ctx context.Context, name string) (*Application, error) {
-	if _, err := c.RefreshApplication(ctx, name); err != nil {
-		return nil, fmt.Errorf("failed to refresh before sync: %w", err)
-	}
-
 	body, err := json.Marshal(SyncRequest{Prune: true})
 	if err != nil {
 		return nil, err
