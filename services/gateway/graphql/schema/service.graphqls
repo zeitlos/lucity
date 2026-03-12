@@ -13,6 +13,8 @@ input AddServiceInput {
   """Container port. If omitted when image is set, uses well-known defaults (e.g. redis → 6379)."""
   port: Int
   framework: String
+  """Auto-detected start command from the build system (e.g. railpack). Stored for UI display as the default."""
+  startCommand: String
   sourceUrl: String
   contextPath: String
   installationId: ID

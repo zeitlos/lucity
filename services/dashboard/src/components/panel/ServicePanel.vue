@@ -29,6 +29,7 @@ const props = defineProps<{
     framework?: string;
     sourceUrl?: string;
     contextPath?: string;
+    startCommand?: string;
     customStartCommand?: string;
   };
 }>();

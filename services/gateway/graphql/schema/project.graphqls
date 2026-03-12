@@ -26,6 +26,8 @@ type Service {
   framework: String
   sourceUrl: String
   contextPath: String
+  """Auto-detected start command from the build system. Used as the default if no custom override is set."""
+  startCommand: String
   customStartCommand: String
   instances: [ServiceInstance!]!
   """Deploy automatically triggered when the service was added. Null for image-based services."""

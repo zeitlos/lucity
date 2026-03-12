@@ -141,6 +141,7 @@ export const ProjectQuery = gql`
         image
         port
         framework
+        startCommand
         sourceUrl
         contextPath
         customStartCommand

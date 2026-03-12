@@ -60,7 +60,7 @@ func (c *Client) DetectServices(ctx context.Context, sourceURL string, installat
 	return result, nil
 }
 
-func (c *Client) AddService(ctx context.Context, projectID, name string, port int, framework, sourceURL, contextPath string, installationID *int64, externalImage, customStartCommand string) (*Service, error) {
+func (c *Client) AddService(ctx context.Context, projectID, name string, port int, framework, startCommand, sourceURL, contextPath string, installationID *int64, externalImage, customStartCommand string) (*Service, error) {
 	ws, err := tenant.Require(ctx)
 	if err != nil {
 		return nil, err
@@ -110,6 +110,7 @@ func (c *Client) AddService(ctx context.Context, projectID, name string, port in
 		ImageTag:             imageTag,
 		ImagePullPolicy:      imagePullPolicy,
 		CustomStartCommand:   customStartCommand,
+		StartCommand:         startCommand,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to add service: %w", err)
@@ -120,6 +121,7 @@ func (c *Client) AddService(ctx context.Context, projectID, name string, port in
 		Image:                image,
 		Port:                 port,
 		Framework:            framework,
+		StartCommand:         startCommand,
 		SourceURL:            sourceURL,
 		ContextPath:          contextPath,
 		GitHubInstallationID: ghInstallationID,

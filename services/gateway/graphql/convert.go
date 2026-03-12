@@ -65,6 +65,9 @@ func convertService(s handler.Service, workloadDomain string) model.Service {
 	if s.ContextPath != "" {
 		svc.ContextPath = &s.ContextPath
 	}
+	if s.StartCommand != "" {
+		svc.StartCommand = &s.StartCommand
+	}
 	if s.CustomStartCommand != "" {
 		svc.CustomStartCommand = &s.CustomStartCommand
 	}

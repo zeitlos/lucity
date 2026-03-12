@@ -487,13 +487,13 @@ async function handleDelete() {
                 </div>
               </div>
 
-              <!-- Trial banner -->
+              <!-- Trial banner: no payment method yet -->
               <div
-                v-if="subscription!.status === 'TRIALING' && subscription!.trialEnd"
+                v-if="subscription!.status === 'TRIALING' && subscription!.trialEnd && !subscription!.hasPaymentMethod"
                 class="rounded-lg border border-primary/30 bg-primary/5 p-4"
               >
                 <p class="text-sm font-medium text-foreground">
-                  Your trial ends on {{ formatDate(subscription!.trialEnd) }} or when you reach €5 in usage.
+                  Your trial ends on {{ formatDate(subscription!.trialEnd) }} or when you reach {{ formatCents(subscription!.creditAmountCents) }} in usage.
                 </p>
                 <p class="mt-1 text-xs text-muted-foreground">
                   Add a payment method to continue after your trial.
@@ -509,6 +509,19 @@ async function handleDelete() {
                   <ExternalLink :size="14" class="mr-1.5" />
                   {{ openingPortal ? 'Opening...' : 'Open Billing Portal' }}
                 </Button>
+              </div>
+
+              <!-- Trial banner: payment method set -->
+              <div
+                v-else-if="subscription!.status === 'TRIALING' && subscription!.trialEnd && subscription!.hasPaymentMethod"
+                class="rounded-lg border border-green-500/30 bg-green-500/5 p-4"
+              >
+                <p class="text-sm font-medium text-foreground">
+                  You're all set! Your plan will continue automatically when the trial ends on {{ formatDate(subscription!.trialEnd) }}.
+                </p>
+                <p class="mt-1 text-xs text-muted-foreground">
+                  Your payment method is on file. No action needed.
+                </p>
               </div>
 
               <!-- Plan switcher (admin only) -->

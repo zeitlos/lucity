@@ -198,6 +198,9 @@ func (p *SoftServeProvider) AddService(ctx context.Context, project string, svc 
 		if svc.CustomStartCommand != "" {
 			svcEntry["customStartCommand"] = svc.CustomStartCommand
 		}
+		if svc.StartCommand != "" {
+			svcEntry["startCommand"] = svc.StartCommand
+		}
 		services[svc.Name] = svcEntry
 		inner["services"] = services
 
@@ -1638,6 +1641,9 @@ func parseServiceDefs(services map[string]any) []ServiceDef {
 		}
 		if cmd, ok := svcMap["customStartCommand"].(string); ok {
 			def.CustomStartCommand = cmd
+		}
+		if cmd, ok := svcMap["startCommand"].(string); ok {
+			def.StartCommand = cmd
 		}
 
 		result = append(result, def)

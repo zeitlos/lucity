@@ -176,6 +176,7 @@ func (s *Server) AddService(ctx context.Context, req *packager.AddServiceRequest
 		ImageTag:             req.ImageTag,
 		ImagePullPolicy:      req.ImagePullPolicy,
 		CustomStartCommand:   req.CustomStartCommand,
+		StartCommand:         req.StartCommand,
 	}); err != nil {
 		return nil, fmt.Errorf("failed to add service: %w", err)
 	}
@@ -494,6 +495,7 @@ func serviceInfosFromDefs(defs []gitops.ServiceDef) []*packager.ServiceInfo {
 			ContextPath:          d.ContextPath,
 			GithubInstallationId: d.GitHubInstallationID,
 			CustomStartCommand:   d.CustomStartCommand,
+			StartCommand:         d.StartCommand,
 		}
 	}
 	return infos

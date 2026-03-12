@@ -19,6 +19,10 @@ func (r *mutationResolver) AddService(ctx context.Context, input model.AddServic
 	if input.Framework != nil {
 		framework = *input.Framework
 	}
+	startCommand := ""
+	if input.StartCommand != nil {
+		startCommand = *input.StartCommand
+	}
 	sourceURL := ""
 	if input.SourceURL != nil {
 		sourceURL = *input.SourceURL
@@ -51,7 +55,7 @@ func (r *mutationResolver) AddService(ctx context.Context, input model.AddServic
 	if input.CustomStartCommand != nil {
 		customStartCommand = *input.CustomStartCommand
 	}
-	svc, err := r.API.AddService(ctx, input.ProjectID, name, port, framework, sourceURL, contextPath, installationID, externalImage, customStartCommand)
+	svc, err := r.API.AddService(ctx, input.ProjectID, name, port, framework, startCommand, sourceURL, contextPath, installationID, externalImage, customStartCommand)
 	if err != nil {
 		return nil, err
 	}

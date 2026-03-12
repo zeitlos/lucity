@@ -19,6 +19,7 @@ export const AddServiceMutation = gql`
       image
       port
       framework
+      startCommand
       sourceUrl
       contextPath
       customStartCommand

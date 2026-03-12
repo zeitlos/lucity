@@ -309,6 +309,7 @@ type ComplexityRoot struct {
 		Name               func(childComplexity int) int
 		Port               func(childComplexity int) int
 		SourceURL          func(childComplexity int) int
+		StartCommand       func(childComplexity int) int
 	}
 
 	ServiceInstance struct {
@@ -1750,6 +1751,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Service.SourceURL(childComplexity), true
+	case "Service.startCommand":
+		if e.complexity.Service.StartCommand == nil {
+			break
+		}
+
+		return e.complexity.Service.StartCommand(childComplexity), true
 
 	case "ServiceInstance.deployments":
 		if e.complexity.ServiceInstance.Deployments == nil {
@@ -6630,6 +6637,8 @@ func (ec *executionContext) fieldContext_Mutation_addService(ctx context.Context
 				return ec.fieldContext_Service_sourceUrl(ctx, field)
 			case "contextPath":
 				return ec.fieldContext_Service_contextPath(ctx, field)
+			case "startCommand":
+				return ec.fieldContext_Service_startCommand(ctx, field)
 			case "customStartCommand":
 				return ec.fieldContext_Service_customStartCommand(ctx, field)
 			case "instances":
@@ -7820,6 +7829,8 @@ func (ec *executionContext) fieldContext_Project_services(_ context.Context, fie
 				return ec.fieldContext_Service_sourceUrl(ctx, field)
 			case "contextPath":
 				return ec.fieldContext_Service_contextPath(ctx, field)
+			case "startCommand":
+				return ec.fieldContext_Service_startCommand(ctx, field)
 			case "customStartCommand":
 				return ec.fieldContext_Service_customStartCommand(ctx, field)
 			case "instances":
@@ -8836,6 +8847,8 @@ func (ec *executionContext) fieldContext_Query_service(ctx context.Context, fiel
 				return ec.fieldContext_Service_sourceUrl(ctx, field)
 			case "contextPath":
 				return ec.fieldContext_Service_contextPath(ctx, field)
+			case "startCommand":
+				return ec.fieldContext_Service_startCommand(ctx, field)
 			case "customStartCommand":
 				return ec.fieldContext_Service_customStartCommand(ctx, field)
 			case "instances":
@@ -10050,6 +10063,35 @@ func (ec *executionContext) _Service_contextPath(ctx context.Context, field grap
 }
 
 func (ec *executionContext) fieldContext_Service_contextPath(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Service",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Service_startCommand(ctx context.Context, field graphql.CollectedField, obj *model.Service) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Service_startCommand,
+		func(ctx context.Context) (any, error) {
+			return obj.StartCommand, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Service_startCommand(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Service",
 		Field:      field,
@@ -13079,7 +13121,7 @@ func (ec *executionContext) unmarshalInputAddServiceInput(ctx context.Context, o
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"projectId", "name", "port", "framework", "sourceUrl", "contextPath", "installationId", "image", "customStartCommand"}
+	fieldsInOrder := [...]string{"projectId", "name", "port", "framework", "startCommand", "sourceUrl", "contextPath", "installationId", "image", "customStartCommand"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -13136,6 +13178,13 @@ func (ec *executionContext) unmarshalInputAddServiceInput(ctx context.Context, o
 				return it, err
 			}
 			it.Framework = data
+		case "startCommand":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("startCommand"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.StartCommand = data
 		case "sourceUrl":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("sourceUrl"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
@@ -16460,6 +16509,8 @@ func (ec *executionContext) _Service(ctx context.Context, sel ast.SelectionSet, 
 			out.Values[i] = ec._Service_sourceUrl(ctx, field, obj)
 		case "contextPath":
 			out.Values[i] = ec._Service_contextPath(ctx, field, obj)
+		case "startCommand":
+			out.Values[i] = ec._Service_startCommand(ctx, field, obj)
 		case "customStartCommand":
 			out.Values[i] = ec._Service_customStartCommand(ctx, field, obj)
 		case "instances":

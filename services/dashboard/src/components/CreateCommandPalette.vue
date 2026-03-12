@@ -192,6 +192,7 @@ async function detectAndAddServices(projectId: string, repo: { fullName: string;
           name,
           port: svc.suggestedPort,
           framework: svc.framework || undefined,
+          startCommand: svc.startCommand || undefined,
           sourceUrl: repo.htmlUrl,
           installationId: selectedSource.value?.id,
         },

@@ -22,8 +22,10 @@ type AddServiceInput struct {
 	// Service name. If omitted when image is set, derived from the image (e.g. nginx:1.25 → nginx).
 	Name *string `json:"name,omitempty"`
 	// Container port. If omitted when image is set, uses well-known defaults (e.g. redis → 6379).
-	Port           *int    `json:"port,omitempty"`
-	Framework      *string `json:"framework,omitempty"`
+	Port      *int    `json:"port,omitempty"`
+	Framework *string `json:"framework,omitempty"`
+	// Auto-detected start command from the build system (e.g. railpack). Stored for UI display as the default.
+	StartCommand   *string `json:"startCommand,omitempty"`
 	SourceURL      *string `json:"sourceUrl,omitempty"`
 	ContextPath    *string `json:"contextPath,omitempty"`
 	InstallationID *string `json:"installationId,omitempty"`
@@ -327,12 +329,14 @@ type ScalingConfig struct {
 }
 
 type Service struct {
-	Name               string            `json:"name"`
-	Image              string            `json:"image"`
-	Port               *int              `json:"port,omitempty"`
-	Framework          *string           `json:"framework,omitempty"`
-	SourceURL          *string           `json:"sourceUrl,omitempty"`
-	ContextPath        *string           `json:"contextPath,omitempty"`
+	Name        string  `json:"name"`
+	Image       string  `json:"image"`
+	Port        *int    `json:"port,omitempty"`
+	Framework   *string `json:"framework,omitempty"`
+	SourceURL   *string `json:"sourceUrl,omitempty"`
+	ContextPath *string `json:"contextPath,omitempty"`
+	// Auto-detected start command from the build system. Used as the default if no custom override is set.
+	StartCommand       *string           `json:"startCommand,omitempty"`
 	CustomStartCommand *string           `json:"customStartCommand,omitempty"`
 	Instances          []ServiceInstance `json:"instances"`
 	// Deploy automatically triggered when the service was added. Null for image-based services.

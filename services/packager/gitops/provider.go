@@ -24,6 +24,7 @@ type ServiceDef struct {
 	ImageTag             string // initial image tag (default: "latest")
 	ImagePullPolicy      string // "Always", "IfNotPresent", or "" (chart default)
 	CustomStartCommand   string // shell command to start the service (overrides image entrypoint)
+	StartCommand         string // auto-detected start command from railpack (default if no custom override)
 }
 
 // DatabaseDef describes a PostgreSQL database configured in the project's GitOps repo.

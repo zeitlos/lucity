@@ -59,6 +59,7 @@ const props = defineProps<{
     framework?: string;
     sourceUrl?: string;
     contextPath?: string;
+    startCommand?: string;
     customStartCommand?: string;
   };
 }>();
@@ -542,7 +543,7 @@ async function handleRemoveService() {
             <div class="min-w-0 flex-1 text-left">
               <p class="text-sm font-medium text-foreground">Custom Start Command</p>
               <p class="truncate text-xs text-muted-foreground">
-                {{ service.customStartCommand || 'Not configured' }}
+                {{ service.customStartCommand || service.startCommand || 'Not configured' }}
               </p>
             </div>
             <ChevronDown
@@ -557,7 +558,7 @@ async function handleRemoveService() {
               </p>
               <Input
                 v-model="customStartCommand"
-                placeholder="npm run start"
+                :placeholder="service.startCommand || 'npm run start'"
                 class="font-mono text-sm"
                 @keyup.enter="commandChanged && handleSaveCommand()"
               />

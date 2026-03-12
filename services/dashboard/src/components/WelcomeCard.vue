@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref } from 'vue';
-import { useMutation } from '@vue/apollo-composable';
+import { ref, computed } from 'vue';
+import { useQuery, useMutation } from '@vue/apollo-composable';
 import { Github, ArrowRight, FolderPlus, Check, CreditCard } from 'lucide-vue-next';
 import { ChangePlanMutation, BillingPortalUrlMutation, SubscriptionQuery } from '@/graphql/billing';
 import { useAuth } from '@/composables/useAuth';
@@ -30,6 +30,9 @@ async function selectPlan(plan: 'HOBBY' | 'PRO') {
     }
   }
 }
+
+const { result: subResult } = useQuery(SubscriptionQuery, null, { fetchPolicy: 'cache-and-network' });
+const hasPaymentMethod = computed(() => subResult.value?.subscription?.hasPaymentMethod ?? false);
 
 const { mutate: portalMutate, loading: openingPortal } = useMutation(BillingPortalUrlMutation);
 
@@ -124,7 +127,7 @@ const firstName = ref(
         </div>
 
         <!-- Payment method CTA -->
-        <div class="max-w-lg">
+        <div v-if="!hasPaymentMethod" class="max-w-lg">
           <button
             class="flex w-full items-center justify-between rounded-lg border border-dashed p-4 transition-colors hover:bg-accent/50"
             :disabled="openingPortal"
@@ -139,6 +142,17 @@ const firstName = ref(
             </div>
             <ArrowRight :size="16" class="text-muted-foreground" />
           </button>
+        </div>
+        <div v-else class="max-w-lg">
+          <div class="flex w-full items-center rounded-lg border border-green-500/30 bg-green-500/5 p-4">
+            <div class="flex items-center gap-3">
+              <Check :size="18" class="text-green-500" />
+              <div class="text-left">
+                <span class="text-sm font-medium">Payment method added</span>
+                <p class="text-xs text-muted-foreground">Your plan will continue automatically after the trial.</p>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Action cards -->

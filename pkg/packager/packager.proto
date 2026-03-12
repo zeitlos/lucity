@@ -99,6 +99,7 @@ message ServiceInfo {
   string context_path = 7;   // subdirectory within the repo (monorepo support)
   int64 github_installation_id = 8; // GitHub App installation that owns this repo
   string custom_start_command = 9;  // shell command to start the service (overrides image entrypoint)
+  string start_command = 10;        // auto-detected start command from railpack (default if no custom override)
 }
 
 // ServiceInstanceInfo describes a service's state in a specific environment.
@@ -171,6 +172,7 @@ message AddServiceRequest {
   string image_tag = 10;             // initial image tag (default: "latest")
   string image_pull_policy = 11;     // "Always", "IfNotPresent", or "" (chart default)
   string custom_start_command = 12;  // shell command to start the service (overrides image entrypoint)
+  string start_command = 13;         // auto-detected start command from railpack (stored for UI placeholder)
 }
 
 message AddServiceResponse {}
