@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import EmptyState from '@/components/EmptyState.vue';
 import CreateCommandPalette from '@/components/CreateCommandPalette.vue';
+import WelcomeCard from '@/components/WelcomeCard.vue';
+import { useOnboarding } from '@/composables/useOnboarding';
 
 const route = useRoute();
 const router = useRouter();
@@ -21,6 +23,17 @@ const projects = computed(() => result.value?.projects ?? []);
 const githubConnected = computed(() => ghResult.value?.githubConnected ?? false);
 const paletteOpen = ref(false);
 const initialPaletteView = ref<'main' | 'github-repos'>('main');
+
+const { isWelcome, dismissWelcome } = useOnboarding();
+
+function handleWelcomeDismiss() {
+  dismissWelcome();
+}
+
+function handleCreateProject() {
+  dismissWelcome();
+  paletteOpen.value = true;
+}
 
 // Auto-open palette on github-repos view when returning from GitHub account connection
 watch(() => route.query.github, (val) => {
@@ -82,6 +95,13 @@ function uniqueRepoCount(services: { sourceUrl?: string }[]): number {
     >
       Failed to load projects: {{ error.message }}
     </div>
+
+    <!-- Welcome card for new users -->
+    <WelcomeCard
+      v-else-if="isWelcome && projects.length === 0"
+      @dismiss="handleWelcomeDismiss"
+      @create-project="handleCreateProject"
+    />
 
     <template v-else-if="projects.length === 0">
       <EmptyState
