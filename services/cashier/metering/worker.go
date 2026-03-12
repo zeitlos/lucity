@@ -254,13 +254,16 @@ func (w *Worker) processWindow(ctx context.Context, windowStart, windowEnd time.
 		}
 	}
 
-	// 6. Report to Stripe per workspace.
+	// 6. Report to Stripe per workspace and ensure credit grants exist.
 	var anyError bool
 	for wsID, ws := range workspaces {
 		if err := w.reportWorkspace(ctx, wsID, ws, cpuByNs, memByNs, diskByNs, windowStart, windowEnd); err != nil {
 			slog.Error("metering: failed to report workspace", "workspace", wsID, "error", err)
 			anyError = true
 		}
+
+		// Ensure a credit grant exists for the current billing period.
+		w.ensureCreditGrant(ctx, wsID, ws)
 
 		// Check if workspace is on trial and has exceeded usage cap.
 		w.checkTrialUsageCap(ctx, wsID, ws)
@@ -331,13 +334,8 @@ func (w *Worker) reportWorkspace(ctx context.Context, wsID string, ws *workspace
 		)
 	}
 
-	// Report production allocations as licensed quantities (requires subscription lookup).
+	// Report production allocations via Billing Meter events.
 	if len(ws.prodAllocations) > 0 {
-		sub, err := w.stripe.Subscription(ctx, ws.subscriptionID)
-		if err != nil {
-			return err
-		}
-
 		var totalCPUMillis, totalMemMB, totalDiskMB int32
 		for _, alloc := range ws.prodAllocations {
 			totalCPUMillis += alloc.cpuMillis
@@ -345,38 +343,38 @@ func (w *Worker) reportWorkspace(ctx context.Context, wsID string, ws *workspace
 			totalDiskMB += alloc.diskMB
 		}
 
-		// CPU: millicores -> vCPU (rounded up).
-		cpuUnits := int64(math.Ceil(float64(totalCPUMillis) / 1000))
-		itemID := stripelib.FindItemByPrice(sub, w.stripe.Prices.ProdCPUPriceID)
-		if itemID != "" {
-			if err := w.stripe.UpdateItemQuantity(ctx, itemID, cpuUnits); err != nil {
-				slog.Error("metering: prod CPU update failed", "workspace", wsID, "error", err)
+		// CPU: millicores -> vCPU-minutes (allocation × interval).
+		cpuMinutes := int64(math.Ceil(float64(totalCPUMillis) / 1000 * intervalMinutes))
+		if cpuMinutes > 0 && w.stripe.Meters.ProdCPUEventName != "" {
+			id := meterEventID(wsID, w.stripe.Meters.ProdCPUEventName, windowStart)
+			if err := w.stripe.ReportMeterEvent(ctx, w.stripe.Meters.ProdCPUEventName, ws.customerID, cpuMinutes, timestamp, id); err != nil {
+				slog.Error("metering: prod CPU report failed", "workspace", wsID, "error", err)
 			}
 		}
 
-		// Memory: MB -> GB (rounded up).
-		memUnits := int64(math.Ceil(float64(totalMemMB) / 1024))
-		itemID = stripelib.FindItemByPrice(sub, w.stripe.Prices.ProdMemPriceID)
-		if itemID != "" {
-			if err := w.stripe.UpdateItemQuantity(ctx, itemID, memUnits); err != nil {
-				slog.Error("metering: prod memory update failed", "workspace", wsID, "error", err)
+		// Memory: MB -> GB-minutes (allocation × interval).
+		memGBMinutes := int64(math.Ceil(float64(totalMemMB) / 1024 * intervalMinutes))
+		if memGBMinutes > 0 && w.stripe.Meters.ProdMemEventName != "" {
+			id := meterEventID(wsID, w.stripe.Meters.ProdMemEventName, windowStart)
+			if err := w.stripe.ReportMeterEvent(ctx, w.stripe.Meters.ProdMemEventName, ws.customerID, memGBMinutes, timestamp, id); err != nil {
+				slog.Error("metering: prod memory report failed", "workspace", wsID, "error", err)
 			}
 		}
 
-		// Disk: MB -> GB (rounded up).
-		diskUnits := int64(math.Ceil(float64(totalDiskMB) / 1024))
-		itemID = stripelib.FindItemByPrice(sub, w.stripe.Prices.ProdDiskPriceID)
-		if itemID != "" {
-			if err := w.stripe.UpdateItemQuantity(ctx, itemID, diskUnits); err != nil {
-				slog.Error("metering: prod disk update failed", "workspace", wsID, "error", err)
+		// Disk: MB -> GB (point-in-time, same as eco).
+		diskGB := int64(math.Ceil(float64(totalDiskMB) / 1024))
+		if diskGB > 0 && w.stripe.Meters.ProdDiskEventName != "" {
+			id := meterEventID(wsID, w.stripe.Meters.ProdDiskEventName, windowStart)
+			if err := w.stripe.ReportMeterEvent(ctx, w.stripe.Meters.ProdDiskEventName, ws.customerID, diskGB, timestamp, id); err != nil {
+				slog.Error("metering: prod disk report failed", "workspace", wsID, "error", err)
 			}
 		}
 
-		slog.Info("metering: prod allocations reported",
+		slog.Info("metering: prod usage reported",
 			"workspace", wsID,
-			"cpu_vcpu", cpuUnits,
-			"memory_gb", memUnits,
-			"disk_gb", diskUnits,
+			"cpu_minutes", cpuMinutes,
+			"memory_gb_minutes", memGBMinutes,
+			"disk_gb", diskGB,
 		)
 	}
 
@@ -388,6 +386,37 @@ func (w *Worker) reportWorkspace(ctx context.Context, wsID string, ws *workspace
 // Same logical usage period always produces the same ID — Stripe rejects duplicates within 24h.
 func meterEventID(workspace, eventName string, windowStart time.Time) string {
 	return fmt.Sprintf("%s:%s:%d", workspace, eventName, windowStart.Unix())
+}
+
+// ensureCreditGrant creates a Stripe credit grant for the current billing period if one doesn't exist.
+func (w *Worker) ensureCreditGrant(ctx context.Context, wsID string, ws *workspaceData) {
+	sub, err := w.stripe.Subscription(ctx, ws.subscriptionID)
+	if err != nil {
+		slog.Error("metering: failed to get subscription for credit grant", "workspace", wsID, "error", err)
+		return
+	}
+
+	// Find the plan price and period boundaries from subscription items.
+	var planPriceID string
+	var periodStart, periodEnd int64
+	for _, item := range sub.Items.Data {
+		if item.Price.ID == w.stripe.Prices.HobbyPriceID || item.Price.ID == w.stripe.Prices.ProPriceID {
+			planPriceID = item.Price.ID
+		}
+		if periodEnd == 0 && item.CurrentPeriodEnd > 0 {
+			periodStart = item.CurrentPeriodStart
+			periodEnd = item.CurrentPeriodEnd
+		}
+	}
+	if planPriceID == "" || periodEnd == 0 {
+		return
+	}
+
+	creditCents := stripelib.PlanCreditCents(planPriceID, w.stripe.Prices)
+
+	if err := w.stripe.CreateCreditGrantForPeriod(ctx, ws.customerID, creditCents, periodStart, periodEnd); err != nil {
+		slog.Error("metering: failed to ensure credit grant", "workspace", wsID, "error", err)
+	}
 }
 
 // trialUsageCapCents is the maximum resource cost allowed during a trial.

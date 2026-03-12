@@ -3,14 +3,16 @@ package stripe
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	gostripe "github.com/stripe/stripe-go/v82"
+	"github.com/stripe/stripe-go/v82/billing/creditbalancesummary"
+	"github.com/stripe/stripe-go/v82/billing/creditgrant"
 	"github.com/stripe/stripe-go/v82/billing/meterevent"
 	portalsession "github.com/stripe/stripe-go/v82/billingportal/session"
 	"github.com/stripe/stripe-go/v82/customer"
 	"github.com/stripe/stripe-go/v82/invoice"
-	"github.com/stripe/stripe-go/v82/invoiceitem"
 	"github.com/stripe/stripe-go/v82/subscription"
 	"github.com/stripe/stripe-go/v82/subscriptionitem"
 )
@@ -32,6 +34,9 @@ type MeterConfig struct {
 	EcoCPUEventName  string
 	EcoMemEventName  string
 	EcoDiskEventName string
+	ProdCPUEventName  string
+	ProdMemEventName  string
+	ProdDiskEventName string
 }
 
 // Client wraps the Stripe API for billing operations.
@@ -61,9 +66,9 @@ func (c *Client) CreateCustomer(ctx context.Context, workspace, name, email stri
 	return cust.ID, nil
 }
 
-// CreateSubscription creates a subscription with a plan + 6 resource line items.
-// Metered items (eco) start with no quantity. Licensed items (production) start at 0.
+// CreateSubscription creates a subscription with a plan + 6 metered resource line items.
 // trialDays > 0 starts the subscription with a free trial period.
+// After creation, an initial credit grant is created for the billing period.
 func (c *Client) CreateSubscription(ctx context.Context, customerID, workspace string, planPriceID string, trialDays int) (string, error) {
 	params := &gostripe.SubscriptionParams{
 		Customer:        gostripe.String(customerID),
@@ -73,9 +78,9 @@ func (c *Client) CreateSubscription(ctx context.Context, customerID, workspace s
 			{Price: gostripe.String(c.Prices.EcoCPUPriceID)},
 			{Price: gostripe.String(c.Prices.EcoMemPriceID)},
 			{Price: gostripe.String(c.Prices.EcoDiskPriceID)},
-			{Price: gostripe.String(c.Prices.ProdCPUPriceID), Quantity: gostripe.Int64(0)},
-			{Price: gostripe.String(c.Prices.ProdMemPriceID), Quantity: gostripe.Int64(0)},
-			{Price: gostripe.String(c.Prices.ProdDiskPriceID), Quantity: gostripe.Int64(0)},
+			{Price: gostripe.String(c.Prices.ProdCPUPriceID)},
+			{Price: gostripe.String(c.Prices.ProdMemPriceID)},
+			{Price: gostripe.String(c.Prices.ProdDiskPriceID)},
 		},
 	}
 	if trialDays > 0 {
@@ -87,6 +92,17 @@ func (c *Client) CreateSubscription(ctx context.Context, customerID, workspace s
 	if err != nil {
 		return "", fmt.Errorf("failed to create stripe subscription: %w", err)
 	}
+
+	// Create initial credit grant so credits exist from day one.
+	creditCents := PlanCreditCents(planPriceID, c.Prices)
+	if len(sub.Items.Data) > 0 {
+		periodEnd := sub.Items.Data[0].CurrentPeriodEnd
+		if err := c.CreateCreditGrant(ctx, customerID, creditCents, "Plan credit", periodEnd); err != nil {
+			// Non-fatal — metering worker will create it on next tick if missing.
+			slog.Warn("failed to create initial credit grant", "error", err)
+		}
+	}
+
 	return sub.ID, nil
 }
 
@@ -171,22 +187,6 @@ func (c *Client) UpcomingInvoice(ctx context.Context, customerID string) (*gostr
 	return inv, nil
 }
 
-// AddInvoiceCredit adds a negative invoice item (credit) to a customer's next invoice.
-func (c *Client) AddInvoiceCredit(ctx context.Context, customerID string, amountCents int64, description string) error {
-	params := &gostripe.InvoiceItemParams{
-		Customer:    gostripe.String(customerID),
-		Amount:      gostripe.Int64(-amountCents),
-		Currency:    gostripe.String(string(gostripe.CurrencyEUR)),
-		Description: gostripe.String(description),
-	}
-
-	_, err := invoiceitem.New(params)
-	if err != nil {
-		return fmt.Errorf("failed to add invoice credit: %w", err)
-	}
-	return nil
-}
-
 // ReportMeterEvent reports a billing meter event for usage-based billing.
 // eventName corresponds to a Billing Meter's event_name in Stripe.
 // identifier enables Stripe's 24-hour deduplication window — same identifier = rejected as duplicate.
@@ -208,26 +208,118 @@ func (c *Client) ReportMeterEvent(ctx context.Context, eventName, customerID str
 	return nil
 }
 
-// UpdateItemQuantity updates the quantity on a licensed subscription item.
-func (c *Client) UpdateItemQuantity(ctx context.Context, subscriptionItemID string, quantity int64) error {
-	_, err := subscriptionitem.Update(subscriptionItemID, &gostripe.SubscriptionItemParams{
-		Quantity:          gostripe.Int64(quantity),
-		ProrationBehavior: gostripe.String("create_prorations"),
-	})
+// CreateCreditGrant creates a Stripe Billing Credit Grant for a customer.
+// Credits apply to all metered prices and expire at expiresAt (unix timestamp).
+func (c *Client) CreateCreditGrant(ctx context.Context, customerID string, amountCents int64, name string, expiresAt int64) error {
+	params := &gostripe.BillingCreditGrantParams{
+		Customer: gostripe.String(customerID),
+		Name:     gostripe.String(name),
+		Category: gostripe.String(string(gostripe.BillingCreditGrantCategoryPromotional)),
+		Amount: &gostripe.BillingCreditGrantAmountParams{
+			Type: gostripe.String(string(gostripe.BillingCreditGrantAmountTypeMonetary)),
+			Monetary: &gostripe.BillingCreditGrantAmountMonetaryParams{
+				Currency: gostripe.String(string(gostripe.CurrencyEUR)),
+				Value:    gostripe.Int64(amountCents),
+			},
+		},
+		ApplicabilityConfig: &gostripe.BillingCreditGrantApplicabilityConfigParams{
+			Scope: &gostripe.BillingCreditGrantApplicabilityConfigScopeParams{
+				PriceType: gostripe.String("metered"),
+			},
+		},
+		ExpiresAt: gostripe.Int64(expiresAt),
+	}
+
+	_, err := creditgrant.New(params)
 	if err != nil {
-		return fmt.Errorf("failed to update item quantity: %w", err)
+		return fmt.Errorf("failed to create credit grant: %w", err)
 	}
 	return nil
 }
 
-// FindItemByPrice returns the subscription item ID for a given price ID, or empty string if not found.
-func FindItemByPrice(sub *gostripe.Subscription, priceID string) string {
-	for _, item := range sub.Items.Data {
-		if item.Price.ID == priceID {
-			return item.ID
+// CreditBalanceCents returns the available credit balance in cents for a customer.
+func (c *Client) CreditBalanceCents(ctx context.Context, customerID string) (int64, error) {
+	params := &gostripe.BillingCreditBalanceSummaryParams{
+		Customer: gostripe.String(customerID),
+		Filter: &gostripe.BillingCreditBalanceSummaryFilterParams{
+			Type: gostripe.String("applicability_scope"),
+			ApplicabilityScope: &gostripe.BillingCreditBalanceSummaryFilterApplicabilityScopeParams{
+				PriceType: gostripe.String("metered"),
+			},
+		},
+	}
+
+	summary, err := creditbalancesummary.Get(params)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get credit balance: %w", err)
+	}
+
+	for _, bal := range summary.Balances {
+		if bal.AvailableBalance != nil && bal.AvailableBalance.Monetary != nil {
+			return bal.AvailableBalance.Monetary.Value, nil
 		}
 	}
-	return ""
+	return 0, nil
+}
+
+// ActiveCreditGrantForPeriod checks if a credit grant already exists for the given billing period.
+// Returns true if a grant with matching metadata exists.
+func (c *Client) ActiveCreditGrantForPeriod(ctx context.Context, customerID string, periodStart int64) (bool, error) {
+	params := &gostripe.BillingCreditGrantListParams{
+		Customer: gostripe.String(customerID),
+	}
+
+	iter := creditgrant.List(params)
+	for iter.Next() {
+		grant := iter.BillingCreditGrant()
+		if grant.Metadata["billing_period_start"] == fmt.Sprintf("%d", periodStart) {
+			return true, nil
+		}
+	}
+	if err := iter.Err(); err != nil {
+		return false, fmt.Errorf("failed to list credit grants: %w", err)
+	}
+	return false, nil
+}
+
+// CreateCreditGrantForPeriod creates a credit grant for a specific billing period, with idempotency
+// via metadata. Returns without error if a grant for this period already exists.
+func (c *Client) CreateCreditGrantForPeriod(ctx context.Context, customerID string, amountCents int64, periodStart, periodEnd int64) error {
+	exists, err := c.ActiveCreditGrantForPeriod(ctx, customerID, periodStart)
+	if err != nil {
+		return err
+	}
+	if exists {
+		return nil
+	}
+
+	params := &gostripe.BillingCreditGrantParams{
+		Customer: gostripe.String(customerID),
+		Name:     gostripe.String("Plan credit"),
+		Category: gostripe.String(string(gostripe.BillingCreditGrantCategoryPromotional)),
+		Amount: &gostripe.BillingCreditGrantAmountParams{
+			Type: gostripe.String(string(gostripe.BillingCreditGrantAmountTypeMonetary)),
+			Monetary: &gostripe.BillingCreditGrantAmountMonetaryParams{
+				Currency: gostripe.String(string(gostripe.CurrencyEUR)),
+				Value:    gostripe.Int64(amountCents),
+			},
+		},
+		ApplicabilityConfig: &gostripe.BillingCreditGrantApplicabilityConfigParams{
+			Scope: &gostripe.BillingCreditGrantApplicabilityConfigScopeParams{
+				PriceType: gostripe.String("metered"),
+			},
+		},
+		ExpiresAt: gostripe.Int64(periodEnd),
+		Metadata: map[string]string{
+			"billing_period_start": fmt.Sprintf("%d", periodStart),
+		},
+	}
+
+	_, err = creditgrant.New(params)
+	if err != nil {
+		return fmt.Errorf("failed to create credit grant: %w", err)
+	}
+	return nil
 }
 
 // PlanPriceID returns the Stripe Price ID for a plan.

@@ -43,6 +43,9 @@ type Config struct {
 	EcoCPUMeterEvent  string `envconfig:"STRIPE_ECO_CPU_METER_EVENT"`
 	EcoMemMeterEvent  string `envconfig:"STRIPE_ECO_MEM_METER_EVENT"`
 	EcoDiskMeterEvent string `envconfig:"STRIPE_ECO_DISK_METER_EVENT"`
+	ProdCPUMeterEvent  string `envconfig:"STRIPE_PROD_CPU_METER_EVENT"`
+	ProdMemMeterEvent  string `envconfig:"STRIPE_PROD_MEM_METER_EVENT"`
+	ProdDiskMeterEvent string `envconfig:"STRIPE_PROD_DISK_METER_EVENT"`
 
 	MeteringInterval    time.Duration `envconfig:"METERING_INTERVAL" default:"1h"`
 	SignozClickhouseDSN string        `envconfig:"SIGNOZ_CLICKHOUSE_DSN"`
@@ -81,9 +84,12 @@ func main() {
 		ProdDiskPriceID: config.ProdDiskPriceID,
 	}
 	meters := stripelib.MeterConfig{
-		EcoCPUEventName:  config.EcoCPUMeterEvent,
-		EcoMemEventName:  config.EcoMemMeterEvent,
-		EcoDiskEventName: config.EcoDiskMeterEvent,
+		EcoCPUEventName:   config.EcoCPUMeterEvent,
+		EcoMemEventName:   config.EcoMemMeterEvent,
+		EcoDiskEventName:  config.EcoDiskMeterEvent,
+		ProdCPUEventName:  config.ProdCPUMeterEvent,
+		ProdMemEventName:  config.ProdMemMeterEvent,
+		ProdDiskEventName: config.ProdDiskMeterEvent,
 	}
 	stripeClient := stripelib.NewClient(config.StripeSecretKey, prices, meters)
 

@@ -189,21 +189,35 @@ func (s *Server) UsageSummary(ctx context.Context, req *cashier.UsageSummaryRequ
 		}
 	}
 
-	// Credits = min(plan_cost, resource_cost)
-	credits := planCost
-	if resourceCost < credits {
-		credits = resourceCost
+	// Credits are handled by Stripe Credit Grants — query the credit balance.
+	creditBalance, err := s.stripe.CreditBalanceCents(ctx, meta.StripeCustomerId)
+	if err != nil {
+		slog.Warn("failed to get credit balance", "workspace", req.Workspace, "error", err)
 	}
-	if credits < 0 {
-		credits = 0
+	// creditBalance is the remaining balance; credits applied = plan credit - remaining.
+	planCredit := stripelib.PlanCreditCents(s.stripe.Prices.HobbyPriceID, s.stripe.Prices)
+	if meta.StripeSubscriptionId != "" {
+		sub, subErr := s.stripe.Subscription(ctx, meta.StripeSubscriptionId)
+		if subErr == nil {
+			for _, item := range sub.Items.Data {
+				if item.Price.ID == s.stripe.Prices.ProPriceID {
+					planCredit = stripelib.PlanCreditCents(s.stripe.Prices.ProPriceID, s.stripe.Prices)
+					break
+				}
+			}
+		}
+	}
+	creditsApplied := planCredit - creditBalance
+	if creditsApplied < 0 {
+		creditsApplied = 0
 	}
 
-	// Estimated total = plan + resources - credits
-	estimated := planCost + resourceCost - credits
+	// Estimated total = plan + resources - credits applied
+	estimated := planCost + resourceCost - creditsApplied
 
 	return &cashier.UsageSummaryResponse{
-		ResourceCostCents:  int32(resourceCost),
-		CreditsCents:       int32(credits),
+		ResourceCostCents:   int32(resourceCost),
+		CreditsCents:        int32(creditsApplied),
 		EstimatedTotalCents: int32(estimated),
 	}, nil
 }
