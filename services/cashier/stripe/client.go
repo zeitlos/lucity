@@ -2,8 +2,10 @@ package stripe
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	gostripe "github.com/stripe/stripe-go/v82"
@@ -214,6 +216,12 @@ func (c *Client) ReportMeterEvent(ctx context.Context, eventName, customerID str
 
 	_, err := meterevent.New(params)
 	if err != nil {
+		var stripeErr *gostripe.Error
+		if errors.As(err, &stripeErr) && stripeErr.HTTPStatusCode == 400 &&
+			strings.Contains(stripeErr.Msg, "An event already exists") {
+			slog.Debug("metering: event already exists, skipping", "event", eventName, "identifier", identifier)
+			return nil
+		}
 		return fmt.Errorf("failed to report meter event %q: %w", eventName, err)
 	}
 	return nil
