@@ -25,12 +25,13 @@ spec:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: {{ .Values.gateway.namespace | default "lucity-system" }}
-    # Allow ingress from kube-system where Cilium Envoy (Gateway API dataplane) runs.
-    # Cilium Envoy processes HTTPRoute traffic and forwards it to backend pods.
+    # Allow ingress from Cilium Envoy (Gateway API dataplane).
+    # Cilium Envoy runs as a DaemonSet in kube-system with hostNetwork: true,
+    # so namespaceSelector doesn't match — traffic arrives from node IPs.
+    # We allow the node subnet instead.
     - from:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: kube-system
+        - ipBlock:
+            cidr: {{ .Values.networkPolicy.nodeCIDR }}
   egress:
     # Allow DNS resolution (CoreDNS in kube-system)
     - to:
@@ -53,5 +54,5 @@ spec:
         - ipBlock:
             cidr: 0.0.0.0/0
             except:
-              - 10.96.0.0/12
-              - 10.244.0.0/16
+              - {{ .Values.networkPolicy.serviceCIDR }}
+              - {{ .Values.networkPolicy.podCIDR }}
