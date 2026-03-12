@@ -94,10 +94,20 @@ func (c *Client) CreateSubscription(ctx context.Context, customerID, workspace s
 	}
 
 	// Create initial credit grant so credits exist from day one.
-	creditCents := PlanCreditCents(planPriceID, c.Prices)
 	if len(sub.Items.Data) > 0 {
-		periodEnd := sub.Items.Data[0].CurrentPeriodEnd
-		if err := c.CreateCreditGrant(ctx, customerID, creditCents, "Plan credit", periodEnd); err != nil {
+		var creditCents int64
+		var expiresAt int64
+		var name string
+		if sub.TrialEnd > 0 {
+			creditCents = 500 // EUR 5 trial credit, regardless of plan
+			expiresAt = sub.TrialEnd
+			name = "Trial credit"
+		} else {
+			creditCents = PlanCreditCents(planPriceID, c.Prices)
+			expiresAt = sub.Items.Data[0].CurrentPeriodEnd
+			name = "Plan credit"
+		}
+		if err := c.CreateCreditGrant(ctx, customerID, creditCents, name, expiresAt); err != nil {
 			// Non-fatal — metering worker will create it on next tick if missing.
 			slog.Warn("failed to create initial credit grant", "error", err)
 		}
