@@ -493,6 +493,7 @@ func serviceInfosFromDefs(defs []gitops.ServiceDef) []*packager.ServiceInfo {
 			SourceUrl:            d.SourceURL,
 			ContextPath:          d.ContextPath,
 			GithubInstallationId: d.GitHubInstallationID,
+			CustomStartCommand:   d.CustomStartCommand,
 		}
 	}
 	return infos
