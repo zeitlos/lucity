@@ -87,7 +87,7 @@ onMounted(async () => {
 
     <template #links>
       <UButton
-        to="/getting-started/quick-start"
+        to="https://lucity.cloud/app/login"
         color="neutral"
         size="xl"
         trailing-icon="i-lucide-arrow-right"
