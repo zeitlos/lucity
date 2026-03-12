@@ -27,14 +27,6 @@ type DetectedService struct {
 	SuggestedPort int
 }
 
-type Build struct {
-	ID       string
-	Phase    string
-	ImageRef string
-	Digest   string
-	Error    string
-}
-
 func (c *Client) DetectServices(ctx context.Context, sourceURL string, installationID *int64) ([]DetectedService, error) {
 	if _, err := tenant.Require(ctx); err != nil {
 		return nil, err
@@ -122,37 +114,7 @@ func (c *Client) AddService(ctx context.Context, projectID, name string, port in
 		return nil, fmt.Errorf("failed to add service: %w", err)
 	}
 
-	// Only fire-and-forget build if there's a source URL to build from.
-	if sourceURL != "" {
-		registry := deriveImagePath(c.RegistryPushURL, ws, projectID, name)
-		token := auth.TokenFrom(ctx)
-		ghToken := auth.GitHubTokenFrom(ctx) // propagate installation token to background build
-		go func() {
-			buildCtx := auth.WithToken(context.Background(), token)
-			buildCtx = tenant.WithWorkspace(buildCtx, ws)
-			if ghToken != "" {
-				buildCtx = auth.WithGitHubToken(buildCtx, ghToken)
-			}
-			buildCtx = auth.OutgoingContext(buildCtx)
-			buildCtx = tenant.OutgoingContext(buildCtx)
-			buildCtx, cancel := context.WithTimeout(buildCtx, grpcTimeout)
-			defer cancel()
-			_, err := c.Builder.StartBuild(buildCtx, &builder.StartBuildRequest{
-				SourceUrl:   sourceURL,
-				GitRef:      "",
-				Service:     name,
-				Registry:    registry,
-				ContextPath: contextPath,
-			})
-			if err != nil {
-				slog.Warn("failed to start initial build", "project", projectID, "service", name, "error", err)
-			} else {
-				slog.Info("started initial build", "project", projectID, "service", name)
-			}
-		}()
-	}
-
-	return &Service{
+	svc := &Service{
 		Name:                 name,
 		Image:                image,
 		Port:                 port,
@@ -160,7 +122,36 @@ func (c *Client) AddService(ctx context.Context, projectID, name string, port in
 		SourceURL:            sourceURL,
 		ContextPath:          contextPath,
 		GitHubInstallationID: ghInstallationID,
-	}, nil
+	}
+
+	// Trigger initial deploy for source-based services.
+	if sourceURL != "" {
+		registry := deriveImagePath(c.RegistryPushURL, ws, projectID, name)
+
+		startCtx, startCancel := context.WithTimeout(ctx, grpcTimeout)
+		defer startCancel()
+		buildResp, err := c.Builder.StartBuild(startCtx, &builder.StartBuildRequest{
+			SourceUrl:   sourceURL,
+			GitRef:      "",
+			Service:     name,
+			Registry:    registry,
+			ContextPath: contextPath,
+		})
+		if err != nil {
+			slog.Warn("failed to start initial deploy", "project", projectID, "service", name, "error", err)
+			return svc, nil
+		}
+
+		deployID := uuid.New().String()
+		c.DeployTracker.Create(deployID, buildResp.BuildId, projectID, name, "development")
+
+		token := auth.TokenFrom(ctx)
+		go c.runDeploy(token, ws, deployID, projectID, name, "development", buildResp.BuildId)
+
+		svc.InitialDeploy = deployOpFromState(c.DeployTracker.Get(deployID))
+	}
+
+	return svc, nil
 }
 
 // wellKnownPorts maps common container image names to their default ports.
@@ -259,104 +250,6 @@ func (c *Client) RemoveService(ctx context.Context, projectID, service string) (
 	return true, nil
 }
 
-func (c *Client) StartBuild(ctx context.Context, projectID, service, gitRef string) (*Build, error) {
-	ws, err := tenant.Require(ctx)
-	if err != nil {
-		return nil, err
-	}
-	ctx = auth.OutgoingContext(ctx)
-	ctx = tenant.OutgoingContext(ctx)
-
-	// Look up source URL, context path, and installation ID from the service definition
-	sourceURL, contextPath, installationID, err := c.serviceSourceInfo(ctx, projectID, service)
-	if err != nil {
-		return nil, err
-	}
-	if sourceURL == "" {
-		return nil, fmt.Errorf("cannot build %q: service has no source repository (image-based services don't need builds)", service)
-	}
-	if installationID != 0 {
-		ctx = c.withInstallationTokenForID(ctx, installationID)
-		ctx = auth.OutgoingContext(ctx) // re-set outgoing metadata with token
-	}
-
-	registry := deriveImagePath(c.RegistryPushURL, ws, projectID, service)
-
-	buildCtx, buildCancel := context.WithTimeout(ctx, grpcTimeout)
-	defer buildCancel()
-	buildResp, err := c.Builder.StartBuild(buildCtx, &builder.StartBuildRequest{
-		SourceUrl:   sourceURL,
-		GitRef:      gitRef,
-		Service:     service,
-		Registry:    registry,
-		ContextPath: contextPath,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to start build: %w", err)
-	}
-
-	return &Build{
-		ID:    buildResp.BuildId,
-		Phase: "QUEUED",
-	}, nil
-}
-
-func (c *Client) BuildStatus(ctx context.Context, buildID string) (*Build, error) {
-	if _, err := tenant.Require(ctx); err != nil {
-		return nil, err
-	}
-	ctx = auth.OutgoingContext(ctx)
-	ctx = tenant.OutgoingContext(ctx)
-
-	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
-	defer cancel()
-	resp, err := c.Builder.BuildStatus(callCtx, &builder.BuildStatusRequest{BuildId: buildID})
-	if err != nil {
-		return nil, fmt.Errorf("failed to get build status: %w", err)
-	}
-
-	return &Build{
-		ID:       buildID,
-		Phase:    buildPhaseToString(resp.Phase),
-		ImageRef: resp.ImageRef,
-		Digest:   resp.Digest,
-		Error:    resp.Error,
-	}, nil
-}
-
-func (c *Client) DeployBuild(ctx context.Context, projectID, service, environment, tag, digest string) (bool, error) {
-	if _, err := tenant.Require(ctx); err != nil {
-		return false, err
-	}
-	ctx = auth.OutgoingContext(ctx)
-	ctx = tenant.OutgoingContext(ctx)
-
-	updateCtx, updateCancel := context.WithTimeout(ctx, grpcTimeout)
-	defer updateCancel()
-	_, err := c.Packager.UpdateImageTag(updateCtx, &packager.UpdateImageTagRequest{
-		Project:     projectID,
-		Environment: environment,
-		Service:     service,
-		Tag:         tag,
-		Digest:      digest,
-	})
-	if err != nil {
-		return false, fmt.Errorf("failed to deploy build: %w", err)
-	}
-
-	// Trigger ArgoCD sync (best-effort — auto-sync will pick it up anyway)
-	syncCtx, syncCancel := context.WithTimeout(ctx, grpcTimeout)
-	defer syncCancel()
-	_, err = c.Deployer.SyncDeployment(syncCtx, &deployer.SyncDeploymentRequest{
-		Project:     projectID,
-		Environment: environment,
-	})
-	if err != nil {
-		slog.Warn("failed to trigger sync", "project", projectID, "environment", environment, "error", err)
-	}
-
-	return true, nil
-}
 
 // serviceSourceInfo looks up the source URL, context path, and GitHub installation ID
 // for a service from the project's service definitions in the GitOps repo.
@@ -396,25 +289,6 @@ func (c *Client) withInstallationTokenForID(ctx context.Context, installationID 
 // workspace "acme" + project "api" + service "web" → "localhost:5000/acme/api/web"
 func deriveImagePath(registryURL, workspace, project, service string) string {
 	return registryURL + "/" + workspace + "/" + project + "/" + service
-}
-
-func buildPhaseToString(phase builder.BuildPhase) string {
-	switch phase {
-	case builder.BuildPhase_BUILD_PHASE_QUEUED:
-		return "QUEUED"
-	case builder.BuildPhase_BUILD_PHASE_CLONING:
-		return "CLONING"
-	case builder.BuildPhase_BUILD_PHASE_BUILDING:
-		return "BUILDING"
-	case builder.BuildPhase_BUILD_PHASE_PUSHING:
-		return "PUSHING"
-	case builder.BuildPhase_BUILD_PHASE_SUCCEEDED:
-		return "SUCCEEDED"
-	case builder.BuildPhase_BUILD_PHASE_FAILED:
-		return "FAILED"
-	default:
-		return "UNKNOWN"
-	}
 }
 
 // DeployOp represents the state of a unified build+deploy operation.

@@ -21,6 +21,10 @@ export const AddServiceMutation = gql`
       framework
       sourceUrl
       contextPath
+      initialDeploy {
+        id
+        phase
+      }
     }
   }
 `;
@@ -28,36 +32,6 @@ export const AddServiceMutation = gql`
 export const RemoveServiceMutation = gql`
   mutation RemoveService($projectId: ID!, $service: String!) {
     removeService(projectId: $projectId, service: $service)
-  }
-`;
-
-export const BuildServiceMutation = gql`
-  mutation BuildService($input: BuildServiceInput!) {
-    buildService(input: $input) {
-      id
-      phase
-      imageRef
-      digest
-      error
-    }
-  }
-`;
-
-export const BuildStatusQuery = gql`
-  query BuildStatus($id: ID!) {
-    buildStatus(id: $id) {
-      id
-      phase
-      imageRef
-      digest
-      error
-    }
-  }
-`;
-
-export const DeployBuildMutation = gql`
-  mutation DeployBuild($input: DeployBuildInput!) {
-    deployBuild(input: $input)
   }
 `;
 

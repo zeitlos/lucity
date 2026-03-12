@@ -20,37 +20,6 @@ input AddServiceInput {
   image: String
 }
 
-input BuildServiceInput {
-  projectId: ID!
-  service: String!
-  gitRef: String
-}
-
-input DeployBuildInput {
-  projectId: ID!
-  service: String!
-  environment: String!
-  tag: String!
-  digest: String
-}
-
-type Build {
-  id: ID!
-  phase: BuildPhase!
-  imageRef: String
-  digest: String
-  error: String
-}
-
-enum BuildPhase {
-  QUEUED
-  CLONING
-  BUILDING
-  PUSHING
-  SUCCEEDED
-  FAILED
-}
-
 type DeployRun {
   id: ID!
   phase: DeployPhase!
@@ -126,7 +95,6 @@ type DnsCheck {
 
 extend type Query {
   detectServices(sourceUrl: String!, installationId: ID): [DetectedService!]! @hasRole(role: [USER])
-  buildStatus(id: ID!): Build @hasRole(role: [USER])
   deployStatus(id: ID!): DeployRun @hasRole(role: [USER])
   activeDeployment(projectId: ID!, service: String!, environment: String!): DeployRun @hasRole(role: [USER])
   platformConfig: PlatformConfig! @hasRole(role: [USER])
@@ -137,8 +105,6 @@ extend type Query {
 extend type Mutation {
   addService(input: AddServiceInput!): Service! @hasRole(role: [USER])
   removeService(projectId: ID!, service: String!): Boolean! @hasRole(role: [USER])
-  buildService(input: BuildServiceInput!): Build! @hasRole(role: [USER])
-  deployBuild(input: DeployBuildInput!): Boolean! @hasRole(role: [USER])
   deploy(input: DeployInput!): DeployRun! @hasRole(role: [USER])
   """Roll back to a previous image tag without rebuilding."""
   rollback(input: RollbackInput!): Boolean! @hasRole(role: [USER])

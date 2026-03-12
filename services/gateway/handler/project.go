@@ -55,6 +55,7 @@ type Service struct {
 	ContextPath          string
 	GitHubInstallationID int64
 	Instances            []ServiceInstance
+	InitialDeploy        *DeployOp
 }
 
 type ServiceInstance struct {

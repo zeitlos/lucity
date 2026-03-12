@@ -57,20 +57,6 @@ type BillingSubscription struct {
 	TrialEnd          *time.Time         `json:"trialEnd,omitempty"`
 }
 
-type Build struct {
-	ID       string     `json:"id"`
-	Phase    BuildPhase `json:"phase"`
-	ImageRef *string    `json:"imageRef,omitempty"`
-	Digest   *string    `json:"digest,omitempty"`
-	Error    *string    `json:"error,omitempty"`
-}
-
-type BuildServiceInput struct {
-	ProjectID string  `json:"projectId"`
-	Service   string  `json:"service"`
-	GitRef    *string `json:"gitRef,omitempty"`
-}
-
 type CreateDatabaseInput struct {
 	ProjectID string  `json:"projectId"`
 	Name      string  `json:"name"`
@@ -156,14 +142,6 @@ type DatabaseTableData struct {
 	Columns            []string    `json:"columns"`
 	Rows               [][]*string `json:"rows"`
 	TotalEstimatedRows int         `json:"totalEstimatedRows"`
-}
-
-type DeployBuildInput struct {
-	ProjectID   string  `json:"projectId"`
-	Service     string  `json:"service"`
-	Environment string  `json:"environment"`
-	Tag         string  `json:"tag"`
-	Digest      *string `json:"digest,omitempty"`
 }
 
 type DeployInput struct {
@@ -350,6 +328,8 @@ type Service struct {
 	SourceURL   *string           `json:"sourceUrl,omitempty"`
 	ContextPath *string           `json:"contextPath,omitempty"`
 	Instances   []ServiceInstance `json:"instances"`
+	// Deploy automatically triggered when the service was added. Null for image-based services.
+	InitialDeploy *DeployRun `json:"initialDeploy,omitempty"`
 }
 
 type ServiceInstance struct {
@@ -476,69 +456,6 @@ type WorkspaceMember struct {
 type WorkspaceMembership struct {
 	Workspace string        `json:"workspace"`
 	Role      WorkspaceRole `json:"role"`
-}
-
-type BuildPhase string
-
-const (
-	BuildPhaseQueued    BuildPhase = "QUEUED"
-	BuildPhaseCloning   BuildPhase = "CLONING"
-	BuildPhaseBuilding  BuildPhase = "BUILDING"
-	BuildPhasePushing   BuildPhase = "PUSHING"
-	BuildPhaseSucceeded BuildPhase = "SUCCEEDED"
-	BuildPhaseFailed    BuildPhase = "FAILED"
-)
-
-var AllBuildPhase = []BuildPhase{
-	BuildPhaseQueued,
-	BuildPhaseCloning,
-	BuildPhaseBuilding,
-	BuildPhasePushing,
-	BuildPhaseSucceeded,
-	BuildPhaseFailed,
-}
-
-func (e BuildPhase) IsValid() bool {
-	switch e {
-	case BuildPhaseQueued, BuildPhaseCloning, BuildPhaseBuilding, BuildPhasePushing, BuildPhaseSucceeded, BuildPhaseFailed:
-		return true
-	}
-	return false
-}
-
-func (e BuildPhase) String() string {
-	return string(e)
-}
-
-func (e *BuildPhase) UnmarshalGQL(v any) error {
-	str, ok := v.(string)
-	if !ok {
-		return fmt.Errorf("enums must be strings")
-	}
-
-	*e = BuildPhase(str)
-	if !e.IsValid() {
-		return fmt.Errorf("%s is not a valid BuildPhase", str)
-	}
-	return nil
-}
-
-func (e BuildPhase) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
-}
-
-func (e *BuildPhase) UnmarshalJSON(b []byte) error {
-	s, err := strconv.Unquote(string(b))
-	if err != nil {
-		return err
-	}
-	return e.UnmarshalGQL(s)
-}
-
-func (e BuildPhase) MarshalJSON() ([]byte, error) {
-	var buf bytes.Buffer
-	e.MarshalGQL(&buf)
-	return buf.Bytes(), nil
 }
 
 type DeployPhase string

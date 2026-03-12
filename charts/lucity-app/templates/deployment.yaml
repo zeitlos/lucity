@@ -30,7 +30,7 @@ spec:
     spec:
       containers:
         - name: {{ $name }}
-          image: "{{ $svc.image.repository }}:{{ $svc.image.tag | default "latest" }}"
+          image: "{{ $svc.image.repository }}:{{ required "image.tag is required — run a deploy first" $svc.image.tag }}"
           imagePullPolicy: {{ $svc.image.pullPolicy | default "IfNotPresent" }}
           ports:
             - name: http

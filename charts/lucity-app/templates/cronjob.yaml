@@ -21,7 +21,7 @@ spec:
           restartPolicy: {{ $job.restartPolicy | default "OnFailure" }}
           containers:
             - name: {{ $name }}
-              image: "{{ $job.image.repository }}:{{ $job.image.tag | default "latest" }}"
+              image: "{{ $job.image.repository }}:{{ required "image.tag is required — run a deploy first" $job.image.tag }}"
               {{- if $job.command }}
               command:
                 {{- toYaml $job.command | nindent 16 }}

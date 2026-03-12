@@ -6,7 +6,7 @@ import { Github, FolderPlus, Plus, Lock, Globe, ArrowLeft, Search, X, Database, 
 import { onKeyStroke, refDebounced } from '@vueuse/core';
 import { GitHubConnectedQuery, GitHubSourcesQuery, GitHubRepositoriesQuery } from '@/graphql/github';
 import { CreateProjectMutation } from '@/graphql/projects';
-import { AddServiceMutation, DetectServicesQuery, DeployMutation } from '@/graphql/services';
+import { AddServiceMutation, DetectServicesQuery } from '@/graphql/services';
 import { SearchImagesQuery } from '@/graphql/registry';
 import { CreateDatabaseMutation } from '@/graphql/databases';
 import { toast } from '@/components/ui/sonner';
@@ -206,24 +206,6 @@ async function detectAndAddServices(projectId: string, repo: { fullName: string;
     toast.success(`Added ${addedNames.length} service${addedNames.length !== 1 ? 's' : ''}`, {
       description: `from ${repo.fullName}`,
     });
-
-    // Trigger initial deploy for each added service
-    for (const name of addedNames) {
-      try {
-        await client.mutate({
-          mutation: DeployMutation,
-          variables: {
-            input: {
-              projectId,
-              service: name,
-              environment: 'development',
-            },
-          },
-        });
-      } catch {
-        // Initial deploy is best-effort
-      }
-    }
   }
 }
 

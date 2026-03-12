@@ -68,6 +68,10 @@ func convertService(s handler.Service, workloadDomain string) model.Service {
 	for _, si := range s.Instances {
 		svc.Instances = append(svc.Instances, convertServiceInstance(si, workloadDomain))
 	}
+	if s.InitialDeploy != nil {
+		d := convertDeploymentOp(*s.InitialDeploy)
+		svc.InitialDeploy = &d
+	}
 	return svc
 }
 
@@ -79,23 +83,6 @@ func convertDetectedService(s handler.DetectedService) model.DetectedService {
 		StartCommand:  s.StartCommand,
 		SuggestedPort: s.SuggestedPort,
 	}
-}
-
-func convertBuild(b handler.Build) model.Build {
-	build := model.Build{
-		ID:    b.ID,
-		Phase: model.BuildPhase(b.Phase),
-	}
-	if b.ImageRef != "" {
-		build.ImageRef = &b.ImageRef
-	}
-	if b.Digest != "" {
-		build.Digest = &b.Digest
-	}
-	if b.Error != "" {
-		build.Error = &b.Error
-	}
-	return build
 }
 
 func convertScalingConfig(sc handler.ScalingConfig) model.ScalingConfig {

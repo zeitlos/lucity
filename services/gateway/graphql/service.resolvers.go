@@ -60,29 +60,6 @@ func (r *mutationResolver) RemoveService(ctx context.Context, projectID string, 
 	return r.API.RemoveService(ctx, projectID, service)
 }
 
-// BuildService is the resolver for the buildService field.
-func (r *mutationResolver) BuildService(ctx context.Context, input model.BuildServiceInput) (*model.Build, error) {
-	gitRef := ""
-	if input.GitRef != nil {
-		gitRef = *input.GitRef
-	}
-	b, err := r.API.StartBuild(ctx, input.ProjectID, input.Service, gitRef)
-	if err != nil {
-		return nil, err
-	}
-	result := convertBuild(*b)
-	return &result, nil
-}
-
-// DeployBuild is the resolver for the deployBuild field.
-func (r *mutationResolver) DeployBuild(ctx context.Context, input model.DeployBuildInput) (bool, error) {
-	digest := ""
-	if input.Digest != nil {
-		digest = *input.Digest
-	}
-	return r.API.DeployBuild(ctx, input.ProjectID, input.Service, input.Environment, input.Tag, digest)
-}
-
 // Deploy is the resolver for the deploy field.
 func (r *mutationResolver) Deploy(ctx context.Context, input model.DeployInput) (*model.DeployRun, error) {
 	gitRef := ""
@@ -144,16 +121,6 @@ func (r *queryResolver) DetectServices(ctx context.Context, sourceURL string, in
 		result = append(result, convertDetectedService(s))
 	}
 	return result, nil
-}
-
-// BuildStatus is the resolver for the buildStatus field.
-func (r *queryResolver) BuildStatus(ctx context.Context, id string) (*model.Build, error) {
-	b, err := r.API.BuildStatus(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	result := convertBuild(*b)
-	return &result, nil
 }
 
 // DeployStatus is the resolver for the deployStatus field.
