@@ -183,19 +183,3 @@ spec:
         - port: {{ .Values.cashier.webhookPort }}
           protocol: TCP
 {{- end }}
----
-# Cilium uses a reserved "ingress" identity for Gateway API traffic.
-# Standard K8s NetworkPolicy can't match this — we need a CiliumNetworkPolicy.
-apiVersion: cilium.io/v2
-kind: CiliumNetworkPolicy
-metadata:
-  name: {{ include "lucity.fullname" . }}-allow-ingress
-  labels:
-    {{- include "lucity.labels" . | nindent 4 }}
-spec:
-  endpointSelector:
-    matchLabels:
-      app.kubernetes.io/instance: {{ .Release.Name }}
-  ingress:
-    - fromEntities:
-        - ingress
