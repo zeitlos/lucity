@@ -40,6 +40,7 @@ type Config struct {
 }
 
 type ResolverRoot interface {
+	Environment() EnvironmentResolver
 	Mutation() MutationResolver
 	Query() QueryResolver
 	Subscription() SubscriptionResolver
@@ -167,13 +168,14 @@ type ComplexityRoot struct {
 	}
 
 	Environment struct {
-		Databases  func(childComplexity int) int
-		Ephemeral  func(childComplexity int) int
-		ID         func(childComplexity int) int
-		Name       func(childComplexity int) int
-		Namespace  func(childComplexity int) int
-		Services   func(childComplexity int) int
-		SyncStatus func(childComplexity int) int
+		Databases    func(childComplexity int) int
+		Ephemeral    func(childComplexity int) int
+		ID           func(childComplexity int) int
+		Name         func(childComplexity int) int
+		Namespace    func(childComplexity int) int
+		ResourceTier func(childComplexity int) int
+		Services     func(childComplexity int) int
+		SyncStatus   func(childComplexity int) int
 	}
 
 	EnvironmentResources struct {
@@ -384,6 +386,9 @@ type ComplexityRoot struct {
 	}
 }
 
+type EnvironmentResolver interface {
+	ResourceTier(ctx context.Context, obj *model.Environment) (*model.ResourceTier, error)
+}
 type MutationResolver interface {
 	SetEnvironmentResources(ctx context.Context, input model.SetEnvironmentResourcesInput) (*model.EnvironmentResources, error)
 	ChangePlan(ctx context.Context, plan model.Plan) (*model.BillingSubscription, error)
@@ -928,6 +933,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Environment.Namespace(childComplexity), true
+	case "Environment.resourceTier":
+		if e.complexity.Environment.ResourceTier == nil {
+			break
+		}
+
+		return e.complexity.Environment.ResourceTier(childComplexity), true
 	case "Environment.services":
 		if e.complexity.Environment.Services == nil {
 			break
@@ -5047,6 +5058,35 @@ func (ec *executionContext) fieldContext_Environment_syncStatus(_ context.Contex
 	return fc, nil
 }
 
+func (ec *executionContext) _Environment_resourceTier(ctx context.Context, field graphql.CollectedField, obj *model.Environment) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Environment_resourceTier,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Environment().ResourceTier(ctx, obj)
+		},
+		nil,
+		ec.marshalOResourceTier2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐResourceTier,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Environment_resourceTier(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Environment",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ResourceTier does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Environment_services(ctx context.Context, field graphql.CollectedField, obj *model.Environment) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -6209,6 +6249,8 @@ func (ec *executionContext) fieldContext_Mutation_createEnvironment(ctx context.
 				return ec.fieldContext_Environment_ephemeral(ctx, field)
 			case "syncStatus":
 				return ec.fieldContext_Environment_syncStatus(ctx, field)
+			case "resourceTier":
+				return ec.fieldContext_Environment_resourceTier(ctx, field)
 			case "services":
 				return ec.fieldContext_Environment_services(ctx, field)
 			case "databases":
@@ -7549,6 +7591,8 @@ func (ec *executionContext) fieldContext_Project_environments(_ context.Context,
 				return ec.fieldContext_Environment_ephemeral(ctx, field)
 			case "syncStatus":
 				return ec.fieldContext_Environment_syncStatus(ctx, field)
+			case "resourceTier":
+				return ec.fieldContext_Environment_resourceTier(ctx, field)
 			case "services":
 				return ec.fieldContext_Environment_services(ctx, field)
 			case "databases":
@@ -13068,7 +13112,7 @@ func (ec *executionContext) unmarshalInputCreateEnvironmentInput(ctx context.Con
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"projectId", "name", "fromEnvironment"}
+	fieldsInOrder := [...]string{"projectId", "name", "fromEnvironment", "tier"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -13116,6 +13160,13 @@ func (ec *executionContext) unmarshalInputCreateEnvironmentInput(ctx context.Con
 				return it, err
 			}
 			it.FromEnvironment = data
+		case "tier":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("tier"))
+			data, err := ec.unmarshalOResourceTier2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐResourceTier(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Tier = data
 		}
 	}
 
@@ -13415,7 +13466,7 @@ func (ec *executionContext) unmarshalInputPromoteInput(ctx context.Context, obj 
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"projectId", "service", "fromEnvironment", "toEnvironment"}
+	fieldsInOrder := [...]string{"projectId", "service", "fromEnvironment", "tier", "toEnvironment"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -13443,6 +13494,13 @@ func (ec *executionContext) unmarshalInputPromoteInput(ctx context.Context, obj 
 				return it, err
 			}
 			it.FromEnvironment = data
+		case "tier":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("tier"))
+			data, err := ec.unmarshalOResourceTier2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐResourceTier(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Tier = data
 		case "toEnvironment":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("toEnvironment"))
 			data, err := ec.unmarshalNString2string(ctx, v)
@@ -14760,37 +14818,70 @@ func (ec *executionContext) _Environment(ctx context.Context, sel ast.SelectionS
 		case "id":
 			out.Values[i] = ec._Environment_id(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "name":
 			out.Values[i] = ec._Environment_name(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "namespace":
 			out.Values[i] = ec._Environment_namespace(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "ephemeral":
 			out.Values[i] = ec._Environment_ephemeral(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "syncStatus":
 			out.Values[i] = ec._Environment_syncStatus(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
+		case "resourceTier":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Environment_resourceTier(ctx, field, obj)
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "services":
 			out.Values[i] = ec._Environment_services(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "databases":
 			out.Values[i] = ec._Environment_databases(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
@@ -19058,6 +19149,22 @@ func (ec *executionContext) marshalOProject2ᚖgithubᚗcomᚋzeitlosᚋlucity�
 		return graphql.Null
 	}
 	return ec._Project(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOResourceTier2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐResourceTier(ctx context.Context, v any) (*model.ResourceTier, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var res = new(model.ResourceTier)
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOResourceTier2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐResourceTier(ctx context.Context, sel ast.SelectionSet, v *model.ResourceTier) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return v
 }
 
 func (ec *executionContext) marshalOService2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐService(ctx context.Context, sel ast.SelectionSet, v *model.Service) graphql.Marshaler {

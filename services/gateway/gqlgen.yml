@@ -19,6 +19,10 @@ omit_slice_element_pointers: true
 call_argument_directives_with_null: true
 
 models:
+  Environment:
+    fields:
+      resourceTier:
+        resolver: true
   ID:
     model:
       - github.com/99designs/gqlgen/graphql.ID

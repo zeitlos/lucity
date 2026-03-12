@@ -14,6 +14,7 @@ type Environment {
   namespace: String!
   ephemeral: Boolean!
   syncStatus: SyncStatus!
+  resourceTier: ResourceTier
   services: [ServiceInstance!]!
   databases: [DatabaseInstance!]!
 }
@@ -102,12 +103,14 @@ input CreateEnvironmentInput {
   projectId: ID!
   name: String! @constraint(constraint: "min=2,max=63")
   fromEnvironment: String
+  tier: ResourceTier
 }
 
 input PromoteInput {
   projectId: ID!
   service: String!
   fromEnvironment: String!
+  tier: ResourceTier
   toEnvironment: String!
 }
 

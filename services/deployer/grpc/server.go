@@ -81,8 +81,8 @@ func (s *Server) DeployEnvironment(ctx context.Context, req *deployer.DeployEnvi
 		return nil, fmt.Errorf("failed to create namespace %s: %w", req.TargetNamespace, err)
 	}
 
-	// Ensure a default ECO resource quota exists so billing can track this environment.
-	s.ensureDefaultResourceQuota(ctx, req.TargetNamespace)
+	// Set up default ECO tier: LimitRange for per-pod defaults + namespace label.
+	s.ensureDefaultEcoTier(ctx, req.TargetNamespace)
 
 	// Ensure the GitOps repo is registered in ArgoCD with credentials.
 	repoURL := s.repoURL(ws, req.Project)
@@ -912,41 +912,51 @@ func (s *Server) SetResourceQuota(ctx context.Context, req *deployer.SetResource
 	ws := tenant.FromContext(ctx)
 	namespace := labels.NamespaceFor(ws, req.Project, req.Environment)
 
-	// 1. Create or update ResourceQuota.
-	cpuQty := fmt.Sprintf("%dm", req.CpuMillicores)
-	memQty := fmt.Sprintf("%dMi", req.MemoryMb)
-	diskQty := fmt.Sprintf("%dMi", req.DiskMb)
+	// 1. Manage ResourceQuota based on tier.
+	if req.Tier == deployer.ResourceTier_RESOURCE_TIER_PRODUCTION {
+		// PRODUCTION: create or update ResourceQuota with reserved allocations.
+		cpuQty := fmt.Sprintf("%dm", req.CpuMillicores)
+		memQty := fmt.Sprintf("%dMi", req.MemoryMb)
+		diskQty := fmt.Sprintf("%dMi", req.DiskMb)
 
-	quota := &corev1.ResourceQuota{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      resourceQuotaName,
-			Namespace: namespace,
-			Labels: map[string]string{
-				labels.ManagedBy: labels.ManagedByLucity,
+		quota := &corev1.ResourceQuota{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      resourceQuotaName,
+				Namespace: namespace,
+				Labels: map[string]string{
+					labels.ManagedBy: labels.ManagedByLucity,
+				},
 			},
-		},
-		Spec: corev1.ResourceQuotaSpec{
-			Hard: corev1.ResourceList{
-				corev1.ResourceRequestsCPU:     resource.MustParse(cpuQty),
-				corev1.ResourceRequestsMemory:  resource.MustParse(memQty),
-				corev1.ResourceRequestsStorage: resource.MustParse(diskQty),
+			Spec: corev1.ResourceQuotaSpec{
+				Hard: corev1.ResourceList{
+					corev1.ResourceRequestsCPU:     resource.MustParse(cpuQty),
+					corev1.ResourceRequestsMemory:  resource.MustParse(memQty),
+					corev1.ResourceRequestsStorage: resource.MustParse(diskQty),
+				},
 			},
-		},
-	}
-
-	existing, err := s.k8s.CoreV1().ResourceQuotas(namespace).Get(ctx, resourceQuotaName, metav1.GetOptions{})
-	if err != nil {
-		if !apierrors.IsNotFound(err) {
-			return nil, status.Errorf(codes.Internal, "failed to get resource quota: %v", err)
 		}
-		if _, err := s.k8s.CoreV1().ResourceQuotas(namespace).Create(ctx, quota, metav1.CreateOptions{}); err != nil {
-			return nil, status.Errorf(codes.Internal, "failed to create resource quota: %v", err)
+
+		existing, err := s.k8s.CoreV1().ResourceQuotas(namespace).Get(ctx, resourceQuotaName, metav1.GetOptions{})
+		if err != nil {
+			if !apierrors.IsNotFound(err) {
+				return nil, status.Errorf(codes.Internal, "failed to get resource quota: %v", err)
+			}
+			if _, err := s.k8s.CoreV1().ResourceQuotas(namespace).Create(ctx, quota, metav1.CreateOptions{}); err != nil {
+				return nil, status.Errorf(codes.Internal, "failed to create resource quota: %v", err)
+			}
+		} else {
+			existing.Spec.Hard = quota.Spec.Hard
+			existing.Labels = quota.Labels
+			if _, err := s.k8s.CoreV1().ResourceQuotas(namespace).Update(ctx, existing, metav1.UpdateOptions{}); err != nil {
+				return nil, status.Errorf(codes.Internal, "failed to update resource quota: %v", err)
+			}
 		}
 	} else {
-		existing.Spec.Hard = quota.Spec.Hard
-		existing.Labels = quota.Labels
-		if _, err := s.k8s.CoreV1().ResourceQuotas(namespace).Update(ctx, existing, metav1.UpdateOptions{}); err != nil {
-			return nil, status.Errorf(codes.Internal, "failed to update resource quota: %v", err)
+		// ECO: no ResourceQuota — metered billing, no namespace-level cap.
+		// Delete any existing quota (e.g. switching from PRODUCTION to ECO).
+		err := s.k8s.CoreV1().ResourceQuotas(namespace).Delete(ctx, resourceQuotaName, metav1.DeleteOptions{})
+		if err != nil && !apierrors.IsNotFound(err) {
+			return nil, status.Errorf(codes.Internal, "failed to delete resource quota: %v", err)
 		}
 	}
 
@@ -984,7 +994,7 @@ func (s *Server) SetResourceQuota(ctx context.Context, req *deployer.SetResource
 	slog.Info("set resource quota",
 		"namespace", namespace,
 		"tier", tierToString(req.Tier),
-		"cpu", cpuQty, "memory", memQty, "disk", diskQty,
+		"cpu", req.CpuMillicores, "memory", req.MemoryMb, "disk", req.DiskMb,
 	)
 
 	return &deployer.SetResourceQuotaResponse{
@@ -999,20 +1009,23 @@ func (s *Server) ResourceQuota(ctx context.Context, req *deployer.ResourceQuotaR
 	ws := tenant.FromContext(ctx)
 	namespace := labels.NamespaceFor(ws, req.Project, req.Environment)
 
-	quota, err := s.k8s.CoreV1().ResourceQuotas(namespace).Get(ctx, resourceQuotaName, metav1.GetOptions{})
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return nil, status.Errorf(codes.NotFound, "no resource quota for %s", namespace)
-		}
-		return nil, status.Errorf(codes.Internal, "failed to get resource quota: %v", err)
-	}
-
 	ns, err := s.k8s.CoreV1().Namespaces().Get(ctx, namespace, metav1.GetOptions{})
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to get namespace: %v", err)
 	}
 
 	tier := tierFromString(ns.Labels[labels.ResourceTier])
+
+	// ECO tier has no ResourceQuota — return tier with zero allocations.
+	quota, err := s.k8s.CoreV1().ResourceQuotas(namespace).Get(ctx, resourceQuotaName, metav1.GetOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return &deployer.ResourceQuotaResponse{
+				Tier: tier,
+			}, nil
+		}
+		return nil, status.Errorf(codes.Internal, "failed to get resource quota: %v", err)
+	}
 
 	cpuMillis := int32(quota.Spec.Hard.Cpu().MilliValue())
 	memMB := int32(quota.Spec.Hard.Memory().Value() / (1024 * 1024))
@@ -1030,55 +1043,29 @@ func (s *Server) ResourceQuota(ctx context.Context, req *deployer.ResourceQuotaR
 	}, nil
 }
 
-// ensureDefaultResourceQuota creates an ECO resource quota and limit range if none exists.
-// This ensures every environment is visible to billing from creation. Idempotent — skips
-// if a quota already exists (user may have customized it via SetResourceQuota).
-func (s *Server) ensureDefaultResourceQuota(ctx context.Context, namespace string) {
-	_, err := s.k8s.CoreV1().ResourceQuotas(namespace).Get(ctx, resourceQuotaName, metav1.GetOptions{})
-	if err == nil {
-		return // Already has a quota
+// ensureDefaultEcoTier sets up the default ECO tier for a new environment: LimitRange for
+// per-pod defaults and namespace tier label. No ResourceQuota — ECO uses metered billing
+// based on actual usage, so there's no namespace-level resource cap.
+func (s *Server) ensureDefaultEcoTier(ctx context.Context, namespace string) {
+	// Skip if already configured (idempotent).
+	ns, err := s.k8s.CoreV1().Namespaces().Get(ctx, namespace, metav1.GetOptions{})
+	if err != nil {
+		slog.Warn("failed to get namespace for tier setup", "namespace", namespace, "error", err)
+		return
 	}
-	if !apierrors.IsNotFound(err) {
-		slog.Warn("failed to check resource quota", "namespace", namespace, "error", err)
+	if ns.Labels[labels.ResourceTier] != "" {
 		return
 	}
 
 	tier := deployer.ResourceTier_RESOURCE_TIER_ECO
 
-	// Default ECO allocations: 250m CPU, 256Mi memory, 512Mi disk.
-	quota := &corev1.ResourceQuota{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      resourceQuotaName,
-			Namespace: namespace,
-			Labels: map[string]string{
-				labels.ManagedBy: labels.ManagedByLucity,
-			},
-		},
-		Spec: corev1.ResourceQuotaSpec{
-			Hard: corev1.ResourceList{
-				corev1.ResourceRequestsCPU:     resource.MustParse("250m"),
-				corev1.ResourceRequestsMemory:  resource.MustParse("256Mi"),
-				corev1.ResourceRequestsStorage: resource.MustParse("512Mi"),
-			},
-		},
-	}
-	if _, err := s.k8s.CoreV1().ResourceQuotas(namespace).Create(ctx, quota, metav1.CreateOptions{}); err != nil {
-		slog.Warn("failed to create default resource quota", "namespace", namespace, "error", err)
-		return
-	}
-
-	// Create matching LimitRange.
+	// Create LimitRange for per-pod defaults.
 	lr := buildLimitRange(namespace, tier)
 	if _, err := s.k8s.CoreV1().LimitRanges(namespace).Create(ctx, lr, metav1.CreateOptions{}); err != nil && !apierrors.IsAlreadyExists(err) {
 		slog.Warn("failed to create default limit range", "namespace", namespace, "error", err)
 	}
 
 	// Set resource-tier label on namespace.
-	ns, err := s.k8s.CoreV1().Namespaces().Get(ctx, namespace, metav1.GetOptions{})
-	if err != nil {
-		slog.Warn("failed to get namespace for tier label", "namespace", namespace, "error", err)
-		return
-	}
 	if ns.Labels == nil {
 		ns.Labels = make(map[string]string)
 	}
@@ -1087,7 +1074,7 @@ func (s *Server) ensureDefaultResourceQuota(ctx context.Context, namespace strin
 		slog.Warn("failed to set default resource tier label", "namespace", namespace, "error", err)
 	}
 
-	slog.Info("set default ECO resource quota", "namespace", namespace)
+	slog.Info("set default ECO tier", "namespace", namespace)
 }
 
 func buildLimitRange(namespace string, tier deployer.ResourceTier) *corev1.LimitRange {
@@ -1173,21 +1160,21 @@ func (s *Server) ListResourceAllocations(ctx context.Context, req *deployer.List
 
 		tier := tierFromString(ns.Labels[labels.ResourceTier])
 
+		// ECO tier has no ResourceQuota — report zero allocations (metered by actual usage).
+		var cpuMillis, memMB, diskMB int32
 		quota, err := s.k8s.CoreV1().ResourceQuotas(ns.Name).Get(ctx, resourceQuotaName, metav1.GetOptions{})
 		if err != nil {
-			if apierrors.IsNotFound(err) {
-				continue // No quota set — skip
+			if !apierrors.IsNotFound(err) {
+				slog.Warn("failed to get resource quota", "namespace", ns.Name, "error", err)
+				continue
 			}
-			slog.Warn("failed to get resource quota", "namespace", ns.Name, "error", err)
-			continue
-		}
-
-		cpuMillis := int32(quota.Spec.Hard.Cpu().MilliValue())
-		memMB := int32(quota.Spec.Hard.Memory().Value() / (1024 * 1024))
-
-		var diskMB int32
-		if storageQty, ok := quota.Spec.Hard[corev1.ResourceRequestsStorage]; ok {
-			diskMB = int32(storageQty.Value() / (1024 * 1024))
+			// No quota — ECO tier, zero allocations
+		} else {
+			cpuMillis = int32(quota.Spec.Hard.Cpu().MilliValue())
+			memMB = int32(quota.Spec.Hard.Memory().Value() / (1024 * 1024))
+			if storageQty, ok := quota.Spec.Hard[corev1.ResourceRequestsStorage]; ok {
+				diskMB = int32(storageQty.Value() / (1024 * 1024))
+			}
 		}
 
 		allocations = append(allocations, &deployer.ResourceAllocation{

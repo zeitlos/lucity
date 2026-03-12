@@ -2,13 +2,12 @@
 import { ref, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuery } from '@vue/apollo-composable';
-import { ChevronDown, Plus, Check, User, Users, Loader2 } from 'lucide-vue-next';
+import { ChevronDown, Plus, Check, User, Users, Loader2, Settings } from 'lucide-vue-next';
 import { useAuth } from '@/composables/useAuth';
 import { useEnvironment } from '@/composables/useEnvironment';
 import { WorkspacesQuery } from '@/graphql/workspaces';
 import { ProjectsQuery } from '@/graphql/projects';
 import { apolloClient } from '@/lib/apollo';
-import { Badge } from '@/components/ui/badge';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -76,14 +75,17 @@ function handleEnvironmentSwitch(envName: string) {
   router.push({ name: 'project-env', params: { id: projectId.value, env: envName } });
 }
 
-function syncStatusVariant(status: string) {
-  switch (status) {
-    case 'SYNCED': return 'default';
-    case 'PROGRESSING': return 'secondary';
-    case 'OUT_OF_SYNC': return 'outline';
-    case 'DEGRADED': return 'destructive';
-    default: return 'outline';
-  }
+function tierLabel(tier?: string) {
+  if (tier === 'PRODUCTION') return 'Production';
+  return 'Eco';
+}
+
+function handleEnvSettings(envName: string) {
+  router.push({
+    name: 'project-settings',
+    params: { id: projectId.value, section: 'environments' },
+    query: { env: envName },
+  });
 }
 </script>
 
@@ -170,12 +172,15 @@ function syncStatusVariant(status: string) {
           <ChevronDown :size="14" class="text-muted-foreground" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" class="w-64">
-          <DropdownMenuItem
+          <div
             v-for="env in environments"
             :key="env.id"
-            @select="handleEnvironmentSwitch(env.name)"
+            class="flex items-center"
           >
-            <div class="flex w-full items-center justify-between gap-2">
+            <DropdownMenuItem
+              class="flex-1"
+              @select="handleEnvironmentSwitch(env.name)"
+            >
               <div class="flex items-center gap-2">
                 <Check
                   v-if="env.id === activeEnvironment?.id"
@@ -183,16 +188,19 @@ function syncStatusVariant(status: string) {
                   class="shrink-0"
                 />
                 <div v-else class="w-3.5" />
-                <span class="truncate">{{ env.name }}</span>
+                <div class="flex flex-col">
+                  <span class="truncate text-sm">{{ env.name }}</span>
+                  <span class="text-[11px] text-muted-foreground">{{ tierLabel(env.resourceTier) }}</span>
+                </div>
               </div>
-              <Badge
-                :variant="syncStatusVariant(env.syncStatus)"
-                class="shrink-0 text-[10px]"
-              >
-                {{ env.syncStatus }}
-              </Badge>
-            </div>
-          </DropdownMenuItem>
+            </DropdownMenuItem>
+            <button
+              class="mr-1 rounded p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              @click="handleEnvSettings(env.name)"
+            >
+              <Settings :size="13" />
+            </button>
+          </div>
           <DropdownMenuSeparator />
           <DropdownMenuItem @select="envDialogOpen = true">
             <Plus :size="14" class="mr-2" />

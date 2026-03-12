@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { toast } from '@/components/ui/sonner';
 import { errorMessage } from '@/lib/utils';
 
@@ -37,6 +38,7 @@ const { environments } = useEnvironment();
 
 const name = ref('');
 const fromEnvironment = ref<string>('');
+const tier = ref<string>('ECO');
 
 const { mutate, loading } = useMutation(CreateEnvironmentMutation, {
   refetchQueries: () => [{ query: ProjectQuery, variables: { id: props.projectId } }],
@@ -53,6 +55,7 @@ async function handleCreate() {
     const input: Record<string, string> = {
       projectId: props.projectId,
       name: name.value.trim(),
+      tier: tier.value,
     };
     if (fromEnvironment.value) {
       input.fromEnvironment = fromEnvironment.value;
@@ -70,6 +73,7 @@ async function handleCreate() {
     toast.success(`Environment "${name.value.trim()}" created`);
     name.value = '';
     fromEnvironment.value = '';
+    tier.value = 'ECO';
     emit('update:open', false);
   } catch (e: unknown) {
     toast.error('Failed to create environment', { description: errorMessage(e) });
@@ -99,6 +103,36 @@ async function handleCreate() {
             placeholder="e.g. staging, preview"
             :disabled="loading"
           />
+        </div>
+
+        <div class="space-y-2">
+          <Label>Tier</Label>
+          <RadioGroup v-model="tier" class="grid grid-cols-2 gap-3">
+            <label
+              class="flex cursor-pointer flex-col gap-1 rounded-lg border p-3 transition-colors"
+              :class="tier === 'ECO' ? 'border-primary bg-primary/5' : 'border-border'"
+            >
+              <div class="flex items-center gap-2">
+                <RadioGroupItem value="ECO" />
+                <span class="text-sm font-medium">Eco</span>
+              </div>
+              <p class="text-xs text-muted-foreground">
+                Pay for what you use. Best for development, staging, and side projects.
+              </p>
+            </label>
+            <label
+              class="flex cursor-pointer flex-col gap-1 rounded-lg border p-3 transition-colors"
+              :class="tier === 'PRODUCTION' ? 'border-primary bg-primary/5' : 'border-border'"
+            >
+              <div class="flex items-center gap-2">
+                <RadioGroupItem value="PRODUCTION" />
+                <span class="text-sm font-medium">Production</span>
+              </div>
+              <p class="text-xs text-muted-foreground">
+                Reserved resources. Best for production workloads with predictable load.
+              </p>
+            </label>
+          </RadioGroup>
         </div>
 
         <div v-if="nonEphemeralEnvs.length > 0" class="space-y-2">

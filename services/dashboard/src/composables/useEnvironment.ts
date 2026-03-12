@@ -62,6 +62,7 @@ export interface Environment {
   namespace: string;
   ephemeral: boolean;
   syncStatus: string;
+  resourceTier?: string;
   services: ServiceInstance[];
   databases: DatabaseInstance[];
 }

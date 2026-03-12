@@ -252,7 +252,7 @@ func (c *Client) DeleteProject(ctx context.Context, id string) (bool, error) {
 	return true, nil
 }
 
-func (c *Client) CreateEnvironment(ctx context.Context, projectID, name, fromEnvironment string) (*Environment, error) {
+func (c *Client) CreateEnvironment(ctx context.Context, projectID, name, fromEnvironment, tier string) (*Environment, error) {
 	if _, err := tenant.Require(ctx); err != nil {
 		return nil, err
 	}
@@ -281,6 +281,11 @@ func (c *Client) CreateEnvironment(ctx context.Context, projectID, name, fromEnv
 	})
 	if err != nil {
 		slog.Warn("failed to deploy environment", "project", projectID, "environment", name, "error", err)
+	}
+
+	// If PRODUCTION tier was requested, set up ResourceQuota with default allocations.
+	if tier == "PRODUCTION" {
+		c.SetEnvironmentResources(ctx, projectID, name, tier, 1000, 1024, 1024)
 	}
 
 	// Trigger immediate sync so the environment deploys right away

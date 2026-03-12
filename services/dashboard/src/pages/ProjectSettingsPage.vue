@@ -9,19 +9,11 @@ import { apolloClient } from '@/lib/apollo';
 import { useEnvironment } from '@/composables/useEnvironment';
 import SharedVariablesEditor from '@/components/SharedVariablesEditor.vue';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Slider } from '@/components/ui/slider';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -58,14 +50,27 @@ watch(
   { immediate: true },
 );
 
-// Settings sections
-const activeSection = ref('general');
-
+// Settings sections — driven by route param
+const validSections = ['general', 'environments', 'variables'];
 const sections = [
   { id: 'general', label: 'General' },
   { id: 'environments', label: 'Environments' },
   { id: 'variables', label: 'Variables' },
 ];
+
+const activeSection = computed({
+  get: () => {
+    const s = route.params.section as string | undefined;
+    return s && validSections.includes(s) ? s : 'general';
+  },
+  set: (val: string) => {
+    router.replace({
+      name: 'project-settings',
+      params: { id: projectId.value, section: val === 'general' ? undefined : val },
+      query: route.query,
+    });
+  },
+});
 
 // Delete project
 const { mutate: deleteProjectMutate, loading: deleting } = useMutation(DeleteProjectMutation);
@@ -89,6 +94,24 @@ async function handleDeleteProject() {
   } catch (e: unknown) {
     toast.error('Failed to delete project', { description: errorMessage(e) });
   }
+}
+
+// Resource presets — slider index maps to value
+const cpuSteps = [500, 1000, 2000, 4000, 8000, 16000];
+const memorySteps = [512, 1024, 2048, 4096, 8192, 16384];
+const diskSteps = [1024, 2048, 5120, 10240, 20480, 51200];
+
+function toIndex(steps: number[], value: number) {
+  const idx = steps.indexOf(value);
+  return idx >= 0 ? idx : 0;
+}
+
+function formatCpu(m: number) {
+  return m >= 1000 ? `${m / 1000} vCPU` : `${m / 1000} vCPU`;
+}
+
+function formatMB(mb: number) {
+  return mb >= 1024 ? `${mb / 1024} GB` : `${mb} MB`;
 }
 
 // Environment resources
@@ -146,6 +169,20 @@ async function toggleEnvExpand(envName: string) {
     envResources[envName]!.loaded = true;
   }
 }
+
+// Auto-expand environment from query param
+watch(
+  () => [route.query.env, project.value?.environments],
+  () => {
+    const envName = route.query.env as string | undefined;
+    if (envName && project.value?.environments?.some((e: { name: string }) => e.name === envName)) {
+      if (expandedEnv.value !== envName) {
+        toggleEnvExpand(envName);
+      }
+    }
+  },
+  { immediate: true },
+);
 
 async function handleSaveResources(envName: string) {
   const state = envResources[envName];
@@ -353,13 +390,9 @@ async function handleDeleteEnvironment() {
                         >
                           ephemeral
                         </span>
-                        <Badge
-                          v-if="envResources[env.name]?.loaded"
-                          variant="secondary"
-                          class="text-[10px]"
-                        >
-                          {{ envResources[env.name]!.tier === 'PRODUCTION' ? 'Production' : 'Eco' }}
-                        </Badge>
+                        <span class="text-xs text-muted-foreground">
+                          {{ env.resourceTier === 'PRODUCTION' ? 'Production' : 'Eco' }}
+                        </span>
                       </button>
                       <Button
                         variant="ghost"
@@ -388,110 +421,102 @@ async function handleDeleteEnvironment() {
                           <!-- Tier -->
                           <div class="space-y-2">
                             <Label>Resource tier</Label>
-                            <Select v-model="envResources[env.name]!.tier">
-                              <SelectTrigger class="w-48">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="ECO">
-                                  <div>
-                                    <span class="font-medium">Eco</span>
-                                    <span class="ml-1.5 text-xs text-muted-foreground">Shared, billed by usage</span>
-                                  </div>
-                                </SelectItem>
-                                <SelectItem value="PRODUCTION">
-                                  <div>
-                                    <span class="font-medium">Production</span>
-                                    <span class="ml-1.5 text-xs text-muted-foreground">Dedicated, billed by allocation</span>
-                                  </div>
-                                </SelectItem>
-                              </SelectContent>
-                            </Select>
+                            <RadioGroup
+                              :model-value="envResources[env.name]!.tier"
+                              class="grid grid-cols-2 gap-3"
+                              @update:model-value="envResources[env.name]!.tier = $event"
+                            >
+                              <label
+                                class="flex cursor-pointer flex-col gap-1 rounded-lg border p-3 transition-colors"
+                                :class="envResources[env.name]!.tier === 'ECO' ? 'border-primary bg-primary/5' : 'border-border'"
+                              >
+                                <div class="flex items-center gap-2">
+                                  <RadioGroupItem value="ECO" />
+                                  <span class="text-sm font-medium">Eco</span>
+                                </div>
+                                <p class="text-xs text-muted-foreground">
+                                  Pay for what you use. Best for development, staging, and side projects.
+                                </p>
+                              </label>
+                              <label
+                                class="flex cursor-pointer flex-col gap-1 rounded-lg border p-3 transition-colors"
+                                :class="envResources[env.name]!.tier === 'PRODUCTION' ? 'border-primary bg-primary/5' : 'border-border'"
+                              >
+                                <div class="flex items-center gap-2">
+                                  <RadioGroupItem value="PRODUCTION" />
+                                  <span class="text-sm font-medium">Production</span>
+                                </div>
+                                <p class="text-xs text-muted-foreground">
+                                  Reserved resources. Best for production workloads with predictable load.
+                                </p>
+                              </label>
+                            </RadioGroup>
                           </div>
 
-                          <!-- CPU -->
-                          <div class="space-y-2">
-                            <div class="flex items-center justify-between">
-                              <Label>CPU</Label>
-                              <div class="flex items-center gap-1.5">
-                                <Input
-                                  type="number"
-                                  :model-value="envResources[env.name]!.cpuMillicores"
-                                  class="h-7 w-20 text-right text-xs"
-                                  :min="100"
-                                  :max="32000"
-                                  @update:model-value="envResources[env.name]!.cpuMillicores = Number($event)"
-                                />
-                                <span class="text-xs text-muted-foreground">m</span>
-                              </div>
-                            </div>
-                            <Slider
-                              :model-value="[envResources[env.name]!.cpuMillicores]"
-                              :min="100"
-                              :max="32000"
-                              :step="100"
-                              @update:model-value="envResources[env.name]!.cpuMillicores = $event?.[0] ?? envResources[env.name]!.cpuMillicores"
-                            />
-                            <p class="text-[11px] text-muted-foreground">
-                              {{ (envResources[env.name]!.cpuMillicores / 1000).toFixed(1) }} vCPU
-                            </p>
-                          </div>
+                          <!-- ECO: no quota controls -->
+                          <p
+                            v-if="envResources[env.name]!.tier === 'ECO'"
+                            class="text-sm text-muted-foreground"
+                          >
+                            Pay for what you use. No resource limits applied.
+                          </p>
 
-                          <!-- Memory -->
-                          <div class="space-y-2">
-                            <div class="flex items-center justify-between">
-                              <Label>Memory</Label>
-                              <div class="flex items-center gap-1.5">
-                                <Input
-                                  type="number"
-                                  :model-value="envResources[env.name]!.memoryMB"
-                                  class="h-7 w-20 text-right text-xs"
-                                  :min="128"
-                                  :max="65536"
-                                  @update:model-value="envResources[env.name]!.memoryMB = Number($event)"
-                                />
-                                <span class="text-xs text-muted-foreground">MB</span>
+                          <!-- PRODUCTION: resource allocation controls -->
+                          <template v-else>
+                            <!-- CPU -->
+                            <div class="space-y-2">
+                              <div class="flex items-center justify-between">
+                                <Label>CPU</Label>
+                                <span class="text-sm font-medium">{{ formatCpu(envResources[env.name]!.cpuMillicores) }}</span>
+                              </div>
+                              <Slider
+                                :model-value="[toIndex(cpuSteps, envResources[env.name]!.cpuMillicores)]"
+                                :min="0"
+                                :max="cpuSteps.length - 1"
+                                :step="1"
+                                @update:model-value="envResources[env.name]!.cpuMillicores = cpuSteps[$event?.[0] ?? 0]!"
+                              />
+                              <div class="flex justify-between text-[10px] text-muted-foreground">
+                                <span v-for="s in cpuSteps" :key="s">{{ formatCpu(s) }}</span>
                               </div>
                             </div>
-                            <Slider
-                              :model-value="[envResources[env.name]!.memoryMB]"
-                              :min="128"
-                              :max="65536"
-                              :step="128"
-                              @update:model-value="envResources[env.name]!.memoryMB = $event?.[0] ?? envResources[env.name]!.memoryMB"
-                            />
-                            <p class="text-[11px] text-muted-foreground">
-                              {{ (envResources[env.name]!.memoryMB / 1024).toFixed(1) }} GB
-                            </p>
-                          </div>
 
-                          <!-- Disk -->
-                          <div class="space-y-2">
-                            <div class="flex items-center justify-between">
-                              <Label>Disk</Label>
-                              <div class="flex items-center gap-1.5">
-                                <Input
-                                  type="number"
-                                  :model-value="envResources[env.name]!.diskMB"
-                                  class="h-7 w-20 text-right text-xs"
-                                  :min="0"
-                                  :max="102400"
-                                  @update:model-value="envResources[env.name]!.diskMB = Number($event)"
-                                />
-                                <span class="text-xs text-muted-foreground">MB</span>
+                            <!-- Memory -->
+                            <div class="space-y-2">
+                              <div class="flex items-center justify-between">
+                                <Label>Memory</Label>
+                                <span class="text-sm font-medium">{{ formatMB(envResources[env.name]!.memoryMB) }}</span>
+                              </div>
+                              <Slider
+                                :model-value="[toIndex(memorySteps, envResources[env.name]!.memoryMB)]"
+                                :min="0"
+                                :max="memorySteps.length - 1"
+                                :step="1"
+                                @update:model-value="envResources[env.name]!.memoryMB = memorySteps[$event?.[0] ?? 0]!"
+                              />
+                              <div class="flex justify-between text-[10px] text-muted-foreground">
+                                <span v-for="s in memorySteps" :key="s">{{ formatMB(s) }}</span>
                               </div>
                             </div>
-                            <Slider
-                              :model-value="[envResources[env.name]!.diskMB]"
-                              :min="0"
-                              :max="102400"
-                              :step="512"
-                              @update:model-value="envResources[env.name]!.diskMB = $event?.[0] ?? envResources[env.name]!.diskMB"
-                            />
-                            <p class="text-[11px] text-muted-foreground">
-                              {{ (envResources[env.name]!.diskMB / 1024).toFixed(1) }} GB
-                            </p>
-                          </div>
+
+                            <!-- Disk -->
+                            <div class="space-y-2">
+                              <div class="flex items-center justify-between">
+                                <Label>Disk</Label>
+                                <span class="text-sm font-medium">{{ formatMB(envResources[env.name]!.diskMB) }}</span>
+                              </div>
+                              <Slider
+                                :model-value="[toIndex(diskSteps, envResources[env.name]!.diskMB)]"
+                                :min="0"
+                                :max="diskSteps.length - 1"
+                                :step="1"
+                                @update:model-value="envResources[env.name]!.diskMB = diskSteps[$event?.[0] ?? 0]!"
+                              />
+                              <div class="flex justify-between text-[10px] text-muted-foreground">
+                                <span v-for="s in diskSteps" :key="s">{{ formatMB(s) }}</span>
+                              </div>
+                            </div>
+                          </template>
 
                           <!-- Save -->
                           <div class="flex justify-end">

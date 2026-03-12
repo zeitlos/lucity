@@ -66,9 +66,10 @@ type CreateDatabaseInput struct {
 }
 
 type CreateEnvironmentInput struct {
-	ProjectID       string  `json:"projectId"`
-	Name            string  `json:"name"`
-	FromEnvironment *string `json:"fromEnvironment,omitempty"`
+	ProjectID       string        `json:"projectId"`
+	Name            string        `json:"name"`
+	FromEnvironment *string       `json:"fromEnvironment,omitempty"`
+	Tier            *ResourceTier `json:"tier,omitempty"`
 }
 
 type CreateProjectInput struct {
@@ -209,13 +210,14 @@ type Domain struct {
 }
 
 type Environment struct {
-	ID         string             `json:"id"`
-	Name       string             `json:"name"`
-	Namespace  string             `json:"namespace"`
-	Ephemeral  bool               `json:"ephemeral"`
-	SyncStatus SyncStatus         `json:"syncStatus"`
-	Services   []ServiceInstance  `json:"services"`
-	Databases  []DatabaseInstance `json:"databases"`
+	ID           string             `json:"id"`
+	Name         string             `json:"name"`
+	Namespace    string             `json:"namespace"`
+	Ephemeral    bool               `json:"ephemeral"`
+	SyncStatus   SyncStatus         `json:"syncStatus"`
+	ResourceTier *ResourceTier      `json:"resourceTier,omitempty"`
+	Services     []ServiceInstance  `json:"services"`
+	Databases    []DatabaseInstance `json:"databases"`
 }
 
 type EnvironmentResources struct {
@@ -279,10 +281,11 @@ type Project struct {
 }
 
 type PromoteInput struct {
-	ProjectID       string `json:"projectId"`
-	Service         string `json:"service"`
-	FromEnvironment string `json:"fromEnvironment"`
-	ToEnvironment   string `json:"toEnvironment"`
+	ProjectID       string        `json:"projectId"`
+	Service         string        `json:"service"`
+	FromEnvironment string        `json:"fromEnvironment"`
+	Tier            *ResourceTier `json:"tier,omitempty"`
+	ToEnvironment   string        `json:"toEnvironment"`
 }
 
 type Query struct {

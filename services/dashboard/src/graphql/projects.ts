@@ -10,6 +10,7 @@ export const ProjectsQuery = gql`
         id
         name
         syncStatus
+        resourceTier
       }
       services {
         name
@@ -50,6 +51,7 @@ export const CreateEnvironmentMutation = gql`
       namespace
       ephemeral
       syncStatus
+      resourceTier
     }
   }
 `;
@@ -86,6 +88,7 @@ export const ProjectQuery = gql`
         namespace
         ephemeral
         syncStatus
+        resourceTier
         services {
           name
           environment

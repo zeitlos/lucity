@@ -7,10 +7,27 @@ package graphql
 
 import (
 	"context"
+	"strings"
 
 	"github.com/zeitlos/lucity/services/gateway/graphql/model"
 	"github.com/zeitlos/lucity/services/gateway/handler"
 )
+
+// ResourceTier is the resolver for the resourceTier field.
+func (r *environmentResolver) ResourceTier(ctx context.Context, obj *model.Environment) (*model.ResourceTier, error) {
+	// Extract projectId from the environment ID (format: "projectId/envName").
+	projectID, _, found := strings.Cut(obj.ID, "/")
+	if !found {
+		return nil, nil
+	}
+	res, err := r.API.EnvironmentResources(ctx, projectID, obj.Name)
+	if err != nil {
+		// Environment not yet deployed or no tier set — return nil.
+		return nil, nil
+	}
+	tier := model.ResourceTier(res.Tier)
+	return &tier, nil
+}
 
 // CreateProject is the resolver for the createProject field.
 func (r *mutationResolver) CreateProject(ctx context.Context, input model.CreateProjectInput) (*model.Project, error) {
@@ -33,7 +50,11 @@ func (r *mutationResolver) CreateEnvironment(ctx context.Context, input model.Cr
 	if input.FromEnvironment != nil {
 		fromEnv = *input.FromEnvironment
 	}
-	e, err := r.API.CreateEnvironment(ctx, input.ProjectID, input.Name, fromEnv)
+	tier := ""
+	if input.Tier != nil {
+		tier = string(*input.Tier)
+	}
+	e, err := r.API.CreateEnvironment(ctx, input.ProjectID, input.Name, fromEnv, tier)
 	if err != nil {
 		return nil, err
 	}
@@ -110,3 +131,8 @@ func (r *queryResolver) Service(ctx context.Context, projectID string, name stri
 	result := convertService(*s, r.API.WorkloadDomain)
 	return &result, nil
 }
+
+// Environment returns EnvironmentResolver implementation.
+func (r *Resolver) Environment() EnvironmentResolver { return &environmentResolver{r} }
+
+type environmentResolver struct{ *Resolver }
