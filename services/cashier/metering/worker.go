@@ -22,6 +22,11 @@ import (
 // maxBackfillDays is the maximum number of days we can backfill (Stripe's meter event limit).
 const maxBackfillDays = 35
 
+// ingestionDelay is the time to wait after a window closes before querying SigNoz.
+// OTel collectors scrape every ~60s and batch exports to ClickHouse. 5 minutes
+// gives enough margin for all metrics to land before we query.
+const ingestionDelay = 5 * time.Minute
+
 const checkpointCMName = "metering-checkpoint"
 const checkpointKey = "last_window_end"
 
@@ -107,7 +112,7 @@ func (w *Worker) backfill(ctx context.Context) {
 		return
 	}
 
-	_, currentEnd := alignWindow(time.Now(), w.interval)
+	_, currentEnd := alignWindow(time.Now().Add(-ingestionDelay), w.interval)
 
 	// Cap backfill to Stripe's limit.
 	earliest := time.Now().Add(-maxBackfillDays * 24 * time.Hour)
@@ -134,7 +139,9 @@ func (w *Worker) backfill(ctx context.Context) {
 }
 
 func (w *Worker) tick(ctx context.Context) {
-	start, end := alignWindow(time.Now(), w.interval)
+	// Delay window selection so SigNoz has time to fully ingest metrics.
+	// At 15:05 with 5min delay: alignWindow(15:00) → processes 14:00-15:00.
+	start, end := alignWindow(time.Now().Add(-ingestionDelay), w.interval)
 	slog.Info("metering tick", "window_start", start, "window_end", end)
 	w.processWindow(ctx, start, end)
 }
