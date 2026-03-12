@@ -7,16 +7,23 @@ import (
 	"log/slog"
 	"net"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/go-git/go-git/v5"
 	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
+	"github.com/moby/buildkit/client"
+	"github.com/moby/buildkit/client/llb"
+	_ "github.com/moby/buildkit/util/grpcutil/encoding/proto"
+	"github.com/moby/buildkit/util/progress/progressui"
+	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	rpbuildkit "github.com/railwayapp/railpack/buildkit"
 	"github.com/railwayapp/railpack/core"
 	"github.com/railwayapp/railpack/core/app"
 	rplog "github.com/railwayapp/railpack/core/logger"
+	"github.com/railwayapp/railpack/core/plan"
+	"github.com/tonistiigi/fsutil"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
@@ -118,29 +125,17 @@ func executeBuild(cfg runBuildConfig, k8sClient kubernetes.Interface) error {
 	}
 
 	slog.Info("generating railpack plan", "dir", buildDir)
-	planFile, err := generatePlan(buildDir)
+	buildPlan, err := generatePlan(buildDir)
 	if err != nil {
 		return err
 	}
-	defer os.Remove(planFile)
 
-	// 5. Build with buildctl
+	// 5. Build with BuildKit Go client (bypasses gateway frontend so cache import works)
 	cacheRef := cfg.Registry + ":buildcache"
 	slog.Info("building image", "image", imageName, "cache", cacheRef)
-	if err := buildWithBuildctl(cfg.BuildkitAddr, buildDir, planFile, imageName, cacheRef, cfg.Insecure); err != nil {
+	digest, err := buildWithBuildKit(context.Background(), cfg.BuildkitAddr, buildDir, imageName, cacheRef, buildPlan, cfg.Insecure)
+	if err != nil {
 		return err
-	}
-
-	// 6. Extract digest from registry (buildctl outputs it)
-	digest := "" // buildctl --metadata-file approach below
-	metadataFile := filepath.Join(workDir, "build-metadata.json")
-	if data, err := os.ReadFile(metadataFile); err == nil {
-		var metadata map[string]interface{}
-		if err := json.Unmarshal(data, &metadata); err == nil {
-			if d, ok := metadata["containerimage.digest"].(string); ok {
-				digest = d
-			}
-		}
 	}
 
 	slog.Info("build completed", "image", imageName, "digest", digest)
@@ -225,11 +220,11 @@ func buildFullSHA(repoPath string) string {
 	return head.Hash().String()
 }
 
-// generatePlan creates a railpack build plan and writes it to disk.
-func generatePlan(buildDir string) (string, error) {
+// generatePlan creates a railpack build plan from the source directory.
+func generatePlan(buildDir string) (*plan.BuildPlan, error) {
 	a, err := app.NewApp(buildDir)
 	if err != nil {
-		return "", fmt.Errorf("failed to read app: %w", err)
+		return nil, fmt.Errorf("failed to read app: %w", err)
 	}
 
 	env := app.NewEnvironment(nil)
@@ -245,71 +240,117 @@ func generatePlan(buildDir string) (string, error) {
 		if len(errs) > 0 {
 			errMsg = strings.Join(errs, "; ")
 		}
-		return "", fmt.Errorf("railpack plan generation failed: %s", errMsg)
+		return nil, fmt.Errorf("railpack plan generation failed: %s", errMsg)
 	}
 
-	planJSON, err := json.Marshal(result.Plan)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal build plan: %w", err)
-	}
-
-	planFile := filepath.Join(buildDir, "railpack-plan.json")
-	if err := os.WriteFile(planFile, planJSON, 0644); err != nil {
-		return "", fmt.Errorf("failed to write build plan: %w", err)
-	}
-
-	return planFile, nil
+	return result.Plan, nil
 }
 
-// buildWithBuildctl invokes buildctl to build and push the image via BuildKit.
-// cacheRef is the registry reference for layer caching (e.g., "registry:5000/proj/svc:buildcache").
-func buildWithBuildctl(buildkitAddr, buildDir, planFile, imageName, cacheRef string, insecure bool) error {
-	args := []string{
-		"--addr", buildkitAddr,
-		"build",
-		"--progress", "plain",
-		"--frontend", "gateway.v0",
-		"--opt", "source=ghcr.io/railwayapp/railpack-frontend",
-		"--opt", "filename=railpack-plan.json",
-		"--local", "context=" + buildDir,
-		"--local", "dockerfile=" + buildDir,
-		"--metadata-file", "/tmp/lucity-builds/build-metadata.json",
+// buildWithBuildKit converts the railpack plan to LLB and solves directly with the
+// BuildKit Go client. This bypasses the gateway frontend, which fixes cache import —
+// the railpack frontend never forwarded cache-imports to its inner solve call.
+func buildWithBuildKit(ctx context.Context, buildkitAddr, buildDir, imageName, cacheRef string, buildPlan *plan.BuildPlan, insecure bool) (string, error) {
+	c, err := client.New(ctx, buildkitAddr)
+	if err != nil {
+		return "", fmt.Errorf("failed to connect to buildkit: %w", err)
+	}
+	defer c.Close()
+
+	// Convert railpack plan to LLB
+	buildPlatform := specs.Platform{OS: "linux", Architecture: "amd64"}
+	llbState, image, err := rpbuildkit.ConvertPlanToLLB(buildPlan, rpbuildkit.ConvertPlanOptions{
+		BuildPlatform: buildPlatform,
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to convert plan to LLB: %w", err)
 	}
 
-	// Import layer cache from registry (cache miss on first build is handled gracefully)
-	importCache := "type=registry,ref=" + cacheRef
+	imageBytes, err := json.Marshal(image)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal image config: %w", err)
+	}
+
+	def, err := llbState.Marshal(ctx, llb.LinuxAmd64)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal LLB: %w", err)
+	}
+
+	// Build context
+	appFS, err := fsutil.NewFS(buildDir)
+	if err != nil {
+		return "", fmt.Errorf("failed to create build context: %w", err)
+	}
+
+	// Output: build and push to registry
+	exportAttrs := map[string]string{
+		"name":                  imageName,
+		"push":                  "true",
+		"containerimage.config": string(imageBytes),
+	}
 	if insecure {
-		importCache += ",registry.insecure=true"
+		exportAttrs["registry.insecure"] = "true"
 	}
-	args = append(args, "--import-cache", importCache)
 
-	// Export layer cache to registry for future builds (mode=max includes all intermediate layers).
+	// Cache import from registry (cache miss on first build is handled gracefully)
+	importCacheAttrs := map[string]string{"ref": cacheRef}
+	if insecure {
+		importCacheAttrs["registry.insecure"] = "true"
+	}
+
+	// Cache export to registry (mode=max includes all intermediate layers).
 	// image-manifest=true forces a standard OCI image manifest instead of an image index —
 	// required for Zot compatibility (https://github.com/project-zot/zot/issues/2728).
-	exportCache := "type=registry,ref=" + cacheRef + ",mode=max,image-manifest=true"
+	exportCacheAttrs := map[string]string{
+		"ref":            cacheRef,
+		"mode":           "max",
+		"image-manifest": "true",
+	}
 	if insecure {
-		exportCache += ",registry.insecure=true"
-	}
-	args = append(args, "--export-cache", exportCache)
-
-	// Output configuration: build and push to registry
-	output := fmt.Sprintf("type=image,name=%s,push=true", imageName)
-	if insecure {
-		output += ",registry.insecure=true"
-	}
-	args = append(args, "--output", output)
-
-	slog.Info("executing buildctl", "args", strings.Join(args, " "))
-
-	cmd := exec.Command("buildctl", args...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("buildctl build failed: %w", err)
+		exportCacheAttrs["registry.insecure"] = "true"
 	}
 
-	return nil
+	solveOpts := client.SolveOpt{
+		LocalMounts: map[string]fsutil.FS{
+			"context": appFS,
+		},
+		Exports: []client.ExportEntry{
+			{
+				Type:  client.ExporterImage,
+				Attrs: exportAttrs,
+			},
+		},
+		CacheImports: []client.CacheOptionsEntry{
+			{Type: "registry", Attrs: importCacheAttrs},
+		},
+		CacheExports: []client.CacheOptionsEntry{
+			{Type: "registry", Attrs: exportCacheAttrs},
+		},
+	}
+
+	// Stream build progress
+	ch := make(chan *client.SolveStatus)
+	progressDone := make(chan struct{})
+	go func() {
+		defer close(progressDone)
+		display, err := progressui.NewDisplay(os.Stdout, progressui.PlainMode)
+		if err != nil {
+			for range ch {
+			}
+			return
+		}
+		display.UpdateFrom(ctx, ch)
+	}()
+
+	startTime := time.Now()
+	resp, err := c.Solve(ctx, def, solveOpts, ch)
+	<-progressDone
+
+	if err != nil {
+		return "", fmt.Errorf("buildkit solve failed: %w", err)
+	}
+
+	slog.Info("buildkit solve completed", "duration", time.Since(startTime).Round(time.Millisecond))
+	return resp.ExporterResponse["containerimage.digest"], nil
 }
 
 func inClusterClient() (kubernetes.Interface, error) {
