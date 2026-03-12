@@ -56,6 +56,6 @@ extend type Query {
 
 extend type Mutation {
   setEnvironmentResources(input: SetEnvironmentResourcesInput!): EnvironmentResources! @hasRole(role: [USER])
-  changePlan(plan: Plan!): BillingSubscription! @hasRole(role: [ADMIN])
-  billingPortalUrl: BillingPortalUrl! @hasRole(role: [ADMIN])
+  changePlan(plan: Plan!): BillingSubscription! @allowSuspended @hasRole(role: [ADMIN])
+  billingPortalUrl: BillingPortalUrl! @allowSuspended @hasRole(role: [ADMIN])
 }

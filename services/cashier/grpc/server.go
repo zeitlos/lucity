@@ -227,6 +227,8 @@ func (s *Server) HandleStripeEvent(event gostripe.Event) {
 	switch event.Type {
 	case "invoice.payment_failed":
 		s.handlePaymentFailed(event)
+	case "invoice.payment_succeeded":
+		s.handlePaymentSucceeded(event)
 	case "customer.subscription.deleted":
 		s.handleSubscriptionDeleted(event)
 	}
@@ -248,7 +250,38 @@ func (s *Server) handlePaymentFailed(event gostripe.Event) {
 		return
 	}
 
-	slog.Error("payment failed", "workspace", workspace, "invoice", inv.ID)
+	slog.Error("payment failed, suspending workspace", "workspace", workspace, "invoice", inv.ID)
+	s.suspendWorkspace(workspace, true)
+}
+
+func (s *Server) handlePaymentSucceeded(event gostripe.Event) {
+	var inv gostripe.Invoice
+	if err := json.Unmarshal(event.Data.Raw, &inv); err != nil {
+		slog.Error("failed to unmarshal invoice for payment_succeeded", "error", err)
+		return
+	}
+
+	workspace := ""
+	if inv.Parent != nil && inv.Parent.SubscriptionDetails != nil && inv.Parent.SubscriptionDetails.Subscription != nil {
+		workspace = inv.Parent.SubscriptionDetails.Subscription.Metadata["workspace"]
+	}
+	if workspace == "" {
+		return
+	}
+
+	// Check if workspace is suspended; if so, resume it.
+	ctx := deployerCtx(context.Background())
+	meta, err := s.deployer.WorkspaceMetadata(ctx, &deployer.WorkspaceMetadataRequest{Workspace: workspace})
+	if err != nil {
+		slog.Warn("failed to check workspace suspension on payment success", "workspace", workspace, "error", err)
+		return
+	}
+	if !meta.Suspended {
+		return
+	}
+
+	slog.Info("payment succeeded, resuming workspace", "workspace", workspace, "invoice", inv.ID)
+	s.suspendWorkspace(workspace, false)
 }
 
 func (s *Server) handleSubscriptionDeleted(event gostripe.Event) {
@@ -264,7 +297,23 @@ func (s *Server) handleSubscriptionDeleted(event gostripe.Event) {
 		return
 	}
 
-	slog.Warn("subscription deleted", "workspace", workspace, "subscription", sub.ID)
+	slog.Warn("subscription deleted, suspending workspace", "workspace", workspace, "subscription", sub.ID)
+	s.suspendWorkspace(workspace, true)
+}
+
+func (s *Server) suspendWorkspace(workspace string, suspended bool) {
+	ctx := deployerCtx(context.Background())
+	_, err := s.deployer.SuspendWorkspace(ctx, &deployer.SuspendWorkspaceRequest{
+		Workspace: workspace,
+		Suspended: suspended,
+	})
+	if err != nil {
+		action := "suspend"
+		if !suspended {
+			action = "resume"
+		}
+		slog.Error("failed to "+action+" workspace", "workspace", workspace, "error", err)
+	}
 }
 
 // Conversion helpers

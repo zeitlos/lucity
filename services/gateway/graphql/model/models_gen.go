@@ -443,10 +443,11 @@ type Volume struct {
 }
 
 type Workspace struct {
-	ID       string            `json:"id"`
-	Name     string            `json:"name"`
-	Personal bool              `json:"personal"`
-	Members  []WorkspaceMember `json:"members"`
+	ID        string            `json:"id"`
+	Name      string            `json:"name"`
+	Personal  bool              `json:"personal"`
+	Suspended bool              `json:"suspended"`
+	Members   []WorkspaceMember `json:"members"`
 }
 
 type WorkspaceMember struct {

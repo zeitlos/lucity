@@ -57,7 +57,7 @@ func (h *WebhookHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	switch event.Type {
 	case "invoice.payment_succeeded":
-		slog.Info("payment succeeded", "event_id", event.ID)
+		h.handler.HandleStripeEvent(event)
 	case "invoice.payment_failed":
 		h.handler.HandleStripeEvent(event)
 	case "customer.subscription.deleted":

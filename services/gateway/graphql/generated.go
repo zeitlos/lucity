@@ -47,8 +47,9 @@ type ResolverRoot interface {
 }
 
 type DirectiveRoot struct {
-	Constraint func(ctx context.Context, obj any, next graphql.Resolver, constraint string) (res any, err error)
-	HasRole    func(ctx context.Context, obj any, next graphql.Resolver, role []model.Role) (res any, err error)
+	AllowSuspended func(ctx context.Context, obj any, next graphql.Resolver) (res any, err error)
+	Constraint     func(ctx context.Context, obj any, next graphql.Resolver, constraint string) (res any, err error)
+	HasRole        func(ctx context.Context, obj any, next graphql.Resolver, role []model.Role) (res any, err error)
 }
 
 type ComplexityRoot struct {
@@ -367,10 +368,11 @@ type ComplexityRoot struct {
 	}
 
 	Workspace struct {
-		ID       func(childComplexity int) int
-		Members  func(childComplexity int) int
-		Name     func(childComplexity int) int
-		Personal func(childComplexity int) int
+		ID        func(childComplexity int) int
+		Members   func(childComplexity int) int
+		Name      func(childComplexity int) int
+		Personal  func(childComplexity int) int
+		Suspended func(childComplexity int) int
 	}
 
 	WorkspaceMember struct {
@@ -1957,6 +1959,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Workspace.Personal(childComplexity), true
+	case "Workspace.suspended":
+		if e.complexity.Workspace.Suspended == nil {
+			break
+		}
+
+		return e.complexity.Workspace.Suspended(childComplexity), true
 
 	case "WorkspaceMember.email":
 		if e.complexity.WorkspaceMember.Email == nil {
@@ -5759,6 +5767,13 @@ func (ec *executionContext) _Mutation_changePlan(ctx context.Context, field grap
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				if ec.directives.AllowSuspended == nil {
+					var zeroVal *model.BillingSubscription
+					return zeroVal, errors.New("directive allowSuspended is not implemented")
+				}
+				return ec.directives.AllowSuspended(ctx, nil, directive0)
+			}
+			directive2 := func(ctx context.Context) (any, error) {
 				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"ADMIN"})
 				if err != nil {
 					var zeroVal *model.BillingSubscription
@@ -5768,10 +5783,10 @@ func (ec *executionContext) _Mutation_changePlan(ctx context.Context, field grap
 					var zeroVal *model.BillingSubscription
 					return zeroVal, errors.New("directive hasRole is not implemented")
 				}
-				return ec.directives.HasRole(ctx, nil, directive0, role)
+				return ec.directives.HasRole(ctx, nil, directive1, role)
 			}
 
-			next = directive1
+			next = directive2
 			return next
 		},
 		ec.marshalNBillingSubscription2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐBillingSubscription,
@@ -5829,6 +5844,13 @@ func (ec *executionContext) _Mutation_billingPortalUrl(ctx context.Context, fiel
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				if ec.directives.AllowSuspended == nil {
+					var zeroVal *model.BillingPortalURL
+					return zeroVal, errors.New("directive allowSuspended is not implemented")
+				}
+				return ec.directives.AllowSuspended(ctx, nil, directive0)
+			}
+			directive2 := func(ctx context.Context) (any, error) {
 				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"ADMIN"})
 				if err != nil {
 					var zeroVal *model.BillingPortalURL
@@ -5838,10 +5860,10 @@ func (ec *executionContext) _Mutation_billingPortalUrl(ctx context.Context, fiel
 					var zeroVal *model.BillingPortalURL
 					return zeroVal, errors.New("directive hasRole is not implemented")
 				}
-				return ec.directives.HasRole(ctx, nil, directive0, role)
+				return ec.directives.HasRole(ctx, nil, directive1, role)
 			}
 
-			next = directive1
+			next = directive2
 			return next
 		},
 		ec.marshalNBillingPortalUrl2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐBillingPortalURL,
@@ -7108,6 +7130,8 @@ func (ec *executionContext) fieldContext_Mutation_createWorkspace(ctx context.Co
 				return ec.fieldContext_Workspace_name(ctx, field)
 			case "personal":
 				return ec.fieldContext_Workspace_personal(ctx, field)
+			case "suspended":
+				return ec.fieldContext_Workspace_suspended(ctx, field)
 			case "members":
 				return ec.fieldContext_Workspace_members(ctx, field)
 			}
@@ -7142,6 +7166,13 @@ func (ec *executionContext) _Mutation_updateWorkspace(ctx context.Context, field
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				if ec.directives.AllowSuspended == nil {
+					var zeroVal *model.Workspace
+					return zeroVal, errors.New("directive allowSuspended is not implemented")
+				}
+				return ec.directives.AllowSuspended(ctx, nil, directive0)
+			}
+			directive2 := func(ctx context.Context) (any, error) {
 				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
 				if err != nil {
 					var zeroVal *model.Workspace
@@ -7151,10 +7182,10 @@ func (ec *executionContext) _Mutation_updateWorkspace(ctx context.Context, field
 					var zeroVal *model.Workspace
 					return zeroVal, errors.New("directive hasRole is not implemented")
 				}
-				return ec.directives.HasRole(ctx, nil, directive0, role)
+				return ec.directives.HasRole(ctx, nil, directive1, role)
 			}
 
-			next = directive1
+			next = directive2
 			return next
 		},
 		ec.marshalNWorkspace2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐWorkspace,
@@ -7177,6 +7208,8 @@ func (ec *executionContext) fieldContext_Mutation_updateWorkspace(ctx context.Co
 				return ec.fieldContext_Workspace_name(ctx, field)
 			case "personal":
 				return ec.fieldContext_Workspace_personal(ctx, field)
+			case "suspended":
+				return ec.fieldContext_Workspace_suspended(ctx, field)
 			case "members":
 				return ec.fieldContext_Workspace_members(ctx, field)
 			}
@@ -7210,6 +7243,13 @@ func (ec *executionContext) _Mutation_deleteWorkspace(ctx context.Context, field
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
+				if ec.directives.AllowSuspended == nil {
+					var zeroVal bool
+					return zeroVal, errors.New("directive allowSuspended is not implemented")
+				}
+				return ec.directives.AllowSuspended(ctx, nil, directive0)
+			}
+			directive2 := func(ctx context.Context) (any, error) {
 				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
 				if err != nil {
 					var zeroVal bool
@@ -7219,10 +7259,10 @@ func (ec *executionContext) _Mutation_deleteWorkspace(ctx context.Context, field
 					var zeroVal bool
 					return zeroVal, errors.New("directive hasRole is not implemented")
 				}
-				return ec.directives.HasRole(ctx, nil, directive0, role)
+				return ec.directives.HasRole(ctx, nil, directive1, role)
 			}
 
-			next = directive1
+			next = directive2
 			return next
 		},
 		ec.marshalNBoolean2bool,
@@ -9282,6 +9322,8 @@ func (ec *executionContext) fieldContext_Query_workspace(_ context.Context, fiel
 				return ec.fieldContext_Workspace_name(ctx, field)
 			case "personal":
 				return ec.fieldContext_Workspace_personal(ctx, field)
+			case "suspended":
+				return ec.fieldContext_Workspace_suspended(ctx, field)
 			case "members":
 				return ec.fieldContext_Workspace_members(ctx, field)
 			}
@@ -9339,6 +9381,8 @@ func (ec *executionContext) fieldContext_Query_workspaces(_ context.Context, fie
 				return ec.fieldContext_Workspace_name(ctx, field)
 			case "personal":
 				return ec.fieldContext_Workspace_personal(ctx, field)
+			case "suspended":
+				return ec.fieldContext_Workspace_suspended(ctx, field)
 			case "members":
 				return ec.fieldContext_Workspace_members(ctx, field)
 			}
@@ -11085,6 +11129,35 @@ func (ec *executionContext) _Workspace_personal(ctx context.Context, field graph
 }
 
 func (ec *executionContext) fieldContext_Workspace_personal(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Workspace",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Workspace_suspended(ctx context.Context, field graphql.CollectedField, obj *model.Workspace) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Workspace_suspended,
+		func(ctx context.Context) (any, error) {
+			return obj.Suspended, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Workspace_suspended(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Workspace",
 		Field:      field,
@@ -16678,6 +16751,11 @@ func (ec *executionContext) _Workspace(ctx context.Context, sel ast.SelectionSet
 			}
 		case "personal":
 			out.Values[i] = ec._Workspace_personal(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "suspended":
+			out.Values[i] = ec._Workspace_suspended(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}

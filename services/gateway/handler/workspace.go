@@ -17,10 +17,11 @@ import (
 
 // Workspace represents a workspace with metadata and members.
 type Workspace struct {
-	ID       string
-	Name     string
-	Personal bool
-	Members  []WorkspaceMember
+	ID        string
+	Name      string
+	Personal  bool
+	Suspended bool
+	Members   []WorkspaceMember
 }
 
 // WorkspaceMember represents a user's membership in a workspace.
@@ -102,9 +103,10 @@ func (c *Client) Workspace(ctx context.Context) (*Workspace, error) {
 	}
 
 	result := &Workspace{
-		ID:       ws,
-		Name:     resp.Name,
-		Personal: resp.Personal,
+		ID:        ws,
+		Name:      resp.Name,
+		Personal:  resp.Personal,
+		Suspended: resp.Suspended,
 	}
 
 	// Fetch members

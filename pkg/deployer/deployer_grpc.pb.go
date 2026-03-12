@@ -44,6 +44,7 @@ const (
 	DeployerService_StoreUserGitHubToken_FullMethodName      = "/deployer.DeployerService/StoreUserGitHubToken"
 	DeployerService_UserGitHubToken_FullMethodName           = "/deployer.DeployerService/UserGitHubToken"
 	DeployerService_DeleteUserGitHubToken_FullMethodName     = "/deployer.DeployerService/DeleteUserGitHubToken"
+	DeployerService_SuspendWorkspace_FullMethodName          = "/deployer.DeployerService/SuspendWorkspace"
 )
 
 // DeployerServiceClient is the client API for DeployerService service.
@@ -100,6 +101,8 @@ type DeployerServiceClient interface {
 	UserGitHubToken(ctx context.Context, in *UserGitHubTokenRequest, opts ...grpc.CallOption) (*UserGitHubTokenResponse, error)
 	// DeleteUserGitHubToken removes a user's stored GitHub OAuth token.
 	DeleteUserGitHubToken(ctx context.Context, in *DeleteUserGitHubTokenRequest, opts ...grpc.CallOption) (*DeleteUserGitHubTokenResponse, error)
+	// SuspendWorkspace suspends or resumes all workloads in a workspace.
+	SuspendWorkspace(ctx context.Context, in *SuspendWorkspaceRequest, opts ...grpc.CallOption) (*SuspendWorkspaceResponse, error)
 }
 
 type deployerServiceClient struct {
@@ -369,6 +372,16 @@ func (c *deployerServiceClient) DeleteUserGitHubToken(ctx context.Context, in *D
 	return out, nil
 }
 
+func (c *deployerServiceClient) SuspendWorkspace(ctx context.Context, in *SuspendWorkspaceRequest, opts ...grpc.CallOption) (*SuspendWorkspaceResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SuspendWorkspaceResponse)
+	err := c.cc.Invoke(ctx, DeployerService_SuspendWorkspace_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DeployerServiceServer is the server API for DeployerService service.
 // All implementations must embed UnimplementedDeployerServiceServer
 // for forward compatibility.
@@ -423,6 +436,8 @@ type DeployerServiceServer interface {
 	UserGitHubToken(context.Context, *UserGitHubTokenRequest) (*UserGitHubTokenResponse, error)
 	// DeleteUserGitHubToken removes a user's stored GitHub OAuth token.
 	DeleteUserGitHubToken(context.Context, *DeleteUserGitHubTokenRequest) (*DeleteUserGitHubTokenResponse, error)
+	// SuspendWorkspace suspends or resumes all workloads in a workspace.
+	SuspendWorkspace(context.Context, *SuspendWorkspaceRequest) (*SuspendWorkspaceResponse, error)
 	mustEmbedUnimplementedDeployerServiceServer()
 }
 
@@ -507,6 +522,9 @@ func (UnimplementedDeployerServiceServer) UserGitHubToken(context.Context, *User
 }
 func (UnimplementedDeployerServiceServer) DeleteUserGitHubToken(context.Context, *DeleteUserGitHubTokenRequest) (*DeleteUserGitHubTokenResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteUserGitHubToken not implemented")
+}
+func (UnimplementedDeployerServiceServer) SuspendWorkspace(context.Context, *SuspendWorkspaceRequest) (*SuspendWorkspaceResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SuspendWorkspace not implemented")
 }
 func (UnimplementedDeployerServiceServer) mustEmbedUnimplementedDeployerServiceServer() {}
 func (UnimplementedDeployerServiceServer) testEmbeddedByValue()                         {}
@@ -972,6 +990,24 @@ func _DeployerService_DeleteUserGitHubToken_Handler(srv interface{}, ctx context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _DeployerService_SuspendWorkspace_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SuspendWorkspaceRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DeployerServiceServer).SuspendWorkspace(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DeployerService_SuspendWorkspace_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DeployerServiceServer).SuspendWorkspace(ctx, req.(*SuspendWorkspaceRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // DeployerService_ServiceDesc is the grpc.ServiceDesc for DeployerService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1074,6 +1110,10 @@ var DeployerService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DeleteUserGitHubToken",
 			Handler:    _DeployerService_DeleteUserGitHubToken_Handler,
+		},
+		{
+			MethodName: "SuspendWorkspace",
+			Handler:    _DeployerService_SuspendWorkspace_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

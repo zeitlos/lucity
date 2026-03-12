@@ -265,9 +265,10 @@ func convertWorkspaceMemberships(memberships []auth.WorkspaceMembership) []model
 
 func convertWorkspace(ws *handler.Workspace) *model.Workspace {
 	result := &model.Workspace{
-		ID:       ws.ID,
-		Name:     ws.Name,
-		Personal: ws.Personal,
+		ID:        ws.ID,
+		Name:      ws.Name,
+		Personal:  ws.Personal,
+		Suspended: ws.Suspended,
 	}
 
 	for _, m := range ws.Members {

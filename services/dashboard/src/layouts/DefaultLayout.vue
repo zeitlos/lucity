@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
+import { useQuery } from '@vue/apollo-composable';
 import { Download, LogOut, Settings } from 'lucide-vue-next';
 import { useAuth } from '@/composables/useAuth';
+import { WorkspaceQuery } from '@/graphql/workspaces';
 import BaseLogo from '@/components/BaseLogo.vue';
 import ContextNav from '@/components/ContextNav.vue';
 import ThemeToggle from '@/components/ThemeToggle.vue';
 import ProjectEjectDialog from '@/components/ProjectEjectDialog.vue';
+import SuspensionBanner from '@/components/SuspensionBanner.vue';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -20,6 +23,8 @@ import {
 const route = useRoute();
 const router = useRouter();
 const { user, logout } = useAuth();
+const { result: wsResult } = useQuery(WorkspaceQuery, null, { fetchPolicy: 'cache-and-network' });
+const suspended = computed(() => wsResult.value?.workspace?.suspended ?? false);
 
 const isProjectRoute = computed(() =>
   route.name === 'project' || route.name === 'project-env' || route.name === 'project-settings',
@@ -111,6 +116,8 @@ async function handleLogout() {
         </DropdownMenu>
       </div>
     </header>
+
+    <SuspensionBanner v-if="suspended" />
 
     <main class="flex-1">
       <RouterView />

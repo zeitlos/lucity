@@ -2,6 +2,7 @@ type Workspace {
   id: ID!
   name: String!
   personal: Boolean!
+  suspended: Boolean!
   members: [WorkspaceMember!]!
 }
 
@@ -38,8 +39,8 @@ extend type Query {
 
 extend type Mutation {
   createWorkspace(input: CreateWorkspaceInput!): Workspace! @hasRole(role: [USER])
-  updateWorkspace(input: UpdateWorkspaceInput!): Workspace! @hasRole(role: [USER])
-  deleteWorkspace: Boolean! @hasRole(role: [USER])
+  updateWorkspace(input: UpdateWorkspaceInput!): Workspace! @allowSuspended @hasRole(role: [USER])
+  deleteWorkspace: Boolean! @allowSuspended @hasRole(role: [USER])
   inviteMember(input: InviteMemberInput!): WorkspaceMember! @hasRole(role: [USER])
   removeMember(userId: ID!): Boolean! @hasRole(role: [USER])
   updateMemberRole(input: UpdateMemberRoleInput!): WorkspaceMember! @hasRole(role: [USER])

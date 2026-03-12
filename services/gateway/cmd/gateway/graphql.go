@@ -17,6 +17,7 @@ import (
 	"github.com/zeitlos/lucity/services/gateway/handler"
 
 	"github.com/zeitlos/lucity/pkg/auth"
+	"github.com/zeitlos/lucity/pkg/deployer"
 	"github.com/zeitlos/lucity/pkg/tenant"
 
 	gqlgen "github.com/99designs/gqlgen/graphql"
@@ -43,10 +44,17 @@ func NewGraphQLServer(port string, api *handler.Client, oidcProvider *OIDCProvid
 
 	constraintDir := directive.New()
 
+	type allowSuspendedKeyType struct{}
+	allowSuspendedKey := allowSuspendedKeyType{}
+
 	srv := gqlhandler.New(gatewaygraphql.NewExecutableSchema(gatewaygraphql.Config{
 		Resolvers: &resolver,
 		Directives: gatewaygraphql.DirectiveRoot{
 			Constraint: constraintDir.Validate,
+			AllowSuspended: func(ctx context.Context, obj interface{}, next gqlgen.Resolver) (interface{}, error) {
+				ctx = context.WithValue(ctx, allowSuspendedKey, true)
+				return next(ctx)
+			},
 			HasRole: func(ctx context.Context, obj interface{}, next gqlgen.Resolver, role []model.Role) (interface{}, error) {
 				claims := auth.FromContext(ctx)
 
@@ -61,13 +69,35 @@ func NewGraphQLServer(port string, api *handler.Client, oidcProvider *OIDCProvid
 					return nil, fmt.Errorf("unauthorized")
 				}
 
+				hasRole := false
 				for _, required := range role {
 					if claims.HasRole(auth.Role(required)) {
-						return next(ctx)
+						hasRole = true
+						break
+					}
+				}
+				if !hasRole {
+					return nil, fmt.Errorf("forbidden: insufficient role")
+				}
+
+				// Check workspace suspension for mutations (queries are never blocked).
+				oc := gqlgen.GetOperationContext(ctx)
+				if oc.Operation != nil && oc.Operation.Operation == ast.Mutation {
+					if ctx.Value(allowSuspendedKey) == nil {
+						ws := tenant.FromContext(ctx)
+						if ws != "" {
+							outCtx := auth.OutgoingContext(ctx)
+							meta, err := api.Deployer.WorkspaceMetadata(outCtx, &deployer.WorkspaceMetadataRequest{
+								Workspace: ws,
+							})
+							if err == nil && meta.Suspended {
+								return nil, fmt.Errorf("workspace suspended: update your payment method to continue")
+							}
+						}
 					}
 				}
 
-				return nil, fmt.Errorf("forbidden: insufficient role")
+				return next(ctx)
 			},
 		},
 	}))

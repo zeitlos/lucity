@@ -79,6 +79,9 @@ service DeployerService {
 
   // DeleteUserGitHubToken removes a user's stored GitHub OAuth token.
   rpc DeleteUserGitHubToken(DeleteUserGitHubTokenRequest) returns (DeleteUserGitHubTokenResponse);
+
+  // SuspendWorkspace suspends or resumes all workloads in a workspace.
+  rpc SuspendWorkspace(SuspendWorkspaceRequest) returns (SuspendWorkspaceResponse);
 }
 
 message DeployEnvironmentRequest {
@@ -307,6 +310,7 @@ message WorkspaceMetadataResponse {
   string stripe_customer_id = 4;
   string stripe_subscription_id = 5;
   string owner = 6;
+  bool suspended = 7;
 }
 
 message WorkspaceByInstallationIDRequest {
@@ -436,4 +440,13 @@ message DeleteUserGitHubTokenRequest {
 }
 
 message DeleteUserGitHubTokenResponse {}
+
+// Workspace suspension messages.
+
+message SuspendWorkspaceRequest {
+  string workspace = 1;
+  bool suspended = 2;
+}
+
+message SuspendWorkspaceResponse {}
 

@@ -16,6 +16,7 @@ export const WorkspaceQuery = gql`
       id
       name
       personal
+      suspended
       members {
         id
         email

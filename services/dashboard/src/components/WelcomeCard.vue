@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useMutation } from '@vue/apollo-composable';
-import { Github, ArrowRight, FolderPlus, Check } from 'lucide-vue-next';
-import { ChangePlanMutation, SubscriptionQuery } from '@/graphql/billing';
+import { Github, ArrowRight, FolderPlus, Check, CreditCard } from 'lucide-vue-next';
+import { ChangePlanMutation, BillingPortalUrlMutation, SubscriptionQuery } from '@/graphql/billing';
 import { useAuth } from '@/composables/useAuth';
 import { toast } from '@/components/ui/sonner';
 import { errorMessage } from '@/lib/utils';
@@ -28,6 +28,20 @@ async function selectPlan(plan: 'HOBBY' | 'PRO') {
       toast.error('Failed to switch plan', { description: errorMessage(e) });
       selectedPlan.value = 'HOBBY';
     }
+  }
+}
+
+const { mutate: portalMutate, loading: openingPortal } = useMutation(BillingPortalUrlMutation);
+
+async function openBillingPortal() {
+  try {
+    const result = await portalMutate();
+    const url = result?.data?.billingPortalUrl?.url;
+    if (url) {
+      window.open(url, '_blank');
+    }
+  } catch (e: unknown) {
+    toast.error('Failed to open billing portal', { description: errorMessage(e) });
   }
 }
 
@@ -107,6 +121,24 @@ const firstName = ref(
           <p class="text-xs text-muted-foreground">
             You can change your plan anytime.
           </p>
+        </div>
+
+        <!-- Payment method CTA -->
+        <div class="max-w-lg">
+          <button
+            class="flex w-full items-center justify-between rounded-lg border border-dashed p-4 transition-colors hover:bg-accent/50"
+            :disabled="openingPortal"
+            @click="openBillingPortal"
+          >
+            <div class="flex items-center gap-3">
+              <CreditCard :size="18" class="text-muted-foreground" />
+              <div class="text-left">
+                <span class="text-sm font-medium">Add a payment method</span>
+                <p class="text-xs text-muted-foreground">Avoids interruption when your trial ends. Completely optional.</p>
+              </div>
+            </div>
+            <ArrowRight :size="16" class="text-muted-foreground" />
+          </button>
         </div>
 
         <!-- Action cards -->
