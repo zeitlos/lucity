@@ -116,6 +116,7 @@ type BillingSubscription struct {
 	CurrentPeriodEnd  time.Time
 	CreditAmountCents int
 	TrialEnd          *time.Time
+	HasPaymentMethod  bool
 }
 
 type UsageSummaryResult struct {
@@ -150,6 +151,7 @@ func (c *Client) Subscription(ctx context.Context) (*BillingSubscription, error)
 		Status:            subscriptionStatusProtoToString(resp.Status),
 		CurrentPeriodEnd:  time.Unix(resp.CurrentPeriodEnd, 0),
 		CreditAmountCents: int(resp.CreditAmountCents),
+		HasPaymentMethod:  resp.HasPaymentMethod,
 	}
 	if resp.TrialEnd > 0 {
 		t := time.Unix(resp.TrialEnd, 0)
@@ -183,6 +185,7 @@ func (c *Client) ChangePlan(ctx context.Context, plan string) (*BillingSubscript
 		Status:            subscriptionStatusProtoToString(resp.Status),
 		CurrentPeriodEnd:  time.Unix(resp.CurrentPeriodEnd, 0),
 		CreditAmountCents: int(resp.CreditAmountCents),
+		HasPaymentMethod:  resp.HasPaymentMethod,
 	}
 	if resp.TrialEnd > 0 {
 		t := time.Unix(resp.TrialEnd, 0)

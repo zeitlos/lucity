@@ -67,6 +67,7 @@ type ComplexityRoot struct {
 	BillingSubscription struct {
 		CreditAmountCents func(childComplexity int) int
 		CurrentPeriodEnd  func(childComplexity int) int
+		HasPaymentMethod  func(childComplexity int) int
 		Plan              func(childComplexity int) int
 		Status            func(childComplexity int) int
 		TrialEnd          func(childComplexity int) int
@@ -517,6 +518,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.BillingSubscription.CurrentPeriodEnd(childComplexity), true
+	case "BillingSubscription.hasPaymentMethod":
+		if e.complexity.BillingSubscription.HasPaymentMethod == nil {
+			break
+		}
+
+		return e.complexity.BillingSubscription.HasPaymentMethod(childComplexity), true
 	case "BillingSubscription.plan":
 		if e.complexity.BillingSubscription.Plan == nil {
 			break
@@ -3200,6 +3207,35 @@ func (ec *executionContext) fieldContext_BillingSubscription_trialEnd(_ context.
 	return fc, nil
 }
 
+func (ec *executionContext) _BillingSubscription_hasPaymentMethod(ctx context.Context, field graphql.CollectedField, obj *model.BillingSubscription) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_BillingSubscription_hasPaymentMethod,
+		func(ctx context.Context) (any, error) {
+			return obj.HasPaymentMethod, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_BillingSubscription_hasPaymentMethod(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BillingSubscription",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Database_name(ctx context.Context, field graphql.CollectedField, obj *model.Database) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -5854,6 +5890,8 @@ func (ec *executionContext) fieldContext_Mutation_changePlan(ctx context.Context
 				return ec.fieldContext_BillingSubscription_creditAmountCents(ctx, field)
 			case "trialEnd":
 				return ec.fieldContext_BillingSubscription_trialEnd(ctx, field)
+			case "hasPaymentMethod":
+				return ec.fieldContext_BillingSubscription_hasPaymentMethod(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type BillingSubscription", field.Name)
 		},
@@ -8086,6 +8124,8 @@ func (ec *executionContext) fieldContext_Query_subscription(_ context.Context, f
 				return ec.fieldContext_BillingSubscription_creditAmountCents(ctx, field)
 			case "trialEnd":
 				return ec.fieldContext_BillingSubscription_trialEnd(ctx, field)
+			case "hasPaymentMethod":
+				return ec.fieldContext_BillingSubscription_hasPaymentMethod(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type BillingSubscription", field.Name)
 		},
@@ -14333,6 +14373,11 @@ func (ec *executionContext) _BillingSubscription(ctx context.Context, sel ast.Se
 			}
 		case "trialEnd":
 			out.Values[i] = ec._BillingSubscription_trialEnd(ctx, field, obj)
+		case "hasPaymentMethod":
+			out.Values[i] = ec._BillingSubscription_hasPaymentMethod(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}

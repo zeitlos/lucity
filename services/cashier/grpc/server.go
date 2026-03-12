@@ -136,6 +136,7 @@ func (s *Server) Subscription(ctx context.Context, req *cashier.SubscriptionRequ
 		CurrentPeriodEnd:  resp.CurrentPeriodEnd,
 		CreditAmountCents: resp.CreditAmountCents,
 		TrialEnd:          resp.TrialEnd,
+		HasPaymentMethod:  resp.HasPaymentMethod,
 	}, nil
 }
 
@@ -342,6 +343,7 @@ func subscriptionToResponse(sub *gostripe.Subscription, prices stripelib.PriceCo
 		CurrentPeriodEnd:  currentPeriodEnd,
 		CreditAmountCents: int32(creditCents),
 		TrialEnd:          sub.TrialEnd,
+		HasPaymentMethod:  sub.DefaultPaymentMethod != nil,
 	}
 }
 

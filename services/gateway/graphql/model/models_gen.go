@@ -57,6 +57,7 @@ type BillingSubscription struct {
 	CurrentPeriodEnd  time.Time          `json:"currentPeriodEnd"`
 	CreditAmountCents int                `json:"creditAmountCents"`
 	TrialEnd          *time.Time         `json:"trialEnd,omitempty"`
+	HasPaymentMethod  bool               `json:"hasPaymentMethod"`
 }
 
 type CreateDatabaseInput struct {

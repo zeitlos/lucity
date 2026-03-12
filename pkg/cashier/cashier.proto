@@ -71,6 +71,7 @@ message ChangePlanResponse {
   int64 current_period_end = 3;
   int32 credit_amount_cents = 4;
   int64 trial_end = 5;
+  bool has_payment_method = 6;
 }
 
 message SubscriptionRequest {
@@ -83,6 +84,7 @@ message SubscriptionResponse {
   int64 current_period_end = 3;
   int32 credit_amount_cents = 4;
   int64 trial_end = 5;
+  bool has_payment_method = 6;
 }
 
 message BillingPortalURLRequest {

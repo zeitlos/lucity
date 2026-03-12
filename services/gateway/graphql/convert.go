@@ -315,6 +315,7 @@ func convertBillingSubscription(s *handler.BillingSubscription) *model.BillingSu
 		CurrentPeriodEnd:  s.CurrentPeriodEnd,
 		CreditAmountCents: s.CreditAmountCents,
 		TrialEnd:          s.TrialEnd,
+		HasPaymentMethod:  s.HasPaymentMethod,
 	}
 }
 

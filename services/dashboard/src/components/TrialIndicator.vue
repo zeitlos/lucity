@@ -16,6 +16,8 @@ const { mutate: portalMutate, loading: openingPortal } = useMutation(BillingPort
 const subscription = computed(() => subResult.value?.subscription);
 const usage = computed(() => usageResult.value?.usageSummary);
 const isTrial = computed(() => subscription.value?.status === 'TRIALING');
+const hasPaymentMethod = computed(() => subscription.value?.hasPaymentMethod ?? false);
+const showBadge = computed(() => isTrial.value && !hasPaymentMethod.value);
 
 const daysRemaining = computed(() => {
   if (!subscription.value?.trialEnd) return 0;
@@ -85,7 +87,7 @@ async function openBillingPortal() {
 </script>
 
 <template>
-  <Popover v-if="isTrial">
+  <Popover v-if="showBadge">
     <PopoverTrigger as-child>
       <button
         class="flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors hover:bg-accent/50"

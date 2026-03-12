@@ -36,6 +36,7 @@ type BillingSubscription {
   currentPeriodEnd: Time!
   creditAmountCents: Int!
   trialEnd: Time
+  hasPaymentMethod: Boolean!
 }
 
 type UsageSummary {

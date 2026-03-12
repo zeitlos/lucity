@@ -8,6 +8,7 @@ export const SubscriptionQuery = gql`
       currentPeriodEnd
       creditAmountCents
       trialEnd
+      hasPaymentMethod
     }
   }
 `;
