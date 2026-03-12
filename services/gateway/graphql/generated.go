@@ -230,6 +230,7 @@ type ComplexityRoot struct {
 		RemoveMember            func(childComplexity int, userID string) int
 		RemoveService           func(childComplexity int, projectID string, service string) int
 		Rollback                func(childComplexity int, input model.RollbackInput) int
+		SetCustomStartCommand   func(childComplexity int, projectID string, service string, command string) int
 		SetEnvironmentResources func(childComplexity int, input model.SetEnvironmentResourcesInput) int
 		SetServiceScaling       func(childComplexity int, input model.SetServiceScalingInput) int
 		SetServiceVariables     func(childComplexity int, projectID string, environment string, service string, variables []model.ServiceVariableInput) int
@@ -298,14 +299,15 @@ type ComplexityRoot struct {
 	}
 
 	Service struct {
-		ContextPath   func(childComplexity int) int
-		Framework     func(childComplexity int) int
-		Image         func(childComplexity int) int
-		InitialDeploy func(childComplexity int) int
-		Instances     func(childComplexity int) int
-		Name          func(childComplexity int) int
-		Port          func(childComplexity int) int
-		SourceURL     func(childComplexity int) int
+		ContextPath        func(childComplexity int) int
+		CustomStartCommand func(childComplexity int) int
+		Framework          func(childComplexity int) int
+		Image              func(childComplexity int) int
+		InitialDeploy      func(childComplexity int) int
+		Instances          func(childComplexity int) int
+		Name               func(childComplexity int) int
+		Port               func(childComplexity int) int
+		SourceURL          func(childComplexity int) int
 	}
 
 	ServiceInstance struct {
@@ -406,6 +408,7 @@ type MutationResolver interface {
 	SetServiceScaling(ctx context.Context, input model.SetServiceScalingInput) (*model.ScalingConfig, error)
 	AddService(ctx context.Context, input model.AddServiceInput) (*model.Service, error)
 	RemoveService(ctx context.Context, projectID string, service string) (bool, error)
+	SetCustomStartCommand(ctx context.Context, projectID string, service string, command string) (bool, error)
 	Deploy(ctx context.Context, input model.DeployInput) (*model.DeployRun, error)
 	Rollback(ctx context.Context, input model.RollbackInput) (bool, error)
 	GenerateDomain(ctx context.Context, input model.GenerateDomainInput) (*model.Domain, error)
@@ -1281,6 +1284,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.Rollback(childComplexity, args["input"].(model.RollbackInput)), true
+	case "Mutation.setCustomStartCommand":
+		if e.complexity.Mutation.SetCustomStartCommand == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setCustomStartCommand_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.SetCustomStartCommand(childComplexity, args["projectId"].(string), args["service"].(string), args["command"].(string)), true
 	case "Mutation.setEnvironmentResources":
 		if e.complexity.Mutation.SetEnvironmentResources == nil {
 			break
@@ -1681,6 +1695,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Service.ContextPath(childComplexity), true
+	case "Service.customStartCommand":
+		if e.complexity.Service.CustomStartCommand == nil {
+			break
+		}
+
+		return e.complexity.Service.CustomStartCommand(childComplexity), true
 	case "Service.framework":
 		if e.complexity.Service.Framework == nil {
 			break
@@ -2420,6 +2440,27 @@ func (ec *executionContext) field_Mutation_rollback_args(ctx context.Context, ra
 		return nil, err
 	}
 	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_setCustomStartCommand_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "projectId", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["projectId"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "service", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["service"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "command", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["command"] = arg2
 	return args, nil
 }
 
@@ -6551,6 +6592,8 @@ func (ec *executionContext) fieldContext_Mutation_addService(ctx context.Context
 				return ec.fieldContext_Service_sourceUrl(ctx, field)
 			case "contextPath":
 				return ec.fieldContext_Service_contextPath(ctx, field)
+			case "customStartCommand":
+				return ec.fieldContext_Service_customStartCommand(ctx, field)
 			case "instances":
 				return ec.fieldContext_Service_instances(ctx, field)
 			case "initialDeploy":
@@ -6626,6 +6669,65 @@ func (ec *executionContext) fieldContext_Mutation_removeService(ctx context.Cont
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_removeService_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_setCustomStartCommand(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_setCustomStartCommand,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().SetCustomStartCommand(ctx, fc.Args["projectId"].(string), fc.Args["service"].(string), fc.Args["command"].(string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				if err != nil {
+					var zeroVal bool
+					return zeroVal, err
+				}
+				if ec.directives.HasRole == nil {
+					var zeroVal bool
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_setCustomStartCommand(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_setCustomStartCommand_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -7680,6 +7782,8 @@ func (ec *executionContext) fieldContext_Project_services(_ context.Context, fie
 				return ec.fieldContext_Service_sourceUrl(ctx, field)
 			case "contextPath":
 				return ec.fieldContext_Service_contextPath(ctx, field)
+			case "customStartCommand":
+				return ec.fieldContext_Service_customStartCommand(ctx, field)
 			case "instances":
 				return ec.fieldContext_Service_instances(ctx, field)
 			case "initialDeploy":
@@ -8692,6 +8796,8 @@ func (ec *executionContext) fieldContext_Query_service(ctx context.Context, fiel
 				return ec.fieldContext_Service_sourceUrl(ctx, field)
 			case "contextPath":
 				return ec.fieldContext_Service_contextPath(ctx, field)
+			case "customStartCommand":
+				return ec.fieldContext_Service_customStartCommand(ctx, field)
 			case "instances":
 				return ec.fieldContext_Service_instances(ctx, field)
 			case "initialDeploy":
@@ -9904,6 +10010,35 @@ func (ec *executionContext) _Service_contextPath(ctx context.Context, field grap
 }
 
 func (ec *executionContext) fieldContext_Service_contextPath(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Service",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Service_customStartCommand(ctx context.Context, field graphql.CollectedField, obj *model.Service) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Service_customStartCommand,
+		func(ctx context.Context) (any, error) {
+			return obj.CustomStartCommand, nil
+		},
+		nil,
+		ec.marshalOString2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Service_customStartCommand(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Service",
 		Field:      field,
@@ -12904,7 +13039,7 @@ func (ec *executionContext) unmarshalInputAddServiceInput(ctx context.Context, o
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"projectId", "name", "port", "framework", "sourceUrl", "contextPath", "installationId", "image"}
+	fieldsInOrder := [...]string{"projectId", "name", "port", "framework", "sourceUrl", "contextPath", "installationId", "image", "customStartCommand"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -12989,6 +13124,13 @@ func (ec *executionContext) unmarshalInputAddServiceInput(ctx context.Context, o
 				return it, err
 			}
 			it.Image = data
+		case "customStartCommand":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("customStartCommand"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.CustomStartCommand = data
 		}
 	}
 
@@ -15317,6 +15459,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "setCustomStartCommand":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_setCustomStartCommand(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "deploy":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_deploy(ctx, field)
@@ -16266,6 +16415,8 @@ func (ec *executionContext) _Service(ctx context.Context, sel ast.SelectionSet, 
 			out.Values[i] = ec._Service_sourceUrl(ctx, field, obj)
 		case "contextPath":
 			out.Values[i] = ec._Service_contextPath(ctx, field, obj)
+		case "customStartCommand":
+			out.Values[i] = ec._Service_customStartCommand(ctx, field, obj)
 		case "instances":
 			out.Values[i] = ec._Service_instances(ctx, field, obj)
 			if out.Values[i] == graphql.Null {

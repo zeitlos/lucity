@@ -195,6 +195,9 @@ func (p *SoftServeProvider) AddService(ctx context.Context, project string, svc 
 			// See: https://github.com/helm/helm/issues/13254
 			svcEntry["githubInstallationId"] = fmt.Sprintf("%d", svc.GitHubInstallationID)
 		}
+		if svc.CustomStartCommand != "" {
+			svcEntry["customStartCommand"] = svc.CustomStartCommand
+		}
 		services[svc.Name] = svcEntry
 		inner["services"] = services
 
@@ -282,6 +285,41 @@ func (p *SoftServeProvider) RemoveService(ctx context.Context, project, service 
 		}
 
 		return nil
+	})
+}
+
+// SetCustomStartCommand sets or clears the custom start command for a service in base/values.yaml.
+func (p *SoftServeProvider) SetCustomStartCommand(ctx context.Context, project, service, command string) error {
+	return p.modifyRepo(ctx, project, fmt.Sprintf("config(%s): set custom start command", service), false, func(dir string) error {
+		path := filepath.Join(dir, "base", "values.yaml")
+		inner, err := readSubchartValues(path)
+		if err != nil {
+			return err
+		}
+
+		services, ok := inner["services"].(map[string]any)
+		if !ok {
+			return fmt.Errorf("no services found in base/values.yaml")
+		}
+
+		svcRaw, exists := services[service]
+		if !exists {
+			return fmt.Errorf("service %q not found", service)
+		}
+		svcMap, ok := svcRaw.(map[string]any)
+		if !ok {
+			return fmt.Errorf("invalid service entry for %q", service)
+		}
+
+		if command == "" {
+			delete(svcMap, "customStartCommand")
+		} else {
+			svcMap["customStartCommand"] = command
+		}
+		services[service] = svcMap
+		inner["services"] = services
+
+		return writeSubchartValues(path, inner)
 	})
 }
 
@@ -1597,6 +1635,9 @@ func parseServiceDefs(services map[string]any) []ServiceDef {
 		} else if installID, ok := svcMap["githubInstallationId"].(int); ok {
 			// Legacy: handle values written as int before the string fix.
 			def.GitHubInstallationID = int64(installID)
+		}
+		if cmd, ok := svcMap["customStartCommand"].(string); ok {
+			def.CustomStartCommand = cmd
 		}
 
 		result = append(result, def)

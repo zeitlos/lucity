@@ -82,6 +82,9 @@ service PackagerService {
 
   // SetServiceScaling writes replica count and autoscaling config to an environment's values.yaml.
   rpc SetServiceScaling(SetServiceScalingRequest) returns (SetServiceScalingResponse);
+
+  // SetCustomStartCommand sets or clears the custom start command for a service in base values.
+  rpc SetCustomStartCommand(SetCustomStartCommandRequest) returns (SetCustomStartCommandResponse);
 }
 
 // ServiceInfo describes a service configured in the project's GitOps repo.
@@ -95,6 +98,7 @@ message ServiceInfo {
   string source_url = 6;     // GitHub repo URL for this service
   string context_path = 7;   // subdirectory within the repo (monorepo support)
   int64 github_installation_id = 8; // GitHub App installation that owns this repo
+  string custom_start_command = 9;  // shell command to start the service (overrides image entrypoint)
 }
 
 // ServiceInstanceInfo describes a service's state in a specific environment.
@@ -166,6 +170,7 @@ message AddServiceRequest {
   int64 github_installation_id = 9; // GitHub App installation that owns this repo
   string image_tag = 10;             // initial image tag (default: "latest")
   string image_pull_policy = 11;     // "Always", "IfNotPresent", or "" (chart default)
+  string custom_start_command = 12;  // shell command to start the service (overrides image entrypoint)
 }
 
 message AddServiceResponse {}
@@ -390,3 +395,11 @@ message PackagerAutoscalingConfig {
 }
 
 message SetServiceScalingResponse {}
+
+message SetCustomStartCommandRequest {
+  string project = 1;
+  string service = 2;
+  string command = 3;  // empty string clears the custom command
+}
+
+message SetCustomStartCommandResponse {}

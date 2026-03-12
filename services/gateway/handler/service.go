@@ -60,7 +60,7 @@ func (c *Client) DetectServices(ctx context.Context, sourceURL string, installat
 	return result, nil
 }
 
-func (c *Client) AddService(ctx context.Context, projectID, name string, port int, framework, sourceURL, contextPath string, installationID *int64, externalImage string) (*Service, error) {
+func (c *Client) AddService(ctx context.Context, projectID, name string, port int, framework, sourceURL, contextPath string, installationID *int64, externalImage, customStartCommand string) (*Service, error) {
 	ws, err := tenant.Require(ctx)
 	if err != nil {
 		return nil, err
@@ -109,6 +109,7 @@ func (c *Client) AddService(ctx context.Context, projectID, name string, port in
 		GithubInstallationId: ghInstallationID,
 		ImageTag:             imageTag,
 		ImagePullPolicy:      imagePullPolicy,
+		CustomStartCommand:   customStartCommand,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to add service: %w", err)
@@ -122,6 +123,7 @@ func (c *Client) AddService(ctx context.Context, projectID, name string, port in
 		SourceURL:            sourceURL,
 		ContextPath:          contextPath,
 		GitHubInstallationID: ghInstallationID,
+		CustomStartCommand:   customStartCommand,
 	}
 
 	// Trigger initial deploy for source-based services.
@@ -250,6 +252,27 @@ func (c *Client) RemoveService(ctx context.Context, projectID, service string) (
 	return true, nil
 }
 
+
+// SetCustomStartCommand sets or clears the custom start command for a service.
+func (c *Client) SetCustomStartCommand(ctx context.Context, projectID, service, command string) (bool, error) {
+	if _, err := tenant.Require(ctx); err != nil {
+		return false, err
+	}
+	ctx = auth.OutgoingContext(ctx)
+	ctx = tenant.OutgoingContext(ctx)
+
+	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
+	defer cancel()
+	_, err := c.Packager.SetCustomStartCommand(callCtx, &packager.SetCustomStartCommandRequest{
+		Project: projectID,
+		Service: service,
+		Command: command,
+	})
+	if err != nil {
+		return false, fmt.Errorf("failed to set custom start command: %w", err)
+	}
+	return true, nil
+}
 
 // serviceSourceInfo looks up the source URL, context path, and GitHub installation ID
 // for a service from the project's service definitions in the GitOps repo.

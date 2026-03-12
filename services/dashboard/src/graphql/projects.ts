@@ -143,6 +143,7 @@ export const ProjectQuery = gql`
         framework
         sourceUrl
         contextPath
+        customStartCommand
         instances {
           environment
           imageTag

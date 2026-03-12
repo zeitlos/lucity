@@ -21,11 +21,18 @@ export const AddServiceMutation = gql`
       framework
       sourceUrl
       contextPath
+      customStartCommand
       initialDeploy {
         id
         phase
       }
     }
+  }
+`;
+
+export const SetCustomStartCommandMutation = gql`
+  mutation SetCustomStartCommand($projectId: ID!, $service: String!, $command: String!) {
+    setCustomStartCommand(projectId: $projectId, service: $service, command: $command)
   }
 `;
 

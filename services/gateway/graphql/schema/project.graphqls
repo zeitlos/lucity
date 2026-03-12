@@ -26,6 +26,7 @@ type Service {
   framework: String
   sourceUrl: String
   contextPath: String
+  customStartCommand: String
   instances: [ServiceInstance!]!
   """Deploy automatically triggered when the service was added. Null for image-based services."""
   initialDeploy: DeployRun

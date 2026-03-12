@@ -175,6 +175,7 @@ func (s *Server) AddService(ctx context.Context, req *packager.AddServiceRequest
 		GitHubInstallationID: req.GithubInstallationId,
 		ImageTag:             req.ImageTag,
 		ImagePullPolicy:      req.ImagePullPolicy,
+		CustomStartCommand:   req.CustomStartCommand,
 	}); err != nil {
 		return nil, fmt.Errorf("failed to add service: %w", err)
 	}
@@ -548,6 +549,16 @@ func (s *Server) SetServiceScaling(ctx context.Context, req *packager.SetService
 	}
 	s.syncEnvironment(ctx, req.Project, req.Environment)
 	return &packager.SetServiceScalingResponse{}, nil
+}
+
+func (s *Server) SetCustomStartCommand(ctx context.Context, req *packager.SetCustomStartCommandRequest) (*packager.SetCustomStartCommandResponse, error) {
+	slog.Info("SetCustomStartCommand called", "project", req.Project, "service", req.Service, "command", req.Command)
+
+	if err := s.provider.SetCustomStartCommand(ctx, req.Project, req.Service, req.Command); err != nil {
+		return nil, fmt.Errorf("failed to set custom start command: %w", err)
+	}
+	s.syncAllEnvironments(ctx, req.Project)
+	return &packager.SetCustomStartCommandResponse{}, nil
 }
 
 func databaseRefsFromProto(refs map[string]*packager.DatabaseRef) map[string]gitops.DatabaseRef {

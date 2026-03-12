@@ -29,6 +29,8 @@ type AddServiceInput struct {
 	InstallationID *string `json:"installationId,omitempty"`
 	// External container image reference (e.g. nginx:1.25, ghcr.io/foo/bar:v1). Skips the build step.
 	Image *string `json:"image,omitempty"`
+	// Custom command to start the service (e.g. "npm run start", "stress --cpu 2 --timeout 60s"). Overrides the image entrypoint.
+	CustomStartCommand *string `json:"customStartCommand,omitempty"`
 }
 
 type AutoscalingConfig struct {
@@ -324,13 +326,14 @@ type ScalingConfig struct {
 }
 
 type Service struct {
-	Name        string            `json:"name"`
-	Image       string            `json:"image"`
-	Port        *int              `json:"port,omitempty"`
-	Framework   *string           `json:"framework,omitempty"`
-	SourceURL   *string           `json:"sourceUrl,omitempty"`
-	ContextPath *string           `json:"contextPath,omitempty"`
-	Instances   []ServiceInstance `json:"instances"`
+	Name               string            `json:"name"`
+	Image              string            `json:"image"`
+	Port               *int              `json:"port,omitempty"`
+	Framework          *string           `json:"framework,omitempty"`
+	SourceURL          *string           `json:"sourceUrl,omitempty"`
+	ContextPath        *string           `json:"contextPath,omitempty"`
+	CustomStartCommand *string           `json:"customStartCommand,omitempty"`
+	Instances          []ServiceInstance `json:"instances"`
 	// Deploy automatically triggered when the service was added. Null for image-based services.
 	InitialDeploy *DeployRun `json:"initialDeploy,omitempty"`
 }

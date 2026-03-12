@@ -54,6 +54,7 @@ type Service struct {
 	SourceURL            string
 	ContextPath          string
 	GitHubInstallationID int64
+	CustomStartCommand   string
 	Instances            []ServiceInstance
 	InitialDeploy        *DeployOp
 }
@@ -789,6 +790,7 @@ func projectFromProto(ws string, p *packager.ProjectInfo) Project {
 			SourceURL:            svc.SourceUrl,
 			ContextPath:          svc.ContextPath,
 			GitHubInstallationID: svc.GithubInstallationId,
+			CustomStartCommand:   svc.CustomStartCommand,
 		})
 	}
 

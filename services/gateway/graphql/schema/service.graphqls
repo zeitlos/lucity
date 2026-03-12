@@ -18,6 +18,8 @@ input AddServiceInput {
   installationId: ID
   """External container image reference (e.g. nginx:1.25, ghcr.io/foo/bar:v1). Skips the build step."""
   image: String
+  """Custom command to start the service (e.g. "npm run start", "stress --cpu 2 --timeout 60s"). Overrides the image entrypoint."""
+  customStartCommand: String
 }
 
 type DeployRun {
@@ -105,6 +107,8 @@ extend type Query {
 extend type Mutation {
   addService(input: AddServiceInput!): Service! @hasRole(role: [USER])
   removeService(projectId: ID!, service: String!): Boolean! @hasRole(role: [USER])
+  """Set or clear the custom start command for a service. Empty string clears it."""
+  setCustomStartCommand(projectId: ID!, service: String!, command: String!): Boolean! @hasRole(role: [USER])
   deploy(input: DeployInput!): DeployRun! @hasRole(role: [USER])
   """Roll back to a previous image tag without rebuilding."""
   rollback(input: RollbackInput!): Boolean! @hasRole(role: [USER])

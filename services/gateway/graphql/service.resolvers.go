@@ -47,7 +47,11 @@ func (r *mutationResolver) AddService(ctx context.Context, input model.AddServic
 	if input.Image != nil {
 		externalImage = *input.Image
 	}
-	svc, err := r.API.AddService(ctx, input.ProjectID, name, port, framework, sourceURL, contextPath, installationID, externalImage)
+	customStartCommand := ""
+	if input.CustomStartCommand != nil {
+		customStartCommand = *input.CustomStartCommand
+	}
+	svc, err := r.API.AddService(ctx, input.ProjectID, name, port, framework, sourceURL, contextPath, installationID, externalImage, customStartCommand)
 	if err != nil {
 		return nil, err
 	}
@@ -58,6 +62,11 @@ func (r *mutationResolver) AddService(ctx context.Context, input model.AddServic
 // RemoveService is the resolver for the removeService field.
 func (r *mutationResolver) RemoveService(ctx context.Context, projectID string, service string) (bool, error) {
 	return r.API.RemoveService(ctx, projectID, service)
+}
+
+// SetCustomStartCommand is the resolver for the setCustomStartCommand field.
+func (r *mutationResolver) SetCustomStartCommand(ctx context.Context, projectID string, service string, command string) (bool, error) {
+	return r.API.SetCustomStartCommand(ctx, projectID, service, command)
 }
 
 // Deploy is the resolver for the deploy field.

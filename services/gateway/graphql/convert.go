@@ -65,6 +65,9 @@ func convertService(s handler.Service, workloadDomain string) model.Service {
 	if s.ContextPath != "" {
 		svc.ContextPath = &s.ContextPath
 	}
+	if s.CustomStartCommand != "" {
+		svc.CustomStartCommand = &s.CustomStartCommand
+	}
 	for _, si := range s.Instances {
 		svc.Instances = append(svc.Instances, convertServiceInstance(si, workloadDomain))
 	}

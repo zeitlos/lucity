@@ -3,10 +3,11 @@ import { ref, computed, watch } from 'vue';
 import { useMutation, useQuery } from '@vue/apollo-composable';
 import {
   Trash2, Copy, X, Globe, Plus, Minus, CircleCheck, CircleAlert,
-  ChevronDown, Network, ExternalLink, Loader2, Scaling, GitBranch, Github, Code,
+  ChevronDown, Network, ExternalLink, Loader2, Scaling, GitBranch, Github, Code, Play,
 } from 'lucide-vue-next';
 import {
   RemoveServiceMutation,
+  SetCustomStartCommandMutation,
   GenerateDomainMutation,
   AddCustomDomainMutation,
   RemoveDomainMutation,
@@ -58,6 +59,7 @@ const props = defineProps<{
     framework?: string;
     sourceUrl?: string;
     contextPath?: string;
+    customStartCommand?: string;
   };
 }>();
 
@@ -158,6 +160,35 @@ const internalDns = computed(() => {
   const shortProject = parts.length > 1 ? parts[1] : parts[0];
   const ns = `${shortProject}-${envName}`;
   return `${shortProject}-lucity-app-${props.service.name}.${ns}.svc.cluster.local`;
+});
+
+// Custom Start Command
+const customStartCommand = ref(props.service.customStartCommand ?? '');
+const commandSaving = ref(false);
+const { mutate: setCustomStartCommandMutate } = useMutation(SetCustomStartCommandMutation);
+
+watch(() => props.service.customStartCommand, (val) => {
+  customStartCommand.value = val ?? '';
+});
+
+async function handleSaveCommand() {
+  commandSaving.value = true;
+  try {
+    await setCustomStartCommandMutate({
+      projectId: props.projectId,
+      service: props.service.name,
+      command: customStartCommand.value,
+    });
+    toast.success(customStartCommand.value ? 'Start command updated' : 'Start command cleared');
+  } catch (e: unknown) {
+    toast.error('Failed to update start command', { description: errorMessage(e) });
+  } finally {
+    commandSaving.value = false;
+  }
+}
+
+const commandChanged = computed(() => {
+  return customStartCommand.value !== (props.service.customStartCommand ?? '');
 });
 
 // Mutations
@@ -482,6 +513,53 @@ async function handleRemoveService() {
                   <span class="font-mono text-sm">Default branch</span>
                   <span class="text-xs text-muted-foreground">(auto-deploy)</span>
                 </div>
+              </div>
+            </div>
+          </CollapsibleContent>
+        </div>
+      </Collapsible>
+    </section>
+
+    <!-- Deploy -->
+    <section class="space-y-2">
+      <h3 class="px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        Deploy
+      </h3>
+
+      <Collapsible :default-open="!!service.customStartCommand">
+        <div class="overflow-hidden rounded-lg border">
+          <CollapsibleTrigger class="flex w-full items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/30">
+            <Play :size="16" class="shrink-0 text-muted-foreground" />
+            <div class="min-w-0 flex-1 text-left">
+              <p class="text-sm font-medium text-foreground">Custom Start Command</p>
+              <p class="truncate text-xs text-muted-foreground">
+                {{ service.customStartCommand || 'Not configured' }}
+              </p>
+            </div>
+            <ChevronDown
+              :size="14"
+              class="shrink-0 text-muted-foreground transition-transform duration-200 [[data-state=open]>&]:rotate-180"
+            />
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div class="space-y-3 border-t px-4 py-3">
+              <p class="text-xs text-muted-foreground">
+                Command that will be run to start new deployments. Overrides the image's default entrypoint.
+              </p>
+              <Input
+                v-model="customStartCommand"
+                placeholder="npm run start"
+                class="font-mono text-sm"
+                @keyup.enter="commandChanged && handleSaveCommand()"
+              />
+              <div class="flex justify-end">
+                <Button
+                  size="sm"
+                  :disabled="!commandChanged || commandSaving"
+                  @click="handleSaveCommand"
+                >
+                  {{ commandSaving ? 'Saving...' : 'Save' }}
+                </Button>
               </div>
             </div>
           </CollapsibleContent>

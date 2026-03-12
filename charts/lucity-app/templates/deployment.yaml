@@ -32,6 +32,9 @@ spec:
         - name: {{ $name }}
           image: "{{ $svc.image.repository }}:{{ required "image.tag is required — run a deploy first" $svc.image.tag }}"
           imagePullPolicy: {{ $svc.image.pullPolicy | default "IfNotPresent" }}
+          {{- if $svc.customStartCommand }}
+          command: ["sh", "-c", {{ $svc.customStartCommand | quote }}]
+          {{- end }}
           ports:
             - name: http
               containerPort: {{ $svc.port }}

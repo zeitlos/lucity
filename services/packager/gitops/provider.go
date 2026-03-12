@@ -23,6 +23,7 @@ type ServiceDef struct {
 	GitHubInstallationID int64  // GitHub App installation that owns this repo
 	ImageTag             string // initial image tag (default: "latest")
 	ImagePullPolicy      string // "Always", "IfNotPresent", or "" (chart default)
+	CustomStartCommand   string // shell command to start the service (overrides image entrypoint)
 }
 
 // DatabaseDef describes a PostgreSQL database configured in the project's GitOps repo.
@@ -143,6 +144,10 @@ type Provider interface {
 	// SetServiceScaling writes replica count and autoscaling config for a service
 	// in an environment's values.yaml.
 	SetServiceScaling(ctx context.Context, project, environment, service string, replicas int, autoscaling *AutoscalingConfig) error
+
+	// SetCustomStartCommand sets or clears the custom start command for a service
+	// in base/values.yaml. Empty command clears it.
+	SetCustomStartCommand(ctx context.Context, project, service, command string) error
 }
 
 // AutoscalingConfig holds HPA settings for a service.

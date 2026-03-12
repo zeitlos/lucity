@@ -19,30 +19,31 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	PackagerService_InitProject_FullMethodName         = "/packager.PackagerService/InitProject"
-	PackagerService_ListProjects_FullMethodName        = "/packager.PackagerService/ListProjects"
-	PackagerService_GetProject_FullMethodName          = "/packager.PackagerService/GetProject"
-	PackagerService_DeleteProject_FullMethodName       = "/packager.PackagerService/DeleteProject"
-	PackagerService_AddService_FullMethodName          = "/packager.PackagerService/AddService"
-	PackagerService_RemoveService_FullMethodName       = "/packager.PackagerService/RemoveService"
-	PackagerService_UpdateImageTag_FullMethodName      = "/packager.PackagerService/UpdateImageTag"
-	PackagerService_CreateEnvironment_FullMethodName   = "/packager.PackagerService/CreateEnvironment"
-	PackagerService_DeleteEnvironment_FullMethodName   = "/packager.PackagerService/DeleteEnvironment"
-	PackagerService_Promote_FullMethodName             = "/packager.PackagerService/Promote"
-	PackagerService_Eject_FullMethodName               = "/packager.PackagerService/Eject"
-	PackagerService_DeploymentHistory_FullMethodName   = "/packager.PackagerService/DeploymentHistory"
-	PackagerService_AddDomain_FullMethodName           = "/packager.PackagerService/AddDomain"
-	PackagerService_RemoveDomain_FullMethodName        = "/packager.PackagerService/RemoveDomain"
-	PackagerService_AllDomains_FullMethodName          = "/packager.PackagerService/AllDomains"
-	PackagerService_SharedVariables_FullMethodName     = "/packager.PackagerService/SharedVariables"
-	PackagerService_SetSharedVariables_FullMethodName  = "/packager.PackagerService/SetSharedVariables"
-	PackagerService_ServiceVariables_FullMethodName    = "/packager.PackagerService/ServiceVariables"
-	PackagerService_SetServiceVariables_FullMethodName = "/packager.PackagerService/SetServiceVariables"
-	PackagerService_AddDatabase_FullMethodName         = "/packager.PackagerService/AddDatabase"
-	PackagerService_RemoveDatabase_FullMethodName      = "/packager.PackagerService/RemoveDatabase"
-	PackagerService_SyncChart_FullMethodName           = "/packager.PackagerService/SyncChart"
-	PackagerService_SetResources_FullMethodName        = "/packager.PackagerService/SetResources"
-	PackagerService_SetServiceScaling_FullMethodName   = "/packager.PackagerService/SetServiceScaling"
+	PackagerService_InitProject_FullMethodName           = "/packager.PackagerService/InitProject"
+	PackagerService_ListProjects_FullMethodName          = "/packager.PackagerService/ListProjects"
+	PackagerService_GetProject_FullMethodName            = "/packager.PackagerService/GetProject"
+	PackagerService_DeleteProject_FullMethodName         = "/packager.PackagerService/DeleteProject"
+	PackagerService_AddService_FullMethodName            = "/packager.PackagerService/AddService"
+	PackagerService_RemoveService_FullMethodName         = "/packager.PackagerService/RemoveService"
+	PackagerService_UpdateImageTag_FullMethodName        = "/packager.PackagerService/UpdateImageTag"
+	PackagerService_CreateEnvironment_FullMethodName     = "/packager.PackagerService/CreateEnvironment"
+	PackagerService_DeleteEnvironment_FullMethodName     = "/packager.PackagerService/DeleteEnvironment"
+	PackagerService_Promote_FullMethodName               = "/packager.PackagerService/Promote"
+	PackagerService_Eject_FullMethodName                 = "/packager.PackagerService/Eject"
+	PackagerService_DeploymentHistory_FullMethodName     = "/packager.PackagerService/DeploymentHistory"
+	PackagerService_AddDomain_FullMethodName             = "/packager.PackagerService/AddDomain"
+	PackagerService_RemoveDomain_FullMethodName          = "/packager.PackagerService/RemoveDomain"
+	PackagerService_AllDomains_FullMethodName            = "/packager.PackagerService/AllDomains"
+	PackagerService_SharedVariables_FullMethodName       = "/packager.PackagerService/SharedVariables"
+	PackagerService_SetSharedVariables_FullMethodName    = "/packager.PackagerService/SetSharedVariables"
+	PackagerService_ServiceVariables_FullMethodName      = "/packager.PackagerService/ServiceVariables"
+	PackagerService_SetServiceVariables_FullMethodName   = "/packager.PackagerService/SetServiceVariables"
+	PackagerService_AddDatabase_FullMethodName           = "/packager.PackagerService/AddDatabase"
+	PackagerService_RemoveDatabase_FullMethodName        = "/packager.PackagerService/RemoveDatabase"
+	PackagerService_SyncChart_FullMethodName             = "/packager.PackagerService/SyncChart"
+	PackagerService_SetResources_FullMethodName          = "/packager.PackagerService/SetResources"
+	PackagerService_SetServiceScaling_FullMethodName     = "/packager.PackagerService/SetServiceScaling"
+	PackagerService_SetCustomStartCommand_FullMethodName = "/packager.PackagerService/SetCustomStartCommand"
 )
 
 // PackagerServiceClient is the client API for PackagerService service.
@@ -101,6 +102,8 @@ type PackagerServiceClient interface {
 	SetResources(ctx context.Context, in *SetResourcesRequest, opts ...grpc.CallOption) (*SetResourcesResponse, error)
 	// SetServiceScaling writes replica count and autoscaling config to an environment's values.yaml.
 	SetServiceScaling(ctx context.Context, in *SetServiceScalingRequest, opts ...grpc.CallOption) (*SetServiceScalingResponse, error)
+	// SetCustomStartCommand sets or clears the custom start command for a service in base values.
+	SetCustomStartCommand(ctx context.Context, in *SetCustomStartCommandRequest, opts ...grpc.CallOption) (*SetCustomStartCommandResponse, error)
 }
 
 type packagerServiceClient struct {
@@ -351,6 +354,16 @@ func (c *packagerServiceClient) SetServiceScaling(ctx context.Context, in *SetSe
 	return out, nil
 }
 
+func (c *packagerServiceClient) SetCustomStartCommand(ctx context.Context, in *SetCustomStartCommandRequest, opts ...grpc.CallOption) (*SetCustomStartCommandResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SetCustomStartCommandResponse)
+	err := c.cc.Invoke(ctx, PackagerService_SetCustomStartCommand_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // PackagerServiceServer is the server API for PackagerService service.
 // All implementations must embed UnimplementedPackagerServiceServer
 // for forward compatibility.
@@ -407,6 +420,8 @@ type PackagerServiceServer interface {
 	SetResources(context.Context, *SetResourcesRequest) (*SetResourcesResponse, error)
 	// SetServiceScaling writes replica count and autoscaling config to an environment's values.yaml.
 	SetServiceScaling(context.Context, *SetServiceScalingRequest) (*SetServiceScalingResponse, error)
+	// SetCustomStartCommand sets or clears the custom start command for a service in base values.
+	SetCustomStartCommand(context.Context, *SetCustomStartCommandRequest) (*SetCustomStartCommandResponse, error)
 	mustEmbedUnimplementedPackagerServiceServer()
 }
 
@@ -488,6 +503,9 @@ func (UnimplementedPackagerServiceServer) SetResources(context.Context, *SetReso
 }
 func (UnimplementedPackagerServiceServer) SetServiceScaling(context.Context, *SetServiceScalingRequest) (*SetServiceScalingResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetServiceScaling not implemented")
+}
+func (UnimplementedPackagerServiceServer) SetCustomStartCommand(context.Context, *SetCustomStartCommandRequest) (*SetCustomStartCommandResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetCustomStartCommand not implemented")
 }
 func (UnimplementedPackagerServiceServer) mustEmbedUnimplementedPackagerServiceServer() {}
 func (UnimplementedPackagerServiceServer) testEmbeddedByValue()                         {}
@@ -942,6 +960,24 @@ func _PackagerService_SetServiceScaling_Handler(srv interface{}, ctx context.Con
 	return interceptor(ctx, in, info, handler)
 }
 
+func _PackagerService_SetCustomStartCommand_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetCustomStartCommandRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PackagerServiceServer).SetCustomStartCommand(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PackagerService_SetCustomStartCommand_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PackagerServiceServer).SetCustomStartCommand(ctx, req.(*SetCustomStartCommandRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // PackagerService_ServiceDesc is the grpc.ServiceDesc for PackagerService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1044,6 +1080,10 @@ var PackagerService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SetServiceScaling",
 			Handler:    _PackagerService_SetServiceScaling_Handler,
+		},
+		{
+			MethodName: "SetCustomStartCommand",
+			Handler:    _PackagerService_SetCustomStartCommand_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
