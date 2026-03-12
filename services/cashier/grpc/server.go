@@ -169,7 +169,7 @@ func (s *Server) UsageSummary(ctx context.Context, req *cashier.UsageSummaryRequ
 		return nil, fmt.Errorf("no billing customer found for workspace %q", req.Workspace)
 	}
 
-	inv, err := s.stripe.UpcomingInvoice(ctx, meta.StripeCustomerId)
+	inv, err := s.stripe.UpcomingInvoice(ctx, meta.StripeCustomerId, meta.StripeSubscriptionId)
 	if err != nil {
 		// No upcoming invoice (no usage yet) is fine
 		return &cashier.UsageSummaryResponse{}, nil

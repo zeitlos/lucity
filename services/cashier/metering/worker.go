@@ -434,7 +434,7 @@ func (w *Worker) checkTrialUsageCap(ctx context.Context, wsID string, ws *worksp
 		return
 	}
 
-	inv, err := w.stripe.UpcomingInvoice(ctx, ws.customerID)
+	inv, err := w.stripe.UpcomingInvoice(ctx, ws.customerID, ws.subscriptionID)
 	if err != nil {
 		return
 	}

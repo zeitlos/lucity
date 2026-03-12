@@ -174,10 +174,11 @@ func (c *Client) BillingPortalURL(ctx context.Context, customerID, returnURL str
 	return session.URL, nil
 }
 
-// UpcomingInvoice retrieves a preview of the upcoming invoice for a customer (usage summary).
-func (c *Client) UpcomingInvoice(ctx context.Context, customerID string) (*gostripe.Invoice, error) {
+// UpcomingInvoice retrieves a preview of the upcoming invoice for a subscription.
+func (c *Client) UpcomingInvoice(ctx context.Context, customerID, subscriptionID string) (*gostripe.Invoice, error) {
 	params := &gostripe.InvoiceCreatePreviewParams{
-		Customer: gostripe.String(customerID),
+		Customer:     gostripe.String(customerID),
+		Subscription: gostripe.String(subscriptionID),
 	}
 
 	inv, err := invoice.CreatePreview(params)
