@@ -3,7 +3,7 @@ import { ref, computed, watch } from 'vue';
 import { useMutation, useQuery } from '@vue/apollo-composable';
 import {
   Trash2, Copy, X, Globe, Plus, Minus, CircleCheck, CircleAlert,
-  ChevronDown, Network, ExternalLink, Loader2, Scaling, GitBranch, Github, Code, Play,
+  ChevronDown, Network, ExternalLink, Loader2, Scaling, GitBranch, Github, Code, Play, Container, ArrowRight,
 } from 'lucide-vue-next';
 import {
   RemoveServiceMutation,
@@ -419,43 +419,52 @@ async function handleRemoveService() {
 
 <template>
   <div class="space-y-6">
-    <!-- Identity Header -->
-    <div class="relative overflow-hidden rounded-lg border p-5">
-      <div class="pattern-dots pointer-events-none absolute inset-0 opacity-[0.12]" />
-      <div class="relative flex items-start gap-4">
-        <div class="rounded-xl bg-muted/60 p-2.5">
-          <FrameworkIcon :framework="service.framework" :size="36" />
+    <!-- General -->
+    <section class="space-y-2">
+      <h3 class="px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        General
+      </h3>
+
+      <Collapsible default-open>
+        <div class="overflow-hidden rounded-lg border">
+          <CollapsibleTrigger class="flex w-full items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/30">
+            <div class="rounded-lg bg-muted/60 p-1.5">
+              <FrameworkIcon :framework="service.framework" :size="20" />
+            </div>
+            <div class="min-w-0 flex-1 text-left">
+              <p class="text-sm font-medium text-foreground">{{ service.name }}</p>
+              <p class="text-xs text-muted-foreground">
+                {{ service.framework || 'Container' }}
+              </p>
+            </div>
+            <ChevronDown
+              :size="14"
+              class="shrink-0 text-muted-foreground transition-transform duration-200 [[data-state=open]>&]:rotate-180"
+            />
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div class="space-y-3 border-t px-4 py-3">
+              <!-- Image -->
+              <div v-if="service.image" class="space-y-1.5">
+                <Label class="text-xs font-medium">Image</Label>
+                <div class="group flex items-center gap-2 rounded-md border bg-muted/50 px-3 py-2">
+                  <Container :size="14" class="shrink-0 text-muted-foreground" />
+                  <span class="min-w-0 flex-1 truncate font-mono text-sm">{{ service.image }}</span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    class="h-5 w-5 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
+                    @click="copyToClipboard(service.image)"
+                  >
+                    <Copy :size="10" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </CollapsibleContent>
         </div>
-        <div class="min-w-0 flex-1 space-y-2">
-          <h3 class="truncate text-base font-semibold text-foreground">{{ service.name }}</h3>
-          <div class="flex flex-wrap items-center gap-2">
-            <Badge variant="secondary" class="font-mono text-xs">
-              :{{ service.port || '---' }}
-            </Badge>
-            <Badge
-              v-if="service.framework"
-              variant="outline"
-              class="text-xs"
-            >
-              {{ service.framework }}
-            </Badge>
-          </div>
-          <div v-if="service.image" class="group flex items-center gap-1.5">
-            <span class="max-w-[220px] truncate font-mono text-[11px] text-muted-foreground">
-              {{ service.image }}
-            </span>
-            <Button
-              variant="ghost"
-              size="icon"
-              class="h-5 w-5 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
-              @click="copyToClipboard(service.image)"
-            >
-              <Copy :size="10" />
-            </Button>
-          </div>
-        </div>
-      </div>
-    </div>
+      </Collapsible>
+    </section>
 
     <!-- Source -->
     <section v-if="service.sourceUrl" class="space-y-2">
@@ -616,33 +625,42 @@ async function handleRemoveService() {
               </div>
 
               <!-- Platform domain exists -->
-              <div v-else class="flex items-center gap-2">
-                <a
-                  :href="domainUrl(platformDomain.hostname)"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="flex flex-1 items-center gap-2 rounded-md border bg-muted/50 px-3 py-2 transition-colors hover:bg-muted/80"
-                >
-                  <CircleCheck :size="14" class="shrink-0 text-green-500" />
-                  <span class="truncate font-mono text-sm hover:underline">{{ platformDomain.hostname }}</span>
-                  <ExternalLink :size="12" class="ml-auto shrink-0 text-muted-foreground" />
-                </a>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  class="h-8 w-8 shrink-0"
-                  @click="copyToClipboard(platformDomain.hostname)"
-                >
-                  <Copy :size="14" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  class="h-8 w-8 shrink-0 text-destructive"
-                  @click="handleRemoveDomain(platformDomain.hostname)"
-                >
-                  <X :size="14" />
-                </Button>
+              <div v-else class="space-y-2">
+                <div class="flex items-center gap-2">
+                  <a
+                    :href="domainUrl(platformDomain.hostname)"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="flex flex-1 items-center gap-2 rounded-md border bg-muted/50 px-3 py-2 transition-colors hover:bg-muted/80"
+                  >
+                    <CircleCheck :size="14" class="shrink-0 text-green-500" />
+                    <span class="truncate font-mono text-sm hover:underline">{{ platformDomain.hostname }}</span>
+                    <ExternalLink :size="12" class="ml-auto shrink-0 text-muted-foreground" />
+                  </a>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    class="h-8 w-8 shrink-0"
+                    @click="copyToClipboard(platformDomain.hostname)"
+                  >
+                    <Copy :size="14" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    class="h-8 w-8 shrink-0 text-destructive"
+                    @click="handleRemoveDomain(platformDomain.hostname)"
+                  >
+                    <X :size="14" />
+                  </Button>
+                </div>
+                <div class="flex items-center gap-1.5 pl-1 text-xs text-muted-foreground">
+                  <ArrowRight :size="10" class="shrink-0" />
+                  <span>
+                    Routes to port
+                    <span class="font-mono font-medium text-foreground">{{ service.port }}</span>
+                  </span>
+                </div>
               </div>
             </div>
           </CollapsibleContent>
@@ -722,19 +740,24 @@ async function handleRemoveService() {
                       <X :size="14" />
                     </Button>
                   </div>
-                  <!-- Status line for unverified domains -->
-                  <div
-                    v-if="dnsStatus(domain.hostname) !== 'VALID'"
-                    class="mt-1 flex items-center gap-1.5 pl-[22px] text-xs text-muted-foreground"
-                  >
-                    <span>Waiting for DNS update</span>
-                    <span class="text-muted-foreground/50">&middot;</span>
-                    <button
-                      class="font-medium text-primary hover:underline"
-                      @click="showDnsRecords(domain.hostname)"
-                    >
-                      Show DNS records
-                    </button>
+                  <!-- Port routing + status line -->
+                  <div class="mt-1 flex items-center gap-1.5 pl-[22px] text-xs text-muted-foreground">
+                    <ArrowRight :size="10" class="shrink-0" />
+                    <span>
+                      Port
+                      <span class="font-mono font-medium text-foreground">{{ service.port }}</span>
+                    </span>
+                    <template v-if="dnsStatus(domain.hostname) !== 'VALID'">
+                      <span class="text-muted-foreground/50">&middot;</span>
+                      <span>Waiting for DNS</span>
+                      <span class="text-muted-foreground/50">&middot;</span>
+                      <button
+                        class="font-medium text-primary hover:underline"
+                        @click="showDnsRecords(domain.hostname)"
+                      >
+                        Show records
+                      </button>
+                    </template>
                   </div>
                 </div>
               </div>
@@ -789,18 +812,27 @@ async function handleRemoveService() {
               <p class="text-xs text-muted-foreground">
                 Internal DNS name for service-to-service communication.
               </p>
-              <div v-if="internalDns" class="group flex items-center gap-2">
-                <div class="flex-1 overflow-x-auto rounded-md border bg-muted/50 px-3 py-2">
-                  <span class="whitespace-nowrap font-mono text-xs">{{ internalDns }}</span>
+              <div v-if="internalDns" class="space-y-2">
+                <div class="group flex items-center gap-2">
+                  <div class="flex-1 overflow-x-auto rounded-md border bg-muted/50 px-3 py-2">
+                    <span class="whitespace-nowrap font-mono text-xs">{{ internalDns }}:{{ service.port }}</span>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    class="h-8 w-8 shrink-0"
+                    @click="copyToClipboard(`${internalDns}:${service.port}`)"
+                  >
+                    <Copy :size="14" />
+                  </Button>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  class="h-8 w-8 shrink-0"
-                  @click="copyToClipboard(internalDns)"
-                >
-                  <Copy :size="14" />
-                </Button>
+                <div class="flex items-center gap-1.5 pl-1 text-xs text-muted-foreground">
+                  <ArrowRight :size="10" class="shrink-0" />
+                  <span>
+                    Listening on port
+                    <span class="font-mono font-medium text-foreground">{{ service.port }}</span>
+                  </span>
+                </div>
               </div>
             </div>
           </CollapsibleContent>
