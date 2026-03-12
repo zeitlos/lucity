@@ -54,7 +54,7 @@ watch(() => props.open, (isOpen) => {
   if (isOpen) {
     if (nonEphemeralEnvs.value.length > 0) {
       mode.value = 'duplicate';
-      fromEnvironment.value = nonEphemeralEnvs.value[0].name;
+      fromEnvironment.value = nonEphemeralEnvs.value[0]!.name;
     } else {
       mode.value = 'empty';
     }
