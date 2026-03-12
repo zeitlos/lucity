@@ -28,6 +28,7 @@ func NewServer(provider gitops.Provider, deployerClient deployer.DeployerService
 // syncEnvironment triggers an ArgoCD sync for a single environment.
 // Best-effort: logs on failure but never returns an error.
 func (s *Server) syncEnvironment(ctx context.Context, project, environment string) {
+	ctx = tenant.OutgoingContext(ctx)
 	_, err := s.deployer.SyncDeployment(ctx, &deployer.SyncDeploymentRequest{
 		Project:     project,
 		Environment: environment,
