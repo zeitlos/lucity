@@ -1,4 +1,5 @@
 {{- range $name, $svc := .Values.services }}
+{{- if and $svc.image $svc.image.tag }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -30,7 +31,7 @@ spec:
     spec:
       containers:
         - name: {{ $name }}
-          image: "{{ $svc.image.repository }}:{{ required "image.tag is required — run a deploy first" $svc.image.tag }}"
+          image: "{{ $svc.image.repository }}:{{ $svc.image.tag }}"
           imagePullPolicy: {{ $svc.image.pullPolicy | default "IfNotPresent" }}
           {{- if $svc.customStartCommand }}
           command: ["sh", "-c", {{ $svc.customStartCommand | quote }}]
@@ -64,4 +65,5 @@ spec:
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
+{{- end }}
 {{- end }}

@@ -1,5 +1,5 @@
 {{- range $name, $svc := .Values.services }}
-{{- if $svc.domains }}
+{{- if and $svc.image $svc.image.tag $svc.domains }}
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute

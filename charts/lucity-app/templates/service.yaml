@@ -1,4 +1,5 @@
 {{- range $name, $svc := .Values.services }}
+{{- if and $svc.image $svc.image.tag }}
 ---
 apiVersion: v1
 kind: Service
@@ -16,4 +17,5 @@ spec:
       name: http
   selector:
     {{- include "lucity-app.selectorLabels" (dict "name" $name "release" $.Release.Name) | nindent 4 }}
+{{- end }}
 {{- end }}

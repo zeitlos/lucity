@@ -203,6 +203,11 @@ func (s *Server) UpdateImageTag(ctx context.Context, req *packager.UpdateImageTa
 
 	p := s.provider
 
+	// Sync chart so updated templates (e.g., image.tag guards) reach the GitOps repo.
+	if err := p.SyncChart(ctx, req.Project); err != nil {
+		slog.Warn("failed to sync chart before updating image tag", "project", req.Project, "error", err)
+	}
+
 	if err := p.UpdateImageTag(ctx, req.Project, req.Environment, req.Service, req.Tag, req.Digest, req.CommitPrefix); err != nil {
 		return nil, fmt.Errorf("failed to update image tag: %w", err)
 	}
@@ -242,6 +247,10 @@ func (s *Server) Promote(ctx context.Context, req *packager.PromoteRequest) (*pa
 	slog.Info("Promote called", "project", req.Project, "service", req.Service, "from", req.FromEnvironment, "to", req.ToEnvironment)
 
 	p := s.provider
+
+	if err := p.SyncChart(ctx, req.Project); err != nil {
+		slog.Warn("failed to sync chart before promote", "project", req.Project, "error", err)
+	}
 
 	imageTag, err := p.Promote(ctx, req.Project, req.Service, req.FromEnvironment, req.ToEnvironment)
 	if err != nil {

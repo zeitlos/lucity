@@ -167,11 +167,10 @@ func (p *SoftServeProvider) AddService(ctx context.Context, project string, svc 
 			services = make(map[string]any)
 		}
 
+		// Base only stores the image repository and pull policy — never the tag.
+		// Tags are per-environment so services don't deploy globally.
 		imageMap := map[string]any{
 			"repository": svc.Image,
-		}
-		if svc.ImageTag != "" {
-			imageMap["tag"] = svc.ImageTag
 		}
 		if svc.ImagePullPolicy != "" {
 			imageMap["pullPolicy"] = svc.ImagePullPolicy
@@ -204,7 +203,35 @@ func (p *SoftServeProvider) AddService(ctx context.Context, project string, svc 
 		services[svc.Name] = svcEntry
 		inner["services"] = services
 
-		return writeSubchartValues(path, inner)
+		if err := writeSubchartValues(path, inner); err != nil {
+			return err
+		}
+
+		// For external images (tag provided), write the tag to all existing
+		// environments so the service deploys where environments already exist.
+		if svc.ImageTag != "" {
+			envFiles, _ := filepath.Glob(filepath.Join(dir, "environments", "*", "values.yaml"))
+			for _, envPath := range envFiles {
+				envInner, readErr := readSubchartValues(envPath)
+				if readErr != nil {
+					continue
+				}
+				envSvcs, ok := envInner["services"].(map[string]any)
+				if !ok {
+					envSvcs = make(map[string]any)
+				}
+				envSvcMap := map[string]any{
+					"image": map[string]any{
+						"tag": svc.ImageTag,
+					},
+				}
+				envSvcs[svc.Name] = envSvcMap
+				envInner["services"] = envSvcs
+				_ = writeSubchartValues(envPath, envInner)
+			}
+		}
+
+		return nil
 	})
 }
 

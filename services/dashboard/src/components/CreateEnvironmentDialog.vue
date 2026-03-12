@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { useMutation } from '@vue/apollo-composable';
 import { CreateEnvironmentMutation, ProjectQuery } from '@/graphql/projects';
 import { useEnvironment } from '@/composables/useEnvironment';
@@ -37,6 +37,7 @@ const emit = defineEmits<{
 const { environments } = useEnvironment();
 
 const name = ref('');
+const mode = ref<'duplicate' | 'empty'>('duplicate');
 const fromEnvironment = ref<string>('');
 const tier = ref<string>('ECO');
 
@@ -48,6 +49,18 @@ const nonEphemeralEnvs = computed(() =>
   environments.value.filter(e => !e.ephemeral),
 );
 
+// Default to 'duplicate' when environments exist, 'empty' when none
+watch(() => props.open, (isOpen) => {
+  if (isOpen) {
+    if (nonEphemeralEnvs.value.length > 0) {
+      mode.value = 'duplicate';
+      fromEnvironment.value = nonEphemeralEnvs.value[0].name;
+    } else {
+      mode.value = 'empty';
+    }
+  }
+});
+
 async function handleCreate() {
   if (!name.value.trim()) return;
 
@@ -57,7 +70,7 @@ async function handleCreate() {
       name: name.value.trim(),
       tier: tier.value,
     };
-    if (fromEnvironment.value) {
+    if (mode.value === 'duplicate' && fromEnvironment.value) {
       input.fromEnvironment = fromEnvironment.value;
     }
 
@@ -90,19 +103,67 @@ async function handleCreate() {
       <DialogHeader>
         <DialogTitle>New Environment</DialogTitle>
         <DialogDescription>
-          Create a new environment for this project.
+          All changes will be isolated from other environments.
         </DialogDescription>
       </DialogHeader>
 
       <form class="space-y-4" @submit.prevent="handleCreate">
         <div class="space-y-2">
-          <Label for="env-name">Name</Label>
+          <Label for="env-name">Environment name</Label>
           <Input
             id="env-name"
             v-model="name"
             placeholder="e.g. staging, preview"
             :disabled="loading"
           />
+        </div>
+
+        <div
+          v-if="nonEphemeralEnvs.length > 0"
+          class="space-y-2"
+        >
+          <RadioGroup v-model="mode" class="space-y-3">
+            <label
+              class="flex cursor-pointer flex-col gap-2 rounded-lg border p-3 transition-colors"
+              :class="mode === 'duplicate' ? 'border-primary bg-primary/5' : 'border-border'"
+            >
+              <div class="flex items-center gap-2">
+                <RadioGroupItem value="duplicate" />
+                <span class="text-sm font-medium">Duplicate Environment</span>
+              </div>
+              <p class="text-xs text-muted-foreground pl-6">
+                Copy all the services, variables, and configuration from an existing environment.
+              </p>
+              <div v-if="mode === 'duplicate'" class="pl-6 pt-1">
+                <Select v-model="fromEnvironment">
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select environment" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem
+                      v-for="env in nonEphemeralEnvs"
+                      :key="env.id"
+                      :value="env.name"
+                    >
+                      {{ env.name }}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </label>
+            <label
+              class="flex cursor-pointer flex-col gap-1 rounded-lg border p-3 transition-colors"
+              :class="mode === 'empty' ? 'border-primary bg-primary/5' : 'border-border'"
+            >
+              <div class="flex items-center gap-2">
+                <RadioGroupItem value="empty" />
+                <span class="text-sm font-medium">Empty Environment</span>
+              </div>
+              <p class="text-xs text-muted-foreground pl-6">
+                An empty environment with no services or variables included.
+              </p>
+            </label>
+          </RadioGroup>
         </div>
 
         <div class="space-y-2">
@@ -135,33 +196,12 @@ async function handleCreate() {
           </RadioGroup>
         </div>
 
-        <div v-if="nonEphemeralEnvs.length > 0" class="space-y-2">
-          <Label for="env-from">Clone from</Label>
-          <Select v-model="fromEnvironment">
-            <SelectTrigger id="env-from">
-              <SelectValue placeholder="Start empty" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem
-                v-for="env in nonEphemeralEnvs"
-                :key="env.id"
-                :value="env.name"
-              >
-                {{ env.name }}
-              </SelectItem>
-            </SelectContent>
-          </Select>
-          <p class="text-xs text-muted-foreground">
-            Copy configuration and image tags from an existing environment.
-          </p>
-        </div>
-
         <DialogFooter>
           <Button
             type="submit"
             :disabled="!name.trim() || loading"
           >
-            {{ loading ? 'Creating...' : 'Create' }}
+            {{ loading ? 'Creating...' : 'Create Environment' }}
           </Button>
         </DialogFooter>
       </form>
