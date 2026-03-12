@@ -104,6 +104,9 @@ func (e *KubernetesEngine) buildJob(name string, opts BuildOpts) *batchv1.Job {
 		{Name: "GITHUB_TOKEN", Value: opts.GitHubToken},
 		{Name: "BUILD_NAMESPACE", Value: e.namespace},
 	}
+	if e.registryAuthSecret != "" {
+		env = append(env, corev1.EnvVar{Name: "DOCKER_CONFIG", Value: "/etc/registry-auth"})
+	}
 
 	// Security context for buildkitd rootless
 	privileged := false
@@ -169,10 +172,7 @@ func (e *KubernetesEngine) buildJob(name string, opts BuildOpts) *batchv1.Job {
 							Image:   e.buildImage,
 							Command: []string{"/app", "run-build"},
 							Env:     env,
-							VolumeMounts: []corev1.VolumeMount{
-								{Name: "buildkit-socket", MountPath: "/run/buildkit"},
-								{Name: "work", MountPath: "/tmp/lucity-builds"},
-							},
+							VolumeMounts: e.buildVolumeMounts(),
 							Resources: corev1.ResourceRequirements{
 								Requests: corev1.ResourceList{
 									corev1.ResourceCPU:    mustParseQuantity("500m"),
@@ -261,6 +261,22 @@ func (e *KubernetesEngine) buildkitdVolumeMounts() []corev1.VolumeMount {
 	mounts := []corev1.VolumeMount{
 		{Name: "buildkit-socket", MountPath: "/run/buildkit"},
 		{Name: "buildkit-config", MountPath: "/etc/buildkit", ReadOnly: true},
+	}
+	if e.registryAuthSecret != "" {
+		mounts = append(mounts, corev1.VolumeMount{
+			Name:      "registry-auth",
+			MountPath: "/etc/registry-auth",
+			ReadOnly:  true,
+		})
+	}
+	return mounts
+}
+
+// buildVolumeMounts returns volume mounts for the build runner container.
+func (e *KubernetesEngine) buildVolumeMounts() []corev1.VolumeMount {
+	mounts := []corev1.VolumeMount{
+		{Name: "buildkit-socket", MountPath: "/run/buildkit"},
+		{Name: "work", MountPath: "/tmp/lucity-builds"},
 	}
 	if e.registryAuthSecret != "" {
 		mounts = append(mounts, corev1.VolumeMount{
