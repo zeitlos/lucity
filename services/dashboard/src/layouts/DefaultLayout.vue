@@ -10,6 +10,7 @@ import ContextNav from '@/components/ContextNav.vue';
 import ThemeToggle from '@/components/ThemeToggle.vue';
 import ProjectEjectDialog from '@/components/ProjectEjectDialog.vue';
 import SuspensionBanner from '@/components/SuspensionBanner.vue';
+import TrialIndicator from '@/components/TrialIndicator.vue';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -79,6 +80,8 @@ async function handleLogout() {
           <Settings :size="14" class="mr-1.5" />
           Settings
         </Button>
+
+        <TrialIndicator v-if="user" />
 
         <ThemeToggle />
 
