@@ -3,6 +3,15 @@ export default defineNuxtConfig({
     url: 'https://lucity.cloud',
     name: 'Lucity'
   },
+  modules: ['nuxt-vitalizer'],
+  vitalizer: {
+    disableStylesheets: 'entry'
+  },
+  experimental: {
+    extractAsyncDataHandlers: true,
+    payloadExtraction: 'client',
+    sharedPrerenderData: true,
+  },
   llms: {
     domain: 'https://lucity.cloud',
     title: 'Lucity',

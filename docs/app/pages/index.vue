@@ -119,7 +119,7 @@ onMounted(async () => {
       All the building blocks for deploying and running your apps on Kubernetes. Built on standard tools, so you can eject whenever you want.
     </template>
 
-    <BentoGrid />
+    <LazyBentoGrid hydrate-on-visible />
   </UPageSection>
 
   <UPageSection>
@@ -131,11 +131,11 @@ onMounted(async () => {
       The enterprise way to deploy Kubernetes apps, cleverly automated. No proprietary runtime, no black boxes — just standard tools, loosely coupled, with zero platform state to babysit.
     </template>
 
-    <ToolsArchitecture />
+    <LazyToolsArchitecture hydrate-on-visible />
   </UPageSection>
 
   <UPageSection>
-    <SectionVS />
+    <LazySectionVS hydrate-on-visible />
   </UPageSection>
 </template>
 
