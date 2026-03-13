@@ -61,7 +61,8 @@ const githubLink = computed(() =>
   >
     <template #title>
       <div class="flex items-center gap-2">
-        <AppHeaderLogo class="h-6 w-auto shrink-0" />
+        <img src="/logo-light.svg" alt="Lucity" width="24" height="24" class="dark:hidden h-6 w-6 shrink-0">
+        <img src="/logo-dark.svg" alt="Lucity" width="24" height="24" class="hidden dark:block h-6 w-6 shrink-0">
         <span class="font-serif text-2xl tracking-tight">Lucity</span>
       </div>
     </template>
@@ -113,6 +114,7 @@ const githubLink = computed(() =>
       <IconMenuToggle
         :open="open"
         class="lg:hidden"
+        aria-label="Toggle navigation menu"
         @click="toggle"
       />
     </template>

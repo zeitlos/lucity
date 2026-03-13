@@ -87,7 +87,7 @@ onUnmounted(() => {
           muted
           loop
           playsinline
-          preload="auto"
+          preload="metadata"
         />
       </div>
       <div class="tabs">
