@@ -82,6 +82,11 @@ const customDomains = computed(() => domains.value.filter(d => d.type === 'CUSTO
 
 // Compute resources
 const resources = computed(() => activeInstance.value?.resources ?? null);
+const resourceTier = computed(() => activeEnvironment.value?.resourceTier ?? null);
+const resourceTierLabel = computed(() => {
+  if (!resourceTier.value) return null;
+  return resourceTier.value === 'PRODUCTION' ? 'Production' : 'Eco';
+});
 function formatCpu(millicores: number): string {
   const vcpu = millicores / 1000;
   return vcpu % 1 === 0 ? `${vcpu} vCPU` : `${vcpu} vCPU`;
@@ -1042,9 +1047,14 @@ async function handleRemoveService() {
 
     <!-- Compute -->
     <section class="space-y-2">
-      <h3 class="px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-        Compute
-      </h3>
+      <div class="flex items-center gap-2 px-1">
+        <h3 class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Compute
+        </h3>
+        <Badge v-if="resourceTierLabel" variant="outline" class="text-[10px] leading-none px-1.5 py-0.5">
+          {{ resourceTierLabel }}
+        </Badge>
+      </div>
 
       <div class="overflow-hidden rounded-lg border">
         <div v-if="resources" class="divide-y">
