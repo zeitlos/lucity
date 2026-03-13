@@ -1047,17 +1047,20 @@ async function handleRemoveService() {
 
     <!-- Compute -->
     <section class="space-y-2">
-      <div class="flex items-center gap-2 px-1">
-        <h3 class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Compute
-        </h3>
-        <Badge v-if="resourceTierLabel" variant="outline" class="text-[10px] leading-none px-1.5 py-0.5">
-          {{ resourceTierLabel }}
-        </Badge>
-      </div>
+      <h3 class="px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        Compute
+      </h3>
 
       <div class="overflow-hidden rounded-lg border">
         <div v-if="resources" class="divide-y">
+          <div v-if="resourceTierLabel" class="flex items-center gap-3 px-4 py-3">
+            <Scaling :size="16" class="shrink-0 text-muted-foreground" />
+            <div class="min-w-0 flex-1">
+              <p class="text-sm font-medium text-foreground">Plan</p>
+              <p class="text-xs text-muted-foreground">Resource tier</p>
+            </div>
+            <span class="text-sm font-medium">{{ resourceTierLabel }}</span>
+          </div>
           <div class="flex items-center gap-3 px-4 py-3">
             <Cpu :size="16" class="shrink-0 text-muted-foreground" />
             <div class="min-w-0 flex-1">
