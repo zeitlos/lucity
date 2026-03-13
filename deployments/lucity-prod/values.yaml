@@ -10,9 +10,6 @@
 
 routes:
   enabled: true
-  gatewayName: lucity-gateway
-  gatewayNamespace: lucity-system
-  hostname: lucity.cloud
 
 gateway:
   env:
@@ -103,7 +100,6 @@ cashier:
     STRIPE_PROD_CPU_METER_EVENT: prod_cpu_usage
     STRIPE_PROD_MEM_METER_EVENT: prod_memory_usage
     STRIPE_PROD_DISK_METER_EVENT: prod_disk_usage
-    METERING_INTERVAL: "1h"
   envSecret:
     STRIPE_SECRET_KEY: STRIPE_SECRET_KEY
     STRIPE_WEBHOOK_SECRET: STRIPE_WEBHOOK_SECRET

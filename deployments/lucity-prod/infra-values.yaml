@@ -48,19 +48,8 @@ softServe:
     storageClass: hcloud-volumes
   initialAdminKey: "" # --set softServe.initialAdminKey="$(cat ~/.ssh/lucity-admin-prod.pub)"
 
-argo-cd:
-  enabled: true
-  configs:
-    params:
-      server.insecure: true
-
-cloudnative-pg:
-  enabled: true
-
 gateway:
-  enabled: true
   className: cilium
-  name: lucity-gateway
   infrastructure:
     annotations:
       flexplane.io/provider: hetzner
@@ -148,7 +137,6 @@ rybbit:
   hostname: p.lucity.cloud
   backend:
     baseUrl: "https://p.lucity.cloud"
-    disableSignup: true
   clickhouse:
     persistence:
       storageClass: hcloud-volumes
@@ -161,7 +149,6 @@ rybbit:
 
 # Rauthy Identity Provider
 rauthy:
-  enabled: true
   hostname: auth.lucity.cloud
   adminEmail: christian@zeitlos.software
   persistence:
