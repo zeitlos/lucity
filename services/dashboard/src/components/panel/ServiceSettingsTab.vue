@@ -4,7 +4,7 @@ import { useMutation, useQuery } from '@vue/apollo-composable';
 import {
   Trash2, Copy, X, Globe, Plus, Minus, CircleCheck, CircleAlert,
   ChevronDown, Network, ExternalLink, Loader2, Scaling, GitBranch, Github, Code, Play, Container, ArrowRight,
-  Cpu, MemoryStick,
+  Cpu, MemoryStick, Leaf, ShieldCheck,
 } from 'lucide-vue-next';
 import {
   RemoveServiceMutation,
@@ -83,10 +83,6 @@ const customDomains = computed(() => domains.value.filter(d => d.type === 'CUSTO
 // Compute resources
 const resources = computed(() => activeInstance.value?.resources ?? null);
 const resourceTier = computed(() => activeEnvironment.value?.resourceTier ?? null);
-const resourceTierLabel = computed(() => {
-  if (!resourceTier.value) return null;
-  return resourceTier.value === 'PRODUCTION' ? 'Production' : 'Eco';
-});
 function formatCpu(millicores: number): string {
   const vcpu = millicores / 1000;
   return vcpu % 1 === 0 ? `${vcpu} vCPU` : `${vcpu} vCPU`;
@@ -1053,14 +1049,6 @@ async function handleRemoveService() {
 
       <div class="overflow-hidden rounded-lg border">
         <div v-if="resources" class="divide-y">
-          <div v-if="resourceTierLabel" class="flex items-center gap-3 px-4 py-3">
-            <Scaling :size="16" class="shrink-0 text-muted-foreground" />
-            <div class="min-w-0 flex-1">
-              <p class="text-sm font-medium text-foreground">Plan</p>
-              <p class="text-xs text-muted-foreground">Resource tier</p>
-            </div>
-            <span class="text-sm font-medium">{{ resourceTierLabel }}</span>
-          </div>
           <div class="flex items-center gap-3 px-4 py-3">
             <Cpu :size="16" class="shrink-0 text-muted-foreground" />
             <div class="min-w-0 flex-1">
@@ -1076,6 +1064,20 @@ async function handleRemoveService() {
               <p class="text-xs text-muted-foreground">Per instance</p>
             </div>
             <span class="font-mono text-sm font-medium">{{ formatMemory(resources.memoryMB) }}</span>
+          </div>
+          <div v-if="resourceTier === 'ECO'" class="flex items-center gap-3 px-4 py-3">
+            <Leaf :size="16" class="shrink-0 text-green-500" />
+            <div class="min-w-0 flex-1">
+              <p class="text-sm font-medium text-green-600 dark:text-green-400">Eco</p>
+              <p class="text-xs text-muted-foreground">Burstable compute, shared resources</p>
+            </div>
+          </div>
+          <div v-else-if="resourceTier === 'PRODUCTION'" class="flex items-center gap-3 px-4 py-3">
+            <ShieldCheck :size="16" class="shrink-0 text-purple-500" />
+            <div class="min-w-0 flex-1">
+              <p class="text-sm font-medium text-purple-600 dark:text-purple-400">Production</p>
+              <p class="text-xs text-muted-foreground">Guaranteed performance, dedicated resources</p>
+            </div>
           </div>
         </div>
         <div v-else class="px-4 py-3">
