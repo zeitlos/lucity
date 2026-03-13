@@ -1066,16 +1066,16 @@ async function handleRemoveService() {
             <span class="font-mono text-sm font-medium">{{ formatMemory(resources.memoryMB) }}</span>
           </div>
           <div v-if="resourceTier === 'ECO'" class="flex items-center gap-3 px-4 py-3">
-            <Leaf :size="16" class="shrink-0 text-green-500" />
+            <Leaf :size="16" class="shrink-0 text-emerald-500" />
             <div class="min-w-0 flex-1">
-              <p class="text-sm font-medium text-green-600 dark:text-green-400">Eco</p>
+              <p class="text-sm font-medium text-foreground">Eco</p>
               <p class="text-xs text-muted-foreground">Burstable compute, shared resources</p>
             </div>
           </div>
           <div v-else-if="resourceTier === 'PRODUCTION'" class="flex items-center gap-3 px-4 py-3">
-            <ShieldCheck :size="16" class="shrink-0 text-purple-500" />
+            <ShieldCheck :size="16" class="shrink-0 text-violet-500" />
             <div class="min-w-0 flex-1">
-              <p class="text-sm font-medium text-purple-600 dark:text-purple-400">Production</p>
+              <p class="text-sm font-medium text-foreground">Production</p>
               <p class="text-xs text-muted-foreground">Guaranteed performance, dedicated resources</p>
             </div>
           </div>
