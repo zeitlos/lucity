@@ -341,6 +341,68 @@ func (c *Client) CreateCreditGrantForPeriod(ctx context.Context, customerID stri
 	return nil
 }
 
+// CustomerByWorkspace searches for an existing Stripe customer with matching workspace metadata.
+// Returns the customer ID if found, empty string if not. Used for idempotent customer creation.
+func (c *Client) CustomerByWorkspace(ctx context.Context, workspace string) (string, error) {
+	params := &gostripe.CustomerSearchParams{
+		SearchParams: gostripe.SearchParams{
+			Query: fmt.Sprintf("metadata['workspace']:'%s'", workspace),
+		},
+	}
+
+	iter := customer.Search(params)
+	if iter.Next() {
+		return iter.Customer().ID, nil
+	}
+	if err := iter.Err(); err != nil {
+		return "", fmt.Errorf("failed to search customers: %w", err)
+	}
+	return "", nil
+}
+
+// ActiveSubscriptionForCustomer returns the ID of an active or trialing subscription
+// for the given customer that has the specified workspace in its metadata.
+// Returns empty string if no matching subscription exists.
+func (c *Client) ActiveSubscriptionForCustomer(ctx context.Context, customerID, workspace string) (string, error) {
+	params := &gostripe.SubscriptionListParams{
+		ListParams: gostripe.ListParams{},
+	}
+	params.Filters.AddFilter("customer", "", customerID)
+	params.Filters.AddFilter("status", "", "active")
+
+	iter := subscription.List(params)
+	for iter.Next() {
+		sub := iter.Subscription()
+		if sub.Metadata["workspace"] == workspace {
+			return sub.ID, nil
+		}
+	}
+	if err := iter.Err(); err != nil {
+		// Try trialing subscriptions too
+		return "", fmt.Errorf("failed to list subscriptions: %w", err)
+	}
+
+	// Also check trialing subscriptions
+	trialParams := &gostripe.SubscriptionListParams{
+		ListParams: gostripe.ListParams{},
+	}
+	trialParams.Filters.AddFilter("customer", "", customerID)
+	trialParams.Filters.AddFilter("status", "", "trialing")
+
+	trialIter := subscription.List(trialParams)
+	for trialIter.Next() {
+		sub := trialIter.Subscription()
+		if sub.Metadata["workspace"] == workspace {
+			return sub.ID, nil
+		}
+	}
+	if err := trialIter.Err(); err != nil {
+		return "", fmt.Errorf("failed to list trialing subscriptions: %w", err)
+	}
+
+	return "", nil
+}
+
 // HasPaymentMethod checks if a Stripe customer has a default payment method set.
 // This checks the customer's invoice settings, which is where the billing portal sets
 // the default card — not on the subscription itself.

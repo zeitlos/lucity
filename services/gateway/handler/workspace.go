@@ -545,6 +545,18 @@ func (c *Client) EnsurePersonalWorkspace(ctx context.Context, rauthyUserID, gith
 			if err := c.ensureWorkspaceGroups(ctx, wsID, rauthyUserID); err != nil {
 				return "", false, fmt.Errorf("failed to restore workspace groups: %w", err)
 			}
+
+			// Self-heal: if billing is incomplete (e.g. previous signup partially failed),
+			// re-run setupBilling. It's idempotent — skips steps already done.
+			if existing.StripeCustomerId == "" || existing.StripeSubscriptionId == "" {
+				user, _ := c.Rauthy.User(ctx, rauthyUserID)
+				email := ""
+				if user != nil {
+					email = user.Email
+				}
+				c.setupBilling(ctx, wsID, githubLogin, email)
+			}
+
 			slog.Info("personal workspace restored", "id", wsID, "user", rauthyUserID)
 			return wsID, false, nil
 		}
@@ -628,41 +640,98 @@ func (c *Client) findAvailableWorkspaceID(ctx context.Context, base string) (str
 	return "", fmt.Errorf("all workspace ID slots exhausted for base %q", base)
 }
 
-// setupBilling creates a Stripe customer and subscription for a new workspace.
-// Best-effort — logs warnings on failure but never returns errors.
+// setupBilling ensures a Stripe customer and subscription exist for a workspace and
+// stores their IDs in the workspace ConfigMap. Idempotent: skips steps that are
+// already complete (based on metadata), and self-heals on every login if a previous
+// attempt partially failed.
+//
+// Uses context.WithoutCancel to detach from the HTTP request lifecycle. Billing setup
+// must complete even if the browser navigates away during the OIDC callback redirect.
 func (c *Client) setupBilling(ctx context.Context, workspace, name, email string) {
 	if c.Cashier == nil {
 		return
 	}
 
-	outCtx := auth.OutgoingContext(ctx)
+	// Detach from the HTTP request context. The OIDC callback redirects the browser
+	// immediately after this returns, which cancels r.Context(). Billing setup must
+	// survive that cancellation.
+	billingCtx := context.WithoutCancel(ctx)
+	outCtx := auth.OutgoingContext(billingCtx)
 
-	custCtx, custCancel := context.WithTimeout(outCtx, grpcTimeout)
-	defer custCancel()
-	custResp, err := c.Cashier.CreateCustomer(custCtx, &cashier.CreateCustomerRequest{
+	// Read current metadata to check if billing is already (partially) set up.
+	metaCtx, metaCancel := context.WithTimeout(outCtx, grpcTimeout)
+	defer metaCancel()
+	meta, err := c.Deployer.WorkspaceMetadata(metaCtx, &deployer.WorkspaceMetadataRequest{
 		Workspace: workspace,
-		Name:      name,
-		Email:     email,
 	})
 	if err != nil {
-		slog.Warn("failed to create Stripe customer for workspace", "workspace", workspace, "error", err)
+		slog.Warn("failed to read workspace metadata for billing setup", "workspace", workspace, "error", err)
+		// Continue — we'll create everything from scratch
+		meta = &deployer.WorkspaceMetadataResponse{}
+	}
+
+	// Step 1: Ensure Stripe customer exists.
+	customerID := meta.StripeCustomerId
+	if customerID == "" {
+		custCtx, custCancel := context.WithTimeout(outCtx, grpcTimeout)
+		defer custCancel()
+		custResp, custErr := c.Cashier.CreateCustomer(custCtx, &cashier.CreateCustomerRequest{
+			Workspace: workspace,
+			Name:      name,
+			Email:     email,
+		})
+		if custErr != nil {
+			slog.Warn("failed to create Stripe customer for workspace", "workspace", workspace, "error", custErr)
+			return // Will retry on next login
+		}
+		customerID = custResp.CustomerId
+	}
+
+	// Step 2: Ensure Stripe subscription exists.
+	subscriptionID := meta.StripeSubscriptionId
+	if subscriptionID == "" {
+		subCtx, subCancel := context.WithTimeout(outCtx, grpcTimeout)
+		defer subCancel()
+		subResp, subErr := c.Cashier.CreateSubscription(subCtx, &cashier.CreateSubscriptionRequest{
+			Workspace:  workspace,
+			CustomerId: customerID,
+			Plan:       cashier.Plan_PLAN_HOBBY,
+			TrialDays:  14,
+		})
+		if subErr != nil {
+			slog.Warn("failed to create Stripe subscription for workspace", "workspace", workspace, "error", subErr)
+			// Store at least the customer ID so we don't re-create it next time.
+			storeCtx, storeCancel := context.WithTimeout(outCtx, grpcTimeout)
+			defer storeCancel()
+			_, _ = c.Deployer.UpdateWorkspaceMetadata(storeCtx, &deployer.UpdateWorkspaceMetadataRequest{
+				Workspace:        workspace,
+				StripeCustomerId: customerID,
+			})
+			return // Will retry subscription on next login
+		}
+		subscriptionID = subResp.SubscriptionId
+	}
+
+	// Step 3: Persist both IDs to the workspace ConfigMap.
+	// Skip if both are already stored (nothing changed).
+	if meta.StripeCustomerId == customerID && meta.StripeSubscriptionId == subscriptionID {
+		slog.Debug("billing already set up", "workspace", workspace)
 		return
 	}
 
-	subCtx, subCancel := context.WithTimeout(outCtx, grpcTimeout)
-	defer subCancel()
-	_, err = c.Cashier.CreateSubscription(subCtx, &cashier.CreateSubscriptionRequest{
-		Workspace:  workspace,
-		CustomerId: custResp.CustomerId,
-		Plan:       cashier.Plan_PLAN_HOBBY,
-		TrialDays:  14,
+	storeCtx, storeCancel := context.WithTimeout(outCtx, grpcTimeout)
+	defer storeCancel()
+	_, err = c.Deployer.UpdateWorkspaceMetadata(storeCtx, &deployer.UpdateWorkspaceMetadataRequest{
+		Workspace:            workspace,
+		StripeCustomerId:     customerID,
+		StripeSubscriptionId: subscriptionID,
 	})
 	if err != nil {
-		slog.Warn("failed to create Stripe subscription for workspace", "workspace", workspace, "error", err)
-		return
+		slog.Warn("failed to store billing IDs in workspace metadata", "workspace", workspace, "error", err)
+		return // Will retry on next login
 	}
 
-	slog.Info("billing setup complete", "workspace", workspace)
+	slog.Info("billing setup complete", "workspace", workspace, "customer_id", customerID, "subscription_id", subscriptionID)
 }
 
 // requireWorkspaceAdmin checks that the current user is an admin of the given workspace.

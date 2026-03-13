@@ -41,19 +41,20 @@ func (s *Server) CreateCustomer(ctx context.Context, req *cashier.CreateCustomer
 		return nil, fmt.Errorf("workspace required")
 	}
 
+	// Idempotent: check if a customer already exists for this workspace in Stripe.
+	existing, err := s.stripe.CustomerByWorkspace(ctx, req.Workspace)
+	if err != nil {
+		slog.Warn("failed to search for existing customer", "workspace", req.Workspace, "error", err)
+		// Fall through to create — search failure shouldn't block signup
+	}
+	if existing != "" {
+		slog.Info("stripe customer already exists", "workspace", req.Workspace, "customer_id", existing)
+		return &cashier.CreateCustomerResponse{CustomerId: existing}, nil
+	}
+
 	customerID, err := s.stripe.CreateCustomer(ctx, req.Workspace, req.Name, req.Email)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create customer: %w", err)
-	}
-
-	// Store customer ID in workspace ConfigMap via deployer
-	_, err = s.deployer.UpdateWorkspaceMetadata(deployerCtx(ctx), &deployer.UpdateWorkspaceMetadataRequest{
-		Workspace:        req.Workspace,
-		StripeCustomerId: customerID,
-	})
-	if err != nil {
-		slog.Error("failed to store stripe customer ID", "workspace", req.Workspace, "error", err)
-		// Don't fail — customer was created in Stripe, we can recover
 	}
 
 	slog.Info("stripe customer created", "workspace", req.Workspace, "customer_id", customerID)
@@ -65,20 +66,22 @@ func (s *Server) CreateSubscription(ctx context.Context, req *cashier.CreateSubs
 		return nil, fmt.Errorf("workspace and customer_id required")
 	}
 
+	// Idempotent: check if an active or trialing subscription already exists for this customer.
+	existingSubID, err := s.stripe.ActiveSubscriptionForCustomer(ctx, req.CustomerId, req.Workspace)
+	if err != nil {
+		slog.Warn("failed to check for existing subscription", "workspace", req.Workspace, "error", err)
+		// Fall through to create — list failure shouldn't block signup
+	}
+	if existingSubID != "" {
+		slog.Info("stripe subscription already exists", "workspace", req.Workspace, "subscription_id", existingSubID)
+		return &cashier.CreateSubscriptionResponse{SubscriptionId: existingSubID}, nil
+	}
+
 	planPriceID := s.stripe.PlanPriceID(planToString(req.Plan))
 
 	subID, err := s.stripe.CreateSubscription(ctx, req.CustomerId, req.Workspace, planPriceID, int(req.TrialDays))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create subscription: %w", err)
-	}
-
-	// Store subscription ID in workspace ConfigMap via deployer
-	_, err = s.deployer.UpdateWorkspaceMetadata(deployerCtx(ctx), &deployer.UpdateWorkspaceMetadataRequest{
-		Workspace:            req.Workspace,
-		StripeSubscriptionId: subID,
-	})
-	if err != nil {
-		slog.Error("failed to store stripe subscription ID", "workspace", req.Workspace, "error", err)
 	}
 
 	slog.Info("stripe subscription created", "workspace", req.Workspace, "subscription_id", subID)
