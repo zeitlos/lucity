@@ -94,6 +94,40 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate docs content dates
+        if: matrix.service == 'docs'
+        run: |
+          cd docs
+          node -e "
+          const { execSync } = require('child_process');
+          const { readdirSync, statSync, writeFileSync } = require('fs');
+          const { join } = require('path');
+          function collect(dir, base) {
+            const files = [];
+            for (const e of readdirSync(dir)) {
+              const f = join(dir, e);
+              if (statSync(f).isDirectory()) files.push(...collect(f, base));
+              else if (e.endsWith('.md')) files.push(f.slice(base.length));
+            }
+            return files;
+          }
+          const contentDir = join(__dirname, 'content');
+          const dates = {};
+          for (const rel of collect(contentDir, contentDir)) {
+            try {
+              const d = execSync('git log -1 --format=%cI -- ' + JSON.stringify(join(contentDir, rel)), { encoding: 'utf-8' }).trim();
+              if (d) {
+                const route = rel.replace(/\.md$/, '').replace(/\/index$/, '').replace(/\/(\d+\.)/g, '/').replace(/^\/(\d+\.)/, '/');
+                dates[route] = d;
+              }
+            } catch {}
+          }
+          writeFileSync('_content-dates.json', JSON.stringify(dates));
+          console.log('Generated dates for', Object.keys(dates).length, 'pages');
+          "
 
       - uses: docker/setup-buildx-action@v3
 
