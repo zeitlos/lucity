@@ -30,7 +30,7 @@ const { result, loading, error, refetch } = useQuery(ProjectQuery, () => ({
 const project = computed(() => result.value?.project);
 
 // Environment management
-const { setEnvironments, setEnvironmentByName, refreshActiveEnvironment, activeEnvironment, activeEnvDatabases } = useEnvironment();
+const { setEnvironments, setEnvironmentByName, refreshActiveEnvironment, activeEnvironment, activeEnvServices, activeEnvDatabases } = useEnvironment();
 const { isOpen, currentPanel, closePanel } = usePanel();
 const logsPanel = useDeploymentLogsPanel();
 const serviceLogsPanel = useServiceLogsPanel();
@@ -70,10 +70,10 @@ watch(
   },
 );
 
-// Selected service for the panel
+// Selected service for the panel (from active environment)
 const selectedService = computed(() => {
-  if (!currentPanel.value || currentPanel.value.type !== 'service' || !project.value) return null;
-  return project.value.services.find(
+  if (!currentPanel.value || currentPanel.value.type !== 'service') return null;
+  return activeEnvServices.value.find(
     (s: { name: string }) => s.name === currentPanel.value!.id
   ) ?? null;
 });
@@ -114,7 +114,7 @@ function handleCreateFromPalette() {
 // Whether we have any resources to show on the canvas
 const hasResources = computed(() => {
   if (!project.value) return false;
-  return project.value.services.length > 0 || (project.value.databases?.length ?? 0) > 0;
+  return activeEnvServices.value.length > 0 || (project.value.databases?.length ?? 0) > 0;
 });
 </script>
 
@@ -146,7 +146,7 @@ const hasResources = computed(() => {
           <template v-if="hasResources">
             <ServiceCanvas
               :project-id="projectId"
-              :services="project.services"
+              :services="activeEnvServices"
               :databases="project.databases"
               @create="paletteOpen = true"
               @deploy-completed="refetch()"

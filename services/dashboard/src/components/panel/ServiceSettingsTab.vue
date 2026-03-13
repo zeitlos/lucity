@@ -55,7 +55,7 @@ const props = defineProps<{
   service: {
     name: string;
     image: string;
-    port: number;
+    port?: number;
     framework?: string;
     sourceUrl?: string;
     contextPath?: string;
@@ -177,6 +177,7 @@ async function handleSaveCommand() {
   try {
     await setCustomStartCommandMutate({
       projectId: props.projectId,
+      environment: activeEnvironment.value?.name,
       service: props.service.name,
       command: customStartCommand.value,
     });
@@ -400,6 +401,7 @@ async function handleRemoveService() {
   try {
     const res = await removeServiceMutate({
       projectId: props.projectId,
+      environment: activeEnvironment.value?.name,
       service: props.service.name,
     });
 

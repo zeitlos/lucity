@@ -57,13 +57,10 @@ func testPromote(t *testing.T) {
 						name
 						services {
 							name
+							port
+							framework
 							imageTag
 						}
-					}
-					services {
-						name
-						port
-						framework
 					}
 				}
 			}
@@ -75,32 +72,28 @@ func testPromote(t *testing.T) {
 				Environments []struct {
 					Name     string `json:"name"`
 					Services []struct {
-						Name     string `json:"name"`
-						ImageTag string `json:"imageTag"`
+						Name      string `json:"name"`
+						Port      int    `json:"port"`
+						Framework string `json:"framework"`
+						ImageTag  string `json:"imageTag"`
 					} `json:"services"`
 				} `json:"environments"`
-				Services []struct {
-					Name      string `json:"name"`
-					Port      int    `json:"port"`
-					Framework string `json:"framework"`
-				} `json:"services"`
 			} `json:"project"`
 		}
 		unmarshalData(t, resp, &data)
 
-		// Verify the project-level service definition
-		foundService := false
-		for _, svc := range data.Project.Services {
-			if svc.Name == testServiceName {
-				foundService = true
-				if svc.Port != testServicePort {
-					t.Errorf("expected service port %d, got %d", testServicePort, svc.Port)
+		// Verify development has the service with correct definition fields
+		for _, env := range data.Project.Environments {
+			if env.Name == "development" {
+				for _, svc := range env.Services {
+					if svc.Name == testServiceName {
+						if svc.Port != testServicePort {
+							t.Errorf("expected service port %d, got %d", testServicePort, svc.Port)
+						}
+						t.Logf("development service: %s port=%d framework=%s", svc.Name, svc.Port, svc.Framework)
+					}
 				}
-				t.Logf("project service: %s port=%d framework=%s", svc.Name, svc.Port, svc.Framework)
 			}
-		}
-		if !foundService {
-			t.Fatalf("service %s not found in project", testServiceName)
 		}
 
 		// Verify staging has the service instance

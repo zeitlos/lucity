@@ -18,7 +18,8 @@ type AddCustomDomainInput struct {
 }
 
 type AddServiceInput struct {
-	ProjectID string `json:"projectId"`
+	ProjectID   string `json:"projectId"`
+	Environment string `json:"environment"`
 	// Service name. If omitted when image is set, derived from the image (e.g. nginx:1.25 → nginx).
 	Name *string `json:"name,omitempty"`
 	// Container port. If omitted when image is set, uses well-known defaults (e.g. redis → 6379).
@@ -276,13 +277,11 @@ type PlatformConfig struct {
 }
 
 type Project struct {
-	ID             string        `json:"id"`
-	Name           string        `json:"name"`
-	Environments   []Environment `json:"environments"`
-	Services       []Service     `json:"services"`
-	Databases      []Database    `json:"databases"`
-	CreatedAt      time.Time     `json:"createdAt"`
-	InitialDeploys []DeployRun   `json:"initialDeploys,omitempty"`
+	ID           string        `json:"id"`
+	Name         string        `json:"name"`
+	Environments []Environment `json:"environments"`
+	Databases    []Database    `json:"databases"`
+	CreatedAt    time.Time     `json:"createdAt"`
 }
 
 type PromoteInput struct {
@@ -328,30 +327,25 @@ type ScalingConfig struct {
 	Autoscaling *AutoscalingConfig `json:"autoscaling,omitempty"`
 }
 
-type Service struct {
-	Name        string  `json:"name"`
-	Image       string  `json:"image"`
-	Port        *int    `json:"port,omitempty"`
-	Framework   *string `json:"framework,omitempty"`
-	SourceURL   *string `json:"sourceUrl,omitempty"`
-	ContextPath *string `json:"contextPath,omitempty"`
-	// Auto-detected start command from the build system. Used as the default if no custom override is set.
-	StartCommand       *string           `json:"startCommand,omitempty"`
-	CustomStartCommand *string           `json:"customStartCommand,omitempty"`
-	Instances          []ServiceInstance `json:"instances"`
+type ServiceInstance struct {
+	ID                 string         `json:"id"`
+	Name               string         `json:"name"`
+	Environment        string         `json:"environment"`
+	Image              string         `json:"image"`
+	Port               *int           `json:"port,omitempty"`
+	Framework          *string        `json:"framework,omitempty"`
+	SourceURL          *string        `json:"sourceUrl,omitempty"`
+	ContextPath        *string        `json:"contextPath,omitempty"`
+	StartCommand       *string        `json:"startCommand,omitempty"`
+	CustomStartCommand *string        `json:"customStartCommand,omitempty"`
+	ImageTag           string         `json:"imageTag"`
+	Ready              bool           `json:"ready"`
+	Replicas           int            `json:"replicas"`
+	Scaling            *ScalingConfig `json:"scaling"`
+	Domains            []Domain       `json:"domains"`
+	Deployments        []Deployment   `json:"deployments"`
 	// Deploy automatically triggered when the service was added. Null for image-based services.
 	InitialDeploy *DeployRun `json:"initialDeploy,omitempty"`
-}
-
-type ServiceInstance struct {
-	Name        string         `json:"name"`
-	Environment string         `json:"environment"`
-	ImageTag    string         `json:"imageTag"`
-	Ready       bool           `json:"ready"`
-	Replicas    int            `json:"replicas"`
-	Scaling     *ScalingConfig `json:"scaling"`
-	Domains     []Domain       `json:"domains"`
-	Deployments []Deployment   `json:"deployments"`
 }
 
 type ServiceLogEntry struct {

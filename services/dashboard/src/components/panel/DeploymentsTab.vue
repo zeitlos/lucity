@@ -29,7 +29,7 @@ const props = defineProps<{
   service: {
     name: string;
     image: string;
-    port: number;
+    port?: number;
     framework?: string;
     sourceUrl?: string;
   };

@@ -27,13 +27,11 @@ const (
 )
 
 type Project struct {
-	ID             string
-	Name           string
-	Environments   []Environment
-	Services       []Service
-	Databases      []Database
-	InitialDeploys []DeployOp
-	CreatedAt      time.Time
+	ID           string
+	Name         string
+	Environments []Environment
+	Databases    []Database
+	CreatedAt    time.Time
 }
 
 type Environment struct {
@@ -46,8 +44,10 @@ type Environment struct {
 	Databases  []DatabaseInstance
 }
 
-type Service struct {
+type ServiceInstance struct {
+	ID                   string
 	Name                 string
+	Environment          string
 	Image                string
 	Port                 int
 	Framework            string
@@ -56,19 +56,13 @@ type Service struct {
 	GitHubInstallationID int64
 	StartCommand         string
 	CustomStartCommand   string
-	Instances            []ServiceInstance
+	ImageTag             string
+	Ready                bool
+	Replicas             int
+	Scaling              ScalingConfig
+	Domains              []string
+	Deployments          []Deployment
 	InitialDeploy        *DeployOp
-}
-
-type ServiceInstance struct {
-	Name        string
-	Environment string
-	ImageTag    string
-	Ready       bool
-	Replicas    int
-	Scaling     ScalingConfig
-	Domains     []string
-	Deployments []Deployment
 }
 
 type ScalingConfig struct {
@@ -366,20 +360,6 @@ func (c *Client) Promote(ctx context.Context, projectID, service, fromEnv, toEnv
 	}, nil
 }
 
-func (c *Client) Service(ctx context.Context, projectID, name string) (*Service, error) {
-	proj, err := c.Project(ctx, projectID)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, svc := range proj.Services {
-		if svc.Name == name {
-			return &svc, nil
-		}
-	}
-	return nil, nil
-}
-
 // enrichSyncStatus queries the deployer for each environment's ArgoCD sync status.
 // Best-effort: logs warnings on failure and leaves status as "UNKNOWN".
 // Calls are made concurrently to avoid serial N+1 latency.
@@ -548,21 +528,6 @@ func (c *Client) enrichDeploymentHistory(ctx context.Context, proj *Project) {
 		}
 	}
 	wg.Wait()
-
-	// Also attach to the cross-referenced Service.Instances
-	for i, svc := range proj.Services {
-		for j := range svc.Instances {
-			inst := &proj.Services[i].Instances[j]
-			for _, env := range proj.Environments {
-				for _, esi := range env.Services {
-					if esi.Name == inst.Name && esi.Environment == inst.Environment {
-						inst.Deployments = esi.Deployments
-						inst.Ready = esi.Ready
-					}
-				}
-			}
-		}
-	}
 }
 
 // shaPattern matches a hex string of 7+ characters (git short SHA).
@@ -577,17 +542,19 @@ func (c *Client) enrichCommitMessages(ctx context.Context, proj *Project) {
 		return
 	}
 
-	// Build service name → info lookup
+	// Build service name → info lookup from environment services
 	type serviceInfo struct {
 		sourceURL      string
 		installationID int64
 	}
-	services := make(map[string]serviceInfo, len(proj.Services))
-	for _, svc := range proj.Services {
-		if svc.SourceURL != "" && svc.GitHubInstallationID != 0 {
-			services[svc.Name] = serviceInfo{
-				sourceURL:      svc.SourceURL,
-				installationID: svc.GitHubInstallationID,
+	services := make(map[string]serviceInfo)
+	for _, env := range proj.Environments {
+		for _, si := range env.Services {
+			if si.SourceURL != "" && si.GitHubInstallationID != 0 {
+				services[si.Name] = serviceInfo{
+					sourceURL:      si.SourceURL,
+					installationID: si.GitHubInstallationID,
+				}
 			}
 		}
 	}
@@ -688,27 +655,6 @@ func (c *Client) enrichCommitMessages(ctx context.Context, proj *Project) {
 		}
 	}
 
-	// Also update the cross-referenced Service.Instances
-	for i := range proj.Services {
-		for j := range proj.Services[i].Instances {
-			inst := &proj.Services[i].Instances[j]
-			info := services[inst.Name]
-			if info.sourceURL == "" {
-				continue
-			}
-			owner, repo := parseGitHubRepoURL(info.sourceURL)
-			if owner == "" {
-				continue
-			}
-			for k := range inst.Deployments {
-				dep := &inst.Deployments[k]
-				if r, ok := results[commitKey{owner, repo, dep.ImageTag}]; ok {
-					dep.SourceCommitMessage = r.message
-					dep.SourceURL = r.url
-				}
-			}
-		}
-	}
 }
 
 // parseGitHubRepoURL extracts owner and repo name from a GitHub URL.
@@ -768,32 +714,26 @@ func projectFromProto(ws string, p *packager.ProjectInfo) Project {
 			SyncStatus: "UNKNOWN",
 		}
 
-		// Populate service instances from environment values
+		// Build enriched ServiceInstances from environment data
 		for _, svc := range envInfoMap[envName] {
 			env.Services = append(env.Services, ServiceInstance{
-				Name:        svc.Name,
-				Environment: envName,
-				ImageTag:    svc.ImageTag,
-				Domains:     svc.Domains,
-				Replicas:    0, // set by enrichServiceStatus from K8s
+				ID:                   svc.Name + ":" + envName,
+				Name:                 svc.Name,
+				Environment:          envName,
+				Image:                svc.Image,
+				Port:                 int(svc.Port),
+				Framework:            svc.Framework,
+				SourceURL:            svc.SourceUrl,
+				ContextPath:          svc.ContextPath,
+				GitHubInstallationID: svc.GithubInstallationId,
+				StartCommand:         svc.StartCommand,
+				CustomStartCommand:   svc.CustomStartCommand,
+				ImageTag:             svc.ImageTag,
+				Domains:              svc.Domains,
 			})
 		}
 
 		proj.Environments = append(proj.Environments, env)
-	}
-
-	for _, svc := range p.Services {
-		proj.Services = append(proj.Services, Service{
-			Name:                 svc.Name,
-			Image:                svc.Image,
-			Port:                 int(svc.Port),
-			Framework:            svc.Framework,
-			SourceURL:            svc.SourceUrl,
-			ContextPath:          svc.ContextPath,
-			GitHubInstallationID: svc.GithubInstallationId,
-			StartCommand:         svc.StartCommand,
-			CustomStartCommand:   svc.CustomStartCommand,
-		})
 	}
 
 	for _, db := range p.Databases {
@@ -803,17 +743,6 @@ func projectFromProto(ws string, p *packager.ProjectInfo) Project {
 			Instances: int(db.Instances),
 			Size:      db.Size,
 		})
-	}
-
-	// Cross-reference: collect all service instances across environments onto each Service
-	for i, svc := range proj.Services {
-		for _, env := range proj.Environments {
-			for _, si := range env.Services {
-				if si.Name == svc.Name {
-					proj.Services[i].Instances = append(proj.Services[i].Instances, si)
-				}
-			}
-		}
 	}
 
 	return proj

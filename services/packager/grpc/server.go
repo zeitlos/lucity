@@ -86,7 +86,6 @@ func (s *Server) ListProjects(ctx context.Context, req *packager.ListProjectsReq
 			Environments:     proj.Environments,
 			EnvironmentInfos: envInfosFromMeta(proj.EnvironmentInfos),
 			CreatedAt:        timestamppb.New(proj.CreatedAt),
-			Services:         serviceInfosFromDefs(proj.Services),
 			Databases:        databaseInfosFromDefs(proj.Databases),
 		})
 	}
@@ -97,36 +96,9 @@ func (s *Server) ListProjects(ctx context.Context, req *packager.ListProjectsReq
 func (s *Server) GetProject(ctx context.Context, req *packager.GetProjectRequest) (*packager.GetProjectResponse, error) {
 	slog.Info("GetProject called", "project", req.Project)
 
-	p := s.provider
-
-	proj, err := p.Repo(ctx, req.Project)
+	proj, err := s.provider.Repo(ctx, req.Project)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get project: %w", err)
-	}
-
-	svcs, err := p.Services(ctx, req.Project)
-	if err != nil {
-		slog.Warn("failed to read services", "project", req.Project, "error", err)
-	}
-
-	dbs, err := p.Databases(ctx, req.Project)
-	if err != nil {
-		slog.Warn("failed to read databases", "project", req.Project, "error", err)
-	}
-
-	// If EnvironmentInfos is not populated, read per-env data.
-	envInfos := proj.EnvironmentInfos
-	if len(envInfos) == 0 && len(proj.Environments) > 0 {
-		for _, envName := range proj.Environments {
-			envMeta := gitops.EnvironmentMeta{Name: envName}
-			envSvcs, envErr := p.EnvironmentServices(ctx, req.Project, envName)
-			if envErr != nil {
-				slog.Warn("failed to read environment services", "project", req.Project, "environment", envName, "error", envErr)
-			} else {
-				envMeta.Services = envSvcs
-			}
-			envInfos = append(envInfos, envMeta)
-		}
 	}
 
 	return &packager.GetProjectResponse{
@@ -134,10 +106,9 @@ func (s *Server) GetProject(ctx context.Context, req *packager.GetProjectRequest
 			Name:             proj.Name,
 			GitopsRepoUrl:    proj.RepoURL,
 			Environments:     proj.Environments,
-			EnvironmentInfos: envInfosFromMeta(envInfos),
+			EnvironmentInfos: envInfosFromMeta(proj.EnvironmentInfos),
 			CreatedAt:        timestamppb.New(proj.CreatedAt),
-			Services:         serviceInfosFromDefs(svcs),
-			Databases:        databaseInfosFromDefs(dbs),
+			Databases:        databaseInfosFromDefs(proj.Databases),
 		},
 	}, nil
 }
@@ -155,7 +126,7 @@ func (s *Server) DeleteProject(ctx context.Context, req *packager.DeleteProjectR
 }
 
 func (s *Server) AddService(ctx context.Context, req *packager.AddServiceRequest) (*packager.AddServiceResponse, error) {
-	slog.Info("AddService called", "project", req.Project, "service", req.Service, "image", req.Image)
+	slog.Info("AddService called", "project", req.Project, "service", req.Service, "environment", req.Environment, "image", req.Image)
 
 	p := s.provider
 
@@ -165,7 +136,7 @@ func (s *Server) AddService(ctx context.Context, req *packager.AddServiceRequest
 		slog.Warn("failed to sync chart before adding service", "project", req.Project, "error", err)
 	}
 
-	if err := p.AddService(ctx, req.Project, gitops.ServiceDef{
+	if err := p.AddService(ctx, req.Project, req.Environment, gitops.ServiceDef{
 		Name:                 req.Service,
 		Image:                req.Image,
 		Port:                 int(req.Port),
@@ -181,20 +152,18 @@ func (s *Server) AddService(ctx context.Context, req *packager.AddServiceRequest
 		return nil, fmt.Errorf("failed to add service: %w", err)
 	}
 
-	s.syncAllEnvironments(ctx, req.Project)
+	s.syncEnvironment(ctx, req.Project, req.Environment)
 	return &packager.AddServiceResponse{}, nil
 }
 
 func (s *Server) RemoveService(ctx context.Context, req *packager.RemoveServiceRequest) (*packager.RemoveServiceResponse, error) {
-	slog.Info("RemoveService called", "project", req.Project, "service", req.Service)
+	slog.Info("RemoveService called", "project", req.Project, "service", req.Service, "environment", req.Environment)
 
-	p := s.provider
-
-	if err := p.RemoveService(ctx, req.Project, req.Service); err != nil {
+	if err := s.provider.RemoveService(ctx, req.Project, req.Environment, req.Service); err != nil {
 		return nil, fmt.Errorf("failed to remove service: %w", err)
 	}
 
-	s.syncAllEnvironments(ctx, req.Project)
+	s.syncEnvironment(ctx, req.Project, req.Environment)
 	return &packager.RemoveServiceResponse{}, nil
 }
 
@@ -403,9 +372,17 @@ func envInfosFromMeta(metas []gitops.EnvironmentMeta) []*packager.EnvironmentInf
 		var svcs []*packager.ServiceInstanceInfo
 		for _, s := range m.Services {
 			svcs = append(svcs, &packager.ServiceInstanceInfo{
-				Name:     s.Name,
-				ImageTag: s.ImageTag,
-				Domains:  s.Domains,
+				Name:                 s.Name,
+				ImageTag:             s.ImageTag,
+				Domains:              s.Domains,
+				Image:                s.Image,
+				Port:                 int32(s.Port),
+				Framework:            s.Framework,
+				SourceUrl:            s.SourceURL,
+				ContextPath:          s.ContextPath,
+				GithubInstallationId: s.GitHubInstallationID,
+				CustomStartCommand:   s.CustomStartCommand,
+				StartCommand:         s.StartCommand,
 			})
 		}
 		infos[i] = &packager.EnvironmentInfo{
@@ -489,27 +466,6 @@ func databaseInfosFromDefs(defs []gitops.DatabaseDef) []*packager.DatabaseInfo {
 	return infos
 }
 
-func serviceInfosFromDefs(defs []gitops.ServiceDef) []*packager.ServiceInfo {
-	if len(defs) == 0 {
-		return nil
-	}
-	infos := make([]*packager.ServiceInfo, len(defs))
-	for i, d := range defs {
-		infos[i] = &packager.ServiceInfo{
-			Name:                 d.Name,
-			Image:                d.Image,
-			Port:                 int32(d.Port),
-			Framework:            d.Framework,
-			SourceUrl:            d.SourceURL,
-			ContextPath:          d.ContextPath,
-			GithubInstallationId: d.GitHubInstallationID,
-			CustomStartCommand:   d.CustomStartCommand,
-			StartCommand:         d.StartCommand,
-		}
-	}
-	return infos
-}
-
 func databaseRefsToProto(refs map[string]gitops.DatabaseRef) map[string]*packager.DatabaseRef {
 	if len(refs) == 0 {
 		return nil
@@ -564,12 +520,12 @@ func (s *Server) SetServiceScaling(ctx context.Context, req *packager.SetService
 }
 
 func (s *Server) SetCustomStartCommand(ctx context.Context, req *packager.SetCustomStartCommandRequest) (*packager.SetCustomStartCommandResponse, error) {
-	slog.Info("SetCustomStartCommand called", "project", req.Project, "service", req.Service, "command", req.Command)
+	slog.Info("SetCustomStartCommand called", "project", req.Project, "service", req.Service, "environment", req.Environment, "command", req.Command)
 
-	if err := s.provider.SetCustomStartCommand(ctx, req.Project, req.Service, req.Command); err != nil {
+	if err := s.provider.SetCustomStartCommand(ctx, req.Project, req.Environment, req.Service, req.Command); err != nil {
 		return nil, fmt.Errorf("failed to set custom start command: %w", err)
 	}
-	s.syncAllEnvironments(ctx, req.Project)
+	s.syncEnvironment(ctx, req.Project, req.Environment)
 	return &packager.SetCustomStartCommandResponse{}, nil
 }
 

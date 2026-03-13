@@ -17,12 +17,13 @@ func testCleanup(t *testing.T) {
 
 	t.Run("RemoveService", func(t *testing.T) {
 		resp := doGraphQL(t, token, `
-			mutation($projectId: ID!, $service: String!) {
-				removeService(projectId: $projectId, service: $service)
+			mutation($projectId: ID!, $environment: String!, $service: String!) {
+				removeService(projectId: $projectId, environment: $environment, service: $service)
 			}
 		`, map[string]any{
-			"projectId": testProjectName,
-			"service":   testServiceName,
+			"projectId":   testProjectName,
+			"environment": "development",
+			"service":     testServiceName,
 		})
 
 		if len(resp.Errors) > 0 {

@@ -153,9 +153,11 @@ func (p *SoftServeProvider) DeleteRepo(ctx context.Context, project string) erro
 	return nil
 }
 
-// AddService adds a service to base/values.yaml.
-func (p *SoftServeProvider) AddService(ctx context.Context, project string, svc ServiceDef) error {
-	return p.modifyRepo(ctx, project, fmt.Sprintf("config: add service %s", svc.Name), false, func(dir string) error {
+// AddService adds a service definition to base/values.yaml and writes the
+// initial image tag to the target environment's values.yaml in a single commit.
+func (p *SoftServeProvider) AddService(ctx context.Context, project, environment string, svc ServiceDef) error {
+	return p.modifyRepo(ctx, project, fmt.Sprintf("config(%s): add service %s", environment, svc.Name), false, func(dir string) error {
+		// 1. Write service definition to base/values.yaml
 		path := filepath.Join(dir, "base", "values.yaml")
 		inner, err := readSubchartValues(path)
 		if err != nil {
@@ -167,8 +169,6 @@ func (p *SoftServeProvider) AddService(ctx context.Context, project string, svc 
 			services = make(map[string]any)
 		}
 
-		// Base only stores the image repository and pull policy — never the tag.
-		// Tags are per-environment so services don't deploy globally.
 		imageMap := map[string]any{
 			"repository": svc.Image,
 		}
@@ -190,8 +190,6 @@ func (p *SoftServeProvider) AddService(ctx context.Context, project string, svc 
 			svcEntry["contextPath"] = svc.ContextPath
 		}
 		if svc.GitHubInstallationID != 0 {
-			// Store as string to avoid Helm's float64 scientific notation bug with large integers.
-			// See: https://github.com/helm/helm/issues/13254
 			svcEntry["githubInstallationId"] = fmt.Sprintf("%d", svc.GitHubInstallationID)
 		}
 		if svc.CustomStartCommand != "" {
@@ -207,78 +205,43 @@ func (p *SoftServeProvider) AddService(ctx context.Context, project string, svc 
 			return err
 		}
 
-		// For external images (tag provided), write the tag to all existing
-		// environments so the service deploys where environments already exist.
+		// 2. Write initial entry to the target environment's values.yaml
+		envPath := filepath.Join(dir, "environments", environment, "values.yaml")
+		envInner, readErr := readSubchartValues(envPath)
+		if readErr != nil {
+			return fmt.Errorf("failed to read environment values: %w", readErr)
+		}
+		envSvcs, ok := envInner["services"].(map[string]any)
+		if !ok {
+			envSvcs = make(map[string]any)
+		}
+		envSvcMap := map[string]any{}
 		if svc.ImageTag != "" {
-			envFiles, _ := filepath.Glob(filepath.Join(dir, "environments", "*", "values.yaml"))
-			for _, envPath := range envFiles {
-				envInner, readErr := readSubchartValues(envPath)
-				if readErr != nil {
-					continue
-				}
-				envSvcs, ok := envInner["services"].(map[string]any)
-				if !ok {
-					envSvcs = make(map[string]any)
-				}
-				envSvcMap := map[string]any{
-					"image": map[string]any{
-						"tag": svc.ImageTag,
-					},
-				}
-				envSvcs[svc.Name] = envSvcMap
-				envInner["services"] = envSvcs
-				_ = writeSubchartValues(envPath, envInner)
+			envSvcMap["image"] = map[string]any{
+				"tag": svc.ImageTag,
 			}
 		}
+		envSvcs[svc.Name] = envSvcMap
+		envInner["services"] = envSvcs
 
-		return nil
+		return writeSubchartValues(envPath, envInner)
 	})
 }
 
-// RemoveService removes a service from base/values.yaml.
-func (p *SoftServeProvider) RemoveService(ctx context.Context, project, service string) error {
-	return p.modifyRepo(ctx, project, fmt.Sprintf("config: remove service %s", service), false, func(dir string) error {
-		path := filepath.Join(dir, "base", "values.yaml")
-		inner, err := readSubchartValues(path)
+// RemoveService removes a service from an environment's values.yaml.
+// If no other environments reference the service, also removes from base.
+func (p *SoftServeProvider) RemoveService(ctx context.Context, project, environment, service string) error {
+	return p.modifyRepo(ctx, project, fmt.Sprintf("config(%s): remove service %s", environment, service), false, func(dir string) error {
+		// 1. Remove from target environment
+		envPath := filepath.Join(dir, "environments", environment, "values.yaml")
+		envInner, err := readSubchartValues(envPath)
 		if err != nil {
 			return err
 		}
-
-		services, ok := inner["services"].(map[string]any)
-		if !ok {
-			return fmt.Errorf("no services found in base/values.yaml")
-		}
-
-		if _, exists := services[service]; !exists {
-			return fmt.Errorf("service %q not found", service)
-		}
-
-		delete(services, service)
-		inner["services"] = services
-
-		if err := writeSubchartValues(path, inner); err != nil {
-			return err
-		}
-
-		// Clean up the deleted service and any serviceRefs pointing to it across all environments.
-		envFiles, _ := filepath.Glob(filepath.Join(dir, "environments", "*", "values.yaml"))
-		for _, envPath := range envFiles {
-			envInner, readErr := readSubchartValues(envPath)
-			if readErr != nil {
-				continue
-			}
-			envSvcs, ok := envInner["services"].(map[string]any)
-			if !ok {
-				continue
-			}
-			modified := false
-
-			// Remove the deleted service's own entry from this environment.
-			if _, exists := envSvcs[service]; exists {
-				delete(envSvcs, service)
-				modified = true
-			}
-
+		envSvcs, ok := envInner["services"].(map[string]any)
+		if ok {
+			delete(envSvcs, service)
+			// Clean up serviceRefs pointing to the removed service
 			for svcName, svcRaw := range envSvcs {
 				svcMap, ok := svcRaw.(map[string]any)
 				if !ok {
@@ -295,21 +258,52 @@ func (p *SoftServeProvider) RemoveService(ctx context.Context, project, service 
 						changed = true
 					}
 				}
-				if !changed {
-					continue
+				if changed {
+					if len(refs) == 0 {
+						delete(svcMap, "serviceRefs")
+					} else {
+						svcMap["serviceRefs"] = serviceRefsToAny(refs)
+					}
+					envSvcs[svcName] = svcMap
 				}
-				if len(refs) == 0 {
-					delete(svcMap, "serviceRefs")
-				} else {
-					svcMap["serviceRefs"] = serviceRefsToAny(refs)
-				}
-				envSvcs[svcName] = svcMap
-				modified = true
 			}
-			if modified {
-				envInner["services"] = envSvcs
-				if writeErr := writeSubchartValues(envPath, envInner); writeErr != nil {
-					return writeErr
+			envInner["services"] = envSvcs
+			if err := writeSubchartValues(envPath, envInner); err != nil {
+				return err
+			}
+		}
+
+		// 2. Check if any other environments still reference this service
+		envFiles, _ := filepath.Glob(filepath.Join(dir, "environments", "*", "values.yaml"))
+		referencedElsewhere := false
+		for _, otherPath := range envFiles {
+			if otherPath == envPath {
+				continue
+			}
+			otherInner, readErr := readSubchartValues(otherPath)
+			if readErr != nil {
+				continue
+			}
+			otherSvcs, ok := otherInner["services"].(map[string]any)
+			if !ok {
+				continue
+			}
+			if _, exists := otherSvcs[service]; exists {
+				referencedElsewhere = true
+				break
+			}
+		}
+
+		// 3. If orphaned, remove from base too
+		if !referencedElsewhere {
+			basePath := filepath.Join(dir, "base", "values.yaml")
+			baseInner, readErr := readSubchartValues(basePath)
+			if readErr == nil {
+				baseSvcs, ok := baseInner["services"].(map[string]any)
+				if ok {
+					delete(baseSvcs, service)
+					baseInner["services"] = baseSvcs
+					_ = writeSubchartValues(basePath, baseInner)
 				}
 			}
 		}
@@ -318,27 +312,24 @@ func (p *SoftServeProvider) RemoveService(ctx context.Context, project, service 
 	})
 }
 
-// SetCustomStartCommand sets or clears the custom start command for a service in base/values.yaml.
-func (p *SoftServeProvider) SetCustomStartCommand(ctx context.Context, project, service, command string) error {
-	return p.modifyRepo(ctx, project, fmt.Sprintf("config(%s): set custom start command", service), false, func(dir string) error {
-		path := filepath.Join(dir, "base", "values.yaml")
-		inner, err := readSubchartValues(path)
+// SetCustomStartCommand sets or clears the custom start command for a service
+// in an environment's values.yaml (Helm merge overrides base).
+func (p *SoftServeProvider) SetCustomStartCommand(ctx context.Context, project, environment, service, command string) error {
+	return p.modifyRepo(ctx, project, fmt.Sprintf("config(%s/%s): set custom start command", environment, service), false, func(dir string) error {
+		envPath := filepath.Join(dir, "environments", environment, "values.yaml")
+		inner, err := readSubchartValues(envPath)
 		if err != nil {
 			return err
 		}
 
 		services, ok := inner["services"].(map[string]any)
 		if !ok {
-			return fmt.Errorf("no services found in base/values.yaml")
+			services = make(map[string]any)
 		}
 
-		svcRaw, exists := services[service]
-		if !exists {
-			return fmt.Errorf("service %q not found", service)
-		}
-		svcMap, ok := svcRaw.(map[string]any)
+		svcMap, ok := services[service].(map[string]any)
 		if !ok {
-			return fmt.Errorf("invalid service entry for %q", service)
+			svcMap = make(map[string]any)
 		}
 
 		if command == "" {
@@ -349,7 +340,7 @@ func (p *SoftServeProvider) SetCustomStartCommand(ctx context.Context, project, 
 		services[service] = svcMap
 		inner["services"] = services
 
-		return writeSubchartValues(path, inner)
+		return writeSubchartValues(envPath, inner)
 	})
 }
 
@@ -388,28 +379,6 @@ func (p *SoftServeProvider) UpdateImageTag(ctx context.Context, project, environ
 }
 
 // Services reads the services from base/values.yaml.
-func (p *SoftServeProvider) Services(ctx context.Context, project string) ([]ServiceDef, error) {
-	repoName := wsRepoName(ctx, project)
-
-	dir, cleanup, err := p.cloneRepo(repoName)
-	if err != nil {
-		return nil, err
-	}
-	defer cleanup()
-
-	inner, err := readSubchartValues(filepath.Join(dir, "base", "values.yaml"))
-	if err != nil {
-		return nil, err
-	}
-
-	services, ok := inner["services"].(map[string]any)
-	if !ok {
-		return nil, nil
-	}
-
-	return parseServiceDefs(services), nil
-}
-
 // CreateEnvironment creates a new environment directory.
 // When duplicating from another environment, strips all domains and regenerates
 // platform domains using the workload domain. Returns service names that received domains.
@@ -1044,15 +1013,25 @@ func (p *SoftServeProvider) readProjectMeta(repoName string) (*ProjectMeta, erro
 		return nil, err
 	}
 
-	// Read services from base
+	// Read base service definitions for enrichment
+	var baseDefs map[string]ServiceDef
 	baseInner, err := readSubchartValues(filepath.Join(dir, "base", "values.yaml"))
 	if err == nil {
 		if services, ok := baseInner["services"].(map[string]any); ok {
-			meta.Services = parseServiceDefs(services)
+			defs := parseServiceDefs(services)
+			baseDefs = make(map[string]ServiceDef, len(defs))
+			for _, d := range defs {
+				baseDefs[d.Name] = d
+			}
 		}
 	}
 
-	// List environments and read per-env service image tags
+	// Read databases from base
+	if baseInner != nil {
+		meta.Databases = parseDatabaseDefs(baseInner)
+	}
+
+	// List environments and read per-env service state, enriched with base defs
 	envDir := filepath.Join(dir, "environments")
 	entries, err := os.ReadDir(envDir)
 	if err == nil {
@@ -1067,7 +1046,28 @@ func (p *SoftServeProvider) readProjectMeta(repoName string) (*ProjectMeta, erro
 			envInner, readErr := readSubchartValues(filepath.Join(envDir, envName, "values.yaml"))
 			if readErr == nil {
 				if envSvcs, ok := envInner["services"].(map[string]any); ok {
-					envMeta.Services = parseServiceInstanceMetas(envSvcs)
+					instances := parseServiceInstanceMetas(envSvcs)
+					// Enrich each instance with definition fields from base
+					for i, inst := range instances {
+						if def, ok := baseDefs[inst.Name]; ok {
+							instances[i].Image = def.Image
+							instances[i].Port = def.Port
+							instances[i].Framework = def.Framework
+							instances[i].SourceURL = def.SourceURL
+							instances[i].ContextPath = def.ContextPath
+							instances[i].GitHubInstallationID = def.GitHubInstallationID
+							instances[i].StartCommand = def.StartCommand
+						}
+						// Per-env customStartCommand overrides base
+						if cmd, ok := envSvcs[inst.Name].(map[string]any); ok {
+							if c, ok := cmd["customStartCommand"].(string); ok {
+								instances[i].CustomStartCommand = c
+							} else if def, ok := baseDefs[inst.Name]; ok {
+								instances[i].CustomStartCommand = def.CustomStartCommand
+							}
+						}
+					}
+					envMeta.Services = instances
 				}
 			}
 			meta.EnvironmentInfos = append(meta.EnvironmentInfos, envMeta)

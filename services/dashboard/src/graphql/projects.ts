@@ -11,10 +11,10 @@ export const ProjectsQuery = gql`
         name
         syncStatus
         resourceTier
-      }
-      services {
-        name
-        sourceUrl
+        services {
+          name
+          sourceUrl
+        }
       }
       databases {
         name
@@ -29,10 +29,6 @@ export const CreateProjectMutation = gql`
     createProject(input: $input) {
       id
       name
-      initialDeploys {
-        id
-        phase
-      }
     }
   }
 `;
@@ -90,8 +86,16 @@ export const ProjectQuery = gql`
         syncStatus
         resourceTier
         services {
+          id
           name
           environment
+          image
+          port
+          framework
+          startCommand
+          sourceUrl
+          contextPath
+          customStartCommand
           imageTag
           ready
           replicas
@@ -133,46 +137,6 @@ export const ProjectQuery = gql`
             requestedSize
             usedBytes
             capacityBytes
-          }
-        }
-      }
-      services {
-        name
-        image
-        port
-        framework
-        startCommand
-        sourceUrl
-        contextPath
-        customStartCommand
-        instances {
-          environment
-          imageTag
-          ready
-          replicas
-          scaling {
-            replicas
-            autoscaling {
-              enabled
-              minReplicas
-              maxReplicas
-              targetCPU
-            }
-          }
-          domains {
-            hostname
-            type
-            dnsStatus
-          }
-          deployments {
-            id
-            imageTag
-            active
-            timestamp
-            revision
-            message
-            sourceCommitMessage
-            sourceUrl
           }
         }
       }

@@ -2,10 +2,8 @@ type Project {
   id: ID!
   name: String!
   environments: [Environment!]!
-  services: [Service!]!
   databases: [Database!]!
   createdAt: Time!
-  initialDeploys: [DeployRun!]
 }
 
 type Environment {
@@ -19,30 +17,25 @@ type Environment {
   databases: [DatabaseInstance!]!
 }
 
-type Service {
+type ServiceInstance {
+  id: ID!
   name: String!
+  environment: String!
   image: String!
   port: Int
   framework: String
   sourceUrl: String
   contextPath: String
-  """Auto-detected start command from the build system. Used as the default if no custom override is set."""
   startCommand: String
   customStartCommand: String
-  instances: [ServiceInstance!]!
-  """Deploy automatically triggered when the service was added. Null for image-based services."""
-  initialDeploy: DeployRun
-}
-
-type ServiceInstance {
-  name: String!
-  environment: String!
   imageTag: String!
   ready: Boolean!
   replicas: Int!
   scaling: ScalingConfig!
   domains: [Domain!]!
   deployments: [Deployment!]!
+  """Deploy automatically triggered when the service was added. Null for image-based services."""
+  initialDeploy: DeployRun
 }
 
 type ScalingConfig {
@@ -135,7 +128,6 @@ input AutoscalingInput {
 extend type Query {
   projects: [Project!]! @hasRole(role: [USER])
   project(id: ID!): Project @hasRole(role: [USER])
-  service(projectId: ID!, name: String!): Service @hasRole(role: [USER])
 }
 
 extend type Mutation {

@@ -129,20 +129,25 @@ func (h *Handler) handlePush(event *github.Event) {
 	environment := "development"
 
 	for _, proj := range resp.Projects {
-		for _, svc := range proj.Services {
-			if !matchesRepo(svc.SourceUrl, repoURL) {
+		for _, envInfo := range proj.EnvironmentInfos {
+			if envInfo.Name != environment {
 				continue
 			}
+			for _, svc := range envInfo.Services {
+				if !matchesRepo(svc.SourceUrl, repoURL) {
+					continue
+				}
 
-			slog.Info("push: triggering deploy",
-				"project", proj.Name,
-				"service", svc.Name,
-				"environment", environment,
-				"sha", event.CommitSHA,
-				"workspace", ws,
-			)
+				slog.Info("push: triggering deploy",
+					"project", proj.Name,
+					"service", svc.Name,
+					"environment", environment,
+					"sha", event.CommitSHA,
+					"workspace", ws,
+				)
 
-			go h.Pipeline.Run(ctx, proj.Name, svc.Name, environment, event.CommitSHA, svc.SourceUrl, svc.ContextPath)
+				go h.Pipeline.Run(ctx, proj.Name, svc.Name, environment, event.CommitSHA, svc.SourceUrl, svc.ContextPath)
+			}
 		}
 	}
 }

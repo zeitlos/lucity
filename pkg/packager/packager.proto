@@ -103,10 +103,19 @@ message ServiceInfo {
 }
 
 // ServiceInstanceInfo describes a service's state in a specific environment.
+// Includes both definition fields (from base) and runtime fields (from env).
 message ServiceInstanceInfo {
   string name = 1;
   string image_tag = 2;       // current image tag in this environment's values.yaml
   repeated string domains = 3; // domain hostnames from this environment's values.yaml
+  string image = 4;            // image repository path (e.g., localhost:5000/myapp/api)
+  int32 port = 5;
+  string framework = 6;       // detected framework for dashboard icons (e.g., "nextjs", "vite")
+  string source_url = 7;      // GitHub repo URL for this service
+  string context_path = 8;    // subdirectory within the repo (monorepo support)
+  int64 github_installation_id = 9;
+  string custom_start_command = 10;
+  string start_command = 11;   // auto-detected start command from railpack
 }
 
 // EnvironmentInfo holds metadata about a project environment.
@@ -123,7 +132,8 @@ message ProjectInfo {
   string gitops_repo_url = 3;
   repeated string environments = 4;
   google.protobuf.Timestamp created_at = 5;
-  repeated ServiceInfo services = 6;        // base service definitions
+  reserved 6;
+  reserved "services";
   repeated EnvironmentInfo environment_infos = 7;  // per-environment service state
   repeated DatabaseInfo databases = 8;     // base database definitions
 }
@@ -173,6 +183,7 @@ message AddServiceRequest {
   string image_pull_policy = 11;     // "Always", "IfNotPresent", or "" (chart default)
   string custom_start_command = 12;  // shell command to start the service (overrides image entrypoint)
   string start_command = 13;         // auto-detected start command from railpack (stored for UI placeholder)
+  string environment = 14;           // target environment for the service
 }
 
 message AddServiceResponse {}
@@ -180,6 +191,7 @@ message AddServiceResponse {}
 message RemoveServiceRequest {
   string project = 1;
   string service = 2;
+  string environment = 3;
 }
 
 message RemoveServiceResponse {}
@@ -402,6 +414,7 @@ message SetCustomStartCommandRequest {
   string project = 1;
   string service = 2;
   string command = 3;  // empty string clears the custom command
+  string environment = 4;
 }
 
 message SetCustomStartCommandResponse {}

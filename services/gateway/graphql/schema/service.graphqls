@@ -8,6 +8,7 @@ type DetectedService {
 
 input AddServiceInput {
   projectId: ID!
+  environment: String!
   """Service name. If omitted when image is set, derived from the image (e.g. nginx:1.25 → nginx)."""
   name: String @constraint(constraint: "min=2,max=63")
   """Container port. If omitted when image is set, uses well-known defaults (e.g. redis → 6379)."""
@@ -107,10 +108,10 @@ extend type Query {
 }
 
 extend type Mutation {
-  addService(input: AddServiceInput!): Service! @hasRole(role: [USER])
-  removeService(projectId: ID!, service: String!): Boolean! @hasRole(role: [USER])
-  """Set or clear the custom start command for a service. Empty string clears it."""
-  setCustomStartCommand(projectId: ID!, service: String!, command: String!): Boolean! @hasRole(role: [USER])
+  addService(input: AddServiceInput!): ServiceInstance! @hasRole(role: [USER])
+  removeService(projectId: ID!, environment: String!, service: String!): Boolean! @hasRole(role: [USER])
+  """Set or clear the custom start command for a service in an environment. Empty string clears it."""
+  setCustomStartCommand(projectId: ID!, environment: String!, service: String!, command: String!): Boolean! @hasRole(role: [USER])
   deploy(input: DeployInput!): DeployRun! @hasRole(role: [USER])
   """Roll back to a previous image tag without rebuilding."""
   rollback(input: RollbackInput!): Boolean! @hasRole(role: [USER])

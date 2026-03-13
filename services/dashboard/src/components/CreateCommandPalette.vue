@@ -9,6 +9,7 @@ import { CreateProjectMutation } from '@/graphql/projects';
 import { AddServiceMutation, DetectServicesQuery } from '@/graphql/services';
 import { SearchImagesQuery } from '@/graphql/registry';
 import { CreateDatabaseMutation } from '@/graphql/databases';
+import { useEnvironment } from '@/composables/useEnvironment';
 import { toast } from '@/components/ui/sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -29,6 +30,7 @@ const emit = defineEmits<{
 
 const router = useRouter();
 const { resolveClient } = useApolloClient();
+const { activeEnvironment } = useEnvironment();
 
 // Drill-down state
 type PaletteView = 'main' | 'github-repos' | 'manual-service' | 'database' | 'container-image';
@@ -189,6 +191,7 @@ async function detectAndAddServices(projectId: string, repo: { fullName: string;
       await addServiceMutate({
         input: {
           projectId,
+          environment: activeEnvironment.value?.name ?? 'development',
           name,
           port: svc.suggestedPort,
           framework: svc.framework || undefined,
@@ -268,6 +271,7 @@ async function handleAddManualService() {
     const res = await addServiceMutate({
       input: {
         projectId: props.projectId,
+        environment: activeEnvironment.value?.name ?? 'development',
         name: newServiceName.value,
         port: newServicePort.value,
       },
@@ -376,6 +380,7 @@ async function addImageService(projectId: string, imageRef: string) {
   const res = await addServiceMutate({
     input: {
       projectId,
+      environment: activeEnvironment.value?.name ?? 'development',
       image: imageRef,
     },
   });

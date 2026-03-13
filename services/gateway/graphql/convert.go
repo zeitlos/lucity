@@ -17,15 +17,8 @@ func convertProject(p handler.Project, workloadDomain string) model.Project {
 	for _, e := range p.Environments {
 		result.Environments = append(result.Environments, convertEnvironment(e, workloadDomain))
 	}
-	for _, s := range p.Services {
-		result.Services = append(result.Services, convertService(s, workloadDomain))
-	}
 	for _, d := range p.Databases {
 		result.Databases = append(result.Databases, convertDatabase(d))
-	}
-	for _, d := range p.InitialDeploys {
-		op := convertDeploymentOp(d)
-		result.InitialDeploys = append(result.InitialDeploys, op)
 	}
 	return result
 }
@@ -45,40 +38,6 @@ func convertEnvironment(e handler.Environment, workloadDomain string) model.Envi
 		result.Databases = append(result.Databases, convertDatabaseInstance(di))
 	}
 	return result
-}
-
-func convertService(s handler.Service, workloadDomain string) model.Service {
-	svc := model.Service{
-		Name:  s.Name,
-		Image: s.Image,
-	}
-	if s.Port > 0 {
-		port := s.Port
-		svc.Port = &port
-	}
-	if s.Framework != "" {
-		svc.Framework = &s.Framework
-	}
-	if s.SourceURL != "" {
-		svc.SourceURL = &s.SourceURL
-	}
-	if s.ContextPath != "" {
-		svc.ContextPath = &s.ContextPath
-	}
-	if s.StartCommand != "" {
-		svc.StartCommand = &s.StartCommand
-	}
-	if s.CustomStartCommand != "" {
-		svc.CustomStartCommand = &s.CustomStartCommand
-	}
-	for _, si := range s.Instances {
-		svc.Instances = append(svc.Instances, convertServiceInstance(si, workloadDomain))
-	}
-	if s.InitialDeploy != nil {
-		d := convertDeploymentOp(*s.InitialDeploy)
-		svc.InitialDeploy = &d
-	}
-	return svc
 }
 
 func convertDetectedService(s handler.DetectedService) model.DetectedService {
@@ -109,12 +68,38 @@ func convertScalingConfig(sc handler.ScalingConfig) model.ScalingConfig {
 func convertServiceInstance(si handler.ServiceInstance, workloadDomain string) model.ServiceInstance {
 	scaling := convertScalingConfig(si.Scaling)
 	result := model.ServiceInstance{
+		ID:          si.ID,
 		Name:        si.Name,
 		Environment: si.Environment,
+		Image:       si.Image,
 		ImageTag:    si.ImageTag,
 		Ready:       si.Ready,
 		Replicas:    si.Replicas,
 		Scaling:     &scaling,
+	}
+
+	if si.Port > 0 {
+		port := si.Port
+		result.Port = &port
+	}
+	if si.Framework != "" {
+		result.Framework = &si.Framework
+	}
+	if si.SourceURL != "" {
+		result.SourceURL = &si.SourceURL
+	}
+	if si.ContextPath != "" {
+		result.ContextPath = &si.ContextPath
+	}
+	if si.StartCommand != "" {
+		result.StartCommand = &si.StartCommand
+	}
+	if si.CustomStartCommand != "" {
+		result.CustomStartCommand = &si.CustomStartCommand
+	}
+	if si.InitialDeploy != nil {
+		d := convertDeploymentOp(*si.InitialDeploy)
+		result.InitialDeploy = &d
 	}
 
 	// Convert domains with type derived from workload domain suffix

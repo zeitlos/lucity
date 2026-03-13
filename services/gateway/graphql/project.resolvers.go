@@ -119,19 +119,6 @@ func (r *queryResolver) Project(ctx context.Context, id string) (*model.Project,
 	return &result, nil
 }
 
-// Service is the resolver for the service field.
-func (r *queryResolver) Service(ctx context.Context, projectID string, name string) (*model.Service, error) {
-	s, err := r.API.Service(ctx, projectID, name)
-	if err != nil {
-		return nil, err
-	}
-	if s == nil {
-		return nil, nil
-	}
-	result := convertService(*s, r.API.WorkloadDomain)
-	return &result, nil
-}
-
 // Environment returns EnvironmentResolver implementation.
 func (r *Resolver) Environment() EnvironmentResolver { return &environmentResolver{r} }
 

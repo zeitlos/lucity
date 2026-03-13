@@ -62,19 +62,18 @@ type Provider interface {
 	// DeleteRepo removes a project's GitOps repo.
 	DeleteRepo(ctx context.Context, project string) error
 
-	// AddService adds a service definition to the project's base/values.yaml.
-	AddService(ctx context.Context, project string, svc ServiceDef) error
+	// AddService adds a service definition to the project's base/values.yaml
+	// and writes the initial image tag to the target environment's values.yaml.
+	AddService(ctx context.Context, project, environment string, svc ServiceDef) error
 
-	// RemoveService removes a service definition from the project's base/values.yaml.
-	RemoveService(ctx context.Context, project, service string) error
+	// RemoveService removes a service from an environment's values.yaml.
+	// If no other environments reference the service, also removes from base.
+	RemoveService(ctx context.Context, project, environment, service string) error
 
 	// UpdateImageTag updates the image tag for a service in an environment's values.yaml.
 	// commitPrefix controls the git commit message prefix (e.g., "deploy", "rollback").
 	// If empty, defaults to "deploy".
 	UpdateImageTag(ctx context.Context, project, environment, service, tag, digest, commitPrefix string) error
-
-	// Services reads the services defined in the project's base/values.yaml.
-	Services(ctx context.Context, project string) ([]ServiceDef, error)
 
 	// CreateEnvironment creates a new environment directory with values.yaml
 	// in the GitOps repo. If fromEnvironment is set, copies its values as a starting point,
@@ -147,8 +146,8 @@ type Provider interface {
 	SetServiceScaling(ctx context.Context, project, environment, service string, replicas int, autoscaling *AutoscalingConfig) error
 
 	// SetCustomStartCommand sets or clears the custom start command for a service
-	// in base/values.yaml. Empty command clears it.
-	SetCustomStartCommand(ctx context.Context, project, service, command string) error
+	// in an environment's values.yaml. Empty command clears it.
+	SetCustomStartCommand(ctx context.Context, project, environment, service, command string) error
 }
 
 // AutoscalingConfig holds HPA settings for a service.
@@ -202,10 +201,19 @@ func parseDeployCommit(message, environment, service string) (imageTag string, o
 }
 
 // ServiceInstanceMeta describes a service's state in a specific environment.
+// Includes both definition fields (from base) and runtime fields (from env).
 type ServiceInstanceMeta struct {
-	Name     string
-	ImageTag string
-	Domains  []string // domain hostnames from per-environment values.yaml
+	Name                 string
+	ImageTag             string
+	Domains              []string // domain hostnames from per-environment values.yaml
+	Image                string
+	Port                 int
+	Framework            string
+	SourceURL            string
+	ContextPath          string
+	GitHubInstallationID int64
+	CustomStartCommand   string
+	StartCommand         string
 }
 
 // EnvironmentMeta holds metadata about a project environment.
@@ -220,7 +228,6 @@ type ProjectMeta struct {
 	RepoURL          string
 	Environments     []string
 	EnvironmentInfos []EnvironmentMeta
-	Services         []ServiceDef
 	Databases        []DatabaseDef
 	CreatedAt        time.Time
 }

@@ -54,7 +54,9 @@ func testService(t *testing.T) {
 		resp := doGraphQL(t, token, `
 			mutation($input: AddServiceInput!) {
 				addService(input: $input) {
+					id
 					name
+					environment
 					port
 					framework
 					sourceUrl
@@ -62,11 +64,12 @@ func testService(t *testing.T) {
 			}
 		`, map[string]any{
 			"input": map[string]any{
-				"projectId": testProjectName,
-				"name":      testServiceName,
-				"port":      testServicePort,
-				"framework": "nextjs",
-				"sourceUrl": testSourceURL,
+				"projectId":   testProjectName,
+				"environment": "development",
+				"name":        testServiceName,
+				"port":        testServicePort,
+				"framework":   "nextjs",
+				"sourceUrl":   testSourceURL,
 			},
 		})
 		requireNoErrors(t, resp)
@@ -75,42 +78,61 @@ func testService(t *testing.T) {
 		if name != testServiceName {
 			t.Fatalf("expected service name %q, got %q", testServiceName, name)
 		}
-		t.Logf("added service: %s", name)
+		env := extractString(t, resp.Data, "addService", "environment")
+		if env != "development" {
+			t.Fatalf("expected environment %q, got %q", "development", env)
+		}
+		t.Logf("added service: %s (env=%s)", name, env)
 	})
 
-	t.Run("GetService", func(t *testing.T) {
+	t.Run("GetServiceViaEnvironment", func(t *testing.T) {
 		resp := doGraphQL(t, token, `
-			query($projectId: ID!, $name: String!) {
-				service(projectId: $projectId, name: $name) {
-					name
-					port
-					framework
-					sourceUrl
+			query($id: ID!) {
+				project(id: $id) {
+					environments {
+						name
+						services {
+							name
+							port
+							framework
+							sourceUrl
+						}
+					}
 				}
 			}
-		`, map[string]any{
-			"projectId": testProjectName,
-			"name":      testServiceName,
-		})
+		`, map[string]any{"id": testProjectName})
 		requireNoErrors(t, resp)
 
 		var data struct {
-			Service struct {
-				Name      string `json:"name"`
-				Port      int    `json:"port"`
-				Framework string `json:"framework"`
-				SourceURL string `json:"sourceUrl"`
-			} `json:"service"`
+			Project struct {
+				Environments []struct {
+					Name     string `json:"name"`
+					Services []struct {
+						Name      string `json:"name"`
+						Port      int    `json:"port"`
+						Framework string `json:"framework"`
+						SourceURL string `json:"sourceUrl"`
+					} `json:"services"`
+				} `json:"environments"`
+			} `json:"project"`
 		}
 		unmarshalData(t, resp, &data)
 
-		if data.Service.Name != testServiceName {
-			t.Fatalf("expected %q, got %q", testServiceName, data.Service.Name)
+		for _, env := range data.Project.Environments {
+			if env.Name == "development" {
+				for _, svc := range env.Services {
+					if svc.Name == testServiceName {
+						if svc.Port != testServicePort {
+							t.Errorf("expected port %d, got %d", testServicePort, svc.Port)
+						}
+						t.Logf("service in %s: %s port=%d framework=%s", env.Name, svc.Name, svc.Port, svc.Framework)
+						return
+					}
+				}
+				t.Fatalf("service %q not found in development environment", testServiceName)
+			}
 		}
-		if data.Service.Port != testServicePort {
-			t.Errorf("expected port %d, got %d", testServicePort, data.Service.Port)
-		}
-		t.Logf("service: %s port=%d framework=%s", data.Service.Name, data.Service.Port, data.Service.Framework)
+		t.Fatal("development environment not found")
 	})
 
 	// Now that a service has been added, ArgoCD has resources to deploy.
@@ -128,7 +150,10 @@ func testService(t *testing.T) {
 		resp := doGraphQL(t, token, `
 			query($id: ID!) {
 				project(id: $id) {
-					services { name port framework sourceUrl }
+					environments {
+						name
+						services { name port framework sourceUrl }
+					}
 				}
 			}
 		`, map[string]any{"id": testProjectName})
@@ -136,22 +161,27 @@ func testService(t *testing.T) {
 
 		var data struct {
 			Project struct {
-				Services []struct {
-					Name string `json:"name"`
-				} `json:"services"`
+				Environments []struct {
+					Name     string `json:"name"`
+					Services []struct {
+						Name string `json:"name"`
+					} `json:"services"`
+				} `json:"environments"`
 			} `json:"project"`
 		}
 		unmarshalData(t, resp, &data)
 
 		found := false
-		for _, s := range data.Project.Services {
-			if s.Name == testServiceName {
-				found = true
+		for _, env := range data.Project.Environments {
+			for _, s := range env.Services {
+				if s.Name == testServiceName {
+					found = true
+				}
 			}
 		}
 		if !found {
-			raw, _ := json.Marshal(data.Project.Services)
-			t.Fatalf("service %q not found in project services: %s", testServiceName, string(raw))
+			raw, _ := json.Marshal(data.Project.Environments)
+			t.Fatalf("service %q not found in any environment: %s", testServiceName, string(raw))
 		}
 	})
 }

@@ -17,9 +17,13 @@ const props = defineProps<{
   services: {
     name: string;
     image: string;
-    port: number;
+    port?: number;
     framework?: string;
     sourceUrl?: string;
+    imageTag: string;
+    ready: boolean;
+    replicas: number;
+    domains: { hostname: string; type: string; dnsStatus: string }[];
   }[];
   databases?: {
     name: string;
@@ -34,7 +38,7 @@ const emit = defineEmits<{
   (e: 'deploy-completed'): void;
 }>();
 
-const { activeEnvServices, activeEnvDatabases, activeEnvironment } = useEnvironment();
+const { activeEnvDatabases, activeEnvironment } = useEnvironment();
 const { openPanel, currentPanel } = usePanel();
 
 const serviceNames = computed(() => props.services.map(s => s.name));
@@ -50,7 +54,6 @@ const { fitView, findNode, setCenter, dimensions } = useVueFlow({
 
 const nodes = computed(() => {
   const serviceNodes = props.services.map((svc, index) => {
-    const envService = activeEnvServices.value.find(es => es.name === svc.name);
     const deployInfo = statusMap.value[svc.name];
     return {
       id: svc.name,
@@ -61,10 +64,10 @@ const nodes = computed(() => {
         framework: svc.framework,
         port: svc.port,
         sourceUrl: svc.sourceUrl,
-        domains: envService?.domains ?? [],
-        ready: envService?.ready,
-        imageTag: envService?.imageTag,
-        replicas: envService?.replicas,
+        domains: svc.domains,
+        ready: svc.ready,
+        imageTag: svc.imageTag,
+        replicas: svc.replicas,
         activeDeployPhase: deployInfo?.phase ?? null,
         activeDeployStartedAt: deployInfo?.startedAt ?? null,
       },

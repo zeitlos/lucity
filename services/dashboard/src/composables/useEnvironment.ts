@@ -30,6 +30,13 @@ export interface ScalingInfo {
 export interface ServiceInstance {
   name: string;
   environment: string;
+  image: string;
+  port?: number;
+  framework?: string;
+  sourceUrl?: string;
+  contextPath?: string;
+  startCommand?: string;
+  customStartCommand?: string;
   imageTag: string;
   ready: boolean;
   replicas: number;

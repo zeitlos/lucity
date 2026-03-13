@@ -60,7 +60,7 @@ func (c *Client) DetectServices(ctx context.Context, sourceURL string, installat
 	return result, nil
 }
 
-func (c *Client) AddService(ctx context.Context, projectID, name string, port int, framework, startCommand, sourceURL, contextPath string, installationID *int64, externalImage, customStartCommand string) (*Service, error) {
+func (c *Client) AddService(ctx context.Context, projectID, environment, name string, port int, framework, startCommand, sourceURL, contextPath string, installationID *int64, externalImage, customStartCommand string) (*ServiceInstance, error) {
 	ws, err := tenant.Require(ctx)
 	if err != nil {
 		return nil, err
@@ -100,6 +100,7 @@ func (c *Client) AddService(ctx context.Context, projectID, name string, port in
 	defer cancel()
 	_, err = c.Packager.AddService(callCtx, &packager.AddServiceRequest{
 		Project:              projectID,
+		Environment:          environment,
 		Service:              name,
 		Image:                image,
 		Port:                 int32(port),
@@ -116,8 +117,10 @@ func (c *Client) AddService(ctx context.Context, projectID, name string, port in
 		return nil, fmt.Errorf("failed to add service: %w", err)
 	}
 
-	svc := &Service{
+	si := &ServiceInstance{
+		ID:                   name + ":" + environment,
 		Name:                 name,
+		Environment:          environment,
 		Image:                image,
 		Port:                 port,
 		Framework:            framework,
@@ -126,6 +129,7 @@ func (c *Client) AddService(ctx context.Context, projectID, name string, port in
 		ContextPath:          contextPath,
 		GitHubInstallationID: ghInstallationID,
 		CustomStartCommand:   customStartCommand,
+		ImageTag:             imageTag,
 	}
 
 	// Trigger initial deploy for source-based services.
@@ -143,19 +147,19 @@ func (c *Client) AddService(ctx context.Context, projectID, name string, port in
 		})
 		if err != nil {
 			slog.Warn("failed to start initial deploy", "project", projectID, "service", name, "error", err)
-			return svc, nil
+			return si, nil
 		}
 
 		deployID := uuid.New().String()
-		c.DeployTracker.Create(deployID, buildResp.BuildId, projectID, name, "development")
+		c.DeployTracker.Create(deployID, buildResp.BuildId, projectID, name, environment)
 
 		token := auth.TokenFrom(ctx)
-		go c.runDeploy(token, ws, deployID, projectID, name, "development", buildResp.BuildId)
+		go c.runDeploy(token, ws, deployID, projectID, name, environment, buildResp.BuildId)
 
-		svc.InitialDeploy = deployOpFromState(c.DeployTracker.Get(deployID))
+		si.InitialDeploy = deployOpFromState(c.DeployTracker.Get(deployID))
 	}
 
-	return svc, nil
+	return si, nil
 }
 
 // wellKnownPorts maps common container image names to their default ports.
@@ -235,7 +239,7 @@ func parseImageRef(ref string) (repository, tag string) {
 	return ref, "latest"
 }
 
-func (c *Client) RemoveService(ctx context.Context, projectID, service string) (bool, error) {
+func (c *Client) RemoveService(ctx context.Context, projectID, environment, service string) (bool, error) {
 	if _, err := tenant.Require(ctx); err != nil {
 		return false, err
 	}
@@ -245,8 +249,9 @@ func (c *Client) RemoveService(ctx context.Context, projectID, service string) (
 	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
 	defer cancel()
 	_, err := c.Packager.RemoveService(callCtx, &packager.RemoveServiceRequest{
-		Project: projectID,
-		Service: service,
+		Project:     projectID,
+		Environment: environment,
+		Service:     service,
 	})
 	if err != nil {
 		return false, fmt.Errorf("failed to remove service: %w", err)
@@ -256,7 +261,7 @@ func (c *Client) RemoveService(ctx context.Context, projectID, service string) (
 
 
 // SetCustomStartCommand sets or clears the custom start command for a service.
-func (c *Client) SetCustomStartCommand(ctx context.Context, projectID, service, command string) (bool, error) {
+func (c *Client) SetCustomStartCommand(ctx context.Context, projectID, environment, service, command string) (bool, error) {
 	if _, err := tenant.Require(ctx); err != nil {
 		return false, err
 	}
@@ -266,9 +271,10 @@ func (c *Client) SetCustomStartCommand(ctx context.Context, projectID, service, 
 	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
 	defer cancel()
 	_, err := c.Packager.SetCustomStartCommand(callCtx, &packager.SetCustomStartCommandRequest{
-		Project: projectID,
-		Service: service,
-		Command: command,
+		Project:     projectID,
+		Environment: environment,
+		Service:     service,
+		Command:     command,
 	})
 	if err != nil {
 		return false, fmt.Errorf("failed to set custom start command: %w", err)
@@ -277,7 +283,7 @@ func (c *Client) SetCustomStartCommand(ctx context.Context, projectID, service, 
 }
 
 // serviceSourceInfo looks up the source URL, context path, and GitHub installation ID
-// for a service from the project's service definitions in the GitOps repo.
+// for a service from the project's environment data in the GitOps repo.
 func (c *Client) serviceSourceInfo(ctx context.Context, projectID, service string) (sourceURL, contextPath string, installationID int64, err error) {
 	getCtx, getCancel := context.WithTimeout(ctx, grpcTimeout)
 	defer getCancel()
@@ -286,9 +292,11 @@ func (c *Client) serviceSourceInfo(ctx context.Context, projectID, service strin
 		return "", "", 0, fmt.Errorf("failed to get project: %w", err)
 	}
 
-	for _, svc := range resp.Project.Services {
-		if svc.Name == service {
-			return svc.SourceUrl, svc.ContextPath, svc.GithubInstallationId, nil
+	for _, env := range resp.Project.EnvironmentInfos {
+		for _, svc := range env.Services {
+			if svc.Name == service {
+				return svc.SourceUrl, svc.ContextPath, svc.GithubInstallationId, nil
+			}
 		}
 	}
 	return "", "", 0, fmt.Errorf("service %q not found in project %q", service, projectID)

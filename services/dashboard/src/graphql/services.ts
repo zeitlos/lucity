@@ -15,7 +15,9 @@ export const DetectServicesQuery = gql`
 export const AddServiceMutation = gql`
   mutation AddService($input: AddServiceInput!) {
     addService(input: $input) {
+      id
       name
+      environment
       image
       port
       framework
@@ -23,6 +25,7 @@ export const AddServiceMutation = gql`
       sourceUrl
       contextPath
       customStartCommand
+      imageTag
       initialDeploy {
         id
         phase
@@ -32,14 +35,14 @@ export const AddServiceMutation = gql`
 `;
 
 export const SetCustomStartCommandMutation = gql`
-  mutation SetCustomStartCommand($projectId: ID!, $service: String!, $command: String!) {
-    setCustomStartCommand(projectId: $projectId, service: $service, command: $command)
+  mutation SetCustomStartCommand($projectId: ID!, $environment: String!, $service: String!, $command: String!) {
+    setCustomStartCommand(projectId: $projectId, environment: $environment, service: $service, command: $command)
   }
 `;
 
 export const RemoveServiceMutation = gql`
-  mutation RemoveService($projectId: ID!, $service: String!) {
-    removeService(projectId: $projectId, service: $service)
+  mutation RemoveService($projectId: ID!, $environment: String!, $service: String!) {
+    removeService(projectId: $projectId, environment: $environment, service: $service)
   }
 `;
 

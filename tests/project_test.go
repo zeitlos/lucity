@@ -99,7 +99,6 @@ func testProject(t *testing.T) {
 					id
 					name
 					environments { id name }
-					services { name }
 				}
 			}
 		`, map[string]any{"id": testProjectName})
@@ -112,9 +111,6 @@ func testProject(t *testing.T) {
 				Environments []struct {
 					Name string `json:"name"`
 				} `json:"environments"`
-				Services []struct {
-					Name string `json:"name"`
-				} `json:"services"`
 			} `json:"project"`
 		}
 		unmarshalData(t, resp, &data)

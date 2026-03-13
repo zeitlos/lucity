@@ -57,6 +57,21 @@ function envStatusColor(environments: { syncStatus: string }[]) {
   return 'bg-yellow-500';
 }
 
+// Collect unique services across all environments of a project
+function allServices(project: { environments: { services?: { name: string; sourceUrl?: string }[] }[] }) {
+  const seen = new Set<string>();
+  const result: { name: string; sourceUrl?: string }[] = [];
+  for (const env of project.environments) {
+    for (const svc of env.services ?? []) {
+      if (!seen.has(svc.name)) {
+        seen.add(svc.name);
+        result.push(svc);
+      }
+    }
+  }
+  return result;
+}
+
 function uniqueRepoCount(services: { sourceUrl?: string }[]): number {
   const urls = services.filter(s => s.sourceUrl).map(s => s.sourceUrl);
   return new Set(urls).size;
@@ -147,13 +162,13 @@ function uniqueRepoCount(services: { sourceUrl?: string }[]): number {
           <CardHeader>
             <CardTitle class="text-lg">{{ project.name }}</CardTitle>
             <CardDescription class="flex items-center gap-3">
-              <span v-if="project.services?.length" class="flex items-center gap-1">
+              <span v-if="allServices(project).length" class="flex items-center gap-1">
                 <Box :size="12" />
-                {{ project.services.length }} service{{ project.services.length !== 1 ? 's' : '' }}
+                {{ allServices(project).length }} service{{ allServices(project).length !== 1 ? 's' : '' }}
               </span>
-              <span v-if="uniqueRepoCount(project.services ?? [])" class="flex items-center gap-1">
+              <span v-if="uniqueRepoCount(allServices(project))" class="flex items-center gap-1">
                 <Github :size="12" />
-                {{ uniqueRepoCount(project.services) }} repo{{ uniqueRepoCount(project.services) !== 1 ? 's' : '' }}
+                {{ uniqueRepoCount(allServices(project)) }} repo{{ uniqueRepoCount(allServices(project)) !== 1 ? 's' : '' }}
               </span>
             </CardDescription>
           </CardHeader>
