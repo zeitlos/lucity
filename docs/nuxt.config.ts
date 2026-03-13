@@ -3,6 +3,11 @@ export default defineNuxtConfig({
     url: 'https://lucity.cloud',
     name: 'Lucity'
   },
+  llms: {
+    domain: 'https://lucity.cloud',
+    title: 'Lucity',
+    description: 'Open-source PaaS on Kubernetes with full ejectability. Git push to deploy, environments out of the box, and a real exit door.'
+  },
   nitro: {
     prerender: {
       routes: ['/llms.txt', '/llms-full.txt']
