@@ -51,7 +51,7 @@ All the building blocks for deploying and running your apps on Kubernetes. Built
 Built on tools you already know
 
 #description
-The enterprise way to deploy Kubernetes apps, cleverly automated. No proprietary runtime, no black boxes — just standard tools, loosely coupled, with zero platform state to babysit.
+The enterprise way to deploy Kubernetes apps, cleverly automated. No proprietary runtime, no black boxes. Just standard tools, loosely coupled, with zero platform state to babysit.
 
 :tools-architecture
 ::
@@ -90,7 +90,7 @@ The enterprise way to deploy Kubernetes apps, cleverly automated. No proprietary
     Or let us run it
 
     #description
-    Lucity Cloud is the managed version. Same open-source platform, hosted in Switzerland, zero infrastructure to maintain.
+    Lucity Cloud is the managed version. Same open-source platform, hosted on EU infrastructure, zero infrastructure to maintain.
 
       :::::u-button
       ---
