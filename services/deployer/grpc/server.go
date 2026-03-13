@@ -511,24 +511,34 @@ func (s *Server) ServiceStatus(ctx context.Context, req *deployer.ServiceStatusR
 		}
 	}
 
-	// Extract container resource requests/limits from the first deployment's pod spec.
+	// Extract container resource requests/limits from a running Pod.
+	// We read from Pods rather than the Deployment spec because LimitRange defaults
+	// are injected at pod admission time and don't appear in the Deployment spec.
 	var resources *deployer.ServiceResourceConfig
-	if len(deployList.Items) > 0 {
-		containers := deployList.Items[0].Spec.Template.Spec.Containers
+	podList, podErr := s.k8s.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: labelSelector,
+		Limit:         1,
+	})
+	if podErr == nil && len(podList.Items) > 0 {
+		containers := podList.Items[0].Spec.Containers
 		if len(containers) > 0 {
 			ctr := containers[0]
-			resources = &deployer.ServiceResourceConfig{}
+			res := &deployer.ServiceResourceConfig{}
 			if req, ok := ctr.Resources.Requests[corev1.ResourceCPU]; ok {
-				resources.CpuMillicores = int32(req.MilliValue())
+				res.CpuMillicores = int32(req.MilliValue())
 			}
 			if req, ok := ctr.Resources.Requests[corev1.ResourceMemory]; ok {
-				resources.MemoryMb = int32(req.Value() / (1024 * 1024))
+				res.MemoryMb = int32(req.Value() / (1024 * 1024))
 			}
 			if lim, ok := ctr.Resources.Limits[corev1.ResourceCPU]; ok {
-				resources.CpuLimitMillicores = int32(lim.MilliValue())
+				res.CpuLimitMillicores = int32(lim.MilliValue())
 			}
 			if lim, ok := ctr.Resources.Limits[corev1.ResourceMemory]; ok {
-				resources.MemoryLimitMb = int32(lim.Value() / (1024 * 1024))
+				res.MemoryLimitMb = int32(lim.Value() / (1024 * 1024))
+			}
+			// Only return resources if at least one value is set.
+			if res.CpuMillicores > 0 || res.MemoryMb > 0 || res.CpuLimitMillicores > 0 || res.MemoryLimitMb > 0 {
+				resources = res
 			}
 		}
 	}
