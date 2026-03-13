@@ -1141,7 +1141,7 @@ func tierFromString(s string) deployer.ResourceTier {
 }
 
 func (s *Server) ListResourceAllocations(ctx context.Context, req *deployer.ListResourceAllocationsRequest) (*deployer.ListResourceAllocationsResponse, error) {
-	// List all namespaces with resource-tier label (managed by Lucity with quotas set).
+	// List all namespaces with resource-tier label.
 	selector := labels.Selector(labels.ManagedBy, labels.ManagedByLucity) + "," + labels.ResourceTier
 
 	nsList, err := s.k8s.CoreV1().Namespaces().List(ctx, metav1.ListOptions{
@@ -1161,27 +1161,7 @@ func (s *Server) ListResourceAllocations(ctx context.Context, req *deployer.List
 		}
 
 		tier := tierFromString(ns.Labels[labels.ResourceTier])
-
-		// ECO tier has no ResourceQuota — report zero allocations (metered by actual usage).
-		var cpuMillis, memMB, diskMB int32
-		quota, err := s.k8s.CoreV1().ResourceQuotas(ns.Name).Get(ctx, resourceQuotaName, metav1.GetOptions{})
-		if err != nil {
-			if !apierrors.IsNotFound(err) {
-				slog.Warn("failed to get resource quota", "namespace", ns.Name, "error", err)
-				continue
-			}
-			// No quota — ECO tier, zero allocations
-		} else {
-			if cpuQty, ok := quota.Spec.Hard[corev1.ResourceRequestsCPU]; ok {
-				cpuMillis = int32(cpuQty.MilliValue())
-			}
-			if memQty, ok := quota.Spec.Hard[corev1.ResourceRequestsMemory]; ok {
-				memMB = int32(memQty.Value() / (1024 * 1024))
-			}
-			if storageQty, ok := quota.Spec.Hard[corev1.ResourceRequestsStorage]; ok {
-				diskMB = int32(storageQty.Value() / (1024 * 1024))
-			}
-		}
+		cpuMillis, memMB, diskMB := s.namespaceAllocations(ctx, ns.Name)
 
 		allocations = append(allocations, &deployer.ResourceAllocation{
 			Workspace:     ws,
@@ -1195,6 +1175,44 @@ func (s *Server) ListResourceAllocations(ctx context.Context, req *deployer.List
 	}
 
 	return &deployer.ListResourceAllocationsResponse{Allocations: allocations}, nil
+}
+
+// namespaceAllocations returns the actual resource usage for a namespace by summing
+// pod container requests (CPU, memory) and PVC storage requests (disk).
+// This reflects what's actually deployed, not what the ResourceQuota allows.
+func (s *Server) namespaceAllocations(ctx context.Context, namespace string) (cpuMillis, memMB, diskMB int32) {
+	// Sum CPU and memory requests from all running pods.
+	pods, err := s.k8s.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
+		FieldSelector: "status.phase=Running",
+	})
+	if err != nil {
+		slog.Warn("failed to list pods for allocations", "namespace", namespace, "error", err)
+		return 0, 0, 0
+	}
+	for _, pod := range pods.Items {
+		for _, c := range pod.Spec.Containers {
+			if req, ok := c.Resources.Requests[corev1.ResourceCPU]; ok {
+				cpuMillis += int32(req.MilliValue())
+			}
+			if req, ok := c.Resources.Requests[corev1.ResourceMemory]; ok {
+				memMB += int32(req.Value() / (1024 * 1024))
+			}
+		}
+	}
+
+	// Sum storage requests from all PVCs.
+	pvcs, err := s.k8s.CoreV1().PersistentVolumeClaims(namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		slog.Warn("failed to list PVCs for allocations", "namespace", namespace, "error", err)
+		return cpuMillis, memMB, 0
+	}
+	for _, pvc := range pvcs.Items {
+		if req, ok := pvc.Spec.Resources.Requests[corev1.ResourceStorage]; ok {
+			diskMB += int32(req.Value() / (1024 * 1024))
+		}
+	}
+
+	return cpuMillis, memMB, diskMB
 }
 
 func (s *Server) DatabaseCredentials(ctx context.Context, req *deployer.DatabaseCredentialsRequest) (*deployer.DatabaseCredentialsResponse, error) {
