@@ -1172,8 +1172,12 @@ func (s *Server) ListResourceAllocations(ctx context.Context, req *deployer.List
 			}
 			// No quota — ECO tier, zero allocations
 		} else {
-			cpuMillis = int32(quota.Spec.Hard.Cpu().MilliValue())
-			memMB = int32(quota.Spec.Hard.Memory().Value() / (1024 * 1024))
+			if cpuQty, ok := quota.Spec.Hard[corev1.ResourceRequestsCPU]; ok {
+				cpuMillis = int32(cpuQty.MilliValue())
+			}
+			if memQty, ok := quota.Spec.Hard[corev1.ResourceRequestsMemory]; ok {
+				memMB = int32(memQty.Value() / (1024 * 1024))
+			}
 			if storageQty, ok := quota.Spec.Hard[corev1.ResourceRequestsStorage]; ok {
 				diskMB = int32(storageQty.Value() / (1024 * 1024))
 			}
