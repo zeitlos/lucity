@@ -3,6 +3,11 @@ export default defineNuxtConfig({
     url: 'https://lucity.cloud',
     name: 'Lucity'
   },
+  nitro: {
+    prerender: {
+      routes: ['/llms.txt', '/llms-full.txt']
+    }
+  },
   css: ['~/assets/css/main.css'],
   app: {
     head: {
