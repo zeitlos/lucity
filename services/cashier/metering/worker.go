@@ -22,6 +22,12 @@ import (
 // maxBackfillDays is the maximum number of days we can backfill (Stripe's meter event limit).
 const maxBackfillDays = 35
 
+// meterWindow is the fixed billing window size. Usage is always aggregated in 1-hour
+// windows regardless of tick interval. This ensures consistent billing: a 5m tick
+// interval reports the same totals as a 1h tick interval — the interval only controls
+// how quickly we detect a completed window, not what we report.
+const meterWindow = time.Hour
+
 // ingestionDelay is the time to wait after a window closes before querying SigNoz.
 // OTel collectors scrape every ~60s and batch exports to ClickHouse. 5 minutes
 // gives enough margin for all metrics to land before we query.
@@ -70,12 +76,15 @@ func (w *Worker) Start() error {
 	ticker := time.NewTicker(w.interval)
 	defer ticker.Stop()
 
+	slog.Info("metering: next tick", "in", w.interval, "at", time.Now().Add(w.interval).Format(time.RFC3339))
+
 	for {
 		select {
 		case <-ctx.Done():
 			return nil
 		case <-ticker.C:
 			w.tick(ctx)
+			slog.Info("metering: next tick", "in", w.interval, "at", time.Now().Add(w.interval).Format(time.RFC3339))
 		}
 	}
 }
@@ -91,13 +100,14 @@ func (w *Worker) Shutdown(ctx context.Context) error {
 	return nil
 }
 
-// alignWindow returns the start and end of the most recently completed aligned window.
-// For a 1h interval at 14:37, this returns (13:00, 14:00).
-func alignWindow(now time.Time, interval time.Duration) (start, end time.Time) {
-	intervalSec := int64(interval.Seconds())
+// alignWindow returns the start and end of the most recently completed 1-hour window.
+// At 14:37, this returns (13:00, 14:00). The window size is always meterWindow (1h),
+// independent of tick interval.
+func alignWindow(now time.Time) (start, end time.Time) {
+	windowSec := int64(meterWindow.Seconds())
 	nowUnix := now.Unix()
-	endUnix := nowUnix - (nowUnix % intervalSec)
-	return time.Unix(endUnix-intervalSec, 0).UTC(), time.Unix(endUnix, 0).UTC()
+	endUnix := nowUnix - (nowUnix % windowSec)
+	return time.Unix(endUnix-windowSec, 0).UTC(), time.Unix(endUnix, 0).UTC()
 }
 
 // backfill processes all missed metering windows since the last checkpoint.
@@ -112,7 +122,7 @@ func (w *Worker) backfill(ctx context.Context) {
 		return
 	}
 
-	_, currentEnd := alignWindow(time.Now().Add(-ingestionDelay), w.interval)
+	_, currentEnd := alignWindow(time.Now().Add(-ingestionDelay))
 
 	// Cap backfill to Stripe's limit.
 	earliest := time.Now().Add(-maxBackfillDays * 24 * time.Hour)
@@ -120,14 +130,14 @@ func (w *Worker) backfill(ctx context.Context) {
 		slog.Warn("metering: checkpoint older than 35 days, capping backfill",
 			"checkpoint", lastEnd, "capped_to", earliest)
 		// Re-align the capped time to a proper window boundary.
-		_, lastEnd = alignWindow(earliest, w.interval)
+		_, lastEnd = alignWindow(earliest)
 	}
 
 	// Process each missed window in chronological order.
 	windowStart := lastEnd
 	var count int
-	for windowStart.Add(w.interval).Before(currentEnd) || windowStart.Add(w.interval).Equal(currentEnd) {
-		windowEnd := windowStart.Add(w.interval)
+	for windowStart.Add(meterWindow).Before(currentEnd) || windowStart.Add(meterWindow).Equal(currentEnd) {
+		windowEnd := windowStart.Add(meterWindow)
 		count++
 		slog.Info("metering: backfilling window", "start", windowStart, "end", windowEnd, "window", count)
 		w.processWindow(ctx, windowStart, windowEnd)
@@ -141,7 +151,7 @@ func (w *Worker) backfill(ctx context.Context) {
 func (w *Worker) tick(ctx context.Context) {
 	// Delay window selection so SigNoz has time to fully ingest metrics.
 	// At 15:05 with 5min delay: alignWindow(15:00) → processes 14:00-15:00.
-	start, end := alignWindow(time.Now().Add(-ingestionDelay), w.interval)
+	start, end := alignWindow(time.Now().Add(-ingestionDelay))
 	slog.Info("metering tick", "window_start", start, "window_end", end)
 	w.processWindow(ctx, start, end)
 }
