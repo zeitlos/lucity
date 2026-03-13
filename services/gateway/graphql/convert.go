@@ -101,6 +101,14 @@ func convertServiceInstance(si handler.ServiceInstance, workloadDomain string) m
 		d := convertDeploymentOp(*si.InitialDeploy)
 		result.InitialDeploy = &d
 	}
+	if si.Resources != nil {
+		result.Resources = &model.ServiceResources{
+			CPUMillicores:      si.Resources.CpuMillicores,
+			MemoryMb:           si.Resources.MemoryMB,
+			CPULimitMillicores: si.Resources.CpuLimitMillicores,
+			MemoryLimitMb:      si.Resources.MemoryLimitMB,
+		}
+	}
 
 	// Convert domains with type derived from workload domain suffix
 	for _, hostname := range si.Domains {

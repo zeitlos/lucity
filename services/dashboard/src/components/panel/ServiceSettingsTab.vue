@@ -4,6 +4,7 @@ import { useMutation, useQuery } from '@vue/apollo-composable';
 import {
   Trash2, Copy, X, Globe, Plus, Minus, CircleCheck, CircleAlert,
   ChevronDown, Network, ExternalLink, Loader2, Scaling, GitBranch, Github, Code, Play, Container, ArrowRight,
+  Cpu, MemoryStick,
 } from 'lucide-vue-next';
 import {
   RemoveServiceMutation,
@@ -78,6 +79,17 @@ const activeInstance = computed(() => {
 const domains = computed<DomainInfo[]>(() => activeInstance.value?.domains ?? []);
 const platformDomain = computed(() => domains.value.find(d => d.type === 'PLATFORM'));
 const customDomains = computed(() => domains.value.filter(d => d.type === 'CUSTOM'));
+
+// Compute resources
+const resources = computed(() => activeInstance.value?.resources ?? null);
+function formatCpu(millicores: number): string {
+  const vcpu = millicores / 1000;
+  return vcpu % 1 === 0 ? `${vcpu} vCPU` : `${vcpu} vCPU`;
+}
+function formatMemory(mb: number): string {
+  if (mb >= 1024 && mb % 1024 === 0) return `${mb / 1024} GB`;
+  return `${mb} MB`;
+}
 
 // Platform config
 const { result: platformConfigResult } = useQuery(PlatformConfigQuery);
@@ -1026,6 +1038,39 @@ async function handleRemoveService() {
           </CollapsibleContent>
         </div>
       </Collapsible>
+    </section>
+
+    <!-- Compute -->
+    <section class="space-y-2">
+      <h3 class="px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        Compute
+      </h3>
+
+      <div class="overflow-hidden rounded-lg border">
+        <div v-if="resources" class="divide-y">
+          <div class="flex items-center gap-3 px-4 py-3">
+            <Cpu :size="16" class="shrink-0 text-muted-foreground" />
+            <div class="min-w-0 flex-1">
+              <p class="text-sm font-medium text-foreground">CPU</p>
+              <p class="text-xs text-muted-foreground">Per instance</p>
+            </div>
+            <span class="font-mono text-sm font-medium">{{ formatCpu(resources.cpuMillicores) }}</span>
+          </div>
+          <div class="flex items-center gap-3 px-4 py-3">
+            <MemoryStick :size="16" class="shrink-0 text-muted-foreground" />
+            <div class="min-w-0 flex-1">
+              <p class="text-sm font-medium text-foreground">Memory</p>
+              <p class="text-xs text-muted-foreground">Per instance</p>
+            </div>
+            <span class="font-mono text-sm font-medium">{{ formatMemory(resources.memoryMB) }}</span>
+          </div>
+        </div>
+        <div v-else class="px-4 py-3">
+          <p class="text-sm text-muted-foreground">
+            No deployment yet.
+          </p>
+        </div>
+      </div>
     </section>
 
     <!-- Danger Zone -->

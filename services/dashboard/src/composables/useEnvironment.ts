@@ -27,6 +27,13 @@ export interface ScalingInfo {
   autoscaling?: AutoscalingInfo;
 }
 
+export interface ResourcesInfo {
+  cpuMillicores: number;
+  memoryMB: number;
+  cpuLimitMillicores: number;
+  memoryLimitMB: number;
+}
+
 export interface ServiceInstance {
   name: string;
   environment: string;
@@ -41,6 +48,7 @@ export interface ServiceInstance {
   ready: boolean;
   replicas: number;
   scaling?: ScalingInfo;
+  resources?: ResourcesInfo;
   domains: DomainInfo[];
   deployments: DeploymentInfo[];
 }

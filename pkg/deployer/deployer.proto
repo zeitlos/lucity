@@ -250,6 +250,14 @@ message ServiceStatusResponse {
   int32 replicas = 2;
   int32 ready_replicas = 3;
   ServiceScalingConfig scaling = 4;
+  ServiceResourceConfig resources = 5;
+}
+
+message ServiceResourceConfig {
+  int32 cpu_millicores = 1;       // CPU request in millicores (e.g. 250 = 0.25 vCPU)
+  int32 memory_mb = 2;            // Memory request in MB
+  int32 cpu_limit_millicores = 3; // CPU limit in millicores
+  int32 memory_limit_mb = 4;      // Memory limit in MB
 }
 
 message ServiceScalingConfig {

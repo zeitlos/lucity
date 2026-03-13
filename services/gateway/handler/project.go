@@ -60,9 +60,17 @@ type ServiceInstance struct {
 	Ready                bool
 	Replicas             int
 	Scaling              ScalingConfig
+	Resources            *ServiceResources
 	Domains              []string
 	Deployments          []Deployment
 	InitialDeploy        *DeployOp
+}
+
+type ServiceResources struct {
+	CpuMillicores      int
+	MemoryMB           int
+	CpuLimitMillicores int
+	MemoryLimitMB      int
 }
 
 type ScalingConfig struct {
@@ -426,6 +434,14 @@ func (c *Client) enrichServiceStatus(ctx context.Context, proj *Project) {
 							MaxReplicas: int(resp.Scaling.MaxReplicas),
 							TargetCPU:   int(resp.Scaling.TargetCpu),
 						}
+					}
+				}
+				if resp.Resources != nil {
+					si.Resources = &ServiceResources{
+						CpuMillicores:      int(resp.Resources.CpuMillicores),
+						MemoryMB:           int(resp.Resources.MemoryMb),
+						CpuLimitMillicores: int(resp.Resources.CpuLimitMillicores),
+						MemoryLimitMB:      int(resp.Resources.MemoryLimitMb),
 					}
 				}
 			}()

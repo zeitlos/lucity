@@ -32,10 +32,24 @@ type ServiceInstance {
   ready: Boolean!
   replicas: Int!
   scaling: ScalingConfig!
+  """Compute resources allocated to this service. Null if the service has no running deployment."""
+  resources: ServiceResources
   domains: [Domain!]!
   deployments: [Deployment!]!
   """Deploy automatically triggered when the service was added. Null for image-based services."""
   initialDeploy: DeployRun
+}
+
+"""Compute resource allocation for a service instance."""
+type ServiceResources {
+  """CPU allocation in millicores (e.g. 250 = 0.25 vCPU)."""
+  cpuMillicores: Int!
+  """Memory allocation in megabytes."""
+  memoryMB: Int!
+  """CPU limit in millicores."""
+  cpuLimitMillicores: Int!
+  """Memory limit in megabytes."""
+  memoryLimitMB: Int!
 }
 
 type ScalingConfig {

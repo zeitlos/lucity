@@ -511,11 +511,34 @@ func (s *Server) ServiceStatus(ctx context.Context, req *deployer.ServiceStatusR
 		}
 	}
 
+	// Extract container resource requests/limits from the first deployment's pod spec.
+	var resources *deployer.ServiceResourceConfig
+	if len(deployList.Items) > 0 {
+		containers := deployList.Items[0].Spec.Template.Spec.Containers
+		if len(containers) > 0 {
+			ctr := containers[0]
+			resources = &deployer.ServiceResourceConfig{}
+			if req, ok := ctr.Resources.Requests[corev1.ResourceCPU]; ok {
+				resources.CpuMillicores = int32(req.MilliValue())
+			}
+			if req, ok := ctr.Resources.Requests[corev1.ResourceMemory]; ok {
+				resources.MemoryMb = int32(req.Value() / (1024 * 1024))
+			}
+			if lim, ok := ctr.Resources.Limits[corev1.ResourceCPU]; ok {
+				resources.CpuLimitMillicores = int32(lim.MilliValue())
+			}
+			if lim, ok := ctr.Resources.Limits[corev1.ResourceMemory]; ok {
+				resources.MemoryLimitMb = int32(lim.Value() / (1024 * 1024))
+			}
+		}
+	}
+
 	return &deployer.ServiceStatusResponse{
 		Ready:         totalReady > 0 && totalReady >= totalReplicas,
 		Replicas:      totalReplicas,
 		ReadyReplicas: totalReady,
 		Scaling:       scaling,
+		Resources:     resources,
 	}, nil
 }
 

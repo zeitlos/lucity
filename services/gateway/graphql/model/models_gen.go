@@ -342,8 +342,10 @@ type ServiceInstance struct {
 	Ready              bool           `json:"ready"`
 	Replicas           int            `json:"replicas"`
 	Scaling            *ScalingConfig `json:"scaling"`
-	Domains            []Domain       `json:"domains"`
-	Deployments        []Deployment   `json:"deployments"`
+	// Compute resources allocated to this service. Null if the service has no running deployment.
+	Resources   *ServiceResources `json:"resources,omitempty"`
+	Domains     []Domain          `json:"domains"`
+	Deployments []Deployment      `json:"deployments"`
 	// Deploy automatically triggered when the service was added. Null for image-based services.
 	InitialDeploy *DeployRun `json:"initialDeploy,omitempty"`
 }
@@ -362,6 +364,18 @@ type ServiceRef struct {
 
 type ServiceRefInput struct {
 	Service string `json:"service"`
+}
+
+// Compute resource allocation for a service instance.
+type ServiceResources struct {
+	// CPU allocation in millicores (e.g. 250 = 0.25 vCPU).
+	CPUMillicores int `json:"cpuMillicores"`
+	// Memory allocation in megabytes.
+	MemoryMb int `json:"memoryMB"`
+	// CPU limit in millicores.
+	CPULimitMillicores int `json:"cpuLimitMillicores"`
+	// Memory limit in megabytes.
+	MemoryLimitMb int `json:"memoryLimitMB"`
 }
 
 type ServiceVariable struct {

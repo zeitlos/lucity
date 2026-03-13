@@ -311,6 +311,7 @@ type ComplexityRoot struct {
 		Port               func(childComplexity int) int
 		Ready              func(childComplexity int) int
 		Replicas           func(childComplexity int) int
+		Resources          func(childComplexity int) int
 		Scaling            func(childComplexity int) int
 		SourceURL          func(childComplexity int) int
 		StartCommand       func(childComplexity int) int
@@ -323,6 +324,13 @@ type ComplexityRoot struct {
 
 	ServiceRef struct {
 		Service func(childComplexity int) int
+	}
+
+	ServiceResources struct {
+		CPULimitMillicores func(childComplexity int) int
+		CPUMillicores      func(childComplexity int) int
+		MemoryLimitMb      func(childComplexity int) int
+		MemoryMb           func(childComplexity int) int
 	}
 
 	ServiceVariable struct {
@@ -1750,6 +1758,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ServiceInstance.Replicas(childComplexity), true
+	case "ServiceInstance.resources":
+		if e.complexity.ServiceInstance.Resources == nil {
+			break
+		}
+
+		return e.complexity.ServiceInstance.Resources(childComplexity), true
 	case "ServiceInstance.scaling":
 		if e.complexity.ServiceInstance.Scaling == nil {
 			break
@@ -1788,6 +1802,31 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ServiceRef.Service(childComplexity), true
+
+	case "ServiceResources.cpuLimitMillicores":
+		if e.complexity.ServiceResources.CPULimitMillicores == nil {
+			break
+		}
+
+		return e.complexity.ServiceResources.CPULimitMillicores(childComplexity), true
+	case "ServiceResources.cpuMillicores":
+		if e.complexity.ServiceResources.CPUMillicores == nil {
+			break
+		}
+
+		return e.complexity.ServiceResources.CPUMillicores(childComplexity), true
+	case "ServiceResources.memoryLimitMB":
+		if e.complexity.ServiceResources.MemoryLimitMb == nil {
+			break
+		}
+
+		return e.complexity.ServiceResources.MemoryLimitMb(childComplexity), true
+	case "ServiceResources.memoryMB":
+		if e.complexity.ServiceResources.MemoryMb == nil {
+			break
+		}
+
+		return e.complexity.ServiceResources.MemoryMb(childComplexity), true
 
 	case "ServiceVariable.databaseRef":
 		if e.complexity.ServiceVariable.DatabaseRef == nil {
@@ -5187,6 +5226,8 @@ func (ec *executionContext) fieldContext_Environment_services(_ context.Context,
 				return ec.fieldContext_ServiceInstance_replicas(ctx, field)
 			case "scaling":
 				return ec.fieldContext_ServiceInstance_scaling(ctx, field)
+			case "resources":
+				return ec.fieldContext_ServiceInstance_resources(ctx, field)
 			case "domains":
 				return ec.fieldContext_ServiceInstance_domains(ctx, field)
 			case "deployments":
@@ -6481,6 +6522,8 @@ func (ec *executionContext) fieldContext_Mutation_promote(ctx context.Context, f
 				return ec.fieldContext_ServiceInstance_replicas(ctx, field)
 			case "scaling":
 				return ec.fieldContext_ServiceInstance_scaling(ctx, field)
+			case "resources":
+				return ec.fieldContext_ServiceInstance_resources(ctx, field)
 			case "domains":
 				return ec.fieldContext_ServiceInstance_domains(ctx, field)
 			case "deployments":
@@ -6641,6 +6684,8 @@ func (ec *executionContext) fieldContext_Mutation_addService(ctx context.Context
 				return ec.fieldContext_ServiceInstance_replicas(ctx, field)
 			case "scaling":
 				return ec.fieldContext_ServiceInstance_scaling(ctx, field)
+			case "resources":
+				return ec.fieldContext_ServiceInstance_resources(ctx, field)
 			case "domains":
 				return ec.fieldContext_ServiceInstance_domains(ctx, field)
 			case "deployments":
@@ -10126,6 +10171,45 @@ func (ec *executionContext) fieldContext_ServiceInstance_scaling(_ context.Conte
 	return fc, nil
 }
 
+func (ec *executionContext) _ServiceInstance_resources(ctx context.Context, field graphql.CollectedField, obj *model.ServiceInstance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ServiceInstance_resources,
+		func(ctx context.Context) (any, error) {
+			return obj.Resources, nil
+		},
+		nil,
+		ec.marshalOServiceResources2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐServiceResources,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_ServiceInstance_resources(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ServiceInstance",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "cpuMillicores":
+				return ec.fieldContext_ServiceResources_cpuMillicores(ctx, field)
+			case "memoryMB":
+				return ec.fieldContext_ServiceResources_memoryMB(ctx, field)
+			case "cpuLimitMillicores":
+				return ec.fieldContext_ServiceResources_cpuLimitMillicores(ctx, field)
+			case "memoryLimitMB":
+				return ec.fieldContext_ServiceResources_memoryLimitMB(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ServiceResources", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _ServiceInstance_domains(ctx context.Context, field graphql.CollectedField, obj *model.ServiceInstance) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -10341,6 +10425,122 @@ func (ec *executionContext) fieldContext_ServiceRef_service(_ context.Context, f
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ServiceResources_cpuMillicores(ctx context.Context, field graphql.CollectedField, obj *model.ServiceResources) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ServiceResources_cpuMillicores,
+		func(ctx context.Context) (any, error) {
+			return obj.CPUMillicores, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ServiceResources_cpuMillicores(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ServiceResources",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ServiceResources_memoryMB(ctx context.Context, field graphql.CollectedField, obj *model.ServiceResources) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ServiceResources_memoryMB,
+		func(ctx context.Context) (any, error) {
+			return obj.MemoryMb, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ServiceResources_memoryMB(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ServiceResources",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ServiceResources_cpuLimitMillicores(ctx context.Context, field graphql.CollectedField, obj *model.ServiceResources) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ServiceResources_cpuLimitMillicores,
+		func(ctx context.Context) (any, error) {
+			return obj.CPULimitMillicores, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ServiceResources_cpuLimitMillicores(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ServiceResources",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ServiceResources_memoryLimitMB(ctx context.Context, field graphql.CollectedField, obj *model.ServiceResources) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_ServiceResources_memoryLimitMB,
+		func(ctx context.Context) (any, error) {
+			return obj.MemoryLimitMb, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_ServiceResources_memoryLimitMB(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ServiceResources",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
 		},
 	}
 	return fc, nil
@@ -16290,6 +16490,8 @@ func (ec *executionContext) _ServiceInstance(ctx context.Context, sel ast.Select
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "resources":
+			out.Values[i] = ec._ServiceInstance_resources(ctx, field, obj)
 		case "domains":
 			out.Values[i] = ec._ServiceInstance_domains(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -16382,6 +16584,60 @@ func (ec *executionContext) _ServiceRef(ctx context.Context, sel ast.SelectionSe
 			out.Values[i] = graphql.MarshalString("ServiceRef")
 		case "service":
 			out.Values[i] = ec._ServiceRef_service(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var serviceResourcesImplementors = []string{"ServiceResources"}
+
+func (ec *executionContext) _ServiceResources(ctx context.Context, sel ast.SelectionSet, obj *model.ServiceResources) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, serviceResourcesImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ServiceResources")
+		case "cpuMillicores":
+			out.Values[i] = ec._ServiceResources_cpuMillicores(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "memoryMB":
+			out.Values[i] = ec._ServiceResources_memoryMB(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "cpuLimitMillicores":
+			out.Values[i] = ec._ServiceResources_cpuLimitMillicores(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "memoryLimitMB":
+			out.Values[i] = ec._ServiceResources_memoryLimitMB(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -19108,6 +19364,13 @@ func (ec *executionContext) unmarshalOServiceRefInput2ᚖgithubᚗcomᚋzeitlos�
 	}
 	res, err := ec.unmarshalInputServiceRefInput(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOServiceResources2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐServiceResources(ctx context.Context, sel ast.SelectionSet, v *model.ServiceResources) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._ServiceResources(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalOString2ᚕstringᚄ(ctx context.Context, v any) ([]string, error) {

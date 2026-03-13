@@ -108,6 +108,12 @@ export const ProjectQuery = gql`
               targetCPU
             }
           }
+          resources {
+            cpuMillicores
+            memoryMB
+            cpuLimitMillicores
+            memoryLimitMB
+          }
           domains {
             hostname
             type
