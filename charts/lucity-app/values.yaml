@@ -19,7 +19,7 @@
 #         memory: 256Mi
 #     # When omitted, the namespace LimitRange applies:
 #     #   defaultRequest: cpu=100m, memory=256Mi
-#     #   default:        cpu=1, memory=512Mi
+#     #   default:        cpu=500m, memory=512Mi
 #     autoscaling:                      # optional — HPA configuration
 #       enabled: true
 #       minReplicas: 1
