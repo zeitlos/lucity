@@ -46,8 +46,6 @@ spec:
           env:
             - name: CI
               value: "true"
-            - name: DB_URL
-              value: "postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_HOST):$(POSTGRES_PORT)/$(POSTGRES_DB)"
             - name: POSTGRES_HOST
               valueFrom:
                 secretKeyRef:
@@ -73,6 +71,8 @@ spec:
                 secretKeyRef:
                   name: {{ .Release.Name }}-logto-pg-app
                   key: password
+            - name: DB_URL
+              value: "postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_HOST):$(POSTGRES_PORT)/$(POSTGRES_DB)"
       containers:
         - name: logto
           image: "{{ .Values.logto.image.repository }}:{{ .Values.logto.image.tag }}"
@@ -92,8 +92,6 @@ spec:
             - name: ENDPOINT
               value: {{ .Values.logto.endpoint | quote }}
             # No ADMIN_ENDPOINT: admin console only accessible via port-forward
-            - name: DB_URL
-              value: "postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_HOST):$(POSTGRES_PORT)/$(POSTGRES_DB)"
             - name: POSTGRES_HOST
               valueFrom:
                 secretKeyRef:
@@ -119,6 +117,8 @@ spec:
                 secretKeyRef:
                   name: {{ .Release.Name }}-logto-pg-app
                   key: password
+            - name: DB_URL
+              value: "postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_HOST):$(POSTGRES_PORT)/$(POSTGRES_DB)"
           livenessProbe:
             httpGet:
               path: /oidc/.well-known/openid-configuration
