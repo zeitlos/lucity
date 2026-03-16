@@ -12,7 +12,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// Verifier validates Logto-issued JWTs using OIDC discovery and JWKS.
+// Verifier validates OIDC-issued JWTs using discovery and JWKS.
 // Optionally accepts HS256 test tokens when a testSecret is configured.
 type Verifier struct {
 	provider   *oidc.Provider
@@ -21,7 +21,7 @@ type Verifier struct {
 }
 
 // NewVerifier creates a JWT verifier by performing OIDC discovery against the issuer.
-// The audience should match the API resource registered in Logto.
+// The audience should match the API resource identifier registered in the OIDC provider.
 func NewVerifier(ctx context.Context, issuerURL, audience string) (*Verifier, error) {
 	provider, err := oidc.NewProvider(ctx, issuerURL)
 	if err != nil {
@@ -61,7 +61,7 @@ type workspaceClaimEntry struct {
 }
 
 // ValidateToken validates a JWT and extracts claims.
-// Tries JWKS validation first (Logto tokens), falls back to HS256 test secret if configured.
+// Tries JWKS validation first, falls back to HS256 test secret if configured.
 func (v *Verifier) ValidateToken(ctx context.Context, tokenString string) (*Claims, error) {
 	// Try JWKS validation first (production path)
 	if v.verifier != nil {

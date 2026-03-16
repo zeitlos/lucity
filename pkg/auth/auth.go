@@ -31,7 +31,7 @@ type contextKey struct{}
 
 // Claims represents the authenticated user's identity and roles.
 type Claims struct {
-	Subject    string // Logto user ID (stable identifier for API calls)
+	Subject    string // OIDC subject (stable user identifier)
 	Name       string // Display name
 	Email      string
 	Roles      []Role

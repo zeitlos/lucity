@@ -7,7 +7,7 @@ import (
 
 const cookieName = "lucity_token"
 
-// Middleware returns an HTTP middleware that extracts a Logto JWT from the
+// Middleware returns an HTTP middleware that extracts a JWT from the
 // Authorization header or cookie and attaches claims to the request context.
 // It does NOT reject unauthenticated requests — that's the GraphQL directive's job.
 func Middleware(verifier *Verifier) func(http.Handler) http.Handler {
