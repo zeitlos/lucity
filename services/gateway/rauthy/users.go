@@ -61,6 +61,12 @@ func (c *Client) UpdateUserGroups(ctx context.Context, userID string, groupNames
 
 	user.Groups = groupNames
 
+	// Rauthy requires family_name to be non-empty. Some OAuth providers
+	// (e.g. Google) don't always provide one, so default to a dash.
+	if user.FamilyName == "" {
+		user.FamilyName = "-"
+	}
+
 	payload, err := json.Marshal(user)
 	if err != nil {
 		return fmt.Errorf("failed to marshal user: %w", err)
