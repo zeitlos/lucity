@@ -191,7 +191,7 @@ logto:
   enabled: false
   image:
     repository: ghcr.io/logto-io/logto
-    tag: "1.28.0"
+    tag: "1.37.1"
     pullPolicy: IfNotPresent
   endpoint: ""              # public URL, e.g. https://id.lucity.cloud
   postgres:

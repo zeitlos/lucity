@@ -31,14 +31,14 @@ spec:
             - name: POSTGRES_HOST
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Release.Name }}-logto-pg-app
+                  name: {{ .Release.Name }}-logto-pg-superuser
                   key: host
             - name: POSTGRES_PORT
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Release.Name }}-logto-pg-app
+                  name: {{ .Release.Name }}-logto-pg-superuser
                   key: port
-        # Seed and run alterations (idempotent)
+        # Seed and run alterations (needs superuser for CREATEROLE)
         - name: db-setup
           image: "{{ .Values.logto.image.repository }}:{{ .Values.logto.image.tag }}"
           imagePullPolicy: {{ .Values.logto.image.pullPolicy }}
@@ -49,27 +49,24 @@ spec:
             - name: POSTGRES_HOST
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Release.Name }}-logto-pg-app
+                  name: {{ .Release.Name }}-logto-pg-superuser
                   key: host
             - name: POSTGRES_PORT
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Release.Name }}-logto-pg-app
+                  name: {{ .Release.Name }}-logto-pg-superuser
                   key: port
             - name: POSTGRES_DB
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Release.Name }}-logto-pg-app
-                  key: dbname
+              value: "logto"
             - name: POSTGRES_USER
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Release.Name }}-logto-pg-app
+                  name: {{ .Release.Name }}-logto-pg-superuser
                   key: username
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Release.Name }}-logto-pg-app
+                  name: {{ .Release.Name }}-logto-pg-superuser
                   key: password
             - name: DB_URL
               value: "postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_HOST):$(POSTGRES_PORT)/$(POSTGRES_DB)"
@@ -91,34 +88,37 @@ spec:
               value: "3002"
             - name: ENDPOINT
               value: {{ .Values.logto.endpoint | quote }}
-            # No ADMIN_ENDPOINT: admin console only accessible via port-forward
+            # Superuser required at runtime: Logto's @silverhand/slonik reads the
+            # systems and tenants tables on startup (which the seed's _after_all.sql
+            # revokes from tenant roles). It then connects as per-tenant RLS roles
+            # (logto_tenant_logto_default, logto_tenant_logto_admin) for queries.
+            # See: https://github.com/logto-io/logto/blob/master/packages/schemas/alterations/1.0.0-1663923770-init.sql
             - name: POSTGRES_HOST
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Release.Name }}-logto-pg-app
+                  name: {{ .Release.Name }}-logto-pg-superuser
                   key: host
             - name: POSTGRES_PORT
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Release.Name }}-logto-pg-app
+                  name: {{ .Release.Name }}-logto-pg-superuser
                   key: port
             - name: POSTGRES_DB
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Release.Name }}-logto-pg-app
-                  key: dbname
+              value: "logto"
             - name: POSTGRES_USER
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Release.Name }}-logto-pg-app
+                  name: {{ .Release.Name }}-logto-pg-superuser
                   key: username
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Release.Name }}-logto-pg-app
+                  name: {{ .Release.Name }}-logto-pg-superuser
                   key: password
             - name: DB_URL
               value: "postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_HOST):$(POSTGRES_PORT)/$(POSTGRES_DB)"
+            - name: DATABASE_CONNECTION_TIMEOUT
+              value: "30000"
           livenessProbe:
             httpGet:
               path: /oidc/.well-known/openid-configuration

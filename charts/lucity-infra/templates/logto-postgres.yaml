@@ -12,6 +12,7 @@ spec:
   {{- if .Values.logto.postgres.version }}
   imageName: ghcr.io/cloudnative-pg/postgresql:{{ .Values.logto.postgres.version }}
   {{- end }}
+  enableSuperuserAccess: true
   bootstrap:
     initdb:
       database: logto
