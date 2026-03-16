@@ -213,6 +213,7 @@ logto:
     # M2M app credentials for Management API access (created in Logto admin console)
     m2mAppId: ""
     m2mAppSecret: ""
+    secretVaultKek: ""    # base64-encoded 32-byte KEK for Secret Vault (token storage)
 
 # -- Rauthy Identity Provider (OIDC)
 rauthy:

@@ -88,6 +88,8 @@ spec:
               value: "3002"
             - name: ENDPOINT
               value: {{ .Values.logto.endpoint | quote }}
+            - name: ADMIN_ENDPOINT
+              value: "http://localhost:3002"
             # Superuser required at runtime: Logto's @silverhand/slonik reads the
             # systems and tenants tables on startup (which the seed's _after_all.sql
             # revokes from tenant roles). It then connects as per-tenant RLS roles
@@ -117,6 +119,11 @@ spec:
                   key: password
             - name: DB_URL
               value: "postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_HOST):$(POSTGRES_PORT)/$(POSTGRES_DB)"
+            - name: SECRET_VAULT_KEK
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-logto
+                  key: secret-vault-kek
             - name: DATABASE_CONNECTION_TIMEOUT
               value: "30000"
           livenessProbe:
