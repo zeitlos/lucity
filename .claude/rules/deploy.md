@@ -34,11 +34,16 @@ Do **not** use `--reuse-values`. The Makefile target applies the full values fil
 make deploy-prod-infra VERSION=<tag>
 ```
 
-Same pattern — OCI chart from GHCR with explicit values file.
+Same pattern — OCI chart from GHCR with explicit values file. Uses `infra-secrets.yaml` (separate from platform secrets).
 
 ## Secrets
 
-Production secrets live in `deployments/lucity-prod/secrets.yaml` (gitignored). Copy from `secrets.yaml.example` for first deploy. Secrets include JWT keys, GitHub App credentials, ArgoCD/Soft-serve tokens, and SSH keys.
+Production secrets are split into two files (both gitignored):
+
+- **`deployments/lucity-prod/secrets.yaml`** — platform secrets (GitHub App, ArgoCD/Soft-serve tokens, Stripe, Logto M2M, SSH keys)
+- **`deployments/lucity-prod/infra-secrets.yaml`** — infrastructure secrets (Zot htpasswd, Soft-serve admin key, Rybbit, Rauthy, Logto infra)
+
+Copy from the corresponding `.example` files for first deploy.
 
 ## Verifying a Deploy
 

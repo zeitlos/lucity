@@ -168,20 +168,20 @@ db-forward:
 
 # Production deployment from OCI registry charts
 # Usage: make deploy-prod VERSION=0.0.0-85-gabcdef0 HELM_ARGS="..."
-# Secrets are stored in deployments/lucity-prod/secrets.yaml (gitignored).
-# First deploy: create secrets.yaml from secrets.yaml.example, then run deploy-prod.
+# Secrets are split into infra-secrets.yaml and secrets.yaml (both gitignored).
+# First deploy: copy from *.example files and fill in values.
 PROD_CONTEXT ?= lucity-prod
 VERSION ?=
 
 deploy-prod-infra:
-	@test -f deployments/lucity-prod/secrets.yaml || { echo "Error: deployments/lucity-prod/secrets.yaml not found. Copy secrets.yaml.example and fill in values."; exit 1; }
+	@test -f deployments/lucity-prod/infra-secrets.yaml || { echo "Error: deployments/lucity-prod/infra-secrets.yaml not found. Copy infra-secrets.yaml.example and fill in values."; exit 1; }
 	helm upgrade --install lucity-infra \
 		oci://ghcr.io/zeitlos/lucity/charts/lucity-infra \
 		$(if $(VERSION),--version $(VERSION)) \
 		--kube-context $(PROD_CONTEXT) \
 		-n lucity-system --create-namespace \
 		-f deployments/lucity-prod/infra-values.yaml \
-		-f deployments/lucity-prod/secrets.yaml \
+		-f deployments/lucity-prod/infra-secrets.yaml \
 		$(HELM_ARGS)
 
 deploy-prod:
