@@ -118,6 +118,7 @@ const repos = computed(() => {
 const { mutate: createProject, loading: creating } = useMutation(CreateProjectMutation);
 
 async function handleSelectRepo(repo: { fullName: string; htmlUrl: string }) {
+  if (creating.value || detectingServices.value) return;
   if (props.context === 'projects') {
     await handleCreateProjectFromRepo(repo);
   } else {
@@ -340,7 +341,7 @@ function formatPullCount(count: number): string {
 }
 
 async function handleSelectImage(imageRef: string) {
-  if (!imageRef) return;
+  if (!imageRef || creating.value || addingService.value) return;
   containerImageRef.value = imageRef;
 
   if (props.context === 'projects') {
@@ -466,7 +467,7 @@ onKeyStroke('Enter', (e) => {
       }
       break;
     case 'container-image':
-      if (!containerImageRef.value) break;
+      if (!containerImageRef.value || creating.value || addingService.value) break;
       e.preventDefault();
       if (imageResults.value.length > 0 && focusedIndex.value < imageResults.value.length) {
         handleSelectImage(imageResults.value[focusedIndex.value].name);
@@ -762,7 +763,7 @@ const mainItems = computed(() => {
                   :data-focused="focusedIndex === index"
                   class="flex w-full items-start gap-2 rounded-lg px-2 py-2.5 text-left text-sm text-popover-foreground transition-colors disabled:opacity-50"
                   :class="focusedIndex === index ? 'bg-accent' : 'hover:bg-accent'"
-                  :disabled="addingService"
+                  :disabled="creating || addingService"
                   @click="handleSelectImage(img.name)"
                   @mouseenter="focusedIndex = Number(index)"
                 >
