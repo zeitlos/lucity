@@ -12,20 +12,20 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"golang.org/x/oauth2"
 
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/services/gateway/handler"
+	"github.com/zeitlos/lucity/services/gateway/logto"
 )
 
 const (
 	stateCookieName    = "lucity_oauth_state"
 	verifierCookieName = "lucity_pkce_verifier"
 	tokenCookieName    = "lucity_token"
-	tokenExpiry        = 7 * 24 * time.Hour
+	refreshCookieName  = "lucity_refresh"
 )
 
 // OIDCProvider wraps the OIDC discovery provider, ID token verifier, and OAuth2 config.
@@ -64,7 +64,7 @@ func NewOIDCProvider(ctx context.Context, issuerURL, discoveryURL, clientID, cal
 		ClientID:    clientID,
 		Endpoint:    provider.Endpoint(),
 		RedirectURL: callbackURL,
-		Scopes:      []string{oidc.ScopeOpenID, "profile", "email", "groups"},
+		Scopes:      []string{oidc.ScopeOpenID, "profile", "email", oidc.ScopeOfflineAccess},
 	}
 
 	verifier := provider.Verifier(&oidc.Config{ClientID: clientID})
@@ -123,10 +123,6 @@ func newIssuerRewriteClient(issuerURL, discoveryURL string) (*http.Client, error
 	}, nil
 }
 
-const (
-	githubStateCookieName = "lucity_github_state"
-)
-
 // secureCookies returns true if cookies should have the Secure flag set,
 // derived from whether the dashboard URL uses HTTPS.
 func secureCookies(dashboardURL string) bool {
@@ -134,17 +130,15 @@ func secureCookies(dashboardURL string) bool {
 }
 
 // registerAuthRoutes adds OIDC auth endpoints to the mux.
-func registerAuthRoutes(mux *http.ServeMux, provider *OIDCProvider, api *handler.Client, jwtSecret, dashboardURL, githubAppSlug string) {
+func registerAuthRoutes(mux *http.ServeMux, provider *OIDCProvider, api *handler.Client, verifier *auth.Verifier, logtoClient *logto.Client, dashboardURL, githubAppSlug string) {
 	secure := secureCookies(dashboardURL)
 	mux.HandleFunc("/auth/login", handleLogin(provider, secure))
-	mux.HandleFunc("/auth/callback", handleCallback(provider, api, jwtSecret, dashboardURL, secure))
+	mux.HandleFunc("/auth/callback", handleCallback(provider, api, logtoClient, dashboardURL, secure))
 	mux.HandleFunc("/auth/me", handleMe())
 	mux.HandleFunc("/auth/logout", handleLogout(dashboardURL))
-	mux.HandleFunc("/auth/refresh", handleRefresh(api, jwtSecret, secure))
+	mux.HandleFunc("/auth/refresh", handleRefresh(logtoClient, secure))
 	mux.HandleFunc("/auth/github/install", handleGitHubInstall(githubAppSlug))
 	mux.HandleFunc("/auth/github/setup", handleGitHubSetup(dashboardURL))
-	mux.HandleFunc("/auth/github/connect", handleGitHubConnect(api, secure))
-	mux.HandleFunc("/auth/github/callback", handleGitHubCallback(api, dashboardURL))
 }
 
 // handleLogin redirects to the OIDC provider's authorization page with PKCE.
@@ -182,8 +176,8 @@ func handleLogin(provider *OIDCProvider, secure bool) http.HandlerFunc {
 }
 
 // handleCallback exchanges the auth code for tokens, verifies the ID token,
-// extracts claims, and creates a Lucity session.
-func handleCallback(provider *OIDCProvider, api *handler.Client, jwtSecret, dashboardURL string, secure bool) http.HandlerFunc {
+// extracts claims, and creates a Lucity session using the Logto access token.
+func handleCallback(provider *OIDCProvider, api *handler.Client, logtoClient *logto.Client, dashboardURL string, secure bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Verify state
 		stateCookie, err := r.Cookie(stateCookieName)
@@ -248,13 +242,12 @@ func handleCallback(provider *OIDCProvider, api *handler.Client, jwtSecret, dash
 			return
 		}
 
-		// Extract claims from the ID token
+		// Extract claims from the ID token for user identity
 		var oidcClaims struct {
-			Email             string   `json:"email"`
-			Name              string   `json:"name"`
-			Picture           string   `json:"picture"`
-			Groups            []string `json:"groups"`
-			PreferredUsername  string   `json:"preferred_username"`
+			Email    string `json:"email"`
+			Name     string `json:"name"`
+			Picture  string `json:"picture"`
+			Username string `json:"username"`
 		}
 		if err := idToken.Claims(&oidcClaims); err != nil {
 			slog.Error("failed to extract claims", "error", err)
@@ -262,11 +255,10 @@ func handleCallback(provider *OIDCProvider, api *handler.Client, jwtSecret, dash
 			return
 		}
 
-		// Ensure personal workspace exists and user is a member.
-		// This is idempotent — on first login it creates the workspace,
-		// on subsequent logins it ensures the Rauthy group membership is intact.
-		if oidcClaims.PreferredUsername == "" {
-			slog.Warn("no preferred_username for personal workspace", "email", oidcClaims.Email)
+		// Derive username for personal workspace ID
+		username := oidcClaims.Username
+		if username == "" {
+			slog.Warn("no username for personal workspace", "email", oidcClaims.Email)
 			http.Redirect(w, r, dashboardURL+"/login?error=no_workspace", http.StatusTemporaryRedirect)
 			return
 		}
@@ -280,63 +272,42 @@ func handleCallback(provider *OIDCProvider, api *handler.Client, jwtSecret, dash
 			Roles:   []auth.Role{auth.RoleUser},
 		})
 
-		personalWSID, isNewUser, err := api.EnsurePersonalWorkspace(svcCtx, idToken.Subject, oidcClaims.PreferredUsername)
+		personalWSID, isNewUser, err := api.EnsurePersonalWorkspace(svcCtx, idToken.Subject, username)
 		if err != nil {
 			slog.Error("failed to ensure personal workspace", "error", err, "email", oidcClaims.Email)
 			http.Error(w, "failed to create workspace", http.StatusInternalServerError)
 			return
 		}
 
-		// Re-read the user's groups from Rauthy after ensuring personal workspace,
-		// since EnsurePersonalWorkspace may have updated group membership.
-		user, err := api.Rauthy.User(r.Context(), idToken.Subject)
-		if err != nil {
-			slog.Error("failed to fetch user after personal workspace setup", "error", err)
-			http.Error(w, "authentication failed", http.StatusInternalServerError)
-			return
-		}
-		workspaces := auth.ParseRauthyGroups(user.Groups)
-
 		slog.Info("personal workspace ensured", "email", oidcClaims.Email, "workspace", personalWSID)
 
-		// Determine roles — admin if member of any workspace as admin
-		roles := []auth.Role{auth.RoleUser}
-		for _, m := range workspaces {
-			if m.Role == auth.WorkspaceRoleAdmin {
-				roles = append(roles, auth.RoleAdmin)
-				break
-			}
-		}
-
-		// Create Lucity JWT
-		claims := &auth.Claims{
-			Subject:    idToken.Subject,
-			Name:       oidcClaims.Name,
-			Email:      oidcClaims.Email,
-			AvatarURL:  oidcClaims.Picture,
-			Roles:      roles,
-			Workspaces: workspaces,
-		}
-
-		jwt, err := auth.NewToken(claims, jwtSecret, tokenExpiry)
-		if err != nil {
-			slog.Error("failed to create token", "error", err)
-			http.Error(w, "failed to create session", http.StatusInternalServerError)
-			return
-		}
-
-		// Set session cookie
+		// The Logto access token IS the session token. Store it as the session cookie.
+		accessToken := oauth2Token.AccessToken
 		http.SetCookie(w, &http.Cookie{
 			Name:     tokenCookieName,
-			Value:    jwt,
+			Value:    accessToken,
 			Path:     "/",
-			MaxAge:   int(tokenExpiry.Seconds()),
+			MaxAge:   7 * 24 * 3600, // 7 days
 			HttpOnly: true,
 			Secure:   secure,
 			SameSite: http.SameSiteLaxMode,
 		})
 
-		slog.Info("user authenticated", "email", oidcClaims.Email, "workspaces", len(workspaces))
+		// Store refresh token for silent token renewal
+		refreshToken := oauth2Token.RefreshToken
+		if refreshToken != "" {
+			http.SetCookie(w, &http.Cookie{
+				Name:     refreshCookieName,
+				Value:    refreshToken,
+				Path:     "/",
+				MaxAge:   30 * 24 * 3600, // 30 days
+				HttpOnly: true,
+				Secure:   secure,
+				SameSite: http.SameSiteLaxMode,
+			})
+		}
+
+		slog.Info("user authenticated", "email", oidcClaims.Email)
 
 		redirectURL := dashboardURL
 		if isNewUser {
@@ -378,11 +349,16 @@ func handleMe() http.HandlerFunc {
 	}
 }
 
-// handleLogout clears the session cookie.
+// handleLogout clears the session cookies.
 func handleLogout(dashboardURL string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		http.SetCookie(w, &http.Cookie{
 			Name:   tokenCookieName,
+			Path:   "/",
+			MaxAge: -1,
+		})
+		http.SetCookie(w, &http.Cookie{
+			Name:   refreshCookieName,
 			Path:   "/",
 			MaxAge: -1,
 		})
@@ -396,74 +372,51 @@ func handleLogout(dashboardURL string) http.HandlerFunc {
 	}
 }
 
-// handleRefresh re-reads the user's Rauthy groups and mints a new JWT.
-// Called by the dashboard after workspace mutations (create, invite, etc.).
-func handleRefresh(api *handler.Client, jwtSecret string, secure bool) http.HandlerFunc {
+// handleRefresh uses the Logto refresh token to obtain a new access token.
+// Called by the dashboard when the access token expires.
+func handleRefresh(logtoClient *logto.Client, secure bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
-		claims := auth.FromContext(r.Context())
-		if claims == nil {
-			http.Error(w, "unauthorized", http.StatusUnauthorized)
+		refreshCookie, err := r.Cookie(refreshCookieName)
+		if err != nil || refreshCookie.Value == "" {
+			http.Error(w, "no refresh token", http.StatusUnauthorized)
 			return
 		}
 
-		if api.Rauthy == nil {
-			http.Error(w, "token refresh not available", http.StatusServiceUnavailable)
-			return
-		}
-
-		// Fetch current user from Rauthy to get updated group list.
-		// Rauthy returns group names (e.g. "ws:myworkspace", "ws:myworkspace:admin"),
-		// which ParseRauthyGroups can process directly.
-		user, err := api.Rauthy.User(r.Context(), claims.Subject)
+		newAccessToken, newRefreshToken, err := logtoClient.RefreshAccessToken(r.Context(), refreshCookie.Value)
 		if err != nil {
-			slog.Error("failed to fetch user for token refresh", "error", err, "subject", claims.Subject)
-			http.Error(w, "failed to refresh token", http.StatusInternalServerError)
-			return
-		}
-
-		// Parse workspace memberships from group names
-		workspaces := auth.ParseRauthyGroups(user.Groups)
-
-		roles := []auth.Role{auth.RoleUser}
-		for _, m := range workspaces {
-			if m.Role == auth.WorkspaceRoleAdmin {
-				roles = append(roles, auth.RoleAdmin)
-				break
-			}
-		}
-
-		newClaims := &auth.Claims{
-			Subject:    claims.Subject,
-			Name:       claims.Name,
-			Email:      claims.Email,
-			AvatarURL:  claims.AvatarURL,
-			Roles:      roles,
-			Workspaces: workspaces,
-		}
-
-		jwt, err := auth.NewToken(newClaims, jwtSecret, tokenExpiry)
-		if err != nil {
-			slog.Error("failed to create refreshed token", "error", err)
-			http.Error(w, "failed to refresh token", http.StatusInternalServerError)
+			slog.Error("failed to refresh access token", "error", err)
+			http.Error(w, "failed to refresh token", http.StatusUnauthorized)
 			return
 		}
 
 		http.SetCookie(w, &http.Cookie{
 			Name:     tokenCookieName,
-			Value:    jwt,
+			Value:    newAccessToken,
 			Path:     "/",
-			MaxAge:   int(tokenExpiry.Seconds()),
+			MaxAge:   7 * 24 * 3600,
 			HttpOnly: true,
 			Secure:   secure,
 			SameSite: http.SameSiteLaxMode,
 		})
 
-		slog.Info("token refreshed", "email", claims.Email, "workspaces", len(workspaces))
+		if newRefreshToken != "" {
+			http.SetCookie(w, &http.Cookie{
+				Name:     refreshCookieName,
+				Value:    newRefreshToken,
+				Path:     "/",
+				MaxAge:   30 * 24 * 3600,
+				HttpOnly: true,
+				Secure:   secure,
+				SameSite: http.SameSiteLaxMode,
+			})
+		}
+
+		slog.Info("token refreshed")
 		w.WriteHeader(http.StatusOK)
 	}
 }
@@ -498,83 +451,6 @@ func handleGitHubSetup(dashboardURL string) http.HandlerFunc {
 if (window.opener) { window.opener.postMessage("github-app-installed", %q); window.close(); }
 else { window.location.href = %q; }
 </script><p>GitHub App installed. You can close this window.</p></body></html>`, dashboardURL, dashboardURL+"/?github=installed")
-	}
-}
-
-// handleGitHubConnect initiates the GitHub OAuth flow to connect the user's GitHub account.
-// The token is stored per-user and used for listing installations (githubSources query).
-func handleGitHubConnect(api *handler.Client, secure bool) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		claims := auth.FromContext(r.Context())
-		if claims == nil {
-			http.Error(w, "unauthorized", http.StatusUnauthorized)
-			return
-		}
-
-		if api.GitHubApp == nil {
-			http.Error(w, "GitHub App not configured", http.StatusServiceUnavailable)
-			return
-		}
-
-		state := generateState()
-		http.SetCookie(w, &http.Cookie{
-			Name:     githubStateCookieName,
-			Value:    state,
-			Path:     "/",
-			MaxAge:   600, // 10 minutes
-			HttpOnly: true,
-			Secure:   secure,
-			SameSite: http.SameSiteLaxMode,
-		})
-
-		url := api.GitHubApp.OAuthURL(state)
-		http.Redirect(w, r, url, http.StatusTemporaryRedirect)
-	}
-}
-
-// handleGitHubCallback exchanges the authorization code for a token and stores it.
-func handleGitHubCallback(api *handler.Client, dashboardURL string) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		claims := auth.FromContext(r.Context())
-		if claims == nil {
-			http.Error(w, "unauthorized", http.StatusUnauthorized)
-			return
-		}
-
-		// Verify state
-		stateCookie, err := r.Cookie(githubStateCookieName)
-		if err != nil || stateCookie.Value != r.URL.Query().Get("state") {
-			http.Error(w, "invalid state", http.StatusBadRequest)
-			return
-		}
-		http.SetCookie(w, &http.Cookie{
-			Name:   githubStateCookieName,
-			Path:   "/",
-			MaxAge: -1,
-		})
-
-		code := r.URL.Query().Get("code")
-		if code == "" {
-			http.Error(w, "missing code", http.StatusBadRequest)
-			return
-		}
-
-		token, err := api.GitHubApp.ExchangeCode(r.Context(), code)
-		if err != nil {
-			slog.Error("failed to exchange github code", "error", err)
-			http.Error(w, "failed to connect GitHub account", http.StatusInternalServerError)
-			return
-		}
-
-		// Store the token via deployer
-		if err := api.StoreGitHubToken(r.Context(), claims.Subject, token); err != nil {
-			slog.Error("failed to store github token", "error", err, "user", claims.Subject)
-			http.Error(w, "failed to store GitHub token", http.StatusInternalServerError)
-			return
-		}
-
-		slog.Info("github account connected", "user", claims.Subject)
-		http.Redirect(w, r, dashboardURL+"/?github=account_connected", http.StatusTemporaryRedirect)
 	}
 }
 

@@ -1,0 +1,24 @@
+{{- if .Values.logto.enabled }}
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: {{ .Release.Name }}-logto-pg
+  labels:
+    app.kubernetes.io/name: logto-postgres
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: identity-provider
+spec:
+  instances: {{ .Values.logto.postgres.instances | default 1 }}
+  {{- if .Values.logto.postgres.version }}
+  imageName: ghcr.io/cloudnative-pg/postgresql:{{ .Values.logto.postgres.version }}
+  {{- end }}
+  bootstrap:
+    initdb:
+      database: logto
+      owner: app
+  storage:
+    size: {{ .Values.logto.postgres.size | default "1Gi" }}
+    {{- if .Values.logto.postgres.storageClass }}
+    storageClass: {{ .Values.logto.postgres.storageClass | quote }}
+    {{- end }}
+{{- end }}

@@ -1,0 +1,138 @@
+{{- if .Values.logto.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-logto
+  labels:
+    app.kubernetes.io/name: logto
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: identity-provider
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: logto
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      annotations:
+        checksum/secret: {{ include (print $.Template.BasePath "/logto-secret.yaml") . | sha256sum }}
+      labels:
+        app.kubernetes.io/name: logto
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: identity-provider
+    spec:
+      initContainers:
+        # Wait for CNPG PostgreSQL to be ready
+        - name: wait-for-postgres
+          image: busybox:1.37
+          command: ['sh', '-c', 'until nc -z $POSTGRES_HOST $POSTGRES_PORT; do echo "waiting for postgres..."; sleep 2; done']
+          env:
+            - name: POSTGRES_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-logto-pg-app
+                  key: host
+            - name: POSTGRES_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-logto-pg-app
+                  key: port
+        # Seed and run alterations (idempotent)
+        - name: db-setup
+          image: "{{ .Values.logto.image.repository }}:{{ .Values.logto.image.tag }}"
+          imagePullPolicy: {{ .Values.logto.image.pullPolicy }}
+          command: ['sh', '-c', 'npx @logto/cli db seed --swe && npx @logto/cli db alteration deploy next']
+          env:
+            - name: CI
+              value: "true"
+            - name: DB_URL
+              value: "postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_HOST):$(POSTGRES_PORT)/$(POSTGRES_DB)"
+            - name: POSTGRES_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-logto-pg-app
+                  key: host
+            - name: POSTGRES_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-logto-pg-app
+                  key: port
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-logto-pg-app
+                  key: dbname
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-logto-pg-app
+                  key: username
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-logto-pg-app
+                  key: password
+      containers:
+        - name: logto
+          image: "{{ .Values.logto.image.repository }}:{{ .Values.logto.image.tag }}"
+          imagePullPolicy: {{ .Values.logto.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 3001
+              protocol: TCP
+            - name: admin
+              containerPort: 3002
+              protocol: TCP
+          env:
+            - name: PORT
+              value: "3001"
+            - name: ADMIN_PORT
+              value: "3002"
+            - name: ENDPOINT
+              value: {{ .Values.logto.endpoint | quote }}
+            # No ADMIN_ENDPOINT: admin console only accessible via port-forward
+            - name: DB_URL
+              value: "postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_HOST):$(POSTGRES_PORT)/$(POSTGRES_DB)"
+            - name: POSTGRES_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-logto-pg-app
+                  key: host
+            - name: POSTGRES_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-logto-pg-app
+                  key: port
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-logto-pg-app
+                  key: dbname
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-logto-pg-app
+                  key: username
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-logto-pg-app
+                  key: password
+          livenessProbe:
+            httpGet:
+              path: /oidc/.well-known/openid-configuration
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /oidc/.well-known/openid-configuration
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          {{- with .Values.logto.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+{{- end }}

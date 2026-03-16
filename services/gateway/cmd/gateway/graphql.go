@@ -15,9 +15,9 @@ import (
 	"github.com/zeitlos/lucity/services/gateway/graphql/directive"
 	"github.com/zeitlos/lucity/services/gateway/graphql/model"
 	"github.com/zeitlos/lucity/services/gateway/handler"
+	"github.com/zeitlos/lucity/services/gateway/logto"
 
 	"github.com/zeitlos/lucity/pkg/auth"
-	"github.com/zeitlos/lucity/pkg/deployer"
 	"github.com/zeitlos/lucity/pkg/tenant"
 
 	gqlgen "github.com/99designs/gqlgen/graphql"
@@ -37,7 +37,7 @@ type GraphQLServer struct {
 	port   string
 }
 
-func NewGraphQLServer(port string, api *handler.Client, oidcProvider *OIDCProvider, jwtSecret, dashboardURL, githubAppSlug string) *GraphQLServer {
+func NewGraphQLServer(port string, api *handler.Client, oidcProvider *OIDCProvider, verifier *auth.Verifier, logtoClient *logto.Client, dashboardURL, githubAppSlug string) *GraphQLServer {
 	resolver := gatewaygraphql.Resolver{
 		API: api,
 	}
@@ -85,13 +85,12 @@ func NewGraphQLServer(port string, api *handler.Client, oidcProvider *OIDCProvid
 				if oc.Operation != nil && oc.Operation.Operation == ast.Mutation {
 					if ctx.Value(allowSuspendedKey) == nil {
 						ws := tenant.FromContext(ctx)
-						if ws != "" {
-							outCtx := auth.OutgoingContext(ctx)
-							meta, err := api.Deployer.WorkspaceMetadata(outCtx, &deployer.WorkspaceMetadataRequest{
-								Workspace: ws,
-							})
-							if err == nil && meta.Suspended {
-								return nil, fmt.Errorf("workspace suspended: update your payment method to continue")
+						if ws != "" && api.Logto != nil {
+							org, err := api.Logto.Organization(ctx, ws)
+							if err == nil && org.CustomData != nil {
+								if suspended, ok := org.CustomData["suspended"].(bool); ok && suspended {
+									return nil, fmt.Errorf("workspace suspended: update your payment method to continue")
+								}
 							}
 						}
 					}
@@ -131,7 +130,7 @@ func NewGraphQLServer(port string, api *handler.Client, oidcProvider *OIDCProvid
 				return ctx, &initPayload, nil
 			}
 			token = strings.TrimPrefix(token, "Bearer ")
-			claims, err := auth.ParseToken(token, jwtSecret)
+			claims, err := verifier.ValidateToken(ctx, token)
 			if err != nil {
 				return ctx, &initPayload, nil
 			}
@@ -195,7 +194,7 @@ func NewGraphQLServer(port string, api *handler.Client, oidcProvider *OIDCProvid
 	})
 
 	// Auth endpoints
-	registerAuthRoutes(mux, oidcProvider, api, jwtSecret, dashboardURL, githubAppSlug)
+	registerAuthRoutes(mux, oidcProvider, api, verifier, logtoClient, dashboardURL, githubAppSlug)
 
 	// REST API endpoints
 	mux.HandleFunc("/api/eject/", ejectHandler(api))
@@ -205,7 +204,7 @@ func NewGraphQLServer(port string, api *handler.Client, oidcProvider *OIDCProvid
 	mux.Handle("/graphql", srv)
 
 	// Apply middleware chain: rate limit → CORS → security headers → auth → tenant
-	authMiddleware := auth.Middleware(jwtSecret)
+	authMiddleware := auth.Middleware(verifier)
 
 	corsHandler := cors.New(cors.Options{
 		AllowedOrigins:   []string{"http://localhost:5173", dashboardURL},

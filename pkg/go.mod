@@ -4,6 +4,7 @@ go 1.26.0
 
 require (
 	github.com/bradleyfalzon/ghinstallation/v2 v2.17.0
+	github.com/coreos/go-oidc/v3 v3.17.0
 	github.com/golang-jwt/jwt/v5 v5.2.3
 	github.com/google/go-github/v68 v68.0.0
 	github.com/lmittmann/tint v1.1.3
@@ -13,6 +14,7 @@ require (
 )
 
 require (
+	github.com/go-jose/go-jose/v4 v4.1.3 // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.2 // indirect
 	github.com/google/go-github/v75 v75.0.0 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect

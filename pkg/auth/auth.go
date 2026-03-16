@@ -2,7 +2,6 @@ package auth
 
 import (
 	"context"
-	"strings"
 )
 
 // Role represents a user's authorization level.
@@ -32,7 +31,7 @@ type contextKey struct{}
 
 // Claims represents the authenticated user's identity and roles.
 type Claims struct {
-	Subject    string // Rauthy user ID (stable identifier for API calls)
+	Subject    string // Logto user ID (stable identifier for API calls)
 	Name       string // Display name
 	Email      string
 	Roles      []Role
@@ -80,44 +79,4 @@ func WithClaims(ctx context.Context, claims *Claims) context.Context {
 func FromContext(ctx context.Context) *Claims {
 	claims, _ := ctx.Value(contextKey{}).(*Claims)
 	return claims
-}
-
-// ParseRauthyGroups converts Rauthy group names into workspace memberships.
-// Group format:
-//   - "ws:acme"         → workspace "acme", role "user"
-//   - "ws:acme:admin"   → workspace "acme", role "admin"
-//   - Groups without the "ws:" prefix are ignored
-func ParseRauthyGroups(groups []string) []WorkspaceMembership {
-	seen := make(map[string]int) // workspace → index in memberships
-	var memberships []WorkspaceMembership
-
-	for _, g := range groups {
-		if !strings.HasPrefix(g, "ws:") {
-			continue
-		}
-		parts := strings.SplitN(g, ":", 3)
-		if len(parts) < 2 || parts[1] == "" {
-			continue
-		}
-		workspace := parts[1]
-		role := WorkspaceRoleUser
-		if len(parts) == 3 && parts[2] == "admin" {
-			role = WorkspaceRoleAdmin
-		}
-
-		if idx, ok := seen[workspace]; ok {
-			// Upgrade to admin if we see the admin group
-			if role == WorkspaceRoleAdmin {
-				memberships[idx].Role = WorkspaceRoleAdmin
-			}
-			continue
-		}
-
-		seen[workspace] = len(memberships)
-		memberships = append(memberships, WorkspaceMembership{
-			Workspace: workspace,
-			Role:      role,
-		})
-	}
-	return memberships
 }

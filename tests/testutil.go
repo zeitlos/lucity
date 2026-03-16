@@ -15,7 +15,7 @@ import (
 
 const (
 	defaultGatewayURL = "http://localhost:8080"
-	defaultJWTSecret  = "change-me-in-production"
+	defaultAuthTestSecret = "change-me-in-production"
 )
 
 func gatewayURL() string {
@@ -25,11 +25,11 @@ func gatewayURL() string {
 	return defaultGatewayURL
 }
 
-func jwtSecret() string {
-	if s := os.Getenv("JWT_SECRET"); s != "" {
+func authTestSecret() string {
+	if s := os.Getenv("AUTH_TEST_SECRET"); s != "" {
 		return s
 	}
-	return defaultJWTSecret
+	return defaultAuthTestSecret
 }
 
 // testToken generates a JWT token for integration tests.
@@ -53,7 +53,7 @@ func makeToken() (string, error) {
 			{Workspace: "default", Role: auth.WorkspaceRoleAdmin},
 		},
 	}
-	return auth.NewToken(claims, jwtSecret(), 1*time.Hour)
+	return auth.NewTestToken(claims, authTestSecret(), 1*time.Hour)
 }
 
 type graphqlRequest struct {

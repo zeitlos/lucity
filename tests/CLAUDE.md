@@ -103,5 +103,5 @@ kubectl delete namespace -l lucity.dev/project=inttest-xxx --ignore-not-found
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `GATEWAY_URL` | `http://localhost:8080` | Gateway endpoint |
-| `JWT_SECRET` | `change-me-in-production` | JWT signing secret |
+| `AUTH_TEST_SECRET` | `change-me-in-production` | HS256 test token secret (must match gateway's `AUTH_TEST_SECRET`) |
 | `GITHUB_TOKEN` | (none) | GitHub OAuth token for repo tests (optional) |

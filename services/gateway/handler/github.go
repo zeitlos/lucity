@@ -3,15 +3,12 @@ package handler
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"strconv"
-	"time"
 
 	gh "github.com/google/go-github/v68/github"
 	"golang.org/x/oauth2"
 
 	"github.com/zeitlos/lucity/pkg/auth"
-	"github.com/zeitlos/lucity/pkg/deployer"
 )
 
 // GitHubInstallation represents a GitHub App installation on an account.
@@ -32,41 +29,35 @@ type GitHubRepository struct {
 	Private       bool
 }
 
-// GitHubConnected returns whether the current user has a stored GitHub OAuth token.
+// GitHubConnected returns whether the current user has a GitHub identity linked
+// in Logto (via social sign-in with the GitHub App connector).
 func (c *Client) GitHubConnected(ctx context.Context) (bool, error) {
-	claims := auth.FromContext(ctx)
-	if claims == nil {
+	token := auth.TokenFrom(ctx)
+	if token == "" {
 		return false, fmt.Errorf("unauthenticated")
 	}
 
-	resp, err := c.Deployer.UserGitHubToken(ctx, &deployer.UserGitHubTokenRequest{
-		UserId: claims.Subject,
-	})
+	_, err := c.Logto.GitHubToken(ctx, token)
 	if err != nil {
-		return false, fmt.Errorf("failed to check github token: %w", err)
+		// No GitHub identity or token unavailable — not connected
+		return false, nil
 	}
-
-	return resp.Connected, nil
+	return true, nil
 }
 
 // GitHubSources returns all GitHub App installations accessible to the user.
-// Requires a connected GitHub account (per-user OAuth token).
+// Requires a connected GitHub account (GitHub identity linked in Logto via social sign-in).
 func (c *Client) GitHubSources(ctx context.Context) ([]GitHubInstallation, error) {
-	claims := auth.FromContext(ctx)
-	if claims == nil {
-		return nil, fmt.Errorf("unauthenticated")
-	}
-
 	if c.GitHubApp == nil {
 		return nil, fmt.Errorf("github app not configured")
 	}
 
-	token, err := c.userGitHubToken(ctx, claims.Subject)
+	ghToken, err := c.userGitHubToken(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	installations, err := c.GitHubApp.UserInstallations(ctx, token)
+	installations, err := c.GitHubApp.UserInstallations(ctx, &oauth2.Token{AccessToken: ghToken})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list user installations: %w", err)
 	}
@@ -141,58 +132,19 @@ func (c *Client) GitHubRepositories(ctx context.Context, installationID string) 
 	return result, nil
 }
 
-// StoreGitHubToken stores a GitHub OAuth token for the given user.
-func (c *Client) StoreGitHubToken(ctx context.Context, userID string, token *oauth2.Token) error {
-	var expiresAt int64
-	if !token.Expiry.IsZero() {
-		expiresAt = token.Expiry.Unix()
+// userGitHubToken retrieves the user's GitHub OAuth token from Logto's Account API.
+// The user must have signed in via GitHub (social sign-in) for a token to be available.
+// Logto automatically refreshes expired GitHub tokens if a refresh token is stored.
+func (c *Client) userGitHubToken(ctx context.Context) (string, error) {
+	logtoToken := auth.TokenFrom(ctx)
+	if logtoToken == "" {
+		return "", fmt.Errorf("no Logto access token in context")
 	}
 
-	_, err := c.Deployer.StoreUserGitHubToken(ctx, &deployer.StoreUserGitHubTokenRequest{
-		UserId:       userID,
-		AccessToken:  token.AccessToken,
-		RefreshToken: token.RefreshToken,
-		ExpiresAt:    expiresAt,
-	})
-	return err
-}
-
-// userGitHubToken fetches the user's stored GitHub OAuth token and refreshes if expired.
-func (c *Client) userGitHubToken(ctx context.Context, userID string) (*oauth2.Token, error) {
-	resp, err := c.Deployer.UserGitHubToken(ctx, &deployer.UserGitHubTokenRequest{
-		UserId: userID,
-	})
+	token, err := c.Logto.GitHubToken(ctx, logtoToken)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get github token: %w", err)
+		return "", fmt.Errorf("failed to get github token: %w", err)
 	}
-
-	if !resp.Connected {
-		return nil, fmt.Errorf("github account not connected")
-	}
-
-	token := &oauth2.Token{
-		AccessToken:  resp.AccessToken,
-		RefreshToken: resp.RefreshToken,
-	}
-	if resp.ExpiresAt > 0 {
-		token.Expiry = time.Unix(resp.ExpiresAt, 0)
-	}
-
-	// Auto-refresh if expired
-	if !token.Expiry.IsZero() && token.Expiry.Before(time.Now()) && token.RefreshToken != "" {
-		fresh, err := c.GitHubApp.RefreshToken(ctx, token)
-		if err != nil {
-			return nil, fmt.Errorf("failed to refresh github token: %w", err)
-		}
-
-		// Store the refreshed token
-		if err := c.StoreGitHubToken(ctx, userID, fresh); err != nil {
-			slog.Warn("failed to store refreshed github token", "error", err)
-		}
-
-		return fresh, nil
-	}
-
 	return token, nil
 }
 

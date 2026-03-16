@@ -8,6 +8,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
+	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/builder"
 	"github.com/zeitlos/lucity/pkg/cashier"
 	"github.com/zeitlos/lucity/pkg/deployer"
@@ -16,7 +17,7 @@ import (
 	"github.com/zeitlos/lucity/pkg/logger"
 	"github.com/zeitlos/lucity/pkg/packager"
 	"github.com/zeitlos/lucity/services/gateway/handler"
-	"github.com/zeitlos/lucity/services/gateway/rauthy"
+	"github.com/zeitlos/lucity/services/gateway/logto"
 )
 
 type Config struct {
@@ -30,8 +31,13 @@ type Config struct {
 	OIDCCallbackURL  string `envconfig:"OIDC_CALLBACK_URL" default:"http://localhost:8080/auth/callback"`
 
 	// Auth
-	JWTSecret    string `envconfig:"JWT_SECRET" required:"true"`
-	DashboardURL string `envconfig:"DASHBOARD_URL" default:"http://localhost:5173"`
+	DashboardURL   string `envconfig:"DASHBOARD_URL" default:"http://localhost:5173"`
+	AuthTestSecret string `envconfig:"AUTH_TEST_SECRET"` // HS256 test secret for dev/test tokens (never set in production)
+
+	// Logto Management API (M2M)
+	LogtoEndpoint     string `envconfig:"LOGTO_ENDPOINT" required:"true"`    // e.g. "https://id.lucity.cloud"
+	LogtoM2MAppID     string `envconfig:"LOGTO_M2M_APP_ID" required:"true"`
+	LogtoM2MAppSecret string `envconfig:"LOGTO_M2M_APP_SECRET" required:"true"`
 
 	// Backend services
 	BuilderAddr  string `envconfig:"BUILDER_ADDR" default:"localhost:9001"`
@@ -43,11 +49,11 @@ type Config struct {
 	RegistryImagePrefix string `envconfig:"REGISTRY_IMAGE_PREFIX"` // cluster-internal address for image refs; defaults to REGISTRY_URL
 
 	// GitHub App (for installation tokens + OAuth)
-	GitHubAppID              int64  `envconfig:"GITHUB_APP_ID"`
-	GitHubPrivateKeyPath     string `envconfig:"GITHUB_PRIVATE_KEY_PATH"`
-	GitHubClientID           string `envconfig:"GITHUB_CLIENT_ID"`
-	GitHubClientSecret       string `envconfig:"GITHUB_CLIENT_SECRET"`
-	GitHubOAuthCallbackURL   string `envconfig:"GITHUB_OAUTH_CALLBACK_URL" default:"http://localhost:8080/auth/github/callback"`
+	GitHubAppID            int64  `envconfig:"GITHUB_APP_ID"`
+	GitHubPrivateKeyPath   string `envconfig:"GITHUB_PRIVATE_KEY_PATH"`
+	GitHubClientID         string `envconfig:"GITHUB_CLIENT_ID"`
+	GitHubClientSecret     string `envconfig:"GITHUB_CLIENT_SECRET"`
+	GitHubOAuthCallbackURL string `envconfig:"GITHUB_OAUTH_CALLBACK_URL" default:"http://localhost:8080/auth/github/callback"`
 
 	// Domains
 	WorkloadDomain string `envconfig:"WORKLOAD_DOMAIN" default:"lucity.local"`
@@ -55,10 +61,6 @@ type Config struct {
 
 	// Billing (optional — disabled when not configured)
 	CashierAddr string `envconfig:"CASHIER_ADDR"`
-
-	// Rauthy admin API (for workspace/member management)
-	RauthyAPIURL string `envconfig:"RAUTHY_API_URL"` // e.g. "https://id.lucity.cloud/auth/v1"
-	RauthyAPIKey string `envconfig:"RAUTHY_API_KEY"`
 
 	// GitHub App (for workspace installation linking)
 	GitHubAppSlug string `envconfig:"GITHUB_APP_SLUG"` // e.g. "lucity-dev"
@@ -80,6 +82,18 @@ func main() {
 	if err != nil {
 		slog.Error("failed to initialize OIDC provider", "error", err)
 		os.Exit(1)
+	}
+
+	// Create JWT verifier for Logto access tokens
+	verifier, err := auth.NewVerifier(ctx, config.OIDCIssuerURL, config.LogtoEndpoint+"/api")
+	if err != nil {
+		slog.Error("failed to create JWT verifier", "error", err)
+		os.Exit(1)
+	}
+
+	if config.AuthTestSecret != "" {
+		verifier = verifier.WithTestSecret(config.AuthTestSecret)
+		slog.Warn("test token authentication enabled — do not use in production")
 	}
 
 	// Connect to builder
@@ -159,17 +173,12 @@ func main() {
 		slog.Info("cashier not configured — billing disabled")
 	}
 
-	// Initialize Rauthy client for workspace/member management (optional)
-	var rauthyClient *rauthy.Client
-	if config.RauthyAPIURL != "" && config.RauthyAPIKey != "" {
-		rauthyClient = rauthy.New(config.RauthyAPIURL, config.RauthyAPIKey)
-		slog.Info("rauthy admin API configured", "url", config.RauthyAPIURL)
-	} else {
-		slog.Info("rauthy admin API not configured — workspace management disabled")
-	}
+	// Initialize Logto client for workspace/member management
+	logtoClient := logto.New(config.LogtoEndpoint, config.LogtoM2MAppID, config.LogtoM2MAppSecret)
+	slog.Info("logto management API configured", "endpoint", config.LogtoEndpoint)
 
-	api := handler.New(packagerClient, builderClient, deployerClient, cashierClient, githubApp, rauthyClient, config.RegistryURL, registryImagePrefix, config.WorkloadDomain, domainTarget, config.GitHubAppSlug)
-	graphqlServer := NewGraphQLServer(config.Port, api, oidcProvider, config.JWTSecret, config.DashboardURL, config.GitHubAppSlug)
+	api := handler.New(packagerClient, builderClient, deployerClient, cashierClient, githubApp, logtoClient, config.RegistryURL, registryImagePrefix, config.WorkloadDomain, domainTarget, config.GitHubAppSlug)
+	graphqlServer := NewGraphQLServer(config.Port, api, oidcProvider, verifier, logtoClient, config.DashboardURL, config.GitHubAppSlug)
 
 	graceful.Serve(ctx, graphqlServer)
 }

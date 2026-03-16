@@ -186,6 +186,34 @@ rybbit:
     clickhousePassword: ""
     betterAuthSecret: ""
 
+# -- Logto Identity Provider (OIDC + Organizations)
+logto:
+  enabled: false
+  image:
+    repository: ghcr.io/logto-io/logto
+    tag: "1.28.0"
+    pullPolicy: IfNotPresent
+  endpoint: ""              # public URL, e.g. https://id.lucity.cloud
+  postgres:
+    instances: 1
+    size: 1Gi
+    storageClass: ""
+    version: "17"
+  service:
+    type: ClusterIP
+    port: 3001
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  secrets:
+    # M2M app credentials for Management API access (created in Logto admin console)
+    m2mAppId: ""
+    m2mAppSecret: ""
+
 # -- Rauthy Identity Provider (OIDC)
 rauthy:
   enabled: true
