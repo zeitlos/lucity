@@ -104,6 +104,18 @@ gateway:
         mode: Terminate
         certificateRefs:
           - name: auth-lucity-cloud-tls
+    - name: id-http
+      protocol: HTTP
+      port: 80
+      hostname: id.lucity.cloud
+    - name: id-https
+      protocol: HTTPS
+      port: 443
+      hostname: id.lucity.cloud
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: id-lucity-cloud-tls
 
 certificates:
   - name: lucity-cloud-tls
@@ -130,6 +142,12 @@ certificates:
       name: letsencrypt-dns01
     dnsNames:
       - auth.lucity.cloud
+  - name: id-lucity-cloud-tls
+    secretName: id-lucity-cloud-tls
+    issuerRef:
+      name: letsencrypt-dns01
+    dnsNames:
+      - id.lucity.cloud
 
 # Rybbit Web Analytics
 rybbit:
@@ -147,10 +165,17 @@ rybbit:
     clickhousePassword: ""   # --set rybbit.secrets.clickhousePassword
     betterAuthSecret: ""     # --set rybbit.secrets.betterAuthSecret
 
-# Rauthy Identity Provider
+# Rauthy Identity Provider (kept for fallback during Logto transition)
 rauthy:
   hostname: auth.lucity.cloud
   adminEmail: christian@zeitlos.software
   persistence:
     storageClass: hcloud-volumes
     size: 1Gi
+
+# Logto Identity Provider
+logto:
+  enabled: true
+  endpoint: https://id.lucity.cloud
+  postgres:
+    storageClass: hcloud-volumes

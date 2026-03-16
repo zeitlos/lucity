@@ -1,10 +1,12 @@
 # -- Shared secrets (stored in a single K8s Secret)
 secrets: {}
-  # JWT_SECRET: ""
   # GITHUB_CLIENT_SECRET: ""
   # GITHUB_WEBHOOK_SECRET: ""
   # ARGOCD_TOKEN: ""
   # SOFTSERVE_TOKEN: ""
+  # LOGTO_OIDC_CLIENT_ID: ""
+  # LOGTO_M2M_APP_ID: ""
+  # LOGTO_M2M_APP_SECRET: ""
 
 # -- GitHub App private key (mounted as file)
 githubPrivateKey: ""
