@@ -84,7 +84,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Create JWT verifier for Logto access tokens
+	// Create JWT verifier for OIDC access tokens
 	verifier, err := auth.NewVerifier(ctx, config.OIDCIssuerURL, config.LogtoEndpoint+"/api")
 	if err != nil {
 		slog.Error("failed to create JWT verifier", "error", err)
@@ -92,7 +92,7 @@ func main() {
 	}
 
 	if config.AuthTestSecret != "" {
-		verifier = verifier.WithTestSecret(config.AuthTestSecret)
+		verifier = verifier.WithFallback(hmacValidateFunc(config.AuthTestSecret))
 		slog.Warn("test token authentication enabled — do not use in production")
 	}
 

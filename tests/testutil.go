@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zeitlos/lucity/pkg/auth"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 const (
@@ -42,18 +42,27 @@ func testToken(t *testing.T) string {
 	return token
 }
 
-// makeToken generates a JWT token without requiring a *testing.T (for cleanup).
+// makeToken generates an HS256 JWT for integration tests.
+// The gateway must have AUTH_TEST_SECRET set to the same value.
 func makeToken() (string, error) {
-	claims := &auth.Claims{
-		Subject:   "test-user",
-		Email:     "test@example.com",
-		AvatarURL: "https://github.com/testuser.png",
-		Roles:     []auth.Role{auth.RoleUser, auth.RoleAdmin},
-		Workspaces: []auth.WorkspaceMembership{
-			{Workspace: "default", Role: auth.WorkspaceRoleAdmin},
-		},
+	type wsClaim struct {
+		ID   string `json:"id"`
+		Role string `json:"role"`
 	}
-	return auth.NewTestToken(claims, authTestSecret(), 1*time.Hour)
+
+	mapClaims := jwt.MapClaims{
+		"sub":     "test-user",
+		"email":   "test@example.com",
+		"picture": "https://github.com/testuser.png",
+		"workspaces": []wsClaim{
+			{ID: "default", Role: "admin"},
+		},
+		"exp": time.Now().Add(1 * time.Hour).Unix(),
+		"iat": time.Now().Unix(),
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, mapClaims)
+	return token.SignedString([]byte(authTestSecret()))
 }
 
 type graphqlRequest struct {

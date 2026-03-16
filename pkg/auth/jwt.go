@@ -6,18 +6,20 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
-	"github.com/golang-jwt/jwt/v5"
 )
 
+// ValidateFunc is a token validation function that returns claims for a given
+// JWT string. Used to extend the Verifier with additional validation methods
+// (e.g., HS256 test tokens in development).
+type ValidateFunc func(ctx context.Context, tokenString string) (*Claims, error)
+
 // Verifier validates OIDC-issued JWTs using discovery and JWKS.
-// Optionally accepts HS256 test tokens when a testSecret is configured.
 type Verifier struct {
-	provider   *oidc.Provider
-	verifier   *oidc.IDTokenVerifier
-	testSecret string // HS256 secret for dev/test tokens (empty = disabled)
+	provider *oidc.Provider
+	verifier *oidc.IDTokenVerifier
+	fallback ValidateFunc // optional fallback when JWKS validation fails
 }
 
 // NewVerifier creates a JWT verifier by performing OIDC discovery against the issuer.
@@ -38,19 +40,13 @@ func NewVerifier(ctx context.Context, issuerURL, audience string) (*Verifier, er
 	}, nil
 }
 
-// NewTestVerifier creates a verifier that only accepts HS256 test tokens.
-// Use this for integration tests when no OIDC provider is available.
-func NewTestVerifier(testSecret string) *Verifier {
-	return &Verifier{testSecret: testSecret}
-}
-
-// WithTestSecret returns a copy of the verifier that also accepts HS256 test tokens.
-// Intended for local development — never set AUTH_TEST_SECRET in production.
-func (v *Verifier) WithTestSecret(secret string) *Verifier {
+// WithFallback returns a copy of the verifier that tries the given ValidateFunc
+// when JWKS validation fails. Useful for accepting test tokens in development.
+func (v *Verifier) WithFallback(fn ValidateFunc) *Verifier {
 	return &Verifier{
-		provider:   v.provider,
-		verifier:   v.verifier,
-		testSecret: secret,
+		provider: v.provider,
+		verifier: v.verifier,
+		fallback: fn,
 	}
 }
 
@@ -61,7 +57,7 @@ type workspaceClaimEntry struct {
 }
 
 // ValidateToken validates a JWT and extracts claims.
-// Tries JWKS validation first, falls back to HS256 test secret if configured.
+// Tries JWKS validation first, falls back to the optional fallback function.
 func (v *Verifier) ValidateToken(ctx context.Context, tokenString string) (*Claims, error) {
 	// Try JWKS validation first (production path)
 	if v.verifier != nil {
@@ -79,80 +75,18 @@ func (v *Verifier) ValidateToken(ctx context.Context, tokenString string) (*Clai
 			}
 			return claimsFromRaw(rawClaims.Sub, rawClaims.Name, rawClaims.Email, rawClaims.Picture, rawClaims.Workspaces), nil
 		}
-		// If no test secret configured, return the JWKS error
-		if v.testSecret == "" {
+		// If no fallback configured, return the JWKS error
+		if v.fallback == nil {
 			return nil, fmt.Errorf("failed to verify token: %w", err)
 		}
 	}
 
-	// Fall back to HS256 test token validation
-	if v.testSecret != "" {
-		return v.validateTestToken(tokenString)
+	// Try fallback validation
+	if v.fallback != nil {
+		return v.fallback(ctx, tokenString)
 	}
 
 	return nil, fmt.Errorf("no verification method available")
-}
-
-// validateTestToken validates an HS256 JWT signed with the test secret.
-func (v *Verifier) validateTestToken(tokenString string) (*Claims, error) {
-	token, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
-		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
-		}
-		return []byte(v.testSecret), nil
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to verify test token: %w", err)
-	}
-
-	mapClaims, ok := token.Claims.(jwt.MapClaims)
-	if !ok {
-		return nil, fmt.Errorf("unexpected claims type")
-	}
-
-	sub, _ := mapClaims["sub"].(string)
-	name, _ := mapClaims["name"].(string)
-	email, _ := mapClaims["email"].(string)
-	picture, _ := mapClaims["picture"].(string)
-
-	var wsClaims []workspaceClaimEntry
-	if ws, ok := mapClaims["workspaces"].([]interface{}); ok {
-		for _, item := range ws {
-			if m, ok := item.(map[string]interface{}); ok {
-				id, _ := m["id"].(string)
-				role, _ := m["role"].(string)
-				wsClaims = append(wsClaims, workspaceClaimEntry{ID: id, Role: role})
-			}
-		}
-	}
-
-	return claimsFromRaw(sub, name, email, picture, wsClaims), nil
-}
-
-// NewTestToken creates an HS256 JWT for integration tests.
-// The token embeds the given claims and expires after the given duration.
-func NewTestToken(claims *Claims, secret string, expiry time.Duration) (string, error) {
-	wsClaims := make([]workspaceClaimEntry, len(claims.Workspaces))
-	for i, m := range claims.Workspaces {
-		role := "user"
-		if m.Role == WorkspaceRoleAdmin {
-			role = "admin"
-		}
-		wsClaims[i] = workspaceClaimEntry{ID: m.Workspace, Role: role}
-	}
-
-	mapClaims := jwt.MapClaims{
-		"sub":        claims.Subject,
-		"name":       claims.Name,
-		"email":      claims.Email,
-		"picture":    claims.AvatarURL,
-		"workspaces": wsClaims,
-		"exp":        time.Now().Add(expiry).Unix(),
-		"iat":        time.Now().Unix(),
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, mapClaims)
-	return token.SignedString([]byte(secret))
 }
 
 // DecodeTokenClaims decodes the payload of a JWT without signature verification.
@@ -180,6 +114,22 @@ func DecodeTokenClaims(tokenString string) (*Claims, error) {
 	}
 
 	return claimsFromRaw(rawClaims.Sub, rawClaims.Name, rawClaims.Email, rawClaims.Picture, rawClaims.Workspaces), nil
+}
+
+// ClaimsFromJSON builds Claims from a raw JSON map. Useful for custom token
+// validation functions that parse tokens independently.
+func ClaimsFromJSON(sub, name, email, picture string, workspaces []WorkspaceClaim) *Claims {
+	entries := make([]workspaceClaimEntry, len(workspaces))
+	for i, ws := range workspaces {
+		entries[i] = workspaceClaimEntry{ID: ws.ID, Role: ws.Role}
+	}
+	return claimsFromRaw(sub, name, email, picture, entries)
+}
+
+// WorkspaceClaim is the external representation of a workspace claim entry.
+type WorkspaceClaim struct {
+	ID   string
+	Role string // "admin" or "user"
 }
 
 func claimsFromRaw(sub, name, email, picture string, wsClaims []workspaceClaimEntry) *Claims {
