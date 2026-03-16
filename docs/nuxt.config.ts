@@ -7,11 +7,6 @@ export default defineNuxtConfig({
   vitalizer: {
     disableStylesheets: 'entry'
   },
-  experimental: {
-    extractAsyncDataHandlers: true,
-    payloadExtraction: 'client',
-    sharedPrerenderData: true,
-  },
   llms: {
     domain: 'https://lucity.cloud',
     title: 'Lucity',
