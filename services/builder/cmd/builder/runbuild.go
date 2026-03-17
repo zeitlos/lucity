@@ -112,7 +112,13 @@ func executeBuild(cfg runBuildConfig, k8sClient kubernetes.Interface) error {
 	}
 	defer os.RemoveAll(repoPath)
 
-	// 3. Determine git SHA for image tag
+	// 3. Normalize file timestamps to the commit time so BuildKit cache keys
+	// are deterministic for the same commit (git clone sets mtimes to "now").
+	if err := normalizeTimestamps(repoPath); err != nil {
+		slog.Warn("failed to normalize timestamps", "error", err)
+	}
+
+	// 4. Determine git SHA for image tag
 	sha := buildFullSHA(repoPath)
 	tag := sha
 	if len(tag) >= 7 {
@@ -121,7 +127,7 @@ func executeBuild(cfg runBuildConfig, k8sClient kubernetes.Interface) error {
 	imageName := cfg.Registry + ":" + tag
 	slog.Info("image name determined", "image", imageName, "sha", sha)
 
-	// 4. Generate railpack plan
+	// 5. Generate railpack plan
 	buildDir := repoPath
 	if cfg.ContextPath != "" {
 		buildDir = filepath.Join(repoPath, cfg.ContextPath)
@@ -133,7 +139,7 @@ func executeBuild(cfg runBuildConfig, k8sClient kubernetes.Interface) error {
 		return err
 	}
 
-	// 5. Build with BuildKit Go client (bypasses gateway frontend so cache import works)
+	// 6. Build with BuildKit Go client (bypasses gateway frontend so cache import works)
 	cacheRef := cfg.Registry + ":buildcache"
 	slog.Info("building image", "image", imageName, "cache", cacheRef)
 	digest, err := buildWithBuildKit(context.Background(), cfg.BuildkitAddr, buildDir, imageName, cacheRef, buildPlan, cfg.Insecure)
@@ -144,6 +150,7 @@ func executeBuild(cfg runBuildConfig, k8sClient kubernetes.Interface) error {
 	slog.Info("build completed", "image", imageName, "digest", digest)
 
 	// 7. Annotate Job with result
+
 	if err := build.AnnotateJobResult(k8sClient, cfg.Namespace, cfg.BuildID, imageName, digest); err != nil {
 		return fmt.Errorf("failed to annotate job: %w", err)
 	}
@@ -214,6 +221,39 @@ func cloneForBuild(workDir, sourceURL, gitRef, token string) (string, error) {
 		}()
 		return "", fmt.Errorf("git clone timed out: %w", ctx.Err())
 	}
+}
+
+// normalizeTimestamps sets all file modification times in the repo to the HEAD
+// commit time. This ensures BuildKit COPY cache keys are deterministic for the
+// same commit regardless of when the clone happened.
+func normalizeTimestamps(repoPath string) error {
+	repo, err := git.PlainOpen(repoPath)
+	if err != nil {
+		return fmt.Errorf("failed to open repo: %w", err)
+	}
+
+	head, err := repo.Head()
+	if err != nil {
+		return fmt.Errorf("failed to get HEAD: %w", err)
+	}
+
+	commit, err := repo.CommitObject(head.Hash())
+	if err != nil {
+		return fmt.Errorf("failed to get commit: %w", err)
+	}
+
+	commitTime := commit.Author.When
+
+	return filepath.WalkDir(repoPath, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		// Skip .git directory
+		if d.IsDir() && d.Name() == ".git" {
+			return filepath.SkipDir
+		}
+		return os.Chtimes(path, commitTime, commitTime)
+	})
 }
 
 // buildFullSHA returns the full git SHA of HEAD.
