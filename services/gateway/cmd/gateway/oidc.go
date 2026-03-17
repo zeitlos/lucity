@@ -24,7 +24,8 @@ import (
 const (
 	stateCookieName    = "lucity_oauth_state"
 	verifierCookieName = "lucity_pkce_verifier"
-	tokenCookieName    = "lucity_token"
+	sessionCookieName  = "lucity_session" // HMAC-signed session JWT (auth claims)
+	tokenCookieName    = "lucity_token"   // Logto opaque access token (Account API)
 	refreshCookieName  = "lucity_refresh"
 )
 
@@ -64,7 +65,12 @@ func NewOIDCProvider(ctx context.Context, issuerURL, discoveryURL, clientID, cal
 		ClientID:    clientID,
 		Endpoint:    provider.Endpoint(),
 		RedirectURL: callbackURL,
-		Scopes:      []string{oidc.ScopeOpenID, "profile", "email", oidc.ScopeOfflineAccess},
+		Scopes: []string{
+			oidc.ScopeOpenID, "profile", "email", oidc.ScopeOfflineAccess,
+			"identities",                          // Account API: access social identity tokens (GitHub)
+			"urn:logto:scope:organizations",        // ID token: organization memberships
+			"urn:logto:scope:organization_roles",   // ID token: organization roles
+		},
 	}
 
 	verifier := provider.Verifier(&oidc.Config{ClientID: clientID})
@@ -130,13 +136,13 @@ func secureCookies(dashboardURL string) bool {
 }
 
 // registerAuthRoutes adds OIDC auth endpoints to the mux.
-func registerAuthRoutes(mux *http.ServeMux, provider *OIDCProvider, api *handler.Client, verifier *auth.Verifier, logtoClient *logto.Client, dashboardURL, githubAppSlug string) {
+func registerAuthRoutes(mux *http.ServeMux, provider *OIDCProvider, api *handler.Client, verifier *auth.Verifier, logtoClient *logto.Client, sessionSecret, dashboardURL, githubAppSlug string) {
 	secure := secureCookies(dashboardURL)
 	mux.HandleFunc("/auth/login", handleLogin(provider, secure))
-	mux.HandleFunc("/auth/callback", handleCallback(provider, api, logtoClient, dashboardURL, secure))
+	mux.HandleFunc("/auth/callback", handleCallback(provider, api, logtoClient, sessionSecret, dashboardURL, secure))
 	mux.HandleFunc("/auth/me", handleMe())
 	mux.HandleFunc("/auth/logout", handleLogout(dashboardURL))
-	mux.HandleFunc("/auth/refresh", handleRefresh(logtoClient, secure))
+	mux.HandleFunc("/auth/refresh", handleRefresh(provider, logtoClient, sessionSecret, secure))
 	mux.HandleFunc("/auth/github/install", handleGitHubInstall(githubAppSlug))
 	mux.HandleFunc("/auth/github/setup", handleGitHubSetup(dashboardURL))
 }
@@ -176,8 +182,10 @@ func handleLogin(provider *OIDCProvider, secure bool) http.HandlerFunc {
 }
 
 // handleCallback exchanges the auth code for tokens, verifies the ID token,
-// extracts claims, and creates a Lucity session using the Logto access token.
-func handleCallback(provider *OIDCProvider, api *handler.Client, logtoClient *logto.Client, dashboardURL string, secure bool) http.HandlerFunc {
+// extracts claims, and creates a session. Stores two cookies:
+// - lucity_session: HMAC-signed JWT with auth claims and workspace memberships
+// - lucity_token: Logto opaque access token for Account API calls (e.g. GitHub token)
+func handleCallback(provider *OIDCProvider, api *handler.Client, logtoClient *logto.Client, sessionSecret, dashboardURL string, secure bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Verify state
 		stateCookie, err := r.Cookie(stateCookieName)
@@ -255,8 +263,23 @@ func handleCallback(provider *OIDCProvider, api *handler.Client, logtoClient *lo
 			return
 		}
 
-		// Derive username for personal workspace ID
+		// Derive username for personal workspace ID.
+		// Logto's GitHub connector doesn't map GitHub's login to the username field,
+		// so we fetch it from the social identity and set it on the Logto user.
 		username := oidcClaims.Username
+		if username == "" && logtoClient != nil {
+			ghLogin, err := logtoClient.UserGitHubLogin(r.Context(), idToken.Subject)
+			if err != nil {
+				slog.Error("failed to fetch GitHub login from Logto", "error", err)
+			} else if ghLogin != "" {
+				if err := logtoClient.UpdateUsername(r.Context(), idToken.Subject, ghLogin); err != nil {
+					slog.Error("failed to set username from GitHub login", "error", err, "login", ghLogin)
+				} else {
+					slog.Info("set username from GitHub login", "username", ghLogin, "email", oidcClaims.Email)
+					username = ghLogin
+				}
+			}
+		}
 		if username == "" {
 			slog.Warn("no username for personal workspace", "email", oidcClaims.Email)
 			http.Redirect(w, r, dashboardURL+"/login?error=no_workspace", http.StatusTemporaryRedirect)
@@ -281,11 +304,54 @@ func handleCallback(provider *OIDCProvider, api *handler.Client, logtoClient *lo
 
 		slog.Info("personal workspace ensured", "email", oidcClaims.Email, "workspace", personalWSID)
 
-		// The Logto access token IS the session token. Store it as the session cookie.
-		accessToken := oauth2Token.AccessToken
+		// Build workspace memberships for the session token.
+		// Fetch all orgs the user belongs to (not just the personal one).
+		var workspaces []auth.WorkspaceMembership
+		if logtoClient != nil {
+			userOrgs, err := logtoClient.UserOrganizations(r.Context(), idToken.Subject)
+			if err != nil {
+				slog.Warn("failed to fetch user organizations for session", "error", err)
+			} else {
+				for _, org := range userOrgs {
+					role := auth.WorkspaceRoleUser
+					// Check if user has admin role in this org
+					roles, rolesErr := logtoClient.MemberRoles(r.Context(), org.ID, idToken.Subject)
+					if rolesErr == nil {
+						for _, r := range roles {
+							if r.Name == "admin" {
+								role = auth.WorkspaceRoleAdmin
+								break
+							}
+						}
+					}
+					workspaces = append(workspaces, auth.WorkspaceMembership{
+						Workspace: org.Name, // org name = workspace ID
+						Role:      role,
+					})
+				}
+			}
+		}
+
+		// Mint session JWT with all claims and workspace memberships.
+		sessionClaims := &auth.Claims{
+			Subject:    idToken.Subject,
+			Name:       oidcClaims.Name,
+			Email:      oidcClaims.Email,
+			AvatarURL:  oidcClaims.Picture,
+			Roles:      []auth.Role{auth.RoleUser},
+			Workspaces: workspaces,
+		}
+		sessionToken, err := mintSessionToken(sessionSecret, sessionClaims)
+		if err != nil {
+			slog.Error("failed to mint session token", "error", err)
+			http.Error(w, "authentication failed", http.StatusInternalServerError)
+			return
+		}
+
+		// Session cookie: HMAC JWT verified by auth middleware
 		http.SetCookie(w, &http.Cookie{
-			Name:     tokenCookieName,
-			Value:    accessToken,
+			Name:     sessionCookieName,
+			Value:    sessionToken,
 			Path:     "/",
 			MaxAge:   7 * 24 * 3600, // 7 days
 			HttpOnly: true,
@@ -293,12 +359,22 @@ func handleCallback(provider *OIDCProvider, api *handler.Client, logtoClient *lo
 			SameSite: http.SameSiteLaxMode,
 		})
 
+		// Logto access token cookie: opaque token for Account API calls (e.g. GitHub token)
+		http.SetCookie(w, &http.Cookie{
+			Name:     tokenCookieName,
+			Value:    oauth2Token.AccessToken,
+			Path:     "/",
+			MaxAge:   7 * 24 * 3600,
+			HttpOnly: true,
+			Secure:   secure,
+			SameSite: http.SameSiteLaxMode,
+		})
+
 		// Store refresh token for silent token renewal
-		refreshToken := oauth2Token.RefreshToken
-		if refreshToken != "" {
+		if oauth2Token.RefreshToken != "" {
 			http.SetCookie(w, &http.Cookie{
 				Name:     refreshCookieName,
-				Value:    refreshToken,
+				Value:    oauth2Token.RefreshToken,
 				Path:     "/",
 				MaxAge:   30 * 24 * 3600, // 30 days
 				HttpOnly: true,
@@ -353,6 +429,11 @@ func handleMe() http.HandlerFunc {
 func handleLogout(dashboardURL string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		http.SetCookie(w, &http.Cookie{
+			Name:   sessionCookieName,
+			Path:   "/",
+			MaxAge: -1,
+		})
+		http.SetCookie(w, &http.Cookie{
 			Name:   tokenCookieName,
 			Path:   "/",
 			MaxAge: -1,
@@ -372,9 +453,10 @@ func handleLogout(dashboardURL string) http.HandlerFunc {
 	}
 }
 
-// handleRefresh uses the Logto refresh token to obtain a new access token.
+// handleRefresh uses the Logto refresh token to obtain a new access token
+// and re-mints the session JWT with fresh workspace memberships.
 // Called by the dashboard when the access token expires.
-func handleRefresh(logtoClient *logto.Client, secure bool) http.HandlerFunc {
+func handleRefresh(provider *OIDCProvider, logtoClient *logto.Client, sessionSecret string, secure bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -387,13 +469,60 @@ func handleRefresh(logtoClient *logto.Client, secure bool) http.HandlerFunc {
 			return
 		}
 
-		newAccessToken, newRefreshToken, err := logtoClient.RefreshAccessToken(r.Context(), refreshCookie.Value)
+		// Use the OIDC provider's oauth config for refresh — the refresh token
+		// was issued for the OIDC public client, not the M2M app.
+		tokenSource := provider.oauthConfig.TokenSource(provider.httpContext(r.Context()), &oauth2.Token{
+			RefreshToken: refreshCookie.Value,
+		})
+		oauth2Token, err := tokenSource.Token()
 		if err != nil {
 			slog.Error("failed to refresh access token", "error", err)
 			http.Error(w, "failed to refresh token", http.StatusUnauthorized)
 			return
 		}
+		newAccessToken := oauth2Token.AccessToken
+		newRefreshToken := oauth2Token.RefreshToken
 
+		// Re-mint session JWT if we have existing claims (refreshes workspace memberships)
+		claims := auth.FromContext(r.Context())
+		if claims != nil && logtoClient != nil {
+			userOrgs, err := logtoClient.UserOrganizations(r.Context(), claims.Subject)
+			if err == nil {
+				var workspaces []auth.WorkspaceMembership
+				for _, org := range userOrgs {
+					role := auth.WorkspaceRoleUser
+					roles, rolesErr := logtoClient.MemberRoles(r.Context(), org.ID, claims.Subject)
+					if rolesErr == nil {
+						for _, r := range roles {
+							if r.Name == "admin" {
+								role = auth.WorkspaceRoleAdmin
+								break
+							}
+						}
+					}
+					workspaces = append(workspaces, auth.WorkspaceMembership{
+						Workspace: org.Name,
+						Role:      role,
+					})
+				}
+				claims.Workspaces = workspaces
+			}
+
+			sessionToken, err := mintSessionToken(sessionSecret, claims)
+			if err == nil {
+				http.SetCookie(w, &http.Cookie{
+					Name:     sessionCookieName,
+					Value:    sessionToken,
+					Path:     "/",
+					MaxAge:   7 * 24 * 3600,
+					HttpOnly: true,
+					Secure:   secure,
+					SameSite: http.SameSiteLaxMode,
+				})
+			}
+		}
+
+		// Update the Logto access token cookie
 		http.SetCookie(w, &http.Cookie{
 			Name:     tokenCookieName,
 			Value:    newAccessToken,

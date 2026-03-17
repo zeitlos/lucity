@@ -32,8 +32,12 @@ type Client struct {
 
 	// Cached Logto org role IDs (looked up by name on first use)
 	orgRoleOnce sync.Once
-	adminRoleID string
+	adminRoleID  string
 	memberRoleID string
+
+	// In-memory cache: workspace ID (org name) → Logto org ID
+	orgIDCache   map[string]string
+	orgIDCacheMu sync.RWMutex
 }
 
 func New(packagerClient packager.PackagerServiceClient, builderClient builder.BuilderServiceClient, deployerClient deployer.DeployerServiceClient, cashierClient cashier.CashierServiceClient, githubApp *ghpkg.App, logtoClient *logto.Client, registryPushURL, registryImagePrefix, workloadDomain, domainTarget, githubAppSlug string) *Client {
@@ -50,6 +54,7 @@ func New(packagerClient packager.PackagerServiceClient, builderClient builder.Bu
 		WorkloadDomain:      workloadDomain,
 		DomainTarget:        domainTarget,
 		GitHubAppSlug:       githubAppSlug,
+		orgIDCache:          make(map[string]string),
 	}
 }
 

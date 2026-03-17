@@ -1,7 +1,9 @@
 package logto
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/url"
 )
@@ -46,6 +48,48 @@ func (c *Client) UserByEmail(ctx context.Context, email string) (*User, error) {
 		}
 	}
 	return nil, nil
+}
+
+// UserIdentity represents a social identity linked to a Logto user.
+type UserIdentity struct {
+	UserID  string                 `json:"userId"`
+	Details map[string]interface{} `json:"details,omitempty"`
+}
+
+// UserGitHubLogin returns the GitHub username from the user's social identities.
+// Returns empty string if the user has no GitHub identity or no login.
+func (c *Client) UserGitHubLogin(ctx context.Context, userID string) (string, error) {
+	var result struct {
+		Identities map[string]UserIdentity `json:"identities"`
+	}
+	if err := c.doJSON(ctx, "GET", "/api/users/"+userID, nil, &result); err != nil {
+		return "", fmt.Errorf("failed to get user identities: %w", err)
+	}
+
+	gh, ok := result.Identities["github"]
+	if !ok {
+		return "", nil
+	}
+
+	rawData, ok := gh.Details["rawData"].(map[string]interface{})
+	if !ok {
+		return "", nil
+	}
+
+	// The GitHub connector wraps the API response in a "userInfo" key
+	userInfo, ok := rawData["userInfo"].(map[string]interface{})
+	if !ok {
+		return "", nil
+	}
+
+	login, _ := userInfo["login"].(string)
+	return login, nil
+}
+
+// UpdateUsername sets the username on a Logto user.
+func (c *Client) UpdateUsername(ctx context.Context, userID, username string) error {
+	body, _ := json.Marshal(map[string]string{"username": username})
+	return c.doJSON(ctx, "PATCH", "/api/users/"+userID, bytes.NewReader(body), &json.RawMessage{})
 }
 
 // UserOrganizations returns all organizations a user belongs to.

@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"strings"
 )
 
@@ -33,7 +34,7 @@ type OrganizationMember struct {
 	OrgRoles  []OrganizationRole `json:"organizationRoles,omitempty"`
 }
 
-// Organization returns a single organization by ID.
+// Organization returns a single organization by its Logto internal ID.
 func (c *Client) Organization(ctx context.Context, id string) (*Organization, error) {
 	var org Organization
 	if err := c.doJSON(ctx, "GET", "/api/organizations/"+id, nil, &org); err != nil {
@@ -42,14 +43,37 @@ func (c *Client) Organization(ctx context.Context, id string) (*Organization, er
 	return &org, nil
 }
 
+// OrganizationByName searches for an organization by exact name match.
+// The Logto search API does fuzzy matching, so we filter client-side for an exact match.
+func (c *Client) OrganizationByName(ctx context.Context, name string) (*Organization, error) {
+	path := "/api/organizations?q=" + url.QueryEscape(name) + "&page=1&page_size=20"
+	var orgs []Organization
+	if err := c.doJSON(ctx, "GET", path, nil, &orgs); err != nil {
+		return nil, fmt.Errorf("failed to search organizations by name %q: %w", name, err)
+	}
+	for _, org := range orgs {
+		if org.Name == name {
+			return &org, nil
+		}
+	}
+	return nil, fmt.Errorf("organization with name %q not found", name)
+}
+
 // CreateOrganization creates a new organization.
+// The name parameter is used as the org name (workspace ID). The displayName is stored
+// in customData only if it differs from the name.
 // Idempotent: if an org with the same name exists, returns it.
-func (c *Client) CreateOrganization(ctx context.Context, id, name string, customData map[string]interface{}) (*Organization, error) {
+func (c *Client) CreateOrganization(ctx context.Context, name, displayName string, customData map[string]interface{}) (*Organization, error) {
 	payload := map[string]interface{}{
-		"id":   id,
 		"name": name,
 	}
-	if customData != nil {
+	if customData == nil {
+		customData = make(map[string]interface{})
+	}
+	if displayName != "" && displayName != name {
+		customData["displayName"] = displayName
+	}
+	if len(customData) > 0 {
 		payload["customData"] = customData
 	}
 
@@ -58,13 +82,13 @@ func (c *Client) CreateOrganization(ctx context.Context, id, name string, custom
 	if err := c.doJSON(ctx, "POST", "/api/organizations", bytes.NewReader(body), &org); err != nil {
 		// Handle conflict (already exists)
 		if strings.Contains(err.Error(), "409") || strings.Contains(err.Error(), "already exists") {
-			existing, findErr := c.Organization(ctx, id)
+			existing, findErr := c.OrganizationByName(ctx, name)
 			if findErr != nil {
-				return nil, fmt.Errorf("org %q already exists but failed to look up: %w", id, findErr)
+				return nil, fmt.Errorf("org %q already exists but failed to look up: %w", name, findErr)
 			}
 			return existing, nil
 		}
-		return nil, fmt.Errorf("failed to create organization %q: %w", id, err)
+		return nil, fmt.Errorf("failed to create organization %q: %w", name, err)
 	}
 	return &org, nil
 }
@@ -87,8 +111,8 @@ func (c *Client) DeleteOrganization(ctx context.Context, id string) error {
 
 // UpdateOrganizationCustomData replaces the custom data for an organization.
 func (c *Client) UpdateOrganizationCustomData(ctx context.Context, orgID string, data map[string]interface{}) error {
-	body, _ := json.Marshal(data)
-	return c.doNoContent(ctx, "PUT", "/api/organizations/"+orgID+"/custom-data", bytes.NewReader(body))
+	body, _ := json.Marshal(map[string]interface{}{"customData": data})
+	return c.doNoContent(ctx, "PATCH", "/api/organizations/"+orgID, bytes.NewReader(body))
 }
 
 // OrganizationMembers returns all members of an organization.

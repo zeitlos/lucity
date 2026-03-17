@@ -48,7 +48,7 @@ func (c *Client) m2mAccessToken(ctx context.Context) (string, error) {
 
 	data := url.Values{
 		"grant_type": {"client_credentials"},
-		"resource":   {c.endpoint + "/api"},
+		"resource":   {"https://default.logto.app/api"},
 		"scope":      {"all"},
 	}
 

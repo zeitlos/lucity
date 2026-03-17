@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strconv"
 
 	gh "github.com/google/go-github/v68/github"
@@ -39,7 +40,7 @@ func (c *Client) GitHubConnected(ctx context.Context) (bool, error) {
 
 	_, err := c.Logto.GitHubToken(ctx, token)
 	if err != nil {
-		// No GitHub identity or token unavailable — not connected
+		slog.Debug("github not connected", "error", err)
 		return false, nil
 	}
 	return true, nil

@@ -32,7 +32,8 @@ type Config struct {
 
 	// Auth
 	DashboardURL   string `envconfig:"DASHBOARD_URL" default:"http://localhost:5173"`
-	AuthTestSecret string `envconfig:"AUTH_TEST_SECRET"` // HS256 test secret for dev/test tokens (never set in production)
+	SessionSecret  string `envconfig:"SESSION_SECRET" required:"true"` // HS256 secret for signing session JWTs
+	AuthTestSecret string `envconfig:"AUTH_TEST_SECRET"`               // HS256 test secret for dev/test tokens (never set in production)
 
 	// Logto Management API (M2M)
 	LogtoEndpoint     string `envconfig:"LOGTO_ENDPOINT" required:"true"`    // e.g. "https://id.lucity.cloud"
@@ -84,17 +85,22 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Create JWT verifier for OIDC access tokens
-	verifier, err := auth.NewVerifier(ctx, config.OIDCIssuerURL, config.LogtoEndpoint+"/api")
+	// Create JWT verifier for session tokens.
+	// Session JWTs are HMAC-signed by the gateway, not Logto JWKS.
+	// The OIDC verifier acts as an optional primary (for future JWT access tokens),
+	// with the HMAC validator as fallback for session cookies.
+	verifier, err := auth.NewVerifier(ctx, config.OIDCIssuerURL, config.OIDCClientID)
 	if err != nil {
 		slog.Error("failed to create JWT verifier", "error", err)
 		os.Exit(1)
 	}
 
+	sessionSecret := config.SessionSecret
 	if config.AuthTestSecret != "" {
-		verifier = verifier.WithFallback(hmacValidateFunc(config.AuthTestSecret))
+		sessionSecret = config.AuthTestSecret
 		slog.Warn("test token authentication enabled — do not use in production")
 	}
+	verifier = verifier.WithFallback(hmacValidateFunc(sessionSecret))
 
 	// Connect to builder
 	builderConn, err := grpc.NewClient(config.BuilderAddr,
@@ -178,7 +184,7 @@ func main() {
 	slog.Info("logto management API configured", "endpoint", config.LogtoEndpoint)
 
 	api := handler.New(packagerClient, builderClient, deployerClient, cashierClient, githubApp, logtoClient, config.RegistryURL, registryImagePrefix, config.WorkloadDomain, domainTarget, config.GitHubAppSlug)
-	graphqlServer := NewGraphQLServer(config.Port, api, oidcProvider, verifier, logtoClient, config.DashboardURL, config.GitHubAppSlug)
+	graphqlServer := NewGraphQLServer(config.Port, api, oidcProvider, verifier, logtoClient, sessionSecret, config.DashboardURL, config.GitHubAppSlug)
 
 	graceful.Serve(ctx, graphqlServer)
 }
