@@ -115,7 +115,7 @@ type BillingSubscription struct {
 	Status            string
 	CurrentPeriodEnd  time.Time
 	CreditAmountCents int
-	TrialEnd          *time.Time
+	CreditExpiry      *time.Time
 	HasPaymentMethod  bool
 }
 
@@ -153,9 +153,9 @@ func (c *Client) Subscription(ctx context.Context) (*BillingSubscription, error)
 		CreditAmountCents: int(resp.CreditAmountCents),
 		HasPaymentMethod:  resp.HasPaymentMethod,
 	}
-	if resp.TrialEnd > 0 {
-		t := time.Unix(resp.TrialEnd, 0)
-		result.TrialEnd = &t
+	if resp.CreditExpiry > 0 {
+		t := time.Unix(resp.CreditExpiry, 0)
+		result.CreditExpiry = &t
 	}
 	return result, nil
 }
@@ -187,9 +187,9 @@ func (c *Client) ChangePlan(ctx context.Context, plan string) (*BillingSubscript
 		CreditAmountCents: int(resp.CreditAmountCents),
 		HasPaymentMethod:  resp.HasPaymentMethod,
 	}
-	if resp.TrialEnd > 0 {
-		t := time.Unix(resp.TrialEnd, 0)
-		result.TrialEnd = &t
+	if resp.CreditExpiry > 0 {
+		t := time.Unix(resp.CreditExpiry, 0)
+		result.CreditExpiry = &t
 	}
 	return result, nil
 }
@@ -269,8 +269,6 @@ func subscriptionStatusProtoToString(s cashier.SubscriptionStatus) string {
 		return "CANCELED"
 	case cashier.SubscriptionStatus_SUBSCRIPTION_STATUS_INCOMPLETE:
 		return "INCOMPLETE"
-	case cashier.SubscriptionStatus_SUBSCRIPTION_STATUS_TRIALING:
-		return "TRIALING"
 	default:
 		return "ACTIVE"
 	}

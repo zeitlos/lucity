@@ -469,8 +469,8 @@ async function handleDelete() {
               <div class="rounded-lg border p-4 space-y-3">
                 <div class="flex items-center justify-between">
                   <h3 class="text-sm font-medium">Subscription</h3>
-                  <Badge :variant="subscription!.status === 'ACTIVE' || subscription!.status === 'TRIALING' ? 'default' : 'destructive'">
-                    {{ subscription!.status === 'ACTIVE' ? 'Active' : subscription!.status === 'TRIALING' ? 'Trial' : subscription!.status === 'PAST_DUE' ? 'Past Due' : subscription!.status }}
+                  <Badge :variant="subscription!.status === 'ACTIVE' ? 'default' : 'destructive'">
+                    {{ subscription!.status === 'ACTIVE' ? 'Active' : subscription!.status === 'PAST_DUE' ? 'Past Due' : subscription!.status }}
                   </Badge>
                 </div>
                 <div class="flex items-center justify-between text-sm">
@@ -487,16 +487,16 @@ async function handleDelete() {
                 </div>
               </div>
 
-              <!-- Trial banner: no payment method yet -->
+              <!-- Credits banner: no payment method yet -->
               <div
-                v-if="subscription!.status === 'TRIALING' && subscription!.trialEnd && !subscription!.hasPaymentMethod"
+                v-if="subscription!.creditExpiry && !subscription!.hasPaymentMethod"
                 class="rounded-lg border border-primary/30 bg-primary/5 p-4"
               >
                 <p class="text-sm font-medium text-foreground">
-                  Your trial ends on {{ formatDate(subscription!.trialEnd) }} or when you reach {{ formatCents(subscription!.creditAmountCents) }} in usage.
+                  Your credits expire on {{ formatDate(subscription!.creditExpiry) }}. Add a payment method to continue using the platform.
                 </p>
                 <p class="mt-1 text-xs text-muted-foreground">
-                  Add a payment method to continue after your trial.
+                  After credits expire, your workspace will be suspended until a payment method is added.
                 </p>
                 <Button
                   v-if="isAdmin"
@@ -511,16 +511,13 @@ async function handleDelete() {
                 </Button>
               </div>
 
-              <!-- Trial banner: payment method set -->
+              <!-- Credits banner: payment method set -->
               <div
-                v-else-if="subscription!.status === 'TRIALING' && subscription!.trialEnd && subscription!.hasPaymentMethod"
+                v-else-if="subscription!.creditExpiry && subscription!.hasPaymentMethod"
                 class="rounded-lg border border-green-500/30 bg-green-500/5 p-4"
               >
                 <p class="text-sm font-medium text-foreground">
-                  You're all set! Your plan will continue automatically when the trial ends on {{ formatDate(subscription!.trialEnd) }}.
-                </p>
-                <p class="mt-1 text-xs text-muted-foreground">
-                  Your payment method is on file. No action needed.
+                  You're all set! Your payment method is on file and billing will continue automatically after your credits expire on {{ formatDate(subscription!.creditExpiry) }}.
                 </p>
               </div>
 

@@ -27,7 +27,6 @@ enum SubscriptionStatus {
   PAST_DUE
   CANCELED
   INCOMPLETE
-  TRIALING
 }
 
 type BillingSubscription {
@@ -35,7 +34,7 @@ type BillingSubscription {
   status: SubscriptionStatus!
   currentPeriodEnd: Time!
   creditAmountCents: Int!
-  trialEnd: Time
+  creditExpiry: Time
   hasPaymentMethod: Boolean!
 }
 

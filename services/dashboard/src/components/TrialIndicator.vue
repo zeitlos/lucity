@@ -15,13 +15,13 @@ const { mutate: portalMutate, loading: openingPortal } = useMutation(BillingPort
 
 const subscription = computed(() => subResult.value?.subscription);
 const usage = computed(() => usageResult.value?.usageSummary);
-const isTrial = computed(() => subscription.value?.status === 'TRIALING');
 const hasPaymentMethod = computed(() => subscription.value?.hasPaymentMethod ?? false);
-const showBadge = computed(() => isTrial.value && !hasPaymentMethod.value);
+const hasCreditExpiry = computed(() => !!subscription.value?.creditExpiry);
+const showBadge = computed(() => hasCreditExpiry.value && !hasPaymentMethod.value);
 
 const daysRemaining = computed(() => {
-  if (!subscription.value?.trialEnd) return 0;
-  const end = new Date(subscription.value.trialEnd).getTime();
+  if (!subscription.value?.creditExpiry) return 0;
+  const end = new Date(subscription.value.creditExpiry).getTime();
   const now = Date.now();
   return Math.max(0, Math.ceil((end - now) / 86_400_000));
 });
@@ -39,7 +39,7 @@ const creditsPercent = computed(() => {
 });
 
 const daysPercent = computed(() => {
-  // Trial is 14 days, calculate percentage remaining.
+  // Credit grant is 14 days, calculate percentage remaining.
   return Math.round((daysRemaining.value / 14) * 100);
 });
 
@@ -102,7 +102,7 @@ async function openBillingPortal() {
         <!-- Days remaining -->
         <div class="space-y-1.5">
           <div class="flex items-center justify-between text-sm">
-            <span class="text-muted-foreground">Days remaining</span>
+            <span class="text-muted-foreground">Credits expire in</span>
             <span class="font-medium">{{ daysRemaining }} days</span>
           </div>
           <div class="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
@@ -137,10 +137,10 @@ async function openBillingPortal() {
 
       <div class="p-4">
         <p class="text-sm font-medium">
-          Free Trial
+          Free Credits
         </p>
         <p class="mt-1 text-xs text-muted-foreground">
-          Your trial expires in {{ daysRemaining }} days or when credits run out.
+          Your credits expire in {{ daysRemaining }} days. Add a payment method to continue using the platform.
         </p>
 
         <Button

@@ -248,8 +248,9 @@ func (c *Client) CreateWorkspace(ctx context.Context, id, name string) (*Workspa
 
 	slog.Info("workspace created", "id", id, "name", name, "creator", claims.Email)
 
-	// Best-effort: set up Stripe customer + subscription (keyed by workspace ID)
-	c.setupBilling(ctx, id, name, claims.Email)
+	// Best-effort: set up Stripe customer + subscription with no trial.
+	// Additional workspaces require a payment method — no free trial.
+	c.setupBilling(ctx, id, name, claims.Email, 0)
 
 	// Fetch the user to get their name for the member list
 	user, _ := c.Logto.User(ctx, claims.Subject)
@@ -550,7 +551,7 @@ func (c *Client) EnsurePersonalWorkspace(ctx context.Context, userID, username s
 							if user != nil {
 								email = user.PrimaryEmail
 							}
-							c.setupBilling(ctx, wsID, username, email)
+							c.setupBilling(ctx, wsID, username, email, 14)
 						}
 					}
 					slog.Info("personal workspace restored", "id", wsID, "user", userID)
@@ -599,13 +600,13 @@ func (c *Client) EnsurePersonalWorkspace(ctx context.Context, userID, username s
 
 	slog.Info("personal workspace created", "id", wsID, "user", userID)
 
-	// Best-effort: set up Stripe customer + subscription with trial (keyed by workspace ID)
+	// Best-effort: set up Stripe customer + subscription with 14-day trial
 	user, _ := c.Logto.User(ctx, userID)
 	email := ""
 	if user != nil {
 		email = user.PrimaryEmail
 	}
-	c.setupBilling(ctx, wsID, username, email)
+	c.setupBilling(ctx, wsID, username, email, 14)
 
 	return wsID, true, nil
 }
@@ -627,9 +628,12 @@ func (c *Client) findAvailableWorkspaceID(ctx context.Context, base string) (str
 // stores their IDs in the Logto org customData. Idempotent: skips steps that are
 // already complete, and self-heals on every login if a previous attempt partially failed.
 //
+// creditDays > 0 creates a promotional credit grant that expires after that many days.
+// Personal workspaces get 14 days of credits; additional workspaces get 0 (no promo credits).
+//
 // Uses context.WithoutCancel to detach from the HTTP request lifecycle. Billing setup
 // must complete even if the browser navigates away during the OIDC callback redirect.
-func (c *Client) setupBilling(ctx context.Context, workspace, name, email string) {
+func (c *Client) setupBilling(ctx context.Context, workspace, name, email string, creditDays int32) {
 	if c.Cashier == nil {
 		return
 	}
@@ -690,7 +694,7 @@ func (c *Client) setupBilling(ctx context.Context, workspace, name, email string
 			Workspace:  workspace,
 			CustomerId: customerID,
 			Plan:       cashier.Plan_PLAN_HOBBY,
-			TrialDays:  14,
+			CreditDays: creditDays,
 		})
 		if subErr != nil {
 			slog.Warn("failed to create Stripe subscription for workspace", "workspace", workspace, "error", subErr)
@@ -719,6 +723,160 @@ func (c *Client) setupBilling(ctx context.Context, workspace, name, email string
 	}
 
 	slog.Info("billing setup complete", "workspace", workspace, "customer_id", customerID, "subscription_id", subscriptionID)
+}
+
+// CreateWorkspaceCheckout creates a Stripe Checkout Session for a new workspace subscription.
+// The workspace is not created until the checkout completes (see CompleteWorkspaceCheckout).
+func (c *Client) CreateWorkspaceCheckout(ctx context.Context, id, name, plan string) (string, error) {
+	claims := auth.FromContext(ctx)
+	if claims == nil {
+		return "", fmt.Errorf("unauthenticated")
+	}
+	if c.Logto == nil {
+		return "", fmt.Errorf("logto not configured")
+	}
+	if c.Cashier == nil {
+		return "", fmt.Errorf("billing not configured")
+	}
+
+	if !workspaceIDPattern.MatchString(id) {
+		return "", fmt.Errorf("invalid workspace ID: must be 3-63 lowercase alphanumeric characters or hyphens")
+	}
+
+	// Check if workspace ID is already taken.
+	_, err := c.Logto.OrganizationByName(ctx, id)
+	if err == nil {
+		return "", fmt.Errorf("workspace ID %q is already taken", id)
+	}
+
+	// Build Stripe Checkout URLs.
+	successURL := fmt.Sprintf("%s/checkout/success?session_id={CHECKOUT_SESSION_ID}", c.DashboardURL)
+	cancelURL := c.DashboardURL
+
+	outCtx := auth.OutgoingContext(ctx)
+	callCtx, cancel := context.WithTimeout(outCtx, grpcTimeout)
+	defer cancel()
+
+	planProto := stringToPlanProto(plan)
+	resp, err := c.Cashier.CreateCheckoutSession(callCtx, &cashier.CreateCheckoutSessionRequest{
+		Workspace:  id,
+		Name:       name,
+		Plan:       planProto,
+		Email:      claims.Email,
+		SuccessUrl: successURL,
+		CancelUrl:  cancelURL,
+		UserId:     claims.Subject,
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to create checkout session: %w", err)
+	}
+
+	slog.Info("workspace checkout initiated", "workspace", id, "plan", plan, "user", claims.Email)
+	return resp.Url, nil
+}
+
+// CompleteWorkspaceCheckout verifies a completed Stripe Checkout Session and creates the workspace.
+// Called after the user is redirected back from Stripe.
+func (c *Client) CompleteWorkspaceCheckout(ctx context.Context, sessionID string) (*Workspace, error) {
+	claims := auth.FromContext(ctx)
+	if claims == nil {
+		return nil, fmt.Errorf("unauthenticated")
+	}
+	if c.Logto == nil {
+		return nil, fmt.Errorf("logto not configured")
+	}
+	if c.Cashier == nil {
+		return nil, fmt.Errorf("billing not configured")
+	}
+
+	// Retrieve the checkout session from Cashier/Stripe.
+	outCtx := auth.OutgoingContext(ctx)
+	callCtx, cancel := context.WithTimeout(outCtx, grpcTimeout)
+	defer cancel()
+
+	session, err := c.Cashier.RetrieveCheckoutSession(callCtx, &cashier.RetrieveCheckoutSessionRequest{
+		SessionId: sessionID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve checkout session: %w", err)
+	}
+
+	if session.Status != "complete" {
+		return nil, fmt.Errorf("checkout session not complete (status: %s)", session.Status)
+	}
+
+	// Verify the session belongs to the current user.
+	if session.UserId != claims.Subject {
+		return nil, fmt.Errorf("checkout session does not belong to current user")
+	}
+
+	wsID := session.Workspace
+	wsName := session.Name
+
+	// Idempotent: if workspace already exists with this user as member, return it.
+	existing, existErr := c.Logto.OrganizationByName(ctx, wsID)
+	if existErr == nil {
+		c.cacheOrgID(wsID, existing.ID)
+		members, memErr := c.Logto.OrganizationMembers(ctx, existing.ID)
+		if memErr == nil {
+			for _, m := range members {
+				if m.ID == claims.Subject {
+					slog.Info("workspace checkout completed (already exists)", "workspace", wsID)
+					return &Workspace{
+						ID:   wsID,
+						Name: displayNameFromOrgData(existing),
+					}, nil
+				}
+			}
+		}
+		return nil, fmt.Errorf("workspace ID %q is already taken", wsID)
+	}
+
+	adminRoleID, memberRoleID, err := c.orgRoleIDs(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve org role IDs: %w", err)
+	}
+
+	// Create Logto organization with Stripe IDs in customData.
+	customData := map[string]interface{}{
+		"stripeCustomerId":     session.CustomerId,
+		"stripeSubscriptionId": session.SubscriptionId,
+	}
+	org, err := c.Logto.CreateOrganization(ctx, wsID, wsName, customData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create organization: %w", err)
+	}
+
+	c.cacheOrgID(wsID, org.ID)
+
+	// Add creator as member + assign admin and member roles.
+	if err := c.Logto.AddOrganizationMember(ctx, org.ID, claims.Subject); err != nil {
+		return nil, fmt.Errorf("failed to add creator to organization: %w", err)
+	}
+	if err := c.Logto.AssignOrganizationRoles(ctx, org.ID, claims.Subject, []string{adminRoleID, memberRoleID}); err != nil {
+		return nil, fmt.Errorf("failed to assign admin role to creator: %w", err)
+	}
+
+	slog.Info("workspace created via checkout", "id", wsID, "name", wsName, "customer_id", session.CustomerId, "subscription_id", session.SubscriptionId)
+
+	// Fetch user info for member list.
+	user, _ := c.Logto.User(ctx, claims.Subject)
+	memberName := ""
+	memberEmail := claims.Email
+	if user != nil {
+		memberName = user.Name
+		if user.PrimaryEmail != "" {
+			memberEmail = user.PrimaryEmail
+		}
+	}
+
+	return &Workspace{
+		ID:   wsID,
+		Name: wsName,
+		Members: []WorkspaceMember{
+			{ID: claims.Subject, Email: memberEmail, Name: memberName, Role: auth.WorkspaceRoleAdmin},
+		},
+	}, nil
 }
 
 // requireWorkspaceAdmin checks that the current user is an admin of the given workspace.

@@ -281,9 +281,6 @@ func (w *Worker) processWindow(ctx context.Context, windowStart, windowEnd time.
 
 		// Ensure a credit grant exists for the current billing period.
 		w.ensureCreditGrant(ctx, wsID, ws)
-
-		// Check if workspace is on trial and has exceeded usage cap.
-		w.checkTrialUsageCap(ctx, wsID, ws)
 	}
 
 	// Only checkpoint if all workspaces succeeded — failed windows will be retried,
@@ -433,51 +430,6 @@ func (w *Worker) ensureCreditGrant(ctx context.Context, wsID string, ws *workspa
 
 	if err := w.stripe.CreateCreditGrantForPeriod(ctx, ws.customerID, creditCents, periodStart, periodEnd); err != nil {
 		slog.Error("metering: failed to ensure credit grant", "workspace", wsID, "error", err)
-	}
-}
-
-// trialUsageCapCents is the maximum resource cost allowed during a trial.
-const trialUsageCapCents = 500
-
-// checkTrialUsageCap ends a trial early if resource costs exceed the cap.
-func (w *Worker) checkTrialUsageCap(ctx context.Context, wsID string, ws *workspaceData) {
-	sub, err := w.stripe.Subscription(ctx, ws.subscriptionID)
-	if err != nil {
-		return
-	}
-
-	// Only check active trials.
-	if sub.TrialEnd == 0 || sub.TrialEnd <= time.Now().Unix() {
-		return
-	}
-
-	inv, err := w.stripe.UpcomingInvoice(ctx, ws.customerID, ws.subscriptionID)
-	if err != nil {
-		return
-	}
-
-	// Sum resource line items (everything except plan price).
-	var resourceCost int64
-	for _, line := range inv.Lines.Data {
-		if line.Pricing == nil || line.Pricing.PriceDetails == nil {
-			continue
-		}
-		priceID := line.Pricing.PriceDetails.Price
-		if priceID == w.stripe.Prices.HobbyPriceID || priceID == w.stripe.Prices.ProPriceID {
-			continue
-		}
-		resourceCost += line.Amount
-	}
-
-	if resourceCost > trialUsageCapCents {
-		slog.Info("trial usage exceeded cap, ending trial",
-			"workspace", wsID,
-			"resource_cost_cents", resourceCost,
-			"cap_cents", trialUsageCapCents,
-		)
-		if err := w.stripe.EndTrial(ctx, ws.subscriptionID); err != nil {
-			slog.Error("metering: failed to end trial", "workspace", wsID, "error", err)
-		}
 	}
 }
 

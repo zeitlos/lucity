@@ -66,11 +66,11 @@ type ComplexityRoot struct {
 
 	BillingSubscription struct {
 		CreditAmountCents func(childComplexity int) int
+		CreditExpiry      func(childComplexity int) int
 		CurrentPeriodEnd  func(childComplexity int) int
 		HasPaymentMethod  func(childComplexity int) int
 		Plan              func(childComplexity int) int
 		Status            func(childComplexity int) int
-		TrialEnd          func(childComplexity int) int
 	}
 
 	CheckoutSession struct {
@@ -521,6 +521,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.BillingSubscription.CreditAmountCents(childComplexity), true
+	case "BillingSubscription.creditExpiry":
+		if e.complexity.BillingSubscription.CreditExpiry == nil {
+			break
+		}
+
+		return e.complexity.BillingSubscription.CreditExpiry(childComplexity), true
 	case "BillingSubscription.currentPeriodEnd":
 		if e.complexity.BillingSubscription.CurrentPeriodEnd == nil {
 			break
@@ -545,12 +551,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.BillingSubscription.Status(childComplexity), true
-	case "BillingSubscription.trialEnd":
-		if e.complexity.BillingSubscription.TrialEnd == nil {
-			break
-		}
-
-		return e.complexity.BillingSubscription.TrialEnd(childComplexity), true
 
 	case "CheckoutSession.url":
 		if e.complexity.CheckoutSession.URL == nil {
@@ -3240,14 +3240,14 @@ func (ec *executionContext) fieldContext_BillingSubscription_creditAmountCents(_
 	return fc, nil
 }
 
-func (ec *executionContext) _BillingSubscription_trialEnd(ctx context.Context, field graphql.CollectedField, obj *model.BillingSubscription) (ret graphql.Marshaler) {
+func (ec *executionContext) _BillingSubscription_creditExpiry(ctx context.Context, field graphql.CollectedField, obj *model.BillingSubscription) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_BillingSubscription_trialEnd,
+		ec.fieldContext_BillingSubscription_creditExpiry,
 		func(ctx context.Context) (any, error) {
-			return obj.TrialEnd, nil
+			return obj.CreditExpiry, nil
 		},
 		nil,
 		ec.marshalOTime2ᚖtimeᚐTime,
@@ -3256,7 +3256,7 @@ func (ec *executionContext) _BillingSubscription_trialEnd(ctx context.Context, f
 	)
 }
 
-func (ec *executionContext) fieldContext_BillingSubscription_trialEnd(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_BillingSubscription_creditExpiry(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "BillingSubscription",
 		Field:      field,
@@ -5999,8 +5999,8 @@ func (ec *executionContext) fieldContext_Mutation_changePlan(ctx context.Context
 				return ec.fieldContext_BillingSubscription_currentPeriodEnd(ctx, field)
 			case "creditAmountCents":
 				return ec.fieldContext_BillingSubscription_creditAmountCents(ctx, field)
-			case "trialEnd":
-				return ec.fieldContext_BillingSubscription_trialEnd(ctx, field)
+			case "creditExpiry":
+				return ec.fieldContext_BillingSubscription_creditExpiry(ctx, field)
 			case "hasPaymentMethod":
 				return ec.fieldContext_BillingSubscription_hasPaymentMethod(ctx, field)
 			}
@@ -8112,9 +8112,9 @@ func (ec *executionContext) _Project_createdAt(ctx context.Context, field graphq
 			return obj.CreatedAt, nil
 		},
 		nil,
-		ec.marshalNTime2timeᚐTime,
+		ec.marshalOTime2ᚖtimeᚐTime,
 		true,
-		true,
+		false,
 	)
 }
 
@@ -8303,8 +8303,8 @@ func (ec *executionContext) fieldContext_Query_subscription(_ context.Context, f
 				return ec.fieldContext_BillingSubscription_currentPeriodEnd(ctx, field)
 			case "creditAmountCents":
 				return ec.fieldContext_BillingSubscription_creditAmountCents(ctx, field)
-			case "trialEnd":
-				return ec.fieldContext_BillingSubscription_trialEnd(ctx, field)
+			case "creditExpiry":
+				return ec.fieldContext_BillingSubscription_creditExpiry(ctx, field)
 			case "hasPaymentMethod":
 				return ec.fieldContext_BillingSubscription_hasPaymentMethod(ctx, field)
 			}
@@ -14664,8 +14664,8 @@ func (ec *executionContext) _BillingSubscription(ctx context.Context, sel ast.Se
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "trialEnd":
-			out.Values[i] = ec._BillingSubscription_trialEnd(ctx, field, obj)
+		case "creditExpiry":
+			out.Values[i] = ec._BillingSubscription_creditExpiry(ctx, field, obj)
 		case "hasPaymentMethod":
 			out.Values[i] = ec._BillingSubscription_hasPaymentMethod(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -16048,9 +16048,6 @@ func (ec *executionContext) _Project(ctx context.Context, sel ast.SelectionSet, 
 			}
 		case "createdAt":
 			out.Values[i] = ec._Project_createdAt(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}

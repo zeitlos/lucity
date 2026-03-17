@@ -59,7 +59,7 @@ type BillingSubscription struct {
 	Status            SubscriptionStatus `json:"status"`
 	CurrentPeriodEnd  time.Time          `json:"currentPeriodEnd"`
 	CreditAmountCents int                `json:"creditAmountCents"`
-	TrialEnd          *time.Time         `json:"trialEnd,omitempty"`
+	CreditExpiry      *time.Time         `json:"creditExpiry,omitempty"`
 	HasPaymentMethod  bool               `json:"hasPaymentMethod"`
 }
 
@@ -294,7 +294,7 @@ type Project struct {
 	Name         string        `json:"name"`
 	Environments []Environment `json:"environments"`
 	Databases    []Database    `json:"databases"`
-	CreatedAt    time.Time     `json:"createdAt"`
+	CreatedAt    *time.Time    `json:"createdAt,omitempty"`
 }
 
 type PromoteInput struct {
@@ -899,7 +899,6 @@ const (
 	SubscriptionStatusPastDue    SubscriptionStatus = "PAST_DUE"
 	SubscriptionStatusCanceled   SubscriptionStatus = "CANCELED"
 	SubscriptionStatusIncomplete SubscriptionStatus = "INCOMPLETE"
-	SubscriptionStatusTrialing   SubscriptionStatus = "TRIALING"
 )
 
 var AllSubscriptionStatus = []SubscriptionStatus{
@@ -907,12 +906,11 @@ var AllSubscriptionStatus = []SubscriptionStatus{
 	SubscriptionStatusPastDue,
 	SubscriptionStatusCanceled,
 	SubscriptionStatusIncomplete,
-	SubscriptionStatusTrialing,
 }
 
 func (e SubscriptionStatus) IsValid() bool {
 	switch e {
-	case SubscriptionStatusActive, SubscriptionStatusPastDue, SubscriptionStatusCanceled, SubscriptionStatusIncomplete, SubscriptionStatusTrialing:
+	case SubscriptionStatusActive, SubscriptionStatusPastDue, SubscriptionStatusCanceled, SubscriptionStatusIncomplete:
 		return true
 	}
 	return false

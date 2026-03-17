@@ -10,9 +10,11 @@ import (
 
 func convertProject(p handler.Project, workloadDomain string) model.Project {
 	result := model.Project{
-		ID:        p.ID,
-		Name:      p.Name,
-		CreatedAt: p.CreatedAt,
+		ID:   p.ID,
+		Name: p.Name,
+	}
+	if !p.CreatedAt.IsZero() {
+		result.CreatedAt = &p.CreatedAt
 	}
 	for _, e := range p.Environments {
 		result.Environments = append(result.Environments, convertEnvironment(e, workloadDomain))
@@ -310,7 +312,7 @@ func convertBillingSubscription(s *handler.BillingSubscription) *model.BillingSu
 		Status:            model.SubscriptionStatus(s.Status),
 		CurrentPeriodEnd:  s.CurrentPeriodEnd,
 		CreditAmountCents: s.CreditAmountCents,
-		TrialEnd:          s.TrialEnd,
+		CreditExpiry:      s.CreditExpiry,
 		HasPaymentMethod:  s.HasPaymentMethod,
 	}
 }

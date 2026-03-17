@@ -19,12 +19,14 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	CashierService_CreateCustomer_FullMethodName     = "/cashier.CashierService/CreateCustomer"
-	CashierService_CreateSubscription_FullMethodName = "/cashier.CashierService/CreateSubscription"
-	CashierService_ChangePlan_FullMethodName         = "/cashier.CashierService/ChangePlan"
-	CashierService_Subscription_FullMethodName       = "/cashier.CashierService/Subscription"
-	CashierService_BillingPortalURL_FullMethodName   = "/cashier.CashierService/BillingPortalURL"
-	CashierService_UsageSummary_FullMethodName       = "/cashier.CashierService/UsageSummary"
+	CashierService_CreateCustomer_FullMethodName          = "/cashier.CashierService/CreateCustomer"
+	CashierService_CreateSubscription_FullMethodName      = "/cashier.CashierService/CreateSubscription"
+	CashierService_ChangePlan_FullMethodName              = "/cashier.CashierService/ChangePlan"
+	CashierService_Subscription_FullMethodName            = "/cashier.CashierService/Subscription"
+	CashierService_BillingPortalURL_FullMethodName        = "/cashier.CashierService/BillingPortalURL"
+	CashierService_UsageSummary_FullMethodName            = "/cashier.CashierService/UsageSummary"
+	CashierService_CreateCheckoutSession_FullMethodName   = "/cashier.CashierService/CreateCheckoutSession"
+	CashierService_RetrieveCheckoutSession_FullMethodName = "/cashier.CashierService/RetrieveCheckoutSession"
 )
 
 // CashierServiceClient is the client API for CashierService service.
@@ -43,6 +45,10 @@ type CashierServiceClient interface {
 	BillingPortalURL(ctx context.Context, in *BillingPortalURLRequest, opts ...grpc.CallOption) (*BillingPortalURLResponse, error)
 	// UsageSummary returns the current billing period's usage summary.
 	UsageSummary(ctx context.Context, in *UsageSummaryRequest, opts ...grpc.CallOption) (*UsageSummaryResponse, error)
+	// CreateCheckoutSession creates a Stripe Checkout Session in subscription mode.
+	CreateCheckoutSession(ctx context.Context, in *CreateCheckoutSessionRequest, opts ...grpc.CallOption) (*CreateCheckoutSessionResponse, error)
+	// RetrieveCheckoutSession retrieves a completed Checkout Session for verification.
+	RetrieveCheckoutSession(ctx context.Context, in *RetrieveCheckoutSessionRequest, opts ...grpc.CallOption) (*RetrieveCheckoutSessionResponse, error)
 }
 
 type cashierServiceClient struct {
@@ -113,6 +119,26 @@ func (c *cashierServiceClient) UsageSummary(ctx context.Context, in *UsageSummar
 	return out, nil
 }
 
+func (c *cashierServiceClient) CreateCheckoutSession(ctx context.Context, in *CreateCheckoutSessionRequest, opts ...grpc.CallOption) (*CreateCheckoutSessionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreateCheckoutSessionResponse)
+	err := c.cc.Invoke(ctx, CashierService_CreateCheckoutSession_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *cashierServiceClient) RetrieveCheckoutSession(ctx context.Context, in *RetrieveCheckoutSessionRequest, opts ...grpc.CallOption) (*RetrieveCheckoutSessionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RetrieveCheckoutSessionResponse)
+	err := c.cc.Invoke(ctx, CashierService_RetrieveCheckoutSession_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // CashierServiceServer is the server API for CashierService service.
 // All implementations must embed UnimplementedCashierServiceServer
 // for forward compatibility.
@@ -129,6 +155,10 @@ type CashierServiceServer interface {
 	BillingPortalURL(context.Context, *BillingPortalURLRequest) (*BillingPortalURLResponse, error)
 	// UsageSummary returns the current billing period's usage summary.
 	UsageSummary(context.Context, *UsageSummaryRequest) (*UsageSummaryResponse, error)
+	// CreateCheckoutSession creates a Stripe Checkout Session in subscription mode.
+	CreateCheckoutSession(context.Context, *CreateCheckoutSessionRequest) (*CreateCheckoutSessionResponse, error)
+	// RetrieveCheckoutSession retrieves a completed Checkout Session for verification.
+	RetrieveCheckoutSession(context.Context, *RetrieveCheckoutSessionRequest) (*RetrieveCheckoutSessionResponse, error)
 	mustEmbedUnimplementedCashierServiceServer()
 }
 
@@ -156,6 +186,12 @@ func (UnimplementedCashierServiceServer) BillingPortalURL(context.Context, *Bill
 }
 func (UnimplementedCashierServiceServer) UsageSummary(context.Context, *UsageSummaryRequest) (*UsageSummaryResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UsageSummary not implemented")
+}
+func (UnimplementedCashierServiceServer) CreateCheckoutSession(context.Context, *CreateCheckoutSessionRequest) (*CreateCheckoutSessionResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateCheckoutSession not implemented")
+}
+func (UnimplementedCashierServiceServer) RetrieveCheckoutSession(context.Context, *RetrieveCheckoutSessionRequest) (*RetrieveCheckoutSessionResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RetrieveCheckoutSession not implemented")
 }
 func (UnimplementedCashierServiceServer) mustEmbedUnimplementedCashierServiceServer() {}
 func (UnimplementedCashierServiceServer) testEmbeddedByValue()                        {}
@@ -286,6 +322,42 @@ func _CashierService_UsageSummary_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _CashierService_CreateCheckoutSession_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateCheckoutSessionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CashierServiceServer).CreateCheckoutSession(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: CashierService_CreateCheckoutSession_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CashierServiceServer).CreateCheckoutSession(ctx, req.(*CreateCheckoutSessionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _CashierService_RetrieveCheckoutSession_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RetrieveCheckoutSessionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CashierServiceServer).RetrieveCheckoutSession(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: CashierService_RetrieveCheckoutSession_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CashierServiceServer).RetrieveCheckoutSession(ctx, req.(*RetrieveCheckoutSessionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // CashierService_ServiceDesc is the grpc.ServiceDesc for CashierService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -316,6 +388,14 @@ var CashierService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UsageSummary",
 			Handler:    _CashierService_UsageSummary_Handler,
+		},
+		{
+			MethodName: "CreateCheckoutSession",
+			Handler:    _CashierService_CreateCheckoutSession_Handler,
+		},
+		{
+			MethodName: "RetrieveCheckoutSession",
+			Handler:    _CashierService_RetrieveCheckoutSession_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

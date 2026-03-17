@@ -7,7 +7,7 @@ export const SubscriptionQuery = gql`
       status
       currentPeriodEnd
       creditAmountCents
-      trialEnd
+      creditExpiry
       hasPaymentMethod
     }
   }
@@ -30,7 +30,7 @@ export const ChangePlanMutation = gql`
       status
       currentPeriodEnd
       creditAmountCents
-      trialEnd
+      creditExpiry
     }
   }
 `;

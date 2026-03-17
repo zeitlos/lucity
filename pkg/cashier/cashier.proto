@@ -22,6 +22,12 @@ service CashierService {
 
   // UsageSummary returns the current billing period's usage summary.
   rpc UsageSummary(UsageSummaryRequest) returns (UsageSummaryResponse);
+
+  // CreateCheckoutSession creates a Stripe Checkout Session in subscription mode.
+  rpc CreateCheckoutSession(CreateCheckoutSessionRequest) returns (CreateCheckoutSessionResponse);
+
+  // RetrieveCheckoutSession retrieves a completed Checkout Session for verification.
+  rpc RetrieveCheckoutSession(RetrieveCheckoutSessionRequest) returns (RetrieveCheckoutSessionResponse);
 }
 
 enum Plan {
@@ -36,7 +42,6 @@ enum SubscriptionStatus {
   SUBSCRIPTION_STATUS_PAST_DUE = 2;
   SUBSCRIPTION_STATUS_CANCELED = 3;
   SUBSCRIPTION_STATUS_INCOMPLETE = 4;
-  SUBSCRIPTION_STATUS_TRIALING = 5;
 }
 
 message CreateCustomerRequest {
@@ -53,7 +58,7 @@ message CreateSubscriptionRequest {
   string workspace = 1;
   string customer_id = 2;
   Plan plan = 3;
-  int32 trial_days = 4;
+  int32 credit_days = 4;
 }
 
 message CreateSubscriptionResponse {
@@ -70,7 +75,7 @@ message ChangePlanResponse {
   SubscriptionStatus status = 2;
   int64 current_period_end = 3;
   int32 credit_amount_cents = 4;
-  int64 trial_end = 5;
+  int64 credit_expiry = 5;
   bool has_payment_method = 6;
 }
 
@@ -83,7 +88,7 @@ message SubscriptionResponse {
   SubscriptionStatus status = 2;
   int64 current_period_end = 3;
   int32 credit_amount_cents = 4;
-  int64 trial_end = 5;
+  int64 credit_expiry = 5;
   bool has_payment_method = 6;
 }
 
@@ -104,4 +109,35 @@ message UsageSummaryResponse {
   int32 resource_cost_cents = 1;
   int32 credits_cents = 2;
   int32 estimated_total_cents = 3;
+}
+
+message CreateCheckoutSessionRequest {
+  string workspace = 1;
+  string name = 2;
+  Plan plan = 3;
+  string email = 4;
+  string success_url = 5;
+  string cancel_url = 6;
+  string user_id = 7;
+}
+
+message CreateCheckoutSessionResponse {
+  string url = 1;
+  string session_id = 2;
+}
+
+message RetrieveCheckoutSessionRequest {
+  string session_id = 1;
+}
+
+message RetrieveCheckoutSessionResponse {
+  string session_id = 1;
+  string status = 2;
+  string workspace = 3;
+  string name = 4;
+  Plan plan = 5;
+  string user_id = 6;
+  string email = 7;
+  string customer_id = 8;
+  string subscription_id = 9;
 }

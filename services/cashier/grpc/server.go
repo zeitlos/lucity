@@ -67,7 +67,7 @@ func (s *Server) CreateSubscription(ctx context.Context, req *cashier.CreateSubs
 		return nil, fmt.Errorf("workspace and customer_id required")
 	}
 
-	// Idempotent: check if an active or trialing subscription already exists for this customer.
+	// Idempotent: check if an active subscription already exists for this customer.
 	existingSubID, err := s.stripe.ActiveSubscriptionForCustomer(ctx, req.CustomerId, req.Workspace)
 	if err != nil {
 		slog.Warn("failed to check for existing subscription", "workspace", req.Workspace, "error", err)
@@ -80,7 +80,7 @@ func (s *Server) CreateSubscription(ctx context.Context, req *cashier.CreateSubs
 
 	planPriceID := s.stripe.PlanPriceID(planToString(req.Plan))
 
-	subID, err := s.stripe.CreateSubscription(ctx, req.CustomerId, req.Workspace, planPriceID, int(req.TrialDays))
+	subID, err := s.stripe.CreateSubscription(ctx, req.CustomerId, req.Workspace, planPriceID, int(req.CreditDays))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create subscription: %w", err)
 	}
@@ -141,25 +141,23 @@ func (s *Server) Subscription(ctx context.Context, req *cashier.SubscriptionRequ
 
 	resp := subscriptionToResponse(sub, s.stripe.Prices)
 
-	// Synthesize trial status: active subscription + unexpired credit grant + no payment method.
-	// This replaces the old Stripe trial mechanism — the dashboard sees TRIALING status
-	// and trialEnd based on credit grant expiry instead of a Stripe trial period.
-	trialEnd := resp.TrialEnd
-	status := resp.Status
-	if status == cashier.SubscriptionStatus_SUBSCRIPTION_STATUS_ACTIVE && !hasPM {
+	// If the customer has no payment method, check for an active credit grant.
+	// The dashboard uses creditExpiry to show a countdown badge prompting
+	// the user to add a payment method before credits expire.
+	var creditExpiry int64
+	if !hasPM {
 		grantExpiry, _ := s.stripe.CreditGrantExpiry(ctx, meta.StripeCustomerId)
 		if grantExpiry > time.Now().Unix() {
-			status = cashier.SubscriptionStatus_SUBSCRIPTION_STATUS_TRIALING
-			trialEnd = grantExpiry
+			creditExpiry = grantExpiry
 		}
 	}
 
 	return &cashier.SubscriptionResponse{
 		Plan:              resp.Plan,
-		Status:            status,
+		Status:            resp.Status,
 		CurrentPeriodEnd:  resp.CurrentPeriodEnd,
 		CreditAmountCents: resp.CreditAmountCents,
-		TrialEnd:          trialEnd,
+		CreditExpiry:      creditExpiry,
 		HasPaymentMethod:  hasPM,
 	}, nil
 }
@@ -214,28 +212,14 @@ func (s *Server) UsageSummary(ctx context.Context, req *cashier.UsageSummaryRequ
 		}
 	}
 
-	// Credits are handled by Stripe Credit Grants — query the credit balance.
+	// Credits: use the credit grant total and cap applied credits at resource cost.
+	// Stripe doesn't deduct from credit balance until invoice finalization, so we
+	// calculate applied credits ourselves from the upcoming invoice's resource cost.
 	creditBalance, err := s.stripe.CreditBalanceCents(ctx, meta.StripeCustomerId)
 	if err != nil {
 		slog.Warn("failed to get credit balance", "workspace", req.Workspace, "error", err)
 	}
-	// creditBalance is the remaining balance; credits applied = plan credit - remaining.
-	planCredit := stripelib.PlanCreditCents(s.stripe.Prices.HobbyPriceID, s.stripe.Prices)
-	if meta.StripeSubscriptionId != "" {
-		sub, subErr := s.stripe.Subscription(ctx, meta.StripeSubscriptionId)
-		if subErr == nil {
-			for _, item := range sub.Items.Data {
-				if item.Price.ID == s.stripe.Prices.ProPriceID {
-					planCredit = stripelib.PlanCreditCents(s.stripe.Prices.ProPriceID, s.stripe.Prices)
-					break
-				}
-			}
-		}
-	}
-	creditsApplied := planCredit - creditBalance
-	if creditsApplied < 0 {
-		creditsApplied = 0
-	}
+	creditsApplied := min(creditBalance, resourceCost)
 
 	// Estimated total = plan + resources - credits applied
 	estimated := planCost + resourceCost - creditsApplied
@@ -341,6 +325,49 @@ func (s *Server) suspendWorkspace(workspace string, suspended bool) {
 	}
 }
 
+func (s *Server) CreateCheckoutSession(ctx context.Context, req *cashier.CreateCheckoutSessionRequest) (*cashier.CreateCheckoutSessionResponse, error) {
+	if req.Workspace == "" || req.Name == "" || req.Email == "" {
+		return nil, fmt.Errorf("workspace, name, and email required")
+	}
+
+	planPriceID := s.stripe.PlanPriceID(planToString(req.Plan))
+
+	url, sessionID, err := s.stripe.CreateCheckoutSession(ctx, req.Workspace, req.Name, planPriceID, req.Email, req.SuccessUrl, req.CancelUrl, req.UserId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create checkout session: %w", err)
+	}
+
+	slog.Info("checkout session created", "workspace", req.Workspace, "session_id", sessionID)
+	return &cashier.CreateCheckoutSessionResponse{Url: url, SessionId: sessionID}, nil
+}
+
+func (s *Server) RetrieveCheckoutSession(ctx context.Context, req *cashier.RetrieveCheckoutSessionRequest) (*cashier.RetrieveCheckoutSessionResponse, error) {
+	if req.SessionId == "" {
+		return nil, fmt.Errorf("session_id required")
+	}
+
+	result, err := s.stripe.RetrieveCheckoutSession(ctx, req.SessionId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve checkout session: %w", err)
+	}
+
+	plan := cashier.Plan_PLAN_HOBBY
+	// Plan is stored in subscription metadata, but we can also infer from the session metadata
+	// The gateway will pass the correct plan based on what was requested
+
+	return &cashier.RetrieveCheckoutSessionResponse{
+		SessionId:      result.SessionID,
+		Status:         result.Status,
+		Workspace:      result.Workspace,
+		Name:           result.Name,
+		Plan:           plan,
+		UserId:         result.UserID,
+		Email:          result.Email,
+		CustomerId:     result.CustomerID,
+		SubscriptionId: result.SubscriptionID,
+	}, nil
+}
+
 // Conversion helpers
 
 func subscriptionToResponse(sub *gostripe.Subscription, prices stripelib.PriceConfig) *cashier.ChangePlanResponse {
@@ -366,7 +393,6 @@ func subscriptionToResponse(sub *gostripe.Subscription, prices stripelib.PriceCo
 		Status:            mapSubscriptionStatus(sub.Status),
 		CurrentPeriodEnd:  currentPeriodEnd,
 		CreditAmountCents: int32(creditCents),
-		TrialEnd:          sub.TrialEnd,
 	}
 }
 
@@ -380,8 +406,6 @@ func mapSubscriptionStatus(s gostripe.SubscriptionStatus) cashier.SubscriptionSt
 		return cashier.SubscriptionStatus_SUBSCRIPTION_STATUS_CANCELED
 	case gostripe.SubscriptionStatusIncomplete:
 		return cashier.SubscriptionStatus_SUBSCRIPTION_STATUS_INCOMPLETE
-	case gostripe.SubscriptionStatusTrialing:
-		return cashier.SubscriptionStatus_SUBSCRIPTION_STATUS_TRIALING
 	default:
 		return cashier.SubscriptionStatus_SUBSCRIPTION_STATUS_UNSPECIFIED
 	}

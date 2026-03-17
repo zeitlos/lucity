@@ -66,7 +66,7 @@ const firstName = ref(
             Welcome{{ firstName ? `, ${firstName}` : '' }}
           </h1>
           <p class="mt-2 text-sm text-muted-foreground">
-            Your 14-day free trial has started — no card needed.
+            You have free credits to get started — no card needed.
           </p>
         </div>
 

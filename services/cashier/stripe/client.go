@@ -13,6 +13,7 @@ import (
 	"github.com/stripe/stripe-go/v82/billing/creditgrant"
 	"github.com/stripe/stripe-go/v82/billing/meterevent"
 	portalsession "github.com/stripe/stripe-go/v82/billingportal/session"
+	checkoutsession "github.com/stripe/stripe-go/v82/checkout/session"
 	"github.com/stripe/stripe-go/v82/customer"
 	"github.com/stripe/stripe-go/v82/invoice"
 	"github.com/stripe/stripe-go/v82/subscription"
@@ -69,9 +70,9 @@ func (c *Client) CreateCustomer(ctx context.Context, workspace, name, email stri
 }
 
 // CreateSubscription creates a subscription with a plan + 6 metered resource line items.
-// trialDays > 0 starts the subscription with a free trial period.
+// creditDays > 0 creates a promotional credit grant that expires after that many days.
 // After creation, an initial credit grant is created for the billing period.
-func (c *Client) CreateSubscription(ctx context.Context, customerID, workspace string, planPriceID string, trialDays int) (string, error) {
+func (c *Client) CreateSubscription(ctx context.Context, customerID, workspace string, planPriceID string, creditDays int) (string, error) {
 	params := &gostripe.SubscriptionParams{
 		Customer:        gostripe.String(customerID),
 		PaymentBehavior: gostripe.String("default_incomplete"),
@@ -85,9 +86,6 @@ func (c *Client) CreateSubscription(ctx context.Context, customerID, workspace s
 			{Price: gostripe.String(c.Prices.ProdDiskPriceID)},
 		},
 	}
-	if trialDays > 0 {
-		params.TrialPeriodDays = gostripe.Int64(int64(trialDays))
-	}
 	params.AddMetadata("workspace", workspace)
 
 	sub, err := subscription.New(params)
@@ -97,18 +95,16 @@ func (c *Client) CreateSubscription(ctx context.Context, customerID, workspace s
 
 	// Create initial credit grant so credits exist from day one.
 	if len(sub.Items.Data) > 0 {
-		var creditCents int64
-		var expiresAt int64
-		var name string
-		if sub.TrialEnd > 0 {
-			creditCents = 500 // EUR 5 trial credit, regardless of plan
-			expiresAt = sub.TrialEnd
-			name = "Trial credit"
-		} else {
-			creditCents = PlanCreditCents(planPriceID, c.Prices)
-			expiresAt = sub.Items.Data[0].CurrentPeriodEnd
-			name = "Plan credit"
+		creditCents := PlanCreditCents(planPriceID, c.Prices)
+		expiresAt := sub.Items.Data[0].CurrentPeriodEnd
+		name := "Plan credit"
+
+		if creditDays > 0 {
+			// Promotional credit for new signups — expires after creditDays.
+			expiresAt = time.Now().Add(time.Duration(creditDays) * 24 * time.Hour).Unix()
+			name = "Signup credit"
 		}
+
 		if err := c.CreateCreditGrant(ctx, customerID, creditCents, name, expiresAt); err != nil {
 			// Non-fatal — metering worker will create it on next tick if missing.
 			slog.Warn("failed to create initial credit grant", "error", err)
@@ -116,17 +112,6 @@ func (c *Client) CreateSubscription(ctx context.Context, customerID, workspace s
 	}
 
 	return sub.ID, nil
-}
-
-// EndTrial ends a trial immediately by setting trial_end to now.
-func (c *Client) EndTrial(ctx context.Context, subscriptionID string) error {
-	_, err := subscription.Update(subscriptionID, &gostripe.SubscriptionParams{
-		TrialEnd: gostripe.Int64(time.Now().Unix()),
-	})
-	if err != nil {
-		return fmt.Errorf("failed to end trial: %w", err)
-	}
-	return nil
 }
 
 // ChangePlan swaps the plan subscription item from one price to another.
@@ -385,7 +370,7 @@ func (c *Client) CustomerByWorkspace(ctx context.Context, workspace string) (str
 	return "", nil
 }
 
-// ActiveSubscriptionForCustomer returns the ID of an active or trialing subscription
+// ActiveSubscriptionForCustomer returns the ID of an active subscription
 // for the given customer that has the specified workspace in its metadata.
 // Returns empty string if no matching subscription exists.
 func (c *Client) ActiveSubscriptionForCustomer(ctx context.Context, customerID, workspace string) (string, error) {
@@ -403,26 +388,7 @@ func (c *Client) ActiveSubscriptionForCustomer(ctx context.Context, customerID, 
 		}
 	}
 	if err := iter.Err(); err != nil {
-		// Try trialing subscriptions too
 		return "", fmt.Errorf("failed to list subscriptions: %w", err)
-	}
-
-	// Also check trialing subscriptions
-	trialParams := &gostripe.SubscriptionListParams{
-		ListParams: gostripe.ListParams{},
-	}
-	trialParams.Filters.AddFilter("customer", "", customerID)
-	trialParams.Filters.AddFilter("status", "", "trialing")
-
-	trialIter := subscription.List(trialParams)
-	for trialIter.Next() {
-		sub := trialIter.Subscription()
-		if sub.Metadata["workspace"] == workspace {
-			return sub.ID, nil
-		}
-	}
-	if err := trialIter.Err(); err != nil {
-		return "", fmt.Errorf("failed to list trialing subscriptions: %w", err)
 	}
 
 	return "", nil
@@ -457,4 +423,78 @@ func PlanCreditCents(planPriceID string, prices PriceConfig) int64 {
 	default:
 		return 500 // EUR 5
 	}
+}
+
+// CreateCheckoutSession creates a Stripe Checkout Session in subscription mode
+// with the plan price + 6 metered resource prices.
+func (c *Client) CreateCheckoutSession(ctx context.Context, workspace, name, planPriceID, email, successURL, cancelURL, userID string) (string, string, error) {
+	params := &gostripe.CheckoutSessionParams{
+		Mode:                    gostripe.String(string(gostripe.CheckoutSessionModeSubscription)),
+		CustomerEmail:           gostripe.String(email),
+		SuccessURL:              gostripe.String(successURL),
+		CancelURL:               gostripe.String(cancelURL),
+		PaymentMethodCollection: gostripe.String("always"),
+		LineItems: []*gostripe.CheckoutSessionLineItemParams{
+			{Price: gostripe.String(planPriceID), Quantity: gostripe.Int64(1)},
+			{Price: gostripe.String(c.Prices.EcoCPUPriceID)},
+			{Price: gostripe.String(c.Prices.EcoMemPriceID)},
+			{Price: gostripe.String(c.Prices.EcoDiskPriceID)},
+			{Price: gostripe.String(c.Prices.ProdCPUPriceID)},
+			{Price: gostripe.String(c.Prices.ProdMemPriceID)},
+			{Price: gostripe.String(c.Prices.ProdDiskPriceID)},
+		},
+		SubscriptionData: &gostripe.CheckoutSessionSubscriptionDataParams{
+			Metadata: map[string]string{
+				"workspace": workspace,
+			},
+		},
+	}
+	params.AddMetadata("workspace_id", workspace)
+	params.AddMetadata("workspace_name", name)
+	params.AddMetadata("user_id", userID)
+
+	session, err := checkoutsession.New(params)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to create checkout session: %w", err)
+	}
+	return session.URL, session.ID, nil
+}
+
+// RetrieveCheckoutSession retrieves a Checkout Session and extracts customer/subscription IDs.
+func (c *Client) RetrieveCheckoutSession(ctx context.Context, sessionID string) (*CheckoutSessionResult, error) {
+	session, err := checkoutsession.Get(sessionID, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve checkout session: %w", err)
+	}
+
+	result := &CheckoutSessionResult{
+		SessionID: session.ID,
+		Status:    string(session.Status),
+	}
+
+	if session.Customer != nil {
+		result.CustomerID = session.Customer.ID
+	}
+	if session.Subscription != nil {
+		result.SubscriptionID = session.Subscription.ID
+	}
+
+	result.Workspace = session.Metadata["workspace_id"]
+	result.Name = session.Metadata["workspace_name"]
+	result.UserID = session.Metadata["user_id"]
+	result.Email = session.CustomerEmail
+
+	return result, nil
+}
+
+// CheckoutSessionResult holds the relevant fields from a completed Checkout Session.
+type CheckoutSessionResult struct {
+	SessionID      string
+	Status         string
+	Workspace      string
+	Name           string
+	UserID         string
+	Email          string
+	CustomerID     string
+	SubscriptionID string
 }
