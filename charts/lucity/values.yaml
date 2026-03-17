@@ -59,8 +59,18 @@ builder:
     create: false
   # -- Registry host for BuildKit config (used in buildkitd.toml for build Jobs)
   registryHost: ""
-  # -- BuildKit sidecar image for build Jobs (pin to match buildctl version in Dockerfile)
+  # -- BuildKit image (used by the persistent BuildKit Deployment)
   buildkitImage: moby/buildkit:v0.28.0-rootless
+  # -- Persistent BuildKit daemon settings (shared across all builds)
+  buildkit:
+    storageSize: 20Gi
+    resources:
+      requests:
+        cpu: 500m
+        memory: 512Mi
+      limits:
+        cpu: "4"
+        memory: 4Gi
   resources:
     requests:
       cpu: 200m

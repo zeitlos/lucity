@@ -98,7 +98,7 @@ func executeBuild(cfg runBuildConfig, k8sClient kubernetes.Interface) error {
 	}
 
 	// 1. Wait for BuildKit to be ready
-	slog.Info("waiting for buildkit sidecar")
+	slog.Info("waiting for buildkit")
 	if err := waitForBuildKit(cfg.BuildkitAddr); err != nil {
 		return fmt.Errorf("buildkit not ready: %w", err)
 	}
@@ -152,19 +152,25 @@ func executeBuild(cfg runBuildConfig, k8sClient kubernetes.Interface) error {
 	return nil
 }
 
-// waitForBuildKit waits for the BuildKit Unix socket to become available.
+// waitForBuildKit waits for BuildKit to become available (TCP or Unix socket).
 func waitForBuildKit(addr string) error {
-	socketPath := strings.TrimPrefix(addr, "unix://")
+	network := "unix"
+	dialAddr := strings.TrimPrefix(addr, "unix://")
+
+	if strings.HasPrefix(addr, "tcp://") {
+		network = "tcp"
+		dialAddr = strings.TrimPrefix(addr, "tcp://")
+	}
 
 	for i := 0; i < 60; i++ {
-		conn, err := net.DialTimeout("unix", socketPath, time.Second)
+		conn, err := net.DialTimeout(network, dialAddr, time.Second)
 		if err == nil {
 			conn.Close()
 			return nil
 		}
 		time.Sleep(time.Second)
 	}
-	return fmt.Errorf("buildkit socket not available at %s after 60s", socketPath)
+	return fmt.Errorf("buildkit not available at %s after 60s", addr)
 }
 
 // cloneForBuild clones a repo for the build runner.

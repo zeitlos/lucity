@@ -58,8 +58,8 @@ spec:
             {{- if .Values.builder.serviceAccount.create }}
             - name: BUILD_IMAGE
               value: "{{ .Values.builder.image.repository }}:{{ .Values.builder.image.tag | default .Chart.AppVersion }}"
-            - name: BUILDKIT_IMAGE
-              value: {{ .Values.builder.buildkitImage | quote }}
+            - name: BUILDKIT_ADDR
+              value: "tcp://{{ include "lucity.fullname" . }}-buildkit:1234"
             {{- if .Values.secrets.REGISTRY_PASSWORD }}
             - name: REGISTRY_AUTH_SECRET
               value: {{ include "lucity.fullname" . }}-registry-auth

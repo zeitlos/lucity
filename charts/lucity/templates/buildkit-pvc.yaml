@@ -1,0 +1,15 @@
+{{- if .Values.builder.serviceAccount.create }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "lucity.fullname" . }}-buildkit
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+    app.kubernetes.io/component: buildkit
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.builder.buildkit.storageSize }}
+{{- end }}

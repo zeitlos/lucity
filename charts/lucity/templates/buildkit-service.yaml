@@ -1,0 +1,18 @@
+{{- if .Values.builder.serviceAccount.create }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "lucity.fullname" . }}-buildkit
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+    app.kubernetes.io/component: buildkit
+spec:
+  type: ClusterIP
+  ports:
+    - port: 1234
+      targetPort: grpc
+      protocol: TCP
+      name: grpc
+  selector:
+    {{- include "lucity.selectorLabels" (dict "name" "buildkit" "release" .Release.Name) | nindent 4 }}
+{{- end }}

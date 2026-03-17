@@ -1,0 +1,83 @@
+{{- if .Values.builder.serviceAccount.create }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "lucity.fullname" . }}-buildkit
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+    app.kubernetes.io/component: buildkit
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "lucity.selectorLabels" (dict "name" "buildkit" "release" .Release.Name) | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "lucity.labels" . | nindent 8 }}
+        {{- include "lucity.selectorLabels" (dict "name" "buildkit" "release" .Release.Name) | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: buildkitd
+          image: {{ .Values.builder.buildkitImage | quote }}
+          args:
+            - "--addr"
+            - "tcp://0.0.0.0:1234"
+            - "--oci-worker-no-process-sandbox"
+            - "--root"
+            - "/var/lib/buildkit"
+          ports:
+            - name: grpc
+              containerPort: 1234
+              protocol: TCP
+          securityContext:
+            privileged: false
+            seccompProfile:
+              type: Unconfined
+          readinessProbe:
+            exec:
+              command: ["buildctl", "--addr", "tcp://127.0.0.1:1234", "debug", "workers"]
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          livenessProbe:
+            exec:
+              command: ["buildctl", "--addr", "tcp://127.0.0.1:1234", "debug", "workers"]
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          volumeMounts:
+            - name: buildkit-data
+              mountPath: /var/lib/buildkit
+            - name: buildkit-config
+              mountPath: /etc/buildkit
+              readOnly: true
+            {{- if .Values.secrets.REGISTRY_PASSWORD }}
+            - name: registry-auth
+              mountPath: /etc/registry-auth
+              readOnly: true
+            {{- end }}
+          {{- if .Values.secrets.REGISTRY_PASSWORD }}
+          env:
+            - name: DOCKER_CONFIG
+              value: /etc/registry-auth
+          {{- end }}
+          resources:
+            {{- toYaml .Values.builder.buildkit.resources | nindent 12 }}
+      volumes:
+        - name: buildkit-data
+          persistentVolumeClaim:
+            claimName: {{ include "lucity.fullname" . }}-buildkit
+        - name: buildkit-config
+          configMap:
+            name: {{ include "lucity.fullname" . }}-buildkit
+        {{- if .Values.secrets.REGISTRY_PASSWORD }}
+        - name: registry-auth
+          secret:
+            secretName: {{ include "lucity.fullname" . }}-registry-auth
+        {{- end }}
+{{- end }}
