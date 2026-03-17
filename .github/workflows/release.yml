@@ -168,6 +168,7 @@ jobs:
           file: ${{ matrix.dockerfile }}
           build-args: |
             SERVICE=${{ matrix.service }}
+            VERSION=${{ needs.version.outputs.version }}
             ${{ matrix.build-args || '' }}
           platforms: linux/amd64
           push: ${{ github.event_name != 'pull_request' }}

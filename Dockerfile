@@ -3,6 +3,7 @@ ARG GO_VERSION=1.26
 FROM golang:${GO_VERSION}-alpine AS builder
 
 ARG SERVICE
+ARG VERSION=dev
 
 WORKDIR /workspace
 ENV GOWORK=off
@@ -24,7 +25,7 @@ COPY charts/lucity-app/ charts/lucity-app/
 COPY services/${SERVICE}/ services/${SERVICE}/
 
 RUN cd services/${SERVICE} && \
-    CGO_ENABLED=0 go build -ldflags="-s -w" -o /app ./cmd/${SERVICE}/...
+    CGO_ENABLED=0 go build -ldflags="-s -w -X main.Version=${VERSION}" -o /app ./cmd/${SERVICE}/...
 
 FROM gcr.io/distroless/static-debian12
 

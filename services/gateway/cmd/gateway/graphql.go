@@ -37,7 +37,7 @@ type GraphQLServer struct {
 	port   string
 }
 
-func NewGraphQLServer(port string, api *handler.Client, oidcProvider *OIDCProvider, verifier *auth.Verifier, logtoClient *logto.Client, sessionSecret, dashboardURL, githubAppSlug string) *GraphQLServer {
+func NewGraphQLServer(port string, api *handler.Client, oidcProvider *OIDCProvider, verifier *auth.Verifier, logtoClient *logto.Client, sessionSecret, dashboardURL, githubAppSlug string, grpcComponents []grpcComponent) *GraphQLServer {
 	resolver := gatewaygraphql.Resolver{
 		API: api,
 	}
@@ -193,6 +193,9 @@ func NewGraphQLServer(port string, api *handler.Client, oidcProvider *OIDCProvid
 		w.WriteHeader(http.StatusOK)
 	})
 
+	// Version endpoint
+	mux.HandleFunc("/version", versionHandler(grpcComponents))
+
 	// Auth endpoints
 	registerAuthRoutes(mux, oidcProvider, api, verifier, logtoClient, sessionSecret, dashboardURL, githubAppSlug)
 
@@ -295,8 +298,8 @@ func rateLimitMiddleware(next http.Handler) http.Handler {
 	}()
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Skip rate limiting for health checks
-		if strings.HasPrefix(r.URL.Path, "/health") {
+		// Skip rate limiting for health checks and version endpoint
+		if strings.HasPrefix(r.URL.Path, "/health") || r.URL.Path == "/version" {
 			next.ServeHTTP(w, r)
 			return
 		}

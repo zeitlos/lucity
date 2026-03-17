@@ -165,8 +165,10 @@ func main() {
 
 	// Connect to cashier (optional — billing disabled without it)
 	var cashierClient cashier.CashierServiceClient
+	var cashierConn *grpc.ClientConn
 	if config.CashierAddr != "" {
-		cashierConn, err := grpc.NewClient(config.CashierAddr,
+		var err error
+		cashierConn, err = grpc.NewClient(config.CashierAddr,
 			grpc.WithTransportCredentials(insecure.NewCredentials()),
 		)
 		if err != nil {
@@ -185,7 +187,17 @@ func main() {
 	slog.Info("logto management API configured", "endpoint", config.LogtoEndpoint)
 
 	api := handler.New(packagerClient, builderClient, deployerClient, cashierClient, githubApp, logtoClient, config.RegistryURL, registryImagePrefix, config.WorkloadDomain, domainTarget, config.IPAddress, config.GitHubAppSlug, config.DashboardURL)
-	graphqlServer := NewGraphQLServer(config.Port, api, oidcProvider, verifier, logtoClient, sessionSecret, config.DashboardURL, config.GitHubAppSlug)
+
+	components := []grpcComponent{
+		{name: "builder", conn: builderConn},
+		{name: "packager", conn: packagerConn},
+		{name: "deployer", conn: deployerConn},
+	}
+	if cashierConn != nil {
+		components = append(components, grpcComponent{name: "cashier", conn: cashierConn})
+	}
+
+	graphqlServer := NewGraphQLServer(config.Port, api, oidcProvider, verifier, logtoClient, sessionSecret, config.DashboardURL, config.GitHubAppSlug, components)
 
 	graceful.Serve(ctx, graphqlServer)
 }
