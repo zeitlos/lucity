@@ -4,7 +4,7 @@ import { useMutation, useQuery } from '@vue/apollo-composable';
 import {
   Trash2, Copy, X, Globe, Plus, Minus, CircleCheck, CircleAlert,
   ChevronDown, Network, ExternalLink, Loader2, Scaling, GitBranch, Github, Code, Play, Container, ArrowRight,
-  Cpu, MemoryStick, Leaf, ShieldCheck,
+  Cpu, MemoryStick, Leaf, ShieldCheck, FileText,
 } from 'lucide-vue-next';
 import {
   RemoveServiceMutation,
@@ -164,6 +164,15 @@ const dnsModalTarget = computed(() =>
   dnsPolling.checks[dnsModalHostname.value]?.expectedTarget ?? domainTarget.value,
 );
 
+// Apex domains (e.g. "example.com") can't use CNAME — only A records.
+// Subdomains (e.g. "www.example.com", "api.example.com") should use CNAME.
+const isApexDomain = computed(() => {
+  const h = dnsModalHostname.value;
+  if (!h) return false;
+  // Count dots: "example.com" has 1, "sub.example.com" has 2+
+  return h.split('.').length <= 2;
+});
+
 function domainUrl(hostname: string) {
   if (hostname.endsWith('.local')) return `http://${hostname}:8880`;
   return `https://${hostname}`;
@@ -176,9 +185,8 @@ const customDomainInput = ref('');
 const hostnamePattern = /^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/;
 
 function normalizeHostname(input: string): string {
-  let h = input.trim();
+  let h = input.trim().toLowerCase();
   h = h.replace(/^https?:\/\//, '');
-  h = h.replace(/^www\./, '');
   h = h.replace(/\/+$/, '');
   return h;
 }
@@ -747,61 +755,40 @@ async function handleRemoveService() {
                 <div
                   v-for="domain in customDomains"
                   :key="domain.hostname"
-                  class="rounded-md border bg-muted/50 px-3 py-2.5"
                 >
                   <div class="flex items-center gap-2">
-                    <!-- Status icon -->
-                    <CircleCheck
-                      v-if="domainStatusLabel(domain).icon === 'check'"
-                      :size="14"
-                      :class="['shrink-0', domainStatusLabel(domain).color]"
-                    />
-                    <CircleAlert
-                      v-else-if="domainStatusLabel(domain).icon === 'alert'"
-                      :size="14"
-                      :class="['shrink-0', domainStatusLabel(domain).color]"
-                    />
-                    <Loader2
-                      v-else
-                      :size="14"
-                      :class="['shrink-0 animate-spin', domainStatusLabel(domain).color]"
-                    />
-                    <a
-                      :href="domainUrl(domain.hostname)"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      class="min-w-0 flex-1 truncate font-mono text-sm hover:underline"
-                    >
-                      {{ domain.hostname }}
-                    </a>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      class="h-7 w-7 shrink-0"
-                      @click="copyToClipboard(domain.hostname)"
-                    >
-                      <Copy :size="14" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      class="h-7 w-7 shrink-0 text-destructive"
-                      @click="handleRemoveDomain(domain.hostname)"
-                    >
-                      <X :size="14" />
-                    </Button>
-                  </div>
-                  <!-- Port routing + status line -->
-                  <div class="mt-1 flex items-center gap-1.5 pl-[22px] text-xs text-muted-foreground">
-                    <ArrowRight :size="10" class="shrink-0" />
-                    <span>
-                      Port
-                      <span class="font-mono font-medium text-foreground">{{ service.port }}</span>
-                    </span>
-                    <template v-if="domainStatusLabel(domain).icon !== 'check'">
-                      <span class="text-muted-foreground/50">&middot;</span>
-                      <span>{{ domainStatusLabel(domain).label }}</span>
-                      <template v-if="dnsStatus(domain.hostname) !== 'VALID'">
+                    <div class="flex flex-1 flex-col rounded-md border bg-muted/50">
+                      <a
+                        :href="domainUrl(domain.hostname)"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="flex items-center gap-2 px-3 py-2 transition-colors hover:bg-muted/80"
+                        :class="domainStatusLabel(domain).icon === 'check' ? 'rounded-md' : 'rounded-t-md'"
+                      >
+                        <CircleCheck
+                          v-if="domainStatusLabel(domain).icon === 'check'"
+                          :size="14"
+                          :class="['shrink-0', domainStatusLabel(domain).color]"
+                        />
+                        <CircleAlert
+                          v-else-if="domainStatusLabel(domain).icon === 'alert'"
+                          :size="14"
+                          :class="['shrink-0', domainStatusLabel(domain).color]"
+                        />
+                        <Loader2
+                          v-else
+                          :size="14"
+                          :class="['shrink-0 animate-spin', domainStatusLabel(domain).color]"
+                        />
+                        <span class="truncate font-mono text-sm hover:underline">{{ domain.hostname }}</span>
+                        <ExternalLink :size="12" class="ml-auto shrink-0 text-muted-foreground" />
+                      </a>
+                      <div
+                        v-if="domainStatusLabel(domain).icon !== 'check'"
+                        class="flex items-center gap-1.5 border-t border-border/50 px-3 py-1.5 text-xs"
+                        :class="domainStatusLabel(domain).icon === 'alert' ? 'text-orange-500' : 'text-muted-foreground'"
+                      >
+                        <span>{{ domainStatusLabel(domain).label }}</span>
                         <span class="text-muted-foreground/50">&middot;</span>
                         <button
                           class="font-medium text-primary hover:underline"
@@ -809,9 +796,44 @@ async function handleRemoveService() {
                         >
                           Show records
                         </button>
-                      </template>
-                    </template>
+                      </div>
+                    </div>
+                    <div class="flex shrink-0 items-center">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        class="h-8 w-8 shrink-0"
+                        title="Show DNS records"
+                        @click="showDnsRecords(domain.hostname)"
+                      >
+                        <FileText :size="14" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        class="h-8 w-8 shrink-0"
+                        @click="copyToClipboard(domain.hostname)"
+                      >
+                        <Copy :size="14" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        class="h-8 w-8 shrink-0 text-destructive"
+                        @click="handleRemoveDomain(domain.hostname)"
+                      >
+                        <X :size="14" />
+                      </Button>
+                    </div>
                   </div>
+                </div>
+                <!-- Port routing (once at the bottom) -->
+                <div class="flex items-center gap-1.5 pl-1 text-xs text-muted-foreground">
+                  <ArrowRight :size="10" class="shrink-0" />
+                  <span>
+                    Routes to port
+                    <span class="font-mono font-medium text-foreground">{{ service.port }}</span>
+                  </span>
                 </div>
               </div>
 
@@ -1184,99 +1206,91 @@ async function handleRemoveService() {
           </DialogDescription>
         </DialogHeader>
 
-        <div class="space-y-3">
-          <div class="rounded-md border">
-            <div class="border-b bg-muted/50 px-3 py-2">
-              <p class="text-xs font-medium text-muted-foreground">
-                CNAME record (recommended)
-              </p>
-            </div>
-            <table class="w-full text-sm">
-              <thead>
-                <tr class="border-b bg-muted/30">
-                  <th class="px-3 py-2 text-left font-medium text-muted-foreground">Type</th>
-                  <th class="px-3 py-2 text-left font-medium text-muted-foreground">Name</th>
-                  <th class="px-3 py-2 text-left font-medium text-muted-foreground">Value</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td class="px-3 py-2">
-                    <div class="flex items-center gap-1.5">
-                      <CircleCheck
-                        v-if="dnsModalStatus === 'VALID'"
-                        :size="12"
-                        class="shrink-0 text-green-500"
-                      />
-                      <CircleAlert
-                        v-else-if="dnsModalStatus === 'MISCONFIGURED'"
-                        :size="12"
-                        class="shrink-0 text-orange-500"
-                      />
-                      <Loader2
-                        v-else
-                        :size="12"
-                        class="shrink-0 animate-spin text-yellow-500"
-                      />
-                      <Badge variant="outline" class="font-mono text-xs">CNAME</Badge>
-                    </div>
-                  </td>
-                  <td class="px-3 py-2 font-mono text-xs">{{ dnsModalHostname }}</td>
-                  <td class="px-3 py-2">
-                    <div class="flex items-center gap-1">
-                      <span class="font-mono text-xs">{{ dnsModalTarget }}</span>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        class="h-6 w-6 shrink-0"
-                        @click="copyToClipboard(dnsModalTarget)"
-                      >
-                        <Copy :size="12" />
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <div v-if="ipAddress" class="rounded-md border">
-            <div class="border-b bg-muted/50 px-3 py-2">
-              <p class="text-xs font-medium text-muted-foreground">
-                A record (for apex/root domains)
-              </p>
-            </div>
-            <table class="w-full text-sm">
-              <thead>
-                <tr class="border-b bg-muted/30">
-                  <th class="px-3 py-2 text-left font-medium text-muted-foreground">Type</th>
-                  <th class="px-3 py-2 text-left font-medium text-muted-foreground">Name</th>
-                  <th class="px-3 py-2 text-left font-medium text-muted-foreground">Value</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td class="px-3 py-2">
-                    <Badge variant="outline" class="font-mono text-xs">A</Badge>
-                  </td>
-                  <td class="px-3 py-2 font-mono text-xs">{{ dnsModalHostname }}</td>
-                  <td class="px-3 py-2">
-                    <div class="flex items-center gap-1">
-                      <span class="font-mono text-xs">{{ ipAddress }}</span>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        class="h-6 w-6 shrink-0"
-                        @click="copyToClipboard(ipAddress)"
-                      >
-                        <Copy :size="12" />
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+        <div class="rounded-md border">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b bg-muted/30">
+                <th class="px-3 py-2 text-left font-medium text-muted-foreground">Type</th>
+                <th class="px-3 py-2 text-left font-medium text-muted-foreground">Name</th>
+                <th class="px-3 py-2 text-left font-medium text-muted-foreground">Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="px-3 py-2">
+                  <div class="flex items-center gap-1.5">
+                    <CircleCheck
+                      v-if="dnsModalStatus === 'VALID'"
+                      :size="12"
+                      class="shrink-0 text-green-500"
+                    />
+                    <CircleAlert
+                      v-else-if="dnsModalStatus === 'MISCONFIGURED'"
+                      :size="12"
+                      class="shrink-0 text-orange-500"
+                    />
+                    <Loader2
+                      v-else
+                      :size="12"
+                      class="shrink-0 animate-spin text-yellow-500"
+                    />
+                    <span class="rounded border px-1.5 py-0.5 font-mono text-xs text-muted-foreground">CNAME</span>
+                  </div>
+                </td>
+                <td class="px-3 py-2 font-mono text-xs">{{ dnsModalHostname }}</td>
+                <td class="px-3 py-2">
+                  <div class="flex items-center gap-1">
+                    <span class="font-mono text-xs">{{ dnsModalTarget }}</span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      class="h-6 w-6 shrink-0"
+                      @click="copyToClipboard(dnsModalTarget)"
+                    >
+                      <Copy :size="12" />
+                    </Button>
+                  </div>
+                </td>
+              </tr>
+              <!-- A record row — shown for apex domains that can't use CNAME -->
+              <tr v-if="ipAddress && isApexDomain" class="border-t">
+                <td class="px-3 py-2">
+                  <div class="flex items-center gap-1.5">
+                    <CircleCheck
+                      v-if="dnsModalStatus === 'VALID'"
+                      :size="12"
+                      class="shrink-0 text-green-500"
+                    />
+                    <CircleAlert
+                      v-else-if="dnsModalStatus === 'MISCONFIGURED'"
+                      :size="12"
+                      class="shrink-0 text-orange-500"
+                    />
+                    <Loader2
+                      v-else
+                      :size="12"
+                      class="shrink-0 animate-spin text-yellow-500"
+                    />
+                    <span class="rounded border px-1.5 py-0.5 font-mono text-xs text-muted-foreground">A</span>
+                  </div>
+                </td>
+                <td class="px-3 py-2 font-mono text-xs">{{ dnsModalHostname }}</td>
+                <td class="px-3 py-2">
+                  <div class="flex items-center gap-1">
+                    <span class="font-mono text-xs">{{ ipAddress }}</span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      class="h-6 w-6 shrink-0"
+                      @click="copyToClipboard(ipAddress)"
+                    >
+                      <Copy :size="12" />
+                    </Button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
 
         <!-- Live status message -->

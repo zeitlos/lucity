@@ -773,7 +773,13 @@ func (c *Client) CheckDns(hostname string) DnsCheck {
 	addrs, lookupErr := resolver.LookupHost(lookupCtx, hostname)
 	if lookupErr != nil || len(addrs) == 0 {
 		result.Status = "PENDING"
-		result.Message = "No DNS record found. Add a CNAME record pointing to " + c.DomainTarget
+		// Apex domains (e.g. "example.com") can't use CNAME — suggest A record instead.
+		parts := strings.Split(hostname, ".")
+		if len(parts) <= 2 && c.IPAddress != "" {
+			result.Message = fmt.Sprintf("No DNS record found. Add an A record pointing to %s", c.IPAddress)
+		} else {
+			result.Message = "No DNS record found. Add a CNAME record pointing to " + c.DomainTarget
+		}
 		return result
 	}
 

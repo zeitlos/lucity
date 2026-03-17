@@ -12,8 +12,8 @@ routes:
 
 gateway:
   env:
-    OIDC_ISSUER_URL: https://auth.lucity.cloud/auth/v1
-    OIDC_CLIENT_ID: lucity-gateway
+    OIDC_ISSUER_URL: https://id.lucity.cloud/oidc
+    OIDC_CLIENT_ID: 30ztkgeb1c7hwmnx6bf4s
     OIDC_CALLBACK_URL: https://lucity.cloud/auth/callback
     DASHBOARD_URL: https://lucity.cloud/app
     GITHUB_APP_ID: "2882801"
@@ -30,9 +30,13 @@ gateway:
     WORKLOAD_DOMAIN: lucity.app
     DOMAIN_TARGET: lb.lucity.app
     IP_ADDRESS: "46.225.47.40"
+    LOGTO_ENDPOINT: http://lucity-infra-logto.lucity-system.svc.cluster.local:3001
   envSecret:
     JWT_SECRET: JWT_SECRET
     GITHUB_CLIENT_SECRET: GITHUB_CLIENT_SECRET
+    SESSION_SECRET: SESSION_SECRET
+    LOGTO_M2M_APP_ID: LOGTO_M2M_APP_ID
+    LOGTO_M2M_APP_SECRET: LOGTO_M2M_APP_SECRET
 
 builder:
   serviceAccount:
