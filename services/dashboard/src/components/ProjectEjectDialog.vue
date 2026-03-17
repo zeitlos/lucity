@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { errorMessage } from '@/lib/utils';
+import { useAuth } from '@/composables/useAuth';
 
 const props = defineProps<{
   open: boolean;
@@ -29,6 +30,7 @@ const emit = defineEmits<{
   (e: 'update:open', value: boolean): void;
 }>();
 
+const { activeWorkspace } = useAuth();
 const ejecting = ref(false);
 
 const features = [
@@ -41,7 +43,10 @@ async function handleEject() {
   ejecting.value = true;
   try {
     const url = `/api/eject/${encodeURIComponent(props.projectId)}`;
-    const res = await fetch(url, { credentials: 'include' });
+    const res = await fetch(url, {
+      credentials: 'include',
+      headers: { 'X-Lucity-Workspace': activeWorkspace.value },
+    });
 
     if (!res.ok) {
       const text = await res.text();
@@ -88,7 +93,7 @@ async function handleEject() {
         </div>
 
         <DialogHeader class="relative space-y-2 text-center">
-          <DialogTitle class="font-serif text-[1.75rem] leading-tight tracking-[-0.01em]">
+          <DialogTitle class="font-serif text-6xl font-normal leading-tight tracking-[-0.01em]">
             Eject project
           </DialogTitle>
           <DialogDescription class="text-sm leading-relaxed text-muted-foreground">
