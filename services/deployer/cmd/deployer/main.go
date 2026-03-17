@@ -3,8 +3,10 @@ package main
 import (
 	"log/slog"
 	"os"
+	"time"
 
 	"github.com/kelseyhightower/envconfig"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
@@ -23,6 +25,9 @@ type Config struct {
 	SoftServeHTTP        string `envconfig:"SOFTSERVE_HTTP_ADDR" default:"http://lucity-infra-soft-serve.lucity-system.svc.cluster.local:23232"`
 	SoftServeClusterHTTP string `envconfig:"SOFTSERVE_CLUSTER_HTTP_ADDR"`
 	SoftServeToken       string `envconfig:"SOFTSERVE_TOKEN"`
+	GatewayName          string `envconfig:"GATEWAY_NAME" default:"lucity-gateway"`
+	GatewayNamespace     string `envconfig:"GATEWAY_NAMESPACE" default:"lucity-system"`
+	ClusterIssuer        string `envconfig:"CLUSTER_ISSUER" default:"letsencrypt-http01"`
 }
 
 func main() {
@@ -58,11 +63,35 @@ func main() {
 		os.Exit(1)
 	}
 
-	svc := deployergrpc.NewServer(argoClient, clusterHTTP, config.SoftServeToken, k8sClient)
+	dynClient, err := dynamic.NewForConfig(k8sConfig)
+	if err != nil {
+		slog.Error("failed to create dynamic k8s client", "error", err)
+		os.Exit(1)
+	}
+
+	svc := deployergrpc.NewServer(argoClient, clusterHTTP, config.SoftServeToken, k8sClient, dynClient, config.GatewayName, config.GatewayNamespace, config.ClusterIssuer)
 	grpcServer := deployergrpc.NewGRPCServer(":"+config.Port, svc)
 
 	ctx, cancel := graceful.Context()
 	defer cancel()
+
+	go func() {
+		if err := svc.ReconcileCustomDomains(ctx); err != nil {
+			slog.Warn("initial custom domain reconciliation failed", "error", err)
+		}
+		ticker := time.NewTicker(60 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				if err := svc.ReconcileCustomDomains(ctx); err != nil {
+					slog.Warn("custom domain reconciliation failed", "error", err)
+				}
+			}
+		}
+	}()
 
 	graceful.Serve(ctx, grpcServer)
 }

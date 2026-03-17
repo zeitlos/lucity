@@ -17,6 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/zeitlos/lucity/pkg/deployer"
@@ -30,21 +31,31 @@ import (
 
 type Server struct {
 	deployer.UnimplementedDeployerServiceServer
-	argo *argocd.Client
-	k8s  kubernetes.Interface
+	argo    *argocd.Client
+	k8s     kubernetes.Interface
+	dynamic dynamic.Interface
 
 	// softServeHTTP is the cluster-internal Soft-serve HTTP URL for ArgoCD to clone from.
 	softServeHTTP string
 	// softServeToken is the Soft-serve access token for HTTP git operations.
 	softServeToken string
+
+	// Gateway API and cert-manager configuration for custom domains.
+	gatewayName      string
+	gatewayNamespace string
+	clusterIssuer    string
 }
 
-func NewServer(argo *argocd.Client, softServeHTTP, softServeToken string, k8s kubernetes.Interface) *Server {
+func NewServer(argo *argocd.Client, softServeHTTP, softServeToken string, k8s kubernetes.Interface, dyn dynamic.Interface, gatewayName, gatewayNamespace, clusterIssuer string) *Server {
 	return &Server{
-		argo:           argo,
-		k8s:            k8s,
-		softServeHTTP:  softServeHTTP,
-		softServeToken: softServeToken,
+		argo:             argo,
+		k8s:              k8s,
+		dynamic:          dyn,
+		softServeHTTP:    softServeHTTP,
+		softServeToken:   softServeToken,
+		gatewayName:      gatewayName,
+		gatewayNamespace: gatewayNamespace,
+		clusterIssuer:    clusterIssuer,
 	}
 }
 
