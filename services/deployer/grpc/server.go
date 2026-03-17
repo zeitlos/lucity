@@ -782,30 +782,6 @@ func mapStatus(status *argocd.AppStatus) (deployer.DeploymentStatus, string) {
 	}
 }
 
-func (s *Server) WorkspaceMetadata(ctx context.Context, req *deployer.WorkspaceMetadataRequest) (*deployer.WorkspaceMetadataResponse, error) {
-	cmName := fmt.Sprintf("workspace-%s", req.Workspace)
-
-	cm, err := s.k8s.CoreV1().ConfigMaps(labels.LucityNamespace).Get(ctx, cmName, metav1.GetOptions{})
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return nil, status.Errorf(codes.NotFound, "workspace %q not found", req.Workspace)
-		}
-		return nil, status.Errorf(codes.Internal, "failed to get workspace ConfigMap: %v", err)
-	}
-
-	personal, _ := strconv.ParseBool(cm.Data["personal"])
-	suspended, _ := strconv.ParseBool(cm.Data["suspended"])
-
-	return &deployer.WorkspaceMetadataResponse{
-		Name:                 cm.Data["name"],
-		Personal:             personal,
-		StripeCustomerId:     cm.Data["stripe_customer_id"],
-		StripeSubscriptionId: cm.Data["stripe_subscription_id"],
-		Owner:                cm.Data["owner"],
-		Suspended:            suspended,
-	}, nil
-}
-
 func (s *Server) WorkspaceByInstallationID(ctx context.Context, req *deployer.WorkspaceByInstallationIDRequest) (*deployer.WorkspaceByInstallationIDResponse, error) {
 	// Query Deployments across all namespaces with the github-installation label.
 	installationLabel := fmt.Sprintf("%s=%d", labels.GitHubInstallation, req.InstallationId)
@@ -836,106 +812,6 @@ func (s *Server) WorkspaceByInstallationID(ctx context.Context, req *deployer.Wo
 	return &deployer.WorkspaceByInstallationIDResponse{
 		Workspace: ws,
 	}, nil
-}
-
-func (s *Server) CreateWorkspaceMetadata(ctx context.Context, req *deployer.CreateWorkspaceMetadataRequest) (*deployer.CreateWorkspaceMetadataResponse, error) {
-	cmName := fmt.Sprintf("workspace-%s", req.Workspace)
-
-	cm := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      cmName,
-			Namespace: labels.LucityNamespace,
-			Labels: map[string]string{
-				labels.ManagedBy:    labels.ManagedByLucity,
-				labels.ResourceType: "workspace-metadata",
-				labels.Workspace:    req.Workspace,
-			},
-		},
-		Data: map[string]string{
-			"name":     req.Name,
-			"personal": strconv.FormatBool(req.Personal),
-			"owner":    req.Owner,
-		},
-	}
-
-	_, err := s.k8s.CoreV1().ConfigMaps(labels.LucityNamespace).Create(ctx, cm, metav1.CreateOptions{})
-	if err != nil {
-		if apierrors.IsAlreadyExists(err) {
-			return &deployer.CreateWorkspaceMetadataResponse{}, nil // idempotent
-		}
-		return nil, status.Errorf(codes.Internal, "failed to create workspace ConfigMap: %v", err)
-	}
-	return &deployer.CreateWorkspaceMetadataResponse{}, nil
-}
-
-func (s *Server) UpdateWorkspaceMetadata(ctx context.Context, req *deployer.UpdateWorkspaceMetadataRequest) (*deployer.UpdateWorkspaceMetadataResponse, error) {
-	cmName := fmt.Sprintf("workspace-%s", req.Workspace)
-
-	cm, err := s.k8s.CoreV1().ConfigMaps(labels.LucityNamespace).Get(ctx, cmName, metav1.GetOptions{})
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return nil, status.Errorf(codes.NotFound, "workspace %q not found", req.Workspace)
-		}
-		return nil, status.Errorf(codes.Internal, "failed to get workspace ConfigMap: %v", err)
-	}
-
-	if req.Name != "" {
-		cm.Data["name"] = req.Name
-	}
-	if req.StripeCustomerId != "" {
-		cm.Data["stripe_customer_id"] = req.StripeCustomerId
-	}
-	if req.StripeSubscriptionId != "" {
-		cm.Data["stripe_subscription_id"] = req.StripeSubscriptionId
-	}
-
-	_, err = s.k8s.CoreV1().ConfigMaps(labels.LucityNamespace).Update(ctx, cm, metav1.UpdateOptions{})
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to update workspace ConfigMap: %v", err)
-	}
-	return &deployer.UpdateWorkspaceMetadataResponse{}, nil
-}
-
-func (s *Server) DeleteWorkspaceMetadata(ctx context.Context, req *deployer.DeleteWorkspaceMetadataRequest) (*deployer.DeleteWorkspaceMetadataResponse, error) {
-	cmName := fmt.Sprintf("workspace-%s", req.Workspace)
-
-	err := s.k8s.CoreV1().ConfigMaps(labels.LucityNamespace).Delete(ctx, cmName, metav1.DeleteOptions{})
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return &deployer.DeleteWorkspaceMetadataResponse{}, nil // idempotent
-		}
-		return nil, status.Errorf(codes.Internal, "failed to delete workspace ConfigMap: %v", err)
-	}
-	return &deployer.DeleteWorkspaceMetadataResponse{}, nil
-}
-
-func (s *Server) ListWorkspaces(ctx context.Context, req *deployer.ListWorkspacesRequest) (*deployer.ListWorkspacesResponse, error) {
-	selector := labels.Selector(labels.ResourceType, "workspace-metadata")
-
-	cmList, err := s.k8s.CoreV1().ConfigMaps(labels.LucityNamespace).List(ctx, metav1.ListOptions{
-		LabelSelector: selector,
-	})
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to list workspace ConfigMaps: %v", err)
-	}
-
-	workspaces := make([]*deployer.WorkspaceInfo, 0, len(cmList.Items))
-	for _, cm := range cmList.Items {
-		ws := cm.Labels[labels.Workspace]
-		if ws == "" {
-			continue
-		}
-
-		personal, _ := strconv.ParseBool(cm.Data["personal"])
-
-		workspaces = append(workspaces, &deployer.WorkspaceInfo{
-			Id:       ws,
-			Name:     cm.Data["name"],
-			Personal: personal,
-		})
-	}
-
-	return &deployer.ListWorkspacesResponse{Workspaces: workspaces}, nil
 }
 
 const (
@@ -1360,18 +1236,7 @@ func (s *Server) SuspendWorkspace(ctx context.Context, req *deployer.SuspendWork
 		return nil, status.Errorf(codes.InvalidArgument, "workspace required")
 	}
 
-	// 1. Update suspended flag in workspace ConfigMap.
-	cmName := fmt.Sprintf("workspace-%s", req.Workspace)
-	cm, err := s.k8s.CoreV1().ConfigMaps(labels.LucityNamespace).Get(ctx, cmName, metav1.GetOptions{})
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to get workspace ConfigMap: %v", err)
-	}
-	cm.Data["suspended"] = strconv.FormatBool(req.Suspended)
-	if _, err := s.k8s.CoreV1().ConfigMaps(labels.LucityNamespace).Update(ctx, cm, metav1.UpdateOptions{}); err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to update workspace ConfigMap: %v", err)
-	}
-
-	// 2. List all namespaces belonging to this workspace.
+	// 1. List all namespaces belonging to this workspace.
 	nsList, err := s.k8s.CoreV1().Namespaces().List(ctx, metav1.ListOptions{
 		LabelSelector: labels.Selector(labels.Workspace, req.Workspace),
 	})
@@ -1379,7 +1244,7 @@ func (s *Server) SuspendWorkspace(ctx context.Context, req *deployer.SuspendWork
 		return nil, status.Errorf(codes.Internal, "failed to list workspace namespaces: %v", err)
 	}
 
-	// 3. Scale deployments in each namespace.
+	// 2. Scale deployments in each namespace.
 	for _, ns := range nsList.Items {
 		project := ns.Labels[labels.Project]
 		environment := ns.Labels[labels.Environment]
@@ -1423,7 +1288,7 @@ func (s *Server) SuspendWorkspace(ctx context.Context, req *deployer.SuspendWork
 			}
 		}
 
-		// 4. Manage ArgoCD auto-sync.
+		// 3. Manage ArgoCD auto-sync.
 		appName := applicationName(req.Workspace, project, environment)
 		if req.Suspended {
 			// Disable auto-sync so ArgoCD doesn't fight the scale-down.

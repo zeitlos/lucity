@@ -3,7 +3,7 @@ type Project {
   name: String!
   environments: [Environment!]!
   databases: [Database!]!
-  createdAt: Time!
+  createdAt: Time
 }
 
 type Environment {

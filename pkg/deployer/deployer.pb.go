@@ -2146,134 +2146,6 @@ func (x *DatabaseCredentialsResponse) GetUri() string {
 	return ""
 }
 
-type WorkspaceMetadataRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Workspace     string                 `protobuf:"bytes,1,opt,name=workspace,proto3" json:"workspace,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *WorkspaceMetadataRequest) Reset() {
-	*x = WorkspaceMetadataRequest{}
-	mi := &file_deployer_proto_msgTypes[34]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *WorkspaceMetadataRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*WorkspaceMetadataRequest) ProtoMessage() {}
-
-func (x *WorkspaceMetadataRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_deployer_proto_msgTypes[34]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use WorkspaceMetadataRequest.ProtoReflect.Descriptor instead.
-func (*WorkspaceMetadataRequest) Descriptor() ([]byte, []int) {
-	return file_deployer_proto_rawDescGZIP(), []int{34}
-}
-
-func (x *WorkspaceMetadataRequest) GetWorkspace() string {
-	if x != nil {
-		return x.Workspace
-	}
-	return ""
-}
-
-type WorkspaceMetadataResponse struct {
-	state                protoimpl.MessageState `protogen:"open.v1"`
-	Name                 string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Personal             bool                   `protobuf:"varint,2,opt,name=personal,proto3" json:"personal,omitempty"`
-	StripeCustomerId     string                 `protobuf:"bytes,4,opt,name=stripe_customer_id,json=stripeCustomerId,proto3" json:"stripe_customer_id,omitempty"`
-	StripeSubscriptionId string                 `protobuf:"bytes,5,opt,name=stripe_subscription_id,json=stripeSubscriptionId,proto3" json:"stripe_subscription_id,omitempty"`
-	Owner                string                 `protobuf:"bytes,6,opt,name=owner,proto3" json:"owner,omitempty"`
-	Suspended            bool                   `protobuf:"varint,7,opt,name=suspended,proto3" json:"suspended,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
-}
-
-func (x *WorkspaceMetadataResponse) Reset() {
-	*x = WorkspaceMetadataResponse{}
-	mi := &file_deployer_proto_msgTypes[35]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *WorkspaceMetadataResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*WorkspaceMetadataResponse) ProtoMessage() {}
-
-func (x *WorkspaceMetadataResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_deployer_proto_msgTypes[35]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use WorkspaceMetadataResponse.ProtoReflect.Descriptor instead.
-func (*WorkspaceMetadataResponse) Descriptor() ([]byte, []int) {
-	return file_deployer_proto_rawDescGZIP(), []int{35}
-}
-
-func (x *WorkspaceMetadataResponse) GetName() string {
-	if x != nil {
-		return x.Name
-	}
-	return ""
-}
-
-func (x *WorkspaceMetadataResponse) GetPersonal() bool {
-	if x != nil {
-		return x.Personal
-	}
-	return false
-}
-
-func (x *WorkspaceMetadataResponse) GetStripeCustomerId() string {
-	if x != nil {
-		return x.StripeCustomerId
-	}
-	return ""
-}
-
-func (x *WorkspaceMetadataResponse) GetStripeSubscriptionId() string {
-	if x != nil {
-		return x.StripeSubscriptionId
-	}
-	return ""
-}
-
-func (x *WorkspaceMetadataResponse) GetOwner() string {
-	if x != nil {
-		return x.Owner
-	}
-	return ""
-}
-
-func (x *WorkspaceMetadataResponse) GetSuspended() bool {
-	if x != nil {
-		return x.Suspended
-	}
-	return false
-}
-
 type WorkspaceByInstallationIDRequest struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	InstallationId int64                  `protobuf:"varint,1,opt,name=installation_id,json=installationId,proto3" json:"installation_id,omitempty"`
@@ -2283,7 +2155,7 @@ type WorkspaceByInstallationIDRequest struct {
 
 func (x *WorkspaceByInstallationIDRequest) Reset() {
 	*x = WorkspaceByInstallationIDRequest{}
-	mi := &file_deployer_proto_msgTypes[36]
+	mi := &file_deployer_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2295,7 +2167,7 @@ func (x *WorkspaceByInstallationIDRequest) String() string {
 func (*WorkspaceByInstallationIDRequest) ProtoMessage() {}
 
 func (x *WorkspaceByInstallationIDRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_deployer_proto_msgTypes[36]
+	mi := &file_deployer_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2308,7 +2180,7 @@ func (x *WorkspaceByInstallationIDRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WorkspaceByInstallationIDRequest.ProtoReflect.Descriptor instead.
 func (*WorkspaceByInstallationIDRequest) Descriptor() ([]byte, []int) {
-	return file_deployer_proto_rawDescGZIP(), []int{36}
+	return file_deployer_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *WorkspaceByInstallationIDRequest) GetInstallationId() int64 {
@@ -2327,7 +2199,7 @@ type WorkspaceByInstallationIDResponse struct {
 
 func (x *WorkspaceByInstallationIDResponse) Reset() {
 	*x = WorkspaceByInstallationIDResponse{}
-	mi := &file_deployer_proto_msgTypes[37]
+	mi := &file_deployer_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2339,7 +2211,7 @@ func (x *WorkspaceByInstallationIDResponse) String() string {
 func (*WorkspaceByInstallationIDResponse) ProtoMessage() {}
 
 func (x *WorkspaceByInstallationIDResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_deployer_proto_msgTypes[37]
+	mi := &file_deployer_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2352,7 +2224,7 @@ func (x *WorkspaceByInstallationIDResponse) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use WorkspaceByInstallationIDResponse.ProtoReflect.Descriptor instead.
 func (*WorkspaceByInstallationIDResponse) Descriptor() ([]byte, []int) {
-	return file_deployer_proto_rawDescGZIP(), []int{37}
+	return file_deployer_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *WorkspaceByInstallationIDResponse) GetWorkspace() string {
@@ -2360,434 +2232,6 @@ func (x *WorkspaceByInstallationIDResponse) GetWorkspace() string {
 		return x.Workspace
 	}
 	return ""
-}
-
-type CreateWorkspaceMetadataRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Workspace     string                 `protobuf:"bytes,1,opt,name=workspace,proto3" json:"workspace,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Personal      bool                   `protobuf:"varint,3,opt,name=personal,proto3" json:"personal,omitempty"`
-	Owner         string                 `protobuf:"bytes,4,opt,name=owner,proto3" json:"owner,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *CreateWorkspaceMetadataRequest) Reset() {
-	*x = CreateWorkspaceMetadataRequest{}
-	mi := &file_deployer_proto_msgTypes[38]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *CreateWorkspaceMetadataRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*CreateWorkspaceMetadataRequest) ProtoMessage() {}
-
-func (x *CreateWorkspaceMetadataRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_deployer_proto_msgTypes[38]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use CreateWorkspaceMetadataRequest.ProtoReflect.Descriptor instead.
-func (*CreateWorkspaceMetadataRequest) Descriptor() ([]byte, []int) {
-	return file_deployer_proto_rawDescGZIP(), []int{38}
-}
-
-func (x *CreateWorkspaceMetadataRequest) GetWorkspace() string {
-	if x != nil {
-		return x.Workspace
-	}
-	return ""
-}
-
-func (x *CreateWorkspaceMetadataRequest) GetName() string {
-	if x != nil {
-		return x.Name
-	}
-	return ""
-}
-
-func (x *CreateWorkspaceMetadataRequest) GetPersonal() bool {
-	if x != nil {
-		return x.Personal
-	}
-	return false
-}
-
-func (x *CreateWorkspaceMetadataRequest) GetOwner() string {
-	if x != nil {
-		return x.Owner
-	}
-	return ""
-}
-
-type CreateWorkspaceMetadataResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *CreateWorkspaceMetadataResponse) Reset() {
-	*x = CreateWorkspaceMetadataResponse{}
-	mi := &file_deployer_proto_msgTypes[39]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *CreateWorkspaceMetadataResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*CreateWorkspaceMetadataResponse) ProtoMessage() {}
-
-func (x *CreateWorkspaceMetadataResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_deployer_proto_msgTypes[39]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use CreateWorkspaceMetadataResponse.ProtoReflect.Descriptor instead.
-func (*CreateWorkspaceMetadataResponse) Descriptor() ([]byte, []int) {
-	return file_deployer_proto_rawDescGZIP(), []int{39}
-}
-
-type UpdateWorkspaceMetadataRequest struct {
-	state                protoimpl.MessageState `protogen:"open.v1"`
-	Workspace            string                 `protobuf:"bytes,1,opt,name=workspace,proto3" json:"workspace,omitempty"`
-	Name                 string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	StripeCustomerId     string                 `protobuf:"bytes,4,opt,name=stripe_customer_id,json=stripeCustomerId,proto3" json:"stripe_customer_id,omitempty"`
-	StripeSubscriptionId string                 `protobuf:"bytes,5,opt,name=stripe_subscription_id,json=stripeSubscriptionId,proto3" json:"stripe_subscription_id,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
-}
-
-func (x *UpdateWorkspaceMetadataRequest) Reset() {
-	*x = UpdateWorkspaceMetadataRequest{}
-	mi := &file_deployer_proto_msgTypes[40]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *UpdateWorkspaceMetadataRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*UpdateWorkspaceMetadataRequest) ProtoMessage() {}
-
-func (x *UpdateWorkspaceMetadataRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_deployer_proto_msgTypes[40]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use UpdateWorkspaceMetadataRequest.ProtoReflect.Descriptor instead.
-func (*UpdateWorkspaceMetadataRequest) Descriptor() ([]byte, []int) {
-	return file_deployer_proto_rawDescGZIP(), []int{40}
-}
-
-func (x *UpdateWorkspaceMetadataRequest) GetWorkspace() string {
-	if x != nil {
-		return x.Workspace
-	}
-	return ""
-}
-
-func (x *UpdateWorkspaceMetadataRequest) GetName() string {
-	if x != nil {
-		return x.Name
-	}
-	return ""
-}
-
-func (x *UpdateWorkspaceMetadataRequest) GetStripeCustomerId() string {
-	if x != nil {
-		return x.StripeCustomerId
-	}
-	return ""
-}
-
-func (x *UpdateWorkspaceMetadataRequest) GetStripeSubscriptionId() string {
-	if x != nil {
-		return x.StripeSubscriptionId
-	}
-	return ""
-}
-
-type UpdateWorkspaceMetadataResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *UpdateWorkspaceMetadataResponse) Reset() {
-	*x = UpdateWorkspaceMetadataResponse{}
-	mi := &file_deployer_proto_msgTypes[41]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *UpdateWorkspaceMetadataResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*UpdateWorkspaceMetadataResponse) ProtoMessage() {}
-
-func (x *UpdateWorkspaceMetadataResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_deployer_proto_msgTypes[41]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use UpdateWorkspaceMetadataResponse.ProtoReflect.Descriptor instead.
-func (*UpdateWorkspaceMetadataResponse) Descriptor() ([]byte, []int) {
-	return file_deployer_proto_rawDescGZIP(), []int{41}
-}
-
-type DeleteWorkspaceMetadataRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Workspace     string                 `protobuf:"bytes,1,opt,name=workspace,proto3" json:"workspace,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *DeleteWorkspaceMetadataRequest) Reset() {
-	*x = DeleteWorkspaceMetadataRequest{}
-	mi := &file_deployer_proto_msgTypes[42]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *DeleteWorkspaceMetadataRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*DeleteWorkspaceMetadataRequest) ProtoMessage() {}
-
-func (x *DeleteWorkspaceMetadataRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_deployer_proto_msgTypes[42]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use DeleteWorkspaceMetadataRequest.ProtoReflect.Descriptor instead.
-func (*DeleteWorkspaceMetadataRequest) Descriptor() ([]byte, []int) {
-	return file_deployer_proto_rawDescGZIP(), []int{42}
-}
-
-func (x *DeleteWorkspaceMetadataRequest) GetWorkspace() string {
-	if x != nil {
-		return x.Workspace
-	}
-	return ""
-}
-
-type DeleteWorkspaceMetadataResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *DeleteWorkspaceMetadataResponse) Reset() {
-	*x = DeleteWorkspaceMetadataResponse{}
-	mi := &file_deployer_proto_msgTypes[43]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *DeleteWorkspaceMetadataResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*DeleteWorkspaceMetadataResponse) ProtoMessage() {}
-
-func (x *DeleteWorkspaceMetadataResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_deployer_proto_msgTypes[43]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use DeleteWorkspaceMetadataResponse.ProtoReflect.Descriptor instead.
-func (*DeleteWorkspaceMetadataResponse) Descriptor() ([]byte, []int) {
-	return file_deployer_proto_rawDescGZIP(), []int{43}
-}
-
-type ListWorkspacesRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ListWorkspacesRequest) Reset() {
-	*x = ListWorkspacesRequest{}
-	mi := &file_deployer_proto_msgTypes[44]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ListWorkspacesRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ListWorkspacesRequest) ProtoMessage() {}
-
-func (x *ListWorkspacesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_deployer_proto_msgTypes[44]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ListWorkspacesRequest.ProtoReflect.Descriptor instead.
-func (*ListWorkspacesRequest) Descriptor() ([]byte, []int) {
-	return file_deployer_proto_rawDescGZIP(), []int{44}
-}
-
-type ListWorkspacesResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Workspaces    []*WorkspaceInfo       `protobuf:"bytes,1,rep,name=workspaces,proto3" json:"workspaces,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ListWorkspacesResponse) Reset() {
-	*x = ListWorkspacesResponse{}
-	mi := &file_deployer_proto_msgTypes[45]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ListWorkspacesResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ListWorkspacesResponse) ProtoMessage() {}
-
-func (x *ListWorkspacesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_deployer_proto_msgTypes[45]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ListWorkspacesResponse.ProtoReflect.Descriptor instead.
-func (*ListWorkspacesResponse) Descriptor() ([]byte, []int) {
-	return file_deployer_proto_rawDescGZIP(), []int{45}
-}
-
-func (x *ListWorkspacesResponse) GetWorkspaces() []*WorkspaceInfo {
-	if x != nil {
-		return x.Workspaces
-	}
-	return nil
-}
-
-type WorkspaceInfo struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Personal      bool                   `protobuf:"varint,3,opt,name=personal,proto3" json:"personal,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *WorkspaceInfo) Reset() {
-	*x = WorkspaceInfo{}
-	mi := &file_deployer_proto_msgTypes[46]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *WorkspaceInfo) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*WorkspaceInfo) ProtoMessage() {}
-
-func (x *WorkspaceInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_deployer_proto_msgTypes[46]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use WorkspaceInfo.ProtoReflect.Descriptor instead.
-func (*WorkspaceInfo) Descriptor() ([]byte, []int) {
-	return file_deployer_proto_rawDescGZIP(), []int{46}
-}
-
-func (x *WorkspaceInfo) GetId() string {
-	if x != nil {
-		return x.Id
-	}
-	return ""
-}
-
-func (x *WorkspaceInfo) GetName() string {
-	if x != nil {
-		return x.Name
-	}
-	return ""
-}
-
-func (x *WorkspaceInfo) GetPersonal() bool {
-	if x != nil {
-		return x.Personal
-	}
-	return false
 }
 
 type SetResourceQuotaRequest struct {
@@ -2804,7 +2248,7 @@ type SetResourceQuotaRequest struct {
 
 func (x *SetResourceQuotaRequest) Reset() {
 	*x = SetResourceQuotaRequest{}
-	mi := &file_deployer_proto_msgTypes[47]
+	mi := &file_deployer_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2816,7 +2260,7 @@ func (x *SetResourceQuotaRequest) String() string {
 func (*SetResourceQuotaRequest) ProtoMessage() {}
 
 func (x *SetResourceQuotaRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_deployer_proto_msgTypes[47]
+	mi := &file_deployer_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2829,7 +2273,7 @@ func (x *SetResourceQuotaRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetResourceQuotaRequest.ProtoReflect.Descriptor instead.
 func (*SetResourceQuotaRequest) Descriptor() ([]byte, []int) {
-	return file_deployer_proto_rawDescGZIP(), []int{47}
+	return file_deployer_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *SetResourceQuotaRequest) GetProject() string {
@@ -2886,7 +2330,7 @@ type SetResourceQuotaResponse struct {
 
 func (x *SetResourceQuotaResponse) Reset() {
 	*x = SetResourceQuotaResponse{}
-	mi := &file_deployer_proto_msgTypes[48]
+	mi := &file_deployer_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2898,7 +2342,7 @@ func (x *SetResourceQuotaResponse) String() string {
 func (*SetResourceQuotaResponse) ProtoMessage() {}
 
 func (x *SetResourceQuotaResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_deployer_proto_msgTypes[48]
+	mi := &file_deployer_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2911,7 +2355,7 @@ func (x *SetResourceQuotaResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetResourceQuotaResponse.ProtoReflect.Descriptor instead.
 func (*SetResourceQuotaResponse) Descriptor() ([]byte, []int) {
-	return file_deployer_proto_rawDescGZIP(), []int{48}
+	return file_deployer_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *SetResourceQuotaResponse) GetTier() ResourceTier {
@@ -2952,7 +2396,7 @@ type ResourceQuotaRequest struct {
 
 func (x *ResourceQuotaRequest) Reset() {
 	*x = ResourceQuotaRequest{}
-	mi := &file_deployer_proto_msgTypes[49]
+	mi := &file_deployer_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2964,7 +2408,7 @@ func (x *ResourceQuotaRequest) String() string {
 func (*ResourceQuotaRequest) ProtoMessage() {}
 
 func (x *ResourceQuotaRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_deployer_proto_msgTypes[49]
+	mi := &file_deployer_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2977,7 +2421,7 @@ func (x *ResourceQuotaRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResourceQuotaRequest.ProtoReflect.Descriptor instead.
 func (*ResourceQuotaRequest) Descriptor() ([]byte, []int) {
-	return file_deployer_proto_rawDescGZIP(), []int{49}
+	return file_deployer_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *ResourceQuotaRequest) GetProject() string {
@@ -3006,7 +2450,7 @@ type ResourceQuotaResponse struct {
 
 func (x *ResourceQuotaResponse) Reset() {
 	*x = ResourceQuotaResponse{}
-	mi := &file_deployer_proto_msgTypes[50]
+	mi := &file_deployer_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3018,7 +2462,7 @@ func (x *ResourceQuotaResponse) String() string {
 func (*ResourceQuotaResponse) ProtoMessage() {}
 
 func (x *ResourceQuotaResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_deployer_proto_msgTypes[50]
+	mi := &file_deployer_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3031,7 +2475,7 @@ func (x *ResourceQuotaResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResourceQuotaResponse.ProtoReflect.Descriptor instead.
 func (*ResourceQuotaResponse) Descriptor() ([]byte, []int) {
-	return file_deployer_proto_rawDescGZIP(), []int{50}
+	return file_deployer_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *ResourceQuotaResponse) GetTier() ResourceTier {
@@ -3070,7 +2514,7 @@ type ListResourceAllocationsRequest struct {
 
 func (x *ListResourceAllocationsRequest) Reset() {
 	*x = ListResourceAllocationsRequest{}
-	mi := &file_deployer_proto_msgTypes[51]
+	mi := &file_deployer_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3082,7 +2526,7 @@ func (x *ListResourceAllocationsRequest) String() string {
 func (*ListResourceAllocationsRequest) ProtoMessage() {}
 
 func (x *ListResourceAllocationsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_deployer_proto_msgTypes[51]
+	mi := &file_deployer_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3095,7 +2539,7 @@ func (x *ListResourceAllocationsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListResourceAllocationsRequest.ProtoReflect.Descriptor instead.
 func (*ListResourceAllocationsRequest) Descriptor() ([]byte, []int) {
-	return file_deployer_proto_rawDescGZIP(), []int{51}
+	return file_deployer_proto_rawDescGZIP(), []int{40}
 }
 
 type ResourceAllocation struct {
@@ -3113,7 +2557,7 @@ type ResourceAllocation struct {
 
 func (x *ResourceAllocation) Reset() {
 	*x = ResourceAllocation{}
-	mi := &file_deployer_proto_msgTypes[52]
+	mi := &file_deployer_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3125,7 +2569,7 @@ func (x *ResourceAllocation) String() string {
 func (*ResourceAllocation) ProtoMessage() {}
 
 func (x *ResourceAllocation) ProtoReflect() protoreflect.Message {
-	mi := &file_deployer_proto_msgTypes[52]
+	mi := &file_deployer_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3138,7 +2582,7 @@ func (x *ResourceAllocation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResourceAllocation.ProtoReflect.Descriptor instead.
 func (*ResourceAllocation) Descriptor() ([]byte, []int) {
-	return file_deployer_proto_rawDescGZIP(), []int{52}
+	return file_deployer_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *ResourceAllocation) GetWorkspace() string {
@@ -3199,7 +2643,7 @@ type ListResourceAllocationsResponse struct {
 
 func (x *ListResourceAllocationsResponse) Reset() {
 	*x = ListResourceAllocationsResponse{}
-	mi := &file_deployer_proto_msgTypes[53]
+	mi := &file_deployer_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3211,7 +2655,7 @@ func (x *ListResourceAllocationsResponse) String() string {
 func (*ListResourceAllocationsResponse) ProtoMessage() {}
 
 func (x *ListResourceAllocationsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_deployer_proto_msgTypes[53]
+	mi := &file_deployer_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3224,7 +2668,7 @@ func (x *ListResourceAllocationsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListResourceAllocationsResponse.ProtoReflect.Descriptor instead.
 func (*ListResourceAllocationsResponse) Descriptor() ([]byte, []int) {
-	return file_deployer_proto_rawDescGZIP(), []int{53}
+	return file_deployer_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *ListResourceAllocationsResponse) GetAllocations() []*ResourceAllocation {
@@ -3246,7 +2690,7 @@ type StoreUserGitHubTokenRequest struct {
 
 func (x *StoreUserGitHubTokenRequest) Reset() {
 	*x = StoreUserGitHubTokenRequest{}
-	mi := &file_deployer_proto_msgTypes[54]
+	mi := &file_deployer_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3258,7 +2702,7 @@ func (x *StoreUserGitHubTokenRequest) String() string {
 func (*StoreUserGitHubTokenRequest) ProtoMessage() {}
 
 func (x *StoreUserGitHubTokenRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_deployer_proto_msgTypes[54]
+	mi := &file_deployer_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3271,7 +2715,7 @@ func (x *StoreUserGitHubTokenRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StoreUserGitHubTokenRequest.ProtoReflect.Descriptor instead.
 func (*StoreUserGitHubTokenRequest) Descriptor() ([]byte, []int) {
-	return file_deployer_proto_rawDescGZIP(), []int{54}
+	return file_deployer_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *StoreUserGitHubTokenRequest) GetUserId() string {
@@ -3310,7 +2754,7 @@ type StoreUserGitHubTokenResponse struct {
 
 func (x *StoreUserGitHubTokenResponse) Reset() {
 	*x = StoreUserGitHubTokenResponse{}
-	mi := &file_deployer_proto_msgTypes[55]
+	mi := &file_deployer_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3322,7 +2766,7 @@ func (x *StoreUserGitHubTokenResponse) String() string {
 func (*StoreUserGitHubTokenResponse) ProtoMessage() {}
 
 func (x *StoreUserGitHubTokenResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_deployer_proto_msgTypes[55]
+	mi := &file_deployer_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3335,7 +2779,7 @@ func (x *StoreUserGitHubTokenResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StoreUserGitHubTokenResponse.ProtoReflect.Descriptor instead.
 func (*StoreUserGitHubTokenResponse) Descriptor() ([]byte, []int) {
-	return file_deployer_proto_rawDescGZIP(), []int{55}
+	return file_deployer_proto_rawDescGZIP(), []int{44}
 }
 
 type UserGitHubTokenRequest struct {
@@ -3347,7 +2791,7 @@ type UserGitHubTokenRequest struct {
 
 func (x *UserGitHubTokenRequest) Reset() {
 	*x = UserGitHubTokenRequest{}
-	mi := &file_deployer_proto_msgTypes[56]
+	mi := &file_deployer_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3359,7 +2803,7 @@ func (x *UserGitHubTokenRequest) String() string {
 func (*UserGitHubTokenRequest) ProtoMessage() {}
 
 func (x *UserGitHubTokenRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_deployer_proto_msgTypes[56]
+	mi := &file_deployer_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3372,7 +2816,7 @@ func (x *UserGitHubTokenRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserGitHubTokenRequest.ProtoReflect.Descriptor instead.
 func (*UserGitHubTokenRequest) Descriptor() ([]byte, []int) {
-	return file_deployer_proto_rawDescGZIP(), []int{56}
+	return file_deployer_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *UserGitHubTokenRequest) GetUserId() string {
@@ -3394,7 +2838,7 @@ type UserGitHubTokenResponse struct {
 
 func (x *UserGitHubTokenResponse) Reset() {
 	*x = UserGitHubTokenResponse{}
-	mi := &file_deployer_proto_msgTypes[57]
+	mi := &file_deployer_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3406,7 +2850,7 @@ func (x *UserGitHubTokenResponse) String() string {
 func (*UserGitHubTokenResponse) ProtoMessage() {}
 
 func (x *UserGitHubTokenResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_deployer_proto_msgTypes[57]
+	mi := &file_deployer_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3419,7 +2863,7 @@ func (x *UserGitHubTokenResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserGitHubTokenResponse.ProtoReflect.Descriptor instead.
 func (*UserGitHubTokenResponse) Descriptor() ([]byte, []int) {
-	return file_deployer_proto_rawDescGZIP(), []int{57}
+	return file_deployer_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *UserGitHubTokenResponse) GetConnected() bool {
@@ -3459,7 +2903,7 @@ type DeleteUserGitHubTokenRequest struct {
 
 func (x *DeleteUserGitHubTokenRequest) Reset() {
 	*x = DeleteUserGitHubTokenRequest{}
-	mi := &file_deployer_proto_msgTypes[58]
+	mi := &file_deployer_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3471,7 +2915,7 @@ func (x *DeleteUserGitHubTokenRequest) String() string {
 func (*DeleteUserGitHubTokenRequest) ProtoMessage() {}
 
 func (x *DeleteUserGitHubTokenRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_deployer_proto_msgTypes[58]
+	mi := &file_deployer_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3484,7 +2928,7 @@ func (x *DeleteUserGitHubTokenRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteUserGitHubTokenRequest.ProtoReflect.Descriptor instead.
 func (*DeleteUserGitHubTokenRequest) Descriptor() ([]byte, []int) {
-	return file_deployer_proto_rawDescGZIP(), []int{58}
+	return file_deployer_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *DeleteUserGitHubTokenRequest) GetUserId() string {
@@ -3502,7 +2946,7 @@ type DeleteUserGitHubTokenResponse struct {
 
 func (x *DeleteUserGitHubTokenResponse) Reset() {
 	*x = DeleteUserGitHubTokenResponse{}
-	mi := &file_deployer_proto_msgTypes[59]
+	mi := &file_deployer_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3514,7 +2958,7 @@ func (x *DeleteUserGitHubTokenResponse) String() string {
 func (*DeleteUserGitHubTokenResponse) ProtoMessage() {}
 
 func (x *DeleteUserGitHubTokenResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_deployer_proto_msgTypes[59]
+	mi := &file_deployer_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3527,7 +2971,7 @@ func (x *DeleteUserGitHubTokenResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteUserGitHubTokenResponse.ProtoReflect.Descriptor instead.
 func (*DeleteUserGitHubTokenResponse) Descriptor() ([]byte, []int) {
-	return file_deployer_proto_rawDescGZIP(), []int{59}
+	return file_deployer_proto_rawDescGZIP(), []int{48}
 }
 
 type SuspendWorkspaceRequest struct {
@@ -3540,7 +2984,7 @@ type SuspendWorkspaceRequest struct {
 
 func (x *SuspendWorkspaceRequest) Reset() {
 	*x = SuspendWorkspaceRequest{}
-	mi := &file_deployer_proto_msgTypes[60]
+	mi := &file_deployer_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3552,7 +2996,7 @@ func (x *SuspendWorkspaceRequest) String() string {
 func (*SuspendWorkspaceRequest) ProtoMessage() {}
 
 func (x *SuspendWorkspaceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_deployer_proto_msgTypes[60]
+	mi := &file_deployer_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3565,7 +3009,7 @@ func (x *SuspendWorkspaceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SuspendWorkspaceRequest.ProtoReflect.Descriptor instead.
 func (*SuspendWorkspaceRequest) Descriptor() ([]byte, []int) {
-	return file_deployer_proto_rawDescGZIP(), []int{60}
+	return file_deployer_proto_rawDescGZIP(), []int{49}
 }
 
 func (x *SuspendWorkspaceRequest) GetWorkspace() string {
@@ -3590,7 +3034,7 @@ type SuspendWorkspaceResponse struct {
 
 func (x *SuspendWorkspaceResponse) Reset() {
 	*x = SuspendWorkspaceResponse{}
-	mi := &file_deployer_proto_msgTypes[61]
+	mi := &file_deployer_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3602,7 +3046,7 @@ func (x *SuspendWorkspaceResponse) String() string {
 func (*SuspendWorkspaceResponse) ProtoMessage() {}
 
 func (x *SuspendWorkspaceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_deployer_proto_msgTypes[61]
+	mi := &file_deployer_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3615,7 +3059,7 @@ func (x *SuspendWorkspaceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SuspendWorkspaceResponse.ProtoReflect.Descriptor instead.
 func (*SuspendWorkspaceResponse) Descriptor() ([]byte, []int) {
-	return file_deployer_proto_rawDescGZIP(), []int{61}
+	return file_deployer_proto_rawDescGZIP(), []int{50}
 }
 
 var File_deployer_proto protoreflect.FileDescriptor
@@ -3873,82 +3317,16 @@ var file_deployer_proto_rawDesc = []byte{
 	0x75, 0x73, 0x65, 0x72, 0x18, 0x04, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x75, 0x73, 0x65, 0x72,
 	0x12, 0x1a, 0x0a, 0x08, 0x70, 0x61, 0x73, 0x73, 0x77, 0x6f, 0x72, 0x64, 0x18, 0x05, 0x20, 0x01,
 	0x28, 0x09, 0x52, 0x08, 0x70, 0x61, 0x73, 0x73, 0x77, 0x6f, 0x72, 0x64, 0x12, 0x10, 0x0a, 0x03,
-	0x75, 0x72, 0x69, 0x18, 0x06, 0x20, 0x01, 0x28, 0x09, 0x52, 0x03, 0x75, 0x72, 0x69, 0x22, 0x38,
-	0x0a, 0x18, 0x57, 0x6f, 0x72, 0x6b, 0x73, 0x70, 0x61, 0x63, 0x65, 0x4d, 0x65, 0x74, 0x61, 0x64,
-	0x61, 0x74, 0x61, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x1c, 0x0a, 0x09, 0x77, 0x6f,
-	0x72, 0x6b, 0x73, 0x70, 0x61, 0x63, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x09, 0x77,
-	0x6f, 0x72, 0x6b, 0x73, 0x70, 0x61, 0x63, 0x65, 0x22, 0x81, 0x02, 0x0a, 0x19, 0x57, 0x6f, 0x72,
-	0x6b, 0x73, 0x70, 0x61, 0x63, 0x65, 0x4d, 0x65, 0x74, 0x61, 0x64, 0x61, 0x74, 0x61, 0x52, 0x65,
-	0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x12, 0x0a, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x01,
-	0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x12, 0x1a, 0x0a, 0x08, 0x70, 0x65,
-	0x72, 0x73, 0x6f, 0x6e, 0x61, 0x6c, 0x18, 0x02, 0x20, 0x01, 0x28, 0x08, 0x52, 0x08, 0x70, 0x65,
-	0x72, 0x73, 0x6f, 0x6e, 0x61, 0x6c, 0x12, 0x2c, 0x0a, 0x12, 0x73, 0x74, 0x72, 0x69, 0x70, 0x65,
-	0x5f, 0x63, 0x75, 0x73, 0x74, 0x6f, 0x6d, 0x65, 0x72, 0x5f, 0x69, 0x64, 0x18, 0x04, 0x20, 0x01,
-	0x28, 0x09, 0x52, 0x10, 0x73, 0x74, 0x72, 0x69, 0x70, 0x65, 0x43, 0x75, 0x73, 0x74, 0x6f, 0x6d,
-	0x65, 0x72, 0x49, 0x64, 0x12, 0x34, 0x0a, 0x16, 0x73, 0x74, 0x72, 0x69, 0x70, 0x65, 0x5f, 0x73,
-	0x75, 0x62, 0x73, 0x63, 0x72, 0x69, 0x70, 0x74, 0x69, 0x6f, 0x6e, 0x5f, 0x69, 0x64, 0x18, 0x05,
-	0x20, 0x01, 0x28, 0x09, 0x52, 0x14, 0x73, 0x74, 0x72, 0x69, 0x70, 0x65, 0x53, 0x75, 0x62, 0x73,
-	0x63, 0x72, 0x69, 0x70, 0x74, 0x69, 0x6f, 0x6e, 0x49, 0x64, 0x12, 0x14, 0x0a, 0x05, 0x6f, 0x77,
-	0x6e, 0x65, 0x72, 0x18, 0x06, 0x20, 0x01, 0x28, 0x09, 0x52, 0x05, 0x6f, 0x77, 0x6e, 0x65, 0x72,
-	0x12, 0x1c, 0x0a, 0x09, 0x73, 0x75, 0x73, 0x70, 0x65, 0x6e, 0x64, 0x65, 0x64, 0x18, 0x07, 0x20,
-	0x01, 0x28, 0x08, 0x52, 0x09, 0x73, 0x75, 0x73, 0x70, 0x65, 0x6e, 0x64, 0x65, 0x64, 0x4a, 0x04,
-	0x08, 0x03, 0x10, 0x04, 0x52, 0x16, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x5f, 0x69, 0x6e, 0x73,
-	0x74, 0x61, 0x6c, 0x6c, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x5f, 0x69, 0x64, 0x22, 0x4b, 0x0a, 0x20,
-	0x57, 0x6f, 0x72, 0x6b, 0x73, 0x70, 0x61, 0x63, 0x65, 0x42, 0x79, 0x49, 0x6e, 0x73, 0x74, 0x61,
-	0x6c, 0x6c, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x49, 0x44, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
-	0x12, 0x27, 0x0a, 0x0f, 0x69, 0x6e, 0x73, 0x74, 0x61, 0x6c, 0x6c, 0x61, 0x74, 0x69, 0x6f, 0x6e,
-	0x5f, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x03, 0x52, 0x0e, 0x69, 0x6e, 0x73, 0x74, 0x61,
-	0x6c, 0x6c, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x49, 0x64, 0x22, 0x41, 0x0a, 0x21, 0x57, 0x6f, 0x72,
-	0x6b, 0x73, 0x70, 0x61, 0x63, 0x65, 0x42, 0x79, 0x49, 0x6e, 0x73, 0x74, 0x61, 0x6c, 0x6c, 0x61,
-	0x74, 0x69, 0x6f, 0x6e, 0x49, 0x44, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x1c,
-	0x0a, 0x09, 0x77, 0x6f, 0x72, 0x6b, 0x73, 0x70, 0x61, 0x63, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28,
-	0x09, 0x52, 0x09, 0x77, 0x6f, 0x72, 0x6b, 0x73, 0x70, 0x61, 0x63, 0x65, 0x22, 0x84, 0x01, 0x0a,
-	0x1e, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x57, 0x6f, 0x72, 0x6b, 0x73, 0x70, 0x61, 0x63, 0x65,
-	0x4d, 0x65, 0x74, 0x61, 0x64, 0x61, 0x74, 0x61, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12,
-	0x1c, 0x0a, 0x09, 0x77, 0x6f, 0x72, 0x6b, 0x73, 0x70, 0x61, 0x63, 0x65, 0x18, 0x01, 0x20, 0x01,
-	0x28, 0x09, 0x52, 0x09, 0x77, 0x6f, 0x72, 0x6b, 0x73, 0x70, 0x61, 0x63, 0x65, 0x12, 0x12, 0x0a,
-	0x04, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x6e, 0x61, 0x6d,
-	0x65, 0x12, 0x1a, 0x0a, 0x08, 0x70, 0x65, 0x72, 0x73, 0x6f, 0x6e, 0x61, 0x6c, 0x18, 0x03, 0x20,
-	0x01, 0x28, 0x08, 0x52, 0x08, 0x70, 0x65, 0x72, 0x73, 0x6f, 0x6e, 0x61, 0x6c, 0x12, 0x14, 0x0a,
-	0x05, 0x6f, 0x77, 0x6e, 0x65, 0x72, 0x18, 0x04, 0x20, 0x01, 0x28, 0x09, 0x52, 0x05, 0x6f, 0x77,
-	0x6e, 0x65, 0x72, 0x22, 0x21, 0x0a, 0x1f, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x57, 0x6f, 0x72,
-	0x6b, 0x73, 0x70, 0x61, 0x63, 0x65, 0x4d, 0x65, 0x74, 0x61, 0x64, 0x61, 0x74, 0x61, 0x52, 0x65,
-	0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0xd4, 0x01, 0x0a, 0x1e, 0x55, 0x70, 0x64, 0x61, 0x74,
-	0x65, 0x57, 0x6f, 0x72, 0x6b, 0x73, 0x70, 0x61, 0x63, 0x65, 0x4d, 0x65, 0x74, 0x61, 0x64, 0x61,
-	0x74, 0x61, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x1c, 0x0a, 0x09, 0x77, 0x6f, 0x72,
-	0x6b, 0x73, 0x70, 0x61, 0x63, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x09, 0x77, 0x6f,
-	0x72, 0x6b, 0x73, 0x70, 0x61, 0x63, 0x65, 0x12, 0x12, 0x0a, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x18,
-	0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x12, 0x2c, 0x0a, 0x12, 0x73,
-	0x74, 0x72, 0x69, 0x70, 0x65, 0x5f, 0x63, 0x75, 0x73, 0x74, 0x6f, 0x6d, 0x65, 0x72, 0x5f, 0x69,
-	0x64, 0x18, 0x04, 0x20, 0x01, 0x28, 0x09, 0x52, 0x10, 0x73, 0x74, 0x72, 0x69, 0x70, 0x65, 0x43,
-	0x75, 0x73, 0x74, 0x6f, 0x6d, 0x65, 0x72, 0x49, 0x64, 0x12, 0x34, 0x0a, 0x16, 0x73, 0x74, 0x72,
-	0x69, 0x70, 0x65, 0x5f, 0x73, 0x75, 0x62, 0x73, 0x63, 0x72, 0x69, 0x70, 0x74, 0x69, 0x6f, 0x6e,
-	0x5f, 0x69, 0x64, 0x18, 0x05, 0x20, 0x01, 0x28, 0x09, 0x52, 0x14, 0x73, 0x74, 0x72, 0x69, 0x70,
-	0x65, 0x53, 0x75, 0x62, 0x73, 0x63, 0x72, 0x69, 0x70, 0x74, 0x69, 0x6f, 0x6e, 0x49, 0x64, 0x4a,
-	0x04, 0x08, 0x03, 0x10, 0x04, 0x52, 0x16, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x5f, 0x69, 0x6e,
-	0x73, 0x74, 0x61, 0x6c, 0x6c, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x5f, 0x69, 0x64, 0x22, 0x21, 0x0a,
-	0x1f, 0x55, 0x70, 0x64, 0x61, 0x74, 0x65, 0x57, 0x6f, 0x72, 0x6b, 0x73, 0x70, 0x61, 0x63, 0x65,
-	0x4d, 0x65, 0x74, 0x61, 0x64, 0x61, 0x74, 0x61, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65,
-	0x22, 0x3e, 0x0a, 0x1e, 0x44, 0x65, 0x6c, 0x65, 0x74, 0x65, 0x57, 0x6f, 0x72, 0x6b, 0x73, 0x70,
-	0x61, 0x63, 0x65, 0x4d, 0x65, 0x74, 0x61, 0x64, 0x61, 0x74, 0x61, 0x52, 0x65, 0x71, 0x75, 0x65,
-	0x73, 0x74, 0x12, 0x1c, 0x0a, 0x09, 0x77, 0x6f, 0x72, 0x6b, 0x73, 0x70, 0x61, 0x63, 0x65, 0x18,
-	0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x09, 0x77, 0x6f, 0x72, 0x6b, 0x73, 0x70, 0x61, 0x63, 0x65,
-	0x22, 0x21, 0x0a, 0x1f, 0x44, 0x65, 0x6c, 0x65, 0x74, 0x65, 0x57, 0x6f, 0x72, 0x6b, 0x73, 0x70,
-	0x61, 0x63, 0x65, 0x4d, 0x65, 0x74, 0x61, 0x64, 0x61, 0x74, 0x61, 0x52, 0x65, 0x73, 0x70, 0x6f,
-	0x6e, 0x73, 0x65, 0x22, 0x17, 0x0a, 0x15, 0x4c, 0x69, 0x73, 0x74, 0x57, 0x6f, 0x72, 0x6b, 0x73,
-	0x70, 0x61, 0x63, 0x65, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x22, 0x51, 0x0a, 0x16,
-	0x4c, 0x69, 0x73, 0x74, 0x57, 0x6f, 0x72, 0x6b, 0x73, 0x70, 0x61, 0x63, 0x65, 0x73, 0x52, 0x65,
-	0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x37, 0x0a, 0x0a, 0x77, 0x6f, 0x72, 0x6b, 0x73, 0x70,
-	0x61, 0x63, 0x65, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x17, 0x2e, 0x64, 0x65, 0x70,
-	0x6c, 0x6f, 0x79, 0x65, 0x72, 0x2e, 0x57, 0x6f, 0x72, 0x6b, 0x73, 0x70, 0x61, 0x63, 0x65, 0x49,
-	0x6e, 0x66, 0x6f, 0x52, 0x0a, 0x77, 0x6f, 0x72, 0x6b, 0x73, 0x70, 0x61, 0x63, 0x65, 0x73, 0x22,
-	0x6d, 0x0a, 0x0d, 0x57, 0x6f, 0x72, 0x6b, 0x73, 0x70, 0x61, 0x63, 0x65, 0x49, 0x6e, 0x66, 0x6f,
-	0x12, 0x0e, 0x0a, 0x02, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x02, 0x69, 0x64,
-	0x12, 0x12, 0x0a, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04,
-	0x6e, 0x61, 0x6d, 0x65, 0x12, 0x1a, 0x0a, 0x08, 0x70, 0x65, 0x72, 0x73, 0x6f, 0x6e, 0x61, 0x6c,
-	0x18, 0x03, 0x20, 0x01, 0x28, 0x08, 0x52, 0x08, 0x70, 0x65, 0x72, 0x73, 0x6f, 0x6e, 0x61, 0x6c,
-	0x4a, 0x04, 0x08, 0x04, 0x10, 0x05, 0x52, 0x16, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x5f, 0x69,
-	0x6e, 0x73, 0x74, 0x61, 0x6c, 0x6c, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x5f, 0x69, 0x64, 0x22, 0xde,
+	0x75, 0x72, 0x69, 0x18, 0x06, 0x20, 0x01, 0x28, 0x09, 0x52, 0x03, 0x75, 0x72, 0x69, 0x22, 0x4b,
+	0x0a, 0x20, 0x57, 0x6f, 0x72, 0x6b, 0x73, 0x70, 0x61, 0x63, 0x65, 0x42, 0x79, 0x49, 0x6e, 0x73,
+	0x74, 0x61, 0x6c, 0x6c, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x49, 0x44, 0x52, 0x65, 0x71, 0x75, 0x65,
+	0x73, 0x74, 0x12, 0x27, 0x0a, 0x0f, 0x69, 0x6e, 0x73, 0x74, 0x61, 0x6c, 0x6c, 0x61, 0x74, 0x69,
+	0x6f, 0x6e, 0x5f, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x03, 0x52, 0x0e, 0x69, 0x6e, 0x73,
+	0x74, 0x61, 0x6c, 0x6c, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x49, 0x64, 0x22, 0x41, 0x0a, 0x21, 0x57,
+	0x6f, 0x72, 0x6b, 0x73, 0x70, 0x61, 0x63, 0x65, 0x42, 0x79, 0x49, 0x6e, 0x73, 0x74, 0x61, 0x6c,
+	0x6c, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x49, 0x44, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65,
+	0x12, 0x1c, 0x0a, 0x09, 0x77, 0x6f, 0x72, 0x6b, 0x73, 0x70, 0x61, 0x63, 0x65, 0x18, 0x01, 0x20,
+	0x01, 0x28, 0x09, 0x52, 0x09, 0x77, 0x6f, 0x72, 0x6b, 0x73, 0x70, 0x61, 0x63, 0x65, 0x22, 0xde,
 	0x01, 0x0a, 0x17, 0x53, 0x65, 0x74, 0x52, 0x65, 0x73, 0x6f, 0x75, 0x72, 0x63, 0x65, 0x51, 0x75,
 	0x6f, 0x74, 0x61, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x18, 0x0a, 0x07, 0x70, 0x72,
 	0x6f, 0x6a, 0x65, 0x63, 0x74, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x07, 0x70, 0x72, 0x6f,
@@ -4070,7 +3448,7 @@ var file_deployer_proto_rawDesc = []byte{
 	0x46, 0x49, 0x45, 0x44, 0x10, 0x00, 0x12, 0x15, 0x0a, 0x11, 0x52, 0x45, 0x53, 0x4f, 0x55, 0x52,
 	0x43, 0x45, 0x5f, 0x54, 0x49, 0x45, 0x52, 0x5f, 0x45, 0x43, 0x4f, 0x10, 0x01, 0x12, 0x1c, 0x0a,
 	0x18, 0x52, 0x45, 0x53, 0x4f, 0x55, 0x52, 0x43, 0x45, 0x5f, 0x54, 0x49, 0x45, 0x52, 0x5f, 0x50,
-	0x52, 0x4f, 0x44, 0x55, 0x43, 0x54, 0x49, 0x4f, 0x4e, 0x10, 0x02, 0x32, 0xb0, 0x13, 0x0a, 0x0f,
+	0x52, 0x4f, 0x44, 0x55, 0x43, 0x54, 0x49, 0x4f, 0x4e, 0x10, 0x02, 0x32, 0xad, 0x0f, 0x0a, 0x0f,
 	0x44, 0x65, 0x70, 0x6c, 0x6f, 0x79, 0x65, 0x72, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x12,
 	0x5c, 0x0a, 0x11, 0x44, 0x65, 0x70, 0x6c, 0x6f, 0x79, 0x45, 0x6e, 0x76, 0x69, 0x72, 0x6f, 0x6e,
 	0x6d, 0x65, 0x6e, 0x74, 0x12, 0x22, 0x2e, 0x64, 0x65, 0x70, 0x6c, 0x6f, 0x79, 0x65, 0x72, 0x2e,
@@ -4144,90 +3522,58 @@ var file_deployer_proto_rawDesc = []byte{
 	0x6e, 0x74, 0x69, 0x61, 0x6c, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x25, 0x2e,
 	0x64, 0x65, 0x70, 0x6c, 0x6f, 0x79, 0x65, 0x72, 0x2e, 0x44, 0x61, 0x74, 0x61, 0x62, 0x61, 0x73,
 	0x65, 0x43, 0x72, 0x65, 0x64, 0x65, 0x6e, 0x74, 0x69, 0x61, 0x6c, 0x73, 0x52, 0x65, 0x73, 0x70,
-	0x6f, 0x6e, 0x73, 0x65, 0x12, 0x5c, 0x0a, 0x11, 0x57, 0x6f, 0x72, 0x6b, 0x73, 0x70, 0x61, 0x63,
-	0x65, 0x4d, 0x65, 0x74, 0x61, 0x64, 0x61, 0x74, 0x61, 0x12, 0x22, 0x2e, 0x64, 0x65, 0x70, 0x6c,
-	0x6f, 0x79, 0x65, 0x72, 0x2e, 0x57, 0x6f, 0x72, 0x6b, 0x73, 0x70, 0x61, 0x63, 0x65, 0x4d, 0x65,
-	0x74, 0x61, 0x64, 0x61, 0x74, 0x61, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x23, 0x2e,
+	0x6f, 0x6e, 0x73, 0x65, 0x12, 0x74, 0x0a, 0x19, 0x57, 0x6f, 0x72, 0x6b, 0x73, 0x70, 0x61, 0x63,
+	0x65, 0x42, 0x79, 0x49, 0x6e, 0x73, 0x74, 0x61, 0x6c, 0x6c, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x49,
+	0x44, 0x12, 0x2a, 0x2e, 0x64, 0x65, 0x70, 0x6c, 0x6f, 0x79, 0x65, 0x72, 0x2e, 0x57, 0x6f, 0x72,
+	0x6b, 0x73, 0x70, 0x61, 0x63, 0x65, 0x42, 0x79, 0x49, 0x6e, 0x73, 0x74, 0x61, 0x6c, 0x6c, 0x61,
+	0x74, 0x69, 0x6f, 0x6e, 0x49, 0x44, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x2b, 0x2e,
 	0x64, 0x65, 0x70, 0x6c, 0x6f, 0x79, 0x65, 0x72, 0x2e, 0x57, 0x6f, 0x72, 0x6b, 0x73, 0x70, 0x61,
-	0x63, 0x65, 0x4d, 0x65, 0x74, 0x61, 0x64, 0x61, 0x74, 0x61, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e,
-	0x73, 0x65, 0x12, 0x74, 0x0a, 0x19, 0x57, 0x6f, 0x72, 0x6b, 0x73, 0x70, 0x61, 0x63, 0x65, 0x42,
-	0x79, 0x49, 0x6e, 0x73, 0x74, 0x61, 0x6c, 0x6c, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x49, 0x44, 0x12,
-	0x2a, 0x2e, 0x64, 0x65, 0x70, 0x6c, 0x6f, 0x79, 0x65, 0x72, 0x2e, 0x57, 0x6f, 0x72, 0x6b, 0x73,
-	0x70, 0x61, 0x63, 0x65, 0x42, 0x79, 0x49, 0x6e, 0x73, 0x74, 0x61, 0x6c, 0x6c, 0x61, 0x74, 0x69,
-	0x6f, 0x6e, 0x49, 0x44, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x2b, 0x2e, 0x64, 0x65,
-	0x70, 0x6c, 0x6f, 0x79, 0x65, 0x72, 0x2e, 0x57, 0x6f, 0x72, 0x6b, 0x73, 0x70, 0x61, 0x63, 0x65,
-	0x42, 0x79, 0x49, 0x6e, 0x73, 0x74, 0x61, 0x6c, 0x6c, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x49, 0x44,
-	0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x6e, 0x0a, 0x17, 0x43, 0x72, 0x65, 0x61,
-	0x74, 0x65, 0x57, 0x6f, 0x72, 0x6b, 0x73, 0x70, 0x61, 0x63, 0x65, 0x4d, 0x65, 0x74, 0x61, 0x64,
-	0x61, 0x74, 0x61, 0x12, 0x28, 0x2e, 0x64, 0x65, 0x70, 0x6c, 0x6f, 0x79, 0x65, 0x72, 0x2e, 0x43,
-	0x72, 0x65, 0x61, 0x74, 0x65, 0x57, 0x6f, 0x72, 0x6b, 0x73, 0x70, 0x61, 0x63, 0x65, 0x4d, 0x65,
-	0x74, 0x61, 0x64, 0x61, 0x74, 0x61, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x29, 0x2e,
-	0x64, 0x65, 0x70, 0x6c, 0x6f, 0x79, 0x65, 0x72, 0x2e, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x57,
-	0x6f, 0x72, 0x6b, 0x73, 0x70, 0x61, 0x63, 0x65, 0x4d, 0x65, 0x74, 0x61, 0x64, 0x61, 0x74, 0x61,
-	0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x6e, 0x0a, 0x17, 0x55, 0x70, 0x64, 0x61,
-	0x74, 0x65, 0x57, 0x6f, 0x72, 0x6b, 0x73, 0x70, 0x61, 0x63, 0x65, 0x4d, 0x65, 0x74, 0x61, 0x64,
-	0x61, 0x74, 0x61, 0x12, 0x28, 0x2e, 0x64, 0x65, 0x70, 0x6c, 0x6f, 0x79, 0x65, 0x72, 0x2e, 0x55,
-	0x70, 0x64, 0x61, 0x74, 0x65, 0x57, 0x6f, 0x72, 0x6b, 0x73, 0x70, 0x61, 0x63, 0x65, 0x4d, 0x65,
-	0x74, 0x61, 0x64, 0x61, 0x74, 0x61, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x29, 0x2e,
-	0x64, 0x65, 0x70, 0x6c, 0x6f, 0x79, 0x65, 0x72, 0x2e, 0x55, 0x70, 0x64, 0x61, 0x74, 0x65, 0x57,
-	0x6f, 0x72, 0x6b, 0x73, 0x70, 0x61, 0x63, 0x65, 0x4d, 0x65, 0x74, 0x61, 0x64, 0x61, 0x74, 0x61,
-	0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x6e, 0x0a, 0x17, 0x44, 0x65, 0x6c, 0x65,
-	0x74, 0x65, 0x57, 0x6f, 0x72, 0x6b, 0x73, 0x70, 0x61, 0x63, 0x65, 0x4d, 0x65, 0x74, 0x61, 0x64,
-	0x61, 0x74, 0x61, 0x12, 0x28, 0x2e, 0x64, 0x65, 0x70, 0x6c, 0x6f, 0x79, 0x65, 0x72, 0x2e, 0x44,
-	0x65, 0x6c, 0x65, 0x74, 0x65, 0x57, 0x6f, 0x72, 0x6b, 0x73, 0x70, 0x61, 0x63, 0x65, 0x4d, 0x65,
-	0x74, 0x61, 0x64, 0x61, 0x74, 0x61, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x29, 0x2e,
-	0x64, 0x65, 0x70, 0x6c, 0x6f, 0x79, 0x65, 0x72, 0x2e, 0x44, 0x65, 0x6c, 0x65, 0x74, 0x65, 0x57,
-	0x6f, 0x72, 0x6b, 0x73, 0x70, 0x61, 0x63, 0x65, 0x4d, 0x65, 0x74, 0x61, 0x64, 0x61, 0x74, 0x61,
-	0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x53, 0x0a, 0x0e, 0x4c, 0x69, 0x73, 0x74,
-	0x57, 0x6f, 0x72, 0x6b, 0x73, 0x70, 0x61, 0x63, 0x65, 0x73, 0x12, 0x1f, 0x2e, 0x64, 0x65, 0x70,
-	0x6c, 0x6f, 0x79, 0x65, 0x72, 0x2e, 0x4c, 0x69, 0x73, 0x74, 0x57, 0x6f, 0x72, 0x6b, 0x73, 0x70,
-	0x61, 0x63, 0x65, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x20, 0x2e, 0x64, 0x65,
-	0x70, 0x6c, 0x6f, 0x79, 0x65, 0x72, 0x2e, 0x4c, 0x69, 0x73, 0x74, 0x57, 0x6f, 0x72, 0x6b, 0x73,
-	0x70, 0x61, 0x63, 0x65, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x59, 0x0a,
-	0x10, 0x53, 0x65, 0x74, 0x52, 0x65, 0x73, 0x6f, 0x75, 0x72, 0x63, 0x65, 0x51, 0x75, 0x6f, 0x74,
-	0x61, 0x12, 0x21, 0x2e, 0x64, 0x65, 0x70, 0x6c, 0x6f, 0x79, 0x65, 0x72, 0x2e, 0x53, 0x65, 0x74,
-	0x52, 0x65, 0x73, 0x6f, 0x75, 0x72, 0x63, 0x65, 0x51, 0x75, 0x6f, 0x74, 0x61, 0x52, 0x65, 0x71,
-	0x75, 0x65, 0x73, 0x74, 0x1a, 0x22, 0x2e, 0x64, 0x65, 0x70, 0x6c, 0x6f, 0x79, 0x65, 0x72, 0x2e,
-	0x53, 0x65, 0x74, 0x52, 0x65, 0x73, 0x6f, 0x75, 0x72, 0x63, 0x65, 0x51, 0x75, 0x6f, 0x74, 0x61,
-	0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x50, 0x0a, 0x0d, 0x52, 0x65, 0x73, 0x6f,
-	0x75, 0x72, 0x63, 0x65, 0x51, 0x75, 0x6f, 0x74, 0x61, 0x12, 0x1e, 0x2e, 0x64, 0x65, 0x70, 0x6c,
-	0x6f, 0x79, 0x65, 0x72, 0x2e, 0x52, 0x65, 0x73, 0x6f, 0x75, 0x72, 0x63, 0x65, 0x51, 0x75, 0x6f,
-	0x74, 0x61, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1f, 0x2e, 0x64, 0x65, 0x70, 0x6c,
-	0x6f, 0x79, 0x65, 0x72, 0x2e, 0x52, 0x65, 0x73, 0x6f, 0x75, 0x72, 0x63, 0x65, 0x51, 0x75, 0x6f,
-	0x74, 0x61, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x6e, 0x0a, 0x17, 0x4c, 0x69,
-	0x73, 0x74, 0x52, 0x65, 0x73, 0x6f, 0x75, 0x72, 0x63, 0x65, 0x41, 0x6c, 0x6c, 0x6f, 0x63, 0x61,
-	0x74, 0x69, 0x6f, 0x6e, 0x73, 0x12, 0x28, 0x2e, 0x64, 0x65, 0x70, 0x6c, 0x6f, 0x79, 0x65, 0x72,
-	0x2e, 0x4c, 0x69, 0x73, 0x74, 0x52, 0x65, 0x73, 0x6f, 0x75, 0x72, 0x63, 0x65, 0x41, 0x6c, 0x6c,
-	0x6f, 0x63, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a,
-	0x29, 0x2e, 0x64, 0x65, 0x70, 0x6c, 0x6f, 0x79, 0x65, 0x72, 0x2e, 0x4c, 0x69, 0x73, 0x74, 0x52,
+	0x63, 0x65, 0x42, 0x79, 0x49, 0x6e, 0x73, 0x74, 0x61, 0x6c, 0x6c, 0x61, 0x74, 0x69, 0x6f, 0x6e,
+	0x49, 0x44, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x59, 0x0a, 0x10, 0x53, 0x65,
+	0x74, 0x52, 0x65, 0x73, 0x6f, 0x75, 0x72, 0x63, 0x65, 0x51, 0x75, 0x6f, 0x74, 0x61, 0x12, 0x21,
+	0x2e, 0x64, 0x65, 0x70, 0x6c, 0x6f, 0x79, 0x65, 0x72, 0x2e, 0x53, 0x65, 0x74, 0x52, 0x65, 0x73,
+	0x6f, 0x75, 0x72, 0x63, 0x65, 0x51, 0x75, 0x6f, 0x74, 0x61, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73,
+	0x74, 0x1a, 0x22, 0x2e, 0x64, 0x65, 0x70, 0x6c, 0x6f, 0x79, 0x65, 0x72, 0x2e, 0x53, 0x65, 0x74,
+	0x52, 0x65, 0x73, 0x6f, 0x75, 0x72, 0x63, 0x65, 0x51, 0x75, 0x6f, 0x74, 0x61, 0x52, 0x65, 0x73,
+	0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x50, 0x0a, 0x0d, 0x52, 0x65, 0x73, 0x6f, 0x75, 0x72, 0x63,
+	0x65, 0x51, 0x75, 0x6f, 0x74, 0x61, 0x12, 0x1e, 0x2e, 0x64, 0x65, 0x70, 0x6c, 0x6f, 0x79, 0x65,
+	0x72, 0x2e, 0x52, 0x65, 0x73, 0x6f, 0x75, 0x72, 0x63, 0x65, 0x51, 0x75, 0x6f, 0x74, 0x61, 0x52,
+	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1f, 0x2e, 0x64, 0x65, 0x70, 0x6c, 0x6f, 0x79, 0x65,
+	0x72, 0x2e, 0x52, 0x65, 0x73, 0x6f, 0x75, 0x72, 0x63, 0x65, 0x51, 0x75, 0x6f, 0x74, 0x61, 0x52,
+	0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x6e, 0x0a, 0x17, 0x4c, 0x69, 0x73, 0x74, 0x52,
 	0x65, 0x73, 0x6f, 0x75, 0x72, 0x63, 0x65, 0x41, 0x6c, 0x6c, 0x6f, 0x63, 0x61, 0x74, 0x69, 0x6f,
-	0x6e, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x65, 0x0a, 0x14, 0x53, 0x74,
-	0x6f, 0x72, 0x65, 0x55, 0x73, 0x65, 0x72, 0x47, 0x69, 0x74, 0x48, 0x75, 0x62, 0x54, 0x6f, 0x6b,
-	0x65, 0x6e, 0x12, 0x25, 0x2e, 0x64, 0x65, 0x70, 0x6c, 0x6f, 0x79, 0x65, 0x72, 0x2e, 0x53, 0x74,
-	0x6f, 0x72, 0x65, 0x55, 0x73, 0x65, 0x72, 0x47, 0x69, 0x74, 0x48, 0x75, 0x62, 0x54, 0x6f, 0x6b,
-	0x65, 0x6e, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x26, 0x2e, 0x64, 0x65, 0x70, 0x6c,
-	0x6f, 0x79, 0x65, 0x72, 0x2e, 0x53, 0x74, 0x6f, 0x72, 0x65, 0x55, 0x73, 0x65, 0x72, 0x47, 0x69,
-	0x74, 0x48, 0x75, 0x62, 0x54, 0x6f, 0x6b, 0x65, 0x6e, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73,
-	0x65, 0x12, 0x56, 0x0a, 0x0f, 0x55, 0x73, 0x65, 0x72, 0x47, 0x69, 0x74, 0x48, 0x75, 0x62, 0x54,
-	0x6f, 0x6b, 0x65, 0x6e, 0x12, 0x20, 0x2e, 0x64, 0x65, 0x70, 0x6c, 0x6f, 0x79, 0x65, 0x72, 0x2e,
+	0x6e, 0x73, 0x12, 0x28, 0x2e, 0x64, 0x65, 0x70, 0x6c, 0x6f, 0x79, 0x65, 0x72, 0x2e, 0x4c, 0x69,
+	0x73, 0x74, 0x52, 0x65, 0x73, 0x6f, 0x75, 0x72, 0x63, 0x65, 0x41, 0x6c, 0x6c, 0x6f, 0x63, 0x61,
+	0x74, 0x69, 0x6f, 0x6e, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x29, 0x2e, 0x64,
+	0x65, 0x70, 0x6c, 0x6f, 0x79, 0x65, 0x72, 0x2e, 0x4c, 0x69, 0x73, 0x74, 0x52, 0x65, 0x73, 0x6f,
+	0x75, 0x72, 0x63, 0x65, 0x41, 0x6c, 0x6c, 0x6f, 0x63, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x73, 0x52,
+	0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x65, 0x0a, 0x14, 0x53, 0x74, 0x6f, 0x72, 0x65,
+	0x55, 0x73, 0x65, 0x72, 0x47, 0x69, 0x74, 0x48, 0x75, 0x62, 0x54, 0x6f, 0x6b, 0x65, 0x6e, 0x12,
+	0x25, 0x2e, 0x64, 0x65, 0x70, 0x6c, 0x6f, 0x79, 0x65, 0x72, 0x2e, 0x53, 0x74, 0x6f, 0x72, 0x65,
 	0x55, 0x73, 0x65, 0x72, 0x47, 0x69, 0x74, 0x48, 0x75, 0x62, 0x54, 0x6f, 0x6b, 0x65, 0x6e, 0x52,
-	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x21, 0x2e, 0x64, 0x65, 0x70, 0x6c, 0x6f, 0x79, 0x65,
-	0x72, 0x2e, 0x55, 0x73, 0x65, 0x72, 0x47, 0x69, 0x74, 0x48, 0x75, 0x62, 0x54, 0x6f, 0x6b, 0x65,
-	0x6e, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x68, 0x0a, 0x15, 0x44, 0x65, 0x6c,
-	0x65, 0x74, 0x65, 0x55, 0x73, 0x65, 0x72, 0x47, 0x69, 0x74, 0x48, 0x75, 0x62, 0x54, 0x6f, 0x6b,
-	0x65, 0x6e, 0x12, 0x26, 0x2e, 0x64, 0x65, 0x70, 0x6c, 0x6f, 0x79, 0x65, 0x72, 0x2e, 0x44, 0x65,
-	0x6c, 0x65, 0x74, 0x65, 0x55, 0x73, 0x65, 0x72, 0x47, 0x69, 0x74, 0x48, 0x75, 0x62, 0x54, 0x6f,
-	0x6b, 0x65, 0x6e, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x27, 0x2e, 0x64, 0x65, 0x70,
-	0x6c, 0x6f, 0x79, 0x65, 0x72, 0x2e, 0x44, 0x65, 0x6c, 0x65, 0x74, 0x65, 0x55, 0x73, 0x65, 0x72,
-	0x47, 0x69, 0x74, 0x48, 0x75, 0x62, 0x54, 0x6f, 0x6b, 0x65, 0x6e, 0x52, 0x65, 0x73, 0x70, 0x6f,
-	0x6e, 0x73, 0x65, 0x12, 0x59, 0x0a, 0x10, 0x53, 0x75, 0x73, 0x70, 0x65, 0x6e, 0x64, 0x57, 0x6f,
-	0x72, 0x6b, 0x73, 0x70, 0x61, 0x63, 0x65, 0x12, 0x21, 0x2e, 0x64, 0x65, 0x70, 0x6c, 0x6f, 0x79,
+	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x26, 0x2e, 0x64, 0x65, 0x70, 0x6c, 0x6f, 0x79, 0x65,
+	0x72, 0x2e, 0x53, 0x74, 0x6f, 0x72, 0x65, 0x55, 0x73, 0x65, 0x72, 0x47, 0x69, 0x74, 0x48, 0x75,
+	0x62, 0x54, 0x6f, 0x6b, 0x65, 0x6e, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x56,
+	0x0a, 0x0f, 0x55, 0x73, 0x65, 0x72, 0x47, 0x69, 0x74, 0x48, 0x75, 0x62, 0x54, 0x6f, 0x6b, 0x65,
+	0x6e, 0x12, 0x20, 0x2e, 0x64, 0x65, 0x70, 0x6c, 0x6f, 0x79, 0x65, 0x72, 0x2e, 0x55, 0x73, 0x65,
+	0x72, 0x47, 0x69, 0x74, 0x48, 0x75, 0x62, 0x54, 0x6f, 0x6b, 0x65, 0x6e, 0x52, 0x65, 0x71, 0x75,
+	0x65, 0x73, 0x74, 0x1a, 0x21, 0x2e, 0x64, 0x65, 0x70, 0x6c, 0x6f, 0x79, 0x65, 0x72, 0x2e, 0x55,
+	0x73, 0x65, 0x72, 0x47, 0x69, 0x74, 0x48, 0x75, 0x62, 0x54, 0x6f, 0x6b, 0x65, 0x6e, 0x52, 0x65,
+	0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x68, 0x0a, 0x15, 0x44, 0x65, 0x6c, 0x65, 0x74, 0x65,
+	0x55, 0x73, 0x65, 0x72, 0x47, 0x69, 0x74, 0x48, 0x75, 0x62, 0x54, 0x6f, 0x6b, 0x65, 0x6e, 0x12,
+	0x26, 0x2e, 0x64, 0x65, 0x70, 0x6c, 0x6f, 0x79, 0x65, 0x72, 0x2e, 0x44, 0x65, 0x6c, 0x65, 0x74,
+	0x65, 0x55, 0x73, 0x65, 0x72, 0x47, 0x69, 0x74, 0x48, 0x75, 0x62, 0x54, 0x6f, 0x6b, 0x65, 0x6e,
+	0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x27, 0x2e, 0x64, 0x65, 0x70, 0x6c, 0x6f, 0x79,
+	0x65, 0x72, 0x2e, 0x44, 0x65, 0x6c, 0x65, 0x74, 0x65, 0x55, 0x73, 0x65, 0x72, 0x47, 0x69, 0x74,
+	0x48, 0x75, 0x62, 0x54, 0x6f, 0x6b, 0x65, 0x6e, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65,
+	0x12, 0x59, 0x0a, 0x10, 0x53, 0x75, 0x73, 0x70, 0x65, 0x6e, 0x64, 0x57, 0x6f, 0x72, 0x6b, 0x73,
+	0x70, 0x61, 0x63, 0x65, 0x12, 0x21, 0x2e, 0x64, 0x65, 0x70, 0x6c, 0x6f, 0x79, 0x65, 0x72, 0x2e,
+	0x53, 0x75, 0x73, 0x70, 0x65, 0x6e, 0x64, 0x57, 0x6f, 0x72, 0x6b, 0x73, 0x70, 0x61, 0x63, 0x65,
+	0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x22, 0x2e, 0x64, 0x65, 0x70, 0x6c, 0x6f, 0x79,
 	0x65, 0x72, 0x2e, 0x53, 0x75, 0x73, 0x70, 0x65, 0x6e, 0x64, 0x57, 0x6f, 0x72, 0x6b, 0x73, 0x70,
-	0x61, 0x63, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x22, 0x2e, 0x64, 0x65, 0x70,
-	0x6c, 0x6f, 0x79, 0x65, 0x72, 0x2e, 0x53, 0x75, 0x73, 0x70, 0x65, 0x6e, 0x64, 0x57, 0x6f, 0x72,
-	0x6b, 0x73, 0x70, 0x61, 0x63, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x42, 0x0c,
-	0x5a, 0x0a, 0x2e, 0x2f, 0x64, 0x65, 0x70, 0x6c, 0x6f, 0x79, 0x65, 0x72, 0x62, 0x06, 0x70, 0x72,
-	0x6f, 0x74, 0x6f, 0x33,
+	0x61, 0x63, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x42, 0x0c, 0x5a, 0x0a, 0x2e,
+	0x2f, 0x64, 0x65, 0x70, 0x6c, 0x6f, 0x79, 0x65, 0x72, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f,
+	0x33,
 }
 
 var (
@@ -4243,7 +3589,7 @@ func file_deployer_proto_rawDescGZIP() []byte {
 }
 
 var file_deployer_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_deployer_proto_msgTypes = make([]protoimpl.MessageInfo, 62)
+var file_deployer_proto_msgTypes = make([]protoimpl.MessageInfo, 51)
 var file_deployer_proto_goTypes = []any{
 	(DeploymentStatus)(0),                     // 0: deployer.DeploymentStatus
 	(ResourceTier)(0),                         // 1: deployer.ResourceTier
@@ -4281,34 +3627,23 @@ var file_deployer_proto_goTypes = []any{
 	(*SetServiceScalingResponse)(nil),         // 33: deployer.SetServiceScalingResponse
 	(*DatabaseCredentialsRequest)(nil),        // 34: deployer.DatabaseCredentialsRequest
 	(*DatabaseCredentialsResponse)(nil),       // 35: deployer.DatabaseCredentialsResponse
-	(*WorkspaceMetadataRequest)(nil),          // 36: deployer.WorkspaceMetadataRequest
-	(*WorkspaceMetadataResponse)(nil),         // 37: deployer.WorkspaceMetadataResponse
-	(*WorkspaceByInstallationIDRequest)(nil),  // 38: deployer.WorkspaceByInstallationIDRequest
-	(*WorkspaceByInstallationIDResponse)(nil), // 39: deployer.WorkspaceByInstallationIDResponse
-	(*CreateWorkspaceMetadataRequest)(nil),    // 40: deployer.CreateWorkspaceMetadataRequest
-	(*CreateWorkspaceMetadataResponse)(nil),   // 41: deployer.CreateWorkspaceMetadataResponse
-	(*UpdateWorkspaceMetadataRequest)(nil),    // 42: deployer.UpdateWorkspaceMetadataRequest
-	(*UpdateWorkspaceMetadataResponse)(nil),   // 43: deployer.UpdateWorkspaceMetadataResponse
-	(*DeleteWorkspaceMetadataRequest)(nil),    // 44: deployer.DeleteWorkspaceMetadataRequest
-	(*DeleteWorkspaceMetadataResponse)(nil),   // 45: deployer.DeleteWorkspaceMetadataResponse
-	(*ListWorkspacesRequest)(nil),             // 46: deployer.ListWorkspacesRequest
-	(*ListWorkspacesResponse)(nil),            // 47: deployer.ListWorkspacesResponse
-	(*WorkspaceInfo)(nil),                     // 48: deployer.WorkspaceInfo
-	(*SetResourceQuotaRequest)(nil),           // 49: deployer.SetResourceQuotaRequest
-	(*SetResourceQuotaResponse)(nil),          // 50: deployer.SetResourceQuotaResponse
-	(*ResourceQuotaRequest)(nil),              // 51: deployer.ResourceQuotaRequest
-	(*ResourceQuotaResponse)(nil),             // 52: deployer.ResourceQuotaResponse
-	(*ListResourceAllocationsRequest)(nil),    // 53: deployer.ListResourceAllocationsRequest
-	(*ResourceAllocation)(nil),                // 54: deployer.ResourceAllocation
-	(*ListResourceAllocationsResponse)(nil),   // 55: deployer.ListResourceAllocationsResponse
-	(*StoreUserGitHubTokenRequest)(nil),       // 56: deployer.StoreUserGitHubTokenRequest
-	(*StoreUserGitHubTokenResponse)(nil),      // 57: deployer.StoreUserGitHubTokenResponse
-	(*UserGitHubTokenRequest)(nil),            // 58: deployer.UserGitHubTokenRequest
-	(*UserGitHubTokenResponse)(nil),           // 59: deployer.UserGitHubTokenResponse
-	(*DeleteUserGitHubTokenRequest)(nil),      // 60: deployer.DeleteUserGitHubTokenRequest
-	(*DeleteUserGitHubTokenResponse)(nil),     // 61: deployer.DeleteUserGitHubTokenResponse
-	(*SuspendWorkspaceRequest)(nil),           // 62: deployer.SuspendWorkspaceRequest
-	(*SuspendWorkspaceResponse)(nil),          // 63: deployer.SuspendWorkspaceResponse
+	(*WorkspaceByInstallationIDRequest)(nil),  // 36: deployer.WorkspaceByInstallationIDRequest
+	(*WorkspaceByInstallationIDResponse)(nil), // 37: deployer.WorkspaceByInstallationIDResponse
+	(*SetResourceQuotaRequest)(nil),           // 38: deployer.SetResourceQuotaRequest
+	(*SetResourceQuotaResponse)(nil),          // 39: deployer.SetResourceQuotaResponse
+	(*ResourceQuotaRequest)(nil),              // 40: deployer.ResourceQuotaRequest
+	(*ResourceQuotaResponse)(nil),             // 41: deployer.ResourceQuotaResponse
+	(*ListResourceAllocationsRequest)(nil),    // 42: deployer.ListResourceAllocationsRequest
+	(*ResourceAllocation)(nil),                // 43: deployer.ResourceAllocation
+	(*ListResourceAllocationsResponse)(nil),   // 44: deployer.ListResourceAllocationsResponse
+	(*StoreUserGitHubTokenRequest)(nil),       // 45: deployer.StoreUserGitHubTokenRequest
+	(*StoreUserGitHubTokenResponse)(nil),      // 46: deployer.StoreUserGitHubTokenResponse
+	(*UserGitHubTokenRequest)(nil),            // 47: deployer.UserGitHubTokenRequest
+	(*UserGitHubTokenResponse)(nil),           // 48: deployer.UserGitHubTokenResponse
+	(*DeleteUserGitHubTokenRequest)(nil),      // 49: deployer.DeleteUserGitHubTokenRequest
+	(*DeleteUserGitHubTokenResponse)(nil),     // 50: deployer.DeleteUserGitHubTokenResponse
+	(*SuspendWorkspaceRequest)(nil),           // 51: deployer.SuspendWorkspaceRequest
+	(*SuspendWorkspaceResponse)(nil),          // 52: deployer.SuspendWorkspaceResponse
 }
 var file_deployer_proto_depIdxs = []int32{
 	0,  // 0: deployer.GetDeploymentStatusResponse.status:type_name -> deployer.DeploymentStatus
@@ -4322,69 +3657,58 @@ var file_deployer_proto_depIdxs = []int32{
 	30, // 8: deployer.ServiceStatusResponse.scaling:type_name -> deployer.ServiceScalingConfig
 	29, // 9: deployer.ServiceStatusResponse.resources:type_name -> deployer.ServiceResourceConfig
 	32, // 10: deployer.SetServiceScalingRequest.autoscaling:type_name -> deployer.DeployerAutoscalingConfig
-	48, // 11: deployer.ListWorkspacesResponse.workspaces:type_name -> deployer.WorkspaceInfo
-	1,  // 12: deployer.SetResourceQuotaRequest.tier:type_name -> deployer.ResourceTier
-	1,  // 13: deployer.SetResourceQuotaResponse.tier:type_name -> deployer.ResourceTier
-	1,  // 14: deployer.ResourceQuotaResponse.tier:type_name -> deployer.ResourceTier
-	1,  // 15: deployer.ResourceAllocation.tier:type_name -> deployer.ResourceTier
-	54, // 16: deployer.ListResourceAllocationsResponse.allocations:type_name -> deployer.ResourceAllocation
-	2,  // 17: deployer.DeployerService.DeployEnvironment:input_type -> deployer.DeployEnvironmentRequest
-	4,  // 18: deployer.DeployerService.RemoveDeployment:input_type -> deployer.RemoveDeploymentRequest
-	6,  // 19: deployer.DeployerService.GetDeploymentStatus:input_type -> deployer.GetDeploymentStatusRequest
-	8,  // 20: deployer.DeployerService.SyncDeployment:input_type -> deployer.SyncDeploymentRequest
-	10, // 21: deployer.DeployerService.DeleteRepository:input_type -> deployer.DeleteRepositoryRequest
-	12, // 22: deployer.DeployerService.ServiceLogs:input_type -> deployer.ServiceLogsRequest
-	14, // 23: deployer.DeployerService.DatabaseTables:input_type -> deployer.DatabaseTablesRequest
-	18, // 24: deployer.DeployerService.DatabaseTableData:input_type -> deployer.DatabaseTableDataRequest
-	22, // 25: deployer.DeployerService.DatabaseQuery:input_type -> deployer.DatabaseQueryRequest
-	24, // 26: deployer.DeployerService.DatabaseStatus:input_type -> deployer.DatabaseStatusRequest
-	27, // 27: deployer.DeployerService.ServiceStatus:input_type -> deployer.ServiceStatusRequest
-	31, // 28: deployer.DeployerService.SetServiceScaling:input_type -> deployer.SetServiceScalingRequest
-	34, // 29: deployer.DeployerService.DatabaseCredentials:input_type -> deployer.DatabaseCredentialsRequest
-	36, // 30: deployer.DeployerService.WorkspaceMetadata:input_type -> deployer.WorkspaceMetadataRequest
-	38, // 31: deployer.DeployerService.WorkspaceByInstallationID:input_type -> deployer.WorkspaceByInstallationIDRequest
-	40, // 32: deployer.DeployerService.CreateWorkspaceMetadata:input_type -> deployer.CreateWorkspaceMetadataRequest
-	42, // 33: deployer.DeployerService.UpdateWorkspaceMetadata:input_type -> deployer.UpdateWorkspaceMetadataRequest
-	44, // 34: deployer.DeployerService.DeleteWorkspaceMetadata:input_type -> deployer.DeleteWorkspaceMetadataRequest
-	46, // 35: deployer.DeployerService.ListWorkspaces:input_type -> deployer.ListWorkspacesRequest
-	49, // 36: deployer.DeployerService.SetResourceQuota:input_type -> deployer.SetResourceQuotaRequest
-	51, // 37: deployer.DeployerService.ResourceQuota:input_type -> deployer.ResourceQuotaRequest
-	53, // 38: deployer.DeployerService.ListResourceAllocations:input_type -> deployer.ListResourceAllocationsRequest
-	56, // 39: deployer.DeployerService.StoreUserGitHubToken:input_type -> deployer.StoreUserGitHubTokenRequest
-	58, // 40: deployer.DeployerService.UserGitHubToken:input_type -> deployer.UserGitHubTokenRequest
-	60, // 41: deployer.DeployerService.DeleteUserGitHubToken:input_type -> deployer.DeleteUserGitHubTokenRequest
-	62, // 42: deployer.DeployerService.SuspendWorkspace:input_type -> deployer.SuspendWorkspaceRequest
-	3,  // 43: deployer.DeployerService.DeployEnvironment:output_type -> deployer.DeployEnvironmentResponse
-	5,  // 44: deployer.DeployerService.RemoveDeployment:output_type -> deployer.RemoveDeploymentResponse
-	7,  // 45: deployer.DeployerService.GetDeploymentStatus:output_type -> deployer.GetDeploymentStatusResponse
-	9,  // 46: deployer.DeployerService.SyncDeployment:output_type -> deployer.SyncDeploymentResponse
-	11, // 47: deployer.DeployerService.DeleteRepository:output_type -> deployer.DeleteRepositoryResponse
-	13, // 48: deployer.DeployerService.ServiceLogs:output_type -> deployer.ServiceLogEntry
-	15, // 49: deployer.DeployerService.DatabaseTables:output_type -> deployer.DatabaseTablesResponse
-	19, // 50: deployer.DeployerService.DatabaseTableData:output_type -> deployer.DatabaseTableDataResponse
-	23, // 51: deployer.DeployerService.DatabaseQuery:output_type -> deployer.DatabaseQueryResponse
-	25, // 52: deployer.DeployerService.DatabaseStatus:output_type -> deployer.DatabaseStatusResponse
-	28, // 53: deployer.DeployerService.ServiceStatus:output_type -> deployer.ServiceStatusResponse
-	33, // 54: deployer.DeployerService.SetServiceScaling:output_type -> deployer.SetServiceScalingResponse
-	35, // 55: deployer.DeployerService.DatabaseCredentials:output_type -> deployer.DatabaseCredentialsResponse
-	37, // 56: deployer.DeployerService.WorkspaceMetadata:output_type -> deployer.WorkspaceMetadataResponse
-	39, // 57: deployer.DeployerService.WorkspaceByInstallationID:output_type -> deployer.WorkspaceByInstallationIDResponse
-	41, // 58: deployer.DeployerService.CreateWorkspaceMetadata:output_type -> deployer.CreateWorkspaceMetadataResponse
-	43, // 59: deployer.DeployerService.UpdateWorkspaceMetadata:output_type -> deployer.UpdateWorkspaceMetadataResponse
-	45, // 60: deployer.DeployerService.DeleteWorkspaceMetadata:output_type -> deployer.DeleteWorkspaceMetadataResponse
-	47, // 61: deployer.DeployerService.ListWorkspaces:output_type -> deployer.ListWorkspacesResponse
-	50, // 62: deployer.DeployerService.SetResourceQuota:output_type -> deployer.SetResourceQuotaResponse
-	52, // 63: deployer.DeployerService.ResourceQuota:output_type -> deployer.ResourceQuotaResponse
-	55, // 64: deployer.DeployerService.ListResourceAllocations:output_type -> deployer.ListResourceAllocationsResponse
-	57, // 65: deployer.DeployerService.StoreUserGitHubToken:output_type -> deployer.StoreUserGitHubTokenResponse
-	59, // 66: deployer.DeployerService.UserGitHubToken:output_type -> deployer.UserGitHubTokenResponse
-	61, // 67: deployer.DeployerService.DeleteUserGitHubToken:output_type -> deployer.DeleteUserGitHubTokenResponse
-	63, // 68: deployer.DeployerService.SuspendWorkspace:output_type -> deployer.SuspendWorkspaceResponse
-	43, // [43:69] is the sub-list for method output_type
-	17, // [17:43] is the sub-list for method input_type
-	17, // [17:17] is the sub-list for extension type_name
-	17, // [17:17] is the sub-list for extension extendee
-	0,  // [0:17] is the sub-list for field type_name
+	1,  // 11: deployer.SetResourceQuotaRequest.tier:type_name -> deployer.ResourceTier
+	1,  // 12: deployer.SetResourceQuotaResponse.tier:type_name -> deployer.ResourceTier
+	1,  // 13: deployer.ResourceQuotaResponse.tier:type_name -> deployer.ResourceTier
+	1,  // 14: deployer.ResourceAllocation.tier:type_name -> deployer.ResourceTier
+	43, // 15: deployer.ListResourceAllocationsResponse.allocations:type_name -> deployer.ResourceAllocation
+	2,  // 16: deployer.DeployerService.DeployEnvironment:input_type -> deployer.DeployEnvironmentRequest
+	4,  // 17: deployer.DeployerService.RemoveDeployment:input_type -> deployer.RemoveDeploymentRequest
+	6,  // 18: deployer.DeployerService.GetDeploymentStatus:input_type -> deployer.GetDeploymentStatusRequest
+	8,  // 19: deployer.DeployerService.SyncDeployment:input_type -> deployer.SyncDeploymentRequest
+	10, // 20: deployer.DeployerService.DeleteRepository:input_type -> deployer.DeleteRepositoryRequest
+	12, // 21: deployer.DeployerService.ServiceLogs:input_type -> deployer.ServiceLogsRequest
+	14, // 22: deployer.DeployerService.DatabaseTables:input_type -> deployer.DatabaseTablesRequest
+	18, // 23: deployer.DeployerService.DatabaseTableData:input_type -> deployer.DatabaseTableDataRequest
+	22, // 24: deployer.DeployerService.DatabaseQuery:input_type -> deployer.DatabaseQueryRequest
+	24, // 25: deployer.DeployerService.DatabaseStatus:input_type -> deployer.DatabaseStatusRequest
+	27, // 26: deployer.DeployerService.ServiceStatus:input_type -> deployer.ServiceStatusRequest
+	31, // 27: deployer.DeployerService.SetServiceScaling:input_type -> deployer.SetServiceScalingRequest
+	34, // 28: deployer.DeployerService.DatabaseCredentials:input_type -> deployer.DatabaseCredentialsRequest
+	36, // 29: deployer.DeployerService.WorkspaceByInstallationID:input_type -> deployer.WorkspaceByInstallationIDRequest
+	38, // 30: deployer.DeployerService.SetResourceQuota:input_type -> deployer.SetResourceQuotaRequest
+	40, // 31: deployer.DeployerService.ResourceQuota:input_type -> deployer.ResourceQuotaRequest
+	42, // 32: deployer.DeployerService.ListResourceAllocations:input_type -> deployer.ListResourceAllocationsRequest
+	45, // 33: deployer.DeployerService.StoreUserGitHubToken:input_type -> deployer.StoreUserGitHubTokenRequest
+	47, // 34: deployer.DeployerService.UserGitHubToken:input_type -> deployer.UserGitHubTokenRequest
+	49, // 35: deployer.DeployerService.DeleteUserGitHubToken:input_type -> deployer.DeleteUserGitHubTokenRequest
+	51, // 36: deployer.DeployerService.SuspendWorkspace:input_type -> deployer.SuspendWorkspaceRequest
+	3,  // 37: deployer.DeployerService.DeployEnvironment:output_type -> deployer.DeployEnvironmentResponse
+	5,  // 38: deployer.DeployerService.RemoveDeployment:output_type -> deployer.RemoveDeploymentResponse
+	7,  // 39: deployer.DeployerService.GetDeploymentStatus:output_type -> deployer.GetDeploymentStatusResponse
+	9,  // 40: deployer.DeployerService.SyncDeployment:output_type -> deployer.SyncDeploymentResponse
+	11, // 41: deployer.DeployerService.DeleteRepository:output_type -> deployer.DeleteRepositoryResponse
+	13, // 42: deployer.DeployerService.ServiceLogs:output_type -> deployer.ServiceLogEntry
+	15, // 43: deployer.DeployerService.DatabaseTables:output_type -> deployer.DatabaseTablesResponse
+	19, // 44: deployer.DeployerService.DatabaseTableData:output_type -> deployer.DatabaseTableDataResponse
+	23, // 45: deployer.DeployerService.DatabaseQuery:output_type -> deployer.DatabaseQueryResponse
+	25, // 46: deployer.DeployerService.DatabaseStatus:output_type -> deployer.DatabaseStatusResponse
+	28, // 47: deployer.DeployerService.ServiceStatus:output_type -> deployer.ServiceStatusResponse
+	33, // 48: deployer.DeployerService.SetServiceScaling:output_type -> deployer.SetServiceScalingResponse
+	35, // 49: deployer.DeployerService.DatabaseCredentials:output_type -> deployer.DatabaseCredentialsResponse
+	37, // 50: deployer.DeployerService.WorkspaceByInstallationID:output_type -> deployer.WorkspaceByInstallationIDResponse
+	39, // 51: deployer.DeployerService.SetResourceQuota:output_type -> deployer.SetResourceQuotaResponse
+	41, // 52: deployer.DeployerService.ResourceQuota:output_type -> deployer.ResourceQuotaResponse
+	44, // 53: deployer.DeployerService.ListResourceAllocations:output_type -> deployer.ListResourceAllocationsResponse
+	46, // 54: deployer.DeployerService.StoreUserGitHubToken:output_type -> deployer.StoreUserGitHubTokenResponse
+	48, // 55: deployer.DeployerService.UserGitHubToken:output_type -> deployer.UserGitHubTokenResponse
+	50, // 56: deployer.DeployerService.DeleteUserGitHubToken:output_type -> deployer.DeleteUserGitHubTokenResponse
+	52, // 57: deployer.DeployerService.SuspendWorkspace:output_type -> deployer.SuspendWorkspaceResponse
+	37, // [37:58] is the sub-list for method output_type
+	16, // [16:37] is the sub-list for method input_type
+	16, // [16:16] is the sub-list for extension type_name
+	16, // [16:16] is the sub-list for extension extendee
+	0,  // [0:16] is the sub-list for field type_name
 }
 
 func init() { file_deployer_proto_init() }
@@ -4398,7 +3722,7 @@ func file_deployer_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_deployer_proto_rawDesc,
 			NumEnums:      2,
-			NumMessages:   62,
+			NumMessages:   51,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

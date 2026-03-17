@@ -1,13 +1,8 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { useRouter } from 'vue-router';
 import { useMutation } from '@vue/apollo-composable';
-import { CreateWorkspaceMutation, WorkspacesQuery } from '@/graphql/workspaces';
-import { useAuth } from '@/composables/useAuth';
-import { apolloClient } from '@/lib/apollo';
+import { CreateWorkspaceCheckoutMutation } from '@/graphql/workspaces';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   Dialog,
   DialogContent,
@@ -16,8 +11,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import { toast } from '@/components/ui/sonner';
 import { errorMessage } from '@/lib/utils';
+import { isValidSlug } from '@/lib/slug';
+import { Check } from 'lucide-vue-next';
+import NameSlugField from '@/components/NameSlugField.vue';
 
 defineProps<{
   open: boolean;
@@ -27,54 +26,35 @@ const emit = defineEmits<{
   (e: 'update:open', value: boolean): void;
 }>();
 
-const router = useRouter();
-const { setActiveWorkspace, refreshToken } = useAuth();
-
 const name = ref('');
+const id = ref('');
+const selectedPlan = ref<'HOBBY' | 'PRO'>('HOBBY');
 
-const id = computed(() =>
-  name.value
-    .toLowerCase()
-    .replace(/[^a-z0-9-]/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '')
-    .slice(0, 63),
-);
+const isValid = computed(() => name.value.trim().length > 0 && isValidSlug(id.value));
 
-const isValid = computed(() => id.value.length >= 3 && name.value.trim().length > 0);
+const { mutate, loading } = useMutation(CreateWorkspaceCheckoutMutation);
 
-const { mutate, loading } = useMutation(CreateWorkspaceMutation, {
-  refetchQueries: () => [{ query: WorkspacesQuery }],
-});
-
-async function handleCreate() {
+async function handleCheckout() {
   if (!isValid.value) return;
 
   try {
     const res = await mutate({
-      input: { id: id.value, name: name.value.trim() },
+      input: { id: id.value, name: name.value.trim(), plan: selectedPlan.value },
     });
 
     if (res?.errors?.length) {
-      toast.error('Failed to create workspace', {
+      toast.error('Failed to create checkout session', {
         description: res.errors.map(e => e.message).join(', '),
       });
       return;
     }
 
-    // Refresh JWT to include new workspace membership
-    await refreshToken();
-
-    // Switch to the new workspace
-    setActiveWorkspace(id.value);
-    apolloClient.resetStore();
-
-    toast.success(`Workspace "${name.value.trim()}" created`);
-    name.value = '';
-    emit('update:open', false);
-    router.push('/');
+    const url = res?.data?.createWorkspaceCheckout?.url;
+    if (url) {
+      window.location.href = url;
+    }
   } catch (e: unknown) {
-    toast.error('Failed to create workspace', { description: errorMessage(e) });
+    toast.error('Failed to create checkout session', { description: errorMessage(e) });
   }
 }
 </script>
@@ -92,27 +72,72 @@ async function handleCreate() {
         </DialogDescription>
       </DialogHeader>
 
-      <form class="space-y-4" @submit.prevent="handleCreate">
-        <div class="space-y-2">
-          <Label for="ws-name">Name</Label>
-          <Input
-            id="ws-name"
-            v-model="name"
-            placeholder="e.g. My Team"
-            :disabled="loading"
-          />
-        </div>
+      <form
+        class="space-y-4"
+        @submit.prevent="handleCheckout"
+      >
+        <NameSlugField
+          v-model:name="name"
+          v-model:slug="id"
+          :disabled="loading"
+          name-placeholder="e.g. My Team"
+          slug-description="Used in URLs and API calls. Auto-generated from the name."
+        />
 
         <div class="space-y-2">
-          <Label for="ws-id">ID</Label>
-          <Input
-            id="ws-id"
-            :model-value="id"
-            disabled
-            class="font-mono text-sm"
-          />
+          <Label>Plan</Label>
+          <div class="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              class="rounded-lg border p-4 text-left transition-colors"
+              :class="selectedPlan === 'HOBBY'
+                ? 'border-primary bg-primary/5'
+                : 'hover:border-muted-foreground/50'"
+              :disabled="loading"
+              @click="selectedPlan = 'HOBBY'"
+            >
+              <div class="flex items-center justify-between">
+                <p class="text-sm font-medium">Hobby</p>
+                <Check
+                  v-if="selectedPlan === 'HOBBY'"
+                  :size="14"
+                  class="text-primary"
+                />
+              </div>
+              <p class="text-lg font-semibold">
+                &euro;5<span class="text-sm font-normal text-muted-foreground">/mo</span>
+              </p>
+              <p class="mt-1 text-xs text-muted-foreground">
+                &euro;5 credit/mo. Great for side projects.
+              </p>
+            </button>
+            <button
+              type="button"
+              class="rounded-lg border p-4 text-left transition-colors"
+              :class="selectedPlan === 'PRO'
+                ? 'border-primary bg-primary/5'
+                : 'hover:border-muted-foreground/50'"
+              :disabled="loading"
+              @click="selectedPlan = 'PRO'"
+            >
+              <div class="flex items-center justify-between">
+                <p class="text-sm font-medium">Pro</p>
+                <Check
+                  v-if="selectedPlan === 'PRO'"
+                  :size="14"
+                  class="text-primary"
+                />
+              </div>
+              <p class="text-lg font-semibold">
+                &euro;25<span class="text-sm font-normal text-muted-foreground">/mo</span>
+              </p>
+              <p class="mt-1 text-xs text-muted-foreground">
+                &euro;25 credit/mo. For teams &amp; production.
+              </p>
+            </button>
+          </div>
           <p class="text-xs text-muted-foreground">
-            Auto-generated from the name. Used in URLs and API calls.
+            You can change your plan anytime.
           </p>
         </div>
 
@@ -121,7 +146,7 @@ async function handleCreate() {
             type="submit"
             :disabled="!isValid || loading"
           >
-            {{ loading ? 'Creating...' : 'Create Workspace' }}
+            {{ loading ? 'Redirecting...' : 'Subscribe' }}
           </Button>
         </DialogFooter>
       </form>

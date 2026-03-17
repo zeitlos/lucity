@@ -28,15 +28,6 @@ func NewServer(stripeClient *stripelib.Client, deployerClient deployer.DeployerS
 	}
 }
 
-// deployerCtx creates a gRPC context for calling the deployer as a system-level caller.
-func deployerCtx(ctx context.Context) context.Context {
-	ctx = auth.WithClaims(ctx, &auth.Claims{
-		Subject: "cashier",
-		Roles:   []auth.Role{auth.RoleUser},
-	})
-	return auth.OutgoingContext(ctx)
-}
-
 func (s *Server) CreateCustomer(ctx context.Context, req *cashier.CreateCustomerRequest) (*cashier.CreateCustomerResponse, error) {
 	if req.Workspace == "" {
 		return nil, fmt.Errorf("workspace required")
@@ -90,14 +81,8 @@ func (s *Server) CreateSubscription(ctx context.Context, req *cashier.CreateSubs
 }
 
 func (s *Server) ChangePlan(ctx context.Context, req *cashier.ChangePlanRequest) (*cashier.ChangePlanResponse, error) {
-	meta, err := s.deployer.WorkspaceMetadata(deployerCtx(ctx), &deployer.WorkspaceMetadataRequest{
-		Workspace: req.Workspace,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to get workspace metadata: %w", err)
-	}
-	if meta.StripeSubscriptionId == "" {
-		return nil, fmt.Errorf("no subscription found for workspace %q", req.Workspace)
+	if req.CustomerId == "" || req.SubscriptionId == "" {
+		return nil, fmt.Errorf("customer_id and subscription_id required")
 	}
 
 	newPriceID := s.stripe.PlanPriceID(planToString(req.Plan))
@@ -108,12 +93,12 @@ func (s *Server) ChangePlan(ctx context.Context, req *cashier.ChangePlanRequest)
 		oldPriceID = s.stripe.Prices.ProPriceID
 	}
 
-	sub, err := s.stripe.ChangePlan(ctx, meta.StripeSubscriptionId, newPriceID, oldPriceID)
+	sub, err := s.stripe.ChangePlan(ctx, req.SubscriptionId, newPriceID, oldPriceID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to change plan: %w", err)
 	}
 
-	hasPM, _ := s.stripe.HasPaymentMethod(ctx, meta.StripeCustomerId)
+	hasPM, _ := s.stripe.HasPaymentMethod(ctx, req.CustomerId)
 
 	slog.Info("plan changed", "workspace", req.Workspace, "plan", planToString(req.Plan))
 	resp := subscriptionToResponse(sub, s.stripe.Prices)
@@ -122,22 +107,16 @@ func (s *Server) ChangePlan(ctx context.Context, req *cashier.ChangePlanRequest)
 }
 
 func (s *Server) Subscription(ctx context.Context, req *cashier.SubscriptionRequest) (*cashier.SubscriptionResponse, error) {
-	meta, err := s.deployer.WorkspaceMetadata(deployerCtx(ctx), &deployer.WorkspaceMetadataRequest{
-		Workspace: req.Workspace,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to get workspace metadata: %w", err)
-	}
-	if meta.StripeSubscriptionId == "" {
-		return nil, fmt.Errorf("no subscription found for workspace %q", req.Workspace)
+	if req.CustomerId == "" || req.SubscriptionId == "" {
+		return nil, fmt.Errorf("customer_id and subscription_id required")
 	}
 
-	sub, err := s.stripe.Subscription(ctx, meta.StripeSubscriptionId)
+	sub, err := s.stripe.Subscription(ctx, req.SubscriptionId)
 	if err != nil {
 		return nil, err
 	}
 
-	hasPM, _ := s.stripe.HasPaymentMethod(ctx, meta.StripeCustomerId)
+	hasPM, _ := s.stripe.HasPaymentMethod(ctx, req.CustomerId)
 
 	resp := subscriptionToResponse(sub, s.stripe.Prices)
 
@@ -146,7 +125,7 @@ func (s *Server) Subscription(ctx context.Context, req *cashier.SubscriptionRequ
 	// the user to add a payment method before credits expire.
 	var creditExpiry int64
 	if !hasPM {
-		grantExpiry, _ := s.stripe.CreditGrantExpiry(ctx, meta.StripeCustomerId)
+		grantExpiry, _ := s.stripe.CreditGrantExpiry(ctx, req.CustomerId)
 		if grantExpiry > time.Now().Unix() {
 			creditExpiry = grantExpiry
 		}
@@ -163,17 +142,11 @@ func (s *Server) Subscription(ctx context.Context, req *cashier.SubscriptionRequ
 }
 
 func (s *Server) BillingPortalURL(ctx context.Context, req *cashier.BillingPortalURLRequest) (*cashier.BillingPortalURLResponse, error) {
-	meta, err := s.deployer.WorkspaceMetadata(deployerCtx(ctx), &deployer.WorkspaceMetadataRequest{
-		Workspace: req.Workspace,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to get workspace metadata: %w", err)
-	}
-	if meta.StripeCustomerId == "" {
-		return nil, fmt.Errorf("no billing customer found for workspace %q", req.Workspace)
+	if req.CustomerId == "" {
+		return nil, fmt.Errorf("customer_id required")
 	}
 
-	url, err := s.stripe.BillingPortalURL(ctx, meta.StripeCustomerId, req.ReturnUrl)
+	url, err := s.stripe.BillingPortalURL(ctx, req.CustomerId, req.ReturnUrl)
 	if err != nil {
 		return nil, err
 	}
@@ -182,17 +155,11 @@ func (s *Server) BillingPortalURL(ctx context.Context, req *cashier.BillingPorta
 }
 
 func (s *Server) UsageSummary(ctx context.Context, req *cashier.UsageSummaryRequest) (*cashier.UsageSummaryResponse, error) {
-	meta, err := s.deployer.WorkspaceMetadata(deployerCtx(ctx), &deployer.WorkspaceMetadataRequest{
-		Workspace: req.Workspace,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to get workspace metadata: %w", err)
-	}
-	if meta.StripeCustomerId == "" {
-		return nil, fmt.Errorf("no billing customer found for workspace %q", req.Workspace)
+	if req.CustomerId == "" || req.SubscriptionId == "" {
+		return nil, fmt.Errorf("customer_id and subscription_id required")
 	}
 
-	inv, err := s.stripe.UpcomingInvoice(ctx, meta.StripeCustomerId, meta.StripeSubscriptionId)
+	inv, err := s.stripe.UpcomingInvoice(ctx, req.CustomerId, req.SubscriptionId)
 	if err != nil {
 		// No upcoming invoice (no usage yet) is fine
 		return &cashier.UsageSummaryResponse{}, nil
@@ -215,7 +182,7 @@ func (s *Server) UsageSummary(ctx context.Context, req *cashier.UsageSummaryRequ
 	// Credits: use the credit grant total and cap applied credits at resource cost.
 	// Stripe doesn't deduct from credit balance until invoice finalization, so we
 	// calculate applied credits ourselves from the upcoming invoice's resource cost.
-	creditBalance, err := s.stripe.CreditBalanceCents(ctx, meta.StripeCustomerId)
+	creditBalance, err := s.stripe.CreditBalanceCents(ctx, req.CustomerId)
 	if err != nil {
 		slog.Warn("failed to get credit balance", "workspace", req.Workspace, "error", err)
 	}
@@ -278,17 +245,8 @@ func (s *Server) handlePaymentSucceeded(event gostripe.Event) {
 		return
 	}
 
-	// Check if workspace is suspended; if so, resume it.
-	ctx := deployerCtx(context.Background())
-	meta, err := s.deployer.WorkspaceMetadata(ctx, &deployer.WorkspaceMetadataRequest{Workspace: workspace})
-	if err != nil {
-		slog.Warn("failed to check workspace suspension on payment success", "workspace", workspace, "error", err)
-		return
-	}
-	if !meta.Suspended {
-		return
-	}
-
+	// Unconditionally resume. If the workspace is not suspended, the deployer
+	// will find no pre-suspend annotations and the operation is a no-op.
 	slog.Info("payment succeeded, resuming workspace", "workspace", workspace, "invoice", inv.ID)
 	s.suspendWorkspace(workspace, false)
 }
@@ -311,7 +269,11 @@ func (s *Server) handleSubscriptionDeleted(event gostripe.Event) {
 }
 
 func (s *Server) suspendWorkspace(workspace string, suspended bool) {
-	ctx := deployerCtx(context.Background())
+	ctx := auth.WithClaims(context.Background(), &auth.Claims{
+		Subject: "cashier",
+		Roles:   []auth.Role{auth.RoleUser},
+	})
+	ctx = auth.OutgoingContext(ctx)
 	_, err := s.deployer.SuspendWorkspace(ctx, &deployer.SuspendWorkspaceRequest{
 		Workspace: workspace,
 		Suspended: suspended,

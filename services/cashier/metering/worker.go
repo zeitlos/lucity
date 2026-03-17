@@ -185,29 +185,18 @@ func (w *Worker) processWindow(ctx context.Context, windowStart, windowEnd time.
 	start := time.Now()
 	callCtx := deployerCtx(ctx)
 
-	// 1. List all workspaces and their billing metadata.
-	wsList, err := w.deployer.ListWorkspaces(callCtx, &deployer.ListWorkspacesRequest{})
+	// 1. List all billable workspaces from Stripe.
+	billingData, err := w.stripe.BillableWorkspaces(ctx)
 	if err != nil {
-		slog.Error("metering: failed to list workspaces", "error", err)
+		slog.Error("metering: failed to list billable workspaces", "error", err)
 		return
 	}
 
-	// 2. Get stripe subscription IDs per workspace.
 	workspaces := make(map[string]*workspaceData)
-	for _, ws := range wsList.Workspaces {
-		meta, err := w.deployer.WorkspaceMetadata(callCtx, &deployer.WorkspaceMetadataRequest{
-			Workspace: ws.Id,
-		})
-		if err != nil {
-			slog.Warn("metering: failed to get workspace metadata", "workspace", ws.Id, "error", err)
-			continue
-		}
-		if meta.StripeSubscriptionId == "" || meta.StripeCustomerId == "" {
-			continue // No billing
-		}
-		workspaces[ws.Id] = &workspaceData{
-			customerID:     meta.StripeCustomerId,
-			subscriptionID: meta.StripeSubscriptionId,
+	for wsID, billing := range billingData {
+		workspaces[wsID] = &workspaceData{
+			customerID:     billing.CustomerID,
+			subscriptionID: billing.SubscriptionID,
 		}
 	}
 

@@ -37,6 +37,24 @@ export const CreateWorkspaceMutation = gql`
   }
 `;
 
+export const CreateWorkspaceCheckoutMutation = gql`
+  mutation CreateWorkspaceCheckout($input: CreateWorkspaceCheckoutInput!) {
+    createWorkspaceCheckout(input: $input) {
+      url
+    }
+  }
+`;
+
+export const CompleteWorkspaceCheckoutMutation = gql`
+  mutation CompleteWorkspaceCheckout($sessionId: String!) {
+    completeWorkspaceCheckout(sessionId: $sessionId) {
+      id
+      name
+      personal
+    }
+  }
+`;
+
 export const UpdateWorkspaceMutation = gql`
   mutation UpdateWorkspace($input: UpdateWorkspaceInput!) {
     updateWorkspace(input: $input) {

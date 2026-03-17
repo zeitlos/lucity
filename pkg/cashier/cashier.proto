@@ -68,6 +68,8 @@ message CreateSubscriptionResponse {
 message ChangePlanRequest {
   string workspace = 1;
   Plan plan = 2;
+  string customer_id = 3;
+  string subscription_id = 4;
 }
 
 message ChangePlanResponse {
@@ -81,6 +83,8 @@ message ChangePlanResponse {
 
 message SubscriptionRequest {
   string workspace = 1;
+  string customer_id = 2;
+  string subscription_id = 3;
 }
 
 message SubscriptionResponse {
@@ -95,6 +99,7 @@ message SubscriptionResponse {
 message BillingPortalURLRequest {
   string workspace = 1;
   string return_url = 2;
+  string customer_id = 3;
 }
 
 message BillingPortalURLResponse {
@@ -103,6 +108,8 @@ message BillingPortalURLResponse {
 
 message UsageSummaryRequest {
   string workspace = 1;
+  string customer_id = 2;
+  string subscription_id = 3;
 }
 
 message UsageSummaryResponse {

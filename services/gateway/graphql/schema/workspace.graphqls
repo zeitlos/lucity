@@ -37,8 +37,20 @@ extend type Query {
   workspaces: [Workspace!]! @hasRole(role: [USER])
 }
 
+input CreateWorkspaceCheckoutInput {
+  id: String!
+  name: String!
+  plan: Plan!
+}
+
+type CheckoutSession {
+  url: String!
+}
+
 extend type Mutation {
   createWorkspace(input: CreateWorkspaceInput!): Workspace! @hasRole(role: [USER])
+  createWorkspaceCheckout(input: CreateWorkspaceCheckoutInput!): CheckoutSession! @hasRole(role: [USER])
+  completeWorkspaceCheckout(sessionId: String!): Workspace! @hasRole(role: [USER])
   updateWorkspace(input: UpdateWorkspaceInput!): Workspace! @allowSuspended @hasRole(role: [USER])
   deleteWorkspace: Boolean! @allowSuspended @hasRole(role: [USER])
   inviteMember(input: InviteMemberInput!): WorkspaceMember! @hasRole(role: [USER])

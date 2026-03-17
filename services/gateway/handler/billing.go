@@ -137,11 +137,22 @@ func (c *Client) Subscription(ctx context.Context) (*BillingSubscription, error)
 	if err != nil {
 		return nil, err
 	}
+	customerID, subscriptionID, err := c.stripeIDs(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if subscriptionID == "" {
+		return nil, fmt.Errorf("billing is not configured for this workspace")
+	}
 	ctx = auth.OutgoingContext(ctx)
 
 	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
 	defer cancel()
-	resp, err := c.Cashier.Subscription(callCtx, &cashier.SubscriptionRequest{Workspace: ws})
+	resp, err := c.Cashier.Subscription(callCtx, &cashier.SubscriptionRequest{
+		Workspace:      ws,
+		CustomerId:     customerID,
+		SubscriptionId: subscriptionID,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get subscription: %w", err)
 	}
@@ -168,13 +179,22 @@ func (c *Client) ChangePlan(ctx context.Context, plan string) (*BillingSubscript
 	if err != nil {
 		return nil, err
 	}
+	customerID, subscriptionID, err := c.stripeIDs(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if subscriptionID == "" {
+		return nil, fmt.Errorf("billing is not configured for this workspace")
+	}
 	ctx = auth.OutgoingContext(ctx)
 
 	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
 	defer cancel()
 	resp, err := c.Cashier.ChangePlan(callCtx, &cashier.ChangePlanRequest{
-		Workspace: ws,
-		Plan:      stringToPlanProto(plan),
+		Workspace:      ws,
+		Plan:           stringToPlanProto(plan),
+		CustomerId:     customerID,
+		SubscriptionId: subscriptionID,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to change plan: %w", err)
@@ -202,13 +222,21 @@ func (c *Client) BillingPortalURL(ctx context.Context) (*BillingPortalUrlResult,
 	if err != nil {
 		return nil, err
 	}
+	customerID, _, err := c.stripeIDs(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if customerID == "" {
+		return nil, fmt.Errorf("billing is not configured for this workspace")
+	}
 	ctx = auth.OutgoingContext(ctx)
 
 	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
 	defer cancel()
 	resp, err := c.Cashier.BillingPortalURL(callCtx, &cashier.BillingPortalURLRequest{
-		Workspace: ws,
-		ReturnUrl: "", // Stripe defaults to billing portal home
+		Workspace:  ws,
+		ReturnUrl:  "", // Stripe defaults to billing portal home
+		CustomerId: customerID,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get billing portal URL: %w", err)
@@ -225,11 +253,22 @@ func (c *Client) UsageSummary(ctx context.Context) (*UsageSummaryResult, error) 
 	if err != nil {
 		return nil, err
 	}
+	customerID, subscriptionID, err := c.stripeIDs(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if customerID == "" {
+		return nil, fmt.Errorf("billing is not configured for this workspace")
+	}
 	ctx = auth.OutgoingContext(ctx)
 
 	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
 	defer cancel()
-	resp, err := c.Cashier.UsageSummary(callCtx, &cashier.UsageSummaryRequest{Workspace: ws})
+	resp, err := c.Cashier.UsageSummary(callCtx, &cashier.UsageSummaryRequest{
+		Workspace:      ws,
+		CustomerId:     customerID,
+		SubscriptionId: subscriptionID,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get usage summary: %w", err)
 	}
@@ -239,6 +278,27 @@ func (c *Client) UsageSummary(ctx context.Context) (*UsageSummaryResult, error) 
 		CreditsCents:        int(resp.CreditsCents),
 		EstimatedTotalCents: int(resp.EstimatedTotalCents),
 	}, nil
+}
+
+// stripeIDs reads the Stripe customer and subscription IDs from the Logto org customData.
+func (c *Client) stripeIDs(ctx context.Context) (customerID, subscriptionID string, err error) {
+	ws, err := tenant.Require(ctx)
+	if err != nil {
+		return "", "", err
+	}
+	orgID, err := c.resolveOrgID(ctx, ws)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to resolve org: %w", err)
+	}
+	org, err := c.Logto.Organization(ctx, orgID)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to get organization: %w", err)
+	}
+	if org.CustomData != nil {
+		customerID, _ = org.CustomData["stripeCustomerId"].(string)
+		subscriptionID, _ = org.CustomData["stripeSubscriptionId"].(string)
+	}
+	return customerID, subscriptionID, nil
 }
 
 func planProtoToString(p cashier.Plan) string {

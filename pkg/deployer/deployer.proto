@@ -44,23 +44,8 @@ service DeployerService {
   // DatabaseCredentials returns the resolved connection credentials for a database.
   rpc DatabaseCredentials(DatabaseCredentialsRequest) returns (DatabaseCredentialsResponse);
 
-  // WorkspaceMetadata returns metadata for a workspace from K8s ConfigMaps.
-  rpc WorkspaceMetadata(WorkspaceMetadataRequest) returns (WorkspaceMetadataResponse);
-
   // WorkspaceByInstallationID finds a workspace by its GitHub App installation ID.
   rpc WorkspaceByInstallationID(WorkspaceByInstallationIDRequest) returns (WorkspaceByInstallationIDResponse);
-
-  // CreateWorkspaceMetadata creates a workspace ConfigMap in lucity-system.
-  rpc CreateWorkspaceMetadata(CreateWorkspaceMetadataRequest) returns (CreateWorkspaceMetadataResponse);
-
-  // UpdateWorkspaceMetadata updates a workspace ConfigMap.
-  rpc UpdateWorkspaceMetadata(UpdateWorkspaceMetadataRequest) returns (UpdateWorkspaceMetadataResponse);
-
-  // DeleteWorkspaceMetadata deletes a workspace ConfigMap.
-  rpc DeleteWorkspaceMetadata(DeleteWorkspaceMetadataRequest) returns (DeleteWorkspaceMetadataResponse);
-
-  // ListWorkspaces lists all workspace ConfigMaps.
-  rpc ListWorkspaces(ListWorkspacesRequest) returns (ListWorkspacesResponse);
 
   // SetResourceQuota creates or updates a ResourceQuota, LimitRange, and tier label on a namespace.
   rpc SetResourceQuota(SetResourceQuotaRequest) returns (SetResourceQuotaResponse);
@@ -304,69 +289,12 @@ message DatabaseCredentialsResponse {
   string uri = 6;
 }
 
-// Workspace metadata messages.
-
-message WorkspaceMetadataRequest {
-  string workspace = 1;
-}
-
-message WorkspaceMetadataResponse {
-  string name = 1;
-  bool personal = 2;
-  reserved 3;
-  reserved "github_installation_id";
-  string stripe_customer_id = 4;
-  string stripe_subscription_id = 5;
-  string owner = 6;
-  bool suspended = 7;
-}
-
 message WorkspaceByInstallationIDRequest {
   int64 installation_id = 1;
 }
 
 message WorkspaceByInstallationIDResponse {
   string workspace = 1;
-}
-
-message CreateWorkspaceMetadataRequest {
-  string workspace = 1;
-  string name = 2;
-  bool personal = 3;
-  string owner = 4;
-}
-
-message CreateWorkspaceMetadataResponse {}
-
-message UpdateWorkspaceMetadataRequest {
-  string workspace = 1;
-  string name = 2;
-  reserved 3;
-  reserved "github_installation_id";
-  string stripe_customer_id = 4;
-  string stripe_subscription_id = 5;
-}
-
-message UpdateWorkspaceMetadataResponse {}
-
-message DeleteWorkspaceMetadataRequest {
-  string workspace = 1;
-}
-
-message DeleteWorkspaceMetadataResponse {}
-
-message ListWorkspacesRequest {}
-
-message ListWorkspacesResponse {
-  repeated WorkspaceInfo workspaces = 1;
-}
-
-message WorkspaceInfo {
-  string id = 1;
-  string name = 2;
-  bool personal = 3;
-  reserved 4;
-  reserved "github_installation_id";
 }
 
 // Resource quota messages.

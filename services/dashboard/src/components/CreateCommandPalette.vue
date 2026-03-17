@@ -14,6 +14,8 @@ import { toast } from '@/components/ui/sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { errorMessage } from '@/lib/utils';
+import { isValidSlug } from '@/lib/slug';
+import NameSlugField from '@/components/NameSlugField.vue';
 
 const props = defineProps<{
   open: boolean;
@@ -36,7 +38,6 @@ type PaletteView = 'main' | 'github-repos' | 'manual-service' | 'database' | 'co
 const view = ref<PaletteView>('main');
 const search = ref('');
 const inputRef = ref<HTMLInputElement>();
-const nameInputRef = ref<HTMLInputElement>();
 const focusedIndex = ref(0);
 
 // Source picker state
@@ -46,30 +47,14 @@ const sourcePickerOpen = ref(false);
 // Project naming state
 const projectDisplayName = ref('');
 const projectSlug = ref('');
-const slugManuallyEdited = ref(false);
+const nameSlugRef = ref<InstanceType<typeof NameSlugField> | null>(null);
 const pendingRepo = ref<{ fullName: string; htmlUrl: string } | null>(null);
 const pendingImage = ref<string | null>(null);
+const processingItemId = ref<string | null>(null);
 
-const derivedSlug = computed(() =>
-  projectDisplayName.value
-    .toLowerCase()
-    .replace(/[^a-z0-9-]/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '')
-    .slice(0, 63),
-);
-
-const effectiveSlug = computed(() => slugManuallyEdited.value ? projectSlug.value : derivedSlug.value);
-
-const slugPattern = /^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/;
 const isProjectValid = computed(() =>
-  projectDisplayName.value.trim().length > 0 && slugPattern.test(effectiveSlug.value),
+  projectDisplayName.value.trim().length > 0 && isValidSlug(projectSlug.value),
 );
-
-function onSlugInput(e: Event) {
-  slugManuallyEdited.value = true;
-  projectSlug.value = (e.target as HTMLInputElement).value;
-}
 
 // Reset when palette opens
 watch(() => props.open, (open) => {
@@ -82,9 +67,9 @@ watch(() => props.open, (open) => {
     focusedIndex.value = 0;
     projectDisplayName.value = '';
     projectSlug.value = '';
-    slugManuallyEdited.value = false;
     pendingRepo.value = null;
     pendingImage.value = null;
+    processingItemId.value = null;
     nextTick(() => inputRef.value?.focus());
   }
 });
@@ -166,9 +151,8 @@ function showProjectNaming(repo: { fullName: string; htmlUrl: string }) {
   const repoShortName = repo.fullName.split('/').pop() || '';
   projectDisplayName.value = repoShortName;
   projectSlug.value = '';
-  slugManuallyEdited.value = false;
   view.value = 'name-project';
-  nextTick(() => nameInputRef.value?.focus());
+  nextTick(() => nameSlugRef.value?.focusName());
 }
 
 async function handleConfirmProjectCreation() {
@@ -178,7 +162,7 @@ async function handleConfirmProjectCreation() {
     const res = await createProject({
       input: {
         name: projectDisplayName.value.trim(),
-        id: effectiveSlug.value,
+        id: projectSlug.value,
       },
     });
 
@@ -267,6 +251,7 @@ async function detectAndAddServices(projectId: string, repo: { fullName: string;
 async function handleAddServicesFromRepo(repo: { fullName: string; htmlUrl: string }) {
   if (!props.projectId) return;
 
+  processingItemId.value = repo.fullName;
   detectingServices.value = true;
   try {
     await detectAndAddServices(props.projectId, repo);
@@ -276,6 +261,7 @@ async function handleAddServicesFromRepo(repo: { fullName: string; htmlUrl: stri
     toast.error('Failed to detect services', { description: errorMessage(e) });
   } finally {
     detectingServices.value = false;
+    processingItemId.value = null;
   }
 }
 
@@ -401,18 +387,20 @@ async function handleSelectImage(imageRef: string) {
     const imageName = imageRef.split('/').pop() || imageRef;
     projectDisplayName.value = imageName;
     projectSlug.value = '';
-    slugManuallyEdited.value = false;
     view.value = 'name-project';
-    nextTick(() => nameInputRef.value?.focus());
+    nextTick(() => nameSlugRef.value?.focusName());
     return;
   } else {
     if (!props.projectId) return;
+    processingItemId.value = imageRef;
     try {
       await addImageService(props.projectId, imageRef);
       close();
       emit('created');
     } catch (e: unknown) {
       toast.error('Failed to add service', { description: errorMessage(e) });
+    } finally {
+      processingItemId.value = null;
     }
   }
 }
@@ -547,9 +535,8 @@ const mainItems = computed(() => {
           pendingImage.value = null;
           projectDisplayName.value = '';
           projectSlug.value = '';
-          slugManuallyEdited.value = false;
           view.value = 'name-project';
-          nextTick(() => nameInputRef.value?.focus());
+          nextTick(() => nameSlugRef.value?.focusName());
         } },
       ]
     : [
@@ -766,7 +753,16 @@ const mainItems = computed(() => {
                         class="shrink-0 text-muted-foreground"
                       />
                       <span class="flex-1 truncate text-left">{{ repo.fullName }}</span>
-                      <Badge variant="outline" class="shrink-0 text-[10px]">{{ repo.defaultBranch }}</Badge>
+                      <Loader2
+                        v-if="processingItemId === repo.fullName"
+                        :size="14"
+                        class="shrink-0 animate-spin text-muted-foreground"
+                      />
+                      <Badge
+                        v-else
+                        variant="outline"
+                        class="shrink-0 text-[10px]"
+                      >{{ repo.defaultBranch }}</Badge>
                     </button>
                   </template>
                 </div>
@@ -835,7 +831,15 @@ const mainItems = computed(() => {
                       class="mt-0.5 truncate text-xs text-muted-foreground"
                     >{{ img.description }}</p>
                   </div>
-                  <div class="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
+                  <Loader2
+                    v-if="processingItemId === img.name"
+                    :size="14"
+                    class="shrink-0 animate-spin text-muted-foreground"
+                  />
+                  <div
+                    v-else
+                    class="flex shrink-0 items-center gap-1 text-xs text-muted-foreground"
+                  >
                     <Star :size="10" />
                     {{ formatPullCount(img.starCount) }}
                   </div>
@@ -966,29 +970,34 @@ const mainItems = computed(() => {
               class="space-y-4 p-4"
               @submit.prevent="handleConfirmProjectCreation"
             >
-              <div class="space-y-2">
-                <label class="text-sm font-medium text-foreground">Name</label>
-                <input
-                  ref="nameInputRef"
-                  v-model="projectDisplayName"
-                  class="flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                  placeholder="e.g. My API"
-                  :disabled="creating"
+              <div
+                v-if="pendingRepo || pendingImage"
+                class="flex items-center gap-2 rounded-md border px-3 py-2 text-sm text-muted-foreground"
+              >
+                <Loader2
+                  v-if="creating || detectingServices"
+                  :size="14"
+                  class="shrink-0 animate-spin"
                 />
-              </div>
-              <div class="space-y-2">
-                <label class="text-sm font-medium text-foreground">ID</label>
-                <input
-                  :value="effectiveSlug"
-                  class="flex h-9 w-full rounded-md border bg-transparent px-3 py-1 font-mono text-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                  placeholder="my-api"
-                  :disabled="creating"
-                  @input="onSlugInput"
+                <Github
+                  v-else-if="pendingRepo"
+                  :size="14"
+                  class="shrink-0"
                 />
-                <p class="text-xs text-muted-foreground">
-                  Used in URLs and infrastructure. Auto-derived from the name.
-                </p>
+                <Container
+                  v-else
+                  :size="14"
+                  class="shrink-0"
+                />
+                <span class="truncate">{{ pendingRepo?.fullName || pendingImage }}</span>
               </div>
+              <NameSlugField
+                ref="nameSlugRef"
+                v-model:name="projectDisplayName"
+                v-model:slug="projectSlug"
+                :disabled="creating"
+                name-placeholder="e.g. My API"
+              />
               <button
                 type="submit"
                 class="inline-flex h-9 w-full items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"

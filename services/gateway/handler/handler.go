@@ -29,6 +29,7 @@ type Client struct {
 	WorkloadDomain      string // base domain for platform-generated domains (e.g., "lucity.local")
 	DomainTarget        string // CNAME target for custom domains (e.g., "lb.lucity.app")
 	GitHubAppSlug       string // GitHub App slug for installation URL generation
+	DashboardURL        string // base URL for the dashboard (e.g., "http://localhost:5173")
 
 	// Cached Logto org role IDs (looked up by name on first use)
 	orgRoleOnce sync.Once
@@ -40,7 +41,7 @@ type Client struct {
 	orgIDCacheMu sync.RWMutex
 }
 
-func New(packagerClient packager.PackagerServiceClient, builderClient builder.BuilderServiceClient, deployerClient deployer.DeployerServiceClient, cashierClient cashier.CashierServiceClient, githubApp *ghpkg.App, logtoClient *logto.Client, registryPushURL, registryImagePrefix, workloadDomain, domainTarget, githubAppSlug string) *Client {
+func New(packagerClient packager.PackagerServiceClient, builderClient builder.BuilderServiceClient, deployerClient deployer.DeployerServiceClient, cashierClient cashier.CashierServiceClient, githubApp *ghpkg.App, logtoClient *logto.Client, registryPushURL, registryImagePrefix, workloadDomain, domainTarget, githubAppSlug, dashboardURL string) *Client {
 	return &Client{
 		Packager:            packagerClient,
 		Builder:             builderClient,
@@ -54,6 +55,7 @@ func New(packagerClient packager.PackagerServiceClient, builderClient builder.Bu
 		WorkloadDomain:      workloadDomain,
 		DomainTarget:        domainTarget,
 		GitHubAppSlug:       githubAppSlug,
+		DashboardURL:        dashboardURL,
 		orgIDCache:          make(map[string]string),
 	}
 }

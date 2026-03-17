@@ -38,6 +38,12 @@ const router = createRouter({
       ],
     },
     {
+      path: '/checkout/success',
+      name: 'checkout-success',
+      meta: { requiresAuth: true },
+      component: () => import('@/pages/CheckoutSuccessPage.vue'),
+    },
+    {
       path: '/login',
       name: 'login',
       component: () => import('@/pages/LoginPage.vue'),

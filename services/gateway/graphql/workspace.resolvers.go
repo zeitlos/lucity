@@ -21,6 +21,24 @@ func (r *mutationResolver) CreateWorkspace(ctx context.Context, input model.Crea
 	return convertWorkspace(ws), nil
 }
 
+// CreateWorkspaceCheckout is the resolver for the createWorkspaceCheckout field.
+func (r *mutationResolver) CreateWorkspaceCheckout(ctx context.Context, input model.CreateWorkspaceCheckoutInput) (*model.CheckoutSession, error) {
+	url, err := r.API.CreateWorkspaceCheckout(ctx, input.ID, input.Name, string(input.Plan))
+	if err != nil {
+		return nil, err
+	}
+	return &model.CheckoutSession{URL: url}, nil
+}
+
+// CompleteWorkspaceCheckout is the resolver for the completeWorkspaceCheckout field.
+func (r *mutationResolver) CompleteWorkspaceCheckout(ctx context.Context, sessionID string) (*model.Workspace, error) {
+	ws, err := r.API.CompleteWorkspaceCheckout(ctx, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	return convertWorkspace(ws), nil
+}
+
 // UpdateWorkspace is the resolver for the updateWorkspace field.
 func (r *mutationResolver) UpdateWorkspace(ctx context.Context, input model.UpdateWorkspaceInput) (*model.Workspace, error) {
 	ws, err := r.API.UpdateWorkspace(ctx, input.Name)

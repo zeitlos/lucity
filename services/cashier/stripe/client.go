@@ -351,6 +351,52 @@ func (c *Client) CreateCreditGrantForPeriod(ctx context.Context, customerID stri
 	return nil
 }
 
+// WorkspaceBilling holds the Stripe customer and subscription IDs for a billable workspace.
+type WorkspaceBilling struct {
+	CustomerID     string
+	SubscriptionID string
+}
+
+// BillableWorkspaces returns all Stripe customers with workspace metadata and their active subscription IDs.
+func (c *Client) BillableWorkspaces(ctx context.Context) (map[string]WorkspaceBilling, error) {
+	result := make(map[string]WorkspaceBilling)
+	params := &gostripe.CustomerSearchParams{
+		SearchParams: gostripe.SearchParams{
+			Query: "metadata['workspace']:*",
+		},
+	}
+
+	iter := customer.Search(params)
+	for iter.Next() {
+		cust := iter.Customer()
+		ws := cust.Metadata["workspace"]
+		if ws == "" {
+			continue
+		}
+		// Find active subscription
+		subID := ""
+		subParams := &gostripe.SubscriptionListParams{
+			Customer: gostripe.String(cust.ID),
+			Status:   gostripe.String("active"),
+		}
+		subIter := subscription.List(subParams)
+		if subIter.Next() {
+			subID = subIter.Subscription().ID
+		}
+		if subID == "" {
+			continue
+		}
+		result[ws] = WorkspaceBilling{
+			CustomerID:     cust.ID,
+			SubscriptionID: subID,
+		}
+	}
+	if err := iter.Err(); err != nil {
+		return nil, fmt.Errorf("failed to search customers: %w", err)
+	}
+	return result, nil
+}
+
 // CustomerByWorkspace searches for an existing Stripe customer with matching workspace metadata.
 // Returns the customer ID if found, empty string if not. Used for idempotent customer creation.
 func (c *Client) CustomerByWorkspace(ctx context.Context, workspace string) (string, error) {

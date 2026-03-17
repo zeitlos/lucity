@@ -121,7 +121,7 @@ func (p *SoftServeProvider) Repos(ctx context.Context) ([]ProjectMeta, error) {
 			continue
 		}
 
-		meta, err := p.readProjectMeta(repoName)
+		meta, err := p.readProjectMeta(repoName, wsPrefix)
 		if err != nil {
 			slog.Warn("skipping repo with unreadable metadata",
 				"repo", repoName, "error", err,
@@ -138,8 +138,9 @@ func (p *SoftServeProvider) Repos(ctx context.Context) ([]ProjectMeta, error) {
 // Repo reads a single project's metadata.
 func (p *SoftServeProvider) Repo(ctx context.Context, project string) (*ProjectMeta, error) {
 	repoName := wsRepoName(ctx, project)
+	wsPrefix := tenant.FromContext(ctx) + "-"
 
-	meta, err := p.readProjectMeta(repoName)
+	meta, err := p.readProjectMeta(repoName, wsPrefix)
 	if err != nil {
 		return nil, err
 	}
@@ -1021,19 +1022,17 @@ func (p *SoftServeProvider) initRepoContents(cloneURL, project string) error {
 }
 
 // readProjectMeta reads project metadata by cloning the repo.
-func (p *SoftServeProvider) readProjectMeta(repoName string) (*ProjectMeta, error) {
+// wsPrefix is the workspace prefix including trailing dash (e.g. "zeitlos-software-").
+func (p *SoftServeProvider) readProjectMeta(repoName, wsPrefix string) (*ProjectMeta, error) {
 	dir, cleanup, err := p.cloneRepo(repoName)
 	if err != nil {
 		return nil, err
 	}
 	defer cleanup()
 
-	// Derive project name (slug) from repo name by stripping workspace prefix and suffix.
+	// Derive project slug from repo name by stripping workspace prefix and suffix.
 	// Repo format: {workspace}-{project}-gitops
-	name := repoName
-	if idx := strings.Index(name, "-"); idx >= 0 {
-		name = name[idx+1:]
-	}
+	name := strings.TrimPrefix(repoName, wsPrefix)
 	name = strings.TrimSuffix(name, RepoSuffix)
 
 	meta := &ProjectMeta{Name: name}

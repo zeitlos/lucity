@@ -32,12 +32,7 @@ const (
 	DeployerService_ServiceStatus_FullMethodName             = "/deployer.DeployerService/ServiceStatus"
 	DeployerService_SetServiceScaling_FullMethodName         = "/deployer.DeployerService/SetServiceScaling"
 	DeployerService_DatabaseCredentials_FullMethodName       = "/deployer.DeployerService/DatabaseCredentials"
-	DeployerService_WorkspaceMetadata_FullMethodName         = "/deployer.DeployerService/WorkspaceMetadata"
 	DeployerService_WorkspaceByInstallationID_FullMethodName = "/deployer.DeployerService/WorkspaceByInstallationID"
-	DeployerService_CreateWorkspaceMetadata_FullMethodName   = "/deployer.DeployerService/CreateWorkspaceMetadata"
-	DeployerService_UpdateWorkspaceMetadata_FullMethodName   = "/deployer.DeployerService/UpdateWorkspaceMetadata"
-	DeployerService_DeleteWorkspaceMetadata_FullMethodName   = "/deployer.DeployerService/DeleteWorkspaceMetadata"
-	DeployerService_ListWorkspaces_FullMethodName            = "/deployer.DeployerService/ListWorkspaces"
 	DeployerService_SetResourceQuota_FullMethodName          = "/deployer.DeployerService/SetResourceQuota"
 	DeployerService_ResourceQuota_FullMethodName             = "/deployer.DeployerService/ResourceQuota"
 	DeployerService_ListResourceAllocations_FullMethodName   = "/deployer.DeployerService/ListResourceAllocations"
@@ -77,18 +72,8 @@ type DeployerServiceClient interface {
 	SetServiceScaling(ctx context.Context, in *SetServiceScalingRequest, opts ...grpc.CallOption) (*SetServiceScalingResponse, error)
 	// DatabaseCredentials returns the resolved connection credentials for a database.
 	DatabaseCredentials(ctx context.Context, in *DatabaseCredentialsRequest, opts ...grpc.CallOption) (*DatabaseCredentialsResponse, error)
-	// WorkspaceMetadata returns metadata for a workspace from K8s ConfigMaps.
-	WorkspaceMetadata(ctx context.Context, in *WorkspaceMetadataRequest, opts ...grpc.CallOption) (*WorkspaceMetadataResponse, error)
 	// WorkspaceByInstallationID finds a workspace by its GitHub App installation ID.
 	WorkspaceByInstallationID(ctx context.Context, in *WorkspaceByInstallationIDRequest, opts ...grpc.CallOption) (*WorkspaceByInstallationIDResponse, error)
-	// CreateWorkspaceMetadata creates a workspace ConfigMap in lucity-system.
-	CreateWorkspaceMetadata(ctx context.Context, in *CreateWorkspaceMetadataRequest, opts ...grpc.CallOption) (*CreateWorkspaceMetadataResponse, error)
-	// UpdateWorkspaceMetadata updates a workspace ConfigMap.
-	UpdateWorkspaceMetadata(ctx context.Context, in *UpdateWorkspaceMetadataRequest, opts ...grpc.CallOption) (*UpdateWorkspaceMetadataResponse, error)
-	// DeleteWorkspaceMetadata deletes a workspace ConfigMap.
-	DeleteWorkspaceMetadata(ctx context.Context, in *DeleteWorkspaceMetadataRequest, opts ...grpc.CallOption) (*DeleteWorkspaceMetadataResponse, error)
-	// ListWorkspaces lists all workspace ConfigMaps.
-	ListWorkspaces(ctx context.Context, in *ListWorkspacesRequest, opts ...grpc.CallOption) (*ListWorkspacesResponse, error)
 	// SetResourceQuota creates or updates a ResourceQuota, LimitRange, and tier label on a namespace.
 	SetResourceQuota(ctx context.Context, in *SetResourceQuotaRequest, opts ...grpc.CallOption) (*SetResourceQuotaResponse, error)
 	// ResourceQuota returns the current resource quota and tier for an environment namespace.
@@ -252,60 +237,10 @@ func (c *deployerServiceClient) DatabaseCredentials(ctx context.Context, in *Dat
 	return out, nil
 }
 
-func (c *deployerServiceClient) WorkspaceMetadata(ctx context.Context, in *WorkspaceMetadataRequest, opts ...grpc.CallOption) (*WorkspaceMetadataResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(WorkspaceMetadataResponse)
-	err := c.cc.Invoke(ctx, DeployerService_WorkspaceMetadata_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *deployerServiceClient) WorkspaceByInstallationID(ctx context.Context, in *WorkspaceByInstallationIDRequest, opts ...grpc.CallOption) (*WorkspaceByInstallationIDResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(WorkspaceByInstallationIDResponse)
 	err := c.cc.Invoke(ctx, DeployerService_WorkspaceByInstallationID_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *deployerServiceClient) CreateWorkspaceMetadata(ctx context.Context, in *CreateWorkspaceMetadataRequest, opts ...grpc.CallOption) (*CreateWorkspaceMetadataResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(CreateWorkspaceMetadataResponse)
-	err := c.cc.Invoke(ctx, DeployerService_CreateWorkspaceMetadata_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *deployerServiceClient) UpdateWorkspaceMetadata(ctx context.Context, in *UpdateWorkspaceMetadataRequest, opts ...grpc.CallOption) (*UpdateWorkspaceMetadataResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(UpdateWorkspaceMetadataResponse)
-	err := c.cc.Invoke(ctx, DeployerService_UpdateWorkspaceMetadata_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *deployerServiceClient) DeleteWorkspaceMetadata(ctx context.Context, in *DeleteWorkspaceMetadataRequest, opts ...grpc.CallOption) (*DeleteWorkspaceMetadataResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(DeleteWorkspaceMetadataResponse)
-	err := c.cc.Invoke(ctx, DeployerService_DeleteWorkspaceMetadata_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *deployerServiceClient) ListWorkspaces(ctx context.Context, in *ListWorkspacesRequest, opts ...grpc.CallOption) (*ListWorkspacesResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ListWorkspacesResponse)
-	err := c.cc.Invoke(ctx, DeployerService_ListWorkspaces_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -412,18 +347,8 @@ type DeployerServiceServer interface {
 	SetServiceScaling(context.Context, *SetServiceScalingRequest) (*SetServiceScalingResponse, error)
 	// DatabaseCredentials returns the resolved connection credentials for a database.
 	DatabaseCredentials(context.Context, *DatabaseCredentialsRequest) (*DatabaseCredentialsResponse, error)
-	// WorkspaceMetadata returns metadata for a workspace from K8s ConfigMaps.
-	WorkspaceMetadata(context.Context, *WorkspaceMetadataRequest) (*WorkspaceMetadataResponse, error)
 	// WorkspaceByInstallationID finds a workspace by its GitHub App installation ID.
 	WorkspaceByInstallationID(context.Context, *WorkspaceByInstallationIDRequest) (*WorkspaceByInstallationIDResponse, error)
-	// CreateWorkspaceMetadata creates a workspace ConfigMap in lucity-system.
-	CreateWorkspaceMetadata(context.Context, *CreateWorkspaceMetadataRequest) (*CreateWorkspaceMetadataResponse, error)
-	// UpdateWorkspaceMetadata updates a workspace ConfigMap.
-	UpdateWorkspaceMetadata(context.Context, *UpdateWorkspaceMetadataRequest) (*UpdateWorkspaceMetadataResponse, error)
-	// DeleteWorkspaceMetadata deletes a workspace ConfigMap.
-	DeleteWorkspaceMetadata(context.Context, *DeleteWorkspaceMetadataRequest) (*DeleteWorkspaceMetadataResponse, error)
-	// ListWorkspaces lists all workspace ConfigMaps.
-	ListWorkspaces(context.Context, *ListWorkspacesRequest) (*ListWorkspacesResponse, error)
 	// SetResourceQuota creates or updates a ResourceQuota, LimitRange, and tier label on a namespace.
 	SetResourceQuota(context.Context, *SetResourceQuotaRequest) (*SetResourceQuotaResponse, error)
 	// ResourceQuota returns the current resource quota and tier for an environment namespace.
@@ -487,23 +412,8 @@ func (UnimplementedDeployerServiceServer) SetServiceScaling(context.Context, *Se
 func (UnimplementedDeployerServiceServer) DatabaseCredentials(context.Context, *DatabaseCredentialsRequest) (*DatabaseCredentialsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DatabaseCredentials not implemented")
 }
-func (UnimplementedDeployerServiceServer) WorkspaceMetadata(context.Context, *WorkspaceMetadataRequest) (*WorkspaceMetadataResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method WorkspaceMetadata not implemented")
-}
 func (UnimplementedDeployerServiceServer) WorkspaceByInstallationID(context.Context, *WorkspaceByInstallationIDRequest) (*WorkspaceByInstallationIDResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method WorkspaceByInstallationID not implemented")
-}
-func (UnimplementedDeployerServiceServer) CreateWorkspaceMetadata(context.Context, *CreateWorkspaceMetadataRequest) (*CreateWorkspaceMetadataResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method CreateWorkspaceMetadata not implemented")
-}
-func (UnimplementedDeployerServiceServer) UpdateWorkspaceMetadata(context.Context, *UpdateWorkspaceMetadataRequest) (*UpdateWorkspaceMetadataResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method UpdateWorkspaceMetadata not implemented")
-}
-func (UnimplementedDeployerServiceServer) DeleteWorkspaceMetadata(context.Context, *DeleteWorkspaceMetadataRequest) (*DeleteWorkspaceMetadataResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method DeleteWorkspaceMetadata not implemented")
-}
-func (UnimplementedDeployerServiceServer) ListWorkspaces(context.Context, *ListWorkspacesRequest) (*ListWorkspacesResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ListWorkspaces not implemented")
 }
 func (UnimplementedDeployerServiceServer) SetResourceQuota(context.Context, *SetResourceQuotaRequest) (*SetResourceQuotaResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetResourceQuota not implemented")
@@ -774,24 +684,6 @@ func _DeployerService_DatabaseCredentials_Handler(srv interface{}, ctx context.C
 	return interceptor(ctx, in, info, handler)
 }
 
-func _DeployerService_WorkspaceMetadata_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(WorkspaceMetadataRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(DeployerServiceServer).WorkspaceMetadata(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: DeployerService_WorkspaceMetadata_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DeployerServiceServer).WorkspaceMetadata(ctx, req.(*WorkspaceMetadataRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _DeployerService_WorkspaceByInstallationID_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(WorkspaceByInstallationIDRequest)
 	if err := dec(in); err != nil {
@@ -806,78 +698,6 @@ func _DeployerService_WorkspaceByInstallationID_Handler(srv interface{}, ctx con
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DeployerServiceServer).WorkspaceByInstallationID(ctx, req.(*WorkspaceByInstallationIDRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _DeployerService_CreateWorkspaceMetadata_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CreateWorkspaceMetadataRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(DeployerServiceServer).CreateWorkspaceMetadata(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: DeployerService_CreateWorkspaceMetadata_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DeployerServiceServer).CreateWorkspaceMetadata(ctx, req.(*CreateWorkspaceMetadataRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _DeployerService_UpdateWorkspaceMetadata_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(UpdateWorkspaceMetadataRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(DeployerServiceServer).UpdateWorkspaceMetadata(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: DeployerService_UpdateWorkspaceMetadata_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DeployerServiceServer).UpdateWorkspaceMetadata(ctx, req.(*UpdateWorkspaceMetadataRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _DeployerService_DeleteWorkspaceMetadata_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(DeleteWorkspaceMetadataRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(DeployerServiceServer).DeleteWorkspaceMetadata(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: DeployerService_DeleteWorkspaceMetadata_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DeployerServiceServer).DeleteWorkspaceMetadata(ctx, req.(*DeleteWorkspaceMetadataRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _DeployerService_ListWorkspaces_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ListWorkspacesRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(DeployerServiceServer).ListWorkspaces(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: DeployerService_ListWorkspaces_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DeployerServiceServer).ListWorkspaces(ctx, req.(*ListWorkspacesRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1064,28 +884,8 @@ var DeployerService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _DeployerService_DatabaseCredentials_Handler,
 		},
 		{
-			MethodName: "WorkspaceMetadata",
-			Handler:    _DeployerService_WorkspaceMetadata_Handler,
-		},
-		{
 			MethodName: "WorkspaceByInstallationID",
 			Handler:    _DeployerService_WorkspaceByInstallationID_Handler,
-		},
-		{
-			MethodName: "CreateWorkspaceMetadata",
-			Handler:    _DeployerService_CreateWorkspaceMetadata_Handler,
-		},
-		{
-			MethodName: "UpdateWorkspaceMetadata",
-			Handler:    _DeployerService_UpdateWorkspaceMetadata_Handler,
-		},
-		{
-			MethodName: "DeleteWorkspaceMetadata",
-			Handler:    _DeployerService_DeleteWorkspaceMetadata_Handler,
-		},
-		{
-			MethodName: "ListWorkspaces",
-			Handler:    _DeployerService_ListWorkspaces_Handler,
 		},
 		{
 			MethodName: "SetResourceQuota",
