@@ -70,6 +70,19 @@ type Domain {
   type: DomainType!
   """DNS resolution status. Always VALID for platform domains. Checked via DNS lookup for custom domains."""
   dnsStatus: DnsStatus!
+  """TLS certificate status. NONE for platform domains (covered by wildcard). Checked via cert-manager for custom domains."""
+  tlsStatus: TlsStatus!
+}
+
+enum TlsStatus {
+  """No certificate needed (platform domains use wildcard cert)."""
+  NONE
+  """Certificate is being provisioned by cert-manager."""
+  PROVISIONING
+  """Certificate is active and TLS termination is working."""
+  ACTIVE
+  """Certificate provisioning failed."""
+  ERROR
 }
 
 enum DomainType {

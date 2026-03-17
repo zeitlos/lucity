@@ -28,7 +28,7 @@ gateway:
     REGISTRY_URL: lucity-infra-zot.lucity-system.svc.cluster.local:5000
     REGISTRY_IMAGE_PREFIX: 10.96.100.100:5000
     WORKLOAD_DOMAIN: lucity.app
-    DOMAIN_TARGET: lucity.cloud
+    DOMAIN_TARGET: lb.lucity.app
   envSecret:
     JWT_SECRET: JWT_SECRET
     GITHUB_CLIENT_SECRET: GITHUB_CLIENT_SECRET

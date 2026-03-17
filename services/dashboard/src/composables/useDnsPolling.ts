@@ -9,6 +9,7 @@ export interface DnsCheckResult {
   cnameTarget: string | null;
   expectedTarget: string;
   message: string | null;
+  tlsStatus?: 'NONE' | 'PROVISIONING' | 'ACTIVE' | 'ERROR';
 }
 
 const POLL_INTERVAL = 5000;
@@ -100,6 +101,12 @@ export function useDnsPolling() {
     }
   }
 
+  function setTlsStatus(hostname: string, tlsStatus: 'NONE' | 'PROVISIONING' | 'ACTIVE' | 'ERROR') {
+    if (checks[hostname]) {
+      checks[hostname].tlsStatus = tlsStatus;
+    }
+  }
+
   onUnmounted(() => stopPolling());
 
   return {
@@ -107,6 +114,7 @@ export function useDnsPolling() {
     trackHostnames,
     addHostname,
     removeHostname,
+    setTlsStatus,
     stopPolling,
   };
 }

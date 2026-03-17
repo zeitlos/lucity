@@ -104,6 +104,7 @@ export const GenerateDomainMutation = gql`
       hostname
       type
       dnsStatus
+      tlsStatus
     }
   }
 `;
@@ -114,6 +115,7 @@ export const AddCustomDomainMutation = gql`
       hostname
       type
       dnsStatus
+      tlsStatus
     }
   }
 `;
@@ -141,6 +143,7 @@ export const PlatformConfigQuery = gql`
     platformConfig {
       workloadDomain
       domainTarget
+      ipAddress
     }
   }
 `;

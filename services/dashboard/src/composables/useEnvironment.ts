@@ -13,6 +13,7 @@ export interface DomainInfo {
   hostname: string;
   type: 'PLATFORM' | 'CUSTOM';
   dnsStatus: 'VALID' | 'PENDING' | 'MISCONFIGURED' | 'ERROR';
+  tlsStatus: 'NONE' | 'PROVISIONING' | 'ACTIVE' | 'ERROR';
 }
 
 export interface AutoscalingInfo {

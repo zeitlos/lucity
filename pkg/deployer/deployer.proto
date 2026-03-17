@@ -67,6 +67,15 @@ service DeployerService {
 
   // SuspendWorkspace suspends or resumes all workloads in a workspace.
   rpc SuspendWorkspace(SuspendWorkspaceRequest) returns (SuspendWorkspaceResponse);
+
+  // ProvisionCustomDomain creates a cert-manager Certificate for a custom domain and patches the Gateway.
+  rpc ProvisionCustomDomain(ProvisionCustomDomainRequest) returns (ProvisionCustomDomainResponse);
+
+  // DeleteCustomDomain removes the Certificate and Gateway cert ref for a custom domain.
+  rpc DeleteCustomDomain(DeleteCustomDomainRequest) returns (DeleteCustomDomainResponse);
+
+  // CustomDomainStatus returns the TLS certificate status for a custom domain.
+  rpc CustomDomainStatus(CustomDomainStatusRequest) returns (CustomDomainStatusResponse);
 }
 
 message DeployEnvironmentRequest {
@@ -385,4 +394,29 @@ message SuspendWorkspaceRequest {
 }
 
 message SuspendWorkspaceResponse {}
+
+// Custom domain messages.
+
+message ProvisionCustomDomainRequest {
+  string hostname = 1;
+}
+
+message ProvisionCustomDomainResponse {
+  string tls_status = 1; // "PROVISIONING", "ACTIVE", "ERROR"
+}
+
+message DeleteCustomDomainRequest {
+  string hostname = 1;
+}
+
+message DeleteCustomDomainResponse {}
+
+message CustomDomainStatusRequest {
+  string hostname = 1;
+}
+
+message CustomDomainStatusResponse {
+  string tls_status = 1; // "NONE", "PROVISIONING", "ACTIVE", "ERROR"
+  string message = 2;
+}
 

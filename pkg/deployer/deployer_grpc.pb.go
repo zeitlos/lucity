@@ -40,6 +40,9 @@ const (
 	DeployerService_UserGitHubToken_FullMethodName           = "/deployer.DeployerService/UserGitHubToken"
 	DeployerService_DeleteUserGitHubToken_FullMethodName     = "/deployer.DeployerService/DeleteUserGitHubToken"
 	DeployerService_SuspendWorkspace_FullMethodName          = "/deployer.DeployerService/SuspendWorkspace"
+	DeployerService_ProvisionCustomDomain_FullMethodName     = "/deployer.DeployerService/ProvisionCustomDomain"
+	DeployerService_DeleteCustomDomain_FullMethodName        = "/deployer.DeployerService/DeleteCustomDomain"
+	DeployerService_CustomDomainStatus_FullMethodName        = "/deployer.DeployerService/CustomDomainStatus"
 )
 
 // DeployerServiceClient is the client API for DeployerService service.
@@ -88,6 +91,12 @@ type DeployerServiceClient interface {
 	DeleteUserGitHubToken(ctx context.Context, in *DeleteUserGitHubTokenRequest, opts ...grpc.CallOption) (*DeleteUserGitHubTokenResponse, error)
 	// SuspendWorkspace suspends or resumes all workloads in a workspace.
 	SuspendWorkspace(ctx context.Context, in *SuspendWorkspaceRequest, opts ...grpc.CallOption) (*SuspendWorkspaceResponse, error)
+	// ProvisionCustomDomain creates a cert-manager Certificate for a custom domain and patches the Gateway.
+	ProvisionCustomDomain(ctx context.Context, in *ProvisionCustomDomainRequest, opts ...grpc.CallOption) (*ProvisionCustomDomainResponse, error)
+	// DeleteCustomDomain removes the Certificate and Gateway cert ref for a custom domain.
+	DeleteCustomDomain(ctx context.Context, in *DeleteCustomDomainRequest, opts ...grpc.CallOption) (*DeleteCustomDomainResponse, error)
+	// CustomDomainStatus returns the TLS certificate status for a custom domain.
+	CustomDomainStatus(ctx context.Context, in *CustomDomainStatusRequest, opts ...grpc.CallOption) (*CustomDomainStatusResponse, error)
 }
 
 type deployerServiceClient struct {
@@ -317,6 +326,36 @@ func (c *deployerServiceClient) SuspendWorkspace(ctx context.Context, in *Suspen
 	return out, nil
 }
 
+func (c *deployerServiceClient) ProvisionCustomDomain(ctx context.Context, in *ProvisionCustomDomainRequest, opts ...grpc.CallOption) (*ProvisionCustomDomainResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ProvisionCustomDomainResponse)
+	err := c.cc.Invoke(ctx, DeployerService_ProvisionCustomDomain_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *deployerServiceClient) DeleteCustomDomain(ctx context.Context, in *DeleteCustomDomainRequest, opts ...grpc.CallOption) (*DeleteCustomDomainResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeleteCustomDomainResponse)
+	err := c.cc.Invoke(ctx, DeployerService_DeleteCustomDomain_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *deployerServiceClient) CustomDomainStatus(ctx context.Context, in *CustomDomainStatusRequest, opts ...grpc.CallOption) (*CustomDomainStatusResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CustomDomainStatusResponse)
+	err := c.cc.Invoke(ctx, DeployerService_CustomDomainStatus_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DeployerServiceServer is the server API for DeployerService service.
 // All implementations must embed UnimplementedDeployerServiceServer
 // for forward compatibility.
@@ -363,6 +402,12 @@ type DeployerServiceServer interface {
 	DeleteUserGitHubToken(context.Context, *DeleteUserGitHubTokenRequest) (*DeleteUserGitHubTokenResponse, error)
 	// SuspendWorkspace suspends or resumes all workloads in a workspace.
 	SuspendWorkspace(context.Context, *SuspendWorkspaceRequest) (*SuspendWorkspaceResponse, error)
+	// ProvisionCustomDomain creates a cert-manager Certificate for a custom domain and patches the Gateway.
+	ProvisionCustomDomain(context.Context, *ProvisionCustomDomainRequest) (*ProvisionCustomDomainResponse, error)
+	// DeleteCustomDomain removes the Certificate and Gateway cert ref for a custom domain.
+	DeleteCustomDomain(context.Context, *DeleteCustomDomainRequest) (*DeleteCustomDomainResponse, error)
+	// CustomDomainStatus returns the TLS certificate status for a custom domain.
+	CustomDomainStatus(context.Context, *CustomDomainStatusRequest) (*CustomDomainStatusResponse, error)
 	mustEmbedUnimplementedDeployerServiceServer()
 }
 
@@ -435,6 +480,15 @@ func (UnimplementedDeployerServiceServer) DeleteUserGitHubToken(context.Context,
 }
 func (UnimplementedDeployerServiceServer) SuspendWorkspace(context.Context, *SuspendWorkspaceRequest) (*SuspendWorkspaceResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SuspendWorkspace not implemented")
+}
+func (UnimplementedDeployerServiceServer) ProvisionCustomDomain(context.Context, *ProvisionCustomDomainRequest) (*ProvisionCustomDomainResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ProvisionCustomDomain not implemented")
+}
+func (UnimplementedDeployerServiceServer) DeleteCustomDomain(context.Context, *DeleteCustomDomainRequest) (*DeleteCustomDomainResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteCustomDomain not implemented")
+}
+func (UnimplementedDeployerServiceServer) CustomDomainStatus(context.Context, *CustomDomainStatusRequest) (*CustomDomainStatusResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CustomDomainStatus not implemented")
 }
 func (UnimplementedDeployerServiceServer) mustEmbedUnimplementedDeployerServiceServer() {}
 func (UnimplementedDeployerServiceServer) testEmbeddedByValue()                         {}
@@ -828,6 +882,60 @@ func _DeployerService_SuspendWorkspace_Handler(srv interface{}, ctx context.Cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _DeployerService_ProvisionCustomDomain_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ProvisionCustomDomainRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DeployerServiceServer).ProvisionCustomDomain(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DeployerService_ProvisionCustomDomain_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DeployerServiceServer).ProvisionCustomDomain(ctx, req.(*ProvisionCustomDomainRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DeployerService_DeleteCustomDomain_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteCustomDomainRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DeployerServiceServer).DeleteCustomDomain(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DeployerService_DeleteCustomDomain_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DeployerServiceServer).DeleteCustomDomain(ctx, req.(*DeleteCustomDomainRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DeployerService_CustomDomainStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CustomDomainStatusRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DeployerServiceServer).CustomDomainStatus(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DeployerService_CustomDomainStatus_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DeployerServiceServer).CustomDomainStatus(ctx, req.(*CustomDomainStatusRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // DeployerService_ServiceDesc is the grpc.ServiceDesc for DeployerService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -914,6 +1022,18 @@ var DeployerService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SuspendWorkspace",
 			Handler:    _DeployerService_SuspendWorkspace_Handler,
+		},
+		{
+			MethodName: "ProvisionCustomDomain",
+			Handler:    _DeployerService_ProvisionCustomDomain_Handler,
+		},
+		{
+			MethodName: "DeleteCustomDomain",
+			Handler:    _DeployerService_DeleteCustomDomain_Handler,
+		},
+		{
+			MethodName: "CustomDomainStatus",
+			Handler:    _DeployerService_CustomDomainStatus_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

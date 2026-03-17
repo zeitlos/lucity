@@ -226,6 +226,8 @@ type Domain struct {
 	Type DomainType `json:"type"`
 	// DNS resolution status. Always VALID for platform domains. Checked via DNS lookup for custom domains.
 	DNSStatus DNSStatus `json:"dnsStatus"`
+	// TLS certificate status. NONE for platform domains (covered by wildcard). Checked via cert-manager for custom domains.
+	TLSStatus TLSStatus `json:"tlsStatus"`
 }
 
 type Environment struct {
@@ -287,6 +289,8 @@ type PlatformConfig struct {
 	WorkloadDomain string `json:"workloadDomain"`
 	// CNAME target for custom domains. Empty if not configured.
 	DomainTarget string `json:"domainTarget"`
+	// Load balancer IP address for A record configuration (apex domains).
+	IPAddress string `json:"ipAddress"`
 }
 
 type Project struct {
@@ -1007,6 +1011,69 @@ func (e *SyncStatus) UnmarshalJSON(b []byte) error {
 }
 
 func (e SyncStatus) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type TLSStatus string
+
+const (
+	// No certificate needed (platform domains use wildcard cert).
+	TLSStatusNone TLSStatus = "NONE"
+	// Certificate is being provisioned by cert-manager.
+	TLSStatusProvisioning TLSStatus = "PROVISIONING"
+	// Certificate is active and TLS termination is working.
+	TLSStatusActive TLSStatus = "ACTIVE"
+	// Certificate provisioning failed.
+	TLSStatusError TLSStatus = "ERROR"
+)
+
+var AllTLSStatus = []TLSStatus{
+	TLSStatusNone,
+	TLSStatusProvisioning,
+	TLSStatusActive,
+	TLSStatusError,
+}
+
+func (e TLSStatus) IsValid() bool {
+	switch e {
+	case TLSStatusNone, TLSStatusProvisioning, TLSStatusActive, TLSStatusError:
+		return true
+	}
+	return false
+}
+
+func (e TLSStatus) String() string {
+	return string(e)
+}
+
+func (e *TLSStatus) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = TLSStatus(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid TlsStatus", str)
+	}
+	return nil
+}
+
+func (e TLSStatus) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *TLSStatus) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e TLSStatus) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

@@ -161,10 +161,11 @@ func (r *queryResolver) ActiveDeployment(ctx context.Context, projectID string, 
 
 // PlatformConfig is the resolver for the platformConfig field.
 func (r *queryResolver) PlatformConfig(ctx context.Context) (*model.PlatformConfig, error) {
-	wd, dt := r.API.PlatformConfig()
+	wd, dt, ip := r.API.PlatformConfig()
 	return &model.PlatformConfig{
 		WorkloadDomain: wd,
 		DomainTarget:   dt,
+		IPAddress:      ip,
 	}, nil
 }
 

@@ -116,6 +116,7 @@ func convertServiceInstance(si handler.ServiceInstance, workloadDomain string) m
 	for _, hostname := range si.Domains {
 		domainType := model.DomainTypeCustom
 		dnsStatus := model.DNSStatusPending
+		tlsStatus := model.TLSStatusNone
 		if strings.HasSuffix(hostname, "."+workloadDomain) {
 			domainType = model.DomainTypePlatform
 			dnsStatus = model.DNSStatusValid
@@ -124,6 +125,7 @@ func convertServiceInstance(si handler.ServiceInstance, workloadDomain string) m
 			Hostname:  hostname,
 			Type:      domainType,
 			DNSStatus: dnsStatus,
+			TLSStatus: tlsStatus,
 		})
 	}
 
@@ -140,6 +142,7 @@ func convertDomain(d handler.Domain) *model.Domain {
 		Hostname:  d.Hostname,
 		Type:      model.DomainType(d.Type),
 		DNSStatus: model.DNSStatus(d.DnsStatus),
+		TLSStatus: model.TLSStatus(d.TlsStatus),
 	}
 }
 

@@ -112,6 +112,9 @@ gateway:
       protocol: HTTP
       port: 80
 
+# -- cert-manager ClusterIssuer resources
+clusterIssuers: []
+
 # -- cert-manager Certificate resources
 certificates: []
 

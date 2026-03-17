@@ -95,16 +95,21 @@ function formatMemory(mb: number): string {
 // Platform config
 const { result: platformConfigResult } = useQuery(PlatformConfigQuery);
 const domainTarget = computed(() => platformConfigResult.value?.platformConfig?.domainTarget ?? '');
+const ipAddress = computed(() => platformConfigResult.value?.platformConfig?.ipAddress ?? '');
 
 // DNS polling for custom domains
 const dnsPolling = useDnsPolling();
 
 // Start polling for unverified custom domains when they change
-watch(customDomains, (domains) => {
-  const unverified = domains
+watch(customDomains, (doms) => {
+  const unverified = doms
     .filter(d => d.dnsStatus !== 'VALID')
     .map(d => d.hostname);
   dnsPolling.trackHostnames(unverified);
+  // Sync TLS status from domain data into polling checks
+  for (const d of doms) {
+    dnsPolling.setTlsStatus(d.hostname, d.tlsStatus);
+  }
 }, { immediate: true });
 
 // Get live DNS status for a custom domain (from polling, or fallback to static)
@@ -112,6 +117,36 @@ function dnsStatus(hostname: string): 'VALID' | 'PENDING' | 'MISCONFIGURED' | 'E
   return dnsPolling.checks[hostname]?.status
     ?? customDomains.value.find(d => d.hostname === hostname)?.dnsStatus
     ?? 'PENDING';
+}
+
+// Get TLS status for a domain (from domain data)
+function tlsStatus(hostname: string): 'NONE' | 'PROVISIONING' | 'ACTIVE' | 'ERROR' {
+  return domains.value.find(d => d.hostname === hostname)?.tlsStatus ?? 'NONE';
+}
+
+// Combined domain status for display
+function domainStatusLabel(domain: DomainInfo): { icon: 'check' | 'spinner' | 'alert'; color: string; label: string } {
+  const dns = dnsStatus(domain.hostname);
+  const tls = tlsStatus(domain.hostname);
+
+  if (dns === 'PENDING') {
+    return { icon: 'spinner', color: 'text-yellow-500', label: 'DNS Pending' };
+  }
+  if (dns === 'MISCONFIGURED') {
+    return { icon: 'alert', color: 'text-orange-500', label: 'DNS Misconfigured' };
+  }
+  if (dns === 'ERROR') {
+    return { icon: 'alert', color: 'text-destructive', label: 'DNS Error' };
+  }
+  // DNS is VALID
+  if (tls === 'ACTIVE' || tls === 'NONE') {
+    return { icon: 'check', color: 'text-green-500', label: 'Connected' };
+  }
+  if (tls === 'PROVISIONING') {
+    return { icon: 'spinner', color: 'text-blue-500', label: 'Provisioning TLS...' };
+  }
+  // TLS ERROR
+  return { icon: 'alert', color: 'text-destructive', label: 'TLS Error' };
 }
 
 // DNS records modal
@@ -717,19 +752,19 @@ async function handleRemoveService() {
                   <div class="flex items-center gap-2">
                     <!-- Status icon -->
                     <CircleCheck
-                      v-if="dnsStatus(domain.hostname) === 'VALID'"
+                      v-if="domainStatusLabel(domain).icon === 'check'"
                       :size="14"
-                      class="shrink-0 text-green-500"
+                      :class="['shrink-0', domainStatusLabel(domain).color]"
                     />
                     <CircleAlert
-                      v-else-if="dnsStatus(domain.hostname) === 'MISCONFIGURED'"
+                      v-else-if="domainStatusLabel(domain).icon === 'alert'"
                       :size="14"
-                      class="shrink-0 text-orange-500"
+                      :class="['shrink-0', domainStatusLabel(domain).color]"
                     />
                     <Loader2
                       v-else
                       :size="14"
-                      class="shrink-0 animate-spin text-yellow-500"
+                      :class="['shrink-0 animate-spin', domainStatusLabel(domain).color]"
                     />
                     <a
                       :href="domainUrl(domain.hostname)"
@@ -763,16 +798,18 @@ async function handleRemoveService() {
                       Port
                       <span class="font-mono font-medium text-foreground">{{ service.port }}</span>
                     </span>
-                    <template v-if="dnsStatus(domain.hostname) !== 'VALID'">
+                    <template v-if="domainStatusLabel(domain).icon !== 'check'">
                       <span class="text-muted-foreground/50">&middot;</span>
-                      <span>Waiting for DNS</span>
-                      <span class="text-muted-foreground/50">&middot;</span>
-                      <button
-                        class="font-medium text-primary hover:underline"
-                        @click="showDnsRecords(domain.hostname)"
-                      >
-                        Show records
-                      </button>
+                      <span>{{ domainStatusLabel(domain).label }}</span>
+                      <template v-if="dnsStatus(domain.hostname) !== 'VALID'">
+                        <span class="text-muted-foreground/50">&middot;</span>
+                        <button
+                          class="font-medium text-primary hover:underline"
+                          @click="showDnsRecords(domain.hostname)"
+                        >
+                          Show records
+                        </button>
+                      </template>
                     </template>
                   </div>
                 </div>
@@ -1147,54 +1184,99 @@ async function handleRemoveService() {
           </DialogDescription>
         </DialogHeader>
 
-        <div class="rounded-md border">
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="border-b bg-muted/50">
-                <th class="px-3 py-2 text-left font-medium text-muted-foreground">Type</th>
-                <th class="px-3 py-2 text-left font-medium text-muted-foreground">Name</th>
-                <th class="px-3 py-2 text-left font-medium text-muted-foreground">Value</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td class="px-3 py-2">
-                  <div class="flex items-center gap-1.5">
-                    <CircleCheck
-                      v-if="dnsModalStatus === 'VALID'"
-                      :size="12"
-                      class="shrink-0 text-green-500"
-                    />
-                    <CircleAlert
-                      v-else-if="dnsModalStatus === 'MISCONFIGURED'"
-                      :size="12"
-                      class="shrink-0 text-orange-500"
-                    />
-                    <Loader2
-                      v-else
-                      :size="12"
-                      class="shrink-0 animate-spin text-yellow-500"
-                    />
-                    <Badge variant="outline" class="font-mono text-xs">CNAME</Badge>
-                  </div>
-                </td>
-                <td class="px-3 py-2 font-mono text-xs">{{ dnsModalHostname }}</td>
-                <td class="px-3 py-2">
-                  <div class="flex items-center gap-1">
-                    <span class="font-mono text-xs">{{ dnsModalTarget }}</span>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      class="h-6 w-6 shrink-0"
-                      @click="copyToClipboard(dnsModalTarget)"
-                    >
-                      <Copy :size="12" />
-                    </Button>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+        <div class="space-y-3">
+          <div class="rounded-md border">
+            <div class="border-b bg-muted/50 px-3 py-2">
+              <p class="text-xs font-medium text-muted-foreground">
+                CNAME record (recommended)
+              </p>
+            </div>
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b bg-muted/30">
+                  <th class="px-3 py-2 text-left font-medium text-muted-foreground">Type</th>
+                  <th class="px-3 py-2 text-left font-medium text-muted-foreground">Name</th>
+                  <th class="px-3 py-2 text-left font-medium text-muted-foreground">Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="px-3 py-2">
+                    <div class="flex items-center gap-1.5">
+                      <CircleCheck
+                        v-if="dnsModalStatus === 'VALID'"
+                        :size="12"
+                        class="shrink-0 text-green-500"
+                      />
+                      <CircleAlert
+                        v-else-if="dnsModalStatus === 'MISCONFIGURED'"
+                        :size="12"
+                        class="shrink-0 text-orange-500"
+                      />
+                      <Loader2
+                        v-else
+                        :size="12"
+                        class="shrink-0 animate-spin text-yellow-500"
+                      />
+                      <Badge variant="outline" class="font-mono text-xs">CNAME</Badge>
+                    </div>
+                  </td>
+                  <td class="px-3 py-2 font-mono text-xs">{{ dnsModalHostname }}</td>
+                  <td class="px-3 py-2">
+                    <div class="flex items-center gap-1">
+                      <span class="font-mono text-xs">{{ dnsModalTarget }}</span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        class="h-6 w-6 shrink-0"
+                        @click="copyToClipboard(dnsModalTarget)"
+                      >
+                        <Copy :size="12" />
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div v-if="ipAddress" class="rounded-md border">
+            <div class="border-b bg-muted/50 px-3 py-2">
+              <p class="text-xs font-medium text-muted-foreground">
+                A record (for apex/root domains)
+              </p>
+            </div>
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b bg-muted/30">
+                  <th class="px-3 py-2 text-left font-medium text-muted-foreground">Type</th>
+                  <th class="px-3 py-2 text-left font-medium text-muted-foreground">Name</th>
+                  <th class="px-3 py-2 text-left font-medium text-muted-foreground">Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="px-3 py-2">
+                    <Badge variant="outline" class="font-mono text-xs">A</Badge>
+                  </td>
+                  <td class="px-3 py-2 font-mono text-xs">{{ dnsModalHostname }}</td>
+                  <td class="px-3 py-2">
+                    <div class="flex items-center gap-1">
+                      <span class="font-mono text-xs">{{ ipAddress }}</span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        class="h-6 w-6 shrink-0"
+                        @click="copyToClipboard(ipAddress)"
+                      >
+                        <Copy :size="12" />
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
 
         <!-- Live status message -->

@@ -170,6 +170,7 @@ type ComplexityRoot struct {
 	Domain struct {
 		DNSStatus func(childComplexity int) int
 		Hostname  func(childComplexity int) int
+		TLSStatus func(childComplexity int) int
 		Type      func(childComplexity int) int
 	}
 
@@ -248,6 +249,7 @@ type ComplexityRoot struct {
 
 	PlatformConfig struct {
 		DomainTarget   func(childComplexity int) int
+		IPAddress      func(childComplexity int) int
 		WorkloadDomain func(childComplexity int) int
 	}
 
@@ -924,6 +926,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Domain.Hostname(childComplexity), true
+	case "Domain.tlsStatus":
+		if e.complexity.Domain.TLSStatus == nil {
+			break
+		}
+
+		return e.complexity.Domain.TLSStatus(childComplexity), true
 	case "Domain.type":
 		if e.complexity.Domain.Type == nil {
 			break
@@ -1413,6 +1421,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.PlatformConfig.DomainTarget(childComplexity), true
+	case "PlatformConfig.ipAddress":
+		if e.complexity.PlatformConfig.IPAddress == nil {
+			break
+		}
+
+		return e.complexity.PlatformConfig.IPAddress(childComplexity), true
 	case "PlatformConfig.workloadDomain":
 		if e.complexity.PlatformConfig.WorkloadDomain == nil {
 			break
@@ -5089,6 +5103,35 @@ func (ec *executionContext) fieldContext_Domain_dnsStatus(_ context.Context, fie
 	return fc, nil
 }
 
+func (ec *executionContext) _Domain_tlsStatus(ctx context.Context, field graphql.CollectedField, obj *model.Domain) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Domain_tlsStatus,
+		func(ctx context.Context) (any, error) {
+			return obj.TLSStatus, nil
+		},
+		nil,
+		ec.marshalNTlsStatus2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐTLSStatus,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Domain_tlsStatus(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Domain",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type TlsStatus does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Environment_id(ctx context.Context, field graphql.CollectedField, obj *model.Environment) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -7104,6 +7147,8 @@ func (ec *executionContext) fieldContext_Mutation_generateDomain(ctx context.Con
 				return ec.fieldContext_Domain_type(ctx, field)
 			case "dnsStatus":
 				return ec.fieldContext_Domain_dnsStatus(ctx, field)
+			case "tlsStatus":
+				return ec.fieldContext_Domain_tlsStatus(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Domain", field.Name)
 		},
@@ -7171,6 +7216,8 @@ func (ec *executionContext) fieldContext_Mutation_addCustomDomain(ctx context.Co
 				return ec.fieldContext_Domain_type(ctx, field)
 			case "dnsStatus":
 				return ec.fieldContext_Domain_dnsStatus(ctx, field)
+			case "tlsStatus":
+				return ec.fieldContext_Domain_tlsStatus(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Domain", field.Name)
 		},
@@ -7946,6 +7993,35 @@ func (ec *executionContext) _PlatformConfig_domainTarget(ctx context.Context, fi
 }
 
 func (ec *executionContext) fieldContext_PlatformConfig_domainTarget(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PlatformConfig",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PlatformConfig_ipAddress(ctx context.Context, field graphql.CollectedField, obj *model.PlatformConfig) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_PlatformConfig_ipAddress,
+		func(ctx context.Context) (any, error) {
+			return obj.IPAddress, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_PlatformConfig_ipAddress(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "PlatformConfig",
 		Field:      field,
@@ -9300,6 +9376,8 @@ func (ec *executionContext) fieldContext_Query_platformConfig(_ context.Context,
 				return ec.fieldContext_PlatformConfig_workloadDomain(ctx, field)
 			case "domainTarget":
 				return ec.fieldContext_PlatformConfig_domainTarget(ctx, field)
+			case "ipAddress":
+				return ec.fieldContext_PlatformConfig_ipAddress(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type PlatformConfig", field.Name)
 		},
@@ -10463,6 +10541,8 @@ func (ec *executionContext) fieldContext_ServiceInstance_domains(_ context.Conte
 				return ec.fieldContext_Domain_type(ctx, field)
 			case "dnsStatus":
 				return ec.fieldContext_Domain_dnsStatus(ctx, field)
+			case "tlsStatus":
+				return ec.fieldContext_Domain_tlsStatus(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Domain", field.Name)
 		},
@@ -15373,6 +15453,11 @@ func (ec *executionContext) _Domain(ctx context.Context, sel ast.SelectionSet, o
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "tlsStatus":
+			out.Values[i] = ec._Domain_tlsStatus(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -15989,6 +16074,11 @@ func (ec *executionContext) _PlatformConfig(ctx context.Context, sel ast.Selecti
 			}
 		case "domainTarget":
 			out.Values[i] = ec._PlatformConfig_domainTarget(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "ipAddress":
+			out.Values[i] = ec._PlatformConfig_ipAddress(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -19030,6 +19120,16 @@ func (ec *executionContext) marshalNTime2timeᚐTime(ctx context.Context, sel as
 		}
 	}
 	return res
+}
+
+func (ec *executionContext) unmarshalNTlsStatus2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐTLSStatus(ctx context.Context, v any) (model.TLSStatus, error) {
+	var res model.TLSStatus
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNTlsStatus2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐTLSStatus(ctx context.Context, sel ast.SelectionSet, v model.TLSStatus) graphql.Marshaler {
+	return v
 }
 
 func (ec *executionContext) unmarshalNUpdateMemberRoleInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐUpdateMemberRoleInput(ctx context.Context, v any) (model.UpdateMemberRoleInput, error) {

@@ -18,6 +18,8 @@ type PlatformConfig {
   workloadDomain: String!
   """CNAME target for custom domains. Empty if not configured."""
   domainTarget: String!
+  """Load balancer IP address for A record configuration (apex domains)."""
+  ipAddress: String!
 }
 
 type Query

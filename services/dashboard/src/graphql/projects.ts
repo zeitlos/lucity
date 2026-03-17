@@ -118,6 +118,7 @@ export const ProjectQuery = gql`
             hostname
             type
             dnsStatus
+            tlsStatus
           }
           deployments {
             id

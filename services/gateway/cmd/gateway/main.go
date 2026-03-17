@@ -58,7 +58,8 @@ type Config struct {
 
 	// Domains
 	WorkloadDomain string `envconfig:"WORKLOAD_DOMAIN" default:"lucity.local"`
-	DomainTarget   string `envconfig:"DOMAIN_TARGET"` // CNAME target for custom domains (e.g., lb.lucity.app)
+	DomainTarget   string `envconfig:"DOMAIN_TARGET"`  // CNAME target for custom domains (e.g., lb.lucity.app)
+	IPAddress      string `envconfig:"IP_ADDRESS"`     // LB IP for A record config (e.g., 46.225.47.40)
 
 	// Billing (optional — disabled when not configured)
 	CashierAddr string `envconfig:"CASHIER_ADDR"`
@@ -183,7 +184,7 @@ func main() {
 	logtoClient := logto.New(config.LogtoEndpoint, config.LogtoM2MAppID, config.LogtoM2MAppSecret)
 	slog.Info("logto management API configured", "endpoint", config.LogtoEndpoint)
 
-	api := handler.New(packagerClient, builderClient, deployerClient, cashierClient, githubApp, logtoClient, config.RegistryURL, registryImagePrefix, config.WorkloadDomain, domainTarget, config.GitHubAppSlug, config.DashboardURL)
+	api := handler.New(packagerClient, builderClient, deployerClient, cashierClient, githubApp, logtoClient, config.RegistryURL, registryImagePrefix, config.WorkloadDomain, domainTarget, config.IPAddress, config.GitHubAppSlug, config.DashboardURL)
 	graphqlServer := NewGraphQLServer(config.Port, api, oidcProvider, verifier, logtoClient, sessionSecret, config.DashboardURL, config.GitHubAppSlug)
 
 	graceful.Serve(ctx, graphqlServer)

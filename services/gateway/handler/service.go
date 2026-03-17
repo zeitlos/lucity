@@ -701,11 +701,12 @@ func (c *Client) Rollback(ctx context.Context, projectID, service, environment, 
 	return true, nil
 }
 
-// Domain represents a domain hostname with its type and DNS status.
+// Domain represents a domain hostname with its type, DNS status, and TLS status.
 type Domain struct {
 	Hostname  string
 	Type      string // "PLATFORM" or "CUSTOM"
 	DnsStatus string // "VALID", "PENDING", "MISCONFIGURED", or "ERROR"
+	TlsStatus string // "NONE", "PROVISIONING", "ACTIVE", or "ERROR"
 }
 
 // DnsCheck holds the result of a live DNS verification.
@@ -718,8 +719,8 @@ type DnsCheck struct {
 }
 
 // PlatformConfig returns platform-level configuration for domain management.
-func (c *Client) PlatformConfig() (workloadDomain, domainTarget string) {
-	return c.WorkloadDomain, c.DomainTarget
+func (c *Client) PlatformConfig() (workloadDomain, domainTarget, ipAddress string) {
+	return c.WorkloadDomain, c.DomainTarget, c.IPAddress
 }
 
 // IsPlatformDomain checks if a hostname is a platform-generated domain.
@@ -776,23 +777,47 @@ func (c *Client) CheckDns(hostname string) DnsCheck {
 		return result
 	}
 
-	// Domain resolves via A record but has no CNAME to the platform target.
+	// Domain resolves via A record. Check if it points to our LB.
+	if c.IPAddress != "" {
+		for _, addr := range addrs {
+			if addr == c.IPAddress {
+				result.Status = "VALID"
+				result.Message = fmt.Sprintf("A record points to platform load balancer (%s)", c.IPAddress)
+				return result
+			}
+		}
+	}
 	result.Status = "MISCONFIGURED"
-	result.Message = fmt.Sprintf("Domain resolves via A record (%s) but has no CNAME to %s", addrs[0], c.DomainTarget)
+	result.Message = fmt.Sprintf("Domain resolves to %s but expected CNAME to %s or A record to %s", addrs[0], c.DomainTarget, c.IPAddress)
 	return result
 }
 
-// BuildDomain constructs a Domain struct with type and DNS status.
+// BuildDomain constructs a Domain struct with type, DNS status, and TLS status.
 func (c *Client) BuildDomain(hostname string) Domain {
 	domainType := "CUSTOM"
+	tlsStatus := "NONE"
 	if c.IsPlatformDomain(hostname) {
 		domainType = "PLATFORM"
+	} else {
+		// Look up TLS cert status for custom domains
+		statusCtx, statusCancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer statusCancel()
+		resp, err := c.Deployer.CustomDomainStatus(statusCtx, &deployer.CustomDomainStatusRequest{
+			Hostname: hostname,
+		})
+		if err != nil {
+			slog.Debug("failed to check TLS status", "hostname", hostname, "error", err)
+			tlsStatus = "NONE"
+		} else {
+			tlsStatus = resp.TlsStatus
+		}
 	}
 	check := c.CheckDns(hostname)
 	return Domain{
 		Hostname:  hostname,
 		Type:      domainType,
 		DnsStatus: check.Status,
+		TlsStatus: tlsStatus,
 	}
 }
 
@@ -920,6 +945,20 @@ func (c *Client) AddCustomDomain(ctx context.Context, projectID, service, enviro
 		return nil, fmt.Errorf("failed to add custom domain: %w", err)
 	}
 
+	// Provision TLS certificate
+	provCtx, provCancel := context.WithTimeout(ctx, grpcTimeout)
+	defer provCancel()
+	provResp, provErr := c.Deployer.ProvisionCustomDomain(provCtx, &deployer.ProvisionCustomDomainRequest{
+		Hostname: hostname,
+	})
+	tlsStatus := "PROVISIONING"
+	if provErr != nil {
+		slog.Warn("failed to provision TLS certificate", "hostname", hostname, "error", provErr)
+		tlsStatus = "ERROR"
+	} else {
+		tlsStatus = provResp.TlsStatus
+	}
+
 	// Trigger ArgoCD sync
 	syncCtx, syncCancel := context.WithTimeout(ctx, grpcTimeout)
 	defer syncCancel()
@@ -931,8 +970,15 @@ func (c *Client) AddCustomDomain(ctx context.Context, projectID, service, enviro
 		slog.Warn("failed to trigger sync after domain add", "project", projectID, "environment", environment, "error", err)
 	}
 
-	d := c.BuildDomain(hostname)
-	return &d, nil
+	domainType := "CUSTOM"
+	check := c.CheckDns(hostname)
+	d := &Domain{
+		Hostname:  hostname,
+		Type:      domainType,
+		DnsStatus: check.Status,
+		TlsStatus: tlsStatus,
+	}
+	return d, nil
 }
 
 // RemoveDomain removes a domain from a service in an environment.
@@ -953,6 +999,18 @@ func (c *Client) RemoveDomain(ctx context.Context, projectID, service, environme
 	})
 	if err != nil {
 		return false, fmt.Errorf("failed to remove domain: %w", err)
+	}
+
+	// Delete TLS certificate for custom domains
+	if !c.IsPlatformDomain(hostname) {
+		delCtx, delCancel := context.WithTimeout(ctx, grpcTimeout)
+		defer delCancel()
+		_, delErr := c.Deployer.DeleteCustomDomain(delCtx, &deployer.DeleteCustomDomainRequest{
+			Hostname: hostname,
+		})
+		if delErr != nil {
+			slog.Warn("failed to delete TLS certificate", "hostname", hostname, "error", delErr)
+		}
 	}
 
 	// Trigger ArgoCD sync
