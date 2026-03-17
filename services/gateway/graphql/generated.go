@@ -73,6 +73,10 @@ type ComplexityRoot struct {
 		TrialEnd          func(childComplexity int) int
 	}
 
+	CheckoutSession struct {
+		URL func(childComplexity int) int
+	}
+
 	Database struct {
 		Instances func(childComplexity int) int
 		Name      func(childComplexity int) int
@@ -210,34 +214,36 @@ type ComplexityRoot struct {
 	}
 
 	Mutation struct {
-		AddCustomDomain         func(childComplexity int, input model.AddCustomDomainInput) int
-		AddService              func(childComplexity int, input model.AddServiceInput) int
-		BillingPortalURL        func(childComplexity int) int
-		ChangePlan              func(childComplexity int, plan model.Plan) int
-		CreateDatabase          func(childComplexity int, input model.CreateDatabaseInput) int
-		CreateEnvironment       func(childComplexity int, input model.CreateEnvironmentInput) int
-		CreateProject           func(childComplexity int, input model.CreateProjectInput) int
-		CreateWorkspace         func(childComplexity int, input model.CreateWorkspaceInput) int
-		DeleteDatabase          func(childComplexity int, projectID string, name string) int
-		DeleteEnvironment       func(childComplexity int, projectID string, environment string) int
-		DeleteProject           func(childComplexity int, id string) int
-		DeleteWorkspace         func(childComplexity int) int
-		Deploy                  func(childComplexity int, input model.DeployInput) int
-		ExecuteQuery            func(childComplexity int, input model.DatabaseQueryInput) int
-		GenerateDomain          func(childComplexity int, input model.GenerateDomainInput) int
-		InviteMember            func(childComplexity int, input model.InviteMemberInput) int
-		Promote                 func(childComplexity int, input model.PromoteInput) int
-		RemoveDomain            func(childComplexity int, input model.RemoveDomainInput) int
-		RemoveMember            func(childComplexity int, userID string) int
-		RemoveService           func(childComplexity int, projectID string, environment string, service string) int
-		Rollback                func(childComplexity int, input model.RollbackInput) int
-		SetCustomStartCommand   func(childComplexity int, projectID string, environment string, service string, command string) int
-		SetEnvironmentResources func(childComplexity int, input model.SetEnvironmentResourcesInput) int
-		SetServiceScaling       func(childComplexity int, input model.SetServiceScalingInput) int
-		SetServiceVariables     func(childComplexity int, projectID string, environment string, service string, variables []model.ServiceVariableInput) int
-		SetSharedVariables      func(childComplexity int, projectID string, environment string, variables []model.VariableInput) int
-		UpdateMemberRole        func(childComplexity int, input model.UpdateMemberRoleInput) int
-		UpdateWorkspace         func(childComplexity int, input model.UpdateWorkspaceInput) int
+		AddCustomDomain           func(childComplexity int, input model.AddCustomDomainInput) int
+		AddService                func(childComplexity int, input model.AddServiceInput) int
+		BillingPortalURL          func(childComplexity int) int
+		ChangePlan                func(childComplexity int, plan model.Plan) int
+		CompleteWorkspaceCheckout func(childComplexity int, sessionID string) int
+		CreateDatabase            func(childComplexity int, input model.CreateDatabaseInput) int
+		CreateEnvironment         func(childComplexity int, input model.CreateEnvironmentInput) int
+		CreateProject             func(childComplexity int, input model.CreateProjectInput) int
+		CreateWorkspace           func(childComplexity int, input model.CreateWorkspaceInput) int
+		CreateWorkspaceCheckout   func(childComplexity int, input model.CreateWorkspaceCheckoutInput) int
+		DeleteDatabase            func(childComplexity int, projectID string, name string) int
+		DeleteEnvironment         func(childComplexity int, projectID string, environment string) int
+		DeleteProject             func(childComplexity int, id string) int
+		DeleteWorkspace           func(childComplexity int) int
+		Deploy                    func(childComplexity int, input model.DeployInput) int
+		ExecuteQuery              func(childComplexity int, input model.DatabaseQueryInput) int
+		GenerateDomain            func(childComplexity int, input model.GenerateDomainInput) int
+		InviteMember              func(childComplexity int, input model.InviteMemberInput) int
+		Promote                   func(childComplexity int, input model.PromoteInput) int
+		RemoveDomain              func(childComplexity int, input model.RemoveDomainInput) int
+		RemoveMember              func(childComplexity int, userID string) int
+		RemoveService             func(childComplexity int, projectID string, environment string, service string) int
+		Rollback                  func(childComplexity int, input model.RollbackInput) int
+		SetCustomStartCommand     func(childComplexity int, projectID string, environment string, service string, command string) int
+		SetEnvironmentResources   func(childComplexity int, input model.SetEnvironmentResourcesInput) int
+		SetServiceScaling         func(childComplexity int, input model.SetServiceScalingInput) int
+		SetServiceVariables       func(childComplexity int, projectID string, environment string, service string, variables []model.ServiceVariableInput) int
+		SetSharedVariables        func(childComplexity int, projectID string, environment string, variables []model.VariableInput) int
+		UpdateMemberRole          func(childComplexity int, input model.UpdateMemberRoleInput) int
+		UpdateWorkspace           func(childComplexity int, input model.UpdateWorkspaceInput) int
 	}
 
 	PlatformConfig struct {
@@ -420,6 +426,8 @@ type MutationResolver interface {
 	SetSharedVariables(ctx context.Context, projectID string, environment string, variables []model.VariableInput) (bool, error)
 	SetServiceVariables(ctx context.Context, projectID string, environment string, service string, variables []model.ServiceVariableInput) (bool, error)
 	CreateWorkspace(ctx context.Context, input model.CreateWorkspaceInput) (*model.Workspace, error)
+	CreateWorkspaceCheckout(ctx context.Context, input model.CreateWorkspaceCheckoutInput) (*model.CheckoutSession, error)
+	CompleteWorkspaceCheckout(ctx context.Context, sessionID string) (*model.Workspace, error)
 	UpdateWorkspace(ctx context.Context, input model.UpdateWorkspaceInput) (*model.Workspace, error)
 	DeleteWorkspace(ctx context.Context) (bool, error)
 	InviteMember(ctx context.Context, input model.InviteMemberInput) (*model.WorkspaceMember, error)
@@ -543,6 +551,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.BillingSubscription.TrialEnd(childComplexity), true
+
+	case "CheckoutSession.url":
+		if e.complexity.CheckoutSession.URL == nil {
+			break
+		}
+
+		return e.complexity.CheckoutSession.URL(childComplexity), true
 
 	case "Database.instances":
 		if e.complexity.Database.Instances == nil {
@@ -1110,6 +1125,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.ChangePlan(childComplexity, args["plan"].(model.Plan)), true
+	case "Mutation.completeWorkspaceCheckout":
+		if e.complexity.Mutation.CompleteWorkspaceCheckout == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_completeWorkspaceCheckout_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.CompleteWorkspaceCheckout(childComplexity, args["sessionId"].(string)), true
 	case "Mutation.createDatabase":
 		if e.complexity.Mutation.CreateDatabase == nil {
 			break
@@ -1154,6 +1180,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.CreateWorkspace(childComplexity, args["input"].(model.CreateWorkspaceInput)), true
+	case "Mutation.createWorkspaceCheckout":
+		if e.complexity.Mutation.CreateWorkspaceCheckout == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_createWorkspaceCheckout_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.CreateWorkspaceCheckout(childComplexity, args["input"].(model.CreateWorkspaceCheckoutInput)), true
 	case "Mutation.deleteDatabase":
 		if e.complexity.Mutation.DeleteDatabase == nil {
 			break
@@ -2053,6 +2090,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputCreateDatabaseInput,
 		ec.unmarshalInputCreateEnvironmentInput,
 		ec.unmarshalInputCreateProjectInput,
+		ec.unmarshalInputCreateWorkspaceCheckoutInput,
 		ec.unmarshalInputCreateWorkspaceInput,
 		ec.unmarshalInputDatabaseQueryInput,
 		ec.unmarshalInputDatabaseRefInput,
@@ -2267,6 +2305,17 @@ func (ec *executionContext) field_Mutation_changePlan_args(ctx context.Context, 
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_completeWorkspaceCheckout_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "sessionId", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["sessionId"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_createDatabase_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -2293,6 +2342,17 @@ func (ec *executionContext) field_Mutation_createProject_args(ctx context.Contex
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNCreateProjectInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐCreateProjectInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_createWorkspaceCheckout_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNCreateWorkspaceCheckoutInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐCreateWorkspaceCheckoutInput)
 	if err != nil {
 		return nil, err
 	}
@@ -3233,6 +3293,35 @@ func (ec *executionContext) fieldContext_BillingSubscription_hasPaymentMethod(_ 
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CheckoutSession_url(ctx context.Context, field graphql.CollectedField, obj *model.CheckoutSession) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_CheckoutSession_url,
+		func(ctx context.Context) (any, error) {
+			return obj.URL, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_CheckoutSession_url(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CheckoutSession",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -7342,6 +7431,140 @@ func (ec *executionContext) fieldContext_Mutation_createWorkspace(ctx context.Co
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_createWorkspace_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_createWorkspaceCheckout(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_createWorkspaceCheckout,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().CreateWorkspaceCheckout(ctx, fc.Args["input"].(model.CreateWorkspaceCheckoutInput))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				if err != nil {
+					var zeroVal *model.CheckoutSession
+					return zeroVal, err
+				}
+				if ec.directives.HasRole == nil {
+					var zeroVal *model.CheckoutSession
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNCheckoutSession2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐCheckoutSession,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_createWorkspaceCheckout(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "url":
+				return ec.fieldContext_CheckoutSession_url(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CheckoutSession", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_createWorkspaceCheckout_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_completeWorkspaceCheckout(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_completeWorkspaceCheckout,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().CompleteWorkspaceCheckout(ctx, fc.Args["sessionId"].(string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				if err != nil {
+					var zeroVal *model.Workspace
+					return zeroVal, err
+				}
+				if ec.directives.HasRole == nil {
+					var zeroVal *model.Workspace
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNWorkspace2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐWorkspace,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_completeWorkspaceCheckout(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Workspace_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Workspace_name(ctx, field)
+			case "personal":
+				return ec.fieldContext_Workspace_personal(ctx, field)
+			case "suspended":
+				return ec.fieldContext_Workspace_suspended(ctx, field)
+			case "members":
+				return ec.fieldContext_Workspace_members(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Workspace", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_completeWorkspaceCheckout_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -13457,7 +13680,7 @@ func (ec *executionContext) unmarshalInputCreateProjectInput(ctx context.Context
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name"}
+	fieldsInOrder := [...]string{"name", "id"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -13469,7 +13692,7 @@ func (ec *executionContext) unmarshalInputCreateProjectInput(ctx context.Context
 			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNString2string(ctx, v) }
 
 			directive1 := func(ctx context.Context) (any, error) {
-				constraint, err := ec.unmarshalNString2string(ctx, "min=3,max=128")
+				constraint, err := ec.unmarshalNString2string(ctx, "min=1,max=128")
 				if err != nil {
 					var zeroVal string
 					return zeroVal, err
@@ -13491,6 +13714,54 @@ func (ec *executionContext) unmarshalInputCreateProjectInput(ctx context.Context
 				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
 				return it, graphql.ErrorOnPath(ctx, err)
 			}
+		case "id":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ID = data
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputCreateWorkspaceCheckoutInput(ctx context.Context, obj any) (model.CreateWorkspaceCheckoutInput, error) {
+	var it model.CreateWorkspaceCheckoutInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"id", "name", "plan"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "id":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ID = data
+		case "name":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Name = data
+		case "plan":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("plan"))
+			data, err := ec.unmarshalNPlan2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐPlan(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Plan = data
 		}
 	}
 
@@ -14397,6 +14668,45 @@ func (ec *executionContext) _BillingSubscription(ctx context.Context, sel ast.Se
 			out.Values[i] = ec._BillingSubscription_trialEnd(ctx, field, obj)
 		case "hasPaymentMethod":
 			out.Values[i] = ec._BillingSubscription_hasPaymentMethod(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var checkoutSessionImplementors = []string{"CheckoutSession"}
+
+func (ec *executionContext) _CheckoutSession(ctx context.Context, sel ast.SelectionSet, obj *model.CheckoutSession) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, checkoutSessionImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("CheckoutSession")
+		case "url":
+			out.Values[i] = ec._CheckoutSession_url(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -15585,6 +15895,20 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "createWorkspace":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_createWorkspace(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "createWorkspaceCheckout":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_createWorkspaceCheckout(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "completeWorkspaceCheckout":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_completeWorkspaceCheckout(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -17482,6 +17806,20 @@ func (ec *executionContext) marshalNBoolean2bool(ctx context.Context, sel ast.Se
 	return res
 }
 
+func (ec *executionContext) marshalNCheckoutSession2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐCheckoutSession(ctx context.Context, sel ast.SelectionSet, v model.CheckoutSession) graphql.Marshaler {
+	return ec._CheckoutSession(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNCheckoutSession2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐCheckoutSession(ctx context.Context, sel ast.SelectionSet, v *model.CheckoutSession) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._CheckoutSession(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalNCreateDatabaseInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐCreateDatabaseInput(ctx context.Context, v any) (model.CreateDatabaseInput, error) {
 	res, err := ec.unmarshalInputCreateDatabaseInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -17494,6 +17832,11 @@ func (ec *executionContext) unmarshalNCreateEnvironmentInput2githubᚗcomᚋzeit
 
 func (ec *executionContext) unmarshalNCreateProjectInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐCreateProjectInput(ctx context.Context, v any) (model.CreateProjectInput, error) {
 	res, err := ec.unmarshalInputCreateProjectInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNCreateWorkspaceCheckoutInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐCreateWorkspaceCheckoutInput(ctx context.Context, v any) (model.CreateWorkspaceCheckoutInput, error) {
+	res, err := ec.unmarshalInputCreateWorkspaceCheckoutInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 

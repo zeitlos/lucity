@@ -136,12 +136,14 @@ message ProjectInfo {
   reserved "services";
   repeated EnvironmentInfo environment_infos = 7;  // per-environment service state
   repeated DatabaseInfo databases = 8;     // base database definitions
+  string display_name = 9;                // human-readable project name (from Soft-serve repo metadata)
 }
 
 message InitProjectRequest {
   string project = 1;
   reserved 2;
   reserved "source_url";
+  string display_name = 3;  // human-readable project name
 }
 
 message InitProjectResponse {

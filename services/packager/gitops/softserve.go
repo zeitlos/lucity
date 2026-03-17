@@ -47,7 +47,7 @@ func wsRepoName(ctx context.Context, project string) string {
 }
 
 // CreateRepo creates a GitOps repo on Soft-serve and populates it.
-func (p *SoftServeProvider) CreateRepo(ctx context.Context, project string) (string, error) {
+func (p *SoftServeProvider) CreateRepo(ctx context.Context, project, displayName string) (string, error) {
 	repoName := wsRepoName(ctx, project)
 	cloneURL := p.repoHTTPURL(repoName)
 
@@ -73,6 +73,13 @@ func (p *SoftServeProvider) CreateRepo(ctx context.Context, project string) (str
 		slog.Warn("failed to set repo private", "repo", repoName, "error", err)
 	}
 
+	// Set display name as Soft-serve project-name metadata
+	if displayName != "" {
+		if _, err := p.sshCmd("repo", "project-name", repoName, displayName); err != nil {
+			slog.Warn("failed to set repo project-name", "repo", repoName, "error", err)
+		}
+	}
+
 	slog.Info("initializing softserve repo", "repo", repoName, "url", cloneURL)
 
 	// Initialize with directory structure and files
@@ -83,7 +90,7 @@ func (p *SoftServeProvider) CreateRepo(ctx context.Context, project string) (str
 	return cloneURL, nil
 }
 
-// repoHasContent checks whether a Soft-serve repo has been initialized with project.yaml.
+// repoHasContent checks whether a Soft-serve repo has been initialized.
 func (p *SoftServeProvider) repoHasContent(repoName string) bool {
 	dir, cleanup, err := p.cloneRepo(repoName)
 	if err != nil {
@@ -91,7 +98,7 @@ func (p *SoftServeProvider) repoHasContent(repoName string) bool {
 	}
 	defer cleanup()
 
-	_, err = os.Stat(filepath.Join(dir, "project.yaml"))
+	_, err = os.Stat(filepath.Join(dir, "base", "Chart.yaml"))
 	return err == nil
 }
 
@@ -799,6 +806,25 @@ func (p *SoftServeProvider) sshCmd(args ...string) (string, error) {
 	return stdout.String(), nil
 }
 
+// readFirstCommitTime returns the author date of the oldest commit in the repo.
+// Falls back to time.Time{} if the history can't be read.
+func readFirstCommitTime(dir string) time.Time {
+	repo, err := git.PlainOpen(dir)
+	if err != nil {
+		return time.Time{}
+	}
+	iter, err := repo.Log(&git.LogOptions{Order: git.LogOrderCommitterTime})
+	if err != nil {
+		return time.Time{}
+	}
+	var oldest time.Time
+	_ = iter.ForEach(func(c *object.Commit) error {
+		oldest = c.Author.When
+		return nil
+	})
+	return oldest
+}
+
 // repoHTTPURL returns the HTTP clone URL for a repo.
 func (p *SoftServeProvider) repoHTTPURL(repoName string) string {
 	return strings.TrimSuffix(p.httpAddr, "/") + "/" + repoName + ".git"
@@ -941,7 +967,6 @@ func (p *SoftServeProvider) initRepoContents(cloneURL, project string) error {
 	now := time.Now().UTC()
 
 	files := map[string]string{
-		"project.yaml":                         projectYAML(project, now),
 		"base/Chart.yaml":                      baseChartYAML(project),
 		"base/values.yaml":                     baseValuesYAML(project),
 		"environments/development/values.yaml": environmentValuesYAML,
@@ -1003,15 +1028,23 @@ func (p *SoftServeProvider) readProjectMeta(repoName string) (*ProjectMeta, erro
 	}
 	defer cleanup()
 
-	data, err := os.ReadFile(filepath.Join(dir, "project.yaml"))
-	if err != nil {
-		return nil, fmt.Errorf("failed to read project.yaml: %w", err)
+	// Derive project name (slug) from repo name by stripping workspace prefix and suffix.
+	// Repo format: {workspace}-{project}-gitops
+	name := repoName
+	if idx := strings.Index(name, "-"); idx >= 0 {
+		name = name[idx+1:]
+	}
+	name = strings.TrimSuffix(name, RepoSuffix)
+
+	meta := &ProjectMeta{Name: name}
+
+	// Read display name from Soft-serve repo metadata (project-name).
+	if dn, err := p.sshCmd("repo", "project-name", repoName); err == nil {
+		meta.DisplayName = strings.TrimSpace(dn)
 	}
 
-	meta, err := parseProjectYAML(data)
-	if err != nil {
-		return nil, err
-	}
+	// Read createdAt from the initial git commit.
+	meta.CreatedAt = readFirstCommitTime(dir)
 
 	// Read base service definitions for enrichment
 	var baseDefs map[string]ServiceDef

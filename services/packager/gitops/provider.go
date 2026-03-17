@@ -51,7 +51,7 @@ type ServiceRef struct {
 type Provider interface {
 	// CreateRepo creates a GitOps repo with the standard directory structure
 	// and an initial commit. Returns the repo clone URL.
-	CreateRepo(ctx context.Context, project string) (repoURL string, err error)
+	CreateRepo(ctx context.Context, project, displayName string) (repoURL string, err error)
 
 	// Repos lists all project GitOps repos and their metadata.
 	Repos(ctx context.Context) ([]ProjectMeta, error)
@@ -224,7 +224,8 @@ type EnvironmentMeta struct {
 
 // ProjectMeta holds metadata about a project, read from its GitOps repo.
 type ProjectMeta struct {
-	Name             string // e.g., "warm-wren"
+	Name             string // slug, e.g., "warm-wren"
+	DisplayName      string // human-readable name (from Soft-serve repo metadata)
 	RepoURL          string
 	Environments     []string
 	EnvironmentInfos []EnvironmentMeta

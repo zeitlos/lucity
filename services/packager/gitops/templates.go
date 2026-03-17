@@ -5,17 +5,9 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/zeitlos/lucity/charts"
 )
-
-// projectYAML generates the project.yaml metadata file content.
-func projectYAML(name string, createdAt time.Time) string {
-	return fmt.Sprintf(`name: %s
-created_at: %s
-`, name, createdAt.Format(time.RFC3339))
-}
 
 // baseChartYAML generates the base Chart.yaml that depends on lucity-app.
 func baseChartYAML(project string) string {

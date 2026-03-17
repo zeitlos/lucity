@@ -148,11 +148,45 @@ func (c *Client) Project(ctx context.Context, id string) (*Project, error) {
 	return &p, nil
 }
 
-func (c *Client) CreateProject(ctx context.Context, name string) (*Project, error) {
+// projectIDPattern validates project slugs (same rules as workspace IDs).
+var projectIDPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$`)
+
+// slugFromName derives a URL-safe slug from a display name.
+func slugFromName(name string) string {
+	s := strings.ToLower(name)
+	var b strings.Builder
+	for _, r := range s {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' {
+			b.WriteRune(r)
+		} else {
+			b.WriteRune('-')
+		}
+	}
+	s = strings.Trim(b.String(), "-")
+	// Collapse consecutive hyphens
+	for strings.Contains(s, "--") {
+		s = strings.ReplaceAll(s, "--", "-")
+	}
+	if len(s) > 63 {
+		s = s[:63]
+	}
+	return s
+}
+
+func (c *Client) CreateProject(ctx context.Context, slug, displayName string) (*Project, error) {
 	ws, err := tenant.Require(ctx)
 	if err != nil {
 		return nil, err
 	}
+
+	// Derive slug from display name if not provided
+	if slug == "" {
+		slug = slugFromName(displayName)
+	}
+	if !projectIDPattern.MatchString(slug) {
+		return nil, fmt.Errorf("invalid project ID %q: must be 3-63 lowercase alphanumeric characters or hyphens", slug)
+	}
+
 	ctx = auth.OutgoingContext(ctx)
 	ctx = tenant.OutgoingContext(ctx)
 
@@ -160,33 +194,34 @@ func (c *Client) CreateProject(ctx context.Context, name string) (*Project, erro
 	initCtx, initCancel := context.WithTimeout(ctx, grpcLongTimeout)
 	defer initCancel()
 	resp, err := c.Packager.InitProject(initCtx, &packager.InitProjectRequest{
-		Project: name,
+		Project:     slug,
+		DisplayName: displayName,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create project: %w", err)
 	}
 
 	// 2. Deploy the default development environment via ArgoCD
-	ns := labels.NamespaceFor(ws, name, "development")
+	ns := labels.NamespaceFor(ws, slug, "development")
 	deployCtx, deployCancel := context.WithTimeout(ctx, grpcTimeout)
 	defer deployCancel()
 	_, err = c.Deployer.DeployEnvironment(deployCtx, &deployer.DeployEnvironmentRequest{
-		Project:         name,
+		Project:         slug,
 		Environment:     "development",
 		GitopsRepoUrl:   resp.GitopsRepoUrl,
 		TargetNamespace: ns,
 	})
 	if err != nil {
-		slog.Warn("failed to deploy development environment", "project", name, "error", err)
+		slog.Warn("failed to deploy development environment", "project", slug, "error", err)
 	}
 
 	return &Project{
-		ID:        name,
-		Name:      name,
+		ID:        slug,
+		Name:      displayName,
 		CreatedAt: time.Now(),
 		Environments: []Environment{
 			{
-				ID:         name + "/development",
+				ID:         slug + "/development",
 				Name:       "development",
 				Namespace:  ns,
 				SyncStatus: "PROGRESSING",
@@ -710,9 +745,14 @@ func deploymentStatusToString(status deployer.DeploymentStatus) string {
 func projectFromProto(ws string, p *packager.ProjectInfo) Project {
 	createdAt := p.CreatedAt.AsTime()
 
+	displayName := p.DisplayName
+	if displayName == "" {
+		displayName = p.Name // fall back to slug for old projects
+	}
+
 	proj := Project{
 		ID:        p.Name,
-		Name:      p.Name,
+		Name:      displayName,
 		CreatedAt: createdAt,
 	}
 

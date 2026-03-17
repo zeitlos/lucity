@@ -2,9 +2,6 @@ package gitops
 
 import (
 	"fmt"
-	"time"
-
-	"gopkg.in/yaml.v3"
 )
 
 // parseServiceInstanceMetas extracts service metadata from a YAML services map.
@@ -132,27 +129,6 @@ func stringMapToAny(m map[string]string) map[string]any {
 		result[k] = v
 	}
 	return result
-}
-
-// projectYAMLData matches the structure of project.yaml for parsing.
-type projectYAMLData struct {
-	Name      string `yaml:"name"`
-	CreatedAt string `yaml:"created_at"`
-}
-
-// parseProjectYAML parses a project.yaml file into ProjectMeta.
-func parseProjectYAML(data []byte) (*ProjectMeta, error) {
-	var d projectYAMLData
-	if err := yaml.Unmarshal(data, &d); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal project.yaml: %w", err)
-	}
-
-	createdAt, _ := time.Parse(time.RFC3339, d.CreatedAt)
-
-	return &ProjectMeta{
-		Name:      d.Name,
-		CreatedAt: createdAt,
-	}, nil
 }
 
 // parseDatabaseDefs extracts database definitions from a YAML values map.

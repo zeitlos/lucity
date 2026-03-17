@@ -14,7 +14,6 @@ import { toast } from '@/components/ui/sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { errorMessage } from '@/lib/utils';
-import { generateName } from '@/lib/names';
 
 const props = defineProps<{
   open: boolean;
@@ -33,15 +32,44 @@ const { resolveClient } = useApolloClient();
 const { activeEnvironment } = useEnvironment();
 
 // Drill-down state
-type PaletteView = 'main' | 'github-repos' | 'manual-service' | 'database' | 'container-image';
+type PaletteView = 'main' | 'github-repos' | 'manual-service' | 'database' | 'container-image' | 'name-project';
 const view = ref<PaletteView>('main');
 const search = ref('');
 const inputRef = ref<HTMLInputElement>();
+const nameInputRef = ref<HTMLInputElement>();
 const focusedIndex = ref(0);
 
 // Source picker state
 const selectedSource = ref<{ id: string; accountLogin: string; accountAvatarUrl: string; accountType: string } | null>(null);
 const sourcePickerOpen = ref(false);
+
+// Project naming state
+const projectDisplayName = ref('');
+const projectSlug = ref('');
+const slugManuallyEdited = ref(false);
+const pendingRepo = ref<{ fullName: string; htmlUrl: string } | null>(null);
+const pendingImage = ref<string | null>(null);
+
+const derivedSlug = computed(() =>
+  projectDisplayName.value
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 63),
+);
+
+const effectiveSlug = computed(() => slugManuallyEdited.value ? projectSlug.value : derivedSlug.value);
+
+const slugPattern = /^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/;
+const isProjectValid = computed(() =>
+  projectDisplayName.value.trim().length > 0 && slugPattern.test(effectiveSlug.value),
+);
+
+function onSlugInput(e: Event) {
+  slugManuallyEdited.value = true;
+  projectSlug.value = (e.target as HTMLInputElement).value;
+}
 
 // Reset when palette opens
 watch(() => props.open, (open) => {
@@ -52,6 +80,11 @@ watch(() => props.open, (open) => {
     sourcePickerOpen.value = false;
     containerImageRef.value = '';
     focusedIndex.value = 0;
+    projectDisplayName.value = '';
+    projectSlug.value = '';
+    slugManuallyEdited.value = false;
+    pendingRepo.value = null;
+    pendingImage.value = null;
     nextTick(() => inputRef.value?.focus());
   }
 });
@@ -120,19 +153,32 @@ const { mutate: createProject, loading: creating } = useMutation(CreateProjectMu
 async function handleSelectRepo(repo: { fullName: string; htmlUrl: string }) {
   if (creating.value || detectingServices.value) return;
   if (props.context === 'projects') {
-    await handleCreateProjectFromRepo(repo);
+    showProjectNaming(repo);
   } else {
     await handleAddServicesFromRepo(repo);
   }
 }
 
-async function handleCreateProjectFromRepo(repo: { fullName: string; htmlUrl: string }) {
-  try {
-    const projectName = generateName();
+function showProjectNaming(repo: { fullName: string; htmlUrl: string }) {
+  pendingRepo.value = repo;
+  pendingImage.value = null;
+  // Pre-fill display name from repo name (e.g. "cblaettl/beast-website" -> "beast-website")
+  const repoShortName = repo.fullName.split('/').pop() || '';
+  projectDisplayName.value = repoShortName;
+  projectSlug.value = '';
+  slugManuallyEdited.value = false;
+  view.value = 'name-project';
+  nextTick(() => nameInputRef.value?.focus());
+}
 
+async function handleConfirmProjectCreation() {
+  if (!isProjectValid.value || creating.value) return;
+
+  try {
     const res = await createProject({
       input: {
-        name: projectName,
+        name: projectDisplayName.value.trim(),
+        id: effectiveSlug.value,
       },
     });
 
@@ -146,12 +192,16 @@ async function handleCreateProjectFromRepo(repo: { fullName: string; htmlUrl: st
     const projectId = res?.data?.createProject?.id;
     if (!projectId) return;
 
-    // Detect and add services from the selected repo
-    detectingServices.value = true;
-    try {
-      await detectAndAddServices(projectId, repo);
-    } finally {
-      detectingServices.value = false;
+    // Add services from pending source
+    if (pendingRepo.value) {
+      detectingServices.value = true;
+      try {
+        await detectAndAddServices(projectId, pendingRepo.value);
+      } finally {
+        detectingServices.value = false;
+      }
+    } else if (pendingImage.value) {
+      await addImageService(projectId, pendingImage.value);
     }
 
     close();
@@ -345,26 +395,16 @@ async function handleSelectImage(imageRef: string) {
   containerImageRef.value = imageRef;
 
   if (props.context === 'projects') {
-    try {
-      const projectName = generateName();
-      const res = await createProject({ input: { name: projectName } });
-
-      if (res?.errors?.length) {
-        toast.error('Failed to create project', {
-          description: res.errors.map(e => e.message).join(', '),
-        });
-        return;
-      }
-
-      const projectId = res?.data?.createProject?.id;
-      if (!projectId) return;
-
-      await addImageService(projectId, imageRef);
-      close();
-      router.push({ name: 'project', params: { id: projectId } });
-    } catch (e: unknown) {
-      toast.error('Failed to create project', { description: errorMessage(e) });
-    }
+    pendingImage.value = imageRef;
+    pendingRepo.value = null;
+    // Pre-fill display name from image name (e.g. "nginx" or "myregistry.com/myapp")
+    const imageName = imageRef.split('/').pop() || imageRef;
+    projectDisplayName.value = imageName;
+    projectSlug.value = '';
+    slugManuallyEdited.value = false;
+    view.value = 'name-project';
+    nextTick(() => nameInputRef.value?.focus());
+    return;
   } else {
     if (!props.projectId) return;
     try {
@@ -487,6 +527,12 @@ onKeyStroke('Enter', (e) => {
         handleCreateDatabase();
       }
       break;
+    case 'name-project':
+      if (isProjectValid.value && !creating.value) {
+        e.preventDefault();
+        handleConfirmProjectCreation();
+      }
+      break;
   }
 });
 
@@ -496,7 +542,15 @@ const mainItems = computed(() => {
     ? [
         { id: 'github-repo', label: 'GitHub Repository', icon: Github, action: () => { view.value = 'github-repos'; } },
         { id: 'container-image', label: 'Container Image', icon: Container, action: () => { view.value = 'container-image'; } },
-        { id: 'empty-project', label: 'Empty Project', icon: FolderPlus, action: () => { router.push('/'); close(); } },
+        { id: 'empty-project', label: 'Empty Project', icon: FolderPlus, action: () => {
+          pendingRepo.value = null;
+          pendingImage.value = null;
+          projectDisplayName.value = '';
+          projectSlug.value = '';
+          slugManuallyEdited.value = false;
+          view.value = 'name-project';
+          nextTick(() => nameInputRef.value?.focus());
+        } },
       ]
     : [
         { id: 'github-repo', label: 'GitHub Repository', icon: Github, action: () => { view.value = 'github-repos'; } },
@@ -888,6 +942,61 @@ const mainItems = computed(() => {
                 {{ creatingDatabase ? 'Creating...' : 'Create Database' }}
               </button>
             </div>
+          </template>
+
+          <!-- Name project view -->
+          <template v-if="view === 'name-project'">
+            <div class="flex h-12 items-center border-b px-3">
+              <button
+                class="mr-1 shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"
+                @click="view = 'main'"
+              >
+                <ArrowLeft :size="16" />
+              </button>
+              <Badge variant="secondary">New Project</Badge>
+              <div class="flex-1" />
+              <button
+                class="shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"
+                @click="close"
+              >
+                <X :size="16" />
+              </button>
+            </div>
+            <form
+              class="space-y-4 p-4"
+              @submit.prevent="handleConfirmProjectCreation"
+            >
+              <div class="space-y-2">
+                <label class="text-sm font-medium text-foreground">Name</label>
+                <input
+                  ref="nameInputRef"
+                  v-model="projectDisplayName"
+                  class="flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  placeholder="e.g. My API"
+                  :disabled="creating"
+                />
+              </div>
+              <div class="space-y-2">
+                <label class="text-sm font-medium text-foreground">ID</label>
+                <input
+                  :value="effectiveSlug"
+                  class="flex h-9 w-full rounded-md border bg-transparent px-3 py-1 font-mono text-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  placeholder="my-api"
+                  :disabled="creating"
+                  @input="onSlugInput"
+                />
+                <p class="text-xs text-muted-foreground">
+                  Used in URLs and infrastructure. Auto-derived from the name.
+                </p>
+              </div>
+              <button
+                type="submit"
+                class="inline-flex h-9 w-full items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+                :disabled="!isProjectValid || creating || detectingServices"
+              >
+                {{ creating || detectingServices ? 'Creating...' : 'Create Project' }}
+              </button>
+            </form>
           </template>
         </div>
       </div>

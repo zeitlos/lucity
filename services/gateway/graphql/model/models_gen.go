@@ -63,6 +63,10 @@ type BillingSubscription struct {
 	HasPaymentMethod  bool               `json:"hasPaymentMethod"`
 }
 
+type CheckoutSession struct {
+	URL string `json:"url"`
+}
+
 type CreateDatabaseInput struct {
 	ProjectID string  `json:"projectId"`
 	Name      string  `json:"name"`
@@ -79,7 +83,16 @@ type CreateEnvironmentInput struct {
 }
 
 type CreateProjectInput struct {
+	// Human-readable project name (e.g. "My API").
 	Name string `json:"name"`
+	// Optional URL-safe slug. Auto-derived from name if omitted.
+	ID *string `json:"id,omitempty"`
+}
+
+type CreateWorkspaceCheckoutInput struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	Plan Plan   `json:"plan"`
 }
 
 type CreateWorkspaceInput struct {

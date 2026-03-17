@@ -58,7 +58,7 @@ func (s *Server) InitProject(ctx context.Context, req *packager.InitProjectReque
 
 	p := s.provider
 
-	repoURL, err := p.CreateRepo(ctx, req.Project)
+	repoURL, err := p.CreateRepo(ctx, req.Project, req.DisplayName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to init project: %w", err)
 	}
@@ -82,6 +82,7 @@ func (s *Server) ListProjects(ctx context.Context, req *packager.ListProjectsReq
 	for _, proj := range projects {
 		infos = append(infos, &packager.ProjectInfo{
 			Name:             proj.Name,
+			DisplayName:      proj.DisplayName,
 			GitopsRepoUrl:    proj.RepoURL,
 			Environments:     proj.Environments,
 			EnvironmentInfos: envInfosFromMeta(proj.EnvironmentInfos),
@@ -104,6 +105,7 @@ func (s *Server) GetProject(ctx context.Context, req *packager.GetProjectRequest
 	return &packager.GetProjectResponse{
 		Project: &packager.ProjectInfo{
 			Name:             proj.Name,
+			DisplayName:      proj.DisplayName,
 			GitopsRepoUrl:    proj.RepoURL,
 			Environments:     proj.Environments,
 			EnvironmentInfos: envInfosFromMeta(proj.EnvironmentInfos),

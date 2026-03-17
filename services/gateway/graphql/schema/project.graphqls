@@ -106,7 +106,10 @@ enum SyncStatus {
 }
 
 input CreateProjectInput {
-  name: String! @constraint(constraint: "min=3,max=128")
+  """Human-readable project name (e.g. "My API")."""
+  name: String! @constraint(constraint: "min=1,max=128")
+  """Optional URL-safe slug. Auto-derived from name if omitted."""
+  id: String
 }
 
 input CreateEnvironmentInput {
