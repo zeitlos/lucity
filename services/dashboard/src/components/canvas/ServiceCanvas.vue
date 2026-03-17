@@ -223,6 +223,6 @@ watch(
 }
 
 :deep(.canvas-dots pattern circle) {
-  fill: color-mix(in oklch, var(--muted-foreground) 25%, transparent);
+  fill: color-mix(in oklch, var(--muted-foreground) 65%, transparent);
 }
 </style>
