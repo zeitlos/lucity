@@ -1,3 +1,4 @@
+import { execSync } from 'node:child_process';
 import { fileURLToPath, URL } from 'node:url';
 
 import { defineConfig } from 'vite';
@@ -6,8 +7,19 @@ import vueDevTools from 'vite-plugin-vue-devtools';
 import tailwindcss from '@tailwindcss/vite';
 
 // https://vite.dev/config/
+const appVersion = (() => {
+  try {
+    return execSync('git describe --always --dirty', { encoding: 'utf-8' }).trim();
+  } catch {
+    return 'dev';
+  }
+})();
+
 export default defineConfig({
   base: process.env.VITE_BASE_PATH || '/',
+  define: {
+    __APP_VERSION__: JSON.stringify(appVersion),
+  },
   plugins: [
     vue(),
     vueDevTools(),

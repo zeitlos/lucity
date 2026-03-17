@@ -8,6 +8,7 @@ import { WorkspaceQuery } from '@/graphql/workspaces';
 import BaseLogo from '@/components/BaseLogo.vue';
 import ContextNav from '@/components/ContextNav.vue';
 import ThemeToggle from '@/components/ThemeToggle.vue';
+import HelpMenu from '@/components/HelpMenu.vue';
 import ProjectEjectDialog from '@/components/ProjectEjectDialog.vue';
 import SuspensionBanner from '@/components/SuspensionBanner.vue';
 import TrialIndicator from '@/components/TrialIndicator.vue';
@@ -84,6 +85,7 @@ async function handleLogout() {
         <TrialIndicator v-if="user" />
 
         <ThemeToggle />
+        <HelpMenu />
 
         <DropdownMenu v-if="user">
           <DropdownMenuTrigger as-child>

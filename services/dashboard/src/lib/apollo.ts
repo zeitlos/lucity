@@ -7,6 +7,7 @@ import { createClient } from 'graphql-ws';
 import router from '@/router';
 import { toast } from '@/components/ui/sonner';
 import { useAuth } from '@/composables/useAuth';
+import { openBugReport } from '@/composables/useReportBug';
 
 const { activeWorkspace, login } = useAuth();
 
@@ -38,7 +39,10 @@ const errorLink = onError(({ graphQLErrors, networkError, operation }) => {
     // Toast query errors globally (mutations handle errors at component level)
     const def = getMainDefinition(operation.query);
     if (def.kind === 'OperationDefinition' && def.operation === 'query') {
-      toast.error(graphQLErrors.map(e => e.message).join(', '));
+      const msg = graphQLErrors.map(e => e.message).join(', ');
+      toast.error(msg, {
+        action: { label: 'Report', onClick: () => openBugReport({ error: msg }) },
+      });
     }
   }
 
@@ -48,7 +52,10 @@ const errorLink = onError(({ graphQLErrors, networkError, operation }) => {
       login();
       return;
     }
-    toast.error('Network error', { description: networkError.message });
+    toast.error('Network error', {
+      description: networkError.message,
+      action: { label: 'Report', onClick: () => openBugReport({ error: networkError.message }) },
+    });
   }
 });
 
