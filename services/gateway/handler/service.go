@@ -32,7 +32,11 @@ func (c *Client) DetectServices(ctx context.Context, sourceURL string, installat
 		return nil, err
 	}
 	if installationID != nil {
-		ctx = c.withInstallationTokenForID(ctx, *installationID)
+		var err error
+		ctx, err = c.withInstallationTokenForID(ctx, *installationID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to authenticate with GitHub: %w", err)
+		}
 	}
 	ctx = auth.OutgoingContext(ctx)
 	ctx = tenant.OutgoingContext(ctx)
@@ -66,7 +70,11 @@ func (c *Client) AddService(ctx context.Context, projectID, environment, name st
 		return nil, err
 	}
 	if installationID != nil {
-		ctx = c.withInstallationTokenForID(ctx, *installationID)
+		var err error
+		ctx, err = c.withInstallationTokenForID(ctx, *installationID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to authenticate with GitHub: %w", err)
+		}
 	}
 	ctx = auth.OutgoingContext(ctx)
 	ctx = tenant.OutgoingContext(ctx)
@@ -304,18 +312,20 @@ func (c *Client) serviceSourceInfo(ctx context.Context, projectID, service strin
 
 // withInstallationTokenForID mints a GitHub App installation token for the given
 // installation ID and attaches it to the context for downstream gRPC calls.
-func (c *Client) withInstallationTokenForID(ctx context.Context, installationID int64) context.Context {
-	if c.GitHubApp == nil || installationID == 0 {
-		return ctx
+func (c *Client) withInstallationTokenForID(ctx context.Context, installationID int64) (context.Context, error) {
+	if c.GitHubApp == nil {
+		return ctx, fmt.Errorf("github app not configured")
+	}
+	if installationID == 0 {
+		return ctx, nil
 	}
 
 	token, err := c.GitHubApp.InstallationToken(ctx, installationID)
 	if err != nil {
-		slog.Warn("failed to mint installation token", "installation_id", installationID, "error", err)
-		return ctx
+		return ctx, fmt.Errorf("failed to mint installation token: %w", err)
 	}
 
-	return auth.WithGitHubToken(ctx, token)
+	return auth.WithGitHubToken(ctx, token), nil
 }
 
 // deriveImagePath builds a registry image path scoped by workspace.
@@ -370,7 +380,10 @@ func (c *Client) Deploy(ctx context.Context, projectID, service, environment, gi
 		return nil, fmt.Errorf("cannot deploy %q: service has no source repository (image-based services are deployed automatically)", service)
 	}
 	if installationID != 0 {
-		ctx = c.withInstallationTokenForID(ctx, installationID)
+		ctx, err = c.withInstallationTokenForID(ctx, installationID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to authenticate with GitHub: %w", err)
+		}
 		ctx = auth.OutgoingContext(ctx) // re-set outgoing metadata with token
 	}
 

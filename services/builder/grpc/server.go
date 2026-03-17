@@ -260,13 +260,15 @@ func (s *Server) cloneRepo(ctx context.Context, sourceURL, gitRef, token string)
 	}
 
 	cloneOpts := &git.CloneOptions{
-		URL: sourceURL,
-		Auth: &githttp.BasicAuth{
-			Username: "x-access-token",
-			Password: token,
-		},
+		URL:          sourceURL,
 		Depth:        1,
 		SingleBranch: true,
+	}
+	if token != "" {
+		cloneOpts.Auth = &githttp.BasicAuth{
+			Username: "x-access-token",
+			Password: token,
+		}
 	}
 
 	slog.Info("cloning repo", "url", sourceURL, "ref", gitRef)
