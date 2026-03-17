@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"time"
 
 	gostripe "github.com/stripe/stripe-go/v82"
 
@@ -139,12 +140,26 @@ func (s *Server) Subscription(ctx context.Context, req *cashier.SubscriptionRequ
 	hasPM, _ := s.stripe.HasPaymentMethod(ctx, meta.StripeCustomerId)
 
 	resp := subscriptionToResponse(sub, s.stripe.Prices)
+
+	// Synthesize trial status: active subscription + unexpired credit grant + no payment method.
+	// This replaces the old Stripe trial mechanism — the dashboard sees TRIALING status
+	// and trialEnd based on credit grant expiry instead of a Stripe trial period.
+	trialEnd := resp.TrialEnd
+	status := resp.Status
+	if status == cashier.SubscriptionStatus_SUBSCRIPTION_STATUS_ACTIVE && !hasPM {
+		grantExpiry, _ := s.stripe.CreditGrantExpiry(ctx, meta.StripeCustomerId)
+		if grantExpiry > time.Now().Unix() {
+			status = cashier.SubscriptionStatus_SUBSCRIPTION_STATUS_TRIALING
+			trialEnd = grantExpiry
+		}
+	}
+
 	return &cashier.SubscriptionResponse{
 		Plan:              resp.Plan,
-		Status:            resp.Status,
+		Status:            status,
 		CurrentPeriodEnd:  resp.CurrentPeriodEnd,
 		CreditAmountCents: resp.CreditAmountCents,
-		TrialEnd:          resp.TrialEnd,
+		TrialEnd:          trialEnd,
 		HasPaymentMethod:  hasPM,
 	}, nil
 }

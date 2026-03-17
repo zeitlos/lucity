@@ -281,6 +281,31 @@ func (c *Client) CreditBalanceCents(ctx context.Context, customerID string) (int
 	return 0, nil
 }
 
+// CreditGrantExpiry returns the expires_at timestamp of the earliest active credit grant
+// for a customer. Returns 0 if no active grants exist.
+func (c *Client) CreditGrantExpiry(ctx context.Context, customerID string) (int64, error) {
+	params := &gostripe.BillingCreditGrantListParams{
+		Customer: gostripe.String(customerID),
+	}
+
+	var earliest int64
+	now := time.Now().Unix()
+	iter := creditgrant.List(params)
+	for iter.Next() {
+		grant := iter.BillingCreditGrant()
+		if grant.VoidedAt > 0 || grant.ExpiresAt <= now {
+			continue
+		}
+		if earliest == 0 || grant.ExpiresAt < earliest {
+			earliest = grant.ExpiresAt
+		}
+	}
+	if err := iter.Err(); err != nil {
+		return 0, fmt.Errorf("failed to list credit grants: %w", err)
+	}
+	return earliest, nil
+}
+
 // ActiveCreditGrantForPeriod checks if a credit grant already exists for the given billing period.
 // Returns true if a grant with matching metadata exists.
 func (c *Client) ActiveCreditGrantForPeriod(ctx context.Context, customerID string, periodStart int64) (bool, error) {
