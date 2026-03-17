@@ -124,20 +124,20 @@ func NewGraphQLServer(port string, api *handler.Client, oidcProvider *OIDCProvid
 			WriteBufferSize: 1024,
 		},
 		InitFunc: func(ctx context.Context, initPayload transport.InitPayload) (context.Context, *transport.InitPayload, error) {
-			// Extract JWT from connectionParams for WebSocket auth.
+			// Auth: prefer connectionParams token (non-browser clients),
+			// fall back to session cookie on the HTTP upgrade request
+			// (already in ctx from auth.Middleware).
 			token, _ := initPayload["Authorization"].(string)
-			if token == "" {
-				return ctx, &initPayload, nil
+			if token != "" {
+				token = strings.TrimPrefix(token, "Bearer ")
+				if claims, err := verifier.ValidateToken(ctx, token); err == nil {
+					ctx = auth.WithClaims(ctx, claims)
+					ctx = auth.WithToken(ctx, token)
+				}
 			}
-			token = strings.TrimPrefix(token, "Bearer ")
-			claims, err := verifier.ValidateToken(ctx, token)
-			if err != nil {
-				return ctx, &initPayload, nil
-			}
-			ctx = auth.WithClaims(ctx, claims)
-			ctx = auth.WithToken(ctx, token)
 
-			// Extract workspace from WebSocket connection params
+			// Workspace: browser can't send custom headers on WS upgrade,
+			// so read from connectionParams.
 			if ws, ok := initPayload[tenant.Header].(string); ok && ws != "" {
 				ctx = tenant.WithWorkspace(ctx, ws)
 			}

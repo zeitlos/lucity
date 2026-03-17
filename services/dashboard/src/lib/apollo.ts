@@ -52,22 +52,13 @@ const errorLink = onError(({ graphQLErrors, networkError, operation }) => {
   }
 });
 
-function getSessionToken(): string {
-  const match = document.cookie.match(/(?:^|;\s*)lucity_session=([^;]*)/);
-  return match ? decodeURIComponent(match[1]!) : '';
-}
-
 const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
 
 const wsLink = new GraphQLWsLink(createClient({
   url: `${wsProtocol}//${window.location.host}/graphql`,
-  connectionParams: () => {
-    const token = getSessionToken();
-    return {
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      'X-Lucity-Workspace': activeWorkspace.value,
-    };
-  },
+  connectionParams: () => ({
+    'X-Lucity-Workspace': activeWorkspace.value,
+  }),
   lazy: true,
   retryAttempts: 3,
 }));
