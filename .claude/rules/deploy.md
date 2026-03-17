@@ -41,7 +41,7 @@ Same pattern — OCI chart from GHCR with explicit values file. Uses `infra-secr
 Production secrets are split into two files (both gitignored):
 
 - **`deployments/lucity-prod/secrets.yaml`** — platform secrets (GitHub App, ArgoCD/Soft-serve tokens, Stripe, Logto M2M, SSH keys)
-- **`deployments/lucity-prod/infra-secrets.yaml`** — infrastructure secrets (Zot htpasswd, Soft-serve admin key, Rybbit, Rauthy, Logto infra)
+- **`deployments/lucity-prod/infra-secrets.yaml`** — infrastructure secrets (Zot htpasswd, Soft-serve admin key, Rybbit, Logto)
 
 Copy from the corresponding `.example` files for first deploy.
 

@@ -424,7 +424,7 @@ message ListResourceAllocationsResponse {
 // User GitHub token messages.
 
 message StoreUserGitHubTokenRequest {
-  string user_id = 1;         // Rauthy subject ID
+  string user_id = 1;         // OIDC subject ID
   string access_token = 2;
   string refresh_token = 3;
   int64 expires_at = 4;       // Unix timestamp

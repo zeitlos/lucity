@@ -26,7 +26,7 @@ export function useAuth() {
         user.value = await res.json();
 
         // If JWT has no workspace claims (e.g., minted before workspace support),
-        // refresh the token to pick up current Rauthy groups.
+        // refresh the token to pick up current OIDC claims.
         if (user.value && user.value.workspaces.length === 0) {
           const refreshRes = await fetch('/auth/refresh', {
             method: 'POST',

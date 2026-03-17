@@ -1,6 +1,6 @@
 # Default deny-all ingress for platform pods managed by this chart.
 # Each service explicitly allows traffic via its own NetworkPolicy below.
-# Scoped to pods with the lucity instance label so infra pods (Rauthy, Zot,
+# Scoped to pods with the lucity instance label so infra pods (Logto, Zot,
 # ArgoCD, Soft-serve) managed by the lucity-infra chart are unaffected.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
