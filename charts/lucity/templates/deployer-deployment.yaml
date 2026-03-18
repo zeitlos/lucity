@@ -66,5 +66,20 @@ spec:
                   name: {{ include "lucity.fullname" $ }}
                   key: {{ $value }}
             {{- end }}
+          {{- if and .Values.internalJWT .Values.internalJWT.publicKey }}
+          volumeMounts:
+            - name: internal-jwt
+              mountPath: /secrets/internal-jwt
+              readOnly: true
+          {{- end }}
           resources:
             {{- toYaml .Values.deployer.resources | nindent 12 }}
+      {{- if and .Values.internalJWT .Values.internalJWT.publicKey }}
+      volumes:
+        - name: internal-jwt
+          secret:
+            secretName: {{ include "lucity.fullname" . }}-internal-jwt
+            items:
+              - key: public.pem
+                path: public.pem
+      {{- end }}

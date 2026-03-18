@@ -3,6 +3,7 @@ package tenant
 import (
 	"context"
 
+	"github.com/zeitlos/lucity/pkg/auth"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )
@@ -18,21 +19,30 @@ func OutgoingContext(ctx context.Context) context.Context {
 }
 
 // UnaryServerInterceptor returns a gRPC server interceptor that extracts
-// the workspace identifier from incoming metadata and attaches it to the context.
+// the workspace identifier from the auth context (JWT-validated) or incoming metadata.
 func UnaryServerInterceptor() grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
-		ctx = extractWorkspace(ctx)
+		ctx = resolveWorkspace(ctx)
 		return handler(ctx, req)
 	}
 }
 
 // StreamServerInterceptor returns a gRPC stream interceptor that extracts
-// the workspace identifier from incoming metadata and attaches it to the context.
+// the workspace identifier from the auth context (JWT-validated) or incoming metadata.
 func StreamServerInterceptor() grpc.StreamServerInterceptor {
 	return func(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
-		ctx := extractWorkspace(ss.Context())
+		ctx := resolveWorkspace(ss.Context())
 		return handler(srv, &wrappedStream{ServerStream: ss, ctx: ctx})
 	}
+}
+
+// resolveWorkspace reads workspace from auth context (set by JWT validation) first,
+// falling back to plain metadata extraction for legacy callers.
+func resolveWorkspace(ctx context.Context) context.Context {
+	if ws := auth.ActiveWorkspaceFrom(ctx); ws != "" {
+		return WithWorkspace(ctx, ws)
+	}
+	return extractWorkspace(ctx)
 }
 
 func extractWorkspace(ctx context.Context) context.Context {

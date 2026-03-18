@@ -1,6 +1,10 @@
 package tenant
 
-import "net/http"
+import (
+	"net/http"
+
+	"github.com/zeitlos/lucity/pkg/auth"
+)
 
 // Middleware extracts the workspace identifier from the X-Lucity-Workspace
 // header and attaches it to the request context. It does NOT reject requests
@@ -10,6 +14,7 @@ func Middleware(next http.Handler) http.Handler {
 		ws := r.Header.Get(Header)
 		if ws != "" {
 			ctx := WithWorkspace(r.Context(), ws)
+			ctx = auth.WithActiveWorkspace(ctx, ws)
 			r = r.WithContext(ctx)
 		}
 		next.ServeHTTP(w, r)

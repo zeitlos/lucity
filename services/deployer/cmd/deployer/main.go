@@ -10,6 +10,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
+	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/graceful"
 	"github.com/zeitlos/lucity/pkg/logger"
 	"github.com/zeitlos/lucity/services/deployer/argocd"
@@ -29,6 +30,10 @@ type Config struct {
 	GatewayNamespace     string `envconfig:"GATEWAY_NAMESPACE" default:"lucity-system"`
 	ClusterIssuer        string `envconfig:"CLUSTER_ISSUER" default:"letsencrypt-http01"`
 	RegistryPullSecret   string `envconfig:"REGISTRY_PULL_SECRET" default:"lucity-registry-pull"`
+
+	// Internal JWT (ES256 for gRPC service-to-service auth)
+	InternalJWTPublicKeyPath string `envconfig:"INTERNAL_JWT_PUBLIC_KEY_PATH"`
+	RequireInternalJWT       bool   `envconfig:"REQUIRE_INTERNAL_JWT" default:"false"`
 }
 
 func main() {
@@ -71,7 +76,23 @@ func main() {
 	}
 
 	svc := deployergrpc.NewServer(argoClient, clusterHTTP, config.SoftServeToken, k8sClient, dynClient, config.GatewayName, config.GatewayNamespace, config.ClusterIssuer, config.RegistryPullSecret)
-	grpcServer := deployergrpc.NewGRPCServer(":"+config.Port, svc)
+
+	var authOpts []auth.InterceptorOption
+	if config.InternalJWTPublicKeyPath != "" {
+		verifier, err := auth.NewInternalVerifierFromFile(config.InternalJWTPublicKeyPath)
+		if err != nil {
+			slog.Error("failed to create internal JWT verifier", "error", err)
+			os.Exit(1)
+		}
+		authOpts = append(authOpts, auth.WithInternalVerifier(verifier))
+		slog.Info("internal JWT verification enabled (ES256)")
+	}
+	if config.RequireInternalJWT {
+		authOpts = append(authOpts, auth.WithRequireJWT(true))
+		slog.Info("internal JWT required — legacy plain metadata auth disabled")
+	}
+
+	grpcServer := deployergrpc.NewGRPCServer(":"+config.Port, svc, authOpts...)
 
 	ctx, cancel := graceful.Context()
 	defer cancel()

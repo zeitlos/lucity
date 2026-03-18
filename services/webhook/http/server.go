@@ -18,8 +18,9 @@ import (
 
 // Handler holds the dependencies for webhook event processing.
 type Handler struct {
-	GitHubApp *ghpkg.App
-	Pipeline  *webhook.Pipeline
+	GitHubApp      *ghpkg.App
+	InternalIssuer *auth.Issuer // ES256 issuer for gRPC service-to-service auth (nil = legacy mode)
+	Pipeline       *webhook.Pipeline
 }
 
 type Server struct {
@@ -108,12 +109,15 @@ func (h *Handler) handlePush(event *github.Event) {
 	}
 
 	// Set identity and workspace context for gRPC propagation.
-	// No JWT needed — backends trust the gateway/webhook as the auth boundary.
+	if h.InternalIssuer != nil {
+		ctx = auth.WithIssuer(ctx, h.InternalIssuer)
+	}
 	ctx = auth.WithClaims(ctx, &auth.Claims{
 		Subject: "webhook",
 		Roles:   []auth.Role{auth.RoleUser},
 	})
 	ctx = tenant.WithWorkspace(ctx, ws)
+	ctx = auth.WithActiveWorkspace(ctx, ws)
 	ctx = auth.WithGitHubToken(ctx, ghToken)
 	ctx = auth.OutgoingContext(ctx)
 	ctx = tenant.OutgoingContext(ctx)
@@ -155,8 +159,12 @@ func (h *Handler) handlePush(event *github.Event) {
 // lookupWorkspace resolves the workspace for a GitHub App installation ID
 // by querying the deployer's WorkspaceByInstallationID RPC.
 func (h *Handler) lookupWorkspace(ctx context.Context, installationID int64, ghToken string) (string, error) {
-	// Set identity context for gRPC propagation — no JWT needed.
-	lookupCtx := auth.WithClaims(ctx, &auth.Claims{
+	// Set identity context for gRPC propagation.
+	lookupCtx := ctx
+	if h.InternalIssuer != nil {
+		lookupCtx = auth.WithIssuer(lookupCtx, h.InternalIssuer)
+	}
+	lookupCtx = auth.WithClaims(lookupCtx, &auth.Claims{
 		Subject: "webhook",
 		Roles:   []auth.Role{auth.RoleUser},
 	})

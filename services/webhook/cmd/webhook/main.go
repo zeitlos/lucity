@@ -8,6 +8,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
+	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/builder"
 	"github.com/zeitlos/lucity/pkg/deployer"
 	ghpkg "github.com/zeitlos/lucity/pkg/github"
@@ -34,6 +35,9 @@ type Config struct {
 
 	// Registry for image paths.
 	RegistryPushURL string `envconfig:"REGISTRY_PUSH_URL" default:"localhost:5000"`
+
+	// Internal JWT (ES256 for gRPC service-to-service auth)
+	InternalJWTPrivateKeyPath string `envconfig:"INTERNAL_JWT_PRIVATE_KEY_PATH"` // PEM file; optional
 }
 
 func main() {
@@ -44,6 +48,20 @@ func main() {
 	}
 
 	logger.Setup(config.LogLevel)
+
+	// Initialize internal JWT issuer for gRPC service-to-service auth (optional)
+	var internalIssuer *auth.Issuer
+	if config.InternalJWTPrivateKeyPath != "" {
+		var err error
+		internalIssuer, err = auth.NewIssuerFromFile(config.InternalJWTPrivateKeyPath)
+		if err != nil {
+			slog.Error("failed to create internal JWT issuer", "error", err)
+			os.Exit(1)
+		}
+		slog.Info("internal JWT issuer initialized (ES256)")
+	} else {
+		slog.Warn("internal JWT not configured — gRPC calls use legacy plain metadata headers")
+	}
 
 	// Build the push event handler if GitHub App + gRPC are configured.
 	var handler *webhookhttp.Handler
@@ -59,7 +77,8 @@ func main() {
 		deployerConn := dialGRPC(config.DeployerAddr)
 
 		handler = &webhookhttp.Handler{
-			GitHubApp: app,
+			GitHubApp:      app,
+			InternalIssuer: internalIssuer,
 			Pipeline: &webhook.Pipeline{
 				Builder:         builder.NewBuilderServiceClient(builderConn),
 				Packager:        packager.NewPackagerServiceClient(packagerConn),

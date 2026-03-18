@@ -37,7 +37,7 @@ type GraphQLServer struct {
 	port   string
 }
 
-func NewGraphQLServer(port string, api *handler.Client, oidcProvider *OIDCProvider, verifier *auth.Verifier, logtoClient *logto.Client, sessionSecret, dashboardURL, githubAppSlug string, grpcComponents []grpcComponent) *GraphQLServer {
+func NewGraphQLServer(port string, api *handler.Client, oidcProvider *OIDCProvider, verifier *auth.Verifier, logtoClient *logto.Client, internalIssuer *auth.Issuer, sessionSecret, dashboardURL, githubAppSlug string, grpcComponents []grpcComponent) *GraphQLServer {
 	resolver := gatewaygraphql.Resolver{
 		API: api,
 	}
@@ -137,10 +137,16 @@ func NewGraphQLServer(port string, api *handler.Client, oidcProvider *OIDCProvid
 				}
 			}
 
+			// Inject internal JWT issuer for gRPC calls made during subscriptions.
+			if internalIssuer != nil {
+				ctx = auth.WithIssuer(ctx, internalIssuer)
+			}
+
 			// Workspace: browser can't send custom headers on WS upgrade,
 			// so read from connectionParams.
 			if ws, ok := initPayload[tenant.Header].(string); ok && ws != "" {
 				ctx = tenant.WithWorkspace(ctx, ws)
+				ctx = auth.WithActiveWorkspace(ctx, ws)
 			}
 
 			return ctx, &initPayload, nil
@@ -207,8 +213,20 @@ func NewGraphQLServer(port string, api *handler.Client, oidcProvider *OIDCProvid
 	mux.Handle("/playground", playground.Handler("GraphQL playground", "/graphql"))
 	mux.Handle("/graphql", srv)
 
-	// Apply middleware chain: rate limit → CORS → security headers → auth → tenant
+	// Apply middleware chain: rate limit → CORS → security headers → auth → issuer → tenant
 	authMiddleware := auth.Middleware(verifier)
+
+	// Issuer middleware injects the internal JWT issuer into the request context.
+	// This enables auth.OutgoingContext to mint ES256 JWTs for gRPC calls.
+	issuerMiddleware := func(next http.Handler) http.Handler {
+		if internalIssuer == nil {
+			return next
+		}
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ctx := auth.WithIssuer(r.Context(), internalIssuer)
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
 
 	corsHandler := cors.New(cors.Options{
 		AllowedOrigins:   []string{"http://localhost:5173", dashboardURL},
@@ -221,8 +239,10 @@ func NewGraphQLServer(port string, api *handler.Client, oidcProvider *OIDCProvid
 		corsHandler.Handler(
 			securityHeadersMiddleware(
 				authMiddleware(
-					tenant.Middleware(
-						tenant.AuthorizeMiddleware(mux),
+					issuerMiddleware(
+						tenant.Middleware(
+							tenant.AuthorizeMiddleware(mux),
+						),
 					),
 				),
 			),

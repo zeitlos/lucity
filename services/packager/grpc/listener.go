@@ -15,14 +15,14 @@ type GRPCServer struct {
 	addr   string
 }
 
-func NewGRPCServer(addr string, svc *Server) *GRPCServer {
+func NewGRPCServer(addr string, svc *Server, authOpts ...auth.InterceptorOption) *GRPCServer {
 	s := grpc.NewServer(
 		grpc.ChainUnaryInterceptor(
-			auth.UnaryServerInterceptor(),
+			auth.UnaryServerInterceptor(authOpts...),
 			tenant.UnaryServerInterceptor(),
 		),
 		grpc.ChainStreamInterceptor(
-			auth.StreamServerInterceptor(),
+			auth.StreamServerInterceptor(authOpts...),
 			tenant.StreamServerInterceptor(),
 		),
 	)

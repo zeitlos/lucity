@@ -10,6 +10,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
+	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/graceful"
 	"github.com/zeitlos/lucity/pkg/logger"
 	"github.com/zeitlos/lucity/services/builder/build"
@@ -30,6 +31,10 @@ type Config struct {
 	BuildkitAddr       string `envconfig:"BUILDKIT_ADDR"`
 	BuildNamespace     string `envconfig:"BUILD_NAMESPACE" default:"lucity-builds"`
 	KubeContext        string `envconfig:"KUBE_CONTEXT"`
+
+	// Internal JWT (ES256 for gRPC service-to-service auth)
+	InternalJWTPublicKeyPath string `envconfig:"INTERNAL_JWT_PUBLIC_KEY_PATH"`
+	RequireInternalJWT       bool   `envconfig:"REQUIRE_INTERNAL_JWT" default:"false"`
 }
 
 func main() {
@@ -64,7 +69,23 @@ func main() {
 	}
 
 	svc := buildergrpc.NewServer(eng, tracker, config.RegistryURL, config.RegistryUsername, config.RegistryPassword, config.RegistryInsecure, config.WorkDir)
-	grpcServer := buildergrpc.NewGRPCServer(":"+config.Port, svc)
+
+	var authOpts []auth.InterceptorOption
+	if config.InternalJWTPublicKeyPath != "" {
+		verifier, err := auth.NewInternalVerifierFromFile(config.InternalJWTPublicKeyPath)
+		if err != nil {
+			slog.Error("failed to create internal JWT verifier", "error", err)
+			os.Exit(1)
+		}
+		authOpts = append(authOpts, auth.WithInternalVerifier(verifier))
+		slog.Info("internal JWT verification enabled (ES256)")
+	}
+	if config.RequireInternalJWT {
+		authOpts = append(authOpts, auth.WithRequireJWT(true))
+		slog.Info("internal JWT required — legacy plain metadata auth disabled")
+	}
+
+	grpcServer := buildergrpc.NewGRPCServer(":"+config.Port, svc, authOpts...)
 
 	graceful.Serve(ctx, grpcServer)
 }

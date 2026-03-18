@@ -73,6 +73,11 @@ spec:
               mountPath: /secrets/softserve
               readOnly: true
             {{- end }}
+            {{- if and .Values.internalJWT .Values.internalJWT.publicKey }}
+            - name: internal-jwt
+              mountPath: /secrets/internal-jwt
+              readOnly: true
+            {{- end }}
           resources:
             {{- toYaml .Values.packager.resources | nindent 12 }}
       volumes:
@@ -82,4 +87,12 @@ spec:
         - name: softserve-key
           secret:
             secretName: {{ include "lucity.fullname" . }}-softserve-key
+        {{- end }}
+        {{- if and .Values.internalJWT .Values.internalJWT.publicKey }}
+        - name: internal-jwt
+          secret:
+            secretName: {{ include "lucity.fullname" . }}-internal-jwt
+            items:
+              - key: public.pem
+                path: public.pem
         {{- end }}

@@ -66,6 +66,9 @@ type Config struct {
 
 	// GitHub App (for workspace installation linking)
 	GitHubAppSlug string `envconfig:"GITHUB_APP_SLUG"` // e.g. "lucity-dev"
+
+	// Internal JWT (ES256 for gRPC service-to-service auth)
+	InternalJWTPrivateKeyPath string `envconfig:"INTERNAL_JWT_PRIVATE_KEY_PATH"` // PEM file; optional — legacy metadata headers used when not set
 }
 
 func main() {
@@ -182,6 +185,20 @@ func main() {
 		slog.Info("cashier not configured — billing disabled")
 	}
 
+	// Initialize internal JWT issuer for gRPC service-to-service auth (optional)
+	var internalIssuer *auth.Issuer
+	if config.InternalJWTPrivateKeyPath != "" {
+		var err error
+		internalIssuer, err = auth.NewIssuerFromFile(config.InternalJWTPrivateKeyPath)
+		if err != nil {
+			slog.Error("failed to create internal JWT issuer", "error", err)
+			os.Exit(1)
+		}
+		slog.Info("internal JWT issuer initialized (ES256)")
+	} else {
+		slog.Warn("internal JWT not configured — gRPC calls use legacy plain metadata headers")
+	}
+
 	// Initialize Logto client for workspace/member management
 	logtoClient := logto.New(config.LogtoEndpoint, config.LogtoM2MAppID, config.LogtoM2MAppSecret)
 	slog.Info("logto management API configured", "endpoint", config.LogtoEndpoint)
@@ -200,7 +217,7 @@ func main() {
 		components = append(components, grpcComponent{name: "cashier", conn: cashierConn})
 	}
 
-	graphqlServer := NewGraphQLServer(config.Port, api, oidcProvider, verifier, logtoClient, sessionSecret, config.DashboardURL, config.GitHubAppSlug, components)
+	graphqlServer := NewGraphQLServer(config.Port, api, oidcProvider, verifier, logtoClient, internalIssuer, sessionSecret, config.DashboardURL, config.GitHubAppSlug, components)
 
 	graceful.Serve(ctx, graphqlServer)
 }

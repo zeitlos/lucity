@@ -12,6 +12,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
+	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/deployer"
 	"github.com/zeitlos/lucity/pkg/graceful"
 	"github.com/zeitlos/lucity/pkg/logger"
@@ -49,6 +50,10 @@ type Config struct {
 
 	MeteringInterval    time.Duration `envconfig:"METERING_INTERVAL" default:"1h"`
 	SignozClickhouseDSN string        `envconfig:"SIGNOZ_CLICKHOUSE_DSN"`
+
+	// Internal JWT (ES256 for gRPC service-to-service auth)
+	InternalJWTPublicKeyPath string `envconfig:"INTERNAL_JWT_PUBLIC_KEY_PATH"`
+	RequireInternalJWT       bool   `envconfig:"REQUIRE_INTERNAL_JWT" default:"false"`
 }
 
 func main() {
@@ -95,7 +100,23 @@ func main() {
 
 	// gRPC server
 	svc := cashiergrpc.NewServer(stripeClient, deployerClient)
-	grpcServer := cashiergrpc.NewGRPCServer(":"+config.Port, svc)
+
+	var authOpts []auth.InterceptorOption
+	if config.InternalJWTPublicKeyPath != "" {
+		verifier, err := auth.NewInternalVerifierFromFile(config.InternalJWTPublicKeyPath)
+		if err != nil {
+			slog.Error("failed to create internal JWT verifier", "error", err)
+			os.Exit(1)
+		}
+		authOpts = append(authOpts, auth.WithInternalVerifier(verifier))
+		slog.Info("internal JWT verification enabled (ES256)")
+	}
+	if config.RequireInternalJWT {
+		authOpts = append(authOpts, auth.WithRequireJWT(true))
+		slog.Info("internal JWT required — legacy plain metadata auth disabled")
+	}
+
+	grpcServer := cashiergrpc.NewGRPCServer(":"+config.Port, svc, authOpts...)
 
 	// Stripe webhook HTTP server
 	webhookHandler := stripelib.NewWebhookHandler(config.StripeWebhookSecret, stripeClient, svc)

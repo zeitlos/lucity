@@ -82,8 +82,21 @@ spec:
           volumeMounts:
             - name: tmp
               mountPath: /tmp
+            {{- if and .Values.internalJWT .Values.internalJWT.publicKey }}
+            - name: internal-jwt
+              mountPath: /secrets/internal-jwt
+              readOnly: true
+            {{- end }}
           resources:
             {{- toYaml .Values.builder.resources | nindent 12 }}
       volumes:
         - name: tmp
           emptyDir: {}
+        {{- if and .Values.internalJWT .Values.internalJWT.publicKey }}
+        - name: internal-jwt
+          secret:
+            secretName: {{ include "lucity.fullname" . }}-internal-jwt
+            items:
+              - key: public.pem
+                path: public.pem
+        {{- end }}

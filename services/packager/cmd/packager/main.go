@@ -9,6 +9,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
+	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/deployer"
 	"github.com/zeitlos/lucity/pkg/graceful"
 	"github.com/zeitlos/lucity/pkg/logger"
@@ -28,6 +29,10 @@ type Config struct {
 
 	// Backend services
 	DeployerAddr string `envconfig:"DEPLOYER_ADDR" default:"localhost:9003"`
+
+	// Internal JWT (ES256 for gRPC service-to-service auth)
+	InternalJWTPublicKeyPath string `envconfig:"INTERNAL_JWT_PUBLIC_KEY_PATH"`
+	RequireInternalJWT       bool   `envconfig:"REQUIRE_INTERNAL_JWT" default:"false"`
 }
 
 func main() {
@@ -61,7 +66,23 @@ func main() {
 	deployerClient := deployer.NewDeployerServiceClient(deployerConn)
 
 	svc := packagergrpc.NewServer(provider, deployerClient)
-	grpcServer := packagergrpc.NewGRPCServer(":"+config.Port, svc)
+
+	var authOpts []auth.InterceptorOption
+	if config.InternalJWTPublicKeyPath != "" {
+		verifier, err := auth.NewInternalVerifierFromFile(config.InternalJWTPublicKeyPath)
+		if err != nil {
+			slog.Error("failed to create internal JWT verifier", "error", err)
+			os.Exit(1)
+		}
+		authOpts = append(authOpts, auth.WithInternalVerifier(verifier))
+		slog.Info("internal JWT verification enabled (ES256)")
+	}
+	if config.RequireInternalJWT {
+		authOpts = append(authOpts, auth.WithRequireJWT(true))
+		slog.Info("internal JWT required — legacy plain metadata auth disabled")
+	}
+
+	grpcServer := packagergrpc.NewGRPCServer(":"+config.Port, svc, authOpts...)
 	graceful.Serve(ctx, grpcServer)
 }
 

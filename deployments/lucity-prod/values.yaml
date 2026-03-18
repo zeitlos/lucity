@@ -16,6 +16,7 @@ routes:
 
 gateway:
   env:
+    INTERNAL_JWT_PRIVATE_KEY_PATH: /secrets/internal-jwt/private.pem
     OIDC_ISSUER_URL: https://id.lucity.cloud/oidc
     OIDC_CLIENT_ID: 30ztkgeb1c7hwmnx6bf4s
     OIDC_CALLBACK_URL: https://lucity.cloud/auth/callback
@@ -48,6 +49,7 @@ builder:
   registryHost: lucity-infra-zot.lucity-system.svc.cluster.local:5000
   registryUsername: builder
   env:
+    INTERNAL_JWT_PUBLIC_KEY_PATH: /secrets/internal-jwt/public.pem
     REGISTRY_URL: lucity-infra-zot.lucity-system.svc.cluster.local:5000
     REGISTRY_USERNAME: builder
     REGISTRY_INSECURE: "true"
@@ -56,6 +58,7 @@ builder:
 
 packager:
   env:
+    INTERNAL_JWT_PUBLIC_KEY_PATH: /secrets/internal-jwt/public.pem
     SOFTSERVE_SSH_ADDR: lucity-infra-soft-serve.lucity-system.svc.cluster.local:23231
     SOFTSERVE_HTTP_ADDR: http://lucity-infra-soft-serve.lucity-system.svc.cluster.local:23232
     SOFTSERVE_SSH_KEY_PATH: /secrets/softserve/admin-key
@@ -67,6 +70,7 @@ deployer:
   serviceAccount:
     create: true
   env:
+    INTERNAL_JWT_PUBLIC_KEY_PATH: /secrets/internal-jwt/public.pem
     ARGOCD_ADDR: http://lucity-infra-argocd-server.lucity-system.svc.cluster.local:80
     ARGOCD_INSECURE: "true"
     SOFTSERVE_HTTP_ADDR: http://lucity-infra-soft-serve.lucity-system.svc.cluster.local:23232
@@ -76,6 +80,7 @@ deployer:
 
 webhook:
   env:
+    INTERNAL_JWT_PRIVATE_KEY_PATH: /secrets/internal-jwt/private.pem
     GITHUB_APP_ID: "2882801"
     GITHUB_PRIVATE_KEY_PATH: /secrets/github/github-app.pem
     BUILDER_ADDR: lucity-builder:9001
@@ -88,6 +93,7 @@ webhook:
 cashier:
   enabled: true
   env:
+    INTERNAL_JWT_PUBLIC_KEY_PATH: /secrets/internal-jwt/public.pem
     DEPLOYER_ADDR: lucity-deployer:9003
     STRIPE_HOBBY_PRICE_ID: price_1TASy6AoheV3Drw6W13KVFYm
     STRIPE_PRO_PRICE_ID: price_1TASy7AoheV3Drw6t22UVU8C

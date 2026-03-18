@@ -1,4 +1,4 @@
-.PHONY: build proto dev dev-gateway dev-builder dev-packager dev-deployer dev-cashier dev-webhook dev-dashboard dev-docs dev-logs dev-stop generate-graphql lint test-integration test-integration-short test-watch minikube dns infra infra-down infra-forward infra-forward-stop argocd-password infra-tokens argocd-token softserve-token db-forward deploy-prod deploy-prod-infra
+.PHONY: build proto dev dev-gateway dev-builder dev-packager dev-deployer dev-cashier dev-webhook dev-dashboard dev-docs dev-logs dev-stop generate-graphql lint test-integration test-integration-short test-watch minikube dns infra infra-down infra-forward infra-forward-stop argocd-password infra-tokens argocd-token softserve-token db-forward deploy-prod deploy-prod-infra generate-internal-keys
 
 # Build all Go services
 build:
@@ -198,3 +198,11 @@ deploy-prod:
 # Sync workspace
 sync:
 	go work sync
+
+# Generate ES256 keypair for internal gRPC JWT authentication
+generate-internal-keys:
+	openssl ecparam -name prime256v1 -genkey -noout -out internal-jwt-private.pem
+	openssl ec -in internal-jwt-private.pem -pubout -out internal-jwt-public.pem
+	@echo "Generated internal-jwt-private.pem and internal-jwt-public.pem"
+	@echo "Set INTERNAL_JWT_PRIVATE_KEY_PATH in gateway and webhook .env files"
+	@echo "Set INTERNAL_JWT_PUBLIC_KEY_PATH in backend service .env files"

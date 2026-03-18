@@ -67,17 +67,34 @@ spec:
                   name: {{ include "lucity.fullname" $ }}
                   key: {{ $value }}
             {{- end }}
-          {{- if .Values.githubPrivateKey }}
+          {{- if or .Values.githubPrivateKey (and .Values.internalJWT .Values.internalJWT.privateKey) }}
           volumeMounts:
+            {{- if .Values.githubPrivateKey }}
             - name: github-app-key
               mountPath: /secrets/github
               readOnly: true
+            {{- end }}
+            {{- if and .Values.internalJWT .Values.internalJWT.privateKey }}
+            - name: internal-jwt
+              mountPath: /secrets/internal-jwt
+              readOnly: true
+            {{- end }}
           {{- end }}
           resources:
             {{- toYaml .Values.gateway.resources | nindent 12 }}
-      {{- if .Values.githubPrivateKey }}
+      {{- if or .Values.githubPrivateKey (and .Values.internalJWT .Values.internalJWT.privateKey) }}
       volumes:
+        {{- if .Values.githubPrivateKey }}
         - name: github-app-key
           secret:
             secretName: {{ include "lucity.fullname" . }}-github-app
+        {{- end }}
+        {{- if and .Values.internalJWT .Values.internalJWT.privateKey }}
+        - name: internal-jwt
+          secret:
+            secretName: {{ include "lucity.fullname" . }}-internal-jwt
+            items:
+              - key: private.pem
+                path: private.pem
+        {{- end }}
       {{- end }}
