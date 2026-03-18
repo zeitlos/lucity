@@ -1,9 +1,0 @@
-{{- if .Values.builder.serviceAccount.create }}
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: {{ .Values.builder.buildNamespace | default "lucity-builds" }}
-  labels:
-    {{- include "lucity.labels" . | nindent 4 }}
-    app.kubernetes.io/component: builds
-{{- end }}

@@ -48,6 +48,7 @@ builder:
     REGISTRY_USERNAME: builder
     REGISTRY_INSECURE: "true"
     BUILD_ENGINE: kubernetes
+    BUILD_NAMESPACE: lucity-system
   envSecret:
     REGISTRY_PASSWORD: REGISTRY_PASSWORD
 
