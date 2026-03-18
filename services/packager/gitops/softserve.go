@@ -25,19 +25,21 @@ import (
 // SoftServeProvider implements Provider using Soft-serve as the git backend.
 // Repo management is done via SSH commands; file operations via git clone/push.
 type SoftServeProvider struct {
-	sshAddr  string     // e.g., "localhost:23231"
-	httpAddr string     // e.g., "http://localhost:23232"
-	sshKey   ssh.Signer // admin SSH key for repo management commands
-	token    string     // HTTP access token for git push
+	sshAddr      string         // e.g., "localhost:23231"
+	httpAddr     string         // e.g., "http://localhost:23232"
+	sshKey       ssh.Signer     // admin SSH key for repo management commands
+	token        string         // HTTP access token for git push
+	registryAuth *RegistryAuth  // optional: OCI registry pull credentials for workload pods
 }
 
 // NewSoftServeProvider creates a Provider backed by Soft-serve.
-func NewSoftServeProvider(sshAddr, httpAddr string, sshKey ssh.Signer, token string) *SoftServeProvider {
+func NewSoftServeProvider(sshAddr, httpAddr string, sshKey ssh.Signer, token string, registryAuth *RegistryAuth) *SoftServeProvider {
 	return &SoftServeProvider{
-		sshAddr:  sshAddr,
-		httpAddr: httpAddr,
-		sshKey:   sshKey,
-		token:    token,
+		sshAddr:      sshAddr,
+		httpAddr:     httpAddr,
+		sshKey:       sshKey,
+		token:        token,
+		registryAuth: registryAuth,
 	}
 }
 
@@ -969,7 +971,7 @@ func (p *SoftServeProvider) initRepoContents(cloneURL, project string) error {
 
 	files := map[string]string{
 		"base/Chart.yaml":                      baseChartYAML(project),
-		"base/values.yaml":                     baseValuesYAML(project),
+		"base/values.yaml":                     baseValuesYAML(project, p.registryAuth),
 		"environments/development/values.yaml": environmentValuesYAML,
 	}
 

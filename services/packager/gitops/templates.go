@@ -28,11 +28,19 @@ dependencies:
 // dependency — Helm requires subchart values to be namespaced this way.
 // fullnameOverride is set to the project name so K8s resource names are concise
 // (e.g., "beast-web" instead of "acme-beast-dev-lucity-app-web").
-func baseValuesYAML(project string) string {
-	return fmt.Sprintf(`lucity-app:
+func baseValuesYAML(project string, registryAuth *RegistryAuth) string {
+	base := fmt.Sprintf(`lucity-app:
   fullnameOverride: "%s"
   services: {}
 `, project)
+	if registryAuth != nil {
+		base += fmt.Sprintf(`  registryAuth:
+    host: "%s"
+    username: "%s"
+    password: "%s"
+`, registryAuth.Host, registryAuth.Username, registryAuth.Password)
+	}
+	return base
 }
 
 // environmentValuesYAML generates the per-environment values.yaml override file.

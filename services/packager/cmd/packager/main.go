@@ -28,6 +28,13 @@ type Config struct {
 
 	// Backend services
 	DeployerAddr string `envconfig:"DEPLOYER_ADDR" default:"localhost:9003"`
+
+	// Registry pull credentials for workload image pulls (imagePullSecrets).
+	// When set, injected into every project's base values so kubelet can
+	// authenticate to the OCI registry.
+	RegistryPullHost     string `envconfig:"REGISTRY_PULL_HOST"`
+	RegistryPullUsername string `envconfig:"REGISTRY_PULL_USERNAME"`
+	RegistryPullPassword string `envconfig:"REGISTRY_PULL_PASSWORD"`
 }
 
 func main() {
@@ -80,10 +87,21 @@ func buildSoftServeProvider(config Config) (*gitops.SoftServeProvider, error) {
 		"ssh", config.SoftServeSSH,
 		"http", config.SoftServeHTTP)
 
+	var registryAuth *gitops.RegistryAuth
+	if config.RegistryPullHost != "" {
+		registryAuth = &gitops.RegistryAuth{
+			Host:     config.RegistryPullHost,
+			Username: config.RegistryPullUsername,
+			Password: config.RegistryPullPassword,
+		}
+		slog.Info("registry pull auth configured", "host", config.RegistryPullHost, "username", config.RegistryPullUsername)
+	}
+
 	return gitops.NewSoftServeProvider(
 		config.SoftServeSSH,
 		config.SoftServeHTTP,
 		signer,
 		config.SoftServeToken,
+		registryAuth,
 	), nil
 }
