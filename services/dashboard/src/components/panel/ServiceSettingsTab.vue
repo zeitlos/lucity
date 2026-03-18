@@ -100,16 +100,12 @@ const ipAddress = computed(() => platformConfigResult.value?.platformConfig?.ipA
 // DNS polling for custom domains
 const dnsPolling = useDnsPolling();
 
-// Start polling for unverified custom domains when they change
+// Start polling for custom domains that need DNS verification or TLS provisioning
 watch(customDomains, (doms) => {
-  const unverified = doms
-    .filter(d => d.dnsStatus !== 'VALID')
+  const needsPolling = doms
+    .filter(d => d.dnsStatus !== 'VALID' || d.tlsStatus !== 'ACTIVE')
     .map(d => d.hostname);
-  dnsPolling.trackHostnames(unverified);
-  // Sync TLS status from domain data into polling checks
-  for (const d of doms) {
-    dnsPolling.setTlsStatus(d.hostname, d.tlsStatus);
-  }
+  dnsPolling.trackHostnames(needsPolling);
 }, { immediate: true });
 
 // Get live DNS status for a custom domain (from polling, or fallback to static)
@@ -119,9 +115,11 @@ function dnsStatus(hostname: string): 'VALID' | 'PENDING' | 'MISCONFIGURED' | 'E
     ?? 'PENDING';
 }
 
-// Get TLS status for a domain (from domain data)
+// Get TLS status for a domain (from polling, or fallback to static)
 function tlsStatus(hostname: string): 'NONE' | 'PROVISIONING' | 'ACTIVE' | 'ERROR' {
-  return domains.value.find(d => d.hostname === hostname)?.tlsStatus ?? 'NONE';
+  return dnsPolling.checks[hostname]?.tlsStatus
+    ?? customDomains.value.find(d => d.hostname === hostname)?.tlsStatus
+    ?? 'NONE';
 }
 
 // Combined domain status for display
