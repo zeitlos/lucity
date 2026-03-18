@@ -86,7 +86,7 @@ func NewGraphQLServer(port string, api *handler.Client, oidcProvider *OIDCProvid
 					if ctx.Value(allowSuspendedKey) == nil {
 						ws := tenant.FromContext(ctx)
 						if ws != "" && api.Logto != nil {
-							org, err := api.Logto.Organization(ctx, ws)
+							org, err := api.Logto.OrganizationByName(ctx, ws)
 							if err == nil && org.CustomData != nil {
 								if suspended, ok := org.CustomData["suspended"].(bool); ok && suspended {
 									slog.Warn("mutation blocked: workspace suspended", "workspace", ws, "operation", oc.OperationName)
