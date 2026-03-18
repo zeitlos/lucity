@@ -138,11 +138,12 @@ function domainStatusLabel(domain: DomainInfo): { icon: 'check' | 'spinner' | 'a
   if (dns === 'ERROR') {
     return { icon: 'alert', color: 'text-destructive', label: 'DNS Error' };
   }
-  // DNS is VALID
-  if (tls === 'ACTIVE' || tls === 'NONE') {
+  // DNS is VALID — check TLS status
+  if (tls === 'ACTIVE') {
     return { icon: 'check', color: 'text-green-500', label: 'Connected' };
   }
-  if (tls === 'PROVISIONING') {
+  if (tls === 'PROVISIONING' || tls === 'NONE') {
+    // NONE means cert not found yet (deployer hasn't created it, or deployer unreachable)
     return { icon: 'spinner', color: 'text-blue-500', label: 'Provisioning TLS...' };
   }
   // TLS ERROR
@@ -789,13 +790,15 @@ async function handleRemoveService() {
                         :class="domainStatusLabel(domain).icon === 'alert' ? 'text-orange-500' : 'text-muted-foreground'"
                       >
                         <span>{{ domainStatusLabel(domain).label }}</span>
-                        <span class="text-muted-foreground/50">&middot;</span>
-                        <button
-                          class="font-medium text-primary hover:underline"
-                          @click="showDnsRecords(domain.hostname)"
-                        >
-                          Show records
-                        </button>
+                        <template v-if="dnsStatus(domain.hostname) !== 'VALID'">
+                          <span class="text-muted-foreground/50">&middot;</span>
+                          <button
+                            class="font-medium text-primary hover:underline"
+                            @click="showDnsRecords(domain.hostname)"
+                          >
+                            Show records
+                          </button>
+                        </template>
                       </div>
                     </div>
                     <div class="flex shrink-0 items-center">
