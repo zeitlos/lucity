@@ -14,6 +14,14 @@ githubPrivateKey: ""
 # -- Soft-serve admin SSH key (mounted as file)
 softserveKey: ""
 
+# -- Registry pull credentials for workload imagePullSecrets.
+# The deployer clones this Secret into each workload namespace so kubelet
+# can authenticate to the OCI registry when pulling images.
+registryPull:
+  host: ""
+  username: ""
+  password: ""
+
 # -- Image pull secrets for private registries
 imagePullSecrets: []
 

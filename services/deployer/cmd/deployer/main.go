@@ -28,6 +28,7 @@ type Config struct {
 	GatewayName          string `envconfig:"GATEWAY_NAME" default:"lucity-gateway"`
 	GatewayNamespace     string `envconfig:"GATEWAY_NAMESPACE" default:"lucity-system"`
 	ClusterIssuer        string `envconfig:"CLUSTER_ISSUER" default:"letsencrypt-http01"`
+	RegistryPullSecret   string `envconfig:"REGISTRY_PULL_SECRET" default:"lucity-registry-pull"`
 }
 
 func main() {
@@ -69,7 +70,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	svc := deployergrpc.NewServer(argoClient, clusterHTTP, config.SoftServeToken, k8sClient, dynClient, config.GatewayName, config.GatewayNamespace, config.ClusterIssuer)
+	svc := deployergrpc.NewServer(argoClient, clusterHTTP, config.SoftServeToken, k8sClient, dynClient, config.GatewayName, config.GatewayNamespace, config.ClusterIssuer, config.RegistryPullSecret)
 	grpcServer := deployergrpc.NewGRPCServer(":"+config.Port, svc)
 
 	ctx, cancel := graceful.Context()

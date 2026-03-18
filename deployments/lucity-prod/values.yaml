@@ -7,6 +7,10 @@
 #   --set-file githubPrivateKey=<path-to-github-app.pem>
 #   --set-file softserveKey=~/.ssh/lucity-admin-prod
 
+registryPull:
+  host: "10.96.100.100:5000"
+  username: reader
+
 routes:
   enabled: true
 

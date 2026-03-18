@@ -44,18 +44,24 @@ type Server struct {
 	gatewayName      string
 	gatewayNamespace string
 	clusterIssuer    string
+
+	// registryPullSecret is the name of the source dockerconfigjson Secret in
+	// the platform namespace (lucity-system). The deployer clones this Secret
+	// into each workload namespace so kubelet can authenticate image pulls.
+	registryPullSecret string
 }
 
-func NewServer(argo *argocd.Client, softServeHTTP, softServeToken string, k8s kubernetes.Interface, dyn dynamic.Interface, gatewayName, gatewayNamespace, clusterIssuer string) *Server {
+func NewServer(argo *argocd.Client, softServeHTTP, softServeToken string, k8s kubernetes.Interface, dyn dynamic.Interface, gatewayName, gatewayNamespace, clusterIssuer, registryPullSecret string) *Server {
 	return &Server{
-		argo:             argo,
-		k8s:              k8s,
-		dynamic:          dyn,
-		softServeHTTP:    softServeHTTP,
-		softServeToken:   softServeToken,
-		gatewayName:      gatewayName,
-		gatewayNamespace: gatewayNamespace,
-		clusterIssuer:    clusterIssuer,
+		argo:               argo,
+		k8s:                k8s,
+		dynamic:            dyn,
+		softServeHTTP:      softServeHTTP,
+		softServeToken:     softServeToken,
+		gatewayName:        gatewayName,
+		gatewayNamespace:   gatewayNamespace,
+		clusterIssuer:      clusterIssuer,
+		registryPullSecret: registryPullSecret,
 	}
 }
 
@@ -94,6 +100,9 @@ func (s *Server) DeployEnvironment(ctx context.Context, req *deployer.DeployEnvi
 
 	// Set up default ECO tier: LimitRange for per-pod defaults + namespace label.
 	s.ensureDefaultEcoTier(ctx, req.TargetNamespace)
+
+	// Clone registry pull credentials so kubelet can authenticate image pulls.
+	s.ensureRegistryPullSecret(ctx, req.TargetNamespace)
 
 	// Ensure the GitOps repo is registered in ArgoCD with credentials.
 	repoURL := s.repoURL(ws, req.Project)
@@ -997,6 +1006,58 @@ func (s *Server) ensureDefaultEcoTier(ctx context.Context, namespace string) {
 	}
 
 	slog.Info("set default ECO tier", "namespace", namespace)
+}
+
+// registryPullSecretName is the well-known name for the registry pull Secret
+// in workload namespaces. Referenced by the lucity-app chart's imagePullSecrets.
+const registryPullSecretName = "lucity-registry"
+
+// ensureRegistryPullSecret clones the platform's registry pull Secret into a
+// workload namespace so kubelet can authenticate when pulling images.
+// Best-effort: logs a warning and returns if the source Secret is missing
+// (e.g., in dev environments without a private registry).
+func (s *Server) ensureRegistryPullSecret(ctx context.Context, namespace string) {
+	if s.registryPullSecret == "" {
+		return
+	}
+
+	// Read the source Secret from the platform namespace.
+	source, err := s.k8s.CoreV1().Secrets(s.gatewayNamespace).Get(ctx, s.registryPullSecret, metav1.GetOptions{})
+	if err != nil {
+		slog.Warn("registry pull secret not found, skipping", "secret", s.registryPullSecret, "namespace", s.gatewayNamespace, "error", err)
+		return
+	}
+
+	target := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      registryPullSecretName,
+			Namespace: namespace,
+			Labels: map[string]string{
+				labels.ManagedBy: labels.ManagedByLucity,
+			},
+		},
+		Type: source.Type,
+		Data: source.Data,
+	}
+
+	existing, err := s.k8s.CoreV1().Secrets(namespace).Get(ctx, registryPullSecretName, metav1.GetOptions{})
+	if err != nil {
+		// Create new.
+		if _, err := s.k8s.CoreV1().Secrets(namespace).Create(ctx, target, metav1.CreateOptions{}); err != nil {
+			slog.Warn("failed to create registry pull secret", "namespace", namespace, "error", err)
+			return
+		}
+	} else {
+		// Update existing.
+		existing.Type = source.Type
+		existing.Data = source.Data
+		if _, err := s.k8s.CoreV1().Secrets(namespace).Update(ctx, existing, metav1.UpdateOptions{}); err != nil {
+			slog.Warn("failed to update registry pull secret", "namespace", namespace, "error", err)
+			return
+		}
+	}
+
+	slog.Info("ensured registry pull secret", "namespace", namespace)
 }
 
 func buildLimitRange(namespace string, tier deployer.ResourceTier) *corev1.LimitRange {
