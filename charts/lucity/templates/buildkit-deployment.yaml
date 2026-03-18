@@ -61,16 +61,6 @@ spec:
             - name: buildkit-config
               mountPath: /etc/buildkit
               readOnly: true
-            {{- if .Values.secrets.REGISTRY_PASSWORD }}
-            - name: registry-auth
-              mountPath: /etc/registry-auth
-              readOnly: true
-            {{- end }}
-          {{- if .Values.secrets.REGISTRY_PASSWORD }}
-          env:
-            - name: DOCKER_CONFIG
-              value: /etc/registry-auth
-          {{- end }}
           resources:
             {{- toYaml .Values.builder.buildkit.resources | nindent 12 }}
       volumes:
@@ -80,9 +70,4 @@ spec:
         - name: buildkit-config
           configMap:
             name: {{ include "lucity.fullname" . }}-buildkit
-        {{- if .Values.secrets.REGISTRY_PASSWORD }}
-        - name: registry-auth
-          secret:
-            secretName: {{ include "lucity.fullname" . }}-registry-auth
-        {{- end }}
 {{- end }}
