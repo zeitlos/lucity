@@ -198,7 +198,7 @@ func (s *Server) UsageSummary(ctx context.Context, req *cashier.UsageSummaryRequ
 	}, nil
 }
 
-// HandleStripeEvent processes webhook events that need workspace ConfigMap updates.
+// HandleStripeEvent processes Stripe webhook events for billing lifecycle.
 func (s *Server) HandleStripeEvent(event gostripe.Event) {
 	switch event.Type {
 	case "invoice.payment_failed":

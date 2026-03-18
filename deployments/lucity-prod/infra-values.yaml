@@ -181,14 +181,6 @@ rybbit:
     clickhousePassword: ""   # --set rybbit.secrets.clickhousePassword
     betterAuthSecret: ""     # --set rybbit.secrets.betterAuthSecret
 
-# Rauthy Identity Provider (kept for fallback during Logto transition)
-rauthy:
-  hostname: auth.lucity.cloud
-  adminEmail: christian@zeitlos.software
-  persistence:
-    storageClass: hcloud-volumes
-    size: 1Gi
-
 # Logto Identity Provider
 logto:
   enabled: true
