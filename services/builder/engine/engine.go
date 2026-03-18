@@ -20,20 +20,15 @@ type BuildResult struct {
 // BuildOpts configures a build.
 type BuildOpts struct {
 	BuildID     string // unique build identifier (used for K8s Job naming/labels)
-	RepoPath    string // cloned source directory (local builds)
-	ImageName   string // full registry path with tag (local builds)
 	ContextPath string // subdirectory within repo, empty = root
 	SourceURL   string // source repository URL (e.g., https://github.com/user/repo)
 	GitRef      string // git ref to clone (branch, tag, SHA)
-	GitSHA      string // full git commit SHA
 	GitHubToken string // GitHub OAuth token for cloning
 	Registry    string // base image path without tag (e.g., host:5000/proj/svc)
 	Insecure    bool   // allow HTTP (non-TLS) registry connections
-	LogFunc     func(line string) // called per line of build output, nil = discard
 }
 
 // Engine abstracts the build backend.
-// Implementations: LocalEngine (Docker + railpack), KubernetesEngine (K8s Jobs + BuildKit).
 type Engine interface {
 	// Detect scans source code at the given path and returns detected services.
 	Detect(ctx context.Context, repoPath string) ([]DetectResult, error)

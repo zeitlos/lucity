@@ -80,7 +80,7 @@ func (e *KubernetesEngine) Build(ctx context.Context, opts BuildOpts) (*BuildRes
 
 	job := e.buildJob(jobName, opts)
 
-	slog.Info("creating build job", "job", jobName, "build_id", opts.BuildID, "image", opts.ImageName)
+	slog.Info("creating build job", "job", jobName, "build_id", opts.BuildID, "registry", opts.Registry)
 
 	created, err := e.client.BatchV1().Jobs(e.namespace).Create(ctx, job, metav1.CreateOptions{})
 	if err != nil {

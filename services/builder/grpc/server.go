@@ -182,70 +182,24 @@ func (s *Server) DeleteImages(ctx context.Context, req *builder.DeleteImagesRequ
 }
 
 // runBuild executes the full build pipeline in a background goroutine.
-// For the KubernetesEngine, this creates a Job and polls for completion — the Job
-// pod handles clone/build/push. For LocalEngine, clone and build happen in-process.
+// Creates a K8s Job and polls for completion — the Job pod handles clone/build/push.
 func (s *Server) runBuild(buildID, token string, req *builder.StartBuildRequest) {
 	ctx := context.Background()
 
-	// For KubernetesEngine, skip the local clone — the Job pod clones the repo.
-	// We pass SourceURL/GitRef/GitHubToken via BuildOpts so the Job has what it needs.
-	if _, ok := s.engine.(*engine.KubernetesEngine); ok {
-		s.tracker.Update(buildID, builder.BuildPhase_BUILD_PHASE_BUILDING)
-		result, err := s.engine.Build(ctx, engine.BuildOpts{
-			BuildID:     buildID,
-			ContextPath: req.ContextPath,
-			SourceURL:   req.SourceUrl,
-			GitRef:      req.GitRef,
-			GitHubToken: token,
-			Registry:    req.Registry,
-			Insecure:    s.registryInsecure,
-		})
-		if err != nil {
-			s.tracker.Fail(buildID, fmt.Sprintf("build failed: %v", err))
-			return
-		}
-		s.tracker.Succeed(buildID, result.ImageRef, result.Digest)
-		slog.Info("build succeeded", "build_id", buildID, "image", result.ImageRef)
-		return
-	}
-
-	// LocalEngine: clone locally, build in-process.
-	s.tracker.Update(buildID, builder.BuildPhase_BUILD_PHASE_CLONING)
-	repoPath, err := s.cloneRepo(ctx, req.SourceUrl, req.GitRef, token)
-	if err != nil {
-		s.tracker.Fail(buildID, fmt.Sprintf("clone failed: %v", err))
-		return
-	}
-	defer os.RemoveAll(repoPath)
-
-	// Get git SHA for the image tag and OCI labels
-	full := fullSHA(repoPath)
-	tag := full
-	if len(tag) >= 7 {
-		tag = tag[:7]
-	}
-	imageName := req.Registry + ":" + tag
-
-	// Build + push
 	s.tracker.Update(buildID, builder.BuildPhase_BUILD_PHASE_BUILDING)
 	result, err := s.engine.Build(ctx, engine.BuildOpts{
 		BuildID:     buildID,
-		RepoPath:    repoPath,
-		ImageName:   imageName,
 		ContextPath: req.ContextPath,
 		SourceURL:   req.SourceUrl,
 		GitRef:      req.GitRef,
-		GitSHA:      full,
 		GitHubToken: token,
 		Registry:    req.Registry,
 		Insecure:    s.registryInsecure,
-		LogFunc:     func(line string) { s.tracker.AppendLog(buildID, line) },
 	})
 	if err != nil {
 		s.tracker.Fail(buildID, fmt.Sprintf("build failed: %v", err))
 		return
 	}
-
 	s.tracker.Succeed(buildID, result.ImageRef, result.Digest)
 	slog.Info("build succeeded", "build_id", buildID, "image", result.ImageRef)
 }
@@ -299,15 +253,3 @@ func (s *Server) cloneRepo(ctx context.Context, sourceURL, gitRef, token string)
 	}
 }
 
-// fullSHA returns the full git SHA of HEAD in the given repo path.
-func fullSHA(repoPath string) string {
-	repo, err := git.PlainOpen(repoPath)
-	if err != nil {
-		return "latest"
-	}
-	head, err := repo.Head()
-	if err != nil {
-		return "latest"
-	}
-	return head.Hash().String()
-}

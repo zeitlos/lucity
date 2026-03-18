@@ -319,6 +319,26 @@ func buildWithBuildKit(ctx context.Context, buildkitAddr, buildDir, imageName, c
 		return "", fmt.Errorf("failed to convert plan to LLB: %w", err)
 	}
 
+	// Add non-root user setup. Railpack doesn't support non-root users
+	// (railwayapp/railpack#286), so we append LLB steps to create UID 1000
+	// and chown the image's WORKDIR. This is technology-agnostic: the WORKDIR
+	// comes from railpack's image config, not a hardcoded path.
+	workdir := image.Config.WorkingDir
+	if workdir == "" {
+		workdir = "/"
+	}
+	nonRootState := llbState.Run(
+		llb.Shlex(fmt.Sprintf(
+			"sh -c '(addgroup -g 1000 lucity 2>/dev/null || groupadd -g 1000 lucity 2>/dev/null) || true && "+
+				"(adduser -u 1000 -G lucity -D -h %s lucity 2>/dev/null || "+
+				"useradd -u 1000 -g 1000 -d %s -M lucity 2>/dev/null) || true'",
+			workdir, workdir)),
+	).Run(
+		llb.Shlex(fmt.Sprintf("chown -R 1000:1000 %s 2>/dev/null || true", workdir)),
+	).Root()
+	llbState = &nonRootState
+	image.Config.User = "1000:1000"
+
 	imageBytes, err := json.Marshal(image)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal image config: %w", err)

@@ -26,10 +26,9 @@ type Config struct {
 	RegistryAuthSecret string `envconfig:"REGISTRY_AUTH_SECRET"`
 	RegistryInsecure   bool   `envconfig:"REGISTRY_INSECURE" default:"true"`
 	WorkDir            string `envconfig:"WORK_DIR" default:"/tmp/lucity-builds"`
-	BuildEngine        string `envconfig:"BUILD_ENGINE" default:"local"`
 	BuildImage         string `envconfig:"BUILD_IMAGE"`
 	BuildkitAddr       string `envconfig:"BUILDKIT_ADDR"`
-	BuildNamespace     string `envconfig:"BUILD_NAMESPACE" default:"lucity-system"`
+	BuildNamespace     string `envconfig:"BUILD_NAMESPACE" default:"lucity-builds"`
 	KubeContext        string `envconfig:"KUBE_CONTEXT"`
 }
 
@@ -71,40 +70,28 @@ func main() {
 }
 
 func setupEngine(config Config) (engine.Engine, build.Tracker, error) {
-	switch config.BuildEngine {
-	case "local":
-		slog.Info("using local build engine")
-		return engine.NewLocalEngine(), build.NewInMemoryTracker(), nil
-
-	case "kubernetes":
-		slog.Info("using kubernetes build engine")
-
-		if config.BuildImage == "" {
-			return nil, nil, fmt.Errorf("BUILD_IMAGE is required for kubernetes engine")
-		}
-
-		k8sClient, err := kubernetesClient(config.KubeContext)
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to create k8s client: %w", err)
-		}
-
-		eng := engine.NewKubernetesEngine(engine.KubernetesEngineOpts{
-			Client:             k8sClient,
-			Namespace:          config.BuildNamespace,
-			BuildImage:         config.BuildImage,
-			BuildkitAddr:       config.BuildkitAddr,
-			RegistryURL:        config.RegistryURL,
-			RegistryAuthSecret: config.RegistryAuthSecret,
-			Insecure:           config.RegistryInsecure,
-		})
-
-		tracker := build.NewK8sTracker(k8sClient, config.BuildNamespace)
-
-		return eng, tracker, nil
-
-	default:
-		return nil, nil, fmt.Errorf("unknown build engine: %s", config.BuildEngine)
+	if config.BuildImage == "" {
+		return nil, nil, fmt.Errorf("BUILD_IMAGE is required")
 	}
+
+	k8sClient, err := kubernetesClient(config.KubeContext)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create k8s client: %w", err)
+	}
+
+	eng := engine.NewKubernetesEngine(engine.KubernetesEngineOpts{
+		Client:             k8sClient,
+		Namespace:          config.BuildNamespace,
+		BuildImage:         config.BuildImage,
+		BuildkitAddr:       config.BuildkitAddr,
+		RegistryURL:        config.RegistryURL,
+		RegistryAuthSecret: config.RegistryAuthSecret,
+		Insecure:           config.RegistryInsecure,
+	})
+
+	tracker := build.NewK8sTracker(k8sClient, config.BuildNamespace)
+
+	return eng, tracker, nil
 }
 
 func kubernetesClient(kubeContext string) (kubernetes.Interface, error) {
