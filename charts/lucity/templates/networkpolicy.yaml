@@ -35,7 +35,10 @@ spec:
         - port: {{ .Values.gateway.port }}
           protocol: TCP
 ---
-# BuildKit: allow gRPC from build Jobs and builder service within the namespace
+# BuildKit: ingress from build Jobs/builder, egress to Zot + internet only.
+# User code runs inside BuildKit RUN steps (shared network namespace with
+# buildkitd), so egress restrictions here are the primary defense against
+# malicious Dockerfiles probing cluster-internal services.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -48,6 +51,7 @@ spec:
       {{- include "lucity.selectorLabels" (dict "name" "buildkit" "release" .Release.Name) | nindent 6 }}
   policyTypes:
     - Ingress
+    - Egress
   ingress:
     - from:
         # Build Job pods (labeled by KubernetesEngine)
@@ -61,6 +65,87 @@ spec:
       ports:
         - port: 1234
           protocol: TCP
+  egress:
+    # DNS (CoreDNS in kube-system)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    # Zot registry (push images + cache). Matched by pod label within the
+    # same namespace (lucity-system) since Zot is deployed by lucity-infra.
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: zot
+      ports:
+        - port: 5000
+          protocol: TCP
+    # Internet (pull base images from Docker Hub, GitHub Container Registry, etc).
+    # Block all cluster-internal IPs to prevent RUN steps from reaching
+    # Soft-serve, ArgoCD, K8s API server, or other tenants' pods.
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - {{ .Values.networkPolicy.serviceCIDR }}
+              - {{ .Values.networkPolicy.podCIDR }}
+---
+# Build Jobs: egress to BuildKit + K8s API + DNS + internet only.
+# Job pods run trusted platform code (clone, railpack plan, BuildKit client),
+# not user code. But they have network access during the clone phase, so
+# restrict egress to minimize attack surface.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "lucity.fullname" . }}-build-jobs
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      lucity.dev/component: build
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress: []
+  egress:
+    # DNS (CoreDNS in kube-system)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    # BuildKit daemon (gRPC for build+push)
+    - to:
+        - podSelector:
+            matchLabels:
+              {{- include "lucity.selectorLabels" (dict "name" "buildkit" "release" .Release.Name) | nindent 14 }}
+      ports:
+        - port: 1234
+          protocol: TCP
+    # K8s API server (annotate Job with build result/error)
+    - to:
+        - ipBlock:
+            cidr: 10.96.0.1/32
+      ports:
+        - port: 443
+          protocol: TCP
+    # Internet (clone repos from GitHub, pull dependencies)
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - {{ .Values.networkPolicy.serviceCIDR }}
+              - {{ .Values.networkPolicy.podCIDR }}
 ---
 # Builder: allow gRPC from gateway and webhook within the namespace
 apiVersion: networking.k8s.io/v1

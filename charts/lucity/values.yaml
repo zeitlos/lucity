@@ -173,6 +173,13 @@ dashboard:
       cpu: 200m
       memory: 128Mi
 
+# -- Network policy settings for build isolation
+networkPolicy:
+  # -- Kubernetes pod CIDR (used to block cluster-internal egress from builds)
+  podCIDR: 10.244.0.0/16
+  # -- Kubernetes service CIDR (used to block cluster-internal egress from builds)
+  serviceCIDR: 10.96.0.0/12
+
 # -- Docs
 docs:
   replicaCount: 1
