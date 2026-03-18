@@ -362,7 +362,7 @@ func (c *Client) BillableWorkspaces(ctx context.Context) (map[string]WorkspaceBi
 	result := make(map[string]WorkspaceBilling)
 	params := &gostripe.CustomerSearchParams{
 		SearchParams: gostripe.SearchParams{
-			Query: "metadata['workspace']:*",
+			Query: `metadata["workspace"]:*`,
 		},
 	}
 
@@ -402,7 +402,7 @@ func (c *Client) BillableWorkspaces(ctx context.Context) (map[string]WorkspaceBi
 func (c *Client) CustomerByWorkspace(ctx context.Context, workspace string) (string, error) {
 	params := &gostripe.CustomerSearchParams{
 		SearchParams: gostripe.SearchParams{
-			Query: fmt.Sprintf("metadata['workspace']:'%s'", workspace),
+			Query: fmt.Sprintf(`metadata["workspace"]:"%s"`, workspace),
 		},
 	}
 
