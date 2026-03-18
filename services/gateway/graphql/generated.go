@@ -272,7 +272,7 @@ type ComplexityRoot struct {
 		DatabaseTables       func(childComplexity int, projectID string, environment string, database string) int
 		Databases            func(childComplexity int, projectID string) int
 		DeployStatus         func(childComplexity int, id string) int
-		DetectServices       func(childComplexity int, sourceURL string, installationID *string) int
+		DetectServices       func(childComplexity int, installationID string, repository string) int
 		EnvironmentResources func(childComplexity int, projectID string, environment string) int
 		GithubConnected      func(childComplexity int) int
 		GithubRepositories   func(childComplexity int, installationID string) int
@@ -456,7 +456,7 @@ type QueryResolver interface {
 	Projects(ctx context.Context) ([]model.Project, error)
 	Project(ctx context.Context, id string) (*model.Project, error)
 	SearchImages(ctx context.Context, query string) ([]model.ImageSearchResult, error)
-	DetectServices(ctx context.Context, sourceURL string, installationID *string) ([]model.DetectedService, error)
+	DetectServices(ctx context.Context, installationID string, repository string) ([]model.DetectedService, error)
 	DeployStatus(ctx context.Context, id string) (*model.DeployRun, error)
 	ActiveDeployment(ctx context.Context, projectID string, service string, environment string) (*model.DeployRun, error)
 	PlatformConfig(ctx context.Context) (*model.PlatformConfig, error)
@@ -1585,7 +1585,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Query.DetectServices(childComplexity, args["sourceUrl"].(string), args["installationId"].(*string)), true
+		return e.complexity.Query.DetectServices(childComplexity, args["installationId"].(string), args["repository"].(string)), true
 	case "Query.environmentResources":
 		if e.complexity.Query.EnvironmentResources == nil {
 			break
@@ -2860,16 +2860,16 @@ func (ec *executionContext) field_Query_deployStatus_args(ctx context.Context, r
 func (ec *executionContext) field_Query_detectServices_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "sourceUrl", ec.unmarshalNString2string)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "installationId", ec.unmarshalNID2string)
 	if err != nil {
 		return nil, err
 	}
-	args["sourceUrl"] = arg0
-	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "installationId", ec.unmarshalOID2ᚖstring)
+	args["installationId"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "repository", ec.unmarshalNString2string)
 	if err != nil {
 		return nil, err
 	}
-	args["installationId"] = arg1
+	args["repository"] = arg1
 	return args, nil
 }
 
@@ -9343,7 +9343,7 @@ func (ec *executionContext) _Query_detectServices(ctx context.Context, field gra
 		ec.fieldContext_Query_detectServices,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Query().DetectServices(ctx, fc.Args["sourceUrl"].(string), fc.Args["installationId"].(*string))
+			return ec.resolvers.Query().DetectServices(ctx, fc.Args["installationId"].(string), fc.Args["repository"].(string))
 		},
 		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
 			directive0 := next
@@ -13626,7 +13626,7 @@ func (ec *executionContext) unmarshalInputAddServiceInput(ctx context.Context, o
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"projectId", "environment", "name", "port", "framework", "startCommand", "sourceUrl", "contextPath", "installationId", "image", "customStartCommand"}
+	fieldsInOrder := [...]string{"projectId", "environment", "name", "port", "framework", "startCommand", "repository", "contextPath", "installationId", "image", "customStartCommand"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -13697,13 +13697,35 @@ func (ec *executionContext) unmarshalInputAddServiceInput(ctx context.Context, o
 				return it, err
 			}
 			it.StartCommand = data
-		case "sourceUrl":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("sourceUrl"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
+		case "repository":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("repository"))
+			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalOString2ᚖstring(ctx, v) }
+
+			directive1 := func(ctx context.Context) (any, error) {
+				constraint, err := ec.unmarshalNString2string(ctx, "min=3,max=200")
+				if err != nil {
+					var zeroVal *string
+					return zeroVal, err
+				}
+				if ec.directives.Constraint == nil {
+					var zeroVal *string
+					return zeroVal, errors.New("directive constraint is not implemented")
+				}
+				return ec.directives.Constraint(ctx, obj, directive0, constraint)
 			}
-			it.SourceURL = data
+
+			tmp, err := directive1(ctx)
+			if err != nil {
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+			if data, ok := tmp.(*string); ok {
+				it.Repository = data
+			} else if tmp == nil {
+				it.Repository = nil
+			} else {
+				err := fmt.Errorf(`unexpected type %T from directive, should be *string`, tmp)
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
 		case "contextPath":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("contextPath"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)

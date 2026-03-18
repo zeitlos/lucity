@@ -16,8 +16,10 @@ input AddServiceInput {
   framework: String
   """Auto-detected start command from the build system (e.g. railpack). Stored for UI display as the default."""
   startCommand: String
-  sourceUrl: String
+  """GitHub repository in owner/repo format (e.g. "acme/myapp"). Requires installationId. The clone URL is constructed server-side."""
+  repository: String @constraint(constraint: "min=3,max=200")
   contextPath: String
+  """GitHub App installation ID. Required when repository is set."""
   installationId: ID
   """External container image reference (e.g. nginx:1.25, ghcr.io/foo/bar:v1). Skips the build step."""
   image: String
@@ -101,7 +103,8 @@ type DnsCheck {
 }
 
 extend type Query {
-  detectServices(sourceUrl: String!, installationId: ID): [DetectedService!]! @hasRole(role: [USER])
+  """Detect services in a GitHub repository. Repository must be in owner/repo format."""
+  detectServices(installationId: ID!, repository: String!): [DetectedService!]! @hasRole(role: [USER])
   deployStatus(id: ID!): DeployRun @hasRole(role: [USER])
   activeDeployment(projectId: ID!, service: String!, environment: String!): DeployRun @hasRole(role: [USER])
   platformConfig: PlatformConfig! @hasRole(role: [USER])

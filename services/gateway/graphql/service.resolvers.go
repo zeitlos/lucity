@@ -23,9 +23,9 @@ func (r *mutationResolver) AddService(ctx context.Context, input model.AddServic
 	if input.StartCommand != nil {
 		startCommand = *input.StartCommand
 	}
-	sourceURL := ""
-	if input.SourceURL != nil {
-		sourceURL = *input.SourceURL
+	repository := ""
+	if input.Repository != nil {
+		repository = *input.Repository
 	}
 	contextPath := ""
 	if input.ContextPath != nil {
@@ -55,7 +55,7 @@ func (r *mutationResolver) AddService(ctx context.Context, input model.AddServic
 	if input.CustomStartCommand != nil {
 		customStartCommand = *input.CustomStartCommand
 	}
-	si, err := r.API.AddService(ctx, input.ProjectID, input.Environment, name, port, framework, startCommand, sourceURL, contextPath, installationID, externalImage, customStartCommand)
+	si, err := r.API.AddService(ctx, input.ProjectID, input.Environment, name, port, framework, startCommand, repository, contextPath, installationID, externalImage, customStartCommand)
 	if err != nil {
 		return nil, err
 	}
@@ -116,16 +116,12 @@ func (r *mutationResolver) RemoveDomain(ctx context.Context, input model.RemoveD
 }
 
 // DetectServices is the resolver for the detectServices field.
-func (r *queryResolver) DetectServices(ctx context.Context, sourceURL string, installationID *string) ([]model.DetectedService, error) {
-	var instID *int64
-	if installationID != nil {
-		id, err := strconv.ParseInt(*installationID, 10, 64)
-		if err != nil {
-			return nil, fmt.Errorf("invalid installation ID: %w", err)
-		}
-		instID = &id
+func (r *queryResolver) DetectServices(ctx context.Context, installationID string, repository string) ([]model.DetectedService, error) {
+	instID, err := strconv.ParseInt(installationID, 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("invalid installation ID: %w", err)
 	}
-	services, err := r.API.DetectServices(ctx, sourceURL, instID)
+	services, err := r.API.DetectServices(ctx, repository, instID)
 	if err != nil {
 		return nil, err
 	}

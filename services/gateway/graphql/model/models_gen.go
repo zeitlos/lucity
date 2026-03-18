@@ -26,9 +26,11 @@ type AddServiceInput struct {
 	Port      *int    `json:"port,omitempty"`
 	Framework *string `json:"framework,omitempty"`
 	// Auto-detected start command from the build system (e.g. railpack). Stored for UI display as the default.
-	StartCommand   *string `json:"startCommand,omitempty"`
-	SourceURL      *string `json:"sourceUrl,omitempty"`
-	ContextPath    *string `json:"contextPath,omitempty"`
+	StartCommand *string `json:"startCommand,omitempty"`
+	// GitHub repository in owner/repo format (e.g. "acme/myapp"). Requires installationId. The clone URL is constructed server-side.
+	Repository  *string `json:"repository,omitempty"`
+	ContextPath *string `json:"contextPath,omitempty"`
+	// GitHub App installation ID. Required when repository is set.
 	InstallationID *string `json:"installationId,omitempty"`
 	// External container image reference (e.g. nginx:1.25, ghcr.io/foo/bar:v1). Skips the build step.
 	Image *string `json:"image,omitempty"`

@@ -203,8 +203,8 @@ async function detectAndAddServices(projectId: string, repo: { fullName: string;
   const { data } = await client.query({
     query: DetectServicesQuery,
     variables: {
-      sourceUrl: repo.htmlUrl,
       installationId: selectedSource.value?.id,
+      repository: repo.fullName,
     },
   });
 
@@ -231,7 +231,7 @@ async function detectAndAddServices(projectId: string, repo: { fullName: string;
           port: svc.suggestedPort,
           framework: svc.framework || undefined,
           startCommand: svc.startCommand || undefined,
-          sourceUrl: repo.htmlUrl,
+          repository: repo.fullName,
           installationId: selectedSource.value?.id,
         },
       });

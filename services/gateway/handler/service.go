@@ -6,10 +6,11 @@ import (
 	"io"
 	"log/slog"
 	"net"
-	"net/url"
+	"regexp"
 	"strings"
 	"time"
 
+	gh "github.com/google/go-github/v68/github"
 	"github.com/google/uuid"
 
 	"github.com/zeitlos/lucity/pkg/auth"
@@ -28,19 +29,17 @@ type DetectedService struct {
 	SuggestedPort int
 }
 
-func (c *Client) DetectServices(ctx context.Context, sourceURL string, installationID *int64) ([]DetectedService, error) {
+func (c *Client) DetectServices(ctx context.Context, repository string, installationID int64) ([]DetectedService, error) {
 	if _, err := tenant.Require(ctx); err != nil {
 		return nil, err
 	}
-	if err := validateSourceURL(sourceURL); err != nil {
-		return nil, fmt.Errorf("invalid source URL: %w", err)
+	sourceURL, err := c.resolveRepositoryURL(ctx, installationID, repository)
+	if err != nil {
+		return nil, err
 	}
-	if installationID != nil {
-		var err error
-		ctx, err = c.withInstallationTokenForID(ctx, *installationID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to authenticate with GitHub: %w", err)
-		}
+	ctx, err = c.withInstallationTokenForID(ctx, installationID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to authenticate with GitHub: %w", err)
 	}
 	ctx = auth.OutgoingContext(ctx)
 	ctx = tenant.OutgoingContext(ctx)
@@ -68,18 +67,27 @@ func (c *Client) DetectServices(ctx context.Context, sourceURL string, installat
 	return result, nil
 }
 
-func (c *Client) AddService(ctx context.Context, projectID, environment, name string, port int, framework, startCommand, sourceURL, contextPath string, installationID *int64, externalImage, customStartCommand string) (*ServiceInstance, error) {
+func (c *Client) AddService(ctx context.Context, projectID, environment, name string, port int, framework, startCommand, repository, contextPath string, installationID *int64, externalImage, customStartCommand string) (*ServiceInstance, error) {
 	ws, err := tenant.Require(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if sourceURL != "" {
-		if err := validateSourceURL(sourceURL); err != nil {
-			return nil, fmt.Errorf("invalid source URL: %w", err)
+
+	// For source-based services, resolve repository to a verified clone URL.
+	var sourceURL string
+	if repository != "" {
+		if installationID == nil {
+			return nil, fmt.Errorf("installationId is required when repository is set")
 		}
-	}
-	if installationID != nil {
-		var err error
+		sourceURL, err = c.resolveRepositoryURL(ctx, *installationID, repository)
+		if err != nil {
+			return nil, err
+		}
+		ctx, err = c.withInstallationTokenForID(ctx, *installationID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to authenticate with GitHub: %w", err)
+		}
+	} else if installationID != nil {
 		ctx, err = c.withInstallationTokenForID(ctx, *installationID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to authenticate with GitHub: %w", err)
@@ -893,61 +901,49 @@ func (c *Client) GenerateDomain(ctx context.Context, projectID, service, environ
 	return &d, nil
 }
 
-// validateSourceURL ensures a source repository URL is a valid, public HTTPS Git URL.
-// It blocks SSRF vectors: internal cluster services, cloud metadata endpoints,
-// private IP ranges, and non-HTTPS schemes.
-func validateSourceURL(raw string) error {
-	u, err := url.Parse(raw)
+// repositoryPattern matches valid GitHub owner/repo format.
+// Allows alphanumeric, hyphens, underscores, and dots (GitHub's rules).
+var repositoryPattern = regexp.MustCompile(`^[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+$`)
+
+// validateRepository checks that a repository string is a valid owner/repo format.
+func validateRepository(repository string) (owner, repo string, err error) {
+	if !repositoryPattern.MatchString(repository) {
+		return "", "", fmt.Errorf("repository must be in owner/repo format (e.g. \"acme/myapp\")")
+	}
+	parts := strings.SplitN(repository, "/", 2)
+	return parts[0], parts[1], nil
+}
+
+// resolveRepositoryURL validates a repository string, verifies it's accessible
+// through the given GitHub App installation, and returns the HTTPS clone URL.
+// The URL is constructed server-side from the verified owner/repo, never from user input.
+func (c *Client) resolveRepositoryURL(ctx context.Context, installationID int64, repository string) (string, error) {
+	owner, repo, err := validateRepository(repository)
 	if err != nil {
-		return fmt.Errorf("invalid URL: %w", err)
+		return "", err
 	}
 
-	// Require HTTPS. Block http://, ssh://, file://, ftp://, etc.
-	if u.Scheme != "https" {
-		return fmt.Errorf("source URL must use HTTPS (got %q)", u.Scheme)
+	if c.GitHubApp == nil {
+		return "", fmt.Errorf("github app not configured")
 	}
 
-	host := u.Hostname()
-	if host == "" {
-		return fmt.Errorf("source URL has no hostname")
-	}
-
-	// Block Kubernetes internal DNS (*.svc, *.svc.cluster.local, *.local)
-	lower := strings.ToLower(host)
-	blockedSuffixes := []string{
-		".svc.cluster.local",
-		".svc",
-		".local",
-		".internal",
-		".localhost",
-	}
-	for _, suffix := range blockedSuffixes {
-		if strings.HasSuffix(lower, suffix) {
-			return fmt.Errorf("source URL must not point to internal services")
-		}
-	}
-	if lower == "localhost" {
-		return fmt.Errorf("source URL must not point to internal services")
-	}
-
-	// Resolve hostname and block private/link-local IPs
-	ips, err := net.LookupHost(host)
+	token, err := c.GitHubApp.InstallationToken(ctx, installationID)
 	if err != nil {
-		// DNS resolution failure is not necessarily SSRF, but we let the
-		// clone fail later with a better error. Only block known-bad patterns.
-		return nil
-	}
-	for _, ipStr := range ips {
-		ip := net.ParseIP(ipStr)
-		if ip == nil {
-			continue
-		}
-		if ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
-			return fmt.Errorf("source URL must not resolve to a private or internal IP address")
-		}
+		return "", fmt.Errorf("failed to authenticate with GitHub: %w", err)
 	}
 
-	return nil
+	client := gh.NewClient(nil).WithAuthToken(token)
+	ghRepo, _, err := client.Repositories.Get(ctx, owner, repo)
+	if err != nil {
+		return "", fmt.Errorf("repository %q not accessible via this GitHub App installation: %w", repository, err)
+	}
+
+	// Use the clone URL from GitHub's API response, not user input.
+	cloneURL := ghRepo.GetCloneURL()
+	if cloneURL == "" {
+		cloneURL = "https://github.com/" + owner + "/" + repo
+	}
+	return cloneURL, nil
 }
 
 // validateHostname checks that a hostname is a valid domain name.

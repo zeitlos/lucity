@@ -1,8 +1,8 @@
 import gql from 'graphql-tag';
 
 export const DetectServicesQuery = gql`
-  query DetectServices($sourceUrl: String!, $installationId: ID) {
-    detectServices(sourceUrl: $sourceUrl, installationId: $installationId) {
+  query DetectServices($installationId: ID!, $repository: String!) {
+    detectServices(installationId: $installationId, repository: $repository) {
       name
       language
       framework
