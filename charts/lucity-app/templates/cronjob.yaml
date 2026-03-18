@@ -21,6 +21,8 @@ spec:
           restartPolicy: {{ $job.restartPolicy | default "OnFailure" }}
           securityContext:
             runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
           containers:
             - name: {{ $name }}
               image: "{{ $job.image.repository }}:{{ required "image.tag is required — run a deploy first" $job.image.tag }}"
