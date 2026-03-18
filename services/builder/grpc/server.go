@@ -4,10 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"net"
-	"net/url"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/go-git/go-git/v5"
@@ -51,11 +48,6 @@ func NewServer(eng engine.Engine, tracker build.Tracker, registryURL, registryUs
 func (s *Server) DetectServices(ctx context.Context, req *builder.DetectServicesRequest) (*builder.DetectServicesResponse, error) {
 	slog.Info("DetectServices called", "source_url", req.SourceUrl)
 
-	if err := validateSourceURL(req.SourceUrl); err != nil {
-		slog.Warn("rejected source URL", "source_url", req.SourceUrl, "error", err)
-		return nil, status.Errorf(codes.InvalidArgument, "invalid source URL: %v", err)
-	}
-
 	// Clone the repo — GitHub token arrives via gRPC metadata from the gateway.
 	ghToken := auth.GitHubTokenFrom(ctx)
 	repoPath, err := s.cloneRepo(ctx, req.SourceUrl, req.GitRef, ghToken)
@@ -95,11 +87,6 @@ func (s *Server) StartBuild(ctx context.Context, req *builder.StartBuildRequest)
 		"service", req.Service,
 		"registry", req.Registry,
 	)
-
-	if err := validateSourceURL(req.SourceUrl); err != nil {
-		slog.Warn("rejected source URL", "source_url", req.SourceUrl, "error", err)
-		return nil, status.Errorf(codes.InvalidArgument, "invalid source URL: %v", err)
-	}
 
 	buildID := uuid.NewString()
 	s.tracker.Create(buildID)
@@ -310,37 +297,6 @@ func (s *Server) cloneRepo(ctx context.Context, sourceURL, gitRef, token string)
 		}()
 		return "", fmt.Errorf("git clone timed out: %w", ctx.Err())
 	}
-}
-
-// validateSourceURL rejects source URLs that target internal or private endpoints.
-// Defense-in-depth: the gateway validates too, but the builder should not trust its callers.
-func validateSourceURL(raw string) error {
-	u, err := url.Parse(raw)
-	if err != nil {
-		return fmt.Errorf("invalid URL: %w", err)
-	}
-	if u.Scheme != "https" {
-		return fmt.Errorf("must use HTTPS (got %q)", u.Scheme)
-	}
-	host := u.Hostname()
-	if host == "" {
-		return fmt.Errorf("no hostname")
-	}
-	lower := strings.ToLower(host)
-	for _, suffix := range []string{".svc.cluster.local", ".svc", ".local", ".internal", ".localhost"} {
-		if strings.HasSuffix(lower, suffix) {
-			return fmt.Errorf("internal hostname rejected")
-		}
-	}
-	if lower == "localhost" {
-		return fmt.Errorf("internal hostname rejected")
-	}
-	if ip := net.ParseIP(host); ip != nil {
-		if ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
-			return fmt.Errorf("private/internal IP rejected")
-		}
-	}
-	return nil
 }
 
 // fullSHA returns the full git SHA of HEAD in the given repo path.
