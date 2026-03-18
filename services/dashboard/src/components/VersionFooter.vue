@@ -1,45 +1,48 @@
 <script setup lang="ts">
-import { ref } from 'vue';
-import { ChevronUp, Circle } from 'lucide-vue-next';
+import { onMounted, onUnmounted, ref } from 'vue';
+import { Circle } from 'lucide-vue-next';
 
-const dashboardVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev';
+const version = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev';
 
 const expanded = ref(false);
 const loading = ref(false);
-const gatewayVersion = ref<string | null>(null);
+const fetched = ref(false);
+const gatewayUp = ref(false);
 const components = ref<{ name: string; status: string }[]>([]);
-const fetchError = ref(false);
 
 async function toggle() {
-  if (expanded.value) {
-    expanded.value = false;
-    return;
-  }
-
-  expanded.value = true;
-
-  if (gatewayVersion.value !== null) return;
+  expanded.value = !expanded.value;
+  if (!expanded.value || fetched.value) return;
 
   loading.value = true;
-  fetchError.value = false;
   try {
     const res = await fetch('/version');
-    if (!res.ok) throw new Error('Failed to fetch');
+    if (!res.ok) throw new Error();
     const data = await res.json();
-    gatewayVersion.value = data.version;
+    gatewayUp.value = true;
     components.value = data.components ?? [];
   } catch {
-    fetchError.value = true;
-    gatewayVersion.value = null;
+    gatewayUp.value = false;
   } finally {
     loading.value = false;
+    fetched.value = true;
   }
 }
+
+const root = ref<HTMLElement>();
+
+function onClickOutside(e: MouseEvent) {
+  if (expanded.value && root.value && !root.value.contains(e.target as Node)) {
+    expanded.value = false;
+  }
+}
+
+onMounted(() => document.addEventListener('click', onClickOutside));
+onUnmounted(() => document.removeEventListener('click', onClickOutside));
 </script>
 
 <template>
-  <div class="fixed bottom-3 left-3 z-50">
-    <!-- Expanded panel -->
+  <div ref="root" class="fixed bottom-0 left-0 z-50 pb-px pl-4">
     <Transition
       enter-active-class="transition-all duration-200 ease-out"
       leave-active-class="transition-all duration-150 ease-in"
@@ -48,7 +51,7 @@ async function toggle() {
     >
       <div
         v-if="expanded"
-        class="mb-1.5 min-w-48 rounded-lg border bg-card/95 p-3 shadow-lg backdrop-blur-sm"
+        class="mb-1.5 min-w-40 rounded-lg border bg-card/95 p-3 shadow-lg backdrop-blur-sm"
       >
         <p class="mb-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
           Components
@@ -58,64 +61,44 @@ async function toggle() {
           Checking...
         </div>
 
-        <div v-else-if="fetchError" class="py-1 text-xs text-muted-foreground">
-          Could not reach gateway
-        </div>
-
         <template v-else>
-          <!-- Gateway -->
-          <div
-            v-if="gatewayVersion"
-            class="flex items-center justify-between gap-4 py-1"
-          >
-            <div class="flex items-center gap-1.5">
-              <Circle :size="6" class="fill-emerald-500 text-emerald-500" />
-              <span class="text-xs text-foreground">gateway</span>
-            </div>
-            <span class="font-mono text-[11px] text-muted-foreground">{{ gatewayVersion }}</span>
+          <div class="flex items-center gap-1.5 py-1">
+            <Circle
+              :size="6"
+              :class="gatewayUp
+                ? 'fill-emerald-500 text-emerald-500'
+                : 'fill-red-500 text-red-500'"
+            />
+            <span class="text-xs text-foreground">gateway</span>
           </div>
 
-          <!-- Backend services -->
           <div
             v-for="c in components"
             :key="c.name"
-            class="flex items-center justify-between gap-4 py-1"
+            class="flex items-center gap-1.5 py-1"
           >
-            <div class="flex items-center gap-1.5">
-              <Circle
-                :size="6"
-                :class="c.status === 'UP'
-                  ? 'fill-emerald-500 text-emerald-500'
-                  : 'fill-red-500 text-red-500'"
-              />
-              <span class="text-xs text-foreground">{{ c.name }}</span>
-            </div>
-            <span class="text-[11px] text-muted-foreground">{{ c.status === 'UP' ? 'healthy' : 'unreachable' }}</span>
+            <Circle
+              :size="6"
+              :class="c.status === 'UP'
+                ? 'fill-emerald-500 text-emerald-500'
+                : 'fill-red-500 text-red-500'"
+            />
+            <span class="text-xs text-foreground">{{ c.name }}</span>
           </div>
 
-          <!-- Dashboard -->
-          <div class="flex items-center justify-between gap-4 py-1">
-            <div class="flex items-center gap-1.5">
-              <Circle :size="6" class="fill-emerald-500 text-emerald-500" />
-              <span class="text-xs text-foreground">dashboard</span>
-            </div>
-            <span class="font-mono text-[11px] text-muted-foreground">{{ dashboardVersion }}</span>
+          <div class="flex items-center gap-1.5 py-1">
+            <Circle :size="6" class="fill-emerald-500 text-emerald-500" />
+            <span class="text-xs text-foreground">dashboard</span>
           </div>
         </template>
       </div>
     </Transition>
 
-    <!-- Version pill -->
     <button
-      class="flex items-center gap-1.5 rounded-full border bg-card/80 px-2.5 py-1 text-[11px] text-muted-foreground shadow-sm backdrop-blur-sm transition-colors hover:text-foreground"
+      class="font-mono text-[10px] text-muted-foreground/50 transition-colors hover:text-muted-foreground"
       @click="toggle"
     >
-      <span class="font-mono">{{ dashboardVersion }}</span>
-      <ChevronUp
-        :size="12"
-        class="transition-transform duration-200"
-        :class="expanded ? '' : 'rotate-180'"
-      />
+      {{ version }}
     </button>
   </div>
 </template>

@@ -76,7 +76,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="h-screen w-screen p-4">
+  <div class="h-screen w-screen px-4 pt-4 pb-5">
     <!-- Image frame: inset from viewport edges, rounded, with inner shadow -->
     <div class="image-frame relative flex h-full items-center justify-center overflow-hidden rounded-2xl bg-muted">
       <!-- Image layer: both images stacked, crossfade on theme change -->
