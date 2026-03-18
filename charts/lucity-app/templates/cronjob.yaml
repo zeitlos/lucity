@@ -19,6 +19,8 @@ spec:
             {{- include "lucity-app.selectorLabels" (dict "name" $name "release" $.Release.Name) | nindent 12 }}
         spec:
           restartPolicy: {{ $job.restartPolicy | default "OnFailure" }}
+          imagePullSecrets:
+            - name: lucity-registry
           securityContext:
             runAsNonRoot: true
             runAsUser: 1000
