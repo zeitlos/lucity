@@ -12,15 +12,6 @@ import (
 // RepoSuffix is appended to project names to form GitOps repo names.
 const RepoSuffix = "-gitops"
 
-// RegistryAuth holds OCI registry credentials for workload image pulls.
-// When set, the packager injects these into every project's base values
-// so the lucity-app chart creates an imagePullSecret in each namespace.
-type RegistryAuth struct {
-	Host     string // e.g., "10.96.100.100:5000"
-	Username string // e.g., "reader"
-	Password string
-}
-
 // ServiceDef describes a service configured in the project's GitOps repo.
 type ServiceDef struct {
 	Name                 string

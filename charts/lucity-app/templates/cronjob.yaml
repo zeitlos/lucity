@@ -18,10 +18,6 @@ spec:
             {{- include "lucity-app.labels" $ | nindent 12 }}
             {{- include "lucity-app.selectorLabels" (dict "name" $name "release" $.Release.Name) | nindent 12 }}
         spec:
-          {{- if $.Values.registryAuth }}
-          imagePullSecrets:
-            - name: {{ include "lucity-app.fullname" $ }}-registry-pull
-          {{- end }}
           restartPolicy: {{ $job.restartPolicy | default "OnFailure" }}
           securityContext:
             runAsNonRoot: true
