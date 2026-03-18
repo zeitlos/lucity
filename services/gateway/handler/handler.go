@@ -15,6 +15,11 @@ import (
 	"github.com/zeitlos/lucity/services/gateway/logto"
 )
 
+// TokenRefresher refreshes the Logto access token using a refresh token.
+// On success, it also writes updated cookies to the HTTP response.
+// Returns the new access token for immediate use.
+type TokenRefresher func(ctx context.Context, refreshToken string) (newAccessToken string, err error)
+
 // Client holds all dependencies for the gateway's business logic.
 type Client struct {
 	Packager            packager.PackagerServiceClient
@@ -24,13 +29,14 @@ type Client struct {
 	GitHubApp           *ghpkg.App                   // for minting installation tokens (repo access)
 	Logto               *logto.Client
 	DeployTracker       *deploy.Tracker
-	RegistryPushURL     string // for builder push, e.g. "localhost:5000"
-	RegistryImagePrefix string // for image refs in values.yaml, e.g. cluster-internal address
-	WorkloadDomain      string // base domain for platform-generated domains (e.g., "lucity.local")
-	DomainTarget        string // CNAME target for custom domains (e.g., "lb.lucity.app")
-	IPAddress           string // load balancer IP for A record config
-	GitHubAppSlug       string // GitHub App slug for installation URL generation
-	DashboardURL        string // base URL for the dashboard (e.g., "http://localhost:5173")
+	TokenRefresher      TokenRefresher // refreshes expired Logto access tokens (nil if not configured)
+	RegistryPushURL     string         // for builder push, e.g. "localhost:5000"
+	RegistryImagePrefix string         // for image refs in values.yaml, e.g. cluster-internal address
+	WorkloadDomain      string         // base domain for platform-generated domains (e.g., "lucity.local")
+	DomainTarget        string         // CNAME target for custom domains (e.g., "lb.lucity.app")
+	IPAddress           string         // load balancer IP for A record config
+	GitHubAppSlug       string         // GitHub App slug for installation URL generation
+	DashboardURL        string         // base URL for the dashboard (e.g., "http://localhost:5173")
 
 	// Cached Logto org role IDs (looked up by name on first use)
 	orgRoleOnce sync.Once
@@ -42,7 +48,7 @@ type Client struct {
 	orgIDCacheMu sync.RWMutex
 }
 
-func New(packagerClient packager.PackagerServiceClient, builderClient builder.BuilderServiceClient, deployerClient deployer.DeployerServiceClient, cashierClient cashier.CashierServiceClient, githubApp *ghpkg.App, logtoClient *logto.Client, registryPushURL, registryImagePrefix, workloadDomain, domainTarget, ipAddress, githubAppSlug, dashboardURL string) *Client {
+func New(packagerClient packager.PackagerServiceClient, builderClient builder.BuilderServiceClient, deployerClient deployer.DeployerServiceClient, cashierClient cashier.CashierServiceClient, githubApp *ghpkg.App, logtoClient *logto.Client, tokenRefresher TokenRefresher, registryPushURL, registryImagePrefix, workloadDomain, domainTarget, ipAddress, githubAppSlug, dashboardURL string) *Client {
 	return &Client{
 		Packager:            packagerClient,
 		Builder:             builderClient,
@@ -51,6 +57,7 @@ func New(packagerClient packager.PackagerServiceClient, builderClient builder.Bu
 		GitHubApp:           githubApp,
 		Logto:               logtoClient,
 		DeployTracker:       deploy.NewTracker(),
+		TokenRefresher:      tokenRefresher,
 		RegistryPushURL:     registryPushURL,
 		RegistryImagePrefix: registryImagePrefix,
 		WorkloadDomain:      workloadDomain,

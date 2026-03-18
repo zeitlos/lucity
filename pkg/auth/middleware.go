@@ -8,6 +8,7 @@ import (
 const (
 	sessionCookieName = "lucity_session" // HMAC-signed session JWT (auth claims)
 	tokenCookieName   = "lucity_token"   // Logto opaque access token (Account API)
+	refreshCookieName = "lucity_refresh" // Logto refresh token (silent renewal)
 )
 
 // Middleware returns an HTTP middleware that extracts a session JWT from the
@@ -37,6 +38,14 @@ func Middleware(verifier *Verifier) func(http.Handler) http.Handler {
 				ctx = WithToken(ctx, logtoToken)
 			}
 
+			// Store the refresh token for transparent token renewal on 401
+			if refreshToken := extractRefreshToken(r); refreshToken != "" {
+				ctx = WithRefreshToken(ctx, refreshToken)
+			}
+
+			// Store the ResponseWriter so handlers can set cookies (e.g. after token refresh)
+			ctx = WithResponseWriter(ctx, w)
+
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
@@ -62,6 +71,14 @@ func extractSessionToken(r *http.Request) string {
 // extractLogtoToken reads the Logto opaque access token from the cookie.
 func extractLogtoToken(r *http.Request) string {
 	if cookie, err := r.Cookie(tokenCookieName); err == nil {
+		return cookie.Value
+	}
+	return ""
+}
+
+// extractRefreshToken reads the Logto refresh token from the cookie.
+func extractRefreshToken(r *http.Request) string {
+	if cookie, err := r.Cookie(refreshCookieName); err == nil {
 		return cookie.Value
 	}
 	return ""

@@ -605,6 +605,48 @@ else { window.location.href = %q; }
 	}
 }
 
+// newTokenRefresher returns a handler.TokenRefresher that uses the OIDC provider
+// to exchange a refresh token for a new access token and writes updated cookies.
+func newTokenRefresher(provider *OIDCProvider, secure bool) handler.TokenRefresher {
+	return func(ctx context.Context, refreshToken string) (string, error) {
+		tokenSource := provider.oauthConfig.TokenSource(provider.httpContext(ctx), &oauth2.Token{
+			RefreshToken: refreshToken,
+		})
+		oauth2Token, err := tokenSource.Token()
+		if err != nil {
+			return "", fmt.Errorf("token refresh failed: %w", err)
+		}
+
+		// Write updated cookies to the response
+		w := auth.ResponseWriterFrom(ctx)
+		if w != nil {
+			http.SetCookie(w, &http.Cookie{
+				Name:     tokenCookieName,
+				Value:    oauth2Token.AccessToken,
+				Path:     "/",
+				MaxAge:   7 * 24 * 3600,
+				HttpOnly: true,
+				Secure:   secure,
+				SameSite: http.SameSiteLaxMode,
+			})
+			if oauth2Token.RefreshToken != "" {
+				http.SetCookie(w, &http.Cookie{
+					Name:     refreshCookieName,
+					Value:    oauth2Token.RefreshToken,
+					Path:     "/",
+					MaxAge:   30 * 24 * 3600,
+					HttpOnly: true,
+					Secure:   secure,
+					SameSite: http.SameSiteLaxMode,
+				})
+			}
+		}
+
+		slog.Info("logto access token refreshed via token refresher")
+		return oauth2Token.AccessToken, nil
+	}
+}
+
 func generateState() string {
 	b := make([]byte, 16)
 	rand.Read(b)

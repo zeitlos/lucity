@@ -186,7 +186,10 @@ func main() {
 	logtoClient := logto.New(config.LogtoEndpoint, config.LogtoM2MAppID, config.LogtoM2MAppSecret)
 	slog.Info("logto management API configured", "endpoint", config.LogtoEndpoint)
 
-	api := handler.New(packagerClient, builderClient, deployerClient, cashierClient, githubApp, logtoClient, config.RegistryURL, registryImagePrefix, config.WorkloadDomain, domainTarget, config.IPAddress, config.GitHubAppSlug, config.DashboardURL)
+	secure := secureCookies(config.DashboardURL)
+	tokenRefresher := newTokenRefresher(oidcProvider, secure)
+
+	api := handler.New(packagerClient, builderClient, deployerClient, cashierClient, githubApp, logtoClient, tokenRefresher, config.RegistryURL, registryImagePrefix, config.WorkloadDomain, domainTarget, config.IPAddress, config.GitHubAppSlug, config.DashboardURL)
 
 	components := []grpcComponent{
 		{name: "builder", conn: builderConn},

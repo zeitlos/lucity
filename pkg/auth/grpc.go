@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"net/http"
 	"strings"
 
 	"google.golang.org/grpc"
@@ -133,4 +134,34 @@ func WithGitHubToken(ctx context.Context, token string) context.Context {
 func GitHubTokenFrom(ctx context.Context) string {
 	token, _ := ctx.Value(githubTokenContextKey{}).(string)
 	return token
+}
+
+// Refresh token context helpers
+
+type refreshTokenContextKey struct{}
+
+// WithRefreshToken attaches a refresh token to the context.
+func WithRefreshToken(ctx context.Context, token string) context.Context {
+	return context.WithValue(ctx, refreshTokenContextKey{}, token)
+}
+
+// RefreshTokenFrom extracts the refresh token from the context.
+func RefreshTokenFrom(ctx context.Context) string {
+	token, _ := ctx.Value(refreshTokenContextKey{}).(string)
+	return token
+}
+
+// ResponseWriter context helpers
+
+type responseWriterContextKey struct{}
+
+// WithResponseWriter attaches an http.ResponseWriter to the context.
+func WithResponseWriter(ctx context.Context, w http.ResponseWriter) context.Context {
+	return context.WithValue(ctx, responseWriterContextKey{}, w)
+}
+
+// ResponseWriterFrom extracts the http.ResponseWriter from the context.
+func ResponseWriterFrom(ctx context.Context) http.ResponseWriter {
+	w, _ := ctx.Value(responseWriterContextKey{}).(http.ResponseWriter)
+	return w
 }

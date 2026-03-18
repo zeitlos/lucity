@@ -3,11 +3,15 @@ package logto
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"strings"
 )
+
+// ErrTokenExpired indicates the Logto access token is expired or invalid.
+var ErrTokenExpired = errors.New("logto access token expired")
 
 // GitHubToken retrieves the user's GitHub access token from the Logto Secret Vault
 // via the Account API. Requires the user's Logto access token (not the M2M token).
@@ -30,6 +34,9 @@ func (c *Client) GitHubToken(ctx context.Context, logtoAccessToken string) (stri
 	b, _ := io.ReadAll(resp.Body)
 	ct := resp.Header.Get("Content-Type")
 
+	if resp.StatusCode == http.StatusUnauthorized {
+		return "", fmt.Errorf("%w: %s", ErrTokenExpired, string(b))
+	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return "", fmt.Errorf("Account API returned %d (content-type: %s): %s", resp.StatusCode, ct, string(b))
 	}

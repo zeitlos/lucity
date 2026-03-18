@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strconv"
@@ -10,6 +11,7 @@ import (
 	"golang.org/x/oauth2"
 
 	"github.com/zeitlos/lucity/pkg/auth"
+	"github.com/zeitlos/lucity/services/gateway/logto"
 )
 
 // GitHubInstallation represents a GitHub App installation on an account.
@@ -33,12 +35,7 @@ type GitHubRepository struct {
 // GitHubConnected returns whether the current user has a GitHub identity linked
 // in Logto (via social sign-in with the GitHub App connector).
 func (c *Client) GitHubConnected(ctx context.Context) (bool, error) {
-	token := auth.TokenFrom(ctx)
-	if token == "" {
-		return false, fmt.Errorf("unauthenticated")
-	}
-
-	_, err := c.Logto.GitHubToken(ctx, token)
+	_, err := c.userGitHubToken(ctx)
 	if err != nil {
 		slog.Debug("github not connected", "error", err)
 		return false, nil
@@ -135,7 +132,8 @@ func (c *Client) GitHubRepositories(ctx context.Context, installationID string) 
 
 // userGitHubToken retrieves the user's GitHub OAuth token from Logto's Account API.
 // The user must have signed in via GitHub (social sign-in) for a token to be available.
-// Logto automatically refreshes expired GitHub tokens if a refresh token is stored.
+// If the Logto access token is expired, it transparently refreshes using the refresh token
+// and updates the response cookies.
 func (c *Client) userGitHubToken(ctx context.Context) (string, error) {
 	logtoToken := auth.TokenFrom(ctx)
 	if logtoToken == "" {
@@ -143,8 +141,35 @@ func (c *Client) userGitHubToken(ctx context.Context) (string, error) {
 	}
 
 	token, err := c.Logto.GitHubToken(ctx, logtoToken)
-	if err != nil {
+	if err == nil {
+		return token, nil
+	}
+
+	// If the token is expired, try refreshing it
+	if !errors.Is(err, logto.ErrTokenExpired) {
 		return "", fmt.Errorf("failed to get github token: %w", err)
+	}
+
+	if c.TokenRefresher == nil {
+		return "", fmt.Errorf("failed to get github token (token expired, no refresher configured): %w", err)
+	}
+
+	refreshToken := auth.RefreshTokenFrom(ctx)
+	if refreshToken == "" {
+		return "", fmt.Errorf("failed to get github token (token expired, no refresh token): %w", err)
+	}
+
+	slog.Info("logto access token expired, refreshing")
+
+	newAccessToken, refreshErr := c.TokenRefresher(ctx, refreshToken)
+	if refreshErr != nil {
+		return "", fmt.Errorf("failed to get github token (token expired, refresh failed: %v): %w", refreshErr, err)
+	}
+
+	// Retry with the refreshed token
+	token, err = c.Logto.GitHubToken(ctx, newAccessToken)
+	if err != nil {
+		return "", fmt.Errorf("failed to get github token after refresh: %w", err)
 	}
 	return token, nil
 }
