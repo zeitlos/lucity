@@ -19,9 +19,17 @@ spec:
             {{- include "lucity-app.selectorLabels" (dict "name" $name "release" $.Release.Name) | nindent 12 }}
         spec:
           restartPolicy: {{ $job.restartPolicy | default "OnFailure" }}
+          securityContext:
+            runAsNonRoot: true
           containers:
             - name: {{ $name }}
               image: "{{ $job.image.repository }}:{{ required "image.tag is required — run a deploy first" $job.image.tag }}"
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop:
+                    - ALL
               {{- if $job.command }}
               command:
                 {{- toYaml $job.command | nindent 16 }}

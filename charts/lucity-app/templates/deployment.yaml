@@ -29,6 +29,8 @@ spec:
         {{- include "lucity-app.labels" $ | nindent 8 }}
         {{- include "lucity-app.selectorLabels" (dict "name" $name "release" $.Release.Name) | nindent 8 }}
     spec:
+      securityContext:
+        runAsNonRoot: true
       containers:
         - name: {{ $name }}
           image: "{{ $svc.image.repository }}:{{ $svc.image.tag }}"
@@ -40,6 +42,12 @@ spec:
             - name: http
               containerPort: {{ $svc.port }}
               protocol: TCP
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
           env:
             - name: HOST
               value: "0.0.0.0"
