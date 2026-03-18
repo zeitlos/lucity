@@ -89,6 +89,7 @@ func NewGraphQLServer(port string, api *handler.Client, oidcProvider *OIDCProvid
 							org, err := api.Logto.Organization(ctx, ws)
 							if err == nil && org.CustomData != nil {
 								if suspended, ok := org.CustomData["suspended"].(bool); ok && suspended {
+									slog.Warn("mutation blocked: workspace suspended", "workspace", ws, "operation", oc.OperationName)
 									return nil, fmt.Errorf("workspace suspended: update your payment method to continue")
 								}
 							}
