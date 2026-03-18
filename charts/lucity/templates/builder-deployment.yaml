@@ -60,6 +60,10 @@ spec:
               value: "{{ .Values.builder.image.repository }}:{{ .Values.builder.image.tag | default .Chart.AppVersion }}"
             - name: BUILDKIT_ADDR
               value: "tcp://{{ include "lucity.fullname" . }}-buildkit:1234"
+            {{- if .Values.secrets.REGISTRY_PASSWORD }}
+            - name: REGISTRY_AUTH_SECRET
+              value: {{ include "lucity.fullname" . }}-registry-auth
+            {{- end }}
             {{- end }}
             {{- range $key, $value := .Values.builder.env }}
             - name: {{ $key }}

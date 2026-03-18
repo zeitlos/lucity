@@ -11,10 +11,13 @@ import (
 	"strings"
 	"time"
 
+	dockerconfig "github.com/docker/cli/cli/config"
 	"github.com/go-git/go-git/v5"
 	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/client/llb"
+	"github.com/moby/buildkit/session"
+	"github.com/moby/buildkit/session/auth/authprovider"
 	_ "github.com/moby/buildkit/util/grpcutil/encoding/proto"
 	"github.com/moby/buildkit/util/progress/progressui"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
@@ -360,14 +363,26 @@ func buildWithBuildKit(ctx context.Context, buildkitAddr, buildDir, imageName, c
 		exportCacheAttrs["registry.insecure"] = "true"
 	}
 
-	// Registry auth: credentials live on the BuildKit daemon (DOCKER_CONFIG on the
-	// buildkitd pod). No session auth provider is attached so BuildKit falls back to
-	// its daemon-level config for push/pull. This keeps the registry secret off Job
-	// pods, which run untrusted user code during the build.
+	// Registry auth: load Docker config from DOCKER_CONFIG env var (set to
+	// /etc/registry-auth in the K8s Job pod, backed by the registry-auth Secret).
+	// The Job pod runs trusted platform code (not user code), so mounting
+	// credentials here is safe. User code only executes inside BuildKit RUN steps
+	// on the buildkitd pod, which is a separate container.
+	dockerCfg, err := dockerconfig.Load("")
+	if err != nil {
+		slog.Warn("failed to load docker config for registry auth", "error", err)
+	}
+
+	var sessionAttachables []session.Attachable
+	if dockerCfg != nil {
+		sessionAttachables = append(sessionAttachables, authprovider.NewDockerAuthProvider(dockerCfg, nil))
+	}
+
 	solveOpts := client.SolveOpt{
 		LocalMounts: map[string]fsutil.FS{
 			"context": appFS,
 		},
+		Session: sessionAttachables,
 		Exports: []client.ExportEntry{
 			{
 				Type:  client.ExporterImage,
