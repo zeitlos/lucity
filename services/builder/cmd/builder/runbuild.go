@@ -127,7 +127,12 @@ func executeBuild(cfg runBuildConfig, k8sClient kubernetes.Interface) error {
 	imageName := cfg.Registry + ":" + tag
 	slog.Info("image name determined", "image", imageName, "sha", sha)
 
-	// 5. Generate railpack plan
+	// 5. Remove .git directory — no longer needed and its contents differ
+	// between clones of the same commit (pack files, index), which would
+	// cause BuildKit COPY cache misses.
+	os.RemoveAll(filepath.Join(repoPath, ".git"))
+
+	// 6. Generate railpack plan
 	buildDir := repoPath
 	if cfg.ContextPath != "" {
 		buildDir = filepath.Join(repoPath, cfg.ContextPath)
@@ -139,7 +144,7 @@ func executeBuild(cfg runBuildConfig, k8sClient kubernetes.Interface) error {
 		return err
 	}
 
-	// 6. Build with BuildKit Go client (bypasses gateway frontend so cache import works)
+	// 7. Build with BuildKit Go client (bypasses gateway frontend so cache import works)
 	cacheRef := cfg.Registry + ":buildcache"
 	slog.Info("building image", "image", imageName, "cache", cacheRef)
 	digest, err := buildWithBuildKit(context.Background(), cfg.BuildkitAddr, buildDir, imageName, cacheRef, buildPlan, cfg.Insecure)
@@ -149,7 +154,7 @@ func executeBuild(cfg runBuildConfig, k8sClient kubernetes.Interface) error {
 
 	slog.Info("build completed", "image", imageName, "digest", digest)
 
-	// 7. Annotate Job with result
+	// 8. Annotate Job with result
 
 	if err := build.AnnotateJobResult(k8sClient, cfg.Namespace, cfg.BuildID, imageName, digest); err != nil {
 		return fmt.Errorf("failed to annotate job: %w", err)
