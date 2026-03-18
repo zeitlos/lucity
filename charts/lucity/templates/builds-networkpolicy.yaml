@@ -1,0 +1,134 @@
+{{- if .Values.builder.serviceAccount.create }}
+{{- $ns := .Values.builder.buildNamespace | default "lucity-builds" }}
+# Default deny-all ingress+egress in the builds namespace.
+# Only BuildKit and build Job pods live here; explicit policies below
+# open the minimum required traffic.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "lucity.fullname" . }}-builds-default-deny
+  namespace: {{ $ns }}
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress: []
+  egress: []
+---
+# BuildKit: ingress from build Jobs (same namespace) and builder service
+# (cross-namespace from lucity-system). Egress to Zot (cross-namespace),
+# DNS, and internet for pulling base images.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "lucity.fullname" . }}-buildkit
+  namespace: {{ $ns }}
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "lucity.selectorLabels" (dict "name" "buildkit" "release" .Release.Name) | nindent 6 }}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        # Build Job pods (same namespace)
+        - podSelector:
+            matchLabels:
+              lucity.dev/component: build
+        # Builder service (cross-namespace from lucity-system)
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Release.Namespace }}
+          podSelector:
+            matchLabels:
+              {{- include "lucity.selectorLabels" (dict "name" "builder" "release" .Release.Name) | nindent 14 }}
+      ports:
+        - port: 1234
+          protocol: TCP
+  egress:
+    # DNS (CoreDNS in kube-system)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    # Zot registry (cross-namespace in lucity-system)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Release.Namespace }}
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: zot
+      ports:
+        - port: 5000
+          protocol: TCP
+    # Internet (pull base images). Block all cluster-internal IPs.
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - {{ .Values.networkPolicy.serviceCIDR }}
+              - {{ .Values.networkPolicy.podCIDR }}
+---
+# Build Jobs: egress to BuildKit (same namespace), K8s API (annotate Job),
+# DNS, and internet (clone repos, pull dependencies).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "lucity.fullname" . }}-build-jobs
+  namespace: {{ $ns }}
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      lucity.dev/component: build
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress: []
+  egress:
+    # DNS (CoreDNS in kube-system)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    # BuildKit daemon (same namespace now)
+    - to:
+        - podSelector:
+            matchLabels:
+              {{- include "lucity.selectorLabels" (dict "name" "buildkit" "release" .Release.Name) | nindent 14 }}
+      ports:
+        - port: 1234
+          protocol: TCP
+    # K8s API server (annotate Job with build result/error)
+    - to:
+        - ipBlock:
+            cidr: 10.96.0.1/32
+      ports:
+        - port: 443
+          protocol: TCP
+    # Internet (clone repos from GitHub, pull dependencies)
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - {{ .Values.networkPolicy.serviceCIDR }}
+              - {{ .Values.networkPolicy.podCIDR }}
+{{- end }}

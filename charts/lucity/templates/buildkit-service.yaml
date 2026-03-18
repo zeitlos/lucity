@@ -1,8 +1,10 @@
 {{- if .Values.builder.serviceAccount.create }}
+{{- $ns := .Values.builder.buildNamespace | default "lucity-builds" }}
 apiVersion: v1
 kind: Service
 metadata:
   name: {{ include "lucity.fullname" . }}-buildkit
+  namespace: {{ $ns }}
   labels:
     {{- include "lucity.labels" . | nindent 4 }}
     app.kubernetes.io/component: buildkit

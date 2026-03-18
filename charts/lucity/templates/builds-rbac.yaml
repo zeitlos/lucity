@@ -1,42 +1,42 @@
 {{- if .Values.builder.serviceAccount.create }}
 {{- $ns := .Values.builder.buildNamespace | default "lucity-builds" }}
+# ServiceAccount for build Job pods in the builds namespace.
+# Separate from the builder service SA (which stays in the release namespace).
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: {{ include "lucity.fullname" . }}-builder
+  name: {{ include "lucity.fullname" . }}-build-job
+  namespace: {{ $ns }}
   labels:
     {{- include "lucity.labels" . | nindent 4 }}
-    app.kubernetes.io/component: builder
+    app.kubernetes.io/component: builds
 ---
-# Builder service needs to create and monitor build Jobs in the builds namespace.
+# Build Job pods need to annotate their own Job with build results/errors.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: {{ include "lucity.fullname" . }}-builder
+  name: {{ include "lucity.fullname" . }}-build-job
   namespace: {{ $ns }}
   labels:
     {{- include "lucity.labels" . | nindent 4 }}
 rules:
   - apiGroups: ["batch"]
     resources: [jobs]
-    verbs: [get, list, watch, create]
-  - apiGroups: [""]
-    resources: [pods, pods/log]
-    verbs: [get, list]
+    verbs: [get, patch]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: {{ include "lucity.fullname" . }}-builder
+  name: {{ include "lucity.fullname" . }}-build-job
   namespace: {{ $ns }}
   labels:
     {{- include "lucity.labels" . | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: {{ include "lucity.fullname" . }}-builder
+  name: {{ include "lucity.fullname" . }}-build-job
 subjects:
   - kind: ServiceAccount
-    name: {{ include "lucity.fullname" . }}-builder
-    namespace: {{ .Release.Namespace }}
+    name: {{ include "lucity.fullname" . }}-build-job
+    namespace: {{ $ns }}
 {{- end }}

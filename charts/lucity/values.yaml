@@ -57,6 +57,8 @@ builder:
   envSecret: {}
   serviceAccount:
     create: false
+  # -- Namespace for BuildKit and build Jobs (isolated from platform services)
+  buildNamespace: lucity-builds
   # -- Registry host for BuildKit config (used in buildkitd.toml for build Jobs)
   registryHost: ""
   # -- BuildKit image (used by the persistent BuildKit Deployment)

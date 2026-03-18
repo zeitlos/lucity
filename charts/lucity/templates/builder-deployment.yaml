@@ -56,10 +56,13 @@ spec:
             - name: PORT
               value: {{ .Values.builder.port | quote }}
             {{- if .Values.builder.serviceAccount.create }}
+            {{- $buildNs := .Values.builder.buildNamespace | default "lucity-builds" }}
             - name: BUILD_IMAGE
               value: "{{ .Values.builder.image.repository }}:{{ .Values.builder.image.tag | default .Chart.AppVersion }}"
             - name: BUILDKIT_ADDR
-              value: "tcp://{{ include "lucity.fullname" . }}-buildkit:1234"
+              value: "tcp://{{ include "lucity.fullname" . }}-buildkit.{{ $buildNs }}.svc.cluster.local:1234"
+            - name: BUILD_NAMESPACE
+              value: {{ $buildNs | quote }}
             {{- if .Values.secrets.REGISTRY_PASSWORD }}
             - name: REGISTRY_AUTH_SECRET
               value: {{ include "lucity.fullname" . }}-registry-auth

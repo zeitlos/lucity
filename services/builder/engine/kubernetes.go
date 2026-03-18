@@ -19,11 +19,16 @@ import (
 // the main container clones the repo, generates a railpack plan, and uses the
 // BuildKit Go client to build+push the image. Build state is stored in K8s Job
 // status and annotations.
+//
+// BuildKit and build Jobs run in a dedicated namespace (lucity-builds) isolated
+// from the platform services in lucity-system. The builder service itself stays
+// in lucity-system and creates Jobs cross-namespace.
 type KubernetesEngine struct {
 	client             kubernetes.Interface
-	namespace          string
+	namespace          string            // namespace for BuildKit and build Jobs (lucity-builds)
 	buildImage         string            // container image for build Jobs (same as builder service)
 	buildkitAddr       string            // TCP address of the persistent BuildKit service
+	serviceAccountName string            // SA for build Job pods in the builds namespace
 	nodeSelector       map[string]string // optional: schedule builds on specific nodes
 	registryURL        string // internal registry URL for pushing images
 	registryAuthSecret string // K8s Secret with Docker config JSON for registry push auth
@@ -35,7 +40,8 @@ type KubernetesEngineOpts struct {
 	Client             kubernetes.Interface
 	Namespace          string
 	BuildImage         string
-	BuildkitAddr       string            // TCP address of BuildKit service (default: tcp://lucity-buildkit:1234)
+	BuildkitAddr       string            // TCP address of BuildKit service
+	ServiceAccountName string            // SA for build Job pods (default: lucity-build-job)
 	NodeSelector       map[string]string
 	RegistryURL        string
 	RegistryAuthSecret string // K8s Secret name containing Docker config JSON for push auth
@@ -48,11 +54,16 @@ func NewKubernetesEngine(opts KubernetesEngineOpts) *KubernetesEngine {
 	if buildkitAddr == "" {
 		buildkitAddr = "tcp://lucity-buildkit:1234"
 	}
+	serviceAccountName := opts.ServiceAccountName
+	if serviceAccountName == "" {
+		serviceAccountName = "lucity-build-job"
+	}
 	return &KubernetesEngine{
 		client:             opts.Client,
 		namespace:          opts.Namespace,
 		buildImage:         opts.BuildImage,
 		buildkitAddr:       buildkitAddr,
+		serviceAccountName: serviceAccountName,
 		nodeSelector:       opts.NodeSelector,
 		registryURL:        opts.RegistryURL,
 		registryAuthSecret: opts.RegistryAuthSecret,
@@ -128,7 +139,7 @@ func (e *KubernetesEngine) buildJob(name string, opts BuildOpts) *batchv1.Job {
 				Spec: corev1.PodSpec{
 					NodeSelector:       e.nodeSelector,
 					RestartPolicy:      corev1.RestartPolicyNever,
-					ServiceAccountName: "lucity-builder",
+					ServiceAccountName: e.serviceAccountName,
 					Containers: []corev1.Container{
 						{
 							Name:         "build",
