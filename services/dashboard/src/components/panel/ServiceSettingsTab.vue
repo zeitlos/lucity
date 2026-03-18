@@ -1219,7 +1219,8 @@ async function handleRemoveService() {
               </tr>
             </thead>
             <tbody>
-              <tr>
+              <!-- CNAME row — only for subdomains (apex domains can't use CNAME) -->
+              <tr v-if="!isApexDomain">
                 <td class="px-3 py-2">
                   <div class="flex items-center gap-1.5">
                     <CircleCheck
@@ -1255,8 +1256,8 @@ async function handleRemoveService() {
                   </div>
                 </td>
               </tr>
-              <!-- A record row — shown for apex domains that can't use CNAME -->
-              <tr v-if="ipAddress && isApexDomain" class="border-t">
+              <!-- A record row — for apex domains, or as alternative for subdomains -->
+              <tr v-if="ipAddress && isApexDomain" :class="{ 'border-t': !isApexDomain }">
                 <td class="px-3 py-2">
                   <div class="flex items-center gap-1.5">
                     <CircleCheck
