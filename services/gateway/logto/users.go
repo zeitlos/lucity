@@ -58,9 +58,10 @@ type UserIdentity struct {
 	Details map[string]interface{} `json:"details,omitempty"`
 }
 
-// UserGitHubLogin returns the GitHub username from the user's social identities.
-// Returns empty string if the user has no GitHub identity or no login.
-func (c *Client) UserGitHubLogin(ctx context.Context, userID string) (string, error) {
+// SocialLogin returns the login/username from the user's social identity.
+// Checks connectors in order: GitHub, GitLab, Bitbucket. Returns the first
+// non-empty login found, or empty string if none match.
+func (c *Client) SocialLogin(ctx context.Context, userID string) (string, error) {
 	var result struct {
 		Identities map[string]UserIdentity `json:"identities"`
 	}
@@ -68,33 +69,49 @@ func (c *Client) UserGitHubLogin(ctx context.Context, userID string) (string, er
 		return "", fmt.Errorf("failed to get user identities: %w", err)
 	}
 
-	gh, ok := result.Identities["github"]
-	if !ok {
-		return "", nil
+	// Each connector stores the login in a slightly different path.
+	// GitHub: rawData.userInfo.login
+	// GitLab: rawData.userInfo.username
+	// Bitbucket: rawData.userInfo.username
+	connectors := []struct {
+		name  string
+		field string
+	}{
+		{"github", "login"},
+		{"gitlab", "username"},
+		{"bitbucket", "username"},
 	}
 
-	rawData, ok := gh.Details["rawData"].(map[string]interface{})
-	if !ok {
-		return "", nil
+	for _, conn := range connectors {
+		identity, ok := result.Identities[conn.name]
+		if !ok {
+			continue
+		}
+
+		rawData, ok := identity.Details["rawData"].(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		userInfo, ok := rawData["userInfo"].(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		if login, _ := userInfo[conn.field].(string); login != "" {
+			return login, nil
+		}
 	}
 
-	// The GitHub connector wraps the API response in a "userInfo" key
-	userInfo, ok := rawData["userInfo"].(map[string]interface{})
-	if !ok {
-		return "", nil
-	}
-
-	login, _ := userInfo["login"].(string)
-	return login, nil
+	return "", nil
 }
 
-// logtoUsernameRe matches Logto's username validation: starts with a letter or
-// underscore, followed by word characters only (letters, digits, underscores).
+// logtoUsernameRe replaces characters not allowed in Logto usernames.
 var logtoUsernameRe = regexp.MustCompile(`[^A-Za-z0-9_]`)
 
-// sanitizeLogtoUsername converts a GitHub login into a Logto-compatible username.
+// SanitizeUsername converts a social login into a Logto-compatible username.
 // Logto's regex is /^[A-Z_a-z]\w*$/ — no hyphens or dots allowed.
-func sanitizeLogtoUsername(login string) string {
+func SanitizeUsername(login string) string {
 	s := logtoUsernameRe.ReplaceAllString(login, "_")
 	s = strings.Trim(s, "_")
 	if s == "" || (s[0] >= '0' && s[0] <= '9') {
@@ -103,12 +120,30 @@ func sanitizeLogtoUsername(login string) string {
 	return s
 }
 
-// UpdateUsername sets the username on a Logto user.
-// Sanitizes the input to match Logto's username regex (/^[A-Z_a-z]\w*$/).
-func (c *Client) UpdateUsername(ctx context.Context, userID, username string) error {
-	safe := sanitizeLogtoUsername(username)
-	body, _ := json.Marshal(map[string]string{"username": safe})
-	return c.doJSON(ctx, "PATCH", "/api/users/"+userID, bytes.NewReader(body), &json.RawMessage{})
+// EnsureUsername sets the username on a Logto user, sanitizing it to match
+// Logto's regex. If the username is taken, appends _0, _1, ... _9 until
+// an available one is found. Returns the username that was set.
+func (c *Client) EnsureUsername(ctx context.Context, userID, login string) (string, error) {
+	base := SanitizeUsername(login)
+
+	candidates := []string{base}
+	for i := 0; i < 10; i++ {
+		candidates = append(candidates, fmt.Sprintf("%s_%d", base, i))
+	}
+
+	for _, candidate := range candidates {
+		body, _ := json.Marshal(map[string]string{"username": candidate})
+		err := c.doJSON(ctx, "PATCH", "/api/users/"+userID, bytes.NewReader(body), &json.RawMessage{})
+		if err == nil {
+			return candidate, nil
+		}
+		// If the error is not a conflict, stop trying.
+		if !strings.Contains(err.Error(), "unique") && !strings.Contains(err.Error(), "exists") && !strings.Contains(err.Error(), "duplicate") && !strings.Contains(err.Error(), "409") {
+			return "", fmt.Errorf("failed to set username %q: %w", candidate, err)
+		}
+	}
+
+	return "", fmt.Errorf("all username candidates exhausted for base %q", base)
 }
 
 // UserOrganizations returns all organizations a user belongs to.

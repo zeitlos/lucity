@@ -2,7 +2,7 @@ package logto
 
 import "testing"
 
-func TestSanitizeLogtoUsername(t *testing.T) {
+func TestSanitizeUsername(t *testing.T) {
 	tests := []struct {
 		input string
 		want  string
@@ -19,9 +19,9 @@ func TestSanitizeLogtoUsername(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
-			got := sanitizeLogtoUsername(tt.input)
+			got := SanitizeUsername(tt.input)
 			if got != tt.want {
-				t.Errorf("sanitizeLogtoUsername(%q) = %q, want %q", tt.input, got, tt.want)
+				t.Errorf("SanitizeUsername(%q) = %q, want %q", tt.input, got, tt.want)
 			}
 		})
 	}
