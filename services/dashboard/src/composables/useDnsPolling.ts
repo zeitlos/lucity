@@ -29,7 +29,7 @@ export function useDnsPolling() {
 
   async function checkAll() {
     const pending = [...trackedHostnames].filter(
-      h => !checks[h] || checks[h].status !== 'VALID',
+      h => !checks[h] || checks[h].status !== 'VALID' || (checks[h].tlsStatus && checks[h].tlsStatus !== 'ACTIVE'),
     );
 
     if (pending.length === 0) {
@@ -58,9 +58,9 @@ export function useDnsPolling() {
       }),
     );
 
-    // Stop if all tracked hostnames are now VALID
+    // Stop if all tracked hostnames have VALID DNS and ACTIVE TLS
     const allValid = [...trackedHostnames].every(
-      h => checks[h]?.status === 'VALID',
+      h => checks[h]?.status === 'VALID' && (!checks[h]?.tlsStatus || checks[h]?.tlsStatus === 'ACTIVE'),
     );
     if (allValid) {
       stopPolling();
