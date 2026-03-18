@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { toast } from '@/components/ui/sonner';
+import { toast, errorToast } from '@/components/ui/sonner';
 import { errorMessage } from '@/lib/utils';
 
 const props = defineProps<{
@@ -77,7 +77,7 @@ async function handleCreate() {
     const res = await mutate({ input });
 
     if (res?.errors?.length) {
-      toast.error('Failed to create environment', {
+      errorToast('Failed to create environment', {
         description: res.errors.map(e => e.message).join(', '),
       });
       return;
@@ -89,7 +89,7 @@ async function handleCreate() {
     tier.value = 'ECO';
     emit('update:open', false);
   } catch (e: unknown) {
-    toast.error('Failed to create environment', { description: errorMessage(e) });
+    errorToast('Failed to create environment', { description: errorMessage(e) });
   }
 }
 </script>

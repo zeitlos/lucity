@@ -12,7 +12,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { toast } from '@/components/ui/sonner';
+import { errorToast } from '@/components/ui/sonner';
 import { errorMessage } from '@/lib/utils';
 import { isValidSlug } from '@/lib/slug';
 import { Check } from 'lucide-vue-next';
@@ -43,7 +43,7 @@ async function handleCheckout() {
     });
 
     if (res?.errors?.length) {
-      toast.error('Failed to create checkout session', {
+      errorToast('Failed to create checkout session', {
         description: res.errors.map(e => e.message).join(', '),
       });
       return;
@@ -54,7 +54,7 @@ async function handleCheckout() {
       window.location.href = url;
     }
   } catch (e: unknown) {
-    toast.error('Failed to create checkout session', { description: errorMessage(e) });
+    errorToast('Failed to create checkout session', { description: errorMessage(e) });
   }
 }
 </script>

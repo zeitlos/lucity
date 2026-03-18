@@ -25,7 +25,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { toast } from '@/components/ui/sonner';
+import { toast, errorToast } from '@/components/ui/sonner';
 import { errorMessage } from '@/lib/utils';
 
 const route = useRoute();
@@ -80,7 +80,7 @@ async function handleDeleteProject() {
     const res = await deleteProjectMutate({ id: projectId.value });
 
     if (res?.errors?.length) {
-      toast.error('Failed to delete project', {
+      errorToast('Failed to delete project', {
         description: res.errors.map((e: { message: string }) => e.message).join(', '),
       });
       return;
@@ -92,7 +92,7 @@ async function handleDeleteProject() {
     toast.success('Project deleted');
     router.push({ name: 'projects' });
   } catch (e: unknown) {
-    toast.error('Failed to delete project', { description: errorMessage(e) });
+    errorToast('Failed to delete project', { description: errorMessage(e) });
   }
 }
 
@@ -202,7 +202,7 @@ async function handleSaveResources(envName: string) {
     });
     toast.success(`Resources updated for "${envName}"`);
   } catch (e: unknown) {
-    toast.error('Failed to update resources', { description: errorMessage(e) });
+    errorToast('Failed to update resources', { description: errorMessage(e) });
   } finally {
     state.saving = false;
   }
@@ -225,7 +225,7 @@ async function handleDeleteEnvironment() {
     });
 
     if (res?.errors?.length) {
-      toast.error('Failed to delete environment', {
+      errorToast('Failed to delete environment', {
         description: res.errors.map((e: { message: string }) => e.message).join(', '),
       });
       return;
@@ -241,7 +241,7 @@ async function handleDeleteEnvironment() {
 
     toast.success(`Environment "${name}" deleted`);
   } catch (e: unknown) {
-    toast.error('Failed to delete environment', { description: errorMessage(e) });
+    errorToast('Failed to delete environment', { description: errorMessage(e) });
   } finally {
     envToDelete.value = null;
   }

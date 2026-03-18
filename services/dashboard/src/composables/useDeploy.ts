@@ -1,7 +1,7 @@
 import { reactive } from 'vue';
 import { apolloClient } from '@/lib/apollo';
 import { DeployMutation, DeployStatusQuery } from '@/graphql/services';
-import { toast } from '@/components/ui/sonner';
+import { toast, errorToast } from '@/components/ui/sonner';
 import { errorMessage } from '@/lib/utils';
 
 export interface DeployState {
@@ -56,13 +56,13 @@ export function useDeploy(): DeployState {
           stopPolling();
           state.isDeploying = false;
           state.error = status.error ?? 'Deploy failed';
-          toast.error('Deploy failed', { description: status.error });
+          errorToast('Deploy failed', { description: status.error });
         }
       } catch (e: unknown) {
         stopPolling();
         state.isDeploying = false;
         state.error = errorMessage(e);
-        toast.error('Deploy status check failed', { description: state.error });
+        errorToast('Deploy status check failed', { description: state.error });
       }
     }, 2000);
   }
@@ -110,7 +110,7 @@ export function useDeploy(): DeployState {
       } catch (e: unknown) {
         state.isDeploying = false;
         state.error = errorMessage(e);
-        toast.error('Failed to start deploy', { description: state.error });
+        errorToast('Failed to start deploy', { description: state.error });
       }
     },
 

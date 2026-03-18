@@ -7,7 +7,7 @@ export function cn(...inputs: ClassValue[]) {
 
 /**
  * Extract an error message from an unknown caught value.
- * Use in catch blocks: `catch (e: unknown) { toast.error(errorMessage(e)); }`
+ * Use in catch blocks: `catch (e: unknown) { errorToast(errorMessage(e)); }`
  */
 export function errorMessage(e: unknown): string {
   if (e instanceof Error) return e.message;

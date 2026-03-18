@@ -10,7 +10,7 @@ import { AddServiceMutation, DetectServicesQuery } from '@/graphql/services';
 import { SearchImagesQuery } from '@/graphql/registry';
 import { CreateDatabaseMutation } from '@/graphql/databases';
 import { useEnvironment } from '@/composables/useEnvironment';
-import { toast } from '@/components/ui/sonner';
+import { toast, errorToast } from '@/components/ui/sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { errorMessage } from '@/lib/utils';
@@ -167,7 +167,7 @@ async function handleConfirmProjectCreation() {
     });
 
     if (res?.errors?.length) {
-      toast.error('Failed to create project', {
+      errorToast('Failed to create project', {
         description: res.errors.map(e => e.message).join(', '),
       });
       return;
@@ -191,7 +191,7 @@ async function handleConfirmProjectCreation() {
     close();
     router.push({ name: 'project', params: { id: projectId } });
   } catch (e: unknown) {
-    toast.error('Failed to create project', { description: errorMessage(e) });
+    errorToast('Failed to create project', { description: errorMessage(e) });
   }
 }
 
@@ -237,7 +237,7 @@ async function detectAndAddServices(projectId: string, repo: { fullName: string;
       });
       addedNames.push(name);
     } catch (e: unknown) {
-      toast.error(`Failed to add service ${name}`, { description: errorMessage(e) });
+      errorToast(`Failed to add service ${name}`, { description: errorMessage(e) });
     }
   }
 
@@ -258,7 +258,7 @@ async function handleAddServicesFromRepo(repo: { fullName: string; htmlUrl: stri
     close();
     emit('created');
   } catch (e: unknown) {
-    toast.error('Failed to detect services', { description: errorMessage(e) });
+    errorToast('Failed to detect services', { description: errorMessage(e) });
   } finally {
     detectingServices.value = false;
     processingItemId.value = null;
@@ -287,7 +287,7 @@ async function handleCreateDatabase() {
     });
 
     if (res?.errors?.length) {
-      toast.error('Failed to create database', {
+      errorToast('Failed to create database', {
         description: res.errors.map(e => e.message).join(', '),
       });
       return;
@@ -297,7 +297,7 @@ async function handleCreateDatabase() {
     close();
     emit('created');
   } catch (e: unknown) {
-    toast.error('Failed to create database', { description: errorMessage(e) });
+    errorToast('Failed to create database', { description: errorMessage(e) });
   }
 }
 
@@ -315,7 +315,7 @@ async function handleAddManualService() {
     });
 
     if (res?.errors?.length) {
-      toast.error('Failed to add service', {
+      errorToast('Failed to add service', {
         description: res.errors.map(e => e.message).join(', '),
       });
       return;
@@ -325,7 +325,7 @@ async function handleAddManualService() {
     close();
     emit('created');
   } catch (e: unknown) {
-    toast.error('Failed to add service', { description: errorMessage(e) });
+    errorToast('Failed to add service', { description: errorMessage(e) });
   }
 }
 
@@ -398,7 +398,7 @@ async function handleSelectImage(imageRef: string) {
       close();
       emit('created');
     } catch (e: unknown) {
-      toast.error('Failed to add service', { description: errorMessage(e) });
+      errorToast('Failed to add service', { description: errorMessage(e) });
     } finally {
       processingItemId.value = null;
     }
@@ -415,7 +415,7 @@ async function addImageService(projectId: string, imageRef: string) {
   });
 
   if (res?.errors?.length) {
-    toast.error('Failed to add service', {
+    errorToast('Failed to add service', {
       description: res.errors.map(e => e.message).join(', '),
     });
     return;

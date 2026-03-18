@@ -5,7 +5,7 @@ import { GraphQLWsLink } from '@apollo/client/link/subscriptions';
 import { getMainDefinition } from '@apollo/client/utilities';
 import { createClient } from 'graphql-ws';
 import router from '@/router';
-import { toast } from '@/components/ui/sonner';
+import { errorToast } from '@/components/ui/sonner';
 import { useAuth } from '@/composables/useAuth';
 import { openBugReport } from '@/composables/useReportBug';
 
@@ -40,7 +40,7 @@ const errorLink = onError(({ graphQLErrors, networkError, operation }) => {
     const def = getMainDefinition(operation.query);
     if (def.kind === 'OperationDefinition' && def.operation === 'query') {
       const msg = graphQLErrors.map(e => e.message).join(', ');
-      toast.error(msg, {
+      errorToast(msg, {
         action: { label: 'Report', onClick: () => openBugReport({ error: msg }) },
       });
     }
@@ -52,7 +52,7 @@ const errorLink = onError(({ graphQLErrors, networkError, operation }) => {
       login();
       return;
     }
-    toast.error('Network error', {
+    errorToast('Network error', {
       description: networkError.message,
       action: { label: 'Report', onClick: () => openBugReport({ error: networkError.message }) },
     });

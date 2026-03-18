@@ -4,7 +4,7 @@ import { useQuery, useMutation } from '@vue/apollo-composable';
 import { Github, ArrowRight, FolderPlus, Check, CreditCard } from 'lucide-vue-next';
 import { ChangePlanMutation, BillingPortalUrlMutation, SubscriptionQuery } from '@/graphql/billing';
 import { useAuth } from '@/composables/useAuth';
-import { toast } from '@/components/ui/sonner';
+import { errorToast } from '@/components/ui/sonner';
 import { errorMessage } from '@/lib/utils';
 
 defineEmits<{
@@ -25,7 +25,7 @@ async function selectPlan(plan: 'HOBBY' | 'PRO') {
     try {
       await changePlanMutate({ plan: 'PRO' });
     } catch (e: unknown) {
-      toast.error('Failed to switch plan', { description: errorMessage(e) });
+      errorToast('Failed to switch plan', { description: errorMessage(e) });
       selectedPlan.value = 'HOBBY';
     }
   }
@@ -44,7 +44,7 @@ async function openBillingPortal() {
       window.open(url, '_blank');
     }
   } catch (e: unknown) {
-    toast.error('Failed to open billing portal', { description: errorMessage(e) });
+    errorToast('Failed to open billing portal', { description: errorMessage(e) });
   }
 }
 

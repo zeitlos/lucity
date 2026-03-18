@@ -4,7 +4,7 @@ import { AlertTriangle } from 'lucide-vue-next';
 import { BillingPortalUrlMutation } from '@/graphql/billing';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { toast } from '@/components/ui/sonner';
+import { errorToast } from '@/components/ui/sonner';
 import { errorMessage } from '@/lib/utils';
 
 const { mutate: portalMutate, loading } = useMutation(BillingPortalUrlMutation);
@@ -17,7 +17,7 @@ async function openBillingPortal() {
       window.open(url, '_blank');
     }
   } catch (e: unknown) {
-    toast.error('Failed to open billing portal', { description: errorMessage(e) });
+    errorToast('Failed to open billing portal', { description: errorMessage(e) });
   }
 }
 </script>

@@ -21,7 +21,7 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import EmptyState from '@/components/EmptyState.vue';
-import { toast } from '@/components/ui/sonner';
+import { toast, errorToast } from '@/components/ui/sonner';
 import { errorMessage } from '@/lib/utils';
 
 const props = defineProps<{
@@ -104,7 +104,7 @@ async function handleRollback(imageTag: string) {
     });
     toast.success('Rollback initiated', { description: `Rolling back to ${imageTag}` });
   } catch (e: unknown) {
-    toast.error('Rollback failed', { description: errorMessage(e) });
+    errorToast('Rollback failed', { description: errorMessage(e) });
   }
 }
 

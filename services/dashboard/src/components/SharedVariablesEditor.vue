@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
-import { toast } from '@/components/ui/sonner';
+import { toast, errorToast } from '@/components/ui/sonner';
 import { errorMessage } from '@/lib/utils';
 
 const props = defineProps<{
@@ -75,7 +75,7 @@ async function handleSave() {
     });
 
     if (res?.errors?.length) {
-      toast.error('Failed to save variables', {
+      errorToast('Failed to save variables', {
         description: res.errors.map(e => e.message).join(', '),
       });
       return;
@@ -85,7 +85,7 @@ async function handleSave() {
     hasChanges.value = false;
     refetch();
   } catch (e: unknown) {
-    toast.error('Failed to save variables', { description: errorMessage(e) });
+    errorToast('Failed to save variables', { description: errorMessage(e) });
   }
 }
 </script>

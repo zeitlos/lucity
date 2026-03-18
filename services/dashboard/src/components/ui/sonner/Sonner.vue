@@ -82,6 +82,21 @@ const props = defineProps<{
   color: var(--muted-foreground) !important;
 }
 
+/* Error toast action/cancel button — icon-only style */
+[data-sonner-toast][data-type='error'] [data-button] {
+  padding: 4px !important;
+  min-width: auto !important;
+  background: transparent !important;
+  color: var(--muted-foreground) !important;
+  border: none !important;
+  opacity: 0.6;
+  transition: opacity 0.15s;
+}
+
+[data-sonner-toast][data-type='error'] [data-button]:hover {
+  opacity: 1;
+}
+
 /* Close button styling */
 [data-sonner-toast] [data-close-button] {
   border-color: var(--border) !important;

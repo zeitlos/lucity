@@ -6,7 +6,7 @@ import { SubscriptionQuery, UsageSummaryQuery, BillingPortalUrlMutation } from '
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { toast } from '@/components/ui/sonner';
+import { errorToast } from '@/components/ui/sonner';
 import { errorMessage } from '@/lib/utils';
 
 const { result: subResult } = useQuery(SubscriptionQuery, null, { fetchPolicy: 'cache-and-network' });
@@ -81,7 +81,7 @@ async function openBillingPortal() {
       window.open(url, '_blank');
     }
   } catch (e: unknown) {
-    toast.error('Failed to open billing portal', { description: errorMessage(e) });
+    errorToast('Failed to open billing portal', { description: errorMessage(e) });
   }
 }
 </script>

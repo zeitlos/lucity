@@ -22,7 +22,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { toast } from '@/components/ui/sonner';
+import { toast, errorToast } from '@/components/ui/sonner';
 import { errorMessage } from '@/lib/utils';
 
 const props = defineProps<{
@@ -43,7 +43,7 @@ async function handleDeleteProject() {
     const res = await deleteProjectMutate({ id: props.projectId });
 
     if (res?.errors?.length) {
-      toast.error('Failed to delete project', {
+      errorToast('Failed to delete project', {
         description: res.errors.map(e => e.message).join(', '),
       });
       return;
@@ -56,7 +56,7 @@ async function handleDeleteProject() {
     toast.success('Project deleted');
     router.push({ name: 'projects' });
   } catch (e: unknown) {
-    toast.error('Failed to delete project', { description: errorMessage(e) });
+    errorToast('Failed to delete project', { description: errorMessage(e) });
   }
 }
 </script>

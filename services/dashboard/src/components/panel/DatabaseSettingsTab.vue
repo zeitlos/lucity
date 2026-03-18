@@ -15,7 +15,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { toast } from '@/components/ui/sonner';
+import { toast, errorToast } from '@/components/ui/sonner';
 import { errorMessage } from '@/lib/utils';
 
 const props = defineProps<{
@@ -45,7 +45,7 @@ async function handleDelete() {
     deleteDialogOpen.value = false;
     emit('database-removed');
   } catch (e: unknown) {
-    toast.error('Failed to remove database', { description: errorMessage(e) });
+    errorToast('Failed to remove database', { description: errorMessage(e) });
   }
 }
 </script>

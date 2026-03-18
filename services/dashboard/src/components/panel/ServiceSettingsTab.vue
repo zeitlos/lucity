@@ -23,7 +23,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { toast } from '@/components/ui/sonner';
+import { toast, errorToast } from '@/components/ui/sonner';
 import { Switch } from '@/components/ui/switch';
 import {
   Collapsible,
@@ -238,7 +238,7 @@ async function handleSaveCommand() {
     });
     toast.success(customStartCommand.value ? 'Start command updated' : 'Start command cleared');
   } catch (e: unknown) {
-    toast.error('Failed to update start command', { description: errorMessage(e) });
+    errorToast('Failed to update start command', { description: errorMessage(e) });
   } finally {
     commandSaving.value = false;
   }
@@ -268,7 +268,7 @@ async function handleGenerateDomain() {
     });
 
     if (res?.errors?.length) {
-      toast.error('Failed to generate domain', {
+      errorToast('Failed to generate domain', {
         description: res.errors.map(e => e.message).join(', '),
       });
       return;
@@ -280,7 +280,7 @@ async function handleGenerateDomain() {
     }
     toast.success(`Domain generated: ${domain?.hostname}`);
   } catch (e: unknown) {
-    toast.error('Failed to generate domain', { description: errorMessage(e) });
+    errorToast('Failed to generate domain', { description: errorMessage(e) });
   }
 }
 
@@ -302,7 +302,7 @@ async function handleAddCustomDomain() {
     });
 
     if (res?.errors?.length) {
-      toast.error('Failed to add custom domain', {
+      errorToast('Failed to add custom domain', {
         description: res.errors.map(e => e.message).join(', '),
       });
       return;
@@ -317,7 +317,7 @@ async function handleAddCustomDomain() {
     // Auto-open the DNS records modal so the user sees what to configure
     showDnsRecords(hostname);
   } catch (e: unknown) {
-    toast.error('Failed to add custom domain', { description: errorMessage(e) });
+    errorToast('Failed to add custom domain', { description: errorMessage(e) });
   }
 }
 
@@ -336,7 +336,7 @@ async function handleRemoveDomain(hostname: string) {
     });
 
     if (res?.errors?.length) {
-      toast.error('Failed to remove domain', {
+      errorToast('Failed to remove domain', {
         description: res.errors.map(e => e.message).join(', '),
       });
       return;
@@ -346,7 +346,7 @@ async function handleRemoveDomain(hostname: string) {
     updateServiceDomains(props.service.name, domains.value.filter(d => d.hostname !== hostname));
     toast.success('Domain removed');
   } catch (e: unknown) {
-    toast.error('Failed to remove domain', { description: errorMessage(e) });
+    errorToast('Failed to remove domain', { description: errorMessage(e) });
   }
 }
 
@@ -446,7 +446,7 @@ async function handleSaveScaling() {
     await setScalingMutate({ input });
     toast.success('Scaling updated');
   } catch (e: unknown) {
-    toast.error('Failed to update scaling', { description: errorMessage(e) });
+    errorToast('Failed to update scaling', { description: errorMessage(e) });
   } finally {
     scalingSaving.value = false;
   }
@@ -461,7 +461,7 @@ async function handleRemoveService() {
     });
 
     if (res?.errors?.length) {
-      toast.error('Failed to remove service', {
+      errorToast('Failed to remove service', {
         description: res.errors.map(e => e.message).join(', '),
       });
       return;
@@ -470,7 +470,7 @@ async function handleRemoveService() {
     toast.success('Service removed');
     emit('removed');
   } catch (e: unknown) {
-    toast.error('Failed to remove service', { description: errorMessage(e) });
+    errorToast('Failed to remove service', { description: errorMessage(e) });
   }
 }
 </script>

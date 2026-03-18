@@ -8,7 +8,7 @@ import {
   GitBranch,
   Shield,
 } from 'lucide-vue-next';
-import { toast } from '@/components/ui/sonner';
+import { toast, errorToast } from '@/components/ui/sonner';
 import {
   Dialog,
   DialogContent,
@@ -66,7 +66,7 @@ async function handleEject() {
       description: 'Your project has been exported as a self-contained zip file.',
     });
   } catch (e: unknown) {
-    toast.error('Failed to eject project', { description: errorMessage(e) });
+    errorToast('Failed to eject project', { description: errorMessage(e) });
   } finally {
     ejecting.value = false;
   }

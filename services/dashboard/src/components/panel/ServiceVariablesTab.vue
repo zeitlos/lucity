@@ -17,7 +17,7 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command';
-import { toast } from '@/components/ui/sonner';
+import { toast, errorToast } from '@/components/ui/sonner';
 import { errorMessage } from '@/lib/utils';
 
 const props = defineProps<{
@@ -252,7 +252,7 @@ async function handleSave() {
     });
 
     if (res?.errors?.length) {
-      toast.error('Failed to save variables', {
+      errorToast('Failed to save variables', {
         description: res.errors.map((e: { message: string }) => e.message).join(', '),
       });
       return;
@@ -262,7 +262,7 @@ async function handleSave() {
     hasChanges.value = false;
     refetch();
   } catch (e: unknown) {
-    toast.error('Failed to save variables', { description: errorMessage(e) });
+    errorToast('Failed to save variables', { description: errorMessage(e) });
   }
 }
 </script>

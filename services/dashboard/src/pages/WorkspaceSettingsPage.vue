@@ -53,7 +53,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { toast } from '@/components/ui/sonner';
+import { toast, errorToast } from '@/components/ui/sonner';
 import { errorMessage } from '@/lib/utils';
 
 const router = useRouter();
@@ -107,7 +107,7 @@ async function handleUpdateName() {
     toast.success('Workspace name updated');
     refetch();
   } catch (e: unknown) {
-    toast.error('Failed to update workspace', { description: errorMessage(e) });
+    errorToast('Failed to update workspace', { description: errorMessage(e) });
   }
 }
 
@@ -123,7 +123,7 @@ async function handleInvite() {
       input: { email: inviteEmail.value.trim(), role: inviteRole.value },
     });
     if (res?.errors?.length) {
-      toast.error('Failed to invite member', {
+      errorToast('Failed to invite member', {
         description: res.errors.map((e: { message: string }) => e.message).join(', '),
       });
       return;
@@ -134,7 +134,7 @@ async function handleInvite() {
     await refreshToken();
     refetch();
   } catch (e: unknown) {
-    toast.error('Failed to invite member', { description: errorMessage(e) });
+    errorToast('Failed to invite member', { description: errorMessage(e) });
   }
 }
 
@@ -148,7 +148,7 @@ async function handleRemoveMember(userId: string) {
     await refreshToken();
     refetch();
   } catch (e: unknown) {
-    toast.error('Failed to remove member', { description: errorMessage(e) });
+    errorToast('Failed to remove member', { description: errorMessage(e) });
   }
 }
 
@@ -161,7 +161,7 @@ async function handleUpdateRole(userId: string, role: string) {
     toast.success('Member role updated');
     refetch();
   } catch (e: unknown) {
-    toast.error('Failed to update role', { description: errorMessage(e) });
+    errorToast('Failed to update role', { description: errorMessage(e) });
   }
 }
 
@@ -196,7 +196,7 @@ async function handleChangePlan() {
     await changePlanMutate({ plan: confirmPlan.value });
     toast.success(`Switched to ${confirmPlan.value === 'PRO' ? 'Pro' : 'Hobby'} plan`);
   } catch (e: unknown) {
-    toast.error('Failed to change plan', { description: errorMessage(e) });
+    errorToast('Failed to change plan', { description: errorMessage(e) });
   } finally {
     confirmPlan.value = null;
   }
@@ -210,7 +210,7 @@ async function handlePlanCheckout(plan: string) {
       window.location.href = url;
     }
   } catch (e: unknown) {
-    toast.error('Failed to start checkout', { description: errorMessage(e) });
+    errorToast('Failed to start checkout', { description: errorMessage(e) });
   }
 }
 
@@ -222,7 +222,7 @@ async function handleOpenPortal() {
       window.open(url, '_blank');
     }
   } catch (e: unknown) {
-    toast.error('Failed to open billing portal', { description: errorMessage(e) });
+    errorToast('Failed to open billing portal', { description: errorMessage(e) });
   }
 }
 
@@ -235,7 +235,7 @@ async function handleDelete() {
   try {
     const res = await deleteMutate();
     if (res?.errors?.length) {
-      toast.error('Failed to delete workspace', {
+      errorToast('Failed to delete workspace', {
         description: res.errors.map((e: { message: string }) => e.message).join(', '),
       });
       return;
@@ -250,7 +250,7 @@ async function handleDelete() {
     toast.success('Workspace deleted');
     router.push({ name: 'projects' });
   } catch (e: unknown) {
-    toast.error('Failed to delete workspace', { description: errorMessage(e) });
+    errorToast('Failed to delete workspace', { description: errorMessage(e) });
   }
 }
 </script>
