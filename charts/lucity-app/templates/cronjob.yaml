@@ -26,7 +26,6 @@ spec:
               image: "{{ $job.image.repository }}:{{ required "image.tag is required — run a deploy first" $job.image.tag }}"
               securityContext:
                 allowPrivilegeEscalation: false
-                readOnlyRootFilesystem: true
                 capabilities:
                   drop:
                     - ALL
