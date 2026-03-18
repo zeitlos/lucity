@@ -264,23 +264,28 @@ func handleCallback(provider *OIDCProvider, api *handler.Client, logtoClient *lo
 		}
 
 		// Derive username for personal workspace ID.
-		// Logto's GitHub connector doesn't map GitHub's login to the username field,
-		// so we fetch it from the social identity and set it on the Logto user.
-		username := oidcClaims.Username
-		if username == "" && logtoClient != nil {
+		// Always prefer the GitHub login as the canonical source for workspace ID
+		// derivation, because the Logto username is sanitized (hyphens → underscores)
+		// and would produce a different workspace ID than the original GitHub login.
+		var username string
+		if logtoClient != nil {
 			ghLogin, err := logtoClient.UserGitHubLogin(r.Context(), idToken.Subject)
 			if err != nil {
 				slog.Error("failed to fetch GitHub login from Logto", "error", err)
 			} else if ghLogin != "" {
-				// Use the GitHub login for workspace ID derivation (sanitizeWorkspaceID handles hyphens).
-				// Setting it on Logto is best-effort — the username is sanitized to match Logto's regex.
 				username = ghLogin
-				if err := logtoClient.UpdateUsername(r.Context(), idToken.Subject, ghLogin); err != nil {
-					slog.Warn("failed to set username on Logto", "error", err, "login", ghLogin)
-				} else {
-					slog.Info("set username from GitHub login", "username", ghLogin, "email", oidcClaims.Email)
+				// Best-effort: set sanitized username on Logto for display purposes.
+				if oidcClaims.Username == "" {
+					if err := logtoClient.UpdateUsername(r.Context(), idToken.Subject, ghLogin); err != nil {
+						slog.Warn("failed to set username on Logto", "error", err, "login", ghLogin)
+					} else {
+						slog.Info("set username from GitHub login", "username", ghLogin, "email", oidcClaims.Email)
+					}
 				}
 			}
+		}
+		if username == "" {
+			username = oidcClaims.Username
 		}
 		if username == "" {
 			slog.Warn("no username for personal workspace", "email", oidcClaims.Email)
