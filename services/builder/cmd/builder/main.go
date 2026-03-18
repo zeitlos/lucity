@@ -33,8 +33,7 @@ type Config struct {
 	KubeContext        string `envconfig:"KUBE_CONTEXT"`
 
 	// Internal JWT (ES256 for gRPC service-to-service auth)
-	InternalJWTPublicKeyPath string `envconfig:"INTERNAL_JWT_PUBLIC_KEY_PATH"`
-	RequireInternalJWT       bool   `envconfig:"REQUIRE_INTERNAL_JWT" default:"false"`
+	InternalJWTPublicKeyPath string `envconfig:"INTERNAL_JWT_PUBLIC_KEY_PATH" required:"true"`
 }
 
 func main() {
@@ -70,22 +69,13 @@ func main() {
 
 	svc := buildergrpc.NewServer(eng, tracker, config.RegistryURL, config.RegistryUsername, config.RegistryPassword, config.RegistryInsecure, config.WorkDir)
 
-	var authOpts []auth.InterceptorOption
-	if config.InternalJWTPublicKeyPath != "" {
-		verifier, err := auth.NewInternalVerifierFromFile(config.InternalJWTPublicKeyPath)
-		if err != nil {
-			slog.Error("failed to create internal JWT verifier", "error", err)
-			os.Exit(1)
-		}
-		authOpts = append(authOpts, auth.WithInternalVerifier(verifier))
-		slog.Info("internal JWT verification enabled (ES256)")
-	}
-	if config.RequireInternalJWT {
-		authOpts = append(authOpts, auth.WithRequireJWT(true))
-		slog.Info("internal JWT required — legacy plain metadata auth disabled")
+	verifier, err := auth.NewInternalVerifierFromFile(config.InternalJWTPublicKeyPath)
+	if err != nil {
+		slog.Error("failed to create internal JWT verifier", "error", err)
+		os.Exit(1)
 	}
 
-	grpcServer := buildergrpc.NewGRPCServer(":"+config.Port, svc, authOpts...)
+	grpcServer := buildergrpc.NewGRPCServer(":"+config.Port, svc, verifier)
 
 	graceful.Serve(ctx, grpcServer)
 }

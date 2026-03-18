@@ -14,42 +14,16 @@ import (
 
 const (
 	githubTokenKey = "x-github-token"
-	subjectKey     = "x-lucity-subject"
-	emailKey       = "x-lucity-email"
-	rolesKey       = "x-lucity-roles"
 )
 
 type githubTokenContextKey struct{}
 
-// InterceptorOption configures the gRPC server interceptor.
-type InterceptorOption func(*interceptorConfig)
-
-type interceptorConfig struct {
-	verifier   *InternalVerifier
-	requireJWT bool
-}
-
-// WithInternalVerifier configures the interceptor to validate internal ES256 JWTs.
-func WithInternalVerifier(v *InternalVerifier) InterceptorOption {
-	return func(c *interceptorConfig) { c.verifier = v }
-}
-
-// WithRequireJWT configures the interceptor to reject calls without a valid JWT.
-// When false, unauthenticated calls fall back to legacy plain metadata extraction.
-func WithRequireJWT(require bool) InterceptorOption {
-	return func(c *interceptorConfig) { c.requireJWT = require }
-}
-
-// UnaryServerInterceptor returns a gRPC server interceptor that extracts
-// user identity from internal JWTs or (legacy) plain metadata headers.
-func UnaryServerInterceptor(opts ...InterceptorOption) grpc.UnaryServerInterceptor {
-	cfg := &interceptorConfig{}
-	for _, o := range opts {
-		o(cfg)
-	}
-
+// UnaryServerInterceptor returns a gRPC server interceptor that validates
+// internal ES256 JWTs and extracts user identity from the token claims.
+// When a verifier is provided, all calls must include a valid JWT.
+func UnaryServerInterceptor(verifier *InternalVerifier) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
-		ctx, err := extractAuth(ctx, cfg)
+		ctx, err := extractAuth(ctx, verifier)
 		if err != nil {
 			return nil, err
 		}
@@ -57,16 +31,12 @@ func UnaryServerInterceptor(opts ...InterceptorOption) grpc.UnaryServerIntercept
 	}
 }
 
-// StreamServerInterceptor returns a gRPC stream interceptor that extracts
-// user identity from internal JWTs or (legacy) plain metadata headers.
-func StreamServerInterceptor(opts ...InterceptorOption) grpc.StreamServerInterceptor {
-	cfg := &interceptorConfig{}
-	for _, o := range opts {
-		o(cfg)
-	}
-
+// StreamServerInterceptor returns a gRPC stream interceptor that validates
+// internal ES256 JWTs and extracts user identity from the token claims.
+// When a verifier is provided, all calls must include a valid JWT.
+func StreamServerInterceptor(verifier *InternalVerifier) grpc.StreamServerInterceptor {
 	return func(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
-		ctx, err := extractAuth(ss.Context(), cfg)
+		ctx, err := extractAuth(ss.Context(), verifier)
 		if err != nil {
 			return err
 		}
@@ -74,68 +44,35 @@ func StreamServerInterceptor(opts ...InterceptorOption) grpc.StreamServerInterce
 	}
 }
 
-// extractAuth validates a JWT if a verifier is configured, otherwise falls back to legacy headers.
-func extractAuth(ctx context.Context, cfg *interceptorConfig) (context.Context, error) {
-	md, _ := metadata.FromIncomingContext(ctx)
-
-	// Try JWT validation first
-	if cfg.verifier != nil {
-		if authHeader := firstValue(md, "authorization"); strings.HasPrefix(authHeader, "Bearer ") {
-			tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
-			intClaims, err := cfg.verifier.Validate(tokenStr)
-			if err != nil {
-				return ctx, status.Errorf(codes.Unauthenticated, "invalid internal token: %v", err)
-			}
-			ctx = WithClaims(ctx, &intClaims.Claims)
-			ctx = WithActiveWorkspace(ctx, intClaims.Workspace)
-			// Extract GitHub token from plain metadata (still needed by builder)
-			if ghToken := firstValue(md, githubTokenKey); ghToken != "" {
-				ctx = WithGitHubToken(ctx, ghToken)
-			}
-			return ctx, nil
-		}
+// extractAuth validates a JWT from the authorization header.
+// Returns Unauthenticated if the verifier is configured and no valid JWT is present.
+func extractAuth(ctx context.Context, verifier *InternalVerifier) (context.Context, error) {
+	if verifier == nil {
+		return ctx, nil
 	}
 
-	// No JWT found
-	if cfg.requireJWT {
+	md, _ := metadata.FromIncomingContext(ctx)
+
+	authHeader := firstValue(md, "authorization")
+	if !strings.HasPrefix(authHeader, "Bearer ") {
 		return ctx, status.Errorf(codes.Unauthenticated, "missing internal authorization token")
 	}
 
-	// Legacy path: extract from plain metadata headers
-	if cfg.verifier != nil {
-		slog.Warn("gRPC call using legacy plain metadata auth (deprecated)")
+	tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
+	intClaims, err := verifier.Validate(tokenStr)
+	if err != nil {
+		return ctx, status.Errorf(codes.Unauthenticated, "invalid internal token: %v", err)
 	}
-	ctx = extractClaims(ctx)
+
+	ctx = WithClaims(ctx, &intClaims.Claims)
+	ctx = WithActiveWorkspace(ctx, intClaims.Workspace)
+
+	// Extract GitHub token from plain metadata (needed by builder for repo cloning)
+	if ghToken := firstValue(md, githubTokenKey); ghToken != "" {
+		ctx = WithGitHubToken(ctx, ghToken)
+	}
+
 	return ctx, nil
-}
-
-func extractClaims(ctx context.Context) context.Context {
-	md, ok := metadata.FromIncomingContext(ctx)
-	if !ok {
-		return ctx
-	}
-
-	// Extract user identity from metadata headers
-	subject := firstValue(md, subjectKey)
-	if subject != "" {
-		claims := &Claims{
-			Subject: subject,
-			Email:   firstValue(md, emailKey),
-		}
-		if rolesStr := firstValue(md, rolesKey); rolesStr != "" {
-			for _, r := range strings.Split(rolesStr, ",") {
-				claims.Roles = append(claims.Roles, Role(r))
-			}
-		}
-		ctx = WithClaims(ctx, claims)
-	}
-
-	// Extract GitHub token if present (used by builder for repo cloning).
-	if vals := md.Get(githubTokenKey); len(vals) > 0 {
-		ctx = WithGitHubToken(ctx, vals[0])
-	}
-
-	return ctx
 }
 
 func firstValue(md metadata.MD, key string) string {
@@ -170,71 +107,23 @@ func TokenFrom(ctx context.Context) string {
 	return token
 }
 
-// OutgoingContext propagates user identity and GitHub token from the context
-// as gRPC metadata for outgoing calls to backend services.
-// If an Issuer is in the context, mints a cryptographically signed ES256 JWT.
-// Otherwise, falls back to plain metadata headers (legacy mode).
+// OutgoingContext mints an ES256 JWT containing user claims and workspace,
+// and attaches it to outgoing gRPC metadata. Requires an Issuer in the context.
 func OutgoingContext(ctx context.Context) context.Context {
+	issuer := IssuerFrom(ctx)
 	claims := FromContext(ctx)
-
-	// Try JWT minting if an issuer is available
-	if issuer := IssuerFrom(ctx); issuer != nil && claims != nil {
-		workspace := ActiveWorkspaceFrom(ctx)
-		token, err := issuer.MintToken(claims, workspace)
-		if err != nil {
-			slog.Error("failed to mint internal JWT, falling back to legacy metadata", "error", err)
-		} else {
-			ctx = metadata.AppendToOutgoingContext(ctx, "authorization", "Bearer "+token)
-			// Still propagate GitHub token as plain metadata (needed by builder)
-			if ghToken := GitHubTokenFrom(ctx); ghToken != "" {
-				ctx = metadata.AppendToOutgoingContext(ctx, githubTokenKey, ghToken)
-			}
-			return ctx
-		}
+	if issuer == nil || claims == nil {
+		return ctx
 	}
 
-	// Legacy: propagate user identity as plain metadata headers
-	if claims != nil {
-		ctx = metadata.AppendToOutgoingContext(ctx, subjectKey, claims.Subject)
-		if claims.Email != "" {
-			ctx = metadata.AppendToOutgoingContext(ctx, emailKey, claims.Email)
-		}
-		if len(claims.Roles) > 0 {
-			roles := make([]string, len(claims.Roles))
-			for i, r := range claims.Roles {
-				roles[i] = string(r)
-			}
-			ctx = metadata.AppendToOutgoingContext(ctx, rolesKey, strings.Join(roles, ","))
-		}
+	workspace := ActiveWorkspaceFrom(ctx)
+	token, err := issuer.MintToken(claims, workspace)
+	if err != nil {
+		slog.Error("failed to mint internal JWT", "error", err)
+		return ctx
 	}
 
-	// Propagate GitHub token if present
-	ghToken := GitHubTokenFrom(ctx)
-	if ghToken != "" {
-		ctx = metadata.AppendToOutgoingContext(ctx, githubTokenKey, ghToken)
-	}
-	return ctx
-}
-
-// OutgoingSystemContext is like OutgoingContext but mints a system JWT for service-initiated calls.
-// Used by the webhook service for calls that have no user JWT.
-func OutgoingSystemContext(ctx context.Context, subject, workspace, scope string) context.Context {
-	if issuer := IssuerFrom(ctx); issuer != nil {
-		token, err := issuer.MintSystemToken(subject, workspace, scope)
-		if err != nil {
-			slog.Error("failed to mint system JWT", "error", err)
-		} else {
-			ctx = metadata.AppendToOutgoingContext(ctx, "authorization", "Bearer "+token)
-			if ghToken := GitHubTokenFrom(ctx); ghToken != "" {
-				ctx = metadata.AppendToOutgoingContext(ctx, githubTokenKey, ghToken)
-			}
-			return ctx
-		}
-	}
-
-	// Legacy fallback
-	ctx = metadata.AppendToOutgoingContext(ctx, subjectKey, subject)
-	ctx = metadata.AppendToOutgoingContext(ctx, rolesKey, string(RoleUser))
+	ctx = metadata.AppendToOutgoingContext(ctx, "authorization", "Bearer "+token)
 	if ghToken := GitHubTokenFrom(ctx); ghToken != "" {
 		ctx = metadata.AppendToOutgoingContext(ctx, githubTokenKey, ghToken)
 	}

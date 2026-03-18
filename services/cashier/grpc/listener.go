@@ -14,10 +14,10 @@ type GRPCServer struct {
 	addr   string
 }
 
-func NewGRPCServer(addr string, svc *Server, authOpts ...auth.InterceptorOption) *GRPCServer {
+func NewGRPCServer(addr string, svc *Server, verifier *auth.InternalVerifier) *GRPCServer {
 	s := grpc.NewServer(
 		grpc.ChainUnaryInterceptor(
-			auth.UnaryServerInterceptor(authOpts...),
+			auth.UnaryServerInterceptor(verifier),
 		),
 	)
 	cashier.RegisterCashierServiceServer(s, svc)
