@@ -128,13 +128,26 @@ func (e *KubernetesEngine) buildJob(name string, opts BuildOpts) *batchv1.Job {
 				Spec: corev1.PodSpec{
 					NodeSelector:       e.nodeSelector,
 					RestartPolicy:      corev1.RestartPolicyNever,
-					ServiceAccountName: "lucity-builder",
+					ServiceAccountName: "lucity-build-runner",
+					AutomountServiceAccountToken: boolPtr(true),
+					SecurityContext: &corev1.PodSecurityContext{
+						RunAsNonRoot: boolPtr(true),
+						SeccompProfile: &corev1.SeccompProfile{
+							Type: corev1.SeccompProfileTypeRuntimeDefault,
+						},
+					},
 					Containers: []corev1.Container{
 						{
-							Name:         "build",
-							Image:        e.buildImage,
-							Command:      []string{"/app", "run-build"},
-							Env:          env,
+							Name:    "build",
+							Image:   e.buildImage,
+							Command: []string{"/app", "run-build"},
+							Env:     env,
+							SecurityContext: &corev1.SecurityContext{
+								AllowPrivilegeEscalation: boolPtr(false),
+								Capabilities: &corev1.Capabilities{
+									Drop: []corev1.Capability{"ALL"},
+								},
+							},
 							VolumeMounts: e.buildVolumeMounts(),
 							Resources: corev1.ResourceRequirements{
 								Requests: corev1.ResourceList{
@@ -245,6 +258,8 @@ func (e *KubernetesEngine) buildVolumes() []corev1.Volume {
 	}
 	return volumes
 }
+
+func boolPtr(b bool) *bool { return &b }
 
 func mustParseQuantity(s string) resource.Quantity {
 	q, err := resource.ParseQuantity(s)

@@ -1,4 +1,7 @@
 {{- if .Values.builder.serviceAccount.create }}
+{{- $buildNamespace := .Values.builder.buildNamespace | default "lucity-builds" }}
+# ServiceAccount for the builder Deployment (lives in lucity-system).
+# Used by the builder service to create and monitor build Jobs.
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -7,30 +10,39 @@ metadata:
     {{- include "lucity.labels" . | nindent 4 }}
     app.kubernetes.io/component: builder
 ---
+# ServiceAccount for build Job pods (lives in builds namespace).
+# Used by build runners to annotate their own Job with results.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "lucity.fullname" . }}-build-runner
+  namespace: {{ $buildNamespace }}
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+    app.kubernetes.io/component: builds
+---
+# Role in the builds namespace: create/monitor Jobs and read pod logs.
+# Bound to the builder service SA (cross-namespace).
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: {{ include "lucity.fullname" . }}-builder
+  namespace: {{ $buildNamespace }}
   labels:
     {{- include "lucity.labels" . | nindent 4 }}
 rules:
-  # Builder service: create and monitor build Jobs
   - apiGroups: ["batch"]
     resources: [jobs]
     verbs: [get, list, watch, create]
-  # Builder service: read build pod logs
   - apiGroups: [""]
     resources: [pods, pods/log]
     verbs: [get, list]
-  # Build runner (inside Job pods): annotate own Job with result
-  - apiGroups: ["batch"]
-    resources: [jobs]
-    verbs: [patch]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: {{ include "lucity.fullname" . }}-builder
+  namespace: {{ $buildNamespace }}
   labels:
     {{- include "lucity.labels" . | nindent 4 }}
 roleRef:
@@ -41,4 +53,34 @@ subjects:
   - kind: ServiceAccount
     name: {{ include "lucity.fullname" . }}-builder
     namespace: {{ .Release.Namespace }}
+---
+# Role in the builds namespace: patch Jobs (annotate with build results).
+# Bound to the build runner SA.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "lucity.fullname" . }}-build-runner
+  namespace: {{ $buildNamespace }}
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["batch"]
+    resources: [jobs]
+    verbs: [get, patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "lucity.fullname" . }}-build-runner
+  namespace: {{ $buildNamespace }}
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "lucity.fullname" . }}-build-runner
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "lucity.fullname" . }}-build-runner
+    namespace: {{ $buildNamespace }}
 {{- end }}

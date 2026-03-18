@@ -57,6 +57,12 @@ builder:
   envSecret: {}
   serviceAccount:
     create: false
+  # -- Namespace for build Jobs (isolated from platform services)
+  buildNamespace: lucity-builds
+  # -- Pod CIDR for NetworkPolicy (exclude from internet egress)
+  podCIDR: 10.244.0.0/16
+  # -- Service CIDR for NetworkPolicy (exclude from internet egress)
+  serviceCIDR: 10.96.0.0/12
   # -- Registry host for BuildKit config (used in buildkitd.toml for build Jobs)
   registryHost: ""
   # -- BuildKit image (used by the persistent BuildKit Deployment)

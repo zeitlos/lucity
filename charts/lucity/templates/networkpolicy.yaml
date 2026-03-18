@@ -35,7 +35,7 @@ spec:
         - port: {{ .Values.gateway.port }}
           protocol: TCP
 ---
-# BuildKit: allow gRPC from build Jobs and builder service within the namespace
+# BuildKit: allow gRPC from build Jobs (in builds namespace) and builder service
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -50,11 +50,14 @@ spec:
     - Ingress
   ingress:
     - from:
-        # Build Job pods (labeled by KubernetesEngine)
-        - podSelector:
+        # Build Job pods (in builds namespace)
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.builder.buildNamespace | default "lucity-builds" }}
+          podSelector:
             matchLabels:
               lucity.dev/component: build
-        # Builder service (for health checks or direct access)
+        # Builder service (same namespace)
         - podSelector:
             matchLabels:
               app.kubernetes.io/instance: {{ .Release.Name }}
