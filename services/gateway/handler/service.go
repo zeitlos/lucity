@@ -178,8 +178,8 @@ func (c *Client) AddService(ctx context.Context, projectID, environment, name st
 		deployID := uuid.New().String()
 		c.DeployTracker.Create(deployID, buildResp.BuildId, projectID, name, environment)
 
-		token := auth.TokenFrom(ctx)
-		go c.runDeploy(token, ws, deployID, projectID, name, environment, buildResp.BuildId)
+		claims := auth.FromContext(ctx)
+		go c.runDeploy(claims, ws, deployID, projectID, name, environment, buildResp.BuildId)
 
 		si.InitialDeploy = deployOpFromState(c.DeployTracker.Get(deployID))
 	}
@@ -426,8 +426,8 @@ func (c *Client) Deploy(ctx context.Context, projectID, service, environment, gi
 	// Run the deploy pipeline in the background.
 	// Extract the token before spawning the goroutine — the HTTP request context
 	// will be cancelled when the response is sent.
-	token := auth.TokenFrom(ctx)
-	go c.runDeploy(token, ws, deployID, projectID, service, environment, buildResp.BuildId)
+	claims := auth.FromContext(ctx)
+	go c.runDeploy(claims, ws, deployID, projectID, service, environment, buildResp.BuildId)
 
 	return deployOpFromState(c.DeployTracker.Get(deployID)), nil
 }
@@ -464,21 +464,16 @@ func (c *Client) grpcCtx(base context.Context) context.Context {
 }
 
 // runDeploy streams build logs from the builder and, on success, deploys the image.
-func (c *Client) runDeploy(token, workspace, deployID, projectID, service, environment, buildID string) {
+func (c *Client) runDeploy(claims *auth.Claims, workspace, deployID, projectID, service, environment, buildID string) {
 	// Build a base context with auth ingredients. Each gRPC call mints a fresh
 	// short-lived JWT via auth.OutgoingContext, avoiding token expiry during
 	// long-running polling loops.
-	base := auth.WithToken(context.Background(), token)
+	base := context.Background()
+	base = auth.WithClaims(base, claims)
 	base = tenant.WithWorkspace(base, workspace)
 	base = auth.WithActiveWorkspace(base, workspace)
 	if c.Issuer != nil {
 		base = auth.WithIssuer(base, c.Issuer)
-	}
-	// Reconstruct claims from the token for JWT minting in background goroutines.
-	if claims := auth.FromContext(base); claims == nil {
-		if decoded, err := auth.DecodeTokenClaims(token); err == nil {
-			base = auth.WithClaims(base, decoded)
-		}
 	}
 
 	c.DeployTracker.AppendLog(deployID, "Queued for build...")
