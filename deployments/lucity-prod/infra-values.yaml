@@ -31,7 +31,12 @@ zot:
             "repositories": {
               "**": {
                 "anonymousPolicy": ["read"],
-                "defaultPolicy": ["read", "create", "update", "delete"]
+                "policies": [
+                  {
+                    "users": ["builder"],
+                    "actions": ["read", "create", "update", "delete"]
+                  }
+                ]
               }
             }
           }
@@ -40,7 +45,10 @@ zot:
           "level": "info"
         }
       }
-    htpasswd: ""  # --set zot.configFiles.htpasswd (generate: htpasswd -bBn builder "$(openssl rand -hex 16)")
+    # htpasswd: builder user with read-write access (used by BuildKit to push images and cache).
+    # Anonymous gets read-only access (needed for kubelet image pulls).
+    # Generate: htpasswd -bBn builder "$(openssl rand -hex 16)"
+    htpasswd: ""  # --set zot.configFiles.htpasswd
 
 softServe:
   persistence:

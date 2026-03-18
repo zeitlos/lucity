@@ -23,8 +23,7 @@ type Config struct {
 	RegistryURL        string `envconfig:"REGISTRY_URL" default:"localhost:5000"`
 	RegistryUsername   string `envconfig:"REGISTRY_USERNAME"`
 	RegistryPassword   string `envconfig:"REGISTRY_PASSWORD"`
-	RegistryAuthSecret string `envconfig:"REGISTRY_AUTH_SECRET"` // K8s Secret with Docker config JSON for BuildKit
-	RegistryInsecure   bool   `envconfig:"REGISTRY_INSECURE" default:"true"`
+	RegistryInsecure bool `envconfig:"REGISTRY_INSECURE" default:"true"`
 	WorkDir            string `envconfig:"WORK_DIR" default:"/tmp/lucity-builds"`
 	BuildEngine        string `envconfig:"BUILD_ENGINE" default:"local"`
 	BuildImage         string `envconfig:"BUILD_IMAGE"`
@@ -89,13 +88,12 @@ func setupEngine(config Config) (engine.Engine, build.Tracker, error) {
 		}
 
 		eng := engine.NewKubernetesEngine(engine.KubernetesEngineOpts{
-			Client:             k8sClient,
-			Namespace:          config.BuildNamespace,
-			BuildImage:         config.BuildImage,
-			BuildkitAddr:       config.BuildkitAddr,
-			RegistryURL:        config.RegistryURL,
-			RegistryAuthSecret: config.RegistryAuthSecret,
-			Insecure:           config.RegistryInsecure,
+			Client:       k8sClient,
+			Namespace:    config.BuildNamespace,
+			BuildImage:   config.BuildImage,
+			BuildkitAddr: config.BuildkitAddr,
+			RegistryURL:  config.RegistryURL,
+			Insecure:     config.RegistryInsecure,
 		})
 
 		tracker := build.NewK8sTracker(k8sClient, config.BuildNamespace)

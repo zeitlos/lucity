@@ -25,21 +25,19 @@ type KubernetesEngine struct {
 	buildImage         string            // container image for build Jobs (same as builder service)
 	buildkitAddr       string            // TCP address of the persistent BuildKit service
 	nodeSelector       map[string]string // optional: schedule builds on specific nodes
-	registryURL        string            // internal registry URL for pushing images
-	registryAuthSecret string            // K8s Secret with Docker config JSON for registry push auth
-	insecure           bool              // allow HTTP registry
+	registryURL  string // internal registry URL for pushing images
+	insecure     bool   // allow HTTP registry
 }
 
 // KubernetesEngineOpts configures the KubernetesEngine.
 type KubernetesEngineOpts struct {
-	Client             kubernetes.Interface
-	Namespace          string
-	BuildImage         string
-	BuildkitAddr       string            // TCP address of BuildKit service (default: tcp://lucity-buildkit:1234)
-	NodeSelector       map[string]string
-	RegistryURL        string
-	RegistryAuthSecret string // K8s Secret name containing Docker config JSON for push auth
-	Insecure           bool
+	Client       kubernetes.Interface
+	Namespace    string
+	BuildImage   string
+	BuildkitAddr string            // TCP address of BuildKit service (default: tcp://lucity-buildkit:1234)
+	NodeSelector map[string]string
+	RegistryURL  string
+	Insecure     bool
 }
 
 // NewKubernetesEngine creates a KubernetesEngine.
@@ -49,14 +47,13 @@ func NewKubernetesEngine(opts KubernetesEngineOpts) *KubernetesEngine {
 		buildkitAddr = "tcp://lucity-buildkit:1234"
 	}
 	return &KubernetesEngine{
-		client:             opts.Client,
-		namespace:          opts.Namespace,
-		buildImage:         opts.BuildImage,
-		buildkitAddr:       buildkitAddr,
-		nodeSelector:       opts.NodeSelector,
-		registryURL:        opts.RegistryURL,
-		registryAuthSecret: opts.RegistryAuthSecret,
-		insecure:           opts.Insecure,
+		client:       opts.Client,
+		namespace:    opts.Namespace,
+		buildImage:   opts.BuildImage,
+		buildkitAddr: buildkitAddr,
+		nodeSelector: opts.NodeSelector,
+		registryURL:  opts.RegistryURL,
+		insecure:     opts.Insecure,
 	}
 }
 
@@ -101,9 +98,6 @@ func (e *KubernetesEngine) buildJob(name string, opts BuildOpts) *batchv1.Job {
 		{Name: "BUILDKIT_ADDR", Value: e.buildkitAddr},
 		{Name: "GITHUB_TOKEN", Value: opts.GitHubToken},
 		{Name: "BUILD_NAMESPACE", Value: e.namespace},
-	}
-	if e.registryAuthSecret != "" {
-		env = append(env, corev1.EnvVar{Name: "DOCKER_CONFIG", Value: "/etc/registry-auth"})
 	}
 
 	return &batchv1.Job{
@@ -210,22 +204,14 @@ func (e *KubernetesEngine) readResult(job *batchv1.Job) (*BuildResult, error) {
 
 // buildVolumeMounts returns volume mounts for the build runner container.
 func (e *KubernetesEngine) buildVolumeMounts() []corev1.VolumeMount {
-	mounts := []corev1.VolumeMount{
+	return []corev1.VolumeMount{
 		{Name: "work", MountPath: "/tmp/lucity-builds"},
 	}
-	if e.registryAuthSecret != "" {
-		mounts = append(mounts, corev1.VolumeMount{
-			Name:      "registry-auth",
-			MountPath: "/etc/registry-auth",
-			ReadOnly:  true,
-		})
-	}
-	return mounts
 }
 
 // buildVolumes returns the volume list for build Job pods.
 func (e *KubernetesEngine) buildVolumes() []corev1.Volume {
-	volumes := []corev1.Volume{
+	return []corev1.Volume{
 		{
 			Name: "work",
 			VolumeSource: corev1.VolumeSource{
@@ -233,17 +219,6 @@ func (e *KubernetesEngine) buildVolumes() []corev1.Volume {
 			},
 		},
 	}
-	if e.registryAuthSecret != "" {
-		volumes = append(volumes, corev1.Volume{
-			Name: "registry-auth",
-			VolumeSource: corev1.VolumeSource{
-				Secret: &corev1.SecretVolumeSource{
-					SecretName: e.registryAuthSecret,
-				},
-			},
-		})
-	}
-	return volumes
 }
 
 func mustParseQuantity(s string) resource.Quantity {
