@@ -454,24 +454,44 @@ func (c *Client) ActiveDeployment(ctx context.Context, projectID, service, envir
 // before failing the deploy. Prevents goroutine leaks from hung builds.
 const maxBuildDuration = 30 * time.Minute
 
+// grpcCtx mints a fresh short-lived JWT from the base context for a gRPC call.
+// Use this instead of pre-minting a context with auth.OutgoingContext, which would
+// produce a JWT that expires after 30 seconds — too short for polling loops.
+func (c *Client) grpcCtx(base context.Context) context.Context {
+	ctx := auth.OutgoingContext(base)
+	ctx = tenant.OutgoingContext(ctx)
+	return ctx
+}
+
 // runDeploy streams build logs from the builder and, on success, deploys the image.
 func (c *Client) runDeploy(token, workspace, deployID, projectID, service, environment, buildID string) {
-	ctx := auth.WithToken(context.Background(), token)
-	ctx = tenant.WithWorkspace(ctx, workspace)
-	ctx = auth.OutgoingContext(ctx)
-	ctx = tenant.OutgoingContext(ctx)
+	// Build a base context with auth ingredients. Each gRPC call mints a fresh
+	// short-lived JWT via auth.OutgoingContext, avoiding token expiry during
+	// long-running polling loops.
+	base := auth.WithToken(context.Background(), token)
+	base = tenant.WithWorkspace(base, workspace)
+	base = auth.WithActiveWorkspace(base, workspace)
+	if c.Issuer != nil {
+		base = auth.WithIssuer(base, c.Issuer)
+	}
+	// Reconstruct claims from the token for JWT minting in background goroutines.
+	if claims := auth.FromContext(base); claims == nil {
+		if decoded, err := auth.DecodeTokenClaims(token); err == nil {
+			base = auth.WithClaims(base, decoded)
+		}
+	}
 
 	c.DeployTracker.AppendLog(deployID, "Queued for build...")
 
 	// Stream build logs in a background goroutine.
-	go c.streamBuildLogs(ctx, deployID, buildID)
+	go c.streamBuildLogs(c.grpcCtx(base), deployID, buildID)
 
 	// Poll build status for phase transitions.
 	deadline := time.Now().Add(maxBuildDuration)
 	for time.Now().Before(deadline) {
 		time.Sleep(2 * time.Second)
 
-		status, err := c.Builder.BuildStatus(ctx, &builder.BuildStatusRequest{BuildId: buildID})
+		status, err := c.Builder.BuildStatus(c.grpcCtx(base), &builder.BuildStatusRequest{BuildId: buildID})
 		if err != nil {
 			slog.Error("deploy: failed to poll build status", "deployId", deployID, "buildId", buildID, "error", err)
 			c.DeployTracker.Fail(deployID, fmt.Sprintf("failed to poll build status: %v", err))
@@ -484,7 +504,7 @@ func (c *Client) runDeploy(token, workspace, deployID, projectID, service, envir
 		switch status.Phase {
 		case builder.BuildPhase_BUILD_PHASE_SUCCEEDED:
 			c.DeployTracker.AppendLog(deployID, "Build succeeded")
-			c.finalizeDeploy(ctx, deployID, projectID, service, environment, status.ImageRef, status.Digest)
+			c.finalizeDeploy(base, deployID, projectID, service, environment, status.ImageRef, status.Digest)
 			return
 		case builder.BuildPhase_BUILD_PHASE_FAILED:
 			c.DeployTracker.AppendLog(deployID, fmt.Sprintf("Build failed: %s", status.Error))
@@ -527,7 +547,7 @@ func (c *Client) finalizeDeploy(ctx context.Context, deployID, projectID, servic
 	tag := extractTag(imageRef)
 
 	c.DeployTracker.AppendLog(deployID, fmt.Sprintf("Updating GitOps repo (tag: %s)", tag))
-	_, err := c.Packager.UpdateImageTag(ctx, &packager.UpdateImageTagRequest{
+	_, err := c.Packager.UpdateImageTag(c.grpcCtx(ctx), &packager.UpdateImageTagRequest{
 		Project:     projectID,
 		Environment: environment,
 		Service:     service,
@@ -542,7 +562,7 @@ func (c *Client) finalizeDeploy(ctx context.Context, deployID, projectID, servic
 
 	c.DeployTracker.AppendLog(deployID, "Triggering ArgoCD sync...")
 	// Trigger ArgoCD sync (best-effort)
-	_, err = c.Deployer.SyncDeployment(ctx, &deployer.SyncDeploymentRequest{
+	_, err = c.Deployer.SyncDeployment(c.grpcCtx(ctx), &deployer.SyncDeploymentRequest{
 		Project:     projectID,
 		Environment: environment,
 	})
@@ -560,7 +580,7 @@ func (c *Client) finalizeDeploy(ctx context.Context, deployID, projectID, servic
 	for time.Now().Before(deadline) {
 		time.Sleep(3 * time.Second)
 
-		resp, err := c.Deployer.GetDeploymentStatus(ctx, &deployer.GetDeploymentStatusRequest{
+		resp, err := c.Deployer.GetDeploymentStatus(c.grpcCtx(ctx), &deployer.GetDeploymentStatusRequest{
 			Project:     projectID,
 			Environment: environment,
 		})
@@ -749,7 +769,7 @@ func (c *Client) IsPlatformDomain(hostname string) bool {
 // CheckDns performs a live DNS check for a custom domain.
 // It verifies that the domain has a CNAME record pointing to the platform's domain target.
 // For custom domains, also looks up TLS certificate status from the deployer.
-func (c *Client) CheckDns(hostname string) DnsCheck {
+func (c *Client) CheckDns(ctx context.Context, hostname string) DnsCheck {
 	result := DnsCheck{
 		Hostname:       hostname,
 		ExpectedTarget: c.DomainTarget,
@@ -762,7 +782,7 @@ func (c *Client) CheckDns(hostname string) DnsCheck {
 	}
 
 	// Look up TLS cert status for custom domains.
-	statusCtx, statusCancel := context.WithTimeout(context.Background(), 3*time.Second)
+	statusCtx, statusCancel := context.WithTimeout(c.grpcCtx(ctx), 3*time.Second)
 	defer statusCancel()
 	resp, err := c.Deployer.CustomDomainStatus(statusCtx, &deployer.CustomDomainStatusRequest{
 		Hostname: hostname,
@@ -830,12 +850,12 @@ func (c *Client) CheckDns(hostname string) DnsCheck {
 }
 
 // BuildDomain constructs a Domain struct with type, DNS status, and TLS status.
-func (c *Client) BuildDomain(hostname string) Domain {
+func (c *Client) BuildDomain(ctx context.Context, hostname string) Domain {
 	domainType := "CUSTOM"
 	if c.IsPlatformDomain(hostname) {
 		domainType = "PLATFORM"
 	}
-	check := c.CheckDns(hostname)
+	check := c.CheckDns(ctx, hostname)
 	return Domain{
 		Hostname:  hostname,
 		Type:      domainType,
@@ -897,7 +917,7 @@ func (c *Client) GenerateDomain(ctx context.Context, projectID, service, environ
 		slog.Warn("failed to trigger sync after domain add", "project", projectID, "environment", environment, "error", err)
 	}
 
-	d := c.BuildDomain(hostname)
+	d := c.BuildDomain(ctx, hostname)
 	return &d, nil
 }
 
@@ -1039,7 +1059,7 @@ func (c *Client) AddCustomDomain(ctx context.Context, projectID, service, enviro
 	}
 
 	domainType := "CUSTOM"
-	check := c.CheckDns(hostname)
+	check := c.CheckDns(ctx, hostname)
 	d := &Domain{
 		Hostname:  hostname,
 		Type:      domainType,

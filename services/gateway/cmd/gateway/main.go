@@ -206,7 +206,7 @@ func main() {
 	secure := secureCookies(config.DashboardURL)
 	tokenRefresher := newTokenRefresher(oidcProvider, secure)
 
-	api := handler.New(packagerClient, builderClient, deployerClient, cashierClient, githubApp, logtoClient, tokenRefresher, config.RegistryURL, registryImagePrefix, config.WorkloadDomain, domainTarget, config.IPAddress, config.GitHubAppSlug, config.DashboardURL)
+	api := handler.New(packagerClient, builderClient, deployerClient, cashierClient, internalIssuer, githubApp, logtoClient, tokenRefresher, config.RegistryURL, registryImagePrefix, config.WorkloadDomain, domainTarget, config.IPAddress, config.GitHubAppSlug, config.DashboardURL)
 
 	components := []grpcComponent{
 		{name: "builder", conn: builderConn},

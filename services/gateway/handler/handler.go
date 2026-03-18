@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"sync"
 
+	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/builder"
 	"github.com/zeitlos/lucity/pkg/cashier"
 	"github.com/zeitlos/lucity/pkg/deployer"
@@ -26,6 +27,7 @@ type Client struct {
 	Builder             builder.BuilderServiceClient
 	Deployer            deployer.DeployerServiceClient
 	Cashier             cashier.CashierServiceClient // nil if billing disabled
+	Issuer              *auth.Issuer                 // ES256 JWT issuer for gRPC auth (nil = no auth)
 	GitHubApp           *ghpkg.App                   // for minting installation tokens (repo access)
 	Logto               *logto.Client
 	DeployTracker       *deploy.Tracker
@@ -48,12 +50,13 @@ type Client struct {
 	orgIDCacheMu sync.RWMutex
 }
 
-func New(packagerClient packager.PackagerServiceClient, builderClient builder.BuilderServiceClient, deployerClient deployer.DeployerServiceClient, cashierClient cashier.CashierServiceClient, githubApp *ghpkg.App, logtoClient *logto.Client, tokenRefresher TokenRefresher, registryPushURL, registryImagePrefix, workloadDomain, domainTarget, ipAddress, githubAppSlug, dashboardURL string) *Client {
+func New(packagerClient packager.PackagerServiceClient, builderClient builder.BuilderServiceClient, deployerClient deployer.DeployerServiceClient, cashierClient cashier.CashierServiceClient, issuer *auth.Issuer, githubApp *ghpkg.App, logtoClient *logto.Client, tokenRefresher TokenRefresher, registryPushURL, registryImagePrefix, workloadDomain, domainTarget, ipAddress, githubAppSlug, dashboardURL string) *Client {
 	return &Client{
 		Packager:            packagerClient,
 		Builder:             builderClient,
 		Deployer:            deployerClient,
 		Cashier:             cashierClient,
+		Issuer:              issuer,
 		GitHubApp:           githubApp,
 		Logto:               logtoClient,
 		DeployTracker:       deploy.NewTracker(),

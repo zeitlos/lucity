@@ -167,7 +167,7 @@ func (r *queryResolver) PlatformConfig(ctx context.Context) (*model.PlatformConf
 
 // CheckDNSStatus is the resolver for the checkDnsStatus field.
 func (r *queryResolver) CheckDNSStatus(ctx context.Context, hostname string) (*model.DNSCheck, error) {
-	check := r.API.CheckDns(hostname)
+	check := r.API.CheckDns(ctx, hostname)
 	return convertDnsCheck(check), nil
 }
 
