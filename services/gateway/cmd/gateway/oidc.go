@@ -374,6 +374,7 @@ func handleCallback(provider *OIDCProvider, api *handler.Client, logtoClient *lo
 		})
 
 		// Store refresh token for silent token renewal
+		slog.Debug("oauth2 token response", "has_refresh_token", oauth2Token.RefreshToken != "", "has_access_token", oauth2Token.AccessToken != "", "token_type", oauth2Token.TokenType, "expiry", oauth2Token.Expiry)
 		if oauth2Token.RefreshToken != "" {
 			http.SetCookie(w, &http.Cookie{
 				Name:     refreshCookieName,

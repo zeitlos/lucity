@@ -181,10 +181,14 @@ func (s *Server) DeleteImages(ctx context.Context, req *builder.DeleteImagesRequ
 	return &builder.DeleteImagesResponse{DeletedRepositories: deleted}, nil
 }
 
+// maxBuildDuration is the maximum time to wait for a build to complete.
+const maxBuildDuration = 30 * time.Minute
+
 // runBuild executes the full build pipeline in a background goroutine.
 // Creates a K8s Job and polls for completion — the Job pod handles clone/build/push.
 func (s *Server) runBuild(buildID, token string, req *builder.StartBuildRequest) {
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), maxBuildDuration)
+	defer cancel()
 
 	s.tracker.Update(buildID, builder.BuildPhase_BUILD_PHASE_BUILDING)
 	result, err := s.engine.Build(ctx, engine.BuildOpts{
@@ -197,6 +201,7 @@ func (s *Server) runBuild(buildID, token string, req *builder.StartBuildRequest)
 		Insecure:    s.registryInsecure,
 	})
 	if err != nil {
+		slog.Error("build failed", "build_id", buildID, "error", err)
 		s.tracker.Fail(buildID, fmt.Sprintf("build failed: %v", err))
 		return
 	}

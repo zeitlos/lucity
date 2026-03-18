@@ -1,11 +1,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
+	"time"
 
 	"github.com/kelseyhightower/envconfig"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -61,11 +64,21 @@ func main() {
 	ctx, cancel := graceful.Context()
 	defer cancel()
 
-	eng, tracker, err := setupEngine(config)
+	eng, tracker, k8sClient, err := setupEngine(config)
 	if err != nil {
 		slog.Error("failed to setup engine", "error", err)
 		os.Exit(1)
 	}
+
+	// Verify K8s connectivity at startup so we fail fast if the cluster is unreachable.
+	checkCtx, checkCancel := context.WithTimeout(ctx, 10*time.Second)
+	_, err = k8sClient.CoreV1().Namespaces().Get(checkCtx, config.BuildNamespace, metav1.GetOptions{})
+	checkCancel()
+	if err != nil {
+		slog.Error("K8s connectivity check failed — cannot reach cluster or namespace", "namespace", config.BuildNamespace, "error", err)
+		os.Exit(1)
+	}
+	slog.Info("K8s connectivity verified", "namespace", config.BuildNamespace)
 
 	svc := buildergrpc.NewServer(eng, tracker, config.RegistryURL, config.RegistryUsername, config.RegistryPassword, config.RegistryInsecure, config.WorkDir)
 
@@ -80,14 +93,14 @@ func main() {
 	graceful.Serve(ctx, grpcServer)
 }
 
-func setupEngine(config Config) (engine.Engine, build.Tracker, error) {
+func setupEngine(config Config) (engine.Engine, build.Tracker, kubernetes.Interface, error) {
 	if config.BuildImage == "" {
-		return nil, nil, fmt.Errorf("BUILD_IMAGE is required")
+		return nil, nil, nil, fmt.Errorf("BUILD_IMAGE is required")
 	}
 
 	k8sClient, err := kubernetesClient(config.KubeContext)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create k8s client: %w", err)
+		return nil, nil, nil, fmt.Errorf("failed to create k8s client: %w", err)
 	}
 
 	eng := engine.NewKubernetesEngine(engine.KubernetesEngineOpts{
@@ -102,7 +115,7 @@ func setupEngine(config Config) (engine.Engine, build.Tracker, error) {
 
 	tracker := build.NewK8sTracker(k8sClient, config.BuildNamespace)
 
-	return eng, tracker, nil
+	return eng, tracker, k8sClient, nil
 }
 
 func kubernetesClient(kubeContext string) (kubernetes.Interface, error) {

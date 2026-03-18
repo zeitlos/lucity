@@ -455,11 +455,11 @@ func (c *Client) ActiveDeployment(ctx context.Context, projectID, service, envir
 const maxBuildDuration = 30 * time.Minute
 
 // grpcCtx mints a fresh short-lived JWT from the base context for a gRPC call.
-// Use this instead of pre-minting a context with auth.OutgoingContext, which would
-// produce a JWT that expires after 30 seconds — too short for polling loops.
+// Includes a default timeout to prevent indefinite hangs in polling loops.
 func (c *Client) grpcCtx(base context.Context) context.Context {
 	ctx := auth.OutgoingContext(base)
 	ctx = tenant.OutgoingContext(ctx)
+	ctx, _ = context.WithTimeout(ctx, grpcTimeout)
 	return ctx
 }
 
@@ -476,10 +476,18 @@ func (c *Client) runDeploy(claims *auth.Claims, workspace, deployID, projectID, 
 		base = auth.WithIssuer(base, c.Issuer)
 	}
 
+	slog.Info("deploy: goroutine started", "deployId", deployID, "buildId", buildID, "hasClaims", claims != nil, "hasIssuer", c.Issuer != nil, "workspace", workspace)
 	c.DeployTracker.AppendLog(deployID, "Queued for build...")
 
 	// Stream build logs in a background goroutine.
-	go c.streamBuildLogs(c.grpcCtx(base), deployID, buildID)
+	// Uses a long-lived context (not grpcCtx which has a short timeout for unary RPCs).
+	logCtx := auth.OutgoingContext(base)
+	logCtx = tenant.OutgoingContext(logCtx)
+	logCtx, logCancel := context.WithTimeout(logCtx, maxBuildDuration)
+	go func() {
+		defer logCancel()
+		c.streamBuildLogs(logCtx, deployID, buildID)
+	}()
 
 	// Poll build status for phase transitions.
 	deadline := time.Now().Add(maxBuildDuration)
