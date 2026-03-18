@@ -218,6 +218,8 @@ type DNSCheck struct {
 	ExpectedTarget string `json:"expectedTarget"`
 	// Human-readable message explaining the current status.
 	Message *string `json:"message,omitempty"`
+	// TLS certificate provisioning status for custom domains.
+	TLSStatus *TLSStatus `json:"tlsStatus,omitempty"`
 }
 
 type Domain struct {

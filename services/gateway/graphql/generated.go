@@ -165,6 +165,7 @@ type ComplexityRoot struct {
 		Hostname       func(childComplexity int) int
 		Message        func(childComplexity int) int
 		Status         func(childComplexity int) int
+		TLSStatus      func(childComplexity int) int
 	}
 
 	Domain struct {
@@ -913,6 +914,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.DnsCheck.Status(childComplexity), true
+	case "DnsCheck.tlsStatus":
+		if e.complexity.DnsCheck.TLSStatus == nil {
+			break
+		}
+
+		return e.complexity.DnsCheck.TLSStatus(childComplexity), true
 
 	case "Domain.dnsStatus":
 		if e.complexity.Domain.DNSStatus == nil {
@@ -5011,6 +5018,35 @@ func (ec *executionContext) fieldContext_DnsCheck_message(_ context.Context, fie
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DnsCheck_tlsStatus(ctx context.Context, field graphql.CollectedField, obj *model.DNSCheck) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_DnsCheck_tlsStatus,
+		func(ctx context.Context) (any, error) {
+			return obj.TLSStatus, nil
+		},
+		nil,
+		ec.marshalOTlsStatus2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐTLSStatus,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_DnsCheck_tlsStatus(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DnsCheck",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type TlsStatus does not have child fields")
 		},
 	}
 	return fc, nil
@@ -9438,6 +9474,8 @@ func (ec *executionContext) fieldContext_Query_checkDnsStatus(ctx context.Contex
 				return ec.fieldContext_DnsCheck_expectedTarget(ctx, field)
 			case "message":
 				return ec.fieldContext_DnsCheck_message(ctx, field)
+			case "tlsStatus":
+				return ec.fieldContext_DnsCheck_tlsStatus(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type DnsCheck", field.Name)
 		},
@@ -15404,6 +15442,8 @@ func (ec *executionContext) _DnsCheck(ctx context.Context, sel ast.SelectionSet,
 			}
 		case "message":
 			out.Values[i] = ec._DnsCheck_message(ctx, field, obj)
+		case "tlsStatus":
+			out.Values[i] = ec._DnsCheck_tlsStatus(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -19929,6 +19969,22 @@ func (ec *executionContext) marshalOTime2ᚖtimeᚐTime(ctx context.Context, sel
 	_ = ctx
 	res := graphql.MarshalTime(*v)
 	return res
+}
+
+func (ec *executionContext) unmarshalOTlsStatus2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐTLSStatus(ctx context.Context, v any) (*model.TLSStatus, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var res = new(model.TLSStatus)
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOTlsStatus2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐTLSStatus(ctx context.Context, sel ast.SelectionSet, v *model.TLSStatus) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return v
 }
 
 func (ec *executionContext) marshalOUsageSummary2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐUsageSummary(ctx context.Context, sel ast.SelectionSet, v *model.UsageSummary) graphql.Marshaler {

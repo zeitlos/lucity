@@ -158,6 +158,10 @@ func convertDnsCheck(d handler.DnsCheck) *model.DNSCheck {
 	if d.Message != "" {
 		result.Message = &d.Message
 	}
+	if d.TlsStatus != "" {
+		tlsStatus := model.TLSStatus(d.TlsStatus)
+		result.TLSStatus = &tlsStatus
+	}
 	return result
 }
 

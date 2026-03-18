@@ -96,6 +96,8 @@ type DnsCheck {
   expectedTarget: String!
   """Human-readable message explaining the current status."""
   message: String
+  """TLS certificate provisioning status for custom domains."""
+  tlsStatus: TlsStatus
 }
 
 extend type Query {

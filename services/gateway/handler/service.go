@@ -716,6 +716,7 @@ type DnsCheck struct {
 	CnameTarget    string // actual CNAME target found, empty if none
 	ExpectedTarget string // platform's domain target
 	Message        string // human-readable explanation
+	TlsStatus      string // "NONE", "PROVISIONING", "ACTIVE", "ERROR" (custom domains only)
 }
 
 // PlatformConfig returns platform-level configuration for domain management.
@@ -730,6 +731,7 @@ func (c *Client) IsPlatformDomain(hostname string) bool {
 
 // CheckDns performs a live DNS check for a custom domain.
 // It verifies that the domain has a CNAME record pointing to the platform's domain target.
+// For custom domains, also looks up TLS certificate status from the deployer.
 func (c *Client) CheckDns(hostname string) DnsCheck {
 	result := DnsCheck{
 		Hostname:       hostname,
@@ -740,6 +742,18 @@ func (c *Client) CheckDns(hostname string) DnsCheck {
 		result.Status = "VALID"
 		result.Message = "Platform domain"
 		return result
+	}
+
+	// Look up TLS cert status for custom domains.
+	statusCtx, statusCancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer statusCancel()
+	resp, err := c.Deployer.CustomDomainStatus(statusCtx, &deployer.CustomDomainStatusRequest{
+		Hostname: hostname,
+	})
+	if err != nil {
+		slog.Debug("failed to check TLS status", "hostname", hostname, "error", err)
+	} else {
+		result.TlsStatus = resp.TlsStatus
 	}
 
 	lookupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -801,29 +815,15 @@ func (c *Client) CheckDns(hostname string) DnsCheck {
 // BuildDomain constructs a Domain struct with type, DNS status, and TLS status.
 func (c *Client) BuildDomain(hostname string) Domain {
 	domainType := "CUSTOM"
-	tlsStatus := "NONE"
 	if c.IsPlatformDomain(hostname) {
 		domainType = "PLATFORM"
-	} else {
-		// Look up TLS cert status for custom domains
-		statusCtx, statusCancel := context.WithTimeout(context.Background(), 3*time.Second)
-		defer statusCancel()
-		resp, err := c.Deployer.CustomDomainStatus(statusCtx, &deployer.CustomDomainStatusRequest{
-			Hostname: hostname,
-		})
-		if err != nil {
-			slog.Debug("failed to check TLS status", "hostname", hostname, "error", err)
-			tlsStatus = "NONE"
-		} else {
-			tlsStatus = resp.TlsStatus
-		}
 	}
 	check := c.CheckDns(hostname)
 	return Domain{
 		Hostname:  hostname,
 		Type:      domainType,
 		DnsStatus: check.Status,
-		TlsStatus: tlsStatus,
+		TlsStatus: check.TlsStatus,
 	}
 }
 

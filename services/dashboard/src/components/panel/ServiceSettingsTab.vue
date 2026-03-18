@@ -819,14 +819,34 @@ async function handleRemoveService() {
                       >
                         <Copy :size="14" />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        class="h-8 w-8 shrink-0 text-destructive"
-                        @click="handleRemoveDomain(domain.hostname)"
-                      >
-                        <X :size="14" />
-                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger as-child>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            class="h-8 w-8 shrink-0 text-destructive"
+                          >
+                            <X :size="14" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Remove domain</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Remove <strong class="font-mono">{{ domain.hostname }}</strong> from this service? This will also delete the TLS certificate.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              @click="handleRemoveDomain(domain.hostname)"
+                            >
+                              Remove
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </div>
                   </div>
                 </div>

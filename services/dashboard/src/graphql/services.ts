@@ -134,6 +134,7 @@ export const CheckDnsStatusQuery = gql`
       cnameTarget
       expectedTarget
       message
+      tlsStatus
     }
   }
 `;

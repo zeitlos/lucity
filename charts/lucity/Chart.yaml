@@ -2,5 +2,5 @@ apiVersion: v2
 name: lucity
 description: Lucity PaaS platform
 type: application
-version: 0.1.0
-appVersion: "0.1.0"
+version: 0.0.0-517-g1ea27bd
+appVersion: "0.0.0-517-g1ea27bd"
