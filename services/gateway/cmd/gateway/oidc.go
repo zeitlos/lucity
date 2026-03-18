@@ -263,29 +263,25 @@ func handleCallback(provider *OIDCProvider, api *handler.Client, logtoClient *lo
 			return
 		}
 
-		// Derive username for personal workspace ID.
-		// Always prefer the GitHub login as the canonical source for workspace ID
-		// derivation, because the Logto username is sanitized (hyphens → underscores)
-		// and would produce a different workspace ID than the original GitHub login.
-		var username string
-		if logtoClient != nil {
-			ghLogin, err := logtoClient.UserGitHubLogin(r.Context(), idToken.Subject)
+		// The Logto username is the stable source of truth for workspace ID.
+		// On first login it's empty — derive it from the social identity (GitHub/
+		// GitLab/Bitbucket login), sanitize it, and persist it on Logto with
+		// conflict resolution. On subsequent logins, read it straight from the
+		// ID token claims.
+		username := oidcClaims.Username
+		if username == "" && logtoClient != nil {
+			socialLogin, err := logtoClient.SocialLogin(r.Context(), idToken.Subject)
 			if err != nil {
-				slog.Error("failed to fetch GitHub login from Logto", "error", err)
-			} else if ghLogin != "" {
-				username = ghLogin
-				// Best-effort: set sanitized username on Logto for display purposes.
-				if oidcClaims.Username == "" {
-					if err := logtoClient.UpdateUsername(r.Context(), idToken.Subject, ghLogin); err != nil {
-						slog.Warn("failed to set username on Logto", "error", err, "login", ghLogin)
-					} else {
-						slog.Info("set username from GitHub login", "username", ghLogin, "email", oidcClaims.Email)
-					}
+				slog.Error("failed to fetch social login from Logto", "error", err)
+			} else if socialLogin != "" {
+				set, err := logtoClient.EnsureUsername(r.Context(), idToken.Subject, socialLogin)
+				if err != nil {
+					slog.Error("failed to set Logto username", "error", err, "login", socialLogin)
+				} else {
+					slog.Info("username set from social login", "username", set, "login", socialLogin, "email", oidcClaims.Email)
+					username = set
 				}
 			}
-		}
-		if username == "" {
-			username = oidcClaims.Username
 		}
 		if username == "" {
 			slog.Warn("no username for personal workspace", "email", oidcClaims.Email)
@@ -559,6 +555,8 @@ func handleRefresh(provider *OIDCProvider, logtoClient *logto.Client, sessionSec
 
 // handleGitHubInstall redirects to GitHub App installation page.
 // Users can install the GitHub App on new accounts to make them available as sources.
+// Passes redirect_url so GitHub redirects back to our setup handler after installation,
+// regardless of how the App's "Setup URL" is configured on GitHub.
 func handleGitHubInstall(githubAppSlug string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if githubAppSlug == "" {
@@ -572,7 +570,24 @@ func handleGitHubInstall(githubAppSlug string) http.HandlerFunc {
 			return
 		}
 
-		installURL := fmt.Sprintf("https://github.com/apps/%s/installations/new", githubAppSlug)
+		// Use the request's scheme+host to build the setup callback URL.
+		// This ensures the redirect works in both dev (localhost:8080) and prod (lucity.cloud).
+		scheme := r.Header.Get("X-Forwarded-Proto")
+		if scheme == "" {
+			if r.TLS != nil {
+				scheme = "https"
+			} else {
+				scheme = "http"
+			}
+		}
+		host := r.Header.Get("X-Forwarded-Host")
+		if host == "" {
+			host = r.Host
+		}
+		setupURL := fmt.Sprintf("%s://%s/auth/github/setup", scheme, host)
+
+		installURL := fmt.Sprintf("https://github.com/apps/%s/installations/new?redirect_url=%s",
+			githubAppSlug, url.QueryEscape(setupURL))
 		http.Redirect(w, r, installURL, http.StatusTemporaryRedirect)
 	}
 }
