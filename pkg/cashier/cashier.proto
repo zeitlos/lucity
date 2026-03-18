@@ -28,6 +28,14 @@ service CashierService {
 
   // RetrieveCheckoutSession retrieves a completed Checkout Session for verification.
   rpc RetrieveCheckoutSession(RetrieveCheckoutSessionRequest) returns (RetrieveCheckoutSessionResponse);
+
+  // CreatePlanCheckoutSession creates a setup-mode Stripe Checkout Session to collect
+  // a payment method for an existing customer. After completion, call AddPlan.
+  rpc CreatePlanCheckoutSession(CreatePlanCheckoutSessionRequest) returns (CreatePlanCheckoutSessionResponse);
+
+  // AddPlan adds a plan subscription item and sets the default payment method.
+  // Called after a setup-mode checkout session completes.
+  rpc AddPlan(AddPlanRequest) returns (AddPlanResponse);
 }
 
 enum Plan {
@@ -57,8 +65,7 @@ message CreateCustomerResponse {
 message CreateSubscriptionRequest {
   string workspace = 1;
   string customer_id = 2;
-  Plan plan = 3;
-  int32 credit_days = 4;
+  int32 credit_days = 3;
 }
 
 message CreateSubscriptionResponse {
@@ -147,4 +154,33 @@ message RetrieveCheckoutSessionResponse {
   string email = 7;
   string customer_id = 8;
   string subscription_id = 9;
+}
+
+message CreatePlanCheckoutSessionRequest {
+  string workspace = 1;
+  string customer_id = 2;
+  Plan plan = 3;
+  string success_url = 4;
+  string cancel_url = 5;
+}
+
+message CreatePlanCheckoutSessionResponse {
+  string url = 1;
+  string session_id = 2;
+}
+
+message AddPlanRequest {
+  string workspace = 1;
+  string customer_id = 2;
+  string subscription_id = 3;
+  Plan plan = 4;
+  string checkout_session_id = 5;
+}
+
+message AddPlanResponse {
+  Plan plan = 1;
+  SubscriptionStatus status = 2;
+  int64 current_period_end = 3;
+  int32 credit_amount_cents = 4;
+  bool has_payment_method = 5;
 }

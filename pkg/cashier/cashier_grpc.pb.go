@@ -19,14 +19,16 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	CashierService_CreateCustomer_FullMethodName          = "/cashier.CashierService/CreateCustomer"
-	CashierService_CreateSubscription_FullMethodName      = "/cashier.CashierService/CreateSubscription"
-	CashierService_ChangePlan_FullMethodName              = "/cashier.CashierService/ChangePlan"
-	CashierService_Subscription_FullMethodName            = "/cashier.CashierService/Subscription"
-	CashierService_BillingPortalURL_FullMethodName        = "/cashier.CashierService/BillingPortalURL"
-	CashierService_UsageSummary_FullMethodName            = "/cashier.CashierService/UsageSummary"
-	CashierService_CreateCheckoutSession_FullMethodName   = "/cashier.CashierService/CreateCheckoutSession"
-	CashierService_RetrieveCheckoutSession_FullMethodName = "/cashier.CashierService/RetrieveCheckoutSession"
+	CashierService_CreateCustomer_FullMethodName            = "/cashier.CashierService/CreateCustomer"
+	CashierService_CreateSubscription_FullMethodName        = "/cashier.CashierService/CreateSubscription"
+	CashierService_ChangePlan_FullMethodName                = "/cashier.CashierService/ChangePlan"
+	CashierService_Subscription_FullMethodName              = "/cashier.CashierService/Subscription"
+	CashierService_BillingPortalURL_FullMethodName          = "/cashier.CashierService/BillingPortalURL"
+	CashierService_UsageSummary_FullMethodName              = "/cashier.CashierService/UsageSummary"
+	CashierService_CreateCheckoutSession_FullMethodName     = "/cashier.CashierService/CreateCheckoutSession"
+	CashierService_RetrieveCheckoutSession_FullMethodName   = "/cashier.CashierService/RetrieveCheckoutSession"
+	CashierService_CreatePlanCheckoutSession_FullMethodName = "/cashier.CashierService/CreatePlanCheckoutSession"
+	CashierService_AddPlan_FullMethodName                   = "/cashier.CashierService/AddPlan"
 )
 
 // CashierServiceClient is the client API for CashierService service.
@@ -49,6 +51,12 @@ type CashierServiceClient interface {
 	CreateCheckoutSession(ctx context.Context, in *CreateCheckoutSessionRequest, opts ...grpc.CallOption) (*CreateCheckoutSessionResponse, error)
 	// RetrieveCheckoutSession retrieves a completed Checkout Session for verification.
 	RetrieveCheckoutSession(ctx context.Context, in *RetrieveCheckoutSessionRequest, opts ...grpc.CallOption) (*RetrieveCheckoutSessionResponse, error)
+	// CreatePlanCheckoutSession creates a setup-mode Stripe Checkout Session to collect
+	// a payment method for an existing customer. After completion, call AddPlan.
+	CreatePlanCheckoutSession(ctx context.Context, in *CreatePlanCheckoutSessionRequest, opts ...grpc.CallOption) (*CreatePlanCheckoutSessionResponse, error)
+	// AddPlan adds a plan subscription item and sets the default payment method.
+	// Called after a setup-mode checkout session completes.
+	AddPlan(ctx context.Context, in *AddPlanRequest, opts ...grpc.CallOption) (*AddPlanResponse, error)
 }
 
 type cashierServiceClient struct {
@@ -139,6 +147,26 @@ func (c *cashierServiceClient) RetrieveCheckoutSession(ctx context.Context, in *
 	return out, nil
 }
 
+func (c *cashierServiceClient) CreatePlanCheckoutSession(ctx context.Context, in *CreatePlanCheckoutSessionRequest, opts ...grpc.CallOption) (*CreatePlanCheckoutSessionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreatePlanCheckoutSessionResponse)
+	err := c.cc.Invoke(ctx, CashierService_CreatePlanCheckoutSession_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *cashierServiceClient) AddPlan(ctx context.Context, in *AddPlanRequest, opts ...grpc.CallOption) (*AddPlanResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AddPlanResponse)
+	err := c.cc.Invoke(ctx, CashierService_AddPlan_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // CashierServiceServer is the server API for CashierService service.
 // All implementations must embed UnimplementedCashierServiceServer
 // for forward compatibility.
@@ -159,6 +187,12 @@ type CashierServiceServer interface {
 	CreateCheckoutSession(context.Context, *CreateCheckoutSessionRequest) (*CreateCheckoutSessionResponse, error)
 	// RetrieveCheckoutSession retrieves a completed Checkout Session for verification.
 	RetrieveCheckoutSession(context.Context, *RetrieveCheckoutSessionRequest) (*RetrieveCheckoutSessionResponse, error)
+	// CreatePlanCheckoutSession creates a setup-mode Stripe Checkout Session to collect
+	// a payment method for an existing customer. After completion, call AddPlan.
+	CreatePlanCheckoutSession(context.Context, *CreatePlanCheckoutSessionRequest) (*CreatePlanCheckoutSessionResponse, error)
+	// AddPlan adds a plan subscription item and sets the default payment method.
+	// Called after a setup-mode checkout session completes.
+	AddPlan(context.Context, *AddPlanRequest) (*AddPlanResponse, error)
 	mustEmbedUnimplementedCashierServiceServer()
 }
 
@@ -192,6 +226,12 @@ func (UnimplementedCashierServiceServer) CreateCheckoutSession(context.Context, 
 }
 func (UnimplementedCashierServiceServer) RetrieveCheckoutSession(context.Context, *RetrieveCheckoutSessionRequest) (*RetrieveCheckoutSessionResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RetrieveCheckoutSession not implemented")
+}
+func (UnimplementedCashierServiceServer) CreatePlanCheckoutSession(context.Context, *CreatePlanCheckoutSessionRequest) (*CreatePlanCheckoutSessionResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreatePlanCheckoutSession not implemented")
+}
+func (UnimplementedCashierServiceServer) AddPlan(context.Context, *AddPlanRequest) (*AddPlanResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AddPlan not implemented")
 }
 func (UnimplementedCashierServiceServer) mustEmbedUnimplementedCashierServiceServer() {}
 func (UnimplementedCashierServiceServer) testEmbeddedByValue()                        {}
@@ -358,6 +398,42 @@ func _CashierService_RetrieveCheckoutSession_Handler(srv interface{}, ctx contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _CashierService_CreatePlanCheckoutSession_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreatePlanCheckoutSessionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CashierServiceServer).CreatePlanCheckoutSession(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: CashierService_CreatePlanCheckoutSession_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CashierServiceServer).CreatePlanCheckoutSession(ctx, req.(*CreatePlanCheckoutSessionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _CashierService_AddPlan_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AddPlanRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CashierServiceServer).AddPlan(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: CashierService_AddPlan_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CashierServiceServer).AddPlan(ctx, req.(*AddPlanRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // CashierService_ServiceDesc is the grpc.ServiceDesc for CashierService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -396,6 +472,14 @@ var CashierService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RetrieveCheckoutSession",
 			Handler:    _CashierService_RetrieveCheckoutSession_Handler,
+		},
+		{
+			MethodName: "CreatePlanCheckoutSession",
+			Handler:    _CashierService_CreatePlanCheckoutSession_Handler,
+		},
+		{
+			MethodName: "AddPlan",
+			Handler:    _CashierService_AddPlan_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

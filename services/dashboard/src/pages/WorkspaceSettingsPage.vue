@@ -17,6 +17,7 @@ import {
   UsageSummaryQuery,
   ChangePlanMutation,
   BillingPortalUrlMutation,
+  CreatePlanCheckoutMutation,
 } from '@/graphql/billing';
 import { useAuth } from '@/composables/useAuth';
 import { apolloClient } from '@/lib/apollo';
@@ -177,7 +178,9 @@ const { mutate: changePlanMutate, loading: changingPlan } = useMutation(ChangePl
   refetchQueries: () => [{ query: SubscriptionQuery }, { query: UsageSummaryQuery }],
 });
 const { mutate: portalMutate, loading: openingPortal } = useMutation(BillingPortalUrlMutation);
+const { mutate: planCheckoutMutate, loading: startingPlanCheckout } = useMutation(CreatePlanCheckoutMutation);
 const confirmPlan = ref<string | null>(null);
+const isTrial = computed(() => billingAvailable.value && !subscription.value?.plan);
 
 function formatCents(cents: number): string {
   return `€${(cents / 100).toFixed(2)}`;
@@ -196,6 +199,18 @@ async function handleChangePlan() {
     toast.error('Failed to change plan', { description: errorMessage(e) });
   } finally {
     confirmPlan.value = null;
+  }
+}
+
+async function handlePlanCheckout(plan: string) {
+  try {
+    const res = await planCheckoutMutate({ plan });
+    const url = res?.data?.createPlanCheckout?.url;
+    if (url) {
+      window.location.href = url;
+    }
+  } catch (e: unknown) {
+    toast.error('Failed to start checkout', { description: errorMessage(e) });
   }
 }
 
@@ -469,27 +484,62 @@ async function handleDelete() {
               <div class="rounded-lg border p-4 space-y-3">
                 <div class="flex items-center justify-between">
                   <h3 class="text-sm font-medium">Subscription</h3>
-                  <Badge :variant="subscription!.status === 'ACTIVE' ? 'default' : 'destructive'">
+                  <Badge v-if="isTrial" variant="secondary">Trial</Badge>
+                  <Badge v-else :variant="subscription!.status === 'ACTIVE' ? 'default' : 'destructive'">
                     {{ subscription!.status === 'ACTIVE' ? 'Active' : subscription!.status === 'PAST_DUE' ? 'Past Due' : subscription!.status }}
                   </Badge>
                 </div>
                 <div class="flex items-center justify-between text-sm">
                   <span class="text-muted-foreground">Current plan</span>
-                  <span class="font-medium">{{ subscription!.plan === 'PRO' ? 'Pro' : 'Hobby' }}</span>
+                  <span class="font-medium">{{ isTrial ? 'Trial' : subscription!.plan === 'PRO' ? 'Pro' : 'Hobby' }}</span>
                 </div>
                 <div class="flex items-center justify-between text-sm">
                   <span class="text-muted-foreground">Current period ends</span>
                   <span>{{ formatDate(subscription!.currentPeriodEnd) }}</span>
                 </div>
-                <div class="flex items-center justify-between text-sm">
+                <div v-if="!isTrial" class="flex items-center justify-between text-sm">
                   <span class="text-muted-foreground">Plan credit</span>
                   <span>{{ formatCents(subscription!.creditAmountCents) }}/mo</span>
                 </div>
               </div>
 
-              <!-- Credits banner: no payment method yet -->
+              <!-- Trial banner: pick a plan -->
               <div
-                v-if="subscription!.creditExpiry && !subscription!.hasPaymentMethod"
+                v-if="isTrial && isAdmin"
+                class="rounded-lg border border-primary/30 bg-primary/5 p-4"
+              >
+                <p class="text-sm font-medium text-foreground">
+                  You're on a trial with &euro;5 in credits<template v-if="subscription!.creditExpiry">, expiring on {{ formatDate(subscription!.creditExpiry) }}</template>.
+                  Choose a plan and add a payment method to keep using the platform.
+                </p>
+                <p class="mt-1 text-xs text-muted-foreground">
+                  After credits expire, your workspace will be suspended until you subscribe.
+                </p>
+                <div class="mt-4 grid grid-cols-2 gap-3">
+                  <button
+                    class="rounded-lg border p-4 text-left transition-colors hover:border-muted-foreground/50"
+                    :disabled="startingPlanCheckout"
+                    @click="handlePlanCheckout('HOBBY')"
+                  >
+                    <p class="text-sm font-medium">Hobby</p>
+                    <p class="text-lg font-semibold">&euro;5<span class="text-sm font-normal text-muted-foreground">/mo</span></p>
+                    <p class="mt-1 text-xs text-muted-foreground">&euro;5 resource credit included</p>
+                  </button>
+                  <button
+                    class="rounded-lg border p-4 text-left transition-colors hover:border-muted-foreground/50"
+                    :disabled="startingPlanCheckout"
+                    @click="handlePlanCheckout('PRO')"
+                  >
+                    <p class="text-sm font-medium">Pro</p>
+                    <p class="text-lg font-semibold">&euro;25<span class="text-sm font-normal text-muted-foreground">/mo</span></p>
+                    <p class="mt-1 text-xs text-muted-foreground">&euro;25 resource credit included</p>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Credits banner: no payment method yet (non-trial, e.g. workspace checkout) -->
+              <div
+                v-else-if="subscription!.creditExpiry && !subscription!.hasPaymentMethod"
                 class="rounded-lg border border-primary/30 bg-primary/5 p-4"
               >
                 <p class="text-sm font-medium text-foreground">
@@ -521,8 +571,8 @@ async function handleDelete() {
                 </p>
               </div>
 
-              <!-- Plan switcher (admin only) -->
-              <div v-if="isAdmin" class="space-y-3">
+              <!-- Plan switcher (admin only, only when already on a plan) -->
+              <div v-if="isAdmin && !isTrial" class="space-y-3">
                 <h3 class="text-sm font-medium">Plan</h3>
                 <div class="grid grid-cols-2 gap-3">
                   <button
@@ -534,8 +584,8 @@ async function handleDelete() {
                     @click="confirmPlan = 'HOBBY'"
                   >
                     <p class="text-sm font-medium">Hobby</p>
-                    <p class="text-lg font-semibold">€5<span class="text-sm font-normal text-muted-foreground">/mo</span></p>
-                    <p class="mt-1 text-xs text-muted-foreground">€5 resource credit included</p>
+                    <p class="text-lg font-semibold">&euro;5<span class="text-sm font-normal text-muted-foreground">/mo</span></p>
+                    <p class="mt-1 text-xs text-muted-foreground">&euro;5 resource credit included</p>
                   </button>
                   <button
                     class="rounded-lg border p-4 text-left transition-colors"
@@ -546,8 +596,8 @@ async function handleDelete() {
                     @click="confirmPlan = 'PRO'"
                   >
                     <p class="text-sm font-medium">Pro</p>
-                    <p class="text-lg font-semibold">€25<span class="text-sm font-normal text-muted-foreground">/mo</span></p>
-                    <p class="mt-1 text-xs text-muted-foreground">€25 resource credit included</p>
+                    <p class="text-lg font-semibold">&euro;25<span class="text-sm font-normal text-muted-foreground">/mo</span></p>
+                    <p class="mt-1 text-xs text-muted-foreground">&euro;25 resource credit included</p>
                   </button>
                 </div>
               </div>
@@ -560,7 +610,7 @@ async function handleDelete() {
                       Switch to {{ confirmPlan === 'PRO' ? 'Pro' : 'Hobby' }}?
                     </AlertDialogTitle>
                     <AlertDialogDescription>
-                      Your plan will be changed to {{ confirmPlan === 'PRO' ? 'Pro (€25/mo)' : 'Hobby (€5/mo)' }}.
+                      Your plan will be changed to {{ confirmPlan === 'PRO' ? 'Pro (&euro;25/mo)' : 'Hobby (&euro;5/mo)' }}.
                       The change takes effect immediately with prorated billing.
                     </AlertDialogDescription>
                   </AlertDialogHeader>

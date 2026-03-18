@@ -314,8 +314,13 @@ func convertEnvironmentResources(r handler.EnvironmentResources) model.Environme
 }
 
 func convertBillingSubscription(s *handler.BillingSubscription) *model.BillingSubscription {
+	var plan *model.Plan
+	if s.Plan != nil {
+		p := model.Plan(*s.Plan)
+		plan = &p
+	}
 	return &model.BillingSubscription{
-		Plan:              model.Plan(s.Plan),
+		Plan:              plan,
 		Status:            model.SubscriptionStatus(s.Status),
 		CurrentPeriodEnd:  s.CurrentPeriodEnd,
 		CreditAmountCents: s.CreditAmountCents,

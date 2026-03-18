@@ -43,6 +43,26 @@ export const BillingPortalUrlMutation = gql`
   }
 `;
 
+export const CreatePlanCheckoutMutation = gql`
+  mutation CreatePlanCheckout($plan: Plan!) {
+    createPlanCheckout(plan: $plan) {
+      url
+    }
+  }
+`;
+
+export const CompletePlanCheckoutMutation = gql`
+  mutation CompletePlanCheckout($sessionId: String!) {
+    completePlanCheckout(sessionId: $sessionId) {
+      plan
+      status
+      currentPeriodEnd
+      creditAmountCents
+      hasPaymentMethod
+    }
+  }
+`;
+
 export const EnvironmentResourcesQuery = gql`
   query EnvironmentResources($projectId: ID!, $environment: String!) {
     environmentResources(projectId: $projectId, environment: $environment) {

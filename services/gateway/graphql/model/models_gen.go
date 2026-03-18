@@ -55,7 +55,7 @@ type BillingPortalURL struct {
 }
 
 type BillingSubscription struct {
-	Plan              Plan               `json:"plan"`
+	Plan              *Plan              `json:"plan,omitempty"`
 	Status            SubscriptionStatus `json:"status"`
 	CurrentPeriodEnd  time.Time          `json:"currentPeriodEnd"`
 	CreditAmountCents int                `json:"creditAmountCents"`

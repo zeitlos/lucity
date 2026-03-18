@@ -69,15 +69,17 @@ func (c *Client) CreateCustomer(ctx context.Context, workspace, name, email stri
 	return cust.ID, nil
 }
 
-// CreateSubscription creates a subscription with a plan + 6 metered resource line items.
-// creditDays > 0 creates a promotional credit grant that expires after that many days.
-// After creation, an initial credit grant is created for the billing period.
-func (c *Client) CreateSubscription(ctx context.Context, customerID, workspace string, planPriceID string, creditDays int) (string, error) {
+// TrialCreditCents is the fixed trial credit amount (EUR 5).
+const TrialCreditCents = 500
+
+// CreateSubscription creates a subscription with only metered resource line items.
+// No plan is included — the user adds a plan later via a setup checkout + AddPlan.
+// creditDays > 0 creates a promotional trial credit grant that expires after that many days.
+func (c *Client) CreateSubscription(ctx context.Context, customerID, workspace string, creditDays int) (string, error) {
 	params := &gostripe.SubscriptionParams{
 		Customer:        gostripe.String(customerID),
 		PaymentBehavior: gostripe.String("default_incomplete"),
 		Items: []*gostripe.SubscriptionItemsParams{
-			{Price: gostripe.String(planPriceID)},
 			{Price: gostripe.String(c.Prices.EcoCPUPriceID)},
 			{Price: gostripe.String(c.Prices.EcoMemPriceID)},
 			{Price: gostripe.String(c.Prices.EcoDiskPriceID)},
@@ -93,21 +95,11 @@ func (c *Client) CreateSubscription(ctx context.Context, customerID, workspace s
 		return "", fmt.Errorf("failed to create stripe subscription: %w", err)
 	}
 
-	// Create initial credit grant so credits exist from day one.
-	if len(sub.Items.Data) > 0 {
-		creditCents := PlanCreditCents(planPriceID, c.Prices)
-		expiresAt := sub.Items.Data[0].CurrentPeriodEnd
-		name := "Plan credit"
-
-		if creditDays > 0 {
-			// Promotional credit for new signups — expires after creditDays.
-			expiresAt = time.Now().Add(time.Duration(creditDays) * 24 * time.Hour).Unix()
-			name = "Signup credit"
-		}
-
-		if err := c.CreateCreditGrant(ctx, customerID, creditCents, name, expiresAt); err != nil {
-			// Non-fatal — metering worker will create it on next tick if missing.
-			slog.Warn("failed to create initial credit grant", "error", err)
+	// Create trial credit grant so credits exist from day one.
+	if creditDays > 0 {
+		expiresAt := time.Now().Add(time.Duration(creditDays) * 24 * time.Hour).Unix()
+		if err := c.CreateCreditGrant(ctx, customerID, TrialCreditCents, "Trial credit", expiresAt); err != nil {
+			slog.Warn("failed to create trial credit grant", "error", err)
 		}
 	}
 
@@ -115,6 +107,7 @@ func (c *Client) CreateSubscription(ctx context.Context, customerID, workspace s
 }
 
 // ChangePlan swaps the plan subscription item from one price to another.
+// Requires a plan to already exist on the subscription (use AddPlanToSubscription for first-time).
 func (c *Client) ChangePlan(ctx context.Context, subscriptionID, newPlanPriceID, oldPlanPriceID string) (*gostripe.Subscription, error) {
 	sub, err := subscription.Get(subscriptionID, nil)
 	if err != nil {
@@ -130,7 +123,7 @@ func (c *Client) ChangePlan(ctx context.Context, subscriptionID, newPlanPriceID,
 		}
 	}
 	if planItemID == "" {
-		return nil, fmt.Errorf("plan item not found on subscription")
+		return nil, fmt.Errorf("no plan on subscription: add a plan first")
 	}
 
 	// Update the plan item's price
@@ -142,8 +135,78 @@ func (c *Client) ChangePlan(ctx context.Context, subscriptionID, newPlanPriceID,
 		return nil, fmt.Errorf("failed to change plan: %w", err)
 	}
 
-	// Return updated subscription
 	return subscription.Get(subscriptionID, nil)
+}
+
+// AddPlanToSubscription adds a plan price as a new subscription item.
+// Used when a trial user adds their first plan after completing a setup checkout.
+func (c *Client) AddPlanToSubscription(ctx context.Context, subscriptionID, planPriceID string) (*gostripe.Subscription, error) {
+	_, err := subscriptionitem.New(&gostripe.SubscriptionItemParams{
+		Subscription:      gostripe.String(subscriptionID),
+		Price:             gostripe.String(planPriceID),
+		ProrationBehavior: gostripe.String("create_prorations"),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to add plan to subscription: %w", err)
+	}
+
+	return subscription.Get(subscriptionID, nil)
+}
+
+// SetDefaultPaymentMethod sets the customer's default payment method for invoices.
+func (c *Client) SetDefaultPaymentMethod(ctx context.Context, customerID, paymentMethodID string) error {
+	_, err := customer.Update(customerID, &gostripe.CustomerParams{
+		InvoiceSettings: &gostripe.CustomerInvoiceSettingsParams{
+			DefaultPaymentMethod: gostripe.String(paymentMethodID),
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to set default payment method: %w", err)
+	}
+	return nil
+}
+
+// CreateSetupCheckoutSession creates a Stripe Checkout Session in setup mode
+// to collect a payment method for an existing customer. The plan is stored in
+// session metadata so it can be retrieved on completion.
+func (c *Client) CreateSetupCheckoutSession(ctx context.Context, customerID, planPriceID, successURL, cancelURL string) (string, string, error) {
+	params := &gostripe.CheckoutSessionParams{
+		Mode:     gostripe.String(string(gostripe.CheckoutSessionModeSetup)),
+		Customer: gostripe.String(customerID),
+		Currency: gostripe.String(string(gostripe.CurrencyEUR)),
+		SuccessURL: gostripe.String(successURL),
+		CancelURL:  gostripe.String(cancelURL),
+	}
+	params.AddMetadata("plan_price_id", planPriceID)
+
+	session, err := checkoutsession.New(params)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to create setup checkout session: %w", err)
+	}
+	return session.URL, session.ID, nil
+}
+
+// RetrieveSetupCheckoutSession retrieves a setup-mode checkout session and
+// returns the payment method ID from the completed SetupIntent.
+func (c *Client) RetrieveSetupCheckoutSession(ctx context.Context, sessionID string) (paymentMethodID string, planPriceID string, err error) {
+	params := &gostripe.CheckoutSessionParams{}
+	params.AddExpand("setup_intent")
+	params.AddExpand("setup_intent.payment_method")
+
+	session, err := checkoutsession.Get(sessionID, params)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to retrieve setup checkout session: %w", err)
+	}
+
+	if session.Status != gostripe.CheckoutSessionStatusComplete {
+		return "", "", fmt.Errorf("checkout session not complete (status: %s)", session.Status)
+	}
+
+	if session.SetupIntent == nil || session.SetupIntent.PaymentMethod == nil {
+		return "", "", fmt.Errorf("checkout session has no payment method")
+	}
+
+	return session.SetupIntent.PaymentMethod.ID, session.Metadata["plan_price_id"], nil
 }
 
 // Subscription retrieves a subscription by ID.

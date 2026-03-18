@@ -62,16 +62,13 @@ func (s *Server) CreateSubscription(ctx context.Context, req *cashier.CreateSubs
 	existingSubID, err := s.stripe.ActiveSubscriptionForCustomer(ctx, req.CustomerId, req.Workspace)
 	if err != nil {
 		slog.Warn("failed to check for existing subscription", "workspace", req.Workspace, "error", err)
-		// Fall through to create — list failure shouldn't block signup
 	}
 	if existingSubID != "" {
 		slog.Info("stripe subscription already exists", "workspace", req.Workspace, "subscription_id", existingSubID)
 		return &cashier.CreateSubscriptionResponse{SubscriptionId: existingSubID}, nil
 	}
 
-	planPriceID := s.stripe.PlanPriceID(planToString(req.Plan))
-
-	subID, err := s.stripe.CreateSubscription(ctx, req.CustomerId, req.Workspace, planPriceID, int(req.CreditDays))
+	subID, err := s.stripe.CreateSubscription(ctx, req.CustomerId, req.Workspace, int(req.CreditDays))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create subscription: %w", err)
 	}
@@ -87,7 +84,7 @@ func (s *Server) ChangePlan(ctx context.Context, req *cashier.ChangePlanRequest)
 
 	newPriceID := s.stripe.PlanPriceID(planToString(req.Plan))
 
-	// Determine old plan price ID (the other one)
+	// Determine old plan price ID (the other one).
 	oldPriceID := s.stripe.Prices.HobbyPriceID
 	if newPriceID == s.stripe.Prices.HobbyPriceID {
 		oldPriceID = s.stripe.Prices.ProPriceID
@@ -330,13 +327,69 @@ func (s *Server) RetrieveCheckoutSession(ctx context.Context, req *cashier.Retri
 	}, nil
 }
 
+func (s *Server) CreatePlanCheckoutSession(ctx context.Context, req *cashier.CreatePlanCheckoutSessionRequest) (*cashier.CreatePlanCheckoutSessionResponse, error) {
+	if req.CustomerId == "" || req.SuccessUrl == "" || req.CancelUrl == "" {
+		return nil, fmt.Errorf("customer_id, success_url, and cancel_url required")
+	}
+
+	planPriceID := s.stripe.PlanPriceID(planToString(req.Plan))
+
+	url, sessionID, err := s.stripe.CreateSetupCheckoutSession(ctx, req.CustomerId, planPriceID, req.SuccessUrl, req.CancelUrl)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create plan checkout session: %w", err)
+	}
+
+	slog.Info("plan checkout session created", "workspace", req.Workspace, "session_id", sessionID)
+	return &cashier.CreatePlanCheckoutSessionResponse{Url: url, SessionId: sessionID}, nil
+}
+
+func (s *Server) AddPlan(ctx context.Context, req *cashier.AddPlanRequest) (*cashier.AddPlanResponse, error) {
+	if req.CustomerId == "" || req.SubscriptionId == "" || req.CheckoutSessionId == "" {
+		return nil, fmt.Errorf("customer_id, subscription_id, and checkout_session_id required")
+	}
+
+	// Retrieve the setup checkout session to get the payment method.
+	paymentMethodID, planPriceID, err := s.stripe.RetrieveSetupCheckoutSession(ctx, req.CheckoutSessionId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve checkout session: %w", err)
+	}
+
+	// Override plan from session metadata if the request specifies one.
+	if req.Plan != cashier.Plan_PLAN_UNSPECIFIED {
+		planPriceID = s.stripe.PlanPriceID(planToString(req.Plan))
+	}
+
+	// Set the payment method as the customer's default for invoices.
+	if err := s.stripe.SetDefaultPaymentMethod(ctx, req.CustomerId, paymentMethodID); err != nil {
+		return nil, fmt.Errorf("failed to set payment method: %w", err)
+	}
+
+	// Add the plan to the subscription.
+	sub, err := s.stripe.AddPlanToSubscription(ctx, req.SubscriptionId, planPriceID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add plan: %w", err)
+	}
+
+	slog.Info("plan added to subscription", "workspace", req.Workspace, "plan", planPriceID)
+	resp := subscriptionToResponse(sub, s.stripe.Prices)
+	return &cashier.AddPlanResponse{
+		Plan:              resp.Plan,
+		Status:            resp.Status,
+		CurrentPeriodEnd:  resp.CurrentPeriodEnd,
+		CreditAmountCents: resp.CreditAmountCents,
+		HasPaymentMethod:  true,
+	}, nil
+}
+
 // Conversion helpers
 
 func subscriptionToResponse(sub *gostripe.Subscription, prices stripelib.PriceConfig) *cashier.ChangePlanResponse {
-	plan := cashier.Plan_PLAN_HOBBY
+	plan := cashier.Plan_PLAN_UNSPECIFIED
 	var currentPeriodEnd int64
 	for _, item := range sub.Items.Data {
-		if item.Price.ID == prices.ProPriceID {
+		if item.Price.ID == prices.HobbyPriceID {
+			plan = cashier.Plan_PLAN_HOBBY
+		} else if item.Price.ID == prices.ProPriceID {
 			plan = cashier.Plan_PLAN_PRO
 		}
 		// All items share the same period — grab from first one
@@ -345,9 +398,12 @@ func subscriptionToResponse(sub *gostripe.Subscription, prices stripelib.PriceCo
 		}
 	}
 
-	creditCents := stripelib.PlanCreditCents(prices.HobbyPriceID, prices)
-	if plan == cashier.Plan_PLAN_PRO {
-		creditCents = stripelib.PlanCreditCents(prices.ProPriceID, prices)
+	var creditCents int64
+	if plan != cashier.Plan_PLAN_UNSPECIFIED {
+		creditCents = stripelib.PlanCreditCents(prices.HobbyPriceID, prices)
+		if plan == cashier.Plan_PLAN_PRO {
+			creditCents = stripelib.PlanCreditCents(prices.ProPriceID, prices)
+		}
 	}
 
 	return &cashier.ChangePlanResponse{

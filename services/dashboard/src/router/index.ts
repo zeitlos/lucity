@@ -44,6 +44,12 @@ const router = createRouter({
       component: () => import('@/pages/CheckoutSuccessPage.vue'),
     },
     {
+      path: '/checkout/plan-success',
+      name: 'plan-checkout-success',
+      meta: { requiresAuth: true },
+      component: () => import('@/pages/PlanCheckoutSuccessPage.vue'),
+    },
+    {
       path: '/login',
       name: 'login',
       component: () => import('@/pages/LoginPage.vue'),

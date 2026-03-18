@@ -30,7 +30,7 @@ enum SubscriptionStatus {
 }
 
 type BillingSubscription {
-  plan: Plan!
+  plan: Plan
   status: SubscriptionStatus!
   currentPeriodEnd: Time!
   creditAmountCents: Int!
@@ -58,4 +58,6 @@ extend type Mutation {
   setEnvironmentResources(input: SetEnvironmentResourcesInput!): EnvironmentResources! @hasRole(role: [USER])
   changePlan(plan: Plan!): BillingSubscription! @allowSuspended @hasRole(role: [ADMIN])
   billingPortalUrl: BillingPortalUrl! @allowSuspended @hasRole(role: [ADMIN])
+  createPlanCheckout(plan: Plan!): CheckoutSession! @allowSuspended @hasRole(role: [ADMIN])
+  completePlanCheckout(sessionId: String!): BillingSubscription! @allowSuspended @hasRole(role: [ADMIN])
 }

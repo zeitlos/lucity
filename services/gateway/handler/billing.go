@@ -111,7 +111,7 @@ func stringToProtoTier(s string) deployer.ResourceTier {
 // Billing types for cashier integration
 
 type BillingSubscription struct {
-	Plan              string
+	Plan              *string
 	Status            string
 	CurrentPeriodEnd  time.Time
 	CreditAmountCents int
@@ -158,7 +158,7 @@ func (c *Client) Subscription(ctx context.Context) (*BillingSubscription, error)
 	}
 
 	result := &BillingSubscription{
-		Plan:              planProtoToString(resp.Plan),
+		Plan:              planProtoToPtr(resp.Plan),
 		Status:            subscriptionStatusProtoToString(resp.Status),
 		CurrentPeriodEnd:  time.Unix(resp.CurrentPeriodEnd, 0),
 		CreditAmountCents: int(resp.CreditAmountCents),
@@ -201,7 +201,7 @@ func (c *Client) ChangePlan(ctx context.Context, plan string) (*BillingSubscript
 	}
 
 	result := &BillingSubscription{
-		Plan:              planProtoToString(resp.Plan),
+		Plan:              planProtoToPtr(resp.Plan),
 		Status:            subscriptionStatusProtoToString(resp.Status),
 		CurrentPeriodEnd:  time.Unix(resp.CurrentPeriodEnd, 0),
 		CreditAmountCents: int(resp.CreditAmountCents),
@@ -301,13 +301,105 @@ func (c *Client) stripeIDs(ctx context.Context) (customerID, subscriptionID stri
 	return customerID, subscriptionID, nil
 }
 
+func (c *Client) CreatePlanCheckout(ctx context.Context, plan string) (string, error) {
+	if c.Cashier == nil {
+		return "", fmt.Errorf("billing not configured")
+	}
+	claims := auth.FromContext(ctx)
+	if claims == nil {
+		return "", fmt.Errorf("unauthenticated")
+	}
+	customerID, _, err := c.stripeIDs(ctx)
+	if err != nil {
+		return "", err
+	}
+	if customerID == "" {
+		return "", fmt.Errorf("billing is not configured for this workspace")
+	}
+
+	successURL := fmt.Sprintf("%s/checkout/plan-success?session_id={CHECKOUT_SESSION_ID}", c.DashboardURL)
+	cancelURL := fmt.Sprintf("%s/settings", c.DashboardURL)
+
+	ctx = auth.OutgoingContext(ctx)
+	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
+	defer cancel()
+
+	resp, err := c.Cashier.CreatePlanCheckoutSession(callCtx, &cashier.CreatePlanCheckoutSessionRequest{
+		CustomerId: customerID,
+		Plan:       stringToPlanProto(plan),
+		SuccessUrl: successURL,
+		CancelUrl:  cancelURL,
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to create plan checkout: %w", err)
+	}
+
+	slog.Info("plan checkout initiated", "plan", plan, "user", claims.Email)
+	return resp.Url, nil
+}
+
+func (c *Client) CompletePlanCheckout(ctx context.Context, sessionID string) (*BillingSubscription, error) {
+	if c.Cashier == nil {
+		return nil, fmt.Errorf("billing not configured")
+	}
+	claims := auth.FromContext(ctx)
+	if claims == nil {
+		return nil, fmt.Errorf("unauthenticated")
+	}
+	customerID, subscriptionID, err := c.stripeIDs(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if customerID == "" || subscriptionID == "" {
+		return nil, fmt.Errorf("billing is not configured for this workspace")
+	}
+
+	ws, err := tenant.Require(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	ctx = auth.OutgoingContext(ctx)
+	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
+	defer cancel()
+
+	resp, err := c.Cashier.AddPlan(callCtx, &cashier.AddPlanRequest{
+		Workspace:         ws,
+		CustomerId:        customerID,
+		SubscriptionId:    subscriptionID,
+		CheckoutSessionId: sessionID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to add plan: %w", err)
+	}
+
+	return &BillingSubscription{
+		Plan:              planProtoToPtr(resp.Plan),
+		Status:            subscriptionStatusProtoToString(resp.Status),
+		CurrentPeriodEnd:  time.Unix(resp.CurrentPeriodEnd, 0),
+		CreditAmountCents: int(resp.CreditAmountCents),
+		HasPaymentMethod:  resp.HasPaymentMethod,
+	}, nil
+}
+
 func planProtoToString(p cashier.Plan) string {
 	switch p {
 	case cashier.Plan_PLAN_PRO:
 		return "PRO"
-	default:
+	case cashier.Plan_PLAN_HOBBY:
 		return "HOBBY"
+	default:
+		return ""
 	}
+}
+
+// planProtoToPtr returns a pointer to the plan string, or nil if no plan is set.
+func planProtoToPtr(p cashier.Plan) *string {
+	s := planProtoToString(p)
+	if s == "" {
+		return nil
+	}
+	return &s
 }
 
 func stringToPlanProto(s string) cashier.Plan {

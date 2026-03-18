@@ -220,9 +220,11 @@ type ComplexityRoot struct {
 		AddService                func(childComplexity int, input model.AddServiceInput) int
 		BillingPortalURL          func(childComplexity int) int
 		ChangePlan                func(childComplexity int, plan model.Plan) int
+		CompletePlanCheckout      func(childComplexity int, sessionID string) int
 		CompleteWorkspaceCheckout func(childComplexity int, sessionID string) int
 		CreateDatabase            func(childComplexity int, input model.CreateDatabaseInput) int
 		CreateEnvironment         func(childComplexity int, input model.CreateEnvironmentInput) int
+		CreatePlanCheckout        func(childComplexity int, plan model.Plan) int
 		CreateProject             func(childComplexity int, input model.CreateProjectInput) int
 		CreateWorkspace           func(childComplexity int, input model.CreateWorkspaceInput) int
 		CreateWorkspaceCheckout   func(childComplexity int, input model.CreateWorkspaceCheckoutInput) int
@@ -409,6 +411,8 @@ type MutationResolver interface {
 	SetEnvironmentResources(ctx context.Context, input model.SetEnvironmentResourcesInput) (*model.EnvironmentResources, error)
 	ChangePlan(ctx context.Context, plan model.Plan) (*model.BillingSubscription, error)
 	BillingPortalURL(ctx context.Context) (*model.BillingPortalURL, error)
+	CreatePlanCheckout(ctx context.Context, plan model.Plan) (*model.CheckoutSession, error)
+	CompletePlanCheckout(ctx context.Context, sessionID string) (*model.BillingSubscription, error)
 	CreateDatabase(ctx context.Context, input model.CreateDatabaseInput) (*model.Database, error)
 	DeleteDatabase(ctx context.Context, projectID string, name string) (bool, error)
 	ExecuteQuery(ctx context.Context, input model.DatabaseQueryInput) (*model.QueryResult, error)
@@ -1140,6 +1144,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.ChangePlan(childComplexity, args["plan"].(model.Plan)), true
+	case "Mutation.completePlanCheckout":
+		if e.complexity.Mutation.CompletePlanCheckout == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_completePlanCheckout_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.CompletePlanCheckout(childComplexity, args["sessionId"].(string)), true
 	case "Mutation.completeWorkspaceCheckout":
 		if e.complexity.Mutation.CompleteWorkspaceCheckout == nil {
 			break
@@ -1173,6 +1188,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.CreateEnvironment(childComplexity, args["input"].(model.CreateEnvironmentInput)), true
+	case "Mutation.createPlanCheckout":
+		if e.complexity.Mutation.CreatePlanCheckout == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_createPlanCheckout_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.CreatePlanCheckout(childComplexity, args["plan"].(model.Plan)), true
 	case "Mutation.createProject":
 		if e.complexity.Mutation.CreateProject == nil {
 			break
@@ -2326,6 +2352,17 @@ func (ec *executionContext) field_Mutation_changePlan_args(ctx context.Context, 
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_completePlanCheckout_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "sessionId", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["sessionId"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_completeWorkspaceCheckout_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -2356,6 +2393,17 @@ func (ec *executionContext) field_Mutation_createEnvironment_args(ctx context.Co
 		return nil, err
 	}
 	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_createPlanCheckout_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "plan", ec.unmarshalNPlan2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐPlan)
+	if err != nil {
+		return nil, err
+	}
+	args["plan"] = arg0
 	return args, nil
 }
 
@@ -3155,9 +3203,9 @@ func (ec *executionContext) _BillingSubscription_plan(ctx context.Context, field
 			return obj.Plan, nil
 		},
 		nil,
-		ec.marshalNPlan2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐPlan,
+		ec.marshalOPlan2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐPlan,
 		true,
-		true,
+		false,
 	)
 }
 
@@ -6154,6 +6202,156 @@ func (ec *executionContext) fieldContext_Mutation_billingPortalUrl(_ context.Con
 			}
 			return nil, fmt.Errorf("no field named %q was found under type BillingPortalUrl", field.Name)
 		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_createPlanCheckout(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_createPlanCheckout,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().CreatePlanCheckout(ctx, fc.Args["plan"].(model.Plan))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.directives.AllowSuspended == nil {
+					var zeroVal *model.CheckoutSession
+					return zeroVal, errors.New("directive allowSuspended is not implemented")
+				}
+				return ec.directives.AllowSuspended(ctx, nil, directive0)
+			}
+			directive2 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"ADMIN"})
+				if err != nil {
+					var zeroVal *model.CheckoutSession
+					return zeroVal, err
+				}
+				if ec.directives.HasRole == nil {
+					var zeroVal *model.CheckoutSession
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.directives.HasRole(ctx, nil, directive1, role)
+			}
+
+			next = directive2
+			return next
+		},
+		ec.marshalNCheckoutSession2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐCheckoutSession,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_createPlanCheckout(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "url":
+				return ec.fieldContext_CheckoutSession_url(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CheckoutSession", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_createPlanCheckout_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_completePlanCheckout(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_completePlanCheckout,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().CompletePlanCheckout(ctx, fc.Args["sessionId"].(string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.directives.AllowSuspended == nil {
+					var zeroVal *model.BillingSubscription
+					return zeroVal, errors.New("directive allowSuspended is not implemented")
+				}
+				return ec.directives.AllowSuspended(ctx, nil, directive0)
+			}
+			directive2 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"ADMIN"})
+				if err != nil {
+					var zeroVal *model.BillingSubscription
+					return zeroVal, err
+				}
+				if ec.directives.HasRole == nil {
+					var zeroVal *model.BillingSubscription
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.directives.HasRole(ctx, nil, directive1, role)
+			}
+
+			next = directive2
+			return next
+		},
+		ec.marshalNBillingSubscription2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐBillingSubscription,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_completePlanCheckout(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "plan":
+				return ec.fieldContext_BillingSubscription_plan(ctx, field)
+			case "status":
+				return ec.fieldContext_BillingSubscription_status(ctx, field)
+			case "currentPeriodEnd":
+				return ec.fieldContext_BillingSubscription_currentPeriodEnd(ctx, field)
+			case "creditAmountCents":
+				return ec.fieldContext_BillingSubscription_creditAmountCents(ctx, field)
+			case "creditExpiry":
+				return ec.fieldContext_BillingSubscription_creditExpiry(ctx, field)
+			case "hasPaymentMethod":
+				return ec.fieldContext_BillingSubscription_hasPaymentMethod(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type BillingSubscription", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_completePlanCheckout_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
 	}
 	return fc, nil
 }
@@ -14764,9 +14962,6 @@ func (ec *executionContext) _BillingSubscription(ctx context.Context, sel ast.Se
 			out.Values[i] = graphql.MarshalString("BillingSubscription")
 		case "plan":
 			out.Values[i] = ec._BillingSubscription_plan(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
 		case "status":
 			out.Values[i] = ec._BillingSubscription_status(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -15880,6 +16075,20 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "billingPortalUrl":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_billingPortalUrl(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "createPlanCheckout":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_createPlanCheckout(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "completePlanCheckout":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_completePlanCheckout(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -19806,6 +20015,22 @@ func (ec *executionContext) marshalOInt2ᚖint(ctx context.Context, sel ast.Sele
 	_ = ctx
 	res := graphql.MarshalInt(*v)
 	return res
+}
+
+func (ec *executionContext) unmarshalOPlan2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐPlan(ctx context.Context, v any) (*model.Plan, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var res = new(model.Plan)
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOPlan2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐPlan(ctx context.Context, sel ast.SelectionSet, v *model.Plan) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return v
 }
 
 func (ec *executionContext) marshalOProject2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋgatewayᚋgraphqlᚋmodelᚐProject(ctx context.Context, sel ast.SelectionSet, v *model.Project) graphql.Marshaler {

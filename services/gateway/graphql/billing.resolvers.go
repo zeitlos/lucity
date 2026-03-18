@@ -39,6 +39,24 @@ func (r *mutationResolver) BillingPortalURL(ctx context.Context) (*model.Billing
 	return &model.BillingPortalURL{URL: res.URL}, nil
 }
 
+// CreatePlanCheckout is the resolver for the createPlanCheckout field.
+func (r *mutationResolver) CreatePlanCheckout(ctx context.Context, plan model.Plan) (*model.CheckoutSession, error) {
+	url, err := r.API.CreatePlanCheckout(ctx, string(plan))
+	if err != nil {
+		return nil, err
+	}
+	return &model.CheckoutSession{URL: url}, nil
+}
+
+// CompletePlanCheckout is the resolver for the completePlanCheckout field.
+func (r *mutationResolver) CompletePlanCheckout(ctx context.Context, sessionID string) (*model.BillingSubscription, error) {
+	res, err := r.API.CompletePlanCheckout(ctx, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	return convertBillingSubscription(res), nil
+}
+
 // EnvironmentResources is the resolver for the environmentResources field.
 func (r *queryResolver) EnvironmentResources(ctx context.Context, projectID string, environment string) (*model.EnvironmentResources, error) {
 	res, err := r.API.EnvironmentResources(ctx, projectID, environment)

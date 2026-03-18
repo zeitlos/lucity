@@ -684,7 +684,7 @@ func (c *Client) setupBilling(ctx context.Context, workspace, name, email string
 		customerID = custResp.CustomerId
 	}
 
-	// Step 2: Ensure Stripe subscription exists.
+	// Step 2: Ensure Stripe subscription exists (metered items only, no plan).
 	subscriptionID, _ := customData["stripeSubscriptionId"].(string)
 	if subscriptionID == "" {
 		outCtx := auth.OutgoingContext(billingCtx)
@@ -693,7 +693,6 @@ func (c *Client) setupBilling(ctx context.Context, workspace, name, email string
 		subResp, subErr := c.Cashier.CreateSubscription(subCtx, &cashier.CreateSubscriptionRequest{
 			Workspace:  workspace,
 			CustomerId: customerID,
-			Plan:       cashier.Plan_PLAN_HOBBY,
 			CreditDays: creditDays,
 		})
 		if subErr != nil {
