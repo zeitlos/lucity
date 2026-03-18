@@ -36,6 +36,13 @@ spec:
     - matches:
         - path:
             type: PathPrefix
+            value: /version
+      backendRefs:
+        - name: {{ include "lucity.fullname" . }}-gateway
+          port: 8080
+    - matches:
+        - path:
+            type: PathPrefix
             value: /app
       filters:
         - type: URLRewrite
