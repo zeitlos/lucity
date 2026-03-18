@@ -6,18 +6,16 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
-	dockerconfig "github.com/docker/cli/cli/config"
 	"github.com/go-git/go-git/v5"
 	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/client/llb"
-	"github.com/moby/buildkit/session"
-	"github.com/moby/buildkit/session/auth/authprovider"
 	_ "github.com/moby/buildkit/util/grpcutil/encoding/proto"
 	"github.com/moby/buildkit/util/progress/progressui"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
@@ -91,10 +89,62 @@ func runBuild() {
 	}
 }
 
+// validateSourceURL rejects source URLs targeting internal or private endpoints.
+// This is the last line of defense — it runs inside the K8s Job pod that has
+// network access to cluster-internal services.
+func validateSourceURL(raw string) error {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return fmt.Errorf("invalid URL: %w", err)
+	}
+	if u.Scheme != "https" {
+		return fmt.Errorf("must use HTTPS (got %q)", u.Scheme)
+	}
+	host := u.Hostname()
+	if host == "" {
+		return fmt.Errorf("no hostname")
+	}
+	lower := strings.ToLower(host)
+	for _, suffix := range []string{".svc.cluster.local", ".svc", ".local", ".internal", ".localhost"} {
+		if strings.HasSuffix(lower, suffix) {
+			return fmt.Errorf("internal hostname rejected")
+		}
+	}
+	if lower == "localhost" {
+		return fmt.Errorf("internal hostname rejected")
+	}
+	// Block IPs directly in the URL (e.g. http://169.254.169.254)
+	if ip := net.ParseIP(host); ip != nil {
+		if ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
+			return fmt.Errorf("private/internal IP rejected")
+		}
+	}
+	// Resolve and check resolved IPs
+	ips, err := net.LookupHost(host)
+	if err != nil {
+		return nil // let clone fail with a better error
+	}
+	for _, ipStr := range ips {
+		ip := net.ParseIP(ipStr)
+		if ip == nil {
+			continue
+		}
+		if ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
+			return fmt.Errorf("hostname resolves to private/internal IP")
+		}
+	}
+	return nil
+}
+
 func executeBuild(cfg runBuildConfig, k8sClient kubernetes.Interface) error {
 	workDir := "/tmp/lucity-builds"
 	if err := os.MkdirAll(workDir, 0o755); err != nil {
 		return fmt.Errorf("failed to create work dir: %w", err)
+	}
+
+	// 0. Validate source URL before doing anything else
+	if err := validateSourceURL(cfg.SourceURL); err != nil {
+		return fmt.Errorf("rejected source URL %q: %w", cfg.SourceURL, err)
 	}
 
 	// 1. Wait for BuildKit to be ready
@@ -363,23 +413,14 @@ func buildWithBuildKit(ctx context.Context, buildkitAddr, buildDir, imageName, c
 		exportCacheAttrs["registry.insecure"] = "true"
 	}
 
-	// Registry auth: load Docker config from DOCKER_CONFIG env (set to /etc/registry-auth
-	// in the K8s Job pod, backed by the registry-auth Secret).
-	dockerCfg, err := dockerconfig.Load("")
-	if err != nil {
-		slog.Warn("failed to load docker config for registry auth", "error", err)
-	}
-
-	var sessionAttachables []session.Attachable
-	if dockerCfg != nil {
-		sessionAttachables = append(sessionAttachables, authprovider.NewDockerAuthProvider(dockerCfg, nil))
-	}
-
+	// Registry auth: credentials live on the BuildKit daemon (DOCKER_CONFIG on the
+	// buildkitd pod). No session auth provider is attached so BuildKit falls back to
+	// its daemon-level config for push/pull. This keeps the registry secret off Job
+	// pods, which run untrusted user code during the build.
 	solveOpts := client.SolveOpt{
 		LocalMounts: map[string]fsutil.FS{
 			"context": appFS,
 		},
-		Session: sessionAttachables,
 		Exports: []client.ExportEntry{
 			{
 				Type:  client.ExporterImage,

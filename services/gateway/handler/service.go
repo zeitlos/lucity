@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"net/url"
 	"strings"
 	"time"
 
@@ -30,6 +31,9 @@ type DetectedService struct {
 func (c *Client) DetectServices(ctx context.Context, sourceURL string, installationID *int64) ([]DetectedService, error) {
 	if _, err := tenant.Require(ctx); err != nil {
 		return nil, err
+	}
+	if err := validateSourceURL(sourceURL); err != nil {
+		return nil, fmt.Errorf("invalid source URL: %w", err)
 	}
 	if installationID != nil {
 		var err error
@@ -68,6 +72,11 @@ func (c *Client) AddService(ctx context.Context, projectID, environment, name st
 	ws, err := tenant.Require(ctx)
 	if err != nil {
 		return nil, err
+	}
+	if sourceURL != "" {
+		if err := validateSourceURL(sourceURL); err != nil {
+			return nil, fmt.Errorf("invalid source URL: %w", err)
+		}
 	}
 	if installationID != nil {
 		var err error
@@ -882,6 +891,63 @@ func (c *Client) GenerateDomain(ctx context.Context, projectID, service, environ
 
 	d := c.BuildDomain(hostname)
 	return &d, nil
+}
+
+// validateSourceURL ensures a source repository URL is a valid, public HTTPS Git URL.
+// It blocks SSRF vectors: internal cluster services, cloud metadata endpoints,
+// private IP ranges, and non-HTTPS schemes.
+func validateSourceURL(raw string) error {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return fmt.Errorf("invalid URL: %w", err)
+	}
+
+	// Require HTTPS. Block http://, ssh://, file://, ftp://, etc.
+	if u.Scheme != "https" {
+		return fmt.Errorf("source URL must use HTTPS (got %q)", u.Scheme)
+	}
+
+	host := u.Hostname()
+	if host == "" {
+		return fmt.Errorf("source URL has no hostname")
+	}
+
+	// Block Kubernetes internal DNS (*.svc, *.svc.cluster.local, *.local)
+	lower := strings.ToLower(host)
+	blockedSuffixes := []string{
+		".svc.cluster.local",
+		".svc",
+		".local",
+		".internal",
+		".localhost",
+	}
+	for _, suffix := range blockedSuffixes {
+		if strings.HasSuffix(lower, suffix) {
+			return fmt.Errorf("source URL must not point to internal services")
+		}
+	}
+	if lower == "localhost" {
+		return fmt.Errorf("source URL must not point to internal services")
+	}
+
+	// Resolve hostname and block private/link-local IPs
+	ips, err := net.LookupHost(host)
+	if err != nil {
+		// DNS resolution failure is not necessarily SSRF, but we let the
+		// clone fail later with a better error. Only block known-bad patterns.
+		return nil
+	}
+	for _, ipStr := range ips {
+		ip := net.ParseIP(ipStr)
+		if ip == nil {
+			continue
+		}
+		if ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
+			return fmt.Errorf("source URL must not resolve to a private or internal IP address")
+		}
+	}
+
+	return nil
 }
 
 // validateHostname checks that a hostname is a valid domain name.
