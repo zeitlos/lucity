@@ -334,7 +334,7 @@ func buildWithBuildKit(ctx context.Context, buildkitAddr, buildDir, imageName, c
 				"useradd -u 1000 -g 1000 -d %s -M lucity 2>/dev/null) || true'",
 			workdir, workdir)),
 	).Run(
-		llb.Shlex(fmt.Sprintf("chown -R 1000:1000 %s 2>/dev/null || true", workdir)),
+		llb.Shlex(fmt.Sprintf("sh -c 'chown -R 1000:1000 %s 2>/dev/null || true'", workdir)),
 	).Root()
 	llbState = &nonRootState
 	image.Config.User = "1000:1000"
