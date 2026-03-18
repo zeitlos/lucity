@@ -1,0 +1,68 @@
+{{- if .Values.zot.enabled }}
+{{- $registryAddr := printf "%s:%s" (.Values.zot.service.clusterIP | default "10.96.100.100") (toString (.Values.zot.service.port | default 5000)) }}
+# Containerd registry configuration DaemonSet.
+# Writes hosts.toml to each node so containerd (kubelet) can pull images from
+# the insecure (HTTP) Zot registry. Replaces manual node configuration that
+# would be lost on node replacement.
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ .Release.Name }}-registry-node-config
+  labels:
+    app.kubernetes.io/name: registry-node-config
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: registry-node-config
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: registry-node-config
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      hostPID: false
+      hostNetwork: false
+      initContainers:
+        - name: configure
+          image: busybox:1.37
+          command: ["sh", "-c"]
+          args:
+            - |
+              set -e
+              DIR="/host-etc/certs.d/{{ $registryAddr }}"
+              mkdir -p "$DIR"
+              printf '%s\n' \
+                'server = "http://{{ $registryAddr }}"' \
+                '' \
+                '[host."http://{{ $registryAddr }}"]' \
+                '  capabilities = ["pull", "resolve"]' \
+                '  skip_verify = true' \
+                > "$DIR/hosts.toml"
+              echo "wrote $DIR/hosts.toml"
+          volumeMounts:
+            - name: host-containerd
+              mountPath: /host-etc
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+      containers:
+        - name: pause
+          image: registry.k8s.io/pause:3.10
+          resources:
+            requests:
+              cpu: 1m
+              memory: 4Mi
+            limits:
+              cpu: 1m
+              memory: 4Mi
+      tolerations:
+        - operator: Exists
+      volumes:
+        - name: host-containerd
+          hostPath:
+            path: /etc/containerd
+            type: DirectoryOrCreate
+{{- end }}
