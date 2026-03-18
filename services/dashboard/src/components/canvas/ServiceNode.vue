@@ -87,7 +87,16 @@ const formattedElapsed = computed(() => {
 
 const replicas = computed(() => props.data.replicas ?? 0);
 
-const primaryDomain = computed(() => props.data.domains?.[0]?.hostname ?? null);
+const primaryDomain = computed(() => {
+  const domains = props.data.domains ?? [];
+  const custom = domains.find(d => d.type === 'CUSTOM');
+  return (custom ?? domains[0])?.hostname ?? null;
+});
+
+const extraDomainCount = computed(() => {
+  const total = props.data.domains?.length ?? 0;
+  return total > 1 ? total - 1 : 0;
+});
 
 const hostUrl = computed(() => {
   if (!primaryDomain.value) return null;
@@ -126,6 +135,7 @@ const hostUrl = computed(() => {
       >
         <Globe :size="12" class="shrink-0" />
         <span class="truncate hover:underline">{{ primaryDomain }}</span>
+        <span v-if="extraDomainCount" class="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[0.6rem] leading-none text-muted-foreground">+{{ extraDomainCount }}</span>
         <ExternalLink :size="10" class="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
       </a>
       <div v-if="shortRepoName" class="flex items-center gap-1.5 text-xs text-muted-foreground">
