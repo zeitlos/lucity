@@ -50,6 +50,7 @@ softServe:
 
 gateway:
   className: cilium
+  customDomainPlaceholder: true
   infrastructure:
     annotations:
       flexplane.io/provider: hetzner
@@ -116,18 +117,8 @@ gateway:
         mode: Terminate
         certificateRefs:
           - name: id-lucity-cloud-tls
-    - name: custom-http
-      protocol: HTTP
-      port: 80
-      # No hostname — catches all non-platform traffic (ACME challenges + redirect)
-    - name: custom-https
-      protocol: HTTPS
-      port: 443
-      # No hostname — catches custom domain traffic
-      tls:
-        mode: Terminate
-        certificateRefs: []
-        # Cert refs managed dynamically by the deployer service
+    # Custom domain listeners are managed by the deployer (per-domain HTTP + HTTPS pairs).
+    # No catch-all listeners here — each domain gets its own isolated listener.
 
 clusterIssuers:
   - name: letsencrypt-http01

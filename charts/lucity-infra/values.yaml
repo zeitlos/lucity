@@ -107,6 +107,7 @@ gateway:
   enabled: true
   name: lucity-gateway
   className: eg
+  # Custom domain listeners are managed by the deployer, not by this chart.
   listeners:
     - name: http
       protocol: HTTP
