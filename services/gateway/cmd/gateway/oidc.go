@@ -272,11 +272,13 @@ func handleCallback(provider *OIDCProvider, api *handler.Client, logtoClient *lo
 			if err != nil {
 				slog.Error("failed to fetch GitHub login from Logto", "error", err)
 			} else if ghLogin != "" {
+				// Use the GitHub login for workspace ID derivation (sanitizeWorkspaceID handles hyphens).
+				// Setting it on Logto is best-effort — the username is sanitized to match Logto's regex.
+				username = ghLogin
 				if err := logtoClient.UpdateUsername(r.Context(), idToken.Subject, ghLogin); err != nil {
-					slog.Error("failed to set username from GitHub login", "error", err, "login", ghLogin)
+					slog.Warn("failed to set username on Logto", "error", err, "login", ghLogin)
 				} else {
 					slog.Info("set username from GitHub login", "username", ghLogin, "email", oidcClaims.Email)
-					username = ghLogin
 				}
 			}
 		}

@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"regexp"
+	"strings"
 )
 
 // User represents a Logto user.
@@ -86,9 +88,26 @@ func (c *Client) UserGitHubLogin(ctx context.Context, userID string) (string, er
 	return login, nil
 }
 
+// logtoUsernameRe matches Logto's username validation: starts with a letter or
+// underscore, followed by word characters only (letters, digits, underscores).
+var logtoUsernameRe = regexp.MustCompile(`[^A-Za-z0-9_]`)
+
+// sanitizeLogtoUsername converts a GitHub login into a Logto-compatible username.
+// Logto's regex is /^[A-Z_a-z]\w*$/ — no hyphens or dots allowed.
+func sanitizeLogtoUsername(login string) string {
+	s := logtoUsernameRe.ReplaceAllString(login, "_")
+	s = strings.Trim(s, "_")
+	if s == "" || (s[0] >= '0' && s[0] <= '9') {
+		s = "_" + s
+	}
+	return s
+}
+
 // UpdateUsername sets the username on a Logto user.
+// Sanitizes the input to match Logto's username regex (/^[A-Z_a-z]\w*$/).
 func (c *Client) UpdateUsername(ctx context.Context, userID, username string) error {
-	body, _ := json.Marshal(map[string]string{"username": username})
+	safe := sanitizeLogtoUsername(username)
+	body, _ := json.Marshal(map[string]string{"username": safe})
 	return c.doJSON(ctx, "PATCH", "/api/users/"+userID, bytes.NewReader(body), &json.RawMessage{})
 }
 
