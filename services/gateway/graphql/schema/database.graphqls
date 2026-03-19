@@ -59,37 +59,37 @@ type DatabaseCredentials {
 }
 
 input CreateDatabaseInput {
-  projectId: ID!
-  name: String! @constraint(constraint: "min=2,max=63")
+  projectId: ID! @constraint(constraint: "resource_name")
+  name: String! @constraint(constraint: "resource_name,min=2,max=63")
   version: String
   instances: Int
   size: String
 }
 
 input DatabaseQueryInput {
-  projectId: ID!
-  environment: String!
-  database: String!
+  projectId: ID! @constraint(constraint: "resource_name")
+  environment: String! @constraint(constraint: "resource_name")
+  database: String! @constraint(constraint: "resource_name")
   query: String!
 }
 
 extend type Query {
-  databases(projectId: ID!): [Database!]! @hasRole(role: [USER])
-  databaseTables(projectId: ID!, environment: String!, database: String!): [DatabaseTable!]! @hasRole(role: [USER])
+  databases(projectId: ID! @constraint(constraint: "resource_name")): [Database!]! @hasRole(role: [USER])
+  databaseTables(projectId: ID! @constraint(constraint: "resource_name"), environment: String! @constraint(constraint: "resource_name"), database: String! @constraint(constraint: "resource_name")): [DatabaseTable!]! @hasRole(role: [USER])
   databaseTableData(
-    projectId: ID!
-    environment: String!
-    database: String!
+    projectId: ID! @constraint(constraint: "resource_name")
+    environment: String! @constraint(constraint: "resource_name")
+    database: String! @constraint(constraint: "resource_name")
     table: String!
     schema: String
     limit: Int
     offset: Int
   ): DatabaseTableData! @hasRole(role: [USER])
-  databaseCredentials(projectId: ID!, environment: String!, database: String!): DatabaseCredentials! @hasRole(role: [USER])
+  databaseCredentials(projectId: ID! @constraint(constraint: "resource_name"), environment: String! @constraint(constraint: "resource_name"), database: String! @constraint(constraint: "resource_name")): DatabaseCredentials! @hasRole(role: [USER])
 }
 
 extend type Mutation {
   createDatabase(input: CreateDatabaseInput!): Database! @hasRole(role: [USER])
-  deleteDatabase(projectId: ID!, name: String!): Boolean! @hasRole(role: [USER])
+  deleteDatabase(projectId: ID! @constraint(constraint: "resource_name"), name: String! @constraint(constraint: "resource_name")): Boolean! @hasRole(role: [USER])
   executeQuery(input: DatabaseQueryInput!): QueryResult! @hasRole(role: [USER])
 }

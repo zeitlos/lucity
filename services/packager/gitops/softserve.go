@@ -41,6 +41,28 @@ func NewSoftServeProvider(sshAddr, httpAddr string, sshKey ssh.Signer, token str
 	}
 }
 
+// safePath joins path segments and verifies the result stays within the base directory.
+// Returns an error if path traversal is detected (e.g., "../" in segments).
+func safePath(base string, segments ...string) (string, error) {
+	p := filepath.Join(append([]string{base}, segments...)...)
+	clean := filepath.Clean(p)
+	baseClean := filepath.Clean(base)
+	if !strings.HasPrefix(clean+string(filepath.Separator), baseClean+string(filepath.Separator)) {
+		return "", fmt.Errorf("path traversal detected: resolved path escapes base directory")
+	}
+	return clean, nil
+}
+
+// envFilePath returns the path to an environment's values.yaml, with path traversal protection.
+func envFilePath(dir, environment string) (string, error) {
+	return safePath(dir, "environments", environment, "values.yaml")
+}
+
+// envDirPath returns the path to an environment directory, with path traversal protection.
+func envDirPath(dir, environment string) (string, error) {
+	return safePath(dir, "environments", environment)
+}
+
 // wsRepoName returns the workspace-scoped GitOps repo name.
 func wsRepoName(ctx context.Context, project string) string {
 	return tenant.FromContext(ctx) + "-" + project + RepoSuffix
@@ -214,7 +236,10 @@ func (p *SoftServeProvider) AddService(ctx context.Context, project, environment
 		}
 
 		// 2. Write initial entry to the target environment's values.yaml
-		envPath := filepath.Join(dir, "environments", environment, "values.yaml")
+		envPath, err := envFilePath(dir, environment)
+		if err != nil {
+			return err
+		}
 		envInner, readErr := readSubchartValues(envPath)
 		if readErr != nil {
 			return fmt.Errorf("failed to read environment values: %w", readErr)
@@ -241,7 +266,10 @@ func (p *SoftServeProvider) AddService(ctx context.Context, project, environment
 func (p *SoftServeProvider) RemoveService(ctx context.Context, project, environment, service string) error {
 	return p.modifyRepo(ctx, project, fmt.Sprintf("config(%s): remove service %s", environment, service), false, func(dir string) error {
 		// 1. Remove from target environment
-		envPath := filepath.Join(dir, "environments", environment, "values.yaml")
+		envPath, err := envFilePath(dir, environment)
+		if err != nil {
+			return err
+		}
 		envInner, err := readSubchartValues(envPath)
 		if err != nil {
 			return err
@@ -393,7 +421,10 @@ func (p *SoftServeProvider) UpdateImageTag(ctx context.Context, project, environ
 func (p *SoftServeProvider) CreateEnvironment(ctx context.Context, project, environment, fromEnvironment, workloadDomain string) ([]string, error) {
 	if fromEnvironment == "" {
 		err := p.modifyRepo(ctx, project, fmt.Sprintf("env(create): %s", environment), false, func(dir string) error {
-			envDir := filepath.Join(dir, "environments", environment)
+			envDir, err := envDirPath(dir, environment)
+			if err != nil {
+				return err
+			}
 			if err := os.MkdirAll(envDir, 0o755); err != nil {
 				return fmt.Errorf("failed to create environment dir: %w", err)
 			}
@@ -420,12 +451,18 @@ func (p *SoftServeProvider) CreateEnvironment(ctx context.Context, project, envi
 	commitMsg := fmt.Sprintf("env(create): %s from %s", environment, fromEnvironment)
 
 	err := p.modifyRepo(ctx, project, commitMsg, false, func(dir string) error {
-		envDir := filepath.Join(dir, "environments", environment)
+		envDir, err := envDirPath(dir, environment)
+		if err != nil {
+			return err
+		}
 		if err := os.MkdirAll(envDir, 0o755); err != nil {
 			return fmt.Errorf("failed to create environment dir: %w", err)
 		}
 
-		srcPath := filepath.Join(dir, "environments", fromEnvironment, "values.yaml")
+		srcPath, err := envFilePath(dir, fromEnvironment)
+		if err != nil {
+			return err
+		}
 		content, err := os.ReadFile(srcPath)
 		if err != nil {
 			return fmt.Errorf("failed to read source environment %s: %w", fromEnvironment, err)
@@ -489,7 +526,10 @@ func generatePlatformDomain(service, environment, workloadDomain string, existin
 // DeleteEnvironment removes an environment directory.
 func (p *SoftServeProvider) DeleteEnvironment(ctx context.Context, project, environment string) error {
 	return p.modifyRepo(ctx, project, fmt.Sprintf("env(delete): %s", environment), false, func(dir string) error {
-		envDir := filepath.Join(dir, "environments", environment)
+		envDir, err := envDirPath(dir, environment)
+		if err != nil {
+			return err
+		}
 		return os.RemoveAll(envDir)
 	})
 }
@@ -501,7 +541,10 @@ func (p *SoftServeProvider) Promote(ctx context.Context, project, service, fromE
 	err := p.modifyRepo(ctx, project,
 		fmt.Sprintf("promote(%s): %s %s from %s", toEnv, service, fromEnv, toEnv), true, func(dir string) error {
 			// Read source environment
-			srcPath := filepath.Join(dir, "environments", fromEnv, "values.yaml")
+			srcPath, err := envFilePath(dir, fromEnv)
+			if err != nil {
+				return err
+			}
 			srcInner, err := readSubchartValues(srcPath)
 			if err != nil {
 				return fmt.Errorf("failed to read source environment %s: %w", fromEnv, err)
@@ -527,7 +570,10 @@ func (p *SoftServeProvider) Promote(ctx context.Context, project, service, fromE
 			promotedTag = tag
 
 			// Write to target environment
-			dstPath := filepath.Join(dir, "environments", toEnv, "values.yaml")
+			dstPath, err := envFilePath(dir, toEnv)
+			if err != nil {
+				return err
+			}
 			dstInner, err := readSubchartValues(dstPath)
 			if err != nil {
 				return fmt.Errorf("failed to read target environment %s: %w", toEnv, err)
@@ -1268,7 +1314,10 @@ func (p *SoftServeProvider) SharedVariables(ctx context.Context, project, enviro
 	}
 	defer cleanup()
 
-	filePath := filepath.Join(dir, "environments", environment, "values.yaml")
+	filePath, err := envFilePath(dir, environment)
+	if err != nil {
+		return nil, err
+	}
 	inner, err := readSubchartValues(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read %s: %w", filePath, err)
@@ -1280,7 +1329,10 @@ func (p *SoftServeProvider) SharedVariables(ctx context.Context, project, enviro
 // SetSharedVariables replaces all shared variables for an environment.
 func (p *SoftServeProvider) SetSharedVariables(ctx context.Context, project, environment string, vars map[string]string) error {
 	return p.modifyRepo(ctx, project, fmt.Sprintf("config(%s): update shared variables", environment), false, func(dir string) error {
-		filePath := filepath.Join(dir, "environments", environment, "values.yaml")
+		filePath, err := envFilePath(dir, environment)
+		if err != nil {
+			return err
+		}
 		inner, err := readSubchartValues(filePath)
 		if err != nil {
 			return err
@@ -1368,7 +1420,10 @@ func (p *SoftServeProvider) ServiceVariables(ctx context.Context, project, envir
 // SetServiceVariables replaces all variables for a service in an environment.
 func (p *SoftServeProvider) SetServiceVariables(ctx context.Context, project, environment, service string, vars map[string]string, sharedRefs []string, databaseRefs map[string]DatabaseRef, serviceRefs map[string]ServiceRef) error {
 	return p.modifyRepo(ctx, project, fmt.Sprintf("config(%s): update variables for %s", environment, service), false, func(dir string) error {
-		filePath := filepath.Join(dir, "environments", environment, "values.yaml")
+		filePath, err := envFilePath(dir, environment)
+		if err != nil {
+			return err
+		}
 		inner, err := readSubchartValues(filePath)
 		if err != nil {
 			return err

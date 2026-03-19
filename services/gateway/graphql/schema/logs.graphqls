@@ -8,9 +8,9 @@ type ServiceLogEntry {
 extend type Subscription {
   """Stream real-time stdout/stderr from running pods for a service."""
   serviceLogs(
-    projectId: ID!
-    service: String!
-    environment: String!
+    projectId: ID! @constraint(constraint: "resource_name")
+    service: String! @constraint(constraint: "resource_name")
+    environment: String! @constraint(constraint: "resource_name")
     """Number of recent log lines to include at the start. Defaults to 100."""
     tailLines: Int
   ): ServiceLogEntry! @hasRole(role: [USER])

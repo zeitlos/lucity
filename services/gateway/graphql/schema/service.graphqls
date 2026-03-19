@@ -7,10 +7,10 @@ type DetectedService {
 }
 
 input AddServiceInput {
-  projectId: ID!
-  environment: String!
+  projectId: ID! @constraint(constraint: "resource_name")
+  environment: String! @constraint(constraint: "resource_name")
   """Service name. If omitted when image is set, derived from the image (e.g. nginx:1.25 → nginx)."""
-  name: String @constraint(constraint: "min=2,max=63")
+  name: String @constraint(constraint: "resource_name,min=2,max=63")
   """Container port. If omitted when image is set, uses well-known defaults (e.g. redis → 6379)."""
   port: Int
   framework: String
@@ -53,37 +53,37 @@ enum DeployPhase {
 }
 
 input DeployInput {
-  projectId: ID!
-  service: String!
-  environment: String!
+  projectId: ID! @constraint(constraint: "resource_name")
+  service: String! @constraint(constraint: "resource_name")
+  environment: String! @constraint(constraint: "resource_name")
   gitRef: String
 }
 
 input RollbackInput {
-  projectId: ID!
-  service: String!
-  environment: String!
+  projectId: ID! @constraint(constraint: "resource_name")
+  service: String! @constraint(constraint: "resource_name")
+  environment: String! @constraint(constraint: "resource_name")
   """Image tag to roll back to (typically a short git SHA)."""
   imageTag: String!
 }
 
 input GenerateDomainInput {
-  projectId: ID!
-  service: String!
-  environment: String!
+  projectId: ID! @constraint(constraint: "resource_name")
+  service: String! @constraint(constraint: "resource_name")
+  environment: String! @constraint(constraint: "resource_name")
 }
 
 input AddCustomDomainInput {
-  projectId: ID!
-  service: String!
-  environment: String!
+  projectId: ID! @constraint(constraint: "resource_name")
+  service: String! @constraint(constraint: "resource_name")
+  environment: String! @constraint(constraint: "resource_name")
   hostname: String! @constraint(constraint: "min=4,max=253")
 }
 
 input RemoveDomainInput {
-  projectId: ID!
-  service: String!
-  environment: String!
+  projectId: ID! @constraint(constraint: "resource_name")
+  service: String! @constraint(constraint: "resource_name")
+  environment: String! @constraint(constraint: "resource_name")
   hostname: String!
 }
 
@@ -106,7 +106,7 @@ extend type Query {
   """Detect services in a GitHub repository. Repository must be in owner/repo format."""
   detectServices(installationId: ID!, repository: String!): [DetectedService!]! @hasRole(role: [USER])
   deployStatus(id: ID!): DeployRun @hasRole(role: [USER])
-  activeDeployment(projectId: ID!, service: String!, environment: String!): DeployRun @hasRole(role: [USER])
+  activeDeployment(projectId: ID! @constraint(constraint: "resource_name"), service: String! @constraint(constraint: "resource_name"), environment: String! @constraint(constraint: "resource_name")): DeployRun @hasRole(role: [USER])
   platformConfig: PlatformConfig! @hasRole(role: [USER])
   """Perform a live DNS check for a custom domain. Returns current CNAME status and whether it points to the correct target."""
   checkDnsStatus(hostname: String!): DnsCheck! @hasRole(role: [USER])
@@ -114,9 +114,9 @@ extend type Query {
 
 extend type Mutation {
   addService(input: AddServiceInput!): ServiceInstance! @hasRole(role: [USER])
-  removeService(projectId: ID!, environment: String!, service: String!): Boolean! @hasRole(role: [USER])
+  removeService(projectId: ID! @constraint(constraint: "resource_name"), environment: String! @constraint(constraint: "resource_name"), service: String! @constraint(constraint: "resource_name")): Boolean! @hasRole(role: [USER])
   """Set or clear the custom start command for a service in an environment. Empty string clears it."""
-  setCustomStartCommand(projectId: ID!, environment: String!, service: String!, command: String!): Boolean! @hasRole(role: [USER])
+  setCustomStartCommand(projectId: ID! @constraint(constraint: "resource_name"), environment: String! @constraint(constraint: "resource_name"), service: String! @constraint(constraint: "resource_name"), command: String!): Boolean! @hasRole(role: [USER])
   deploy(input: DeployInput!): DeployRun! @hasRole(role: [USER])
   """Roll back to a previous image tag without rebuilding."""
   rollback(input: RollbackInput!): Boolean! @hasRole(role: [USER])

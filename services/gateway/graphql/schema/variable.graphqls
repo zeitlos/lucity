@@ -49,13 +49,13 @@ input ServiceVariableInput {
 }
 
 extend type Query {
-  sharedVariables(projectId: ID!, environment: String!): [Variable!]! @hasRole(role: [USER])
-  serviceVariables(projectId: ID!, environment: String!, service: String!): [ServiceVariable!]! @hasRole(role: [USER])
+  sharedVariables(projectId: ID! @constraint(constraint: "resource_name"), environment: String! @constraint(constraint: "resource_name")): [Variable!]! @hasRole(role: [USER])
+  serviceVariables(projectId: ID! @constraint(constraint: "resource_name"), environment: String! @constraint(constraint: "resource_name"), service: String! @constraint(constraint: "resource_name")): [ServiceVariable!]! @hasRole(role: [USER])
 }
 
 extend type Mutation {
   """Replace all shared variables for an environment. Propagates changes to services referencing them."""
-  setSharedVariables(projectId: ID!, environment: String!, variables: [VariableInput!]!): Boolean! @hasRole(role: [USER])
+  setSharedVariables(projectId: ID! @constraint(constraint: "resource_name"), environment: String! @constraint(constraint: "resource_name"), variables: [VariableInput!]!): Boolean! @hasRole(role: [USER])
   """Replace all variables for a service in an environment."""
-  setServiceVariables(projectId: ID!, environment: String!, service: String!, variables: [ServiceVariableInput!]!): Boolean! @hasRole(role: [USER])
+  setServiceVariables(projectId: ID! @constraint(constraint: "resource_name"), environment: String! @constraint(constraint: "resource_name"), service: String! @constraint(constraint: "resource_name"), variables: [ServiceVariableInput!]!): Boolean! @hasRole(role: [USER])
 }

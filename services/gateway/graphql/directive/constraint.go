@@ -3,19 +3,26 @@ package directive
 import (
 	"context"
 	"fmt"
+	"regexp"
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/go-playground/validator/v10"
 )
+
+// resourceNamePattern matches valid resource names: lowercase alphanumeric with hyphens,
+// must start and end with [a-z0-9], 1-63 characters total.
+var resourceNamePattern = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$`)
 
 type Constraint struct {
 	validator *validator.Validate
 }
 
 func New() *Constraint {
-	return &Constraint{
-		validator: validator.New(),
-	}
+	v := validator.New()
+	v.RegisterValidation("resource_name", func(fl validator.FieldLevel) bool {
+		return resourceNamePattern.MatchString(fl.Field().String())
+	})
+	return &Constraint{validator: v}
 }
 
 func (c *Constraint) Validate(ctx context.Context, obj interface{}, next graphql.Resolver, constraint string) (interface{}, error) {
