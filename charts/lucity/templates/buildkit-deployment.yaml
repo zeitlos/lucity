@@ -25,6 +25,7 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      hostUsers: false
       securityContext:
         runAsUser: 1000
         runAsGroup: 1000
@@ -36,7 +37,6 @@ spec:
           args:
             - "--addr"
             - "tcp://0.0.0.0:1234"
-            - "--oci-worker-no-process-sandbox"
             - "--root"
             - "/var/lib/buildkit"
           ports:
@@ -45,6 +45,7 @@ spec:
               protocol: TCP
           securityContext:
             privileged: false
+            procMount: Unmasked
             seccompProfile:
               type: Unconfined
           readinessProbe:
