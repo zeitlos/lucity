@@ -27,9 +27,6 @@ spec:
       {{- end }}
       hostUsers: false
       securityContext:
-        runAsUser: 1000
-        runAsGroup: 1000
-        fsGroup: 1000
         fsGroupChangePolicy: OnRootMismatch
       containers:
         - name: buildkitd
@@ -44,10 +41,7 @@ spec:
               containerPort: 1234
               protocol: TCP
           securityContext:
-            privileged: false
-            procMount: Unmasked
-            seccompProfile:
-              type: Unconfined
+            privileged: true
           readinessProbe:
             exec:
               command: ["buildctl", "--addr", "tcp://127.0.0.1:1234", "debug", "workers"]
