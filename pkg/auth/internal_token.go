@@ -15,7 +15,7 @@ import (
 
 const (
 	internalIssuer = "lucity-gateway"
-	tokenExpiry    = 30 * time.Second
+	tokenExpiry    = 30 * time.Minute
 )
 
 // InternalClaims represents the claims extracted from an internal JWT.
