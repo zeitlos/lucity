@@ -32,7 +32,7 @@ func NewServer(port, webhookSecret string, handler *Handler) *Server {
 	secret := []byte(webhookSecret)
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/webhook/github", handleGitHub(secret, handler))
+	mux.HandleFunc("/webhooks/github", handleGitHub(secret, handler))
 
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -197,7 +197,7 @@ func (s *Server) Label() string {
 }
 
 func (s *Server) Start() error {
-	slog.Info("webhook server listening", "url", fmt.Sprintf("http://localhost:%s/webhook/github", s.port))
+	slog.Info("webhook server listening", "url", fmt.Sprintf("http://localhost:%s/webhooks/github", s.port))
 	return s.server.ListenAndServe()
 }
 
