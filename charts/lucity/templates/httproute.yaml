@@ -72,6 +72,13 @@ spec:
     - matches:
         - path:
             type: PathPrefix
+            value: /api
+      backendRefs:
+        - name: {{ include "lucity.fullname" . }}-gateway
+          port: 8080
+    - matches:
+        - path:
+            type: PathPrefix
             value: /
       backendRefs:
         - name: {{ include "lucity.fullname" . }}-docs
