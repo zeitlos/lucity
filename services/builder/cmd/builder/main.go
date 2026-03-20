@@ -72,7 +72,7 @@ func main() {
 
 	// Verify K8s connectivity at startup so we fail fast if the cluster is unreachable.
 	checkCtx, checkCancel := context.WithTimeout(ctx, 10*time.Second)
-	_, err = k8sClient.CoreV1().Namespaces().Get(checkCtx, config.BuildNamespace, metav1.GetOptions{})
+	_, err = k8sClient.CoreV1().Pods(config.BuildNamespace).List(checkCtx, metav1.ListOptions{Limit: 1})
 	checkCancel()
 	if err != nil {
 		slog.Error("K8s connectivity check failed — cannot reach cluster or namespace", "namespace", config.BuildNamespace, "error", err)
