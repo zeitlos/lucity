@@ -27,6 +27,12 @@ Test this by asking: "If a user runs `lucity eject` right now, does this feature
 
 The platform never writes to the user's source repository. Not a commit, not a file, not a webhook configuration file. The user's repo is read-only to the platform. All platform-managed configuration lives in the GitOps repository.
 
+## Zero-Trust Security
+
+Users and workspaces are hostile by default. Every user is assumed to be malicious. Never trust user-provided values. Never trust user-generated code. All inputs crossing a trust boundary must be validated and sanitized. Workspaces are hard isolation boundaries. Build-time execution of user code is the highest-risk operation on the platform.
+
+See `security.md` for comprehensive rules covering input validation, injection prevention, workspace isolation, build-time security, runtime isolation, and platform service protection.
+
 ## Discovery Over Definition
 
 Query Kubernetes for truth via labels and annotations. Don't define custom CRDs. Don't maintain mapping tables.
