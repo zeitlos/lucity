@@ -47,15 +47,32 @@ User-provided values will end up in YAML files, shell commands, Helm templates, 
 
 Building user code is the highest-risk operation. The builder executes arbitrary code from user repositories.
 
+### Current: Shared BuildKit with Process Sandbox
+
+- **Shared BuildKit Deployment**: one buildkitd in `lucity-builds` with `privileged: true` and process sandbox enabled. Each RUN step gets its own PID/network namespace, preventing user code from reaching the gRPC API on localhost:1234.
 - **Namespace isolation**: build Jobs run in `lucity-builds`, physically separated from `lucity-system` and all workload namespaces.
 - **Resource limits**: strict CPU and memory limits on build pods. These are security controls preventing resource exhaustion attacks, not just resource management.
-- **No privilege**: build pods run as non-root, all capabilities dropped, `allowPrivilegeEscalation: false`, seccomp profile enforced.
-- **BuildKit process sandbox**: mandatory. Isolates `RUN` steps so user Dockerfile commands cannot escape the build context.
-- **Kubernetes user namespaces**: enabled for build pods to map container root to unprivileged host UID.
 - **No API access**: build pods must not have access to the Kubernetes API. ServiceAccount token automount disabled or ServiceAccount has zero RBAC permissions.
 - **Network restrictions**: build pods should only reach the source repo (GitHub), the OCI registry (for push), and public package registries. No access to cluster-internal services, no access to `lucity-system`, no access to other workload namespaces.
 - **Build timeouts**: enforced via `activeDeadlineSeconds` on Jobs. A build that runs forever is either broken or malicious. Kill it.
 - **No secrets in builds**: never mount platform credentials, registry push tokens (beyond what's needed for the specific image push), or workspace secrets into build pods.
+- **Dockerfile frontend pinning**: reject `# syntax=` directives from untrusted Dockerfiles. Custom LLB generators were the attack vector for CVE-2024-23653 (CVSS 9.8).
+
+### Known Limitation
+
+The shared BuildKit daemon means all workspaces share one buildkitd process. A malicious build from workspace A could interfere with workspace B's builds via shared cache or daemon state. The process sandbox prevents RUN steps from reaching the gRPC API, but BuildKit has had multiple container escape CVEs (Leaky Vessels, January 2024: CVE-2024-23651, CVE-2024-23652, CVE-2024-23653). Running with `privileged: true` means a container escape gives host root.
+
+### Planned: Per-Workspace Rootless BuildKit
+
+Migrate to one rootless BuildKit daemon per workspace using `hostUsers: false` (Kubernetes user namespaces). This changes the security model fundamentally:
+
+- **Workspace isolation**: each workspace gets its own buildkitd. No shared cache, no cross-tenant interference.
+- **Rootless image** (`moby/buildkit:rootless`): BuildKit runs as unprivileged UID on the host. Container escape lands as nobody, not root.
+- **No process sandbox needed**: with per-workspace daemons, a RUN step reaching its own gRPC API is self-harm, not a cross-tenant attack. The workspace boundary is the security boundary.
+- **No `privileged: true`**: rootless BuildKit with user namespaces does not need privileged mode. This eliminates the host-root container escape risk entirely.
+- **Tradeoff**: `hostUsers: false` is incompatible with BuildKit's process sandbox (user namespace UID remapping prevents BuildKit from traversing restrictive directories in base images during COPY). This is acceptable because per-workspace isolation removes the cross-tenant threat that the process sandbox was mitigating.
+
+This follows the model used by CERN (rootless BuildKit at scale on Kubernetes) and aligns with the industry consensus that a BuildKit daemon must never be shared across tenants (Depot, Heroku, Fly.io all enforce this).
 
 ## Runtime Workload Isolation
 
