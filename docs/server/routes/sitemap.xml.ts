@@ -7,9 +7,11 @@ interface SitemapUrl {
 
 export default defineEventHandler(async (event) => {
   const siteUrl = 'https://lucity.cloud';
+  const config = useRuntimeConfig();
+  const contentDates = (config.public as unknown as Record<string, unknown>).contentDates as Record<string, string> | undefined;
 
   const urls: SitemapUrl[] = [
-    { loc: '/' },
+    { loc: '/', lastmod: mostRecentDate(contentDates) },
   ];
 
   for (const collection of ['docs', 'landing']) {
@@ -25,8 +27,9 @@ export default defineEventHandler(async (event) => {
 
         const urlEntry: SitemapUrl = { loc: pagePath };
 
-        if (meta.modifiedAt && typeof meta.modifiedAt === 'string') {
-          urlEntry.lastmod = meta.modifiedAt.split('T')[0];
+        const gitDate = contentDates?.[pagePath];
+        if (gitDate) {
+          urlEntry.lastmod = gitDate.split('T')[0];
         }
 
         urls.push(urlEntry);
@@ -59,6 +62,13 @@ function generateSitemap(urls: SitemapUrl[], siteUrl: string): string {
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${urlEntries}
 </urlset>`;
+}
+
+function mostRecentDate(dates: Record<string, string> | undefined): string | undefined {
+  if (!dates) return undefined;
+  const values = Object.values(dates);
+  if (values.length === 0) return undefined;
+  return values.sort().pop()!.split('T')[0];
 }
 
 function escapeXml(str: string): string {
