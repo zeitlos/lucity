@@ -126,17 +126,18 @@ infra-down:
 
 # Port-forward infrastructure services for local development
 infra-forward: infra-forward-stop
-	@echo "Port-forwarding Zot (5000), Soft-serve (23231, 23232), ArgoCD (8443), Gateway (8880), SigNoz ClickHouse (9100)..."
+	@echo "Port-forwarding Zot (5000), Soft-serve (23231, 23232), ArgoCD (8443), Gateway (8880), SigNoz ClickHouse (9100), Logto Admin (3002)..."
 	@kubectl port-forward svc/lucity-infra-zot 5000:5000 -n lucity-system &
 	@kubectl port-forward svc/lucity-infra-soft-serve 23231:23231 23232:23232 -n lucity-system &
 	@kubectl port-forward svc/lucity-infra-argocd-server 8443:80 -n lucity-system &
 	@(GATEWAY_SVC=$$(kubectl get svc -n envoy-gateway-system -l gateway.envoyproxy.io/owning-gateway-name=lucity-gateway -o name 2>/dev/null) && \
 		[ -n "$$GATEWAY_SVC" ] && kubectl port-forward $$GATEWAY_SVC 8880:80 -n envoy-gateway-system &) 2>/dev/null || true
+	@kubectl port-forward svc/lucity-infra-logto 3002:3002 -n lucity-system &
 	@kubectl port-forward svc/signoz-clickhouse 9100:9000 -n signoz &
 	@echo "Ready. Use 'make infra-forward-stop' to stop."
 
 infra-forward-stop:
-	@for port in 5000 23231 23232 8443 8880 9100; do \
+	@for port in 5000 23231 23232 8443 8880 3002 9100; do \
 		lsof -ti :$$port | xargs kill 2>/dev/null || true; \
 	done
 
