@@ -7,7 +7,7 @@ replace github.com/zeitlos/lucity/pkg => ../../pkg
 require (
 	github.com/ClickHouse/clickhouse-go/v2 v2.43.0
 	github.com/kelseyhightower/envconfig v1.4.0
-	github.com/stripe/stripe-go/v82 v82.1.0
+	github.com/stripe/stripe-go/v82 v82.5.1
 	github.com/zeitlos/lucity/pkg v0.0.0-00010101000000-000000000000
 	google.golang.org/grpc v1.79.1
 	k8s.io/api v0.35.2

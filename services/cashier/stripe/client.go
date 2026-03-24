@@ -78,7 +78,7 @@ const TrialCreditCents = 500
 func (c *Client) CreateSubscription(ctx context.Context, customerID, workspace string, creditDays int) (string, error) {
 	params := &gostripe.SubscriptionParams{
 		Customer:        gostripe.String(customerID),
-		PaymentBehavior: gostripe.String("default_incomplete"),
+		PaymentBehavior: gostripe.String("allow_incomplete"),
 		Items: []*gostripe.SubscriptionItemsParams{
 			{Price: gostripe.String(c.Prices.EcoCPUPriceID)},
 			{Price: gostripe.String(c.Prices.EcoMemPriceID)},
@@ -90,14 +90,28 @@ func (c *Client) CreateSubscription(ctx context.Context, customerID, workspace s
 	}
 	params.AddMetadata("workspace", workspace)
 
+	// Trial billing: threshold invoice at €5 usage, interval invoice at creditDays.
+	// Whichever fires first ends the trial via handlePaymentSucceeded.
+	if creditDays > 0 {
+		params.BillingThresholds = &gostripe.SubscriptionBillingThresholdsParams{
+			AmountGTE: gostripe.Int64(int64(TrialCreditCents)),
+		}
+		params.PendingInvoiceItemInterval = &gostripe.SubscriptionPendingInvoiceItemIntervalParams{
+			Interval:      gostripe.String("day"),
+			IntervalCount: gostripe.Int64(int64(creditDays)),
+		}
+	}
+
 	sub, err := subscription.New(params)
 	if err != nil {
 		return "", fmt.Errorf("failed to create stripe subscription: %w", err)
 	}
 
 	// Create trial credit grant so credits exist from day one.
+	// The 1-hour buffer past creditDays ensures credits are still valid when the
+	// interval invoice finalizes at exactly day N (prevents race with expiry).
 	if creditDays > 0 {
-		expiresAt := time.Now().Add(time.Duration(creditDays) * 24 * time.Hour).Unix()
+		expiresAt := time.Now().Add(time.Duration(creditDays)*24*time.Hour + time.Hour).Unix()
 		if err := c.CreateCreditGrant(ctx, customerID, TrialCreditCents, "Trial credit", expiresAt); err != nil {
 			slog.Warn("failed to create trial credit grant", "error", err)
 		}
@@ -151,6 +165,26 @@ func (c *Client) AddPlanToSubscription(ctx context.Context, subscriptionID, plan
 	}
 
 	return subscription.Get(subscriptionID, nil)
+}
+
+// ClearTrialBillingParams removes billing thresholds and pending invoice item interval
+// from a subscription, and resets the billing cycle anchor to now. Called when a trial
+// user converts to a paid plan so the paid billing period starts fresh.
+func (c *Client) ClearTrialBillingParams(ctx context.Context, subscriptionID string) error {
+	params := &gostripe.SubscriptionParams{
+		BillingCycleAnchor: gostripe.Int64(time.Now().Unix()),
+		ProrationBehavior:  gostripe.String("create_prorations"),
+	}
+	// Empty string tells Stripe to null these nested objects.
+	// Struct fields with nil pointers are omitted from the request, so we use AddExtra.
+	params.AddExtra("billing_thresholds", "")
+	params.AddExtra("pending_invoice_item_interval", "")
+
+	_, err := subscription.Update(subscriptionID, params)
+	if err != nil {
+		return fmt.Errorf("failed to clear trial billing params: %w", err)
+	}
+	return nil
 }
 
 // SetDefaultPaymentMethod sets the customer's default payment method for invoices.

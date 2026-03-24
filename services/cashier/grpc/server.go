@@ -117,6 +117,14 @@ func (s *Server) Subscription(ctx context.Context, req *cashier.SubscriptionRequ
 
 	resp := subscriptionToResponse(sub, s.stripe.Prices)
 
+	// Use the actual credit balance from Stripe instead of the plan entitlement.
+	// This correctly reflects trial credits for users without a plan, and is always
+	// accurate for users with a plan (plan credits are issued as credit grants too).
+	creditBalance, err := s.stripe.CreditBalanceCents(ctx, req.CustomerId)
+	if err != nil {
+		slog.Warn("failed to get credit balance", "customer", req.CustomerId, "error", err)
+	}
+
 	// If the customer has no payment method, check for an active credit grant.
 	// The dashboard uses creditExpiry to show a countdown badge prompting
 	// the user to add a payment method before credits expire.
@@ -132,7 +140,7 @@ func (s *Server) Subscription(ctx context.Context, req *cashier.SubscriptionRequ
 		Plan:              resp.Plan,
 		Status:            resp.Status,
 		CurrentPeriodEnd:  resp.CurrentPeriodEnd,
-		CreditAmountCents: resp.CreditAmountCents,
+		CreditAmountCents: int32(creditBalance),
 		CreditExpiry:      creditExpiry,
 		HasPaymentMethod:  hasPM,
 	}, nil
@@ -235,17 +243,52 @@ func (s *Server) handlePaymentSucceeded(event gostripe.Event) {
 	}
 
 	workspace := ""
+	var subscriptionID, customerID string
 	if inv.Parent != nil && inv.Parent.SubscriptionDetails != nil && inv.Parent.SubscriptionDetails.Subscription != nil {
-		workspace = inv.Parent.SubscriptionDetails.Subscription.Metadata["workspace"]
+		sub := inv.Parent.SubscriptionDetails.Subscription
+		workspace = sub.Metadata["workspace"]
+		subscriptionID = sub.ID
+	}
+	if inv.Customer != nil {
+		customerID = inv.Customer.ID
 	}
 	if workspace == "" {
 		return
 	}
 
-	// Unconditionally resume. If the workspace is not suspended, the deployer
-	// will find no pre-suspend annotations and the operation is a no-op.
+	// For trial subscriptions (no plan), check if the user has converted.
+	// If they haven't added a payment method, suspend: the trial is over.
+	if subscriptionID != "" {
+		ctx := context.Background()
+		sub, err := s.stripe.Subscription(ctx, subscriptionID)
+		if err != nil {
+			slog.Error("failed to fetch subscription for trial check", "error", err, "subscription", subscriptionID)
+			// Fall through to resume (safe default for paying customers)
+		} else if !s.subscriptionHasPlan(sub) {
+			// Trial subscription: check for payment method
+			hasPM, _ := s.stripe.HasPaymentMethod(ctx, customerID)
+			if !hasPM {
+				slog.Info("trial ended, no plan or payment method, suspending workspace",
+					"workspace", workspace, "invoice", inv.ID)
+				s.suspendWorkspace(workspace, true)
+				return
+			}
+		}
+	}
+
 	slog.Info("payment succeeded, resuming workspace", "workspace", workspace, "invoice", inv.ID)
 	s.suspendWorkspace(workspace, false)
+}
+
+// subscriptionHasPlan returns true if the subscription has a Hobby or Pro plan item.
+func (s *Server) subscriptionHasPlan(sub *gostripe.Subscription) bool {
+	for _, item := range sub.Items.Data {
+		if item.Price.ID == s.stripe.Prices.HobbyPriceID ||
+			item.Price.ID == s.stripe.Prices.ProPriceID {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *Server) handleSubscriptionDeleted(event gostripe.Event) {
@@ -369,6 +412,15 @@ func (s *Server) AddPlan(ctx context.Context, req *cashier.AddPlanRequest) (*cas
 	if err != nil {
 		return nil, fmt.Errorf("failed to add plan: %w", err)
 	}
+
+	// Clear trial billing params (thresholds, interval) and reset billing cycle
+	// anchor so the paid billing period starts fresh from now.
+	if err := s.stripe.ClearTrialBillingParams(ctx, req.SubscriptionId); err != nil {
+		slog.Warn("failed to clear trial billing params", "workspace", req.Workspace, "error", err)
+	}
+
+	// Resume workspace in case it was suspended at trial end.
+	s.suspendWorkspace(req.Workspace, false)
 
 	slog.Info("plan added to subscription", "workspace", req.Workspace, "plan", planPriceID)
 	resp := subscriptionToResponse(sub, s.stripe.Prices)
