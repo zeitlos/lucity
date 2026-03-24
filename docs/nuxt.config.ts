@@ -4,6 +4,16 @@ export default defineNuxtConfig({
     name: 'Lucity'
   },
   modules: ['nuxt-vitalizer'],
+  hooks: {
+    'pages:extend'(pages) {
+      // Remove the [[lang]]/[...slug] route from the Docus layer.
+      // i18n is not enabled, so the optional :lang? prefix just creates
+      // duplicate URLs (e.g. /en/getting-started/concepts) that confuse
+      // search engines ("Alternate page with proper canonical tag").
+      const idx = pages.findIndex(p => p.path === '/:lang?/:slug(.*)*');
+      if (idx !== -1) pages.splice(idx, 1);
+    }
+  },
   vitalizer: {
     disableStylesheets: 'entry'
   },
