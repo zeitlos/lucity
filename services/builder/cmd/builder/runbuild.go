@@ -321,8 +321,8 @@ func buildWithBuildKit(ctx context.Context, buildkitAddr, buildDir, imageName, c
 
 	// Add non-root user setup. Railpack doesn't support non-root users
 	// (railwayapp/railpack#286), so we append LLB steps to create UID 1000
-	// and chown the image's WORKDIR. This is technology-agnostic: the WORKDIR
-	// comes from railpack's image config, not a hardcoded path.
+	// and transfer ownership of the WORKDIR. This is technology-agnostic:
+	// the WORKDIR comes from railpack's image config, not a hardcoded path.
 	workdir := image.Config.WorkingDir
 	if workdir == "" {
 		workdir = "/"
@@ -333,9 +333,20 @@ func buildWithBuildKit(ctx context.Context, buildkitAddr, buildDir, imageName, c
 				"(adduser -u 1000 -G lucity -D -h %s lucity 2>/dev/null || "+
 				"useradd -u 1000 -g 1000 -d %s -M lucity 2>/dev/null) || true'",
 			workdir, workdir)),
-	).Run(
-		llb.Shlex(fmt.Sprintf("sh -c 'chown -R 1000:1000 %s 2>/dev/null || true'", workdir)),
 	).Root()
+	// Use llb.Copy to transfer workdir ownership to UID 1000 at the snapshot
+	// level. This replaces `chown -R` which was extremely slow on network
+	// storage (186s for a small Next.js app on Hetzner CSI).
+	nonRootState = nonRootState.File(
+		llb.Copy(nonRootState, workdir, workdir, &llb.CopyInfo{
+			AllowWildcard:  true,
+			CreateDestPath: true,
+			ChownOpt: &llb.ChownOpt{
+				User:  &llb.UserOpt{UID: 1000},
+				Group: &llb.UserOpt{UID: 1000},
+			},
+		}),
+	)
 	llbState = &nonRootState
 	image.Config.User = "1000:1000"
 
