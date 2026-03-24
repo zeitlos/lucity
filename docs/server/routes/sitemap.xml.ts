@@ -20,7 +20,7 @@ export default defineEventHandler(async (event) => {
 
       for (const page of pages) {
         const meta = page as unknown as Record<string, unknown>;
-        const pagePath = (page.path as string) || '/';
+        const pagePath = ((page.path as string) || '/').trim();
 
         if (meta.sitemap === false) continue;
         if (pagePath.endsWith('.navigation') || pagePath.includes('/.navigation')) continue;
