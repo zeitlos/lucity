@@ -145,7 +145,6 @@ func registerAuthRoutes(mux *http.ServeMux, provider *OIDCProvider, api *handler
 	mux.HandleFunc("/auth/refresh", handleRefresh(provider, logtoClient, sessionSecret, secure))
 	mux.HandleFunc("/auth/github/install", handleGitHubInstall(githubAppSlug))
 	mux.HandleFunc("/auth/github/setup", handleGitHubSetup(dashboardURL))
-	mux.HandleFunc("/auth/github/callback", handleGitHubSetup(dashboardURL))
 }
 
 // handleLogin redirects to the OIDC provider's authorization page with PKCE.
