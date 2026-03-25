@@ -59,3 +59,33 @@ gen/
 
 # Internal docs (not for public repo)
 docs/internal/
+
+# AI tool skill symlinks (only .agents/ and .claude/skills/ are canonical)
+.adal/
+.augment/
+.codebuddy/
+.commandcode/
+.continue/
+.cortex/
+.crush/
+.factory/
+.goose/
+.iflow/
+.junie/
+.kilocode/
+.kiro/
+.kode/
+.mcpjam/
+.mux/
+.neovate/
+.openhands/
+.pi/
+.pochi/
+.qoder/
+.qwen/
+.roo/
+.trae/
+.vibe/
+.windsurf/
+.zencoder/
+/skills/

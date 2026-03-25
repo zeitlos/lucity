@@ -90,6 +90,16 @@
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
       "computedHash": "85ffbc05cf88939ba3ff643a315928185af16181470349dfbaad2880047c9900"
+    },
+    "stripe-best-practices": {
+      "source": "docs.stripe.com",
+      "sourceType": "well-known",
+      "computedHash": "7b886129e39257cd1c3b885cb7e5bdcb04973598acc421fb7418c32fb1690dc2"
+    },
+    "upgrade-stripe": {
+      "source": "docs.stripe.com",
+      "sourceType": "well-known",
+      "computedHash": "32fe96a1d9933d2d0a1bb99c8328b01284b018dcbae850f069556c82c07b8c7e"
     }
   }
 }
