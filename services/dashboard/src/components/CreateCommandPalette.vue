@@ -62,7 +62,6 @@ watch(() => props.open, (open) => {
   if (open) {
     view.value = props.initialView || 'main';
     search.value = '';
-    selectedSource.value = null;
     sourcePickerOpen.value = false;
     containerImageRef.value = '';
     focusedIndex.value = 0;
@@ -71,6 +70,8 @@ watch(() => props.open, (open) => {
     pendingRepo.value = null;
     pendingImage.value = null;
     processingItemId.value = null;
+    // Re-select first source from cache (watcher won't fire if sources didn't change)
+    selectedSource.value = sources.value.length > 0 ? sources.value[0] : null;
     nextTick(() => inputRef.value?.focus());
   }
 });
@@ -112,7 +113,7 @@ const { result: sourcesResult, loading: sourcesLoading } = useQuery(GitHubSource
 
 const sources = computed(() => sourcesResult.value?.githubSources ?? []);
 
-// Auto-select first source
+// Auto-select first source when freshly loaded
 watch(sources, (s) => {
   if (s.length > 0 && !selectedSource.value) {
     selectedSource.value = s[0];
