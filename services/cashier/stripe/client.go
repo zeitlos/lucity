@@ -203,13 +203,18 @@ func (c *Client) SetDefaultPaymentMethod(ctx context.Context, customerID, paymen
 // CreateSetupCheckoutSession creates a Stripe Checkout Session in setup mode
 // to collect a payment method for an existing customer. The plan is stored in
 // session metadata so it can be retrieved on completion.
-func (c *Client) CreateSetupCheckoutSession(ctx context.Context, customerID, planPriceID, successURL, cancelURL string) (string, string, error) {
+func (c *Client) CreateSetupCheckoutSession(ctx context.Context, customerID, planPriceID, planName, successURL, cancelURL string) (string, string, error) {
 	params := &gostripe.CheckoutSessionParams{
 		Mode:     gostripe.String(string(gostripe.CheckoutSessionModeSetup)),
 		Customer: gostripe.String(customerID),
 		Currency: gostripe.String(string(gostripe.CurrencyEUR)),
 		SuccessURL: gostripe.String(successURL),
 		CancelURL:  gostripe.String(cancelURL),
+		CustomText: &gostripe.CheckoutSessionCustomTextParams{
+			Submit: &gostripe.CheckoutSessionCustomTextSubmitParams{
+				Message: gostripe.String(fmt.Sprintf("You're signing up for the %s plan. Your card will be charged at the end of each billing cycle.", planName)),
+			},
+		},
 	}
 	params.AddMetadata("plan_price_id", planPriceID)
 

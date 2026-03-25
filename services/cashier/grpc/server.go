@@ -375,9 +375,14 @@ func (s *Server) CreatePlanCheckoutSession(ctx context.Context, req *cashier.Cre
 		return nil, fmt.Errorf("customer_id, success_url, and cancel_url required")
 	}
 
-	planPriceID := s.stripe.PlanPriceID(planToString(req.Plan))
+	plan := planToString(req.Plan)
+	planPriceID := s.stripe.PlanPriceID(plan)
+	planName := "Hobby"
+	if plan == "PRO" {
+		planName = "Pro"
+	}
 
-	url, sessionID, err := s.stripe.CreateSetupCheckoutSession(ctx, req.CustomerId, planPriceID, req.SuccessUrl, req.CancelUrl)
+	url, sessionID, err := s.stripe.CreateSetupCheckoutSession(ctx, req.CustomerId, planPriceID, planName, req.SuccessUrl, req.CancelUrl)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create plan checkout session: %w", err)
 	}
