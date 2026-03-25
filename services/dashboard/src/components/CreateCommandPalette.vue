@@ -10,6 +10,7 @@ import { AddServiceMutation, DetectServicesQuery } from '@/graphql/services';
 import { SearchImagesQuery } from '@/graphql/registry';
 import { CreateDatabaseMutation } from '@/graphql/databases';
 import { useEnvironment } from '@/composables/useEnvironment';
+import { useGitHubInstall } from '@/composables/useGitHubInstall';
 import { toast, errorToast } from '@/components/ui/sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -329,25 +330,11 @@ async function handleAddManualService() {
   }
 }
 
-// Open GitHub App install in a popup
-function openInstallPopup() {
-  const w = 600;
-  const h = 700;
-  const left = window.screenX + (window.outerWidth - w) / 2;
-  const top = window.screenY + (window.outerHeight - h) / 2;
-  window.open('/auth/github/install', 'github-install', `width=${w},height=${h},left=${left},top=${top}`);
-}
-
-// Listen for postMessage from popup after GitHub App install
-if (typeof window !== 'undefined') {
-  window.addEventListener('message', (event) => {
-    if (event.data === 'github-app-installed') {
-      // Refetch sources to pick up the new installation
-      const client = resolveClient();
-      client.refetchQueries({ include: [GitHubSourcesQuery] });
-    }
-  });
-}
+// Open GitHub App install in a popup, refetch sources on completion
+const { openInstallPopup } = useGitHubInstall(() => {
+  const client = resolveClient();
+  client.refetchQueries({ include: [GitHubSourcesQuery] });
+});
 
 // Container image state
 const containerImageRef = ref('');
@@ -640,12 +627,10 @@ const mainItems = computed(() => {
                 <p class="mt-1 text-xs text-muted-foreground">
                   Link your GitHub account to browse and import repositories.
                 </p>
-                <a href="/auth/github/connect" class="mt-3 inline-flex">
-                  <Button size="sm">
-                    <Github :size="14" class="mr-1.5" />
-                    Connect GitHub
-                  </Button>
-                </a>
+                <Button size="sm" class="mt-3" @click="openInstallPopup()">
+                  <Github :size="14" class="mr-1.5" />
+                  Connect GitHub
+                </Button>
               </div>
             </template>
             <template v-else>

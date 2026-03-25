@@ -1,17 +1,16 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { useQuery, useMutation } from '@vue/apollo-composable';
+import { useQuery } from '@vue/apollo-composable';
+import { useRouter } from 'vue-router';
 import { Clock, CreditCard } from 'lucide-vue-next';
-import { SubscriptionQuery, UsageSummaryQuery, BillingPortalUrlMutation } from '@/graphql/billing';
+import { SubscriptionQuery, UsageSummaryQuery } from '@/graphql/billing';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { errorToast } from '@/components/ui/sonner';
-import { errorMessage } from '@/lib/utils';
 
+const router = useRouter();
 const { result: subResult } = useQuery(SubscriptionQuery, null, { fetchPolicy: 'cache-and-network' });
 const { result: usageResult } = useQuery(UsageSummaryQuery, null, { fetchPolicy: 'cache-and-network' });
-const { mutate: portalMutate, loading: openingPortal } = useMutation(BillingPortalUrlMutation);
 
 const subscription = computed(() => subResult.value?.subscription);
 const usage = computed(() => usageResult.value?.usageSummary);
@@ -73,16 +72,8 @@ const barColor = computed(() => {
   }
 });
 
-async function openBillingPortal() {
-  try {
-    const result = await portalMutate();
-    const url = result?.data?.billingPortalUrl?.url;
-    if (url) {
-      window.open(url, '_blank');
-    }
-  } catch (e: unknown) {
-    errorToast('Failed to open billing portal', { description: errorMessage(e) });
-  }
+function goToSettings() {
+  router.push({ name: 'workspace-settings' });
 }
 </script>
 
@@ -146,8 +137,7 @@ async function openBillingPortal() {
         <Button
           class="mt-3 w-full"
           size="sm"
-          :disabled="openingPortal"
-          @click="openBillingPortal"
+          @click="goToSettings"
         >
           <CreditCard :size="14" class="mr-1.5" />
           Add payment method

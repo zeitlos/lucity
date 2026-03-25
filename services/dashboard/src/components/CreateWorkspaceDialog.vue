@@ -15,8 +15,8 @@ import { Label } from '@/components/ui/label';
 import { errorToast } from '@/components/ui/sonner';
 import { errorMessage } from '@/lib/utils';
 import { isValidSlug } from '@/lib/slug';
-import { Check } from 'lucide-vue-next';
 import NameSlugField from '@/components/NameSlugField.vue';
+import PlanPicker from '@/components/PlanPicker.vue';
 
 defineProps<{
   open: boolean;
@@ -64,7 +64,7 @@ async function handleCheckout() {
     :open="open"
     @update:open="emit('update:open', $event)"
   >
-    <DialogContent class="sm:max-w-md">
+    <DialogContent class="sm:max-w-xl">
       <DialogHeader>
         <DialogTitle>New Workspace</DialogTitle>
         <DialogDescription>
@@ -86,59 +86,10 @@ async function handleCheckout() {
 
         <div class="space-y-2">
           <Label>Plan</Label>
-          <div class="grid grid-cols-2 gap-3">
-            <button
-              type="button"
-              class="rounded-lg border p-4 text-left transition-colors"
-              :class="selectedPlan === 'HOBBY'
-                ? 'border-primary bg-primary/5'
-                : 'hover:border-muted-foreground/50'"
-              :disabled="loading"
-              @click="selectedPlan = 'HOBBY'"
-            >
-              <div class="flex items-center justify-between">
-                <p class="text-sm font-medium">Hobby</p>
-                <Check
-                  v-if="selectedPlan === 'HOBBY'"
-                  :size="14"
-                  class="text-primary"
-                />
-              </div>
-              <p class="text-lg font-semibold">
-                &euro;5<span class="text-sm font-normal text-muted-foreground">/mo</span>
-              </p>
-              <p class="mt-1 text-xs text-muted-foreground">
-                &euro;5 credit/mo. Great for side projects.
-              </p>
-            </button>
-            <button
-              type="button"
-              class="rounded-lg border p-4 text-left transition-colors"
-              :class="selectedPlan === 'PRO'
-                ? 'border-primary bg-primary/5'
-                : 'hover:border-muted-foreground/50'"
-              :disabled="loading"
-              @click="selectedPlan = 'PRO'"
-            >
-              <div class="flex items-center justify-between">
-                <p class="text-sm font-medium">Pro</p>
-                <Check
-                  v-if="selectedPlan === 'PRO'"
-                  :size="14"
-                  class="text-primary"
-                />
-              </div>
-              <p class="text-lg font-semibold">
-                &euro;25<span class="text-sm font-normal text-muted-foreground">/mo</span>
-              </p>
-              <p class="mt-1 text-xs text-muted-foreground">
-                &euro;25 credit/mo. For teams &amp; production.
-              </p>
-            </button>
-          </div>
-          <p class="text-xs text-muted-foreground">
-            You can change your plan anytime.
-          </p>
+          <PlanPicker
+            v-model="selectedPlan"
+            :disabled="loading"
+          />
         </div>
 
         <DialogFooter>

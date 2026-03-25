@@ -12,6 +12,7 @@ import EmptyState from '@/components/EmptyState.vue';
 import CreateCommandPalette from '@/components/CreateCommandPalette.vue';
 import WelcomeCard from '@/components/WelcomeCard.vue';
 import { useOnboarding } from '@/composables/useOnboarding';
+import { useGitHubInstall } from '@/composables/useGitHubInstall';
 
 const route = useRoute();
 const router = useRouter();
@@ -25,6 +26,7 @@ const paletteOpen = ref(false);
 const initialPaletteView = ref<'main' | 'github-repos'>('main');
 
 const { isWelcome, dismissWelcome } = useOnboarding();
+const { openInstallPopup } = useGitHubInstall();
 
 function handleWelcomeDismiss() {
   dismissWelcome();
@@ -32,6 +34,12 @@ function handleWelcomeDismiss() {
 
 function handleCreateProject() {
   dismissWelcome();
+  paletteOpen.value = true;
+}
+
+function handleImportGitHub() {
+  dismissWelcome();
+  initialPaletteView.value = 'github-repos';
   paletteOpen.value = true;
 }
 
@@ -116,6 +124,7 @@ function uniqueRepoCount(services: { sourceUrl?: string }[]): number {
       v-else-if="isWelcome && projects.length === 0"
       @dismiss="handleWelcomeDismiss"
       @create-project="handleCreateProject"
+      @import-github="handleImportGitHub"
     />
 
     <template v-else-if="projects.length === 0">
@@ -126,12 +135,10 @@ function uniqueRepoCount(services: { sourceUrl?: string }[]): number {
         pattern="dots"
       >
         <template #action>
-          <a href="/auth/github/connect" class="inline-flex">
-            <Button>
-              <Github :size="16" class="mr-2" />
-              Connect GitHub
-            </Button>
-          </a>
+          <Button @click="openInstallPopup()">
+            <Github :size="16" class="mr-2" />
+            Connect GitHub
+          </Button>
         </template>
       </EmptyState>
 

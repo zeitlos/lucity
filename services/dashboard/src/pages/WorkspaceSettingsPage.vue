@@ -55,6 +55,7 @@ import {
 } from '@/components/ui/table';
 import { toast, errorToast } from '@/components/ui/sonner';
 import { errorMessage } from '@/lib/utils';
+import PlanPicker from '@/components/PlanPicker.vue';
 
 const router = useRouter();
 const { refreshToken, setActiveWorkspace } = useAuth();
@@ -180,6 +181,7 @@ const { mutate: changePlanMutate, loading: changingPlan } = useMutation(ChangePl
 const { mutate: portalMutate, loading: openingPortal } = useMutation(BillingPortalUrlMutation);
 const { mutate: planCheckoutMutate, loading: startingPlanCheckout } = useMutation(CreatePlanCheckoutMutation);
 const confirmPlan = ref<string | null>(null);
+const trialSelectedPlan = ref<'HOBBY' | 'PRO'>('HOBBY');
 const isTrial = computed(() => billingAvailable.value && !subscription.value?.plan);
 
 function formatCents(cents: number): string {
@@ -480,66 +482,64 @@ async function handleDelete() {
             </template>
 
             <template v-else>
-              <!-- Subscription -->
-              <div class="rounded-lg border p-4 space-y-3">
+              <!-- Trial: upgrade prompt -->
+              <div
+                v-if="isTrial && isAdmin"
+                class="rounded-lg border p-6 space-y-5"
+              >
+                <div class="flex items-start gap-4">
+                  <div class="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                    <CreditCard :size="20" class="text-primary" />
+                  </div>
+                  <div>
+                    <h3 class="text-sm font-medium text-foreground">
+                      Choose a plan to continue
+                    </h3>
+                    <p class="mt-1 text-sm text-muted-foreground">
+                      You're on a trial with &euro;5 in free credits<template v-if="subscription!.creditExpiry">, expiring {{ formatDate(subscription!.creditExpiry) }}</template>.
+                      Pick a plan and add a payment method to keep your workspace running.
+                    </p>
+                  </div>
+                </div>
+
+                <PlanPicker
+                  v-model="trialSelectedPlan"
+                  :disabled="startingPlanCheckout"
+                />
+
+                <Button
+                  :disabled="startingPlanCheckout"
+                  @click="handlePlanCheckout(trialSelectedPlan)"
+                >
+                  {{ startingPlanCheckout ? 'Redirecting...' : `Continue with ${trialSelectedPlan === 'PRO' ? 'Pro' : 'Hobby'}` }}
+                </Button>
+              </div>
+
+              <!-- Non-trial: subscription summary -->
+              <div v-if="!isTrial" class="rounded-lg border p-4 space-y-3">
                 <div class="flex items-center justify-between">
                   <h3 class="text-sm font-medium">Subscription</h3>
-                  <Badge v-if="isTrial" variant="secondary">Trial</Badge>
-                  <Badge v-else :variant="subscription!.status === 'ACTIVE' ? 'default' : 'destructive'">
+                  <Badge :variant="subscription!.status === 'ACTIVE' ? 'default' : 'destructive'">
                     {{ subscription!.status === 'ACTIVE' ? 'Active' : subscription!.status === 'PAST_DUE' ? 'Past Due' : subscription!.status }}
                   </Badge>
                 </div>
                 <div class="flex items-center justify-between text-sm">
                   <span class="text-muted-foreground">Current plan</span>
-                  <span class="font-medium">{{ isTrial ? 'Trial' : subscription!.plan === 'PRO' ? 'Pro' : 'Hobby' }}</span>
+                  <span class="font-medium">{{ subscription!.plan === 'PRO' ? 'Pro' : 'Hobby' }}</span>
                 </div>
                 <div class="flex items-center justify-between text-sm">
                   <span class="text-muted-foreground">Current period ends</span>
                   <span>{{ formatDate(subscription!.currentPeriodEnd) }}</span>
                 </div>
-                <div v-if="!isTrial" class="flex items-center justify-between text-sm">
+                <div class="flex items-center justify-between text-sm">
                   <span class="text-muted-foreground">Plan credit</span>
                   <span>{{ formatCents(subscription!.creditAmountCents) }}/mo</span>
                 </div>
               </div>
 
-              <!-- Trial banner: pick a plan -->
-              <div
-                v-if="isTrial && isAdmin"
-                class="rounded-lg border border-primary/30 bg-primary/5 p-4"
-              >
-                <p class="text-sm font-medium text-foreground">
-                  You're on a trial with &euro;5 in credits<template v-if="subscription!.creditExpiry">, expiring on {{ formatDate(subscription!.creditExpiry) }}</template>.
-                  Choose a plan and add a payment method to keep using the platform.
-                </p>
-                <p class="mt-1 text-xs text-muted-foreground">
-                  After credits expire, your workspace will be suspended until you subscribe.
-                </p>
-                <div class="mt-4 grid grid-cols-2 gap-3">
-                  <button
-                    class="rounded-lg border p-4 text-left transition-colors hover:border-muted-foreground/50"
-                    :disabled="startingPlanCheckout"
-                    @click="handlePlanCheckout('HOBBY')"
-                  >
-                    <p class="text-sm font-medium">Hobby</p>
-                    <p class="text-lg font-semibold">&euro;5<span class="text-sm font-normal text-muted-foreground">/mo</span></p>
-                    <p class="mt-1 text-xs text-muted-foreground">&euro;5 resource credit included</p>
-                  </button>
-                  <button
-                    class="rounded-lg border p-4 text-left transition-colors hover:border-muted-foreground/50"
-                    :disabled="startingPlanCheckout"
-                    @click="handlePlanCheckout('PRO')"
-                  >
-                    <p class="text-sm font-medium">Pro</p>
-                    <p class="text-lg font-semibold">&euro;25<span class="text-sm font-normal text-muted-foreground">/mo</span></p>
-                    <p class="mt-1 text-xs text-muted-foreground">&euro;25 resource credit included</p>
-                  </button>
-                </div>
-              </div>
-
               <!-- Credits banner: no payment method yet (non-trial, e.g. workspace checkout) -->
               <div
-                v-else-if="subscription!.creditExpiry && !subscription!.hasPaymentMethod"
+                v-if="!isTrial && subscription!.creditExpiry && !subscription!.hasPaymentMethod"
                 class="rounded-lg border border-primary/30 bg-primary/5 p-4"
               >
                 <p class="text-sm font-medium text-foreground">
@@ -563,7 +563,7 @@ async function handleDelete() {
 
               <!-- Credits banner: payment method set -->
               <div
-                v-else-if="subscription!.creditExpiry && subscription!.hasPaymentMethod"
+                v-else-if="!isTrial && subscription!.creditExpiry && subscription!.hasPaymentMethod"
                 class="rounded-lg border border-green-500/30 bg-green-500/5 p-4"
               >
                 <p class="text-sm font-medium text-foreground">
@@ -574,32 +574,10 @@ async function handleDelete() {
               <!-- Plan switcher (admin only, only when already on a plan) -->
               <div v-if="isAdmin && !isTrial" class="space-y-3">
                 <h3 class="text-sm font-medium">Plan</h3>
-                <div class="grid grid-cols-2 gap-3">
-                  <button
-                    class="rounded-lg border p-4 text-left transition-colors"
-                    :class="subscription!.plan === 'HOBBY'
-                      ? 'border-primary bg-primary/5'
-                      : 'hover:border-muted-foreground/50'"
-                    :disabled="subscription!.plan === 'HOBBY' || changingPlan"
-                    @click="confirmPlan = 'HOBBY'"
-                  >
-                    <p class="text-sm font-medium">Hobby</p>
-                    <p class="text-lg font-semibold">&euro;5<span class="text-sm font-normal text-muted-foreground">/mo</span></p>
-                    <p class="mt-1 text-xs text-muted-foreground">&euro;5 resource credit included</p>
-                  </button>
-                  <button
-                    class="rounded-lg border p-4 text-left transition-colors"
-                    :class="subscription!.plan === 'PRO'
-                      ? 'border-primary bg-primary/5'
-                      : 'hover:border-muted-foreground/50'"
-                    :disabled="subscription!.plan === 'PRO' || changingPlan"
-                    @click="confirmPlan = 'PRO'"
-                  >
-                    <p class="text-sm font-medium">Pro</p>
-                    <p class="text-lg font-semibold">&euro;25<span class="text-sm font-normal text-muted-foreground">/mo</span></p>
-                    <p class="mt-1 text-xs text-muted-foreground">&euro;25 resource credit included</p>
-                  </button>
-                </div>
+                <PlanPicker
+                  :model-value="(subscription!.plan as 'HOBBY' | 'PRO') ?? 'HOBBY'"
+                  @update:model-value="confirmPlan = $event"
+                />
               </div>
 
               <!-- Plan change confirmation -->
