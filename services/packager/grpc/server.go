@@ -7,6 +7,7 @@ import (
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/deployer"
 	"github.com/zeitlos/lucity/pkg/packager"
 	"github.com/zeitlos/lucity/pkg/tenant"
@@ -18,16 +19,25 @@ type Server struct {
 	packager.UnimplementedPackagerServiceServer
 	provider gitops.Provider
 	deployer deployer.DeployerServiceClient
+	issuer   *auth.Issuer
 }
 
 // NewServer creates a packager server with the given GitOps provider.
-func NewServer(provider gitops.Provider, deployerClient deployer.DeployerServiceClient) *Server {
-	return &Server{provider: provider, deployer: deployerClient}
+func NewServer(provider gitops.Provider, deployerClient deployer.DeployerServiceClient, issuer *auth.Issuer) *Server {
+	return &Server{provider: provider, deployer: deployerClient, issuer: issuer}
 }
 
 // syncEnvironment triggers an ArgoCD sync for a single environment.
 // Best-effort: logs on failure but never returns an error.
 func (s *Server) syncEnvironment(ctx context.Context, project, environment string) {
+	if s.issuer != nil {
+		ctx = auth.WithClaims(ctx, &auth.Claims{
+			Subject: "packager",
+			Roles:   []auth.Role{auth.RoleUser},
+		})
+		ctx = auth.WithIssuer(ctx, s.issuer)
+		ctx = auth.OutgoingContext(ctx)
+	}
 	ctx = tenant.OutgoingContext(ctx)
 	_, err := s.deployer.SyncDeployment(ctx, &deployer.SyncDeploymentRequest{
 		Project:     project,

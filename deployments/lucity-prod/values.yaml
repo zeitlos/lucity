@@ -59,6 +59,7 @@ builder:
 packager:
   env:
     INTERNAL_JWT_PUBLIC_KEY_PATH: /secrets/internal-jwt/public.pem
+    INTERNAL_JWT_PRIVATE_KEY_PATH: /secrets/internal-jwt/private.pem
     SOFTSERVE_SSH_ADDR: lucity-infra-soft-serve.lucity-system.svc.cluster.local:23231
     SOFTSERVE_HTTP_ADDR: http://lucity-infra-soft-serve.lucity-system.svc.cluster.local:23232
     SOFTSERVE_SSH_KEY_PATH: /secrets/softserve/admin-key

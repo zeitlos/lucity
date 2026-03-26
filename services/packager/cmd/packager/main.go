@@ -31,7 +31,8 @@ type Config struct {
 	DeployerAddr string `envconfig:"DEPLOYER_ADDR" default:"localhost:9003"`
 
 	// Internal JWT (ES256 for gRPC service-to-service auth)
-	InternalJWTPublicKeyPath string `envconfig:"INTERNAL_JWT_PUBLIC_KEY_PATH" required:"true"`
+	InternalJWTPublicKeyPath  string `envconfig:"INTERNAL_JWT_PUBLIC_KEY_PATH" required:"true"`
+	InternalJWTPrivateKeyPath string `envconfig:"INTERNAL_JWT_PRIVATE_KEY_PATH"`
 }
 
 func main() {
@@ -64,7 +65,17 @@ func main() {
 
 	deployerClient := deployer.NewDeployerServiceClient(deployerConn)
 
-	svc := packagergrpc.NewServer(provider, deployerClient)
+	// Internal JWT issuer for outgoing gRPC calls (packager → deployer).
+	var issuer *auth.Issuer
+	if config.InternalJWTPrivateKeyPath != "" {
+		issuer, err = auth.NewIssuerFromFile(config.InternalJWTPrivateKeyPath)
+		if err != nil {
+			slog.Error("failed to create internal JWT issuer", "error", err)
+			os.Exit(1)
+		}
+	}
+
+	svc := packagergrpc.NewServer(provider, deployerClient, issuer)
 
 	verifier, err := auth.NewInternalVerifierFromFile(config.InternalJWTPublicKeyPath)
 	if err != nil {
