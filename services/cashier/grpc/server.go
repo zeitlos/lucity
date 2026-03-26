@@ -244,7 +244,7 @@ func (s *Server) handlePaymentFailed(event gostripe.Event) error {
 		return fmt.Errorf("no workspace in subscription metadata for invoice %s", inv.ID)
 	}
 
-	slog.Error("payment failed, suspending workspace", "workspace", workspace, "invoice", inv.ID)
+	slog.Warn("payment failed, suspending workspace", "workspace", workspace, "invoice", inv.ID)
 	s.suspendWorkspace(workspace, true)
 	return nil
 }
