@@ -1335,15 +1335,17 @@ func (s *Server) SuspendWorkspace(ctx context.Context, req *deployer.SuspendWork
 	// 3. Write suspended flag via packager (GitOps values.yaml).
 	// The packager commits the change and triggers ArgoCD sync.
 	// ArgoCD then enforces the suspension (replicas=0, CronJobs suspended, CNPG hibernated, HTTPRoutes removed).
-	packagerCtx := auth.WithClaims(ctx, &auth.Claims{
-		Subject: "deployer",
-		Roles:   []auth.Role{auth.RoleUser},
-	})
-	packagerCtx = auth.WithIssuer(packagerCtx, s.issuer)
-	packagerCtx = auth.OutgoingContext(packagerCtx)
-
 	var failed int
 	for ek := range seen {
+		packagerCtx := auth.WithClaims(ctx, &auth.Claims{
+			Subject: "deployer",
+			Roles:   []auth.Role{auth.RoleUser},
+		})
+		packagerCtx = auth.WithIssuer(packagerCtx, s.issuer)
+		packagerCtx = auth.OutgoingContext(packagerCtx)
+		packagerCtx = tenant.WithWorkspace(packagerCtx, req.Workspace)
+		packagerCtx = tenant.OutgoingContext(packagerCtx)
+
 		_, err := s.packager.SetSuspended(packagerCtx, &packager.SetSuspendedRequest{
 			Project:     ek.project,
 			Environment: ek.environment,
