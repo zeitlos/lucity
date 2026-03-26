@@ -159,7 +159,7 @@ func (c *Client) OrganizationRoles(ctx context.Context) ([]OrganizationRole, err
 func (c *Client) Organizations(ctx context.Context) ([]Organization, error) {
 	var all []Organization
 	page := 1
-	const pageSize = 200
+	const pageSize = 100
 	for {
 		path := fmt.Sprintf("/api/organizations?page=%d&page_size=%d", page, pageSize)
 		var orgs []Organization
