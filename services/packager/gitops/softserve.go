@@ -3,6 +3,7 @@ package gitops
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io/fs"
 	"log/slog"
@@ -1728,6 +1729,14 @@ func (p *SoftServeProvider) SetSuspended(ctx context.Context, project, environme
 
 	return p.modifyRepo(ctx, project, commitMsg, false, func(dir string) error {
 		path := filepath.Join(dir, "environments", environment, "values.yaml")
+
+		// Skip environments that don't exist in the GitOps repo (e.g. namespace
+		// exists in K8s but was never fully initialized).
+		if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
+			slog.Warn("skipping environment without GitOps values", "project", project, "environment", environment)
+			return nil
+		}
+
 		inner, err := readSubchartValues(path)
 		if err != nil {
 			return err

@@ -1363,7 +1363,11 @@ func (s *Server) SuspendWorkspace(ctx context.Context, req *deployer.SuspendWork
 	}
 
 	if failed > 0 {
-		return nil, status.Errorf(codes.Internal, "failed to %s %d of %d environments", action[:len(action)-1], failed, len(seen))
+		verb := "suspend"
+		if !req.Suspended {
+			verb = "resume"
+		}
+		return nil, status.Errorf(codes.Internal, "failed to %s %d of %d environments", verb, failed, len(seen))
 	}
 
 	slog.Info("workspace "+action, "workspace", req.Workspace, "environments", len(seen))
