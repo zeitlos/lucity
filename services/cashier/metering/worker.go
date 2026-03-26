@@ -70,10 +70,13 @@ func (w *Worker) Start() error {
 	defer close(w.done)
 
 	// Backfill missed windows on startup.
-	w.backfill(ctx)
+	caught := w.backfill(ctx)
 
-	// Process the most recently completed window, then tick on schedule.
-	w.tick(ctx)
+	// Only process the current window if backfill is caught up.
+	// Otherwise the checkpoint would jump ahead, skipping the gap.
+	if caught {
+		w.tick(ctx)
+	}
 
 	ticker := time.NewTicker(w.interval)
 	defer ticker.Stop()
@@ -113,18 +116,25 @@ func alignWindow(now time.Time) (start, end time.Time) {
 }
 
 // backfill processes all missed metering windows since the last checkpoint.
-func (w *Worker) backfill(ctx context.Context) {
+// Returns true if backfill completed (caught up to the current window) or
+// was not needed. Returns false if interrupted (e.g. shutdown) before finishing.
+func (w *Worker) backfill(ctx context.Context) bool {
 	if w.k8s == nil {
-		return
+		return true
 	}
 
 	lastEnd := w.lastCheckpoint(ctx)
 	if lastEnd.IsZero() {
 		slog.Info("metering: no checkpoint found, skipping backfill")
-		return
+		return true
 	}
 
 	_, currentEnd := alignWindow(time.Now().Add(-ingestionDelay))
+
+	// No gap — already caught up.
+	if !lastEnd.Before(currentEnd) {
+		return true
+	}
 
 	// Cap backfill to Stripe's limit.
 	earliest := time.Now().Add(-maxBackfillDays * 24 * time.Hour)
@@ -139,6 +149,14 @@ func (w *Worker) backfill(ctx context.Context) {
 	windowStart := lastEnd
 	var count int
 	for windowStart.Add(meterWindow).Before(currentEnd) || windowStart.Add(meterWindow).Equal(currentEnd) {
+		// Check for shutdown between windows.
+		select {
+		case <-ctx.Done():
+			slog.Info("metering: backfill interrupted", "completed", count)
+			return false
+		default:
+		}
+
 		windowEnd := windowStart.Add(meterWindow)
 		count++
 		slog.Info("metering: backfilling window", "start", windowStart, "end", windowEnd, "window", count)
@@ -148,6 +166,7 @@ func (w *Worker) backfill(ctx context.Context) {
 	if count > 0 {
 		slog.Info("metering: backfill complete", "windows", count)
 	}
+	return true
 }
 
 func (w *Worker) tick(ctx context.Context) {
