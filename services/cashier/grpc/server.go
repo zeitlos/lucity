@@ -213,22 +213,23 @@ func (s *Server) UsageSummary(ctx context.Context, req *cashier.UsageSummaryRequ
 }
 
 // HandleStripeEvent processes Stripe webhook events for billing lifecycle.
-func (s *Server) HandleStripeEvent(event gostripe.Event) {
+// Returns an error if the event could not be processed (triggers Stripe retry).
+func (s *Server) HandleStripeEvent(event gostripe.Event) error {
 	switch event.Type {
 	case "invoice.payment_failed":
-		s.handlePaymentFailed(event)
+		return s.handlePaymentFailed(event)
 	case "invoice.payment_succeeded":
-		s.handlePaymentSucceeded(event)
+		return s.handlePaymentSucceeded(event)
 	case "customer.subscription.deleted":
-		s.handleSubscriptionDeleted(event)
+		return s.handleSubscriptionDeleted(event)
 	}
+	return nil
 }
 
-func (s *Server) handlePaymentFailed(event gostripe.Event) {
+func (s *Server) handlePaymentFailed(event gostripe.Event) error {
 	var inv gostripe.Invoice
 	if err := json.Unmarshal(event.Data.Raw, &inv); err != nil {
-		slog.Error("failed to unmarshal invoice for payment_failed", "error", err)
-		return
+		return fmt.Errorf("failed to unmarshal invoice: %w", err)
 	}
 
 	workspace := ""
@@ -236,19 +237,18 @@ func (s *Server) handlePaymentFailed(event gostripe.Event) {
 		workspace = inv.Parent.SubscriptionDetails.Metadata["workspace"]
 	}
 	if workspace == "" {
-		slog.Warn("payment failed but no workspace in subscription metadata", "invoice", inv.ID)
-		return
+		return fmt.Errorf("no workspace in subscription metadata for invoice %s", inv.ID)
 	}
 
 	slog.Error("payment failed, suspending workspace", "workspace", workspace, "invoice", inv.ID)
 	s.suspendWorkspace(workspace, true)
+	return nil
 }
 
-func (s *Server) handlePaymentSucceeded(event gostripe.Event) {
+func (s *Server) handlePaymentSucceeded(event gostripe.Event) error {
 	var inv gostripe.Invoice
 	if err := json.Unmarshal(event.Data.Raw, &inv); err != nil {
-		slog.Error("failed to unmarshal invoice for payment_succeeded", "error", err)
-		return
+		return fmt.Errorf("failed to unmarshal invoice: %w", err)
 	}
 
 	workspace := ""
@@ -263,7 +263,8 @@ func (s *Server) handlePaymentSucceeded(event gostripe.Event) {
 		customerID = inv.Customer.ID
 	}
 	if workspace == "" {
-		return
+		// Payment succeeded but no workspace — not actionable, don't retry.
+		return nil
 	}
 
 	// For trial subscriptions (no plan), check if the user has converted.
@@ -281,13 +282,14 @@ func (s *Server) handlePaymentSucceeded(event gostripe.Event) {
 				slog.Info("trial ended, no plan or payment method, suspending workspace",
 					"workspace", workspace, "invoice", inv.ID)
 				s.suspendWorkspace(workspace, true)
-				return
+				return nil
 			}
 		}
 	}
 
 	slog.Info("payment succeeded, resuming workspace", "workspace", workspace, "invoice", inv.ID)
 	s.suspendWorkspace(workspace, false)
+	return nil
 }
 
 // subscriptionHasPlan returns true if the subscription has a Hobby or Pro plan item.
@@ -301,21 +303,20 @@ func (s *Server) subscriptionHasPlan(sub *gostripe.Subscription) bool {
 	return false
 }
 
-func (s *Server) handleSubscriptionDeleted(event gostripe.Event) {
+func (s *Server) handleSubscriptionDeleted(event gostripe.Event) error {
 	var sub gostripe.Subscription
 	if err := json.Unmarshal(event.Data.Raw, &sub); err != nil {
-		slog.Error("failed to unmarshal subscription for deletion", "error", err)
-		return
+		return fmt.Errorf("failed to unmarshal subscription: %w", err)
 	}
 
 	workspace := sub.Metadata["workspace"]
 	if workspace == "" {
-		slog.Warn("subscription deleted but no workspace in metadata", "subscription", sub.ID)
-		return
+		return fmt.Errorf("no workspace in subscription metadata for %s", sub.ID)
 	}
 
 	slog.Warn("subscription deleted, suspending workspace", "workspace", workspace, "subscription", sub.ID)
 	s.suspendWorkspace(workspace, true)
+	return nil
 }
 
 func (s *Server) suspendWorkspace(workspace string, suspended bool) {

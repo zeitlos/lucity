@@ -11,8 +11,9 @@ import (
 
 // EventHandler processes Stripe webhook events that require side effects
 // (e.g., updating workspace metadata via the deployer).
+// Returns an error if the event could not be processed and should be retried.
 type EventHandler interface {
-	HandleStripeEvent(event gostripe.Event)
+	HandleStripeEvent(event gostripe.Event) error
 }
 
 // WebhookHandler is an HTTP handler for Stripe webhook events.
@@ -55,15 +56,20 @@ func (h *WebhookHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	slog.Info("stripe webhook received", "type", event.Type, "id", event.ID)
 
+	var handleErr error
 	switch event.Type {
-	case "invoice.payment_succeeded":
-		h.handler.HandleStripeEvent(event)
-	case "invoice.payment_failed":
-		h.handler.HandleStripeEvent(event)
-	case "customer.subscription.deleted":
-		h.handler.HandleStripeEvent(event)
+	case "invoice.payment_succeeded",
+		"invoice.payment_failed",
+		"customer.subscription.deleted":
+		handleErr = h.handler.HandleStripeEvent(event)
 	default:
 		slog.Debug("unhandled stripe event", "type", event.Type)
+	}
+
+	if handleErr != nil {
+		slog.Error("webhook processing failed, returning 500 for retry", "type", event.Type, "error", handleErr)
+		http.Error(w, "processing failed", http.StatusInternalServerError)
+		return
 	}
 
 	w.WriteHeader(http.StatusOK)
