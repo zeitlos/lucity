@@ -74,6 +74,7 @@ deployer:
     ARGOCD_ADDR: http://lucity-infra-argocd-server.lucity-system.svc.cluster.local:80
     ARGOCD_INSECURE: "true"
     SOFTSERVE_HTTP_ADDR: http://lucity-infra-soft-serve.lucity-system.svc.cluster.local:23232
+    PACKAGER_ADDR: lucity-packager:9002
   envSecret:
     ARGOCD_TOKEN: ARGOCD_TOKEN
     SOFTSERVE_TOKEN: SOFTSERVE_TOKEN
@@ -96,14 +97,15 @@ cashier:
     INTERNAL_JWT_PUBLIC_KEY_PATH: /secrets/internal-jwt/public.pem
     INTERNAL_JWT_PRIVATE_KEY_PATH: /secrets/internal-jwt/private.pem
     DEPLOYER_ADDR: lucity-deployer:9003
+    LOGTO_ENDPOINT: http://lucity-infra-logto.lucity-system.svc.cluster.local:3001
     STRIPE_HOBBY_PRICE_ID: price_1TASy6AoheV3Drw6W13KVFYm
     STRIPE_PRO_PRICE_ID: price_1TASy7AoheV3Drw6t22UVU8C
     STRIPE_ECO_CPU_PRICE_ID: price_1TASyOAoheV3Drw6CUwBuS1L
     STRIPE_ECO_MEM_PRICE_ID: price_1TASyPAoheV3Drw6MLH0Qh0C
-    STRIPE_ECO_DISK_PRICE_ID: price_1TASyQAoheV3Drw6EVAyG6oP
+    STRIPE_ECO_DISK_PRICE_ID: price_1TFERsAoheV3Drw6VJeNcGdv
     STRIPE_PROD_CPU_PRICE_ID: price_1TF9qaAoheV3Drw6En35zCEK
     STRIPE_PROD_MEM_PRICE_ID: price_1TF9qmAoheV3Drw6zasPNVfM
-    STRIPE_PROD_DISK_PRICE_ID: price_1TASySAoheV3Drw6IuGVM6iw
+    STRIPE_PROD_DISK_PRICE_ID: price_1TFERtAoheV3Drw6953EpJgr
     STRIPE_ECO_CPU_METER_EVENT: eco_cpu_usage
     STRIPE_ECO_MEM_METER_EVENT: eco_memory_usage
     STRIPE_ECO_DISK_METER_EVENT: eco_disk_usage
@@ -114,3 +116,5 @@ cashier:
     STRIPE_SECRET_KEY: STRIPE_SECRET_KEY
     STRIPE_WEBHOOK_SECRET: STRIPE_WEBHOOK_SECRET
     SIGNOZ_CLICKHOUSE_DSN: SIGNOZ_CLICKHOUSE_DSN
+    LOGTO_M2M_APP_ID: LOGTO_M2M_APP_ID
+    LOGTO_M2M_APP_SECRET: LOGTO_M2M_APP_SECRET

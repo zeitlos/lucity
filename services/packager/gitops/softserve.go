@@ -1718,6 +1718,30 @@ func (p *SoftServeProvider) SetServiceScaling(ctx context.Context, project, envi
 	})
 }
 
+// SetSuspended writes or removes the suspended flag in an environment's values.yaml.
+func (p *SoftServeProvider) SetSuspended(ctx context.Context, project, environment string, suspended bool) error {
+	action := "suspend"
+	if !suspended {
+		action = "resume"
+	}
+	commitMsg := fmt.Sprintf("%s(%s): workspace %sed", action, environment, action)
+
+	return p.modifyRepo(ctx, project, commitMsg, false, func(dir string) error {
+		path := filepath.Join(dir, "environments", environment, "values.yaml")
+		inner, err := readSubchartValues(path)
+		if err != nil {
+			return err
+		}
+
+		if suspended {
+			inner["suspended"] = true
+		} else {
+			delete(inner, "suspended")
+		}
+		return writeSubchartValues(path, inner)
+	})
+}
+
 func parseServiceDefs(services map[string]any) []ServiceDef {
 	var result []ServiceDef
 	for svcName, svcRaw := range services {

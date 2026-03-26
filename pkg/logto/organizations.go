@@ -155,6 +155,26 @@ func (c *Client) OrganizationRoles(ctx context.Context) ([]OrganizationRole, err
 	return roles, nil
 }
 
+// Organizations returns all organizations, paginating through all pages.
+func (c *Client) Organizations(ctx context.Context) ([]Organization, error) {
+	var all []Organization
+	page := 1
+	const pageSize = 200
+	for {
+		path := fmt.Sprintf("/api/organizations?page=%d&page_size=%d", page, pageSize)
+		var orgs []Organization
+		if err := c.doJSON(ctx, "GET", path, nil, &orgs); err != nil {
+			return nil, fmt.Errorf("failed to list organizations (page %d): %w", page, err)
+		}
+		all = append(all, orgs...)
+		if len(orgs) < pageSize {
+			break
+		}
+		page++
+	}
+	return all, nil
+}
+
 // MemberRoles returns the roles assigned to a user in an organization.
 func (c *Client) MemberRoles(ctx context.Context, orgID, userID string) ([]OrganizationRole, error) {
 	var roles []OrganizationRole

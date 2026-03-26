@@ -474,70 +474,6 @@ func (c *Client) CreateCreditGrantForPeriod(ctx context.Context, customerID stri
 	return nil
 }
 
-// WorkspaceBilling holds the Stripe customer and subscription IDs for a billable workspace.
-type WorkspaceBilling struct {
-	CustomerID     string
-	SubscriptionID string
-}
-
-// BillableWorkspaces returns all Stripe customers with workspace metadata and their active subscription IDs.
-func (c *Client) BillableWorkspaces(ctx context.Context) (map[string]WorkspaceBilling, error) {
-	result := make(map[string]WorkspaceBilling)
-	params := &gostripe.CustomerSearchParams{
-		SearchParams: gostripe.SearchParams{
-			Query: `-metadata["workspace"]:null`,
-		},
-	}
-
-	iter := customer.Search(params)
-	for iter.Next() {
-		cust := iter.Customer()
-		ws := cust.Metadata["workspace"]
-		if ws == "" {
-			continue
-		}
-		// Find active subscription
-		subID := ""
-		subParams := &gostripe.SubscriptionListParams{
-			Customer: gostripe.String(cust.ID),
-			Status:   gostripe.String("active"),
-		}
-		subIter := subscription.List(subParams)
-		if subIter.Next() {
-			subID = subIter.Subscription().ID
-		}
-		if subID == "" {
-			continue
-		}
-		result[ws] = WorkspaceBilling{
-			CustomerID:     cust.ID,
-			SubscriptionID: subID,
-		}
-	}
-	if err := iter.Err(); err != nil {
-		return nil, fmt.Errorf("failed to search customers: %w", err)
-	}
-	return result, nil
-}
-
-// CustomerByWorkspace searches for an existing Stripe customer with matching workspace metadata.
-// Returns the customer ID if found, empty string if not. Used for idempotent customer creation.
-func (c *Client) CustomerByWorkspace(ctx context.Context, workspace string) (string, error) {
-	params := &gostripe.CustomerSearchParams{
-		SearchParams: gostripe.SearchParams{
-			Query: fmt.Sprintf(`metadata["workspace"]:"%s"`, workspace),
-		},
-	}
-
-	iter := customer.Search(params)
-	if iter.Next() {
-		return iter.Customer().ID, nil
-	}
-	if err := iter.Err(); err != nil {
-		return "", fmt.Errorf("failed to search customers: %w", err)
-	}
-	return "", nil
-}
 
 // ActiveSubscriptionForCustomer returns the ID of an active subscription
 // for the given customer that has the specified workspace in its metadata.
@@ -597,22 +533,9 @@ func PlanCreditCents(planPriceID string, prices PriceConfig) int64 {
 // CreateCheckoutSession creates a Stripe Checkout Session in subscription mode
 // with the plan price + 6 metered resource prices.
 func (c *Client) CreateCheckoutSession(ctx context.Context, workspace, name, planPriceID, email, successURL, cancelURL, userID string) (string, string, error) {
-	// Pre-create the customer so it has metadata["workspace"] set.
-	// Stripe Checkout's auto-created customers don't support setting metadata.
-	customerID, err := c.CustomerByWorkspace(ctx, workspace)
-	if err != nil {
-		return "", "", fmt.Errorf("failed to check existing customer: %w", err)
-	}
-	if customerID == "" {
-		customerID, err = c.CreateCustomer(ctx, workspace, name, email)
-		if err != nil {
-			return "", "", fmt.Errorf("failed to pre-create customer: %w", err)
-		}
-	}
-
 	params := &gostripe.CheckoutSessionParams{
 		Mode:                    gostripe.String(string(gostripe.CheckoutSessionModeSubscription)),
-		Customer:                gostripe.String(customerID),
+		CustomerEmail:           gostripe.String(email),
 		SuccessURL:              gostripe.String(successURL),
 		CancelURL:               gostripe.String(cancelURL),
 		PaymentMethodCollection: gostripe.String("always"),

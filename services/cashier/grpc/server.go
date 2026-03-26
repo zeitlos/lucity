@@ -12,6 +12,7 @@ import (
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/cashier"
 	"github.com/zeitlos/lucity/pkg/deployer"
+	"github.com/zeitlos/lucity/pkg/logto"
 	stripelib "github.com/zeitlos/lucity/services/cashier/stripe"
 )
 
@@ -19,13 +20,15 @@ type Server struct {
 	cashier.UnimplementedCashierServiceServer
 	stripe   *stripelib.Client
 	deployer deployer.DeployerServiceClient
+	logto    *logto.Client
 	issuer   *auth.Issuer
 }
 
-func NewServer(stripeClient *stripelib.Client, deployerClient deployer.DeployerServiceClient, issuer *auth.Issuer) *Server {
+func NewServer(stripeClient *stripelib.Client, deployerClient deployer.DeployerServiceClient, logtoClient *logto.Client, issuer *auth.Issuer) *Server {
 	return &Server{
 		stripe:   stripeClient,
 		deployer: deployerClient,
+		logto:    logtoClient,
 		issuer:   issuer,
 	}
 }
@@ -35,15 +38,16 @@ func (s *Server) CreateCustomer(ctx context.Context, req *cashier.CreateCustomer
 		return nil, fmt.Errorf("workspace required")
 	}
 
-	// Idempotent: check if a customer already exists for this workspace in Stripe.
-	existing, err := s.stripe.CustomerByWorkspace(ctx, req.Workspace)
+	// Idempotent: check if Logto org already has a stripeCustomerId.
+	org, err := s.logto.OrganizationByName(ctx, req.Workspace)
 	if err != nil {
-		slog.Warn("failed to search for existing customer", "workspace", req.Workspace, "error", err)
-		// Fall through to create — search failure shouldn't block signup
+		slog.Warn("failed to look up logto org for customer check", "workspace", req.Workspace, "error", err)
 	}
-	if existing != "" {
-		slog.Info("stripe customer already exists", "workspace", req.Workspace, "customer_id", existing)
-		return &cashier.CreateCustomerResponse{CustomerId: existing}, nil
+	if org != nil && org.CustomData != nil {
+		if existingID, ok := org.CustomData["stripeCustomerId"].(string); ok && existingID != "" {
+			slog.Info("stripe customer already exists", "workspace", req.Workspace, "customer_id", existingID)
+			return &cashier.CreateCustomerResponse{CustomerId: existingID}, nil
+		}
 	}
 
 	customerID, err := s.stripe.CreateCustomer(ctx, req.Workspace, req.Name, req.Email)
@@ -326,16 +330,38 @@ func (s *Server) suspendWorkspace(workspace string, suspended bool) {
 	})
 	ctx = auth.WithIssuer(ctx, s.issuer)
 	ctx = auth.OutgoingContext(ctx)
+
+	action := "suspend"
+	if !suspended {
+		action = "resume"
+	}
+
+	// 1. Write suspended flag to GitOps repo via deployer -> packager.
 	_, err := s.deployer.SuspendWorkspace(ctx, &deployer.SuspendWorkspaceRequest{
 		Workspace: workspace,
 		Suspended: suspended,
 	})
 	if err != nil {
-		action := "suspend"
-		if !suspended {
-			action = "resume"
-		}
 		slog.Error("failed to "+action+" workspace", "workspace", workspace, "error", err)
+	}
+
+	// 2. Persist suspension state in Logto org customData for dashboard visibility.
+	org, err := s.logto.OrganizationByName(context.Background(), workspace)
+	if err != nil {
+		slog.Error("failed to look up logto org for suspension", "workspace", workspace, "error", err)
+		return
+	}
+	customData := org.CustomData
+	if customData == nil {
+		customData = make(map[string]interface{})
+	}
+	if suspended {
+		customData["suspended"] = true
+	} else {
+		delete(customData, "suspended")
+	}
+	if err := s.logto.UpdateOrganizationCustomData(context.Background(), org.ID, customData); err != nil {
+		slog.Error("failed to update logto suspension state", "workspace", workspace, "suspended", suspended, "error", err)
 	}
 }
 

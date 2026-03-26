@@ -9,6 +9,9 @@ metadata:
     app.kubernetes.io/component: {{ $name }}
 spec:
   schedule: {{ $job.schedule | quote }}
+  {{- if $.Values.suspended }}
+  suspend: true
+  {{- end }}
   concurrencyPolicy: {{ $job.concurrencyPolicy | default "Forbid" }}
   jobTemplate:
     spec:

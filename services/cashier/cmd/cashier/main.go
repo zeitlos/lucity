@@ -16,6 +16,7 @@ import (
 	"github.com/zeitlos/lucity/pkg/deployer"
 	"github.com/zeitlos/lucity/pkg/graceful"
 	"github.com/zeitlos/lucity/pkg/logger"
+	"github.com/zeitlos/lucity/pkg/logto"
 	cashiergrpc "github.com/zeitlos/lucity/services/cashier/grpc"
 	cashierhttp "github.com/zeitlos/lucity/services/cashier/http"
 	"github.com/zeitlos/lucity/services/cashier/metering"
@@ -50,6 +51,11 @@ type Config struct {
 
 	MeteringInterval    time.Duration `envconfig:"METERING_INTERVAL" default:"1h"`
 	SignozClickhouseDSN string        `envconfig:"SIGNOZ_CLICKHOUSE_DSN"`
+
+	// Logto Management API (M2M)
+	LogtoEndpoint     string `envconfig:"LOGTO_ENDPOINT" required:"true"`
+	LogtoM2MAppID     string `envconfig:"LOGTO_M2M_APP_ID" required:"true"`
+	LogtoM2MAppSecret string `envconfig:"LOGTO_M2M_APP_SECRET" required:"true"`
 
 	// Internal JWT (ES256 for gRPC service-to-service auth)
 	InternalJWTPublicKeyPath  string `envconfig:"INTERNAL_JWT_PUBLIC_KEY_PATH" required:"true"`
@@ -98,6 +104,10 @@ func main() {
 	}
 	stripeClient := stripelib.NewClient(config.StripeSecretKey, prices, meters)
 
+	// Logto client for workspace metadata and suspension state
+	logtoClient := logto.New(config.LogtoEndpoint, config.LogtoM2MAppID, config.LogtoM2MAppSecret)
+	slog.Info("logto management API configured", "endpoint", config.LogtoEndpoint)
+
 	// Internal JWT for service-to-service auth
 	verifier, err := auth.NewInternalVerifierFromFile(config.InternalJWTPublicKeyPath)
 	if err != nil {
@@ -112,7 +122,7 @@ func main() {
 	}
 
 	// gRPC server
-	svc := cashiergrpc.NewServer(stripeClient, deployerClient, issuer)
+	svc := cashiergrpc.NewServer(stripeClient, deployerClient, logtoClient, issuer)
 
 	grpcServer := cashiergrpc.NewGRPCServer(":"+config.Port, svc, verifier)
 
@@ -135,7 +145,7 @@ func main() {
 		// without checkpoint/backfill if unavailable (e.g. local dev without cluster).
 		k8sClient := buildK8sClient()
 
-		worker := metering.NewWorker(stripeClient, deployerClient, signozClient, k8sClient, issuer, config.MeteringInterval)
+		worker := metering.NewWorker(stripeClient, deployerClient, logtoClient, signozClient, k8sClient, issuer, config.MeteringInterval)
 		servers = append(servers, worker)
 		slog.Info("metering enabled", "interval", config.MeteringInterval)
 	} else {

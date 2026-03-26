@@ -67,6 +67,8 @@
 #           cpu: 200m
 #           memory: 128Mi
 
+suspended: false
+
 services: {}
 
 gateway:

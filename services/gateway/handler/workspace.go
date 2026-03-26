@@ -11,7 +11,7 @@ import (
 	"github.com/zeitlos/lucity/pkg/cashier"
 	"github.com/zeitlos/lucity/pkg/packager"
 	"github.com/zeitlos/lucity/pkg/tenant"
-	"github.com/zeitlos/lucity/services/gateway/logto"
+	"github.com/zeitlos/lucity/pkg/logto"
 )
 
 // Workspace represents a workspace with metadata and members.

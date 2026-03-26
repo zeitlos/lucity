@@ -22,6 +22,7 @@ import (
 
 	"github.com/zeitlos/lucity/pkg/deployer"
 	"github.com/zeitlos/lucity/pkg/labels"
+	"github.com/zeitlos/lucity/pkg/packager"
 	"github.com/zeitlos/lucity/pkg/tenant"
 	"github.com/zeitlos/lucity/services/deployer/argocd"
 	"github.com/zeitlos/lucity/services/deployer/database"
@@ -31,9 +32,10 @@ import (
 
 type Server struct {
 	deployer.UnimplementedDeployerServiceServer
-	argo    *argocd.Client
-	k8s     kubernetes.Interface
-	dynamic dynamic.Interface
+	argo     *argocd.Client
+	packager packager.PackagerServiceClient
+	k8s      kubernetes.Interface
+	dynamic  dynamic.Interface
 
 	// softServeHTTP is the cluster-internal Soft-serve HTTP URL for ArgoCD to clone from.
 	softServeHTTP string
@@ -51,9 +53,10 @@ type Server struct {
 	registryPullSecret string
 }
 
-func NewServer(argo *argocd.Client, softServeHTTP, softServeToken string, k8s kubernetes.Interface, dyn dynamic.Interface, gatewayName, gatewayNamespace, clusterIssuer, registryPullSecret string) *Server {
+func NewServer(argo *argocd.Client, packagerClient packager.PackagerServiceClient, softServeHTTP, softServeToken string, k8s kubernetes.Interface, dyn dynamic.Interface, gatewayName, gatewayNamespace, clusterIssuer, registryPullSecret string) *Server {
 	return &Server{
 		argo:               argo,
+		packager:           packagerClient,
 		k8s:                k8s,
 		dynamic:            dyn,
 		softServeHTTP:      softServeHTTP,
@@ -1301,8 +1304,6 @@ func (s *Server) DeleteUserGitHubToken(ctx context.Context, req *deployer.Delete
 	return &deployer.DeleteUserGitHubTokenResponse{}, nil
 }
 
-const preSuspendReplicasAnnotation = "lucity.dev/pre-suspend-replicas"
-
 func (s *Server) SuspendWorkspace(ctx context.Context, req *deployer.SuspendWorkspaceRequest) (*deployer.SuspendWorkspaceResponse, error) {
 	if req.Workspace == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "workspace required")
@@ -1316,67 +1317,29 @@ func (s *Server) SuspendWorkspace(ctx context.Context, req *deployer.SuspendWork
 		return nil, status.Errorf(codes.Internal, "failed to list workspace namespaces: %v", err)
 	}
 
-	// 2. Scale deployments in each namespace.
+	// 2. Deduplicate project/environment pairs.
+	type envKey struct{ project, environment string }
+	seen := make(map[envKey]bool)
 	for _, ns := range nsList.Items {
 		project := ns.Labels[labels.Project]
 		environment := ns.Labels[labels.Environment]
 		if project == "" || environment == "" {
 			continue
 		}
+		seen[envKey{project, environment}] = true
+	}
 
-		deployList, err := s.k8s.AppsV1().Deployments(ns.Name).List(ctx, metav1.ListOptions{})
+	// 3. Write suspended flag via packager (GitOps values.yaml).
+	// The packager commits the change and triggers ArgoCD sync.
+	// ArgoCD then enforces the suspension (replicas=0, CronJobs suspended, CNPG hibernated, HTTPRoutes removed).
+	for ek := range seen {
+		_, err := s.packager.SetSuspended(ctx, &packager.SetSuspendedRequest{
+			Project:     ek.project,
+			Environment: ek.environment,
+			Suspended:   req.Suspended,
+		})
 		if err != nil {
-			slog.Warn("failed to list deployments for suspension", "namespace", ns.Name, "error", err)
-			continue
-		}
-
-		for _, dep := range deployList.Items {
-			d := dep
-			if req.Suspended {
-				// Save current replicas and scale to 0.
-				replicas := int32(1)
-				if d.Spec.Replicas != nil {
-					replicas = *d.Spec.Replicas
-				}
-				if d.Annotations == nil {
-					d.Annotations = make(map[string]string)
-				}
-				d.Annotations[preSuspendReplicasAnnotation] = strconv.Itoa(int(replicas))
-				zero := int32(0)
-				d.Spec.Replicas = &zero
-			} else {
-				// Restore replicas from annotation.
-				replicas := int32(1)
-				if saved, ok := d.Annotations[preSuspendReplicasAnnotation]; ok {
-					if v, err := strconv.Atoi(saved); err == nil && v > 0 {
-						replicas = int32(v)
-					}
-					delete(d.Annotations, preSuspendReplicasAnnotation)
-				}
-				d.Spec.Replicas = &replicas
-			}
-			if _, err := s.k8s.AppsV1().Deployments(ns.Name).Update(ctx, &d, metav1.UpdateOptions{}); err != nil {
-				slog.Warn("failed to update deployment for suspension", "deployment", d.Name, "namespace", ns.Name, "error", err)
-			}
-		}
-
-		// 3. Manage ArgoCD auto-sync.
-		appName := applicationName(req.Workspace, project, environment)
-		if req.Suspended {
-			// Disable auto-sync so ArgoCD doesn't fight the scale-down.
-			patch := []byte(`{"spec":{"syncPolicy":{"automated":null}}}`)
-			if _, err := s.argo.PatchApplication(ctx, appName, patch); err != nil {
-				slog.Warn("failed to disable auto-sync", "app", appName, "error", err)
-			}
-		} else {
-			// Re-enable auto-sync and trigger sync.
-			patch := []byte(`{"spec":{"syncPolicy":{"automated":{"prune":true,"selfHeal":true}}}}`)
-			if _, err := s.argo.PatchApplication(ctx, appName, patch); err != nil {
-				slog.Warn("failed to re-enable auto-sync", "app", appName, "error", err)
-			}
-			if _, err := s.argo.SyncApplication(ctx, appName); err != nil {
-				slog.Warn("failed to sync after resume", "app", appName, "error", err)
-			}
+			slog.Warn("failed to set suspended in gitops repo", "project", ek.project, "environment", ek.environment, "error", err)
 		}
 	}
 
@@ -1384,6 +1347,6 @@ func (s *Server) SuspendWorkspace(ctx context.Context, req *deployer.SuspendWork
 	if !req.Suspended {
 		action = "resumed"
 	}
-	slog.Info("workspace "+action, "workspace", req.Workspace)
+	slog.Info("workspace "+action, "workspace", req.Workspace, "environments", len(seen))
 	return &deployer.SuspendWorkspaceResponse{}, nil
 }

@@ -16,6 +16,7 @@ import (
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/deployer"
 	"github.com/zeitlos/lucity/pkg/labels"
+	"github.com/zeitlos/lucity/pkg/logto"
 	stripelib "github.com/zeitlos/lucity/services/cashier/stripe"
 )
 
@@ -40,6 +41,7 @@ const checkpointKey = "last_window_end"
 type Worker struct {
 	stripe   *stripelib.Client
 	deployer deployer.DeployerServiceClient
+	logto    *logto.Client
 	signoz   *SigNozClient
 	k8s      kubernetes.Interface // nil if K8s not available (no checkpoint/backfill)
 	issuer   *auth.Issuer
@@ -49,10 +51,11 @@ type Worker struct {
 }
 
 // NewWorker creates a metering worker. k8sClient may be nil (disables checkpoint/backfill).
-func NewWorker(stripeClient *stripelib.Client, deployerClient deployer.DeployerServiceClient, signozClient *SigNozClient, k8sClient kubernetes.Interface, issuer *auth.Issuer, interval time.Duration) *Worker {
+func NewWorker(stripeClient *stripelib.Client, deployerClient deployer.DeployerServiceClient, logtoClient *logto.Client, signozClient *SigNozClient, k8sClient kubernetes.Interface, issuer *auth.Issuer, interval time.Duration) *Worker {
 	return &Worker{
 		stripe:   stripeClient,
 		deployer: deployerClient,
+		logto:    logtoClient,
 		signoz:   signozClient,
 		k8s:      k8sClient,
 		issuer:   issuer,
@@ -187,6 +190,32 @@ func (w *Worker) deployerCtx(ctx context.Context) context.Context {
 	return auth.OutgoingContext(ctx)
 }
 
+// billableWorkspaces returns workspaces that have both stripeCustomerId and
+// stripeSubscriptionId in their Logto org customData.
+func (w *Worker) billableWorkspaces(ctx context.Context) (map[string]*workspaceData, error) {
+	orgs, err := w.logto.Organizations(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list logto organizations: %w", err)
+	}
+
+	result := make(map[string]*workspaceData)
+	for _, org := range orgs {
+		if org.CustomData == nil {
+			continue
+		}
+		customerID, _ := org.CustomData["stripeCustomerId"].(string)
+		subscriptionID, _ := org.CustomData["stripeSubscriptionId"].(string)
+		if customerID == "" || subscriptionID == "" {
+			continue
+		}
+		result[org.Name] = &workspaceData{
+			customerID:     customerID,
+			subscriptionID: subscriptionID,
+		}
+	}
+	return result, nil
+}
+
 // workspaceData holds billing metadata for a workspace.
 type workspaceData struct {
 	customerID      string
@@ -207,19 +236,11 @@ func (w *Worker) processWindow(ctx context.Context, windowStart, windowEnd time.
 	start := time.Now()
 	callCtx := w.deployerCtx(ctx)
 
-	// 1. List all billable workspaces from Stripe.
-	billingData, err := w.stripe.BillableWorkspaces(ctx)
+	// 1. List all billable workspaces from Logto.
+	workspaces, err := w.billableWorkspaces(ctx)
 	if err != nil {
 		slog.Error("metering: failed to list billable workspaces", "error", err)
 		return
-	}
-
-	workspaces := make(map[string]*workspaceData)
-	for wsID, billing := range billingData {
-		workspaces[wsID] = &workspaceData{
-			customerID:     billing.CustomerID,
-			subscriptionID: billing.SubscriptionID,
-		}
 	}
 
 	if len(workspaces) == 0 {

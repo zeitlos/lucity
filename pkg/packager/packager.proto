@@ -85,6 +85,9 @@ service PackagerService {
 
   // SetCustomStartCommand sets or clears the custom start command for a service in base values.
   rpc SetCustomStartCommand(SetCustomStartCommandRequest) returns (SetCustomStartCommandResponse);
+
+  // SetSuspended writes or removes the suspended flag in an environment's values.yaml.
+  rpc SetSuspended(SetSuspendedRequest) returns (SetSuspendedResponse);
 }
 
 // ServiceInfo describes a service configured in the project's GitOps repo.
@@ -420,3 +423,11 @@ message SetCustomStartCommandRequest {
 }
 
 message SetCustomStartCommandResponse {}
+
+message SetSuspendedRequest {
+  string project = 1;
+  string environment = 2;
+  bool suspended = 3;
+}
+
+message SetSuspendedResponse {}

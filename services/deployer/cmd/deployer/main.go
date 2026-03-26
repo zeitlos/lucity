@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/kelseyhightower/envconfig"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -13,6 +15,7 @@ import (
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/graceful"
 	"github.com/zeitlos/lucity/pkg/logger"
+	"github.com/zeitlos/lucity/pkg/packager"
 	"github.com/zeitlos/lucity/services/deployer/argocd"
 	deployergrpc "github.com/zeitlos/lucity/services/deployer/grpc"
 )
@@ -30,6 +33,7 @@ type Config struct {
 	GatewayNamespace     string `envconfig:"GATEWAY_NAMESPACE" default:"lucity-system"`
 	ClusterIssuer        string `envconfig:"CLUSTER_ISSUER" default:"letsencrypt-http01"`
 	RegistryPullSecret   string `envconfig:"REGISTRY_PULL_SECRET" default:"lucity-registry-pull"`
+	PackagerAddr         string `envconfig:"PACKAGER_ADDR" default:"localhost:9002"`
 
 	// Internal JWT (ES256 for gRPC service-to-service auth)
 	InternalJWTPublicKeyPath string `envconfig:"INTERNAL_JWT_PUBLIC_KEY_PATH" required:"true"`
@@ -45,6 +49,16 @@ func main() {
 	logger.Setup(config.LogLevel)
 
 	argoClient := argocd.NewClient(config.ArgocdAddr, config.ArgocdToken, config.ArgocdInsecure)
+
+	packagerConn, err := grpc.NewClient(config.PackagerAddr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	if err != nil {
+		slog.Error("failed to connect to packager", "error", err, "addr", config.PackagerAddr)
+		os.Exit(1)
+	}
+	defer packagerConn.Close()
+	packagerClient := packager.NewPackagerServiceClient(packagerConn)
 
 	clusterHTTP := config.SoftServeClusterHTTP
 	if clusterHTTP == "" {
@@ -74,7 +88,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	svc := deployergrpc.NewServer(argoClient, clusterHTTP, config.SoftServeToken, k8sClient, dynClient, config.GatewayName, config.GatewayNamespace, config.ClusterIssuer, config.RegistryPullSecret)
+	svc := deployergrpc.NewServer(argoClient, packagerClient, clusterHTTP, config.SoftServeToken, k8sClient, dynClient, config.GatewayName, config.GatewayNamespace, config.ClusterIssuer, config.RegistryPullSecret)
 
 	verifier, err := auth.NewInternalVerifierFromFile(config.InternalJWTPublicKeyPath)
 	if err != nil {

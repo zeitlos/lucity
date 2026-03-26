@@ -11,7 +11,7 @@ import (
 	"golang.org/x/oauth2"
 
 	"github.com/zeitlos/lucity/pkg/auth"
-	"github.com/zeitlos/lucity/services/gateway/logto"
+	"github.com/zeitlos/lucity/pkg/logto"
 )
 
 // GitHubInstallation represents a GitHub App installation on an account.

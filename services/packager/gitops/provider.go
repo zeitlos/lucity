@@ -148,6 +148,9 @@ type Provider interface {
 	// SetCustomStartCommand sets or clears the custom start command for a service
 	// in an environment's values.yaml. Empty command clears it.
 	SetCustomStartCommand(ctx context.Context, project, environment, service, command string) error
+
+	// SetSuspended writes or removes the suspended flag in an environment's values.yaml.
+	SetSuspended(ctx context.Context, project, environment string, suspended bool) error
 }
 
 // AutoscalingConfig holds HPA settings for a service.

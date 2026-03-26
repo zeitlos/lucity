@@ -15,7 +15,7 @@ import (
 	"github.com/zeitlos/lucity/services/gateway/graphql/directive"
 	"github.com/zeitlos/lucity/services/gateway/graphql/model"
 	"github.com/zeitlos/lucity/services/gateway/handler"
-	"github.com/zeitlos/lucity/services/gateway/logto"
+	"github.com/zeitlos/lucity/pkg/logto"
 
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/tenant"

@@ -13,7 +13,7 @@ import (
 	ghpkg "github.com/zeitlos/lucity/pkg/github"
 	"github.com/zeitlos/lucity/pkg/packager"
 	"github.com/zeitlos/lucity/services/gateway/deploy"
-	"github.com/zeitlos/lucity/services/gateway/logto"
+	"github.com/zeitlos/lucity/pkg/logto"
 )
 
 // TokenRefresher refreshes the Logto access token using a refresh token.

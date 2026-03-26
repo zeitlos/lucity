@@ -17,7 +17,7 @@ import (
 	"github.com/zeitlos/lucity/pkg/logger"
 	"github.com/zeitlos/lucity/pkg/packager"
 	"github.com/zeitlos/lucity/services/gateway/handler"
-	"github.com/zeitlos/lucity/services/gateway/logto"
+	"github.com/zeitlos/lucity/pkg/logto"
 )
 
 type Config struct {

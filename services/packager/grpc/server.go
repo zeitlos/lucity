@@ -531,6 +531,14 @@ func (s *Server) SetCustomStartCommand(ctx context.Context, req *packager.SetCus
 	return &packager.SetCustomStartCommandResponse{}, nil
 }
 
+func (s *Server) SetSuspended(ctx context.Context, req *packager.SetSuspendedRequest) (*packager.SetSuspendedResponse, error) {
+	if err := s.provider.SetSuspended(ctx, req.Project, req.Environment, req.Suspended); err != nil {
+		return nil, fmt.Errorf("failed to set suspended: %w", err)
+	}
+	s.syncEnvironment(ctx, req.Project, req.Environment)
+	return &packager.SetSuspendedResponse{}, nil
+}
+
 func databaseRefsFromProto(refs map[string]*packager.DatabaseRef) map[string]gitops.DatabaseRef {
 	if len(refs) == 0 {
 		return nil
