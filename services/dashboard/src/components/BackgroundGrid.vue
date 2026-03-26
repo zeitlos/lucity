@@ -60,7 +60,7 @@ onUnmounted(() => {
 /* Sub-grid */
 .bg-grid::after {
   content: '';
-  position: absolute;
+  position: fixed;
   inset: 0;
   background-image:
     linear-gradient(oklch(0.60 0.02 80 / 0.06) 1px, transparent 1px),
@@ -90,7 +90,7 @@ onUnmounted(() => {
 /* Cursor spotlight — sub-grid */
 .bg-grid-cursor::after {
   content: '';
-  position: absolute;
+  position: fixed;
   inset: 0;
   background-image:
     linear-gradient(oklch(0.60 0.02 80 / 0.07) 1px, transparent 1px),
