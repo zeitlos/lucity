@@ -82,7 +82,7 @@ async function handleLogout() {
           Settings
         </Button>
 
-        <TrialIndicator v-if="user" />
+        <TrialIndicator v-if="user && !suspended" />
 
         <ThemeToggle />
         <HelpMenu />

@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useQuery } from '@vue/apollo-composable';
 import { useRouter } from 'vue-router';
-import { Clock, CreditCard } from 'lucide-vue-next';
+import { Clock, Sparkles, AlertTriangle } from 'lucide-vue-next';
 import { SubscriptionQuery, UsageSummaryQuery } from '@/graphql/billing';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,8 @@ import { Separator } from '@/components/ui/separator';
 const router = useRouter();
 const { result: subResult } = useQuery(SubscriptionQuery, null, { fetchPolicy: 'cache-and-network' });
 const { result: usageResult } = useQuery(UsageSummaryQuery, null, { fetchPolicy: 'cache-and-network' });
+
+const popoverOpen = ref(false);
 
 const subscription = computed(() => subResult.value?.subscription);
 const usage = computed(() => usageResult.value?.usageSummary);
@@ -32,18 +34,21 @@ const creditsRemainingCents = computed(() => Math.max(0, creditTotalCents.value 
 const creditsRemainingFormatted = computed(() => `€${(creditsRemainingCents.value / 100).toFixed(2)}`);
 const creditTotalFormatted = computed(() => `€${(creditTotalCents.value / 100).toFixed(2)}`);
 
+const creditsExhausted = computed(() => creditsRemainingCents.value <= 0);
+const daysExpired = computed(() => daysRemaining.value <= 0);
+const willSuspend = computed(() => creditsExhausted.value || daysExpired.value);
+
 const creditsPercent = computed(() => {
-  if (creditTotalCents.value === 0) return 100;
+  if (creditTotalCents.value === 0) return 0;
   return Math.round((creditsRemainingCents.value / creditTotalCents.value) * 100);
 });
 
 const daysPercent = computed(() => {
-  // Credit grant is 14 days, calculate percentage remaining.
   return Math.round((daysRemaining.value / 14) * 100);
 });
 
-// Show the more urgent constraint in the badge.
 const badgeText = computed(() => {
+  if (willSuspend.value) return 'Suspension pending';
   const days = daysRemaining.value;
   const credits = creditsRemainingFormatted.value;
   return `${days}d or ${credits} left`;
@@ -51,6 +56,7 @@ const badgeText = computed(() => {
 
 // Urgency: green > 7 days & > 50% credits, yellow > 3 days & > 20%, red otherwise.
 const urgency = computed(() => {
+  if (willSuspend.value) return 'danger';
   if (daysRemaining.value <= 3 || creditsPercent.value <= 20) return 'danger';
   if (daysRemaining.value <= 7 || creditsPercent.value <= 50) return 'warn';
   return 'ok';
@@ -72,75 +78,92 @@ const barColor = computed(() => {
   }
 });
 
-function goToSettings() {
-  router.push({ name: 'workspace-settings' });
+function goToBilling() {
+  popoverOpen.value = false;
+  router.push({ name: 'workspace-settings', query: { tab: 'billing' } });
 }
 </script>
 
 <template>
-  <Popover v-if="showBadge">
+  <Popover v-if="showBadge" v-model:open="popoverOpen">
     <PopoverTrigger as-child>
       <button
         class="flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors hover:bg-accent/50"
         :class="urgencyClasses"
       >
-        <Clock :size="12" />
+        <AlertTriangle v-if="willSuspend" :size="12" />
+        <Clock v-else :size="12" />
         {{ badgeText }}
       </button>
     </PopoverTrigger>
     <PopoverContent align="end" class="w-72 p-0">
       <div class="space-y-3 p-4">
-        <!-- Days remaining -->
-        <div class="space-y-1.5">
-          <div class="flex items-center justify-between text-sm">
-            <span class="text-muted-foreground">Credits expire in</span>
-            <span class="font-medium">{{ daysRemaining }} days</span>
-          </div>
-          <div class="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
-            <div
-              class="h-full rounded-full transition-all"
-              :class="barColor"
-              :style="{ width: `${daysPercent}%` }"
-            />
-          </div>
-        </div>
-
-        <!-- Credits remaining -->
-        <div class="space-y-1.5">
-          <div class="flex items-center justify-between text-sm">
-            <span class="text-muted-foreground">Credits remaining</span>
-            <span class="font-medium">{{ creditsRemainingFormatted }}</span>
-          </div>
-          <div class="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
-            <div
-              class="h-full rounded-full transition-all"
-              :class="barColor"
-              :style="{ width: `${creditsPercent}%` }"
-            />
-          </div>
-          <p class="text-xs text-muted-foreground">
-            {{ creditTotalFormatted }} included with your plan
+        <!-- Suspension warning -->
+        <div v-if="willSuspend" class="rounded-md bg-destructive/10 p-2.5">
+          <p class="text-xs font-medium text-destructive">
+            Your workspace will be suspended shortly. Upgrade to a plan to keep it running.
           </p>
         </div>
+
+        <template v-if="!willSuspend">
+          <!-- Days remaining -->
+          <div class="space-y-1.5">
+            <div class="flex items-center justify-between text-sm">
+              <span class="text-muted-foreground">Credits expire in</span>
+              <span class="font-medium">{{ daysRemaining }} days</span>
+            </div>
+            <div class="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
+              <div
+                class="h-full rounded-full transition-all"
+                :class="barColor"
+                :style="{ width: `${daysPercent}%` }"
+              />
+            </div>
+          </div>
+
+          <!-- Credits remaining -->
+          <div class="space-y-1.5">
+            <div class="flex items-center justify-between text-sm">
+              <span class="text-muted-foreground">Credits remaining</span>
+              <span class="font-medium">{{ creditsRemainingFormatted }}</span>
+            </div>
+            <div class="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
+              <div
+                class="h-full rounded-full transition-all"
+                :class="barColor"
+                :style="{ width: `${creditsPercent}%` }"
+              />
+            </div>
+            <p class="text-xs text-muted-foreground">
+              {{ creditTotalFormatted }} included with your plan
+            </p>
+          </div>
+        </template>
       </div>
 
       <Separator />
 
       <div class="p-4">
         <p class="text-sm font-medium">
-          Free Credits
+          {{ willSuspend ? 'Trial Ended' : 'Free Credits' }}
         </p>
         <p class="mt-1 text-xs text-muted-foreground">
-          Your credits expire in {{ daysRemaining }} days. Add a payment method to continue using the platform.
+          <template v-if="willSuspend">
+            {{ creditsExhausted ? 'Your free credits have been used up.' : 'Your free credits have expired.' }}
+            Upgrade to a plan to keep your workspace running.
+          </template>
+          <template v-else>
+            Your credits expire in {{ daysRemaining }} days. Upgrade to a plan to continue using the platform.
+          </template>
         </p>
 
         <Button
           class="mt-3 w-full"
           size="sm"
-          @click="goToSettings"
+          @click="goToBilling"
         >
-          <CreditCard :size="14" class="mr-1.5" />
-          Add payment method
+          <Sparkles :size="14" class="mr-1.5" />
+          Upgrade to a plan
         </Button>
       </div>
     </PopoverContent>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { useQuery, useMutation } from '@vue/apollo-composable';
 import { ArrowLeft, Trash2, UserPlus, X, Shield, User as UserIcon, CreditCard, ExternalLink } from 'lucide-vue-next';
 import {
@@ -70,8 +70,11 @@ const isAdmin = computed(() => {
   return membership?.role === 'admin';
 });
 
-// Settings sections
-const activeSection = ref('general');
+// Settings sections — sync with ?tab= query param for deep linking.
+const route = useRoute();
+const validSections = ['general', 'members', 'billing', 'danger'];
+const initialTab = validSections.includes(route.query.tab as string) ? (route.query.tab as string) : 'general';
+const activeSection = ref(initialTab);
 const sections = computed(() => {
   const s = [
     { id: 'general', label: 'General' },

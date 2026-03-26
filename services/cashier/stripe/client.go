@@ -287,6 +287,27 @@ func (c *Client) UpcomingInvoice(ctx context.Context, customerID, subscriptionID
 	return inv, nil
 }
 
+// UnpaidInvoiceTotal returns the total amount due on unpaid invoices (draft + open)
+// for a subscription. This captures usage from threshold-triggered invoices
+// that are no longer on the upcoming invoice preview.
+func (c *Client) UnpaidInvoiceTotal(ctx context.Context, subscriptionID string) (int64, error) {
+	var total int64
+	for _, status := range []string{"draft", "open"} {
+		params := &gostripe.InvoiceListParams{
+			Subscription: gostripe.String(subscriptionID),
+			Status:       gostripe.String(status),
+		}
+		iter := invoice.List(params)
+		for iter.Next() {
+			total += iter.Invoice().AmountDue
+		}
+		if err := iter.Err(); err != nil {
+			return 0, fmt.Errorf("failed to list %s invoices: %w", status, err)
+		}
+	}
+	return total, nil
+}
+
 // ReportMeterEvent reports a billing meter event for usage-based billing.
 // eventName corresponds to a Billing Meter's event_name in Stripe.
 // identifier enables Stripe's 24-hour deduplication window — same identifier = rejected as duplicate.

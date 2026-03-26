@@ -166,29 +166,36 @@ func (s *Server) UsageSummary(ctx context.Context, req *cashier.UsageSummaryRequ
 		return nil, fmt.Errorf("customer_id and subscription_id required")
 	}
 
-	inv, err := s.stripe.UpcomingInvoice(ctx, req.CustomerId, req.SubscriptionId)
-	if err != nil {
-		// No upcoming invoice (no usage yet) is fine
-		return &cashier.UsageSummaryResponse{}, nil
-	}
-
 	var resourceCost int64
 	var planCost int64
-	for _, line := range inv.Lines.Data {
-		if line.Pricing == nil || line.Pricing.PriceDetails == nil {
-			continue
-		}
-		priceID := line.Pricing.PriceDetails.Price
-		if priceID == s.stripe.Prices.HobbyPriceID || priceID == s.stripe.Prices.ProPriceID {
-			planCost = line.Amount
-		} else {
-			resourceCost += line.Amount
+
+	inv, err := s.stripe.UpcomingInvoice(ctx, req.CustomerId, req.SubscriptionId)
+	if err == nil {
+		for _, line := range inv.Lines.Data {
+			if line.Pricing == nil || line.Pricing.PriceDetails == nil {
+				continue
+			}
+			priceID := line.Pricing.PriceDetails.Price
+			if priceID == s.stripe.Prices.HobbyPriceID || priceID == s.stripe.Prices.ProPriceID {
+				planCost = line.Amount
+			} else {
+				resourceCost += line.Amount
+			}
 		}
 	}
+
+	// Include open invoices (e.g. threshold-triggered invoices that are pending
+	// payment). Their usage is no longer on the upcoming preview but the credits
+	// haven't been deducted yet until the invoice is paid.
+	openTotal, err := s.stripe.UnpaidInvoiceTotal(ctx, req.SubscriptionId)
+	if err != nil {
+		slog.Warn("failed to get open invoice total", "workspace", req.Workspace, "error", err)
+	}
+	resourceCost += openTotal
 
 	// Credits: use the credit grant total and cap applied credits at resource cost.
 	// Stripe doesn't deduct from credit balance until invoice finalization, so we
-	// calculate applied credits ourselves from the upcoming invoice's resource cost.
+	// calculate applied credits ourselves from the total outstanding resource cost.
 	creditBalance, err := s.stripe.CreditBalanceCents(ctx, req.CustomerId)
 	if err != nil {
 		slog.Warn("failed to get credit balance", "workspace", req.Workspace, "error", err)
