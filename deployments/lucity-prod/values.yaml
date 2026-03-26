@@ -71,6 +71,7 @@ deployer:
     create: true
   env:
     INTERNAL_JWT_PUBLIC_KEY_PATH: /secrets/internal-jwt/public.pem
+    INTERNAL_JWT_PRIVATE_KEY_PATH: /secrets/internal-jwt/private.pem
     ARGOCD_ADDR: http://lucity-infra-argocd-server.lucity-system.svc.cluster.local:80
     ARGOCD_INSECURE: "true"
     SOFTSERVE_HTTP_ADDR: http://lucity-infra-soft-serve.lucity-system.svc.cluster.local:23232

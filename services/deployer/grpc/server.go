@@ -20,6 +20,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 
+	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/deployer"
 	"github.com/zeitlos/lucity/pkg/labels"
 	"github.com/zeitlos/lucity/pkg/packager"
@@ -36,6 +37,7 @@ type Server struct {
 	packager packager.PackagerServiceClient
 	k8s      kubernetes.Interface
 	dynamic  dynamic.Interface
+	issuer   *auth.Issuer
 
 	// softServeHTTP is the cluster-internal Soft-serve HTTP URL for ArgoCD to clone from.
 	softServeHTTP string
@@ -53,12 +55,13 @@ type Server struct {
 	registryPullSecret string
 }
 
-func NewServer(argo *argocd.Client, packagerClient packager.PackagerServiceClient, softServeHTTP, softServeToken string, k8s kubernetes.Interface, dyn dynamic.Interface, gatewayName, gatewayNamespace, clusterIssuer, registryPullSecret string) *Server {
+func NewServer(argo *argocd.Client, packagerClient packager.PackagerServiceClient, softServeHTTP, softServeToken string, k8s kubernetes.Interface, dyn dynamic.Interface, issuer *auth.Issuer, gatewayName, gatewayNamespace, clusterIssuer, registryPullSecret string) *Server {
 	return &Server{
 		argo:               argo,
 		packager:           packagerClient,
 		k8s:                k8s,
 		dynamic:            dyn,
+		issuer:             issuer,
 		softServeHTTP:      softServeHTTP,
 		softServeToken:     softServeToken,
 		gatewayName:        gatewayName,
@@ -1332,8 +1335,15 @@ func (s *Server) SuspendWorkspace(ctx context.Context, req *deployer.SuspendWork
 	// 3. Write suspended flag via packager (GitOps values.yaml).
 	// The packager commits the change and triggers ArgoCD sync.
 	// ArgoCD then enforces the suspension (replicas=0, CronJobs suspended, CNPG hibernated, HTTPRoutes removed).
+	packagerCtx := auth.WithClaims(ctx, &auth.Claims{
+		Subject: "deployer",
+		Roles:   []auth.Role{auth.RoleUser},
+	})
+	packagerCtx = auth.WithIssuer(packagerCtx, s.issuer)
+	packagerCtx = auth.OutgoingContext(packagerCtx)
+
 	for ek := range seen {
-		_, err := s.packager.SetSuspended(ctx, &packager.SetSuspendedRequest{
+		_, err := s.packager.SetSuspended(packagerCtx, &packager.SetSuspendedRequest{
 			Project:     ek.project,
 			Environment: ek.environment,
 			Suspended:   req.Suspended,
