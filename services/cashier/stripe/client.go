@@ -152,39 +152,28 @@ func (c *Client) ChangePlan(ctx context.Context, subscriptionID, newPlanPriceID,
 	return subscription.Get(subscriptionID, nil)
 }
 
-// AddPlanToSubscription adds a plan price as a new subscription item.
-// Used when a trial user adds their first plan after completing a setup checkout.
+// AddPlanToSubscription adds a plan price and resets the billing cycle in a single
+// atomic Stripe call. This clears trial billing params (thresholds, pending invoice
+// interval) and anchors the billing cycle to now so the paid period starts fresh.
+// Combining these into one call prevents a race where the metering worker could see
+// the plan item before the anchor is reset, creating credits with the wrong expiry.
 func (c *Client) AddPlanToSubscription(ctx context.Context, subscriptionID, planPriceID string) (*gostripe.Subscription, error) {
-	_, err := subscriptionitem.New(&gostripe.SubscriptionItemParams{
-		Subscription:      gostripe.String(subscriptionID),
-		Price:             gostripe.String(planPriceID),
-		ProrationBehavior: gostripe.String("create_prorations"),
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to add plan to subscription: %w", err)
-	}
-
-	return subscription.Get(subscriptionID, nil)
-}
-
-// ClearTrialBillingParams removes billing thresholds and pending invoice item interval
-// from a subscription, and resets the billing cycle anchor to now. Called when a trial
-// user converts to a paid plan so the paid billing period starts fresh.
-func (c *Client) ClearTrialBillingParams(ctx context.Context, subscriptionID string) error {
 	params := &gostripe.SubscriptionParams{
+		Items: []*gostripe.SubscriptionItemsParams{
+			{Price: gostripe.String(planPriceID)},
+		},
 		BillingCycleAnchorNow: gostripe.Bool(true),
 		ProrationBehavior:     gostripe.String("create_prorations"),
 	}
 	// Empty string tells Stripe to null these nested objects.
-	// Struct fields with nil pointers are omitted from the request, so we use AddExtra.
 	params.AddExtra("billing_thresholds", "")
 	params.AddExtra("pending_invoice_item_interval", "")
 
-	_, err := subscription.Update(subscriptionID, params)
+	sub, err := subscription.Update(subscriptionID, params)
 	if err != nil {
-		return fmt.Errorf("failed to clear trial billing params: %w", err)
+		return nil, fmt.Errorf("failed to add plan to subscription: %w", err)
 	}
-	return nil
+	return sub, nil
 }
 
 // SetDefaultPaymentMethod sets the customer's default payment method for invoices.
@@ -466,6 +455,9 @@ func (c *Client) CreateCreditGrantForPeriod(ctx context.Context, customerID stri
 			"billing_period_start": fmt.Sprintf("%d", periodStart),
 		},
 	}
+	// Idempotency key prevents duplicate grants when multiple workers race
+	// (e.g. during rollouts or local dev with two air instances).
+	params.IdempotencyKey = gostripe.String(fmt.Sprintf("credit-grant:%s:%d", customerID, periodStart))
 
 	_, err = creditgrant.New(params)
 	if err != nil {

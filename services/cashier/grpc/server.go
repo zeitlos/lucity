@@ -456,12 +456,6 @@ func (s *Server) AddPlan(ctx context.Context, req *cashier.AddPlanRequest) (*cas
 		return nil, fmt.Errorf("failed to add plan: %w", err)
 	}
 
-	// Clear trial billing params (thresholds, interval) and reset billing cycle
-	// anchor so the paid billing period starts fresh from now.
-	if err := s.stripe.ClearTrialBillingParams(ctx, req.SubscriptionId); err != nil {
-		slog.Warn("failed to clear trial billing params", "workspace", req.Workspace, "error", err)
-	}
-
 	// Resume workspace in case it was suspended at trial end.
 	s.suspendWorkspace(req.Workspace, false)
 
