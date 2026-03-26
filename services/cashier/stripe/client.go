@@ -172,8 +172,8 @@ func (c *Client) AddPlanToSubscription(ctx context.Context, subscriptionID, plan
 // user converts to a paid plan so the paid billing period starts fresh.
 func (c *Client) ClearTrialBillingParams(ctx context.Context, subscriptionID string) error {
 	params := &gostripe.SubscriptionParams{
-		BillingCycleAnchor: gostripe.Int64(time.Now().Unix()),
-		ProrationBehavior:  gostripe.String("create_prorations"),
+		BillingCycleAnchorNow: gostripe.Bool(true),
+		ProrationBehavior:     gostripe.String("create_prorations"),
 	}
 	// Empty string tells Stripe to null these nested objects.
 	// Struct fields with nil pointers are omitted from the request, so we use AddExtra.
