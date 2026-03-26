@@ -232,8 +232,8 @@ func (s *Server) handlePaymentFailed(event gostripe.Event) {
 	}
 
 	workspace := ""
-	if inv.Parent != nil && inv.Parent.SubscriptionDetails != nil && inv.Parent.SubscriptionDetails.Subscription != nil {
-		workspace = inv.Parent.SubscriptionDetails.Subscription.Metadata["workspace"]
+	if inv.Parent != nil && inv.Parent.SubscriptionDetails != nil {
+		workspace = inv.Parent.SubscriptionDetails.Metadata["workspace"]
 	}
 	if workspace == "" {
 		slog.Warn("payment failed but no workspace in subscription metadata", "invoice", inv.ID)
@@ -253,10 +253,11 @@ func (s *Server) handlePaymentSucceeded(event gostripe.Event) {
 
 	workspace := ""
 	var subscriptionID, customerID string
-	if inv.Parent != nil && inv.Parent.SubscriptionDetails != nil && inv.Parent.SubscriptionDetails.Subscription != nil {
-		sub := inv.Parent.SubscriptionDetails.Subscription
-		workspace = sub.Metadata["workspace"]
-		subscriptionID = sub.ID
+	if inv.Parent != nil && inv.Parent.SubscriptionDetails != nil {
+		workspace = inv.Parent.SubscriptionDetails.Metadata["workspace"]
+		if inv.Parent.SubscriptionDetails.Subscription != nil {
+			subscriptionID = inv.Parent.SubscriptionDetails.Subscription.ID
+		}
 	}
 	if inv.Customer != nil {
 		customerID = inv.Customer.ID
