@@ -44,15 +44,11 @@ func NewGraphQLServer(port string, api *handler.Client, oidcProvider *OIDCProvid
 
 	constraintDir := directive.New()
 
-	type allowSuspendedKeyType struct{}
-	allowSuspendedKey := allowSuspendedKeyType{}
-
 	srv := gqlhandler.New(gatewaygraphql.NewExecutableSchema(gatewaygraphql.Config{
 		Resolvers: &resolver,
 		Directives: gatewaygraphql.DirectiveRoot{
 			Constraint: constraintDir.Validate,
 			AllowSuspended: func(ctx context.Context, obj interface{}, next gqlgen.Resolver) (interface{}, error) {
-				ctx = context.WithValue(ctx, allowSuspendedKey, true)
 				return next(ctx)
 			},
 			HasRole: func(ctx context.Context, obj interface{}, next gqlgen.Resolver, role []model.Role) (interface{}, error) {
@@ -81,9 +77,20 @@ func NewGraphQLServer(port string, api *handler.Client, oidcProvider *OIDCProvid
 				}
 
 				// Check workspace suspension for mutations (queries are never blocked).
+				// Skip if the field is marked @allowSuspended (checked via AST, not directive order).
 				oc := gqlgen.GetOperationContext(ctx)
 				if oc.Operation != nil && oc.Operation.Operation == ast.Mutation {
-					if ctx.Value(allowSuspendedKey) == nil {
+					fc := gqlgen.GetFieldContext(ctx)
+					allowSuspended := false
+					if fc != nil && fc.Field.Definition != nil {
+						for _, d := range fc.Field.Definition.Directives {
+							if d.Name == "allowSuspended" {
+								allowSuspended = true
+								break
+							}
+						}
+					}
+					if !allowSuspended {
 						ws := tenant.FromContext(ctx)
 						if ws != "" && api.Logto != nil {
 							org, err := api.Logto.OrganizationByName(ctx, ws)
