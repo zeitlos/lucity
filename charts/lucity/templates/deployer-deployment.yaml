@@ -82,4 +82,6 @@ spec:
             items:
               - key: public.pem
                 path: public.pem
+              - key: private.pem
+                path: private.pem
       {{- end }}
