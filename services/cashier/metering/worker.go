@@ -42,18 +42,20 @@ type Worker struct {
 	deployer deployer.DeployerServiceClient
 	signoz   *SigNozClient
 	k8s      kubernetes.Interface // nil if K8s not available (no checkpoint/backfill)
+	issuer   *auth.Issuer
 	interval time.Duration
 	cancel   context.CancelFunc
 	done     chan struct{}
 }
 
 // NewWorker creates a metering worker. k8sClient may be nil (disables checkpoint/backfill).
-func NewWorker(stripeClient *stripelib.Client, deployerClient deployer.DeployerServiceClient, signozClient *SigNozClient, k8sClient kubernetes.Interface, interval time.Duration) *Worker {
+func NewWorker(stripeClient *stripelib.Client, deployerClient deployer.DeployerServiceClient, signozClient *SigNozClient, k8sClient kubernetes.Interface, issuer *auth.Issuer, interval time.Duration) *Worker {
 	return &Worker{
 		stripe:   stripeClient,
 		deployer: deployerClient,
 		signoz:   signozClient,
 		k8s:      k8sClient,
+		issuer:   issuer,
 		interval: interval,
 		done:     make(chan struct{}),
 	}
@@ -157,11 +159,12 @@ func (w *Worker) tick(ctx context.Context) {
 }
 
 // deployerCtx creates a system-level auth context for calling the deployer.
-func deployerCtx(ctx context.Context) context.Context {
+func (w *Worker) deployerCtx(ctx context.Context) context.Context {
 	ctx = auth.WithClaims(ctx, &auth.Claims{
 		Subject: "cashier",
 		Roles:   []auth.Role{auth.RoleUser},
 	})
+	ctx = auth.WithIssuer(ctx, w.issuer)
 	return auth.OutgoingContext(ctx)
 }
 
@@ -183,7 +186,7 @@ type allocEntry struct {
 
 func (w *Worker) processWindow(ctx context.Context, windowStart, windowEnd time.Time) {
 	start := time.Now()
-	callCtx := deployerCtx(ctx)
+	callCtx := w.deployerCtx(ctx)
 
 	// 1. List all billable workspaces from Stripe.
 	billingData, err := w.stripe.BillableWorkspaces(ctx)

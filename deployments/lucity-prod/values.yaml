@@ -94,14 +94,15 @@ cashier:
   enabled: true
   env:
     INTERNAL_JWT_PUBLIC_KEY_PATH: /secrets/internal-jwt/public.pem
+    INTERNAL_JWT_PRIVATE_KEY_PATH: /secrets/internal-jwt/private.pem
     DEPLOYER_ADDR: lucity-deployer:9003
     STRIPE_HOBBY_PRICE_ID: price_1TASy6AoheV3Drw6W13KVFYm
     STRIPE_PRO_PRICE_ID: price_1TASy7AoheV3Drw6t22UVU8C
     STRIPE_ECO_CPU_PRICE_ID: price_1TASyOAoheV3Drw6CUwBuS1L
     STRIPE_ECO_MEM_PRICE_ID: price_1TASyPAoheV3Drw6MLH0Qh0C
     STRIPE_ECO_DISK_PRICE_ID: price_1TASyQAoheV3Drw6EVAyG6oP
-    STRIPE_PROD_CPU_PRICE_ID: price_1TASyRAoheV3Drw6g6xhZoAv
-    STRIPE_PROD_MEM_PRICE_ID: price_1TASySAoheV3Drw6k8wor4Zp
+    STRIPE_PROD_CPU_PRICE_ID: price_1TF9qaAoheV3Drw6En35zCEK
+    STRIPE_PROD_MEM_PRICE_ID: price_1TF9qmAoheV3Drw6zasPNVfM
     STRIPE_PROD_DISK_PRICE_ID: price_1TASySAoheV3Drw6IuGVM6iw
     STRIPE_ECO_CPU_METER_EVENT: eco_cpu_usage
     STRIPE_ECO_MEM_METER_EVENT: eco_memory_usage

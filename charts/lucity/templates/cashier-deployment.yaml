@@ -72,7 +72,7 @@ spec:
                   name: {{ include "lucity.fullname" $ }}
                   key: {{ $value }}
             {{- end }}
-          {{- if and .Values.internalJWT .Values.internalJWT.publicKey }}
+          {{- if and .Values.internalJWT (or .Values.internalJWT.publicKey .Values.internalJWT.privateKey) }}
           volumeMounts:
             - name: internal-jwt
               mountPath: /secrets/internal-jwt
@@ -80,13 +80,19 @@ spec:
           {{- end }}
           resources:
             {{- toYaml .Values.cashier.resources | nindent 12 }}
-      {{- if and .Values.internalJWT .Values.internalJWT.publicKey }}
+      {{- if and .Values.internalJWT (or .Values.internalJWT.publicKey .Values.internalJWT.privateKey) }}
       volumes:
         - name: internal-jwt
           secret:
             secretName: {{ include "lucity.fullname" . }}-internal-jwt
             items:
+              {{- if .Values.internalJWT.publicKey }}
               - key: public.pem
                 path: public.pem
+              {{- end }}
+              {{- if .Values.internalJWT.privateKey }}
+              - key: private.pem
+                path: private.pem
+              {{- end }}
       {{- end }}
 {{- end }}

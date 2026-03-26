@@ -464,7 +464,7 @@ func (c *Client) BillableWorkspaces(ctx context.Context) (map[string]WorkspaceBi
 	result := make(map[string]WorkspaceBilling)
 	params := &gostripe.CustomerSearchParams{
 		SearchParams: gostripe.SearchParams{
-			Query: `metadata["workspace"]:"*"`,
+			Query: `-metadata["workspace"]:null`,
 		},
 	}
 
@@ -576,9 +576,22 @@ func PlanCreditCents(planPriceID string, prices PriceConfig) int64 {
 // CreateCheckoutSession creates a Stripe Checkout Session in subscription mode
 // with the plan price + 6 metered resource prices.
 func (c *Client) CreateCheckoutSession(ctx context.Context, workspace, name, planPriceID, email, successURL, cancelURL, userID string) (string, string, error) {
+	// Pre-create the customer so it has metadata["workspace"] set.
+	// Stripe Checkout's auto-created customers don't support setting metadata.
+	customerID, err := c.CustomerByWorkspace(ctx, workspace)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to check existing customer: %w", err)
+	}
+	if customerID == "" {
+		customerID, err = c.CreateCustomer(ctx, workspace, name, email)
+		if err != nil {
+			return "", "", fmt.Errorf("failed to pre-create customer: %w", err)
+		}
+	}
+
 	params := &gostripe.CheckoutSessionParams{
 		Mode:                    gostripe.String(string(gostripe.CheckoutSessionModeSubscription)),
-		CustomerEmail:           gostripe.String(email),
+		Customer:                gostripe.String(customerID),
 		SuccessURL:              gostripe.String(successURL),
 		CancelURL:               gostripe.String(cancelURL),
 		PaymentMethodCollection: gostripe.String("always"),

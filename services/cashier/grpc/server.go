@@ -19,12 +19,14 @@ type Server struct {
 	cashier.UnimplementedCashierServiceServer
 	stripe   *stripelib.Client
 	deployer deployer.DeployerServiceClient
+	issuer   *auth.Issuer
 }
 
-func NewServer(stripeClient *stripelib.Client, deployerClient deployer.DeployerServiceClient) *Server {
+func NewServer(stripeClient *stripelib.Client, deployerClient deployer.DeployerServiceClient, issuer *auth.Issuer) *Server {
 	return &Server{
 		stripe:   stripeClient,
 		deployer: deployerClient,
+		issuer:   issuer,
 	}
 }
 
@@ -313,6 +315,7 @@ func (s *Server) suspendWorkspace(workspace string, suspended bool) {
 		Subject: "cashier",
 		Roles:   []auth.Role{auth.RoleUser},
 	})
+	ctx = auth.WithIssuer(ctx, s.issuer)
 	ctx = auth.OutgoingContext(ctx)
 	_, err := s.deployer.SuspendWorkspace(ctx, &deployer.SuspendWorkspaceRequest{
 		Workspace: workspace,

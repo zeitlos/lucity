@@ -52,7 +52,8 @@ type Config struct {
 	SignozClickhouseDSN string        `envconfig:"SIGNOZ_CLICKHOUSE_DSN"`
 
 	// Internal JWT (ES256 for gRPC service-to-service auth)
-	InternalJWTPublicKeyPath string `envconfig:"INTERNAL_JWT_PUBLIC_KEY_PATH" required:"true"`
+	InternalJWTPublicKeyPath  string `envconfig:"INTERNAL_JWT_PUBLIC_KEY_PATH" required:"true"`
+	InternalJWTPrivateKeyPath string `envconfig:"INTERNAL_JWT_PRIVATE_KEY_PATH" required:"true"`
 }
 
 func main() {
@@ -97,14 +98,21 @@ func main() {
 	}
 	stripeClient := stripelib.NewClient(config.StripeSecretKey, prices, meters)
 
-	// gRPC server
-	svc := cashiergrpc.NewServer(stripeClient, deployerClient)
-
+	// Internal JWT for service-to-service auth
 	verifier, err := auth.NewInternalVerifierFromFile(config.InternalJWTPublicKeyPath)
 	if err != nil {
 		slog.Error("failed to create internal JWT verifier", "error", err)
 		os.Exit(1)
 	}
+
+	issuer, err := auth.NewIssuerFromFile(config.InternalJWTPrivateKeyPath)
+	if err != nil {
+		slog.Error("failed to create internal JWT issuer", "error", err)
+		os.Exit(1)
+	}
+
+	// gRPC server
+	svc := cashiergrpc.NewServer(stripeClient, deployerClient, issuer)
 
 	grpcServer := cashiergrpc.NewGRPCServer(":"+config.Port, svc, verifier)
 
@@ -127,7 +135,7 @@ func main() {
 		// without checkpoint/backfill if unavailable (e.g. local dev without cluster).
 		k8sClient := buildK8sClient()
 
-		worker := metering.NewWorker(stripeClient, deployerClient, signozClient, k8sClient, config.MeteringInterval)
+		worker := metering.NewWorker(stripeClient, deployerClient, signozClient, k8sClient, issuer, config.MeteringInterval)
 		servers = append(servers, worker)
 		slog.Info("metering enabled", "interval", config.MeteringInterval)
 	} else {
