@@ -1342,6 +1342,7 @@ func (s *Server) SuspendWorkspace(ctx context.Context, req *deployer.SuspendWork
 	packagerCtx = auth.WithIssuer(packagerCtx, s.issuer)
 	packagerCtx = auth.OutgoingContext(packagerCtx)
 
+	var failed int
 	for ek := range seen {
 		_, err := s.packager.SetSuspended(packagerCtx, &packager.SetSuspendedRequest{
 			Project:     ek.project,
@@ -1349,7 +1350,8 @@ func (s *Server) SuspendWorkspace(ctx context.Context, req *deployer.SuspendWork
 			Suspended:   req.Suspended,
 		})
 		if err != nil {
-			slog.Warn("failed to set suspended in gitops repo", "project", ek.project, "environment", ek.environment, "error", err)
+			slog.Error("failed to set suspended in gitops repo", "project", ek.project, "environment", ek.environment, "error", err)
+			failed++
 		}
 	}
 
@@ -1357,6 +1359,11 @@ func (s *Server) SuspendWorkspace(ctx context.Context, req *deployer.SuspendWork
 	if !req.Suspended {
 		action = "resumed"
 	}
+
+	if failed > 0 {
+		return nil, status.Errorf(codes.Internal, "failed to %s %d of %d environments", action[:len(action)-1], failed, len(seen))
+	}
+
 	slog.Info("workspace "+action, "workspace", req.Workspace, "environments", len(seen))
 	return &deployer.SuspendWorkspaceResponse{}, nil
 }
