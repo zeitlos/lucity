@@ -4,7 +4,6 @@ import { useRouter, useRoute } from 'vue-router';
 import { useQuery, useMutation } from '@vue/apollo-composable';
 import { ArrowLeft, Trash2, UserPlus, X, Shield, User as UserIcon, CreditCard, ExternalLink } from 'lucide-vue-next';
 import {
-  WorkspaceQuery,
   WorkspacesQuery,
   UpdateWorkspaceMutation,
   DeleteWorkspaceMutation,
@@ -56,11 +55,12 @@ import {
 import { toast, errorToast } from '@/components/ui/sonner';
 import { errorMessage } from '@/lib/utils';
 import PlanPicker from '@/components/PlanPicker.vue';
+import { SubscriptionDocument, SubscriptionStatus, WorkspaceDocument } from '@/gql/graphql';
 
 const router = useRouter();
 const { refreshToken, setActiveWorkspace } = useAuth();
 
-const { result, loading, refetch } = useQuery(WorkspaceQuery);
+const { result, loading, refetch } = useQuery(WorkspaceDocument);
 const workspace = computed(() => result.value?.workspace);
 const members = computed(() => workspace.value?.members ?? []);
 const isAdmin = computed(() => {
@@ -170,7 +170,7 @@ async function handleUpdateRole(userId: string, role: string) {
 }
 
 // Billing
-const { result: subResult, loading: subLoading, error: subError } = useQuery(SubscriptionQuery);
+const { result: subResult, loading: subLoading, error: subError } = useQuery(SubscriptionDocument);
 const subscription = computed(() => subResult.value?.subscription);
 
 const { result: usageResult, loading: usageLoading } = useQuery(UsageSummaryQuery);
@@ -185,7 +185,7 @@ const { mutate: portalMutate, loading: openingPortal } = useMutation(BillingPort
 const { mutate: planCheckoutMutate, loading: startingPlanCheckout } = useMutation(CreatePlanCheckoutMutation);
 const confirmPlan = ref<string | null>(null);
 const trialSelectedPlan = ref<'HOBBY' | 'PRO'>('HOBBY');
-const isTrial = computed(() => billingAvailable.value && !subscription.value?.plan);
+const isTrial = computed(() => billingAvailable.value && subscription.value?.status === SubscriptionStatus.Trialing);
 
 function formatCents(cents: number): string {
   return `€${(cents / 100).toFixed(2)}`;

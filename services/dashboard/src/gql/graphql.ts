@@ -862,7 +862,8 @@ export enum SubscriptionStatus {
   Active = 'ACTIVE',
   Canceled = 'CANCELED',
   Incomplete = 'INCOMPLETE',
-  PastDue = 'PAST_DUE'
+  PastDue = 'PAST_DUE',
+  Trialing = 'TRIALING'
 }
 
 export enum SyncStatus {

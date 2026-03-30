@@ -907,6 +907,7 @@ const (
 	SubscriptionStatusPastDue    SubscriptionStatus = "PAST_DUE"
 	SubscriptionStatusCanceled   SubscriptionStatus = "CANCELED"
 	SubscriptionStatusIncomplete SubscriptionStatus = "INCOMPLETE"
+	SubscriptionStatusTrialing   SubscriptionStatus = "TRIALING"
 )
 
 var AllSubscriptionStatus = []SubscriptionStatus{
@@ -914,11 +915,12 @@ var AllSubscriptionStatus = []SubscriptionStatus{
 	SubscriptionStatusPastDue,
 	SubscriptionStatusCanceled,
 	SubscriptionStatusIncomplete,
+	SubscriptionStatusTrialing,
 }
 
 func (e SubscriptionStatus) IsValid() bool {
 	switch e {
-	case SubscriptionStatusActive, SubscriptionStatusPastDue, SubscriptionStatusCanceled, SubscriptionStatusIncomplete:
+	case SubscriptionStatusActive, SubscriptionStatusPastDue, SubscriptionStatusCanceled, SubscriptionStatusIncomplete, SubscriptionStatusTrialing:
 		return true
 	}
 	return false

@@ -421,6 +421,8 @@ func subscriptionStatusProtoToString(s cashier.SubscriptionStatus) string {
 		return "CANCELED"
 	case cashier.SubscriptionStatus_SUBSCRIPTION_STATUS_INCOMPLETE:
 		return "INCOMPLETE"
+	case cashier.SubscriptionStatus_SUBSCRIPTION_STATUS_TRIALING:
+		return "TRIALING"
 	default:
 		return "ACTIVE"
 	}

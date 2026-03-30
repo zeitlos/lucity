@@ -3,12 +3,12 @@ import { computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useQuery } from '@vue/apollo-composable';
 import { AlertTriangle, Sparkles } from 'lucide-vue-next';
-import { SubscriptionQuery } from '@/graphql/billing';
+import { SubscriptionDocument, SubscriptionStatus } from '@/gql/graphql';
 
 const router = useRouter();
-const { result: subResult } = useQuery(SubscriptionQuery, null, { fetchPolicy: 'cache-and-network' });
+const { result: subResult } = useQuery(SubscriptionDocument, null, { fetchPolicy: 'cache-and-network' });
 
-const isTrial = computed(() => !subResult.value?.subscription?.plan);
+const isTrial = computed(() => subResult.value?.subscription?.status === SubscriptionStatus.Trialing);
 
 function goToBilling() {
   router.push({ name: 'workspace-settings', query: { tab: 'billing' } });

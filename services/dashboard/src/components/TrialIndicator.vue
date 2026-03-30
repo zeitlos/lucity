@@ -6,7 +6,7 @@ import { Clock, Sparkles, AlertTriangle } from 'lucide-vue-next';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { SubscriptionDocument, UsageSummaryDocument } from '@/gql/graphql';
+import { SubscriptionDocument, SubscriptionStatus, UsageSummaryDocument } from '@/gql/graphql';
 
 const router = useRouter();
 const { result: subResult } = useQuery(SubscriptionDocument, null, { fetchPolicy: 'cache-and-network' });
@@ -16,9 +16,7 @@ const popoverOpen = ref(false);
 
 const subscription = computed(() => subResult.value?.subscription);
 const usage = computed(() => usageResult.value?.usageSummary);
-const hasPaymentMethod = computed(() => subscription.value?.hasPaymentMethod ?? false);
-const hasCreditExpiry = computed(() => !!subscription.value?.creditExpiry);
-const showBadge = computed(() => hasCreditExpiry.value && !hasPaymentMethod.value);
+const showBadge = computed(() => subscription.value?.status === SubscriptionStatus.Trialing);
 
 const daysRemaining = computed(() => {
   if (!subscription.value?.creditExpiry) return 0;

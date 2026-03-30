@@ -27,6 +27,7 @@ enum SubscriptionStatus {
   PAST_DUE
   CANCELED
   INCOMPLETE
+  TRIALING
 }
 
 type BillingSubscription {

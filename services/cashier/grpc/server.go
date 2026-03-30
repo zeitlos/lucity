@@ -104,7 +104,7 @@ func (s *Server) ChangePlan(ctx context.Context, req *cashier.ChangePlanRequest)
 	hasPM, _ := s.stripe.HasPaymentMethod(ctx, req.CustomerId)
 
 	slog.Info("plan changed", "workspace", req.Workspace, "plan", planToString(req.Plan))
-	resp := subscriptionToResponse(sub, s.stripe.Prices)
+	resp := s.subscriptionToResponse(sub, s.stripe.Prices)
 	resp.HasPaymentMethod = hasPM
 	return resp, nil
 }
@@ -121,7 +121,7 @@ func (s *Server) Subscription(ctx context.Context, req *cashier.SubscriptionRequ
 
 	hasPM, _ := s.stripe.HasPaymentMethod(ctx, req.CustomerId)
 
-	resp := subscriptionToResponse(sub, s.stripe.Prices)
+	resp := s.subscriptionToResponse(sub, s.stripe.Prices)
 
 	// Use the actual credit balance from Stripe instead of the plan entitlement.
 	// This correctly reflects trial credits for users without a plan, and is always
@@ -460,7 +460,7 @@ func (s *Server) AddPlan(ctx context.Context, req *cashier.AddPlanRequest) (*cas
 	s.suspendWorkspace(req.Workspace, false)
 
 	slog.Info("plan added to subscription", "workspace", req.Workspace, "plan", planPriceID)
-	resp := subscriptionToResponse(sub, s.stripe.Prices)
+	resp := s.subscriptionToResponse(sub, s.stripe.Prices)
 	return &cashier.AddPlanResponse{
 		Plan:              resp.Plan,
 		Status:            resp.Status,
@@ -470,15 +470,14 @@ func (s *Server) AddPlan(ctx context.Context, req *cashier.AddPlanRequest) (*cas
 	}, nil
 }
 
-// Conversion helpers
-
-func subscriptionToResponse(sub *gostripe.Subscription, prices stripelib.PriceConfig) *cashier.ChangePlanResponse {
+func (s *Server) subscriptionToResponse(sub *gostripe.Subscription, prices stripelib.PriceConfig) *cashier.ChangePlanResponse {
 	plan := cashier.Plan_PLAN_UNSPECIFIED
 	var currentPeriodEnd int64
 	for _, item := range sub.Items.Data {
-		if item.Price.ID == prices.HobbyPriceID {
+		switch item.Price.ID {
+		case prices.HobbyPriceID:
 			plan = cashier.Plan_PLAN_HOBBY
-		} else if item.Price.ID == prices.ProPriceID {
+		case prices.ProPriceID:
 			plan = cashier.Plan_PLAN_PRO
 		}
 		// All items share the same period — grab from first one
@@ -497,15 +496,20 @@ func subscriptionToResponse(sub *gostripe.Subscription, prices stripelib.PriceCo
 
 	return &cashier.ChangePlanResponse{
 		Plan:              plan,
-		Status:            mapSubscriptionStatus(sub.Status),
+		Status:            s.mapSubscriptionStatus(sub),
 		CurrentPeriodEnd:  currentPeriodEnd,
 		CreditAmountCents: int32(creditCents),
 	}
 }
 
-func mapSubscriptionStatus(s gostripe.SubscriptionStatus) cashier.SubscriptionStatus {
-	switch s {
+func (s *Server) mapSubscriptionStatus(sub *gostripe.Subscription) cashier.SubscriptionStatus {
+	switch sub.Status {
 	case gostripe.SubscriptionStatusActive:
+		if !s.subscriptionHasPlan(sub) {
+			// Subscriptions wihtout a plan are trials
+			return cashier.SubscriptionStatus_SUBSCRIPTION_STATUS_TRIALING
+		}
+
 		return cashier.SubscriptionStatus_SUBSCRIPTION_STATUS_ACTIVE
 	case gostripe.SubscriptionStatusPastDue:
 		return cashier.SubscriptionStatus_SUBSCRIPTION_STATUS_PAST_DUE
