@@ -3,6 +3,7 @@ import { computed, ref, watch, onUnmounted } from 'vue';
 import { Handle, Position } from '@vue-flow/core';
 import { ExternalLink, Github, Globe, Loader2 } from 'lucide-vue-next';
 import type { DomainInfo } from '@/composables/useEnvironment';
+import { DeployPhase, DomainType } from '@/gql/graphql';
 import FrameworkIcon from '@/components/FrameworkIcon.vue';
 import { Badge } from '@/components/ui/badge';
 
@@ -54,7 +55,7 @@ function clearTimer() {
 
 watch(() => props.data.activeDeployPhase, (phase) => {
   clearTimer();
-  if (phase && phase !== 'SUCCEEDED' && phase !== 'FAILED') {
+  if (phase && phase !== DeployPhase.Succeeded && phase !== DeployPhase.Failed) {
     elapsed.value = props.data.activeDeployStartedAt
       ? Math.floor((Date.now() - props.data.activeDeployStartedAt) / 1000)
       : 0;
@@ -66,13 +67,12 @@ onUnmounted(clearTimer);
 
 const deployLabel = computed(() => {
   switch (props.data.activeDeployPhase) {
-    case 'QUEUED':
-    case 'CLONING':
+    case DeployPhase.Cloning:
       return 'Initializing';
-    case 'BUILDING':
-    case 'PUSHING':
+    case DeployPhase.Building:
+    case DeployPhase.Pushing:
       return 'Building';
-    case 'DEPLOYING':
+    case DeployPhase.Deploying:
       return 'Deploying';
     default:
       return null;
@@ -89,7 +89,7 @@ const replicas = computed(() => props.data.replicas ?? 0);
 
 const primaryDomain = computed(() => {
   const domains = props.data.domains ?? [];
-  const custom = domains.find(d => d.type === 'CUSTOM');
+  const custom = domains.find(d => d.type === DomainType.Custom);
   return (custom ?? domains[0])?.hostname ?? null;
 });
 

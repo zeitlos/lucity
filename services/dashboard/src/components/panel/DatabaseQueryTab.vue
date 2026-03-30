@@ -3,7 +3,7 @@ import { ref } from 'vue';
 import { useApolloClient } from '@vue/apollo-composable';
 import { Play, Loader2 } from 'lucide-vue-next';
 import { useEnvironment } from '@/composables/useEnvironment';
-import { ExecuteQueryMutation } from '@/graphql/databases';
+import { ExecuteQueryDocument } from '@/gql/graphql';
 import {
   Table,
   TableBody,
@@ -50,7 +50,7 @@ async function executeQuery() {
   try {
     const client = resolveClient();
     const { data } = await client.mutate({
-      mutation: ExecuteQueryMutation,
+      mutation: ExecuteQueryDocument,
       variables: {
         input: {
           projectId: props.projectId,
@@ -61,9 +61,9 @@ async function executeQuery() {
       },
     });
 
-    columns.value = data.executeQuery.columns ?? [];
-    rows.value = data.executeQuery.rows ?? [];
-    affectedRows.value = data.executeQuery.affectedRows ?? 0;
+    columns.value = data?.executeQuery.columns ?? [];
+    rows.value = (data?.executeQuery.rows ?? []).filter((r): r is (string | null)[] => r !== null);
+    affectedRows.value = data?.executeQuery.affectedRows ?? 0;
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
     // Detect provisioning error from GraphQL extension

@@ -2,7 +2,7 @@
 import { ref, watch, computed } from 'vue';
 import { useQuery, useMutation } from '@vue/apollo-composable';
 import { Plus, Trash2, Link, Database, Globe } from 'lucide-vue-next';
-import { ServiceVariablesQuery, SetServiceVariablesMutation, SharedVariablesQuery } from '@/graphql/variables';
+import { ServiceVariablesDocument, SetServiceVariablesDocument, SharedVariablesDocument } from '@/gql/graphql';
 import { useEnvironment } from '@/composables/useEnvironment';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -45,8 +45,8 @@ interface VarRow {
   key: string;
   value: string;
   fromShared: boolean;
-  databaseRef?: DatabaseRefData;
-  serviceRef?: ServiceRefData;
+  databaseRef?: DatabaseRefData | null;
+  serviceRef?: ServiceRefData | null;
   isNew?: boolean;
 }
 
@@ -63,7 +63,7 @@ const CNPG_EXPORTS = [
 
 // ── Queries ───────────────────────────────────────────────────────────
 
-const { result, loading, refetch } = useQuery(ServiceVariablesQuery, () => ({
+const { result, loading, refetch } = useQuery(ServiceVariablesDocument, () => ({
   projectId: props.projectId,
   environment: envName.value,
   service: props.service.name,
@@ -71,7 +71,7 @@ const { result, loading, refetch } = useQuery(ServiceVariablesQuery, () => ({
   enabled: !!envName.value,
 }));
 
-const { result: sharedResult } = useQuery(SharedVariablesQuery, () => ({
+const { result: sharedResult } = useQuery(SharedVariablesDocument, () => ({
   projectId: props.projectId,
   environment: envName.value,
 }), () => ({
@@ -167,13 +167,7 @@ watch(
   () => result.value?.serviceVariables,
   (vars) => {
     if (vars) {
-      rows.value = vars.map((v: {
-        key: string;
-        value: string;
-        fromShared: boolean;
-        databaseRef?: DatabaseRefData;
-        serviceRef?: ServiceRefData;
-      }) => ({
+      rows.value = vars.map((v) => ({
         key: v.key,
         value: v.value,
         fromShared: v.fromShared,
@@ -231,7 +225,7 @@ function isRefRow(row: VarRow): boolean {
 
 // ── Save ──────────────────────────────────────────────────────────────
 
-const { mutate: setVarsMutate, loading: saving } = useMutation(SetServiceVariablesMutation);
+const { mutate: setVarsMutate, loading: saving } = useMutation(SetServiceVariablesDocument);
 
 async function handleSave() {
   const validRows = rows.value.filter(r => r.key.trim());

@@ -3,6 +3,7 @@ import { ref, computed, watch, nextTick } from 'vue';
 import { X, Loader2, Trash2, Pause, Play } from 'lucide-vue-next';
 import { onKeyStroke } from '@vueuse/core';
 import { useDeployLogs } from '@/composables/useDeployLogs';
+import { DeployPhase } from '@/gql/graphql';
 import { useDeploy } from '@/composables/useDeploy';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -42,7 +43,7 @@ watch(lines, async () => {
 }, { deep: true });
 
 const isTerminal = computed(() =>
-  deploy.phase === 'SUCCEEDED' || deploy.phase === 'FAILED'
+  deploy.phase === DeployPhase.Succeeded || deploy.phase === DeployPhase.Failed
 );
 
 function togglePause() {
@@ -65,7 +66,7 @@ function togglePause() {
         </h2>
         <Badge
           v-if="deploy.phase"
-          :variant="deploy.phase === 'SUCCEEDED' ? 'default' : deploy.phase === 'FAILED' ? 'destructive' : 'secondary'"
+          :variant="deploy.phase === DeployPhase.Succeeded ? 'default' : deploy.phase === DeployPhase.Failed ? 'destructive' : 'secondary'"
           class="text-xs"
         >
           <Loader2

@@ -2,7 +2,7 @@
 import { ref } from 'vue';
 import { useMutation } from '@vue/apollo-composable';
 import { Github, ArrowRight, FolderPlus } from 'lucide-vue-next';
-import { CreatePlanCheckoutMutation } from '@/graphql/billing';
+import { CreatePlanCheckoutDocument, Plan } from '@/gql/graphql';
 import { useAuth } from '@/composables/useAuth';
 import { errorToast } from '@/components/ui/sonner';
 import { errorMessage } from '@/lib/utils';
@@ -15,9 +15,9 @@ defineEmits<{
 }>();
 
 const { user } = useAuth();
-const selectedPlan = ref<'HOBBY' | 'PRO'>('HOBBY');
+const selectedPlan = ref<Plan>(Plan.Hobby);
 
-const { mutate: planCheckoutMutate, loading: checkingOut } = useMutation(CreatePlanCheckoutMutation);
+const { mutate: planCheckoutMutate, loading: checkingOut } = useMutation(CreatePlanCheckoutDocument);
 
 async function continueWithPlan() {
   try {
@@ -68,7 +68,7 @@ const firstName = ref(
             :disabled="checkingOut"
             @click="continueWithPlan"
           >
-            Continue with {{ selectedPlan === 'PRO' ? 'Pro' : 'Hobby' }}
+            Continue with {{ selectedPlan === Plan.Pro ? 'Pro' : 'Hobby' }}
             <ArrowRight :size="16" />
           </button>
         </div>

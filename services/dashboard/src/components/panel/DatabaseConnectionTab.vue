@@ -2,7 +2,7 @@
 import { reactive, computed } from 'vue';
 import { useQuery } from '@vue/apollo-composable';
 import { Copy, Eye, EyeOff, Loader2, DatabaseZap } from 'lucide-vue-next';
-import { DatabaseCredentialsQuery } from '@/graphql/databases';
+import { DatabaseCredentialsDocument } from '@/gql/graphql';
 import { useEnvironment } from '@/composables/useEnvironment';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -25,7 +25,7 @@ const queryVars = computed(() => ({
 }));
 
 const { result, loading, error } = useQuery(
-  DatabaseCredentialsQuery,
+  DatabaseCredentialsDocument,
   queryVars,
   () => ({ enabled: queryEnabled.value }),
 );

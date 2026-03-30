@@ -4,7 +4,7 @@ import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
 import { useQuery } from '@vue/apollo-composable';
 import { Download, LogOut, Settings } from 'lucide-vue-next';
 import { useAuth } from '@/composables/useAuth';
-import { WorkspaceQuery } from '@/graphql/workspaces';
+import { WorkspaceDocument } from '@/gql/graphql';
 import BaseLogo from '@/components/BaseLogo.vue';
 import ContextNav from '@/components/ContextNav.vue';
 import ThemeToggle from '@/components/ThemeToggle.vue';
@@ -25,7 +25,7 @@ import {
 const route = useRoute();
 const router = useRouter();
 const { user, logout } = useAuth();
-const { result: wsResult } = useQuery(WorkspaceQuery, null, { fetchPolicy: 'cache-and-network' });
+const { result: wsResult } = useQuery(WorkspaceDocument, null, { fetchPolicy: 'cache-and-network' });
 const suspended = computed(() => wsResult.value?.workspace?.suspended ?? false);
 
 const isProjectRoute = computed(() =>

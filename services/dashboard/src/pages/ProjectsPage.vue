@@ -3,8 +3,7 @@ import { useQuery } from '@vue/apollo-composable';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 import { computed, ref, watch } from 'vue';
 import { Plus, Github, Box } from 'lucide-vue-next';
-import { ProjectsQuery } from '@/graphql/projects';
-import { GitHubConnectedQuery } from '@/graphql/github';
+import { ProjectsDocument, GitHubConnectedDocument, SyncStatus } from '@/gql/graphql';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -17,8 +16,8 @@ import { useGitHubInstall } from '@/composables/useGitHubInstall';
 const route = useRoute();
 const router = useRouter();
 
-const { result, loading, error } = useQuery(ProjectsQuery);
-const { result: ghResult } = useQuery(GitHubConnectedQuery);
+const { result, loading, error } = useQuery(ProjectsDocument);
+const { result: ghResult } = useQuery(GitHubConnectedDocument);
 
 const projects = computed(() => result.value?.projects ?? []);
 const githubConnected = computed(() => ghResult.value?.githubConnected ?? false);
@@ -58,17 +57,17 @@ watch(paletteOpen, (open) => {
 
 function envStatusColor(environments: { syncStatus: string }[]) {
   if (environments.length === 0) return 'bg-muted-foreground/50';
-  const hasDegraded = environments.some(e => e.syncStatus === 'DEGRADED');
+  const hasDegraded = environments.some(e => e.syncStatus === SyncStatus.Degraded);
   if (hasDegraded) return 'bg-red-500';
-  const allSynced = environments.every(e => e.syncStatus === 'SYNCED');
+  const allSynced = environments.every(e => e.syncStatus === SyncStatus.Synced);
   if (allSynced) return 'bg-green-500';
   return 'bg-yellow-500';
 }
 
 // Collect unique services across all environments of a project
-function allServices(project: { environments: { services?: { name: string; sourceUrl?: string }[] }[] }) {
+function allServices(project: { environments: { services?: { name: string; sourceUrl?: string | null }[] }[] }) {
   const seen = new Set<string>();
-  const result: { name: string; sourceUrl?: string }[] = [];
+  const result: { name: string; sourceUrl?: string | null }[] = [];
   for (const env of project.environments) {
     for (const svc of env.services ?? []) {
       if (!seen.has(svc.name)) {
@@ -80,7 +79,7 @@ function allServices(project: { environments: { services?: { name: string; sourc
   return result;
 }
 
-function uniqueRepoCount(services: { sourceUrl?: string }[]): number {
+function uniqueRepoCount(services: { sourceUrl?: string | null }[]): number {
   const urls = services.filter(s => s.sourceUrl).map(s => s.sourceUrl);
   return new Set(urls).size;
 }

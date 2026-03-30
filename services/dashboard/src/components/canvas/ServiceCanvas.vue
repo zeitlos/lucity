@@ -17,9 +17,9 @@ const props = defineProps<{
   services: {
     name: string;
     image: string;
-    port?: number;
-    framework?: string;
-    sourceUrl?: string;
+    port?: number | null;
+    framework?: string | null;
+    sourceUrl?: string | null;
     imageTag: string;
     ready: boolean;
     replicas: number;

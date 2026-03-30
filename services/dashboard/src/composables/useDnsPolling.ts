@@ -1,15 +1,15 @@
 import { reactive, onUnmounted } from 'vue';
 import { apolloClient } from '@/lib/apollo';
-import { CheckDnsStatusQuery } from '@/graphql/services';
+import { CheckDnsStatusDocument, DnsStatus, TlsStatus } from '@/gql/graphql';
 import { toast } from '@/components/ui/sonner';
 
 export interface DnsCheckResult {
   hostname: string;
-  status: 'VALID' | 'PENDING' | 'MISCONFIGURED' | 'ERROR';
-  cnameTarget: string | null;
+  status: string;
+  cnameTarget?: string | null;
   expectedTarget: string;
-  message: string | null;
-  tlsStatus?: 'NONE' | 'PROVISIONING' | 'ACTIVE' | 'ERROR';
+  message?: string | null;
+  tlsStatus?: string | null;
 }
 
 const POLL_INTERVAL = 5000;
@@ -29,7 +29,7 @@ export function useDnsPolling() {
 
   async function checkAll() {
     const pending = [...trackedHostnames].filter(
-      h => !checks[h] || checks[h].status !== 'VALID' || (checks[h].tlsStatus && checks[h].tlsStatus !== 'ACTIVE'),
+      h => !checks[h] || checks[h].status !== DnsStatus.Valid || (checks[h].tlsStatus && checks[h].tlsStatus !== TlsStatus.Active),
     );
 
     if (pending.length === 0) {
@@ -41,14 +41,14 @@ export function useDnsPolling() {
       pending.map(async (hostname) => {
         try {
           const { data } = await apolloClient.query({
-            query: CheckDnsStatusQuery,
+            query: CheckDnsStatusDocument,
             variables: { hostname },
             fetchPolicy: 'network-only',
           });
           if (data?.checkDnsStatus) {
             const prev = checks[hostname]?.status;
             checks[hostname] = data.checkDnsStatus;
-            if (prev && prev !== 'VALID' && data.checkDnsStatus.status === 'VALID') {
+            if (prev && prev !== DnsStatus.Valid && data.checkDnsStatus.status === DnsStatus.Valid) {
               toast.success(`Domain verified: ${hostname}`);
             }
           }
@@ -60,7 +60,7 @@ export function useDnsPolling() {
 
     // Stop if all tracked hostnames have VALID DNS and ACTIVE TLS
     const allValid = [...trackedHostnames].every(
-      h => checks[h]?.status === 'VALID' && (!checks[h]?.tlsStatus || checks[h]?.tlsStatus === 'ACTIVE'),
+      h => checks[h]?.status === DnsStatus.Valid && (!checks[h]?.tlsStatus || checks[h]?.tlsStatus === TlsStatus.Active),
     );
     if (allValid) {
       stopPolling();
@@ -101,7 +101,7 @@ export function useDnsPolling() {
     }
   }
 
-  function setTlsStatus(hostname: string, tlsStatus: 'NONE' | 'PROVISIONING' | 'ACTIVE' | 'ERROR') {
+  function setTlsStatus(hostname: string, tlsStatus: TlsStatus) {
     if (checks[hostname]) {
       checks[hostname].tlsStatus = tlsStatus;
     }

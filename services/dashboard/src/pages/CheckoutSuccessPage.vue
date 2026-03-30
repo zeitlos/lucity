@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useMutation } from '@vue/apollo-composable';
-import { CompleteWorkspaceCheckoutMutation } from '@/graphql/workspaces';
+import { CompleteWorkspaceCheckoutDocument } from '@/gql/graphql';
 import { useAuth } from '@/composables/useAuth';
 import { apolloClient } from '@/lib/apollo';
 import { Loader2, AlertCircle } from 'lucide-vue-next';
@@ -14,7 +14,7 @@ const router = useRouter();
 const { setActiveWorkspace, refreshToken } = useAuth();
 
 const error = ref('');
-const { mutate } = useMutation(CompleteWorkspaceCheckoutMutation);
+const { mutate } = useMutation(CompleteWorkspaceCheckoutDocument);
 
 onMounted(async () => {
   const sessionId = route.query.session_id as string;

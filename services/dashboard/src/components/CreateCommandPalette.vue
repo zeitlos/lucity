@@ -4,11 +4,17 @@ import { useRouter } from 'vue-router';
 import { useQuery, useMutation, useApolloClient } from '@vue/apollo-composable';
 import { Github, FolderPlus, Plus, Lock, Globe, ArrowLeft, Search, X, Database, ChevronDown, Container, Star, Award, Loader2 } from 'lucide-vue-next';
 import { onKeyStroke, refDebounced } from '@vueuse/core';
-import { GitHubConnectedQuery, GitHubSourcesQuery, GitHubRepositoriesQuery } from '@/graphql/github';
-import { CreateProjectMutation } from '@/graphql/projects';
-import { AddServiceMutation, DetectServicesQuery } from '@/graphql/services';
-import { SearchImagesQuery } from '@/graphql/registry';
-import { CreateDatabaseMutation } from '@/graphql/databases';
+import {
+  GitHubConnectedDocument,
+  GitHubSourcesDocument,
+  GitHubRepositoriesDocument,
+  CreateProjectDocument,
+  AddServiceDocument,
+  DetectServicesDocument,
+  SearchImagesDocument,
+  CreateDatabaseDocument,
+  GitHubAccountType,
+} from '@/gql/graphql';
 import { useEnvironment } from '@/composables/useEnvironment';
 import { useGitHubInstall } from '@/composables/useGitHubInstall';
 import { toast, errorToast } from '@/components/ui/sonner';
@@ -42,7 +48,7 @@ const inputRef = ref<HTMLInputElement>();
 const focusedIndex = ref(0);
 
 // Source picker state
-const selectedSource = ref<{ id: string; accountLogin: string; accountAvatarUrl: string; accountType: string } | null>(null);
+const selectedSource = ref<(typeof sources)['value'][number] | null>(null);
 const sourcePickerOpen = ref(false);
 
 // Project naming state
@@ -71,7 +77,7 @@ watch(() => props.open, (open) => {
     pendingImage.value = null;
     processingItemId.value = null;
     // Re-select first source from cache (watcher won't fire if sources didn't change)
-    selectedSource.value = sources.value.length > 0 ? sources.value[0] : null;
+    selectedSource.value = sources.value[0] ?? null;
     nextTick(() => inputRef.value?.focus());
   }
 });
@@ -100,14 +106,14 @@ function close() {
 }
 
 // GitHub connected check
-const { result: connectedResult, loading: connectedLoading } = useQuery(GitHubConnectedQuery, null, () => ({
+const { result: connectedResult, loading: connectedLoading } = useQuery(GitHubConnectedDocument, null, () => ({
   enabled: props.open && view.value === 'github-repos',
 }));
 
 const githubConnected = computed(() => connectedResult.value?.githubConnected ?? false);
 
 // GitHub sources (installations)
-const { result: sourcesResult, loading: sourcesLoading } = useQuery(GitHubSourcesQuery, null, () => ({
+const { result: sourcesResult, loading: sourcesLoading } = useQuery(GitHubSourcesDocument, null, () => ({
   enabled: props.open && view.value === 'github-repos' && githubConnected.value,
 }));
 
@@ -116,13 +122,13 @@ const sources = computed(() => sourcesResult.value?.githubSources ?? []);
 // Auto-select first source when freshly loaded
 watch(sources, (s) => {
   if (s.length > 0 && !selectedSource.value) {
-    selectedSource.value = s[0];
+    selectedSource.value = s[0] ?? null;
   }
 });
 
 // GitHub repos for selected source
-const { result: reposResult, loading: reposLoading } = useQuery(GitHubRepositoriesQuery, () => ({
-  installationId: selectedSource.value?.id,
+const { result: reposResult, loading: reposLoading } = useQuery(GitHubRepositoriesDocument, () => ({
+  installationId: selectedSource.value?.id ?? '',
 }), () => ({
   enabled: props.open && view.value === 'github-repos' && !!selectedSource.value,
 }));
@@ -135,7 +141,7 @@ const repos = computed(() => {
 });
 
 // Create project
-const { mutate: createProject, loading: creating } = useMutation(CreateProjectMutation);
+const { mutate: createProject, loading: creating } = useMutation(CreateProjectDocument);
 
 async function handleSelectRepo(repo: { fullName: string; htmlUrl: string }) {
   if (creating.value || detectingServices.value) return;
@@ -203,9 +209,9 @@ const detectingServices = ref(false);
 async function detectAndAddServices(projectId: string, repo: { fullName: string; htmlUrl: string }) {
   const client = resolveClient();
   const { data } = await client.query({
-    query: DetectServicesQuery,
+    query: DetectServicesDocument,
     variables: {
-      installationId: selectedSource.value?.id,
+      installationId: selectedSource.value?.id ?? '',
       repository: repo.fullName,
     },
   });
@@ -268,13 +274,13 @@ async function handleAddServicesFromRepo(repo: { fullName: string; htmlUrl: stri
 }
 
 // Add service (within project context)
-const { mutate: addServiceMutate, loading: addingService } = useMutation(AddServiceMutation);
+const { mutate: addServiceMutate, loading: addingService } = useMutation(AddServiceDocument);
 
 const newServiceName = ref('web');
 const newServicePort = ref(3000);
 
 // Create database (within project context)
-const { mutate: createDatabaseMutate, loading: creatingDatabase } = useMutation(CreateDatabaseMutation);
+const { mutate: createDatabaseMutate, loading: creatingDatabase } = useMutation(CreateDatabaseDocument);
 const newDatabaseName = ref('main');
 
 async function handleCreateDatabase() {
@@ -334,7 +340,7 @@ async function handleAddManualService() {
 // Open GitHub App install in a popup, refetch sources on completion
 const { openInstallPopup } = useGitHubInstall(() => {
   const client = resolveClient();
-  client.refetchQueries({ include: [GitHubSourcesQuery] });
+  client.refetchQueries({ include: [GitHubSourcesDocument] });
 });
 
 // Container image state
@@ -349,7 +355,7 @@ const shouldSearchImages = computed(() => {
   return true;
 });
 
-const { result: imageSearchResult, loading: searchingImages } = useQuery(SearchImagesQuery, () => ({
+const { result: imageSearchResult, loading: searchingImages } = useQuery(SearchImagesDocument, () => ({
   query: containerImageDebounced.value,
 }), () => ({
   enabled: props.open && view.value === 'container-image' && shouldSearchImages.value,
@@ -460,7 +466,7 @@ onKeyStroke('Enter', (e) => {
   if (sourcePickerOpen.value) {
     e.preventDefault();
     if (focusedIndex.value < sources.value.length) {
-      selectedSource.value = sources.value[focusedIndex.value];
+      selectedSource.value = sources.value[focusedIndex.value] ?? null;
     } else {
       openInstallPopup();
     }
@@ -476,17 +482,19 @@ onKeyStroke('Enter', (e) => {
         mainItems.value[focusedIndex.value]?.action();
       }
       break;
-    case 'github-repos':
-      if (repos.value.length > 0 && focusedIndex.value < repos.value.length && !creating.value && !detectingServices.value) {
+    case 'github-repos': {
+      const repo = repos.value[focusedIndex.value];
+      if (repo && !creating.value && !detectingServices.value) {
         e.preventDefault();
-        handleSelectRepo(repos.value[focusedIndex.value]);
+        handleSelectRepo(repo);
       }
       break;
+    }
     case 'container-image':
       if (!containerImageRef.value || creating.value || addingService.value) break;
       e.preventDefault();
       if (imageResults.value.length > 0 && focusedIndex.value < imageResults.value.length) {
-        handleSelectImage(imageResults.value[focusedIndex.value].name);
+        handleSelectImage(imageResults.value[focusedIndex.value]!.name);
       } else {
         handleSelectImage(containerImageRef.value);
       }
@@ -652,7 +660,7 @@ const mainItems = computed(() => {
                   />
                   <span class="flex-1 text-left font-medium">{{ selectedSource?.accountLogin }}</span>
                   <Badge
-                    v-if="selectedSource?.accountType === 'ORGANIZATION'"
+                    v-if="selectedSource?.accountType === GitHubAccountType.Organization"
                     variant="outline"
                     class="text-[10px]"
                   >Org</Badge>
@@ -680,7 +688,7 @@ const mainItems = computed(() => {
                       />
                       <span class="flex-1 text-left">{{ source.accountLogin }}</span>
                       <Badge
-                        v-if="source.accountType === 'ORGANIZATION'"
+                        v-if="source.accountType === GitHubAccountType.Organization"
                         variant="outline"
                         class="text-[10px]"
                       >Org</Badge>

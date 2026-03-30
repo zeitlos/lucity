@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
 import { useMutation } from '@vue/apollo-composable';
-import { CreateEnvironmentMutation, ProjectQuery } from '@/graphql/projects';
+import { CreateEnvironmentDocument, ProjectDocument, type CreateEnvironmentInput, ResourceTier } from '@/gql/graphql';
 import { useEnvironment } from '@/composables/useEnvironment';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -39,10 +39,10 @@ const { environments } = useEnvironment();
 const name = ref('');
 const mode = ref<'duplicate' | 'empty'>('duplicate');
 const fromEnvironment = ref<string>('');
-const tier = ref<string>('ECO');
+const tier = ref<ResourceTier>(ResourceTier.Eco);
 
-const { mutate, loading } = useMutation(CreateEnvironmentMutation, {
-  refetchQueries: () => [{ query: ProjectQuery, variables: { id: props.projectId } }],
+const { mutate, loading } = useMutation(CreateEnvironmentDocument, {
+  refetchQueries: () => [{ query: ProjectDocument, variables: { id: props.projectId } }],
 });
 
 const nonEphemeralEnvs = computed(() =>
@@ -65,10 +65,10 @@ async function handleCreate() {
   if (!name.value.trim()) return;
 
   try {
-    const input: Record<string, string> = {
+    const input: CreateEnvironmentInput = {
       projectId: props.projectId,
       name: name.value.trim(),
-      tier: tier.value,
+      tier: tier.value as ResourceTier,
     };
     if (mode.value === 'duplicate' && fromEnvironment.value) {
       input.fromEnvironment = fromEnvironment.value;
@@ -86,7 +86,7 @@ async function handleCreate() {
     toast.success(`Environment "${name.value.trim()}" created`);
     name.value = '';
     fromEnvironment.value = '';
-    tier.value = 'ECO';
+    tier.value = ResourceTier.Eco;
     emit('update:open', false);
   } catch (e: unknown) {
     errorToast('Failed to create environment', { description: errorMessage(e) });
@@ -171,10 +171,10 @@ async function handleCreate() {
           <RadioGroup v-model="tier" class="grid grid-cols-2 gap-3">
             <label
               class="flex cursor-pointer flex-col gap-1 rounded-lg border p-3 transition-colors"
-              :class="tier === 'ECO' ? 'border-primary bg-primary/5' : 'border-border'"
+              :class="tier === ResourceTier.Eco ? 'border-primary bg-primary/5' : 'border-border'"
             >
               <div class="flex items-center gap-2">
-                <RadioGroupItem value="ECO" />
+                <RadioGroupItem :value="ResourceTier.Eco" />
                 <span class="text-sm font-medium">Eco</span>
               </div>
               <p class="text-xs text-muted-foreground">
@@ -183,10 +183,10 @@ async function handleCreate() {
             </label>
             <label
               class="flex cursor-pointer flex-col gap-1 rounded-lg border p-3 transition-colors"
-              :class="tier === 'PRODUCTION' ? 'border-primary bg-primary/5' : 'border-border'"
+              :class="tier === ResourceTier.Production ? 'border-primary bg-primary/5' : 'border-border'"
             >
               <div class="flex items-center gap-2">
-                <RadioGroupItem value="PRODUCTION" />
+                <RadioGroupItem :value="ResourceTier.Production" />
                 <span class="text-sm font-medium">Production</span>
               </div>
               <p class="text-xs text-muted-foreground">

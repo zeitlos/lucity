@@ -75,3 +75,5 @@ Dashboard TypeScript types:
 ```sh
 cd services/dashboard && npm run codegen
 ```
+
+Run `npm run codegen` after changing the gateway GraphQL schema or dashboard query/mutation definitions. This regenerates `src/gql/graphql.ts` with typed document nodes, result types, and variable types.

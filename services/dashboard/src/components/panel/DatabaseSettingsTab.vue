@@ -2,7 +2,7 @@
 import { ref } from 'vue';
 import { useMutation } from '@vue/apollo-composable';
 import { Trash2, Database, Server, HardDrive } from 'lucide-vue-next';
-import { DeleteDatabaseMutation } from '@/graphql/databases';
+import { DeleteDatabaseDocument } from '@/gql/graphql';
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -32,7 +32,7 @@ const emit = defineEmits<{
   (e: 'database-removed'): void;
 }>();
 
-const { mutate: deleteDatabase, loading: deleting } = useMutation(DeleteDatabaseMutation);
+const { mutate: deleteDatabase, loading: deleting } = useMutation(DeleteDatabaseDocument);
 const deleteDialogOpen = ref(false);
 
 async function handleDelete() {

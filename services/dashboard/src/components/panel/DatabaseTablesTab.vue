@@ -4,7 +4,7 @@ import { useQuery } from '@vue/apollo-composable';
 import { useApolloClient } from '@vue/apollo-composable';
 import { ArrowLeft, Table2, Key, ChevronLeft, ChevronRight, Loader2, DatabaseZap } from 'lucide-vue-next';
 import { useEnvironment } from '@/composables/useEnvironment';
-import { DatabaseTablesQuery, DatabaseTableDataQuery } from '@/graphql/databases';
+import { DatabaseTablesDocument, DatabaseTableDataDocument } from '@/gql/graphql';
 import {
   Table,
   TableBody,
@@ -42,7 +42,7 @@ const queryVars = computed(() => ({
 }));
 
 const { result: tablesResult, loading: tablesLoading, error: tablesError, refetch: refetchTables } = useQuery(
-  DatabaseTablesQuery,
+  DatabaseTablesDocument,
   queryVars,
   () => ({ enabled: queryEnabled.value }),
 );
@@ -110,7 +110,7 @@ async function fetchData() {
   try {
     const client = resolveClient();
     const { data } = await client.query({
-      query: DatabaseTableDataQuery,
+      query: DatabaseTableDataDocument,
       variables: {
         projectId: props.projectId,
         environment: activeEnvironment.value.name,
@@ -124,7 +124,7 @@ async function fetchData() {
     });
 
     dataColumns.value = data.databaseTableData.columns;
-    dataRows.value = data.databaseTableData.rows;
+    dataRows.value = data.databaseTableData.rows.filter((r): r is (string | null)[] => r !== null);
     totalEstimatedRows.value = data.databaseTableData.totalEstimatedRows;
   } catch (e: unknown) {
     dataError.value = e instanceof Error ? e.message : String(e);

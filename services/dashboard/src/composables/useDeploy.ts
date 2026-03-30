@@ -1,6 +1,6 @@
 import { reactive } from 'vue';
 import { apolloClient } from '@/lib/apollo';
-import { DeployMutation, DeployStatusQuery } from '@/graphql/services';
+import { DeployDocument, DeployStatusDocument, DeployPhase } from '@/gql/graphql';
 import { toast, errorToast } from '@/components/ui/sonner';
 import { errorMessage } from '@/lib/utils';
 
@@ -34,7 +34,7 @@ export function useDeploy(): DeployState {
 
       try {
         const { data } = await apolloClient.query({
-          query: DeployStatusQuery,
+          query: DeployStatusDocument,
           variables: { id: state.deployId },
           fetchPolicy: 'network-only',
         });
@@ -46,17 +46,17 @@ export function useDeploy(): DeployState {
         state.rolloutHealth = status.rolloutHealth ?? null;
         state.rolloutMessage = status.rolloutMessage ?? null;
 
-        if (status.phase === 'SUCCEEDED') {
+        if (status.phase === DeployPhase.Succeeded) {
           stopPolling();
           state.imageRef = status.imageRef ?? null;
           state.digest = status.digest ?? null;
           state.isDeploying = false;
           toast.success('Deployed');
-        } else if (status.phase === 'FAILED') {
+        } else if (status.phase === DeployPhase.Failed) {
           stopPolling();
           state.isDeploying = false;
           state.error = status.error ?? 'Deploy failed';
-          errorToast('Deploy failed', { description: status.error });
+          errorToast('Deploy failed', { description: status.error ?? undefined });
         }
       } catch (e: unknown) {
         stopPolling();
@@ -88,7 +88,7 @@ export function useDeploy(): DeployState {
 
       try {
         const res = await apolloClient.mutate({
-          mutation: DeployMutation,
+          mutation: DeployDocument,
           variables: {
             input: {
               projectId,

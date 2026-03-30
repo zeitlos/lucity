@@ -3,8 +3,7 @@ import { computed, ref, reactive } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuery, useMutation } from '@vue/apollo-composable';
 import { ArrowLeft, Trash2, ChevronDown, ChevronRight } from 'lucide-vue-next';
-import { ProjectQuery, DeleteProjectMutation, DeleteEnvironmentMutation } from '@/graphql/projects';
-import { EnvironmentResourcesQuery, SetEnvironmentResourcesMutation } from '@/graphql/billing';
+import { ProjectDocument, DeleteProjectDocument, DeleteEnvironmentDocument, EnvironmentResourcesDocument, SetEnvironmentResourcesDocument, ResourceTier } from '@/gql/graphql';
 import { apolloClient } from '@/lib/apollo';
 import { useEnvironment } from '@/composables/useEnvironment';
 import SharedVariablesEditor from '@/components/SharedVariablesEditor.vue';
@@ -32,7 +31,7 @@ const route = useRoute();
 const router = useRouter();
 const projectId = computed(() => route.params.id as string);
 
-const { result, loading } = useQuery(ProjectQuery, () => ({
+const { result, loading } = useQuery(ProjectDocument, () => ({
   id: projectId.value,
 }));
 
@@ -73,7 +72,7 @@ const activeSection = computed({
 });
 
 // Delete project
-const { mutate: deleteProjectMutate, loading: deleting } = useMutation(DeleteProjectMutation);
+const { mutate: deleteProjectMutate, loading: deleting } = useMutation(DeleteProjectDocument);
 
 async function handleDeleteProject() {
   try {
@@ -119,7 +118,7 @@ interface EnvResourceState {
   loading: boolean;
   loaded: boolean;
   saving: boolean;
-  tier: string;
+  tier: ResourceTier;
   cpuMillicores: number;
   memoryMB: number;
   diskMB: number;
@@ -128,7 +127,7 @@ interface EnvResourceState {
 const expandedEnv = ref<string | null>(null);
 const envResources: Record<string, EnvResourceState> = reactive({});
 
-const { mutate: setResourcesMutate } = useMutation(SetEnvironmentResourcesMutation);
+const { mutate: setResourcesMutate } = useMutation(SetEnvironmentResourcesDocument);
 
 async function toggleEnvExpand(envName: string) {
   if (expandedEnv.value === envName) {
@@ -143,7 +142,7 @@ async function toggleEnvExpand(envName: string) {
     loading: true,
     loaded: false,
     saving: false,
-    tier: 'ECO',
+    tier: ResourceTier.Eco,
     cpuMillicores: 1000,
     memoryMB: 1024,
     diskMB: 1024,
@@ -151,7 +150,7 @@ async function toggleEnvExpand(envName: string) {
 
   try {
     const { data } = await apolloClient.query({
-      query: EnvironmentResourcesQuery,
+      query: EnvironmentResourcesDocument,
       variables: { projectId: projectId.value, environment: envName },
       fetchPolicy: 'network-only',
     });
@@ -209,8 +208,8 @@ async function handleSaveResources(envName: string) {
 }
 
 // Delete environment
-const { mutate: deleteEnvironmentMutate, loading: deletingEnv } = useMutation(DeleteEnvironmentMutation, {
-  refetchQueries: () => [{ query: ProjectQuery, variables: { id: projectId.value } }],
+const { mutate: deleteEnvironmentMutate, loading: deletingEnv } = useMutation(DeleteEnvironmentDocument, {
+  refetchQueries: () => [{ query: ProjectDocument, variables: { id: projectId.value } }],
 });
 const envToDelete = ref<string | null>(null);
 
@@ -391,7 +390,7 @@ async function handleDeleteEnvironment() {
                           ephemeral
                         </span>
                         <span class="text-xs text-muted-foreground">
-                          {{ env.resourceTier === 'PRODUCTION' ? 'Production' : 'Eco' }}
+                          {{ env.resourceTier === ResourceTier.Production ? 'Production' : 'Eco' }}
                         </span>
                       </button>
                       <Button
@@ -424,14 +423,14 @@ async function handleDeleteEnvironment() {
                             <RadioGroup
                               :model-value="envResources[env.name]!.tier"
                               class="grid grid-cols-2 gap-3"
-                              @update:model-value="envResources[env.name]!.tier = $event"
+                              @update:model-value="envResources[env.name]!.tier = $event as ResourceTier"
                             >
                               <label
                                 class="flex cursor-pointer flex-col gap-1 rounded-lg border p-3 transition-colors"
-                                :class="envResources[env.name]!.tier === 'ECO' ? 'border-primary bg-primary/5' : 'border-border'"
+                                :class="envResources[env.name]!.tier === ResourceTier.Eco ? 'border-primary bg-primary/5' : 'border-border'"
                               >
                                 <div class="flex items-center gap-2">
-                                  <RadioGroupItem value="ECO" />
+                                  <RadioGroupItem :value="ResourceTier.Eco" />
                                   <span class="text-sm font-medium">Eco</span>
                                 </div>
                                 <p class="text-xs text-muted-foreground">
@@ -440,10 +439,10 @@ async function handleDeleteEnvironment() {
                               </label>
                               <label
                                 class="flex cursor-pointer flex-col gap-1 rounded-lg border p-3 transition-colors"
-                                :class="envResources[env.name]!.tier === 'PRODUCTION' ? 'border-primary bg-primary/5' : 'border-border'"
+                                :class="envResources[env.name]!.tier === ResourceTier.Production ? 'border-primary bg-primary/5' : 'border-border'"
                               >
                                 <div class="flex items-center gap-2">
-                                  <RadioGroupItem value="PRODUCTION" />
+                                  <RadioGroupItem :value="ResourceTier.Production" />
                                   <span class="text-sm font-medium">Production</span>
                                 </div>
                                 <p class="text-xs text-muted-foreground">
@@ -455,7 +454,7 @@ async function handleDeleteEnvironment() {
 
                           <!-- ECO: no quota controls -->
                           <p
-                            v-if="envResources[env.name]!.tier === 'ECO'"
+                            v-if="envResources[env.name]!.tier === ResourceTier.Eco"
                             class="text-sm text-muted-foreground"
                           >
                             Pay for what you use. No resource limits applied.

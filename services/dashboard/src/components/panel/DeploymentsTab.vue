@@ -9,7 +9,7 @@ import { useEnvironment } from '@/composables/useEnvironment';
 import { useDeploy } from '@/composables/useDeploy';
 import { useDeploymentLogsPanel } from '@/composables/useDeploymentLogsPanel';
 import { apolloClient } from '@/lib/apollo';
-import { ActiveDeploymentQuery, RollbackMutation } from '@/graphql/services';
+import { ActiveDeploymentDocument, RollbackDocument, DeployPhase, SyncStatus } from '@/gql/graphql';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -29,9 +29,9 @@ const props = defineProps<{
   service: {
     name: string;
     image: string;
-    port?: number;
-    framework?: string;
-    sourceUrl?: string;
+    port?: number | null;
+    framework?: string | null;
+    sourceUrl?: string | null;
   };
 }>();
 
@@ -51,7 +51,7 @@ onMounted(async () => {
 
   try {
     const { data } = await apolloClient.query({
-      query: ActiveDeploymentQuery,
+      query: ActiveDeploymentDocument,
       variables: { projectId: props.projectId, service: props.service.name, environment: envName },
       fetchPolicy: 'network-only',
     });
@@ -92,7 +92,7 @@ async function handleRollback(imageTag: string) {
 
   try {
     await apolloClient.mutate({
-      mutation: RollbackMutation,
+      mutation: RollbackDocument,
       variables: {
         input: {
           projectId: props.projectId,
@@ -118,15 +118,14 @@ const STAGES = ['Initializing', 'Building', 'Deploying'] as const;
 
 function phaseToStageIndex(phase: string): number {
   switch (phase) {
-    case 'QUEUED':
-    case 'CLONING':
+    case DeployPhase.Cloning:
       return 0;
-    case 'BUILDING':
-    case 'PUSHING':
+    case DeployPhase.Building:
+    case DeployPhase.Pushing:
       return 1;
-    case 'DEPLOYING':
+    case DeployPhase.Deploying:
       return 2;
-    case 'SUCCEEDED':
+    case DeployPhase.Succeeded:
       return 3;
     default:
       return -1;
@@ -149,7 +148,7 @@ function formatRelativeTime(timestamp: string): string {
   return date.toLocaleDateString();
 }
 
-function deployLabel(dep: { sourceCommitMessage?: string; imageTag: string }): string {
+function deployLabel(dep: { sourceCommitMessage?: string | null; imageTag: string }): string {
   return dep.sourceCommitMessage || dep.imageTag;
 }
 </script>
@@ -187,7 +186,7 @@ function deployLabel(dep: { sourceCommitMessage?: string; imageTag: string }): s
 
       <Badge
         v-if="deploy.phase"
-        :variant="deploy.phase === 'SUCCEEDED' ? 'default' : deploy.phase === 'FAILED' ? 'destructive' : 'secondary'"
+        :variant="deploy.phase === DeployPhase.Succeeded ? 'default' : deploy.phase === DeployPhase.Failed ? 'destructive' : 'secondary'"
         :hide-dot="deploy.isDeploying"
       >
         <Loader2
@@ -246,26 +245,26 @@ function deployLabel(dep: { sourceCommitMessage?: string; imageTag: string }): s
 
         <!-- Rollout health status -->
         <div
-          v-if="deploy.phase === 'DEPLOYING' && deploy.rolloutHealth"
+          v-if="deploy.phase === DeployPhase.Deploying && deploy.rolloutHealth"
           class="mt-2 rounded-md px-2.5 py-2"
-          :class="deploy.rolloutHealth === 'DEGRADED'
+          :class="deploy.rolloutHealth === SyncStatus.Degraded
             ? 'bg-[var(--status-danger)]/10'
             : 'bg-muted/50'"
         >
           <div class="flex items-start gap-2">
             <TriangleAlert
-              v-if="deploy.rolloutHealth === 'DEGRADED'"
+              v-if="deploy.rolloutHealth === SyncStatus.Degraded"
               :size="13"
               class="mt-0.5 shrink-0 text-[var(--status-danger)]"
             />
             <Loader2
-              v-else-if="deploy.rolloutHealth === 'PROGRESSING'"
+              v-else-if="deploy.rolloutHealth === SyncStatus.Progressing"
               :size="13"
               class="mt-0.5 shrink-0 animate-spin text-[var(--status-warn)]"
             />
             <div class="min-w-0 space-y-0.5">
               <p class="text-xs font-medium text-foreground">
-                {{ deploy.rolloutHealth === 'DEGRADED' ? 'Rollout degraded' : 'Waiting for pods' }}
+                {{ deploy.rolloutHealth === SyncStatus.Degraded ? 'Rollout degraded' : 'Waiting for pods' }}
               </p>
               <p
                 v-if="deploy.rolloutMessage"
@@ -293,7 +292,7 @@ function deployLabel(dep: { sourceCommitMessage?: string; imageTag: string }): s
 
     <!-- Deploy error -->
     <div
-      v-if="deploy.phase === 'FAILED' && (deploy.error || deploy.rolloutMessage)"
+      v-if="deploy.phase === DeployPhase.Failed && (deploy.error || deploy.rolloutMessage)"
       class="rounded-lg border border-[var(--status-danger)]/30 bg-[var(--status-danger)]/5 px-3 py-2.5"
     >
       <div class="flex items-start gap-2">

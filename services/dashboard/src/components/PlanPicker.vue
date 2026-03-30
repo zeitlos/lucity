@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { Check } from 'lucide-vue-next';
+import { Plan } from '@/gql/graphql';
 
 defineProps<{
-  modelValue: 'HOBBY' | 'PRO';
+  modelValue: Plan;
   disabled?: boolean;
 }>();
 
 const emit = defineEmits<{
-  (e: 'update:modelValue', value: 'HOBBY' | 'PRO'): void;
+  (e: 'update:modelValue', value: Plan): void;
 }>();
 </script>
 
@@ -17,22 +18,22 @@ const emit = defineEmits<{
       <button
         type="button"
         class="rounded-lg border p-4 text-left transition-colors"
-        :class="modelValue === 'HOBBY'
+        :class="modelValue === Plan.Hobby
           ? 'border-primary bg-primary/5'
           : 'hover:border-muted-foreground/50'"
         :disabled="disabled"
-        @click="emit('update:modelValue', 'HOBBY')"
+        @click="emit('update:modelValue', Plan.Hobby)"
       >
         <div class="flex items-center justify-between">
           <p class="text-sm font-medium">Hobby</p>
           <div
             class="flex size-5 items-center justify-center rounded-full border transition-colors"
-            :class="modelValue === 'HOBBY'
+            :class="modelValue === Plan.Hobby
               ? 'border-primary bg-primary'
               : 'border-muted-foreground/30'"
           >
             <Check
-              v-if="modelValue === 'HOBBY'"
+              v-if="modelValue === Plan.Hobby"
               :size="12"
               class="text-primary-foreground"
             />
@@ -62,22 +63,22 @@ const emit = defineEmits<{
       <button
         type="button"
         class="rounded-lg border p-4 text-left transition-colors"
-        :class="modelValue === 'PRO'
+        :class="modelValue === Plan.Pro
           ? 'border-primary bg-primary/5'
           : 'hover:border-muted-foreground/50'"
         :disabled="disabled"
-        @click="emit('update:modelValue', 'PRO')"
+        @click="emit('update:modelValue', Plan.Pro)"
       >
         <div class="flex items-center justify-between">
           <p class="text-sm font-medium">Pro</p>
           <div
             class="flex size-5 items-center justify-center rounded-full border transition-colors"
-            :class="modelValue === 'PRO'
+            :class="modelValue === Plan.Pro
               ? 'border-primary bg-primary'
               : 'border-muted-foreground/30'"
           >
             <Check
-              v-if="modelValue === 'PRO'"
+              v-if="modelValue === Plan.Pro"
               :size="12"
               class="text-primary-foreground"
             />

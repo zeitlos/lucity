@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useMutation } from '@vue/apollo-composable';
-import { CompletePlanCheckoutMutation, SubscriptionQuery } from '@/graphql/billing';
+import { CompletePlanCheckoutDocument, SubscriptionDocument } from '@/gql/graphql';
 import { apolloClient } from '@/lib/apollo';
 import { Loader2, AlertCircle } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
@@ -12,7 +12,7 @@ const route = useRoute();
 const router = useRouter();
 
 const error = ref('');
-const { mutate } = useMutation(CompletePlanCheckoutMutation);
+const { mutate } = useMutation(CompletePlanCheckoutDocument);
 
 onMounted(async () => {
   const sessionId = route.query.session_id as string;
@@ -35,7 +35,7 @@ onMounted(async () => {
     }
 
     // Refetch subscription data so the billing page reflects the new plan.
-    await apolloClient.refetchQueries({ include: [SubscriptionQuery] });
+    await apolloClient.refetchQueries({ include: [SubscriptionDocument] });
     router.push({ name: 'workspace-settings' });
   } catch (e: unknown) {
     error.value = errorMessage(e);

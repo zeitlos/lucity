@@ -25,12 +25,12 @@ const props = defineProps<{
   service: {
     name: string;
     image: string;
-    port?: number;
-    framework?: string;
-    sourceUrl?: string;
-    contextPath?: string;
-    startCommand?: string;
-    customStartCommand?: string;
+    port?: number | null;
+    framework?: string | null;
+    sourceUrl?: string | null;
+    contextPath?: string | null;
+    startCommand?: string | null;
+    customStartCommand?: string | null;
   };
 }>();
 

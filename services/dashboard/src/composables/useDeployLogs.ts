@@ -1,13 +1,13 @@
 import { ref, watch, type Ref } from 'vue';
 import { useSubscription } from '@vue/apollo-composable';
-import { DeployLogsSubscription } from '@/graphql/services';
+import { DeployLogsDocument } from '@/gql/graphql';
 
 export function useDeployLogs(deployId: Ref<string | null>) {
   const lines = ref<string[]>([]);
   const isActive = ref(false);
 
   const { onResult, onError, stop, restart } = useSubscription(
-    DeployLogsSubscription,
+    DeployLogsDocument,
     () => ({ id: deployId.value! }),
     () => ({ enabled: !!deployId.value }),
   );

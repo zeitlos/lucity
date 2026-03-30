@@ -1,6 +1,6 @@
 import { ref, watch, type Ref } from 'vue';
 import { useSubscription } from '@vue/apollo-composable';
-import { ServiceLogsSubscription } from '@/graphql/services';
+import { ServiceLogsDocument } from '@/gql/graphql';
 
 export interface LogLine {
   line: string;
@@ -17,7 +17,7 @@ export function useServiceLogs(
   const isActive = ref(false);
 
   const { onResult, onError, stop, restart } = useSubscription(
-    ServiceLogsSubscription,
+    ServiceLogsDocument,
     () => ({
       projectId: projectId.value,
       service: service.value,

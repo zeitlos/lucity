@@ -1,6 +1,6 @@
 import { ref, watch, onUnmounted, computed, type Ref } from 'vue';
 import { apolloClient } from '@/lib/apollo';
-import { ActiveDeploymentQuery } from '@/graphql/services';
+import { ActiveDeploymentDocument, DeployPhase } from '@/gql/graphql';
 
 export interface CanvasDeployInfo {
   phase: string;
@@ -27,12 +27,12 @@ export function useCanvasDeployStatus(
       serviceNames.value.map(async (svc) => {
         try {
           const { data } = await apolloClient.query({
-            query: ActiveDeploymentQuery,
+            query: ActiveDeploymentDocument,
             variables: { projectId: projectId.value, service: svc, environment: envName },
             fetchPolicy: 'network-only',
           });
           const active = data?.activeDeployment;
-          if (active?.id && active.phase !== 'SUCCEEDED' && active.phase !== 'FAILED') {
+          if (active?.id && active.phase !== DeployPhase.Succeeded && active.phase !== DeployPhase.Failed) {
             results[svc] = {
               phase: active.phase,
               startedAt: active.startedAt ? new Date(active.startedAt).getTime() : Date.now(),

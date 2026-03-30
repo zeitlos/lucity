@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuery } from '@vue/apollo-composable';
-import { ProjectQuery } from '@/graphql/projects';
+import { ProjectDocument } from '@/gql/graphql';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import ServiceCanvas from '@/components/canvas/ServiceCanvas.vue';
@@ -23,7 +23,7 @@ const router = useRouter();
 const projectId = computed(() => route.params.id as string);
 const envParam = computed(() => route.params.env as string | undefined);
 
-const { result, loading, error, refetch } = useQuery(ProjectQuery, () => ({
+const { result, loading, error, refetch } = useQuery(ProjectDocument, () => ({
   id: projectId.value,
 }));
 

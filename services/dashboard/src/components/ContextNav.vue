@@ -5,8 +5,7 @@ import { useQuery } from '@vue/apollo-composable';
 import { ChevronDown, Plus, Check, User, Users, Loader2, Settings } from 'lucide-vue-next';
 import { useAuth } from '@/composables/useAuth';
 import { useEnvironment } from '@/composables/useEnvironment';
-import { WorkspacesQuery } from '@/graphql/workspaces';
-import { ProjectsQuery } from '@/graphql/projects';
+import { WorkspacesDocument, ProjectsDocument, ResourceTier } from '@/gql/graphql';
 import { apolloClient } from '@/lib/apollo';
 import {
   AlertDialog,
@@ -30,12 +29,12 @@ const { activeWorkspace, setActiveWorkspace } = useAuth();
 const { activeEnvironment, environments } = useEnvironment();
 
 // Workspace data
-const { result: wsResult } = useQuery(WorkspacesQuery);
+const { result: wsResult } = useQuery(WorkspacesDocument);
 const workspaces = computed(() => wsResult.value?.workspaces ?? []);
 const activeWs = computed(() => workspaces.value.find((w: { id: string }) => w.id === activeWorkspace.value));
 
 // Project data (cached by Apollo)
-const { result: projResult } = useQuery(ProjectsQuery);
+const { result: projResult } = useQuery(ProjectsDocument);
 const projects = computed(() => projResult.value?.projects ?? []);
 
 // Route state
@@ -75,8 +74,8 @@ function handleEnvironmentSwitch(envName: string) {
   router.push({ name: 'project-env', params: { id: projectId.value, env: envName } });
 }
 
-function tierLabel(tier?: string) {
-  if (tier === 'PRODUCTION') return 'Production';
+function tierLabel(tier?: string | null) {
+  if (tier === ResourceTier.Production) return 'Production';
   return 'Eco';
 }
 

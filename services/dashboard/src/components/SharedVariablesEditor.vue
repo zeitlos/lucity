@@ -2,7 +2,7 @@
 import { ref, watch, computed } from 'vue';
 import { useQuery, useMutation } from '@vue/apollo-composable';
 import { Plus, Trash2 } from 'lucide-vue-next';
-import { SharedVariablesQuery, SetSharedVariablesMutation } from '@/graphql/variables';
+import { SharedVariablesDocument, SetSharedVariablesDocument } from '@/gql/graphql';
 import { useEnvironment } from '@/composables/useEnvironment';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,7 +19,7 @@ const props = defineProps<{
 const { activeEnvironment } = useEnvironment();
 const envName = computed(() => activeEnvironment.value?.name ?? '');
 
-const { result, loading, refetch } = useQuery(SharedVariablesQuery, () => ({
+const { result, loading, refetch } = useQuery(SharedVariablesDocument, () => ({
   projectId: props.projectId,
   environment: envName.value,
 }), () => ({
@@ -63,7 +63,7 @@ function markChanged() {
   hasChanges.value = true;
 }
 
-const { mutate: setVarsMutate, loading: saving } = useMutation(SetSharedVariablesMutation);
+const { mutate: setVarsMutate, loading: saving } = useMutation(SetSharedVariablesDocument);
 
 async function handleSave() {
   const validRows = rows.value.filter(r => r.key.trim());

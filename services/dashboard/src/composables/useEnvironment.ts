@@ -4,9 +4,9 @@ export interface DeploymentInfo {
   id: string;
   imageTag: string;
   active: boolean;
-  timestamp?: string;
-  sourceCommitMessage?: string;
-  sourceUrl?: string;
+  timestamp?: string | null;
+  sourceCommitMessage?: string | null;
+  sourceUrl?: string | null;
 }
 
 export interface DomainInfo {
@@ -25,7 +25,7 @@ export interface AutoscalingInfo {
 
 export interface ScalingInfo {
   replicas: number;
-  autoscaling?: AutoscalingInfo;
+  autoscaling?: AutoscalingInfo | null;
 }
 
 export interface ResourcesInfo {
@@ -39,17 +39,17 @@ export interface ServiceInstance {
   name: string;
   environment: string;
   image: string;
-  port?: number;
-  framework?: string;
-  sourceUrl?: string;
-  contextPath?: string;
-  startCommand?: string;
-  customStartCommand?: string;
+  port?: number | null;
+  framework?: string | null;
+  sourceUrl?: string | null;
+  contextPath?: string | null;
+  startCommand?: string | null;
+  customStartCommand?: string | null;
   imageTag: string;
   ready: boolean;
   replicas: number;
-  scaling?: ScalingInfo;
-  resources?: ResourcesInfo;
+  scaling?: ScalingInfo | null;
+  resources?: ResourcesInfo | null;
   domains: DomainInfo[];
   deployments: DeploymentInfo[];
 }
@@ -69,7 +69,7 @@ export interface DatabaseInstance {
   instances: number;
   version: string;
   size: string;
-  volume?: VolumeInfo;
+  volume?: VolumeInfo | null;
 }
 
 export interface Environment {
@@ -78,7 +78,7 @@ export interface Environment {
   namespace: string;
   ephemeral: boolean;
   syncStatus: string;
-  resourceTier?: string;
+  resourceTier?: string | null;
   services: ServiceInstance[];
   databases: DatabaseInstance[];
 }

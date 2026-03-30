@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { useMutation } from '@vue/apollo-composable';
-import { CreateWorkspaceCheckoutMutation } from '@/graphql/workspaces';
+import { CreateWorkspaceCheckoutDocument, Plan } from '@/gql/graphql';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -28,11 +28,11 @@ const emit = defineEmits<{
 
 const name = ref('');
 const id = ref('');
-const selectedPlan = ref<'HOBBY' | 'PRO'>('HOBBY');
+const selectedPlan = ref<Plan>(Plan.Hobby);
 
 const isValid = computed(() => name.value.trim().length > 0 && isValidSlug(id.value));
 
-const { mutate, loading } = useMutation(CreateWorkspaceCheckoutMutation);
+const { mutate, loading } = useMutation(CreateWorkspaceCheckoutDocument);
 
 async function handleCheckout() {
   if (!isValid.value) return;

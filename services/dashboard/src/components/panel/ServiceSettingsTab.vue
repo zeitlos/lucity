@@ -7,14 +7,19 @@ import {
   Cpu, MemoryStick, Leaf, ShieldCheck, FileText,
 } from 'lucide-vue-next';
 import {
-  RemoveServiceMutation,
-  SetCustomStartCommandMutation,
-  GenerateDomainMutation,
-  AddCustomDomainMutation,
-  RemoveDomainMutation,
-  PlatformConfigQuery,
-} from '@/graphql/services';
-import { SetServiceScalingMutation } from '@/graphql/projects';
+  RemoveServiceDocument,
+  SetCustomStartCommandDocument,
+  GenerateDomainDocument,
+  AddCustomDomainDocument,
+  RemoveDomainDocument,
+  PlatformConfigDocument,
+  SetServiceScalingDocument,
+  type SetServiceScalingInput,
+  DnsStatus,
+  TlsStatus,
+  DomainType,
+  ResourceTier,
+} from '@/gql/graphql';
 import { useEnvironment } from '@/composables/useEnvironment';
 import type { DomainInfo } from '@/composables/useEnvironment';
 import { useDnsPolling } from '@/composables/useDnsPolling';
@@ -56,12 +61,12 @@ const props = defineProps<{
   service: {
     name: string;
     image: string;
-    port?: number;
-    framework?: string;
-    sourceUrl?: string;
-    contextPath?: string;
-    startCommand?: string;
-    customStartCommand?: string;
+    port?: number | null;
+    framework?: string | null;
+    sourceUrl?: string | null;
+    contextPath?: string | null;
+    startCommand?: string | null;
+    customStartCommand?: string | null;
   };
 }>();
 
@@ -77,8 +82,8 @@ const activeInstance = computed(() => {
 });
 
 const domains = computed<DomainInfo[]>(() => activeInstance.value?.domains ?? []);
-const platformDomain = computed(() => domains.value.find(d => d.type === 'PLATFORM'));
-const customDomains = computed(() => domains.value.filter(d => d.type === 'CUSTOM'));
+const platformDomain = computed(() => domains.value.find(d => d.type === DomainType.Platform));
+const customDomains = computed(() => domains.value.filter(d => d.type === DomainType.Custom));
 
 // Compute resources
 const resources = computed(() => activeInstance.value?.resources ?? null);
@@ -93,7 +98,7 @@ function formatMemory(mb: number): string {
 }
 
 // Platform config
-const { result: platformConfigResult } = useQuery(PlatformConfigQuery);
+const { result: platformConfigResult } = useQuery(PlatformConfigDocument);
 const domainTarget = computed(() => platformConfigResult.value?.platformConfig?.domainTarget ?? '');
 const ipAddress = computed(() => platformConfigResult.value?.platformConfig?.ipAddress ?? '');
 
@@ -103,20 +108,20 @@ const dnsPolling = useDnsPolling();
 // Start polling for custom domains that need DNS verification or TLS provisioning
 watch(customDomains, (doms) => {
   const needsPolling = doms
-    .filter(d => d.dnsStatus !== 'VALID' || d.tlsStatus !== 'ACTIVE')
+    .filter(d => d.dnsStatus !== DnsStatus.Valid || d.tlsStatus !== TlsStatus.Active)
     .map(d => d.hostname);
   dnsPolling.trackHostnames(needsPolling);
 }, { immediate: true });
 
 // Get live DNS status for a custom domain (from polling, or fallback to static)
-function dnsStatus(hostname: string): 'VALID' | 'PENDING' | 'MISCONFIGURED' | 'ERROR' {
+function dnsStatus(hostname: string): string {
   return dnsPolling.checks[hostname]?.status
     ?? customDomains.value.find(d => d.hostname === hostname)?.dnsStatus
     ?? 'PENDING';
 }
 
 // Get TLS status for a domain (from polling, or fallback to static)
-function tlsStatus(hostname: string): 'NONE' | 'PROVISIONING' | 'ACTIVE' | 'ERROR' {
+function tlsStatus(hostname: string): string {
   return dnsPolling.checks[hostname]?.tlsStatus
     ?? customDomains.value.find(d => d.hostname === hostname)?.tlsStatus
     ?? 'NONE';
@@ -127,20 +132,20 @@ function domainStatusLabel(domain: DomainInfo): { icon: 'check' | 'spinner' | 'a
   const dns = dnsStatus(domain.hostname);
   const tls = tlsStatus(domain.hostname);
 
-  if (dns === 'PENDING') {
+  if (dns === DnsStatus.Pending) {
     return { icon: 'spinner', color: 'text-yellow-500', label: 'DNS Pending' };
   }
-  if (dns === 'MISCONFIGURED') {
+  if (dns === DnsStatus.Misconfigured) {
     return { icon: 'alert', color: 'text-orange-500', label: 'DNS Misconfigured' };
   }
-  if (dns === 'ERROR') {
+  if (dns === DnsStatus.Error) {
     return { icon: 'alert', color: 'text-destructive', label: 'DNS Error' };
   }
   // DNS is VALID — check TLS status
-  if (tls === 'ACTIVE') {
+  if (tls === TlsStatus.Active) {
     return { icon: 'check', color: 'text-green-500', label: 'Connected' };
   }
-  if (tls === 'PROVISIONING' || tls === 'NONE') {
+  if (tls === TlsStatus.Provisioning || tls === TlsStatus.None) {
     // NONE means cert not found yet (deployer hasn't created it, or deployer unreachable)
     return { icon: 'spinner', color: 'text-blue-500', label: 'Provisioning TLS...' };
   }
@@ -221,18 +226,19 @@ const internalDns = computed(() => {
 // Custom Start Command
 const customStartCommand = ref(props.service.customStartCommand ?? '');
 const commandSaving = ref(false);
-const { mutate: setCustomStartCommandMutate } = useMutation(SetCustomStartCommandMutation);
+const { mutate: setCustomStartCommandMutate } = useMutation(SetCustomStartCommandDocument);
 
 watch(() => props.service.customStartCommand, (val) => {
   customStartCommand.value = val ?? '';
 });
 
 async function handleSaveCommand() {
+  if (!activeEnvironment.value) return;
   commandSaving.value = true;
   try {
     await setCustomStartCommandMutate({
       projectId: props.projectId,
-      environment: activeEnvironment.value?.name,
+      environment: activeEnvironment.value.name,
       service: props.service.name,
       command: customStartCommand.value,
     });
@@ -249,10 +255,10 @@ const commandChanged = computed(() => {
 });
 
 // Mutations
-const { mutate: removeServiceMutate, loading: removing } = useMutation(RemoveServiceMutation);
-const { mutate: generateDomainMutate, loading: generatingDomain } = useMutation(GenerateDomainMutation);
-const { mutate: addCustomDomainMutate, loading: addingCustomDomain } = useMutation(AddCustomDomainMutation);
-const { mutate: removeDomainMutate } = useMutation(RemoveDomainMutation);
+const { mutate: removeServiceMutate, loading: removing } = useMutation(RemoveServiceDocument);
+const { mutate: generateDomainMutate, loading: generatingDomain } = useMutation(GenerateDomainDocument);
+const { mutate: addCustomDomainMutate, loading: addingCustomDomain } = useMutation(AddCustomDomainDocument);
+const { mutate: removeDomainMutate } = useMutation(RemoveDomainDocument);
 
 async function handleGenerateDomain() {
   const envName = activeEnvironment.value?.name;
@@ -377,7 +383,7 @@ const scalingMaxReplicas = ref(10);
 const scalingTargetCPU = ref(70);
 const scalingSaving = ref(false);
 
-const { mutate: setScalingMutate } = useMutation(SetServiceScalingMutation);
+const { mutate: setScalingMutate } = useMutation(SetServiceScalingDocument);
 
 function syncScalingFromService() {
   const svc = activeInstance.value;
@@ -420,7 +426,7 @@ async function handleSaveScaling() {
 
   scalingSaving.value = true;
   try {
-    const input: Record<string, unknown> = {
+    const input: SetServiceScalingInput = {
       projectId: props.projectId,
       environment: envName,
       service: props.service.name,
@@ -453,10 +459,11 @@ async function handleSaveScaling() {
 }
 
 async function handleRemoveService() {
+  if (!activeEnvironment.value) return;
   try {
     const res = await removeServiceMutate({
       projectId: props.projectId,
-      environment: activeEnvironment.value?.name,
+      environment: activeEnvironment.value.name,
       service: props.service.name,
     });
 
@@ -788,7 +795,7 @@ async function handleRemoveService() {
                         :class="domainStatusLabel(domain).icon === 'alert' ? 'text-orange-500' : 'text-muted-foreground'"
                       >
                         <span>{{ domainStatusLabel(domain).label }}</span>
-                        <template v-if="dnsStatus(domain.hostname) !== 'VALID'">
+                        <template v-if="dnsStatus(domain.hostname) !== DnsStatus.Valid">
                           <span class="text-muted-foreground/50">&middot;</span>
                           <button
                             class="font-medium text-primary hover:underline"
@@ -1145,14 +1152,14 @@ async function handleRemoveService() {
             </div>
             <span class="font-mono text-sm font-medium">{{ formatMemory(resources.memoryMB) }}</span>
           </div>
-          <div v-if="resourceTier === 'ECO'" class="flex items-center gap-3 px-4 py-3">
+          <div v-if="resourceTier === ResourceTier.Eco" class="flex items-center gap-3 px-4 py-3">
             <Leaf :size="16" class="shrink-0 text-emerald-500" />
             <div class="min-w-0 flex-1">
               <p class="text-sm font-medium text-foreground">Eco</p>
               <p class="text-xs text-muted-foreground">Burstable compute, shared resources</p>
             </div>
           </div>
-          <div v-else-if="resourceTier === 'PRODUCTION'" class="flex items-center gap-3 px-4 py-3">
+          <div v-else-if="resourceTier === ResourceTier.Production" class="flex items-center gap-3 px-4 py-3">
             <ShieldCheck :size="16" class="shrink-0 text-violet-500" />
             <div class="min-w-0 flex-1">
               <p class="text-sm font-medium text-foreground">Production</p>
@@ -1242,12 +1249,12 @@ async function handleRemoveService() {
                 <td class="px-3 py-2">
                   <div class="flex items-center gap-1.5">
                     <CircleCheck
-                      v-if="dnsModalStatus === 'VALID'"
+                      v-if="dnsModalStatus === DnsStatus.Valid"
                       :size="12"
                       class="shrink-0 text-green-500"
                     />
                     <CircleAlert
-                      v-else-if="dnsModalStatus === 'MISCONFIGURED'"
+                      v-else-if="dnsModalStatus === DnsStatus.Misconfigured"
                       :size="12"
                       class="shrink-0 text-orange-500"
                     />
@@ -1279,12 +1286,12 @@ async function handleRemoveService() {
                 <td class="px-3 py-2">
                   <div class="flex items-center gap-1.5">
                     <CircleCheck
-                      v-if="dnsModalStatus === 'VALID'"
+                      v-if="dnsModalStatus === DnsStatus.Valid"
                       :size="12"
                       class="shrink-0 text-green-500"
                     />
                     <CircleAlert
-                      v-else-if="dnsModalStatus === 'MISCONFIGURED'"
+                      v-else-if="dnsModalStatus === DnsStatus.Misconfigured"
                       :size="12"
                       class="shrink-0 text-orange-500"
                     />
@@ -1320,9 +1327,9 @@ async function handleRemoveService() {
           v-if="dnsModalMessage"
           class="text-xs"
           :class="{
-            'text-green-600': dnsModalStatus === 'VALID',
-            'text-orange-500': dnsModalStatus === 'MISCONFIGURED',
-            'text-muted-foreground': dnsModalStatus === 'PENDING' || dnsModalStatus === 'ERROR',
+            'text-green-600': dnsModalStatus === DnsStatus.Valid,
+            'text-orange-500': dnsModalStatus === DnsStatus.Misconfigured,
+            'text-muted-foreground': dnsModalStatus === DnsStatus.Pending || dnsModalStatus === DnsStatus.Error,
           }"
         >
           {{ dnsModalMessage }}

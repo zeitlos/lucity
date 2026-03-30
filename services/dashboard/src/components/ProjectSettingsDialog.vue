@@ -2,7 +2,7 @@
 import { useRouter } from 'vue-router';
 import { useMutation } from '@vue/apollo-composable';
 import { Trash2 } from 'lucide-vue-next';
-import { DeleteProjectMutation } from '@/graphql/projects';
+import { DeleteProjectDocument } from '@/gql/graphql';
 import { apolloClient } from '@/lib/apollo';
 import { Button } from '@/components/ui/button';
 import {
@@ -36,7 +36,7 @@ const emit = defineEmits<{
 }>();
 
 const router = useRouter();
-const { mutate: deleteProjectMutate, loading: deleting } = useMutation(DeleteProjectMutation);
+const { mutate: deleteProjectMutate, loading: deleting } = useMutation(DeleteProjectDocument);
 
 async function handleDeleteProject() {
   try {

@@ -3,21 +3,6 @@ import { ref, computed, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useQuery, useMutation } from '@vue/apollo-composable';
 import { ArrowLeft, Trash2, UserPlus, X, Shield, User as UserIcon, CreditCard, ExternalLink } from 'lucide-vue-next';
-import {
-  WorkspacesQuery,
-  UpdateWorkspaceMutation,
-  DeleteWorkspaceMutation,
-  InviteMemberMutation,
-  RemoveMemberMutation,
-  UpdateMemberRoleMutation,
-} from '@/graphql/workspaces';
-import {
-  SubscriptionQuery,
-  UsageSummaryQuery,
-  ChangePlanMutation,
-  BillingPortalUrlMutation,
-  CreatePlanCheckoutMutation,
-} from '@/graphql/billing';
 import { useAuth } from '@/composables/useAuth';
 import { apolloClient } from '@/lib/apollo';
 import { Button } from '@/components/ui/button';
@@ -55,7 +40,23 @@ import {
 import { toast, errorToast } from '@/components/ui/sonner';
 import { errorMessage } from '@/lib/utils';
 import PlanPicker from '@/components/PlanPicker.vue';
-import { SubscriptionDocument, SubscriptionStatus, WorkspaceDocument } from '@/gql/graphql';
+import {
+  WorkspacesDocument,
+  UpdateWorkspaceDocument,
+  DeleteWorkspaceDocument,
+  InviteMemberDocument,
+  RemoveMemberDocument,
+  UpdateMemberRoleDocument,
+  SubscriptionDocument,
+  SubscriptionStatus,
+  UsageSummaryDocument,
+  ChangePlanDocument,
+  BillingPortalUrlDocument,
+  CreatePlanCheckoutDocument,
+  WorkspaceDocument,
+  WorkspaceRole,
+  Plan,
+} from '@/gql/graphql';
 
 const router = useRouter();
 const { refreshToken, setActiveWorkspace } = useAuth();
@@ -102,7 +103,7 @@ watch(
   { immediate: true },
 );
 
-const { mutate: updateMutate, loading: updating } = useMutation(UpdateWorkspaceMutation);
+const { mutate: updateMutate, loading: updating } = useMutation(UpdateWorkspaceDocument);
 
 async function handleUpdateName() {
   if (!editName.value.trim() || editName.value.trim() === workspace.value?.name) return;
@@ -117,8 +118,8 @@ async function handleUpdateName() {
 
 // Invite member
 const inviteEmail = ref('');
-const inviteRole = ref('USER');
-const { mutate: inviteMutate, loading: inviting } = useMutation(InviteMemberMutation);
+const inviteRole = ref<WorkspaceRole>(WorkspaceRole.User);
+const { mutate: inviteMutate, loading: inviting } = useMutation(InviteMemberDocument);
 
 async function handleInvite() {
   if (!inviteEmail.value.trim()) return;
@@ -134,7 +135,7 @@ async function handleInvite() {
     }
     toast.success(`Invited ${inviteEmail.value.trim()}`);
     inviteEmail.value = '';
-    inviteRole.value = 'USER';
+    inviteRole.value = WorkspaceRole.User;
     await refreshToken();
     refetch();
   } catch (e: unknown) {
@@ -143,7 +144,7 @@ async function handleInvite() {
 }
 
 // Remove member
-const { mutate: removeMutate } = useMutation(RemoveMemberMutation);
+const { mutate: removeMutate } = useMutation(RemoveMemberDocument);
 
 async function handleRemoveMember(userId: string) {
   try {
@@ -157,9 +158,9 @@ async function handleRemoveMember(userId: string) {
 }
 
 // Update member role
-const { mutate: updateRoleMutate } = useMutation(UpdateMemberRoleMutation);
+const { mutate: updateRoleMutate } = useMutation(UpdateMemberRoleDocument);
 
-async function handleUpdateRole(userId: string, role: string) {
+async function handleUpdateRole(userId: string, role: WorkspaceRole) {
   try {
     await updateRoleMutate({ input: { userId, role } });
     toast.success('Member role updated');
@@ -173,18 +174,18 @@ async function handleUpdateRole(userId: string, role: string) {
 const { result: subResult, loading: subLoading, error: subError } = useQuery(SubscriptionDocument);
 const subscription = computed(() => subResult.value?.subscription);
 
-const { result: usageResult, loading: usageLoading } = useQuery(UsageSummaryQuery);
+const { result: usageResult, loading: usageLoading } = useQuery(UsageSummaryDocument);
 const usage = computed(() => usageResult.value?.usageSummary);
 
 const billingAvailable = computed(() => !subError.value && subscription.value);
 
-const { mutate: changePlanMutate, loading: changingPlan } = useMutation(ChangePlanMutation, {
-  refetchQueries: () => [{ query: SubscriptionQuery }, { query: UsageSummaryQuery }],
+const { mutate: changePlanMutate, loading: changingPlan } = useMutation(ChangePlanDocument, {
+  refetchQueries: () => [{ query: SubscriptionDocument }, { query: UsageSummaryDocument }],
 });
-const { mutate: portalMutate, loading: openingPortal } = useMutation(BillingPortalUrlMutation);
-const { mutate: planCheckoutMutate, loading: startingPlanCheckout } = useMutation(CreatePlanCheckoutMutation);
-const confirmPlan = ref<string | null>(null);
-const trialSelectedPlan = ref<'HOBBY' | 'PRO'>('HOBBY');
+const { mutate: portalMutate, loading: openingPortal } = useMutation(BillingPortalUrlDocument);
+const { mutate: planCheckoutMutate, loading: startingPlanCheckout } = useMutation(CreatePlanCheckoutDocument);
+const confirmPlan = ref<Plan | null>(null);
+const trialSelectedPlan = ref<Plan>(Plan.Hobby);
 const isTrial = computed(() => billingAvailable.value && subscription.value?.status === SubscriptionStatus.Trialing);
 
 function formatCents(cents: number): string {
@@ -199,7 +200,7 @@ async function handleChangePlan() {
   if (!confirmPlan.value) return;
   try {
     await changePlanMutate({ plan: confirmPlan.value });
-    toast.success(`Switched to ${confirmPlan.value === 'PRO' ? 'Pro' : 'Hobby'} plan`);
+    toast.success(`Switched to ${confirmPlan.value === Plan.Pro ? 'Pro' : 'Hobby'} plan`);
   } catch (e: unknown) {
     errorToast('Failed to change plan', { description: errorMessage(e) });
   } finally {
@@ -207,7 +208,7 @@ async function handleChangePlan() {
   }
 }
 
-async function handlePlanCheckout(plan: string) {
+async function handlePlanCheckout(plan: Plan) {
   try {
     const res = await planCheckoutMutate({ plan });
     const url = res?.data?.createPlanCheckout?.url;
@@ -232,8 +233,8 @@ async function handleOpenPortal() {
 }
 
 // Delete workspace
-const { mutate: deleteMutate, loading: deleting } = useMutation(DeleteWorkspaceMutation, {
-  refetchQueries: () => [{ query: WorkspacesQuery }],
+const { mutate: deleteMutate, loading: deleting } = useMutation(DeleteWorkspaceDocument, {
+  refetchQueries: () => [{ query: WorkspacesDocument }],
 });
 
 async function handleDelete() {
@@ -403,7 +404,7 @@ async function handleDelete() {
                     <template v-if="isAdmin">
                       <Select
                         :model-value="member.role"
-                        @update:model-value="handleUpdateRole(member.id, $event as string)"
+                        @update:model-value="handleUpdateRole(member.id, $event as WorkspaceRole)"
                       >
                         <SelectTrigger class="w-28">
                           <SelectValue />
@@ -425,8 +426,8 @@ async function handleDelete() {
                       </Select>
                     </template>
                     <template v-else>
-                      <Badge :variant="member.role === 'ADMIN' ? 'default' : 'secondary'">
-                        {{ member.role === 'ADMIN' ? 'Admin' : 'Member' }}
+                      <Badge :variant="member.role === WorkspaceRole.Admin ? 'default' : 'secondary'">
+                        {{ member.role === WorkspaceRole.Admin ? 'Admin' : 'Member' }}
                       </Badge>
                     </template>
                   </TableCell>
@@ -514,7 +515,7 @@ async function handleDelete() {
                   :disabled="startingPlanCheckout"
                   @click="handlePlanCheckout(trialSelectedPlan)"
                 >
-                  {{ startingPlanCheckout ? 'Redirecting...' : `Continue with ${trialSelectedPlan === 'PRO' ? 'Pro' : 'Hobby'}` }}
+                  {{ startingPlanCheckout ? 'Redirecting...' : `Continue with ${trialSelectedPlan === Plan.Pro ? 'Pro' : 'Hobby'}` }}
                 </Button>
               </div>
 
@@ -522,13 +523,13 @@ async function handleDelete() {
               <div v-if="!isTrial" class="rounded-lg border p-4 space-y-3">
                 <div class="flex items-center justify-between">
                   <h3 class="text-sm font-medium">Subscription</h3>
-                  <Badge :variant="subscription!.status === 'ACTIVE' ? 'default' : 'destructive'">
-                    {{ subscription!.status === 'ACTIVE' ? 'Active' : subscription!.status === 'PAST_DUE' ? 'Past Due' : subscription!.status }}
+                  <Badge :variant="subscription!.status === SubscriptionStatus.Active ? 'default' : 'destructive'">
+                    {{ subscription!.status === SubscriptionStatus.Active ? 'Active' : subscription!.status === SubscriptionStatus.PastDue ? 'Past Due' : subscription!.status }}
                   </Badge>
                 </div>
                 <div class="flex items-center justify-between text-sm">
                   <span class="text-muted-foreground">Current plan</span>
-                  <span class="font-medium">{{ subscription!.plan === 'PRO' ? 'Pro' : 'Hobby' }}</span>
+                  <span class="font-medium">{{ subscription!.plan === Plan.Pro ? 'Pro' : 'Hobby' }}</span>
                 </div>
                 <div class="flex items-center justify-between text-sm">
                   <span class="text-muted-foreground">Current period ends</span>
@@ -578,7 +579,7 @@ async function handleDelete() {
               <div v-if="isAdmin && !isTrial" class="space-y-3">
                 <h3 class="text-sm font-medium">Plan</h3>
                 <PlanPicker
-                  :model-value="(subscription!.plan as 'HOBBY' | 'PRO') ?? 'HOBBY'"
+                  :model-value="subscription!.plan ?? Plan.Hobby"
                   @update:model-value="confirmPlan = $event"
                 />
               </div>
@@ -588,10 +589,10 @@ async function handleDelete() {
                 <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle>
-                      Switch to {{ confirmPlan === 'PRO' ? 'Pro' : 'Hobby' }}?
+                      Switch to {{ confirmPlan === Plan.Pro ? 'Pro' : 'Hobby' }}?
                     </AlertDialogTitle>
                     <AlertDialogDescription>
-                      Your plan will be changed to {{ confirmPlan === 'PRO' ? 'Pro (&euro;25/mo)' : 'Hobby (&euro;5/mo)' }}.
+                      Your plan will be changed to {{ confirmPlan === Plan.Pro ? 'Pro (&euro;25/mo)' : 'Hobby (&euro;5/mo)' }}.
                       The change takes effect immediately with prorated billing.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
