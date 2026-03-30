@@ -3,14 +3,14 @@ import { computed, ref } from 'vue';
 import { useQuery } from '@vue/apollo-composable';
 import { useRouter } from 'vue-router';
 import { Clock, Sparkles, AlertTriangle } from 'lucide-vue-next';
-import { SubscriptionQuery, UsageSummaryQuery } from '@/graphql/billing';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { SubscriptionDocument, UsageSummaryDocument } from '@/gql/graphql';
 
 const router = useRouter();
-const { result: subResult } = useQuery(SubscriptionQuery, null, { fetchPolicy: 'cache-and-network' });
-const { result: usageResult } = useQuery(UsageSummaryQuery, null, { fetchPolicy: 'cache-and-network' });
+const { result: subResult } = useQuery(SubscriptionDocument, null, { fetchPolicy: 'cache-and-network' });
+const { result: usageResult } = useQuery(UsageSummaryDocument, null, { fetchPolicy: 'cache-and-network' });
 
 const popoverOpen = ref(false);
 
