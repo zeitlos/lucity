@@ -158,7 +158,6 @@ For local development, see the [Contributing guide](CONTRIBUTING.md).
 
 Full documentation at **[lucity.cloud](https://lucity.cloud)**.
 
-- [Quick Start](https://lucity.cloud/getting-started/quick-start) — set up a local development environment
 - [Concepts](https://lucity.cloud/getting-started/concepts) — projects, services, environments
 - [Architecture](https://lucity.cloud/architecture/how-it-works) — how the pieces fit together
 - [Ejectability](https://lucity.cloud/features/eject) — what you get when you leave

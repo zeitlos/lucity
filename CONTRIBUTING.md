@@ -163,6 +163,6 @@ make dev             # 6. Start services with hot reload
 
 ## Further Reading
 
-- [Quick Start](https://lucity.cloud/getting-started/quick-start): full walkthrough with screenshots
 - [Architecture](https://lucity.cloud/architecture/how-it-works): how the pieces fit together
 - [Concepts](https://lucity.cloud/getting-started/concepts): projects, services, environments
+- [Self-Hosting](https://lucity.cloud/getting-started/self-hosting): hosting Lucity on your own hardware

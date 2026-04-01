@@ -40,7 +40,7 @@ const navItems = [
   },
   {
     label: 'Docs',
-    to: '/getting-started/quick-start',
+    to: '/getting-started/concepts',
   },
 ];
 

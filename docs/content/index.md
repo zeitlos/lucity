@@ -72,7 +72,7 @@ The enterprise way to deploy Kubernetes apps, cleverly automated. No proprietary
 
       :::::u-button
       ---
-      to: /getting-started/quick-start
+      to: /getting-started/self-hosting
       color: neutral
       trailing-icon: i-lucide-arrow-right
       ---

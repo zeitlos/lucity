@@ -30,7 +30,7 @@ const { report, requestFeature } = useReportBug();
       </DropdownMenuItem>
       <DropdownMenuSeparator />
       <DropdownMenuItem as-child>
-        <a href="https://lucity.cloud/getting-started/quick-start" target="_blank" rel="noopener">
+        <a href="https://lucity.cloud/getting-started/concepts" target="_blank" rel="noopener">
           <BookOpen :size="14" class="mr-2" />
           Documentation
         </a>

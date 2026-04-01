@@ -35,7 +35,7 @@ watch(visible, (v) => {
           Run Lucity on your own Kubernetes cluster. One Helm install, full control. Your infrastructure, your rules.
         </p>
         <UButton
-          to="/getting-started/quick-start"
+          to="/getting-started/self-hosting"
           color="white"
           variant="solid"
           icon="i-lucide-server"
