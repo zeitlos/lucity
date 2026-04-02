@@ -86,7 +86,9 @@ jobs:
           - service: dashboard
             dockerfile: services/dashboard/Dockerfile
             context: services/dashboard
-            build-args: VITE_BASE_PATH=/app/
+            build-args: |
+              VITE_BASE_PATH=/app/
+              VERSION=${{ needs.version.outputs.version }}
           - service: docs
             dockerfile: docs/Dockerfile
             context: docs

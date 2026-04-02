@@ -7,7 +7,7 @@ import vueDevTools from 'vite-plugin-vue-devtools';
 import tailwindcss from '@tailwindcss/vite';
 
 // https://vite.dev/config/
-const appVersion = (() => {
+const appVersion = process.env.APP_VERSION || (() => {
   try {
     return execSync('git describe --always --dirty', { encoding: 'utf-8' }).trim();
   } catch {
