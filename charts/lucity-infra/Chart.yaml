@@ -15,6 +15,6 @@ dependencies:
     repository: "https://argoproj.github.io/argo-helm"
     condition: argo-cd.enabled
   - name: cloudnative-pg
-    version: "0.27.1"
+    version: "0.28.0"
     repository: "https://cloudnative-pg.github.io/charts"
     condition: cloudnative-pg.enabled
