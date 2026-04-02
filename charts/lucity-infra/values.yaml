@@ -91,6 +91,7 @@ argo-cd:
     rbac:
       policy.csv: |
         p, role:lucity, applications, *, */*, allow
+        p, role:lucity, logs, get, */*, allow
         p, role:lucity, repositories, *, *, allow
         g, lucity, role:lucity
 
