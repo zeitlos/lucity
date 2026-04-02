@@ -11,7 +11,7 @@ dependencies:
     repository: "http://zotregistry.dev/helm-charts"
     condition: zot.enabled
   - name: argo-cd
-    version: "7.8.13"
+    version: "7.9.1"
     repository: "https://argoproj.github.io/argo-helm"
     condition: argo-cd.enabled
   - name: cloudnative-pg
