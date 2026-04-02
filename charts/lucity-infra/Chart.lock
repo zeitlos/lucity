@@ -1,12 +1,12 @@
 dependencies:
 - name: zot
   repository: http://zotregistry.dev/helm-charts
-  version: 0.1.98
+  version: 0.1.104
 - name: argo-cd
   repository: https://argoproj.github.io/argo-helm
   version: 7.8.13
 - name: cloudnative-pg
   repository: https://cloudnative-pg.github.io/charts
   version: 0.27.1
-digest: sha256:5be2925c2da85721ff96b5a0eb22bbd7f68635fa5f43e89d2672633d94585301
-generated: "2026-02-21T16:32:49.000423+01:00"
+digest: sha256:cbbd0916ffdf85dff8e917f139e3c7057c788bb87bebf194f145f61ff4be3422
+generated: "2026-04-02T10:31:28.790608+02:00"

@@ -7,7 +7,7 @@ appVersion: "0.1.0"
 
 dependencies:
   - name: zot
-    version: "0.1.98"
+    version: "0.1.104"
     repository: "http://zotregistry.dev/helm-charts"
     condition: zot.enabled
   - name: argo-cd
