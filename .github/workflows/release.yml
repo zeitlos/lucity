@@ -64,26 +64,25 @@ jobs:
       matrix:
         service: [gateway, builder, packager, deployer, webhook, cashier, dashboard, docs]
         include:
-          # Go services use the root Dockerfile with SERVICE build arg
           - service: gateway
-            dockerfile: Dockerfile
+            dockerfile: services/gateway/Dockerfile
             context: .
+            build-args: VERSION=${{ needs.version.outputs.version }}
           - service: builder
             dockerfile: services/builder/Dockerfile
             context: .
           - service: packager
-            dockerfile: Dockerfile
+            dockerfile: services/packager/Dockerfile
             context: .
           - service: deployer
-            dockerfile: Dockerfile
+            dockerfile: services/deployer/Dockerfile
             context: .
           - service: webhook
-            dockerfile: Dockerfile
+            dockerfile: services/webhook/Dockerfile
             context: .
           - service: cashier
-            dockerfile: Dockerfile
+            dockerfile: services/cashier/Dockerfile
             context: .
-          # Dashboard and docs use their own Dockerfiles
           - service: dashboard
             dockerfile: services/dashboard/Dockerfile
             context: services/dashboard
@@ -129,7 +128,7 @@ jobs:
           console.log('Generated dates for', Object.keys(dates).length, 'pages');
           "
 
-      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v4
 
       - name: Log in to GHCR
@@ -167,10 +166,7 @@ jobs:
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
-          build-args: |
-            SERVICE=${{ matrix.service }}
-            VERSION=${{ needs.version.outputs.version }}
-            ${{ matrix.build-args || '' }}
+          build-args: ${{ matrix.build-args || '' }}
           platforms: ${{ startsWith(github.ref, 'refs/tags/') && 'linux/amd64,linux/arm64' || 'linux/amd64' }}
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
