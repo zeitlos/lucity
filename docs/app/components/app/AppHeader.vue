@@ -42,6 +42,10 @@ const navItems = [
     label: 'Docs',
     to: '/getting-started/concepts',
   },
+  {
+    label: 'Blog',
+    to: '/blog',
+  },
 ];
 
 const githubLink = computed(() =>
