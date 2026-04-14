@@ -115,7 +115,7 @@ function formatDate(date: string) {
 
 .blog-post-title {
   font-family: var(--font-serif);
-  font-size: 1.75rem;
+  font-size: 2.25rem;
   font-weight: normal;
   color: var(--ui-text-highlighted);
   margin: 0;

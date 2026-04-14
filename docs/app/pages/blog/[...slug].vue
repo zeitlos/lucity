@@ -15,6 +15,46 @@ if (!page.value) {
   throw createError({ statusCode: 404, statusMessage: 'Post not found', fatal: true });
 }
 
+function walk(node: unknown, counts: { words: number; images: number }): void {
+  if (node == null) return;
+  if (typeof node === 'string') {
+    counts.words += node.trim().split(/\s+/).filter(Boolean).length;
+    return;
+  }
+  if (Array.isArray(node)) {
+    // Minimark compact format: [tag, props, ...children] — skip tag and props
+    if (typeof node[0] === 'string' && (node[1] === null || typeof node[1] === 'object')) {
+      if (node[0] === 'img') counts.images += 1;
+      for (let i = 2; i < node.length; i++) walk(node[i], counts);
+      return;
+    }
+    for (const child of node) walk(child, counts);
+    return;
+  }
+  if (typeof node === 'object') {
+    const n = node as { type?: string; tag?: string; value?: unknown; children?: unknown };
+    if (n.type === 'text' && typeof n.value === 'string') {
+      counts.words += n.value.trim().split(/\s+/).filter(Boolean).length;
+      return;
+    }
+    if (n.tag === 'img') counts.images += 1;
+    if (n.value !== undefined) walk(n.value, counts);
+    if (n.children !== undefined) walk(n.children, counts);
+  }
+}
+
+const readingTime = computed(() => {
+  const counts = { words: 0, images: 0 };
+  walk(page.value?.body, counts);
+  // Medium-style: 225 WPM, plus decrementing image time (12s first, down to 3s)
+  const textSeconds = (counts.words / 225) * 60;
+  let imageSeconds = 0;
+  for (let i = 0; i < counts.images; i++) {
+    imageSeconds += Math.max(12 - i, 3);
+  }
+  return Math.max(1, Math.ceil((textSeconds + imageSeconds) / 60));
+});
+
 const formattedDate = computed(() => {
   if (!page.value?.date) return null;
   return new Date(page.value.date).toLocaleDateString('en-US', {
@@ -61,6 +101,8 @@ useSeo({
               <span>&middot;</span>
             </template>
             <span v-if="page.author">{{ page.author }}</span>
+            <span>&middot;</span>
+            <span>{{ readingTime }} min read</span>
           </div>
 
           <h1>{{ page.title }}</h1>
@@ -168,9 +210,9 @@ useSeo({
 }
 
 .blog-body :deep(h2) {
-  font-family: var(--font-serif);
-  font-size: 2.25rem;
-  font-weight: normal;
+  font-family: var(--font-sans);
+  font-size: 1.875rem;
+  font-weight: 600;
   margin-top: 2.5rem;
 }
 
@@ -187,6 +229,25 @@ useSeo({
 .blog-body :deep(ul),
 .blog-body :deep(ol) {
   margin-top: 1.25rem;
+}
+
+.blog-body :deep(img) {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 2rem auto 0;
+  border: 1px solid var(--ui-border);
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 12px oklch(0 0 0 / 0.08);
+}
+
+.blog-body :deep(img + em) {
+  display: block;
+  text-align: center;
+  font-style: normal;
+  font-size: 0.875rem;
+  color: var(--ui-text-muted);
+  margin: 0.75rem 0 2rem;
 }
 
 .blog-footer {
