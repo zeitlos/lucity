@@ -30,9 +30,9 @@ export default defineNuxtConfig({
   css: ['~/assets/css/main.css'],
   app: {
     head: {
-      script: [
-        { src: 'https://p.lucity.cloud/api/script.js', defer: true, 'data-site-id': '42cfa77ed96d' }
-      ],
+      script: process.env.NODE_ENV === 'production'
+        ? [{ src: 'https://p.lucity.cloud/api/script.js', defer: true, 'data-site-id': '42cfa77ed96d' }]
+        : [],
       link: [
         { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }
       ],
