@@ -1,7 +1,7 @@
 ---
 title: "The Software Deployment Trilemma"
 description: "There seems to be a trilemma in software deployment solutions that says: Scalable, Simple, Sovereign — pick two."
-date: "2026-04-14"
+date: "2026-04-15"
 author: "Christian Blättler"
 ---
 
