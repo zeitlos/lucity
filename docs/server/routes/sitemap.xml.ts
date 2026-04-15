@@ -12,9 +12,10 @@ export default defineEventHandler(async (event) => {
 
   const urls: SitemapUrl[] = [
     { loc: '/', lastmod: mostRecentDate(contentDates) },
+    { loc: '/blog' },
   ];
 
-  for (const collection of ['docs', 'landing']) {
+  for (const collection of ['docs', 'landing', 'blog']) {
     try {
       const pages = await queryCollection(event, collection as 'docs').all();
 
