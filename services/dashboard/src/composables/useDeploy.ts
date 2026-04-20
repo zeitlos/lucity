@@ -1,8 +1,39 @@
 import { reactive } from 'vue';
 import { apolloClient } from '@/lib/apollo';
-import { DeployDocument, DeployStatusDocument, DeployPhase } from '@/gql/graphql';
+import { graphql } from '@/gql';
+import { DeployPhase } from '@/gql/graphql';
 import { toast, errorToast } from '@/components/ui/sonner';
 import { errorMessage } from '@/lib/utils';
+
+const DeployDocument = graphql(`
+  mutation Deploy($input: DeployInput!) {
+    deploy(input: $input) {
+      id
+      phase
+      buildId
+      imageRef
+      digest
+      error
+      startedAt
+    }
+  }
+`);
+
+const DeployStatusDocument = graphql(`
+  query DeployStatus($id: ID!) {
+    deployStatus(id: $id) {
+      id
+      phase
+      buildId
+      imageRef
+      digest
+      error
+      startedAt
+      rolloutHealth
+      rolloutMessage
+    }
+  }
+`);
 
 export interface DeployState {
   deployId: string | null;

@@ -1,6 +1,23 @@
 import { ref, watch, onUnmounted, computed, type Ref } from 'vue';
 import { apolloClient } from '@/lib/apollo';
-import { ActiveDeploymentDocument, DeployPhase } from '@/gql/graphql';
+import { graphql } from '@/gql';
+import { DeployPhase } from '@/gql/graphql';
+
+const ActiveDeploymentDocument = graphql(`
+  query ActiveDeployment($projectId: ID!, $service: String!, $environment: String!) {
+    activeDeployment(projectId: $projectId, service: $service, environment: $environment) {
+      id
+      phase
+      buildId
+      imageRef
+      digest
+      error
+      startedAt
+      rolloutHealth
+      rolloutMessage
+    }
+  }
+`);
 
 export interface CanvasDeployInfo {
   phase: string;

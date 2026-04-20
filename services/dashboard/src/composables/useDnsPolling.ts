@@ -1,7 +1,21 @@
 import { reactive, onUnmounted } from 'vue';
 import { apolloClient } from '@/lib/apollo';
-import { CheckDnsStatusDocument, DnsStatus, TlsStatus } from '@/gql/graphql';
+import { graphql } from '@/gql';
+import { DnsStatus, TlsStatus } from '@/gql/graphql';
 import { toast } from '@/components/ui/sonner';
+
+const CheckDnsStatusDocument = graphql(`
+  query CheckDnsStatus($hostname: String!) {
+    checkDnsStatus(hostname: $hostname) {
+      hostname
+      status
+      cnameTarget
+      expectedTarget
+      message
+      tlsStatus
+    }
+  }
+`);
 
 export interface DnsCheckResult {
   hostname: string;

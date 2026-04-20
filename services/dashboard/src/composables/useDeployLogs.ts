@@ -1,6 +1,12 @@
 import { ref, watch, type Ref } from 'vue';
 import { useSubscription } from '@vue/apollo-composable';
-import { DeployLogsDocument } from '@/gql/graphql';
+import { graphql } from '@/gql';
+
+const DeployLogsDocument = graphql(`
+  subscription DeployLogs($id: ID!) {
+    deployLogs(id: $id)
+  }
+`);
 
 export function useDeployLogs(deployId: Ref<string | null>) {
   const lines = ref<string[]>([]);

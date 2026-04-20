@@ -6,20 +6,78 @@ import {
   ChevronDown, Network, ExternalLink, Loader2, Scaling, GitBranch, Github, Code, Play, Container, ArrowRight,
   Cpu, MemoryStick, Leaf, ShieldCheck, FileText,
 } from 'lucide-vue-next';
+import { graphql } from '@/gql';
 import {
-  RemoveServiceDocument,
-  SetCustomStartCommandDocument,
-  GenerateDomainDocument,
-  AddCustomDomainDocument,
-  RemoveDomainDocument,
-  PlatformConfigDocument,
-  SetServiceScalingDocument,
   type SetServiceScalingInput,
   DnsStatus,
   TlsStatus,
   DomainType,
   ResourceTier,
 } from '@/gql/graphql';
+
+const RemoveServiceDocument = graphql(`
+  mutation RemoveService($projectId: ID!, $environment: String!, $service: String!) {
+    removeService(projectId: $projectId, environment: $environment, service: $service)
+  }
+`);
+
+const SetCustomStartCommandDocument = graphql(`
+  mutation SetCustomStartCommand($projectId: ID!, $environment: String!, $service: String!, $command: String!) {
+    setCustomStartCommand(projectId: $projectId, environment: $environment, service: $service, command: $command)
+  }
+`);
+
+const GenerateDomainDocument = graphql(`
+  mutation GenerateDomain($input: GenerateDomainInput!) {
+    generateDomain(input: $input) {
+      hostname
+      type
+      dnsStatus
+      tlsStatus
+    }
+  }
+`);
+
+const AddCustomDomainDocument = graphql(`
+  mutation AddCustomDomain($input: AddCustomDomainInput!) {
+    addCustomDomain(input: $input) {
+      hostname
+      type
+      dnsStatus
+      tlsStatus
+    }
+  }
+`);
+
+const RemoveDomainDocument = graphql(`
+  mutation RemoveDomain($input: RemoveDomainInput!) {
+    removeDomain(input: $input)
+  }
+`);
+
+const PlatformConfigDocument = graphql(`
+  query PlatformConfig {
+    platformConfig {
+      workloadDomain
+      domainTarget
+      ipAddress
+    }
+  }
+`);
+
+const SetServiceScalingDocument = graphql(`
+  mutation SetServiceScaling($input: SetServiceScalingInput!) {
+    setServiceScaling(input: $input) {
+      replicas
+      autoscaling {
+        enabled
+        minReplicas
+        maxReplicas
+        targetCPU
+      }
+    }
+  }
+`);
 import { useEnvironment } from '@/composables/useEnvironment';
 import type { DomainInfo } from '@/composables/useEnvironment';
 import { useDnsPolling } from '@/composables/useDnsPolling';
@@ -262,7 +320,9 @@ const { mutate: removeDomainMutate } = useMutation(RemoveDomainDocument);
 
 async function handleGenerateDomain() {
   const envName = activeEnvironment.value?.name;
-  if (!envName) return;
+  if (!envName) {
+    return;
+  }
 
   try {
     const res = await generateDomainMutate({

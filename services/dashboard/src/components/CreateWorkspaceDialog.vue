@@ -1,7 +1,16 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { useMutation } from '@vue/apollo-composable';
-import { CreateWorkspaceCheckoutDocument, Plan } from '@/gql/graphql';
+import { graphql } from '@/gql';
+import { Plan } from '@/gql/graphql';
+
+const CreateWorkspaceCheckoutDocument = graphql(`
+  mutation CreateWorkspaceCheckout($input: CreateWorkspaceCheckoutInput!) {
+    createWorkspaceCheckout(input: $input) {
+      url
+    }
+  }
+`);
 import { Button } from '@/components/ui/button';
 import {
   Dialog,

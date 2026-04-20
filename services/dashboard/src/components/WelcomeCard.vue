@@ -2,7 +2,16 @@
 import { ref } from 'vue';
 import { useMutation } from '@vue/apollo-composable';
 import { Github, ArrowRight, FolderPlus } from 'lucide-vue-next';
-import { CreatePlanCheckoutDocument, Plan } from '@/gql/graphql';
+import { graphql } from '@/gql';
+import { Plan } from '@/gql/graphql';
+
+const CreatePlanCheckoutDocument = graphql(`
+  mutation CreatePlanCheckout($plan: Plan!) {
+    createPlanCheckout(plan: $plan) {
+      url
+    }
+  }
+`);
 import { useAuth } from '@/composables/useAuth';
 import { errorToast } from '@/components/ui/sonner';
 import { errorMessage } from '@/lib/utils';

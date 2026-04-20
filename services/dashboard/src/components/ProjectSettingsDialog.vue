@@ -2,7 +2,13 @@
 import { useRouter } from 'vue-router';
 import { useMutation } from '@vue/apollo-composable';
 import { Trash2 } from 'lucide-vue-next';
-import { DeleteProjectDocument } from '@/gql/graphql';
+import { graphql } from '@/gql';
+
+const DeleteProjectDocument = graphql(`
+  mutation DeleteProject($id: ID!) {
+    deleteProject(id: $id)
+  }
+`);
 import { apolloClient } from '@/lib/apollo';
 import { Button } from '@/components/ui/button';
 import {

@@ -6,7 +6,31 @@ import { Clock, Sparkles, AlertTriangle } from 'lucide-vue-next';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { SubscriptionDocument, SubscriptionStatus, UsageSummaryDocument } from '@/gql/graphql';
+import { graphql } from '@/gql';
+import { SubscriptionStatus } from '@/gql/graphql';
+
+const SubscriptionDocument = graphql(`
+  query Subscription {
+    subscription {
+      plan
+      status
+      currentPeriodEnd
+      creditAmountCents
+      creditExpiry
+      hasPaymentMethod
+    }
+  }
+`);
+
+const UsageSummaryDocument = graphql(`
+  query UsageSummary {
+    usageSummary {
+      resourceCostCents
+      creditsCents
+      estimatedTotalCents
+    }
+  }
+`);
 
 const router = useRouter();
 const { result: subResult } = useQuery(SubscriptionDocument, null, { fetchPolicy: 'cache-and-network' });

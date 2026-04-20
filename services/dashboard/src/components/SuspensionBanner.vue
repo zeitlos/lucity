@@ -3,7 +3,21 @@ import { computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useQuery } from '@vue/apollo-composable';
 import { AlertTriangle, Sparkles } from 'lucide-vue-next';
-import { SubscriptionDocument, SubscriptionStatus } from '@/gql/graphql';
+import { graphql } from '@/gql';
+import { SubscriptionStatus } from '@/gql/graphql';
+
+const SubscriptionDocument = graphql(`
+  query Subscription {
+    subscription {
+      plan
+      status
+      currentPeriodEnd
+      creditAmountCents
+      creditExpiry
+      hasPaymentMethod
+    }
+  }
+`);
 
 const router = useRouter();
 const { result: subResult } = useQuery(SubscriptionDocument, null, { fetchPolicy: 'cache-and-network' });

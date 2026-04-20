@@ -1,7 +1,106 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
 import { useMutation } from '@vue/apollo-composable';
-import { CreateEnvironmentDocument, ProjectDocument, type CreateEnvironmentInput, ResourceTier } from '@/gql/graphql';
+import { graphql } from '@/gql';
+import { type CreateEnvironmentInput, ResourceTier } from '@/gql/graphql';
+
+const CreateEnvironmentDocument = graphql(`
+  mutation CreateEnvironment($input: CreateEnvironmentInput!) {
+    createEnvironment(input: $input) {
+      id
+      name
+      namespace
+      ephemeral
+      syncStatus
+      resourceTier
+    }
+  }
+`);
+
+const ProjectDocument = graphql(`
+  query Project($id: ID!) {
+    project(id: $id) {
+      id
+      name
+      createdAt
+      environments {
+        id
+        name
+        namespace
+        ephemeral
+        syncStatus
+        resourceTier
+        services {
+          id
+          name
+          environment
+          image
+          port
+          framework
+          startCommand
+          sourceUrl
+          contextPath
+          customStartCommand
+          imageTag
+          ready
+          replicas
+          scaling {
+            replicas
+            autoscaling {
+              enabled
+              minReplicas
+              maxReplicas
+              targetCPU
+            }
+          }
+          resources {
+            cpuMillicores
+            memoryMB
+            cpuLimitMillicores
+            memoryLimitMB
+          }
+          domains {
+            hostname
+            type
+            dnsStatus
+            tlsStatus
+          }
+          deployments {
+            id
+            imageTag
+            active
+            timestamp
+            revision
+            message
+            sourceCommitMessage
+            sourceUrl
+          }
+        }
+        databases {
+          name
+          environment
+          ready
+          instances
+          version
+          size
+          volume {
+            name
+            size
+            requestedSize
+            usedBytes
+            capacityBytes
+          }
+        }
+      }
+      databases {
+        name
+        version
+        instances
+        size
+      }
+    }
+  }
+`);
 import { useEnvironment } from '@/composables/useEnvironment';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

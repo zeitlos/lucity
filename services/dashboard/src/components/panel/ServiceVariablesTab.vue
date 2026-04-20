@@ -2,7 +2,39 @@
 import { ref, watch, computed } from 'vue';
 import { useQuery, useMutation } from '@vue/apollo-composable';
 import { Plus, Trash2, Link, Database, Globe } from 'lucide-vue-next';
-import { ServiceVariablesDocument, SetServiceVariablesDocument, SharedVariablesDocument } from '@/gql/graphql';
+import { graphql } from '@/gql';
+
+const ServiceVariablesDocument = graphql(`
+  query ServiceVariables($projectId: ID!, $environment: String!, $service: String!) {
+    serviceVariables(projectId: $projectId, environment: $environment, service: $service) {
+      key
+      value
+      fromShared
+      databaseRef {
+        database
+        key
+      }
+      serviceRef {
+        service
+      }
+    }
+  }
+`);
+
+const SetServiceVariablesDocument = graphql(`
+  mutation SetServiceVariables($projectId: ID!, $environment: String!, $service: String!, $variables: [ServiceVariableInput!]!) {
+    setServiceVariables(projectId: $projectId, environment: $environment, service: $service, variables: $variables)
+  }
+`);
+
+const SharedVariablesDocument = graphql(`
+  query SharedVariables($projectId: ID!, $environment: String!) {
+    sharedVariables(projectId: $projectId, environment: $environment) {
+      key
+      value
+    }
+  }
+`);
 import { useEnvironment } from '@/composables/useEnvironment';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

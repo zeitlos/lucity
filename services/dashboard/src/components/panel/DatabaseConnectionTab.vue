@@ -2,8 +2,21 @@
 import { reactive, computed } from 'vue';
 import { useQuery } from '@vue/apollo-composable';
 import { Copy, Eye, EyeOff, Loader2, DatabaseZap } from 'lucide-vue-next';
-import { DatabaseCredentialsDocument } from '@/gql/graphql';
+import { graphql } from '@/gql';
 import { useEnvironment } from '@/composables/useEnvironment';
+
+const DatabaseCredentialsDocument = graphql(`
+  query DatabaseCredentials($projectId: ID!, $environment: String!, $database: String!) {
+    databaseCredentials(projectId: $projectId, environment: $environment, database: $database) {
+      host
+      port
+      dbname
+      user
+      password
+      uri
+    }
+  }
+`);
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from '@/components/ui/sonner';

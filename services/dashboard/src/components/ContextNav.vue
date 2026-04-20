@@ -5,7 +5,42 @@ import { useQuery } from '@vue/apollo-composable';
 import { ChevronDown, Plus, Check, User, Users, Loader2, Settings } from 'lucide-vue-next';
 import { useAuth } from '@/composables/useAuth';
 import { useEnvironment } from '@/composables/useEnvironment';
-import { WorkspacesDocument, ProjectsDocument, ResourceTier } from '@/gql/graphql';
+import { graphql } from '@/gql';
+import { ResourceTier } from '@/gql/graphql';
+
+const WorkspacesDocument = graphql(`
+  query Workspaces {
+    workspaces {
+      id
+      name
+      personal
+    }
+  }
+`);
+
+const ProjectsDocument = graphql(`
+  query Projects {
+    projects {
+      id
+      name
+      createdAt
+      environments {
+        id
+        name
+        syncStatus
+        resourceTier
+        services {
+          name
+          sourceUrl
+        }
+      }
+      databases {
+        name
+        version
+      }
+    }
+  }
+`);
 import { apolloClient } from '@/lib/apollo';
 import {
   AlertDialog,

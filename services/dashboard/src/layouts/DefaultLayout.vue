@@ -4,7 +4,24 @@ import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
 import { useQuery } from '@vue/apollo-composable';
 import { Download, LogOut, Settings } from 'lucide-vue-next';
 import { useAuth } from '@/composables/useAuth';
-import { WorkspaceDocument } from '@/gql/graphql';
+import { graphql } from '@/gql';
+
+const WorkspaceDocument = graphql(`
+  query Workspace {
+    workspace {
+      id
+      name
+      personal
+      suspended
+      members {
+        id
+        email
+        name
+        role
+      }
+    }
+  }
+`);
 import BaseLogo from '@/components/BaseLogo.vue';
 import ContextNav from '@/components/ContextNav.vue';
 import ThemeToggle from '@/components/ThemeToggle.vue';

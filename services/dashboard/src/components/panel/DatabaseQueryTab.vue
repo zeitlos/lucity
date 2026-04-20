@@ -3,7 +3,17 @@ import { ref } from 'vue';
 import { useApolloClient } from '@vue/apollo-composable';
 import { Play, Loader2 } from 'lucide-vue-next';
 import { useEnvironment } from '@/composables/useEnvironment';
-import { ExecuteQueryDocument } from '@/gql/graphql';
+import { graphql } from '@/gql';
+
+const ExecuteQueryDocument = graphql(`
+  mutation ExecuteQuery($input: DatabaseQueryInput!) {
+    executeQuery(input: $input) {
+      columns
+      rows
+      affectedRows
+    }
+  }
+`);
 import {
   Table,
   TableBody,

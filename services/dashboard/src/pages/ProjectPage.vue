@@ -2,7 +2,92 @@
 import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuery } from '@vue/apollo-composable';
-import { ProjectDocument } from '@/gql/graphql';
+import { graphql } from '@/gql';
+
+const ProjectDocument = graphql(`
+  query Project($id: ID!) {
+    project(id: $id) {
+      id
+      name
+      createdAt
+      environments {
+        id
+        name
+        namespace
+        ephemeral
+        syncStatus
+        resourceTier
+        services {
+          id
+          name
+          environment
+          image
+          port
+          framework
+          startCommand
+          sourceUrl
+          contextPath
+          customStartCommand
+          imageTag
+          ready
+          replicas
+          scaling {
+            replicas
+            autoscaling {
+              enabled
+              minReplicas
+              maxReplicas
+              targetCPU
+            }
+          }
+          resources {
+            cpuMillicores
+            memoryMB
+            cpuLimitMillicores
+            memoryLimitMB
+          }
+          domains {
+            hostname
+            type
+            dnsStatus
+            tlsStatus
+          }
+          deployments {
+            id
+            imageTag
+            active
+            timestamp
+            revision
+            message
+            sourceCommitMessage
+            sourceUrl
+          }
+        }
+        databases {
+          name
+          environment
+          ready
+          instances
+          version
+          size
+          volume {
+            name
+            size
+            requestedSize
+            usedBytes
+            capacityBytes
+          }
+        }
+      }
+      databases {
+        name
+        version
+        instances
+        size
+      }
+    }
+  }
+`);
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import ServiceCanvas from '@/components/canvas/ServiceCanvas.vue';

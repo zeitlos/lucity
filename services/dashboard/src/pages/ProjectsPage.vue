@@ -3,7 +3,38 @@ import { useQuery } from '@vue/apollo-composable';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 import { computed, ref, watch } from 'vue';
 import { Plus, Github, Box } from 'lucide-vue-next';
-import { ProjectsDocument, GitHubConnectedDocument, SyncStatus } from '@/gql/graphql';
+import { graphql } from '@/gql';
+import { SyncStatus } from '@/gql/graphql';
+
+const ProjectsDocument = graphql(`
+  query Projects {
+    projects {
+      id
+      name
+      createdAt
+      environments {
+        id
+        name
+        syncStatus
+        resourceTier
+        services {
+          name
+          sourceUrl
+        }
+      }
+      databases {
+        name
+        version
+      }
+    }
+  }
+`);
+
+const GitHubConnectedDocument = graphql(`
+  query GitHubConnected {
+    githubConnected
+  }
+`);
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';

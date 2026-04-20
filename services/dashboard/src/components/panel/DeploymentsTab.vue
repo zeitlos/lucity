@@ -9,7 +9,30 @@ import { useEnvironment } from '@/composables/useEnvironment';
 import { useDeploy } from '@/composables/useDeploy';
 import { useDeploymentLogsPanel } from '@/composables/useDeploymentLogsPanel';
 import { apolloClient } from '@/lib/apollo';
-import { ActiveDeploymentDocument, RollbackDocument, DeployPhase, SyncStatus } from '@/gql/graphql';
+import { graphql } from '@/gql';
+import { DeployPhase, SyncStatus } from '@/gql/graphql';
+
+const ActiveDeploymentDocument = graphql(`
+  query ActiveDeployment($projectId: ID!, $service: String!, $environment: String!) {
+    activeDeployment(projectId: $projectId, service: $service, environment: $environment) {
+      id
+      phase
+      buildId
+      imageRef
+      digest
+      error
+      startedAt
+      rolloutHealth
+      rolloutMessage
+    }
+  }
+`);
+
+const RollbackDocument = graphql(`
+  mutation Rollback($input: RollbackInput!) {
+    rollback(input: $input)
+  }
+`);
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';

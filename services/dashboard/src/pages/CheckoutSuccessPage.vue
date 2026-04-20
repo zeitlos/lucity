@@ -2,7 +2,17 @@
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useMutation } from '@vue/apollo-composable';
-import { CompleteWorkspaceCheckoutDocument } from '@/gql/graphql';
+import { graphql } from '@/gql';
+
+const CompleteWorkspaceCheckoutDocument = graphql(`
+  mutation CompleteWorkspaceCheckout($sessionId: String!) {
+    completeWorkspaceCheckout(sessionId: $sessionId) {
+      id
+      name
+      personal
+    }
+  }
+`);
 import { useAuth } from '@/composables/useAuth';
 import { apolloClient } from '@/lib/apollo';
 import { Loader2, AlertCircle } from 'lucide-vue-next';

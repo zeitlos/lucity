@@ -3,7 +3,131 @@ import { computed, ref, reactive } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuery, useMutation } from '@vue/apollo-composable';
 import { ArrowLeft, Trash2, ChevronDown, ChevronRight } from 'lucide-vue-next';
-import { ProjectDocument, DeleteProjectDocument, DeleteEnvironmentDocument, EnvironmentResourcesDocument, SetEnvironmentResourcesDocument, ResourceTier } from '@/gql/graphql';
+import { graphql } from '@/gql';
+import { ResourceTier } from '@/gql/graphql';
+
+const ProjectDocument = graphql(`
+  query Project($id: ID!) {
+    project(id: $id) {
+      id
+      name
+      createdAt
+      environments {
+        id
+        name
+        namespace
+        ephemeral
+        syncStatus
+        resourceTier
+        services {
+          id
+          name
+          environment
+          image
+          port
+          framework
+          startCommand
+          sourceUrl
+          contextPath
+          customStartCommand
+          imageTag
+          ready
+          replicas
+          scaling {
+            replicas
+            autoscaling {
+              enabled
+              minReplicas
+              maxReplicas
+              targetCPU
+            }
+          }
+          resources {
+            cpuMillicores
+            memoryMB
+            cpuLimitMillicores
+            memoryLimitMB
+          }
+          domains {
+            hostname
+            type
+            dnsStatus
+            tlsStatus
+          }
+          deployments {
+            id
+            imageTag
+            active
+            timestamp
+            revision
+            message
+            sourceCommitMessage
+            sourceUrl
+          }
+        }
+        databases {
+          name
+          environment
+          ready
+          instances
+          version
+          size
+          volume {
+            name
+            size
+            requestedSize
+            usedBytes
+            capacityBytes
+          }
+        }
+      }
+      databases {
+        name
+        version
+        instances
+        size
+      }
+    }
+  }
+`);
+
+const DeleteProjectDocument = graphql(`
+  mutation DeleteProject($id: ID!) {
+    deleteProject(id: $id)
+  }
+`);
+
+const DeleteEnvironmentDocument = graphql(`
+  mutation DeleteEnvironment($projectId: ID!, $environment: String!) {
+    deleteEnvironment(projectId: $projectId, environment: $environment)
+  }
+`);
+
+const EnvironmentResourcesDocument = graphql(`
+  query EnvironmentResources($projectId: ID!, $environment: String!) {
+    environmentResources(projectId: $projectId, environment: $environment) {
+      tier
+      allocation {
+        cpuMillicores
+        memoryMB
+        diskMB
+      }
+    }
+  }
+`);
+
+const SetEnvironmentResourcesDocument = graphql(`
+  mutation SetEnvironmentResources($input: SetEnvironmentResourcesInput!) {
+    setEnvironmentResources(input: $input) {
+      tier
+      allocation {
+        cpuMillicores
+        memoryMB
+        diskMB
+      }
+    }
+  }
+`);
 import { apolloClient } from '@/lib/apollo';
 import { useEnvironment } from '@/composables/useEnvironment';
 import SharedVariablesEditor from '@/components/SharedVariablesEditor.vue';

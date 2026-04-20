@@ -4,17 +4,104 @@ import { useRouter } from 'vue-router';
 import { useQuery, useMutation, useApolloClient } from '@vue/apollo-composable';
 import { Github, FolderPlus, Plus, Lock, Globe, ArrowLeft, Search, X, Database, ChevronDown, Container, Star, Award, Loader2 } from 'lucide-vue-next';
 import { onKeyStroke, refDebounced } from '@vueuse/core';
-import {
-  GitHubConnectedDocument,
-  GitHubSourcesDocument,
-  GitHubRepositoriesDocument,
-  CreateProjectDocument,
-  AddServiceDocument,
-  DetectServicesDocument,
-  SearchImagesDocument,
-  CreateDatabaseDocument,
-  GitHubAccountType,
-} from '@/gql/graphql';
+import { graphql } from '@/gql';
+import { GitHubAccountType } from '@/gql/graphql';
+
+const GitHubConnectedDocument = graphql(`
+  query GitHubConnected {
+    githubConnected
+  }
+`);
+
+const GitHubSourcesDocument = graphql(`
+  query GitHubSources {
+    githubSources {
+      id
+      accountLogin
+      accountAvatarUrl
+      accountType
+    }
+  }
+`);
+
+const GitHubRepositoriesDocument = graphql(`
+  query GitHubRepositories($installationId: ID!) {
+    githubRepositories(installationId: $installationId) {
+      id
+      name
+      fullName
+      htmlUrl
+      defaultBranch
+      private
+    }
+  }
+`);
+
+const CreateProjectDocument = graphql(`
+  mutation CreateProject($input: CreateProjectInput!) {
+    createProject(input: $input) {
+      id
+      name
+    }
+  }
+`);
+
+const AddServiceDocument = graphql(`
+  mutation AddService($input: AddServiceInput!) {
+    addService(input: $input) {
+      id
+      name
+      environment
+      image
+      port
+      framework
+      startCommand
+      sourceUrl
+      contextPath
+      customStartCommand
+      imageTag
+      initialDeploy {
+        id
+        phase
+      }
+    }
+  }
+`);
+
+const DetectServicesDocument = graphql(`
+  query DetectServices($installationId: ID!, $repository: String!) {
+    detectServices(installationId: $installationId, repository: $repository) {
+      name
+      language
+      framework
+      startCommand
+      suggestedPort
+    }
+  }
+`);
+
+const SearchImagesDocument = graphql(`
+  query SearchImages($query: String!) {
+    searchImages(query: $query) {
+      name
+      description
+      starCount
+      pullCount
+      official
+    }
+  }
+`);
+
+const CreateDatabaseDocument = graphql(`
+  mutation CreateDatabase($input: CreateDatabaseInput!) {
+    createDatabase(input: $input) {
+      name
+      version
+      instances
+      size
+    }
+  }
+`);
 import { useEnvironment } from '@/composables/useEnvironment';
 import { useGitHubInstall } from '@/composables/useGitHubInstall';
 import { toast, errorToast } from '@/components/ui/sonner';

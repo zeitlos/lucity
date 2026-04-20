@@ -25,8 +25,25 @@ Vue 3 + Vite + TypeScript SPA with Vue Router. Apollo Client for GraphQL.
 ### GraphQL
 
 - Schema source: `../gateway/graphql/schema/*.graphqls`
-- Per-page query files: `src/pages/<domain>/graphql.ts`
-- Fragment-based reuse for shared fields
+- Queries and mutations are defined **inline in the consuming component or composable** using the `graphql()` tagged template from `@/gql`. Codegen ([.graphqlrc.yaml](.graphqlrc.yaml)) scans `./src/**/*.vue` and `./src/**/*.ts` for these calls.
+- `npm run codegen` generates `src/gql/{gql,graphql,index}.ts` — never hand-edit these files.
+- Input types, result types, and enums (e.g. `DnsStatus`, `DeployPhase`) are imported from `@/gql/graphql`. The `graphql()` helper itself is imported from `@/gql`.
+- `<script setup>` cannot `export`, so inline documents are declared as local `const`s. If a document needs to be shared across files, put it in a plain `.ts` module and import it.
+
+Example:
+
+```ts
+import { graphql } from '@/gql';
+import type { GenerateDomainInput } from '@/gql/graphql';
+
+const GenerateDomainDocument = graphql(`
+  mutation GenerateDomain($input: GenerateDomainInput!) {
+    generateDomain(input: $input) { hostname type dnsStatus tlsStatus }
+  }
+`);
+```
+
+After editing any `graphql()` call or changing the gateway schema, run `npm run codegen`.
 
 ### Key Composables
 

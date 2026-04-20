@@ -4,7 +4,49 @@ import { useQuery } from '@vue/apollo-composable';
 import { useApolloClient } from '@vue/apollo-composable';
 import { ArrowLeft, Table2, Key, ChevronLeft, ChevronRight, Loader2, DatabaseZap } from 'lucide-vue-next';
 import { useEnvironment } from '@/composables/useEnvironment';
-import { DatabaseTablesDocument, DatabaseTableDataDocument } from '@/gql/graphql';
+import { graphql } from '@/gql';
+
+const DatabaseTablesDocument = graphql(`
+  query DatabaseTables($projectId: ID!, $environment: String!, $database: String!) {
+    databaseTables(projectId: $projectId, environment: $environment, database: $database) {
+      name
+      schema
+      estimatedRows
+      columns {
+        name
+        type
+        nullable
+        primaryKey
+      }
+    }
+  }
+`);
+
+const DatabaseTableDataDocument = graphql(`
+  query DatabaseTableData(
+    $projectId: ID!
+    $environment: String!
+    $database: String!
+    $table: String!
+    $schema: String
+    $limit: Int
+    $offset: Int
+  ) {
+    databaseTableData(
+      projectId: $projectId
+      environment: $environment
+      database: $database
+      table: $table
+      schema: $schema
+      limit: $limit
+      offset: $offset
+    ) {
+      columns
+      rows
+      totalEstimatedRows
+    }
+  }
+`);
 import {
   Table,
   TableBody,

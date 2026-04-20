@@ -40,23 +40,133 @@ import {
 import { toast, errorToast } from '@/components/ui/sonner';
 import { errorMessage } from '@/lib/utils';
 import PlanPicker from '@/components/PlanPicker.vue';
+import { graphql } from '@/gql';
 import {
-  WorkspacesDocument,
-  UpdateWorkspaceDocument,
-  DeleteWorkspaceDocument,
-  InviteMemberDocument,
-  RemoveMemberDocument,
-  UpdateMemberRoleDocument,
-  SubscriptionDocument,
   SubscriptionStatus,
-  UsageSummaryDocument,
-  ChangePlanDocument,
-  BillingPortalUrlDocument,
-  CreatePlanCheckoutDocument,
-  WorkspaceDocument,
   WorkspaceRole,
   Plan,
 } from '@/gql/graphql';
+
+const WorkspacesDocument = graphql(`
+  query Workspaces {
+    workspaces {
+      id
+      name
+      personal
+    }
+  }
+`);
+
+const UpdateWorkspaceDocument = graphql(`
+  mutation UpdateWorkspace($input: UpdateWorkspaceInput!) {
+    updateWorkspace(input: $input) {
+      id
+      name
+    }
+  }
+`);
+
+const DeleteWorkspaceDocument = graphql(`
+  mutation DeleteWorkspace {
+    deleteWorkspace
+  }
+`);
+
+const InviteMemberDocument = graphql(`
+  mutation InviteMember($input: InviteMemberInput!) {
+    inviteMember(input: $input) {
+      id
+      email
+      name
+      role
+    }
+  }
+`);
+
+const RemoveMemberDocument = graphql(`
+  mutation RemoveMember($userId: ID!) {
+    removeMember(userId: $userId)
+  }
+`);
+
+const UpdateMemberRoleDocument = graphql(`
+  mutation UpdateMemberRole($input: UpdateMemberRoleInput!) {
+    updateMemberRole(input: $input) {
+      id
+      email
+      name
+      role
+    }
+  }
+`);
+
+const SubscriptionDocument = graphql(`
+  query Subscription {
+    subscription {
+      plan
+      status
+      currentPeriodEnd
+      creditAmountCents
+      creditExpiry
+      hasPaymentMethod
+    }
+  }
+`);
+
+const UsageSummaryDocument = graphql(`
+  query UsageSummary {
+    usageSummary {
+      resourceCostCents
+      creditsCents
+      estimatedTotalCents
+    }
+  }
+`);
+
+const ChangePlanDocument = graphql(`
+  mutation ChangePlan($plan: Plan!) {
+    changePlan(plan: $plan) {
+      plan
+      status
+      currentPeriodEnd
+      creditAmountCents
+      creditExpiry
+    }
+  }
+`);
+
+const BillingPortalUrlDocument = graphql(`
+  mutation BillingPortalUrl {
+    billingPortalUrl {
+      url
+    }
+  }
+`);
+
+const CreatePlanCheckoutDocument = graphql(`
+  mutation CreatePlanCheckout($plan: Plan!) {
+    createPlanCheckout(plan: $plan) {
+      url
+    }
+  }
+`);
+
+const WorkspaceDocument = graphql(`
+  query Workspace {
+    workspace {
+      id
+      name
+      personal
+      suspended
+      members {
+        id
+        email
+        name
+        role
+      }
+    }
+  }
+`);
 
 const router = useRouter();
 const { refreshToken, setActiveWorkspace } = useAuth();

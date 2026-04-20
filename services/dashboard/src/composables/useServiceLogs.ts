@@ -1,6 +1,15 @@
 import { ref, watch, type Ref } from 'vue';
 import { useSubscription } from '@vue/apollo-composable';
-import { ServiceLogsDocument } from '@/gql/graphql';
+import { graphql } from '@/gql';
+
+const ServiceLogsDocument = graphql(`
+  subscription ServiceLogs($projectId: ID!, $service: String!, $environment: String!, $tailLines: Int) {
+    serviceLogs(projectId: $projectId, service: $service, environment: $environment, tailLines: $tailLines) {
+      line
+      pod
+    }
+  }
+`);
 
 export interface LogLine {
   line: string;

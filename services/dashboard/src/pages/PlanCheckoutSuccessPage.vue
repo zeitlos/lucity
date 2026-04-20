@@ -2,7 +2,32 @@
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useMutation } from '@vue/apollo-composable';
-import { CompletePlanCheckoutDocument, SubscriptionDocument } from '@/gql/graphql';
+import { graphql } from '@/gql';
+
+const CompletePlanCheckoutDocument = graphql(`
+  mutation CompletePlanCheckout($sessionId: String!) {
+    completePlanCheckout(sessionId: $sessionId) {
+      plan
+      status
+      currentPeriodEnd
+      creditAmountCents
+      hasPaymentMethod
+    }
+  }
+`);
+
+const SubscriptionDocument = graphql(`
+  query Subscription {
+    subscription {
+      plan
+      status
+      currentPeriodEnd
+      creditAmountCents
+      creditExpiry
+      hasPaymentMethod
+    }
+  }
+`);
 import { apolloClient } from '@/lib/apollo';
 import { Loader2, AlertCircle } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';

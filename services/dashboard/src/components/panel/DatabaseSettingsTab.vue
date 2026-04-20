@@ -2,7 +2,13 @@
 import { ref } from 'vue';
 import { useMutation } from '@vue/apollo-composable';
 import { Trash2, Database, Server, HardDrive } from 'lucide-vue-next';
-import { DeleteDatabaseDocument } from '@/gql/graphql';
+import { graphql } from '@/gql';
+
+const DeleteDatabaseDocument = graphql(`
+  mutation DeleteDatabase($projectId: ID!, $name: String!) {
+    deleteDatabase(projectId: $projectId, name: $name)
+  }
+`);
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
