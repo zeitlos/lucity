@@ -11,6 +11,34 @@ SERVICES=(gateway builder packager deployer webhook cashier)
 ALL_SERVICES=(gateway builder packager deployer webhook cashier dashboard)
 PORTS=(8080 9001 9002 9003 9004 9005 9006 5173)
 
+# SKIP: comma-separated list of services to exclude (e.g. SKIP=gateway,cashier).
+# Useful when debugging a service from your IDE — let everything else hot-reload,
+# then launch the skipped service under Delve. See also .vscode/launch.json.
+SKIP="${SKIP:-}"
+if [[ -n "$SKIP" ]]; then
+    IFS=',' read -r -a SKIP_ARR <<< "$SKIP"
+    _filtered=()
+    for svc in "${SERVICES[@]}"; do
+        _skip=0
+        for s in "${SKIP_ARR[@]}"; do
+            [[ "$svc" == "$s" ]] && _skip=1 && break
+        done
+        [[ $_skip -eq 0 ]] && _filtered+=("$svc")
+    done
+    SERVICES=("${_filtered[@]}")
+
+    _filtered=()
+    for svc in "${ALL_SERVICES[@]}"; do
+        _skip=0
+        for s in "${SKIP_ARR[@]}"; do
+            [[ "$svc" == "$s" ]] && _skip=1 && break
+        done
+        [[ $_skip -eq 0 ]] && _filtered+=("$svc")
+    done
+    ALL_SERVICES=("${_filtered[@]}")
+    unset _filtered _skip
+fi
+
 # Colors
 GREEN=$'\033[32m'
 YELLOW=$'\033[33m'
@@ -132,7 +160,12 @@ read_status() {
 for svc in "${SERVICES[@]}"; do
     start_service "$svc"
 done
-start_dashboard
+for svc in "${ALL_SERVICES[@]}"; do
+    if [[ "$svc" == "dashboard" ]]; then
+        start_dashboard
+        break
+    fi
+done
 
 # Print header
 printf '\n'
