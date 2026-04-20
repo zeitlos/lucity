@@ -169,7 +169,7 @@ watch(visible, (v) => {
           Or let us run it
         </h3>
         <p class="vs-desc">
-          Lucity Cloud is the managed version. Same open-source platform, hosted in Switzerland, zero infrastructure to maintain.
+          Lucity Cloud is the managed version. Same open-source platform, hosted in the EU, zero infrastructure to maintain.
         </p>
         <UButton
           to="https://lucity.cloud/app/login"
