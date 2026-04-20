@@ -168,11 +168,11 @@ function uniqueRepoCount(services: { sourceUrl?: string | null }[]): number {
           <CardHeader>
             <CardTitle class="text-lg">{{ project.name }}</CardTitle>
             <CardDescription class="flex items-center gap-3">
-              <span v-if="allServices(project).length" class="flex items-center gap-1">
+              <span class="flex items-center gap-1">
                 <Box :size="12" />
                 {{ allServices(project).length }} service{{ allServices(project).length !== 1 ? 's' : '' }}
               </span>
-              <span v-if="uniqueRepoCount(allServices(project))" class="flex items-center gap-1">
+              <span class="flex items-center gap-1">
                 <Github :size="12" />
                 {{ uniqueRepoCount(allServices(project)) }} repo{{ uniqueRepoCount(allServices(project)) !== 1 ? 's' : '' }}
               </span>
