@@ -56,7 +56,7 @@ onMounted(async () => {
 <template>
   <UPageHero>
     <template #title>
-      <span class="hero-title">
+      <span class="relative">
         The PaaS you can leave.
         <svg
           class="hero-aside"
@@ -86,25 +86,41 @@ onMounted(async () => {
     </template>
 
     <template #links>
-      <UButton
-        to="https://lucity.cloud/app/login"
-        color="neutral"
-        size="xl"
-        trailing-icon="i-lucide-arrow-right"
-      >
-        Get Started
-      </UButton>
+      <a href="https://lucity.cloud/app/login" class="flex items-center gap-3 bg-neutral-800 text-neutral-50 rounded-lg px-6 py-2 shadow-lg hover:shadow-xl transition-all">
+        <span class="block">
+          <span>
+            Start Deploying
+          </span>
+          <span class="block text-neutral-400 text-xs">
+            14-days free trial with 5€ credits
+          </span>
+        </span>
 
-      <UButton
-        to="https://github.com/zeitlos/lucity"
+        <UIcon
+          name="i-lucide-arrow-right"
+          class="size-4"
+        />
+      </a>
+
+      <a
+        href="https://github.com/zeitlos/lucity"
         target="_blank"
-        variant="outline"
-        icon="i-simple-icons-github"
-        size="xl"
-        color="neutral"
+        class="flex items-center gap-3 border border-neutral-300 rounded-lg px-6 py-2"
       >
-        View on GitHub
-      </UButton>
+        <UIcon
+          name="i-simple-icons-github"
+          class="size-6"
+        />
+
+        <span class="block">
+          <span>
+            View on GitHub
+          </span>
+          <span class="block text-neutral-400 text-xs">
+            Open-source AGPL-3.0
+          </span>
+        </span>
+      </a>
     </template>
   </UPageHero>
 
@@ -140,10 +156,6 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.hero-title {
-  position: relative;
-}
-
 /* SVG container — sized relative to the title font-size via em units.
    Height drives width automatically from the viewBox aspect ratio. */
 .hero-aside {
