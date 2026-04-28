@@ -33,7 +33,6 @@ gateway:
     REGISTRY_URL: lucity-infra-zot.lucity-system.svc.cluster.local:5000
     REGISTRY_IMAGE_PREFIX: 10.96.100.100:5000
     WORKLOAD_DOMAIN: lucity.app
-    DOMAIN_TARGET: lb.lucity.app
     IP_ADDRESS: "46.225.47.40"
     LOGTO_ENDPOINT: http://lucity-infra-logto.lucity-system.svc.cluster.local:3001
   envSecret:

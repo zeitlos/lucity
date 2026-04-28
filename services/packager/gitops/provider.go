@@ -46,111 +46,121 @@ type ServiceRef struct {
 	Service string
 }
 
-// Provider abstracts Git repository operations for GitOps repos.
-// Implementation: Soft-serve.
-type Provider interface {
+// Forge abstracts Git servers where GitOps repos are stored.
+// It is workspace-aware and builds repository names in the format of {workspace}-{repo}-{RepoSuffix}.
+type Forge interface {
 	// CreateRepo creates a GitOps repo with the standard directory structure
 	// and an initial commit. Returns the repo clone URL.
-	CreateRepo(ctx context.Context, project, displayName string) (repoURL string, err error)
+	CreateRepo(ctx context.Context, name, workspace, displayName string) (repoURL string, err error)
 
-	// Repos lists all project GitOps repos and their metadata.
-	Repos(ctx context.Context) ([]ProjectMeta, error)
+	// Repos lists all GitOps repos, optionally filtered by workspace. If workspace is empty, all repos are returned.
+	Repos(ctx context.Context, workspace string) ([]RepositoryEntry, error)
 
-	// Repo reads a single project's metadata from its GitOps repo.
-	Repo(ctx context.Context, project string) (*ProjectMeta, error)
+	// Repo reads a single repository's metadata from its GitOps repo.
+	Repo(ctx context.Context, name, workspace string) (*RepositoryEntry, error)
 
-	// DeleteRepo removes a project's GitOps repo.
-	DeleteRepo(ctx context.Context, project string) error
+	// DeleteRepo deletes a GitOps repository from the server.
+	DeleteRepo(ctx context.Context, name, workspace string) error
 
-	// AddService adds a service definition to the project's base/values.yaml
+	// CloneRepo clones a repo into a temporary directory and returns a repo client.
+	CloneRepo(ctx context.Context, httpURL string) (Repository, error)
+}
+
+// Repository abstracts GitOps repo where Chart and values are stored.
+type Repository interface {
+	// Metadata reads project metadata from repo files.
+	Metadata(ctx context.Context) (*RepoMeta, error)
+
+	// AddService adds a service definition to the base/values.yaml
 	// and writes the initial image tag to the target environment's values.yaml.
-	AddService(ctx context.Context, project, environment string, svc ServiceDef) error
+	AddService(ctx context.Context, environment string, svc ServiceDef) error
 
 	// RemoveService removes a service from an environment's values.yaml.
 	// If no other environments reference the service, also removes from base.
-	RemoveService(ctx context.Context, project, environment, service string) error
+	RemoveService(ctx context.Context, environment, service string) error
 
 	// UpdateImageTag updates the image tag for a service in an environment's values.yaml.
 	// commitPrefix controls the git commit message prefix (e.g., "deploy", "rollback").
 	// If empty, defaults to "deploy".
-	UpdateImageTag(ctx context.Context, project, environment, service, tag, digest, commitPrefix string) error
+	UpdateImageTag(ctx context.Context, environment, service, tag, digest, commitPrefix string) error
 
 	// CreateEnvironment creates a new environment directory with values.yaml
-	// in the GitOps repo. If fromEnvironment is set, copies its values as a starting point,
-	// strips all domains, and regenerates platform domains using workloadDomain.
-	// Returns the names of services that received new platform domains.
-	CreateEnvironment(ctx context.Context, project, environment, fromEnvironment, workloadDomain string) (serviceNames []string, err error)
+	// in the GitOps repo. If fromEnvironment is set, copies its values as a starting point and strips all domain.
+	CreateEnvironment(ctx context.Context, environment, fromEnvironment string) error
 
 	// DeleteEnvironment removes an environment directory from the GitOps repo.
-	DeleteEnvironment(ctx context.Context, project, environment string) error
+	DeleteEnvironment(ctx context.Context, environment string) error
 
 	// Promote copies the image tag for a service from one environment to another.
 	// Returns the promoted image tag.
-	Promote(ctx context.Context, project, service, fromEnv, toEnv string) (imageTag string, err error)
+	Promote(ctx context.Context, service, fromEnv, toEnv string) (imageTag string, err error)
 
 	// DeploymentHistory returns the deployment history for a service in an environment,
 	// parsed from the GitOps repo's git log. Returns entries in reverse chronological order.
-	DeploymentHistory(ctx context.Context, project, environment, service string) ([]DeploymentEntry, error)
+	DeploymentHistory(ctx context.Context, environment, service string) ([]DeploymentEntry, error)
 
 	// AddDomain adds a domain hostname to a service in an environment.
-	AddDomain(ctx context.Context, project, environment, service, hostname string) error
+	AddDomain(ctx context.Context, environment, service, hostname string) error
 
 	// RemoveDomain removes a domain hostname from a service in an environment.
-	RemoveDomain(ctx context.Context, project, environment, service, hostname string) error
+	RemoveDomain(ctx context.Context, environment, service, hostname string) error
 
-	// AllDomains returns all domain hostnames across all projects and environments.
-	AllDomains(ctx context.Context) ([]string, error)
+	// Domains returns all domain hostnames across all projects and environments.
+	Domains(ctx context.Context) ([]string, error)
 
 	// EnvironmentServices reads per-environment service state (image tags, domains)
 	// from the environment's values.yaml.
-	EnvironmentServices(ctx context.Context, project, environment string) ([]ServiceInstanceMeta, error)
+	EnvironmentServices(ctx context.Context, environment string) ([]ServiceInstanceMeta, error)
 
-	// RepoFiles returns raw file contents from the GitOps repo, keyed by relative path.
+	// Files returns raw file contents from the GitOps repo, keyed by relative path.
 	// Excludes the chart/ directory (the embedded chart is used instead during ejection).
-	RepoFiles(ctx context.Context, project string) (map[string][]byte, error)
+	Files(ctx context.Context) (map[string][]byte, error)
 
 	// SharedVariables returns all shared variables for an environment.
-	SharedVariables(ctx context.Context, project, environment string) (map[string]string, error)
+	SharedVariables(ctx context.Context, environment string) (map[string]string, error)
 
 	// SetSharedVariables replaces all shared variables for an environment.
 	// Also propagates value changes to any services that reference shared vars via sharedRefs.
-	SetSharedVariables(ctx context.Context, project, environment string, vars map[string]string) error
+	SetSharedVariables(ctx context.Context, environment string, vars map[string]string) error
 
 	// ServiceVariables returns all variables and shared refs for a service in an environment.
-	ServiceVariables(ctx context.Context, project, environment, service string) (vars map[string]string, sharedRefs []string, databaseRefs map[string]DatabaseRef, serviceRefs map[string]ServiceRef, err error)
+	ServiceVariables(ctx context.Context, environment, service string) (vars map[string]string, sharedRefs []string, databaseRefs map[string]DatabaseRef, serviceRefs map[string]ServiceRef, err error)
 
 	// SetServiceVariables replaces all variables for a service in an environment.
 	// Direct values come from vars. Keys listed in sharedRefs are resolved from the
 	// environment's shared variables and merged into the service's env map.
-	SetServiceVariables(ctx context.Context, project, environment, service string, vars map[string]string, sharedRefs []string, databaseRefs map[string]DatabaseRef, serviceRefs map[string]ServiceRef) error
+	SetServiceVariables(ctx context.Context, environment, service string, vars map[string]string, sharedRefs []string, databaseRefs map[string]DatabaseRef, serviceRefs map[string]ServiceRef) error
 
 	// AddDatabase adds a PostgreSQL database definition to base/values.yaml.
-	AddDatabase(ctx context.Context, project string, db DatabaseDef) error
+	AddDatabase(ctx context.Context, db DatabaseDef) error
 
 	// RemoveDatabase removes a database definition from base/values.yaml.
-	RemoveDatabase(ctx context.Context, project, name string) error
+	RemoveDatabase(ctx context.Context, name string) error
 
 	// Databases reads the database definitions from base/values.yaml.
-	Databases(ctx context.Context, project string) ([]DatabaseDef, error)
+	Databases(ctx context.Context) ([]DatabaseDef, error)
 
 	// SyncChart overwrites the embedded lucity-app chart in the project's GitOps repo
 	// with the current version. No-op if the chart is already up to date.
-	SyncChart(ctx context.Context, project string) error
+	// SyncChart(ctx context.Context) error
 
 	// SetResources writes resource requests/limits to an environment's values.yaml.
 	// Keeps the GitOps repo in sync with K8s ResourceQuota for ejection purposes.
-	SetResources(ctx context.Context, project, environment, tier string, cpuMillicores, memoryMB, diskMB int) error
+	SetResources(ctx context.Context, environment, tier string, cpuMillicores, memoryMB, diskMB int) error
 
 	// SetServiceScaling writes replica count and autoscaling config for a service
 	// in an environment's values.yaml.
-	SetServiceScaling(ctx context.Context, project, environment, service string, replicas int, autoscaling *AutoscalingConfig) error
+	SetServiceScaling(ctx context.Context, environment, service string, replicas int, autoscaling *AutoscalingConfig) error
 
 	// SetCustomStartCommand sets or clears the custom start command for a service
 	// in an environment's values.yaml. Empty command clears it.
-	SetCustomStartCommand(ctx context.Context, project, environment, service, command string) error
+	SetCustomStartCommand(ctx context.Context, environment, service, command string) error
 
 	// SetSuspended writes or removes the suspended flag in an environment's values.yaml.
-	SetSuspended(ctx context.Context, project, environment string, suspended bool) error
+	SetSuspended(ctx context.Context, environment string, suspended bool) error
+
+	// Cleanup removes the temporary directory where the repository was cloned into.
+	Cleanup()
 }
 
 // AutoscalingConfig holds HPA settings for a service.
@@ -225,10 +235,16 @@ type EnvironmentMeta struct {
 	Services []ServiceInstanceMeta
 }
 
-// ProjectMeta holds metadata about a project, read from its GitOps repo.
-type ProjectMeta struct {
-	Name             string // slug, e.g., "warm-wren"
-	DisplayName      string // human-readable name (from Soft-serve repo metadata)
+// RepositoryEntry holds information about a GitOps repository, read from the git forge.
+type RepositoryEntry struct {
+	Slug        string // globally unique repo slug
+	DisplayName string // human-readable project name
+	HTTPURL     string
+}
+
+// RepoMeta holds metadata about a project, read from its GitOps repo.
+type RepoMeta struct {
+	Name             string // slug
 	RepoURL          string
 	Environments     []string
 	EnvironmentInfos []EnvironmentMeta

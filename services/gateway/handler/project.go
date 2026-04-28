@@ -304,7 +304,6 @@ func (c *Client) CreateEnvironment(ctx context.Context, projectID, name, fromEnv
 		Project:         projectID,
 		Environment:     name,
 		FromEnvironment: fromEnvironment,
-		WorkloadDomain:  c.WorkloadDomain,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create environment: %w", err)

@@ -19,32 +19,31 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	PackagerService_InitProject_FullMethodName           = "/packager.PackagerService/InitProject"
-	PackagerService_ListProjects_FullMethodName          = "/packager.PackagerService/ListProjects"
-	PackagerService_GetProject_FullMethodName            = "/packager.PackagerService/GetProject"
-	PackagerService_DeleteProject_FullMethodName         = "/packager.PackagerService/DeleteProject"
-	PackagerService_AddService_FullMethodName            = "/packager.PackagerService/AddService"
-	PackagerService_RemoveService_FullMethodName         = "/packager.PackagerService/RemoveService"
-	PackagerService_UpdateImageTag_FullMethodName        = "/packager.PackagerService/UpdateImageTag"
-	PackagerService_CreateEnvironment_FullMethodName     = "/packager.PackagerService/CreateEnvironment"
-	PackagerService_DeleteEnvironment_FullMethodName     = "/packager.PackagerService/DeleteEnvironment"
-	PackagerService_Promote_FullMethodName               = "/packager.PackagerService/Promote"
-	PackagerService_Eject_FullMethodName                 = "/packager.PackagerService/Eject"
-	PackagerService_DeploymentHistory_FullMethodName     = "/packager.PackagerService/DeploymentHistory"
-	PackagerService_AddDomain_FullMethodName             = "/packager.PackagerService/AddDomain"
-	PackagerService_RemoveDomain_FullMethodName          = "/packager.PackagerService/RemoveDomain"
-	PackagerService_AllDomains_FullMethodName            = "/packager.PackagerService/AllDomains"
-	PackagerService_SharedVariables_FullMethodName       = "/packager.PackagerService/SharedVariables"
-	PackagerService_SetSharedVariables_FullMethodName    = "/packager.PackagerService/SetSharedVariables"
-	PackagerService_ServiceVariables_FullMethodName      = "/packager.PackagerService/ServiceVariables"
-	PackagerService_SetServiceVariables_FullMethodName   = "/packager.PackagerService/SetServiceVariables"
-	PackagerService_AddDatabase_FullMethodName           = "/packager.PackagerService/AddDatabase"
-	PackagerService_RemoveDatabase_FullMethodName        = "/packager.PackagerService/RemoveDatabase"
-	PackagerService_SyncChart_FullMethodName             = "/packager.PackagerService/SyncChart"
-	PackagerService_SetResources_FullMethodName          = "/packager.PackagerService/SetResources"
-	PackagerService_SetServiceScaling_FullMethodName     = "/packager.PackagerService/SetServiceScaling"
-	PackagerService_SetCustomStartCommand_FullMethodName = "/packager.PackagerService/SetCustomStartCommand"
-	PackagerService_SetSuspended_FullMethodName          = "/packager.PackagerService/SetSuspended"
+	PackagerService_InitProject_FullMethodName            = "/packager.PackagerService/InitProject"
+	PackagerService_ListProjects_FullMethodName           = "/packager.PackagerService/ListProjects"
+	PackagerService_GetProject_FullMethodName             = "/packager.PackagerService/GetProject"
+	PackagerService_DeleteProject_FullMethodName          = "/packager.PackagerService/DeleteProject"
+	PackagerService_AddService_FullMethodName             = "/packager.PackagerService/AddService"
+	PackagerService_RemoveService_FullMethodName          = "/packager.PackagerService/RemoveService"
+	PackagerService_UpdateImageTag_FullMethodName         = "/packager.PackagerService/UpdateImageTag"
+	PackagerService_CreateEnvironment_FullMethodName      = "/packager.PackagerService/CreateEnvironment"
+	PackagerService_DeleteEnvironment_FullMethodName      = "/packager.PackagerService/DeleteEnvironment"
+	PackagerService_Promote_FullMethodName                = "/packager.PackagerService/Promote"
+	PackagerService_Eject_FullMethodName                  = "/packager.PackagerService/Eject"
+	PackagerService_DeploymentHistory_FullMethodName      = "/packager.PackagerService/DeploymentHistory"
+	PackagerService_GeneratePlatformDomain_FullMethodName = "/packager.PackagerService/GeneratePlatformDomain"
+	PackagerService_AddDomain_FullMethodName              = "/packager.PackagerService/AddDomain"
+	PackagerService_RemoveDomain_FullMethodName           = "/packager.PackagerService/RemoveDomain"
+	PackagerService_SharedVariables_FullMethodName        = "/packager.PackagerService/SharedVariables"
+	PackagerService_SetSharedVariables_FullMethodName     = "/packager.PackagerService/SetSharedVariables"
+	PackagerService_ServiceVariables_FullMethodName       = "/packager.PackagerService/ServiceVariables"
+	PackagerService_SetServiceVariables_FullMethodName    = "/packager.PackagerService/SetServiceVariables"
+	PackagerService_AddDatabase_FullMethodName            = "/packager.PackagerService/AddDatabase"
+	PackagerService_RemoveDatabase_FullMethodName         = "/packager.PackagerService/RemoveDatabase"
+	PackagerService_SetResources_FullMethodName           = "/packager.PackagerService/SetResources"
+	PackagerService_SetServiceScaling_FullMethodName      = "/packager.PackagerService/SetServiceScaling"
+	PackagerService_SetCustomStartCommand_FullMethodName  = "/packager.PackagerService/SetCustomStartCommand"
+	PackagerService_SetSuspended_FullMethodName           = "/packager.PackagerService/SetSuspended"
 )
 
 // PackagerServiceClient is the client API for PackagerService service.
@@ -75,12 +74,12 @@ type PackagerServiceClient interface {
 	Eject(ctx context.Context, in *EjectRequest, opts ...grpc.CallOption) (*EjectResponse, error)
 	// DeploymentHistory returns the deployment history for a service in an environment.
 	DeploymentHistory(ctx context.Context, in *DeploymentHistoryRequest, opts ...grpc.CallOption) (*DeploymentHistoryResponse, error)
+	// GenerateDomain add a generated platform domain (*.{workloadDomain}) to a service in an environment.
+	GeneratePlatformDomain(ctx context.Context, in *GeneratePlatformDomainRequest, opts ...grpc.CallOption) (*GeneratePlatformDomainResponse, error)
 	// AddDomain adds a domain hostname to a service in an environment.
 	AddDomain(ctx context.Context, in *AddDomainRequest, opts ...grpc.CallOption) (*AddDomainResponse, error)
 	// RemoveDomain removes a domain hostname from a service in an environment.
 	RemoveDomain(ctx context.Context, in *RemoveDomainRequest, opts ...grpc.CallOption) (*RemoveDomainResponse, error)
-	// AllDomains returns all domain hostnames across all projects and environments (for collision detection).
-	AllDomains(ctx context.Context, in *AllDomainsRequest, opts ...grpc.CallOption) (*AllDomainsResponse, error)
 	// SharedVariables returns all shared variables for an environment.
 	SharedVariables(ctx context.Context, in *SharedVariablesRequest, opts ...grpc.CallOption) (*SharedVariablesResponse, error)
 	// SetSharedVariables replaces all shared variables for an environment.
@@ -95,9 +94,6 @@ type PackagerServiceClient interface {
 	AddDatabase(ctx context.Context, in *AddDatabaseRequest, opts ...grpc.CallOption) (*AddDatabaseResponse, error)
 	// RemoveDatabase removes a PostgreSQL database from the project's base values.
 	RemoveDatabase(ctx context.Context, in *RemoveDatabaseRequest, opts ...grpc.CallOption) (*RemoveDatabaseResponse, error)
-	// SyncChart updates the embedded lucity-app Helm chart in the project's GitOps repo.
-	// Called to propagate chart template changes (e.g., new Gateway config) to existing repos.
-	SyncChart(ctx context.Context, in *SyncChartRequest, opts ...grpc.CallOption) (*SyncChartResponse, error)
 	// SetResources writes resource requests/limits to an environment's values.yaml.
 	// Keeps the GitOps repo in sync with K8s ResourceQuota for ejection purposes.
 	SetResources(ctx context.Context, in *SetResourcesRequest, opts ...grpc.CallOption) (*SetResourcesResponse, error)
@@ -237,6 +233,16 @@ func (c *packagerServiceClient) DeploymentHistory(ctx context.Context, in *Deplo
 	return out, nil
 }
 
+func (c *packagerServiceClient) GeneratePlatformDomain(ctx context.Context, in *GeneratePlatformDomainRequest, opts ...grpc.CallOption) (*GeneratePlatformDomainResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GeneratePlatformDomainResponse)
+	err := c.cc.Invoke(ctx, PackagerService_GeneratePlatformDomain_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *packagerServiceClient) AddDomain(ctx context.Context, in *AddDomainRequest, opts ...grpc.CallOption) (*AddDomainResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(AddDomainResponse)
@@ -251,16 +257,6 @@ func (c *packagerServiceClient) RemoveDomain(ctx context.Context, in *RemoveDoma
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(RemoveDomainResponse)
 	err := c.cc.Invoke(ctx, PackagerService_RemoveDomain_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *packagerServiceClient) AllDomains(ctx context.Context, in *AllDomainsRequest, opts ...grpc.CallOption) (*AllDomainsResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(AllDomainsResponse)
-	err := c.cc.Invoke(ctx, PackagerService_AllDomains_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -321,16 +317,6 @@ func (c *packagerServiceClient) RemoveDatabase(ctx context.Context, in *RemoveDa
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(RemoveDatabaseResponse)
 	err := c.cc.Invoke(ctx, PackagerService_RemoveDatabase_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *packagerServiceClient) SyncChart(ctx context.Context, in *SyncChartRequest, opts ...grpc.CallOption) (*SyncChartResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(SyncChartResponse)
-	err := c.cc.Invoke(ctx, PackagerService_SyncChart_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -405,12 +391,12 @@ type PackagerServiceServer interface {
 	Eject(context.Context, *EjectRequest) (*EjectResponse, error)
 	// DeploymentHistory returns the deployment history for a service in an environment.
 	DeploymentHistory(context.Context, *DeploymentHistoryRequest) (*DeploymentHistoryResponse, error)
+	// GenerateDomain add a generated platform domain (*.{workloadDomain}) to a service in an environment.
+	GeneratePlatformDomain(context.Context, *GeneratePlatformDomainRequest) (*GeneratePlatformDomainResponse, error)
 	// AddDomain adds a domain hostname to a service in an environment.
 	AddDomain(context.Context, *AddDomainRequest) (*AddDomainResponse, error)
 	// RemoveDomain removes a domain hostname from a service in an environment.
 	RemoveDomain(context.Context, *RemoveDomainRequest) (*RemoveDomainResponse, error)
-	// AllDomains returns all domain hostnames across all projects and environments (for collision detection).
-	AllDomains(context.Context, *AllDomainsRequest) (*AllDomainsResponse, error)
 	// SharedVariables returns all shared variables for an environment.
 	SharedVariables(context.Context, *SharedVariablesRequest) (*SharedVariablesResponse, error)
 	// SetSharedVariables replaces all shared variables for an environment.
@@ -425,9 +411,6 @@ type PackagerServiceServer interface {
 	AddDatabase(context.Context, *AddDatabaseRequest) (*AddDatabaseResponse, error)
 	// RemoveDatabase removes a PostgreSQL database from the project's base values.
 	RemoveDatabase(context.Context, *RemoveDatabaseRequest) (*RemoveDatabaseResponse, error)
-	// SyncChart updates the embedded lucity-app Helm chart in the project's GitOps repo.
-	// Called to propagate chart template changes (e.g., new Gateway config) to existing repos.
-	SyncChart(context.Context, *SyncChartRequest) (*SyncChartResponse, error)
 	// SetResources writes resource requests/limits to an environment's values.yaml.
 	// Keeps the GitOps repo in sync with K8s ResourceQuota for ejection purposes.
 	SetResources(context.Context, *SetResourcesRequest) (*SetResourcesResponse, error)
@@ -483,14 +466,14 @@ func (UnimplementedPackagerServiceServer) Eject(context.Context, *EjectRequest) 
 func (UnimplementedPackagerServiceServer) DeploymentHistory(context.Context, *DeploymentHistoryRequest) (*DeploymentHistoryResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeploymentHistory not implemented")
 }
+func (UnimplementedPackagerServiceServer) GeneratePlatformDomain(context.Context, *GeneratePlatformDomainRequest) (*GeneratePlatformDomainResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GeneratePlatformDomain not implemented")
+}
 func (UnimplementedPackagerServiceServer) AddDomain(context.Context, *AddDomainRequest) (*AddDomainResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AddDomain not implemented")
 }
 func (UnimplementedPackagerServiceServer) RemoveDomain(context.Context, *RemoveDomainRequest) (*RemoveDomainResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RemoveDomain not implemented")
-}
-func (UnimplementedPackagerServiceServer) AllDomains(context.Context, *AllDomainsRequest) (*AllDomainsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method AllDomains not implemented")
 }
 func (UnimplementedPackagerServiceServer) SharedVariables(context.Context, *SharedVariablesRequest) (*SharedVariablesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SharedVariables not implemented")
@@ -509,9 +492,6 @@ func (UnimplementedPackagerServiceServer) AddDatabase(context.Context, *AddDatab
 }
 func (UnimplementedPackagerServiceServer) RemoveDatabase(context.Context, *RemoveDatabaseRequest) (*RemoveDatabaseResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RemoveDatabase not implemented")
-}
-func (UnimplementedPackagerServiceServer) SyncChart(context.Context, *SyncChartRequest) (*SyncChartResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SyncChart not implemented")
 }
 func (UnimplementedPackagerServiceServer) SetResources(context.Context, *SetResourcesRequest) (*SetResourcesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetResources not implemented")
@@ -762,6 +742,24 @@ func _PackagerService_DeploymentHistory_Handler(srv interface{}, ctx context.Con
 	return interceptor(ctx, in, info, handler)
 }
 
+func _PackagerService_GeneratePlatformDomain_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GeneratePlatformDomainRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PackagerServiceServer).GeneratePlatformDomain(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PackagerService_GeneratePlatformDomain_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PackagerServiceServer).GeneratePlatformDomain(ctx, req.(*GeneratePlatformDomainRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _PackagerService_AddDomain_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(AddDomainRequest)
 	if err := dec(in); err != nil {
@@ -794,24 +792,6 @@ func _PackagerService_RemoveDomain_Handler(srv interface{}, ctx context.Context,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(PackagerServiceServer).RemoveDomain(ctx, req.(*RemoveDomainRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _PackagerService_AllDomains_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(AllDomainsRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(PackagerServiceServer).AllDomains(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: PackagerService_AllDomains_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(PackagerServiceServer).AllDomains(ctx, req.(*AllDomainsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -920,24 +900,6 @@ func _PackagerService_RemoveDatabase_Handler(srv interface{}, ctx context.Contex
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(PackagerServiceServer).RemoveDatabase(ctx, req.(*RemoveDatabaseRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _PackagerService_SyncChart_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SyncChartRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(PackagerServiceServer).SyncChart(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: PackagerService_SyncChart_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(PackagerServiceServer).SyncChart(ctx, req.(*SyncChartRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1070,16 +1032,16 @@ var PackagerService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _PackagerService_DeploymentHistory_Handler,
 		},
 		{
+			MethodName: "GeneratePlatformDomain",
+			Handler:    _PackagerService_GeneratePlatformDomain_Handler,
+		},
+		{
 			MethodName: "AddDomain",
 			Handler:    _PackagerService_AddDomain_Handler,
 		},
 		{
 			MethodName: "RemoveDomain",
 			Handler:    _PackagerService_RemoveDomain_Handler,
-		},
-		{
-			MethodName: "AllDomains",
-			Handler:    _PackagerService_AllDomains_Handler,
 		},
 		{
 			MethodName: "SharedVariables",
@@ -1104,10 +1066,6 @@ var PackagerService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RemoveDatabase",
 			Handler:    _PackagerService_RemoveDatabase_Handler,
-		},
-		{
-			MethodName: "SyncChart",
-			Handler:    _PackagerService_SyncChart_Handler,
 		},
 		{
 			MethodName: "SetResources",

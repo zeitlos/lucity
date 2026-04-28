@@ -43,14 +43,14 @@ service PackagerService {
   // DeploymentHistory returns the deployment history for a service in an environment.
   rpc DeploymentHistory(DeploymentHistoryRequest) returns (DeploymentHistoryResponse);
 
+  // GenerateDomain add a generated platform domain (*.{workloadDomain}) to a service in an environment.
+  rpc GeneratePlatformDomain(GeneratePlatformDomainRequest) returns (GeneratePlatformDomainResponse);
+
   // AddDomain adds a domain hostname to a service in an environment.
   rpc AddDomain(AddDomainRequest) returns (AddDomainResponse);
 
   // RemoveDomain removes a domain hostname from a service in an environment.
   rpc RemoveDomain(RemoveDomainRequest) returns (RemoveDomainResponse);
-
-  // AllDomains returns all domain hostnames across all projects and environments (for collision detection).
-  rpc AllDomains(AllDomainsRequest) returns (AllDomainsResponse);
 
   // SharedVariables returns all shared variables for an environment.
   rpc SharedVariables(SharedVariablesRequest) returns (SharedVariablesResponse);
@@ -71,10 +71,6 @@ service PackagerService {
 
   // RemoveDatabase removes a PostgreSQL database from the project's base values.
   rpc RemoveDatabase(RemoveDatabaseRequest) returns (RemoveDatabaseResponse);
-
-  // SyncChart updates the embedded lucity-app Helm chart in the project's GitOps repo.
-  // Called to propagate chart template changes (e.g., new Gateway config) to existing repos.
-  rpc SyncChart(SyncChartRequest) returns (SyncChartResponse);
 
   // SetResources writes resource requests/limits to an environment's values.yaml.
   // Keeps the GitOps repo in sync with K8s ResourceQuota for ejection purposes.
@@ -220,15 +216,10 @@ message CreateEnvironmentRequest {
   string from_environment = 3;
   reserved 4;
   reserved "ephemeral";
-  // Workload domain for generating platform domains (e.g., "lucity.local").
-  // Only used when from_environment is set.
-  string workload_domain = 5;
 }
 
 message CreateEnvironmentResponse {
   string namespace = 1;
-  // Service names that received new platform domains.
-  repeated string services_with_domains = 2;
 }
 
 message DeleteEnvironmentRequest {
@@ -284,6 +275,16 @@ message AddDomainRequest {
 
 message AddDomainResponse {}
 
+message GeneratePlatformDomainRequest {
+  string project = 1;
+  string environment = 2;
+  string service = 3;
+}
+
+message GeneratePlatformDomainResponse {
+  string hostname = 1;
+}
+
 message RemoveDomainRequest {
   string project = 1;
   string environment = 2;
@@ -292,12 +293,6 @@ message RemoveDomainRequest {
 }
 
 message RemoveDomainResponse {}
-
-message AllDomainsRequest {}
-
-message AllDomainsResponse {
-  repeated string hostnames = 1;
-}
 
 // --- Variable management ---
 
@@ -380,12 +375,6 @@ message RemoveDatabaseRequest {
 }
 
 message RemoveDatabaseResponse {}
-
-message SyncChartRequest {
-  string project = 1;
-}
-
-message SyncChartResponse {}
 
 message SetResourcesRequest {
   string project = 1;

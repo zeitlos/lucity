@@ -14,6 +14,7 @@ import (
 	"github.com/zeitlos/lucity/pkg/graceful"
 	"github.com/zeitlos/lucity/pkg/logger"
 	"github.com/zeitlos/lucity/services/packager/gitops"
+	"github.com/zeitlos/lucity/services/packager/gitops/softserve"
 	packagergrpc "github.com/zeitlos/lucity/services/packager/grpc"
 )
 
@@ -33,6 +34,9 @@ type Config struct {
 	// Internal JWT (ES256 for gRPC service-to-service auth)
 	InternalJWTPublicKeyPath  string `envconfig:"INTERNAL_JWT_PUBLIC_KEY_PATH" required:"true"`
 	InternalJWTPrivateKeyPath string `envconfig:"INTERNAL_JWT_PRIVATE_KEY_PATH"`
+
+	// Domains
+	WorkloadDomain string `envconfig:"WORKLOAD_DOMAIN" required:"true"`
 }
 
 func main() {
@@ -47,7 +51,8 @@ func main() {
 	ctx, cancel := graceful.Context()
 	defer cancel()
 
-	provider, err := buildSoftServeProvider(config)
+	gitops, err := buildSoftServeProvider(config)
+
 	if err != nil {
 		slog.Error("failed to create softserve provider", "error", err)
 		os.Exit(1)
@@ -75,7 +80,7 @@ func main() {
 		}
 	}
 
-	svc := packagergrpc.NewServer(provider, deployerClient, issuer)
+	svc := packagergrpc.NewServer(gitops, deployerClient, issuer, config.WorkloadDomain)
 
 	verifier, err := auth.NewInternalVerifierFromFile(config.InternalJWTPublicKeyPath)
 	if err != nil {
@@ -87,7 +92,7 @@ func main() {
 	graceful.Serve(ctx, grpcServer)
 }
 
-func buildSoftServeProvider(config Config) (*gitops.SoftServeProvider, error) {
+func buildSoftServeProvider(config Config) (gitops.Forge, error) {
 	keyData, err := os.ReadFile(config.SoftServeKeyPath)
 	if err != nil {
 		return nil, err
@@ -102,10 +107,5 @@ func buildSoftServeProvider(config Config) (*gitops.SoftServeProvider, error) {
 		"ssh", config.SoftServeSSH,
 		"http", config.SoftServeHTTP)
 
-	return gitops.NewSoftServeProvider(
-		config.SoftServeSSH,
-		config.SoftServeHTTP,
-		signer,
-		config.SoftServeToken,
-	), nil
+	return softserve.New(config.SoftServeSSH, signer, config.SoftServeHTTP, config.SoftServeToken), nil
 }

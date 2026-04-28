@@ -15,9 +15,9 @@ import (
 	ghpkg "github.com/zeitlos/lucity/pkg/github"
 	"github.com/zeitlos/lucity/pkg/graceful"
 	"github.com/zeitlos/lucity/pkg/logger"
+	"github.com/zeitlos/lucity/pkg/logto"
 	"github.com/zeitlos/lucity/pkg/packager"
 	"github.com/zeitlos/lucity/services/gateway/handler"
-	"github.com/zeitlos/lucity/pkg/logto"
 )
 
 type Config struct {
@@ -36,7 +36,7 @@ type Config struct {
 	AuthTestSecret string `envconfig:"AUTH_TEST_SECRET"`               // HS256 test secret for dev/test tokens (never set in production)
 
 	// Logto Management API (M2M)
-	LogtoEndpoint     string `envconfig:"LOGTO_ENDPOINT" required:"true"`    // e.g. "https://id.lucity.cloud"
+	LogtoEndpoint     string `envconfig:"LOGTO_ENDPOINT" required:"true"` // e.g. "https://id.lucity.cloud"
 	LogtoM2MAppID     string `envconfig:"LOGTO_M2M_APP_ID" required:"true"`
 	LogtoM2MAppSecret string `envconfig:"LOGTO_M2M_APP_SECRET" required:"true"`
 
@@ -57,9 +57,8 @@ type Config struct {
 	GitHubOAuthCallbackURL string `envconfig:"GITHUB_OAUTH_CALLBACK_URL" default:"http://localhost:8080/auth/github/callback"`
 
 	// Domains
-	WorkloadDomain string `envconfig:"WORKLOAD_DOMAIN" default:"lucity.local"`
-	DomainTarget   string `envconfig:"DOMAIN_TARGET"`  // CNAME target for custom domains (e.g., lb.lucity.app)
-	IPAddress      string `envconfig:"IP_ADDRESS"`     // LB IP for A record config (e.g., 46.225.47.40)
+	WorkloadDomain string `envconfig:"WORKLOAD_DOMAIN" required:"true"`
+	IPAddress      string `envconfig:"IP_ADDRESS"` // LB IP for A record config (e.g., 46.225.47.40)
 
 	// Billing (optional — disabled when not configured)
 	CashierAddr string `envconfig:"CASHIER_ADDR"`
@@ -161,10 +160,7 @@ func main() {
 		registryImagePrefix = config.RegistryURL
 	}
 
-	domainTarget := config.DomainTarget
-	if domainTarget == "" {
-		domainTarget = "lb." + config.WorkloadDomain
-	}
+	domainTarget := "lb." + config.WorkloadDomain
 
 	// Connect to cashier (optional — billing disabled without it)
 	var cashierClient cashier.CashierServiceClient

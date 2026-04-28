@@ -18,15 +18,9 @@ import (
 // Build produces a zip archive of the ejected project.
 // It reads all files from the GitOps repo, bundles the embedded Helm chart,
 // generates ArgoCD manifests, a build script, and a README.
-func Build(ctx context.Context, provider gitops.Provider, project string) ([]byte, error) {
+func Build(ctx context.Context, repoFiles map[string][]byte, project string) ([]byte, error) {
 	ws := tenant.FromContext(ctx)
 	prefix := project + "-ejected/"
-
-	// Read raw files from the GitOps repo.
-	repoFiles, err := provider.RepoFiles(ctx, project)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read repo files: %w", err)
-	}
 
 	// Extract environment names and service info from the repo files.
 	environments := environmentsFromFiles(repoFiles)

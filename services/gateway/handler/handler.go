@@ -11,9 +11,9 @@ import (
 	"github.com/zeitlos/lucity/pkg/cashier"
 	"github.com/zeitlos/lucity/pkg/deployer"
 	ghpkg "github.com/zeitlos/lucity/pkg/github"
+	"github.com/zeitlos/lucity/pkg/logto"
 	"github.com/zeitlos/lucity/pkg/packager"
 	"github.com/zeitlos/lucity/services/gateway/deploy"
-	"github.com/zeitlos/lucity/pkg/logto"
 )
 
 // TokenRefresher refreshes the Logto access token using a refresh token.
@@ -34,14 +34,14 @@ type Client struct {
 	TokenRefresher      TokenRefresher // refreshes expired Logto access tokens (nil if not configured)
 	RegistryPushURL     string         // for builder push, e.g. "localhost:5000"
 	RegistryImagePrefix string         // for image refs in values.yaml, e.g. cluster-internal address
-	WorkloadDomain      string         // base domain for platform-generated domains (e.g., "lucity.local")
+	WorkloadDomain      string         // base domain for platform-generated domains (e.g., "lucity.app")
 	DomainTarget        string         // CNAME target for custom domains (e.g., "lb.lucity.app")
 	IPAddress           string         // load balancer IP for A record config
 	GitHubAppSlug       string         // GitHub App slug for installation URL generation
 	DashboardURL        string         // base URL for the dashboard (e.g., "http://localhost:5173")
 
 	// Cached Logto org role IDs (looked up by name on first use)
-	orgRoleOnce sync.Once
+	orgRoleOnce  sync.Once
 	adminRoleID  string
 	memberRoleID string
 
