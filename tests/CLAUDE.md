@@ -53,7 +53,6 @@ TestIntegration/Deploy       — deploy, poll deployStatus, deployBuild, rollbac
 TestIntegration/Domain       — setServiceDomain, verify httproute, remove domain
 TestIntegration/Promote      — create staging, promote dev→staging, delete staging
 TestIntegration/Eject        — GET /api/eject/{project}, verify zip archive
-TestIntegration/GitHub       — githubRepositories (skips without GITHUB_TOKEN)
 TestIntegration/Cleanup      — removeService, deleteProject, verify ns/argocd cleaned up
 ```
 
@@ -78,7 +77,6 @@ Tests share state via package-level variables:
 | Domain | gateway, packager, deployer | ArgoCD, Envoy Gateway |
 | Promote | gateway, packager, deployer | ArgoCD, Soft-serve, Minikube |
 | Eject | gateway, packager | Soft-serve |
-| GitHub | gateway | Internet access |
 
 ## kubectl / psql Verification
 
@@ -104,4 +102,3 @@ kubectl delete namespace -l lucity.dev/project=inttest-xxx --ignore-not-found
 |----------|---------|---------|
 | `GATEWAY_URL` | `http://localhost:8080` | Gateway endpoint |
 | `AUTH_TEST_SECRET` | `change-me-in-production` | HS256 test token secret (must match gateway's `AUTH_TEST_SECRET`) |
-| `GITHUB_TOKEN` | (none) | GitHub OAuth token for repo tests (optional) |

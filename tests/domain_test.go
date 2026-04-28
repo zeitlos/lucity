@@ -139,7 +139,6 @@ func testDomain(t *testing.T) {
 		if dns.Hostname != "custom.example.com" {
 			t.Errorf("expected hostname custom.example.com, got %s", dns.Hostname)
 		}
-		// expectedTarget may be empty if DOMAIN_TARGET is not configured (common in dev).
 		if dns.ExpectedTarget != "" {
 			t.Logf("dns check: hostname=%s status=%s expectedTarget=%s", dns.Hostname, dns.Status, dns.ExpectedTarget)
 		} else {

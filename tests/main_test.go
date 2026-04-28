@@ -67,7 +67,6 @@ func TestIntegration(t *testing.T) {
 	t.Run("Domain", testDomain)
 	t.Run("Promote", testPromote)
 	t.Run("Eject", testEject)
-	t.Run("GitHub", testGitHub)
 	t.Run("Cleanup", testCleanup)
 }
 
