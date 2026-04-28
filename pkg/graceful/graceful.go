@@ -7,7 +7,10 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
+	"time"
 )
+
+const shutdownTimeout = 10 * time.Second
 
 // Server is a long-running service that can be started and stopped gracefully.
 type Server interface {
@@ -38,7 +41,7 @@ func Context() (context.Context, context.CancelFunc) {
 }
 
 // Serve starts all servers and blocks until the context is canceled.
-// On cancellation, it shuts down all servers gracefully.
+// On cancellation, it shuts down all servers concurrently with a bounded timeout.
 func Serve(ctx context.Context, servers ...Server) {
 	var wg sync.WaitGroup
 
@@ -56,11 +59,23 @@ func Serve(ctx context.Context, servers ...Server) {
 	<-ctx.Done()
 
 	slog.Info("shutting down servers")
+
+	// The caller's ctx is already canceled. Use a fresh context with a timeout
+	// so shutdown handlers actually get time to drain connections and close listeners.
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+	defer cancel()
+
+	var shutdownWg sync.WaitGroup
 	for _, s := range servers {
-		if err := s.Shutdown(ctx); err != nil {
-			slog.Error("shutdown failed", "server", s.Label(), "error", err)
-		}
+		shutdownWg.Add(1)
+		go func(srv Server) {
+			defer shutdownWg.Done()
+			if err := srv.Shutdown(shutdownCtx); err != nil {
+				slog.Error("shutdown failed", "server", srv.Label(), "error", err)
+			}
+		}(s)
 	}
+	shutdownWg.Wait()
 
 	wg.Wait()
 }
