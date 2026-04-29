@@ -117,10 +117,10 @@ spec:
         send_batch_size: 8192
         timeout: 5s
     exporters:
-      prometheusremotewrite:
-        endpoint: http://{{ .Release.Name }}-victoria-metrics-single-server:8428/api/v1/write
-        resource_to_telemetry_conversion:
-          enabled: true
+      # k8s collector distribution doesn't ship prometheusremotewrite,
+      # so use VictoriaMetrics' native OTLP endpoint instead.
+      otlphttp/metrics:
+        metrics_endpoint: http://{{ .Release.Name }}-victoria-metrics-single-server:8428/opentelemetry/v1/metrics
         tls:
           insecure: true
       otlphttp/logs:
@@ -135,7 +135,7 @@ spec:
         metrics:
           receivers: [hostmetrics, kubeletstats]
           processors: [memory_limiter, k8sattributes, batch]
-          exporters: [prometheusremotewrite]
+          exporters: [otlphttp/metrics]
         logs:
           receivers: [filelog]
           processors: [memory_limiter, k8sattributes, batch]
