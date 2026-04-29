@@ -1,0 +1,162 @@
+{{- if .Values.otelCollector.daemonset.enabled }}
+apiVersion: opentelemetry.io/v1beta1
+kind: OpenTelemetryCollector
+metadata:
+  name: {{ .Release.Name }}-otel-agent
+  labels:
+    app.kubernetes.io/name: otel-agent
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: observability
+spec:
+  mode: daemonset
+  serviceAccount: {{ .Release.Name }}-otel-collector
+  tolerations:
+    - operator: Exists
+  resources:
+    {{- toYaml .Values.otelCollector.daemonset.resources | nindent 4 }}
+  env:
+    - name: K8S_NODE_NAME
+      valueFrom:
+        fieldRef:
+          fieldPath: spec.nodeName
+    # Used for the kubeletstats endpoint — node hostnames aren't resolvable
+    # via CoreDNS, but the host IP is.
+    - name: K8S_NODE_IP
+      valueFrom:
+        fieldRef:
+          fieldPath: status.hostIP
+    - name: K8S_POD_NAME
+      valueFrom:
+        fieldRef:
+          fieldPath: metadata.name
+    - name: K8S_NAMESPACE
+      valueFrom:
+        fieldRef:
+          fieldPath: metadata.namespace
+  volumes:
+    - name: varlogpods
+      hostPath:
+        path: /var/log/pods
+    - name: hostfs
+      hostPath:
+        path: /
+  volumeMounts:
+    - name: varlogpods
+      mountPath: /var/log/pods
+      readOnly: true
+    - name: hostfs
+      mountPath: /hostfs
+      readOnly: true
+      mountPropagation: HostToContainer
+  config:
+    receivers:
+      kubeletstats:
+        collection_interval: 30s
+        auth_type: serviceAccount
+        endpoint: https://${env:K8S_NODE_IP}:10250
+        insecure_skip_verify: true
+        metric_groups: [node, pod, container, volume]
+      hostmetrics:
+        collection_interval: 30s
+        root_path: /hostfs
+        scrapers:
+          cpu: {}
+          memory: {}
+          disk: {}
+          load: {}
+          network: {}
+          filesystem:
+            exclude_mount_points:
+              mount_points: ["/dev/*", "/proc/*", "/sys/*", "/run/*", "/var/lib/docker/*", "/var/lib/kubelet/*", "/snap/*"]
+              match_type: regexp
+            exclude_fs_types:
+              fs_types: ["overlay", "squashfs", "tmpfs", "devtmpfs"]
+              match_type: strict
+      filelog:
+        include: [/var/log/pods/*/*/*.log]
+        # Don't tail the agent's own logs (would create a loop)
+        exclude: [/var/log/pods/{{ .Release.Namespace }}_{{ .Release.Name }}-otel-agent-*_*/otc-container/*.log]
+        start_at: end
+        include_file_path: true
+        include_file_name: false
+        operators:
+          - type: container
+            id: container-parser
+            format: containerd
+    processors:
+      memory_limiter:
+        check_interval: 1s
+        limit_percentage: 75
+        spike_limit_percentage: 15
+      # Drop high-cardinality resource attributes that kubeletstats/hostmetrics
+      # emit by default. container.id changes on every pod restart and would
+      # accumulate within the retention window; k8s.pod.uid changes on every
+      # reschedule. Labels like `replicaset` and `uid` on KSM metrics are
+      # bounded by K8s revisionHistoryLimit and current cluster state and are
+      # not addressed here (they're metric-level labels on prom-scraped data,
+      # not resource attributes on OTLP data).
+      resource:
+        attributes:
+          - key: container.id
+            action: delete
+          - key: k8s.pod.uid
+            action: delete
+      k8sattributes:
+        auth_type: serviceAccount
+        passthrough: false
+        filter:
+          node_from_env_var: K8S_NODE_NAME
+        extract:
+          metadata:
+            - k8s.namespace.name
+            - k8s.pod.name
+            - k8s.deployment.name
+            - k8s.node.name
+            - k8s.container.name
+          labels:
+            - tag_name: workspace
+              key: lucity.dev/workspace
+              from: namespace
+            - tag_name: project
+              key: lucity.dev/project
+              from: namespace
+            - tag_name: environment
+              key: lucity.dev/environment
+              from: namespace
+        pod_association:
+          - sources:
+              - from: resource_attribute
+                name: k8s.pod.ip
+          - sources:
+              - from: resource_attribute
+                name: k8s.pod.uid
+          - sources:
+              - from: connection
+      batch:
+        send_batch_size: 8192
+        timeout: 5s
+    exporters:
+      # k8s collector distribution doesn't ship prometheusremotewrite,
+      # so use VictoriaMetrics' native OTLP endpoint instead.
+      otlphttp/metrics:
+        metrics_endpoint: http://{{ .Release.Name }}-victoria-metrics-single-server:8428/opentelemetry/v1/metrics
+        tls:
+          insecure: true
+      otlphttp/logs:
+        logs_endpoint: http://{{ .Release.Name }}-victoria-logs-single-server:9428/insert/opentelemetry/v1/logs
+        tls:
+          insecure: true
+    service:
+      telemetry:
+        logs:
+          level: info
+      pipelines:
+        metrics:
+          receivers: [hostmetrics, kubeletstats]
+          processors: [memory_limiter, k8sattributes, resource, batch]
+          exporters: [otlphttp/metrics]
+        logs:
+          receivers: [filelog]
+          processors: [memory_limiter, k8sattributes, resource, batch]
+          exporters: [otlphttp/logs]
+{{- end }}

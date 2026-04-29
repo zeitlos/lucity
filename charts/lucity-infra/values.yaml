@@ -191,6 +191,276 @@ rybbit:
     clickhousePassword: ""
     betterAuthSecret: ""
 
+# -- VictoriaMetrics single-node — metrics storage
+victoria-metrics-single:
+  enabled: false
+  server:
+    # Default "1" means 1 MONTH; set explicitly so we know what we're getting.
+    retentionPeriod: "30d"
+    extraArgs:
+      # Convert OTLP metric names and labels to Prometheus form on ingest.
+      # Affects only OTLP-pushed metrics (hostmetrics, kubeletstats); prometheus-scraped
+      # ones (KSM, Cilium) are already Prom-named. Lets us reuse community dashboards.
+      "opentelemetry.usePrometheusNaming": "true"
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        memory: 1Gi
+
+# -- VictoriaLogs single-node — logs storage
+victoria-logs-single:
+  enabled: false
+  server:
+    retentionPeriod: "14d"
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        memory: 1Gi
+
+# -- vmalert + bundled Alertmanager (Telegram notifier)
+victoria-metrics-alert:
+  enabled: false
+  server:
+    datasource:
+      url: "http://lucity-infra-victoria-metrics-single-server:8428"
+    notifier:
+      url: "http://lucity-infra-victoria-metrics-alert-alertmanager:9093"
+    remoteWrite:
+      url: "http://lucity-infra-victoria-metrics-single-server:8428"
+    remoteRead:
+      url: "http://lucity-infra-victoria-metrics-single-server:8428"
+    resources:
+      requests:
+        cpu: 25m
+        memory: 64Mi
+      limits:
+        memory: 256Mi
+    config:
+      alerts:
+        groups:
+          - name: platform
+            rules:
+              - alert: NodeNotReady
+                expr: kube_node_status_condition{condition="Ready",status="true"} == 0
+                for: 5m
+                labels: { severity: critical }
+                annotations:
+                  summary: "Node {{ $labels.node }} is not Ready"
+              - alert: PodCrashLoopBackOff
+                expr: kube_pod_container_status_waiting_reason{reason="CrashLoopBackOff"} == 1
+                for: 15m
+                labels: { severity: warning }
+                annotations:
+                  summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} is crash-looping"
+              - alert: PVCNearlyFull
+                expr: kubelet_volume_stats_used_bytes / kubelet_volume_stats_capacity_bytes > 0.85
+                for: 10m
+                labels: { severity: warning }
+                annotations:
+                  summary: "PVC {{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }} >85% full"
+              - alert: PVCCriticallyFull
+                expr: kubelet_volume_stats_used_bytes / kubelet_volume_stats_capacity_bytes > 0.95
+                for: 5m
+                labels: { severity: critical }
+                annotations:
+                  summary: "PVC {{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }} >95% full"
+              - alert: CertExpiringSoon
+                expr: certmanager_certificate_expiration_timestamp_seconds - time() < 14 * 86400
+                for: 1h
+                labels: { severity: warning }
+                annotations:
+                  summary: "Certificate {{ $labels.namespace }}/{{ $labels.name }} expires in <14d"
+              - alert: ArgoCDAppOutOfSync
+                expr: argocd_app_info{sync_status!="Synced"} == 1
+                for: 1h
+                labels: { severity: warning }
+                annotations:
+                  summary: "ArgoCD app {{ $labels.name }} out of sync"
+              - alert: SoftServeDown
+                expr: up{job=~".*soft-serve.*"} == 0
+                for: 5m
+                labels: { severity: critical }
+                annotations:
+                  summary: "Soft-serve is down"
+              - alert: ZotDown
+                expr: up{job=~".*zot.*"} == 0
+                for: 5m
+                labels: { severity: critical }
+                annotations:
+                  summary: "Zot registry is down"
+              - alert: VictoriaMetricsHighCardinality
+                expr: vm_cache_entries{type="storage/hour_metric_ids"} > 500000
+                for: 1h
+                labels: { severity: warning }
+                annotations:
+                  summary: "VictoriaMetrics active series >500k — investigate top metrics with /api/v1/status/tsdb"
+  alertmanager:
+    enabled: false
+    extraVolumes:
+      - name: telegram-token
+        secret:
+          secretName: lucity-infra-alertmanager-telegram
+    extraVolumeMounts:
+      - name: telegram-token
+        mountPath: /etc/alertmanager/secrets
+        readOnly: true
+    resources:
+      requests:
+        cpu: 25m
+        memory: 32Mi
+      limits:
+        memory: 128Mi
+    config:
+      global:
+        resolve_timeout: 5m
+      route:
+        receiver: telegram
+        group_by: [alertname, severity]
+        group_wait: 30s
+        group_interval: 5m
+        repeat_interval: 4h
+        routes:
+          - matchers: [severity="critical"]
+            repeat_interval: 1h
+      inhibit_rules:
+        - source_matchers: [alertname="NodeNotReady"]
+          target_matchers: [severity=~"warning|critical"]
+          equal: [node]
+      receivers:
+        - name: telegram
+          telegram_configs:
+            - bot_token_file: /etc/alertmanager/secrets/bot_token
+              # chat_id is populated in the prod overlay (numeric, can be negative for groups)
+              chat_id: 0
+              parse_mode: HTML
+              send_resolved: true
+              # Custom message keeps only useful labels — drops OTEL prom-receiver
+              # scrape metadata (scope_*, server_*, service_*, url_scheme, uid).
+              message: |-
+                <b>{{ .Status | toUpper }}: {{ .CommonLabels.alertname }}</b> ({{ .CommonLabels.severity }})
+                {{ range .Alerts }}
+                {{ .Annotations.summary }}
+                {{- with .Labels.namespace }}
+                • namespace: <code>{{ . }}</code>{{ end }}
+                {{- with .Labels.pod }}
+                • pod: <code>{{ . }}</code>{{ end }}
+                {{- with .Labels.container }}
+                • container: <code>{{ . }}</code>{{ end }}
+                {{- with .Labels.node }}
+                • node: <code>{{ . }}</code>{{ end }}
+                {{- with .Labels.persistentvolumeclaim }}
+                • pvc: <code>{{ . }}</code>{{ end }}
+                {{- with .Labels.name }}
+                • name: <code>{{ . }}</code>{{ end }}
+                {{- with .Labels.reason }}
+                • reason: <code>{{ . }}</code>{{ end }}
+                {{- with .Labels.job }}
+                • job: <code>{{ . }}</code>{{ end }}
+                {{ end }}
+
+# -- OpenTelemetry Operator (provides OpenTelemetryCollector + Instrumentation CRDs)
+opentelemetry-operator:
+  enabled: false
+  # Default collector image is the k8s distribution which includes every receiver
+  # we use (kubeletstats, k8s_cluster, prometheus, filelog, k8s_events, k8sattributes).
+  # cert-manager is required and already installed in lucity-prod via flex.plane.
+
+# -- OpenTelemetry Collector instances (rendered as OpenTelemetryCollector CRs)
+otelCollector:
+  daemonset:
+    enabled: false
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        memory: 512Mi
+  deployment:
+    enabled: false
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        memory: 512Mi
+
+# -- Grafana — UI for VictoriaMetrics + VictoriaLogs
+grafana:
+  enabled: false
+  persistence:
+    enabled: true
+    size: 5Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+  plugins:
+    - victoriametrics-logs-datasource
+  datasources:
+    datasources.yaml:
+      apiVersion: 1
+      datasources:
+        - name: VictoriaMetrics
+          type: prometheus
+          uid: victoriametrics
+          access: proxy
+          url: http://lucity-infra-victoria-metrics-single-server:8428
+          isDefault: true
+          editable: false
+          jsonData:
+            httpMethod: POST
+            timeInterval: 30s
+        - name: VictoriaLogs
+          type: victoriametrics-logs-datasource
+          uid: victorialogs
+          access: proxy
+          url: http://lucity-infra-victoria-logs-single-server:9428
+          editable: false
+  envFromSecret: lucity-infra-grafana-oauth
+  grafana.ini:
+    server:
+      # CRITICAL for port-forward access; OIDC redirect breaks otherwise.
+      # Override per-environment if Grafana is exposed via a real hostname.
+      root_url: "http://localhost:3000/"
+    analytics:
+      check_for_updates: false
+      reporting_enabled: false
+    auth:
+      disable_login_form: false
+      oauth_auto_login: false
+    auth.generic_oauth:
+      enabled: true
+      name: Lucity
+      allow_sign_up: true
+      client_id: ""
+      client_secret: $__env{GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET}
+      scopes: "openid profile email roles"
+      auth_url: ""
+      token_url: ""
+      api_url: ""
+      use_pkce: true
+      # Only users with the `lucity-system-admin` Logto role can sign in.
+      # JMESPath returns an empty string for non-admins; combined with
+      # role_attribute_strict: true, that rejects the login outright
+      # (rather than falling back to Viewer).
+      role_attribute_path: "contains(roles[*], 'lucity-system-admin') && 'GrafanaAdmin' || ''"
+      role_attribute_strict: true
+      allow_assign_grafana_admin: true
+
+# -- Grafana OIDC client secret (Logto). Populated via deployment overlay.
+grafanaOIDC:
+  clientSecret: ""
+
+# -- Telegram bot token for Alertmanager. Populated via deployment overlay.
+alertingTelegram:
+  botToken: ""
+
 # -- Logto Identity Provider (OIDC + Organizations)
 logto:
   enabled: false

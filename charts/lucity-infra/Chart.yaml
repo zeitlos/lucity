@@ -18,3 +18,23 @@ dependencies:
     version: "0.28.0"
     repository: "https://cloudnative-pg.github.io/charts"
     condition: cloudnative-pg.enabled
+  - name: victoria-metrics-single
+    version: "0.37.0"
+    repository: "https://victoriametrics.github.io/helm-charts/"
+    condition: victoria-metrics-single.enabled
+  - name: victoria-logs-single
+    version: "0.12.2"
+    repository: "https://victoriametrics.github.io/helm-charts/"
+    condition: victoria-logs-single.enabled
+  - name: victoria-metrics-alert
+    version: "0.39.0"
+    repository: "https://victoriametrics.github.io/helm-charts/"
+    condition: victoria-metrics-alert.enabled
+  - name: opentelemetry-operator
+    version: "0.110.0"
+    repository: "https://open-telemetry.github.io/opentelemetry-helm-charts"
+    condition: opentelemetry-operator.enabled
+  - name: grafana
+    version: "12.2.1"
+    repository: "https://grafana-community.github.io/helm-charts"
+    condition: grafana.enabled
