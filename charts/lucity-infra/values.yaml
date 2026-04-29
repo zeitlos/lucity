@@ -402,7 +402,7 @@ grafana:
       oauth_auto_login: false
     auth.generic_oauth:
       enabled: true
-      name: Logto
+      name: Lucity
       allow_sign_up: true
       client_id: ""
       client_secret: $__env{GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET}
