@@ -1,0 +1,64 @@
+{{- if or .Values.otelCollector.daemonset.enabled .Values.otelCollector.deployment.enabled }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ .Release.Name }}-otel-collector
+  labels:
+    app.kubernetes.io/name: otel-collector
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: observability
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ .Release.Name }}-otel-collector
+  labels:
+    app.kubernetes.io/name: otel-collector
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: observability
+rules:
+  # k8sattributes processor
+  - apiGroups: [""]
+    resources: [pods, namespaces, nodes]
+    verbs: [get, list, watch]
+  - apiGroups: [apps]
+    resources: [replicasets]
+    verbs: [get, list, watch]
+  - apiGroups: [extensions]
+    resources: [replicasets]
+    verbs: [get, list, watch]
+  # kubeletstats receiver (auth_type: serviceAccount)
+  - apiGroups: [""]
+    resources: [nodes/stats, nodes/proxy]
+    verbs: [get]
+  # k8s_events receiver
+  - apiGroups: [""]
+    resources: [events]
+    verbs: [get, list, watch]
+  - apiGroups: [events.k8s.io]
+    resources: [events]
+    verbs: [get, list, watch]
+  # prometheus receiver with kubernetes_sd_configs
+  - apiGroups: [""]
+    resources: [services, endpoints]
+    verbs: [get, list, watch]
+  - nonResourceURLs: [/metrics, /metrics/cadvisor]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ .Release.Name }}-otel-collector
+  labels:
+    app.kubernetes.io/name: otel-collector
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: observability
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ .Release.Name }}-otel-collector
+subjects:
+  - kind: ServiceAccount
+    name: {{ .Release.Name }}-otel-collector
+    namespace: {{ .Release.Namespace }}
+{{- end }}

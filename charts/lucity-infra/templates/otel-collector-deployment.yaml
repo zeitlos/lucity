@@ -1,0 +1,120 @@
+{{- if .Values.otelCollector.deployment.enabled }}
+apiVersion: opentelemetry.io/v1beta1
+kind: OpenTelemetryCollector
+metadata:
+  name: {{ .Release.Name }}-otel-gateway
+  labels:
+    app.kubernetes.io/name: otel-gateway
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: observability
+spec:
+  mode: deployment
+  replicas: 1
+  serviceAccount: {{ .Release.Name }}-otel-collector
+  resources:
+    {{- toYaml .Values.otelCollector.deployment.resources | nindent 4 }}
+  config:
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+      k8s_events:
+        auth_type: serviceAccount
+      prometheus:
+        config:
+          scrape_configs:
+            - job_name: kube-state-metrics
+              scrape_interval: 30s
+              static_configs:
+                - targets: ['kube-state-metrics.kube-system.svc.cluster.local:8080']
+            - job_name: cilium-agent
+              scrape_interval: 30s
+              kubernetes_sd_configs:
+                - role: endpoints
+                  namespaces:
+                    names: [kube-system]
+              relabel_configs:
+                - source_labels: [__meta_kubernetes_service_name]
+                  regex: cilium-agent
+                  action: keep
+                - source_labels: [__meta_kubernetes_endpoint_port_name]
+                  regex: prometheus
+                  action: keep
+            - job_name: cilium-envoy
+              scrape_interval: 30s
+              kubernetes_sd_configs:
+                - role: endpoints
+                  namespaces:
+                    names: [kube-system]
+              relabel_configs:
+                - source_labels: [__meta_kubernetes_service_name]
+                  regex: cilium-envoy
+                  action: keep
+                - source_labels: [__meta_kubernetes_endpoint_port_name]
+                  regex: envoy-metrics
+                  action: keep
+    processors:
+      memory_limiter:
+        check_interval: 1s
+        limit_percentage: 75
+        spike_limit_percentage: 15
+      k8sattributes:
+        auth_type: serviceAccount
+        passthrough: false
+        extract:
+          metadata:
+            - k8s.namespace.name
+            - k8s.pod.name
+            - k8s.deployment.name
+            - k8s.node.name
+            - k8s.container.name
+          labels:
+            - tag_name: workspace
+              key: lucity.dev/workspace
+              from: namespace
+            - tag_name: project
+              key: lucity.dev/project
+              from: namespace
+            - tag_name: environment
+              key: lucity.dev/environment
+              from: namespace
+        pod_association:
+          - sources:
+              - from: resource_attribute
+                name: k8s.pod.ip
+          - sources:
+              - from: resource_attribute
+                name: k8s.pod.uid
+          - sources:
+              - from: connection
+      batch:
+        send_batch_size: 8192
+        timeout: 5s
+    exporters:
+      prometheusremotewrite:
+        endpoint: http://{{ .Release.Name }}-victoria-metrics-single-server:8428/api/v1/write
+        resource_to_telemetry_conversion:
+          enabled: true
+        tls:
+          insecure: true
+      otlphttp/logs:
+        logs_endpoint: http://{{ .Release.Name }}-victoria-logs-single-server:9428/insert/opentelemetry/v1/logs
+        tls:
+          insecure: true
+    service:
+      telemetry:
+        logs:
+          level: info
+      pipelines:
+        metrics:
+          receivers: [otlp, prometheus]
+          processors: [memory_limiter, k8sattributes, batch]
+          exporters: [prometheusremotewrite]
+        logs:
+          receivers: [otlp, k8s_events]
+          processors: [memory_limiter, k8sattributes, batch]
+          exporters: [otlphttp/logs]
+{{- end }}

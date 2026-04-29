@@ -208,3 +208,66 @@ logto:
   endpoint: https://id.lucity.cloud
   postgres:
     storageClass: hcloud-volumes
+
+# Observability stack
+victoria-metrics-single:
+  enabled: true
+  server:
+    persistentVolume:
+      size: 50Gi
+      storageClassName: hcloud-volumes
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        memory: 2Gi
+
+victoria-logs-single:
+  enabled: true
+  server:
+    persistentVolume:
+      size: 50Gi
+      storageClassName: hcloud-volumes
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        memory: 1Gi
+
+victoria-metrics-alert:
+  enabled: true
+  alertmanager:
+    enabled: true
+    persistentVolume:
+      enabled: true
+      size: 10Gi          # Hetzner Cloud Volumes have a 10Gi minimum
+      storageClassName: hcloud-volumes
+    # The full receivers[] list (with the real Telegram chat_id) is set in
+    # infra-secrets.yaml so the bot_token + chat_id live together.
+
+# OTEL Operator is provided by flex.plane in the otel-system namespace
+# (CRDs already installed cluster-wide). We just deploy our own
+# OpenTelemetryCollector CRs and the existing operator reconciles them.
+opentelemetry-operator:
+  enabled: false
+
+otelCollector:
+  daemonset:
+    enabled: true
+  deployment:
+    enabled: true
+
+grafana:
+  enabled: true
+  persistence:
+    storageClassName: hcloud-volumes
+  grafana.ini:
+    server:
+      root_url: "http://localhost:3000/"   # port-forward only for now
+    auth.generic_oauth:
+      client_id: "xwnuy3a1sl2yl1uu6hyx3"
+      auth_url: "https://id.lucity.cloud/oidc/auth"
+      token_url: "https://id.lucity.cloud/oidc/token"
+      api_url: "https://id.lucity.cloud/oidc/me"
