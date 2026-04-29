@@ -197,6 +197,11 @@ victoria-metrics-single:
   server:
     # Default "1" means 1 MONTH; set explicitly so we know what we're getting.
     retentionPeriod: "30d"
+    extraArgs:
+      # Convert OTLP metric names and labels to Prometheus form on ingest.
+      # Affects only OTLP-pushed metrics (hostmetrics, kubeletstats); prometheus-scraped
+      # ones (KSM, Cilium) are already Prom-named. Lets us reuse community dashboards.
+      "opentelemetry.usePrometheusNaming": "true"
     resources:
       requests:
         cpu: 100m
@@ -287,6 +292,12 @@ victoria-metrics-alert:
                 labels: { severity: critical }
                 annotations:
                   summary: "Zot registry is down"
+              - alert: VictoriaMetricsHighCardinality
+                expr: vm_cache_entries{type="storage/hour_metric_ids"} > 500000
+                for: 1h
+                labels: { severity: warning }
+                annotations:
+                  summary: "VictoriaMetrics active series >500k — investigate top metrics with /api/v1/status/tsdb"
   alertmanager:
     enabled: false
     extraVolumes:

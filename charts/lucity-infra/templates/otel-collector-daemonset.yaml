@@ -88,6 +88,19 @@ spec:
         check_interval: 1s
         limit_percentage: 75
         spike_limit_percentage: 15
+      # Drop high-cardinality resource attributes that would explode label
+      # cardinality in VictoriaMetrics (container.id changes every pod restart;
+      # k8s.pod.uid changes every reschedule).
+      resource:
+        attributes:
+          - key: container.id
+            action: delete
+          - key: k8s.pod.uid
+            action: delete
+          - key: k8s.replicaset.name
+            action: delete
+          - key: k8s.pod.start_time
+            action: delete
       k8sattributes:
         auth_type: serviceAccount
         passthrough: false
@@ -140,10 +153,10 @@ spec:
       pipelines:
         metrics:
           receivers: [hostmetrics, kubeletstats]
-          processors: [memory_limiter, k8sattributes, batch]
+          processors: [memory_limiter, k8sattributes, resource, batch]
           exporters: [otlphttp/metrics]
         logs:
           receivers: [filelog]
-          processors: [memory_limiter, k8sattributes, batch]
+          processors: [memory_limiter, k8sattributes, resource, batch]
           exporters: [otlphttp/logs]
 {{- end }}
