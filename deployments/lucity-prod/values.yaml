@@ -63,6 +63,7 @@ packager:
     SOFTSERVE_HTTP_ADDR: http://lucity-infra-soft-serve.lucity-system.svc.cluster.local:23232
     SOFTSERVE_SSH_KEY_PATH: /secrets/softserve/admin-key
     DEPLOYER_ADDR: lucity-deployer:9003
+    WORKLOAD_DOMAIN: lucity.app
   envSecret:
     SOFTSERVE_TOKEN: SOFTSERVE_TOKEN
 
