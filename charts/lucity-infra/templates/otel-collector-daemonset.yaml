@@ -19,6 +19,12 @@ spec:
       valueFrom:
         fieldRef:
           fieldPath: spec.nodeName
+    # Used for the kubeletstats endpoint — node hostnames aren't resolvable
+    # via CoreDNS, but the host IP is.
+    - name: K8S_NODE_IP
+      valueFrom:
+        fieldRef:
+          fieldPath: status.hostIP
     - name: K8S_POD_NAME
       valueFrom:
         fieldRef:
@@ -47,7 +53,7 @@ spec:
       kubeletstats:
         collection_interval: 30s
         auth_type: serviceAccount
-        endpoint: https://${env:K8S_NODE_NAME}:10250
+        endpoint: https://${env:K8S_NODE_IP}:10250
         insecure_skip_verify: true
         metric_groups: [node, pod, container, volume]
       hostmetrics:
