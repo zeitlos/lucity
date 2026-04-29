@@ -88,18 +88,18 @@ spec:
         check_interval: 1s
         limit_percentage: 75
         spike_limit_percentage: 15
-      # Drop high-cardinality resource attributes that would explode label
-      # cardinality in VictoriaMetrics (container.id changes every pod restart;
-      # k8s.pod.uid changes every reschedule).
+      # Drop high-cardinality resource attributes that kubeletstats/hostmetrics
+      # emit by default. container.id changes on every pod restart and would
+      # accumulate within the retention window; k8s.pod.uid changes on every
+      # reschedule. Labels like `replicaset` and `uid` on KSM metrics are
+      # bounded by K8s revisionHistoryLimit and current cluster state and are
+      # not addressed here (they're metric-level labels on prom-scraped data,
+      # not resource attributes on OTLP data).
       resource:
         attributes:
           - key: container.id
             action: delete
           - key: k8s.pod.uid
-            action: delete
-          - key: k8s.replicaset.name
-            action: delete
-          - key: k8s.pod.start_time
             action: delete
       k8sattributes:
         auth_type: serviceAccount

@@ -61,18 +61,13 @@ spec:
         check_interval: 1s
         limit_percentage: 75
         spike_limit_percentage: 15
-      # Drop high-cardinality resource attributes that would explode label
-      # cardinality in VictoriaMetrics (container.id changes every pod restart;
-      # k8s.pod.uid changes every reschedule).
+      # Drop high-cardinality resource attributes that kubeletstats/hostmetrics
+      # emit by default. See otel-collector-daemonset.yaml for the rationale.
       resource:
         attributes:
           - key: container.id
             action: delete
           - key: k8s.pod.uid
-            action: delete
-          - key: k8s.replicaset.name
-            action: delete
-          - key: k8s.pod.start_time
             action: delete
       k8sattributes:
         auth_type: serviceAccount
