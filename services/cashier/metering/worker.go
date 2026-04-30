@@ -29,9 +29,9 @@ const maxBackfillDays = 35
 // how quickly we detect a completed window, not what we report.
 const meterWindow = time.Hour
 
-// ingestionDelay is the time to wait after a window closes before querying SigNoz.
-// OTel collectors scrape every ~60s and batch exports to ClickHouse. 5 minutes
-// gives enough margin for all metrics to land before we query.
+// ingestionDelay is the time to wait after a window closes before querying VictoriaMetrics.
+// OTel collectors scrape every ~60s and batch exports. 5 minutes gives enough
+// margin for all metrics to land before we query.
 const ingestionDelay = 5 * time.Minute
 
 const checkpointCMName = "metering-checkpoint"
@@ -42,7 +42,7 @@ type Worker struct {
 	stripe   *stripelib.Client
 	deployer deployer.DeployerServiceClient
 	logto    *logto.Client
-	signoz   *SigNozClient
+	vm       *VMClient
 	k8s      kubernetes.Interface // nil if K8s not available (no checkpoint/backfill)
 	issuer   *auth.Issuer
 	interval time.Duration
@@ -51,12 +51,12 @@ type Worker struct {
 }
 
 // NewWorker creates a metering worker. k8sClient may be nil (disables checkpoint/backfill).
-func NewWorker(stripeClient *stripelib.Client, deployerClient deployer.DeployerServiceClient, logtoClient *logto.Client, signozClient *SigNozClient, k8sClient kubernetes.Interface, issuer *auth.Issuer, interval time.Duration) *Worker {
+func NewWorker(stripeClient *stripelib.Client, deployerClient deployer.DeployerServiceClient, logtoClient *logto.Client, vmClient *VMClient, k8sClient kubernetes.Interface, issuer *auth.Issuer, interval time.Duration) *Worker {
 	return &Worker{
 		stripe:   stripeClient,
 		deployer: deployerClient,
 		logto:    logtoClient,
-		signoz:   signozClient,
+		vm:       vmClient,
 		k8s:      k8sClient,
 		issuer:   issuer,
 		interval: interval,
@@ -173,7 +173,7 @@ func (w *Worker) backfill(ctx context.Context) bool {
 }
 
 func (w *Worker) tick(ctx context.Context) {
-	// Delay window selection so SigNoz has time to fully ingest metrics.
+	// Delay window selection so VictoriaMetrics has time to fully ingest metrics.
 	// At 15:05 with 5min delay: alignWindow(15:00) → processes 14:00-15:00.
 	start, end := alignWindow(time.Now().Add(-ingestionDelay))
 	slog.Info("metering tick", "window_start", start, "window_end", end)
@@ -281,22 +281,22 @@ func (w *Worker) processWindow(ctx context.Context, windowStart, windowEnd time.
 		}
 	}
 
-	// 5. Query SigNoz for eco namespace usage.
+	// 5. Query VictoriaMetrics for eco namespace usage.
 	var cpuByNs, memByNs, diskByNs map[string]float64
 	if len(allEcoNamespaces) > 0 {
-		cpuByNs, err = w.signoz.CPUByNamespace(ctx, allEcoNamespaces, windowStart, windowEnd)
+		cpuByNs, err = w.vm.CPUByNamespace(ctx, allEcoNamespaces, windowStart, windowEnd)
 		if err != nil {
 			slog.Error("metering: failed to query CPU usage", "error", err)
 			cpuByNs = make(map[string]float64)
 		}
 
-		memByNs, err = w.signoz.MemoryByNamespace(ctx, allEcoNamespaces, windowStart, windowEnd)
+		memByNs, err = w.vm.MemoryByNamespace(ctx, allEcoNamespaces, windowStart, windowEnd)
 		if err != nil {
 			slog.Error("metering: failed to query memory usage", "error", err)
 			memByNs = make(map[string]float64)
 		}
 
-		diskByNs, err = w.signoz.DiskByNamespace(ctx, allEcoNamespaces, windowStart, windowEnd)
+		diskByNs, err = w.vm.DiskByNamespace(ctx, allEcoNamespaces, windowStart, windowEnd)
 		if err != nil {
 			slog.Error("metering: failed to query disk usage", "error", err)
 			diskByNs = make(map[string]float64)
@@ -336,7 +336,7 @@ func (w *Worker) reportWorkspace(ctx context.Context, wsID string, ws *workspace
 	intervalMinutes := windowEnd.Sub(windowStart).Minutes()
 	timestamp := windowEnd.Unix()
 
-	// Report eco usage from SigNoz via Billing Meter events.
+	// Report eco usage from VictoriaMetrics via Billing Meter events.
 	if len(ws.ecoNamespaces) > 0 {
 		var totalCPUSeconds, totalMemBytes, totalDiskBytes float64
 		for _, ns := range ws.ecoNamespaces {

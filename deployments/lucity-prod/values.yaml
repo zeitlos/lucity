@@ -114,9 +114,9 @@ cashier:
     STRIPE_PROD_CPU_METER_EVENT: prod_cpu_usage
     STRIPE_PROD_MEM_METER_EVENT: prod_memory_usage
     STRIPE_PROD_DISK_METER_EVENT: prod_disk_usage
+    VICTORIA_METRICS_URL: http://lucity-infra-victoria-metrics-single-server.lucity-system.svc.cluster.local:8428
   envSecret:
     STRIPE_SECRET_KEY: STRIPE_SECRET_KEY
     STRIPE_WEBHOOK_SECRET: STRIPE_WEBHOOK_SECRET
-    SIGNOZ_CLICKHOUSE_DSN: SIGNOZ_CLICKHOUSE_DSN
     LOGTO_M2M_APP_ID: LOGTO_M2M_APP_ID
     LOGTO_M2M_APP_SECRET: LOGTO_M2M_APP_SECRET
