@@ -298,6 +298,40 @@ victoria-metrics-alert:
                 labels: { severity: warning }
                 annotations:
                   summary: "VictoriaMetrics active series >500k — investigate top metrics with /api/v1/status/tsdb"
+          - name: edge-gateway
+            rules:
+              # Sustained Envoy-generated 5xx on the public listeners.
+              # Catches Cilium L7 issues (e.g. the IPv6 incident on 2026-05-01),
+              # broken HTTPRoutes, TLS misconfig, upstream resets. Pair with
+              # GatewayUpstream5xxRate below to distinguish "gateway is broken"
+              # from "upstream service is broken".
+              - alert: GatewayHigh5xxRate
+                expr: sum by (envoy_http_conn_manager_prefix) (rate(envoy_http_downstream_rq_xx_total{envoy_response_code_class="5",envoy_http_conn_manager_prefix=~"listener-(secure|insecure)"}[5m])) > 0.1
+                for: 5m
+                labels: { severity: warning }
+                annotations:
+                  summary: "Gateway returning 5xx on {{ $labels.envoy_http_conn_manager_prefix }} ({{ $value | humanize }} req/s)"
+              # 5xx originating from upstream services (gateway, dashboard, docs, …).
+              - alert: GatewayUpstream5xxRate
+                expr: sum by (envoy_cluster_name) (rate(envoy_cluster_upstream_rq_xx_total{envoy_response_code_class="5",envoy_cluster_name=~"lucity-system/cilium-gateway-.*"}[5m])) > 0.1
+                for: 10m
+                labels: { severity: warning }
+                annotations:
+                  summary: "Upstream service 5xx: {{ $labels.envoy_cluster_name }} ({{ $value | humanize }} req/s)"
+              # TLS handshake errors — cert/SNI mismatch, expired cert, or Cilium L4 issue.
+              - alert: GatewayTLSHandshakeErrors
+                expr: sum(rate(envoy_listener_ssl_connection_error_total[5m])) > 0.5
+                for: 10m
+                labels: { severity: warning }
+                annotations:
+                  summary: "Elevated TLS handshake errors on the gateway ({{ $value | humanize }}/s)"
+              # Cannot connect to upstream pod — pod down, NetworkPolicy blocking, wrong port.
+              - alert: GatewayUpstreamConnectFail
+                expr: sum by (envoy_cluster_name) (rate(envoy_cluster_upstream_cx_connect_fail_total{envoy_cluster_name=~"lucity-system/cilium-gateway-.*"}[5m])) > 0.1
+                for: 5m
+                labels: { severity: warning }
+                annotations:
+                  summary: "Cannot connect to upstream {{ $labels.envoy_cluster_name }} ({{ $value | humanize }}/s)"
   alertmanager:
     enabled: false
     extraVolumes:
