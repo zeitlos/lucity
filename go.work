@@ -5,6 +5,7 @@ use (
 	./pkg
 	./services/builder
 	./services/cashier
+	./services/conductor
 	./services/deployer
 	./services/gateway
 	./services/packager
