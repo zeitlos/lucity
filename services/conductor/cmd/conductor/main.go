@@ -40,6 +40,8 @@ import (
 	packagerpb "github.com/zeitlos/lucity/pkg/packager"
 
 	"github.com/zeitlos/lucity/services/conductor/internal/api/handler"
+	webhookpkg "github.com/zeitlos/lucity/services/conductor/internal/api/webhook"
+	webhookhttp "github.com/zeitlos/lucity/services/conductor/internal/api/webhook/http"
 	"github.com/zeitlos/lucity/services/conductor/internal/builder/build"
 	"github.com/zeitlos/lucity/services/conductor/internal/builder/engine"
 	"github.com/zeitlos/lucity/services/conductor/internal/deployer/argo/argocd"
@@ -51,9 +53,10 @@ import (
 )
 
 type Config struct {
-	Port     string `envconfig:"PORT" default:"8080"`
-	GRPCPort string `envconfig:"GRPC_PORT" default:"9090"` // inbound from cashier (and similar)
-	LogLevel string `envconfig:"LOG_LEVEL" default:"info"`
+	Port        string `envconfig:"PORT" default:"8080"`
+	GRPCPort    string `envconfig:"GRPC_PORT" default:"9090"`     // inbound from cashier (and similar)
+	WebhookPort string `envconfig:"WEBHOOK_PORT" default:"9004"`  // inbound from GitHub
+	LogLevel    string `envconfig:"LOG_LEVEL" default:"info"`
 
 	// OIDC (PKCE — no client secret needed)
 	OIDCIssuerURL    string `envconfig:"OIDC_ISSUER_URL" required:"true"`
@@ -73,6 +76,9 @@ type Config struct {
 
 	// External services (still gRPC)
 	CashierAddr string `envconfig:"CASHIER_ADDR"`
+
+	// Webhook (GitHub events)
+	WebhookSecret string `envconfig:"WEBHOOK_SECRET" default:"dev-secret"`
 
 	// Soft-serve (GitOps repo storage)
 	SoftServeSSH         string `envconfig:"SOFTSERVE_SSH_ADDR" default:"localhost:23231"`
@@ -336,6 +342,28 @@ func main() {
 	graphqlServer := NewGraphQLServer(config.Port, api, oidcProvider, verifier, logtoClient, internalIssuer, sessionSecret, config.DashboardURL, config.GitHubAppSlug, components)
 
 	servers := []graceful.Server{graphqlServer}
+
+	// Webhook receiver (GitHub push/PR events). Wire only when GitHub
+	// App credentials are configured — otherwise the pipeline can't
+	// authenticate to clone source repos.
+	if githubApp != nil {
+		webhookHandler := &webhookhttp.Handler{
+			GitHubApp:      githubApp,
+			InternalIssuer: internalIssuer,
+			Pipeline: &webhookpkg.Pipeline{
+				Builder:         builderClient,
+				Packager:        packagerClient,
+				Deployer:        deployerClient,
+				RegistryPushURL: config.RegistryURL,
+			},
+		}
+		webhookSrv := webhookhttp.NewServer(config.WebhookPort, config.WebhookSecret, webhookHandler)
+		servers = append(servers, webhookSrv)
+		slog.Info("webhook receiver ready", "port", config.WebhookPort)
+	} else {
+		slog.Info("webhook receiver disabled (GitHub App not configured)")
+	}
+
 	if config.InternalJWTPublicKeyPath != "" {
 		internalVerifier, err := auth.NewInternalVerifierFromFile(config.InternalJWTPublicKeyPath)
 		if err != nil {
