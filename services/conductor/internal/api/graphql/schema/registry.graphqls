@@ -1,0 +1,13 @@
+"""A container image from a public registry (Docker Hub)."""
+type ImageSearchResult {
+  name: String!
+  description: String!
+  starCount: Int!
+  pullCount: Int!
+  official: Boolean!
+}
+
+extend type Query {
+  """Search Docker Hub for public container images."""
+  searchImages(query: String!): [ImageSearchResult!]! @hasRole(role: [USER])
+}
