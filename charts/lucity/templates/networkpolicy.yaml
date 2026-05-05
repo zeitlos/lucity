@@ -16,107 +16,37 @@ spec:
     - Ingress
   ingress: []
 ---
-# Gateway: allow ingress from any source (internet-facing via Gateway API)
-# and from within the namespace (other services calling health endpoints)
+# Conductor: HTTP from anywhere (Gateway API ingress for GraphQL +
+# auth + dashboard API), webhook port from anywhere (GitHub events),
+# gRPC port from within the namespace (cashier callback).
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: {{ include "lucity.fullname" . }}-gateway
+  name: {{ include "lucity.fullname" . }}-conductor
   labels:
     {{- include "lucity.labels" . | nindent 4 }}
 spec:
   podSelector:
     matchLabels:
-      {{- include "lucity.selectorLabels" (dict "name" "gateway" "release" .Release.Name) | nindent 6 }}
+      {{- include "lucity.selectorLabels" (dict "name" "conductor" "release" .Release.Name) | nindent 6 }}
   policyTypes:
     - Ingress
   ingress:
+    # HTTP (GraphQL + auth + health) — internet-facing via Gateway API
     - ports:
-        - port: {{ .Values.gateway.port }}
+        - port: {{ .Values.conductor.httpPort }}
           protocol: TCP
----
-# Builder: allow gRPC from gateway and webhook within the namespace
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: {{ include "lucity.fullname" . }}-builder
-  labels:
-    {{- include "lucity.labels" . | nindent 4 }}
-spec:
-  podSelector:
-    matchLabels:
-      {{- include "lucity.selectorLabels" (dict "name" "builder" "release" .Release.Name) | nindent 6 }}
-  policyTypes:
-    - Ingress
-  ingress:
-    - from:
-        - podSelector:
-            matchLabels:
-              app.kubernetes.io/instance: {{ .Release.Name }}
-      ports:
-        - port: {{ .Values.builder.port }}
-          protocol: TCP
----
-# Packager: allow gRPC from gateway and webhook within the namespace
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: {{ include "lucity.fullname" . }}-packager
-  labels:
-    {{- include "lucity.labels" . | nindent 4 }}
-spec:
-  podSelector:
-    matchLabels:
-      {{- include "lucity.selectorLabels" (dict "name" "packager" "release" .Release.Name) | nindent 6 }}
-  policyTypes:
-    - Ingress
-  ingress:
-    - from:
-        - podSelector:
-            matchLabels:
-              app.kubernetes.io/instance: {{ .Release.Name }}
-      ports:
-        - port: {{ .Values.packager.port }}
-          protocol: TCP
----
-# Deployer: allow gRPC from gateway and webhook within the namespace
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: {{ include "lucity.fullname" . }}-deployer
-  labels:
-    {{- include "lucity.labels" . | nindent 4 }}
-spec:
-  podSelector:
-    matchLabels:
-      {{- include "lucity.selectorLabels" (dict "name" "deployer" "release" .Release.Name) | nindent 6 }}
-  policyTypes:
-    - Ingress
-  ingress:
-    - from:
-        - podSelector:
-            matchLabels:
-              app.kubernetes.io/instance: {{ .Release.Name }}
-      ports:
-        - port: {{ .Values.deployer.port }}
-          protocol: TCP
----
-# Webhook: allow ingress from any source (internet-facing for GitHub webhooks)
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: {{ include "lucity.fullname" . }}-webhook
-  labels:
-    {{- include "lucity.labels" . | nindent 4 }}
-spec:
-  podSelector:
-    matchLabels:
-      {{- include "lucity.selectorLabels" (dict "name" "webhook" "release" .Release.Name) | nindent 6 }}
-  policyTypes:
-    - Ingress
-  ingress:
+    # Webhook (GitHub events) — internet-facing
     - ports:
-        - port: {{ .Values.webhook.port }}
+        - port: {{ .Values.conductor.webhookPort }}
+          protocol: TCP
+    # gRPC (cashier callbacks) — namespace-internal only
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: {{ .Release.Name }}
+      ports:
+        - port: {{ .Values.conductor.grpcPort }}
           protocol: TCP
 ---
 # Dashboard: allow ingress from any source (internet-facing)
@@ -156,7 +86,7 @@ spec:
           protocol: TCP
 ---
 {{- if .Values.cashier.enabled }}
-# Cashier: gRPC from gateway (namespace) + HTTP webhook from any source
+# Cashier: gRPC from conductor (namespace) + HTTP webhook from any source
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -170,7 +100,7 @@ spec:
   policyTypes:
     - Ingress
   ingress:
-    # gRPC from within namespace (gateway)
+    # gRPC from within namespace (conductor)
     - from:
         - podSelector:
             matchLabels:

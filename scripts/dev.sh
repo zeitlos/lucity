@@ -7,9 +7,9 @@ LOG_DIR="$ROOT/tmp/logs"
 STATUS_DIR="$ROOT/tmp/dev"
 MONITOR="$ROOT/scripts/dev-monitor.sh"
 
-SERVICES=(gateway builder packager deployer webhook cashier)
-ALL_SERVICES=(gateway builder packager deployer webhook cashier dashboard)
-PORTS=(8080 9001 9002 9003 9004 9005 9006 5173)
+SERVICES=(conductor cashier)
+ALL_SERVICES=(conductor cashier dashboard)
+PORTS=(8080 9004 9005 9006 9090 5173)
 
 # SKIP: comma-separated list of services to exclude (e.g. SKIP=gateway,cashier).
 # Useful when debugging a service from your IDE — let everything else hot-reload,
@@ -56,7 +56,7 @@ fi
 
 # Create directories
 mkdir -p "$LOG_DIR" "$STATUS_DIR"
-mkdir -p "$ROOT/tmp/air"/{gateway,builder,packager,deployer,webhook,cashier}
+mkdir -p "$ROOT/tmp/air"/{conductor,cashier}
 
 # Truncate logs (fresh session)
 for svc in "${ALL_SERVICES[@]}"; do

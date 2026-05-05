@@ -1,5 +1,5 @@
-{{- if .Values.builder.serviceAccount.create }}
-{{- $ns := .Values.builder.buildNamespace | default "lucity-builds" }}
+{{- if .Values.conductor.buildkit.enabled }}
+{{- $ns := .Values.conductor.buildNamespace | default "lucity-builds" }}
 apiVersion: v1
 kind: Service
 metadata:

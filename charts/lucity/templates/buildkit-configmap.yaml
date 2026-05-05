@@ -1,5 +1,5 @@
-{{- if .Values.builder.serviceAccount.create }}
-{{- $ns := .Values.builder.buildNamespace | default "lucity-builds" }}
+{{- if .Values.conductor.buildkit.enabled }}
+{{- $ns := .Values.conductor.buildNamespace | default "lucity-builds" }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -10,7 +10,7 @@ metadata:
     app.kubernetes.io/component: builder
 data:
   buildkitd.toml: |
-    [registry."{{ .Values.builder.registryHost | default "lucity-infra-zot.lucity-system.svc.cluster.local:5000" }}"]
+    [registry."{{ .Values.conductor.registryHost | default "lucity-infra-zot.lucity-system.svc.cluster.local:5000" }}"]
       http = true
       insecure = true
 {{- end }}

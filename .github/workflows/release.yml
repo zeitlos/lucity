@@ -63,24 +63,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [gateway, builder, packager, deployer, webhook, cashier, dashboard, docs]
+        service: [conductor, cashier, dashboard, docs]
         include:
-          - service: gateway
-            dockerfile: services/gateway/Dockerfile
+          - service: conductor
+            dockerfile: services/conductor/Dockerfile
             context: .
             build-args: VERSION=${{ needs.version.outputs.version }}
-          - service: builder
-            dockerfile: services/builder/Dockerfile
-            context: .
-          - service: packager
-            dockerfile: services/packager/Dockerfile
-            context: .
-          - service: deployer
-            dockerfile: services/deployer/Dockerfile
-            context: .
-          - service: webhook
-            dockerfile: services/webhook/Dockerfile
-            context: .
           - service: cashier
             dockerfile: services/cashier/Dockerfile
             context: .

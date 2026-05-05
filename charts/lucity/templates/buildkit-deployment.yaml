@@ -1,5 +1,5 @@
-{{- if .Values.builder.serviceAccount.create }}
-{{- $ns := .Values.builder.buildNamespace | default "lucity-builds" }}
+{{- if .Values.conductor.buildkit.enabled }}
+{{- $ns := .Values.conductor.buildNamespace | default "lucity-builds" }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -29,7 +29,7 @@ spec:
         fsGroupChangePolicy: OnRootMismatch
       containers:
         - name: buildkitd
-          image: {{ .Values.builder.buildkitImage | quote }}
+          image: {{ .Values.conductor.buildkitImage | quote }}
           args:
             - "--addr"
             - "tcp://0.0.0.0:1234"
@@ -58,7 +58,7 @@ spec:
               mountPath: /etc/buildkit
               readOnly: true
           resources:
-            {{- toYaml .Values.builder.buildkit.resources | nindent 12 }}
+            {{- toYaml .Values.conductor.buildkit.resources | nindent 12 }}
       volumes:
         - name: buildkit-data
           persistentVolumeClaim:

@@ -17,28 +17,28 @@ spec:
             type: PathPrefix
             value: /graphql
       backendRefs:
-        - name: {{ include "lucity.fullname" . }}-gateway
+        - name: {{ include "lucity.fullname" . }}-conductor
           port: 8080
     - matches:
         - path:
             type: PathPrefix
             value: /auth
       backendRefs:
-        - name: {{ include "lucity.fullname" . }}-gateway
+        - name: {{ include "lucity.fullname" . }}-conductor
           port: 8080
     - matches:
         - path:
             type: PathPrefix
             value: /playground
       backendRefs:
-        - name: {{ include "lucity.fullname" . }}-gateway
+        - name: {{ include "lucity.fullname" . }}-conductor
           port: 8080
     - matches:
         - path:
             type: PathPrefix
             value: /version
       backendRefs:
-        - name: {{ include "lucity.fullname" . }}-gateway
+        - name: {{ include "lucity.fullname" . }}-conductor
           port: 8080
     - matches:
         - path:
@@ -67,14 +67,14 @@ spec:
             type: PathPrefix
             value: /webhooks
       backendRefs:
-        - name: {{ include "lucity.fullname" . }}-webhook
+        - name: {{ include "lucity.fullname" . }}-conductor
           port: 9004
     - matches:
         - path:
             type: PathPrefix
             value: /api
       backendRefs:
-        - name: {{ include "lucity.fullname" . }}-gateway
+        - name: {{ include "lucity.fullname" . }}-conductor
           port: 8080
     - matches:
         - path:

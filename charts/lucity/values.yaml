@@ -35,44 +35,36 @@ routes:
   gatewayNamespace: lucity-system
   hostname: lucity.cloud
 
-# -- Gateway (GraphQL API)
-gateway:
+# -- Conductor (unified control plane: GraphQL + GitOps repo management
+#    + ArgoCD lifecycle + build orchestration + webhook receiver).
+#    Absorbs what were previously gateway, packager, deployer, builder,
+#    and webhook.
+conductor:
   replicaCount: 1
   image:
-    repository: ghcr.io/zeitlos/lucity/gateway
+    repository: ghcr.io/zeitlos/lucity/conductor
     tag: ""
     pullPolicy: IfNotPresent
-  port: 8080
-  env: {}
-  envSecret: {}
-  resources:
-    requests:
-      cpu: 100m
-      memory: 128Mi
-    limits:
-      cpu: 500m
-      memory: 256Mi
-
-# -- Builder (source-to-image)
-builder:
-  replicaCount: 1
-  image:
-    repository: ghcr.io/zeitlos/lucity/builder
-    tag: ""
-    pullPolicy: IfNotPresent
-  port: 9001
-  env: {}
-  envSecret: {}
-  serviceAccount:
-    create: false
+  # GraphQL + auth + dashboard API
+  httpPort: 8080
+  # Inbound gRPC (cashier callbacks: SuspendWorkspace, ListResourceAllocations)
+  grpcPort: 9090
+  # GitHub webhook receiver
+  webhookPort: 9004
   # -- Namespace for BuildKit and build Jobs (isolated from platform services)
   buildNamespace: lucity-builds
   # -- Registry host for BuildKit config (used in buildkitd.toml for build Jobs)
   registryHost: ""
   # -- BuildKit image (used by the persistent BuildKit Deployment)
   buildkitImage: moby/buildkit:v0.28.0
-  # -- Persistent BuildKit daemon settings (shared across all builds)
+  # -- Registry credentials used by build Jobs to push images.
+  registryUsername: ""
+  # -- Persistent BuildKit daemon settings (shared across all builds).
+  # buildkit.enabled gates the BuildKit Deployment + Build Job RBAC
+  # in the lucity-builds namespace. Disable in dev to skip the
+  # BuildKit infrastructure entirely.
   buildkit:
+    enabled: false
     storageSize: 20Gi
     resources:
       requests:
@@ -81,69 +73,15 @@ builder:
       limits:
         cpu: "4"
         memory: 4Gi
+  env: {}
+  envSecret: {}
   resources:
     requests:
-      cpu: 200m
-      memory: 256Mi
+      cpu: 250m
+      memory: 384Mi
     limits:
       cpu: "1"
-      memory: 512Mi
-
-# -- Packager (GitOps repo management)
-packager:
-  replicaCount: 1
-  image:
-    repository: ghcr.io/zeitlos/lucity/packager
-    tag: ""
-    pullPolicy: IfNotPresent
-  port: 9002
-  env: {}
-  envSecret: {}
-  resources:
-    requests:
-      cpu: 100m
-      memory: 128Mi
-    limits:
-      cpu: 500m
-      memory: 256Mi
-
-# -- Deployer (ArgoCD lifecycle)
-deployer:
-  replicaCount: 1
-  image:
-    repository: ghcr.io/zeitlos/lucity/deployer
-    tag: ""
-    pullPolicy: IfNotPresent
-  port: 9003
-  env: {}
-  envSecret: {}
-  serviceAccount:
-    create: false
-  resources:
-    requests:
-      cpu: 100m
-      memory: 128Mi
-    limits:
-      cpu: 500m
-      memory: 256Mi
-
-# -- Webhook (GitHub event routing)
-webhook:
-  replicaCount: 1
-  image:
-    repository: ghcr.io/zeitlos/lucity/webhook
-    tag: ""
-    pullPolicy: IfNotPresent
-  port: 9004
-  env: {}
-  envSecret: {}
-  resources:
-    requests:
-      cpu: 100m
-      memory: 128Mi
-    limits:
-      cpu: 500m
-      memory: 256Mi
+      memory: 768Mi
 
 # -- Cashier (Stripe billing)
 cashier:
