@@ -19,7 +19,8 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	ConductorService_SuspendWorkspace_FullMethodName = "/conductor.ConductorService/SuspendWorkspace"
+	ConductorService_SuspendWorkspace_FullMethodName        = "/conductor.ConductorService/SuspendWorkspace"
+	ConductorService_ListResourceAllocations_FullMethodName = "/conductor.ConductorService/ListResourceAllocations"
 )
 
 // ConductorServiceClient is the client API for ConductorService service.
@@ -42,6 +43,11 @@ type ConductorServiceClient interface {
 	// groups by (project, environment), and persists the change in
 	// each environment's GitOps values, which ArgoCD then enforces.
 	SuspendWorkspace(ctx context.Context, in *SuspendWorkspaceRequest, opts ...grpc.CallOption) (*SuspendWorkspaceResponse, error)
+	// ListResourceAllocations returns the resource quota tier and
+	// allocations for every managed (workspace, project, environment)
+	// namespace. Called by cashier's metering worker each interval to
+	// attribute compute usage to subscriptions.
+	ListResourceAllocations(ctx context.Context, in *ListResourceAllocationsRequest, opts ...grpc.CallOption) (*ListResourceAllocationsResponse, error)
 }
 
 type conductorServiceClient struct {
@@ -56,6 +62,16 @@ func (c *conductorServiceClient) SuspendWorkspace(ctx context.Context, in *Suspe
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(SuspendWorkspaceResponse)
 	err := c.cc.Invoke(ctx, ConductorService_SuspendWorkspace_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *conductorServiceClient) ListResourceAllocations(ctx context.Context, in *ListResourceAllocationsRequest, opts ...grpc.CallOption) (*ListResourceAllocationsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListResourceAllocationsResponse)
+	err := c.cc.Invoke(ctx, ConductorService_ListResourceAllocations_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -82,6 +98,11 @@ type ConductorServiceServer interface {
 	// groups by (project, environment), and persists the change in
 	// each environment's GitOps values, which ArgoCD then enforces.
 	SuspendWorkspace(context.Context, *SuspendWorkspaceRequest) (*SuspendWorkspaceResponse, error)
+	// ListResourceAllocations returns the resource quota tier and
+	// allocations for every managed (workspace, project, environment)
+	// namespace. Called by cashier's metering worker each interval to
+	// attribute compute usage to subscriptions.
+	ListResourceAllocations(context.Context, *ListResourceAllocationsRequest) (*ListResourceAllocationsResponse, error)
 	mustEmbedUnimplementedConductorServiceServer()
 }
 
@@ -94,6 +115,9 @@ type UnimplementedConductorServiceServer struct{}
 
 func (UnimplementedConductorServiceServer) SuspendWorkspace(context.Context, *SuspendWorkspaceRequest) (*SuspendWorkspaceResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SuspendWorkspace not implemented")
+}
+func (UnimplementedConductorServiceServer) ListResourceAllocations(context.Context, *ListResourceAllocationsRequest) (*ListResourceAllocationsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListResourceAllocations not implemented")
 }
 func (UnimplementedConductorServiceServer) mustEmbedUnimplementedConductorServiceServer() {}
 func (UnimplementedConductorServiceServer) testEmbeddedByValue()                          {}
@@ -134,6 +158,24 @@ func _ConductorService_SuspendWorkspace_Handler(srv interface{}, ctx context.Con
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ConductorService_ListResourceAllocations_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListResourceAllocationsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ConductorServiceServer).ListResourceAllocations(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ConductorService_ListResourceAllocations_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ConductorServiceServer).ListResourceAllocations(ctx, req.(*ListResourceAllocationsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ConductorService_ServiceDesc is the grpc.ServiceDesc for ConductorService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -144,6 +186,10 @@ var ConductorService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SuspendWorkspace",
 			Handler:    _ConductorService_SuspendWorkspace_Handler,
+		},
+		{
+			MethodName: "ListResourceAllocations",
+			Handler:    _ConductorService_ListResourceAllocations_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -68,6 +68,38 @@ func (s *Service) SuspendWorkspace(ctx context.Context, req *conductor.SuspendWo
 	return &conductor.SuspendWorkspaceResponse{}, nil
 }
 
+// ListResourceAllocations forwards to the deployer service and
+// translates the response into the conductor.proto shape. ResourceTier
+// values are stable across the two protos so the conversion is a
+// straight cast.
+func (s *Service) ListResourceAllocations(ctx context.Context, req *conductor.ListResourceAllocationsRequest) (*conductor.ListResourceAllocationsResponse, error) {
+	if s.api == nil || s.api.Deployer == nil {
+		return nil, status.Error(codes.FailedPrecondition, "deployer not wired")
+	}
+
+	outCtx := auth.OutgoingContext(ctx)
+	resp, err := s.api.Deployer.ListResourceAllocations(outCtx, &deployerproto.ListResourceAllocationsRequest{})
+	if err != nil {
+		return nil, fmt.Errorf("deployer list resource allocations: %w", err)
+	}
+
+	out := &conductor.ListResourceAllocationsResponse{
+		Allocations: make([]*conductor.ResourceAllocation, 0, len(resp.Allocations)),
+	}
+	for _, a := range resp.Allocations {
+		out.Allocations = append(out.Allocations, &conductor.ResourceAllocation{
+			Workspace:      a.GetWorkspace(),
+			Project:        a.GetProject(),
+			Environment:    a.GetEnvironment(),
+			Tier:           conductor.ResourceTier(a.GetTier()),
+			CpuMillicores:  a.GetCpuMillicores(),
+			MemoryMb:       a.GetMemoryMb(),
+			DiskMb:         a.GetDiskMb(),
+		})
+	}
+	return out, nil
+}
+
 // Server is a graceful.Server-compatible wrapper around grpc.Server.
 type Server struct {
 	server *grpc.Server

@@ -11,25 +11,25 @@ import (
 
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/cashier"
-	"github.com/zeitlos/lucity/pkg/deployer"
+	"github.com/zeitlos/lucity/pkg/conductor"
 	"github.com/zeitlos/lucity/pkg/logto"
 	stripelib "github.com/zeitlos/lucity/services/cashier/stripe"
 )
 
 type Server struct {
 	cashier.UnimplementedCashierServiceServer
-	stripe   *stripelib.Client
-	deployer deployer.DeployerServiceClient
-	logto    *logto.Client
-	issuer   *auth.Issuer
+	stripe    *stripelib.Client
+	conductor conductor.ConductorServiceClient
+	logto     *logto.Client
+	issuer    *auth.Issuer
 }
 
-func NewServer(stripeClient *stripelib.Client, deployerClient deployer.DeployerServiceClient, logtoClient *logto.Client, issuer *auth.Issuer) *Server {
+func NewServer(stripeClient *stripelib.Client, conductorClient conductor.ConductorServiceClient, logtoClient *logto.Client, issuer *auth.Issuer) *Server {
 	return &Server{
-		stripe:   stripeClient,
-		deployer: deployerClient,
-		logto:    logtoClient,
-		issuer:   issuer,
+		stripe:    stripeClient,
+		conductor: conductorClient,
+		logto:     logtoClient,
+		issuer:    issuer,
 	}
 }
 
@@ -336,8 +336,10 @@ func (s *Server) suspendWorkspace(workspace string, suspended bool) {
 		action = "resume"
 	}
 
-	// 1. Write suspended flag to GitOps repo via deployer -> packager.
-	_, err := s.deployer.SuspendWorkspace(ctx, &deployer.SuspendWorkspaceRequest{
+	// 1. Tell conductor to flip the suspended flag for every project /
+	//    environment owned by this workspace. Conductor persists the
+	//    change and (where applicable) triggers ArgoCD sync.
+	_, err := s.conductor.SuspendWorkspace(ctx, &conductor.SuspendWorkspaceRequest{
 		Workspace: workspace,
 		Suspended: suspended,
 	})

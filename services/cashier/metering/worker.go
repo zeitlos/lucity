@@ -14,7 +14,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/zeitlos/lucity/pkg/auth"
-	"github.com/zeitlos/lucity/pkg/deployer"
+	"github.com/zeitlos/lucity/pkg/conductor"
 	"github.com/zeitlos/lucity/pkg/labels"
 	"github.com/zeitlos/lucity/pkg/logto"
 	stripelib "github.com/zeitlos/lucity/services/cashier/stripe"
@@ -39,28 +39,28 @@ const checkpointKey = "last_window_end"
 
 // Worker periodically queries resource usage and reports it to Stripe.
 type Worker struct {
-	stripe   *stripelib.Client
-	deployer deployer.DeployerServiceClient
-	logto    *logto.Client
-	vm       *VMClient
-	k8s      kubernetes.Interface // nil if K8s not available (no checkpoint/backfill)
-	issuer   *auth.Issuer
-	interval time.Duration
-	cancel   context.CancelFunc
-	done     chan struct{}
+	stripe    *stripelib.Client
+	conductor conductor.ConductorServiceClient
+	logto     *logto.Client
+	vm        *VMClient
+	k8s       kubernetes.Interface // nil if K8s not available (no checkpoint/backfill)
+	issuer    *auth.Issuer
+	interval  time.Duration
+	cancel    context.CancelFunc
+	done      chan struct{}
 }
 
 // NewWorker creates a metering worker. k8sClient may be nil (disables checkpoint/backfill).
-func NewWorker(stripeClient *stripelib.Client, deployerClient deployer.DeployerServiceClient, logtoClient *logto.Client, vmClient *VMClient, k8sClient kubernetes.Interface, issuer *auth.Issuer, interval time.Duration) *Worker {
+func NewWorker(stripeClient *stripelib.Client, conductorClient conductor.ConductorServiceClient, logtoClient *logto.Client, vmClient *VMClient, k8sClient kubernetes.Interface, issuer *auth.Issuer, interval time.Duration) *Worker {
 	return &Worker{
-		stripe:   stripeClient,
-		deployer: deployerClient,
-		logto:    logtoClient,
-		vm:       vmClient,
-		k8s:      k8sClient,
-		issuer:   issuer,
-		interval: interval,
-		done:     make(chan struct{}),
+		stripe:    stripeClient,
+		conductor: conductorClient,
+		logto:     logtoClient,
+		vm:        vmClient,
+		k8s:       k8sClient,
+		issuer:    issuer,
+		interval:  interval,
+		done:      make(chan struct{}),
 	}
 }
 
@@ -180,8 +180,8 @@ func (w *Worker) tick(ctx context.Context) {
 	w.processWindow(ctx, start, end)
 }
 
-// deployerCtx creates a system-level auth context for calling the deployer.
-func (w *Worker) deployerCtx(ctx context.Context) context.Context {
+// conductorCtx creates a system-level auth context for calling conductor.
+func (w *Worker) conductorCtx(ctx context.Context) context.Context {
 	ctx = auth.WithClaims(ctx, &auth.Claims{
 		Subject: "cashier",
 		Roles:   []auth.Role{auth.RoleUser},
@@ -234,7 +234,7 @@ type allocEntry struct {
 
 func (w *Worker) processWindow(ctx context.Context, windowStart, windowEnd time.Time) {
 	start := time.Now()
-	callCtx := w.deployerCtx(ctx)
+	callCtx := w.conductorCtx(ctx)
 
 	// 1. List all billable workspaces from Logto.
 	workspaces, err := w.billableWorkspaces(ctx)
@@ -250,7 +250,7 @@ func (w *Worker) processWindow(ctx context.Context, windowStart, windowEnd time.
 	}
 
 	// 3. List all resource allocations.
-	allocResp, err := w.deployer.ListResourceAllocations(callCtx, &deployer.ListResourceAllocationsRequest{})
+	allocResp, err := w.conductor.ListResourceAllocations(callCtx, &conductor.ListResourceAllocationsRequest{})
 	if err != nil {
 		slog.Error("metering: failed to list resource allocations", "error", err)
 		return
@@ -272,7 +272,7 @@ func (w *Worker) processWindow(ctx context.Context, windowStart, windowEnd time.
 			diskMB:    alloc.DiskMb,
 		}
 
-		if alloc.Tier == deployer.ResourceTier_RESOURCE_TIER_ECO {
+		if alloc.Tier == conductor.ResourceTier_RESOURCE_TIER_ECO {
 			ws.ecoNamespaces = append(ws.ecoNamespaces, ns)
 			ws.ecoAllocations = append(ws.ecoAllocations, entry)
 			allEcoNamespaces = append(allEcoNamespaces, ns)
