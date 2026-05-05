@@ -68,6 +68,12 @@ type Forge interface {
 
 // Repository abstracts GitOps repo where Chart and values are stored.
 type Repository interface {
+	// SetWorkspace records the workspace that owns this repo. Callers
+	// that know the workspace (typically the deployer Backend after
+	// resolving namespace labels) call this before invoking methods
+	// that derive the project name from the slug.
+	SetWorkspace(workspace string)
+
 	// Metadata reads project metadata from repo files.
 	Metadata(ctx context.Context) (*RepoMeta, error)
 
