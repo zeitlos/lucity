@@ -29,8 +29,6 @@ import (
 	"github.com/tonistiigi/fsutil"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-
-	"github.com/zeitlos/lucity/services/builder/build"
 )
 
 // runBuildConfig holds env-based configuration for the build runner.
@@ -83,7 +81,7 @@ func runBuild() {
 		slog.Error("build failed", "error", err)
 
 		// Annotate Job with error
-		if annotateErr := build.AnnotateJobError(k8sClient, cfg.Namespace, cfg.BuildID, err.Error()); annotateErr != nil {
+		if annotateErr := annotateJobError(k8sClient, cfg.Namespace, cfg.BuildID, err.Error()); annotateErr != nil {
 			slog.Error("failed to annotate job with error", "error", annotateErr)
 		}
 
@@ -156,7 +154,7 @@ func executeBuild(cfg runBuildConfig, k8sClient kubernetes.Interface) error {
 
 	// 8. Annotate Job with result
 
-	if err := build.AnnotateJobResult(k8sClient, cfg.Namespace, cfg.BuildID, imageName, digest); err != nil {
+	if err := annotateJobResult(k8sClient, cfg.Namespace, cfg.BuildID, imageName, digest); err != nil {
 		return fmt.Errorf("failed to annotate job: %w", err)
 	}
 

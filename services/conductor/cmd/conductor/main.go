@@ -128,18 +128,6 @@ type Config struct {
 }
 
 func main() {
-	// Builder runs as a subprocess inside Build Job pods to execute the
-	// actual BuildKit build. That subprocess is launched as the
-	// container entrypoint with arg "run-build". When running in that
-	// mode, defer to the existing builder runBuild logic and skip all
-	// the conductor wiring — there's no API, gRPC, or k8s parent
-	// connection in that mode.
-	if len(os.Args) > 1 && os.Args[1] == "run-build" {
-		logger.Setup("info")
-		runBuild()
-		return
-	}
-
 	var config Config
 	if err := envconfig.Process("", &config); err != nil {
 		slog.Error("failed to load config", "error", err)

@@ -59,6 +59,13 @@ conductor:
   buildkitImage: moby/buildkit:v0.28.0
   # -- Registry credentials used by build Jobs to push images.
   registryUsername: ""
+  # -- Build runner image: a separate small binary that runs inside
+  #    Build Job pods to clone source, run railpack + BuildKit, and
+  #    push the resulting image. Defaults to the same chart appVersion
+  #    as the conductor.
+  builderImage:
+    repository: ghcr.io/zeitlos/lucity/builder
+    tag: ""
   # -- Persistent BuildKit daemon settings (shared across all builds).
   # buildkit.enabled gates the BuildKit Deployment + Build Job RBAC
   # in the lucity-builds namespace. Disable in dev to skip the

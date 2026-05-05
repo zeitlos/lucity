@@ -18,13 +18,7 @@ COPY services/conductor/ services/conductor/
 RUN cd services/conductor && \
     CGO_ENABLED=0 go build -ldflags="-s -w -X main.Version=${VERSION}" -o /app ./cmd/conductor/...
 
-# debian-slim rather than distroless: conductor doubles as the in-pod
-# build runner ("conductor run-build") which shells out to git +
-# buildkit and needs a real OS.
-FROM debian:bookworm-slim
-
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates git && \
-    rm -rf /var/lib/apt/lists/*
+FROM gcr.io/distroless/static-debian12
 
 COPY --from=builder /app /app
 

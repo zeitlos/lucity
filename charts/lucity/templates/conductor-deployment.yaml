@@ -65,6 +65,10 @@ spec:
               value: {{ .Values.conductor.grpcPort | quote }}
             - name: WEBHOOK_PORT
               value: {{ .Values.conductor.webhookPort | quote }}
+            - name: BUILD_NAMESPACE
+              value: {{ .Values.conductor.buildNamespace | quote }}
+            - name: BUILD_IMAGE
+              value: "{{ .Values.conductor.builderImage.repository }}:{{ .Values.conductor.builderImage.tag | default .Chart.AppVersion }}"
             {{- range $key, $value := .Values.conductor.env }}
             - name: {{ $key }}
               value: {{ $value | quote }}

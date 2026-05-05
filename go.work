@@ -3,6 +3,7 @@ go 1.26.0
 use (
 	./charts
 	./pkg
+	./services/builder
 	./services/cashier
 	./services/conductor
 	./tests
