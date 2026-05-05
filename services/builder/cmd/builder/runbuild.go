@@ -406,7 +406,9 @@ func buildWithBuildKit(ctx context.Context, buildkitAddr, buildDir, imageName, c
 
 	var sessionAttachables []session.Attachable
 	if dockerCfg != nil {
-		sessionAttachables = append(sessionAttachables, authprovider.NewDockerAuthProvider(dockerCfg, nil))
+		sessionAttachables = append(sessionAttachables, authprovider.NewDockerAuthProvider(authprovider.DockerAuthProviderConfig{
+			AuthConfigProvider: authprovider.LoadAuthConfig(dockerCfg),
+		}))
 	}
 
 	solveOpts := client.SolveOpt{
