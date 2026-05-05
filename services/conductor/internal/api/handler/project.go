@@ -96,11 +96,7 @@ type Deployment struct {
 	SourceURL           string // full URL to commit on GitHub
 }
 
-func (c *Client) Projects(ctx context.Context) ([]Project, error) {
-	ws, err := tenant.Require(ctx)
-	if err != nil {
-		return nil, err
-	}
+func (c *Client) Projects(ctx context.Context, ws string) ([]Project, error) {
 	ctx = auth.OutgoingContext(ctx)
 	ctx = tenant.OutgoingContext(ctx)
 
@@ -124,11 +120,7 @@ func (c *Client) Projects(ctx context.Context) ([]Project, error) {
 	return result, nil
 }
 
-func (c *Client) Project(ctx context.Context, id string) (*Project, error) {
-	ws, err := tenant.Require(ctx)
-	if err != nil {
-		return nil, err
-	}
+func (c *Client) Project(ctx context.Context, ws, id string) (*Project, error) {
 	ctx = auth.OutgoingContext(ctx)
 	ctx = tenant.OutgoingContext(ctx)
 
@@ -173,12 +165,7 @@ func slugFromName(name string) string {
 	return s
 }
 
-func (c *Client) CreateProject(ctx context.Context, slug, displayName string) (*Project, error) {
-	ws, err := tenant.Require(ctx)
-	if err != nil {
-		return nil, err
-	}
-
+func (c *Client) CreateProject(ctx context.Context, ws, slug, displayName string) (*Project, error) {
 	// Derive slug from display name if not provided
 	if slug == "" {
 		slug = slugFromName(displayName)

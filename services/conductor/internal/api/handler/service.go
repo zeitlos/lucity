@@ -67,14 +67,10 @@ func (c *Client) DetectServices(ctx context.Context, repository string, installa
 	return result, nil
 }
 
-func (c *Client) AddService(ctx context.Context, projectID, environment, name string, port int, framework, startCommand, repository, contextPath string, installationID *int64, externalImage, customStartCommand string) (*ServiceInstance, error) {
-	ws, err := tenant.Require(ctx)
-	if err != nil {
-		return nil, err
-	}
-
+func (c *Client) AddService(ctx context.Context, ws, projectID, environment, name string, port int, framework, startCommand, repository, contextPath string, installationID *int64, externalImage, customStartCommand string) (*ServiceInstance, error) {
 	// For source-based services, resolve repository to a verified clone URL.
 	var sourceURL string
+	var err error
 	if repository != "" {
 		if installationID == nil {
 			return nil, fmt.Errorf("installationId is required when repository is set")
@@ -379,11 +375,7 @@ func deployOpFromState(s *deploy.State) *DeployOp {
 
 // Deploy starts a unified build+deploy operation. It triggers a build and,
 // on success, automatically updates the image tag and syncs ArgoCD.
-func (c *Client) Deploy(ctx context.Context, projectID, service, environment, gitRef string) (*DeployOp, error) {
-	ws, err := tenant.Require(ctx)
-	if err != nil {
-		return nil, err
-	}
+func (c *Client) Deploy(ctx context.Context, ws, projectID, service, environment, gitRef string) (*DeployOp, error) {
 	ctx = auth.OutgoingContext(ctx)
 	ctx = tenant.OutgoingContext(ctx)
 

@@ -8,6 +8,7 @@ package graphql
 import (
 	"context"
 
+	"github.com/zeitlos/lucity/pkg/tenant"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
 )
 
@@ -49,7 +50,11 @@ func (r *mutationResolver) ExecuteQuery(ctx context.Context, input model.Databas
 
 // Databases is the resolver for the databases field.
 func (r *queryResolver) Databases(ctx context.Context, projectID string) ([]model.Database, error) {
-	dbs, err := r.API.Databases(ctx, projectID)
+	ws, err := tenant.Require(ctx)
+	if err != nil {
+		return nil, err
+	}
+	dbs, err := r.API.Databases(ctx, ws, projectID)
 	if err != nil {
 		return nil, err
 	}

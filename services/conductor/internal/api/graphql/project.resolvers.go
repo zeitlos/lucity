@@ -9,6 +9,7 @@ import (
 	"context"
 	"strings"
 
+	"github.com/zeitlos/lucity/pkg/tenant"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/handler"
 )
@@ -31,11 +32,15 @@ func (r *environmentResolver) ResourceTier(ctx context.Context, obj *model.Envir
 
 // CreateProject is the resolver for the createProject field.
 func (r *mutationResolver) CreateProject(ctx context.Context, input model.CreateProjectInput) (*model.Project, error) {
+	ws, err := tenant.Require(ctx)
+	if err != nil {
+		return nil, err
+	}
 	slug := ""
 	if input.ID != nil {
 		slug = *input.ID
 	}
-	p, err := r.API.CreateProject(ctx, slug, input.Name)
+	p, err := r.API.CreateProject(ctx, ws, slug, input.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +107,11 @@ func (r *mutationResolver) SetServiceScaling(ctx context.Context, input model.Se
 
 // Projects is the resolver for the projects field.
 func (r *queryResolver) Projects(ctx context.Context) ([]model.Project, error) {
-	projects, err := r.API.Projects(ctx)
+	ws, err := tenant.Require(ctx)
+	if err != nil {
+		return nil, err
+	}
+	projects, err := r.API.Projects(ctx, ws)
 	if err != nil {
 		return nil, err
 	}
@@ -115,7 +124,11 @@ func (r *queryResolver) Projects(ctx context.Context) ([]model.Project, error) {
 
 // Project is the resolver for the project field.
 func (r *queryResolver) Project(ctx context.Context, id string) (*model.Project, error) {
-	p, err := r.API.Project(ctx, id)
+	ws, err := tenant.Require(ctx)
+	if err != nil {
+		return nil, err
+	}
+	p, err := r.API.Project(ctx, ws, id)
 	if err != nil {
 		return nil, err
 	}

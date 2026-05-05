@@ -129,15 +129,11 @@ type BillingPortalUrlResult struct {
 	URL string
 }
 
-func (c *Client) Subscription(ctx context.Context) (*BillingSubscription, error) {
+func (c *Client) Subscription(ctx context.Context, ws string) (*BillingSubscription, error) {
 	if c.Cashier == nil {
 		return nil, fmt.Errorf("billing not configured")
 	}
-	ws, err := tenant.Require(ctx)
-	if err != nil {
-		return nil, err
-	}
-	customerID, subscriptionID, err := c.stripeIDs(ctx)
+	customerID, subscriptionID, err := c.stripeIDs(ctx, ws)
 	if err != nil {
 		return nil, err
 	}
@@ -171,15 +167,11 @@ func (c *Client) Subscription(ctx context.Context) (*BillingSubscription, error)
 	return result, nil
 }
 
-func (c *Client) ChangePlan(ctx context.Context, plan string) (*BillingSubscription, error) {
+func (c *Client) ChangePlan(ctx context.Context, ws, plan string) (*BillingSubscription, error) {
 	if c.Cashier == nil {
 		return nil, fmt.Errorf("billing not configured")
 	}
-	ws, err := tenant.Require(ctx)
-	if err != nil {
-		return nil, err
-	}
-	customerID, subscriptionID, err := c.stripeIDs(ctx)
+	customerID, subscriptionID, err := c.stripeIDs(ctx, ws)
 	if err != nil {
 		return nil, err
 	}
@@ -214,15 +206,11 @@ func (c *Client) ChangePlan(ctx context.Context, plan string) (*BillingSubscript
 	return result, nil
 }
 
-func (c *Client) BillingPortalURL(ctx context.Context) (*BillingPortalUrlResult, error) {
+func (c *Client) BillingPortalURL(ctx context.Context, ws string) (*BillingPortalUrlResult, error) {
 	if c.Cashier == nil {
 		return nil, fmt.Errorf("billing not configured")
 	}
-	ws, err := tenant.Require(ctx)
-	if err != nil {
-		return nil, err
-	}
-	customerID, _, err := c.stripeIDs(ctx)
+	customerID, _, err := c.stripeIDs(ctx, ws)
 	if err != nil {
 		return nil, err
 	}
@@ -245,15 +233,11 @@ func (c *Client) BillingPortalURL(ctx context.Context) (*BillingPortalUrlResult,
 	return &BillingPortalUrlResult{URL: resp.Url}, nil
 }
 
-func (c *Client) UsageSummary(ctx context.Context) (*UsageSummaryResult, error) {
+func (c *Client) UsageSummary(ctx context.Context, ws string) (*UsageSummaryResult, error) {
 	if c.Cashier == nil {
 		return nil, fmt.Errorf("billing not configured")
 	}
-	ws, err := tenant.Require(ctx)
-	if err != nil {
-		return nil, err
-	}
-	customerID, subscriptionID, err := c.stripeIDs(ctx)
+	customerID, subscriptionID, err := c.stripeIDs(ctx, ws)
 	if err != nil {
 		return nil, err
 	}
@@ -281,11 +265,7 @@ func (c *Client) UsageSummary(ctx context.Context) (*UsageSummaryResult, error) 
 }
 
 // stripeIDs reads the Stripe customer and subscription IDs from the Logto org customData.
-func (c *Client) stripeIDs(ctx context.Context) (customerID, subscriptionID string, err error) {
-	ws, err := tenant.Require(ctx)
-	if err != nil {
-		return "", "", err
-	}
+func (c *Client) stripeIDs(ctx context.Context, ws string) (customerID, subscriptionID string, err error) {
 	orgID, err := c.resolveOrgID(ctx, ws)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to resolve org: %w", err)
@@ -301,7 +281,7 @@ func (c *Client) stripeIDs(ctx context.Context) (customerID, subscriptionID stri
 	return customerID, subscriptionID, nil
 }
 
-func (c *Client) CreatePlanCheckout(ctx context.Context, plan string) (string, error) {
+func (c *Client) CreatePlanCheckout(ctx context.Context, ws, plan string) (string, error) {
 	if c.Cashier == nil {
 		return "", fmt.Errorf("billing not configured")
 	}
@@ -309,7 +289,7 @@ func (c *Client) CreatePlanCheckout(ctx context.Context, plan string) (string, e
 	if claims == nil {
 		return "", fmt.Errorf("unauthenticated")
 	}
-	customerID, _, err := c.stripeIDs(ctx)
+	customerID, _, err := c.stripeIDs(ctx, ws)
 	if err != nil {
 		return "", err
 	}
@@ -338,7 +318,7 @@ func (c *Client) CreatePlanCheckout(ctx context.Context, plan string) (string, e
 	return resp.Url, nil
 }
 
-func (c *Client) CompletePlanCheckout(ctx context.Context, sessionID string) (*BillingSubscription, error) {
+func (c *Client) CompletePlanCheckout(ctx context.Context, ws, sessionID string) (*BillingSubscription, error) {
 	if c.Cashier == nil {
 		return nil, fmt.Errorf("billing not configured")
 	}
@@ -346,17 +326,12 @@ func (c *Client) CompletePlanCheckout(ctx context.Context, sessionID string) (*B
 	if claims == nil {
 		return nil, fmt.Errorf("unauthenticated")
 	}
-	customerID, subscriptionID, err := c.stripeIDs(ctx)
+	customerID, subscriptionID, err := c.stripeIDs(ctx, ws)
 	if err != nil {
 		return nil, err
 	}
 	if customerID == "" || subscriptionID == "" {
 		return nil, fmt.Errorf("billing is not configured for this workspace")
-	}
-
-	ws, err := tenant.Require(ctx)
-	if err != nil {
-		return nil, err
 	}
 
 	ctx = auth.OutgoingContext(ctx)

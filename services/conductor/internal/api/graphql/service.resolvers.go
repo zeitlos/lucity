@@ -10,11 +10,16 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/zeitlos/lucity/pkg/tenant"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
 )
 
 // AddService is the resolver for the addService field.
 func (r *mutationResolver) AddService(ctx context.Context, input model.AddServiceInput) (*model.ServiceInstance, error) {
+	ws, err := tenant.Require(ctx)
+	if err != nil {
+		return nil, err
+	}
 	framework := ""
 	if input.Framework != nil {
 		framework = *input.Framework
@@ -55,7 +60,7 @@ func (r *mutationResolver) AddService(ctx context.Context, input model.AddServic
 	if input.CustomStartCommand != nil {
 		customStartCommand = *input.CustomStartCommand
 	}
-	si, err := r.API.AddService(ctx, input.ProjectID, input.Environment, name, port, framework, startCommand, repository, contextPath, installationID, externalImage, customStartCommand)
+	si, err := r.API.AddService(ctx, ws, input.ProjectID, input.Environment, name, port, framework, startCommand, repository, contextPath, installationID, externalImage, customStartCommand)
 	if err != nil {
 		return nil, err
 	}
@@ -75,11 +80,15 @@ func (r *mutationResolver) SetCustomStartCommand(ctx context.Context, projectID 
 
 // Deploy is the resolver for the deploy field.
 func (r *mutationResolver) Deploy(ctx context.Context, input model.DeployInput) (*model.DeployRun, error) {
+	ws, err := tenant.Require(ctx)
+	if err != nil {
+		return nil, err
+	}
 	gitRef := ""
 	if input.GitRef != nil {
 		gitRef = *input.GitRef
 	}
-	d, err := r.API.Deploy(ctx, input.ProjectID, input.Service, input.Environment, gitRef)
+	d, err := r.API.Deploy(ctx, ws, input.ProjectID, input.Service, input.Environment, gitRef)
 	if err != nil {
 		return nil, err
 	}

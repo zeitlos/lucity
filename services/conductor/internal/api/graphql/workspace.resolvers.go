@@ -9,6 +9,7 @@ import (
 	"context"
 
 	"github.com/zeitlos/lucity/pkg/auth"
+	"github.com/zeitlos/lucity/pkg/tenant"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
 )
 
@@ -41,7 +42,11 @@ func (r *mutationResolver) CompleteWorkspaceCheckout(ctx context.Context, sessio
 
 // UpdateWorkspace is the resolver for the updateWorkspace field.
 func (r *mutationResolver) UpdateWorkspace(ctx context.Context, input model.UpdateWorkspaceInput) (*model.Workspace, error) {
-	ws, err := r.API.UpdateWorkspace(ctx, input.Name)
+	wsID, err := tenant.Require(ctx)
+	if err != nil {
+		return nil, err
+	}
+	ws, err := r.API.UpdateWorkspace(ctx, wsID, input.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -50,16 +55,24 @@ func (r *mutationResolver) UpdateWorkspace(ctx context.Context, input model.Upda
 
 // DeleteWorkspace is the resolver for the deleteWorkspace field.
 func (r *mutationResolver) DeleteWorkspace(ctx context.Context) (bool, error) {
-	return r.API.DeleteWorkspace(ctx)
+	wsID, err := tenant.Require(ctx)
+	if err != nil {
+		return false, err
+	}
+	return r.API.DeleteWorkspace(ctx, wsID)
 }
 
 // InviteMember is the resolver for the inviteMember field.
 func (r *mutationResolver) InviteMember(ctx context.Context, input model.InviteMemberInput) (*model.WorkspaceMember, error) {
+	wsID, err := tenant.Require(ctx)
+	if err != nil {
+		return nil, err
+	}
 	role := auth.WorkspaceRoleUser
 	if input.Role == model.WorkspaceRoleAdmin {
 		role = auth.WorkspaceRoleAdmin
 	}
-	m, err := r.API.InviteMember(ctx, input.Email, role)
+	m, err := r.API.InviteMember(ctx, wsID, input.Email, role)
 	if err != nil {
 		return nil, err
 	}
@@ -68,16 +81,24 @@ func (r *mutationResolver) InviteMember(ctx context.Context, input model.InviteM
 
 // RemoveMember is the resolver for the removeMember field.
 func (r *mutationResolver) RemoveMember(ctx context.Context, userID string) (bool, error) {
-	return r.API.RemoveMember(ctx, userID)
+	wsID, err := tenant.Require(ctx)
+	if err != nil {
+		return false, err
+	}
+	return r.API.RemoveMember(ctx, wsID, userID)
 }
 
 // UpdateMemberRole is the resolver for the updateMemberRole field.
 func (r *mutationResolver) UpdateMemberRole(ctx context.Context, input model.UpdateMemberRoleInput) (*model.WorkspaceMember, error) {
+	wsID, err := tenant.Require(ctx)
+	if err != nil {
+		return nil, err
+	}
 	role := auth.WorkspaceRoleUser
 	if input.Role == model.WorkspaceRoleAdmin {
 		role = auth.WorkspaceRoleAdmin
 	}
-	m, err := r.API.UpdateMemberRole(ctx, input.UserID, role)
+	m, err := r.API.UpdateMemberRole(ctx, wsID, input.UserID, role)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +107,11 @@ func (r *mutationResolver) UpdateMemberRole(ctx context.Context, input model.Upd
 
 // Workspace is the resolver for the workspace field.
 func (r *queryResolver) Workspace(ctx context.Context) (*model.Workspace, error) {
-	ws, err := r.API.Workspace(ctx)
+	wsID, err := tenant.Require(ctx)
+	if err != nil {
+		return nil, err
+	}
+	ws, err := r.API.Workspace(ctx, wsID)
 	if err != nil {
 		return nil, err
 	}

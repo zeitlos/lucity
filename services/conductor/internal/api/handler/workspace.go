@@ -123,11 +123,7 @@ func (c *Client) Workspaces(ctx context.Context) ([]Workspace, error) {
 }
 
 // Workspace returns metadata and members for the active workspace.
-func (c *Client) Workspace(ctx context.Context) (*Workspace, error) {
-	ws, err := tenant.Require(ctx)
-	if err != nil {
-		return nil, err
-	}
+func (c *Client) Workspace(ctx context.Context, ws string) (*Workspace, error) {
 	if c.Logto == nil {
 		return nil, fmt.Errorf("logto not configured")
 	}
@@ -153,7 +149,7 @@ func (c *Client) Workspace(ctx context.Context) (*Workspace, error) {
 	}
 
 	// Fetch members
-	members, err := c.WorkspaceMembers(ctx)
+	members, err := c.WorkspaceMembers(ctx, ws)
 	if err != nil {
 		slog.Warn("failed to get workspace members", "workspace", ws, "error", err)
 	} else {
@@ -164,11 +160,7 @@ func (c *Client) Workspace(ctx context.Context) (*Workspace, error) {
 }
 
 // WorkspaceMembers returns all members of the active workspace from Logto.
-func (c *Client) WorkspaceMembers(ctx context.Context) ([]WorkspaceMember, error) {
-	ws, err := tenant.Require(ctx)
-	if err != nil {
-		return nil, err
-	}
+func (c *Client) WorkspaceMembers(ctx context.Context, ws string) ([]WorkspaceMember, error) {
 	if c.Logto == nil {
 		return nil, fmt.Errorf("logto not configured")
 	}
@@ -273,12 +265,7 @@ func (c *Client) CreateWorkspace(ctx context.Context, id, name string) (*Workspa
 }
 
 // UpdateWorkspace updates the workspace display name. Admin-only.
-func (c *Client) UpdateWorkspace(ctx context.Context, name string) (*Workspace, error) {
-	ws, err := tenant.Require(ctx)
-	if err != nil {
-		return nil, err
-	}
-
+func (c *Client) UpdateWorkspace(ctx context.Context, ws, name string) (*Workspace, error) {
 	if err := c.requireWorkspaceAdmin(ctx, ws); err != nil {
 		return nil, err
 	}
@@ -314,16 +301,11 @@ func (c *Client) UpdateWorkspace(ctx context.Context, name string) (*Workspace, 
 		return nil, fmt.Errorf("failed to update organization: %w", err)
 	}
 
-	return c.Workspace(ctx)
+	return c.Workspace(ctx, ws)
 }
 
 // DeleteWorkspace deletes the active workspace. Admin-only. Errors if projects exist.
-func (c *Client) DeleteWorkspace(ctx context.Context) (bool, error) {
-	ws, err := tenant.Require(ctx)
-	if err != nil {
-		return false, err
-	}
-
+func (c *Client) DeleteWorkspace(ctx context.Context, ws string) (bool, error) {
 	if err := c.requireWorkspaceAdmin(ctx, ws); err != nil {
 		return false, err
 	}
@@ -371,12 +353,7 @@ func (c *Client) DeleteWorkspace(ctx context.Context) (bool, error) {
 }
 
 // InviteMember adds a user to the active workspace. Admin-only.
-func (c *Client) InviteMember(ctx context.Context, email string, role auth.WorkspaceRole) (*WorkspaceMember, error) {
-	ws, err := tenant.Require(ctx)
-	if err != nil {
-		return nil, err
-	}
-
+func (c *Client) InviteMember(ctx context.Context, ws, email string, role auth.WorkspaceRole) (*WorkspaceMember, error) {
 	if err := c.requireWorkspaceAdmin(ctx, ws); err != nil {
 		return nil, err
 	}
@@ -428,12 +405,7 @@ func (c *Client) InviteMember(ctx context.Context, email string, role auth.Works
 }
 
 // RemoveMember removes a user from the active workspace. Admin-only.
-func (c *Client) RemoveMember(ctx context.Context, userID string) (bool, error) {
-	ws, err := tenant.Require(ctx)
-	if err != nil {
-		return false, err
-	}
-
+func (c *Client) RemoveMember(ctx context.Context, ws, userID string) (bool, error) {
 	if err := c.requireWorkspaceAdmin(ctx, ws); err != nil {
 		return false, err
 	}
@@ -461,12 +433,7 @@ func (c *Client) RemoveMember(ctx context.Context, userID string) (bool, error) 
 }
 
 // UpdateMemberRole changes a member's role in the active workspace. Admin-only.
-func (c *Client) UpdateMemberRole(ctx context.Context, userID string, role auth.WorkspaceRole) (*WorkspaceMember, error) {
-	ws, err := tenant.Require(ctx)
-	if err != nil {
-		return nil, err
-	}
-
+func (c *Client) UpdateMemberRole(ctx context.Context, ws, userID string, role auth.WorkspaceRole) (*WorkspaceMember, error) {
 	if err := c.requireWorkspaceAdmin(ctx, ws); err != nil {
 		return nil, err
 	}

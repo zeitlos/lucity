@@ -131,8 +131,8 @@ func (c *Client) DeleteDatabase(ctx context.Context, projectID, name string) (bo
 	return true, nil
 }
 
-func (c *Client) Databases(ctx context.Context, projectID string) ([]Database, error) {
-	proj, err := c.Project(ctx, projectID)
+func (c *Client) Databases(ctx context.Context, ws, projectID string) ([]Database, error) {
+	proj, err := c.Project(ctx, ws, projectID)
 	if err != nil {
 		return nil, err
 	}
