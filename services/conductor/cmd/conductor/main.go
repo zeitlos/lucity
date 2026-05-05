@@ -27,10 +27,12 @@ import (
 	"github.com/zeitlos/lucity/pkg/packager"
 
 	"github.com/zeitlos/lucity/services/conductor/internal/api/handler"
+	conductorgrpc "github.com/zeitlos/lucity/services/conductor/internal/transport/grpc"
 )
 
 type Config struct {
 	Port     string `envconfig:"PORT" default:"8080"`
+	GRPCPort string `envconfig:"GRPC_PORT" default:"9090"` // inbound from cashier (and similar)
 	LogLevel string `envconfig:"LOG_LEVEL" default:"info"`
 
 	// OIDC (PKCE — no client secret needed)
@@ -78,6 +80,7 @@ type Config struct {
 
 	// Internal JWT (ES256 for gRPC service-to-service auth)
 	InternalJWTPrivateKeyPath string `envconfig:"INTERNAL_JWT_PRIVATE_KEY_PATH"`
+	InternalJWTPublicKeyPath  string `envconfig:"INTERNAL_JWT_PUBLIC_KEY_PATH"` // for verifying inbound (e.g. cashier callbacks)
 }
 
 func main() {
@@ -208,5 +211,23 @@ func main() {
 
 	graphqlServer := NewGraphQLServer(config.Port, api, oidcProvider, verifier, logtoClient, internalIssuer, sessionSecret, config.DashboardURL, config.GitHubAppSlug, components)
 
-	graceful.Serve(ctx, graphqlServer)
+	// Inbound gRPC for service-to-service callbacks (today: cashier).
+	// Optional in dev — only spun up when an internal JWT public key
+	// is configured so we have someone to verify against.
+	servers := []graceful.Server{graphqlServer}
+	if config.InternalJWTPublicKeyPath != "" {
+		internalVerifier, err := auth.NewInternalVerifierFromFile(config.InternalJWTPublicKeyPath)
+		if err != nil {
+			slog.Error("failed to create internal JWT verifier", "error", err)
+			os.Exit(1)
+		}
+		grpcSvc := conductorgrpc.NewService(api)
+		grpcSrv := conductorgrpc.NewServer(":"+config.GRPCPort, grpcSvc, internalVerifier)
+		slog.Info("conductor gRPC ready", "port", config.GRPCPort)
+		servers = append(servers, grpcSrv)
+	} else {
+		slog.Info("internal JWT public key not set — conductor gRPC server disabled")
+	}
+
+	graceful.Serve(ctx, servers...)
 }
