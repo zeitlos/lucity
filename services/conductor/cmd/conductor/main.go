@@ -54,8 +54,8 @@ import (
 
 type Config struct {
 	Port        string `envconfig:"PORT" default:"8080"`
-	GRPCPort    string `envconfig:"GRPC_PORT" default:"9090"`     // inbound from cashier (and similar)
-	WebhookPort string `envconfig:"WEBHOOK_PORT" default:"9004"`  // inbound from GitHub
+	GRPCPort    string `envconfig:"GRPC_PORT" default:"9090"`    // inbound from cashier (and similar)
+	WebhookPort string `envconfig:"WEBHOOK_PORT" default:"9004"` // inbound from GitHub
 	LogLevel    string `envconfig:"LOG_LEVEL" default:"info"`
 
 	// OIDC (PKCE — no client secret needed)
@@ -411,4 +411,3 @@ func buildKubeClients() (kubernetes.Interface, dynamic.Interface, error) {
 	}
 	return k8s, dyn, nil
 }
-
