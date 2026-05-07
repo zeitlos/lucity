@@ -255,6 +255,15 @@ func (s *Server) handlePaymentSucceeded(event gostripe.Event) error {
 		return fmt.Errorf("failed to unmarshal invoice: %w", err)
 	}
 
+	// Stripe generates a $0 invoice the instant a subscription is created and
+	// auto-finalizes it as paid. That fires payment_succeeded immediately, which
+	// the trial-ended branch below would otherwise interpret as "trial cycle
+	// closed" and suspend the brand-new workspace. Real trial-end invoices come
+	// in as subscription_threshold (€5 hit) or subscription_cycle (interval).
+	if inv.BillingReason == gostripe.InvoiceBillingReasonSubscriptionCreate {
+		return nil
+	}
+
 	workspace := ""
 	var subscriptionID, customerID string
 	if inv.Parent != nil && inv.Parent.SubscriptionDetails != nil {

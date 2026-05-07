@@ -91,7 +91,9 @@ func (c *Client) CreateSubscription(ctx context.Context, customerID, workspace s
 	params.AddMetadata("workspace", workspace)
 
 	// Trial billing: threshold invoice at €5 usage, interval invoice at creditDays.
-	// Whichever fires first ends the trial via handlePaymentSucceeded.
+	// Whichever fires first ends the trial via handlePaymentSucceeded, which
+	// filters out the initial subscription_create invoice so it doesn't suspend
+	// new workspaces.
 	if creditDays > 0 {
 		params.BillingThresholds = &gostripe.SubscriptionBillingThresholdsParams{
 			AmountGTE: gostripe.Int64(int64(TrialCreditCents)),
