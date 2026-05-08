@@ -222,9 +222,9 @@ func main() {
 		clusterHTTP = config.SoftServeHTTP
 	}
 
-	packagerSvc := inprocpackager.NewServer(forge, nil, config.WorkloadDomain)
-	deployerSvc := inprocdeployer.NewServer(argoClient, nil, clusterHTTP, config.SoftServeToken, k8sClient, dynClient, config.GatewayName, config.GatewayNamespace, config.ClusterIssuer, config.RegistryPullSecret)
-	builderSvc := inprocbuilder.NewServer(buildEng, buildTracker, config.RegistryURL, config.RegistryUsername, config.RegistryPassword, config.RegistryInsecure, config.WorkDir)
+	packagerSvc := inprocpackager.New(forge, nil, config.WorkloadDomain)
+	deployerSvc := inprocdeployer.New(argoClient, nil, clusterHTTP, config.SoftServeToken, k8sClient, dynClient, config.GatewayName, config.GatewayNamespace, config.ClusterIssuer, config.RegistryPullSecret)
+	builderSvc := inprocbuilder.New(buildEng, buildTracker, config.RegistryURL, config.RegistryUsername, config.RegistryPassword, config.RegistryInsecure, config.WorkDir)
 
 	// Direct cross-wiring — Go method calls, no gRPC pipe.
 	packagerSvc.SetDeployer(deployerSvc)
@@ -329,7 +329,7 @@ func main() {
 // reconcileCustomDomains runs the periodic Gateway listener / cert
 // reconciliation loop on the in-process deployer service. Was the
 // goroutine in services/deployer/cmd/deployer/main.go.
-func reconcileCustomDomains(ctx context.Context, dep *inprocdeployer.Server) {
+func reconcileCustomDomains(ctx context.Context, dep *inprocdeployer.Client) {
 	if err := dep.ReconcileCustomDomains(ctx); err != nil {
 		slog.Warn("initial custom domain reconciliation failed", "error", err)
 	}

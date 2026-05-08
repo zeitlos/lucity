@@ -21,10 +21,7 @@ import (
 // ErrBuildNotFound is returned when a build ID can't be located.
 var ErrBuildNotFound = errors.New("build not found")
 
-// Server implements the builder logic. It used to be a gRPC server
-// reachable via a bufconn pipe; today the handler holds it directly
-// and calls Go methods.
-type Server struct {
+type Client struct {
 	engine           engine.Engine
 	tracker          build.Tracker
 	registryURL      string
@@ -34,9 +31,8 @@ type Server struct {
 	workDir          string
 }
 
-// NewServer creates a new builder gRPC server.
-func NewServer(eng engine.Engine, tracker build.Tracker, registryURL, registryUsername, registryPassword string, registryInsecure bool, workDir string) *Server {
-	return &Server{
+func New(eng engine.Engine, tracker build.Tracker, registryURL, registryUsername, registryPassword string, registryInsecure bool, workDir string) *Client {
+	return &Client{
 		engine:           eng,
 		tracker:          tracker,
 		registryURL:      registryURL,
@@ -49,18 +45,18 @@ func NewServer(eng engine.Engine, tracker build.Tracker, registryURL, registryUs
 
 // DetectServices clones the source repo and runs Railpack to detect
 // services and frameworks.
-func (s *Server) DetectServices(ctx context.Context, sourceURL, gitRef string) ([]data.DetectedService, error) {
+func (c *Client) DetectServices(ctx context.Context, sourceURL, gitRef string) ([]data.DetectedService, error) {
 	slog.Info("DetectServices called", "source_url", sourceURL)
 
 	ghToken := auth.GitHubTokenFrom(ctx)
-	repoPath, err := s.cloneRepo(ctx, sourceURL, gitRef, ghToken)
+	repoPath, err := c.cloneRepo(ctx, sourceURL, gitRef, ghToken)
 	if err != nil {
 		slog.Error("clone failed", "source_url", sourceURL, "error", err)
 		return nil, fmt.Errorf("failed to clone repo: %w", err)
 	}
 	defer os.RemoveAll(repoPath)
 
-	results, err := s.engine.Detect(ctx, repoPath)
+	results, err := c.engine.Detect(ctx, repoPath)
 	if err != nil {
 		slog.Error("detection failed", "source_url", sourceURL, "error", err)
 		return nil, fmt.Errorf("detection failed: %w", err)
@@ -81,20 +77,20 @@ func (s *Server) DetectServices(ctx context.Context, sourceURL, gitRef string) (
 }
 
 // StartBuild kicks off an async build job and returns its ID.
-func (s *Server) StartBuild(ctx context.Context, sourceURL, gitRef, service, registry, contextPath string) (string, error) {
+func (c *Client) StartBuild(ctx context.Context, sourceURL, gitRef, service, registry, contextPath string) (string, error) {
 	slog.Info("StartBuild called", "source_url", sourceURL, "service", service, "registry", registry)
 
 	buildID := uuid.NewString()
-	s.tracker.Create(buildID)
+	c.tracker.Create(buildID)
 
 	ghToken := auth.GitHubTokenFrom(ctx)
-	go s.runBuild(buildID, ghToken, sourceURL, gitRef, registry, contextPath)
+	go c.runBuild(buildID, ghToken, sourceURL, gitRef, registry, contextPath)
 	return buildID, nil
 }
 
 // BuildStatus returns the current state of an async build.
-func (s *Server) BuildStatus(ctx context.Context, buildID string) (data.BuildStatus, error) {
-	state := s.tracker.Get(buildID)
+func (c *Client) BuildStatus(ctx context.Context, buildID string) (data.BuildStatus, error) {
+	state := c.tracker.Get(buildID)
 	if state == nil {
 		return data.BuildStatus{}, ErrBuildNotFound
 	}
@@ -110,8 +106,8 @@ func (s *Server) BuildStatus(ctx context.Context, buildID string) (data.BuildSta
 // given offset. The channel is closed when the build reaches a
 // terminal phase and all lines have been emitted, or when ctx is
 // cancelled.
-func (s *Server) BuildLogs(ctx context.Context, buildID string, offset int) (<-chan string, error) {
-	if s.tracker.Get(buildID) == nil {
+func (c *Client) BuildLogs(ctx context.Context, buildID string, offset int) (<-chan string, error) {
+	if c.tracker.Get(buildID) == nil {
 		return nil, ErrBuildNotFound
 	}
 
@@ -119,7 +115,7 @@ func (s *Server) BuildLogs(ctx context.Context, buildID string, offset int) (<-c
 	go func() {
 		defer close(out)
 		for {
-			lines := s.tracker.LogLines(buildID, offset)
+			lines := c.tracker.LogLines(buildID, offset)
 			for _, line := range lines {
 				select {
 				case out <- line:
@@ -129,9 +125,9 @@ func (s *Server) BuildLogs(ctx context.Context, buildID string, offset int) (<-c
 			}
 			offset += len(lines)
 
-			if s.tracker.IsTerminal(buildID) {
+			if c.tracker.IsTerminal(buildID) {
 				// Drain any final lines that appeared between the last check and now.
-				for _, line := range s.tracker.LogLines(buildID, offset) {
+				for _, line := range c.tracker.LogLines(buildID, offset) {
 					select {
 					case out <- line:
 					case <-ctx.Done():
@@ -152,10 +148,10 @@ func (s *Server) BuildLogs(ctx context.Context, buildID string, offset int) (<-c
 }
 
 // DeleteImages removes all OCI repositories belonging to a project.
-func (s *Server) DeleteImages(ctx context.Context, workspace, project string) ([]string, error) {
+func (c *Client) DeleteImages(ctx context.Context, workspace, project string) ([]string, error) {
 	slog.Info("DeleteImages called", "project", project)
 
-	repos, err := s.projectRepositories(ctx, workspace, project)
+	repos, err := c.projectRepositories(ctx, workspace, project)
 	if err != nil {
 		slog.Warn("failed to discover project repositories", "project", project, "error", err)
 		return nil, nil
@@ -167,7 +163,7 @@ func (s *Server) DeleteImages(ctx context.Context, workspace, project string) ([
 
 	var deleted []string
 	for _, repo := range repos {
-		if err := s.deleteRepository(ctx, repo); err != nil {
+		if err := c.deleteRepository(ctx, repo); err != nil {
 			slog.Warn("failed to delete repository", "repo", repo, "error", err)
 			continue
 		}
@@ -182,34 +178,34 @@ const maxBuildDuration = 30 * time.Minute
 
 // runBuild executes the full build pipeline in a background goroutine.
 // Creates a K8s Job and polls for completion — the Job pod handles clone/build/push.
-func (s *Server) runBuild(buildID, token, sourceURL, gitRef, registry, contextPath string) {
+func (c *Client) runBuild(buildID, token, sourceURL, gitRef, registry, contextPath string) {
 	ctx, cancel := context.WithTimeout(context.Background(), maxBuildDuration)
 	defer cancel()
 
-	s.tracker.Update(buildID, data.BuildPhaseBuilding)
-	result, err := s.engine.Build(ctx, engine.BuildOpts{
+	c.tracker.Update(buildID, data.BuildPhaseBuilding)
+	result, err := c.engine.Build(ctx, engine.BuildOpts{
 		BuildID:     buildID,
 		ContextPath: contextPath,
 		SourceURL:   sourceURL,
 		GitRef:      gitRef,
 		GitHubToken: token,
 		Registry:    registry,
-		Insecure:    s.registryInsecure,
+		Insecure:    c.registryInsecure,
 	})
 	if err != nil {
 		slog.Error("build failed", "build_id", buildID, "error", err)
-		s.tracker.Fail(buildID, fmt.Sprintf("build failed: %v", err))
+		c.tracker.Fail(buildID, fmt.Sprintf("build failed: %v", err))
 		return
 	}
-	s.tracker.Succeed(buildID, result.ImageRef, result.Digest)
+	c.tracker.Succeed(buildID, result.ImageRef, result.Digest)
 	slog.Info("build succeeded", "build_id", buildID, "image", result.ImageRef)
 }
 
 // cloneRepo clones a source repository to a temp directory.
 // It wraps go-git's PlainCloneContext in a goroutine because go-git does not
 // reliably cancel on context expiry during HTTP I/O.
-func (s *Server) cloneRepo(ctx context.Context, sourceURL, gitRef, token string) (string, error) {
-	tmpDir, err := os.MkdirTemp(s.workDir, "build-*")
+func (c *Client) cloneRepo(ctx context.Context, sourceURL, gitRef, token string) (string, error) {
+	tmpDir, err := os.MkdirTemp(c.workDir, "build-*")
 	if err != nil {
 		return "", fmt.Errorf("failed to create work dir: %w", err)
 	}
@@ -253,4 +249,3 @@ func (s *Server) cloneRepo(ctx context.Context, sourceURL, gitRef, token string)
 		return "", fmt.Errorf("git clone timed out: %w", ctx.Err())
 	}
 }
-

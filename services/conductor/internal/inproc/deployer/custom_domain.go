@@ -62,7 +62,7 @@ func isCertReady(cert unstructured.Unstructured) bool {
 // listener for a custom domain. Returns the TLS status (always
 // "PROVISIONING" right after; the HTTPS listener is added later by
 // ReconcileCustomDomains once the cert is Ready).
-func (s *Server) ProvisionCustomDomain(ctx context.Context, hostname string) (tlsStatus string, err error) {
+func (c *Client) ProvisionCustomDomain(ctx context.Context, hostname string) (tlsStatus string, err error) {
 	resourceName := customDomainResourceName(hostname)
 	secretName := resourceName + "-tls"
 
@@ -74,7 +74,7 @@ func (s *Server) ProvisionCustomDomain(ctx context.Context, hostname string) (tl
 			"kind":       "Certificate",
 			"metadata": map[string]any{
 				"name":      resourceName,
-				"namespace": s.gatewayNamespace,
+				"namespace": c.gatewayNamespace,
 				"labels": map[string]any{
 					"lucity.dev/custom-domain": "true",
 					"lucity.dev/hostname":      hostname,
@@ -83,7 +83,7 @@ func (s *Server) ProvisionCustomDomain(ctx context.Context, hostname string) (tl
 			"spec": map[string]any{
 				"secretName": secretName,
 				"issuerRef": map[string]any{
-					"name": s.clusterIssuer,
+					"name": c.clusterIssuer,
 					"kind": "ClusterIssuer",
 				},
 				"dnsNames": []any{hostname},
@@ -91,7 +91,7 @@ func (s *Server) ProvisionCustomDomain(ctx context.Context, hostname string) (tl
 		},
 	}
 
-	_, err = s.dynamic.Resource(certGVR).Namespace(s.gatewayNamespace).Create(ctx, cert, metav1.CreateOptions{})
+	_, err = c.dynamic.Resource(certGVR).Namespace(c.gatewayNamespace).Create(ctx, cert, metav1.CreateOptions{})
 	if err != nil && !apierrors.IsAlreadyExists(err) {
 		return "", fmt.Errorf("failed to create certificate for %s: %w", hostname, err)
 	}
@@ -101,7 +101,7 @@ func (s *Server) ProvisionCustomDomain(ctx context.Context, hostname string) (tl
 
 	// Add the HTTP listener immediately so cert-manager's HTTP-01 solver
 	// can create an HTTPRoute that matches this domain.
-	if err := s.addGatewayListener(ctx, hostname, "HTTP", ""); err != nil {
+	if err := c.addGatewayListener(ctx, hostname, "HTTP", ""); err != nil {
 		return "", fmt.Errorf("failed to add http listener for %s: %w", hostname, err)
 	}
 
@@ -111,22 +111,22 @@ func (s *Server) ProvisionCustomDomain(ctx context.Context, hostname string) (tl
 
 // DeleteCustomDomain removes the cert-manager Certificate, TLS Secret,
 // and Gateway listener pair for a custom domain.
-func (s *Server) DeleteCustomDomain(ctx context.Context, hostname string) error {
+func (c *Client) DeleteCustomDomain(ctx context.Context, hostname string) error {
 	resourceName := customDomainResourceName(hostname)
 	secretName := resourceName + "-tls"
 
 	slog.Info("deleting custom domain", "hostname", hostname)
 
-	if err := s.dynamic.Resource(certGVR).Namespace(s.gatewayNamespace).Delete(ctx, resourceName, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+	if err := c.dynamic.Resource(certGVR).Namespace(c.gatewayNamespace).Delete(ctx, resourceName, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
 		return fmt.Errorf("failed to delete certificate for %s: %w", hostname, err)
 	}
-	if err := s.k8s.CoreV1().Secrets(s.gatewayNamespace).Delete(ctx, secretName, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+	if err := c.k8s.CoreV1().Secrets(c.gatewayNamespace).Delete(ctx, secretName, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
 		return fmt.Errorf("failed to delete tls secret for %s: %w", hostname, err)
 	}
-	if err := s.removeGatewayListener(ctx, resourceName+"-http"); err != nil {
+	if err := c.removeGatewayListener(ctx, resourceName+"-http"); err != nil {
 		return fmt.Errorf("failed to remove http listener for %s: %w", hostname, err)
 	}
-	if err := s.removeGatewayListener(ctx, resourceName+"-https"); err != nil {
+	if err := c.removeGatewayListener(ctx, resourceName+"-https"); err != nil {
 		return fmt.Errorf("failed to remove https listener for %s: %w", hostname, err)
 	}
 
@@ -135,10 +135,10 @@ func (s *Server) DeleteCustomDomain(ctx context.Context, hostname string) error 
 }
 
 // CustomDomainStatus returns the TLS provisioning state of a custom domain.
-func (s *Server) CustomDomainStatus(ctx context.Context, hostname string) (data.CustomDomainStatus, error) {
+func (c *Client) CustomDomainStatus(ctx context.Context, hostname string) (data.CustomDomainStatus, error) {
 	resourceName := customDomainResourceName(hostname)
 
-	cert, err := s.dynamic.Resource(certGVR).Namespace(s.gatewayNamespace).Get(ctx, resourceName, metav1.GetOptions{})
+	cert, err := c.dynamic.Resource(certGVR).Namespace(c.gatewayNamespace).Get(ctx, resourceName, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return data.CustomDomainStatus{TLSStatus: "NONE"}, nil
@@ -184,7 +184,7 @@ func (s *Server) CustomDomainStatus(ctx context.Context, hostname string) (data.
 // addGatewayListener adds an HTTP or HTTPS listener for a custom domain to the Gateway.
 // For HTTPS, secretName must be the TLS secret name. For HTTP, secretName is ignored.
 // Idempotent: returns nil if the listener already exists.
-func (s *Server) addGatewayListener(ctx context.Context, hostname, protocol, secretName string) error {
+func (c *Client) addGatewayListener(ctx context.Context, hostname, protocol, secretName string) error {
 	resourceName := customDomainResourceName(hostname)
 	var listenerName string
 	if protocol == "HTTPS" {
@@ -193,9 +193,9 @@ func (s *Server) addGatewayListener(ctx context.Context, hostname, protocol, sec
 		listenerName = resourceName + "-http"
 	}
 
-	gw, err := s.dynamic.Resource(gatewayGVR).Namespace(s.gatewayNamespace).Get(ctx, s.gatewayName, metav1.GetOptions{})
+	gw, err := c.dynamic.Resource(gatewayGVR).Namespace(c.gatewayNamespace).Get(ctx, c.gatewayName, metav1.GetOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to get gateway %s: %w", s.gatewayName, err)
+		return fmt.Errorf("failed to get gateway %s: %w", c.gatewayName, err)
 	}
 
 	listeners, _, _ := unstructured.NestedSlice(gw.Object, "spec", "listeners")
@@ -237,13 +237,13 @@ func (s *Server) addGatewayListener(ctx context.Context, hostname, protocol, sec
 		return fmt.Errorf("failed to marshal patch: %w", err)
 	}
 
-	_, err = s.dynamic.Resource(gatewayGVR).Namespace(s.gatewayNamespace).Patch(
-		ctx, s.gatewayName, types.JSONPatchType, patchData, metav1.PatchOptions{
+	_, err = c.dynamic.Resource(gatewayGVR).Namespace(c.gatewayNamespace).Patch(
+		ctx, c.gatewayName, types.JSONPatchType, patchData, metav1.PatchOptions{
 			FieldManager: "deployer",
 		},
 	)
 	if err != nil {
-		return fmt.Errorf("failed to patch gateway %s: %w", s.gatewayName, err)
+		return fmt.Errorf("failed to patch gateway %s: %w", c.gatewayName, err)
 	}
 
 	slog.Info("added gateway listener", "listener", listenerName, "hostname", hostname, "protocol", protocol)
@@ -252,10 +252,10 @@ func (s *Server) addGatewayListener(ctx context.Context, hostname, protocol, sec
 
 // removeGatewayListener removes a listener by name from the Gateway.
 // Idempotent: returns nil if the listener doesn't exist.
-func (s *Server) removeGatewayListener(ctx context.Context, listenerName string) error {
-	gw, err := s.dynamic.Resource(gatewayGVR).Namespace(s.gatewayNamespace).Get(ctx, s.gatewayName, metav1.GetOptions{})
+func (c *Client) removeGatewayListener(ctx context.Context, listenerName string) error {
+	gw, err := c.dynamic.Resource(gatewayGVR).Namespace(c.gatewayNamespace).Get(ctx, c.gatewayName, metav1.GetOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to get gateway %s: %w", s.gatewayName, err)
+		return fmt.Errorf("failed to get gateway %s: %w", c.gatewayName, err)
 	}
 
 	listeners, _, _ := unstructured.NestedSlice(gw.Object, "spec", "listeners")
@@ -282,13 +282,13 @@ func (s *Server) removeGatewayListener(ctx context.Context, listenerName string)
 		return fmt.Errorf("failed to marshal patch: %w", err)
 	}
 
-	_, err = s.dynamic.Resource(gatewayGVR).Namespace(s.gatewayNamespace).Patch(
-		ctx, s.gatewayName, types.JSONPatchType, patchData, metav1.PatchOptions{
+	_, err = c.dynamic.Resource(gatewayGVR).Namespace(c.gatewayNamespace).Patch(
+		ctx, c.gatewayName, types.JSONPatchType, patchData, metav1.PatchOptions{
 			FieldManager: "deployer",
 		},
 	)
 	if err != nil {
-		return fmt.Errorf("failed to patch gateway %s: %w", s.gatewayName, err)
+		return fmt.Errorf("failed to patch gateway %s: %w", c.gatewayName, err)
 	}
 
 	slog.Info("removed gateway listener", "listener", listenerName)
@@ -299,8 +299,8 @@ func (s *Server) removeGatewayListener(ctx context.Context, listenerName string)
 // matching the set of cert-manager Certificates labeled with lucity.dev/custom-domain=true.
 // HTTP listeners are created for all certs (needed for ACME challenges).
 // HTTPS listeners are created only for Ready certs (Secret must exist).
-func (s *Server) ReconcileCustomDomains(ctx context.Context) error {
-	certs, err := s.dynamic.Resource(certGVR).Namespace(s.gatewayNamespace).List(ctx, metav1.ListOptions{
+func (c *Client) ReconcileCustomDomains(ctx context.Context) error {
+	certs, err := c.dynamic.Resource(certGVR).Namespace(c.gatewayNamespace).List(ctx, metav1.ListOptions{
 		LabelSelector: "lucity.dev/custom-domain=true",
 	})
 	if err != nil {
@@ -331,9 +331,9 @@ func (s *Server) ReconcileCustomDomains(ctx context.Context) error {
 	}
 
 	// Read current Gateway listeners.
-	gw, err := s.dynamic.Resource(gatewayGVR).Namespace(s.gatewayNamespace).Get(ctx, s.gatewayName, metav1.GetOptions{})
+	gw, err := c.dynamic.Resource(gatewayGVR).Namespace(c.gatewayNamespace).Get(ctx, c.gatewayName, metav1.GetOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to get gateway %s: %w", s.gatewayName, err)
+		return fmt.Errorf("failed to get gateway %s: %w", c.gatewayName, err)
 	}
 
 	listeners, _, _ := unstructured.NestedSlice(gw.Object, "spec", "listeners")
@@ -365,7 +365,7 @@ func (s *Server) ReconcileCustomDomains(ctx context.Context) error {
 	for hostname, info := range certsByHostname {
 		if !existingHTTP[hostname] {
 			slog.Info("reconcile: adding http listener", "hostname", hostname)
-			if err := s.addGatewayListener(ctx, hostname, "HTTP", ""); err != nil {
+			if err := c.addGatewayListener(ctx, hostname, "HTTP", ""); err != nil {
 				slog.Error("reconcile: failed to add http listener", "hostname", hostname, "error", err)
 				continue
 			}
@@ -373,7 +373,7 @@ func (s *Server) ReconcileCustomDomains(ctx context.Context) error {
 		}
 		if info.ready && !existingHTTPS[hostname] {
 			slog.Info("reconcile: adding https listener", "hostname", hostname)
-			if err := s.addGatewayListener(ctx, hostname, "HTTPS", info.secretName); err != nil {
+			if err := c.addGatewayListener(ctx, hostname, "HTTPS", info.secretName); err != nil {
 				slog.Error("reconcile: failed to add https listener", "hostname", hostname, "error", err)
 				continue
 			}
@@ -383,7 +383,7 @@ func (s *Server) ReconcileCustomDomains(ctx context.Context) error {
 			// Cert is no longer Ready (e.g. expired). Remove HTTPS listener.
 			resourceName := customDomainResourceName(hostname)
 			slog.Info("reconcile: removing https listener (cert not ready)", "hostname", hostname)
-			if err := s.removeGatewayListener(ctx, resourceName+"-https"); err != nil {
+			if err := c.removeGatewayListener(ctx, resourceName+"-https"); err != nil {
 				slog.Error("reconcile: failed to remove https listener", "hostname", hostname, "error", err)
 			}
 			changed = true
@@ -395,7 +395,7 @@ func (s *Server) ReconcileCustomDomains(ctx context.Context) error {
 		if _, ok := certsByHostname[hostname]; !ok {
 			resourceName := customDomainResourceName(hostname)
 			slog.Info("reconcile: removing orphaned http listener", "hostname", hostname)
-			if err := s.removeGatewayListener(ctx, resourceName+"-http"); err != nil {
+			if err := c.removeGatewayListener(ctx, resourceName+"-http"); err != nil {
 				slog.Error("reconcile: failed to remove orphaned http listener", "hostname", hostname, "error", err)
 			}
 			changed = true
@@ -405,7 +405,7 @@ func (s *Server) ReconcileCustomDomains(ctx context.Context) error {
 		if _, ok := certsByHostname[hostname]; !ok {
 			resourceName := customDomainResourceName(hostname)
 			slog.Info("reconcile: removing orphaned https listener", "hostname", hostname)
-			if err := s.removeGatewayListener(ctx, resourceName+"-https"); err != nil {
+			if err := c.removeGatewayListener(ctx, resourceName+"-https"); err != nil {
 				slog.Error("reconcile: failed to remove orphaned https listener", "hostname", hostname, "error", err)
 			}
 			changed = true

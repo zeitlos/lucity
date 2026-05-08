@@ -16,9 +16,9 @@ import (
 // Pipeline orchestrates build+deploy for webhook-triggered CI/CD.
 // This is a simplified, fire-and-forget version of the gateway's deploy flow.
 type Pipeline struct {
-	Builder         *inprocbuilder.Server
-	Packager        *inprocpackager.Server
-	Deployer        *inprocdeployer.Server
+	Builder         *inprocbuilder.Client
+	Packager        *inprocpackager.Client
+	Deployer        *inprocdeployer.Client
 	RegistryPushURL string
 }
 

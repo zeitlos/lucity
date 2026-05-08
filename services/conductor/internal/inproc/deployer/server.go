@@ -14,8 +14,8 @@ import (
 
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -35,13 +35,12 @@ type PackagerService interface {
 	SetSuspended(ctx context.Context, workspace, project, environment string, suspended bool) error
 }
 
-// ServiceLogEntry is a single log line from a workload pod.
 type ServiceLogEntry struct {
 	Line string
 	Pod  string
 }
 
-type Server struct {
+type Client struct {
 	argo     *argocd.Client
 	packager PackagerService
 	k8s      kubernetes.Interface
@@ -63,8 +62,8 @@ type Server struct {
 	registryPullSecret string
 }
 
-func NewServer(argo *argocd.Client, packagerSvc PackagerService, softServeHTTP, softServeToken string, k8s kubernetes.Interface, dyn dynamic.Interface, gatewayName, gatewayNamespace, clusterIssuer, registryPullSecret string) *Server {
-	return &Server{
+func New(argo *argocd.Client, packagerSvc PackagerService, softServeHTTP, softServeToken string, k8s kubernetes.Interface, dyn dynamic.Interface, gatewayName, gatewayNamespace, clusterIssuer, registryPullSecret string) *Client {
+	return &Client{
 		argo:               argo,
 		packager:           packagerSvc,
 		k8s:                k8s,
@@ -81,17 +80,17 @@ func NewServer(argo *argocd.Client, packagerSvc PackagerService, softServeHTTP, 
 // SetPackager wires the packager after construction. Used to break
 // the deployer↔packager cycle. See packager.Server.SetDeployer for
 // the symmetric setter.
-func (s *Server) SetPackager(p PackagerService) {
-	s.packager = p
+func (c *Client) SetPackager(p PackagerService) {
+	c.packager = p
 }
 
 // DeployEnvironment provisions an ArgoCD Application + namespace for an environment.
 // Idempotent: returns the existing app if already created.
-func (s *Server) DeployEnvironment(ctx context.Context, workspace, project, environment, gitopsRepoURL, targetNamespace string) (deploymentName string, err error) {
+func (c *Client) DeployEnvironment(ctx context.Context, workspace, project, environment, gitopsRepoURL, targetNamespace string) (deploymentName string, err error) {
 	appName := applicationName(workspace, project, environment)
 
 	// Idempotent: if the application already exists, return it.
-	existing, err := s.argo.Application(ctx, appName)
+	existing, err := c.argo.Application(ctx, appName)
 	if err == nil && existing != nil {
 		slog.Info("ArgoCD application already exists",
 			"app", appName,
@@ -113,22 +112,22 @@ func (s *Server) DeployEnvironment(ctx context.Context, workspace, project, envi
 			},
 		},
 	}
-	if _, err := s.k8s.CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{}); err != nil && !apierrors.IsAlreadyExists(err) {
+	if _, err := c.k8s.CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{}); err != nil && !apierrors.IsAlreadyExists(err) {
 		return "", fmt.Errorf("failed to create namespace %s: %w", targetNamespace, err)
 	}
 
 	// Set up default ECO tier: LimitRange for per-pod defaults + namespace label.
-	s.ensureDefaultEcoTier(ctx, targetNamespace)
+	c.ensureDefaultEcoTier(ctx, targetNamespace)
 
 	// Clone registry pull credentials so kubelet can authenticate image pulls.
-	s.ensureRegistryPullSecret(ctx, targetNamespace)
+	c.ensureRegistryPullSecret(ctx, targetNamespace)
 
 	// Ensure the GitOps repo is registered in ArgoCD with credentials.
-	repoURL := s.repoURL(workspace, project)
-	if err := s.argo.CreateRepository(ctx, argocd.Repository{
+	repoURL := c.repoURL(workspace, project)
+	if err := c.argo.CreateRepository(ctx, argocd.Repository{
 		Repo:     repoURL,
 		Username: "lucity",
-		Password: s.softServeToken,
+		Password: c.softServeToken,
 		Type:     "git",
 	}); err != nil {
 		return "", fmt.Errorf("failed to register repository in ArgoCD: %w", err)
@@ -164,7 +163,7 @@ func (s *Server) DeployEnvironment(ctx context.Context, workspace, project, envi
 		},
 	}
 
-	result, err := s.argo.CreateApplication(ctx, app)
+	result, err := c.argo.CreateApplication(ctx, app)
 	if err != nil {
 		return "", fmt.Errorf("failed to create ArgoCD application: %w", err)
 	}
@@ -179,10 +178,10 @@ func (s *Server) DeployEnvironment(ctx context.Context, workspace, project, envi
 }
 
 // RemoveDeployment removes the ArgoCD Application and namespace for an environment.
-func (s *Server) RemoveDeployment(ctx context.Context, workspace, project, environment string) error {
+func (c *Client) RemoveDeployment(ctx context.Context, workspace, project, environment string) error {
 	appName := applicationName(workspace, project, environment)
 
-	if err := s.argo.DeleteApplication(ctx, appName, true); err != nil {
+	if err := c.argo.DeleteApplication(ctx, appName, true); err != nil {
 		// Idempotent: if the application is already gone, that's fine — still clean up the namespace.
 		if !strings.Contains(err.Error(), "404") {
 			return fmt.Errorf("failed to delete ArgoCD application: %w", err)
@@ -194,7 +193,7 @@ func (s *Server) RemoveDeployment(ctx context.Context, workspace, project, envir
 
 	// Delete the namespace. ArgoCD cascade already cleaned up resources inside.
 	ns := labels.NamespaceFor(workspace, project, environment)
-	if err := s.k8s.CoreV1().Namespaces().Delete(ctx, ns, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+	if err := c.k8s.CoreV1().Namespaces().Delete(ctx, ns, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
 		return fmt.Errorf("failed to delete namespace %s: %w", ns, err)
 	}
 	slog.Info("deleted namespace", "namespace", ns)
@@ -202,10 +201,10 @@ func (s *Server) RemoveDeployment(ctx context.Context, workspace, project, envir
 }
 
 // DeleteRepository removes the ArgoCD repository credential for a project.
-func (s *Server) DeleteRepository(ctx context.Context, workspace, project string) error {
-	repoURL := s.repoURL(workspace, project)
+func (c *Client) DeleteRepository(ctx context.Context, workspace, project string) error {
+	repoURL := c.repoURL(workspace, project)
 
-	if err := s.argo.DeleteRepository(ctx, repoURL); err != nil {
+	if err := c.argo.DeleteRepository(ctx, repoURL); err != nil {
 		return fmt.Errorf("failed to delete ArgoCD repository: %w", err)
 	}
 
@@ -213,10 +212,10 @@ func (s *Server) DeleteRepository(ctx context.Context, workspace, project string
 	return nil
 }
 
-func (s *Server) GetDeploymentStatus(ctx context.Context, workspace, project, environment string) (data.DeploymentStatus, string, error) {
+func (c *Client) GetDeploymentStatus(ctx context.Context, workspace, project, environment string) (data.DeploymentStatus, string, error) {
 	appName := applicationName(workspace, project, environment)
 
-	app, err := s.argo.Application(ctx, appName)
+	app, err := c.argo.Application(ctx, appName)
 	if err != nil {
 		return data.DeploymentStatusUnspecified, "", fmt.Errorf("failed to get ArgoCD application: %w", err)
 	}
@@ -225,10 +224,10 @@ func (s *Server) GetDeploymentStatus(ctx context.Context, workspace, project, en
 	return status, message, nil
 }
 
-func (s *Server) SyncDeployment(ctx context.Context, workspace, project, environment string) (data.DeploymentStatus, error) {
+func (c *Client) SyncDeployment(ctx context.Context, workspace, project, environment string) (data.DeploymentStatus, error) {
 	appName := applicationName(workspace, project, environment)
 
-	app, err := s.argo.SyncApplication(ctx, appName)
+	app, err := c.argo.SyncApplication(ctx, appName)
 	if err != nil {
 		return data.DeploymentStatusUnspecified, fmt.Errorf("failed to sync ArgoCD application: %w", err)
 	}
@@ -245,19 +244,19 @@ func applicationName(workspace, project, environment string) string {
 }
 
 // repoURL returns the Soft-serve HTTP clone URL for a project's GitOps repo.
-func (s *Server) repoURL(workspace, project string) string {
-	return strings.TrimSuffix(s.softServeHTTP, "/") + "/" + workspace + "-" + project + "-gitops.git"
+func (c *Client) repoURL(workspace, project string) string {
+	return strings.TrimSuffix(c.softServeHTTP, "/") + "/" + workspace + "-" + project + "-gitops.git"
 }
 
 // ServiceLogs returns a channel of log entries from the workload's
 // pods. The channel is closed when all pod log streams end or ctx is
 // cancelled.
-func (s *Server) ServiceLogs(ctx context.Context, workspace, project, environment, service string, tailLines int) (<-chan ServiceLogEntry, error) {
+func (c *Client) ServiceLogs(ctx context.Context, workspace, project, environment, service string, tailLines int) (<-chan ServiceLogEntry, error) {
 	namespace := labels.NamespaceFor(workspace, project, environment)
 
 	labelSelector := fmt.Sprintf("app.kubernetes.io/name=%s", service)
 
-	podList, err := s.k8s.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
+	podList, err := c.k8s.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: labelSelector,
 	})
 	if err != nil {
@@ -280,7 +279,7 @@ func (s *Server) ServiceLogs(ctx context.Context, workspace, project, environmen
 		wg.Add(1)
 		go func(podName string) {
 			defer wg.Done()
-			s.streamPodLogs(ctx, namespace, podName, service, tail, multiplePods, out)
+			c.streamPodLogs(ctx, namespace, podName, service, tail, multiplePods, out)
 		}(pod.Name)
 	}
 	go func() {
@@ -292,14 +291,14 @@ func (s *Server) ServiceLogs(ctx context.Context, workspace, project, environmen
 }
 
 // streamPodLogs follows logs from a single pod/container and sends entries to the channel.
-func (s *Server) streamPodLogs(ctx context.Context, namespace, podName, container string, tailLines int64, prefixPod bool, out chan<- ServiceLogEntry) {
+func (c *Client) streamPodLogs(ctx context.Context, namespace, podName, container string, tailLines int64, prefixPod bool, out chan<- ServiceLogEntry) {
 	opts := &corev1.PodLogOptions{
 		Container: container,
 		Follow:    true,
 		TailLines: &tailLines,
 	}
 
-	logStream, err := s.k8s.CoreV1().Pods(namespace).GetLogs(podName, opts).Stream(ctx)
+	logStream, err := c.k8s.CoreV1().Pods(namespace).GetLogs(podName, opts).Stream(ctx)
 	if err != nil {
 		slog.Warn("failed to open log stream", "pod", podName, "error", err)
 		return
@@ -334,8 +333,8 @@ func shortPodID(podName string) string {
 
 const dbQueryTimeout = 30 * time.Second
 
-func (s *Server) DatabaseTables(ctx context.Context, workspace, project, environment, dbName string) ([]data.DatabaseTable, error) {
-	creds, err := database.CredentialsFromSecret(ctx, s.k8s, workspace, project, environment, dbName)
+func (c *Client) DatabaseTables(ctx context.Context, workspace, project, environment, dbName string) ([]data.DatabaseTable, error) {
+	creds, err := database.CredentialsFromSecret(ctx, c.k8s, workspace, project, environment, dbName)
 	if err != nil {
 		if errors.Is(err, database.ErrNotReady) {
 			return nil, status.Errorf(codes.FailedPrecondition, "database is provisioning")
@@ -360,8 +359,8 @@ func (s *Server) DatabaseTables(ctx context.Context, workspace, project, environ
 	return tables, nil
 }
 
-func (s *Server) DatabaseTableData(ctx context.Context, workspace, project, environment, dbName, schema, table string, limit, offset int) (data.DatabaseTableData, error) {
-	creds, err := database.CredentialsFromSecret(ctx, s.k8s, workspace, project, environment, dbName)
+func (c *Client) DatabaseTableData(ctx context.Context, workspace, project, environment, dbName, schema, table string, limit, offset int) (data.DatabaseTableData, error) {
+	creds, err := database.CredentialsFromSecret(ctx, c.k8s, workspace, project, environment, dbName)
 	if err != nil {
 		if errors.Is(err, database.ErrNotReady) {
 			return data.DatabaseTableData{}, status.Errorf(codes.FailedPrecondition, "database is provisioning")
@@ -390,8 +389,8 @@ func (s *Server) DatabaseTableData(ctx context.Context, workspace, project, envi
 	}, nil
 }
 
-func (s *Server) DatabaseQuery(ctx context.Context, workspace, project, environment, dbName, query string) (data.DatabaseQueryResult, error) {
-	creds, err := database.CredentialsFromSecret(ctx, s.k8s, workspace, project, environment, dbName)
+func (c *Client) DatabaseQuery(ctx context.Context, workspace, project, environment, dbName, query string) (data.DatabaseQueryResult, error) {
+	creds, err := database.CredentialsFromSecret(ctx, c.k8s, workspace, project, environment, dbName)
 	if err != nil {
 		if errors.Is(err, database.ErrNotReady) {
 			return data.DatabaseQueryResult{}, status.Errorf(codes.FailedPrecondition, "database is provisioning")
@@ -420,13 +419,13 @@ func (s *Server) DatabaseQuery(ctx context.Context, workspace, project, environm
 	}, nil
 }
 
-func (s *Server) DatabaseStatus(ctx context.Context, workspace, project, environment, dbName string) (data.DatabaseStatus, error) {
+func (c *Client) DatabaseStatus(ctx context.Context, workspace, project, environment, dbName string) (data.DatabaseStatus, error) {
 	namespace := labels.NamespaceFor(workspace, project, environment)
 	clusterName := project + "-pg-" + dbName
 	labelSelector := fmt.Sprintf("cnpg.io/cluster=%s", clusterName)
 
 	// Check CNPG pods for readiness.
-	podList, err := s.k8s.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
+	podList, err := c.k8s.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: labelSelector,
 	})
 	if err != nil {
@@ -448,7 +447,7 @@ func (s *Server) DatabaseStatus(ctx context.Context, workspace, project, environ
 
 	// Read PVC info.
 	var volumeInfo *data.VolumeInfo
-	pvcList, err := s.k8s.CoreV1().PersistentVolumeClaims(namespace).List(ctx, metav1.ListOptions{
+	pvcList, err := c.k8s.CoreV1().PersistentVolumeClaims(namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: labelSelector,
 	})
 	if err == nil && len(pvcList.Items) > 0 {
@@ -468,7 +467,7 @@ func (s *Server) DatabaseStatus(ctx context.Context, workspace, project, environ
 		}
 
 		// Try to get actual disk usage from kubelet stats.
-		usedBytes, capacityBytes := s.pvcUsage(ctx, namespace, pvc.Name, podList.Items)
+		usedBytes, capacityBytes := c.pvcUsage(ctx, namespace, pvc.Name, podList.Items)
 		volumeInfo.UsedBytes = usedBytes
 		volumeInfo.CapacityBytes = capacityBytes
 	}
@@ -480,11 +479,11 @@ func (s *Server) DatabaseStatus(ctx context.Context, workspace, project, environ
 	}, nil
 }
 
-func (s *Server) ServiceStatus(ctx context.Context, workspace, project, environment, service string) (data.ServiceStatus, error) {
+func (c *Client) ServiceStatus(ctx context.Context, workspace, project, environment, service string) (data.ServiceStatus, error) {
 	namespace := labels.NamespaceFor(workspace, project, environment)
 	labelSelector := fmt.Sprintf("app.kubernetes.io/name=%s", service)
 
-	deployList, err := s.k8s.AppsV1().Deployments(namespace).List(ctx, metav1.ListOptions{
+	deployList, err := c.k8s.AppsV1().Deployments(namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: labelSelector,
 	})
 	if err != nil {
@@ -505,7 +504,7 @@ func (s *Server) ServiceStatus(ctx context.Context, workspace, project, environm
 		Replicas: int(configuredReplicas),
 	}
 
-	hpaList, err := s.k8s.AutoscalingV2().HorizontalPodAutoscalers(namespace).List(ctx, metav1.ListOptions{
+	hpaList, err := c.k8s.AutoscalingV2().HorizontalPodAutoscalers(namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: labelSelector,
 	})
 	if err == nil && len(hpaList.Items) > 0 {
@@ -529,7 +528,7 @@ func (s *Server) ServiceStatus(ctx context.Context, workspace, project, environm
 	// We read from Pods rather than the Deployment spec because LimitRange defaults
 	// are injected at pod admission time and don't appear in the Deployment spec.
 	var resources *data.ServiceResources
-	podList, podErr := s.k8s.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
+	podList, podErr := c.k8s.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: labelSelector,
 		Limit:         1,
 	})
@@ -566,13 +565,13 @@ func (s *Server) ServiceStatus(ctx context.Context, workspace, project, environm
 	}, nil
 }
 
-func (s *Server) SetServiceScaling(ctx context.Context, workspace, project, environment, service string, replicas int, autoscaling *data.AutoscalingConfig) error {
+func (c *Client) SetServiceScaling(ctx context.Context, workspace, project, environment, service string, replicas int, autoscaling *data.AutoscalingConfig) error {
 	namespace := labels.NamespaceFor(workspace, project, environment)
 	deploymentName := fmt.Sprintf("%s-%s-%s", project, environment, service)
 
 	// Find the deployment by label first (more reliable than guessing the name).
 	labelSelector := fmt.Sprintf("app.kubernetes.io/name=%s", service)
-	deployList, err := s.k8s.AppsV1().Deployments(namespace).List(ctx, metav1.ListOptions{
+	deployList, err := c.k8s.AppsV1().Deployments(namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: labelSelector,
 	})
 	if err != nil {
@@ -649,25 +648,25 @@ func (s *Server) SetServiceScaling(ctx context.Context, workspace, project, envi
 			},
 		}
 
-		existing, err := s.k8s.AutoscalingV2().HorizontalPodAutoscalers(namespace).Get(ctx, hpaName, metav1.GetOptions{})
+		existing, err := c.k8s.AutoscalingV2().HorizontalPodAutoscalers(namespace).Get(ctx, hpaName, metav1.GetOptions{})
 		if err != nil {
 			if !apierrors.IsNotFound(err) {
 				return status.Errorf(codes.Internal, "failed to get HPA: %v", err)
 			}
-			if _, err := s.k8s.AutoscalingV2().HorizontalPodAutoscalers(namespace).Create(ctx, hpa, metav1.CreateOptions{}); err != nil {
+			if _, err := c.k8s.AutoscalingV2().HorizontalPodAutoscalers(namespace).Create(ctx, hpa, metav1.CreateOptions{}); err != nil {
 				return status.Errorf(codes.Internal, "failed to create HPA: %v", err)
 			}
 		} else {
 			existing.Spec = hpa.Spec
 			existing.Labels = hpa.Labels
-			if _, err := s.k8s.AutoscalingV2().HorizontalPodAutoscalers(namespace).Update(ctx, existing, metav1.UpdateOptions{}); err != nil {
+			if _, err := c.k8s.AutoscalingV2().HorizontalPodAutoscalers(namespace).Update(ctx, existing, metav1.UpdateOptions{}); err != nil {
 				return status.Errorf(codes.Internal, "failed to update HPA: %v", err)
 			}
 		}
 
 		// Remove replicas from Deployment — HPA owns it now.
 		dep.Spec.Replicas = nil
-		if _, err := s.k8s.AppsV1().Deployments(namespace).Update(ctx, dep, metav1.UpdateOptions{}); err != nil {
+		if _, err := c.k8s.AppsV1().Deployments(namespace).Update(ctx, dep, metav1.UpdateOptions{}); err != nil {
 			slog.Warn("failed to clear deployment replicas for HPA", "deployment", deploymentName, "error", err)
 		}
 
@@ -679,12 +678,12 @@ func (s *Server) SetServiceScaling(ctx context.Context, workspace, project, envi
 			r = 1
 		}
 		dep.Spec.Replicas = &r
-		if _, err := s.k8s.AppsV1().Deployments(namespace).Update(ctx, dep, metav1.UpdateOptions{}); err != nil {
+		if _, err := c.k8s.AppsV1().Deployments(namespace).Update(ctx, dep, metav1.UpdateOptions{}); err != nil {
 			return status.Errorf(codes.Internal, "failed to scale deployment: %v", err)
 		}
 
 		// Delete HPA if it exists (idempotent).
-		if err := s.k8s.AutoscalingV2().HorizontalPodAutoscalers(namespace).Delete(ctx, hpaName, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+		if err := c.k8s.AutoscalingV2().HorizontalPodAutoscalers(namespace).Delete(ctx, hpaName, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
 			slog.Warn("failed to delete HPA", "hpa", hpaName, "error", err)
 		}
 
@@ -698,7 +697,7 @@ func int32Ptr(v int32) *int32 { return &v }
 // pvcUsage queries the kubelet stats API via the Kubernetes API proxy to get
 // actual disk usage for a PVC. Returns (usedBytes, capacityBytes) or (0, 0)
 // if the stats cannot be retrieved.
-func (s *Server) pvcUsage(ctx context.Context, namespace, pvcName string, pods []corev1.Pod) (int64, int64) {
+func (c *Client) pvcUsage(ctx context.Context, namespace, pvcName string, pods []corev1.Pod) (int64, int64) {
 	// Find a running pod to query for volume stats.
 	var nodeName string
 	var podNamespace, podName string
@@ -716,7 +715,7 @@ func (s *Server) pvcUsage(ctx context.Context, namespace, pvcName string, pods [
 
 	// Query kubelet stats via API server proxy.
 	path := fmt.Sprintf("/api/v1/nodes/%s/proxy/stats/summary", nodeName)
-	raw, err := s.k8s.CoreV1().RESTClient().Get().AbsPath(path).DoRaw(ctx)
+	raw, err := c.k8s.CoreV1().RESTClient().Get().AbsPath(path).DoRaw(ctx)
 	if err != nil {
 		slog.Warn("failed to query kubelet stats", "node", nodeName, "error", err)
 		return 0, 0
@@ -795,11 +794,11 @@ func mapStatus(status *argocd.AppStatus) (data.DeploymentStatus, string) {
 
 // WorkspaceByInstallationID returns the workspace that owns a GitHub App
 // installation, by inspecting deployment labels across the cluster.
-func (s *Server) WorkspaceByInstallationID(ctx context.Context, installationID int64) (string, error) {
+func (c *Client) WorkspaceByInstallationID(ctx context.Context, installationID int64) (string, error) {
 	// Query Deployments across all namespaces with the github-installation label.
 	installationLabel := fmt.Sprintf("%s=%d", labels.GitHubInstallation, installationID)
 
-	deployList, err := s.k8s.AppsV1().Deployments("").List(ctx, metav1.ListOptions{
+	deployList, err := c.k8s.AppsV1().Deployments("").List(ctx, metav1.ListOptions{
 		LabelSelector: installationLabel,
 	})
 	if err != nil {
@@ -812,7 +811,7 @@ func (s *Server) WorkspaceByInstallationID(ctx context.Context, installationID i
 
 	// Get the workspace from the namespace's labels.
 	namespace := deployList.Items[0].Namespace
-	ns, err := s.k8s.CoreV1().Namespaces().Get(ctx, namespace, metav1.GetOptions{})
+	ns, err := c.k8s.CoreV1().Namespaces().Get(ctx, namespace, metav1.GetOptions{})
 	if err != nil {
 		return "", status.Errorf(codes.Internal, "failed to get namespace %q: %v", namespace, err)
 	}
@@ -831,7 +830,7 @@ const (
 
 // SetResourceQuota creates or updates the ResourceQuota + LimitRange
 // for an environment namespace based on tier.
-func (s *Server) SetResourceQuota(ctx context.Context, workspace, project, environment string, tier data.ResourceTier, cpuMillicores, memoryMB, diskMB int) (data.ResourceQuota, error) {
+func (c *Client) SetResourceQuota(ctx context.Context, workspace, project, environment string, tier data.ResourceTier, cpuMillicores, memoryMB, diskMB int) (data.ResourceQuota, error) {
 	namespace := labels.NamespaceFor(workspace, project, environment)
 
 	// 1. Manage ResourceQuota based on tier.
@@ -858,24 +857,24 @@ func (s *Server) SetResourceQuota(ctx context.Context, workspace, project, envir
 			},
 		}
 
-		existing, err := s.k8s.CoreV1().ResourceQuotas(namespace).Get(ctx, resourceQuotaName, metav1.GetOptions{})
+		existing, err := c.k8s.CoreV1().ResourceQuotas(namespace).Get(ctx, resourceQuotaName, metav1.GetOptions{})
 		if err != nil {
 			if !apierrors.IsNotFound(err) {
 				return data.ResourceQuota{}, status.Errorf(codes.Internal, "failed to get resource quota: %v", err)
 			}
-			if _, err := s.k8s.CoreV1().ResourceQuotas(namespace).Create(ctx, quota, metav1.CreateOptions{}); err != nil {
+			if _, err := c.k8s.CoreV1().ResourceQuotas(namespace).Create(ctx, quota, metav1.CreateOptions{}); err != nil {
 				return data.ResourceQuota{}, status.Errorf(codes.Internal, "failed to create resource quota: %v", err)
 			}
 		} else {
 			existing.Spec.Hard = quota.Spec.Hard
 			existing.Labels = quota.Labels
-			if _, err := s.k8s.CoreV1().ResourceQuotas(namespace).Update(ctx, existing, metav1.UpdateOptions{}); err != nil {
+			if _, err := c.k8s.CoreV1().ResourceQuotas(namespace).Update(ctx, existing, metav1.UpdateOptions{}); err != nil {
 				return data.ResourceQuota{}, status.Errorf(codes.Internal, "failed to update resource quota: %v", err)
 			}
 		}
 	} else {
 		// ECO: no ResourceQuota — metered billing, no namespace-level cap.
-		err := s.k8s.CoreV1().ResourceQuotas(namespace).Delete(ctx, resourceQuotaName, metav1.DeleteOptions{})
+		err := c.k8s.CoreV1().ResourceQuotas(namespace).Delete(ctx, resourceQuotaName, metav1.DeleteOptions{})
 		if err != nil && !apierrors.IsNotFound(err) {
 			return data.ResourceQuota{}, status.Errorf(codes.Internal, "failed to delete resource quota: %v", err)
 		}
@@ -883,24 +882,24 @@ func (s *Server) SetResourceQuota(ctx context.Context, workspace, project, envir
 
 	// 2. Create or update LimitRange.
 	lr := buildLimitRange(namespace, tier)
-	existingLR, err := s.k8s.CoreV1().LimitRanges(namespace).Get(ctx, limitRangeName, metav1.GetOptions{})
+	existingLR, err := c.k8s.CoreV1().LimitRanges(namespace).Get(ctx, limitRangeName, metav1.GetOptions{})
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			return data.ResourceQuota{}, status.Errorf(codes.Internal, "failed to get limit range: %v", err)
 		}
-		if _, err := s.k8s.CoreV1().LimitRanges(namespace).Create(ctx, lr, metav1.CreateOptions{}); err != nil {
+		if _, err := c.k8s.CoreV1().LimitRanges(namespace).Create(ctx, lr, metav1.CreateOptions{}); err != nil {
 			return data.ResourceQuota{}, status.Errorf(codes.Internal, "failed to create limit range: %v", err)
 		}
 	} else {
 		existingLR.Spec = lr.Spec
 		existingLR.Labels = lr.Labels
-		if _, err := s.k8s.CoreV1().LimitRanges(namespace).Update(ctx, existingLR, metav1.UpdateOptions{}); err != nil {
+		if _, err := c.k8s.CoreV1().LimitRanges(namespace).Update(ctx, existingLR, metav1.UpdateOptions{}); err != nil {
 			return data.ResourceQuota{}, status.Errorf(codes.Internal, "failed to update limit range: %v", err)
 		}
 	}
 
 	// 3. Set resource-tier label on namespace.
-	ns, err := s.k8s.CoreV1().Namespaces().Get(ctx, namespace, metav1.GetOptions{})
+	ns, err := c.k8s.CoreV1().Namespaces().Get(ctx, namespace, metav1.GetOptions{})
 	if err != nil {
 		return data.ResourceQuota{}, status.Errorf(codes.Internal, "failed to get namespace: %v", err)
 	}
@@ -908,7 +907,7 @@ func (s *Server) SetResourceQuota(ctx context.Context, workspace, project, envir
 		ns.Labels = make(map[string]string)
 	}
 	ns.Labels[labels.ResourceTier] = tierToString(tier)
-	if _, err := s.k8s.CoreV1().Namespaces().Update(ctx, ns, metav1.UpdateOptions{}); err != nil {
+	if _, err := c.k8s.CoreV1().Namespaces().Update(ctx, ns, metav1.UpdateOptions{}); err != nil {
 		return data.ResourceQuota{}, status.Errorf(codes.Internal, "failed to update namespace tier label: %v", err)
 	}
 
@@ -922,10 +921,10 @@ func (s *Server) SetResourceQuota(ctx context.Context, workspace, project, envir
 }
 
 // ResourceQuota returns the current resource quota and tier for an environment.
-func (s *Server) ResourceQuota(ctx context.Context, workspace, project, environment string) (data.ResourceQuota, error) {
+func (c *Client) ResourceQuota(ctx context.Context, workspace, project, environment string) (data.ResourceQuota, error) {
 	namespace := labels.NamespaceFor(workspace, project, environment)
 
-	ns, err := s.k8s.CoreV1().Namespaces().Get(ctx, namespace, metav1.GetOptions{})
+	ns, err := c.k8s.CoreV1().Namespaces().Get(ctx, namespace, metav1.GetOptions{})
 	if err != nil {
 		return data.ResourceQuota{}, status.Errorf(codes.Internal, "failed to get namespace: %v", err)
 	}
@@ -933,7 +932,7 @@ func (s *Server) ResourceQuota(ctx context.Context, workspace, project, environm
 	tier := tierFromString(ns.Labels[labels.ResourceTier])
 
 	// ECO tier has no ResourceQuota — return tier with zero allocations.
-	quota, err := s.k8s.CoreV1().ResourceQuotas(namespace).Get(ctx, resourceQuotaName, metav1.GetOptions{})
+	quota, err := c.k8s.CoreV1().ResourceQuotas(namespace).Get(ctx, resourceQuotaName, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return data.ResourceQuota{Tier: tier}, nil
@@ -960,9 +959,9 @@ func (s *Server) ResourceQuota(ctx context.Context, workspace, project, environm
 // ensureDefaultEcoTier sets up the default ECO tier for a new environment: LimitRange for
 // per-pod defaults and namespace tier label. No ResourceQuota — ECO uses metered billing
 // based on actual usage, so there's no namespace-level resource cap.
-func (s *Server) ensureDefaultEcoTier(ctx context.Context, namespace string) {
+func (c *Client) ensureDefaultEcoTier(ctx context.Context, namespace string) {
 	// Skip if already configured (idempotent).
-	ns, err := s.k8s.CoreV1().Namespaces().Get(ctx, namespace, metav1.GetOptions{})
+	ns, err := c.k8s.CoreV1().Namespaces().Get(ctx, namespace, metav1.GetOptions{})
 	if err != nil {
 		slog.Warn("failed to get namespace for tier setup", "namespace", namespace, "error", err)
 		return
@@ -975,7 +974,7 @@ func (s *Server) ensureDefaultEcoTier(ctx context.Context, namespace string) {
 
 	// Create LimitRange for per-pod defaults.
 	lr := buildLimitRange(namespace, tier)
-	if _, err := s.k8s.CoreV1().LimitRanges(namespace).Create(ctx, lr, metav1.CreateOptions{}); err != nil && !apierrors.IsAlreadyExists(err) {
+	if _, err := c.k8s.CoreV1().LimitRanges(namespace).Create(ctx, lr, metav1.CreateOptions{}); err != nil && !apierrors.IsAlreadyExists(err) {
 		slog.Warn("failed to create default limit range", "namespace", namespace, "error", err)
 	}
 
@@ -984,7 +983,7 @@ func (s *Server) ensureDefaultEcoTier(ctx context.Context, namespace string) {
 		ns.Labels = make(map[string]string)
 	}
 	ns.Labels[labels.ResourceTier] = tierToString(tier)
-	if _, err := s.k8s.CoreV1().Namespaces().Update(ctx, ns, metav1.UpdateOptions{}); err != nil {
+	if _, err := c.k8s.CoreV1().Namespaces().Update(ctx, ns, metav1.UpdateOptions{}); err != nil {
 		slog.Warn("failed to set default resource tier label", "namespace", namespace, "error", err)
 	}
 
@@ -999,15 +998,15 @@ const registryPullSecretName = "lucity-registry"
 // workload namespace so kubelet can authenticate when pulling images.
 // Best-effort: logs a warning and returns if the source Secret is missing
 // (e.g., in dev environments without a private registry).
-func (s *Server) ensureRegistryPullSecret(ctx context.Context, namespace string) {
-	if s.registryPullSecret == "" {
+func (c *Client) ensureRegistryPullSecret(ctx context.Context, namespace string) {
+	if c.registryPullSecret == "" {
 		return
 	}
 
 	// Read the source Secret from the platform namespace.
-	source, err := s.k8s.CoreV1().Secrets(s.gatewayNamespace).Get(ctx, s.registryPullSecret, metav1.GetOptions{})
+	source, err := c.k8s.CoreV1().Secrets(c.gatewayNamespace).Get(ctx, c.registryPullSecret, metav1.GetOptions{})
 	if err != nil {
-		slog.Warn("registry pull secret not found, skipping", "secret", s.registryPullSecret, "namespace", s.gatewayNamespace, "error", err)
+		slog.Warn("registry pull secret not found, skipping", "secret", c.registryPullSecret, "namespace", c.gatewayNamespace, "error", err)
 		return
 	}
 
@@ -1023,10 +1022,10 @@ func (s *Server) ensureRegistryPullSecret(ctx context.Context, namespace string)
 		Data: source.Data,
 	}
 
-	existing, err := s.k8s.CoreV1().Secrets(namespace).Get(ctx, registryPullSecretName, metav1.GetOptions{})
+	existing, err := c.k8s.CoreV1().Secrets(namespace).Get(ctx, registryPullSecretName, metav1.GetOptions{})
 	if err != nil {
 		// Create new.
-		if _, err := s.k8s.CoreV1().Secrets(namespace).Create(ctx, target, metav1.CreateOptions{}); err != nil {
+		if _, err := c.k8s.CoreV1().Secrets(namespace).Create(ctx, target, metav1.CreateOptions{}); err != nil {
 			slog.Warn("failed to create registry pull secret", "namespace", namespace, "error", err)
 			return
 		}
@@ -1034,7 +1033,7 @@ func (s *Server) ensureRegistryPullSecret(ctx context.Context, namespace string)
 		// Update existing.
 		existing.Type = source.Type
 		existing.Data = source.Data
-		if _, err := s.k8s.CoreV1().Secrets(namespace).Update(ctx, existing, metav1.UpdateOptions{}); err != nil {
+		if _, err := c.k8s.CoreV1().Secrets(namespace).Update(ctx, existing, metav1.UpdateOptions{}); err != nil {
 			slog.Warn("failed to update registry pull secret", "namespace", namespace, "error", err)
 			return
 		}
@@ -1105,11 +1104,11 @@ func tierFromString(s string) data.ResourceTier {
 }
 
 // ListResourceAllocations returns resource quotas + tiers for every managed namespace.
-func (s *Server) ListResourceAllocations(ctx context.Context) ([]data.ResourceAllocation, error) {
+func (c *Client) ListResourceAllocations(ctx context.Context) ([]data.ResourceAllocation, error) {
 	// List all namespaces with resource-tier label.
 	selector := labels.Selector(labels.ManagedBy, labels.ManagedByLucity) + "," + labels.ResourceTier
 
-	nsList, err := s.k8s.CoreV1().Namespaces().List(ctx, metav1.ListOptions{
+	nsList, err := c.k8s.CoreV1().Namespaces().List(ctx, metav1.ListOptions{
 		LabelSelector: selector,
 	})
 	if err != nil {
@@ -1126,7 +1125,7 @@ func (s *Server) ListResourceAllocations(ctx context.Context) ([]data.ResourceAl
 		}
 
 		tier := tierFromString(ns.Labels[labels.ResourceTier])
-		cpuMillis, memMB, diskMB := s.namespaceAllocations(ctx, ns.Name)
+		cpuMillis, memMB, diskMB := c.namespaceAllocations(ctx, ns.Name)
 
 		allocations = append(allocations, data.ResourceAllocation{
 			Workspace:     ws,
@@ -1144,9 +1143,9 @@ func (s *Server) ListResourceAllocations(ctx context.Context) ([]data.ResourceAl
 // namespaceAllocations returns the actual resource usage for a namespace by summing
 // pod container requests (CPU, memory) and PVC storage requests (disk).
 // This reflects what's actually deployed, not what the ResourceQuota allows.
-func (s *Server) namespaceAllocations(ctx context.Context, namespace string) (cpuMillis, memMB, diskMB int) {
+func (c *Client) namespaceAllocations(ctx context.Context, namespace string) (cpuMillis, memMB, diskMB int) {
 	// Sum CPU and memory requests from all running pods.
-	pods, err := s.k8s.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
+	pods, err := c.k8s.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
 		FieldSelector: "status.phase=Running",
 	})
 	if err != nil {
@@ -1165,7 +1164,7 @@ func (s *Server) namespaceAllocations(ctx context.Context, namespace string) (cp
 	}
 
 	// Sum storage requests from all PVCs.
-	pvcs, err := s.k8s.CoreV1().PersistentVolumeClaims(namespace).List(ctx, metav1.ListOptions{})
+	pvcs, err := c.k8s.CoreV1().PersistentVolumeClaims(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		slog.Warn("failed to list PVCs for allocations", "namespace", namespace, "error", err)
 		return cpuMillis, memMB, 0
@@ -1180,8 +1179,8 @@ func (s *Server) namespaceAllocations(ctx context.Context, namespace string) (cp
 }
 
 // DatabaseCredentials returns the resolved connection credentials for a database.
-func (s *Server) DatabaseCredentials(ctx context.Context, workspace, project, environment, dbName string) (data.DatabaseCredentials, error) {
-	creds, err := database.CredentialsFromSecret(ctx, s.k8s, workspace, project, environment, dbName)
+func (c *Client) DatabaseCredentials(ctx context.Context, workspace, project, environment, dbName string) (data.DatabaseCredentials, error) {
+	creds, err := database.CredentialsFromSecret(ctx, c.k8s, workspace, project, environment, dbName)
 	if err != nil {
 		if errors.Is(err, database.ErrNotReady) {
 			return data.DatabaseCredentials{}, status.Errorf(codes.FailedPrecondition, "database is provisioning")
@@ -1207,7 +1206,7 @@ func githubTokenSecretName(userID string) string {
 }
 
 // StoreUserGitHubToken persists a user's GitHub OAuth token in a K8s Secret.
-func (s *Server) StoreUserGitHubToken(ctx context.Context, userID, accessToken, refreshToken string, expiresAt int64) error {
+func (c *Client) StoreUserGitHubToken(ctx context.Context, userID, accessToken, refreshToken string, expiresAt int64) error {
 	secretName := githubTokenSecretName(userID)
 
 	secret := &corev1.Secret{
@@ -1226,19 +1225,19 @@ func (s *Server) StoreUserGitHubToken(ctx context.Context, userID, accessToken, 
 		},
 	}
 
-	existing, err := s.k8s.CoreV1().Secrets(labels.LucityNamespace).Get(ctx, secretName, metav1.GetOptions{})
+	existing, err := c.k8s.CoreV1().Secrets(labels.LucityNamespace).Get(ctx, secretName, metav1.GetOptions{})
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			return status.Errorf(codes.Internal, "failed to get token secret: %v", err)
 		}
-		if _, err := s.k8s.CoreV1().Secrets(labels.LucityNamespace).Create(ctx, secret, metav1.CreateOptions{}); err != nil {
+		if _, err := c.k8s.CoreV1().Secrets(labels.LucityNamespace).Create(ctx, secret, metav1.CreateOptions{}); err != nil {
 			return status.Errorf(codes.Internal, "failed to create token secret: %v", err)
 		}
 	} else {
 		existing.Data = nil // clear binary data, use StringData
 		existing.StringData = secret.StringData
 		existing.Labels = secret.Labels
-		if _, err := s.k8s.CoreV1().Secrets(labels.LucityNamespace).Update(ctx, existing, metav1.UpdateOptions{}); err != nil {
+		if _, err := c.k8s.CoreV1().Secrets(labels.LucityNamespace).Update(ctx, existing, metav1.UpdateOptions{}); err != nil {
 			return status.Errorf(codes.Internal, "failed to update token secret: %v", err)
 		}
 	}
@@ -1249,10 +1248,10 @@ func (s *Server) StoreUserGitHubToken(ctx context.Context, userID, accessToken, 
 
 // UserGitHubToken returns a user's stored GitHub OAuth token. Connected is
 // false (with empty fields) when no token exists yet.
-func (s *Server) UserGitHubToken(ctx context.Context, userID string) (data.UserGitHubToken, error) {
+func (c *Client) UserGitHubToken(ctx context.Context, userID string) (data.UserGitHubToken, error) {
 	secretName := githubTokenSecretName(userID)
 
-	secret, err := s.k8s.CoreV1().Secrets(labels.LucityNamespace).Get(ctx, secretName, metav1.GetOptions{})
+	secret, err := c.k8s.CoreV1().Secrets(labels.LucityNamespace).Get(ctx, secretName, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return data.UserGitHubToken{Connected: false}, nil
@@ -1274,10 +1273,10 @@ func (s *Server) UserGitHubToken(ctx context.Context, userID string) (data.UserG
 }
 
 // DeleteUserGitHubToken removes a user's stored GitHub OAuth token. Idempotent.
-func (s *Server) DeleteUserGitHubToken(ctx context.Context, userID string) error {
+func (c *Client) DeleteUserGitHubToken(ctx context.Context, userID string) error {
 	secretName := githubTokenSecretName(userID)
 
-	if err := s.k8s.CoreV1().Secrets(labels.LucityNamespace).Delete(ctx, secretName, metav1.DeleteOptions{}); err != nil {
+	if err := c.k8s.CoreV1().Secrets(labels.LucityNamespace).Delete(ctx, secretName, metav1.DeleteOptions{}); err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil
 		}
@@ -1290,13 +1289,13 @@ func (s *Server) DeleteUserGitHubToken(ctx context.Context, userID string) error
 
 // SuspendWorkspace flips the suspended flag for every project/environment
 // in a workspace by writing through the inproc packager.
-func (s *Server) SuspendWorkspace(ctx context.Context, workspace string, suspended bool) error {
+func (c *Client) SuspendWorkspace(ctx context.Context, workspace string, suspended bool) error {
 	if workspace == "" {
 		return status.Errorf(codes.InvalidArgument, "workspace required")
 	}
 
 	// 1. List all namespaces belonging to this workspace.
-	nsList, err := s.k8s.CoreV1().Namespaces().List(ctx, metav1.ListOptions{
+	nsList, err := c.k8s.CoreV1().Namespaces().List(ctx, metav1.ListOptions{
 		LabelSelector: labels.Selector(labels.Workspace, workspace),
 	})
 	if err != nil {
@@ -1320,7 +1319,7 @@ func (s *Server) SuspendWorkspace(ctx context.Context, workspace string, suspend
 	// ArgoCD then enforces the suspension (replicas=0, CronJobs suspended, CNPG hibernated, HTTPRoutes removed).
 	var failed int
 	for ek := range seen {
-		if err := s.packager.SetSuspended(ctx, workspace, ek.project, ek.environment, suspended); err != nil {
+		if err := c.packager.SetSuspended(ctx, workspace, ek.project, ek.environment, suspended); err != nil {
 			slog.Error("failed to set suspended in gitops repo", "project", ek.project, "environment", ek.environment, "error", err)
 			failed++
 		}

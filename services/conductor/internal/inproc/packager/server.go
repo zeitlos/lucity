@@ -18,18 +18,15 @@ type DeployerService interface {
 	SyncDeployment(ctx context.Context, workspace, project, environment string) (data.DeploymentStatus, error)
 }
 
-type Server struct {
+type Client struct {
 	gitops   gitops.Forge
 	deployer DeployerService
 
 	workloadDomain string
 }
 
-// NewServer creates a packager server with the given GitOps provider.
-// The deployer reference can be nil at construction time and wired
-// later via SetDeployer to break the inproc cross-package cycle.
-func NewServer(forge gitops.Forge, deployerSvc DeployerService, workloadDomain string) *Server {
-	return &Server{
+func New(forge gitops.Forge, deployerSvc DeployerService, workloadDomain string) *Client {
+	return &Client{
 		gitops:         forge,
 		deployer:       deployerSvc,
 		workloadDomain: workloadDomain,
@@ -37,14 +34,14 @@ func NewServer(forge gitops.Forge, deployerSvc DeployerService, workloadDomain s
 }
 
 // SetDeployer wires the deployer after construction.
-func (s *Server) SetDeployer(d DeployerService) {
-	s.deployer = d
+func (c *Client) SetDeployer(d DeployerService) {
+	c.deployer = d
 }
 
 // syncEnvironment triggers an ArgoCD sync for a single environment.
 // Best-effort: logs on failure but never returns an error.
-func (s *Server) syncEnvironment(ctx context.Context, workspace, project, environment string) {
-	if _, err := s.deployer.SyncDeployment(ctx, workspace, project, environment); err != nil {
+func (c *Client) syncEnvironment(ctx context.Context, workspace, project, environment string) {
+	if _, err := c.deployer.SyncDeployment(ctx, workspace, project, environment); err != nil {
 		slog.Warn("failed to trigger sync", "project", project, "environment", environment, "error", err)
 		return
 	}
@@ -53,16 +50,16 @@ func (s *Server) syncEnvironment(ctx context.Context, workspace, project, enviro
 
 // syncAllEnvironments triggers an ArgoCD sync for every environment in a project.
 // Used after base-level changes (services, databases, chart) that affect all environments.
-func (s *Server) syncAllEnvironments(ctx context.Context, workspace, project string, environments []string) {
+func (c *Client) syncAllEnvironments(ctx context.Context, workspace, project string, environments []string) {
 	for _, env := range environments {
-		s.syncEnvironment(ctx, workspace, project, env)
+		c.syncEnvironment(ctx, workspace, project, env)
 	}
 }
 
 // InitProject creates a new GitOps repository for a project.
-func (s *Server) InitProject(ctx context.Context, workspace, project, displayName string) (gitopsRepoURL string, err error) {
+func (c *Client) InitProject(ctx context.Context, workspace, project, displayName string) (gitopsRepoURL string, err error) {
 	slog.Info("InitProject called", "project", project)
-	repoURL, err := s.gitops.CreateRepo(ctx, project, workspace, displayName)
+	repoURL, err := c.gitops.CreateRepo(ctx, project, workspace, displayName)
 	if err != nil {
 		return "", fmt.Errorf("failed to init project: %w", err)
 	}
@@ -70,17 +67,17 @@ func (s *Server) InitProject(ctx context.Context, workspace, project, displayNam
 }
 
 // ListProjects returns every project owned by the given workspace.
-func (s *Server) ListProjects(ctx context.Context, workspace string) ([]data.ProjectInfo, error) {
+func (c *Client) ListProjects(ctx context.Context, workspace string) ([]data.ProjectInfo, error) {
 	slog.Info("ListProjects called", "workspace", workspace)
 
-	repos, err := s.gitops.Repos(ctx, workspace)
+	repos, err := c.gitops.Repos(ctx, workspace)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list projects: %w", err)
 	}
 
 	var infos []data.ProjectInfo
 	for _, proj := range repos {
-		repo, err := s.gitops.CloneRepo(ctx, proj.HTTPURL)
+		repo, err := c.gitops.CloneRepo(ctx, proj.HTTPURL)
 		if err != nil {
 			slog.Warn("failed to clone repo", "repo", proj.Slug, "error", err)
 			continue
@@ -108,15 +105,15 @@ func (s *Server) ListProjects(ctx context.Context, workspace string) ([]data.Pro
 }
 
 // GetProject returns a single project by name.
-func (s *Server) GetProject(ctx context.Context, workspace, project string) (data.ProjectInfo, error) {
+func (c *Client) GetProject(ctx context.Context, workspace, project string) (data.ProjectInfo, error) {
 	slog.Info("GetProject called", "project", project)
 
-	entry, err := s.gitops.Repo(ctx, project, workspace)
+	entry, err := c.gitops.Repo(ctx, project, workspace)
 	if err != nil {
 		return data.ProjectInfo{}, fmt.Errorf("failed to get project: %w", err)
 	}
 
-	repo, err := s.gitops.CloneRepo(ctx, entry.HTTPURL)
+	repo, err := c.gitops.CloneRepo(ctx, entry.HTTPURL)
 	if err != nil {
 		return data.ProjectInfo{}, err
 	}
@@ -140,9 +137,9 @@ func (s *Server) GetProject(ctx context.Context, workspace, project string) (dat
 }
 
 // DeleteProject removes a project's GitOps repository.
-func (s *Server) DeleteProject(ctx context.Context, workspace, project string) error {
+func (c *Client) DeleteProject(ctx context.Context, workspace, project string) error {
 	slog.Info("DeleteProject called", "project", project)
-	if err := s.gitops.DeleteRepo(ctx, project, workspace); err != nil {
+	if err := c.gitops.DeleteRepo(ctx, project, workspace); err != nil {
 		return fmt.Errorf("failed to delete project: %w", err)
 	}
 	return nil
@@ -150,10 +147,10 @@ func (s *Server) DeleteProject(ctx context.Context, workspace, project string) e
 
 // AddService writes a service definition to base values and stamps the
 // initial image tag into the target environment.
-func (s *Server) AddService(ctx context.Context, workspace, project string, def data.ServiceDef) error {
+func (c *Client) AddService(ctx context.Context, workspace, project string, def data.ServiceDef) error {
 	slog.Info("AddService called", "project", project, "service", def.Name, "environment", def.Environment, "image", def.Image)
 
-	repo, err := s.cloneRepo(ctx, workspace, project)
+	repo, err := c.cloneRepo(ctx, workspace, project)
 	if err != nil {
 		return err
 	}
@@ -175,15 +172,15 @@ func (s *Server) AddService(ctx context.Context, workspace, project string, def 
 		return fmt.Errorf("failed to add service: %w", err)
 	}
 
-	s.syncEnvironment(ctx, workspace, project, def.Environment)
+	c.syncEnvironment(ctx, workspace, project, def.Environment)
 	return nil
 }
 
 // RemoveService removes a service from an environment's values.
-func (s *Server) RemoveService(ctx context.Context, workspace, project, environment, service string) error {
+func (c *Client) RemoveService(ctx context.Context, workspace, project, environment, service string) error {
 	slog.Info("RemoveService called", "project", project, "service", service, "environment", environment)
 
-	repo, err := s.cloneRepo(ctx, workspace, project)
+	repo, err := c.cloneRepo(ctx, workspace, project)
 	if err != nil {
 		return err
 	}
@@ -192,15 +189,15 @@ func (s *Server) RemoveService(ctx context.Context, workspace, project, environm
 	if err := repo.RemoveService(ctx, environment, service); err != nil {
 		return fmt.Errorf("failed to remove service: %w", err)
 	}
-	s.syncEnvironment(ctx, workspace, project, environment)
+	c.syncEnvironment(ctx, workspace, project, environment)
 	return nil
 }
 
 // UpdateImageTag stamps a new image tag onto a service in one environment.
-func (s *Server) UpdateImageTag(ctx context.Context, workspace, project, environment, service, tag, digest, commitPrefix string) error {
+func (c *Client) UpdateImageTag(ctx context.Context, workspace, project, environment, service, tag, digest, commitPrefix string) error {
 	slog.Info("UpdateImageTag called", "project", project, "environment", environment, "service", service, "tag", tag)
 
-	repo, err := s.cloneRepo(ctx, workspace, project)
+	repo, err := c.cloneRepo(ctx, workspace, project)
 	if err != nil {
 		return err
 	}
@@ -209,16 +206,16 @@ func (s *Server) UpdateImageTag(ctx context.Context, workspace, project, environ
 	if err := repo.UpdateImageTag(ctx, environment, service, tag, digest, commitPrefix); err != nil {
 		return fmt.Errorf("failed to update image tag: %w", err)
 	}
-	s.syncEnvironment(ctx, workspace, project, environment)
+	c.syncEnvironment(ctx, workspace, project, environment)
 	return nil
 }
 
 // CreateEnvironment creates a new environment in a project's GitOps repo.
 // Returns the workload namespace name.
-func (s *Server) CreateEnvironment(ctx context.Context, workspace, project, environment, fromEnvironment string) (namespace string, err error) {
+func (c *Client) CreateEnvironment(ctx context.Context, workspace, project, environment, fromEnvironment string) (namespace string, err error) {
 	slog.Info("CreateEnvironment called", "project", project, "environment", environment, "from", fromEnvironment)
 
-	repo, err := s.cloneRepo(ctx, workspace, project)
+	repo, err := c.cloneRepo(ctx, workspace, project)
 	if err != nil {
 		return "", err
 	}
@@ -232,10 +229,10 @@ func (s *Server) CreateEnvironment(ctx context.Context, workspace, project, envi
 }
 
 // DeleteEnvironment removes an environment from a project's GitOps repo.
-func (s *Server) DeleteEnvironment(ctx context.Context, workspace, project, environment string) error {
+func (c *Client) DeleteEnvironment(ctx context.Context, workspace, project, environment string) error {
 	slog.Info("DeleteEnvironment called", "project", project, "environment", environment)
 
-	repo, err := s.cloneRepo(ctx, workspace, project)
+	repo, err := c.cloneRepo(ctx, workspace, project)
 	if err != nil {
 		return err
 	}
@@ -248,10 +245,10 @@ func (s *Server) DeleteEnvironment(ctx context.Context, workspace, project, envi
 }
 
 // Promote copies a service's image tag from one environment to another.
-func (s *Server) Promote(ctx context.Context, workspace, project, service, fromEnvironment, toEnvironment string) (imageTag string, err error) {
+func (c *Client) Promote(ctx context.Context, workspace, project, service, fromEnvironment, toEnvironment string) (imageTag string, err error) {
 	slog.Info("Promote called", "project", project, "service", service, "from", fromEnvironment, "to", toEnvironment)
 
-	repo, err := s.cloneRepo(ctx, workspace, project)
+	repo, err := c.cloneRepo(ctx, workspace, project)
 	if err != nil {
 		return "", err
 	}
@@ -262,15 +259,15 @@ func (s *Server) Promote(ctx context.Context, workspace, project, service, fromE
 		return "", fmt.Errorf("failed to promote: %w", err)
 	}
 
-	s.syncEnvironment(ctx, workspace, project, toEnvironment)
+	c.syncEnvironment(ctx, workspace, project, toEnvironment)
 	return imageTag, nil
 }
 
 // DeploymentHistory returns a service's deployment history from git log.
-func (s *Server) DeploymentHistory(ctx context.Context, workspace, project, environment, service string) ([]data.DeploymentEntry, error) {
+func (c *Client) DeploymentHistory(ctx context.Context, workspace, project, environment, service string) ([]data.DeploymentEntry, error) {
 	slog.Info("DeploymentHistory called", "project", project, "environment", environment, "service", service)
 
-	repo, err := s.cloneRepo(ctx, workspace, project)
+	repo, err := c.cloneRepo(ctx, workspace, project)
 	if err != nil {
 		return nil, err
 	}
@@ -295,15 +292,15 @@ func (s *Server) DeploymentHistory(ctx context.Context, workspace, project, envi
 
 // GeneratePlatformDomain generates a unique *.{workloadDomain} hostname,
 // adds it to a service in an environment, and returns it.
-func (s *Server) GeneratePlatformDomain(ctx context.Context, workspace, project, environment, service string) (hostname string, err error) {
+func (c *Client) GeneratePlatformDomain(ctx context.Context, workspace, project, environment, service string) (hostname string, err error) {
 	slog.Info("GeneratePlatformDomain called", "project", project, "environment", environment, "service", service)
 
-	hostname, err = s.generatePlatformDomain(ctx, service, environment)
+	hostname, err = c.generatePlatformDomain(ctx, service, environment)
 	if err != nil {
 		return "", fmt.Errorf("failed to generate unique platform domain: %w", err)
 	}
 
-	repo, err := s.cloneRepo(ctx, workspace, project)
+	repo, err := c.cloneRepo(ctx, workspace, project)
 	if err != nil {
 		return "", err
 	}
@@ -313,15 +310,15 @@ func (s *Server) GeneratePlatformDomain(ctx context.Context, workspace, project,
 		return "", fmt.Errorf("failed to add platform domain: %w", err)
 	}
 
-	s.syncEnvironment(ctx, workspace, project, environment)
+	c.syncEnvironment(ctx, workspace, project, environment)
 	return hostname, nil
 }
 
 // AddDomain adds a domain hostname to a service in an environment.
-func (s *Server) AddDomain(ctx context.Context, workspace, project, environment, service, hostname string) error {
+func (c *Client) AddDomain(ctx context.Context, workspace, project, environment, service, hostname string) error {
 	slog.Info("AddDomain called", "project", project, "environment", environment, "service", service, "hostname", hostname)
 
-	repo, err := s.cloneRepo(ctx, workspace, project)
+	repo, err := c.cloneRepo(ctx, workspace, project)
 	if err != nil {
 		return err
 	}
@@ -330,15 +327,15 @@ func (s *Server) AddDomain(ctx context.Context, workspace, project, environment,
 	if err := repo.AddDomain(ctx, environment, service, hostname); err != nil {
 		return fmt.Errorf("failed to add domain: %w", err)
 	}
-	s.syncEnvironment(ctx, workspace, project, environment)
+	c.syncEnvironment(ctx, workspace, project, environment)
 	return nil
 }
 
 // RemoveDomain removes a domain hostname from a service in an environment.
-func (s *Server) RemoveDomain(ctx context.Context, workspace, project, environment, service, hostname string) error {
+func (c *Client) RemoveDomain(ctx context.Context, workspace, project, environment, service, hostname string) error {
 	slog.Info("RemoveDomain called", "project", project, "environment", environment, "service", service, "hostname", hostname)
 
-	repo, err := s.cloneRepo(ctx, workspace, project)
+	repo, err := c.cloneRepo(ctx, workspace, project)
 	if err != nil {
 		return err
 	}
@@ -347,16 +344,16 @@ func (s *Server) RemoveDomain(ctx context.Context, workspace, project, environme
 	if err := repo.RemoveDomain(ctx, environment, service, hostname); err != nil {
 		return fmt.Errorf("failed to remove domain: %w", err)
 	}
-	s.syncEnvironment(ctx, workspace, project, environment)
+	c.syncEnvironment(ctx, workspace, project, environment)
 	return nil
 }
 
 // Eject builds a tar.gz archive of the project's complete configuration
 // for independent operation.
-func (s *Server) Eject(ctx context.Context, workspace, project string) ([]byte, error) {
+func (c *Client) Eject(ctx context.Context, workspace, project string) ([]byte, error) {
 	slog.Info("eject started", "project", project)
 
-	repo, err := s.cloneRepo(ctx, workspace, project)
+	repo, err := c.cloneRepo(ctx, workspace, project)
 	if err != nil {
 		return nil, err
 	}
@@ -377,10 +374,10 @@ func (s *Server) Eject(ctx context.Context, workspace, project string) ([]byte, 
 }
 
 // SharedVariables returns all shared variables for an environment.
-func (s *Server) SharedVariables(ctx context.Context, workspace, project, environment string) (map[string]string, error) {
+func (c *Client) SharedVariables(ctx context.Context, workspace, project, environment string) (map[string]string, error) {
 	slog.Info("SharedVariables called", "project", project, "environment", environment)
 
-	repo, err := s.cloneRepo(ctx, workspace, project)
+	repo, err := c.cloneRepo(ctx, workspace, project)
 	if err != nil {
 		return nil, err
 	}
@@ -394,10 +391,10 @@ func (s *Server) SharedVariables(ctx context.Context, workspace, project, enviro
 }
 
 // SetSharedVariables replaces all shared variables for an environment.
-func (s *Server) SetSharedVariables(ctx context.Context, workspace, project, environment string, vars map[string]string) error {
+func (c *Client) SetSharedVariables(ctx context.Context, workspace, project, environment string, vars map[string]string) error {
 	slog.Info("SetSharedVariables called", "project", project, "environment", environment)
 
-	repo, err := s.cloneRepo(ctx, workspace, project)
+	repo, err := c.cloneRepo(ctx, workspace, project)
 	if err != nil {
 		return err
 	}
@@ -406,7 +403,7 @@ func (s *Server) SetSharedVariables(ctx context.Context, workspace, project, env
 	if err := repo.SetSharedVariables(ctx, environment, vars); err != nil {
 		return fmt.Errorf("failed to set shared variables: %w", err)
 	}
-	s.syncEnvironment(ctx, workspace, project, environment)
+	c.syncEnvironment(ctx, workspace, project, environment)
 	return nil
 }
 
@@ -419,10 +416,10 @@ type ServiceVariables struct {
 	ServiceRefs  map[string]data.ServiceRef
 }
 
-func (s *Server) ServiceVariables(ctx context.Context, workspace, project, environment, service string) (ServiceVariables, error) {
+func (c *Client) ServiceVariables(ctx context.Context, workspace, project, environment, service string) (ServiceVariables, error) {
 	slog.Info("ServiceVariables called", "project", project, "environment", environment, "service", service)
 
-	repo, err := s.cloneRepo(ctx, workspace, project)
+	repo, err := c.cloneRepo(ctx, workspace, project)
 	if err != nil {
 		return ServiceVariables{}, err
 	}
@@ -442,10 +439,10 @@ func (s *Server) ServiceVariables(ctx context.Context, workspace, project, envir
 }
 
 // SetServiceVariables replaces a service's environment variables in one environment.
-func (s *Server) SetServiceVariables(ctx context.Context, workspace, project, environment, service string, vars map[string]string, sharedRefs []string, dbRefs map[string]data.DatabaseRef, svcRefs map[string]data.ServiceRef) error {
+func (c *Client) SetServiceVariables(ctx context.Context, workspace, project, environment, service string, vars map[string]string, sharedRefs []string, dbRefs map[string]data.DatabaseRef, svcRefs map[string]data.ServiceRef) error {
 	slog.Info("SetServiceVariables called", "project", project, "environment", environment, "service", service)
 
-	repo, err := s.cloneRepo(ctx, workspace, project)
+	repo, err := c.cloneRepo(ctx, workspace, project)
 	if err != nil {
 		return err
 	}
@@ -454,12 +451,12 @@ func (s *Server) SetServiceVariables(ctx context.Context, workspace, project, en
 	if err := repo.SetServiceVariables(ctx, environment, service, vars, sharedRefs, databaseRefsToGitops(dbRefs), serviceRefsToGitops(svcRefs)); err != nil {
 		return fmt.Errorf("failed to set service variables: %w", err)
 	}
-	s.syncEnvironment(ctx, workspace, project, environment)
+	c.syncEnvironment(ctx, workspace, project, environment)
 	return nil
 }
 
 // AddDatabase adds a PostgreSQL database to a project's base values.
-func (s *Server) AddDatabase(ctx context.Context, workspace, project string, db data.DatabaseInfo) error {
+func (c *Client) AddDatabase(ctx context.Context, workspace, project string, db data.DatabaseInfo) error {
 	slog.Info("AddDatabase called", "project", project, "database", db.Name)
 
 	if db.Version == "" {
@@ -472,7 +469,7 @@ func (s *Server) AddDatabase(ctx context.Context, workspace, project string, db 
 		db.Size = "10Gi"
 	}
 
-	repo, err := s.cloneRepo(ctx, workspace, project)
+	repo, err := c.cloneRepo(ctx, workspace, project)
 	if err != nil {
 		return err
 	}
@@ -491,15 +488,15 @@ func (s *Server) AddDatabase(ctx context.Context, workspace, project string, db 
 	if err != nil {
 		slog.Warn("failed to read repo metadata for sync", "project", project, "error", err)
 	}
-	s.syncAllEnvironments(ctx, workspace, project, meta.Environments)
+	c.syncAllEnvironments(ctx, workspace, project, meta.Environments)
 	return nil
 }
 
 // RemoveDatabase removes a database from a project's base values.
-func (s *Server) RemoveDatabase(ctx context.Context, workspace, project, name string) error {
+func (c *Client) RemoveDatabase(ctx context.Context, workspace, project, name string) error {
 	slog.Info("RemoveDatabase called", "project", project, "database", name)
 
-	repo, err := s.cloneRepo(ctx, workspace, project)
+	repo, err := c.cloneRepo(ctx, workspace, project)
 	if err != nil {
 		return err
 	}
@@ -513,13 +510,13 @@ func (s *Server) RemoveDatabase(ctx context.Context, workspace, project, name st
 	if err != nil {
 		slog.Warn("failed to read repo metadata for sync", "project", project, "error", err)
 	}
-	s.syncAllEnvironments(ctx, workspace, project, meta.Environments)
+	c.syncAllEnvironments(ctx, workspace, project, meta.Environments)
 	return nil
 }
 
 // SetResources writes resource requests/limits to an environment's values.
-func (s *Server) SetResources(ctx context.Context, workspace, project, environment, tier string, cpuMillicores, memoryMB, diskMB int) error {
-	repo, err := s.cloneRepo(ctx, workspace, project)
+func (c *Client) SetResources(ctx context.Context, workspace, project, environment, tier string, cpuMillicores, memoryMB, diskMB int) error {
+	repo, err := c.cloneRepo(ctx, workspace, project)
 	if err != nil {
 		return err
 	}
@@ -528,12 +525,12 @@ func (s *Server) SetResources(ctx context.Context, workspace, project, environme
 	if err := repo.SetResources(ctx, environment, tier, cpuMillicores, memoryMB, diskMB); err != nil {
 		return fmt.Errorf("failed to set resources: %w", err)
 	}
-	s.syncEnvironment(ctx, workspace, project, environment)
+	c.syncEnvironment(ctx, workspace, project, environment)
 	return nil
 }
 
 // SetServiceScaling writes replica count + autoscaling config for a service.
-func (s *Server) SetServiceScaling(ctx context.Context, workspace, project, environment, service string, replicas int, autoscaling *data.AutoscalingConfig) error {
+func (c *Client) SetServiceScaling(ctx context.Context, workspace, project, environment, service string, replicas int, autoscaling *data.AutoscalingConfig) error {
 	var as *gitops.AutoscalingConfig
 	if autoscaling != nil && autoscaling.Enabled {
 		as = &gitops.AutoscalingConfig{
@@ -544,7 +541,7 @@ func (s *Server) SetServiceScaling(ctx context.Context, workspace, project, envi
 		}
 	}
 
-	repo, err := s.cloneRepo(ctx, workspace, project)
+	repo, err := c.cloneRepo(ctx, workspace, project)
 	if err != nil {
 		return err
 	}
@@ -553,15 +550,15 @@ func (s *Server) SetServiceScaling(ctx context.Context, workspace, project, envi
 	if err := repo.SetServiceScaling(ctx, environment, service, replicas, as); err != nil {
 		return fmt.Errorf("failed to set service scaling: %w", err)
 	}
-	s.syncEnvironment(ctx, workspace, project, environment)
+	c.syncEnvironment(ctx, workspace, project, environment)
 	return nil
 }
 
 // SetCustomStartCommand sets or clears the custom start command for a service.
-func (s *Server) SetCustomStartCommand(ctx context.Context, workspace, project, environment, service, command string) error {
+func (c *Client) SetCustomStartCommand(ctx context.Context, workspace, project, environment, service, command string) error {
 	slog.Info("SetCustomStartCommand called", "project", project, "service", service, "environment", environment, "command", command)
 
-	repo, err := s.cloneRepo(ctx, workspace, project)
+	repo, err := c.cloneRepo(ctx, workspace, project)
 	if err != nil {
 		return err
 	}
@@ -570,13 +567,13 @@ func (s *Server) SetCustomStartCommand(ctx context.Context, workspace, project, 
 	if err := repo.SetCustomStartCommand(ctx, environment, service, command); err != nil {
 		return fmt.Errorf("failed to set custom start command: %w", err)
 	}
-	s.syncEnvironment(ctx, workspace, project, environment)
+	c.syncEnvironment(ctx, workspace, project, environment)
 	return nil
 }
 
 // SetSuspended writes or removes the suspended flag in an environment's values.
-func (s *Server) SetSuspended(ctx context.Context, workspace, project, environment string, suspended bool) error {
-	repo, err := s.cloneRepo(ctx, workspace, project)
+func (c *Client) SetSuspended(ctx context.Context, workspace, project, environment string, suspended bool) error {
+	repo, err := c.cloneRepo(ctx, workspace, project)
 	if err != nil {
 		return err
 	}
@@ -585,14 +582,14 @@ func (s *Server) SetSuspended(ctx context.Context, workspace, project, environme
 	if err := repo.SetSuspended(ctx, environment, suspended); err != nil {
 		return fmt.Errorf("failed to set suspended: %w", err)
 	}
-	s.syncEnvironment(ctx, workspace, project, environment)
+	c.syncEnvironment(ctx, workspace, project, environment)
 	return nil
 }
 
 // generatePlatformDomain finds a unique *.{workloadDomain} hostname.
 // Walks repos across all workspaces — hostnames are globally unique.
-func (s *Server) generatePlatformDomain(ctx context.Context, service, environment string) (string, error) {
-	repos, err := s.gitops.Repos(ctx, "")
+func (c *Client) generatePlatformDomain(ctx context.Context, service, environment string) (string, error) {
+	repos, err := c.gitops.Repos(ctx, "")
 	if err != nil {
 		return "", err
 	}
@@ -600,7 +597,7 @@ func (s *Server) generatePlatformDomain(ctx context.Context, service, environmen
 	allDomains := make(map[string]bool)
 	// TODO: This is very inefficient.
 	for _, entry := range repos {
-		repo, err := s.gitops.CloneRepo(ctx, entry.HTTPURL)
+		repo, err := c.gitops.CloneRepo(ctx, entry.HTTPURL)
 		if err != nil {
 			slog.Warn("skipping repo", "repo", entry.Slug, "error", err)
 			continue
@@ -618,7 +615,7 @@ func (s *Server) generatePlatformDomain(ctx context.Context, service, environmen
 	}
 
 	for i := 0; i < 10; i++ {
-		hostname := fmt.Sprintf("%s-%s-%s.%s", service, environment, randCrockford32(5), s.workloadDomain)
+		hostname := fmt.Sprintf("%s-%s-%s.%s", service, environment, randCrockford32(5), c.workloadDomain)
 		if !allDomains[hostname] {
 			return hostname, nil
 		}
@@ -626,13 +623,13 @@ func (s *Server) generatePlatformDomain(ctx context.Context, service, environmen
 	return "", fmt.Errorf("failed to generate unique platform domain for service %s in environment %s", service, environment)
 }
 
-func (s *Server) cloneRepo(ctx context.Context, workspace, project string) (gitops.Repository, error) {
-	entry, err := s.gitops.Repo(ctx, project, workspace)
+func (c *Client) cloneRepo(ctx context.Context, workspace, project string) (gitops.Repository, error) {
+	entry, err := c.gitops.Repo(ctx, project, workspace)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get project: %w", err)
 	}
 
-	repo, err := s.gitops.CloneRepo(ctx, entry.HTTPURL)
+	repo, err := c.gitops.CloneRepo(ctx, entry.HTTPURL)
 	if err != nil {
 		return nil, err
 	}

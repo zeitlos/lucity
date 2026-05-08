@@ -11,22 +11,22 @@ import (
 )
 
 // registryBaseURL returns the base URL for OCI Distribution Spec API calls.
-func (s *Server) registryBaseURL() string {
+func (c *Client) registryBaseURL() string {
 	scheme := "https"
-	if s.registryInsecure {
+	if c.registryInsecure {
 		scheme = "http"
 	}
-	return scheme + "://" + s.registryURL
+	return scheme + "://" + c.registryURL
 }
 
 // registryRequest creates an HTTP request with optional Basic auth.
-func (s *Server) registryRequest(ctx context.Context, method, url string) (*http.Request, error) {
+func (c *Client) registryRequest(ctx context.Context, method, url string) (*http.Request, error) {
 	req, err := http.NewRequestWithContext(ctx, method, url, nil)
 	if err != nil {
 		return nil, err
 	}
-	if s.registryUsername != "" && s.registryPassword != "" {
-		req.SetBasicAuth(s.registryUsername, s.registryPassword)
+	if c.registryUsername != "" && c.registryPassword != "" {
+		req.SetBasicAuth(c.registryUsername, c.registryPassword)
 	}
 	req.Header.Set("Accept", "application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.v2+json")
 	return req, nil
@@ -42,11 +42,11 @@ type tagsResponse struct {
 
 // projectRepositories returns all OCI repositories belonging to a project
 // by querying the catalog and filtering by the workspace/project prefix.
-func (s *Server) projectRepositories(ctx context.Context, workspace, project string) ([]string, error) {
+func (c *Client) projectRepositories(ctx context.Context, workspace, project string) ([]string, error) {
 	prefix := workspace + "/" + project + "/"
-	url := s.registryBaseURL() + "/v2/_catalog"
+	url := c.registryBaseURL() + "/v2/_catalog"
 
-	req, err := s.registryRequest(ctx, http.MethodGet, url)
+	req, err := c.registryRequest(ctx, http.MethodGet, url)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create catalog request: %w", err)
 	}
@@ -76,14 +76,14 @@ func (s *Server) projectRepositories(ctx context.Context, workspace, project str
 }
 
 // deleteRepository deletes all manifests (tags) in a repository.
-func (s *Server) deleteRepository(ctx context.Context, repo string) error {
-	tags, err := s.repositoryTags(ctx, repo)
+func (c *Client) deleteRepository(ctx context.Context, repo string) error {
+	tags, err := c.repositoryTags(ctx, repo)
 	if err != nil {
 		return err
 	}
 
 	for _, tag := range tags {
-		if err := s.deleteManifest(ctx, repo, tag); err != nil {
+		if err := c.deleteManifest(ctx, repo, tag); err != nil {
 			slog.Warn("failed to delete manifest", "repo", repo, "tag", tag, "error", err)
 		}
 	}
@@ -91,10 +91,10 @@ func (s *Server) deleteRepository(ctx context.Context, repo string) error {
 }
 
 // repositoryTags lists all tags for a repository. Returns nil if the repo doesn't exist.
-func (s *Server) repositoryTags(ctx context.Context, repo string) ([]string, error) {
-	url := s.registryBaseURL() + "/v2/" + repo + "/tags/list"
+func (c *Client) repositoryTags(ctx context.Context, repo string) ([]string, error) {
+	url := c.registryBaseURL() + "/v2/" + repo + "/tags/list"
 
-	req, err := s.registryRequest(ctx, http.MethodGet, url)
+	req, err := c.registryRequest(ctx, http.MethodGet, url)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create tags request: %w", err)
 	}
@@ -120,10 +120,10 @@ func (s *Server) repositoryTags(ctx context.Context, repo string) ([]string, err
 }
 
 // deleteManifest resolves a tag to its digest and deletes the manifest.
-func (s *Server) deleteManifest(ctx context.Context, repo, tag string) error {
+func (c *Client) deleteManifest(ctx context.Context, repo, tag string) error {
 	// HEAD to get the digest
-	headURL := s.registryBaseURL() + "/v2/" + repo + "/manifests/" + tag
-	headReq, err := s.registryRequest(ctx, http.MethodHead, headURL)
+	headURL := c.registryBaseURL() + "/v2/" + repo + "/manifests/" + tag
+	headReq, err := c.registryRequest(ctx, http.MethodHead, headURL)
 	if err != nil {
 		return fmt.Errorf("failed to create HEAD request: %w", err)
 	}
@@ -148,8 +148,8 @@ func (s *Server) deleteManifest(ctx context.Context, repo, tag string) error {
 	}
 
 	// DELETE by digest
-	delURL := s.registryBaseURL() + "/v2/" + repo + "/manifests/" + digest
-	delReq, err := s.registryRequest(ctx, http.MethodDelete, delURL)
+	delURL := c.registryBaseURL() + "/v2/" + repo + "/manifests/" + digest
+	delReq, err := c.registryRequest(ctx, http.MethodDelete, delURL)
 	if err != nil {
 		return fmt.Errorf("failed to create DELETE request: %w", err)
 	}
