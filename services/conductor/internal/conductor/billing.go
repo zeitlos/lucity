@@ -247,7 +247,7 @@ func (c *Client) UsageSummary(ctx context.Context, ws string) (*UsageSummaryResu
 
 // stripeIDs reads the Stripe customer and subscription IDs from the Logto org customData.
 func (c *Client) stripeIDs(ctx context.Context, ws string) (customerID, subscriptionID string, err error) {
-	orgID, err := c.resolveOrgID(ctx, ws)
+	orgID, err := c.orgID(ctx, ws)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to resolve org: %w", err)
 	}

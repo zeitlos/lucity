@@ -9,13 +9,30 @@ import (
 	"strings"
 )
 
-// Organization represents a Logto organization.
 type Organization struct {
-	ID          string                 `json:"id"`
-	Name        string                 `json:"name"`
-	Description string                 `json:"description,omitempty"`
-	CustomData  map[string]interface{} `json:"customData,omitempty"`
-	CreatedAt   int64                  `json:"createdAt,omitempty"`
+	TenantID      string                 `json:"tenantId"`
+	ID            string                 `json:"id"`
+	Name          string                 `json:"name"`
+	Description   string                 `json:"description"`
+	CustomData    map[string]interface{} `json:"customData,omitempty"`
+	IsMfaRequired bool                   `json:"isMfaRequired"`
+	Color         struct {
+		PrimaryColor      string `json:"primaryColor"`
+		IsDarkModeEnabled bool   `json:"isDarkModeEnabled"`
+		DarkPrimaryColor  string `json:"darkPrimaryColor"`
+	} `json:"color"`
+	Branding struct {
+		LogoURL     string `json:"logoUrl"`
+		DarkLogoURL string `json:"darkLogoUrl"`
+		Favicon     string `json:"favicon"`
+		DarkFavicon string `json:"darkFavicon"`
+	} `json:"branding"`
+	CustomCSS         string `json:"customCss"`
+	OrganizationRoles []struct {
+		ID   string `json:"id"`
+		Name string `json:"name"`
+	} `json:"organizationRoles"`
+	CreatedAt float64 `json:"createdAt"`
 }
 
 // OrganizationRole represents a role assigned to a user within an organization.
@@ -27,11 +44,11 @@ type OrganizationRole struct {
 
 // OrganizationMember represents a user in an organization with their roles.
 type OrganizationMember struct {
-	ID        string             `json:"id"`
-	Name      string             `json:"name,omitempty"`
-	Email     string             `json:"primaryEmail,omitempty"`
-	Avatar    string             `json:"avatar,omitempty"`
-	OrgRoles  []OrganizationRole `json:"organizationRoles,omitempty"`
+	ID       string             `json:"id"`
+	Name     string             `json:"name,omitempty"`
+	Email    string             `json:"primaryEmail,omitempty"`
+	Avatar   string             `json:"avatar,omitempty"`
+	OrgRoles []OrganizationRole `json:"organizationRoles,omitempty"`
 }
 
 // Organization returns a single organization by its Logto internal ID.
@@ -43,19 +60,20 @@ func (c *Client) Organization(ctx context.Context, id string) (*Organization, er
 	return &org, nil
 }
 
-// OrganizationByName searches for an organization by exact name match.
-// The Logto search API does fuzzy matching, so we filter client-side for an exact match.
 func (c *Client) OrganizationByName(ctx context.Context, name string) (*Organization, error) {
 	path := "/api/organizations?q=" + url.QueryEscape(name) + "&page=1&page_size=20"
+
 	var orgs []Organization
 	if err := c.doJSON(ctx, "GET", path, nil, &orgs); err != nil {
 		return nil, fmt.Errorf("failed to search organizations by name %q: %w", name, err)
 	}
+
 	for _, org := range orgs {
 		if org.Name == name {
 			return &org, nil
 		}
 	}
+
 	return nil, fmt.Errorf("organization with name %q not found", name)
 }
 
@@ -93,12 +111,6 @@ func (c *Client) CreateOrganization(ctx context.Context, name, displayName strin
 	return &org, nil
 }
 
-// UpdateOrganization updates an organization's name and/or description.
-func (c *Client) UpdateOrganization(ctx context.Context, id string, name string) error {
-	payload, _ := json.Marshal(map[string]string{"name": name})
-	return c.doNoContent(ctx, "PATCH", "/api/organizations/"+id, bytes.NewReader(payload))
-}
-
 // DeleteOrganization deletes an organization.
 // Idempotent: returns nil if already deleted.
 func (c *Client) DeleteOrganization(ctx context.Context, id string) error {
@@ -110,9 +122,15 @@ func (c *Client) DeleteOrganization(ctx context.Context, id string) error {
 }
 
 // UpdateOrganizationCustomData replaces the custom data for an organization.
-func (c *Client) UpdateOrganizationCustomData(ctx context.Context, orgID string, data map[string]interface{}) error {
+func (c *Client) UpdateOrganizationCustomData(ctx context.Context, orgID string, data map[string]interface{}) (*Organization, error) {
 	body, _ := json.Marshal(map[string]interface{}{"customData": data})
-	return c.doNoContent(ctx, "PATCH", "/api/organizations/"+orgID, bytes.NewReader(body))
+
+	var org Organization
+	if err := c.doJSON(ctx, "PATCH", "/api/organizations/"+orgID, bytes.NewReader(body), &org); err != nil {
+		return nil, err
+	}
+
+	return &org, nil
 }
 
 // OrganizationMembers returns all members of an organization.

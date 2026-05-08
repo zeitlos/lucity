@@ -10,22 +10,11 @@ import (
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/cashier"
 	"github.com/zeitlos/lucity/pkg/logto"
+	"github.com/zeitlos/lucity/services/conductor/internal/directory"
 )
 
-type Workspace struct {
-	ID        string
-	Name      string
-	Personal  bool
-	Suspended bool
-	Members   []WorkspaceMember
-}
-
-type WorkspaceMember struct {
-	ID    string
-	Email string
-	Name  string
-	Role  auth.WorkspaceRole
-}
+type Workspace = directory.Workspace
+type WorkspaceMember = directory.WorkspaceMember
 
 var workspaceIDPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$`)
 
@@ -36,111 +25,19 @@ func (c *Client) Workspaces(ctx context.Context) ([]Workspace, error) {
 		return nil, err
 	}
 
-	if c.Logto == nil {
-		return nil, fmt.Errorf("logto not configured")
-	}
-
-	orgs, err := c.Logto.UserOrganizations(ctx, claims.Subject)
+	workspaces, err := c.directory.WorkspacesForUser(ctx, claims.Subject)
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch user organizations: %w", err)
-	}
-
-	workspaces := make([]Workspace, 0, len(orgs))
-
-	for _, org := range orgs {
-		personal, _ := org.CustomData["personal"].(bool)
-		suspended, _ := org.CustomData["suspended"].(bool)
-
-		// Cache the org ID mapping while we have it
-		c.cacheOrgID(org.Name, org.ID)
-
-		workspaces = append(workspaces, Workspace{
-			ID:        org.Name,
-			Name:      displayNameFromOrg(org),
-			Personal:  personal,
-			Suspended: suspended,
-		})
+		return nil, err
 	}
 
 	return workspaces, nil
 }
 
-// Workspace returns metadata and members for the active workspace.
-func (c *Client) Workspace(ctx context.Context, ws string) (*Workspace, error) {
-	if c.Logto == nil {
-		return nil, fmt.Errorf("logto not configured")
-	}
-
-	orgID, err := c.resolveOrgID(ctx, ws)
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve workspace: %w", err)
-	}
-
-	org, err := c.Logto.Organization(ctx, orgID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get organization: %w", err)
-	}
-
-	personal, _ := org.CustomData["personal"].(bool)
-	suspended, _ := org.CustomData["suspended"].(bool)
-
-	result := &Workspace{
-		ID:        ws,
-		Name:      displayNameFromOrgData(org),
-		Personal:  personal,
-		Suspended: suspended,
-	}
-
-	// Fetch members
-	members, err := c.WorkspaceMembers(ctx, ws)
-	if err != nil {
-		slog.Warn("failed to get workspace members", "workspace", ws, "error", err)
-	} else {
-		result.Members = members
-	}
-
-	return result, nil
+func (c *Client) Workspace(ctx context.Context, id string) (*Workspace, error) {
+	return c.directory.Workspace(ctx, id)
 }
 
-// WorkspaceMembers returns all members of the active workspace from Logto.
-func (c *Client) WorkspaceMembers(ctx context.Context, ws string) ([]WorkspaceMember, error) {
-	if c.Logto == nil {
-		return nil, fmt.Errorf("logto not configured")
-	}
-
-	orgID, err := c.resolveOrgID(ctx, ws)
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve workspace: %w", err)
-	}
-
-	logtoMembers, err := c.Logto.OrganizationMembers(ctx, orgID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list organization members: %w", err)
-	}
-
-	members := make([]WorkspaceMember, 0, len(logtoMembers))
-	for _, m := range logtoMembers {
-		role := auth.WorkspaceRoleUser
-		for _, r := range m.OrgRoles {
-			if r.Name == "admin" {
-				role = auth.WorkspaceRoleAdmin
-				break
-			}
-		}
-		members = append(members, WorkspaceMember{
-			ID:    m.ID,
-			Email: m.Email,
-			Name:  m.Name,
-			Role:  role,
-		})
-	}
-
-	return members, nil
-}
-
-// CreateWorkspace creates a new workspace as a Logto organization.
-// The creator is automatically added as admin.
 func (c *Client) CreateWorkspace(ctx context.Context, id, name string) (*Workspace, error) {
 	claims, err := auth.FromContext(ctx)
 
@@ -148,276 +45,107 @@ func (c *Client) CreateWorkspace(ctx context.Context, id, name string) (*Workspa
 		return nil, err
 	}
 
-	if c.Logto == nil {
-		return nil, fmt.Errorf("logto not configured")
-	}
+	workspace, err := c.directory.CreateWorkspace(ctx, id, name)
 
-	if !workspaceIDPattern.MatchString(id) {
-		return nil, fmt.Errorf("invalid workspace ID: must be 3-63 lowercase alphanumeric characters or hyphens")
-	}
-
-	// Check if workspace ID is already taken by searching by name.
-	if _, err := c.Logto.OrganizationByName(ctx, id); err == nil {
-		return nil, fmt.Errorf("workspace ID %q is already taken", id)
-	}
-
-	adminRoleID, memberRoleID, err := c.orgRoleIDs(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to resolve org role IDs: %w", err)
+		return nil, err
 	}
 
-	// Create Logto organization (name=id, displayName=name in customData)
-	org, err := c.Logto.CreateOrganization(ctx, id, name, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create organization: %w", err)
-	}
-
-	// Cache the org ID mapping
-	c.cacheOrgID(id, org.ID)
-
-	// Add creator as member + assign admin and member roles
-	if err := c.Logto.AddOrganizationMember(ctx, org.ID, claims.Subject); err != nil {
-		return nil, fmt.Errorf("failed to add creator to organization: %w", err)
-	}
-	if err := c.Logto.AssignOrganizationRoles(ctx, org.ID, claims.Subject, []string{adminRoleID, memberRoleID}); err != nil {
-		return nil, fmt.Errorf("failed to assign admin role to creator: %w", err)
-	}
-
-	slog.Info("workspace created", "id", id, "name", name, "creator", claims.Email)
+	slog.InfoContext(ctx, "workspace created", "id", id, "name", name)
 
 	// Best-effort: set up Stripe customer + subscription with no trial.
 	// Additional workspaces require a payment method — no free trial.
 	c.setupBilling(ctx, id, name, claims.Email, 0)
 
-	// Fetch the user to get their name for the member list
-	user, _ := c.Logto.User(ctx, claims.Subject)
-	memberName := ""
-	memberEmail := claims.Email
-	if user != nil {
-		memberName = user.Name
-		if user.PrimaryEmail != "" {
-			memberEmail = user.PrimaryEmail
-		}
-	}
-
-	return &Workspace{
-		ID:   id,
-		Name: name,
-		Members: []WorkspaceMember{
-			{ID: claims.Subject, Email: memberEmail, Name: memberName, Role: auth.WorkspaceRoleAdmin},
-		},
-	}, nil
+	return workspace, nil
 }
 
-// UpdateWorkspace updates the workspace display name. Admin-only.
-func (c *Client) UpdateWorkspace(ctx context.Context, ws, name string) (*Workspace, error) {
-	if err := c.requireWorkspaceAdmin(ctx, ws); err != nil {
+func (c *Client) UpdateWorkspace(ctx context.Context, id, name string) (*Workspace, error) {
+	if err := c.requireWorkspaceAdmin(ctx, id); err != nil {
 		return nil, err
 	}
-	if c.Logto == nil {
-		return nil, fmt.Errorf("logto not configured")
-	}
 
-	orgID, err := c.resolveOrgID(ctx, ws)
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve workspace: %w", err)
-	}
-
-	// Store display name in customData (org name stays as workspace ID)
-	customData := map[string]interface{}{}
-	if name != ws {
-		customData["displayName"] = name
-	}
-
-	// Read existing customData to preserve other fields
-	org, orgErr := c.Logto.Organization(ctx, orgID)
-	if orgErr == nil && org.CustomData != nil {
-		for k, v := range org.CustomData {
-			if k != "displayName" {
-				customData[k] = v
-			}
-		}
-		if name != ws {
-			customData["displayName"] = name
-		}
-	}
-
-	if err := c.Logto.UpdateOrganizationCustomData(ctx, orgID, customData); err != nil {
-		return nil, fmt.Errorf("failed to update organization: %w", err)
-	}
-
-	return c.Workspace(ctx, ws)
+	return c.directory.UpdateWorkspace(ctx, id, name)
 }
 
-// DeleteWorkspace deletes the active workspace. Admin-only. Errors if projects exist.
-func (c *Client) DeleteWorkspace(ctx context.Context, ws string) (bool, error) {
-	if err := c.requireWorkspaceAdmin(ctx, ws); err != nil {
+func (c *Client) DeleteWorkspace(ctx context.Context, id string) (bool, error) {
+	if err := c.requireWorkspaceAdmin(ctx, id); err != nil {
 		return false, err
 	}
-	if c.Logto == nil {
-		return false, fmt.Errorf("logto not configured")
-	}
 
-	orgID, err := c.resolveOrgID(ctx, ws)
+	projects, err := c.Packager.ListProjects(ctx, id)
+
 	if err != nil {
-		return false, fmt.Errorf("failed to resolve workspace: %w", err)
+		return false, err
 	}
 
-	// Check if workspace is personal
-	org, err := c.Logto.Organization(ctx, orgID)
-	if err != nil {
-		return false, fmt.Errorf("failed to get organization: %w", err)
-	}
-	if personal, _ := org.CustomData["personal"].(bool); personal {
-		return false, fmt.Errorf("cannot delete personal workspace")
+	if len(projects) > 0 {
+		return false, fmt.Errorf("cannot delete workspace: %d projects still exist, delete them first", len(projects))
 	}
 
-	// Check no projects exist
-	listCtx, listCancel := context.WithTimeout(ctx, grpcTimeout)
-	defer listCancel()
-	infos, err := c.Packager.ListProjects(listCtx, ws)
-	if err != nil {
-		return false, fmt.Errorf("failed to check projects: %w", err)
-	}
-	if len(infos) > 0 {
-		return false, fmt.Errorf("cannot delete workspace: %d projects still exist — delete them first", len(infos))
+	if err := c.directory.DeleteWorkspace(ctx, id); err != nil {
+		return false, err
 	}
 
-	// Delete Logto organization (removes all members automatically)
-	if err := c.Logto.DeleteOrganization(ctx, orgID); err != nil {
-		return false, fmt.Errorf("failed to delete organization: %w", err)
-	}
+	slog.InfoContext(ctx, "workspace deleted")
 
-	// Invalidate cache
-	c.invalidateOrgID(ws)
-
-	slog.Info("workspace deleted", "id", ws)
 	return true, nil
 }
 
-// InviteMember adds a user to the active workspace. Admin-only.
-func (c *Client) InviteMember(ctx context.Context, ws, email string, role auth.WorkspaceRole) (*WorkspaceMember, error) {
-	if err := c.requireWorkspaceAdmin(ctx, ws); err != nil {
+func (c *Client) InviteMember(ctx context.Context, workspaceID, email string, role auth.WorkspaceRole) (*WorkspaceMember, error) {
+	if err := c.requireWorkspaceAdmin(ctx, workspaceID); err != nil {
 		return nil, err
 	}
-	if c.Logto == nil {
-		return nil, fmt.Errorf("logto not configured")
-	}
 
-	orgID, err := c.resolveOrgID(ctx, ws)
+	member, err := c.directory.InviteMember(ctx, workspaceID, email, role)
+
 	if err != nil {
-		return nil, fmt.Errorf("failed to resolve workspace: %w", err)
+		return nil, err
 	}
 
-	// Find user by email
-	user, err := c.Logto.UserByEmail(ctx, email)
-	if err != nil {
-		return nil, fmt.Errorf("failed to search for user: %w", err)
-	}
-	if user == nil {
-		return nil, fmt.Errorf("user with email %q not found in identity provider", email)
-	}
+	slog.InfoContext(ctx, "member invited", "email", email, "role", role)
 
-	adminRoleID, memberRoleID, err := c.orgRoleIDs(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve org role IDs: %w", err)
-	}
-
-	// Add user to organization
-	if err := c.Logto.AddOrganizationMember(ctx, orgID, user.ID); err != nil {
-		return nil, fmt.Errorf("failed to add user to organization: %w", err)
-	}
-
-	// Assign role(s)
-	roleIDs := []string{memberRoleID}
-	if role == auth.WorkspaceRoleAdmin {
-		roleIDs = append(roleIDs, adminRoleID)
-	}
-	if err := c.Logto.AssignOrganizationRoles(ctx, orgID, user.ID, roleIDs); err != nil {
-		return nil, fmt.Errorf("failed to assign role to member: %w", err)
-	}
-
-	slog.Info("member invited", "workspace", ws, "email", email, "role", role)
-
-	return &WorkspaceMember{
-		ID:    user.ID,
-		Email: user.PrimaryEmail,
-		Name:  user.Name,
-		Role:  role,
-	}, nil
+	return member, nil
 }
 
-// RemoveMember removes a user from the active workspace. Admin-only.
-func (c *Client) RemoveMember(ctx context.Context, ws, userID string) (bool, error) {
-	if err := c.requireWorkspaceAdmin(ctx, ws); err != nil {
+func (c *Client) RemoveMember(ctx context.Context, workspaceID, userID string) (bool, error) {
+	if err := c.requireWorkspaceAdmin(ctx, workspaceID); err != nil {
 		return false, err
 	}
-	if c.Logto == nil {
-		return false, fmt.Errorf("logto not configured")
-	}
 
-	orgID, err := c.resolveOrgID(ctx, ws)
-	if err != nil {
-		return false, fmt.Errorf("failed to resolve workspace: %w", err)
-	}
-
-	// Prevent removing yourself
 	claims, err := auth.FromContext(ctx)
-	if err == nil && claims.Subject == userID {
+
+	if err != nil {
+		return false, err
+	}
+
+	if claims.Subject == userID {
 		return false, fmt.Errorf("cannot remove yourself from workspace")
 	}
 
-	if err := c.Logto.RemoveOrganizationMember(ctx, orgID, userID); err != nil {
-		return false, fmt.Errorf("failed to remove member from organization: %w", err)
+	if err := c.directory.RemoveMember(ctx, workspaceID, userID); err != nil {
+		return false, err
 	}
 
-	slog.Info("member removed", "workspace", ws, "user_id", userID)
+	slog.InfoContext(ctx, "member removed", "user_id", userID)
+
 	return true, nil
 }
 
-// UpdateMemberRole changes a member's role in the active workspace. Admin-only.
-func (c *Client) UpdateMemberRole(ctx context.Context, ws, userID string, role auth.WorkspaceRole) (*WorkspaceMember, error) {
-	if err := c.requireWorkspaceAdmin(ctx, ws); err != nil {
+func (c *Client) UpdateMemberRole(ctx context.Context, workspaceID, userID string, role auth.WorkspaceRole) (*WorkspaceMember, error) {
+	if err := c.requireWorkspaceAdmin(ctx, workspaceID); err != nil {
 		return nil, err
 	}
-	if c.Logto == nil {
-		return nil, fmt.Errorf("logto not configured")
-	}
 
-	orgID, err := c.resolveOrgID(ctx, ws)
+	member, err := c.directory.UpdateMemberRole(ctx, workspaceID, userID, role)
+
 	if err != nil {
-		return nil, fmt.Errorf("failed to resolve workspace: %w", err)
+		return nil, err
 	}
 
-	adminRoleID, _, err := c.orgRoleIDs(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve org role IDs: %w", err)
-	}
+	slog.InfoContext(ctx, "member role updated", "user_id", userID, "role", role)
 
-	if role == auth.WorkspaceRoleAdmin {
-		// Assign admin role
-		if err := c.Logto.AssignOrganizationRoles(ctx, orgID, userID, []string{adminRoleID}); err != nil {
-			return nil, fmt.Errorf("failed to assign admin role: %w", err)
-		}
-	} else {
-		// Remove admin role
-		if err := c.Logto.RemoveOrganizationRole(ctx, orgID, userID, adminRoleID); err != nil {
-			return nil, fmt.Errorf("failed to remove admin role: %w", err)
-		}
-	}
-
-	// Fetch updated user info
-	user, err := c.Logto.User(ctx, userID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get user: %w", err)
-	}
-
-	return &WorkspaceMember{
-		ID:    user.ID,
-		Email: user.PrimaryEmail,
-		Name:  user.Name,
-		Role:  role,
-	}, nil
+	return member, nil
 }
 
 // EnsurePersonalWorkspace creates a personal workspace for a new user if they have none.
@@ -557,7 +285,7 @@ func (c *Client) setupBilling(ctx context.Context, workspace, name, email string
 	billingCtx := context.WithoutCancel(ctx)
 
 	// Resolve workspace ID to Logto org ID for API calls
-	orgID, err := c.resolveOrgID(billingCtx, workspace)
+	orgID, err := c.orgID(billingCtx, workspace)
 	if err != nil {
 		slog.Warn("failed to resolve org ID for billing setup", "workspace", workspace, "error", err)
 		return
@@ -609,7 +337,7 @@ func (c *Client) setupBilling(ctx context.Context, workspace, name, email string
 			slog.Warn("failed to create Stripe subscription for workspace", "workspace", workspace, "error", subErr)
 			// Store at least the customer ID so we don't re-create it next time.
 			customData["stripeCustomerId"] = customerID
-			_ = c.Logto.UpdateOrganizationCustomData(billingCtx, orgID, customData)
+			_, _ = c.Logto.UpdateOrganizationCustomData(billingCtx, orgID, customData)
 			return // Will retry subscription on next login
 		}
 		subscriptionID = subResp.SubscriptionId
@@ -626,7 +354,7 @@ func (c *Client) setupBilling(ctx context.Context, workspace, name, email string
 
 	customData["stripeCustomerId"] = customerID
 	customData["stripeSubscriptionId"] = subscriptionID
-	if err := c.Logto.UpdateOrganizationCustomData(billingCtx, orgID, customData); err != nil {
+	if _, err := c.Logto.UpdateOrganizationCustomData(billingCtx, orgID, customData); err != nil {
 		slog.Warn("failed to store billing IDs in org customData", "workspace", workspace, "error", err)
 		return // Will retry on next login
 	}
@@ -793,9 +521,7 @@ func (c *Client) CompleteWorkspaceCheckout(ctx context.Context, sessionID string
 	}, nil
 }
 
-// resolveOrgID resolves a workspace ID (org name) to Logto's internal org ID.
-// Uses an in-memory cache to avoid repeated API calls.
-func (c *Client) resolveOrgID(ctx context.Context, workspaceID string) (string, error) {
+func (c *Client) orgID(ctx context.Context, workspaceID string) (string, error) {
 	// Check cache under read lock
 	c.orgIDCacheMu.RLock()
 	if orgID, ok := c.orgIDCache[workspaceID]; ok {
@@ -828,15 +554,6 @@ func (c *Client) invalidateOrgID(workspaceID string) {
 	c.orgIDCacheMu.Unlock()
 }
 
-// displayNameFromOrg extracts the display name from a Logto organization.
-// Returns customData.displayName if set, otherwise falls back to org.Name.
-func displayNameFromOrg(org logto.UserOrganization) string {
-	if dn, ok := org.CustomData["displayName"].(string); ok && dn != "" {
-		return dn
-	}
-	return org.Name
-}
-
 // displayNameFromOrgData extracts the display name from an Organization's custom data.
 func displayNameFromOrgData(org *logto.Organization) string {
 	if org.CustomData != nil {
@@ -847,6 +564,7 @@ func displayNameFromOrgData(org *logto.Organization) string {
 	return org.Name
 }
 
+// TODO: Replace with graphql schema auth directive.
 // requireWorkspaceAdmin checks that the current user is an admin of the given workspace.
 func (c *Client) requireWorkspaceAdmin(ctx context.Context, workspace string) error {
 	claims, err := auth.FromContext(ctx)

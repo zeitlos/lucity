@@ -107,26 +107,34 @@ func (r *mutationResolver) UpdateMemberRole(ctx context.Context, input model.Upd
 
 // Workspace is the resolver for the workspace field.
 func (r *queryResolver) Workspace(ctx context.Context) (*model.Workspace, error) {
-	wsID, err := tenant.FromContext(ctx)
+	workspaceID, err := tenant.FromContext(ctx)
+
 	if err != nil {
 		return nil, err
 	}
-	ws, err := r.Conductor.Workspace(ctx, wsID)
+
+	ws, err := r.Conductor.Workspace(ctx, workspaceID)
+
 	if err != nil {
 		return nil, err
 	}
+
 	return convertWorkspace(ws), nil
 }
 
 // Workspaces is the resolver for the workspaces field.
 func (r *queryResolver) Workspaces(ctx context.Context) ([]model.Workspace, error) {
 	workspaces, err := r.Conductor.Workspaces(ctx)
+
 	if err != nil {
 		return nil, err
 	}
+
 	result := make([]model.Workspace, 0, len(workspaces))
+
 	for _, ws := range workspaces {
 		result = append(result, *convertWorkspace(&ws))
 	}
+
 	return result, nil
 }

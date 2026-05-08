@@ -362,7 +362,7 @@ func (s *Server) suspendWorkspace(workspace string, suspended bool) {
 	} else {
 		delete(customData, "suspended")
 	}
-	if err := s.logto.UpdateOrganizationCustomData(context.Background(), org.ID, customData); err != nil {
+	if _, err := s.logto.UpdateOrganizationCustomData(context.Background(), org.ID, customData); err != nil {
 		slog.Error("failed to update logto suspension state", "workspace", workspace, "suspended", suspended, "error", err)
 	}
 }

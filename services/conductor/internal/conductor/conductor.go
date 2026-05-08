@@ -11,6 +11,7 @@ import (
 	ghpkg "github.com/zeitlos/lucity/pkg/github"
 	"github.com/zeitlos/lucity/pkg/logto"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/deploy"
+	"github.com/zeitlos/lucity/services/conductor/internal/directory"
 	"github.com/zeitlos/lucity/services/conductor/internal/inproc/builder"
 	"github.com/zeitlos/lucity/services/conductor/internal/inproc/deployer"
 	"github.com/zeitlos/lucity/services/conductor/internal/inproc/packager"
@@ -32,6 +33,9 @@ type Client struct {
 	DeployTracker  *deploy.Tracker
 	TokenRefresher TokenRefresher // refreshes expired Logto access tokens (nil if not configured)
 
+	// Refactored clients
+	directory directory.Provider
+
 	Config Config
 
 	// Cached Logto org role IDs (looked up by name on first use)
@@ -39,7 +43,6 @@ type Client struct {
 	adminRoleID  string
 	memberRoleID string
 
-	// In-memory cache: workspace ID (org name) → Logto org ID
 	orgIDCache   map[string]string
 	orgIDCacheMu sync.RWMutex
 }
@@ -73,11 +76,8 @@ func New(packager *packager.Client, builder *builder.Client, deployer *deployer.
 // orgRoleIDs returns the cached admin and member role IDs, looking them up on first call.
 func (c *Client) orgRoleIDs(ctx context.Context) (adminID, memberID string, err error) {
 	c.orgRoleOnce.Do(func() {
-		if c.Logto == nil {
-			err = fmt.Errorf("logto not configured")
-			return
-		}
 		roles, rolesErr := c.Logto.OrganizationRoles(ctx)
+
 		if rolesErr != nil {
 			err = fmt.Errorf("failed to fetch organization roles: %w", rolesErr)
 			return
