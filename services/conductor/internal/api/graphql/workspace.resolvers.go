@@ -42,7 +42,7 @@ func (r *mutationResolver) CompleteWorkspaceCheckout(ctx context.Context, sessio
 
 // UpdateWorkspace is the resolver for the updateWorkspace field.
 func (r *mutationResolver) UpdateWorkspace(ctx context.Context, input model.UpdateWorkspaceInput) (*model.Workspace, error) {
-	wsID, err := tenant.Require(ctx)
+	wsID, err := tenant.FromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +55,7 @@ func (r *mutationResolver) UpdateWorkspace(ctx context.Context, input model.Upda
 
 // DeleteWorkspace is the resolver for the deleteWorkspace field.
 func (r *mutationResolver) DeleteWorkspace(ctx context.Context) (bool, error) {
-	wsID, err := tenant.Require(ctx)
+	wsID, err := tenant.FromContext(ctx)
 	if err != nil {
 		return false, err
 	}
@@ -64,7 +64,7 @@ func (r *mutationResolver) DeleteWorkspace(ctx context.Context) (bool, error) {
 
 // InviteMember is the resolver for the inviteMember field.
 func (r *mutationResolver) InviteMember(ctx context.Context, input model.InviteMemberInput) (*model.WorkspaceMember, error) {
-	wsID, err := tenant.Require(ctx)
+	wsID, err := tenant.FromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +81,7 @@ func (r *mutationResolver) InviteMember(ctx context.Context, input model.InviteM
 
 // RemoveMember is the resolver for the removeMember field.
 func (r *mutationResolver) RemoveMember(ctx context.Context, userID string) (bool, error) {
-	wsID, err := tenant.Require(ctx)
+	wsID, err := tenant.FromContext(ctx)
 	if err != nil {
 		return false, err
 	}
@@ -90,7 +90,7 @@ func (r *mutationResolver) RemoveMember(ctx context.Context, userID string) (boo
 
 // UpdateMemberRole is the resolver for the updateMemberRole field.
 func (r *mutationResolver) UpdateMemberRole(ctx context.Context, input model.UpdateMemberRoleInput) (*model.WorkspaceMember, error) {
-	wsID, err := tenant.Require(ctx)
+	wsID, err := tenant.FromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +107,7 @@ func (r *mutationResolver) UpdateMemberRole(ctx context.Context, input model.Upd
 
 // Workspace is the resolver for the workspace field.
 func (r *queryResolver) Workspace(ctx context.Context) (*model.Workspace, error) {
-	wsID, err := tenant.Require(ctx)
+	wsID, err := tenant.FromContext(ctx)
 	if err != nil {
 		return nil, err
 	}

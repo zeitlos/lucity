@@ -80,11 +80,6 @@ func (c *Client) GitHubSources(ctx context.Context) ([]GitHubInstallation, error
 // GitHubRepositories lists repos accessible from a specific installation.
 // Uses the App's private key to mint an installation token for the given installation ID.
 func (c *Client) GitHubRepositories(ctx context.Context, installationID string) ([]GitHubRepository, error) {
-	claims := auth.FromContext(ctx)
-	if claims == nil {
-		return nil, fmt.Errorf("unauthenticated")
-	}
-
 	if c.GitHubApp == nil {
 		return nil, fmt.Errorf("github app not configured")
 	}

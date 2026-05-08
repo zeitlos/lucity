@@ -24,7 +24,7 @@ func (r *mutationResolver) SetEnvironmentResources(ctx context.Context, input mo
 
 // ChangePlan is the resolver for the changePlan field.
 func (r *mutationResolver) ChangePlan(ctx context.Context, plan model.Plan) (*model.BillingSubscription, error) {
-	ws, err := tenant.Require(ctx)
+	ws, err := tenant.FromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -37,20 +37,24 @@ func (r *mutationResolver) ChangePlan(ctx context.Context, plan model.Plan) (*mo
 
 // BillingPortalURL is the resolver for the billingPortalUrl field.
 func (r *mutationResolver) BillingPortalURL(ctx context.Context) (*model.BillingPortalURL, error) {
-	ws, err := tenant.Require(ctx)
+	ws, err := tenant.FromContext(ctx)
+
 	if err != nil {
 		return nil, err
 	}
-	res, err := r.API.BillingPortalURL(ctx, ws)
+
+	url, err := r.API.BillingPortalURL(ctx, ws)
+
 	if err != nil {
 		return nil, err
 	}
-	return &model.BillingPortalURL{URL: res.URL}, nil
+
+	return &model.BillingPortalURL{URL: url}, nil
 }
 
 // CreatePlanCheckout is the resolver for the createPlanCheckout field.
 func (r *mutationResolver) CreatePlanCheckout(ctx context.Context, plan model.Plan) (*model.CheckoutSession, error) {
-	ws, err := tenant.Require(ctx)
+	ws, err := tenant.FromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +67,7 @@ func (r *mutationResolver) CreatePlanCheckout(ctx context.Context, plan model.Pl
 
 // CompletePlanCheckout is the resolver for the completePlanCheckout field.
 func (r *mutationResolver) CompletePlanCheckout(ctx context.Context, sessionID string) (*model.BillingSubscription, error) {
-	ws, err := tenant.Require(ctx)
+	ws, err := tenant.FromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +90,7 @@ func (r *queryResolver) EnvironmentResources(ctx context.Context, projectID stri
 
 // Subscription is the resolver for the subscription field.
 func (r *queryResolver) Subscription(ctx context.Context) (*model.BillingSubscription, error) {
-	ws, err := tenant.Require(ctx)
+	ws, err := tenant.FromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +103,7 @@ func (r *queryResolver) Subscription(ctx context.Context) (*model.BillingSubscri
 
 // UsageSummary is the resolver for the usageSummary field.
 func (r *queryResolver) UsageSummary(ctx context.Context) (*model.UsageSummary, error) {
-	ws, err := tenant.Require(ctx)
+	ws, err := tenant.FromContext(ctx)
 	if err != nil {
 		return nil, err
 	}

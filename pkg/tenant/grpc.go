@@ -11,11 +11,13 @@ import (
 // OutgoingContext appends the workspace identifier from the context to
 // outgoing gRPC metadata. If no workspace is set, the context is returned unchanged.
 func OutgoingContext(ctx context.Context) context.Context {
-	ws := FromContext(ctx)
-	if ws == "" {
+	workspace, err := FromContext(ctx)
+
+	if err != nil {
 		return ctx
 	}
-	return metadata.AppendToOutgoingContext(ctx, MetadataKey, ws)
+
+	return metadata.AppendToOutgoingContext(ctx, MetadataKey, workspace)
 }
 
 // UnaryServerInterceptor returns a gRPC server interceptor that extracts
@@ -40,7 +42,7 @@ func StreamServerInterceptor() grpc.StreamServerInterceptor {
 // falling back to plain metadata extraction for legacy callers.
 func resolveWorkspace(ctx context.Context) context.Context {
 	if ws := auth.ActiveWorkspaceFrom(ctx); ws != "" {
-		return WithWorkspace(ctx, ws)
+		return NewContext(ctx, ws)
 	}
 	return extractWorkspace(ctx)
 }
@@ -54,7 +56,7 @@ func extractWorkspace(ctx context.Context) context.Context {
 	if len(values) == 0 {
 		return ctx
 	}
-	return WithWorkspace(ctx, values[0])
+	return NewContext(ctx, values[0])
 }
 
 // wrappedStream overrides Context() to return our enriched context.

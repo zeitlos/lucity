@@ -12,15 +12,17 @@ import (
 // Must run after both auth.Middleware and tenant.Middleware.
 func AuthorizeMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ws := FromContext(r.Context())
-		if ws == "" {
+		ws, err := FromContext(r.Context())
+
+		if err != nil {
 			next.ServeHTTP(w, r)
 			return
 		}
 
-		claims := auth.FromContext(r.Context())
-		if claims == nil {
-			// Not authenticated — let the GraphQL directive handle it.
+		claims, err := auth.FromContext(r.Context())
+
+		if err != nil {
+			// Not authenticated. Let the GraphQL directive handle it.
 			next.ServeHTTP(w, r)
 			return
 		}

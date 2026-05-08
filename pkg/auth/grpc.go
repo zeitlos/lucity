@@ -64,7 +64,7 @@ func extractAuth(ctx context.Context, verifier *InternalVerifier) (context.Conte
 		return ctx, status.Errorf(codes.Unauthenticated, "invalid internal token: %v", err)
 	}
 
-	ctx = WithClaims(ctx, &intClaims.Claims)
+	ctx = NewContext(ctx, &intClaims.Claims)
 	ctx = WithActiveWorkspace(ctx, intClaims.Workspace)
 
 	// Extract GitHub token from plain metadata (needed by builder for repo cloning)
@@ -111,8 +111,9 @@ func TokenFrom(ctx context.Context) string {
 // and attaches it to outgoing gRPC metadata. Requires an Issuer in the context.
 func OutgoingContext(ctx context.Context) context.Context {
 	issuer := IssuerFrom(ctx)
-	claims := FromContext(ctx)
-	if issuer == nil || claims == nil {
+	claims, err := FromContext(ctx)
+
+	if issuer == nil || err != nil {
 		return ctx
 	}
 

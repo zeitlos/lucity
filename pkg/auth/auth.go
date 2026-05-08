@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"errors"
 )
 
 // Role represents a user's authorization level.
@@ -69,14 +70,16 @@ func (c *Claims) WorkspaceRoleIn(workspace string) WorkspaceRole {
 	return ""
 }
 
-// WithClaims attaches claims to a context.
-func WithClaims(ctx context.Context, claims *Claims) context.Context {
+func NewContext(ctx context.Context, claims *Claims) context.Context {
 	return context.WithValue(ctx, contextKey{}, claims)
 }
 
-// FromContext extracts claims from a context.
-// Returns nil if no claims are present.
-func FromContext(ctx context.Context) *Claims {
-	claims, _ := ctx.Value(contextKey{}).(*Claims)
-	return claims
+func FromContext(ctx context.Context) (*Claims, error) {
+	claims, set := ctx.Value(contextKey{}).(*Claims)
+
+	if !set || claims == nil {
+		return nil, errors.New("unauthenticated")
+	}
+
+	return claims, nil
 }

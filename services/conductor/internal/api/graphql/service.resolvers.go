@@ -16,7 +16,7 @@ import (
 
 // AddService is the resolver for the addService field.
 func (r *mutationResolver) AddService(ctx context.Context, input model.AddServiceInput) (*model.ServiceInstance, error) {
-	ws, err := tenant.Require(ctx)
+	ws, err := tenant.FromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +80,7 @@ func (r *mutationResolver) SetCustomStartCommand(ctx context.Context, projectID 
 
 // Deploy is the resolver for the deploy field.
 func (r *mutationResolver) Deploy(ctx context.Context, input model.DeployInput) (*model.DeployRun, error) {
-	ws, err := tenant.Require(ctx)
+	ws, err := tenant.FromContext(ctx)
 	if err != nil {
 		return nil, err
 	}

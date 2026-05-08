@@ -32,7 +32,7 @@ func (r *environmentResolver) ResourceTier(ctx context.Context, obj *model.Envir
 
 // CreateProject is the resolver for the createProject field.
 func (r *mutationResolver) CreateProject(ctx context.Context, input model.CreateProjectInput) (*model.Project, error) {
-	ws, err := tenant.Require(ctx)
+	ws, err := tenant.FromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +107,7 @@ func (r *mutationResolver) SetServiceScaling(ctx context.Context, input model.Se
 
 // Projects is the resolver for the projects field.
 func (r *queryResolver) Projects(ctx context.Context) ([]model.Project, error) {
-	ws, err := tenant.Require(ctx)
+	ws, err := tenant.FromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -124,7 +124,7 @@ func (r *queryResolver) Projects(ctx context.Context) ([]model.Project, error) {
 
 // Project is the resolver for the project field.
 func (r *queryResolver) Project(ctx context.Context, id string) (*model.Project, error) {
-	ws, err := tenant.Require(ctx)
+	ws, err := tenant.FromContext(ctx)
 	if err != nil {
 		return nil, err
 	}

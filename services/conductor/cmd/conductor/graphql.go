@@ -11,11 +11,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/zeitlos/lucity/pkg/logto"
 	gatewaygraphql "github.com/zeitlos/lucity/services/conductor/internal/api/graphql"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/directive"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/handler"
-	"github.com/zeitlos/lucity/pkg/logto"
 
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/tenant"
@@ -52,8 +52,6 @@ func NewGraphQLServer(port string, api *handler.Client, oidcProvider *OIDCProvid
 				return next(ctx)
 			},
 			HasRole: func(ctx context.Context, obj interface{}, next gqlgen.Resolver, role []model.Role) (interface{}, error) {
-				claims := auth.FromContext(ctx)
-
 				// Allow ANONYMOUS access
 				for _, r := range role {
 					if r == model.RoleAnonymous {
@@ -61,8 +59,10 @@ func NewGraphQLServer(port string, api *handler.Client, oidcProvider *OIDCProvid
 					}
 				}
 
-				if claims == nil {
-					return nil, fmt.Errorf("unauthorized")
+				claims, err := auth.FromContext(ctx)
+
+				if err != nil {
+					return nil, err
 				}
 
 				hasRole := false
@@ -72,6 +72,7 @@ func NewGraphQLServer(port string, api *handler.Client, oidcProvider *OIDCProvid
 						break
 					}
 				}
+
 				if !hasRole {
 					return nil, fmt.Errorf("forbidden: insufficient role")
 				}
@@ -91,8 +92,9 @@ func NewGraphQLServer(port string, api *handler.Client, oidcProvider *OIDCProvid
 						}
 					}
 					if !allowSuspended {
-						ws := tenant.FromContext(ctx)
-						if ws != "" && api.Logto != nil {
+						ws, err := tenant.FromContext(ctx)
+
+						if err == nil && api.Logto != nil {
 							org, err := api.Logto.OrganizationByName(ctx, ws)
 							if err == nil && org.CustomData != nil {
 								if suspended, ok := org.CustomData["suspended"].(bool); ok && suspended {
@@ -114,7 +116,7 @@ func NewGraphQLServer(port string, api *handler.Client, oidcProvider *OIDCProvid
 
 	allowedOrigins := map[string]bool{
 		"http://localhost:5173": true,
-		dashboardURL:           true,
+		dashboardURL:            true,
 	}
 	// The browser sends the origin without path, so also allow the base URL.
 	if u, err := url.Parse(dashboardURL); err == nil {
@@ -139,7 +141,7 @@ func NewGraphQLServer(port string, api *handler.Client, oidcProvider *OIDCProvid
 			if token != "" {
 				token = strings.TrimPrefix(token, "Bearer ")
 				if claims, err := verifier.ValidateToken(ctx, token); err == nil {
-					ctx = auth.WithClaims(ctx, claims)
+					ctx = auth.NewContext(ctx, claims)
 					ctx = auth.WithToken(ctx, token)
 				}
 			}
@@ -152,7 +154,7 @@ func NewGraphQLServer(port string, api *handler.Client, oidcProvider *OIDCProvid
 			// Workspace: browser can't send custom headers on WS upgrade,
 			// so read from connectionParams.
 			if ws, ok := initPayload[tenant.Header].(string); ok && ws != "" {
-				ctx = tenant.WithWorkspace(ctx, ws)
+				ctx = tenant.NewContext(ctx, ws)
 				ctx = auth.WithActiveWorkspace(ctx, ws)
 			}
 
@@ -166,19 +168,13 @@ func NewGraphQLServer(port string, api *handler.Client, oidcProvider *OIDCProvid
 	// Audit logging for mutations
 	srv.AroundOperations(func(ctx context.Context, next gqlgen.OperationHandler) gqlgen.ResponseHandler {
 		oc := gqlgen.GetOperationContext(ctx)
-		if oc.Operation != nil && oc.Operation.Operation == ast.Mutation {
-			claims := auth.FromContext(ctx)
-			email := "anonymous"
-			if claims != nil {
-				email = claims.Email
-			}
-			workspace := tenant.FromContext(ctx)
-			slog.Info("graphql mutation",
-				"operation", oc.OperationName,
-				"user", email,
-				"workspace", workspace,
-			)
+
+		if oc.Operation == nil || oc.Operation.Operation != ast.Mutation {
+			return next(ctx)
 		}
+
+		slog.Info("graphql mutation", "operation", oc.OperationName)
+
 		return next(ctx)
 	})
 

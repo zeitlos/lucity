@@ -31,7 +31,7 @@ func Middleware(verifier *Verifier) func(http.Handler) http.Handler {
 				return
 			}
 
-			ctx := WithClaims(r.Context(), claims)
+			ctx := NewContext(r.Context(), claims)
 
 			// Store the Logto access token for Account API calls (e.g. GitHub token retrieval)
 			if logtoToken := extractLogtoToken(r); logtoToken != "" {

@@ -50,7 +50,7 @@ func (r *mutationResolver) ExecuteQuery(ctx context.Context, input model.Databas
 
 // Databases is the resolver for the databases field.
 func (r *queryResolver) Databases(ctx context.Context, projectID string) ([]model.Database, error) {
-	ws, err := tenant.Require(ctx)
+	ws, err := tenant.FromContext(ctx)
 	if err != nil {
 		return nil, err
 	}

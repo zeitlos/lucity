@@ -17,8 +17,8 @@ import (
 	"golang.org/x/oauth2"
 
 	"github.com/zeitlos/lucity/pkg/auth"
-	"github.com/zeitlos/lucity/services/conductor/internal/api/handler"
 	"github.com/zeitlos/lucity/pkg/logto"
+	"github.com/zeitlos/lucity/services/conductor/internal/api/handler"
 )
 
 const (
@@ -67,9 +67,9 @@ func NewOIDCProvider(ctx context.Context, issuerURL, discoveryURL, clientID, cal
 		RedirectURL: callbackURL,
 		Scopes: []string{
 			oidc.ScopeOpenID, "profile", "email", oidc.ScopeOfflineAccess,
-			"identities",                          // Account API: access social identity tokens (GitHub)
-			"urn:logto:scope:organizations",        // ID token: organization memberships
-			"urn:logto:scope:organization_roles",   // ID token: organization roles
+			"identities",                         // Account API: access social identity tokens (GitHub)
+			"urn:logto:scope:organizations",      // ID token: organization memberships
+			"urn:logto:scope:organization_roles", // ID token: organization roles
 		},
 	}
 
@@ -292,7 +292,7 @@ func handleCallback(provider *OIDCProvider, api *handler.Client, logtoClient *lo
 		// Set claims on context so auth.OutgoingContext() can propagate identity
 		// to backend services via gRPC metadata. No JWT needed — backends trust
 		// the gateway as the auth boundary.
-		svcCtx := auth.WithClaims(r.Context(), &auth.Claims{
+		svcCtx := auth.NewContext(r.Context(), &auth.Claims{
 			Subject: idToken.Subject,
 			Email:   oidcClaims.Email,
 			Roles:   []auth.Role{auth.RoleUser},
@@ -400,8 +400,9 @@ func handleCallback(provider *OIDCProvider, api *handler.Client, logtoClient *lo
 // handleMe returns the current user's profile from the JWT claims in context.
 func handleMe() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		claims := auth.FromContext(r.Context())
-		if claims == nil {
+		claims, err := auth.FromContext(r.Context())
+
+		if err != nil {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
 		}
@@ -488,8 +489,9 @@ func handleRefresh(provider *OIDCProvider, logtoClient *logto.Client, sessionSec
 		newRefreshToken := oauth2Token.RefreshToken
 
 		// Re-mint session JWT if we have existing claims (refreshes workspace memberships)
-		claims := auth.FromContext(r.Context())
-		if claims != nil && logtoClient != nil {
+		claims, err := auth.FromContext(r.Context())
+
+		if err == nil && logtoClient != nil {
 			userOrgs, err := logtoClient.UserOrganizations(r.Context(), claims.Subject)
 			if err == nil {
 				var workspaces []auth.WorkspaceMembership
@@ -565,8 +567,7 @@ func handleGitHubInstall(githubAppSlug string) http.HandlerFunc {
 			return
 		}
 
-		claims := auth.FromContext(r.Context())
-		if claims == nil {
+		if _, err := auth.FromContext(r.Context()); err != nil {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
 		}

@@ -182,7 +182,7 @@ func (w *Worker) tick(ctx context.Context) {
 
 // conductorCtx creates a system-level auth context for calling conductor.
 func (w *Worker) conductorCtx(ctx context.Context) context.Context {
-	ctx = auth.WithClaims(ctx, &auth.Claims{
+	ctx = auth.NewContext(ctx, &auth.Claims{
 		Subject: "cashier",
 		Roles:   []auth.Role{auth.RoleUser},
 	})

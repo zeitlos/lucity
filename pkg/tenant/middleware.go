@@ -13,7 +13,7 @@ func Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ws := r.Header.Get(Header)
 		if ws != "" {
-			ctx := WithWorkspace(r.Context(), ws)
+			ctx := NewContext(r.Context(), ws)
 			ctx = auth.WithActiveWorkspace(ctx, ws)
 			r = r.WithContext(ctx)
 		}

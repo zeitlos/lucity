@@ -9,9 +9,8 @@ import (
 
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/cashier"
-	"github.com/zeitlos/lucity/pkg/deployer"
-	"github.com/zeitlos/lucity/pkg/packager"
 	"github.com/zeitlos/lucity/pkg/tenant"
+	"github.com/zeitlos/lucity/services/conductor/internal/data"
 )
 
 type EnvironmentResources struct {
@@ -20,95 +19,6 @@ type EnvironmentResources struct {
 	MemoryMB      int
 	DiskMB        int
 }
-
-func (c *Client) EnvironmentResources(ctx context.Context, projectID, environment string) (*EnvironmentResources, error) {
-	if _, err := tenant.Require(ctx); err != nil {
-		return nil, err
-	}
-	ctx = auth.OutgoingContext(ctx)
-	ctx = tenant.OutgoingContext(ctx)
-
-	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
-	defer cancel()
-	resp, err := c.Deployer.ResourceQuota(callCtx, &deployer.ResourceQuotaRequest{
-		Project:     projectID,
-		Environment: environment,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to get resource quota: %w", err)
-	}
-
-	return &EnvironmentResources{
-		Tier:          protoTierToString(resp.Tier),
-		CpuMillicores: int(resp.CpuMillicores),
-		MemoryMB:      int(resp.MemoryMb),
-		DiskMB:        int(resp.DiskMb),
-	}, nil
-}
-
-func (c *Client) SetEnvironmentResources(ctx context.Context, projectID, environment, tier string, cpuMillicores, memoryMB, diskMB int) (*EnvironmentResources, error) {
-	if _, err := tenant.Require(ctx); err != nil {
-		return nil, err
-	}
-	ctx = auth.OutgoingContext(ctx)
-	ctx = tenant.OutgoingContext(ctx)
-
-	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
-	defer cancel()
-	resp, err := c.Deployer.SetResourceQuota(callCtx, &deployer.SetResourceQuotaRequest{
-		Project:       projectID,
-		Environment:   environment,
-		Tier:          stringToProtoTier(tier),
-		CpuMillicores: int32(cpuMillicores),
-		MemoryMb:      int32(memoryMB),
-		DiskMb:        int32(diskMB),
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to set resource quota: %w", err)
-	}
-
-	// Best-effort: sync resources to GitOps repo for ejection
-	pkgCtx, pkgCancel := context.WithTimeout(ctx, grpcTimeout)
-	defer pkgCancel()
-	_, pkgErr := c.Packager.SetResources(pkgCtx, &packager.SetResourcesRequest{
-		Project:       projectID,
-		Environment:   environment,
-		Tier:          strings.ToLower(tier),
-		CpuMillicores: int32(cpuMillicores),
-		MemoryMb:      int32(memoryMB),
-		DiskMb:        int32(diskMB),
-	})
-	if pkgErr != nil {
-		slog.Error("failed to sync resources to GitOps repo", "error", pkgErr, "project", projectID, "environment", environment)
-	}
-
-	return &EnvironmentResources{
-		Tier:          protoTierToString(resp.Tier),
-		CpuMillicores: int(resp.CpuMillicores),
-		MemoryMB:      int(resp.MemoryMb),
-		DiskMB:        int(resp.DiskMb),
-	}, nil
-}
-
-func protoTierToString(t deployer.ResourceTier) string {
-	switch t {
-	case deployer.ResourceTier_RESOURCE_TIER_PRODUCTION:
-		return "PRODUCTION"
-	default:
-		return "ECO"
-	}
-}
-
-func stringToProtoTier(s string) deployer.ResourceTier {
-	switch s {
-	case "PRODUCTION":
-		return deployer.ResourceTier_RESOURCE_TIER_PRODUCTION
-	default:
-		return deployer.ResourceTier_RESOURCE_TIER_ECO
-	}
-}
-
-// Billing types for cashier integration
 
 type BillingSubscription struct {
 	Plan              *string
@@ -127,6 +37,71 @@ type UsageSummaryResult struct {
 
 type BillingPortalUrlResult struct {
 	URL string
+}
+
+func (c *Client) EnvironmentResources(ctx context.Context, projectID, environment string) (*EnvironmentResources, error) {
+	ws, err := tenant.FromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
+	defer cancel()
+	q, err := c.Deployer.ResourceQuota(callCtx, ws, projectID, environment)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get resource quota: %w", err)
+	}
+
+	return &EnvironmentResources{
+		Tier:          tierToAPIString(q.Tier),
+		CpuMillicores: q.CPUMillicores,
+		MemoryMB:      q.MemoryMB,
+		DiskMB:        q.DiskMB,
+	}, nil
+}
+
+func (c *Client) SetEnvironmentResources(ctx context.Context, projectID, environment, tier string, cpuMillicores, memoryMB, diskMB int) (*EnvironmentResources, error) {
+	ws, err := tenant.FromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
+	defer cancel()
+	q, err := c.Deployer.SetResourceQuota(callCtx, ws, projectID, environment, tierFromAPIString(tier), cpuMillicores, memoryMB, diskMB)
+	if err != nil {
+		return nil, fmt.Errorf("failed to set resource quota: %w", err)
+	}
+
+	// Best-effort: sync resources to GitOps repo for ejection
+	pkgCtx, pkgCancel := context.WithTimeout(ctx, grpcTimeout)
+	defer pkgCancel()
+	if pkgErr := c.Packager.SetResources(pkgCtx, ws, projectID, environment, strings.ToLower(tier), cpuMillicores, memoryMB, diskMB); pkgErr != nil {
+		slog.Error("failed to sync resources to GitOps repo", "error", pkgErr, "project", projectID, "environment", environment)
+	}
+
+	return &EnvironmentResources{
+		Tier:          tierToAPIString(q.Tier),
+		CpuMillicores: q.CPUMillicores,
+		MemoryMB:      q.MemoryMB,
+		DiskMB:        q.DiskMB,
+	}, nil
+}
+
+func tierToAPIString(t data.ResourceTier) string {
+	if t == data.ResourceTierProduction {
+		return "PRODUCTION"
+	}
+	return "ECO"
+}
+
+func tierFromAPIString(s string) data.ResourceTier {
+	switch s {
+	case "PRODUCTION":
+		return data.ResourceTierProduction
+	default:
+		return data.ResourceTierEco
+	}
 }
 
 func (c *Client) Subscription(ctx context.Context, ws string) (*BillingSubscription, error) {
@@ -206,31 +181,37 @@ func (c *Client) ChangePlan(ctx context.Context, ws, plan string) (*BillingSubsc
 	return result, nil
 }
 
-func (c *Client) BillingPortalURL(ctx context.Context, ws string) (*BillingPortalUrlResult, error) {
+func (c *Client) BillingPortalURL(ctx context.Context, ws string) (string, error) {
 	if c.Cashier == nil {
-		return nil, fmt.Errorf("billing not configured")
+		return "", fmt.Errorf("billing not configured")
 	}
+
 	customerID, _, err := c.stripeIDs(ctx, ws)
+
 	if err != nil {
-		return nil, err
+		return "", err
 	}
+
 	if customerID == "" {
-		return nil, fmt.Errorf("billing is not configured for this workspace")
+		return "", fmt.Errorf("billing is not configured for this workspace")
 	}
+
 	ctx = auth.OutgoingContext(ctx)
 
 	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
 	defer cancel()
+
 	resp, err := c.Cashier.BillingPortalURL(callCtx, &cashier.BillingPortalURLRequest{
 		Workspace:  ws,
 		ReturnUrl:  "", // Stripe defaults to billing portal home
 		CustomerId: customerID,
 	})
+
 	if err != nil {
-		return nil, fmt.Errorf("failed to get billing portal URL: %w", err)
+		return "", fmt.Errorf("failed to get billing portal URL: %w", err)
 	}
 
-	return &BillingPortalUrlResult{URL: resp.Url}, nil
+	return resp.Url, nil
 }
 
 func (c *Client) UsageSummary(ctx context.Context, ws string) (*UsageSummaryResult, error) {
@@ -285,10 +266,13 @@ func (c *Client) CreatePlanCheckout(ctx context.Context, ws, plan string) (strin
 	if c.Cashier == nil {
 		return "", fmt.Errorf("billing not configured")
 	}
-	claims := auth.FromContext(ctx)
-	if claims == nil {
-		return "", fmt.Errorf("unauthenticated")
+
+	claims, err := auth.FromContext(ctx)
+
+	if err != nil {
+		return "", err
 	}
+
 	customerID, _, err := c.stripeIDs(ctx, ws)
 	if err != nil {
 		return "", err
@@ -315,6 +299,7 @@ func (c *Client) CreatePlanCheckout(ctx context.Context, ws, plan string) (strin
 	}
 
 	slog.Info("plan checkout initiated", "plan", plan, "user", claims.Email)
+
 	return resp.Url, nil
 }
 
@@ -322,10 +307,7 @@ func (c *Client) CompletePlanCheckout(ctx context.Context, ws, sessionID string)
 	if c.Cashier == nil {
 		return nil, fmt.Errorf("billing not configured")
 	}
-	claims := auth.FromContext(ctx)
-	if claims == nil {
-		return nil, fmt.Errorf("unauthenticated")
-	}
+
 	customerID, subscriptionID, err := c.stripeIDs(ctx, ws)
 	if err != nil {
 		return nil, err

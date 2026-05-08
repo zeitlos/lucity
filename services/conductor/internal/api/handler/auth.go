@@ -6,11 +6,18 @@ import (
 	"github.com/zeitlos/lucity/pkg/auth"
 )
 
-// Me returns the current user's profile from the JWT claims.
+type User struct {
+	Name       string
+	Email      string
+	AvatarURL  string
+	Workspaces []auth.WorkspaceMembership
+}
+
 func (c *Client) Me(ctx context.Context) (*User, error) {
-	claims := auth.FromContext(ctx)
-	if claims == nil {
-		return nil, nil
+	claims, err := auth.FromContext(ctx)
+
+	if err != nil {
+		return nil, err
 	}
 
 	return &User{
@@ -19,12 +26,4 @@ func (c *Client) Me(ctx context.Context) (*User, error) {
 		AvatarURL:  claims.AvatarURL,
 		Workspaces: claims.Workspaces,
 	}, nil
-}
-
-// User represents an authenticated user's profile.
-type User struct {
-	Name       string
-	Email      string
-	AvatarURL  string
-	Workspaces []auth.WorkspaceMembership
 }

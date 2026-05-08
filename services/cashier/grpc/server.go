@@ -324,7 +324,7 @@ func (s *Server) handleSubscriptionDeleted(event gostripe.Event) error {
 }
 
 func (s *Server) suspendWorkspace(workspace string, suspended bool) {
-	ctx := auth.WithClaims(context.Background(), &auth.Claims{
+	ctx := auth.NewContext(context.Background(), &auth.Claims{
 		Subject: "cashier",
 		Roles:   []auth.Role{auth.RoleUser},
 	})

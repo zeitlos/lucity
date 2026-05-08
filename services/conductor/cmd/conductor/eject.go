@@ -19,8 +19,7 @@ func ejectHandler(api *handler.Client) http.HandlerFunc {
 			return
 		}
 
-		claims := auth.FromContext(r.Context())
-		if claims == nil {
+		if _, err := auth.FromContext(r.Context()); err != nil {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
 		}
