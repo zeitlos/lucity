@@ -11,7 +11,7 @@ SERVICES=(conductor cashier)
 ALL_SERVICES=(conductor cashier dashboard)
 PORTS=(8080 9004 9005 9006 9090 5173)
 
-# SKIP: comma-separated list of services to exclude (e.g. SKIP=gateway,cashier).
+# SKIP: comma-separated list of services to exclude (e.g. SKIP=conductor,cashier).
 # Useful when debugging a service from your IDE — let everything else hot-reload,
 # then launch the skipped service under Delve. See also .vscode/launch.json.
 SKIP="${SKIP:-}"
