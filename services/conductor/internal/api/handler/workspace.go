@@ -9,12 +9,9 @@ import (
 
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/cashier"
-	"github.com/zeitlos/lucity/pkg/packager"
-	"github.com/zeitlos/lucity/pkg/tenant"
 	"github.com/zeitlos/lucity/pkg/logto"
 )
 
-// Workspace represents a workspace with metadata and members.
 type Workspace struct {
 	ID        string
 	Name      string
@@ -23,7 +20,6 @@ type Workspace struct {
 	Members   []WorkspaceMember
 }
 
-// WorkspaceMember represents a user's membership in a workspace.
 type WorkspaceMember struct {
 	ID    string
 	Email string
@@ -87,13 +83,13 @@ func displayNameFromOrgData(org *logto.Organization) string {
 	return org.Name
 }
 
-// Workspaces returns all workspaces the current user is a member of.
-// Fetches user's organizations from Logto.
 func (c *Client) Workspaces(ctx context.Context) ([]Workspace, error) {
-	claims := auth.FromContext(ctx)
-	if claims == nil {
-		return nil, fmt.Errorf("unauthenticated")
+	claims, err := auth.FromContext(ctx)
+
+	if err != nil {
+		return nil, err
 	}
+
 	if c.Logto == nil {
 		return nil, fmt.Errorf("logto not configured")
 	}
@@ -198,10 +194,12 @@ func (c *Client) WorkspaceMembers(ctx context.Context, ws string) ([]WorkspaceMe
 // CreateWorkspace creates a new workspace as a Logto organization.
 // The creator is automatically added as admin.
 func (c *Client) CreateWorkspace(ctx context.Context, id, name string) (*Workspace, error) {
-	claims := auth.FromContext(ctx)
-	if claims == nil {
-		return nil, fmt.Errorf("unauthenticated")
+	claims, err := auth.FromContext(ctx)
+
+	if err != nil {
+		return nil, err
 	}
+
 	if c.Logto == nil {
 		return nil, fmt.Errorf("logto not configured")
 	}
@@ -211,8 +209,7 @@ func (c *Client) CreateWorkspace(ctx context.Context, id, name string) (*Workspa
 	}
 
 	// Check if workspace ID is already taken by searching by name.
-	_, err := c.Logto.OrganizationByName(ctx, id)
-	if err == nil {
+	if _, err := c.Logto.OrganizationByName(ctx, id); err == nil {
 		return nil, fmt.Errorf("workspace ID %q is already taken", id)
 	}
 
@@ -328,16 +325,14 @@ func (c *Client) DeleteWorkspace(ctx context.Context, ws string) (bool, error) {
 	}
 
 	// Check no projects exist
-	outCtx := auth.OutgoingContext(ctx)
-	projCtx := tenant.OutgoingContext(outCtx)
-	listCtx, listCancel := context.WithTimeout(projCtx, grpcTimeout)
+	listCtx, listCancel := context.WithTimeout(ctx, grpcTimeout)
 	defer listCancel()
-	resp, err := c.Packager.ListProjects(listCtx, &packager.ListProjectsRequest{})
+	infos, err := c.Packager.ListProjects(listCtx, ws)
 	if err != nil {
 		return false, fmt.Errorf("failed to check projects: %w", err)
 	}
-	if len(resp.Projects) > 0 {
-		return false, fmt.Errorf("cannot delete workspace: %d projects still exist — delete them first", len(resp.Projects))
+	if len(infos) > 0 {
+		return false, fmt.Errorf("cannot delete workspace: %d projects still exist — delete them first", len(infos))
 	}
 
 	// Delete Logto organization (removes all members automatically)
@@ -419,8 +414,8 @@ func (c *Client) RemoveMember(ctx context.Context, ws, userID string) (bool, err
 	}
 
 	// Prevent removing yourself
-	claims := auth.FromContext(ctx)
-	if claims != nil && claims.Subject == userID {
+	claims, err := auth.FromContext(ctx)
+	if err == nil && claims.Subject == userID {
 		return false, fmt.Errorf("cannot remove yourself from workspace")
 	}
 
@@ -694,13 +689,16 @@ func (c *Client) setupBilling(ctx context.Context, workspace, name, email string
 // CreateWorkspaceCheckout creates a Stripe Checkout Session for a new workspace subscription.
 // The workspace is not created until the checkout completes (see CompleteWorkspaceCheckout).
 func (c *Client) CreateWorkspaceCheckout(ctx context.Context, id, name, plan string) (string, error) {
-	claims := auth.FromContext(ctx)
-	if claims == nil {
-		return "", fmt.Errorf("unauthenticated")
+	claims, err := auth.FromContext(ctx)
+
+	if err != nil {
+		return "", err
 	}
+
 	if c.Logto == nil {
 		return "", fmt.Errorf("logto not configured")
 	}
+
 	if c.Cashier == nil {
 		return "", fmt.Errorf("billing not configured")
 	}
@@ -710,8 +708,7 @@ func (c *Client) CreateWorkspaceCheckout(ctx context.Context, id, name, plan str
 	}
 
 	// Check if workspace ID is already taken.
-	_, err := c.Logto.OrganizationByName(ctx, id)
-	if err == nil {
+	if _, err = c.Logto.OrganizationByName(ctx, id); err == nil {
 		return "", fmt.Errorf("workspace ID %q is already taken", id)
 	}
 
@@ -744,13 +741,16 @@ func (c *Client) CreateWorkspaceCheckout(ctx context.Context, id, name, plan str
 // CompleteWorkspaceCheckout verifies a completed Stripe Checkout Session and creates the workspace.
 // Called after the user is redirected back from Stripe.
 func (c *Client) CompleteWorkspaceCheckout(ctx context.Context, sessionID string) (*Workspace, error) {
-	claims := auth.FromContext(ctx)
-	if claims == nil {
-		return nil, fmt.Errorf("unauthenticated")
+	claims, err := auth.FromContext(ctx)
+
+	if err != nil {
+		return nil, err
 	}
+
 	if c.Logto == nil {
 		return nil, fmt.Errorf("logto not configured")
 	}
+
 	if c.Cashier == nil {
 		return nil, fmt.Errorf("billing not configured")
 	}
@@ -847,13 +847,16 @@ func (c *Client) CompleteWorkspaceCheckout(ctx context.Context, sessionID string
 
 // requireWorkspaceAdmin checks that the current user is an admin of the given workspace.
 func (c *Client) requireWorkspaceAdmin(ctx context.Context, workspace string) error {
-	claims := auth.FromContext(ctx)
-	if claims == nil {
-		return fmt.Errorf("unauthenticated")
+	claims, err := auth.FromContext(ctx)
+
+	if err != nil {
+		return err
 	}
+
 	if claims.WorkspaceRoleIn(workspace) != auth.WorkspaceRoleAdmin {
 		return fmt.Errorf("forbidden: workspace admin role required")
 	}
+
 	return nil
 }
 

@@ -7,12 +7,12 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/zeitlos/lucity/pkg/deployer"
+	"github.com/zeitlos/lucity/services/conductor/internal/data"
 )
 
 // Tables returns metadata for all user tables in the database.
 // Uses a single query joining information_schema with pg_stat for efficiency.
-func Tables(ctx context.Context, conn *pgx.Conn) ([]*deployer.DatabaseTable, error) {
+func Tables(ctx context.Context, conn *pgx.Conn) ([]data.DatabaseTable, error) {
 	rows, err := conn.Query(ctx, `
 		SELECT
 			t.table_schema,
@@ -46,7 +46,7 @@ func Tables(ctx context.Context, conn *pgx.Conn) ([]*deployer.DatabaseTable, err
 
 	// Group results by table.
 	type tableKey struct{ schema, name string }
-	tableMap := make(map[tableKey]*deployer.DatabaseTable)
+	tableMap := make(map[tableKey]*data.DatabaseTable)
 	var tableOrder []tableKey
 
 	for rows.Next() {
@@ -62,7 +62,7 @@ func Tables(ctx context.Context, conn *pgx.Conn) ([]*deployer.DatabaseTable, err
 		key := tableKey{schema, tableName}
 		tbl, exists := tableMap[key]
 		if !exists {
-			tbl = &deployer.DatabaseTable{
+			tbl = &data.DatabaseTable{
 				Name:          tableName,
 				Schema:        schema,
 				EstimatedRows: estimatedRows,
@@ -71,7 +71,7 @@ func Tables(ctx context.Context, conn *pgx.Conn) ([]*deployer.DatabaseTable, err
 			tableOrder = append(tableOrder, key)
 		}
 
-		tbl.Columns = append(tbl.Columns, &deployer.DatabaseColumn{
+		tbl.Columns = append(tbl.Columns, data.DatabaseColumn{
 			Name:       colName,
 			Type:       colType,
 			Nullable:   nullable,
@@ -83,9 +83,9 @@ func Tables(ctx context.Context, conn *pgx.Conn) ([]*deployer.DatabaseTable, err
 	}
 
 	// Preserve order.
-	result := make([]*deployer.DatabaseTable, 0, len(tableOrder))
+	result := make([]data.DatabaseTable, 0, len(tableOrder))
 	for _, key := range tableOrder {
-		result = append(result, tableMap[key])
+		result = append(result, *tableMap[key])
 	}
 	sort.Slice(result, func(i, j int) bool {
 		if result[i].Schema != result[j].Schema {
@@ -98,7 +98,7 @@ func Tables(ctx context.Context, conn *pgx.Conn) ([]*deployer.DatabaseTable, err
 
 // TableData returns paginated rows from a specific table.
 // Uses pgx.Identifier for safe identifier quoting to prevent SQL injection.
-func TableData(ctx context.Context, conn *pgx.Conn, schema, table string, limit, offset int) ([]string, []*deployer.DatabaseRow, int64, error) {
+func TableData(ctx context.Context, conn *pgx.Conn, schema, table string, limit, offset int) ([]string, []data.DatabaseRow, int64, error) {
 	if limit <= 0 {
 		limit = 50
 	}
@@ -137,7 +137,7 @@ func TableData(ctx context.Context, conn *pgx.Conn, schema, table string, limit,
 }
 
 // Query executes arbitrary SQL and returns column names, rows, and affected row count.
-func Query(ctx context.Context, conn *pgx.Conn, sql string) ([]string, []*deployer.DatabaseRow, int64, error) {
+func Query(ctx context.Context, conn *pgx.Conn, sql string) ([]string, []data.DatabaseRow, int64, error) {
 	rows, err := conn.Query(ctx, sql)
 	if err != nil {
 		return nil, nil, 0, fmt.Errorf("query failed: %w", err)
@@ -164,24 +164,24 @@ func columnNames(rows pgx.Rows) []string {
 	return names
 }
 
-// collectRows reads all rows and converts values to DatabaseRow proto messages.
-func collectRows(rows pgx.Rows) ([]*deployer.DatabaseRow, error) {
-	var result []*deployer.DatabaseRow
+// collectRows reads all rows and converts values to DatabaseRow values.
+func collectRows(rows pgx.Rows) ([]data.DatabaseRow, error) {
+	var result []data.DatabaseRow
 	for rows.Next() {
 		values, err := rows.Values()
 		if err != nil {
 			return nil, fmt.Errorf("failed to read row values: %w", err)
 		}
 
-		cells := make([]*deployer.DatabaseCell, len(values))
+		cells := make([]data.DatabaseCell, len(values))
 		for i, v := range values {
 			if v == nil {
-				cells[i] = &deployer.DatabaseCell{IsNull: true}
+				cells[i] = data.DatabaseCell{IsNull: true}
 			} else {
-				cells[i] = &deployer.DatabaseCell{Value: fmt.Sprintf("%v", v)}
+				cells[i] = data.DatabaseCell{Value: fmt.Sprintf("%v", v)}
 			}
 		}
-		result = append(result, &deployer.DatabaseRow{Cells: cells})
+		result = append(result, data.DatabaseRow{Cells: cells})
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("failed to iterate rows: %w", err)

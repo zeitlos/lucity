@@ -3,7 +3,6 @@ package handler
 import (
 	"context"
 	"fmt"
-	"io"
 	"log/slog"
 	"net"
 	"regexp"
@@ -14,11 +13,9 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/zeitlos/lucity/pkg/auth"
-	"github.com/zeitlos/lucity/pkg/builder"
-	"github.com/zeitlos/lucity/pkg/deployer"
-	"github.com/zeitlos/lucity/pkg/packager"
 	"github.com/zeitlos/lucity/pkg/tenant"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/deploy"
+	"github.com/zeitlos/lucity/services/conductor/internal/data"
 )
 
 type DetectedService struct {
@@ -30,7 +27,7 @@ type DetectedService struct {
 }
 
 func (c *Client) DetectServices(ctx context.Context, repository string, installationID int64) ([]DetectedService, error) {
-	if _, err := tenant.Require(ctx); err != nil {
+	if _, err := tenant.FromContext(ctx); err != nil {
 		return nil, err
 	}
 	sourceURL, err := c.resolveRepositoryURL(ctx, installationID, repository)
@@ -41,27 +38,23 @@ func (c *Client) DetectServices(ctx context.Context, repository string, installa
 	if err != nil {
 		return nil, fmt.Errorf("failed to authenticate with GitHub: %w", err)
 	}
-	ctx = auth.OutgoingContext(ctx)
-	ctx = tenant.OutgoingContext(ctx)
 
 	// Call builder to detect services (long — clones repo)
 	detectCtx, detectCancel := context.WithTimeout(ctx, grpcLongTimeout)
 	defer detectCancel()
-	detectResp, err := c.Builder.DetectServices(detectCtx, &builder.DetectServicesRequest{
-		SourceUrl: sourceURL,
-	})
+	detected, err := c.Builder.DetectServices(detectCtx, sourceURL, "")
 	if err != nil {
 		return nil, fmt.Errorf("failed to detect services: %w", err)
 	}
 
-	result := make([]DetectedService, 0, len(detectResp.Services))
-	for _, s := range detectResp.Services {
+	result := make([]DetectedService, 0, len(detected))
+	for _, s := range detected {
 		result = append(result, DetectedService{
 			Name:          s.Name,
 			Provider:      s.Provider,
 			Framework:     s.Framework,
 			StartCommand:  s.StartCommand,
-			SuggestedPort: int(s.SuggestedPort),
+			SuggestedPort: s.SuggestedPort,
 		})
 	}
 	return result, nil
@@ -89,8 +82,6 @@ func (c *Client) AddService(ctx context.Context, ws, projectID, environment, nam
 			return nil, fmt.Errorf("failed to authenticate with GitHub: %w", err)
 		}
 	}
-	ctx = auth.OutgoingContext(ctx)
-	ctx = tenant.OutgoingContext(ctx)
 
 	var ghInstallationID int64
 	if installationID != nil {
@@ -119,22 +110,20 @@ func (c *Client) AddService(ctx context.Context, ws, projectID, environment, nam
 
 	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
 	defer cancel()
-	_, err = c.Packager.AddService(callCtx, &packager.AddServiceRequest{
-		Project:              projectID,
-		Environment:          environment,
-		Service:              name,
+	if err = c.Packager.AddService(callCtx, ws, projectID, data.ServiceDef{
+		Name:                 name,
 		Image:                image,
-		Port:                 int32(port),
+		Port:                 port,
 		Framework:            framework,
-		SourceUrl:            sourceURL,
+		SourceURL:            sourceURL,
 		ContextPath:          contextPath,
-		GithubInstallationId: ghInstallationID,
+		GitHubInstallationID: ghInstallationID,
 		ImageTag:             imageTag,
 		ImagePullPolicy:      imagePullPolicy,
 		CustomStartCommand:   customStartCommand,
 		StartCommand:         startCommand,
-	})
-	if err != nil {
+		Environment:          environment,
+	}); err != nil {
 		return nil, fmt.Errorf("failed to add service: %w", err)
 	}
 
@@ -159,23 +148,22 @@ func (c *Client) AddService(ctx context.Context, ws, projectID, environment, nam
 
 		startCtx, startCancel := context.WithTimeout(ctx, grpcTimeout)
 		defer startCancel()
-		buildResp, err := c.Builder.StartBuild(startCtx, &builder.StartBuildRequest{
-			SourceUrl:   sourceURL,
-			GitRef:      "",
-			Service:     name,
-			Registry:    registry,
-			ContextPath: contextPath,
-		})
+		buildID, err := c.Builder.StartBuild(startCtx, sourceURL, "", name, registry, contextPath)
 		if err != nil {
 			slog.Warn("failed to start initial deploy", "project", projectID, "service", name, "error", err)
 			return si, nil
 		}
 
 		deployID := uuid.New().String()
-		c.DeployTracker.Create(deployID, buildResp.BuildId, projectID, name, environment)
+		c.DeployTracker.Create(deployID, buildID, projectID, name, environment)
 
-		claims := auth.FromContext(ctx)
-		go c.runDeploy(claims, ws, deployID, projectID, name, environment, buildResp.BuildId)
+		claims, err := auth.FromContext(ctx)
+
+		if err != nil {
+			return nil, err
+		}
+
+		go c.runDeploy(claims, ws, deployID, projectID, name, environment, buildID)
 
 		si.InitialDeploy = deployOpFromState(c.DeployTracker.Get(deployID))
 	}
@@ -261,20 +249,14 @@ func parseImageRef(ref string) (repository, tag string) {
 }
 
 func (c *Client) RemoveService(ctx context.Context, projectID, environment, service string) (bool, error) {
-	if _, err := tenant.Require(ctx); err != nil {
+	ws, err := tenant.FromContext(ctx)
+	if err != nil {
 		return false, err
 	}
-	ctx = auth.OutgoingContext(ctx)
-	ctx = tenant.OutgoingContext(ctx)
 
 	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
 	defer cancel()
-	_, err := c.Packager.RemoveService(callCtx, &packager.RemoveServiceRequest{
-		Project:     projectID,
-		Environment: environment,
-		Service:     service,
-	})
-	if err != nil {
+	if err := c.Packager.RemoveService(callCtx, ws, projectID, environment, service); err != nil {
 		return false, fmt.Errorf("failed to remove service: %w", err)
 	}
 	return true, nil
@@ -282,21 +264,14 @@ func (c *Client) RemoveService(ctx context.Context, projectID, environment, serv
 
 // SetCustomStartCommand sets or clears the custom start command for a service.
 func (c *Client) SetCustomStartCommand(ctx context.Context, projectID, environment, service, command string) (bool, error) {
-	if _, err := tenant.Require(ctx); err != nil {
+	ws, err := tenant.FromContext(ctx)
+	if err != nil {
 		return false, err
 	}
-	ctx = auth.OutgoingContext(ctx)
-	ctx = tenant.OutgoingContext(ctx)
 
 	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
 	defer cancel()
-	_, err := c.Packager.SetCustomStartCommand(callCtx, &packager.SetCustomStartCommandRequest{
-		Project:     projectID,
-		Environment: environment,
-		Service:     service,
-		Command:     command,
-	})
-	if err != nil {
+	if err := c.Packager.SetCustomStartCommand(callCtx, ws, projectID, environment, service, command); err != nil {
 		return false, fmt.Errorf("failed to set custom start command: %w", err)
 	}
 	return true, nil
@@ -304,18 +279,18 @@ func (c *Client) SetCustomStartCommand(ctx context.Context, projectID, environme
 
 // serviceSourceInfo looks up the source URL, context path, and GitHub installation ID
 // for a service from the project's environment data in the GitOps repo.
-func (c *Client) serviceSourceInfo(ctx context.Context, projectID, service string) (sourceURL, contextPath string, installationID int64, err error) {
+func (c *Client) serviceSourceInfo(ctx context.Context, ws, projectID, service string) (sourceURL, contextPath string, installationID int64, err error) {
 	getCtx, getCancel := context.WithTimeout(ctx, grpcTimeout)
 	defer getCancel()
-	resp, err := c.Packager.GetProject(getCtx, &packager.GetProjectRequest{Project: projectID})
+	info, err := c.Packager.GetProject(getCtx, ws, projectID)
 	if err != nil {
 		return "", "", 0, fmt.Errorf("failed to get project: %w", err)
 	}
 
-	for _, env := range resp.Project.EnvironmentInfos {
+	for _, env := range info.EnvironmentInfos {
 		for _, svc := range env.Services {
 			if svc.Name == service {
-				return svc.SourceUrl, svc.ContextPath, svc.GithubInstallationId, nil
+				return svc.SourceURL, svc.ContextPath, svc.GitHubInstallationID, nil
 			}
 		}
 	}
@@ -376,11 +351,8 @@ func deployOpFromState(s *deploy.State) *DeployOp {
 // Deploy starts a unified build+deploy operation. It triggers a build and,
 // on success, automatically updates the image tag and syncs ArgoCD.
 func (c *Client) Deploy(ctx context.Context, ws, projectID, service, environment, gitRef string) (*DeployOp, error) {
-	ctx = auth.OutgoingContext(ctx)
-	ctx = tenant.OutgoingContext(ctx)
-
 	// Look up source URL, context path, and installation ID from the service definition
-	sourceURL, contextPath, installationID, err := c.serviceSourceInfo(ctx, projectID, service)
+	sourceURL, contextPath, installationID, err := c.serviceSourceInfo(ctx, ws, projectID, service)
 	if err != nil {
 		return nil, err
 	}
@@ -392,7 +364,6 @@ func (c *Client) Deploy(ctx context.Context, ws, projectID, service, environment
 		if err != nil {
 			return nil, fmt.Errorf("failed to authenticate with GitHub: %w", err)
 		}
-		ctx = auth.OutgoingContext(ctx) // re-set outgoing metadata with token
 	}
 
 	registry := deriveImagePath(c.RegistryPushURL, ws, projectID, service)
@@ -400,25 +371,24 @@ func (c *Client) Deploy(ctx context.Context, ws, projectID, service, environment
 	// Start the build
 	startCtx, startCancel := context.WithTimeout(ctx, grpcTimeout)
 	defer startCancel()
-	buildResp, err := c.Builder.StartBuild(startCtx, &builder.StartBuildRequest{
-		SourceUrl:   sourceURL,
-		GitRef:      gitRef,
-		Service:     service,
-		Registry:    registry,
-		ContextPath: contextPath,
-	})
+	buildID, err := c.Builder.StartBuild(startCtx, sourceURL, gitRef, service, registry, contextPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to start build: %w", err)
 	}
 
 	deployID := uuid.New().String()
-	c.DeployTracker.Create(deployID, buildResp.BuildId, projectID, service, environment)
+	c.DeployTracker.Create(deployID, buildID, projectID, service, environment)
 
 	// Run the deploy pipeline in the background.
 	// Extract the token before spawning the goroutine — the HTTP request context
 	// will be cancelled when the response is sent.
-	claims := auth.FromContext(ctx)
-	go c.runDeploy(claims, ws, deployID, projectID, service, environment, buildResp.BuildId)
+	claims, err := auth.FromContext(ctx)
+
+	if err != nil {
+		return nil, err
+	}
+
+	go c.runDeploy(claims, ws, deployID, projectID, service, environment, buildID)
 
 	return deployOpFromState(c.DeployTracker.Get(deployID)), nil
 }
@@ -445,36 +415,33 @@ func (c *Client) ActiveDeployment(ctx context.Context, projectID, service, envir
 // before failing the deploy. Prevents goroutine leaks from hung builds.
 const maxBuildDuration = 30 * time.Minute
 
-// grpcCtx mints a fresh short-lived JWT from the base context for a gRPC call.
-// Includes a default timeout to prevent indefinite hangs in polling loops.
+// grpcCtx returns a copy of the base context with a default short
+// timeout for inproc method calls in polling loops.
+//
+// The cancel func is intentionally discarded; callers in tight polling
+// loops would otherwise need to wire defer cancel() through every step
+// just to release a context that will be replaced on the next tick.
+// The leak window is bounded by the timeout itself.
+//
+//nolint:govet // intentional cancel-func leak in polling helper
 func (c *Client) grpcCtx(base context.Context) context.Context {
-	ctx := auth.OutgoingContext(base)
-	ctx = tenant.OutgoingContext(ctx)
-	ctx, _ = context.WithTimeout(ctx, grpcTimeout)
+	ctx, cancel := context.WithTimeout(base, grpcTimeout)
+	_ = cancel
 	return ctx
 }
 
 // runDeploy streams build logs from the builder and, on success, deploys the image.
 func (c *Client) runDeploy(claims *auth.Claims, workspace, deployID, projectID, service, environment, buildID string) {
-	// Build a base context with auth ingredients. Each gRPC call mints a fresh
-	// short-lived JWT via auth.OutgoingContext, avoiding token expiry during
-	// long-running polling loops.
-	base := context.Background()
-	base = auth.WithClaims(base, claims)
-	base = tenant.WithWorkspace(base, workspace)
-	base = auth.WithActiveWorkspace(base, workspace)
-	if c.Issuer != nil {
-		base = auth.WithIssuer(base, c.Issuer)
-	}
+	// Build a base context carrying user identity for inproc calls.
+	// Workspace is passed explicitly to each inproc method below.
+	base := auth.NewContext(context.Background(), claims)
 
-	slog.Info("deploy: goroutine started", "deployId", deployID, "buildId", buildID, "hasClaims", claims != nil, "hasIssuer", c.Issuer != nil, "workspace", workspace)
+	slog.Info("deploy: goroutine started", "deployId", deployID, "buildId", buildID, "hasClaims", claims != nil, "workspace", workspace)
 	c.DeployTracker.AppendLog(deployID, "Queued for build...")
 
-	// Stream build logs in a background goroutine.
-	// Uses a long-lived context (not grpcCtx which has a short timeout for unary RPCs).
-	logCtx := auth.OutgoingContext(base)
-	logCtx = tenant.OutgoingContext(logCtx)
-	logCtx, logCancel := context.WithTimeout(logCtx, maxBuildDuration)
+	// Stream build logs in a background goroutine, with a long timeout
+	// (longer than grpcCtx's polling timeout used elsewhere).
+	logCtx, logCancel := context.WithTimeout(base, maxBuildDuration)
 	go func() {
 		defer logCancel()
 		c.streamBuildLogs(logCtx, deployID, buildID)
@@ -485,7 +452,7 @@ func (c *Client) runDeploy(claims *auth.Claims, workspace, deployID, projectID, 
 	for time.Now().Before(deadline) {
 		time.Sleep(2 * time.Second)
 
-		status, err := c.Builder.BuildStatus(c.grpcCtx(base), &builder.BuildStatusRequest{BuildId: buildID})
+		status, err := c.Builder.BuildStatus(c.grpcCtx(base), buildID)
 		if err != nil {
 			slog.Error("deploy: failed to poll build status", "deployId", deployID, "buildId", buildID, "error", err)
 			c.DeployTracker.Fail(deployID, fmt.Sprintf("failed to poll build status: %v", err))
@@ -496,11 +463,11 @@ func (c *Client) runDeploy(claims *auth.Claims, workspace, deployID, projectID, 
 		c.DeployTracker.Update(deployID, phase)
 
 		switch status.Phase {
-		case builder.BuildPhase_BUILD_PHASE_SUCCEEDED:
+		case data.BuildPhaseSucceeded:
 			c.DeployTracker.AppendLog(deployID, "Build succeeded")
-			c.finalizeDeploy(base, deployID, projectID, service, environment, status.ImageRef, status.Digest)
+			c.finalizeDeploy(base, workspace, deployID, projectID, service, environment, status.ImageRef, status.Digest)
 			return
-		case builder.BuildPhase_BUILD_PHASE_FAILED:
+		case data.BuildPhaseFailed:
 			c.DeployTracker.AppendLog(deployID, fmt.Sprintf("Build failed: %s", status.Error))
 			c.DeployTracker.Fail(deployID, status.Error)
 			return
@@ -513,42 +480,28 @@ func (c *Client) runDeploy(claims *auth.Claims, workspace, deployID, projectID, 
 	slog.Error("deploy: build timed out", "deployId", deployID, "buildId", buildID, "timeout", maxBuildDuration)
 }
 
-// streamBuildLogs opens a gRPC stream to the builder and forwards log lines
-// into the deploy tracker. Runs until the stream ends or an error occurs.
+// streamBuildLogs reads from the builder's build-log channel and
+// forwards lines into the deploy tracker. Runs until the channel
+// closes or ctx is cancelled.
 func (c *Client) streamBuildLogs(ctx context.Context, deployID, buildID string) {
-	stream, err := c.Builder.BuildLogs(ctx, &builder.BuildLogsRequest{BuildId: buildID, Offset: 0})
+	lines, err := c.Builder.BuildLogs(ctx, buildID, 0)
 	if err != nil {
 		slog.Warn("deploy: failed to open build log stream", "deployId", deployID, "error", err)
 		return
 	}
-	for {
-		entry, err := stream.Recv()
-		if err == io.EOF {
-			return
-		}
-		if err != nil {
-			slog.Warn("deploy: build log stream ended", "deployId", deployID, "error", err)
-			return
-		}
-		c.DeployTracker.AppendLog(deployID, entry.Line)
+	for line := range lines {
+		c.DeployTracker.AppendLog(deployID, line)
 	}
 }
 
 // finalizeDeploy updates the GitOps repo, triggers ArgoCD sync, and monitors rollout health.
-func (c *Client) finalizeDeploy(ctx context.Context, deployID, projectID, service, environment, imageRef, digest string) {
+func (c *Client) finalizeDeploy(ctx context.Context, ws, deployID, projectID, service, environment, imageRef, digest string) {
 	c.DeployTracker.Update(deployID, deploy.PhaseDeploying)
 
 	tag := extractTag(imageRef)
 
 	c.DeployTracker.AppendLog(deployID, fmt.Sprintf("Updating GitOps repo (tag: %s)", tag))
-	_, err := c.Packager.UpdateImageTag(c.grpcCtx(ctx), &packager.UpdateImageTagRequest{
-		Project:     projectID,
-		Environment: environment,
-		Service:     service,
-		Tag:         tag,
-		Digest:      digest,
-	})
-	if err != nil {
+	if err := c.Packager.UpdateImageTag(c.grpcCtx(ctx), ws, projectID, environment, service, tag, digest, ""); err != nil {
 		c.DeployTracker.AppendLog(deployID, fmt.Sprintf("Failed to update image tag: %v", err))
 		c.DeployTracker.Fail(deployID, fmt.Sprintf("failed to update image tag: %v", err))
 		return
@@ -556,11 +509,7 @@ func (c *Client) finalizeDeploy(ctx context.Context, deployID, projectID, servic
 
 	c.DeployTracker.AppendLog(deployID, "Triggering ArgoCD sync...")
 	// Trigger ArgoCD sync (best-effort)
-	_, err = c.Deployer.SyncDeployment(c.grpcCtx(ctx), &deployer.SyncDeploymentRequest{
-		Project:     projectID,
-		Environment: environment,
-	})
-	if err != nil {
+	if _, err := c.Deployer.SyncDeployment(c.grpcCtx(ctx), ws, projectID, environment); err != nil {
 		slog.Warn("deploy: failed to trigger sync", "deployId", deployID, "error", err)
 		c.DeployTracker.AppendLog(deployID, fmt.Sprintf("Warning: sync trigger failed (%v), relying on auto-sync", err))
 	}
@@ -574,40 +523,37 @@ func (c *Client) finalizeDeploy(ctx context.Context, deployID, projectID, servic
 	for time.Now().Before(deadline) {
 		time.Sleep(3 * time.Second)
 
-		resp, err := c.Deployer.GetDeploymentStatus(c.grpcCtx(ctx), &deployer.GetDeploymentStatusRequest{
-			Project:     projectID,
-			Environment: environment,
-		})
+		st, message, err := c.Deployer.GetDeploymentStatus(c.grpcCtx(ctx), ws, projectID, environment)
 		if err != nil {
 			slog.Warn("deploy: failed to poll ArgoCD status", "deployId", deployID, "error", err)
 			continue
 		}
 
-		health := deploymentStatusToString(resp.Status)
-		c.DeployTracker.UpdateRolloutHealth(deployID, health, resp.Message)
+		health := string(st)
+		c.DeployTracker.UpdateRolloutHealth(deployID, health, message)
 
 		// Log health changes.
 		if health != lastHealth {
 			msg := fmt.Sprintf("ArgoCD: %s", health)
-			if resp.Message != "" {
-				msg += fmt.Sprintf(" — %s", resp.Message)
+			if message != "" {
+				msg += fmt.Sprintf(" — %s", message)
 			}
 			c.DeployTracker.AppendLog(deployID, msg)
 			lastHealth = health
 		}
 
-		switch resp.Status {
-		case deployer.DeploymentStatus_DEPLOYMENT_STATUS_SYNCED:
+		switch st {
+		case data.DeploymentStatusSynced:
 			// Healthy + Synced — rollout succeeded
 			c.DeployTracker.AppendLog(deployID, "Deploy succeeded")
 			c.DeployTracker.Succeed(deployID, imageRef, digest)
 			slog.Info("deploy succeeded", "deployId", deployID, "project", projectID, "service", service, "environment", environment, "tag", tag)
 			return
-		case deployer.DeploymentStatus_DEPLOYMENT_STATUS_DEGRADED:
+		case data.DeploymentStatusDegraded:
 			// Degraded — pods failed (ImagePullBackOff, CrashLoopBackOff, etc.)
-			c.DeployTracker.AppendLog(deployID, fmt.Sprintf("Deploy failed: %s", resp.Message))
-			c.DeployTracker.Fail(deployID, resp.Message)
-			slog.Warn("deploy failed: ArgoCD reports degraded", "deployId", deployID, "project", projectID, "environment", environment, "message", resp.Message)
+			c.DeployTracker.AppendLog(deployID, fmt.Sprintf("Deploy failed: %s", message))
+			c.DeployTracker.Fail(deployID, message)
+			slog.Warn("deploy failed: ArgoCD reports degraded", "deployId", deployID, "project", projectID, "environment", environment, "message", message)
 			return
 		}
 		// PROGRESSING, OUT_OF_SYNC, UNKNOWN — keep polling
@@ -620,19 +566,19 @@ func (c *Client) finalizeDeploy(ctx context.Context, deployID, projectID, servic
 	slog.Info("deploy tracking complete", "deployId", deployID, "project", projectID, "service", service, "environment", environment, "tag", tag)
 }
 
-func buildPhaseToDeployPhase(phase builder.BuildPhase) deploy.Phase {
+func buildPhaseToDeployPhase(phase data.BuildPhase) deploy.Phase {
 	switch phase {
-	case builder.BuildPhase_BUILD_PHASE_QUEUED:
+	case data.BuildPhaseQueued:
 		return deploy.PhaseQueued
-	case builder.BuildPhase_BUILD_PHASE_CLONING:
+	case data.BuildPhaseCloning:
 		return deploy.PhaseCloning
-	case builder.BuildPhase_BUILD_PHASE_BUILDING:
+	case data.BuildPhaseBuilding:
 		return deploy.PhaseBuilding
-	case builder.BuildPhase_BUILD_PHASE_PUSHING:
+	case data.BuildPhasePushing:
 		return deploy.PhasePushing
-	case builder.BuildPhase_BUILD_PHASE_SUCCEEDED:
+	case data.BuildPhaseSucceeded:
 		return deploy.PhaseSucceeded
-	case builder.BuildPhase_BUILD_PHASE_FAILED:
+	case data.BuildPhaseFailed:
 		return deploy.PhaseFailed
 	default:
 		return deploy.PhaseQueued
@@ -699,33 +645,21 @@ func (c *Client) DeployLogs(ctx context.Context, deployID string) (<-chan string
 
 // Rollback updates the image tag to a previous value without rebuilding.
 func (c *Client) Rollback(ctx context.Context, projectID, service, environment, imageTag string) (bool, error) {
-	if _, err := tenant.Require(ctx); err != nil {
+	ws, err := tenant.FromContext(ctx)
+	if err != nil {
 		return false, err
 	}
-	ctx = auth.OutgoingContext(ctx)
-	ctx = tenant.OutgoingContext(ctx)
 
 	updateCtx, updateCancel := context.WithTimeout(ctx, grpcTimeout)
 	defer updateCancel()
-	_, err := c.Packager.UpdateImageTag(updateCtx, &packager.UpdateImageTagRequest{
-		Project:      projectID,
-		Environment:  environment,
-		Service:      service,
-		Tag:          imageTag,
-		CommitPrefix: "rollback",
-	})
-	if err != nil {
+	if err := c.Packager.UpdateImageTag(updateCtx, ws, projectID, environment, service, imageTag, "", "rollback"); err != nil {
 		return false, fmt.Errorf("failed to rollback: %w", err)
 	}
 
 	// Trigger ArgoCD sync
 	syncCtx, syncCancel := context.WithTimeout(ctx, grpcTimeout)
 	defer syncCancel()
-	_, err = c.Deployer.SyncDeployment(syncCtx, &deployer.SyncDeploymentRequest{
-		Project:     projectID,
-		Environment: environment,
-	})
-	if err != nil {
+	if _, err := c.Deployer.SyncDeployment(syncCtx, ws, projectID, environment); err != nil {
 		slog.Warn("failed to trigger sync after rollback", "project", projectID, "environment", environment, "error", err)
 	}
 
@@ -778,13 +712,11 @@ func (c *Client) CheckDns(ctx context.Context, hostname string) DnsCheck {
 	// Look up TLS cert status for custom domains.
 	statusCtx, statusCancel := context.WithTimeout(c.grpcCtx(ctx), 3*time.Second)
 	defer statusCancel()
-	resp, err := c.Deployer.CustomDomainStatus(statusCtx, &deployer.CustomDomainStatusRequest{
-		Hostname: hostname,
-	})
+	cdStatus, err := c.Deployer.CustomDomainStatus(statusCtx, hostname)
 	if err != nil {
 		slog.Debug("failed to check TLS status", "hostname", hostname, "error", err)
 	} else {
-		result.TlsStatus = resp.TlsStatus
+		result.TlsStatus = cdStatus.TLSStatus
 	}
 
 	lookupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -864,21 +796,15 @@ func (c *Client) buildDomain(ctx context.Context, hostname string) Domain {
 // GenerateDomain creates a platform domain for a service in an environment.
 // Format: {service}-{env}-{randomSuffix}.{workloadDomain}.
 func (c *Client) GenerateDomain(ctx context.Context, projectID, service, environment string) (*Domain, error) {
-	if _, err := tenant.Require(ctx); err != nil {
+	ws, err := tenant.FromContext(ctx)
+	if err != nil {
 		return nil, err
 	}
-	ctx = auth.OutgoingContext(ctx)
-	ctx = tenant.OutgoingContext(ctx)
 
 	generateCtx, generateCancel := context.WithTimeout(ctx, grpcTimeout)
 	defer generateCancel()
 
-	resp, err := c.Packager.GeneratePlatformDomain(generateCtx, &packager.GeneratePlatformDomainRequest{
-		Project:     projectID,
-		Environment: environment,
-		Service:     service,
-	})
-
+	hostname, err := c.Packager.GeneratePlatformDomain(generateCtx, ws, projectID, environment, service)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate platform domain: %w", err)
 	}
@@ -886,17 +812,11 @@ func (c *Client) GenerateDomain(ctx context.Context, projectID, service, environ
 	syncCtx, syncCancel := context.WithTimeout(ctx, grpcTimeout)
 	defer syncCancel()
 
-	_, err = c.Deployer.SyncDeployment(syncCtx, &deployer.SyncDeploymentRequest{
-		Project:     projectID,
-		Environment: environment,
-	})
-
-	if err != nil {
+	if _, err := c.Deployer.SyncDeployment(syncCtx, ws, projectID, environment); err != nil {
 		slog.Warn("failed to trigger sync after domain add", "project", projectID, "environment", environment, "error", err)
 	}
 
-	d := c.buildDomain(ctx, resp.Hostname)
-
+	d := c.buildDomain(ctx, hostname)
 	return &d, nil
 }
 
@@ -985,11 +905,10 @@ func validateHostname(hostname string) error {
 
 // AddCustomDomain adds a user-specified custom domain to a service.
 func (c *Client) AddCustomDomain(ctx context.Context, projectID, service, environment, hostname string) (*Domain, error) {
-	if _, err := tenant.Require(ctx); err != nil {
+	ws, err := tenant.FromContext(ctx)
+	if err != nil {
 		return nil, err
 	}
-	ctx = auth.OutgoingContext(ctx)
-	ctx = tenant.OutgoingContext(ctx)
 
 	if err := validateHostname(hostname); err != nil {
 		return nil, fmt.Errorf("invalid hostname: %w", err)
@@ -1002,38 +921,23 @@ func (c *Client) AddCustomDomain(ctx context.Context, projectID, service, enviro
 
 	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
 	defer cancel()
-	_, err := c.Packager.AddDomain(callCtx, &packager.AddDomainRequest{
-		Project:     projectID,
-		Environment: environment,
-		Service:     service,
-		Hostname:    hostname,
-	})
-	if err != nil {
+	if err := c.Packager.AddDomain(callCtx, ws, projectID, environment, service, hostname); err != nil {
 		return nil, fmt.Errorf("failed to add custom domain: %w", err)
 	}
 
 	// Provision TLS certificate
 	provCtx, provCancel := context.WithTimeout(ctx, grpcTimeout)
 	defer provCancel()
-	provResp, provErr := c.Deployer.ProvisionCustomDomain(provCtx, &deployer.ProvisionCustomDomainRequest{
-		Hostname: hostname,
-	})
-	tlsStatus := "PROVISIONING"
+	tlsStatus, provErr := c.Deployer.ProvisionCustomDomain(provCtx, hostname)
 	if provErr != nil {
 		slog.Warn("failed to provision TLS certificate", "hostname", hostname, "error", provErr)
 		tlsStatus = "ERROR"
-	} else {
-		tlsStatus = provResp.TlsStatus
 	}
 
 	// Trigger ArgoCD sync
 	syncCtx, syncCancel := context.WithTimeout(ctx, grpcTimeout)
 	defer syncCancel()
-	_, err = c.Deployer.SyncDeployment(syncCtx, &deployer.SyncDeploymentRequest{
-		Project:     projectID,
-		Environment: environment,
-	})
-	if err != nil {
+	if _, err := c.Deployer.SyncDeployment(syncCtx, ws, projectID, environment); err != nil {
 		slog.Warn("failed to trigger sync after domain add", "project", projectID, "environment", environment, "error", err)
 	}
 
@@ -1050,21 +954,14 @@ func (c *Client) AddCustomDomain(ctx context.Context, projectID, service, enviro
 
 // RemoveDomain removes a domain from a service in an environment.
 func (c *Client) RemoveDomain(ctx context.Context, projectID, service, environment, hostname string) (bool, error) {
-	if _, err := tenant.Require(ctx); err != nil {
+	ws, err := tenant.FromContext(ctx)
+	if err != nil {
 		return false, err
 	}
-	ctx = auth.OutgoingContext(ctx)
-	ctx = tenant.OutgoingContext(ctx)
 
 	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
 	defer cancel()
-	_, err := c.Packager.RemoveDomain(callCtx, &packager.RemoveDomainRequest{
-		Project:     projectID,
-		Environment: environment,
-		Service:     service,
-		Hostname:    hostname,
-	})
-	if err != nil {
+	if err := c.Packager.RemoveDomain(callCtx, ws, projectID, environment, service, hostname); err != nil {
 		return false, fmt.Errorf("failed to remove domain: %w", err)
 	}
 
@@ -1072,10 +969,7 @@ func (c *Client) RemoveDomain(ctx context.Context, projectID, service, environme
 	if !c.IsPlatformDomain(hostname) {
 		delCtx, delCancel := context.WithTimeout(ctx, grpcTimeout)
 		defer delCancel()
-		_, delErr := c.Deployer.DeleteCustomDomain(delCtx, &deployer.DeleteCustomDomainRequest{
-			Hostname: hostname,
-		})
-		if delErr != nil {
+		if delErr := c.Deployer.DeleteCustomDomain(delCtx, hostname); delErr != nil {
 			slog.Warn("failed to delete TLS certificate", "hostname", hostname, "error", delErr)
 		}
 	}
@@ -1083,11 +977,7 @@ func (c *Client) RemoveDomain(ctx context.Context, projectID, service, environme
 	// Trigger ArgoCD sync
 	syncCtx, syncCancel := context.WithTimeout(ctx, grpcTimeout)
 	defer syncCancel()
-	_, err = c.Deployer.SyncDeployment(syncCtx, &deployer.SyncDeploymentRequest{
-		Project:     projectID,
-		Environment: environment,
-	})
-	if err != nil {
+	if _, err := c.Deployer.SyncDeployment(syncCtx, ws, projectID, environment); err != nil {
 		slog.Warn("failed to trigger sync after domain remove", "project", projectID, "environment", environment, "error", err)
 	}
 

@@ -1,22 +1,22 @@
 // Command conductor is the unified Lucity control-plane binary.
 //
-// Phase 3d wires the packager / deployer / builder gRPC services
-// in-process via a bufconn-backed gRPC pipe. The handler still talks
-// over the typed grpc.ClientConn interfaces it always has — the
-// transport just no longer crosses a real network. This means:
+// The packager / deployer / builder modules live in
+// services/conductor/internal/inproc/. The handler holds *Server
+// pointers directly and calls their methods as plain Go functions —
+// no gRPC, no bufconn, no marshalling. The packager↔deployer cycle
+// is broken with narrow local interfaces (PackagerService /
+// DeployerService) plus SetXxx setters wired in this file.
 //
-//   - Streaming RPCs (deployer.ServiceLogs, builder.BuildLogs) keep
-//     working without per-method adapter code.
-//   - Auth interceptors are skipped on the in-process pipe; calls
-//     between in-process components are trusted.
-//   - Inbound external gRPC (cashier → conductor.SuspendWorkspace)
-//     uses a separate, real listener with the internal-JWT verifier.
+// External gRPC surfaces:
+//   - Inbound from cashier on :GRPC_PORT — defined in pkg/conductor.
+//     Verified with the internal-JWT verifier interceptor.
+//   - Outbound to cashier on :CASHIER_ADDR — uses pkg/cashier.
+//     Signs requests with the internal-JWT issuer.
 package main
 
 import (
 	"context"
 	"log/slog"
-	"net"
 	"os"
 	"time"
 
@@ -24,20 +24,16 @@ import (
 	"golang.org/x/crypto/ssh"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/test/bufconn"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/zeitlos/lucity/pkg/auth"
-	builderpb "github.com/zeitlos/lucity/pkg/builder"
 	"github.com/zeitlos/lucity/pkg/cashier"
-	deployerpb "github.com/zeitlos/lucity/pkg/deployer"
 	ghpkg "github.com/zeitlos/lucity/pkg/github"
 	"github.com/zeitlos/lucity/pkg/graceful"
 	"github.com/zeitlos/lucity/pkg/logger"
 	"github.com/zeitlos/lucity/pkg/logto"
-	packagerpb "github.com/zeitlos/lucity/pkg/packager"
 
 	"github.com/zeitlos/lucity/services/conductor/internal/api/handler"
 	webhookpkg "github.com/zeitlos/lucity/services/conductor/internal/api/webhook"
@@ -217,60 +213,22 @@ func main() {
 
 	// ---- Construct in-process server impls ----
 	//
-	// Cycle: packager Server holds a deployer client; deployer Server
-	// holds a packager client. We construct both with nil cross-refs,
-	// then wire via SetDeployer / SetPackager once the bufconn-backed
-	// clients are available below.
+	// Cycle: packager.Server holds a DeployerService; deployer.Server
+	// holds a PackagerService. We construct both with nil cross-refs
+	// then resolve via SetDeployer / SetPackager. Each side uses a
+	// narrow local interface so neither package imports the other.
 	clusterHTTP := config.SoftServeClusterHTTP
 	if clusterHTTP == "" {
 		clusterHTTP = config.SoftServeHTTP
 	}
 
-	packagerSvc := inprocpackager.NewServer(forge, nil, internalIssuer, config.WorkloadDomain)
-	deployerSvc := inprocdeployer.NewServer(argoClient, nil, clusterHTTP, config.SoftServeToken, k8sClient, dynClient, internalIssuer, config.GatewayName, config.GatewayNamespace, config.ClusterIssuer, config.RegistryPullSecret)
+	packagerSvc := inprocpackager.NewServer(forge, nil, config.WorkloadDomain)
+	deployerSvc := inprocdeployer.NewServer(argoClient, nil, clusterHTTP, config.SoftServeToken, k8sClient, dynClient, config.GatewayName, config.GatewayNamespace, config.ClusterIssuer, config.RegistryPullSecret)
 	builderSvc := inprocbuilder.NewServer(buildEng, buildTracker, config.RegistryURL, config.RegistryUsername, config.RegistryPassword, config.RegistryInsecure, config.WorkDir)
 
-	// ---- bufconn-backed in-process gRPC ----
-	//
-	// Register all three server impls on a single grpc.Server reachable
-	// only via an in-memory pipe. The handler holds standard gRPC
-	// clients that dial through that pipe.
-	//
-	// No auth interceptors here: in-process is implicitly trusted, and
-	// adding the interceptor would require minting an internal JWT for
-	// every RPC just to talk to ourselves.
-	const bufSize = 4 * 1024 * 1024
-	listener := bufconn.Listen(bufSize)
-	inprocServer := grpc.NewServer()
-	packagerpb.RegisterPackagerServiceServer(inprocServer, packagerSvc)
-	deployerpb.RegisterDeployerServiceServer(inprocServer, deployerSvc)
-	builderpb.RegisterBuilderServiceServer(inprocServer, builderSvc)
-	go func() {
-		if err := inprocServer.Serve(listener); err != nil {
-			slog.Error("in-process gRPC server stopped", "error", err)
-		}
-	}()
-	defer inprocServer.GracefulStop()
-
-	conn, err := grpc.NewClient("passthrough:///bufnet",
-		grpc.WithContextDialer(func(_ context.Context, _ string) (net.Conn, error) {
-			return listener.Dial()
-		}),
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	)
-	if err != nil {
-		slog.Error("failed to dial in-process gRPC", "error", err)
-		os.Exit(1)
-	}
-	defer conn.Close()
-
-	packagerClient := packagerpb.NewPackagerServiceClient(conn)
-	deployerClient := deployerpb.NewDeployerServiceClient(conn)
-	builderClient := builderpb.NewBuilderServiceClient(conn)
-
-	// Now that the clients exist, break the construction cycle.
-	packagerSvc.SetDeployer(deployerClient)
-	deployerSvc.SetPackager(packagerClient)
+	// Direct cross-wiring — Go method calls, no gRPC pipe.
+	packagerSvc.SetDeployer(deployerSvc)
+	deployerSvc.SetPackager(packagerSvc)
 
 	// Custom-domain reconciliation runs on the deployer service.
 	go reconcileCustomDomains(ctx, deployerSvc)
@@ -319,7 +277,7 @@ func main() {
 	secure := secureCookies(config.DashboardURL)
 	tokenRefresher := newTokenRefresher(oidcProvider, secure)
 
-	api := handler.New(packagerClient, builderClient, deployerClient, cashierClient, internalIssuer, githubApp, logtoClient, tokenRefresher, config.RegistryURL, registryImagePrefix, config.WorkloadDomain, domainTarget, config.IPAddress, config.GitHubAppSlug, config.DashboardURL)
+	api := handler.New(packagerSvc, builderSvc, deployerSvc, cashierClient, internalIssuer, githubApp, logtoClient, tokenRefresher, config.RegistryURL, registryImagePrefix, config.WorkloadDomain, domainTarget, config.IPAddress, config.GitHubAppSlug, config.DashboardURL)
 
 	// ---- Servers ----
 	components := []grpcComponent{}
@@ -336,12 +294,11 @@ func main() {
 	// authenticate to clone source repos.
 	if githubApp != nil {
 		webhookHandler := &webhookhttp.Handler{
-			GitHubApp:      githubApp,
-			InternalIssuer: internalIssuer,
+			GitHubApp: githubApp,
 			Pipeline: &webhookpkg.Pipeline{
-				Builder:         builderClient,
-				Packager:        packagerClient,
-				Deployer:        deployerClient,
+				Builder:         builderSvc,
+				Packager:        packagerSvc,
+				Deployer:        deployerSvc,
 				RegistryPushURL: config.RegistryURL,
 			},
 		}

@@ -3,63 +3,30 @@ package handler
 import (
 	"context"
 	"fmt"
-	"io"
-	"log/slog"
 
-	"github.com/zeitlos/lucity/pkg/auth"
-	"github.com/zeitlos/lucity/pkg/deployer"
 	"github.com/zeitlos/lucity/pkg/tenant"
+	inprocdeployer "github.com/zeitlos/lucity/services/conductor/internal/inproc/deployer"
 )
 
-// ServiceLogEntry represents a single runtime log line from a running pod.
-type ServiceLogEntry struct {
-	Line string
-	Pod  string
-}
+// ServiceLogEntry is re-exported from the inproc deployer so resolvers
+// don't have to know about that package.
+type ServiceLogEntry = inprocdeployer.ServiceLogEntry
 
 // ServiceLogs returns a channel of log entries from running pods.
-// The channel is closed when the stream ends or the context is cancelled.
+// The channel is closed when all pod streams end or ctx is cancelled.
 func (c *Client) ServiceLogs(ctx context.Context, projectID, service, environment string, tailLines *int) (<-chan ServiceLogEntry, error) {
-	if _, err := tenant.Require(ctx); err != nil {
+	ws, err := tenant.FromContext(ctx)
+	if err != nil {
 		return nil, err
 	}
-	ctx = auth.OutgoingContext(ctx)
-	ctx = tenant.OutgoingContext(ctx)
 
-	req := &deployer.ServiceLogsRequest{
-		Project:     projectID,
-		Environment: environment,
-		Service:     service,
-		TailLines:   1000,
-	}
+	tail := 1000
 	if tailLines != nil {
-		req.TailLines = int32(*tailLines)
+		tail = *tailLines
 	}
-
-	stream, err := c.Deployer.ServiceLogs(ctx, req)
+	out, err := c.Deployer.ServiceLogs(ctx, ws, projectID, environment, service, tail)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open service logs stream: %w", err)
 	}
-
-	out := make(chan ServiceLogEntry, 128)
-	go func() {
-		defer close(out)
-		for {
-			entry, err := stream.Recv()
-			if err == io.EOF {
-				return
-			}
-			if err != nil {
-				slog.Warn("service log stream ended", "project", projectID, "service", service, "error", err)
-				return
-			}
-			select {
-			case out <- ServiceLogEntry{Line: entry.Line, Pod: entry.Pod}:
-			case <-ctx.Done():
-				return
-			}
-		}
-	}()
-
 	return out, nil
 }

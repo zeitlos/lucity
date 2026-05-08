@@ -2,6 +2,7 @@ package builder
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -10,19 +11,20 @@ import (
 	"github.com/go-git/go-git/v5"
 	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/google/uuid"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 
 	"github.com/zeitlos/lucity/pkg/auth"
-	"github.com/zeitlos/lucity/pkg/builder"
-	"github.com/zeitlos/lucity/pkg/tenant"
 	"github.com/zeitlos/lucity/services/conductor/internal/builder/build"
 	"github.com/zeitlos/lucity/services/conductor/internal/builder/engine"
+	"github.com/zeitlos/lucity/services/conductor/internal/data"
 )
 
-// Server implements the BuilderService gRPC API.
+// ErrBuildNotFound is returned when a build ID can't be located.
+var ErrBuildNotFound = errors.New("build not found")
+
+// Server implements the builder logic. It used to be a gRPC server
+// reachable via a bufconn pipe; today the handler holds it directly
+// and calls Go methods.
 type Server struct {
-	builder.UnimplementedBuilderServiceServer
 	engine           engine.Engine
 	tracker          build.Tracker
 	registryURL      string
@@ -45,66 +47,58 @@ func NewServer(eng engine.Engine, tracker build.Tracker, registryURL, registryUs
 	}
 }
 
-func (s *Server) DetectServices(ctx context.Context, req *builder.DetectServicesRequest) (*builder.DetectServicesResponse, error) {
-	slog.Info("DetectServices called", "source_url", req.SourceUrl)
+// DetectServices clones the source repo and runs Railpack to detect
+// services and frameworks.
+func (s *Server) DetectServices(ctx context.Context, sourceURL, gitRef string) ([]data.DetectedService, error) {
+	slog.Info("DetectServices called", "source_url", sourceURL)
 
-	// Clone the repo — GitHub token arrives via gRPC metadata from the gateway.
 	ghToken := auth.GitHubTokenFrom(ctx)
-	repoPath, err := s.cloneRepo(ctx, req.SourceUrl, req.GitRef, ghToken)
+	repoPath, err := s.cloneRepo(ctx, sourceURL, gitRef, ghToken)
 	if err != nil {
-		slog.Error("clone failed", "source_url", req.SourceUrl, "error", err)
-		return nil, status.Errorf(codes.Internal, "failed to clone repo: %v", err)
+		slog.Error("clone failed", "source_url", sourceURL, "error", err)
+		return nil, fmt.Errorf("failed to clone repo: %w", err)
 	}
 	defer os.RemoveAll(repoPath)
-	slog.Info("clone succeeded", "source_url", req.SourceUrl, "path", repoPath)
 
-	// Run detection
 	results, err := s.engine.Detect(ctx, repoPath)
 	if err != nil {
-		slog.Error("detection failed", "source_url", req.SourceUrl, "error", err)
-		return nil, status.Errorf(codes.Internal, "detection failed: %v", err)
+		slog.Error("detection failed", "source_url", sourceURL, "error", err)
+		return nil, fmt.Errorf("detection failed: %w", err)
 	}
+	slog.Info("detection complete", "source_url", sourceURL, "services_found", len(results))
 
-	slog.Info("detection complete", "source_url", req.SourceUrl, "services_found", len(results))
-
-	var services []*builder.DetectedService
+	out := make([]data.DetectedService, 0, len(results))
 	for _, r := range results {
-		services = append(services, &builder.DetectedService{
+		out = append(out, data.DetectedService{
 			Name:          r.Name,
 			Provider:      r.Provider,
 			Framework:     r.Framework,
 			StartCommand:  r.StartCommand,
-			SuggestedPort: int32(r.SuggestedPort),
+			SuggestedPort: r.SuggestedPort,
 		})
 	}
-
-	return &builder.DetectServicesResponse{Services: services}, nil
+	return out, nil
 }
 
-func (s *Server) StartBuild(ctx context.Context, req *builder.StartBuildRequest) (*builder.StartBuildResponse, error) {
-	slog.Info("StartBuild called",
-		"source_url", req.SourceUrl,
-		"service", req.Service,
-		"registry", req.Registry,
-	)
+// StartBuild kicks off an async build job and returns its ID.
+func (s *Server) StartBuild(ctx context.Context, sourceURL, gitRef, service, registry, contextPath string) (string, error) {
+	slog.Info("StartBuild called", "source_url", sourceURL, "service", service, "registry", registry)
 
 	buildID := uuid.NewString()
 	s.tracker.Create(buildID)
 
-	// Run the build asynchronously — pass the GitHub token from gRPC metadata.
 	ghToken := auth.GitHubTokenFrom(ctx)
-	go s.runBuild(buildID, ghToken, req)
-
-	return &builder.StartBuildResponse{BuildId: buildID}, nil
+	go s.runBuild(buildID, ghToken, sourceURL, gitRef, registry, contextPath)
+	return buildID, nil
 }
 
-func (s *Server) BuildStatus(ctx context.Context, req *builder.BuildStatusRequest) (*builder.BuildStatusResponse, error) {
-	state := s.tracker.Get(req.BuildId)
+// BuildStatus returns the current state of an async build.
+func (s *Server) BuildStatus(ctx context.Context, buildID string) (data.BuildStatus, error) {
+	state := s.tracker.Get(buildID)
 	if state == nil {
-		return nil, status.Error(codes.NotFound, "build not found")
+		return data.BuildStatus{}, ErrBuildNotFound
 	}
-
-	return &builder.BuildStatusResponse{
+	return data.BuildStatus{
 		Phase:    state.Phase,
 		ImageRef: state.ImageRef,
 		Digest:   state.Digest,
@@ -112,60 +106,63 @@ func (s *Server) BuildStatus(ctx context.Context, req *builder.BuildStatusReques
 	}, nil
 }
 
-// BuildLogs streams build log lines in real time. It sends existing lines
-// from the given offset, then continues sending new lines until the build
-// reaches a terminal phase and all lines have been sent.
-func (s *Server) BuildLogs(req *builder.BuildLogsRequest, stream builder.BuilderService_BuildLogsServer) error {
-	state := s.tracker.Get(req.BuildId)
-	if state == nil {
-		return status.Error(codes.NotFound, "build not found")
+// BuildLogs returns a channel of build log lines, starting from the
+// given offset. The channel is closed when the build reaches a
+// terminal phase and all lines have been emitted, or when ctx is
+// cancelled.
+func (s *Server) BuildLogs(ctx context.Context, buildID string, offset int) (<-chan string, error) {
+	if s.tracker.Get(buildID) == nil {
+		return nil, ErrBuildNotFound
 	}
 
-	offset := int(req.Offset)
-
-	for {
-		lines := s.tracker.LogLines(req.BuildId, offset)
-		for _, line := range lines {
-			if err := stream.Send(&builder.BuildLogEntry{Line: line}); err != nil {
-				return err
-			}
-		}
-		offset += len(lines)
-
-		// If the build is done and we've sent all lines, we're finished.
-		if s.tracker.IsTerminal(req.BuildId) {
-			// Drain any final lines that appeared between the last check and now.
-			final := s.tracker.LogLines(req.BuildId, offset)
-			for _, line := range final {
-				if err := stream.Send(&builder.BuildLogEntry{Line: line}); err != nil {
-					return err
+	out := make(chan string, 32)
+	go func() {
+		defer close(out)
+		for {
+			lines := s.tracker.LogLines(buildID, offset)
+			for _, line := range lines {
+				select {
+				case out <- line:
+				case <-ctx.Done():
+					return
 				}
 			}
-			return nil
-		}
+			offset += len(lines)
 
-		// Wait before checking for new lines.
-		select {
-		case <-stream.Context().Done():
-			return stream.Context().Err()
-		case <-time.After(200 * time.Millisecond):
+			if s.tracker.IsTerminal(buildID) {
+				// Drain any final lines that appeared between the last check and now.
+				for _, line := range s.tracker.LogLines(buildID, offset) {
+					select {
+					case out <- line:
+					case <-ctx.Done():
+						return
+					}
+				}
+				return
+			}
+
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(200 * time.Millisecond):
+			}
 		}
-	}
+	}()
+	return out, nil
 }
 
-func (s *Server) DeleteImages(ctx context.Context, req *builder.DeleteImagesRequest) (*builder.DeleteImagesResponse, error) {
-	slog.Info("DeleteImages called", "project", req.Project)
+// DeleteImages removes all OCI repositories belonging to a project.
+func (s *Server) DeleteImages(ctx context.Context, workspace, project string) ([]string, error) {
+	slog.Info("DeleteImages called", "project", project)
 
-	ws := tenant.FromContext(ctx)
-	repos, err := s.projectRepositories(ctx, ws, req.Project)
+	repos, err := s.projectRepositories(ctx, workspace, project)
 	if err != nil {
-		slog.Warn("failed to discover project repositories", "project", req.Project, "error", err)
-		return &builder.DeleteImagesResponse{}, nil
+		slog.Warn("failed to discover project repositories", "project", project, "error", err)
+		return nil, nil
 	}
-
 	if len(repos) == 0 {
-		slog.Info("no repositories found for project", "project", req.Project)
-		return &builder.DeleteImagesResponse{}, nil
+		slog.Info("no repositories found for project", "project", project)
+		return nil, nil
 	}
 
 	var deleted []string
@@ -177,8 +174,7 @@ func (s *Server) DeleteImages(ctx context.Context, req *builder.DeleteImagesRequ
 		slog.Info("deleted repository", "repo", repo)
 		deleted = append(deleted, repo)
 	}
-
-	return &builder.DeleteImagesResponse{DeletedRepositories: deleted}, nil
+	return deleted, nil
 }
 
 // maxBuildDuration is the maximum time to wait for a build to complete.
@@ -186,18 +182,18 @@ const maxBuildDuration = 30 * time.Minute
 
 // runBuild executes the full build pipeline in a background goroutine.
 // Creates a K8s Job and polls for completion — the Job pod handles clone/build/push.
-func (s *Server) runBuild(buildID, token string, req *builder.StartBuildRequest) {
+func (s *Server) runBuild(buildID, token, sourceURL, gitRef, registry, contextPath string) {
 	ctx, cancel := context.WithTimeout(context.Background(), maxBuildDuration)
 	defer cancel()
 
-	s.tracker.Update(buildID, builder.BuildPhase_BUILD_PHASE_BUILDING)
+	s.tracker.Update(buildID, data.BuildPhaseBuilding)
 	result, err := s.engine.Build(ctx, engine.BuildOpts{
 		BuildID:     buildID,
-		ContextPath: req.ContextPath,
-		SourceURL:   req.SourceUrl,
-		GitRef:      req.GitRef,
+		ContextPath: contextPath,
+		SourceURL:   sourceURL,
+		GitRef:      gitRef,
 		GitHubToken: token,
-		Registry:    req.Registry,
+		Registry:    registry,
 		Insecure:    s.registryInsecure,
 	})
 	if err != nil {

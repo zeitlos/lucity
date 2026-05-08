@@ -8,19 +8,15 @@ import (
 	"strings"
 
 	"github.com/zeitlos/lucity/pkg/auth"
-	"github.com/zeitlos/lucity/pkg/deployer"
 	ghpkg "github.com/zeitlos/lucity/pkg/github"
-	"github.com/zeitlos/lucity/pkg/packager"
-	"github.com/zeitlos/lucity/pkg/tenant"
 	webhook "github.com/zeitlos/lucity/services/conductor/internal/api/webhook"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/webhook/github"
 )
 
 // Handler holds the dependencies for webhook event processing.
 type Handler struct {
-	GitHubApp      *ghpkg.App
-	InternalIssuer *auth.Issuer // ES256 issuer for gRPC service-to-service auth (nil = legacy mode)
-	Pipeline       *webhook.Pipeline
+	GitHubApp *ghpkg.App
+	Pipeline  *webhook.Pipeline
 }
 
 type Server struct {
@@ -108,22 +104,16 @@ func (h *Handler) handlePush(event *github.Event) {
 		return
 	}
 
-	// Set identity and workspace context for gRPC propagation.
-	if h.InternalIssuer != nil {
-		ctx = auth.WithIssuer(ctx, h.InternalIssuer)
-	}
-	ctx = auth.WithClaims(ctx, &auth.Claims{
+	// Carry the user identity and GitHub token on the context.
+	// (Workspace is now passed explicitly to Pipeline.Run.)
+	ctx = auth.NewContext(ctx, &auth.Claims{
 		Subject: "webhook",
 		Roles:   []auth.Role{auth.RoleUser},
 	})
-	ctx = tenant.WithWorkspace(ctx, ws)
-	ctx = auth.WithActiveWorkspace(ctx, ws)
 	ctx = auth.WithGitHubToken(ctx, ghToken)
-	ctx = auth.OutgoingContext(ctx)
-	ctx = tenant.OutgoingContext(ctx)
 
 	// List all projects and find services matching this repo.
-	resp, err := h.Pipeline.Packager.ListProjects(ctx, &packager.ListProjectsRequest{})
+	infos, err := h.Pipeline.Packager.ListProjects(ctx, ws)
 	if err != nil {
 		slog.Error("push: failed to list projects", "error", err)
 		return
@@ -132,13 +122,13 @@ func (h *Handler) handlePush(event *github.Event) {
 	repoURL := fmt.Sprintf("https://github.com/%s", event.RepoFullName)
 	environment := "development"
 
-	for _, proj := range resp.Projects {
+	for _, proj := range infos {
 		for _, envInfo := range proj.EnvironmentInfos {
 			if envInfo.Name != environment {
 				continue
 			}
 			for _, svc := range envInfo.Services {
-				if !matchesRepo(svc.SourceUrl, repoURL) {
+				if !matchesRepo(svc.SourceURL, repoURL) {
 					continue
 				}
 
@@ -150,34 +140,20 @@ func (h *Handler) handlePush(event *github.Event) {
 					"workspace", ws,
 				)
 
-				go h.Pipeline.Run(ctx, proj.Name, svc.Name, environment, event.CommitSHA, svc.SourceUrl, svc.ContextPath)
+				go h.Pipeline.Run(ctx, ws, proj.Name, svc.Name, environment, event.CommitSHA, svc.SourceURL, svc.ContextPath)
 			}
 		}
 	}
 }
 
 // lookupWorkspace resolves the workspace for a GitHub App installation ID
-// by querying the deployer's WorkspaceByInstallationID RPC.
+// by asking the inproc deployer.
 func (h *Handler) lookupWorkspace(ctx context.Context, installationID int64, ghToken string) (string, error) {
-	// Set identity context for gRPC propagation.
-	lookupCtx := ctx
-	if h.InternalIssuer != nil {
-		lookupCtx = auth.WithIssuer(lookupCtx, h.InternalIssuer)
-	}
-	lookupCtx = auth.WithClaims(lookupCtx, &auth.Claims{
-		Subject: "webhook",
-		Roles:   []auth.Role{auth.RoleUser},
-	})
-	lookupCtx = auth.OutgoingContext(lookupCtx)
-
-	resp, err := h.Pipeline.Deployer.WorkspaceByInstallationID(lookupCtx, &deployer.WorkspaceByInstallationIDRequest{
-		InstallationId: installationID,
-	})
+	ws, err := h.Pipeline.Deployer.WorkspaceByInstallationID(ctx, installationID)
 	if err != nil {
 		return "", fmt.Errorf("deployer lookup failed: %w", err)
 	}
-
-	return resp.Workspace, nil
+	return ws, nil
 }
 
 // matchesRepo checks if a service's source URL matches a repo URL.

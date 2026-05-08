@@ -20,24 +20,32 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/zeitlos/lucity/pkg/auth"
-	"github.com/zeitlos/lucity/pkg/deployer"
 	"github.com/zeitlos/lucity/pkg/labels"
-	"github.com/zeitlos/lucity/pkg/packager"
-	"github.com/zeitlos/lucity/pkg/tenant"
+	"github.com/zeitlos/lucity/services/conductor/internal/data"
 	"github.com/zeitlos/lucity/services/conductor/internal/deployer/argo/argocd"
 	"github.com/zeitlos/lucity/services/conductor/internal/deployer/argo/database"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
+// PackagerService is the narrow slice of the inproc packager that the
+// deployer calls back into. Defined here to break the import cycle
+// between inproc/deployer and inproc/packager.
+type PackagerService interface {
+	SetSuspended(ctx context.Context, workspace, project, environment string, suspended bool) error
+}
+
+// ServiceLogEntry is a single log line from a workload pod.
+type ServiceLogEntry struct {
+	Line string
+	Pod  string
+}
+
 type Server struct {
-	deployer.UnimplementedDeployerServiceServer
 	argo     *argocd.Client
-	packager packager.PackagerServiceClient
+	packager PackagerService
 	k8s      kubernetes.Interface
 	dynamic  dynamic.Interface
-	issuer   *auth.Issuer
 
 	// softServeHTTP is the cluster-internal Soft-serve HTTP URL for ArgoCD to clone from.
 	softServeHTTP string
@@ -55,13 +63,12 @@ type Server struct {
 	registryPullSecret string
 }
 
-func NewServer(argo *argocd.Client, packagerClient packager.PackagerServiceClient, softServeHTTP, softServeToken string, k8s kubernetes.Interface, dyn dynamic.Interface, issuer *auth.Issuer, gatewayName, gatewayNamespace, clusterIssuer, registryPullSecret string) *Server {
+func NewServer(argo *argocd.Client, packagerSvc PackagerService, softServeHTTP, softServeToken string, k8s kubernetes.Interface, dyn dynamic.Interface, gatewayName, gatewayNamespace, clusterIssuer, registryPullSecret string) *Server {
 	return &Server{
 		argo:               argo,
-		packager:           packagerClient,
+		packager:           packagerSvc,
 		k8s:                k8s,
 		dynamic:            dyn,
-		issuer:             issuer,
 		softServeHTTP:      softServeHTTP,
 		softServeToken:     softServeToken,
 		gatewayName:        gatewayName,
@@ -71,61 +78,60 @@ func NewServer(argo *argocd.Client, packagerClient packager.PackagerServiceClien
 	}
 }
 
-// SetPackager wires the packager client after construction. Used to
-// break the deployer↔packager client cycle when both run in-process.
-// See packager.Server.SetDeployer for the symmetric setter.
-func (s *Server) SetPackager(c packager.PackagerServiceClient) {
-	s.packager = c
+// SetPackager wires the packager after construction. Used to break
+// the deployer↔packager cycle. See packager.Server.SetDeployer for
+// the symmetric setter.
+func (s *Server) SetPackager(p PackagerService) {
+	s.packager = p
 }
 
-func (s *Server) DeployEnvironment(ctx context.Context, req *deployer.DeployEnvironmentRequest) (*deployer.DeployEnvironmentResponse, error) {
-	ws := tenant.FromContext(ctx)
-	appName := applicationName(ws, req.Project, req.Environment)
+// DeployEnvironment provisions an ArgoCD Application + namespace for an environment.
+// Idempotent: returns the existing app if already created.
+func (s *Server) DeployEnvironment(ctx context.Context, workspace, project, environment, gitopsRepoURL, targetNamespace string) (deploymentName string, err error) {
+	appName := applicationName(workspace, project, environment)
 
 	// Idempotent: if the application already exists, return it.
 	existing, err := s.argo.Application(ctx, appName)
 	if err == nil && existing != nil {
 		slog.Info("ArgoCD application already exists",
 			"app", appName,
-			"project", req.Project,
-			"environment", req.Environment,
+			"project", project,
+			"environment", environment,
 		)
-		return &deployer.DeployEnvironmentResponse{
-			DeploymentName: existing.Metadata.Name,
-		}, nil
+		return existing.Metadata.Name, nil
 	}
 
 	// Ensure the namespace exists with platform labels.
 	ns := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: req.TargetNamespace,
+			Name: targetNamespace,
 			Labels: map[string]string{
-				labels.Workspace:   ws,
-				labels.Project:     req.Project,
-				labels.Environment: req.Environment,
+				labels.Workspace:   workspace,
+				labels.Project:     project,
+				labels.Environment: environment,
 				labels.ManagedBy:   labels.ManagedByLucity,
 			},
 		},
 	}
 	if _, err := s.k8s.CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{}); err != nil && !apierrors.IsAlreadyExists(err) {
-		return nil, fmt.Errorf("failed to create namespace %s: %w", req.TargetNamespace, err)
+		return "", fmt.Errorf("failed to create namespace %s: %w", targetNamespace, err)
 	}
 
 	// Set up default ECO tier: LimitRange for per-pod defaults + namespace label.
-	s.ensureDefaultEcoTier(ctx, req.TargetNamespace)
+	s.ensureDefaultEcoTier(ctx, targetNamespace)
 
 	// Clone registry pull credentials so kubelet can authenticate image pulls.
-	s.ensureRegistryPullSecret(ctx, req.TargetNamespace)
+	s.ensureRegistryPullSecret(ctx, targetNamespace)
 
 	// Ensure the GitOps repo is registered in ArgoCD with credentials.
-	repoURL := s.repoURL(ws, req.Project)
+	repoURL := s.repoURL(workspace, project)
 	if err := s.argo.CreateRepository(ctx, argocd.Repository{
 		Repo:     repoURL,
 		Username: "lucity",
 		Password: s.softServeToken,
 		Type:     "git",
 	}); err != nil {
-		return nil, fmt.Errorf("failed to register repository in ArgoCD: %w", err)
+		return "", fmt.Errorf("failed to register repository in ArgoCD: %w", err)
 	}
 
 	app := argocd.Application{
@@ -139,13 +145,13 @@ func (s *Server) DeployEnvironment(ctx context.Context, req *deployer.DeployEnvi
 				TargetRevision: "HEAD",
 				Helm: &argocd.Helm{
 					ValueFiles: []string{
-						fmt.Sprintf("../environments/%s/values.yaml", req.Environment),
+						fmt.Sprintf("../environments/%s/values.yaml", environment),
 					},
 				},
 			},
 			Destination: argocd.Destination{
 				Server:    "https://kubernetes.default.svc",
-				Namespace: req.TargetNamespace,
+				Namespace: targetNamespace,
 			},
 			Project: "default",
 			SyncPolicy: &argocd.SyncPolicy{
@@ -160,29 +166,26 @@ func (s *Server) DeployEnvironment(ctx context.Context, req *deployer.DeployEnvi
 
 	result, err := s.argo.CreateApplication(ctx, app)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create ArgoCD application: %w", err)
+		return "", fmt.Errorf("failed to create ArgoCD application: %w", err)
 	}
 
 	slog.Info("created ArgoCD application",
 		"app", result.Metadata.Name,
-		"project", req.Project,
-		"environment", req.Environment,
-		"namespace", req.TargetNamespace,
+		"project", project,
+		"environment", environment,
+		"namespace", targetNamespace,
 	)
-
-	return &deployer.DeployEnvironmentResponse{
-		DeploymentName: result.Metadata.Name,
-	}, nil
+	return result.Metadata.Name, nil
 }
 
-func (s *Server) RemoveDeployment(ctx context.Context, req *deployer.RemoveDeploymentRequest) (*deployer.RemoveDeploymentResponse, error) {
-	ws := tenant.FromContext(ctx)
-	appName := applicationName(ws, req.Project, req.Environment)
+// RemoveDeployment removes the ArgoCD Application and namespace for an environment.
+func (s *Server) RemoveDeployment(ctx context.Context, workspace, project, environment string) error {
+	appName := applicationName(workspace, project, environment)
 
 	if err := s.argo.DeleteApplication(ctx, appName, true); err != nil {
 		// Idempotent: if the application is already gone, that's fine — still clean up the namespace.
 		if !strings.Contains(err.Error(), "404") {
-			return nil, fmt.Errorf("failed to delete ArgoCD application: %w", err)
+			return fmt.Errorf("failed to delete ArgoCD application: %w", err)
 		}
 		slog.Info("ArgoCD application already deleted", "app", appName)
 	} else {
@@ -190,59 +193,50 @@ func (s *Server) RemoveDeployment(ctx context.Context, req *deployer.RemoveDeplo
 	}
 
 	// Delete the namespace. ArgoCD cascade already cleaned up resources inside.
-	ns := labels.NamespaceFor(ws, req.Project, req.Environment)
+	ns := labels.NamespaceFor(workspace, project, environment)
 	if err := s.k8s.CoreV1().Namespaces().Delete(ctx, ns, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
-		return nil, fmt.Errorf("failed to delete namespace %s: %w", ns, err)
+		return fmt.Errorf("failed to delete namespace %s: %w", ns, err)
 	}
 	slog.Info("deleted namespace", "namespace", ns)
-
-	return &deployer.RemoveDeploymentResponse{}, nil
+	return nil
 }
 
-func (s *Server) DeleteRepository(ctx context.Context, req *deployer.DeleteRepositoryRequest) (*deployer.DeleteRepositoryResponse, error) {
-	ws := tenant.FromContext(ctx)
-	repoURL := s.repoURL(ws, req.Project)
+// DeleteRepository removes the ArgoCD repository credential for a project.
+func (s *Server) DeleteRepository(ctx context.Context, workspace, project string) error {
+	repoURL := s.repoURL(workspace, project)
 
 	if err := s.argo.DeleteRepository(ctx, repoURL); err != nil {
-		return nil, fmt.Errorf("failed to delete ArgoCD repository: %w", err)
+		return fmt.Errorf("failed to delete ArgoCD repository: %w", err)
 	}
 
 	slog.Info("deleted ArgoCD repository", "repo", repoURL)
-	return &deployer.DeleteRepositoryResponse{}, nil
+	return nil
 }
 
-func (s *Server) GetDeploymentStatus(ctx context.Context, req *deployer.GetDeploymentStatusRequest) (*deployer.GetDeploymentStatusResponse, error) {
-	ws := tenant.FromContext(ctx)
-	appName := applicationName(ws, req.Project, req.Environment)
+func (s *Server) GetDeploymentStatus(ctx context.Context, workspace, project, environment string) (data.DeploymentStatus, string, error) {
+	appName := applicationName(workspace, project, environment)
 
 	app, err := s.argo.Application(ctx, appName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get ArgoCD application: %w", err)
+		return data.DeploymentStatusUnspecified, "", fmt.Errorf("failed to get ArgoCD application: %w", err)
 	}
 
 	status, message := mapStatus(app.Status)
-
-	return &deployer.GetDeploymentStatusResponse{
-		Status:  status,
-		Message: message,
-	}, nil
+	return status, message, nil
 }
 
-func (s *Server) SyncDeployment(ctx context.Context, req *deployer.SyncDeploymentRequest) (*deployer.SyncDeploymentResponse, error) {
-	ws := tenant.FromContext(ctx)
-	appName := applicationName(ws, req.Project, req.Environment)
+func (s *Server) SyncDeployment(ctx context.Context, workspace, project, environment string) (data.DeploymentStatus, error) {
+	appName := applicationName(workspace, project, environment)
 
 	app, err := s.argo.SyncApplication(ctx, appName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to sync ArgoCD application: %w", err)
+		return data.DeploymentStatusUnspecified, fmt.Errorf("failed to sync ArgoCD application: %w", err)
 	}
 
 	slog.Info("triggered sync", "app", appName)
 
 	status, _ := mapStatus(app.Status)
-	return &deployer.SyncDeploymentResponse{
-		Status: status,
-	}, nil
+	return status, nil
 }
 
 // applicationName derives the ArgoCD Application name from workspace, project, and environment.
@@ -255,57 +249,50 @@ func (s *Server) repoURL(workspace, project string) string {
 	return strings.TrimSuffix(s.softServeHTTP, "/") + "/" + workspace + "-" + project + "-gitops.git"
 }
 
-func (s *Server) ServiceLogs(req *deployer.ServiceLogsRequest, stream deployer.DeployerService_ServiceLogsServer) error {
-	ctx := stream.Context()
-	ws := tenant.FromContext(ctx)
-	namespace := labels.NamespaceFor(ws, req.Project, req.Environment)
+// ServiceLogs returns a channel of log entries from the workload's
+// pods. The channel is closed when all pod log streams end or ctx is
+// cancelled.
+func (s *Server) ServiceLogs(ctx context.Context, workspace, project, environment, service string, tailLines int) (<-chan ServiceLogEntry, error) {
+	namespace := labels.NamespaceFor(workspace, project, environment)
 
-	labelSelector := fmt.Sprintf("app.kubernetes.io/name=%s", req.Service)
+	labelSelector := fmt.Sprintf("app.kubernetes.io/name=%s", service)
 
 	podList, err := s.k8s.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: labelSelector,
 	})
 	if err != nil {
-		return status.Errorf(codes.Internal, "failed to list pods: %v", err)
+		return nil, status.Errorf(codes.Internal, "failed to list pods: %v", err)
 	}
 	if len(podList.Items) == 0 {
-		return status.Errorf(codes.NotFound, "no pods found for service %q in %q", req.Service, namespace)
+		return nil, status.Errorf(codes.NotFound, "no pods found for service %q in %q", service, namespace)
 	}
 
 	multiplePods := len(podList.Items) > 1
 
-	tailLines := int64(1000)
-	if req.TailLines > 0 {
-		tailLines = int64(req.TailLines)
+	tail := int64(1000)
+	if tailLines > 0 {
+		tail = int64(tailLines)
 	}
 
-	lines := make(chan *deployer.ServiceLogEntry, 128)
+	out := make(chan ServiceLogEntry, 128)
 	var wg sync.WaitGroup
-
 	for _, pod := range podList.Items {
 		wg.Add(1)
 		go func(podName string) {
 			defer wg.Done()
-			s.streamPodLogs(ctx, namespace, podName, req.Service, tailLines, multiplePods, lines)
+			s.streamPodLogs(ctx, namespace, podName, service, tail, multiplePods, out)
 		}(pod.Name)
 	}
-
 	go func() {
 		wg.Wait()
-		close(lines)
+		close(out)
 	}()
 
-	for entry := range lines {
-		if err := stream.Send(entry); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return out, nil
 }
 
 // streamPodLogs follows logs from a single pod/container and sends entries to the channel.
-func (s *Server) streamPodLogs(ctx context.Context, namespace, podName, container string, tailLines int64, prefixPod bool, out chan<- *deployer.ServiceLogEntry) {
+func (s *Server) streamPodLogs(ctx context.Context, namespace, podName, container string, tailLines int64, prefixPod bool, out chan<- ServiceLogEntry) {
 	opts := &corev1.PodLogOptions{
 		Container: container,
 		Follow:    true,
@@ -329,7 +316,7 @@ func (s *Server) streamPodLogs(ctx context.Context, namespace, podName, containe
 			line = fmt.Sprintf("[%s] %s", podSuffix, line)
 		}
 		select {
-		case out <- &deployer.ServiceLogEntry{Line: line, Pod: podName}:
+		case out <- ServiceLogEntry{Line: line, Pod: podName}:
 		case <-ctx.Done():
 			return
 		}
@@ -347,8 +334,8 @@ func shortPodID(podName string) string {
 
 const dbQueryTimeout = 30 * time.Second
 
-func (s *Server) DatabaseTables(ctx context.Context, req *deployer.DatabaseTablesRequest) (*deployer.DatabaseTablesResponse, error) {
-	creds, err := database.CredentialsFromSecret(ctx, s.k8s, tenant.FromContext(ctx), req.Project, req.Environment, req.Database)
+func (s *Server) DatabaseTables(ctx context.Context, workspace, project, environment, dbName string) ([]data.DatabaseTable, error) {
+	creds, err := database.CredentialsFromSecret(ctx, s.k8s, workspace, project, environment, dbName)
 	if err != nil {
 		if errors.Is(err, database.ErrNotReady) {
 			return nil, status.Errorf(codes.FailedPrecondition, "database is provisioning")
@@ -361,7 +348,7 @@ func (s *Server) DatabaseTables(ctx context.Context, req *deployer.DatabaseTable
 
 	conn, err := database.Connect(queryCtx, creds)
 	if err != nil {
-		slog.Error("failed to connect to database", "project", req.Project, "environment", req.Environment, "database", req.Database, "error", err)
+		slog.Error("failed to connect to database", "project", project, "environment", environment, "database", dbName, "error", err)
 		return nil, status.Errorf(codes.Unavailable, "database connection failed")
 	}
 	defer conn.Close(queryCtx)
@@ -370,17 +357,16 @@ func (s *Server) DatabaseTables(ctx context.Context, req *deployer.DatabaseTable
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to list tables: %v", err)
 	}
-
-	return &deployer.DatabaseTablesResponse{Tables: tables}, nil
+	return tables, nil
 }
 
-func (s *Server) DatabaseTableData(ctx context.Context, req *deployer.DatabaseTableDataRequest) (*deployer.DatabaseTableDataResponse, error) {
-	creds, err := database.CredentialsFromSecret(ctx, s.k8s, tenant.FromContext(ctx), req.Project, req.Environment, req.Database)
+func (s *Server) DatabaseTableData(ctx context.Context, workspace, project, environment, dbName, schema, table string, limit, offset int) (data.DatabaseTableData, error) {
+	creds, err := database.CredentialsFromSecret(ctx, s.k8s, workspace, project, environment, dbName)
 	if err != nil {
 		if errors.Is(err, database.ErrNotReady) {
-			return nil, status.Errorf(codes.FailedPrecondition, "database is provisioning")
+			return data.DatabaseTableData{}, status.Errorf(codes.FailedPrecondition, "database is provisioning")
 		}
-		return nil, status.Errorf(codes.NotFound, "database credentials not found: %v", err)
+		return data.DatabaseTableData{}, status.Errorf(codes.NotFound, "database credentials not found: %v", err)
 	}
 
 	queryCtx, cancel := context.WithTimeout(ctx, dbQueryTimeout)
@@ -388,30 +374,29 @@ func (s *Server) DatabaseTableData(ctx context.Context, req *deployer.DatabaseTa
 
 	conn, err := database.Connect(queryCtx, creds)
 	if err != nil {
-		slog.Error("failed to connect to database", "project", req.Project, "environment", req.Environment, "database", req.Database, "error", err)
-		return nil, status.Errorf(codes.Unavailable, "database connection failed")
+		slog.Error("failed to connect to database", "project", project, "environment", environment, "database", dbName, "error", err)
+		return data.DatabaseTableData{}, status.Errorf(codes.Unavailable, "database connection failed")
 	}
 	defer conn.Close(queryCtx)
 
-	columns, rows, estimatedRows, err := database.TableData(queryCtx, conn, req.Schema, req.Table, int(req.Limit), int(req.Offset))
+	columns, rows, estimatedRows, err := database.TableData(queryCtx, conn, schema, table, limit, offset)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to query table data: %v", err)
+		return data.DatabaseTableData{}, status.Errorf(codes.Internal, "failed to query table data: %v", err)
 	}
-
-	return &deployer.DatabaseTableDataResponse{
+	return data.DatabaseTableData{
 		Columns:            columns,
 		Rows:               rows,
 		TotalEstimatedRows: estimatedRows,
 	}, nil
 }
 
-func (s *Server) DatabaseQuery(ctx context.Context, req *deployer.DatabaseQueryRequest) (*deployer.DatabaseQueryResponse, error) {
-	creds, err := database.CredentialsFromSecret(ctx, s.k8s, tenant.FromContext(ctx), req.Project, req.Environment, req.Database)
+func (s *Server) DatabaseQuery(ctx context.Context, workspace, project, environment, dbName, query string) (data.DatabaseQueryResult, error) {
+	creds, err := database.CredentialsFromSecret(ctx, s.k8s, workspace, project, environment, dbName)
 	if err != nil {
 		if errors.Is(err, database.ErrNotReady) {
-			return nil, status.Errorf(codes.FailedPrecondition, "database is provisioning")
+			return data.DatabaseQueryResult{}, status.Errorf(codes.FailedPrecondition, "database is provisioning")
 		}
-		return nil, status.Errorf(codes.NotFound, "database credentials not found: %v", err)
+		return data.DatabaseQueryResult{}, status.Errorf(codes.NotFound, "database credentials not found: %v", err)
 	}
 
 	queryCtx, cancel := context.WithTimeout(ctx, dbQueryTimeout)
@@ -419,27 +404,25 @@ func (s *Server) DatabaseQuery(ctx context.Context, req *deployer.DatabaseQueryR
 
 	conn, err := database.Connect(queryCtx, creds)
 	if err != nil {
-		slog.Error("failed to connect to database", "project", req.Project, "environment", req.Environment, "database", req.Database, "error", err)
-		return nil, status.Errorf(codes.Unavailable, "database connection failed")
+		slog.Error("failed to connect to database", "project", project, "environment", environment, "database", dbName, "error", err)
+		return data.DatabaseQueryResult{}, status.Errorf(codes.Unavailable, "database connection failed")
 	}
 	defer conn.Close(queryCtx)
 
-	columns, rows, affected, err := database.Query(queryCtx, conn, req.Query)
+	columns, rows, affected, err := database.Query(queryCtx, conn, query)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "query failed: %v", err)
+		return data.DatabaseQueryResult{}, status.Errorf(codes.Internal, "query failed: %v", err)
 	}
-
-	return &deployer.DatabaseQueryResponse{
+	return data.DatabaseQueryResult{
 		Columns:      columns,
 		Rows:         rows,
 		AffectedRows: affected,
 	}, nil
 }
 
-func (s *Server) DatabaseStatus(ctx context.Context, req *deployer.DatabaseStatusRequest) (*deployer.DatabaseStatusResponse, error) {
-	ws := tenant.FromContext(ctx)
-	namespace := labels.NamespaceFor(ws, req.Project, req.Environment)
-	clusterName := req.Project + "-pg-" + req.Database
+func (s *Server) DatabaseStatus(ctx context.Context, workspace, project, environment, dbName string) (data.DatabaseStatus, error) {
+	namespace := labels.NamespaceFor(workspace, project, environment)
+	clusterName := project + "-pg-" + dbName
 	labelSelector := fmt.Sprintf("cnpg.io/cluster=%s", clusterName)
 
 	// Check CNPG pods for readiness.
@@ -447,10 +430,10 @@ func (s *Server) DatabaseStatus(ctx context.Context, req *deployer.DatabaseStatu
 		LabelSelector: labelSelector,
 	})
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to list database pods: %v", err)
+		return data.DatabaseStatus{}, status.Errorf(codes.Internal, "failed to list database pods: %v", err)
 	}
 
-	var runningInstances int32
+	var runningInstances int
 	for _, pod := range podList.Items {
 		if pod.Status.Phase != corev1.PodRunning {
 			continue
@@ -464,7 +447,7 @@ func (s *Server) DatabaseStatus(ctx context.Context, req *deployer.DatabaseStatu
 	}
 
 	// Read PVC info.
-	var volumeInfo *deployer.VolumeInfo
+	var volumeInfo *data.VolumeInfo
 	pvcList, err := s.k8s.CoreV1().PersistentVolumeClaims(namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: labelSelector,
 	})
@@ -478,7 +461,7 @@ func (s *Server) DatabaseStatus(ctx context.Context, req *deployer.DatabaseStatu
 		if qty, ok := pvc.Spec.Resources.Requests[corev1.ResourceStorage]; ok {
 			requested = qty.String()
 		}
-		volumeInfo = &deployer.VolumeInfo{
+		volumeInfo = &data.VolumeInfo{
 			Name:          pvc.Name,
 			Size:          capacity,
 			RequestedSize: requested,
@@ -490,27 +473,25 @@ func (s *Server) DatabaseStatus(ctx context.Context, req *deployer.DatabaseStatu
 		volumeInfo.CapacityBytes = capacityBytes
 	}
 
-	return &deployer.DatabaseStatusResponse{
+	return data.DatabaseStatus{
 		Ready:     runningInstances > 0,
 		Instances: runningInstances,
 		Volume:    volumeInfo,
 	}, nil
 }
 
-func (s *Server) ServiceStatus(ctx context.Context, req *deployer.ServiceStatusRequest) (*deployer.ServiceStatusResponse, error) {
-	ws := tenant.FromContext(ctx)
-	namespace := labels.NamespaceFor(ws, req.Project, req.Environment)
-	labelSelector := fmt.Sprintf("app.kubernetes.io/name=%s", req.Service)
+func (s *Server) ServiceStatus(ctx context.Context, workspace, project, environment, service string) (data.ServiceStatus, error) {
+	namespace := labels.NamespaceFor(workspace, project, environment)
+	labelSelector := fmt.Sprintf("app.kubernetes.io/name=%s", service)
 
 	deployList, err := s.k8s.AppsV1().Deployments(namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: labelSelector,
 	})
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to list deployments: %v", err)
+		return data.ServiceStatus{}, status.Errorf(codes.Internal, "failed to list deployments: %v", err)
 	}
 
-	var totalReplicas, totalReady int32
-	var configuredReplicas int32
+	var totalReplicas, totalReady, configuredReplicas int32
 	for _, d := range deployList.Items {
 		totalReplicas += d.Status.Replicas
 		totalReady += d.Status.ReadyReplicas
@@ -520,8 +501,8 @@ func (s *Server) ServiceStatus(ctx context.Context, req *deployer.ServiceStatusR
 	}
 
 	// Check for an HPA targeting this deployment.
-	scaling := &deployer.ServiceScalingConfig{
-		Replicas: configuredReplicas,
+	scaling := &data.ServiceScaling{
+		Replicas: int(configuredReplicas),
 	}
 
 	hpaList, err := s.k8s.AutoscalingV2().HorizontalPodAutoscalers(namespace).List(ctx, metav1.ListOptions{
@@ -532,13 +513,13 @@ func (s *Server) ServiceStatus(ctx context.Context, req *deployer.ServiceStatusR
 		scaling.AutoscalingEnabled = true
 		scaling.MinReplicas = 1
 		if hpa.Spec.MinReplicas != nil {
-			scaling.MinReplicas = *hpa.Spec.MinReplicas
+			scaling.MinReplicas = int(*hpa.Spec.MinReplicas)
 		}
-		scaling.MaxReplicas = hpa.Spec.MaxReplicas
+		scaling.MaxReplicas = int(hpa.Spec.MaxReplicas)
 		for _, metric := range hpa.Spec.Metrics {
 			if metric.Type == autoscalingv2.ContainerResourceMetricSourceType && metric.ContainerResource != nil {
 				if metric.ContainerResource.Target.AverageUtilization != nil {
-					scaling.TargetCpu = *metric.ContainerResource.Target.AverageUtilization
+					scaling.TargetCPU = int(*metric.ContainerResource.Target.AverageUtilization)
 				}
 			}
 		}
@@ -547,7 +528,7 @@ func (s *Server) ServiceStatus(ctx context.Context, req *deployer.ServiceStatusR
 	// Extract container resource requests/limits from a running Pod.
 	// We read from Pods rather than the Deployment spec because LimitRange defaults
 	// are injected at pod admission time and don't appear in the Deployment spec.
-	var resources *deployer.ServiceResourceConfig
+	var resources *data.ServiceResources
 	podList, podErr := s.k8s.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: labelSelector,
 		Limit:         1,
@@ -556,68 +537,66 @@ func (s *Server) ServiceStatus(ctx context.Context, req *deployer.ServiceStatusR
 		containers := podList.Items[0].Spec.Containers
 		if len(containers) > 0 {
 			ctr := containers[0]
-			res := &deployer.ServiceResourceConfig{}
+			res := &data.ServiceResources{}
 			if req, ok := ctr.Resources.Requests[corev1.ResourceCPU]; ok {
-				res.CpuMillicores = int32(req.MilliValue())
+				res.CPUMillicores = int(req.MilliValue())
 			}
 			if req, ok := ctr.Resources.Requests[corev1.ResourceMemory]; ok {
-				res.MemoryMb = int32(req.Value() / (1024 * 1024))
+				res.MemoryMB = int(req.Value() / (1024 * 1024))
 			}
 			if lim, ok := ctr.Resources.Limits[corev1.ResourceCPU]; ok {
-				res.CpuLimitMillicores = int32(lim.MilliValue())
+				res.CPULimitMillicores = int(lim.MilliValue())
 			}
 			if lim, ok := ctr.Resources.Limits[corev1.ResourceMemory]; ok {
-				res.MemoryLimitMb = int32(lim.Value() / (1024 * 1024))
+				res.MemoryLimitMB = int(lim.Value() / (1024 * 1024))
 			}
 			// Only return resources if at least one value is set.
-			if res.CpuMillicores > 0 || res.MemoryMb > 0 || res.CpuLimitMillicores > 0 || res.MemoryLimitMb > 0 {
+			if res.CPUMillicores > 0 || res.MemoryMB > 0 || res.CPULimitMillicores > 0 || res.MemoryLimitMB > 0 {
 				resources = res
 			}
 		}
 	}
 
-	return &deployer.ServiceStatusResponse{
+	return data.ServiceStatus{
 		Ready:         totalReady > 0 && totalReady >= totalReplicas,
-		Replicas:      totalReplicas,
-		ReadyReplicas: totalReady,
+		Replicas:      int(totalReplicas),
+		ReadyReplicas: int(totalReady),
 		Scaling:       scaling,
 		Resources:     resources,
 	}, nil
 }
 
-func (s *Server) SetServiceScaling(ctx context.Context, req *deployer.SetServiceScalingRequest) (*deployer.SetServiceScalingResponse, error) {
-	ws := tenant.FromContext(ctx)
-	namespace := labels.NamespaceFor(ws, req.Project, req.Environment)
-	deploymentName := fmt.Sprintf("%s-%s-%s", req.Project, req.Environment, req.Service)
+func (s *Server) SetServiceScaling(ctx context.Context, workspace, project, environment, service string, replicas int, autoscaling *data.AutoscalingConfig) error {
+	namespace := labels.NamespaceFor(workspace, project, environment)
+	deploymentName := fmt.Sprintf("%s-%s-%s", project, environment, service)
 
 	// Find the deployment by label first (more reliable than guessing the name).
-	labelSelector := fmt.Sprintf("app.kubernetes.io/name=%s", req.Service)
+	labelSelector := fmt.Sprintf("app.kubernetes.io/name=%s", service)
 	deployList, err := s.k8s.AppsV1().Deployments(namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: labelSelector,
 	})
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to list deployments: %v", err)
+		return status.Errorf(codes.Internal, "failed to list deployments: %v", err)
 	}
 	if len(deployList.Items) == 0 {
-		return nil, status.Errorf(codes.NotFound, "no deployment found for service %q in %q", req.Service, namespace)
+		return status.Errorf(codes.NotFound, "no deployment found for service %q in %q", service, namespace)
 	}
 
 	dep := &deployList.Items[0]
 	deploymentName = dep.Name
-
 	hpaName := deploymentName
 
-	if req.Autoscaling != nil && req.Autoscaling.Enabled {
+	if autoscaling != nil && autoscaling.Enabled {
 		// Autoscaling enabled: create/update HPA, remove replicas from Deployment.
-		minReplicas := req.Autoscaling.MinReplicas
+		minReplicas := int32(autoscaling.MinReplicas)
 		if minReplicas < 1 {
 			minReplicas = 1
 		}
-		maxReplicas := req.Autoscaling.MaxReplicas
+		maxReplicas := int32(autoscaling.MaxReplicas)
 		if maxReplicas < minReplicas {
 			maxReplicas = minReplicas
 		}
-		targetCPU := req.Autoscaling.TargetCpu
+		targetCPU := int32(autoscaling.TargetCPU)
 		if targetCPU <= 0 {
 			targetCPU = 70
 		}
@@ -627,7 +606,7 @@ func (s *Server) SetServiceScaling(ctx context.Context, req *deployer.SetService
 				Name:      hpaName,
 				Namespace: namespace,
 				Labels: map[string]string{
-					"app.kubernetes.io/name": req.Service,
+					"app.kubernetes.io/name": service,
 					labels.ManagedBy:         labels.ManagedByLucity,
 				},
 			},
@@ -659,7 +638,7 @@ func (s *Server) SetServiceScaling(ctx context.Context, req *deployer.SetService
 						Type: autoscalingv2.ContainerResourceMetricSourceType,
 						ContainerResource: &autoscalingv2.ContainerResourceMetricSource{
 							Name:      corev1.ResourceCPU,
-							Container: req.Service,
+							Container: service,
 							Target: autoscalingv2.MetricTarget{
 								Type:               autoscalingv2.UtilizationMetricType,
 								AverageUtilization: &targetCPU,
@@ -673,16 +652,16 @@ func (s *Server) SetServiceScaling(ctx context.Context, req *deployer.SetService
 		existing, err := s.k8s.AutoscalingV2().HorizontalPodAutoscalers(namespace).Get(ctx, hpaName, metav1.GetOptions{})
 		if err != nil {
 			if !apierrors.IsNotFound(err) {
-				return nil, status.Errorf(codes.Internal, "failed to get HPA: %v", err)
+				return status.Errorf(codes.Internal, "failed to get HPA: %v", err)
 			}
 			if _, err := s.k8s.AutoscalingV2().HorizontalPodAutoscalers(namespace).Create(ctx, hpa, metav1.CreateOptions{}); err != nil {
-				return nil, status.Errorf(codes.Internal, "failed to create HPA: %v", err)
+				return status.Errorf(codes.Internal, "failed to create HPA: %v", err)
 			}
 		} else {
 			existing.Spec = hpa.Spec
 			existing.Labels = hpa.Labels
 			if _, err := s.k8s.AutoscalingV2().HorizontalPodAutoscalers(namespace).Update(ctx, existing, metav1.UpdateOptions{}); err != nil {
-				return nil, status.Errorf(codes.Internal, "failed to update HPA: %v", err)
+				return status.Errorf(codes.Internal, "failed to update HPA: %v", err)
 			}
 		}
 
@@ -695,13 +674,13 @@ func (s *Server) SetServiceScaling(ctx context.Context, req *deployer.SetService
 		slog.Info("set autoscaling", "deployment", deploymentName, "min", minReplicas, "max", maxReplicas, "targetCPU", targetCPU)
 	} else {
 		// Manual scaling: set replicas on Deployment, delete HPA if it exists.
-		replicas := req.Replicas
-		if replicas < 1 {
-			replicas = 1
+		r := int32(replicas)
+		if r < 1 {
+			r = 1
 		}
-		dep.Spec.Replicas = &replicas
+		dep.Spec.Replicas = &r
 		if _, err := s.k8s.AppsV1().Deployments(namespace).Update(ctx, dep, metav1.UpdateOptions{}); err != nil {
-			return nil, status.Errorf(codes.Internal, "failed to scale deployment: %v", err)
+			return status.Errorf(codes.Internal, "failed to scale deployment: %v", err)
 		}
 
 		// Delete HPA if it exists (idempotent).
@@ -709,10 +688,9 @@ func (s *Server) SetServiceScaling(ctx context.Context, req *deployer.SetService
 			slog.Warn("failed to delete HPA", "hpa", hpaName, "error", err)
 		}
 
-		slog.Info("set manual scaling", "deployment", deploymentName, "replicas", replicas)
+		slog.Info("set manual scaling", "deployment", deploymentName, "replicas", r)
 	}
-
-	return &deployer.SetServiceScalingResponse{}, nil
+	return nil
 }
 
 func int32Ptr(v int32) *int32 { return &v }
@@ -791,60 +769,59 @@ type kubeletPVCRef struct {
 	Namespace string `json:"namespace"`
 }
 
-// mapStatus converts ArgoCD health/sync status to proto DeploymentStatus.
-func mapStatus(status *argocd.AppStatus) (deployer.DeploymentStatus, string) {
+// mapStatus converts ArgoCD health/sync status to data.DeploymentStatus.
+func mapStatus(status *argocd.AppStatus) (data.DeploymentStatus, string) {
 	if status == nil {
-		return deployer.DeploymentStatus_DEPLOYMENT_STATUS_UNKNOWN, "no status available"
+		return data.DeploymentStatusUnknown, "no status available"
 	}
 
 	switch status.Health.Status {
 	case "Healthy":
 		if status.Sync.Status == "Synced" {
-			return deployer.DeploymentStatus_DEPLOYMENT_STATUS_SYNCED, "all resources synced and healthy"
+			return data.DeploymentStatusSynced, "all resources synced and healthy"
 		}
-		return deployer.DeploymentStatus_DEPLOYMENT_STATUS_OUT_OF_SYNC, "healthy but out of sync"
+		return data.DeploymentStatusOutOfSync, "healthy but out of sync"
 	case "Progressing":
-		return deployer.DeploymentStatus_DEPLOYMENT_STATUS_PROGRESSING, status.Health.Message
+		return data.DeploymentStatusProgressing, status.Health.Message
 	case "Degraded":
-		return deployer.DeploymentStatus_DEPLOYMENT_STATUS_DEGRADED, status.Health.Message
+		return data.DeploymentStatusDegraded, status.Health.Message
 	default:
 		if status.Sync.Status == "OutOfSync" {
-			return deployer.DeploymentStatus_DEPLOYMENT_STATUS_OUT_OF_SYNC, "out of sync"
+			return data.DeploymentStatusOutOfSync, "out of sync"
 		}
-		return deployer.DeploymentStatus_DEPLOYMENT_STATUS_UNKNOWN, status.Health.Status
+		return data.DeploymentStatusUnknown, status.Health.Status
 	}
 }
 
-func (s *Server) WorkspaceByInstallationID(ctx context.Context, req *deployer.WorkspaceByInstallationIDRequest) (*deployer.WorkspaceByInstallationIDResponse, error) {
+// WorkspaceByInstallationID returns the workspace that owns a GitHub App
+// installation, by inspecting deployment labels across the cluster.
+func (s *Server) WorkspaceByInstallationID(ctx context.Context, installationID int64) (string, error) {
 	// Query Deployments across all namespaces with the github-installation label.
-	installationLabel := fmt.Sprintf("%s=%d", labels.GitHubInstallation, req.InstallationId)
+	installationLabel := fmt.Sprintf("%s=%d", labels.GitHubInstallation, installationID)
 
 	deployList, err := s.k8s.AppsV1().Deployments("").List(ctx, metav1.ListOptions{
 		LabelSelector: installationLabel,
 	})
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to list deployments: %v", err)
+		return "", status.Errorf(codes.Internal, "failed to list deployments: %v", err)
 	}
 
 	if len(deployList.Items) == 0 {
-		return nil, status.Errorf(codes.NotFound, "no workspace found for installation ID %d", req.InstallationId)
+		return "", status.Errorf(codes.NotFound, "no workspace found for installation ID %d", installationID)
 	}
 
 	// Get the workspace from the namespace's labels.
 	namespace := deployList.Items[0].Namespace
 	ns, err := s.k8s.CoreV1().Namespaces().Get(ctx, namespace, metav1.GetOptions{})
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to get namespace %q: %v", namespace, err)
+		return "", status.Errorf(codes.Internal, "failed to get namespace %q: %v", namespace, err)
 	}
 
 	ws := ns.Labels[labels.Workspace]
 	if ws == "" {
-		return nil, status.Errorf(codes.Internal, "namespace %q missing workspace label", namespace)
+		return "", status.Errorf(codes.Internal, "namespace %q missing workspace label", namespace)
 	}
-
-	return &deployer.WorkspaceByInstallationIDResponse{
-		Workspace: ws,
-	}, nil
+	return ws, nil
 }
 
 const (
@@ -852,16 +829,17 @@ const (
 	limitRangeName    = "lucity-defaults"
 )
 
-func (s *Server) SetResourceQuota(ctx context.Context, req *deployer.SetResourceQuotaRequest) (*deployer.SetResourceQuotaResponse, error) {
-	ws := tenant.FromContext(ctx)
-	namespace := labels.NamespaceFor(ws, req.Project, req.Environment)
+// SetResourceQuota creates or updates the ResourceQuota + LimitRange
+// for an environment namespace based on tier.
+func (s *Server) SetResourceQuota(ctx context.Context, workspace, project, environment string, tier data.ResourceTier, cpuMillicores, memoryMB, diskMB int) (data.ResourceQuota, error) {
+	namespace := labels.NamespaceFor(workspace, project, environment)
 
 	// 1. Manage ResourceQuota based on tier.
-	if req.Tier == deployer.ResourceTier_RESOURCE_TIER_PRODUCTION {
+	if tier == data.ResourceTierProduction {
 		// PRODUCTION: create or update ResourceQuota with reserved allocations.
-		cpuQty := fmt.Sprintf("%dm", req.CpuMillicores)
-		memQty := fmt.Sprintf("%dMi", req.MemoryMb)
-		diskQty := fmt.Sprintf("%dMi", req.DiskMb)
+		cpuQty := fmt.Sprintf("%dm", cpuMillicores)
+		memQty := fmt.Sprintf("%dMi", memoryMB)
+		diskQty := fmt.Sprintf("%dMi", diskMB)
 
 		quota := &corev1.ResourceQuota{
 			ObjectMeta: metav1.ObjectMeta{
@@ -883,79 +861,73 @@ func (s *Server) SetResourceQuota(ctx context.Context, req *deployer.SetResource
 		existing, err := s.k8s.CoreV1().ResourceQuotas(namespace).Get(ctx, resourceQuotaName, metav1.GetOptions{})
 		if err != nil {
 			if !apierrors.IsNotFound(err) {
-				return nil, status.Errorf(codes.Internal, "failed to get resource quota: %v", err)
+				return data.ResourceQuota{}, status.Errorf(codes.Internal, "failed to get resource quota: %v", err)
 			}
 			if _, err := s.k8s.CoreV1().ResourceQuotas(namespace).Create(ctx, quota, metav1.CreateOptions{}); err != nil {
-				return nil, status.Errorf(codes.Internal, "failed to create resource quota: %v", err)
+				return data.ResourceQuota{}, status.Errorf(codes.Internal, "failed to create resource quota: %v", err)
 			}
 		} else {
 			existing.Spec.Hard = quota.Spec.Hard
 			existing.Labels = quota.Labels
 			if _, err := s.k8s.CoreV1().ResourceQuotas(namespace).Update(ctx, existing, metav1.UpdateOptions{}); err != nil {
-				return nil, status.Errorf(codes.Internal, "failed to update resource quota: %v", err)
+				return data.ResourceQuota{}, status.Errorf(codes.Internal, "failed to update resource quota: %v", err)
 			}
 		}
 	} else {
 		// ECO: no ResourceQuota — metered billing, no namespace-level cap.
-		// Delete any existing quota (e.g. switching from PRODUCTION to ECO).
 		err := s.k8s.CoreV1().ResourceQuotas(namespace).Delete(ctx, resourceQuotaName, metav1.DeleteOptions{})
 		if err != nil && !apierrors.IsNotFound(err) {
-			return nil, status.Errorf(codes.Internal, "failed to delete resource quota: %v", err)
+			return data.ResourceQuota{}, status.Errorf(codes.Internal, "failed to delete resource quota: %v", err)
 		}
 	}
 
 	// 2. Create or update LimitRange.
-	lr := buildLimitRange(namespace, req.Tier)
+	lr := buildLimitRange(namespace, tier)
 	existingLR, err := s.k8s.CoreV1().LimitRanges(namespace).Get(ctx, limitRangeName, metav1.GetOptions{})
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
-			return nil, status.Errorf(codes.Internal, "failed to get limit range: %v", err)
+			return data.ResourceQuota{}, status.Errorf(codes.Internal, "failed to get limit range: %v", err)
 		}
 		if _, err := s.k8s.CoreV1().LimitRanges(namespace).Create(ctx, lr, metav1.CreateOptions{}); err != nil {
-			return nil, status.Errorf(codes.Internal, "failed to create limit range: %v", err)
+			return data.ResourceQuota{}, status.Errorf(codes.Internal, "failed to create limit range: %v", err)
 		}
 	} else {
 		existingLR.Spec = lr.Spec
 		existingLR.Labels = lr.Labels
 		if _, err := s.k8s.CoreV1().LimitRanges(namespace).Update(ctx, existingLR, metav1.UpdateOptions{}); err != nil {
-			return nil, status.Errorf(codes.Internal, "failed to update limit range: %v", err)
+			return data.ResourceQuota{}, status.Errorf(codes.Internal, "failed to update limit range: %v", err)
 		}
 	}
 
 	// 3. Set resource-tier label on namespace.
 	ns, err := s.k8s.CoreV1().Namespaces().Get(ctx, namespace, metav1.GetOptions{})
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to get namespace: %v", err)
+		return data.ResourceQuota{}, status.Errorf(codes.Internal, "failed to get namespace: %v", err)
 	}
 	if ns.Labels == nil {
 		ns.Labels = make(map[string]string)
 	}
-	ns.Labels[labels.ResourceTier] = tierToString(req.Tier)
+	ns.Labels[labels.ResourceTier] = tierToString(tier)
 	if _, err := s.k8s.CoreV1().Namespaces().Update(ctx, ns, metav1.UpdateOptions{}); err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to update namespace tier label: %v", err)
+		return data.ResourceQuota{}, status.Errorf(codes.Internal, "failed to update namespace tier label: %v", err)
 	}
 
-	slog.Info("set resource quota",
-		"namespace", namespace,
-		"tier", tierToString(req.Tier),
-		"cpu", req.CpuMillicores, "memory", req.MemoryMb, "disk", req.DiskMb,
-	)
-
-	return &deployer.SetResourceQuotaResponse{
-		Tier:          req.Tier,
-		CpuMillicores: req.CpuMillicores,
-		MemoryMb:      req.MemoryMb,
-		DiskMb:        req.DiskMb,
+	slog.Info("set resource quota", "namespace", namespace, "tier", tierToString(tier), "cpu", cpuMillicores, "memory", memoryMB, "disk", diskMB)
+	return data.ResourceQuota{
+		Tier:          tier,
+		CPUMillicores: cpuMillicores,
+		MemoryMB:      memoryMB,
+		DiskMB:        diskMB,
 	}, nil
 }
 
-func (s *Server) ResourceQuota(ctx context.Context, req *deployer.ResourceQuotaRequest) (*deployer.ResourceQuotaResponse, error) {
-	ws := tenant.FromContext(ctx)
-	namespace := labels.NamespaceFor(ws, req.Project, req.Environment)
+// ResourceQuota returns the current resource quota and tier for an environment.
+func (s *Server) ResourceQuota(ctx context.Context, workspace, project, environment string) (data.ResourceQuota, error) {
+	namespace := labels.NamespaceFor(workspace, project, environment)
 
 	ns, err := s.k8s.CoreV1().Namespaces().Get(ctx, namespace, metav1.GetOptions{})
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to get namespace: %v", err)
+		return data.ResourceQuota{}, status.Errorf(codes.Internal, "failed to get namespace: %v", err)
 	}
 
 	tier := tierFromString(ns.Labels[labels.ResourceTier])
@@ -964,26 +936,24 @@ func (s *Server) ResourceQuota(ctx context.Context, req *deployer.ResourceQuotaR
 	quota, err := s.k8s.CoreV1().ResourceQuotas(namespace).Get(ctx, resourceQuotaName, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			return &deployer.ResourceQuotaResponse{
-				Tier: tier,
-			}, nil
+			return data.ResourceQuota{Tier: tier}, nil
 		}
-		return nil, status.Errorf(codes.Internal, "failed to get resource quota: %v", err)
+		return data.ResourceQuota{}, status.Errorf(codes.Internal, "failed to get resource quota: %v", err)
 	}
 
-	cpuMillis := int32(quota.Spec.Hard.Cpu().MilliValue())
-	memMB := int32(quota.Spec.Hard.Memory().Value() / (1024 * 1024))
+	cpuMillis := int(quota.Spec.Hard.Cpu().MilliValue())
+	memMB := int(quota.Spec.Hard.Memory().Value() / (1024 * 1024))
 
-	var diskMB int32
+	var diskMB int
 	if storageQty, ok := quota.Spec.Hard[corev1.ResourceRequestsStorage]; ok {
-		diskMB = int32(storageQty.Value() / (1024 * 1024))
+		diskMB = int(storageQty.Value() / (1024 * 1024))
 	}
 
-	return &deployer.ResourceQuotaResponse{
+	return data.ResourceQuota{
 		Tier:          tier,
-		CpuMillicores: cpuMillis,
-		MemoryMb:      memMB,
-		DiskMb:        diskMB,
+		CPUMillicores: cpuMillis,
+		MemoryMB:      memMB,
+		DiskMB:        diskMB,
 	}, nil
 }
 
@@ -1001,7 +971,7 @@ func (s *Server) ensureDefaultEcoTier(ctx context.Context, namespace string) {
 		return
 	}
 
-	tier := deployer.ResourceTier_RESOURCE_TIER_ECO
+	tier := data.ResourceTierEco
 
 	// Create LimitRange for per-pod defaults.
 	lr := buildLimitRange(namespace, tier)
@@ -1073,7 +1043,7 @@ func (s *Server) ensureRegistryPullSecret(ctx context.Context, namespace string)
 	slog.Info("ensured registry pull secret", "namespace", namespace)
 }
 
-func buildLimitRange(namespace string, tier deployer.ResourceTier) *corev1.LimitRange {
+func buildLimitRange(namespace string, tier data.ResourceTier) *corev1.LimitRange {
 	lr := &corev1.LimitRange{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      limitRangeName,
@@ -1084,7 +1054,7 @@ func buildLimitRange(namespace string, tier deployer.ResourceTier) *corev1.Limit
 		},
 	}
 
-	if tier == deployer.ResourceTier_RESOURCE_TIER_PRODUCTION {
+	if tier == data.ResourceTierProduction {
 		// Guaranteed QoS: requests = limits.
 		lr.Spec.Limits = []corev1.LimitRangeItem{{
 			Type: corev1.LimitTypeContainer,
@@ -1114,27 +1084,28 @@ func buildLimitRange(namespace string, tier deployer.ResourceTier) *corev1.Limit
 	return lr
 }
 
-func tierToString(t deployer.ResourceTier) string {
+func tierToString(t data.ResourceTier) string {
 	switch t {
-	case deployer.ResourceTier_RESOURCE_TIER_ECO:
+	case data.ResourceTierEco:
 		return "eco"
-	case deployer.ResourceTier_RESOURCE_TIER_PRODUCTION:
+	case data.ResourceTierProduction:
 		return "production"
 	default:
 		return "eco"
 	}
 }
 
-func tierFromString(s string) deployer.ResourceTier {
+func tierFromString(s string) data.ResourceTier {
 	switch s {
 	case "production":
-		return deployer.ResourceTier_RESOURCE_TIER_PRODUCTION
+		return data.ResourceTierProduction
 	default:
-		return deployer.ResourceTier_RESOURCE_TIER_ECO
+		return data.ResourceTierEco
 	}
 }
 
-func (s *Server) ListResourceAllocations(ctx context.Context, req *deployer.ListResourceAllocationsRequest) (*deployer.ListResourceAllocationsResponse, error) {
+// ListResourceAllocations returns resource quotas + tiers for every managed namespace.
+func (s *Server) ListResourceAllocations(ctx context.Context) ([]data.ResourceAllocation, error) {
 	// List all namespaces with resource-tier label.
 	selector := labels.Selector(labels.ManagedBy, labels.ManagedByLucity) + "," + labels.ResourceTier
 
@@ -1145,7 +1116,7 @@ func (s *Server) ListResourceAllocations(ctx context.Context, req *deployer.List
 		return nil, status.Errorf(codes.Internal, "failed to list namespaces: %v", err)
 	}
 
-	var allocations []*deployer.ResourceAllocation
+	var allocations []data.ResourceAllocation
 	for _, ns := range nsList.Items {
 		ws := ns.Labels[labels.Workspace]
 		project := ns.Labels[labels.Project]
@@ -1157,24 +1128,23 @@ func (s *Server) ListResourceAllocations(ctx context.Context, req *deployer.List
 		tier := tierFromString(ns.Labels[labels.ResourceTier])
 		cpuMillis, memMB, diskMB := s.namespaceAllocations(ctx, ns.Name)
 
-		allocations = append(allocations, &deployer.ResourceAllocation{
+		allocations = append(allocations, data.ResourceAllocation{
 			Workspace:     ws,
 			Project:       project,
 			Environment:   env,
 			Tier:          tier,
-			CpuMillicores: cpuMillis,
-			MemoryMb:      memMB,
-			DiskMb:        diskMB,
+			CPUMillicores: cpuMillis,
+			MemoryMB:      memMB,
+			DiskMB:        diskMB,
 		})
 	}
-
-	return &deployer.ListResourceAllocationsResponse{Allocations: allocations}, nil
+	return allocations, nil
 }
 
 // namespaceAllocations returns the actual resource usage for a namespace by summing
 // pod container requests (CPU, memory) and PVC storage requests (disk).
 // This reflects what's actually deployed, not what the ResourceQuota allows.
-func (s *Server) namespaceAllocations(ctx context.Context, namespace string) (cpuMillis, memMB, diskMB int32) {
+func (s *Server) namespaceAllocations(ctx context.Context, namespace string) (cpuMillis, memMB, diskMB int) {
 	// Sum CPU and memory requests from all running pods.
 	pods, err := s.k8s.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
 		FieldSelector: "status.phase=Running",
@@ -1186,10 +1156,10 @@ func (s *Server) namespaceAllocations(ctx context.Context, namespace string) (cp
 	for _, pod := range pods.Items {
 		for _, c := range pod.Spec.Containers {
 			if req, ok := c.Resources.Requests[corev1.ResourceCPU]; ok {
-				cpuMillis += int32(req.MilliValue())
+				cpuMillis += int(req.MilliValue())
 			}
 			if req, ok := c.Resources.Requests[corev1.ResourceMemory]; ok {
-				memMB += int32(req.Value() / (1024 * 1024))
+				memMB += int(req.Value() / (1024 * 1024))
 			}
 		}
 	}
@@ -1202,31 +1172,31 @@ func (s *Server) namespaceAllocations(ctx context.Context, namespace string) (cp
 	}
 	for _, pvc := range pvcs.Items {
 		if req, ok := pvc.Spec.Resources.Requests[corev1.ResourceStorage]; ok {
-			diskMB += int32(req.Value() / (1024 * 1024))
+			diskMB += int(req.Value() / (1024 * 1024))
 		}
 	}
 
 	return cpuMillis, memMB, diskMB
 }
 
-func (s *Server) DatabaseCredentials(ctx context.Context, req *deployer.DatabaseCredentialsRequest) (*deployer.DatabaseCredentialsResponse, error) {
-	creds, err := database.CredentialsFromSecret(ctx, s.k8s, tenant.FromContext(ctx), req.Project, req.Environment, req.Database)
+// DatabaseCredentials returns the resolved connection credentials for a database.
+func (s *Server) DatabaseCredentials(ctx context.Context, workspace, project, environment, dbName string) (data.DatabaseCredentials, error) {
+	creds, err := database.CredentialsFromSecret(ctx, s.k8s, workspace, project, environment, dbName)
 	if err != nil {
 		if errors.Is(err, database.ErrNotReady) {
-			return nil, status.Errorf(codes.FailedPrecondition, "database is provisioning")
+			return data.DatabaseCredentials{}, status.Errorf(codes.FailedPrecondition, "database is provisioning")
 		}
-		return nil, status.Errorf(codes.Internal, "failed to read credentials: %v", err)
+		return data.DatabaseCredentials{}, status.Errorf(codes.Internal, "failed to read credentials: %v", err)
 	}
 
 	uri := fmt.Sprintf("postgres://%s:%s@%s:%s/%s", creds.User, creds.Password, creds.Host, creds.Port, creds.DBName)
-
-	return &deployer.DatabaseCredentialsResponse{
+	return data.DatabaseCredentials{
 		Host:     creds.Host,
 		Port:     creds.Port,
-		Dbname:   creds.DBName,
+		DBName:   creds.DBName,
 		User:     creds.User,
 		Password: creds.Password,
-		Uri:      uri,
+		URI:      uri,
 	}, nil
 }
 
@@ -1236,8 +1206,9 @@ func githubTokenSecretName(userID string) string {
 	return "github-token-" + strings.ToLower(userID)
 }
 
-func (s *Server) StoreUserGitHubToken(ctx context.Context, req *deployer.StoreUserGitHubTokenRequest) (*deployer.StoreUserGitHubTokenResponse, error) {
-	secretName := githubTokenSecretName(req.UserId)
+// StoreUserGitHubToken persists a user's GitHub OAuth token in a K8s Secret.
+func (s *Server) StoreUserGitHubToken(ctx context.Context, userID, accessToken, refreshToken string, expiresAt int64) error {
+	secretName := githubTokenSecretName(userID)
 
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -1249,42 +1220,44 @@ func (s *Server) StoreUserGitHubToken(ctx context.Context, req *deployer.StoreUs
 			},
 		},
 		StringData: map[string]string{
-			"access_token":  req.AccessToken,
-			"refresh_token": req.RefreshToken,
-			"expires_at":    strconv.FormatInt(req.ExpiresAt, 10),
+			"access_token":  accessToken,
+			"refresh_token": refreshToken,
+			"expires_at":    strconv.FormatInt(expiresAt, 10),
 		},
 	}
 
 	existing, err := s.k8s.CoreV1().Secrets(labels.LucityNamespace).Get(ctx, secretName, metav1.GetOptions{})
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
-			return nil, status.Errorf(codes.Internal, "failed to get token secret: %v", err)
+			return status.Errorf(codes.Internal, "failed to get token secret: %v", err)
 		}
 		if _, err := s.k8s.CoreV1().Secrets(labels.LucityNamespace).Create(ctx, secret, metav1.CreateOptions{}); err != nil {
-			return nil, status.Errorf(codes.Internal, "failed to create token secret: %v", err)
+			return status.Errorf(codes.Internal, "failed to create token secret: %v", err)
 		}
 	} else {
 		existing.Data = nil // clear binary data, use StringData
 		existing.StringData = secret.StringData
 		existing.Labels = secret.Labels
 		if _, err := s.k8s.CoreV1().Secrets(labels.LucityNamespace).Update(ctx, existing, metav1.UpdateOptions{}); err != nil {
-			return nil, status.Errorf(codes.Internal, "failed to update token secret: %v", err)
+			return status.Errorf(codes.Internal, "failed to update token secret: %v", err)
 		}
 	}
 
-	slog.Info("stored GitHub token", "user", req.UserId)
-	return &deployer.StoreUserGitHubTokenResponse{}, nil
+	slog.Info("stored GitHub token", "user", userID)
+	return nil
 }
 
-func (s *Server) UserGitHubToken(ctx context.Context, req *deployer.UserGitHubTokenRequest) (*deployer.UserGitHubTokenResponse, error) {
-	secretName := githubTokenSecretName(req.UserId)
+// UserGitHubToken returns a user's stored GitHub OAuth token. Connected is
+// false (with empty fields) when no token exists yet.
+func (s *Server) UserGitHubToken(ctx context.Context, userID string) (data.UserGitHubToken, error) {
+	secretName := githubTokenSecretName(userID)
 
 	secret, err := s.k8s.CoreV1().Secrets(labels.LucityNamespace).Get(ctx, secretName, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			return &deployer.UserGitHubTokenResponse{Connected: false}, nil
+			return data.UserGitHubToken{Connected: false}, nil
 		}
-		return nil, status.Errorf(codes.Internal, "failed to get token secret: %v", err)
+		return data.UserGitHubToken{}, status.Errorf(codes.Internal, "failed to get token secret: %v", err)
 	}
 
 	var expiresAt int64
@@ -1292,7 +1265,7 @@ func (s *Server) UserGitHubToken(ctx context.Context, req *deployer.UserGitHubTo
 		expiresAt, _ = strconv.ParseInt(raw, 10, 64)
 	}
 
-	return &deployer.UserGitHubTokenResponse{
+	return data.UserGitHubToken{
 		Connected:    true,
 		AccessToken:  string(secret.Data["access_token"]),
 		RefreshToken: string(secret.Data["refresh_token"]),
@@ -1300,31 +1273,34 @@ func (s *Server) UserGitHubToken(ctx context.Context, req *deployer.UserGitHubTo
 	}, nil
 }
 
-func (s *Server) DeleteUserGitHubToken(ctx context.Context, req *deployer.DeleteUserGitHubTokenRequest) (*deployer.DeleteUserGitHubTokenResponse, error) {
-	secretName := githubTokenSecretName(req.UserId)
+// DeleteUserGitHubToken removes a user's stored GitHub OAuth token. Idempotent.
+func (s *Server) DeleteUserGitHubToken(ctx context.Context, userID string) error {
+	secretName := githubTokenSecretName(userID)
 
 	if err := s.k8s.CoreV1().Secrets(labels.LucityNamespace).Delete(ctx, secretName, metav1.DeleteOptions{}); err != nil {
 		if apierrors.IsNotFound(err) {
-			return &deployer.DeleteUserGitHubTokenResponse{}, nil // idempotent
+			return nil
 		}
-		return nil, status.Errorf(codes.Internal, "failed to delete token secret: %v", err)
+		return status.Errorf(codes.Internal, "failed to delete token secret: %v", err)
 	}
 
-	slog.Info("deleted GitHub token", "user", req.UserId)
-	return &deployer.DeleteUserGitHubTokenResponse{}, nil
+	slog.Info("deleted GitHub token", "user", userID)
+	return nil
 }
 
-func (s *Server) SuspendWorkspace(ctx context.Context, req *deployer.SuspendWorkspaceRequest) (*deployer.SuspendWorkspaceResponse, error) {
-	if req.Workspace == "" {
-		return nil, status.Errorf(codes.InvalidArgument, "workspace required")
+// SuspendWorkspace flips the suspended flag for every project/environment
+// in a workspace by writing through the inproc packager.
+func (s *Server) SuspendWorkspace(ctx context.Context, workspace string, suspended bool) error {
+	if workspace == "" {
+		return status.Errorf(codes.InvalidArgument, "workspace required")
 	}
 
 	// 1. List all namespaces belonging to this workspace.
 	nsList, err := s.k8s.CoreV1().Namespaces().List(ctx, metav1.ListOptions{
-		LabelSelector: labels.Selector(labels.Workspace, req.Workspace),
+		LabelSelector: labels.Selector(labels.Workspace, workspace),
 	})
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to list workspace namespaces: %v", err)
+		return status.Errorf(codes.Internal, "failed to list workspace namespaces: %v", err)
 	}
 
 	// 2. Deduplicate project/environment pairs.
@@ -1344,39 +1320,25 @@ func (s *Server) SuspendWorkspace(ctx context.Context, req *deployer.SuspendWork
 	// ArgoCD then enforces the suspension (replicas=0, CronJobs suspended, CNPG hibernated, HTTPRoutes removed).
 	var failed int
 	for ek := range seen {
-		packagerCtx := auth.WithClaims(ctx, &auth.Claims{
-			Subject: "deployer",
-			Roles:   []auth.Role{auth.RoleUser},
-		})
-		packagerCtx = auth.WithIssuer(packagerCtx, s.issuer)
-		packagerCtx = auth.OutgoingContext(packagerCtx)
-		packagerCtx = tenant.WithWorkspace(packagerCtx, req.Workspace)
-		packagerCtx = tenant.OutgoingContext(packagerCtx)
-
-		_, err := s.packager.SetSuspended(packagerCtx, &packager.SetSuspendedRequest{
-			Project:     ek.project,
-			Environment: ek.environment,
-			Suspended:   req.Suspended,
-		})
-		if err != nil {
+		if err := s.packager.SetSuspended(ctx, workspace, ek.project, ek.environment, suspended); err != nil {
 			slog.Error("failed to set suspended in gitops repo", "project", ek.project, "environment", ek.environment, "error", err)
 			failed++
 		}
 	}
 
 	action := "suspended"
-	if !req.Suspended {
+	if !suspended {
 		action = "resumed"
 	}
 
 	if failed > 0 {
 		verb := "suspend"
-		if !req.Suspended {
+		if !suspended {
 			verb = "resume"
 		}
-		return nil, status.Errorf(codes.Internal, "failed to %s %d of %d environments", verb, failed, len(seen))
+		return status.Errorf(codes.Internal, "failed to %s %d of %d environments", verb, failed, len(seen))
 	}
 
-	slog.Info("workspace "+action, "workspace", req.Workspace, "environments", len(seen))
-	return &deployer.SuspendWorkspaceResponse{}, nil
+	slog.Info("workspace "+action, "workspace", workspace, "environments", len(seen))
+	return nil
 }

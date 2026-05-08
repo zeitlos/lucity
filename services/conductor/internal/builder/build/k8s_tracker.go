@@ -15,7 +15,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/zeitlos/lucity/pkg/builder"
+	"github.com/zeitlos/lucity/services/conductor/internal/data"
 )
 
 // buildResult is the JSON structure stored in the Job annotation.
@@ -62,7 +62,7 @@ func (t *K8sTracker) Get(id string) *BuildState {
 		if isKnown {
 			return &BuildState{
 				ID:    id,
-				Phase: builder.BuildPhase_BUILD_PHASE_QUEUED,
+				Phase: data.BuildPhaseQueued,
 			}
 		}
 		return nil
@@ -91,7 +91,7 @@ func (t *K8sTracker) Get(id string) *BuildState {
 }
 
 // Update is a no-op — phase is derived from Job status.
-func (t *K8sTracker) Update(id string, phase builder.BuildPhase) {}
+func (t *K8sTracker) Update(id string, phase data.BuildPhase) {}
 
 // Succeed is a no-op — the build runner annotates the Job directly.
 func (t *K8sTracker) Succeed(id, imageRef, digest string) {}
@@ -156,7 +156,7 @@ func (t *K8sTracker) IsTerminal(id string) bool {
 	}
 
 	phase := jobPhase(job)
-	return phase == builder.BuildPhase_BUILD_PHASE_SUCCEEDED || phase == builder.BuildPhase_BUILD_PHASE_FAILED
+	return phase == data.BuildPhaseSucceeded || phase == data.BuildPhaseFailed
 }
 
 // findJob finds a Job by build ID label.
@@ -194,21 +194,21 @@ func (t *K8sTracker) findBuildPod(buildID string) (*corev1.Pod, error) {
 }
 
 // jobPhase maps K8s Job status to BuildPhase.
-func jobPhase(job *batchv1.Job) builder.BuildPhase {
+func jobPhase(job *batchv1.Job) data.BuildPhase {
 	for _, c := range job.Status.Conditions {
 		if c.Type == batchv1.JobComplete && c.Status == corev1.ConditionTrue {
-			return builder.BuildPhase_BUILD_PHASE_SUCCEEDED
+			return data.BuildPhaseSucceeded
 		}
 		if c.Type == batchv1.JobFailed && c.Status == corev1.ConditionTrue {
-			return builder.BuildPhase_BUILD_PHASE_FAILED
+			return data.BuildPhaseFailed
 		}
 	}
 
 	if job.Status.Active > 0 {
-		return builder.BuildPhase_BUILD_PHASE_BUILDING
+		return data.BuildPhaseBuilding
 	}
 
-	return builder.BuildPhase_BUILD_PHASE_QUEUED
+	return data.BuildPhaseQueued
 }
 
 // AnnotateJobResult annotates a Job with the build result. Called by the build

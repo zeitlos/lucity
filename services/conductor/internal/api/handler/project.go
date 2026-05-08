@@ -11,12 +11,9 @@ import (
 
 	gh "github.com/google/go-github/v68/github"
 
-	"github.com/zeitlos/lucity/pkg/auth"
-	"github.com/zeitlos/lucity/pkg/builder"
-	"github.com/zeitlos/lucity/pkg/deployer"
 	"github.com/zeitlos/lucity/pkg/labels"
-	"github.com/zeitlos/lucity/pkg/packager"
 	"github.com/zeitlos/lucity/pkg/tenant"
+	"github.com/zeitlos/lucity/services/conductor/internal/data"
 )
 
 // gRPC call timeouts. Short for quick lookups, long for operations that
@@ -97,23 +94,20 @@ type Deployment struct {
 }
 
 func (c *Client) Projects(ctx context.Context, ws string) ([]Project, error) {
-	ctx = auth.OutgoingContext(ctx)
-	ctx = tenant.OutgoingContext(ctx)
-
 	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
 	defer cancel()
-	resp, err := c.Packager.ListProjects(callCtx, &packager.ListProjectsRequest{})
+	infos, err := c.Packager.ListProjects(callCtx, ws)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list projects: %w", err)
 	}
 
-	result := make([]Project, 0, len(resp.Projects))
-	for _, p := range resp.Projects {
-		proj := projectFromProto(ws, p)
-		c.enrichSyncStatus(ctx, &proj)
-		c.enrichServiceStatus(ctx, &proj)
-		c.enrichDatabaseStatus(ctx, &proj)
-		c.enrichDeploymentHistory(ctx, &proj)
+	result := make([]Project, 0, len(infos))
+	for _, p := range infos {
+		proj := projectFromInfo(ws, p)
+		c.enrichSyncStatus(ctx, ws, &proj)
+		c.enrichServiceStatus(ctx, ws, &proj)
+		c.enrichDatabaseStatus(ctx, ws, &proj)
+		c.enrichDeploymentHistory(ctx, ws, &proj)
 		c.enrichCommitMessages(ctx, &proj)
 		result = append(result, proj)
 	}
@@ -121,21 +115,18 @@ func (c *Client) Projects(ctx context.Context, ws string) ([]Project, error) {
 }
 
 func (c *Client) Project(ctx context.Context, ws, id string) (*Project, error) {
-	ctx = auth.OutgoingContext(ctx)
-	ctx = tenant.OutgoingContext(ctx)
-
 	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
 	defer cancel()
-	resp, err := c.Packager.GetProject(callCtx, &packager.GetProjectRequest{Project: id})
+	info, err := c.Packager.GetProject(callCtx, ws, id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get project: %w", err)
 	}
 
-	p := projectFromProto(ws, resp.Project)
-	c.enrichSyncStatus(ctx, &p)
-	c.enrichServiceStatus(ctx, &p)
-	c.enrichDatabaseStatus(ctx, &p)
-	c.enrichDeploymentHistory(ctx, &p)
+	p := projectFromInfo(ws, info)
+	c.enrichSyncStatus(ctx, ws, &p)
+	c.enrichServiceStatus(ctx, ws, &p)
+	c.enrichDatabaseStatus(ctx, ws, &p)
+	c.enrichDeploymentHistory(ctx, ws, &p)
 	c.enrichCommitMessages(ctx, &p)
 	return &p, nil
 }
@@ -174,16 +165,10 @@ func (c *Client) CreateProject(ctx context.Context, ws, slug, displayName string
 		return nil, fmt.Errorf("invalid project ID %q: must be 3-63 lowercase alphanumeric characters or hyphens", slug)
 	}
 
-	ctx = auth.OutgoingContext(ctx)
-	ctx = tenant.OutgoingContext(ctx)
-
 	// 1. Create GitOps repo
 	initCtx, initCancel := context.WithTimeout(ctx, grpcLongTimeout)
 	defer initCancel()
-	resp, err := c.Packager.InitProject(initCtx, &packager.InitProjectRequest{
-		Project:     slug,
-		DisplayName: displayName,
-	})
+	repoURL, err := c.Packager.InitProject(initCtx, ws, slug, displayName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create project: %w", err)
 	}
@@ -192,13 +177,7 @@ func (c *Client) CreateProject(ctx context.Context, ws, slug, displayName string
 	ns := labels.NamespaceFor(ws, slug, "development")
 	deployCtx, deployCancel := context.WithTimeout(ctx, grpcTimeout)
 	defer deployCancel()
-	_, err = c.Deployer.DeployEnvironment(deployCtx, &deployer.DeployEnvironmentRequest{
-		Project:         slug,
-		Environment:     "development",
-		GitopsRepoUrl:   resp.GitopsRepoUrl,
-		TargetNamespace: ns,
-	})
-	if err != nil {
+	if _, err := c.Deployer.DeployEnvironment(deployCtx, ws, slug, "development", repoURL, ns); err != nil {
 		slog.Warn("failed to deploy development environment", "project", slug, "error", err)
 	}
 
@@ -218,41 +197,33 @@ func (c *Client) CreateProject(ctx context.Context, ws, slug, displayName string
 }
 
 func (c *Client) DeleteProject(ctx context.Context, id string) (bool, error) {
-	if _, err := tenant.Require(ctx); err != nil {
+	ws, err := tenant.FromContext(ctx)
+	if err != nil {
 		return false, err
 	}
-	ctx = auth.OutgoingContext(ctx)
-	ctx = tenant.OutgoingContext(ctx)
 
 	// 1. Fetch project to discover all environments
 	getCtx, getCancel := context.WithTimeout(ctx, grpcTimeout)
 	defer getCancel()
-	resp, err := c.Packager.GetProject(getCtx, &packager.GetProjectRequest{Project: id})
+	info, err := c.Packager.GetProject(getCtx, ws, id)
 	if err != nil {
 		return false, fmt.Errorf("failed to get project for deletion: %w", err)
 	}
 
 	// 2. Remove ArgoCD Application for each environment (best-effort)
-	for _, env := range resp.Project.Environments {
+	for _, env := range info.Environments {
 		rmCtx, rmCancel := context.WithTimeout(ctx, grpcTimeout)
-		_, err := c.Deployer.RemoveDeployment(rmCtx, &deployer.RemoveDeploymentRequest{
-			Project:     id,
-			Environment: env,
-		})
-		rmCancel()
-		if err != nil {
+		if err := c.Deployer.RemoveDeployment(rmCtx, ws, id, env); err != nil {
 			slog.Warn("failed to remove deployment during project deletion",
 				"project", id, "environment", env, "error", err)
 		}
+		rmCancel()
 	}
 
 	// 3. Remove ArgoCD repository credential (best-effort)
 	repoCtx, repoCancel := context.WithTimeout(ctx, grpcTimeout)
 	defer repoCancel()
-	_, err = c.Deployer.DeleteRepository(repoCtx, &deployer.DeleteRepositoryRequest{
-		Project: id,
-	})
-	if err != nil {
+	if err := c.Deployer.DeleteRepository(repoCtx, ws, id); err != nil {
 		slog.Warn("failed to delete ArgoCD repository credential",
 			"project", id, "error", err)
 	}
@@ -260,10 +231,7 @@ func (c *Client) DeleteProject(ctx context.Context, id string) (bool, error) {
 	// 4. Delete OCI images from registry (best-effort)
 	imgCtx, imgCancel := context.WithTimeout(ctx, grpcTimeout)
 	defer imgCancel()
-	_, err = c.Builder.DeleteImages(imgCtx, &builder.DeleteImagesRequest{
-		Project: id,
-	})
-	if err != nil {
+	if _, err := c.Builder.DeleteImages(imgCtx, ws, id); err != nil {
 		slog.Warn("failed to delete registry images",
 			"project", id, "error", err)
 	}
@@ -271,27 +239,21 @@ func (c *Client) DeleteProject(ctx context.Context, id string) (bool, error) {
 	// 5. Delete GitOps repo
 	delCtx, delCancel := context.WithTimeout(ctx, grpcTimeout)
 	defer delCancel()
-	_, err = c.Packager.DeleteProject(delCtx, &packager.DeleteProjectRequest{Project: id})
-	if err != nil {
+	if err := c.Packager.DeleteProject(delCtx, ws, id); err != nil {
 		return false, fmt.Errorf("failed to delete project: %w", err)
 	}
 	return true, nil
 }
 
 func (c *Client) CreateEnvironment(ctx context.Context, projectID, name, fromEnvironment, tier string) (*Environment, error) {
-	if _, err := tenant.Require(ctx); err != nil {
+	ws, err := tenant.FromContext(ctx)
+	if err != nil {
 		return nil, err
 	}
-	ctx = auth.OutgoingContext(ctx)
-	ctx = tenant.OutgoingContext(ctx)
 
 	createCtx, createCancel := context.WithTimeout(ctx, grpcLongTimeout)
 	defer createCancel()
-	resp, err := c.Packager.CreateEnvironment(createCtx, &packager.CreateEnvironmentRequest{
-		Project:         projectID,
-		Environment:     name,
-		FromEnvironment: fromEnvironment,
-	})
+	namespace, err := c.Packager.CreateEnvironment(createCtx, ws, projectID, name, fromEnvironment)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create environment: %w", err)
 	}
@@ -299,12 +261,7 @@ func (c *Client) CreateEnvironment(ctx context.Context, projectID, name, fromEnv
 	// Deploy the new environment via ArgoCD
 	envDeployCtx, envDeployCancel := context.WithTimeout(ctx, grpcTimeout)
 	defer envDeployCancel()
-	_, err = c.Deployer.DeployEnvironment(envDeployCtx, &deployer.DeployEnvironmentRequest{
-		Project:         projectID,
-		Environment:     name,
-		TargetNamespace: resp.Namespace,
-	})
-	if err != nil {
+	if _, err := c.Deployer.DeployEnvironment(envDeployCtx, ws, projectID, name, "", namespace); err != nil {
 		slog.Warn("failed to deploy environment", "project", projectID, "environment", name, "error", err)
 	}
 
@@ -316,68 +273,48 @@ func (c *Client) CreateEnvironment(ctx context.Context, projectID, name, fromEnv
 	// Trigger immediate sync so the environment deploys right away
 	syncCtx, syncCancel := context.WithTimeout(ctx, grpcTimeout)
 	defer syncCancel()
-	_, err = c.Deployer.SyncDeployment(syncCtx, &deployer.SyncDeploymentRequest{
-		Project:     projectID,
-		Environment: name,
-	})
-	if err != nil {
+	if _, err := c.Deployer.SyncDeployment(syncCtx, ws, projectID, name); err != nil {
 		slog.Warn("failed to trigger sync after environment create", "project", projectID, "environment", name, "error", err)
 	}
 
 	return &Environment{
 		ID:         projectID + "/" + name,
 		Name:       name,
-		Namespace:  resp.Namespace,
+		Namespace:  namespace,
 		SyncStatus: "PROGRESSING",
 	}, nil
 }
 
 func (c *Client) DeleteEnvironment(ctx context.Context, projectID, environment string) (bool, error) {
-	if _, err := tenant.Require(ctx); err != nil {
+	ws, err := tenant.FromContext(ctx)
+	if err != nil {
 		return false, err
 	}
-	ctx = auth.OutgoingContext(ctx)
-	ctx = tenant.OutgoingContext(ctx)
-
 	// Remove ArgoCD Application first (cascade deletes managed resources)
 	rmCtx, rmCancel := context.WithTimeout(ctx, grpcTimeout)
 	defer rmCancel()
-	_, err := c.Deployer.RemoveDeployment(rmCtx, &deployer.RemoveDeploymentRequest{
-		Project:     projectID,
-		Environment: environment,
-	})
-	if err != nil {
+	if err := c.Deployer.RemoveDeployment(rmCtx, ws, projectID, environment); err != nil {
 		slog.Warn("failed to remove deployment", "project", projectID, "environment", environment, "error", err)
 	}
 
 	// Then remove from GitOps repo
 	delEnvCtx, delEnvCancel := context.WithTimeout(ctx, grpcTimeout)
 	defer delEnvCancel()
-	_, err = c.Packager.DeleteEnvironment(delEnvCtx, &packager.DeleteEnvironmentRequest{
-		Project:     projectID,
-		Environment: environment,
-	})
-	if err != nil {
+	if err := c.Packager.DeleteEnvironment(delEnvCtx, ws, projectID, environment); err != nil {
 		return false, fmt.Errorf("failed to delete environment: %w", err)
 	}
 	return true, nil
 }
 
 func (c *Client) Promote(ctx context.Context, projectID, service, fromEnv, toEnv string) (*ServiceInstance, error) {
-	if _, err := tenant.Require(ctx); err != nil {
+	ws, err := tenant.FromContext(ctx)
+	if err != nil {
 		return nil, err
 	}
-	ctx = auth.OutgoingContext(ctx)
-	ctx = tenant.OutgoingContext(ctx)
 
 	promoteCtx, promoteCancel := context.WithTimeout(ctx, grpcLongTimeout)
 	defer promoteCancel()
-	resp, err := c.Packager.Promote(promoteCtx, &packager.PromoteRequest{
-		Project:         projectID,
-		Service:         service,
-		FromEnvironment: fromEnv,
-		ToEnvironment:   toEnv,
-	})
+	imageTag, err := c.Packager.Promote(promoteCtx, ws, projectID, service, fromEnv, toEnv)
 	if err != nil {
 		return nil, fmt.Errorf("failed to promote: %w", err)
 	}
@@ -385,14 +322,14 @@ func (c *Client) Promote(ctx context.Context, projectID, service, fromEnv, toEnv
 	return &ServiceInstance{
 		Name:        service,
 		Environment: toEnv,
-		ImageTag:    resp.ImageTag,
+		ImageTag:    imageTag,
 	}, nil
 }
 
 // enrichSyncStatus queries the deployer for each environment's ArgoCD sync status.
 // Best-effort: logs warnings on failure and leaves status as "UNKNOWN".
 // Calls are made concurrently to avoid serial N+1 latency.
-func (c *Client) enrichSyncStatus(ctx context.Context, proj *Project) {
+func (c *Client) enrichSyncStatus(ctx context.Context, ws string, proj *Project) {
 	var wg sync.WaitGroup
 	for i := range proj.Environments {
 		env := &proj.Environments[i]
@@ -401,15 +338,12 @@ func (c *Client) enrichSyncStatus(ctx context.Context, proj *Project) {
 			defer wg.Done()
 			statusCtx, statusCancel := context.WithTimeout(ctx, grpcTimeout)
 			defer statusCancel()
-			resp, err := c.Deployer.GetDeploymentStatus(statusCtx, &deployer.GetDeploymentStatusRequest{
-				Project:     proj.ID,
-				Environment: env.Name,
-			})
+			st, _, err := c.Deployer.GetDeploymentStatus(statusCtx, ws, proj.ID, env.Name)
 			if err != nil {
 				slog.Warn("failed to get deployment status", "project", proj.ID, "environment", env.Name, "error", err)
 				return
 			}
-			env.SyncStatus = deploymentStatusToString(resp.Status)
+			env.SyncStatus = string(st)
 		}()
 	}
 	wg.Wait()
@@ -418,7 +352,7 @@ func (c *Client) enrichSyncStatus(ctx context.Context, proj *Project) {
 // enrichServiceStatus queries the deployer for each service's K8s Deployment
 // status per environment. Sets Ready and Replicas from actual pod state.
 // Best-effort: logs warnings on failure.
-func (c *Client) enrichServiceStatus(ctx context.Context, proj *Project) {
+func (c *Client) enrichServiceStatus(ctx context.Context, ws string, proj *Project) {
 	var wg sync.WaitGroup
 	for i := range proj.Environments {
 		env := &proj.Environments[i]
@@ -429,11 +363,7 @@ func (c *Client) enrichServiceStatus(ctx context.Context, proj *Project) {
 				defer wg.Done()
 				statusCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
 				defer cancel()
-				resp, err := c.Deployer.ServiceStatus(statusCtx, &deployer.ServiceStatusRequest{
-					Project:     proj.ID,
-					Environment: env.Name,
-					Service:     si.Name,
-				})
+				st, err := c.Deployer.ServiceStatus(statusCtx, ws, proj.ID, env.Name, si.Name)
 				if err != nil {
 					slog.Warn("failed to get service status",
 						"project", proj.ID,
@@ -442,27 +372,25 @@ func (c *Client) enrichServiceStatus(ctx context.Context, proj *Project) {
 						"error", err)
 					return
 				}
-				si.Ready = resp.Ready
-				si.Replicas = int(resp.Replicas)
-				if resp.Scaling != nil {
-					si.Scaling = ScalingConfig{
-						Replicas: int(resp.Scaling.Replicas),
-					}
-					if resp.Scaling.AutoscalingEnabled {
+				si.Ready = st.Ready
+				si.Replicas = st.Replicas
+				if st.Scaling != nil {
+					si.Scaling = ScalingConfig{Replicas: st.Scaling.Replicas}
+					if st.Scaling.AutoscalingEnabled {
 						si.Scaling.Autoscaling = &AutoscalingConfig{
 							Enabled:     true,
-							MinReplicas: int(resp.Scaling.MinReplicas),
-							MaxReplicas: int(resp.Scaling.MaxReplicas),
-							TargetCPU:   int(resp.Scaling.TargetCpu),
+							MinReplicas: st.Scaling.MinReplicas,
+							MaxReplicas: st.Scaling.MaxReplicas,
+							TargetCPU:   st.Scaling.TargetCPU,
 						}
 					}
 				}
-				if resp.Resources != nil {
+				if st.Resources != nil {
 					si.Resources = &ServiceResources{
-						CpuMillicores:      int(resp.Resources.CpuMillicores),
-						MemoryMB:           int(resp.Resources.MemoryMb),
-						CpuLimitMillicores: int(resp.Resources.CpuLimitMillicores),
-						MemoryLimitMB:      int(resp.Resources.MemoryLimitMb),
+						CpuMillicores:      st.Resources.CPUMillicores,
+						MemoryMB:           st.Resources.MemoryMB,
+						CpuLimitMillicores: st.Resources.CPULimitMillicores,
+						MemoryLimitMB:      st.Resources.MemoryLimitMB,
 					}
 				}
 			}()
@@ -473,7 +401,7 @@ func (c *Client) enrichServiceStatus(ctx context.Context, proj *Project) {
 
 // enrichDatabaseStatus queries the deployer for each database's runtime status
 // per environment. Best-effort: logs warnings on failure.
-func (c *Client) enrichDatabaseStatus(ctx context.Context, proj *Project) {
+func (c *Client) enrichDatabaseStatus(ctx context.Context, ws string, proj *Project) {
 	if len(proj.Databases) == 0 {
 		return
 	}
@@ -488,11 +416,7 @@ func (c *Client) enrichDatabaseStatus(ctx context.Context, proj *Project) {
 				defer wg.Done()
 				statusCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
 				defer cancel()
-				resp, err := c.Deployer.DatabaseStatus(statusCtx, &deployer.DatabaseStatusRequest{
-					Project:     proj.ID,
-					Environment: envPtr.Name,
-					Database:    dbInfo.Name,
-				})
+				st, err := c.Deployer.DatabaseStatus(statusCtx, ws, proj.ID, envPtr.Name, dbInfo.Name)
 				inst := DatabaseInstance{
 					Name:        dbInfo.Name,
 					Environment: envPtr.Name,
@@ -503,17 +427,17 @@ func (c *Client) enrichDatabaseStatus(ctx context.Context, proj *Project) {
 				if err != nil {
 					slog.Warn("failed to get database status", "project", proj.ID, "environment", envPtr.Name, "database", dbInfo.Name, "error", err)
 				} else {
-					inst.Ready = resp.Ready
-					if resp.Instances > 0 {
-						inst.Instances = int(resp.Instances)
+					inst.Ready = st.Ready
+					if st.Instances > 0 {
+						inst.Instances = st.Instances
 					}
-					if resp.Volume != nil {
+					if st.Volume != nil {
 						inst.Volume = &Volume{
-							Name:          resp.Volume.Name,
-							Size:          resp.Volume.Size,
-							RequestedSize: resp.Volume.RequestedSize,
-							UsedBytes:     resp.Volume.UsedBytes,
-							CapacityBytes: resp.Volume.CapacityBytes,
+							Name:          st.Volume.Name,
+							Size:          st.Volume.Size,
+							RequestedSize: st.Volume.RequestedSize,
+							UsedBytes:     st.Volume.UsedBytes,
+							CapacityBytes: st.Volume.CapacityBytes,
 						}
 					}
 				}
@@ -529,7 +453,7 @@ func (c *Client) enrichDatabaseStatus(ctx context.Context, proj *Project) {
 // enrichDeploymentHistory fetches deployment history from the packager for each
 // service instance in every environment and attaches it.
 // Calls are made concurrently — each goroutine writes to its own ServiceInstance.
-func (c *Client) enrichDeploymentHistory(ctx context.Context, proj *Project) {
+func (c *Client) enrichDeploymentHistory(ctx context.Context, ws string, proj *Project) {
 	var wg sync.WaitGroup
 	for i := range proj.Environments {
 		env := &proj.Environments[i]
@@ -540,23 +464,18 @@ func (c *Client) enrichDeploymentHistory(ctx context.Context, proj *Project) {
 				defer wg.Done()
 				histCtx, histCancel := context.WithTimeout(ctx, grpcTimeout)
 				defer histCancel()
-				resp, err := c.Packager.DeploymentHistory(histCtx, &packager.DeploymentHistoryRequest{
-					Project:     proj.ID,
-					Environment: env.Name,
-					Service:     si.Name,
-				})
+				entries, err := c.Packager.DeploymentHistory(histCtx, ws, proj.ID, env.Name, si.Name)
 				if err != nil {
 					slog.Warn("failed to get deployment history", "project", proj.ID, "environment", env.Name, "service", si.Name, "error", err)
 					return
 				}
 
-				for k, e := range resp.Entries {
-					deployedAt := e.DeployedAt.AsTime()
+				for k, e := range entries {
 					si.Deployments = append(si.Deployments, Deployment{
 						ID:        fmt.Sprintf("%s/%s/%s/%d", proj.ID, env.Name, si.Name, k),
 						ImageTag:  e.ImageTag,
 						Active:    k == 0,
-						Timestamp: deployedAt,
+						Timestamp: e.DeployedAt,
 						Revision:  e.Revision,
 						Message:   fmt.Sprintf("deploy(%s): %s %s", env.Name, si.Name, e.ImageTag),
 					})
@@ -713,24 +632,7 @@ func parseGitHubRepoURL(rawURL string) (owner, repo string) {
 	return parts[0], parts[1]
 }
 
-func deploymentStatusToString(status deployer.DeploymentStatus) string {
-	switch status {
-	case deployer.DeploymentStatus_DEPLOYMENT_STATUS_SYNCED:
-		return "SYNCED"
-	case deployer.DeploymentStatus_DEPLOYMENT_STATUS_OUT_OF_SYNC:
-		return "OUT_OF_SYNC"
-	case deployer.DeploymentStatus_DEPLOYMENT_STATUS_PROGRESSING:
-		return "PROGRESSING"
-	case deployer.DeploymentStatus_DEPLOYMENT_STATUS_DEGRADED:
-		return "DEGRADED"
-	default:
-		return "UNKNOWN"
-	}
-}
-
-func projectFromProto(ws string, p *packager.ProjectInfo) Project {
-	createdAt := p.CreatedAt.AsTime()
-
+func projectFromInfo(ws string, p data.ProjectInfo) Project {
 	displayName := p.DisplayName
 	if displayName == "" {
 		displayName = p.Name // fall back to slug for old projects
@@ -739,11 +641,11 @@ func projectFromProto(ws string, p *packager.ProjectInfo) Project {
 	proj := Project{
 		ID:        p.Name,
 		Name:      displayName,
-		CreatedAt: createdAt,
+		CreatedAt: p.CreatedAt,
 	}
 
 	// Build a lookup of per-env service info from the richer EnvironmentInfos.
-	envInfoMap := make(map[string][]*packager.ServiceInstanceInfo, len(p.EnvironmentInfos))
+	envInfoMap := make(map[string][]data.ServiceInstanceInfo, len(p.EnvironmentInfos))
 	for _, ei := range p.EnvironmentInfos {
 		envInfoMap[ei.Name] = ei.Services
 	}
@@ -763,11 +665,11 @@ func projectFromProto(ws string, p *packager.ProjectInfo) Project {
 				Name:                 svc.Name,
 				Environment:          envName,
 				Image:                svc.Image,
-				Port:                 int(svc.Port),
+				Port:                 svc.Port,
 				Framework:            svc.Framework,
-				SourceURL:            svc.SourceUrl,
+				SourceURL:            svc.SourceURL,
 				ContextPath:          svc.ContextPath,
-				GitHubInstallationID: svc.GithubInstallationId,
+				GitHubInstallationID: svc.GitHubInstallationID,
 				StartCommand:         svc.StartCommand,
 				CustomStartCommand:   svc.CustomStartCommand,
 				ImageTag:             svc.ImageTag,
@@ -782,7 +684,7 @@ func projectFromProto(ws string, p *packager.ProjectInfo) Project {
 		proj.Databases = append(proj.Databases, Database{
 			Name:      db.Name,
 			Version:   db.Version,
-			Instances: int(db.Instances),
+			Instances: db.Instances,
 			Size:      db.Size,
 		})
 	}

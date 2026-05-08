@@ -3,7 +3,7 @@ package build
 import (
 	"sync"
 
-	"github.com/zeitlos/lucity/pkg/builder"
+	"github.com/zeitlos/lucity/services/conductor/internal/data"
 )
 
 const maxLogLines = 5000
@@ -11,7 +11,7 @@ const maxLogLines = 5000
 // BuildState holds the current state of a build.
 type BuildState struct {
 	ID       string
-	Phase    builder.BuildPhase
+	Phase    data.BuildPhase
 	ImageRef string
 	Digest   string
 	Error    string
@@ -23,7 +23,7 @@ type BuildState struct {
 type Tracker interface {
 	Create(id string)
 	Get(id string) *BuildState
-	Update(id string, phase builder.BuildPhase)
+	Update(id string, phase data.BuildPhase)
 	Succeed(id, imageRef, digest string)
 	Fail(id, errMsg string)
 	AppendLog(id, line string)
@@ -51,7 +51,7 @@ func (t *InMemoryTracker) Create(id string) {
 	defer t.mu.Unlock()
 	t.builds[id] = &BuildState{
 		ID:    id,
-		Phase: builder.BuildPhase_BUILD_PHASE_QUEUED,
+		Phase: data.BuildPhaseQueued,
 	}
 }
 
@@ -69,7 +69,7 @@ func (t *InMemoryTracker) Get(id string) *BuildState {
 }
 
 // Update sets the phase of a build.
-func (t *InMemoryTracker) Update(id string, phase builder.BuildPhase) {
+func (t *InMemoryTracker) Update(id string, phase data.BuildPhase) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	if s := t.builds[id]; s != nil {
@@ -82,7 +82,7 @@ func (t *InMemoryTracker) Succeed(id, imageRef, digest string) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	if s := t.builds[id]; s != nil {
-		s.Phase = builder.BuildPhase_BUILD_PHASE_SUCCEEDED
+		s.Phase = data.BuildPhaseSucceeded
 		s.ImageRef = imageRef
 		s.Digest = digest
 	}
@@ -93,7 +93,7 @@ func (t *InMemoryTracker) Fail(id, errMsg string) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	if s := t.builds[id]; s != nil {
-		s.Phase = builder.BuildPhase_BUILD_PHASE_FAILED
+		s.Phase = data.BuildPhaseFailed
 		s.Error = errMsg
 	}
 }
@@ -141,5 +141,5 @@ func (t *InMemoryTracker) IsTerminal(id string) bool {
 	if s == nil {
 		return true // not found = treat as done
 	}
-	return s.Phase == builder.BuildPhase_BUILD_PHASE_SUCCEEDED || s.Phase == builder.BuildPhase_BUILD_PHASE_FAILED
+	return s.Phase == data.BuildPhaseSucceeded || s.Phase == data.BuildPhaseFailed
 }

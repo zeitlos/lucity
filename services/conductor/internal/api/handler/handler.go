@@ -7,13 +7,13 @@ import (
 	"sync"
 
 	"github.com/zeitlos/lucity/pkg/auth"
-	"github.com/zeitlos/lucity/pkg/builder"
 	"github.com/zeitlos/lucity/pkg/cashier"
-	"github.com/zeitlos/lucity/pkg/deployer"
 	ghpkg "github.com/zeitlos/lucity/pkg/github"
 	"github.com/zeitlos/lucity/pkg/logto"
-	"github.com/zeitlos/lucity/pkg/packager"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/deploy"
+	inprocbuilder "github.com/zeitlos/lucity/services/conductor/internal/inproc/builder"
+	inprocdeployer "github.com/zeitlos/lucity/services/conductor/internal/inproc/deployer"
+	inprocpackager "github.com/zeitlos/lucity/services/conductor/internal/inproc/packager"
 )
 
 // TokenRefresher refreshes the Logto access token using a refresh token.
@@ -23,9 +23,9 @@ type TokenRefresher func(ctx context.Context, refreshToken string) (newAccessTok
 
 // Client holds all dependencies for the gateway's business logic.
 type Client struct {
-	Packager            packager.PackagerServiceClient
-	Builder             builder.BuilderServiceClient
-	Deployer            deployer.DeployerServiceClient
+	Packager            *inprocpackager.Server
+	Builder             *inprocbuilder.Server
+	Deployer            *inprocdeployer.Server
 	Cashier             cashier.CashierServiceClient // nil if billing disabled
 	Issuer              *auth.Issuer                 // ES256 JWT issuer for gRPC auth (nil = no auth)
 	GitHubApp           *ghpkg.App                   // for minting installation tokens (repo access)
@@ -50,11 +50,11 @@ type Client struct {
 	orgIDCacheMu sync.RWMutex
 }
 
-func New(packagerClient packager.PackagerServiceClient, builderClient builder.BuilderServiceClient, deployerClient deployer.DeployerServiceClient, cashierClient cashier.CashierServiceClient, issuer *auth.Issuer, githubApp *ghpkg.App, logtoClient *logto.Client, tokenRefresher TokenRefresher, registryPushURL, registryImagePrefix, workloadDomain, domainTarget, ipAddress, githubAppSlug, dashboardURL string) *Client {
+func New(packagerSvc *inprocpackager.Server, builderSvc *inprocbuilder.Server, deployerSvc *inprocdeployer.Server, cashierClient cashier.CashierServiceClient, issuer *auth.Issuer, githubApp *ghpkg.App, logtoClient *logto.Client, tokenRefresher TokenRefresher, registryPushURL, registryImagePrefix, workloadDomain, domainTarget, ipAddress, githubAppSlug, dashboardURL string) *Client {
 	return &Client{
-		Packager:            packagerClient,
-		Builder:             builderClient,
-		Deployer:            deployerClient,
+		Packager:            packagerSvc,
+		Builder:             builderSvc,
+		Deployer:            deployerSvc,
 		Cashier:             cashierClient,
 		Issuer:              issuer,
 		GitHubApp:           githubApp,

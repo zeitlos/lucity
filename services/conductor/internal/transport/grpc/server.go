@@ -12,9 +12,8 @@ import (
 
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/conductor"
-	deployerproto "github.com/zeitlos/lucity/pkg/deployer"
-	"github.com/zeitlos/lucity/pkg/tenant"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/handler"
+	"github.com/zeitlos/lucity/services/conductor/internal/data"
 )
 
 // Service implements the ConductorService gRPC server. It is the
@@ -39,9 +38,7 @@ func NewService(api *handler.Client) *Service {
 	return &Service{api: api}
 }
 
-// SuspendWorkspace forwards to the deployer service. The request and
-// response shapes mirror the deployer proto exactly so cashier's
-// existing call sites only need to swap the import path.
+// SuspendWorkspace forwards into the inproc deployer.
 func (s *Service) SuspendWorkspace(ctx context.Context, req *conductor.SuspendWorkspaceRequest) (*conductor.SuspendWorkspaceResponse, error) {
 	if s.api == nil || s.api.Deployer == nil {
 		return nil, status.Error(codes.FailedPrecondition, "deployer not wired")
@@ -50,54 +47,52 @@ func (s *Service) SuspendWorkspace(ctx context.Context, req *conductor.SuspendWo
 		return nil, status.Error(codes.InvalidArgument, "workspace required")
 	}
 
-	// Re-issue with the same auth + tenant context that the handler
-	// uses for outgoing gRPC calls. Cashier's incoming call is
-	// already authenticated by the unary interceptor below; we mint
-	// a fresh outgoing context here for the deployer hop.
-	outCtx := auth.OutgoingContext(ctx)
-	outCtx = tenant.WithWorkspace(outCtx, req.GetWorkspace())
-	outCtx = tenant.OutgoingContext(outCtx)
-
-	if _, err := s.api.Deployer.SuspendWorkspace(outCtx, &deployerproto.SuspendWorkspaceRequest{
-		Workspace: req.GetWorkspace(),
-		Suspended: req.GetSuspended(),
-	}); err != nil {
+	if err := s.api.Deployer.SuspendWorkspace(ctx, req.GetWorkspace(), req.GetSuspended()); err != nil {
 		return nil, fmt.Errorf("deployer suspend: %w", err)
 	}
 
 	return &conductor.SuspendWorkspaceResponse{}, nil
 }
 
-// ListResourceAllocations forwards to the deployer service and
-// translates the response into the conductor.proto shape. ResourceTier
-// values are stable across the two protos so the conversion is a
-// straight cast.
+// ListResourceAllocations forwards into the inproc deployer and
+// translates the response into the conductor.proto shape.
 func (s *Service) ListResourceAllocations(ctx context.Context, req *conductor.ListResourceAllocationsRequest) (*conductor.ListResourceAllocationsResponse, error) {
 	if s.api == nil || s.api.Deployer == nil {
 		return nil, status.Error(codes.FailedPrecondition, "deployer not wired")
 	}
 
-	outCtx := auth.OutgoingContext(ctx)
-	resp, err := s.api.Deployer.ListResourceAllocations(outCtx, &deployerproto.ListResourceAllocationsRequest{})
+	allocations, err := s.api.Deployer.ListResourceAllocations(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("deployer list resource allocations: %w", err)
 	}
 
 	out := &conductor.ListResourceAllocationsResponse{
-		Allocations: make([]*conductor.ResourceAllocation, 0, len(resp.Allocations)),
+		Allocations: make([]*conductor.ResourceAllocation, 0, len(allocations)),
 	}
-	for _, a := range resp.Allocations {
+	for _, a := range allocations {
 		out.Allocations = append(out.Allocations, &conductor.ResourceAllocation{
-			Workspace:      a.GetWorkspace(),
-			Project:        a.GetProject(),
-			Environment:    a.GetEnvironment(),
-			Tier:           conductor.ResourceTier(a.GetTier()),
-			CpuMillicores:  a.GetCpuMillicores(),
-			MemoryMb:       a.GetMemoryMb(),
-			DiskMb:         a.GetDiskMb(),
+			Workspace:     a.Workspace,
+			Project:       a.Project,
+			Environment:   a.Environment,
+			Tier:          tierToConductorProto(a.Tier),
+			CpuMillicores: int32(a.CPUMillicores),
+			MemoryMb:      int32(a.MemoryMB),
+			DiskMb:        int32(a.DiskMB),
 		})
 	}
 	return out, nil
+}
+
+// tierToConductorProto converts data.ResourceTier to the conductor proto enum.
+func tierToConductorProto(t data.ResourceTier) conductor.ResourceTier {
+	switch t {
+	case data.ResourceTierProduction:
+		return conductor.ResourceTier_RESOURCE_TIER_PRODUCTION
+	case data.ResourceTierEco:
+		return conductor.ResourceTier_RESOURCE_TIER_ECO
+	default:
+		return conductor.ResourceTier_RESOURCE_TIER_UNSPECIFIED
+	}
 }
 
 // Server is a graceful.Server-compatible wrapper around grpc.Server.
@@ -106,18 +101,14 @@ type Server struct {
 	addr   string
 }
 
-// NewServer registers Service on a new grpc.Server with the standard
-// internal-JWT auth + tenant interceptors.
+// NewServer registers Service on a new grpc.Server with the
+// internal-JWT auth interceptor. The two RPCs cashier calls
+// (SuspendWorkspace, ListResourceAllocations) carry workspace as an
+// explicit field, so no tenant-metadata interceptor is needed.
 func NewServer(addr string, svc *Service, verifier *auth.InternalVerifier) *Server {
 	s := grpc.NewServer(
-		grpc.ChainUnaryInterceptor(
-			auth.UnaryServerInterceptor(verifier),
-			tenant.UnaryServerInterceptor(),
-		),
-		grpc.ChainStreamInterceptor(
-			auth.StreamServerInterceptor(verifier),
-			tenant.StreamServerInterceptor(),
-		),
+		grpc.ChainUnaryInterceptor(auth.UnaryServerInterceptor(verifier)),
+		grpc.ChainStreamInterceptor(auth.StreamServerInterceptor(verifier)),
 	)
 	conductor.RegisterConductorServiceServer(s, svc)
 	return &Server{server: s, addr: addr}

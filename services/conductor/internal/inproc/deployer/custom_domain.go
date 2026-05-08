@@ -13,7 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/zeitlos/lucity/pkg/deployer"
+	"github.com/zeitlos/lucity/services/conductor/internal/data"
 )
 
 var certGVR = schema.GroupVersionResource{
@@ -58,8 +58,11 @@ func isCertReady(cert unstructured.Unstructured) bool {
 	return false
 }
 
-func (s *Server) ProvisionCustomDomain(ctx context.Context, req *deployer.ProvisionCustomDomainRequest) (*deployer.ProvisionCustomDomainResponse, error) {
-	hostname := req.GetHostname()
+// ProvisionCustomDomain creates a cert-manager Certificate and an HTTP
+// listener for a custom domain. Returns the TLS status (always
+// "PROVISIONING" right after; the HTTPS listener is added later by
+// ReconcileCustomDomains once the cert is Ready).
+func (s *Server) ProvisionCustomDomain(ctx context.Context, hostname string) (tlsStatus string, err error) {
 	resourceName := customDomainResourceName(hostname)
 	secretName := resourceName + "-tls"
 
@@ -88,9 +91,9 @@ func (s *Server) ProvisionCustomDomain(ctx context.Context, req *deployer.Provis
 		},
 	}
 
-	_, err := s.dynamic.Resource(certGVR).Namespace(s.gatewayNamespace).Create(ctx, cert, metav1.CreateOptions{})
+	_, err = s.dynamic.Resource(certGVR).Namespace(s.gatewayNamespace).Create(ctx, cert, metav1.CreateOptions{})
 	if err != nil && !apierrors.IsAlreadyExists(err) {
-		return nil, fmt.Errorf("failed to create certificate for %s: %w", hostname, err)
+		return "", fmt.Errorf("failed to create certificate for %s: %w", hostname, err)
 	}
 	if apierrors.IsAlreadyExists(err) {
 		slog.Info("certificate already exists", "hostname", hostname)
@@ -98,61 +101,54 @@ func (s *Server) ProvisionCustomDomain(ctx context.Context, req *deployer.Provis
 
 	// Add the HTTP listener immediately so cert-manager's HTTP-01 solver
 	// can create an HTTPRoute that matches this domain.
-	// The HTTPS listener is added later by ReconcileCustomDomains once the cert is Ready.
 	if err := s.addGatewayListener(ctx, hostname, "HTTP", ""); err != nil {
-		return nil, fmt.Errorf("failed to add http listener for %s: %w", hostname, err)
+		return "", fmt.Errorf("failed to add http listener for %s: %w", hostname, err)
 	}
 
 	slog.Info("custom domain provisioned", "hostname", hostname, "tls_status", "PROVISIONING")
-	return &deployer.ProvisionCustomDomainResponse{TlsStatus: "PROVISIONING"}, nil
+	return "PROVISIONING", nil
 }
 
-func (s *Server) DeleteCustomDomain(ctx context.Context, req *deployer.DeleteCustomDomainRequest) (*deployer.DeleteCustomDomainResponse, error) {
-	hostname := req.GetHostname()
+// DeleteCustomDomain removes the cert-manager Certificate, TLS Secret,
+// and Gateway listener pair for a custom domain.
+func (s *Server) DeleteCustomDomain(ctx context.Context, hostname string) error {
 	resourceName := customDomainResourceName(hostname)
 	secretName := resourceName + "-tls"
 
 	slog.Info("deleting custom domain", "hostname", hostname)
 
-	// Delete the Certificate.
-	err := s.dynamic.Resource(certGVR).Namespace(s.gatewayNamespace).Delete(ctx, resourceName, metav1.DeleteOptions{})
-	if err != nil && !apierrors.IsNotFound(err) {
-		return nil, fmt.Errorf("failed to delete certificate for %s: %w", hostname, err)
+	if err := s.dynamic.Resource(certGVR).Namespace(s.gatewayNamespace).Delete(ctx, resourceName, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+		return fmt.Errorf("failed to delete certificate for %s: %w", hostname, err)
 	}
-
-	// Delete the TLS Secret.
-	err = s.k8s.CoreV1().Secrets(s.gatewayNamespace).Delete(ctx, secretName, metav1.DeleteOptions{})
-	if err != nil && !apierrors.IsNotFound(err) {
-		return nil, fmt.Errorf("failed to delete tls secret for %s: %w", hostname, err)
+	if err := s.k8s.CoreV1().Secrets(s.gatewayNamespace).Delete(ctx, secretName, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+		return fmt.Errorf("failed to delete tls secret for %s: %w", hostname, err)
 	}
-
-	// Remove both listeners (HTTP + HTTPS).
 	if err := s.removeGatewayListener(ctx, resourceName+"-http"); err != nil {
-		return nil, fmt.Errorf("failed to remove http listener for %s: %w", hostname, err)
+		return fmt.Errorf("failed to remove http listener for %s: %w", hostname, err)
 	}
 	if err := s.removeGatewayListener(ctx, resourceName+"-https"); err != nil {
-		return nil, fmt.Errorf("failed to remove https listener for %s: %w", hostname, err)
+		return fmt.Errorf("failed to remove https listener for %s: %w", hostname, err)
 	}
 
 	slog.Info("custom domain deleted", "hostname", hostname)
-	return &deployer.DeleteCustomDomainResponse{}, nil
+	return nil
 }
 
-func (s *Server) CustomDomainStatus(ctx context.Context, req *deployer.CustomDomainStatusRequest) (*deployer.CustomDomainStatusResponse, error) {
-	hostname := req.GetHostname()
+// CustomDomainStatus returns the TLS provisioning state of a custom domain.
+func (s *Server) CustomDomainStatus(ctx context.Context, hostname string) (data.CustomDomainStatus, error) {
 	resourceName := customDomainResourceName(hostname)
 
 	cert, err := s.dynamic.Resource(certGVR).Namespace(s.gatewayNamespace).Get(ctx, resourceName, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			return &deployer.CustomDomainStatusResponse{TlsStatus: "NONE"}, nil
+			return data.CustomDomainStatus{TLSStatus: "NONE"}, nil
 		}
-		return nil, fmt.Errorf("failed to get certificate for %s: %w", hostname, err)
+		return data.CustomDomainStatus{}, fmt.Errorf("failed to get certificate for %s: %w", hostname, err)
 	}
 
 	conditions, found, err := unstructured.NestedSlice(cert.Object, "status", "conditions")
 	if err != nil || !found {
-		return &deployer.CustomDomainStatusResponse{TlsStatus: "PROVISIONING"}, nil
+		return data.CustomDomainStatus{TLSStatus: "PROVISIONING"}, nil
 	}
 
 	for _, c := range conditions {
@@ -170,21 +166,19 @@ func (s *Server) CustomDomainStatus(ctx context.Context, req *deployer.CustomDom
 		message, _ := cond["message"].(string)
 
 		if condStatus == "True" {
-			return &deployer.CustomDomainStatusResponse{TlsStatus: "ACTIVE"}, nil
+			return data.CustomDomainStatus{TLSStatus: "ACTIVE"}, nil
 		}
-
 		if strings.Contains(reason, "Failed") || strings.Contains(reason, "Error") ||
 			strings.Contains(message, "Failed") || strings.Contains(message, "Error") {
-			return &deployer.CustomDomainStatusResponse{
-				TlsStatus: "ERROR",
+			return data.CustomDomainStatus{
+				TLSStatus: "ERROR",
 				Message:   fmt.Sprintf("%s: %s", reason, message),
 			}, nil
 		}
-
-		return &deployer.CustomDomainStatusResponse{TlsStatus: "PROVISIONING"}, nil
+		return data.CustomDomainStatus{TLSStatus: "PROVISIONING"}, nil
 	}
 
-	return &deployer.CustomDomainStatusResponse{TlsStatus: "PROVISIONING"}, nil
+	return data.CustomDomainStatus{TLSStatus: "PROVISIONING"}, nil
 }
 
 // addGatewayListener adds an HTTP or HTTPS listener for a custom domain to the Gateway.

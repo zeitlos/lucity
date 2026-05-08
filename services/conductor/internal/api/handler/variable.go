@@ -5,9 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/zeitlos/lucity/pkg/auth"
-	"github.com/zeitlos/lucity/pkg/packager"
 	"github.com/zeitlos/lucity/pkg/tenant"
+	"github.com/zeitlos/lucity/services/conductor/internal/data"
 )
 
 type Variable struct {
@@ -43,35 +42,30 @@ var cnpgKeyDisplayNames = map[string]string{
 }
 
 func (c *Client) SharedVariables(ctx context.Context, projectID, environment string) ([]Variable, error) {
-	if _, err := tenant.Require(ctx); err != nil {
+	ws, err := tenant.FromContext(ctx)
+	if err != nil {
 		return nil, err
 	}
-	ctx = auth.OutgoingContext(ctx)
-	ctx = tenant.OutgoingContext(ctx)
 
 	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
 	defer cancel()
-	resp, err := c.Packager.SharedVariables(callCtx, &packager.SharedVariablesRequest{
-		Project:     projectID,
-		Environment: environment,
-	})
+	vars, err := c.Packager.SharedVariables(callCtx, ws, projectID, environment)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get shared variables: %w", err)
 	}
 
 	var result []Variable
-	for k, v := range resp.Variables {
+	for k, v := range vars {
 		result = append(result, Variable{Key: k, Value: v})
 	}
 	return result, nil
 }
 
 func (c *Client) SetSharedVariables(ctx context.Context, projectID, environment string, vars []Variable) (bool, error) {
-	if _, err := tenant.Require(ctx); err != nil {
+	ws, err := tenant.FromContext(ctx)
+	if err != nil {
 		return false, err
 	}
-	ctx = auth.OutgoingContext(ctx)
-	ctx = tenant.OutgoingContext(ctx)
 
 	m := make(map[string]string, len(vars))
 	for _, v := range vars {
@@ -80,31 +74,21 @@ func (c *Client) SetSharedVariables(ctx context.Context, projectID, environment 
 
 	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
 	defer cancel()
-	_, err := c.Packager.SetSharedVariables(callCtx, &packager.SetSharedVariablesRequest{
-		Project:     projectID,
-		Environment: environment,
-		Variables:   m,
-	})
-	if err != nil {
+	if err := c.Packager.SetSharedVariables(callCtx, ws, projectID, environment, m); err != nil {
 		return false, fmt.Errorf("failed to set shared variables: %w", err)
 	}
 	return true, nil
 }
 
 func (c *Client) ServiceVariables(ctx context.Context, projectID, environment, service string) ([]ServiceVariable, error) {
-	if _, err := tenant.Require(ctx); err != nil {
+	ws, err := tenant.FromContext(ctx)
+	if err != nil {
 		return nil, err
 	}
-	ctx = auth.OutgoingContext(ctx)
-	ctx = tenant.OutgoingContext(ctx)
 
 	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
 	defer cancel()
-	resp, err := c.Packager.ServiceVariables(callCtx, &packager.ServiceVariablesRequest{
-		Project:     projectID,
-		Environment: environment,
-		Service:     service,
-	})
+	resp, err := c.Packager.ServiceVariables(callCtx, ws, projectID, environment, service)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get service variables: %w", err)
 	}
@@ -149,39 +133,28 @@ func (c *Client) ServiceVariables(ctx context.Context, projectID, environment, s
 }
 
 func (c *Client) SetServiceVariables(ctx context.Context, projectID, environment, service string, vars []Variable, sharedRefs []string, dbRefs map[string]DatabaseRef, svcRefs map[string]ServiceRef) (bool, error) {
-	if _, err := tenant.Require(ctx); err != nil {
+	ws, err := tenant.FromContext(ctx)
+	if err != nil {
 		return false, err
 	}
-	ctx = auth.OutgoingContext(ctx)
-	ctx = tenant.OutgoingContext(ctx)
 
 	m := make(map[string]string, len(vars))
 	for _, v := range vars {
 		m[v.Key] = v.Value
 	}
 
-	protoDBRefs := make(map[string]*packager.DatabaseRef, len(dbRefs))
+	dataDBRefs := make(map[string]data.DatabaseRef, len(dbRefs))
 	for k, ref := range dbRefs {
-		protoDBRefs[k] = &packager.DatabaseRef{Database: ref.Database, Key: ref.Key}
+		dataDBRefs[k] = data.DatabaseRef{Database: ref.Database, Key: ref.Key}
 	}
-
-	protoSvcRefs := make(map[string]*packager.ServiceRef, len(svcRefs))
+	dataSvcRefs := make(map[string]data.ServiceRef, len(svcRefs))
 	for k, ref := range svcRefs {
-		protoSvcRefs[k] = &packager.ServiceRef{Service: ref.Service}
+		dataSvcRefs[k] = data.ServiceRef{Service: ref.Service}
 	}
 
 	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
 	defer cancel()
-	_, err := c.Packager.SetServiceVariables(callCtx, &packager.SetServiceVariablesRequest{
-		Project:      projectID,
-		Environment:  environment,
-		Service:      service,
-		Variables:    m,
-		SharedRefs:   sharedRefs,
-		DatabaseRefs: protoDBRefs,
-		ServiceRefs:  protoSvcRefs,
-	})
-	if err != nil {
+	if err := c.Packager.SetServiceVariables(callCtx, ws, projectID, environment, service, m, sharedRefs, dataDBRefs, dataSvcRefs); err != nil {
 		return false, fmt.Errorf("failed to set service variables: %w", err)
 	}
 	return true, nil
