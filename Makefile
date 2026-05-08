@@ -143,11 +143,11 @@ argocd-token:
 	TOKEN=$$(curl -sk -H "Content-Type: application/json" -H "Authorization: Bearer $$SESSION" -X POST http://localhost:8443/api/v1/account/lucity/token | jq -r '.token') && \
 	echo "ARGOCD_TOKEN=$$TOKEN"
 
-# Generate a Soft-serve access token for the packager
+# Generate a Soft-serve access token for the conductor
 # Requires: infra-forward running (Soft-serve SSH on localhost:23231)
 softserve-token:
 	@ssh-keygen -R "[localhost]:23231" 2>/dev/null || true
-	@ssh -i ~/.ssh/lucity-admin-minikube -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -p 23231 localhost token create 'packager'
+	@ssh -i ~/.ssh/lucity-admin-minikube -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -p 23231 localhost token create 'conductor'
 
 # Port-forward a project's database for local development (interactive picker)
 db-forward:
@@ -191,5 +191,5 @@ generate-internal-keys:
 	openssl ecparam -name prime256v1 -genkey -noout -out internal-jwt-private.pem
 	openssl ec -in internal-jwt-private.pem -pubout -out internal-jwt-public.pem
 	@echo "Generated internal-jwt-private.pem and internal-jwt-public.pem"
-	@echo "Set INTERNAL_JWT_PRIVATE_KEY_PATH in gateway and webhook .env files"
-	@echo "Set INTERNAL_JWT_PUBLIC_KEY_PATH in backend service .env files"
+	@echo "Set INTERNAL_JWT_PRIVATE_KEY_PATH and INTERNAL_JWT_PUBLIC_KEY_PATH"
+	@echo "in services/conductor/.env and services/cashier/.env"
