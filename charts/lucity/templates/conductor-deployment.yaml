@@ -109,7 +109,7 @@ spec:
         {{- if .Values.softserveKey }}
         - name: softserve-key
           secret:
-            secretName: {{ include "lucity.fullname" . }}-softserve
+            secretName: {{ include "lucity.fullname" . }}-softserve-key
             defaultMode: 0o600
         {{- end }}
         {{- if and .Values.internalJWT .Values.internalJWT.privateKey }}
