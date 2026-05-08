@@ -1,4 +1,4 @@
-package handler
+package conductor
 
 import (
 	"context"
@@ -105,7 +105,7 @@ func (c *Client) AddService(ctx context.Context, ws, projectID, environment, nam
 		image, imageTag = parseImageRef(externalImage)
 		imagePullPolicy = "Always"
 	} else {
-		image = deriveImagePath(c.RegistryImagePrefix, ws, projectID, name)
+		image = deriveImagePath(c.Config.RegistryImagePrefix, ws, projectID, name)
 	}
 
 	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
@@ -144,7 +144,7 @@ func (c *Client) AddService(ctx context.Context, ws, projectID, environment, nam
 
 	// Trigger initial deploy for source-based services.
 	if sourceURL != "" {
-		registry := deriveImagePath(c.RegistryPushURL, ws, projectID, name)
+		registry := deriveImagePath(c.Config.RegistryPushURL, ws, projectID, name)
 
 		startCtx, startCancel := context.WithTimeout(ctx, grpcTimeout)
 		defer startCancel()
@@ -366,7 +366,7 @@ func (c *Client) Deploy(ctx context.Context, ws, projectID, service, environment
 		}
 	}
 
-	registry := deriveImagePath(c.RegistryPushURL, ws, projectID, service)
+	registry := deriveImagePath(c.Config.RegistryPushURL, ws, projectID, service)
 
 	// Start the build
 	startCtx, startCancel := context.WithTimeout(ctx, grpcTimeout)
@@ -686,12 +686,12 @@ type DnsCheck struct {
 
 // PlatformConfig returns platform-level configuration for domain management.
 func (c *Client) PlatformConfig() (workloadDomain, domainTarget, ipAddress string) {
-	return c.WorkloadDomain, c.DomainTarget, c.IPAddress
+	return c.Config.WorkloadDomain, c.Config.DomainTarget, c.Config.IPAddress
 }
 
 // IsPlatformDomain checks if a hostname is a platform-generated domain.
 func (c *Client) IsPlatformDomain(hostname string) bool {
-	return strings.HasSuffix(hostname, "."+c.WorkloadDomain)
+	return strings.HasSuffix(hostname, "."+c.Config.WorkloadDomain)
 }
 
 // CheckDns performs a live DNS check for a custom domain.
@@ -700,7 +700,7 @@ func (c *Client) IsPlatformDomain(hostname string) bool {
 func (c *Client) CheckDns(ctx context.Context, hostname string) DnsCheck {
 	result := DnsCheck{
 		Hostname:       hostname,
-		ExpectedTarget: c.DomainTarget,
+		ExpectedTarget: c.Config.DomainTarget,
 	}
 
 	if c.IsPlatformDomain(hostname) {
@@ -734,14 +734,14 @@ func (c *Client) CheckDns(ctx context.Context, hostname string) DnsCheck {
 		// If CNAME differs from the input hostname, a real CNAME record exists.
 		if !strings.EqualFold(cname, normalized) {
 			result.CnameTarget = cname
-			expected := strings.TrimSuffix(c.DomainTarget, ".")
+			expected := strings.TrimSuffix(c.Config.DomainTarget, ".")
 			if strings.EqualFold(cname, expected) {
 				result.Status = "VALID"
 				result.Message = "CNAME record verified"
 				return result
 			}
 			result.Status = "MISCONFIGURED"
-			result.Message = fmt.Sprintf("CNAME record points to %s, expected %s", cname, c.DomainTarget)
+			result.Message = fmt.Sprintf("CNAME record points to %s, expected %s", cname, c.Config.DomainTarget)
 			return result
 		}
 	}
@@ -752,26 +752,26 @@ func (c *Client) CheckDns(ctx context.Context, hostname string) DnsCheck {
 		result.Status = "PENDING"
 		// Apex domains (e.g. "example.com") can't use CNAME — suggest A record instead.
 		parts := strings.Split(hostname, ".")
-		if len(parts) <= 2 && c.IPAddress != "" {
-			result.Message = fmt.Sprintf("No DNS record found. Add an A record pointing to %s", c.IPAddress)
+		if len(parts) <= 2 && c.Config.IPAddress != "" {
+			result.Message = fmt.Sprintf("No DNS record found. Add an A record pointing to %s", c.Config.IPAddress)
 		} else {
-			result.Message = "No DNS record found. Add a CNAME record pointing to " + c.DomainTarget
+			result.Message = "No DNS record found. Add a CNAME record pointing to " + c.Config.DomainTarget
 		}
 		return result
 	}
 
 	// Domain resolves via A record. Check if it points to our LB.
-	if c.IPAddress != "" {
+	if c.Config.IPAddress != "" {
 		for _, addr := range addrs {
-			if addr == c.IPAddress {
+			if addr == c.Config.IPAddress {
 				result.Status = "VALID"
-				result.Message = fmt.Sprintf("A record points to platform load balancer (%s)", c.IPAddress)
+				result.Message = fmt.Sprintf("A record points to platform load balancer (%s)", c.Config.IPAddress)
 				return result
 			}
 		}
 	}
 	result.Status = "MISCONFIGURED"
-	result.Message = fmt.Sprintf("Domain resolves to %s but expected CNAME to %s or A record to %s", addrs[0], c.DomainTarget, c.IPAddress)
+	result.Message = fmt.Sprintf("Domain resolves to %s but expected CNAME to %s or A record to %s", addrs[0], c.Config.DomainTarget, c.Config.IPAddress)
 	return result
 }
 

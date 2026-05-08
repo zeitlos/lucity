@@ -14,7 +14,7 @@ import (
 
 // Me is the resolver for the me field.
 func (r *queryResolver) Me(ctx context.Context) (*model.User, error) {
-	u, err := r.API.Me(ctx)
+	u, err := r.Conductor.Me(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get current user: %w", err)
 	}

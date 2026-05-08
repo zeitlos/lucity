@@ -60,22 +60,22 @@ func (r *mutationResolver) AddService(ctx context.Context, input model.AddServic
 	if input.CustomStartCommand != nil {
 		customStartCommand = *input.CustomStartCommand
 	}
-	si, err := r.API.AddService(ctx, ws, input.ProjectID, input.Environment, name, port, framework, startCommand, repository, contextPath, installationID, externalImage, customStartCommand)
+	si, err := r.Conductor.AddService(ctx, ws, input.ProjectID, input.Environment, name, port, framework, startCommand, repository, contextPath, installationID, externalImage, customStartCommand)
 	if err != nil {
 		return nil, err
 	}
-	result := convertServiceInstance(*si, r.API.WorkloadDomain)
+	result := convertServiceInstance(*si, r.Conductor.Config.WorkloadDomain)
 	return &result, nil
 }
 
 // RemoveService is the resolver for the removeService field.
 func (r *mutationResolver) RemoveService(ctx context.Context, projectID string, environment string, service string) (bool, error) {
-	return r.API.RemoveService(ctx, projectID, environment, service)
+	return r.Conductor.RemoveService(ctx, projectID, environment, service)
 }
 
 // SetCustomStartCommand is the resolver for the setCustomStartCommand field.
 func (r *mutationResolver) SetCustomStartCommand(ctx context.Context, projectID string, environment string, service string, command string) (bool, error) {
-	return r.API.SetCustomStartCommand(ctx, projectID, environment, service, command)
+	return r.Conductor.SetCustomStartCommand(ctx, projectID, environment, service, command)
 }
 
 // Deploy is the resolver for the deploy field.
@@ -88,7 +88,7 @@ func (r *mutationResolver) Deploy(ctx context.Context, input model.DeployInput) 
 	if input.GitRef != nil {
 		gitRef = *input.GitRef
 	}
-	d, err := r.API.Deploy(ctx, ws, input.ProjectID, input.Service, input.Environment, gitRef)
+	d, err := r.Conductor.Deploy(ctx, ws, input.ProjectID, input.Service, input.Environment, gitRef)
 	if err != nil {
 		return nil, err
 	}
@@ -98,12 +98,12 @@ func (r *mutationResolver) Deploy(ctx context.Context, input model.DeployInput) 
 
 // Rollback is the resolver for the rollback field.
 func (r *mutationResolver) Rollback(ctx context.Context, input model.RollbackInput) (bool, error) {
-	return r.API.Rollback(ctx, input.ProjectID, input.Service, input.Environment, input.ImageTag)
+	return r.Conductor.Rollback(ctx, input.ProjectID, input.Service, input.Environment, input.ImageTag)
 }
 
 // GenerateDomain is the resolver for the generateDomain field.
 func (r *mutationResolver) GenerateDomain(ctx context.Context, input model.GenerateDomainInput) (*model.Domain, error) {
-	d, err := r.API.GenerateDomain(ctx, input.ProjectID, input.Service, input.Environment)
+	d, err := r.Conductor.GenerateDomain(ctx, input.ProjectID, input.Service, input.Environment)
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +112,7 @@ func (r *mutationResolver) GenerateDomain(ctx context.Context, input model.Gener
 
 // AddCustomDomain is the resolver for the addCustomDomain field.
 func (r *mutationResolver) AddCustomDomain(ctx context.Context, input model.AddCustomDomainInput) (*model.Domain, error) {
-	d, err := r.API.AddCustomDomain(ctx, input.ProjectID, input.Service, input.Environment, input.Hostname)
+	d, err := r.Conductor.AddCustomDomain(ctx, input.ProjectID, input.Service, input.Environment, input.Hostname)
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +121,7 @@ func (r *mutationResolver) AddCustomDomain(ctx context.Context, input model.AddC
 
 // RemoveDomain is the resolver for the removeDomain field.
 func (r *mutationResolver) RemoveDomain(ctx context.Context, input model.RemoveDomainInput) (bool, error) {
-	return r.API.RemoveDomain(ctx, input.ProjectID, input.Service, input.Environment, input.Hostname)
+	return r.Conductor.RemoveDomain(ctx, input.ProjectID, input.Service, input.Environment, input.Hostname)
 }
 
 // DetectServices is the resolver for the detectServices field.
@@ -130,7 +130,7 @@ func (r *queryResolver) DetectServices(ctx context.Context, installationID strin
 	if err != nil {
 		return nil, fmt.Errorf("invalid installation ID: %w", err)
 	}
-	services, err := r.API.DetectServices(ctx, repository, instID)
+	services, err := r.Conductor.DetectServices(ctx, repository, instID)
 	if err != nil {
 		return nil, err
 	}
@@ -143,7 +143,7 @@ func (r *queryResolver) DetectServices(ctx context.Context, installationID strin
 
 // DeployStatus is the resolver for the deployStatus field.
 func (r *queryResolver) DeployStatus(ctx context.Context, id string) (*model.DeployRun, error) {
-	d, err := r.API.DeployStatus(ctx, id)
+	d, err := r.Conductor.DeployStatus(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -153,7 +153,7 @@ func (r *queryResolver) DeployStatus(ctx context.Context, id string) (*model.Dep
 
 // ActiveDeployment is the resolver for the activeDeployment field.
 func (r *queryResolver) ActiveDeployment(ctx context.Context, projectID string, service string, environment string) (*model.DeployRun, error) {
-	d, err := r.API.ActiveDeployment(ctx, projectID, service, environment)
+	d, err := r.Conductor.ActiveDeployment(ctx, projectID, service, environment)
 	if err != nil {
 		return nil, err
 	}
@@ -166,7 +166,7 @@ func (r *queryResolver) ActiveDeployment(ctx context.Context, projectID string, 
 
 // PlatformConfig is the resolver for the platformConfig field.
 func (r *queryResolver) PlatformConfig(ctx context.Context) (*model.PlatformConfig, error) {
-	wd, dt, ip := r.API.PlatformConfig()
+	wd, dt, ip := r.Conductor.PlatformConfig()
 	return &model.PlatformConfig{
 		WorkloadDomain: wd,
 		DomainTarget:   dt,
@@ -176,13 +176,13 @@ func (r *queryResolver) PlatformConfig(ctx context.Context) (*model.PlatformConf
 
 // CheckDNSStatus is the resolver for the checkDnsStatus field.
 func (r *queryResolver) CheckDNSStatus(ctx context.Context, hostname string) (*model.DNSCheck, error) {
-	check := r.API.CheckDns(ctx, hostname)
+	check := r.Conductor.CheckDns(ctx, hostname)
 	return convertDnsCheck(check), nil
 }
 
 // DeployLogs is the resolver for the deployLogs field.
 func (r *subscriptionResolver) DeployLogs(ctx context.Context, id string) (<-chan string, error) {
-	ch, unsub, err := r.API.DeployLogs(ctx, id)
+	ch, unsub, err := r.Conductor.DeployLogs(ctx, id)
 	if err != nil {
 		return nil, err
 	}

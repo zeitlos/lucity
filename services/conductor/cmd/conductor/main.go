@@ -35,16 +35,16 @@ import (
 	"github.com/zeitlos/lucity/pkg/logger"
 	"github.com/zeitlos/lucity/pkg/logto"
 
-	"github.com/zeitlos/lucity/services/conductor/internal/api/handler"
 	webhookpkg "github.com/zeitlos/lucity/services/conductor/internal/api/webhook"
 	webhookhttp "github.com/zeitlos/lucity/services/conductor/internal/api/webhook/http"
 	"github.com/zeitlos/lucity/services/conductor/internal/builder/build"
 	"github.com/zeitlos/lucity/services/conductor/internal/builder/engine"
+	"github.com/zeitlos/lucity/services/conductor/internal/conductor"
 	"github.com/zeitlos/lucity/services/conductor/internal/deployer/argo/argocd"
 	"github.com/zeitlos/lucity/services/conductor/internal/deployer/argo/gitops/softserve"
-	inprocbuilder "github.com/zeitlos/lucity/services/conductor/internal/inproc/builder"
-	inprocdeployer "github.com/zeitlos/lucity/services/conductor/internal/inproc/deployer"
-	inprocpackager "github.com/zeitlos/lucity/services/conductor/internal/inproc/packager"
+	"github.com/zeitlos/lucity/services/conductor/internal/inproc/builder"
+	"github.com/zeitlos/lucity/services/conductor/internal/inproc/deployer"
+	"github.com/zeitlos/lucity/services/conductor/internal/inproc/packager"
 	conductorgrpc "github.com/zeitlos/lucity/services/conductor/internal/transport/grpc"
 )
 
@@ -222,9 +222,9 @@ func main() {
 		clusterHTTP = config.SoftServeHTTP
 	}
 
-	packagerSvc := inprocpackager.New(forge, nil, config.WorkloadDomain)
-	deployerSvc := inprocdeployer.New(argoClient, nil, clusterHTTP, config.SoftServeToken, k8sClient, dynClient, config.GatewayName, config.GatewayNamespace, config.ClusterIssuer, config.RegistryPullSecret)
-	builderSvc := inprocbuilder.New(buildEng, buildTracker, config.RegistryURL, config.RegistryUsername, config.RegistryPassword, config.RegistryInsecure, config.WorkDir)
+	packagerSvc := packager.New(forge, nil, config.WorkloadDomain)
+	deployerSvc := deployer.New(argoClient, nil, clusterHTTP, config.SoftServeToken, k8sClient, dynClient, config.GatewayName, config.GatewayNamespace, config.ClusterIssuer, config.RegistryPullSecret)
+	builderSvc := builder.New(buildEng, buildTracker, config.RegistryURL, config.RegistryUsername, config.RegistryPassword, config.RegistryInsecure, config.WorkDir)
 
 	// Direct cross-wiring — Go method calls, no gRPC pipe.
 	packagerSvc.SetDeployer(deployerSvc)
@@ -277,7 +277,16 @@ func main() {
 	secure := secureCookies(config.DashboardURL)
 	tokenRefresher := newTokenRefresher(oidcProvider, secure)
 
-	api := handler.New(packagerSvc, builderSvc, deployerSvc, cashierClient, internalIssuer, githubApp, logtoClient, tokenRefresher, config.RegistryURL, registryImagePrefix, config.WorkloadDomain, domainTarget, config.IPAddress, config.GitHubAppSlug, config.DashboardURL)
+	conductorConfig := conductor.Config{
+		RegistryPushURL:     config.RegistryURL,
+		RegistryImagePrefix: registryImagePrefix,
+		WorkloadDomain:      config.WorkloadDomain,
+		DomainTarget:        domainTarget,
+		IPAddress:           config.IPAddress,
+		GitHubAppSlug:       config.GitHubAppSlug,
+		DashboardURL:        config.DashboardURL,
+	}
+	conductor := conductor.New(packagerSvc, builderSvc, deployerSvc, cashierClient, internalIssuer, githubApp, logtoClient, tokenRefresher, conductorConfig)
 
 	// ---- Servers ----
 	components := []grpcComponent{}
@@ -285,7 +294,7 @@ func main() {
 		components = append(components, grpcComponent{name: "cashier", conn: cashierConn})
 	}
 
-	graphqlServer := NewGraphQLServer(config.Port, api, oidcProvider, verifier, logtoClient, internalIssuer, sessionSecret, config.DashboardURL, config.GitHubAppSlug, components)
+	graphqlServer := NewGraphQLServer(config.Port, conductor, oidcProvider, verifier, logtoClient, internalIssuer, sessionSecret, config.DashboardURL, config.GitHubAppSlug, components)
 
 	servers := []graceful.Server{graphqlServer}
 
@@ -315,7 +324,7 @@ func main() {
 			slog.Error("failed to create internal JWT verifier", "error", err)
 			os.Exit(1)
 		}
-		grpcSvc := conductorgrpc.NewService(api)
+		grpcSvc := conductorgrpc.NewService(conductor)
 		grpcSrv := conductorgrpc.NewServer(":"+config.GRPCPort, grpcSvc, internalVerifier)
 		slog.Info("conductor gRPC ready", "port", config.GRPCPort)
 		servers = append(servers, grpcSrv)
@@ -329,7 +338,7 @@ func main() {
 // reconcileCustomDomains runs the periodic Gateway listener / cert
 // reconciliation loop on the in-process deployer service. Was the
 // goroutine in services/deployer/cmd/deployer/main.go.
-func reconcileCustomDomains(ctx context.Context, dep *inprocdeployer.Client) {
+func reconcileCustomDomains(ctx context.Context, dep *deployer.Client) {
 	if err := dep.ReconcileCustomDomains(ctx); err != nil {
 		slog.Warn("initial custom domain reconciliation failed", "error", err)
 	}

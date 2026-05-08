@@ -12,7 +12,7 @@ import (
 
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/conductor"
-	"github.com/zeitlos/lucity/services/conductor/internal/api/handler"
+	core "github.com/zeitlos/lucity/services/conductor/internal/conductor"
 	"github.com/zeitlos/lucity/services/conductor/internal/data"
 )
 
@@ -28,14 +28,11 @@ import (
 // implementation once deployer's logic is fully absorbed.
 type Service struct {
 	conductor.UnimplementedConductorServiceServer
-	api *handler.Client
+	api *core.Client
 }
 
-// NewService builds the gRPC service. It reuses the handler.Client's
-// existing deployer connection so SuspendWorkspace's behavior is
-// byte-identical to today's deployer.SuspendWorkspace path.
-func NewService(api *handler.Client) *Service {
-	return &Service{api: api}
+func NewService(conductor *core.Client) *Service {
+	return &Service{api: conductor}
 }
 
 // SuspendWorkspace forwards into the inproc deployer.

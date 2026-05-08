@@ -13,7 +13,7 @@ import (
 
 // ServiceLogs is the resolver for the serviceLogs field.
 func (r *subscriptionResolver) ServiceLogs(ctx context.Context, projectID string, service string, environment string, tailLines *int) (<-chan *model.ServiceLogEntry, error) {
-	ch, err := r.API.ServiceLogs(ctx, projectID, service, environment, tailLines)
+	ch, err := r.Conductor.ServiceLogs(ctx, projectID, service, environment, tailLines)
 	if err != nil {
 		return nil, err
 	}

@@ -26,7 +26,7 @@ func (r *mutationResolver) CreateDatabase(ctx context.Context, input model.Creat
 	if input.Size != nil {
 		size = *input.Size
 	}
-	db, err := r.API.CreateDatabase(ctx, input.ProjectID, input.Name, version, instances, size)
+	db, err := r.Conductor.CreateDatabase(ctx, input.ProjectID, input.Name, version, instances, size)
 	if err != nil {
 		return nil, err
 	}
@@ -36,12 +36,12 @@ func (r *mutationResolver) CreateDatabase(ctx context.Context, input model.Creat
 
 // DeleteDatabase is the resolver for the deleteDatabase field.
 func (r *mutationResolver) DeleteDatabase(ctx context.Context, projectID string, name string) (bool, error) {
-	return r.API.DeleteDatabase(ctx, projectID, name)
+	return r.Conductor.DeleteDatabase(ctx, projectID, name)
 }
 
 // ExecuteQuery is the resolver for the executeQuery field.
 func (r *mutationResolver) ExecuteQuery(ctx context.Context, input model.DatabaseQueryInput) (*model.QueryResult, error) {
-	result, err := r.API.ExecuteQuery(ctx, input.ProjectID, input.Environment, input.Database, input.Query)
+	result, err := r.Conductor.ExecuteQuery(ctx, input.ProjectID, input.Environment, input.Database, input.Query)
 	if err != nil {
 		return nil, err
 	}
@@ -54,7 +54,7 @@ func (r *queryResolver) Databases(ctx context.Context, projectID string) ([]mode
 	if err != nil {
 		return nil, err
 	}
-	dbs, err := r.API.Databases(ctx, ws, projectID)
+	dbs, err := r.Conductor.Databases(ctx, ws, projectID)
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +67,7 @@ func (r *queryResolver) Databases(ctx context.Context, projectID string) ([]mode
 
 // DatabaseTables is the resolver for the databaseTables field.
 func (r *queryResolver) DatabaseTables(ctx context.Context, projectID string, environment string, database string) ([]model.DatabaseTable, error) {
-	tables, err := r.API.DatabaseTables(ctx, projectID, environment, database)
+	tables, err := r.Conductor.DatabaseTables(ctx, projectID, environment, database)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +92,7 @@ func (r *queryResolver) DatabaseTableData(ctx context.Context, projectID string,
 	if offset != nil {
 		o = *offset
 	}
-	data, err := r.API.DatabaseTableData(ctx, projectID, environment, database, table, s, l, o)
+	data, err := r.Conductor.DatabaseTableData(ctx, projectID, environment, database, table, s, l, o)
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +101,7 @@ func (r *queryResolver) DatabaseTableData(ctx context.Context, projectID string,
 
 // DatabaseCredentials is the resolver for the databaseCredentials field.
 func (r *queryResolver) DatabaseCredentials(ctx context.Context, projectID string, environment string, database string) (*model.DatabaseCredentials, error) {
-	creds, err := r.API.DatabaseCredentials(ctx, projectID, environment, database)
+	creds, err := r.Conductor.DatabaseCredentials(ctx, projectID, environment, database)
 	if err != nil {
 		return nil, err
 	}

@@ -5,7 +5,7 @@
 // "Lucity vocabulary" lives here only to the extent that everything in
 // the platform agrees on it (e.g. a project has an ID, an environment
 // has a name). Richer entities like a Project (with members, settings,
-// etc.) live above this layer in internal/api/handler.
+// etc.) live above this layer in internal/conductor.
 package domain
 
 import "fmt"

@@ -15,7 +15,7 @@ import (
 
 // CreateWorkspace is the resolver for the createWorkspace field.
 func (r *mutationResolver) CreateWorkspace(ctx context.Context, input model.CreateWorkspaceInput) (*model.Workspace, error) {
-	ws, err := r.API.CreateWorkspace(ctx, input.ID, input.Name)
+	ws, err := r.Conductor.CreateWorkspace(ctx, input.ID, input.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -24,7 +24,7 @@ func (r *mutationResolver) CreateWorkspace(ctx context.Context, input model.Crea
 
 // CreateWorkspaceCheckout is the resolver for the createWorkspaceCheckout field.
 func (r *mutationResolver) CreateWorkspaceCheckout(ctx context.Context, input model.CreateWorkspaceCheckoutInput) (*model.CheckoutSession, error) {
-	url, err := r.API.CreateWorkspaceCheckout(ctx, input.ID, input.Name, string(input.Plan))
+	url, err := r.Conductor.CreateWorkspaceCheckout(ctx, input.ID, input.Name, string(input.Plan))
 	if err != nil {
 		return nil, err
 	}
@@ -33,7 +33,7 @@ func (r *mutationResolver) CreateWorkspaceCheckout(ctx context.Context, input mo
 
 // CompleteWorkspaceCheckout is the resolver for the completeWorkspaceCheckout field.
 func (r *mutationResolver) CompleteWorkspaceCheckout(ctx context.Context, sessionID string) (*model.Workspace, error) {
-	ws, err := r.API.CompleteWorkspaceCheckout(ctx, sessionID)
+	ws, err := r.Conductor.CompleteWorkspaceCheckout(ctx, sessionID)
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +46,7 @@ func (r *mutationResolver) UpdateWorkspace(ctx context.Context, input model.Upda
 	if err != nil {
 		return nil, err
 	}
-	ws, err := r.API.UpdateWorkspace(ctx, wsID, input.Name)
+	ws, err := r.Conductor.UpdateWorkspace(ctx, wsID, input.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -59,7 +59,7 @@ func (r *mutationResolver) DeleteWorkspace(ctx context.Context) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return r.API.DeleteWorkspace(ctx, wsID)
+	return r.Conductor.DeleteWorkspace(ctx, wsID)
 }
 
 // InviteMember is the resolver for the inviteMember field.
@@ -72,7 +72,7 @@ func (r *mutationResolver) InviteMember(ctx context.Context, input model.InviteM
 	if input.Role == model.WorkspaceRoleAdmin {
 		role = auth.WorkspaceRoleAdmin
 	}
-	m, err := r.API.InviteMember(ctx, wsID, input.Email, role)
+	m, err := r.Conductor.InviteMember(ctx, wsID, input.Email, role)
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +85,7 @@ func (r *mutationResolver) RemoveMember(ctx context.Context, userID string) (boo
 	if err != nil {
 		return false, err
 	}
-	return r.API.RemoveMember(ctx, wsID, userID)
+	return r.Conductor.RemoveMember(ctx, wsID, userID)
 }
 
 // UpdateMemberRole is the resolver for the updateMemberRole field.
@@ -98,7 +98,7 @@ func (r *mutationResolver) UpdateMemberRole(ctx context.Context, input model.Upd
 	if input.Role == model.WorkspaceRoleAdmin {
 		role = auth.WorkspaceRoleAdmin
 	}
-	m, err := r.API.UpdateMemberRole(ctx, wsID, input.UserID, role)
+	m, err := r.Conductor.UpdateMemberRole(ctx, wsID, input.UserID, role)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +111,7 @@ func (r *queryResolver) Workspace(ctx context.Context) (*model.Workspace, error)
 	if err != nil {
 		return nil, err
 	}
-	ws, err := r.API.Workspace(ctx, wsID)
+	ws, err := r.Conductor.Workspace(ctx, wsID)
 	if err != nil {
 		return nil, err
 	}
@@ -120,7 +120,7 @@ func (r *queryResolver) Workspace(ctx context.Context) (*model.Workspace, error)
 
 // Workspaces is the resolver for the workspaces field.
 func (r *queryResolver) Workspaces(ctx context.Context) ([]model.Workspace, error) {
-	workspaces, err := r.API.Workspaces(ctx)
+	workspaces, err := r.Conductor.Workspaces(ctx)
 	if err != nil {
 		return nil, err
 	}

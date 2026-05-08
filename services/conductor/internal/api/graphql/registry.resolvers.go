@@ -13,7 +13,7 @@ import (
 
 // SearchImages is the resolver for the searchImages field.
 func (r *queryResolver) SearchImages(ctx context.Context, query string) ([]model.ImageSearchResult, error) {
-	images, err := r.API.SearchImages(ctx, query)
+	images, err := r.Conductor.SearchImages(ctx, query)
 	if err != nil {
 		return nil, err
 	}

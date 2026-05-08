@@ -14,7 +14,7 @@ import (
 
 // SetEnvironmentResources is the resolver for the setEnvironmentResources field.
 func (r *mutationResolver) SetEnvironmentResources(ctx context.Context, input model.SetEnvironmentResourcesInput) (*model.EnvironmentResources, error) {
-	res, err := r.API.SetEnvironmentResources(ctx, input.ProjectID, input.Environment, string(input.Tier), input.CPUMillicores, input.MemoryMb, input.DiskMb)
+	res, err := r.Conductor.SetEnvironmentResources(ctx, input.ProjectID, input.Environment, string(input.Tier), input.CPUMillicores, input.MemoryMb, input.DiskMb)
 	if err != nil {
 		return nil, err
 	}
@@ -28,7 +28,7 @@ func (r *mutationResolver) ChangePlan(ctx context.Context, plan model.Plan) (*mo
 	if err != nil {
 		return nil, err
 	}
-	res, err := r.API.ChangePlan(ctx, ws, string(plan))
+	res, err := r.Conductor.ChangePlan(ctx, ws, string(plan))
 	if err != nil {
 		return nil, err
 	}
@@ -43,7 +43,7 @@ func (r *mutationResolver) BillingPortalURL(ctx context.Context) (*model.Billing
 		return nil, err
 	}
 
-	url, err := r.API.BillingPortalURL(ctx, ws)
+	url, err := r.Conductor.BillingPortalURL(ctx, ws)
 
 	if err != nil {
 		return nil, err
@@ -58,7 +58,7 @@ func (r *mutationResolver) CreatePlanCheckout(ctx context.Context, plan model.Pl
 	if err != nil {
 		return nil, err
 	}
-	url, err := r.API.CreatePlanCheckout(ctx, ws, string(plan))
+	url, err := r.Conductor.CreatePlanCheckout(ctx, ws, string(plan))
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +71,7 @@ func (r *mutationResolver) CompletePlanCheckout(ctx context.Context, sessionID s
 	if err != nil {
 		return nil, err
 	}
-	res, err := r.API.CompletePlanCheckout(ctx, ws, sessionID)
+	res, err := r.Conductor.CompletePlanCheckout(ctx, ws, sessionID)
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +80,7 @@ func (r *mutationResolver) CompletePlanCheckout(ctx context.Context, sessionID s
 
 // EnvironmentResources is the resolver for the environmentResources field.
 func (r *queryResolver) EnvironmentResources(ctx context.Context, projectID string, environment string) (*model.EnvironmentResources, error) {
-	res, err := r.API.EnvironmentResources(ctx, projectID, environment)
+	res, err := r.Conductor.EnvironmentResources(ctx, projectID, environment)
 	if err != nil {
 		return nil, err
 	}
@@ -94,7 +94,7 @@ func (r *queryResolver) Subscription(ctx context.Context) (*model.BillingSubscri
 	if err != nil {
 		return nil, err
 	}
-	res, err := r.API.Subscription(ctx, ws)
+	res, err := r.Conductor.Subscription(ctx, ws)
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +107,7 @@ func (r *queryResolver) UsageSummary(ctx context.Context) (*model.UsageSummary, 
 	if err != nil {
 		return nil, err
 	}
-	res, err := r.API.UsageSummary(ctx, ws)
+	res, err := r.Conductor.UsageSummary(ctx, ws)
 	if err != nil {
 		return nil, err
 	}

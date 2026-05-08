@@ -18,7 +18,7 @@ import (
 
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/logto"
-	"github.com/zeitlos/lucity/services/conductor/internal/api/handler"
+	"github.com/zeitlos/lucity/services/conductor/internal/conductor"
 )
 
 const (
@@ -136,10 +136,10 @@ func secureCookies(dashboardURL string) bool {
 }
 
 // registerAuthRoutes adds OIDC auth endpoints to the mux.
-func registerAuthRoutes(mux *http.ServeMux, provider *OIDCProvider, api *handler.Client, verifier *auth.Verifier, logtoClient *logto.Client, sessionSecret, dashboardURL, githubAppSlug string) {
+func registerAuthRoutes(mux *http.ServeMux, provider *OIDCProvider, conductor *conductor.Client, verifier *auth.Verifier, logtoClient *logto.Client, sessionSecret, dashboardURL, githubAppSlug string) {
 	secure := secureCookies(dashboardURL)
 	mux.HandleFunc("/auth/login", handleLogin(provider, secure))
-	mux.HandleFunc("/auth/callback", handleCallback(provider, api, logtoClient, sessionSecret, dashboardURL, secure))
+	mux.HandleFunc("/auth/callback", handleCallback(provider, conductor, logtoClient, sessionSecret, dashboardURL, secure))
 	mux.HandleFunc("/auth/me", handleMe())
 	mux.HandleFunc("/auth/logout", handleLogout(dashboardURL))
 	mux.HandleFunc("/auth/refresh", handleRefresh(provider, logtoClient, sessionSecret, secure))
@@ -185,7 +185,7 @@ func handleLogin(provider *OIDCProvider, secure bool) http.HandlerFunc {
 // extracts claims, and creates a session. Stores two cookies:
 // - lucity_session: HMAC-signed JWT with auth claims and workspace memberships
 // - lucity_token: Logto opaque access token for Account API calls (e.g. GitHub token)
-func handleCallback(provider *OIDCProvider, api *handler.Client, logtoClient *logto.Client, sessionSecret, dashboardURL string, secure bool) http.HandlerFunc {
+func handleCallback(provider *OIDCProvider, conductor *conductor.Client, logtoClient *logto.Client, sessionSecret, dashboardURL string, secure bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Verify state
 		stateCookie, err := r.Cookie(stateCookieName)
@@ -298,7 +298,7 @@ func handleCallback(provider *OIDCProvider, api *handler.Client, logtoClient *lo
 			Roles:   []auth.Role{auth.RoleUser},
 		})
 
-		personalWSID, isNewUser, err := api.EnsurePersonalWorkspace(svcCtx, idToken.Subject, username)
+		personalWSID, isNewUser, err := conductor.EnsurePersonalWorkspace(svcCtx, idToken.Subject, username)
 		if err != nil {
 			slog.Error("failed to ensure personal workspace", "error", err, "email", oidcClaims.Email)
 			http.Error(w, "failed to create workspace", http.StatusInternalServerError)
@@ -607,9 +607,7 @@ else { window.location.href = %q; }
 	}
 }
 
-// newTokenRefresher returns a handler.TokenRefresher that uses the OIDC provider
-// to exchange a refresh token for a new access token and writes updated cookies.
-func newTokenRefresher(provider *OIDCProvider, secure bool) handler.TokenRefresher {
+func newTokenRefresher(provider *OIDCProvider, secure bool) conductor.TokenRefresher {
 	return func(ctx context.Context, refreshToken string) (string, error) {
 		tokenSource := provider.oauthConfig.TokenSource(provider.httpContext(ctx), &oauth2.Token{
 			RefreshToken: refreshToken,

@@ -8,11 +8,11 @@ import (
 	"strings"
 
 	"github.com/zeitlos/lucity/pkg/auth"
-	"github.com/zeitlos/lucity/services/conductor/internal/api/handler"
+	"github.com/zeitlos/lucity/services/conductor/internal/conductor"
 )
 
 // ejectHandler returns an HTTP handler that streams an ejected project as a zip download.
-func ejectHandler(api *handler.Client) http.HandlerFunc {
+func ejectHandler(client *conductor.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -33,7 +33,7 @@ func ejectHandler(api *handler.Client) http.HandlerFunc {
 			return
 		}
 
-		archive, err := api.Eject(r.Context(), projectID)
+		archive, err := client.Eject(r.Context(), projectID)
 		if err != nil {
 			slog.Error("eject failed", "project", projectID, "error", err)
 			http.Error(w, "eject failed", http.StatusInternalServerError)

@@ -1,4 +1,4 @@
-package handler
+package conductor
 
 import (
 	"context"
@@ -29,60 +29,6 @@ type WorkspaceMember struct {
 
 var workspaceIDPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$`)
 
-// resolveOrgID resolves a workspace ID (org name) to Logto's internal org ID.
-// Uses an in-memory cache to avoid repeated API calls.
-func (c *Client) resolveOrgID(ctx context.Context, workspaceID string) (string, error) {
-	// Check cache under read lock
-	c.orgIDCacheMu.RLock()
-	if orgID, ok := c.orgIDCache[workspaceID]; ok {
-		c.orgIDCacheMu.RUnlock()
-		return orgID, nil
-	}
-	c.orgIDCacheMu.RUnlock()
-
-	// Cache miss: look up by name
-	org, err := c.Logto.OrganizationByName(ctx, workspaceID)
-	if err != nil {
-		return "", fmt.Errorf("failed to resolve org ID for workspace %q: %w", workspaceID, err)
-	}
-
-	c.cacheOrgID(workspaceID, org.ID)
-	return org.ID, nil
-}
-
-// cacheOrgID stores a workspace ID to Logto org ID mapping in the cache.
-func (c *Client) cacheOrgID(workspaceID, logtoOrgID string) {
-	c.orgIDCacheMu.Lock()
-	c.orgIDCache[workspaceID] = logtoOrgID
-	c.orgIDCacheMu.Unlock()
-}
-
-// invalidateOrgID removes a workspace ID from the org ID cache.
-func (c *Client) invalidateOrgID(workspaceID string) {
-	c.orgIDCacheMu.Lock()
-	delete(c.orgIDCache, workspaceID)
-	c.orgIDCacheMu.Unlock()
-}
-
-// displayNameFromOrg extracts the display name from a Logto organization.
-// Returns customData.displayName if set, otherwise falls back to org.Name.
-func displayNameFromOrg(org logto.UserOrganization) string {
-	if dn, ok := org.CustomData["displayName"].(string); ok && dn != "" {
-		return dn
-	}
-	return org.Name
-}
-
-// displayNameFromOrgData extracts the display name from an Organization's custom data.
-func displayNameFromOrgData(org *logto.Organization) string {
-	if org.CustomData != nil {
-		if dn, ok := org.CustomData["displayName"].(string); ok && dn != "" {
-			return dn
-		}
-	}
-	return org.Name
-}
-
 func (c *Client) Workspaces(ctx context.Context) ([]Workspace, error) {
 	claims, err := auth.FromContext(ctx)
 
@@ -95,11 +41,13 @@ func (c *Client) Workspaces(ctx context.Context) ([]Workspace, error) {
 	}
 
 	orgs, err := c.Logto.UserOrganizations(ctx, claims.Subject)
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch user organizations: %w", err)
 	}
 
 	workspaces := make([]Workspace, 0, len(orgs))
+
 	for _, org := range orgs {
 		personal, _ := org.CustomData["personal"].(bool)
 		suspended, _ := org.CustomData["suspended"].(bool)
@@ -713,8 +661,8 @@ func (c *Client) CreateWorkspaceCheckout(ctx context.Context, id, name, plan str
 	}
 
 	// Build Stripe Checkout URLs.
-	successURL := fmt.Sprintf("%s/checkout/success?session_id={CHECKOUT_SESSION_ID}", c.DashboardURL)
-	cancelURL := c.DashboardURL
+	successURL := fmt.Sprintf("%s/checkout/success?session_id={CHECKOUT_SESSION_ID}", c.Config.DashboardURL)
+	cancelURL := c.Config.DashboardURL
 
 	outCtx := auth.OutgoingContext(ctx)
 	callCtx, cancel := context.WithTimeout(outCtx, grpcTimeout)
@@ -843,6 +791,60 @@ func (c *Client) CompleteWorkspaceCheckout(ctx context.Context, sessionID string
 			{ID: claims.Subject, Email: memberEmail, Name: memberName, Role: auth.WorkspaceRoleAdmin},
 		},
 	}, nil
+}
+
+// resolveOrgID resolves a workspace ID (org name) to Logto's internal org ID.
+// Uses an in-memory cache to avoid repeated API calls.
+func (c *Client) resolveOrgID(ctx context.Context, workspaceID string) (string, error) {
+	// Check cache under read lock
+	c.orgIDCacheMu.RLock()
+	if orgID, ok := c.orgIDCache[workspaceID]; ok {
+		c.orgIDCacheMu.RUnlock()
+		return orgID, nil
+	}
+	c.orgIDCacheMu.RUnlock()
+
+	// Cache miss: look up by name
+	org, err := c.Logto.OrganizationByName(ctx, workspaceID)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve org ID for workspace %q: %w", workspaceID, err)
+	}
+
+	c.cacheOrgID(workspaceID, org.ID)
+	return org.ID, nil
+}
+
+// cacheOrgID stores a workspace ID to Logto org ID mapping in the cache.
+func (c *Client) cacheOrgID(workspaceID, logtoOrgID string) {
+	c.orgIDCacheMu.Lock()
+	c.orgIDCache[workspaceID] = logtoOrgID
+	c.orgIDCacheMu.Unlock()
+}
+
+// invalidateOrgID removes a workspace ID from the org ID cache.
+func (c *Client) invalidateOrgID(workspaceID string) {
+	c.orgIDCacheMu.Lock()
+	delete(c.orgIDCache, workspaceID)
+	c.orgIDCacheMu.Unlock()
+}
+
+// displayNameFromOrg extracts the display name from a Logto organization.
+// Returns customData.displayName if set, otherwise falls back to org.Name.
+func displayNameFromOrg(org logto.UserOrganization) string {
+	if dn, ok := org.CustomData["displayName"].(string); ok && dn != "" {
+		return dn
+	}
+	return org.Name
+}
+
+// displayNameFromOrgData extracts the display name from an Organization's custom data.
+func displayNameFromOrgData(org *logto.Organization) string {
+	if org.CustomData != nil {
+		if dn, ok := org.CustomData["displayName"].(string); ok && dn != "" {
+			return dn
+		}
+	}
+	return org.Name
 }
 
 // requireWorkspaceAdmin checks that the current user is an admin of the given workspace.

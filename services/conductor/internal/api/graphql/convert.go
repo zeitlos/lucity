@@ -5,10 +5,10 @@ import (
 
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
-	"github.com/zeitlos/lucity/services/conductor/internal/api/handler"
+	"github.com/zeitlos/lucity/services/conductor/internal/conductor"
 )
 
-func convertProject(p handler.Project, workloadDomain string) model.Project {
+func convertProject(p conductor.Project, workloadDomain string) model.Project {
 	result := model.Project{
 		ID:   p.ID,
 		Name: p.Name,
@@ -25,7 +25,7 @@ func convertProject(p handler.Project, workloadDomain string) model.Project {
 	return result
 }
 
-func convertEnvironment(e handler.Environment, workloadDomain string) model.Environment {
+func convertEnvironment(e conductor.Environment, workloadDomain string) model.Environment {
 	result := model.Environment{
 		ID:         e.ID,
 		Name:       e.Name,
@@ -42,7 +42,7 @@ func convertEnvironment(e handler.Environment, workloadDomain string) model.Envi
 	return result
 }
 
-func convertDetectedService(s handler.DetectedService) model.DetectedService {
+func convertDetectedService(s conductor.DetectedService) model.DetectedService {
 	return model.DetectedService{
 		Name:          s.Name,
 		Language:      s.Provider,
@@ -52,7 +52,7 @@ func convertDetectedService(s handler.DetectedService) model.DetectedService {
 	}
 }
 
-func convertScalingConfig(sc handler.ScalingConfig) model.ScalingConfig {
+func convertScalingConfig(sc conductor.ScalingConfig) model.ScalingConfig {
 	result := model.ScalingConfig{
 		Replicas: sc.Replicas,
 	}
@@ -67,7 +67,7 @@ func convertScalingConfig(sc handler.ScalingConfig) model.ScalingConfig {
 	return result
 }
 
-func convertServiceInstance(si handler.ServiceInstance, workloadDomain string) model.ServiceInstance {
+func convertServiceInstance(si conductor.ServiceInstance, workloadDomain string) model.ServiceInstance {
 	scaling := convertScalingConfig(si.Scaling)
 	result := model.ServiceInstance{
 		ID:          si.ID,
@@ -137,7 +137,7 @@ func convertServiceInstance(si handler.ServiceInstance, workloadDomain string) m
 	return result
 }
 
-func convertDomain(d handler.Domain) *model.Domain {
+func convertDomain(d conductor.Domain) *model.Domain {
 	return &model.Domain{
 		Hostname:  d.Hostname,
 		Type:      model.DomainType(d.Type),
@@ -146,7 +146,7 @@ func convertDomain(d handler.Domain) *model.Domain {
 	}
 }
 
-func convertDnsCheck(d handler.DnsCheck) *model.DNSCheck {
+func convertDnsCheck(d conductor.DnsCheck) *model.DNSCheck {
 	result := &model.DNSCheck{
 		Hostname:       d.Hostname,
 		Status:         model.DNSStatus(d.Status),
@@ -165,7 +165,7 @@ func convertDnsCheck(d handler.DnsCheck) *model.DNSCheck {
 	return result
 }
 
-func convertDeployment(d handler.Deployment) model.Deployment {
+func convertDeployment(d conductor.Deployment) model.Deployment {
 	dep := model.Deployment{
 		ID:       d.ID,
 		ImageTag: d.ImageTag,
@@ -189,7 +189,7 @@ func convertDeployment(d handler.Deployment) model.Deployment {
 	return dep
 }
 
-func convertDeploymentOp(d handler.DeployOp) model.DeployRun {
+func convertDeploymentOp(d conductor.DeployOp) model.DeployRun {
 	op := model.DeployRun{
 		ID:    d.ID,
 		Phase: model.DeployPhase(d.Phase),
@@ -219,7 +219,7 @@ func convertDeploymentOp(d handler.DeployOp) model.DeployRun {
 	return op
 }
 
-func convertGitHubRepository(r handler.GitHubRepository) model.GitHubRepository {
+func convertGitHubRepository(r conductor.GitHubRepository) model.GitHubRepository {
 	return model.GitHubRepository{
 		ID:            r.ID,
 		Name:          r.Name,
@@ -230,7 +230,7 @@ func convertGitHubRepository(r handler.GitHubRepository) model.GitHubRepository 
 	}
 }
 
-func convertGitHubInstallation(i handler.GitHubInstallation) model.GitHubInstallation {
+func convertGitHubInstallation(i conductor.GitHubInstallation) model.GitHubInstallation {
 	return model.GitHubInstallation{
 		ID:               i.ID,
 		AccountLogin:     i.AccountLogin,
@@ -239,7 +239,7 @@ func convertGitHubInstallation(i handler.GitHubInstallation) model.GitHubInstall
 	}
 }
 
-func convertUser(u *handler.User) *model.User {
+func convertUser(u *conductor.User) *model.User {
 	if u == nil {
 		return nil
 	}
@@ -271,7 +271,7 @@ func convertWorkspaceMemberships(memberships []auth.WorkspaceMembership) []model
 	return result
 }
 
-func convertWorkspace(ws *handler.Workspace) *model.Workspace {
+func convertWorkspace(ws *conductor.Workspace) *model.Workspace {
 	result := &model.Workspace{
 		ID:        ws.ID,
 		Name:      ws.Name,
@@ -286,7 +286,7 @@ func convertWorkspace(ws *handler.Workspace) *model.Workspace {
 	return result
 }
 
-func convertWorkspaceMember(m *handler.WorkspaceMember) *model.WorkspaceMember {
+func convertWorkspaceMember(m *conductor.WorkspaceMember) *model.WorkspaceMember {
 	role := model.WorkspaceRoleUser
 	if m.Role == auth.WorkspaceRoleAdmin {
 		role = model.WorkspaceRoleAdmin
@@ -302,7 +302,7 @@ func convertWorkspaceMember(m *handler.WorkspaceMember) *model.WorkspaceMember {
 	return result
 }
 
-func convertEnvironmentResources(r handler.EnvironmentResources) model.EnvironmentResources {
+func convertEnvironmentResources(r conductor.EnvironmentResources) model.EnvironmentResources {
 	return model.EnvironmentResources{
 		Tier: model.ResourceTier(r.Tier),
 		Allocation: &model.ResourceAllocation{
@@ -313,7 +313,7 @@ func convertEnvironmentResources(r handler.EnvironmentResources) model.Environme
 	}
 }
 
-func convertBillingSubscription(s *handler.BillingSubscription) *model.BillingSubscription {
+func convertBillingSubscription(s *conductor.BillingSubscription) *model.BillingSubscription {
 	var plan *model.Plan
 	if s.Plan != nil {
 		p := model.Plan(*s.Plan)
@@ -329,7 +329,7 @@ func convertBillingSubscription(s *handler.BillingSubscription) *model.BillingSu
 	}
 }
 
-func convertDatabase(d handler.Database) model.Database {
+func convertDatabase(d conductor.Database) model.Database {
 	return model.Database{
 		Name:      d.Name,
 		Version:   d.Version,
@@ -338,7 +338,7 @@ func convertDatabase(d handler.Database) model.Database {
 	}
 }
 
-func convertDatabaseInstance(di handler.DatabaseInstance) model.DatabaseInstance {
+func convertDatabaseInstance(di conductor.DatabaseInstance) model.DatabaseInstance {
 	result := model.DatabaseInstance{
 		Name:        di.Name,
 		Environment: di.Environment,
@@ -359,7 +359,7 @@ func convertDatabaseInstance(di handler.DatabaseInstance) model.DatabaseInstance
 	return result
 }
 
-func convertDatabaseTable(t handler.DatabaseTable) model.DatabaseTable {
+func convertDatabaseTable(t conductor.DatabaseTable) model.DatabaseTable {
 	cols := make([]model.DatabaseColumn, 0, len(t.Columns))
 	for _, c := range t.Columns {
 		cols = append(cols, model.DatabaseColumn{
@@ -377,7 +377,7 @@ func convertDatabaseTable(t handler.DatabaseTable) model.DatabaseTable {
 	}
 }
 
-func convertDatabaseTableData(d *handler.DatabaseTableData) *model.DatabaseTableData {
+func convertDatabaseTableData(d *conductor.DatabaseTableData) *model.DatabaseTableData {
 	return &model.DatabaseTableData{
 		Columns:            d.Columns,
 		Rows:               d.Rows,
@@ -385,7 +385,7 @@ func convertDatabaseTableData(d *handler.DatabaseTableData) *model.DatabaseTable
 	}
 }
 
-func convertQueryResult(r *handler.QueryResult) *model.QueryResult {
+func convertQueryResult(r *conductor.QueryResult) *model.QueryResult {
 	return &model.QueryResult{
 		Columns:      r.Columns,
 		Rows:         r.Rows,

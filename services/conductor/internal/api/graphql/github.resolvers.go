@@ -13,7 +13,7 @@ import (
 
 // GithubSources is the resolver for the githubSources field.
 func (r *queryResolver) GithubSources(ctx context.Context) ([]model.GitHubInstallation, error) {
-	installations, err := r.API.GitHubSources(ctx)
+	installations, err := r.Conductor.GitHubSources(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -26,7 +26,7 @@ func (r *queryResolver) GithubSources(ctx context.Context) ([]model.GitHubInstal
 
 // GithubRepositories is the resolver for the githubRepositories field.
 func (r *queryResolver) GithubRepositories(ctx context.Context, installationID string) ([]model.GitHubRepository, error) {
-	repos, err := r.API.GitHubRepositories(ctx, installationID)
+	repos, err := r.Conductor.GitHubRepositories(ctx, installationID)
 	if err != nil {
 		return nil, err
 	}
@@ -39,5 +39,5 @@ func (r *queryResolver) GithubRepositories(ctx context.Context, installationID s
 
 // GithubConnected is the resolver for the githubConnected field.
 func (r *queryResolver) GithubConnected(ctx context.Context) (bool, error) {
-	return r.API.GitHubConnected(ctx)
+	return r.Conductor.GitHubConnected(ctx)
 }

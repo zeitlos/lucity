@@ -1,4 +1,4 @@
-package handler
+package conductor
 
 import (
 	"context"
@@ -281,8 +281,8 @@ func (c *Client) CreatePlanCheckout(ctx context.Context, ws, plan string) (strin
 		return "", fmt.Errorf("billing is not configured for this workspace")
 	}
 
-	successURL := fmt.Sprintf("%s/checkout/plan-success?session_id={CHECKOUT_SESSION_ID}", c.DashboardURL)
-	cancelURL := fmt.Sprintf("%s/settings", c.DashboardURL)
+	successURL := fmt.Sprintf("%s/checkout/plan-success?session_id={CHECKOUT_SESSION_ID}", c.Config.DashboardURL)
+	cancelURL := fmt.Sprintf("%s/settings", c.Config.DashboardURL)
 
 	ctx = auth.OutgoingContext(ctx)
 	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)

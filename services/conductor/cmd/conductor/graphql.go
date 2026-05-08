@@ -15,7 +15,7 @@ import (
 	gatewaygraphql "github.com/zeitlos/lucity/services/conductor/internal/api/graphql"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/directive"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
-	"github.com/zeitlos/lucity/services/conductor/internal/api/handler"
+	"github.com/zeitlos/lucity/services/conductor/internal/conductor"
 
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/tenant"
@@ -37,9 +37,9 @@ type GraphQLServer struct {
 	port   string
 }
 
-func NewGraphQLServer(port string, api *handler.Client, oidcProvider *OIDCProvider, verifier *auth.Verifier, logtoClient *logto.Client, internalIssuer *auth.Issuer, sessionSecret, dashboardURL, githubAppSlug string, grpcComponents []grpcComponent) *GraphQLServer {
+func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvider *OIDCProvider, verifier *auth.Verifier, logtoClient *logto.Client, internalIssuer *auth.Issuer, sessionSecret, dashboardURL, githubAppSlug string, grpcComponents []grpcComponent) *GraphQLServer {
 	resolver := gatewaygraphql.Resolver{
-		API: api,
+		Conductor: conductorClient,
 	}
 
 	constraintDir := directive.New()
@@ -94,8 +94,8 @@ func NewGraphQLServer(port string, api *handler.Client, oidcProvider *OIDCProvid
 					if !allowSuspended {
 						ws, err := tenant.FromContext(ctx)
 
-						if err == nil && api.Logto != nil {
-							org, err := api.Logto.OrganizationByName(ctx, ws)
+						if err == nil && conductorClient.Logto != nil {
+							org, err := conductorClient.Logto.OrganizationByName(ctx, ws)
 							if err == nil && org.CustomData != nil {
 								if suspended, ok := org.CustomData["suspended"].(bool); ok && suspended {
 									slog.Warn("mutation blocked: workspace suspended", "workspace", ws, "operation", oc.OperationName)
@@ -179,7 +179,7 @@ func NewGraphQLServer(port string, api *handler.Client, oidcProvider *OIDCProvid
 	})
 
 	srv.SetErrorPresenter(func(ctx context.Context, err error) *gqlerror.Error {
-		var dbProv *handler.DatabaseProvisioningError
+		var dbProv *conductor.DatabaseProvisioningError
 		if errors.As(err, &dbProv) {
 			return &gqlerror.Error{
 				Message:    "Database is provisioning",
@@ -207,10 +207,10 @@ func NewGraphQLServer(port string, api *handler.Client, oidcProvider *OIDCProvid
 	mux.HandleFunc("/version", versionHandler(grpcComponents))
 
 	// Auth endpoints
-	registerAuthRoutes(mux, oidcProvider, api, verifier, logtoClient, sessionSecret, dashboardURL, githubAppSlug)
+	registerAuthRoutes(mux, oidcProvider, conductorClient, verifier, logtoClient, sessionSecret, dashboardURL, githubAppSlug)
 
 	// REST API endpoints
-	mux.HandleFunc("/api/eject/", ejectHandler(api))
+	mux.HandleFunc("/api/eject/", ejectHandler(conductorClient))
 
 	// GraphQL endpoints
 	mux.Handle("/playground", playground.Handler("GraphQL playground", "/graphql"))

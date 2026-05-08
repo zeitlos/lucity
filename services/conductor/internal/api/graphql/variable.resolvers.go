@@ -9,31 +9,31 @@ import (
 	"context"
 
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
-	"github.com/zeitlos/lucity/services/conductor/internal/api/handler"
+	"github.com/zeitlos/lucity/services/conductor/internal/conductor"
 )
 
 // SetSharedVariables is the resolver for the setSharedVariables field.
 func (r *mutationResolver) SetSharedVariables(ctx context.Context, projectID string, environment string, variables []model.VariableInput) (bool, error) {
-	vars := make([]handler.Variable, len(variables))
+	vars := make([]conductor.Variable, len(variables))
 	for i, v := range variables {
-		vars[i] = handler.Variable{Key: v.Key, Value: v.Value}
+		vars[i] = conductor.Variable{Key: v.Key, Value: v.Value}
 	}
-	return r.API.SetSharedVariables(ctx, projectID, environment, vars)
+	return r.Conductor.SetSharedVariables(ctx, projectID, environment, vars)
 }
 
 // SetServiceVariables is the resolver for the setServiceVariables field.
 func (r *mutationResolver) SetServiceVariables(ctx context.Context, projectID string, environment string, service string, variables []model.ServiceVariableInput) (bool, error) {
-	var directVars []handler.Variable
+	var directVars []conductor.Variable
 	var sharedRefs []string
-	dbRefs := make(map[string]handler.DatabaseRef)
-	svcRefs := make(map[string]handler.ServiceRef)
+	dbRefs := make(map[string]conductor.DatabaseRef)
+	svcRefs := make(map[string]conductor.ServiceRef)
 
 	for _, v := range variables {
 		switch {
 		case v.DatabaseRef != nil:
-			dbRefs[v.Key] = handler.DatabaseRef{Database: v.DatabaseRef.Database, Key: v.DatabaseRef.Key}
+			dbRefs[v.Key] = conductor.DatabaseRef{Database: v.DatabaseRef.Database, Key: v.DatabaseRef.Key}
 		case v.ServiceRef != nil:
-			svcRefs[v.Key] = handler.ServiceRef{Service: v.ServiceRef.Service}
+			svcRefs[v.Key] = conductor.ServiceRef{Service: v.ServiceRef.Service}
 		case v.FromShared != nil && *v.FromShared:
 			sharedRefs = append(sharedRefs, v.Key)
 		default:
@@ -41,16 +41,16 @@ func (r *mutationResolver) SetServiceVariables(ctx context.Context, projectID st
 			if v.Value != nil {
 				val = *v.Value
 			}
-			directVars = append(directVars, handler.Variable{Key: v.Key, Value: val})
+			directVars = append(directVars, conductor.Variable{Key: v.Key, Value: val})
 		}
 	}
 
-	return r.API.SetServiceVariables(ctx, projectID, environment, service, directVars, sharedRefs, dbRefs, svcRefs)
+	return r.Conductor.SetServiceVariables(ctx, projectID, environment, service, directVars, sharedRefs, dbRefs, svcRefs)
 }
 
 // SharedVariables is the resolver for the sharedVariables field.
 func (r *queryResolver) SharedVariables(ctx context.Context, projectID string, environment string) ([]model.Variable, error) {
-	vars, err := r.API.SharedVariables(ctx, projectID, environment)
+	vars, err := r.Conductor.SharedVariables(ctx, projectID, environment)
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +64,7 @@ func (r *queryResolver) SharedVariables(ctx context.Context, projectID string, e
 
 // ServiceVariables is the resolver for the serviceVariables field.
 func (r *queryResolver) ServiceVariables(ctx context.Context, projectID string, environment string, service string) ([]model.ServiceVariable, error) {
-	vars, err := r.API.ServiceVariables(ctx, projectID, environment, service)
+	vars, err := r.Conductor.ServiceVariables(ctx, projectID, environment, service)
 	if err != nil {
 		return nil, err
 	}

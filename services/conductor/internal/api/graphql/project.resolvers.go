@@ -11,7 +11,7 @@ import (
 
 	"github.com/zeitlos/lucity/pkg/tenant"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
-	"github.com/zeitlos/lucity/services/conductor/internal/api/handler"
+	"github.com/zeitlos/lucity/services/conductor/internal/conductor"
 )
 
 // ResourceTier is the resolver for the resourceTier field.
@@ -21,7 +21,7 @@ func (r *environmentResolver) ResourceTier(ctx context.Context, obj *model.Envir
 	if !found {
 		return nil, nil
 	}
-	res, err := r.API.EnvironmentResources(ctx, projectID, obj.Name)
+	res, err := r.Conductor.EnvironmentResources(ctx, projectID, obj.Name)
 	if err != nil {
 		// Environment not yet deployed or no tier set — return nil.
 		return nil, nil
@@ -40,17 +40,17 @@ func (r *mutationResolver) CreateProject(ctx context.Context, input model.Create
 	if input.ID != nil {
 		slug = *input.ID
 	}
-	p, err := r.API.CreateProject(ctx, ws, slug, input.Name)
+	p, err := r.Conductor.CreateProject(ctx, ws, slug, input.Name)
 	if err != nil {
 		return nil, err
 	}
-	result := convertProject(*p, r.API.WorkloadDomain)
+	result := convertProject(*p, r.Conductor.Config.WorkloadDomain)
 	return &result, nil
 }
 
 // DeleteProject is the resolver for the deleteProject field.
 func (r *mutationResolver) DeleteProject(ctx context.Context, id string) (bool, error) {
-	return r.API.DeleteProject(ctx, id)
+	return r.Conductor.DeleteProject(ctx, id)
 }
 
 // CreateEnvironment is the resolver for the createEnvironment field.
@@ -63,41 +63,41 @@ func (r *mutationResolver) CreateEnvironment(ctx context.Context, input model.Cr
 	if input.Tier != nil {
 		tier = string(*input.Tier)
 	}
-	e, err := r.API.CreateEnvironment(ctx, input.ProjectID, input.Name, fromEnv, tier)
+	e, err := r.Conductor.CreateEnvironment(ctx, input.ProjectID, input.Name, fromEnv, tier)
 	if err != nil {
 		return nil, err
 	}
-	result := convertEnvironment(*e, r.API.WorkloadDomain)
+	result := convertEnvironment(*e, r.Conductor.Config.WorkloadDomain)
 	return &result, nil
 }
 
 // DeleteEnvironment is the resolver for the deleteEnvironment field.
 func (r *mutationResolver) DeleteEnvironment(ctx context.Context, projectID string, environment string) (bool, error) {
-	return r.API.DeleteEnvironment(ctx, projectID, environment)
+	return r.Conductor.DeleteEnvironment(ctx, projectID, environment)
 }
 
 // Promote is the resolver for the promote field.
 func (r *mutationResolver) Promote(ctx context.Context, input model.PromoteInput) (*model.ServiceInstance, error) {
-	si, err := r.API.Promote(ctx, input.ProjectID, input.Service, input.FromEnvironment, input.ToEnvironment)
+	si, err := r.Conductor.Promote(ctx, input.ProjectID, input.Service, input.FromEnvironment, input.ToEnvironment)
 	if err != nil {
 		return nil, err
 	}
-	result := convertServiceInstance(*si, r.API.WorkloadDomain)
+	result := convertServiceInstance(*si, r.Conductor.Config.WorkloadDomain)
 	return &result, nil
 }
 
 // SetServiceScaling is the resolver for the setServiceScaling field.
 func (r *mutationResolver) SetServiceScaling(ctx context.Context, input model.SetServiceScalingInput) (*model.ScalingConfig, error) {
-	var autoscaling *handler.AutoscalingConfig
+	var autoscaling *conductor.AutoscalingConfig
 	if input.Autoscaling != nil {
-		autoscaling = &handler.AutoscalingConfig{
+		autoscaling = &conductor.AutoscalingConfig{
 			Enabled:     input.Autoscaling.Enabled,
 			MinReplicas: input.Autoscaling.MinReplicas,
 			MaxReplicas: input.Autoscaling.MaxReplicas,
 			TargetCPU:   input.Autoscaling.TargetCPU,
 		}
 	}
-	sc, err := r.API.SetServiceScaling(ctx, input.ProjectID, input.Environment, input.Service, input.Replicas, autoscaling)
+	sc, err := r.Conductor.SetServiceScaling(ctx, input.ProjectID, input.Environment, input.Service, input.Replicas, autoscaling)
 	if err != nil {
 		return nil, err
 	}
@@ -111,13 +111,13 @@ func (r *queryResolver) Projects(ctx context.Context) ([]model.Project, error) {
 	if err != nil {
 		return nil, err
 	}
-	projects, err := r.API.Projects(ctx, ws)
+	projects, err := r.Conductor.Projects(ctx, ws)
 	if err != nil {
 		return nil, err
 	}
 	result := make([]model.Project, 0, len(projects))
 	for _, p := range projects {
-		result = append(result, convertProject(p, r.API.WorkloadDomain))
+		result = append(result, convertProject(p, r.Conductor.Config.WorkloadDomain))
 	}
 	return result, nil
 }
@@ -128,11 +128,11 @@ func (r *queryResolver) Project(ctx context.Context, id string) (*model.Project,
 	if err != nil {
 		return nil, err
 	}
-	p, err := r.API.Project(ctx, ws, id)
+	p, err := r.Conductor.Project(ctx, ws, id)
 	if err != nil {
 		return nil, err
 	}
-	result := convertProject(*p, r.API.WorkloadDomain)
+	result := convertProject(*p, r.Conductor.Config.WorkloadDomain)
 	return &result, nil
 }
 
