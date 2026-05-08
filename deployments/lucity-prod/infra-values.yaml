@@ -1,5 +1,3 @@
-# Lucity infrastructure values for lucity-prod (Hetzner)
-
 zot:
   persistence: true
   pvc:
