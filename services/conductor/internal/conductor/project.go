@@ -94,14 +94,14 @@ type Deployment struct {
 }
 
 func (c *Client) Projects(ctx context.Context, ws string) ([]Project, error) {
-	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
-	defer cancel()
-	infos, err := c.Packager.ListProjects(callCtx, ws)
+	infos, err := c.Packager.ListProjects(ctx, ws)
+
 	if err != nil {
-		return nil, fmt.Errorf("failed to list projects: %w", err)
+		return nil, err
 	}
 
 	result := make([]Project, 0, len(infos))
+
 	for _, p := range infos {
 		proj := projectFromInfo(ws, p)
 		c.enrichSyncStatus(ctx, ws, &proj)
