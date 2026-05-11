@@ -6,7 +6,7 @@ import (
 	"github.com/zeitlos/lucity/pkg/auth"
 )
 
-type Provider interface {
+type Interface interface {
 	Workspaces(ctx context.Context) ([]Workspace, error)
 	WorkspacesForUser(ctx context.Context, userID string) ([]Workspace, error)
 	Workspace(ctx context.Context, id string) (*WorkspaceDetails, error)

@@ -13,8 +13,8 @@ import (
 
 var workspaceIDPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$`)
 
-func (p *Provider) Workspaces(ctx context.Context) ([]directory.Workspace, error) {
-	orgs, err := p.api.Organizations(ctx)
+func (c *Client) Workspaces(ctx context.Context) ([]directory.Workspace, error) {
+	orgs, err := c.api.Organizations(ctx)
 
 	if err != nil {
 		return nil, err
@@ -23,8 +23,8 @@ func (p *Provider) Workspaces(ctx context.Context) ([]directory.Workspace, error
 	return toWorkspaces(orgs), nil
 }
 
-func (p *Provider) WorkspacesForUser(ctx context.Context, userID string) ([]directory.Workspace, error) {
-	orgs, err := p.api.UserOrganizations(ctx, userID)
+func (c *Client) WorkspacesForUser(ctx context.Context, userID string) ([]directory.Workspace, error) {
+	orgs, err := c.api.UserOrganizations(ctx, userID)
 
 	if err != nil {
 		return nil, err
@@ -33,20 +33,20 @@ func (p *Provider) WorkspacesForUser(ctx context.Context, userID string) ([]dire
 	return toWorkspaces(orgs), nil
 }
 
-func (p *Provider) Workspace(ctx context.Context, id string) (*directory.WorkspaceDetails, error) {
-	orgID, err := p.orgID(ctx, id)
+func (c *Client) Workspace(ctx context.Context, id string) (*directory.WorkspaceDetails, error) {
+	orgID, err := c.orgID(ctx, id)
 
 	if err != nil {
 		return nil, err
 	}
 
-	org, err := p.api.Organization(ctx, orgID)
+	org, err := c.api.Organization(ctx, orgID)
 
 	if err != nil {
 		return nil, err
 	}
 
-	members, err := p.api.OrganizationMembers(ctx, orgID)
+	members, err := c.api.OrganizationMembers(ctx, orgID)
 
 	if err != nil {
 		return nil, err
@@ -57,22 +57,22 @@ func (p *Provider) Workspace(ctx context.Context, id string) (*directory.Workspa
 	return &workspace, nil
 }
 
-func (p *Provider) CreateWorkspace(ctx context.Context, id, name string) (*directory.WorkspaceDetails, error) {
+func (c *Client) CreateWorkspace(ctx context.Context, id, name string) (*directory.WorkspaceDetails, error) {
 	if !workspaceIDPattern.MatchString(id) {
 		return nil, fmt.Errorf("invalid workspace ID: must be 3-63 lowercase alphanumeric characters or hyphens")
 	}
 
-	if _, err := p.api.OrganizationByName(ctx, id); err == nil {
+	if _, err := c.api.OrganizationByName(ctx, id); err == nil {
 		return nil, fmt.Errorf("workspace ID %q is already taken", id)
 	}
 
-	org, err := p.api.CreateOrganization(ctx, id, name, nil)
+	org, err := c.api.CreateOrganization(ctx, id, name, nil)
 
 	if err != nil {
 		return nil, err
 	}
 
-	p.cacheOrgID(id, org.ID)
+	c.cacheOrgID(id, org.ID)
 
 	claims, err := auth.FromContext(ctx)
 
@@ -80,15 +80,15 @@ func (p *Provider) CreateWorkspace(ctx context.Context, id, name string) (*direc
 		return nil, err
 	}
 
-	if err := p.api.AddOrganizationMember(ctx, org.ID, claims.Subject); err != nil {
+	if err := c.api.AddOrganizationMember(ctx, org.ID, claims.Subject); err != nil {
 		return nil, err
 	}
 
-	if err := p.api.AssignOrganizationRoles(ctx, org.ID, claims.Subject, []string{p.adminRoleID, p.memberRoleID}); err != nil {
+	if err := c.api.AssignOrganizationRoles(ctx, org.ID, claims.Subject, []string{c.adminRoleID, c.memberRoleID}); err != nil {
 		return nil, err
 	}
 
-	members, err := p.api.OrganizationMembers(ctx, org.ID)
+	members, err := c.api.OrganizationMembers(ctx, org.ID)
 
 	if err != nil {
 		return nil, err
@@ -99,14 +99,14 @@ func (p *Provider) CreateWorkspace(ctx context.Context, id, name string) (*direc
 	return &workspace, nil
 }
 
-func (p *Provider) UpdateWorkspace(ctx context.Context, id, name string) (*directory.WorkspaceDetails, error) {
-	orgID, err := p.orgID(ctx, id)
+func (c *Client) UpdateWorkspace(ctx context.Context, id, name string) (*directory.WorkspaceDetails, error) {
+	orgID, err := c.orgID(ctx, id)
 
 	if err != nil {
 		return nil, err
 	}
 
-	org, err := p.api.Organization(ctx, orgID)
+	org, err := c.api.Organization(ctx, orgID)
 
 	if err != nil {
 		return nil, err
@@ -120,13 +120,13 @@ func (p *Provider) UpdateWorkspace(ctx context.Context, id, name string) (*direc
 		delete(customData, "displayName")
 	}
 
-	org, err = p.api.UpdateOrganizationCustomData(ctx, orgID, customData)
+	org, err = c.api.UpdateOrganizationCustomData(ctx, orgID, customData)
 
 	if err != nil {
 		return nil, err
 	}
 
-	members, err := p.api.OrganizationMembers(ctx, org.ID)
+	members, err := c.api.OrganizationMembers(ctx, org.ID)
 
 	if err != nil {
 		return nil, err
@@ -137,14 +137,14 @@ func (p *Provider) UpdateWorkspace(ctx context.Context, id, name string) (*direc
 	return &workspace, nil
 }
 
-func (p *Provider) DeleteWorkspace(ctx context.Context, id string) error {
-	orgID, err := p.orgID(ctx, id)
+func (c *Client) DeleteWorkspace(ctx context.Context, id string) error {
+	orgID, err := c.orgID(ctx, id)
 
 	if err != nil {
 		return err
 	}
 
-	org, err := p.api.Organization(ctx, orgID)
+	org, err := c.api.Organization(ctx, orgID)
 
 	if err != nil {
 		return err
@@ -154,23 +154,23 @@ func (p *Provider) DeleteWorkspace(ctx context.Context, id string) error {
 		return errors.New("cannot delete personal workspace")
 	}
 
-	if err := p.api.DeleteOrganization(ctx, id); err != nil {
+	if err := c.api.DeleteOrganization(ctx, id); err != nil {
 		return err
 	}
 
-	p.invalidateOrgID(id)
+	c.invalidateOrgID(id)
 
 	return nil
 }
 
-func (p *Provider) InviteMember(ctx context.Context, workspaceID, email string, role directory.Role) (*directory.WorkspaceMember, error) {
-	orgID, err := p.orgID(ctx, workspaceID)
+func (c *Client) InviteMember(ctx context.Context, workspaceID, email string, role directory.Role) (*directory.WorkspaceMember, error) {
+	orgID, err := c.orgID(ctx, workspaceID)
 
 	if err != nil {
 		return nil, err
 	}
 
-	user, err := p.api.UserByEmail(ctx, email)
+	user, err := c.api.UserByEmail(ctx, email)
 
 	if err != nil {
 		return nil, err
@@ -180,17 +180,17 @@ func (p *Provider) InviteMember(ctx context.Context, workspaceID, email string, 
 		return nil, fmt.Errorf("user with email %q not found in identity provider", email)
 	}
 
-	if err := p.api.AddOrganizationMember(ctx, orgID, user.ID); err != nil {
+	if err := c.api.AddOrganizationMember(ctx, orgID, user.ID); err != nil {
 		return nil, err
 	}
 
-	roleIDs := []string{p.memberRoleID}
+	roleIDs := []string{c.memberRoleID}
 
 	if role == auth.WorkspaceRoleAdmin {
-		roleIDs = append(roleIDs, p.adminRoleID)
+		roleIDs = append(roleIDs, c.adminRoleID)
 	}
 
-	if err := p.api.AssignOrganizationRoles(ctx, orgID, user.ID, roleIDs); err != nil {
+	if err := c.api.AssignOrganizationRoles(ctx, orgID, user.ID, roleIDs); err != nil {
 		return nil, err
 	}
 
@@ -202,8 +202,8 @@ func (p *Provider) InviteMember(ctx context.Context, workspaceID, email string, 
 	}, nil
 }
 
-func (p *Provider) UpdateMemberRole(ctx context.Context, workspaceID, userID string, role directory.Role) (*directory.WorkspaceMember, error) {
-	orgID, err := p.orgID(ctx, workspaceID)
+func (c *Client) UpdateMemberRole(ctx context.Context, workspaceID, userID string, role directory.Role) (*directory.WorkspaceMember, error) {
+	orgID, err := c.orgID(ctx, workspaceID)
 
 	if err != nil {
 		return nil, err
@@ -211,17 +211,17 @@ func (p *Provider) UpdateMemberRole(ctx context.Context, workspaceID, userID str
 
 	if role == auth.WorkspaceRoleAdmin {
 		// Assign admin role
-		if err := p.api.AssignOrganizationRoles(ctx, orgID, userID, []string{p.adminRoleID}); err != nil {
+		if err := c.api.AssignOrganizationRoles(ctx, orgID, userID, []string{c.adminRoleID}); err != nil {
 			return nil, err
 		}
 	} else {
 		// Remove admin role
-		if err := p.api.RemoveOrganizationRole(ctx, orgID, userID, p.adminRoleID); err != nil {
+		if err := c.api.RemoveOrganizationRole(ctx, orgID, userID, c.adminRoleID); err != nil {
 			return nil, fmt.Errorf("failed to remove admin role: %w", err)
 		}
 	}
 
-	user, err := p.api.User(ctx, userID)
+	user, err := c.api.User(ctx, userID)
 
 	if err != nil {
 		return nil, err
@@ -235,49 +235,49 @@ func (p *Provider) UpdateMemberRole(ctx context.Context, workspaceID, userID str
 	}, nil
 }
 
-func (p *Provider) RemoveMember(ctx context.Context, workspaceID, userID string) error {
-	orgID, err := p.orgID(ctx, workspaceID)
+func (c *Client) RemoveMember(ctx context.Context, workspaceID, userID string) error {
+	orgID, err := c.orgID(ctx, workspaceID)
 
 	if err != nil {
 		return err
 	}
 
-	if err := p.api.RemoveOrganizationMember(ctx, orgID, userID); err != nil {
+	if err := c.api.RemoveOrganizationMember(ctx, orgID, userID); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (p *Provider) orgID(ctx context.Context, workspaceID string) (string, error) {
-	p.orgIDCacheMu.RLock()
-	orgID, found := p.orgIDCache[workspaceID]
-	p.orgIDCacheMu.RUnlock()
+func (c *Client) orgID(ctx context.Context, workspaceID string) (string, error) {
+	c.orgIDCacheMu.RLock()
+	orgID, found := c.orgIDCache[workspaceID]
+	c.orgIDCacheMu.RUnlock()
 
 	if found {
 		return orgID, nil
 	}
 
-	org, err := p.api.OrganizationByName(ctx, workspaceID)
+	org, err := c.api.OrganizationByName(ctx, workspaceID)
 
 	if err != nil {
 		return "", err
 	}
 
-	p.cacheOrgID(workspaceID, org.ID)
+	c.cacheOrgID(workspaceID, org.ID)
 	return org.ID, nil
 }
 
-func (p *Provider) cacheOrgID(workspaceID, logtoOrgID string) {
-	p.orgIDCacheMu.Lock()
-	p.orgIDCache[workspaceID] = logtoOrgID
-	p.orgIDCacheMu.Unlock()
+func (c *Client) cacheOrgID(workspaceID, logtoOrgID string) {
+	c.orgIDCacheMu.Lock()
+	c.orgIDCache[workspaceID] = logtoOrgID
+	c.orgIDCacheMu.Unlock()
 }
 
-func (p *Provider) invalidateOrgID(workspaceID string) {
-	p.orgIDCacheMu.Lock()
-	delete(p.orgIDCache, workspaceID)
-	p.orgIDCacheMu.Unlock()
+func (c *Client) invalidateOrgID(workspaceID string) {
+	c.orgIDCacheMu.Lock()
+	delete(c.orgIDCache, workspaceID)
+	c.orgIDCacheMu.Unlock()
 }
 
 func toWorkspace(org logto.Organization) directory.Workspace {

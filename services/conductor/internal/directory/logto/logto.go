@@ -7,9 +7,10 @@ import (
 	"sync"
 
 	"github.com/zeitlos/lucity/pkg/logto"
+	"github.com/zeitlos/lucity/services/conductor/internal/directory"
 )
 
-type Provider struct {
+type Client struct {
 	api *logto.Client
 
 	adminRoleID  string
@@ -19,7 +20,7 @@ type Provider struct {
 	orgIDCacheMu sync.RWMutex
 }
 
-func New(client *logto.Client) (*Provider, error) {
+func New(client *logto.Client) (*Client, error) {
 	ctx := context.Background()
 
 	roles, err := client.OrganizationRoles(ctx)
@@ -28,7 +29,7 @@ func New(client *logto.Client) (*Provider, error) {
 		return nil, err
 	}
 
-	p := Provider{
+	p := Client{
 		api: client,
 	}
 
@@ -49,3 +50,5 @@ func New(client *logto.Client) (*Provider, error) {
 
 	return &p, nil
 }
+
+var _ directory.Interface = (*Client)(nil)

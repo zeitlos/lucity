@@ -34,7 +34,7 @@ type Client struct {
 	TokenRefresher TokenRefresher // refreshes expired Logto access tokens (nil if not configured)
 
 	// Refactored clients
-	directory directory.Provider
+	directory directory.Interface
 
 	Config Config
 
