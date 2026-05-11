@@ -42,13 +42,9 @@ Always use full module paths. No relative imports.
 
 ## Error Handling
 
-```go
-if err != nil {
-    return nil, fmt.Errorf("failed to <action>: %w", err)
-}
-```
+Return errors directly when there's nothing meaningful to add. Wrap with `fmt.Errorf("...: %w", err)` only when the call site adds context the underlying error doesn't already have. Avoid `"failed to X: ..."` boilerplate that just stutters the operation back.
 
-Always wrap with context using `%w`. Use `slog.Error()` before `os.Exit(1)` in main.
+Use `slog.Error()` before `os.Exit(1)` in main.
 
 ## Logging
 
