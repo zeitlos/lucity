@@ -18,10 +18,6 @@ type Provider interface {
 	InviteMember(ctx context.Context, workspaceID, email string, role Role) (*WorkspaceMember, error)
 	UpdateMemberRole(ctx context.Context, workspaceID, userID string, role Role) (*WorkspaceMember, error)
 	RemoveMember(ctx context.Context, workspaceID, userID string) error
-
-	Projects(ctx, tenantID string) ([]Project, error)
-	ProjectsForUser(ctx context.Context, userID string) ([]Workspace, error)
-	Project(ctx, id string) (*Project, error)
 }
 
 type Role = auth.WorkspaceRole
@@ -44,9 +40,4 @@ type WorkspaceMember struct {
 	Email string
 	Name  string
 	Role  Role
-}
-
-type Project struct {
-	ID   string
-	Name string
 }
