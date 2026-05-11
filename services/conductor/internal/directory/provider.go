@@ -9,10 +9,10 @@ import (
 type Provider interface {
 	Workspaces(ctx context.Context) ([]Workspace, error)
 	WorkspacesForUser(ctx context.Context, userID string) ([]Workspace, error)
-	Workspace(ctx context.Context, id string) (*Workspace, error)
+	Workspace(ctx context.Context, id string) (*WorkspaceDetails, error)
 
-	CreateWorkspace(ctx context.Context, id, name string) (*Workspace, error)
-	UpdateWorkspace(ctx context.Context, id, name string) (*Workspace, error)
+	CreateWorkspace(ctx context.Context, id, name string) (*WorkspaceDetails, error)
+	UpdateWorkspace(ctx context.Context, id, name string) (*WorkspaceDetails, error)
 	DeleteWorkspace(ctx context.Context, id string) error
 
 	InviteMember(ctx context.Context, workspaceID, email string, role Role) (*WorkspaceMember, error)
@@ -31,8 +31,11 @@ type Workspace struct {
 	Name      string
 	Personal  bool
 	Suspended bool
-	// Members are only fetched on workspace detail call.
-	// Consider moving this to a separate type to make that explicit.
+}
+
+type WorkspaceDetails struct {
+	Workspace
+
 	Members []WorkspaceMember
 }
 

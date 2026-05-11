@@ -33,7 +33,7 @@ func (p *Provider) WorkspacesForUser(ctx context.Context, userID string) ([]dire
 	return toWorkspaces(orgs), nil
 }
 
-func (p *Provider) Workspace(ctx context.Context, id string) (*directory.Workspace, error) {
+func (p *Provider) Workspace(ctx context.Context, id string) (*directory.WorkspaceDetails, error) {
 	orgID, err := p.orgID(ctx, id)
 
 	if err != nil {
@@ -52,13 +52,12 @@ func (p *Provider) Workspace(ctx context.Context, id string) (*directory.Workspa
 		return nil, err
 	}
 
-	workspace := toWorkspace(*org)
-	workspace.Members = toWorkspaceMembers(members)
+	workspace := toWorkspaceDetails(*org, members)
 
 	return &workspace, nil
 }
 
-func (p *Provider) CreateWorkspace(ctx context.Context, id, name string) (*directory.Workspace, error) {
+func (p *Provider) CreateWorkspace(ctx context.Context, id, name string) (*directory.WorkspaceDetails, error) {
 	if !workspaceIDPattern.MatchString(id) {
 		return nil, fmt.Errorf("invalid workspace ID: must be 3-63 lowercase alphanumeric characters or hyphens")
 	}
@@ -95,13 +94,12 @@ func (p *Provider) CreateWorkspace(ctx context.Context, id, name string) (*direc
 		return nil, err
 	}
 
-	workspace := toWorkspace(*org)
-	workspace.Members = toWorkspaceMembers(members)
+	workspace := toWorkspaceDetails(*org, members)
 
 	return &workspace, nil
 }
 
-func (p *Provider) UpdateWorkspace(ctx context.Context, id, name string) (*directory.Workspace, error) {
+func (p *Provider) UpdateWorkspace(ctx context.Context, id, name string) (*directory.WorkspaceDetails, error) {
 	orgID, err := p.orgID(ctx, id)
 
 	if err != nil {
@@ -134,8 +132,7 @@ func (p *Provider) UpdateWorkspace(ctx context.Context, id, name string) (*direc
 		return nil, err
 	}
 
-	workspace := toWorkspace(*org)
-	workspace.Members = toWorkspaceMembers(members)
+	workspace := toWorkspaceDetails(*org, members)
 
 	return &workspace, nil
 }
@@ -309,6 +306,15 @@ func toWorkspaces(orgs []logto.Organization) []directory.Workspace {
 	}
 
 	return workspaces
+}
+
+func toWorkspaceDetails(org logto.Organization, members []logto.OrganizationMember) directory.WorkspaceDetails {
+	workspace := directory.WorkspaceDetails{
+		Workspace: toWorkspace(org),
+		Members:   toWorkspaceMembers(members),
+	}
+
+	return workspace
 }
 
 func toWorkspaceMember(member logto.OrganizationMember) directory.WorkspaceMember {

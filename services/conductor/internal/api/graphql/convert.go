@@ -279,6 +279,12 @@ func convertWorkspace(ws *conductor.Workspace) *model.Workspace {
 		Suspended: ws.Suspended,
 	}
 
+	return result
+}
+
+func convertWorkspaceDetails(ws *conductor.WorkspaceDetails) *model.Workspace {
+	result := convertWorkspace(&ws.Workspace)
+
 	for _, m := range ws.Members {
 		result.Members = append(result.Members, *convertWorkspaceMember(&m))
 	}

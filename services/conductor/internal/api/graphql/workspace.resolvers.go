@@ -19,7 +19,7 @@ func (r *mutationResolver) CreateWorkspace(ctx context.Context, input model.Crea
 	if err != nil {
 		return nil, err
 	}
-	return convertWorkspace(ws), nil
+	return convertWorkspaceDetails(ws), nil
 }
 
 // CreateWorkspaceCheckout is the resolver for the createWorkspaceCheckout field.
@@ -37,7 +37,7 @@ func (r *mutationResolver) CompleteWorkspaceCheckout(ctx context.Context, sessio
 	if err != nil {
 		return nil, err
 	}
-	return convertWorkspace(ws), nil
+	return convertWorkspaceDetails(ws), nil
 }
 
 // UpdateWorkspace is the resolver for the updateWorkspace field.
@@ -50,7 +50,7 @@ func (r *mutationResolver) UpdateWorkspace(ctx context.Context, input model.Upda
 	if err != nil {
 		return nil, err
 	}
-	return convertWorkspace(ws), nil
+	return convertWorkspaceDetails(ws), nil
 }
 
 // DeleteWorkspace is the resolver for the deleteWorkspace field.
@@ -119,7 +119,7 @@ func (r *queryResolver) Workspace(ctx context.Context) (*model.Workspace, error)
 		return nil, err
 	}
 
-	return convertWorkspace(ws), nil
+	return convertWorkspaceDetails(ws), nil
 }
 
 // Workspaces is the resolver for the workspaces field.

@@ -14,6 +14,7 @@ import (
 )
 
 type Workspace = directory.Workspace
+type WorkspaceDetails = directory.WorkspaceDetails
 type WorkspaceMember = directory.WorkspaceMember
 
 var workspaceIDPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$`)
@@ -34,11 +35,11 @@ func (c *Client) Workspaces(ctx context.Context) ([]Workspace, error) {
 	return workspaces, nil
 }
 
-func (c *Client) Workspace(ctx context.Context, id string) (*Workspace, error) {
+func (c *Client) Workspace(ctx context.Context, id string) (*WorkspaceDetails, error) {
 	return c.directory.Workspace(ctx, id)
 }
 
-func (c *Client) CreateWorkspace(ctx context.Context, id, name string) (*Workspace, error) {
+func (c *Client) CreateWorkspace(ctx context.Context, id, name string) (*WorkspaceDetails, error) {
 	claims, err := auth.FromContext(ctx)
 
 	if err != nil {
@@ -60,7 +61,7 @@ func (c *Client) CreateWorkspace(ctx context.Context, id, name string) (*Workspa
 	return workspace, nil
 }
 
-func (c *Client) UpdateWorkspace(ctx context.Context, id, name string) (*Workspace, error) {
+func (c *Client) UpdateWorkspace(ctx context.Context, id, name string) (*WorkspaceDetails, error) {
 	if err := c.requireWorkspaceAdmin(ctx, id); err != nil {
 		return nil, err
 	}
@@ -416,7 +417,7 @@ func (c *Client) CreateWorkspaceCheckout(ctx context.Context, id, name, plan str
 
 // CompleteWorkspaceCheckout verifies a completed Stripe Checkout Session and creates the workspace.
 // Called after the user is redirected back from Stripe.
-func (c *Client) CompleteWorkspaceCheckout(ctx context.Context, sessionID string) (*Workspace, error) {
+func (c *Client) CompleteWorkspaceCheckout(ctx context.Context, sessionID string) (*WorkspaceDetails, error) {
 	claims, err := auth.FromContext(ctx)
 
 	if err != nil {
@@ -464,9 +465,11 @@ func (c *Client) CompleteWorkspaceCheckout(ctx context.Context, sessionID string
 			for _, m := range members {
 				if m.ID == claims.Subject {
 					slog.Info("workspace checkout completed (already exists)", "workspace", wsID)
-					return &Workspace{
-						ID:   wsID,
-						Name: displayNameFromOrgData(existing),
+					return &WorkspaceDetails{
+						Workspace: Workspace{
+							ID:   wsID,
+							Name: displayNameFromOrgData(existing),
+						},
 					}, nil
 				}
 			}
@@ -512,9 +515,11 @@ func (c *Client) CompleteWorkspaceCheckout(ctx context.Context, sessionID string
 		}
 	}
 
-	return &Workspace{
-		ID:   wsID,
-		Name: wsName,
+	return &WorkspaceDetails{
+		Workspace: Workspace{
+			ID:   wsID,
+			Name: wsName,
+		},
 		Members: []WorkspaceMember{
 			{ID: claims.Subject, Email: memberEmail, Name: memberName, Role: auth.WorkspaceRoleAdmin},
 		},
