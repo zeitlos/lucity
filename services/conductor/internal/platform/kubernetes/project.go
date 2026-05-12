@@ -12,18 +12,6 @@ import (
 	"k8s.io/apimachinery/pkg/selection"
 )
 
-const (
-	workspaceLabel    = "lucity.dev/workspace"
-	projectLabel      = "lucity.dev/project"
-	environmentLabel  = "lucity.dev/environment"
-	resourceTierLabel = "lucity.dev/resource-tier"
-)
-
-const (
-	resourceTierEco  = "eco"
-	resourceTierProd = "production"
-)
-
 func (c *Client) Projects(ctx context.Context, workspaceID string) ([]platform.Project, error) {
 	req, err := labels.NewRequirement(projectLabel, selection.Exists, nil)
 
