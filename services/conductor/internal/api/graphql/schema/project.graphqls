@@ -6,17 +6,6 @@ type Project {
   createdAt: Time
 }
 
-type Environment {
-  id: ID!
-  name: String!
-  namespace: String!
-  ephemeral: Boolean!
-  syncStatus: SyncStatus!
-  resourceTier: ResourceTier
-  services: [ServiceInstance!]!
-  databases: [DatabaseInstance!]!
-}
-
 type ServiceInstance {
   id: ID!
   name: String!
@@ -125,21 +114,6 @@ input CreateProjectInput {
   id: String @constraint(constraint: "resource_name")
 }
 
-input CreateEnvironmentInput {
-  projectId: ID! @constraint(constraint: "resource_name")
-  name: String! @constraint(constraint: "resource_name,min=2,max=63")
-  fromEnvironment: String @constraint(constraint: "resource_name")
-  tier: ResourceTier
-}
-
-input PromoteInput {
-  projectId: ID! @constraint(constraint: "resource_name")
-  service: String! @constraint(constraint: "resource_name")
-  fromEnvironment: String! @constraint(constraint: "resource_name")
-  tier: ResourceTier
-  toEnvironment: String! @constraint(constraint: "resource_name")
-}
-
 input SetServiceScalingInput {
   projectId: ID! @constraint(constraint: "resource_name")
   environment: String! @constraint(constraint: "resource_name")
@@ -163,8 +137,5 @@ extend type Query {
 extend type Mutation {
   createProject(input: CreateProjectInput!): Project! @hasRole(role: [USER])
   deleteProject(id: ID! @constraint(constraint: "resource_name")): Boolean! @hasRole(role: [USER])
-  createEnvironment(input: CreateEnvironmentInput!): Environment! @hasRole(role: [USER])
-  deleteEnvironment(projectId: ID! @constraint(constraint: "resource_name"), environment: String! @constraint(constraint: "resource_name")): Boolean! @hasRole(role: [USER])
-  promote(input: PromoteInput!): ServiceInstance! @hasRole(role: [USER])
   setServiceScaling(input: SetServiceScalingInput!): ScalingConfig! @hasRole(role: [USER])
 }

@@ -1,0 +1,32 @@
+
+type Environment {
+  id: ID!
+  name: String!
+  namespace: String!
+  ephemeral: Boolean!
+  syncStatus: SyncStatus!
+  resourceTier: ResourceTier
+  services: [ServiceInstance!]!
+  databases: [DatabaseInstance!]!
+}
+
+input CreateEnvironmentInput {
+  projectId: ID! @constraint(constraint: "resource_name")
+  name: String! @constraint(constraint: "resource_name,min=2,max=63")
+  fromEnvironment: String @constraint(constraint: "resource_name")
+  tier: ResourceTier
+}
+
+input PromoteInput {
+  projectId: ID! @constraint(constraint: "resource_name")
+  service: String! @constraint(constraint: "resource_name")
+  fromEnvironment: String! @constraint(constraint: "resource_name")
+  tier: ResourceTier
+  toEnvironment: String! @constraint(constraint: "resource_name")
+}
+
+extend type Mutation {
+  createEnvironment(input: CreateEnvironmentInput!): Environment! @hasRole(role: [USER])
+  deleteEnvironment(projectId: ID! @constraint(constraint: "resource_name"), environment: String! @constraint(constraint: "resource_name")): Boolean! @hasRole(role: [USER])
+  promote(input: PromoteInput!): ServiceInstance! @hasRole(role: [USER])
+}
