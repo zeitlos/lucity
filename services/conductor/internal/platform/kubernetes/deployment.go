@@ -86,11 +86,25 @@ func toDeployment(replicaSet apps.ReplicaSet, deployment apps.Deployment, servic
 		image = replicaSet.Spec.Template.Spec.Containers[0].Image
 	}
 
-	return platform.Deployment{
-		ID:    deploymentID(replicaSet, serviceID),
-		Image: image,
+	annotations := replicaSet.Spec.Template.Annotations
 
+	return platform.Deployment{
+		ID:     deploymentID(replicaSet, serviceID),
 		Status: deploymentStatus(replicaSet, deployment),
+
+		Image:       image,
+		ImageDigest: annotations[annotationImageDigest],
+
+		Commit: annotations[annotationSourceCommit],
+		Ref:    annotations[annotationSourceRef],
+		Repo:   annotations[annotationSourceRepo],
+
+		Replicas: platform.ReplicaCount{
+			Desired: int(to.Val(replicaSet.Spec.Replicas)),
+			Ready:   int(replicaSet.Status.ReadyReplicas),
+		},
+
+		CreatedAt: replicaSet.CreationTimestamp.Time,
 	}
 }
 

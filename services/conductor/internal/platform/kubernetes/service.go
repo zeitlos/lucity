@@ -93,11 +93,13 @@ func (c *Client) deploymentFor(ctx context.Context, serviceID platform.ServiceID
 
 func toService(deployment apps.Deployment, replicaSets []apps.ReplicaSet, environmentID platform.EnvironmentID) platform.Service {
 	return platform.Service{
-		ID:   serviceID(deployment, environmentID),
-		Name: deployment.Labels[serviceLabel],
-
+		ID:     serviceID(deployment, environmentID),
+		Name:   deployment.Labels[serviceLabel],
 		Status: serviceStatus(deployment, replicaSets),
-
+		Replicas: platform.ReplicaCount{
+			Desired: int(to.Val(deployment.Spec.Replicas)),
+			Ready:   int(deployment.Status.ReadyReplicas),
+		},
 		CreatedAt: deployment.CreationTimestamp.Time,
 	}
 }

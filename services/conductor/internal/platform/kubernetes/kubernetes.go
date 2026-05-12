@@ -24,13 +24,23 @@ const (
 	resourceTierProd = "production"
 )
 
+const (
+	annotationSourceRepo   = "lucity.dev/source-repo"
+	annotationSourceCommit = "lucity.dev/source-commit"
+	annotationSourceRef    = "lucity.dev/source-ref"
+	annotationImageDigest  = "lucity.dev/image-digest"
+)
+
 type Client struct {
 	kubernetes kubernetes.Interface
 	dynamic    dynamic.Interface
 }
 
-func New(kubernetes kubernetes.Interface, dynamic dynamic.Interface) (*Client, error) {
-	return &Client{}, nil
+func New(kubernetes kubernetes.Interface, dynamic dynamic.Interface) *Client {
+	return &Client{
+		kubernetes: kubernetes,
+		dynamic:    dynamic,
+	}
 }
 
 var _ platform.Interface = (*Client)(nil)

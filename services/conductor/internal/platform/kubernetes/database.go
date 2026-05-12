@@ -15,12 +15,7 @@ import (
 	"k8s.io/apimachinery/pkg/selection"
 )
 
-var scheme = runtime.NewScheme()
 var cnpgClusterGVR = cnpgv1.SchemeGroupVersion.WithResource("clusters")
-
-func init() {
-	_ = cnpgv1.AddToScheme(scheme)
-}
 
 func (c *Client) Databases(ctx context.Context, environmentID platform.EnvironmentID) ([]platform.Database, error) {
 	req, err := labels.NewRequirement(databaseLabel, selection.Exists, nil)
@@ -41,8 +36,8 @@ func (c *Client) Databases(ctx context.Context, environmentID platform.Environme
 
 	databases := make([]platform.Database, 0, len(list.Items))
 
-	for _, unstructured := range list.Items {
-		cluster, err := toCluster(unstructured)
+	for _, item := range list.Items {
+		cluster, err := toCluster(item)
 
 		if err != nil {
 			return nil, err
@@ -108,7 +103,7 @@ func databaseID(cluster cnpgv1.Cluster, environmentID platform.EnvironmentID) pl
 		Workspace:   environmentID.Workspace,
 		Project:     environmentID.Project,
 		Environment: environmentID.Name,
-		Name:        cluster.GetLabels()[databaseLabel],
+		Name:        cluster.Labels[databaseLabel],
 	}
 }
 
@@ -116,7 +111,17 @@ func databaseStatus(cluster cnpgv1.Cluster) platform.DatabaseStatus {
 	desired := cluster.Spec.Instances
 	ready := cluster.Status.ReadyInstances
 
+	if desired == 0 {
+		return platform.DatabaseStopped
+	}
+
 	if ready == 0 {
+		isInitialBootstrap := cluster.Status.CurrentPrimary == ""
+
+		if isInitialBootstrap {
+			return platform.DatabasePending
+		}
+
 		return platform.DatabaseFailed
 	}
 
