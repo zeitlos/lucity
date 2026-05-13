@@ -14,10 +14,7 @@ func (c *Client) Eject(ctx context.Context, projectID string) ([]byte, error) {
 		return nil, err
 	}
 
-	callCtx, cancel := context.WithTimeout(ctx, grpcLongTimeout)
-	defer cancel()
-
-	archive, err := c.Packager.Eject(callCtx, ws, projectID)
+	archive, err := c.Packager.Eject(ctx, ws, projectID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to eject project: %w", err)
 	}

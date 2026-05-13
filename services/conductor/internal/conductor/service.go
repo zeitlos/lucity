@@ -44,9 +44,7 @@ func (c *Client) DetectServices(ctx context.Context, repository string, installa
 	}
 
 	// Call builder to detect services (long — clones repo)
-	detectCtx, detectCancel := context.WithTimeout(ctx, grpcLongTimeout)
-	defer detectCancel()
-	detected, err := c.Builder.DetectServices(detectCtx, sourceURL, "")
+	detected, err := c.Builder.DetectServices(ctx, sourceURL, "")
 	if err != nil {
 		return nil, fmt.Errorf("failed to detect services: %w", err)
 	}
@@ -116,9 +114,7 @@ func (c *Client) AddService(ctx context.Context, environment platform.Environmen
 		image = deriveImagePath(c.Config.RegistryImagePrefix, ws, projectID, name)
 	}
 
-	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
-	defer cancel()
-	if err = c.Packager.AddService(callCtx, ws, projectID, data.ServiceDef{
+	if err = c.Packager.AddService(ctx, ws, projectID, data.ServiceDef{
 		Name:                 name,
 		Image:                image,
 		Port:                 port,
@@ -149,9 +145,7 @@ func (c *Client) AddService(ctx context.Context, environment platform.Environmen
 	if sourceURL != "" {
 		registry := deriveImagePath(c.Config.RegistryPushURL, ws, projectID, name)
 
-		startCtx, startCancel := context.WithTimeout(ctx, grpcTimeout)
-		defer startCancel()
-		buildID, err := c.Builder.StartBuild(startCtx, sourceURL, "", name, registry, contextPath)
+		buildID, err := c.Builder.StartBuild(ctx, sourceURL, "", name, registry, contextPath)
 		if err != nil {
 			slog.Warn("failed to start initial deploy", "project", projectID, "service", name, "error", err)
 			return service, nil
@@ -258,9 +252,7 @@ func (c *Client) RemoveService(ctx context.Context, svc platform.ServiceID) (boo
 		return false, err
 	}
 
-	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
-	defer cancel()
-	if err := c.Packager.RemoveService(callCtx, ws, projectID, environment, service); err != nil {
+	if err := c.Packager.RemoveService(ctx, ws, projectID, environment, service); err != nil {
 		return false, fmt.Errorf("failed to remove service: %w", err)
 	}
 	return true, nil
@@ -276,9 +268,7 @@ func (c *Client) SetCustomStartCommand(ctx context.Context, svc platform.Service
 		return false, err
 	}
 
-	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
-	defer cancel()
-	if err := c.Packager.SetCustomStartCommand(callCtx, ws, projectID, environment, service, command); err != nil {
+	if err := c.Packager.SetCustomStartCommand(ctx, ws, projectID, environment, service, command); err != nil {
 		return false, fmt.Errorf("failed to set custom start command: %w", err)
 	}
 	return true, nil
@@ -287,9 +277,7 @@ func (c *Client) SetCustomStartCommand(ctx context.Context, svc platform.Service
 // serviceSourceInfo looks up the source URL, context path, and GitHub installation ID
 // for a service from the project's environment data in the GitOps repo.
 func (c *Client) serviceSourceInfo(ctx context.Context, ws, projectID, service string) (sourceURL, contextPath string, installationID int64, err error) {
-	getCtx, getCancel := context.WithTimeout(ctx, grpcTimeout)
-	defer getCancel()
-	info, err := c.Packager.GetProject(getCtx, ws, projectID)
+	info, err := c.Packager.GetProject(ctx, ws, projectID)
 	if err != nil {
 		return "", "", 0, fmt.Errorf("failed to get project: %w", err)
 	}
@@ -380,9 +368,7 @@ func (c *Client) Deploy(ctx context.Context, svc platform.ServiceID, gitRef stri
 	registry := deriveImagePath(c.Config.RegistryPushURL, ws, projectID, service)
 
 	// Start the build
-	startCtx, startCancel := context.WithTimeout(ctx, grpcTimeout)
-	defer startCancel()
-	buildID, err := c.Builder.StartBuild(startCtx, sourceURL, gitRef, service, registry, contextPath)
+	buildID, err := c.Builder.StartBuild(ctx, sourceURL, gitRef, service, registry, contextPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to start build: %w", err)
 	}
@@ -429,21 +415,6 @@ func (c *Client) ActiveDeployment(ctx context.Context, svc platform.ServiceID) (
 // before failing the deploy. Prevents goroutine leaks from hung builds.
 const maxBuildDuration = 30 * time.Minute
 
-// grpcCtx returns a copy of the base context with a default short
-// timeout for inproc method calls in polling loops.
-//
-// The cancel func is intentionally discarded; callers in tight polling
-// loops would otherwise need to wire defer cancel() through every step
-// just to release a context that will be replaced on the next tick.
-// The leak window is bounded by the timeout itself.
-//
-//nolint:govet // intentional cancel-func leak in polling helper
-func (c *Client) grpcCtx(base context.Context) context.Context {
-	ctx, cancel := context.WithTimeout(base, grpcTimeout)
-	_ = cancel
-	return ctx
-}
-
 // runDeploy streams build logs from the builder and, on success, deploys the image.
 func (c *Client) runDeploy(claims *auth.Claims, workspace, deployID, projectID, service, environment, buildID string) {
 	// Build a base context carrying user identity for inproc calls.
@@ -466,7 +437,7 @@ func (c *Client) runDeploy(claims *auth.Claims, workspace, deployID, projectID, 
 	for time.Now().Before(deadline) {
 		time.Sleep(2 * time.Second)
 
-		status, err := c.Builder.BuildStatus(c.grpcCtx(base), buildID)
+		status, err := c.Builder.BuildStatus(base, buildID)
 		if err != nil {
 			slog.Error("deploy: failed to poll build status", "deployId", deployID, "buildId", buildID, "error", err)
 			c.DeployTracker.Fail(deployID, fmt.Sprintf("failed to poll build status: %v", err))
@@ -515,7 +486,7 @@ func (c *Client) finalizeDeploy(ctx context.Context, ws, deployID, projectID, se
 	tag, _ := imageParts(imageRef)
 
 	c.DeployTracker.AppendLog(deployID, fmt.Sprintf("Updating GitOps repo (tag: %s)", tag))
-	if err := c.Packager.UpdateImageTag(c.grpcCtx(ctx), ws, projectID, environment, service, tag, digest, ""); err != nil {
+	if err := c.Packager.UpdateImageTag(ctx, ws, projectID, environment, service, tag, digest, ""); err != nil {
 		c.DeployTracker.AppendLog(deployID, fmt.Sprintf("Failed to update image tag: %v", err))
 		c.DeployTracker.Fail(deployID, fmt.Sprintf("failed to update image tag: %v", err))
 		return
@@ -523,7 +494,7 @@ func (c *Client) finalizeDeploy(ctx context.Context, ws, deployID, projectID, se
 
 	c.DeployTracker.AppendLog(deployID, "Triggering ArgoCD sync...")
 	// Trigger ArgoCD sync (best-effort)
-	if _, err := c.Deployer.SyncDeployment(c.grpcCtx(ctx), ws, projectID, environment); err != nil {
+	if _, err := c.Deployer.SyncDeployment(ctx, ws, projectID, environment); err != nil {
 		slog.Warn("deploy: failed to trigger sync", "deployId", deployID, "error", err)
 		c.DeployTracker.AppendLog(deployID, fmt.Sprintf("Warning: sync trigger failed (%v), relying on auto-sync", err))
 	}
@@ -537,7 +508,7 @@ func (c *Client) finalizeDeploy(ctx context.Context, ws, deployID, projectID, se
 	for time.Now().Before(deadline) {
 		time.Sleep(3 * time.Second)
 
-		st, message, err := c.Deployer.GetDeploymentStatus(c.grpcCtx(ctx), ws, projectID, environment)
+		st, message, err := c.Deployer.GetDeploymentStatus(ctx, ws, projectID, environment)
 		if err != nil {
 			slog.Warn("deploy: failed to poll ArgoCD status", "deployId", deployID, "error", err)
 			continue
@@ -674,18 +645,14 @@ func (c *Client) Rollback(ctx context.Context, deploymentID DeploymentID) (bool,
 		return false, err
 	}
 
-	updateCtx, updateCancel := context.WithTimeout(ctx, grpcTimeout)
 	tag, _ := imageParts(deployment.Image)
 
-	defer updateCancel()
-	if err := c.Packager.UpdateImageTag(updateCtx, ws, projectID, environment, service, tag, "", "rollback"); err != nil {
+	if err := c.Packager.UpdateImageTag(ctx, ws, projectID, environment, service, tag, "", "rollback"); err != nil {
 		return false, fmt.Errorf("failed to rollback: %w", err)
 	}
 
 	// Trigger ArgoCD sync
-	syncCtx, syncCancel := context.WithTimeout(ctx, grpcTimeout)
-	defer syncCancel()
-	if _, err := c.Deployer.SyncDeployment(syncCtx, ws, projectID, environment); err != nil {
+	if _, err := c.Deployer.SyncDeployment(ctx, ws, projectID, environment); err != nil {
 		slog.Warn("failed to trigger sync after rollback", "project", projectID, "environment", environment, "error", err)
 	}
 
@@ -736,9 +703,7 @@ func (c *Client) CheckDns(ctx context.Context, hostname string) DnsCheck {
 	}
 
 	// Look up TLS cert status for custom domains.
-	statusCtx, statusCancel := context.WithTimeout(c.grpcCtx(ctx), 3*time.Second)
-	defer statusCancel()
-	cdStatus, err := c.Deployer.CustomDomainStatus(statusCtx, hostname)
+	cdStatus, err := c.Deployer.CustomDomainStatus(ctx, hostname)
 	if err != nil {
 		slog.Debug("failed to check TLS status", "hostname", hostname, "error", err)
 	} else {
@@ -830,18 +795,12 @@ func (c *Client) GenerateDomain(ctx context.Context, svc platform.ServiceID) (*D
 		return nil, err
 	}
 
-	generateCtx, generateCancel := context.WithTimeout(ctx, grpcTimeout)
-	defer generateCancel()
-
-	hostname, err := c.Packager.GeneratePlatformDomain(generateCtx, ws, projectID, environment, service)
+	hostname, err := c.Packager.GeneratePlatformDomain(ctx, ws, projectID, environment, service)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate platform domain: %w", err)
 	}
 
-	syncCtx, syncCancel := context.WithTimeout(ctx, grpcTimeout)
-	defer syncCancel()
-
-	if _, err := c.Deployer.SyncDeployment(syncCtx, ws, projectID, environment); err != nil {
+	if _, err := c.Deployer.SyncDeployment(ctx, ws, projectID, environment); err != nil {
 		slog.Warn("failed to trigger sync after domain add", "project", projectID, "environment", environment, "error", err)
 	}
 
@@ -951,25 +910,19 @@ func (c *Client) AddCustomDomain(ctx context.Context, svc platform.ServiceID, ho
 		return nil, fmt.Errorf("cannot add a platform domain as a custom domain — use Generate Domain instead")
 	}
 
-	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
-	defer cancel()
-	if err := c.Packager.AddDomain(callCtx, ws, projectID, environment, service, hostname); err != nil {
+	if err := c.Packager.AddDomain(ctx, ws, projectID, environment, service, hostname); err != nil {
 		return nil, fmt.Errorf("failed to add custom domain: %w", err)
 	}
 
 	// Provision TLS certificate
-	provCtx, provCancel := context.WithTimeout(ctx, grpcTimeout)
-	defer provCancel()
-	tlsStatus, provErr := c.Deployer.ProvisionCustomDomain(provCtx, hostname)
+	tlsStatus, provErr := c.Deployer.ProvisionCustomDomain(ctx, hostname)
 	if provErr != nil {
 		slog.Warn("failed to provision TLS certificate", "hostname", hostname, "error", provErr)
 		tlsStatus = "ERROR"
 	}
 
 	// Trigger ArgoCD sync
-	syncCtx, syncCancel := context.WithTimeout(ctx, grpcTimeout)
-	defer syncCancel()
-	if _, err := c.Deployer.SyncDeployment(syncCtx, ws, projectID, environment); err != nil {
+	if _, err := c.Deployer.SyncDeployment(ctx, ws, projectID, environment); err != nil {
 		slog.Warn("failed to trigger sync after domain add", "project", projectID, "environment", environment, "error", err)
 	}
 
@@ -994,25 +947,19 @@ func (c *Client) RemoveDomain(ctx context.Context, svc platform.ServiceID, hostn
 		return false, err
 	}
 
-	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
-	defer cancel()
-	if err := c.Packager.RemoveDomain(callCtx, ws, projectID, environment, service, hostname); err != nil {
+	if err := c.Packager.RemoveDomain(ctx, ws, projectID, environment, service, hostname); err != nil {
 		return false, fmt.Errorf("failed to remove domain: %w", err)
 	}
 
 	// Delete TLS certificate for custom domains
 	if !c.IsPlatformDomain(hostname) {
-		delCtx, delCancel := context.WithTimeout(ctx, grpcTimeout)
-		defer delCancel()
-		if delErr := c.Deployer.DeleteCustomDomain(delCtx, hostname); delErr != nil {
+		if delErr := c.Deployer.DeleteCustomDomain(ctx, hostname); delErr != nil {
 			slog.Warn("failed to delete TLS certificate", "hostname", hostname, "error", delErr)
 		}
 	}
 
 	// Trigger ArgoCD sync
-	syncCtx, syncCancel := context.WithTimeout(ctx, grpcTimeout)
-	defer syncCancel()
-	if _, err := c.Deployer.SyncDeployment(syncCtx, ws, projectID, environment); err != nil {
+	if _, err := c.Deployer.SyncDeployment(ctx, ws, projectID, environment); err != nil {
 		slog.Warn("failed to trigger sync after domain remove", "project", projectID, "environment", environment, "error", err)
 	}
 

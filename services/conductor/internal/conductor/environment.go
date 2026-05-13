@@ -53,17 +53,13 @@ func (c *Client) CreateEnvironment(ctx context.Context, project ProjectID, name 
 		return nil, err
 	}
 
-	createCtx, createCancel := context.WithTimeout(ctx, grpcLongTimeout)
-	defer createCancel()
-	namespace, err := c.Packager.CreateEnvironment(createCtx, ws, projectID, name, fromEnvName)
+	namespace, err := c.Packager.CreateEnvironment(ctx, ws, projectID, name, fromEnvName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create environment: %w", err)
 	}
 
 	// Deploy the new environment via ArgoCD
-	envDeployCtx, envDeployCancel := context.WithTimeout(ctx, grpcTimeout)
-	defer envDeployCancel()
-	if _, err := c.Deployer.DeployEnvironment(envDeployCtx, ws, projectID, name, "", namespace); err != nil {
+	if _, err := c.Deployer.DeployEnvironment(ctx, ws, projectID, name, "", namespace); err != nil {
 		slog.Warn("failed to deploy environment", "project", projectID, "environment", name, "error", err)
 	}
 
@@ -74,9 +70,7 @@ func (c *Client) CreateEnvironment(ctx context.Context, project ProjectID, name 
 	}
 
 	// Trigger immediate sync so the environment deploys right away
-	syncCtx, syncCancel := context.WithTimeout(ctx, grpcTimeout)
-	defer syncCancel()
-	if _, err := c.Deployer.SyncDeployment(syncCtx, ws, projectID, name); err != nil {
+	if _, err := c.Deployer.SyncDeployment(ctx, ws, projectID, name); err != nil {
 		slog.Warn("failed to trigger sync after environment create", "project", projectID, "environment", name, "error", err)
 	}
 
@@ -89,16 +83,12 @@ func (c *Client) DeleteEnvironment(ctx context.Context, environment platform.Env
 		return false, err
 	}
 	// Remove ArgoCD Application first (cascade deletes managed resources)
-	rmCtx, rmCancel := context.WithTimeout(ctx, grpcTimeout)
-	defer rmCancel()
-	if err := c.Deployer.RemoveDeployment(rmCtx, ws, environment.Project, environment.Name); err != nil {
+	if err := c.Deployer.RemoveDeployment(ctx, ws, environment.Project, environment.Name); err != nil {
 		slog.Warn("failed to remove deployment", "project", environment.Project, "environment", environment.Name, "error", err)
 	}
 
 	// Then remove from GitOps repo
-	delEnvCtx, delEnvCancel := context.WithTimeout(ctx, grpcTimeout)
-	defer delEnvCancel()
-	if err := c.Packager.DeleteEnvironment(delEnvCtx, ws, environment.Project, environment.Name); err != nil {
+	if err := c.Packager.DeleteEnvironment(ctx, ws, environment.Project, environment.Name); err != nil {
 		return false, fmt.Errorf("failed to delete environment: %w", err)
 	}
 	return true, nil

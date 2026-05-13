@@ -48,9 +48,7 @@ func (c *Client) SharedVariables(ctx context.Context, environment platform.Envir
 		return nil, err
 	}
 
-	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
-	defer cancel()
-	vars, err := c.Packager.SharedVariables(callCtx, ws, environment.Project, environment.Name)
+	vars, err := c.Packager.SharedVariables(ctx, ws, environment.Project, environment.Name)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get shared variables: %w", err)
 	}
@@ -73,9 +71,7 @@ func (c *Client) SetSharedVariables(ctx context.Context, environment platform.En
 		m[v.Key] = v.Value
 	}
 
-	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
-	defer cancel()
-	if err := c.Packager.SetSharedVariables(callCtx, ws, environment.Project, environment.Name, m); err != nil {
+	if err := c.Packager.SetSharedVariables(ctx, ws, environment.Project, environment.Name, m); err != nil {
 		return false, fmt.Errorf("failed to set shared variables: %w", err)
 	}
 	return true, nil
@@ -87,9 +83,7 @@ func (c *Client) ServiceVariables(ctx context.Context, service platform.ServiceI
 		return nil, err
 	}
 
-	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
-	defer cancel()
-	resp, err := c.Packager.ServiceVariables(callCtx, ws, service.Project, service.Environment, service.Name)
+	resp, err := c.Packager.ServiceVariables(ctx, ws, service.Project, service.Environment, service.Name)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get service variables: %w", err)
 	}
@@ -153,9 +147,7 @@ func (c *Client) SetServiceVariables(ctx context.Context, service platform.Servi
 		dataSvcRefs[k] = data.ServiceRef{Service: ref.Service.Name}
 	}
 
-	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
-	defer cancel()
-	if err := c.Packager.SetServiceVariables(callCtx, ws, service.Project, service.Environment, service.Name, m, sharedRefs, dataDBRefs, dataSvcRefs); err != nil {
+	if err := c.Packager.SetServiceVariables(ctx, ws, service.Project, service.Environment, service.Name, m, sharedRefs, dataDBRefs, dataSvcRefs); err != nil {
 		return false, fmt.Errorf("failed to set service variables: %w", err)
 	}
 	return true, nil

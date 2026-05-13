@@ -3,7 +3,6 @@ package conductor
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"google.golang.org/grpc/codes"
 	grpcstatus "google.golang.org/grpc/status"
@@ -19,9 +18,6 @@ import (
 type DatabaseProvisioningError struct{}
 
 func (e *DatabaseProvisioningError) Error() string { return "database is provisioning" }
-
-// dbQueryTimeout is longer than grpcTimeout because database queries can be slow.
-const dbQueryTimeout = 35 * time.Second
 
 type DatabaseID = platform.DatabaseID
 type Database = platform.Database
@@ -78,9 +74,7 @@ func (c *Client) CreateDatabase(ctx context.Context, environment platform.Enviro
 		return nil, fmt.Errorf("failed to parse size: %v", err)
 	}
 
-	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
-	defer cancel()
-	if err := c.Packager.AddDatabase(callCtx, ws, environment.Project, data.DatabaseInfo{
+	if err := c.Packager.AddDatabase(ctx, ws, environment.Project, data.DatabaseInfo{
 		Name:      name,
 		Version:   version,
 		Instances: instances,
@@ -103,9 +97,7 @@ func (c *Client) DeleteDatabase(ctx context.Context, database platform.DatabaseI
 		return false, err
 	}
 
-	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
-	defer cancel()
-	if err := c.Packager.RemoveDatabase(callCtx, ws, database.Project, database.Name); err != nil {
+	if err := c.Packager.RemoveDatabase(ctx, ws, database.Project, database.Name); err != nil {
 		return false, fmt.Errorf("failed to delete database: %w", err)
 	}
 	return true, nil
@@ -117,9 +109,7 @@ func (c *Client) DatabaseTables(ctx context.Context, database platform.DatabaseI
 		return nil, err
 	}
 
-	callCtx, cancel := context.WithTimeout(ctx, dbQueryTimeout)
-	defer cancel()
-	dbTables, err := c.Deployer.DatabaseTables(callCtx, ws, database.Project, database.Environment, database.Name)
+	dbTables, err := c.Deployer.DatabaseTables(ctx, ws, database.Project, database.Environment, database.Name)
 	if err != nil {
 		if s, ok := grpcstatus.FromError(err); ok && s.Code() == codes.FailedPrecondition {
 			return nil, &DatabaseProvisioningError{}
@@ -153,9 +143,7 @@ func (c *Client) DatabaseTableData(ctx context.Context, database platform.Databa
 		return nil, err
 	}
 
-	callCtx, cancel := context.WithTimeout(ctx, dbQueryTimeout)
-	defer cancel()
-	resp, err := c.Deployer.DatabaseTableData(callCtx, ws, database.Project, database.Environment, database.Name, schema, table, limit, offset)
+	resp, err := c.Deployer.DatabaseTableData(ctx, ws, database.Project, database.Environment, database.Name, schema, table, limit, offset)
 	if err != nil {
 		if s, ok := grpcstatus.FromError(err); ok && s.Code() == codes.FailedPrecondition {
 			return nil, &DatabaseProvisioningError{}
@@ -176,9 +164,7 @@ func (c *Client) ExecuteQuery(ctx context.Context, database platform.DatabaseID,
 		return nil, err
 	}
 
-	callCtx, cancel := context.WithTimeout(ctx, dbQueryTimeout)
-	defer cancel()
-	resp, err := c.Deployer.DatabaseQuery(callCtx, ws, database.Project, database.Environment, database.Name, query)
+	resp, err := c.Deployer.DatabaseQuery(ctx, ws, database.Project, database.Environment, database.Name, query)
 	if err != nil {
 		if s, ok := grpcstatus.FromError(err); ok && s.Code() == codes.FailedPrecondition {
 			return nil, &DatabaseProvisioningError{}
@@ -208,9 +194,7 @@ func (c *Client) DatabaseCredentials(ctx context.Context, database platform.Data
 		return nil, err
 	}
 
-	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
-	defer cancel()
-	creds, err := c.Deployer.DatabaseCredentials(callCtx, ws, database.Project, database.Environment, database.Name)
+	creds, err := c.Deployer.DatabaseCredentials(ctx, ws, database.Project, database.Environment, database.Name)
 	if err != nil {
 		if s, ok := grpcstatus.FromError(err); ok && s.Code() == codes.FailedPrecondition {
 			return nil, &DatabaseProvisioningError{}

@@ -46,9 +46,7 @@ func (c *Client) EnvironmentResources(ctx context.Context, environment platform.
 		return nil, err
 	}
 
-	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
-	defer cancel()
-	q, err := c.Deployer.ResourceQuota(callCtx, ws, environment.Project, environment.Name)
+	q, err := c.Deployer.ResourceQuota(ctx, ws, environment.Project, environment.Name)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get resource quota: %w", err)
 	}
@@ -67,17 +65,13 @@ func (c *Client) SetEnvironmentResources(ctx context.Context, environment platfo
 		return nil, err
 	}
 
-	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
-	defer cancel()
-	q, err := c.Deployer.SetResourceQuota(callCtx, ws, environment.Project, environment.Name, tierFromAPIString(tier), cpuMillicores, memoryMB, diskMB)
+	q, err := c.Deployer.SetResourceQuota(ctx, ws, environment.Project, environment.Name, tierFromAPIString(tier), cpuMillicores, memoryMB, diskMB)
 	if err != nil {
 		return nil, fmt.Errorf("failed to set resource quota: %w", err)
 	}
 
 	// Best-effort: sync resources to GitOps repo for ejection
-	pkgCtx, pkgCancel := context.WithTimeout(ctx, grpcTimeout)
-	defer pkgCancel()
-	if pkgErr := c.Packager.SetResources(pkgCtx, ws, environment.Project, environment.Name, strings.ToLower(tier), cpuMillicores, memoryMB, diskMB); pkgErr != nil {
+	if pkgErr := c.Packager.SetResources(ctx, ws, environment.Project, environment.Name, strings.ToLower(tier), cpuMillicores, memoryMB, diskMB); pkgErr != nil {
 		slog.Error("failed to sync resources to GitOps repo", "error", pkgErr, "project", environment.Project, "environment", environment.Name)
 	}
 
