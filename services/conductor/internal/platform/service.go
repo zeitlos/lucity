@@ -3,30 +3,72 @@ package platform
 import (
 	"fmt"
 	"io"
-	"net/url"
 	"slices"
 	"strings"
 	"time"
 
 	"github.com/99designs/gqlgen/graphql"
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 type Service struct {
 	ID   ServiceID
 	Name string
 
-	Status   ServiceStatus
-	Replicas ReplicaCount
+	Status      ServiceStatus
+	Replicas    ReplicaCount
+	Autoscaling *AutoscalingSettings
 
-	InternalHost string
-	URLs         []url.URL
+	Endpoints []Endpoint
 
-	CreatedAt time.Time
+	SourceURL   string
+	ContextPath string
+	Resources   Resources
+	Command     string
+
+	ActiveDeployment *Deployment
+
+	LastDeployedAt time.Time
+	CreatedAt      time.Time
 }
+
+type Resources struct {
+	CPU    resource.Quantity
+	Memory resource.Quantity
+}
+
+type Endpoint struct {
+	// Kind     EndpointKind
+	Host     string
+	Port     int
+	Protocol Protocol
+}
+
+// type EndpointKind string
+
+// const (
+// 	EndpointInternal EndpointKind = "internal"
+// 	EndpointPlatform EndpointKind = "platform"
+// 	EndpointCustom   EndpointKind = "custom"
+// )
+
+type Protocol string
+
+const (
+	ProtocolHTTP  Protocol = "http"
+	ProtocolHTTPS Protocol = "https"
+	ProtocolTCP   Protocol = "tcp"
+)
 
 type ReplicaCount struct {
 	Desired int
 	Ready   int
+}
+
+type AutoscalingSettings struct {
+	MinReplicas int
+	MaxReplicas int
+	TargetCPU   int // percent
 }
 
 type ServiceStatus string

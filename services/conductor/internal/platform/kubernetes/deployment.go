@@ -6,6 +6,9 @@ import (
 
 	"github.com/zeitlos/lucity/pkg/to"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
+
+	"github.com/google/go-containerregistry/pkg/name"
+	"github.com/google/go-containerregistry/pkg/v1/remote"
 	apps "k8s.io/api/apps/v1"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -80,13 +83,14 @@ func (c *Client) replicaSetsFor(ctx context.Context, serviceID platform.ServiceI
 }
 
 func toDeployment(replicaSet apps.ReplicaSet, deployment apps.Deployment, serviceID platform.ServiceID) platform.Deployment {
+	containers := replicaSet.Spec.Template.Spec.Containers
+	annotations := replicaSet.Spec.Template.Annotations
+
 	image := ""
 
-	if len(replicaSet.Spec.Template.Spec.Containers) > 0 {
-		image = replicaSet.Spec.Template.Spec.Containers[0].Image
+	if len(containers) > 0 {
+		image = containers[0].Image
 	}
-
-	annotations := replicaSet.Spec.Template.Annotations
 
 	return platform.Deployment{
 		ID:     deploymentID(replicaSet, serviceID),
@@ -95,9 +99,16 @@ func toDeployment(replicaSet apps.ReplicaSet, deployment apps.Deployment, servic
 		Image:       image,
 		ImageDigest: annotations[annotationImageDigest],
 
-		Commit: annotations[annotationSourceCommit],
-		Ref:    annotations[annotationSourceRef],
-		Repo:   annotations[annotationSourceRepo],
+		Commit:      annotations[annotationSourceCommit],
+		Ref:         annotations[annotationSourceRef],
+		SourceURL:   annotations[annotationSourceRepo],
+		ContextPath: annotations[annotationSourceContext],
+
+		Resources: containerResources(containers),
+		Command:   containerCommand(containers),
+
+		BuildID:    annotations[annotationBuildID],
+		DeployedBy: annotations[annotationDeployedBy],
 
 		Replicas: platform.ReplicaCount{
 			Desired: int(to.Val(replicaSet.Spec.Replicas)),
@@ -136,4 +147,27 @@ func deploymentStatus(replicaSet apps.ReplicaSet, deployment apps.Deployment) pl
 	}
 
 	return platform.DeploymentDeploying
+}
+
+// TODO: Make this an exported function. Generate separate graphql resolvers for deployment.Command and service.Command.
+func (c *Client) imageDefaultCommand(ctx context.Context, imageRef string) ([]string, error) {
+	ref, err := name.ParseReference(imageRef)
+
+	if err != nil {
+		return nil, err
+	}
+
+	img, err := remote.Image(ref, remote.WithContext(ctx))
+
+	if err != nil {
+		return nil, err
+	}
+
+	cfg, err := img.ConfigFile()
+
+	if err != nil {
+		return nil, err
+	}
+
+	return append(cfg.Config.Entrypoint, cfg.Config.Cmd...), nil
 }

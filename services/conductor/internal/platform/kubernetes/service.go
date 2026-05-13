@@ -3,14 +3,19 @@ package kubernetes
 import (
 	"context"
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/zeitlos/lucity/pkg/to"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 
 	apps "k8s.io/api/apps/v1"
+	autoscaling "k8s.io/api/autoscaling/v2"
 	core "k8s.io/api/core/v1"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/selection"
 )
 
@@ -40,16 +45,55 @@ func (c *Client) Services(ctx context.Context, environmentID platform.Environmen
 		return nil, err
 	}
 
-	byService := make(map[string][]apps.ReplicaSet)
+	routes, err := c.dynamic.Resource(httpRouteGVR).Namespace(namespace).List(ctx, meta.ListOptions{
+		LabelSelector: selector.String(),
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	hpas, err := c.kubernetes.AutoscalingV2().HorizontalPodAutoscalers(namespace).List(ctx, meta.ListOptions{
+		LabelSelector: selector.String(),
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	replicaSetsByService := make(map[string][]apps.ReplicaSet)
 
 	for _, replicaSet := range replicaSets.Items {
-		byService[replicaSet.Labels[serviceLabel]] = append(byService[replicaSet.Labels[serviceLabel]], replicaSet)
+		name := replicaSet.Labels[serviceLabel]
+		replicaSetsByService[name] = append(replicaSetsByService[name], replicaSet)
+	}
+
+	routesByService := make(map[string][]unstructured.Unstructured)
+
+	for _, route := range routes.Items {
+		name := route.GetLabels()[serviceLabel]
+		routesByService[name] = append(routesByService[name], route)
+	}
+
+	hpasByService := make(map[string]autoscaling.HorizontalPodAutoscaler)
+
+	for _, hpa := range hpas.Items {
+		hpasByService[hpa.Labels[serviceLabel]] = hpa
 	}
 
 	services := make([]platform.Service, 0, len(deployments.Items))
 
 	for _, deployment := range deployments.Items {
-		services = append(services, toService(deployment, byService[deployment.Labels[serviceLabel]], environmentID))
+		name := deployment.Labels[serviceLabel]
+		service := toService(
+			deployment,
+			replicaSetsByService[name],
+			routesByService[name],
+			hpasByService[name],
+			environmentID,
+		)
+
+		services = append(services, service)
 	}
 
 	return services, nil
@@ -68,7 +112,31 @@ func (c *Client) Service(ctx context.Context, id platform.ServiceID) (*platform.
 		return nil, err
 	}
 
-	return new(toService(*deployment, replicaSets, id.EnvironmentID())), nil
+	selector := labels.SelectorFromSet(labels.Set{serviceLabel: id.Name}).String()
+
+	routes, err := c.dynamic.Resource(httpRouteGVR).Namespace(id.Namespace()).List(ctx, meta.ListOptions{
+		LabelSelector: selector,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	hpas, err := c.kubernetes.AutoscalingV2().HorizontalPodAutoscalers(id.Namespace()).List(ctx, meta.ListOptions{
+		LabelSelector: selector,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	var hpa autoscaling.HorizontalPodAutoscaler
+
+	if len(hpas.Items) > 0 {
+		hpa = hpas.Items[0]
+	}
+
+	return new(toService(*deployment, replicaSets, routes.Items, hpa, id.EnvironmentID())), nil
 }
 
 func (c *Client) deploymentFor(ctx context.Context, serviceID platform.ServiceID) (*apps.Deployment, error) {
@@ -91,17 +159,42 @@ func (c *Client) deploymentFor(ctx context.Context, serviceID platform.ServiceID
 	return &deployments.Items[0], nil
 }
 
-func toService(deployment apps.Deployment, replicaSets []apps.ReplicaSet, environmentID platform.EnvironmentID) platform.Service {
-	return platform.Service{
-		ID:     serviceID(deployment, environmentID),
-		Name:   deployment.Labels[serviceLabel],
+func toService(deployment apps.Deployment, replicaSets []apps.ReplicaSet, routes []unstructured.Unstructured, hpa autoscaling.HorizontalPodAutoscaler, environmentID platform.EnvironmentID) platform.Service {
+	annotations := deployment.Annotations
+
+	service := platform.Service{
+		ID:   serviceID(deployment, environmentID),
+		Name: deployment.Labels[serviceLabel],
+
 		Status: serviceStatus(deployment, replicaSets),
 		Replicas: platform.ReplicaCount{
 			Desired: int(to.Val(deployment.Spec.Replicas)),
 			Ready:   int(deployment.Status.ReadyReplicas),
 		},
-		CreatedAt: deployment.CreationTimestamp.Time,
+		Autoscaling: autoscalingSettings(hpa),
+
+		Endpoints: endpoints(deployment, routes),
+
+		SourceURL:   annotations[annotationSourceRepo],
+		ContextPath: annotations[annotationSourceContext],
+		Resources:   containerResources(deployment.Spec.Template.Spec.Containers),
+		Command:     containerCommand(deployment.Spec.Template.Spec.Containers),
+
+		LastDeployedAt: latestReplicaSetTime(replicaSets),
+		CreatedAt:      deployment.CreationTimestamp.Time,
 	}
+
+	currentHash := deployment.Spec.Template.Labels[apps.DefaultDeploymentUniqueLabelKey]
+
+	for _, replicaSet := range replicaSets {
+		if replicaSet.Labels[apps.DefaultDeploymentUniqueLabelKey] != currentHash {
+			continue
+		}
+
+		service.ActiveDeployment = new(toDeployment(replicaSet, deployment, service.ID))
+	}
+
+	return service
 }
 
 func serviceID(deployment apps.Deployment, environmentID platform.EnvironmentID) platform.ServiceID {
@@ -173,4 +266,103 @@ func rolloutProgressing(deployment apps.Deployment) bool {
 	}
 
 	return false
+}
+
+func latestReplicaSetTime(replicaSets []apps.ReplicaSet) time.Time {
+	var latest time.Time
+
+	for _, replicaSet := range replicaSets {
+		if replicaSet.CreationTimestamp.After(latest) {
+			latest = replicaSet.CreationTimestamp.Time
+		}
+	}
+
+	return latest
+}
+
+func endpoints(deployment apps.Deployment, routes []unstructured.Unstructured) []platform.Endpoint {
+	var port int
+	containers := deployment.Spec.Template.Spec.Containers
+
+	if len(containers) > 0 && len(containers[0].Ports) > 0 {
+		port = int(containers[0].Ports[0].ContainerPort)
+	}
+
+	// TODO: Fetch the k8s service resource to derive the proper internal host name
+	endpoints := []platform.Endpoint{{
+		Host:     fmt.Sprintf("%s.%s.svc.cluster.local", deployment.Name, deployment.Namespace),
+		Port:     port,
+		Protocol: platform.ProtocolTCP,
+	}}
+
+	for _, route := range routes {
+		hosts, _, _ := unstructured.NestedStringSlice(route.Object, "spec", "hostnames")
+
+		for _, host := range hosts {
+			endpoints = append(endpoints, platform.Endpoint{
+				Host:     host,
+				Port:     443,
+				Protocol: platform.ProtocolHTTPS,
+			})
+		}
+	}
+
+	return endpoints
+}
+
+func autoscalingSettings(hpa autoscaling.HorizontalPodAutoscaler) *platform.AutoscalingSettings {
+	if hpa.Name == "" {
+		return nil
+	}
+
+	settings := &platform.AutoscalingSettings{
+		MinReplicas: int(to.Val(hpa.Spec.MinReplicas)),
+		MaxReplicas: int(hpa.Spec.MaxReplicas),
+	}
+
+	for _, metric := range hpa.Spec.Metrics {
+		if metric.Type != autoscaling.ResourceMetricSourceType {
+			continue
+		}
+		if metric.Resource == nil || metric.Resource.Name != core.ResourceCPU {
+			continue
+		}
+		if metric.Resource.Target.AverageUtilization != nil {
+			settings.TargetCPU = int(*metric.Resource.Target.AverageUtilization)
+		}
+	}
+
+	return settings
+}
+
+func containerResources(containers []core.Container) platform.Resources {
+	if len(containers) == 0 {
+		return platform.Resources{}
+	}
+
+	limits := containers[0].Resources.Limits
+
+	return platform.Resources{
+		CPU:    limits[core.ResourceCPU],
+		Memory: limits[core.ResourceMemory],
+	}
+}
+
+// containerCommand returns the user's command override as a single string.
+// Empty means no override (image default is used at runtime).
+func containerCommand(containers []core.Container) string {
+	if len(containers) == 0 {
+		return ""
+	}
+
+	parts := append([]string{}, containers[0].Command...)
+	parts = append(parts, containers[0].Args...)
+
+	return strings.Join(parts, " ")
+}
+
+var httpRouteGVR = schema.GroupVersionResource{
+	Group:    "gateway.networking.k8s.io",
+	Version:  "v1",
+	Resource: "httproutes",
 }

@@ -15,15 +15,20 @@ type Deployment struct {
 
 	Image       string
 	ImageDigest string
+	Commit      string
+	Ref         string
 
-	Commit string
-	Ref    string
-	Repo   string
+	SourceURL   string
+	ContextPath string
+	Resources   Resources
+	Command     string
 
 	Status   DeploymentStatus
 	Replicas ReplicaCount
 
-	CreatedAt time.Time
+	BuildID    string
+	DeployedBy string
+	CreatedAt  time.Time
 }
 
 type DeploymentStatus string
