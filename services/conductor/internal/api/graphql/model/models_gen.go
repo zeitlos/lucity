@@ -163,20 +163,21 @@ type DeployRun struct {
 }
 
 type Deployment struct {
-	ID          platform.DeploymentID `json:"id"`
-	Image       string                `json:"image"`
-	ImageDigest *string               `json:"imageDigest,omitempty"`
-	Commit      *string               `json:"commit,omitempty"`
-	Ref         *string               `json:"ref,omitempty"`
-	SourceURL   *string               `json:"sourceUrl,omitempty"`
-	ContextPath *string               `json:"contextPath,omitempty"`
-	Resources   *Resources            `json:"resources"`
-	Command     *string               `json:"command,omitempty"`
-	BuildID     *string               `json:"buildId,omitempty"`
-	DeployedBy  *string               `json:"deployedBy,omitempty"`
-	Status      DeploymentStatus      `json:"status"`
-	Replicas    *ReplicaCount         `json:"replicas"`
-	CreatedAt   time.Time             `json:"createdAt"`
+	ID            platform.DeploymentID `json:"id"`
+	Image         string                `json:"image"`
+	ImageDigest   *string               `json:"imageDigest,omitempty"`
+	Commit        string                `json:"commit"`
+	CommitMessage string                `json:"commitMessage"`
+	Ref           string                `json:"ref"`
+	SourceURL     string                `json:"sourceUrl"`
+	ContextPath   string                `json:"contextPath"`
+	Resources     *Resources            `json:"resources"`
+	Command       string                `json:"command"`
+	BuildID       string                `json:"buildId"`
+	DeployedBy    string                `json:"deployedBy"`
+	Status        DeploymentStatus      `json:"status"`
+	Replicas      *ReplicaCount         `json:"replicas"`
+	CreatedAt     time.Time             `json:"createdAt"`
 }
 
 type DetectedService struct {
@@ -221,7 +222,7 @@ type Endpoint struct {
 type Environment struct {
 	ID           platform.EnvironmentID `json:"id"`
 	Name         string                 `json:"name"`
-	ResourceTier *ResourceTier          `json:"resourceTier,omitempty"`
+	ResourceTier ResourceTier           `json:"resourceTier"`
 	Services     []Service              `json:"services"`
 	Databases    []Database             `json:"databases"`
 }

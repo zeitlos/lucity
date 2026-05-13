@@ -132,20 +132,21 @@ type ComplexityRoot struct {
 	}
 
 	Deployment struct {
-		BuildID     func(childComplexity int) int
-		Command     func(childComplexity int) int
-		Commit      func(childComplexity int) int
-		ContextPath func(childComplexity int) int
-		CreatedAt   func(childComplexity int) int
-		DeployedBy  func(childComplexity int) int
-		ID          func(childComplexity int) int
-		Image       func(childComplexity int) int
-		ImageDigest func(childComplexity int) int
-		Ref         func(childComplexity int) int
-		Replicas    func(childComplexity int) int
-		Resources   func(childComplexity int) int
-		SourceURL   func(childComplexity int) int
-		Status      func(childComplexity int) int
+		BuildID       func(childComplexity int) int
+		Command       func(childComplexity int) int
+		Commit        func(childComplexity int) int
+		CommitMessage func(childComplexity int) int
+		ContextPath   func(childComplexity int) int
+		CreatedAt     func(childComplexity int) int
+		DeployedBy    func(childComplexity int) int
+		ID            func(childComplexity int) int
+		Image         func(childComplexity int) int
+		ImageDigest   func(childComplexity int) int
+		Ref           func(childComplexity int) int
+		Replicas      func(childComplexity int) int
+		Resources     func(childComplexity int) int
+		SourceURL     func(childComplexity int) int
+		Status        func(childComplexity int) int
 	}
 
 	DetectedService struct {
@@ -410,7 +411,6 @@ type ComplexityRoot struct {
 }
 
 type EnvironmentResolver interface {
-	ResourceTier(ctx context.Context, obj *model.Environment) (*model.ResourceTier, error)
 	Services(ctx context.Context, obj *model.Environment) ([]model.Service, error)
 	Databases(ctx context.Context, obj *model.Environment) ([]model.Database, error)
 }
@@ -826,6 +826,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Deployment.Commit(childComplexity), true
+	case "Deployment.commitMessage":
+		if e.ComplexityRoot.Deployment.CommitMessage == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Deployment.CommitMessage(childComplexity), true
 	case "Deployment.contextPath":
 		if e.ComplexityRoot.Deployment.ContextPath == nil {
 			break
@@ -2480,6 +2486,8 @@ func (ec *executionContext) childFields_Deployment(ctx context.Context, field gr
 		return ec.fieldContext_Deployment_imageDigest(ctx, field)
 	case "commit":
 		return ec.fieldContext_Deployment_commit(ctx, field)
+	case "commitMessage":
+		return ec.fieldContext_Deployment_commitMessage(ctx, field)
 	case "ref":
 		return ec.fieldContext_Deployment_ref(ctx, field)
 	case "sourceUrl":
@@ -5096,14 +5104,37 @@ func (ec *executionContext) _Deployment_commit(ctx context.Context, field graphq
 			return obj.Commit, nil
 		},
 		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
-			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
 		},
 		true,
-		false,
+		true,
 	)
 }
 func (ec *executionContext) fieldContext_Deployment_commit(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Deployment", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _Deployment_commitMessage(ctx context.Context, field graphql.CollectedField, obj *model.Deployment) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Deployment_commitMessage(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CommitMessage, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Deployment_commitMessage(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("Deployment", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
@@ -5119,11 +5150,11 @@ func (ec *executionContext) _Deployment_ref(ctx context.Context, field graphql.C
 			return obj.Ref, nil
 		},
 		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
-			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
 		},
 		true,
-		false,
+		true,
 	)
 }
 func (ec *executionContext) fieldContext_Deployment_ref(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -5142,11 +5173,11 @@ func (ec *executionContext) _Deployment_sourceUrl(ctx context.Context, field gra
 			return obj.SourceURL, nil
 		},
 		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
-			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
 		},
 		true,
-		false,
+		true,
 	)
 }
 func (ec *executionContext) fieldContext_Deployment_sourceUrl(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -5165,11 +5196,11 @@ func (ec *executionContext) _Deployment_contextPath(ctx context.Context, field g
 			return obj.ContextPath, nil
 		},
 		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
-			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
 		},
 		true,
-		false,
+		true,
 	)
 }
 func (ec *executionContext) fieldContext_Deployment_contextPath(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -5220,11 +5251,11 @@ func (ec *executionContext) _Deployment_command(ctx context.Context, field graph
 			return obj.Command, nil
 		},
 		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
-			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
 		},
 		true,
-		false,
+		true,
 	)
 }
 func (ec *executionContext) fieldContext_Deployment_command(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -5243,11 +5274,11 @@ func (ec *executionContext) _Deployment_buildId(ctx context.Context, field graph
 			return obj.BuildID, nil
 		},
 		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
-			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
 		},
 		true,
-		false,
+		true,
 	)
 }
 func (ec *executionContext) fieldContext_Deployment_buildId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -5266,11 +5297,11 @@ func (ec *executionContext) _Deployment_deployedBy(ctx context.Context, field gr
 			return obj.DeployedBy, nil
 		},
 		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
-			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
 		},
 		true,
-		false,
+		true,
 	)
 }
 func (ec *executionContext) fieldContext_Deployment_deployedBy(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -5824,18 +5855,18 @@ func (ec *executionContext) _Environment_resourceTier(ctx context.Context, field
 			return ec.fieldContext_Environment_resourceTier(ctx, field)
 		},
 		func(ctx context.Context) (any, error) {
-			return ec.Resolvers.Environment().ResourceTier(ctx, obj)
+			return obj.ResourceTier, nil
 		},
 		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v *model.ResourceTier) graphql.Marshaler {
-			return ec.marshalOResourceTier2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐResourceTier(ctx, selections, v)
+		func(ctx context.Context, selections ast.SelectionSet, v model.ResourceTier) graphql.Marshaler {
+			return ec.marshalNResourceTier2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐResourceTier(ctx, selections, v)
 		},
 		true,
-		false,
+		true,
 	)
 }
 func (ec *executionContext) fieldContext_Environment_resourceTier(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Environment", field, true, true, errors.New("field of type ResourceTier does not have child fields"))
+	return graphql.NewScalarFieldContext("Environment", field, false, false, errors.New("field of type ResourceTier does not have child fields"))
 }
 
 func (ec *executionContext) _Environment_services(ctx context.Context, field graphql.CollectedField, obj *model.Environment) (ret graphql.Marshaler) {
@@ -14174,12 +14205,29 @@ func (ec *executionContext) _Deployment(ctx context.Context, sel ast.SelectionSe
 			out.Values[i] = ec._Deployment_imageDigest(ctx, field, obj)
 		case "commit":
 			out.Values[i] = ec._Deployment_commit(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "commitMessage":
+			out.Values[i] = ec._Deployment_commitMessage(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "ref":
 			out.Values[i] = ec._Deployment_ref(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "sourceUrl":
 			out.Values[i] = ec._Deployment_sourceUrl(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "contextPath":
 			out.Values[i] = ec._Deployment_contextPath(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "resources":
 			out.Values[i] = ec._Deployment_resources(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -14187,10 +14235,19 @@ func (ec *executionContext) _Deployment(ctx context.Context, sel ast.SelectionSe
 			}
 		case "command":
 			out.Values[i] = ec._Deployment_command(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "buildId":
 			out.Values[i] = ec._Deployment_buildId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "deployedBy":
 			out.Values[i] = ec._Deployment_deployedBy(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "status":
 			out.Values[i] = ec._Deployment_status(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -14468,38 +14525,10 @@ func (ec *executionContext) _Environment(ctx context.Context, sel ast.SelectionS
 				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "resourceTier":
-			field := field
-
-			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Environment_resourceTier(ctx, field, obj)
-				return res
+			out.Values[i] = ec._Environment_resourceTier(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
 			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "services":
 			field := field
 

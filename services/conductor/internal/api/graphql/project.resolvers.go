@@ -27,7 +27,7 @@ func (r *mutationResolver) CreateProject(ctx context.Context, input model.Create
 	if err != nil {
 		return nil, err
 	}
-	result := convertProject(*p, r.Conductor.Config.WorkloadDomain)
+	result := convertProject(*p)
 	return &result, nil
 }
 
@@ -48,7 +48,7 @@ func (r *queryResolver) Projects(ctx context.Context) ([]model.Project, error) {
 	}
 	result := make([]model.Project, 0, len(projects))
 	for _, p := range projects {
-		result = append(result, convertProject(p, r.Conductor.Config.WorkloadDomain))
+		result = append(result, convertProject(p))
 	}
 	return result, nil
 }
@@ -59,6 +59,6 @@ func (r *queryResolver) Project(ctx context.Context, id platform.ProjectID) (*mo
 	if err != nil {
 		return nil, err
 	}
-	result := convertProject(*p, r.Conductor.Config.WorkloadDomain)
+	result := convertProject(*p)
 	return &result, nil
 }

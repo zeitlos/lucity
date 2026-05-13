@@ -1,7 +1,7 @@
 type Environment {
   id: EnvironmentID!
   name: String!
-  resourceTier: ResourceTier
+  resourceTier: ResourceTier!
   services: [Service!]! @goField(forceResolver: true)
   databases: [Database!]! @goField(forceResolver: true)
 }

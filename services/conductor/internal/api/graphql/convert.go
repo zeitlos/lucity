@@ -54,31 +54,31 @@ func convertDeployment(deployment platform.Deployment) model.Deployment {
 	}
 
 	if deployment.Commit != "" {
-		result.Commit = &deployment.Commit
+		result.Commit = deployment.Commit
 	}
 
 	if deployment.Ref != "" {
-		result.Ref = &deployment.Ref
+		result.Ref = deployment.Ref
 	}
 
 	if deployment.SourceURL != "" {
-		result.SourceURL = &deployment.SourceURL
+		result.SourceURL = deployment.SourceURL
 	}
 
 	if deployment.ContextPath != "" {
-		result.ContextPath = &deployment.ContextPath
+		result.ContextPath = deployment.ContextPath
 	}
 
 	if deployment.Command != "" {
-		result.Command = &deployment.Command
+		result.Command = deployment.Command
 	}
 
 	if deployment.BuildID != "" {
-		result.BuildID = &deployment.BuildID
+		result.BuildID = deployment.BuildID
 	}
 
 	if deployment.DeployedBy != "" {
-		result.DeployedBy = &deployment.DeployedBy
+		result.DeployedBy = deployment.DeployedBy
 	}
 
 	return result
@@ -120,20 +120,20 @@ func convertEndpoints(endpoints []platform.Endpoint) []model.Endpoint {
 	return result
 }
 
-func convertProject(p conductor.Project, workloadDomain string) model.Project {
+func convertProject(p conductor.Project) model.Project {
 	result := model.Project{
 		ID:   p.ID,
 		Name: p.Name,
 	}
 
 	for _, e := range p.Environments {
-		result.Environments = append(result.Environments, convertEnvironment(e, workloadDomain))
+		result.Environments = append(result.Environments, convertEnvironment(e))
 	}
 
 	return result
 }
 
-func convertEnvironment(e conductor.EnvironmentNew, workloadDomain string) model.Environment {
+func convertEnvironment(e conductor.Environment) model.Environment {
 	result := model.Environment{
 		ID:   e.ID,
 		Name: e.Name,
@@ -141,9 +141,9 @@ func convertEnvironment(e conductor.EnvironmentNew, workloadDomain string) model
 
 	switch e.ResourceTier {
 	case platform.EcoTier:
-		result.ResourceTier = new(model.ResourceTierEco)
+		result.ResourceTier = model.ResourceTierEco
 	case platform.ProductionTier:
-		result.ResourceTier = new(model.ResourceTierProduction)
+		result.ResourceTier = model.ResourceTierProduction
 	}
 
 	return result

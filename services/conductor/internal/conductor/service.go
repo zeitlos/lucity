@@ -30,6 +30,10 @@ type DetectedService struct {
 	SuggestedPort int
 }
 
+func (c *Client) Services(ctx context.Context, environmentID EnvironmentID) ([]Service, error) {
+	return c.platform.Services(ctx, environmentID)
+}
+
 func (c *Client) DetectServices(ctx context.Context, repository string, installationID int64) ([]DetectedService, error) {
 	if _, err := tenant.FromContext(ctx); err != nil {
 		return nil, err

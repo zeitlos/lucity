@@ -9,46 +9,30 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
-type EnvironmentNew = platform.Environment
+type Environment = platform.Environment
 type EnvironmentID = platform.EnvironmentID
 
-type Environment struct {
-	ID         string
-	Name       string
-	Namespace  string
-	Ephemeral  bool
-	SyncStatus string
-	Services   []Service
-	Databases  []Database
+func (c *Client) Environments(ctx context.Context, projectID ProjectID) ([]Environment, error) {
+	return c.platform.Environments(ctx, projectID)
 }
 
-func (c *Client) Environments(ctx context.Context, projectID string) ([]EnvironmentNew, error) {
-	id, err := platform.ParseProjectID(projectID)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return c.platform.Environments(ctx, id)
+func (c *Client) Environment(ctx context.Context, id EnvironmentID) (*Environment, error) {
+	return c.platform.Environment(ctx, id)
 }
 
-func (c *Client) Environment(ctx context.Context, id string) (*EnvironmentNew, error) {
-	envID, err := platform.ParseEnvironmentID(id)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return c.platform.Environment(ctx, envID)
-}
-
-func (c *Client) CreateEnvironment(ctx context.Context, project ProjectID, name string, fromEnvironment *EnvironmentID, tier string) (*EnvironmentNew, error) {
+func (c *Client) CreateEnvironment(ctx context.Context, project ProjectID, name string, fromEnvironment *EnvironmentID, tier string) (*Environment, error) {
 	projectID := project.Name
 	fromEnvName := ""
 	if fromEnvironment != nil {
 		fromEnvName = fromEnvironment.Name
 	}
 	ws, err := tenant.FromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	envID, err := platform.ParseEnvironmentID(project.String() + "/" + name)
+
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +58,7 @@ func (c *Client) CreateEnvironment(ctx context.Context, project ProjectID, name 
 		slog.Warn("failed to trigger sync after environment create", "project", projectID, "environment", name, "error", err)
 	}
 
-	return c.Environment(ctx, projectID+"/"+name)
+	return c.Environment(ctx, envID)
 }
 
 func (c *Client) DeleteEnvironment(ctx context.Context, environment platform.EnvironmentID) (bool, error) {

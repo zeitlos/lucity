@@ -4,16 +4,17 @@ type Deployment {
   image: String!
   imageDigest: String
 
-  commit: String
-  ref: String
-  sourceUrl: String
-  contextPath: String
+  commit: String!
+  commitMessage: String!
+  ref: String!
+  sourceUrl: String!
+  contextPath: String!
 
   resources: Resources!
-  command: String
+  command: String!
 
-  buildId: String
-  deployedBy: String
+  buildId: String!
+  deployedBy: String!
 
   status: DeploymentStatus!
   replicas: ReplicaCount!

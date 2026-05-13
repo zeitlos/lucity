@@ -7,20 +7,26 @@ package graphql
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
-// ResourceTier is the resolver for the resourceTier field.
-func (r *environmentResolver) ResourceTier(ctx context.Context, obj *model.Environment) (*model.ResourceTier, error) {
-	panic(fmt.Errorf("not implemented: ResourceTier - resourceTier"))
-}
-
 // Services is the resolver for the services field.
 func (r *environmentResolver) Services(ctx context.Context, obj *model.Environment) ([]model.Service, error) {
-	panic(fmt.Errorf("not implemented: Services - services"))
+	services, err := r.Conductor.Services(ctx, obj.ID)
+
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]model.Service, 0, len(services))
+
+	for _, service := range services {
+		result = append(result, convertService(service))
+	}
+
+	return result, nil
 }
 
 // Databases is the resolver for the databases field.
@@ -50,7 +56,7 @@ func (r *mutationResolver) CreateEnvironment(ctx context.Context, input model.Cr
 	if err != nil {
 		return nil, err
 	}
-	result := convertEnvironment(*e, r.Conductor.Config.WorkloadDomain)
+	result := convertEnvironment(*e)
 	return &result, nil
 }
 
@@ -61,12 +67,30 @@ func (r *mutationResolver) DeleteEnvironment(ctx context.Context, environment pl
 
 // Environments is the resolver for the environments field.
 func (r *queryResolver) Environments(ctx context.Context, project platform.ProjectID) ([]model.Environment, error) {
-	panic(fmt.Errorf("not implemented: Environments - environments"))
+	environments, err := r.Conductor.Environments(ctx, project)
+
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]model.Environment, 0, len(environments))
+
+	for _, env := range environments {
+		result = append(result, convertEnvironment(env))
+	}
+
+	return result, nil
 }
 
 // Environment is the resolver for the environment field.
 func (r *queryResolver) Environment(ctx context.Context, environment platform.EnvironmentID) (*model.Environment, error) {
-	panic(fmt.Errorf("not implemented: Environment - environment"))
+	env, err := r.Conductor.Environment(ctx, environment)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return new(convertEnvironment(*env)), nil
 }
 
 // Environment returns EnvironmentResolver implementation.
