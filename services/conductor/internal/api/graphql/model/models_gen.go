@@ -46,6 +46,12 @@ type AutoscalingInput struct {
 	TargetCPU   int  `json:"targetCPU"`
 }
 
+type AutoscalingSettings struct {
+	MinReplicas int `json:"minReplicas"`
+	MaxReplicas int `json:"maxReplicas"`
+	TargetCPU   int `json:"targetCpu"`
+}
+
 type BillingPortalURL struct {
 	URL string `json:"url"`
 }
@@ -157,16 +163,20 @@ type DeployRun struct {
 }
 
 type Deployment struct {
-	ID        platform.DeploymentID `json:"id"`
-	ImageTag  string                `json:"imageTag"`
-	Active    bool                  `json:"active"`
-	Timestamp *time.Time            `json:"timestamp,omitempty"`
-	Revision  *string               `json:"revision,omitempty"`
-	Message   *string               `json:"message,omitempty"`
-	// First line of the source commit message (fetched from GitHub).
-	SourceCommitMessage *string `json:"sourceCommitMessage,omitempty"`
-	// URL to the source commit on GitHub.
-	SourceURL *string `json:"sourceUrl,omitempty"`
+	ID          platform.DeploymentID `json:"id"`
+	Image       string                `json:"image"`
+	ImageDigest *string               `json:"imageDigest,omitempty"`
+	Commit      *string               `json:"commit,omitempty"`
+	Ref         *string               `json:"ref,omitempty"`
+	SourceURL   *string               `json:"sourceUrl,omitempty"`
+	ContextPath *string               `json:"contextPath,omitempty"`
+	Resources   *Resources            `json:"resources"`
+	Command     *string               `json:"command,omitempty"`
+	BuildID     *string               `json:"buildId,omitempty"`
+	DeployedBy  *string               `json:"deployedBy,omitempty"`
+	Status      DeploymentStatus      `json:"status"`
+	Replicas    *ReplicaCount         `json:"replicas"`
+	CreatedAt   time.Time             `json:"createdAt"`
 }
 
 type DetectedService struct {
@@ -200,6 +210,12 @@ type Domain struct {
 	DNSStatus DNSStatus `json:"dnsStatus"`
 	// TLS certificate status. NONE for platform domains (covered by wildcard). Checked via cert-manager for custom domains.
 	TLSStatus TLSStatus `json:"tlsStatus"`
+}
+
+type Endpoint struct {
+	Host     string   `json:"host"`
+	Port     int      `json:"port"`
+	Protocol Protocol `json:"protocol"`
 }
 
 type Environment struct {
@@ -271,10 +287,20 @@ type QueryResult struct {
 	AffectedRows int         `json:"affectedRows"`
 }
 
+type ReplicaCount struct {
+	Desired int `json:"desired"`
+	Ready   int `json:"ready"`
+}
+
 type ResourceAllocation struct {
 	CPUMillicores int `json:"cpuMillicores"`
 	MemoryMb      int `json:"memoryMB"`
 	DiskMb        int `json:"diskMB"`
+}
+
+type Resources struct {
+	CPU    string `json:"cpu"`
+	Memory string `json:"memory"`
 }
 
 type ScalingConfig struct {
@@ -283,24 +309,19 @@ type ScalingConfig struct {
 }
 
 type Service struct {
-	ID                 platform.ServiceID `json:"id"`
-	Name               string             `json:"name"`
-	Image              string             `json:"image"`
-	Port               *int               `json:"port,omitempty"`
-	Framework          *string            `json:"framework,omitempty"`
-	SourceURL          *string            `json:"sourceUrl,omitempty"`
-	ContextPath        *string            `json:"contextPath,omitempty"`
-	StartCommand       *string            `json:"startCommand,omitempty"`
-	CustomStartCommand *string            `json:"customStartCommand,omitempty"`
-	ImageTag           string             `json:"imageTag"`
-	Ready              bool               `json:"ready"`
-	Replicas           int                `json:"replicas"`
-	Scaling            *ScalingConfig     `json:"scaling"`
-	Resources          *ServiceResources  `json:"resources,omitempty"`
-	Domains            []Domain           `json:"domains"`
-	Deployments        []Deployment       `json:"deployments"`
-	// Deploy automatically triggered when the service was added. Null for image-based services.
-	InitialDeploy *DeployRun `json:"initialDeploy,omitempty"`
+	ID               platform.ServiceID   `json:"id"`
+	Name             string               `json:"name"`
+	Status           ServiceStatus        `json:"status"`
+	Replicas         *ReplicaCount        `json:"replicas"`
+	Autoscaling      *AutoscalingSettings `json:"autoscaling,omitempty"`
+	Endpoints        []Endpoint           `json:"endpoints"`
+	SourceURL        string               `json:"sourceUrl"`
+	ContextPath      string               `json:"contextPath"`
+	Resources        *Resources           `json:"resources"`
+	Command          string               `json:"command"`
+	ActiveDeployment *Deployment          `json:"activeDeployment,omitempty"`
+	LastDeployedAt   *time.Time           `json:"lastDeployedAt,omitempty"`
+	CreatedAt        time.Time            `json:"createdAt"`
 }
 
 type ServiceLogEntry struct {
@@ -550,6 +571,65 @@ func (e DeployPhase) MarshalJSON() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+type DeploymentStatus string
+
+const (
+	DeploymentStatusDeploying  DeploymentStatus = "DEPLOYING"
+	DeploymentStatusActive     DeploymentStatus = "ACTIVE"
+	DeploymentStatusSuperseded DeploymentStatus = "SUPERSEDED"
+	DeploymentStatusFailed     DeploymentStatus = "FAILED"
+)
+
+var AllDeploymentStatus = []DeploymentStatus{
+	DeploymentStatusDeploying,
+	DeploymentStatusActive,
+	DeploymentStatusSuperseded,
+	DeploymentStatusFailed,
+}
+
+func (e DeploymentStatus) IsValid() bool {
+	switch e {
+	case DeploymentStatusDeploying, DeploymentStatusActive, DeploymentStatusSuperseded, DeploymentStatusFailed:
+		return true
+	}
+	return false
+}
+
+func (e DeploymentStatus) String() string {
+	return string(e)
+}
+
+func (e *DeploymentStatus) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = DeploymentStatus(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid DeploymentStatus", str)
+	}
+	return nil
+}
+
+func (e DeploymentStatus) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *DeploymentStatus) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e DeploymentStatus) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
 type DNSStatus string
 
 const (
@@ -774,6 +854,63 @@ func (e Plan) MarshalJSON() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+type Protocol string
+
+const (
+	ProtocolHTTP  Protocol = "HTTP"
+	ProtocolHTTPS Protocol = "HTTPS"
+	ProtocolTCP   Protocol = "TCP"
+)
+
+var AllProtocol = []Protocol{
+	ProtocolHTTP,
+	ProtocolHTTPS,
+	ProtocolTCP,
+}
+
+func (e Protocol) IsValid() bool {
+	switch e {
+	case ProtocolHTTP, ProtocolHTTPS, ProtocolTCP:
+		return true
+	}
+	return false
+}
+
+func (e Protocol) String() string {
+	return string(e)
+}
+
+func (e *Protocol) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = Protocol(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid Protocol", str)
+	}
+	return nil
+}
+
+func (e Protocol) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *Protocol) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e Protocol) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
 type ResourceTier string
 
 const (
@@ -881,6 +1018,67 @@ func (e *Role) UnmarshalJSON(b []byte) error {
 }
 
 func (e Role) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type ServiceStatus string
+
+const (
+	ServiceStatusHealthy   ServiceStatus = "HEALTHY"
+	ServiceStatusDegraded  ServiceStatus = "DEGRADED"
+	ServiceStatusDeploying ServiceStatus = "DEPLOYING"
+	ServiceStatusFailed    ServiceStatus = "FAILED"
+	ServiceStatusStopped   ServiceStatus = "STOPPED"
+)
+
+var AllServiceStatus = []ServiceStatus{
+	ServiceStatusHealthy,
+	ServiceStatusDegraded,
+	ServiceStatusDeploying,
+	ServiceStatusFailed,
+	ServiceStatusStopped,
+}
+
+func (e ServiceStatus) IsValid() bool {
+	switch e {
+	case ServiceStatusHealthy, ServiceStatusDegraded, ServiceStatusDeploying, ServiceStatusFailed, ServiceStatusStopped:
+		return true
+	}
+	return false
+}
+
+func (e ServiceStatus) String() string {
+	return string(e)
+}
+
+func (e *ServiceStatus) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = ServiceStatus(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid ServiceStatus", str)
+	}
+	return nil
+}
+
+func (e ServiceStatus) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *ServiceStatus) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e ServiceStatus) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

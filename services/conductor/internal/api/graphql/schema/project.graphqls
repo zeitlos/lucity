@@ -4,19 +4,6 @@ type Project {
   environments: [Environment!]!
 }
 
-type Deployment {
-  id: DeploymentID!
-  imageTag: String!
-  active: Boolean!
-  timestamp: Time
-  revision: String
-  message: String
-  """First line of the source commit message (fetched from GitHub)."""
-  sourceCommitMessage: String
-  """URL to the source commit on GitHub."""
-  sourceUrl: String
-}
-
 enum SyncStatus {
   SYNCED
   OUT_OF_SYNC

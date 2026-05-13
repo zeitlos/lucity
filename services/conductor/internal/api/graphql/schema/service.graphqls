@@ -1,24 +1,57 @@
-
-
 type Service {
   id: ServiceID!
   name: String!
-  image: String!
-  port: Int
-  framework: String
-  sourceUrl: String
-  contextPath: String
-  startCommand: String
-  customStartCommand: String
-  imageTag: String!
-  ready: Boolean!
-  replicas: Int!
-  scaling: ScalingConfig!
-  resources: ServiceResources
-  domains: [Domain!]!
-  deployments: [Deployment!]!
-  """Deploy automatically triggered when the service was added. Null for image-based services."""
-  initialDeploy: DeployRun
+
+  status: ServiceStatus!
+  replicas: ReplicaCount!
+  autoscaling: AutoscalingSettings
+  endpoints: [Endpoint!]!
+
+  sourceUrl: String!
+  contextPath: String!
+  resources: Resources!
+  command: String!
+
+  activeDeployment: Deployment
+
+  lastDeployedAt: Time
+  createdAt: Time!
+}
+
+type ReplicaCount {
+  desired: Int!
+  ready: Int!
+}
+
+type AutoscalingSettings {
+  minReplicas: Int!
+  maxReplicas: Int!
+  targetCpu: Int!
+}
+
+type Resources {
+  cpu: String!
+  memory: String!
+}
+
+type Endpoint {
+  host: String!
+  port: Int!
+  protocol: Protocol!
+}
+
+enum Protocol {
+  HTTP
+  HTTPS
+  TCP
+}
+
+enum ServiceStatus {
+  HEALTHY
+  DEGRADED
+  DEPLOYING
+  FAILED
+  STOPPED
 }
 
 type ServiceResources {

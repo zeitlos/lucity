@@ -27,33 +27,7 @@ var projectIDPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$`)
 type Project = platform.Project
 type ProjectID = platform.ProjectID
 
-type ServiceInstance struct {
-	ID                   platform.ServiceID
-	Name                 string
-	Image                string
-	Port                 int
-	Framework            string
-	SourceURL            string
-	ContextPath          string
-	GitHubInstallationID int64
-	StartCommand         string
-	CustomStartCommand   string
-	ImageTag             string
-	Ready                bool
-	Replicas             int
-	Scaling              ScalingConfig
-	Resources            *ServiceResources
-	Domains              []string
-	Deployments          []Deployment
-	InitialDeploy        *DeployOp
-}
-
-type ServiceResources struct {
-	CpuMillicores      int
-	MemoryMB           int
-	CpuLimitMillicores int
-	MemoryLimitMB      int
-}
+type Deployment = platform.Deployment
 
 type ScalingConfig struct {
 	Replicas    int
@@ -65,17 +39,6 @@ type AutoscalingConfig struct {
 	MinReplicas int
 	MaxReplicas int
 	TargetCPU   int
-}
-
-type Deployment struct {
-	ID                  platform.DeploymentID
-	ImageTag            string
-	Active              bool
-	Timestamp           time.Time
-	Revision            string
-	Message             string
-	SourceCommitMessage string
-	SourceURL           string // full URL to commit on GitHub
 }
 
 func (c *Client) Projects(ctx context.Context, workspace string) ([]Project, error) {

@@ -9,6 +9,117 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
+func convertService(service platform.Service) model.Service {
+	result := model.Service{
+		ID:          service.ID,
+		Name:        service.Name,
+		Status:      model.ServiceStatus(service.Status),
+		Replicas:    convertReplicaCount(service.Replicas),
+		Endpoints:   convertEndpoints(service.Endpoints),
+		SourceURL:   service.SourceURL,
+		ContextPath: service.ContextPath,
+		Resources:   convertResources(service.Resources),
+		Command:     service.Command,
+		CreatedAt:   service.CreatedAt,
+	}
+
+	if service.Autoscaling != nil {
+		result.Autoscaling = convertAutoscaling(*service.Autoscaling)
+	}
+
+	if service.ActiveDeployment != nil {
+		deployment := convertDeployment(*service.ActiveDeployment)
+		result.ActiveDeployment = &deployment
+	}
+
+	if !service.LastDeployedAt.IsZero() {
+		result.LastDeployedAt = &service.LastDeployedAt
+	}
+
+	return result
+}
+
+func convertDeployment(deployment platform.Deployment) model.Deployment {
+	result := model.Deployment{
+		ID:        deployment.ID,
+		Image:     deployment.Image,
+		Status:    model.DeploymentStatus(deployment.Status),
+		Replicas:  convertReplicaCount(deployment.Replicas),
+		Resources: convertResources(deployment.Resources),
+		CreatedAt: deployment.CreatedAt,
+	}
+
+	if deployment.ImageDigest != "" {
+		result.ImageDigest = &deployment.ImageDigest
+	}
+
+	if deployment.Commit != "" {
+		result.Commit = &deployment.Commit
+	}
+
+	if deployment.Ref != "" {
+		result.Ref = &deployment.Ref
+	}
+
+	if deployment.SourceURL != "" {
+		result.SourceURL = &deployment.SourceURL
+	}
+
+	if deployment.ContextPath != "" {
+		result.ContextPath = &deployment.ContextPath
+	}
+
+	if deployment.Command != "" {
+		result.Command = &deployment.Command
+	}
+
+	if deployment.BuildID != "" {
+		result.BuildID = &deployment.BuildID
+	}
+
+	if deployment.DeployedBy != "" {
+		result.DeployedBy = &deployment.DeployedBy
+	}
+
+	return result
+}
+
+func convertReplicaCount(replicas platform.ReplicaCount) *model.ReplicaCount {
+	return &model.ReplicaCount{
+		Desired: replicas.Desired,
+		Ready:   replicas.Ready,
+	}
+}
+
+func convertAutoscaling(autoscaling platform.AutoscalingSettings) *model.AutoscalingSettings {
+	return &model.AutoscalingSettings{
+		MinReplicas: autoscaling.MinReplicas,
+		MaxReplicas: autoscaling.MaxReplicas,
+		TargetCPU:   autoscaling.TargetCPU,
+	}
+}
+
+func convertResources(resources platform.Resources) *model.Resources {
+	return &model.Resources{
+		CPU:    resources.CPU.String(),
+		Memory: resources.Memory.String(),
+	}
+}
+
+func convertEndpoints(endpoints []platform.Endpoint) []model.Endpoint {
+	result := make([]model.Endpoint, 0, len(endpoints))
+
+	for _, endpoint := range endpoints {
+		result = append(result, model.Endpoint{
+			Host:     endpoint.Host,
+			Port:     endpoint.Port,
+			Protocol: model.Protocol(strings.ToUpper(string(endpoint.Protocol))),
+		})
+	}
+
+	return result
+}
+
 func convertProject(p conductor.Project, workloadDomain string) model.Project {
 	result := model.Project{
 		ID:   p.ID,
@@ -63,75 +174,6 @@ func convertScalingConfig(sc conductor.ScalingConfig) model.ScalingConfig {
 	return result
 }
 
-func convertServiceInstance(si conductor.ServiceInstance, workloadDomain string) model.Service {
-	scaling := convertScalingConfig(si.Scaling)
-	result := model.Service{
-		ID:       si.ID,
-		Name:     si.Name,
-		Image:    si.Image,
-		ImageTag: si.ImageTag,
-		Ready:    si.Ready,
-		Replicas: si.Replicas,
-		Scaling:  &scaling,
-	}
-
-	if si.Port > 0 {
-		port := si.Port
-		result.Port = &port
-	}
-	if si.Framework != "" {
-		result.Framework = &si.Framework
-	}
-	if si.SourceURL != "" {
-		result.SourceURL = &si.SourceURL
-	}
-	if si.ContextPath != "" {
-		result.ContextPath = &si.ContextPath
-	}
-	if si.StartCommand != "" {
-		result.StartCommand = &si.StartCommand
-	}
-	if si.CustomStartCommand != "" {
-		result.CustomStartCommand = &si.CustomStartCommand
-	}
-	if si.InitialDeploy != nil {
-		d := convertDeploymentOp(*si.InitialDeploy)
-		result.InitialDeploy = &d
-	}
-	if si.Resources != nil {
-		result.Resources = &model.ServiceResources{
-			CPUMillicores:      si.Resources.CpuMillicores,
-			MemoryMb:           si.Resources.MemoryMB,
-			CPULimitMillicores: si.Resources.CpuLimitMillicores,
-			MemoryLimitMb:      si.Resources.MemoryLimitMB,
-		}
-	}
-
-	// Convert domains with type derived from workload domain suffix
-	for _, hostname := range si.Domains {
-		domainType := model.DomainTypeCustom
-		dnsStatus := model.DNSStatusPending
-		tlsStatus := model.TLSStatusNone
-		if strings.HasSuffix(hostname, "."+workloadDomain) {
-			domainType = model.DomainTypePlatform
-			dnsStatus = model.DNSStatusValid
-		}
-		result.Domains = append(result.Domains, model.Domain{
-			Hostname:  hostname,
-			Type:      domainType,
-			DNSStatus: dnsStatus,
-			TLSStatus: tlsStatus,
-		})
-	}
-
-	// Convert deployment history
-	for _, d := range si.Deployments {
-		result.Deployments = append(result.Deployments, convertDeployment(d))
-	}
-
-	return result
-}
-
 func convertDomain(d conductor.Domain) *model.Domain {
 	return &model.Domain{
 		Hostname:  d.Hostname,
@@ -158,30 +200,6 @@ func convertDnsCheck(d conductor.DnsCheck) *model.DNSCheck {
 		result.TLSStatus = &tlsStatus
 	}
 	return result
-}
-
-func convertDeployment(d conductor.Deployment) model.Deployment {
-	dep := model.Deployment{
-		ID:       d.ID,
-		ImageTag: d.ImageTag,
-		Active:   d.Active,
-	}
-	if !d.Timestamp.IsZero() {
-		dep.Timestamp = &d.Timestamp
-	}
-	if d.Revision != "" {
-		dep.Revision = &d.Revision
-	}
-	if d.Message != "" {
-		dep.Message = &d.Message
-	}
-	if d.SourceCommitMessage != "" {
-		dep.SourceCommitMessage = &d.SourceCommitMessage
-	}
-	if d.SourceURL != "" {
-		dep.SourceURL = &d.SourceURL
-	}
-	return dep
 }
 
 func convertDeploymentOp(d conductor.DeployOp) model.DeployRun {

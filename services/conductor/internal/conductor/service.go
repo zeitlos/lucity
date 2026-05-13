@@ -64,7 +64,7 @@ func (c *Client) DetectServices(ctx context.Context, repository string, installa
 	return result, nil
 }
 
-func (c *Client) AddService(ctx context.Context, environment platform.EnvironmentID, name string, port int, framework, startCommand, repository, contextPath string, installationID *int64, externalImage, customStartCommand string) (*ServiceInstance, error) {
+func (c *Client) AddService(ctx context.Context, environment platform.EnvironmentID, name string, port int, framework, startCommand, repository, contextPath string, installationID *int64, externalImage, customStartCommand string) (*Service, error) {
 	ws := environment.Workspace
 	projectID := environment.Project
 	envName := environment.Name
@@ -135,18 +135,14 @@ func (c *Client) AddService(ctx context.Context, environment platform.Environmen
 		return nil, fmt.Errorf("failed to add service: %w", err)
 	}
 
-	si := &ServiceInstance{
-		// TODO: rebuild as platform.ServiceID after typed-ID migration
-		Name:                 name,
-		Image:                image,
-		Port:                 port,
-		Framework:            framework,
-		StartCommand:         startCommand,
-		SourceURL:            sourceURL,
-		ContextPath:          contextPath,
-		GitHubInstallationID: ghInstallationID,
-		CustomStartCommand:   customStartCommand,
-		ImageTag:             imageTag,
+	service := &platform.Service{
+		ID: platform.ServiceID{
+			Workspace:   ws,
+			Project:     projectID,
+			Environment: envName,
+			Name:        name,
+		},
+		Name: name,
 	}
 
 	// Trigger initial deploy for source-based services.
@@ -158,7 +154,7 @@ func (c *Client) AddService(ctx context.Context, environment platform.Environmen
 		buildID, err := c.Builder.StartBuild(startCtx, sourceURL, "", name, registry, contextPath)
 		if err != nil {
 			slog.Warn("failed to start initial deploy", "project", projectID, "service", name, "error", err)
-			return si, nil
+			return service, nil
 		}
 
 		deployID := uuid.New().String()
@@ -171,11 +167,9 @@ func (c *Client) AddService(ctx context.Context, environment platform.Environmen
 		}
 
 		go c.runDeploy(claims, ws, deployID, projectID, name, envName, buildID)
-
-		si.InitialDeploy = deployOpFromState(c.DeployTracker.Get(deployID))
 	}
 
-	return si, nil
+	return service, nil
 }
 
 // wellKnownPorts maps common container image names to their default ports.

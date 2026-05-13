@@ -61,7 +61,7 @@ func (r *mutationResolver) AddService(ctx context.Context, input model.AddServic
 	if err != nil {
 		return nil, err
 	}
-	result := convertServiceInstance(*si, r.Conductor.Config.WorkloadDomain)
+	result := convertService(*si)
 	return &result, nil
 }
 
