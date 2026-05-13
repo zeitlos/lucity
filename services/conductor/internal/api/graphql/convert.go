@@ -9,7 +9,7 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
-func convertProject(p conductor.ProjectNew, workloadDomain string) model.Project {
+func convertProject(p conductor.Project, workloadDomain string) model.Project {
 	result := model.Project{
 		ID:   p.ID,
 		Name: p.Name,
@@ -336,7 +336,7 @@ func convertDatabase(d conductor.Database) model.Database {
 		Name:      d.Name,
 		Version:   d.Version,
 		Instances: d.Instances,
-		Size:      d.Size,
+		Size:      d.Size.String(),
 	}
 }
 

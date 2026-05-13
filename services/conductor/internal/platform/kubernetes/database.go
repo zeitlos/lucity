@@ -3,11 +3,13 @@ package kubernetes
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 
 	cnpgv1 "github.com/cloudnative-pg/cloudnative-pg/api/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
@@ -93,6 +95,18 @@ func toDatabase(cluster cnpgv1.Cluster, environmentID platform.EnvironmentID) pl
 	// CNPG image: "ghcr.io/cloudnative-pg/postgresql:16.0"
 	if i := strings.LastIndex(cluster.Spec.ImageName, ":"); i != -1 {
 		database.Version = cluster.Spec.ImageName[i+1:]
+	}
+
+	size := cluster.Spec.StorageConfiguration.Size
+
+	if size != "" {
+		sizeQuantity, err := resource.ParseQuantity(size)
+
+		if err != nil {
+			slog.Warn("failed to parse size", "error", err, "database", cluster.Name, "namespace", cluster.Namespace)
+		} else {
+			database.Size = sizeQuantity
+		}
 	}
 
 	return database

@@ -7,6 +7,7 @@ import (
 
 	"google.golang.org/grpc/codes"
 	grpcstatus "google.golang.org/grpc/status"
+	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/zeitlos/lucity/pkg/tenant"
 	"github.com/zeitlos/lucity/services/conductor/internal/data"
@@ -23,14 +24,7 @@ func (e *DatabaseProvisioningError) Error() string { return "database is provisi
 const dbQueryTimeout = 35 * time.Second
 
 type DatabaseID = platform.DatabaseID
-
-type Database struct {
-	ID        platform.DatabaseID
-	Name      string
-	Version   string
-	Instances int
-	Size      string
-}
+type Database = platform.Database
 
 type DatabaseTable struct {
 	Name          string
@@ -92,6 +86,12 @@ func (c *Client) CreateDatabase(ctx context.Context, environment platform.Enviro
 		size = "10Gi"
 	}
 
+	parsedSize, err := resource.ParseQuantity(size)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse size: %v", err)
+	}
+
 	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
 	defer cancel()
 	if err := c.Packager.AddDatabase(callCtx, ws, environment.Project, data.DatabaseInfo{
@@ -107,7 +107,7 @@ func (c *Client) CreateDatabase(ctx context.Context, environment platform.Enviro
 		Name:      name,
 		Version:   version,
 		Instances: instances,
-		Size:      size,
+		Size:      parsedSize,
 	}, nil
 }
 

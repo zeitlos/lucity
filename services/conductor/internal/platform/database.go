@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/99designs/gqlgen/graphql"
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 // TODO: Rename to Postgres, PostgresDatabase or PostgresCluster
@@ -17,6 +18,7 @@ type Database struct {
 	Version   string
 	Instances int
 	Status    DatabaseStatus
+	Size      resource.Quantity
 	CreatedAt time.Time
 }
 
