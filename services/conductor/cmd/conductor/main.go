@@ -42,9 +42,11 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/conductor"
 	"github.com/zeitlos/lucity/services/conductor/internal/deployer/argo/argocd"
 	"github.com/zeitlos/lucity/services/conductor/internal/deployer/argo/gitops/softserve"
+	directoryLogto "github.com/zeitlos/lucity/services/conductor/internal/directory/logto"
 	"github.com/zeitlos/lucity/services/conductor/internal/inproc/builder"
 	"github.com/zeitlos/lucity/services/conductor/internal/inproc/deployer"
 	"github.com/zeitlos/lucity/services/conductor/internal/inproc/packager"
+	platformK8s "github.com/zeitlos/lucity/services/conductor/internal/platform/kubernetes"
 	conductorgrpc "github.com/zeitlos/lucity/services/conductor/internal/transport/grpc"
 )
 
@@ -277,6 +279,15 @@ func main() {
 	secure := secureCookies(config.DashboardURL)
 	tokenRefresher := newTokenRefresher(oidcProvider, secure)
 
+	platformClient := platformK8s.New(k8sClient, dynClient)
+
+	directoryClient, err := directoryLogto.New(logtoClient)
+
+	if err != nil {
+		slog.Error("failed to create directory client", "error", err)
+		os.Exit(1)
+	}
+
 	conductorConfig := conductor.Config{
 		RegistryPushURL:     config.RegistryURL,
 		RegistryImagePrefix: registryImagePrefix,
@@ -286,7 +297,7 @@ func main() {
 		GitHubAppSlug:       config.GitHubAppSlug,
 		DashboardURL:        config.DashboardURL,
 	}
-	conductor := conductor.New(packagerSvc, builderSvc, deployerSvc, cashierClient, internalIssuer, githubApp, logtoClient, tokenRefresher, conductorConfig)
+	conductor := conductor.New(packagerSvc, builderSvc, deployerSvc, cashierClient, internalIssuer, githubApp, logtoClient, tokenRefresher, directoryClient, platformClient, conductorConfig)
 
 	// ---- Servers ----
 	components := []grpcComponent{}

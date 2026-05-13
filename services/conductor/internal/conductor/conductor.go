@@ -59,7 +59,7 @@ type Config struct {
 	DashboardURL        string // base URL for the dashboard (e.g., "http://localhost:5173")
 }
 
-func New(packager *packager.Client, builder *builder.Client, deployer *deployer.Client, cashier cashier.CashierServiceClient, issuer *auth.Issuer, githubApp *ghpkg.App, logto *logto.Client, tokenRefresher TokenRefresher, config Config) *Client {
+func New(packager *packager.Client, builder *builder.Client, deployer *deployer.Client, cashier cashier.CashierServiceClient, issuer *auth.Issuer, githubApp *ghpkg.App, logto *logto.Client, tokenRefresher TokenRefresher, directory directory.Interface, platform platform.Interface, config Config) *Client {
 	return &Client{
 		Packager:       packager,
 		Builder:        builder,
@@ -72,6 +72,8 @@ func New(packager *packager.Client, builder *builder.Client, deployer *deployer.
 		TokenRefresher: tokenRefresher,
 		Config:         config,
 		orgIDCache:     make(map[string]string),
+		directory:      directory,
+		platform:       platform,
 	}
 }
 
