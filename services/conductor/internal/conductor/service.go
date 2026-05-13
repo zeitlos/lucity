@@ -512,7 +512,7 @@ func (c *Client) streamBuildLogs(ctx context.Context, deployID, buildID string) 
 func (c *Client) finalizeDeploy(ctx context.Context, ws, deployID, projectID, service, environment, imageRef, digest string) {
 	c.DeployTracker.Update(deployID, deploy.PhaseDeploying)
 
-	tag := extractTag(imageRef)
+	tag, _ := imageParts(imageRef)
 
 	c.DeployTracker.AppendLog(deployID, fmt.Sprintf("Updating GitOps repo (tag: %s)", tag))
 	if err := c.Packager.UpdateImageTag(c.grpcCtx(ctx), ws, projectID, environment, service, tag, digest, ""); err != nil {
@@ -658,18 +658,27 @@ func (c *Client) DeployLogs(ctx context.Context, deployID string) (<-chan string
 }
 
 // Rollback updates the image tag to a previous value without rebuilding.
-func (c *Client) Rollback(ctx context.Context, svc platform.ServiceID, imageTag string) (bool, error) {
-	projectID := svc.Project
-	service := svc.Name
-	environment := svc.Environment
+func (c *Client) Rollback(ctx context.Context, deploymentID DeploymentID) (bool, error) {
+	projectID := deploymentID.Project
+	service := deploymentID.Service
+	environment := deploymentID.Environment
+
 	ws, err := tenant.FromContext(ctx)
 	if err != nil {
 		return false, err
 	}
 
+	deployment, err := c.platform.Deployment(ctx, deploymentID)
+
+	if err != nil {
+		return false, err
+	}
+
 	updateCtx, updateCancel := context.WithTimeout(ctx, grpcTimeout)
+	tag, _ := imageParts(deployment.Image)
+
 	defer updateCancel()
-	if err := c.Packager.UpdateImageTag(updateCtx, ws, projectID, environment, service, imageTag, "", "rollback"); err != nil {
+	if err := c.Packager.UpdateImageTag(updateCtx, ws, projectID, environment, service, tag, "", "rollback"); err != nil {
 		return false, fmt.Errorf("failed to rollback: %w", err)
 	}
 
@@ -1010,13 +1019,19 @@ func (c *Client) RemoveDomain(ctx context.Context, svc platform.ServiceID, hostn
 	return true, nil
 }
 
-func extractTag(imageRef string) string {
-	// Find the last ":" that comes after the last "/" to avoid splitting on
-	// the port in registry URLs like "localhost:5000/myapp/web:0a04266".
-	if i := strings.LastIndex(imageRef, ":"); i >= 0 {
-		if j := strings.LastIndex(imageRef, "/"); i > j {
-			return imageRef[i+1:]
-		}
+func imageParts(image string) (tag, digest string) {
+	if i := strings.Index(image, "@sha256:"); i != -1 {
+		digest = image[i+1:]
+		image = image[:i]
 	}
-	return imageRef
+
+	// Find tag — last colon must be AFTER the last slash (port-safe for "host:5000/repo")
+	slashIdx := strings.LastIndex(image, "/")
+	colonIdx := strings.LastIndex(image, ":")
+
+	if colonIdx > slashIdx {
+		tag = image[colonIdx+1:]
+	}
+
+	return tag, digest
 }

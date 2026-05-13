@@ -11,8 +11,10 @@ type Service {
   contextPath: String!
   resources: Resources!
   command: String!
+  defaultCommand: String! @goField(forceResolver: true)
 
   activeDeployment: Deployment
+  deployments: [Deployment!]! @goField(forceResolver: true)
 
   lastDeployedAt: Time
   createdAt: Time!
@@ -197,7 +199,7 @@ extend type Mutation {
   setCustomStartCommand(service: ServiceID!, command: String!): Boolean! @hasRole(role: [USER])
   setServiceScaling(input: SetServiceScalingInput!): ScalingConfig! @hasRole(role: [USER])
   deploy(service: ServiceID!, gitRef: String): DeployRun! @hasRole(role: [USER])
-  rollback(service: ServiceID!, imageTag: String!): Boolean! @hasRole(role: [USER])
+  rollback(deployment: DeploymentID!): Boolean! @hasRole(role: [USER])
   generateDomain(service: ServiceID!): Domain! @hasRole(role: [USER])
   addCustomDomain(service: ServiceID!, hostname: String! @constraint(constraint: "min=4,max=253")): Domain! @hasRole(role: [USER])
   removeDomain(service: ServiceID!, hostname: String!): Boolean! @hasRole(role: [USER])

@@ -34,6 +34,7 @@ type ResolverRoot interface {
 	Environment() EnvironmentResolver
 	Mutation() MutationResolver
 	Query() QueryResolver
+	Service() ServiceResolver
 	Subscription() SubscriptionResolver
 }
 
@@ -237,7 +238,7 @@ type ComplexityRoot struct {
 		RemoveDomain              func(childComplexity int, service platform.ServiceID, hostname string) int
 		RemoveMember              func(childComplexity int, userID string) int
 		RemoveService             func(childComplexity int, service platform.ServiceID) int
-		Rollback                  func(childComplexity int, service platform.ServiceID, imageTag string) int
+		Rollback                  func(childComplexity int, deployment platform.DeploymentID) int
 		SetCustomStartCommand     func(childComplexity int, service platform.ServiceID, command string) int
 		SetEnvironmentResources   func(childComplexity int, input model.SetEnvironmentResourcesInput) int
 		SetServiceScaling         func(childComplexity int, input model.SetServiceScalingInput) int
@@ -267,7 +268,9 @@ type ComplexityRoot struct {
 		DatabaseTables       func(childComplexity int, database platform.DatabaseID) int
 		DeployStatus         func(childComplexity int, id string) int
 		DetectServices       func(childComplexity int, installationID string, repository string) int
+		Environment          func(childComplexity int, environment platform.EnvironmentID) int
 		EnvironmentResources func(childComplexity int, environment platform.EnvironmentID) int
+		Environments         func(childComplexity int, project platform.ProjectID) int
 		GithubConnected      func(childComplexity int) int
 		GithubRepositories   func(childComplexity int, installationID string) int
 		GithubSources        func(childComplexity int) int
@@ -317,6 +320,8 @@ type ComplexityRoot struct {
 		Command          func(childComplexity int) int
 		ContextPath      func(childComplexity int) int
 		CreatedAt        func(childComplexity int) int
+		DefaultCommand   func(childComplexity int) int
+		Deployments      func(childComplexity int) int
 		Endpoints        func(childComplexity int) int
 		ID               func(childComplexity int) int
 		LastDeployedAt   func(childComplexity int) int
@@ -427,7 +432,7 @@ type MutationResolver interface {
 	SetCustomStartCommand(ctx context.Context, service platform.ServiceID, command string) (bool, error)
 	SetServiceScaling(ctx context.Context, input model.SetServiceScalingInput) (*model.ScalingConfig, error)
 	Deploy(ctx context.Context, service platform.ServiceID, gitRef *string) (*model.DeployRun, error)
-	Rollback(ctx context.Context, service platform.ServiceID, imageTag string) (bool, error)
+	Rollback(ctx context.Context, deployment platform.DeploymentID) (bool, error)
 	GenerateDomain(ctx context.Context, service platform.ServiceID) (*model.Domain, error)
 	AddCustomDomain(ctx context.Context, service platform.ServiceID, hostname string) (*model.Domain, error)
 	RemoveDomain(ctx context.Context, service platform.ServiceID, hostname string) (bool, error)
@@ -449,6 +454,8 @@ type QueryResolver interface {
 	DatabaseTables(ctx context.Context, database platform.DatabaseID) ([]model.DatabaseTable, error)
 	DatabaseTableData(ctx context.Context, database platform.DatabaseID, table string, schema *string, limit *int, offset *int) (*model.DatabaseTableData, error)
 	DatabaseCredentials(ctx context.Context, database platform.DatabaseID) (*model.DatabaseCredentials, error)
+	Environments(ctx context.Context, project platform.ProjectID) ([]model.Environment, error)
+	Environment(ctx context.Context, environment platform.EnvironmentID) (*model.Environment, error)
 	GithubSources(ctx context.Context) ([]model.GitHubInstallation, error)
 	GithubRepositories(ctx context.Context, installationID string) ([]model.GitHubRepository, error)
 	GithubConnected(ctx context.Context) (bool, error)
@@ -464,6 +471,11 @@ type QueryResolver interface {
 	ServiceVariables(ctx context.Context, service platform.ServiceID) ([]model.ServiceVariable, error)
 	Workspace(ctx context.Context) (*model.Workspace, error)
 	Workspaces(ctx context.Context) ([]model.Workspace, error)
+}
+type ServiceResolver interface {
+	DefaultCommand(ctx context.Context, obj *model.Service) (string, error)
+
+	Deployments(ctx context.Context, obj *model.Service) ([]model.Deployment, error)
 }
 type SubscriptionResolver interface {
 	ServiceLogs(ctx context.Context, service platform.ServiceID, tailLines *int) (<-chan *model.ServiceLogEntry, error)
@@ -1372,7 +1384,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Mutation.Rollback(childComplexity, args["service"].(platform.ServiceID), args["imageTag"].(string)), true
+		return e.ComplexityRoot.Mutation.Rollback(childComplexity, args["deployment"].(platform.DeploymentID)), true
 	case "Mutation.setCustomStartCommand":
 		if e.ComplexityRoot.Mutation.SetCustomStartCommand == nil {
 			break
@@ -1566,6 +1578,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.DetectServices(childComplexity, args["installationId"].(string), args["repository"].(string)), true
+	case "Query.environment":
+		if e.ComplexityRoot.Query.Environment == nil {
+			break
+		}
+
+		args, err := ec.field_Query_environment_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.Environment(childComplexity, args["environment"].(platform.EnvironmentID)), true
 	case "Query.environmentResources":
 		if e.ComplexityRoot.Query.EnvironmentResources == nil {
 			break
@@ -1577,6 +1600,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.EnvironmentResources(childComplexity, args["environment"].(platform.EnvironmentID)), true
+	case "Query.environments":
+		if e.ComplexityRoot.Query.Environments == nil {
+			break
+		}
+
+		args, err := ec.field_Query_environments_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.Environments(childComplexity, args["project"].(platform.ProjectID)), true
 	case "Query.githubConnected":
 		if e.ComplexityRoot.Query.GithubConnected == nil {
 			break
@@ -1795,6 +1829,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Service.CreatedAt(childComplexity), true
+	case "Service.defaultCommand":
+		if e.ComplexityRoot.Service.DefaultCommand == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Service.DefaultCommand(childComplexity), true
+	case "Service.deployments":
+		if e.ComplexityRoot.Service.Deployments == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Service.Deployments(childComplexity), true
 	case "Service.endpoints":
 		if e.ComplexityRoot.Service.Endpoints == nil {
 			break
@@ -2692,8 +2738,12 @@ func (ec *executionContext) childFields_Service(ctx context.Context, field graph
 		return ec.fieldContext_Service_resources(ctx, field)
 	case "command":
 		return ec.fieldContext_Service_command(ctx, field)
+	case "defaultCommand":
+		return ec.fieldContext_Service_defaultCommand(ctx, field)
 	case "activeDeployment":
 		return ec.fieldContext_Service_activeDeployment(ctx, field)
+	case "deployments":
+		return ec.fieldContext_Service_deployments(ctx, field)
 	case "lastDeployedAt":
 		return ec.fieldContext_Service_lastDeployedAt(ctx, field)
 	case "createdAt":
@@ -3309,22 +3359,14 @@ func (ec *executionContext) field_Mutation_removeService_args(ctx context.Contex
 func (ec *executionContext) field_Mutation_rollback_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "service",
-		func(ctx context.Context, v any) (platform.ServiceID, error) {
-			return ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐServiceID(ctx, v)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "deployment",
+		func(ctx context.Context, v any) (platform.DeploymentID, error) {
+			return ec.unmarshalNDeploymentID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐDeploymentID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
 	}
-	args["service"] = arg0
-	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "imageTag",
-		func(ctx context.Context, v any) (string, error) {
-			return ec.unmarshalNString2string(ctx, v)
-		})
-	if err != nil {
-		return nil, err
-	}
-	args["imageTag"] = arg1
+	args["deployment"] = arg0
 	return args, nil
 }
 
@@ -3613,6 +3655,34 @@ func (ec *executionContext) field_Query_environmentResources_args(ctx context.Co
 		return nil, err
 	}
 	args["environment"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_environment_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "environment",
+		func(ctx context.Context, v any) (platform.EnvironmentID, error) {
+			return ec.unmarshalNEnvironmentID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐEnvironmentID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["environment"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_environments_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "project",
+		func(ctx context.Context, v any) (platform.ProjectID, error) {
+			return ec.unmarshalNProjectID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐProjectID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["project"] = arg0
 	return args, nil
 }
 
@@ -7312,7 +7382,7 @@ func (ec *executionContext) _Mutation_rollback(ctx context.Context, field graphq
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().Rollback(ctx, fc.Args["service"].(platform.ServiceID), fc.Args["imageTag"].(string))
+			return ec.Resolvers.Mutation().Rollback(ctx, fc.Args["deployment"].(platform.DeploymentID))
 		},
 		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
 			directive0 := next
@@ -8640,6 +8710,130 @@ func (ec *executionContext) fieldContext_Query_databaseCredentials(ctx context.C
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_databaseCredentials_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_environments(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Query_environments(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().Environments(ctx, fc.Args["project"].(platform.ProjectID))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				if err != nil {
+					var zeroVal []model.Environment
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal []model.Environment
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v []model.Environment) graphql.Marshaler {
+			return ec.marshalNEnvironment2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐEnvironmentᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Query_environments(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Environment(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_environments_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_environment(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Query_environment(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().Environment(ctx, fc.Args["environment"].(platform.EnvironmentID))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				if err != nil {
+					var zeroVal *model.Environment
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal *model.Environment
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Environment) graphql.Marshaler {
+			return ec.marshalNEnvironment2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐEnvironment(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Query_environment(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Environment(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_environment_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -10122,6 +10316,29 @@ func (ec *executionContext) fieldContext_Service_command(_ context.Context, fiel
 	return graphql.NewScalarFieldContext("Service", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
+func (ec *executionContext) _Service_defaultCommand(ctx context.Context, field graphql.CollectedField, obj *model.Service) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Service_defaultCommand(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Service().DefaultCommand(ctx, obj)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Service_defaultCommand(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Service", field, true, true, errors.New("field of type String does not have child fields"))
+}
+
 func (ec *executionContext) _Service_activeDeployment(ctx context.Context, field graphql.CollectedField, obj *model.Service) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -10147,6 +10364,38 @@ func (ec *executionContext) fieldContext_Service_activeDeployment(_ context.Cont
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Deployment(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Service_deployments(ctx context.Context, field graphql.CollectedField, obj *model.Service) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Service_deployments(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Service().Deployments(ctx, obj)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []model.Deployment) graphql.Marshaler {
+			return ec.marshalNDeployment2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDeploymentᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Service_deployments(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Service",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return ec.childFields_Deployment(ctx, field)
 		},
@@ -15081,6 +15330,50 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "environments":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_environments(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "environment":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_environment(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "githubSources":
 			field := field
 
@@ -15674,58 +15967,130 @@ func (ec *executionContext) _Service(ctx context.Context, sel ast.SelectionSet, 
 		case "id":
 			out.Values[i] = ec._Service_id(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "name":
 			out.Values[i] = ec._Service_name(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "status":
 			out.Values[i] = ec._Service_status(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "replicas":
 			out.Values[i] = ec._Service_replicas(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "autoscaling":
 			out.Values[i] = ec._Service_autoscaling(ctx, field, obj)
 		case "endpoints":
 			out.Values[i] = ec._Service_endpoints(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "sourceUrl":
 			out.Values[i] = ec._Service_sourceUrl(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "contextPath":
 			out.Values[i] = ec._Service_contextPath(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "resources":
 			out.Values[i] = ec._Service_resources(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "command":
 			out.Values[i] = ec._Service_command(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
+		case "defaultCommand":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Service_defaultCommand(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "activeDeployment":
 			out.Values[i] = ec._Service_activeDeployment(ctx, field, obj)
+		case "deployments":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Service_deployments(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "lastDeployedAt":
 			out.Values[i] = ec._Service_lastDeployedAt(ctx, field, obj)
 		case "createdAt":
 			out.Values[i] = ec._Service_createdAt(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
@@ -16879,6 +17244,26 @@ func (ec *executionContext) marshalNDeployRun2ᚖgithubᚗcomᚋzeitlosᚋlucity
 		return graphql.Null
 	}
 	return ec._DeployRun(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNDeployment2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDeployment(ctx context.Context, sel ast.SelectionSet, v model.Deployment) graphql.Marshaler {
+	return ec._Deployment(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNDeployment2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDeploymentᚄ(ctx context.Context, sel ast.SelectionSet, v []model.Deployment) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNDeployment2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDeployment(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
 }
 
 func (ec *executionContext) unmarshalNDeploymentID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐDeploymentID(ctx context.Context, v any) (platform.DeploymentID, error) {

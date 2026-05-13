@@ -109,8 +109,8 @@ func (r *mutationResolver) Deploy(ctx context.Context, service platform.ServiceI
 }
 
 // Rollback is the resolver for the rollback field.
-func (r *mutationResolver) Rollback(ctx context.Context, service platform.ServiceID, imageTag string) (bool, error) {
-	return r.Conductor.Rollback(ctx, service, imageTag)
+func (r *mutationResolver) Rollback(ctx context.Context, deployment platform.DeploymentID) (bool, error) {
+	return r.Conductor.Rollback(ctx, deployment)
 }
 
 // GenerateDomain is the resolver for the generateDomain field.
@@ -192,6 +192,16 @@ func (r *queryResolver) CheckDNSStatus(ctx context.Context, hostname string) (*m
 	return convertDnsCheck(check), nil
 }
 
+// DefaultCommand is the resolver for the defaultCommand field.
+func (r *serviceResolver) DefaultCommand(ctx context.Context, obj *model.Service) (string, error) {
+	panic(fmt.Errorf("not implemented: DefaultCommand - defaultCommand"))
+}
+
+// Deployments is the resolver for the deployments field.
+func (r *serviceResolver) Deployments(ctx context.Context, obj *model.Service) ([]model.Deployment, error) {
+	panic(fmt.Errorf("not implemented: Deployments - deployments"))
+}
+
 // DeployLogs is the resolver for the deployLogs field.
 func (r *subscriptionResolver) DeployLogs(ctx context.Context, id string) (<-chan string, error) {
 	ch, unsub, err := r.Conductor.DeployLogs(ctx, id)
@@ -205,3 +215,8 @@ func (r *subscriptionResolver) DeployLogs(ctx context.Context, id string) (<-cha
 	}()
 	return ch, nil
 }
+
+// Service returns ServiceResolver implementation.
+func (r *Resolver) Service() ServiceResolver { return &serviceResolver{r} }
+
+type serviceResolver struct{ *Resolver }

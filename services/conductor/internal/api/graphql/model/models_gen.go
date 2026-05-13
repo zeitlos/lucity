@@ -319,7 +319,9 @@ type Service struct {
 	ContextPath      string               `json:"contextPath"`
 	Resources        *Resources           `json:"resources"`
 	Command          string               `json:"command"`
+	DefaultCommand   string               `json:"defaultCommand"`
 	ActiveDeployment *Deployment          `json:"activeDeployment,omitempty"`
+	Deployments      []Deployment         `json:"deployments"`
 	LastDeployedAt   *time.Time           `json:"lastDeployedAt,omitempty"`
 	CreatedAt        time.Time            `json:"createdAt"`
 }

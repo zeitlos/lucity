@@ -59,6 +59,16 @@ func (r *mutationResolver) DeleteEnvironment(ctx context.Context, environment pl
 	return r.Conductor.DeleteEnvironment(ctx, environment)
 }
 
+// Environments is the resolver for the environments field.
+func (r *queryResolver) Environments(ctx context.Context, project platform.ProjectID) ([]model.Environment, error) {
+	panic(fmt.Errorf("not implemented: Environments - environments"))
+}
+
+// Environment is the resolver for the environment field.
+func (r *queryResolver) Environment(ctx context.Context, environment platform.EnvironmentID) (*model.Environment, error) {
+	panic(fmt.Errorf("not implemented: Environment - environment"))
+}
+
 // Environment returns EnvironmentResolver implementation.
 func (r *Resolver) Environment() EnvironmentResolver { return &environmentResolver{r} }
 

@@ -13,6 +13,11 @@ input CreateEnvironmentInput {
   tier: ResourceTier
 }
 
+extend type Query {
+  environments(project: ProjectID!): [Environment!]! @hasRole(role: [USER])
+  environment(environment: EnvironmentID!): Environment! @hasRole(role: [USER])
+}
+
 extend type Mutation {
   createEnvironment(input: CreateEnvironmentInput!): Environment! @hasRole(role: [USER])
   deleteEnvironment(environment: EnvironmentID!): Boolean! @hasRole(role: [USER])
