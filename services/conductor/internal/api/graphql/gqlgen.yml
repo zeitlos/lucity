@@ -37,3 +37,15 @@ models:
   Time:
     model:
       - github.com/99designs/gqlgen/graphql.Time
+  ProjectID:
+    model: github.com/zeitlos/lucity/services/conductor/internal/conductor.ProjectID
+  EnvironmentID:
+    model: github.com/zeitlos/lucity/services/conductor/internal/conductor.EnvironmentID
+  ServiceID:
+    model: github.com/zeitlos/lucity/services/conductor/internal/conductor.ServiceID
+  DeploymentID:
+    model: github.com/zeitlos/lucity/services/conductor/internal/conductor.DeploymentID
+  DatabaseID:
+    model: github.com/zeitlos/lucity/services/conductor/internal/conductor.DatabaseID
+  VolumeID:
+    model: github.com/zeitlos/lucity/services/conductor/internal/conductor.VolumeID

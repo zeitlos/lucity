@@ -8,6 +8,13 @@ directive @goTag(key: String!, value: String!) on INPUT_FIELD_DEFINITION | FIELD
 scalar Time
 scalar Duration
 
+scalar ProjectID
+scalar EnvironmentID
+scalar ServiceID
+scalar DeploymentID
+scalar DatabaseID
+scalar VolumeID
+
 enum Role {
   ANONYMOUS
   USER

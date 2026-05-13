@@ -7,8 +7,7 @@ type DetectedService {
 }
 
 input AddServiceInput {
-  projectId: ID! @constraint(constraint: "resource_name")
-  environment: String! @constraint(constraint: "resource_name")
+  environment: EnvironmentID!
   """Service name. If omitted when image is set, derived from the image (e.g. nginx:1.25 → nginx)."""
   name: String @constraint(constraint: "resource_name,min=2,max=63")
   """Container port. If omitted when image is set, uses well-known defaults (e.g. redis → 6379)."""
@@ -52,41 +51,6 @@ enum DeployPhase {
   FAILED
 }
 
-input DeployInput {
-  projectId: ID! @constraint(constraint: "resource_name")
-  service: String! @constraint(constraint: "resource_name")
-  environment: String! @constraint(constraint: "resource_name")
-  gitRef: String
-}
-
-input RollbackInput {
-  projectId: ID! @constraint(constraint: "resource_name")
-  service: String! @constraint(constraint: "resource_name")
-  environment: String! @constraint(constraint: "resource_name")
-  """Image tag to roll back to (typically a short git SHA)."""
-  imageTag: String!
-}
-
-input GenerateDomainInput {
-  projectId: ID! @constraint(constraint: "resource_name")
-  service: String! @constraint(constraint: "resource_name")
-  environment: String! @constraint(constraint: "resource_name")
-}
-
-input AddCustomDomainInput {
-  projectId: ID! @constraint(constraint: "resource_name")
-  service: String! @constraint(constraint: "resource_name")
-  environment: String! @constraint(constraint: "resource_name")
-  hostname: String! @constraint(constraint: "min=4,max=253")
-}
-
-input RemoveDomainInput {
-  projectId: ID! @constraint(constraint: "resource_name")
-  service: String! @constraint(constraint: "resource_name")
-  environment: String! @constraint(constraint: "resource_name")
-  hostname: String!
-}
-
 """Result of a live DNS verification for a custom domain."""
 type DnsCheck {
   hostname: String!
@@ -103,32 +67,24 @@ type DnsCheck {
 }
 
 extend type Query {
-  """Detect services in a GitHub repository. Repository must be in owner/repo format."""
   detectServices(installationId: ID!, repository: String!): [DetectedService!]! @hasRole(role: [USER])
   deployStatus(id: ID!): DeployRun @hasRole(role: [USER])
-  activeDeployment(projectId: ID! @constraint(constraint: "resource_name"), service: String! @constraint(constraint: "resource_name"), environment: String! @constraint(constraint: "resource_name")): DeployRun @hasRole(role: [USER])
+  activeDeployment(service: ServiceID!): DeployRun @hasRole(role: [USER])
   platformConfig: PlatformConfig! @hasRole(role: [USER])
-  """Perform a live DNS check for a custom domain. Returns current CNAME status and whether it points to the correct target."""
   checkDnsStatus(hostname: String!): DnsCheck! @hasRole(role: [USER])
 }
 
 extend type Mutation {
   addService(input: AddServiceInput!): ServiceInstance! @hasRole(role: [USER])
-  removeService(projectId: ID! @constraint(constraint: "resource_name"), environment: String! @constraint(constraint: "resource_name"), service: String! @constraint(constraint: "resource_name")): Boolean! @hasRole(role: [USER])
-  """Set or clear the custom start command for a service in an environment. Empty string clears it."""
-  setCustomStartCommand(projectId: ID! @constraint(constraint: "resource_name"), environment: String! @constraint(constraint: "resource_name"), service: String! @constraint(constraint: "resource_name"), command: String!): Boolean! @hasRole(role: [USER])
-  deploy(input: DeployInput!): DeployRun! @hasRole(role: [USER])
-  """Roll back to a previous image tag without rebuilding."""
-  rollback(input: RollbackInput!): Boolean! @hasRole(role: [USER])
-  """Generate a platform domain ({service}-{env}.{workloadDomain}). Handles collisions with a suffix."""
-  generateDomain(input: GenerateDomainInput!): Domain! @hasRole(role: [USER])
-  """Add a custom domain hostname."""
-  addCustomDomain(input: AddCustomDomainInput!): Domain! @hasRole(role: [USER])
-  """Remove any domain (platform or custom)."""
-  removeDomain(input: RemoveDomainInput!): Boolean! @hasRole(role: [USER])
+  removeService(service: ServiceID!): Boolean! @hasRole(role: [USER])
+  setCustomStartCommand(service: ServiceID!, command: String!): Boolean! @hasRole(role: [USER])
+  deploy(service: ServiceID!, gitRef: String): DeployRun! @hasRole(role: [USER])
+  rollback(service: ServiceID!, imageTag: String!): Boolean! @hasRole(role: [USER])
+  generateDomain(service: ServiceID!): Domain! @hasRole(role: [USER])
+  addCustomDomain(service: ServiceID!, hostname: String! @constraint(constraint: "min=4,max=253")): Domain! @hasRole(role: [USER])
+  removeDomain(service: ServiceID!, hostname: String!): Boolean! @hasRole(role: [USER])
 }
 
 extend type Subscription {
-  """Stream deploy log lines in real time. Emits existing lines then new lines as they arrive."""
   deployLogs(id: ID!): String! @hasRole(role: [USER])
 }

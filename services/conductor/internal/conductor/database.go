@@ -10,6 +10,7 @@ import (
 
 	"github.com/zeitlos/lucity/pkg/tenant"
 	"github.com/zeitlos/lucity/services/conductor/internal/data"
+	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
 // DatabaseProvisioningError indicates the database is still being provisioned
@@ -21,7 +22,10 @@ func (e *DatabaseProvisioningError) Error() string { return "database is provisi
 // dbQueryTimeout is longer than grpcTimeout because database queries can be slow.
 const dbQueryTimeout = 35 * time.Second
 
+type DatabaseID = platform.DatabaseID
+
 type Database struct {
+	ID        platform.DatabaseID
 	Name      string
 	Version   string
 	Instances int
@@ -55,16 +59,16 @@ type QueryResult struct {
 }
 
 type DatabaseInstance struct {
-	Name        string
-	Environment string
-	Ready       bool
-	Instances   int
-	Version     string
-	Size        string
-	Volume      *Volume
+	Name      string
+	Ready     bool
+	Instances int
+	Version   string
+	Size      string
+	Volume    *Volume
 }
 
 type Volume struct {
+	ID            platform.VolumeID
 	Name          string
 	Size          string
 	RequestedSize string
@@ -72,7 +76,7 @@ type Volume struct {
 	CapacityBytes int64
 }
 
-func (c *Client) CreateDatabase(ctx context.Context, projectID, name, version string, instances int, size string) (*Database, error) {
+func (c *Client) CreateDatabase(ctx context.Context, environment platform.EnvironmentID, name, version string, instances int, size string) (*Database, error) {
 	ws, err := tenant.FromContext(ctx)
 	if err != nil {
 		return nil, err
@@ -90,7 +94,7 @@ func (c *Client) CreateDatabase(ctx context.Context, projectID, name, version st
 
 	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
 	defer cancel()
-	if err := c.Packager.AddDatabase(callCtx, ws, projectID, data.DatabaseInfo{
+	if err := c.Packager.AddDatabase(callCtx, ws, environment.Project, data.DatabaseInfo{
 		Name:      name,
 		Version:   version,
 		Instances: instances,
@@ -107,7 +111,7 @@ func (c *Client) CreateDatabase(ctx context.Context, projectID, name, version st
 	}, nil
 }
 
-func (c *Client) DeleteDatabase(ctx context.Context, projectID, name string) (bool, error) {
+func (c *Client) DeleteDatabase(ctx context.Context, database platform.DatabaseID) (bool, error) {
 	ws, err := tenant.FromContext(ctx)
 	if err != nil {
 		return false, err
@@ -115,21 +119,13 @@ func (c *Client) DeleteDatabase(ctx context.Context, projectID, name string) (bo
 
 	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
 	defer cancel()
-	if err := c.Packager.RemoveDatabase(callCtx, ws, projectID, name); err != nil {
+	if err := c.Packager.RemoveDatabase(callCtx, ws, database.Project, database.Name); err != nil {
 		return false, fmt.Errorf("failed to delete database: %w", err)
 	}
 	return true, nil
 }
 
-func (c *Client) Databases(ctx context.Context, ws, projectID string) ([]Database, error) {
-	proj, err := c.Project(ctx, ws, projectID)
-	if err != nil {
-		return nil, err
-	}
-	return proj.Databases, nil
-}
-
-func (c *Client) DatabaseTables(ctx context.Context, projectID, environment, database string) ([]DatabaseTable, error) {
+func (c *Client) DatabaseTables(ctx context.Context, database platform.DatabaseID) ([]DatabaseTable, error) {
 	ws, err := tenant.FromContext(ctx)
 	if err != nil {
 		return nil, err
@@ -137,7 +133,7 @@ func (c *Client) DatabaseTables(ctx context.Context, projectID, environment, dat
 
 	callCtx, cancel := context.WithTimeout(ctx, dbQueryTimeout)
 	defer cancel()
-	dbTables, err := c.Deployer.DatabaseTables(callCtx, ws, projectID, environment, database)
+	dbTables, err := c.Deployer.DatabaseTables(callCtx, ws, database.Project, database.Environment, database.Name)
 	if err != nil {
 		if s, ok := grpcstatus.FromError(err); ok && s.Code() == codes.FailedPrecondition {
 			return nil, &DatabaseProvisioningError{}
@@ -165,7 +161,7 @@ func (c *Client) DatabaseTables(ctx context.Context, projectID, environment, dat
 	return tables, nil
 }
 
-func (c *Client) DatabaseTableData(ctx context.Context, projectID, environment, database, table, schema string, limit, offset int) (*DatabaseTableData, error) {
+func (c *Client) DatabaseTableData(ctx context.Context, database platform.DatabaseID, table, schema string, limit, offset int) (*DatabaseTableData, error) {
 	ws, err := tenant.FromContext(ctx)
 	if err != nil {
 		return nil, err
@@ -173,7 +169,7 @@ func (c *Client) DatabaseTableData(ctx context.Context, projectID, environment, 
 
 	callCtx, cancel := context.WithTimeout(ctx, dbQueryTimeout)
 	defer cancel()
-	resp, err := c.Deployer.DatabaseTableData(callCtx, ws, projectID, environment, database, schema, table, limit, offset)
+	resp, err := c.Deployer.DatabaseTableData(callCtx, ws, database.Project, database.Environment, database.Name, schema, table, limit, offset)
 	if err != nil {
 		if s, ok := grpcstatus.FromError(err); ok && s.Code() == codes.FailedPrecondition {
 			return nil, &DatabaseProvisioningError{}
@@ -188,7 +184,7 @@ func (c *Client) DatabaseTableData(ctx context.Context, projectID, environment, 
 	}, nil
 }
 
-func (c *Client) ExecuteQuery(ctx context.Context, projectID, environment, database, query string) (*QueryResult, error) {
+func (c *Client) ExecuteQuery(ctx context.Context, database platform.DatabaseID, query string) (*QueryResult, error) {
 	ws, err := tenant.FromContext(ctx)
 	if err != nil {
 		return nil, err
@@ -196,7 +192,7 @@ func (c *Client) ExecuteQuery(ctx context.Context, projectID, environment, datab
 
 	callCtx, cancel := context.WithTimeout(ctx, dbQueryTimeout)
 	defer cancel()
-	resp, err := c.Deployer.DatabaseQuery(callCtx, ws, projectID, environment, database, query)
+	resp, err := c.Deployer.DatabaseQuery(callCtx, ws, database.Project, database.Environment, database.Name, query)
 	if err != nil {
 		if s, ok := grpcstatus.FromError(err); ok && s.Code() == codes.FailedPrecondition {
 			return nil, &DatabaseProvisioningError{}
@@ -220,7 +216,7 @@ type DatabaseCredentials struct {
 	URI      string
 }
 
-func (c *Client) DatabaseCredentials(ctx context.Context, projectID, environment, database string) (*DatabaseCredentials, error) {
+func (c *Client) DatabaseCredentials(ctx context.Context, database platform.DatabaseID) (*DatabaseCredentials, error) {
 	ws, err := tenant.FromContext(ctx)
 	if err != nil {
 		return nil, err
@@ -228,7 +224,7 @@ func (c *Client) DatabaseCredentials(ctx context.Context, projectID, environment
 
 	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
 	defer cancel()
-	creds, err := c.Deployer.DatabaseCredentials(callCtx, ws, projectID, environment, database)
+	creds, err := c.Deployer.DatabaseCredentials(callCtx, ws, database.Project, database.Environment, database.Name)
 	if err != nil {
 		if s, ok := grpcstatus.FromError(err); ok && s.Code() == codes.FailedPrecondition {
 			return nil, &DatabaseProvisioningError{}

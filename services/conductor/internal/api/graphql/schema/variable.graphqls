@@ -5,22 +5,22 @@ type Variable {
 
 """A reference to a CNPG database secret key (resolved at pod startup via secretKeyRef)."""
 type DatabaseRef {
-  database: String!
+  database: DatabaseID!
   key: String!
 }
 
 """A reference to another service's internal URL (computed by Helm template)."""
 type ServiceRef {
-  service: String!
+  service: ServiceID!
 }
 
 input DatabaseRefInput {
-  database: String!
+  database: DatabaseID!
   key: String!
 }
 
 input ServiceRefInput {
-  service: String!
+  service: ServiceID!
 }
 
 type ServiceVariable {
@@ -49,13 +49,11 @@ input ServiceVariableInput {
 }
 
 extend type Query {
-  sharedVariables(projectId: ID! @constraint(constraint: "resource_name"), environment: String! @constraint(constraint: "resource_name")): [Variable!]! @hasRole(role: [USER])
-  serviceVariables(projectId: ID! @constraint(constraint: "resource_name"), environment: String! @constraint(constraint: "resource_name"), service: String! @constraint(constraint: "resource_name")): [ServiceVariable!]! @hasRole(role: [USER])
+  sharedVariables(environment: EnvironmentID!): [Variable!]! @hasRole(role: [USER])
+  serviceVariables(service: ServiceID!): [ServiceVariable!]! @hasRole(role: [USER])
 }
 
 extend type Mutation {
-  """Replace all shared variables for an environment. Propagates changes to services referencing them."""
-  setSharedVariables(projectId: ID! @constraint(constraint: "resource_name"), environment: String! @constraint(constraint: "resource_name"), variables: [VariableInput!]!): Boolean! @hasRole(role: [USER])
-  """Replace all variables for a service in an environment."""
-  setServiceVariables(projectId: ID! @constraint(constraint: "resource_name"), environment: String! @constraint(constraint: "resource_name"), service: String! @constraint(constraint: "resource_name"), variables: [ServiceVariableInput!]!): Boolean! @hasRole(role: [USER])
+  setSharedVariables(environment: EnvironmentID!, variables: [VariableInput!]!): Boolean! @hasRole(role: [USER])
+  setServiceVariables(service: ServiceID!, variables: [ServiceVariableInput!]!): Boolean! @hasRole(role: [USER])
 }

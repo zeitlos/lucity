@@ -10,11 +10,12 @@ import (
 
 	"github.com/zeitlos/lucity/pkg/tenant"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
+	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
 // SetEnvironmentResources is the resolver for the setEnvironmentResources field.
 func (r *mutationResolver) SetEnvironmentResources(ctx context.Context, input model.SetEnvironmentResourcesInput) (*model.EnvironmentResources, error) {
-	res, err := r.Conductor.SetEnvironmentResources(ctx, input.ProjectID, input.Environment, string(input.Tier), input.CPUMillicores, input.MemoryMb, input.DiskMb)
+	res, err := r.Conductor.SetEnvironmentResources(ctx, input.Environment, string(input.Tier), input.CPUMillicores, input.MemoryMb, input.DiskMb)
 	if err != nil {
 		return nil, err
 	}
@@ -79,8 +80,8 @@ func (r *mutationResolver) CompletePlanCheckout(ctx context.Context, sessionID s
 }
 
 // EnvironmentResources is the resolver for the environmentResources field.
-func (r *queryResolver) EnvironmentResources(ctx context.Context, projectID string, environment string) (*model.EnvironmentResources, error) {
-	res, err := r.Conductor.EnvironmentResources(ctx, projectID, environment)
+func (r *queryResolver) EnvironmentResources(ctx context.Context, environment platform.EnvironmentID) (*model.EnvironmentResources, error) {
+	res, err := r.Conductor.EnvironmentResources(ctx, environment)
 	if err != nil {
 		return nil, err
 	}

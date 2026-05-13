@@ -10,16 +10,12 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/zeitlos/lucity/pkg/tenant"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
+	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
 // AddService is the resolver for the addService field.
 func (r *mutationResolver) AddService(ctx context.Context, input model.AddServiceInput) (*model.ServiceInstance, error) {
-	ws, err := tenant.FromContext(ctx)
-	if err != nil {
-		return nil, err
-	}
 	framework := ""
 	if input.Framework != nil {
 		framework = *input.Framework
@@ -60,7 +56,7 @@ func (r *mutationResolver) AddService(ctx context.Context, input model.AddServic
 	if input.CustomStartCommand != nil {
 		customStartCommand = *input.CustomStartCommand
 	}
-	si, err := r.Conductor.AddService(ctx, ws, input.ProjectID, input.Environment, name, port, framework, startCommand, repository, contextPath, installationID, externalImage, customStartCommand)
+	si, err := r.Conductor.AddService(ctx, input.Environment, name, port, framework, startCommand, repository, contextPath, installationID, externalImage, customStartCommand)
 	if err != nil {
 		return nil, err
 	}
@@ -69,26 +65,22 @@ func (r *mutationResolver) AddService(ctx context.Context, input model.AddServic
 }
 
 // RemoveService is the resolver for the removeService field.
-func (r *mutationResolver) RemoveService(ctx context.Context, projectID string, environment string, service string) (bool, error) {
-	return r.Conductor.RemoveService(ctx, projectID, environment, service)
+func (r *mutationResolver) RemoveService(ctx context.Context, service platform.ServiceID) (bool, error) {
+	return r.Conductor.RemoveService(ctx, service)
 }
 
 // SetCustomStartCommand is the resolver for the setCustomStartCommand field.
-func (r *mutationResolver) SetCustomStartCommand(ctx context.Context, projectID string, environment string, service string, command string) (bool, error) {
-	return r.Conductor.SetCustomStartCommand(ctx, projectID, environment, service, command)
+func (r *mutationResolver) SetCustomStartCommand(ctx context.Context, service platform.ServiceID, command string) (bool, error) {
+	return r.Conductor.SetCustomStartCommand(ctx, service, command)
 }
 
 // Deploy is the resolver for the deploy field.
-func (r *mutationResolver) Deploy(ctx context.Context, input model.DeployInput) (*model.DeployRun, error) {
-	ws, err := tenant.FromContext(ctx)
-	if err != nil {
-		return nil, err
+func (r *mutationResolver) Deploy(ctx context.Context, service platform.ServiceID, gitRef *string) (*model.DeployRun, error) {
+	ref := ""
+	if gitRef != nil {
+		ref = *gitRef
 	}
-	gitRef := ""
-	if input.GitRef != nil {
-		gitRef = *input.GitRef
-	}
-	d, err := r.Conductor.Deploy(ctx, ws, input.ProjectID, input.Service, input.Environment, gitRef)
+	d, err := r.Conductor.Deploy(ctx, service, ref)
 	if err != nil {
 		return nil, err
 	}
@@ -97,13 +89,13 @@ func (r *mutationResolver) Deploy(ctx context.Context, input model.DeployInput) 
 }
 
 // Rollback is the resolver for the rollback field.
-func (r *mutationResolver) Rollback(ctx context.Context, input model.RollbackInput) (bool, error) {
-	return r.Conductor.Rollback(ctx, input.ProjectID, input.Service, input.Environment, input.ImageTag)
+func (r *mutationResolver) Rollback(ctx context.Context, service platform.ServiceID, imageTag string) (bool, error) {
+	return r.Conductor.Rollback(ctx, service, imageTag)
 }
 
 // GenerateDomain is the resolver for the generateDomain field.
-func (r *mutationResolver) GenerateDomain(ctx context.Context, input model.GenerateDomainInput) (*model.Domain, error) {
-	d, err := r.Conductor.GenerateDomain(ctx, input.ProjectID, input.Service, input.Environment)
+func (r *mutationResolver) GenerateDomain(ctx context.Context, service platform.ServiceID) (*model.Domain, error) {
+	d, err := r.Conductor.GenerateDomain(ctx, service)
 	if err != nil {
 		return nil, err
 	}
@@ -111,8 +103,8 @@ func (r *mutationResolver) GenerateDomain(ctx context.Context, input model.Gener
 }
 
 // AddCustomDomain is the resolver for the addCustomDomain field.
-func (r *mutationResolver) AddCustomDomain(ctx context.Context, input model.AddCustomDomainInput) (*model.Domain, error) {
-	d, err := r.Conductor.AddCustomDomain(ctx, input.ProjectID, input.Service, input.Environment, input.Hostname)
+func (r *mutationResolver) AddCustomDomain(ctx context.Context, service platform.ServiceID, hostname string) (*model.Domain, error) {
+	d, err := r.Conductor.AddCustomDomain(ctx, service, hostname)
 	if err != nil {
 		return nil, err
 	}
@@ -120,8 +112,8 @@ func (r *mutationResolver) AddCustomDomain(ctx context.Context, input model.AddC
 }
 
 // RemoveDomain is the resolver for the removeDomain field.
-func (r *mutationResolver) RemoveDomain(ctx context.Context, input model.RemoveDomainInput) (bool, error) {
-	return r.Conductor.RemoveDomain(ctx, input.ProjectID, input.Service, input.Environment, input.Hostname)
+func (r *mutationResolver) RemoveDomain(ctx context.Context, service platform.ServiceID, hostname string) (bool, error) {
+	return r.Conductor.RemoveDomain(ctx, service, hostname)
 }
 
 // DetectServices is the resolver for the detectServices field.
@@ -152,8 +144,8 @@ func (r *queryResolver) DeployStatus(ctx context.Context, id string) (*model.Dep
 }
 
 // ActiveDeployment is the resolver for the activeDeployment field.
-func (r *queryResolver) ActiveDeployment(ctx context.Context, projectID string, service string, environment string) (*model.DeployRun, error) {
-	d, err := r.Conductor.ActiveDeployment(ctx, projectID, service, environment)
+func (r *queryResolver) ActiveDeployment(ctx context.Context, service platform.ServiceID) (*model.DeployRun, error) {
+	d, err := r.Conductor.ActiveDeployment(ctx, service)
 	if err != nil {
 		return nil, err
 	}

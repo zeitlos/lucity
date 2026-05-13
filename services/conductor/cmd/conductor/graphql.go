@@ -16,10 +16,12 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/directive"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
 	"github.com/zeitlos/lucity/services/conductor/internal/conductor"
+	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/tenant"
 
+	"github.com/99designs/gqlgen/graphql"
 	gqlgen "github.com/99designs/gqlgen/graphql"
 	gqlhandler "github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/handler/extension"
@@ -174,6 +176,32 @@ func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvid
 		}
 
 		slog.Info("graphql mutation", "operation", oc.OperationName)
+
+		return next(ctx)
+	})
+
+	// Enforcing IDs stay within workspace provided by header
+	srv.AroundFields(func(ctx context.Context, next graphql.Resolver) (any, error) {
+		fc := graphql.GetFieldContext(ctx)
+		callerWorkspace, err := tenant.FromContext(ctx)
+
+		if err != nil {
+			return nil, err
+		}
+
+		for _, arg := range fc.Args {
+			scoped, ok := arg.(platform.WorkspaceScoped)
+
+			if !ok {
+				continue
+			}
+
+			if scoped.WorkspaceID() != callerWorkspace {
+				slog.WarnContext(ctx, "workspaces of id and header don't match", "id", scoped.WorkspaceID(), "header", callerWorkspace)
+
+				return nil, errors.New("not found")
+			}
+		}
 
 		return next(ctx)
 	})

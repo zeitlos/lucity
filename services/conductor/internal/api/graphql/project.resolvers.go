@@ -11,6 +11,7 @@ import (
 	"github.com/zeitlos/lucity/pkg/tenant"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
 	"github.com/zeitlos/lucity/services/conductor/internal/conductor"
+	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
 // CreateProject is the resolver for the createProject field.
@@ -32,7 +33,7 @@ func (r *mutationResolver) CreateProject(ctx context.Context, input model.Create
 }
 
 // DeleteProject is the resolver for the deleteProject field.
-func (r *mutationResolver) DeleteProject(ctx context.Context, id string) (bool, error) {
+func (r *mutationResolver) DeleteProject(ctx context.Context, id platform.ProjectID) (bool, error) {
 	return r.Conductor.DeleteProject(ctx, id)
 }
 
@@ -47,7 +48,7 @@ func (r *mutationResolver) SetServiceScaling(ctx context.Context, input model.Se
 			TargetCPU:   input.Autoscaling.TargetCPU,
 		}
 	}
-	sc, err := r.Conductor.SetServiceScaling(ctx, input.ProjectID, input.Environment, input.Service, input.Replicas, autoscaling)
+	sc, err := r.Conductor.SetServiceScaling(ctx, input.Service, input.Replicas, autoscaling)
 	if err != nil {
 		return nil, err
 	}
@@ -73,12 +74,8 @@ func (r *queryResolver) Projects(ctx context.Context) ([]model.Project, error) {
 }
 
 // Project is the resolver for the project field.
-func (r *queryResolver) Project(ctx context.Context, id string) (*model.Project, error) {
-	ws, err := tenant.FromContext(ctx)
-	if err != nil {
-		return nil, err
-	}
-	p, err := r.Conductor.Project(ctx, ws, id)
+func (r *queryResolver) Project(ctx context.Context, id platform.ProjectID) (*model.Project, error) {
+	p, err := r.Conductor.Project(ctx, id)
 	if err != nil {
 		return nil, err
 	}

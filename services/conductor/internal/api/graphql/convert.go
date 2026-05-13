@@ -6,39 +6,35 @@ import (
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
 	"github.com/zeitlos/lucity/services/conductor/internal/conductor"
+	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
-func convertProject(p conductor.Project, workloadDomain string) model.Project {
+func convertProject(p conductor.ProjectNew, workloadDomain string) model.Project {
 	result := model.Project{
 		ID:   p.ID,
 		Name: p.Name,
 	}
-	if !p.CreatedAt.IsZero() {
-		result.CreatedAt = &p.CreatedAt
-	}
+
 	for _, e := range p.Environments {
 		result.Environments = append(result.Environments, convertEnvironment(e, workloadDomain))
 	}
-	for _, d := range p.Databases {
-		result.Databases = append(result.Databases, convertDatabase(d))
-	}
+
 	return result
 }
 
-func convertEnvironment(e conductor.Environment, workloadDomain string) model.Environment {
+func convertEnvironment(e conductor.EnvironmentNew, workloadDomain string) model.Environment {
 	result := model.Environment{
-		ID:         e.ID,
-		Name:       e.Name,
-		Namespace:  e.Namespace,
-		Ephemeral:  e.Ephemeral,
-		SyncStatus: model.SyncStatus(e.SyncStatus),
+		ID:   e.ID,
+		Name: e.Name,
 	}
-	for _, si := range e.Services {
-		result.Services = append(result.Services, convertServiceInstance(si, workloadDomain))
+
+	switch e.ResourceTier {
+	case platform.EcoTier:
+		result.ResourceTier = new(model.ResourceTierEco)
+	case platform.ProductionTier:
+		result.ResourceTier = new(model.ResourceTierProduction)
 	}
-	for _, di := range e.Databases {
-		result.Databases = append(result.Databases, convertDatabaseInstance(di))
-	}
+
 	return result
 }
 
@@ -70,14 +66,13 @@ func convertScalingConfig(sc conductor.ScalingConfig) model.ScalingConfig {
 func convertServiceInstance(si conductor.ServiceInstance, workloadDomain string) model.ServiceInstance {
 	scaling := convertScalingConfig(si.Scaling)
 	result := model.ServiceInstance{
-		ID:          si.ID,
-		Name:        si.Name,
-		Environment: si.Environment,
-		Image:       si.Image,
-		ImageTag:    si.ImageTag,
-		Ready:       si.Ready,
-		Replicas:    si.Replicas,
-		Scaling:     &scaling,
+		ID:       si.ID,
+		Name:     si.Name,
+		Image:    si.Image,
+		ImageTag: si.ImageTag,
+		Ready:    si.Ready,
+		Replicas: si.Replicas,
+		Scaling:  &scaling,
 	}
 
 	if si.Port > 0 {
@@ -337,6 +332,7 @@ func convertBillingSubscription(s *conductor.BillingSubscription) *model.Billing
 
 func convertDatabase(d conductor.Database) model.Database {
 	return model.Database{
+		ID:        d.ID,
 		Name:      d.Name,
 		Version:   d.Version,
 		Instances: d.Instances,
@@ -346,15 +342,15 @@ func convertDatabase(d conductor.Database) model.Database {
 
 func convertDatabaseInstance(di conductor.DatabaseInstance) model.DatabaseInstance {
 	result := model.DatabaseInstance{
-		Name:        di.Name,
-		Environment: di.Environment,
-		Ready:       di.Ready,
-		Instances:   di.Instances,
-		Version:     di.Version,
-		Size:        di.Size,
+		Name:      di.Name,
+		Ready:     di.Ready,
+		Instances: di.Instances,
+		Version:   di.Version,
+		Size:      di.Size,
 	}
 	if di.Volume != nil {
 		result.Volume = &model.Volume{
+			ID:            di.Volume.ID,
 			Name:          di.Volume.Name,
 			Size:          di.Volume.Size,
 			RequestedSize: di.Volume.RequestedSize,

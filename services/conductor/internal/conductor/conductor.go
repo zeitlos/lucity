@@ -15,6 +15,7 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/inproc/builder"
 	"github.com/zeitlos/lucity/services/conductor/internal/inproc/deployer"
 	"github.com/zeitlos/lucity/services/conductor/internal/inproc/packager"
+	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
 // TokenRefresher refreshes the Logto access token using a refresh token.
@@ -35,6 +36,7 @@ type Client struct {
 
 	// Refactored clients
 	directory directory.Interface
+	platform  platform.Interface
 
 	Config Config
 

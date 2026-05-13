@@ -7,6 +7,7 @@ import (
 
 	"github.com/zeitlos/lucity/pkg/tenant"
 	"github.com/zeitlos/lucity/services/conductor/internal/data"
+	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
 type Variable struct {
@@ -15,12 +16,12 @@ type Variable struct {
 }
 
 type DatabaseRef struct {
-	Database string
+	Database platform.DatabaseID
 	Key      string
 }
 
 type ServiceRef struct {
-	Service string
+	Service platform.ServiceID
 }
 
 type ServiceVariable struct {
@@ -41,7 +42,7 @@ var cnpgKeyDisplayNames = map[string]string{
 	"password": "PGPASSWORD",
 }
 
-func (c *Client) SharedVariables(ctx context.Context, projectID, environment string) ([]Variable, error) {
+func (c *Client) SharedVariables(ctx context.Context, environment platform.EnvironmentID) ([]Variable, error) {
 	ws, err := tenant.FromContext(ctx)
 	if err != nil {
 		return nil, err
@@ -49,7 +50,7 @@ func (c *Client) SharedVariables(ctx context.Context, projectID, environment str
 
 	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
 	defer cancel()
-	vars, err := c.Packager.SharedVariables(callCtx, ws, projectID, environment)
+	vars, err := c.Packager.SharedVariables(callCtx, ws, environment.Project, environment.Name)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get shared variables: %w", err)
 	}
@@ -61,7 +62,7 @@ func (c *Client) SharedVariables(ctx context.Context, projectID, environment str
 	return result, nil
 }
 
-func (c *Client) SetSharedVariables(ctx context.Context, projectID, environment string, vars []Variable) (bool, error) {
+func (c *Client) SetSharedVariables(ctx context.Context, environment platform.EnvironmentID, vars []Variable) (bool, error) {
 	ws, err := tenant.FromContext(ctx)
 	if err != nil {
 		return false, err
@@ -74,13 +75,13 @@ func (c *Client) SetSharedVariables(ctx context.Context, projectID, environment 
 
 	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
 	defer cancel()
-	if err := c.Packager.SetSharedVariables(callCtx, ws, projectID, environment, m); err != nil {
+	if err := c.Packager.SetSharedVariables(callCtx, ws, environment.Project, environment.Name, m); err != nil {
 		return false, fmt.Errorf("failed to set shared variables: %w", err)
 	}
 	return true, nil
 }
 
-func (c *Client) ServiceVariables(ctx context.Context, projectID, environment, service string) ([]ServiceVariable, error) {
+func (c *Client) ServiceVariables(ctx context.Context, service platform.ServiceID) ([]ServiceVariable, error) {
 	ws, err := tenant.FromContext(ctx)
 	if err != nil {
 		return nil, err
@@ -88,7 +89,7 @@ func (c *Client) ServiceVariables(ctx context.Context, projectID, environment, s
 
 	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
 	defer cancel()
-	resp, err := c.Packager.ServiceVariables(callCtx, ws, projectID, environment, service)
+	resp, err := c.Packager.ServiceVariables(callCtx, ws, service.Project, service.Environment, service.Name)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get service variables: %w", err)
 	}
@@ -113,26 +114,26 @@ func (c *Client) ServiceVariables(ctx context.Context, projectID, environment, s
 			displayKey = ref.Key
 		}
 		dbName := strings.ToUpper(ref.Database[:1]) + ref.Database[1:]
+		// TODO: rebuild DatabaseRef with typed DatabaseID after migration
 		result = append(result, ServiceVariable{
-			Key:         k,
-			Value:       fmt.Sprintf("${{%s.%s}}", dbName, displayKey),
-			DatabaseRef: &DatabaseRef{Database: ref.Database, Key: ref.Key},
+			Key:   k,
+			Value: fmt.Sprintf("${{%s.%s}}", dbName, displayKey),
 		})
 	}
 
 	for k, ref := range resp.ServiceRefs {
 		svcName := strings.ToUpper(ref.Service[:1]) + ref.Service[1:]
+		// TODO: rebuild ServiceRef with typed ServiceID after migration
 		result = append(result, ServiceVariable{
-			Key:        k,
-			Value:      fmt.Sprintf("${{%s.URL}}", svcName),
-			ServiceRef: &ServiceRef{Service: ref.Service},
+			Key:   k,
+			Value: fmt.Sprintf("${{%s.URL}}", svcName),
 		})
 	}
 
 	return result, nil
 }
 
-func (c *Client) SetServiceVariables(ctx context.Context, projectID, environment, service string, vars []Variable, sharedRefs []string, dbRefs map[string]DatabaseRef, svcRefs map[string]ServiceRef) (bool, error) {
+func (c *Client) SetServiceVariables(ctx context.Context, service platform.ServiceID, vars []Variable, sharedRefs []string, dbRefs map[string]DatabaseRef, svcRefs map[string]ServiceRef) (bool, error) {
 	ws, err := tenant.FromContext(ctx)
 	if err != nil {
 		return false, err
@@ -145,16 +146,16 @@ func (c *Client) SetServiceVariables(ctx context.Context, projectID, environment
 
 	dataDBRefs := make(map[string]data.DatabaseRef, len(dbRefs))
 	for k, ref := range dbRefs {
-		dataDBRefs[k] = data.DatabaseRef{Database: ref.Database, Key: ref.Key}
+		dataDBRefs[k] = data.DatabaseRef{Database: ref.Database.Name, Key: ref.Key}
 	}
 	dataSvcRefs := make(map[string]data.ServiceRef, len(svcRefs))
 	for k, ref := range svcRefs {
-		dataSvcRefs[k] = data.ServiceRef{Service: ref.Service}
+		dataSvcRefs[k] = data.ServiceRef{Service: ref.Service.Name}
 	}
 
 	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
 	defer cancel()
-	if err := c.Packager.SetServiceVariables(callCtx, ws, projectID, environment, service, m, sharedRefs, dataDBRefs, dataSvcRefs); err != nil {
+	if err := c.Packager.SetServiceVariables(callCtx, ws, service.Project, service.Environment, service.Name, m, sharedRefs, dataDBRefs, dataSvcRefs); err != nil {
 		return false, fmt.Errorf("failed to set service variables: %w", err)
 	}
 	return true, nil

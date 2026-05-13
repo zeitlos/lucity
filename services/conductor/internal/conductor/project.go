@@ -14,6 +14,7 @@ import (
 	"github.com/zeitlos/lucity/pkg/labels"
 	"github.com/zeitlos/lucity/pkg/tenant"
 	"github.com/zeitlos/lucity/services/conductor/internal/data"
+	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
 // gRPC call timeouts. Short for quick lookups, long for operations that
@@ -23,6 +24,13 @@ const (
 	grpcLongTimeout = 60 * time.Second
 )
 
+// projectIDPattern validates project slugs (same rules as workspace IDs).
+var projectIDPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$`)
+
+// TODO: Rename to Project once refactoring is done.
+type ProjectNew = platform.Project
+type ProjectID = platform.ProjectID
+
 type Project struct {
 	ID           string
 	Name         string
@@ -31,20 +39,9 @@ type Project struct {
 	CreatedAt    time.Time
 }
 
-type Environment struct {
-	ID         string
-	Name       string
-	Namespace  string
-	Ephemeral  bool
-	SyncStatus string
-	Services   []ServiceInstance
-	Databases  []DatabaseInstance
-}
-
 type ServiceInstance struct {
-	ID                   string
+	ID                   platform.ServiceID
 	Name                 string
-	Environment          string
 	Image                string
 	Port                 int
 	Framework            string
@@ -83,7 +80,7 @@ type AutoscalingConfig struct {
 }
 
 type Deployment struct {
-	ID                  string
+	ID                  platform.DeploymentID
 	ImageTag            string
 	Active              bool
 	Timestamp           time.Time
@@ -93,46 +90,13 @@ type Deployment struct {
 	SourceURL           string // full URL to commit on GitHub
 }
 
-func (c *Client) Projects(ctx context.Context, ws string) ([]Project, error) {
-	infos, err := c.Packager.ListProjects(ctx, ws)
-
-	if err != nil {
-		return nil, err
-	}
-
-	result := make([]Project, 0, len(infos))
-
-	for _, p := range infos {
-		proj := projectFromInfo(ws, p)
-		c.enrichSyncStatus(ctx, ws, &proj)
-		c.enrichServiceStatus(ctx, ws, &proj)
-		c.enrichDatabaseStatus(ctx, ws, &proj)
-		c.enrichDeploymentHistory(ctx, ws, &proj)
-		c.enrichCommitMessages(ctx, &proj)
-		result = append(result, proj)
-	}
-	return result, nil
+func (c *Client) Projects(ctx context.Context, workspace string) ([]ProjectNew, error) {
+	return c.platform.Projects(ctx, workspace)
 }
 
-func (c *Client) Project(ctx context.Context, ws, id string) (*Project, error) {
-	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
-	defer cancel()
-	info, err := c.Packager.GetProject(callCtx, ws, id)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get project: %w", err)
-	}
-
-	p := projectFromInfo(ws, info)
-	c.enrichSyncStatus(ctx, ws, &p)
-	c.enrichServiceStatus(ctx, ws, &p)
-	c.enrichDatabaseStatus(ctx, ws, &p)
-	c.enrichDeploymentHistory(ctx, ws, &p)
-	c.enrichCommitMessages(ctx, &p)
-	return &p, nil
+func (c *Client) Project(ctx context.Context, id platform.ProjectID) (*ProjectNew, error) {
+	return c.platform.Project(ctx, id)
 }
-
-// projectIDPattern validates project slugs (same rules as workspace IDs).
-var projectIDPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$`)
 
 // slugFromName derives a URL-safe slug from a display name.
 func slugFromName(name string) string {
@@ -156,7 +120,7 @@ func slugFromName(name string) string {
 	return s
 }
 
-func (c *Client) CreateProject(ctx context.Context, ws, slug, displayName string) (*Project, error) {
+func (c *Client) CreateProject(ctx context.Context, ws, slug, displayName string) (*ProjectNew, error) {
 	// Derive slug from display name if not provided
 	if slug == "" {
 		slug = slugFromName(displayName)
@@ -174,29 +138,32 @@ func (c *Client) CreateProject(ctx context.Context, ws, slug, displayName string
 	}
 
 	// 2. Deploy the default development environment via ArgoCD
-	ns := labels.NamespaceFor(ws, slug, "development")
+	envName := "development"
+	ns := labels.NamespaceFor(ws, slug, envName)
 	deployCtx, deployCancel := context.WithTimeout(ctx, grpcTimeout)
 	defer deployCancel()
-	if _, err := c.Deployer.DeployEnvironment(deployCtx, ws, slug, "development", repoURL, ns); err != nil {
+	if _, err := c.Deployer.DeployEnvironment(deployCtx, ws, slug, envName, repoURL, ns); err != nil {
 		slog.Warn("failed to deploy development environment", "project", slug, "error", err)
 	}
 
-	return &Project{
-		ID:        slug,
-		Name:      displayName,
-		CreatedAt: time.Now(),
-		Environments: []Environment{
-			{
-				ID:         slug + "/development",
-				Name:       "development",
-				Namespace:  ns,
-				SyncStatus: "PROGRESSING",
-			},
-		},
-	}, nil
+	projectID, err := platform.ParseProjectID(ws + "/" + slug)
+
+	if err != nil {
+		return nil, err
+	}
+
+	// envID, err := platform.ParseEnvironmentID(ws + "/" + slug + "/" + envName)
+
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	_ = ws
+	return c.Project(ctx, projectID)
 }
 
-func (c *Client) DeleteProject(ctx context.Context, id string) (bool, error) {
+func (c *Client) DeleteProject(ctx context.Context, project platform.ProjectID) (bool, error) {
+	id := project.Name
 	ws, err := tenant.FromContext(ctx)
 	if err != nil {
 		return false, err
@@ -243,87 +210,6 @@ func (c *Client) DeleteProject(ctx context.Context, id string) (bool, error) {
 		return false, fmt.Errorf("failed to delete project: %w", err)
 	}
 	return true, nil
-}
-
-func (c *Client) CreateEnvironment(ctx context.Context, projectID, name, fromEnvironment, tier string) (*Environment, error) {
-	ws, err := tenant.FromContext(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	createCtx, createCancel := context.WithTimeout(ctx, grpcLongTimeout)
-	defer createCancel()
-	namespace, err := c.Packager.CreateEnvironment(createCtx, ws, projectID, name, fromEnvironment)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create environment: %w", err)
-	}
-
-	// Deploy the new environment via ArgoCD
-	envDeployCtx, envDeployCancel := context.WithTimeout(ctx, grpcTimeout)
-	defer envDeployCancel()
-	if _, err := c.Deployer.DeployEnvironment(envDeployCtx, ws, projectID, name, "", namespace); err != nil {
-		slog.Warn("failed to deploy environment", "project", projectID, "environment", name, "error", err)
-	}
-
-	// If PRODUCTION tier was requested, set up ResourceQuota with default allocations.
-	if tier == "PRODUCTION" {
-		c.SetEnvironmentResources(ctx, projectID, name, tier, 1000, 1024, 1024)
-	}
-
-	// Trigger immediate sync so the environment deploys right away
-	syncCtx, syncCancel := context.WithTimeout(ctx, grpcTimeout)
-	defer syncCancel()
-	if _, err := c.Deployer.SyncDeployment(syncCtx, ws, projectID, name); err != nil {
-		slog.Warn("failed to trigger sync after environment create", "project", projectID, "environment", name, "error", err)
-	}
-
-	return &Environment{
-		ID:         projectID + "/" + name,
-		Name:       name,
-		Namespace:  namespace,
-		SyncStatus: "PROGRESSING",
-	}, nil
-}
-
-func (c *Client) DeleteEnvironment(ctx context.Context, projectID, environment string) (bool, error) {
-	ws, err := tenant.FromContext(ctx)
-	if err != nil {
-		return false, err
-	}
-	// Remove ArgoCD Application first (cascade deletes managed resources)
-	rmCtx, rmCancel := context.WithTimeout(ctx, grpcTimeout)
-	defer rmCancel()
-	if err := c.Deployer.RemoveDeployment(rmCtx, ws, projectID, environment); err != nil {
-		slog.Warn("failed to remove deployment", "project", projectID, "environment", environment, "error", err)
-	}
-
-	// Then remove from GitOps repo
-	delEnvCtx, delEnvCancel := context.WithTimeout(ctx, grpcTimeout)
-	defer delEnvCancel()
-	if err := c.Packager.DeleteEnvironment(delEnvCtx, ws, projectID, environment); err != nil {
-		return false, fmt.Errorf("failed to delete environment: %w", err)
-	}
-	return true, nil
-}
-
-func (c *Client) Promote(ctx context.Context, projectID, service, fromEnv, toEnv string) (*ServiceInstance, error) {
-	ws, err := tenant.FromContext(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	promoteCtx, promoteCancel := context.WithTimeout(ctx, grpcLongTimeout)
-	defer promoteCancel()
-	imageTag, err := c.Packager.Promote(promoteCtx, ws, projectID, service, fromEnv, toEnv)
-	if err != nil {
-		return nil, fmt.Errorf("failed to promote: %w", err)
-	}
-
-	return &ServiceInstance{
-		Name:        service,
-		Environment: toEnv,
-		ImageTag:    imageTag,
-	}, nil
 }
 
 // enrichSyncStatus queries the deployer for each environment's ArgoCD sync status.
@@ -418,11 +304,10 @@ func (c *Client) enrichDatabaseStatus(ctx context.Context, ws string, proj *Proj
 				defer cancel()
 				st, err := c.Deployer.DatabaseStatus(statusCtx, ws, proj.ID, envPtr.Name, dbInfo.Name)
 				inst := DatabaseInstance{
-					Name:        dbInfo.Name,
-					Environment: envPtr.Name,
-					Version:     dbInfo.Version,
-					Size:        dbInfo.Size,
-					Instances:   dbInfo.Instances,
+					Name:      dbInfo.Name,
+					Version:   dbInfo.Version,
+					Size:      dbInfo.Size,
+					Instances: dbInfo.Instances,
 				}
 				if err != nil {
 					slog.Warn("failed to get database status", "project", proj.ID, "environment", envPtr.Name, "database", dbInfo.Name, "error", err)
@@ -472,13 +357,14 @@ func (c *Client) enrichDeploymentHistory(ctx context.Context, ws string, proj *P
 
 				for k, e := range entries {
 					si.Deployments = append(si.Deployments, Deployment{
-						ID:        fmt.Sprintf("%s/%s/%s/%d", proj.ID, env.Name, si.Name, k),
+						// TODO: rebuild as platform.DeploymentID after typed-ID migration
 						ImageTag:  e.ImageTag,
 						Active:    k == 0,
 						Timestamp: e.DeployedAt,
 						Revision:  e.Revision,
 						Message:   fmt.Sprintf("deploy(%s): %s %s", env.Name, si.Name, e.ImageTag),
 					})
+					_ = k
 				}
 			}()
 		}
@@ -661,9 +547,8 @@ func projectFromInfo(ws string, p data.ProjectInfo) Project {
 		// Build enriched ServiceInstances from environment data
 		for _, svc := range envInfoMap[envName] {
 			env.Services = append(env.Services, ServiceInstance{
-				ID:                   svc.Name + ":" + envName,
+				// TODO: rebuild as platform.ServiceID after typed-ID migration
 				Name:                 svc.Name,
-				Environment:          envName,
 				Image:                svc.Image,
 				Port:                 svc.Port,
 				Framework:            svc.Framework,

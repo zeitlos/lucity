@@ -8,8 +8,8 @@ package graphql
 import (
 	"context"
 
-	"github.com/zeitlos/lucity/pkg/tenant"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
+	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
 // CreateDatabase is the resolver for the createDatabase field.
@@ -26,7 +26,7 @@ func (r *mutationResolver) CreateDatabase(ctx context.Context, input model.Creat
 	if input.Size != nil {
 		size = *input.Size
 	}
-	db, err := r.Conductor.CreateDatabase(ctx, input.ProjectID, input.Name, version, instances, size)
+	db, err := r.Conductor.CreateDatabase(ctx, input.Environment, input.Name, version, instances, size)
 	if err != nil {
 		return nil, err
 	}
@@ -35,39 +35,22 @@ func (r *mutationResolver) CreateDatabase(ctx context.Context, input model.Creat
 }
 
 // DeleteDatabase is the resolver for the deleteDatabase field.
-func (r *mutationResolver) DeleteDatabase(ctx context.Context, projectID string, name string) (bool, error) {
-	return r.Conductor.DeleteDatabase(ctx, projectID, name)
+func (r *mutationResolver) DeleteDatabase(ctx context.Context, database platform.DatabaseID) (bool, error) {
+	return r.Conductor.DeleteDatabase(ctx, database)
 }
 
 // ExecuteQuery is the resolver for the executeQuery field.
-func (r *mutationResolver) ExecuteQuery(ctx context.Context, input model.DatabaseQueryInput) (*model.QueryResult, error) {
-	result, err := r.Conductor.ExecuteQuery(ctx, input.ProjectID, input.Environment, input.Database, input.Query)
+func (r *mutationResolver) ExecuteQuery(ctx context.Context, database platform.DatabaseID, query string) (*model.QueryResult, error) {
+	result, err := r.Conductor.ExecuteQuery(ctx, database, query)
 	if err != nil {
 		return nil, err
 	}
 	return convertQueryResult(result), nil
 }
 
-// Databases is the resolver for the databases field.
-func (r *queryResolver) Databases(ctx context.Context, projectID string) ([]model.Database, error) {
-	ws, err := tenant.FromContext(ctx)
-	if err != nil {
-		return nil, err
-	}
-	dbs, err := r.Conductor.Databases(ctx, ws, projectID)
-	if err != nil {
-		return nil, err
-	}
-	result := make([]model.Database, 0, len(dbs))
-	for _, d := range dbs {
-		result = append(result, convertDatabase(d))
-	}
-	return result, nil
-}
-
 // DatabaseTables is the resolver for the databaseTables field.
-func (r *queryResolver) DatabaseTables(ctx context.Context, projectID string, environment string, database string) ([]model.DatabaseTable, error) {
-	tables, err := r.Conductor.DatabaseTables(ctx, projectID, environment, database)
+func (r *queryResolver) DatabaseTables(ctx context.Context, database platform.DatabaseID) ([]model.DatabaseTable, error) {
+	tables, err := r.Conductor.DatabaseTables(ctx, database)
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +62,7 @@ func (r *queryResolver) DatabaseTables(ctx context.Context, projectID string, en
 }
 
 // DatabaseTableData is the resolver for the databaseTableData field.
-func (r *queryResolver) DatabaseTableData(ctx context.Context, projectID string, environment string, database string, table string, schema *string, limit *int, offset *int) (*model.DatabaseTableData, error) {
+func (r *queryResolver) DatabaseTableData(ctx context.Context, database platform.DatabaseID, table string, schema *string, limit *int, offset *int) (*model.DatabaseTableData, error) {
 	s := "public"
 	if schema != nil {
 		s = *schema
@@ -92,7 +75,7 @@ func (r *queryResolver) DatabaseTableData(ctx context.Context, projectID string,
 	if offset != nil {
 		o = *offset
 	}
-	data, err := r.Conductor.DatabaseTableData(ctx, projectID, environment, database, table, s, l, o)
+	data, err := r.Conductor.DatabaseTableData(ctx, database, table, s, l, o)
 	if err != nil {
 		return nil, err
 	}
@@ -100,8 +83,8 @@ func (r *queryResolver) DatabaseTableData(ctx context.Context, projectID string,
 }
 
 // DatabaseCredentials is the resolver for the databaseCredentials field.
-func (r *queryResolver) DatabaseCredentials(ctx context.Context, projectID string, environment string, database string) (*model.DatabaseCredentials, error) {
-	creds, err := r.Conductor.DatabaseCredentials(ctx, projectID, environment, database)
+func (r *queryResolver) DatabaseCredentials(ctx context.Context, database platform.DatabaseID) (*model.DatabaseCredentials, error) {
+	creds, err := r.Conductor.DatabaseCredentials(ctx, database)
 	if err != nil {
 		return nil, err
 	}

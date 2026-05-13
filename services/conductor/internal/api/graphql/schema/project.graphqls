@@ -1,15 +1,12 @@
 type Project {
-  id: ID!
+  id: ProjectID!
   name: String!
   environments: [Environment!]!
-  databases: [Database!]!
-  createdAt: Time
 }
 
 type ServiceInstance {
-  id: ID!
+  id: ServiceID!
   name: String!
-  environment: String!
   image: String!
   port: Int
   framework: String
@@ -87,7 +84,7 @@ enum DnsStatus {
 }
 
 type Deployment {
-  id: ID!
+  id: DeploymentID!
   imageTag: String!
   active: Boolean!
   timestamp: Time
@@ -115,9 +112,7 @@ input CreateProjectInput {
 }
 
 input SetServiceScalingInput {
-  projectId: ID! @constraint(constraint: "resource_name")
-  environment: String! @constraint(constraint: "resource_name")
-  service: String! @constraint(constraint: "resource_name")
+  service: ServiceID!
   replicas: Int! @constraint(constraint: "min=1,max=20")
   autoscaling: AutoscalingInput
 }
@@ -131,11 +126,11 @@ input AutoscalingInput {
 
 extend type Query {
   projects: [Project!]! @hasRole(role: [USER])
-  project(id: ID! @constraint(constraint: "resource_name")): Project @hasRole(role: [USER])
+  project(id: ProjectID!): Project @hasRole(role: [USER])
 }
 
 extend type Mutation {
   createProject(input: CreateProjectInput!): Project! @hasRole(role: [USER])
-  deleteProject(id: ID! @constraint(constraint: "resource_name")): Boolean! @hasRole(role: [USER])
+  deleteProject(id: ProjectID!): Boolean! @hasRole(role: [USER])
   setServiceScaling(input: SetServiceScalingInput!): ScalingConfig! @hasRole(role: [USER])
 }

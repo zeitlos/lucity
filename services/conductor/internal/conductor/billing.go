@@ -11,6 +11,7 @@ import (
 	"github.com/zeitlos/lucity/pkg/cashier"
 	"github.com/zeitlos/lucity/pkg/tenant"
 	"github.com/zeitlos/lucity/services/conductor/internal/data"
+	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
 type EnvironmentResources struct {
@@ -39,7 +40,7 @@ type BillingPortalUrlResult struct {
 	URL string
 }
 
-func (c *Client) EnvironmentResources(ctx context.Context, projectID, environment string) (*EnvironmentResources, error) {
+func (c *Client) EnvironmentResources(ctx context.Context, environment platform.EnvironmentID) (*EnvironmentResources, error) {
 	ws, err := tenant.FromContext(ctx)
 	if err != nil {
 		return nil, err
@@ -47,7 +48,7 @@ func (c *Client) EnvironmentResources(ctx context.Context, projectID, environmen
 
 	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
 	defer cancel()
-	q, err := c.Deployer.ResourceQuota(callCtx, ws, projectID, environment)
+	q, err := c.Deployer.ResourceQuota(callCtx, ws, environment.Project, environment.Name)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get resource quota: %w", err)
 	}
@@ -60,7 +61,7 @@ func (c *Client) EnvironmentResources(ctx context.Context, projectID, environmen
 	}, nil
 }
 
-func (c *Client) SetEnvironmentResources(ctx context.Context, projectID, environment, tier string, cpuMillicores, memoryMB, diskMB int) (*EnvironmentResources, error) {
+func (c *Client) SetEnvironmentResources(ctx context.Context, environment platform.EnvironmentID, tier string, cpuMillicores, memoryMB, diskMB int) (*EnvironmentResources, error) {
 	ws, err := tenant.FromContext(ctx)
 	if err != nil {
 		return nil, err
@@ -68,7 +69,7 @@ func (c *Client) SetEnvironmentResources(ctx context.Context, projectID, environ
 
 	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
 	defer cancel()
-	q, err := c.Deployer.SetResourceQuota(callCtx, ws, projectID, environment, tierFromAPIString(tier), cpuMillicores, memoryMB, diskMB)
+	q, err := c.Deployer.SetResourceQuota(callCtx, ws, environment.Project, environment.Name, tierFromAPIString(tier), cpuMillicores, memoryMB, diskMB)
 	if err != nil {
 		return nil, fmt.Errorf("failed to set resource quota: %w", err)
 	}
@@ -76,8 +77,8 @@ func (c *Client) SetEnvironmentResources(ctx context.Context, projectID, environ
 	// Best-effort: sync resources to GitOps repo for ejection
 	pkgCtx, pkgCancel := context.WithTimeout(ctx, grpcTimeout)
 	defer pkgCancel()
-	if pkgErr := c.Packager.SetResources(pkgCtx, ws, projectID, environment, strings.ToLower(tier), cpuMillicores, memoryMB, diskMB); pkgErr != nil {
-		slog.Error("failed to sync resources to GitOps repo", "error", pkgErr, "project", projectID, "environment", environment)
+	if pkgErr := c.Packager.SetResources(pkgCtx, ws, environment.Project, environment.Name, strings.ToLower(tier), cpuMillicores, memoryMB, diskMB); pkgErr != nil {
+		slog.Error("failed to sync resources to GitOps repo", "error", pkgErr, "project", environment.Project, "environment", environment.Name)
 	}
 
 	return &EnvironmentResources{

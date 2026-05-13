@@ -10,19 +10,20 @@ import (
 
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
 	"github.com/zeitlos/lucity/services/conductor/internal/conductor"
+	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
 // SetSharedVariables is the resolver for the setSharedVariables field.
-func (r *mutationResolver) SetSharedVariables(ctx context.Context, projectID string, environment string, variables []model.VariableInput) (bool, error) {
+func (r *mutationResolver) SetSharedVariables(ctx context.Context, environment platform.EnvironmentID, variables []model.VariableInput) (bool, error) {
 	vars := make([]conductor.Variable, len(variables))
 	for i, v := range variables {
 		vars[i] = conductor.Variable{Key: v.Key, Value: v.Value}
 	}
-	return r.Conductor.SetSharedVariables(ctx, projectID, environment, vars)
+	return r.Conductor.SetSharedVariables(ctx, environment, vars)
 }
 
 // SetServiceVariables is the resolver for the setServiceVariables field.
-func (r *mutationResolver) SetServiceVariables(ctx context.Context, projectID string, environment string, service string, variables []model.ServiceVariableInput) (bool, error) {
+func (r *mutationResolver) SetServiceVariables(ctx context.Context, service platform.ServiceID, variables []model.ServiceVariableInput) (bool, error) {
 	var directVars []conductor.Variable
 	var sharedRefs []string
 	dbRefs := make(map[string]conductor.DatabaseRef)
@@ -45,12 +46,12 @@ func (r *mutationResolver) SetServiceVariables(ctx context.Context, projectID st
 		}
 	}
 
-	return r.Conductor.SetServiceVariables(ctx, projectID, environment, service, directVars, sharedRefs, dbRefs, svcRefs)
+	return r.Conductor.SetServiceVariables(ctx, service, directVars, sharedRefs, dbRefs, svcRefs)
 }
 
 // SharedVariables is the resolver for the sharedVariables field.
-func (r *queryResolver) SharedVariables(ctx context.Context, projectID string, environment string) ([]model.Variable, error) {
-	vars, err := r.Conductor.SharedVariables(ctx, projectID, environment)
+func (r *queryResolver) SharedVariables(ctx context.Context, environment platform.EnvironmentID) ([]model.Variable, error) {
+	vars, err := r.Conductor.SharedVariables(ctx, environment)
 	if err != nil {
 		return nil, err
 	}
@@ -63,8 +64,8 @@ func (r *queryResolver) SharedVariables(ctx context.Context, projectID string, e
 }
 
 // ServiceVariables is the resolver for the serviceVariables field.
-func (r *queryResolver) ServiceVariables(ctx context.Context, projectID string, environment string, service string) ([]model.ServiceVariable, error) {
-	vars, err := r.Conductor.ServiceVariables(ctx, projectID, environment, service)
+func (r *queryResolver) ServiceVariables(ctx context.Context, service platform.ServiceID) ([]model.ServiceVariable, error) {
+	vars, err := r.Conductor.ServiceVariables(ctx, service)
 	if err != nil {
 		return nil, err
 	}

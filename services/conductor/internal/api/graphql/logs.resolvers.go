@@ -9,11 +9,12 @@ import (
 	"context"
 
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
+	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
 // ServiceLogs is the resolver for the serviceLogs field.
-func (r *subscriptionResolver) ServiceLogs(ctx context.Context, projectID string, service string, environment string, tailLines *int) (<-chan *model.ServiceLogEntry, error) {
-	ch, err := r.Conductor.ServiceLogs(ctx, projectID, service, environment, tailLines)
+func (r *subscriptionResolver) ServiceLogs(ctx context.Context, service platform.ServiceID, tailLines *int) (<-chan *model.ServiceLogEntry, error) {
+	ch, err := r.Conductor.ServiceLogs(ctx, service, tailLines)
 	if err != nil {
 		return nil, err
 	}

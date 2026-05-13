@@ -8,18 +8,12 @@ import (
 	"io"
 	"strconv"
 	"time"
+
+	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
-type AddCustomDomainInput struct {
-	ProjectID   string `json:"projectId"`
-	Service     string `json:"service"`
-	Environment string `json:"environment"`
-	Hostname    string `json:"hostname"`
-}
-
 type AddServiceInput struct {
-	ProjectID   string `json:"projectId"`
-	Environment string `json:"environment"`
+	Environment platform.EnvironmentID `json:"environment"`
 	// Service name. If omitted when image is set, derived from the image (e.g. nginx:1.25 → nginx).
 	Name *string `json:"name,omitempty"`
 	// Container port. If omitted when image is set, uses well-known defaults (e.g. redis → 6379).
@@ -70,18 +64,18 @@ type CheckoutSession struct {
 }
 
 type CreateDatabaseInput struct {
-	ProjectID string  `json:"projectId"`
-	Name      string  `json:"name"`
-	Version   *string `json:"version,omitempty"`
-	Instances *int    `json:"instances,omitempty"`
-	Size      *string `json:"size,omitempty"`
+	Environment platform.EnvironmentID `json:"environment"`
+	Name        string                 `json:"name"`
+	Version     *string                `json:"version,omitempty"`
+	Instances   *int                   `json:"instances,omitempty"`
+	Size        *string                `json:"size,omitempty"`
 }
 
 type CreateEnvironmentInput struct {
-	ProjectID       string        `json:"projectId"`
-	Name            string        `json:"name"`
-	FromEnvironment *string       `json:"fromEnvironment,omitempty"`
-	Tier            *ResourceTier `json:"tier,omitempty"`
+	Project         platform.ProjectID      `json:"project"`
+	Name            string                  `json:"name"`
+	FromEnvironment *platform.EnvironmentID `json:"fromEnvironment,omitempty"`
+	Tier            *ResourceTier           `json:"tier,omitempty"`
 }
 
 type CreateProjectInput struct {
@@ -103,10 +97,11 @@ type CreateWorkspaceInput struct {
 }
 
 type Database struct {
-	Name      string `json:"name"`
-	Version   string `json:"version"`
-	Instances int    `json:"instances"`
-	Size      string `json:"size"`
+	ID        platform.DatabaseID `json:"id"`
+	Name      string              `json:"name"`
+	Version   string              `json:"version"`
+	Instances int                 `json:"instances"`
+	Size      string              `json:"size"`
 }
 
 type DatabaseColumn struct {
@@ -126,31 +121,23 @@ type DatabaseCredentials struct {
 }
 
 type DatabaseInstance struct {
-	Name        string  `json:"name"`
-	Environment string  `json:"environment"`
-	Ready       bool    `json:"ready"`
-	Instances   int     `json:"instances"`
-	Version     string  `json:"version"`
-	Size        string  `json:"size"`
-	Volume      *Volume `json:"volume,omitempty"`
-}
-
-type DatabaseQueryInput struct {
-	ProjectID   string `json:"projectId"`
-	Environment string `json:"environment"`
-	Database    string `json:"database"`
-	Query       string `json:"query"`
+	Name      string  `json:"name"`
+	Ready     bool    `json:"ready"`
+	Instances int     `json:"instances"`
+	Version   string  `json:"version"`
+	Size      string  `json:"size"`
+	Volume    *Volume `json:"volume,omitempty"`
 }
 
 // A reference to a CNPG database secret key (resolved at pod startup via secretKeyRef).
 type DatabaseRef struct {
-	Database string `json:"database"`
-	Key      string `json:"key"`
+	Database platform.DatabaseID `json:"database"`
+	Key      string              `json:"key"`
 }
 
 type DatabaseRefInput struct {
-	Database string `json:"database"`
-	Key      string `json:"key"`
+	Database platform.DatabaseID `json:"database"`
+	Key      string              `json:"key"`
 }
 
 type DatabaseTable struct {
@@ -164,13 +151,6 @@ type DatabaseTableData struct {
 	Columns            []string    `json:"columns"`
 	Rows               [][]*string `json:"rows"`
 	TotalEstimatedRows int         `json:"totalEstimatedRows"`
-}
-
-type DeployInput struct {
-	ProjectID   string  `json:"projectId"`
-	Service     string  `json:"service"`
-	Environment string  `json:"environment"`
-	GitRef      *string `json:"gitRef,omitempty"`
 }
 
 type DeployRun struct {
@@ -189,12 +169,12 @@ type DeployRun struct {
 }
 
 type Deployment struct {
-	ID        string     `json:"id"`
-	ImageTag  string     `json:"imageTag"`
-	Active    bool       `json:"active"`
-	Timestamp *time.Time `json:"timestamp,omitempty"`
-	Revision  *string    `json:"revision,omitempty"`
-	Message   *string    `json:"message,omitempty"`
+	ID        platform.DeploymentID `json:"id"`
+	ImageTag  string                `json:"imageTag"`
+	Active    bool                  `json:"active"`
+	Timestamp *time.Time            `json:"timestamp,omitempty"`
+	Revision  *string               `json:"revision,omitempty"`
+	Message   *string               `json:"message,omitempty"`
 	// First line of the source commit message (fetched from GitHub).
 	SourceCommitMessage *string `json:"sourceCommitMessage,omitempty"`
 	// URL to the source commit on GitHub.
@@ -235,25 +215,16 @@ type Domain struct {
 }
 
 type Environment struct {
-	ID           string             `json:"id"`
-	Name         string             `json:"name"`
-	Namespace    string             `json:"namespace"`
-	Ephemeral    bool               `json:"ephemeral"`
-	SyncStatus   SyncStatus         `json:"syncStatus"`
-	ResourceTier *ResourceTier      `json:"resourceTier,omitempty"`
-	Services     []ServiceInstance  `json:"services"`
-	Databases    []DatabaseInstance `json:"databases"`
+	ID           platform.EnvironmentID `json:"id"`
+	Name         string                 `json:"name"`
+	ResourceTier *ResourceTier          `json:"resourceTier,omitempty"`
+	Services     []ServiceInstance      `json:"services"`
+	Databases    []DatabaseInstance     `json:"databases"`
 }
 
 type EnvironmentResources struct {
 	Tier       ResourceTier        `json:"tier"`
 	Allocation *ResourceAllocation `json:"allocation"`
-}
-
-type GenerateDomainInput struct {
-	ProjectID   string `json:"projectId"`
-	Service     string `json:"service"`
-	Environment string `json:"environment"`
 }
 
 type GitHubInstallation struct {
@@ -298,19 +269,15 @@ type PlatformConfig struct {
 }
 
 type Project struct {
-	ID           string        `json:"id"`
-	Name         string        `json:"name"`
-	Environments []Environment `json:"environments"`
-	Databases    []Database    `json:"databases"`
-	CreatedAt    *time.Time    `json:"createdAt,omitempty"`
+	ID           platform.ProjectID `json:"id"`
+	Name         string             `json:"name"`
+	Environments []Environment      `json:"environments"`
 }
 
 type PromoteInput struct {
-	ProjectID       string        `json:"projectId"`
-	Service         string        `json:"service"`
-	FromEnvironment string        `json:"fromEnvironment"`
-	Tier            *ResourceTier `json:"tier,omitempty"`
-	ToEnvironment   string        `json:"toEnvironment"`
+	Service       platform.ServiceID     `json:"service"`
+	Tier          *ResourceTier          `json:"tier,omitempty"`
+	ToEnvironment platform.EnvironmentID `json:"toEnvironment"`
 }
 
 type Query struct {
@@ -322,25 +289,10 @@ type QueryResult struct {
 	AffectedRows int         `json:"affectedRows"`
 }
 
-type RemoveDomainInput struct {
-	ProjectID   string `json:"projectId"`
-	Service     string `json:"service"`
-	Environment string `json:"environment"`
-	Hostname    string `json:"hostname"`
-}
-
 type ResourceAllocation struct {
 	CPUMillicores int `json:"cpuMillicores"`
 	MemoryMb      int `json:"memoryMB"`
 	DiskMb        int `json:"diskMB"`
-}
-
-type RollbackInput struct {
-	ProjectID   string `json:"projectId"`
-	Service     string `json:"service"`
-	Environment string `json:"environment"`
-	// Image tag to roll back to (typically a short git SHA).
-	ImageTag string `json:"imageTag"`
 }
 
 type ScalingConfig struct {
@@ -349,20 +301,19 @@ type ScalingConfig struct {
 }
 
 type ServiceInstance struct {
-	ID                 string         `json:"id"`
-	Name               string         `json:"name"`
-	Environment        string         `json:"environment"`
-	Image              string         `json:"image"`
-	Port               *int           `json:"port,omitempty"`
-	Framework          *string        `json:"framework,omitempty"`
-	SourceURL          *string        `json:"sourceUrl,omitempty"`
-	ContextPath        *string        `json:"contextPath,omitempty"`
-	StartCommand       *string        `json:"startCommand,omitempty"`
-	CustomStartCommand *string        `json:"customStartCommand,omitempty"`
-	ImageTag           string         `json:"imageTag"`
-	Ready              bool           `json:"ready"`
-	Replicas           int            `json:"replicas"`
-	Scaling            *ScalingConfig `json:"scaling"`
+	ID                 platform.ServiceID `json:"id"`
+	Name               string             `json:"name"`
+	Image              string             `json:"image"`
+	Port               *int               `json:"port,omitempty"`
+	Framework          *string            `json:"framework,omitempty"`
+	SourceURL          *string            `json:"sourceUrl,omitempty"`
+	ContextPath        *string            `json:"contextPath,omitempty"`
+	StartCommand       *string            `json:"startCommand,omitempty"`
+	CustomStartCommand *string            `json:"customStartCommand,omitempty"`
+	ImageTag           string             `json:"imageTag"`
+	Ready              bool               `json:"ready"`
+	Replicas           int                `json:"replicas"`
+	Scaling            *ScalingConfig     `json:"scaling"`
 	// Compute resources allocated to this service. Null if the service has no running deployment.
 	Resources   *ServiceResources `json:"resources,omitempty"`
 	Domains     []Domain          `json:"domains"`
@@ -380,11 +331,11 @@ type ServiceLogEntry struct {
 
 // A reference to another service's internal URL (computed by Helm template).
 type ServiceRef struct {
-	Service string `json:"service"`
+	Service platform.ServiceID `json:"service"`
 }
 
 type ServiceRefInput struct {
-	Service string `json:"service"`
+	Service platform.ServiceID `json:"service"`
 }
 
 // Compute resource allocation for a service instance.
@@ -420,20 +371,17 @@ type ServiceVariableInput struct {
 }
 
 type SetEnvironmentResourcesInput struct {
-	ProjectID     string       `json:"projectId"`
-	Environment   string       `json:"environment"`
-	Tier          ResourceTier `json:"tier"`
-	CPUMillicores int          `json:"cpuMillicores"`
-	MemoryMb      int          `json:"memoryMB"`
-	DiskMb        int          `json:"diskMB"`
+	Environment   platform.EnvironmentID `json:"environment"`
+	Tier          ResourceTier           `json:"tier"`
+	CPUMillicores int                    `json:"cpuMillicores"`
+	MemoryMb      int                    `json:"memoryMB"`
+	DiskMb        int                    `json:"diskMB"`
 }
 
 type SetServiceScalingInput struct {
-	ProjectID   string            `json:"projectId"`
-	Environment string            `json:"environment"`
-	Service     string            `json:"service"`
-	Replicas    int               `json:"replicas"`
-	Autoscaling *AutoscalingInput `json:"autoscaling,omitempty"`
+	Service     platform.ServiceID `json:"service"`
+	Replicas    int                `json:"replicas"`
+	Autoscaling *AutoscalingInput  `json:"autoscaling,omitempty"`
 }
 
 type Subscription struct {
@@ -472,11 +420,12 @@ type VariableInput struct {
 }
 
 type Volume struct {
-	Name          string `json:"name"`
-	Size          string `json:"size"`
-	RequestedSize string `json:"requestedSize"`
-	UsedBytes     int    `json:"usedBytes"`
-	CapacityBytes int    `json:"capacityBytes"`
+	ID            platform.VolumeID `json:"id"`
+	Name          string            `json:"name"`
+	Size          string            `json:"size"`
+	RequestedSize string            `json:"requestedSize"`
+	UsedBytes     int               `json:"usedBytes"`
+	CapacityBytes int               `json:"capacityBytes"`
 }
 
 type Workspace struct {

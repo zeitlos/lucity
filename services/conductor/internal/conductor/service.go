@@ -16,8 +16,11 @@ import (
 	"github.com/zeitlos/lucity/pkg/tenant"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/deploy"
 	"github.com/zeitlos/lucity/services/conductor/internal/data"
+	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
+type ServiceID = platform.ServiceID
+type DeploymentID = platform.DeploymentID
 type DetectedService struct {
 	Name          string
 	Provider      string
@@ -60,7 +63,11 @@ func (c *Client) DetectServices(ctx context.Context, repository string, installa
 	return result, nil
 }
 
-func (c *Client) AddService(ctx context.Context, ws, projectID, environment, name string, port int, framework, startCommand, repository, contextPath string, installationID *int64, externalImage, customStartCommand string) (*ServiceInstance, error) {
+func (c *Client) AddService(ctx context.Context, environment platform.EnvironmentID, name string, port int, framework, startCommand, repository, contextPath string, installationID *int64, externalImage, customStartCommand string) (*ServiceInstance, error) {
+	ws := environment.Workspace
+	projectID := environment.Project
+	envName := environment.Name
+	_ = envName
 	// For source-based services, resolve repository to a verified clone URL.
 	var sourceURL string
 	var err error
@@ -122,16 +129,15 @@ func (c *Client) AddService(ctx context.Context, ws, projectID, environment, nam
 		ImagePullPolicy:      imagePullPolicy,
 		CustomStartCommand:   customStartCommand,
 		StartCommand:         startCommand,
-		Environment:          environment,
+		Environment:          envName,
 	}); err != nil {
 		return nil, fmt.Errorf("failed to add service: %w", err)
 	}
 
 	si := &ServiceInstance{
-		ID:                   name + ":" + environment,
-		Name:                 name,
-		Environment:          environment,
-		Image:                image,
+		// TODO: rebuild as platform.ServiceID after typed-ID migration
+		Name:  name,
+		Image: image,
 		Port:                 port,
 		Framework:            framework,
 		StartCommand:         startCommand,
@@ -155,7 +161,7 @@ func (c *Client) AddService(ctx context.Context, ws, projectID, environment, nam
 		}
 
 		deployID := uuid.New().String()
-		c.DeployTracker.Create(deployID, buildID, projectID, name, environment)
+		c.DeployTracker.Create(deployID, buildID, projectID, name, envName)
 
 		claims, err := auth.FromContext(ctx)
 
@@ -163,7 +169,7 @@ func (c *Client) AddService(ctx context.Context, ws, projectID, environment, nam
 			return nil, err
 		}
 
-		go c.runDeploy(claims, ws, deployID, projectID, name, environment, buildID)
+		go c.runDeploy(claims, ws, deployID, projectID, name, envName, buildID)
 
 		si.InitialDeploy = deployOpFromState(c.DeployTracker.Get(deployID))
 	}
@@ -248,7 +254,10 @@ func parseImageRef(ref string) (repository, tag string) {
 	return ref, "latest"
 }
 
-func (c *Client) RemoveService(ctx context.Context, projectID, environment, service string) (bool, error) {
+func (c *Client) RemoveService(ctx context.Context, svc platform.ServiceID) (bool, error) {
+	projectID := svc.Project
+	environment := svc.Environment
+	service := svc.Name
 	ws, err := tenant.FromContext(ctx)
 	if err != nil {
 		return false, err
@@ -263,7 +272,10 @@ func (c *Client) RemoveService(ctx context.Context, projectID, environment, serv
 }
 
 // SetCustomStartCommand sets or clears the custom start command for a service.
-func (c *Client) SetCustomStartCommand(ctx context.Context, projectID, environment, service, command string) (bool, error) {
+func (c *Client) SetCustomStartCommand(ctx context.Context, svc platform.ServiceID, command string) (bool, error) {
+	projectID := svc.Project
+	environment := svc.Environment
+	service := svc.Name
 	ws, err := tenant.FromContext(ctx)
 	if err != nil {
 		return false, err
@@ -350,7 +362,11 @@ func deployOpFromState(s *deploy.State) *DeployOp {
 
 // Deploy starts a unified build+deploy operation. It triggers a build and,
 // on success, automatically updates the image tag and syncs ArgoCD.
-func (c *Client) Deploy(ctx context.Context, ws, projectID, service, environment, gitRef string) (*DeployOp, error) {
+func (c *Client) Deploy(ctx context.Context, svc platform.ServiceID, gitRef string) (*DeployOp, error) {
+	ws := svc.Workspace
+	projectID := svc.Project
+	environment := svc.Environment
+	service := svc.Name
 	// Look up source URL, context path, and installation ID from the service definition
 	sourceURL, contextPath, installationID, err := c.serviceSourceInfo(ctx, ws, projectID, service)
 	if err != nil {
@@ -403,7 +419,10 @@ func (c *Client) DeployStatus(ctx context.Context, deployID string) (*DeployOp, 
 }
 
 // ActiveDeployment returns the in-flight deploy for a project/service/environment, or nil.
-func (c *Client) ActiveDeployment(ctx context.Context, projectID, service, environment string) (*DeployOp, error) {
+func (c *Client) ActiveDeployment(ctx context.Context, svc platform.ServiceID) (*DeployOp, error) {
+	projectID := svc.Project
+	service := svc.Name
+	environment := svc.Environment
 	s := c.DeployTracker.ActiveForService(projectID, service, environment)
 	if s == nil {
 		return nil, nil
@@ -644,7 +663,10 @@ func (c *Client) DeployLogs(ctx context.Context, deployID string) (<-chan string
 }
 
 // Rollback updates the image tag to a previous value without rebuilding.
-func (c *Client) Rollback(ctx context.Context, projectID, service, environment, imageTag string) (bool, error) {
+func (c *Client) Rollback(ctx context.Context, svc platform.ServiceID, imageTag string) (bool, error) {
+	projectID := svc.Project
+	service := svc.Name
+	environment := svc.Environment
 	ws, err := tenant.FromContext(ctx)
 	if err != nil {
 		return false, err
@@ -795,7 +817,10 @@ func (c *Client) buildDomain(ctx context.Context, hostname string) Domain {
 
 // GenerateDomain creates a platform domain for a service in an environment.
 // Format: {service}-{env}-{randomSuffix}.{workloadDomain}.
-func (c *Client) GenerateDomain(ctx context.Context, projectID, service, environment string) (*Domain, error) {
+func (c *Client) GenerateDomain(ctx context.Context, svc platform.ServiceID) (*Domain, error) {
+	projectID := svc.Project
+	service := svc.Name
+	environment := svc.Environment
 	ws, err := tenant.FromContext(ctx)
 	if err != nil {
 		return nil, err
@@ -904,7 +929,10 @@ func validateHostname(hostname string) error {
 }
 
 // AddCustomDomain adds a user-specified custom domain to a service.
-func (c *Client) AddCustomDomain(ctx context.Context, projectID, service, environment, hostname string) (*Domain, error) {
+func (c *Client) AddCustomDomain(ctx context.Context, svc platform.ServiceID, hostname string) (*Domain, error) {
+	projectID := svc.Project
+	service := svc.Name
+	environment := svc.Environment
 	ws, err := tenant.FromContext(ctx)
 	if err != nil {
 		return nil, err
@@ -953,7 +981,10 @@ func (c *Client) AddCustomDomain(ctx context.Context, projectID, service, enviro
 }
 
 // RemoveDomain removes a domain from a service in an environment.
-func (c *Client) RemoveDomain(ctx context.Context, projectID, service, environment, hostname string) (bool, error) {
+func (c *Client) RemoveDomain(ctx context.Context, svc platform.ServiceID, hostname string) (bool, error) {
+	projectID := svc.Project
+	service := svc.Name
+	environment := svc.Environment
 	ws, err := tenant.FromContext(ctx)
 	if err != nil {
 		return false, err

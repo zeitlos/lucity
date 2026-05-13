@@ -18,6 +18,7 @@ import (
 	gqlparser "github.com/vektah/gqlparser/v2"
 	"github.com/vektah/gqlparser/v2/ast"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
+	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
 // region    ************************** generated!.gotpl **************************
@@ -68,6 +69,7 @@ type ComplexityRoot struct {
 	}
 
 	Database struct {
+		ID        func(childComplexity int) int
 		Instances func(childComplexity int) int
 		Name      func(childComplexity int) int
 		Size      func(childComplexity int) int
@@ -91,13 +93,12 @@ type ComplexityRoot struct {
 	}
 
 	DatabaseInstance struct {
-		Environment func(childComplexity int) int
-		Instances   func(childComplexity int) int
-		Name        func(childComplexity int) int
-		Ready       func(childComplexity int) int
-		Size        func(childComplexity int) int
-		Version     func(childComplexity int) int
-		Volume      func(childComplexity int) int
+		Instances func(childComplexity int) int
+		Name      func(childComplexity int) int
+		Ready     func(childComplexity int) int
+		Size      func(childComplexity int) int
+		Version   func(childComplexity int) int
+		Volume    func(childComplexity int) int
 	}
 
 	DatabaseRef struct {
@@ -167,13 +168,10 @@ type ComplexityRoot struct {
 
 	Environment struct {
 		Databases    func(childComplexity int) int
-		Ephemeral    func(childComplexity int) int
 		ID           func(childComplexity int) int
 		Name         func(childComplexity int) int
-		Namespace    func(childComplexity int) int
 		ResourceTier func(childComplexity int) int
 		Services     func(childComplexity int) int
-		SyncStatus   func(childComplexity int) int
 	}
 
 	EnvironmentResources struct {
@@ -206,7 +204,7 @@ type ComplexityRoot struct {
 	}
 
 	Mutation struct {
-		AddCustomDomain           func(childComplexity int, input model.AddCustomDomainInput) int
+		AddCustomDomain           func(childComplexity int, service platform.ServiceID, hostname string) int
 		AddService                func(childComplexity int, input model.AddServiceInput) int
 		BillingPortalURL          func(childComplexity int) int
 		ChangePlan                func(childComplexity int, plan model.Plan) int
@@ -218,24 +216,24 @@ type ComplexityRoot struct {
 		CreateProject             func(childComplexity int, input model.CreateProjectInput) int
 		CreateWorkspace           func(childComplexity int, input model.CreateWorkspaceInput) int
 		CreateWorkspaceCheckout   func(childComplexity int, input model.CreateWorkspaceCheckoutInput) int
-		DeleteDatabase            func(childComplexity int, projectID string, name string) int
-		DeleteEnvironment         func(childComplexity int, projectID string, environment string) int
-		DeleteProject             func(childComplexity int, id string) int
+		DeleteDatabase            func(childComplexity int, database platform.DatabaseID) int
+		DeleteEnvironment         func(childComplexity int, environment platform.EnvironmentID) int
+		DeleteProject             func(childComplexity int, id platform.ProjectID) int
 		DeleteWorkspace           func(childComplexity int) int
-		Deploy                    func(childComplexity int, input model.DeployInput) int
-		ExecuteQuery              func(childComplexity int, input model.DatabaseQueryInput) int
-		GenerateDomain            func(childComplexity int, input model.GenerateDomainInput) int
+		Deploy                    func(childComplexity int, service platform.ServiceID, gitRef *string) int
+		ExecuteQuery              func(childComplexity int, database platform.DatabaseID, query string) int
+		GenerateDomain            func(childComplexity int, service platform.ServiceID) int
 		InviteMember              func(childComplexity int, input model.InviteMemberInput) int
 		Promote                   func(childComplexity int, input model.PromoteInput) int
-		RemoveDomain              func(childComplexity int, input model.RemoveDomainInput) int
+		RemoveDomain              func(childComplexity int, service platform.ServiceID, hostname string) int
 		RemoveMember              func(childComplexity int, userID string) int
-		RemoveService             func(childComplexity int, projectID string, environment string, service string) int
-		Rollback                  func(childComplexity int, input model.RollbackInput) int
-		SetCustomStartCommand     func(childComplexity int, projectID string, environment string, service string, command string) int
+		RemoveService             func(childComplexity int, service platform.ServiceID) int
+		Rollback                  func(childComplexity int, service platform.ServiceID, imageTag string) int
+		SetCustomStartCommand     func(childComplexity int, service platform.ServiceID, command string) int
 		SetEnvironmentResources   func(childComplexity int, input model.SetEnvironmentResourcesInput) int
 		SetServiceScaling         func(childComplexity int, input model.SetServiceScalingInput) int
-		SetServiceVariables       func(childComplexity int, projectID string, environment string, service string, variables []model.ServiceVariableInput) int
-		SetSharedVariables        func(childComplexity int, projectID string, environment string, variables []model.VariableInput) int
+		SetServiceVariables       func(childComplexity int, service platform.ServiceID, variables []model.ServiceVariableInput) int
+		SetSharedVariables        func(childComplexity int, environment platform.EnvironmentID, variables []model.VariableInput) int
 		UpdateMemberRole          func(childComplexity int, input model.UpdateMemberRoleInput) int
 		UpdateWorkspace           func(childComplexity int, input model.UpdateWorkspaceInput) int
 	}
@@ -247,33 +245,30 @@ type ComplexityRoot struct {
 	}
 
 	Project struct {
-		CreatedAt    func(childComplexity int) int
-		Databases    func(childComplexity int) int
 		Environments func(childComplexity int) int
 		ID           func(childComplexity int) int
 		Name         func(childComplexity int) int
 	}
 
 	Query struct {
-		ActiveDeployment     func(childComplexity int, projectID string, service string, environment string) int
+		ActiveDeployment     func(childComplexity int, service platform.ServiceID) int
 		CheckDNSStatus       func(childComplexity int, hostname string) int
-		DatabaseCredentials  func(childComplexity int, projectID string, environment string, database string) int
-		DatabaseTableData    func(childComplexity int, projectID string, environment string, database string, table string, schema *string, limit *int, offset *int) int
-		DatabaseTables       func(childComplexity int, projectID string, environment string, database string) int
-		Databases            func(childComplexity int, projectID string) int
+		DatabaseCredentials  func(childComplexity int, database platform.DatabaseID) int
+		DatabaseTableData    func(childComplexity int, database platform.DatabaseID, table string, schema *string, limit *int, offset *int) int
+		DatabaseTables       func(childComplexity int, database platform.DatabaseID) int
 		DeployStatus         func(childComplexity int, id string) int
 		DetectServices       func(childComplexity int, installationID string, repository string) int
-		EnvironmentResources func(childComplexity int, projectID string, environment string) int
+		EnvironmentResources func(childComplexity int, environment platform.EnvironmentID) int
 		GithubConnected      func(childComplexity int) int
 		GithubRepositories   func(childComplexity int, installationID string) int
 		GithubSources        func(childComplexity int) int
 		Me                   func(childComplexity int) int
 		PlatformConfig       func(childComplexity int) int
-		Project              func(childComplexity int, id string) int
+		Project              func(childComplexity int, id platform.ProjectID) int
 		Projects             func(childComplexity int) int
 		SearchImages         func(childComplexity int, query string) int
-		ServiceVariables     func(childComplexity int, projectID string, environment string, service string) int
-		SharedVariables      func(childComplexity int, projectID string, environment string) int
+		ServiceVariables     func(childComplexity int, service platform.ServiceID) int
+		SharedVariables      func(childComplexity int, environment platform.EnvironmentID) int
 		Subscription         func(childComplexity int) int
 		UsageSummary         func(childComplexity int) int
 		Workspace            func(childComplexity int) int
@@ -302,7 +297,6 @@ type ComplexityRoot struct {
 		CustomStartCommand func(childComplexity int) int
 		Deployments        func(childComplexity int) int
 		Domains            func(childComplexity int) int
-		Environment        func(childComplexity int) int
 		Framework          func(childComplexity int) int
 		ID                 func(childComplexity int) int
 		Image              func(childComplexity int) int
@@ -344,7 +338,7 @@ type ComplexityRoot struct {
 
 	Subscription struct {
 		DeployLogs  func(childComplexity int, id string) int
-		ServiceLogs func(childComplexity int, projectID string, service string, environment string, tailLines *int) int
+		ServiceLogs func(childComplexity int, service platform.ServiceID, tailLines *int) int
 	}
 
 	UsageSummary struct {
@@ -367,6 +361,7 @@ type ComplexityRoot struct {
 
 	Volume struct {
 		CapacityBytes func(childComplexity int) int
+		ID            func(childComplexity int) int
 		Name          func(childComplexity int) int
 		RequestedSize func(childComplexity int) int
 		Size          func(childComplexity int) int
@@ -396,6 +391,8 @@ type ComplexityRoot struct {
 
 type EnvironmentResolver interface {
 	ResourceTier(ctx context.Context, obj *model.Environment) (*model.ResourceTier, error)
+	Services(ctx context.Context, obj *model.Environment) ([]model.ServiceInstance, error)
+	Databases(ctx context.Context, obj *model.Environment) ([]model.DatabaseInstance, error)
 }
 type MutationResolver interface {
 	SetEnvironmentResources(ctx context.Context, input model.SetEnvironmentResourcesInput) (*model.EnvironmentResources, error)
@@ -404,24 +401,24 @@ type MutationResolver interface {
 	CreatePlanCheckout(ctx context.Context, plan model.Plan) (*model.CheckoutSession, error)
 	CompletePlanCheckout(ctx context.Context, sessionID string) (*model.BillingSubscription, error)
 	CreateDatabase(ctx context.Context, input model.CreateDatabaseInput) (*model.Database, error)
-	DeleteDatabase(ctx context.Context, projectID string, name string) (bool, error)
-	ExecuteQuery(ctx context.Context, input model.DatabaseQueryInput) (*model.QueryResult, error)
+	DeleteDatabase(ctx context.Context, database platform.DatabaseID) (bool, error)
+	ExecuteQuery(ctx context.Context, database platform.DatabaseID, query string) (*model.QueryResult, error)
 	CreateEnvironment(ctx context.Context, input model.CreateEnvironmentInput) (*model.Environment, error)
-	DeleteEnvironment(ctx context.Context, projectID string, environment string) (bool, error)
+	DeleteEnvironment(ctx context.Context, environment platform.EnvironmentID) (bool, error)
 	Promote(ctx context.Context, input model.PromoteInput) (*model.ServiceInstance, error)
 	CreateProject(ctx context.Context, input model.CreateProjectInput) (*model.Project, error)
-	DeleteProject(ctx context.Context, id string) (bool, error)
+	DeleteProject(ctx context.Context, id platform.ProjectID) (bool, error)
 	SetServiceScaling(ctx context.Context, input model.SetServiceScalingInput) (*model.ScalingConfig, error)
 	AddService(ctx context.Context, input model.AddServiceInput) (*model.ServiceInstance, error)
-	RemoveService(ctx context.Context, projectID string, environment string, service string) (bool, error)
-	SetCustomStartCommand(ctx context.Context, projectID string, environment string, service string, command string) (bool, error)
-	Deploy(ctx context.Context, input model.DeployInput) (*model.DeployRun, error)
-	Rollback(ctx context.Context, input model.RollbackInput) (bool, error)
-	GenerateDomain(ctx context.Context, input model.GenerateDomainInput) (*model.Domain, error)
-	AddCustomDomain(ctx context.Context, input model.AddCustomDomainInput) (*model.Domain, error)
-	RemoveDomain(ctx context.Context, input model.RemoveDomainInput) (bool, error)
-	SetSharedVariables(ctx context.Context, projectID string, environment string, variables []model.VariableInput) (bool, error)
-	SetServiceVariables(ctx context.Context, projectID string, environment string, service string, variables []model.ServiceVariableInput) (bool, error)
+	RemoveService(ctx context.Context, service platform.ServiceID) (bool, error)
+	SetCustomStartCommand(ctx context.Context, service platform.ServiceID, command string) (bool, error)
+	Deploy(ctx context.Context, service platform.ServiceID, gitRef *string) (*model.DeployRun, error)
+	Rollback(ctx context.Context, service platform.ServiceID, imageTag string) (bool, error)
+	GenerateDomain(ctx context.Context, service platform.ServiceID) (*model.Domain, error)
+	AddCustomDomain(ctx context.Context, service platform.ServiceID, hostname string) (*model.Domain, error)
+	RemoveDomain(ctx context.Context, service platform.ServiceID, hostname string) (bool, error)
+	SetSharedVariables(ctx context.Context, environment platform.EnvironmentID, variables []model.VariableInput) (bool, error)
+	SetServiceVariables(ctx context.Context, service platform.ServiceID, variables []model.ServiceVariableInput) (bool, error)
 	CreateWorkspace(ctx context.Context, input model.CreateWorkspaceInput) (*model.Workspace, error)
 	CreateWorkspaceCheckout(ctx context.Context, input model.CreateWorkspaceCheckoutInput) (*model.CheckoutSession, error)
 	CompleteWorkspaceCheckout(ctx context.Context, sessionID string) (*model.Workspace, error)
@@ -433,31 +430,30 @@ type MutationResolver interface {
 }
 type QueryResolver interface {
 	Me(ctx context.Context) (*model.User, error)
-	EnvironmentResources(ctx context.Context, projectID string, environment string) (*model.EnvironmentResources, error)
+	EnvironmentResources(ctx context.Context, environment platform.EnvironmentID) (*model.EnvironmentResources, error)
 	Subscription(ctx context.Context) (*model.BillingSubscription, error)
 	UsageSummary(ctx context.Context) (*model.UsageSummary, error)
-	Databases(ctx context.Context, projectID string) ([]model.Database, error)
-	DatabaseTables(ctx context.Context, projectID string, environment string, database string) ([]model.DatabaseTable, error)
-	DatabaseTableData(ctx context.Context, projectID string, environment string, database string, table string, schema *string, limit *int, offset *int) (*model.DatabaseTableData, error)
-	DatabaseCredentials(ctx context.Context, projectID string, environment string, database string) (*model.DatabaseCredentials, error)
+	DatabaseTables(ctx context.Context, database platform.DatabaseID) ([]model.DatabaseTable, error)
+	DatabaseTableData(ctx context.Context, database platform.DatabaseID, table string, schema *string, limit *int, offset *int) (*model.DatabaseTableData, error)
+	DatabaseCredentials(ctx context.Context, database platform.DatabaseID) (*model.DatabaseCredentials, error)
 	GithubSources(ctx context.Context) ([]model.GitHubInstallation, error)
 	GithubRepositories(ctx context.Context, installationID string) ([]model.GitHubRepository, error)
 	GithubConnected(ctx context.Context) (bool, error)
 	Projects(ctx context.Context) ([]model.Project, error)
-	Project(ctx context.Context, id string) (*model.Project, error)
+	Project(ctx context.Context, id platform.ProjectID) (*model.Project, error)
 	SearchImages(ctx context.Context, query string) ([]model.ImageSearchResult, error)
 	DetectServices(ctx context.Context, installationID string, repository string) ([]model.DetectedService, error)
 	DeployStatus(ctx context.Context, id string) (*model.DeployRun, error)
-	ActiveDeployment(ctx context.Context, projectID string, service string, environment string) (*model.DeployRun, error)
+	ActiveDeployment(ctx context.Context, service platform.ServiceID) (*model.DeployRun, error)
 	PlatformConfig(ctx context.Context) (*model.PlatformConfig, error)
 	CheckDNSStatus(ctx context.Context, hostname string) (*model.DNSCheck, error)
-	SharedVariables(ctx context.Context, projectID string, environment string) ([]model.Variable, error)
-	ServiceVariables(ctx context.Context, projectID string, environment string, service string) ([]model.ServiceVariable, error)
+	SharedVariables(ctx context.Context, environment platform.EnvironmentID) ([]model.Variable, error)
+	ServiceVariables(ctx context.Context, service platform.ServiceID) ([]model.ServiceVariable, error)
 	Workspace(ctx context.Context) (*model.Workspace, error)
 	Workspaces(ctx context.Context) ([]model.Workspace, error)
 }
 type SubscriptionResolver interface {
-	ServiceLogs(ctx context.Context, projectID string, service string, environment string, tailLines *int) (<-chan *model.ServiceLogEntry, error)
+	ServiceLogs(ctx context.Context, service platform.ServiceID, tailLines *int) (<-chan *model.ServiceLogEntry, error)
 	DeployLogs(ctx context.Context, id string) (<-chan string, error)
 }
 
@@ -551,6 +547,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.CheckoutSession.URL(childComplexity), true
 
+	case "Database.id":
+		if e.ComplexityRoot.Database.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Database.ID(childComplexity), true
 	case "Database.instances":
 		if e.ComplexityRoot.Database.Instances == nil {
 			break
@@ -638,12 +640,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.DatabaseCredentials.User(childComplexity), true
 
-	case "DatabaseInstance.environment":
-		if e.ComplexityRoot.DatabaseInstance.Environment == nil {
-			break
-		}
-
-		return e.ComplexityRoot.DatabaseInstance.Environment(childComplexity), true
 	case "DatabaseInstance.instances":
 		if e.ComplexityRoot.DatabaseInstance.Instances == nil {
 			break
@@ -941,12 +937,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Environment.Databases(childComplexity), true
-	case "Environment.ephemeral":
-		if e.ComplexityRoot.Environment.Ephemeral == nil {
-			break
-		}
-
-		return e.ComplexityRoot.Environment.Ephemeral(childComplexity), true
 	case "Environment.id":
 		if e.ComplexityRoot.Environment.ID == nil {
 			break
@@ -959,12 +949,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Environment.Name(childComplexity), true
-	case "Environment.namespace":
-		if e.ComplexityRoot.Environment.Namespace == nil {
-			break
-		}
-
-		return e.ComplexityRoot.Environment.Namespace(childComplexity), true
 	case "Environment.resourceTier":
 		if e.ComplexityRoot.Environment.ResourceTier == nil {
 			break
@@ -977,12 +961,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Environment.Services(childComplexity), true
-	case "Environment.syncStatus":
-		if e.ComplexityRoot.Environment.SyncStatus == nil {
-			break
-		}
-
-		return e.ComplexityRoot.Environment.SyncStatus(childComplexity), true
 
 	case "EnvironmentResources.allocation":
 		if e.ComplexityRoot.EnvironmentResources.Allocation == nil {
@@ -1100,7 +1078,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Mutation.AddCustomDomain(childComplexity, args["input"].(model.AddCustomDomainInput)), true
+		return e.ComplexityRoot.Mutation.AddCustomDomain(childComplexity, args["service"].(platform.ServiceID), args["hostname"].(string)), true
 	case "Mutation.addService":
 		if e.ComplexityRoot.Mutation.AddService == nil {
 			break
@@ -1227,7 +1205,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Mutation.DeleteDatabase(childComplexity, args["projectId"].(string), args["name"].(string)), true
+		return e.ComplexityRoot.Mutation.DeleteDatabase(childComplexity, args["database"].(platform.DatabaseID)), true
 	case "Mutation.deleteEnvironment":
 		if e.ComplexityRoot.Mutation.DeleteEnvironment == nil {
 			break
@@ -1238,7 +1216,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Mutation.DeleteEnvironment(childComplexity, args["projectId"].(string), args["environment"].(string)), true
+		return e.ComplexityRoot.Mutation.DeleteEnvironment(childComplexity, args["environment"].(platform.EnvironmentID)), true
 	case "Mutation.deleteProject":
 		if e.ComplexityRoot.Mutation.DeleteProject == nil {
 			break
@@ -1249,7 +1227,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Mutation.DeleteProject(childComplexity, args["id"].(string)), true
+		return e.ComplexityRoot.Mutation.DeleteProject(childComplexity, args["id"].(platform.ProjectID)), true
 	case "Mutation.deleteWorkspace":
 		if e.ComplexityRoot.Mutation.DeleteWorkspace == nil {
 			break
@@ -1266,7 +1244,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Mutation.Deploy(childComplexity, args["input"].(model.DeployInput)), true
+		return e.ComplexityRoot.Mutation.Deploy(childComplexity, args["service"].(platform.ServiceID), args["gitRef"].(*string)), true
 	case "Mutation.executeQuery":
 		if e.ComplexityRoot.Mutation.ExecuteQuery == nil {
 			break
@@ -1277,7 +1255,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Mutation.ExecuteQuery(childComplexity, args["input"].(model.DatabaseQueryInput)), true
+		return e.ComplexityRoot.Mutation.ExecuteQuery(childComplexity, args["database"].(platform.DatabaseID), args["query"].(string)), true
 	case "Mutation.generateDomain":
 		if e.ComplexityRoot.Mutation.GenerateDomain == nil {
 			break
@@ -1288,7 +1266,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Mutation.GenerateDomain(childComplexity, args["input"].(model.GenerateDomainInput)), true
+		return e.ComplexityRoot.Mutation.GenerateDomain(childComplexity, args["service"].(platform.ServiceID)), true
 	case "Mutation.inviteMember":
 		if e.ComplexityRoot.Mutation.InviteMember == nil {
 			break
@@ -1321,7 +1299,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Mutation.RemoveDomain(childComplexity, args["input"].(model.RemoveDomainInput)), true
+		return e.ComplexityRoot.Mutation.RemoveDomain(childComplexity, args["service"].(platform.ServiceID), args["hostname"].(string)), true
 	case "Mutation.removeMember":
 		if e.ComplexityRoot.Mutation.RemoveMember == nil {
 			break
@@ -1343,7 +1321,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Mutation.RemoveService(childComplexity, args["projectId"].(string), args["environment"].(string), args["service"].(string)), true
+		return e.ComplexityRoot.Mutation.RemoveService(childComplexity, args["service"].(platform.ServiceID)), true
 	case "Mutation.rollback":
 		if e.ComplexityRoot.Mutation.Rollback == nil {
 			break
@@ -1354,7 +1332,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Mutation.Rollback(childComplexity, args["input"].(model.RollbackInput)), true
+		return e.ComplexityRoot.Mutation.Rollback(childComplexity, args["service"].(platform.ServiceID), args["imageTag"].(string)), true
 	case "Mutation.setCustomStartCommand":
 		if e.ComplexityRoot.Mutation.SetCustomStartCommand == nil {
 			break
@@ -1365,7 +1343,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Mutation.SetCustomStartCommand(childComplexity, args["projectId"].(string), args["environment"].(string), args["service"].(string), args["command"].(string)), true
+		return e.ComplexityRoot.Mutation.SetCustomStartCommand(childComplexity, args["service"].(platform.ServiceID), args["command"].(string)), true
 	case "Mutation.setEnvironmentResources":
 		if e.ComplexityRoot.Mutation.SetEnvironmentResources == nil {
 			break
@@ -1398,7 +1376,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Mutation.SetServiceVariables(childComplexity, args["projectId"].(string), args["environment"].(string), args["service"].(string), args["variables"].([]model.ServiceVariableInput)), true
+		return e.ComplexityRoot.Mutation.SetServiceVariables(childComplexity, args["service"].(platform.ServiceID), args["variables"].([]model.ServiceVariableInput)), true
 	case "Mutation.setSharedVariables":
 		if e.ComplexityRoot.Mutation.SetSharedVariables == nil {
 			break
@@ -1409,7 +1387,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Mutation.SetSharedVariables(childComplexity, args["projectId"].(string), args["environment"].(string), args["variables"].([]model.VariableInput)), true
+		return e.ComplexityRoot.Mutation.SetSharedVariables(childComplexity, args["environment"].(platform.EnvironmentID), args["variables"].([]model.VariableInput)), true
 	case "Mutation.updateMemberRole":
 		if e.ComplexityRoot.Mutation.UpdateMemberRole == nil {
 			break
@@ -1452,18 +1430,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.PlatformConfig.WorkloadDomain(childComplexity), true
 
-	case "Project.createdAt":
-		if e.ComplexityRoot.Project.CreatedAt == nil {
-			break
-		}
-
-		return e.ComplexityRoot.Project.CreatedAt(childComplexity), true
-	case "Project.databases":
-		if e.ComplexityRoot.Project.Databases == nil {
-			break
-		}
-
-		return e.ComplexityRoot.Project.Databases(childComplexity), true
 	case "Project.environments":
 		if e.ComplexityRoot.Project.Environments == nil {
 			break
@@ -1493,7 +1459,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Query.ActiveDeployment(childComplexity, args["projectId"].(string), args["service"].(string), args["environment"].(string)), true
+		return e.ComplexityRoot.Query.ActiveDeployment(childComplexity, args["service"].(platform.ServiceID)), true
 	case "Query.checkDnsStatus":
 		if e.ComplexityRoot.Query.CheckDNSStatus == nil {
 			break
@@ -1515,7 +1481,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Query.DatabaseCredentials(childComplexity, args["projectId"].(string), args["environment"].(string), args["database"].(string)), true
+		return e.ComplexityRoot.Query.DatabaseCredentials(childComplexity, args["database"].(platform.DatabaseID)), true
 	case "Query.databaseTableData":
 		if e.ComplexityRoot.Query.DatabaseTableData == nil {
 			break
@@ -1526,7 +1492,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Query.DatabaseTableData(childComplexity, args["projectId"].(string), args["environment"].(string), args["database"].(string), args["table"].(string), args["schema"].(*string), args["limit"].(*int), args["offset"].(*int)), true
+		return e.ComplexityRoot.Query.DatabaseTableData(childComplexity, args["database"].(platform.DatabaseID), args["table"].(string), args["schema"].(*string), args["limit"].(*int), args["offset"].(*int)), true
 	case "Query.databaseTables":
 		if e.ComplexityRoot.Query.DatabaseTables == nil {
 			break
@@ -1537,18 +1503,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Query.DatabaseTables(childComplexity, args["projectId"].(string), args["environment"].(string), args["database"].(string)), true
-	case "Query.databases":
-		if e.ComplexityRoot.Query.Databases == nil {
-			break
-		}
-
-		args, err := ec.field_Query_databases_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.ComplexityRoot.Query.Databases(childComplexity, args["projectId"].(string)), true
+		return e.ComplexityRoot.Query.DatabaseTables(childComplexity, args["database"].(platform.DatabaseID)), true
 	case "Query.deployStatus":
 		if e.ComplexityRoot.Query.DeployStatus == nil {
 			break
@@ -1581,7 +1536,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Query.EnvironmentResources(childComplexity, args["projectId"].(string), args["environment"].(string)), true
+		return e.ComplexityRoot.Query.EnvironmentResources(childComplexity, args["environment"].(platform.EnvironmentID)), true
 	case "Query.githubConnected":
 		if e.ComplexityRoot.Query.GithubConnected == nil {
 			break
@@ -1628,7 +1583,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Query.Project(childComplexity, args["id"].(string)), true
+		return e.ComplexityRoot.Query.Project(childComplexity, args["id"].(platform.ProjectID)), true
 	case "Query.projects":
 		if e.ComplexityRoot.Query.Projects == nil {
 			break
@@ -1656,7 +1611,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Query.ServiceVariables(childComplexity, args["projectId"].(string), args["environment"].(string), args["service"].(string)), true
+		return e.ComplexityRoot.Query.ServiceVariables(childComplexity, args["service"].(platform.ServiceID)), true
 	case "Query.sharedVariables":
 		if e.ComplexityRoot.Query.SharedVariables == nil {
 			break
@@ -1667,7 +1622,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Query.SharedVariables(childComplexity, args["projectId"].(string), args["environment"].(string)), true
+		return e.ComplexityRoot.Query.SharedVariables(childComplexity, args["environment"].(platform.EnvironmentID)), true
 	case "Query.subscription":
 		if e.ComplexityRoot.Query.Subscription == nil {
 			break
@@ -1768,12 +1723,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.ServiceInstance.Domains(childComplexity), true
-	case "ServiceInstance.environment":
-		if e.ComplexityRoot.ServiceInstance.Environment == nil {
-			break
-		}
-
-		return e.ComplexityRoot.ServiceInstance.Environment(childComplexity), true
 	case "ServiceInstance.framework":
 		if e.ComplexityRoot.ServiceInstance.Framework == nil {
 			break
@@ -1950,7 +1899,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Subscription.ServiceLogs(childComplexity, args["projectId"].(string), args["service"].(string), args["environment"].(string), args["tailLines"].(*int)), true
+		return e.ComplexityRoot.Subscription.ServiceLogs(childComplexity, args["service"].(platform.ServiceID), args["tailLines"].(*int)), true
 
 	case "UsageSummary.creditsCents":
 		if e.ComplexityRoot.UsageSummary.CreditsCents == nil {
@@ -2015,6 +1964,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Volume.CapacityBytes(childComplexity), true
+	case "Volume.id":
+		if e.ComplexityRoot.Volume.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Volume.ID(childComplexity), true
 	case "Volume.name":
 		if e.ComplexityRoot.Volume.Name == nil {
 			break
@@ -2117,7 +2072,6 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 	opCtx := graphql.GetOperationContext(ctx)
 	ec := newExecutionContext(opCtx, e, make(chan graphql.DeferredResult))
 	inputUnmarshalMap := graphql.BuildUnmarshalerMap(
-		ec.unmarshalInputAddCustomDomainInput,
 		ec.unmarshalInputAddServiceInput,
 		ec.unmarshalInputAutoscalingInput,
 		ec.unmarshalInputCreateDatabaseInput,
@@ -2125,14 +2079,9 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputCreateProjectInput,
 		ec.unmarshalInputCreateWorkspaceCheckoutInput,
 		ec.unmarshalInputCreateWorkspaceInput,
-		ec.unmarshalInputDatabaseQueryInput,
 		ec.unmarshalInputDatabaseRefInput,
-		ec.unmarshalInputDeployInput,
-		ec.unmarshalInputGenerateDomainInput,
 		ec.unmarshalInputInviteMemberInput,
 		ec.unmarshalInputPromoteInput,
-		ec.unmarshalInputRemoveDomainInput,
-		ec.unmarshalInputRollbackInput,
 		ec.unmarshalInputServiceRefInput,
 		ec.unmarshalInputServiceVariableInput,
 		ec.unmarshalInputSetEnvironmentResourcesInput,
@@ -2312,6 +2261,8 @@ func (ec *executionContext) childFields_CheckoutSession(ctx context.Context, fie
 
 func (ec *executionContext) childFields_Database(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
+	case "id":
+		return ec.fieldContext_Database_id(ctx, field)
 	case "name":
 		return ec.fieldContext_Database_name(ctx, field)
 	case "version":
@@ -2360,8 +2311,6 @@ func (ec *executionContext) childFields_DatabaseInstance(ctx context.Context, fi
 	switch field.Name {
 	case "name":
 		return ec.fieldContext_DatabaseInstance_name(ctx, field)
-	case "environment":
-		return ec.fieldContext_DatabaseInstance_environment(ctx, field)
 	case "ready":
 		return ec.fieldContext_DatabaseInstance_ready(ctx, field)
 	case "instances":
@@ -2512,12 +2461,6 @@ func (ec *executionContext) childFields_Environment(ctx context.Context, field g
 		return ec.fieldContext_Environment_id(ctx, field)
 	case "name":
 		return ec.fieldContext_Environment_name(ctx, field)
-	case "namespace":
-		return ec.fieldContext_Environment_namespace(ctx, field)
-	case "ephemeral":
-		return ec.fieldContext_Environment_ephemeral(ctx, field)
-	case "syncStatus":
-		return ec.fieldContext_Environment_syncStatus(ctx, field)
 	case "resourceTier":
 		return ec.fieldContext_Environment_resourceTier(ctx, field)
 	case "services":
@@ -2606,10 +2549,6 @@ func (ec *executionContext) childFields_Project(ctx context.Context, field graph
 		return ec.fieldContext_Project_name(ctx, field)
 	case "environments":
 		return ec.fieldContext_Project_environments(ctx, field)
-	case "databases":
-		return ec.fieldContext_Project_databases(ctx, field)
-	case "createdAt":
-		return ec.fieldContext_Project_createdAt(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type Project", field.Name)
 }
@@ -2654,8 +2593,6 @@ func (ec *executionContext) childFields_ServiceInstance(ctx context.Context, fie
 		return ec.fieldContext_ServiceInstance_id(ctx, field)
 	case "name":
 		return ec.fieldContext_ServiceInstance_name(ctx, field)
-	case "environment":
-		return ec.fieldContext_ServiceInstance_environment(ctx, field)
 	case "image":
 		return ec.fieldContext_ServiceInstance_image(ctx, field)
 	case "port":
@@ -2776,6 +2713,8 @@ func (ec *executionContext) childFields_Variable(ctx context.Context, field grap
 
 func (ec *executionContext) childFields_Volume(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
+	case "id":
+		return ec.fieldContext_Volume_id(ctx, field)
 	case "name":
 		return ec.fieldContext_Volume_name(ctx, field)
 	case "size":
@@ -2977,15 +2916,61 @@ func (ec *executionContext) dir_hasRole_args(ctx context.Context, rawArgs map[st
 func (ec *executionContext) field_Mutation_addCustomDomain_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input",
-		func(ctx context.Context, v any) (model.AddCustomDomainInput, error) {
-			return ec.unmarshalNAddCustomDomainInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAddCustomDomainInput(ctx, v)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "service",
+		func(ctx context.Context, v any) (platform.ServiceID, error) {
+			return ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐServiceID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
 	}
-	args["input"] = arg0
+	args["service"] = arg0
+
+	arg1, err := ec.field_Mutation_addCustomDomain_argsHostname(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["hostname"] = arg1
 	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_addCustomDomain_argsHostname(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("hostname"))
+	directive0 := func(ctx context.Context) (any, error) {
+		tmp, ok := rawArgs["hostname"]
+		if !ok {
+			var zeroVal string
+			return zeroVal, nil
+		}
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	directive1 := func(ctx context.Context) (any, error) {
+		constraint, err := ec.unmarshalNString2string(ctx, "min=4,max=253")
+		if err != nil {
+			var zeroVal string
+			return zeroVal, err
+		}
+		if ec.Directives.Constraint == nil {
+			var zeroVal string
+			return zeroVal, errors.New("directive constraint is not implemented")
+		}
+		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
+	}
+
+	tmp, err := directive1(ctx)
+	if err != nil {
+		var zeroVal string
+		return zeroVal, graphql.ErrorOnPath(ctx, err)
+	}
+	if data, ok := tmp.(string); ok {
+		return data, nil
+	} else {
+		var zeroVal string
+		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
+	}
 }
 
 func (ec *executionContext) field_Mutation_addService_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
@@ -3131,204 +3116,38 @@ func (ec *executionContext) field_Mutation_createWorkspace_args(ctx context.Cont
 func (ec *executionContext) field_Mutation_deleteDatabase_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-
-	arg0, err := ec.field_Mutation_deleteDatabase_argsProjectID(ctx, rawArgs)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "database",
+		func(ctx context.Context, v any) (platform.DatabaseID, error) {
+			return ec.unmarshalNDatabaseID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐDatabaseID(ctx, v)
+		})
 	if err != nil {
 		return nil, err
 	}
-	args["projectId"] = arg0
-
-	arg1, err := ec.field_Mutation_deleteDatabase_argsName(ctx, rawArgs)
-	if err != nil {
-		return nil, err
-	}
-	args["name"] = arg1
+	args["database"] = arg0
 	return args, nil
-}
-
-func (ec *executionContext) field_Mutation_deleteDatabase_argsProjectID(
-	ctx context.Context,
-	rawArgs map[string]any,
-) (string, error) {
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("projectId"))
-	directive0 := func(ctx context.Context) (any, error) {
-		tmp, ok := rawArgs["projectId"]
-		if !ok {
-			var zeroVal string
-			return zeroVal, nil
-		}
-		return ec.unmarshalNID2string(ctx, tmp)
-	}
-
-	directive1 := func(ctx context.Context) (any, error) {
-		constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-		if err != nil {
-			var zeroVal string
-			return zeroVal, err
-		}
-		if ec.Directives.Constraint == nil {
-			var zeroVal string
-			return zeroVal, errors.New("directive constraint is not implemented")
-		}
-		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
-	}
-
-	tmp, err := directive1(ctx)
-	if err != nil {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, err)
-	}
-	if data, ok := tmp.(string); ok {
-		return data, nil
-	} else {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
-	}
-}
-
-func (ec *executionContext) field_Mutation_deleteDatabase_argsName(
-	ctx context.Context,
-	rawArgs map[string]any,
-) (string, error) {
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
-	directive0 := func(ctx context.Context) (any, error) {
-		tmp, ok := rawArgs["name"]
-		if !ok {
-			var zeroVal string
-			return zeroVal, nil
-		}
-		return ec.unmarshalNString2string(ctx, tmp)
-	}
-
-	directive1 := func(ctx context.Context) (any, error) {
-		constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-		if err != nil {
-			var zeroVal string
-			return zeroVal, err
-		}
-		if ec.Directives.Constraint == nil {
-			var zeroVal string
-			return zeroVal, errors.New("directive constraint is not implemented")
-		}
-		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
-	}
-
-	tmp, err := directive1(ctx)
-	if err != nil {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, err)
-	}
-	if data, ok := tmp.(string); ok {
-		return data, nil
-	} else {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
-	}
 }
 
 func (ec *executionContext) field_Mutation_deleteEnvironment_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-
-	arg0, err := ec.field_Mutation_deleteEnvironment_argsProjectID(ctx, rawArgs)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "environment",
+		func(ctx context.Context, v any) (platform.EnvironmentID, error) {
+			return ec.unmarshalNEnvironmentID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐEnvironmentID(ctx, v)
+		})
 	if err != nil {
 		return nil, err
 	}
-	args["projectId"] = arg0
-
-	arg1, err := ec.field_Mutation_deleteEnvironment_argsEnvironment(ctx, rawArgs)
-	if err != nil {
-		return nil, err
-	}
-	args["environment"] = arg1
+	args["environment"] = arg0
 	return args, nil
-}
-
-func (ec *executionContext) field_Mutation_deleteEnvironment_argsProjectID(
-	ctx context.Context,
-	rawArgs map[string]any,
-) (string, error) {
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("projectId"))
-	directive0 := func(ctx context.Context) (any, error) {
-		tmp, ok := rawArgs["projectId"]
-		if !ok {
-			var zeroVal string
-			return zeroVal, nil
-		}
-		return ec.unmarshalNID2string(ctx, tmp)
-	}
-
-	directive1 := func(ctx context.Context) (any, error) {
-		constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-		if err != nil {
-			var zeroVal string
-			return zeroVal, err
-		}
-		if ec.Directives.Constraint == nil {
-			var zeroVal string
-			return zeroVal, errors.New("directive constraint is not implemented")
-		}
-		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
-	}
-
-	tmp, err := directive1(ctx)
-	if err != nil {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, err)
-	}
-	if data, ok := tmp.(string); ok {
-		return data, nil
-	} else {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
-	}
-}
-
-func (ec *executionContext) field_Mutation_deleteEnvironment_argsEnvironment(
-	ctx context.Context,
-	rawArgs map[string]any,
-) (string, error) {
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("environment"))
-	directive0 := func(ctx context.Context) (any, error) {
-		tmp, ok := rawArgs["environment"]
-		if !ok {
-			var zeroVal string
-			return zeroVal, nil
-		}
-		return ec.unmarshalNString2string(ctx, tmp)
-	}
-
-	directive1 := func(ctx context.Context) (any, error) {
-		constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-		if err != nil {
-			var zeroVal string
-			return zeroVal, err
-		}
-		if ec.Directives.Constraint == nil {
-			var zeroVal string
-			return zeroVal, errors.New("directive constraint is not implemented")
-		}
-		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
-	}
-
-	tmp, err := directive1(ctx)
-	if err != nil {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, err)
-	}
-	if data, ok := tmp.(string); ok {
-		return data, nil
-	} else {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
-	}
 }
 
 func (ec *executionContext) field_Mutation_deleteProject_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-
-	arg0, err := ec.field_Mutation_deleteProject_argsID(ctx, rawArgs)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id",
+		func(ctx context.Context, v any) (platform.ProjectID, error) {
+			return ec.unmarshalNProjectID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐProjectID(ctx, v)
+		})
 	if err != nil {
 		return nil, err
 	}
@@ -3336,85 +3155,61 @@ func (ec *executionContext) field_Mutation_deleteProject_args(ctx context.Contex
 	return args, nil
 }
 
-func (ec *executionContext) field_Mutation_deleteProject_argsID(
-	ctx context.Context,
-	rawArgs map[string]any,
-) (string, error) {
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
-	directive0 := func(ctx context.Context) (any, error) {
-		tmp, ok := rawArgs["id"]
-		if !ok {
-			var zeroVal string
-			return zeroVal, nil
-		}
-		return ec.unmarshalNID2string(ctx, tmp)
-	}
-
-	directive1 := func(ctx context.Context) (any, error) {
-		constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-		if err != nil {
-			var zeroVal string
-			return zeroVal, err
-		}
-		if ec.Directives.Constraint == nil {
-			var zeroVal string
-			return zeroVal, errors.New("directive constraint is not implemented")
-		}
-		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
-	}
-
-	tmp, err := directive1(ctx)
-	if err != nil {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, err)
-	}
-	if data, ok := tmp.(string); ok {
-		return data, nil
-	} else {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
-	}
-}
-
 func (ec *executionContext) field_Mutation_deploy_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input",
-		func(ctx context.Context, v any) (model.DeployInput, error) {
-			return ec.unmarshalNDeployInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDeployInput(ctx, v)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "service",
+		func(ctx context.Context, v any) (platform.ServiceID, error) {
+			return ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐServiceID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
 	}
-	args["input"] = arg0
+	args["service"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "gitRef",
+		func(ctx context.Context, v any) (*string, error) {
+			return ec.unmarshalOString2ᚖstring(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["gitRef"] = arg1
 	return args, nil
 }
 
 func (ec *executionContext) field_Mutation_executeQuery_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input",
-		func(ctx context.Context, v any) (model.DatabaseQueryInput, error) {
-			return ec.unmarshalNDatabaseQueryInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabaseQueryInput(ctx, v)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "database",
+		func(ctx context.Context, v any) (platform.DatabaseID, error) {
+			return ec.unmarshalNDatabaseID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐDatabaseID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
 	}
-	args["input"] = arg0
+	args["database"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "query",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["query"] = arg1
 	return args, nil
 }
 
 func (ec *executionContext) field_Mutation_generateDomain_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input",
-		func(ctx context.Context, v any) (model.GenerateDomainInput, error) {
-			return ec.unmarshalNGenerateDomainInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐGenerateDomainInput(ctx, v)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "service",
+		func(ctx context.Context, v any) (platform.ServiceID, error) {
+			return ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐServiceID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
 	}
-	args["input"] = arg0
+	args["service"] = arg0
 	return args, nil
 }
 
@@ -3449,14 +3244,22 @@ func (ec *executionContext) field_Mutation_promote_args(ctx context.Context, raw
 func (ec *executionContext) field_Mutation_removeDomain_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input",
-		func(ctx context.Context, v any) (model.RemoveDomainInput, error) {
-			return ec.unmarshalNRemoveDomainInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRemoveDomainInput(ctx, v)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "service",
+		func(ctx context.Context, v any) (platform.ServiceID, error) {
+			return ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐServiceID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
 	}
-	args["input"] = arg0
+	args["service"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "hostname",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["hostname"] = arg1
 	return args, nil
 }
 
@@ -3477,311 +3280,59 @@ func (ec *executionContext) field_Mutation_removeMember_args(ctx context.Context
 func (ec *executionContext) field_Mutation_removeService_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-
-	arg0, err := ec.field_Mutation_removeService_argsProjectID(ctx, rawArgs)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "service",
+		func(ctx context.Context, v any) (platform.ServiceID, error) {
+			return ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐServiceID(ctx, v)
+		})
 	if err != nil {
 		return nil, err
 	}
-	args["projectId"] = arg0
-
-	arg1, err := ec.field_Mutation_removeService_argsEnvironment(ctx, rawArgs)
-	if err != nil {
-		return nil, err
-	}
-	args["environment"] = arg1
-
-	arg2, err := ec.field_Mutation_removeService_argsService(ctx, rawArgs)
-	if err != nil {
-		return nil, err
-	}
-	args["service"] = arg2
+	args["service"] = arg0
 	return args, nil
-}
-
-func (ec *executionContext) field_Mutation_removeService_argsProjectID(
-	ctx context.Context,
-	rawArgs map[string]any,
-) (string, error) {
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("projectId"))
-	directive0 := func(ctx context.Context) (any, error) {
-		tmp, ok := rawArgs["projectId"]
-		if !ok {
-			var zeroVal string
-			return zeroVal, nil
-		}
-		return ec.unmarshalNID2string(ctx, tmp)
-	}
-
-	directive1 := func(ctx context.Context) (any, error) {
-		constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-		if err != nil {
-			var zeroVal string
-			return zeroVal, err
-		}
-		if ec.Directives.Constraint == nil {
-			var zeroVal string
-			return zeroVal, errors.New("directive constraint is not implemented")
-		}
-		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
-	}
-
-	tmp, err := directive1(ctx)
-	if err != nil {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, err)
-	}
-	if data, ok := tmp.(string); ok {
-		return data, nil
-	} else {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
-	}
-}
-
-func (ec *executionContext) field_Mutation_removeService_argsEnvironment(
-	ctx context.Context,
-	rawArgs map[string]any,
-) (string, error) {
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("environment"))
-	directive0 := func(ctx context.Context) (any, error) {
-		tmp, ok := rawArgs["environment"]
-		if !ok {
-			var zeroVal string
-			return zeroVal, nil
-		}
-		return ec.unmarshalNString2string(ctx, tmp)
-	}
-
-	directive1 := func(ctx context.Context) (any, error) {
-		constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-		if err != nil {
-			var zeroVal string
-			return zeroVal, err
-		}
-		if ec.Directives.Constraint == nil {
-			var zeroVal string
-			return zeroVal, errors.New("directive constraint is not implemented")
-		}
-		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
-	}
-
-	tmp, err := directive1(ctx)
-	if err != nil {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, err)
-	}
-	if data, ok := tmp.(string); ok {
-		return data, nil
-	} else {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
-	}
-}
-
-func (ec *executionContext) field_Mutation_removeService_argsService(
-	ctx context.Context,
-	rawArgs map[string]any,
-) (string, error) {
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("service"))
-	directive0 := func(ctx context.Context) (any, error) {
-		tmp, ok := rawArgs["service"]
-		if !ok {
-			var zeroVal string
-			return zeroVal, nil
-		}
-		return ec.unmarshalNString2string(ctx, tmp)
-	}
-
-	directive1 := func(ctx context.Context) (any, error) {
-		constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-		if err != nil {
-			var zeroVal string
-			return zeroVal, err
-		}
-		if ec.Directives.Constraint == nil {
-			var zeroVal string
-			return zeroVal, errors.New("directive constraint is not implemented")
-		}
-		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
-	}
-
-	tmp, err := directive1(ctx)
-	if err != nil {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, err)
-	}
-	if data, ok := tmp.(string); ok {
-		return data, nil
-	} else {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
-	}
 }
 
 func (ec *executionContext) field_Mutation_rollback_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input",
-		func(ctx context.Context, v any) (model.RollbackInput, error) {
-			return ec.unmarshalNRollbackInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRollbackInput(ctx, v)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "service",
+		func(ctx context.Context, v any) (platform.ServiceID, error) {
+			return ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐServiceID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
 	}
-	args["input"] = arg0
-	return args, nil
-}
-
-func (ec *executionContext) field_Mutation_setCustomStartCommand_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-
-	arg0, err := ec.field_Mutation_setCustomStartCommand_argsProjectID(ctx, rawArgs)
-	if err != nil {
-		return nil, err
-	}
-	args["projectId"] = arg0
-
-	arg1, err := ec.field_Mutation_setCustomStartCommand_argsEnvironment(ctx, rawArgs)
-	if err != nil {
-		return nil, err
-	}
-	args["environment"] = arg1
-
-	arg2, err := ec.field_Mutation_setCustomStartCommand_argsService(ctx, rawArgs)
-	if err != nil {
-		return nil, err
-	}
-	args["service"] = arg2
-	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "command",
+	args["service"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "imageTag",
 		func(ctx context.Context, v any) (string, error) {
 			return ec.unmarshalNString2string(ctx, v)
 		})
 	if err != nil {
 		return nil, err
 	}
-	args["command"] = arg3
+	args["imageTag"] = arg1
 	return args, nil
 }
 
-func (ec *executionContext) field_Mutation_setCustomStartCommand_argsProjectID(
-	ctx context.Context,
-	rawArgs map[string]any,
-) (string, error) {
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("projectId"))
-	directive0 := func(ctx context.Context) (any, error) {
-		tmp, ok := rawArgs["projectId"]
-		if !ok {
-			var zeroVal string
-			return zeroVal, nil
-		}
-		return ec.unmarshalNID2string(ctx, tmp)
-	}
-
-	directive1 := func(ctx context.Context) (any, error) {
-		constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-		if err != nil {
-			var zeroVal string
-			return zeroVal, err
-		}
-		if ec.Directives.Constraint == nil {
-			var zeroVal string
-			return zeroVal, errors.New("directive constraint is not implemented")
-		}
-		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
-	}
-
-	tmp, err := directive1(ctx)
+func (ec *executionContext) field_Mutation_setCustomStartCommand_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "service",
+		func(ctx context.Context, v any) (platform.ServiceID, error) {
+			return ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐServiceID(ctx, v)
+		})
 	if err != nil {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, err)
+		return nil, err
 	}
-	if data, ok := tmp.(string); ok {
-		return data, nil
-	} else {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
-	}
-}
-
-func (ec *executionContext) field_Mutation_setCustomStartCommand_argsEnvironment(
-	ctx context.Context,
-	rawArgs map[string]any,
-) (string, error) {
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("environment"))
-	directive0 := func(ctx context.Context) (any, error) {
-		tmp, ok := rawArgs["environment"]
-		if !ok {
-			var zeroVal string
-			return zeroVal, nil
-		}
-		return ec.unmarshalNString2string(ctx, tmp)
-	}
-
-	directive1 := func(ctx context.Context) (any, error) {
-		constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-		if err != nil {
-			var zeroVal string
-			return zeroVal, err
-		}
-		if ec.Directives.Constraint == nil {
-			var zeroVal string
-			return zeroVal, errors.New("directive constraint is not implemented")
-		}
-		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
-	}
-
-	tmp, err := directive1(ctx)
+	args["service"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "command",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
 	if err != nil {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, err)
+		return nil, err
 	}
-	if data, ok := tmp.(string); ok {
-		return data, nil
-	} else {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
-	}
-}
-
-func (ec *executionContext) field_Mutation_setCustomStartCommand_argsService(
-	ctx context.Context,
-	rawArgs map[string]any,
-) (string, error) {
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("service"))
-	directive0 := func(ctx context.Context) (any, error) {
-		tmp, ok := rawArgs["service"]
-		if !ok {
-			var zeroVal string
-			return zeroVal, nil
-		}
-		return ec.unmarshalNString2string(ctx, tmp)
-	}
-
-	directive1 := func(ctx context.Context) (any, error) {
-		constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-		if err != nil {
-			var zeroVal string
-			return zeroVal, err
-		}
-		if ec.Directives.Constraint == nil {
-			var zeroVal string
-			return zeroVal, errors.New("directive constraint is not implemented")
-		}
-		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
-	}
-
-	tmp, err := directive1(ctx)
-	if err != nil {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, err)
-	}
-	if data, ok := tmp.(string); ok {
-		return data, nil
-	} else {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
-	}
+	args["command"] = arg1
+	return args, nil
 }
 
 func (ec *executionContext) field_Mutation_setEnvironmentResources_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
@@ -3815,259 +3366,45 @@ func (ec *executionContext) field_Mutation_setServiceScaling_args(ctx context.Co
 func (ec *executionContext) field_Mutation_setServiceVariables_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-
-	arg0, err := ec.field_Mutation_setServiceVariables_argsProjectID(ctx, rawArgs)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "service",
+		func(ctx context.Context, v any) (platform.ServiceID, error) {
+			return ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐServiceID(ctx, v)
+		})
 	if err != nil {
 		return nil, err
 	}
-	args["projectId"] = arg0
-
-	arg1, err := ec.field_Mutation_setServiceVariables_argsEnvironment(ctx, rawArgs)
-	if err != nil {
-		return nil, err
-	}
-	args["environment"] = arg1
-
-	arg2, err := ec.field_Mutation_setServiceVariables_argsService(ctx, rawArgs)
-	if err != nil {
-		return nil, err
-	}
-	args["service"] = arg2
-	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "variables",
+	args["service"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "variables",
 		func(ctx context.Context, v any) ([]model.ServiceVariableInput, error) {
 			return ec.unmarshalNServiceVariableInput2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐServiceVariableInputᚄ(ctx, v)
 		})
 	if err != nil {
 		return nil, err
 	}
-	args["variables"] = arg3
+	args["variables"] = arg1
 	return args, nil
-}
-
-func (ec *executionContext) field_Mutation_setServiceVariables_argsProjectID(
-	ctx context.Context,
-	rawArgs map[string]any,
-) (string, error) {
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("projectId"))
-	directive0 := func(ctx context.Context) (any, error) {
-		tmp, ok := rawArgs["projectId"]
-		if !ok {
-			var zeroVal string
-			return zeroVal, nil
-		}
-		return ec.unmarshalNID2string(ctx, tmp)
-	}
-
-	directive1 := func(ctx context.Context) (any, error) {
-		constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-		if err != nil {
-			var zeroVal string
-			return zeroVal, err
-		}
-		if ec.Directives.Constraint == nil {
-			var zeroVal string
-			return zeroVal, errors.New("directive constraint is not implemented")
-		}
-		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
-	}
-
-	tmp, err := directive1(ctx)
-	if err != nil {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, err)
-	}
-	if data, ok := tmp.(string); ok {
-		return data, nil
-	} else {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
-	}
-}
-
-func (ec *executionContext) field_Mutation_setServiceVariables_argsEnvironment(
-	ctx context.Context,
-	rawArgs map[string]any,
-) (string, error) {
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("environment"))
-	directive0 := func(ctx context.Context) (any, error) {
-		tmp, ok := rawArgs["environment"]
-		if !ok {
-			var zeroVal string
-			return zeroVal, nil
-		}
-		return ec.unmarshalNString2string(ctx, tmp)
-	}
-
-	directive1 := func(ctx context.Context) (any, error) {
-		constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-		if err != nil {
-			var zeroVal string
-			return zeroVal, err
-		}
-		if ec.Directives.Constraint == nil {
-			var zeroVal string
-			return zeroVal, errors.New("directive constraint is not implemented")
-		}
-		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
-	}
-
-	tmp, err := directive1(ctx)
-	if err != nil {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, err)
-	}
-	if data, ok := tmp.(string); ok {
-		return data, nil
-	} else {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
-	}
-}
-
-func (ec *executionContext) field_Mutation_setServiceVariables_argsService(
-	ctx context.Context,
-	rawArgs map[string]any,
-) (string, error) {
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("service"))
-	directive0 := func(ctx context.Context) (any, error) {
-		tmp, ok := rawArgs["service"]
-		if !ok {
-			var zeroVal string
-			return zeroVal, nil
-		}
-		return ec.unmarshalNString2string(ctx, tmp)
-	}
-
-	directive1 := func(ctx context.Context) (any, error) {
-		constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-		if err != nil {
-			var zeroVal string
-			return zeroVal, err
-		}
-		if ec.Directives.Constraint == nil {
-			var zeroVal string
-			return zeroVal, errors.New("directive constraint is not implemented")
-		}
-		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
-	}
-
-	tmp, err := directive1(ctx)
-	if err != nil {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, err)
-	}
-	if data, ok := tmp.(string); ok {
-		return data, nil
-	} else {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
-	}
 }
 
 func (ec *executionContext) field_Mutation_setSharedVariables_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-
-	arg0, err := ec.field_Mutation_setSharedVariables_argsProjectID(ctx, rawArgs)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "environment",
+		func(ctx context.Context, v any) (platform.EnvironmentID, error) {
+			return ec.unmarshalNEnvironmentID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐEnvironmentID(ctx, v)
+		})
 	if err != nil {
 		return nil, err
 	}
-	args["projectId"] = arg0
-
-	arg1, err := ec.field_Mutation_setSharedVariables_argsEnvironment(ctx, rawArgs)
-	if err != nil {
-		return nil, err
-	}
-	args["environment"] = arg1
-	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "variables",
+	args["environment"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "variables",
 		func(ctx context.Context, v any) ([]model.VariableInput, error) {
 			return ec.unmarshalNVariableInput2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐVariableInputᚄ(ctx, v)
 		})
 	if err != nil {
 		return nil, err
 	}
-	args["variables"] = arg2
+	args["variables"] = arg1
 	return args, nil
-}
-
-func (ec *executionContext) field_Mutation_setSharedVariables_argsProjectID(
-	ctx context.Context,
-	rawArgs map[string]any,
-) (string, error) {
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("projectId"))
-	directive0 := func(ctx context.Context) (any, error) {
-		tmp, ok := rawArgs["projectId"]
-		if !ok {
-			var zeroVal string
-			return zeroVal, nil
-		}
-		return ec.unmarshalNID2string(ctx, tmp)
-	}
-
-	directive1 := func(ctx context.Context) (any, error) {
-		constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-		if err != nil {
-			var zeroVal string
-			return zeroVal, err
-		}
-		if ec.Directives.Constraint == nil {
-			var zeroVal string
-			return zeroVal, errors.New("directive constraint is not implemented")
-		}
-		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
-	}
-
-	tmp, err := directive1(ctx)
-	if err != nil {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, err)
-	}
-	if data, ok := tmp.(string); ok {
-		return data, nil
-	} else {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
-	}
-}
-
-func (ec *executionContext) field_Mutation_setSharedVariables_argsEnvironment(
-	ctx context.Context,
-	rawArgs map[string]any,
-) (string, error) {
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("environment"))
-	directive0 := func(ctx context.Context) (any, error) {
-		tmp, ok := rawArgs["environment"]
-		if !ok {
-			var zeroVal string
-			return zeroVal, nil
-		}
-		return ec.unmarshalNString2string(ctx, tmp)
-	}
-
-	directive1 := func(ctx context.Context) (any, error) {
-		constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-		if err != nil {
-			var zeroVal string
-			return zeroVal, err
-		}
-		if ec.Directives.Constraint == nil {
-			var zeroVal string
-			return zeroVal, errors.New("directive constraint is not implemented")
-		}
-		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
-	}
-
-	tmp, err := directive1(ctx)
-	if err != nil {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, err)
-	}
-	if data, ok := tmp.(string); ok {
-		return data, nil
-	} else {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
-	}
 }
 
 func (ec *executionContext) field_Mutation_updateMemberRole_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
@@ -4115,145 +3452,15 @@ func (ec *executionContext) field_Query___type_args(ctx context.Context, rawArgs
 func (ec *executionContext) field_Query_activeDeployment_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-
-	arg0, err := ec.field_Query_activeDeployment_argsProjectID(ctx, rawArgs)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "service",
+		func(ctx context.Context, v any) (platform.ServiceID, error) {
+			return ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐServiceID(ctx, v)
+		})
 	if err != nil {
 		return nil, err
 	}
-	args["projectId"] = arg0
-
-	arg1, err := ec.field_Query_activeDeployment_argsService(ctx, rawArgs)
-	if err != nil {
-		return nil, err
-	}
-	args["service"] = arg1
-
-	arg2, err := ec.field_Query_activeDeployment_argsEnvironment(ctx, rawArgs)
-	if err != nil {
-		return nil, err
-	}
-	args["environment"] = arg2
+	args["service"] = arg0
 	return args, nil
-}
-
-func (ec *executionContext) field_Query_activeDeployment_argsProjectID(
-	ctx context.Context,
-	rawArgs map[string]any,
-) (string, error) {
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("projectId"))
-	directive0 := func(ctx context.Context) (any, error) {
-		tmp, ok := rawArgs["projectId"]
-		if !ok {
-			var zeroVal string
-			return zeroVal, nil
-		}
-		return ec.unmarshalNID2string(ctx, tmp)
-	}
-
-	directive1 := func(ctx context.Context) (any, error) {
-		constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-		if err != nil {
-			var zeroVal string
-			return zeroVal, err
-		}
-		if ec.Directives.Constraint == nil {
-			var zeroVal string
-			return zeroVal, errors.New("directive constraint is not implemented")
-		}
-		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
-	}
-
-	tmp, err := directive1(ctx)
-	if err != nil {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, err)
-	}
-	if data, ok := tmp.(string); ok {
-		return data, nil
-	} else {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
-	}
-}
-
-func (ec *executionContext) field_Query_activeDeployment_argsService(
-	ctx context.Context,
-	rawArgs map[string]any,
-) (string, error) {
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("service"))
-	directive0 := func(ctx context.Context) (any, error) {
-		tmp, ok := rawArgs["service"]
-		if !ok {
-			var zeroVal string
-			return zeroVal, nil
-		}
-		return ec.unmarshalNString2string(ctx, tmp)
-	}
-
-	directive1 := func(ctx context.Context) (any, error) {
-		constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-		if err != nil {
-			var zeroVal string
-			return zeroVal, err
-		}
-		if ec.Directives.Constraint == nil {
-			var zeroVal string
-			return zeroVal, errors.New("directive constraint is not implemented")
-		}
-		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
-	}
-
-	tmp, err := directive1(ctx)
-	if err != nil {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, err)
-	}
-	if data, ok := tmp.(string); ok {
-		return data, nil
-	} else {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
-	}
-}
-
-func (ec *executionContext) field_Query_activeDeployment_argsEnvironment(
-	ctx context.Context,
-	rawArgs map[string]any,
-) (string, error) {
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("environment"))
-	directive0 := func(ctx context.Context) (any, error) {
-		tmp, ok := rawArgs["environment"]
-		if !ok {
-			var zeroVal string
-			return zeroVal, nil
-		}
-		return ec.unmarshalNString2string(ctx, tmp)
-	}
-
-	directive1 := func(ctx context.Context) (any, error) {
-		constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-		if err != nil {
-			var zeroVal string
-			return zeroVal, err
-		}
-		if ec.Directives.Constraint == nil {
-			var zeroVal string
-			return zeroVal, errors.New("directive constraint is not implemented")
-		}
-		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
-	}
-
-	tmp, err := directive1(ctx)
-	if err != nil {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, err)
-	}
-	if data, ok := tmp.(string); ok {
-		return data, nil
-	} else {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
-	}
 }
 
 func (ec *executionContext) field_Query_checkDnsStatus_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
@@ -4273,517 +3480,75 @@ func (ec *executionContext) field_Query_checkDnsStatus_args(ctx context.Context,
 func (ec *executionContext) field_Query_databaseCredentials_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-
-	arg0, err := ec.field_Query_databaseCredentials_argsProjectID(ctx, rawArgs)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "database",
+		func(ctx context.Context, v any) (platform.DatabaseID, error) {
+			return ec.unmarshalNDatabaseID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐDatabaseID(ctx, v)
+		})
 	if err != nil {
 		return nil, err
 	}
-	args["projectId"] = arg0
-
-	arg1, err := ec.field_Query_databaseCredentials_argsEnvironment(ctx, rawArgs)
-	if err != nil {
-		return nil, err
-	}
-	args["environment"] = arg1
-
-	arg2, err := ec.field_Query_databaseCredentials_argsDatabase(ctx, rawArgs)
-	if err != nil {
-		return nil, err
-	}
-	args["database"] = arg2
+	args["database"] = arg0
 	return args, nil
-}
-
-func (ec *executionContext) field_Query_databaseCredentials_argsProjectID(
-	ctx context.Context,
-	rawArgs map[string]any,
-) (string, error) {
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("projectId"))
-	directive0 := func(ctx context.Context) (any, error) {
-		tmp, ok := rawArgs["projectId"]
-		if !ok {
-			var zeroVal string
-			return zeroVal, nil
-		}
-		return ec.unmarshalNID2string(ctx, tmp)
-	}
-
-	directive1 := func(ctx context.Context) (any, error) {
-		constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-		if err != nil {
-			var zeroVal string
-			return zeroVal, err
-		}
-		if ec.Directives.Constraint == nil {
-			var zeroVal string
-			return zeroVal, errors.New("directive constraint is not implemented")
-		}
-		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
-	}
-
-	tmp, err := directive1(ctx)
-	if err != nil {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, err)
-	}
-	if data, ok := tmp.(string); ok {
-		return data, nil
-	} else {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
-	}
-}
-
-func (ec *executionContext) field_Query_databaseCredentials_argsEnvironment(
-	ctx context.Context,
-	rawArgs map[string]any,
-) (string, error) {
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("environment"))
-	directive0 := func(ctx context.Context) (any, error) {
-		tmp, ok := rawArgs["environment"]
-		if !ok {
-			var zeroVal string
-			return zeroVal, nil
-		}
-		return ec.unmarshalNString2string(ctx, tmp)
-	}
-
-	directive1 := func(ctx context.Context) (any, error) {
-		constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-		if err != nil {
-			var zeroVal string
-			return zeroVal, err
-		}
-		if ec.Directives.Constraint == nil {
-			var zeroVal string
-			return zeroVal, errors.New("directive constraint is not implemented")
-		}
-		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
-	}
-
-	tmp, err := directive1(ctx)
-	if err != nil {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, err)
-	}
-	if data, ok := tmp.(string); ok {
-		return data, nil
-	} else {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
-	}
-}
-
-func (ec *executionContext) field_Query_databaseCredentials_argsDatabase(
-	ctx context.Context,
-	rawArgs map[string]any,
-) (string, error) {
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("database"))
-	directive0 := func(ctx context.Context) (any, error) {
-		tmp, ok := rawArgs["database"]
-		if !ok {
-			var zeroVal string
-			return zeroVal, nil
-		}
-		return ec.unmarshalNString2string(ctx, tmp)
-	}
-
-	directive1 := func(ctx context.Context) (any, error) {
-		constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-		if err != nil {
-			var zeroVal string
-			return zeroVal, err
-		}
-		if ec.Directives.Constraint == nil {
-			var zeroVal string
-			return zeroVal, errors.New("directive constraint is not implemented")
-		}
-		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
-	}
-
-	tmp, err := directive1(ctx)
-	if err != nil {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, err)
-	}
-	if data, ok := tmp.(string); ok {
-		return data, nil
-	} else {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
-	}
 }
 
 func (ec *executionContext) field_Query_databaseTableData_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-
-	arg0, err := ec.field_Query_databaseTableData_argsProjectID(ctx, rawArgs)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "database",
+		func(ctx context.Context, v any) (platform.DatabaseID, error) {
+			return ec.unmarshalNDatabaseID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐDatabaseID(ctx, v)
+		})
 	if err != nil {
 		return nil, err
 	}
-	args["projectId"] = arg0
-
-	arg1, err := ec.field_Query_databaseTableData_argsEnvironment(ctx, rawArgs)
-	if err != nil {
-		return nil, err
-	}
-	args["environment"] = arg1
-
-	arg2, err := ec.field_Query_databaseTableData_argsDatabase(ctx, rawArgs)
-	if err != nil {
-		return nil, err
-	}
-	args["database"] = arg2
-	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "table",
+	args["database"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "table",
 		func(ctx context.Context, v any) (string, error) {
 			return ec.unmarshalNString2string(ctx, v)
 		})
 	if err != nil {
 		return nil, err
 	}
-	args["table"] = arg3
-	arg4, err := graphql.ProcessArgField(ctx, rawArgs, "schema",
+	args["table"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "schema",
 		func(ctx context.Context, v any) (*string, error) {
 			return ec.unmarshalOString2ᚖstring(ctx, v)
 		})
 	if err != nil {
 		return nil, err
 	}
-	args["schema"] = arg4
-	arg5, err := graphql.ProcessArgField(ctx, rawArgs, "limit",
+	args["schema"] = arg2
+	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "limit",
 		func(ctx context.Context, v any) (*int, error) {
 			return ec.unmarshalOInt2ᚖint(ctx, v)
 		})
 	if err != nil {
 		return nil, err
 	}
-	args["limit"] = arg5
-	arg6, err := graphql.ProcessArgField(ctx, rawArgs, "offset",
+	args["limit"] = arg3
+	arg4, err := graphql.ProcessArgField(ctx, rawArgs, "offset",
 		func(ctx context.Context, v any) (*int, error) {
 			return ec.unmarshalOInt2ᚖint(ctx, v)
 		})
 	if err != nil {
 		return nil, err
 	}
-	args["offset"] = arg6
+	args["offset"] = arg4
 	return args, nil
-}
-
-func (ec *executionContext) field_Query_databaseTableData_argsProjectID(
-	ctx context.Context,
-	rawArgs map[string]any,
-) (string, error) {
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("projectId"))
-	directive0 := func(ctx context.Context) (any, error) {
-		tmp, ok := rawArgs["projectId"]
-		if !ok {
-			var zeroVal string
-			return zeroVal, nil
-		}
-		return ec.unmarshalNID2string(ctx, tmp)
-	}
-
-	directive1 := func(ctx context.Context) (any, error) {
-		constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-		if err != nil {
-			var zeroVal string
-			return zeroVal, err
-		}
-		if ec.Directives.Constraint == nil {
-			var zeroVal string
-			return zeroVal, errors.New("directive constraint is not implemented")
-		}
-		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
-	}
-
-	tmp, err := directive1(ctx)
-	if err != nil {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, err)
-	}
-	if data, ok := tmp.(string); ok {
-		return data, nil
-	} else {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
-	}
-}
-
-func (ec *executionContext) field_Query_databaseTableData_argsEnvironment(
-	ctx context.Context,
-	rawArgs map[string]any,
-) (string, error) {
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("environment"))
-	directive0 := func(ctx context.Context) (any, error) {
-		tmp, ok := rawArgs["environment"]
-		if !ok {
-			var zeroVal string
-			return zeroVal, nil
-		}
-		return ec.unmarshalNString2string(ctx, tmp)
-	}
-
-	directive1 := func(ctx context.Context) (any, error) {
-		constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-		if err != nil {
-			var zeroVal string
-			return zeroVal, err
-		}
-		if ec.Directives.Constraint == nil {
-			var zeroVal string
-			return zeroVal, errors.New("directive constraint is not implemented")
-		}
-		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
-	}
-
-	tmp, err := directive1(ctx)
-	if err != nil {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, err)
-	}
-	if data, ok := tmp.(string); ok {
-		return data, nil
-	} else {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
-	}
-}
-
-func (ec *executionContext) field_Query_databaseTableData_argsDatabase(
-	ctx context.Context,
-	rawArgs map[string]any,
-) (string, error) {
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("database"))
-	directive0 := func(ctx context.Context) (any, error) {
-		tmp, ok := rawArgs["database"]
-		if !ok {
-			var zeroVal string
-			return zeroVal, nil
-		}
-		return ec.unmarshalNString2string(ctx, tmp)
-	}
-
-	directive1 := func(ctx context.Context) (any, error) {
-		constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-		if err != nil {
-			var zeroVal string
-			return zeroVal, err
-		}
-		if ec.Directives.Constraint == nil {
-			var zeroVal string
-			return zeroVal, errors.New("directive constraint is not implemented")
-		}
-		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
-	}
-
-	tmp, err := directive1(ctx)
-	if err != nil {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, err)
-	}
-	if data, ok := tmp.(string); ok {
-		return data, nil
-	} else {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
-	}
 }
 
 func (ec *executionContext) field_Query_databaseTables_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-
-	arg0, err := ec.field_Query_databaseTables_argsProjectID(ctx, rawArgs)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "database",
+		func(ctx context.Context, v any) (platform.DatabaseID, error) {
+			return ec.unmarshalNDatabaseID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐDatabaseID(ctx, v)
+		})
 	if err != nil {
 		return nil, err
 	}
-	args["projectId"] = arg0
-
-	arg1, err := ec.field_Query_databaseTables_argsEnvironment(ctx, rawArgs)
-	if err != nil {
-		return nil, err
-	}
-	args["environment"] = arg1
-
-	arg2, err := ec.field_Query_databaseTables_argsDatabase(ctx, rawArgs)
-	if err != nil {
-		return nil, err
-	}
-	args["database"] = arg2
+	args["database"] = arg0
 	return args, nil
-}
-
-func (ec *executionContext) field_Query_databaseTables_argsProjectID(
-	ctx context.Context,
-	rawArgs map[string]any,
-) (string, error) {
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("projectId"))
-	directive0 := func(ctx context.Context) (any, error) {
-		tmp, ok := rawArgs["projectId"]
-		if !ok {
-			var zeroVal string
-			return zeroVal, nil
-		}
-		return ec.unmarshalNID2string(ctx, tmp)
-	}
-
-	directive1 := func(ctx context.Context) (any, error) {
-		constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-		if err != nil {
-			var zeroVal string
-			return zeroVal, err
-		}
-		if ec.Directives.Constraint == nil {
-			var zeroVal string
-			return zeroVal, errors.New("directive constraint is not implemented")
-		}
-		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
-	}
-
-	tmp, err := directive1(ctx)
-	if err != nil {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, err)
-	}
-	if data, ok := tmp.(string); ok {
-		return data, nil
-	} else {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
-	}
-}
-
-func (ec *executionContext) field_Query_databaseTables_argsEnvironment(
-	ctx context.Context,
-	rawArgs map[string]any,
-) (string, error) {
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("environment"))
-	directive0 := func(ctx context.Context) (any, error) {
-		tmp, ok := rawArgs["environment"]
-		if !ok {
-			var zeroVal string
-			return zeroVal, nil
-		}
-		return ec.unmarshalNString2string(ctx, tmp)
-	}
-
-	directive1 := func(ctx context.Context) (any, error) {
-		constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-		if err != nil {
-			var zeroVal string
-			return zeroVal, err
-		}
-		if ec.Directives.Constraint == nil {
-			var zeroVal string
-			return zeroVal, errors.New("directive constraint is not implemented")
-		}
-		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
-	}
-
-	tmp, err := directive1(ctx)
-	if err != nil {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, err)
-	}
-	if data, ok := tmp.(string); ok {
-		return data, nil
-	} else {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
-	}
-}
-
-func (ec *executionContext) field_Query_databaseTables_argsDatabase(
-	ctx context.Context,
-	rawArgs map[string]any,
-) (string, error) {
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("database"))
-	directive0 := func(ctx context.Context) (any, error) {
-		tmp, ok := rawArgs["database"]
-		if !ok {
-			var zeroVal string
-			return zeroVal, nil
-		}
-		return ec.unmarshalNString2string(ctx, tmp)
-	}
-
-	directive1 := func(ctx context.Context) (any, error) {
-		constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-		if err != nil {
-			var zeroVal string
-			return zeroVal, err
-		}
-		if ec.Directives.Constraint == nil {
-			var zeroVal string
-			return zeroVal, errors.New("directive constraint is not implemented")
-		}
-		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
-	}
-
-	tmp, err := directive1(ctx)
-	if err != nil {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, err)
-	}
-	if data, ok := tmp.(string); ok {
-		return data, nil
-	} else {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
-	}
-}
-
-func (ec *executionContext) field_Query_databases_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-
-	arg0, err := ec.field_Query_databases_argsProjectID(ctx, rawArgs)
-	if err != nil {
-		return nil, err
-	}
-	args["projectId"] = arg0
-	return args, nil
-}
-
-func (ec *executionContext) field_Query_databases_argsProjectID(
-	ctx context.Context,
-	rawArgs map[string]any,
-) (string, error) {
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("projectId"))
-	directive0 := func(ctx context.Context) (any, error) {
-		tmp, ok := rawArgs["projectId"]
-		if !ok {
-			var zeroVal string
-			return zeroVal, nil
-		}
-		return ec.unmarshalNID2string(ctx, tmp)
-	}
-
-	directive1 := func(ctx context.Context) (any, error) {
-		constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-		if err != nil {
-			var zeroVal string
-			return zeroVal, err
-		}
-		if ec.Directives.Constraint == nil {
-			var zeroVal string
-			return zeroVal, errors.New("directive constraint is not implemented")
-		}
-		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
-	}
-
-	tmp, err := directive1(ctx)
-	if err != nil {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, err)
-	}
-	if data, ok := tmp.(string); ok {
-		return data, nil
-	} else {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
-	}
 }
 
 func (ec *executionContext) field_Query_deployStatus_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
@@ -4825,99 +3590,15 @@ func (ec *executionContext) field_Query_detectServices_args(ctx context.Context,
 func (ec *executionContext) field_Query_environmentResources_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-
-	arg0, err := ec.field_Query_environmentResources_argsProjectID(ctx, rawArgs)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "environment",
+		func(ctx context.Context, v any) (platform.EnvironmentID, error) {
+			return ec.unmarshalNEnvironmentID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐEnvironmentID(ctx, v)
+		})
 	if err != nil {
 		return nil, err
 	}
-	args["projectId"] = arg0
-
-	arg1, err := ec.field_Query_environmentResources_argsEnvironment(ctx, rawArgs)
-	if err != nil {
-		return nil, err
-	}
-	args["environment"] = arg1
+	args["environment"] = arg0
 	return args, nil
-}
-
-func (ec *executionContext) field_Query_environmentResources_argsProjectID(
-	ctx context.Context,
-	rawArgs map[string]any,
-) (string, error) {
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("projectId"))
-	directive0 := func(ctx context.Context) (any, error) {
-		tmp, ok := rawArgs["projectId"]
-		if !ok {
-			var zeroVal string
-			return zeroVal, nil
-		}
-		return ec.unmarshalNID2string(ctx, tmp)
-	}
-
-	directive1 := func(ctx context.Context) (any, error) {
-		constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-		if err != nil {
-			var zeroVal string
-			return zeroVal, err
-		}
-		if ec.Directives.Constraint == nil {
-			var zeroVal string
-			return zeroVal, errors.New("directive constraint is not implemented")
-		}
-		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
-	}
-
-	tmp, err := directive1(ctx)
-	if err != nil {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, err)
-	}
-	if data, ok := tmp.(string); ok {
-		return data, nil
-	} else {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
-	}
-}
-
-func (ec *executionContext) field_Query_environmentResources_argsEnvironment(
-	ctx context.Context,
-	rawArgs map[string]any,
-) (string, error) {
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("environment"))
-	directive0 := func(ctx context.Context) (any, error) {
-		tmp, ok := rawArgs["environment"]
-		if !ok {
-			var zeroVal string
-			return zeroVal, nil
-		}
-		return ec.unmarshalNString2string(ctx, tmp)
-	}
-
-	directive1 := func(ctx context.Context) (any, error) {
-		constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-		if err != nil {
-			var zeroVal string
-			return zeroVal, err
-		}
-		if ec.Directives.Constraint == nil {
-			var zeroVal string
-			return zeroVal, errors.New("directive constraint is not implemented")
-		}
-		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
-	}
-
-	tmp, err := directive1(ctx)
-	if err != nil {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, err)
-	}
-	if data, ok := tmp.(string); ok {
-		return data, nil
-	} else {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
-	}
 }
 
 func (ec *executionContext) field_Query_githubRepositories_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
@@ -4937,53 +3618,15 @@ func (ec *executionContext) field_Query_githubRepositories_args(ctx context.Cont
 func (ec *executionContext) field_Query_project_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-
-	arg0, err := ec.field_Query_project_argsID(ctx, rawArgs)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id",
+		func(ctx context.Context, v any) (platform.ProjectID, error) {
+			return ec.unmarshalNProjectID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐProjectID(ctx, v)
+		})
 	if err != nil {
 		return nil, err
 	}
 	args["id"] = arg0
 	return args, nil
-}
-
-func (ec *executionContext) field_Query_project_argsID(
-	ctx context.Context,
-	rawArgs map[string]any,
-) (string, error) {
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
-	directive0 := func(ctx context.Context) (any, error) {
-		tmp, ok := rawArgs["id"]
-		if !ok {
-			var zeroVal string
-			return zeroVal, nil
-		}
-		return ec.unmarshalNID2string(ctx, tmp)
-	}
-
-	directive1 := func(ctx context.Context) (any, error) {
-		constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-		if err != nil {
-			var zeroVal string
-			return zeroVal, err
-		}
-		if ec.Directives.Constraint == nil {
-			var zeroVal string
-			return zeroVal, errors.New("directive constraint is not implemented")
-		}
-		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
-	}
-
-	tmp, err := directive1(ctx)
-	if err != nil {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, err)
-	}
-	if data, ok := tmp.(string); ok {
-		return data, nil
-	} else {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
-	}
 }
 
 func (ec *executionContext) field_Query_searchImages_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
@@ -5003,243 +3646,29 @@ func (ec *executionContext) field_Query_searchImages_args(ctx context.Context, r
 func (ec *executionContext) field_Query_serviceVariables_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-
-	arg0, err := ec.field_Query_serviceVariables_argsProjectID(ctx, rawArgs)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "service",
+		func(ctx context.Context, v any) (platform.ServiceID, error) {
+			return ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐServiceID(ctx, v)
+		})
 	if err != nil {
 		return nil, err
 	}
-	args["projectId"] = arg0
-
-	arg1, err := ec.field_Query_serviceVariables_argsEnvironment(ctx, rawArgs)
-	if err != nil {
-		return nil, err
-	}
-	args["environment"] = arg1
-
-	arg2, err := ec.field_Query_serviceVariables_argsService(ctx, rawArgs)
-	if err != nil {
-		return nil, err
-	}
-	args["service"] = arg2
+	args["service"] = arg0
 	return args, nil
-}
-
-func (ec *executionContext) field_Query_serviceVariables_argsProjectID(
-	ctx context.Context,
-	rawArgs map[string]any,
-) (string, error) {
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("projectId"))
-	directive0 := func(ctx context.Context) (any, error) {
-		tmp, ok := rawArgs["projectId"]
-		if !ok {
-			var zeroVal string
-			return zeroVal, nil
-		}
-		return ec.unmarshalNID2string(ctx, tmp)
-	}
-
-	directive1 := func(ctx context.Context) (any, error) {
-		constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-		if err != nil {
-			var zeroVal string
-			return zeroVal, err
-		}
-		if ec.Directives.Constraint == nil {
-			var zeroVal string
-			return zeroVal, errors.New("directive constraint is not implemented")
-		}
-		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
-	}
-
-	tmp, err := directive1(ctx)
-	if err != nil {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, err)
-	}
-	if data, ok := tmp.(string); ok {
-		return data, nil
-	} else {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
-	}
-}
-
-func (ec *executionContext) field_Query_serviceVariables_argsEnvironment(
-	ctx context.Context,
-	rawArgs map[string]any,
-) (string, error) {
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("environment"))
-	directive0 := func(ctx context.Context) (any, error) {
-		tmp, ok := rawArgs["environment"]
-		if !ok {
-			var zeroVal string
-			return zeroVal, nil
-		}
-		return ec.unmarshalNString2string(ctx, tmp)
-	}
-
-	directive1 := func(ctx context.Context) (any, error) {
-		constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-		if err != nil {
-			var zeroVal string
-			return zeroVal, err
-		}
-		if ec.Directives.Constraint == nil {
-			var zeroVal string
-			return zeroVal, errors.New("directive constraint is not implemented")
-		}
-		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
-	}
-
-	tmp, err := directive1(ctx)
-	if err != nil {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, err)
-	}
-	if data, ok := tmp.(string); ok {
-		return data, nil
-	} else {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
-	}
-}
-
-func (ec *executionContext) field_Query_serviceVariables_argsService(
-	ctx context.Context,
-	rawArgs map[string]any,
-) (string, error) {
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("service"))
-	directive0 := func(ctx context.Context) (any, error) {
-		tmp, ok := rawArgs["service"]
-		if !ok {
-			var zeroVal string
-			return zeroVal, nil
-		}
-		return ec.unmarshalNString2string(ctx, tmp)
-	}
-
-	directive1 := func(ctx context.Context) (any, error) {
-		constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-		if err != nil {
-			var zeroVal string
-			return zeroVal, err
-		}
-		if ec.Directives.Constraint == nil {
-			var zeroVal string
-			return zeroVal, errors.New("directive constraint is not implemented")
-		}
-		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
-	}
-
-	tmp, err := directive1(ctx)
-	if err != nil {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, err)
-	}
-	if data, ok := tmp.(string); ok {
-		return data, nil
-	} else {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
-	}
 }
 
 func (ec *executionContext) field_Query_sharedVariables_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-
-	arg0, err := ec.field_Query_sharedVariables_argsProjectID(ctx, rawArgs)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "environment",
+		func(ctx context.Context, v any) (platform.EnvironmentID, error) {
+			return ec.unmarshalNEnvironmentID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐEnvironmentID(ctx, v)
+		})
 	if err != nil {
 		return nil, err
 	}
-	args["projectId"] = arg0
-
-	arg1, err := ec.field_Query_sharedVariables_argsEnvironment(ctx, rawArgs)
-	if err != nil {
-		return nil, err
-	}
-	args["environment"] = arg1
+	args["environment"] = arg0
 	return args, nil
-}
-
-func (ec *executionContext) field_Query_sharedVariables_argsProjectID(
-	ctx context.Context,
-	rawArgs map[string]any,
-) (string, error) {
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("projectId"))
-	directive0 := func(ctx context.Context) (any, error) {
-		tmp, ok := rawArgs["projectId"]
-		if !ok {
-			var zeroVal string
-			return zeroVal, nil
-		}
-		return ec.unmarshalNID2string(ctx, tmp)
-	}
-
-	directive1 := func(ctx context.Context) (any, error) {
-		constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-		if err != nil {
-			var zeroVal string
-			return zeroVal, err
-		}
-		if ec.Directives.Constraint == nil {
-			var zeroVal string
-			return zeroVal, errors.New("directive constraint is not implemented")
-		}
-		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
-	}
-
-	tmp, err := directive1(ctx)
-	if err != nil {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, err)
-	}
-	if data, ok := tmp.(string); ok {
-		return data, nil
-	} else {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
-	}
-}
-
-func (ec *executionContext) field_Query_sharedVariables_argsEnvironment(
-	ctx context.Context,
-	rawArgs map[string]any,
-) (string, error) {
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("environment"))
-	directive0 := func(ctx context.Context) (any, error) {
-		tmp, ok := rawArgs["environment"]
-		if !ok {
-			var zeroVal string
-			return zeroVal, nil
-		}
-		return ec.unmarshalNString2string(ctx, tmp)
-	}
-
-	directive1 := func(ctx context.Context) (any, error) {
-		constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-		if err != nil {
-			var zeroVal string
-			return zeroVal, err
-		}
-		if ec.Directives.Constraint == nil {
-			var zeroVal string
-			return zeroVal, errors.New("directive constraint is not implemented")
-		}
-		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
-	}
-
-	tmp, err := directive1(ctx)
-	if err != nil {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, err)
-	}
-	if data, ok := tmp.(string); ok {
-		return data, nil
-	} else {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
-	}
 }
 
 func (ec *executionContext) field_Subscription_deployLogs_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
@@ -5259,153 +3688,23 @@ func (ec *executionContext) field_Subscription_deployLogs_args(ctx context.Conte
 func (ec *executionContext) field_Subscription_serviceLogs_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-
-	arg0, err := ec.field_Subscription_serviceLogs_argsProjectID(ctx, rawArgs)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "service",
+		func(ctx context.Context, v any) (platform.ServiceID, error) {
+			return ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐServiceID(ctx, v)
+		})
 	if err != nil {
 		return nil, err
 	}
-	args["projectId"] = arg0
-
-	arg1, err := ec.field_Subscription_serviceLogs_argsService(ctx, rawArgs)
-	if err != nil {
-		return nil, err
-	}
-	args["service"] = arg1
-
-	arg2, err := ec.field_Subscription_serviceLogs_argsEnvironment(ctx, rawArgs)
-	if err != nil {
-		return nil, err
-	}
-	args["environment"] = arg2
-	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "tailLines",
+	args["service"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "tailLines",
 		func(ctx context.Context, v any) (*int, error) {
 			return ec.unmarshalOInt2ᚖint(ctx, v)
 		})
 	if err != nil {
 		return nil, err
 	}
-	args["tailLines"] = arg3
+	args["tailLines"] = arg1
 	return args, nil
-}
-
-func (ec *executionContext) field_Subscription_serviceLogs_argsProjectID(
-	ctx context.Context,
-	rawArgs map[string]any,
-) (string, error) {
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("projectId"))
-	directive0 := func(ctx context.Context) (any, error) {
-		tmp, ok := rawArgs["projectId"]
-		if !ok {
-			var zeroVal string
-			return zeroVal, nil
-		}
-		return ec.unmarshalNID2string(ctx, tmp)
-	}
-
-	directive1 := func(ctx context.Context) (any, error) {
-		constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-		if err != nil {
-			var zeroVal string
-			return zeroVal, err
-		}
-		if ec.Directives.Constraint == nil {
-			var zeroVal string
-			return zeroVal, errors.New("directive constraint is not implemented")
-		}
-		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
-	}
-
-	tmp, err := directive1(ctx)
-	if err != nil {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, err)
-	}
-	if data, ok := tmp.(string); ok {
-		return data, nil
-	} else {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
-	}
-}
-
-func (ec *executionContext) field_Subscription_serviceLogs_argsService(
-	ctx context.Context,
-	rawArgs map[string]any,
-) (string, error) {
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("service"))
-	directive0 := func(ctx context.Context) (any, error) {
-		tmp, ok := rawArgs["service"]
-		if !ok {
-			var zeroVal string
-			return zeroVal, nil
-		}
-		return ec.unmarshalNString2string(ctx, tmp)
-	}
-
-	directive1 := func(ctx context.Context) (any, error) {
-		constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-		if err != nil {
-			var zeroVal string
-			return zeroVal, err
-		}
-		if ec.Directives.Constraint == nil {
-			var zeroVal string
-			return zeroVal, errors.New("directive constraint is not implemented")
-		}
-		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
-	}
-
-	tmp, err := directive1(ctx)
-	if err != nil {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, err)
-	}
-	if data, ok := tmp.(string); ok {
-		return data, nil
-	} else {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
-	}
-}
-
-func (ec *executionContext) field_Subscription_serviceLogs_argsEnvironment(
-	ctx context.Context,
-	rawArgs map[string]any,
-) (string, error) {
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("environment"))
-	directive0 := func(ctx context.Context) (any, error) {
-		tmp, ok := rawArgs["environment"]
-		if !ok {
-			var zeroVal string
-			return zeroVal, nil
-		}
-		return ec.unmarshalNString2string(ctx, tmp)
-	}
-
-	directive1 := func(ctx context.Context) (any, error) {
-		constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-		if err != nil {
-			var zeroVal string
-			return zeroVal, err
-		}
-		if ec.Directives.Constraint == nil {
-			var zeroVal string
-			return zeroVal, errors.New("directive constraint is not implemented")
-		}
-		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
-	}
-
-	tmp, err := directive1(ctx)
-	if err != nil {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, err)
-	}
-	if data, ok := tmp.(string); ok {
-		return data, nil
-	} else {
-		var zeroVal string
-		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
-	}
 }
 
 func (ec *executionContext) field___Directive_args_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
@@ -5746,6 +4045,29 @@ func (ec *executionContext) _CheckoutSession_url(ctx context.Context, field grap
 }
 func (ec *executionContext) fieldContext_CheckoutSession_url(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("CheckoutSession", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _Database_id(ctx context.Context, field graphql.CollectedField, obj *model.Database) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Database_id(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v platform.DatabaseID) graphql.Marshaler {
+			return ec.marshalNDatabaseID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐDatabaseID(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Database_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Database", field, false, false, errors.New("field of type DatabaseID does not have child fields"))
 }
 
 func (ec *executionContext) _Database_name(ctx context.Context, field graphql.CollectedField, obj *model.Database) (ret graphql.Marshaler) {
@@ -6093,29 +4415,6 @@ func (ec *executionContext) fieldContext_DatabaseInstance_name(_ context.Context
 	return graphql.NewScalarFieldContext("DatabaseInstance", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
-func (ec *executionContext) _DatabaseInstance_environment(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseInstance) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_DatabaseInstance_environment(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.Environment, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
-			return ec.marshalNString2string(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_DatabaseInstance_environment(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("DatabaseInstance", field, false, false, errors.New("field of type String does not have child fields"))
-}
-
 func (ec *executionContext) _DatabaseInstance_ready(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseInstance) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -6252,15 +4551,15 @@ func (ec *executionContext) _DatabaseRef_database(ctx context.Context, field gra
 			return obj.Database, nil
 		},
 		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
-			return ec.marshalNString2string(ctx, selections, v)
+		func(ctx context.Context, selections ast.SelectionSet, v platform.DatabaseID) graphql.Marshaler {
+			return ec.marshalNDatabaseID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐDatabaseID(ctx, selections, v)
 		},
 		true,
 		true,
 	)
 }
 func (ec *executionContext) fieldContext_DatabaseRef_database(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("DatabaseRef", field, false, false, errors.New("field of type String does not have child fields"))
+	return graphql.NewScalarFieldContext("DatabaseRef", field, false, false, errors.New("field of type DatabaseID does not have child fields"))
 }
 
 func (ec *executionContext) _DatabaseRef_key(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseRef) (ret graphql.Marshaler) {
@@ -6675,15 +4974,15 @@ func (ec *executionContext) _Deployment_id(ctx context.Context, field graphql.Co
 			return obj.ID, nil
 		},
 		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
-			return ec.marshalNID2string(ctx, selections, v)
+		func(ctx context.Context, selections ast.SelectionSet, v platform.DeploymentID) graphql.Marshaler {
+			return ec.marshalNDeploymentID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐDeploymentID(ctx, selections, v)
 		},
 		true,
 		true,
 	)
 }
 func (ec *executionContext) fieldContext_Deployment_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Deployment", field, false, false, errors.New("field of type ID does not have child fields"))
+	return graphql.NewScalarFieldContext("Deployment", field, false, false, errors.New("field of type DeploymentID does not have child fields"))
 }
 
 func (ec *executionContext) _Deployment_imageTag(ctx context.Context, field graphql.CollectedField, obj *model.Deployment) (ret graphql.Marshaler) {
@@ -7204,15 +5503,15 @@ func (ec *executionContext) _Environment_id(ctx context.Context, field graphql.C
 			return obj.ID, nil
 		},
 		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
-			return ec.marshalNID2string(ctx, selections, v)
+		func(ctx context.Context, selections ast.SelectionSet, v platform.EnvironmentID) graphql.Marshaler {
+			return ec.marshalNEnvironmentID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐEnvironmentID(ctx, selections, v)
 		},
 		true,
 		true,
 	)
 }
 func (ec *executionContext) fieldContext_Environment_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Environment", field, false, false, errors.New("field of type ID does not have child fields"))
+	return graphql.NewScalarFieldContext("Environment", field, false, false, errors.New("field of type EnvironmentID does not have child fields"))
 }
 
 func (ec *executionContext) _Environment_name(ctx context.Context, field graphql.CollectedField, obj *model.Environment) (ret graphql.Marshaler) {
@@ -7236,75 +5535,6 @@ func (ec *executionContext) _Environment_name(ctx context.Context, field graphql
 }
 func (ec *executionContext) fieldContext_Environment_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("Environment", field, false, false, errors.New("field of type String does not have child fields"))
-}
-
-func (ec *executionContext) _Environment_namespace(ctx context.Context, field graphql.CollectedField, obj *model.Environment) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_Environment_namespace(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.Namespace, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
-			return ec.marshalNString2string(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_Environment_namespace(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Environment", field, false, false, errors.New("field of type String does not have child fields"))
-}
-
-func (ec *executionContext) _Environment_ephemeral(ctx context.Context, field graphql.CollectedField, obj *model.Environment) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_Environment_ephemeral(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.Ephemeral, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
-			return ec.marshalNBoolean2bool(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_Environment_ephemeral(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Environment", field, false, false, errors.New("field of type Boolean does not have child fields"))
-}
-
-func (ec *executionContext) _Environment_syncStatus(ctx context.Context, field graphql.CollectedField, obj *model.Environment) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_Environment_syncStatus(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.SyncStatus, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v model.SyncStatus) graphql.Marshaler {
-			return ec.marshalNSyncStatus2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐSyncStatus(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_Environment_syncStatus(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Environment", field, false, false, errors.New("field of type SyncStatus does not have child fields"))
 }
 
 func (ec *executionContext) _Environment_resourceTier(ctx context.Context, field graphql.CollectedField, obj *model.Environment) (ret graphql.Marshaler) {
@@ -7339,7 +5569,7 @@ func (ec *executionContext) _Environment_services(ctx context.Context, field gra
 			return ec.fieldContext_Environment_services(ctx, field)
 		},
 		func(ctx context.Context) (any, error) {
-			return obj.Services, nil
+			return ec.Resolvers.Environment().Services(ctx, obj)
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v []model.ServiceInstance) graphql.Marshaler {
@@ -7353,8 +5583,8 @@ func (ec *executionContext) fieldContext_Environment_services(_ context.Context,
 	fc = &graphql.FieldContext{
 		Object:     "Environment",
 		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
+		IsMethod:   true,
+		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return ec.childFields_ServiceInstance(ctx, field)
 		},
@@ -7371,7 +5601,7 @@ func (ec *executionContext) _Environment_databases(ctx context.Context, field gr
 			return ec.fieldContext_Environment_databases(ctx, field)
 		},
 		func(ctx context.Context) (any, error) {
-			return obj.Databases, nil
+			return ec.Resolvers.Environment().Databases(ctx, obj)
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v []model.DatabaseInstance) graphql.Marshaler {
@@ -7385,8 +5615,8 @@ func (ec *executionContext) fieldContext_Environment_databases(_ context.Context
 	fc = &graphql.FieldContext{
 		Object:     "Environment",
 		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
+		IsMethod:   true,
+		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return ec.childFields_DatabaseInstance(ctx, field)
 		},
@@ -8192,7 +6422,7 @@ func (ec *executionContext) _Mutation_deleteDatabase(ctx context.Context, field 
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().DeleteDatabase(ctx, fc.Args["projectId"].(string), fc.Args["name"].(string))
+			return ec.Resolvers.Mutation().DeleteDatabase(ctx, fc.Args["database"].(platform.DatabaseID))
 		},
 		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
 			directive0 := next
@@ -8254,7 +6484,7 @@ func (ec *executionContext) _Mutation_executeQuery(ctx context.Context, field gr
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().ExecuteQuery(ctx, fc.Args["input"].(model.DatabaseQueryInput))
+			return ec.Resolvers.Mutation().ExecuteQuery(ctx, fc.Args["database"].(platform.DatabaseID), fc.Args["query"].(string))
 		},
 		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
 			directive0 := next
@@ -8378,7 +6608,7 @@ func (ec *executionContext) _Mutation_deleteEnvironment(ctx context.Context, fie
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().DeleteEnvironment(ctx, fc.Args["projectId"].(string), fc.Args["environment"].(string))
+			return ec.Resolvers.Mutation().DeleteEnvironment(ctx, fc.Args["environment"].(platform.EnvironmentID))
 		},
 		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
 			directive0 := next
@@ -8564,7 +6794,7 @@ func (ec *executionContext) _Mutation_deleteProject(ctx context.Context, field g
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().DeleteProject(ctx, fc.Args["id"].(string))
+			return ec.Resolvers.Mutation().DeleteProject(ctx, fc.Args["id"].(platform.ProjectID))
 		},
 		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
 			directive0 := next
@@ -8750,7 +6980,7 @@ func (ec *executionContext) _Mutation_removeService(ctx context.Context, field g
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().RemoveService(ctx, fc.Args["projectId"].(string), fc.Args["environment"].(string), fc.Args["service"].(string))
+			return ec.Resolvers.Mutation().RemoveService(ctx, fc.Args["service"].(platform.ServiceID))
 		},
 		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
 			directive0 := next
@@ -8812,7 +7042,7 @@ func (ec *executionContext) _Mutation_setCustomStartCommand(ctx context.Context,
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().SetCustomStartCommand(ctx, fc.Args["projectId"].(string), fc.Args["environment"].(string), fc.Args["service"].(string), fc.Args["command"].(string))
+			return ec.Resolvers.Mutation().SetCustomStartCommand(ctx, fc.Args["service"].(platform.ServiceID), fc.Args["command"].(string))
 		},
 		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
 			directive0 := next
@@ -8874,7 +7104,7 @@ func (ec *executionContext) _Mutation_deploy(ctx context.Context, field graphql.
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().Deploy(ctx, fc.Args["input"].(model.DeployInput))
+			return ec.Resolvers.Mutation().Deploy(ctx, fc.Args["service"].(platform.ServiceID), fc.Args["gitRef"].(*string))
 		},
 		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
 			directive0 := next
@@ -8936,7 +7166,7 @@ func (ec *executionContext) _Mutation_rollback(ctx context.Context, field graphq
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().Rollback(ctx, fc.Args["input"].(model.RollbackInput))
+			return ec.Resolvers.Mutation().Rollback(ctx, fc.Args["service"].(platform.ServiceID), fc.Args["imageTag"].(string))
 		},
 		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
 			directive0 := next
@@ -8998,7 +7228,7 @@ func (ec *executionContext) _Mutation_generateDomain(ctx context.Context, field 
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().GenerateDomain(ctx, fc.Args["input"].(model.GenerateDomainInput))
+			return ec.Resolvers.Mutation().GenerateDomain(ctx, fc.Args["service"].(platform.ServiceID))
 		},
 		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
 			directive0 := next
@@ -9060,7 +7290,7 @@ func (ec *executionContext) _Mutation_addCustomDomain(ctx context.Context, field
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().AddCustomDomain(ctx, fc.Args["input"].(model.AddCustomDomainInput))
+			return ec.Resolvers.Mutation().AddCustomDomain(ctx, fc.Args["service"].(platform.ServiceID), fc.Args["hostname"].(string))
 		},
 		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
 			directive0 := next
@@ -9122,7 +7352,7 @@ func (ec *executionContext) _Mutation_removeDomain(ctx context.Context, field gr
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().RemoveDomain(ctx, fc.Args["input"].(model.RemoveDomainInput))
+			return ec.Resolvers.Mutation().RemoveDomain(ctx, fc.Args["service"].(platform.ServiceID), fc.Args["hostname"].(string))
 		},
 		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
 			directive0 := next
@@ -9184,7 +7414,7 @@ func (ec *executionContext) _Mutation_setSharedVariables(ctx context.Context, fi
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().SetSharedVariables(ctx, fc.Args["projectId"].(string), fc.Args["environment"].(string), fc.Args["variables"].([]model.VariableInput))
+			return ec.Resolvers.Mutation().SetSharedVariables(ctx, fc.Args["environment"].(platform.EnvironmentID), fc.Args["variables"].([]model.VariableInput))
 		},
 		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
 			directive0 := next
@@ -9246,7 +7476,7 @@ func (ec *executionContext) _Mutation_setServiceVariables(ctx context.Context, f
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().SetServiceVariables(ctx, fc.Args["projectId"].(string), fc.Args["environment"].(string), fc.Args["service"].(string), fc.Args["variables"].([]model.ServiceVariableInput))
+			return ec.Resolvers.Mutation().SetServiceVariables(ctx, fc.Args["service"].(platform.ServiceID), fc.Args["variables"].([]model.ServiceVariableInput))
 		},
 		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
 			directive0 := next
@@ -9868,15 +8098,15 @@ func (ec *executionContext) _Project_id(ctx context.Context, field graphql.Colle
 			return obj.ID, nil
 		},
 		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
-			return ec.marshalNID2string(ctx, selections, v)
+		func(ctx context.Context, selections ast.SelectionSet, v platform.ProjectID) graphql.Marshaler {
+			return ec.marshalNProjectID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐProjectID(ctx, selections, v)
 		},
 		true,
 		true,
 	)
 }
 func (ec *executionContext) fieldContext_Project_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Project", field, false, false, errors.New("field of type ID does not have child fields"))
+	return graphql.NewScalarFieldContext("Project", field, false, false, errors.New("field of type ProjectID does not have child fields"))
 }
 
 func (ec *executionContext) _Project_name(ctx context.Context, field graphql.CollectedField, obj *model.Project) (ret graphql.Marshaler) {
@@ -9932,61 +8162,6 @@ func (ec *executionContext) fieldContext_Project_environments(_ context.Context,
 		},
 	}
 	return fc, nil
-}
-
-func (ec *executionContext) _Project_databases(ctx context.Context, field graphql.CollectedField, obj *model.Project) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_Project_databases(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.Databases, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v []model.Database) graphql.Marshaler {
-			return ec.marshalNDatabase2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabaseᚄ(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_Project_databases(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Project",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.childFields_Database(ctx, field)
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Project_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.Project) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_Project_createdAt(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.CreatedAt, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v *time.Time) graphql.Marshaler {
-			return ec.marshalOTime2ᚖtimeᚐTime(ctx, selections, v)
-		},
-		true,
-		false,
-	)
-}
-func (ec *executionContext) fieldContext_Project_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Project", field, false, false, errors.New("field of type Time does not have child fields"))
 }
 
 func (ec *executionContext) _Query_me(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -10049,7 +8224,7 @@ func (ec *executionContext) _Query_environmentResources(ctx context.Context, fie
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Query().EnvironmentResources(ctx, fc.Args["projectId"].(string), fc.Args["environment"].(string))
+			return ec.Resolvers.Query().EnvironmentResources(ctx, fc.Args["environment"].(platform.EnvironmentID))
 		},
 		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
 			directive0 := next
@@ -10201,68 +8376,6 @@ func (ec *executionContext) fieldContext_Query_usageSummary(_ context.Context, f
 	return fc, nil
 }
 
-func (ec *executionContext) _Query_databases(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_Query_databases(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Query().Databases(ctx, fc.Args["projectId"].(string))
-		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
-				if err != nil {
-					var zeroVal []model.Database
-					return zeroVal, err
-				}
-				if ec.Directives.HasRole == nil {
-					var zeroVal []model.Database
-					return zeroVal, errors.New("directive hasRole is not implemented")
-				}
-				return ec.Directives.HasRole(ctx, nil, directive0, role)
-			}
-
-			next = directive1
-			return next
-		},
-		func(ctx context.Context, selections ast.SelectionSet, v []model.Database) graphql.Marshaler {
-			return ec.marshalNDatabase2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabaseᚄ(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_Query_databases(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Query",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.childFields_Database(ctx, field)
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Query_databases_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _Query_databaseTables(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -10273,7 +8386,7 @@ func (ec *executionContext) _Query_databaseTables(ctx context.Context, field gra
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Query().DatabaseTables(ctx, fc.Args["projectId"].(string), fc.Args["environment"].(string), fc.Args["database"].(string))
+			return ec.Resolvers.Query().DatabaseTables(ctx, fc.Args["database"].(platform.DatabaseID))
 		},
 		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
 			directive0 := next
@@ -10335,7 +8448,7 @@ func (ec *executionContext) _Query_databaseTableData(ctx context.Context, field 
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Query().DatabaseTableData(ctx, fc.Args["projectId"].(string), fc.Args["environment"].(string), fc.Args["database"].(string), fc.Args["table"].(string), fc.Args["schema"].(*string), fc.Args["limit"].(*int), fc.Args["offset"].(*int))
+			return ec.Resolvers.Query().DatabaseTableData(ctx, fc.Args["database"].(platform.DatabaseID), fc.Args["table"].(string), fc.Args["schema"].(*string), fc.Args["limit"].(*int), fc.Args["offset"].(*int))
 		},
 		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
 			directive0 := next
@@ -10397,7 +8510,7 @@ func (ec *executionContext) _Query_databaseCredentials(ctx context.Context, fiel
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Query().DatabaseCredentials(ctx, fc.Args["projectId"].(string), fc.Args["environment"].(string), fc.Args["database"].(string))
+			return ec.Resolvers.Query().DatabaseCredentials(ctx, fc.Args["database"].(platform.DatabaseID))
 		},
 		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
 			directive0 := next
@@ -10662,7 +8775,7 @@ func (ec *executionContext) _Query_project(ctx context.Context, field graphql.Co
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Query().Project(ctx, fc.Args["id"].(string))
+			return ec.Resolvers.Query().Project(ctx, fc.Args["id"].(platform.ProjectID))
 		},
 		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
 			directive0 := next
@@ -10910,7 +9023,7 @@ func (ec *executionContext) _Query_activeDeployment(ctx context.Context, field g
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Query().ActiveDeployment(ctx, fc.Args["projectId"].(string), fc.Args["service"].(string), fc.Args["environment"].(string))
+			return ec.Resolvers.Query().ActiveDeployment(ctx, fc.Args["service"].(platform.ServiceID))
 		},
 		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
 			directive0 := next
@@ -11084,7 +9197,7 @@ func (ec *executionContext) _Query_sharedVariables(ctx context.Context, field gr
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Query().SharedVariables(ctx, fc.Args["projectId"].(string), fc.Args["environment"].(string))
+			return ec.Resolvers.Query().SharedVariables(ctx, fc.Args["environment"].(platform.EnvironmentID))
 		},
 		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
 			directive0 := next
@@ -11146,7 +9259,7 @@ func (ec *executionContext) _Query_serviceVariables(ctx context.Context, field g
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Query().ServiceVariables(ctx, fc.Args["projectId"].(string), fc.Args["environment"].(string), fc.Args["service"].(string))
+			return ec.Resolvers.Query().ServiceVariables(ctx, fc.Args["service"].(platform.ServiceID))
 		},
 		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
 			directive0 := next
@@ -11579,15 +9692,15 @@ func (ec *executionContext) _ServiceInstance_id(ctx context.Context, field graph
 			return obj.ID, nil
 		},
 		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
-			return ec.marshalNID2string(ctx, selections, v)
+		func(ctx context.Context, selections ast.SelectionSet, v platform.ServiceID) graphql.Marshaler {
+			return ec.marshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐServiceID(ctx, selections, v)
 		},
 		true,
 		true,
 	)
 }
 func (ec *executionContext) fieldContext_ServiceInstance_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ServiceInstance", field, false, false, errors.New("field of type ID does not have child fields"))
+	return graphql.NewScalarFieldContext("ServiceInstance", field, false, false, errors.New("field of type ServiceID does not have child fields"))
 }
 
 func (ec *executionContext) _ServiceInstance_name(ctx context.Context, field graphql.CollectedField, obj *model.ServiceInstance) (ret graphql.Marshaler) {
@@ -11610,29 +9723,6 @@ func (ec *executionContext) _ServiceInstance_name(ctx context.Context, field gra
 	)
 }
 func (ec *executionContext) fieldContext_ServiceInstance_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ServiceInstance", field, false, false, errors.New("field of type String does not have child fields"))
-}
-
-func (ec *executionContext) _ServiceInstance_environment(ctx context.Context, field graphql.CollectedField, obj *model.ServiceInstance) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_ServiceInstance_environment(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.Environment, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
-			return ec.marshalNString2string(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_ServiceInstance_environment(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("ServiceInstance", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
@@ -12084,15 +10174,15 @@ func (ec *executionContext) _ServiceRef_service(ctx context.Context, field graph
 			return obj.Service, nil
 		},
 		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
-			return ec.marshalNString2string(ctx, selections, v)
+		func(ctx context.Context, selections ast.SelectionSet, v platform.ServiceID) graphql.Marshaler {
+			return ec.marshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐServiceID(ctx, selections, v)
 		},
 		true,
 		true,
 	)
 }
 func (ec *executionContext) fieldContext_ServiceRef_service(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ServiceRef", field, false, false, errors.New("field of type String does not have child fields"))
+	return graphql.NewScalarFieldContext("ServiceRef", field, false, false, errors.New("field of type ServiceID does not have child fields"))
 }
 
 func (ec *executionContext) _ServiceResources_cpuMillicores(ctx context.Context, field graphql.CollectedField, obj *model.ServiceResources) (ret graphql.Marshaler) {
@@ -12330,7 +10420,7 @@ func (ec *executionContext) _Subscription_serviceLogs(ctx context.Context, field
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Subscription().ServiceLogs(ctx, fc.Args["projectId"].(string), fc.Args["service"].(string), fc.Args["environment"].(string), fc.Args["tailLines"].(*int))
+			return ec.Resolvers.Subscription().ServiceLogs(ctx, fc.Args["service"].(platform.ServiceID), fc.Args["tailLines"].(*int))
 		},
 		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
 			directive0 := next
@@ -12658,6 +10748,29 @@ func (ec *executionContext) _Variable_value(ctx context.Context, field graphql.C
 }
 func (ec *executionContext) fieldContext_Variable_value(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("Variable", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _Volume_id(ctx context.Context, field graphql.CollectedField, obj *model.Volume) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Volume_id(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v platform.VolumeID) graphql.Marshaler {
+			return ec.marshalNVolumeID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐVolumeID(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Volume_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Volume", field, false, false, errors.New("field of type VolumeID does not have child fields"))
 }
 
 func (ec *executionContext) _Volume_name(ctx context.Context, field graphql.CollectedField, obj *model.Volume) (ret graphql.Marshaler) {
@@ -14096,137 +12209,6 @@ func (ec *executionContext) fieldContext___Type_isOneOf(_ context.Context, field
 
 // region    **************************** input.gotpl *****************************
 
-func (ec *executionContext) unmarshalInputAddCustomDomainInput(ctx context.Context, obj any) (model.AddCustomDomainInput, error) {
-	var it model.AddCustomDomainInput
-	if obj == nil {
-		return it, nil
-	}
-
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"projectId", "service", "environment", "hostname"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
-		case "projectId":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("projectId"))
-			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNID2string(ctx, v) }
-
-			directive1 := func(ctx context.Context) (any, error) {
-				constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-				if err != nil {
-					var zeroVal string
-					return zeroVal, err
-				}
-				if ec.Directives.Constraint == nil {
-					var zeroVal string
-					return zeroVal, errors.New("directive constraint is not implemented")
-				}
-				return ec.Directives.Constraint(ctx, obj, directive0, constraint)
-			}
-
-			tmp, err := directive1(ctx)
-			if err != nil {
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-			if data, ok := tmp.(string); ok {
-				it.ProjectID = data
-			} else {
-				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-		case "service":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("service"))
-			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNString2string(ctx, v) }
-
-			directive1 := func(ctx context.Context) (any, error) {
-				constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-				if err != nil {
-					var zeroVal string
-					return zeroVal, err
-				}
-				if ec.Directives.Constraint == nil {
-					var zeroVal string
-					return zeroVal, errors.New("directive constraint is not implemented")
-				}
-				return ec.Directives.Constraint(ctx, obj, directive0, constraint)
-			}
-
-			tmp, err := directive1(ctx)
-			if err != nil {
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-			if data, ok := tmp.(string); ok {
-				it.Service = data
-			} else {
-				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-		case "environment":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("environment"))
-			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNString2string(ctx, v) }
-
-			directive1 := func(ctx context.Context) (any, error) {
-				constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-				if err != nil {
-					var zeroVal string
-					return zeroVal, err
-				}
-				if ec.Directives.Constraint == nil {
-					var zeroVal string
-					return zeroVal, errors.New("directive constraint is not implemented")
-				}
-				return ec.Directives.Constraint(ctx, obj, directive0, constraint)
-			}
-
-			tmp, err := directive1(ctx)
-			if err != nil {
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-			if data, ok := tmp.(string); ok {
-				it.Environment = data
-			} else {
-				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-		case "hostname":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("hostname"))
-			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNString2string(ctx, v) }
-
-			directive1 := func(ctx context.Context) (any, error) {
-				constraint, err := ec.unmarshalNString2string(ctx, "min=4,max=253")
-				if err != nil {
-					var zeroVal string
-					return zeroVal, err
-				}
-				if ec.Directives.Constraint == nil {
-					var zeroVal string
-					return zeroVal, errors.New("directive constraint is not implemented")
-				}
-				return ec.Directives.Constraint(ctx, obj, directive0, constraint)
-			}
-
-			tmp, err := directive1(ctx)
-			if err != nil {
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-			if data, ok := tmp.(string); ok {
-				it.Hostname = data
-			} else {
-				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-		}
-	}
-	return it, nil
-}
-
 func (ec *executionContext) unmarshalInputAddServiceInput(ctx context.Context, obj any) (model.AddServiceInput, error) {
 	var it model.AddServiceInput
 	if obj == nil {
@@ -14238,67 +12220,20 @@ func (ec *executionContext) unmarshalInputAddServiceInput(ctx context.Context, o
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"projectId", "environment", "name", "port", "framework", "startCommand", "repository", "contextPath", "installationId", "image", "customStartCommand"}
+	fieldsInOrder := [...]string{"environment", "name", "port", "framework", "startCommand", "repository", "contextPath", "installationId", "image", "customStartCommand"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
-		case "projectId":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("projectId"))
-			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNID2string(ctx, v) }
-
-			directive1 := func(ctx context.Context) (any, error) {
-				constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-				if err != nil {
-					var zeroVal string
-					return zeroVal, err
-				}
-				if ec.Directives.Constraint == nil {
-					var zeroVal string
-					return zeroVal, errors.New("directive constraint is not implemented")
-				}
-				return ec.Directives.Constraint(ctx, obj, directive0, constraint)
-			}
-
-			tmp, err := directive1(ctx)
-			if err != nil {
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-			if data, ok := tmp.(string); ok {
-				it.ProjectID = data
-			} else {
-				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
 		case "environment":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("environment"))
-			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNString2string(ctx, v) }
-
-			directive1 := func(ctx context.Context) (any, error) {
-				constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-				if err != nil {
-					var zeroVal string
-					return zeroVal, err
-				}
-				if ec.Directives.Constraint == nil {
-					var zeroVal string
-					return zeroVal, errors.New("directive constraint is not implemented")
-				}
-				return ec.Directives.Constraint(ctx, obj, directive0, constraint)
-			}
-
-			tmp, err := directive1(ctx)
+			data, err := ec.unmarshalNEnvironmentID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐEnvironmentID(ctx, v)
 			if err != nil {
-				return it, graphql.ErrorOnPath(ctx, err)
+				return it, err
 			}
-			if data, ok := tmp.(string); ok {
-				it.Environment = data
-			} else {
-				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
+			it.Environment = data
 		case "name":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
 			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalOString2ᚖstring(ctx, v) }
@@ -14533,40 +12468,20 @@ func (ec *executionContext) unmarshalInputCreateDatabaseInput(ctx context.Contex
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"projectId", "name", "version", "instances", "size"}
+	fieldsInOrder := [...]string{"environment", "name", "version", "instances", "size"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
-		case "projectId":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("projectId"))
-			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNID2string(ctx, v) }
-
-			directive1 := func(ctx context.Context) (any, error) {
-				constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-				if err != nil {
-					var zeroVal string
-					return zeroVal, err
-				}
-				if ec.Directives.Constraint == nil {
-					var zeroVal string
-					return zeroVal, errors.New("directive constraint is not implemented")
-				}
-				return ec.Directives.Constraint(ctx, obj, directive0, constraint)
-			}
-
-			tmp, err := directive1(ctx)
+		case "environment":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("environment"))
+			data, err := ec.unmarshalNEnvironmentID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐEnvironmentID(ctx, v)
 			if err != nil {
-				return it, graphql.ErrorOnPath(ctx, err)
+				return it, err
 			}
-			if data, ok := tmp.(string); ok {
-				it.ProjectID = data
-			} else {
-				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
+			it.Environment = data
 		case "name":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
 			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNString2string(ctx, v) }
@@ -14631,40 +12546,20 @@ func (ec *executionContext) unmarshalInputCreateEnvironmentInput(ctx context.Con
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"projectId", "name", "fromEnvironment", "tier"}
+	fieldsInOrder := [...]string{"project", "name", "fromEnvironment", "tier"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
-		case "projectId":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("projectId"))
-			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNID2string(ctx, v) }
-
-			directive1 := func(ctx context.Context) (any, error) {
-				constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-				if err != nil {
-					var zeroVal string
-					return zeroVal, err
-				}
-				if ec.Directives.Constraint == nil {
-					var zeroVal string
-					return zeroVal, errors.New("directive constraint is not implemented")
-				}
-				return ec.Directives.Constraint(ctx, obj, directive0, constraint)
-			}
-
-			tmp, err := directive1(ctx)
+		case "project":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("project"))
+			data, err := ec.unmarshalNProjectID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐProjectID(ctx, v)
 			if err != nil {
-				return it, graphql.ErrorOnPath(ctx, err)
+				return it, err
 			}
-			if data, ok := tmp.(string); ok {
-				it.ProjectID = data
-			} else {
-				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
+			it.Project = data
 		case "name":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
 			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNString2string(ctx, v) }
@@ -14694,33 +12589,11 @@ func (ec *executionContext) unmarshalInputCreateEnvironmentInput(ctx context.Con
 			}
 		case "fromEnvironment":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("fromEnvironment"))
-			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalOString2ᚖstring(ctx, v) }
-
-			directive1 := func(ctx context.Context) (any, error) {
-				constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-				if err != nil {
-					var zeroVal *string
-					return zeroVal, err
-				}
-				if ec.Directives.Constraint == nil {
-					var zeroVal *string
-					return zeroVal, errors.New("directive constraint is not implemented")
-				}
-				return ec.Directives.Constraint(ctx, obj, directive0, constraint)
-			}
-
-			tmp, err := directive1(ctx)
+			data, err := ec.unmarshalOEnvironmentID2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐEnvironmentID(ctx, v)
 			if err != nil {
-				return it, graphql.ErrorOnPath(ctx, err)
+				return it, err
 			}
-			if data, ok := tmp.(*string); ok {
-				it.FromEnvironment = data
-			} else if tmp == nil {
-				it.FromEnvironment = nil
-			} else {
-				err := fmt.Errorf(`unexpected type %T from directive, should be *string`, tmp)
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
+			it.FromEnvironment = data
 		case "tier":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("tier"))
 			data, err := ec.unmarshalOResourceTier2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐResourceTier(ctx, v)
@@ -14893,117 +12766,6 @@ func (ec *executionContext) unmarshalInputCreateWorkspaceInput(ctx context.Conte
 	return it, nil
 }
 
-func (ec *executionContext) unmarshalInputDatabaseQueryInput(ctx context.Context, obj any) (model.DatabaseQueryInput, error) {
-	var it model.DatabaseQueryInput
-	if obj == nil {
-		return it, nil
-	}
-
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"projectId", "environment", "database", "query"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
-		case "projectId":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("projectId"))
-			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNID2string(ctx, v) }
-
-			directive1 := func(ctx context.Context) (any, error) {
-				constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-				if err != nil {
-					var zeroVal string
-					return zeroVal, err
-				}
-				if ec.Directives.Constraint == nil {
-					var zeroVal string
-					return zeroVal, errors.New("directive constraint is not implemented")
-				}
-				return ec.Directives.Constraint(ctx, obj, directive0, constraint)
-			}
-
-			tmp, err := directive1(ctx)
-			if err != nil {
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-			if data, ok := tmp.(string); ok {
-				it.ProjectID = data
-			} else {
-				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-		case "environment":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("environment"))
-			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNString2string(ctx, v) }
-
-			directive1 := func(ctx context.Context) (any, error) {
-				constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-				if err != nil {
-					var zeroVal string
-					return zeroVal, err
-				}
-				if ec.Directives.Constraint == nil {
-					var zeroVal string
-					return zeroVal, errors.New("directive constraint is not implemented")
-				}
-				return ec.Directives.Constraint(ctx, obj, directive0, constraint)
-			}
-
-			tmp, err := directive1(ctx)
-			if err != nil {
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-			if data, ok := tmp.(string); ok {
-				it.Environment = data
-			} else {
-				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-		case "database":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("database"))
-			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNString2string(ctx, v) }
-
-			directive1 := func(ctx context.Context) (any, error) {
-				constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-				if err != nil {
-					var zeroVal string
-					return zeroVal, err
-				}
-				if ec.Directives.Constraint == nil {
-					var zeroVal string
-					return zeroVal, errors.New("directive constraint is not implemented")
-				}
-				return ec.Directives.Constraint(ctx, obj, directive0, constraint)
-			}
-
-			tmp, err := directive1(ctx)
-			if err != nil {
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-			if data, ok := tmp.(string); ok {
-				it.Database = data
-			} else {
-				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-		case "query":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("query"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Query = data
-		}
-	}
-	return it, nil
-}
-
 func (ec *executionContext) unmarshalInputDatabaseRefInput(ctx context.Context, obj any) (model.DatabaseRefInput, error) {
 	var it model.DatabaseRefInput
 	if obj == nil {
@@ -15024,7 +12786,7 @@ func (ec *executionContext) unmarshalInputDatabaseRefInput(ctx context.Context, 
 		switch k {
 		case "database":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("database"))
-			data, err := ec.unmarshalNString2string(ctx, v)
+			data, err := ec.unmarshalNDatabaseID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐDatabaseID(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -15036,221 +12798,6 @@ func (ec *executionContext) unmarshalInputDatabaseRefInput(ctx context.Context, 
 				return it, err
 			}
 			it.Key = data
-		}
-	}
-	return it, nil
-}
-
-func (ec *executionContext) unmarshalInputDeployInput(ctx context.Context, obj any) (model.DeployInput, error) {
-	var it model.DeployInput
-	if obj == nil {
-		return it, nil
-	}
-
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"projectId", "service", "environment", "gitRef"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
-		case "projectId":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("projectId"))
-			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNID2string(ctx, v) }
-
-			directive1 := func(ctx context.Context) (any, error) {
-				constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-				if err != nil {
-					var zeroVal string
-					return zeroVal, err
-				}
-				if ec.Directives.Constraint == nil {
-					var zeroVal string
-					return zeroVal, errors.New("directive constraint is not implemented")
-				}
-				return ec.Directives.Constraint(ctx, obj, directive0, constraint)
-			}
-
-			tmp, err := directive1(ctx)
-			if err != nil {
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-			if data, ok := tmp.(string); ok {
-				it.ProjectID = data
-			} else {
-				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-		case "service":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("service"))
-			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNString2string(ctx, v) }
-
-			directive1 := func(ctx context.Context) (any, error) {
-				constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-				if err != nil {
-					var zeroVal string
-					return zeroVal, err
-				}
-				if ec.Directives.Constraint == nil {
-					var zeroVal string
-					return zeroVal, errors.New("directive constraint is not implemented")
-				}
-				return ec.Directives.Constraint(ctx, obj, directive0, constraint)
-			}
-
-			tmp, err := directive1(ctx)
-			if err != nil {
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-			if data, ok := tmp.(string); ok {
-				it.Service = data
-			} else {
-				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-		case "environment":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("environment"))
-			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNString2string(ctx, v) }
-
-			directive1 := func(ctx context.Context) (any, error) {
-				constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-				if err != nil {
-					var zeroVal string
-					return zeroVal, err
-				}
-				if ec.Directives.Constraint == nil {
-					var zeroVal string
-					return zeroVal, errors.New("directive constraint is not implemented")
-				}
-				return ec.Directives.Constraint(ctx, obj, directive0, constraint)
-			}
-
-			tmp, err := directive1(ctx)
-			if err != nil {
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-			if data, ok := tmp.(string); ok {
-				it.Environment = data
-			} else {
-				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-		case "gitRef":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("gitRef"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.GitRef = data
-		}
-	}
-	return it, nil
-}
-
-func (ec *executionContext) unmarshalInputGenerateDomainInput(ctx context.Context, obj any) (model.GenerateDomainInput, error) {
-	var it model.GenerateDomainInput
-	if obj == nil {
-		return it, nil
-	}
-
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"projectId", "service", "environment"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
-		case "projectId":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("projectId"))
-			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNID2string(ctx, v) }
-
-			directive1 := func(ctx context.Context) (any, error) {
-				constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-				if err != nil {
-					var zeroVal string
-					return zeroVal, err
-				}
-				if ec.Directives.Constraint == nil {
-					var zeroVal string
-					return zeroVal, errors.New("directive constraint is not implemented")
-				}
-				return ec.Directives.Constraint(ctx, obj, directive0, constraint)
-			}
-
-			tmp, err := directive1(ctx)
-			if err != nil {
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-			if data, ok := tmp.(string); ok {
-				it.ProjectID = data
-			} else {
-				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-		case "service":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("service"))
-			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNString2string(ctx, v) }
-
-			directive1 := func(ctx context.Context) (any, error) {
-				constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-				if err != nil {
-					var zeroVal string
-					return zeroVal, err
-				}
-				if ec.Directives.Constraint == nil {
-					var zeroVal string
-					return zeroVal, errors.New("directive constraint is not implemented")
-				}
-				return ec.Directives.Constraint(ctx, obj, directive0, constraint)
-			}
-
-			tmp, err := directive1(ctx)
-			if err != nil {
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-			if data, ok := tmp.(string); ok {
-				it.Service = data
-			} else {
-				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-		case "environment":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("environment"))
-			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNString2string(ctx, v) }
-
-			directive1 := func(ctx context.Context) (any, error) {
-				constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-				if err != nil {
-					var zeroVal string
-					return zeroVal, err
-				}
-				if ec.Directives.Constraint == nil {
-					var zeroVal string
-					return zeroVal, errors.New("directive constraint is not implemented")
-				}
-				return ec.Directives.Constraint(ctx, obj, directive0, constraint)
-			}
-
-			tmp, err := directive1(ctx)
-			if err != nil {
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-			if data, ok := tmp.(string); ok {
-				it.Environment = data
-			} else {
-				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
 		}
 	}
 	return it, nil
@@ -15304,94 +12851,20 @@ func (ec *executionContext) unmarshalInputPromoteInput(ctx context.Context, obj 
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"projectId", "service", "fromEnvironment", "tier", "toEnvironment"}
+	fieldsInOrder := [...]string{"service", "tier", "toEnvironment"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
-		case "projectId":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("projectId"))
-			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNID2string(ctx, v) }
-
-			directive1 := func(ctx context.Context) (any, error) {
-				constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-				if err != nil {
-					var zeroVal string
-					return zeroVal, err
-				}
-				if ec.Directives.Constraint == nil {
-					var zeroVal string
-					return zeroVal, errors.New("directive constraint is not implemented")
-				}
-				return ec.Directives.Constraint(ctx, obj, directive0, constraint)
-			}
-
-			tmp, err := directive1(ctx)
-			if err != nil {
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-			if data, ok := tmp.(string); ok {
-				it.ProjectID = data
-			} else {
-				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
 		case "service":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("service"))
-			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNString2string(ctx, v) }
-
-			directive1 := func(ctx context.Context) (any, error) {
-				constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-				if err != nil {
-					var zeroVal string
-					return zeroVal, err
-				}
-				if ec.Directives.Constraint == nil {
-					var zeroVal string
-					return zeroVal, errors.New("directive constraint is not implemented")
-				}
-				return ec.Directives.Constraint(ctx, obj, directive0, constraint)
-			}
-
-			tmp, err := directive1(ctx)
+			data, err := ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐServiceID(ctx, v)
 			if err != nil {
-				return it, graphql.ErrorOnPath(ctx, err)
+				return it, err
 			}
-			if data, ok := tmp.(string); ok {
-				it.Service = data
-			} else {
-				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-		case "fromEnvironment":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("fromEnvironment"))
-			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNString2string(ctx, v) }
-
-			directive1 := func(ctx context.Context) (any, error) {
-				constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-				if err != nil {
-					var zeroVal string
-					return zeroVal, err
-				}
-				if ec.Directives.Constraint == nil {
-					var zeroVal string
-					return zeroVal, errors.New("directive constraint is not implemented")
-				}
-				return ec.Directives.Constraint(ctx, obj, directive0, constraint)
-			}
-
-			tmp, err := directive1(ctx)
-			if err != nil {
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-			if data, ok := tmp.(string); ok {
-				it.FromEnvironment = data
-			} else {
-				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
+			it.Service = data
 		case "tier":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("tier"))
 			data, err := ec.unmarshalOResourceTier2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐResourceTier(ctx, v)
@@ -15401,253 +12874,11 @@ func (ec *executionContext) unmarshalInputPromoteInput(ctx context.Context, obj 
 			it.Tier = data
 		case "toEnvironment":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("toEnvironment"))
-			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNString2string(ctx, v) }
-
-			directive1 := func(ctx context.Context) (any, error) {
-				constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-				if err != nil {
-					var zeroVal string
-					return zeroVal, err
-				}
-				if ec.Directives.Constraint == nil {
-					var zeroVal string
-					return zeroVal, errors.New("directive constraint is not implemented")
-				}
-				return ec.Directives.Constraint(ctx, obj, directive0, constraint)
-			}
-
-			tmp, err := directive1(ctx)
-			if err != nil {
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-			if data, ok := tmp.(string); ok {
-				it.ToEnvironment = data
-			} else {
-				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-		}
-	}
-	return it, nil
-}
-
-func (ec *executionContext) unmarshalInputRemoveDomainInput(ctx context.Context, obj any) (model.RemoveDomainInput, error) {
-	var it model.RemoveDomainInput
-	if obj == nil {
-		return it, nil
-	}
-
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"projectId", "service", "environment", "hostname"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
-		case "projectId":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("projectId"))
-			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNID2string(ctx, v) }
-
-			directive1 := func(ctx context.Context) (any, error) {
-				constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-				if err != nil {
-					var zeroVal string
-					return zeroVal, err
-				}
-				if ec.Directives.Constraint == nil {
-					var zeroVal string
-					return zeroVal, errors.New("directive constraint is not implemented")
-				}
-				return ec.Directives.Constraint(ctx, obj, directive0, constraint)
-			}
-
-			tmp, err := directive1(ctx)
-			if err != nil {
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-			if data, ok := tmp.(string); ok {
-				it.ProjectID = data
-			} else {
-				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-		case "service":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("service"))
-			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNString2string(ctx, v) }
-
-			directive1 := func(ctx context.Context) (any, error) {
-				constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-				if err != nil {
-					var zeroVal string
-					return zeroVal, err
-				}
-				if ec.Directives.Constraint == nil {
-					var zeroVal string
-					return zeroVal, errors.New("directive constraint is not implemented")
-				}
-				return ec.Directives.Constraint(ctx, obj, directive0, constraint)
-			}
-
-			tmp, err := directive1(ctx)
-			if err != nil {
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-			if data, ok := tmp.(string); ok {
-				it.Service = data
-			} else {
-				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-		case "environment":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("environment"))
-			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNString2string(ctx, v) }
-
-			directive1 := func(ctx context.Context) (any, error) {
-				constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-				if err != nil {
-					var zeroVal string
-					return zeroVal, err
-				}
-				if ec.Directives.Constraint == nil {
-					var zeroVal string
-					return zeroVal, errors.New("directive constraint is not implemented")
-				}
-				return ec.Directives.Constraint(ctx, obj, directive0, constraint)
-			}
-
-			tmp, err := directive1(ctx)
-			if err != nil {
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-			if data, ok := tmp.(string); ok {
-				it.Environment = data
-			} else {
-				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-		case "hostname":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("hostname"))
-			data, err := ec.unmarshalNString2string(ctx, v)
+			data, err := ec.unmarshalNEnvironmentID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐEnvironmentID(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.Hostname = data
-		}
-	}
-	return it, nil
-}
-
-func (ec *executionContext) unmarshalInputRollbackInput(ctx context.Context, obj any) (model.RollbackInput, error) {
-	var it model.RollbackInput
-	if obj == nil {
-		return it, nil
-	}
-
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"projectId", "service", "environment", "imageTag"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
-		case "projectId":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("projectId"))
-			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNID2string(ctx, v) }
-
-			directive1 := func(ctx context.Context) (any, error) {
-				constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-				if err != nil {
-					var zeroVal string
-					return zeroVal, err
-				}
-				if ec.Directives.Constraint == nil {
-					var zeroVal string
-					return zeroVal, errors.New("directive constraint is not implemented")
-				}
-				return ec.Directives.Constraint(ctx, obj, directive0, constraint)
-			}
-
-			tmp, err := directive1(ctx)
-			if err != nil {
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-			if data, ok := tmp.(string); ok {
-				it.ProjectID = data
-			} else {
-				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-		case "service":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("service"))
-			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNString2string(ctx, v) }
-
-			directive1 := func(ctx context.Context) (any, error) {
-				constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-				if err != nil {
-					var zeroVal string
-					return zeroVal, err
-				}
-				if ec.Directives.Constraint == nil {
-					var zeroVal string
-					return zeroVal, errors.New("directive constraint is not implemented")
-				}
-				return ec.Directives.Constraint(ctx, obj, directive0, constraint)
-			}
-
-			tmp, err := directive1(ctx)
-			if err != nil {
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-			if data, ok := tmp.(string); ok {
-				it.Service = data
-			} else {
-				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-		case "environment":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("environment"))
-			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNString2string(ctx, v) }
-
-			directive1 := func(ctx context.Context) (any, error) {
-				constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-				if err != nil {
-					var zeroVal string
-					return zeroVal, err
-				}
-				if ec.Directives.Constraint == nil {
-					var zeroVal string
-					return zeroVal, errors.New("directive constraint is not implemented")
-				}
-				return ec.Directives.Constraint(ctx, obj, directive0, constraint)
-			}
-
-			tmp, err := directive1(ctx)
-			if err != nil {
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-			if data, ok := tmp.(string); ok {
-				it.Environment = data
-			} else {
-				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-		case "imageTag":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("imageTag"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ImageTag = data
+			it.ToEnvironment = data
 		}
 	}
 	return it, nil
@@ -15673,7 +12904,7 @@ func (ec *executionContext) unmarshalInputServiceRefInput(ctx context.Context, o
 		switch k {
 		case "service":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("service"))
-			data, err := ec.unmarshalNString2string(ctx, v)
+			data, err := ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐServiceID(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -15752,67 +12983,20 @@ func (ec *executionContext) unmarshalInputSetEnvironmentResourcesInput(ctx conte
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"projectId", "environment", "tier", "cpuMillicores", "memoryMB", "diskMB"}
+	fieldsInOrder := [...]string{"environment", "tier", "cpuMillicores", "memoryMB", "diskMB"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
-		case "projectId":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("projectId"))
-			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNID2string(ctx, v) }
-
-			directive1 := func(ctx context.Context) (any, error) {
-				constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-				if err != nil {
-					var zeroVal string
-					return zeroVal, err
-				}
-				if ec.Directives.Constraint == nil {
-					var zeroVal string
-					return zeroVal, errors.New("directive constraint is not implemented")
-				}
-				return ec.Directives.Constraint(ctx, obj, directive0, constraint)
-			}
-
-			tmp, err := directive1(ctx)
-			if err != nil {
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-			if data, ok := tmp.(string); ok {
-				it.ProjectID = data
-			} else {
-				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
 		case "environment":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("environment"))
-			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNString2string(ctx, v) }
-
-			directive1 := func(ctx context.Context) (any, error) {
-				constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-				if err != nil {
-					var zeroVal string
-					return zeroVal, err
-				}
-				if ec.Directives.Constraint == nil {
-					var zeroVal string
-					return zeroVal, errors.New("directive constraint is not implemented")
-				}
-				return ec.Directives.Constraint(ctx, obj, directive0, constraint)
-			}
-
-			tmp, err := directive1(ctx)
+			data, err := ec.unmarshalNEnvironmentID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐEnvironmentID(ctx, v)
 			if err != nil {
-				return it, graphql.ErrorOnPath(ctx, err)
+				return it, err
 			}
-			if data, ok := tmp.(string); ok {
-				it.Environment = data
-			} else {
-				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
+			it.Environment = data
 		case "tier":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("tier"))
 			data, err := ec.unmarshalNResourceTier2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐResourceTier(ctx, v)
@@ -15917,94 +13101,20 @@ func (ec *executionContext) unmarshalInputSetServiceScalingInput(ctx context.Con
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"projectId", "environment", "service", "replicas", "autoscaling"}
+	fieldsInOrder := [...]string{"service", "replicas", "autoscaling"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
-		case "projectId":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("projectId"))
-			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNID2string(ctx, v) }
-
-			directive1 := func(ctx context.Context) (any, error) {
-				constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-				if err != nil {
-					var zeroVal string
-					return zeroVal, err
-				}
-				if ec.Directives.Constraint == nil {
-					var zeroVal string
-					return zeroVal, errors.New("directive constraint is not implemented")
-				}
-				return ec.Directives.Constraint(ctx, obj, directive0, constraint)
-			}
-
-			tmp, err := directive1(ctx)
-			if err != nil {
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-			if data, ok := tmp.(string); ok {
-				it.ProjectID = data
-			} else {
-				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-		case "environment":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("environment"))
-			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNString2string(ctx, v) }
-
-			directive1 := func(ctx context.Context) (any, error) {
-				constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-				if err != nil {
-					var zeroVal string
-					return zeroVal, err
-				}
-				if ec.Directives.Constraint == nil {
-					var zeroVal string
-					return zeroVal, errors.New("directive constraint is not implemented")
-				}
-				return ec.Directives.Constraint(ctx, obj, directive0, constraint)
-			}
-
-			tmp, err := directive1(ctx)
-			if err != nil {
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-			if data, ok := tmp.(string); ok {
-				it.Environment = data
-			} else {
-				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
 		case "service":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("service"))
-			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNString2string(ctx, v) }
-
-			directive1 := func(ctx context.Context) (any, error) {
-				constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
-				if err != nil {
-					var zeroVal string
-					return zeroVal, err
-				}
-				if ec.Directives.Constraint == nil {
-					var zeroVal string
-					return zeroVal, errors.New("directive constraint is not implemented")
-				}
-				return ec.Directives.Constraint(ctx, obj, directive0, constraint)
-			}
-
-			tmp, err := directive1(ctx)
+			data, err := ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐServiceID(ctx, v)
 			if err != nil {
-				return it, graphql.ErrorOnPath(ctx, err)
+				return it, err
 			}
-			if data, ok := tmp.(string); ok {
-				it.Service = data
-			} else {
-				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
+			it.Service = data
 		case "replicas":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("replicas"))
 			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNInt2int(ctx, v) }
@@ -16357,6 +13467,11 @@ func (ec *executionContext) _Database(ctx context.Context, sel ast.SelectionSet,
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Database")
+		case "id":
+			out.Values[i] = ec._Database_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "name":
 			out.Values[i] = ec._Database_name(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -16531,11 +13646,6 @@ func (ec *executionContext) _DatabaseInstance(ctx context.Context, sel ast.Selec
 			out.Values[i] = graphql.MarshalString("DatabaseInstance")
 		case "name":
 			out.Values[i] = ec._DatabaseInstance_name(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "environment":
-			out.Values[i] = ec._DatabaseInstance_environment(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -17037,21 +14147,6 @@ func (ec *executionContext) _Environment(ctx context.Context, sel ast.SelectionS
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
-		case "namespace":
-			out.Values[i] = ec._Environment_namespace(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
-			}
-		case "ephemeral":
-			out.Values[i] = ec._Environment_ephemeral(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
-			}
-		case "syncStatus":
-			out.Values[i] = ec._Environment_syncStatus(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
-			}
 		case "resourceTier":
 			field := field
 
@@ -17086,15 +14181,77 @@ func (ec *executionContext) _Environment(ctx context.Context, sel ast.SelectionS
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "services":
-			out.Values[i] = ec._Environment_services(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Environment_services(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
 			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "databases":
-			out.Values[i] = ec._Environment_databases(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Environment_databases(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
 			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -17680,13 +14837,6 @@ func (ec *executionContext) _Project(ctx context.Context, sel ast.SelectionSet, 
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "databases":
-			out.Values[i] = ec._Project_databases(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "createdAt":
-			out.Values[i] = ec._Project_createdAt(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -17799,28 +14949,6 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_usageSummary(ctx, field)
-				return res
-			}
-
-			rrm := func(ctx context.Context) graphql.Marshaler {
-				return ec.OperationContext.RootResolverMiddleware(ctx,
-					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
-		case "databases":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Query_databases(ctx, field)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
 				return res
 			}
 
@@ -18408,11 +15536,6 @@ func (ec *executionContext) _ServiceInstance(ctx context.Context, sel ast.Select
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "environment":
-			out.Values[i] = ec._ServiceInstance_environment(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
 		case "image":
 			out.Values[i] = ec._ServiceInstance_image(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -18851,6 +15974,11 @@ func (ec *executionContext) _Volume(ctx context.Context, sel ast.SelectionSet, o
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Volume")
+		case "id":
+			out.Values[i] = ec._Volume_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "name":
 			out.Values[i] = ec._Volume_name(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -19388,11 +16516,6 @@ func (ec *executionContext) ___Type(ctx context.Context, sel ast.SelectionSet, o
 
 // region    ***************************** type.gotpl *****************************
 
-func (ec *executionContext) unmarshalNAddCustomDomainInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAddCustomDomainInput(ctx context.Context, v any) (model.AddCustomDomainInput, error) {
-	res, err := ec.unmarshalInputAddCustomDomainInput(ctx, v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
 func (ec *executionContext) unmarshalNAddServiceInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAddServiceInput(ctx context.Context, v any) (model.AddServiceInput, error) {
 	res, err := ec.unmarshalInputAddServiceInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -19485,22 +16608,6 @@ func (ec *executionContext) marshalNDatabase2githubᚗcomᚋzeitlosᚋlucityᚋs
 	return ec._Database(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNDatabase2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabaseᚄ(ctx context.Context, sel ast.SelectionSet, v []model.Database) graphql.Marshaler {
-	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
-		fc := graphql.GetFieldContext(ctx)
-		fc.Result = &v[i]
-		return ec.marshalNDatabase2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabase(ctx, sel, v[i])
-	})
-
-	for _, e := range ret {
-		if e == graphql.Null {
-			return graphql.Null
-		}
-	}
-
-	return ret
-}
-
 func (ec *executionContext) marshalNDatabase2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabase(ctx context.Context, sel ast.SelectionSet, v *model.Database) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
@@ -19545,6 +16652,16 @@ func (ec *executionContext) marshalNDatabaseCredentials2ᚖgithubᚗcomᚋzeitlo
 	return ec._DatabaseCredentials(ctx, sel, v)
 }
 
+func (ec *executionContext) unmarshalNDatabaseID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐDatabaseID(ctx context.Context, v any) (platform.DatabaseID, error) {
+	var res platform.DatabaseID
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNDatabaseID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐDatabaseID(ctx context.Context, sel ast.SelectionSet, v platform.DatabaseID) graphql.Marshaler {
+	return v
+}
+
 func (ec *executionContext) marshalNDatabaseInstance2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabaseInstance(ctx context.Context, sel ast.SelectionSet, v model.DatabaseInstance) graphql.Marshaler {
 	return ec._DatabaseInstance(ctx, sel, &v)
 }
@@ -19563,11 +16680,6 @@ func (ec *executionContext) marshalNDatabaseInstance2ᚕgithubᚗcomᚋzeitlos�
 	}
 
 	return ret
-}
-
-func (ec *executionContext) unmarshalNDatabaseQueryInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabaseQueryInput(ctx context.Context, v any) (model.DatabaseQueryInput, error) {
-	res, err := ec.unmarshalInputDatabaseQueryInput(ctx, v)
-	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalNDatabaseTable2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabaseTable(ctx context.Context, sel ast.SelectionSet, v model.DatabaseTable) graphql.Marshaler {
@@ -19602,11 +16714,6 @@ func (ec *executionContext) marshalNDatabaseTableData2ᚖgithubᚗcomᚋzeitlos�
 		return graphql.Null
 	}
 	return ec._DatabaseTableData(ctx, sel, v)
-}
-
-func (ec *executionContext) unmarshalNDeployInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDeployInput(ctx context.Context, v any) (model.DeployInput, error) {
-	res, err := ec.unmarshalInputDeployInput(ctx, v)
-	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) unmarshalNDeployPhase2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDeployPhase(ctx context.Context, v any) (model.DeployPhase, error) {
@@ -19651,6 +16758,16 @@ func (ec *executionContext) marshalNDeployment2ᚕgithubᚗcomᚋzeitlosᚋlucit
 	}
 
 	return ret
+}
+
+func (ec *executionContext) unmarshalNDeploymentID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐDeploymentID(ctx context.Context, v any) (platform.DeploymentID, error) {
+	var res platform.DeploymentID
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNDeploymentID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐDeploymentID(ctx context.Context, sel ast.SelectionSet, v platform.DeploymentID) graphql.Marshaler {
+	return v
 }
 
 func (ec *executionContext) marshalNDetectedService2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDetectedService(ctx context.Context, sel ast.SelectionSet, v model.DetectedService) graphql.Marshaler {
@@ -19767,6 +16884,16 @@ func (ec *executionContext) marshalNEnvironment2ᚖgithubᚗcomᚋzeitlosᚋluci
 	return ec._Environment(ctx, sel, v)
 }
 
+func (ec *executionContext) unmarshalNEnvironmentID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐEnvironmentID(ctx context.Context, v any) (platform.EnvironmentID, error) {
+	var res platform.EnvironmentID
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNEnvironmentID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐEnvironmentID(ctx context.Context, sel ast.SelectionSet, v platform.EnvironmentID) graphql.Marshaler {
+	return v
+}
+
 func (ec *executionContext) marshalNEnvironmentResources2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐEnvironmentResources(ctx context.Context, sel ast.SelectionSet, v model.EnvironmentResources) graphql.Marshaler {
 	return ec._EnvironmentResources(ctx, sel, &v)
 }
@@ -19779,11 +16906,6 @@ func (ec *executionContext) marshalNEnvironmentResources2ᚖgithubᚗcomᚋzeitl
 		return graphql.Null
 	}
 	return ec._EnvironmentResources(ctx, sel, v)
-}
-
-func (ec *executionContext) unmarshalNGenerateDomainInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐGenerateDomainInput(ctx context.Context, v any) (model.GenerateDomainInput, error) {
-	res, err := ec.unmarshalInputGenerateDomainInput(ctx, v)
-	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) unmarshalNGitHubAccountType2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐGitHubAccountType(ctx context.Context, v any) (model.GitHubAccountType, error) {
@@ -19947,6 +17069,16 @@ func (ec *executionContext) marshalNProject2ᚖgithubᚗcomᚋzeitlosᚋlucity�
 	return ec._Project(ctx, sel, v)
 }
 
+func (ec *executionContext) unmarshalNProjectID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐProjectID(ctx context.Context, v any) (platform.ProjectID, error) {
+	var res platform.ProjectID
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNProjectID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐProjectID(ctx context.Context, sel ast.SelectionSet, v platform.ProjectID) graphql.Marshaler {
+	return v
+}
+
 func (ec *executionContext) unmarshalNPromoteInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐPromoteInput(ctx context.Context, v any) (model.PromoteInput, error) {
 	res, err := ec.unmarshalInputPromoteInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -19964,11 +17096,6 @@ func (ec *executionContext) marshalNQueryResult2ᚖgithubᚗcomᚋzeitlosᚋluci
 		return graphql.Null
 	}
 	return ec._QueryResult(ctx, sel, v)
-}
-
-func (ec *executionContext) unmarshalNRemoveDomainInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRemoveDomainInput(ctx context.Context, v any) (model.RemoveDomainInput, error) {
-	res, err := ec.unmarshalInputRemoveDomainInput(ctx, v)
-	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalNResourceAllocation2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐResourceAllocation(ctx context.Context, sel ast.SelectionSet, v *model.ResourceAllocation) graphql.Marshaler {
@@ -20032,11 +17159,6 @@ func (ec *executionContext) marshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋse
 	return ret
 }
 
-func (ec *executionContext) unmarshalNRollbackInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRollbackInput(ctx context.Context, v any) (model.RollbackInput, error) {
-	res, err := ec.unmarshalInputRollbackInput(ctx, v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
 func (ec *executionContext) marshalNScalingConfig2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐScalingConfig(ctx context.Context, sel ast.SelectionSet, v model.ScalingConfig) graphql.Marshaler {
 	return ec._ScalingConfig(ctx, sel, &v)
 }
@@ -20049,6 +17171,16 @@ func (ec *executionContext) marshalNScalingConfig2ᚖgithubᚗcomᚋzeitlosᚋlu
 		return graphql.Null
 	}
 	return ec._ScalingConfig(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐServiceID(ctx context.Context, v any) (platform.ServiceID, error) {
+	var res platform.ServiceID
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐServiceID(ctx context.Context, sel ast.SelectionSet, v platform.ServiceID) graphql.Marshaler {
+	return v
 }
 
 func (ec *executionContext) marshalNServiceInstance2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐServiceInstance(ctx context.Context, sel ast.SelectionSet, v model.ServiceInstance) graphql.Marshaler {
@@ -20225,16 +17357,6 @@ func (ec *executionContext) marshalNSubscriptionStatus2githubᚗcomᚋzeitlosᚋ
 	return v
 }
 
-func (ec *executionContext) unmarshalNSyncStatus2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐSyncStatus(ctx context.Context, v any) (model.SyncStatus, error) {
-	var res model.SyncStatus
-	err := res.UnmarshalGQL(v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) marshalNSyncStatus2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐSyncStatus(ctx context.Context, sel ast.SelectionSet, v model.SyncStatus) graphql.Marshaler {
-	return v
-}
-
 func (ec *executionContext) unmarshalNTime2timeᚐTime(ctx context.Context, v any) (time.Time, error) {
 	res, err := graphql.UnmarshalTime(v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -20323,6 +17445,16 @@ func (ec *executionContext) unmarshalNVariableInput2ᚕgithubᚗcomᚋzeitlosᚋ
 		}
 	}
 	return res, nil
+}
+
+func (ec *executionContext) unmarshalNVolumeID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐVolumeID(ctx context.Context, v any) (platform.VolumeID, error) {
+	var res platform.VolumeID
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNVolumeID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐVolumeID(ctx context.Context, sel ast.SelectionSet, v platform.VolumeID) graphql.Marshaler {
+	return v
 }
 
 func (ec *executionContext) marshalNWorkspace2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐWorkspace(ctx context.Context, sel ast.SelectionSet, v model.Workspace) graphql.Marshaler {
@@ -20628,6 +17760,22 @@ func (ec *executionContext) marshalODeployRun2ᚖgithubᚗcomᚋzeitlosᚋlucity
 		return graphql.Null
 	}
 	return ec._DeployRun(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOEnvironmentID2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐEnvironmentID(ctx context.Context, v any) (*platform.EnvironmentID, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var res = new(platform.EnvironmentID)
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOEnvironmentID2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐEnvironmentID(ctx context.Context, sel ast.SelectionSet, v *platform.EnvironmentID) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return v
 }
 
 func (ec *executionContext) marshalOEnvironmentResources2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐEnvironmentResources(ctx context.Context, sel ast.SelectionSet, v *model.EnvironmentResources) graphql.Marshaler {

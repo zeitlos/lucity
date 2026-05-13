@@ -1,32 +1,26 @@
-
 type Environment {
-  id: ID!
+  id: EnvironmentID!
   name: String!
-  namespace: String!
-  ephemeral: Boolean!
-  syncStatus: SyncStatus!
   resourceTier: ResourceTier
-  services: [ServiceInstance!]!
-  databases: [DatabaseInstance!]!
+  services: [ServiceInstance!]! @goField(forceResolver: true)
+  databases: [DatabaseInstance!]! @goField(forceResolver: true)
 }
 
 input CreateEnvironmentInput {
-  projectId: ID! @constraint(constraint: "resource_name")
+  project: ProjectID!
   name: String! @constraint(constraint: "resource_name,min=2,max=63")
-  fromEnvironment: String @constraint(constraint: "resource_name")
+  fromEnvironment: EnvironmentID
   tier: ResourceTier
 }
 
 input PromoteInput {
-  projectId: ID! @constraint(constraint: "resource_name")
-  service: String! @constraint(constraint: "resource_name")
-  fromEnvironment: String! @constraint(constraint: "resource_name")
+  service: ServiceID!
   tier: ResourceTier
-  toEnvironment: String! @constraint(constraint: "resource_name")
+  toEnvironment: EnvironmentID!
 }
 
 extend type Mutation {
   createEnvironment(input: CreateEnvironmentInput!): Environment! @hasRole(role: [USER])
-  deleteEnvironment(projectId: ID! @constraint(constraint: "resource_name"), environment: String! @constraint(constraint: "resource_name")): Boolean! @hasRole(role: [USER])
+  deleteEnvironment(environment: EnvironmentID!): Boolean! @hasRole(role: [USER])
   promote(input: PromoteInput!): ServiceInstance! @hasRole(role: [USER])
 }

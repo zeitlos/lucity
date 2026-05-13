@@ -10,6 +10,7 @@ import (
 	"fmt"
 
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
+	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
 // ResourceTier is the resolver for the resourceTier field.
@@ -17,17 +18,23 @@ func (r *environmentResolver) ResourceTier(ctx context.Context, obj *model.Envir
 	panic(fmt.Errorf("not implemented: ResourceTier - resourceTier"))
 }
 
+// Services is the resolver for the services field.
+func (r *environmentResolver) Services(ctx context.Context, obj *model.Environment) ([]model.ServiceInstance, error) {
+	panic(fmt.Errorf("not implemented: Services - services"))
+}
+
+// Databases is the resolver for the databases field.
+func (r *environmentResolver) Databases(ctx context.Context, obj *model.Environment) ([]model.DatabaseInstance, error) {
+	panic(fmt.Errorf("not implemented: Databases - databases"))
+}
+
 // CreateEnvironment is the resolver for the createEnvironment field.
 func (r *mutationResolver) CreateEnvironment(ctx context.Context, input model.CreateEnvironmentInput) (*model.Environment, error) {
-	fromEnv := ""
-	if input.FromEnvironment != nil {
-		fromEnv = *input.FromEnvironment
-	}
 	tier := ""
 	if input.Tier != nil {
 		tier = string(*input.Tier)
 	}
-	e, err := r.Conductor.CreateEnvironment(ctx, input.ProjectID, input.Name, fromEnv, tier)
+	e, err := r.Conductor.CreateEnvironment(ctx, input.Project, input.Name, input.FromEnvironment, tier)
 	if err != nil {
 		return nil, err
 	}
@@ -36,13 +43,13 @@ func (r *mutationResolver) CreateEnvironment(ctx context.Context, input model.Cr
 }
 
 // DeleteEnvironment is the resolver for the deleteEnvironment field.
-func (r *mutationResolver) DeleteEnvironment(ctx context.Context, projectID string, environment string) (bool, error) {
-	return r.Conductor.DeleteEnvironment(ctx, projectID, environment)
+func (r *mutationResolver) DeleteEnvironment(ctx context.Context, environment platform.EnvironmentID) (bool, error) {
+	return r.Conductor.DeleteEnvironment(ctx, environment)
 }
 
 // Promote is the resolver for the promote field.
 func (r *mutationResolver) Promote(ctx context.Context, input model.PromoteInput) (*model.ServiceInstance, error) {
-	si, err := r.Conductor.Promote(ctx, input.ProjectID, input.Service, input.FromEnvironment, input.ToEnvironment)
+	si, err := r.Conductor.Promote(ctx, input.Service, input.ToEnvironment)
 	if err != nil {
 		return nil, err
 	}
