@@ -3,16 +3,17 @@ type Database {
   name: String!
   version: String!
   instances: Int!
+  status: DatabaseStatus!
   size: String!
+  createdAt: Time!
 }
 
-type DatabaseInstance {
-  name: String!
-  ready: Boolean!
-  instances: Int!
-  version: String!
-  size: String!
-  volume: Volume
+enum DatabaseStatus {
+  HEALTHY
+  DEGRADED
+  FAILED
+  PENDING
+  STOPPED
 }
 
 type Volume {

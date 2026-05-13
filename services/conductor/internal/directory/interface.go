@@ -11,7 +11,7 @@ type Interface interface {
 	WorkspacesForUser(ctx context.Context, userID string) ([]Workspace, error)
 	Workspace(ctx context.Context, id string) (*WorkspaceDetails, error)
 
-	CreateWorkspace(ctx context.Context, id, name string) (*WorkspaceDetails, error)
+	CreateWorkspace(ctx context.Context, id, name string, metadata map[string]any) (*WorkspaceDetails, error)
 	UpdateWorkspace(ctx context.Context, id, name string) (*WorkspaceDetails, error)
 	DeleteWorkspace(ctx context.Context, id string) error
 

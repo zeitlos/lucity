@@ -13,15 +13,6 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
 )
 
-// CreateWorkspace is the resolver for the createWorkspace field.
-func (r *mutationResolver) CreateWorkspace(ctx context.Context, input model.CreateWorkspaceInput) (*model.Workspace, error) {
-	ws, err := r.Conductor.CreateWorkspace(ctx, input.ID, input.Name)
-	if err != nil {
-		return nil, err
-	}
-	return convertWorkspaceDetails(ws), nil
-}
-
 // CreateWorkspaceCheckout is the resolver for the createWorkspaceCheckout field.
 func (r *mutationResolver) CreateWorkspaceCheckout(ctx context.Context, input model.CreateWorkspaceCheckoutInput) (*model.CheckoutSession, error) {
 	url, err := r.Conductor.CreateWorkspaceCheckout(ctx, input.ID, input.Name, string(input.Plan))

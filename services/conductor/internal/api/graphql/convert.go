@@ -63,9 +63,9 @@ func convertScalingConfig(sc conductor.ScalingConfig) model.ScalingConfig {
 	return result
 }
 
-func convertServiceInstance(si conductor.ServiceInstance, workloadDomain string) model.ServiceInstance {
+func convertServiceInstance(si conductor.ServiceInstance, workloadDomain string) model.Service {
 	scaling := convertScalingConfig(si.Scaling)
-	result := model.ServiceInstance{
+	result := model.Service{
 		ID:       si.ID,
 		Name:     si.Name,
 		Image:    si.Image,
@@ -338,27 +338,6 @@ func convertDatabase(d conductor.Database) model.Database {
 		Instances: d.Instances,
 		Size:      d.Size.String(),
 	}
-}
-
-func convertDatabaseInstance(di conductor.DatabaseInstance) model.DatabaseInstance {
-	result := model.DatabaseInstance{
-		Name:      di.Name,
-		Ready:     di.Ready,
-		Instances: di.Instances,
-		Version:   di.Version,
-		Size:      di.Size,
-	}
-	if di.Volume != nil {
-		result.Volume = &model.Volume{
-			ID:            di.Volume.ID,
-			Name:          di.Volume.Name,
-			Size:          di.Volume.Size,
-			RequestedSize: di.Volume.RequestedSize,
-			UsedBytes:     int(di.Volume.UsedBytes),
-			CapacityBytes: int(di.Volume.CapacityBytes),
-		}
-	}
-	return result
 }
 
 func convertDatabaseTable(t conductor.DatabaseTable) model.DatabaseTable {

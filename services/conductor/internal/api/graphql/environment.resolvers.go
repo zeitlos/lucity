@@ -19,13 +19,25 @@ func (r *environmentResolver) ResourceTier(ctx context.Context, obj *model.Envir
 }
 
 // Services is the resolver for the services field.
-func (r *environmentResolver) Services(ctx context.Context, obj *model.Environment) ([]model.ServiceInstance, error) {
+func (r *environmentResolver) Services(ctx context.Context, obj *model.Environment) ([]model.Service, error) {
 	panic(fmt.Errorf("not implemented: Services - services"))
 }
 
 // Databases is the resolver for the databases field.
-func (r *environmentResolver) Databases(ctx context.Context, obj *model.Environment) ([]model.DatabaseInstance, error) {
-	panic(fmt.Errorf("not implemented: Databases - databases"))
+func (r *environmentResolver) Databases(ctx context.Context, obj *model.Environment) ([]model.Database, error) {
+	databases, err := r.Conductor.Databases(ctx, obj.ID)
+
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]model.Database, 0, len(databases))
+
+	for _, db := range databases {
+		result = append(result, convertDatabase(db))
+	}
+
+	return result, nil
 }
 
 // CreateEnvironment is the resolver for the createEnvironment field.
@@ -45,16 +57,6 @@ func (r *mutationResolver) CreateEnvironment(ctx context.Context, input model.Cr
 // DeleteEnvironment is the resolver for the deleteEnvironment field.
 func (r *mutationResolver) DeleteEnvironment(ctx context.Context, environment platform.EnvironmentID) (bool, error) {
 	return r.Conductor.DeleteEnvironment(ctx, environment)
-}
-
-// Promote is the resolver for the promote field.
-func (r *mutationResolver) Promote(ctx context.Context, input model.PromoteInput) (*model.ServiceInstance, error) {
-	si, err := r.Conductor.Promote(ctx, input.Service, input.ToEnvironment)
-	if err != nil {
-		return nil, err
-	}
-	result := convertServiceInstance(*si, r.Conductor.Config.WorkloadDomain)
-	return &result, nil
 }
 
 // Environment returns EnvironmentResolver implementation.

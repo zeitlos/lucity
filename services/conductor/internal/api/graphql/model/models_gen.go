@@ -91,17 +91,14 @@ type CreateWorkspaceCheckoutInput struct {
 	Plan Plan   `json:"plan"`
 }
 
-type CreateWorkspaceInput struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
-}
-
 type Database struct {
 	ID        platform.DatabaseID `json:"id"`
 	Name      string              `json:"name"`
 	Version   string              `json:"version"`
 	Instances int                 `json:"instances"`
+	Status    DatabaseStatus      `json:"status"`
 	Size      string              `json:"size"`
+	CreatedAt time.Time           `json:"createdAt"`
 }
 
 type DatabaseColumn struct {
@@ -118,15 +115,6 @@ type DatabaseCredentials struct {
 	User     string `json:"user"`
 	Password string `json:"password"`
 	URI      string `json:"uri"`
-}
-
-type DatabaseInstance struct {
-	Name      string  `json:"name"`
-	Ready     bool    `json:"ready"`
-	Instances int     `json:"instances"`
-	Version   string  `json:"version"`
-	Size      string  `json:"size"`
-	Volume    *Volume `json:"volume,omitempty"`
 }
 
 // A reference to a CNPG database secret key (resolved at pod startup via secretKeyRef).
@@ -218,8 +206,8 @@ type Environment struct {
 	ID           platform.EnvironmentID `json:"id"`
 	Name         string                 `json:"name"`
 	ResourceTier *ResourceTier          `json:"resourceTier,omitempty"`
-	Services     []ServiceInstance      `json:"services"`
-	Databases    []DatabaseInstance     `json:"databases"`
+	Services     []Service              `json:"services"`
+	Databases    []Database             `json:"databases"`
 }
 
 type EnvironmentResources struct {
@@ -274,12 +262,6 @@ type Project struct {
 	Environments []Environment      `json:"environments"`
 }
 
-type PromoteInput struct {
-	Service       platform.ServiceID     `json:"service"`
-	Tier          *ResourceTier          `json:"tier,omitempty"`
-	ToEnvironment platform.EnvironmentID `json:"toEnvironment"`
-}
-
 type Query struct {
 }
 
@@ -300,7 +282,7 @@ type ScalingConfig struct {
 	Autoscaling *AutoscalingConfig `json:"autoscaling,omitempty"`
 }
 
-type ServiceInstance struct {
+type Service struct {
 	ID                 platform.ServiceID `json:"id"`
 	Name               string             `json:"name"`
 	Image              string             `json:"image"`
@@ -314,10 +296,9 @@ type ServiceInstance struct {
 	Ready              bool               `json:"ready"`
 	Replicas           int                `json:"replicas"`
 	Scaling            *ScalingConfig     `json:"scaling"`
-	// Compute resources allocated to this service. Null if the service has no running deployment.
-	Resources   *ServiceResources `json:"resources,omitempty"`
-	Domains     []Domain          `json:"domains"`
-	Deployments []Deployment      `json:"deployments"`
+	Resources          *ServiceResources  `json:"resources,omitempty"`
+	Domains            []Domain           `json:"domains"`
+	Deployments        []Deployment       `json:"deployments"`
 	// Deploy automatically triggered when the service was added. Null for image-based services.
 	InitialDeploy *DeployRun `json:"initialDeploy,omitempty"`
 }
@@ -338,16 +319,11 @@ type ServiceRefInput struct {
 	Service platform.ServiceID `json:"service"`
 }
 
-// Compute resource allocation for a service instance.
 type ServiceResources struct {
-	// CPU allocation in millicores (e.g. 250 = 0.25 vCPU).
-	CPUMillicores int `json:"cpuMillicores"`
-	// Memory allocation in megabytes.
-	MemoryMb int `json:"memoryMB"`
-	// CPU limit in millicores.
+	CPUMillicores      int `json:"cpuMillicores"`
+	MemoryMb           int `json:"memoryMB"`
 	CPULimitMillicores int `json:"cpuLimitMillicores"`
-	// Memory limit in megabytes.
-	MemoryLimitMb int `json:"memoryLimitMB"`
+	MemoryLimitMb      int `json:"memoryLimitMB"`
 }
 
 type ServiceVariable struct {
@@ -446,6 +422,67 @@ type WorkspaceMember struct {
 type WorkspaceMembership struct {
 	Workspace string        `json:"workspace"`
 	Role      WorkspaceRole `json:"role"`
+}
+
+type DatabaseStatus string
+
+const (
+	DatabaseStatusHealthy  DatabaseStatus = "HEALTHY"
+	DatabaseStatusDegraded DatabaseStatus = "DEGRADED"
+	DatabaseStatusFailed   DatabaseStatus = "FAILED"
+	DatabaseStatusPending  DatabaseStatus = "PENDING"
+	DatabaseStatusStopped  DatabaseStatus = "STOPPED"
+)
+
+var AllDatabaseStatus = []DatabaseStatus{
+	DatabaseStatusHealthy,
+	DatabaseStatusDegraded,
+	DatabaseStatusFailed,
+	DatabaseStatusPending,
+	DatabaseStatusStopped,
+}
+
+func (e DatabaseStatus) IsValid() bool {
+	switch e {
+	case DatabaseStatusHealthy, DatabaseStatusDegraded, DatabaseStatusFailed, DatabaseStatusPending, DatabaseStatusStopped:
+		return true
+	}
+	return false
+}
+
+func (e DatabaseStatus) String() string {
+	return string(e)
+}
+
+func (e *DatabaseStatus) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = DatabaseStatus(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid DatabaseStatus", str)
+	}
+	return nil
+}
+
+func (e DatabaseStatus) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *DatabaseStatus) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e DatabaseStatus) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
 }
 
 type DeployPhase string
@@ -974,14 +1011,10 @@ func (e SyncStatus) MarshalJSON() ([]byte, error) {
 type TLSStatus string
 
 const (
-	// No certificate needed (platform domains use wildcard cert).
-	TLSStatusNone TLSStatus = "NONE"
-	// Certificate is being provisioned by cert-manager.
+	TLSStatusNone         TLSStatus = "NONE"
 	TLSStatusProvisioning TLSStatus = "PROVISIONING"
-	// Certificate is active and TLS termination is working.
-	TLSStatusActive TLSStatus = "ACTIVE"
-	// Certificate provisioning failed.
-	TLSStatusError TLSStatus = "ERROR"
+	TLSStatusActive       TLSStatus = "ACTIVE"
+	TLSStatusError        TLSStatus = "ERROR"
 )
 
 var AllTLSStatus = []TLSStatus{

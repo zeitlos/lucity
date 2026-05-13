@@ -244,25 +244,6 @@ func (c *Client) DeleteEnvironment(ctx context.Context, workspace, project, envi
 	return nil
 }
 
-// Promote copies a service's image tag from one environment to another.
-func (c *Client) Promote(ctx context.Context, workspace, project, service, fromEnvironment, toEnvironment string) (imageTag string, err error) {
-	slog.Info("Promote called", "project", project, "service", service, "from", fromEnvironment, "to", toEnvironment)
-
-	repo, err := c.cloneRepo(ctx, workspace, project)
-	if err != nil {
-		return "", err
-	}
-	defer repo.Cleanup()
-
-	imageTag, err = repo.Promote(ctx, service, fromEnvironment, toEnvironment)
-	if err != nil {
-		return "", fmt.Errorf("failed to promote: %w", err)
-	}
-
-	c.syncEnvironment(ctx, workspace, project, toEnvironment)
-	return imageTag, nil
-}
-
 // DeploymentHistory returns a service's deployment history from git log.
 func (c *Client) DeploymentHistory(ctx context.Context, workspace, project, environment, service string) ([]data.DeploymentEntry, error) {
 	slog.Info("DeploymentHistory called", "project", project, "environment", environment, "service", service)

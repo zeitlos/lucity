@@ -10,7 +10,6 @@ import (
 
 	"github.com/zeitlos/lucity/pkg/tenant"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
-	"github.com/zeitlos/lucity/services/conductor/internal/conductor"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
@@ -35,25 +34,6 @@ func (r *mutationResolver) CreateProject(ctx context.Context, input model.Create
 // DeleteProject is the resolver for the deleteProject field.
 func (r *mutationResolver) DeleteProject(ctx context.Context, id platform.ProjectID) (bool, error) {
 	return r.Conductor.DeleteProject(ctx, id)
-}
-
-// SetServiceScaling is the resolver for the setServiceScaling field.
-func (r *mutationResolver) SetServiceScaling(ctx context.Context, input model.SetServiceScalingInput) (*model.ScalingConfig, error) {
-	var autoscaling *conductor.AutoscalingConfig
-	if input.Autoscaling != nil {
-		autoscaling = &conductor.AutoscalingConfig{
-			Enabled:     input.Autoscaling.Enabled,
-			MinReplicas: input.Autoscaling.MinReplicas,
-			MaxReplicas: input.Autoscaling.MaxReplicas,
-			TargetCPU:   input.Autoscaling.TargetCPU,
-		}
-	}
-	sc, err := r.Conductor.SetServiceScaling(ctx, input.Service, input.Replicas, autoscaling)
-	if err != nil {
-		return nil, err
-	}
-	result := convertScalingConfig(*sc)
-	return &result, nil
 }
 
 // Projects is the resolver for the projects field.

@@ -57,7 +57,7 @@ func (c *Client) Workspace(ctx context.Context, id string) (*directory.Workspace
 	return &workspace, nil
 }
 
-func (c *Client) CreateWorkspace(ctx context.Context, id, name string) (*directory.WorkspaceDetails, error) {
+func (c *Client) CreateWorkspace(ctx context.Context, id, name string, metadata map[string]any) (*directory.WorkspaceDetails, error) {
 	if !workspaceIDPattern.MatchString(id) {
 		return nil, fmt.Errorf("invalid workspace ID: must be 3-63 lowercase alphanumeric characters or hyphens")
 	}
@@ -66,7 +66,7 @@ func (c *Client) CreateWorkspace(ctx context.Context, id, name string) (*directo
 		return nil, fmt.Errorf("workspace ID %q is already taken", id)
 	}
 
-	org, err := c.api.CreateOrganization(ctx, id, name, nil)
+	org, err := c.api.CreateOrganization(ctx, id, name, metadata)
 
 	if err != nil {
 		return nil, err

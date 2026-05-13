@@ -52,22 +52,8 @@ type QueryResult struct {
 	AffectedRows int
 }
 
-type DatabaseInstance struct {
-	Name      string
-	Ready     bool
-	Instances int
-	Version   string
-	Size      string
-	Volume    *Volume
-}
-
-type Volume struct {
-	ID            platform.VolumeID
-	Name          string
-	Size          string
-	RequestedSize string
-	UsedBytes     int64
-	CapacityBytes int64
+func (c *Client) Databases(ctx context.Context, environment EnvironmentID) ([]Database, error) {
+	return c.platform.Databases(ctx, environment)
 }
 
 func (c *Client) CreateDatabase(ctx context.Context, environment platform.EnvironmentID, name, version string, instances int, size string) (*Database, error) {

@@ -46,7 +46,7 @@ func (c *Client) CreateWorkspace(ctx context.Context, id, name string) (*Workspa
 		return nil, err
 	}
 
-	workspace, err := c.directory.CreateWorkspace(ctx, id, name)
+	workspace, err := c.directory.CreateWorkspace(ctx, id, name, nil)
 
 	if err != nil {
 		return nil, err
@@ -424,10 +424,6 @@ func (c *Client) CompleteWorkspaceCheckout(ctx context.Context, sessionID string
 		return nil, err
 	}
 
-	if c.Logto == nil {
-		return nil, fmt.Errorf("logto not configured")
-	}
-
 	if c.Cashier == nil {
 		return nil, fmt.Errorf("billing not configured")
 	}
@@ -457,73 +453,29 @@ func (c *Client) CompleteWorkspaceCheckout(ctx context.Context, sessionID string
 	wsName := session.Name
 
 	// Idempotent: if workspace already exists with this user as member, return it.
-	existing, existErr := c.Logto.OrganizationByName(ctx, wsID)
-	if existErr == nil {
-		c.cacheOrgID(wsID, existing.ID)
-		members, memErr := c.Logto.OrganizationMembers(ctx, existing.ID)
-		if memErr == nil {
-			for _, m := range members {
-				if m.ID == claims.Subject {
-					slog.Info("workspace checkout completed (already exists)", "workspace", wsID)
-					return &WorkspaceDetails{
-						Workspace: Workspace{
-							ID:   wsID,
-							Name: displayNameFromOrgData(existing),
-						},
-					}, nil
-				}
+	if existing, err := c.directory.Workspace(ctx, wsID); err == nil {
+		for _, m := range existing.Members {
+			if m.ID == claims.Subject {
+				slog.Info("workspace checkout completed (already exists)", "workspace", wsID)
+				return existing, nil
 			}
 		}
 		return nil, fmt.Errorf("workspace ID %q is already taken", wsID)
 	}
 
-	adminRoleID, memberRoleID, err := c.orgRoleIDs(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve org role IDs: %w", err)
-	}
-
-	// Create Logto organization with Stripe IDs in customData.
-	customData := map[string]interface{}{
+	// Create the workspace, stamping Stripe IDs into the directory metadata.
+	metadata := map[string]any{
 		"stripeCustomerId":     session.CustomerId,
 		"stripeSubscriptionId": session.SubscriptionId,
 	}
-	org, err := c.Logto.CreateOrganization(ctx, wsID, wsName, customData)
+	workspace, err := c.directory.CreateWorkspace(ctx, wsID, wsName, metadata)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create organization: %w", err)
-	}
-
-	c.cacheOrgID(wsID, org.ID)
-
-	// Add creator as member + assign admin and member roles.
-	if err := c.Logto.AddOrganizationMember(ctx, org.ID, claims.Subject); err != nil {
-		return nil, fmt.Errorf("failed to add creator to organization: %w", err)
-	}
-	if err := c.Logto.AssignOrganizationRoles(ctx, org.ID, claims.Subject, []string{adminRoleID, memberRoleID}); err != nil {
-		return nil, fmt.Errorf("failed to assign admin role to creator: %w", err)
+		return nil, fmt.Errorf("failed to create workspace: %w", err)
 	}
 
 	slog.Info("workspace created via checkout", "id", wsID, "name", wsName, "customer_id", session.CustomerId, "subscription_id", session.SubscriptionId)
 
-	// Fetch user info for member list.
-	user, _ := c.Logto.User(ctx, claims.Subject)
-	memberName := ""
-	memberEmail := claims.Email
-	if user != nil {
-		memberName = user.Name
-		if user.PrimaryEmail != "" {
-			memberEmail = user.PrimaryEmail
-		}
-	}
-
-	return &WorkspaceDetails{
-		Workspace: Workspace{
-			ID:   wsID,
-			Name: wsName,
-		},
-		Members: []WorkspaceMember{
-			{ID: claims.Subject, Email: memberEmail, Name: memberName, Role: auth.WorkspaceRoleAdmin},
-		},
-	}, nil
+	return workspace, nil
 }
 
 func (c *Client) orgID(ctx context.Context, workspaceID string) (string, error) {

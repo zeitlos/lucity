@@ -18,8 +18,8 @@ type Environment struct {
 	Namespace  string
 	Ephemeral  bool
 	SyncStatus string
-	Services   []ServiceInstance
-	Databases  []DatabaseInstance
+	Services   []Service
+	Databases  []Database
 }
 
 func (c *Client) Environments(ctx context.Context, projectID string) ([]EnvironmentNew, error) {
@@ -42,7 +42,7 @@ func (c *Client) Environment(ctx context.Context, id string) (*EnvironmentNew, e
 	return c.platform.Environment(ctx, envID)
 }
 
-func (c *Client) CreateEnvironment(ctx context.Context, project platform.ProjectID, name string, fromEnvironment *platform.EnvironmentID, tier string) (*EnvironmentNew, error) {
+func (c *Client) CreateEnvironment(ctx context.Context, project ProjectID, name string, fromEnvironment *EnvironmentID, tier string) (*EnvironmentNew, error) {
 	projectID := project.Name
 	fromEnvName := ""
 	if fromEnvironment != nil {
@@ -102,23 +102,4 @@ func (c *Client) DeleteEnvironment(ctx context.Context, environment platform.Env
 		return false, fmt.Errorf("failed to delete environment: %w", err)
 	}
 	return true, nil
-}
-
-func (c *Client) Promote(ctx context.Context, service platform.ServiceID, toEnv platform.EnvironmentID) (*ServiceInstance, error) {
-	ws, err := tenant.FromContext(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	promoteCtx, promoteCancel := context.WithTimeout(ctx, grpcLongTimeout)
-	defer promoteCancel()
-	imageTag, err := c.Packager.Promote(promoteCtx, ws, service.Project, service.Name, service.Environment, toEnv.Name)
-	if err != nil {
-		return nil, fmt.Errorf("failed to promote: %w", err)
-	}
-
-	return &ServiceInstance{
-		Name:     service.Name,
-		ImageTag: imageTag,
-	}, nil
 }

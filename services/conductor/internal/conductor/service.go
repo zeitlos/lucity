@@ -21,6 +21,7 @@ import (
 
 type ServiceID = platform.ServiceID
 type DeploymentID = platform.DeploymentID
+type Service = platform.Service
 type DetectedService struct {
 	Name          string
 	Provider      string
@@ -136,8 +137,8 @@ func (c *Client) AddService(ctx context.Context, environment platform.Environmen
 
 	si := &ServiceInstance{
 		// TODO: rebuild as platform.ServiceID after typed-ID migration
-		Name:  name,
-		Image: image,
+		Name:                 name,
+		Image:                image,
 		Port:                 port,
 		Framework:            framework,
 		StartCommand:         startCommand,

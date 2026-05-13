@@ -2,8 +2,8 @@ type Environment {
   id: EnvironmentID!
   name: String!
   resourceTier: ResourceTier
-  services: [ServiceInstance!]! @goField(forceResolver: true)
-  databases: [DatabaseInstance!]! @goField(forceResolver: true)
+  services: [Service!]! @goField(forceResolver: true)
+  databases: [Database!]! @goField(forceResolver: true)
 }
 
 input CreateEnvironmentInput {
@@ -13,14 +13,7 @@ input CreateEnvironmentInput {
   tier: ResourceTier
 }
 
-input PromoteInput {
-  service: ServiceID!
-  tier: ResourceTier
-  toEnvironment: EnvironmentID!
-}
-
 extend type Mutation {
   createEnvironment(input: CreateEnvironmentInput!): Environment! @hasRole(role: [USER])
   deleteEnvironment(environment: EnvironmentID!): Boolean! @hasRole(role: [USER])
-  promote(input: PromoteInput!): ServiceInstance! @hasRole(role: [USER])
 }

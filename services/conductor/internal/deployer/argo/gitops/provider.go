@@ -97,10 +97,6 @@ type Repository interface {
 	// DeleteEnvironment removes an environment directory from the GitOps repo.
 	DeleteEnvironment(ctx context.Context, environment string) error
 
-	// Promote copies the image tag for a service from one environment to another.
-	// Returns the promoted image tag.
-	Promote(ctx context.Context, service, fromEnv, toEnv string) (imageTag string, err error)
-
 	// DeploymentHistory returns the deployment history for a service in an environment,
 	// parsed from the GitOps repo's git log. Returns entries in reverse chronological order.
 	DeploymentHistory(ctx context.Context, environment, service string) ([]DeploymentEntry, error)

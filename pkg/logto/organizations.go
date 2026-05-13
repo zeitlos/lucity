@@ -81,7 +81,7 @@ func (c *Client) OrganizationByName(ctx context.Context, name string) (*Organiza
 // The name parameter is used as the org name (workspace ID). The displayName is stored
 // in customData only if it differs from the name.
 // Idempotent: if an org with the same name exists, returns it.
-func (c *Client) CreateOrganization(ctx context.Context, name, displayName string, customData map[string]interface{}) (*Organization, error) {
+func (c *Client) CreateOrganization(ctx context.Context, name, displayName string, customData map[string]any) (*Organization, error) {
 	payload := map[string]interface{}{
 		"name": name,
 	}

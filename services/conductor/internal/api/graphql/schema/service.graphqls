@@ -1,3 +1,74 @@
+
+
+type Service {
+  id: ServiceID!
+  name: String!
+  image: String!
+  port: Int
+  framework: String
+  sourceUrl: String
+  contextPath: String
+  startCommand: String
+  customStartCommand: String
+  imageTag: String!
+  ready: Boolean!
+  replicas: Int!
+  scaling: ScalingConfig!
+  resources: ServiceResources
+  domains: [Domain!]!
+  deployments: [Deployment!]!
+  """Deploy automatically triggered when the service was added. Null for image-based services."""
+  initialDeploy: DeployRun
+}
+
+type ServiceResources {
+  cpuMillicores: Int!
+  memoryMB: Int!
+  cpuLimitMillicores: Int!
+  memoryLimitMB: Int!
+}
+
+type ScalingConfig {
+  replicas: Int!
+  autoscaling: AutoscalingConfig
+}
+
+type AutoscalingConfig {
+  enabled: Boolean!
+  minReplicas: Int!
+  maxReplicas: Int!
+  targetCPU: Int!
+}
+
+type Domain {
+  hostname: String!
+  """PLATFORM domains use wildcard DNS on the workload domain. CUSTOM domains require user DNS config."""
+  type: DomainType!
+  """DNS resolution status. Always VALID for platform domains. Checked via DNS lookup for custom domains."""
+  dnsStatus: DnsStatus!
+  """TLS certificate status. NONE for platform domains (covered by wildcard). Checked via cert-manager for custom domains."""
+  tlsStatus: TlsStatus!
+}
+
+enum TlsStatus {
+  NONE
+  PROVISIONING
+  ACTIVE
+  ERROR
+}
+
+enum DomainType {
+  PLATFORM
+  CUSTOM
+}
+
+enum DnsStatus {
+  VALID
+  PENDING
+  MISCONFIGURED
+  ERROR
+}
+
 type DetectedService {
   name: String!
   language: String!
@@ -66,6 +137,19 @@ type DnsCheck {
   tlsStatus: TlsStatus
 }
 
+input SetServiceScalingInput {
+  service: ServiceID!
+  replicas: Int! @constraint(constraint: "min=1,max=20")
+  autoscaling: AutoscalingInput
+}
+
+input AutoscalingInput {
+  enabled: Boolean!
+  minReplicas: Int! @constraint(constraint: "min=1,max=20")
+  maxReplicas: Int! @constraint(constraint: "min=1,max=20")
+  targetCPU: Int! @constraint(constraint: "min=10,max=95")
+}
+
 extend type Query {
   detectServices(installationId: ID!, repository: String!): [DetectedService!]! @hasRole(role: [USER])
   deployStatus(id: ID!): DeployRun @hasRole(role: [USER])
@@ -75,9 +159,10 @@ extend type Query {
 }
 
 extend type Mutation {
-  addService(input: AddServiceInput!): ServiceInstance! @hasRole(role: [USER])
+  addService(input: AddServiceInput!): Service! @hasRole(role: [USER])
   removeService(service: ServiceID!): Boolean! @hasRole(role: [USER])
   setCustomStartCommand(service: ServiceID!, command: String!): Boolean! @hasRole(role: [USER])
+  setServiceScaling(input: SetServiceScalingInput!): ScalingConfig! @hasRole(role: [USER])
   deploy(service: ServiceID!, gitRef: String): DeployRun! @hasRole(role: [USER])
   rollback(service: ServiceID!, imageTag: String!): Boolean! @hasRole(role: [USER])
   generateDomain(service: ServiceID!): Domain! @hasRole(role: [USER])

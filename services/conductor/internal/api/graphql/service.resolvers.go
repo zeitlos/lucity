@@ -11,11 +11,12 @@ import (
 	"strconv"
 
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
+	"github.com/zeitlos/lucity/services/conductor/internal/conductor"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
 // AddService is the resolver for the addService field.
-func (r *mutationResolver) AddService(ctx context.Context, input model.AddServiceInput) (*model.ServiceInstance, error) {
+func (r *mutationResolver) AddService(ctx context.Context, input model.AddServiceInput) (*model.Service, error) {
 	framework := ""
 	if input.Framework != nil {
 		framework = *input.Framework
@@ -72,6 +73,25 @@ func (r *mutationResolver) RemoveService(ctx context.Context, service platform.S
 // SetCustomStartCommand is the resolver for the setCustomStartCommand field.
 func (r *mutationResolver) SetCustomStartCommand(ctx context.Context, service platform.ServiceID, command string) (bool, error) {
 	return r.Conductor.SetCustomStartCommand(ctx, service, command)
+}
+
+// SetServiceScaling is the resolver for the setServiceScaling field.
+func (r *mutationResolver) SetServiceScaling(ctx context.Context, input model.SetServiceScalingInput) (*model.ScalingConfig, error) {
+	var autoscaling *conductor.AutoscalingConfig
+	if input.Autoscaling != nil {
+		autoscaling = &conductor.AutoscalingConfig{
+			Enabled:     input.Autoscaling.Enabled,
+			MinReplicas: input.Autoscaling.MinReplicas,
+			MaxReplicas: input.Autoscaling.MaxReplicas,
+			TargetCPU:   input.Autoscaling.TargetCPU,
+		}
+	}
+	sc, err := r.Conductor.SetServiceScaling(ctx, input.Service, input.Replicas, autoscaling)
+	if err != nil {
+		return nil, err
+	}
+	result := convertScalingConfig(*sc)
+	return &result, nil
 }
 
 // Deploy is the resolver for the deploy field.
