@@ -69,6 +69,13 @@
 
 suspended: false
 
+# Workspace/project/environment identity stamped onto every rendered resource
+# as lucity.dev/{workspace,project,environment} labels. The platform package's
+# discovery selectors rely on these — leave them set by the packager.
+workspace: ""
+project: ""
+environment: ""
+
 services: {}
 
 gateway:

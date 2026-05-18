@@ -8,6 +8,7 @@ metadata:
   labels:
     {{- include "lucity-app.labels" $ | nindent 4 }}
     app.kubernetes.io/component: {{ $name }}
+    lucity.dev/service: {{ $name | quote }}
 spec:
   scaleTargetRef:
     apiVersion: apps/v1

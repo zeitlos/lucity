@@ -7,6 +7,7 @@ metadata:
   labels:
     {{- include "lucity-app.labels" $ | nindent 4 }}
     app.kubernetes.io/component: {{ $name }}
+    lucity.dev/service: {{ $name | quote }}
 spec:
   schedule: {{ $job.schedule | quote }}
   {{- if $.Values.suspended }}
@@ -20,6 +21,7 @@ spec:
           labels:
             {{- include "lucity-app.labels" $ | nindent 12 }}
             {{- include "lucity-app.selectorLabels" (dict "name" $name "release" $.Release.Name) | nindent 12 }}
+            lucity.dev/service: {{ $name | quote }}
         spec:
           restartPolicy: {{ $job.restartPolicy | default "OnFailure" }}
           imagePullSecrets:

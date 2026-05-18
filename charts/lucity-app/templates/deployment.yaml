@@ -9,12 +9,18 @@ metadata:
     {{- include "lucity-app.labels" $ | nindent 4 }}
     {{- include "lucity-app.selectorLabels" (dict "name" $name "release" $.Release.Name) | nindent 4 }}
     app.kubernetes.io/component: {{ $name }}
+    lucity.dev/service: {{ $name | quote }}
     {{- if $svc.githubInstallationId }}
     lucity.dev/github-installation: {{ $svc.githubInstallationId | quote }}
     {{- end }}
-  {{- if $svc.sourceUrl }}
+  {{- if or $svc.sourceUrl $svc.contextPath }}
   annotations:
+    {{- if $svc.sourceUrl }}
     lucity.dev/source-repo: {{ $svc.sourceUrl | quote }}
+    {{- end }}
+    {{- if $svc.contextPath }}
+    lucity.dev/source-context: {{ $svc.contextPath | quote }}
+    {{- end }}
   {{- end }}
 spec:
   {{- if $.Values.suspended }}
@@ -30,6 +36,19 @@ spec:
       labels:
         {{- include "lucity-app.labels" $ | nindent 8 }}
         {{- include "lucity-app.selectorLabels" (dict "name" $name "release" $.Release.Name) | nindent 8 }}
+        lucity.dev/service: {{ $name | quote }}
+      {{- if or $svc.sourceUrl $svc.contextPath (and $svc.image $svc.image.digest) }}
+      annotations:
+        {{- if $svc.sourceUrl }}
+        lucity.dev/source-repo: {{ $svc.sourceUrl | quote }}
+        {{- end }}
+        {{- if $svc.contextPath }}
+        lucity.dev/source-context: {{ $svc.contextPath | quote }}
+        {{- end }}
+        {{- if and $svc.image $svc.image.digest }}
+        lucity.dev/image-digest: {{ $svc.image.digest | quote }}
+        {{- end }}
+      {{- end }}
     spec:
       imagePullSecrets:
         - name: lucity-registry
