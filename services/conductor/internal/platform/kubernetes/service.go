@@ -184,10 +184,10 @@ func toService(deployment apps.Deployment, replicaSets []apps.ReplicaSet, routes
 		CreatedAt:      deployment.CreationTimestamp.Time,
 	}
 
-	currentHash := deployment.Spec.Template.Labels[apps.DefaultDeploymentUniqueLabelKey]
+	currentRevision := deployment.Annotations[annotationRevision]
 
 	for _, replicaSet := range replicaSets {
-		if replicaSet.Labels[apps.DefaultDeploymentUniqueLabelKey] != currentHash {
+		if replicaSet.Annotations[annotationRevision] != currentRevision {
 			continue
 		}
 
@@ -213,11 +213,11 @@ func serviceStatus(deployment apps.Deployment, replicaSets []apps.ReplicaSet) pl
 		return platform.ServiceStopped
 	}
 
-	currentHash := deployment.Spec.Template.Labels[podTemplateHashLabel]
+	currentRevision := deployment.Annotations[annotationRevision]
 
 	// Rollout in flight if any non-current replica set still has live pods
 	for _, replicaSet := range replicaSets {
-		if replicaSet.Labels[podTemplateHashLabel] == currentHash {
+		if replicaSet.Annotations[annotationRevision] == currentRevision {
 			continue
 		}
 

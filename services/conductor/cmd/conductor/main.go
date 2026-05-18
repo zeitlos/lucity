@@ -35,6 +35,7 @@ import (
 	"github.com/zeitlos/lucity/pkg/logger"
 	"github.com/zeitlos/lucity/pkg/logto"
 
+	kauth "github.com/google/go-containerregistry/pkg/authn/kubernetes"
 	webhookpkg "github.com/zeitlos/lucity/services/conductor/internal/api/webhook"
 	webhookhttp "github.com/zeitlos/lucity/services/conductor/internal/api/webhook/http"
 	"github.com/zeitlos/lucity/services/conductor/internal/builder/build"
@@ -48,6 +49,8 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/inproc/packager"
 	platformK8s "github.com/zeitlos/lucity/services/conductor/internal/platform/kubernetes"
 	conductorgrpc "github.com/zeitlos/lucity/services/conductor/internal/transport/grpc"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type Config struct {
@@ -288,8 +291,24 @@ func main() {
 		os.Exit(1)
 	}
 
+	// TODO: Where do i get the namespace from?
+	secret, err := k8sClient.CoreV1().Secrets("lucity-system").Get(ctx, config.RegistryPullSecret, metav1.GetOptions{})
+
+	if err != nil {
+		slog.Error("failed to fetch registry pull secret", "error", err)
+		os.Exit(1)
+	}
+
+	keychain, err := kauth.NewFromPullSecrets(ctx, []corev1.Secret{*secret})
+
+	if err != nil {
+		slog.Error("failed to parse registry pull secret", "error", err)
+		os.Exit(1)
+	}
+
 	conductorConfig := conductor.Config{
 		RegistryPushURL:     config.RegistryURL,
+		RegistryPullSecret:  keychain,
 		RegistryImagePrefix: registryImagePrefix,
 		WorkloadDomain:      config.WorkloadDomain,
 		DomainTarget:        domainTarget,

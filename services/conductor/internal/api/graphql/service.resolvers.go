@@ -194,12 +194,24 @@ func (r *queryResolver) CheckDNSStatus(ctx context.Context, hostname string) (*m
 
 // DefaultCommand is the resolver for the defaultCommand field.
 func (r *serviceResolver) DefaultCommand(ctx context.Context, obj *model.Service) (string, error) {
-	panic(fmt.Errorf("not implemented: DefaultCommand - defaultCommand"))
+	return r.Conductor.DefaultCommand(ctx, obj.ActiveDeployment.Image)
 }
 
 // Deployments is the resolver for the deployments field.
 func (r *serviceResolver) Deployments(ctx context.Context, obj *model.Service) ([]model.Deployment, error) {
-	panic(fmt.Errorf("not implemented: Deployments - deployments"))
+	deployments, err := r.Conductor.Deployments(ctx, obj.ID)
+
+	if err != nil {
+		return nil, err
+	}
+
+	var result []model.Deployment
+
+	for _, deployment := range deployments {
+		result = append(result, convertDeployment(deployment))
+	}
+
+	return result, nil
 }
 
 // DeployLogs is the resolver for the deployLogs field.

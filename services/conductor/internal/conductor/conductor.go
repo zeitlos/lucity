@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"sync"
 
+	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/cashier"
 	ghpkg "github.com/zeitlos/lucity/pkg/github"
@@ -51,6 +52,7 @@ type Client struct {
 
 type Config struct {
 	RegistryPushURL     string // for builder push, e.g. "localhost:5000"
+	RegistryPullSecret  authn.Keychain
 	RegistryImagePrefix string // for image refs in values.yaml, e.g. cluster-internal address
 	WorkloadDomain      string // base domain for platform-generated domains (e.g., "lucity.app")
 	DomainTarget        string // CNAME target for custom domains (e.g., "lb.lucity.app")

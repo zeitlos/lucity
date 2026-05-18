@@ -32,6 +32,7 @@ const (
 	annotationImageDigest   = "lucity.dev/image-digest"
 	annotationBuildID       = "lucity.dev/build-id"
 	annotationDeployedBy    = "lucity.dev/deployed-by"
+	annotationRevision      = "deployment.kubernetes.io/revision"
 )
 
 type Client struct {

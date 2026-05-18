@@ -7,8 +7,6 @@ import (
 	"github.com/zeitlos/lucity/pkg/to"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 
-	"github.com/google/go-containerregistry/pkg/name"
-	"github.com/google/go-containerregistry/pkg/v1/remote"
 	apps "k8s.io/api/apps/v1"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -130,9 +128,9 @@ func deploymentID(replicaSet apps.ReplicaSet, serviceID platform.ServiceID) plat
 }
 
 func deploymentStatus(replicaSet apps.ReplicaSet, deployment apps.Deployment) platform.DeploymentStatus {
-	currentHash := deployment.Spec.Template.Labels[podTemplateHashLabel]
+	currentRevision := deployment.Annotations[annotationRevision]
 
-	if replicaSet.Labels[podTemplateHashLabel] != currentHash {
+	if replicaSet.Annotations[annotationRevision] != currentRevision {
 		return platform.DeploymentSuperseded
 	}
 
@@ -147,27 +145,4 @@ func deploymentStatus(replicaSet apps.ReplicaSet, deployment apps.Deployment) pl
 	}
 
 	return platform.DeploymentDeploying
-}
-
-// TODO: Make this an exported function. Generate separate graphql resolvers for deployment.Command and service.Command.
-func (c *Client) imageDefaultCommand(ctx context.Context, imageRef string) ([]string, error) {
-	ref, err := name.ParseReference(imageRef)
-
-	if err != nil {
-		return nil, err
-	}
-
-	img, err := remote.Image(ref, remote.WithContext(ctx))
-
-	if err != nil {
-		return nil, err
-	}
-
-	cfg, err := img.ConfigFile()
-
-	if err != nil {
-		return nil, err
-	}
-
-	return append(cfg.Config.Entrypoint, cfg.Config.Cmd...), nil
 }
