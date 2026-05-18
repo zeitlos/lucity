@@ -30,7 +30,8 @@ func New(client *logto.Client) (*Client, error) {
 	}
 
 	p := Client{
-		api: client,
+		api:        client,
+		orgIDCache: make(map[string]string),
 	}
 
 	for _, r := range roles {

@@ -125,6 +125,17 @@ func (r *Repo) Cleanup() {
 	r.cleanup()
 }
 
+// TEMPORARY: Heal triggers a no-op modifyRepo so healMetadata runs and the
+// embedded chart is refreshed in the GitOps repo. Used by the one-off
+// cmd/heal-repos binary to backfill workspace/project/environment values
+// in repos created before those fields existed. Remove this method and
+// the heal-repos binary once every repo has been migrated.
+func (r *Repo) Heal(ctx context.Context) error {
+	return r.modifyRepo("chore: heal metadata + refresh embedded chart", false, func(dir string) error {
+		return nil
+	})
+}
+
 // isInitialized checks whether repo has been initialized.
 func (r *Repo) isInitialized() bool {
 	_, err := os.Stat(filepath.Join(r.dir, "base", "Chart.yaml"))
@@ -135,12 +146,17 @@ func (r *Repo) isInitialized() bool {
 // initialize repo with lucity-app chart, base values file and default development environment.
 func (r *Repo) initialize(ctx context.Context) error {
 	project := r.ProjectName()
+
+	if r.workspace == "" {
+		return fmt.Errorf("workspace not set on repo %s; call SetWorkspace before initialize", r.slug)
+	}
+
 	commitMsg := fmt.Sprintf("init: %s", project)
 
 	files := map[string]string{
 		"base/Chart.yaml":                      baseChartYAML(project),
-		"base/values.yaml":                     baseValuesYAML(project),
-		"environments/development/values.yaml": environmentValuesYAML,
+		"base/values.yaml":                     baseValuesYAML(r.workspace, project),
+		"environments/development/values.yaml": environmentValuesYAML("development"),
 	}
 
 	return r.modifyRepo(commitMsg, false, func(dir string) error {
@@ -477,6 +493,11 @@ func (r *Repo) UpdateImageTag(ctx context.Context, environment, service, tag, di
 			imageEntry = make(map[string]any)
 		}
 		imageEntry["tag"] = tag
+		if digest != "" {
+			imageEntry["digest"] = digest
+		} else {
+			delete(imageEntry, "digest")
+		}
 		svcEntry["image"] = imageEntry
 		services[service] = svcEntry
 		inner["services"] = services
@@ -497,7 +518,7 @@ func (r *Repo) CreateEnvironment(ctx context.Context, environment, fromEnvironme
 			if err := os.MkdirAll(envDir, 0o755); err != nil {
 				return fmt.Errorf("failed to create environment dir: %w", err)
 			}
-			return os.WriteFile(filepath.Join(envDir, "values.yaml"), []byte(environmentValuesYAML), 0o644)
+			return os.WriteFile(filepath.Join(envDir, "values.yaml"), []byte(environmentValuesYAML(environment)), 0o644)
 		})
 		return err
 	}
@@ -526,13 +547,15 @@ func (r *Repo) CreateEnvironment(ctx context.Context, environment, fromEnvironme
 
 		inner, err := readSubchartValuesFromBytes(content)
 		if err != nil {
-			// Fallback: write raw content if we can't parse
-			return os.WriteFile(dstPath, content, 0o644)
+			// Fallback: write the seed file if we can't parse the source.
+			return os.WriteFile(dstPath, []byte(environmentValuesYAML(environment)), 0o644)
 		}
+
+		inner["environment"] = environment
 
 		services, ok := inner["services"].(map[string]any)
 		if !ok {
-			return os.WriteFile(dstPath, content, 0o644)
+			return writeSubchartValues(dstPath, inner)
 		}
 
 		for svcName, svcRaw := range services {
@@ -1296,11 +1319,104 @@ func readFirstCommitTime(dir string) time.Time {
 	return oldest
 }
 
+// healMetadata writes missing workspace/project/environment fields into
+// base/values.yaml and each environment's values.yaml. Repos created before
+// these fields existed need them so the lucity-app chart can emit the
+// platform discovery labels (lucity.dev/workspace, project, environment).
+//
+// Silently no-ops when fields already match. When workspace is unset on
+// the Repo (e.g. some legacy code path), base healing is skipped.
+func (r *Repo) healMetadata() error {
+	if r.dir == "" {
+		return nil
+	}
+
+	// Heal base/values.yaml
+	if r.workspace != "" {
+		basePath := filepath.Join(r.dir, "base", "values.yaml")
+
+		if _, err := os.Stat(basePath); err == nil {
+			inner, err := readSubchartValues(basePath)
+
+			if err != nil {
+				return fmt.Errorf("failed to read base values: %w", err)
+			}
+
+			changed := false
+			project := r.ProjectName()
+
+			if ws, _ := inner["workspace"].(string); ws != r.workspace {
+				inner["workspace"] = r.workspace
+				changed = true
+			}
+
+			if p, _ := inner["project"].(string); p != project {
+				inner["project"] = project
+				changed = true
+			}
+
+			if changed {
+				if err := writeSubchartValues(basePath, inner); err != nil {
+					return fmt.Errorf("failed to write base values: %w", err)
+				}
+			}
+		}
+	}
+
+	// Heal environments/*/values.yaml
+	envDir := filepath.Join(r.dir, "environments")
+	entries, err := os.ReadDir(envDir)
+
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+		return fmt.Errorf("failed to read environments dir: %w", err)
+	}
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+
+		envName := entry.Name()
+		envPath := filepath.Join(envDir, envName, "values.yaml")
+
+		if _, err := os.Stat(envPath); err != nil {
+			continue
+		}
+
+		inner, err := readSubchartValues(envPath)
+
+		if err != nil {
+			return fmt.Errorf("failed to read env values %s: %w", envName, err)
+		}
+
+		if e, _ := inner["environment"].(string); e == envName {
+			continue
+		}
+
+		inner["environment"] = envName
+
+		if err := writeSubchartValues(envPath, inner); err != nil {
+			return fmt.Errorf("failed to write env values %s: %w", envName, err)
+		}
+	}
+
+	return nil
+}
+
 // modifyRepo applies a modification function, commits, and pushes.
 func (r *Repo) modifyRepo(commitMsg string, forceCommit bool, modify func(dir string) error) error {
 	// Apply the modification
 	if err := modify(r.dir); err != nil {
 		return err
+	}
+
+	// Backfill workspace/project/environment values for repos created before
+	// these fields existed. Folded into the same commit when present.
+	if err := r.healMetadata(); err != nil {
+		return fmt.Errorf("failed to heal repo metadata: %w", err)
 	}
 
 	// Keep the embedded chart in sync on every write.

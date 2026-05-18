@@ -35,16 +35,27 @@ dependencies:
 // dependency — Helm requires subchart values to be namespaced this way.
 // fullnameOverride is set to the project name so K8s resource names are concise
 // (e.g., "beast-web" instead of "acme-beast-dev-lucity-app-web").
-func baseValuesYAML(project string) string {
+//
+// workspace and project are emitted as top-level values so the chart can
+// stamp them onto every rendered resource via lucity-app.labels — the
+// platform package's discovery selectors depend on these labels.
+func baseValuesYAML(workspace, project string) string {
 	return fmt.Sprintf(`lucity-app:
   fullnameOverride: "%s"
+  workspace: "%s"
+  project: "%s"
   services: {}
-`, project)
+`, project, workspace, project)
 }
 
 // environmentValuesYAML generates the per-environment values.yaml override file.
-const environmentValuesYAML = `lucity-app: {}
-`
+// environment is emitted so the chart can label every resource with
+// lucity.dev/environment for platform discovery.
+func environmentValuesYAML(environment string) string {
+	return fmt.Sprintf(`lucity-app:
+  environment: "%s"
+`, environment)
+}
 
 // writeEmbeddedChart writes the embedded lucity-app chart to a "chart/" directory
 // inside the given root directory. Used during GitOps repo initialization so that

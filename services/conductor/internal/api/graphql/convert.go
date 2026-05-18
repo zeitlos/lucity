@@ -1,7 +1,7 @@
 package graphql
 
 import (
-	"strings"
+	"log/slog"
 
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
@@ -13,7 +13,7 @@ func convertService(service platform.Service) model.Service {
 	result := model.Service{
 		ID:          service.ID,
 		Name:        service.Name,
-		Status:      model.ServiceStatus(service.Status),
+		Status:      convertServiceStatus(service.Status),
 		Replicas:    convertReplicaCount(service.Replicas),
 		Endpoints:   convertEndpoints(service.Endpoints),
 		SourceURL:   service.SourceURL,
@@ -43,7 +43,7 @@ func convertDeployment(deployment platform.Deployment) model.Deployment {
 	result := model.Deployment{
 		ID:        deployment.ID,
 		Image:     deployment.Image,
-		Status:    model.DeploymentStatus(deployment.Status),
+		Status:    convertDeploymentStatus(deployment.Status),
 		Replicas:  convertReplicaCount(deployment.Replicas),
 		Resources: convertResources(deployment.Resources),
 		CreatedAt: deployment.CreatedAt,
@@ -113,7 +113,7 @@ func convertEndpoints(endpoints []platform.Endpoint) []model.Endpoint {
 		result = append(result, model.Endpoint{
 			Host:     endpoint.Host,
 			Port:     endpoint.Port,
-			Protocol: model.Protocol(strings.ToUpper(string(endpoint.Protocol))),
+			Protocol: convertProtocol(endpoint.Protocol),
 		})
 	}
 
@@ -135,15 +135,9 @@ func convertProject(p conductor.Project) model.Project {
 
 func convertEnvironment(e conductor.Environment) model.Environment {
 	result := model.Environment{
-		ID:   e.ID,
-		Name: e.Name,
-	}
-
-	switch e.ResourceTier {
-	case platform.EcoTier:
-		result.ResourceTier = model.ResourceTierEco
-	case platform.ProductionTier:
-		result.ResourceTier = model.ResourceTierProduction
+		ID:           e.ID,
+		Name:         e.Name,
+		ResourceTier: convertResourceTier(e.ResourceTier),
 	}
 
 	return result
@@ -177,16 +171,16 @@ func convertScalingConfig(sc conductor.ScalingConfig) model.ScalingConfig {
 func convertDomain(d conductor.Domain) *model.Domain {
 	return &model.Domain{
 		Hostname:  d.Hostname,
-		Type:      model.DomainType(d.Type),
-		DNSStatus: model.DNSStatus(d.DnsStatus),
-		TLSStatus: model.TLSStatus(d.TlsStatus),
+		Type:      convertDomainType(d.Type),
+		DNSStatus: convertDNSStatus(d.DnsStatus),
+		TLSStatus: convertTLSStatus(d.TlsStatus),
 	}
 }
 
 func convertDnsCheck(d conductor.DnsCheck) *model.DNSCheck {
 	result := &model.DNSCheck{
 		Hostname:       d.Hostname,
-		Status:         model.DNSStatus(d.Status),
+		Status:         convertDNSStatus(d.Status),
 		ExpectedTarget: d.ExpectedTarget,
 	}
 	if d.CnameTarget != "" {
@@ -196,7 +190,7 @@ func convertDnsCheck(d conductor.DnsCheck) *model.DNSCheck {
 		result.Message = &d.Message
 	}
 	if d.TlsStatus != "" {
-		tlsStatus := model.TLSStatus(d.TlsStatus)
+		tlsStatus := convertTLSStatus(d.TlsStatus)
 		result.TLSStatus = &tlsStatus
 	}
 	return result
@@ -205,7 +199,7 @@ func convertDnsCheck(d conductor.DnsCheck) *model.DNSCheck {
 func convertDeploymentOp(d conductor.DeployOp) model.DeployRun {
 	op := model.DeployRun{
 		ID:    d.ID,
-		Phase: model.DeployPhase(d.Phase),
+		Phase: convertDeployPhase(d.Phase),
 	}
 	if d.BuildID != "" {
 		op.BuildID = &d.BuildID
@@ -223,7 +217,7 @@ func convertDeploymentOp(d conductor.DeployOp) model.DeployRun {
 		op.StartedAt = &d.StartedAt
 	}
 	if d.RolloutHealth != "" {
-		health := model.SyncStatus(d.RolloutHealth)
+		health := convertSyncStatus(d.RolloutHealth)
 		op.RolloutHealth = &health
 	}
 	if d.RolloutMessage != "" {
@@ -248,7 +242,7 @@ func convertGitHubInstallation(i conductor.GitHubInstallation) model.GitHubInsta
 		ID:               i.ID,
 		AccountLogin:     i.AccountLogin,
 		AccountAvatarURL: i.AccountAvatarURL,
-		AccountType:      model.GitHubAccountType(i.AccountType),
+		AccountType:      convertGitHubAccountType(i.AccountType),
 	}
 }
 
@@ -272,13 +266,9 @@ func convertUser(u *conductor.User) *model.User {
 func convertWorkspaceMemberships(memberships []auth.WorkspaceMembership) []model.WorkspaceMembership {
 	result := make([]model.WorkspaceMembership, len(memberships))
 	for i, m := range memberships {
-		role := model.WorkspaceRoleUser
-		if m.Role == auth.WorkspaceRoleAdmin {
-			role = model.WorkspaceRoleAdmin
-		}
 		result[i] = model.WorkspaceMembership{
 			Workspace: m.Workspace,
-			Role:      role,
+			Role:      convertWorkspaceRole(m.Role),
 		}
 	}
 	return result
@@ -306,14 +296,10 @@ func convertWorkspaceDetails(ws *conductor.WorkspaceDetails) *model.Workspace {
 }
 
 func convertWorkspaceMember(m *conductor.WorkspaceMember) *model.WorkspaceMember {
-	role := model.WorkspaceRoleUser
-	if m.Role == auth.WorkspaceRoleAdmin {
-		role = model.WorkspaceRoleAdmin
-	}
 	result := &model.WorkspaceMember{
 		ID:    m.ID,
 		Email: m.Email,
-		Role:  role,
+		Role:  convertWorkspaceRole(m.Role),
 	}
 	if m.Name != "" {
 		result.Name = &m.Name
@@ -323,7 +309,7 @@ func convertWorkspaceMember(m *conductor.WorkspaceMember) *model.WorkspaceMember
 
 func convertEnvironmentResources(r conductor.EnvironmentResources) model.EnvironmentResources {
 	return model.EnvironmentResources{
-		Tier: model.ResourceTier(r.Tier),
+		Tier: convertResourceTierString(r.Tier),
 		Allocation: &model.ResourceAllocation{
 			CPUMillicores: r.CpuMillicores,
 			MemoryMb:      r.MemoryMB,
@@ -335,12 +321,12 @@ func convertEnvironmentResources(r conductor.EnvironmentResources) model.Environ
 func convertBillingSubscription(s *conductor.BillingSubscription) *model.BillingSubscription {
 	var plan *model.Plan
 	if s.Plan != nil {
-		p := model.Plan(*s.Plan)
+		p := convertPlan(*s.Plan)
 		plan = &p
 	}
 	return &model.BillingSubscription{
 		Plan:              plan,
-		Status:            model.SubscriptionStatus(s.Status),
+		Status:            convertSubscriptionStatus(s.Status),
 		CurrentPeriodEnd:  s.CurrentPeriodEnd,
 		CreditAmountCents: s.CreditAmountCents,
 		CreditExpiry:      s.CreditExpiry,
@@ -354,8 +340,264 @@ func convertDatabase(d conductor.Database) model.Database {
 		Name:      d.Name,
 		Version:   d.Version,
 		Instances: d.Instances,
+		Status:    convertDatabaseStatus(d.Status),
 		Size:      d.Size.String(),
+		CreatedAt: d.CreatedAt,
 	}
+}
+
+// --- Enum converters ----------------------------------------------------
+//
+// Each GraphQL enum gets a typed switch instead of a free-form string cast.
+// Adding a new value to either the source or the model enum will fail a
+// compile check if it's referenced here, or surface as a runtime warning
+// if a value flows through without a case. Either way: nothing silent.
+
+func convertServiceStatus(status platform.ServiceStatus) model.ServiceStatus {
+	switch status {
+	case platform.ServiceHealthy:
+		return model.ServiceStatusHealthy
+	case platform.ServiceDegraded:
+		return model.ServiceStatusDegraded
+	case platform.ServiceDeploying:
+		return model.ServiceStatusDeploying
+	case platform.ServiceFailed:
+		return model.ServiceStatusFailed
+	case platform.ServiceStopped:
+		return model.ServiceStatusStopped
+	}
+
+	slog.Warn("unknown service status", "status", status)
+
+	return model.ServiceStatusFailed
+}
+
+func convertDeploymentStatus(status platform.DeploymentStatus) model.DeploymentStatus {
+	switch status {
+	case platform.DeploymentDeploying:
+		return model.DeploymentStatusDeploying
+	case platform.DeploymentActive:
+		return model.DeploymentStatusActive
+	case platform.DeploymentSuperseded:
+		return model.DeploymentStatusSuperseded
+	case platform.DeploymentFailed:
+		return model.DeploymentStatusFailed
+	}
+
+	slog.Warn("unknown deployment status", "status", status)
+
+	return model.DeploymentStatusFailed
+}
+
+func convertDatabaseStatus(status platform.DatabaseStatus) model.DatabaseStatus {
+	switch status {
+	case platform.DatabaseHealthy:
+		return model.DatabaseStatusHealthy
+	case platform.DatabaseDegraded:
+		return model.DatabaseStatusDegraded
+	case platform.DatabaseFailed:
+		return model.DatabaseStatusFailed
+	case platform.DatabasePending:
+		return model.DatabaseStatusPending
+	case platform.DatabaseStopped:
+		return model.DatabaseStatusStopped
+	}
+
+	slog.Warn("unknown database status", "status", status)
+
+	return model.DatabaseStatusFailed
+}
+
+func convertProtocol(protocol platform.Protocol) model.Protocol {
+	switch protocol {
+	case platform.ProtocolHTTP:
+		return model.ProtocolHTTP
+	case platform.ProtocolHTTPS:
+		return model.ProtocolHTTPS
+	case platform.ProtocolTCP:
+		return model.ProtocolTCP
+	}
+
+	slog.Warn("unknown protocol", "protocol", protocol)
+
+	return model.ProtocolTCP
+}
+
+func convertResourceTier(tier platform.ResourceTier) model.ResourceTier {
+	switch tier {
+	case platform.EcoTier:
+		return model.ResourceTierEco
+	case platform.ProductionTier:
+		return model.ResourceTierProduction
+	}
+
+	slog.Warn("unknown resource tier", "tier", tier)
+
+	return model.ResourceTierEco
+}
+
+// convertResourceTierString converts the stringly-typed tier used in
+// conductor.EnvironmentResources (values "ECO" / "PRODUCTION", produced
+// by billing.tierToAPIString). Separate from convertResourceTier because
+// the casing intentionally differs from the platform package.
+func convertResourceTierString(tier string) model.ResourceTier {
+	switch tier {
+	case "ECO":
+		return model.ResourceTierEco
+	case "PRODUCTION":
+		return model.ResourceTierProduction
+	}
+
+	slog.Warn("unknown resource tier string", "tier", tier)
+
+	return model.ResourceTierEco
+}
+
+func convertDomainType(domainType string) model.DomainType {
+	switch domainType {
+	case "PLATFORM":
+		return model.DomainTypePlatform
+	case "CUSTOM":
+		return model.DomainTypeCustom
+	}
+
+	slog.Warn("unknown domain type", "type", domainType)
+
+	return model.DomainTypePlatform
+}
+
+func convertDNSStatus(status string) model.DNSStatus {
+	switch status {
+	case "VALID":
+		return model.DNSStatusValid
+	case "PENDING":
+		return model.DNSStatusPending
+	case "MISCONFIGURED":
+		return model.DNSStatusMisconfigured
+	case "ERROR":
+		return model.DNSStatusError
+	}
+
+	slog.Warn("unknown dns status", "status", status)
+
+	return model.DNSStatusError
+}
+
+func convertTLSStatus(status string) model.TLSStatus {
+	switch status {
+	case "NONE":
+		return model.TLSStatusNone
+	case "PROVISIONING":
+		return model.TLSStatusProvisioning
+	case "ACTIVE":
+		return model.TLSStatusActive
+	case "ERROR":
+		return model.TLSStatusError
+	}
+
+	slog.Warn("unknown tls status", "status", status)
+
+	return model.TLSStatusError
+}
+
+func convertGitHubAccountType(accountType string) model.GitHubAccountType {
+	switch accountType {
+	case "ORGANIZATION":
+		return model.GitHubAccountTypeOrganization
+	case "USER":
+		return model.GitHubAccountTypeUser
+	}
+
+	slog.Warn("unknown github account type", "type", accountType)
+
+	return model.GitHubAccountTypeUser
+}
+
+func convertDeployPhase(phase string) model.DeployPhase {
+	switch phase {
+	case "QUEUED":
+		return model.DeployPhaseQueued
+	case "CLONING":
+		return model.DeployPhaseCloning
+	case "BUILDING":
+		return model.DeployPhaseBuilding
+	case "PUSHING":
+		return model.DeployPhasePushing
+	case "DEPLOYING":
+		return model.DeployPhaseDeploying
+	case "SUCCEEDED":
+		return model.DeployPhaseSucceeded
+	case "FAILED":
+		return model.DeployPhaseFailed
+	}
+
+	slog.Warn("unknown deploy phase", "phase", phase)
+
+	return model.DeployPhaseFailed
+}
+
+func convertSyncStatus(status string) model.SyncStatus {
+	switch status {
+	case "SYNCED":
+		return model.SyncStatusSynced
+	case "OUT_OF_SYNC":
+		return model.SyncStatusOutOfSync
+	case "PROGRESSING":
+		return model.SyncStatusProgressing
+	case "DEGRADED":
+		return model.SyncStatusDegraded
+	case "UNKNOWN":
+		return model.SyncStatusUnknown
+	}
+
+	slog.Warn("unknown sync status", "status", status)
+
+	return model.SyncStatusUnknown
+}
+
+func convertSubscriptionStatus(status string) model.SubscriptionStatus {
+	switch status {
+	case "ACTIVE":
+		return model.SubscriptionStatusActive
+	case "PAST_DUE":
+		return model.SubscriptionStatusPastDue
+	case "CANCELED":
+		return model.SubscriptionStatusCanceled
+	case "INCOMPLETE":
+		return model.SubscriptionStatusIncomplete
+	case "TRIALING":
+		return model.SubscriptionStatusTrialing
+	}
+
+	slog.Warn("unknown subscription status", "status", status)
+
+	return model.SubscriptionStatusIncomplete
+}
+
+func convertPlan(plan string) model.Plan {
+	switch plan {
+	case "HOBBY":
+		return model.PlanHobby
+	case "PRO":
+		return model.PlanPro
+	}
+
+	slog.Warn("unknown plan", "plan", plan)
+
+	return model.PlanHobby
+}
+
+func convertWorkspaceRole(role auth.WorkspaceRole) model.WorkspaceRole {
+	switch role {
+	case auth.WorkspaceRoleUser:
+		return model.WorkspaceRoleUser
+	case auth.WorkspaceRoleAdmin:
+		return model.WorkspaceRoleAdmin
+	}
+
+	slog.Warn("unknown workspace role", "role", role)
+
+	return model.WorkspaceRoleUser
 }
 
 func convertDatabaseTable(t conductor.DatabaseTable) model.DatabaseTable {

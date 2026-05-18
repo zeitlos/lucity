@@ -21,6 +21,7 @@ func (e *DatabaseProvisioningError) Error() string { return "database is provisi
 
 type DatabaseID = platform.DatabaseID
 type Database = platform.Database
+type DatabaseStatus = platform.DatabaseStatus
 
 type DatabaseTable struct {
 	Name          string
