@@ -3,6 +3,7 @@ directive @allowSuspended on FIELD_DEFINITION
 directive @constraint(constraint: String!) on INPUT_FIELD_DEFINITION | ARGUMENT_DEFINITION
 directive @goModel(model: String, models: [String!]) on OBJECT | INPUT_OBJECT | SCALAR | ENUM | INTERFACE | UNION
 directive @goField(forceResolver: Boolean, name: String, omittable: Boolean) on INPUT_FIELD_DEFINITION | FIELD_DEFINITION
+directive @goExtraField(name: String, type: String!, overrideTags: String, description: String) repeatable on OBJECT | INPUT_OBJECT
 directive @goTag(key: String!, value: String!) on INPUT_FIELD_DEFINITION | FIELD_DEFINITION
 
 scalar Time
@@ -29,7 +30,9 @@ type PlatformConfig {
   ipAddress: String!
 }
 
-type Query
+type Query {
+  platformConfig: PlatformConfig! @hasRole(role: [USER])
+}
 
 type Mutation
 

@@ -97,10 +97,11 @@ func toDeployment(replicaSet apps.ReplicaSet, deployment apps.Deployment, servic
 		Image:       image,
 		ImageDigest: annotations[annotationImageDigest],
 
-		Commit:      annotations[annotationSourceCommit],
-		Ref:         annotations[annotationSourceRef],
-		SourceURL:   annotations[annotationSourceRepo],
-		ContextPath: annotations[annotationSourceContext],
+		Commit:               annotations[annotationSourceCommit],
+		Ref:                  annotations[annotationSourceRef],
+		SourceURL:            annotations[annotationSourceRepo],
+		ContextPath:          annotations[annotationSourceContext],
+		GitHubInstallationID: deployment.Labels[gitHubInstallationLabel],
 
 		Resources: containerResources(containers),
 		Command:   containerCommand(containers),

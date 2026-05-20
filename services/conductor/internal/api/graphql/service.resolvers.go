@@ -71,12 +71,18 @@ func (r *mutationResolver) RemoveService(ctx context.Context, service platform.S
 }
 
 // SetCustomStartCommand is the resolver for the setCustomStartCommand field.
-func (r *mutationResolver) SetCustomStartCommand(ctx context.Context, service platform.ServiceID, command string) (bool, error) {
-	return r.Conductor.SetCustomStartCommand(ctx, service, command)
+func (r *mutationResolver) SetCustomStartCommand(ctx context.Context, service platform.ServiceID, command string) (*model.Service, error) {
+	result, err := r.Conductor.SetCustomStartCommand(ctx, service, command)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return new(convertService(*result)), nil
 }
 
 // SetServiceScaling is the resolver for the setServiceScaling field.
-func (r *mutationResolver) SetServiceScaling(ctx context.Context, input model.SetServiceScalingInput) (*model.ScalingConfig, error) {
+func (r *mutationResolver) SetServiceScaling(ctx context.Context, input model.SetServiceScalingInput) (*model.Service, error) {
 	var autoscaling *conductor.AutoscalingConfig
 	if input.Autoscaling != nil {
 		autoscaling = &conductor.AutoscalingConfig{
@@ -86,12 +92,14 @@ func (r *mutationResolver) SetServiceScaling(ctx context.Context, input model.Se
 			TargetCPU:   input.Autoscaling.TargetCPU,
 		}
 	}
-	sc, err := r.Conductor.SetServiceScaling(ctx, input.Service, input.Replicas, autoscaling)
+
+	result, err := r.Conductor.SetServiceScaling(ctx, input.Service, input.Replicas, autoscaling)
+
 	if err != nil {
 		return nil, err
 	}
-	result := convertScalingConfig(*sc)
-	return &result, nil
+
+	return new(convertService(*result)), nil
 }
 
 // Deploy is the resolver for the deploy field.
@@ -114,26 +122,47 @@ func (r *mutationResolver) Rollback(ctx context.Context, deployment platform.Dep
 }
 
 // GenerateDomain is the resolver for the generateDomain field.
-func (r *mutationResolver) GenerateDomain(ctx context.Context, service platform.ServiceID) (*model.Domain, error) {
-	d, err := r.Conductor.GenerateDomain(ctx, service)
+func (r *mutationResolver) GenerateDomain(ctx context.Context, service platform.ServiceID) (*model.Service, error) {
+	result, err := r.Conductor.GenerateDomain(ctx, service)
+
 	if err != nil {
 		return nil, err
 	}
-	return convertDomain(*d), nil
+
+	return new(convertService(*result)), nil
 }
 
 // AddCustomDomain is the resolver for the addCustomDomain field.
-func (r *mutationResolver) AddCustomDomain(ctx context.Context, service platform.ServiceID, hostname string) (*model.Domain, error) {
-	d, err := r.Conductor.AddCustomDomain(ctx, service, hostname)
+func (r *mutationResolver) AddCustomDomain(ctx context.Context, service platform.ServiceID, hostname string) (*model.Service, error) {
+	result, err := r.Conductor.AddCustomDomain(ctx, service, hostname)
+
 	if err != nil {
 		return nil, err
 	}
-	return convertDomain(*d), nil
+
+	return new(convertService(*result)), nil
 }
 
 // RemoveDomain is the resolver for the removeDomain field.
-func (r *mutationResolver) RemoveDomain(ctx context.Context, service platform.ServiceID, hostname string) (bool, error) {
-	return r.Conductor.RemoveDomain(ctx, service, hostname)
+func (r *mutationResolver) RemoveDomain(ctx context.Context, service platform.ServiceID, hostname string) (*model.Service, error) {
+	result, err := r.Conductor.RemoveDomain(ctx, service, hostname)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return new(convertService(*result)), nil
+}
+
+// Service is the resolver for the service field.
+func (r *queryResolver) Service(ctx context.Context, id platform.ServiceID) (*model.Service, error) {
+	result, err := r.Conductor.Service(ctx, id)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return new(convertService(*result)), nil
 }
 
 // DetectServices is the resolver for the detectServices field.
@@ -174,16 +203,6 @@ func (r *queryResolver) ActiveDeployment(ctx context.Context, service platform.S
 	}
 	result := convertDeploymentOp(*d)
 	return &result, nil
-}
-
-// PlatformConfig is the resolver for the platformConfig field.
-func (r *queryResolver) PlatformConfig(ctx context.Context) (*model.PlatformConfig, error) {
-	wd, dt, ip := r.Conductor.PlatformConfig()
-	return &model.PlatformConfig{
-		WorkloadDomain: wd,
-		DomainTarget:   dt,
-		IPAddress:      ip,
-	}, nil
 }
 
 // CheckDNSStatus is the resolver for the checkDnsStatus field.

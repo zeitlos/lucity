@@ -59,14 +59,13 @@ func (c *Client) EnvironmentResources(ctx context.Context, environment platform.
 	}, nil
 }
 
-func (c *Client) SetEnvironmentResources(ctx context.Context, environment platform.EnvironmentID, tier string, cpuMillicores, memoryMB, diskMB int) (*EnvironmentResources, error) {
+func (c *Client) SetEnvironmentResources(ctx context.Context, environment platform.EnvironmentID, tier string, cpuMillicores, memoryMB, diskMB int) (*Environment, error) {
 	ws, err := tenant.FromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	q, err := c.Deployer.SetResourceQuota(ctx, ws, environment.Project, environment.Name, tierFromAPIString(tier), cpuMillicores, memoryMB, diskMB)
-	if err != nil {
+	if _, err := c.Deployer.SetResourceQuota(ctx, ws, environment.Project, environment.Name, tierFromAPIString(tier), cpuMillicores, memoryMB, diskMB); err != nil {
 		return nil, fmt.Errorf("failed to set resource quota: %w", err)
 	}
 
@@ -75,12 +74,7 @@ func (c *Client) SetEnvironmentResources(ctx context.Context, environment platfo
 		slog.Error("failed to sync resources to GitOps repo", "error", pkgErr, "project", environment.Project, "environment", environment.Name)
 	}
 
-	return &EnvironmentResources{
-		Tier:          tierToAPIString(q.Tier),
-		CpuMillicores: q.CPUMillicores,
-		MemoryMB:      q.MemoryMB,
-		DiskMB:        q.DiskMB,
-	}, nil
+	return c.Environment(ctx, environment)
 }
 
 func tierToAPIString(t data.ResourceTier) string {

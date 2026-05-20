@@ -34,6 +34,10 @@ func (c *Client) Services(ctx context.Context, environmentID EnvironmentID) ([]S
 	return c.platform.Services(ctx, environmentID)
 }
 
+func (c *Client) Service(ctx context.Context, id ServiceID) (*Service, error) {
+	return c.platform.Service(ctx, id)
+}
+
 func (c *Client) DetectServices(ctx context.Context, repository string, installationID int64) ([]DetectedService, error) {
 	if _, err := tenant.FromContext(ctx); err != nil {
 		return nil, err
@@ -262,20 +266,21 @@ func (c *Client) RemoveService(ctx context.Context, svc platform.ServiceID) (boo
 	return true, nil
 }
 
-// SetCustomStartCommand sets or clears the custom start command for a service.
-func (c *Client) SetCustomStartCommand(ctx context.Context, svc platform.ServiceID, command string) (bool, error) {
+func (c *Client) SetCustomStartCommand(serviceID context.Context, svc platform.ServiceID, command string) (*Service, error) {
 	projectID := svc.Project
 	environment := svc.Environment
 	service := svc.Name
-	ws, err := tenant.FromContext(ctx)
+	ws, err := tenant.FromContext(serviceID)
+
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
-	if err := c.Packager.SetCustomStartCommand(ctx, ws, projectID, environment, service, command); err != nil {
-		return false, fmt.Errorf("failed to set custom start command: %w", err)
+	if err := c.Packager.SetCustomStartCommand(serviceID, ws, projectID, environment, service, command); err != nil {
+		return nil, fmt.Errorf("failed to set custom start command: %w", err)
 	}
-	return true, nil
+
+	return c.Service(serviceID, svc)
 }
 
 // serviceSourceInfo looks up the source URL, context path, and GitHub installation ID
@@ -790,17 +795,17 @@ func (c *Client) buildDomain(ctx context.Context, hostname string) Domain {
 
 // GenerateDomain creates a platform domain for a service in an environment.
 // Format: {service}-{env}-{randomSuffix}.{workloadDomain}.
-func (c *Client) GenerateDomain(ctx context.Context, svc platform.ServiceID) (*Domain, error) {
-	projectID := svc.Project
-	service := svc.Name
-	environment := svc.Environment
+func (c *Client) GenerateDomain(ctx context.Context, serviceID platform.ServiceID) (*Service, error) {
+	projectID := serviceID.Project
+	service := serviceID.Name
+	environment := serviceID.Environment
 	ws, err := tenant.FromContext(ctx)
+
 	if err != nil {
 		return nil, err
 	}
 
-	hostname, err := c.Packager.GeneratePlatformDomain(ctx, ws, projectID, environment, service)
-	if err != nil {
+	if _, err := c.Packager.GeneratePlatformDomain(ctx, ws, projectID, environment, service); err != nil {
 		return nil, fmt.Errorf("failed to generate platform domain: %w", err)
 	}
 
@@ -808,8 +813,7 @@ func (c *Client) GenerateDomain(ctx context.Context, svc platform.ServiceID) (*D
 		slog.Warn("failed to trigger sync after domain add", "project", projectID, "environment", environment, "error", err)
 	}
 
-	d := c.buildDomain(ctx, hostname)
-	return &d, nil
+	return c.Service(ctx, serviceID)
 }
 
 // repositoryPattern matches valid GitHub owner/repo format.
@@ -896,10 +900,10 @@ func validateHostname(hostname string) error {
 }
 
 // AddCustomDomain adds a user-specified custom domain to a service.
-func (c *Client) AddCustomDomain(ctx context.Context, svc platform.ServiceID, hostname string) (*Domain, error) {
-	projectID := svc.Project
-	service := svc.Name
-	environment := svc.Environment
+func (c *Client) AddCustomDomain(ctx context.Context, serviceID platform.ServiceID, hostname string) (*Service, error) {
+	projectID := serviceID.Project
+	service := serviceID.Name
+	environment := serviceID.Environment
 	ws, err := tenant.FromContext(ctx)
 	if err != nil {
 		return nil, err
@@ -919,10 +923,9 @@ func (c *Client) AddCustomDomain(ctx context.Context, svc platform.ServiceID, ho
 	}
 
 	// Provision TLS certificate
-	tlsStatus, provErr := c.Deployer.ProvisionCustomDomain(ctx, hostname)
-	if provErr != nil {
-		slog.Warn("failed to provision TLS certificate", "hostname", hostname, "error", provErr)
-		tlsStatus = "ERROR"
+	if _, err = c.Deployer.ProvisionCustomDomain(ctx, hostname); err != nil {
+		slog.Warn("failed to provision TLS certificate", "hostname", hostname, "error", err)
+		return nil, err
 	}
 
 	// Trigger ArgoCD sync
@@ -930,29 +933,22 @@ func (c *Client) AddCustomDomain(ctx context.Context, svc platform.ServiceID, ho
 		slog.Warn("failed to trigger sync after domain add", "project", projectID, "environment", environment, "error", err)
 	}
 
-	domainType := "CUSTOM"
-	check := c.CheckDns(ctx, hostname)
-	d := &Domain{
-		Hostname:  hostname,
-		Type:      domainType,
-		DnsStatus: check.Status,
-		TlsStatus: tlsStatus,
-	}
-	return d, nil
+	return c.Service(ctx, serviceID)
 }
 
 // RemoveDomain removes a domain from a service in an environment.
-func (c *Client) RemoveDomain(ctx context.Context, svc platform.ServiceID, hostname string) (bool, error) {
-	projectID := svc.Project
-	service := svc.Name
-	environment := svc.Environment
+func (c *Client) RemoveDomain(ctx context.Context, serviceID platform.ServiceID, hostname string) (*Service, error) {
+	projectID := serviceID.Project
+	service := serviceID.Name
+	environment := serviceID.Environment
 	ws, err := tenant.FromContext(ctx)
+
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
 	if err := c.Packager.RemoveDomain(ctx, ws, projectID, environment, service, hostname); err != nil {
-		return false, fmt.Errorf("failed to remove domain: %w", err)
+		return nil, fmt.Errorf("failed to remove domain: %w", err)
 	}
 
 	// Delete TLS certificate for custom domains
@@ -967,7 +963,7 @@ func (c *Client) RemoveDomain(ctx context.Context, svc platform.ServiceID, hostn
 		slog.Warn("failed to trigger sync after domain remove", "project", projectID, "environment", environment, "error", err)
 	}
 
-	return true, nil
+	return c.Service(ctx, serviceID)
 }
 
 func imageParts(image string) (tag, digest string) {

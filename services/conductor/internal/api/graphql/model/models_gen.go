@@ -163,21 +163,22 @@ type DeployRun struct {
 }
 
 type Deployment struct {
-	ID            platform.DeploymentID `json:"id"`
-	Image         string                `json:"image"`
-	ImageDigest   *string               `json:"imageDigest,omitempty"`
-	Commit        string                `json:"commit"`
-	CommitMessage string                `json:"commitMessage"`
-	Ref           string                `json:"ref"`
-	SourceURL     string                `json:"sourceUrl"`
-	ContextPath   string                `json:"contextPath"`
-	Resources     *Resources            `json:"resources"`
-	Command       string                `json:"command"`
-	BuildID       string                `json:"buildId"`
-	DeployedBy    string                `json:"deployedBy"`
-	Status        DeploymentStatus      `json:"status"`
-	Replicas      *ReplicaCount         `json:"replicas"`
-	CreatedAt     time.Time             `json:"createdAt"`
+	ID                   platform.DeploymentID `json:"id"`
+	Image                string                `json:"image"`
+	ImageDigest          *string               `json:"imageDigest,omitempty"`
+	Commit               string                `json:"commit"`
+	CommitMessage        string                `json:"commitMessage"`
+	Ref                  string                `json:"ref"`
+	SourceURL            string                `json:"sourceUrl"`
+	ContextPath          string                `json:"contextPath"`
+	Resources            *Resources            `json:"resources"`
+	Command              string                `json:"command"`
+	BuildID              string                `json:"buildId"`
+	DeployedBy           string                `json:"deployedBy"`
+	Status               DeploymentStatus      `json:"status"`
+	Replicas             *ReplicaCount         `json:"replicas"`
+	CreatedAt            time.Time             `json:"createdAt"`
+	GitHubInstallationID string                `json:"-"`
 }
 
 type DetectedService struct {

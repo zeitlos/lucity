@@ -1,11 +1,11 @@
-type Deployment {
+type Deployment @goExtraField(name: "GitHubInstallationID", type: "string") {
   id: DeploymentID!
 
   image: String!
   imageDigest: String
 
   commit: String!
-  commitMessage: String!
+  commitMessage: String! @goField(forceResolver: true)
   ref: String!
   sourceUrl: String!
   contextPath: String!
@@ -27,4 +27,8 @@ enum DeploymentStatus {
   ACTIVE
   SUPERSEDED
   FAILED
+}
+
+extend type Query {
+  deployment(id: DeploymentID!): Deployment! @hasRole(role: [USER])
 }

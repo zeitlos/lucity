@@ -53,6 +53,10 @@ func (c *Client) Databases(ctx context.Context, environment EnvironmentID) ([]Da
 	return c.platform.Databases(ctx, environment)
 }
 
+func (c *Client) Database(ctx context.Context, id DatabaseID) (*Database, error) {
+	return c.platform.Database(ctx, id)
+}
+
 func (c *Client) CreateDatabase(ctx context.Context, environment platform.EnvironmentID, name, version string, instances int, size string) (*Database, error) {
 	ws, err := tenant.FromContext(ctx)
 	if err != nil {

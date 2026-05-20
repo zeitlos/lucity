@@ -9,14 +9,15 @@ import (
 )
 
 const (
-	workspaceLabel       = "lucity.dev/workspace"
-	projectLabel         = "lucity.dev/project"
-	environmentLabel     = "lucity.dev/environment"
-	serviceLabel         = "lucity.dev/service"
-	volumeLabel          = "lucity.dev/volume"
-	databaseLabel        = "lucity.dev/database"
-	podTemplateHashLabel = apps.DefaultDeploymentUniqueLabelKey
-	resourceTierLabel    = "lucity.dev/resource-tier"
+	workspaceLabel          = "lucity.dev/workspace"
+	projectLabel            = "lucity.dev/project"
+	environmentLabel        = "lucity.dev/environment"
+	serviceLabel            = "lucity.dev/service"
+	volumeLabel             = "lucity.dev/volume"
+	databaseLabel           = "lucity.dev/database"
+	podTemplateHashLabel    = apps.DefaultDeploymentUniqueLabelKey
+	resourceTierLabel       = "lucity.dev/resource-tier"
+	gitHubInstallationLabel = "lucity.dev/github-installation"
 )
 
 const (

@@ -21,7 +21,7 @@ input CreateProjectInput {
 
 extend type Query {
   projects: [Project!]! @hasRole(role: [USER])
-  project(id: ProjectID!): Project @hasRole(role: [USER])
+  project(id: ProjectID!): Project! @hasRole(role: [USER])
 }
 
 extend type Mutation {

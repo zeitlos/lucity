@@ -10,7 +10,7 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
-func (c *Client) SetServiceScaling(ctx context.Context, service platform.ServiceID, replicas int, autoscaling *AutoscalingConfig) (*ScalingConfig, error) {
+func (c *Client) SetServiceScaling(ctx context.Context, serviceID platform.ServiceID, replicas int, autoscaling *AutoscalingConfig) (*Service, error) {
 	ws, err := tenant.FromContext(ctx)
 	if err != nil {
 		return nil, err
@@ -27,18 +27,14 @@ func (c *Client) SetServiceScaling(ctx context.Context, service platform.Service
 	}
 
 	// 1. Apply to K8s immediately via deployer
-	if err := c.Deployer.SetServiceScaling(ctx, ws, service.Project, service.Environment, service.Name, replicas, as); err != nil {
+	if err := c.Deployer.SetServiceScaling(ctx, ws, serviceID.Project, serviceID.Environment, serviceID.Name, replicas, as); err != nil {
 		return nil, fmt.Errorf("failed to set service scaling: %w", err)
 	}
 
 	// 2. Best-effort: sync to GitOps repo for ejection
-	if pkgErr := c.Packager.SetServiceScaling(ctx, ws, service.Project, service.Environment, service.Name, replicas, as); pkgErr != nil {
-		slog.Error("failed to sync scaling to GitOps repo", "error", pkgErr, "project", service.Project, "environment", service.Environment, "service", service.Name)
+	if pkgErr := c.Packager.SetServiceScaling(ctx, ws, serviceID.Project, serviceID.Environment, serviceID.Name, replicas, as); pkgErr != nil {
+		slog.Error("failed to sync scaling to GitOps repo", "error", pkgErr, "project", serviceID.Project, "environment", serviceID.Environment, "service", serviceID.Name)
 	}
 
-	result := &ScalingConfig{Replicas: replicas}
-	if autoscaling != nil && autoscaling.Enabled {
-		result.Autoscaling = autoscaling
-	}
-	return result, nil
+	return c.Service(ctx, serviceID)
 }

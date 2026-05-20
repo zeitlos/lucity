@@ -41,12 +41,13 @@ func convertService(service platform.Service) model.Service {
 
 func convertDeployment(deployment platform.Deployment) model.Deployment {
 	result := model.Deployment{
-		ID:        deployment.ID,
-		Image:     deployment.Image,
-		Status:    convertDeploymentStatus(deployment.Status),
-		Replicas:  convertReplicaCount(deployment.Replicas),
-		Resources: convertResources(deployment.Resources),
-		CreatedAt: deployment.CreatedAt,
+		ID:                   deployment.ID,
+		Image:                deployment.Image,
+		Status:               convertDeploymentStatus(deployment.Status),
+		Replicas:             convertReplicaCount(deployment.Replicas),
+		Resources:            convertResources(deployment.Resources),
+		CreatedAt:            deployment.CreatedAt,
+		GitHubInstallationID: deployment.GitHubInstallationID,
 	}
 
 	if deployment.ImageDigest != "" {

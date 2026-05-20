@@ -13,10 +13,11 @@ import (
 type Deployment struct {
 	ID DeploymentID
 
-	Image       string
-	ImageDigest string
-	Commit      string
-	Ref         string
+	Image                string
+	ImageDigest          string
+	Commit               string
+	Ref                  string
+	GitHubInstallationID string
 
 	SourceURL   string
 	ContextPath string

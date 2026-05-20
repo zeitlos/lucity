@@ -69,6 +69,7 @@ input CreateDatabaseInput {
 }
 
 extend type Query {
+  database(id: DatabaseID!): Database! @hasRole(role: [USER])
   databaseTables(database: DatabaseID!): [DatabaseTable!]! @hasRole(role: [USER])
   databaseTableData(
     database: DatabaseID!

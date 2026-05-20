@@ -3,14 +3,41 @@ package conductor
 import (
 	"context"
 	"fmt"
+	"net/url"
+	"path"
+	"strconv"
 	"strings"
 
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 )
 
-func (c *Client) Deployments(ctx context.Context, servuceID ServiceID) ([]Deployment, error) {
-	return c.platform.Deployments(ctx, servuceID)
+func (c *Client) Deployments(ctx context.Context, serviceID ServiceID) ([]Deployment, error) {
+	return c.platform.Deployments(ctx, serviceID)
+}
+
+func (c *Client) Deployment(ctx context.Context, id DeploymentID) (*Deployment, error) {
+	return c.platform.Deployment(ctx, id)
+}
+
+func (c *Client) CommitMessage(ctx context.Context, installationID, repo, hash string) (string, error) {
+	id, err := strconv.Atoi(installationID)
+
+	if err != nil {
+		return "", fmt.Errorf("inalid installation id: %v", err)
+	}
+
+	repoURL, err := url.Parse(repo)
+
+	if err != nil {
+		return "", err
+	}
+
+	ownerRepo := repoURL.Path
+	ownerRepo = strings.TrimPrefix(ownerRepo, "/")
+	ownerRepo = strings.TrimSuffix(ownerRepo, path.Ext(ownerRepo))
+
+	return c.GitHubApp.CommitMessage(ctx, int64(id), ownerRepo, hash)
 }
 
 func (c *Client) DefaultCommand(ctx context.Context, imageRef string) (string, error) {

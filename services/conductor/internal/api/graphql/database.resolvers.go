@@ -48,6 +48,17 @@ func (r *mutationResolver) ExecuteQuery(ctx context.Context, database platform.D
 	return convertQueryResult(result), nil
 }
 
+// Database is the resolver for the database field.
+func (r *queryResolver) Database(ctx context.Context, id platform.DatabaseID) (*model.Database, error) {
+	result, err := r.Conductor.Database(ctx, id)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return new(convertDatabase(*result)), nil
+}
+
 // DatabaseTables is the resolver for the databaseTables field.
 func (r *queryResolver) DatabaseTables(ctx context.Context, database platform.DatabaseID) ([]model.DatabaseTable, error) {
 	tables, err := r.Conductor.DatabaseTables(ctx, database)
