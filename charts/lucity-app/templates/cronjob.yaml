@@ -24,13 +24,10 @@ spec:
             lucity.dev/service: {{ $name | quote }}
         spec:
           restartPolicy: {{ $job.restartPolicy | default "OnFailure" }}
+          hostUsers: false
           imagePullSecrets:
             - name: lucity-registry
           securityContext:
-            runAsNonRoot: true
-            runAsUser: 1000
-            runAsGroup: 1000
-            fsGroup: 1000
             seccompProfile:
               type: RuntimeDefault
           containers:

@@ -50,13 +50,10 @@ spec:
         {{- end }}
       {{- end }}
     spec:
+      hostUsers: false
       imagePullSecrets:
         - name: lucity-registry
       securityContext:
-        runAsNonRoot: true
-        runAsUser: 1000
-        runAsGroup: 1000
-        fsGroup: 1000
         seccompProfile:
           type: RuntimeDefault
       containers:
