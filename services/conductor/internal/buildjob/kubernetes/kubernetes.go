@@ -3,7 +3,6 @@ package kubernetes
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"net/url"
 	"path"
 	"strings"
@@ -135,21 +134,5 @@ func repoURLHash(u url.URL) string {
 
 func contextHash(contextPath string) string {
 	hash := sha256.Sum256([]byte(normalizeContextPath(contextPath)))
-	return hex.EncodeToString(hash[:8])
-}
-
-func buildHash(workspaceID string, repoURL url.URL, contextPath, commit string) string {
-	id := struct {
-		W, R, C, Sha string
-	}{
-		W:   workspaceID,
-		R:   normalizeRepoURL(repoURL),
-		C:   normalizeContextPath(contextPath),
-		Sha: strings.ToLower(strings.TrimSpace(commit)),
-	}
-
-	bytes, _ := json.Marshal(id)
-	hash := sha256.Sum256(bytes)
-
 	return hex.EncodeToString(hash[:8])
 }

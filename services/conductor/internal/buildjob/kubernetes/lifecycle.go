@@ -2,6 +2,9 @@ package kubernetes
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
@@ -46,7 +49,7 @@ func (c *Client) Start(ctx context.Context, opts buildjob.StartOptions) (*buildj
 		targets[i] = c.registry + "/" + name + ":" + tag
 	}
 
-	hash := buildHash(opts.Workspace, *parsed, opts.ContextPath, opts.Commit)
+	hash := c.buildHash(opts.Workspace, *parsed, opts.ContextPath, opts.Commit)
 	id := "build-" + hash
 
 	existing, err := c.kubernetes.BatchV1().Jobs(c.namespace).Get(ctx, id, meta.GetOptions{})
@@ -190,4 +193,21 @@ func (c *Client) newBuildJob(id string, workspaceID string, repoURL url.URL, con
 			},
 		},
 	}
+}
+
+func (c *Client) buildHash(workspaceID string, repoURL url.URL, contextPath, commit string) string {
+	id := struct {
+		W, R, C, Sha, Img string
+	}{
+		W:   workspaceID,
+		R:   normalizeRepoURL(repoURL),
+		C:   normalizeContextPath(contextPath),
+		Sha: strings.ToLower(strings.TrimSpace(commit)),
+		Img: c.buildRunnerImage,
+	}
+
+	bytes, _ := json.Marshal(id)
+	hash := sha256.Sum256(bytes)
+
+	return hex.EncodeToString(hash[:8])
 }

@@ -28,14 +28,15 @@ func (c *Client) Logs(ctx context.Context, id string) (io.ReadCloser, error) {
 			return nil, err
 		}
 
-		if len(pods.Items) > 0 {
+		if len(pods.Items) > 0 && len(pods.Items[0].Spec.Containers) > 0 {
 			pod := pods.Items[0]
+			container := pod.Spec.Containers[0]
 
 			switch pod.Status.Phase {
 			case core.PodRunning, core.PodSucceeded, core.PodFailed:
 				req := c.kubernetes.CoreV1().Pods(c.namespace).GetLogs(pod.Name, &core.PodLogOptions{
 					Follow:    true,
-					Container: "builder",
+					Container: container.Name,
 				})
 
 				return req.Stream(ctx)
