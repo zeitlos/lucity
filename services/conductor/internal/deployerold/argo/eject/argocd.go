@@ -3,7 +3,7 @@ package eject
 import (
 	"fmt"
 
-	"github.com/zeitlos/lucity/services/conductor/internal/deployer/argo/gitops"
+	"github.com/zeitlos/lucity/services/conductor/internal/deployerold/argo/gitops"
 )
 
 // applicationYAML generates an ArgoCD Application manifest for a single environment.

@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/zeitlos/lucity/charts"
-	"github.com/zeitlos/lucity/services/conductor/internal/deployer/argo/gitops"
+	"github.com/zeitlos/lucity/services/conductor/internal/deployerold/argo/gitops"
 
 	"gopkg.in/yaml.v3"
 )

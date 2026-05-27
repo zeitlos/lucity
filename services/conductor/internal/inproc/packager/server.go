@@ -7,8 +7,8 @@ import (
 	"log/slog"
 
 	"github.com/zeitlos/lucity/services/conductor/internal/data"
-	"github.com/zeitlos/lucity/services/conductor/internal/deployer/argo/eject"
-	"github.com/zeitlos/lucity/services/conductor/internal/deployer/argo/gitops"
+	"github.com/zeitlos/lucity/services/conductor/internal/deployerold/argo/eject"
+	"github.com/zeitlos/lucity/services/conductor/internal/deployerold/argo/gitops"
 )
 
 // DeployerService is the narrow slice of the inproc deployer that

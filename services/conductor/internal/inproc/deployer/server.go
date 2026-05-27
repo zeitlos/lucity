@@ -22,8 +22,8 @@ import (
 
 	"github.com/zeitlos/lucity/pkg/labels"
 	"github.com/zeitlos/lucity/services/conductor/internal/data"
-	"github.com/zeitlos/lucity/services/conductor/internal/deployer/argo/argocd"
-	"github.com/zeitlos/lucity/services/conductor/internal/deployer/argo/database"
+	"github.com/zeitlos/lucity/services/conductor/internal/deployerold/argo/argocd"
+	"github.com/zeitlos/lucity/services/conductor/internal/deployerold/argo/database"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

@@ -16,7 +16,7 @@
 //
 // Swapping the implementation is a single line in main.go; no
 // consumer-facing types change.
-package deployer
+package deployerold
 
 import (
 	"context"
