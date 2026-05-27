@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { Handle, Position } from '@vue-flow/core';
-import { HardDrive } from 'lucide-vue-next';
+import { DatabaseStatus } from '@/gql/graphql';
 import { Badge } from '@/components/ui/badge';
 
 const props = defineProps<{
@@ -10,51 +10,48 @@ const props = defineProps<{
     version: string;
     instances: number;
     size: string;
-    ready?: boolean;
-    volume?: {
-      name: string;
-      size: string;
-      requestedSize: string;
-      usedBytes: number;
-      capacityBytes: number;
-    } | null;
+    status: DatabaseStatus;
   };
   selected?: boolean;
 }>();
 
 const emit = defineEmits<{
   (e: 'select'): void;
-  (e: 'select-volume', volumeName: string): void;
 }>();
 
 const badgeVariant = computed(() => {
-  if (props.data.ready === undefined) return 'secondary' as const;
-  return props.data.ready ? 'default' as const : 'destructive' as const;
+  switch (props.data.status) {
+    case DatabaseStatus.Healthy:
+      return 'default' as const;
+    case DatabaseStatus.Failed:
+      return 'destructive' as const;
+    default:
+      return 'secondary' as const;
+  }
 });
 
 const statusLabel = computed(() => {
-  if (props.data.ready === undefined) return 'Unknown';
-  return props.data.ready ? 'Online' : 'Not Ready';
+  switch (props.data.status) {
+    case DatabaseStatus.Healthy:
+      return 'Online';
+    case DatabaseStatus.Degraded:
+      return 'Degraded';
+    case DatabaseStatus.Pending:
+      return 'Provisioning';
+    case DatabaseStatus.Failed:
+      return 'Failed';
+    case DatabaseStatus.Stopped:
+      return 'Stopped';
+    default:
+      return 'Unknown';
+  }
 });
 
 const instances = computed(() => props.data.instances ?? 0);
-
-const usagePercent = computed(() => {
-  if (!props.data.volume || props.data.volume.capacityBytes <= 0) return 0;
-  return Math.min(100, Math.round((props.data.volume.usedBytes / props.data.volume.capacityBytes) * 100));
-});
-
-const usageLabel = computed(() => {
-  if (!props.data.volume || props.data.volume.capacityBytes <= 0) {
-    return props.data.volume?.size || props.data.size;
-  }
-  return `${usagePercent.value}% of ${props.data.volume.size}`;
-});
 </script>
 
 <template>
   <div class="database-node-wrapper">
-    <!-- Main card -->
     <div
       :class="[
         'database-node group cursor-pointer rounded-xl border px-6 py-5 shadow-sm transition-all duration-200',
@@ -92,23 +89,6 @@ const usageLabel = computed(() => {
       </div>
     </div>
 
-    <!-- Volume sub-element -->
-    <div
-      v-if="data.volume"
-      class="volume-bar relative mt-2 flex cursor-pointer items-center gap-2 overflow-hidden rounded-lg border border-border/70 px-3 py-2 text-xs text-muted-foreground transition-colors hover:border-border hover:bg-card/80"
-      style="width: 240px; margin-left: 20px;"
-      @click.stop="emit('select-volume', data.name)"
-    >
-      <div
-        v-if="usagePercent > 0"
-        class="usage-fill absolute inset-y-0 left-0"
-        :style="{ width: usagePercent + '%' }"
-      />
-      <HardDrive :size="12" class="relative z-10 shrink-0" />
-      <span class="relative z-10">Volume</span>
-      <span class="relative z-10 ml-auto font-mono">{{ usageLabel }}</span>
-    </div>
-
     <!-- Vue Flow handles -->
     <Handle type="source" :position="Position.Bottom" class="!invisible" />
     <Handle type="target" :position="Position.Top" class="!invisible" />
@@ -132,7 +112,6 @@ const usageLabel = computed(() => {
   );
 }
 
-/* First stacked card (2+ instances) */
 .has-stack::before {
   content: '';
   position: absolute;
@@ -145,7 +124,6 @@ const usageLabel = computed(() => {
   opacity: 0.7;
 }
 
-/* Second stacked card (3+ instances) */
 .has-stack-deep::after {
   content: '';
   position: absolute;
@@ -156,14 +134,5 @@ const usageLabel = computed(() => {
   background: var(--card);
   transform: translateY(12px) scale(0.94);
   opacity: 0.4;
-}
-
-.volume-bar {
-  background: color-mix(in oklch, var(--card) 60%, transparent);
-  backdrop-filter: blur(4px);
-}
-
-.usage-fill {
-  background: color-mix(in oklch, var(--primary) 15%, transparent);
 }
 </style>

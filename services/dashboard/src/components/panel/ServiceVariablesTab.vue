@@ -5,8 +5,8 @@ import { Plus, Trash2, Link, Database, Globe } from 'lucide-vue-next';
 import { graphql } from '@/gql';
 
 const ServiceVariablesDocument = graphql(`
-  query ServiceVariables($projectId: ID!, $environment: String!, $service: String!) {
-    serviceVariables(projectId: $projectId, environment: $environment, service: $service) {
+  query ServiceVariables($service: ServiceID!) {
+    serviceVariables(service: $service) {
       key
       value
       fromShared
@@ -22,14 +22,14 @@ const ServiceVariablesDocument = graphql(`
 `);
 
 const SetServiceVariablesDocument = graphql(`
-  mutation SetServiceVariables($projectId: ID!, $environment: String!, $service: String!, $variables: [ServiceVariableInput!]!) {
-    setServiceVariables(projectId: $projectId, environment: $environment, service: $service, variables: $variables)
+  mutation SetServiceVariables($service: ServiceID!, $variables: [ServiceVariableInput!]!) {
+    setServiceVariables(service: $service, variables: $variables)
   }
 `);
 
 const SharedVariablesDocument = graphql(`
-  query SharedVariables($projectId: ID!, $environment: String!) {
-    sharedVariables(projectId: $projectId, environment: $environment) {
+  query SharedVariables($environment: EnvironmentID!) {
+    sharedVariables(environment: $environment) {
       key
       value
     }
@@ -53,14 +53,12 @@ import { toast, errorToast } from '@/components/ui/sonner';
 import { errorMessage } from '@/lib/utils';
 
 const props = defineProps<{
-  projectId: string;
-  service: {
-    name: string;
-  };
+  serviceId: string;
+  serviceName: string;
 }>();
 
 const { activeEnvironment } = useEnvironment();
-const envName = computed(() => activeEnvironment.value?.name ?? '');
+const environmentId = computed(() => activeEnvironment.value?.id ?? '');
 
 // ── Data types ────────────────────────────────────────────────────────
 
@@ -96,18 +94,15 @@ const CNPG_EXPORTS = [
 // ── Queries ───────────────────────────────────────────────────────────
 
 const { result, loading, refetch } = useQuery(ServiceVariablesDocument, () => ({
-  projectId: props.projectId,
-  environment: envName.value,
-  service: props.service.name,
+  service: props.serviceId,
 }), () => ({
-  enabled: !!envName.value,
+  enabled: !!props.serviceId,
 }));
 
 const { result: sharedResult } = useQuery(SharedVariablesDocument, () => ({
-  projectId: props.projectId,
-  environment: envName.value,
+  environment: environmentId.value,
 }), () => ({
-  enabled: !!envName.value,
+  enabled: !!environmentId.value,
 }));
 
 // ── Reference option model ────────────────────────────────────────────
@@ -136,12 +131,12 @@ const availableRefs = computed<RefOption[]>(() => {
     for (const exp of CNPG_EXPORTS) {
       options.push({
         type: 'database',
-        key: `${db.name}-${exp.key}`,
+        key: `${db.id}-${exp.key}`,
         displayName: exp.displayName,
         displayValue: `\${{${capitalize(db.name)}.${exp.displayName}}}`,
         group: `${capitalize(db.name)} (Postgres)`,
         groupIcon: 'database',
-        databaseRef: { database: db.name, key: exp.key },
+        databaseRef: { database: db.id, key: exp.key },
       });
     }
   }
@@ -149,22 +144,22 @@ const availableRefs = computed<RefOption[]>(() => {
   // Service references
   const services = activeEnvironment.value?.services ?? [];
   for (const svc of services) {
-    if (svc.name === props.service.name) continue;
+    if (svc.id === props.serviceId) continue;
     const envKey = svc.name.toUpperCase().replace(/-/g, '_');
     options.push({
       type: 'service',
-      key: `svc-${svc.name}`,
+      key: `svc-${svc.id}`,
       displayName: `${envKey}_URL`,
       displayValue: `\${{${svc.name}.URL}}`,
       group: capitalize(svc.name),
       groupIcon: 'globe',
-      serviceRef: { service: svc.name },
+      serviceRef: { service: svc.id },
     });
   }
 
   // Shared variable references
   const sharedVars = sharedResult.value?.sharedVariables ?? [];
-  for (const v of sharedVars as { key: string; value: string }[]) {
+  for (const v of sharedVars) {
     options.push({
       type: 'shared',
       key: `shared-${v.key}`,
@@ -271,9 +266,7 @@ async function handleSave() {
     }));
 
     const res = await setVarsMutate({
-      projectId: props.projectId,
-      environment: envName.value,
-      service: props.service.name,
+      service: props.serviceId,
       variables,
     });
 
@@ -298,7 +291,7 @@ async function handleSave() {
     <div>
       <h3 class="text-sm font-medium text-foreground">Service Variables</h3>
       <p class="text-xs text-muted-foreground">
-        Environment variables for <strong>{{ service.name }}</strong> in {{ envName || 'this environment' }}.
+        Environment variables for <strong>{{ serviceName }}</strong> in {{ activeEnvironment?.name || 'this environment' }}.
       </p>
     </div>
 

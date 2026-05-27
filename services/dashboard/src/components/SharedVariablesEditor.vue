@@ -5,8 +5,8 @@ import { Plus, Trash2 } from 'lucide-vue-next';
 import { graphql } from '@/gql';
 
 const SharedVariablesDocument = graphql(`
-  query SharedVariables($projectId: ID!, $environment: String!) {
-    sharedVariables(projectId: $projectId, environment: $environment) {
+  query SharedVariables($environment: EnvironmentID!) {
+    sharedVariables(environment: $environment) {
       key
       value
     }
@@ -14,8 +14,8 @@ const SharedVariablesDocument = graphql(`
 `);
 
 const SetSharedVariablesDocument = graphql(`
-  mutation SetSharedVariables($projectId: ID!, $environment: String!, $variables: [VariableInput!]!) {
-    setSharedVariables(projectId: $projectId, environment: $environment, variables: $variables)
+  mutation SetSharedVariables($environment: EnvironmentID!, $variables: [VariableInput!]!) {
+    setSharedVariables(environment: $environment, variables: $variables)
   }
 `);
 import { useEnvironment } from '@/composables/useEnvironment';
@@ -27,18 +27,13 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { toast, errorToast } from '@/components/ui/sonner';
 import { errorMessage } from '@/lib/utils';
 
-const props = defineProps<{
-  projectId: string;
-}>();
-
 const { activeEnvironment } = useEnvironment();
-const envName = computed(() => activeEnvironment.value?.name ?? '');
+const environmentId = computed(() => activeEnvironment.value?.id ?? '');
 
 const { result, loading, refetch } = useQuery(SharedVariablesDocument, () => ({
-  projectId: props.projectId,
-  environment: envName.value,
+  environment: environmentId.value,
 }), () => ({
-  enabled: !!envName.value,
+  enabled: !!environmentId.value,
 }));
 
 interface VarRow {
@@ -54,7 +49,7 @@ watch(
   () => result.value?.sharedVariables,
   (vars) => {
     if (vars) {
-      rows.value = vars.map((v: { key: string; value: string }) => ({
+      rows.value = vars.map((v) => ({
         key: v.key,
         value: v.value,
       }));
@@ -84,8 +79,7 @@ async function handleSave() {
   const validRows = rows.value.filter(r => r.key.trim());
   try {
     const res = await setVarsMutate({
-      projectId: props.projectId,
-      environment: envName.value,
+      environment: environmentId.value,
       variables: validRows.map(r => ({ key: r.key.trim(), value: r.value })),
     });
 
@@ -110,7 +104,7 @@ async function handleSave() {
     <div>
       <h3 class="text-sm font-medium text-foreground">Shared Variables</h3>
       <p class="text-xs text-muted-foreground">
-        Variables available for services to reference in {{ envName || 'this environment' }}.
+        Variables available for services to reference in {{ activeEnvironment?.name || 'this environment' }}.
       </p>
     </div>
 

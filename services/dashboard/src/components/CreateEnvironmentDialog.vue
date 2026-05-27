@@ -9,95 +9,7 @@ const CreateEnvironmentDocument = graphql(`
     createEnvironment(input: $input) {
       id
       name
-      namespace
-      ephemeral
-      syncStatus
       resourceTier
-    }
-  }
-`);
-
-const ProjectDocument = graphql(`
-  query Project($id: ID!) {
-    project(id: $id) {
-      id
-      name
-      createdAt
-      environments {
-        id
-        name
-        namespace
-        ephemeral
-        syncStatus
-        resourceTier
-        services {
-          id
-          name
-          environment
-          image
-          port
-          framework
-          startCommand
-          sourceUrl
-          contextPath
-          customStartCommand
-          imageTag
-          ready
-          replicas
-          scaling {
-            replicas
-            autoscaling {
-              enabled
-              minReplicas
-              maxReplicas
-              targetCPU
-            }
-          }
-          resources {
-            cpuMillicores
-            memoryMB
-            cpuLimitMillicores
-            memoryLimitMB
-          }
-          domains {
-            hostname
-            type
-            dnsStatus
-            tlsStatus
-          }
-          deployments {
-            id
-            imageTag
-            active
-            timestamp
-            revision
-            message
-            sourceCommitMessage
-            sourceUrl
-          }
-        }
-        databases {
-          name
-          environment
-          ready
-          instances
-          version
-          size
-          volume {
-            name
-            size
-            requestedSize
-            usedBytes
-            capacityBytes
-          }
-        }
-      }
-      databases {
-        name
-        version
-        instances
-        size
-      }
     }
   }
 `);
@@ -131,29 +43,26 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'update:open', value: boolean): void;
+  (e: 'created', environmentId: string): void;
 }>();
 
 const { environments } = useEnvironment();
 
 const name = ref('');
 const mode = ref<'duplicate' | 'empty'>('duplicate');
-const fromEnvironment = ref<string>('');
+const fromEnvironmentId = ref<string>('');
 const tier = ref<ResourceTier>(ResourceTier.Eco);
 
-const { mutate, loading } = useMutation(CreateEnvironmentDocument, {
-  refetchQueries: () => [{ query: ProjectDocument, variables: { id: props.projectId } }],
-});
+const { mutate, loading } = useMutation(CreateEnvironmentDocument);
 
-const nonEphemeralEnvs = computed(() =>
-  environments.value.filter(e => !e.ephemeral),
-);
+const availableEnvs = computed(() => environments.value);
 
 // Default to 'duplicate' when environments exist, 'empty' when none
 watch(() => props.open, (isOpen) => {
   if (isOpen) {
-    if (nonEphemeralEnvs.value.length > 0) {
+    if (availableEnvs.value.length > 0) {
       mode.value = 'duplicate';
-      fromEnvironment.value = nonEphemeralEnvs.value[0]!.name;
+      fromEnvironmentId.value = availableEnvs.value[0]!.id;
     } else {
       mode.value = 'empty';
     }
@@ -165,12 +74,12 @@ async function handleCreate() {
 
   try {
     const input: CreateEnvironmentInput = {
-      projectId: props.projectId,
+      project: props.projectId,
       name: name.value.trim(),
-      tier: tier.value as ResourceTier,
+      tier: tier.value,
     };
-    if (mode.value === 'duplicate' && fromEnvironment.value) {
-      input.fromEnvironment = fromEnvironment.value;
+    if (mode.value === 'duplicate' && fromEnvironmentId.value) {
+      input.fromEnvironment = fromEnvironmentId.value;
     }
 
     const res = await mutate({ input });
@@ -182,11 +91,13 @@ async function handleCreate() {
       return;
     }
 
+    const newId = res?.data?.createEnvironment?.id;
     toast.success(`Environment "${name.value.trim()}" created`);
     name.value = '';
-    fromEnvironment.value = '';
+    fromEnvironmentId.value = '';
     tier.value = ResourceTier.Eco;
     emit('update:open', false);
+    if (newId) emit('created', newId);
   } catch (e: unknown) {
     errorToast('Failed to create environment', { description: errorMessage(e) });
   }
@@ -218,7 +129,7 @@ async function handleCreate() {
         </div>
 
         <div
-          v-if="nonEphemeralEnvs.length > 0"
+          v-if="availableEnvs.length > 0"
           class="space-y-2"
         >
           <RadioGroup v-model="mode" class="space-y-3">
@@ -234,15 +145,15 @@ async function handleCreate() {
                 Copy all the services, variables, and configuration from an existing environment.
               </p>
               <div v-if="mode === 'duplicate'" class="pl-6 pt-1">
-                <Select v-model="fromEnvironment">
+                <Select v-model="fromEnvironmentId">
                   <SelectTrigger>
                     <SelectValue placeholder="Select environment" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem
-                      v-for="env in nonEphemeralEnvs"
+                      v-for="env in availableEnvs"
                       :key="env.id"
-                      :value="env.name"
+                      :value="env.id"
                     >
                       {{ env.name }}
                     </SelectItem>

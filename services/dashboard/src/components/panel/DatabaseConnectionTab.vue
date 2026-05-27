@@ -3,11 +3,10 @@ import { reactive, computed } from 'vue';
 import { useQuery } from '@vue/apollo-composable';
 import { Copy, Eye, EyeOff, Loader2, DatabaseZap } from 'lucide-vue-next';
 import { graphql } from '@/gql';
-import { useEnvironment } from '@/composables/useEnvironment';
 
 const DatabaseCredentialsDocument = graphql(`
-  query DatabaseCredentials($projectId: ID!, $environment: String!, $database: String!) {
-    databaseCredentials(projectId: $projectId, environment: $environment, database: $database) {
+  query DatabaseCredentials($database: DatabaseID!) {
+    databaseCredentials(database: $database) {
       host
       port
       dbname
@@ -22,25 +21,14 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from '@/components/ui/sonner';
 
 const props = defineProps<{
-  projectId: string;
-  database: {
-    name: string;
-  };
+  databaseId: string;
+  databaseName: string;
 }>();
-
-const { activeEnvironment } = useEnvironment();
-
-const queryEnabled = computed(() => !!activeEnvironment.value);
-const queryVars = computed(() => ({
-  projectId: props.projectId,
-  environment: activeEnvironment.value?.name ?? '',
-  database: props.database.name,
-}));
 
 const { result, loading, error } = useQuery(
   DatabaseCredentialsDocument,
-  queryVars,
-  () => ({ enabled: queryEnabled.value }),
+  () => ({ database: props.databaseId }),
+  () => ({ enabled: !!props.databaseId }),
 );
 
 const creds = computed(() => result.value?.databaseCredentials ?? null);
@@ -51,7 +39,6 @@ const isProvisioning = computed(() => {
   return gqlErrors?.some(e => e.extensions?.code === 'DATABASE_PROVISIONING') ?? false;
 });
 
-// Track which fields are revealed
 const revealed = reactive<Record<string, boolean>>({});
 
 function toggleReveal(key: string) {
@@ -86,20 +73,12 @@ const fields = computed(() => {
     <div>
       <h3 class="text-sm font-medium text-foreground">Connection Details</h3>
       <p class="text-xs text-muted-foreground">
-        Credentials for <strong>{{ database.name }}</strong> in {{ activeEnvironment?.name ?? 'this environment' }}.
+        Credentials for <strong>{{ databaseName }}</strong>.
       </p>
     </div>
 
-    <!-- No environment selected -->
-    <div
-      v-if="!activeEnvironment"
-      class="flex flex-col items-center justify-center gap-2 py-12 text-center"
-    >
-      <p class="text-sm text-muted-foreground">Select an environment to view connection details.</p>
-    </div>
-
     <!-- Loading -->
-    <div v-else-if="loading" class="space-y-2">
+    <div v-if="loading" class="space-y-2">
       <Skeleton v-for="i in 6" :key="i" class="h-10 w-full" />
     </div>
 

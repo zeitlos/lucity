@@ -2,25 +2,25 @@ import { ref, watch, type Ref } from 'vue';
 import { useSubscription } from '@vue/apollo-composable';
 import { graphql } from '@/gql';
 
-const DeployLogsDocument = graphql(`
-  subscription DeployLogs($id: ID!) {
-    deployLogs(id: $id)
+const BuildLogsDocument = graphql(`
+  subscription BuildLogs($id: String!) {
+    buildLogs(id: $id)
   }
 `);
 
-export function useDeployLogs(deployId: Ref<string | null>) {
+export function useBuildLogs(buildId: Ref<string | null>) {
   const lines = ref<string[]>([]);
   const isActive = ref(false);
 
   const { onResult, onError, stop, restart } = useSubscription(
-    DeployLogsDocument,
-    () => ({ id: deployId.value! }),
-    () => ({ enabled: !!deployId.value }),
+    BuildLogsDocument,
+    () => ({ id: buildId.value! }),
+    () => ({ enabled: !!buildId.value }),
   );
 
   onResult(({ data }) => {
-    if (data?.deployLogs) {
-      lines.value.push(data.deployLogs);
+    if (data?.buildLogs) {
+      lines.value.push(data.buildLogs);
       isActive.value = true;
     }
   });
@@ -29,8 +29,8 @@ export function useDeployLogs(deployId: Ref<string | null>) {
     isActive.value = false;
   });
 
-  // Reset when deployId changes.
-  watch(deployId, (newId, oldId) => {
+  // Reset when buildId changes.
+  watch(buildId, (newId, oldId) => {
     if (newId !== oldId) {
       lines.value = [];
       isActive.value = !!newId;

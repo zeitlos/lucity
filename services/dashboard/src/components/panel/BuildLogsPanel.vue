@@ -2,14 +2,14 @@
 import { ref, computed, watch, nextTick } from 'vue';
 import { X, Loader2, Trash2, Pause, Play } from 'lucide-vue-next';
 import { onKeyStroke } from '@vueuse/core';
-import { useDeployLogs } from '@/composables/useDeployLogs';
-import { DeployPhase } from '@/gql/graphql';
+import { useBuildLogs } from '@/composables/useBuildLogs';
+import { BuildStatus } from '@/gql/graphql';
 import { useDeploy } from '@/composables/useDeploy';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
 const props = defineProps<{
-  deployId: string;
+  buildId: string;
   serviceName: string;
 }>();
 
@@ -19,8 +19,8 @@ const emit = defineEmits<{
 
 onKeyStroke('Escape', () => emit('close'));
 
-const deployIdRef = computed(() => props.deployId);
-const { lines, isActive, clear, stop, restart } = useDeployLogs(deployIdRef);
+const buildIdRef = computed(() => props.buildId);
+const { lines, isActive, clear, stop, restart } = useBuildLogs(buildIdRef);
 const deploy = useDeploy();
 
 const logContainer = ref<HTMLElement | null>(null);
@@ -43,7 +43,9 @@ watch(lines, async () => {
 }, { deep: true });
 
 const isTerminal = computed(() =>
-  deploy.phase === DeployPhase.Succeeded || deploy.phase === DeployPhase.Failed
+  deploy.status === BuildStatus.Succeeded
+    || deploy.status === BuildStatus.Failed
+    || deploy.status === BuildStatus.Cancelled
 );
 
 function togglePause() {
@@ -65,8 +67,8 @@ function togglePause() {
           {{ serviceName }}
         </h2>
         <Badge
-          v-if="deploy.phase"
-          :variant="deploy.phase === DeployPhase.Succeeded ? 'default' : deploy.phase === DeployPhase.Failed ? 'destructive' : 'secondary'"
+          v-if="deploy.status"
+          :variant="deploy.status === BuildStatus.Succeeded ? 'default' : deploy.status === BuildStatus.Failed ? 'destructive' : 'secondary'"
           class="text-xs"
         >
           <Loader2
@@ -74,7 +76,7 @@ function togglePause() {
             :size="10"
             class="mr-1 animate-spin"
           />
-          {{ deploy.phase }}
+          {{ deploy.status }}
         </Badge>
       </div>
 

@@ -6,9 +6,8 @@ import { useServiceLogs } from '@/composables/useServiceLogs';
 import { Button } from '@/components/ui/button';
 
 const props = defineProps<{
-  projectId: string;
+  serviceId: string;
   serviceName: string;
-  environment: string;
 }>();
 
 const emit = defineEmits<{
@@ -17,15 +16,11 @@ const emit = defineEmits<{
 
 onKeyStroke('Escape', () => emit('close'));
 
-const projectIdRef = computed(() => props.projectId);
-const serviceRef = computed(() => props.serviceName);
-const envRef = computed(() => props.environment as string | null);
+const serviceIdRef = computed(() => props.serviceId);
 const enabled = ref(true);
 
 const { lines, isActive, clear, stop, restart } = useServiceLogs(
-  projectIdRef,
-  serviceRef,
-  envRef,
+  serviceIdRef,
   enabled,
 );
 
@@ -71,9 +66,6 @@ function clearLogs() {
         <h2 class="text-sm font-semibold text-zinc-200">
           {{ serviceName }}
         </h2>
-        <span class="text-xs text-zinc-500">
-          {{ environment }}
-        </span>
       </div>
 
       <div class="flex items-center gap-1">

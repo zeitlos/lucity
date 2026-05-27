@@ -1,24 +1,24 @@
 import { ref, computed } from 'vue';
 
 interface LogsPanelState {
-  deployId: string;
+  buildId: string;
   serviceName: string;
 }
 
 const panelState = ref<LogsPanelState | null>(null);
 
-export function useDeploymentLogsPanel() {
+export function useBuildLogsPanel() {
   const isOpen = computed(() => panelState.value !== null);
-  const deployId = computed(() => panelState.value?.deployId ?? null);
+  const buildId = computed(() => panelState.value?.buildId ?? null);
   const serviceName = computed(() => panelState.value?.serviceName ?? '');
 
-  function open(deployIdValue: string, serviceNameValue: string) {
-    panelState.value = { deployId: deployIdValue, serviceName: serviceNameValue };
+  function open(buildIdValue: string, serviceNameValue: string) {
+    panelState.value = { buildId: buildIdValue, serviceName: serviceNameValue };
   }
 
   function close() {
     panelState.value = null;
   }
 
-  return { isOpen, deployId, serviceName, open, close };
+  return { isOpen, buildId, serviceName, open, close };
 }

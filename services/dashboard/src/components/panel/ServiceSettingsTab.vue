@@ -2,56 +2,54 @@
 import { ref, computed, watch } from 'vue';
 import { useMutation, useQuery } from '@vue/apollo-composable';
 import {
-  Trash2, Copy, X, Globe, Plus, Minus, CircleCheck, CircleAlert,
-  ChevronDown, Network, ExternalLink, Loader2, Scaling, GitBranch, Github, Code, Play, Container, ArrowRight,
-  Cpu, MemoryStick, Leaf, ShieldCheck, FileText,
+  Trash2, Copy, X, Globe, Plus, Minus,
+  ChevronDown, Network, ExternalLink, Scaling, GitBranch, Github, Play, Container, ArrowRight,
+  Cpu, MemoryStick, Leaf, ShieldCheck,
 } from 'lucide-vue-next';
 import { graphql } from '@/gql';
 import {
   type SetServiceScalingInput,
-  DnsStatus,
-  TlsStatus,
-  DomainType,
   ResourceTier,
 } from '@/gql/graphql';
 
 const RemoveServiceDocument = graphql(`
-  mutation RemoveService($projectId: ID!, $environment: String!, $service: String!) {
-    removeService(projectId: $projectId, environment: $environment, service: $service)
+  mutation RemoveService($service: ServiceID!) {
+    removeService(service: $service)
   }
 `);
 
 const SetCustomStartCommandDocument = graphql(`
-  mutation SetCustomStartCommand($projectId: ID!, $environment: String!, $service: String!, $command: String!) {
-    setCustomStartCommand(projectId: $projectId, environment: $environment, service: $service, command: $command)
+  mutation SetCustomStartCommand($service: ServiceID!, $command: String!) {
+    setCustomStartCommand(service: $service, command: $command) {
+      id
+    }
   }
 `);
 
 const GenerateDomainDocument = graphql(`
-  mutation GenerateDomain($input: GenerateDomainInput!) {
-    generateDomain(input: $input) {
-      hostname
-      type
-      dnsStatus
-      tlsStatus
+  mutation GenerateDomain($service: ServiceID!) {
+    generateDomain(service: $service) {
+      id
+      endpoints {
+        host
+      }
     }
   }
 `);
 
 const AddCustomDomainDocument = graphql(`
-  mutation AddCustomDomain($input: AddCustomDomainInput!) {
-    addCustomDomain(input: $input) {
-      hostname
-      type
-      dnsStatus
-      tlsStatus
+  mutation AddCustomDomain($service: ServiceID!, $hostname: String!) {
+    addCustomDomain(service: $service, hostname: $hostname) {
+      id
     }
   }
 `);
 
 const RemoveDomainDocument = graphql(`
-  mutation RemoveDomain($input: RemoveDomainInput!) {
-    removeDomain(input: $input)
+  mutation RemoveDomain($service: ServiceID!, $hostname: String!) {
+    removeDomain(service: $service, hostname: $hostname) {
+      id
+    }
   }
 `);
 
@@ -68,20 +66,21 @@ const PlatformConfigDocument = graphql(`
 const SetServiceScalingDocument = graphql(`
   mutation SetServiceScaling($input: SetServiceScalingInput!) {
     setServiceScaling(input: $input) {
-      replicas
+      id
+      replicas {
+        desired
+        ready
+      }
       autoscaling {
-        enabled
         minReplicas
         maxReplicas
-        targetCPU
+        targetCpu
       }
     }
   }
 `);
 import { useEnvironment } from '@/composables/useEnvironment';
-import type { DomainInfo } from '@/composables/useEnvironment';
-import { useDnsPolling } from '@/composables/useDnsPolling';
-import FrameworkIcon from '@/components/FrameworkIcon.vue';
+import type { Service } from '@/composables/useEnvironment';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -104,136 +103,32 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { errorMessage } from '@/lib/utils';
 
 const props = defineProps<{
-  projectId: string;
-  service: {
-    name: string;
-    image: string;
-    port?: number | null;
-    framework?: string | null;
-    sourceUrl?: string | null;
-    contextPath?: string | null;
-    startCommand?: string | null;
-    customStartCommand?: string | null;
-  };
+  service: Service;
 }>();
 
 const emit = defineEmits<{
   (e: 'removed'): void;
+  (e: 'refetch'): void;
 }>();
 
-const { activeEnvironment, updateServiceDomains } = useEnvironment();
+const { activeEnvironment } = useEnvironment();
 
-// Derive the current service instance for the active environment
-const activeInstance = computed(() => {
-  return activeEnvironment.value?.services.find(s => s.name === props.service.name);
-});
+const activeDeployment = computed(() => props.service.activeDeployment ?? null);
 
-const domains = computed<DomainInfo[]>(() => activeInstance.value?.domains ?? []);
-const platformDomain = computed(() => domains.value.find(d => d.type === DomainType.Platform));
-const customDomains = computed(() => domains.value.filter(d => d.type === DomainType.Custom));
+const endpoints = computed(() => props.service.endpoints ?? []);
+const platformEndpoint = computed(() => endpoints.value[0] ?? null);
+const customEndpoints = computed(() => endpoints.value.slice(1));
 
-// Compute resources
-const resources = computed(() => activeInstance.value?.resources ?? null);
+const resources = computed(() => props.service.resources ?? null);
 const resourceTier = computed(() => activeEnvironment.value?.resourceTier ?? null);
-function formatCpu(millicores: number): string {
-  const vcpu = millicores / 1000;
-  return vcpu % 1 === 0 ? `${vcpu} vCPU` : `${vcpu} vCPU`;
-}
-function formatMemory(mb: number): string {
-  if (mb >= 1024 && mb % 1024 === 0) return `${mb / 1024} GB`;
-  return `${mb} MB`;
-}
 
 // Platform config
 const { result: platformConfigResult } = useQuery(PlatformConfigDocument);
 const domainTarget = computed(() => platformConfigResult.value?.platformConfig?.domainTarget ?? '');
 const ipAddress = computed(() => platformConfigResult.value?.platformConfig?.ipAddress ?? '');
-
-// DNS polling for custom domains
-const dnsPolling = useDnsPolling();
-
-// Start polling for custom domains that need DNS verification or TLS provisioning
-watch(customDomains, (doms) => {
-  const needsPolling = doms
-    .filter(d => d.dnsStatus !== DnsStatus.Valid || d.tlsStatus !== TlsStatus.Active)
-    .map(d => d.hostname);
-  dnsPolling.trackHostnames(needsPolling);
-}, { immediate: true });
-
-// Get live DNS status for a custom domain (from polling, or fallback to static)
-function dnsStatus(hostname: string): string {
-  return dnsPolling.checks[hostname]?.status
-    ?? customDomains.value.find(d => d.hostname === hostname)?.dnsStatus
-    ?? 'PENDING';
-}
-
-// Get TLS status for a domain (from polling, or fallback to static)
-function tlsStatus(hostname: string): string {
-  return dnsPolling.checks[hostname]?.tlsStatus
-    ?? customDomains.value.find(d => d.hostname === hostname)?.tlsStatus
-    ?? 'NONE';
-}
-
-// Combined domain status for display
-function domainStatusLabel(domain: DomainInfo): { icon: 'check' | 'spinner' | 'alert'; color: string; label: string } {
-  const dns = dnsStatus(domain.hostname);
-  const tls = tlsStatus(domain.hostname);
-
-  if (dns === DnsStatus.Pending) {
-    return { icon: 'spinner', color: 'text-yellow-500', label: 'DNS Pending' };
-  }
-  if (dns === DnsStatus.Misconfigured) {
-    return { icon: 'alert', color: 'text-orange-500', label: 'DNS Misconfigured' };
-  }
-  if (dns === DnsStatus.Error) {
-    return { icon: 'alert', color: 'text-destructive', label: 'DNS Error' };
-  }
-  // DNS is VALID — check TLS status
-  if (tls === TlsStatus.Active) {
-    return { icon: 'check', color: 'text-green-500', label: 'Connected' };
-  }
-  if (tls === TlsStatus.Provisioning || tls === TlsStatus.None) {
-    // NONE means cert not found yet (deployer hasn't created it, or deployer unreachable)
-    return { icon: 'spinner', color: 'text-blue-500', label: 'Provisioning TLS...' };
-  }
-  // TLS ERROR
-  return { icon: 'alert', color: 'text-destructive', label: 'TLS Error' };
-}
-
-// DNS records modal
-const dnsModalOpen = ref(false);
-const dnsModalHostname = ref('');
-
-function showDnsRecords(hostname: string) {
-  dnsModalHostname.value = hostname;
-  dnsModalOpen.value = true;
-}
-
-const dnsModalStatus = computed(() => dnsStatus(dnsModalHostname.value));
-const dnsModalMessage = computed(() => dnsPolling.checks[dnsModalHostname.value]?.message ?? null);
-const dnsModalTarget = computed(() =>
-  dnsPolling.checks[dnsModalHostname.value]?.expectedTarget ?? domainTarget.value,
-);
-
-// Apex domains (e.g. "example.com") can't use CNAME — only A records.
-// Subdomains (e.g. "www.example.com", "api.example.com") should use CNAME.
-const isApexDomain = computed(() => {
-  const h = dnsModalHostname.value;
-  if (!h) return false;
-  // Count dots: "example.com" has 1, "sub.example.com" has 2+
-  return h.split('.').length <= 2;
-});
 
 function domainUrl(hostname: string) {
   if (hostname.endsWith('.local')) return `http://${hostname}:8880`;
@@ -243,7 +138,6 @@ function domainUrl(hostname: string) {
 // Custom domain input
 const customDomainInput = ref('');
 
-// Hostname validation
 const hostnamePattern = /^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/;
 
 function normalizeHostname(input: string): string {
@@ -260,7 +154,7 @@ const hostnameError = computed(() => {
   if (!hostnamePattern.test(hostname)) {
     return 'Enter a valid domain (e.g. api.example.com)';
   }
-  if (domains.value.some(d => d.hostname === hostname)) {
+  if (endpoints.value.some(d => d.host === hostname)) {
     return 'This domain is already added';
   }
   return '';
@@ -271,36 +165,40 @@ const canAddDomain = computed(() => {
   return raw.length > 0 && !hostnameError.value && !addingCustomDomain.value;
 });
 
-// Internal DNS name
+// Internal DNS — derived from service ID (workspace/project/env/name)
 const internalDns = computed(() => {
-  const envName = activeEnvironment.value?.name;
-  if (!envName) return '';
-  const parts = props.projectId.split('/');
-  const shortProject = parts.length > 1 ? parts[1] : parts[0];
-  const ns = `${shortProject}-${envName}`;
-  return `${shortProject}-lucity-app-${props.service.name}.${ns}.svc.cluster.local`;
+  const parts = props.service.id.split('/');
+  if (parts.length < 4) return '';
+  const projectSlug = parts[1];
+  const envName = parts[2];
+  const svcName = parts[3];
+  const ns = `${projectSlug}-${envName}`;
+  return `${projectSlug}-lucity-app-${svcName}.${ns}.svc.cluster.local`;
 });
 
-// Custom Start Command
-const customStartCommand = ref(props.service.customStartCommand ?? '');
+// Command override
+const customStartCommand = ref(
+  props.service.command !== props.service.defaultCommand ? props.service.command : '',
+);
 const commandSaving = ref(false);
 const { mutate: setCustomStartCommandMutate } = useMutation(SetCustomStartCommandDocument);
 
-watch(() => props.service.customStartCommand, (val) => {
-  customStartCommand.value = val ?? '';
-});
+watch(
+  () => [props.service.command, props.service.defaultCommand] as const,
+  ([cmd, def]) => {
+    customStartCommand.value = cmd !== def ? cmd : '';
+  },
+);
 
 async function handleSaveCommand() {
-  if (!activeEnvironment.value) return;
   commandSaving.value = true;
   try {
     await setCustomStartCommandMutate({
-      projectId: props.projectId,
-      environment: activeEnvironment.value.name,
-      service: props.service.name,
+      service: props.service.id,
       command: customStartCommand.value,
     });
     toast.success(customStartCommand.value ? 'Start command updated' : 'Start command cleared');
+    emit('refetch');
   } catch (e: unknown) {
     errorToast('Failed to update start command', { description: errorMessage(e) });
   } finally {
@@ -308,8 +206,10 @@ async function handleSaveCommand() {
   }
 }
 
+const commandIsCustom = computed(() => props.service.command !== props.service.defaultCommand);
 const commandChanged = computed(() => {
-  return customStartCommand.value !== (props.service.customStartCommand ?? '');
+  const current = commandIsCustom.value ? props.service.command : '';
+  return customStartCommand.value !== current;
 });
 
 // Mutations
@@ -319,19 +219,8 @@ const { mutate: addCustomDomainMutate, loading: addingCustomDomain } = useMutati
 const { mutate: removeDomainMutate } = useMutation(RemoveDomainDocument);
 
 async function handleGenerateDomain() {
-  const envName = activeEnvironment.value?.name;
-  if (!envName) {
-    return;
-  }
-
   try {
-    const res = await generateDomainMutate({
-      input: {
-        projectId: props.projectId,
-        service: props.service.name,
-        environment: envName,
-      },
-    });
+    const res = await generateDomainMutate({ service: props.service.id });
 
     if (res?.errors?.length) {
       errorToast('Failed to generate domain', {
@@ -340,11 +229,9 @@ async function handleGenerateDomain() {
       return;
     }
 
-    const domain = res?.data?.generateDomain;
-    if (domain) {
-      updateServiceDomains(props.service.name, [...domains.value, domain]);
-    }
-    toast.success(`Domain generated: ${domain?.hostname}`);
+    const host = res?.data?.generateDomain?.endpoints?.[0]?.host;
+    toast.success(host ? `Domain generated: ${host}` : 'Domain generated');
+    emit('refetch');
   } catch (e: unknown) {
     errorToast('Failed to generate domain', { description: errorMessage(e) });
   }
@@ -354,17 +241,10 @@ async function handleAddCustomDomain() {
   const hostname = normalizeHostname(customDomainInput.value);
   if (!hostname || hostnameError.value) return;
 
-  const envName = activeEnvironment.value?.name;
-  if (!envName) return;
-
   try {
     const res = await addCustomDomainMutate({
-      input: {
-        projectId: props.projectId,
-        service: props.service.name,
-        environment: envName,
-        hostname,
-      },
+      service: props.service.id,
+      hostname,
     });
 
     if (res?.errors?.length) {
@@ -374,31 +254,18 @@ async function handleAddCustomDomain() {
       return;
     }
 
-    const domain = res?.data?.addCustomDomain;
-    if (domain) {
-      updateServiceDomains(props.service.name, [...domains.value, domain]);
-      dnsPolling.addHostname(hostname);
-    }
     customDomainInput.value = '';
-    // Auto-open the DNS records modal so the user sees what to configure
-    showDnsRecords(hostname);
+    emit('refetch');
   } catch (e: unknown) {
     errorToast('Failed to add custom domain', { description: errorMessage(e) });
   }
 }
 
 async function handleRemoveDomain(hostname: string) {
-  const envName = activeEnvironment.value?.name;
-  if (!envName) return;
-
   try {
     const res = await removeDomainMutate({
-      input: {
-        projectId: props.projectId,
-        service: props.service.name,
-        environment: envName,
-        hostname,
-      },
+      service: props.service.id,
+      hostname,
     });
 
     if (res?.errors?.length) {
@@ -408,9 +275,8 @@ async function handleRemoveDomain(hostname: string) {
       return;
     }
 
-    dnsPolling.removeHostname(hostname);
-    updateServiceDomains(props.service.name, domains.value.filter(d => d.hostname !== hostname));
     toast.success('Domain removed');
+    emit('refetch');
   } catch (e: unknown) {
     errorToast('Failed to remove domain', { description: errorMessage(e) });
   }
@@ -435,6 +301,8 @@ const sourceRepoUrl = computed(() => {
   return url.startsWith('http') ? url : `https://${url}`;
 });
 
+const isFromRepo = computed(() => !!props.service.sourceUrl);
+
 // Scaling
 const autoscalingEnabled = ref(false);
 const scalingReplicas = ref(1);
@@ -446,33 +314,31 @@ const scalingSaving = ref(false);
 const { mutate: setScalingMutate } = useMutation(SetServiceScalingDocument);
 
 function syncScalingFromService() {
-  const svc = activeInstance.value;
-  if (!svc) return;
-
-  if (svc.scaling?.autoscaling?.enabled) {
+  const svc = props.service;
+  if (svc.autoscaling) {
     autoscalingEnabled.value = true;
-    scalingReplicas.value = svc.scaling.replicas || svc.replicas || 1;
-    scalingMinReplicas.value = svc.scaling.autoscaling.minReplicas;
-    scalingMaxReplicas.value = svc.scaling.autoscaling.maxReplicas;
-    scalingTargetCPU.value = svc.scaling.autoscaling.targetCPU;
+    scalingReplicas.value = svc.replicas?.desired ?? 1;
+    scalingMinReplicas.value = svc.autoscaling.minReplicas;
+    scalingMaxReplicas.value = svc.autoscaling.maxReplicas;
+    scalingTargetCPU.value = svc.autoscaling.targetCpu;
   } else {
     autoscalingEnabled.value = false;
-    scalingReplicas.value = svc.scaling?.replicas || svc.replicas || 1;
+    scalingReplicas.value = svc.replicas?.desired ?? 1;
     scalingMinReplicas.value = 1;
     scalingMaxReplicas.value = 10;
     scalingTargetCPU.value = 70;
   }
 }
 
-watch(activeInstance, syncScalingFromService, { immediate: true });
+watch(() => props.service, syncScalingFromService, { immediate: true });
 
 const scalingSummary = computed(() => {
-  const svc = activeInstance.value;
-  if (!svc) return 'Not deployed';
-  if (svc.scaling?.autoscaling?.enabled) {
-    return `${svc.scaling.autoscaling.minReplicas}–${svc.scaling.autoscaling.maxReplicas} replicas · autoscaling`;
+  const svc = props.service;
+  if (!svc.replicas) return 'Not deployed';
+  if (svc.autoscaling) {
+    return `${svc.autoscaling.minReplicas}–${svc.autoscaling.maxReplicas} replicas · autoscaling`;
   }
-  const r = svc.scaling?.replicas || svc.replicas || 1;
+  const r = svc.replicas.desired ?? 1;
   return `${r} replica${r !== 1 ? 's' : ''} · manual`;
 });
 
@@ -481,15 +347,10 @@ function clamp(value: number, min: number, max: number) {
 }
 
 async function handleSaveScaling() {
-  const envName = activeEnvironment.value?.name;
-  if (!envName) return;
-
   scalingSaving.value = true;
   try {
     const input: SetServiceScalingInput = {
-      projectId: props.projectId,
-      environment: envName,
-      service: props.service.name,
+      service: props.service.id,
       replicas: scalingReplicas.value,
     };
 
@@ -511,6 +372,7 @@ async function handleSaveScaling() {
 
     await setScalingMutate({ input });
     toast.success('Scaling updated');
+    emit('refetch');
   } catch (e: unknown) {
     errorToast('Failed to update scaling', { description: errorMessage(e) });
   } finally {
@@ -519,13 +381,8 @@ async function handleSaveScaling() {
 }
 
 async function handleRemoveService() {
-  if (!activeEnvironment.value) return;
   try {
-    const res = await removeServiceMutate({
-      projectId: props.projectId,
-      environment: activeEnvironment.value.name,
-      service: props.service.name,
-    });
+    const res = await removeServiceMutate({ service: props.service.id });
 
     if (res?.errors?.length) {
       errorToast('Failed to remove service', {
@@ -554,12 +411,13 @@ async function handleRemoveService() {
         <div class="overflow-hidden rounded-lg border">
           <CollapsibleTrigger class="flex w-full items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/30">
             <div class="rounded-lg bg-muted/60 p-1.5">
-              <FrameworkIcon :framework="service.framework" :size="20" />
+              <Github v-if="isFromRepo" :size="20" />
+              <Container v-else :size="20" />
             </div>
             <div class="min-w-0 flex-1 text-left">
               <p class="text-sm font-medium text-foreground">{{ service.name }}</p>
               <p class="text-xs text-muted-foreground">
-                {{ service.framework || 'Container' }}
+                {{ isFromRepo ? 'GitHub repository' : 'Container image' }}
               </p>
             </div>
             <ChevronDown
@@ -569,17 +427,16 @@ async function handleRemoveService() {
           </CollapsibleTrigger>
           <CollapsibleContent>
             <div class="space-y-3 border-t px-4 py-3">
-              <!-- Image -->
-              <div v-if="service.image" class="space-y-1.5">
+              <div v-if="activeDeployment?.image" class="space-y-1.5">
                 <Label class="text-xs font-medium">Image</Label>
                 <div class="group flex items-center gap-2 rounded-md border bg-muted/50 px-3 py-2">
                   <Container :size="14" class="shrink-0 text-muted-foreground" />
-                  <span class="min-w-0 flex-1 truncate font-mono text-sm">{{ service.image }}</span>
+                  <span class="min-w-0 flex-1 truncate font-mono text-sm">{{ activeDeployment.image }}</span>
                   <Button
                     variant="ghost"
                     size="icon"
                     class="h-5 w-5 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
-                    @click="copyToClipboard(service.image)"
+                    @click="copyToClipboard(activeDeployment!.image)"
                   >
                     <Copy :size="10" />
                   </Button>
@@ -614,7 +471,6 @@ async function handleRemoveService() {
           </CollapsibleTrigger>
           <CollapsibleContent>
             <div class="space-y-3 border-t px-4 py-3">
-              <!-- Source Repo -->
               <div class="space-y-1.5">
                 <Label class="text-xs font-medium">Source Repo</Label>
                 <a
@@ -630,16 +486,13 @@ async function handleRemoveService() {
                 </a>
               </div>
 
-              <!-- Context Path -->
               <div v-if="service.contextPath && service.contextPath !== '.'" class="space-y-1.5">
                 <Label class="text-xs font-medium">Root Directory</Label>
                 <div class="flex items-center gap-2 rounded-md border bg-muted/50 px-3 py-2">
-                  <Code :size="14" class="shrink-0 text-muted-foreground" />
                   <span class="truncate font-mono text-sm">{{ service.contextPath }}</span>
                 </div>
               </div>
 
-              <!-- Branch -->
               <div class="space-y-1.5">
                 <Label class="text-xs font-medium">Branch</Label>
                 <div class="flex items-center gap-2 rounded-md border bg-muted/50 px-3 py-2">
@@ -660,14 +513,14 @@ async function handleRemoveService() {
         Deploy
       </h3>
 
-      <Collapsible :default-open="!!service.customStartCommand">
+      <Collapsible :default-open="commandIsCustom">
         <div class="overflow-hidden rounded-lg border">
           <CollapsibleTrigger class="flex w-full items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/30">
             <Play :size="16" class="shrink-0 text-muted-foreground" />
             <div class="min-w-0 flex-1 text-left">
               <p class="text-sm font-medium text-foreground">Custom Start Command</p>
               <p class="truncate text-xs text-muted-foreground">
-                {{ service.customStartCommand || service.startCommand || 'Not configured' }}
+                {{ service.command || service.defaultCommand || 'Not configured' }}
               </p>
             </div>
             <ChevronDown
@@ -678,11 +531,11 @@ async function handleRemoveService() {
           <CollapsibleContent>
             <div class="space-y-3 border-t px-4 py-3">
               <p class="text-xs text-muted-foreground">
-                Command that will be run to start new deployments. Overrides the image's default entrypoint.
+                Command that will be run to start new deployments. Overrides the default command.
               </p>
               <Input
                 v-model="customStartCommand"
-                :placeholder="service.startCommand || 'npm run start'"
+                :placeholder="service.defaultCommand || 'npm run start'"
                 class="font-mono text-sm"
                 @keyup.enter="commandChanged && handleSaveCommand()"
               />
@@ -707,7 +560,7 @@ async function handleRemoveService() {
         Networking
       </h3>
 
-      <!-- Platform Domain -->
+      <!-- Platform Domain (first endpoint) -->
       <Collapsible default-open>
         <div class="overflow-hidden rounded-lg border">
           <CollapsibleTrigger class="flex w-full items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/30">
@@ -715,11 +568,11 @@ async function handleRemoveService() {
             <div class="min-w-0 flex-1 text-left">
               <p class="text-sm font-medium text-foreground">Platform Domain</p>
               <p class="truncate text-xs text-muted-foreground">
-                {{ platformDomain ? platformDomain.hostname : 'Not configured' }}
+                {{ platformEndpoint ? platformEndpoint.host : 'Not configured' }}
               </p>
             </div>
             <Badge
-              v-if="platformDomain"
+              v-if="platformEndpoint"
               variant="default"
               class="text-[0.6rem]"
             >
@@ -733,8 +586,7 @@ async function handleRemoveService() {
           </CollapsibleTrigger>
           <CollapsibleContent>
             <div class="space-y-3 border-t px-4 py-3">
-              <!-- No platform domain yet -->
-              <div v-if="!platformDomain">
+              <div v-if="!platformEndpoint">
                 <p class="mb-2 text-xs text-muted-foreground">
                   Auto-generated domain for {{ activeEnvironment?.name ?? 'this environment' }}.
                 </p>
@@ -749,24 +601,23 @@ async function handleRemoveService() {
                 </Button>
               </div>
 
-              <!-- Platform domain exists -->
               <div v-else class="space-y-2">
                 <div class="flex items-center gap-2">
                   <a
-                    :href="domainUrl(platformDomain.hostname)"
+                    :href="domainUrl(platformEndpoint.host)"
                     target="_blank"
                     rel="noopener noreferrer"
                     class="flex flex-1 items-center gap-2 rounded-md border bg-muted/50 px-3 py-2 transition-colors hover:bg-muted/80"
                   >
-                    <CircleCheck :size="14" class="shrink-0 text-green-500" />
-                    <span class="truncate font-mono text-sm hover:underline">{{ platformDomain.hostname }}</span>
+                    <Globe :size="14" class="shrink-0 text-muted-foreground" />
+                    <span class="truncate font-mono text-sm hover:underline">{{ platformEndpoint.host }}</span>
                     <ExternalLink :size="12" class="ml-auto shrink-0 text-muted-foreground" />
                   </a>
                   <Button
                     variant="ghost"
                     size="icon"
                     class="h-8 w-8 shrink-0"
-                    @click="copyToClipboard(platformDomain.hostname)"
+                    @click="copyToClipboard(platformEndpoint!.host)"
                   >
                     <Copy :size="14" />
                   </Button>
@@ -774,7 +625,7 @@ async function handleRemoveService() {
                     variant="ghost"
                     size="icon"
                     class="h-8 w-8 shrink-0 text-destructive"
-                    @click="handleRemoveDomain(platformDomain.hostname)"
+                    @click="handleRemoveDomain(platformEndpoint!.host)"
                   >
                     <X :size="14" />
                   </Button>
@@ -783,7 +634,7 @@ async function handleRemoveService() {
                   <ArrowRight :size="10" class="shrink-0" />
                   <span>
                     Routes to port
-                    <span class="font-mono font-medium text-foreground">{{ service.port }}</span>
+                    <span class="font-mono font-medium text-foreground">{{ platformEndpoint.port }}</span>
                   </span>
                 </div>
               </div>
@@ -800,14 +651,14 @@ async function handleRemoveService() {
             <div class="min-w-0 flex-1 text-left">
               <p class="text-sm font-medium text-foreground">Custom Domains</p>
               <p class="text-xs text-muted-foreground">
-                {{ customDomains.length }} domain{{ customDomains.length !== 1 ? 's' : '' }} configured
+                {{ customEndpoints.length }} domain{{ customEndpoints.length !== 1 ? 's' : '' }} configured
               </p>
             </div>
             <span
-              v-if="customDomains.length"
+              v-if="customEndpoints.length"
               class="flex h-5 w-5 items-center justify-center rounded-full bg-muted text-[0.6rem] font-medium text-muted-foreground"
             >
-              {{ customDomains.length }}
+              {{ customEndpoints.length }}
             </span>
             <ChevronDown
               :size="14"
@@ -816,114 +667,67 @@ async function handleRemoveService() {
           </CollapsibleTrigger>
           <CollapsibleContent>
             <div class="space-y-3 border-t px-4 py-3">
-              <!-- List of custom domains -->
-              <div v-if="customDomains.length" class="space-y-2">
+              <div v-if="customEndpoints.length" class="space-y-2">
                 <div
-                  v-for="domain in customDomains"
-                  :key="domain.hostname"
+                  v-for="endpoint in customEndpoints"
+                  :key="endpoint.host"
+                  class="flex items-center gap-2"
                 >
-                  <div class="flex items-center gap-2">
-                    <div class="flex flex-1 flex-col rounded-md border bg-muted/50">
-                      <a
-                        :href="domainUrl(domain.hostname)"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="flex items-center gap-2 px-3 py-2 transition-colors hover:bg-muted/80"
-                        :class="domainStatusLabel(domain).icon === 'check' ? 'rounded-md' : 'rounded-t-md'"
-                      >
-                        <CircleCheck
-                          v-if="domainStatusLabel(domain).icon === 'check'"
-                          :size="14"
-                          :class="['shrink-0', domainStatusLabel(domain).color]"
-                        />
-                        <CircleAlert
-                          v-else-if="domainStatusLabel(domain).icon === 'alert'"
-                          :size="14"
-                          :class="['shrink-0', domainStatusLabel(domain).color]"
-                        />
-                        <Loader2
-                          v-else
-                          :size="14"
-                          :class="['shrink-0 animate-spin', domainStatusLabel(domain).color]"
-                        />
-                        <span class="truncate font-mono text-sm hover:underline">{{ domain.hostname }}</span>
-                        <ExternalLink :size="12" class="ml-auto shrink-0 text-muted-foreground" />
-                      </a>
-                      <div
-                        v-if="domainStatusLabel(domain).icon !== 'check'"
-                        class="flex items-center gap-1.5 border-t border-border/50 px-3 py-1.5 text-xs"
-                        :class="domainStatusLabel(domain).icon === 'alert' ? 'text-orange-500' : 'text-muted-foreground'"
-                      >
-                        <span>{{ domainStatusLabel(domain).label }}</span>
-                        <template v-if="dnsStatus(domain.hostname) !== DnsStatus.Valid">
-                          <span class="text-muted-foreground/50">&middot;</span>
-                          <button
-                            class="font-medium text-primary hover:underline"
-                            @click="showDnsRecords(domain.hostname)"
-                          >
-                            Show records
-                          </button>
-                        </template>
-                      </div>
-                    </div>
-                    <div class="flex shrink-0 items-center">
+                  <a
+                    :href="domainUrl(endpoint.host)"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="flex flex-1 items-center gap-2 rounded-md border bg-muted/50 px-3 py-2 transition-colors hover:bg-muted/80"
+                  >
+                    <Globe :size="14" class="shrink-0 text-muted-foreground" />
+                    <span class="truncate font-mono text-sm hover:underline">{{ endpoint.host }}</span>
+                    <span class="ml-auto shrink-0 text-xs text-muted-foreground">:{{ endpoint.port }}</span>
+                    <ExternalLink :size="12" class="shrink-0 text-muted-foreground" />
+                  </a>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    class="h-8 w-8 shrink-0"
+                    @click="copyToClipboard(endpoint.host)"
+                  >
+                    <Copy :size="14" />
+                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger as-child>
                       <Button
                         variant="ghost"
                         size="icon"
-                        class="h-8 w-8 shrink-0"
-                        title="Show DNS records"
-                        @click="showDnsRecords(domain.hostname)"
+                        class="h-8 w-8 shrink-0 text-destructive"
                       >
-                        <FileText :size="14" />
+                        <X :size="14" />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        class="h-8 w-8 shrink-0"
-                        @click="copyToClipboard(domain.hostname)"
-                      >
-                        <Copy :size="14" />
-                      </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger as-child>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            class="h-8 w-8 shrink-0 text-destructive"
-                          >
-                            <X :size="14" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Remove domain</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Remove <strong class="font-mono">{{ domain.hostname }}</strong> from this service? This will also delete the TLS certificate.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction
-                              class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                              @click="handleRemoveDomain(domain.hostname)"
-                            >
-                              Remove
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  </div>
-                </div>
-                <!-- Port routing (once at the bottom) -->
-                <div class="flex items-center gap-1.5 pl-1 text-xs text-muted-foreground">
-                  <ArrowRight :size="10" class="shrink-0" />
-                  <span>
-                    Routes to port
-                    <span class="font-mono font-medium text-foreground">{{ service.port }}</span>
-                  </span>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Remove domain</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Remove <strong class="font-mono">{{ endpoint.host }}</strong> from this service? This will also delete the TLS certificate.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          @click="handleRemoveDomain(endpoint.host)"
+                        >
+                          Remove
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
               </div>
+
+              <!-- DNS/TLS status will be added back when endpoint fields land server-side. -->
+              <p v-if="customEndpoints.length" class="text-[11px] text-muted-foreground">
+                Point a CNAME record at <span class="font-mono">{{ domainTarget || '...' }}</span>
+                <template v-if="ipAddress"> (apex domains: A record to <span class="font-mono">{{ ipAddress }}</span>)</template>.
+              </p>
 
               <!-- Add custom domain input -->
               <div class="space-y-1.5">
@@ -978,23 +782,16 @@ async function handleRemoveService() {
               <div v-if="internalDns" class="space-y-2">
                 <div class="group flex items-center gap-2">
                   <div class="flex-1 overflow-x-auto rounded-md border bg-muted/50 px-3 py-2">
-                    <span class="whitespace-nowrap font-mono text-xs">{{ internalDns }}:{{ service.port }}</span>
+                    <span class="whitespace-nowrap font-mono text-xs">{{ internalDns }}<template v-if="platformEndpoint">:{{ platformEndpoint.port }}</template></span>
                   </div>
                   <Button
                     variant="ghost"
                     size="icon"
                     class="h-8 w-8 shrink-0"
-                    @click="copyToClipboard(`${internalDns}:${service.port}`)"
+                    @click="copyToClipboard(platformEndpoint ? `${internalDns}:${platformEndpoint.port}` : internalDns)"
                   >
                     <Copy :size="14" />
                   </Button>
-                </div>
-                <div class="flex items-center gap-1.5 pl-1 text-xs text-muted-foreground">
-                  <ArrowRight :size="10" class="shrink-0" />
-                  <span>
-                    Listening on port
-                    <span class="font-mono font-medium text-foreground">{{ service.port }}</span>
-                  </span>
                 </div>
               </div>
             </div>
@@ -1038,8 +835,8 @@ async function handleRemoveService() {
                     <Minus :size="14" />
                   </Button>
                   <Input
-                    type="number"
                     v-model.number="scalingReplicas"
+                    type="number"
                     class="h-8 w-16 text-center text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                     :min="1"
                     :max="20"
@@ -1085,8 +882,8 @@ async function handleRemoveService() {
                       <Minus :size="12" />
                     </Button>
                     <Input
-                      type="number"
                       v-model.number="scalingMinReplicas"
+                      type="number"
                       class="h-8 w-full min-w-0 text-center text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                       :min="1"
                       :max="20"
@@ -1117,8 +914,8 @@ async function handleRemoveService() {
                       <Minus :size="12" />
                     </Button>
                     <Input
-                      type="number"
                       v-model.number="scalingMaxReplicas"
+                      type="number"
                       class="h-8 w-full min-w-0 text-center text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                       :min="1"
                       :max="20"
@@ -1150,8 +947,8 @@ async function handleRemoveService() {
                     </Button>
                     <div class="relative flex-1">
                       <Input
-                        type="number"
                         v-model.number="scalingTargetCPU"
+                        type="number"
                         class="h-8 w-full min-w-0 pr-6 text-center text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                         :min="10"
                         :max="95"
@@ -1172,7 +969,6 @@ async function handleRemoveService() {
                 </div>
               </div>
 
-              <!-- Save -->
               <div class="flex justify-end">
                 <Button
                   size="sm"
@@ -1202,7 +998,7 @@ async function handleRemoveService() {
               <p class="text-sm font-medium text-foreground">CPU</p>
               <p class="text-xs text-muted-foreground">Per instance</p>
             </div>
-            <span class="font-mono text-sm font-medium">{{ formatCpu(resources.cpuMillicores) }}</span>
+            <span class="font-mono text-sm font-medium">{{ resources.cpu }}</span>
           </div>
           <div class="flex items-center gap-3 px-4 py-3">
             <MemoryStick :size="16" class="shrink-0 text-muted-foreground" />
@@ -1210,7 +1006,7 @@ async function handleRemoveService() {
               <p class="text-sm font-medium text-foreground">Memory</p>
               <p class="text-xs text-muted-foreground">Per instance</p>
             </div>
-            <span class="font-mono text-sm font-medium">{{ formatMemory(resources.memoryMB) }}</span>
+            <span class="font-mono text-sm font-medium">{{ resources.memory }}</span>
           </div>
           <div v-if="resourceTier === ResourceTier.Eco" class="flex items-center gap-3 px-4 py-3">
             <Leaf :size="16" class="shrink-0 text-emerald-500" />
@@ -1282,128 +1078,5 @@ async function handleRemoveService() {
         </div>
       </div>
     </section>
-
-    <!-- DNS Records Modal -->
-    <Dialog v-model:open="dnsModalOpen">
-      <DialogContent class="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Configure DNS Records</DialogTitle>
-          <DialogDescription>
-            Add the following DNS record to
-            <strong class="font-mono">{{ dnsModalHostname }}</strong>
-          </DialogDescription>
-        </DialogHeader>
-
-        <div class="rounded-md border">
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="border-b bg-muted/30">
-                <th class="px-3 py-2 text-left font-medium text-muted-foreground">Type</th>
-                <th class="px-3 py-2 text-left font-medium text-muted-foreground">Name</th>
-                <th class="px-3 py-2 text-left font-medium text-muted-foreground">Value</th>
-              </tr>
-            </thead>
-            <tbody>
-              <!-- CNAME row — only for subdomains (apex domains can't use CNAME) -->
-              <tr v-if="!isApexDomain">
-                <td class="px-3 py-2">
-                  <div class="flex items-center gap-1.5">
-                    <CircleCheck
-                      v-if="dnsModalStatus === DnsStatus.Valid"
-                      :size="12"
-                      class="shrink-0 text-green-500"
-                    />
-                    <CircleAlert
-                      v-else-if="dnsModalStatus === DnsStatus.Misconfigured"
-                      :size="12"
-                      class="shrink-0 text-orange-500"
-                    />
-                    <Loader2
-                      v-else
-                      :size="12"
-                      class="shrink-0 animate-spin text-yellow-500"
-                    />
-                    <span class="rounded border px-1.5 py-0.5 font-mono text-xs text-muted-foreground">CNAME</span>
-                  </div>
-                </td>
-                <td class="px-3 py-2 font-mono text-xs">{{ dnsModalHostname }}</td>
-                <td class="px-3 py-2">
-                  <div class="flex items-center gap-1">
-                    <span class="font-mono text-xs">{{ dnsModalTarget }}</span>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      class="h-6 w-6 shrink-0"
-                      @click="copyToClipboard(dnsModalTarget)"
-                    >
-                      <Copy :size="12" />
-                    </Button>
-                  </div>
-                </td>
-              </tr>
-              <!-- A record row — for apex domains, or as alternative for subdomains -->
-              <tr v-if="ipAddress && isApexDomain" :class="{ 'border-t': !isApexDomain }">
-                <td class="px-3 py-2">
-                  <div class="flex items-center gap-1.5">
-                    <CircleCheck
-                      v-if="dnsModalStatus === DnsStatus.Valid"
-                      :size="12"
-                      class="shrink-0 text-green-500"
-                    />
-                    <CircleAlert
-                      v-else-if="dnsModalStatus === DnsStatus.Misconfigured"
-                      :size="12"
-                      class="shrink-0 text-orange-500"
-                    />
-                    <Loader2
-                      v-else
-                      :size="12"
-                      class="shrink-0 animate-spin text-yellow-500"
-                    />
-                    <span class="rounded border px-1.5 py-0.5 font-mono text-xs text-muted-foreground">A</span>
-                  </div>
-                </td>
-                <td class="px-3 py-2 font-mono text-xs">{{ dnsModalHostname }}</td>
-                <td class="px-3 py-2">
-                  <div class="flex items-center gap-1">
-                    <span class="font-mono text-xs">{{ ipAddress }}</span>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      class="h-6 w-6 shrink-0"
-                      @click="copyToClipboard(ipAddress)"
-                    >
-                      <Copy :size="12" />
-                    </Button>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <!-- Live status message -->
-        <p
-          v-if="dnsModalMessage"
-          class="text-xs"
-          :class="{
-            'text-green-600': dnsModalStatus === DnsStatus.Valid,
-            'text-orange-500': dnsModalStatus === DnsStatus.Misconfigured,
-            'text-muted-foreground': dnsModalStatus === DnsStatus.Pending || dnsModalStatus === DnsStatus.Error,
-          }"
-        >
-          {{ dnsModalMessage }}
-        </p>
-        <p v-else class="text-xs text-muted-foreground">
-          DNS changes can take up to 48 hours to propagate. The status will update automatically once the record is detected.
-        </p>
-
-        <DialogFooter>
-          <Button variant="outline" @click="dnsModalOpen = false">
-            Dismiss
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   </div>
 </template>

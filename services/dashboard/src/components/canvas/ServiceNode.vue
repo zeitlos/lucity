@@ -1,24 +1,30 @@
 <script setup lang="ts">
 import { computed, ref, watch, onUnmounted } from 'vue';
 import { Handle, Position } from '@vue-flow/core';
-import { ExternalLink, Github, Globe, Loader2 } from 'lucide-vue-next';
-import type { DomainInfo } from '@/composables/useEnvironment';
-import { DeployPhase, DomainType } from '@/gql/graphql';
-import FrameworkIcon from '@/components/FrameworkIcon.vue';
+import { ExternalLink, Github, Globe, Loader2, Container } from 'lucide-vue-next';
+import { BuildStatus, ServiceStatus, type Protocol } from '@/gql/graphql';
 import { Badge } from '@/components/ui/badge';
+
+interface Endpoint {
+  host: string;
+  port: number;
+  protocol: Protocol;
+}
+
+interface ReplicaCount {
+  desired: number;
+  ready: number;
+}
 
 const props = defineProps<{
   data: {
     name: string;
-    framework?: string;
-    port?: number;
-    sourceUrl?: string;
-    domains: DomainInfo[];
-    ready?: boolean;
-    imageTag?: string;
-    replicas?: number;
-    activeDeployPhase?: string | null;
-    activeDeployStartedAt?: number | null;
+    sourceUrl: string;
+    endpoints: Endpoint[];
+    status: ServiceStatus;
+    replicas: ReplicaCount;
+    activeBuildStatus?: BuildStatus | null;
+    activeBuildStartedAt?: number | null;
   };
   selected?: boolean;
 }>();
@@ -27,14 +33,34 @@ const emit = defineEmits<{
   (e: 'select'): void;
 }>();
 
+const isFromRepo = computed(() => !!props.data.sourceUrl);
+
 const badgeVariant = computed(() => {
-  if (props.data.ready === undefined) return 'secondary' as const;
-  return props.data.ready ? 'default' as const : 'destructive' as const;
+  switch (props.data.status) {
+    case ServiceStatus.Healthy:
+      return 'default' as const;
+    case ServiceStatus.Failed:
+      return 'destructive' as const;
+    default:
+      return 'secondary' as const;
+  }
 });
 
 const statusLabel = computed(() => {
-  if (props.data.ready === undefined) return 'Unknown';
-  return props.data.ready ? 'Online' : 'Not Ready';
+  switch (props.data.status) {
+    case ServiceStatus.Healthy:
+      return 'Online';
+    case ServiceStatus.Degraded:
+      return 'Degraded';
+    case ServiceStatus.Deploying:
+      return 'Deploying';
+    case ServiceStatus.Failed:
+      return 'Failed';
+    case ServiceStatus.Stopped:
+      return 'Stopped';
+    default:
+      return 'Unknown';
+  }
 });
 
 const shortRepoName = computed(() => {
@@ -53,11 +79,11 @@ function clearTimer() {
   }
 }
 
-watch(() => props.data.activeDeployPhase, (phase) => {
+watch(() => props.data.activeBuildStatus, (status) => {
   clearTimer();
-  if (phase && phase !== DeployPhase.Succeeded && phase !== DeployPhase.Failed) {
-    elapsed.value = props.data.activeDeployStartedAt
-      ? Math.floor((Date.now() - props.data.activeDeployStartedAt) / 1000)
+  if (status === BuildStatus.Queued || status === BuildStatus.Running) {
+    elapsed.value = props.data.activeBuildStartedAt
+      ? Math.floor((Date.now() - props.data.activeBuildStartedAt) / 1000)
       : 0;
     timer = setInterval(() => elapsed.value++, 1000);
   }
@@ -66,14 +92,11 @@ watch(() => props.data.activeDeployPhase, (phase) => {
 onUnmounted(clearTimer);
 
 const deployLabel = computed(() => {
-  switch (props.data.activeDeployPhase) {
-    case DeployPhase.Cloning:
-      return 'Initializing';
-    case DeployPhase.Building:
-    case DeployPhase.Pushing:
+  switch (props.data.activeBuildStatus) {
+    case BuildStatus.Queued:
+      return 'Queued';
+    case BuildStatus.Running:
       return 'Building';
-    case DeployPhase.Deploying:
-      return 'Deploying';
     default:
       return null;
   }
@@ -85,16 +108,13 @@ const formattedElapsed = computed(() => {
   return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
 });
 
-const replicas = computed(() => props.data.replicas ?? 0);
-
 const primaryDomain = computed(() => {
-  const domains = props.data.domains ?? [];
-  const custom = domains.find(d => d.type === DomainType.Custom);
-  return (custom ?? domains[0])?.hostname ?? null;
+  const endpoints = props.data.endpoints ?? [];
+  return endpoints[0]?.host ?? null;
 });
 
 const extraDomainCount = computed(() => {
-  const total = props.data.domains?.length ?? 0;
+  const total = props.data.endpoints?.length ?? 0;
   return total > 1 ? total - 1 : 0;
 });
 
@@ -119,7 +139,8 @@ const hostUrl = computed(() => {
   >
     <!-- Header: icon + name -->
     <div class="flex items-center gap-3">
-      <FrameworkIcon :framework="data.framework" :size="28" />
+      <Github v-if="isFromRepo" :size="28" />
+      <Container v-else :size="28" />
       <span class="truncate font-semibold text-foreground">{{ data.name }}</span>
     </div>
 

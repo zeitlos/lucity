@@ -1,14 +1,12 @@
 <script setup lang="ts">
 import { ref, computed, watch, onUnmounted } from 'vue';
-import { useQuery } from '@vue/apollo-composable';
-import { useApolloClient } from '@vue/apollo-composable';
+import { useQuery, useApolloClient } from '@vue/apollo-composable';
 import { ArrowLeft, Table2, Key, ChevronLeft, ChevronRight, Loader2, DatabaseZap } from 'lucide-vue-next';
-import { useEnvironment } from '@/composables/useEnvironment';
 import { graphql } from '@/gql';
 
 const DatabaseTablesDocument = graphql(`
-  query DatabaseTables($projectId: ID!, $environment: String!, $database: String!) {
-    databaseTables(projectId: $projectId, environment: $environment, database: $database) {
+  query DatabaseTables($database: DatabaseID!) {
+    databaseTables(database: $database) {
       name
       schema
       estimatedRows
@@ -24,17 +22,13 @@ const DatabaseTablesDocument = graphql(`
 
 const DatabaseTableDataDocument = graphql(`
   query DatabaseTableData(
-    $projectId: ID!
-    $environment: String!
-    $database: String!
+    $database: DatabaseID!
     $table: String!
     $schema: String
     $limit: Int
     $offset: Int
   ) {
     databaseTableData(
-      projectId: $projectId
-      environment: $environment
       database: $database
       table: $table
       schema: $schema
@@ -63,30 +57,15 @@ import { Skeleton } from '@/components/ui/skeleton';
 const PAGE_SIZE = 50;
 
 const props = defineProps<{
-  projectId: string;
-  database: {
-    name: string;
-    version: string;
-    instances: number;
-    size: string;
-  };
+  databaseId: string;
 }>();
 
-const { activeEnvironment } = useEnvironment();
 const { resolveClient } = useApolloClient();
-
-// Table list query
-const queryEnabled = computed(() => !!activeEnvironment.value);
-const queryVars = computed(() => ({
-  projectId: props.projectId,
-  environment: activeEnvironment.value?.name ?? '',
-  database: props.database.name,
-}));
 
 const { result: tablesResult, loading: tablesLoading, error: tablesError, refetch: refetchTables } = useQuery(
   DatabaseTablesDocument,
-  queryVars,
-  () => ({ enabled: queryEnabled.value }),
+  () => ({ database: props.databaseId }),
+  () => ({ enabled: !!props.databaseId }),
 );
 
 const tables = computed(() => tablesResult.value?.databaseTables ?? []);
@@ -144,7 +123,7 @@ function closeTable() {
 }
 
 async function fetchData() {
-  if (!activeEnvironment.value || !selectedTable.value) return;
+  if (!selectedTable.value) return;
 
   dataLoading.value = true;
   dataError.value = null;
@@ -154,9 +133,7 @@ async function fetchData() {
     const { data } = await client.query({
       query: DatabaseTableDataDocument,
       variables: {
-        projectId: props.projectId,
-        environment: activeEnvironment.value.name,
-        database: props.database.name,
+        database: props.databaseId,
         table: selectedTable.value,
         schema: selectedSchema.value,
         limit: PAGE_SIZE,
@@ -188,8 +165,8 @@ function prevPage() {
 const currentPage = computed(() => Math.floor(offset.value / PAGE_SIZE) + 1);
 const hasMore = computed(() => dataRows.value.length === PAGE_SIZE);
 
-// Reset when environment changes
-watch(() => activeEnvironment.value?.name, () => {
+// Reset when database changes
+watch(() => props.databaseId, () => {
   if (selectedTable.value) {
     offset.value = 0;
     fetchData();
@@ -199,16 +176,8 @@ watch(() => activeEnvironment.value?.name, () => {
 
 <template>
   <div class="space-y-4">
-    <!-- No environment selected -->
-    <div
-      v-if="!activeEnvironment"
-      class="flex flex-col items-center justify-center gap-2 py-12 text-center"
-    >
-      <p class="text-sm text-muted-foreground">Select an environment to browse tables.</p>
-    </div>
-
     <!-- Data view (selected table) -->
-    <template v-else-if="selectedTable">
+    <template v-if="selectedTable">
       <!-- Header -->
       <div class="flex items-center gap-2">
         <Button variant="ghost" size="icon" class="h-7 w-7" @click="closeTable">
@@ -355,11 +324,11 @@ watch(() => activeEnvironment.value?.name, () => {
               <span>~{{ table.estimatedRows }} rows</span>
               <span>{{ table.columns.length }} columns</span>
               <span
-                v-if="table.columns.some((c: { primaryKey: boolean }) => c.primaryKey)"
+                v-if="table.columns.some((c) => c.primaryKey)"
                 class="flex items-center gap-0.5"
               >
                 <Key :size="10" />
-                {{ table.columns.filter((c: { primaryKey: boolean }) => c.primaryKey).map((c: { name: string }) => c.name).join(', ') }}
+                {{ table.columns.filter((c) => c.primaryKey).map((c) => c.name).join(', ') }}
               </span>
             </div>
           </div>

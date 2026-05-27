@@ -1,5 +1,5 @@
 overwrite: true
-schema: "../gateway/graphql/schema/*.graphqls"
+schema: "../conductor/internal/api/graphql/schema/*.graphqls"
 documents:
   - "./src/**/*.vue"
   - "./src/**/*.ts"
@@ -9,6 +9,15 @@ generates:
     plugins: []
     config:
       useTypeImports: true
+      scalars:
+        Time: string
+        Duration: string
+        ProjectID: string
+        EnvironmentID: string
+        ServiceID: string
+        DeploymentID: string
+        DatabaseID: string
+        VolumeID: string
     presetConfig:
       fragmentMasking: false
   ./graphql.schema.json:

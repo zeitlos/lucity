@@ -21,14 +21,9 @@ const router = createRouter({
           component: () => import('@/pages/ProjectSettingsPage.vue'),
         },
         {
-          path: 'projects/:id/:env',
-          name: 'project-env',
-          component: () => import('@/pages/ProjectPage.vue'),
-        },
-        {
-          path: 'projects/:id',
-          name: 'project',
-          component: () => import('@/pages/ProjectPage.vue'),
+          path: 'environments/:environmentId',
+          name: 'environment',
+          component: () => import('@/pages/EnvironmentPage.vue'),
         },
         {
           path: 'workspace/settings',

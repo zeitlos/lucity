@@ -1,30 +1,24 @@
 <script setup lang="ts">
 import { useQuery } from '@vue/apollo-composable';
-import { RouterLink, useRoute, useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { computed, ref, watch } from 'vue';
 import { Plus, Github, Box } from 'lucide-vue-next';
 import { graphql } from '@/gql';
-import { SyncStatus } from '@/gql/graphql';
 
 const ProjectsDocument = graphql(`
   query Projects {
     projects {
       id
       name
-      createdAt
       environments {
         id
         name
-        syncStatus
         resourceTier
         services {
+          id
           name
           sourceUrl
         }
-      }
-      databases {
-        name
-        version
       }
     }
   }
@@ -73,7 +67,6 @@ function handleImportGitHub() {
   paletteOpen.value = true;
 }
 
-// Auto-open palette on github-repos view when returning from GitHub account connection
 watch(() => route.query.github, (val) => {
   if (val === 'account_connected') {
     initialPaletteView.value = 'github-repos';
@@ -86,33 +79,37 @@ watch(paletteOpen, (open) => {
   if (!open) initialPaletteView.value = 'main';
 });
 
-function envStatusColor(environments: { syncStatus: string }[]) {
-  if (environments.length === 0) return 'bg-muted-foreground/50';
-  const hasDegraded = environments.some(e => e.syncStatus === SyncStatus.Degraded);
-  if (hasDegraded) return 'bg-red-500';
-  const allSynced = environments.every(e => e.syncStatus === SyncStatus.Synced);
-  if (allSynced) return 'bg-green-500';
-  return 'bg-yellow-500';
-}
-
-// Collect unique services across all environments of a project
-function allServices(project: { environments: { services?: { name: string; sourceUrl?: string | null }[] }[] }) {
+function allServices(project: { environments: { services?: { id: string; name: string; sourceUrl: string }[] }[] }) {
   const seen = new Set<string>();
-  const result: { name: string; sourceUrl?: string | null }[] = [];
+  const out: { name: string; sourceUrl: string }[] = [];
   for (const env of project.environments) {
     for (const svc of env.services ?? []) {
       if (!seen.has(svc.name)) {
         seen.add(svc.name);
-        result.push(svc);
+        out.push(svc);
       }
     }
   }
-  return result;
+  return out;
 }
 
-function uniqueRepoCount(services: { sourceUrl?: string | null }[]): number {
+function uniqueRepoCount(services: { sourceUrl: string }[]): number {
   const urls = services.filter(s => s.sourceUrl).map(s => s.sourceUrl);
   return new Set(urls).size;
+}
+
+function firstEnvironmentId(project: { environments: { id: string; name: string }[] }): string | null {
+  if (project.environments.length === 0) return null;
+  return project.environments[0]!.id;
+}
+
+function openProject(project: { id: string; environments: { id: string; name: string }[] }) {
+  const envId = firstEnvironmentId(project);
+  if (envId) {
+    router.push({ name: 'environment', params: { environmentId: envId } });
+  } else {
+    router.push({ name: 'project-settings', params: { id: project.id, section: 'environments' } });
+  }
 }
 </script>
 
@@ -149,7 +146,6 @@ function uniqueRepoCount(services: { sourceUrl?: string | null }[]): number {
       Failed to load projects: {{ error.message }}
     </div>
 
-    <!-- Welcome card for new users -->
     <WelcomeCard
       v-else-if="isWelcome && projects.length === 0"
       @dismiss="handleWelcomeDismiss"
@@ -189,11 +185,11 @@ function uniqueRepoCount(services: { sourceUrl?: string | null }[]): number {
 
     <template v-else>
       <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-      <RouterLink
+      <button
         v-for="project in projects"
         :key="project.id"
-        :to="{ name: 'project', params: { id: project.id } }"
-        class="block"
+        class="block text-left"
+        @click="openProject(project)"
       >
         <Card class="transition-shadow hover:shadow-md">
           <CardHeader>
@@ -211,14 +207,11 @@ function uniqueRepoCount(services: { sourceUrl?: string | null }[]): number {
           </CardHeader>
           <CardContent>
             <div class="flex items-center gap-2 text-xs text-muted-foreground">
-              <span
-                :class="['h-2 w-2 rounded-full', envStatusColor(project.environments)]"
-              />
               {{ project.environments.length }} environment{{ project.environments.length !== 1 ? 's' : '' }}
             </div>
           </CardContent>
         </Card>
-      </RouterLink>
+      </button>
       </div>
     </template>
 

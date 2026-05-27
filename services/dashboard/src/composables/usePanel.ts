@@ -1,7 +1,7 @@
 import { ref, computed } from 'vue';
 
 export interface PanelEntry {
-  type: 'service' | 'database' | 'volume';
+  type: 'service' | 'database';
   id: string;
   label: string;
 }
@@ -12,19 +12,13 @@ export function usePanel() {
   const currentPanel = computed(() =>
     panelStack.value.length > 0
       ? panelStack.value[panelStack.value.length - 1]
-      : null
+      : null,
   );
 
   const isOpen = computed(() => panelStack.value.length > 0);
 
   function openPanel(entry: PanelEntry) {
-    // Service-level panels replace the stack (selecting a different service)
-    // Sub-views (deployments, etc.) push onto the stack for breadcrumb navigation
-    if (entry.type === 'service' || entry.type === 'database' || entry.type === 'volume') {
-      panelStack.value = [entry];
-    } else {
-      panelStack.value.push(entry);
-    }
+    panelStack.value = [entry];
   }
 
   function closePanel() {

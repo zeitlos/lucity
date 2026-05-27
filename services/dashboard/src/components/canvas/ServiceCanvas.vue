@@ -3,9 +3,9 @@ import { computed, watch, ref, onMounted, toRef } from 'vue';
 import { VueFlow, useVueFlow, Panel, PanOnScrollMode } from '@vue-flow/core';
 import { Background } from '@vue-flow/background';
 import { Plus, Maximize2 } from 'lucide-vue-next';
-import { useEnvironment } from '@/composables/useEnvironment';
 import { usePanel } from '@/composables/usePanel';
-import { useCanvasDeployStatus } from '@/composables/useCanvasDeployStatus';
+import { useCanvasBuildStatus } from '@/composables/useCanvasBuildStatus';
+import type { Service, Database } from '@/composables/useEnvironment';
 import ServiceNode from './ServiceNode.vue';
 import DatabaseNode from './DatabaseNode.vue';
 import { Button } from '@/components/ui/button';
@@ -13,24 +13,8 @@ import '@vue-flow/core/dist/style.css';
 import '@vue-flow/core/dist/theme-default.css';
 
 const props = defineProps<{
-  projectId: string;
-  services: {
-    name: string;
-    image: string;
-    port?: number | null;
-    framework?: string | null;
-    sourceUrl?: string | null;
-    imageTag: string;
-    ready: boolean;
-    replicas: number;
-    domains: { hostname: string; type: string; dnsStatus: string }[];
-  }[];
-  databases?: {
-    name: string;
-    version: string;
-    instances: number;
-    size: string;
-  }[];
+  services: Service[];
+  databases: Database[];
 }>();
 
 const emit = defineEmits<{
@@ -38,13 +22,11 @@ const emit = defineEmits<{
   (e: 'deploy-completed'): void;
 }>();
 
-const { activeEnvDatabases, activeEnvironment } = useEnvironment();
 const { openPanel, currentPanel } = usePanel();
 
-const serviceNames = computed(() => props.services.map(s => s.name));
-const envName = computed(() => activeEnvironment.value?.name ?? null);
-const { statusMap } = useCanvasDeployStatus(
-  toRef(props, 'projectId'), envName, serviceNames,
+const servicesRef = toRef(props, 'services');
+const { statusMap } = useCanvasBuildStatus(
+  servicesRef,
   () => emit('deploy-completed'),
 );
 
@@ -54,42 +36,37 @@ const { fitView, findNode, setCenter, dimensions } = useVueFlow({
 
 const nodes = computed(() => {
   const serviceNodes = props.services.map((svc, index) => {
-    const deployInfo = statusMap.value[svc.name];
+    const buildInfo = statusMap.value[svc.id];
     return {
-      id: svc.name,
+      id: svc.id,
       type: 'service',
       position: { x: 0, y: index * 180 },
       data: {
         name: svc.name,
-        framework: svc.framework,
-        port: svc.port,
         sourceUrl: svc.sourceUrl,
-        domains: svc.domains,
-        ready: svc.ready,
-        imageTag: svc.imageTag,
+        endpoints: svc.endpoints,
+        status: svc.status,
         replicas: svc.replicas,
-        activeDeployPhase: deployInfo?.phase ?? null,
-        activeDeployStartedAt: deployInfo?.startedAt ?? null,
+        activeBuildStatus: buildInfo?.status ?? null,
+        activeBuildStartedAt: buildInfo?.startedAt ?? null,
       },
-      selected: currentPanel.value?.id === svc.name && currentPanel.value?.type === 'service',
+      selected: currentPanel.value?.id === svc.id && currentPanel.value?.type === 'service',
     };
   });
 
-  const databaseNodes = (props.databases ?? []).map((db, index) => {
-    const envDb = activeEnvDatabases.value.find(ed => ed.name === db.name);
+  const databaseNodes = props.databases.map((db, index) => {
     return {
-      id: `db-${db.name}`,
+      id: db.id,
       type: 'database',
       position: { x: 340, y: index * 220 },
       data: {
         name: db.name,
         version: db.version,
-        instances: envDb?.instances ?? db.instances,
-        size: envDb?.size ?? db.size,
-        ready: envDb?.ready,
-        volume: envDb?.volume ?? null,
+        instances: db.instances,
+        size: db.size,
+        status: db.status,
       },
-      selected: currentPanel.value?.id === db.name && currentPanel.value?.type === 'database',
+      selected: currentPanel.value?.id === db.id && currentPanel.value?.type === 'database',
     };
   });
 
@@ -100,7 +77,7 @@ const edges = ref([]);
 
 function handleNodeClick(event: { node: { id: string; type: string; data: { name: string } } }) {
   if (event.node.type === 'database') {
-    openPanel({ type: 'database', id: event.node.data.name, label: event.node.data.name });
+    openPanel({ type: 'database', id: event.node.id, label: event.node.data.name });
   } else {
     openPanel({ type: 'service', id: event.node.id, label: event.node.data.name });
   }
@@ -110,13 +87,11 @@ function handleFitView() {
   fitView({ padding: 0.3, maxZoom: 1 });
 }
 
-// Fit view on mount — account for already-open panel (persists across navigation)
 onMounted(() => {
   setTimeout(() => {
     const panel = currentPanel.value;
     if (panel?.type === 'service' || panel?.type === 'database') {
-      const nodeId = panel.type === 'database' ? `db-${panel.id}` : panel.id;
-      const node = findNode(nodeId);
+      const node = findNode(panel.id);
       if (node) {
         const nodeCenterX = node.position.x + (node.dimensions.width / 2);
         const nodeCenterY = node.position.y + (node.dimensions.height / 2);
@@ -129,19 +104,16 @@ onMounted(() => {
   }, 200);
 });
 
-// Re-fit view when services or databases change
-const totalNodes = computed(() => props.services.length + (props.databases?.length ?? 0));
+const totalNodes = computed(() => props.services.length + props.databases.length);
 watch(totalNodes, () => {
   setTimeout(() => handleFitView(), 100);
 });
 
-// Center selected card in the visible left portion (panel overlays 55% from right)
 watch(
   () => currentPanel.value,
   (panel, oldPanel) => {
     if (panel?.type === 'service' || panel?.type === 'database') {
-      const nodeId = panel.type === 'database' ? `db-${panel.id}` : panel.id;
-      const node = findNode(nodeId);
+      const node = findNode(panel.id);
       if (node) {
         const nodeCenterX = node.position.x + (node.dimensions.width / 2);
         const nodeCenterY = node.position.y + (node.dimensions.height / 2);
@@ -185,8 +157,7 @@ watch(
         <DatabaseNode
           :data="nodeProps.data"
           :selected="nodeProps.selected"
-          @select="openPanel({ type: 'database', id: nodeProps.data.name, label: nodeProps.data.name })"
-          @select-volume="openPanel({ type: 'volume', id: $event, label: 'Volume' })"
+          @select="openPanel({ type: 'database', id: nodeProps.id, label: nodeProps.data.name })"
         />
       </template>
 
