@@ -17,7 +17,7 @@ type Deployment struct {
 	ImageDigest          string
 	Commit               string
 	Ref                  string
-	GitHubInstallationID string
+	GitHubInstallationID int
 
 	SourceURL   string
 	ContextPath string

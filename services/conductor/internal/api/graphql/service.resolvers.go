@@ -102,20 +102,6 @@ func (r *mutationResolver) SetServiceScaling(ctx context.Context, input model.Se
 	return new(convertService(*result)), nil
 }
 
-// Deploy is the resolver for the deploy field.
-func (r *mutationResolver) Deploy(ctx context.Context, service platform.ServiceID, gitRef *string) (*model.DeployRun, error) {
-	ref := ""
-	if gitRef != nil {
-		ref = *gitRef
-	}
-	d, err := r.Conductor.Deploy(ctx, service, ref)
-	if err != nil {
-		return nil, err
-	}
-	result := convertDeploymentOp(*d)
-	return &result, nil
-}
-
 // Rollback is the resolver for the rollback field.
 func (r *mutationResolver) Rollback(ctx context.Context, deployment platform.DeploymentID) (bool, error) {
 	return r.Conductor.Rollback(ctx, deployment)
@@ -166,12 +152,12 @@ func (r *queryResolver) Service(ctx context.Context, id platform.ServiceID) (*mo
 }
 
 // DetectServices is the resolver for the detectServices field.
-func (r *queryResolver) DetectServices(ctx context.Context, installationID string, repository string) ([]model.DetectedService, error) {
+func (r *queryResolver) DetectServices(ctx context.Context, installationID string, repositoryURL string) ([]model.DetectedService, error) {
 	instID, err := strconv.ParseInt(installationID, 10, 64)
 	if err != nil {
 		return nil, fmt.Errorf("invalid installation ID: %w", err)
 	}
-	services, err := r.Conductor.DetectServices(ctx, repository, instID)
+	services, err := r.Conductor.DetectServices(ctx, repositoryURL, instID)
 	if err != nil {
 		return nil, err
 	}
@@ -180,29 +166,6 @@ func (r *queryResolver) DetectServices(ctx context.Context, installationID strin
 		result = append(result, convertDetectedService(s))
 	}
 	return result, nil
-}
-
-// DeployStatus is the resolver for the deployStatus field.
-func (r *queryResolver) DeployStatus(ctx context.Context, id string) (*model.DeployRun, error) {
-	d, err := r.Conductor.DeployStatus(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	result := convertDeploymentOp(*d)
-	return &result, nil
-}
-
-// ActiveDeployment is the resolver for the activeDeployment field.
-func (r *queryResolver) ActiveDeployment(ctx context.Context, service platform.ServiceID) (*model.DeployRun, error) {
-	d, err := r.Conductor.ActiveDeployment(ctx, service)
-	if err != nil {
-		return nil, err
-	}
-	if d == nil {
-		return nil, nil
-	}
-	result := convertDeploymentOp(*d)
-	return &result, nil
 }
 
 // CheckDNSStatus is the resolver for the checkDnsStatus field.
@@ -233,18 +196,21 @@ func (r *serviceResolver) Deployments(ctx context.Context, obj *model.Service) (
 	return result, nil
 }
 
-// DeployLogs is the resolver for the deployLogs field.
-func (r *subscriptionResolver) DeployLogs(ctx context.Context, id string) (<-chan string, error) {
-	ch, unsub, err := r.Conductor.DeployLogs(ctx, id)
+// Builds is the resolver for the builds field.
+func (r *serviceResolver) Builds(ctx context.Context, obj *model.Service) ([]model.Build, error) {
+	builds, err := r.Conductor.Builds(ctx, obj.ID.Workspace, obj.SourceURL, obj.ContextPath)
+
 	if err != nil {
 		return nil, err
 	}
-	// Unsubscribe when the client disconnects.
-	go func() {
-		<-ctx.Done()
-		unsub()
-	}()
-	return ch, nil
+
+	var result []model.Build
+
+	for _, build := range builds {
+		result = append(result, convertBuild(build))
+	}
+
+	return result, nil
 }
 
 // Service returns ServiceResolver implementation.

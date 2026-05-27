@@ -3,6 +3,7 @@ package kubernetes
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	"github.com/zeitlos/lucity/pkg/to"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
@@ -90,18 +91,17 @@ func toDeployment(replicaSet apps.ReplicaSet, deployment apps.Deployment, servic
 		image = containers[0].Image
 	}
 
-	return platform.Deployment{
+	result := platform.Deployment{
 		ID:     deploymentID(replicaSet, serviceID),
 		Status: deploymentStatus(replicaSet, deployment),
 
 		Image:       image,
 		ImageDigest: annotations[annotationImageDigest],
 
-		Commit:               annotations[annotationSourceCommit],
-		Ref:                  annotations[annotationSourceRef],
-		SourceURL:            annotations[annotationSourceRepo],
-		ContextPath:          annotations[annotationSourceContext],
-		GitHubInstallationID: deployment.Labels[gitHubInstallationLabel],
+		Commit:      annotations[annotationSourceCommit],
+		Ref:         annotations[annotationSourceRef],
+		SourceURL:   annotations[annotationSourceRepo],
+		ContextPath: annotations[annotationSourceContext],
 
 		Resources: containerResources(containers),
 		Command:   containerCommand(containers),
@@ -116,6 +116,14 @@ func toDeployment(replicaSet apps.ReplicaSet, deployment apps.Deployment, servic
 
 		CreatedAt: replicaSet.CreationTimestamp.Time,
 	}
+
+	if id, ok := deployment.Labels[gitHubInstallationLabel]; ok {
+		if parsed, err := strconv.Atoi(id); err == nil {
+			result.GitHubInstallationID = parsed
+		}
+	}
+
+	return result
 }
 
 func deploymentID(replicaSet apps.ReplicaSet, serviceID platform.ServiceID) platform.DeploymentID {

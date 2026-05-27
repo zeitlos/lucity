@@ -22,6 +22,7 @@ type Service struct {
 	Endpoints []Endpoint
 
 	SourceURL   string
+	Branch      string
 	ContextPath string
 	Resources   Resources
 	Command     string
@@ -38,19 +39,10 @@ type Resources struct {
 }
 
 type Endpoint struct {
-	// Kind     EndpointKind
 	Host     string
 	Port     int
 	Protocol Protocol
 }
-
-// type EndpointKind string
-
-// const (
-// 	EndpointInternal EndpointKind = "internal"
-// 	EndpointPlatform EndpointKind = "platform"
-// 	EndpointCustom   EndpointKind = "custom"
-// )
 
 type Protocol string
 

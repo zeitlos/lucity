@@ -65,6 +65,13 @@ type BillingSubscription struct {
 	HasPaymentMethod  bool               `json:"hasPaymentMethod"`
 }
 
+type Build struct {
+	ID         string      `json:"id"`
+	Status     BuildStatus `json:"status"`
+	StartedAt  time.Time   `json:"startedAt"`
+	FinishedAt *time.Time  `json:"finishedAt,omitempty"`
+}
+
 type CheckoutSession struct {
 	URL string `json:"url"`
 }
@@ -145,21 +152,6 @@ type DatabaseTableData struct {
 	Columns            []string    `json:"columns"`
 	Rows               [][]*string `json:"rows"`
 	TotalEstimatedRows int         `json:"totalEstimatedRows"`
-}
-
-type DeployRun struct {
-	ID       string      `json:"id"`
-	Phase    DeployPhase `json:"phase"`
-	BuildID  *string     `json:"buildId,omitempty"`
-	ImageRef *string     `json:"imageRef,omitempty"`
-	Digest   *string     `json:"digest,omitempty"`
-	Error    *string     `json:"error,omitempty"`
-	// When the deploy operation started.
-	StartedAt *time.Time `json:"startedAt,omitempty"`
-	// Rollout health status from the deployment system.
-	RolloutHealth *SyncStatus `json:"rolloutHealth,omitempty"`
-	// Rollout status detail, e.g. ImagePullBackOff, CrashLoopBackOff.
-	RolloutMessage *string `json:"rolloutMessage,omitempty"`
 }
 
 type Deployment struct {
@@ -324,6 +316,7 @@ type Service struct {
 	DefaultCommand   string               `json:"defaultCommand"`
 	ActiveDeployment *Deployment          `json:"activeDeployment,omitempty"`
 	Deployments      []Deployment         `json:"deployments"`
+	Builds           []Build              `json:"builds"`
 	LastDeployedAt   *time.Time           `json:"lastDeployedAt,omitempty"`
 	CreatedAt        time.Time            `json:"createdAt"`
 }
@@ -449,6 +442,67 @@ type WorkspaceMembership struct {
 	Role      WorkspaceRole `json:"role"`
 }
 
+type BuildStatus string
+
+const (
+	BuildStatusQueued    BuildStatus = "QUEUED"
+	BuildStatusRunning   BuildStatus = "RUNNING"
+	BuildStatusSucceeded BuildStatus = "SUCCEEDED"
+	BuildStatusFailed    BuildStatus = "FAILED"
+	BuildStatusCancelled BuildStatus = "CANCELLED"
+)
+
+var AllBuildStatus = []BuildStatus{
+	BuildStatusQueued,
+	BuildStatusRunning,
+	BuildStatusSucceeded,
+	BuildStatusFailed,
+	BuildStatusCancelled,
+}
+
+func (e BuildStatus) IsValid() bool {
+	switch e {
+	case BuildStatusQueued, BuildStatusRunning, BuildStatusSucceeded, BuildStatusFailed, BuildStatusCancelled:
+		return true
+	}
+	return false
+}
+
+func (e BuildStatus) String() string {
+	return string(e)
+}
+
+func (e *BuildStatus) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = BuildStatus(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid BuildStatus", str)
+	}
+	return nil
+}
+
+func (e BuildStatus) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *BuildStatus) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e BuildStatus) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
 type DatabaseStatus string
 
 const (
@@ -505,71 +559,6 @@ func (e *DatabaseStatus) UnmarshalJSON(b []byte) error {
 }
 
 func (e DatabaseStatus) MarshalJSON() ([]byte, error) {
-	var buf bytes.Buffer
-	e.MarshalGQL(&buf)
-	return buf.Bytes(), nil
-}
-
-type DeployPhase string
-
-const (
-	DeployPhaseQueued    DeployPhase = "QUEUED"
-	DeployPhaseCloning   DeployPhase = "CLONING"
-	DeployPhaseBuilding  DeployPhase = "BUILDING"
-	DeployPhasePushing   DeployPhase = "PUSHING"
-	DeployPhaseDeploying DeployPhase = "DEPLOYING"
-	DeployPhaseSucceeded DeployPhase = "SUCCEEDED"
-	DeployPhaseFailed    DeployPhase = "FAILED"
-)
-
-var AllDeployPhase = []DeployPhase{
-	DeployPhaseQueued,
-	DeployPhaseCloning,
-	DeployPhaseBuilding,
-	DeployPhasePushing,
-	DeployPhaseDeploying,
-	DeployPhaseSucceeded,
-	DeployPhaseFailed,
-}
-
-func (e DeployPhase) IsValid() bool {
-	switch e {
-	case DeployPhaseQueued, DeployPhaseCloning, DeployPhaseBuilding, DeployPhasePushing, DeployPhaseDeploying, DeployPhaseSucceeded, DeployPhaseFailed:
-		return true
-	}
-	return false
-}
-
-func (e DeployPhase) String() string {
-	return string(e)
-}
-
-func (e *DeployPhase) UnmarshalGQL(v any) error {
-	str, ok := v.(string)
-	if !ok {
-		return fmt.Errorf("enums must be strings")
-	}
-
-	*e = DeployPhase(str)
-	if !e.IsValid() {
-		return fmt.Errorf("%s is not a valid DeployPhase", str)
-	}
-	return nil
-}
-
-func (e DeployPhase) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
-}
-
-func (e *DeployPhase) UnmarshalJSON(b []byte) error {
-	s, err := strconv.Unquote(string(b))
-	if err != nil {
-		return err
-	}
-	return e.UnmarshalGQL(s)
-}
-
-func (e DeployPhase) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

@@ -8,6 +8,7 @@ package graphql
 import (
 	"context"
 
+	"github.com/zeitlos/lucity/pkg/to"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
@@ -19,6 +20,17 @@ func (r *deploymentResolver) CommitMessage(ctx context.Context, obj *model.Deplo
 	}
 
 	return r.Conductor.CommitMessage(ctx, obj.GitHubInstallationID, obj.SourceURL, obj.Commit)
+}
+
+// Deploy is the resolver for the deploy field.
+func (r *mutationResolver) Deploy(ctx context.Context, service platform.ServiceID, gitRef *string) (*model.Build, error) {
+	build, err := r.Conductor.Deploy(ctx, service, to.Val(gitRef))
+
+	if err != nil {
+		return nil, err
+	}
+	result := convertBuild(*build)
+	return &result, nil
 }
 
 // Deployment is the resolver for the deployment field.

@@ -11,12 +11,13 @@ import (
 	"github.com/zeitlos/lucity/pkg/cashier"
 	ghpkg "github.com/zeitlos/lucity/pkg/github"
 	"github.com/zeitlos/lucity/pkg/logto"
-	"github.com/zeitlos/lucity/services/conductor/internal/api/deploy"
+	"github.com/zeitlos/lucity/services/conductor/internal/buildjob"
 	"github.com/zeitlos/lucity/services/conductor/internal/directory"
-	"github.com/zeitlos/lucity/services/conductor/internal/inproc/builder"
 	"github.com/zeitlos/lucity/services/conductor/internal/inproc/deployer"
 	"github.com/zeitlos/lucity/services/conductor/internal/inproc/packager"
+	"github.com/zeitlos/lucity/services/conductor/internal/planner"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
+	"github.com/zeitlos/lucity/services/conductor/internal/source"
 )
 
 // TokenRefresher refreshes the Logto access token using a refresh token.
@@ -26,18 +27,19 @@ type TokenRefresher func(ctx context.Context, refreshToken string) (newAccessTok
 
 type Client struct {
 	Packager       *packager.Client
-	Builder        *builder.Client
 	Deployer       *deployer.Client
 	Cashier        cashier.CashierServiceClient // nil if billing disabled
 	Issuer         *auth.Issuer                 // ES256 JWT issuer for gRPC auth (nil = no auth)
 	GitHubApp      *ghpkg.App                   // for minting installation tokens (repo access)
 	Logto          *logto.Client
-	DeployTracker  *deploy.Tracker
 	TokenRefresher TokenRefresher // refreshes expired Logto access tokens (nil if not configured)
 
 	// Refactored clients
 	directory directory.Interface
 	platform  platform.Interface
+	buildjob  buildjob.Interface
+	planner   planner.Interface
+	source    source.Interface
 
 	Config Config
 
@@ -61,21 +63,22 @@ type Config struct {
 	DashboardURL        string // base URL for the dashboard (e.g., "http://localhost:5173")
 }
 
-func New(packager *packager.Client, builder *builder.Client, deployer *deployer.Client, cashier cashier.CashierServiceClient, issuer *auth.Issuer, githubApp *ghpkg.App, logto *logto.Client, tokenRefresher TokenRefresher, directory directory.Interface, platform platform.Interface, config Config) *Client {
+func New(packager *packager.Client, deployer *deployer.Client, cashier cashier.CashierServiceClient, issuer *auth.Issuer, githubApp *ghpkg.App, logto *logto.Client, tokenRefresher TokenRefresher, directory directory.Interface, platform platform.Interface, buildjob buildjob.Interface, planner planner.Interface, source source.Interface, config Config) *Client {
 	return &Client{
 		Packager:       packager,
-		Builder:        builder,
 		Deployer:       deployer,
 		Cashier:        cashier,
 		Issuer:         issuer,
 		GitHubApp:      githubApp,
 		Logto:          logto,
-		DeployTracker:  deploy.NewTracker(),
 		TokenRefresher: tokenRefresher,
 		Config:         config,
 		orgIDCache:     make(map[string]string),
 		directory:      directory,
 		platform:       platform,
+		buildjob:       buildjob,
+		planner:        planner,
+		source:         source,
 	}
 }
 

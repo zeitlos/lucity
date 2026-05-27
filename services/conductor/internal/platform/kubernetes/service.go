@@ -176,6 +176,7 @@ func toService(deployment apps.Deployment, replicaSets []apps.ReplicaSet, routes
 		Endpoints: endpoints(deployment, routes),
 
 		SourceURL:   annotations[annotationSourceRepo],
+		Branch:      annotations[annotationSourceBranch],
 		ContextPath: annotations[annotationSourceContext],
 		Resources:   containerResources(deployment.Spec.Template.Spec.Containers),
 		Command:     containerCommand(deployment.Spec.Template.Spec.Containers),

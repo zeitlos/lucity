@@ -2,10 +2,14 @@ package graphql
 
 import (
 	"log/slog"
+	"strconv"
+	"time"
 
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
+	"github.com/zeitlos/lucity/services/conductor/internal/buildjob"
 	"github.com/zeitlos/lucity/services/conductor/internal/conductor"
+	"github.com/zeitlos/lucity/services/conductor/internal/planner"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
@@ -47,7 +51,7 @@ func convertDeployment(deployment platform.Deployment) model.Deployment {
 		Replicas:             convertReplicaCount(deployment.Replicas),
 		Resources:            convertResources(deployment.Resources),
 		CreatedAt:            deployment.CreatedAt,
-		GitHubInstallationID: deployment.GitHubInstallationID,
+		GitHubInstallationID: strconv.Itoa(deployment.GitHubInstallationID),
 	}
 
 	if deployment.ImageDigest != "" {
@@ -144,37 +148,24 @@ func convertEnvironment(e conductor.Environment) model.Environment {
 	return result
 }
 
-func convertDetectedService(s conductor.DetectedService) model.DetectedService {
+func convertDetectedService(s planner.Plan) model.DetectedService {
+	// Providers convention is [language, ..., framework] — e.g. ["node", "next"].
+	// Single-entry slices carry only the language; framework stays empty.
+	var language, framework string
+	if len(s.Providers) > 0 {
+		language = s.Providers[0]
+	}
+	if len(s.Providers) > 1 {
+		framework = s.Providers[len(s.Providers)-1]
+	}
+
 	return model.DetectedService{
-		Name:          s.Name,
-		Language:      s.Provider,
-		Framework:     s.Framework,
-		StartCommand:  s.StartCommand,
-		SuggestedPort: s.SuggestedPort,
-	}
-}
-
-func convertScalingConfig(sc conductor.ScalingConfig) model.ScalingConfig {
-	result := model.ScalingConfig{
-		Replicas: sc.Replicas,
-	}
-	if sc.Autoscaling != nil {
-		result.Autoscaling = &model.AutoscalingConfig{
-			Enabled:     sc.Autoscaling.Enabled,
-			MinReplicas: sc.Autoscaling.MinReplicas,
-			MaxReplicas: sc.Autoscaling.MaxReplicas,
-			TargetCPU:   sc.Autoscaling.TargetCPU,
-		}
-	}
-	return result
-}
-
-func convertDomain(d conductor.Domain) *model.Domain {
-	return &model.Domain{
-		Hostname:  d.Hostname,
-		Type:      convertDomainType(d.Type),
-		DNSStatus: convertDNSStatus(d.DnsStatus),
-		TLSStatus: convertTLSStatus(d.TlsStatus),
+		Name:         s.Name,
+		Language:     language,
+		Framework:    framework,
+		StartCommand: s.StartCommand,
+		// SuggestedPort: buildjob.DetectedService no longer carries port info.
+		// Left at zero until the new detector returns a port or we drop the field.
 	}
 }
 
@@ -195,36 +186,6 @@ func convertDnsCheck(d conductor.DnsCheck) *model.DNSCheck {
 		result.TLSStatus = &tlsStatus
 	}
 	return result
-}
-
-func convertDeploymentOp(d conductor.DeployOp) model.DeployRun {
-	op := model.DeployRun{
-		ID:    d.ID,
-		Phase: convertDeployPhase(d.Phase),
-	}
-	if d.BuildID != "" {
-		op.BuildID = &d.BuildID
-	}
-	if d.ImageRef != "" {
-		op.ImageRef = &d.ImageRef
-	}
-	if d.Digest != "" {
-		op.Digest = &d.Digest
-	}
-	if d.Error != "" {
-		op.Error = &d.Error
-	}
-	if !d.StartedAt.IsZero() {
-		op.StartedAt = &d.StartedAt
-	}
-	if d.RolloutHealth != "" {
-		health := convertSyncStatus(d.RolloutHealth)
-		op.RolloutHealth = &health
-	}
-	if d.RolloutMessage != "" {
-		op.RolloutMessage = &d.RolloutMessage
-	}
-	return op
 }
 
 func convertGitHubRepository(r conductor.GitHubRepository) model.GitHubRepository {
@@ -335,6 +296,22 @@ func convertBillingSubscription(s *conductor.BillingSubscription) *model.Billing
 	}
 }
 
+func convertBuild(build conductor.Build) model.Build {
+	result := model.Build{
+		ID:         build.ID,
+		Status:     convertBuildStatus(build.Status),
+		FinishedAt: build.FinishedAt,
+	}
+
+	if build.StartedAt != nil {
+		result.StartedAt = *build.StartedAt
+	} else {
+		result.StartedAt = time.Time{}
+	}
+
+	return result
+}
+
 func convertDatabase(d conductor.Database) model.Database {
 	return model.Database{
 		ID:        d.ID,
@@ -388,6 +365,27 @@ func convertDeploymentStatus(status platform.DeploymentStatus) model.DeploymentS
 	slog.Warn("unknown deployment status", "status", status)
 
 	return model.DeploymentStatusFailed
+}
+
+func convertBuildStatus(status buildjob.Status) model.BuildStatus {
+	switch status {
+	case buildjob.StatusQueued:
+		return model.BuildStatusQueued
+	case buildjob.StatusRunning:
+		return model.BuildStatusRunning
+	case buildjob.StatusSucceeded:
+		return model.BuildStatusSucceeded
+	case buildjob.StatusFailed:
+		return model.BuildStatusFailed
+	case buildjob.StatusCancelling:
+		return model.BuildStatusRunning
+	case buildjob.StatusCancelled:
+		return model.BuildStatusCancelled
+	}
+
+	slog.Warn("unknown build status", "status", status)
+
+	return model.BuildStatusFailed
 }
 
 func convertDatabaseStatus(status platform.DatabaseStatus) model.DatabaseStatus {
@@ -454,19 +452,6 @@ func convertResourceTierString(tier string) model.ResourceTier {
 	return model.ResourceTierEco
 }
 
-func convertDomainType(domainType string) model.DomainType {
-	switch domainType {
-	case "PLATFORM":
-		return model.DomainTypePlatform
-	case "CUSTOM":
-		return model.DomainTypeCustom
-	}
-
-	slog.Warn("unknown domain type", "type", domainType)
-
-	return model.DomainTypePlatform
-}
-
 func convertDNSStatus(status string) model.DNSStatus {
 	switch status {
 	case "VALID":
@@ -512,48 +497,6 @@ func convertGitHubAccountType(accountType string) model.GitHubAccountType {
 	slog.Warn("unknown github account type", "type", accountType)
 
 	return model.GitHubAccountTypeUser
-}
-
-func convertDeployPhase(phase string) model.DeployPhase {
-	switch phase {
-	case "QUEUED":
-		return model.DeployPhaseQueued
-	case "CLONING":
-		return model.DeployPhaseCloning
-	case "BUILDING":
-		return model.DeployPhaseBuilding
-	case "PUSHING":
-		return model.DeployPhasePushing
-	case "DEPLOYING":
-		return model.DeployPhaseDeploying
-	case "SUCCEEDED":
-		return model.DeployPhaseSucceeded
-	case "FAILED":
-		return model.DeployPhaseFailed
-	}
-
-	slog.Warn("unknown deploy phase", "phase", phase)
-
-	return model.DeployPhaseFailed
-}
-
-func convertSyncStatus(status string) model.SyncStatus {
-	switch status {
-	case "SYNCED":
-		return model.SyncStatusSynced
-	case "OUT_OF_SYNC":
-		return model.SyncStatusOutOfSync
-	case "PROGRESSING":
-		return model.SyncStatusProgressing
-	case "DEGRADED":
-		return model.SyncStatusDegraded
-	case "UNKNOWN":
-		return model.SyncStatusUnknown
-	}
-
-	slog.Warn("unknown sync status", "status", status)
-
-	return model.SyncStatusUnknown
 }
 
 func convertSubscriptionStatus(status string) model.SubscriptionStatus {

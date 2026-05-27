@@ -32,3 +32,7 @@ enum DeploymentStatus {
 extend type Query {
   deployment(id: DeploymentID!): Deployment! @hasRole(role: [USER])
 }
+
+extend type Mutation {
+  deploy(service: ServiceID!, gitRef: String): Build! @hasRole(role: [USER])
+}

@@ -38,16 +38,16 @@ import (
 	kauth "github.com/google/go-containerregistry/pkg/authn/kubernetes"
 	webhookpkg "github.com/zeitlos/lucity/services/conductor/internal/api/webhook"
 	webhookhttp "github.com/zeitlos/lucity/services/conductor/internal/api/webhook/http"
-	"github.com/zeitlos/lucity/services/conductor/internal/builder/build"
-	"github.com/zeitlos/lucity/services/conductor/internal/builder/engine"
+	buildjobK8s "github.com/zeitlos/lucity/services/conductor/internal/buildjob/kubernetes"
 	"github.com/zeitlos/lucity/services/conductor/internal/conductor"
 	"github.com/zeitlos/lucity/services/conductor/internal/deployer/argo/argocd"
 	"github.com/zeitlos/lucity/services/conductor/internal/deployer/argo/gitops/softserve"
 	directoryLogto "github.com/zeitlos/lucity/services/conductor/internal/directory/logto"
-	"github.com/zeitlos/lucity/services/conductor/internal/inproc/builder"
 	"github.com/zeitlos/lucity/services/conductor/internal/inproc/deployer"
 	"github.com/zeitlos/lucity/services/conductor/internal/inproc/packager"
+	"github.com/zeitlos/lucity/services/conductor/internal/planner/railpack"
 	platformK8s "github.com/zeitlos/lucity/services/conductor/internal/platform/kubernetes"
+	sourceGH "github.com/zeitlos/lucity/services/conductor/internal/source/github"
 	conductorgrpc "github.com/zeitlos/lucity/services/conductor/internal/transport/grpc"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -59,7 +59,7 @@ type Config struct {
 	WebhookPort string `envconfig:"WEBHOOK_PORT" default:"9004"` // inbound from GitHub
 	LogLevel    string `envconfig:"LOG_LEVEL" default:"info"`
 
-	// OIDC (PKCE — no client secret needed)
+	// OIDC
 	OIDCIssuerURL    string `envconfig:"OIDC_ISSUER_URL" required:"true"`
 	OIDCDiscoveryURL string `envconfig:"OIDC_DISCOVERY_URL"`
 	OIDCClientID     string `envconfig:"OIDC_CLIENT_ID" required:"true"`
@@ -104,20 +104,22 @@ type Config struct {
 	RegistryImagePrefix string `envconfig:"REGISTRY_IMAGE_PREFIX"`
 	RegistryUsername    string `envconfig:"REGISTRY_USERNAME"`
 	RegistryPassword    string `envconfig:"REGISTRY_PASSWORD"`
-	RegistryAuthSecret  string `envconfig:"REGISTRY_AUTH_SECRET"`
+	RegistryAuthSecret  string `envconfig:"REGISTRY_AUTH_SECRET" required:"true"`
 	RegistryInsecure    bool   `envconfig:"REGISTRY_INSECURE" default:"true"`
 	WorkDir             string `envconfig:"WORK_DIR" default:"/tmp/lucity-builds"`
 	BuildImage          string `envconfig:"BUILD_IMAGE"`
 	BuildkitAddr        string `envconfig:"BUILDKIT_ADDR"`
 	BuildNamespace      string `envconfig:"BUILD_NAMESPACE" default:"lucity-builds"`
 
+	SystemNamespace string `envconfig:"SYSTEM_NAMESPACE" default:"lucity-system"`
+
 	// GitHub App (for installation tokens + OAuth)
-	GitHubAppID            int64  `envconfig:"GITHUB_APP_ID"`
-	GitHubPrivateKeyPath   string `envconfig:"GITHUB_PRIVATE_KEY_PATH"`
-	GitHubClientID         string `envconfig:"GITHUB_CLIENT_ID"`
-	GitHubClientSecret     string `envconfig:"GITHUB_CLIENT_SECRET"`
-	GitHubOAuthCallbackURL string `envconfig:"GITHUB_OAUTH_CALLBACK_URL" default:"http://localhost:8080/auth/github/callback"`
-	GitHubAppSlug          string `envconfig:"GITHUB_APP_SLUG"`
+	GitHubAppID            int64  `envconfig:"GITHUB_APP_ID" required:"true"`
+	GitHubPrivateKeyPath   string `envconfig:"GITHUB_PRIVATE_KEY_PATH" required:"true"`
+	GitHubClientID         string `envconfig:"GITHUB_CLIENT_ID" required:"true"`
+	GitHubClientSecret     string `envconfig:"GITHUB_CLIENT_SECRET" required:"true"`
+	GitHubOAuthCallbackURL string `envconfig:"GITHUB_OAUTH_CALLBACK_URL" required:"true"`
+	GitHubAppSlug          string `envconfig:"GITHUB_APP_SLUG" required:"true"`
 
 	// Domains
 	WorkloadDomain string `envconfig:"WORKLOAD_DOMAIN" required:"true"`
@@ -196,26 +198,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	// ---- Build engine ----
-	if config.BuildImage == "" {
-		slog.Error("BUILD_IMAGE is required (the lucity image used inside Build Job pods)")
-		os.Exit(1)
-	}
-	if err := os.MkdirAll(config.WorkDir, 0o755); err != nil {
-		slog.Error("failed to create work dir", "error", err, "path", config.WorkDir)
-		os.Exit(1)
-	}
-	buildEng := engine.NewKubernetesEngine(engine.KubernetesEngineOpts{
-		Client:             k8sClient,
-		Namespace:          config.BuildNamespace,
-		BuildImage:         config.BuildImage,
-		BuildkitAddr:       config.BuildkitAddr,
-		RegistryURL:        config.RegistryURL,
-		RegistryAuthSecret: config.RegistryAuthSecret,
-		Insecure:           config.RegistryInsecure,
-	})
-	buildTracker := build.NewK8sTracker(k8sClient, config.BuildNamespace)
-
 	// ---- Construct in-process server impls ----
 	//
 	// Cycle: packager.Server holds a DeployerService; deployer.Server
@@ -229,7 +211,6 @@ func main() {
 
 	packagerSvc := packager.New(forge, nil, config.WorkloadDomain)
 	deployerSvc := deployer.New(argoClient, nil, clusterHTTP, config.SoftServeToken, k8sClient, dynClient, config.GatewayName, config.GatewayNamespace, config.ClusterIssuer, config.RegistryPullSecret)
-	builderSvc := builder.New(buildEng, buildTracker, config.RegistryURL, config.RegistryUsername, config.RegistryPassword, config.RegistryInsecure, config.WorkDir)
 
 	// Direct cross-wiring — Go method calls, no gRPC pipe.
 	packagerSvc.SetDeployer(deployerSvc)
@@ -256,18 +237,14 @@ func main() {
 		slog.Info("cashier not configured — billing disabled")
 	}
 
-	// ---- GitHub App + Logto ----
-	var githubApp *ghpkg.App
-	if config.GitHubAppID != 0 && config.GitHubPrivateKeyPath != "" {
-		githubApp, err = ghpkg.NewApp(config.GitHubAppID, config.GitHubClientID, config.GitHubClientSecret, "", config.GitHubOAuthCallbackURL, config.GitHubPrivateKeyPath)
-		if err != nil {
-			slog.Error("failed to create github app", "error", err)
-			os.Exit(1)
-		}
-		slog.Info("github app initialized", "app_id", config.GitHubAppID)
-	} else {
-		slog.Info("github app not configured — repo listing and commit enrichment disabled")
+	githubApp, err := ghpkg.NewApp(config.GitHubAppID, config.GitHubClientID, config.GitHubClientSecret, "", config.GitHubOAuthCallbackURL, config.GitHubPrivateKeyPath)
+
+	if err != nil {
+		slog.Error("failed to create github app", "error", err)
+		os.Exit(1)
 	}
+
+	slog.Info("github app initialized", "app_id", config.GitHubAppID)
 
 	logtoClient := logto.New(config.LogtoEndpoint, config.LogtoM2MAppID, config.LogtoM2MAppSecret)
 	slog.Info("logto management API configured", "endpoint", config.LogtoEndpoint)
@@ -277,6 +254,7 @@ func main() {
 	if registryImagePrefix == "" {
 		registryImagePrefix = config.RegistryURL
 	}
+
 	domainTarget := "lb." + config.WorkloadDomain
 
 	secure := secureCookies(config.DashboardURL)
@@ -291,8 +269,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	// TODO: Where do i get the namespace from?
-	secret, err := k8sClient.CoreV1().Secrets("lucity-system").Get(ctx, config.RegistryPullSecret, metav1.GetOptions{})
+	jobsClient := buildjobK8s.New(k8sClient, config.BuildNamespace, registryImagePrefix, config.RegistryAuthSecret, config.BuildImage)
+
+	secret, err := k8sClient.CoreV1().Secrets(config.SystemNamespace).Get(ctx, config.RegistryPullSecret, metav1.GetOptions{})
 
 	if err != nil {
 		slog.Error("failed to fetch registry pull secret", "error", err)
@@ -306,6 +285,10 @@ func main() {
 		os.Exit(1)
 	}
 
+	source := sourceGH.New(githubApp)
+
+	planner := railpack.New()
+
 	conductorConfig := conductor.Config{
 		RegistryPushURL:     config.RegistryURL,
 		RegistryPullSecret:  keychain,
@@ -316,7 +299,7 @@ func main() {
 		GitHubAppSlug:       config.GitHubAppSlug,
 		DashboardURL:        config.DashboardURL,
 	}
-	conductor := conductor.New(packagerSvc, builderSvc, deployerSvc, cashierClient, internalIssuer, githubApp, logtoClient, tokenRefresher, directoryClient, platformClient, conductorConfig)
+	conductor := conductor.New(packagerSvc, deployerSvc, cashierClient, internalIssuer, githubApp, logtoClient, tokenRefresher, directoryClient, platformClient, jobsClient, planner, source, conductorConfig)
 
 	// ---- Servers ----
 	components := []grpcComponent{}
@@ -335,10 +318,10 @@ func main() {
 		webhookHandler := &webhookhttp.Handler{
 			GitHubApp: githubApp,
 			Pipeline: &webhookpkg.Pipeline{
-				Builder:         builderSvc,
-				Packager:        packagerSvc,
-				Deployer:        deployerSvc,
-				RegistryPushURL: config.RegistryURL,
+				Buildjob: jobsClient,
+				Source:   source,
+				Packager: packagerSvc,
+				Deployer: deployerSvc,
 			},
 		}
 		webhookSrv := webhookhttp.NewServer(config.WebhookPort, config.WebhookSecret, webhookHandler)

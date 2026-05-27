@@ -9,7 +9,6 @@ import (
 
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/cashier"
-	"github.com/zeitlos/lucity/pkg/logto"
 	"github.com/zeitlos/lucity/services/conductor/internal/directory"
 )
 
@@ -502,23 +501,6 @@ func (c *Client) cacheOrgID(workspaceID, logtoOrgID string) {
 	c.orgIDCacheMu.Lock()
 	c.orgIDCache[workspaceID] = logtoOrgID
 	c.orgIDCacheMu.Unlock()
-}
-
-// invalidateOrgID removes a workspace ID from the org ID cache.
-func (c *Client) invalidateOrgID(workspaceID string) {
-	c.orgIDCacheMu.Lock()
-	delete(c.orgIDCache, workspaceID)
-	c.orgIDCacheMu.Unlock()
-}
-
-// displayNameFromOrgData extracts the display name from an Organization's custom data.
-func displayNameFromOrgData(org *logto.Organization) string {
-	if org.CustomData != nil {
-		if dn, ok := org.CustomData["displayName"].(string); ok && dn != "" {
-			return dn
-		}
-	}
-	return org.Name
 }
 
 // TODO: Replace with graphql schema auth directive.

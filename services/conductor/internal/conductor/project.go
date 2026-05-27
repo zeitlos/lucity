@@ -129,11 +129,10 @@ func (c *Client) DeleteProject(ctx context.Context, project platform.ProjectID) 
 			"project", id, "error", err)
 	}
 
-	// 4. Delete OCI images from registry (best-effort)
-	if _, err := c.Builder.DeleteImages(ctx, ws, id); err != nil {
-		slog.Warn("failed to delete registry images",
-			"project", id, "error", err)
-	}
+	// 4. TODO: clean up OCI images from the registry when a project is deleted.
+	// Was previously builder.DeleteImages. Will live in a future package
+	// once we decide which component owns registry interaction. Orphaned
+	// images take up registry space but don't otherwise affect anything.
 
 	// 5. Delete GitOps repo
 	if err := c.Packager.DeleteProject(ctx, ws, id); err != nil {

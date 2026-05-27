@@ -1,0 +1,23 @@
+type Build {
+  id: String!
+  status: BuildStatus!
+
+  startedAt: Time!
+  finishedAt: Time
+}
+
+enum BuildStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+extend type Query {
+  build(id: String!): Build! @hasRole(role: [USER])
+}
+
+extend type Subscription {
+  buildLogs(id: String!): String! @hasRole(role: [USER])
+}

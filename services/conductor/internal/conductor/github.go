@@ -46,11 +46,8 @@ func (c *Client) GitHubConnected(ctx context.Context) (bool, error) {
 // GitHubSources returns all GitHub App installations accessible to the user.
 // Requires a connected GitHub account (GitHub identity linked in Logto via social sign-in).
 func (c *Client) GitHubSources(ctx context.Context) ([]GitHubInstallation, error) {
-	if c.GitHubApp == nil {
-		return nil, fmt.Errorf("github app not configured")
-	}
-
 	ghToken, err := c.userGitHubToken(ctx)
+
 	if err != nil {
 		return nil, err
 	}
@@ -80,11 +77,8 @@ func (c *Client) GitHubSources(ctx context.Context) ([]GitHubInstallation, error
 // GitHubRepositories lists repos accessible from a specific installation.
 // Uses the App's private key to mint an installation token for the given installation ID.
 func (c *Client) GitHubRepositories(ctx context.Context, installationID string) ([]GitHubRepository, error) {
-	if c.GitHubApp == nil {
-		return nil, fmt.Errorf("github app not configured")
-	}
-
 	instID, err := strconv.ParseInt(installationID, 10, 64)
+
 	if err != nil {
 		return nil, fmt.Errorf("invalid installation ID: %w", err)
 	}
@@ -166,25 +160,5 @@ func (c *Client) userGitHubToken(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to get github token after refresh: %w", err)
 	}
-	return token, nil
-}
-
-// installationTokenForService mints a GitHub App installation token for a specific
-// installation ID. Used by commit enrichment where the installation ID comes from
-// the service's metadata (not from a workspace).
-func (c *Client) installationTokenForService(ctx context.Context, installationID int64) (string, error) {
-	if c.GitHubApp == nil {
-		return "", fmt.Errorf("github app not configured")
-	}
-
-	if installationID == 0 {
-		return "", fmt.Errorf("service has no GitHub installation linked")
-	}
-
-	token, err := c.GitHubApp.InstallationToken(ctx, installationID)
-	if err != nil {
-		return "", fmt.Errorf("failed to mint installation token: %w", err)
-	}
-
 	return token, nil
 }

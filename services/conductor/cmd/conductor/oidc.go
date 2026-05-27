@@ -136,7 +136,7 @@ func secureCookies(dashboardURL string) bool {
 }
 
 // registerAuthRoutes adds OIDC auth endpoints to the mux.
-func registerAuthRoutes(mux *http.ServeMux, provider *OIDCProvider, conductor *conductor.Client, verifier *auth.Verifier, logtoClient *logto.Client, sessionSecret, dashboardURL, githubAppSlug string) {
+func registerAuthRoutes(mux *http.ServeMux, provider *OIDCProvider, conductor *conductor.Client, logtoClient *logto.Client, sessionSecret, dashboardURL, githubAppSlug string) {
 	secure := secureCookies(dashboardURL)
 	mux.HandleFunc("/auth/login", handleLogin(provider, secure))
 	mux.HandleFunc("/auth/callback", handleCallback(provider, conductor, logtoClient, sessionSecret, dashboardURL, secure))

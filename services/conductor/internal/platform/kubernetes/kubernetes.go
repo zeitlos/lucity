@@ -30,6 +30,7 @@ const (
 	annotationSourceCommit  = "lucity.dev/source-commit"
 	annotationSourceRef     = "lucity.dev/source-ref"
 	annotationSourceContext = "lucity.dev/source-context"
+	annotationSourceBranch  = "lucity.dev/source-branch"
 	annotationImageDigest   = "lucity.dev/image-digest"
 	annotationBuildID       = "lucity.dev/build-id"
 	annotationDeployedBy    = "lucity.dev/deployed-by"

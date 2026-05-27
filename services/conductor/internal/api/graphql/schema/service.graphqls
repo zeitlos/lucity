@@ -16,6 +16,8 @@ type Service {
   activeDeployment: Deployment
   deployments: [Deployment!]! @goField(forceResolver: true)
 
+  builds: [Build!]! @goField(forceResolver: true)
+
   lastDeployedAt: Time
   createdAt: Time!
 }
@@ -132,31 +134,6 @@ input AddServiceInput {
   customStartCommand: String
 }
 
-type DeployRun {
-  id: ID!
-  phase: DeployPhase!
-  buildId: String
-  imageRef: String
-  digest: String
-  error: String
-  """When the deploy operation started."""
-  startedAt: Time
-  """Rollout health status from the deployment system."""
-  rolloutHealth: SyncStatus
-  """Rollout status detail, e.g. ImagePullBackOff, CrashLoopBackOff."""
-  rolloutMessage: String
-}
-
-enum DeployPhase {
-  QUEUED
-  CLONING
-  BUILDING
-  PUSHING
-  DEPLOYING
-  SUCCEEDED
-  FAILED
-}
-
 """Result of a live DNS verification for a custom domain."""
 type DnsCheck {
   hostname: String!
@@ -187,9 +164,7 @@ input AutoscalingInput {
 
 extend type Query {
   service(id: ServiceID!): Service! @hasRole(role: [USER])
-  detectServices(installationId: ID!, repository: String!): [DetectedService!]! @hasRole(role: [USER])
-  deployStatus(id: ID!): DeployRun @hasRole(role: [USER])
-  activeDeployment(service: ServiceID!): DeployRun @hasRole(role: [USER])
+  detectServices(installationId: ID!, repositoryUrl: String!): [DetectedService!]! @hasRole(role: [USER])
   checkDnsStatus(hostname: String!): DnsCheck! @hasRole(role: [USER])
 }
 
@@ -198,13 +173,8 @@ extend type Mutation {
   removeService(service: ServiceID!): Boolean! @hasRole(role: [USER])
   setCustomStartCommand(service: ServiceID!, command: String!): Service! @hasRole(role: [USER])
   setServiceScaling(input: SetServiceScalingInput!): Service! @hasRole(role: [USER])
-  deploy(service: ServiceID!, gitRef: String): DeployRun! @hasRole(role: [USER])
   rollback(deployment: DeploymentID!): Boolean! @hasRole(role: [USER])
   generateDomain(service: ServiceID!): Service! @hasRole(role: [USER])
   addCustomDomain(service: ServiceID!, hostname: String! @constraint(constraint: "min=4,max=253")): Service! @hasRole(role: [USER])
   removeDomain(service: ServiceID!, hostname: String!): Service! @hasRole(role: [USER])
-}
-
-extend type Subscription {
-  deployLogs(id: ID!): String! @hasRole(role: [USER])
 }
