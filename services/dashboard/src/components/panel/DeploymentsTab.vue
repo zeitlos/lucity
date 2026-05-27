@@ -389,11 +389,11 @@ const showActiveDetails = ref(false);
         <div
           v-for="build in sortedBuilds"
           :key="build.id"
-          class="flex items-start gap-3 rounded-lg border border-border/60 bg-muted/30 px-4 py-3"
+          class="flex items-center gap-3 rounded-lg border border-border/60 bg-muted/30 px-4 py-3"
         >
           <Badge
             :variant="buildStatusVariant(build.status)"
-            class="mt-0.5 shrink-0 text-[0.65rem]"
+            class="shrink-0 text-[0.65rem]"
           >
             {{ build.status }}
           </Badge>
@@ -408,6 +408,16 @@ const showActiveDetails = ref(false);
               <span v-if="buildDuration(build)">&middot; {{ buildDuration(build) }}</span>
             </div>
           </div>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            class="shrink-0 h-7 text-xs text-muted-foreground"
+            @click="logsPanel.open(build.id, service.name)"
+          >
+            <Terminal :size="13" class="mr-1.5" />
+            Logs
+          </Button>
         </div>
       </div>
     </div>

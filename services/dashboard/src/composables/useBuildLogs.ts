@@ -11,6 +11,7 @@ const BuildLogsDocument = graphql(`
 export function useBuildLogs(buildId: Ref<string | null>) {
   const lines = ref<string[]>([]);
   const isActive = ref(false);
+  const error = ref<string | null>(null);
 
   const { onResult, onError, stop, restart } = useSubscription(
     BuildLogsDocument,
@@ -22,11 +23,13 @@ export function useBuildLogs(buildId: Ref<string | null>) {
     if (data?.buildLogs) {
       lines.value.push(data.buildLogs);
       isActive.value = true;
+      error.value = null;
     }
   });
 
-  onError(() => {
+  onError((err) => {
     isActive.value = false;
+    error.value = err.message || 'Failed to load build logs';
   });
 
   // Reset when buildId changes.
@@ -34,6 +37,7 @@ export function useBuildLogs(buildId: Ref<string | null>) {
     if (newId !== oldId) {
       lines.value = [];
       isActive.value = !!newId;
+      error.value = null;
       if (newId) {
         restart();
       }
@@ -47,8 +51,9 @@ export function useBuildLogs(buildId: Ref<string | null>) {
   function reset() {
     lines.value = [];
     isActive.value = false;
+    error.value = null;
     stop();
   }
 
-  return { lines, isActive, clear, stop, restart, reset };
+  return { lines, isActive, error, clear, stop, restart, reset };
 }

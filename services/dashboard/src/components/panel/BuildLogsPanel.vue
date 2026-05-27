@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from 'vue';
-import { X, Loader2, Trash2, Pause, Play } from 'lucide-vue-next';
+import { X, Loader2, Trash2, Pause, Play, AlertCircle } from 'lucide-vue-next';
 import { onKeyStroke } from '@vueuse/core';
 import { useBuildLogs } from '@/composables/useBuildLogs';
 import { BuildStatus } from '@/gql/graphql';
@@ -20,7 +20,7 @@ const emit = defineEmits<{
 onKeyStroke('Escape', () => emit('close'));
 
 const buildIdRef = computed(() => props.buildId);
-const { lines, isActive, clear, stop, restart } = useBuildLogs(buildIdRef);
+const { lines, isActive, error, clear, stop, restart } = useBuildLogs(buildIdRef);
 const deploy = useDeploy();
 
 const logContainer = ref<HTMLElement | null>(null);
@@ -122,7 +122,18 @@ function togglePause() {
       @scroll="handleScroll"
     >
       <div
-        v-if="lines.length === 0 && !isTerminal"
+        v-if="error"
+        class="flex items-start gap-2 rounded-md border border-red-900/40 bg-red-950/30 px-3 py-2.5 text-red-300"
+      >
+        <AlertCircle :size="13" class="mt-0.5 shrink-0" />
+        <div class="min-w-0 space-y-0.5">
+          <p class="font-sans text-xs font-medium">Failed to load logs</p>
+          <p class="break-words font-mono text-[11px] text-red-400/80">{{ error }}</p>
+        </div>
+      </div>
+
+      <div
+        v-else-if="lines.length === 0 && !isTerminal"
         class="flex items-center gap-2 text-zinc-500"
       >
         <Loader2
