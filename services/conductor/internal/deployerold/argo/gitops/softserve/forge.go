@@ -7,7 +7,7 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/zeitlos/lucity/services/conductor/internal/deployer/argo/gitops"
+	"github.com/zeitlos/lucity/services/conductor/internal/deployerold/argo/gitops"
 	"golang.org/x/crypto/ssh"
 )
 

@@ -18,7 +18,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
-	"github.com/zeitlos/lucity/services/conductor/internal/deployer/argo/gitops"
+	"github.com/zeitlos/lucity/services/conductor/internal/deployerold/argo/gitops"
 )
 
 const httpCloneUser = "admin"

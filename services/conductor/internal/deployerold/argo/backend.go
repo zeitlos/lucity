@@ -24,8 +24,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/zeitlos/lucity/services/conductor/internal/deployer"
-	"github.com/zeitlos/lucity/services/conductor/internal/deployer/argo/argocd"
-	"github.com/zeitlos/lucity/services/conductor/internal/deployer/argo/gitops"
+	"github.com/zeitlos/lucity/services/conductor/internal/deployerold/argo/argocd"
+	"github.com/zeitlos/lucity/services/conductor/internal/deployerold/argo/gitops"
 	"github.com/zeitlos/lucity/services/conductor/internal/domain"
 	"github.com/zeitlos/lucity/services/conductor/internal/kube"
 )
