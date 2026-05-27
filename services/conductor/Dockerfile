@@ -8,7 +8,7 @@ WORKDIR /workspace
 ENV GOWORK=off
 
 COPY pkg/go.mod pkg/go.sum pkg/
-COPY charts/go.mod charts/go.sum charts/
+COPY charts/go.mod charts/
 COPY services/conductor/go.mod services/conductor/go.sum services/conductor/
 RUN cd services/conductor && go mod download
 
