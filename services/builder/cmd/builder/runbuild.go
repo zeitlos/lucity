@@ -27,87 +27,37 @@ import (
 	rplog "github.com/railwayapp/railpack/core/logger"
 	"github.com/railwayapp/railpack/core/plan"
 	"github.com/tonistiigi/fsutil"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 )
 
-// runBuildConfig holds env-based configuration for the build runner.
-type runBuildConfig struct {
-	BuildID     string
-	SourceURL   string
-	GitRef      string
-	Registry    string
-	ContextPath string
-	Insecure    bool
-	BuildkitAddr string
-	GitHubToken string
-	Namespace   string
-}
-
-func loadRunBuildConfig() runBuildConfig {
-	return runBuildConfig{
-		BuildID:      os.Getenv("BUILD_ID"),
-		SourceURL:    os.Getenv("BUILD_SOURCE_URL"),
-		GitRef:       os.Getenv("BUILD_GIT_REF"),
-		Registry:     os.Getenv("BUILD_REGISTRY"),
-		ContextPath:  os.Getenv("BUILD_CONTEXT_PATH"),
-		Insecure:     os.Getenv("BUILD_INSECURE") == "true",
-		BuildkitAddr: os.Getenv("BUILDKIT_ADDR"),
-		GitHubToken:  os.Getenv("GITHUB_TOKEN"),
-		Namespace:    os.Getenv("BUILD_NAMESPACE"),
-	}
-}
-
-// runBuild is the entry point for the build runner that runs inside K8s Job pods.
-// It clones the repo, generates a railpack plan, builds via BuildKit, and pushes
-// the image. Results are annotated on the Job for the builder service to read.
-func runBuild() {
-	cfg := loadRunBuildConfig()
-
-	slog.Info("build runner starting",
-		"build_id", cfg.BuildID,
-		"source_url", cfg.SourceURL,
-		"registry", cfg.Registry,
-	)
-
-	// Create in-cluster K8s client for annotating the Job
-	k8sClient, err := inClusterClient()
-	if err != nil {
-		slog.Error("failed to create k8s client", "error", err)
-		os.Exit(1)
+func executeBuild(cfg Config) error {
+	if len(cfg.TargetRefs) == 0 || cfg.TargetRefs[0] == "" {
+		return fmt.Errorf("BUILD_TARGET_REFS is empty")
 	}
 
-	if err := executeBuild(cfg, k8sClient); err != nil {
-		slog.Error("build failed", "error", err)
-
-		// Annotate Job with error
-		if annotateErr := annotateJobError(k8sClient, cfg.Namespace, cfg.BuildID, err.Error()); annotateErr != nil {
-			slog.Error("failed to annotate job with error", "error", annotateErr)
-		}
-
-		os.Exit(1)
-	}
-}
-
-func executeBuild(cfg runBuildConfig, k8sClient kubernetes.Interface) error {
 	workDir := "/tmp/lucity-builds"
+
 	if err := os.MkdirAll(workDir, 0o755); err != nil {
 		return fmt.Errorf("failed to create work dir: %w", err)
 	}
 
 	// 1. Wait for BuildKit to be ready
 	slog.Info("waiting for buildkit")
+
 	if err := waitForBuildKit(cfg.BuildkitAddr); err != nil {
 		return fmt.Errorf("buildkit not ready: %w", err)
 	}
+
 	slog.Info("buildkit ready")
 
 	// 2. Clone the repository
 	slog.Info("cloning repository", "url", cfg.SourceURL, "ref", cfg.GitRef)
-	repoPath, err := cloneForBuild(workDir, cfg.SourceURL, cfg.GitRef, cfg.GitHubToken)
+
+	repoPath, err := cloneForBuild(workDir, cfg.SourceURL, cfg.GitHubToken)
+
 	if err != nil {
 		return fmt.Errorf("clone failed: %w", err)
 	}
+
 	defer os.RemoveAll(repoPath)
 
 	// 3. Normalize file timestamps to the commit time so BuildKit cache keys
@@ -116,50 +66,56 @@ func executeBuild(cfg runBuildConfig, k8sClient kubernetes.Interface) error {
 		slog.Warn("failed to normalize timestamps", "error", err)
 	}
 
-	// 4. Determine git SHA for image tag
-	sha := buildFullSHA(repoPath)
-	tag := sha
-	if len(tag) >= 7 {
-		tag = tag[:7]
-	}
-	imageName := cfg.Registry + ":" + tag
-	slog.Info("image name determined", "image", imageName, "sha", sha)
-
-	// 5. Remove .git directory — no longer needed and its contents differ
+	// 4. Remove .git directory — no longer needed and its contents differ
 	// between clones of the same commit (pack files, index), which would
 	// cause BuildKit COPY cache misses.
 	os.RemoveAll(filepath.Join(repoPath, ".git"))
 
-	// 6. Generate railpack plan
+	// 5. Generate railpack plan
 	buildDir := repoPath
+
 	if cfg.ContextPath != "" {
 		buildDir = filepath.Join(repoPath, cfg.ContextPath)
 	}
 
 	slog.Info("generating railpack plan", "dir", buildDir)
+
 	buildPlan, err := generatePlan(buildDir)
+
 	if err != nil {
 		return err
 	}
 
-	// 7. Build with BuildKit Go client (bypasses gateway frontend so cache import works)
-	cacheRef := cfg.Registry + ":buildcache"
+	// 6. Build with BuildKit Go client (bypasses gateway frontend so cache import works).
+	// Image refs are pre-computed by the conductor (including the tag) and passed via
+	// BUILD_TARGET_REFS. The runner doesn't derive tags from the repo.
+	imageName := cfg.TargetRefs[0]
+	cacheRef := stripTag(imageName) + ":buildcache"
+
 	slog.Info("building image", "image", imageName, "cache", cacheRef)
-	digest, err := buildWithBuildKit(context.Background(), cfg.BuildkitAddr, buildDir, imageName, cacheRef, buildPlan, cfg.Insecure)
+
+	digest, err := buildWithBuildKit(context.Background(), cfg.BuildkitAddr, buildDir, imageName, cacheRef, buildPlan)
+
 	if err != nil {
 		return err
 	}
 
 	slog.Info("build completed", "image", imageName, "digest", digest)
 
-	// 8. Annotate Job with result
+	return nil
+}
 
-	if err := annotateJobResult(k8sClient, cfg.Namespace, cfg.BuildID, imageName, digest); err != nil {
-		return fmt.Errorf("failed to annotate job: %w", err)
+// stripTag returns the image ref without its trailing tag.
+// Port-safe: ignores colons that come before the last slash.
+func stripTag(ref string) string {
+	slashIdx := strings.LastIndex(ref, "/")
+	colonIdx := strings.LastIndex(ref, ":")
+
+	if colonIdx > slashIdx {
+		return ref[:colonIdx]
 	}
 
-	slog.Info("build result annotated on job", "build_id", cfg.BuildID)
-	return nil
+	return ref
 }
 
 // waitForBuildKit waits for BuildKit to become available (TCP or Unix socket).
@@ -184,7 +140,7 @@ func waitForBuildKit(addr string) error {
 }
 
 // cloneForBuild clones a repo for the build runner.
-func cloneForBuild(workDir, sourceURL, gitRef, token string) (string, error) {
+func cloneForBuild(workDir, sourceURL, token string) (string, error) {
 	tmpDir, err := os.MkdirTemp(workDir, "build-*")
 	if err != nil {
 		return "", fmt.Errorf("failed to create work dir: %w", err)
@@ -259,19 +215,6 @@ func normalizeTimestamps(repoPath string) error {
 	})
 }
 
-// buildFullSHA returns the full git SHA of HEAD.
-func buildFullSHA(repoPath string) string {
-	repo, err := git.PlainOpen(repoPath)
-	if err != nil {
-		return "latest"
-	}
-	head, err := repo.Head()
-	if err != nil {
-		return "latest"
-	}
-	return head.Hash().String()
-}
-
 // generatePlan creates a railpack build plan from the source directory.
 func generatePlan(buildDir string) (*plan.BuildPlan, error) {
 	a, err := app.NewApp(buildDir)
@@ -301,7 +244,10 @@ func generatePlan(buildDir string) (*plan.BuildPlan, error) {
 // buildWithBuildKit converts the railpack plan to LLB and solves directly with the
 // BuildKit Go client. This bypasses the gateway frontend, which fixes cache import —
 // the railpack frontend never forwarded cache-imports to its inner solve call.
-func buildWithBuildKit(ctx context.Context, buildkitAddr, buildDir, imageName, cacheRef string, buildPlan *plan.BuildPlan, insecure bool) (string, error) {
+//
+// The platform's OCI registry (Zot) is served over plain HTTP on the cluster-internal
+// address, so all registry interactions are flagged insecure.
+func buildWithBuildKit(ctx context.Context, buildkitAddr, buildDir, imageName, cacheRef string, buildPlan *plan.BuildPlan) (string, error) {
 	c, err := client.New(ctx, buildkitAddr)
 	if err != nil {
 		return "", fmt.Errorf("failed to connect to buildkit: %w", err)
@@ -316,37 +262,6 @@ func buildWithBuildKit(ctx context.Context, buildkitAddr, buildDir, imageName, c
 	if err != nil {
 		return "", fmt.Errorf("failed to convert plan to LLB: %w", err)
 	}
-
-	// Add non-root user setup. Railpack doesn't support non-root users
-	// (railwayapp/railpack#286), so we append LLB steps to create UID 1000
-	// and transfer ownership of the WORKDIR. This is technology-agnostic:
-	// the WORKDIR comes from railpack's image config, not a hardcoded path.
-	workdir := image.Config.WorkingDir
-	if workdir == "" {
-		workdir = "/"
-	}
-	nonRootState := llbState.Run(
-		llb.Shlex(fmt.Sprintf(
-			"sh -c '(addgroup -g 1000 lucity 2>/dev/null || groupadd -g 1000 lucity 2>/dev/null) || true && "+
-				"(adduser -u 1000 -G lucity -D -h %s lucity 2>/dev/null || "+
-				"useradd -u 1000 -g 1000 -d %s -M lucity 2>/dev/null) || true'",
-			workdir, workdir)),
-	).Root()
-	// Use llb.Copy to transfer workdir ownership to UID 1000 at the snapshot
-	// level. This replaces `chown -R` which was extremely slow on network
-	// storage (186s for a small Next.js app on Hetzner CSI).
-	nonRootState = nonRootState.File(
-		llb.Copy(nonRootState, workdir, workdir, &llb.CopyInfo{
-			AllowWildcard:  true,
-			CreateDestPath: true,
-			ChownOpt: &llb.ChownOpt{
-				User:  &llb.UserOpt{UID: 1000},
-				Group: &llb.UserOpt{UID: 1000},
-			},
-		}),
-	)
-	llbState = &nonRootState
-	image.Config.User = "1000:1000"
 
 	imageBytes, err := json.Marshal(image)
 	if err != nil {
@@ -369,27 +284,23 @@ func buildWithBuildKit(ctx context.Context, buildkitAddr, buildDir, imageName, c
 		"name":                  imageName,
 		"push":                  "true",
 		"containerimage.config": string(imageBytes),
-	}
-	if insecure {
-		exportAttrs["registry.insecure"] = "true"
+		"registry.insecure":     "true",
 	}
 
 	// Cache import from registry (cache miss on first build is handled gracefully)
-	importCacheAttrs := map[string]string{"ref": cacheRef}
-	if insecure {
-		importCacheAttrs["registry.insecure"] = "true"
+	importCacheAttrs := map[string]string{
+		"ref":               cacheRef,
+		"registry.insecure": "true",
 	}
 
 	// Cache export to registry (mode=max includes all intermediate layers).
 	// image-manifest=true forces a standard OCI image manifest instead of an image index —
 	// required for Zot compatibility (https://github.com/project-zot/zot/issues/2728).
 	exportCacheAttrs := map[string]string{
-		"ref":            cacheRef,
-		"mode":           "max",
-		"image-manifest": "true",
-	}
-	if insecure {
-		exportCacheAttrs["registry.insecure"] = "true"
+		"ref":               cacheRef,
+		"mode":              "max",
+		"image-manifest":    "true",
+		"registry.insecure": "true",
 	}
 
 	// Registry auth: load Docker config from DOCKER_CONFIG env var (set to
@@ -452,12 +363,4 @@ func buildWithBuildKit(ctx context.Context, buildkitAddr, buildDir, imageName, c
 
 	slog.Info("buildkit solve completed", "duration", time.Since(startTime).Round(time.Millisecond))
 	return resp.ExporterResponse["containerimage.digest"], nil
-}
-
-func inClusterClient() (kubernetes.Interface, error) {
-	config, err := rest.InClusterConfig()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get in-cluster config: %w", err)
-	}
-	return kubernetes.NewForConfig(config)
 }
