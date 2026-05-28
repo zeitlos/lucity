@@ -12,7 +12,7 @@ const (
 	Ephemeral    = Prefix + "ephemeral"
 	Service      = Prefix + "service"
 	BuiltBy      = Prefix + "built-by"
-	ManagedBy    = Prefix + "managed-by"
+	ManagedBy    = "app.kubernetes.io/managed-by"
 	ResourceType       = Prefix + "resource-type"
 	ResourceTier       = Prefix + "resource-tier"
 	GitHubInstallation = Prefix + "github-installation"
