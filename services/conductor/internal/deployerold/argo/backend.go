@@ -1,4 +1,4 @@
-// Package argo implements deployer.Backend on top of Soft-serve
+// Package argo implements deployerold.Backend on top of Soft-serve
 // (GitOps repo storage) and ArgoCD (sync + reconciliation).
 //
 // One ArgoCD Application exists per environment of a project; that
@@ -23,14 +23,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/zeitlos/lucity/services/conductor/internal/deployer"
+	"github.com/zeitlos/lucity/services/conductor/internal/deployerold"
 	"github.com/zeitlos/lucity/services/conductor/internal/deployerold/argo/argocd"
 	"github.com/zeitlos/lucity/services/conductor/internal/deployerold/argo/gitops"
 	"github.com/zeitlos/lucity/services/conductor/internal/domain"
 	"github.com/zeitlos/lucity/services/conductor/internal/kube"
 )
 
-// Backend is the GitOps + ArgoCD implementation of deployer.Backend.
+// Backend is the GitOps + ArgoCD implementation of deployerold.Backend.
 //
 // It is safe for concurrent calls on different Targets. Calls on the
 // same Target may serialize on the underlying Soft-serve repo
@@ -46,8 +46,8 @@ func New(forge gitops.Forge, argo *argocd.Client, k8s kubernetes.Interface) *Bac
 	return &Backend{forge: forge, argo: argo, k8s: k8s}
 }
 
-// Statically assert Backend implements deployer.Backend.
-var _ deployer.Backend = (*Backend)(nil)
+// Statically assert Backend implements deployerold.Backend.
+var _ deployerold.Backend = (*Backend)(nil)
 
 // ----------------------------------------------------------------------------
 // Apply
@@ -63,7 +63,7 @@ var _ deployer.Backend = (*Backend)(nil)
 // from Spec are not yet plumbed through — phase 3 handler refactor
 // will extend the gitops Repository interface to accept them as part
 // of a single SetService call.
-func (b *Backend) Apply(ctx context.Context, t deployer.Target, spec deployer.Spec) (deployer.DeploymentID, error) {
+func (b *Backend) Apply(ctx context.Context, t deployerold.Target, spec deployerold.Spec) (deployerold.DeploymentID, error) {
 	nctx, err := kube.ResolveNamespace(ctx, b.k8s, t.Namespace)
 	if err != nil {
 		return "", fmt.Errorf("resolve namespace: %w", err)
@@ -111,7 +111,7 @@ func (b *Backend) Apply(ctx context.Context, t deployer.Target, spec deployer.Sp
 	// Phase 2b: DeploymentID is a synthetic timestamp identifier. Phase 3
 	// will plumb the actual git commit SHA through the gitops Repository
 	// interface so Rollback can address it.
-	return deployer.DeploymentID(fmt.Sprintf("%s@%d", appName, time.Now().UnixNano())), nil
+	return deployerold.DeploymentID(fmt.Sprintf("%s@%d", appName, time.Now().UnixNano())), nil
 }
 
 // ----------------------------------------------------------------------------
@@ -119,23 +119,23 @@ func (b *Backend) Apply(ctx context.Context, t deployer.Target, spec deployer.Sp
 // ----------------------------------------------------------------------------
 
 // Get returns the currently-applied Spec for the Target. Returns
-// deployer.ErrNotFound when the service does not exist in the
+// deployerold.ErrNotFound when the service does not exist in the
 // environment values.
-func (b *Backend) Get(ctx context.Context, t deployer.Target) (deployer.Spec, error) {
+func (b *Backend) Get(ctx context.Context, t deployerold.Target) (deployerold.Spec, error) {
 	nctx, err := kube.ResolveNamespace(ctx, b.k8s, t.Namespace)
 	if err != nil {
-		return deployer.Spec{}, fmt.Errorf("resolve namespace: %w", err)
+		return deployerold.Spec{}, fmt.Errorf("resolve namespace: %w", err)
 	}
 
 	repo, cleanup, err := b.openRepo(ctx, nctx)
 	if err != nil {
-		return deployer.Spec{}, err
+		return deployerold.Spec{}, err
 	}
 	defer cleanup()
 
 	services, err := repo.EnvironmentServices(ctx, string(nctx.Environment))
 	if err != nil {
-		return deployer.Spec{}, fmt.Errorf("read environment services: %w", err)
+		return deployerold.Spec{}, fmt.Errorf("read environment services: %w", err)
 	}
 
 	for _, s := range services {
@@ -143,7 +143,7 @@ func (b *Backend) Get(ctx context.Context, t deployer.Target) (deployer.Spec, er
 			return serviceMetaToSpec(s), nil
 		}
 	}
-	return deployer.Spec{}, deployer.ErrNotFound
+	return deployerold.Spec{}, deployerold.ErrNotFound
 }
 
 // ----------------------------------------------------------------------------
@@ -153,7 +153,7 @@ func (b *Backend) Get(ctx context.Context, t deployer.Target) (deployer.Spec, er
 // Remove deletes the service from the environment's values and
 // triggers an ArgoCD sync to converge the cluster. Idempotent: if the
 // service is not present, returns nil.
-func (b *Backend) Remove(ctx context.Context, t deployer.Target) error {
+func (b *Backend) Remove(ctx context.Context, t deployerold.Target) error {
 	nctx, err := kube.ResolveNamespace(ctx, b.k8s, t.Namespace)
 	if err != nil {
 		// Namespace gone is fine for Remove.
@@ -190,23 +190,23 @@ func (b *Backend) Remove(ctx context.Context, t deployer.Target) error {
 // covers manifest sync drift; the Pod signal covers actual workload
 // health (CrashLoopBackOff, ImagePullBackOff, etc.). The combined
 // shape is collapsed into a single domain.RolloutHealth.
-func (b *Backend) Status(ctx context.Context, t deployer.Target) (deployer.Status, error) {
+func (b *Backend) Status(ctx context.Context, t deployerold.Target) (deployerold.Status, error) {
 	nctx, err := kube.ResolveNamespace(ctx, b.k8s, t.Namespace)
 	if err != nil {
-		return deployer.Status{}, fmt.Errorf("resolve namespace: %w", err)
+		return deployerold.Status{}, fmt.Errorf("resolve namespace: %w", err)
 	}
 
 	appName := gitops.NamespaceFor(string(nctx.Workspace), string(nctx.Project), string(nctx.Environment))
 	app, err := b.argo.Application(ctx, appName)
 	if err != nil {
-		return deployer.Status{}, fmt.Errorf("get argocd app %s: %w", appName, err)
+		return deployerold.Status{}, fmt.Errorf("get argocd app %s: %w", appName, err)
 	}
 
 	pods, err := b.k8s.CoreV1().Pods(t.Namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("app.kubernetes.io/name=%s", t.Name),
 	})
 	if err != nil {
-		return deployer.Status{}, fmt.Errorf("list pods: %w", err)
+		return deployerold.Status{}, fmt.Errorf("list pods: %w", err)
 	}
 
 	return aggregateStatus(app, pods.Items), nil
@@ -222,7 +222,7 @@ func (b *Backend) Status(ctx context.Context, t deployer.Target) (deployer.Statu
 // Specs returned in History entries are NOT populated in this phase
 // — DeploymentEntry from gitops only carries the image tag. Phase 3
 // will plumb full Spec snapshots through if the API needs it.
-func (b *Backend) History(ctx context.Context, t deployer.Target) ([]deployer.Deployment, error) {
+func (b *Backend) History(ctx context.Context, t deployerold.Target) ([]deployerold.Deployment, error) {
 	nctx, err := kube.ResolveNamespace(ctx, b.k8s, t.Namespace)
 	if err != nil {
 		return nil, fmt.Errorf("resolve namespace: %w", err)
@@ -253,7 +253,7 @@ func (b *Backend) History(ctx context.Context, t deployer.Target) ([]deployer.De
 // the existing rollback behavior is implemented at the deployer-grpc
 // layer by reading the prior tag and re-issuing UpdateImageTag with a
 // "rollback" commit prefix. Phase 3 will lift that into Backend.
-func (b *Backend) Rollback(ctx context.Context, t deployer.Target, id deployer.DeploymentID) (deployer.DeploymentID, error) {
+func (b *Backend) Rollback(ctx context.Context, t deployerold.Target, id deployerold.DeploymentID) (deployerold.DeploymentID, error) {
 	return "", fmt.Errorf("argo backend: Rollback not implemented in phase 2b")
 }
 
@@ -295,7 +295,7 @@ func serviceExists(ctx context.Context, repo gitops.Repository, env, name string
 // specToServiceDef builds a gitops.ServiceDef for a fresh service
 // being added to an environment. Only the fields representable in
 // today's chart values are populated.
-func specToServiceDef(name string, spec deployer.Spec) gitops.ServiceDef {
+func specToServiceDef(name string, spec deployerold.Spec) gitops.ServiceDef {
 	port := 0
 	if len(spec.Ports) > 0 {
 		port = spec.Ports[0].Number
@@ -312,7 +312,7 @@ func specToServiceDef(name string, spec deployer.Spec) gitops.ServiceDef {
 // autoscalingFromSpec builds a gitops.AutoscalingConfig from a Spec's
 // scaling intent. Returns nil when the workload is fixed-replica
 // (Min == Max), which signals the chart not to install an HPA.
-func autoscalingFromSpec(scale deployer.ScaleSpec) *gitops.AutoscalingConfig {
+func autoscalingFromSpec(scale deployerold.ScaleSpec) *gitops.AutoscalingConfig {
 	if scale.Max <= scale.Min {
 		return nil
 	}
@@ -330,8 +330,8 @@ func autoscalingFromSpec(scale deployer.ScaleSpec) *gitops.AutoscalingConfig {
 // serviceMetaToSpec converts the gitops view of an environment's
 // service back into a Spec. Source-level fields (framework, source
 // URL) are dropped — they are project metadata, not desired state.
-func serviceMetaToSpec(m gitops.ServiceInstanceMeta) deployer.Spec {
-	spec := deployer.Spec{
+func serviceMetaToSpec(m gitops.ServiceInstanceMeta) deployerold.Spec {
+	spec := deployerold.Spec{
 		Image: domain.ImageRef{
 			Repository: m.Image,
 			Tag:        m.ImageTag,
@@ -339,7 +339,7 @@ func serviceMetaToSpec(m gitops.ServiceInstanceMeta) deployer.Spec {
 		Type: domain.WorkloadWeb,
 	}
 	if m.Port != 0 {
-		spec.Ports = []deployer.Port{{Number: m.Port}}
+		spec.Ports = []deployerold.Port{{Number: m.Port}}
 	}
 	return spec
 }
@@ -349,13 +349,13 @@ func serviceMetaToSpec(m gitops.ServiceInstanceMeta) deployer.Spec {
 // commit message prefix the gitops layer captured (deploy / rollback
 // / promote all become "Succeeded" — failures aren't recorded in
 // git history).
-func entriesToDeployments(t deployer.Target, entries []gitops.DeploymentEntry) []deployer.Deployment {
-	out := make([]deployer.Deployment, 0, len(entries))
+func entriesToDeployments(t deployerold.Target, entries []gitops.DeploymentEntry) []deployerold.Deployment {
+	out := make([]deployerold.Deployment, 0, len(entries))
 	for _, e := range entries {
-		out = append(out, deployer.Deployment{
-			ID:         deployer.DeploymentID(e.Revision),
+		out = append(out, deployerold.Deployment{
+			ID:         deployerold.DeploymentID(e.Revision),
 			Target:     t,
-			Spec:       deployer.Spec{Image: domain.ImageRef{Tag: e.ImageTag}},
+			Spec:       deployerold.Spec{Image: domain.ImageRef{Tag: e.ImageTag}},
 			Status:     domain.DeploymentSucceeded,
 			DeployedAt: e.Timestamp,
 			DeployedBy: e.Author,
@@ -366,8 +366,8 @@ func entriesToDeployments(t deployer.Target, entries []gitops.DeploymentEntry) [
 
 // aggregateStatus collapses the ArgoCD Application + Pod state into
 // the small abstract Status the Backend interface returns.
-func aggregateStatus(app *argocd.Application, pods []corev1.Pod) deployer.Status {
-	st := deployer.Status{
+func aggregateStatus(app *argocd.Application, pods []corev1.Pod) deployerold.Status {
+	st := deployerold.Status{
 		Health: argoToHealth(app),
 	}
 	for _, p := range pods {
@@ -420,8 +420,8 @@ func argoToHealth(app *argocd.Application) domain.RolloutHealth {
 
 // podSummary builds a small per-Pod status from the K8s pod object,
 // surfacing the most useful failure reason if present.
-func podSummary(p corev1.Pod) deployer.PodStatus {
-	ps := deployer.PodStatus{
+func podSummary(p corev1.Pod) deployerold.PodStatus {
+	ps := deployerold.PodStatus{
 		Name:  p.Name,
 		Phase: string(p.Status.Phase),
 		Ready: isPodReady(p),

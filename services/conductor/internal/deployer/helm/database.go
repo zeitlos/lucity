@@ -1,0 +1,33 @@
+package helm
+
+import (
+	"context"
+
+	"github.com/zeitlos/lucity/services/conductor/internal/deployer"
+	"github.com/zeitlos/lucity/services/conductor/internal/deployer/values"
+	"github.com/zeitlos/lucity/services/conductor/internal/platform"
+)
+
+type databaseClient struct {
+	client *Client
+}
+
+func (d *databaseClient) Create(ctx context.Context, env platform.EnvironmentID, name string, spec deployer.DatabaseSpec) (deployer.RevisionID, error) {
+	return d.client.applyEnv(ctx, env, func(e *values.Env) error {
+		return values.CreateDatabase(e, name, values.DatabaseSpec{
+			Version:   spec.Version,
+			Instances: spec.Instances,
+			Size:      spec.Size,
+		})
+	})
+}
+
+func (d *databaseClient) Delete(ctx context.Context, id platform.DatabaseID) error {
+	_, err := d.client.applyEnv(ctx, id.EnvironmentID(), func(e *values.Env) error {
+		return values.DeleteDatabase(e, id.Name)
+	})
+
+	return err
+}
+
+var _ deployer.DatabaseClient = (*databaseClient)(nil)
