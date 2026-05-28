@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"k8s.io/apimachinery/pkg/api/resource"
-
 	"github.com/zeitlos/lucity/services/conductor/internal/deployer"
 	"github.com/zeitlos/lucity/services/conductor/internal/deployer/values"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
@@ -51,9 +49,12 @@ func (s *serviceClient) SetAutoscaling(ctx context.Context, id platform.ServiceI
 	})
 }
 
-func (s *serviceClient) SetResources(ctx context.Context, id platform.ServiceID, cpu, memory resource.Quantity) (deployer.RevisionID, error) {
+func (s *serviceClient) SetResources(ctx context.Context, id platform.ServiceID, res deployer.Resources) (deployer.RevisionID, error) {
 	return s.client.applyEnv(ctx, id.EnvironmentID(), func(e *values.Env) error {
-		return values.SetServiceResources(e, id.Name, cpu, memory)
+		return values.SetServiceResources(e, id.Name,
+			values.ResourceList{CPU: res.Requests.CPU.String(), Memory: res.Requests.Memory.String()},
+			values.ResourceList{CPU: res.Limits.CPU.String(), Memory: res.Limits.Memory.String()},
+		)
 	})
 }
 

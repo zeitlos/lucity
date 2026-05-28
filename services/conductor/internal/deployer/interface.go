@@ -24,7 +24,7 @@ type ServiceClient interface {
 	SetImage(ctx context.Context, id platform.ServiceID, ref, digest string) (RevisionID, error)
 	SetReplicas(ctx context.Context, id platform.ServiceID, replicas int) (RevisionID, error)
 	SetAutoscaling(ctx context.Context, id platform.ServiceID, config Autoscaling) (RevisionID, error)
-	SetResources(ctx context.Context, id platform.ServiceID, cpu, memory resource.Quantity) (RevisionID, error)
+	SetResources(ctx context.Context, id platform.ServiceID, resources Resources) (RevisionID, error)
 	SetCommand(ctx context.Context, id platform.ServiceID, command string) (RevisionID, error)
 	SetBranch(ctx context.Context, id platform.ServiceID, branch string) (RevisionID, error)
 	SetPort(ctx context.Context, id platform.ServiceID, port int) (RevisionID, error)
@@ -76,4 +76,14 @@ type Autoscaling struct {
 	MinReplicas int
 	MaxReplicas int
 	TargetCPU   int
+}
+
+type Resources struct {
+	Requests ResourceList
+	Limits   ResourceList
+}
+
+type ResourceList struct {
+	CPU    resource.Quantity
+	Memory resource.Quantity
 }

@@ -5,6 +5,7 @@ import (
 
 	pkglabels "github.com/zeitlos/lucity/pkg/labels"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
+	"github.com/zeitlos/lucity/services/conductor/internal/resources"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -17,13 +18,8 @@ var (
 	defaultQuotaMemory  = resource.MustParse("8Gi")
 	defaultQuotaStorage = resource.MustParse("40Gi")
 
-	burstableCPURequest    = resource.MustParse("100m")
-	burstableCPULimit      = resource.MustParse("500m")
-	burstableMemoryRequest = resource.MustParse("256Mi")
-	burstableMemoryLimit   = resource.MustParse("512Mi")
-
-	guaranteedCPU    = resource.MustParse("500m")
-	guaranteedMemory = resource.MustParse("512Mi")
+	defaultContainerCPULimit    = resource.MustParse("500m")
+	defaultContainerMemoryLimit = resource.MustParse("512Mi")
 )
 
 func (c *Client) ensureQuota(ctx context.Context, id platform.EnvironmentID) error {
@@ -102,7 +98,7 @@ func buildQuota(namespace string) *corev1.ResourceQuota {
 }
 
 func buildLimitRange(namespace string, tier platform.ResourceTier) *corev1.LimitRange {
-	lr := &corev1.LimitRange{
+	return &corev1.LimitRange{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      limitRangeName,
 			Namespace: namespace,
@@ -110,35 +106,18 @@ func buildLimitRange(namespace string, tier platform.ResourceTier) *corev1.Limit
 				pkglabels.ManagedBy: pkglabels.ManagedByLucity,
 			},
 		},
-	}
-
-	if tier == platform.ProductionTier {
-		lr.Spec.Limits = []corev1.LimitRangeItem{{
-			Type: corev1.LimitTypeContainer,
-			Default: corev1.ResourceList{
-				corev1.ResourceCPU:    guaranteedCPU,
-				corev1.ResourceMemory: guaranteedMemory,
-			},
-			DefaultRequest: corev1.ResourceList{
-				corev1.ResourceCPU:    guaranteedCPU,
-				corev1.ResourceMemory: guaranteedMemory,
-			},
-		}}
-
-		return lr
-	}
-
-	lr.Spec.Limits = []corev1.LimitRangeItem{{
-		Type: corev1.LimitTypeContainer,
-		Default: corev1.ResourceList{
-			corev1.ResourceCPU:    burstableCPULimit,
-			corev1.ResourceMemory: burstableMemoryLimit,
+		Spec: corev1.LimitRangeSpec{
+			Limits: []corev1.LimitRangeItem{{
+				Type: corev1.LimitTypeContainer,
+				Default: corev1.ResourceList{
+					corev1.ResourceCPU:    defaultContainerCPULimit,
+					corev1.ResourceMemory: defaultContainerMemoryLimit,
+				},
+				DefaultRequest: corev1.ResourceList{
+					corev1.ResourceCPU:    resources.Request(tier, defaultContainerCPULimit),
+					corev1.ResourceMemory: resources.Request(tier, defaultContainerMemoryLimit),
+				},
+			}},
 		},
-		DefaultRequest: corev1.ResourceList{
-			corev1.ResourceCPU:    burstableCPURequest,
-			corev1.ResourceMemory: burstableMemoryRequest,
-		},
-	}}
-
-	return lr
+	}
 }

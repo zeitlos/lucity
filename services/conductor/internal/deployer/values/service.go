@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"slices"
 	"strings"
-
-	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 type Service struct {
@@ -146,11 +144,11 @@ func SetServiceAutoscaling(env *Env, name string, cfg Autoscaling) error {
 	})
 }
 
-func SetServiceResources(env *Env, name string, cpu, memory resource.Quantity) error {
+func SetServiceResources(env *Env, name string, requests, limits ResourceList) error {
 	return mutateService(env, name, func(s *Service) {
 		s.Resources = Resources{
-			Requests: ResourceList{CPU: cpu.String(), Memory: memory.String()},
-			Limits:   ResourceList{CPU: cpu.String(), Memory: memory.String()},
+			Requests: requests,
+			Limits:   limits,
 		}
 	})
 }
