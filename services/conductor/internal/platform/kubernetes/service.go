@@ -99,6 +99,40 @@ func (c *Client) Services(ctx context.Context, environmentID platform.Environmen
 	return services, nil
 }
 
+func (c *Client) ServicesByRepo(ctx context.Context, repoURL, branch string) ([]platform.ServiceID, error) {
+	req, err := labels.NewRequirement(serviceLabel, selection.Exists, nil)
+
+	if err != nil {
+		return nil, err
+	}
+
+	selector := labels.NewSelector().Add(*req)
+
+	deployments, err := c.kubernetes.AppsV1().Deployments("").List(ctx, meta.ListOptions{
+		LabelSelector: selector.String(),
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	var result []platform.ServiceID
+
+	for _, deployment := range deployments.Items {
+		if deployment.Annotations[annotationSourceRepo] != repoURL {
+			continue
+		}
+
+		if branch != "" && deployment.Annotations[annotationSourceBranch] != branch {
+			continue
+		}
+
+		result = append(result, serviceID(deployment, environmentID(deployment.Labels)))
+	}
+
+	return result, nil
+}
+
 func (c *Client) Service(ctx context.Context, id platform.ServiceID) (*platform.Service, error) {
 	deployment, err := c.deploymentFor(ctx, id)
 

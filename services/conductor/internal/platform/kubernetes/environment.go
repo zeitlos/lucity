@@ -53,7 +53,7 @@ func (c *Client) Environment(ctx context.Context, id platform.EnvironmentID) (*p
 
 func toEnvironment(namespace core.Namespace) platform.Environment {
 	env := platform.Environment{
-		ID:        environmentID(namespace),
+		ID:        environmentID(namespace.Labels),
 		Name:      namespace.Labels[environmentLabel],
 		CreatedAt: namespace.CreationTimestamp.Time,
 	}
@@ -86,10 +86,10 @@ func toEnvironments(namespaces []core.Namespace) []platform.Environment {
 	return result
 }
 
-func environmentID(namespace core.Namespace) platform.EnvironmentID {
+func environmentID(labels map[string]string) platform.EnvironmentID {
 	return platform.EnvironmentID{
-		Workspace: namespace.Labels[workspaceLabel],
-		Project:   namespace.Labels[projectLabel],
-		Name:      namespace.Labels[environmentLabel],
+		Workspace: labels[workspaceLabel],
+		Project:   labels[projectLabel],
+		Name:      labels[environmentLabel],
 	}
 }
