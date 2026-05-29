@@ -24,6 +24,7 @@ import (
 	"golang.org/x/crypto/ssh"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -36,10 +37,14 @@ import (
 	"github.com/zeitlos/lucity/pkg/logto"
 
 	kauth "github.com/google/go-containerregistry/pkg/authn/kubernetes"
+	"github.com/zeitlos/lucity/charts"
 	webhookpkg "github.com/zeitlos/lucity/services/conductor/internal/api/webhook"
 	webhookhttp "github.com/zeitlos/lucity/services/conductor/internal/api/webhook/http"
 	buildjobK8s "github.com/zeitlos/lucity/services/conductor/internal/buildjob/kubernetes"
 	"github.com/zeitlos/lucity/services/conductor/internal/conductor"
+	helmDeployer "github.com/zeitlos/lucity/services/conductor/internal/deployer/helm"
+	"github.com/zeitlos/lucity/services/conductor/internal/gateway"
+	"github.com/zeitlos/lucity/services/conductor/internal/hostname"
 	"github.com/zeitlos/lucity/services/conductor/internal/deployerold/argo/argocd"
 	"github.com/zeitlos/lucity/services/conductor/internal/deployerold/argo/gitops/softserve"
 	directoryLogto "github.com/zeitlos/lucity/services/conductor/internal/directory/logto"
@@ -289,6 +294,21 @@ func main() {
 
 	planner := railpack.New()
 
+	chartRef, err := helmDeployer.LoadChartFromFS(charts.LucityApp, "lucity-app")
+
+	if err != nil {
+		slog.Error("failed to load lucity-app chart", "error", err)
+		os.Exit(1)
+	}
+
+	restGetter := genericclioptions.NewConfigFlags(false)
+
+	helmClient := helmDeployer.New(chartRef, restGetter)
+
+	hostnameClient := hostname.New(config.WorkloadDomain, domainTarget, config.IPAddress, k8sClient, dynClient)
+
+	gatewayClient := gateway.New(dynClient, config.GatewayName, config.GatewayNamespace)
+
 	conductorConfig := conductor.Config{
 		RegistryPushURL:     config.RegistryURL,
 		RegistryPullSecret:  keychain,
@@ -299,7 +319,9 @@ func main() {
 		GitHubAppSlug:       config.GitHubAppSlug,
 		DashboardURL:        config.DashboardURL,
 	}
-	conductor := conductor.New(packagerSvc, deployerSvc, cashierClient, internalIssuer, githubApp, logtoClient, tokenRefresher, directoryClient, platformClient, jobsClient, planner, source, conductorConfig)
+	conductor := conductor.New(packagerSvc, deployerSvc, cashierClient, internalIssuer, githubApp, logtoClient, tokenRefresher, directoryClient, platformClient, jobsClient, planner, source, hostnameClient, gatewayClient, helmClient, conductorConfig)
+
+	go runDomainReconciler(ctx, conductor)
 
 	// ---- Servers ----
 	components := []grpcComponent{}

@@ -45,9 +45,9 @@ func Validate(env *Env) error {
 			}
 		}
 
-		for _, host := range svc.Domains {
-			if !isValidHostname(host) {
-				return fmt.Errorf("service %q: invalid hostname %q", svcName, host)
+		for _, domain := range svc.Domains {
+			if !isValidHostname(domain.Host) {
+				return fmt.Errorf("service %q: invalid hostname %q", svcName, domain.Host)
 			}
 		}
 

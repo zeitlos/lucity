@@ -32,6 +32,7 @@ type ServiceClient interface {
 
 	AddDomain(ctx context.Context, id platform.ServiceID, host string) (RevisionID, error)
 	RemoveDomain(ctx context.Context, id platform.ServiceID, host string) (RevisionID, error)
+	VerifyDomain(ctx context.Context, id platform.ServiceID, host string, verified bool) (RevisionID, error)
 
 	Mount(ctx context.Context, id platform.ServiceID, volume platform.VolumeID, mountPath string) (RevisionID, error)
 	Unmount(ctx context.Context, id platform.ServiceID, volume platform.VolumeID) (RevisionID, error)

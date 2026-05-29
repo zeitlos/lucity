@@ -12,7 +12,7 @@ type Service struct {
 	Replicas             int                    `yaml:"replicas,omitempty"`
 	Autoscaling          *Autoscaling           `yaml:"autoscaling,omitempty"`
 	Resources            Resources              `yaml:"resources,omitempty"`
-	Domains              []string               `yaml:"domains,omitempty"`
+	Domains              []Domain               `yaml:"domains,omitempty"`
 	CustomStartCommand   string                 `yaml:"customStartCommand,omitempty"`
 	Env                  map[string]string      `yaml:"env,omitempty"`
 	SharedRefs           []string               `yaml:"sharedRefs,omitempty"`
@@ -55,6 +55,11 @@ type DatabaseRef struct {
 
 type ServiceRef struct {
 	Service string `yaml:"service"`
+}
+
+type Domain struct {
+	Host     string `yaml:"host"`
+	Verified bool   `yaml:"verified"`
 }
 
 type ServiceSpec struct {
@@ -193,17 +198,29 @@ func AddServiceDomain(env *Env, name, host string) error {
 	}
 
 	return mutateService(env, name, func(s *Service) {
-		if !slices.Contains(s.Domains, host) {
-			s.Domains = append(s.Domains, host)
+		if slices.ContainsFunc(s.Domains, func(d Domain) bool { return d.Host == host }) {
+			return
 		}
+
+		s.Domains = append(s.Domains, Domain{Host: host, Verified: false})
 	})
 }
 
 func RemoveServiceDomain(env *Env, name, host string) error {
 	return mutateService(env, name, func(s *Service) {
-		s.Domains = slices.DeleteFunc(s.Domains, func(h string) bool {
-			return h == host
+		s.Domains = slices.DeleteFunc(s.Domains, func(d Domain) bool {
+			return d.Host == host
 		})
+	})
+}
+
+func VerifyServiceDomain(env *Env, name, host string, verified bool) error {
+	return mutateService(env, name, func(s *Service) {
+		i := slices.IndexFunc(s.Domains, func(d Domain) bool { return d.Host == host })
+
+		if i >= 0 {
+			s.Domains[i].Verified = verified
+		}
 	})
 }
 

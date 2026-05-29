@@ -32,6 +32,7 @@ type Config = graphql.Config[ResolverRoot, DirectiveRoot, ComplexityRoot]
 
 type ResolverRoot interface {
 	Deployment() DeploymentResolver
+	Domain() DomainResolver
 	Environment() EnvironmentResolver
 	Mutation() MutationResolver
 	Query() QueryResolver
@@ -153,20 +154,18 @@ type ComplexityRoot struct {
 		SuggestedPort func(childComplexity int) int
 	}
 
-	DnsCheck struct {
-		CnameTarget    func(childComplexity int) int
-		ExpectedTarget func(childComplexity int) int
-		Hostname       func(childComplexity int) int
-		Message        func(childComplexity int) int
-		Status         func(childComplexity int) int
-		TLSStatus      func(childComplexity int) int
+	DnsRecord struct {
+		Host  func(childComplexity int) int
+		Type  func(childComplexity int) int
+		Value func(childComplexity int) int
 	}
 
 	Domain struct {
-		DNSStatus func(childComplexity int) int
-		Hostname  func(childComplexity int) int
-		TLSStatus func(childComplexity int) int
-		Type      func(childComplexity int) int
+		DNSStatus          func(childComplexity int) int
+		Hostname           func(childComplexity int) int
+		RequiredDNSRecords func(childComplexity int) int
+		TLSStatus          func(childComplexity int) int
+		Type               func(childComplexity int) int
 	}
 
 	Endpoint struct {
@@ -259,7 +258,6 @@ type ComplexityRoot struct {
 
 	Query struct {
 		Build                func(childComplexity int, id string) int
-		CheckDNSStatus       func(childComplexity int, hostname string) int
 		Database             func(childComplexity int, id platform.DatabaseID) int
 		DatabaseCredentials  func(childComplexity int, database platform.DatabaseID) int
 		DatabaseTableData    func(childComplexity int, database platform.DatabaseID, table string, schema *string, limit *int, offset *int) int
@@ -412,6 +410,9 @@ type ComplexityRoot struct {
 type DeploymentResolver interface {
 	CommitMessage(ctx context.Context, obj *model.Deployment) (string, error)
 }
+type DomainResolver interface {
+	RequiredDNSRecords(ctx context.Context, obj *model.Domain) ([]model.DNSRecord, error)
+}
 type EnvironmentResolver interface {
 	Services(ctx context.Context, obj *model.Environment) ([]model.Service, error)
 	Databases(ctx context.Context, obj *model.Environment) ([]model.Database, error)
@@ -470,7 +471,6 @@ type QueryResolver interface {
 	SearchImages(ctx context.Context, query string) ([]model.ImageSearchResult, error)
 	Service(ctx context.Context, id platform.ServiceID) (*model.Service, error)
 	DetectServices(ctx context.Context, installationID string, repositoryURL string) ([]model.DetectedService, error)
-	CheckDNSStatus(ctx context.Context, hostname string) (*model.DNSCheck, error)
 	SharedVariables(ctx context.Context, environment platform.EnvironmentID) ([]model.Variable, error)
 	ServiceVariables(ctx context.Context, service platform.ServiceID) ([]model.ServiceVariable, error)
 	Workspace(ctx context.Context) (*model.Workspace, error)
@@ -905,42 +905,24 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.DetectedService.SuggestedPort(childComplexity), true
 
-	case "DnsCheck.cnameTarget":
-		if e.ComplexityRoot.DnsCheck.CnameTarget == nil {
+	case "DnsRecord.host":
+		if e.ComplexityRoot.DnsRecord.Host == nil {
 			break
 		}
 
-		return e.ComplexityRoot.DnsCheck.CnameTarget(childComplexity), true
-	case "DnsCheck.expectedTarget":
-		if e.ComplexityRoot.DnsCheck.ExpectedTarget == nil {
+		return e.ComplexityRoot.DnsRecord.Host(childComplexity), true
+	case "DnsRecord.type":
+		if e.ComplexityRoot.DnsRecord.Type == nil {
 			break
 		}
 
-		return e.ComplexityRoot.DnsCheck.ExpectedTarget(childComplexity), true
-	case "DnsCheck.hostname":
-		if e.ComplexityRoot.DnsCheck.Hostname == nil {
+		return e.ComplexityRoot.DnsRecord.Type(childComplexity), true
+	case "DnsRecord.value":
+		if e.ComplexityRoot.DnsRecord.Value == nil {
 			break
 		}
 
-		return e.ComplexityRoot.DnsCheck.Hostname(childComplexity), true
-	case "DnsCheck.message":
-		if e.ComplexityRoot.DnsCheck.Message == nil {
-			break
-		}
-
-		return e.ComplexityRoot.DnsCheck.Message(childComplexity), true
-	case "DnsCheck.status":
-		if e.ComplexityRoot.DnsCheck.Status == nil {
-			break
-		}
-
-		return e.ComplexityRoot.DnsCheck.Status(childComplexity), true
-	case "DnsCheck.tlsStatus":
-		if e.ComplexityRoot.DnsCheck.TLSStatus == nil {
-			break
-		}
-
-		return e.ComplexityRoot.DnsCheck.TLSStatus(childComplexity), true
+		return e.ComplexityRoot.DnsRecord.Value(childComplexity), true
 
 	case "Domain.dnsStatus":
 		if e.ComplexityRoot.Domain.DNSStatus == nil {
@@ -954,6 +936,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Domain.Hostname(childComplexity), true
+	case "Domain.requiredDnsRecords":
+		if e.ComplexityRoot.Domain.RequiredDNSRecords == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Domain.RequiredDNSRecords(childComplexity), true
 	case "Domain.tlsStatus":
 		if e.ComplexityRoot.Domain.TLSStatus == nil {
 			break
@@ -1493,17 +1481,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Build(childComplexity, args["id"].(string)), true
-	case "Query.checkDnsStatus":
-		if e.ComplexityRoot.Query.CheckDNSStatus == nil {
-			break
-		}
-
-		args, err := ec.field_Query_checkDnsStatus_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.ComplexityRoot.Query.CheckDNSStatus(childComplexity, args["hostname"].(string)), true
 	case "Query.database":
 		if e.ComplexityRoot.Query.Database == nil {
 			break
@@ -2522,22 +2499,16 @@ func (ec *executionContext) childFields_DetectedService(ctx context.Context, fie
 	return nil, fmt.Errorf("no field named %q was found under type DetectedService", field.Name)
 }
 
-func (ec *executionContext) childFields_DnsCheck(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+func (ec *executionContext) childFields_DnsRecord(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
-	case "hostname":
-		return ec.fieldContext_DnsCheck_hostname(ctx, field)
-	case "status":
-		return ec.fieldContext_DnsCheck_status(ctx, field)
-	case "cnameTarget":
-		return ec.fieldContext_DnsCheck_cnameTarget(ctx, field)
-	case "expectedTarget":
-		return ec.fieldContext_DnsCheck_expectedTarget(ctx, field)
-	case "message":
-		return ec.fieldContext_DnsCheck_message(ctx, field)
-	case "tlsStatus":
-		return ec.fieldContext_DnsCheck_tlsStatus(ctx, field)
+	case "type":
+		return ec.fieldContext_DnsRecord_type(ctx, field)
+	case "host":
+		return ec.fieldContext_DnsRecord_host(ctx, field)
+	case "value":
+		return ec.fieldContext_DnsRecord_value(ctx, field)
 	}
-	return nil, fmt.Errorf("no field named %q was found under type DnsCheck", field.Name)
+	return nil, fmt.Errorf("no field named %q was found under type DnsRecord", field.Name)
 }
 
 func (ec *executionContext) childFields_Endpoint(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
@@ -3497,20 +3468,6 @@ func (ec *executionContext) field_Query_build_args(ctx context.Context, rawArgs 
 		return nil, err
 	}
 	args["id"] = arg0
-	return args, nil
-}
-
-func (ec *executionContext) field_Query_checkDnsStatus_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "hostname",
-		func(ctx context.Context, v any) (string, error) {
-			return ec.unmarshalNString2string(ctx, v)
-		})
-	if err != nil {
-		return nil, err
-	}
-	args["hostname"] = arg0
 	return args, nil
 }
 
@@ -5386,16 +5343,39 @@ func (ec *executionContext) fieldContext_DetectedService_suggestedPort(_ context
 	return graphql.NewScalarFieldContext("DetectedService", field, false, false, errors.New("field of type Int does not have child fields"))
 }
 
-func (ec *executionContext) _DnsCheck_hostname(ctx context.Context, field graphql.CollectedField, obj *model.DNSCheck) (ret graphql.Marshaler) {
+func (ec *executionContext) _DnsRecord_type(ctx context.Context, field graphql.CollectedField, obj *model.DNSRecord) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
 		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_DnsCheck_hostname(ctx, field)
+			return ec.fieldContext_DnsRecord_type(ctx, field)
 		},
 		func(ctx context.Context) (any, error) {
-			return obj.Hostname, nil
+			return obj.Type, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v model.DNSRecordType) graphql.Marshaler {
+			return ec.marshalNDnsRecordType2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDNSRecordType(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DnsRecord_type(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DnsRecord", field, false, false, errors.New("field of type DnsRecordType does not have child fields"))
+}
+
+func (ec *executionContext) _DnsRecord_host(ctx context.Context, field graphql.CollectedField, obj *model.DNSRecord) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DnsRecord_host(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Host, nil
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
@@ -5405,66 +5385,20 @@ func (ec *executionContext) _DnsCheck_hostname(ctx context.Context, field graphq
 		true,
 	)
 }
-func (ec *executionContext) fieldContext_DnsCheck_hostname(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("DnsCheck", field, false, false, errors.New("field of type String does not have child fields"))
+func (ec *executionContext) fieldContext_DnsRecord_host(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DnsRecord", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
-func (ec *executionContext) _DnsCheck_status(ctx context.Context, field graphql.CollectedField, obj *model.DNSCheck) (ret graphql.Marshaler) {
+func (ec *executionContext) _DnsRecord_value(ctx context.Context, field graphql.CollectedField, obj *model.DNSRecord) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
 		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_DnsCheck_status(ctx, field)
+			return ec.fieldContext_DnsRecord_value(ctx, field)
 		},
 		func(ctx context.Context) (any, error) {
-			return obj.Status, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v model.DNSStatus) graphql.Marshaler {
-			return ec.marshalNDnsStatus2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDNSStatus(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_DnsCheck_status(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("DnsCheck", field, false, false, errors.New("field of type DnsStatus does not have child fields"))
-}
-
-func (ec *executionContext) _DnsCheck_cnameTarget(ctx context.Context, field graphql.CollectedField, obj *model.DNSCheck) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_DnsCheck_cnameTarget(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.CnameTarget, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
-			return ec.marshalOString2ᚖstring(ctx, selections, v)
-		},
-		true,
-		false,
-	)
-}
-func (ec *executionContext) fieldContext_DnsCheck_cnameTarget(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("DnsCheck", field, false, false, errors.New("field of type String does not have child fields"))
-}
-
-func (ec *executionContext) _DnsCheck_expectedTarget(ctx context.Context, field graphql.CollectedField, obj *model.DNSCheck) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_DnsCheck_expectedTarget(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.ExpectedTarget, nil
+			return obj.Value, nil
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
@@ -5474,54 +5408,8 @@ func (ec *executionContext) _DnsCheck_expectedTarget(ctx context.Context, field 
 		true,
 	)
 }
-func (ec *executionContext) fieldContext_DnsCheck_expectedTarget(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("DnsCheck", field, false, false, errors.New("field of type String does not have child fields"))
-}
-
-func (ec *executionContext) _DnsCheck_message(ctx context.Context, field graphql.CollectedField, obj *model.DNSCheck) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_DnsCheck_message(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.Message, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
-			return ec.marshalOString2ᚖstring(ctx, selections, v)
-		},
-		true,
-		false,
-	)
-}
-func (ec *executionContext) fieldContext_DnsCheck_message(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("DnsCheck", field, false, false, errors.New("field of type String does not have child fields"))
-}
-
-func (ec *executionContext) _DnsCheck_tlsStatus(ctx context.Context, field graphql.CollectedField, obj *model.DNSCheck) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_DnsCheck_tlsStatus(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.TLSStatus, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v *model.TLSStatus) graphql.Marshaler {
-			return ec.marshalOTlsStatus2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐTLSStatus(ctx, selections, v)
-		},
-		true,
-		false,
-	)
-}
-func (ec *executionContext) fieldContext_DnsCheck_tlsStatus(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("DnsCheck", field, false, false, errors.New("field of type TlsStatus does not have child fields"))
+func (ec *executionContext) fieldContext_DnsRecord_value(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DnsRecord", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
 func (ec *executionContext) _Domain_hostname(ctx context.Context, field graphql.CollectedField, obj *model.Domain) (ret graphql.Marshaler) {
@@ -5614,6 +5502,38 @@ func (ec *executionContext) _Domain_tlsStatus(ctx context.Context, field graphql
 }
 func (ec *executionContext) fieldContext_Domain_tlsStatus(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("Domain", field, false, false, errors.New("field of type TlsStatus does not have child fields"))
+}
+
+func (ec *executionContext) _Domain_requiredDnsRecords(ctx context.Context, field graphql.CollectedField, obj *model.Domain) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Domain_requiredDnsRecords(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Domain().RequiredDNSRecords(ctx, obj)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []model.DNSRecord) graphql.Marshaler {
+			return ec.marshalNDnsRecord2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDNSRecordᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Domain_requiredDnsRecords(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Domain",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_DnsRecord(ctx, field)
+		},
+	}
+	return fc, nil
 }
 
 func (ec *executionContext) _Endpoint_host(ctx context.Context, field graphql.CollectedField, obj *model.Endpoint) (ret graphql.Marshaler) {
@@ -9437,68 +9357,6 @@ func (ec *executionContext) fieldContext_Query_detectServices(ctx context.Contex
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_detectServices_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Query_checkDnsStatus(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_Query_checkDnsStatus(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Query().CheckDNSStatus(ctx, fc.Args["hostname"].(string))
-		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
-				if err != nil {
-					var zeroVal *model.DNSCheck
-					return zeroVal, err
-				}
-				if ec.Directives.HasRole == nil {
-					var zeroVal *model.DNSCheck
-					return zeroVal, errors.New("directive hasRole is not implemented")
-				}
-				return ec.Directives.HasRole(ctx, nil, directive0, role)
-			}
-
-			next = directive1
-			return next
-		},
-		func(ctx context.Context, selections ast.SelectionSet, v *model.DNSCheck) graphql.Marshaler {
-			return ec.marshalNDnsCheck2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDNSCheck(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_Query_checkDnsStatus(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Query",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.childFields_DnsCheck(ctx, field)
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Query_checkDnsStatus_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -14410,38 +14268,32 @@ func (ec *executionContext) _DetectedService(ctx context.Context, sel ast.Select
 	return out
 }
 
-var dnsCheckImplementors = []string{"DnsCheck"}
+var dnsRecordImplementors = []string{"DnsRecord"}
 
-func (ec *executionContext) _DnsCheck(ctx context.Context, sel ast.SelectionSet, obj *model.DNSCheck) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, dnsCheckImplementors)
+func (ec *executionContext) _DnsRecord(ctx context.Context, sel ast.SelectionSet, obj *model.DNSRecord) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, dnsRecordImplementors)
 
 	out := graphql.NewFieldSet(fields)
 	deferred := make(map[string]*graphql.FieldSet)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
-			out.Values[i] = graphql.MarshalString("DnsCheck")
-		case "hostname":
-			out.Values[i] = ec._DnsCheck_hostname(ctx, field, obj)
+			out.Values[i] = graphql.MarshalString("DnsRecord")
+		case "type":
+			out.Values[i] = ec._DnsRecord_type(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "status":
-			out.Values[i] = ec._DnsCheck_status(ctx, field, obj)
+		case "host":
+			out.Values[i] = ec._DnsRecord_host(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "cnameTarget":
-			out.Values[i] = ec._DnsCheck_cnameTarget(ctx, field, obj)
-		case "expectedTarget":
-			out.Values[i] = ec._DnsCheck_expectedTarget(ctx, field, obj)
+		case "value":
+			out.Values[i] = ec._DnsRecord_value(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "message":
-			out.Values[i] = ec._DnsCheck_message(ctx, field, obj)
-		case "tlsStatus":
-			out.Values[i] = ec._DnsCheck_tlsStatus(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -14479,23 +14331,59 @@ func (ec *executionContext) _Domain(ctx context.Context, sel ast.SelectionSet, o
 		case "hostname":
 			out.Values[i] = ec._Domain_hostname(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "type":
 			out.Values[i] = ec._Domain_type(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "dnsStatus":
 			out.Values[i] = ec._Domain_dnsStatus(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "tlsStatus":
 			out.Values[i] = ec._Domain_tlsStatus(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
+		case "requiredDnsRecords":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Domain_requiredDnsRecords(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -15720,28 +15608,6 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_detectServices(ctx, field)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			rrm := func(ctx context.Context) graphql.Marshaler {
-				return ec.OperationContext.RootResolverMiddleware(ctx,
-					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
-		case "checkDnsStatus":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Query_checkDnsStatus(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -17515,18 +17381,34 @@ func (ec *executionContext) marshalNDetectedService2ᚕgithubᚗcomᚋzeitlosᚋ
 	return ret
 }
 
-func (ec *executionContext) marshalNDnsCheck2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDNSCheck(ctx context.Context, sel ast.SelectionSet, v model.DNSCheck) graphql.Marshaler {
-	return ec._DnsCheck(ctx, sel, &v)
+func (ec *executionContext) marshalNDnsRecord2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDNSRecord(ctx context.Context, sel ast.SelectionSet, v model.DNSRecord) graphql.Marshaler {
+	return ec._DnsRecord(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNDnsCheck2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDNSCheck(ctx context.Context, sel ast.SelectionSet, v *model.DNSCheck) graphql.Marshaler {
-	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+func (ec *executionContext) marshalNDnsRecord2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDNSRecordᚄ(ctx context.Context, sel ast.SelectionSet, v []model.DNSRecord) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNDnsRecord2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDNSRecord(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
 		}
-		return graphql.Null
 	}
-	return ec._DnsCheck(ctx, sel, v)
+
+	return ret
+}
+
+func (ec *executionContext) unmarshalNDnsRecordType2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDNSRecordType(ctx context.Context, v any) (model.DNSRecordType, error) {
+	var res model.DNSRecordType
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNDnsRecordType2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDNSRecordType(ctx context.Context, sel ast.SelectionSet, v model.DNSRecordType) graphql.Marshaler {
+	return v
 }
 
 func (ec *executionContext) unmarshalNDnsStatus2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDNSStatus(ctx context.Context, v any) (model.DNSStatus, error) {
@@ -18697,22 +18579,6 @@ func (ec *executionContext) marshalOTime2ᚖtimeᚐTime(ctx context.Context, sel
 	_ = ctx
 	res := graphql.MarshalTime(*v)
 	return res
-}
-
-func (ec *executionContext) unmarshalOTlsStatus2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐTLSStatus(ctx context.Context, v any) (*model.TLSStatus, error) {
-	if v == nil {
-		return nil, nil
-	}
-	var res = new(model.TLSStatus)
-	err := res.UnmarshalGQL(v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) marshalOTlsStatus2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐTLSStatus(ctx context.Context, sel ast.SelectionSet, v *model.TLSStatus) graphql.Marshaler {
-	if v == nil {
-		return graphql.Null
-	}
-	return v
 }
 
 func (ec *executionContext) marshalOUsageSummary2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐUsageSummary(ctx context.Context, sel ast.SelectionSet, v *model.UsageSummary) graphql.Marshaler {

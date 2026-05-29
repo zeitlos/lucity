@@ -15,6 +15,14 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
+// RequiredDNSRecords is the resolver for the requiredDnsRecords field.
+// TODO: wire when Service exposes `domains: [Domain!]!` — needs the workspace
+// passed via a hidden @goExtraField so r.Conductor.RequiredDNSRecords can compute
+// the deterministic challenge value.
+func (r *domainResolver) RequiredDNSRecords(ctx context.Context, obj *model.Domain) ([]model.DNSRecord, error) {
+	return nil, nil
+}
+
 // AddService is the resolver for the addService field.
 func (r *mutationResolver) AddService(ctx context.Context, input model.AddServiceInput) (*model.Service, error) {
 	framework := ""
@@ -168,12 +176,6 @@ func (r *queryResolver) DetectServices(ctx context.Context, installationID strin
 	return result, nil
 }
 
-// CheckDNSStatus is the resolver for the checkDnsStatus field.
-func (r *queryResolver) CheckDNSStatus(ctx context.Context, hostname string) (*model.DNSCheck, error) {
-	check := r.Conductor.CheckDns(ctx, hostname)
-	return convertDnsCheck(check), nil
-}
-
 // DefaultCommand is the resolver for the defaultCommand field.
 func (r *serviceResolver) DefaultCommand(ctx context.Context, obj *model.Service) (string, error) {
 	return r.Conductor.DefaultCommand(ctx, obj.ActiveDeployment.Image)
@@ -213,7 +215,11 @@ func (r *serviceResolver) Builds(ctx context.Context, obj *model.Service) ([]mod
 	return result, nil
 }
 
+// Domain returns DomainResolver implementation.
+func (r *Resolver) Domain() DomainResolver { return &domainResolver{r} }
+
 // Service returns ServiceResolver implementation.
 func (r *Resolver) Service() ServiceResolver { return &serviceResolver{r} }
 
+type domainResolver struct{ *Resolver }
 type serviceResolver struct{ *Resolver }

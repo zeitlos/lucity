@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"net"
 	"regexp"
 	"strings"
 	"time"
@@ -415,16 +414,6 @@ type Domain struct {
 	TlsStatus string // "NONE", "PROVISIONING", "ACTIVE", or "ERROR"
 }
 
-// DnsCheck holds the result of a live DNS verification.
-type DnsCheck struct {
-	Hostname       string
-	Status         string // "VALID", "PENDING", "MISCONFIGURED", "ERROR"
-	CnameTarget    string // actual CNAME target found, empty if none
-	ExpectedTarget string // platform's domain target
-	Message        string // human-readable explanation
-	TlsStatus      string // "NONE", "PROVISIONING", "ACTIVE", "ERROR" (custom domains only)
-}
-
 // PlatformConfig returns platform-level configuration for domain management.
 func (c *Client) PlatformConfig() (workloadDomain, domainTarget, ipAddress string) {
 	return c.Config.WorkloadDomain, c.Config.DomainTarget, c.Config.IPAddress
@@ -433,85 +422,6 @@ func (c *Client) PlatformConfig() (workloadDomain, domainTarget, ipAddress strin
 // IsPlatformDomain checks if a hostname is a platform-generated domain.
 func (c *Client) IsPlatformDomain(hostname string) bool {
 	return strings.HasSuffix(hostname, "."+c.Config.WorkloadDomain)
-}
-
-// CheckDns performs a live DNS check for a custom domain.
-// It verifies that the domain has a CNAME record pointing to the platform's domain target.
-// For custom domains, also looks up TLS certificate status from the deployer.
-func (c *Client) CheckDns(ctx context.Context, hostname string) DnsCheck {
-	result := DnsCheck{
-		Hostname:       hostname,
-		ExpectedTarget: c.Config.DomainTarget,
-	}
-
-	if c.IsPlatformDomain(hostname) {
-		result.Status = "VALID"
-		result.Message = "Platform domain"
-		return result
-	}
-
-	// Look up TLS cert status for custom domains.
-	cdStatus, err := c.Deployer.CustomDomainStatus(ctx, hostname)
-	if err != nil {
-		slog.Debug("failed to check TLS status", "hostname", hostname, "error", err)
-	} else {
-		result.TlsStatus = cdStatus.TLSStatus
-	}
-
-	lookupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	resolver := &net.Resolver{}
-
-	// Check CNAME record.
-	// Go's LookupCNAME returns the hostname itself (with trailing dot) when no CNAME exists.
-	cname, err := resolver.LookupCNAME(lookupCtx, hostname)
-	if err == nil && cname != "" {
-		cname = strings.TrimSuffix(cname, ".")
-		normalized := strings.TrimSuffix(hostname, ".")
-
-		// If CNAME differs from the input hostname, a real CNAME record exists.
-		if !strings.EqualFold(cname, normalized) {
-			result.CnameTarget = cname
-			expected := strings.TrimSuffix(c.Config.DomainTarget, ".")
-			if strings.EqualFold(cname, expected) {
-				result.Status = "VALID"
-				result.Message = "CNAME record verified"
-				return result
-			}
-			result.Status = "MISCONFIGURED"
-			result.Message = fmt.Sprintf("CNAME record points to %s, expected %s", cname, c.Config.DomainTarget)
-			return result
-		}
-	}
-
-	// No CNAME found. Check if the domain resolves at all (A record).
-	addrs, lookupErr := resolver.LookupHost(lookupCtx, hostname)
-	if lookupErr != nil || len(addrs) == 0 {
-		result.Status = "PENDING"
-		// Apex domains (e.g. "example.com") can't use CNAME — suggest A record instead.
-		parts := strings.Split(hostname, ".")
-		if len(parts) <= 2 && c.Config.IPAddress != "" {
-			result.Message = fmt.Sprintf("No DNS record found. Add an A record pointing to %s", c.Config.IPAddress)
-		} else {
-			result.Message = "No DNS record found. Add a CNAME record pointing to " + c.Config.DomainTarget
-		}
-		return result
-	}
-
-	// Domain resolves via A record. Check if it points to our LB.
-	if c.Config.IPAddress != "" {
-		for _, addr := range addrs {
-			if addr == c.Config.IPAddress {
-				result.Status = "VALID"
-				result.Message = fmt.Sprintf("A record points to platform load balancer (%s)", c.Config.IPAddress)
-				return result
-			}
-		}
-	}
-	result.Status = "MISCONFIGURED"
-	result.Message = fmt.Sprintf("Domain resolves to %s but expected CNAME to %s or A record to %s", addrs[0], c.Config.DomainTarget, c.Config.IPAddress)
-	return result
 }
 
 // GenerateDomain creates a platform domain for a service in an environment.

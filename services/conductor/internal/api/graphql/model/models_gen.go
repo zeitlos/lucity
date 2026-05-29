@@ -181,29 +181,22 @@ type DetectedService struct {
 	SuggestedPort int    `json:"suggestedPort"`
 }
 
-// Result of a live DNS verification for a custom domain.
-type DNSCheck struct {
-	Hostname string `json:"hostname"`
-	// Current DNS status after live lookup.
-	Status DNSStatus `json:"status"`
-	// The CNAME target found in DNS, if any.
-	CnameTarget *string `json:"cnameTarget,omitempty"`
-	// The expected CNAME target for this platform.
-	ExpectedTarget string `json:"expectedTarget"`
-	// Human-readable message explaining the current status.
-	Message *string `json:"message,omitempty"`
-	// TLS certificate provisioning status for custom domains.
-	TLSStatus *TLSStatus `json:"tlsStatus,omitempty"`
+type DNSRecord struct {
+	Type  DNSRecordType `json:"type"`
+	Host  string        `json:"host"`
+	Value string        `json:"value"`
 }
 
 type Domain struct {
 	Hostname string `json:"hostname"`
 	// PLATFORM domains use wildcard DNS on the workload domain. CUSTOM domains require user DNS config.
 	Type DomainType `json:"type"`
-	// DNS resolution status. Always VALID for platform domains. Checked via DNS lookup for custom domains.
+	// DNS resolution status. Always VALID for platform domains. Checked via live DNS lookup for custom domains, including TXT-record ownership verification.
 	DNSStatus DNSStatus `json:"dnsStatus"`
 	// TLS certificate status. NONE for platform domains (covered by wildcard). Checked via cert-manager for custom domains.
 	TLSStatus TLSStatus `json:"tlsStatus"`
+	// DNS records the user must configure for this domain to be valid. Empty for platform domains. For custom domains: one TXT record for ownership and one routing record (CNAME or A).
+	RequiredDNSRecords []DNSRecord `json:"requiredDnsRecords"`
 }
 
 type Endpoint struct {
@@ -618,6 +611,63 @@ func (e *DeploymentStatus) UnmarshalJSON(b []byte) error {
 }
 
 func (e DeploymentStatus) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type DNSRecordType string
+
+const (
+	DNSRecordTypeTxt   DNSRecordType = "TXT"
+	DNSRecordTypeCname DNSRecordType = "CNAME"
+	DNSRecordTypeA     DNSRecordType = "A"
+)
+
+var AllDNSRecordType = []DNSRecordType{
+	DNSRecordTypeTxt,
+	DNSRecordTypeCname,
+	DNSRecordTypeA,
+}
+
+func (e DNSRecordType) IsValid() bool {
+	switch e {
+	case DNSRecordTypeTxt, DNSRecordTypeCname, DNSRecordTypeA:
+		return true
+	}
+	return false
+}
+
+func (e DNSRecordType) String() string {
+	return string(e)
+}
+
+func (e *DNSRecordType) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = DNSRecordType(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid DnsRecordType", str)
+	}
+	return nil
+}
+
+func (e DNSRecordType) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *DNSRecordType) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e DNSRecordType) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

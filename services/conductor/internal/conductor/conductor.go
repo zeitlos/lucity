@@ -12,7 +12,10 @@ import (
 	ghpkg "github.com/zeitlos/lucity/pkg/github"
 	"github.com/zeitlos/lucity/pkg/logto"
 	"github.com/zeitlos/lucity/services/conductor/internal/buildjob"
+	newdeployer "github.com/zeitlos/lucity/services/conductor/internal/deployer"
 	"github.com/zeitlos/lucity/services/conductor/internal/directory"
+	"github.com/zeitlos/lucity/services/conductor/internal/gateway"
+	"github.com/zeitlos/lucity/services/conductor/internal/hostname"
 	"github.com/zeitlos/lucity/services/conductor/internal/inproc/deployer"
 	"github.com/zeitlos/lucity/services/conductor/internal/inproc/packager"
 	"github.com/zeitlos/lucity/services/conductor/internal/planner"
@@ -40,6 +43,9 @@ type Client struct {
 	buildjob  buildjob.Interface
 	planner   planner.Interface
 	source    source.Interface
+	hostname  *hostname.Client
+	gateway   *gateway.Client
+	deployer  newdeployer.Interface
 
 	Config Config
 
@@ -63,10 +69,10 @@ type Config struct {
 	DashboardURL        string // base URL for the dashboard (e.g., "http://localhost:5173")
 }
 
-func New(packager *packager.Client, deployer *deployer.Client, cashier cashier.CashierServiceClient, issuer *auth.Issuer, githubApp *ghpkg.App, logto *logto.Client, tokenRefresher TokenRefresher, directory directory.Interface, platform platform.Interface, buildjob buildjob.Interface, planner planner.Interface, source source.Interface, config Config) *Client {
+func New(packager *packager.Client, legacyDeployer *deployer.Client, cashier cashier.CashierServiceClient, issuer *auth.Issuer, githubApp *ghpkg.App, logto *logto.Client, tokenRefresher TokenRefresher, directory directory.Interface, platform platform.Interface, buildjob buildjob.Interface, planner planner.Interface, source source.Interface, hostname *hostname.Client, gateway *gateway.Client, deployer newdeployer.Interface, config Config) *Client {
 	return &Client{
 		Packager:       packager,
-		Deployer:       deployer,
+		Deployer:       legacyDeployer,
 		Cashier:        cashier,
 		Issuer:         issuer,
 		GitHubApp:      githubApp,
@@ -79,6 +85,9 @@ func New(packager *packager.Client, deployer *deployer.Client, cashier cashier.C
 		buildjob:       buildjob,
 		planner:        planner,
 		source:         source,
+		hostname:       hostname,
+		gateway:        gateway,
+		deployer:       deployer,
 	}
 }
 

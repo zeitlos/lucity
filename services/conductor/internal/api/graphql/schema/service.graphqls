@@ -81,10 +81,24 @@ type Domain {
   hostname: String!
   """PLATFORM domains use wildcard DNS on the workload domain. CUSTOM domains require user DNS config."""
   type: DomainType!
-  """DNS resolution status. Always VALID for platform domains. Checked via DNS lookup for custom domains."""
+  """DNS resolution status. Always VALID for platform domains. Checked via live DNS lookup for custom domains, including TXT-record ownership verification."""
   dnsStatus: DnsStatus!
   """TLS certificate status. NONE for platform domains (covered by wildcard). Checked via cert-manager for custom domains."""
   tlsStatus: TlsStatus!
+  """DNS records the user must configure for this domain to be valid. Empty for platform domains. For custom domains: one TXT record for ownership and one routing record (CNAME or A)."""
+  requiredDnsRecords: [DnsRecord!]! @goField(forceResolver: true)
+}
+
+type DnsRecord {
+  type: DnsRecordType!
+  host: String!
+  value: String!
+}
+
+enum DnsRecordType {
+  TXT
+  CNAME
+  A
 }
 
 enum TlsStatus {
@@ -134,21 +148,6 @@ input AddServiceInput {
   customStartCommand: String
 }
 
-"""Result of a live DNS verification for a custom domain."""
-type DnsCheck {
-  hostname: String!
-  """Current DNS status after live lookup."""
-  status: DnsStatus!
-  """The CNAME target found in DNS, if any."""
-  cnameTarget: String
-  """The expected CNAME target for this platform."""
-  expectedTarget: String!
-  """Human-readable message explaining the current status."""
-  message: String
-  """TLS certificate provisioning status for custom domains."""
-  tlsStatus: TlsStatus
-}
-
 input SetServiceScalingInput {
   service: ServiceID!
   replicas: Int! @constraint(constraint: "min=1,max=20")
@@ -165,7 +164,6 @@ input AutoscalingInput {
 extend type Query {
   service(id: ServiceID!): Service! @hasRole(role: [USER])
   detectServices(installationId: ID!, repositoryUrl: String!): [DetectedService!]! @hasRole(role: [USER])
-  checkDnsStatus(hostname: String!): DnsCheck! @hasRole(role: [USER])
 }
 
 extend type Mutation {

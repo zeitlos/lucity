@@ -94,6 +94,12 @@ func (s *serviceClient) RemoveDomain(ctx context.Context, id platform.ServiceID,
 	})
 }
 
+func (s *serviceClient) VerifyDomain(ctx context.Context, id platform.ServiceID, host string, verified bool) (deployer.RevisionID, error) {
+	return s.client.applyEnv(ctx, id.EnvironmentID(), func(e *values.Env) error {
+		return values.VerifyServiceDomain(e, id.Name, host, verified)
+	})
+}
+
 func (s *serviceClient) Mount(ctx context.Context, id platform.ServiceID, volume platform.VolumeID, mountPath string) (deployer.RevisionID, error) {
 	return "", fmt.Errorf("Mount: chart does not support volumes yet")
 }

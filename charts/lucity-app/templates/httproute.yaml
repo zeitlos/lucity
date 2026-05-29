@@ -1,5 +1,12 @@
 {{- range $name, $svc := .Values.services }}
-{{- if and $svc.image $svc.image.tag $svc.domains (not $.Values.suspended) }}
+{{- if and $svc.image $svc.image.tag (not $.Values.suspended) }}
+{{- $verified := list -}}
+{{- range $svc.domains -}}
+{{- if .verified -}}
+{{- $verified = append $verified . -}}
+{{- end -}}
+{{- end -}}
+{{- if $verified }}
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
@@ -16,12 +23,13 @@ spec:
       namespace: {{ $.Values.gateway.namespace }}
       {{- end }}
   hostnames:
-    {{- range $svc.domains }}
-    - {{ . | quote }}
+    {{- range $verified }}
+    - {{ .host | quote }}
     {{- end }}
   rules:
     - backendRefs:
         - name: {{ include "lucity-app.fullname" $ }}-{{ $name }}
           port: {{ $svc.port }}
+{{- end }}
 {{- end }}
 {{- end }}

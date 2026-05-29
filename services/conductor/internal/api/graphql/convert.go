@@ -169,24 +169,6 @@ func convertDetectedService(s planner.Plan) model.DetectedService {
 	}
 }
 
-func convertDnsCheck(d conductor.DnsCheck) *model.DNSCheck {
-	result := &model.DNSCheck{
-		Hostname:       d.Hostname,
-		Status:         convertDNSStatus(d.Status),
-		ExpectedTarget: d.ExpectedTarget,
-	}
-	if d.CnameTarget != "" {
-		result.CnameTarget = &d.CnameTarget
-	}
-	if d.Message != "" {
-		result.Message = &d.Message
-	}
-	if d.TlsStatus != "" {
-		tlsStatus := convertTLSStatus(d.TlsStatus)
-		result.TLSStatus = &tlsStatus
-	}
-	return result
-}
 
 func convertGitHubRepository(r conductor.GitHubRepository) model.GitHubRepository {
 	return model.GitHubRepository{
