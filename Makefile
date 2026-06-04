@@ -28,10 +28,7 @@ dev-logs-%:
 
 # Stop all dev services
 dev-stop:
-	@for port in 8080 9004 9005 9006 9090 5173; do \
-		lsof -ti :$$port -sTCP:LISTEN | xargs kill 2>/dev/null || true; \
-	done
-	@echo "All services stopped."
+	@bash scripts/dev-stop.sh
 
 # Run individual services (without air)
 dev-conductor:

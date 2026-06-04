@@ -7,9 +7,11 @@ LOG_DIR="$ROOT/tmp/logs"
 STATUS_DIR="$ROOT/tmp/dev"
 MONITOR="$ROOT/scripts/dev-monitor.sh"
 
+# shellcheck disable=SC1091
+source "$ROOT/scripts/dev-ports.sh"
+
 SERVICES=(conductor cashier)
 ALL_SERVICES=(conductor cashier dashboard)
-PORTS=(8080 9004 9005 9006 9090 5173)
 
 # SKIP: comma-separated list of services to exclude (e.g. SKIP=conductor,cashier).
 # Useful when debugging a service from your IDE — let everything else hot-reload,
@@ -66,9 +68,13 @@ done
 # Clean status files
 rm -f "$STATUS_DIR"/*.status
 
-# Kill stale processes (only listeners, not clients like browsers)
-for port in "${PORTS[@]}"; do
-    lsof -ti :"$port" -sTCP:LISTEN | xargs kill 2>/dev/null || true
+# Kill stale processes (only listeners, not clients like browsers). Skips
+# ports belonging to SKIP-ed services so debugging one under Delve keeps
+# working while everything else hot-reloads around it.
+for svc in "${ALL_SERVICES[@]}"; do
+    for port in $(service_ports "$svc"); do
+        lsof -ti :"$port" -sTCP:LISTEN | xargs kill 2>/dev/null || true
+    done
 done
 sleep 1
 
