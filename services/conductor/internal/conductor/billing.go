@@ -4,18 +4,24 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"strings"
 	"time"
 
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/cashier"
-	"github.com/zeitlos/lucity/pkg/tenant"
-	"github.com/zeitlos/lucity/services/conductor/internal/data"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
+// Default resource quota — currently fixed in the environment package's
+// build helpers regardless of tier. Mirror the values here so billing reads
+// don't need an extra K8s round-trip.
+const (
+	defaultQuotaCPUMillicores = 4000
+	defaultQuotaMemoryMB      = 8192
+	defaultQuotaDiskMB        = 40960
+)
+
 type EnvironmentResources struct {
-	Tier          string
+	Tier          ResourceTier
 	CpuMillicores int
 	MemoryMB      int
 	DiskMB        int
@@ -40,70 +46,63 @@ type BillingPortalUrlResult struct {
 	URL string
 }
 
-func (c *Client) EnvironmentResources(ctx context.Context, environment platform.EnvironmentID) (*EnvironmentResources, error) {
-	ws, err := tenant.FromContext(ctx)
+type ResourceTier = platform.ResourceTier
+
+const ProductionTier = platform.ProductionTier
+const EcoTier = platform.EcoTier
+
+func (c *Client) EnvironmentResources(ctx context.Context, environmentID platform.EnvironmentID) (*EnvironmentResources, error) {
+	env, err := c.platform.Environment(ctx, environmentID)
+
 	if err != nil {
 		return nil, err
-	}
-
-	q, err := c.Deployer.ResourceQuota(ctx, ws, environment.Project, environment.Name)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get resource quota: %w", err)
 	}
 
 	return &EnvironmentResources{
-		Tier:          tierToAPIString(q.Tier),
-		CpuMillicores: q.CPUMillicores,
-		MemoryMB:      q.MemoryMB,
-		DiskMB:        q.DiskMB,
+		Tier:          env.ResourceTier,
+		CpuMillicores: defaultQuotaCPUMillicores,
+		MemoryMB:      defaultQuotaMemoryMB,
+		DiskMB:        defaultQuotaDiskMB,
 	}, nil
 }
 
-func (c *Client) SetEnvironmentResources(ctx context.Context, environment platform.EnvironmentID, tier string, cpuMillicores, memoryMB, diskMB int) (*Environment, error) {
-	ws, err := tenant.FromContext(ctx)
-	if err != nil {
+// SetEnvironmentResources only honors the tier change today. The
+// cpu/memory/disk inputs from the GraphQL schema (and the matching sliders
+// on the dashboard's Project Settings page) are intentionally ignored:
+//
+//   - The K8s ResourceQuota is fixed at 4 CPU / 8Gi / 40Gi for every env,
+//     set in environment/kubernetes/quota.go::buildQuota.
+//   - Tier flips the LimitRange's default container *requests*: Eco runs
+//     burstable (~50% of limit as request), Production runs guaranteed
+//     (request == limit). It does NOT change the namespace ceiling.
+//
+// The dashboard still ships the sliders so the surface is preserved for
+// when per-env capacity overrides become a real feature. To wire them up:
+// extend environment.Ensure with a quota override parameter and stamp the
+// values onto the namespace's ResourceQuota in environment/kubernetes.
+func (c *Client) SetEnvironmentResources(ctx context.Context, environmentID platform.EnvironmentID, tier ResourceTier, _, _, _ int) (*Environment, error) {
+	if err := c.environment.Ensure(ctx, environmentID, tier); err != nil {
 		return nil, err
 	}
 
-	if _, err := c.Deployer.SetResourceQuota(ctx, ws, environment.Project, environment.Name, tierFromAPIString(tier), cpuMillicores, memoryMB, diskMB); err != nil {
-		return nil, fmt.Errorf("failed to set resource quota: %w", err)
-	}
-
-	// Best-effort: sync resources to GitOps repo for ejection
-	if pkgErr := c.Packager.SetResources(ctx, ws, environment.Project, environment.Name, strings.ToLower(tier), cpuMillicores, memoryMB, diskMB); pkgErr != nil {
-		slog.Error("failed to sync resources to GitOps repo", "error", pkgErr, "project", environment.Project, "environment", environment.Name)
-	}
-
-	return c.Environment(ctx, environment)
-}
-
-func tierToAPIString(t data.ResourceTier) string {
-	if t == data.ResourceTierProduction {
-		return "PRODUCTION"
-	}
-	return "ECO"
-}
-
-func tierFromAPIString(s string) data.ResourceTier {
-	switch s {
-	case "PRODUCTION":
-		return data.ResourceTierProduction
-	default:
-		return data.ResourceTierEco
-	}
+	return c.Environment(ctx, environmentID)
 }
 
 func (c *Client) Subscription(ctx context.Context, ws string) (*BillingSubscription, error) {
 	if c.Cashier == nil {
 		return nil, fmt.Errorf("billing not configured")
 	}
+
 	customerID, subscriptionID, err := c.stripeIDs(ctx, ws)
+
 	if err != nil {
 		return nil, err
 	}
+
 	if subscriptionID == "" {
 		return nil, fmt.Errorf("billing is not configured for this workspace")
 	}
+
 	ctx = auth.OutgoingContext(ctx)
 
 	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
@@ -113,6 +112,7 @@ func (c *Client) Subscription(ctx context.Context, ws string) (*BillingSubscript
 		CustomerId:     customerID,
 		SubscriptionId: subscriptionID,
 	})
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to get subscription: %w", err)
 	}
@@ -124,10 +124,12 @@ func (c *Client) Subscription(ctx context.Context, ws string) (*BillingSubscript
 		CreditAmountCents: int(resp.CreditAmountCents),
 		HasPaymentMethod:  resp.HasPaymentMethod,
 	}
+
 	if resp.CreditExpiry > 0 {
 		t := time.Unix(resp.CreditExpiry, 0)
 		result.CreditExpiry = &t
 	}
+
 	return result, nil
 }
 
@@ -135,13 +137,17 @@ func (c *Client) ChangePlan(ctx context.Context, ws, plan string) (*BillingSubsc
 	if c.Cashier == nil {
 		return nil, fmt.Errorf("billing not configured")
 	}
+
 	customerID, subscriptionID, err := c.stripeIDs(ctx, ws)
+
 	if err != nil {
 		return nil, err
 	}
+
 	if subscriptionID == "" {
 		return nil, fmt.Errorf("billing is not configured for this workspace")
 	}
+
 	ctx = auth.OutgoingContext(ctx)
 
 	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
@@ -152,6 +158,7 @@ func (c *Client) ChangePlan(ctx context.Context, ws, plan string) (*BillingSubsc
 		CustomerId:     customerID,
 		SubscriptionId: subscriptionID,
 	})
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to change plan: %w", err)
 	}
@@ -163,10 +170,12 @@ func (c *Client) ChangePlan(ctx context.Context, ws, plan string) (*BillingSubsc
 		CreditAmountCents: int(resp.CreditAmountCents),
 		HasPaymentMethod:  resp.HasPaymentMethod,
 	}
+
 	if resp.CreditExpiry > 0 {
 		t := time.Unix(resp.CreditExpiry, 0)
 		result.CreditExpiry = &t
 	}
+
 	return result, nil
 }
 

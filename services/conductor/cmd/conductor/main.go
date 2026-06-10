@@ -1,30 +1,12 @@
-// Command conductor is the unified Lucity control-plane binary.
-//
-// The packager / deployer / builder modules live in
-// services/conductor/internal/inproc/. The handler holds *Server
-// pointers directly and calls their methods as plain Go functions —
-// no gRPC, no bufconn, no marshalling. The packager↔deployer cycle
-// is broken with narrow local interfaces (PackagerService /
-// DeployerService) plus SetXxx setters wired in this file.
-//
-// External gRPC surfaces:
-//   - Inbound from cashier on :GRPC_PORT — defined in pkg/conductor.
-//     Verified with the internal-JWT verifier interceptor.
-//   - Outbound to cashier on :CASHIER_ADDR — uses pkg/cashier.
-//     Signs requests with the internal-JWT issuer.
 package main
 
 import (
-	"context"
 	"log/slog"
 	"os"
-	"time"
 
 	"github.com/kelseyhightower/envconfig"
-	"golang.org/x/crypto/ssh"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -38,18 +20,14 @@ import (
 
 	kauth "github.com/google/go-containerregistry/pkg/authn/kubernetes"
 	"github.com/zeitlos/lucity/charts"
-	webhookpkg "github.com/zeitlos/lucity/services/conductor/internal/api/webhook"
 	webhookhttp "github.com/zeitlos/lucity/services/conductor/internal/api/webhook/http"
 	buildjobK8s "github.com/zeitlos/lucity/services/conductor/internal/buildjob/kubernetes"
 	"github.com/zeitlos/lucity/services/conductor/internal/conductor"
 	helmDeployer "github.com/zeitlos/lucity/services/conductor/internal/deployer/helm"
+	directoryLogto "github.com/zeitlos/lucity/services/conductor/internal/directory/logto"
+	environmentK8s "github.com/zeitlos/lucity/services/conductor/internal/environment/kubernetes"
 	"github.com/zeitlos/lucity/services/conductor/internal/gateway"
 	"github.com/zeitlos/lucity/services/conductor/internal/hostname"
-	"github.com/zeitlos/lucity/services/conductor/internal/deployerold/argo/argocd"
-	"github.com/zeitlos/lucity/services/conductor/internal/deployerold/argo/gitops/softserve"
-	directoryLogto "github.com/zeitlos/lucity/services/conductor/internal/directory/logto"
-	"github.com/zeitlos/lucity/services/conductor/internal/inproc/deployer"
-	"github.com/zeitlos/lucity/services/conductor/internal/inproc/packager"
 	"github.com/zeitlos/lucity/services/conductor/internal/planner/railpack"
 	platformK8s "github.com/zeitlos/lucity/services/conductor/internal/platform/kubernetes"
 	sourceGH "github.com/zeitlos/lucity/services/conductor/internal/source/github"
@@ -60,8 +38,8 @@ import (
 
 type Config struct {
 	Port        string `envconfig:"PORT" default:"8080"`
-	GRPCPort    string `envconfig:"GRPC_PORT" default:"9090"`    // inbound from cashier (and similar)
-	WebhookPort string `envconfig:"WEBHOOK_PORT" default:"9004"` // inbound from GitHub
+	GRPCPort    string `envconfig:"GRPC_PORT" default:"9090"`
+	WebhookPort string `envconfig:"WEBHOOK_PORT" default:"9004"`
 	LogLevel    string `envconfig:"LOG_LEVEL" default:"info"`
 
 	// OIDC
@@ -86,35 +64,25 @@ type Config struct {
 	// Webhook (GitHub events)
 	WebhookSecret string `envconfig:"WEBHOOK_SECRET" default:"dev-secret"`
 
-	// Soft-serve (GitOps repo storage)
-	SoftServeSSH         string `envconfig:"SOFTSERVE_SSH_ADDR" default:"localhost:23231"`
-	SoftServeHTTP        string `envconfig:"SOFTSERVE_HTTP_ADDR" default:"http://localhost:23232"`
-	SoftServeClusterHTTP string `envconfig:"SOFTSERVE_CLUSTER_HTTP_ADDR"`
-	SoftServeKeyPath     string `envconfig:"SOFTSERVE_SSH_KEY_PATH" required:"true"`
-	SoftServeToken       string `envconfig:"SOFTSERVE_TOKEN"`
-
-	// ArgoCD
-	ArgocdAddr     string `envconfig:"ARGOCD_ADDR" required:"true"`
-	ArgocdToken    string `envconfig:"ARGOCD_TOKEN" required:"true"`
-	ArgocdInsecure bool   `envconfig:"ARGOCD_INSECURE" default:"false"`
-
-	// Cluster (deployer)
+	// Cluster
 	GatewayName        string `envconfig:"GATEWAY_NAME" default:"lucity-gateway"`
 	GatewayNamespace   string `envconfig:"GATEWAY_NAMESPACE" default:"lucity-system"`
-	ClusterIssuer      string `envconfig:"CLUSTER_ISSUER" default:"letsencrypt-http01"`
 	RegistryPullSecret string `envconfig:"REGISTRY_PULL_SECRET" default:"lucity-registry-pull"`
 
+	// Per-env NetworkPolicy needs the cluster's pod and service CIDRs to
+	// carve out "internet but not the cluster" egress. These are
+	// cluster-wide constants; defaults match kubeadm + K8s defaults.
+	PodCIDR     string `envconfig:"POD_CIDR" default:"10.244.0.0/16"`
+	ServiceCIDR string `envconfig:"SERVICE_CIDR" default:"10.96.0.0/12"`
+
 	// Builder
-	RegistryURL         string `envconfig:"REGISTRY_URL" default:"localhost:5000"`
-	RegistryImagePrefix string `envconfig:"REGISTRY_IMAGE_PREFIX"`
-	RegistryUsername    string `envconfig:"REGISTRY_USERNAME"`
-	RegistryPassword    string `envconfig:"REGISTRY_PASSWORD"`
-	RegistryAuthSecret  string `envconfig:"REGISTRY_AUTH_SECRET" required:"true"`
-	RegistryInsecure    bool   `envconfig:"REGISTRY_INSECURE" default:"true"`
-	WorkDir             string `envconfig:"WORK_DIR" default:"/tmp/lucity-builds"`
-	BuildImage          string `envconfig:"BUILD_IMAGE"`
-	BuildkitAddr        string `envconfig:"BUILDKIT_ADDR"`
-	BuildNamespace      string `envconfig:"BUILD_NAMESPACE" default:"lucity-builds"`
+	RegistryURL        string `envconfig:"REGISTRY_URL" default:"localhost:5000"`
+	RegistryPullURL    string `envconfig:"REGISTRY_PULL_URL" required:"true"`
+	RegistryPushURL    string `envconfig:"REGISTRY_PUSH_URL" required:"true"`
+	RegistryAuthSecret string `envconfig:"REGISTRY_AUTH_SECRET" required:"true"`
+	BuildImage         string `envconfig:"BUILD_IMAGE"`
+	BuildkitAddr       string `envconfig:"BUILDKIT_ADDR"`
+	BuildNamespace     string `envconfig:"BUILD_NAMESPACE" default:"lucity-builds"`
 
 	SystemNamespace string `envconfig:"SYSTEM_NAMESPACE" default:"lucity-system"`
 
@@ -179,50 +147,12 @@ func main() {
 		slog.Warn("internal JWT not configured — outgoing service-to-service calls use legacy plain metadata headers")
 	}
 
-	// ---- Soft-serve forge ----
-	keyData, err := os.ReadFile(config.SoftServeKeyPath)
-	if err != nil {
-		slog.Error("failed to read soft-serve key", "error", err, "path", config.SoftServeKeyPath)
-		os.Exit(1)
-	}
-	signer, err := ssh.ParsePrivateKey(keyData)
-	if err != nil {
-		slog.Error("failed to parse soft-serve key", "error", err)
-		os.Exit(1)
-	}
-	forge := softserve.New(config.SoftServeSSH, signer, config.SoftServeHTTP, config.SoftServeToken)
-	slog.Info("soft-serve forge ready", "ssh", config.SoftServeSSH, "http", config.SoftServeHTTP)
-
-	// ---- ArgoCD client ----
-	argoClient := argocd.NewClient(config.ArgocdAddr, config.ArgocdToken, config.ArgocdInsecure)
-
 	// ---- Kubernetes clients ----
 	k8sClient, dynClient, err := buildKubeClients()
 	if err != nil {
 		slog.Error("failed to build kube clients", "error", err)
 		os.Exit(1)
 	}
-
-	// ---- Construct in-process server impls ----
-	//
-	// Cycle: packager.Server holds a DeployerService; deployer.Server
-	// holds a PackagerService. We construct both with nil cross-refs
-	// then resolve via SetDeployer / SetPackager. Each side uses a
-	// narrow local interface so neither package imports the other.
-	clusterHTTP := config.SoftServeClusterHTTP
-	if clusterHTTP == "" {
-		clusterHTTP = config.SoftServeHTTP
-	}
-
-	packagerSvc := packager.New(forge, nil, config.WorkloadDomain)
-	deployerSvc := deployer.New(argoClient, nil, clusterHTTP, config.SoftServeToken, k8sClient, dynClient, config.GatewayName, config.GatewayNamespace, config.ClusterIssuer, config.RegistryPullSecret)
-
-	// Direct cross-wiring — Go method calls, no gRPC pipe.
-	packagerSvc.SetDeployer(deployerSvc)
-	deployerSvc.SetPackager(packagerSvc)
-
-	// Custom-domain reconciliation runs on the deployer service.
-	go reconcileCustomDomains(ctx, deployerSvc)
 
 	// ---- External cashier (still real gRPC) ----
 	var cashierClient cashier.CashierServiceClient
@@ -254,12 +184,6 @@ func main() {
 	logtoClient := logto.New(config.LogtoEndpoint, config.LogtoM2MAppID, config.LogtoM2MAppSecret)
 	slog.Info("logto management API configured", "endpoint", config.LogtoEndpoint)
 
-	// ---- Handler ----
-	registryImagePrefix := config.RegistryImagePrefix
-	if registryImagePrefix == "" {
-		registryImagePrefix = config.RegistryURL
-	}
-
 	domainTarget := "lb." + config.WorkloadDomain
 
 	secure := secureCookies(config.DashboardURL)
@@ -274,7 +198,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	jobsClient := buildjobK8s.New(k8sClient, config.BuildNamespace, registryImagePrefix, config.RegistryAuthSecret, config.BuildImage)
+	jobsClient := buildjobK8s.New(k8sClient, config.BuildNamespace, config.RegistryURL, config.RegistryAuthSecret, config.BuildImage)
 
 	secret, err := k8sClient.CoreV1().Secrets(config.SystemNamespace).Get(ctx, config.RegistryPullSecret, metav1.GetOptions{})
 
@@ -301,25 +225,26 @@ func main() {
 		os.Exit(1)
 	}
 
-	restGetter := genericclioptions.NewConfigFlags(false)
+	helmClient := helmDeployer.New(chartRef, config.GatewayName, config.GatewayNamespace)
 
-	helmClient := helmDeployer.New(chartRef, restGetter)
-
-	hostnameClient := hostname.New(config.WorkloadDomain, domainTarget, config.IPAddress, k8sClient, dynClient)
+	hostnameClient := hostname.New(config.WorkloadDomain, domainTarget, config.IPAddress, config.GatewayNamespace, k8sClient, dynClient)
 
 	gatewayClient := gateway.New(dynClient, config.GatewayName, config.GatewayNamespace)
 
+	environmentClient := environmentK8s.New(k8sClient, dynClient, config.SystemNamespace, config.RegistryPullSecret, config.PodCIDR, config.ServiceCIDR)
+
 	conductorConfig := conductor.Config{
-		RegistryPushURL:     config.RegistryURL,
-		RegistryPullSecret:  keychain,
-		RegistryImagePrefix: registryImagePrefix,
-		WorkloadDomain:      config.WorkloadDomain,
-		DomainTarget:        domainTarget,
-		IPAddress:           config.IPAddress,
-		GitHubAppSlug:       config.GitHubAppSlug,
-		DashboardURL:        config.DashboardURL,
+		RegistryURL:        config.RegistryURL,
+		RegistryPushURL:    config.RegistryURL,
+		RegistryPullURL:    config.RegistryPullURL,
+		RegistryPullSecret: keychain,
+		WorkloadDomain:     config.WorkloadDomain,
+		DomainTarget:       domainTarget,
+		IPAddress:          config.IPAddress,
+		GitHubAppSlug:      config.GitHubAppSlug,
+		DashboardURL:       config.DashboardURL,
 	}
-	conductor := conductor.New(packagerSvc, deployerSvc, cashierClient, internalIssuer, githubApp, logtoClient, tokenRefresher, directoryClient, platformClient, jobsClient, planner, source, hostnameClient, gatewayClient, helmClient, conductorConfig)
+	conductor := conductor.New(cashierClient, internalIssuer, githubApp, logtoClient, tokenRefresher, directoryClient, platformClient, jobsClient, planner, source, hostnameClient, gatewayClient, helmClient, environmentClient, conductorConfig)
 
 	go runDomainReconciler(ctx, conductor)
 
@@ -339,12 +264,8 @@ func main() {
 	if githubApp != nil {
 		webhookHandler := &webhookhttp.Handler{
 			GitHubApp: githubApp,
-			Pipeline: &webhookpkg.Pipeline{
-				Buildjob: jobsClient,
-				Source:   source,
-				Packager: packagerSvc,
-				Deployer: deployerSvc,
-			},
+			Platform:  platformClient,
+			Conductor: conductor,
 		}
 		webhookSrv := webhookhttp.NewServer(config.WebhookPort, config.WebhookSecret, webhookHandler)
 		servers = append(servers, webhookSrv)
@@ -359,7 +280,7 @@ func main() {
 			slog.Error("failed to create internal JWT verifier", "error", err)
 			os.Exit(1)
 		}
-		grpcSvc := conductorgrpc.NewService(conductor)
+		grpcSvc := conductorgrpc.NewService(platformClient, helmClient)
 		grpcSrv := conductorgrpc.NewServer(":"+config.GRPCPort, grpcSvc, internalVerifier)
 		slog.Info("conductor gRPC ready", "port", config.GRPCPort)
 		servers = append(servers, grpcSrv)
@@ -368,27 +289,6 @@ func main() {
 	}
 
 	graceful.Serve(ctx, servers...)
-}
-
-// reconcileCustomDomains runs the periodic Gateway listener / cert
-// reconciliation loop on the in-process deployer service. Was the
-// goroutine in services/deployer/cmd/deployer/main.go.
-func reconcileCustomDomains(ctx context.Context, dep *deployer.Client) {
-	if err := dep.ReconcileCustomDomains(ctx); err != nil {
-		slog.Warn("initial custom domain reconciliation failed", "error", err)
-	}
-	ticker := time.NewTicker(60 * time.Second)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			if err := dep.ReconcileCustomDomains(ctx); err != nil {
-				slog.Warn("custom domain reconciliation failed", "error", err)
-			}
-		}
-	}
 }
 
 // buildKubeClients constructs typed + dynamic Kubernetes clients

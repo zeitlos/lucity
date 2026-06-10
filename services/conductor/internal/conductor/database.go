@@ -2,14 +2,15 @@ package conductor
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"log/slog"
+	"net"
 
-	"google.golang.org/grpc/codes"
-	grpcstatus "google.golang.org/grpc/status"
 	"k8s.io/apimachinery/pkg/api/resource"
 
-	"github.com/zeitlos/lucity/pkg/tenant"
-	"github.com/zeitlos/lucity/services/conductor/internal/data"
+	"github.com/zeitlos/lucity/services/conductor/internal/dbquery"
+	"github.com/zeitlos/lucity/services/conductor/internal/deployer"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
@@ -49,6 +50,15 @@ type QueryResult struct {
 	AffectedRows int
 }
 
+type DatabaseCredentials struct {
+	Host     string
+	Port     string
+	DBName   string
+	User     string
+	Password string
+	URI      string
+}
+
 func (c *Client) Databases(ctx context.Context, environment EnvironmentID) ([]Database, error) {
 	return c.platform.Databases(ctx, environment)
 }
@@ -58,17 +68,14 @@ func (c *Client) Database(ctx context.Context, id DatabaseID) (*Database, error)
 }
 
 func (c *Client) CreateDatabase(ctx context.Context, environment platform.EnvironmentID, name, version string, instances int, size string) (*Database, error) {
-	ws, err := tenant.FromContext(ctx)
-	if err != nil {
-		return nil, err
-	}
-
 	if version == "" {
 		version = "16"
 	}
+
 	if instances == 0 {
 		instances = 1
 	}
+
 	if size == "" {
 		size = "10Gi"
 	}
@@ -76,16 +83,15 @@ func (c *Client) CreateDatabase(ctx context.Context, environment platform.Enviro
 	parsedSize, err := resource.ParseQuantity(size)
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse size: %v", err)
+		return nil, fmt.Errorf("parse size: %w", err)
 	}
 
-	if err := c.Packager.AddDatabase(ctx, ws, environment.Project, data.DatabaseInfo{
-		Name:      name,
+	if _, err := c.deployer.Databases().Create(ctx, environment, name, deployer.DatabaseSpec{
 		Version:   version,
 		Instances: instances,
-		Size:      size,
+		Size:      parsedSize,
 	}); err != nil {
-		return nil, fmt.Errorf("failed to create database: %w", err)
+		return nil, fmt.Errorf("create database: %w", err)
 	}
 
 	return &Database{
@@ -97,38 +103,35 @@ func (c *Client) CreateDatabase(ctx context.Context, environment platform.Enviro
 }
 
 func (c *Client) DeleteDatabase(ctx context.Context, database platform.DatabaseID) (bool, error) {
-	ws, err := tenant.FromContext(ctx)
-	if err != nil {
-		return false, err
+	if err := c.deployer.Databases().Delete(ctx, database); err != nil {
+		return false, fmt.Errorf("delete database: %w", err)
 	}
 
-	if err := c.Packager.RemoveDatabase(ctx, ws, database.Project, database.Name); err != nil {
-		return false, fmt.Errorf("failed to delete database: %w", err)
-	}
 	return true, nil
 }
 
 func (c *Client) DatabaseTables(ctx context.Context, database platform.DatabaseID) ([]DatabaseTable, error) {
-	ws, err := tenant.FromContext(ctx)
+	query, err := c.databaseQueryClient(ctx, database)
+
 	if err != nil {
 		return nil, err
 	}
 
-	dbTables, err := c.Deployer.DatabaseTables(ctx, ws, database.Project, database.Environment, database.Name)
+	tables, err := query.Tables(ctx)
+
 	if err != nil {
-		if s, ok := grpcstatus.FromError(err); ok && s.Code() == codes.FailedPrecondition {
-			return nil, &DatabaseProvisioningError{}
-		}
-		return nil, fmt.Errorf("failed to get database tables: %w", err)
+		return nil, fmt.Errorf("list tables: %w", err)
 	}
 
-	tables := make([]DatabaseTable, 0, len(dbTables))
-	for _, t := range dbTables {
+	result := make([]DatabaseTable, 0, len(tables))
+
+	for _, t := range tables {
 		table := DatabaseTable{
 			Name:          t.Name,
 			Schema:        t.Schema,
 			EstimatedRows: int(t.EstimatedRows),
 		}
+
 		for _, col := range t.Columns {
 			table.Columns = append(table.Columns, DatabaseColumn{
 				Name:       col.Name,
@@ -137,74 +140,62 @@ func (c *Client) DatabaseTables(ctx context.Context, database platform.DatabaseI
 				PrimaryKey: col.PrimaryKey,
 			})
 		}
-		tables = append(tables, table)
+
+		result = append(result, table)
 	}
-	return tables, nil
+
+	return result, nil
 }
 
 func (c *Client) DatabaseTableData(ctx context.Context, database platform.DatabaseID, table, schema string, limit, offset int) (*DatabaseTableData, error) {
-	ws, err := tenant.FromContext(ctx)
+	query, err := c.databaseQueryClient(ctx, database)
+
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := c.Deployer.DatabaseTableData(ctx, ws, database.Project, database.Environment, database.Name, schema, table, limit, offset)
+	rows, err := query.Rows(ctx, schema, table, limit, offset)
+
 	if err != nil {
-		if s, ok := grpcstatus.FromError(err); ok && s.Code() == codes.FailedPrecondition {
-			return nil, &DatabaseProvisioningError{}
-		}
-		return nil, fmt.Errorf("failed to get table data: %w", err)
+		return nil, fmt.Errorf("read table rows: %w", err)
 	}
 
 	return &DatabaseTableData{
-		Columns:            resp.Columns,
-		Rows:               convertDatabaseRows(resp.Rows),
-		TotalEstimatedRows: int(resp.TotalEstimatedRows),
+		Columns:            rows.Columns,
+		Rows:               rows.Rows,
+		TotalEstimatedRows: int(rows.TotalEstimatedRows),
 	}, nil
 }
 
-func (c *Client) ExecuteQuery(ctx context.Context, database platform.DatabaseID, query string) (*QueryResult, error) {
-	ws, err := tenant.FromContext(ctx)
+func (c *Client) ExecuteQuery(ctx context.Context, database platform.DatabaseID, sql string) (*QueryResult, error) {
+	query, err := c.databaseQueryClient(ctx, database)
+
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := c.Deployer.DatabaseQuery(ctx, ws, database.Project, database.Environment, database.Name, query)
+	result, err := query.Query(ctx, sql)
+
 	if err != nil {
-		if s, ok := grpcstatus.FromError(err); ok && s.Code() == codes.FailedPrecondition {
-			return nil, &DatabaseProvisioningError{}
-		}
-		return nil, fmt.Errorf("query failed: %w", err)
+		return nil, fmt.Errorf("execute query: %w", err)
 	}
 
 	return &QueryResult{
-		Columns:      resp.Columns,
-		Rows:         convertDatabaseRows(resp.Rows),
-		AffectedRows: int(resp.AffectedRows),
+		Columns:      result.Columns,
+		Rows:         result.Rows,
+		AffectedRows: int(result.AffectedRows),
 	}, nil
 }
 
-type DatabaseCredentials struct {
-	Host     string
-	Port     string
-	DBName   string
-	User     string
-	Password string
-	URI      string
-}
-
 func (c *Client) DatabaseCredentials(ctx context.Context, database platform.DatabaseID) (*DatabaseCredentials, error) {
-	ws, err := tenant.FromContext(ctx)
-	if err != nil {
-		return nil, err
+	creds, err := c.platform.DatabaseCredentials(ctx, database)
+
+	if errors.Is(err, platform.ErrDatabaseProvisioning) {
+		return nil, &DatabaseProvisioningError{}
 	}
 
-	creds, err := c.Deployer.DatabaseCredentials(ctx, ws, database.Project, database.Environment, database.Name)
 	if err != nil {
-		if s, ok := grpcstatus.FromError(err); ok && s.Code() == codes.FailedPrecondition {
-			return nil, &DatabaseProvisioningError{}
-		}
-		return nil, fmt.Errorf("failed to get database credentials: %w", err)
+		return nil, fmt.Errorf("read credentials: %w", err)
 	}
 
 	return &DatabaseCredentials{
@@ -213,24 +204,38 @@ func (c *Client) DatabaseCredentials(ctx context.Context, database platform.Data
 		DBName:   creds.DBName,
 		User:     creds.User,
 		Password: creds.Password,
-		URI:      creds.URI,
+		URI:      databaseURI(creds),
 	}, nil
 }
 
-// convertDatabaseRows converts data.DatabaseRow values to [][]*string for GraphQL.
-func convertDatabaseRows(rows []data.DatabaseRow) [][]*string {
-	result := make([][]*string, 0, len(rows))
-	for _, row := range rows {
-		vals := make([]*string, len(row.Cells))
-		for i, cell := range row.Cells {
-			if cell.IsNull {
-				vals[i] = nil
-			} else {
-				v := cell.Value
-				vals[i] = &v
-			}
-		}
-		result = append(result, vals)
+// databaseQueryClient resolves DB credentials, builds a dev-friendly DSN
+// (falls back to localhost when the cluster DNS doesn't resolve, which is
+// the case from outside the cluster), and returns a dbquery.Client.
+func (c *Client) databaseQueryClient(ctx context.Context, id platform.DatabaseID) (*dbquery.Client, error) {
+	creds, err := c.platform.DatabaseCredentials(ctx, id)
+
+	if errors.Is(err, platform.ErrDatabaseProvisioning) {
+		return nil, &DatabaseProvisioningError{}
 	}
-	return result
+
+	if err != nil {
+		return nil, fmt.Errorf("read credentials: %w", err)
+	}
+
+	host := creds.Host
+
+	if _, err := net.LookupHost(host); err != nil {
+		slog.Debug("cnpg host unresolvable, falling back to localhost", "host", host)
+		host = "localhost"
+	}
+
+	dsn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
+		creds.User, creds.Password, host, creds.Port, creds.DBName)
+
+	return dbquery.New(dsn), nil
+}
+
+func databaseURI(creds *platform.DatabaseCredentials) string {
+	return fmt.Sprintf("postgres://%s:%s@%s:%s/%s",
+		creds.User, creds.Password, creds.Host, creds.Port, creds.DBName)
 }

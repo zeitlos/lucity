@@ -47,7 +47,13 @@ func (c *Client) DefaultCommand(ctx context.Context, imageRef string) (string, e
 		return "", err
 	}
 
-	authConfig, err := c.Config.RegistryPullSecret.Resolve(ref.Context())
+	registry, err := name.NewRegistry(c.Config.RegistryPullURL)
+
+	if err != nil {
+		return "", err
+	}
+
+	authConfig, err := c.Config.RegistryPullSecret.Resolve(registry)
 
 	if err != nil {
 		return "", err

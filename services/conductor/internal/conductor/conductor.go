@@ -12,12 +12,11 @@ import (
 	ghpkg "github.com/zeitlos/lucity/pkg/github"
 	"github.com/zeitlos/lucity/pkg/logto"
 	"github.com/zeitlos/lucity/services/conductor/internal/buildjob"
-	newdeployer "github.com/zeitlos/lucity/services/conductor/internal/deployer"
+	"github.com/zeitlos/lucity/services/conductor/internal/deployer"
 	"github.com/zeitlos/lucity/services/conductor/internal/directory"
+	"github.com/zeitlos/lucity/services/conductor/internal/environment"
 	"github.com/zeitlos/lucity/services/conductor/internal/gateway"
 	"github.com/zeitlos/lucity/services/conductor/internal/hostname"
-	"github.com/zeitlos/lucity/services/conductor/internal/inproc/deployer"
-	"github.com/zeitlos/lucity/services/conductor/internal/inproc/packager"
 	"github.com/zeitlos/lucity/services/conductor/internal/planner"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 	"github.com/zeitlos/lucity/services/conductor/internal/source"
@@ -29,8 +28,6 @@ import (
 type TokenRefresher func(ctx context.Context, refreshToken string) (newAccessToken string, err error)
 
 type Client struct {
-	Packager       *packager.Client
-	Deployer       *deployer.Client
 	Cashier        cashier.CashierServiceClient // nil if billing disabled
 	Issuer         *auth.Issuer                 // ES256 JWT issuer for gRPC auth (nil = no auth)
 	GitHubApp      *ghpkg.App                   // for minting installation tokens (repo access)
@@ -38,14 +35,15 @@ type Client struct {
 	TokenRefresher TokenRefresher // refreshes expired Logto access tokens (nil if not configured)
 
 	// Refactored clients
-	directory directory.Interface
-	platform  platform.Interface
-	buildjob  buildjob.Interface
-	planner   planner.Interface
-	source    source.Interface
-	hostname  *hostname.Client
-	gateway   *gateway.Client
-	deployer  newdeployer.Interface
+	directory   directory.Interface
+	platform    platform.Interface
+	buildjob    buildjob.Interface
+	planner     planner.Interface
+	source      source.Interface
+	hostname    *hostname.Client
+	gateway     *gateway.Client
+	deployer    deployer.Interface
+	environment environment.Interface
 
 	Config Config
 
@@ -59,20 +57,19 @@ type Client struct {
 }
 
 type Config struct {
-	RegistryPushURL     string // for builder push, e.g. "localhost:5000"
-	RegistryPullSecret  authn.Keychain
-	RegistryImagePrefix string // for image refs in values.yaml, e.g. cluster-internal address
-	WorkloadDomain      string // base domain for platform-generated domains (e.g., "lucity.app")
-	DomainTarget        string // CNAME target for custom domains (e.g., "lb.lucity.app")
-	IPAddress           string // load balancer IP for A record config
-	GitHubAppSlug       string // GitHub App slug for installation URL generation
-	DashboardURL        string // base URL for the dashboard (e.g., "http://localhost:5173")
+	RegistryPullSecret authn.Keychain
+	RegistryURL        string
+	RegistryPushURL    string
+	RegistryPullURL    string
+	WorkloadDomain     string // base domain for platform-generated domains (e.g., "lucity.app")
+	DomainTarget       string // CNAME target for custom domains (e.g., "lb.lucity.app")
+	IPAddress          string // load balancer IP for A record config
+	GitHubAppSlug      string // GitHub App slug for installation URL generation
+	DashboardURL       string // base URL for the dashboard (e.g., "http://localhost:5173")
 }
 
-func New(packager *packager.Client, legacyDeployer *deployer.Client, cashier cashier.CashierServiceClient, issuer *auth.Issuer, githubApp *ghpkg.App, logto *logto.Client, tokenRefresher TokenRefresher, directory directory.Interface, platform platform.Interface, buildjob buildjob.Interface, planner planner.Interface, source source.Interface, hostname *hostname.Client, gateway *gateway.Client, deployer newdeployer.Interface, config Config) *Client {
+func New(cashier cashier.CashierServiceClient, issuer *auth.Issuer, githubApp *ghpkg.App, logto *logto.Client, tokenRefresher TokenRefresher, directory directory.Interface, platform platform.Interface, buildjob buildjob.Interface, planner planner.Interface, source source.Interface, hostname *hostname.Client, gateway *gateway.Client, deployer deployer.Interface, environment environment.Interface, config Config) *Client {
 	return &Client{
-		Packager:       packager,
-		Deployer:       legacyDeployer,
 		Cashier:        cashier,
 		Issuer:         issuer,
 		GitHubApp:      githubApp,
@@ -88,6 +85,7 @@ func New(packager *packager.Client, legacyDeployer *deployer.Client, cashier cas
 		hostname:       hostname,
 		gateway:        gateway,
 		deployer:       deployer,
+		environment:    environment,
 	}
 }
 

@@ -2,6 +2,7 @@ package platform
 
 import (
 	"context"
+	"errors"
 )
 
 type Interface interface {
@@ -20,10 +21,44 @@ type Interface interface {
 
 	Databases(ctx context.Context, environmentID EnvironmentID) ([]Database, error)
 	Database(ctx context.Context, id DatabaseID) (*Database, error)
+	DatabaseCredentials(ctx context.Context, id DatabaseID) (*DatabaseCredentials, error)
 
 	Volumes(ctx context.Context, environmentID EnvironmentID) ([]Volume, error)
 	Volume(ctx context.Context, id VolumeID) (*Volume, error)
+
+	Logs(ctx context.Context, id ServiceID, tail int) (<-chan LogEntry, error)
+
+	ResourceAllocations(ctx context.Context) ([]ResourceAllocation, error)
 }
+
+// ResourceAllocation reports the actual resource usage of a single
+// environment, summed across all pods (requests) and PVCs. Used by the
+// billing pipeline (Cashier) to meter consumption.
+type ResourceAllocation struct {
+	EnvironmentID EnvironmentID
+	Tier          ResourceTier
+	CPUMillicores int
+	MemoryMB      int
+	DiskMB        int
+}
+
+type LogEntry struct {
+	Pod  string
+	Line string
+}
+
+type DatabaseCredentials struct {
+	Host     string
+	Port     string
+	DBName   string
+	User     string
+	Password string
+}
+
+// ErrDatabaseProvisioning is returned by DatabaseCredentials when the CNPG
+// secret hasn't been created yet (cluster still bootstrapping). Callers
+// typically translate this to a "still provisioning" UI state.
+var ErrDatabaseProvisioning = errors.New("database is provisioning")
 
 type WorkspaceScoped interface {
 	WorkspaceID() string

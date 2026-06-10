@@ -35,7 +35,8 @@ func CreateDatabase(env *Env, name string, spec DatabaseSpec) error {
 	}
 
 	if _, ok := env.Databases.Postgres[name]; ok {
-		return fmt.Errorf("database %q already exists", name)
+		// To keep this function idempotent, don't return an error if the database already exists.
+		return nil
 	}
 
 	if env.Databases.Postgres == nil {

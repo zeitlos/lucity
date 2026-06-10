@@ -43,12 +43,6 @@ func (c *Client) Start(ctx context.Context, opts buildjob.StartOptions) (*buildj
 		tag = tag[:7]
 	}
 
-	targets := make([]string, len(opts.TargetImageNames))
-
-	for i, name := range opts.TargetImageNames {
-		targets[i] = c.registry + "/" + name + ":" + tag
-	}
-
 	hash := c.buildHash(opts.Workspace, *parsed, opts.ContextPath, opts.Commit)
 	id := "build-" + hash
 
@@ -63,7 +57,7 @@ func (c *Client) Start(ctx context.Context, opts buildjob.StartOptions) (*buildj
 		return nil, err
 	}
 
-	job := c.newBuildJob(id, opts.Workspace, *parsed, opts.ContextPath, opts.Commit, opts.Token, targets)
+	job := c.newBuildJob(id, opts.Workspace, *parsed, opts.ContextPath, opts.Commit, opts.Token, tag, opts.TargetImageNames)
 
 	created, err := c.kubernetes.BatchV1().Jobs(c.namespace).Create(ctx, job, meta.CreateOptions{})
 
@@ -109,15 +103,21 @@ func (c *Client) Cancel(ctx context.Context, id string) (*buildjob.Job, error) {
 	return new(toJob(*job)), nil
 }
 
-func (c *Client) newBuildJob(id string, workspaceID string, repoURL url.URL, contextPath, commit, githubToken string, targets []string) *batch.Job {
-	targetsJoined := strings.Join(targets, ",")
+func (c *Client) newBuildJob(id string, workspaceID string, repoURL url.URL, contextPath, commit, githubToken, tag string, targetImageNames []string) *batch.Job {
+	targetImages := make([]string, len(targetImageNames))
+	targetRefs := make([]string, len(targetImageNames))
+
+	for i, name := range targetImageNames {
+		targetImages[i] = name + ":" + tag
+		targetRefs[i] = c.registry + "/" + name + ":" + tag
+	}
 
 	env := []core.EnvVar{
 		{Name: "BUILD_ID", Value: id},
 		{Name: "BUILD_SOURCE_URL", Value: repoURL.String()},
 		{Name: "BUILD_GIT_REF", Value: commit},
 		{Name: "BUILD_CONTEXT_PATH", Value: contextPath},
-		{Name: "BUILD_TARGET_REFS", Value: targetsJoined},
+		{Name: "BUILD_TARGET_REFS", Value: strings.Join(targetRefs, ",")},
 		{Name: "BUILDKIT_ADDR", Value: c.buildKitAddr},
 		{Name: "GITHUB_TOKEN", Value: githubToken},
 		{Name: "DOCKER_CONFIG", Value: "/etc/registry-auth"},
@@ -139,7 +139,7 @@ func (c *Client) newBuildJob(id string, workspaceID string, repoURL url.URL, con
 			Annotations: map[string]string{
 				annotationSourceRepo: repoURL.String(),
 				annotationContext:    contextPath,
-				annotationTargets:    targetsJoined,
+				annotationTargets:    strings.Join(targetImages, ","),
 			},
 		},
 		Spec: batch.JobSpec{

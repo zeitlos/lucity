@@ -15,20 +15,8 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
-// RequiredDNSRecords is the resolver for the requiredDnsRecords field.
-// TODO: wire when Service exposes `domains: [Domain!]!` — needs the workspace
-// passed via a hidden @goExtraField so r.Conductor.RequiredDNSRecords can compute
-// the deterministic challenge value.
-func (r *domainResolver) RequiredDNSRecords(ctx context.Context, obj *model.Domain) ([]model.DNSRecord, error) {
-	return nil, nil
-}
-
 // AddService is the resolver for the addService field.
 func (r *mutationResolver) AddService(ctx context.Context, input model.AddServiceInput) (*model.Service, error) {
-	framework := ""
-	if input.Framework != nil {
-		framework = *input.Framework
-	}
 	startCommand := ""
 	if input.StartCommand != nil {
 		startCommand = *input.StartCommand
@@ -53,10 +41,6 @@ func (r *mutationResolver) AddService(ctx context.Context, input model.AddServic
 	if input.Name != nil {
 		name = *input.Name
 	}
-	port := 0
-	if input.Port != nil {
-		port = *input.Port
-	}
 	externalImage := ""
 	if input.Image != nil {
 		externalImage = *input.Image
@@ -65,7 +49,7 @@ func (r *mutationResolver) AddService(ctx context.Context, input model.AddServic
 	if input.CustomStartCommand != nil {
 		customStartCommand = *input.CustomStartCommand
 	}
-	si, err := r.Conductor.AddService(ctx, input.Environment, name, port, framework, startCommand, repository, contextPath, installationID, externalImage, customStartCommand)
+	si, err := r.Conductor.AddService(ctx, input.Environment, name, startCommand, repository, contextPath, installationID, externalImage, customStartCommand)
 	if err != nil {
 		return nil, err
 	}
@@ -81,6 +65,22 @@ func (r *mutationResolver) RemoveService(ctx context.Context, service platform.S
 // SetCustomStartCommand is the resolver for the setCustomStartCommand field.
 func (r *mutationResolver) SetCustomStartCommand(ctx context.Context, service platform.ServiceID, command string) (*model.Service, error) {
 	result, err := r.Conductor.SetCustomStartCommand(ctx, service, command)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return new(convertService(*result)), nil
+}
+
+// SetServicePort is the resolver for the setServicePort field.
+func (r *mutationResolver) SetServicePort(ctx context.Context, service platform.ServiceID, port *int) (*model.Service, error) {
+	p := 0
+	if port != nil {
+		p = *port
+	}
+
+	result, err := r.Conductor.SetServicePort(ctx, service, p)
 
 	if err != nil {
 		return nil, err
@@ -176,6 +176,23 @@ func (r *queryResolver) DetectServices(ctx context.Context, installationID strin
 	return result, nil
 }
 
+// Endpoints is the resolver for the endpoints field.
+func (r *serviceResolver) Endpoints(ctx context.Context, obj *model.Service) ([]model.Endpoint, error) {
+	endpoints, err := r.Conductor.Endpoints(ctx, obj.ID, obj.PlatformEndpoints)
+
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]model.Endpoint, 0, len(endpoints))
+
+	for _, endpoint := range endpoints {
+		result = append(result, convertEndpoint(endpoint))
+	}
+
+	return result, nil
+}
+
 // DefaultCommand is the resolver for the defaultCommand field.
 func (r *serviceResolver) DefaultCommand(ctx context.Context, obj *model.Service) (string, error) {
 	return r.Conductor.DefaultCommand(ctx, obj.ActiveDeployment.Image)
@@ -215,11 +232,7 @@ func (r *serviceResolver) Builds(ctx context.Context, obj *model.Service) ([]mod
 	return result, nil
 }
 
-// Domain returns DomainResolver implementation.
-func (r *Resolver) Domain() DomainResolver { return &domainResolver{r} }
-
 // Service returns ServiceResolver implementation.
 func (r *Resolver) Service() ServiceResolver { return &serviceResolver{r} }
 
-type domainResolver struct{ *Resolver }
 type serviceResolver struct{ *Resolver }

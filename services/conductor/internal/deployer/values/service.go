@@ -8,7 +8,7 @@ import (
 
 type Service struct {
 	Image                ImageRef               `yaml:"image"`
-	Port                 int                    `yaml:"port"`
+	Port                 int                    `yaml:"port,omitempty"`
 	Replicas             int                    `yaml:"replicas,omitempty"`
 	Autoscaling          *Autoscaling           `yaml:"autoscaling,omitempty"`
 	Resources            Resources              `yaml:"resources,omitempty"`
@@ -17,7 +17,6 @@ type Service struct {
 	Env                  map[string]string      `yaml:"env,omitempty"`
 	SharedRefs           []string               `yaml:"sharedRefs,omitempty"`
 	DatabaseRefs         map[string]DatabaseRef `yaml:"databaseRefs,omitempty"`
-	ServiceRefs          map[string]ServiceRef  `yaml:"serviceRefs,omitempty"`
 	SourceURL            string                 `yaml:"sourceUrl,omitempty"`
 	ContextPath          string                 `yaml:"contextPath,omitempty"`
 	Branch               string                 `yaml:"branch,omitempty"`
@@ -53,10 +52,6 @@ type DatabaseRef struct {
 	Key      string `yaml:"key"`
 }
 
-type ServiceRef struct {
-	Service string `yaml:"service"`
-}
-
 type Domain struct {
 	Host     string `yaml:"host"`
 	Verified bool   `yaml:"verified"`
@@ -64,7 +59,6 @@ type Domain struct {
 
 type ServiceSpec struct {
 	Image                string
-	Port                 int
 	SourceURL            string
 	ContextPath          string
 	Branch               string
@@ -78,7 +72,8 @@ func CreateService(env *Env, name string, spec ServiceSpec) error {
 	}
 
 	if _, ok := env.Services[name]; ok {
-		return fmt.Errorf("service %q already exists", name)
+		// To keep this function idempotent, don't return an error if the service already exists.
+		return nil
 	}
 
 	repository, tag := splitImageRef(spec.Image)
@@ -92,7 +87,6 @@ func CreateService(env *Env, name string, spec ServiceSpec) error {
 			Repository: repository,
 			Tag:        tag,
 		},
-		Port:                 spec.Port,
 		SourceURL:            spec.SourceURL,
 		ContextPath:          spec.ContextPath,
 		Branch:               spec.Branch,
@@ -103,7 +97,7 @@ func CreateService(env *Env, name string, spec ServiceSpec) error {
 	return nil
 }
 
-func RemoveService(env *Env, name string) error {
+func DeleteService(env *Env, name string) error {
 	if _, ok := env.Services[name]; !ok {
 		return fmt.Errorf("service %q not found", name)
 	}
@@ -171,8 +165,8 @@ func SetServiceBranch(env *Env, name, branch string) error {
 }
 
 func SetServicePort(env *Env, name string, port int) error {
-	if port <= 0 || port > 65535 {
-		return fmt.Errorf("port must be in (0, 65535]")
+	if !isValidPort(port) {
+		return fmt.Errorf("port must be in [0, 65535]")
 	}
 
 	return mutateService(env, name, func(s *Service) {
@@ -180,16 +174,46 @@ func SetServicePort(env *Env, name string, port int) error {
 	})
 }
 
-func SetServiceVariables(env *Env, name string, vars map[string]string) error {
-	for k := range vars {
+// SetServiceVariables replaces a service's entire variable surface:
+// literals (Env), database refs, and shared-ref UI metadata.
+func SetServiceVariables(env *Env, name string, literals map[string]string, dbRefs map[string]DatabaseRef, sharedRefs []string) error {
+	for k := range literals {
 		if !isValidVarName(k) {
 			return fmt.Errorf("invalid variable name %q", k)
 		}
 	}
 
+	for k := range dbRefs {
+		if !isValidVarName(k) {
+			return fmt.Errorf("invalid databaseRef env key %q", k)
+		}
+	}
+
+	for _, k := range sharedRefs {
+		if !isValidVarName(k) {
+			return fmt.Errorf("invalid sharedRef key %q", k)
+		}
+	}
+
 	return mutateService(env, name, func(s *Service) {
-		s.Env = cloneStringMap(vars)
+		s.Env = cloneStringMap(literals)
+		s.DatabaseRefs = cloneDatabaseRefs(dbRefs)
+		s.SharedRefs = append([]string(nil), sharedRefs...)
 	})
+}
+
+func cloneDatabaseRefs(in map[string]DatabaseRef) map[string]DatabaseRef {
+	if in == nil {
+		return nil
+	}
+
+	out := make(map[string]DatabaseRef, len(in))
+
+	for k, v := range in {
+		out[k] = v
+	}
+
+	return out
 }
 
 func AddServiceDomain(env *Env, name, host string) error {

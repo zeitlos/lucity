@@ -5,8 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/zeitlos/lucity/pkg/tenant"
-	"github.com/zeitlos/lucity/services/conductor/internal/data"
+	"github.com/zeitlos/lucity/services/conductor/internal/deployer"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
@@ -20,19 +19,15 @@ type DatabaseRef struct {
 	Key      string
 }
 
-type ServiceRef struct {
-	Service platform.ServiceID
-}
-
 type ServiceVariable struct {
 	Key         string
 	Value       string
 	FromShared  bool
 	DatabaseRef *DatabaseRef
-	ServiceRef  *ServiceRef
 }
 
-// cnpgKeyDisplayNames maps CNPG secret keys to human-readable display names.
+// cnpgKeyDisplayNames maps CNPG secret keys to human-readable display names
+// for the rendered dashboard placeholder value (e.g. "${{Mydb.DATABASE_URL}}").
 var cnpgKeyDisplayNames = map[string]string{
 	"uri":      "DATABASE_URL",
 	"host":     "PGHOST",
@@ -43,112 +38,152 @@ var cnpgKeyDisplayNames = map[string]string{
 }
 
 func (c *Client) SharedVariables(ctx context.Context, environment platform.EnvironmentID) ([]Variable, error) {
-	ws, err := tenant.FromContext(ctx)
+	vars, err := c.deployer.Environments().Variables(ctx, environment)
+
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("read shared variables: %w", err)
 	}
 
-	vars, err := c.Packager.SharedVariables(ctx, ws, environment.Project, environment.Name)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get shared variables: %w", err)
-	}
+	result := make([]Variable, 0, len(vars))
 
-	var result []Variable
 	for k, v := range vars {
 		result = append(result, Variable{Key: k, Value: v})
 	}
+
 	return result, nil
 }
 
 func (c *Client) SetSharedVariables(ctx context.Context, environment platform.EnvironmentID, vars []Variable) (bool, error) {
-	ws, err := tenant.FromContext(ctx)
-	if err != nil {
-		return false, err
-	}
-
 	m := make(map[string]string, len(vars))
+
 	for _, v := range vars {
 		m[v.Key] = v.Value
 	}
 
-	if err := c.Packager.SetSharedVariables(ctx, ws, environment.Project, environment.Name, m); err != nil {
-		return false, fmt.Errorf("failed to set shared variables: %w", err)
+	if _, err := c.deployer.Environments().SetVariables(ctx, environment, m); err != nil {
+		return false, fmt.Errorf("write shared variables: %w", err)
 	}
+
 	return true, nil
 }
 
+// ServiceVariables returns the variable rows the dashboard should render
+// for a single service:
+//   - literals (with FromShared set when the user marked the row as
+//     shared-sourced; the literal value wins at pod-runtime over any
+//     envFrom-supplied shared value of the same name)
+//   - sharedRefs that have no literal counterpart, with their resolved
+//     shared value looked up from the env's shared bag
+//   - database refs rendered with a placeholder value like
+//     "${{MyDB.DATABASE_URL}}" the dashboard treats as a token
 func (c *Client) ServiceVariables(ctx context.Context, service platform.ServiceID) ([]ServiceVariable, error) {
-	ws, err := tenant.FromContext(ctx)
+	spec, err := c.deployer.Services().Variables(ctx, service)
+
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := c.Packager.ServiceVariables(ctx, ws, service.Project, service.Environment, service.Name)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get service variables: %w", err)
+	sharedSet := make(map[string]bool, len(spec.SharedRefs))
+
+	for _, k := range spec.SharedRefs {
+		sharedSet[k] = true
 	}
 
-	refSet := make(map[string]bool, len(resp.SharedRefs))
-	for _, ref := range resp.SharedRefs {
-		refSet[ref] = true
-	}
+	result := make([]ServiceVariable, 0, len(spec.Literals)+len(spec.DatabaseRefs)+len(spec.SharedRefs))
 
-	var result []ServiceVariable
-	for k, v := range resp.Variables {
+	for k, v := range spec.Literals {
 		result = append(result, ServiceVariable{
 			Key:        k,
 			Value:      v,
-			FromShared: refSet[k],
+			FromShared: sharedSet[k],
 		})
 	}
 
-	for k, ref := range resp.DatabaseRefs {
+	// Emit a row for each sharedRef without a literal counterpart. The
+	// shared value resolves at read time (via the env's shared bag) so
+	// the row shows the user what the pod will actually receive.
+	missingShared := make([]string, 0)
+
+	for _, k := range spec.SharedRefs {
+		if _, hasLiteral := spec.Literals[k]; !hasLiteral {
+			missingShared = append(missingShared, k)
+		}
+	}
+
+	if len(missingShared) > 0 {
+		sharedBag, err := c.deployer.Environments().Variables(ctx, service.EnvironmentID())
+
+		if err != nil {
+			return nil, fmt.Errorf("resolve shared variables for refs: %w", err)
+		}
+
+		for _, k := range missingShared {
+			result = append(result, ServiceVariable{
+				Key:        k,
+				Value:      sharedBag[k],
+				FromShared: true,
+			})
+		}
+	}
+
+	for k, ref := range spec.DatabaseRefs {
 		displayKey := cnpgKeyDisplayNames[ref.Key]
+
 		if displayKey == "" {
 			displayKey = ref.Key
 		}
-		dbName := strings.ToUpper(ref.Database[:1]) + ref.Database[1:]
-		// TODO: rebuild DatabaseRef with typed DatabaseID after migration
+
+		dbName := capitalize(ref.Database)
+
 		result = append(result, ServiceVariable{
 			Key:   k,
 			Value: fmt.Sprintf("${{%s.%s}}", dbName, displayKey),
-		})
-	}
-
-	for k, ref := range resp.ServiceRefs {
-		svcName := strings.ToUpper(ref.Service[:1]) + ref.Service[1:]
-		// TODO: rebuild ServiceRef with typed ServiceID after migration
-		result = append(result, ServiceVariable{
-			Key:   k,
-			Value: fmt.Sprintf("${{%s.URL}}", svcName),
+			DatabaseRef: &DatabaseRef{
+				Database: platform.DatabaseID{
+					Workspace:   service.Workspace,
+					Project:     service.Project,
+					Environment: service.Environment,
+					Name:        ref.Database,
+				},
+				Key: ref.Key,
+			},
 		})
 	}
 
 	return result, nil
 }
 
-func (c *Client) SetServiceVariables(ctx context.Context, service platform.ServiceID, vars []Variable, sharedRefs []string, dbRefs map[string]DatabaseRef, svcRefs map[string]ServiceRef) (bool, error) {
-	ws, err := tenant.FromContext(ctx)
-	if err != nil {
-		return false, err
-	}
+func (c *Client) SetServiceVariables(ctx context.Context, service platform.ServiceID, vars []Variable, sharedRefs []string, dbRefs map[string]DatabaseRef) (bool, error) {
+	literals := make(map[string]string, len(vars))
 
-	m := make(map[string]string, len(vars))
 	for _, v := range vars {
-		m[v.Key] = v.Value
+		literals[v.Key] = v.Value
 	}
 
-	dataDBRefs := make(map[string]data.DatabaseRef, len(dbRefs))
+	specDBRefs := make(map[string]deployer.DatabaseRef, len(dbRefs))
+
 	for k, ref := range dbRefs {
-		dataDBRefs[k] = data.DatabaseRef{Database: ref.Database.Name, Key: ref.Key}
-	}
-	dataSvcRefs := make(map[string]data.ServiceRef, len(svcRefs))
-	for k, ref := range svcRefs {
-		dataSvcRefs[k] = data.ServiceRef{Service: ref.Service.Name}
+		specDBRefs[k] = deployer.DatabaseRef{
+			Database: ref.Database.Name,
+			Key:      ref.Key,
+		}
 	}
 
-	if err := c.Packager.SetServiceVariables(ctx, ws, service.Project, service.Environment, service.Name, m, sharedRefs, dataDBRefs, dataSvcRefs); err != nil {
-		return false, fmt.Errorf("failed to set service variables: %w", err)
+	if _, err := c.deployer.Services().SetVariables(ctx, service, deployer.ServiceVariablesSpec{
+		Literals:     literals,
+		DatabaseRefs: specDBRefs,
+		SharedRefs:   sharedRefs,
+	}); err != nil {
+		return false, fmt.Errorf("write service variables: %w", err)
 	}
+
 	return true, nil
+}
+
+func capitalize(s string) string {
+	if s == "" {
+		return s
+	}
+
+	return strings.ToUpper(s[:1]) + s[1:]
 }

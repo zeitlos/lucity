@@ -9,18 +9,9 @@ type DatabaseRef {
   key: String!
 }
 
-"""A reference to another service's internal URL (computed by Helm template)."""
-type ServiceRef {
-  service: ServiceID!
-}
-
 input DatabaseRefInput {
   database: DatabaseID!
   key: String!
-}
-
-input ServiceRefInput {
-  service: ServiceID!
 }
 
 type ServiceVariable {
@@ -28,7 +19,6 @@ type ServiceVariable {
   value: String!
   fromShared: Boolean!
   databaseRef: DatabaseRef
-  serviceRef: ServiceRef
 }
 
 input VariableInput {
@@ -44,8 +34,6 @@ input ServiceVariableInput {
   fromShared: Boolean
   """Reference to a database secret key."""
   databaseRef: DatabaseRefInput
-  """Reference to another service's internal URL."""
-  serviceRef: ServiceRefInput
 }
 
 extend type Query {

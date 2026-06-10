@@ -3,12 +3,15 @@ package kubernetes
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"log/slog"
 	"net/url"
 	"path"
 	"strings"
 
 	"github.com/zeitlos/lucity/pkg/github"
 	"github.com/zeitlos/lucity/services/conductor/internal/buildjob"
+
+	"github.com/google/go-containerregistry/pkg/name"
 	batch "k8s.io/api/batch/v1"
 	core "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
@@ -61,6 +64,7 @@ func toJob(job batch.Job) buildjob.Job {
 		Commit:      job.Labels[labelSourceCommit],
 		ContextPath: job.Annotations[annotationContext],
 		TriggeredBy: job.Annotations[annotationTriggeredBy],
+		ImageRefs:   make(map[string]name.Reference),
 	}
 
 	if job.Status.StartTime != nil {
@@ -72,7 +76,16 @@ func toJob(job batch.Job) buildjob.Job {
 	}
 
 	if refs := job.Annotations[annotationTargets]; refs != "" {
-		build.ImageRefs = strings.Split(refs, ",")
+		for _, ref := range strings.Split(refs, ",") {
+			parsed, err := name.ParseReference(ref)
+
+			if err != nil {
+				slog.Warn("failed to parse image ref on build job", "error", err, "ref", ref, "job", job.Name, "namespace", job.Namespace)
+				continue
+			}
+
+			build.ImageRefs[parsed.Context().RepositoryStr()] = parsed
+		}
 	}
 
 	return build

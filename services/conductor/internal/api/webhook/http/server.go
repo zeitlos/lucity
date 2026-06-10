@@ -9,14 +9,16 @@ import (
 
 	"github.com/zeitlos/lucity/pkg/auth"
 	ghpkg "github.com/zeitlos/lucity/pkg/github"
-	webhook "github.com/zeitlos/lucity/services/conductor/internal/api/webhook"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/webhook/github"
+	"github.com/zeitlos/lucity/services/conductor/internal/conductor"
+	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
 // Handler holds the dependencies for webhook event processing.
 type Handler struct {
 	GitHubApp *ghpkg.App
-	Pipeline  *webhook.Pipeline
+	Platform  platform.Interface
+	Conductor *conductor.Client
 }
 
 type Server struct {
@@ -51,6 +53,7 @@ func handleGitHub(secret []byte, h *Handler) http.HandlerFunc {
 		}
 
 		event, err := github.ValidateAndParse(secret, r)
+
 		if err != nil {
 			slog.Warn("webhook validation failed", "error", err)
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
@@ -75,10 +78,13 @@ func handleGitHub(secret []byte, h *Handler) http.HandlerFunc {
 	}
 }
 
-// handlePush processes a push event: matches repos to projects and triggers builds.
+// handlePush processes a push event: matches repos to services via
+// platform.ServicesByRepo and triggers builds for development-env hits
+// via conductor.Deploy — same code path the dashboard's deploy button
+// uses.
 func (h *Handler) handlePush(event *github.Event) {
-	// Only deploy pushes to the default branch → development environment.
 	refBranch := strings.TrimPrefix(event.Ref, "refs/heads/")
+
 	if refBranch != event.DefaultBranch {
 		slog.Debug("push: ignoring non-default branch", "ref", event.Ref, "default", event.DefaultBranch)
 		return
@@ -89,83 +95,48 @@ func (h *Handler) handlePush(event *github.Event) {
 		return
 	}
 
-	// Mint an installation token for GitHub API access.
 	ctx := context.Background()
+
 	ghToken, err := h.GitHubApp.InstallationToken(ctx, event.InstallationID)
+
 	if err != nil {
-		slog.Error("push: failed to get installation token", "error", err)
+		slog.Error("push: failed to mint installation token", "error", err)
 		return
 	}
 
-	// Look up workspace by installation ID via the deployer.
-	ws, err := h.lookupWorkspace(ctx, event.InstallationID, ghToken)
-	if err != nil {
-		slog.Error("push: failed to look up workspace", "installation_id", event.InstallationID, "error", err)
-		return
-	}
-
-	// Carry the user identity and GitHub token on the context.
-	// (Workspace is now passed explicitly to Pipeline.Run.)
 	ctx = auth.NewContext(ctx, &auth.Claims{
 		Subject: "webhook",
 		Roles:   []auth.Role{auth.RoleUser},
 	})
 	ctx = auth.WithGitHubToken(ctx, ghToken)
 
-	// List all projects and find services matching this repo.
-	infos, err := h.Pipeline.Packager.ListProjects(ctx, ws)
+	repoURL := fmt.Sprintf("https://github.com/%s", event.RepoFullName)
+	const targetEnv = "development"
+
+	ids, err := h.Platform.ServicesByRepo(ctx, repoURL, event.DefaultBranch)
+
 	if err != nil {
-		slog.Error("push: failed to list projects", "error", err)
+		slog.Error("push: failed to find services by repo", "repo", repoURL, "error", err)
 		return
 	}
 
-	repoURL := fmt.Sprintf("https://github.com/%s", event.RepoFullName)
-	environment := "development"
+	for _, id := range ids {
+		if id.Environment != targetEnv {
+			continue
+		}
 
-	for _, proj := range infos {
-		for _, envInfo := range proj.EnvironmentInfos {
-			if envInfo.Name != environment {
-				continue
-			}
-			for _, svc := range envInfo.Services {
-				if !matchesRepo(svc.SourceURL, repoURL) {
-					continue
-				}
+		slog.Info("push: triggering deploy",
+			"workspace", id.Workspace,
+			"project", id.Project,
+			"service", id.Name,
+			"environment", id.Environment,
+			"sha", event.CommitSHA,
+		)
 
-				slog.Info("push: triggering deploy",
-					"project", proj.Name,
-					"service", svc.Name,
-					"environment", environment,
-					"sha", event.CommitSHA,
-					"workspace", ws,
-				)
-
-				go h.Pipeline.Run(ctx, ws, proj.Name, svc.Name, environment, event.CommitSHA, svc.SourceURL, svc.ContextPath)
-			}
+		if _, err := h.Conductor.Deploy(ctx, id, event.CommitSHA); err != nil {
+			slog.Warn("push: deploy failed", "service", id, "error", err)
 		}
 	}
-}
-
-// lookupWorkspace resolves the workspace for a GitHub App installation ID
-// by asking the inproc deployer.
-func (h *Handler) lookupWorkspace(ctx context.Context, installationID int64, ghToken string) (string, error) {
-	ws, err := h.Pipeline.Deployer.WorkspaceByInstallationID(ctx, installationID)
-	if err != nil {
-		return "", fmt.Errorf("deployer lookup failed: %w", err)
-	}
-	return ws, nil
-}
-
-// matchesRepo checks if a service's source URL matches a repo URL.
-// Handles trailing .git, case differences, and protocol variations.
-func matchesRepo(serviceURL, repoURL string) bool {
-	normalize := func(u string) string {
-		u = strings.TrimSuffix(u, ".git")
-		u = strings.TrimSuffix(u, "/")
-		u = strings.ToLower(u)
-		return u
-	}
-	return normalize(serviceURL) == normalize(repoURL)
 }
 
 func (s *Server) Label() string {

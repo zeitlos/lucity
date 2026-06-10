@@ -9,6 +9,7 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 
 	cnpgv1 "github.com/cloudnative-pg/cloudnative-pg/api/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -119,6 +120,44 @@ func databaseID(cluster cnpgv1.Cluster, environmentID platform.EnvironmentID) pl
 		Environment: environmentID.Name,
 		Name:        cluster.Labels[databaseLabel],
 	}
+}
+
+// DatabaseCredentials reads the CNPG-managed app Secret for a database and
+// returns its connection details. Returns platform.ErrDatabaseProvisioning
+// when the Secret hasn't been created yet (cluster still bootstrapping).
+//
+// The Secret naming follows the chart's fullname helper: release name (which
+// equals the env namespace in the helm-backed flow) prefixes the cluster
+// name, then CNPG suffixes `-app` for the application credential.
+func (c *Client) DatabaseCredentials(ctx context.Context, id platform.DatabaseID) (*platform.DatabaseCredentials, error) {
+	namespace := id.Namespace()
+	secretName := namespace + "-pg-" + id.Name + "-app"
+
+	secret, err := c.kubernetes.CoreV1().Secrets(namespace).Get(ctx, secretName, meta.GetOptions{})
+
+	if apierrors.IsNotFound(err) {
+		return nil, platform.ErrDatabaseProvisioning
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("get cnpg secret %q in %q: %w", secretName, namespace, err)
+	}
+
+	host := string(secret.Data["host"])
+
+	// CNPG stores the short service name; qualify with namespace for
+	// cross-namespace DNS resolution.
+	if !strings.Contains(host, ".") {
+		host = host + "." + namespace + ".svc.cluster.local"
+	}
+
+	return &platform.DatabaseCredentials{
+		Host:     host,
+		Port:     string(secret.Data["port"]),
+		DBName:   string(secret.Data["dbname"]),
+		User:     string(secret.Data["user"]),
+		Password: string(secret.Data["password"]),
+	}, nil
 }
 
 func databaseStatus(cluster cnpgv1.Cluster) platform.DatabaseStatus {

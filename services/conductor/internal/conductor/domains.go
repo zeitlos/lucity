@@ -8,10 +8,59 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
-type DNSRecord = hostname.DNSRecord
+type Endpoint struct {
+	Host               string
+	Port               int
+	Protocol           platform.Protocol
+	RequiredDNSRecords []hostname.DNSRecord
+	DNSStatus          hostname.DNSStatus
+	TLSStatus          hostname.TLSStatus
+	Type               EndpointType
+}
 
-func (c *Client) RequiredDNSRecords(ctx context.Context, workspaceID, host string) ([]DNSRecord, error) {
-	return c.hostname.DNSRecords(workspaceID, host), nil
+type EndpointType = string
+
+const (
+	InternalEndpoint     EndpointType = "internal"
+	PlatformEndpoint     EndpointType = "platform"
+	CustomDomainEndpoint EndpointType = "custom"
+)
+
+func (c *Client) Endpoints(ctx context.Context, serviceID ServiceID, endpoints []platform.Endpoint) ([]Endpoint, error) {
+	result := make([]Endpoint, 0, len(endpoints))
+
+	for _, endpoint := range endpoints {
+		var err error
+		resolved := Endpoint{
+			Host:               endpoint.Host,
+			Port:               endpoint.Port,
+			Protocol:           endpoint.Protocol,
+			RequiredDNSRecords: c.hostname.DNSRecords(serviceID.Workspace, endpoint.Host),
+			Type:               CustomDomainEndpoint,
+		}
+
+		resolved.DNSStatus, err = c.hostname.DNSStatus(ctx, serviceID.Workspace, endpoint.Host)
+
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to lookup dns status", "error", err, "service", serviceID.String(), "host", endpoint.Host)
+		}
+
+		resolved.TLSStatus, err = c.hostname.TLSStatus(ctx, endpoint.Host)
+
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to lookup tls status", "error", err, "service", serviceID.String(), "host", endpoint.Host)
+		}
+
+		if c.hostname.IsInternal(endpoint.Host) {
+			resolved.Type = InternalEndpoint
+		} else if c.hostname.IsPlatform(endpoint.Host) {
+			resolved.Type = PlatformEndpoint
+		}
+
+		result = append(result, resolved)
+	}
+
+	return result, nil
 }
 
 func (c *Client) ReconcileDomains(ctx context.Context) error {
@@ -88,7 +137,6 @@ func (c *Client) reconcileEnvironmentDomains(ctx context.Context, workspaceID st
 		return nil, err
 	}
 
-	namespace := envID.Namespace()
 	var verified []string
 
 	for _, service := range services {
@@ -101,14 +149,14 @@ func (c *Client) reconcileEnvironmentDomains(ctx context.Context, workspaceID st
 
 			currentVerified := endpoint.Protocol == platform.ProtocolHTTPS
 
-			status, err := c.hostname.Status(ctx, namespace, workspaceID, host)
+			dnsStatus, err := c.hostname.DNSStatus(ctx, workspaceID, host)
 
 			if err != nil {
 				slog.Warn("reconcile domains: status check failed", "host", host, "error", err)
 				continue
 			}
 
-			desiredVerified := status.DNS == hostname.DNSValid
+			desiredVerified := dnsStatus == hostname.DNSValid
 
 			if currentVerified != desiredVerified {
 				if _, err := c.deployer.Services().VerifyDomain(ctx, service.ID, host, desiredVerified); err != nil {

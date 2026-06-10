@@ -29,7 +29,7 @@ var gatewayGVR = schema.GroupVersionResource{
 
 const listenerPrefix = "custom-"
 
-func resourceNameFor(hostname string) string {
+func ResourceNameFor(hostname string) string {
 	return listenerPrefix + strings.ReplaceAll(hostname, ".", "-")
 }
 

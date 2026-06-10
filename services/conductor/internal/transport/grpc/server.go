@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 
 	"google.golang.org/grpc"
@@ -12,80 +13,96 @@ import (
 
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/conductor"
-	core "github.com/zeitlos/lucity/services/conductor/internal/conductor"
-	"github.com/zeitlos/lucity/services/conductor/internal/data"
+	"github.com/zeitlos/lucity/services/conductor/internal/deployer"
+	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
-// Service implements the ConductorService gRPC server. It is the
-// inbound surface the conductor exposes to other platform services
-// (today: cashier).
-//
-// The implementation is intentionally thin during the migration: the
-// heavy lifting still happens in the (separately-deployed) deployer
-// service. Conductor proxies the SuspendWorkspace call to the
-// existing deployer gRPC client that the handler already holds.
-// Phase 4+ will replace the proxy with a direct in-process
-// implementation once deployer's logic is fully absorbed.
+// Service implements the ConductorService gRPC server — the inbound surface
+// the conductor exposes to other platform services (today: cashier). It is
+// the only entry point to the deployer / platform clients from outside the
+// conductor binary.
 type Service struct {
 	conductor.UnimplementedConductorServiceServer
-	api *core.Client
+
+	platform platform.Interface
+	deployer deployer.Interface
 }
 
-func NewService(conductor *core.Client) *Service {
-	return &Service{api: conductor}
-}
-
-// SuspendWorkspace forwards into the inproc deployer.
-func (s *Service) SuspendWorkspace(ctx context.Context, req *conductor.SuspendWorkspaceRequest) (*conductor.SuspendWorkspaceResponse, error) {
-	if s.api == nil || s.api.Deployer == nil {
-		return nil, status.Error(codes.FailedPrecondition, "deployer not wired")
+func NewService(platform platform.Interface, deployer deployer.Interface) *Service {
+	return &Service{
+		platform: platform,
+		deployer: deployer,
 	}
-	if req.GetWorkspace() == "" {
+}
+
+// SuspendWorkspace flips the suspended bit on every environment owned by
+// the workspace. Each env is its own helm release, so the call fans out one
+// helm upgrade per env; failures on a single env are logged and skipped so
+// one bad env doesn't block the rest.
+func (s *Service) SuspendWorkspace(ctx context.Context, req *conductor.SuspendWorkspaceRequest) (*conductor.SuspendWorkspaceResponse, error) {
+	ws := req.GetWorkspace()
+
+	if ws == "" {
 		return nil, status.Error(codes.InvalidArgument, "workspace required")
 	}
 
-	if err := s.api.Deployer.SuspendWorkspace(ctx, req.GetWorkspace(), req.GetSuspended()); err != nil {
-		return nil, fmt.Errorf("deployer suspend: %w", err)
+	projects, err := s.platform.Projects(ctx, ws)
+
+	if err != nil {
+		return nil, fmt.Errorf("list projects: %w", err)
+	}
+
+	for _, project := range projects {
+		envs, err := s.platform.Environments(ctx, project.ID)
+
+		if err != nil {
+			slog.Warn("suspend: list environments failed", "project", project.ID, "error", err)
+			continue
+		}
+
+		for _, env := range envs {
+			if _, err := s.deployer.Environments().Suspend(ctx, env.ID, req.GetSuspended()); err != nil {
+				slog.Warn("suspend: env failed", "env", env.ID, "error", err)
+			}
+		}
 	}
 
 	return &conductor.SuspendWorkspaceResponse{}, nil
 }
 
-// ListResourceAllocations forwards into the inproc deployer and
-// translates the response into the conductor.proto shape.
+// ListResourceAllocations enumerates platform-managed namespaces and returns
+// the per-env resource usage Cashier needs for metering.
 func (s *Service) ListResourceAllocations(ctx context.Context, req *conductor.ListResourceAllocationsRequest) (*conductor.ListResourceAllocationsResponse, error) {
-	if s.api == nil || s.api.Deployer == nil {
-		return nil, status.Error(codes.FailedPrecondition, "deployer not wired")
-	}
+	allocations, err := s.platform.ResourceAllocations(ctx)
 
-	allocations, err := s.api.Deployer.ListResourceAllocations(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("deployer list resource allocations: %w", err)
+		return nil, fmt.Errorf("list resource allocations: %w", err)
 	}
 
 	out := &conductor.ListResourceAllocationsResponse{
 		Allocations: make([]*conductor.ResourceAllocation, 0, len(allocations)),
 	}
-	for _, a := range allocations {
+
+	for _, allocation := range allocations {
 		out.Allocations = append(out.Allocations, &conductor.ResourceAllocation{
-			Workspace:     a.Workspace,
-			Project:       a.Project,
-			Environment:   a.Environment,
-			Tier:          tierToConductorProto(a.Tier),
-			CpuMillicores: int32(a.CPUMillicores),
-			MemoryMb:      int32(a.MemoryMB),
-			DiskMb:        int32(a.DiskMB),
+			Workspace:     allocation.EnvironmentID.Workspace,
+			Project:       allocation.EnvironmentID.Project,
+			Environment:   allocation.EnvironmentID.Name,
+			Tier:          tierToProto(allocation.Tier),
+			CpuMillicores: int32(allocation.CPUMillicores),
+			MemoryMb:      int32(allocation.MemoryMB),
+			DiskMb:        int32(allocation.DiskMB),
 		})
 	}
+
 	return out, nil
 }
 
-// tierToConductorProto converts data.ResourceTier to the conductor proto enum.
-func tierToConductorProto(t data.ResourceTier) conductor.ResourceTier {
+func tierToProto(t platform.ResourceTier) conductor.ResourceTier {
 	switch t {
-	case data.ResourceTierProduction:
+	case platform.ProductionTier:
 		return conductor.ResourceTier_RESOURCE_TIER_PRODUCTION
-	case data.ResourceTierEco:
+	case platform.EcoTier:
 		return conductor.ResourceTier_RESOURCE_TIER_ECO
 	default:
 		return conductor.ResourceTier_RESOURCE_TIER_UNSPECIFIED
@@ -98,10 +115,10 @@ type Server struct {
 	addr   string
 }
 
-// NewServer registers Service on a new grpc.Server with the
-// internal-JWT auth interceptor. The two RPCs cashier calls
-// (SuspendWorkspace, ListResourceAllocations) carry workspace as an
-// explicit field, so no tenant-metadata interceptor is needed.
+// NewServer registers Service on a new grpc.Server with the internal-JWT
+// auth interceptor. Cashier's two RPCs (SuspendWorkspace,
+// ListResourceAllocations) carry workspace explicitly, so no tenant
+// metadata interceptor is needed.
 func NewServer(addr string, svc *Service, verifier *auth.InternalVerifier) *Server {
 	s := grpc.NewServer(
 		grpc.ChainUnaryInterceptor(auth.UnaryServerInterceptor(verifier)),
@@ -115,18 +132,22 @@ func (s *Server) Label() string { return "conductor-grpc" }
 
 func (s *Server) Start() error {
 	lis, err := net.Listen("tcp", s.addr)
+
 	if err != nil {
 		return fmt.Errorf("listen %s: %w", s.addr, err)
 	}
+
 	return s.server.Serve(lis)
 }
 
 func (s *Server) Shutdown(ctx context.Context) error {
 	done := make(chan struct{})
+
 	go func() {
 		s.server.GracefulStop()
 		close(done)
 	}()
+
 	select {
 	case <-done:
 		return nil

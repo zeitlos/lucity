@@ -2,8 +2,11 @@ package buildjob
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"time"
+
+	"github.com/google/go-containerregistry/pkg/name"
 )
 
 type Interface interface {
@@ -29,10 +32,20 @@ type Job struct {
 	SourceURL   string
 	Commit      string
 	ContextPath string
-	ImageRefs   []string
 	TriggeredBy string
 	StartedAt   *time.Time
 	FinishedAt  *time.Time
+	ImageRefs   map[string]name.Reference
+}
+
+func (j *Job) ImageRef(imageName string) (name.Reference, error) {
+	ref, ok := j.ImageRefs[imageName]
+
+	if !ok {
+		return nil, fmt.Errorf("image ref for %q not defined on job %q", imageName, j.ID)
+	}
+
+	return ref, nil
 }
 
 type Status string

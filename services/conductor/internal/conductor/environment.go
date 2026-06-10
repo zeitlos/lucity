@@ -2,10 +2,9 @@ package conductor
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"log/slog"
 
-	"github.com/zeitlos/lucity/pkg/tenant"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
@@ -20,60 +19,94 @@ func (c *Client) Environment(ctx context.Context, id EnvironmentID) (*Environmen
 	return c.platform.Environment(ctx, id)
 }
 
-func (c *Client) CreateEnvironment(ctx context.Context, project ProjectID, name string, fromEnvironment *EnvironmentID, tier string) (*Environment, error) {
-	projectID := project.Name
-	fromEnvName := ""
+// CreateEnvironment provisions a new env namespace at the requested tier.
+// The helm release materializes lazily on the first service/db/volume/
+// variable write — no explicit install is needed here.
+//
+// fromEnvironment duplication is NOT yet supported on the helm-only path:
+// it requires walking the source env's services/databases/volumes via
+// platform.* and re-creating each via the deployer, but platform.Service
+// doesn't yet expose Image and Port fields. Variables are also deferred
+// (see variable.go TODO). Until those land, callers must omit
+// fromEnvironment.
+func (c *Client) CreateEnvironment(ctx context.Context, project ProjectID, name string, fromEnvironment *EnvironmentID, tier ResourceTier) (*Environment, error) {
 	if fromEnvironment != nil {
-		fromEnvName = fromEnvironment.Name
+		return nil, errors.New("creating an environment from a source is not yet supported")
 	}
-	ws, err := tenant.FromContext(ctx)
-	if err != nil {
+
+	envID := platform.EnvironmentID{
+		Workspace: project.Workspace,
+		Project:   project.Name,
+		Name:      name,
+	}
+
+	if err := c.environment.Ensure(ctx, envID, tier); err != nil {
 		return nil, err
-	}
-
-	envID, err := platform.ParseEnvironmentID(project.String() + "/" + name)
-
-	if err != nil {
-		return nil, err
-	}
-
-	namespace, err := c.Packager.CreateEnvironment(ctx, ws, projectID, name, fromEnvName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create environment: %w", err)
-	}
-
-	// Deploy the new environment via ArgoCD
-	if _, err := c.Deployer.DeployEnvironment(ctx, ws, projectID, name, "", namespace); err != nil {
-		slog.Warn("failed to deploy environment", "project", projectID, "environment", name, "error", err)
-	}
-
-	// If PRODUCTION tier was requested, set up ResourceQuota with default allocations.
-	if tier == "PRODUCTION" {
-		envID, _ := platform.ParseEnvironmentID(projectID + "/" + name)
-		c.SetEnvironmentResources(ctx, envID, tier, 1000, 1024, 1024)
-	}
-
-	// Trigger immediate sync so the environment deploys right away
-	if _, err := c.Deployer.SyncDeployment(ctx, ws, projectID, name); err != nil {
-		slog.Warn("failed to trigger sync after environment create", "project", projectID, "environment", name, "error", err)
 	}
 
 	return c.Environment(ctx, envID)
 }
 
-func (c *Client) DeleteEnvironment(ctx context.Context, environment platform.EnvironmentID) (bool, error) {
-	ws, err := tenant.FromContext(ctx)
-	if err != nil {
-		return false, err
-	}
-	// Remove ArgoCD Application first (cascade deletes managed resources)
-	if err := c.Deployer.RemoveDeployment(ctx, ws, environment.Project, environment.Name); err != nil {
-		slog.Warn("failed to remove deployment", "project", environment.Project, "environment", environment.Name, "error", err)
+func (c *Client) DeleteEnvironment(ctx context.Context, environment platform.EnvironmentID) error {
+	if err := c.checkEnvironmentEmpty(ctx, environment); err != nil {
+		return err
 	}
 
-	// Then remove from GitOps repo
-	if err := c.Packager.DeleteEnvironment(ctx, ws, environment.Project, environment.Name); err != nil {
-		return false, fmt.Errorf("failed to delete environment: %w", err)
+	if err := c.checkNotLastEnvironment(ctx, environment); err != nil {
+		return err
 	}
-	return true, nil
+
+	if err := c.environment.Delete(ctx, environment); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *Client) checkEnvironmentEmpty(ctx context.Context, id platform.EnvironmentID) error {
+	services, err := c.platform.Services(ctx, id)
+
+	if err != nil {
+		return err
+	}
+
+	if len(services) > 0 {
+		return fmt.Errorf("environment %q has %d service(s); remove them first", id, len(services))
+	}
+
+	databases, err := c.platform.Databases(ctx, id)
+
+	if err != nil {
+		return err
+	}
+
+	if len(databases) > 0 {
+		return fmt.Errorf("environment %q has %d database(s); remove them first", id, len(databases))
+	}
+
+	volumes, err := c.platform.Volumes(ctx, id)
+
+	if err != nil {
+		return err
+	}
+
+	if len(volumes) > 0 {
+		return fmt.Errorf("environment %q has %d volume(s); remove them first", id, len(volumes))
+	}
+
+	return nil
+}
+
+func (c *Client) checkNotLastEnvironment(ctx context.Context, id platform.EnvironmentID) error {
+	envs, err := c.platform.Environments(ctx, id.ProjectID())
+
+	if err != nil {
+		return fmt.Errorf("list project environments: %w", err)
+	}
+
+	if len(envs) <= 1 {
+		return fmt.Errorf("cannot delete %q: a project must have at least one environment", id)
+	}
+
+	return nil
 }

@@ -16,9 +16,6 @@ type AddServiceInput struct {
 	Environment platform.EnvironmentID `json:"environment"`
 	// Service name. If omitted when image is set, derived from the image (e.g. nginx:1.25 → nginx).
 	Name *string `json:"name,omitempty"`
-	// Container port. If omitted when image is set, uses well-known defaults (e.g. redis → 6379).
-	Port      *int    `json:"port,omitempty"`
-	Framework *string `json:"framework,omitempty"`
 	// Auto-detected start command from the build system (e.g. railpack). Stored for UI display as the default.
 	StartCommand *string `json:"startCommand,omitempty"`
 	// GitHub repository in owner/repo format (e.g. "acme/myapp"). Requires installationId. The clone URL is constructed server-side.
@@ -187,22 +184,18 @@ type DNSRecord struct {
 	Value string        `json:"value"`
 }
 
-type Domain struct {
-	Hostname string `json:"hostname"`
-	// PLATFORM domains use wildcard DNS on the workload domain. CUSTOM domains require user DNS config.
-	Type DomainType `json:"type"`
-	// DNS resolution status. Always VALID for platform domains. Checked via live DNS lookup for custom domains, including TXT-record ownership verification.
-	DNSStatus DNSStatus `json:"dnsStatus"`
-	// TLS certificate status. NONE for platform domains (covered by wildcard). Checked via cert-manager for custom domains.
-	TLSStatus TLSStatus `json:"tlsStatus"`
-	// DNS records the user must configure for this domain to be valid. Empty for platform domains. For custom domains: one TXT record for ownership and one routing record (CNAME or A).
-	RequiredDNSRecords []DNSRecord `json:"requiredDnsRecords"`
+type DNSState struct {
+	Status          DNSStatus   `json:"status"`
+	RequiredRecords []DNSRecord `json:"requiredRecords"`
 }
 
 type Endpoint struct {
-	Host     string   `json:"host"`
-	Port     int      `json:"port"`
-	Protocol Protocol `json:"protocol"`
+	Host     string       `json:"host"`
+	Port     int          `json:"port"`
+	Protocol Protocol     `json:"protocol"`
+	Type     EndpointType `json:"type"`
+	DNS      *DNSState    `json:"dns"`
+	TLS      TLSStatus    `json:"tls"`
 }
 
 type Environment struct {
@@ -251,14 +244,6 @@ type InviteMemberInput struct {
 type Mutation struct {
 }
 
-type PlatformConfig struct {
-	WorkloadDomain string `json:"workloadDomain"`
-	// CNAME target for custom domains. Empty if not configured.
-	DomainTarget string `json:"domainTarget"`
-	// Load balancer IP address for A record configuration (apex domains).
-	IPAddress string `json:"ipAddress"`
-}
-
 type Project struct {
 	ID           platform.ProjectID `json:"id"`
 	Name         string             `json:"name"`
@@ -296,22 +281,23 @@ type ScalingConfig struct {
 }
 
 type Service struct {
-	ID               platform.ServiceID   `json:"id"`
-	Name             string               `json:"name"`
-	Status           ServiceStatus        `json:"status"`
-	Replicas         *ReplicaCount        `json:"replicas"`
-	Autoscaling      *AutoscalingSettings `json:"autoscaling,omitempty"`
-	Endpoints        []Endpoint           `json:"endpoints"`
-	SourceURL        string               `json:"sourceUrl"`
-	ContextPath      string               `json:"contextPath"`
-	Resources        *Resources           `json:"resources"`
-	Command          string               `json:"command"`
-	DefaultCommand   string               `json:"defaultCommand"`
-	ActiveDeployment *Deployment          `json:"activeDeployment,omitempty"`
-	Deployments      []Deployment         `json:"deployments"`
-	Builds           []Build              `json:"builds"`
-	LastDeployedAt   *time.Time           `json:"lastDeployedAt,omitempty"`
-	CreatedAt        time.Time            `json:"createdAt"`
+	ID                platform.ServiceID   `json:"id"`
+	Name              string               `json:"name"`
+	Status            ServiceStatus        `json:"status"`
+	Replicas          *ReplicaCount        `json:"replicas"`
+	Autoscaling       *AutoscalingSettings `json:"autoscaling,omitempty"`
+	Endpoints         []Endpoint           `json:"endpoints"`
+	SourceURL         string               `json:"sourceUrl"`
+	ContextPath       string               `json:"contextPath"`
+	Resources         *Resources           `json:"resources"`
+	Command           string               `json:"command"`
+	DefaultCommand    string               `json:"defaultCommand"`
+	ActiveDeployment  *Deployment          `json:"activeDeployment,omitempty"`
+	Deployments       []Deployment         `json:"deployments"`
+	Builds            []Build              `json:"builds"`
+	LastDeployedAt    *time.Time           `json:"lastDeployedAt,omitempty"`
+	CreatedAt         time.Time            `json:"createdAt"`
+	PlatformEndpoints []platform.Endpoint  `json:"-"`
 }
 
 type ServiceLogEntry struct {
@@ -319,15 +305,6 @@ type ServiceLogEntry struct {
 	Line string `json:"line"`
 	// Name of the pod that produced this line.
 	Pod string `json:"pod"`
-}
-
-// A reference to another service's internal URL (computed by Helm template).
-type ServiceRef struct {
-	Service platform.ServiceID `json:"service"`
-}
-
-type ServiceRefInput struct {
-	Service platform.ServiceID `json:"service"`
 }
 
 type ServiceResources struct {
@@ -342,7 +319,6 @@ type ServiceVariable struct {
 	Value       string       `json:"value"`
 	FromShared  bool         `json:"fromShared"`
 	DatabaseRef *DatabaseRef `json:"databaseRef,omitempty"`
-	ServiceRef  *ServiceRef  `json:"serviceRef,omitempty"`
 }
 
 type ServiceVariableInput struct {
@@ -353,8 +329,6 @@ type ServiceVariableInput struct {
 	FromShared *bool `json:"fromShared,omitempty"`
 	// Reference to a database secret key.
 	DatabaseRef *DatabaseRefInput `json:"databaseRef,omitempty"`
-	// Reference to another service's internal URL.
-	ServiceRef *ServiceRefInput `json:"serviceRef,omitempty"`
 }
 
 type SetEnvironmentResourcesInput struct {
@@ -782,6 +756,63 @@ func (e *DomainType) UnmarshalJSON(b []byte) error {
 }
 
 func (e DomainType) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type EndpointType string
+
+const (
+	EndpointTypePlatform EndpointType = "PLATFORM"
+	EndpointTypeCustom   EndpointType = "CUSTOM"
+	EndpointTypeInternal EndpointType = "INTERNAL"
+)
+
+var AllEndpointType = []EndpointType{
+	EndpointTypePlatform,
+	EndpointTypeCustom,
+	EndpointTypeInternal,
+}
+
+func (e EndpointType) IsValid() bool {
+	switch e {
+	case EndpointTypePlatform, EndpointTypeCustom, EndpointTypeInternal:
+		return true
+	}
+	return false
+}
+
+func (e EndpointType) String() string {
+	return string(e)
+}
+
+func (e *EndpointType) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = EndpointType(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid EndpointType", str)
+	}
+	return nil
+}
+
+func (e EndpointType) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *EndpointType) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e EndpointType) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

@@ -11,41 +11,38 @@ type Client struct {
 	workloadDomain    string
 	customCNAMETarget string
 	customApexIP      string
+	gatewayNamespace  string
 	k8s               kubernetes.Interface
 	dyn               dynamic.Interface
 }
 
-func New(workloadDomain, customCNAMETarget, customApexIP string, k8s kubernetes.Interface, dyn dynamic.Interface) *Client {
+func New(workloadDomain, customCNAMETarget, customApexIP, gatewayNamespace string, k8s kubernetes.Interface, dyn dynamic.Interface) *Client {
 	return &Client{
 		workloadDomain:    workloadDomain,
 		customCNAMETarget: customCNAMETarget,
 		customApexIP:      customApexIP,
+		gatewayNamespace:  gatewayNamespace,
 		k8s:               k8s,
 		dyn:               dyn,
 	}
 }
 
-type Status struct {
-	DNS DNSState
-	TLS TLSState
-}
-
-type DNSState string
+type DNSStatus string
 
 const (
-	DNSValid         DNSState = "valid"
-	DNSPending       DNSState = "pending"
-	DNSMisconfigured DNSState = "misconfigured"
-	DNSError         DNSState = "error"
+	DNSValid         DNSStatus = "valid"
+	DNSPending       DNSStatus = "pending"
+	DNSMisconfigured DNSStatus = "misconfigured"
+	DNSError         DNSStatus = "error"
 )
 
-type TLSState string
+type TLSStatus string
 
 const (
-	TLSNone         TLSState = "none"
-	TLSProvisioning TLSState = "provisioning"
-	TLSActive       TLSState = "active"
-	TLSError        TLSState = "error"
+	TLSNone         TLSStatus = "none"
+	TLSProvisioning TLSStatus = "provisioning"
+	TLSActive       TLSStatus = "active"
+	TLSError        TLSStatus = "error"
 )
 
 type DNSRecord struct {
@@ -64,6 +61,10 @@ const (
 
 func (c *Client) IsPlatform(host string) bool {
 	return host == c.workloadDomain || strings.HasSuffix(host, "."+c.workloadDomain)
+}
+
+func (c *Client) IsInternal(host string) bool {
+	return strings.HasSuffix(host, ".local")
 }
 
 func isApex(host string) bool {

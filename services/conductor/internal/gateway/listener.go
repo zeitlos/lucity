@@ -16,7 +16,7 @@ type listenerState struct {
 }
 
 func (c *Client) addListener(ctx context.Context, hostname, protocol, secretName string) error {
-	name := resourceNameFor(hostname)
+	name := ResourceNameFor(hostname)
 
 	var listenerName string
 

@@ -15,7 +15,13 @@ import (
 
 // SetEnvironmentResources is the resolver for the setEnvironmentResources field.
 func (r *mutationResolver) SetEnvironmentResources(ctx context.Context, input model.SetEnvironmentResourcesInput) (*model.Environment, error) {
-	result, err := r.Conductor.SetEnvironmentResources(ctx, input.Environment, string(input.Tier), input.CPUMillicores, input.MemoryMb, input.DiskMb)
+	tier, err := parseResourceTier(input.Tier)
+
+	if err != nil {
+		return nil, err
+	}
+
+	result, err := r.Conductor.SetEnvironmentResources(ctx, input.Environment, tier, input.CPUMillicores, input.MemoryMb, input.DiskMb)
 
 	if err != nil {
 		return nil, err

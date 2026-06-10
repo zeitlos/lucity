@@ -13,6 +13,7 @@ type Environment struct {
 	ID           EnvironmentID
 	Name         string
 	ResourceTier ResourceTier
+	Variables    map[string]string // shared variables; nil if release not yet installed
 	CreatedAt    time.Time
 }
 

@@ -3,37 +3,27 @@ package conductor
 import (
 	"context"
 	"fmt"
-	"log/slog"
 
-	"github.com/zeitlos/lucity/pkg/tenant"
-	"github.com/zeitlos/lucity/services/conductor/internal/data"
+	"github.com/zeitlos/lucity/services/conductor/internal/deployer"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
+// SetServiceScaling applies either fixed replicas or HPA-driven autoscaling.
+// The two are mutually exclusive in the values shape: SetAutoscaling sets the
+// HPA config; SetReplicas wipes any HPA and pins a fixed count.
 func (c *Client) SetServiceScaling(ctx context.Context, serviceID platform.ServiceID, replicas int, autoscaling *AutoscalingConfig) (*Service, error) {
-	ws, err := tenant.FromContext(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	var as *data.AutoscalingConfig
-	if autoscaling != nil {
-		as = &data.AutoscalingConfig{
-			Enabled:     autoscaling.Enabled,
+	if autoscaling != nil && autoscaling.Enabled {
+		if _, err := c.deployer.Services().SetAutoscaling(ctx, serviceID, deployer.Autoscaling{
 			MinReplicas: autoscaling.MinReplicas,
 			MaxReplicas: autoscaling.MaxReplicas,
 			TargetCPU:   autoscaling.TargetCPU,
+		}); err != nil {
+			return nil, fmt.Errorf("set autoscaling: %w", err)
 		}
-	}
-
-	// 1. Apply to K8s immediately via deployer
-	if err := c.Deployer.SetServiceScaling(ctx, ws, serviceID.Project, serviceID.Environment, serviceID.Name, replicas, as); err != nil {
-		return nil, fmt.Errorf("failed to set service scaling: %w", err)
-	}
-
-	// 2. Best-effort: sync to GitOps repo for ejection
-	if pkgErr := c.Packager.SetServiceScaling(ctx, ws, serviceID.Project, serviceID.Environment, serviceID.Name, replicas, as); pkgErr != nil {
-		slog.Error("failed to sync scaling to GitOps repo", "error", pkgErr, "project", serviceID.Project, "environment", serviceID.Environment, "service", serviceID.Name)
+	} else {
+		if _, err := c.deployer.Services().SetReplicas(ctx, serviceID, replicas); err != nil {
+			return nil, fmt.Errorf("set replicas: %w", err)
+		}
 	}
 
 	return c.Service(ctx, serviceID)

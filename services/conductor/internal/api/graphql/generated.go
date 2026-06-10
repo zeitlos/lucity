@@ -32,7 +32,6 @@ type Config = graphql.Config[ResolverRoot, DirectiveRoot, ComplexityRoot]
 
 type ResolverRoot interface {
 	Deployment() DeploymentResolver
-	Domain() DomainResolver
 	Environment() EnvironmentResolver
 	Mutation() MutationResolver
 	Query() QueryResolver
@@ -160,18 +159,18 @@ type ComplexityRoot struct {
 		Value func(childComplexity int) int
 	}
 
-	Domain struct {
-		DNSStatus          func(childComplexity int) int
-		Hostname           func(childComplexity int) int
-		RequiredDNSRecords func(childComplexity int) int
-		TLSStatus          func(childComplexity int) int
-		Type               func(childComplexity int) int
+	DnsState struct {
+		RequiredRecords func(childComplexity int) int
+		Status          func(childComplexity int) int
 	}
 
 	Endpoint struct {
+		DNS      func(childComplexity int) int
 		Host     func(childComplexity int) int
 		Port     func(childComplexity int) int
 		Protocol func(childComplexity int) int
+		TLS      func(childComplexity int) int
+		Type     func(childComplexity int) int
 	}
 
 	Environment struct {
@@ -237,17 +236,12 @@ type ComplexityRoot struct {
 		Rollback                  func(childComplexity int, deployment platform.DeploymentID) int
 		SetCustomStartCommand     func(childComplexity int, service platform.ServiceID, command string) int
 		SetEnvironmentResources   func(childComplexity int, input model.SetEnvironmentResourcesInput) int
+		SetServicePort            func(childComplexity int, service platform.ServiceID, port *int) int
 		SetServiceScaling         func(childComplexity int, input model.SetServiceScalingInput) int
 		SetServiceVariables       func(childComplexity int, service platform.ServiceID, variables []model.ServiceVariableInput) int
 		SetSharedVariables        func(childComplexity int, environment platform.EnvironmentID, variables []model.VariableInput) int
 		UpdateMemberRole          func(childComplexity int, input model.UpdateMemberRoleInput) int
 		UpdateWorkspace           func(childComplexity int, input model.UpdateWorkspaceInput) int
-	}
-
-	PlatformConfig struct {
-		DomainTarget   func(childComplexity int) int
-		IPAddress      func(childComplexity int) int
-		WorkloadDomain func(childComplexity int) int
 	}
 
 	Project struct {
@@ -271,7 +265,6 @@ type ComplexityRoot struct {
 		GithubRepositories   func(childComplexity int, installationID string) int
 		GithubSources        func(childComplexity int) int
 		Me                   func(childComplexity int) int
-		PlatformConfig       func(childComplexity int) int
 		Project              func(childComplexity int, id platform.ProjectID) int
 		Projects             func(childComplexity int) int
 		SearchImages         func(childComplexity int, query string) int
@@ -335,10 +328,6 @@ type ComplexityRoot struct {
 		Pod  func(childComplexity int) int
 	}
 
-	ServiceRef struct {
-		Service func(childComplexity int) int
-	}
-
 	ServiceResources struct {
 		CPULimitMillicores func(childComplexity int) int
 		CPUMillicores      func(childComplexity int) int
@@ -350,7 +339,6 @@ type ComplexityRoot struct {
 		DatabaseRef func(childComplexity int) int
 		FromShared  func(childComplexity int) int
 		Key         func(childComplexity int) int
-		ServiceRef  func(childComplexity int) int
 		Value       func(childComplexity int) int
 	}
 
@@ -410,9 +398,6 @@ type ComplexityRoot struct {
 type DeploymentResolver interface {
 	CommitMessage(ctx context.Context, obj *model.Deployment) (string, error)
 }
-type DomainResolver interface {
-	RequiredDNSRecords(ctx context.Context, obj *model.Domain) ([]model.DNSRecord, error)
-}
 type EnvironmentResolver interface {
 	Services(ctx context.Context, obj *model.Environment) ([]model.Service, error)
 	Databases(ctx context.Context, obj *model.Environment) ([]model.Database, error)
@@ -434,6 +419,7 @@ type MutationResolver interface {
 	AddService(ctx context.Context, input model.AddServiceInput) (*model.Service, error)
 	RemoveService(ctx context.Context, service platform.ServiceID) (bool, error)
 	SetCustomStartCommand(ctx context.Context, service platform.ServiceID, command string) (*model.Service, error)
+	SetServicePort(ctx context.Context, service platform.ServiceID, port *int) (*model.Service, error)
 	SetServiceScaling(ctx context.Context, input model.SetServiceScalingInput) (*model.Service, error)
 	Rollback(ctx context.Context, deployment platform.DeploymentID) (bool, error)
 	GenerateDomain(ctx context.Context, service platform.ServiceID) (*model.Service, error)
@@ -450,7 +436,6 @@ type MutationResolver interface {
 	UpdateMemberRole(ctx context.Context, input model.UpdateMemberRoleInput) (*model.WorkspaceMember, error)
 }
 type QueryResolver interface {
-	PlatformConfig(ctx context.Context) (*model.PlatformConfig, error)
 	Me(ctx context.Context) (*model.User, error)
 	EnvironmentResources(ctx context.Context, environment platform.EnvironmentID) (*model.EnvironmentResources, error)
 	Subscription(ctx context.Context) (*model.BillingSubscription, error)
@@ -477,6 +462,8 @@ type QueryResolver interface {
 	Workspaces(ctx context.Context) ([]model.Workspace, error)
 }
 type ServiceResolver interface {
+	Endpoints(ctx context.Context, obj *model.Service) ([]model.Endpoint, error)
+
 	DefaultCommand(ctx context.Context, obj *model.Service) (string, error)
 
 	Deployments(ctx context.Context, obj *model.Service) ([]model.Deployment, error)
@@ -924,37 +911,25 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.DnsRecord.Value(childComplexity), true
 
-	case "Domain.dnsStatus":
-		if e.ComplexityRoot.Domain.DNSStatus == nil {
+	case "DnsState.requiredRecords":
+		if e.ComplexityRoot.DnsState.RequiredRecords == nil {
 			break
 		}
 
-		return e.ComplexityRoot.Domain.DNSStatus(childComplexity), true
-	case "Domain.hostname":
-		if e.ComplexityRoot.Domain.Hostname == nil {
+		return e.ComplexityRoot.DnsState.RequiredRecords(childComplexity), true
+	case "DnsState.status":
+		if e.ComplexityRoot.DnsState.Status == nil {
 			break
 		}
 
-		return e.ComplexityRoot.Domain.Hostname(childComplexity), true
-	case "Domain.requiredDnsRecords":
-		if e.ComplexityRoot.Domain.RequiredDNSRecords == nil {
+		return e.ComplexityRoot.DnsState.Status(childComplexity), true
+
+	case "Endpoint.dns":
+		if e.ComplexityRoot.Endpoint.DNS == nil {
 			break
 		}
 
-		return e.ComplexityRoot.Domain.RequiredDNSRecords(childComplexity), true
-	case "Domain.tlsStatus":
-		if e.ComplexityRoot.Domain.TLSStatus == nil {
-			break
-		}
-
-		return e.ComplexityRoot.Domain.TLSStatus(childComplexity), true
-	case "Domain.type":
-		if e.ComplexityRoot.Domain.Type == nil {
-			break
-		}
-
-		return e.ComplexityRoot.Domain.Type(childComplexity), true
-
+		return e.ComplexityRoot.Endpoint.DNS(childComplexity), true
 	case "Endpoint.host":
 		if e.ComplexityRoot.Endpoint.Host == nil {
 			break
@@ -973,6 +948,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Endpoint.Protocol(childComplexity), true
+	case "Endpoint.tls":
+		if e.ComplexityRoot.Endpoint.TLS == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Endpoint.TLS(childComplexity), true
+	case "Endpoint.type":
+		if e.ComplexityRoot.Endpoint.Type == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Endpoint.Type(childComplexity), true
 
 	case "Environment.databases":
 		if e.ComplexityRoot.Environment.Databases == nil {
@@ -1376,6 +1363,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.SetEnvironmentResources(childComplexity, args["input"].(model.SetEnvironmentResourcesInput)), true
+	case "Mutation.setServicePort":
+		if e.ComplexityRoot.Mutation.SetServicePort == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setServicePort_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.SetServicePort(childComplexity, args["service"].(platform.ServiceID), args["port"].(*int)), true
 	case "Mutation.setServiceScaling":
 		if e.ComplexityRoot.Mutation.SetServiceScaling == nil {
 			break
@@ -1431,25 +1429,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.UpdateWorkspace(childComplexity, args["input"].(model.UpdateWorkspaceInput)), true
-
-	case "PlatformConfig.domainTarget":
-		if e.ComplexityRoot.PlatformConfig.DomainTarget == nil {
-			break
-		}
-
-		return e.ComplexityRoot.PlatformConfig.DomainTarget(childComplexity), true
-	case "PlatformConfig.ipAddress":
-		if e.ComplexityRoot.PlatformConfig.IPAddress == nil {
-			break
-		}
-
-		return e.ComplexityRoot.PlatformConfig.IPAddress(childComplexity), true
-	case "PlatformConfig.workloadDomain":
-		if e.ComplexityRoot.PlatformConfig.WorkloadDomain == nil {
-			break
-		}
-
-		return e.ComplexityRoot.PlatformConfig.WorkloadDomain(childComplexity), true
 
 	case "Project.environments":
 		if e.ComplexityRoot.Project.Environments == nil {
@@ -1610,12 +1589,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Me(childComplexity), true
-	case "Query.platformConfig":
-		if e.ComplexityRoot.Query.PlatformConfig == nil {
-			break
-		}
-
-		return e.ComplexityRoot.Query.PlatformConfig(childComplexity), true
 	case "Query.project":
 		if e.ComplexityRoot.Query.Project == nil {
 			break
@@ -1889,13 +1862,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.ServiceLogEntry.Pod(childComplexity), true
 
-	case "ServiceRef.service":
-		if e.ComplexityRoot.ServiceRef.Service == nil {
-			break
-		}
-
-		return e.ComplexityRoot.ServiceRef.Service(childComplexity), true
-
 	case "ServiceResources.cpuLimitMillicores":
 		if e.ComplexityRoot.ServiceResources.CPULimitMillicores == nil {
 			break
@@ -1939,12 +1905,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.ServiceVariable.Key(childComplexity), true
-	case "ServiceVariable.serviceRef":
-		if e.ComplexityRoot.ServiceVariable.ServiceRef == nil {
-			break
-		}
-
-		return e.ComplexityRoot.ServiceVariable.ServiceRef(childComplexity), true
 	case "ServiceVariable.value":
 		if e.ComplexityRoot.ServiceVariable.Value == nil {
 			break
@@ -2154,7 +2114,6 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputCreateWorkspaceCheckoutInput,
 		ec.unmarshalInputDatabaseRefInput,
 		ec.unmarshalInputInviteMemberInput,
-		ec.unmarshalInputServiceRefInput,
 		ec.unmarshalInputServiceVariableInput,
 		ec.unmarshalInputSetEnvironmentResourcesInput,
 		ec.unmarshalInputSetServiceScalingInput,
@@ -2511,6 +2470,16 @@ func (ec *executionContext) childFields_DnsRecord(ctx context.Context, field gra
 	return nil, fmt.Errorf("no field named %q was found under type DnsRecord", field.Name)
 }
 
+func (ec *executionContext) childFields_DnsState(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "status":
+		return ec.fieldContext_DnsState_status(ctx, field)
+	case "requiredRecords":
+		return ec.fieldContext_DnsState_requiredRecords(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type DnsState", field.Name)
+}
+
 func (ec *executionContext) childFields_Endpoint(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
 	case "host":
@@ -2519,6 +2488,12 @@ func (ec *executionContext) childFields_Endpoint(ctx context.Context, field grap
 		return ec.fieldContext_Endpoint_port(ctx, field)
 	case "protocol":
 		return ec.fieldContext_Endpoint_protocol(ctx, field)
+	case "type":
+		return ec.fieldContext_Endpoint_type(ctx, field)
+	case "dns":
+		return ec.fieldContext_Endpoint_dns(ctx, field)
+	case "tls":
+		return ec.fieldContext_Endpoint_tls(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type Endpoint", field.Name)
 }
@@ -2595,18 +2570,6 @@ func (ec *executionContext) childFields_ImageSearchResult(ctx context.Context, f
 		return ec.fieldContext_ImageSearchResult_official(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type ImageSearchResult", field.Name)
-}
-
-func (ec *executionContext) childFields_PlatformConfig(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-	switch field.Name {
-	case "workloadDomain":
-		return ec.fieldContext_PlatformConfig_workloadDomain(ctx, field)
-	case "domainTarget":
-		return ec.fieldContext_PlatformConfig_domainTarget(ctx, field)
-	case "ipAddress":
-		return ec.fieldContext_PlatformConfig_ipAddress(ctx, field)
-	}
-	return nil, fmt.Errorf("no field named %q was found under type PlatformConfig", field.Name)
 }
 
 func (ec *executionContext) childFields_Project(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
@@ -2713,14 +2676,6 @@ func (ec *executionContext) childFields_ServiceLogEntry(ctx context.Context, fie
 	return nil, fmt.Errorf("no field named %q was found under type ServiceLogEntry", field.Name)
 }
 
-func (ec *executionContext) childFields_ServiceRef(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-	switch field.Name {
-	case "service":
-		return ec.fieldContext_ServiceRef_service(ctx, field)
-	}
-	return nil, fmt.Errorf("no field named %q was found under type ServiceRef", field.Name)
-}
-
 func (ec *executionContext) childFields_ServiceVariable(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
 	case "key":
@@ -2731,8 +2686,6 @@ func (ec *executionContext) childFields_ServiceVariable(ctx context.Context, fie
 		return ec.fieldContext_ServiceVariable_fromShared(ctx, field)
 	case "databaseRef":
 		return ec.fieldContext_ServiceVariable_databaseRef(ctx, field)
-	case "serviceRef":
-		return ec.fieldContext_ServiceVariable_serviceRef(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type ServiceVariable", field.Name)
 }
@@ -3355,6 +3308,69 @@ func (ec *executionContext) field_Mutation_setEnvironmentResources_args(ctx cont
 	}
 	args["input"] = arg0
 	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_setServicePort_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "service",
+		func(ctx context.Context, v any) (platform.ServiceID, error) {
+			return ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐServiceID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["service"] = arg0
+
+	arg1, err := ec.field_Mutation_setServicePort_argsPort(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["port"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_setServicePort_argsPort(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*int, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("port"))
+	directive0 := func(ctx context.Context) (any, error) {
+		tmp, ok := rawArgs["port"]
+		if !ok {
+			var zeroVal *int
+			return zeroVal, nil
+		}
+		return ec.unmarshalOInt2ᚖint(ctx, tmp)
+	}
+
+	directive1 := func(ctx context.Context) (any, error) {
+		constraint, err := ec.unmarshalNString2string(ctx, "min=1,max=65535")
+		if err != nil {
+			var zeroVal *int
+			return zeroVal, err
+		}
+		if ec.Directives.Constraint == nil {
+			var zeroVal *int
+			return zeroVal, errors.New("directive constraint is not implemented")
+		}
+		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
+	}
+
+	tmp, err := directive1(ctx)
+	if err != nil {
+		var zeroVal *int
+		return zeroVal, graphql.ErrorOnPath(ctx, err)
+	}
+	if data, ok := tmp.(*int); ok {
+		return data, nil
+	} else if tmp == nil {
+		var zeroVal *int
+		return zeroVal, nil
+	} else {
+		var zeroVal *int
+		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be *int`, tmp))
+	}
 }
 
 func (ec *executionContext) field_Mutation_setServiceScaling_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
@@ -5412,62 +5428,16 @@ func (ec *executionContext) fieldContext_DnsRecord_value(_ context.Context, fiel
 	return graphql.NewScalarFieldContext("DnsRecord", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
-func (ec *executionContext) _Domain_hostname(ctx context.Context, field graphql.CollectedField, obj *model.Domain) (ret graphql.Marshaler) {
+func (ec *executionContext) _DnsState_status(ctx context.Context, field graphql.CollectedField, obj *model.DNSState) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
 		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_Domain_hostname(ctx, field)
+			return ec.fieldContext_DnsState_status(ctx, field)
 		},
 		func(ctx context.Context) (any, error) {
-			return obj.Hostname, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
-			return ec.marshalNString2string(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_Domain_hostname(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Domain", field, false, false, errors.New("field of type String does not have child fields"))
-}
-
-func (ec *executionContext) _Domain_type(ctx context.Context, field graphql.CollectedField, obj *model.Domain) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_Domain_type(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.Type, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v model.DomainType) graphql.Marshaler {
-			return ec.marshalNDomainType2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDomainType(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_Domain_type(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Domain", field, false, false, errors.New("field of type DomainType does not have child fields"))
-}
-
-func (ec *executionContext) _Domain_dnsStatus(ctx context.Context, field graphql.CollectedField, obj *model.Domain) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_Domain_dnsStatus(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.DNSStatus, nil
+			return obj.Status, nil
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v model.DNSStatus) graphql.Marshaler {
@@ -5477,43 +5447,20 @@ func (ec *executionContext) _Domain_dnsStatus(ctx context.Context, field graphql
 		true,
 	)
 }
-func (ec *executionContext) fieldContext_Domain_dnsStatus(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Domain", field, false, false, errors.New("field of type DnsStatus does not have child fields"))
+func (ec *executionContext) fieldContext_DnsState_status(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DnsState", field, false, false, errors.New("field of type DnsStatus does not have child fields"))
 }
 
-func (ec *executionContext) _Domain_tlsStatus(ctx context.Context, field graphql.CollectedField, obj *model.Domain) (ret graphql.Marshaler) {
+func (ec *executionContext) _DnsState_requiredRecords(ctx context.Context, field graphql.CollectedField, obj *model.DNSState) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
 		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_Domain_tlsStatus(ctx, field)
+			return ec.fieldContext_DnsState_requiredRecords(ctx, field)
 		},
 		func(ctx context.Context) (any, error) {
-			return obj.TLSStatus, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v model.TLSStatus) graphql.Marshaler {
-			return ec.marshalNTlsStatus2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐTLSStatus(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_Domain_tlsStatus(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Domain", field, false, false, errors.New("field of type TlsStatus does not have child fields"))
-}
-
-func (ec *executionContext) _Domain_requiredDnsRecords(ctx context.Context, field graphql.CollectedField, obj *model.Domain) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_Domain_requiredDnsRecords(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return ec.Resolvers.Domain().RequiredDNSRecords(ctx, obj)
+			return obj.RequiredRecords, nil
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v []model.DNSRecord) graphql.Marshaler {
@@ -5523,12 +5470,12 @@ func (ec *executionContext) _Domain_requiredDnsRecords(ctx context.Context, fiel
 		true,
 	)
 }
-func (ec *executionContext) fieldContext_Domain_requiredDnsRecords(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_DnsState_requiredRecords(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "Domain",
+		Object:     "DnsState",
 		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
+		IsMethod:   false,
+		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return ec.childFields_DnsRecord(ctx, field)
 		},
@@ -5603,6 +5550,84 @@ func (ec *executionContext) _Endpoint_protocol(ctx context.Context, field graphq
 }
 func (ec *executionContext) fieldContext_Endpoint_protocol(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("Endpoint", field, false, false, errors.New("field of type Protocol does not have child fields"))
+}
+
+func (ec *executionContext) _Endpoint_type(ctx context.Context, field graphql.CollectedField, obj *model.Endpoint) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Endpoint_type(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Type, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v model.EndpointType) graphql.Marshaler {
+			return ec.marshalNEndpointType2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐEndpointType(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Endpoint_type(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Endpoint", field, false, false, errors.New("field of type EndpointType does not have child fields"))
+}
+
+func (ec *executionContext) _Endpoint_dns(ctx context.Context, field graphql.CollectedField, obj *model.Endpoint) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Endpoint_dns(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.DNS, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.DNSState) graphql.Marshaler {
+			return ec.marshalNDnsState2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDNSState(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Endpoint_dns(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Endpoint",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_DnsState(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Endpoint_tls(ctx context.Context, field graphql.CollectedField, obj *model.Endpoint) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Endpoint_tls(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.TLS, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v model.TLSStatus) graphql.Marshaler {
+			return ec.marshalNTlsStatus2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐTLSStatus(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Endpoint_tls(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Endpoint", field, false, false, errors.New("field of type TlsStatus does not have child fields"))
 }
 
 func (ec *executionContext) _Environment_id(ctx context.Context, field graphql.CollectedField, obj *model.Environment) (ret graphql.Marshaler) {
@@ -7146,6 +7171,68 @@ func (ec *executionContext) fieldContext_Mutation_setCustomStartCommand(ctx cont
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_setServicePort(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_setServicePort(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().SetServicePort(ctx, fc.Args["service"].(platform.ServiceID), fc.Args["port"].(*int))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				if err != nil {
+					var zeroVal *model.Service
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal *model.Service
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Service) graphql.Marshaler {
+			return ec.marshalNService2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐService(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_setServicePort(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Service(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_setServicePort_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_setServiceScaling(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -8007,75 +8094,6 @@ func (ec *executionContext) fieldContext_Mutation_updateMemberRole(ctx context.C
 	return fc, nil
 }
 
-func (ec *executionContext) _PlatformConfig_workloadDomain(ctx context.Context, field graphql.CollectedField, obj *model.PlatformConfig) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_PlatformConfig_workloadDomain(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.WorkloadDomain, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
-			return ec.marshalNString2string(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_PlatformConfig_workloadDomain(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("PlatformConfig", field, false, false, errors.New("field of type String does not have child fields"))
-}
-
-func (ec *executionContext) _PlatformConfig_domainTarget(ctx context.Context, field graphql.CollectedField, obj *model.PlatformConfig) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_PlatformConfig_domainTarget(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.DomainTarget, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
-			return ec.marshalNString2string(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_PlatformConfig_domainTarget(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("PlatformConfig", field, false, false, errors.New("field of type String does not have child fields"))
-}
-
-func (ec *executionContext) _PlatformConfig_ipAddress(ctx context.Context, field graphql.CollectedField, obj *model.PlatformConfig) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_PlatformConfig_ipAddress(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.IPAddress, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
-			return ec.marshalNString2string(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_PlatformConfig_ipAddress(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("PlatformConfig", field, false, false, errors.New("field of type String does not have child fields"))
-}
-
 func (ec *executionContext) _Project_id(ctx context.Context, field graphql.CollectedField, obj *model.Project) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -8149,56 +8167,6 @@ func (ec *executionContext) fieldContext_Project_environments(_ context.Context,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return ec.childFields_Environment(ctx, field)
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Query_platformConfig(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_Query_platformConfig(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return ec.Resolvers.Query().PlatformConfig(ctx)
-		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
-				if err != nil {
-					var zeroVal *model.PlatformConfig
-					return zeroVal, err
-				}
-				if ec.Directives.HasRole == nil {
-					var zeroVal *model.PlatformConfig
-					return zeroVal, errors.New("directive hasRole is not implemented")
-				}
-				return ec.Directives.HasRole(ctx, nil, directive0, role)
-			}
-
-			next = directive1
-			return next
-		},
-		func(ctx context.Context, selections ast.SelectionSet, v *model.PlatformConfig) graphql.Marshaler {
-			return ec.marshalNPlatformConfig2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐPlatformConfig(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_Query_platformConfig(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Query",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.childFields_PlatformConfig(ctx, field)
 		},
 	}
 	return fc, nil
@@ -10090,7 +10058,7 @@ func (ec *executionContext) _Service_endpoints(ctx context.Context, field graphq
 			return ec.fieldContext_Service_endpoints(ctx, field)
 		},
 		func(ctx context.Context) (any, error) {
-			return obj.Endpoints, nil
+			return ec.Resolvers.Service().Endpoints(ctx, obj)
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v []model.Endpoint) graphql.Marshaler {
@@ -10104,8 +10072,8 @@ func (ec *executionContext) fieldContext_Service_endpoints(_ context.Context, fi
 	fc = &graphql.FieldContext{
 		Object:     "Service",
 		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
+		IsMethod:   true,
+		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return ec.childFields_Endpoint(ctx, field)
 		},
@@ -10425,29 +10393,6 @@ func (ec *executionContext) fieldContext_ServiceLogEntry_pod(_ context.Context, 
 	return graphql.NewScalarFieldContext("ServiceLogEntry", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
-func (ec *executionContext) _ServiceRef_service(ctx context.Context, field graphql.CollectedField, obj *model.ServiceRef) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_ServiceRef_service(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.Service, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v platform.ServiceID) graphql.Marshaler {
-			return ec.marshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐServiceID(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_ServiceRef_service(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ServiceRef", field, false, false, errors.New("field of type ServiceID does not have child fields"))
-}
-
 func (ec *executionContext) _ServiceResources_cpuMillicores(ctx context.Context, field graphql.CollectedField, obj *model.ServiceResources) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -10636,38 +10581,6 @@ func (ec *executionContext) fieldContext_ServiceVariable_databaseRef(_ context.C
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return ec.childFields_DatabaseRef(ctx, field)
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _ServiceVariable_serviceRef(ctx context.Context, field graphql.CollectedField, obj *model.ServiceVariable) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_ServiceVariable_serviceRef(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.ServiceRef, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v *model.ServiceRef) graphql.Marshaler {
-			return ec.marshalOServiceRef2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐServiceRef(ctx, selections, v)
-		},
-		true,
-		false,
-	)
-}
-func (ec *executionContext) fieldContext_ServiceVariable_serviceRef(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "ServiceVariable",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.childFields_ServiceRef(ctx, field)
 		},
 	}
 	return fc, nil
@@ -12483,7 +12396,7 @@ func (ec *executionContext) unmarshalInputAddServiceInput(ctx context.Context, o
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"environment", "name", "port", "framework", "startCommand", "repository", "contextPath", "installationId", "image", "customStartCommand"}
+	fieldsInOrder := [...]string{"environment", "name", "startCommand", "repository", "contextPath", "installationId", "image", "customStartCommand"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -12526,20 +12439,6 @@ func (ec *executionContext) unmarshalInputAddServiceInput(ctx context.Context, o
 				err := fmt.Errorf(`unexpected type %T from directive, should be *string`, tmp)
 				return it, graphql.ErrorOnPath(ctx, err)
 			}
-		case "port":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("port"))
-			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Port = data
-		case "framework":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("framework"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Framework = data
 		case "startCommand":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("startCommand"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
@@ -13066,36 +12965,6 @@ func (ec *executionContext) unmarshalInputInviteMemberInput(ctx context.Context,
 	return it, nil
 }
 
-func (ec *executionContext) unmarshalInputServiceRefInput(ctx context.Context, obj any) (model.ServiceRefInput, error) {
-	var it model.ServiceRefInput
-	if obj == nil {
-		return it, nil
-	}
-
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"service"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
-		case "service":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("service"))
-			data, err := ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐServiceID(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Service = data
-		}
-	}
-	return it, nil
-}
-
 func (ec *executionContext) unmarshalInputServiceVariableInput(ctx context.Context, obj any) (model.ServiceVariableInput, error) {
 	var it model.ServiceVariableInput
 	if obj == nil {
@@ -13107,7 +12976,7 @@ func (ec *executionContext) unmarshalInputServiceVariableInput(ctx context.Conte
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"key", "value", "fromShared", "databaseRef", "serviceRef"}
+	fieldsInOrder := [...]string{"key", "value", "fromShared", "databaseRef"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -13142,13 +13011,6 @@ func (ec *executionContext) unmarshalInputServiceVariableInput(ctx context.Conte
 				return it, err
 			}
 			it.DatabaseRef = data
-		case "serviceRef":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("serviceRef"))
-			data, err := ec.unmarshalOServiceRefInput2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐServiceRefInput(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ServiceRef = data
 		}
 	}
 	return it, nil
@@ -14317,73 +14179,27 @@ func (ec *executionContext) _DnsRecord(ctx context.Context, sel ast.SelectionSet
 	return out
 }
 
-var domainImplementors = []string{"Domain"}
+var dnsStateImplementors = []string{"DnsState"}
 
-func (ec *executionContext) _Domain(ctx context.Context, sel ast.SelectionSet, obj *model.Domain) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, domainImplementors)
+func (ec *executionContext) _DnsState(ctx context.Context, sel ast.SelectionSet, obj *model.DNSState) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, dnsStateImplementors)
 
 	out := graphql.NewFieldSet(fields)
 	deferred := make(map[string]*graphql.FieldSet)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
-			out.Values[i] = graphql.MarshalString("Domain")
-		case "hostname":
-			out.Values[i] = ec._Domain_hostname(ctx, field, obj)
+			out.Values[i] = graphql.MarshalString("DnsState")
+		case "status":
+			out.Values[i] = ec._DnsState_status(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
+				out.Invalids++
 			}
-		case "type":
-			out.Values[i] = ec._Domain_type(ctx, field, obj)
+		case "requiredRecords":
+			out.Values[i] = ec._DnsState_requiredRecords(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
+				out.Invalids++
 			}
-		case "dnsStatus":
-			out.Values[i] = ec._Domain_dnsStatus(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
-			}
-		case "tlsStatus":
-			out.Values[i] = ec._Domain_tlsStatus(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
-			}
-		case "requiredDnsRecords":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Domain_requiredDnsRecords(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -14430,6 +14246,21 @@ func (ec *executionContext) _Endpoint(ctx context.Context, sel ast.SelectionSet,
 			}
 		case "protocol":
 			out.Values[i] = ec._Endpoint_protocol(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "type":
+			out.Values[i] = ec._Endpoint_type(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "dns":
+			out.Values[i] = ec._Endpoint_dns(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "tls":
+			out.Values[i] = ec._Endpoint_tls(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -14929,6 +14760,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "setServicePort":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_setServicePort(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "setServiceScaling":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_setServiceScaling(ctx, field)
@@ -15050,55 +14888,6 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 	return out
 }
 
-var platformConfigImplementors = []string{"PlatformConfig"}
-
-func (ec *executionContext) _PlatformConfig(ctx context.Context, sel ast.SelectionSet, obj *model.PlatformConfig) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, platformConfigImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	deferred := make(map[string]*graphql.FieldSet)
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("PlatformConfig")
-		case "workloadDomain":
-			out.Values[i] = ec._PlatformConfig_workloadDomain(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "domainTarget":
-			out.Values[i] = ec._PlatformConfig_domainTarget(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "ipAddress":
-			out.Values[i] = ec._PlatformConfig_ipAddress(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch(ctx)
-	if out.Invalids > 0 {
-		return graphql.Null
-	}
-
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferred), math.MaxInt32)))
-
-	for label, dfs := range deferred {
-		ec.ProcessDeferredGroup(graphql.DeferredGroup{
-			Label:    label,
-			Path:     graphql.GetPath(ctx),
-			FieldSet: dfs,
-			Context:  ctx,
-		})
-	}
-
-	return out
-}
-
 var projectImplementors = []string{"Project"}
 
 func (ec *executionContext) _Project(ctx context.Context, sel ast.SelectionSet, obj *model.Project) graphql.Marshaler {
@@ -15167,28 +14956,6 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Query")
-		case "platformConfig":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Query_platformConfig(ctx, field)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			rrm := func(ctx context.Context) graphql.Marshaler {
-				return ec.OperationContext.RootResolverMiddleware(ctx,
-					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "me":
 			field := field
 
@@ -16000,10 +15767,41 @@ func (ec *executionContext) _Service(ctx context.Context, sel ast.SelectionSet, 
 		case "autoscaling":
 			out.Values[i] = ec._Service_autoscaling(ctx, field, obj)
 		case "endpoints":
-			out.Values[i] = ec._Service_endpoints(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Service_endpoints(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
 			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "sourceUrl":
 			out.Values[i] = ec._Service_sourceUrl(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -16208,45 +16006,6 @@ func (ec *executionContext) _ServiceLogEntry(ctx context.Context, sel ast.Select
 	return out
 }
 
-var serviceRefImplementors = []string{"ServiceRef"}
-
-func (ec *executionContext) _ServiceRef(ctx context.Context, sel ast.SelectionSet, obj *model.ServiceRef) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, serviceRefImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	deferred := make(map[string]*graphql.FieldSet)
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("ServiceRef")
-		case "service":
-			out.Values[i] = ec._ServiceRef_service(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch(ctx)
-	if out.Invalids > 0 {
-		return graphql.Null
-	}
-
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferred), math.MaxInt32)))
-
-	for label, dfs := range deferred {
-		ec.ProcessDeferredGroup(graphql.DeferredGroup{
-			Label:    label,
-			Path:     graphql.GetPath(ctx),
-			FieldSet: dfs,
-			Context:  ctx,
-		})
-	}
-
-	return out
-}
-
 var serviceResourcesImplementors = []string{"ServiceResources"}
 
 func (ec *executionContext) _ServiceResources(ctx context.Context, sel ast.SelectionSet, obj *model.ServiceResources) graphql.Marshaler {
@@ -16329,8 +16088,6 @@ func (ec *executionContext) _ServiceVariable(ctx context.Context, sel ast.Select
 			}
 		case "databaseRef":
 			out.Values[i] = ec._ServiceVariable_databaseRef(ctx, field, obj)
-		case "serviceRef":
-			out.Values[i] = ec._ServiceVariable_serviceRef(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -17411,6 +17168,16 @@ func (ec *executionContext) marshalNDnsRecordType2githubᚗcomᚋzeitlosᚋlucit
 	return v
 }
 
+func (ec *executionContext) marshalNDnsState2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDNSState(ctx context.Context, sel ast.SelectionSet, v *model.DNSState) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._DnsState(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalNDnsStatus2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDNSStatus(ctx context.Context, v any) (model.DNSStatus, error) {
 	var res model.DNSStatus
 	err := res.UnmarshalGQL(v)
@@ -17418,16 +17185,6 @@ func (ec *executionContext) unmarshalNDnsStatus2githubᚗcomᚋzeitlosᚋlucity�
 }
 
 func (ec *executionContext) marshalNDnsStatus2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDNSStatus(ctx context.Context, sel ast.SelectionSet, v model.DNSStatus) graphql.Marshaler {
-	return v
-}
-
-func (ec *executionContext) unmarshalNDomainType2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDomainType(ctx context.Context, v any) (model.DomainType, error) {
-	var res model.DomainType
-	err := res.UnmarshalGQL(v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) marshalNDomainType2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDomainType(ctx context.Context, sel ast.SelectionSet, v model.DomainType) graphql.Marshaler {
 	return v
 }
 
@@ -17449,6 +17206,16 @@ func (ec *executionContext) marshalNEndpoint2ᚕgithubᚗcomᚋzeitlosᚋlucity�
 	}
 
 	return ret
+}
+
+func (ec *executionContext) unmarshalNEndpointType2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐEndpointType(ctx context.Context, v any) (model.EndpointType, error) {
+	var res model.EndpointType
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNEndpointType2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐEndpointType(ctx context.Context, sel ast.SelectionSet, v model.EndpointType) graphql.Marshaler {
+	return v
 }
 
 func (ec *executionContext) marshalNEnvironment2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐEnvironment(ctx context.Context, sel ast.SelectionSet, v model.Environment) graphql.Marshaler {
@@ -17606,20 +17373,6 @@ func (ec *executionContext) unmarshalNPlan2githubᚗcomᚋzeitlosᚋlucityᚋser
 
 func (ec *executionContext) marshalNPlan2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐPlan(ctx context.Context, sel ast.SelectionSet, v model.Plan) graphql.Marshaler {
 	return v
-}
-
-func (ec *executionContext) marshalNPlatformConfig2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐPlatformConfig(ctx context.Context, sel ast.SelectionSet, v model.PlatformConfig) graphql.Marshaler {
-	return ec._PlatformConfig(ctx, sel, &v)
-}
-
-func (ec *executionContext) marshalNPlatformConfig2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐPlatformConfig(ctx context.Context, sel ast.SelectionSet, v *model.PlatformConfig) graphql.Marshaler {
-	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
-		return graphql.Null
-	}
-	return ec._PlatformConfig(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNProject2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐProject(ctx context.Context, sel ast.SelectionSet, v model.Project) graphql.Marshaler {
@@ -18462,21 +18215,6 @@ func (ec *executionContext) marshalOResourceTier2ᚖgithubᚗcomᚋzeitlosᚋluc
 		return graphql.Null
 	}
 	return v
-}
-
-func (ec *executionContext) marshalOServiceRef2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐServiceRef(ctx context.Context, sel ast.SelectionSet, v *model.ServiceRef) graphql.Marshaler {
-	if v == nil {
-		return graphql.Null
-	}
-	return ec._ServiceRef(ctx, sel, v)
-}
-
-func (ec *executionContext) unmarshalOServiceRefInput2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐServiceRefInput(ctx context.Context, v any) (*model.ServiceRefInput, error) {
-	if v == nil {
-		return nil, nil
-	}
-	res, err := ec.unmarshalInputServiceRefInput(ctx, v)
-	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) unmarshalOString2ᚕstringᚄ(ctx context.Context, v any) ([]string, error) {

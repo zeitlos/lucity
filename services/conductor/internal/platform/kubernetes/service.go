@@ -214,6 +214,7 @@ func toService(deployment apps.Deployment, replicaSets []apps.ReplicaSet, routes
 		ContextPath: annotations[annotationSourceContext],
 		Resources:   containerResources(deployment.Spec.Template.Spec.Containers),
 		Command:     containerCommand(deployment.Spec.Template.Spec.Containers),
+		Variables:   containerVariables(deployment.Spec.Template.Spec.Containers),
 
 		LastDeployedAt: latestReplicaSetTime(replicaSets),
 		CreatedAt:      deployment.CreationTimestamp.Time,
@@ -323,12 +324,18 @@ func endpoints(deployment apps.Deployment, routes []unstructured.Unstructured) [
 		port = int(containers[0].Ports[0].ContainerPort)
 	}
 
+	var endpoints []platform.Endpoint
+
+	// A service with no configured port exposes nothing in-cluster, so it has
+	// no internal endpoint. Only emit one when the container declares a port.
 	// TODO: Fetch the k8s service resource to derive the proper internal host name
-	endpoints := []platform.Endpoint{{
-		Host:     fmt.Sprintf("%s.%s.svc.cluster.local", deployment.Name, deployment.Namespace),
-		Port:     port,
-		Protocol: platform.ProtocolTCP,
-	}}
+	if port > 0 {
+		endpoints = append(endpoints, platform.Endpoint{
+			Host:     fmt.Sprintf("%s.%s.svc.cluster.local", deployment.Name, deployment.Namespace),
+			Port:     port,
+			Protocol: platform.ProtocolTCP,
+		})
+	}
 
 	for _, route := range routes {
 		hosts, _, _ := unstructured.NestedStringSlice(route.Object, "spec", "hostnames")
@@ -381,6 +388,31 @@ func containerResources(containers []core.Container) platform.Resources {
 		CPU:    limits[core.ResourceCPU],
 		Memory: limits[core.ResourceMemory],
 	}
+}
+
+// containerVariables returns the literal env vars set on the running
+// container. Excludes HOST/PORT (chart defaults) and entries sourced from
+// secrets or ConfigMaps (those represent refs, not user-set literals).
+func containerVariables(containers []core.Container) map[string]string {
+	if len(containers) == 0 {
+		return nil
+	}
+
+	out := map[string]string{}
+
+	for _, e := range containers[0].Env {
+		if e.Name == "HOST" || e.Name == "PORT" {
+			continue
+		}
+
+		if e.ValueFrom != nil {
+			continue
+		}
+
+		out[e.Name] = e.Value
+	}
+
+	return out
 }
 
 // containerCommand returns the user's command override as a single string.

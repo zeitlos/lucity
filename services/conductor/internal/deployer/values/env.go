@@ -13,17 +13,11 @@ type Env struct {
 	Config          map[string]map[string]string `yaml:"config"`
 	Databases       Databases                    `yaml:"databases"`
 	Gateway         Gateway                      `yaml:"gateway"`
-	NetworkPolicy   NetworkPolicy                `yaml:"networkPolicy"`
 }
 
 type Gateway struct {
 	Name      string `yaml:"name"`
 	Namespace string `yaml:"namespace"`
-}
-
-type NetworkPolicy struct {
-	PodCIDR     string `yaml:"podCIDR"`
-	ServiceCIDR string `yaml:"serviceCIDR"`
 }
 
 type CronJob struct {

@@ -3,22 +3,23 @@ package helm
 import (
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/cli"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
 
 	"github.com/zeitlos/lucity/services/conductor/internal/deployer"
 )
 
 type Client struct {
-	chart      *chart.Chart
-	restGetter genericclioptions.RESTClientGetter
-	settings   *cli.EnvSettings
+	chart            *chart.Chart
+	settings         *cli.EnvSettings
+	gatewayName      string
+	gatewayNamespace string
 }
 
-func New(chart *chart.Chart, restGetter genericclioptions.RESTClientGetter) *Client {
+func New(chart *chart.Chart, gatewayName, gatewayNamespace string) *Client {
 	return &Client{
-		chart:      chart,
-		restGetter: restGetter,
-		settings:   cli.New(),
+		chart:            chart,
+		settings:         cli.New(),
+		gatewayName:      gatewayName,
+		gatewayNamespace: gatewayNamespace,
 	}
 }
 

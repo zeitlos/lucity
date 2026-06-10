@@ -27,14 +27,11 @@ func (r *mutationResolver) SetServiceVariables(ctx context.Context, service plat
 	var directVars []conductor.Variable
 	var sharedRefs []string
 	dbRefs := make(map[string]conductor.DatabaseRef)
-	svcRefs := make(map[string]conductor.ServiceRef)
 
 	for _, v := range variables {
 		switch {
 		case v.DatabaseRef != nil:
 			dbRefs[v.Key] = conductor.DatabaseRef{Database: v.DatabaseRef.Database, Key: v.DatabaseRef.Key}
-		case v.ServiceRef != nil:
-			svcRefs[v.Key] = conductor.ServiceRef{Service: v.ServiceRef.Service}
 		case v.FromShared != nil && *v.FromShared:
 			sharedRefs = append(sharedRefs, v.Key)
 		default:
@@ -46,7 +43,7 @@ func (r *mutationResolver) SetServiceVariables(ctx context.Context, service plat
 		}
 	}
 
-	return r.Conductor.SetServiceVariables(ctx, service, directVars, sharedRefs, dbRefs, svcRefs)
+	return r.Conductor.SetServiceVariables(ctx, service, directVars, sharedRefs, dbRefs)
 }
 
 // SharedVariables is the resolver for the sharedVariables field.
@@ -81,11 +78,6 @@ func (r *queryResolver) ServiceVariables(ctx context.Context, service platform.S
 			sv.DatabaseRef = &model.DatabaseRef{
 				Database: v.DatabaseRef.Database,
 				Key:      v.DatabaseRef.Key,
-			}
-		}
-		if v.ServiceRef != nil {
-			sv.ServiceRef = &model.ServiceRef{
-				Service: v.ServiceRef.Service,
 			}
 		}
 		result[i] = sv

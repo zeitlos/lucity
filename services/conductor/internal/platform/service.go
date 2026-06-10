@@ -26,6 +26,7 @@ type Service struct {
 	ContextPath string
 	Resources   Resources
 	Command     string
+	Variables   map[string]string // literal env vars on the running container; excludes HOST, PORT, and secret-ref entries
 
 	ActiveDeployment *Deployment
 

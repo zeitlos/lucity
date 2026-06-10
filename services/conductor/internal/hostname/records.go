@@ -8,7 +8,7 @@ import (
 const verifyRecordPrefix = "_lucity-verify."
 
 func (c *Client) DNSRecords(workspace, host string) []DNSRecord {
-	if c.IsPlatform(host) {
+	if c.IsPlatform(host) || c.IsInternal(host) {
 		return nil
 	}
 

@@ -48,21 +48,36 @@ func (r *environmentResolver) Databases(ctx context.Context, obj *model.Environm
 
 // CreateEnvironment is the resolver for the createEnvironment field.
 func (r *mutationResolver) CreateEnvironment(ctx context.Context, input model.CreateEnvironmentInput) (*model.Environment, error) {
-	tier := ""
+	tier := platform.EcoTier
+
 	if input.Tier != nil {
-		tier = string(*input.Tier)
+		parsed, err := parseResourceTier(*input.Tier)
+
+		if err != nil {
+			return nil, err
+		}
+
+		tier = parsed
 	}
+
 	e, err := r.Conductor.CreateEnvironment(ctx, input.Project, input.Name, input.FromEnvironment, tier)
+
 	if err != nil {
 		return nil, err
 	}
+
 	result := convertEnvironment(*e)
+
 	return &result, nil
 }
 
 // DeleteEnvironment is the resolver for the deleteEnvironment field.
 func (r *mutationResolver) DeleteEnvironment(ctx context.Context, environment platform.EnvironmentID) (bool, error) {
-	return r.Conductor.DeleteEnvironment(ctx, environment)
+	if err := r.Conductor.DeleteEnvironment(ctx, environment); err != nil {
+		return false, err
+	}
+
+	return true, nil
 }
 
 // Environments is the resolver for the environments field.

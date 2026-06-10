@@ -6,11 +6,11 @@ import (
 )
 
 var (
-	dnsLabel    = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]*[a-z0-9])?$`)
-	varName     = regexp.MustCompile(`^[A-Z_][A-Z0-9_]*$`)
-	hostnameRe  = regexp.MustCompile(`^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$`)
-	maxNameLen  = 63
-	maxHostLen  = 253
+	dnsLabel   = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]*[a-z0-9])?$`)
+	varName    = regexp.MustCompile(`^[A-Z_][A-Z0-9_]*$`)
+	hostnameRe = regexp.MustCompile(`^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$`)
+	maxNameLen = 63
+	maxHostLen = 253
 )
 
 func Validate(env *Env) error {
@@ -67,15 +67,6 @@ func Validate(env *Env) error {
 			}
 		}
 
-		for envKey, ref := range svc.ServiceRefs {
-			if !isValidVarName(envKey) {
-				return fmt.Errorf("service %q: invalid serviceRef env key %q", svcName, envKey)
-			}
-
-			if _, ok := env.Services[ref.Service]; !ok {
-				return fmt.Errorf("service %q: serviceRef %q points at unknown service %q", svcName, envKey, ref.Service)
-			}
-		}
 	}
 
 	return nil
@@ -83,6 +74,11 @@ func Validate(env *Env) error {
 
 func isValidName(name string) bool {
 	return len(name) > 0 && len(name) <= maxNameLen && dnsLabel.MatchString(name)
+}
+
+func isValidPort(port int) bool {
+	// port == 0 means no port specified.
+	return port >= 0 && port <= 65535
 }
 
 func isValidVarName(name string) bool {

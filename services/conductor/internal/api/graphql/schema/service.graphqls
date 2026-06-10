@@ -1,11 +1,13 @@
-type Service {
+type Service
+@goExtraField(name: "PlatformEndpoints", type: "[]github.com/zeitlos/lucity/services/conductor/internal/platform.Endpoint"){
   id: ServiceID!
   name: String!
 
   status: ServiceStatus!
   replicas: ReplicaCount!
   autoscaling: AutoscalingSettings
-  endpoints: [Endpoint!]!
+
+  endpoints: [Endpoint!]! @goField(forceResolver: true)
 
   sourceUrl: String!
   contextPath: String!
@@ -42,6 +44,20 @@ type Endpoint {
   host: String!
   port: Int!
   protocol: Protocol!
+  type: EndpointType!
+  dns: DnsState!
+  tls: TlsStatus!
+}
+
+type DnsState {
+  status: DnsStatus!
+  requiredRecords: [DnsRecord!]!
+}
+
+enum EndpointType {
+  PLATFORM
+  CUSTOM
+  INTERNAL
 }
 
 enum Protocol {
@@ -75,18 +91,6 @@ type AutoscalingConfig {
   minReplicas: Int!
   maxReplicas: Int!
   targetCPU: Int!
-}
-
-type Domain {
-  hostname: String!
-  """PLATFORM domains use wildcard DNS on the workload domain. CUSTOM domains require user DNS config."""
-  type: DomainType!
-  """DNS resolution status. Always VALID for platform domains. Checked via live DNS lookup for custom domains, including TXT-record ownership verification."""
-  dnsStatus: DnsStatus!
-  """TLS certificate status. NONE for platform domains (covered by wildcard). Checked via cert-manager for custom domains."""
-  tlsStatus: TlsStatus!
-  """DNS records the user must configure for this domain to be valid. Empty for platform domains. For custom domains: one TXT record for ownership and one routing record (CNAME or A)."""
-  requiredDnsRecords: [DnsRecord!]! @goField(forceResolver: true)
 }
 
 type DnsRecord {
@@ -132,9 +136,6 @@ input AddServiceInput {
   environment: EnvironmentID!
   """Service name. If omitted when image is set, derived from the image (e.g. nginx:1.25 → nginx)."""
   name: String @constraint(constraint: "resource_name,min=2,max=63")
-  """Container port. If omitted when image is set, uses well-known defaults (e.g. redis → 6379)."""
-  port: Int
-  framework: String
   """Auto-detected start command from the build system (e.g. railpack). Stored for UI display as the default."""
   startCommand: String
   """GitHub repository in owner/repo format (e.g. "acme/myapp"). Requires installationId. The clone URL is constructed server-side."""
@@ -170,6 +171,8 @@ extend type Mutation {
   addService(input: AddServiceInput!): Service! @hasRole(role: [USER])
   removeService(service: ServiceID!): Boolean! @hasRole(role: [USER])
   setCustomStartCommand(service: ServiceID!, command: String!): Service! @hasRole(role: [USER])
+  """Set the port the service listens on. Pass null to remove it (the service then exposes no port)."""
+  setServicePort(service: ServiceID!, port: Int @constraint(constraint: "min=1,max=65535")): Service! @hasRole(role: [USER])
   setServiceScaling(input: SetServiceScalingInput!): Service! @hasRole(role: [USER])
   rollback(deployment: DeploymentID!): Boolean! @hasRole(role: [USER])
   generateDomain(service: ServiceID!): Service! @hasRole(role: [USER])

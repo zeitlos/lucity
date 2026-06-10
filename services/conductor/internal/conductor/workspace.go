@@ -73,7 +73,7 @@ func (c *Client) DeleteWorkspace(ctx context.Context, id string) (bool, error) {
 		return false, err
 	}
 
-	projects, err := c.Packager.ListProjects(ctx, id)
+	projects, err := c.platform.Projects(ctx, id)
 
 	if err != nil {
 		return false, err

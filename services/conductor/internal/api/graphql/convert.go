@@ -1,6 +1,7 @@
 package graphql
 
 import (
+	"fmt"
 	"log/slog"
 	"strconv"
 	"time"
@@ -9,22 +10,23 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
 	"github.com/zeitlos/lucity/services/conductor/internal/buildjob"
 	"github.com/zeitlos/lucity/services/conductor/internal/conductor"
+	"github.com/zeitlos/lucity/services/conductor/internal/hostname"
 	"github.com/zeitlos/lucity/services/conductor/internal/planner"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
 func convertService(service platform.Service) model.Service {
 	result := model.Service{
-		ID:          service.ID,
-		Name:        service.Name,
-		Status:      convertServiceStatus(service.Status),
-		Replicas:    convertReplicaCount(service.Replicas),
-		Endpoints:   convertEndpoints(service.Endpoints),
-		SourceURL:   service.SourceURL,
-		ContextPath: service.ContextPath,
-		Resources:   convertResources(service.Resources),
-		Command:     service.Command,
-		CreatedAt:   service.CreatedAt,
+		ID:                service.ID,
+		Name:              service.Name,
+		Status:            convertServiceStatus(service.Status),
+		Replicas:          convertReplicaCount(service.Replicas),
+		PlatformEndpoints: service.Endpoints,
+		SourceURL:         service.SourceURL,
+		ContextPath:       service.ContextPath,
+		Resources:         convertResources(service.Resources),
+		Command:           service.Command,
+		CreatedAt:         service.CreatedAt,
 	}
 
 	if service.Autoscaling != nil {
@@ -111,20 +113,6 @@ func convertResources(resources platform.Resources) *model.Resources {
 	}
 }
 
-func convertEndpoints(endpoints []platform.Endpoint) []model.Endpoint {
-	result := make([]model.Endpoint, 0, len(endpoints))
-
-	for _, endpoint := range endpoints {
-		result = append(result, model.Endpoint{
-			Host:     endpoint.Host,
-			Port:     endpoint.Port,
-			Protocol: convertProtocol(endpoint.Protocol),
-		})
-	}
-
-	return result
-}
-
 func convertProject(p conductor.Project) model.Project {
 	result := model.Project{
 		ID:   p.ID,
@@ -168,7 +156,6 @@ func convertDetectedService(s planner.Plan) model.DetectedService {
 		// Left at zero until the new detector returns a port or we drop the field.
 	}
 }
-
 
 func convertGitHubRepository(r conductor.GitHubRepository) model.GitHubRepository {
 	return model.GitHubRepository{
@@ -253,7 +240,7 @@ func convertWorkspaceMember(m *conductor.WorkspaceMember) *model.WorkspaceMember
 
 func convertEnvironmentResources(r conductor.EnvironmentResources) model.EnvironmentResources {
 	return model.EnvironmentResources{
-		Tier: convertResourceTierString(r.Tier),
+		Tier: convertResourceTier(r.Tier),
 		Allocation: &model.ResourceAllocation{
 			CPUMillicores: r.CpuMillicores,
 			MemoryMb:      r.MemoryMB,
@@ -404,6 +391,98 @@ func convertProtocol(protocol platform.Protocol) model.Protocol {
 	return model.ProtocolTCP
 }
 
+func convertEndpoint(endpoint conductor.Endpoint) model.Endpoint {
+	records := make([]model.DNSRecord, 0, len(endpoint.RequiredDNSRecords))
+
+	for _, record := range endpoint.RequiredDNSRecords {
+		records = append(records, convertDNSRecord(record))
+	}
+
+	return model.Endpoint{
+		Host:     endpoint.Host,
+		Port:     endpoint.Port,
+		Protocol: convertProtocol(endpoint.Protocol),
+		Type:     convertEndpointType(endpoint.Type),
+		DNS: &model.DNSState{
+			Status:          convertDNSStatus(endpoint.DNSStatus),
+			RequiredRecords: records,
+		},
+		TLS: convertTLSStatus(endpoint.TLSStatus),
+	}
+}
+
+func convertEndpointType(t conductor.EndpointType) model.EndpointType {
+	switch t {
+	case conductor.InternalEndpoint:
+		return model.EndpointTypeInternal
+	case conductor.PlatformEndpoint:
+		return model.EndpointTypePlatform
+	case conductor.CustomDomainEndpoint:
+		return model.EndpointTypeCustom
+	}
+
+	slog.Warn("unknown endpoint type", "type", t)
+
+	return model.EndpointTypeInternal
+}
+
+func convertDNSStatus(status hostname.DNSStatus) model.DNSStatus {
+	switch status {
+	case hostname.DNSValid:
+		return model.DNSStatusValid
+	case hostname.DNSPending:
+		return model.DNSStatusPending
+	case hostname.DNSMisconfigured:
+		return model.DNSStatusMisconfigured
+	case hostname.DNSError:
+		return model.DNSStatusError
+	}
+
+	slog.Warn("unknown dns status", "status", status)
+
+	return model.DNSStatusError
+}
+
+func convertTLSStatus(status hostname.TLSStatus) model.TLSStatus {
+	switch status {
+	case hostname.TLSNone:
+		return model.TLSStatusNone
+	case hostname.TLSProvisioning:
+		return model.TLSStatusProvisioning
+	case hostname.TLSActive:
+		return model.TLSStatusActive
+	case hostname.TLSError:
+		return model.TLSStatusError
+	}
+
+	slog.Warn("unknown tls status", "status", status)
+
+	return model.TLSStatusError
+}
+
+func convertDNSRecord(record hostname.DNSRecord) model.DNSRecord {
+	return model.DNSRecord{
+		Type:  convertDNSRecordType(record.Type),
+		Host:  record.Host,
+		Value: record.Value,
+	}
+}
+
+func convertDNSRecordType(t hostname.RecordType) model.DNSRecordType {
+	switch t {
+	case hostname.TXT:
+		return model.DNSRecordTypeTxt
+	case hostname.CNAME:
+		return model.DNSRecordTypeCname
+	case hostname.A:
+		return model.DNSRecordTypeA
+	}
+
+	slog.Warn("unknown dns record type", "type", t)
+
+	return model.DNSRecordTypeTxt
+}
+
 func convertResourceTier(tier platform.ResourceTier) model.ResourceTier {
 	switch tier {
 	case platform.EcoTier:
@@ -417,55 +496,15 @@ func convertResourceTier(tier platform.ResourceTier) model.ResourceTier {
 	return model.ResourceTierEco
 }
 
-// convertResourceTierString converts the stringly-typed tier used in
-// conductor.EnvironmentResources (values "ECO" / "PRODUCTION", produced
-// by billing.tierToAPIString). Separate from convertResourceTier because
-// the casing intentionally differs from the platform package.
-func convertResourceTierString(tier string) model.ResourceTier {
+func parseResourceTier(tier model.ResourceTier) (platform.ResourceTier, error) {
 	switch tier {
-	case "ECO":
-		return model.ResourceTierEco
-	case "PRODUCTION":
-		return model.ResourceTierProduction
+	case model.ResourceTierEco:
+		return platform.EcoTier, nil
+	case model.ResourceTierProduction:
+		return platform.ProductionTier, nil
 	}
 
-	slog.Warn("unknown resource tier string", "tier", tier)
-
-	return model.ResourceTierEco
-}
-
-func convertDNSStatus(status string) model.DNSStatus {
-	switch status {
-	case "VALID":
-		return model.DNSStatusValid
-	case "PENDING":
-		return model.DNSStatusPending
-	case "MISCONFIGURED":
-		return model.DNSStatusMisconfigured
-	case "ERROR":
-		return model.DNSStatusError
-	}
-
-	slog.Warn("unknown dns status", "status", status)
-
-	return model.DNSStatusError
-}
-
-func convertTLSStatus(status string) model.TLSStatus {
-	switch status {
-	case "NONE":
-		return model.TLSStatusNone
-	case "PROVISIONING":
-		return model.TLSStatusProvisioning
-	case "ACTIVE":
-		return model.TLSStatusActive
-	case "ERROR":
-		return model.TLSStatusError
-	}
-
-	slog.Warn("unknown tls status", "status", status)
-
-	return model.TLSStatusError
+	return "", fmt.Errorf("invalid resource tier %q", tier)
 }
 
 func convertGitHubAccountType(accountType string) model.GitHubAccountType {

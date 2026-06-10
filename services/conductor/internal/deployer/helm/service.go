@@ -19,9 +19,9 @@ func (s *serviceClient) Create(ctx context.Context, env platform.EnvironmentID, 
 	})
 }
 
-func (s *serviceClient) Remove(ctx context.Context, id platform.ServiceID) error {
+func (s *serviceClient) Delete(ctx context.Context, id platform.ServiceID) error {
 	_, err := s.client.applyEnv(ctx, id.EnvironmentID(), func(e *values.Env) error {
-		return values.RemoveService(e, id.Name)
+		return values.DeleteService(e, id.Name)
 	})
 
 	return err
@@ -76,10 +76,62 @@ func (s *serviceClient) SetPort(ctx context.Context, id platform.ServiceID, port
 	})
 }
 
-func (s *serviceClient) SetVariables(ctx context.Context, id platform.ServiceID, vars map[string]string) (deployer.RevisionID, error) {
+func (s *serviceClient) Variables(ctx context.Context, id platform.ServiceID) (deployer.ServiceVariablesSpec, error) {
+	env, err := s.client.loadEnv(ctx, id.EnvironmentID())
+
+	if err != nil {
+		return deployer.ServiceVariablesSpec{}, err
+	}
+
+	svc, ok := env.Services[id.Name]
+
+	if !ok {
+		return deployer.ServiceVariablesSpec{}, fmt.Errorf("service %q not found", id.Name)
+	}
+
+	dbRefs := make(map[string]deployer.DatabaseRef, len(svc.DatabaseRefs))
+
+	for k, ref := range svc.DatabaseRefs {
+		dbRefs[k] = deployer.DatabaseRef{
+			Database: ref.Database,
+			Key:      ref.Key,
+		}
+	}
+
+	return deployer.ServiceVariablesSpec{
+		Literals:     cloneStringMap(svc.Env),
+		DatabaseRefs: dbRefs,
+		SharedRefs:   append([]string(nil), svc.SharedRefs...),
+	}, nil
+}
+
+func (s *serviceClient) SetVariables(ctx context.Context, id platform.ServiceID, spec deployer.ServiceVariablesSpec) (deployer.RevisionID, error) {
+	dbRefs := make(map[string]values.DatabaseRef, len(spec.DatabaseRefs))
+
+	for k, ref := range spec.DatabaseRefs {
+		dbRefs[k] = values.DatabaseRef{
+			Database: ref.Database,
+			Key:      ref.Key,
+		}
+	}
+
 	return s.client.applyEnv(ctx, id.EnvironmentID(), func(e *values.Env) error {
-		return values.SetServiceVariables(e, id.Name, vars)
+		return values.SetServiceVariables(e, id.Name, spec.Literals, dbRefs, spec.SharedRefs)
 	})
+}
+
+func cloneStringMap(in map[string]string) map[string]string {
+	if in == nil {
+		return nil
+	}
+
+	out := make(map[string]string, len(in))
+
+	for k, v := range in {
+		out[k] = v
+	}
+
+	return out
 }
 
 func (s *serviceClient) AddDomain(ctx context.Context, id platform.ServiceID, host string) (deployer.RevisionID, error) {
@@ -113,7 +165,6 @@ var _ deployer.ServiceClient = (*serviceClient)(nil)
 func toValuesSpec(s deployer.ServiceSpec) values.ServiceSpec {
 	return values.ServiceSpec{
 		Image:                s.Image,
-		Port:                 s.Port,
 		SourceURL:            s.SourceURL,
 		ContextPath:          s.ContextPath,
 		Branch:               s.Branch,

@@ -33,7 +33,11 @@ func (r *mutationResolver) CreateProject(ctx context.Context, input model.Create
 
 // DeleteProject is the resolver for the deleteProject field.
 func (r *mutationResolver) DeleteProject(ctx context.Context, id platform.ProjectID) (bool, error) {
-	return r.Conductor.DeleteProject(ctx, id)
+	if err := r.Conductor.DeleteProject(ctx, id); err != nil {
+		return false, err
+	}
+
+	return true, nil
 }
 
 // Projects is the resolver for the projects field.
