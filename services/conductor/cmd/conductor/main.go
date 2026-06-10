@@ -198,7 +198,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	jobsClient := buildjobK8s.New(k8sClient, config.BuildNamespace, config.RegistryURL, config.RegistryAuthSecret, config.BuildImage)
+	jobsClient := buildjobK8s.New(k8sClient, config.BuildNamespace, config.RegistryPushURL, config.RegistryAuthSecret, config.BuildImage)
 
 	secret, err := k8sClient.CoreV1().Secrets(config.SystemNamespace).Get(ctx, config.RegistryPullSecret, metav1.GetOptions{})
 
