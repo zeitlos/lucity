@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/zeitlos/lucity/pkg/to"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
@@ -85,17 +86,10 @@ func toDeployment(replicaSet apps.ReplicaSet, deployment apps.Deployment, servic
 	containers := replicaSet.Spec.Template.Spec.Containers
 	annotations := replicaSet.Spec.Template.Annotations
 
-	image := ""
-
-	if len(containers) > 0 {
-		image = containers[0].Image
-	}
-
 	result := platform.Deployment{
 		ID:     deploymentID(replicaSet, serviceID),
 		Status: deploymentStatus(replicaSet, deployment),
 
-		Image:       image,
 		ImageDigest: annotations[annotationImageDigest],
 
 		Commit:      annotations[annotationSourceCommit],
@@ -115,6 +109,16 @@ func toDeployment(replicaSet apps.ReplicaSet, deployment apps.Deployment, servic
 		},
 
 		CreatedAt: replicaSet.CreationTimestamp.Time,
+	}
+
+	if len(containers) > 0 {
+		result.Image = containers[0].Image
+
+		parts := strings.Split(result.Image, ":")
+
+		if len(parts) > 1 {
+			result.Commit = parts[len(parts)-1]
+		}
 	}
 
 	if id, ok := deployment.Labels[gitHubInstallationLabel]; ok {
