@@ -2,11 +2,7 @@ package kubernetes
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
-	"encoding/json"
 	"errors"
-	"fmt"
 	"net/url"
 	"slices"
 	"strings"
@@ -16,9 +12,10 @@ import (
 
 	batch "k8s.io/api/batch/v1"
 	core "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/utils/ptr"
 )
 
@@ -43,26 +40,28 @@ func (c *Client) Start(ctx context.Context, opts buildjob.StartOptions) (*buildj
 		tag = tag[:7]
 	}
 
-	hash := c.buildHash(opts.Workspace, *parsed, opts.ContextPath, opts.Commit)
-	id := "build-" + hash
+	existing, err := c.kubernetes.BatchV1().Jobs(c.namespace).List(ctx, meta.ListOptions{
+		LabelSelector: labels.Set(buildJobLabels(opts.Workspace, *parsed, opts.ContextPath, opts.Commit)).String(),
+	})
 
-	existing, err := c.kubernetes.BatchV1().Jobs(c.namespace).Get(ctx, id, meta.GetOptions{})
-
-	if err == nil {
-		b := toJob(*existing)
-		return &b, nil
-	}
-
-	if !apierrors.IsNotFound(err) {
+	if err != nil {
 		return nil, err
 	}
+
+	for _, job := range existing.Items {
+		if !isDone(job) {
+			return new(toJob(job)), nil
+		}
+	}
+
+	id := "build-" + rand.String(6)
 
 	job := c.newBuildJob(id, opts.Workspace, *parsed, opts.ContextPath, opts.Commit, opts.Token, tag, opts.TargetImageNames)
 
 	created, err := c.kubernetes.BatchV1().Jobs(c.namespace).Create(ctx, job, meta.CreateOptions{})
 
 	if err != nil {
-		return nil, fmt.Errorf("create build: %w", err)
+		return nil, err
 	}
 
 	return new(toJob(*created)), nil
@@ -75,15 +74,7 @@ func (c *Client) Cancel(ctx context.Context, id string) (*buildjob.Job, error) {
 		return nil, err
 	}
 
-	status := buildStatus(*job)
-	terminalStatuses := []buildjob.Status{
-		buildjob.StatusCancelled,
-		buildjob.StatusCancelling,
-		buildjob.StatusFailed,
-		buildjob.StatusSucceeded,
-	}
-
-	if slices.Contains(terminalStatuses, status) {
+	if isDone(*job) {
 		return new(toJob(*job)), nil
 	}
 
@@ -97,10 +88,22 @@ func (c *Client) Cancel(ctx context.Context, id string) (*buildjob.Job, error) {
 	job, err = c.kubernetes.BatchV1().Jobs(c.namespace).Update(ctx, job, meta.UpdateOptions{})
 
 	if err != nil {
-		return nil, fmt.Errorf("cancel build: %w", err)
+		return nil, err
 	}
 
 	return new(toJob(*job)), nil
+}
+
+func isDone(job batch.Job) bool {
+	status := buildStatus(job)
+	terminalStatuses := []buildjob.Status{
+		buildjob.StatusCancelled,
+		buildjob.StatusCancelling,
+		buildjob.StatusFailed,
+		buildjob.StatusSucceeded,
+	}
+
+	return slices.Contains(terminalStatuses, status)
 }
 
 func (c *Client) newBuildJob(id string, workspaceID string, repoURL url.URL, contextPath, commit, githubToken, tag string, targetImageNames []string) *batch.Job {
@@ -123,13 +126,7 @@ func (c *Client) newBuildJob(id string, workspaceID string, repoURL url.URL, con
 		{Name: "DOCKER_CONFIG", Value: "/etc/registry-auth"},
 	}
 
-	labels := map[string]string{
-		labelWorkspace:         workspaceID,
-		labelRepoHash:          repoURLHash(repoURL),
-		labelContextHash:       contextHash(contextPath),
-		labelSourceCommit:      commit,
-		"lucity.dev/component": "build",
-	}
+	labels := buildJobLabels(workspaceID, repoURL, contextPath, commit)
 
 	return &batch.Job{
 		ObjectMeta: meta.ObjectMeta{
@@ -195,19 +192,12 @@ func (c *Client) newBuildJob(id string, workspaceID string, repoURL url.URL, con
 	}
 }
 
-func (c *Client) buildHash(workspaceID string, repoURL url.URL, contextPath, commit string) string {
-	id := struct {
-		W, R, C, Sha, Img string
-	}{
-		W:   workspaceID,
-		R:   normalizeRepoURL(repoURL),
-		C:   normalizeContextPath(contextPath),
-		Sha: strings.ToLower(strings.TrimSpace(commit)),
-		Img: c.buildRunnerImage,
+func buildJobLabels(workspaceID string, repoURL url.URL, contextPath, commit string) map[string]string {
+	return map[string]string{
+		labelWorkspace:         workspaceID,
+		labelRepoHash:          repoURLHash(repoURL),
+		labelContextHash:       contextHash(contextPath),
+		labelSourceCommit:      commit,
+		"lucity.dev/component": "build",
 	}
-
-	bytes, _ := json.Marshal(id)
-	hash := sha256.Sum256(bytes)
-
-	return hex.EncodeToString(hash[:8])
 }
