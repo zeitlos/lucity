@@ -161,7 +161,7 @@ watch(
         />
       </template>
 
-      <Background variant="dots" :gap="24" :size="1" class="canvas-dots" />
+      <Background variant="dots" :gap="24" :size="1" />
 
       <Panel position="top-left" class="!m-3">
         <button
@@ -187,13 +187,3 @@ watch(
     </div>
   </div>
 </template>
-
-<style scoped>
-.canvas-bg {
-  background-color: transparent;
-}
-
-:deep(.canvas-dots pattern circle) {
-  fill: color-mix(in oklch, var(--muted-foreground) 65%, transparent);
-}
-</style>
