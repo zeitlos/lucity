@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
-import { useMutation, useQuery } from '@vue/apollo-composable';
+import { useMutation } from '@vue/apollo-composable';
 import {
   Trash2, Copy, X, Globe, Plus, Minus,
   ChevronDown, Network, ExternalLink, Scaling, GitBranch, Github, Play, Container, ArrowRight,
@@ -53,16 +53,6 @@ const RemoveDomainDocument = graphql(`
   }
 `);
 
-const PlatformConfigDocument = graphql(`
-  query PlatformConfig {
-    platformConfig {
-      workloadDomain
-      domainTarget
-      ipAddress
-    }
-  }
-`);
-
 const SetServiceScalingDocument = graphql(`
   mutation SetServiceScaling($input: SetServiceScalingInput!) {
     setServiceScaling(input: $input) {
@@ -76,6 +66,14 @@ const SetServiceScalingDocument = graphql(`
         maxReplicas
         targetCpu
       }
+    }
+  }
+`);
+
+const SetServicePortDocument = graphql(`
+  mutation SetServicePort($service: ServiceID!, $port: Int) {
+    setServicePort(service: $service, port: $port) {
+      id
     }
   }
 `);
@@ -124,11 +122,6 @@ const customEndpoints = computed(() => endpoints.value.slice(1));
 
 const resources = computed(() => props.service.resources ?? null);
 const resourceTier = computed(() => activeEnvironment.value?.resourceTier ?? null);
-
-// Platform config
-const { result: platformConfigResult } = useQuery(PlatformConfigDocument);
-const domainTarget = computed(() => platformConfigResult.value?.platformConfig?.domainTarget ?? '');
-const ipAddress = computed(() => platformConfigResult.value?.platformConfig?.ipAddress ?? '');
 
 function domainUrl(hostname: string) {
   if (hostname.endsWith('.local')) return `http://${hostname}:8880`;
@@ -217,6 +210,35 @@ const { mutate: removeServiceMutate, loading: removing } = useMutation(RemoveSer
 const { mutate: generateDomainMutate, loading: generatingDomain } = useMutation(GenerateDomainDocument);
 const { mutate: addCustomDomainMutate, loading: addingCustomDomain } = useMutation(AddCustomDomainDocument);
 const { mutate: removeDomainMutate } = useMutation(RemoveDomainDocument);
+
+const { mutate: setServicePortMutate, loading: portSaving } = useMutation(SetServicePortDocument);
+
+const currentPort = computed(() => platformEndpoint.value?.port);
+const portInput = ref<number | undefined>(currentPort.value);
+
+watch(currentPort, value => {
+  portInput.value = value;
+});
+
+const portChanged = computed(() => (portInput.value || null) !== (currentPort.value || null));
+
+async function handleSavePort() {
+  const port = portInput.value && portInput.value > 0 ? portInput.value : null;
+
+  try {
+    const res = await setServicePortMutate({ service: props.service.id, port });
+
+    if (res?.errors?.length) {
+      errorToast('Failed to update port', { description: res.errors.map(e => e.message).join(', ') });
+      return;
+    }
+
+    toast.success(port ? `Port set to ${port}` : 'Port removed');
+    emit('refetch');
+  } catch (e: unknown) {
+    errorToast('Failed to update port', { description: errorMessage(e) });
+  }
+}
 
 async function handleGenerateDomain() {
   try {
@@ -560,6 +582,48 @@ async function handleRemoveService() {
         Networking
       </h3>
 
+      <!-- Listening port -->
+      <Collapsible default-open>
+        <div class="overflow-hidden rounded-lg border">
+          <CollapsibleTrigger class="flex w-full items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/30">
+            <Network :size="16" class="shrink-0 text-muted-foreground" />
+            <div class="min-w-0 flex-1 text-left">
+              <p class="text-sm font-medium text-foreground">Port</p>
+              <p class="truncate text-xs text-muted-foreground">
+                {{ currentPort ? `Listening on ${currentPort}` : 'No port configured' }}
+              </p>
+            </div>
+            <ChevronDown
+              :size="14"
+              class="shrink-0 text-muted-foreground transition-transform duration-200 [[data-state=open]>&]:rotate-180"
+            />
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div class="space-y-3 border-t px-4 py-3">
+              <p class="text-xs text-muted-foreground">
+                The port your app listens on. Domains route to it. Leave empty if this service doesn't serve traffic.
+              </p>
+              <div class="flex items-center gap-2">
+                <Input
+                  v-model.number="portInput"
+                  type="number"
+                  placeholder="3000"
+                  class="font-mono text-sm"
+                  @keyup.enter="portChanged && handleSavePort()"
+                />
+                <Button
+                  size="sm"
+                  :disabled="!portChanged || portSaving"
+                  @click="handleSavePort"
+                >
+                  {{ portSaving ? 'Saving...' : 'Save' }}
+                </Button>
+              </div>
+            </div>
+          </CollapsibleContent>
+        </div>
+      </Collapsible>
+
       <!-- Platform Domain (first endpoint) -->
       <Collapsible default-open>
         <div class="overflow-hidden rounded-lg border">
@@ -667,67 +731,90 @@ async function handleRemoveService() {
           </CollapsibleTrigger>
           <CollapsibleContent>
             <div class="space-y-3 border-t px-4 py-3">
-              <div v-if="customEndpoints.length" class="space-y-2">
+              <div v-if="customEndpoints.length" class="space-y-3">
                 <div
                   v-for="endpoint in customEndpoints"
                   :key="endpoint.host"
-                  class="flex items-center gap-2"
+                  class="space-y-2 rounded-md border bg-muted/30 p-2"
                 >
-                  <a
-                    :href="domainUrl(endpoint.host)"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="flex flex-1 items-center gap-2 rounded-md border bg-muted/50 px-3 py-2 transition-colors hover:bg-muted/80"
-                  >
-                    <Globe :size="14" class="shrink-0 text-muted-foreground" />
-                    <span class="truncate font-mono text-sm hover:underline">{{ endpoint.host }}</span>
-                    <span class="ml-auto shrink-0 text-xs text-muted-foreground">:{{ endpoint.port }}</span>
-                    <ExternalLink :size="12" class="shrink-0 text-muted-foreground" />
-                  </a>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    class="h-8 w-8 shrink-0"
-                    @click="copyToClipboard(endpoint.host)"
-                  >
-                    <Copy :size="14" />
-                  </Button>
-                  <AlertDialog>
-                    <AlertDialogTrigger as-child>
+                  <div class="flex items-center gap-2">
+                    <a
+                      :href="domainUrl(endpoint.host)"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="flex flex-1 items-center gap-2 rounded-md border bg-muted/50 px-3 py-2 transition-colors hover:bg-muted/80"
+                    >
+                      <Globe :size="14" class="shrink-0 text-muted-foreground" />
+                      <span class="truncate font-mono text-sm hover:underline">{{ endpoint.host }}</span>
+                      <span class="ml-auto shrink-0 text-xs text-muted-foreground">:{{ endpoint.port }}</span>
+                      <ExternalLink :size="12" class="shrink-0 text-muted-foreground" />
+                    </a>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      class="h-8 w-8 shrink-0"
+                      @click="copyToClipboard(endpoint.host)"
+                    >
+                      <Copy :size="14" />
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger as-child>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          class="h-8 w-8 shrink-0 text-destructive"
+                        >
+                          <X :size="14" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Remove domain</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Remove <strong class="font-mono">{{ endpoint.host }}</strong> from this service? This will also delete the TLS certificate.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            @click="handleRemoveDomain(endpoint.host)"
+                          >
+                            Remove
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+
+                  <div class="flex items-center gap-3 pl-1 text-[11px] text-muted-foreground">
+                    <span>DNS: <span class="font-medium text-foreground">{{ endpoint.dns.status }}</span></span>
+                    <span>TLS: <span class="font-medium text-foreground">{{ endpoint.tls }}</span></span>
+                  </div>
+
+                  <div v-if="endpoint.dns.requiredRecords.length" class="space-y-1">
+                    <p class="pl-1 text-[11px] text-muted-foreground">Add these DNS records:</p>
+                    <div
+                      v-for="record in endpoint.dns.requiredRecords"
+                      :key="record.type + record.host + record.value"
+                      class="flex items-center gap-2 rounded border bg-background px-2 py-1 font-mono text-[11px]"
+                    >
+                      <span class="w-12 shrink-0 font-semibold">{{ record.type }}</span>
+                      <span class="flex-1 truncate text-muted-foreground">{{ record.host }}</span>
+                      <ArrowRight :size="10" class="shrink-0 text-muted-foreground" />
+                      <span class="flex-1 truncate">{{ record.value }}</span>
                       <Button
                         variant="ghost"
                         size="icon"
-                        class="h-8 w-8 shrink-0 text-destructive"
+                        class="h-6 w-6 shrink-0"
+                        @click="copyToClipboard(record.value)"
                       >
-                        <X :size="14" />
+                        <Copy :size="12" />
                       </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Remove domain</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Remove <strong class="font-mono">{{ endpoint.host }}</strong> from this service? This will also delete the TLS certificate.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                          class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                          @click="handleRemoveDomain(endpoint.host)"
-                        >
-                          Remove
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                    </div>
+                  </div>
                 </div>
               </div>
-
-              <!-- DNS/TLS status will be added back when endpoint fields land server-side. -->
-              <p v-if="customEndpoints.length" class="text-[11px] text-muted-foreground">
-                Point a CNAME record at <span class="font-mono">{{ domainTarget || '...' }}</span>
-                <template v-if="ipAddress"> (apex domains: A record to <span class="font-mono">{{ ipAddress }}</span>)</template>.
-              </p>
 
               <!-- Add custom domain input -->
               <div class="space-y-1.5">

@@ -352,28 +352,27 @@ const showActiveDetails = ref(false);
         <div
           v-for="dep in sortedDeployments"
           :key="dep.id"
-          class="flex items-start gap-3 rounded-lg border border-border/60 bg-muted/30 px-4 py-3"
+          class="rounded-lg border border-border/60 bg-muted/30 px-4 py-3"
         >
           <Badge
+            v-if="dep.status === DeploymentStatus.Active"
             :variant="deploymentStatusVariant(dep.status)"
-            class="mt-0.5 shrink-0 text-[0.65rem]"
+            class="mb-1.5 text-[0.65rem]"
           >
             {{ dep.status }}
           </Badge>
 
-          <div class="min-w-0 flex-1">
-            <p
-              class="truncate text-sm text-foreground"
-              :title="dep.commitMessage || dep.commit"
-            >
-              {{ deploymentLabel(dep) }}
-            </p>
-            <div class="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-              <GitCommitHorizontal v-if="shortCommit(dep.commit)" :size="10" class="shrink-0" />
-              <span v-if="shortCommit(dep.commit)" class="font-mono">{{ shortCommit(dep.commit) }}</span>
-              <span>&middot; {{ formatRelativeTime(dep.createdAt) }}</span>
-              <span v-if="dep.deployedBy">&middot; by {{ dep.deployedBy }}</span>
-            </div>
+          <p
+            class="truncate text-sm text-foreground"
+            :title="dep.commitMessage || dep.commit"
+          >
+            {{ deploymentLabel(dep) }}
+          </p>
+          <div class="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+            <GitCommitHorizontal v-if="shortCommit(dep.commit)" :size="10" class="shrink-0" />
+            <span v-if="shortCommit(dep.commit)" class="font-mono">{{ shortCommit(dep.commit) }}</span>
+            <span>&middot; {{ formatRelativeTime(dep.createdAt) }}</span>
+            <span v-if="dep.deployedBy">&middot; by {{ dep.deployedBy }}</span>
           </div>
         </div>
       </div>
@@ -389,35 +388,37 @@ const showActiveDetails = ref(false);
         <div
           v-for="build in sortedBuilds"
           :key="build.id"
-          class="flex items-center gap-3 rounded-lg border border-border/60 bg-muted/30 px-4 py-3"
+          class="rounded-lg border border-border/60 bg-muted/30 px-4 py-3"
         >
           <Badge
             :variant="buildStatusVariant(build.status)"
-            class="shrink-0 text-[0.65rem]"
+            class="mb-1.5 text-[0.65rem]"
           >
             {{ build.status }}
           </Badge>
 
-          <div class="min-w-0 flex-1">
-            <div class="flex items-center gap-1.5 text-sm text-foreground">
-              <Hammer :size="12" class="shrink-0 text-muted-foreground" />
-              <span class="font-mono">{{ shortBuildId(build.id) }}</span>
+          <div class="flex items-center gap-3">
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center gap-1.5 text-sm text-foreground">
+                <Hammer :size="12" class="shrink-0 text-muted-foreground" />
+                <span class="font-mono">{{ shortBuildId(build.id) }}</span>
+              </div>
+              <div class="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                <span>{{ formatRelativeTime(build.startedAt) }}</span>
+                <span v-if="buildDuration(build)">&middot; {{ buildDuration(build) }}</span>
+              </div>
             </div>
-            <div class="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-              <span>{{ formatRelativeTime(build.startedAt) }}</span>
-              <span v-if="buildDuration(build)">&middot; {{ buildDuration(build) }}</span>
-            </div>
-          </div>
 
-          <Button
-            variant="ghost"
-            size="sm"
-            class="shrink-0 h-7 text-xs text-muted-foreground"
-            @click="logsPanel.open(build.id, service.name)"
-          >
-            <Terminal :size="13" class="mr-1.5" />
-            Logs
-          </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              class="shrink-0 h-7 text-xs text-muted-foreground"
+              @click="logsPanel.open(build.id, service.name)"
+            >
+              <Terminal :size="13" class="mr-1.5" />
+              Logs
+            </Button>
+          </div>
         </div>
       </div>
     </div>

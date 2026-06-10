@@ -27,6 +27,15 @@ const EnvironmentDocument = graphql(`
           host
           port
           protocol
+          dns {
+            status
+            requiredRecords {
+              type
+              host
+              value
+            }
+          }
+          tls
         }
         sourceUrl
         contextPath
@@ -289,7 +298,7 @@ watch(error, (err) => {
     </div>
 
     <template v-else-if="environment">
-      <div class="relative flex-1 p-3">
+      <div class="relative flex-1 py-3">
         <div class="h-full w-full overflow-hidden rounded-lg border bg-card/80 shadow-sm backdrop-blur-sm [background-image:var(--gradient-card)]">
           <template v-if="hasResources">
             <ServiceCanvas
@@ -320,7 +329,7 @@ watch(error, (err) => {
         <Transition name="slide-panel">
           <div
             v-if="isOpen && selectedService"
-            class="absolute inset-y-3 right-3 w-[55%] shadow-xl"
+            class="absolute inset-y-3 right-0 w-[55%] shadow-xl"
           >
             <ServicePanel
               :service="selectedService"
@@ -335,7 +344,7 @@ watch(error, (err) => {
         <Transition name="slide-panel">
           <div
             v-if="isOpen && selectedDatabase"
-            class="absolute inset-y-3 right-3 w-[55%] shadow-xl"
+            class="absolute inset-y-3 right-0 w-[55%] shadow-xl"
           >
             <DatabasePanel
               :database="selectedDatabase"

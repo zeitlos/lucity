@@ -6,12 +6,28 @@ import type {
   ServiceStatus,
   Protocol,
   DeploymentStatus,
+  DnsStatus,
+  DnsRecordType,
+  TlsStatus,
 } from '@/gql/graphql';
+
+export interface DnsRecord {
+  type: DnsRecordType;
+  host: string;
+  value: string;
+}
+
+export interface DnsState {
+  status: DnsStatus;
+  requiredRecords: DnsRecord[];
+}
 
 export interface Endpoint {
   host: string;
   port: number;
   protocol: Protocol;
+  dns: DnsState;
+  tls: TlsStatus;
 }
 
 export interface ReplicaCount {

@@ -313,7 +313,7 @@ async function detectAndAddServices(environmentId: string, repo: { fullName: str
         input: {
           environment: environmentId,
           name,
-          port: svc.suggestedPort,
+          port: svc.suggestedPort > 0 ? svc.suggestedPort : undefined,
           framework: svc.framework || undefined,
           startCommand: svc.startCommand || undefined,
           repository: repo.fullName,
@@ -354,7 +354,7 @@ async function handleAddServicesFromRepo(repo: { fullName: string; htmlUrl: stri
 const { mutate: addServiceMutate, loading: addingService } = useMutation(AddServiceDocument);
 
 const newServiceName = ref('web');
-const newServicePort = ref(3000);
+const newServicePort = ref<number | null>(null);
 
 // Create database (within environment context)
 const { mutate: createDatabaseMutate, loading: creatingDatabase } = useMutation(CreateDatabaseDocument);
@@ -394,7 +394,7 @@ async function handleAddManualService() {
       input: {
         environment: props.environmentId,
         name: newServiceName.value,
-        port: newServicePort.value,
+        port: newServicePort.value || undefined,
       },
     });
 
@@ -951,13 +951,16 @@ void activeEnvironment;
                 />
               </div>
               <div class="space-y-2">
-                <label class="text-sm font-medium text-foreground">Port</label>
+                <label class="text-sm font-medium text-foreground">Port (optional)</label>
                 <input
                   v-model.number="newServicePort"
                   type="number"
                   class="flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                   placeholder="3000"
                 />
+                <p class="text-xs text-muted-foreground">
+                  The port your app listens on. Leave empty if it doesn't serve traffic.
+                </p>
               </div>
               <button
                 class="inline-flex h-9 w-full items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"

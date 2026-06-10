@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
 import { useQuery, useMutation } from '@vue/apollo-composable';
-import { Plus, Trash2, Link, Database, Globe } from 'lucide-vue-next';
+import { Plus, Trash2, Link, Database } from 'lucide-vue-next';
 import { graphql } from '@/gql';
 
 const ServiceVariablesDocument = graphql(`
@@ -13,9 +13,6 @@ const ServiceVariablesDocument = graphql(`
       databaseRef {
         database
         key
-      }
-      serviceRef {
-        service
       }
     }
   }
@@ -67,16 +64,11 @@ interface DatabaseRefData {
   key: string;
 }
 
-interface ServiceRefData {
-  service: string;
-}
-
 interface VarRow {
   key: string;
   value: string;
   fromShared: boolean;
   databaseRef?: DatabaseRefData | null;
-  serviceRef?: ServiceRefData | null;
   isNew?: boolean;
 }
 
@@ -108,14 +100,13 @@ const { result: sharedResult } = useQuery(SharedVariablesDocument, () => ({
 // ── Reference option model ────────────────────────────────────────────
 
 interface RefOption {
-  type: 'database' | 'service' | 'shared';
+  type: 'database' | 'shared';
   key: string;
   displayName: string;
   displayValue: string;
   group: string;
-  groupIcon: 'database' | 'globe' | 'link';
+  groupIcon: 'database' | 'link';
   databaseRef?: DatabaseRefData;
-  serviceRef?: ServiceRefData;
 }
 
 function capitalize(s: string): string {
@@ -141,22 +132,6 @@ const availableRefs = computed<RefOption[]>(() => {
     }
   }
 
-  // Service references
-  const services = activeEnvironment.value?.services ?? [];
-  for (const svc of services) {
-    if (svc.id === props.serviceId) continue;
-    const envKey = svc.name.toUpperCase().replace(/-/g, '_');
-    options.push({
-      type: 'service',
-      key: `svc-${svc.id}`,
-      displayName: `${envKey}_URL`,
-      displayValue: `\${{${svc.name}.URL}}`,
-      group: capitalize(svc.name),
-      groupIcon: 'globe',
-      serviceRef: { service: svc.id },
-    });
-  }
-
   // Shared variable references
   const sharedVars = sharedResult.value?.sharedVariables ?? [];
   for (const v of sharedVars) {
@@ -174,7 +149,7 @@ const availableRefs = computed<RefOption[]>(() => {
 });
 
 const refGroups = computed(() => {
-  const groups: Record<string, { icon: 'database' | 'globe' | 'link'; items: RefOption[] }> = {};
+  const groups: Record<string, { icon: 'database' | 'link'; items: RefOption[] }> = {};
   for (const opt of availableRefs.value) {
     if (!groups[opt.group]) {
       groups[opt.group] = { icon: opt.groupIcon, items: [] };
@@ -199,7 +174,6 @@ watch(
         value: v.value,
         fromShared: v.fromShared,
         databaseRef: v.databaseRef ? { database: v.databaseRef.database, key: v.databaseRef.key } : undefined,
-        serviceRef: v.serviceRef ? { service: v.serviceRef.service } : undefined,
       }));
       hasChanges.value = false;
     }
@@ -220,7 +194,6 @@ function selectRef(index: number, opt: RefOption) {
     value: opt.displayValue,
     fromShared: opt.type === 'shared',
     databaseRef: opt.databaseRef,
-    serviceRef: opt.serviceRef,
   };
   hasChanges.value = true;
   openPopoverIndex.value = null;
@@ -229,7 +202,6 @@ function selectRef(index: number, opt: RefOption) {
 function clearRef(index: number) {
   const row = rows.value[index]!;
   row.databaseRef = undefined;
-  row.serviceRef = undefined;
   row.fromShared = false;
   row.value = '';
   hasChanges.value = true;
@@ -247,7 +219,7 @@ function markChanged() {
 // ── Row display helpers ───────────────────────────────────────────────
 
 function isRefRow(row: VarRow): boolean {
-  return !!row.databaseRef || !!row.serviceRef || row.fromShared;
+  return !!row.databaseRef || row.fromShared;
 }
 
 // ── Save ──────────────────────────────────────────────────────────────
@@ -259,10 +231,9 @@ async function handleSave() {
   try {
     const variables = validRows.map(r => ({
       key: r.key.trim(),
-      value: (!r.databaseRef && !r.serviceRef && !r.fromShared) ? r.value : undefined,
+      value: (!r.databaseRef && !r.fromShared) ? r.value : undefined,
       fromShared: r.fromShared || undefined,
       databaseRef: r.databaseRef || undefined,
-      serviceRef: r.serviceRef || undefined,
     }));
 
     const res = await setVarsMutate({
@@ -331,7 +302,6 @@ async function handleSave() {
                 :disabled="availableRefs.length === 0"
               >
                 <Database v-if="row.databaseRef" :size="14" />
-                <Globe v-else-if="row.serviceRef" :size="14" />
                 <Link v-else :size="14" class="opacity-50" />
               </Button>
             </PopoverTrigger>
@@ -348,7 +318,6 @@ async function handleSave() {
                       <template #heading>
                         <div class="flex items-center gap-1.5">
                           <Database v-if="group.icon === 'database'" :size="12" />
-                          <Globe v-else-if="group.icon === 'globe'" :size="12" />
                           <Link v-else :size="12" />
                           {{ groupName }}
                         </div>

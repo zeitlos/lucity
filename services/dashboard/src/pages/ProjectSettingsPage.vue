@@ -504,7 +504,7 @@ function goBackToProject() {
                             v-if="envResources[env.id]!.tier === ResourceTier.Eco"
                             class="text-sm text-muted-foreground"
                           >
-                            Pay for what you use. No resource limits applied.
+                            Cheaper. Best for development, staging, and side projects. Performance can vary.
                           </p>
 
                           <template v-else>
