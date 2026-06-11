@@ -66,17 +66,8 @@ const isWorkspaceSettingsRoute = computed(() => route.name === 'workspace-settin
 
 // Resolve the current project ID from either route shape
 const activeProjectId = computed<string | undefined>(() => {
-  if (isProjectSettingsRoute.value) {
-    const id = route.params.id;
-    return Array.isArray(id) ? id[0] : (id as string | undefined);
-  }
-  if (isEnvironmentRoute.value && activeEnvironment.value) {
-    const parts = activeEnvironment.value.id.split('/');
-    if (parts.length >= 2) {
-      return `${parts[0]}/${parts[1]}`;
-    }
-  }
-  return undefined;
+  const id = route.params.projectId;
+  return Array.isArray(id) ? id[0] : (id as string | undefined);
 });
 
 const activeProject = computed(() =>
@@ -106,7 +97,7 @@ function handleProjectSwitch(id: string) {
   if (firstEnv) {
     router.push({ name: 'environment', params: { environmentId: firstEnv.id } });
   } else {
-    router.push({ name: 'project-settings', params: { id, section: 'environments' } });
+    router.push({ name: 'project-settings', params: { projectId: id, section: 'environments' } });
   }
 }
 
@@ -124,7 +115,7 @@ function handleEnvSettings(envName: string) {
   if (!activeProjectId.value) return;
   router.push({
     name: 'project-settings',
-    params: { id: activeProjectId.value, section: 'environments' },
+    params: { projectId: activeProjectId.value, section: 'environments' },
     query: { env: envName },
   });
 }

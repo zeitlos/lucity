@@ -41,6 +41,7 @@ type Resources struct {
 }
 
 type Endpoint struct {
+	Enabled  bool
 	Host     string
 	Port     int
 	Protocol Protocol

@@ -45,10 +45,8 @@ const { user, logout } = useAuth();
 const { result: wsResult } = useQuery(WorkspaceDocument, null, { fetchPolicy: 'cache-and-network' });
 const suspended = computed(() => wsResult.value?.workspace?.suspended ?? false);
 
-const isProjectRoute = computed(() =>
-  route.name === 'project' || route.name === 'project-env' || route.name === 'project-settings',
-);
-const projectId = computed(() => route.params.id as string | undefined);
+const isProjectRoute = computed(() => route.fullPath.startsWith('/projects/'));
+const projectId = computed(() => route.params.projectId as string | undefined);
 const ejectOpen = ref(false);
 
 async function handleLogout() {
@@ -96,7 +94,7 @@ async function handleLogout() {
             variant="ghost"
             size="sm"
             class="text-muted-foreground"
-            @click="router.push({ name: 'project-settings', params: { id: projectId } })"
+            @click="router.push({ name: 'project-settings', params: { projectId } })"
           >
             <Settings :size="14" class="mr-1.5" />
             Settings

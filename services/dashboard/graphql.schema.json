@@ -33,36 +33,8 @@
             "deprecationReason": null
           },
           {
-            "name": "customStartCommand",
-            "description": "Custom command to start the service (e.g. \"npm run start\", \"stress --cpu 2 --timeout 60s\"). Overrides the image entrypoint.",
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "environment",
-            "description": null,
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "EnvironmentID",
-                "ofType": null
-              }
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "image",
-            "description": "External container image reference (e.g. nginx:1.25, ghcr.io/foo/bar:v1). Skips the build step.",
+            "description": null,
             "type": {
               "kind": "SCALAR",
               "name": "String",
@@ -74,7 +46,7 @@
           },
           {
             "name": "installationId",
-            "description": "GitHub App installation ID. Required when repository is set.",
+            "description": null,
             "type": {
               "kind": "SCALAR",
               "name": "ID",
@@ -86,7 +58,7 @@
           },
           {
             "name": "name",
-            "description": "Service name. If omitted when image is set, derived from the image (e.g. nginx:1.25 → nginx).",
+            "description": null,
             "type": {
               "kind": "SCALAR",
               "name": "String",
@@ -98,19 +70,7 @@
           },
           {
             "name": "repository",
-            "description": "GitHub repository in owner/repo format (e.g. \"acme/myapp\"). Requires installationId. The clone URL is constructed server-side.",
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "startCommand",
-            "description": "Auto-detected start command from the build system (e.g. railpack). Stored for UI display as the default.",
+            "description": null,
             "type": {
               "kind": "SCALAR",
               "name": "String",
@@ -2802,6 +2762,22 @@
             "description": null,
             "args": [
               {
+                "name": "environment",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "EnvironmentID",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
                 "name": "input",
                 "description": null,
                 "type": {
@@ -3617,7 +3593,7 @@
           },
           {
             "name": "setServicePort",
-            "description": "Set the port the service listens on. Pass null to remove it (the service then exposes no port).",
+            "description": null,
             "args": [
               {
                 "name": "port",
@@ -5338,6 +5314,22 @@
               "ofType": {
                 "kind": "SCALAR",
                 "name": "String",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "port",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Int",
                 "ofType": null
               }
             },

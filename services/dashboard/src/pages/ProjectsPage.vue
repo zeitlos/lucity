@@ -98,19 +98,6 @@ function uniqueRepoCount(services: { sourceUrl: string }[]): number {
   return new Set(urls).size;
 }
 
-function firstEnvironmentId(project: { environments: { id: string; name: string }[] }): string | null {
-  if (project.environments.length === 0) return null;
-  return project.environments[0]!.id;
-}
-
-function openProject(project: { id: string; environments: { id: string; name: string }[] }) {
-  const envId = firstEnvironmentId(project);
-  if (envId) {
-    router.push({ name: 'environment', params: { environmentId: envId } });
-  } else {
-    router.push({ name: 'project-settings', params: { id: project.id, section: 'environments' } });
-  }
-}
 </script>
 
 <template>
@@ -185,11 +172,11 @@ function openProject(project: { id: string; environments: { id: string; name: st
 
     <template v-else>
       <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-      <button
+      <RouterLink
         v-for="project in projects"
         :key="project.id"
         class="block text-left"
-        @click="openProject(project)"
+        :to="{ name: 'project', params: { projectId: project.id }}"
       >
         <Card class="transition-shadow hover:shadow-md">
           <CardHeader>
@@ -211,7 +198,7 @@ function openProject(project: { id: string; environments: { id: string; name: st
             </div>
           </CardContent>
         </Card>
-      </button>
+      </RouterLink>
       </div>
     </template>
 

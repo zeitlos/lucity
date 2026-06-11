@@ -5,15 +5,6 @@ import (
 	"log/slog"
 )
 
-// Sync brings the shared Gateway's listener set into agreement with the
-// desired hostname list: every hostname gets an HTTP+HTTPS listener pair,
-// and any custom-* listener whose hostname isn't in the input gets removed.
-// The HTTPS listener references a Secret named `<resource>-tls`;
-// cert-manager observes the Gateway annotation and creates the Certificate
-// and Secret asynchronously. The HTTP listener exists so cert-manager's
-// HTTP-01 solver HTTPRoute can attach.
-//
-// Idempotent — safe to call from a reconcile loop.
 func (c *Client) Sync(ctx context.Context, hostnames []string) error {
 	desired := make(map[string]struct{}, len(hostnames))
 
@@ -27,7 +18,6 @@ func (c *Client) Sync(ctx context.Context, hostnames []string) error {
 		return err
 	}
 
-	// Add missing listeners for desired hostnames.
 	for host := range desired {
 		state := listeners[host]
 
@@ -52,7 +42,6 @@ func (c *Client) Sync(ctx context.Context, hostnames []string) error {
 		}
 	}
 
-	// Remove orphan listeners for hostnames no longer desired.
 	for host, state := range listeners {
 		if _, ok := desired[host]; ok {
 			continue
@@ -61,19 +50,21 @@ func (c *Client) Sync(ctx context.Context, hostnames []string) error {
 		name := ResourceNameFor(host)
 
 		if state.http {
-			if err := c.removeListener(ctx, name+"-http"); err != nil {
-				slog.Warn("gateway sync: remove orphan http listener failed", "host", host, "error", err)
-			} else {
-				slog.Info("gateway sync: removed orphan http listener", "host", host)
-			}
+			slog.WarnContext(ctx, "dry run: would remove orphan https listener", "host", host, "name", name+"-http")
+			// if err := c.removeListener(ctx, name+"-http"); err != nil {
+			// 	slog.Warn("gateway sync: remove orphan http listener failed", "host", host, "error", err)
+			// } else {
+			// 	slog.Info("gateway sync: removed orphan http listener", "host", host)
+			// }
 		}
 
 		if state.https {
-			if err := c.removeListener(ctx, name+"-https"); err != nil {
-				slog.Warn("gateway sync: remove orphan https listener failed", "host", host, "error", err)
-			} else {
-				slog.Info("gateway sync: removed orphan https listener", "host", host)
-			}
+			slog.WarnContext(ctx, "dry run: would remove orphan https listener", "host", host, "name", name+"-https")
+			// if err := c.removeListener(ctx, name+"-https"); err != nil {
+			// 	slog.Warn("gateway sync: remove orphan https listener failed", "host", host, "error", err)
+			// } else {
+			// 	slog.Info("gateway sync: removed orphan https listener", "host", host)
+			// }
 		}
 	}
 

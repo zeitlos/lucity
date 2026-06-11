@@ -3,6 +3,8 @@ package conductor
 import (
 	"context"
 	"log/slog"
+	"maps"
+	"slices"
 
 	"github.com/zeitlos/lucity/services/conductor/internal/hostname"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
@@ -85,13 +87,7 @@ func (c *Client) ReconcileDomains(ctx context.Context) error {
 		}
 	}
 
-	verified := make([]string, 0, len(seen))
-
-	for host := range seen {
-		verified = append(verified, host)
-	}
-
-	if err := c.gateway.Sync(ctx, verified); err != nil {
+	if err := c.gateway.Sync(ctx, slices.Collect(maps.Keys(seen))); err != nil {
 		slog.Warn("reconcile domains: gateway sync failed", "error", err)
 	}
 
@@ -147,16 +143,16 @@ func (c *Client) reconcileEnvironmentDomains(ctx context.Context, workspaceID st
 				continue
 			}
 
-			currentVerified := endpoint.Protocol == platform.ProtocolHTTPS
-
-			dnsStatus, err := c.hostname.DNSStatus(ctx, workspaceID, host)
-
-			if err != nil {
-				slog.Warn("reconcile domains: status check failed", "host", host, "error", err)
+			if !c.hostname.IsCustom(host) {
 				continue
 			}
 
-			desiredVerified := dnsStatus == hostname.DNSValid
+			currentVerified := endpoint.Enabled
+			desiredVerified, err := c.isDomainVerified(ctx, workspaceID, host)
+
+			if err != nil {
+				return nil, err
+			}
 
 			if currentVerified != desiredVerified {
 				if _, err := c.deployer.Services().VerifyDomain(ctx, service.ID, host, desiredVerified); err != nil {
@@ -178,4 +174,14 @@ func (c *Client) reconcileEnvironmentDomains(ctx context.Context, workspaceID st
 	}
 
 	return verified, nil
+}
+
+func (c *Client) isDomainVerified(ctx context.Context, workspaceID, host string) (bool, error) {
+	dnsStatus, err := c.hostname.DNSStatus(ctx, workspaceID, host)
+
+	if err != nil {
+		return false, err
+	}
+
+	return dnsStatus == hostname.DNSValid, nil
 }

@@ -51,8 +51,8 @@ const CreateProjectDocument = graphql(`
 `);
 
 const AddServiceDocument = graphql(`
-  mutation AddService($input: AddServiceInput!) {
-    addService(input: $input) {
+  mutation AddService($environmentId: EnvironmentID!, $input: AddServiceInput!) {
+    addService(environment: $environmentId, input: $input) {
       id
       name
     }
@@ -277,7 +277,7 @@ async function handleConfirmProjectCreation() {
 
     close();
     if (targetEnvId) {
-      router.push({ name: 'environment', params: { environmentId: targetEnvId } });
+      router.push({ name: 'environment', params: { projectId: project.id, environmentId: targetEnvId } });
     }
   } catch (e: unknown) {
     errorToast('Failed to create project', { description: errorMessage(e) });
@@ -310,12 +310,9 @@ async function detectAndAddServices(environmentId: string, repo: { fullName: str
     const name = detected.length === 1 ? repoName : `${repoName}-${svc.name}`;
     try {
       await addServiceMutate({
+        environmentId: environmentId,
         input: {
-          environment: environmentId,
           name,
-          port: svc.suggestedPort > 0 ? svc.suggestedPort : undefined,
-          framework: svc.framework || undefined,
-          startCommand: svc.startCommand || undefined,
           repository: repo.fullName,
           installationId: selectedSource.value?.id,
         },
@@ -391,10 +388,9 @@ async function handleAddManualService() {
 
   try {
     const res = await addServiceMutate({
+      environmentId: props.environmentId,
       input: {
-        environment: props.environmentId,
         name: newServiceName.value,
-        port: newServicePort.value || undefined,
       },
     });
 
@@ -475,8 +471,8 @@ async function handleSelectImage(imageRef: string) {
 
 async function addImageService(environmentId: string, imageRef: string) {
   const res = await addServiceMutate({
+    environmentId: environmentId,
     input: {
-      environment: environmentId,
       image: imageRef,
     },
   });

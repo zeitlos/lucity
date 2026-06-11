@@ -73,6 +73,7 @@ export interface Service {
   status: ServiceStatus;
   replicas: ReplicaCount;
   autoscaling?: AutoscalingSettings | null;
+  port: number;
   endpoints: Endpoint[];
   sourceUrl: string;
   contextPath: string;

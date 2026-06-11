@@ -1,17 +1,19 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
-import { useMutation } from '@vue/apollo-composable';
+import { useMutation, useApolloClient } from '@vue/apollo-composable';
 import {
-  Trash2, Copy, X, Globe, Plus, Minus,
+  Trash2, Copy, X, Globe, Plus, Minus, RefreshCw,
   ChevronDown, Network, ExternalLink, Scaling, GitBranch, Github, Play, Container, ArrowRight,
   Cpu, MemoryStick, Leaf, ShieldCheck,
 } from 'lucide-vue-next';
 import { graphql } from '@/gql';
 import {
   type SetServiceScalingInput,
+  DnsStatus,
   EndpointType,
   Protocol,
   ResourceTier,
+  TlsStatus,
 } from '@/gql/graphql';
 
 const RemoveServiceDocument = graphql(`
@@ -115,6 +117,7 @@ const SetServicePortDocument = graphql(`
   mutation SetServicePort($service: ServiceID!, $port: Int) {
     setServicePort(service: $service, port: $port) {
       id
+      port
     }
   }
 `);
@@ -177,6 +180,45 @@ function domainUrl(endpoint: Endpoint) {
   }
 
   return url
+}
+
+const { resolveClient } = useApolloClient();
+const refreshingDomains = ref(false);
+
+async function refreshDomains() {
+  if (refreshingDomains.value) return;
+
+  refreshingDomains.value = true;
+  try {
+    await resolveClient().refetchQueries({ include: ['Environment'] });
+  } catch (e: unknown) {
+    errorToast('Failed to refresh domain status', { description: errorMessage(e) });
+  } finally {
+    refreshingDomains.value = false;
+  }
+}
+
+function isEndpointVerified(endpoint: Endpoint): boolean {
+  return endpoint.dns.status === DnsStatus.Valid && endpoint.tls === TlsStatus.Active;
+}
+
+function dnsStatusColor(status: DnsStatus): string {
+  switch (status) {
+    case DnsStatus.Valid: return 'text-emerald-600 dark:text-emerald-400';
+    case DnsStatus.Pending: return 'text-amber-600 dark:text-amber-400';
+    case DnsStatus.Misconfigured: return 'text-orange-600 dark:text-orange-400';
+    case DnsStatus.Error: return 'text-red-600 dark:text-red-400';
+    default: return 'text-muted-foreground';
+  }
+}
+
+function tlsStatusColor(status: TlsStatus): string {
+  switch (status) {
+    case TlsStatus.Active: return 'text-emerald-600 dark:text-emerald-400';
+    case TlsStatus.Provisioning: return 'text-amber-600 dark:text-amber-400';
+    case TlsStatus.Error: return 'text-red-600 dark:text-red-400';
+    default: return 'text-muted-foreground';
+  }
 }
 
 // Custom domain input
@@ -253,7 +295,7 @@ const { mutate: removeDomainMutate } = useMutation(RemoveDomainDocument);
 
 const { mutate: setServicePortMutate, loading: portSaving } = useMutation(SetServicePortDocument);
 
-const currentPort = computed(() => platformEndpoint.value?.port);
+const currentPort = computed(() => props.service.port);
 const portInput = ref<number | undefined>(currentPort.value);
 
 watch(currentPort, value => {
@@ -735,10 +777,14 @@ async function handleRemoveService() {
                   </Button>
                 </div>
                 <div class="flex items-center gap-1.5 pl-1 text-xs text-muted-foreground">
+                  <span>
+                    Listens on port
+                    <span class="font-mono font-medium text-foreground">{{ platformEndpoint.port }}</span>
+                  </span>
                   <ArrowRight :size="10" class="shrink-0" />
                   <span>
-                    Routes to port
-                    <span class="font-mono font-medium text-foreground">{{ platformEndpoint.port }}</span>
+                    routes to port
+                    <span class="font-mono font-medium text-foreground">{{ currentPort }}</span>
                   </span>
                 </div>
               </div>
@@ -828,8 +874,19 @@ async function handleRemoveService() {
                   </div>
 
                   <div class="flex items-center gap-3 pl-1 text-[11px] text-muted-foreground">
-                    <span>DNS: <span class="font-medium text-foreground">{{ endpoint.dns.status }}</span></span>
-                    <span>TLS: <span class="font-medium text-foreground">{{ endpoint.tls }}</span></span>
+                    <span>DNS: <span :class="['font-medium', dnsStatusColor(endpoint.dns.status)]">{{ endpoint.dns.status }}</span></span>
+                    <span>TLS: <span :class="['font-medium', tlsStatusColor(endpoint.tls)]">{{ endpoint.tls }}</span></span>
+                    <Button
+                      v-if="!isEndpointVerified(endpoint)"
+                      variant="ghost"
+                      size="sm"
+                      class="ml-auto h-6 gap-1 px-2 text-[11px]"
+                      :disabled="refreshingDomains"
+                      @click="refreshDomains"
+                    >
+                      <RefreshCw :size="12" :class="{ 'animate-spin': refreshingDomains }" />
+                      {{ refreshingDomains ? 'Checking…' : 'Check' }}
+                    </Button>
                   </div>
 
                   <div v-if="endpoint.dns.requiredRecords.length" class="space-y-1">

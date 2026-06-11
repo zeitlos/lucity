@@ -67,6 +67,10 @@ func (c *Client) IsInternal(host string) bool {
 	return strings.HasSuffix(host, ".local")
 }
 
+func (c *Client) IsCustom(host string) bool {
+	return !c.IsInternal(host) && !c.IsPlatform(host)
+}
+
 func isApex(host string) bool {
 	return strings.Count(host, ".") <= 1
 }

@@ -330,8 +330,6 @@ func endpoints(deployment apps.Deployment, routes []unstructured.Unstructured) [
 
 	var endpoints []platform.Endpoint
 
-	// A service with no configured port exposes nothing in-cluster, so it has
-	// no internal endpoint. Only emit one when the container declares a port.
 	// TODO: Fetch the k8s service resource to derive the proper internal host name
 	if port > 0 {
 		endpoints = append(endpoints, platform.Endpoint{
@@ -343,9 +341,13 @@ func endpoints(deployment apps.Deployment, routes []unstructured.Unstructured) [
 
 	for _, route := range routes {
 		hosts, _, _ := unstructured.NestedStringSlice(route.Object, "spec", "hostnames")
+		parentRefs, _, _ := unstructured.NestedSlice(route.Object, "spec", "parentRefs")
+
+		enabled := len(parentRefs) > 0
 
 		for _, host := range hosts {
 			endpoints = append(endpoints, platform.Endpoint{
+				Enabled:  enabled,
 				Host:     host,
 				Port:     443,
 				Protocol: platform.ProtocolHTTPS,

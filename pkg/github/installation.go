@@ -31,8 +31,6 @@ func (a *App) InstallationID(ctx context.Context, userToken *oauth2.Token) (int6
 	return 0, fmt.Errorf("github app not installed for this user")
 }
 
-// InstallationToken creates a short-lived installation access token string.
-// This is used by the webhook service to authenticate gRPC calls when no user session exists.
 func (a *App) InstallationToken(ctx context.Context, installationID int64) (string, error) {
 	transport, err := ghinstallation.New(http.DefaultTransport, a.appID, installationID, a.privateKey)
 	if err != nil {
@@ -180,4 +178,3 @@ func (a *App) FindInstallation(ctx context.Context, repository string) (int64, e
 
 	return inst.GetID(), nil
 }
-

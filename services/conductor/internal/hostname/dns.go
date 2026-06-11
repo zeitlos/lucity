@@ -21,16 +21,32 @@ func (c *Client) DNSStatus(ctx context.Context, workspace, host string) (DNSStat
 
 	resolver := &net.Resolver{}
 
-	txtOK, err := checkTXT(lookupCtx, resolver, verifyRecordPrefix+host, challenge(workspace, host))
+	txtRecords, err := resolver.LookupTXT(lookupCtx, verifyRecordPrefix+host)
 
-	if err != nil {
+	if err != nil && !isNotFound(err) {
 		return DNSError, err
 	}
 
-	routingOK, err := c.checkRouting(lookupCtx, resolver, host)
+	txtOK := !slices.Contains(txtRecords, challenge(workspace, host))
 
-	if err != nil {
-		return DNSError, err
+	var routingOK bool
+
+	if isApex(host) {
+		addrs, err := resolver.LookupHost(lookupCtx, host)
+
+		if err != nil && !isNotFound(err) {
+			return DNSError, err
+		}
+
+		routingOK = slices.Contains(addrs, c.customApexIP)
+	} else {
+		cname, err := resolver.LookupCNAME(lookupCtx, host)
+
+		if err != nil && isNotFound(err) {
+			return DNSError, err
+		}
+
+		routingOK = strings.EqualFold(strings.TrimSuffix(cname, "."), c.customCNAMETarget)
 	}
 
 	if txtOK && routingOK {
@@ -44,49 +60,7 @@ func (c *Client) DNSStatus(ctx context.Context, workspace, host string) (DNSStat
 	return DNSMisconfigured, nil
 }
 
-func checkTXT(ctx context.Context, resolver *net.Resolver, host, expected string) (bool, error) {
-	records, err := resolver.LookupTXT(ctx, host)
-
-	if dnsNoSuchHost(err) {
-		return false, nil
-	}
-
-	if err != nil {
-		return false, err
-	}
-
-	return slices.Contains(records, expected), nil
-}
-
-func (c *Client) checkRouting(ctx context.Context, resolver *net.Resolver, host string) (bool, error) {
-	if isApex(host) {
-		addrs, err := resolver.LookupHost(ctx, host)
-
-		if dnsNoSuchHost(err) {
-			return false, nil
-		}
-
-		if err != nil {
-			return false, err
-		}
-
-		return slices.Contains(addrs, c.customApexIP), nil
-	}
-
-	cname, err := resolver.LookupCNAME(ctx, host)
-
-	if dnsNoSuchHost(err) {
-		return false, nil
-	}
-
-	if err != nil {
-		return false, err
-	}
-
-	return strings.EqualFold(strings.TrimSuffix(cname, "."), c.customCNAMETarget), nil
-}
-
-func dnsNoSuchHost(err error) bool {
+func isNotFound(err error) bool {
 	if err == nil {
 		return false
 	}

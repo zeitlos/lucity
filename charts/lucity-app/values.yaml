@@ -27,12 +27,10 @@
 #       minReplicas: 1
 #       maxReplicas: 10
 #       targetCPU: 70
-#     # Opaque metadata maps stamped onto this service's resources. The packager
-#     # fills these with lucity.dev/* keys; the chart renders them verbatim.
-#     labels: {}            # on Deployment/Service/HPA/HTTPRoute object metadata
-#     annotations: {}       # on the same object metadata
-#     podLabels: {}         # on the pod template (changing one drives a rollout)
-#     podAnnotations: {}    # on the pod template
+#     labels: {}
+#     annotations: {}
+#     podLabels: {}
+#     podAnnotations: {}
 #
 # config:                                     # plain ConfigMaps
 #   app-config:

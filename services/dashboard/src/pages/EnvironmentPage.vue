@@ -23,6 +23,7 @@ const EnvironmentDocument = graphql(`
           maxReplicas
           targetCpu
         }
+        port
         endpoints {
           host
           port
@@ -190,6 +191,7 @@ watch(
         status: s.status,
         replicas: s.replicas,
         autoscaling: s.autoscaling ?? null,
+        port: s.port,
         endpoints: s.endpoints,
         sourceUrl: s.sourceUrl,
         contextPath: s.contextPath,

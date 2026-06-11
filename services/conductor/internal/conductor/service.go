@@ -439,6 +439,19 @@ func (c *Client) AddCustomDomain(ctx context.Context, serviceID platform.Service
 		return nil, err
 	}
 
+	verified, err := c.isDomainVerified(ctx, serviceID.Workspace, hostname)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if verified {
+		if _, err := c.deployer.Services().VerifyDomain(ctx, serviceID, hostname, verified); err != nil {
+			// This will be re-tried by the reconcile loop, therefore we don't surface the error.
+			slog.WarnContext(ctx, "failed to set domain to verified", "error", err, "service", serviceID, "domain", hostname)
+		}
+	}
+
 	return c.Service(ctx, serviceID)
 }
 

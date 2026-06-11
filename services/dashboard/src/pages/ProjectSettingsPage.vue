@@ -79,7 +79,7 @@ import { errorMessage } from '@/lib/utils';
 const route = useRoute();
 const router = useRouter();
 const projectId = computed(() => {
-  const id = route.params.id;
+  const id = route.params.projectId;
   return Array.isArray(id) ? id[0]! : (id as string);
 });
 
@@ -123,7 +123,7 @@ const activeSection = computed({
   set: (val: string) => {
     router.replace({
       name: 'project-settings',
-      params: { id: projectId.value, section: val === 'general' ? undefined : val },
+      params: { projectId: projectId.value, section: val === 'general' ? undefined : val },
       query: route.query,
     });
   },
@@ -298,15 +298,6 @@ async function handleDeleteEnvironment() {
     envToDelete.value = null;
   }
 }
-
-function goBackToProject() {
-  const firstEnv = project.value?.environments?.[0];
-  if (firstEnv) {
-    router.push({ name: 'environment', params: { environmentId: firstEnv.id } });
-  } else {
-    router.push({ name: 'projects' });
-  }
-}
 </script>
 
 <template>
@@ -324,13 +315,13 @@ function goBackToProject() {
           <!-- Sidebar -->
           <nav class="w-48 shrink-0 border-r p-4">
             <div class="mb-4">
-              <button
+              <RouterLink
                 class="flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
-                @click="goBackToProject"
+                :to="{ name: 'project', params: { projectId } }"
               >
                 <ArrowLeft :size="12" />
                 Back to project
-              </button>
+              </RouterLink>
             </div>
             <h2 class="mb-3 text-sm font-semibold text-foreground">Settings</h2>
             <ul class="space-y-1">
