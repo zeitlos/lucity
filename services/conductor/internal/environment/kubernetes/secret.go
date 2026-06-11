@@ -33,7 +33,7 @@ func (c *Client) ensurePullSecret(ctx context.Context, id platform.EnvironmentID
 
 	target := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      pullSecretName,
+			Name:      PullSecretName,
 			Namespace: namespace,
 			Labels: map[string]string{
 				pkglabels.ManagedBy: pkglabels.ManagedByLucity,
@@ -43,7 +43,7 @@ func (c *Client) ensurePullSecret(ctx context.Context, id platform.EnvironmentID
 		Data: source.Data,
 	}
 
-	existing, err := c.k8s.CoreV1().Secrets(namespace).Get(ctx, pullSecretName, metav1.GetOptions{})
+	existing, err := c.k8s.CoreV1().Secrets(namespace).Get(ctx, PullSecretName, metav1.GetOptions{})
 
 	if apierrors.IsNotFound(err) {
 		if _, err := c.k8s.CoreV1().Secrets(namespace).Create(ctx, target, metav1.CreateOptions{}); err != nil {

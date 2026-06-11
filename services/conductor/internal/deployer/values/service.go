@@ -3,24 +3,26 @@ package values
 import (
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 )
 
 type Service struct {
-	Image                ImageRef               `yaml:"image"`
-	Port                 int                    `yaml:"port,omitempty"`
-	Replicas             int                    `yaml:"replicas,omitempty"`
-	Autoscaling          *Autoscaling           `yaml:"autoscaling,omitempty"`
-	Resources            Resources              `yaml:"resources,omitempty"`
-	Domains              []Domain               `yaml:"domains,omitempty"`
-	CustomStartCommand   string                 `yaml:"customStartCommand,omitempty"`
-	Env                  map[string]string      `yaml:"env,omitempty"`
-	SharedRefs           []string               `yaml:"sharedRefs,omitempty"`
-	DatabaseRefs         map[string]DatabaseRef `yaml:"databaseRefs,omitempty"`
-	SourceURL            string                 `yaml:"sourceUrl,omitempty"`
-	ContextPath          string                 `yaml:"contextPath,omitempty"`
-	Branch               string                 `yaml:"branch,omitempty"`
-	GitHubInstallationID int64                  `yaml:"githubInstallationId,omitempty"`
+	Image              ImageRef               `yaml:"image"`
+	Port               int                    `yaml:"port,omitempty"`
+	Replicas           int                    `yaml:"replicas,omitempty"`
+	Autoscaling        *Autoscaling           `yaml:"autoscaling,omitempty"`
+	Resources          Resources              `yaml:"resources,omitempty"`
+	Domains            []Domain               `yaml:"domains,omitempty"`
+	CustomStartCommand string                 `yaml:"customStartCommand,omitempty"`
+	Env                map[string]string      `yaml:"env,omitempty"`
+	SharedRefs         []string               `yaml:"sharedRefs,omitempty"`
+	DatabaseRefs       map[string]DatabaseRef `yaml:"databaseRefs,omitempty"`
+	Branch             string                 `yaml:"branch,omitempty"`
+	Labels             map[string]string      `yaml:"labels,omitempty"`
+	Annotations        map[string]string      `yaml:"annotations,omitempty"`
+	PodLabels          map[string]string      `yaml:"podLabels,omitempty"`
+	PodAnnotations     map[string]string      `yaml:"podAnnotations,omitempty"`
 }
 
 type ImageRef struct {
@@ -82,16 +84,36 @@ func CreateService(env *Env, name string, spec ServiceSpec) error {
 		env.Services = map[string]Service{}
 	}
 
+	labels := map[string]string{labelService: name}
+	podLabels := map[string]string{labelService: name}
+	annotations := map[string]string{}
+	podAnnotations := map[string]string{}
+
+	if spec.GitHubInstallationID != 0 {
+		labels[labelGitHubInstallation] = strconv.FormatInt(spec.GitHubInstallationID, 10)
+	}
+
+	if spec.SourceURL != "" {
+		annotations[annotationSourceRepo] = spec.SourceURL
+		podAnnotations[annotationSourceRepo] = spec.SourceURL
+	}
+
+	if spec.ContextPath != "" {
+		annotations[annotationSourceContext] = spec.ContextPath
+		podAnnotations[annotationSourceContext] = spec.ContextPath
+	}
+
 	env.Services[name] = Service{
 		Image: ImageRef{
 			Repository: repository,
 			Tag:        tag,
 		},
-		SourceURL:            spec.SourceURL,
-		ContextPath:          spec.ContextPath,
-		Branch:               spec.Branch,
-		GitHubInstallationID: spec.GitHubInstallationID,
-		CustomStartCommand:   spec.StartCommand,
+		Branch:             spec.Branch,
+		CustomStartCommand: spec.StartCommand,
+		Labels:             labels,
+		Annotations:        annotations,
+		PodLabels:          podLabels,
+		PodAnnotations:     podAnnotations,
 	}
 
 	return nil
@@ -113,6 +135,18 @@ func SetServiceImage(env *Env, name, ref, digest string) error {
 		s.Image.Repository = repository
 		s.Image.Tag = tag
 		s.Image.Digest = digest
+
+		// Keep the image-digest annotation consistent with the current image:
+		// set it when a digest is known, clear any stale value otherwise.
+		if digest != "" {
+			if s.PodAnnotations == nil {
+				s.PodAnnotations = map[string]string{}
+			}
+
+			s.PodAnnotations[annotationImageDigest] = digest
+		} else {
+			delete(s.PodAnnotations, annotationImageDigest)
+		}
 	})
 }
 

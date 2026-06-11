@@ -14,6 +14,7 @@ import (
 
 	"github.com/zeitlos/lucity/services/conductor/internal/deployer"
 	"github.com/zeitlos/lucity/services/conductor/internal/deployer/values"
+	"github.com/zeitlos/lucity/services/conductor/internal/environment/kubernetes"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
@@ -33,9 +34,8 @@ func (c *Client) applyEnv(ctx context.Context, envID platform.EnvironmentID, mut
 		return "", err
 	}
 
-	env.Workspace = envID.Workspace
-	env.Project = envID.Project
-	env.Environment = envID.Name
+	env.CommonLabels = values.CommonLabels(envID.Workspace, envID.Project, envID.Name)
+	env.ImagePullSecrets = []values.PullSecret{{Name: kubernetes.PullSecretName}}
 	env.Gateway = values.Gateway{Name: c.gatewayName, Namespace: c.gatewayNamespace}
 
 	if err := mutate(env); err != nil {

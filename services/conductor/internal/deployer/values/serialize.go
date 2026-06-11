@@ -9,13 +9,13 @@ import (
 
 func New() *Env {
 	return &Env{
-		Services:        map[string]Service{},
-		CronJobs:        map[string]CronJob{},
-		SharedVariables: map[string]string{},
-		Config:          map[string]map[string]string{},
+		CommonLabels:      map[string]string{},
+		CommonAnnotations: map[string]string{},
+		Services:          map[string]Service{},
+		SharedVariables:   map[string]string{},
+		Config:            map[string]map[string]string{},
 		Databases: Databases{
 			Postgres: map[string]Postgres{},
-			Redis:    map[string]Redis{},
 		},
 	}
 }

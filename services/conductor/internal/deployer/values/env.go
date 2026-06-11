@@ -3,16 +3,15 @@ package values
 import "fmt"
 
 type Env struct {
-	Suspended       bool                         `yaml:"suspended"`
-	Workspace       string                       `yaml:"workspace"`
-	Project         string                       `yaml:"project"`
-	Environment     string                       `yaml:"environment"`
-	Services        map[string]Service           `yaml:"services"`
-	CronJobs        map[string]CronJob           `yaml:"cronJobs"`
-	SharedVariables map[string]string            `yaml:"sharedVariables"`
-	Config          map[string]map[string]string `yaml:"config"`
-	Databases       Databases                    `yaml:"databases"`
-	Gateway         Gateway                      `yaml:"gateway"`
+	Suspended         bool                         `yaml:"suspended"`
+	CommonLabels      map[string]string            `yaml:"commonLabels,omitempty"`
+	CommonAnnotations map[string]string            `yaml:"commonAnnotations,omitempty"`
+	ImagePullSecrets  []PullSecret                 `yaml:"imagePullSecrets,omitempty"`
+	Services          map[string]Service           `yaml:"services"`
+	SharedVariables   map[string]string            `yaml:"sharedVariables"`
+	Config            map[string]map[string]string `yaml:"config"`
+	Databases         Databases                    `yaml:"databases"`
+	Gateway           Gateway                      `yaml:"gateway"`
 }
 
 type Gateway struct {
@@ -20,11 +19,8 @@ type Gateway struct {
 	Namespace string `yaml:"namespace"`
 }
 
-type CronJob struct {
-	Schedule  string    `yaml:"schedule"`
-	Image     ImageRef  `yaml:"image"`
-	Command   []string  `yaml:"command,omitempty"`
-	Resources Resources `yaml:"resources,omitempty"`
+type PullSecret struct {
+	Name string `yaml:"name"`
 }
 
 func SetSuspended(env *Env, suspended bool) error {

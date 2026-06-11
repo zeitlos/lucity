@@ -29,22 +29,12 @@ Create chart name and version as used by the chart label.
 {{- end }}
 
 {{/*
-Common labels. Reads workspace/project/environment from top-level values
-written by the packager. Used by the platform package for discovery.
+Common chart identity labels.
 */}}
 {{- define "lucity-app.labels" -}}
 helm.sh/chart: {{ include "lucity-app.chart" . }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 app.kubernetes.io/part-of: {{ include "lucity-app.name" . }}
-{{- if .Values.workspace }}
-lucity.dev/workspace: {{ .Values.workspace | quote }}
-{{- end }}
-{{- if .Values.project }}
-lucity.dev/project: {{ .Values.project | quote }}
-{{- end }}
-{{- if .Values.environment }}
-lucity.dev/environment: {{ .Values.environment | quote }}
-{{- end }}
 {{- end }}
 
 {{/*

@@ -9,18 +9,12 @@ metadata:
     {{- include "lucity-app.labels" $ | nindent 4 }}
     {{- include "lucity-app.selectorLabels" (dict "name" $name "release" $.Release.Name) | nindent 4 }}
     app.kubernetes.io/component: {{ $name }}
-    lucity.dev/service: {{ $name | quote }}
-    {{- if $svc.githubInstallationId }}
-    lucity.dev/github-installation: {{ $svc.githubInstallationId | quote }}
-    {{- end }}
-  {{- if or $svc.sourceUrl $svc.contextPath }}
+    {{- with $.Values.commonLabels }}{{- toYaml . | nindent 4 }}{{- end }}
+    {{- with $svc.labels }}{{- toYaml . | nindent 4 }}{{- end }}
+  {{- if or $.Values.commonAnnotations $svc.annotations }}
   annotations:
-    {{- if $svc.sourceUrl }}
-    lucity.dev/source-repo: {{ $svc.sourceUrl | quote }}
-    {{- end }}
-    {{- if $svc.contextPath }}
-    lucity.dev/source-context: {{ $svc.contextPath | quote }}
-    {{- end }}
+    {{- with $.Values.commonAnnotations }}{{- toYaml . | nindent 4 }}{{- end }}
+    {{- with $svc.annotations }}{{- toYaml . | nindent 4 }}{{- end }}
   {{- end }}
 spec:
   {{- if $.Values.suspended }}
@@ -36,23 +30,19 @@ spec:
       labels:
         {{- include "lucity-app.labels" $ | nindent 8 }}
         {{- include "lucity-app.selectorLabels" (dict "name" $name "release" $.Release.Name) | nindent 8 }}
-        lucity.dev/service: {{ $name | quote }}
-      {{- if or $svc.sourceUrl $svc.contextPath (and $svc.image $svc.image.digest) }}
+        {{- with $.Values.commonLabels }}{{- toYaml . | nindent 8 }}{{- end }}
+        {{- with $svc.podLabels }}{{- toYaml . | nindent 8 }}{{- end }}
+      {{- if or $.Values.commonAnnotations $svc.podAnnotations }}
       annotations:
-        {{- if $svc.sourceUrl }}
-        lucity.dev/source-repo: {{ $svc.sourceUrl | quote }}
-        {{- end }}
-        {{- if $svc.contextPath }}
-        lucity.dev/source-context: {{ $svc.contextPath | quote }}
-        {{- end }}
-        {{- if and $svc.image $svc.image.digest }}
-        lucity.dev/image-digest: {{ $svc.image.digest | quote }}
-        {{- end }}
+        {{- with $.Values.commonAnnotations }}{{- toYaml . | nindent 8 }}{{- end }}
+        {{- with $svc.podAnnotations }}{{- toYaml . | nindent 8 }}{{- end }}
       {{- end }}
     spec:
       hostUsers: false
+      {{- with $.Values.imagePullSecrets }}
       imagePullSecrets:
-        - name: lucity-registry
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       securityContext:
         seccompProfile:
           type: RuntimeDefault

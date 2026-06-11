@@ -8,19 +8,15 @@ import (
 
 type Databases struct {
 	Postgres map[string]Postgres `yaml:"postgres"`
-	Redis    map[string]Redis    `yaml:"redis"`
 }
 
 type Postgres struct {
-	Instances int       `yaml:"instances,omitempty"`
-	Size      string    `yaml:"size,omitempty"`
-	Version   string    `yaml:"version,omitempty"`
-	Resources Resources `yaml:"resources,omitempty"`
-}
-
-type Redis struct {
-	Image     string    `yaml:"image,omitempty"`
-	Resources Resources `yaml:"resources,omitempty"`
+	Instances   int               `yaml:"instances,omitempty"`
+	Size        string            `yaml:"size,omitempty"`
+	Version     string            `yaml:"version,omitempty"`
+	Resources   Resources         `yaml:"resources,omitempty"`
+	Labels      map[string]string `yaml:"labels,omitempty"`
+	Annotations map[string]string `yaml:"annotations,omitempty"`
 }
 
 type DatabaseSpec struct {
@@ -53,6 +49,7 @@ func CreateDatabase(env *Env, name string, spec DatabaseSpec) error {
 		Version:   spec.Version,
 		Instances: instances,
 		Size:      spec.Size.String(),
+		Labels:    map[string]string{labelDatabase: name},
 	}
 
 	return nil

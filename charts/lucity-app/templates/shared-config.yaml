@@ -3,10 +3,15 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "lucity-app.fullname" $ }}-shared
+  name: {{ include "lucity-app.fullname" . }}-shared
   labels:
-    {{- include "lucity-app.labels" $ | nindent 4 }}
+    {{- include "lucity-app.labels" . | nindent 4 }}
     lucity.dev/shared-variables: "true"
+    {{- with .Values.commonLabels }}{{- toYaml . | nindent 4 }}{{- end }}
+  {{- with .Values.commonAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 data:
   {{- range $key, $val := .Values.sharedVariables }}
   {{ $key }}: {{ $val | quote }}

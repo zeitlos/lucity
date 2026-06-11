@@ -15,7 +15,7 @@ var _ environment.Interface = (*Client)(nil)
 const (
 	resourceQuotaName = "lucity-resources"
 	limitRangeName    = "lucity-defaults"
-	pullSecretName    = "lucity-registry"
+	PullSecretName    = "lucity-registry"
 )
 
 type Client struct {
