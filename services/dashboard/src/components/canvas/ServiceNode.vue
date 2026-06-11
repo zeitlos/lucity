@@ -2,13 +2,14 @@
 import { computed, ref, watch, onUnmounted } from 'vue';
 import { Handle, Position } from '@vue-flow/core';
 import { ExternalLink, Github, Globe, Loader2, Container } from 'lucide-vue-next';
-import { BuildStatus, ServiceStatus, type Protocol } from '@/gql/graphql';
+import { BuildStatus, EndpointType, ServiceStatus, type Protocol } from '@/gql/graphql';
 import { Badge } from '@/components/ui/badge';
 
 interface Endpoint {
   host: string;
   port: number;
   protocol: Protocol;
+  type: EndpointType;
 }
 
 interface ReplicaCount {
@@ -109,20 +110,31 @@ const formattedElapsed = computed(() => {
 });
 
 const primaryDomain = computed(() => {
-  const endpoints = props.data.endpoints ?? [];
-  return endpoints[0]?.host ?? null;
+  const custom = props.data.endpoints.find(e => e.type === EndpointType.Custom);
+
+  if (custom) {
+    return custom.host;
+  }
+
+  const platform = props.data.endpoints.find(e => e.type === EndpointType.Platform);
+
+  if (platform) {
+    return platform.host;
+  }
+
+  return null;
 });
 
 const extraDomainCount = computed(() => {
-  const total = props.data.endpoints?.length ?? 0;
+  const total = props.data.endpoints.filter(e => e.type !== EndpointType.Internal).length;
   return total > 1 ? total - 1 : 0;
 });
 
 const hostUrl = computed(() => {
-  if (!primaryDomain.value) return null;
-  if (primaryDomain.value.endsWith('.local')) {
-    return `http://${primaryDomain.value}:8880`;
+  if (!primaryDomain.value) {
+    return null;
   }
+
   return `https://${primaryDomain.value}`;
 });
 </script>

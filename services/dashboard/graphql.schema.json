@@ -61,18 +61,6 @@
             "deprecationReason": null
           },
           {
-            "name": "framework",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "image",
             "description": "External container image reference (e.g. nginx:1.25, ghcr.io/foo/bar:v1). Skips the build step.",
             "type": {
@@ -102,18 +90,6 @@
             "type": {
               "kind": "SCALAR",
               "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "port",
-            "description": "Port your app listens on; domains route to it. Omit if the service exposes no port.",
-            "type": {
-              "kind": "SCALAR",
-              "name": "Int",
               "ofType": null
             },
             "defaultValue": null,

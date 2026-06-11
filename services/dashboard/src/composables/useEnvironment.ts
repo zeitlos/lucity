@@ -9,6 +9,7 @@ import type {
   DnsStatus,
   DnsRecordType,
   TlsStatus,
+  EndpointType,
 } from '@/gql/graphql';
 
 export interface DnsRecord {
@@ -28,6 +29,7 @@ export interface Endpoint {
   protocol: Protocol;
   dns: DnsState;
   tls: TlsStatus;
+  type: EndpointType;
 }
 
 export interface ReplicaCount {

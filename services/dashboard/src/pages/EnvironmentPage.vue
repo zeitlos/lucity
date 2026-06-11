@@ -27,6 +27,7 @@ const EnvironmentDocument = graphql(`
           host
           port
           protocol
+          type
           dns {
             status
             requiredRecords {

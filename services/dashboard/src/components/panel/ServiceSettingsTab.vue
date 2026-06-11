@@ -9,6 +9,8 @@ import {
 import { graphql } from '@/gql';
 import {
   type SetServiceScalingInput,
+  EndpointType,
+  Protocol,
   ResourceTier,
 } from '@/gql/graphql';
 
@@ -32,6 +34,17 @@ const GenerateDomainDocument = graphql(`
       id
       endpoints {
         host
+        port
+        type
+        protocol
+        dns {
+          status
+          requiredRecords {
+            type
+            host
+            value
+          }
+        }
       }
     }
   }
@@ -41,6 +54,20 @@ const AddCustomDomainDocument = graphql(`
   mutation AddCustomDomain($service: ServiceID!, $hostname: String!) {
     addCustomDomain(service: $service, hostname: $hostname) {
       id
+      endpoints {
+        host
+        port
+        type
+        protocol
+        dns {
+          status
+          requiredRecords {
+            type
+            host
+            value
+          }
+        }
+      }
     }
   }
 `);
@@ -49,6 +76,20 @@ const RemoveDomainDocument = graphql(`
   mutation RemoveDomain($service: ServiceID!, $hostname: String!) {
     removeDomain(service: $service, hostname: $hostname) {
       id
+      endpoints {
+        host
+        port
+        type
+        protocol
+        dns {
+          status
+          requiredRecords {
+            type
+            host
+            value
+          }
+        }
+      }
     }
   }
 `);
@@ -78,7 +119,7 @@ const SetServicePortDocument = graphql(`
   }
 `);
 import { useEnvironment } from '@/composables/useEnvironment';
-import type { Service } from '@/composables/useEnvironment';
+import type { Endpoint, Service } from '@/composables/useEnvironment';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -117,15 +158,25 @@ const { activeEnvironment } = useEnvironment();
 const activeDeployment = computed(() => props.service.activeDeployment ?? null);
 
 const endpoints = computed(() => props.service.endpoints ?? []);
-const platformEndpoint = computed(() => endpoints.value[0] ?? null);
-const customEndpoints = computed(() => endpoints.value.slice(1));
+const platformEndpoint = computed(() => endpoints.value.find(e => e.type === EndpointType.Platform));
+const customEndpoints = computed(() => endpoints.value.filter(e => e.type === EndpointType.Custom));
+const internalEndpoint = computed(() => endpoints.value.find(e => e.type === EndpointType.Internal));
 
 const resources = computed(() => props.service.resources ?? null);
 const resourceTier = computed(() => activeEnvironment.value?.resourceTier ?? null);
 
-function domainUrl(hostname: string) {
-  if (hostname.endsWith('.local')) return `http://${hostname}:8880`;
-  return `https://${hostname}`;
+function domainUrl(endpoint: Endpoint) {
+  let url = `${endpoint.protocol}://${endpoint.host}`;
+
+  if (endpoint.protocol === Protocol.Http && endpoint.port != 80) {
+    url += `:${endpoint.port}`
+  }
+
+  if (endpoint.protocol === Protocol.Https && endpoint.port != 443) {
+    url += `:${endpoint.port}`
+  }
+
+  return url
 }
 
 // Custom domain input
@@ -156,17 +207,6 @@ const hostnameError = computed(() => {
 const canAddDomain = computed(() => {
   const raw = customDomainInput.value.trim();
   return raw.length > 0 && !hostnameError.value && !addingCustomDomain.value;
-});
-
-// Internal DNS — derived from service ID (workspace/project/env/name)
-const internalDns = computed(() => {
-  const parts = props.service.id.split('/');
-  if (parts.length < 4) return '';
-  const projectSlug = parts[1];
-  const envName = parts[2];
-  const svcName = parts[3];
-  const ns = `${projectSlug}-${envName}`;
-  return `${projectSlug}-lucity-app-${svcName}.${ns}.svc.cluster.local`;
 });
 
 // Command override
@@ -624,7 +664,7 @@ async function handleRemoveService() {
         </div>
       </Collapsible>
 
-      <!-- Platform Domain (first endpoint) -->
+      <!-- Platform Domain -->
       <Collapsible default-open>
         <div class="overflow-hidden rounded-lg border">
           <CollapsibleTrigger class="flex w-full items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/30">
@@ -668,7 +708,7 @@ async function handleRemoveService() {
               <div v-else class="space-y-2">
                 <div class="flex items-center gap-2">
                   <a
-                    :href="domainUrl(platformEndpoint.host)"
+                    :href="domainUrl(platformEndpoint)"
                     target="_blank"
                     rel="noopener noreferrer"
                     class="flex flex-1 items-center gap-2 rounded-md border bg-muted/50 px-3 py-2 transition-colors hover:bg-muted/80"
@@ -739,7 +779,7 @@ async function handleRemoveService() {
                 >
                   <div class="flex items-center gap-2">
                     <a
-                      :href="domainUrl(endpoint.host)"
+                      :href="domainUrl(endpoint)"
                       target="_blank"
                       rel="noopener noreferrer"
                       class="flex flex-1 items-center gap-2 rounded-md border bg-muted/50 px-3 py-2 transition-colors hover:bg-muted/80"
@@ -852,8 +892,8 @@ async function handleRemoveService() {
             <Network :size="16" class="shrink-0 text-muted-foreground" />
             <div class="min-w-0 flex-1 text-left">
               <p class="text-sm font-medium text-foreground">Private Networking</p>
-              <p class="max-w-[220px] truncate text-xs text-muted-foreground">
-                {{ internalDns || 'Internal DNS' }}
+              <p class="max-w-55 truncate text-xs text-muted-foreground">
+                {{ internalEndpoint?.host || 'Internal DNS' }}
               </p>
             </div>
             <ChevronDown
@@ -866,16 +906,16 @@ async function handleRemoveService() {
               <p class="text-xs text-muted-foreground">
                 Internal DNS name for service-to-service communication.
               </p>
-              <div v-if="internalDns" class="space-y-2">
+              <div v-if="internalEndpoint" class="space-y-2">
                 <div class="group flex items-center gap-2">
                   <div class="flex-1 overflow-x-auto rounded-md border bg-muted/50 px-3 py-2">
-                    <span class="whitespace-nowrap font-mono text-xs">{{ internalDns }}<template v-if="platformEndpoint">:{{ platformEndpoint.port }}</template></span>
+                    <span class="whitespace-nowrap font-mono text-xs">{{ internalEndpoint.host }}</span>
                   </div>
                   <Button
                     variant="ghost"
                     size="icon"
                     class="h-8 w-8 shrink-0"
-                    @click="copyToClipboard(platformEndpoint ? `${internalDns}:${platformEndpoint.port}` : internalDns)"
+                    @click="copyToClipboard(internalEndpoint.host)"
                   >
                     <Copy :size="14" />
                   </Button>
