@@ -142,7 +142,7 @@ const hostUrl = computed(() => {
 <template>
   <div
     :class="[
-      'service-node group cursor-pointer rounded-xl border px-6 py-5 shadow-sm transition-all duration-200',
+      'service-node group cursor-pointer rounded-xl border px-6 py-5 shadow-sm transition duration-200',
       'hover:shadow-md',
       selected ? 'border-primary shadow-md' : 'border-border',
 ]"

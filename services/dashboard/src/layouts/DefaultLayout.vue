@@ -60,7 +60,7 @@ async function handleLogout() {
     <SuspensionBanner v-if="suspended" />
 
     <div class="relative z-1 flex flex-1 flex-col overflow-hidden p-3 pb-0">
-      <header class="flex h-[52px] shrink-0 items-center justify-between rounded-lg border bg-card/80 px-4 shadow-sm backdrop-blur-sm [background-image:var(--gradient-card)]">
+      <header class="flex h-13 shrink-0 items-center justify-between rounded-lg border bg-card px-4 shadow-sm">
         <!-- Left: Logo + Context Nav -->
         <div class="flex items-center gap-3">
           <RouterLink

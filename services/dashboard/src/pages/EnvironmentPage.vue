@@ -302,7 +302,7 @@ watch(error, (err) => {
 
     <template v-else-if="environment">
       <div class="relative flex-1 py-3">
-        <div class="h-full w-full overflow-hidden rounded-lg border bg-card/80 shadow-sm backdrop-blur-sm [background-image:var(--gradient-card)]">
+        <div class="h-full w-full overflow-hidden rounded-lg border bg-card shadow-sm">
           <template v-if="hasResources">
             <ServiceCanvas
               :services="activeEnvServices"
@@ -332,7 +332,7 @@ watch(error, (err) => {
         <Transition name="slide-panel">
           <div
             v-if="isOpen && selectedService"
-            class="absolute inset-y-3 right-0 w-[55%] shadow-xl"
+            class="absolute inset-y-3 right-0 w-[55%]"
           >
             <ServicePanel
               :service="selectedService"
@@ -347,7 +347,7 @@ watch(error, (err) => {
         <Transition name="slide-panel">
           <div
             v-if="isOpen && selectedDatabase"
-            class="absolute inset-y-3 right-0 w-[55%] shadow-xl"
+            class="absolute inset-y-3 right-0 w-[55%]"
           >
             <DatabasePanel
               :database="selectedDatabase"
@@ -361,7 +361,7 @@ watch(error, (err) => {
         <Transition name="slide-panel">
           <div
             v-if="serviceLogsPanel.isOpen.value"
-            class="absolute -top-1 -right-1 bottom-6 z-10 shadow-2xl"
+            class="absolute inset-y-3 right-0 z-10"
             style="left: calc(45% + 12px + 2rem)"
           >
             <ServiceLogsPanel

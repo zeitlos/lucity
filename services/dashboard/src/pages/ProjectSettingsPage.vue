@@ -311,7 +311,7 @@ async function handleDeleteEnvironment() {
 
     <template v-else-if="project">
       <div class="flex flex-1 overflow-hidden p-3">
-        <div class="mx-auto flex w-full max-w-4xl gap-6 overflow-hidden rounded-lg border bg-card/80 shadow-sm backdrop-blur-sm [background-image:var(--gradient-card)]">
+        <div class="mx-auto flex w-full max-w-4xl gap-6 overflow-hidden rounded-lg border bg-card shadow-sm">
           <!-- Sidebar -->
           <nav class="w-48 shrink-0 border-r p-4">
             <div class="mb-4">
