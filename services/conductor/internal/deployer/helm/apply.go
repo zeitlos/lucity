@@ -18,9 +18,11 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
+// Name releases the same as the chart to produce minimal resource names.
+const releaseName = "lucity-app"
+
 func (c *Client) applyEnv(ctx context.Context, envID platform.EnvironmentID, mutate func(*values.Env) error) (deployer.RevisionID, error) {
 	namespace := envID.Namespace()
-	releaseName := namespace
 
 	config := new(action.Configuration)
 
@@ -69,7 +71,7 @@ func (c *Client) applyEnv(ctx context.Context, envID platform.EnvironmentID, mut
 // Release name equals the namespace (see helm release naming notes); we
 // reuse it across the install/upgrade branches.
 func installOrUpgrade(ctx context.Context, config *action.Configuration, releaseName, namespace string, chart *helmchart.Chart, vals map[string]any) (*release.Release, error) {
-	exists, replace, err := releaseState(config, namespace)
+	exists, replace, err := releaseState(config, releaseName)
 
 	if err != nil {
 		return nil, err
@@ -138,7 +140,7 @@ func (c *Client) loadEnv(_ context.Context, envID platform.EnvironmentID) (*valu
 		return nil, err
 	}
 
-	return loadCurrent(cfg, ns)
+	return loadCurrent(cfg, releaseName)
 }
 
 func loadCurrent(cfg *action.Configuration, name string) (*values.Env, error) {
