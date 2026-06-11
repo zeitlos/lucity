@@ -20,7 +20,7 @@ Please include:
 
 - Description of the vulnerability
 - Steps to reproduce
-- Affected component (gateway, builder, packager, deployer, webhook, dashboard)
+- Affected component (conductor, cashier, dashboard)
 - Impact assessment (e.g. data exposure, privilege escalation, RCE)
 - Any suggested fix or mitigation
 
@@ -30,11 +30,11 @@ You will receive an acknowledgment within 2 business days. We aim to provide a d
 
 The following are in scope:
 
-- Lucity core services (gateway, builder, packager, deployer, webhook)
+- Lucity core services (conductor, cashier)
 - GraphQL API authentication and authorization
 - Secret and credential handling (environment variables, database credentials)
 - Build pipeline isolation (container escapes, supply chain attacks)
-- GitOps sync and webhook validation
+- Deployment (Helm release) integrity and webhook validation
 - RBAC and multi-tenancy boundaries
 
 Out of scope:

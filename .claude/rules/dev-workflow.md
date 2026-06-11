@@ -10,7 +10,7 @@ The user starts services with `make dev` (all services with hot reload via air) 
 | Cashier | 9005 (gRPC), 9006 (HTTP) | gRPC + HTTP | `tmp/logs/cashier.log` |
 | Dashboard | 5173 | HTTP | `tmp/logs/dashboard.log` |
 
-The conductor is the unified control-plane binary; it serves the GraphQL API, manages GitOps repos, drives ArgoCD, orchestrates builds, and receives GitHub webhooks. Internal modules (packager / deployer / builder) talk to each other in-process via a bufconn-backed gRPC pipe — there's no real network between them.
+The conductor is the unified control-plane binary; it serves the GraphQL API, applies Helm releases, orchestrates builds, reconciles custom domains, and receives GitHub webhooks. Its internal packages (deployer / planner / buildjob) are plain Go packages behind interfaces — no internal network hops. Cashier is the one separate service, reached over gRPC.
 
 ## Verifying Changes
 

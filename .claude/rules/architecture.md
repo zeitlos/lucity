@@ -10,10 +10,9 @@ If a design feels complicated, step back and ask: is there a simpler way? Usuall
 
 No central database. All state is derived from external systems:
 
-- **Git (Soft-serve)**: GitOps repos, Helm values, environment configuration
-- **Kubernetes**: namespaces, labels, ArgoCD Applications, operator CRDs
+- **Kubernetes**: namespaces, labels, Helm release state (Secrets), operator CRDs
 - **OCI Registry (Zot)**: built images, tags, digests
-- **Identity Provider (OIDC)**: users, roles, authentication
+- **Identity Provider (OIDC/Logto)**: users, roles, authentication, workspace metadata
 
 If you're tempted to add a database, reconsider. The right answer is almost always to store state in one of the systems above. A read-optimized cache may be acceptable when query performance demands it, but it must be derivable from the sources above.
 
@@ -25,7 +24,7 @@ Test this by asking: "If a user runs `lucity eject` right now, does this feature
 
 ## User's Repo is Sacred
 
-The platform never writes to the user's source repository. Not a commit, not a file, not a webhook configuration file. The user's repo is read-only to the platform. All platform-managed configuration lives in the GitOps repository.
+The platform never writes to the user's source repository. Not a commit, not a file, not a webhook configuration file. The user's repo is read-only to the platform. All platform-managed configuration lives outside the user's repo, as the Helm release values the conductor computes and applies.
 
 ## Zero-Trust Security
 
@@ -45,13 +44,13 @@ Standard `kubectl` works for everything. No special tooling needed.
 
 ## Loose Coupling
 
-Services communicate via gRPC for commands but don't hold connections for long-running operations. Use polling and observation:
+The control plane is a single binary (conductor); the one cross-service boundary, conductor ↔ cashier, talks over gRPC for commands but doesn't hold connections open for long-running operations. Use polling and observation:
 
 - Watch the OCI registry for built images to appear
-- Poll ArgoCD for sync status
+- Poll Helm/Kubernetes for rollout status
 - Query Kubernetes for deployment state
 
-Services don't need to know about each other's internals. Each service owns its domain and exposes it via gRPC.
+Components own their domain behind narrow interfaces. For long-running work, observe state rather than holding a connection open.
 
 ## Minimal Day-2 Operations
 
@@ -66,7 +65,7 @@ If a feature can't be run without a dedicated on-call team, it's too complex.
 
 ## Idempotent Operations
 
-Operations that touch external state — creating repos, deploying ArgoCD apps, pushing images, creating namespaces — must be idempotent. If something already exists, detect it and handle it gracefully instead of failing.
+Operations that touch external state — applying Helm releases, pushing images, creating namespaces — must be idempotent. If something already exists, detect it and handle it gracefully instead of failing.
 
 - **Create operations**: check if the resource already exists and is in the expected state. If yes, return success. If it exists but is incomplete (partial failure), recover by completing the remaining steps.
 - **Delete operations**: if the resource is already gone, return success — don't error on "not found".
@@ -80,4 +79,4 @@ Don't support legacy API versions. Just change APIs directly — no fallbacks, n
 
 ## Don't Reinvent
 
-If ArgoCD, Helm, a Kubernetes operator, or the OCI registry already manages a piece of state, use it. Don't duplicate it. Don't wrap it in an unnecessary abstraction. Leverage what's already there.
+If Helm, a Kubernetes operator, or the OCI registry already manages a piece of state, use it. Don't duplicate it. Don't wrap it in an unnecessary abstraction. Leverage what's already there.

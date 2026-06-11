@@ -1,96 +1,64 @@
 # Integration Tests
 
-End-to-end tests that exercise the full Lucity platform through its GraphQL API and verify side effects with `kubectl` and `psql`.
+End-to-end tests that exercise the full Lucity platform through the conductor's GraphQL API and verify side effects with `kubectl` and `psql`.
+
+> **Status:** the suite is in disrepair after the conductor merge — the platform consolidated from separate gRPC services into the single conductor binary, and deploys moved from GitOps/ArgoCD to imperative Helm releases. The targets below are the intended interface; expect breakage until the suite is restored. Day-to-day verification currently leans on `go build ./...`, `go vet ./...`, the GraphQL playground, and `tmp/logs/conductor.log`.
 
 ## Running
 
 Services must be running (`make dev`) and infrastructure must be up (`make infra && make infra-forward`) before running tests.
 
-### Quick tests (gateway only)
-
 ```sh
-make test-integration-short
+make test-integration-short   # quick subset
+make test-integration         # full suite (+ Minikube side-effect checks)
+make test-watch               # auto-rerun on file changes (requires watchexec)
 ```
-
-### Full suite (all services + Minikube)
-
-```sh
-make test-integration
-```
-
-### Watch mode (auto-rerun on file changes)
-
-```sh
-make test-watch
-```
-
-Requires `watchexec` (`brew install watchexec`).
 
 ## Logs
 
-Test output is written to `tmp/logs/tests.log`. Test runner status is in `tmp/dev/tests.status`.
+Test output is written to `tmp/logs/tests.log`. Runner status is in `tmp/dev/tests.status`.
 
 ```sh
 cat tmp/logs/tests.log
 ```
 
-Look for `--- FAIL` lines to identify failures and `ok`/`FAIL` at the end for overall result.
+Look for `--- FAIL` lines to identify failures and `ok`/`FAIL` at the end for the overall result.
 
 ## Test Organization
 
-All tests run sequentially via `TestIntegration` in `main_test.go`. Each test group is a subtest:
+All tests run sequentially via `TestIntegration` in `main_test.go`. Each test group is a subtest covering one slice of the platform:
 
 ```
-TestIntegration/Health       — gateway health + playground
+TestIntegration/Health       — conductor health + GraphQL playground
 TestIntegration/Auth         — JWT auth, unauth, invalid token
-TestIntegration/Project      — create, list, get, not-found + kubectl ns/argocd verification
-TestIntegration/Environment  — create staging, syncChart, delete staging
-TestIntegration/Service      — detectServices, addService, getService
+TestIntegration/Project      — create, list, get, not-found (+ kubectl namespace checks)
+TestIntegration/Environment  — create, sync, delete
+TestIntegration/Service      — detect services, add service, get service
 TestIntegration/Variables    — shared + service variables, overwrite, fromShared refs
-TestIntegration/Database     — create, wait ready, connect, executeQuery, tables, tableData, delete
-TestIntegration/Build        — buildService, poll buildStatus
-TestIntegration/Deploy       — deploy, poll deployStatus, deployBuild, rollback + kubectl pod/deployment checks
-TestIntegration/Domain       — setServiceDomain, verify httproute, remove domain
-TestIntegration/Promote      — create staging, promote dev→staging, delete staging
-TestIntegration/Eject        — GET /api/eject/{project}, verify zip archive
-TestIntegration/Cleanup      — removeService, deleteProject, verify ns/argocd cleaned up
+TestIntegration/Database     — create, wait ready, connect, query, tables, delete
+TestIntegration/Build        — build service, poll build status
+TestIntegration/Deploy       — deploy, poll status, rollback (+ kubectl pod/deployment checks)
+TestIntegration/Domain       — set service domain, verify HTTPRoute, remove domain
+TestIntegration/Promote      — promote dev → staging
+TestIntegration/Eject        — fetch eject archive, verify contents
+TestIntegration/Cleanup      — remove service, delete project, verify resources gone
 ```
 
-Tests share state via package-level variables:
-- `testProjectName` — project created for this run (e.g., `inttest-abc123`)
-- `testServiceName` — service added to the project (`vouch`)
-- `testSourceURL` — GitHub source repo (`https://github.com/zeitlos/vouch`)
-- `testDBName` — database created (`main`)
-- `testBuildTag` / `testBuildDigest` — set after successful build
+Tests share state via package-level variables (e.g. `testProjectName`, `testServiceName`, `testSourceURL`, `testDBName`, `testBuildTag` / `testBuildDigest`).
 
-## Infrastructure Requirements
+## Side-Effect Verification
 
-| Test Group | Services | External |
-|------------|----------|----------|
-| Health, Auth | gateway | — |
-| Project, Environment | gateway, packager, deployer | Soft-serve, ArgoCD, Minikube |
-| Service | gateway, packager, builder | Soft-serve |
-| Variables | gateway, packager | Soft-serve |
-| Database | gateway, packager, deployer | Soft-serve, ArgoCD, CNPG, Minikube |
-| Build | gateway, builder | Zot, Docker |
-| Deploy | all services | Zot, Docker, ArgoCD, Soft-serve, Minikube |
-| Domain | gateway, packager, deployer | ArgoCD, Envoy Gateway |
-| Promote | gateway, packager, deployer | ArgoCD, Soft-serve, Minikube |
-| Eject | gateway, packager | Soft-serve |
+Tests don't just trust GraphQL responses. They verify cluster state:
 
-## kubectl / psql Verification
-
-Tests don't just trust GraphQL responses. They verify side effects:
 - `kubectl get namespace` — namespaces actually created/deleted
-- `kubectl get application.argoproj.io` — ArgoCD apps exist/removed
+- `helm list` / `kubectl get secret -l owner=helm` — Helm releases applied/removed
 - `kubectl get cluster.postgresql.cnpg.io` — CNPG databases provisioned
-- `kubectl get deployment` — workloads deployed
+- `kubectl get deployment` / `kubectl get pods` — workloads deployed and running
 - `kubectl get httproute` — domains configured
-- `kubectl get pods` — pods actually running
 
 ## Cleanup
 
-Tests create a project named `inttest-<random>` and clean it up via `deleteProject` mutation in the Cleanup test phase and as a fallback in `TestMain`. If cleanup fails:
+Tests create a project named `inttest-<random>` and clean it up via the `deleteProject` mutation (and as a fallback in `TestMain`). If cleanup fails:
 
 ```sh
 kubectl delete namespace -l lucity.dev/project=inttest-xxx --ignore-not-found
@@ -100,5 +68,5 @@ kubectl delete namespace -l lucity.dev/project=inttest-xxx --ignore-not-found
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `GATEWAY_URL` | `http://localhost:8080` | Gateway endpoint |
-| `AUTH_TEST_SECRET` | `change-me-in-production` | HS256 test token secret (must match gateway's `AUTH_TEST_SECRET`) |
+| `CONDUCTOR_URL` | `http://localhost:8080` | Conductor GraphQL endpoint |
+| `AUTH_TEST_SECRET` | `change-me-in-production` | HS256 test token secret (must match the conductor's `AUTH_TEST_SECRET`) |

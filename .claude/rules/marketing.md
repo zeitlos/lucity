@@ -14,7 +14,7 @@ It's fine to throw some playful shade on Railway, Heroku, Render, Fly.io, and Co
 
 ## Open Source
 
-Actively encourage and celebrate open-source tools. Lucity is built on Kubernetes, ArgoCD, Helm, Soft-serve, CloudNativePG, and other open-source projects. Give credit where it's due.
+Actively encourage and celebrate open-source tools. Lucity is built on Kubernetes, Helm, CloudNativePG, Zot, Gateway API, and other open-source projects. Give credit where it's due.
 
 ## Easter Eggs
 

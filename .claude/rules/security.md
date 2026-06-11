@@ -18,7 +18,7 @@ Never trust any user-provided value. Every input that crosses a trust boundary m
 - **Environment variable keys**: alphanumeric and underscore only (`[A-Z_][A-Z0-9_]*`). No shell metacharacters. A key like `FOO;rm -rf /` must be rejected.
 - **Environment variable values**: never interpolate into shell commands or templates. Always pass as structured data. Values are opaque strings that may contain anything.
 - **Git refs and branch names**: validate against safe patterns. Reject refs containing `..`, shell metacharacters, or path traversal sequences.
-- **Repository URLs**: must match expected patterns (HTTPS GitHub URLs, Soft-serve SSH URLs). Reject `file://`, `javascript:`, or unexpected schemes.
+- **Repository URLs**: must match expected patterns (HTTPS GitHub URLs). Reject `file://`, `javascript:`, or unexpected schemes.
 - **Custom start commands**: these execute via `sh -c` in the deployment template. This is inherently dangerous. Validate strictly: no shell expansion characters beyond what's necessary. Consider this the single most dangerous user input in the system.
 - **Domain names**: RFC 1123 compliant. Must not be wildcards (`*`). Must not overlap with platform domains (`lucity.cloud`, `lucity.app`). A user must not be able to claim a platform domain.
 - **GraphQL inputs**: use the `@constraint` directive on all user-facing input fields. No input field that accepts free-form strings should go unvalidated.
@@ -26,22 +26,21 @@ Never trust any user-provided value. Every input that crosses a trust boundary m
 
 ## Injection Prevention
 
-User-provided values will end up in YAML files, shell commands, Helm templates, Kubernetes manifests, and Git commits. Every one of these is an injection vector.
+User-provided values will end up in YAML files, shell commands, Helm templates, and Kubernetes manifests. Every one of these is an injection vector.
 
-- **YAML injection**: use structured YAML marshaling (`yaml.Marshal` on `map[string]any`). Never construct YAML with `fmt.Sprintf`, string concatenation, or Go `text/template`. The packager's values generation must always use structured data, never string interpolation.
+- **YAML injection**: use structured YAML marshaling (`yaml.Marshal` on `map[string]any`). Never construct YAML with `fmt.Sprintf`, string concatenation, or Go `text/template`. The deployer's Helm values generation must always use structured data, never string interpolation.
 - **Command injection**: never concatenate user values into shell commands. Pass user values as environment variables to subprocesses, never as command arguments that go through shell expansion. The builder sets `BUILD_SOURCE_URL`, `BUILD_GIT_REF`, etc. as container env vars. These must be validated before use.
 - **Helm template injection**: always use `| quote` for user-provided string values in Helm templates. Never use bare `{{ .Values.x }}` for any value that originates from user input. Review every template addition for unquoted user values.
 - **Label/annotation injection**: Kubernetes label values are limited to 63 characters and must match `[a-z0-9A-Z][a-z0-9A-Z._-]*`. Validate before setting. A malicious label value can break label selectors across the cluster.
-- **Git commit injection**: user-provided values in commit messages (service names, environment names) must not contain newlines or Git-special sequences that could alter commit metadata.
+- **Release metadata injection**: user-provided values (service names, environment names) flow into Helm release names, namespace names, and label/annotation values. They must not contain newlines or special sequences that could alter the rendered manifests or break selectors.
 
 ## Workspace Isolation
 
 - **API layer**: every GraphQL query and mutation must be scoped to the authenticated user's workspace. The workspace comes from the JWT, never from user input. No query should ever accept a workspace ID as a parameter.
-- **gRPC propagation**: the `X-Lucity-Workspace` header propagates workspace context to backend services. Backend services must verify this claim against the actual Kubernetes resource labels. If a request says "workspace: acme" but the target namespace has `lucity.dev/workspace: other`, reject it.
+- **gRPC propagation**: the `X-Lucity-Workspace` header (gRPC metadata `x-lucity-workspace`) propagates workspace context across the conductor ↔ cashier boundary. The receiver must verify this claim against the actual Kubernetes resource labels. If a request says "workspace: acme" but the target namespace has `lucity.dev/workspace: other`, reject it.
 - **Namespace ownership**: before operating on any namespace, verify it carries the expected `lucity.dev/workspace` label. Never assume a namespace belongs to a workspace just because the name matches a pattern.
 - **Registry isolation**: image paths must be namespaced by workspace (`registry/{workspace}/{project}/{service}`). A workspace must not be able to pull, push, or list images from another workspace's path. Registry credentials scoped per workspace.
-- **GitOps repo isolation**: Soft-serve repositories are scoped per workspace. A user in workspace A must never read, write, or discover workspace B's GitOps repos.
-- **ArgoCD Application isolation**: ArgoCD Applications must be labeled with workspace ownership. Operations on Applications must verify workspace labels before proceeding.
+- **Deployment isolation**: workload Helm releases live in per-environment namespaces labeled with workspace ownership. Before applying, updating, or deleting a release, verify the target namespace carries the expected `lucity.dev/workspace` label. A user in workspace A must never read or mutate workspace B's releases or resources.
 
 ## Build-Time Security
 
@@ -82,7 +81,7 @@ User workloads run in per-environment namespaces. They are untrusted containers 
 +- **Pod security**: `hostUsers: false` (user namespaces), `allowPrivilegeEscalation: false`, all capabilities dropped, read-only root filesystem where possible, seccomp profile enforced. The user namespace maps in-container root to an unprivileged host UID, so workloads can run as their image's default user without giving up host-level isolation. Requires kernel ≥ 6.3 and an idmap-capable filesystem on `/var/lib/kubelet/pods/` and every mounted volume (ext4 on hcloud-csi qualifies).
 - **Resource limits**: LimitRange in every workload namespace. Limits are a security control: they prevent a single workload from starving the node and affecting other tenants.
 - **No API access**: workload pods must not have access to the Kubernetes API. No ServiceAccount token. A compromised workload must not be able to enumerate or modify cluster resources.
-- **No platform access**: workloads must not be able to reach `lucity-system` services (gateway, builder, packager, deployer) directly. All platform interaction goes through the public API via the Gateway API ingress.
+- **No platform access**: workloads must not be able to reach `lucity-system` services (conductor, cashier) directly. All platform interaction goes through the public API via the Gateway API ingress.
 - **Image provenance**: workloads must only run images from the platform's OCI registry. No pulling arbitrary images from Docker Hub or other registries.
 
 ## Platform Service Protection
@@ -90,10 +89,10 @@ User workloads run in per-environment namespaces. They are untrusted containers 
 The `lucity-system` namespace runs all platform services. It is the most privileged namespace in the cluster.
 
 - **NetworkPolicy**: restrict ingress to only the Gateway API controller (for external API access) and inter-service gRPC traffic within the namespace. No ingress from workload namespaces.
-- **Credentials**: all platform credentials (ArgoCD tokens, Soft-serve SSH keys, registry auth, Stripe keys, OIDC secrets) stored as Kubernetes Secrets in `lucity-system`. Never copy platform credentials to workload namespaces.
+- **Credentials**: all platform credentials (registry auth, Stripe keys, OIDC/Logto secrets, internal JWT keys, GitHub App private key) stored as Kubernetes Secrets in `lucity-system`. Never copy platform credentials to workload namespaces.
 - **Registry pull secrets**: when cloned into workload namespaces, must provide pull-only access scoped to the workspace's image path. Never give workloads push access or access to other workspaces' images.
-- **Internal gRPC**: unauthenticated between platform services (trusted network assumption). This is acceptable only because NetworkPolicy prevents workload pods from reaching gRPC ports. If NetworkPolicy is ever relaxed, add mTLS.
-- **RBAC**: platform service ServiceAccounts have only the permissions they need. The builder SA can create Jobs in `lucity-builds`. The deployer SA can manage ArgoCD Applications and namespaces. No service has cluster-admin.
+- **Internal gRPC**: the conductor ↔ cashier boundary is authenticated with short-lived ES256 internal JWTs (`INTERNAL_JWT_*` keys). NetworkPolicy additionally prevents workload pods from reaching gRPC ports.
+- **RBAC**: platform service ServiceAccounts have only the permissions they need. The conductor SA can create build Jobs in `lucity-builds`, apply Helm releases, and manage workload namespaces. No service has cluster-admin.
 
 ## Secure Defaults
 
