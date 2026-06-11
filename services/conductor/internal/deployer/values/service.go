@@ -18,7 +18,6 @@ type Service struct {
 	Env                map[string]string      `yaml:"env,omitempty"`
 	SharedRefs         []string               `yaml:"sharedRefs,omitempty"`
 	DatabaseRefs       map[string]DatabaseRef `yaml:"databaseRefs,omitempty"`
-	Branch             string                 `yaml:"branch,omitempty"`
 	Labels             map[string]string      `yaml:"labels,omitempty"`
 	Annotations        map[string]string      `yaml:"annotations,omitempty"`
 	PodLabels          map[string]string      `yaml:"podLabels,omitempty"`
@@ -63,9 +62,8 @@ type ServiceSpec struct {
 	Image                string
 	SourceURL            string
 	ContextPath          string
-	Branch               string
 	GitHubInstallationID int64
-	StartCommand         string
+	Port                 int
 }
 
 func CreateService(env *Env, name string, spec ServiceSpec) error {
@@ -108,12 +106,11 @@ func CreateService(env *Env, name string, spec ServiceSpec) error {
 			Repository: repository,
 			Tag:        tag,
 		},
-		Branch:             spec.Branch,
-		CustomStartCommand: spec.StartCommand,
-		Labels:             labels,
-		Annotations:        annotations,
-		PodLabels:          podLabels,
-		PodAnnotations:     podAnnotations,
+		Port:           spec.Port,
+		Labels:         labels,
+		Annotations:    annotations,
+		PodLabels:      podLabels,
+		PodAnnotations: podAnnotations,
 	}
 
 	return nil
@@ -194,7 +191,7 @@ func SetServiceCommand(env *Env, name, command string) error {
 
 func SetServiceBranch(env *Env, name, branch string) error {
 	return mutateService(env, name, func(s *Service) {
-		s.Branch = branch
+		s.Annotations[annotationSourceBranch] = branch
 	})
 }
 

@@ -19,6 +19,7 @@ type Service struct {
 	Replicas    ReplicaCount
 	Autoscaling *AutoscalingSettings
 
+	Port      int
 	Endpoints []Endpoint
 
 	SourceURL   string

@@ -15,7 +15,15 @@ type serviceClient struct {
 
 func (s *serviceClient) Create(ctx context.Context, env platform.EnvironmentID, name string, spec deployer.ServiceSpec) (deployer.RevisionID, error) {
 	return s.client.applyEnv(ctx, env, func(e *values.Env) error {
-		return values.CreateService(e, name, toValuesSpec(spec))
+		spec := values.ServiceSpec{
+			Image:                spec.Image,
+			SourceURL:            spec.SourceURL,
+			ContextPath:          spec.ContextPath,
+			GitHubInstallationID: spec.GitHubInstallationID,
+			Port:                 spec.Port,
+		}
+
+		return values.CreateService(e, name, spec)
 	})
 }
 
@@ -161,14 +169,3 @@ func (s *serviceClient) Unmount(ctx context.Context, id platform.ServiceID, volu
 }
 
 var _ deployer.ServiceClient = (*serviceClient)(nil)
-
-func toValuesSpec(s deployer.ServiceSpec) values.ServiceSpec {
-	return values.ServiceSpec{
-		Image:                s.Image,
-		SourceURL:            s.SourceURL,
-		ContextPath:          s.ContextPath,
-		Branch:               s.Branch,
-		GitHubInstallationID: s.GitHubInstallationID,
-		StartCommand:         s.StartCommand,
-	}
-}

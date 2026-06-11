@@ -3,6 +3,7 @@ package conductor
 import (
 	"context"
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"log/slog"
 	"regexp"
@@ -66,7 +67,7 @@ func (c *Client) DetectServices(ctx context.Context, repositoryURL string, insta
 	return c.planner.Plan(ctx, repositoryURL, commit, token)
 }
 
-func (c *Client) AddService(ctx context.Context, environment platform.EnvironmentID, name string, startCommand, repository, contextPath string, installationID *int64, externalImage, customStartCommand string) (*Service, error) {
+func (c *Client) AddService(ctx context.Context, environment platform.EnvironmentID, name string, repository, contextPath string, installationID *int64, externalImage string) (*Service, error) {
 	ws := environment.Workspace
 	projectID := environment.Project
 	envName := environment.Name
@@ -77,64 +78,44 @@ func (c *Client) AddService(ctx context.Context, environment platform.Environmen
 		Name:        name,
 	}
 
-	var sourceURL string
 	var err error
+
+	serviceName := name
+	spec := deployer.ServiceSpec{
+		ContextPath: contextPath,
+		Port:        8080,
+	}
 
 	if repository != "" {
 		if installationID == nil {
 			return nil, fmt.Errorf("installationId is required when repository is set")
 		}
 
-		sourceURL, err = c.resolveRepositoryURL(ctx, *installationID, repository)
+		spec.GitHubInstallationID = *installationID
+		spec.SourceURL, err = c.resolveRepositoryURL(ctx, *installationID, repository)
 
 		if err != nil {
 			return nil, err
 		}
 
-		ctx, err = c.withInstallationTokenForID(ctx, *installationID)
+		spec.Image = c.Config.RegistryPullURL + "/" + c.imageRepository(id)
 
-		if err != nil {
-			return nil, fmt.Errorf("github auth: %w", err)
+		// ctx, err = c.withInstallationTokenForID(ctx, *installationID)
+
+		// if err != nil {
+		// 	return nil, fmt.Errorf("github auth: %w", err)
+		// }
+	} else if externalImage != "" {
+		spec.Image = externalImage
+
+		if serviceName == "" {
+			serviceName = deriveServiceName(externalImage)
 		}
-	} else if installationID != nil {
-		ctx, err = c.withInstallationTokenForID(ctx, *installationID)
-
-		if err != nil {
-			return nil, fmt.Errorf("github auth: %w", err)
-		}
-	}
-
-	var ghInstallationID int64
-
-	if installationID != nil {
-		ghInstallationID = *installationID
-	}
-
-	if externalImage != "" && name == "" {
-		name = deriveServiceName(externalImage)
-	}
-
-	var image string
-
-	if externalImage != "" {
-		image = externalImage
 	} else {
-		image = c.Config.RegistryPullURL + "/" + c.imageRepository(id)
+		return nil, errors.New("either repository or external image must be set to create a new service")
 	}
 
-	startCmd := customStartCommand
-
-	if startCmd == "" {
-		startCmd = startCommand
-	}
-
-	if _, err := c.deployer.Services().Create(ctx, environment, name, deployer.ServiceSpec{
-		Image:                image,
-		SourceURL:            sourceURL,
-		ContextPath:          contextPath,
-		GitHubInstallationID: ghInstallationID,
-		StartCommand:         startCmd,
-	}); err != nil {
+	if _, err := c.deployer.Services().Create(ctx, environment, name, spec); err != nil {
 		return nil, fmt.Errorf("create service: %w", err)
 	}
 
@@ -143,15 +124,15 @@ func (c *Client) AddService(ctx context.Context, environment platform.Environmen
 		Name: name,
 	}
 
-	if sourceURL != "" {
-		commit, err := c.source.CommitSHA(ctx, sourceURL, "")
+	if spec.SourceURL != "" {
+		commit, err := c.source.CommitSHA(ctx, spec.SourceURL, "")
 
 		if err != nil {
 			slog.Warn("initial commit lookup failed", "project", projectID, "service", name, "error", err)
 			return service, nil
 		}
 
-		token, err := c.source.Token(ctx, sourceURL)
+		token, err := c.source.Token(ctx, spec.SourceURL)
 
 		if err != nil {
 			slog.Warn("source token mint failed", "project", projectID, "service", name, "error", err)
@@ -162,7 +143,7 @@ func (c *Client) AddService(ctx context.Context, environment platform.Environmen
 
 		build, err := c.buildjob.Start(ctx, buildjob.StartOptions{
 			Workspace:        ws,
-			RepoURL:          sourceURL,
+			RepoURL:          spec.SourceURL,
 			Commit:           commit,
 			ContextPath:      contextPath,
 			TargetImageNames: []string{imageName},

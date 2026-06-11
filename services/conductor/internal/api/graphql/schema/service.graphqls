@@ -7,6 +7,7 @@ type Service
   replicas: ReplicaCount!
   autoscaling: AutoscalingSettings
 
+  port: Int!
   endpoints: [Endpoint!]! @goField(forceResolver: true)
 
   sourceUrl: String!
@@ -133,20 +134,11 @@ type DetectedService {
 }
 
 input AddServiceInput {
-  environment: EnvironmentID!
-  """Service name. If omitted when image is set, derived from the image (e.g. nginx:1.25 → nginx)."""
   name: String @constraint(constraint: "resource_name,min=2,max=63")
-  """Auto-detected start command from the build system (e.g. railpack). Stored for UI display as the default."""
-  startCommand: String
-  """GitHub repository in owner/repo format (e.g. "acme/myapp"). Requires installationId. The clone URL is constructed server-side."""
   repository: String @constraint(constraint: "min=3,max=200")
   contextPath: String
-  """GitHub App installation ID. Required when repository is set."""
   installationId: ID
-  """External container image reference (e.g. nginx:1.25, ghcr.io/foo/bar:v1). Skips the build step."""
   image: String
-  """Custom command to start the service (e.g. "npm run start", "stress --cpu 2 --timeout 60s"). Overrides the image entrypoint."""
-  customStartCommand: String
 }
 
 input SetServiceScalingInput {
@@ -168,10 +160,9 @@ extend type Query {
 }
 
 extend type Mutation {
-  addService(input: AddServiceInput!): Service! @hasRole(role: [USER])
+  addService(environment: EnvironmentID!, input: AddServiceInput!): Service! @hasRole(role: [USER])
   removeService(service: ServiceID!): Boolean! @hasRole(role: [USER])
   setCustomStartCommand(service: ServiceID!, command: String!): Service! @hasRole(role: [USER])
-  """Set the port the service listens on. Pass null to remove it (the service then exposes no port)."""
   setServicePort(service: ServiceID!, port: Int @constraint(constraint: "min=1,max=65535")): Service! @hasRole(role: [USER])
   setServiceScaling(input: SetServiceScalingInput!): Service! @hasRole(role: [USER])
   rollback(deployment: DeploymentID!): Boolean! @hasRole(role: [USER])

@@ -10,6 +10,7 @@ const (
 	labelGitHubInstallation = "lucity.dev/github-installation"
 
 	annotationSourceRepo    = "lucity.dev/source-repo"
+	annotationSourceBranch  = "lucity.dev/source-branch"
 	annotationSourceContext = "lucity.dev/source-context"
 	annotationImageDigest   = "lucity.dev/image-digest"
 )

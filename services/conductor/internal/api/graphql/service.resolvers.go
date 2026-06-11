@@ -10,26 +10,16 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/zeitlos/lucity/pkg/to"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
 	"github.com/zeitlos/lucity/services/conductor/internal/conductor"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
 // AddService is the resolver for the addService field.
-func (r *mutationResolver) AddService(ctx context.Context, input model.AddServiceInput) (*model.Service, error) {
-	startCommand := ""
-	if input.StartCommand != nil {
-		startCommand = *input.StartCommand
-	}
-	repository := ""
-	if input.Repository != nil {
-		repository = *input.Repository
-	}
-	contextPath := ""
-	if input.ContextPath != nil {
-		contextPath = *input.ContextPath
-	}
+func (r *mutationResolver) AddService(ctx context.Context, environment platform.EnvironmentID, input model.AddServiceInput) (*model.Service, error) {
 	var installationID *int64
+
 	if input.InstallationID != nil {
 		id, err := strconv.ParseInt(*input.InstallationID, 10, 64)
 		if err != nil {
@@ -37,24 +27,14 @@ func (r *mutationResolver) AddService(ctx context.Context, input model.AddServic
 		}
 		installationID = &id
 	}
-	name := ""
-	if input.Name != nil {
-		name = *input.Name
-	}
-	externalImage := ""
-	if input.Image != nil {
-		externalImage = *input.Image
-	}
-	customStartCommand := ""
-	if input.CustomStartCommand != nil {
-		customStartCommand = *input.CustomStartCommand
-	}
-	si, err := r.Conductor.AddService(ctx, input.Environment, name, startCommand, repository, contextPath, installationID, externalImage, customStartCommand)
+
+	service, err := r.Conductor.AddService(ctx, environment, to.Val(input.Name), to.Val(input.Repository), to.Val(input.ContextPath), installationID, to.Val(input.Image))
+
 	if err != nil {
 		return nil, err
 	}
-	result := convertService(*si)
-	return &result, nil
+
+	return new(convertService(*service)), nil
 }
 
 // RemoveService is the resolver for the removeService field.

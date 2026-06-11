@@ -21,6 +21,7 @@ func convertService(service platform.Service) model.Service {
 		Name:              service.Name,
 		Status:            convertServiceStatus(service.Status),
 		Replicas:          convertReplicaCount(service.Replicas),
+		Port:              service.Port,
 		PlatformEndpoints: service.Endpoints,
 		SourceURL:         service.SourceURL,
 		ContextPath:       service.ContextPath,

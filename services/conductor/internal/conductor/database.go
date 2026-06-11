@@ -208,9 +208,6 @@ func (c *Client) DatabaseCredentials(ctx context.Context, database platform.Data
 	}, nil
 }
 
-// databaseQueryClient resolves DB credentials, builds a dev-friendly DSN
-// (falls back to localhost when the cluster DNS doesn't resolve, which is
-// the case from outside the cluster), and returns a dbquery.Client.
 func (c *Client) databaseQueryClient(ctx context.Context, id platform.DatabaseID) (*dbquery.Client, error) {
 	creds, err := c.platform.DatabaseCredentials(ctx, id)
 
@@ -229,10 +226,7 @@ func (c *Client) databaseQueryClient(ctx context.Context, id platform.DatabaseID
 		host = "localhost"
 	}
 
-	dsn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-		creds.User, creds.Password, host, creds.Port, creds.DBName)
-
-	return dbquery.New(dsn), nil
+	return dbquery.New(databaseURI(creds) + "?sslmode=disable"), nil
 }
 
 func databaseURI(creds *platform.DatabaseCredentials) string {

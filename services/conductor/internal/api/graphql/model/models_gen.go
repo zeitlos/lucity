@@ -13,20 +13,11 @@ import (
 )
 
 type AddServiceInput struct {
-	Environment platform.EnvironmentID `json:"environment"`
-	// Service name. If omitted when image is set, derived from the image (e.g. nginx:1.25 → nginx).
-	Name *string `json:"name,omitempty"`
-	// Auto-detected start command from the build system (e.g. railpack). Stored for UI display as the default.
-	StartCommand *string `json:"startCommand,omitempty"`
-	// GitHub repository in owner/repo format (e.g. "acme/myapp"). Requires installationId. The clone URL is constructed server-side.
-	Repository  *string `json:"repository,omitempty"`
-	ContextPath *string `json:"contextPath,omitempty"`
-	// GitHub App installation ID. Required when repository is set.
+	Name           *string `json:"name,omitempty"`
+	Repository     *string `json:"repository,omitempty"`
+	ContextPath    *string `json:"contextPath,omitempty"`
 	InstallationID *string `json:"installationId,omitempty"`
-	// External container image reference (e.g. nginx:1.25, ghcr.io/foo/bar:v1). Skips the build step.
-	Image *string `json:"image,omitempty"`
-	// Custom command to start the service (e.g. "npm run start", "stress --cpu 2 --timeout 60s"). Overrides the image entrypoint.
-	CustomStartCommand *string `json:"customStartCommand,omitempty"`
+	Image          *string `json:"image,omitempty"`
 }
 
 type AutoscalingConfig struct {
@@ -286,6 +277,7 @@ type Service struct {
 	Status            ServiceStatus        `json:"status"`
 	Replicas          *ReplicaCount        `json:"replicas"`
 	Autoscaling       *AutoscalingSettings `json:"autoscaling,omitempty"`
+	Port              int                  `json:"port"`
 	Endpoints         []Endpoint           `json:"endpoints"`
 	SourceURL         string               `json:"sourceUrl"`
 	ContextPath       string               `json:"contextPath"`

@@ -212,7 +212,7 @@ type ComplexityRoot struct {
 
 	Mutation struct {
 		AddCustomDomain           func(childComplexity int, service platform.ServiceID, hostname string) int
-		AddService                func(childComplexity int, input model.AddServiceInput) int
+		AddService                func(childComplexity int, environment platform.EnvironmentID, input model.AddServiceInput) int
 		BillingPortalURL          func(childComplexity int) int
 		ChangePlan                func(childComplexity int, plan model.Plan) int
 		CompletePlanCheckout      func(childComplexity int, sessionID string) int
@@ -317,6 +317,7 @@ type ComplexityRoot struct {
 		ID               func(childComplexity int) int
 		LastDeployedAt   func(childComplexity int) int
 		Name             func(childComplexity int) int
+		Port             func(childComplexity int) int
 		Replicas         func(childComplexity int) int
 		Resources        func(childComplexity int) int
 		SourceURL        func(childComplexity int) int
@@ -416,7 +417,7 @@ type MutationResolver interface {
 	DeleteEnvironment(ctx context.Context, environment platform.EnvironmentID) (bool, error)
 	CreateProject(ctx context.Context, input model.CreateProjectInput) (*model.Project, error)
 	DeleteProject(ctx context.Context, id platform.ProjectID) (bool, error)
-	AddService(ctx context.Context, input model.AddServiceInput) (*model.Service, error)
+	AddService(ctx context.Context, environment platform.EnvironmentID, input model.AddServiceInput) (*model.Service, error)
 	RemoveService(ctx context.Context, service platform.ServiceID) (bool, error)
 	SetCustomStartCommand(ctx context.Context, service platform.ServiceID, command string) (*model.Service, error)
 	SetServicePort(ctx context.Context, service platform.ServiceID, port *int) (*model.Service, error)
@@ -1119,7 +1120,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Mutation.AddService(childComplexity, args["input"].(model.AddServiceInput)), true
+		return e.ComplexityRoot.Mutation.AddService(childComplexity, args["environment"].(platform.EnvironmentID), args["input"].(model.AddServiceInput)), true
 	case "Mutation.billingPortalUrl":
 		if e.ComplexityRoot.Mutation.BillingPortalURL == nil {
 			break
@@ -1824,6 +1825,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Service.Name(childComplexity), true
+	case "Service.port":
+		if e.ComplexityRoot.Service.Port == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Service.Port(childComplexity), true
 	case "Service.replicas":
 		if e.ComplexityRoot.Service.Replicas == nil {
 			break
@@ -2640,6 +2647,8 @@ func (ec *executionContext) childFields_Service(ctx context.Context, field graph
 		return ec.fieldContext_Service_replicas(ctx, field)
 	case "autoscaling":
 		return ec.fieldContext_Service_autoscaling(ctx, field)
+	case "port":
+		return ec.fieldContext_Service_port(ctx, field)
 	case "endpoints":
 		return ec.fieldContext_Service_endpoints(ctx, field)
 	case "sourceUrl":
@@ -2973,14 +2982,22 @@ func (ec *executionContext) field_Mutation_addCustomDomain_argsHostname(
 func (ec *executionContext) field_Mutation_addService_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input",
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "environment",
+		func(ctx context.Context, v any) (platform.EnvironmentID, error) {
+			return ec.unmarshalNEnvironmentID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐEnvironmentID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["environment"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "input",
 		func(ctx context.Context, v any) (model.AddServiceInput, error) {
 			return ec.unmarshalNAddServiceInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAddServiceInput(ctx, v)
 		})
 	if err != nil {
 		return nil, err
 	}
-	args["input"] = arg0
+	args["input"] = arg1
 	return args, nil
 }
 
@@ -6995,7 +7012,7 @@ func (ec *executionContext) _Mutation_addService(ctx context.Context, field grap
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().AddService(ctx, fc.Args["input"].(model.AddServiceInput))
+			return ec.Resolvers.Mutation().AddService(ctx, fc.Args["environment"].(platform.EnvironmentID), fc.Args["input"].(model.AddServiceInput))
 		},
 		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
 			directive0 := next
@@ -10049,6 +10066,29 @@ func (ec *executionContext) fieldContext_Service_autoscaling(_ context.Context, 
 	return fc, nil
 }
 
+func (ec *executionContext) _Service_port(ctx context.Context, field graphql.CollectedField, obj *model.Service) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Service_port(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Port, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Service_port(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Service", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
 func (ec *executionContext) _Service_endpoints(ctx context.Context, field graphql.CollectedField, obj *model.Service) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -12396,20 +12436,13 @@ func (ec *executionContext) unmarshalInputAddServiceInput(ctx context.Context, o
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"environment", "name", "startCommand", "repository", "contextPath", "installationId", "image", "customStartCommand"}
+	fieldsInOrder := [...]string{"name", "repository", "contextPath", "installationId", "image"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
-		case "environment":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("environment"))
-			data, err := ec.unmarshalNEnvironmentID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐEnvironmentID(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Environment = data
 		case "name":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
 			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalOString2ᚖstring(ctx, v) }
@@ -12439,13 +12472,6 @@ func (ec *executionContext) unmarshalInputAddServiceInput(ctx context.Context, o
 				err := fmt.Errorf(`unexpected type %T from directive, should be *string`, tmp)
 				return it, graphql.ErrorOnPath(ctx, err)
 			}
-		case "startCommand":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("startCommand"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.StartCommand = data
 		case "repository":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("repository"))
 			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalOString2ᚖstring(ctx, v) }
@@ -12496,13 +12522,6 @@ func (ec *executionContext) unmarshalInputAddServiceInput(ctx context.Context, o
 				return it, err
 			}
 			it.Image = data
-		case "customStartCommand":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("customStartCommand"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.CustomStartCommand = data
 		}
 	}
 	return it, nil
@@ -15766,6 +15785,11 @@ func (ec *executionContext) _Service(ctx context.Context, sel ast.SelectionSet, 
 			}
 		case "autoscaling":
 			out.Values[i] = ec._Service_autoscaling(ctx, field, obj)
+		case "port":
+			out.Values[i] = ec._Service_port(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
 		case "endpoints":
 			field := field
 

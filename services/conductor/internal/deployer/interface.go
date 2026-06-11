@@ -87,9 +87,9 @@ type ServiceSpec struct {
 	Image                string
 	SourceURL            string
 	ContextPath          string
-	Branch               string
 	GitHubInstallationID int64
 	StartCommand         string
+	Port                 int
 }
 
 type DatabaseSpec struct {

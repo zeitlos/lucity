@@ -122,16 +122,9 @@ func databaseID(cluster cnpgv1.Cluster, environmentID platform.EnvironmentID) pl
 	}
 }
 
-// DatabaseCredentials reads the CNPG-managed app Secret for a database and
-// returns its connection details. Returns platform.ErrDatabaseProvisioning
-// when the Secret hasn't been created yet (cluster still bootstrapping).
-//
-// The Secret naming follows the chart's fullname helper: release name (which
-// equals the env namespace in the helm-backed flow) prefixes the cluster
-// name, then CNPG suffixes `-app` for the application credential.
 func (c *Client) DatabaseCredentials(ctx context.Context, id platform.DatabaseID) (*platform.DatabaseCredentials, error) {
+	secretName := "lucity-app-pg-" + id.Name + "-app"
 	namespace := id.Namespace()
-	secretName := namespace + "-pg-" + id.Name + "-app"
 
 	secret, err := c.kubernetes.CoreV1().Secrets(namespace).Get(ctx, secretName, meta.GetOptions{})
 

@@ -19,6 +19,8 @@ import (
 	"k8s.io/apimachinery/pkg/selection"
 )
 
+const portName = "http"
+
 func (c *Client) Services(ctx context.Context, environmentID platform.EnvironmentID) ([]platform.Service, error) {
 	req, err := labels.NewRequirement(serviceLabel, selection.Exists, nil)
 
@@ -195,6 +197,7 @@ func (c *Client) deploymentFor(ctx context.Context, serviceID platform.ServiceID
 
 func toService(deployment apps.Deployment, replicaSets []apps.ReplicaSet, routes []unstructured.Unstructured, hpa autoscaling.HorizontalPodAutoscaler, environmentID platform.EnvironmentID) platform.Service {
 	annotations := deployment.Annotations
+	containers := deployment.Spec.Template.Spec.Containers
 
 	service := platform.Service{
 		ID:   serviceID(deployment, environmentID),
@@ -207,14 +210,15 @@ func toService(deployment apps.Deployment, replicaSets []apps.ReplicaSet, routes
 		},
 		Autoscaling: autoscalingSettings(hpa),
 
+		Port:      containersPort(containers),
 		Endpoints: endpoints(deployment, routes),
 
 		SourceURL:   annotations[annotationSourceRepo],
 		Branch:      annotations[annotationSourceBranch],
 		ContextPath: annotations[annotationSourceContext],
-		Resources:   containerResources(deployment.Spec.Template.Spec.Containers),
-		Command:     containerCommand(deployment.Spec.Template.Spec.Containers),
-		Variables:   containerVariables(deployment.Spec.Template.Spec.Containers),
+		Resources:   containerResources(containers),
+		Command:     containerCommand(containers),
+		Variables:   containerVariables(containers),
 
 		LastDeployedAt: latestReplicaSetTime(replicaSets),
 		CreatedAt:      deployment.CreationTimestamp.Time,
@@ -375,6 +379,22 @@ func autoscalingSettings(hpa autoscaling.HorizontalPodAutoscaler) *platform.Auto
 	}
 
 	return settings
+}
+
+func containersPort(containers []core.Container) int {
+	if len(containers) == 0 {
+		return 0
+	}
+
+	for _, port := range containers[0].Ports {
+		if port.Name != portName {
+			continue
+		}
+
+		return int(port.ContainerPort)
+	}
+
+	return 0
 }
 
 func containerResources(containers []core.Container) platform.Resources {
