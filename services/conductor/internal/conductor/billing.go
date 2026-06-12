@@ -6,18 +6,11 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/zeitlos/lucity/services/conductor/internal/platform"
+	"github.com/zeitlos/lucity/services/conductor/internal/resources"
+
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/cashier"
-	"github.com/zeitlos/lucity/services/conductor/internal/platform"
-)
-
-// Default resource quota — currently fixed in the environment package's
-// build helpers regardless of tier. Mirror the values here so billing reads
-// don't need an extra K8s round-trip.
-const (
-	defaultQuotaCPUMillicores = 4000
-	defaultQuotaMemoryMB      = 8192
-	defaultQuotaDiskMB        = 40960
 )
 
 type EnvironmentResources struct {
@@ -60,9 +53,9 @@ func (c *Client) EnvironmentResources(ctx context.Context, environmentID platfor
 
 	return &EnvironmentResources{
 		Tier:          env.ResourceTier,
-		CpuMillicores: defaultQuotaCPUMillicores,
-		MemoryMB:      defaultQuotaMemoryMB,
-		DiskMB:        defaultQuotaDiskMB,
+		CpuMillicores: int(resources.DefaultCPULimit.MilliValue()),
+		MemoryMB:      int(resources.DefaultMemoryQuota.Value() / (1024 * 1024)),
+		DiskMB:        int(resources.DefaultStorageQuota.Value() / (1024 * 1024)),
 	}, nil
 }
 

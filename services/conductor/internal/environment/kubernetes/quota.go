@@ -9,17 +9,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-)
-
-var (
-	defaultQuotaCPU     = resource.MustParse("4")
-	defaultQuotaMemory  = resource.MustParse("8Gi")
-	defaultQuotaStorage = resource.MustParse("40Gi")
-
-	defaultContainerCPULimit    = resource.MustParse("500m")
-	defaultContainerMemoryLimit = resource.MustParse("512Mi")
 )
 
 func (c *Client) ensureQuota(ctx context.Context, id platform.EnvironmentID) error {
@@ -89,9 +79,9 @@ func buildQuota(namespace string) *corev1.ResourceQuota {
 		},
 		Spec: corev1.ResourceQuotaSpec{
 			Hard: corev1.ResourceList{
-				corev1.ResourceRequestsCPU:     defaultQuotaCPU,
-				corev1.ResourceRequestsMemory:  defaultQuotaMemory,
-				corev1.ResourceRequestsStorage: defaultQuotaStorage,
+				corev1.ResourceRequestsCPU:     resources.DefaultCPUQuota,
+				corev1.ResourceRequestsMemory:  resources.DefaultMemoryQuota,
+				corev1.ResourceRequestsStorage: resources.DefaultStorageQuota,
 			},
 		},
 	}
@@ -110,12 +100,12 @@ func buildLimitRange(namespace string, tier platform.ResourceTier) *corev1.Limit
 			Limits: []corev1.LimitRangeItem{{
 				Type: corev1.LimitTypeContainer,
 				Default: corev1.ResourceList{
-					corev1.ResourceCPU:    defaultContainerCPULimit,
-					corev1.ResourceMemory: defaultContainerMemoryLimit,
+					corev1.ResourceCPU:    resources.DefaultCPULimit,
+					corev1.ResourceMemory: resources.DefaultMemoryLimit,
 				},
 				DefaultRequest: corev1.ResourceList{
-					corev1.ResourceCPU:    resources.Request(tier, defaultContainerCPULimit),
-					corev1.ResourceMemory: resources.Request(tier, defaultContainerMemoryLimit),
+					corev1.ResourceCPU:    resources.Request(tier, resources.DefaultCPULimit),
+					corev1.ResourceMemory: resources.Request(tier, resources.DefaultMemoryLimit),
 				},
 			}},
 		},

@@ -6,7 +6,19 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
-const burstableRequestRatio = 0.5
+const (
+	// TODO: This static ratio will be replaced by VPA at some point.
+	burstableRequestRatio = 0.5
+)
+
+var (
+	DefaultCPULimit    = resource.MustParse("500m")
+	DefaultMemoryLimit = resource.MustParse("512Mi")
+
+	DefaultCPUQuota     = resource.MustParse("4")
+	DefaultMemoryQuota  = resource.MustParse("8Gi")
+	DefaultStorageQuota = resource.MustParse("40Gi")
+)
 
 // Request returns the K8s request value for the given limit under the given
 // tier. Guaranteed (production) returns the limit unchanged; burstable (eco)
