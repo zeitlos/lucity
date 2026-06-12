@@ -67,23 +67,27 @@ func (c *Client) DetectServices(ctx context.Context, repositoryURL string, insta
 	return c.planner.Plan(ctx, repositoryURL, commit, token)
 }
 
-func (c *Client) AddService(ctx context.Context, environment platform.EnvironmentID, name string, repository, contextPath string, installationID *int64, externalImage string) (*Service, error) {
-	ws := environment.Workspace
-	projectID := environment.Project
-	envName := environment.Name
+func (c *Client) AddService(ctx context.Context, environmentID platform.EnvironmentID, name string, repository, contextPath string, installationID *int64, externalImage string) (*Service, error) {
+	workspace := environmentID.Workspace
+	projectID := environmentID.Project
 	id := platform.ServiceID{
-		Workspace:   ws,
+		Workspace:   workspace,
 		Project:     projectID,
-		Environment: envName,
+		Environment: environmentID.Name,
 		Name:        name,
 	}
 
-	var err error
+	environment, err := c.platform.Environment(ctx, environmentID)
+
+	if err != nil {
+		return nil, err
+	}
 
 	serviceName := name
 	spec := deployer.ServiceSpec{
-		ContextPath: contextPath,
-		Port:        8080,
+		ContextPath:  contextPath,
+		Port:         8080,
+		ResourceTier: environment.ResourceTier,
 	}
 
 	if repository != "" {
@@ -99,12 +103,6 @@ func (c *Client) AddService(ctx context.Context, environment platform.Environmen
 		}
 
 		spec.Image = c.Config.RegistryPullURL + "/" + c.imageRepository(id)
-
-		// ctx, err = c.withInstallationTokenForID(ctx, *installationID)
-
-		// if err != nil {
-		// 	return nil, fmt.Errorf("github auth: %w", err)
-		// }
 	} else if externalImage != "" {
 		spec.Image = externalImage
 
@@ -115,7 +113,7 @@ func (c *Client) AddService(ctx context.Context, environment platform.Environmen
 		return nil, errors.New("either repository or external image must be set to create a new service")
 	}
 
-	if _, err := c.deployer.Services().Create(ctx, environment, name, spec); err != nil {
+	if _, err := c.deployer.Services().Create(ctx, environmentID, name, spec); err != nil {
 		return nil, fmt.Errorf("create service: %w", err)
 	}
 
@@ -139,10 +137,10 @@ func (c *Client) AddService(ctx context.Context, environment platform.Environmen
 			return service, nil
 		}
 
-		imageName := ws + "/" + projectID + "/" + name
+		imageName := workspace + "/" + projectID + "/" + name
 
 		build, err := c.buildjob.Start(ctx, buildjob.StartOptions{
-			Workspace:        ws,
+			Workspace:        workspace,
 			RepoURL:          spec.SourceURL,
 			Commit:           commit,
 			ContextPath:      contextPath,
@@ -161,24 +159,6 @@ func (c *Client) AddService(ctx context.Context, environment platform.Environmen
 	}
 
 	return service, nil
-}
-
-// deriveServiceName extracts a service name from an image reference.
-// e.g., "nginx:1.25" → "nginx", "ghcr.io/foo/my-app:v1" → "my-app"
-func deriveServiceName(imageRef string) string {
-	name := imageRef
-
-	if i := strings.LastIndex(name, ":"); i >= 0 {
-		if j := strings.LastIndex(name, "/"); i > j {
-			name = name[:i]
-		}
-	}
-
-	if i := strings.LastIndex(name, "/"); i >= 0 {
-		name = name[i+1:]
-	}
-
-	return name
 }
 
 func (c *Client) RemoveService(ctx context.Context, svc platform.ServiceID) (bool, error) {
@@ -205,20 +185,81 @@ func (c *Client) SetServicePort(ctx context.Context, svc platform.ServiceID, por
 	return c.Service(ctx, svc)
 }
 
-// withInstallationTokenForID mints a GitHub App installation token for the given
-// installation ID and attaches it to the context for downstream gRPC calls.
-func (c *Client) withInstallationTokenForID(ctx context.Context, installationID int64) (context.Context, error) {
-	if installationID == 0 {
-		return ctx, nil
-	}
-
-	token, err := c.GitHubApp.InstallationToken(ctx, installationID)
+func (c *Client) Rollback(ctx context.Context, deploymentID DeploymentID) (bool, error) {
+	deployment, err := c.platform.Deployment(ctx, deploymentID)
 
 	if err != nil {
-		return ctx, fmt.Errorf("mint installation token: %w", err)
+		return false, fmt.Errorf("read deployment: %w", err)
 	}
 
-	return auth.WithGitHubToken(ctx, token), nil
+	serviceID := platform.ServiceID{
+		Workspace:   deploymentID.Workspace,
+		Project:     deploymentID.Project,
+		Environment: deploymentID.Environment,
+		Name:        deploymentID.Service,
+	}
+
+	if _, err := c.deployer.Services().SetImage(ctx, serviceID, deployment.Image, ""); err != nil {
+		return false, fmt.Errorf("rollback set image: %w", err)
+	}
+
+	return true, nil
+}
+
+func (c *Client) GenerateDomain(ctx context.Context, serviceID platform.ServiceID) (*Service, error) {
+	hostname := fmt.Sprintf("%s-%s-%s.%s",
+		serviceID.Name,
+		serviceID.Environment,
+		randCrockford32(5),
+		c.Config.WorkloadDomain,
+	)
+
+	if _, err := c.deployer.Services().AddDomain(ctx, serviceID, hostname); err != nil {
+		return nil, fmt.Errorf("add platform domain: %w", err)
+	}
+
+	if _, err := c.deployer.Services().VerifyDomain(ctx, serviceID, hostname, true); err != nil {
+		return nil, fmt.Errorf("verify platform domain: %w", err)
+	}
+
+	return c.Service(ctx, serviceID)
+}
+
+func (c *Client) AddCustomDomain(ctx context.Context, serviceID platform.ServiceID, hostname string) (*Service, error) {
+	if err := validateHostname(hostname); err != nil {
+		return nil, fmt.Errorf("invalid hostname: %w", err)
+	}
+
+	if c.hostname.IsPlatform(hostname) || c.hostname.IsInternal(hostname) {
+		return nil, fmt.Errorf("invalid domain")
+	}
+
+	if _, err := c.deployer.Services().AddDomain(ctx, serviceID, hostname); err != nil {
+		return nil, err
+	}
+
+	verified, err := c.isDomainVerified(ctx, serviceID.Workspace, hostname)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if verified {
+		if _, err := c.deployer.Services().VerifyDomain(ctx, serviceID, hostname, verified); err != nil {
+			// This will be re-tried by the reconcile loop, therefore we don't surface the error.
+			slog.WarnContext(ctx, "failed to set domain to verified", "error", err, "service", serviceID, "domain", hostname)
+		}
+	}
+
+	return c.Service(ctx, serviceID)
+}
+
+func (c *Client) RemoveDomain(ctx context.Context, serviceID platform.ServiceID, hostname string) (*Service, error) {
+	if _, err := c.deployer.Services().RemoveDomain(ctx, serviceID, hostname); err != nil {
+		return nil, err
+	}
+
+	return c.Service(ctx, serviceID)
 }
 
 func (c *Client) imageRepository(id ServiceID) string {
@@ -285,60 +326,22 @@ func (c *Client) runDeploy(claims *auth.Claims, serviceID platform.ServiceID, bu
 	log.ErrorContext(ctx, "deploy: timed out waiting for build", "timeout", maxBuildDuration)
 }
 
-func (c *Client) Rollback(ctx context.Context, deploymentID DeploymentID) (bool, error) {
-	deployment, err := c.platform.Deployment(ctx, deploymentID)
+// deriveServiceName extracts a service name from an image reference.
+// e.g., "nginx:1.25" → "nginx", "ghcr.io/foo/my-app:v1" → "my-app"
+func deriveServiceName(imageRef string) string {
+	name := imageRef
 
-	if err != nil {
-		return false, fmt.Errorf("read deployment: %w", err)
+	if i := strings.LastIndex(name, ":"); i >= 0 {
+		if j := strings.LastIndex(name, "/"); i > j {
+			name = name[:i]
+		}
 	}
 
-	serviceID := platform.ServiceID{
-		Workspace:   deploymentID.Workspace,
-		Project:     deploymentID.Project,
-		Environment: deploymentID.Environment,
-		Name:        deploymentID.Service,
+	if i := strings.LastIndex(name, "/"); i >= 0 {
+		name = name[i+1:]
 	}
 
-	if _, err := c.deployer.Services().SetImage(ctx, serviceID, deployment.Image, ""); err != nil {
-		return false, fmt.Errorf("rollback set image: %w", err)
-	}
-
-	return true, nil
-}
-
-// Domain represents a domain hostname with its type, DNS status, and TLS status.
-type Domain struct {
-	Hostname  string
-	Type      string // "PLATFORM" or "CUSTOM"
-	DnsStatus string // "VALID", "PENDING", "MISCONFIGURED", or "ERROR"
-	TlsStatus string // "NONE", "PROVISIONING", "ACTIVE", or "ERROR"
-}
-
-// IsPlatformDomain checks if a hostname is a platform-generated domain.
-func (c *Client) IsPlatformDomain(hostname string) bool {
-	return strings.HasSuffix(hostname, "."+c.Config.WorkloadDomain)
-}
-
-// GenerateDomain creates a platform domain ({service}-{env}-{rand}.{workloadDomain})
-// for a service and immediately marks it verified — platform DNS is under
-// our control, so there's no challenge to run. Returns the updated service.
-func (c *Client) GenerateDomain(ctx context.Context, serviceID platform.ServiceID) (*Service, error) {
-	hostname := fmt.Sprintf("%s-%s-%s.%s",
-		serviceID.Name,
-		serviceID.Environment,
-		randCrockford32(5),
-		c.Config.WorkloadDomain,
-	)
-
-	if _, err := c.deployer.Services().AddDomain(ctx, serviceID, hostname); err != nil {
-		return nil, fmt.Errorf("add platform domain: %w", err)
-	}
-
-	if _, err := c.deployer.Services().VerifyDomain(ctx, serviceID, hostname, true); err != nil {
-		return nil, fmt.Errorf("verify platform domain: %w", err)
-	}
-
-	return c.Service(ctx, serviceID)
+	return name
 }
 
 // repositoryPattern matches valid GitHub owner/repo format.
@@ -424,43 +427,6 @@ func validateHostname(hostname string) error {
 	}
 
 	return nil
-}
-
-func (c *Client) AddCustomDomain(ctx context.Context, serviceID platform.ServiceID, hostname string) (*Service, error) {
-	if err := validateHostname(hostname); err != nil {
-		return nil, fmt.Errorf("invalid hostname: %w", err)
-	}
-
-	if c.hostname.IsPlatform(hostname) || c.hostname.IsInternal(hostname) {
-		return nil, fmt.Errorf("invalid domain")
-	}
-
-	if _, err := c.deployer.Services().AddDomain(ctx, serviceID, hostname); err != nil {
-		return nil, err
-	}
-
-	verified, err := c.isDomainVerified(ctx, serviceID.Workspace, hostname)
-
-	if err != nil {
-		return nil, err
-	}
-
-	if verified {
-		if _, err := c.deployer.Services().VerifyDomain(ctx, serviceID, hostname, verified); err != nil {
-			// This will be re-tried by the reconcile loop, therefore we don't surface the error.
-			slog.WarnContext(ctx, "failed to set domain to verified", "error", err, "service", serviceID, "domain", hostname)
-		}
-	}
-
-	return c.Service(ctx, serviceID)
-}
-
-func (c *Client) RemoveDomain(ctx context.Context, serviceID platform.ServiceID, hostname string) (*Service, error) {
-	if _, err := c.deployer.Services().RemoveDomain(ctx, serviceID, hostname); err != nil {
-		return nil, err
-	}
-
-	return c.Service(ctx, serviceID)
 }
 
 func tagOrDigest(ref name.Reference) string {

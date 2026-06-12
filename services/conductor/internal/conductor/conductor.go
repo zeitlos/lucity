@@ -30,11 +30,10 @@ type TokenRefresher func(ctx context.Context, refreshToken string) (newAccessTok
 type Client struct {
 	Cashier        cashier.CashierServiceClient // nil if billing disabled
 	Issuer         *auth.Issuer                 // ES256 JWT issuer for gRPC auth (nil = no auth)
-	GitHubApp      *ghpkg.App                   // for minting installation tokens (repo access)
+	GitHubApp      *ghpkg.App
 	Logto          *logto.Client
 	TokenRefresher TokenRefresher // refreshes expired Logto access tokens (nil if not configured)
 
-	// Refactored clients
 	directory   directory.Interface
 	platform    platform.Interface
 	buildjob    buildjob.Interface
@@ -57,15 +56,15 @@ type Client struct {
 }
 
 type Config struct {
-	RegistryPullSecret authn.Keychain
-	RegistryURL        string
-	RegistryPushURL    string
-	RegistryPullURL    string
-	WorkloadDomain     string // base domain for platform-generated domains (e.g., "lucity.app")
-	DomainTarget       string // CNAME target for custom domains (e.g., "lb.lucity.app")
-	IPAddress          string // load balancer IP for A record config
-	GitHubAppSlug      string // GitHub App slug for installation URL generation
-	DashboardURL       string // base URL for the dashboard (e.g., "http://localhost:5173")
+	RegistryPullSecret   authn.Keychain
+	RegistryURL          string
+	RegistryPushURL      string
+	RegistryPullURL      string
+	WorkloadDomain       string
+	LoadBalancerHostname string
+	LoadBalancerIP       string
+	GitHubAppSlug        string
+	DashboardURL         string
 }
 
 func New(cashier cashier.CashierServiceClient, issuer *auth.Issuer, githubApp *ghpkg.App, logto *logto.Client, tokenRefresher TokenRefresher, directory directory.Interface, platform platform.Interface, buildjob buildjob.Interface, planner planner.Interface, source source.Interface, hostname *hostname.Client, gateway *gateway.Client, deployer deployer.Interface, environment environment.Interface, config Config) *Client {
