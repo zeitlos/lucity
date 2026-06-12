@@ -174,8 +174,7 @@ watch(
       </Panel>
     </VueFlow>
 
-    <!-- Create button (floating top-right) -->
-    <div class="absolute right-4 top-4 z-10">
+    <div class="absolute right-4 top-4">
       <Button
         variant="outline"
         size="sm"
