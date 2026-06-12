@@ -46,13 +46,6 @@ type DirectiveRoot struct {
 }
 
 type ComplexityRoot struct {
-	AutoscalingConfig struct {
-		Enabled     func(childComplexity int) int
-		MaxReplicas func(childComplexity int) int
-		MinReplicas func(childComplexity int) int
-		TargetCPU   func(childComplexity int) int
-	}
-
 	AutoscalingSettings struct {
 		MaxReplicas func(childComplexity int) int
 		MinReplicas func(childComplexity int) int
@@ -299,11 +292,6 @@ type ComplexityRoot struct {
 		Memory func(childComplexity int) int
 	}
 
-	ScalingConfig struct {
-		Autoscaling func(childComplexity int) int
-		Replicas    func(childComplexity int) int
-	}
-
 	Service struct {
 		ActiveDeployment func(childComplexity int) int
 		Autoscaling      func(childComplexity int) int
@@ -327,13 +315,6 @@ type ComplexityRoot struct {
 	ServiceLogEntry struct {
 		Line func(childComplexity int) int
 		Pod  func(childComplexity int) int
-	}
-
-	ServiceResources struct {
-		CPULimitMillicores func(childComplexity int) int
-		CPUMillicores      func(childComplexity int) int
-		MemoryLimitMb      func(childComplexity int) int
-		MemoryMb           func(childComplexity int) int
 	}
 
 	ServiceVariable struct {
@@ -488,31 +469,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 	ec := newExecutionContext(nil, e, nil)
 	_ = ec
 	switch typeName + "." + field {
-
-	case "AutoscalingConfig.enabled":
-		if e.ComplexityRoot.AutoscalingConfig.Enabled == nil {
-			break
-		}
-
-		return e.ComplexityRoot.AutoscalingConfig.Enabled(childComplexity), true
-	case "AutoscalingConfig.maxReplicas":
-		if e.ComplexityRoot.AutoscalingConfig.MaxReplicas == nil {
-			break
-		}
-
-		return e.ComplexityRoot.AutoscalingConfig.MaxReplicas(childComplexity), true
-	case "AutoscalingConfig.minReplicas":
-		if e.ComplexityRoot.AutoscalingConfig.MinReplicas == nil {
-			break
-		}
-
-		return e.ComplexityRoot.AutoscalingConfig.MinReplicas(childComplexity), true
-	case "AutoscalingConfig.targetCPU":
-		if e.ComplexityRoot.AutoscalingConfig.TargetCPU == nil {
-			break
-		}
-
-		return e.ComplexityRoot.AutoscalingConfig.TargetCPU(childComplexity), true
 
 	case "AutoscalingSettings.maxReplicas":
 		if e.ComplexityRoot.AutoscalingSettings.MaxReplicas == nil {
@@ -1740,19 +1696,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.Resources.Memory(childComplexity), true
 
-	case "ScalingConfig.autoscaling":
-		if e.ComplexityRoot.ScalingConfig.Autoscaling == nil {
-			break
-		}
-
-		return e.ComplexityRoot.ScalingConfig.Autoscaling(childComplexity), true
-	case "ScalingConfig.replicas":
-		if e.ComplexityRoot.ScalingConfig.Replicas == nil {
-			break
-		}
-
-		return e.ComplexityRoot.ScalingConfig.Replicas(childComplexity), true
-
 	case "Service.activeDeployment":
 		if e.ComplexityRoot.Service.ActiveDeployment == nil {
 			break
@@ -1868,31 +1811,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.ServiceLogEntry.Pod(childComplexity), true
-
-	case "ServiceResources.cpuLimitMillicores":
-		if e.ComplexityRoot.ServiceResources.CPULimitMillicores == nil {
-			break
-		}
-
-		return e.ComplexityRoot.ServiceResources.CPULimitMillicores(childComplexity), true
-	case "ServiceResources.cpuMillicores":
-		if e.ComplexityRoot.ServiceResources.CPUMillicores == nil {
-			break
-		}
-
-		return e.ComplexityRoot.ServiceResources.CPUMillicores(childComplexity), true
-	case "ServiceResources.memoryLimitMB":
-		if e.ComplexityRoot.ServiceResources.MemoryLimitMb == nil {
-			break
-		}
-
-		return e.ComplexityRoot.ServiceResources.MemoryLimitMb(childComplexity), true
-	case "ServiceResources.memoryMB":
-		if e.ComplexityRoot.ServiceResources.MemoryMb == nil {
-			break
-		}
-
-		return e.ComplexityRoot.ServiceResources.MemoryMb(childComplexity), true
 
 	case "ServiceVariable.databaseRef":
 		if e.ComplexityRoot.ServiceVariable.DatabaseRef == nil {
@@ -2250,20 +2168,6 @@ var parsedSchema = gqlparser.MustLoadSchema(sources...)
 // childFields_* functions provide shared child field context lookups.
 // Each function is generated once per unique object type, deduplicating the
 // switch statements that were previously inlined in every fieldContext_* function.
-
-func (ec *executionContext) childFields_AutoscalingConfig(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-	switch field.Name {
-	case "enabled":
-		return ec.fieldContext_AutoscalingConfig_enabled(ctx, field)
-	case "minReplicas":
-		return ec.fieldContext_AutoscalingConfig_minReplicas(ctx, field)
-	case "maxReplicas":
-		return ec.fieldContext_AutoscalingConfig_maxReplicas(ctx, field)
-	case "targetCPU":
-		return ec.fieldContext_AutoscalingConfig_targetCPU(ctx, field)
-	}
-	return nil, fmt.Errorf("no field named %q was found under type AutoscalingConfig", field.Name)
-}
 
 func (ec *executionContext) childFields_AutoscalingSettings(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
@@ -3853,98 +3757,6 @@ func (ec *executionContext) field___Type_fields_args(ctx context.Context, rawArg
 // endregion ************************** directives.gotpl **************************
 
 // region    **************************** field.gotpl *****************************
-
-func (ec *executionContext) _AutoscalingConfig_enabled(ctx context.Context, field graphql.CollectedField, obj *model.AutoscalingConfig) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_AutoscalingConfig_enabled(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.Enabled, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
-			return ec.marshalNBoolean2bool(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_AutoscalingConfig_enabled(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("AutoscalingConfig", field, false, false, errors.New("field of type Boolean does not have child fields"))
-}
-
-func (ec *executionContext) _AutoscalingConfig_minReplicas(ctx context.Context, field graphql.CollectedField, obj *model.AutoscalingConfig) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_AutoscalingConfig_minReplicas(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.MinReplicas, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
-			return ec.marshalNInt2int(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_AutoscalingConfig_minReplicas(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("AutoscalingConfig", field, false, false, errors.New("field of type Int does not have child fields"))
-}
-
-func (ec *executionContext) _AutoscalingConfig_maxReplicas(ctx context.Context, field graphql.CollectedField, obj *model.AutoscalingConfig) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_AutoscalingConfig_maxReplicas(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.MaxReplicas, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
-			return ec.marshalNInt2int(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_AutoscalingConfig_maxReplicas(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("AutoscalingConfig", field, false, false, errors.New("field of type Int does not have child fields"))
-}
-
-func (ec *executionContext) _AutoscalingConfig_targetCPU(ctx context.Context, field graphql.CollectedField, obj *model.AutoscalingConfig) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_AutoscalingConfig_targetCPU(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.TargetCPU, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
-			return ec.marshalNInt2int(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_AutoscalingConfig_targetCPU(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("AutoscalingConfig", field, false, false, errors.New("field of type Int does not have child fields"))
-}
 
 func (ec *executionContext) _AutoscalingSettings_minReplicas(ctx context.Context, field graphql.CollectedField, obj *model.AutoscalingSettings) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
@@ -9878,61 +9690,6 @@ func (ec *executionContext) fieldContext_Resources_memory(_ context.Context, fie
 	return graphql.NewScalarFieldContext("Resources", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
-func (ec *executionContext) _ScalingConfig_replicas(ctx context.Context, field graphql.CollectedField, obj *model.ScalingConfig) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_ScalingConfig_replicas(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.Replicas, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
-			return ec.marshalNInt2int(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_ScalingConfig_replicas(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ScalingConfig", field, false, false, errors.New("field of type Int does not have child fields"))
-}
-
-func (ec *executionContext) _ScalingConfig_autoscaling(ctx context.Context, field graphql.CollectedField, obj *model.ScalingConfig) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_ScalingConfig_autoscaling(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.Autoscaling, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v *model.AutoscalingConfig) graphql.Marshaler {
-			return ec.marshalOAutoscalingConfig2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAutoscalingConfig(ctx, selections, v)
-		},
-		true,
-		false,
-	)
-}
-func (ec *executionContext) fieldContext_ScalingConfig_autoscaling(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "ScalingConfig",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.childFields_AutoscalingConfig(ctx, field)
-		},
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _Service_id(ctx context.Context, field graphql.CollectedField, obj *model.Service) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -10431,98 +10188,6 @@ func (ec *executionContext) _ServiceLogEntry_pod(ctx context.Context, field grap
 }
 func (ec *executionContext) fieldContext_ServiceLogEntry_pod(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("ServiceLogEntry", field, false, false, errors.New("field of type String does not have child fields"))
-}
-
-func (ec *executionContext) _ServiceResources_cpuMillicores(ctx context.Context, field graphql.CollectedField, obj *model.ServiceResources) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_ServiceResources_cpuMillicores(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.CPUMillicores, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
-			return ec.marshalNInt2int(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_ServiceResources_cpuMillicores(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ServiceResources", field, false, false, errors.New("field of type Int does not have child fields"))
-}
-
-func (ec *executionContext) _ServiceResources_memoryMB(ctx context.Context, field graphql.CollectedField, obj *model.ServiceResources) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_ServiceResources_memoryMB(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.MemoryMb, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
-			return ec.marshalNInt2int(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_ServiceResources_memoryMB(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ServiceResources", field, false, false, errors.New("field of type Int does not have child fields"))
-}
-
-func (ec *executionContext) _ServiceResources_cpuLimitMillicores(ctx context.Context, field graphql.CollectedField, obj *model.ServiceResources) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_ServiceResources_cpuLimitMillicores(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.CPULimitMillicores, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
-			return ec.marshalNInt2int(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_ServiceResources_cpuLimitMillicores(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ServiceResources", field, false, false, errors.New("field of type Int does not have child fields"))
-}
-
-func (ec *executionContext) _ServiceResources_memoryLimitMB(ctx context.Context, field graphql.CollectedField, obj *model.ServiceResources) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_ServiceResources_memoryLimitMB(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.MemoryLimitMb, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
-			return ec.marshalNInt2int(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_ServiceResources_memoryLimitMB(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ServiceResources", field, false, false, errors.New("field of type Int does not have child fields"))
 }
 
 func (ec *executionContext) _ServiceVariable_key(ctx context.Context, field graphql.CollectedField, obj *model.ServiceVariable) (ret graphql.Marshaler) {
@@ -13329,60 +12994,6 @@ func (ec *executionContext) unmarshalInputVariableInput(ctx context.Context, obj
 
 // region    **************************** object.gotpl ****************************
 
-var autoscalingConfigImplementors = []string{"AutoscalingConfig"}
-
-func (ec *executionContext) _AutoscalingConfig(ctx context.Context, sel ast.SelectionSet, obj *model.AutoscalingConfig) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, autoscalingConfigImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	deferred := make(map[string]*graphql.FieldSet)
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("AutoscalingConfig")
-		case "enabled":
-			out.Values[i] = ec._AutoscalingConfig_enabled(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "minReplicas":
-			out.Values[i] = ec._AutoscalingConfig_minReplicas(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "maxReplicas":
-			out.Values[i] = ec._AutoscalingConfig_maxReplicas(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "targetCPU":
-			out.Values[i] = ec._AutoscalingConfig_targetCPU(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch(ctx)
-	if out.Invalids > 0 {
-		return graphql.Null
-	}
-
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferred), math.MaxInt32)))
-
-	for label, dfs := range deferred {
-		ec.ProcessDeferredGroup(graphql.DeferredGroup{
-			Label:    label,
-			Path:     graphql.GetPath(ctx),
-			FieldSet: dfs,
-			Context:  ctx,
-		})
-	}
-
-	return out
-}
-
 var autoscalingSettingsImplementors = []string{"AutoscalingSettings"}
 
 func (ec *executionContext) _AutoscalingSettings(ctx context.Context, sel ast.SelectionSet, obj *model.AutoscalingSettings) graphql.Marshaler {
@@ -15711,47 +15322,6 @@ func (ec *executionContext) _Resources(ctx context.Context, sel ast.SelectionSet
 	return out
 }
 
-var scalingConfigImplementors = []string{"ScalingConfig"}
-
-func (ec *executionContext) _ScalingConfig(ctx context.Context, sel ast.SelectionSet, obj *model.ScalingConfig) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, scalingConfigImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	deferred := make(map[string]*graphql.FieldSet)
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("ScalingConfig")
-		case "replicas":
-			out.Values[i] = ec._ScalingConfig_replicas(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "autoscaling":
-			out.Values[i] = ec._ScalingConfig_autoscaling(ctx, field, obj)
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch(ctx)
-	if out.Invalids > 0 {
-		return graphql.Null
-	}
-
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferred), math.MaxInt32)))
-
-	for label, dfs := range deferred {
-		ec.ProcessDeferredGroup(graphql.DeferredGroup{
-			Label:    label,
-			Path:     graphql.GetPath(ctx),
-			FieldSet: dfs,
-			Context:  ctx,
-		})
-	}
-
-	return out
-}
-
 var serviceImplementors = []string{"Service"}
 
 func (ec *executionContext) _Service(ctx context.Context, sel ast.SelectionSet, obj *model.Service) graphql.Marshaler {
@@ -16004,60 +15574,6 @@ func (ec *executionContext) _ServiceLogEntry(ctx context.Context, sel ast.Select
 			}
 		case "pod":
 			out.Values[i] = ec._ServiceLogEntry_pod(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch(ctx)
-	if out.Invalids > 0 {
-		return graphql.Null
-	}
-
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferred), math.MaxInt32)))
-
-	for label, dfs := range deferred {
-		ec.ProcessDeferredGroup(graphql.DeferredGroup{
-			Label:    label,
-			Path:     graphql.GetPath(ctx),
-			FieldSet: dfs,
-			Context:  ctx,
-		})
-	}
-
-	return out
-}
-
-var serviceResourcesImplementors = []string{"ServiceResources"}
-
-func (ec *executionContext) _ServiceResources(ctx context.Context, sel ast.SelectionSet, obj *model.ServiceResources) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, serviceResourcesImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	deferred := make(map[string]*graphql.FieldSet)
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("ServiceResources")
-		case "cpuMillicores":
-			out.Values[i] = ec._ServiceResources_cpuMillicores(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "memoryMB":
-			out.Values[i] = ec._ServiceResources_memoryMB(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "cpuLimitMillicores":
-			out.Values[i] = ec._ServiceResources_cpuLimitMillicores(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "memoryLimitMB":
-			out.Values[i] = ec._ServiceResources_memoryLimitMB(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -18067,13 +17583,6 @@ func (ec *executionContext) marshalN__TypeKind2string(ctx context.Context, sel a
 		}
 	}
 	return res
-}
-
-func (ec *executionContext) marshalOAutoscalingConfig2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAutoscalingConfig(ctx context.Context, sel ast.SelectionSet, v *model.AutoscalingConfig) graphql.Marshaler {
-	if v == nil {
-		return graphql.Null
-	}
-	return ec._AutoscalingConfig(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalOAutoscalingInput2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐAutoscalingInput(ctx context.Context, v any) (*model.AutoscalingInput, error) {

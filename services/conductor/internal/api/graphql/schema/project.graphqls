@@ -4,14 +4,6 @@ type Project {
   environments: [Environment!]!
 }
 
-enum SyncStatus {
-  SYNCED
-  OUT_OF_SYNC
-  PROGRESSING
-  DEGRADED
-  UNKNOWN
-}
-
 input CreateProjectInput {
   """Human-readable project name (e.g. "My API")."""
   name: String! @constraint(constraint: "min=1,max=128")

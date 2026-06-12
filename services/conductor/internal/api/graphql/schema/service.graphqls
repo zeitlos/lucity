@@ -75,25 +75,6 @@ enum ServiceStatus {
   STOPPED
 }
 
-type ServiceResources {
-  cpuMillicores: Int!
-  memoryMB: Int!
-  cpuLimitMillicores: Int!
-  memoryLimitMB: Int!
-}
-
-type ScalingConfig {
-  replicas: Int!
-  autoscaling: AutoscalingConfig
-}
-
-type AutoscalingConfig {
-  enabled: Boolean!
-  minReplicas: Int!
-  maxReplicas: Int!
-  targetCPU: Int!
-}
-
 type DnsRecord {
   type: DnsRecordType!
   host: String!
@@ -111,11 +92,6 @@ enum TlsStatus {
   PROVISIONING
   ACTIVE
   ERROR
-}
-
-enum DomainType {
-  PLATFORM
-  CUSTOM
 }
 
 enum DnsStatus {

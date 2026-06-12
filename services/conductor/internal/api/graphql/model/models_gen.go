@@ -20,13 +20,6 @@ type AddServiceInput struct {
 	Image          *string `json:"image,omitempty"`
 }
 
-type AutoscalingConfig struct {
-	Enabled     bool `json:"enabled"`
-	MinReplicas int  `json:"minReplicas"`
-	MaxReplicas int  `json:"maxReplicas"`
-	TargetCPU   int  `json:"targetCPU"`
-}
-
 type AutoscalingInput struct {
 	Enabled     bool `json:"enabled"`
 	MinReplicas int  `json:"minReplicas"`
@@ -266,11 +259,6 @@ type Resources struct {
 	Memory string `json:"memory"`
 }
 
-type ScalingConfig struct {
-	Replicas    int                `json:"replicas"`
-	Autoscaling *AutoscalingConfig `json:"autoscaling,omitempty"`
-}
-
 type Service struct {
 	ID                platform.ServiceID   `json:"id"`
 	Name              string               `json:"name"`
@@ -297,13 +285,6 @@ type ServiceLogEntry struct {
 	Line string `json:"line"`
 	// Name of the pod that produced this line.
 	Pod string `json:"pod"`
-}
-
-type ServiceResources struct {
-	CPUMillicores      int `json:"cpuMillicores"`
-	MemoryMb           int `json:"memoryMB"`
-	CPULimitMillicores int `json:"cpuLimitMillicores"`
-	MemoryLimitMb      int `json:"memoryLimitMB"`
 }
 
 type ServiceVariable struct {
@@ -693,61 +674,6 @@ func (e *DNSStatus) UnmarshalJSON(b []byte) error {
 }
 
 func (e DNSStatus) MarshalJSON() ([]byte, error) {
-	var buf bytes.Buffer
-	e.MarshalGQL(&buf)
-	return buf.Bytes(), nil
-}
-
-type DomainType string
-
-const (
-	DomainTypePlatform DomainType = "PLATFORM"
-	DomainTypeCustom   DomainType = "CUSTOM"
-)
-
-var AllDomainType = []DomainType{
-	DomainTypePlatform,
-	DomainTypeCustom,
-}
-
-func (e DomainType) IsValid() bool {
-	switch e {
-	case DomainTypePlatform, DomainTypeCustom:
-		return true
-	}
-	return false
-}
-
-func (e DomainType) String() string {
-	return string(e)
-}
-
-func (e *DomainType) UnmarshalGQL(v any) error {
-	str, ok := v.(string)
-	if !ok {
-		return fmt.Errorf("enums must be strings")
-	}
-
-	*e = DomainType(str)
-	if !e.IsValid() {
-		return fmt.Errorf("%s is not a valid DomainType", str)
-	}
-	return nil
-}
-
-func (e DomainType) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
-}
-
-func (e *DomainType) UnmarshalJSON(b []byte) error {
-	s, err := strconv.Unquote(string(b))
-	if err != nil {
-		return err
-	}
-	return e.UnmarshalGQL(s)
-}
-
-func (e DomainType) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil
@@ -1206,67 +1132,6 @@ func (e *SubscriptionStatus) UnmarshalJSON(b []byte) error {
 }
 
 func (e SubscriptionStatus) MarshalJSON() ([]byte, error) {
-	var buf bytes.Buffer
-	e.MarshalGQL(&buf)
-	return buf.Bytes(), nil
-}
-
-type SyncStatus string
-
-const (
-	SyncStatusSynced      SyncStatus = "SYNCED"
-	SyncStatusOutOfSync   SyncStatus = "OUT_OF_SYNC"
-	SyncStatusProgressing SyncStatus = "PROGRESSING"
-	SyncStatusDegraded    SyncStatus = "DEGRADED"
-	SyncStatusUnknown     SyncStatus = "UNKNOWN"
-)
-
-var AllSyncStatus = []SyncStatus{
-	SyncStatusSynced,
-	SyncStatusOutOfSync,
-	SyncStatusProgressing,
-	SyncStatusDegraded,
-	SyncStatusUnknown,
-}
-
-func (e SyncStatus) IsValid() bool {
-	switch e {
-	case SyncStatusSynced, SyncStatusOutOfSync, SyncStatusProgressing, SyncStatusDegraded, SyncStatusUnknown:
-		return true
-	}
-	return false
-}
-
-func (e SyncStatus) String() string {
-	return string(e)
-}
-
-func (e *SyncStatus) UnmarshalGQL(v any) error {
-	str, ok := v.(string)
-	if !ok {
-		return fmt.Errorf("enums must be strings")
-	}
-
-	*e = SyncStatus(str)
-	if !e.IsValid() {
-		return fmt.Errorf("%s is not a valid SyncStatus", str)
-	}
-	return nil
-}
-
-func (e SyncStatus) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
-}
-
-func (e *SyncStatus) UnmarshalJSON(b []byte) error {
-	s, err := strconv.Unquote(string(b))
-	if err != nil {
-		return err
-	}
-	return e.UnmarshalGQL(s)
-}
-
-func (e SyncStatus) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil
