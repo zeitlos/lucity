@@ -21,6 +21,10 @@ func (c *Client) Deployment(ctx context.Context, id DeploymentID) (*Deployment, 
 }
 
 func (c *Client) CommitMessage(ctx context.Context, installationID, repo, hash string) (string, error) {
+	if !isCommitSHA(hash) {
+		return "", nil
+	}
+
 	id, err := strconv.Atoi(installationID)
 
 	if err != nil {
@@ -38,6 +42,20 @@ func (c *Client) CommitMessage(ctx context.Context, installationID, repo, hash s
 	ownerRepo = strings.TrimSuffix(ownerRepo, path.Ext(ownerRepo))
 
 	return c.GitHubApp.CommitMessage(ctx, int64(id), ownerRepo, hash)
+}
+
+func isCommitSHA(s string) bool {
+	if len(s) < 7 || len(s) > 64 {
+		return false
+	}
+
+	for _, r := range s {
+		if (r < '0' || r > '9') && (r < 'a' || r > 'f') && (r < 'A' || r > 'F') {
+			return false
+		}
+	}
+
+	return true
 }
 
 func (c *Client) DefaultCommand(ctx context.Context, imageRef string) (string, error) {
