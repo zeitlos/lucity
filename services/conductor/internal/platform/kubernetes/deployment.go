@@ -114,10 +114,12 @@ func toDeployment(replicaSet apps.ReplicaSet, deployment apps.Deployment, servic
 	if len(containers) > 0 {
 		result.Image = containers[0].Image
 
-		parts := strings.Split(result.Image, ":")
+		if deployment.Annotations[annotationAwaitingBuild] != "true" {
+			parts := strings.Split(result.Image, ":")
 
-		if len(parts) > 1 {
-			result.Commit = parts[len(parts)-1]
+			if len(parts) > 1 {
+				result.Commit = parts[len(parts)-1]
+			}
 		}
 	}
 
