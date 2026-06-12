@@ -4,6 +4,7 @@ import (
 	"context"
 
 	pkglabels "github.com/zeitlos/lucity/pkg/labels"
+	"github.com/zeitlos/lucity/pkg/to"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 	"github.com/zeitlos/lucity/services/conductor/internal/resources"
 
@@ -104,8 +105,8 @@ func buildLimitRange(namespace string, tier platform.ResourceTier) *corev1.Limit
 					corev1.ResourceMemory: resources.DefaultMemoryLimit,
 				},
 				DefaultRequest: corev1.ResourceList{
-					corev1.ResourceCPU:    resources.Request(tier, resources.DefaultCPULimit),
-					corev1.ResourceMemory: resources.Request(tier, resources.DefaultMemoryLimit),
+					corev1.ResourceCPU:    to.Val(resources.Request(tier, resources.DefaultCPULimit)),
+					corev1.ResourceMemory: to.Val(resources.Request(tier, resources.DefaultMemoryLimit)),
 				},
 			}},
 		},

@@ -24,7 +24,7 @@ type ServiceClient interface {
 	SetImage(ctx context.Context, id platform.ServiceID, ref, digest string) (RevisionID, error)
 	SetReplicas(ctx context.Context, id platform.ServiceID, replicas int) (RevisionID, error)
 	SetAutoscaling(ctx context.Context, id platform.ServiceID, config Autoscaling) (RevisionID, error)
-	SetResources(ctx context.Context, id platform.ServiceID, resources Resources) (RevisionID, error)
+	SetResources(ctx context.Context, id platform.ServiceID, tier platform.ResourceTier, resources Resources) (RevisionID, error)
 	SetCommand(ctx context.Context, id platform.ServiceID, command string) (RevisionID, error)
 	SetBranch(ctx context.Context, id platform.ServiceID, branch string) (RevisionID, error)
 	SetPort(ctx context.Context, id platform.ServiceID, port int) (RevisionID, error)
@@ -90,6 +90,8 @@ type ServiceSpec struct {
 	GitHubInstallationID int64
 	StartCommand         string
 	Port                 int
+	Resources            Resources
+	ResourceTier         platform.ResourceTier
 }
 
 type DatabaseSpec struct {
@@ -109,11 +111,6 @@ type Autoscaling struct {
 }
 
 type Resources struct {
-	Requests ResourceList
-	Limits   ResourceList
-}
-
-type ResourceList struct {
 	CPU    resource.Quantity
 	Memory resource.Quantity
 }

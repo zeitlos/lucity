@@ -64,6 +64,7 @@ type ServiceSpec struct {
 	ContextPath          string
 	GitHubInstallationID int64
 	Port                 int
+	Resources            Resources
 }
 
 func CreateService(env *Env, name string, spec ServiceSpec) error {
@@ -111,6 +112,7 @@ func CreateService(env *Env, name string, spec ServiceSpec) error {
 		Annotations:    annotations,
 		PodLabels:      podLabels,
 		PodAnnotations: podAnnotations,
+		Resources:      spec.Resources,
 	}
 
 	return nil
@@ -174,12 +176,9 @@ func SetServiceAutoscaling(env *Env, name string, cfg Autoscaling) error {
 	})
 }
 
-func SetServiceResources(env *Env, name string, requests, limits ResourceList) error {
+func SetServiceResources(env *Env, name string, resources Resources) error {
 	return mutateService(env, name, func(s *Service) {
-		s.Resources = Resources{
-			Requests: requests,
-			Limits:   limits,
-		}
+		s.Resources = resources
 	})
 }
 

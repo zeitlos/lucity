@@ -7,6 +7,7 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/deployer"
 	"github.com/zeitlos/lucity/services/conductor/internal/deployer/values"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
+	"github.com/zeitlos/lucity/services/conductor/internal/resources"
 )
 
 type serviceClient struct {
@@ -15,12 +16,14 @@ type serviceClient struct {
 
 func (s *serviceClient) Create(ctx context.Context, env platform.EnvironmentID, name string, spec deployer.ServiceSpec) (deployer.RevisionID, error) {
 	return s.client.applyEnv(ctx, env, func(e *values.Env) error {
+
 		spec := values.ServiceSpec{
 			Image:                spec.Image,
 			SourceURL:            spec.SourceURL,
 			ContextPath:          spec.ContextPath,
 			GitHubInstallationID: spec.GitHubInstallationID,
 			Port:                 spec.Port,
+			Resources:            deriveRequestsAndLimtis(spec.Resources, spec.ResourceTier),
 		}
 
 		return values.CreateService(e, name, spec)
@@ -57,12 +60,9 @@ func (s *serviceClient) SetAutoscaling(ctx context.Context, id platform.ServiceI
 	})
 }
 
-func (s *serviceClient) SetResources(ctx context.Context, id platform.ServiceID, res deployer.Resources) (deployer.RevisionID, error) {
+func (s *serviceClient) SetResources(ctx context.Context, id platform.ServiceID, tier platform.ResourceTier, res deployer.Resources) (deployer.RevisionID, error) {
 	return s.client.applyEnv(ctx, id.EnvironmentID(), func(e *values.Env) error {
-		return values.SetServiceResources(e, id.Name,
-			values.ResourceList{CPU: res.Requests.CPU.String(), Memory: res.Requests.Memory.String()},
-			values.ResourceList{CPU: res.Limits.CPU.String(), Memory: res.Limits.Memory.String()},
-		)
+		return values.SetServiceResources(e, id.Name, deriveRequestsAndLimtis(res, tier))
 	})
 }
 
@@ -166,6 +166,34 @@ func (s *serviceClient) Mount(ctx context.Context, id platform.ServiceID, volume
 
 func (s *serviceClient) Unmount(ctx context.Context, id platform.ServiceID, volume platform.VolumeID) (deployer.RevisionID, error) {
 	return "", fmt.Errorf("Unmount: chart does not support volumes yet")
+}
+
+func deriveRequestsAndLimtis(res deployer.Resources, tier platform.ResourceTier) values.Resources {
+	cpuLimit := res.CPU
+	memoryLimit := res.CPU
+
+	if cpuLimit.Value() == 0 {
+		cpuLimit = resources.DefaultCPULimit
+	}
+
+	if memoryLimit.Value() == 0 {
+		memoryLimit = resources.DefaultMemoryLimit
+	}
+
+	limits := values.ResourceList{
+		CPU:    cpuLimit.String(),
+		Memory: memoryLimit.String(),
+	}
+
+	requests := values.ResourceList{
+		CPU:    resources.Request(tier, cpuLimit).String(),
+		Memory: resources.Request(tier, memoryLimit).String(),
+	}
+
+	return values.Resources{
+		Requests: requests,
+		Limits:   limits,
+	}
 }
 
 var _ deployer.ServiceClient = (*serviceClient)(nil)

@@ -30,6 +30,7 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/hostname"
 	"github.com/zeitlos/lucity/services/conductor/internal/planner/railpack"
 	platformK8s "github.com/zeitlos/lucity/services/conductor/internal/platform/kubernetes"
+	"github.com/zeitlos/lucity/services/conductor/internal/resources"
 	sourceGH "github.com/zeitlos/lucity/services/conductor/internal/source/github"
 	conductorgrpc "github.com/zeitlos/lucity/services/conductor/internal/transport/grpc"
 	corev1 "k8s.io/api/core/v1"
@@ -225,7 +226,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	helmClient := helmDeployer.New(chartRef, config.GatewayName, config.GatewayNamespace)
+	deployerClient := helmDeployer.New(chartRef, config.GatewayName, config.GatewayNamespace, resources.DefaultCPULimit, resources.DefaultMemoryLimit)
 
 	hostnameClient := hostname.New(config.WorkloadDomain, domainTarget, config.IPAddress, config.GatewayNamespace, k8sClient, dynClient)
 
@@ -234,17 +235,17 @@ func main() {
 	environmentClient := environmentK8s.New(k8sClient, dynClient, config.SystemNamespace, config.RegistryPullSecret, config.PodCIDR, config.ServiceCIDR)
 
 	conductorConfig := conductor.Config{
-		RegistryURL:        config.RegistryURL,
-		RegistryPushURL:    config.RegistryURL,
-		RegistryPullURL:    config.RegistryPullURL,
-		RegistryPullSecret: keychain,
-		WorkloadDomain:     config.WorkloadDomain,
-		DomainTarget:       domainTarget,
-		IPAddress:          config.IPAddress,
-		GitHubAppSlug:      config.GitHubAppSlug,
-		DashboardURL:       config.DashboardURL,
+		RegistryURL:          config.RegistryURL,
+		RegistryPushURL:      config.RegistryURL,
+		RegistryPullURL:      config.RegistryPullURL,
+		RegistryPullSecret:   keychain,
+		WorkloadDomain:       config.WorkloadDomain,
+		LoadBalancerHostname: domainTarget,
+		LoadBalancerIP:       config.IPAddress,
+		GitHubAppSlug:        config.GitHubAppSlug,
+		DashboardURL:         config.DashboardURL,
 	}
-	conductor := conductor.New(cashierClient, internalIssuer, githubApp, logtoClient, tokenRefresher, directoryClient, platformClient, jobsClient, planner, source, hostnameClient, gatewayClient, helmClient, environmentClient, conductorConfig)
+	conductor := conductor.New(cashierClient, internalIssuer, githubApp, logtoClient, tokenRefresher, directoryClient, platformClient, jobsClient, planner, source, hostnameClient, gatewayClient, deployerClient, environmentClient, conductorConfig)
 
 	go runDomainReconciler(ctx, conductor)
 
@@ -280,7 +281,7 @@ func main() {
 			slog.Error("failed to create internal JWT verifier", "error", err)
 			os.Exit(1)
 		}
-		grpcSvc := conductorgrpc.NewService(platformClient, helmClient)
+		grpcSvc := conductorgrpc.NewService(platformClient, deployerClient)
 		grpcSrv := conductorgrpc.NewServer(":"+config.GRPCPort, grpcSvc, internalVerifier)
 		slog.Info("conductor gRPC ready", "port", config.GRPCPort)
 		servers = append(servers, grpcSrv)
