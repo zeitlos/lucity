@@ -247,6 +247,10 @@ func serviceID(deployment apps.Deployment, environmentID platform.EnvironmentID)
 }
 
 func serviceStatus(deployment apps.Deployment, replicaSets []apps.ReplicaSet) platform.ServiceStatus {
+	if deployment.Annotations[annotationAwaitingBuild] == "true" {
+		return platform.ServiceBuilding
+	}
+
 	desired := to.Val(deployment.Spec.Replicas)
 
 	if desired == 0 {

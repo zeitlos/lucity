@@ -1,5 +1,5 @@
 {{- range $name, $svc := .Values.services }}
-{{- if and $svc.image $svc.image.tag }}
+{{- if $svc.image }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -18,6 +18,8 @@ metadata:
   {{- end }}
 spec:
   {{- if $.Values.suspended }}
+  replicas: 0
+  {{- else if not $svc.image.tag }}
   replicas: 0
   {{- else if not (and $svc.autoscaling $svc.autoscaling.enabled) }}
   replicas: {{ $svc.replicas | default 1 }}
@@ -48,7 +50,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: {{ $name }}
-          image: "{{ $svc.image.repository }}:{{ $svc.image.tag }}"
+          image: "{{ $svc.image.repository }}:{{ $svc.image.tag | default "build-pending" }}"
           imagePullPolicy: {{ $svc.image.pullPolicy | default "IfNotPresent" }}
           {{- if $svc.customStartCommand }}
           command: ["sh", "-c", {{ $svc.customStartCommand | quote }}]

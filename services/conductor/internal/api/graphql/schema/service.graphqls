@@ -73,6 +73,7 @@ enum ServiceStatus {
   DEPLOYING
   FAILED
   STOPPED
+  BUILDING
 }
 
 type DnsRecord {

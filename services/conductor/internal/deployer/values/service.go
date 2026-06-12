@@ -102,6 +102,10 @@ func CreateService(env *Env, name string, spec ServiceSpec) error {
 		podAnnotations[annotationSourceContext] = spec.ContextPath
 	}
 
+	if tag == "" {
+		annotations[annotationAwaitingBuild] = "true"
+	}
+
 	env.Services[name] = Service{
 		Image: ImageRef{
 			Repository: repository,
@@ -134,6 +138,10 @@ func SetServiceImage(env *Env, name, ref, digest string) error {
 		s.Image.Repository = repository
 		s.Image.Tag = tag
 		s.Image.Digest = digest
+
+		if tag != "" {
+			delete(s.Annotations, annotationAwaitingBuild)
+		}
 
 		// Keep the image-digest annotation consistent with the current image:
 		// set it when a digest is known, clear any stale value otherwise.

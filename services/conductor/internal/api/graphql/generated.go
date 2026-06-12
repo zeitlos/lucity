@@ -1331,6 +1331,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.SetServicePort(childComplexity, args["service"].(platform.ServiceID), args["port"].(*int)), true
+	case "Mutation.setServiceResources":
+		if e.ComplexityRoot.Mutation.SetServiceResources == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setServiceResources_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.SetServiceResources(childComplexity, args["service"].(platform.ServiceID), args["resources"].(model.ResourcesInput)), true
 	case "Mutation.setServiceScaling":
 		if e.ComplexityRoot.Mutation.SetServiceScaling == nil {
 			break
@@ -2039,6 +2050,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputCreateWorkspaceCheckoutInput,
 		ec.unmarshalInputDatabaseRefInput,
 		ec.unmarshalInputInviteMemberInput,
+		ec.unmarshalInputResourcesInput,
 		ec.unmarshalInputServiceVariableInput,
 		ec.unmarshalInputSetEnvironmentResourcesInput,
 		ec.unmarshalInputSetServiceScalingInput,

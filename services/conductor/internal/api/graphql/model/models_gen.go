@@ -1023,6 +1023,7 @@ const (
 	ServiceStatusDeploying ServiceStatus = "DEPLOYING"
 	ServiceStatusFailed    ServiceStatus = "FAILED"
 	ServiceStatusStopped   ServiceStatus = "STOPPED"
+	ServiceStatusBuilding  ServiceStatus = "BUILDING"
 )
 
 var AllServiceStatus = []ServiceStatus{
@@ -1031,11 +1032,12 @@ var AllServiceStatus = []ServiceStatus{
 	ServiceStatusDeploying,
 	ServiceStatusFailed,
 	ServiceStatusStopped,
+	ServiceStatusBuilding,
 }
 
 func (e ServiceStatus) IsValid() bool {
 	switch e {
-	case ServiceStatusHealthy, ServiceStatusDegraded, ServiceStatusDeploying, ServiceStatusFailed, ServiceStatusStopped:
+	case ServiceStatusHealthy, ServiceStatusDegraded, ServiceStatusDeploying, ServiceStatusFailed, ServiceStatusStopped, ServiceStatusBuilding:
 		return true
 	}
 	return false

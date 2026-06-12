@@ -104,7 +104,7 @@ func (c *Client) AddService(ctx context.Context, environmentID platform.Environm
 
 		spec.Image = c.Config.RegistryPullURL + "/" + c.imageRepository(id)
 	} else if externalImage != "" {
-		spec.Image = externalImage
+		spec.Image = ensureImageTag(externalImage)
 
 		if serviceName == "" {
 			serviceName = deriveServiceName(externalImage)
@@ -438,4 +438,14 @@ func tagOrDigest(ref name.Reference) string {
 	}
 
 	return ""
+}
+
+func ensureImageTag(image string) string {
+	lastComponent := image[strings.LastIndex(image, "/")+1:]
+
+	if strings.ContainsAny(lastComponent, ":@") {
+		return image
+	}
+
+	return image + ":latest"
 }

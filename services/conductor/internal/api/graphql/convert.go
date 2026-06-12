@@ -313,6 +313,8 @@ func convertServiceStatus(status platform.ServiceStatus) model.ServiceStatus {
 		return model.ServiceStatusFailed
 	case platform.ServiceStopped:
 		return model.ServiceStatusStopped
+	case platform.ServiceBuilding:
+		return model.ServiceStatusBuilding
 	}
 
 	slog.Warn("unknown service status", "status", status)

@@ -74,6 +74,7 @@ const (
 	ServiceDeploying ServiceStatus = "deploying"
 	ServiceFailed    ServiceStatus = "failed"  // no working replicas
 	ServiceStopped   ServiceStatus = "stopped" // intentionally scaled to 0
+	ServiceBuilding  ServiceStatus = "building"
 )
 
 type ServiceID struct {
