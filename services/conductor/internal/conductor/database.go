@@ -226,6 +226,8 @@ func (c *Client) databaseQueryClient(ctx context.Context, id platform.DatabaseID
 		host = "localhost"
 	}
 
+	creds.Host = host
+
 	return dbquery.New(databaseURI(creds) + "?sslmode=disable"), nil
 }
 
