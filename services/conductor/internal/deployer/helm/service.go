@@ -170,7 +170,7 @@ func (s *serviceClient) Unmount(ctx context.Context, id platform.ServiceID, volu
 
 func deriveRequestsAndLimtis(res deployer.Resources, tier platform.ResourceTier) values.Resources {
 	cpuLimit := res.CPU
-	memoryLimit := res.CPU
+	memoryLimit := res.Memory
 
 	if cpuLimit.Value() == 0 {
 		cpuLimit = resources.DefaultCPULimit

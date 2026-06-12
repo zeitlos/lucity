@@ -230,6 +230,7 @@ type ComplexityRoot struct {
 		SetCustomStartCommand     func(childComplexity int, service platform.ServiceID, command string) int
 		SetEnvironmentResources   func(childComplexity int, input model.SetEnvironmentResourcesInput) int
 		SetServicePort            func(childComplexity int, service platform.ServiceID, port *int) int
+		SetServiceResources       func(childComplexity int, service platform.ServiceID, resources model.ResourcesInput) int
 		SetServiceScaling         func(childComplexity int, input model.SetServiceScalingInput) int
 		SetServiceVariables       func(childComplexity int, service platform.ServiceID, variables []model.ServiceVariableInput) int
 		SetSharedVariables        func(childComplexity int, environment platform.EnvironmentID, variables []model.VariableInput) int
@@ -403,6 +404,7 @@ type MutationResolver interface {
 	SetCustomStartCommand(ctx context.Context, service platform.ServiceID, command string) (*model.Service, error)
 	SetServicePort(ctx context.Context, service platform.ServiceID, port *int) (*model.Service, error)
 	SetServiceScaling(ctx context.Context, input model.SetServiceScalingInput) (*model.Service, error)
+	SetServiceResources(ctx context.Context, service platform.ServiceID, resources model.ResourcesInput) (*model.Service, error)
 	Rollback(ctx context.Context, deployment platform.DeploymentID) (bool, error)
 	GenerateDomain(ctx context.Context, service platform.ServiceID) (*model.Service, error)
 	AddCustomDomain(ctx context.Context, service platform.ServiceID, hostname string) (*model.Service, error)
@@ -3304,6 +3306,28 @@ func (ec *executionContext) field_Mutation_setServicePort_argsPort(
 		var zeroVal *int
 		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be *int`, tmp))
 	}
+}
+
+func (ec *executionContext) field_Mutation_setServiceResources_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "service",
+		func(ctx context.Context, v any) (platform.ServiceID, error) {
+			return ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐServiceID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["service"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "resources",
+		func(ctx context.Context, v any) (model.ResourcesInput, error) {
+			return ec.unmarshalNResourcesInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐResourcesInput(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["resources"] = arg1
+	return args, nil
 }
 
 func (ec *executionContext) field_Mutation_setServiceScaling_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
@@ -7130,6 +7154,68 @@ func (ec *executionContext) fieldContext_Mutation_setServiceScaling(ctx context.
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_setServiceScaling_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_setServiceResources(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_setServiceResources(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().SetServiceResources(ctx, fc.Args["service"].(platform.ServiceID), fc.Args["resources"].(model.ResourcesInput))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				if err != nil {
+					var zeroVal *model.Service
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal *model.Service
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Service) graphql.Marshaler {
+			return ec.marshalNService2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐService(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_setServiceResources(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Service(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_setServiceResources_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -12661,6 +12747,43 @@ func (ec *executionContext) unmarshalInputInviteMemberInput(ctx context.Context,
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputResourcesInput(ctx context.Context, obj any) (model.ResourcesInput, error) {
+	var it model.ResourcesInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"cpu", "memory"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "cpu":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("cpu"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.CPU = data
+		case "memory":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("memory"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Memory = data
+		}
+	}
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputServiceVariableInput(ctx context.Context, obj any) (model.ServiceVariableInput, error) {
 	var it model.ServiceVariableInput
 	if obj == nil {
@@ -14412,6 +14535,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "setServiceScaling":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_setServiceScaling(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "setServiceResources":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_setServiceResources(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -17029,6 +17159,11 @@ func (ec *executionContext) marshalNResources2ᚖgithubᚗcomᚋzeitlosᚋlucity
 		return graphql.Null
 	}
 	return ec._Resources(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNResourcesInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐResourcesInput(ctx context.Context, v any) (model.ResourcesInput, error) {
+	res, err := ec.unmarshalInputResourcesInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx context.Context, v any) (model.Role, error) {

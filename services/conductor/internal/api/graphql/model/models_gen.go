@@ -259,6 +259,11 @@ type Resources struct {
 	Memory string `json:"memory"`
 }
 
+type ResourcesInput struct {
+	CPU    string `json:"cpu"`
+	Memory string `json:"memory"`
+}
+
 type Service struct {
 	ID                platform.ServiceID   `json:"id"`
 	Name              string               `json:"name"`

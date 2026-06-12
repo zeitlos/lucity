@@ -43,6 +43,7 @@ type Documents = {
     "\n  mutation RemoveDomain($service: ServiceID!, $hostname: String!) {\n    removeDomain(service: $service, hostname: $hostname) {\n      id\n      endpoints {\n        host\n        port\n        type\n        protocol\n        dns {\n          status\n          requiredRecords {\n            type\n            host\n            value\n          }\n        }\n      }\n    }\n  }\n": typeof types.RemoveDomainDocument,
     "\n  mutation SetServiceScaling($input: SetServiceScalingInput!) {\n    setServiceScaling(input: $input) {\n      id\n      replicas {\n        desired\n        ready\n      }\n      autoscaling {\n        minReplicas\n        maxReplicas\n        targetCpu\n      }\n    }\n  }\n": typeof types.SetServiceScalingDocument,
     "\n  mutation SetServicePort($service: ServiceID!, $port: Int) {\n    setServicePort(service: $service, port: $port) {\n      id\n      port\n    }\n  }\n": typeof types.SetServicePortDocument,
+    "\n  mutation SetServiceResources($service: ServiceID!, $resources: ResourcesInput!) {\n    setServiceResources(service: $service, resources: $resources) {\n      id\n      resources {\n        cpu\n        memory\n      }\n    }\n  }\n": typeof types.SetServiceResourcesDocument,
     "\n  query ServiceVariables($service: ServiceID!) {\n    serviceVariables(service: $service) {\n      key\n      value\n      fromShared\n      databaseRef {\n        database\n        key\n      }\n    }\n  }\n": typeof types.ServiceVariablesDocument,
     "\n  mutation SetServiceVariables($service: ServiceID!, $variables: [ServiceVariableInput!]!) {\n    setServiceVariables(service: $service, variables: $variables)\n  }\n": typeof types.SetServiceVariablesDocument,
     "\n  subscription BuildLogs($id: String!) {\n    buildLogs(id: $id)\n  }\n": typeof types.BuildLogsDocument,
@@ -100,6 +101,7 @@ const documents: Documents = {
     "\n  mutation RemoveDomain($service: ServiceID!, $hostname: String!) {\n    removeDomain(service: $service, hostname: $hostname) {\n      id\n      endpoints {\n        host\n        port\n        type\n        protocol\n        dns {\n          status\n          requiredRecords {\n            type\n            host\n            value\n          }\n        }\n      }\n    }\n  }\n": types.RemoveDomainDocument,
     "\n  mutation SetServiceScaling($input: SetServiceScalingInput!) {\n    setServiceScaling(input: $input) {\n      id\n      replicas {\n        desired\n        ready\n      }\n      autoscaling {\n        minReplicas\n        maxReplicas\n        targetCpu\n      }\n    }\n  }\n": types.SetServiceScalingDocument,
     "\n  mutation SetServicePort($service: ServiceID!, $port: Int) {\n    setServicePort(service: $service, port: $port) {\n      id\n      port\n    }\n  }\n": types.SetServicePortDocument,
+    "\n  mutation SetServiceResources($service: ServiceID!, $resources: ResourcesInput!) {\n    setServiceResources(service: $service, resources: $resources) {\n      id\n      resources {\n        cpu\n        memory\n      }\n    }\n  }\n": types.SetServiceResourcesDocument,
     "\n  query ServiceVariables($service: ServiceID!) {\n    serviceVariables(service: $service) {\n      key\n      value\n      fromShared\n      databaseRef {\n        database\n        key\n      }\n    }\n  }\n": types.ServiceVariablesDocument,
     "\n  mutation SetServiceVariables($service: ServiceID!, $variables: [ServiceVariableInput!]!) {\n    setServiceVariables(service: $service, variables: $variables)\n  }\n": types.SetServiceVariablesDocument,
     "\n  subscription BuildLogs($id: String!) {\n    buildLogs(id: $id)\n  }\n": types.BuildLogsDocument,
@@ -258,6 +260,10 @@ export function graphql(source: "\n  mutation SetServiceScaling($input: SetServi
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation SetServicePort($service: ServiceID!, $port: Int) {\n    setServicePort(service: $service, port: $port) {\n      id\n      port\n    }\n  }\n"): (typeof documents)["\n  mutation SetServicePort($service: ServiceID!, $port: Int) {\n    setServicePort(service: $service, port: $port) {\n      id\n      port\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation SetServiceResources($service: ServiceID!, $resources: ResourcesInput!) {\n    setServiceResources(service: $service, resources: $resources) {\n      id\n      resources {\n        cpu\n        memory\n      }\n    }\n  }\n"): (typeof documents)["\n  mutation SetServiceResources($service: ServiceID!, $resources: ResourcesInput!) {\n    setServiceResources(service: $service, resources: $resources) {\n      id\n      resources {\n        cpu\n        memory\n      }\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

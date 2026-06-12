@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/go-containerregistry/pkg/name"
 	gh "github.com/google/go-github/v68/github"
+	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/tenant"
@@ -19,6 +20,7 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/deployer"
 	"github.com/zeitlos/lucity/services/conductor/internal/planner"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
+	"github.com/zeitlos/lucity/services/conductor/internal/resources"
 )
 
 func randCrockford32(n int) string {
@@ -183,6 +185,46 @@ func (c *Client) SetServicePort(ctx context.Context, svc platform.ServiceID, por
 	}
 
 	return c.Service(ctx, svc)
+}
+
+func (c *Client) SetServiceResources(ctx context.Context, service platform.ServiceID, cpu, memory string) (*Service, error) {
+	cpuQuantity, err := resource.ParseQuantity(cpu)
+
+	if err != nil {
+		return nil, fmt.Errorf("invalid cpu value %q: %w", cpu, err)
+	}
+
+	memoryQuantity, err := resource.ParseQuantity(memory)
+
+	if err != nil {
+		return nil, fmt.Errorf("invalid memory value %q: %w", memory, err)
+	}
+
+	if cpuQuantity.Sign() <= 0 || memoryQuantity.Sign() <= 0 {
+		return nil, fmt.Errorf("cpu and memory must be greater than zero")
+	}
+
+	if cpuQuantity.Cmp(resources.DefaultCPUQuota) > 0 {
+		return nil, fmt.Errorf("cpu exceeds the maximum of %s", resources.DefaultCPUQuota.String())
+	}
+
+	if memoryQuantity.Cmp(resources.DefaultMemoryQuota) > 0 {
+		return nil, fmt.Errorf("memory exceeds the maximum of %s", resources.DefaultMemoryQuota.String())
+	}
+
+	environment, err := c.platform.Environment(ctx, service.EnvironmentID())
+
+	if err != nil {
+		return nil, err
+	}
+
+	spec := deployer.Resources{CPU: cpuQuantity, Memory: memoryQuantity}
+
+	if _, err := c.deployer.Services().SetResources(ctx, service, environment.ResourceTier, spec); err != nil {
+		return nil, fmt.Errorf("set resources: %w", err)
+	}
+
+	return c.Service(ctx, service)
 }
 
 func (c *Client) Rollback(ctx context.Context, deploymentID DeploymentID) (bool, error) {

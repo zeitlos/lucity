@@ -90,6 +90,17 @@ func (r *mutationResolver) SetServiceScaling(ctx context.Context, input model.Se
 	return new(convertService(*result)), nil
 }
 
+// SetServiceResources is the resolver for the setServiceResources field.
+func (r *mutationResolver) SetServiceResources(ctx context.Context, service platform.ServiceID, resources model.ResourcesInput) (*model.Service, error) {
+	result, err := r.Conductor.SetServiceResources(ctx, service, resources.CPU, resources.Memory)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return new(convertService(*result)), nil
+}
+
 // Rollback is the resolver for the rollback field.
 func (r *mutationResolver) Rollback(ctx context.Context, deployment platform.DeploymentID) (bool, error) {
 	return r.Conductor.Rollback(ctx, deployment)
@@ -175,6 +186,10 @@ func (r *serviceResolver) Endpoints(ctx context.Context, obj *model.Service) ([]
 
 // DefaultCommand is the resolver for the defaultCommand field.
 func (r *serviceResolver) DefaultCommand(ctx context.Context, obj *model.Service) (string, error) {
+	if obj.ActiveDeployment == nil || obj.Status == model.ServiceStatusBuilding {
+		return "", nil
+	}
+
 	return r.Conductor.DefaultCommand(ctx, obj.ActiveDeployment.Image)
 }
 

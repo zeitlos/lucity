@@ -124,6 +124,11 @@ input SetServiceScalingInput {
   autoscaling: AutoscalingInput
 }
 
+input ResourcesInput {
+  cpu: String!
+  memory: String!
+}
+
 input AutoscalingInput {
   enabled: Boolean!
   minReplicas: Int! @constraint(constraint: "min=1,max=20")
@@ -142,6 +147,7 @@ extend type Mutation {
   setCustomStartCommand(service: ServiceID!, command: String!): Service! @hasRole(role: [USER])
   setServicePort(service: ServiceID!, port: Int @constraint(constraint: "min=1,max=65535")): Service! @hasRole(role: [USER])
   setServiceScaling(input: SetServiceScalingInput!): Service! @hasRole(role: [USER])
+  setServiceResources(service: ServiceID!, resources: ResourcesInput!): Service! @hasRole(role: [USER])
   rollback(deployment: DeploymentID!): Boolean! @hasRole(role: [USER])
   generateDomain(service: ServiceID!): Service! @hasRole(role: [USER])
   addCustomDomain(service: ServiceID!, hostname: String! @constraint(constraint: "min=4,max=253")): Service! @hasRole(role: [USER])
