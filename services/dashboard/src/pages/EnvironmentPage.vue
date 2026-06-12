@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuery } from '@vue/apollo-composable';
 import { graphql } from '@/gql';
+import { ServiceStatus, DatabaseStatus } from '@/gql/graphql';
 
 const EnvironmentDocument = graphql(`
   query Environment($environment: EnvironmentID!) {
@@ -135,9 +136,22 @@ const projectId = computed(() => {
   return '';
 });
 
-const { result, loading, error, refetch } = useQuery(EnvironmentDocument, () => ({
-  environment: environmentId.value,
-}));
+const SERVICE_TRANSIENT_STATUSES = new Set<ServiceStatus>([
+  ServiceStatus.Deploying,
+  ServiceStatus.Degraded,
+]);
+const DATABASE_TRANSIENT_STATUSES = new Set<DatabaseStatus>([
+  DatabaseStatus.Pending,
+  DatabaseStatus.Degraded,
+]);
+
+const isReconciling = ref(false);
+
+const { result, loading, error, refetch } = useQuery(
+  EnvironmentDocument,
+  () => ({ environment: environmentId.value }),
+  () => ({ pollInterval: isReconciling.value ? 3000 : 0 }),
+);
 
 const environment = computed(() => result.value?.environment ?? null);
 
@@ -181,6 +195,11 @@ watch(
   () => result.value?.environment,
   (env) => {
     if (!env) return;
+
+    isReconciling.value =
+      env.services.some(s => SERVICE_TRANSIENT_STATUSES.has(s.status)) ||
+      env.databases.some(d => DATABASE_TRANSIENT_STATUSES.has(d.status));
+
     const full: Environment = {
       id: env.id,
       name: env.name,
