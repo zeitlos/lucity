@@ -35,7 +35,7 @@ const ejecting = ref(false);
 
 const features = [
   { icon: Ship, label: 'Helm chart with all templates' },
-  { icon: GitBranch, label: 'ArgoCD manifests per environment' },
+  { icon: GitBranch, label: 'Config per environment' },
   { icon: Shield, label: 'Zero Lucity dependency after export' },
 ];
 

@@ -336,9 +336,6 @@ func (s *Server) suspendWorkspace(workspace string, suspended bool) {
 		action = "resume"
 	}
 
-	// 1. Tell conductor to flip the suspended flag for every project /
-	//    environment owned by this workspace. Conductor persists the
-	//    change and (where applicable) triggers ArgoCD sync.
 	_, err := s.conductor.SuspendWorkspace(ctx, &conductor.SuspendWorkspaceRequest{
 		Workspace: workspace,
 		Suspended: suspended,

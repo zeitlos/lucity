@@ -143,7 +143,7 @@ onUnmounted(() => {
 
           <!-- Subtitle -->
           <p class="text-center text-sm text-muted-foreground">
-            Start deploying in under 5 minutes.
+            Deploy your app in under 5 minutes.
           </p>
 
           <!-- Error message -->
@@ -166,7 +166,7 @@ onUnmounted(() => {
           <!-- Footer -->
           <Separator />
           <p class="text-center text-xs text-muted-foreground">
-            Built on Kubernetes, ArgoCD &amp; Helm
+            Any feedback? Email me at <a href="mailto:christian@zeitlos.software" class="text-card-foreground">christian@zeitlos.software</a>.
           </p>
         </div>
       </div>
