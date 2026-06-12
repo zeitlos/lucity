@@ -192,7 +192,7 @@ const hostUrl = computed(() => {
       <Handle type="target" :position="Position.Top" class="!invisible" />
     </div>
 
-    <div class="flex flex-col-reverse relative -top-14 group-hover:translate-y-1 mx-2 transition">
+    <div class="flex flex-col-reverse relative -top-14 group-hover:translate-y-0.5 transition">
       <div v-for="i in (props.data.replicas.desired - 1)" :key="i" class="h-2 group-hover:h-3">
         <div class="bg-muted shadow-sm rounded-b-lg h-16 border border-muted-foreground/30"></div>
       </div>
