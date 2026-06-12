@@ -193,7 +193,7 @@ const hostUrl = computed(() => {
     </div>
 
     <div class="flex flex-col-reverse relative -top-14 group-hover:translate-y-0.5 transition">
-      <div v-for="i in (props.data.replicas.desired - 1)" :key="i" class="h-2 group-hover:h-3">
+      <div v-for="i in Math.max(0, props.data.replicas.desired - 1)" :key="i" class="h-2 group-hover:h-3">
         <div class="bg-muted shadow-sm rounded-b-lg h-16 border border-muted-foreground/30"></div>
       </div>
     </div>
