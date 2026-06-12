@@ -42,5 +42,5 @@
       "source.fixAll.eslint": "always"
     }
   },
-  "graphql-config.load.rootDir": "services/gateway/"
+  "graphql-config.load.rootDir": "services/dashboard/"
 }
