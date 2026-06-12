@@ -12,7 +12,7 @@ The rest of this guide covers the local development setup if you want to explore
 
 ## Architecture in one breath
 
-Lucity is a single Go control-plane binary (**conductor**) plus a Vue 3 **dashboard** and a separate **cashier** billing service. The conductor serves the GraphQL API, builds images, applies workloads as standard Helm releases, and receives GitHub webhooks. There is no GitOps repo and no ArgoCD in the deploy path; deployment state lives in the cluster as Helm releases. See [Architecture](https://lucity.cloud/architecture/how-it-works) for the full picture.
+Lucity is a single Go control-plane binary (**conductor**) plus a Vue 3 **dashboard** and a separate **cashier** billing service. The conductor serves the GraphQL API, spawns build jobs, deploys workloads via Helm, and receives GitHub webhooks. Deployment state lives in the cluster as Helm releases. See [Architecture](https://lucity.cloud/architecture/how-it-works) for the full picture.
 
 ## Prerequisites
 

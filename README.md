@@ -8,7 +8,7 @@
 <h1 align="center">The PaaS you can leave.</h1>
 
 <p align="center">
-  Open-source PaaS on Kubernetes. Deploy like Railway. Eject to standard Helm & ArgoCD when you're ready.
+  Deploy your code in minutes (no Dockerfile or YAML required). One-click Postgres databases. Minimal lock-in thanks to unique ejectable architecture.
 </p>
 
 <p align="center">
