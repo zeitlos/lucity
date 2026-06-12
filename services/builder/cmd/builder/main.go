@@ -1,11 +1,3 @@
-// Command builder is the in-pod build runner that the conductor's
-// Build Jobs invoke. It clones the user's source repo, generates a
-// railpack plan, executes the plan against BuildKit, and pushes the
-// resulting image to the platform's OCI registry.
-//
-// This binary has no API surface — it reads its inputs from
-// environment variables (set by the conductor when it constructs the
-// Job spec) and runs to completion.
 package main
 
 import (
