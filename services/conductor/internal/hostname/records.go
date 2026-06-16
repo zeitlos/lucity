@@ -12,11 +12,13 @@ func (c *Client) DNSRecords(workspace, host string) []DNSRecord {
 		return nil
 	}
 
+	zone := registrableDomain(host)
+
 	records := []DNSRecord{
 		{
 			Type:  TXT,
-			Host:  verifyRecordPrefix + host,
-			Value: challenge(workspace, host),
+			Host:  verifyRecordPrefix + zone,
+			Value: challenge(workspace, zone),
 		},
 	}
 

@@ -3,6 +3,7 @@ package hostname
 import (
 	"strings"
 
+	"golang.org/x/net/publicsuffix"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 )
@@ -71,6 +72,18 @@ func (c *Client) IsCustom(host string) bool {
 	return !c.IsInternal(host) && !c.IsPlatform(host)
 }
 
+func registrableDomain(host string) string {
+	host = strings.TrimSuffix(host, ".")
+
+	domain, err := publicsuffix.EffectiveTLDPlusOne(host)
+
+	if err != nil {
+		return host
+	}
+
+	return domain
+}
+
 func isApex(host string) bool {
-	return strings.Count(host, ".") <= 1
+	return registrableDomain(host) == strings.TrimSuffix(host, ".")
 }
