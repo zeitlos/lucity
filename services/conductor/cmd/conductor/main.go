@@ -97,6 +97,7 @@ type Config struct {
 
 	// Domains
 	WorkloadDomain string `envconfig:"WORKLOAD_DOMAIN" required:"true"`
+	DatabaseDomain string `envconfig:"DATABASE_DOMAIN" required:"true"`
 	IPAddress      string `envconfig:"IP_ADDRESS"`
 
 	// Internal JWT (ES256)
@@ -240,6 +241,7 @@ func main() {
 		RegistryPullURL:      config.RegistryPullURL,
 		RegistryPullSecret:   keychain,
 		WorkloadDomain:       config.WorkloadDomain,
+		DatabaseDomain:       config.DatabaseDomain,
 		LoadBalancerHostname: domainTarget,
 		LoadBalancerIP:       config.IPAddress,
 		GitHubAppSlug:        config.GitHubAppSlug,

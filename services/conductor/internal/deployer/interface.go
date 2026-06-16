@@ -43,6 +43,8 @@ type ServiceClient interface {
 type DatabaseClient interface {
 	Create(ctx context.Context, env platform.EnvironmentID, name string, spec DatabaseSpec) (RevisionID, error)
 	Delete(ctx context.Context, id platform.DatabaseID) error
+	Expose(ctx context.Context, id platform.DatabaseID, host string) error
+	Unexpose(ctx context.Context, id platform.DatabaseID) error
 }
 
 type VolumeClient interface {

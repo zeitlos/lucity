@@ -59,6 +59,7 @@ type Config struct {
 	RegistryPushURL      string
 	RegistryPullURL      string
 	WorkloadDomain       string
+	DatabaseDomain       string
 	LoadBalancerHostname string
 	LoadBalancerIP       string
 	GitHubAppSlug        string

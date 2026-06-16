@@ -139,6 +139,15 @@ gateway:
     # Custom domain listeners are managed by the deployer (per-domain HTTP + HTTPS pairs).
     # No catch-all listeners here — each domain gets its own isolated listener.
 
+traefik:
+  enabled: true
+  service:
+    annotations:
+      flexplane.io/provider: hetzner
+      load-balancer.hetzner.cloud/location: nbg1
+      load-balancer.hetzner.cloud/name: flexplane-lucity-prod-postgres
+      external-dns.alpha.kubernetes.io/hostname: "*.db.lucity.app"
+
 clusterIssuers:
   - name: letsencrypt-http01
     acme:

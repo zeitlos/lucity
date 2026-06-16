@@ -14,6 +14,7 @@ type Postgres struct {
 	Instances   int               `yaml:"instances,omitempty"`
 	Size        string            `yaml:"size,omitempty"`
 	Version     string            `yaml:"version,omitempty"`
+	PublicHost  string            `yaml:"publicHost,omitempty"`
 	Resources   Resources         `yaml:"resources,omitempty"`
 	Labels      map[string]string `yaml:"labels,omitempty"`
 	Annotations map[string]string `yaml:"annotations,omitempty"`
@@ -61,6 +62,35 @@ func DeleteDatabase(env *Env, name string) error {
 	}
 
 	delete(env.Databases.Postgres, name)
+
+	return nil
+}
+
+func ExposeDatabase(env *Env, name, host string) error {
+	if !isValidHostname(host) {
+		return fmt.Errorf("invalid hostname %q", host)
+	}
+
+	return mutateDatabase(env, name, func(p *Postgres) {
+		p.PublicHost = host
+	})
+}
+
+func UnexposeDatabase(env *Env, name string) error {
+	return mutateDatabase(env, name, func(p *Postgres) {
+		p.PublicHost = ""
+	})
+}
+
+func mutateDatabase(env *Env, name string, mutate func(*Postgres)) error {
+	postgres, ok := env.Databases.Postgres[name]
+
+	if !ok {
+		return fmt.Errorf("database %q not found", name)
+	}
+
+	mutate(&postgres)
+	env.Databases.Postgres[name] = postgres
 
 	return nil
 }

@@ -93,6 +93,7 @@ type Database struct {
 	Status    DatabaseStatus      `json:"status"`
 	Size      string              `json:"size"`
 	CreatedAt time.Time           `json:"createdAt"`
+	Public    bool                `json:"public"`
 }
 
 type DatabaseColumn struct {
@@ -103,12 +104,13 @@ type DatabaseColumn struct {
 }
 
 type DatabaseCredentials struct {
-	Host     string `json:"host"`
-	Port     string `json:"port"`
-	Dbname   string `json:"dbname"`
-	User     string `json:"user"`
-	Password string `json:"password"`
-	URI      string `json:"uri"`
+	Type     EndpointType `json:"type"`
+	Host     string       `json:"host"`
+	Port     string       `json:"port"`
+	Dbname   string       `json:"dbname"`
+	User     string       `json:"user"`
+	Password string       `json:"password"`
+	URI      string       `json:"uri"`
 }
 
 // A reference to a CNPG database secret key (resolved at pod startup via secretKeyRef).

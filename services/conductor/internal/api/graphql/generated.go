@@ -81,6 +81,7 @@ type ComplexityRoot struct {
 		ID        func(childComplexity int) int
 		Instances func(childComplexity int) int
 		Name      func(childComplexity int) int
+		Public    func(childComplexity int) int
 		Size      func(childComplexity int) int
 		Status    func(childComplexity int) int
 		Version   func(childComplexity int) int
@@ -98,6 +99,7 @@ type ComplexityRoot struct {
 		Host     func(childComplexity int) int
 		Password func(childComplexity int) int
 		Port     func(childComplexity int) int
+		Type     func(childComplexity int) int
 		URI      func(childComplexity int) int
 		User     func(childComplexity int) int
 	}
@@ -221,6 +223,7 @@ type ComplexityRoot struct {
 		DeleteWorkspace           func(childComplexity int) int
 		Deploy                    func(childComplexity int, service platform.ServiceID, gitRef *string) int
 		ExecuteQuery              func(childComplexity int, database platform.DatabaseID, query string) int
+		ExposeDatabase            func(childComplexity int, database platform.DatabaseID) int
 		GenerateDomain            func(childComplexity int, service platform.ServiceID) int
 		InviteMember              func(childComplexity int, input model.InviteMemberInput) int
 		RemoveDomain              func(childComplexity int, service platform.ServiceID, hostname string) int
@@ -234,6 +237,7 @@ type ComplexityRoot struct {
 		SetServiceScaling         func(childComplexity int, input model.SetServiceScalingInput) int
 		SetServiceVariables       func(childComplexity int, service platform.ServiceID, variables []model.ServiceVariableInput) int
 		SetSharedVariables        func(childComplexity int, environment platform.EnvironmentID, variables []model.VariableInput) int
+		UnexposeDatabase          func(childComplexity int, database platform.DatabaseID) int
 		UpdateMemberRole          func(childComplexity int, input model.UpdateMemberRoleInput) int
 		UpdateWorkspace           func(childComplexity int, input model.UpdateWorkspaceInput) int
 	}
@@ -394,6 +398,8 @@ type MutationResolver interface {
 	CreateDatabase(ctx context.Context, input model.CreateDatabaseInput) (*model.Database, error)
 	DeleteDatabase(ctx context.Context, database platform.DatabaseID) (bool, error)
 	ExecuteQuery(ctx context.Context, database platform.DatabaseID, query string) (*model.QueryResult, error)
+	ExposeDatabase(ctx context.Context, database platform.DatabaseID) (*model.Database, error)
+	UnexposeDatabase(ctx context.Context, database platform.DatabaseID) (*model.Database, error)
 	Deploy(ctx context.Context, service platform.ServiceID, gitRef *string) (*model.Build, error)
 	CreateEnvironment(ctx context.Context, input model.CreateEnvironmentInput) (*model.Environment, error)
 	DeleteEnvironment(ctx context.Context, environment platform.EnvironmentID) (bool, error)
@@ -428,7 +434,7 @@ type QueryResolver interface {
 	Database(ctx context.Context, id platform.DatabaseID) (*model.Database, error)
 	DatabaseTables(ctx context.Context, database platform.DatabaseID) ([]model.DatabaseTable, error)
 	DatabaseTableData(ctx context.Context, database platform.DatabaseID, table string, schema *string, limit *int, offset *int) (*model.DatabaseTableData, error)
-	DatabaseCredentials(ctx context.Context, database platform.DatabaseID) (*model.DatabaseCredentials, error)
+	DatabaseCredentials(ctx context.Context, database platform.DatabaseID) ([]model.DatabaseCredentials, error)
 	Deployment(ctx context.Context, id platform.DeploymentID) (*model.Deployment, error)
 	Environments(ctx context.Context, project platform.ProjectID) ([]model.Environment, error)
 	Environment(ctx context.Context, environment platform.EnvironmentID) (*model.Environment, error)
@@ -591,6 +597,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Database.Name(childComplexity), true
+	case "Database.public":
+		if e.ComplexityRoot.Database.Public == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Database.Public(childComplexity), true
 	case "Database.size":
 		if e.ComplexityRoot.Database.Size == nil {
 			break
@@ -659,6 +671,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.DatabaseCredentials.Port(childComplexity), true
+	case "DatabaseCredentials.type":
+		if e.ComplexityRoot.DatabaseCredentials.Type == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DatabaseCredentials.Type(childComplexity), true
 	case "DatabaseCredentials.uri":
 		if e.ComplexityRoot.DatabaseCredentials.URI == nil {
 			break
@@ -1234,6 +1252,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.ExecuteQuery(childComplexity, args["database"].(platform.DatabaseID), args["query"].(string)), true
+	case "Mutation.exposeDatabase":
+		if e.ComplexityRoot.Mutation.ExposeDatabase == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_exposeDatabase_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.ExposeDatabase(childComplexity, args["database"].(platform.DatabaseID)), true
 	case "Mutation.generateDomain":
 		if e.ComplexityRoot.Mutation.GenerateDomain == nil {
 			break
@@ -1377,6 +1406,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.SetSharedVariables(childComplexity, args["environment"].(platform.EnvironmentID), args["variables"].([]model.VariableInput)), true
+	case "Mutation.unexposeDatabase":
+		if e.ComplexityRoot.Mutation.UnexposeDatabase == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_unexposeDatabase_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.UnexposeDatabase(childComplexity, args["database"].(platform.DatabaseID)), true
 	case "Mutation.updateMemberRole":
 		if e.ComplexityRoot.Mutation.UpdateMemberRole == nil {
 			break
@@ -2259,6 +2299,8 @@ func (ec *executionContext) childFields_Database(ctx context.Context, field grap
 		return ec.fieldContext_Database_size(ctx, field)
 	case "createdAt":
 		return ec.fieldContext_Database_createdAt(ctx, field)
+	case "public":
+		return ec.fieldContext_Database_public(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type Database", field.Name)
 }
@@ -2279,6 +2321,8 @@ func (ec *executionContext) childFields_DatabaseColumn(ctx context.Context, fiel
 
 func (ec *executionContext) childFields_DatabaseCredentials(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
+	case "type":
+		return ec.fieldContext_DatabaseCredentials_type(ctx, field)
 	case "host":
 		return ec.fieldContext_DatabaseCredentials_host(ctx, field)
 	case "port":
@@ -3117,6 +3161,20 @@ func (ec *executionContext) field_Mutation_executeQuery_args(ctx context.Context
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_exposeDatabase_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "database",
+		func(ctx context.Context, v any) (platform.DatabaseID, error) {
+			return ec.unmarshalNDatabaseID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐDatabaseID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["database"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_generateDomain_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -3385,6 +3443,20 @@ func (ec *executionContext) field_Mutation_setSharedVariables_args(ctx context.C
 		return nil, err
 	}
 	args["variables"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_unexposeDatabase_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "database",
+		func(ctx context.Context, v any) (platform.DatabaseID, error) {
+			return ec.unmarshalNDatabaseID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐDatabaseID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["database"] = arg0
 	return args, nil
 }
 
@@ -4300,6 +4372,29 @@ func (ec *executionContext) fieldContext_Database_createdAt(_ context.Context, f
 	return graphql.NewScalarFieldContext("Database", field, false, false, errors.New("field of type Time does not have child fields"))
 }
 
+func (ec *executionContext) _Database_public(ctx context.Context, field graphql.CollectedField, obj *model.Database) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Database_public(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Public, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Database_public(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Database", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
 func (ec *executionContext) _DatabaseColumn_name(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseColumn) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -4390,6 +4485,29 @@ func (ec *executionContext) _DatabaseColumn_primaryKey(ctx context.Context, fiel
 }
 func (ec *executionContext) fieldContext_DatabaseColumn_primaryKey(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("DatabaseColumn", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
+func (ec *executionContext) _DatabaseCredentials_type(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseCredentials) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DatabaseCredentials_type(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Type, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v model.EndpointType) graphql.Marshaler {
+			return ec.marshalNEndpointType2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐEndpointType(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DatabaseCredentials_type(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DatabaseCredentials", field, false, false, errors.New("field of type EndpointType does not have child fields"))
 }
 
 func (ec *executionContext) _DatabaseCredentials_host(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseCredentials) (ret graphql.Marshaler) {
@@ -6540,6 +6658,130 @@ func (ec *executionContext) fieldContext_Mutation_executeQuery(ctx context.Conte
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_exposeDatabase(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_exposeDatabase(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().ExposeDatabase(ctx, fc.Args["database"].(platform.DatabaseID))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
+				if err != nil {
+					var zeroVal *model.Database
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal *model.Database
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Database) graphql.Marshaler {
+			return ec.marshalNDatabase2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabase(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_exposeDatabase(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Database(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_exposeDatabase_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_unexposeDatabase(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_unexposeDatabase(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().UnexposeDatabase(ctx, fc.Args["database"].(platform.DatabaseID))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
+				if err != nil {
+					var zeroVal *model.Database
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal *model.Database
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Database) graphql.Marshaler {
+			return ec.marshalNDatabase2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabase(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_unexposeDatabase(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Database(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_unexposeDatabase_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_deploy(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -8577,11 +8819,11 @@ func (ec *executionContext) _Query_databaseCredentials(ctx context.Context, fiel
 			directive1 := func(ctx context.Context) (any, error) {
 				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
 				if err != nil {
-					var zeroVal *model.DatabaseCredentials
+					var zeroVal []model.DatabaseCredentials
 					return zeroVal, err
 				}
 				if ec.Directives.HasRole == nil {
-					var zeroVal *model.DatabaseCredentials
+					var zeroVal []model.DatabaseCredentials
 					return zeroVal, errors.New("directive hasRole is not implemented")
 				}
 				return ec.Directives.HasRole(ctx, nil, directive0, role)
@@ -8590,8 +8832,8 @@ func (ec *executionContext) _Query_databaseCredentials(ctx context.Context, fiel
 			next = directive1
 			return next
 		},
-		func(ctx context.Context, selections ast.SelectionSet, v *model.DatabaseCredentials) graphql.Marshaler {
-			return ec.marshalNDatabaseCredentials2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabaseCredentials(ctx, selections, v)
+		func(ctx context.Context, selections ast.SelectionSet, v []model.DatabaseCredentials) graphql.Marshaler {
+			return ec.marshalNDatabaseCredentials2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabaseCredentialsᚄ(ctx, selections, v)
 		},
 		true,
 		true,
@@ -13451,6 +13693,11 @@ func (ec *executionContext) _Database(ctx context.Context, sel ast.SelectionSet,
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "public":
+			out.Values[i] = ec._Database_public(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -13539,6 +13786,11 @@ func (ec *executionContext) _DatabaseCredentials(ctx context.Context, sel ast.Se
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("DatabaseCredentials")
+		case "type":
+			out.Values[i] = ec._DatabaseCredentials_type(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "host":
 			out.Values[i] = ec._DatabaseCredentials_host(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -14505,6 +14757,20 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "executeQuery":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_executeQuery(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "exposeDatabase":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_exposeDatabase(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "unexposeDatabase":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_unexposeDatabase(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -16726,14 +16992,20 @@ func (ec *executionContext) marshalNDatabaseCredentials2githubᚗcomᚋzeitlos�
 	return ec._DatabaseCredentials(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNDatabaseCredentials2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabaseCredentials(ctx context.Context, sel ast.SelectionSet, v *model.DatabaseCredentials) graphql.Marshaler {
-	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+func (ec *executionContext) marshalNDatabaseCredentials2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabaseCredentialsᚄ(ctx context.Context, sel ast.SelectionSet, v []model.DatabaseCredentials) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNDatabaseCredentials2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabaseCredentials(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
 		}
-		return graphql.Null
 	}
-	return ec._DatabaseCredentials(ctx, sel, v)
+
+	return ret
 }
 
 func (ec *executionContext) unmarshalNDatabaseID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐDatabaseID(ctx context.Context, v any) (platform.DatabaseID, error) {

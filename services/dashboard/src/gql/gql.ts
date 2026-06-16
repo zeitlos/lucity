@@ -31,7 +31,10 @@ type Documents = {
     "\n  query Subscription {\n    subscription {\n      plan\n      status\n      currentPeriodEnd\n      creditAmountCents\n      creditExpiry\n      hasPaymentMethod\n    }\n  }\n": typeof types.SubscriptionDocument,
     "\n  query UsageSummary {\n    usageSummary {\n      resourceCostCents\n      creditsCents\n      estimatedTotalCents\n    }\n  }\n": typeof types.UsageSummaryDocument,
     "\n  mutation CreatePlanCheckout($plan: Plan!) {\n    createPlanCheckout(plan: $plan) {\n      url\n    }\n  }\n": typeof types.CreatePlanCheckoutDocument,
-    "\n  query DatabaseCredentials($database: DatabaseID!) {\n    databaseCredentials(database: $database) {\n      host\n      port\n      dbname\n      user\n      password\n      uri\n    }\n  }\n": typeof types.DatabaseCredentialsDocument,
+    "\n  query DatabasePublic($database: DatabaseID!) {\n    database(id: $database) {\n      id\n      public\n    }\n  }\n": typeof types.DatabasePublicDocument,
+    "\n  query DatabaseCredentials($database: DatabaseID!) {\n    databaseCredentials(database: $database) {\n      type\n      host\n      port\n      dbname\n      user\n      password\n      uri\n    }\n  }\n": typeof types.DatabaseCredentialsDocument,
+    "\n  mutation ExposeDatabase($database: DatabaseID!) {\n    exposeDatabase(database: $database) {\n      id\n      public\n    }\n  }\n": typeof types.ExposeDatabaseDocument,
+    "\n  mutation UnexposeDatabase($database: DatabaseID!) {\n    unexposeDatabase(database: $database) {\n      id\n      public\n    }\n  }\n": typeof types.UnexposeDatabaseDocument,
     "\n  mutation ExecuteQuery($database: DatabaseID!, $query: String!) {\n    executeQuery(database: $database, query: $query) {\n      columns\n      rows\n      affectedRows\n    }\n  }\n": typeof types.ExecuteQueryDocument,
     "\n  mutation DeleteDatabase($database: DatabaseID!) {\n    deleteDatabase(database: $database)\n  }\n": typeof types.DeleteDatabaseDocument,
     "\n  query DatabaseTables($database: DatabaseID!) {\n    databaseTables(database: $database) {\n      name\n      schema\n      estimatedRows\n      columns {\n        name\n        type\n        nullable\n        primaryKey\n      }\n    }\n  }\n": typeof types.DatabaseTablesDocument,
@@ -89,7 +92,10 @@ const documents: Documents = {
     "\n  query Subscription {\n    subscription {\n      plan\n      status\n      currentPeriodEnd\n      creditAmountCents\n      creditExpiry\n      hasPaymentMethod\n    }\n  }\n": types.SubscriptionDocument,
     "\n  query UsageSummary {\n    usageSummary {\n      resourceCostCents\n      creditsCents\n      estimatedTotalCents\n    }\n  }\n": types.UsageSummaryDocument,
     "\n  mutation CreatePlanCheckout($plan: Plan!) {\n    createPlanCheckout(plan: $plan) {\n      url\n    }\n  }\n": types.CreatePlanCheckoutDocument,
-    "\n  query DatabaseCredentials($database: DatabaseID!) {\n    databaseCredentials(database: $database) {\n      host\n      port\n      dbname\n      user\n      password\n      uri\n    }\n  }\n": types.DatabaseCredentialsDocument,
+    "\n  query DatabasePublic($database: DatabaseID!) {\n    database(id: $database) {\n      id\n      public\n    }\n  }\n": types.DatabasePublicDocument,
+    "\n  query DatabaseCredentials($database: DatabaseID!) {\n    databaseCredentials(database: $database) {\n      type\n      host\n      port\n      dbname\n      user\n      password\n      uri\n    }\n  }\n": types.DatabaseCredentialsDocument,
+    "\n  mutation ExposeDatabase($database: DatabaseID!) {\n    exposeDatabase(database: $database) {\n      id\n      public\n    }\n  }\n": types.ExposeDatabaseDocument,
+    "\n  mutation UnexposeDatabase($database: DatabaseID!) {\n    unexposeDatabase(database: $database) {\n      id\n      public\n    }\n  }\n": types.UnexposeDatabaseDocument,
     "\n  mutation ExecuteQuery($database: DatabaseID!, $query: String!) {\n    executeQuery(database: $database, query: $query) {\n      columns\n      rows\n      affectedRows\n    }\n  }\n": types.ExecuteQueryDocument,
     "\n  mutation DeleteDatabase($database: DatabaseID!) {\n    deleteDatabase(database: $database)\n  }\n": types.DeleteDatabaseDocument,
     "\n  query DatabaseTables($database: DatabaseID!) {\n    databaseTables(database: $database) {\n      name\n      schema\n      estimatedRows\n      columns {\n        name\n        type\n        nullable\n        primaryKey\n      }\n    }\n  }\n": types.DatabaseTablesDocument,
@@ -215,7 +221,19 @@ export function graphql(source: "\n  mutation CreatePlanCheckout($plan: Plan!) {
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query DatabaseCredentials($database: DatabaseID!) {\n    databaseCredentials(database: $database) {\n      host\n      port\n      dbname\n      user\n      password\n      uri\n    }\n  }\n"): (typeof documents)["\n  query DatabaseCredentials($database: DatabaseID!) {\n    databaseCredentials(database: $database) {\n      host\n      port\n      dbname\n      user\n      password\n      uri\n    }\n  }\n"];
+export function graphql(source: "\n  query DatabasePublic($database: DatabaseID!) {\n    database(id: $database) {\n      id\n      public\n    }\n  }\n"): (typeof documents)["\n  query DatabasePublic($database: DatabaseID!) {\n    database(id: $database) {\n      id\n      public\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query DatabaseCredentials($database: DatabaseID!) {\n    databaseCredentials(database: $database) {\n      type\n      host\n      port\n      dbname\n      user\n      password\n      uri\n    }\n  }\n"): (typeof documents)["\n  query DatabaseCredentials($database: DatabaseID!) {\n    databaseCredentials(database: $database) {\n      type\n      host\n      port\n      dbname\n      user\n      password\n      uri\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation ExposeDatabase($database: DatabaseID!) {\n    exposeDatabase(database: $database) {\n      id\n      public\n    }\n  }\n"): (typeof documents)["\n  mutation ExposeDatabase($database: DatabaseID!) {\n    exposeDatabase(database: $database) {\n      id\n      public\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation UnexposeDatabase($database: DatabaseID!) {\n    unexposeDatabase(database: $database) {\n      id\n      public\n    }\n  }\n"): (typeof documents)["\n  mutation UnexposeDatabase($database: DatabaseID!) {\n    unexposeDatabase(database: $database) {\n      id\n      public\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

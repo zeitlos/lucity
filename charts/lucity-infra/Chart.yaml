@@ -38,3 +38,7 @@ dependencies:
     version: "12.2.1"
     repository: "https://grafana-community.github.io/helm-charts"
     condition: grafana.enabled
+  - name: traefik
+    version: "41.0.0"
+    repository: "https://traefik.github.io/charts"
+    condition: traefik.enabled

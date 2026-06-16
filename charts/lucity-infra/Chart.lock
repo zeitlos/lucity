@@ -23,5 +23,8 @@ dependencies:
 - name: grafana
   repository: https://grafana-community.github.io/helm-charts
   version: 12.2.1
-digest: sha256:e3a3f4c32db7151e7cbd6e8112e786ded20e1599c0407890adcd9aea2c774046
-generated: "2026-04-29T11:16:42.657307+02:00"
+- name: traefik
+  repository: https://traefik.github.io/charts
+  version: 41.0.0
+digest: sha256:fe3ca35bc527937800b54ca151c7558fd0b732a7c7792657813eec8f960f952d
+generated: "2026-06-17T00:02:59.763669+02:00"

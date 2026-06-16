@@ -6,6 +6,7 @@ type Database {
   status: DatabaseStatus!
   size: String!
   createdAt: Time!
+  public: Boolean!
 }
 
 enum DatabaseStatus {
@@ -52,6 +53,7 @@ type QueryResult {
 }
 
 type DatabaseCredentials {
+  type: EndpointType!
   host: String!
   port: String!
   dbname: String!
@@ -78,11 +80,13 @@ extend type Query {
     limit: Int
     offset: Int
   ): DatabaseTableData! @hasRole(role: WORKSPACE_MEMBER)
-  databaseCredentials(database: DatabaseID!): DatabaseCredentials! @hasRole(role: WORKSPACE_MEMBER)
+  databaseCredentials(database: DatabaseID!): [DatabaseCredentials!]! @hasRole(role: WORKSPACE_MEMBER)
 }
 
 extend type Mutation {
   createDatabase(input: CreateDatabaseInput!): Database! @hasRole(role: WORKSPACE_MEMBER)
   deleteDatabase(database: DatabaseID!): Boolean! @hasRole(role: WORKSPACE_MEMBER)
   executeQuery(database: DatabaseID!, query: String!): QueryResult! @hasRole(role: WORKSPACE_MEMBER)
+  exposeDatabase(database: DatabaseID!): Database! @hasRole(role: WORKSPACE_MEMBER)
+  unexposeDatabase(database: DatabaseID!): Database! @hasRole(role: WORKSPACE_MEMBER)
 }

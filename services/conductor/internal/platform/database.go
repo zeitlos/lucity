@@ -13,13 +13,14 @@ import (
 
 // TODO: Rename to Postgres, PostgresDatabase or PostgresCluster
 type Database struct {
-	ID        DatabaseID
-	Name      string
-	Version   string
-	Instances int
-	Status    DatabaseStatus
-	Size      resource.Quantity
-	CreatedAt time.Time
+	ID         DatabaseID
+	Name       string
+	Version    string
+	Instances  int
+	Status     DatabaseStatus
+	Size       resource.Quantity
+	CreatedAt  time.Time
+	PublicHost string
 }
 
 type DatabaseStatus string

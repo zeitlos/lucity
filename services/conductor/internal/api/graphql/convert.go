@@ -291,6 +291,19 @@ func convertDatabase(d conductor.Database) model.Database {
 		Status:    convertDatabaseStatus(d.Status),
 		Size:      d.Size.String(),
 		CreatedAt: d.CreatedAt,
+		Public:    d.PublicHost != "",
+	}
+}
+
+func convertDatabaseCredentials(c conductor.DatabaseCredentials) model.DatabaseCredentials {
+	return model.DatabaseCredentials{
+		Type:     convertEndpointType(c.Type),
+		Host:     c.Host,
+		Port:     c.Port,
+		Dbname:   c.DBName,
+		User:     c.User,
+		Password: c.Password,
+		URI:      c.URI,
 	}
 }
 

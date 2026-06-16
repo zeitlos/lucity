@@ -86,11 +86,12 @@ func toCluster(item unstructured.Unstructured) (*cnpgv1.Cluster, error) {
 
 func toDatabase(cluster cnpgv1.Cluster, environmentID platform.EnvironmentID) platform.Database {
 	database := platform.Database{
-		ID:        databaseID(cluster, environmentID),
-		Name:      cluster.Labels[databaseLabel],
-		Instances: cluster.Spec.Instances,
-		Status:    databaseStatus(cluster),
-		CreatedAt: cluster.GetCreationTimestamp().Time,
+		ID:         databaseID(cluster, environmentID),
+		Name:       cluster.Labels[databaseLabel],
+		Instances:  cluster.Spec.Instances,
+		Status:     databaseStatus(cluster),
+		CreatedAt:  cluster.GetCreationTimestamp().Time,
+		PublicHost: cluster.Annotations[annotationDatabaseHost],
 	}
 
 	// CNPG image: "ghcr.io/cloudnative-pg/postgresql:16.0"

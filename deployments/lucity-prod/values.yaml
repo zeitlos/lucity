@@ -62,6 +62,7 @@ conductor:
 
     # Workload domain + LB IP
     WORKLOAD_DOMAIN: lucity.app
+    DATABASE_DOMAIN: db.lucity.app
     IP_ADDRESS: "46.225.47.40"
   envSecret:
     SESSION_SECRET: SESSION_SECRET

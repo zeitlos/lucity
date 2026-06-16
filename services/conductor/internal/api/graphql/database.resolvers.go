@@ -48,6 +48,28 @@ func (r *mutationResolver) ExecuteQuery(ctx context.Context, database platform.D
 	return convertQueryResult(result), nil
 }
 
+// ExposeDatabase is the resolver for the exposeDatabase field.
+func (r *mutationResolver) ExposeDatabase(ctx context.Context, database platform.DatabaseID) (*model.Database, error) {
+	result, err := r.Conductor.ExposeDatabase(ctx, database)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return new(convertDatabase(*result)), nil
+}
+
+// UnexposeDatabase is the resolver for the unexposeDatabase field.
+func (r *mutationResolver) UnexposeDatabase(ctx context.Context, database platform.DatabaseID) (*model.Database, error) {
+	result, err := r.Conductor.UnexposeDatabase(ctx, database)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return new(convertDatabase(*result)), nil
+}
+
 // Database is the resolver for the database field.
 func (r *queryResolver) Database(ctx context.Context, id platform.DatabaseID) (*model.Database, error) {
 	result, err := r.Conductor.Database(ctx, id)
@@ -94,17 +116,14 @@ func (r *queryResolver) DatabaseTableData(ctx context.Context, database platform
 }
 
 // DatabaseCredentials is the resolver for the databaseCredentials field.
-func (r *queryResolver) DatabaseCredentials(ctx context.Context, database platform.DatabaseID) (*model.DatabaseCredentials, error) {
+func (r *queryResolver) DatabaseCredentials(ctx context.Context, database platform.DatabaseID) ([]model.DatabaseCredentials, error) {
 	creds, err := r.Conductor.DatabaseCredentials(ctx, database)
 	if err != nil {
 		return nil, err
 	}
-	return &model.DatabaseCredentials{
-		Host:     creds.Host,
-		Port:     creds.Port,
-		Dbname:   creds.DBName,
-		User:     creds.User,
-		Password: creds.Password,
-		URI:      creds.URI,
-	}, nil
+	result := make([]model.DatabaseCredentials, 0, len(creds))
+	for _, c := range creds {
+		result = append(result, convertDatabaseCredentials(c))
+	}
+	return result, nil
 }

@@ -36,6 +36,7 @@ const (
 	annotationDeployedBy    = "lucity.dev/deployed-by"
 	annotationRevision      = "deployment.kubernetes.io/revision"
 	annotationAwaitingBuild = "lucity.dev/awaiting-build"
+	annotationDatabaseHost  = "lucity.dev/db-host"
 )
 
 type Client struct {

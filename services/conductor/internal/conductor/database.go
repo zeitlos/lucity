@@ -51,6 +51,7 @@ type QueryResult struct {
 }
 
 type DatabaseCredentials struct {
+	Type     EndpointType
 	Host     string
 	Port     string
 	DBName   string
@@ -108,6 +109,44 @@ func (c *Client) DeleteDatabase(ctx context.Context, database platform.DatabaseI
 	}
 
 	return true, nil
+}
+
+func (c *Client) ExposeDatabase(ctx context.Context, id platform.DatabaseID) (*Database, error) {
+	database, err := c.platform.Database(ctx, id)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if database.PublicHost != "" {
+		return database, nil
+	}
+
+	host := fmt.Sprintf("%s-%s-%s.%s", id.Name, id.Environment, randCrockford32(5), c.config.DatabaseDomain)
+
+	if err := c.deployer.Databases().Expose(ctx, id, host); err != nil {
+		return nil, fmt.Errorf("expose database: %w", err)
+	}
+
+	database.PublicHost = host
+
+	return database, nil
+}
+
+func (c *Client) UnexposeDatabase(ctx context.Context, id platform.DatabaseID) (*Database, error) {
+	if err := c.deployer.Databases().Unexpose(ctx, id); err != nil {
+		return nil, fmt.Errorf("unexpose database: %w", err)
+	}
+
+	database, err := c.platform.Database(ctx, id)
+
+	if err != nil {
+		return nil, err
+	}
+
+	database.PublicHost = ""
+
+	return database, nil
 }
 
 func (c *Client) DatabaseTables(ctx context.Context, database platform.DatabaseID) ([]DatabaseTable, error) {
@@ -187,7 +226,7 @@ func (c *Client) ExecuteQuery(ctx context.Context, database platform.DatabaseID,
 	}, nil
 }
 
-func (c *Client) DatabaseCredentials(ctx context.Context, database platform.DatabaseID) (*DatabaseCredentials, error) {
+func (c *Client) DatabaseCredentials(ctx context.Context, database platform.DatabaseID) ([]DatabaseCredentials, error) {
 	creds, err := c.platform.DatabaseCredentials(ctx, database)
 
 	if errors.Is(err, platform.ErrDatabaseProvisioning) {
@@ -198,14 +237,39 @@ func (c *Client) DatabaseCredentials(ctx context.Context, database platform.Data
 		return nil, fmt.Errorf("read credentials: %w", err)
 	}
 
-	return &DatabaseCredentials{
+	result := []DatabaseCredentials{{
+		Type:     InternalEndpoint,
 		Host:     creds.Host,
 		Port:     creds.Port,
 		DBName:   creds.DBName,
 		User:     creds.User,
 		Password: creds.Password,
 		URI:      databaseURI(creds),
-	}, nil
+	}}
+
+	db, err := c.platform.Database(ctx, database)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if db.PublicHost != "" {
+		public := *creds
+		public.Host = db.PublicHost
+		public.Port = "5432"
+
+		result = append(result, DatabaseCredentials{
+			Type:     PlatformEndpoint,
+			Host:     public.Host,
+			Port:     public.Port,
+			DBName:   public.DBName,
+			User:     public.User,
+			Password: public.Password,
+			URI:      databaseURI(&public) + "?sslmode=require",
+		})
+	}
+
+	return result, nil
 }
 
 func (c *Client) databaseQueryClient(ctx context.Context, id platform.DatabaseID) (*dbquery.Client, error) {
