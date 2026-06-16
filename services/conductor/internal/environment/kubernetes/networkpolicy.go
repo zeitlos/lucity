@@ -13,7 +13,10 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-const networkPolicyName = "lucity-namespace-isolation"
+const (
+	networkPolicyName = "lucity-namespace-isolation"
+	linkLocalCIDR     = "169.254.0.0/16"
+)
 
 func (c *Client) ensureNetworkPolicy(ctx context.Context, id platform.EnvironmentID) error {
 	namespace := id.Namespace()
@@ -101,7 +104,7 @@ func buildNetworkPolicy(namespace, platformNamespace, podCIDR, serviceCIDR strin
 					To: []networkingv1.NetworkPolicyPeer{
 						{IPBlock: &networkingv1.IPBlock{
 							CIDR:   "0.0.0.0/0",
-							Except: []string{serviceCIDR, podCIDR},
+							Except: []string{serviceCIDR, podCIDR, linkLocalCIDR},
 						}},
 					},
 				},
