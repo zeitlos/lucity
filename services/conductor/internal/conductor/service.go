@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/go-containerregistry/pkg/name"
+	containername "github.com/google/go-containerregistry/pkg/name"
 	gh "github.com/google/go-github/v68/github"
 	"k8s.io/apimachinery/pkg/api/resource"
 
@@ -106,6 +106,10 @@ func (c *Client) AddService(ctx context.Context, environmentID platform.Environm
 
 		spec.Image = c.Config.RegistryPullURL + "/" + c.imageRepository(id)
 	} else if externalImage != "" {
+		if _, err := containername.ParseReference(externalImage); err != nil {
+			return nil, fmt.Errorf("invalid image reference %q: %w", externalImage, err)
+		}
+
 		spec.Image = ensureImageTag(externalImage)
 
 		if serviceName == "" {
@@ -471,11 +475,11 @@ func validateHostname(hostname string) error {
 	return nil
 }
 
-func tagOrDigest(ref name.Reference) string {
+func tagOrDigest(ref containername.Reference) string {
 	switch v := ref.(type) {
-	case name.Tag:
+	case containername.Tag:
 		return ":" + v.TagStr()
-	case name.Digest:
+	case containername.Digest:
 		return "@" + v.DigestStr()
 	}
 
