@@ -12,11 +12,11 @@ input CreateProjectInput {
 }
 
 extend type Query {
-  projects: [Project!]! @hasRole(role: [USER])
-  project(id: ProjectID!): Project! @hasRole(role: [USER])
+  projects: [Project!]! @hasRole(role: WORKSPACE_MEMBER)
+  project(id: ProjectID!): Project! @hasRole(role: WORKSPACE_MEMBER)
 }
 
 extend type Mutation {
-  createProject(input: CreateProjectInput!): Project! @hasRole(role: [USER])
-  deleteProject(id: ProjectID!): Boolean! @hasRole(role: [USER])
+  createProject(input: CreateProjectInput!): Project! @hasRole(role: WORKSPACE_MEMBER)
+  deleteProject(id: ProjectID!): Boolean! @hasRole(role: WORKSPACE_MEMBER)
 }

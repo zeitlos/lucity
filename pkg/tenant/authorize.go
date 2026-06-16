@@ -32,6 +32,7 @@ func AuthorizeMiddleware(next http.Handler) http.Handler {
 				"email", claims.Email,
 				"workspace", ws,
 			)
+
 			http.Error(w, "forbidden: not a member of workspace", http.StatusForbidden)
 			return
 		}

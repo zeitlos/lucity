@@ -15,9 +15,9 @@ enum BuildStatus {
 }
 
 extend type Query {
-  build(id: String!): Build! @hasRole(role: [USER])
+  build(id: String!): Build! @hasRole(role: WORKSPACE_MEMBER)
 }
 
 extend type Subscription {
-  buildLogs(id: String!): String! @hasRole(role: [USER])
+  buildLogs(id: String!): String! @hasRole(role: WORKSPACE_MEMBER)
 }

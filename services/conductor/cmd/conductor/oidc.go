@@ -295,7 +295,6 @@ func handleCallback(provider *OIDCProvider, conductor *conductor.Client, logtoCl
 		svcCtx := auth.NewContext(r.Context(), &auth.Claims{
 			Subject: idToken.Subject,
 			Email:   oidcClaims.Email,
-			Roles:   []auth.Role{auth.RoleUser},
 		})
 
 		personalWSID, isNewUser, err := conductor.EnsurePersonalWorkspace(svcCtx, idToken.Subject, username)
@@ -341,7 +340,6 @@ func handleCallback(provider *OIDCProvider, conductor *conductor.Client, logtoCl
 			Name:       oidcClaims.Name,
 			Email:      oidcClaims.Email,
 			AvatarURL:  oidcClaims.Picture,
-			Roles:      []auth.Role{auth.RoleUser},
 			Workspaces: workspaces,
 		}
 		sessionToken, err := mintSessionToken(sessionSecret, sessionClaims)

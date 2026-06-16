@@ -30,9 +30,9 @@ enum DeploymentStatus {
 }
 
 extend type Query {
-  deployment(id: DeploymentID!): Deployment! @hasRole(role: [USER])
+  deployment(id: DeploymentID!): Deployment! @hasRole(role: WORKSPACE_MEMBER)
 }
 
 extend type Mutation {
-  deploy(service: ServiceID!, gitRef: String): Build! @hasRole(role: [USER])
+  deploy(service: ServiceID!, gitRef: String): Build! @hasRole(role: WORKSPACE_MEMBER)
 }

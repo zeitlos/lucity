@@ -42,7 +42,7 @@ func (c *Client) CommitMessage(ctx context.Context, installationID, repo, hash s
 	ownerRepo = strings.TrimPrefix(ownerRepo, "/")
 	ownerRepo = strings.TrimSuffix(ownerRepo, path.Ext(ownerRepo))
 
-	return c.GitHubApp.CommitMessage(ctx, int64(id), ownerRepo, hash)
+	return c.gitHubApp.CommitMessage(ctx, int64(id), ownerRepo, hash)
 }
 
 func isCommitSHA(s string) bool {
@@ -69,16 +69,16 @@ func (c *Client) DefaultCommand(ctx context.Context, imageRef string) (string, e
 	registry := ref.Context().RegistryStr()
 	authConfig := authn.Anonymous
 
-	if strings.EqualFold(registry, c.Config.RegistryPullURL) {
-		registry = c.Config.RegistryPushURL
+	if strings.EqualFold(registry, c.config.RegistryPullURL) {
+		registry = c.config.RegistryPushURL
 
-		pullRegistry, err := name.NewRegistry(c.Config.RegistryPullURL)
+		pullRegistry, err := name.NewRegistry(c.config.RegistryPullURL)
 
 		if err != nil {
 			return "", err
 		}
 
-		authConfig, err = c.Config.RegistryPullSecret.Resolve(pullRegistry)
+		authConfig, err = c.config.RegistryPullSecret.Resolve(pullRegistry)
 
 		if err != nil {
 			return "", err

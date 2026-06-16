@@ -5,15 +5,6 @@ import (
 	"errors"
 )
 
-// Role represents a user's authorization level.
-type Role string
-
-const (
-	RoleAnonymous Role = "ANONYMOUS"
-	RoleUser      Role = "USER"
-	RoleAdmin     Role = "ADMIN"
-)
-
 // WorkspaceRole represents a user's role within a workspace.
 type WorkspaceRole string
 
@@ -21,6 +12,15 @@ const (
 	WorkspaceRoleUser  WorkspaceRole = "user"
 	WorkspaceRoleAdmin WorkspaceRole = "admin"
 )
+
+var roleRank = map[WorkspaceRole]int{
+	WorkspaceRoleUser:  1,
+	WorkspaceRoleAdmin: 2,
+}
+
+func (r WorkspaceRole) Satisfies(required WorkspaceRole) bool {
+	return roleRank[r] >= roleRank[required]
+}
 
 // WorkspaceMembership represents a user's membership in a workspace.
 type WorkspaceMembership struct {
@@ -32,22 +32,11 @@ type contextKey struct{}
 
 // Claims represents the authenticated user's identity and roles.
 type Claims struct {
-	Subject    string // OIDC subject (stable user identifier)
-	Name       string // Display name
+	Subject    string
+	Name       string
 	Email      string
-	Roles      []Role
 	AvatarURL  string
 	Workspaces []WorkspaceMembership
-}
-
-// HasRole checks if the claims include the given role.
-func (c *Claims) HasRole(role Role) bool {
-	for _, r := range c.Roles {
-		if r == role {
-			return true
-		}
-	}
-	return false
 }
 
 // IsMemberOf checks if the user is a member of the given workspace.

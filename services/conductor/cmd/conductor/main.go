@@ -245,7 +245,7 @@ func main() {
 		GitHubAppSlug:        config.GitHubAppSlug,
 		DashboardURL:         config.DashboardURL,
 	}
-	conductor := conductor.New(cashierClient, internalIssuer, githubApp, logtoClient, tokenRefresher, directoryClient, platformClient, jobsClient, planner, source, hostnameClient, gatewayClient, deployerClient, environmentClient, conductorConfig)
+	conductor := conductor.New(cashierClient, githubApp, logtoClient, tokenRefresher, directoryClient, platformClient, jobsClient, planner, source, hostnameClient, gatewayClient, deployerClient, environmentClient, conductorConfig)
 
 	go runDomainReconciler(ctx, conductor)
 

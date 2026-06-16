@@ -9,5 +9,5 @@ type ImageSearchResult {
 
 extend type Query {
   """Search Docker Hub for public container images."""
-  searchImages(query: String!): [ImageSearchResult!]! @hasRole(role: [USER])
+  searchImages(query: String!): [ImageSearchResult!]! @hasRole(role: WORKSPACE_MEMBER)
 }

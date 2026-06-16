@@ -49,15 +49,15 @@ type BillingPortalUrl {
 }
 
 extend type Query {
-  environmentResources(environment: EnvironmentID!): EnvironmentResources @hasRole(role: [USER])
-  subscription: BillingSubscription @hasRole(role: [USER])
-  usageSummary: UsageSummary @hasRole(role: [USER])
+  environmentResources(environment: EnvironmentID!): EnvironmentResources @hasRole(role: WORKSPACE_MEMBER)
+  subscription: BillingSubscription @hasRole(role: WORKSPACE_MEMBER)
+  usageSummary: UsageSummary @hasRole(role: WORKSPACE_MEMBER)
 }
 
 extend type Mutation {
-  setEnvironmentResources(input: SetEnvironmentResourcesInput!): Environment! @hasRole(role: [USER])
-  changePlan(plan: Plan!): BillingSubscription! @allowSuspended @hasRole(role: [ADMIN])
-  billingPortalUrl: BillingPortalUrl! @allowSuspended @hasRole(role: [ADMIN])
-  createPlanCheckout(plan: Plan!): CheckoutSession! @allowSuspended @hasRole(role: [ADMIN])
-  completePlanCheckout(sessionId: String!): BillingSubscription! @allowSuspended @hasRole(role: [ADMIN])
+  setEnvironmentResources(input: SetEnvironmentResourcesInput!): Environment! @hasRole(role: WORKSPACE_MEMBER)
+  changePlan(plan: Plan!): BillingSubscription! @allowSuspended @hasRole(role: WORKSPACE_ADMIN)
+  billingPortalUrl: BillingPortalUrl! @allowSuspended @hasRole(role: WORKSPACE_ADMIN)
+  createPlanCheckout(plan: Plan!): CheckoutSession! @allowSuspended @hasRole(role: WORKSPACE_ADMIN)
+  completePlanCheckout(sessionId: String!): BillingSubscription! @allowSuspended @hasRole(role: WORKSPACE_ADMIN)
 }

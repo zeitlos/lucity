@@ -52,7 +52,7 @@ func (c *Client) GitHubSources(ctx context.Context) ([]GitHubInstallation, error
 		return nil, err
 	}
 
-	installations, err := c.GitHubApp.UserInstallations(ctx, &oauth2.Token{AccessToken: ghToken})
+	installations, err := c.gitHubApp.UserInstallations(ctx, &oauth2.Token{AccessToken: ghToken})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list user installations: %w", err)
 	}
@@ -83,7 +83,7 @@ func (c *Client) GitHubRepositories(ctx context.Context, installationID string) 
 		return nil, fmt.Errorf("invalid installation ID: %w", err)
 	}
 
-	ghToken, err := c.GitHubApp.InstallationToken(ctx, instID)
+	ghToken, err := c.gitHubApp.InstallationToken(ctx, instID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to mint installation token: %w", err)
 	}
@@ -129,7 +129,7 @@ func (c *Client) userGitHubToken(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("no Logto access token in context")
 	}
 
-	token, err := c.Logto.GitHubToken(ctx, logtoToken)
+	token, err := c.logto.GitHubToken(ctx, logtoToken)
 	if err == nil {
 		return token, nil
 	}
@@ -139,7 +139,7 @@ func (c *Client) userGitHubToken(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("failed to get github token: %w", err)
 	}
 
-	if c.TokenRefresher == nil {
+	if c.tokenRefresher == nil {
 		return "", fmt.Errorf("failed to get github token (token expired, no refresher configured): %w", err)
 	}
 
@@ -150,13 +150,13 @@ func (c *Client) userGitHubToken(ctx context.Context) (string, error) {
 
 	slog.Info("logto access token expired, refreshing")
 
-	newAccessToken, refreshErr := c.TokenRefresher(ctx, refreshToken)
+	newAccessToken, refreshErr := c.tokenRefresher(ctx, refreshToken)
 	if refreshErr != nil {
 		return "", fmt.Errorf("failed to get github token (token expired, refresh failed: %v): %w", refreshErr, err)
 	}
 
 	// Retry with the refreshed token
-	token, err = c.Logto.GitHubToken(ctx, newAccessToken)
+	token, err = c.logto.GitHubToken(ctx, newAccessToken)
 	if err != nil {
 		return "", fmt.Errorf("failed to get github token after refresh: %w", err)
 	}

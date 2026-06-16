@@ -104,23 +104,18 @@ type WorkspaceClaim struct {
 
 func claimsFromRaw(sub, name, email, picture string, wsClaims []workspaceClaimEntry) *Claims {
 	workspaces := make([]WorkspaceMembership, 0, len(wsClaims))
+
 	for _, ws := range wsClaims {
 		role := WorkspaceRoleUser
+
 		if ws.Role == "admin" {
 			role = WorkspaceRoleAdmin
 		}
+
 		workspaces = append(workspaces, WorkspaceMembership{
 			Workspace: ws.ID,
 			Role:      role,
 		})
-	}
-
-	roles := []Role{RoleUser}
-	for _, m := range workspaces {
-		if m.Role == WorkspaceRoleAdmin {
-			roles = append(roles, RoleAdmin)
-			break
-		}
 	}
 
 	return &Claims{
@@ -128,7 +123,6 @@ func claimsFromRaw(sub, name, email, picture string, wsClaims []workspaceClaimEn
 		Name:       name,
 		Email:      email,
 		AvatarURL:  picture,
-		Roles:      roles,
 		Workspaces: workspaces,
 	}
 }

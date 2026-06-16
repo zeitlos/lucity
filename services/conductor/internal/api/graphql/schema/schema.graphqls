@@ -1,4 +1,4 @@
-directive @hasRole(role: [Role!]!) on FIELD_DEFINITION
+directive @hasRole(role: Role!) on FIELD_DEFINITION
 directive @allowSuspended on FIELD_DEFINITION
 directive @constraint(constraint: String!) on INPUT_FIELD_DEFINITION | ARGUMENT_DEFINITION
 directive @goModel(model: String, models: [String!]) on OBJECT | INPUT_OBJECT | SCALAR | ENUM | INTERFACE | UNION
@@ -18,8 +18,9 @@ scalar VolumeID
 
 enum Role {
   ANONYMOUS
-  USER
-  ADMIN
+  AUTHENTICATED
+  WORKSPACE_MEMBER
+  WORKSPACE_ADMIN
 }
 
 type Query

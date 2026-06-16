@@ -14,11 +14,11 @@ input CreateEnvironmentInput {
 }
 
 extend type Query {
-  environments(project: ProjectID!): [Environment!]! @hasRole(role: [USER])
-  environment(environment: EnvironmentID!): Environment! @hasRole(role: [USER])
+  environments(project: ProjectID!): [Environment!]! @hasRole(role: WORKSPACE_MEMBER)
+  environment(environment: EnvironmentID!): Environment! @hasRole(role: WORKSPACE_MEMBER)
 }
 
 extend type Mutation {
-  createEnvironment(input: CreateEnvironmentInput!): Environment! @hasRole(role: [USER])
-  deleteEnvironment(environment: EnvironmentID!): Boolean! @hasRole(role: [USER])
+  createEnvironment(input: CreateEnvironmentInput!): Environment! @hasRole(role: WORKSPACE_MEMBER)
+  deleteEnvironment(environment: EnvironmentID!): Boolean! @hasRole(role: WORKSPACE_MEMBER)
 }

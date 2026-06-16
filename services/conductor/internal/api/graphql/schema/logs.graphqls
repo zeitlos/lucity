@@ -6,5 +6,5 @@ type ServiceLogEntry {
 }
 
 extend type Subscription {
-  serviceLogs(service: ServiceID!, tailLines: Int): ServiceLogEntry! @hasRole(role: [USER])
+  serviceLogs(service: ServiceID!, tailLines: Int): ServiceLogEntry! @hasRole(role: WORKSPACE_MEMBER)
 }

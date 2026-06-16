@@ -82,7 +82,7 @@ func (c *Client) SetEnvironmentResources(ctx context.Context, environmentID plat
 }
 
 func (c *Client) Subscription(ctx context.Context, ws string) (*BillingSubscription, error) {
-	if c.Cashier == nil {
+	if c.cashier == nil {
 		return nil, fmt.Errorf("billing not configured")
 	}
 
@@ -100,7 +100,7 @@ func (c *Client) Subscription(ctx context.Context, ws string) (*BillingSubscript
 
 	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
 	defer cancel()
-	resp, err := c.Cashier.Subscription(callCtx, &cashier.SubscriptionRequest{
+	resp, err := c.cashier.Subscription(callCtx, &cashier.SubscriptionRequest{
 		Workspace:      ws,
 		CustomerId:     customerID,
 		SubscriptionId: subscriptionID,
@@ -127,10 +127,6 @@ func (c *Client) Subscription(ctx context.Context, ws string) (*BillingSubscript
 }
 
 func (c *Client) ChangePlan(ctx context.Context, ws, plan string) (*BillingSubscription, error) {
-	if c.Cashier == nil {
-		return nil, fmt.Errorf("billing not configured")
-	}
-
 	customerID, subscriptionID, err := c.stripeIDs(ctx, ws)
 
 	if err != nil {
@@ -145,7 +141,7 @@ func (c *Client) ChangePlan(ctx context.Context, ws, plan string) (*BillingSubsc
 
 	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
 	defer cancel()
-	resp, err := c.Cashier.ChangePlan(callCtx, &cashier.ChangePlanRequest{
+	resp, err := c.cashier.ChangePlan(callCtx, &cashier.ChangePlanRequest{
 		Workspace:      ws,
 		Plan:           stringToPlanProto(plan),
 		CustomerId:     customerID,
@@ -173,10 +169,6 @@ func (c *Client) ChangePlan(ctx context.Context, ws, plan string) (*BillingSubsc
 }
 
 func (c *Client) BillingPortalURL(ctx context.Context, ws string) (string, error) {
-	if c.Cashier == nil {
-		return "", fmt.Errorf("billing not configured")
-	}
-
 	customerID, _, err := c.stripeIDs(ctx, ws)
 
 	if err != nil {
@@ -192,7 +184,7 @@ func (c *Client) BillingPortalURL(ctx context.Context, ws string) (string, error
 	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
 	defer cancel()
 
-	resp, err := c.Cashier.BillingPortalURL(callCtx, &cashier.BillingPortalURLRequest{
+	resp, err := c.cashier.BillingPortalURL(callCtx, &cashier.BillingPortalURLRequest{
 		Workspace:  ws,
 		ReturnUrl:  "", // Stripe defaults to billing portal home
 		CustomerId: customerID,
@@ -206,7 +198,7 @@ func (c *Client) BillingPortalURL(ctx context.Context, ws string) (string, error
 }
 
 func (c *Client) UsageSummary(ctx context.Context, ws string) (*UsageSummaryResult, error) {
-	if c.Cashier == nil {
+	if c.cashier == nil {
 		return nil, fmt.Errorf("billing not configured")
 	}
 	customerID, subscriptionID, err := c.stripeIDs(ctx, ws)
@@ -220,7 +212,7 @@ func (c *Client) UsageSummary(ctx context.Context, ws string) (*UsageSummaryResu
 
 	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
 	defer cancel()
-	resp, err := c.Cashier.UsageSummary(callCtx, &cashier.UsageSummaryRequest{
+	resp, err := c.cashier.UsageSummary(callCtx, &cashier.UsageSummaryRequest{
 		Workspace:      ws,
 		CustomerId:     customerID,
 		SubscriptionId: subscriptionID,
@@ -242,7 +234,7 @@ func (c *Client) stripeIDs(ctx context.Context, ws string) (customerID, subscrip
 	if err != nil {
 		return "", "", fmt.Errorf("failed to resolve org: %w", err)
 	}
-	org, err := c.Logto.Organization(ctx, orgID)
+	org, err := c.logto.Organization(ctx, orgID)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to get organization: %w", err)
 	}
@@ -254,10 +246,6 @@ func (c *Client) stripeIDs(ctx context.Context, ws string) (customerID, subscrip
 }
 
 func (c *Client) CreatePlanCheckout(ctx context.Context, ws, plan string) (string, error) {
-	if c.Cashier == nil {
-		return "", fmt.Errorf("billing not configured")
-	}
-
 	claims, err := auth.FromContext(ctx)
 
 	if err != nil {
@@ -272,14 +260,14 @@ func (c *Client) CreatePlanCheckout(ctx context.Context, ws, plan string) (strin
 		return "", fmt.Errorf("billing is not configured for this workspace")
 	}
 
-	successURL := fmt.Sprintf("%s/checkout/plan-success?session_id={CHECKOUT_SESSION_ID}", c.Config.DashboardURL)
-	cancelURL := fmt.Sprintf("%s/settings", c.Config.DashboardURL)
+	successURL := fmt.Sprintf("%s/checkout/plan-success?session_id={CHECKOUT_SESSION_ID}", c.config.DashboardURL)
+	cancelURL := fmt.Sprintf("%s/settings", c.config.DashboardURL)
 
 	ctx = auth.OutgoingContext(ctx)
 	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
 	defer cancel()
 
-	resp, err := c.Cashier.CreatePlanCheckoutSession(callCtx, &cashier.CreatePlanCheckoutSessionRequest{
+	resp, err := c.cashier.CreatePlanCheckoutSession(callCtx, &cashier.CreatePlanCheckoutSessionRequest{
 		CustomerId: customerID,
 		Plan:       stringToPlanProto(plan),
 		SuccessUrl: successURL,
@@ -295,14 +283,12 @@ func (c *Client) CreatePlanCheckout(ctx context.Context, ws, plan string) (strin
 }
 
 func (c *Client) CompletePlanCheckout(ctx context.Context, ws, sessionID string) (*BillingSubscription, error) {
-	if c.Cashier == nil {
-		return nil, fmt.Errorf("billing not configured")
-	}
-
 	customerID, subscriptionID, err := c.stripeIDs(ctx, ws)
+
 	if err != nil {
 		return nil, err
 	}
+
 	if customerID == "" || subscriptionID == "" {
 		return nil, fmt.Errorf("billing is not configured for this workspace")
 	}
@@ -311,7 +297,7 @@ func (c *Client) CompletePlanCheckout(ctx context.Context, ws, sessionID string)
 	callCtx, cancel := context.WithTimeout(ctx, grpcTimeout)
 	defer cancel()
 
-	resp, err := c.Cashier.AddPlan(callCtx, &cashier.AddPlanRequest{
+	resp, err := c.cashier.AddPlan(callCtx, &cashier.AddPlanRequest{
 		Workspace:         ws,
 		CustomerId:        customerID,
 		SubscriptionId:    subscriptionID,

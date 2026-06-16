@@ -15,7 +15,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/zeitlos/lucity/pkg/auth"
-	"github.com/zeitlos/lucity/pkg/tenant"
 	"github.com/zeitlos/lucity/services/conductor/internal/buildjob"
 	"github.com/zeitlos/lucity/services/conductor/internal/deployer"
 	"github.com/zeitlos/lucity/services/conductor/internal/planner"
@@ -50,10 +49,6 @@ func (c *Client) Service(ctx context.Context, id ServiceID) (*Service, error) {
 }
 
 func (c *Client) DetectServices(ctx context.Context, repositoryURL string, installationID int64) ([]Plan, error) {
-	if _, err := tenant.FromContext(ctx); err != nil {
-		return nil, err
-	}
-
 	commit, err := c.source.CommitSHA(ctx, repositoryURL, "")
 
 	if err != nil {
@@ -104,7 +99,7 @@ func (c *Client) AddService(ctx context.Context, environmentID platform.Environm
 			return nil, err
 		}
 
-		spec.Image = c.Config.RegistryPullURL + "/" + c.imageRepository(id)
+		spec.Image = c.config.RegistryPullURL + "/" + c.imageRepository(id)
 	} else if externalImage != "" {
 		if _, err := containername.ParseReference(externalImage); err != nil {
 			return nil, fmt.Errorf("invalid image reference %q: %w", externalImage, err)
@@ -257,7 +252,7 @@ func (c *Client) GenerateDomain(ctx context.Context, serviceID platform.ServiceI
 		serviceID.Name,
 		serviceID.Environment,
 		randCrockford32(5),
-		c.Config.WorkloadDomain,
+		c.config.WorkloadDomain,
 	)
 
 	if _, err := c.deployer.Services().AddDomain(ctx, serviceID, hostname); err != nil {
@@ -350,7 +345,7 @@ func (c *Client) runDeploy(claims *auth.Claims, serviceID platform.ServiceID, bu
 				return
 			}
 
-			ref := c.Config.RegistryPullURL + "/" + built.Context().RepositoryStr() + tagOrDigest(built)
+			ref := c.config.RegistryPullURL + "/" + built.Context().RepositoryStr() + tagOrDigest(built)
 
 			log.InfoContext(ctx, "deploy: build succeeded, applying image", "ref", ref)
 
@@ -415,7 +410,7 @@ func (c *Client) resolveRepositoryURL(ctx context.Context, installationID int64,
 		return "", err
 	}
 
-	token, err := c.GitHubApp.InstallationToken(ctx, installationID)
+	token, err := c.gitHubApp.InstallationToken(ctx, installationID)
 
 	if err != nil {
 		return "", fmt.Errorf("authenticate with GitHub: %w", err)

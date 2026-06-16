@@ -61,18 +61,10 @@ func (c *Client) CreateWorkspace(ctx context.Context, id, name string) (*Workspa
 }
 
 func (c *Client) UpdateWorkspace(ctx context.Context, id, name string) (*WorkspaceDetails, error) {
-	if err := c.requireWorkspaceAdmin(ctx, id); err != nil {
-		return nil, err
-	}
-
 	return c.directory.UpdateWorkspace(ctx, id, name)
 }
 
 func (c *Client) DeleteWorkspace(ctx context.Context, id string) (bool, error) {
-	if err := c.requireWorkspaceAdmin(ctx, id); err != nil {
-		return false, err
-	}
-
 	projects, err := c.platform.Projects(ctx, id)
 
 	if err != nil {
@@ -93,10 +85,6 @@ func (c *Client) DeleteWorkspace(ctx context.Context, id string) (bool, error) {
 }
 
 func (c *Client) InviteMember(ctx context.Context, workspaceID, email string, role auth.WorkspaceRole) (*WorkspaceMember, error) {
-	if err := c.requireWorkspaceAdmin(ctx, workspaceID); err != nil {
-		return nil, err
-	}
-
 	member, err := c.directory.InviteMember(ctx, workspaceID, email, role)
 
 	if err != nil {
@@ -109,10 +97,6 @@ func (c *Client) InviteMember(ctx context.Context, workspaceID, email string, ro
 }
 
 func (c *Client) RemoveMember(ctx context.Context, workspaceID, userID string) (bool, error) {
-	if err := c.requireWorkspaceAdmin(ctx, workspaceID); err != nil {
-		return false, err
-	}
-
 	claims, err := auth.FromContext(ctx)
 
 	if err != nil {
@@ -133,10 +117,6 @@ func (c *Client) RemoveMember(ctx context.Context, workspaceID, userID string) (
 }
 
 func (c *Client) UpdateMemberRole(ctx context.Context, workspaceID, userID string, role auth.WorkspaceRole) (*WorkspaceMember, error) {
-	if err := c.requireWorkspaceAdmin(ctx, workspaceID); err != nil {
-		return nil, err
-	}
-
 	member, err := c.directory.UpdateMemberRole(ctx, workspaceID, userID, role)
 
 	if err != nil {
@@ -154,7 +134,7 @@ func (c *Client) UpdateMemberRole(ctx context.Context, workspaceID, userID strin
 // On genuine collision (different owner), picks {id}-0, {id}-1, etc.
 // Returns the workspace ID and whether it was newly created (true) or restored (false).
 func (c *Client) EnsurePersonalWorkspace(ctx context.Context, userID, username string) (string, bool, error) {
-	if c.Logto == nil {
+	if c.logto == nil {
 		return "", false, fmt.Errorf("logto not configured")
 	}
 
@@ -169,13 +149,13 @@ func (c *Client) EnsurePersonalWorkspace(ctx context.Context, userID, username s
 	}
 
 	// Check if preferred workspace ID already exists (search by name).
-	existing, err := c.Logto.OrganizationByName(ctx, wsID)
+	existing, err := c.logto.OrganizationByName(ctx, wsID)
 	if err == nil {
 		// Cache the mapping
 		c.cacheOrgID(wsID, existing.ID)
 
 		// Workspace exists. Check if this user is already a member.
-		members, memErr := c.Logto.OrganizationMembers(ctx, existing.ID)
+		members, memErr := c.logto.OrganizationMembers(ctx, existing.ID)
 		if memErr == nil {
 			for _, m := range members {
 				if m.ID == userID {
@@ -184,7 +164,7 @@ func (c *Client) EnsurePersonalWorkspace(ctx context.Context, userID, username s
 						stripeCustomerID, _ := existing.CustomData["stripeCustomerId"].(string)
 						stripeSubID, _ := existing.CustomData["stripeSubscriptionId"].(string)
 						if stripeCustomerID == "" || stripeSubID == "" {
-							user, _ := c.Logto.User(ctx, userID)
+							user, _ := c.logto.User(ctx, userID)
 							email := ""
 							if user != nil {
 								email = user.PrimaryEmail
@@ -203,8 +183,8 @@ func (c *Client) EnsurePersonalWorkspace(ctx context.Context, userID, username s
 		isPersonal, _ := existing.CustomData["personal"].(bool)
 		if isPersonal {
 			// Re-add user as admin member
-			_ = c.Logto.AddOrganizationMember(ctx, existing.ID, userID)
-			_ = c.Logto.AssignOrganizationRoles(ctx, existing.ID, userID, []string{adminRoleID, memberRoleID})
+			_ = c.logto.AddOrganizationMember(ctx, existing.ID, userID)
+			_ = c.logto.AssignOrganizationRoles(ctx, existing.ID, userID, []string{adminRoleID, memberRoleID})
 			slog.Info("personal workspace restored (re-added member)", "id", wsID, "user", userID)
 			return wsID, false, nil
 		}
@@ -220,7 +200,7 @@ func (c *Client) EnsurePersonalWorkspace(ctx context.Context, userID, username s
 	customData := map[string]interface{}{
 		"personal": true,
 	}
-	org, err := c.Logto.CreateOrganization(ctx, wsID, username, customData)
+	org, err := c.logto.CreateOrganization(ctx, wsID, username, customData)
 	if err != nil {
 		return "", false, fmt.Errorf("failed to create personal workspace: %w", err)
 	}
@@ -229,17 +209,17 @@ func (c *Client) EnsurePersonalWorkspace(ctx context.Context, userID, username s
 	c.cacheOrgID(wsID, org.ID)
 
 	// Add user as admin member
-	if err := c.Logto.AddOrganizationMember(ctx, org.ID, userID); err != nil {
+	if err := c.logto.AddOrganizationMember(ctx, org.ID, userID); err != nil {
 		return "", false, fmt.Errorf("failed to add user to personal workspace: %w", err)
 	}
-	if err := c.Logto.AssignOrganizationRoles(ctx, org.ID, userID, []string{adminRoleID, memberRoleID}); err != nil {
+	if err := c.logto.AssignOrganizationRoles(ctx, org.ID, userID, []string{adminRoleID, memberRoleID}); err != nil {
 		return "", false, fmt.Errorf("failed to assign roles in personal workspace: %w", err)
 	}
 
 	slog.Info("personal workspace created", "id", wsID, "user", userID)
 
 	// Best-effort: set up Stripe customer + subscription with 14-day trial
-	user, _ := c.Logto.User(ctx, userID)
+	user, _ := c.logto.User(ctx, userID)
 	email := ""
 	if user != nil {
 		email = user.PrimaryEmail
@@ -254,7 +234,7 @@ func (c *Client) EnsurePersonalWorkspace(ctx context.Context, userID, username s
 func (c *Client) findAvailableWorkspaceID(ctx context.Context, base string) (string, error) {
 	for i := 0; i < 10; i++ {
 		candidate := fmt.Sprintf("%s-%d", base, i)
-		_, err := c.Logto.OrganizationByName(ctx, candidate)
+		_, err := c.logto.OrganizationByName(ctx, candidate)
 		if err != nil {
 			return candidate, nil
 		}
@@ -272,10 +252,10 @@ func (c *Client) findAvailableWorkspaceID(ctx context.Context, base string) (str
 // Uses context.WithoutCancel to detach from the HTTP request lifecycle. Billing setup
 // must complete even if the browser navigates away during the OIDC callback redirect.
 func (c *Client) setupBilling(ctx context.Context, workspace, name, email string, creditDays int32) {
-	if c.Cashier == nil {
+	if c.cashier == nil {
 		return
 	}
-	if c.Logto == nil {
+	if c.logto == nil {
 		return
 	}
 
@@ -293,7 +273,7 @@ func (c *Client) setupBilling(ctx context.Context, workspace, name, email string
 
 	// Read current org customData to check if billing is already (partially) set up.
 	var customData map[string]interface{}
-	org, err := c.Logto.Organization(billingCtx, orgID)
+	org, err := c.logto.Organization(billingCtx, orgID)
 	if err != nil {
 		slog.Warn("failed to read org for billing setup", "workspace", workspace, "error", err)
 		customData = make(map[string]interface{})
@@ -310,7 +290,7 @@ func (c *Client) setupBilling(ctx context.Context, workspace, name, email string
 		outCtx := auth.OutgoingContext(billingCtx)
 		custCtx, custCancel := context.WithTimeout(outCtx, grpcTimeout)
 		defer custCancel()
-		custResp, custErr := c.Cashier.CreateCustomer(custCtx, &cashier.CreateCustomerRequest{
+		custResp, custErr := c.cashier.CreateCustomer(custCtx, &cashier.CreateCustomerRequest{
 			Workspace: workspace,
 			Name:      name,
 			Email:     email,
@@ -328,7 +308,7 @@ func (c *Client) setupBilling(ctx context.Context, workspace, name, email string
 		outCtx := auth.OutgoingContext(billingCtx)
 		subCtx, subCancel := context.WithTimeout(outCtx, grpcTimeout)
 		defer subCancel()
-		subResp, subErr := c.Cashier.CreateSubscription(subCtx, &cashier.CreateSubscriptionRequest{
+		subResp, subErr := c.cashier.CreateSubscription(subCtx, &cashier.CreateSubscriptionRequest{
 			Workspace:  workspace,
 			CustomerId: customerID,
 			CreditDays: creditDays,
@@ -337,7 +317,7 @@ func (c *Client) setupBilling(ctx context.Context, workspace, name, email string
 			slog.Warn("failed to create Stripe subscription for workspace", "workspace", workspace, "error", subErr)
 			// Store at least the customer ID so we don't re-create it next time.
 			customData["stripeCustomerId"] = customerID
-			_, _ = c.Logto.UpdateOrganizationCustomData(billingCtx, orgID, customData)
+			_, _ = c.logto.UpdateOrganizationCustomData(billingCtx, orgID, customData)
 			return // Will retry subscription on next login
 		}
 		subscriptionID = subResp.SubscriptionId
@@ -354,7 +334,7 @@ func (c *Client) setupBilling(ctx context.Context, workspace, name, email string
 
 	customData["stripeCustomerId"] = customerID
 	customData["stripeSubscriptionId"] = subscriptionID
-	if _, err := c.Logto.UpdateOrganizationCustomData(billingCtx, orgID, customData); err != nil {
+	if _, err := c.logto.UpdateOrganizationCustomData(billingCtx, orgID, customData); err != nil {
 		slog.Warn("failed to store billing IDs in org customData", "workspace", workspace, "error", err)
 		return // Will retry on next login
 	}
@@ -371,11 +351,11 @@ func (c *Client) CreateWorkspaceCheckout(ctx context.Context, id, name, plan str
 		return "", err
 	}
 
-	if c.Logto == nil {
+	if c.logto == nil {
 		return "", fmt.Errorf("logto not configured")
 	}
 
-	if c.Cashier == nil {
+	if c.cashier == nil {
 		return "", fmt.Errorf("billing not configured")
 	}
 
@@ -384,20 +364,20 @@ func (c *Client) CreateWorkspaceCheckout(ctx context.Context, id, name, plan str
 	}
 
 	// Check if workspace ID is already taken.
-	if _, err = c.Logto.OrganizationByName(ctx, id); err == nil {
+	if _, err = c.logto.OrganizationByName(ctx, id); err == nil {
 		return "", fmt.Errorf("workspace ID %q is already taken", id)
 	}
 
 	// Build Stripe Checkout URLs.
-	successURL := fmt.Sprintf("%s/checkout/success?session_id={CHECKOUT_SESSION_ID}", c.Config.DashboardURL)
-	cancelURL := c.Config.DashboardURL
+	successURL := fmt.Sprintf("%s/checkout/success?session_id={CHECKOUT_SESSION_ID}", c.config.DashboardURL)
+	cancelURL := c.config.DashboardURL
 
 	outCtx := auth.OutgoingContext(ctx)
 	callCtx, cancel := context.WithTimeout(outCtx, grpcTimeout)
 	defer cancel()
 
 	planProto := stringToPlanProto(plan)
-	resp, err := c.Cashier.CreateCheckoutSession(callCtx, &cashier.CreateCheckoutSessionRequest{
+	resp, err := c.cashier.CreateCheckoutSession(callCtx, &cashier.CreateCheckoutSessionRequest{
 		Workspace:  id,
 		Name:       name,
 		Plan:       planProto,
@@ -423,7 +403,7 @@ func (c *Client) CompleteWorkspaceCheckout(ctx context.Context, sessionID string
 		return nil, err
 	}
 
-	if c.Cashier == nil {
+	if c.cashier == nil {
 		return nil, fmt.Errorf("billing not configured")
 	}
 
@@ -432,7 +412,7 @@ func (c *Client) CompleteWorkspaceCheckout(ctx context.Context, sessionID string
 	callCtx, cancel := context.WithTimeout(outCtx, grpcTimeout)
 	defer cancel()
 
-	session, err := c.Cashier.RetrieveCheckoutSession(callCtx, &cashier.RetrieveCheckoutSessionRequest{
+	session, err := c.cashier.RetrieveCheckoutSession(callCtx, &cashier.RetrieveCheckoutSessionRequest{
 		SessionId: sessionID,
 	})
 	if err != nil {
@@ -487,7 +467,7 @@ func (c *Client) orgID(ctx context.Context, workspaceID string) (string, error) 
 	c.orgIDCacheMu.RUnlock()
 
 	// Cache miss: look up by name
-	org, err := c.Logto.OrganizationByName(ctx, workspaceID)
+	org, err := c.logto.OrganizationByName(ctx, workspaceID)
 	if err != nil {
 		return "", fmt.Errorf("failed to resolve org ID for workspace %q: %w", workspaceID, err)
 	}
@@ -501,22 +481,6 @@ func (c *Client) cacheOrgID(workspaceID, logtoOrgID string) {
 	c.orgIDCacheMu.Lock()
 	c.orgIDCache[workspaceID] = logtoOrgID
 	c.orgIDCacheMu.Unlock()
-}
-
-// TODO: Replace with graphql schema auth directive.
-// requireWorkspaceAdmin checks that the current user is an admin of the given workspace.
-func (c *Client) requireWorkspaceAdmin(ctx context.Context, workspace string) error {
-	claims, err := auth.FromContext(ctx)
-
-	if err != nil {
-		return err
-	}
-
-	if claims.WorkspaceRoleIn(workspace) != auth.WorkspaceRoleAdmin {
-		return fmt.Errorf("forbidden: workspace admin role required")
-	}
-
-	return nil
 }
 
 // sanitizeWorkspaceID converts a username to a valid workspace ID.

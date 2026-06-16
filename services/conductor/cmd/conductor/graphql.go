@@ -39,6 +39,11 @@ type GraphQLServer struct {
 	port   string
 }
 
+const (
+	hasRoleDirective        = "hasRole"
+	allowSuspendedDirective = "allowSuspended"
+)
+
 func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvider *OIDCProvider, verifier *auth.Verifier, logtoClient *logto.Client, internalIssuer *auth.Issuer, sessionSecret, dashboardURL, githubAppSlug string, grpcComponents []grpcComponent) *GraphQLServer {
 	resolver := gatewaygraphql.Resolver{
 		Conductor: conductorClient,
@@ -53,12 +58,9 @@ func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvid
 			AllowSuspended: func(ctx context.Context, obj interface{}, next gqlgen.Resolver) (interface{}, error) {
 				return next(ctx)
 			},
-			HasRole: func(ctx context.Context, obj interface{}, next gqlgen.Resolver, role []model.Role) (interface{}, error) {
-				// Allow ANONYMOUS access
-				for _, r := range role {
-					if r == model.RoleAnonymous {
-						return next(ctx)
-					}
+			HasRole: func(ctx context.Context, obj interface{}, next gqlgen.Resolver, required model.Role) (interface{}, error) {
+				if required == model.RoleAnonymous {
+					return next(ctx)
 				}
 
 				claims, err := auth.FromContext(ctx)
@@ -67,44 +69,68 @@ func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvid
 					return nil, err
 				}
 
-				hasRole := false
-				for _, required := range role {
-					if claims.HasRole(auth.Role(required)) {
-						hasRole = true
-						break
-					}
+				if required == model.RoleAuthenticated {
+					return next(ctx)
 				}
 
-				if !hasRole {
+				converted, err := convertRole(required)
+
+				if err != nil {
+					return nil, err
+				}
+
+				workspace, err := tenant.FromContext(ctx)
+
+				if err != nil {
+					return nil, err
+				}
+
+				if !claims.WorkspaceRoleIn(workspace).Satisfies(converted) {
 					return nil, fmt.Errorf("forbidden: insufficient role")
 				}
 
-				// Check workspace suspension for mutations (queries are never blocked).
-				// Skip if the field is marked @allowSuspended (checked via AST, not directive order).
 				oc := gqlgen.GetOperationContext(ctx)
-				if oc.Operation != nil && oc.Operation.Operation == ast.Mutation {
-					fc := gqlgen.GetFieldContext(ctx)
-					allowSuspended := false
-					if fc != nil && fc.Field.Definition != nil {
-						for _, d := range fc.Field.Definition.Directives {
-							if d.Name == "allowSuspended" {
-								allowSuspended = true
-								break
-							}
+
+				// Check workspace suspension for mutations (queries are never blocked).
+				if oc.Operation == nil || oc.Operation.Operation != ast.Mutation {
+					return next(ctx)
+				}
+
+				fc := gqlgen.GetFieldContext(ctx)
+				allowSuspended := false
+
+				if fc != nil && fc.Field.Definition != nil {
+					for _, d := range fc.Field.Definition.Directives {
+						if d.Name == allowSuspendedDirective {
+							// Skip if the field is marked @allowSuspended (checked via AST, not directive order).
+							allowSuspended = true
+							break
 						}
 					}
-					if !allowSuspended {
-						ws, err := tenant.FromContext(ctx)
+				}
 
-						if err == nil && conductorClient.Logto != nil {
-							org, err := conductorClient.Logto.OrganizationByName(ctx, ws)
-							if err == nil && org.CustomData != nil {
-								if suspended, ok := org.CustomData["suspended"].(bool); ok && suspended {
-									slog.Warn("mutation blocked: workspace suspended", "workspace", ws, "operation", oc.OperationName)
-									return nil, fmt.Errorf("workspace suspended: update your payment method to continue")
-								}
-							}
+				if !allowSuspended {
+					org, err := logtoClient.OrganizationByName(ctx, workspace)
+
+					if err != nil {
+						return nil, err
+					}
+
+					suspended := false
+
+					if raw, exists := org.CustomData["suspended"]; exists {
+						if v, ok := raw.(bool); ok {
+							suspended = v
+						} else {
+							// key is present but value malformed
+							suspended = true
 						}
+					}
+
+					if suspended {
+						slog.Warn("mutation blocked: workspace suspended", "workspace", workspace, "operation", oc.OperationName)
+
+						return nil, fmt.Errorf("workspace suspended: update your payment method to continue")
 					}
 				}
 
@@ -175,7 +201,7 @@ func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvid
 			return next(ctx)
 		}
 
-		slog.Info("graphql mutation", "operation", oc.OperationName)
+		slog.InfoContext(ctx, "graphql mutation", "operation", oc.OperationName)
 
 		return next(ctx)
 	})
@@ -183,17 +209,18 @@ func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvid
 	// Enforcing IDs stay within workspace provided by header
 	srv.AroundFields(func(ctx context.Context, next graphql.Resolver) (any, error) {
 		fc := graphql.GetFieldContext(ctx)
-		callerWorkspace, err := tenant.FromContext(ctx)
-
-		if err != nil {
-			return nil, err
-		}
 
 		for _, arg := range fc.Args {
 			scoped, ok := arg.(platform.WorkspaceScoped)
 
 			if !ok {
 				continue
+			}
+
+			callerWorkspace, err := tenant.FromContext(ctx)
+
+			if err != nil {
+				return nil, err
 			}
 
 			if scoped.WorkspaceID() != callerWorkspace {
@@ -218,6 +245,30 @@ func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvid
 		slog.ErrorContext(ctx, "error during graphql operation", "error", err)
 
 		return gqlgen.DefaultErrorPresenter(ctx, err)
+	})
+
+	srv.AroundRootFields(func(ctx context.Context, next graphql.RootResolver) graphql.Marshaler {
+		rc := graphql.GetRootFieldContext(ctx)
+
+		if rc == nil {
+			return next(ctx)
+		}
+
+		if strings.HasPrefix(rc.Field.Name, "__") {
+			return next(ctx)
+		}
+
+		def := rc.Field.Definition
+
+		if def == nil || def.Directives.ForName(hasRoleDirective) == nil {
+			slog.ErrorContext(ctx, "root field has no auth directive", "type", rc.Object, "field", rc.Field.Name)
+
+			graphql.AddError(ctx, gqlerror.Errorf("%s.%s has no auth directive", rc.Object, rc.Field.Name))
+
+			return graphql.Null
+		}
+
+		return next(ctx)
 	})
 
 	mux := http.NewServeMux()
@@ -247,7 +298,6 @@ func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvid
 	mux.Handle("/playground", playground.Handler("GraphQL playground", "/graphql"))
 	mux.Handle("/graphql", srv)
 
-	// Apply middleware chain: rate limit → CORS → security headers → auth → issuer → tenant
 	authMiddleware := auth.Middleware(verifier)
 
 	// Issuer middleware injects the internal JWT issuer into the request context.
@@ -262,6 +312,7 @@ func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvid
 		})
 	}
 
+	// TODO: Validate if CORS is even needed. Dashboard and conductor run under the same hostname.
 	corsHandler := cors.New(cors.Options{
 		AllowedOrigins:   []string{"http://localhost:5173", dashboardURL},
 		AllowedMethods:   []string{"GET", "POST", "OPTIONS"},
@@ -393,4 +444,15 @@ func rateLimitMiddleware(next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r)
 	})
+}
+
+func convertRole(role model.Role) (auth.WorkspaceRole, error) {
+	switch role {
+	case model.RoleWorkspaceAdmin:
+		return auth.WorkspaceRoleAdmin, nil
+	case model.RoleWorkspaceMember:
+		return auth.WorkspaceRoleUser, nil
+	}
+
+	return "", fmt.Errorf("unknown role: %q", role)
 }

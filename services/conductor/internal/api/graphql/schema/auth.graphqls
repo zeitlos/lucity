@@ -16,5 +16,5 @@ enum WorkspaceRole {
 }
 
 extend type Query {
-  me: User! @hasRole(role: [USER])
+  me: User! @hasRole(role: AUTHENTICATED)
 }

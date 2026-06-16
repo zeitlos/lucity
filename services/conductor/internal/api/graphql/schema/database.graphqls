@@ -69,20 +69,20 @@ input CreateDatabaseInput {
 }
 
 extend type Query {
-  database(id: DatabaseID!): Database! @hasRole(role: [USER])
-  databaseTables(database: DatabaseID!): [DatabaseTable!]! @hasRole(role: [USER])
+  database(id: DatabaseID!): Database! @hasRole(role: WORKSPACE_MEMBER)
+  databaseTables(database: DatabaseID!): [DatabaseTable!]! @hasRole(role: WORKSPACE_MEMBER)
   databaseTableData(
     database: DatabaseID!
     table: String!
     schema: String
     limit: Int
     offset: Int
-  ): DatabaseTableData! @hasRole(role: [USER])
-  databaseCredentials(database: DatabaseID!): DatabaseCredentials! @hasRole(role: [USER])
+  ): DatabaseTableData! @hasRole(role: WORKSPACE_MEMBER)
+  databaseCredentials(database: DatabaseID!): DatabaseCredentials! @hasRole(role: WORKSPACE_MEMBER)
 }
 
 extend type Mutation {
-  createDatabase(input: CreateDatabaseInput!): Database! @hasRole(role: [USER])
-  deleteDatabase(database: DatabaseID!): Boolean! @hasRole(role: [USER])
-  executeQuery(database: DatabaseID!, query: String!): QueryResult! @hasRole(role: [USER])
+  createDatabase(input: CreateDatabaseInput!): Database! @hasRole(role: WORKSPACE_MEMBER)
+  deleteDatabase(database: DatabaseID!): Boolean! @hasRole(role: WORKSPACE_MEMBER)
+  executeQuery(database: DatabaseID!, query: String!): QueryResult! @hasRole(role: WORKSPACE_MEMBER)
 }

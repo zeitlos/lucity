@@ -51,7 +51,6 @@ func TestMintAndValidateToken(t *testing.T) {
 	claims := &Claims{
 		Subject: "user-123",
 		Email:   "user@example.com",
-		Roles:   []Role{RoleUser, RoleAdmin},
 	}
 
 	tokenStr, err := issuer.MintToken(claims, "my-workspace")
@@ -75,9 +74,6 @@ func TestMintAndValidateToken(t *testing.T) {
 	}
 	if got.IsSystem {
 		t.Error("IsSystem = true, want false")
-	}
-	if len(got.Roles) != 2 || got.Roles[0] != RoleUser || got.Roles[1] != RoleAdmin {
-		t.Errorf("roles = %v, want [USER, ADMIN]", got.Roles)
 	}
 }
 

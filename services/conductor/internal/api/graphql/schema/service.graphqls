@@ -137,19 +137,19 @@ input AutoscalingInput {
 }
 
 extend type Query {
-  service(id: ServiceID!): Service! @hasRole(role: [USER])
-  detectServices(installationId: ID!, repositoryUrl: String!): [DetectedService!]! @hasRole(role: [USER])
+  service(id: ServiceID!): Service! @hasRole(role: WORKSPACE_MEMBER)
+  detectServices(installationId: ID!, repositoryUrl: String!): [DetectedService!]! @hasRole(role: WORKSPACE_MEMBER)
 }
 
 extend type Mutation {
-  addService(environment: EnvironmentID!, input: AddServiceInput!): Service! @hasRole(role: [USER])
-  removeService(service: ServiceID!): Boolean! @hasRole(role: [USER])
-  setCustomStartCommand(service: ServiceID!, command: String!): Service! @hasRole(role: [USER])
-  setServicePort(service: ServiceID!, port: Int @constraint(constraint: "min=1,max=65535")): Service! @hasRole(role: [USER])
-  setServiceScaling(input: SetServiceScalingInput!): Service! @hasRole(role: [USER])
-  setServiceResources(service: ServiceID!, resources: ResourcesInput!): Service! @hasRole(role: [USER])
-  rollback(deployment: DeploymentID!): Boolean! @hasRole(role: [USER])
-  generateDomain(service: ServiceID!): Service! @hasRole(role: [USER])
-  addCustomDomain(service: ServiceID!, hostname: String! @constraint(constraint: "min=4,max=253")): Service! @hasRole(role: [USER])
-  removeDomain(service: ServiceID!, hostname: String!): Service! @hasRole(role: [USER])
+  addService(environment: EnvironmentID!, input: AddServiceInput!): Service! @hasRole(role: WORKSPACE_MEMBER)
+  removeService(service: ServiceID!): Boolean! @hasRole(role: WORKSPACE_MEMBER)
+  setCustomStartCommand(service: ServiceID!, command: String!): Service! @hasRole(role: WORKSPACE_MEMBER)
+  setServicePort(service: ServiceID!, port: Int @constraint(constraint: "min=1,max=65535")): Service! @hasRole(role: WORKSPACE_MEMBER)
+  setServiceScaling(input: SetServiceScalingInput!): Service! @hasRole(role: WORKSPACE_MEMBER)
+  setServiceResources(service: ServiceID!, resources: ResourcesInput!): Service! @hasRole(role: WORKSPACE_MEMBER)
+  rollback(deployment: DeploymentID!): Boolean! @hasRole(role: WORKSPACE_MEMBER)
+  generateDomain(service: ServiceID!): Service! @hasRole(role: WORKSPACE_MEMBER)
+  addCustomDomain(service: ServiceID!, hostname: String! @constraint(constraint: "min=4,max=253")): Service! @hasRole(role: WORKSPACE_MEMBER)
+  removeDomain(service: ServiceID!, hostname: String!): Service! @hasRole(role: WORKSPACE_MEMBER)
 }

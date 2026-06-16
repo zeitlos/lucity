@@ -7,7 +7,6 @@ import (
 	"sync"
 
 	"github.com/google/go-containerregistry/pkg/authn"
-	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/cashier"
 	ghpkg "github.com/zeitlos/lucity/pkg/github"
 	"github.com/zeitlos/lucity/pkg/logto"
@@ -28,11 +27,10 @@ import (
 type TokenRefresher func(ctx context.Context, refreshToken string) (newAccessToken string, err error)
 
 type Client struct {
-	Cashier        cashier.CashierServiceClient // nil if billing disabled
-	Issuer         *auth.Issuer                 // ES256 JWT issuer for gRPC auth (nil = no auth)
-	GitHubApp      *ghpkg.App
-	Logto          *logto.Client
-	TokenRefresher TokenRefresher // refreshes expired Logto access tokens (nil if not configured)
+	cashier        cashier.CashierServiceClient
+	gitHubApp      *ghpkg.App
+	logto          *logto.Client
+	tokenRefresher TokenRefresher // refreshes expired Logto access tokens (nil if not configured)
 
 	directory   directory.Interface
 	platform    platform.Interface
@@ -44,7 +42,7 @@ type Client struct {
 	deployer    deployer.Interface
 	environment environment.Interface
 
-	Config Config
+	config Config
 
 	// Cached Logto org role IDs (looked up by name on first use)
 	orgRoleOnce  sync.Once
@@ -67,14 +65,13 @@ type Config struct {
 	DashboardURL         string
 }
 
-func New(cashier cashier.CashierServiceClient, issuer *auth.Issuer, githubApp *ghpkg.App, logto *logto.Client, tokenRefresher TokenRefresher, directory directory.Interface, platform platform.Interface, buildjob buildjob.Interface, planner planner.Interface, source source.Interface, hostname *hostname.Client, gateway *gateway.Client, deployer deployer.Interface, environment environment.Interface, config Config) *Client {
+func New(cashier cashier.CashierServiceClient, githubApp *ghpkg.App, logto *logto.Client, tokenRefresher TokenRefresher, directory directory.Interface, platform platform.Interface, buildjob buildjob.Interface, planner planner.Interface, source source.Interface, hostname *hostname.Client, gateway *gateway.Client, deployer deployer.Interface, environment environment.Interface, config Config) *Client {
 	return &Client{
-		Cashier:        cashier,
-		Issuer:         issuer,
-		GitHubApp:      githubApp,
-		Logto:          logto,
-		TokenRefresher: tokenRefresher,
-		Config:         config,
+		cashier:        cashier,
+		gitHubApp:      githubApp,
+		logto:          logto,
+		tokenRefresher: tokenRefresher,
+		config:         config,
 		orgIDCache:     make(map[string]string),
 		directory:      directory,
 		platform:       platform,
@@ -91,7 +88,7 @@ func New(cashier cashier.CashierServiceClient, issuer *auth.Issuer, githubApp *g
 // orgRoleIDs returns the cached admin and member role IDs, looking them up on first call.
 func (c *Client) orgRoleIDs(ctx context.Context) (adminID, memberID string, err error) {
 	c.orgRoleOnce.Do(func() {
-		roles, rolesErr := c.Logto.OrganizationRoles(ctx)
+		roles, rolesErr := c.logto.OrganizationRoles(ctx)
 
 		if rolesErr != nil {
 			err = fmt.Errorf("failed to fetch organization roles: %w", rolesErr)

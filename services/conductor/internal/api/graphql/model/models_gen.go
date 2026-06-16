@@ -966,20 +966,22 @@ func (e ResourceTier) MarshalJSON() ([]byte, error) {
 type Role string
 
 const (
-	RoleAnonymous Role = "ANONYMOUS"
-	RoleUser      Role = "USER"
-	RoleAdmin     Role = "ADMIN"
+	RoleAnonymous       Role = "ANONYMOUS"
+	RoleAuthenticated   Role = "AUTHENTICATED"
+	RoleWorkspaceMember Role = "WORKSPACE_MEMBER"
+	RoleWorkspaceAdmin  Role = "WORKSPACE_ADMIN"
 )
 
 var AllRole = []Role{
 	RoleAnonymous,
-	RoleUser,
-	RoleAdmin,
+	RoleAuthenticated,
+	RoleWorkspaceMember,
+	RoleWorkspaceAdmin,
 }
 
 func (e Role) IsValid() bool {
 	switch e {
-	case RoleAnonymous, RoleUser, RoleAdmin:
+	case RoleAnonymous, RoleAuthenticated, RoleWorkspaceMember, RoleWorkspaceAdmin:
 		return true
 	}
 	return false

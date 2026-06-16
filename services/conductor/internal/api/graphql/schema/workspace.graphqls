@@ -28,8 +28,8 @@ input UpdateMemberRoleInput {
 }
 
 extend type Query {
-  workspace: Workspace! @hasRole(role: [USER])
-  workspaces: [Workspace!]! @hasRole(role: [USER])
+  workspace: Workspace! @hasRole(role: WORKSPACE_MEMBER)
+  workspaces: [Workspace!]! @hasRole(role: AUTHENTICATED)
 }
 
 input CreateWorkspaceCheckoutInput {
@@ -43,11 +43,11 @@ type CheckoutSession {
 }
 
 extend type Mutation {
-  createWorkspaceCheckout(input: CreateWorkspaceCheckoutInput!): CheckoutSession! @hasRole(role: [USER])
-  completeWorkspaceCheckout(sessionId: String!): Workspace! @hasRole(role: [USER])
-  updateWorkspace(input: UpdateWorkspaceInput!): Workspace! @allowSuspended @hasRole(role: [ADMIN])
-  deleteWorkspace: Boolean! @allowSuspended @hasRole(role: [ADMIN])
-  inviteMember(input: InviteMemberInput!): WorkspaceMember! @hasRole(role: [ADMIN])
-  removeMember(userId: ID!): Boolean! @hasRole(role: [ADMIN])
-  updateMemberRole(input: UpdateMemberRoleInput!): WorkspaceMember! @hasRole(role: [ADMIN])
+  createWorkspaceCheckout(input: CreateWorkspaceCheckoutInput!): CheckoutSession! @hasRole(role: AUTHENTICATED)
+  completeWorkspaceCheckout(sessionId: String!): Workspace! @hasRole(role: AUTHENTICATED)
+  updateWorkspace(input: UpdateWorkspaceInput!): Workspace! @allowSuspended @hasRole(role: WORKSPACE_ADMIN)
+  deleteWorkspace: Boolean! @allowSuspended @hasRole(role: WORKSPACE_ADMIN)
+  inviteMember(input: InviteMemberInput!): WorkspaceMember! @hasRole(role: WORKSPACE_ADMIN)
+  removeMember(userId: ID!): Boolean! @hasRole(role: WORKSPACE_ADMIN)
+  updateMemberRole(input: UpdateMemberRoleInput!): WorkspaceMember! @hasRole(role: WORKSPACE_ADMIN)
 }

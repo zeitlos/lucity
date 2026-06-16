@@ -106,7 +106,6 @@ func (h *Handler) handlePush(event *github.Event) {
 
 	ctx = auth.NewContext(ctx, &auth.Claims{
 		Subject: "webhook",
-		Roles:   []auth.Role{auth.RoleUser},
 	})
 	ctx = auth.WithGitHubToken(ctx, ghToken)
 

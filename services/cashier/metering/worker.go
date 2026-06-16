@@ -184,7 +184,6 @@ func (w *Worker) tick(ctx context.Context) {
 func (w *Worker) conductorCtx(ctx context.Context) context.Context {
 	ctx = auth.NewContext(ctx, &auth.Claims{
 		Subject: "cashier",
-		Roles:   []auth.Role{auth.RoleUser},
 	})
 	ctx = auth.WithIssuer(ctx, w.issuer)
 	return auth.OutgoingContext(ctx)

@@ -42,7 +42,7 @@ type ResolverRoot interface {
 type DirectiveRoot struct {
 	AllowSuspended func(ctx context.Context, obj any, next graphql.Resolver) (res any, err error)
 	Constraint     func(ctx context.Context, obj any, next graphql.Resolver, constraint string) (res any, err error)
-	HasRole        func(ctx context.Context, obj any, next graphql.Resolver, role []model.Role) (res any, err error)
+	HasRole        func(ctx context.Context, obj any, next graphql.Resolver, role model.Role) (res any, err error)
 }
 
 type ComplexityRoot struct {
@@ -2827,8 +2827,8 @@ func (ec *executionContext) dir_hasRole_args(ctx context.Context, rawArgs map[st
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "role",
-		func(ctx context.Context, v any) ([]model.Role, error) {
-			return ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, v)
+		func(ctx context.Context, v any) (model.Role, error) {
+			return ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -6044,7 +6044,7 @@ func (ec *executionContext) _Mutation_setEnvironmentResources(ctx context.Contex
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
 				if err != nil {
 					var zeroVal *model.Environment
 					return zeroVal, err
@@ -6113,7 +6113,7 @@ func (ec *executionContext) _Mutation_changePlan(ctx context.Context, field grap
 				return ec.Directives.AllowSuspended(ctx, nil, directive0)
 			}
 			directive2 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"ADMIN"})
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_ADMIN")
 				if err != nil {
 					var zeroVal *model.BillingSubscription
 					return zeroVal, err
@@ -6181,7 +6181,7 @@ func (ec *executionContext) _Mutation_billingPortalUrl(ctx context.Context, fiel
 				return ec.Directives.AllowSuspended(ctx, nil, directive0)
 			}
 			directive2 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"ADMIN"})
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_ADMIN")
 				if err != nil {
 					var zeroVal *model.BillingPortalURL
 					return zeroVal, err
@@ -6239,7 +6239,7 @@ func (ec *executionContext) _Mutation_createPlanCheckout(ctx context.Context, fi
 				return ec.Directives.AllowSuspended(ctx, nil, directive0)
 			}
 			directive2 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"ADMIN"})
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_ADMIN")
 				if err != nil {
 					var zeroVal *model.CheckoutSession
 					return zeroVal, err
@@ -6308,7 +6308,7 @@ func (ec *executionContext) _Mutation_completePlanCheckout(ctx context.Context, 
 				return ec.Directives.AllowSuspended(ctx, nil, directive0)
 			}
 			directive2 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"ADMIN"})
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_ADMIN")
 				if err != nil {
 					var zeroVal *model.BillingSubscription
 					return zeroVal, err
@@ -6370,7 +6370,7 @@ func (ec *executionContext) _Mutation_createDatabase(ctx context.Context, field 
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
 				if err != nil {
 					var zeroVal *model.Database
 					return zeroVal, err
@@ -6432,7 +6432,7 @@ func (ec *executionContext) _Mutation_deleteDatabase(ctx context.Context, field 
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
 				if err != nil {
 					var zeroVal bool
 					return zeroVal, err
@@ -6494,7 +6494,7 @@ func (ec *executionContext) _Mutation_executeQuery(ctx context.Context, field gr
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
 				if err != nil {
 					var zeroVal *model.QueryResult
 					return zeroVal, err
@@ -6556,7 +6556,7 @@ func (ec *executionContext) _Mutation_deploy(ctx context.Context, field graphql.
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
 				if err != nil {
 					var zeroVal *model.Build
 					return zeroVal, err
@@ -6618,7 +6618,7 @@ func (ec *executionContext) _Mutation_createEnvironment(ctx context.Context, fie
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
 				if err != nil {
 					var zeroVal *model.Environment
 					return zeroVal, err
@@ -6680,7 +6680,7 @@ func (ec *executionContext) _Mutation_deleteEnvironment(ctx context.Context, fie
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
 				if err != nil {
 					var zeroVal bool
 					return zeroVal, err
@@ -6742,7 +6742,7 @@ func (ec *executionContext) _Mutation_createProject(ctx context.Context, field g
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
 				if err != nil {
 					var zeroVal *model.Project
 					return zeroVal, err
@@ -6804,7 +6804,7 @@ func (ec *executionContext) _Mutation_deleteProject(ctx context.Context, field g
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
 				if err != nil {
 					var zeroVal bool
 					return zeroVal, err
@@ -6866,7 +6866,7 @@ func (ec *executionContext) _Mutation_addService(ctx context.Context, field grap
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
 				if err != nil {
 					var zeroVal *model.Service
 					return zeroVal, err
@@ -6928,7 +6928,7 @@ func (ec *executionContext) _Mutation_removeService(ctx context.Context, field g
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
 				if err != nil {
 					var zeroVal bool
 					return zeroVal, err
@@ -6990,7 +6990,7 @@ func (ec *executionContext) _Mutation_setCustomStartCommand(ctx context.Context,
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
 				if err != nil {
 					var zeroVal *model.Service
 					return zeroVal, err
@@ -7052,7 +7052,7 @@ func (ec *executionContext) _Mutation_setServicePort(ctx context.Context, field 
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
 				if err != nil {
 					var zeroVal *model.Service
 					return zeroVal, err
@@ -7114,7 +7114,7 @@ func (ec *executionContext) _Mutation_setServiceScaling(ctx context.Context, fie
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
 				if err != nil {
 					var zeroVal *model.Service
 					return zeroVal, err
@@ -7176,7 +7176,7 @@ func (ec *executionContext) _Mutation_setServiceResources(ctx context.Context, f
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
 				if err != nil {
 					var zeroVal *model.Service
 					return zeroVal, err
@@ -7238,7 +7238,7 @@ func (ec *executionContext) _Mutation_rollback(ctx context.Context, field graphq
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
 				if err != nil {
 					var zeroVal bool
 					return zeroVal, err
@@ -7300,7 +7300,7 @@ func (ec *executionContext) _Mutation_generateDomain(ctx context.Context, field 
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
 				if err != nil {
 					var zeroVal *model.Service
 					return zeroVal, err
@@ -7362,7 +7362,7 @@ func (ec *executionContext) _Mutation_addCustomDomain(ctx context.Context, field
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
 				if err != nil {
 					var zeroVal *model.Service
 					return zeroVal, err
@@ -7424,7 +7424,7 @@ func (ec *executionContext) _Mutation_removeDomain(ctx context.Context, field gr
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
 				if err != nil {
 					var zeroVal *model.Service
 					return zeroVal, err
@@ -7486,7 +7486,7 @@ func (ec *executionContext) _Mutation_setSharedVariables(ctx context.Context, fi
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
 				if err != nil {
 					var zeroVal bool
 					return zeroVal, err
@@ -7548,7 +7548,7 @@ func (ec *executionContext) _Mutation_setServiceVariables(ctx context.Context, f
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
 				if err != nil {
 					var zeroVal bool
 					return zeroVal, err
@@ -7610,7 +7610,7 @@ func (ec *executionContext) _Mutation_createWorkspaceCheckout(ctx context.Contex
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "AUTHENTICATED")
 				if err != nil {
 					var zeroVal *model.CheckoutSession
 					return zeroVal, err
@@ -7672,7 +7672,7 @@ func (ec *executionContext) _Mutation_completeWorkspaceCheckout(ctx context.Cont
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "AUTHENTICATED")
 				if err != nil {
 					var zeroVal *model.Workspace
 					return zeroVal, err
@@ -7741,7 +7741,7 @@ func (ec *executionContext) _Mutation_updateWorkspace(ctx context.Context, field
 				return ec.Directives.AllowSuspended(ctx, nil, directive0)
 			}
 			directive2 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"ADMIN"})
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_ADMIN")
 				if err != nil {
 					var zeroVal *model.Workspace
 					return zeroVal, err
@@ -7809,7 +7809,7 @@ func (ec *executionContext) _Mutation_deleteWorkspace(ctx context.Context, field
 				return ec.Directives.AllowSuspended(ctx, nil, directive0)
 			}
 			directive2 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"ADMIN"})
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_ADMIN")
 				if err != nil {
 					var zeroVal bool
 					return zeroVal, err
@@ -7851,7 +7851,7 @@ func (ec *executionContext) _Mutation_inviteMember(ctx context.Context, field gr
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"ADMIN"})
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_ADMIN")
 				if err != nil {
 					var zeroVal *model.WorkspaceMember
 					return zeroVal, err
@@ -7913,7 +7913,7 @@ func (ec *executionContext) _Mutation_removeMember(ctx context.Context, field gr
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"ADMIN"})
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_ADMIN")
 				if err != nil {
 					var zeroVal bool
 					return zeroVal, err
@@ -7975,7 +7975,7 @@ func (ec *executionContext) _Mutation_updateMemberRole(ctx context.Context, fiel
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"ADMIN"})
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_ADMIN")
 				if err != nil {
 					var zeroVal *model.WorkspaceMember
 					return zeroVal, err
@@ -8114,7 +8114,7 @@ func (ec *executionContext) _Query_me(ctx context.Context, field graphql.Collect
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "AUTHENTICATED")
 				if err != nil {
 					var zeroVal *model.User
 					return zeroVal, err
@@ -8165,7 +8165,7 @@ func (ec *executionContext) _Query_environmentResources(ctx context.Context, fie
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
 				if err != nil {
 					var zeroVal *model.EnvironmentResources
 					return zeroVal, err
@@ -8226,7 +8226,7 @@ func (ec *executionContext) _Query_subscription(ctx context.Context, field graph
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
 				if err != nil {
 					var zeroVal *model.BillingSubscription
 					return zeroVal, err
@@ -8276,7 +8276,7 @@ func (ec *executionContext) _Query_usageSummary(ctx context.Context, field graph
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
 				if err != nil {
 					var zeroVal *model.UsageSummary
 					return zeroVal, err
@@ -8327,7 +8327,7 @@ func (ec *executionContext) _Query_build(ctx context.Context, field graphql.Coll
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
 				if err != nil {
 					var zeroVal *model.Build
 					return zeroVal, err
@@ -8389,7 +8389,7 @@ func (ec *executionContext) _Query_database(ctx context.Context, field graphql.C
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
 				if err != nil {
 					var zeroVal *model.Database
 					return zeroVal, err
@@ -8451,7 +8451,7 @@ func (ec *executionContext) _Query_databaseTables(ctx context.Context, field gra
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
 				if err != nil {
 					var zeroVal []model.DatabaseTable
 					return zeroVal, err
@@ -8513,7 +8513,7 @@ func (ec *executionContext) _Query_databaseTableData(ctx context.Context, field 
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
 				if err != nil {
 					var zeroVal *model.DatabaseTableData
 					return zeroVal, err
@@ -8575,7 +8575,7 @@ func (ec *executionContext) _Query_databaseCredentials(ctx context.Context, fiel
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
 				if err != nil {
 					var zeroVal *model.DatabaseCredentials
 					return zeroVal, err
@@ -8637,7 +8637,7 @@ func (ec *executionContext) _Query_deployment(ctx context.Context, field graphql
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
 				if err != nil {
 					var zeroVal *model.Deployment
 					return zeroVal, err
@@ -8699,7 +8699,7 @@ func (ec *executionContext) _Query_environments(ctx context.Context, field graph
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
 				if err != nil {
 					var zeroVal []model.Environment
 					return zeroVal, err
@@ -8761,7 +8761,7 @@ func (ec *executionContext) _Query_environment(ctx context.Context, field graphq
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
 				if err != nil {
 					var zeroVal *model.Environment
 					return zeroVal, err
@@ -8822,7 +8822,7 @@ func (ec *executionContext) _Query_githubSources(ctx context.Context, field grap
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
 				if err != nil {
 					var zeroVal []model.GitHubInstallation
 					return zeroVal, err
@@ -8873,7 +8873,7 @@ func (ec *executionContext) _Query_githubRepositories(ctx context.Context, field
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
 				if err != nil {
 					var zeroVal []model.GitHubRepository
 					return zeroVal, err
@@ -8934,7 +8934,7 @@ func (ec *executionContext) _Query_githubConnected(ctx context.Context, field gr
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
 				if err != nil {
 					var zeroVal bool
 					return zeroVal, err
@@ -8975,7 +8975,7 @@ func (ec *executionContext) _Query_projects(ctx context.Context, field graphql.C
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
 				if err != nil {
 					var zeroVal []model.Project
 					return zeroVal, err
@@ -9026,7 +9026,7 @@ func (ec *executionContext) _Query_project(ctx context.Context, field graphql.Co
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
 				if err != nil {
 					var zeroVal *model.Project
 					return zeroVal, err
@@ -9088,7 +9088,7 @@ func (ec *executionContext) _Query_searchImages(ctx context.Context, field graph
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
 				if err != nil {
 					var zeroVal []model.ImageSearchResult
 					return zeroVal, err
@@ -9150,7 +9150,7 @@ func (ec *executionContext) _Query_service(ctx context.Context, field graphql.Co
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
 				if err != nil {
 					var zeroVal *model.Service
 					return zeroVal, err
@@ -9212,7 +9212,7 @@ func (ec *executionContext) _Query_detectServices(ctx context.Context, field gra
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
 				if err != nil {
 					var zeroVal []model.DetectedService
 					return zeroVal, err
@@ -9274,7 +9274,7 @@ func (ec *executionContext) _Query_sharedVariables(ctx context.Context, field gr
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
 				if err != nil {
 					var zeroVal []model.Variable
 					return zeroVal, err
@@ -9336,7 +9336,7 @@ func (ec *executionContext) _Query_serviceVariables(ctx context.Context, field g
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
 				if err != nil {
 					var zeroVal []model.ServiceVariable
 					return zeroVal, err
@@ -9397,7 +9397,7 @@ func (ec *executionContext) _Query_workspace(ctx context.Context, field graphql.
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
 				if err != nil {
 					var zeroVal *model.Workspace
 					return zeroVal, err
@@ -9447,7 +9447,7 @@ func (ec *executionContext) _Query_workspaces(ctx context.Context, field graphql
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "AUTHENTICATED")
 				if err != nil {
 					var zeroVal []model.Workspace
 					return zeroVal, err
@@ -10405,7 +10405,7 @@ func (ec *executionContext) _Subscription_buildLogs(ctx context.Context, field g
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
 				if err != nil {
 					var zeroVal string
 					return zeroVal, err
@@ -10467,7 +10467,7 @@ func (ec *executionContext) _Subscription_serviceLogs(ctx context.Context, field
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
 				if err != nil {
 					var zeroVal *model.ServiceLogEntry
 					return zeroVal, err
@@ -17174,37 +17174,6 @@ func (ec *executionContext) unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋser
 
 func (ec *executionContext) marshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx context.Context, sel ast.SelectionSet, v model.Role) graphql.Marshaler {
 	return v
-}
-
-func (ec *executionContext) unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx context.Context, v any) ([]model.Role, error) {
-	var vSlice []any
-	vSlice = graphql.CoerceList(v)
-	var err error
-	res := make([]model.Role, len(vSlice))
-	for i := range vSlice {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
-		res[i], err = ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, vSlice[i])
-		if err != nil {
-			return nil, err
-		}
-	}
-	return res, nil
-}
-
-func (ec *executionContext) marshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx context.Context, sel ast.SelectionSet, v []model.Role) graphql.Marshaler {
-	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
-		fc := graphql.GetFieldContext(ctx)
-		fc.Result = &v[i]
-		return ec.marshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, sel, v[i])
-	})
-
-	for _, e := range ret {
-		if e == graphql.Null {
-			return graphql.Null
-		}
-	}
-
-	return ret
 }
 
 func (ec *executionContext) marshalNService2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐService(ctx context.Context, sel ast.SelectionSet, v model.Service) graphql.Marshaler {
