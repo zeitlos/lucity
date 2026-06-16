@@ -50,7 +50,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: {{ $name }}
-          image: "{{ $svc.image.repository }}:{{ $svc.image.tag | default "build-pending" }}"
+          image: {{ printf "%s:%s" $svc.image.repository ($svc.image.tag | default "build-pending") | quote }}
           imagePullPolicy: {{ $svc.image.pullPolicy | default "IfNotPresent" }}
           {{- if $svc.customStartCommand }}
           command: ["sh", "-c", {{ $svc.customStartCommand | quote }}]
