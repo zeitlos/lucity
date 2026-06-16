@@ -1,6 +1,8 @@
 package platform
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"strings"
@@ -54,8 +56,12 @@ func (e EnvironmentID) ProjectID() ProjectID {
 	return ProjectID{Workspace: e.Workspace, Name: e.Project}
 }
 
+const namespaceHashLen = 10
+
 func (e EnvironmentID) Namespace() string {
-	return e.Workspace + "-" + e.Project + "-" + e.Name
+	// Suffixing with hash of canonical env id to avoid namespace collisions which could result in a takeover.
+	sum := sha256.Sum256([]byte(e.String()))
+	return e.Workspace + "-" + e.Project + "-" + e.Name + "-" + hex.EncodeToString(sum[:])[:namespaceHashLen]
 }
 
 func (e EnvironmentID) WorkspaceID() string {
