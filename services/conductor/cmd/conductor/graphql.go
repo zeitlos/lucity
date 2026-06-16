@@ -214,6 +214,9 @@ func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvid
 				Extensions: map[string]interface{}{"code": "DATABASE_PROVISIONING"},
 			}
 		}
+
+		slog.ErrorContext(ctx, "error during graphql operation", "error", err)
+
 		return gqlgen.DefaultErrorPresenter(ctx, err)
 	})
 
