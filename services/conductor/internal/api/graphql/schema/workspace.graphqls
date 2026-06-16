@@ -45,9 +45,9 @@ type CheckoutSession {
 extend type Mutation {
   createWorkspaceCheckout(input: CreateWorkspaceCheckoutInput!): CheckoutSession! @hasRole(role: [USER])
   completeWorkspaceCheckout(sessionId: String!): Workspace! @hasRole(role: [USER])
-  updateWorkspace(input: UpdateWorkspaceInput!): Workspace! @allowSuspended @hasRole(role: [USER])
-  deleteWorkspace: Boolean! @allowSuspended @hasRole(role: [USER])
-  inviteMember(input: InviteMemberInput!): WorkspaceMember! @hasRole(role: [USER])
-  removeMember(userId: ID!): Boolean! @hasRole(role: [USER])
-  updateMemberRole(input: UpdateMemberRoleInput!): WorkspaceMember! @hasRole(role: [USER])
+  updateWorkspace(input: UpdateWorkspaceInput!): Workspace! @allowSuspended @hasRole(role: [ADMIN])
+  deleteWorkspace: Boolean! @allowSuspended @hasRole(role: [ADMIN])
+  inviteMember(input: InviteMemberInput!): WorkspaceMember! @hasRole(role: [ADMIN])
+  removeMember(userId: ID!): Boolean! @hasRole(role: [ADMIN])
+  updateMemberRole(input: UpdateMemberRoleInput!): WorkspaceMember! @hasRole(role: [ADMIN])
 }

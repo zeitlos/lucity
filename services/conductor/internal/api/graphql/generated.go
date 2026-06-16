@@ -7741,7 +7741,7 @@ func (ec *executionContext) _Mutation_updateWorkspace(ctx context.Context, field
 				return ec.Directives.AllowSuspended(ctx, nil, directive0)
 			}
 			directive2 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"ADMIN"})
 				if err != nil {
 					var zeroVal *model.Workspace
 					return zeroVal, err
@@ -7809,7 +7809,7 @@ func (ec *executionContext) _Mutation_deleteWorkspace(ctx context.Context, field
 				return ec.Directives.AllowSuspended(ctx, nil, directive0)
 			}
 			directive2 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"ADMIN"})
 				if err != nil {
 					var zeroVal bool
 					return zeroVal, err
@@ -7851,7 +7851,7 @@ func (ec *executionContext) _Mutation_inviteMember(ctx context.Context, field gr
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"ADMIN"})
 				if err != nil {
 					var zeroVal *model.WorkspaceMember
 					return zeroVal, err
@@ -7913,7 +7913,7 @@ func (ec *executionContext) _Mutation_removeMember(ctx context.Context, field gr
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"ADMIN"})
 				if err != nil {
 					var zeroVal bool
 					return zeroVal, err
@@ -7975,7 +7975,7 @@ func (ec *executionContext) _Mutation_updateMemberRole(ctx context.Context, fiel
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"USER"})
+				role, err := ec.unmarshalNRole2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRoleᚄ(ctx, []any{"ADMIN"})
 				if err != nil {
 					var zeroVal *model.WorkspaceMember
 					return zeroVal, err
