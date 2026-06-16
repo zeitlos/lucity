@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 )
@@ -65,19 +66,26 @@ func (c *Client) DefaultCommand(ctx context.Context, imageRef string) (string, e
 		return "", err
 	}
 
-	registry, err := name.NewRegistry(c.Config.RegistryPullURL)
+	registry := ref.Context().RegistryStr()
+	authConfig := authn.Anonymous
 
-	if err != nil {
-		return "", err
+	if strings.EqualFold(registry, c.Config.RegistryPullURL) {
+		registry = c.Config.RegistryPushURL
+
+		pullRegistry, err := name.NewRegistry(c.Config.RegistryPullURL)
+
+		if err != nil {
+			return "", err
+		}
+
+		authConfig, err = c.Config.RegistryPullSecret.Resolve(pullRegistry)
+
+		if err != nil {
+			return "", err
+		}
 	}
 
-	authConfig, err := c.Config.RegistryPullSecret.Resolve(registry)
-
-	if err != nil {
-		return "", err
-	}
-
-	repo, err := name.NewRepository(c.Config.RegistryPushURL + "/" + ref.Context().RepositoryStr())
+	repo, err := name.NewRepository(registry + "/" + ref.Context().RepositoryStr())
 
 	if err != nil {
 		return "", err
