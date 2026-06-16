@@ -111,7 +111,7 @@ type DetectedService {
 }
 
 input AddServiceInput {
-  name: String @constraint(constraint: "resource_name,min=2,max=63")
+  name: String @constraint(constraint: "resource_name,min=2,max=16")
   repository: String @constraint(constraint: "min=3,max=200")
   contextPath: String
   installationId: ID

@@ -12211,7 +12211,7 @@ func (ec *executionContext) unmarshalInputAddServiceInput(ctx context.Context, o
 			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalOString2ᚖstring(ctx, v) }
 
 			directive1 := func(ctx context.Context) (any, error) {
-				constraint, err := ec.unmarshalNString2string(ctx, "resource_name,min=2,max=63")
+				constraint, err := ec.unmarshalNString2string(ctx, "resource_name,min=2,max=16")
 				if err != nil {
 					var zeroVal *string
 					return zeroVal, err
@@ -12431,7 +12431,7 @@ func (ec *executionContext) unmarshalInputCreateDatabaseInput(ctx context.Contex
 			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNString2string(ctx, v) }
 
 			directive1 := func(ctx context.Context) (any, error) {
-				constraint, err := ec.unmarshalNString2string(ctx, "resource_name,min=2,max=63")
+				constraint, err := ec.unmarshalNString2string(ctx, "resource_name,min=2,max=16")
 				if err != nil {
 					var zeroVal string
 					return zeroVal, err
@@ -12509,7 +12509,7 @@ func (ec *executionContext) unmarshalInputCreateEnvironmentInput(ctx context.Con
 			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNString2string(ctx, v) }
 
 			directive1 := func(ctx context.Context) (any, error) {
-				constraint, err := ec.unmarshalNString2string(ctx, "resource_name,min=2,max=63")
+				constraint, err := ec.unmarshalNString2string(ctx, "resource_name,min=2,max=16")
 				if err != nil {
 					var zeroVal string
 					return zeroVal, err
@@ -12600,7 +12600,7 @@ func (ec *executionContext) unmarshalInputCreateProjectInput(ctx context.Context
 			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalOString2ᚖstring(ctx, v) }
 
 			directive1 := func(ctx context.Context) (any, error) {
-				constraint, err := ec.unmarshalNString2string(ctx, "resource_name")
+				constraint, err := ec.unmarshalNString2string(ctx, "resource_name,min=2,max=16")
 				if err != nil {
 					var zeroVal *string
 					return zeroVal, err
@@ -12649,18 +12649,58 @@ func (ec *executionContext) unmarshalInputCreateWorkspaceCheckoutInput(ctx conte
 		switch k {
 		case "id":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
+			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNString2string(ctx, v) }
+
+			directive1 := func(ctx context.Context) (any, error) {
+				constraint, err := ec.unmarshalNString2string(ctx, "resource_name,min=2,max=16")
+				if err != nil {
+					var zeroVal string
+					return zeroVal, err
+				}
+				if ec.Directives.Constraint == nil {
+					var zeroVal string
+					return zeroVal, errors.New("directive constraint is not implemented")
+				}
+				return ec.Directives.Constraint(ctx, obj, directive0, constraint)
 			}
-			it.ID = data
+
+			tmp, err := directive1(ctx)
+			if err != nil {
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+			if data, ok := tmp.(string); ok {
+				it.ID = data
+			} else {
+				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
 		case "name":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
+			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNString2string(ctx, v) }
+
+			directive1 := func(ctx context.Context) (any, error) {
+				constraint, err := ec.unmarshalNString2string(ctx, "min=1,max=128")
+				if err != nil {
+					var zeroVal string
+					return zeroVal, err
+				}
+				if ec.Directives.Constraint == nil {
+					var zeroVal string
+					return zeroVal, errors.New("directive constraint is not implemented")
+				}
+				return ec.Directives.Constraint(ctx, obj, directive0, constraint)
 			}
-			it.Name = data
+
+			tmp, err := directive1(ctx)
+			if err != nil {
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+			if data, ok := tmp.(string); ok {
+				it.Name = data
+			} else {
+				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
 		case "plan":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("plan"))
 			data, err := ec.unmarshalNPlan2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐPlan(ctx, v)

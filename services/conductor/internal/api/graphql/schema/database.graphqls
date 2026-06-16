@@ -62,7 +62,7 @@ type DatabaseCredentials {
 
 input CreateDatabaseInput {
   environment: EnvironmentID!
-  name: String! @constraint(constraint: "resource_name,min=2,max=63")
+  name: String! @constraint(constraint: "resource_name,min=2,max=16")
   version: String
   instances: Int
   size: String

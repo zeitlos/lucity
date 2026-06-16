@@ -8,7 +8,7 @@ type Environment {
 
 input CreateEnvironmentInput {
   project: ProjectID!
-  name: String! @constraint(constraint: "resource_name,min=2,max=63")
+  name: String! @constraint(constraint: "resource_name,min=2,max=16")
   fromEnvironment: EnvironmentID
   tier: ResourceTier
 }

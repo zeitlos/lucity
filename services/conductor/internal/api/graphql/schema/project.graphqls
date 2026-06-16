@@ -8,7 +8,7 @@ input CreateProjectInput {
   """Human-readable project name (e.g. "My API")."""
   name: String! @constraint(constraint: "min=1,max=128")
   """Optional URL-safe slug. Auto-derived from name if omitted."""
-  id: String @constraint(constraint: "resource_name")
+  id: String @constraint(constraint: "resource_name,min=2,max=16")
 }
 
 extend type Query {
