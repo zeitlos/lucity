@@ -72,6 +72,11 @@ func namespaceLabels(id platform.EnvironmentID, tier platform.ResourceTier) map[
 		pkglabels.Environment:  id.Name,
 		pkglabels.ManagedBy:    pkglabels.ManagedByLucity,
 		pkglabels.ResourceTier: string(tier),
+
+		"pod-security.kubernetes.io/enforce":         "baseline",
+		"pod-security.kubernetes.io/enforce-version": "latest",
+		"pod-security.kubernetes.io/warn":            "baseline",
+		"pod-security.kubernetes.io/warn-version":    "latest",
 	}
 }
 
