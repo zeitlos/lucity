@@ -2,6 +2,7 @@ package kubernetes
 
 import (
 	"context"
+	"fmt"
 
 	pkglabels "github.com/zeitlos/lucity/pkg/labels"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
@@ -34,6 +35,10 @@ func (c *Client) ensureNamespace(ctx context.Context, id platform.EnvironmentID,
 
 	if err != nil {
 		return err
+	}
+
+	if owner := existing.Labels[pkglabels.Workspace]; owner != "" && owner != id.Workspace {
+		return fmt.Errorf("namespace %q is owned by workspace %q, refusing to operate for workspace %q", name, owner, id.Workspace)
 	}
 
 	if labelsMatch(existing.Labels, desired) {
