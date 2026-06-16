@@ -27,7 +27,7 @@ func (c *Client) DNSStatus(ctx context.Context, workspace, host string) (DNSStat
 		return DNSError, err
 	}
 
-	txtOK := !slices.Contains(txtRecords, challenge(workspace, host))
+	txtOK := slices.Contains(txtRecords, challenge(workspace, host))
 
 	var routingOK bool
 
