@@ -11,9 +11,16 @@ var (
 	hostnameRe   = regexp.MustCompile(`^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$`)
 	labelValueRe = regexp.MustCompile(`^[a-z0-9A-Z]([a-z0-9A-Z._-]*[a-z0-9A-Z])?$`)
 	labelKeyRe   = regexp.MustCompile(`^([a-z0-9A-Z]([a-z0-9A-Z.-]*[a-z0-9A-Z])?/)?[a-z0-9A-Z]([a-z0-9A-Z._-]*[a-z0-9A-Z])?$`)
-	maxNameLen   = 63
-	maxHostLen   = 253
-	maxKeyLen    = 253
+
+	imageRepoRe   = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9._/:@-]*$`)
+	imageTagRe    = regexp.MustCompile(`^[a-zA-Z0-9_][a-zA-Z0-9._-]*$`)
+	imageDigestRe = regexp.MustCompile(`^[a-zA-Z0-9]+:[a-zA-Z0-9]+$`)
+
+	maxNameLen  = 63
+	maxHostLen  = 253
+	maxKeyLen   = 253
+	maxImageLen = 512
+	maxTagLen   = 128
 )
 
 func Validate(env *Env) error {
@@ -52,6 +59,10 @@ func Validate(env *Env) error {
 	}
 
 	for svcName, svc := range env.Services {
+		if err := validateImage(svcName, svc.Image); err != nil {
+			return err
+		}
+
 		if err := validateLabels(fmt.Sprintf("service %q labels", svcName), svc.Labels); err != nil {
 			return err
 		}
@@ -116,6 +127,26 @@ func isValidVarName(name string) bool {
 
 func isValidHostname(host string) bool {
 	return len(host) > 0 && len(host) <= maxHostLen && hostnameRe.MatchString(host)
+}
+
+func validateImage(svcName string, image ImageRef) error {
+	if image.Repository == "" {
+		return nil
+	}
+
+	if len(image.Repository) > maxImageLen || !imageRepoRe.MatchString(image.Repository) {
+		return fmt.Errorf("service %q: invalid image repository %q", svcName, image.Repository)
+	}
+
+	if image.Tag != "" && (len(image.Tag) > maxTagLen || !imageTagRe.MatchString(image.Tag)) {
+		return fmt.Errorf("service %q: invalid image tag %q", svcName, image.Tag)
+	}
+
+	if image.Digest != "" && !imageDigestRe.MatchString(image.Digest) {
+		return fmt.Errorf("service %q: invalid image digest %q", svcName, image.Digest)
+	}
+
+	return nil
 }
 
 func validateLabels(scope string, m map[string]string) error {
