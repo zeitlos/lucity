@@ -115,13 +115,13 @@ func (c *Client) AddService(ctx context.Context, environmentID platform.Environm
 		return nil, errors.New("either repository or external image must be set to create a new service")
 	}
 
-	if _, err := c.deployer.Services().Create(ctx, environmentID, name, spec); err != nil {
+	if _, err := c.deployer.Services().Create(ctx, environmentID, serviceName, spec); err != nil {
 		return nil, fmt.Errorf("create service: %w", err)
 	}
 
 	service := &platform.Service{
 		ID:   id,
-		Name: name,
+		Name: serviceName,
 	}
 
 	if spec.SourceURL != "" {
