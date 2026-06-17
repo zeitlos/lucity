@@ -292,7 +292,7 @@ func (c *Client) databaseQueryClient(ctx context.Context, id platform.DatabaseID
 
 	creds.Host = host
 
-	return dbquery.New(databaseURI(creds) + "?sslmode=disable"), nil
+	return dbquery.New(databaseURI(creds) + "?sslmode=require"), nil
 }
 
 func databaseURI(creds *platform.DatabaseCredentials) string {
