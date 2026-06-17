@@ -42,23 +42,14 @@ conductor:
     INTERNAL_JWT_PRIVATE_KEY_PATH: /secrets/internal-jwt/private.pem
     INTERNAL_JWT_PUBLIC_KEY_PATH: /secrets/internal-jwt/public.pem
 
-    # Soft-serve (GitOps repo storage)
-    SOFTSERVE_SSH_ADDR: lucity-infra-soft-serve.lucity-system.svc.cluster.local:23231
-    SOFTSERVE_HTTP_ADDR: http://lucity-infra-soft-serve.lucity-system.svc.cluster.local:23232
-    SOFTSERVE_SSH_KEY_PATH: /secrets/softserve/admin-key
-
-    # ArgoCD
-    ARGOCD_ADDR: http://lucity-infra-argocd-server.lucity-system.svc.cluster.local:80
-    ARGOCD_INSECURE: "true"
-
     # Cashier (real gRPC, separate Deployment)
     CASHIER_ADDR: lucity-cashier:9005
 
-    # Registry (used by build runner pods to push images)
+    # Registry
     REGISTRY_URL: lucity-infra-zot.lucity-system.svc.cluster.local:5000
-    REGISTRY_IMAGE_PREFIX: 10.96.100.100:5000
-    REGISTRY_USERNAME: builder
-    REGISTRY_INSECURE: "true"
+    REGISTRY_PUSH_URL: lucity-infra-zot.lucity-system.svc.cluster.local:5000
+    REGISTRY_PULL_URL: 10.96.100.100:5000
+    REGISTRY_AUTH_SECRET: lucity-registry-auth
 
     # Workload domain + LB IP
     WORKLOAD_DOMAIN: lucity.app
@@ -69,10 +60,7 @@ conductor:
     GITHUB_CLIENT_SECRET: GITHUB_CLIENT_SECRET
     LOGTO_M2M_APP_ID: LOGTO_M2M_APP_ID
     LOGTO_M2M_APP_SECRET: LOGTO_M2M_APP_SECRET
-    ARGOCD_TOKEN: ARGOCD_TOKEN
-    SOFTSERVE_TOKEN: SOFTSERVE_TOKEN
     WEBHOOK_SECRET: GITHUB_WEBHOOK_SECRET
-    REGISTRY_PASSWORD: REGISTRY_PASSWORD
 
 cashier:
   enabled: true
