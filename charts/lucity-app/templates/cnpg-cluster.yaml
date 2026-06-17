@@ -18,13 +18,15 @@ metadata:
     {{- with $pg.annotations }}{{- toYaml . | nindent 4 }}{{- end }}
 spec:
   instances: {{ $pg.instances | default 1 }}
-  {{- if $pg.version }}
-  imageName: ghcr.io/cloudnative-pg/postgresql:{{ $pg.version }}
-  {{- end }}
+  imageName: ghcr.io/cloudnative-pg/postgresql:{{ $pg.version | default "17" }}-standard-bookworm
   storage:
     size: {{ $pg.size | default "10Gi" }}
   {{- if $pg.resources }}
   resources:
     {{- toYaml $pg.resources | nindent 4 }}
   {{- end }}
+  bootstrap:
+    initdb:
+      postInitApplicationSQL:
+        - CREATE EXTENSION IF NOT EXISTS vector
 {{- end }}
