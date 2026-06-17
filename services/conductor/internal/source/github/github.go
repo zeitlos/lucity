@@ -51,7 +51,7 @@ func (c *Client) Token(ctx context.Context, repoURL string) (string, error) {
 		return "", err
 	}
 
-	return c.app.InstallationToken(ctx, installationID)
+	return c.app.InstallationTokenForRepo(ctx, installationID, repository)
 }
 
 // parseRepoURL extracts the "owner/repo" path from a GitHub HTTPS URL,

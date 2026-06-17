@@ -45,6 +45,30 @@ func (a *App) InstallationToken(ctx context.Context, installationID int64) (stri
 	return token, nil
 }
 
+func (a *App) InstallationTokenForRepo(ctx context.Context, installationID int64, repository string) (string, error) {
+	_, repo, ok := strings.Cut(repository, "/")
+
+	if !ok || repo == "" {
+		return "", fmt.Errorf("repository must be in owner/repo format, got %q", repository)
+	}
+
+	client, err := a.appClient()
+
+	if err != nil {
+		return "", err
+	}
+
+	token, _, err := client.Apps.CreateInstallationToken(ctx, installationID, &gh.InstallationTokenOptions{
+		Repositories: []string{repo},
+	})
+
+	if err != nil {
+		return "", fmt.Errorf("create scoped installation token: %w", err)
+	}
+
+	return token.GetToken(), nil
+}
+
 // Installation represents a GitHub App installation on an account.
 type Installation struct {
 	ID            int64
