@@ -62,10 +62,6 @@ func (c *Client) DetectServices(ctx context.Context, repositoryURL string) ([]Pl
 		return nil, fmt.Errorf("invalid repository url %q: expected owner/repo path", repositoryURL)
 	}
 
-	if err != nil {
-		return nil, err
-	}
-
 	if _, err := c.installationForRepo(ctx, repository); err != nil {
 		return nil, err
 	}
