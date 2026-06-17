@@ -191,6 +191,10 @@ func SetServiceResources(env *Env, name string, resources Resources) error {
 }
 
 func SetServiceCommand(env *Env, name, command string) error {
+	if err := validateStartCommand(command); err != nil {
+		return err
+	}
+
 	return mutateService(env, name, func(s *Service) {
 		s.CustomStartCommand = command
 	})

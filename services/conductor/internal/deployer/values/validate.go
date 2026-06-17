@@ -16,11 +16,12 @@ var (
 	imageTagRe    = regexp.MustCompile(`^[a-zA-Z0-9_][a-zA-Z0-9._-]*$`)
 	imageDigestRe = regexp.MustCompile(`^[a-zA-Z0-9]+:[a-zA-Z0-9]+$`)
 
-	maxNameLen  = 63
-	maxHostLen  = 253
-	maxKeyLen   = 253
-	maxImageLen = 512
-	maxTagLen   = 128
+	maxNameLen    = 63
+	maxHostLen    = 253
+	maxKeyLen     = 253
+	maxImageLen   = 512
+	maxTagLen     = 128
+	maxCommandLen = 4096
 )
 
 func Validate(env *Env) error {
@@ -114,6 +115,24 @@ func Validate(env *Env) error {
 
 func isValidName(name string) bool {
 	return len(name) > 0 && len(name) <= maxNameLen && dnsLabel.MatchString(name)
+}
+
+func validateStartCommand(command string) error {
+	if len(command) > maxCommandLen {
+		return fmt.Errorf("start command exceeds %d characters", maxCommandLen)
+	}
+
+	for _, r := range command {
+		if r == '\t' {
+			continue
+		}
+
+		if r < 0x20 || r == 0x7f {
+			return fmt.Errorf("start command contains a control character")
+		}
+	}
+
+	return nil
 }
 
 func isValidPort(port int) bool {
