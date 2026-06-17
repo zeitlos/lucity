@@ -38,18 +38,22 @@ type Client struct {
 	registryAuthSecret string
 	buildKitAddr       string
 	buildRunnerImage   string
+	buildKitTLSSecret  string
+	buildKitServerName string
 
 	kubernetes kubernetes.Interface
 	github     *github.App
 }
 
-func New(kubernetes kubernetes.Interface, namespace, registry, registryAuthSecret, buildRunnerImage string) *Client {
+func New(kubernetes kubernetes.Interface, namespace, registry, registryAuthSecret, buildRunnerImage, buildKitTLSSecret, buildKitServerName string) *Client {
 	return &Client{
 		namespace:          namespace,
 		registry:           registry,
 		registryAuthSecret: registryAuthSecret,
 		buildKitAddr:       "tcp://lucity-buildkit:1234",
 		buildRunnerImage:   buildRunnerImage,
+		buildKitTLSSecret:  buildKitTLSSecret,
+		buildKitServerName: buildKitServerName,
 		kubernetes:         kubernetes,
 	}
 }

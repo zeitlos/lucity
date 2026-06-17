@@ -17,6 +17,11 @@ type Config struct {
 	TargetRefs   []string `envconfig:"BUILD_TARGET_REFS" required:"true"`
 	BuildkitAddr string   `envconfig:"BUILDKIT_ADDR" required:"true"`
 	GitHubToken  string   `envconfig:"GITHUB_TOKEN"`
+
+	BuildkitTLSCACert string `envconfig:"BUILDKIT_TLS_CA"`
+	BuildkitTLSCert   string `envconfig:"BUILDKIT_TLS_CERT"`
+	BuildkitTLSKey    string `envconfig:"BUILDKIT_TLS_KEY"`
+	BuildkitServer    string `envconfig:"BUILDKIT_SERVER_NAME"`
 }
 
 func main() {

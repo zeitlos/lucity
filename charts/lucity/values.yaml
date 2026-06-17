@@ -72,6 +72,9 @@ conductor:
   # BuildKit infrastructure entirely.
   buildkit:
     enabled: false
+    userNamespaces: true
+    tls:
+      enabled: true
     storageSize: 20Gi
     resources:
       requests:

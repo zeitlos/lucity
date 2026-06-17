@@ -84,6 +84,8 @@ type Config struct {
 	BuildImage         string `envconfig:"BUILD_IMAGE"`
 	BuildkitAddr       string `envconfig:"BUILDKIT_ADDR"`
 	BuildNamespace     string `envconfig:"BUILD_NAMESPACE" default:"lucity-builds"`
+	BuildkitTLSSecret  string `envconfig:"BUILDKIT_TLS_SECRET"`
+	BuildkitServerName string `envconfig:"BUILDKIT_SERVER_NAME"`
 
 	SystemNamespace string `envconfig:"SYSTEM_NAMESPACE" default:"lucity-system"`
 
@@ -200,7 +202,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	jobsClient := buildjobK8s.New(k8sClient, config.BuildNamespace, config.RegistryPushURL, config.RegistryAuthSecret, config.BuildImage)
+	jobsClient := buildjobK8s.New(k8sClient, config.BuildNamespace, config.RegistryPushURL, config.RegistryAuthSecret, config.BuildImage, config.BuildkitTLSSecret, config.BuildkitServerName)
 
 	secret, err := k8sClient.CoreV1().Secrets(config.SystemNamespace).Get(ctx, config.RegistryPullSecret, metav1.GetOptions{})
 

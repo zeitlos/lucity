@@ -69,6 +69,12 @@ spec:
               value: {{ .Values.conductor.buildNamespace | quote }}
             - name: BUILD_IMAGE
               value: "{{ .Values.conductor.builderImage.repository }}:{{ .Values.conductor.builderImage.tag | default .Chart.AppVersion }}"
+            {{- if and .Values.conductor.buildkit.enabled .Values.conductor.buildkit.tls.enabled }}
+            - name: BUILDKIT_TLS_SECRET
+              value: {{ include "lucity.fullname" . }}-buildkit-tls-client
+            - name: BUILDKIT_SERVER_NAME
+              value: {{ include "lucity.fullname" . }}-buildkit
+            {{- end }}
             {{- range $key, $value := .Values.conductor.env }}
             - name: {{ $key }}
               value: {{ $value | quote }}

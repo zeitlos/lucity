@@ -1,0 +1,92 @@
+{{- if and .Values.conductor.buildkit.enabled .Values.conductor.buildkit.tls.enabled }}
+{{- $ns := .Values.conductor.buildNamespace | default "lucity-builds" }}
+{{- $fullname := include "lucity.fullname" . }}
+# mTLS for the shared BuildKit daemon. Without client-cert auth, any pod that can
+# reach the gRPC port (every build Job, and RUN steps that share the daemon's
+# network) can enumerate other workspaces' builds and cache via the control API.
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: {{ $fullname }}-buildkit-selfsign
+  namespace: {{ $ns }}
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ $fullname }}-buildkit-ca
+  namespace: {{ $ns }}
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+spec:
+  isCA: true
+  commonName: {{ $fullname }}-buildkit-ca
+  secretName: {{ $fullname }}-buildkit-ca
+  duration: 87600h
+  renewBefore: 2160h
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    name: {{ $fullname }}-buildkit-selfsign
+    kind: Issuer
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: {{ $fullname }}-buildkit-ca
+  namespace: {{ $ns }}
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+spec:
+  ca:
+    secretName: {{ $fullname }}-buildkit-ca
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ $fullname }}-buildkit-tls-server
+  namespace: {{ $ns }}
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+spec:
+  secretName: {{ $fullname }}-buildkit-tls-server
+  duration: 8760h
+  renewBefore: 720h
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  usages:
+    - server auth
+  dnsNames:
+    - {{ $fullname }}-buildkit
+    - {{ $fullname }}-buildkit.{{ $ns }}.svc
+    - {{ $fullname }}-buildkit.{{ $ns }}.svc.cluster.local
+  issuerRef:
+    name: {{ $fullname }}-buildkit-ca
+    kind: Issuer
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ $fullname }}-buildkit-tls-client
+  namespace: {{ $ns }}
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+spec:
+  secretName: {{ $fullname }}-buildkit-tls-client
+  duration: 8760h
+  renewBefore: 720h
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  usages:
+    - client auth
+  commonName: lucity-builder
+  issuerRef:
+    name: {{ $fullname }}-buildkit-ca
+    kind: Issuer
+{{- end }}

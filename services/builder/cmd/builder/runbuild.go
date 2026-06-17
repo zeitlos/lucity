@@ -94,7 +94,7 @@ func executeBuild(cfg Config) error {
 
 	slog.Info("building image", "image", imageName, "cache", cacheRef)
 
-	digest, err := buildWithBuildKit(context.Background(), cfg.BuildkitAddr, buildDir, imageName, cacheRef, buildPlan)
+	digest, err := buildWithBuildKit(context.Background(), cfg, buildDir, imageName, cacheRef, buildPlan)
 
 	if err != nil {
 		return err
@@ -247,8 +247,17 @@ func generatePlan(buildDir string) (*plan.BuildPlan, error) {
 //
 // The platform's OCI registry (Zot) is served over plain HTTP on the cluster-internal
 // address, so all registry interactions are flagged insecure.
-func buildWithBuildKit(ctx context.Context, buildkitAddr, buildDir, imageName, cacheRef string, buildPlan *plan.BuildPlan) (string, error) {
-	c, err := client.New(ctx, buildkitAddr)
+func buildWithBuildKit(ctx context.Context, cfg Config, buildDir, imageName, cacheRef string, buildPlan *plan.BuildPlan) (string, error) {
+	var clientOpts []client.ClientOpt
+
+	if cfg.BuildkitTLSCACert != "" {
+		clientOpts = append(clientOpts,
+			client.WithServerConfig(cfg.BuildkitServer, cfg.BuildkitTLSCACert),
+			client.WithCredentials(cfg.BuildkitTLSCert, cfg.BuildkitTLSKey),
+		)
+	}
+
+	c, err := client.New(ctx, cfg.BuildkitAddr, clientOpts...)
 	if err != nil {
 		return "", fmt.Errorf("failed to connect to buildkit: %w", err)
 	}

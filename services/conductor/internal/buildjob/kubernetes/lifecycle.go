@@ -130,6 +130,33 @@ func (c *Client) newBuildJob(id string, workspaceID string, repoURL url.URL, con
 		{Name: "DOCKER_CONFIG", Value: "/etc/registry-auth"},
 	}
 
+	volumeMounts := []core.VolumeMount{
+		{Name: "registry-auth", MountPath: "/etc/registry-auth", ReadOnly: true},
+	}
+
+	volumes := []core.Volume{
+		{Name: "work", VolumeSource: core.VolumeSource{EmptyDir: &core.EmptyDirVolumeSource{}}},
+		{Name: "registry-auth", VolumeSource: core.VolumeSource{Secret: &core.SecretVolumeSource{SecretName: c.registryAuthSecret}}},
+	}
+
+	if c.buildKitTLSSecret != "" {
+		env = append(env,
+			core.EnvVar{Name: "BUILDKIT_TLS_CA", Value: "/etc/buildkit-certs/ca.crt"},
+			core.EnvVar{Name: "BUILDKIT_TLS_CERT", Value: "/etc/buildkit-certs/tls.crt"},
+			core.EnvVar{Name: "BUILDKIT_TLS_KEY", Value: "/etc/buildkit-certs/tls.key"},
+			core.EnvVar{Name: "BUILDKIT_SERVER_NAME", Value: c.buildKitServerName},
+		)
+
+		volumeMounts = append(volumeMounts, core.VolumeMount{
+			Name: "buildkit-certs", MountPath: "/etc/buildkit-certs", ReadOnly: true,
+		})
+
+		volumes = append(volumes, core.Volume{
+			Name:         "buildkit-certs",
+			VolumeSource: core.VolumeSource{Secret: &core.SecretVolumeSource{SecretName: c.buildKitTLSSecret}},
+		})
+	}
+
 	labels := buildJobLabels(workspaceID, repoURL, contextPath, commit)
 
 	return &batch.Job{
@@ -157,13 +184,11 @@ func (c *Client) newBuildJob(id string, workspaceID string, repoURL url.URL, con
 						SeccompProfile: &core.SeccompProfile{Type: core.SeccompProfileTypeRuntimeDefault},
 					},
 					Containers: []core.Container{{
-						Name:    "build",
-						Image:   c.buildRunnerImage,
-						Command: []string{"/app", "run-build"},
-						Env:     env,
-						VolumeMounts: []core.VolumeMount{{
-							Name: "registry-auth", MountPath: "/etc/registry-auth", ReadOnly: true,
-						}},
+						Name:         "build",
+						Image:        c.buildRunnerImage,
+						Command:      []string{"/app", "run-build"},
+						Env:          env,
+						VolumeMounts: volumeMounts,
 						Resources: core.ResourceRequirements{
 							Requests: core.ResourceList{
 								core.ResourceCPU:    resource.MustParse("250m"),
@@ -179,17 +204,7 @@ func (c *Client) newBuildJob(id string, workspaceID string, repoURL url.URL, con
 							Capabilities:             &core.Capabilities{Drop: []core.Capability{"ALL"}},
 						},
 					}},
-					Volumes: []core.Volume{
-						{
-							Name: "work", VolumeSource: core.VolumeSource{EmptyDir: &core.EmptyDirVolumeSource{}},
-						},
-						{
-							Name: "registry-auth",
-							VolumeSource: core.VolumeSource{
-								Secret: &core.SecretVolumeSource{SecretName: c.registryAuthSecret},
-							},
-						},
-					},
+					Volumes: volumes,
 				},
 			},
 		},
