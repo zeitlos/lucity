@@ -30,6 +30,7 @@ spec:
   privateKey:
     algorithm: ECDSA
     size: 256
+    rotationPolicy: Always
   issuerRef:
     name: {{ $fullname }}-buildkit-selfsign
     kind: Issuer
@@ -59,6 +60,7 @@ spec:
   privateKey:
     algorithm: ECDSA
     size: 256
+    rotationPolicy: Always
   usages:
     - server auth
   dnsNames:
@@ -83,6 +85,7 @@ spec:
   privateKey:
     algorithm: ECDSA
     size: 256
+    rotationPolicy: Always
   usages:
     - client auth
   commonName: lucity-builder
