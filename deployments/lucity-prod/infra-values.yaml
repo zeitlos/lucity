@@ -254,9 +254,6 @@ victoria-metrics-alert:
     # The full receivers[] list (with the real Telegram chat_id) is set in
     # infra-secrets.yaml so the bot_token + chat_id live together.
 
-# OTEL Operator is provided by flex.plane in the otel-system namespace
-# (CRDs already installed cluster-wide). We just deploy our own
-# OpenTelemetryCollector CRs and the existing operator reconciles them.
 opentelemetry-operator:
   enabled: false
 

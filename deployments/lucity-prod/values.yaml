@@ -1,12 +1,3 @@
-# Lucity platform values for lucity-prod (Hetzner)
-#
-# Single-binary layout: the conductor block holds every env var that
-# was previously split across gateway/builder/packager/deployer/webhook.
-# Cashier remains a separate Deployment.
-#
-# Secrets are passed via -f secrets.yaml at install time; see
-# secrets.yaml.example for required keys.
-
 registryPull:
   host: "10.96.100.100:5000"
   username: reader
@@ -15,43 +6,34 @@ routes:
   enabled: true
 
 conductor:
-  # Push host BuildKit advertises in the build runner; same value
-  # workloads pull from (via REGISTRY_IMAGE_PREFIX below).
   registryHost: lucity-infra-zot.lucity-system.svc.cluster.local:5000
   registryUsername: builder
   buildkit:
     enabled: true
   env:
-    # OIDC (Logto)
     OIDC_ISSUER_URL: https://id.lucity.cloud/oidc
     OIDC_CLIENT_ID: 30ztkgeb1c7hwmnx6bf4s
     OIDC_CALLBACK_URL: https://lucity.cloud/auth/callback
     DASHBOARD_URL: https://lucity.cloud/app
 
-    # GitHub App
     GITHUB_APP_ID: "2882801"
     GITHUB_PRIVATE_KEY_PATH: /secrets/github/github-app.pem
     GITHUB_APP_SLUG: lucity-platform
     GITHUB_CLIENT_ID: Iv23liMzm79VIgvNtglX
     GITHUB_OAUTH_CALLBACK_URL: https://lucity.cloud/auth/github/callback
 
-    # Logto Management API
     LOGTO_ENDPOINT: http://lucity-infra-logto.lucity-system.svc.cluster.local:3001
 
-    # Internal JWT (signs outgoing cashier calls + verifies inbound on :9090)
     INTERNAL_JWT_PRIVATE_KEY_PATH: /secrets/internal-jwt/private.pem
     INTERNAL_JWT_PUBLIC_KEY_PATH: /secrets/internal-jwt/public.pem
 
-    # Cashier (real gRPC, separate Deployment)
     CASHIER_ADDR: lucity-cashier:9005
 
-    # Registry
     REGISTRY_URL: lucity-infra-zot.lucity-system.svc.cluster.local:5000
     REGISTRY_PUSH_URL: lucity-infra-zot.lucity-system.svc.cluster.local:5000
     REGISTRY_PULL_URL: 10.96.100.100:5000
     REGISTRY_AUTH_SECRET: lucity-registry-auth
 
-    # Workload domain + LB IP
     WORKLOAD_DOMAIN: lucity.app
     DATABASE_DOMAIN: db.lucity.app
     IP_ADDRESS: "46.225.47.40"
