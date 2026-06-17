@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"regexp"
 	"strings"
 	"time"
@@ -48,7 +49,27 @@ func (c *Client) Service(ctx context.Context, id ServiceID) (*Service, error) {
 	return c.platform.Service(ctx, id)
 }
 
-func (c *Client) DetectServices(ctx context.Context, repositoryURL string, installationID int64) ([]Plan, error) {
+func (c *Client) DetectServices(ctx context.Context, repositoryURL string) ([]Plan, error) {
+	parsed, err := url.Parse(repositoryURL)
+
+	if err != nil {
+		return nil, fmt.Errorf("parse repository url %q: %w", repositoryURL, err)
+	}
+
+	repository := strings.TrimSuffix(strings.Trim(parsed.Path, "/"), ".git")
+
+	if !repositoryPattern.MatchString(repository) {
+		return nil, fmt.Errorf("invalid repository url %q: expected owner/repo path", repositoryURL)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	if _, err := c.installationForRepo(ctx, repository); err != nil {
+		return nil, err
+	}
+
 	commit, err := c.source.CommitSHA(ctx, repositoryURL, "")
 
 	if err != nil {
@@ -64,7 +85,7 @@ func (c *Client) DetectServices(ctx context.Context, repositoryURL string, insta
 	return c.planner.Plan(ctx, repositoryURL, commit, token)
 }
 
-func (c *Client) AddService(ctx context.Context, environmentID platform.EnvironmentID, name string, repository, contextPath string, installationID *int64, externalImage string) (*Service, error) {
+func (c *Client) AddService(ctx context.Context, environmentID platform.EnvironmentID, name string, repository, contextPath string, externalImage string) (*Service, error) {
 	workspace := environmentID.Workspace
 	projectID := environmentID.Project
 	id := platform.ServiceID{
@@ -88,12 +109,14 @@ func (c *Client) AddService(ctx context.Context, environmentID platform.Environm
 	}
 
 	if repository != "" {
-		if installationID == nil {
-			return nil, fmt.Errorf("installationId is required when repository is set")
+		installationID, err := c.installationForRepo(ctx, repository)
+
+		if err != nil {
+			return nil, err
 		}
 
-		spec.GitHubInstallationID = *installationID
-		spec.SourceURL, err = c.resolveRepositoryURL(ctx, *installationID, repository)
+		spec.GitHubInstallationID = installationID
+		spec.SourceURL, err = c.resolveRepositoryURL(ctx, installationID, repository)
 
 		if err != nil {
 			return nil, err
@@ -312,12 +335,12 @@ const maxBuildDuration = 30 * time.Minute
 // runDeploy waits for a build to complete, then stamps the new image onto
 // the service via the deployer (single helm upgrade applies both the values
 // change and the K8s deployment patch — no separate sync step needed).
-func (c *Client) runDeploy(claims *auth.Claims, serviceID platform.ServiceID, buildID string) {
+func (c *Client) runDeploy(claims *auth.Claims, serviceID platform.ServiceID, buildID buildjob.BuildID) {
 	ctx, cancel := context.WithTimeout(auth.NewContext(context.Background(), claims), maxBuildDuration)
 	defer cancel()
 
 	log := slog.With(
-		"buildId", buildID,
+		"buildId", buildID.Name,
 		"project", serviceID.Project,
 		"service", serviceID.Name,
 		"environment", serviceID.Environment,
@@ -385,11 +408,8 @@ func deriveServiceName(imageRef string) string {
 	return name
 }
 
-// repositoryPattern matches valid GitHub owner/repo format.
-// Allows alphanumeric, hyphens, underscores, and dots (GitHub's rules).
 var repositoryPattern = regexp.MustCompile(`^[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+$`)
 
-// validateRepository checks that a repository string is a valid owner/repo format.
 func validateRepository(repository string) (owner, repo string, err error) {
 	if !repositoryPattern.MatchString(repository) {
 		return "", "", fmt.Errorf("repository must be in owner/repo format (e.g. \"acme/myapp\")")

@@ -9,10 +9,11 @@ import (
 	"context"
 
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
+	"github.com/zeitlos/lucity/services/conductor/internal/buildjob"
 )
 
 // Build is the resolver for the build field.
-func (r *queryResolver) Build(ctx context.Context, id string) (*model.Build, error) {
+func (r *queryResolver) Build(ctx context.Context, id buildjob.BuildID) (*model.Build, error) {
 	build, err := r.Conductor.Build(ctx, id)
 
 	if err != nil {
@@ -23,6 +24,6 @@ func (r *queryResolver) Build(ctx context.Context, id string) (*model.Build, err
 }
 
 // BuildLogs is the resolver for the buildLogs field.
-func (r *subscriptionResolver) BuildLogs(ctx context.Context, id string) (<-chan string, error) {
+func (r *subscriptionResolver) BuildLogs(ctx context.Context, id buildjob.BuildID) (<-chan string, error) {
 	return r.Conductor.BuildLogs(ctx, id)
 }

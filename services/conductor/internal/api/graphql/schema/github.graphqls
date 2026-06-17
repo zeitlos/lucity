@@ -8,7 +8,6 @@ type GitHubRepository {
 }
 
 type GitHubInstallation {
-  id: ID!
   accountLogin: String!
   accountAvatarUrl: String!
   accountType: GitHubAccountType!
@@ -22,8 +21,8 @@ enum GitHubAccountType {
 extend type Query {
   """User's accessible GitHub App installations. Requires connected GitHub account."""
   githubSources: [GitHubInstallation!]! @hasRole(role: WORKSPACE_MEMBER)
-  """Repos from a specific installation."""
-  githubRepositories(installationId: ID!): [GitHubRepository!]! @hasRole(role: WORKSPACE_MEMBER)
+  """Repos accessible to the user under a GitHub account (org or user login)."""
+  githubRepositories(account: String!): [GitHubRepository!]! @hasRole(role: WORKSPACE_MEMBER)
   """Whether the current user has connected their GitHub account."""
   githubConnected: Boolean! @hasRole(role: WORKSPACE_MEMBER)
 }

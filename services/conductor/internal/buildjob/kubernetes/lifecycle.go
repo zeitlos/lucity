@@ -67,11 +67,15 @@ func (c *Client) Start(ctx context.Context, opts buildjob.StartOptions) (*buildj
 	return new(toJob(*created)), nil
 }
 
-func (c *Client) Cancel(ctx context.Context, id string) (*buildjob.Job, error) {
-	job, err := c.kubernetes.BatchV1().Jobs(c.namespace).Get(ctx, id, meta.GetOptions{})
+func (c *Client) Cancel(ctx context.Context, id buildjob.BuildID) (*buildjob.Job, error) {
+	job, err := c.kubernetes.BatchV1().Jobs(c.namespace).Get(ctx, id.Name, meta.GetOptions{})
 
 	if err != nil {
 		return nil, err
+	}
+
+	if job.Labels[labelWorkspace] != id.Workspace {
+		return nil, errors.New("build not found")
 	}
 
 	if isDone(*job) {

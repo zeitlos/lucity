@@ -17,11 +17,11 @@ type Documents = {
     "\n  query Workspaces {\n    workspaces {\n      id\n      name\n      personal\n    }\n  }\n": typeof types.WorkspacesDocument,
     "\n  query ProjectsForNav {\n    projects {\n      id\n      name\n      environments {\n        id\n        name\n        resourceTier\n      }\n    }\n  }\n": typeof types.ProjectsForNavDocument,
     "\n  query GitHubConnected {\n    githubConnected\n  }\n": typeof types.GitHubConnectedDocument,
-    "\n  query GitHubSources {\n    githubSources {\n      id\n      accountLogin\n      accountAvatarUrl\n      accountType\n    }\n  }\n": typeof types.GitHubSourcesDocument,
-    "\n  query GitHubRepositories($installationId: ID!) {\n    githubRepositories(installationId: $installationId) {\n      id\n      name\n      fullName\n      htmlUrl\n      defaultBranch\n      private\n    }\n  }\n": typeof types.GitHubRepositoriesDocument,
+    "\n  query GitHubSources {\n    githubSources {\n      accountLogin\n      accountAvatarUrl\n      accountType\n    }\n  }\n": typeof types.GitHubSourcesDocument,
+    "\n  query GitHubRepositories($account: String!) {\n    githubRepositories(account: $account) {\n      id\n      name\n      fullName\n      htmlUrl\n      defaultBranch\n      private\n    }\n  }\n": typeof types.GitHubRepositoriesDocument,
     "\n  mutation CreateProject($input: CreateProjectInput!) {\n    createProject(input: $input) {\n      id\n      name\n      environments {\n        id\n        name\n      }\n    }\n  }\n": typeof types.CreateProjectDocument,
     "\n  mutation AddService($environmentId: EnvironmentID!, $input: AddServiceInput!) {\n    addService(environment: $environmentId, input: $input) {\n      id\n      name\n    }\n  }\n": typeof types.AddServiceDocument,
-    "\n  query DetectServices($installationId: ID!, $repositoryUrl: String!) {\n    detectServices(installationId: $installationId, repositoryUrl: $repositoryUrl) {\n      name\n      language\n      framework\n      startCommand\n      suggestedPort\n    }\n  }\n": typeof types.DetectServicesDocument,
+    "\n  query DetectServices($repositoryUrl: String!) {\n    detectServices(repositoryUrl: $repositoryUrl) {\n      name\n      language\n      framework\n      startCommand\n      suggestedPort\n    }\n  }\n": typeof types.DetectServicesDocument,
     "\n  query SearchImages($query: String!) {\n    searchImages(query: $query) {\n      name\n      description\n      starCount\n      pullCount\n      official\n    }\n  }\n": typeof types.SearchImagesDocument,
     "\n  mutation CreateDatabase($input: CreateDatabaseInput!) {\n    createDatabase(input: $input) {\n      id\n      name\n      version\n      instances\n      size\n    }\n  }\n": typeof types.CreateDatabaseDocument,
     "\n  mutation CreateEnvironment($input: CreateEnvironmentInput!) {\n    createEnvironment(input: $input) {\n      id\n      name\n      resourceTier\n    }\n  }\n": typeof types.CreateEnvironmentDocument,
@@ -49,10 +49,10 @@ type Documents = {
     "\n  mutation SetServiceResources($service: ServiceID!, $resources: ResourcesInput!) {\n    setServiceResources(service: $service, resources: $resources) {\n      id\n      resources {\n        cpu\n        memory\n      }\n    }\n  }\n": typeof types.SetServiceResourcesDocument,
     "\n  query ServiceVariables($service: ServiceID!) {\n    serviceVariables(service: $service) {\n      key\n      value\n      fromShared\n      databaseRef {\n        database\n        key\n      }\n    }\n  }\n": typeof types.ServiceVariablesDocument,
     "\n  mutation SetServiceVariables($service: ServiceID!, $variables: [ServiceVariableInput!]!) {\n    setServiceVariables(service: $service, variables: $variables)\n  }\n": typeof types.SetServiceVariablesDocument,
-    "\n  subscription BuildLogs($id: String!) {\n    buildLogs(id: $id)\n  }\n": typeof types.BuildLogsDocument,
+    "\n  subscription BuildLogs($id: BuildID!) {\n    buildLogs(id: $id)\n  }\n": typeof types.BuildLogsDocument,
     "\n  query CanvasServiceBuilds($id: ServiceID!) {\n    service(id: $id) {\n      id\n      builds {\n        id\n        status\n        startedAt\n        finishedAt\n      }\n    }\n  }\n": typeof types.CanvasServiceBuildsDocument,
     "\n  mutation Deploy($service: ServiceID!, $gitRef: String) {\n    deploy(service: $service, gitRef: $gitRef) {\n      id\n      status\n      startedAt\n      finishedAt\n    }\n  }\n": typeof types.DeployDocument,
-    "\n  query BuildStatus($id: String!) {\n    build(id: $id) {\n      id\n      status\n      startedAt\n      finishedAt\n    }\n  }\n": typeof types.BuildStatusDocument,
+    "\n  query BuildStatus($id: BuildID!) {\n    build(id: $id) {\n      id\n      status\n      startedAt\n      finishedAt\n    }\n  }\n": typeof types.BuildStatusDocument,
     "\n  subscription ServiceLogs($service: ServiceID!, $tailLines: Int) {\n    serviceLogs(service: $service, tailLines: $tailLines) {\n      line\n      pod\n    }\n  }\n": typeof types.ServiceLogsDocument,
     "\n  query Workspace {\n    workspace {\n      id\n      name\n      personal\n      suspended\n      members {\n        id\n        email\n        name\n        role\n      }\n    }\n  }\n": typeof types.WorkspaceDocument,
     "\n  mutation CompleteWorkspaceCheckout($sessionId: String!) {\n    completeWorkspaceCheckout(sessionId: $sessionId) {\n      id\n      name\n      personal\n    }\n  }\n": typeof types.CompleteWorkspaceCheckoutDocument,
@@ -78,11 +78,11 @@ const documents: Documents = {
     "\n  query Workspaces {\n    workspaces {\n      id\n      name\n      personal\n    }\n  }\n": types.WorkspacesDocument,
     "\n  query ProjectsForNav {\n    projects {\n      id\n      name\n      environments {\n        id\n        name\n        resourceTier\n      }\n    }\n  }\n": types.ProjectsForNavDocument,
     "\n  query GitHubConnected {\n    githubConnected\n  }\n": types.GitHubConnectedDocument,
-    "\n  query GitHubSources {\n    githubSources {\n      id\n      accountLogin\n      accountAvatarUrl\n      accountType\n    }\n  }\n": types.GitHubSourcesDocument,
-    "\n  query GitHubRepositories($installationId: ID!) {\n    githubRepositories(installationId: $installationId) {\n      id\n      name\n      fullName\n      htmlUrl\n      defaultBranch\n      private\n    }\n  }\n": types.GitHubRepositoriesDocument,
+    "\n  query GitHubSources {\n    githubSources {\n      accountLogin\n      accountAvatarUrl\n      accountType\n    }\n  }\n": types.GitHubSourcesDocument,
+    "\n  query GitHubRepositories($account: String!) {\n    githubRepositories(account: $account) {\n      id\n      name\n      fullName\n      htmlUrl\n      defaultBranch\n      private\n    }\n  }\n": types.GitHubRepositoriesDocument,
     "\n  mutation CreateProject($input: CreateProjectInput!) {\n    createProject(input: $input) {\n      id\n      name\n      environments {\n        id\n        name\n      }\n    }\n  }\n": types.CreateProjectDocument,
     "\n  mutation AddService($environmentId: EnvironmentID!, $input: AddServiceInput!) {\n    addService(environment: $environmentId, input: $input) {\n      id\n      name\n    }\n  }\n": types.AddServiceDocument,
-    "\n  query DetectServices($installationId: ID!, $repositoryUrl: String!) {\n    detectServices(installationId: $installationId, repositoryUrl: $repositoryUrl) {\n      name\n      language\n      framework\n      startCommand\n      suggestedPort\n    }\n  }\n": types.DetectServicesDocument,
+    "\n  query DetectServices($repositoryUrl: String!) {\n    detectServices(repositoryUrl: $repositoryUrl) {\n      name\n      language\n      framework\n      startCommand\n      suggestedPort\n    }\n  }\n": types.DetectServicesDocument,
     "\n  query SearchImages($query: String!) {\n    searchImages(query: $query) {\n      name\n      description\n      starCount\n      pullCount\n      official\n    }\n  }\n": types.SearchImagesDocument,
     "\n  mutation CreateDatabase($input: CreateDatabaseInput!) {\n    createDatabase(input: $input) {\n      id\n      name\n      version\n      instances\n      size\n    }\n  }\n": types.CreateDatabaseDocument,
     "\n  mutation CreateEnvironment($input: CreateEnvironmentInput!) {\n    createEnvironment(input: $input) {\n      id\n      name\n      resourceTier\n    }\n  }\n": types.CreateEnvironmentDocument,
@@ -110,10 +110,10 @@ const documents: Documents = {
     "\n  mutation SetServiceResources($service: ServiceID!, $resources: ResourcesInput!) {\n    setServiceResources(service: $service, resources: $resources) {\n      id\n      resources {\n        cpu\n        memory\n      }\n    }\n  }\n": types.SetServiceResourcesDocument,
     "\n  query ServiceVariables($service: ServiceID!) {\n    serviceVariables(service: $service) {\n      key\n      value\n      fromShared\n      databaseRef {\n        database\n        key\n      }\n    }\n  }\n": types.ServiceVariablesDocument,
     "\n  mutation SetServiceVariables($service: ServiceID!, $variables: [ServiceVariableInput!]!) {\n    setServiceVariables(service: $service, variables: $variables)\n  }\n": types.SetServiceVariablesDocument,
-    "\n  subscription BuildLogs($id: String!) {\n    buildLogs(id: $id)\n  }\n": types.BuildLogsDocument,
+    "\n  subscription BuildLogs($id: BuildID!) {\n    buildLogs(id: $id)\n  }\n": types.BuildLogsDocument,
     "\n  query CanvasServiceBuilds($id: ServiceID!) {\n    service(id: $id) {\n      id\n      builds {\n        id\n        status\n        startedAt\n        finishedAt\n      }\n    }\n  }\n": types.CanvasServiceBuildsDocument,
     "\n  mutation Deploy($service: ServiceID!, $gitRef: String) {\n    deploy(service: $service, gitRef: $gitRef) {\n      id\n      status\n      startedAt\n      finishedAt\n    }\n  }\n": types.DeployDocument,
-    "\n  query BuildStatus($id: String!) {\n    build(id: $id) {\n      id\n      status\n      startedAt\n      finishedAt\n    }\n  }\n": types.BuildStatusDocument,
+    "\n  query BuildStatus($id: BuildID!) {\n    build(id: $id) {\n      id\n      status\n      startedAt\n      finishedAt\n    }\n  }\n": types.BuildStatusDocument,
     "\n  subscription ServiceLogs($service: ServiceID!, $tailLines: Int) {\n    serviceLogs(service: $service, tailLines: $tailLines) {\n      line\n      pod\n    }\n  }\n": types.ServiceLogsDocument,
     "\n  query Workspace {\n    workspace {\n      id\n      name\n      personal\n      suspended\n      members {\n        id\n        email\n        name\n        role\n      }\n    }\n  }\n": types.WorkspaceDocument,
     "\n  mutation CompleteWorkspaceCheckout($sessionId: String!) {\n    completeWorkspaceCheckout(sessionId: $sessionId) {\n      id\n      name\n      personal\n    }\n  }\n": types.CompleteWorkspaceCheckoutDocument,
@@ -165,11 +165,11 @@ export function graphql(source: "\n  query GitHubConnected {\n    githubConnecte
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query GitHubSources {\n    githubSources {\n      id\n      accountLogin\n      accountAvatarUrl\n      accountType\n    }\n  }\n"): (typeof documents)["\n  query GitHubSources {\n    githubSources {\n      id\n      accountLogin\n      accountAvatarUrl\n      accountType\n    }\n  }\n"];
+export function graphql(source: "\n  query GitHubSources {\n    githubSources {\n      accountLogin\n      accountAvatarUrl\n      accountType\n    }\n  }\n"): (typeof documents)["\n  query GitHubSources {\n    githubSources {\n      accountLogin\n      accountAvatarUrl\n      accountType\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query GitHubRepositories($installationId: ID!) {\n    githubRepositories(installationId: $installationId) {\n      id\n      name\n      fullName\n      htmlUrl\n      defaultBranch\n      private\n    }\n  }\n"): (typeof documents)["\n  query GitHubRepositories($installationId: ID!) {\n    githubRepositories(installationId: $installationId) {\n      id\n      name\n      fullName\n      htmlUrl\n      defaultBranch\n      private\n    }\n  }\n"];
+export function graphql(source: "\n  query GitHubRepositories($account: String!) {\n    githubRepositories(account: $account) {\n      id\n      name\n      fullName\n      htmlUrl\n      defaultBranch\n      private\n    }\n  }\n"): (typeof documents)["\n  query GitHubRepositories($account: String!) {\n    githubRepositories(account: $account) {\n      id\n      name\n      fullName\n      htmlUrl\n      defaultBranch\n      private\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -181,7 +181,7 @@ export function graphql(source: "\n  mutation AddService($environmentId: Environ
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query DetectServices($installationId: ID!, $repositoryUrl: String!) {\n    detectServices(installationId: $installationId, repositoryUrl: $repositoryUrl) {\n      name\n      language\n      framework\n      startCommand\n      suggestedPort\n    }\n  }\n"): (typeof documents)["\n  query DetectServices($installationId: ID!, $repositoryUrl: String!) {\n    detectServices(installationId: $installationId, repositoryUrl: $repositoryUrl) {\n      name\n      language\n      framework\n      startCommand\n      suggestedPort\n    }\n  }\n"];
+export function graphql(source: "\n  query DetectServices($repositoryUrl: String!) {\n    detectServices(repositoryUrl: $repositoryUrl) {\n      name\n      language\n      framework\n      startCommand\n      suggestedPort\n    }\n  }\n"): (typeof documents)["\n  query DetectServices($repositoryUrl: String!) {\n    detectServices(repositoryUrl: $repositoryUrl) {\n      name\n      language\n      framework\n      startCommand\n      suggestedPort\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -293,7 +293,7 @@ export function graphql(source: "\n  mutation SetServiceVariables($service: Serv
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  subscription BuildLogs($id: String!) {\n    buildLogs(id: $id)\n  }\n"): (typeof documents)["\n  subscription BuildLogs($id: String!) {\n    buildLogs(id: $id)\n  }\n"];
+export function graphql(source: "\n  subscription BuildLogs($id: BuildID!) {\n    buildLogs(id: $id)\n  }\n"): (typeof documents)["\n  subscription BuildLogs($id: BuildID!) {\n    buildLogs(id: $id)\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -305,7 +305,7 @@ export function graphql(source: "\n  mutation Deploy($service: ServiceID!, $gitR
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query BuildStatus($id: String!) {\n    build(id: $id) {\n      id\n      status\n      startedAt\n      finishedAt\n    }\n  }\n"): (typeof documents)["\n  query BuildStatus($id: String!) {\n    build(id: $id) {\n      id\n      status\n      startedAt\n      finishedAt\n    }\n  }\n"];
+export function graphql(source: "\n  query BuildStatus($id: BuildID!) {\n    build(id: $id) {\n      id\n      status\n      startedAt\n      finishedAt\n    }\n  }\n"): (typeof documents)["\n  query BuildStatus($id: BuildID!) {\n    build(id: $id) {\n      id\n      status\n      startedAt\n      finishedAt\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

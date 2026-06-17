@@ -4,17 +4,19 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
+	"github.com/99designs/gqlgen/graphql"
 	"github.com/google/go-containerregistry/pkg/name"
 )
 
 type Interface interface {
-	Get(ctx context.Context, id string) (*Job, error)
+	Get(ctx context.Context, id BuildID) (*Job, error)
 	List(ctx context.Context, workspaceID, repoURL, contextPath string) ([]Job, error)
 	Start(ctx context.Context, opts StartOptions) (*Job, error)
-	Cancel(ctx context.Context, id string) (*Job, error)
-	Logs(ctx context.Context, id string) (io.ReadCloser, error)
+	Cancel(ctx context.Context, id BuildID) (*Job, error)
+	Logs(ctx context.Context, id BuildID) (io.ReadCloser, error)
 }
 
 type StartOptions struct {
@@ -27,7 +29,7 @@ type StartOptions struct {
 }
 
 type Job struct {
-	ID          string
+	ID          BuildID
 	Status      Status
 	SourceURL   string
 	Commit      string
@@ -57,4 +59,54 @@ const (
 	StatusFailed     Status = "failed"
 	StatusCancelling Status = "cancelling"
 	StatusCancelled  Status = "cancelled"
+)
+
+type BuildID struct {
+	Workspace string
+	Name      string
+}
+
+func ParseBuildID(s string) (BuildID, error) {
+	workspace, name, ok := strings.Cut(s, "/")
+
+	if !ok || workspace == "" || name == "" {
+		return BuildID{}, fmt.Errorf("invalid build id %q", s)
+	}
+
+	return BuildID{Workspace: workspace, Name: name}, nil
+}
+
+func (b BuildID) String() string {
+	return b.Workspace + "/" + b.Name
+}
+
+func (b BuildID) WorkspaceID() string {
+	return b.Workspace
+}
+
+func (b *BuildID) UnmarshalGQL(val interface{}) error {
+	str, ok := val.(string)
+
+	if !ok {
+		return fmt.Errorf("BuildID must be a string")
+	}
+
+	parsed, err := ParseBuildID(str)
+
+	if err != nil {
+		return err
+	}
+
+	*b = parsed
+
+	return nil
+}
+
+func (b BuildID) MarshalGQL(w io.Writer) {
+	graphql.MarshalString(b.String()).MarshalGQL(w)
+}
+
+var (
+	_ graphql.Marshaler   = BuildID{}
+	_ graphql.Unmarshaler = (*BuildID)(nil)
 )

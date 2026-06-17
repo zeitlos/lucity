@@ -15,6 +15,7 @@ scalar ServiceID
 scalar DeploymentID
 scalar DatabaseID
 scalar VolumeID
+scalar BuildID
 
 enum Role {
   ANONYMOUS

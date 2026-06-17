@@ -17,7 +17,7 @@ const DeployDocument = graphql(`
 `);
 
 const BuildStatusDocument = graphql(`
-  query BuildStatus($id: String!) {
+  query BuildStatus($id: BuildID!) {
     build(id: $id) {
       id
       status

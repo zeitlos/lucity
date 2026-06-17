@@ -58,7 +58,7 @@ var _ buildjob.Interface = (*Client)(nil)
 
 func toJob(job batch.Job) buildjob.Job {
 	build := buildjob.Job{
-		ID:          job.Name,
+		ID:          buildjob.BuildID{Workspace: job.Labels[labelWorkspace], Name: job.Name},
 		Status:      buildStatus(job),
 		SourceURL:   job.Annotations[annotationSourceRepo],
 		Commit:      job.Labels[labelSourceCommit],

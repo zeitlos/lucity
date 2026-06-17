@@ -3,7 +3,7 @@ import { useSubscription } from '@vue/apollo-composable';
 import { graphql } from '@/gql';
 
 const BuildLogsDocument = graphql(`
-  subscription BuildLogs($id: String!) {
+  subscription BuildLogs($id: BuildID!) {
     buildLogs(id: $id)
   }
 `);

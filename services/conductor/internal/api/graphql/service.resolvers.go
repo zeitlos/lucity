@@ -7,8 +7,6 @@ package graphql
 
 import (
 	"context"
-	"fmt"
-	"strconv"
 
 	"github.com/zeitlos/lucity/pkg/to"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
@@ -18,17 +16,7 @@ import (
 
 // AddService is the resolver for the addService field.
 func (r *mutationResolver) AddService(ctx context.Context, environment platform.EnvironmentID, input model.AddServiceInput) (*model.Service, error) {
-	var installationID *int64
-
-	if input.InstallationID != nil {
-		id, err := strconv.ParseInt(*input.InstallationID, 10, 64)
-		if err != nil {
-			return nil, fmt.Errorf("invalid installation ID: %w", err)
-		}
-		installationID = &id
-	}
-
-	service, err := r.Conductor.AddService(ctx, environment, to.Val(input.Name), to.Val(input.Repository), to.Val(input.ContextPath), installationID, to.Val(input.Image))
+	service, err := r.Conductor.AddService(ctx, environment, to.Val(input.Name), to.Val(input.Repository), to.Val(input.ContextPath), to.Val(input.Image))
 
 	if err != nil {
 		return nil, err
@@ -151,12 +139,8 @@ func (r *queryResolver) Service(ctx context.Context, id platform.ServiceID) (*mo
 }
 
 // DetectServices is the resolver for the detectServices field.
-func (r *queryResolver) DetectServices(ctx context.Context, installationID string, repositoryURL string) ([]model.DetectedService, error) {
-	instID, err := strconv.ParseInt(installationID, 10, 64)
-	if err != nil {
-		return nil, fmt.Errorf("invalid installation ID: %w", err)
-	}
-	services, err := r.Conductor.DetectServices(ctx, repositoryURL, instID)
+func (r *queryResolver) DetectServices(ctx context.Context, repositoryURL string) ([]model.DetectedService, error) {
+	services, err := r.Conductor.DetectServices(ctx, repositoryURL)
 	if err != nil {
 		return nil, err
 	}

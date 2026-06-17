@@ -45,18 +45,6 @@
             "deprecationReason": null
           },
           {
-            "name": "installationId",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "ID",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "name",
             "description": null,
             "type": {
@@ -387,7 +375,7 @@
               "name": null,
               "ofType": {
                 "kind": "SCALAR",
-                "name": "String",
+                "name": "BuildID",
                 "ofType": null
               }
             },
@@ -429,6 +417,17 @@
         ],
         "inputFields": null,
         "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "SCALAR",
+        "name": "BuildID",
+        "description": null,
+        "isOneOf": null,
+        "fields": null,
+        "inputFields": null,
+        "interfaces": null,
         "enumValues": null,
         "possibleTypes": null
       },
@@ -2345,22 +2344,6 @@
             },
             "isDeprecated": false,
             "deprecationReason": null
-          },
-          {
-            "name": "id",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "ID",
-                "ofType": null
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
           }
         ],
         "inputFields": null,
@@ -4053,7 +4036,7 @@
                   "name": null,
                   "ofType": {
                     "kind": "SCALAR",
-                    "name": "String",
+                    "name": "BuildID",
                     "ofType": null
                   }
                 },
@@ -4312,22 +4295,6 @@
             "description": null,
             "args": [
               {
-                "name": "installationId",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "ID",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              },
-              {
                 "name": "repositoryUrl",
                 "description": null,
                 "type": {
@@ -4485,17 +4452,17 @@
           },
           {
             "name": "githubRepositories",
-            "description": "Repos from a specific installation.",
+            "description": "Repos accessible to the user under a GitHub account (org or user login).",
             "args": [
               {
-                "name": "installationId",
+                "name": "account",
                 "description": null,
                 "type": {
                   "kind": "NON_NULL",
                   "name": null,
                   "ofType": {
                     "kind": "SCALAR",
-                    "name": "ID",
+                    "name": "String",
                     "ofType": null
                   }
                 },
@@ -5887,7 +5854,7 @@
                   "name": null,
                   "ofType": {
                     "kind": "SCALAR",
-                    "name": "String",
+                    "name": "BuildID",
                     "ofType": null
                   }
                 },

@@ -16,7 +16,6 @@ const GitHubConnectedDocument = graphql(`
 const GitHubSourcesDocument = graphql(`
   query GitHubSources {
     githubSources {
-      id
       accountLogin
       accountAvatarUrl
       accountType
@@ -25,8 +24,8 @@ const GitHubSourcesDocument = graphql(`
 `);
 
 const GitHubRepositoriesDocument = graphql(`
-  query GitHubRepositories($installationId: ID!) {
-    githubRepositories(installationId: $installationId) {
+  query GitHubRepositories($account: String!) {
+    githubRepositories(account: $account) {
       id
       name
       fullName
@@ -60,8 +59,8 @@ const AddServiceDocument = graphql(`
 `);
 
 const DetectServicesDocument = graphql(`
-  query DetectServices($installationId: ID!, $repositoryUrl: String!) {
-    detectServices(installationId: $installationId, repositoryUrl: $repositoryUrl) {
+  query DetectServices($repositoryUrl: String!) {
+    detectServices(repositoryUrl: $repositoryUrl) {
       name
       language
       framework
@@ -203,7 +202,7 @@ watch(sources, (s) => {
 
 // GitHub repos for selected source
 const { result: reposResult, loading: reposLoading } = useQuery(GitHubRepositoriesDocument, () => ({
-  installationId: selectedSource.value?.id ?? '',
+  account: selectedSource.value?.accountLogin ?? '',
 }), () => ({
   enabled: props.open && view.value === 'github-repos' && !!selectedSource.value,
 }));
@@ -292,7 +291,6 @@ async function detectAndAddServices(environmentId: string, repo: { fullName: str
   const { data } = await client.query({
     query: DetectServicesDocument,
     variables: {
-      installationId: selectedSource.value?.id ?? '',
       repositoryUrl: repo.htmlUrl,
     },
   });
@@ -314,7 +312,6 @@ async function detectAndAddServices(environmentId: string, repo: { fullName: str
         input: {
           name,
           repository: repo.fullName,
-          installationId: selectedSource.value?.id,
         },
       });
       addedNames.push(name);
@@ -740,7 +737,7 @@ void activeEnvironment;
                   <div class="p-1">
                     <button
                       v-for="(source, index) in sources"
-                      :key="source.id"
+                      :key="source.accountLogin"
                       :data-focused="sourcePickerOpen && focusedIndex === index"
                       class="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm"
                       :class="sourcePickerOpen && focusedIndex === index ? 'bg-accent' : 'hover:bg-accent'"

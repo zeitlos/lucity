@@ -171,7 +171,6 @@ func convertGitHubRepository(r conductor.GitHubRepository) model.GitHubRepositor
 
 func convertGitHubInstallation(i conductor.GitHubInstallation) model.GitHubInstallation {
 	return model.GitHubInstallation{
-		ID:               i.ID,
 		AccountLogin:     i.AccountLogin,
 		AccountAvatarURL: i.AccountAvatarURL,
 		AccountType:      convertGitHubAccountType(i.AccountType),

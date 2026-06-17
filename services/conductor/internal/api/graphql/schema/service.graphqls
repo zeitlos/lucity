@@ -114,7 +114,6 @@ input AddServiceInput {
   name: String @constraint(constraint: "resource_name,min=2,max=16")
   repository: String @constraint(constraint: "min=3,max=200")
   contextPath: String
-  installationId: ID
   image: String
 }
 
@@ -138,7 +137,7 @@ input AutoscalingInput {
 
 extend type Query {
   service(id: ServiceID!): Service! @hasRole(role: WORKSPACE_MEMBER)
-  detectServices(installationId: ID!, repositoryUrl: String!): [DetectedService!]! @hasRole(role: WORKSPACE_MEMBER)
+  detectServices(repositoryUrl: String!): [DetectedService!]! @hasRole(role: WORKSPACE_MEMBER)
 }
 
 extend type Mutation {

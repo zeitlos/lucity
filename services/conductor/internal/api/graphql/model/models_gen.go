@@ -9,15 +9,15 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/zeitlos/lucity/services/conductor/internal/buildjob"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
 type AddServiceInput struct {
-	Name           *string `json:"name,omitempty"`
-	Repository     *string `json:"repository,omitempty"`
-	ContextPath    *string `json:"contextPath,omitempty"`
-	InstallationID *string `json:"installationId,omitempty"`
-	Image          *string `json:"image,omitempty"`
+	Name        *string `json:"name,omitempty"`
+	Repository  *string `json:"repository,omitempty"`
+	ContextPath *string `json:"contextPath,omitempty"`
+	Image       *string `json:"image,omitempty"`
 }
 
 type AutoscalingInput struct {
@@ -47,10 +47,10 @@ type BillingSubscription struct {
 }
 
 type Build struct {
-	ID         string      `json:"id"`
-	Status     BuildStatus `json:"status"`
-	StartedAt  time.Time   `json:"startedAt"`
-	FinishedAt *time.Time  `json:"finishedAt,omitempty"`
+	ID         buildjob.BuildID `json:"id"`
+	Status     BuildStatus      `json:"status"`
+	StartedAt  time.Time        `json:"startedAt"`
+	FinishedAt *time.Time       `json:"finishedAt,omitempty"`
 }
 
 type CheckoutSession struct {
@@ -198,7 +198,6 @@ type EnvironmentResources struct {
 }
 
 type GitHubInstallation struct {
-	ID               string            `json:"id"`
 	AccountLogin     string            `json:"accountLogin"`
 	AccountAvatarURL string            `json:"accountAvatarUrl"`
 	AccountType      GitHubAccountType `json:"accountType"`

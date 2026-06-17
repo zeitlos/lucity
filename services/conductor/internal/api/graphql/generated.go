@@ -18,6 +18,7 @@ import (
 	gqlparser "github.com/vektah/gqlparser/v2"
 	"github.com/vektah/gqlparser/v2/ast"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
+	"github.com/zeitlos/lucity/services/conductor/internal/buildjob"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
@@ -185,7 +186,6 @@ type ComplexityRoot struct {
 		AccountAvatarURL func(childComplexity int) int
 		AccountLogin     func(childComplexity int) int
 		AccountType      func(childComplexity int) int
-		ID               func(childComplexity int) int
 	}
 
 	GitHubRepository struct {
@@ -249,18 +249,18 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
-		Build                func(childComplexity int, id string) int
+		Build                func(childComplexity int, id buildjob.BuildID) int
 		Database             func(childComplexity int, id platform.DatabaseID) int
 		DatabaseCredentials  func(childComplexity int, database platform.DatabaseID) int
 		DatabaseTableData    func(childComplexity int, database platform.DatabaseID, table string, schema *string, limit *int, offset *int) int
 		DatabaseTables       func(childComplexity int, database platform.DatabaseID) int
 		Deployment           func(childComplexity int, id platform.DeploymentID) int
-		DetectServices       func(childComplexity int, installationID string, repositoryURL string) int
+		DetectServices       func(childComplexity int, repositoryURL string) int
 		Environment          func(childComplexity int, environment platform.EnvironmentID) int
 		EnvironmentResources func(childComplexity int, environment platform.EnvironmentID) int
 		Environments         func(childComplexity int, project platform.ProjectID) int
 		GithubConnected      func(childComplexity int) int
-		GithubRepositories   func(childComplexity int, installationID string) int
+		GithubRepositories   func(childComplexity int, account string) int
 		GithubSources        func(childComplexity int) int
 		Me                   func(childComplexity int) int
 		Project              func(childComplexity int, id platform.ProjectID) int
@@ -330,7 +330,7 @@ type ComplexityRoot struct {
 	}
 
 	Subscription struct {
-		BuildLogs   func(childComplexity int, id string) int
+		BuildLogs   func(childComplexity int, id buildjob.BuildID) int
 		ServiceLogs func(childComplexity int, service platform.ServiceID, tailLines *int) int
 	}
 
@@ -430,7 +430,7 @@ type QueryResolver interface {
 	EnvironmentResources(ctx context.Context, environment platform.EnvironmentID) (*model.EnvironmentResources, error)
 	Subscription(ctx context.Context) (*model.BillingSubscription, error)
 	UsageSummary(ctx context.Context) (*model.UsageSummary, error)
-	Build(ctx context.Context, id string) (*model.Build, error)
+	Build(ctx context.Context, id buildjob.BuildID) (*model.Build, error)
 	Database(ctx context.Context, id platform.DatabaseID) (*model.Database, error)
 	DatabaseTables(ctx context.Context, database platform.DatabaseID) ([]model.DatabaseTable, error)
 	DatabaseTableData(ctx context.Context, database platform.DatabaseID, table string, schema *string, limit *int, offset *int) (*model.DatabaseTableData, error)
@@ -439,13 +439,13 @@ type QueryResolver interface {
 	Environments(ctx context.Context, project platform.ProjectID) ([]model.Environment, error)
 	Environment(ctx context.Context, environment platform.EnvironmentID) (*model.Environment, error)
 	GithubSources(ctx context.Context) ([]model.GitHubInstallation, error)
-	GithubRepositories(ctx context.Context, installationID string) ([]model.GitHubRepository, error)
+	GithubRepositories(ctx context.Context, account string) ([]model.GitHubRepository, error)
 	GithubConnected(ctx context.Context) (bool, error)
 	Projects(ctx context.Context) ([]model.Project, error)
 	Project(ctx context.Context, id platform.ProjectID) (*model.Project, error)
 	SearchImages(ctx context.Context, query string) ([]model.ImageSearchResult, error)
 	Service(ctx context.Context, id platform.ServiceID) (*model.Service, error)
-	DetectServices(ctx context.Context, installationID string, repositoryURL string) ([]model.DetectedService, error)
+	DetectServices(ctx context.Context, repositoryURL string) ([]model.DetectedService, error)
 	SharedVariables(ctx context.Context, environment platform.EnvironmentID) ([]model.Variable, error)
 	ServiceVariables(ctx context.Context, service platform.ServiceID) ([]model.ServiceVariable, error)
 	Workspace(ctx context.Context) (*model.Workspace, error)
@@ -460,7 +460,7 @@ type ServiceResolver interface {
 	Builds(ctx context.Context, obj *model.Service) ([]model.Build, error)
 }
 type SubscriptionResolver interface {
-	BuildLogs(ctx context.Context, id string) (<-chan string, error)
+	BuildLogs(ctx context.Context, id buildjob.BuildID) (<-chan string, error)
 	ServiceLogs(ctx context.Context, service platform.ServiceID, tailLines *int) (<-chan *model.ServiceLogEntry, error)
 }
 
@@ -1000,12 +1000,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.GitHubInstallation.AccountType(childComplexity), true
-	case "GitHubInstallation.id":
-		if e.ComplexityRoot.GitHubInstallation.ID == nil {
-			break
-		}
-
-		return e.ComplexityRoot.GitHubInstallation.ID(childComplexity), true
 
 	case "GitHubRepository.defaultBranch":
 		if e.ComplexityRoot.GitHubRepository.DefaultBranch == nil {
@@ -1469,7 +1463,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Query.Build(childComplexity, args["id"].(string)), true
+		return e.ComplexityRoot.Query.Build(childComplexity, args["id"].(buildjob.BuildID)), true
 	case "Query.database":
 		if e.ComplexityRoot.Query.Database == nil {
 			break
@@ -1535,7 +1529,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Query.DetectServices(childComplexity, args["installationId"].(string), args["repositoryUrl"].(string)), true
+		return e.ComplexityRoot.Query.DetectServices(childComplexity, args["repositoryUrl"].(string)), true
 	case "Query.environment":
 		if e.ComplexityRoot.Query.Environment == nil {
 			break
@@ -1585,7 +1579,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Query.GithubRepositories(childComplexity, args["installationId"].(string)), true
+		return e.ComplexityRoot.Query.GithubRepositories(childComplexity, args["account"].(string)), true
 	case "Query.githubSources":
 		if e.ComplexityRoot.Query.GithubSources == nil {
 			break
@@ -1900,7 +1894,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Subscription.BuildLogs(childComplexity, args["id"].(string)), true
+		return e.ComplexityRoot.Subscription.BuildLogs(childComplexity, args["id"].(buildjob.BuildID)), true
 	case "Subscription.serviceLogs":
 		if e.ComplexityRoot.Subscription.ServiceLogs == nil {
 			break
@@ -2495,8 +2489,6 @@ func (ec *executionContext) childFields_EnvironmentResources(ctx context.Context
 
 func (ec *executionContext) childFields_GitHubInstallation(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
-	case "id":
-		return ec.fieldContext_GitHubInstallation_id(ctx, field)
 	case "accountLogin":
 		return ec.fieldContext_GitHubInstallation_accountLogin(ctx, field)
 	case "accountAvatarUrl":
@@ -3506,8 +3498,8 @@ func (ec *executionContext) field_Query_build_args(ctx context.Context, rawArgs 
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id",
-		func(ctx context.Context, v any) (string, error) {
-			return ec.unmarshalNString2string(ctx, v)
+		func(ctx context.Context, v any) (buildjob.BuildID, error) {
+			return ec.unmarshalNBuildID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋbuildjobᚐBuildID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -3621,22 +3613,14 @@ func (ec *executionContext) field_Query_deployment_args(ctx context.Context, raw
 func (ec *executionContext) field_Query_detectServices_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "installationId",
-		func(ctx context.Context, v any) (string, error) {
-			return ec.unmarshalNID2string(ctx, v)
-		})
-	if err != nil {
-		return nil, err
-	}
-	args["installationId"] = arg0
-	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "repositoryUrl",
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "repositoryUrl",
 		func(ctx context.Context, v any) (string, error) {
 			return ec.unmarshalNString2string(ctx, v)
 		})
 	if err != nil {
 		return nil, err
 	}
-	args["repositoryUrl"] = arg1
+	args["repositoryUrl"] = arg0
 	return args, nil
 }
 
@@ -3685,14 +3669,14 @@ func (ec *executionContext) field_Query_environments_args(ctx context.Context, r
 func (ec *executionContext) field_Query_githubRepositories_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "installationId",
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "account",
 		func(ctx context.Context, v any) (string, error) {
-			return ec.unmarshalNID2string(ctx, v)
+			return ec.unmarshalNString2string(ctx, v)
 		})
 	if err != nil {
 		return nil, err
 	}
-	args["installationId"] = arg0
+	args["account"] = arg0
 	return args, nil
 }
 
@@ -3770,8 +3754,8 @@ func (ec *executionContext) field_Subscription_buildLogs_args(ctx context.Contex
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id",
-		func(ctx context.Context, v any) (string, error) {
-			return ec.unmarshalNString2string(ctx, v)
+		func(ctx context.Context, v any) (buildjob.BuildID, error) {
+			return ec.unmarshalNBuildID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋbuildjobᚐBuildID(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -4108,15 +4092,15 @@ func (ec *executionContext) _Build_id(ctx context.Context, field graphql.Collect
 			return obj.ID, nil
 		},
 		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
-			return ec.marshalNString2string(ctx, selections, v)
+		func(ctx context.Context, selections ast.SelectionSet, v buildjob.BuildID) graphql.Marshaler {
+			return ec.marshalNBuildID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋbuildjobᚐBuildID(ctx, selections, v)
 		},
 		true,
 		true,
 	)
 }
 func (ec *executionContext) fieldContext_Build_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Build", field, false, false, errors.New("field of type String does not have child fields"))
+	return graphql.NewScalarFieldContext("Build", field, false, false, errors.New("field of type BuildID does not have child fields"))
 }
 
 func (ec *executionContext) _Build_status(ctx context.Context, field graphql.CollectedField, obj *model.Build) (ret graphql.Marshaler) {
@@ -5799,29 +5783,6 @@ func (ec *executionContext) fieldContext_EnvironmentResources_allocation(_ conte
 		},
 	}
 	return fc, nil
-}
-
-func (ec *executionContext) _GitHubInstallation_id(ctx context.Context, field graphql.CollectedField, obj *model.GitHubInstallation) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_GitHubInstallation_id(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.ID, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
-			return ec.marshalNID2string(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_GitHubInstallation_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("GitHubInstallation", field, false, false, errors.New("field of type ID does not have child fields"))
 }
 
 func (ec *executionContext) _GitHubInstallation_accountLogin(ctx context.Context, field graphql.CollectedField, obj *model.GitHubInstallation) (ret graphql.Marshaler) {
@@ -8563,7 +8524,7 @@ func (ec *executionContext) _Query_build(ctx context.Context, field graphql.Coll
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Query().Build(ctx, fc.Args["id"].(string))
+			return ec.Resolvers.Query().Build(ctx, fc.Args["id"].(buildjob.BuildID))
 		},
 		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
 			directive0 := next
@@ -9109,7 +9070,7 @@ func (ec *executionContext) _Query_githubRepositories(ctx context.Context, field
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Query().GithubRepositories(ctx, fc.Args["installationId"].(string))
+			return ec.Resolvers.Query().GithubRepositories(ctx, fc.Args["account"].(string))
 		},
 		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
 			directive0 := next
@@ -9448,7 +9409,7 @@ func (ec *executionContext) _Query_detectServices(ctx context.Context, field gra
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Query().DetectServices(ctx, fc.Args["installationId"].(string), fc.Args["repositoryUrl"].(string))
+			return ec.Resolvers.Query().DetectServices(ctx, fc.Args["repositoryUrl"].(string))
 		},
 		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
 			directive0 := next
@@ -10641,7 +10602,7 @@ func (ec *executionContext) _Subscription_buildLogs(ctx context.Context, field g
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Subscription().BuildLogs(ctx, fc.Args["id"].(string))
+			return ec.Resolvers.Subscription().BuildLogs(ctx, fc.Args["id"].(buildjob.BuildID))
 		},
 		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
 			directive0 := next
@@ -12441,7 +12402,7 @@ func (ec *executionContext) unmarshalInputAddServiceInput(ctx context.Context, o
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "repository", "contextPath", "installationId", "image"}
+	fieldsInOrder := [...]string{"name", "repository", "contextPath", "image"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -12513,13 +12474,6 @@ func (ec *executionContext) unmarshalInputAddServiceInput(ctx context.Context, o
 				return it, err
 			}
 			it.ContextPath = data
-		case "installationId":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("installationId"))
-			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.InstallationID = data
 		case "image":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("image"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
@@ -14520,11 +14474,6 @@ func (ec *executionContext) _GitHubInstallation(ctx context.Context, sel ast.Sel
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("GitHubInstallation")
-		case "id":
-			out.Values[i] = ec._GitHubInstallation_id(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
 		case "accountLogin":
 			out.Values[i] = ec._GitHubInstallation_accountLogin(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -16894,6 +16843,16 @@ func (ec *executionContext) marshalNBuild2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋs
 	return ec._Build(ctx, sel, v)
 }
 
+func (ec *executionContext) unmarshalNBuildID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋbuildjobᚐBuildID(ctx context.Context, v any) (buildjob.BuildID, error) {
+	var res buildjob.BuildID
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNBuildID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋbuildjobᚐBuildID(ctx context.Context, sel ast.SelectionSet, v buildjob.BuildID) graphql.Marshaler {
+	return v
+}
+
 func (ec *executionContext) unmarshalNBuildStatus2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐBuildStatus(ctx context.Context, v any) (model.BuildStatus, error) {
 	var res model.BuildStatus
 	err := res.UnmarshalGQL(v)
@@ -18108,24 +18067,6 @@ func (ec *executionContext) marshalOEnvironmentResources2ᚖgithubᚗcomᚋzeitl
 		return graphql.Null
 	}
 	return ec._EnvironmentResources(ctx, sel, v)
-}
-
-func (ec *executionContext) unmarshalOID2ᚖstring(ctx context.Context, v any) (*string, error) {
-	if v == nil {
-		return nil, nil
-	}
-	res, err := graphql.UnmarshalID(v)
-	return &res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) marshalOID2ᚖstring(ctx context.Context, sel ast.SelectionSet, v *string) graphql.Marshaler {
-	if v == nil {
-		return graphql.Null
-	}
-	_ = sel
-	_ = ctx
-	res := graphql.MarshalID(*v)
-	return res
 }
 
 func (ec *executionContext) unmarshalOInt2ᚖint(ctx context.Context, v any) (*int, error) {

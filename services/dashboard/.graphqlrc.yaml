@@ -18,6 +18,7 @@ generates:
         DeploymentID: string
         DatabaseID: string
         VolumeID: string
+        BuildID: string
     presetConfig:
       fragmentMasking: false
   ./graphql.schema.json:

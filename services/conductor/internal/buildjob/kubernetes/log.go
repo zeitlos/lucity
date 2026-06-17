@@ -9,19 +9,27 @@ import (
 
 	core "k8s.io/api/core/v1"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/zeitlos/lucity/services/conductor/internal/buildjob"
 )
 
-func (c *Client) Logs(ctx context.Context, id string) (io.ReadCloser, error) {
+func (c *Client) Logs(ctx context.Context, id buildjob.BuildID) (io.ReadCloser, error) {
 	waitCtx, cancel := context.WithTimeout(ctx, 1*time.Minute)
 	defer cancel()
 
 	for {
-		if _, err := c.kubernetes.BatchV1().Jobs(c.namespace).Get(waitCtx, id, meta.GetOptions{}); err != nil {
+		job, err := c.kubernetes.BatchV1().Jobs(c.namespace).Get(waitCtx, id.Name, meta.GetOptions{})
+
+		if err != nil {
 			return nil, err
 		}
 
+		if job.Labels[labelWorkspace] != id.Workspace {
+			return nil, fmt.Errorf("build %q not found", id.Name)
+		}
+
 		pods, err := c.kubernetes.CoreV1().Pods(c.namespace).List(waitCtx, meta.ListOptions{
-			LabelSelector: "job-name=" + id,
+			LabelSelector: "job-name=" + id.Name,
 		})
 
 		if err != nil {
@@ -46,7 +54,7 @@ func (c *Client) Logs(ctx context.Context, id string) (io.ReadCloser, error) {
 		select {
 		case <-waitCtx.Done():
 			if errors.Is(waitCtx.Err(), context.DeadlineExceeded) {
-				return nil, fmt.Errorf("build logs for %q timed out waiting for pod", id)
+				return nil, fmt.Errorf("build logs for %q timed out waiting for pod", id.Name)
 			}
 
 			return nil, waitCtx.Err()

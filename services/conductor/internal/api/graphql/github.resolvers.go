@@ -25,8 +25,8 @@ func (r *queryResolver) GithubSources(ctx context.Context) ([]model.GitHubInstal
 }
 
 // GithubRepositories is the resolver for the githubRepositories field.
-func (r *queryResolver) GithubRepositories(ctx context.Context, installationID string) ([]model.GitHubRepository, error) {
-	repos, err := r.Conductor.GitHubRepositories(ctx, installationID)
+func (r *queryResolver) GithubRepositories(ctx context.Context, account string) ([]model.GitHubRepository, error) {
+	repos, err := r.Conductor.GitHubRepositories(ctx, account)
 	if err != nil {
 		return nil, err
 	}

@@ -6,19 +6,23 @@ import (
 
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/services/conductor/internal/buildjob"
+	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
 type Build = buildjob.Job
+type BuildID = buildjob.BuildID
+
+var _ platform.WorkspaceScoped = BuildID{}
 
 func (c *Client) Builds(ctx context.Context, workspace, repoURL, contextPath string) ([]Build, error) {
 	return c.buildjob.List(ctx, workspace, repoURL, contextPath)
 }
 
-func (c *Client) Build(ctx context.Context, id string) (*Build, error) {
+func (c *Client) Build(ctx context.Context, id BuildID) (*Build, error) {
 	return c.buildjob.Get(ctx, id)
 }
 
-func (c *Client) BuildLogs(ctx context.Context, id string) (<-chan string, error) {
+func (c *Client) BuildLogs(ctx context.Context, id BuildID) (<-chan string, error) {
 	reader, err := c.buildjob.Logs(ctx, id)
 
 	if err != nil {
