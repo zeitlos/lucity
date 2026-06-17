@@ -67,7 +67,7 @@ The header breadcrumb provides project and environment context via `useEnvironme
 
 ## GraphQL
 
-- Codegen from gateway schema via `npm run codegen`
+- Codegen from the conductor's GraphQL schema via `npm run codegen`
 - `graphql()` template tag for defining queries and mutations in `.ts` files
 - Import generated `*Document` nodes and types from `@/gql/graphql` (not manual per-domain files)
 - Fragment-based reuse for shared fields

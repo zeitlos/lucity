@@ -1,0 +1,61 @@
+syntax = "proto3";
+
+package conductor;
+
+option go_package = "./conductor";
+
+// ConductorService is the small inbound RPC surface the conductor
+// exposes for callbacks from cashier (and any future external service
+// that needs to push state into the platform). Frontend traffic uses
+// the GraphQL HTTP surface, not gRPC.
+//
+// This is deliberately minimal — the public API is GraphQL; gRPC is
+// reserved for service-to-service callbacks where typed contracts
+// matter.
+service ConductorService {
+  // SuspendWorkspace flips the suspended flag for every project /
+  // environment owned by the workspace. Called by cashier on payment
+  // failure (suspended=true) and on payment recovery (suspended=false).
+  // The implementation enumerates the workspace's namespaces,
+  // groups by (project, environment), and persists the change in
+  // each environment's GitOps values, which ArgoCD then enforces.
+  rpc SuspendWorkspace(SuspendWorkspaceRequest) returns (SuspendWorkspaceResponse);
+
+  // ListResourceAllocations returns the resource quota tier and
+  // allocations for every managed (workspace, project, environment)
+  // namespace. Called by cashier's metering worker each interval to
+  // attribute compute usage to subscriptions.
+  rpc ListResourceAllocations(ListResourceAllocationsRequest) returns (ListResourceAllocationsResponse);
+}
+
+message SuspendWorkspaceRequest {
+  string workspace = 1;
+  bool suspended = 2;
+}
+
+message SuspendWorkspaceResponse {}
+
+// ResourceTier mirrors deployer.ResourceTier for byte-compatible
+// migration. Cashier reads .Tier directly so the enum values must
+// match.
+enum ResourceTier {
+  RESOURCE_TIER_UNSPECIFIED = 0;
+  RESOURCE_TIER_ECO = 1;
+  RESOURCE_TIER_PRODUCTION = 2;
+}
+
+message ResourceAllocation {
+  string workspace = 1;
+  string project = 2;
+  string environment = 3;
+  ResourceTier tier = 4;
+  int32 cpu_millicores = 5;
+  int32 memory_mb = 6;
+  int32 disk_mb = 7;
+}
+
+message ListResourceAllocationsRequest {}
+
+message ListResourceAllocationsResponse {
+  repeated ResourceAllocation allocations = 1;
+}

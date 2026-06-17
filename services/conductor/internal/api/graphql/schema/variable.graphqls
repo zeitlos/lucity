@@ -1,0 +1,47 @@
+type Variable {
+  key: String!
+  value: String!
+}
+
+"""A reference to a CNPG database secret key (resolved at pod startup via secretKeyRef)."""
+type DatabaseRef {
+  database: DatabaseID!
+  key: String!
+}
+
+input DatabaseRefInput {
+  database: DatabaseID!
+  key: String!
+}
+
+type ServiceVariable {
+  key: String!
+  value: String!
+  fromShared: Boolean!
+  databaseRef: DatabaseRef
+}
+
+input VariableInput {
+  key: String!
+  value: String!
+}
+
+input ServiceVariableInput {
+  key: String!
+  """Direct value. Required when no ref is set."""
+  value: String
+  """If true, value is resolved from the shared variable with the same key."""
+  fromShared: Boolean
+  """Reference to a database secret key."""
+  databaseRef: DatabaseRefInput
+}
+
+extend type Query {
+  sharedVariables(environment: EnvironmentID!): [Variable!]! @hasRole(role: WORKSPACE_MEMBER)
+  serviceVariables(service: ServiceID!): [ServiceVariable!]! @hasRole(role: WORKSPACE_MEMBER)
+}
+
+extend type Mutation {
+  setSharedVariables(environment: EnvironmentID!, variables: [VariableInput!]!): Boolean! @hasRole(role: WORKSPACE_MEMBER)
+  setServiceVariables(service: ServiceID!, variables: [ServiceVariableInput!]!): Boolean! @hasRole(role: WORKSPACE_MEMBER)
+}

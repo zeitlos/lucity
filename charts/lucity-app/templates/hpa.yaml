@@ -8,6 +8,13 @@ metadata:
   labels:
     {{- include "lucity-app.labels" $ | nindent 4 }}
     app.kubernetes.io/component: {{ $name }}
+    {{- with $.Values.commonLabels }}{{- toYaml . | nindent 4 }}{{- end }}
+    {{- with $svc.labels }}{{- toYaml . | nindent 4 }}{{- end }}
+  {{- if or $.Values.commonAnnotations $svc.annotations }}
+  annotations:
+    {{- with $.Values.commonAnnotations }}{{- toYaml . | nindent 4 }}{{- end }}
+    {{- with $svc.annotations }}{{- toYaml . | nindent 4 }}{{- end }}
+  {{- end }}
 spec:
   scaleTargetRef:
     apiVersion: apps/v1

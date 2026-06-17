@@ -33,22 +33,39 @@ Always use full module paths. No relative imports.
 ## Naming
 
 - **Exported**: PascalCase (`CreateProject`, `Environment`, `NewServer`)
-- **Unexported**: camelCase (`parseImageTag`, `gitopsRepo`)
+- **Unexported**: camelCase (`parseImageTag`, `releaseName`)
 - **Constructors**: `New<Type>(...) (*Type, error)`
 - **Method receivers**: short names — `s *Server`, `c *Client`, `b *Builder`
-- **Interfaces**: semantic names (Builder, Packager, Deployer). No forced `-er` suffix.
-- **Packages**: single lowercase word (`auth`, `labels`, `argocd`, `gitops`)
+- **Interfaces**: semantic names (Builder, Deployer, Planner). No forced `-er` suffix.
+- **Packages**: single lowercase word (`auth`, `labels`, `deployer`, `hostname`)
 - **No `Get`/`List` prefixes**: follow stdlib convention — `Repositories()` not `GetRepositories()` or `ListRepositories()`. Use the noun directly. `Create`, `Delete`, `Update` verbs are fine since they denote actions.
+- **Local variables and parameters**: spell out domain words. `deployment` not `dep`, `replicaSet` not `rs`, `environmentID` not `envID`, `currentHash` not `hash` when scope matters. Readability over shortness. Exceptions, only because they're universal: `ctx context.Context`, short method receivers (`c *Client`, `s *Server`), `i`/`j`/`k` loop indices, established acronyms in camelCase (`ID`, `URL`, `JSON`, `HTTP`).
 
 ## Error Handling
 
-```go
-if err != nil {
-    return nil, fmt.Errorf("failed to <action>: %w", err)
-}
-```
+Return errors directly when there's nothing meaningful to add. Wrap with `fmt.Errorf("...: %w", err)` only when the call site adds context the underlying error doesn't already have. Avoid `"failed to X: ..."` boilerplate that just stutters the operation back.
 
-Always wrap with context using `%w`. Use `slog.Error()` before `os.Exit(1)` in main.
+Use `slog.Error()` before `os.Exit(1)` in main.
+
+### Blank line before err handling
+
+Always separate the call producing an error from the `if err != nil` block with a blank line. Same goes for early-return `if` checks following any statement.
+
+```go
+parts := strings.SplitN(s, "/", 5)
+
+if len(parts) != 5 || slices.Contains(parts, "") {
+    return DeploymentID{}, fmt.Errorf("invalid deployment id %q", s)
+}
+
+return DeploymentID{
+    Workspace:   parts[0],
+    Project:     parts[1],
+    Environment: parts[2],
+    Service:     parts[3],
+    Hash:        parts[4],
+}, nil
+```
 
 ## Logging
 

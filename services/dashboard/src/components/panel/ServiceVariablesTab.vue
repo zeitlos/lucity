@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
 import { useQuery, useMutation } from '@vue/apollo-composable';
-import { Plus, Trash2, Link, Database, Globe } from 'lucide-vue-next';
+import { Plus, Trash2, Link, Database } from 'lucide-vue-next';
 import { graphql } from '@/gql';
 
 const ServiceVariablesDocument = graphql(`
-  query ServiceVariables($projectId: ID!, $environment: String!, $service: String!) {
-    serviceVariables(projectId: $projectId, environment: $environment, service: $service) {
+  query ServiceVariables($service: ServiceID!) {
+    serviceVariables(service: $service) {
       key
       value
       fromShared
@@ -14,22 +14,19 @@ const ServiceVariablesDocument = graphql(`
         database
         key
       }
-      serviceRef {
-        service
-      }
     }
   }
 `);
 
 const SetServiceVariablesDocument = graphql(`
-  mutation SetServiceVariables($projectId: ID!, $environment: String!, $service: String!, $variables: [ServiceVariableInput!]!) {
-    setServiceVariables(projectId: $projectId, environment: $environment, service: $service, variables: $variables)
+  mutation SetServiceVariables($service: ServiceID!, $variables: [ServiceVariableInput!]!) {
+    setServiceVariables(service: $service, variables: $variables)
   }
 `);
 
 const SharedVariablesDocument = graphql(`
-  query SharedVariables($projectId: ID!, $environment: String!) {
-    sharedVariables(projectId: $projectId, environment: $environment) {
+  query SharedVariables($environment: EnvironmentID!) {
+    sharedVariables(environment: $environment) {
       key
       value
     }
@@ -53,14 +50,12 @@ import { toast, errorToast } from '@/components/ui/sonner';
 import { errorMessage } from '@/lib/utils';
 
 const props = defineProps<{
-  projectId: string;
-  service: {
-    name: string;
-  };
+  serviceId: string;
+  serviceName: string;
 }>();
 
 const { activeEnvironment } = useEnvironment();
-const envName = computed(() => activeEnvironment.value?.name ?? '');
+const environmentId = computed(() => activeEnvironment.value?.id ?? '');
 
 // ── Data types ────────────────────────────────────────────────────────
 
@@ -69,16 +64,11 @@ interface DatabaseRefData {
   key: string;
 }
 
-interface ServiceRefData {
-  service: string;
-}
-
 interface VarRow {
   key: string;
   value: string;
   fromShared: boolean;
   databaseRef?: DatabaseRefData | null;
-  serviceRef?: ServiceRefData | null;
   isNew?: boolean;
 }
 
@@ -96,31 +86,27 @@ const CNPG_EXPORTS = [
 // ── Queries ───────────────────────────────────────────────────────────
 
 const { result, loading, refetch } = useQuery(ServiceVariablesDocument, () => ({
-  projectId: props.projectId,
-  environment: envName.value,
-  service: props.service.name,
+  service: props.serviceId,
 }), () => ({
-  enabled: !!envName.value,
+  enabled: !!props.serviceId,
 }));
 
 const { result: sharedResult } = useQuery(SharedVariablesDocument, () => ({
-  projectId: props.projectId,
-  environment: envName.value,
+  environment: environmentId.value,
 }), () => ({
-  enabled: !!envName.value,
+  enabled: !!environmentId.value,
 }));
 
 // ── Reference option model ────────────────────────────────────────────
 
 interface RefOption {
-  type: 'database' | 'service' | 'shared';
+  type: 'database' | 'shared';
   key: string;
   displayName: string;
   displayValue: string;
   group: string;
-  groupIcon: 'database' | 'globe' | 'link';
+  groupIcon: 'database' | 'link';
   databaseRef?: DatabaseRefData;
-  serviceRef?: ServiceRefData;
 }
 
 function capitalize(s: string): string {
@@ -136,35 +122,19 @@ const availableRefs = computed<RefOption[]>(() => {
     for (const exp of CNPG_EXPORTS) {
       options.push({
         type: 'database',
-        key: `${db.name}-${exp.key}`,
+        key: `${db.id}-${exp.key}`,
         displayName: exp.displayName,
         displayValue: `\${{${capitalize(db.name)}.${exp.displayName}}}`,
         group: `${capitalize(db.name)} (Postgres)`,
         groupIcon: 'database',
-        databaseRef: { database: db.name, key: exp.key },
+        databaseRef: { database: db.id, key: exp.key },
       });
     }
   }
 
-  // Service references
-  const services = activeEnvironment.value?.services ?? [];
-  for (const svc of services) {
-    if (svc.name === props.service.name) continue;
-    const envKey = svc.name.toUpperCase().replace(/-/g, '_');
-    options.push({
-      type: 'service',
-      key: `svc-${svc.name}`,
-      displayName: `${envKey}_URL`,
-      displayValue: `\${{${svc.name}.URL}}`,
-      group: capitalize(svc.name),
-      groupIcon: 'globe',
-      serviceRef: { service: svc.name },
-    });
-  }
-
   // Shared variable references
   const sharedVars = sharedResult.value?.sharedVariables ?? [];
-  for (const v of sharedVars as { key: string; value: string }[]) {
+  for (const v of sharedVars) {
     options.push({
       type: 'shared',
       key: `shared-${v.key}`,
@@ -179,7 +149,7 @@ const availableRefs = computed<RefOption[]>(() => {
 });
 
 const refGroups = computed(() => {
-  const groups: Record<string, { icon: 'database' | 'globe' | 'link'; items: RefOption[] }> = {};
+  const groups: Record<string, { icon: 'database' | 'link'; items: RefOption[] }> = {};
   for (const opt of availableRefs.value) {
     if (!groups[opt.group]) {
       groups[opt.group] = { icon: opt.groupIcon, items: [] };
@@ -204,7 +174,6 @@ watch(
         value: v.value,
         fromShared: v.fromShared,
         databaseRef: v.databaseRef ? { database: v.databaseRef.database, key: v.databaseRef.key } : undefined,
-        serviceRef: v.serviceRef ? { service: v.serviceRef.service } : undefined,
       }));
       hasChanges.value = false;
     }
@@ -225,7 +194,6 @@ function selectRef(index: number, opt: RefOption) {
     value: opt.displayValue,
     fromShared: opt.type === 'shared',
     databaseRef: opt.databaseRef,
-    serviceRef: opt.serviceRef,
   };
   hasChanges.value = true;
   openPopoverIndex.value = null;
@@ -234,7 +202,6 @@ function selectRef(index: number, opt: RefOption) {
 function clearRef(index: number) {
   const row = rows.value[index]!;
   row.databaseRef = undefined;
-  row.serviceRef = undefined;
   row.fromShared = false;
   row.value = '';
   hasChanges.value = true;
@@ -252,7 +219,7 @@ function markChanged() {
 // ── Row display helpers ───────────────────────────────────────────────
 
 function isRefRow(row: VarRow): boolean {
-  return !!row.databaseRef || !!row.serviceRef || row.fromShared;
+  return !!row.databaseRef || row.fromShared;
 }
 
 // ── Save ──────────────────────────────────────────────────────────────
@@ -264,16 +231,13 @@ async function handleSave() {
   try {
     const variables = validRows.map(r => ({
       key: r.key.trim(),
-      value: (!r.databaseRef && !r.serviceRef && !r.fromShared) ? r.value : undefined,
+      value: (!r.databaseRef && !r.fromShared) ? r.value : undefined,
       fromShared: r.fromShared || undefined,
       databaseRef: r.databaseRef || undefined,
-      serviceRef: r.serviceRef || undefined,
     }));
 
     const res = await setVarsMutate({
-      projectId: props.projectId,
-      environment: envName.value,
-      service: props.service.name,
+      service: props.serviceId,
       variables,
     });
 
@@ -298,7 +262,7 @@ async function handleSave() {
     <div>
       <h3 class="text-sm font-medium text-foreground">Service Variables</h3>
       <p class="text-xs text-muted-foreground">
-        Environment variables for <strong>{{ service.name }}</strong> in {{ envName || 'this environment' }}.
+        Environment variables for <strong>{{ serviceName }}</strong> in {{ activeEnvironment?.name || 'this environment' }}.
       </p>
     </div>
 
@@ -338,7 +302,6 @@ async function handleSave() {
                 :disabled="availableRefs.length === 0"
               >
                 <Database v-if="row.databaseRef" :size="14" />
-                <Globe v-else-if="row.serviceRef" :size="14" />
                 <Link v-else :size="14" class="opacity-50" />
               </Button>
             </PopoverTrigger>
@@ -355,7 +318,6 @@ async function handleSave() {
                       <template #heading>
                         <div class="flex items-center gap-1.5">
                           <Database v-if="group.icon === 'database'" :size="12" />
-                          <Globe v-else-if="group.icon === 'globe'" :size="12" />
                           <Link v-else :size="12" />
                           {{ groupName }}
                         </div>

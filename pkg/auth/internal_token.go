@@ -7,7 +7,6 @@ import (
 	"encoding/pem"
 	"fmt"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -30,7 +29,6 @@ type InternalClaims struct {
 type internalJWTClaims struct {
 	jwt.RegisteredClaims
 	Email     string `json:"email,omitempty"`
-	Roles     string `json:"roles,omitempty"`
 	Workspace string `json:"ws,omitempty"`
 	IsSystem  bool   `json:"sys,omitempty"`
 	Scope     string `json:"scope,omitempty"`
@@ -71,7 +69,6 @@ func (iss *Issuer) MintToken(claims *Claims, workspace string) (string, error) {
 			ExpiresAt: jwt.NewNumericDate(now.Add(iss.expiry)),
 		},
 		Email:     claims.Email,
-		Roles:     rolesToString(claims.Roles),
 		Workspace: workspace,
 	}
 
@@ -89,7 +86,6 @@ func (iss *Issuer) MintSystemToken(subject, workspace, scope string) (string, er
 			IssuedAt:  jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(now.Add(iss.expiry)),
 		},
-		Roles:     string(RoleUser),
 		Workspace: workspace,
 		IsSystem:  true,
 		Scope:     scope,
@@ -147,7 +143,6 @@ func (v *InternalVerifier) Validate(tokenString string) (*InternalClaims, error)
 		Claims: Claims{
 			Subject: jwtClaims.Subject,
 			Email:   jwtClaims.Email,
-			Roles:   parseRoles(jwtClaims.Roles),
 		},
 		Workspace: jwtClaims.Workspace,
 		IsSystem:  jwtClaims.IsSystem,
@@ -184,28 +179,6 @@ func WithActiveWorkspace(ctx context.Context, ws string) context.Context {
 func ActiveWorkspaceFrom(ctx context.Context) string {
 	ws, _ := ctx.Value(activeWorkspaceContextKey{}).(string)
 	return ws
-}
-
-// Helper functions
-
-func rolesToString(roles []Role) string {
-	strs := make([]string, len(roles))
-	for i, r := range roles {
-		strs[i] = string(r)
-	}
-	return strings.Join(strs, ",")
-}
-
-func parseRoles(rolesStr string) []Role {
-	if rolesStr == "" {
-		return nil
-	}
-	parts := strings.Split(rolesStr, ",")
-	roles := make([]Role, len(parts))
-	for i, r := range parts {
-		roles[i] = Role(r)
-	}
-	return roles
 }
 
 func parseECPrivateKey(pemData []byte) (*ecdsa.PrivateKey, error) {

@@ -18,25 +18,15 @@ const WorkspacesDocument = graphql(`
   }
 `);
 
-const ProjectsDocument = graphql(`
-  query Projects {
+const ProjectsForNavDocument = graphql(`
+  query ProjectsForNav {
     projects {
       id
       name
-      createdAt
       environments {
         id
         name
-        syncStatus
         resourceTier
-        services {
-          name
-          sourceUrl
-        }
-      }
-      databases {
-        name
-        version
       }
     }
   }
@@ -63,26 +53,27 @@ const router = useRouter();
 const { activeWorkspace, setActiveWorkspace } = useAuth();
 const { activeEnvironment, environments } = useEnvironment();
 
-// Workspace data
 const { result: wsResult } = useQuery(WorkspacesDocument);
 const workspaces = computed(() => wsResult.value?.workspaces ?? []);
 const activeWs = computed(() => workspaces.value.find((w: { id: string }) => w.id === activeWorkspace.value));
 
-// Project data (cached by Apollo)
-const { result: projResult } = useQuery(ProjectsDocument);
+const { result: projResult } = useQuery(ProjectsForNavDocument);
 const projects = computed(() => projResult.value?.projects ?? []);
 
-// Route state
-const isProjectRoute = computed(() =>
-  route.name === 'project' || route.name === 'project-env' || route.name === 'project-settings',
-);
-const isProjectCanvasRoute = computed(() =>
-  route.name === 'project' || route.name === 'project-env',
-);
+const isEnvironmentRoute = computed(() => route.name === 'environment');
+const isProjectSettingsRoute = computed(() => route.name === 'project-settings');
 const isWorkspaceSettingsRoute = computed(() => route.name === 'workspace-settings');
-const projectId = computed(() => route.params.id as string | undefined);
 
-// Dialogs
+// Resolve the current project ID from either route shape
+const activeProjectId = computed<string | undefined>(() => {
+  const id = route.params.projectId;
+  return Array.isArray(id) ? id[0] : (id as string | undefined);
+});
+
+const activeProject = computed(() =>
+  projects.value.find((p: { id: string }) => p.id === activeProjectId.value),
+);
+
 const wsDialogOpen = ref(false);
 const envDialogOpen = ref(false);
 const switchingWorkspace = ref(false);
@@ -100,13 +91,19 @@ async function handleWorkspaceSwitch(id: string) {
 }
 
 function handleProjectSwitch(id: string) {
-  if (id === projectId.value) return;
-  router.push({ name: 'project', params: { id } });
+  if (id === activeProjectId.value) return;
+  const project = projects.value.find((p: { id: string }) => p.id === id);
+  const firstEnv = project?.environments?.[0];
+  if (firstEnv) {
+    router.push({ name: 'environment', params: { environmentId: firstEnv.id } });
+  } else {
+    router.push({ name: 'project-settings', params: { projectId: id, section: 'environments' } });
+  }
 }
 
-function handleEnvironmentSwitch(envName: string) {
-  if (envName === activeEnvironment.value?.name) return;
-  router.push({ name: 'project-env', params: { id: projectId.value, env: envName } });
+function handleEnvironmentSwitch(envId: string) {
+  if (envId === activeEnvironment.value?.id) return;
+  router.push({ name: 'environment', params: { environmentId: envId } });
 }
 
 function tierLabel(tier?: string | null) {
@@ -115,12 +112,18 @@ function tierLabel(tier?: string | null) {
 }
 
 function handleEnvSettings(envName: string) {
+  if (!activeProjectId.value) return;
   router.push({
     name: 'project-settings',
-    params: { id: projectId.value, section: 'environments' },
+    params: { projectId: activeProjectId.value, section: 'environments' },
     query: { env: envName },
   });
 }
+
+const projectEnvironments = computed(() => {
+  if (environments.value.length > 0) return environments.value;
+  return activeProject.value?.environments ?? [];
+});
 </script>
 
 <template>
@@ -166,14 +169,14 @@ function handleEnvSettings(envName: string) {
       </DropdownMenuContent>
     </DropdownMenu>
 
-    <!-- Separator + Project Dropdown -->
-    <template v-if="isProjectRoute && projectId">
+    <!-- Project Dropdown -->
+    <template v-if="activeProjectId">
       <span class="text-sm text-border">/</span>
       <DropdownMenu>
         <DropdownMenuTrigger
           class="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-sm font-medium text-foreground transition-colors hover:bg-accent"
         >
-          <span class="max-w-[160px] truncate">{{ projectId }}</span>
+          <span class="max-w-[160px] truncate">{{ activeProject?.name ?? activeProjectId }}</span>
           <ChevronDown :size="14" class="text-muted-foreground" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" class="w-56">
@@ -185,7 +188,7 @@ function handleEnvSettings(envName: string) {
             <div class="flex w-full items-center gap-2">
               <span class="truncate">{{ project.name }}</span>
               <Check
-                v-if="project.id === projectId"
+                v-if="project.id === activeProjectId"
                 :size="14"
                 class="ml-auto shrink-0"
               />
@@ -195,8 +198,8 @@ function handleEnvSettings(envName: string) {
       </DropdownMenu>
     </template>
 
-    <!-- Separator + Environment Dropdown -->
-    <template v-if="isProjectCanvasRoute && projectId && activeEnvironment">
+    <!-- Environment Dropdown (only on environment route) -->
+    <template v-if="isEnvironmentRoute && activeEnvironment">
       <span class="text-sm text-border">/</span>
       <DropdownMenu>
         <DropdownMenuTrigger
@@ -207,13 +210,13 @@ function handleEnvSettings(envName: string) {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" class="w-64">
           <div
-            v-for="env in environments"
+            v-for="env in projectEnvironments"
             :key="env.id"
             class="flex items-center"
           >
             <DropdownMenuItem
               class="flex-1"
-              @select="handleEnvironmentSwitch(env.name)"
+              @select="handleEnvironmentSwitch(env.id)"
             >
               <div class="flex items-center gap-2">
                 <Check
@@ -244,14 +247,12 @@ function handleEnvSettings(envName: string) {
       </DropdownMenu>
     </template>
 
-    <!-- Workspace Settings label -->
     <template v-if="isWorkspaceSettingsRoute">
       <span class="text-sm text-border">/</span>
       <span class="px-1.5 py-0.5 text-sm text-muted-foreground">Settings</span>
     </template>
 
-    <!-- Project Settings label -->
-    <template v-if="route.name === 'project-settings' && projectId">
+    <template v-if="isProjectSettingsRoute">
       <span class="text-sm text-border">/</span>
       <span class="px-1.5 py-0.5 text-sm text-muted-foreground">Settings</span>
     </template>
@@ -259,9 +260,10 @@ function handleEnvSettings(envName: string) {
 
   <CreateWorkspaceDialog v-model:open="wsDialogOpen" />
   <CreateEnvironmentDialog
-    v-if="projectId"
+    v-if="activeProjectId"
     v-model:open="envDialogOpen"
-    :project-id="projectId"
+    :project-id="activeProjectId"
+    @created="(id) => router.push({ name: 'environment', params: { environmentId: id } })"
   />
 
   <AlertDialog :open="switchingWorkspace">

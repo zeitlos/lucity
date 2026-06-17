@@ -6,7 +6,7 @@ Schema-first with gqlgen code generation.
 
 ## Schema Organization
 
-Domain-split files in `services/gateway/graphql/schema/`:
+Domain-split files in `services/conductor/internal/api/graphql/schema/`:
 
 - `schema.graphqls` — base types, directives, scalars, empty Query/Mutation
 - `project.graphqls`, `environment.graphqls`, `service.graphqls`, etc. — domain files extend Query/Mutation
@@ -49,25 +49,25 @@ Each Lucity instance supports multiple workspaces. A workspace is the tenant bou
 
 ## Vendor-Agnostic Naming
 
-The GraphQL API is a complete abstraction over the underlying technology. **Never leak implementation details into the schema.** The consumer should not know or care whether the platform uses ArgoCD, Helm, Soft-serve, or any other tool.
+The GraphQL API is a complete abstraction over the underlying technology. **Never leak implementation details into the schema.** The consumer should not know or care whether the platform uses Helm, CloudNativePG, Zot, or any other tool.
 
-- `rolloutHealth`, not `argoHealth`
-- `syncStatus`, not `argoSyncStatus`
-- `gitopsRepo`, not `softServeRepo`
+- `rolloutHealth`, not `helmStatus`
+- `deployment`, not `helmRelease`
+- `database`, not `cnpgCluster`
 - `registry`, not `zotRegistry`
 
 This applies to type names, field names, enum values, and descriptions. Implementation-specific names belong in Go code, not in the API surface.
 
 ## Resolvers
 
-Thin resolvers that delegate to the `handler` package. Type conversion in `convert.go` files using `convert<Type>` functions.
+Thin resolvers that delegate to the conductor client and domain packages. Type conversion in `convert.go` files using `convert<Type>` functions.
 
 ## Code Generation
 
-From the gateway service directory:
+From the conductor service directory:
 
 ```sh
-go generate ./graphql/resolver.go
+go generate ./internal/api/graphql/resolver.go
 ```
 
 Dashboard TypeScript types:
@@ -76,4 +76,4 @@ Dashboard TypeScript types:
 cd services/dashboard && npm run codegen
 ```
 
-Run `npm run codegen` after changing the gateway GraphQL schema or dashboard query/mutation definitions. This regenerates `src/gql/graphql.ts` with typed document nodes, result types, and variable types.
+Run `npm run codegen` after changing the conductor GraphQL schema or dashboard query/mutation definitions. This regenerates `src/gql/graphql.ts` with typed document nodes, result types, and variable types.

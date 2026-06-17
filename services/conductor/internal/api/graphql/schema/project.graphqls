@@ -1,0 +1,22 @@
+type Project {
+  id: ProjectID!
+  name: String!
+  environments: [Environment!]!
+}
+
+input CreateProjectInput {
+  """Human-readable project name (e.g. "My API")."""
+  name: String! @constraint(constraint: "min=1,max=128")
+  """Optional URL-safe slug. Auto-derived from name if omitted."""
+  id: String @constraint(constraint: "resource_name,min=2,max=16")
+}
+
+extend type Query {
+  projects: [Project!]! @hasRole(role: WORKSPACE_MEMBER)
+  project(id: ProjectID!): Project! @hasRole(role: WORKSPACE_MEMBER)
+}
+
+extend type Mutation {
+  createProject(input: CreateProjectInput!): Project! @hasRole(role: WORKSPACE_MEMBER)
+  deleteProject(id: ProjectID!): Boolean! @hasRole(role: WORKSPACE_MEMBER)
+}

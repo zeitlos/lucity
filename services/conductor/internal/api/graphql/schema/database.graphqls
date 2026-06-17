@@ -1,0 +1,92 @@
+type Database {
+  id: DatabaseID!
+  name: String!
+  version: String!
+  instances: Int!
+  status: DatabaseStatus!
+  size: String!
+  createdAt: Time!
+  public: Boolean!
+}
+
+enum DatabaseStatus {
+  HEALTHY
+  DEGRADED
+  FAILED
+  PENDING
+  STOPPED
+}
+
+type Volume {
+  id: VolumeID!
+  name: String!
+  size: String!
+  requestedSize: String!
+  usedBytes: Int!
+  capacityBytes: Int!
+}
+
+type DatabaseTable {
+  name: String!
+  schema: String!
+  estimatedRows: Int!
+  columns: [DatabaseColumn!]!
+}
+
+type DatabaseColumn {
+  name: String!
+  type: String!
+  nullable: Boolean!
+  primaryKey: Boolean!
+}
+
+type DatabaseTableData {
+  columns: [String!]!
+  rows: [[String]]!
+  totalEstimatedRows: Int!
+}
+
+type QueryResult {
+  columns: [String!]!
+  rows: [[String]]!
+  affectedRows: Int!
+}
+
+type DatabaseCredentials {
+  type: EndpointType!
+  host: String!
+  port: String!
+  dbname: String!
+  user: String!
+  password: String!
+  uri: String!
+}
+
+input CreateDatabaseInput {
+  environment: EnvironmentID!
+  name: String! @constraint(constraint: "resource_name,min=2,max=16")
+  version: String
+  instances: Int
+  size: String
+}
+
+extend type Query {
+  database(id: DatabaseID!): Database! @hasRole(role: WORKSPACE_MEMBER)
+  databaseTables(database: DatabaseID!): [DatabaseTable!]! @hasRole(role: WORKSPACE_MEMBER)
+  databaseTableData(
+    database: DatabaseID!
+    table: String!
+    schema: String
+    limit: Int
+    offset: Int
+  ): DatabaseTableData! @hasRole(role: WORKSPACE_MEMBER)
+  databaseCredentials(database: DatabaseID!): [DatabaseCredentials!]! @hasRole(role: WORKSPACE_MEMBER)
+}
+
+extend type Mutation {
+  createDatabase(input: CreateDatabaseInput!): Database! @hasRole(role: WORKSPACE_MEMBER)
+  deleteDatabase(database: DatabaseID!): Boolean! @hasRole(role: WORKSPACE_MEMBER)
+  executeQuery(database: DatabaseID!, query: String!): QueryResult! @hasRole(role: WORKSPACE_MEMBER)
+  exposeDatabase(database: DatabaseID!): Database! @hasRole(role: WORKSPACE_MEMBER)
+  unexposeDatabase(database: DatabaseID!): Database! @hasRole(role: WORKSPACE_MEMBER)
+}

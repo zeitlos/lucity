@@ -1,23 +1,24 @@
 # Lucity
 
-Open-source PaaS on Kubernetes with full ejectability. Monorepo with Go backend services and Vue 3 dashboard.
+Open-source PaaS on Kubernetes with full ejectability. Monorepo with a single Go control-plane binary plus a Vue 3 dashboard.
 
 ## Project
 
 - **Go workspace**: `go.work` with multi-module layout (Go 1.26)
 - **Module path**: `github.com/zeitlos/lucity`
-- **Monorepo**: `services/` (6 services), `pkg/` (4 shared packages), `charts/` (Helm), `proto/` (protobuf)
-- **Platform images**: `ghcr.io/zeitlos/lucity` (GHCR for Lucity's own service images)
+- **Monorepo**: `services/conductor` (control plane), `services/cashier` (billing), `services/dashboard` (Vue), `pkg/` (shared Go), `charts/` (Helm)
+- **Platform images**: `ghcr.io/zeitlos/lucity/{conductor,cashier,dashboard,docs}`
 - **User workload images**: Zot (self-hosted OCI registry, `localhost:5000` in dev)
-- **Coding rules**: see `.claude/rules/` for Go, Vue, GraphQL, GitOps, general, architecture, and marketing conventions
+- **Coding rules**: see `.claude/rules/` for Go, Vue, GraphQL, deployment, general, architecture, and marketing conventions
 
 ## Build & Run
 
-- **Go services**: `go run ./cmd/<service>/...` from each service directory, or `make dev-<service>` from root
+- **Conductor**: `go run ./cmd/conductor/...` from `services/conductor/`, or `make dev-conductor`
+- **Cashier**: `go run ./cmd/cashier/...` from `services/cashier/`, or `make dev-cashier`
 - **Dashboard**: `npm run dev` from `services/dashboard/`
 - **Build all**: `make build`
-- **GraphQL codegen**: `go generate ./graphql/resolver.go` from gateway dir
-- **Proto codegen**: `make proto` (requires buf)
+- **GraphQL codegen**: `go generate ./internal/api/graphql/resolver.go` from `services/conductor/`
+- **Proto codegen**: `make proto`
 
 ## Architecture
 
@@ -25,17 +26,16 @@ Open-source PaaS on Kubernetes with full ejectability. Monorepo with Go backend 
 
 The platform has no central database. All state is derived from external systems:
 
-- **Git (Soft-serve)**: GitOps repos, Helm values, environment config
-- **Kubernetes**: namespaces, labels, ArgoCD Applications, operator CRDs
+- **Kubernetes**: namespaces, labels, Helm release state (Secrets), operator CRDs
 - **OCI Registry (Zot)**: built images, tags, digests
-- **Identity Provider (OIDC)**: users, roles, authentication
+- **Identity Provider (OIDC/Logto)**: users, roles, authentication, workspace metadata
 
 The platform is non-intrusive — its downtime does not affect running workloads.
 
-### Two-Repository Model
+### Single-Repository Model
 
 - **User's source repo** (GitHub): read-only to the platform, never written to
-- **Platform's GitOps repo** (Soft-serve): managed entirely by the platform, contains Helm values per environment
+- **No GitOps repo**: the conductor deploys workloads as standard Helm releases applied imperatively (Helm SDK). Deployment config is the chart values it computes; Helm stores the release state in-cluster.
 
 ### Multi-Tenant (Workspaces)
 
@@ -45,31 +45,54 @@ Each Lucity instance supports multiple workspaces. A workspace is the tenant bou
 
 | Service | Port | Protocol | Purpose |
 |---------|------|----------|---------|
-| Gateway | 8080 | HTTP/GraphQL | API entry point, delegates to backend services |
-| Builder | 9001 | gRPC | Source-to-image via railpack, OCI push to registry |
-| Packager | 9002 | gRPC | Helm values generation, Soft-serve repo management, ejection |
-| Deployer | 9003 | gRPC | ArgoCD Application lifecycle, sync status, promotion |
-| Webhook | 9004 | HTTP | GitHub webhook reception, event routing |
-| Dashboard | 5173 | HTTP | Vue 3 SPA for project/environment management |
+| Conductor | 8080 (HTTP), 9090 (gRPC), 9004 (webhook HTTP) | HTTP+gRPC | Unified control plane: GraphQL, Helm release management, build orchestration, custom-domain reconciliation, GitHub webhook receiver |
+| Cashier | 9005 (gRPC), 9006 (HTTP) | gRPC + HTTP | Stripe billing, metering, suspension callbacks |
+| Dashboard | 5173 | HTTP | Vue 3 SPA |
+
+### Conductor internal layout
+
+```
+services/conductor/
+├── cmd/conductor/                  # main, config, OIDC login, GraphQL + gRPC + webhook servers
+├── internal/
+│   ├── api/
+│   │   ├── graphql/                # gqlgen schema, resolvers, directives, models
+│   │   └── webhook/                # GitHub webhook receiver (github/, http/)
+│   ├── conductor/                  # Client facade tying the domain packages together
+│   ├── deployer/                   # workload deployment
+│   │   ├── helm/                   # imperative Helm release apply (services, dbs, volumes, envs)
+│   │   └── values/                 # lucity-app values generation + validation
+│   ├── buildjob/                   # build Job orchestration (kubernetes/)
+│   ├── planner/                    # source detection + build planning (railpack/)
+│   ├── source/                     # user source repo access (github/)
+│   ├── environment/                # namespace lifecycle (kubernetes/)
+│   ├── platform/                   # vendor-neutral value types + IDs (kubernetes/)
+│   ├── resources/                  # resource allocation listing (for cashier)
+│   ├── gateway/                    # Gateway API sync for custom domains
+│   ├── hostname/                   # custom-domain DNS verification
+│   ├── directory/                  # user/workspace directory (logto/)
+│   ├── dbquery/                    # database explorer query execution
+│   └── transport/grpc/             # external gRPC (cashier callbacks)
+```
 
 ### Communication
 
-- **Dashboard ↔ Gateway**: GraphQL over HTTP
-- **Gateway ↔ Backend services**: gRPC (short-lived commands)
-- **Long-running operations**: polling (watch registry for images, poll ArgoCD for sync status)
-- **External triggers**: GitHub webhooks → Webhook service
+- **Dashboard ↔ Conductor**: GraphQL over HTTP (port 8080)
+- **Cashier ↔ Conductor**: gRPC (port 9090), authenticated with internal ES256 JWTs — SuspendWorkspace, ListResourceAllocations
+- **GitHub → Conductor**: HTTP webhooks (port 9004)
+- **Long-running operations**: polling (watch registry for images, poll Helm/Kubernetes for rollout status)
 
 ### Shared Packages (`pkg/`)
 
-graceful (server lifecycle), logger (slog + tint), auth (OIDC/JWT), labels (K8s label constants)
+graceful (server lifecycle), logger (slog + tint), auth (OIDC/JWT), labels (K8s label constants), tenant (workspace context), github (App + OAuth), logto (Logto Management API), to (pointer/conversion helpers), conductor + cashier (proto definitions for cross-service gRPC).
 
 ## Feature Development Workflow
 
 1. **Research** — how do Railway, Heroku, Render, Fly.io handle this?
 2. **Architecture fit** — does it respect stateless design? Is it ejectable?
 3. **Day-2 operations cost** — can a small team run it?
-4. **Design APIs** — GraphQL schema + gRPC proto definitions
-5. **Design GitOps structure** — how does this affect the lucity-app chart values?
+4. **Design APIs** — GraphQL schema + (rare) gRPC proto definitions
+5. **Design deployment values** — how does this affect the lucity-app chart values?
 6. **Design frontend** — Vue pages, composables, GraphQL queries
 7. **Implement minimal** — ship the smallest useful version first
 8. **Test** — GraphQL playground, dashboard end-to-end, Go unit tests
@@ -77,40 +100,17 @@ graceful (server lifecycle), logger (slog + tint), auth (OIDC/JWT), labels (K8s 
 
 ## Smoke Testing
 
-### Gateway
-
 ```sh
-cd services/gateway && go run ./cmd/gateway/...
+make dev          # conductor + cashier + dashboard with hot reload
 ```
 
-Verify GraphQL playground at http://localhost:8080/playground.
+Then:
 
-### Dashboard
+- GraphQL playground: http://localhost:8080/playground
+- Dashboard: http://localhost:5173/
+- Webhook receiver: POST to http://localhost:9004/webhooks/github
 
-```sh
-cd services/dashboard && npm run dev
-```
-
-Requires gateway on :8080. Verify at http://localhost:5173/.
-
-### Other Services
-
-```sh
-make dev-builder    # gRPC on :9001
-make dev-packager   # gRPC on :9002
-make dev-deployer   # gRPC on :9003
-make dev-webhook    # HTTP on :9004
-```
-
-### Integration Tests
-
-```sh
-make test-integration          # full suite (all services + Minikube)
-make test-integration-short    # quick tests (gateway only)
-make test-watch                # auto-rerun on file changes (requires watchexec)
-```
-
-Test output is logged to `tmp/logs/tests.log`. After running tests, read this file to check results. Look for `--- FAIL` to find failures and `ok`/`FAIL` for overall status. See `tests/CLAUDE.md` for full details.
+Logs land in `tmp/logs/{conductor,cashier,dashboard}.log`.
 
 ## Known Issues
 

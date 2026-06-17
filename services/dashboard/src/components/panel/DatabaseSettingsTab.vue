@@ -5,8 +5,8 @@ import { Trash2, Database, Server, HardDrive } from 'lucide-vue-next';
 import { graphql } from '@/gql';
 
 const DeleteDatabaseDocument = graphql(`
-  mutation DeleteDatabase($projectId: ID!, $name: String!) {
-    deleteDatabase(projectId: $projectId, name: $name)
+  mutation DeleteDatabase($database: DatabaseID!) {
+    deleteDatabase(database: $database)
   }
 `);
 import { Button } from '@/components/ui/button';
@@ -25,7 +25,7 @@ import { toast, errorToast } from '@/components/ui/sonner';
 import { errorMessage } from '@/lib/utils';
 
 const props = defineProps<{
-  projectId: string;
+  databaseId: string;
   database: {
     name: string;
     version: string;
@@ -43,10 +43,7 @@ const deleteDialogOpen = ref(false);
 
 async function handleDelete() {
   try {
-    await deleteDatabase({
-      projectId: props.projectId,
-      name: props.database.name,
-    });
+    await deleteDatabase({ database: props.databaseId });
     toast.success('Database removed');
     deleteDialogOpen.value = false;
     emit('database-removed');

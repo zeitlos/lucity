@@ -1,0 +1,24 @@
+type Environment {
+  id: EnvironmentID!
+  name: String!
+  resourceTier: ResourceTier!
+  services: [Service!]! @goField(forceResolver: true)
+  databases: [Database!]! @goField(forceResolver: true)
+}
+
+input CreateEnvironmentInput {
+  project: ProjectID!
+  name: String! @constraint(constraint: "resource_name,min=2,max=16")
+  fromEnvironment: EnvironmentID
+  tier: ResourceTier
+}
+
+extend type Query {
+  environments(project: ProjectID!): [Environment!]! @hasRole(role: WORKSPACE_MEMBER)
+  environment(environment: EnvironmentID!): Environment! @hasRole(role: WORKSPACE_MEMBER)
+}
+
+extend type Mutation {
+  createEnvironment(input: CreateEnvironmentInput!): Environment! @hasRole(role: WORKSPACE_MEMBER)
+  deleteEnvironment(environment: EnvironmentID!): Boolean! @hasRole(role: WORKSPACE_MEMBER)
+}

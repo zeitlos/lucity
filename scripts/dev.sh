@@ -7,11 +7,13 @@ LOG_DIR="$ROOT/tmp/logs"
 STATUS_DIR="$ROOT/tmp/dev"
 MONITOR="$ROOT/scripts/dev-monitor.sh"
 
-SERVICES=(gateway builder packager deployer webhook cashier)
-ALL_SERVICES=(gateway builder packager deployer webhook cashier dashboard)
-PORTS=(8080 9001 9002 9003 9004 9005 9006 5173)
+# shellcheck disable=SC1091
+source "$ROOT/scripts/dev-ports.sh"
 
-# SKIP: comma-separated list of services to exclude (e.g. SKIP=gateway,cashier).
+SERVICES=(conductor cashier)
+ALL_SERVICES=(conductor cashier dashboard)
+
+# SKIP: comma-separated list of services to exclude (e.g. SKIP=conductor,cashier).
 # Useful when debugging a service from your IDE — let everything else hot-reload,
 # then launch the skipped service under Delve. See also .vscode/launch.json.
 SKIP="${SKIP:-}"
@@ -56,7 +58,7 @@ fi
 
 # Create directories
 mkdir -p "$LOG_DIR" "$STATUS_DIR"
-mkdir -p "$ROOT/tmp/air"/{gateway,builder,packager,deployer,webhook,cashier}
+mkdir -p "$ROOT/tmp/air"/{conductor,cashier}
 
 # Truncate logs (fresh session)
 for svc in "${ALL_SERVICES[@]}"; do
@@ -66,9 +68,13 @@ done
 # Clean status files
 rm -f "$STATUS_DIR"/*.status
 
-# Kill stale processes (only listeners, not clients like browsers)
-for port in "${PORTS[@]}"; do
-    lsof -ti :"$port" -sTCP:LISTEN | xargs kill 2>/dev/null || true
+# Kill stale processes (only listeners, not clients like browsers). Skips
+# ports belonging to SKIP-ed services so debugging one under Delve keeps
+# working while everything else hot-reloads around it.
+for svc in "${ALL_SERVICES[@]}"; do
+    for port in $(service_ports "$svc"); do
+        lsof -ti :"$port" -sTCP:LISTEN | xargs kill 2>/dev/null || true
+    done
 done
 sleep 1
 

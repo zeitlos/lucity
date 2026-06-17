@@ -2,10 +2,7 @@ package auth
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
-	"strings"
 
 	"github.com/coreos/go-oidc/v3/oidc"
 )
@@ -89,33 +86,6 @@ func (v *Verifier) ValidateToken(ctx context.Context, tokenString string) (*Clai
 	return nil, fmt.Errorf("no verification method available")
 }
 
-// DecodeTokenClaims decodes the payload of a JWT without signature verification.
-// Used when we already trust the token (e.g., just received from the token endpoint).
-func DecodeTokenClaims(tokenString string) (*Claims, error) {
-	parts := strings.SplitN(tokenString, ".", 3)
-	if len(parts) != 3 {
-		return nil, fmt.Errorf("invalid JWT format")
-	}
-
-	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode JWT payload: %w", err)
-	}
-
-	var rawClaims struct {
-		Sub        string                `json:"sub"`
-		Name       string                `json:"name,omitempty"`
-		Email      string                `json:"email,omitempty"`
-		Picture    string                `json:"picture,omitempty"`
-		Workspaces []workspaceClaimEntry `json:"workspaces,omitempty"`
-	}
-	if err := json.Unmarshal(payload, &rawClaims); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal JWT payload: %w", err)
-	}
-
-	return claimsFromRaw(rawClaims.Sub, rawClaims.Name, rawClaims.Email, rawClaims.Picture, rawClaims.Workspaces), nil
-}
-
 // ClaimsFromJSON builds Claims from a raw JSON map. Useful for custom token
 // validation functions that parse tokens independently.
 func ClaimsFromJSON(sub, name, email, picture string, workspaces []WorkspaceClaim) *Claims {
@@ -134,23 +104,18 @@ type WorkspaceClaim struct {
 
 func claimsFromRaw(sub, name, email, picture string, wsClaims []workspaceClaimEntry) *Claims {
 	workspaces := make([]WorkspaceMembership, 0, len(wsClaims))
+
 	for _, ws := range wsClaims {
 		role := WorkspaceRoleUser
+
 		if ws.Role == "admin" {
 			role = WorkspaceRoleAdmin
 		}
+
 		workspaces = append(workspaces, WorkspaceMembership{
 			Workspace: ws.ID,
 			Role:      role,
 		})
-	}
-
-	roles := []Role{RoleUser}
-	for _, m := range workspaces {
-		if m.Role == WorkspaceRoleAdmin {
-			roles = append(roles, RoleAdmin)
-			break
-		}
 	}
 
 	return &Claims{
@@ -158,7 +123,6 @@ func claimsFromRaw(sub, name, email, picture string, wsClaims []workspaceClaimEn
 		Name:       name,
 		Email:      email,
 		AvatarURL:  picture,
-		Roles:      roles,
 		Workspaces: workspaces,
 	}
 }

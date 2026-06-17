@@ -13,7 +13,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/zeitlos/lucity/pkg/auth"
-	"github.com/zeitlos/lucity/pkg/deployer"
+	"github.com/zeitlos/lucity/pkg/conductor"
 	"github.com/zeitlos/lucity/pkg/graceful"
 	"github.com/zeitlos/lucity/pkg/logger"
 	"github.com/zeitlos/lucity/pkg/logto"
@@ -28,7 +28,11 @@ type Config struct {
 	WebhookPort string `envconfig:"WEBHOOK_PORT" default:"9006"`
 	LogLevel    string `envconfig:"LOG_LEVEL" default:"info"`
 
-	DeployerAddr string `envconfig:"DEPLOYER_ADDR" default:"localhost:9003"`
+	// Conductor is the unified control-plane binary that absorbed
+	// the deployer, packager, builder, and webhook services.
+	// Backward-compat: DEPLOYER_ADDR is honored as a fallback.
+	ConductorAddr string `envconfig:"CONDUCTOR_ADDR"`
+	DeployerAddr  string `envconfig:"DEPLOYER_ADDR" default:"localhost:9090"`
 
 	StripeSecretKey     string `envconfig:"STRIPE_SECRET_KEY" required:"true"`
 	StripeWebhookSecret string `envconfig:"STRIPE_WEBHOOK_SECRET" required:"true"`
@@ -71,17 +75,23 @@ func main() {
 
 	logger.Setup(config.LogLevel)
 
-	// Connect to deployer for workspace metadata
-	deployerConn, err := grpc.NewClient(config.DeployerAddr,
+	// Connect to conductor (formerly deployer) for SuspendWorkspace
+	// and ListResourceAllocations. CONDUCTOR_ADDR wins over the legacy
+	// DEPLOYER_ADDR when both are set.
+	conductorAddr := config.ConductorAddr
+	if conductorAddr == "" {
+		conductorAddr = config.DeployerAddr
+	}
+	conductorConn, err := grpc.NewClient(conductorAddr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	if err != nil {
-		slog.Error("failed to connect to deployer", "error", err, "addr", config.DeployerAddr)
+		slog.Error("failed to connect to conductor", "error", err, "addr", conductorAddr)
 		os.Exit(1)
 	}
-	defer deployerConn.Close()
+	defer conductorConn.Close()
 
-	deployerClient := deployer.NewDeployerServiceClient(deployerConn)
+	conductorClient := conductor.NewConductorServiceClient(conductorConn)
 
 	// Stripe client
 	prices := stripelib.PriceConfig{
@@ -122,7 +132,7 @@ func main() {
 	}
 
 	// gRPC server
-	svc := cashiergrpc.NewServer(stripeClient, deployerClient, logtoClient, issuer)
+	svc := cashiergrpc.NewServer(stripeClient, conductorClient, logtoClient, issuer)
 
 	grpcServer := cashiergrpc.NewGRPCServer(":"+config.Port, svc, verifier)
 
@@ -144,7 +154,7 @@ func main() {
 		// without checkpoint/backfill if unavailable (e.g. local dev without cluster).
 		k8sClient := buildK8sClient()
 
-		worker := metering.NewWorker(stripeClient, deployerClient, logtoClient, vmClient, k8sClient, issuer, config.MeteringInterval)
+		worker := metering.NewWorker(stripeClient, conductorClient, logtoClient, vmClient, k8sClient, issuer, config.MeteringInterval)
 		servers = append(servers, worker)
 		slog.Info("metering enabled", "interval", config.MeteringInterval)
 	} else {

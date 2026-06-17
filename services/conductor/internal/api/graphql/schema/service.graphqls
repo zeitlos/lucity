@@ -1,0 +1,155 @@
+type Service
+@goExtraField(name: "PlatformEndpoints", type: "[]github.com/zeitlos/lucity/services/conductor/internal/platform.Endpoint"){
+  id: ServiceID!
+  name: String!
+
+  status: ServiceStatus!
+  replicas: ReplicaCount!
+  autoscaling: AutoscalingSettings
+
+  port: Int!
+  endpoints: [Endpoint!]! @goField(forceResolver: true)
+
+  sourceUrl: String!
+  contextPath: String!
+  resources: Resources!
+  command: String!
+  defaultCommand: String! @goField(forceResolver: true)
+
+  activeDeployment: Deployment
+  deployments: [Deployment!]! @goField(forceResolver: true)
+
+  builds: [Build!]! @goField(forceResolver: true)
+
+  lastDeployedAt: Time
+  createdAt: Time!
+}
+
+type ReplicaCount {
+  desired: Int!
+  ready: Int!
+}
+
+type AutoscalingSettings {
+  minReplicas: Int!
+  maxReplicas: Int!
+  targetCpu: Int!
+}
+
+type Resources {
+  cpu: String!
+  memory: String!
+}
+
+type Endpoint {
+  host: String!
+  port: Int!
+  protocol: Protocol!
+  type: EndpointType!
+  dns: DnsState!
+  tls: TlsStatus!
+}
+
+type DnsState {
+  status: DnsStatus!
+  requiredRecords: [DnsRecord!]!
+}
+
+enum EndpointType {
+  PLATFORM
+  CUSTOM
+  INTERNAL
+}
+
+enum Protocol {
+  HTTP
+  HTTPS
+  TCP
+}
+
+enum ServiceStatus {
+  HEALTHY
+  DEGRADED
+  DEPLOYING
+  FAILED
+  STOPPED
+  BUILDING
+}
+
+type DnsRecord {
+  type: DnsRecordType!
+  host: String!
+  value: String!
+}
+
+enum DnsRecordType {
+  TXT
+  CNAME
+  A
+}
+
+enum TlsStatus {
+  NONE
+  PROVISIONING
+  ACTIVE
+  ERROR
+}
+
+enum DnsStatus {
+  VALID
+  PENDING
+  MISCONFIGURED
+  ERROR
+}
+
+type DetectedService {
+  name: String!
+  language: String!
+  framework: String!
+  startCommand: String!
+  suggestedPort: Int!
+}
+
+input AddServiceInput {
+  name: String @constraint(constraint: "resource_name,min=2,max=16")
+  repository: String @constraint(constraint: "min=3,max=200")
+  contextPath: String
+  installationId: ID
+  image: String
+}
+
+input SetServiceScalingInput {
+  service: ServiceID!
+  replicas: Int! @constraint(constraint: "min=1,max=20")
+  autoscaling: AutoscalingInput
+}
+
+input ResourcesInput {
+  cpu: String!
+  memory: String!
+}
+
+input AutoscalingInput {
+  enabled: Boolean!
+  minReplicas: Int! @constraint(constraint: "min=1,max=20")
+  maxReplicas: Int! @constraint(constraint: "min=1,max=20")
+  targetCPU: Int! @constraint(constraint: "min=10,max=95")
+}
+
+extend type Query {
+  service(id: ServiceID!): Service! @hasRole(role: WORKSPACE_MEMBER)
+  detectServices(installationId: ID!, repositoryUrl: String!): [DetectedService!]! @hasRole(role: WORKSPACE_MEMBER)
+}
+
+extend type Mutation {
+  addService(environment: EnvironmentID!, input: AddServiceInput!): Service! @hasRole(role: WORKSPACE_MEMBER)
+  removeService(service: ServiceID!): Boolean! @hasRole(role: WORKSPACE_MEMBER)
+  setCustomStartCommand(service: ServiceID!, command: String!): Service! @hasRole(role: WORKSPACE_MEMBER)
+  setServicePort(service: ServiceID!, port: Int @constraint(constraint: "min=1,max=65535")): Service! @hasRole(role: WORKSPACE_MEMBER)
+  setServiceScaling(input: SetServiceScalingInput!): Service! @hasRole(role: WORKSPACE_MEMBER)
+  setServiceResources(service: ServiceID!, resources: ResourcesInput!): Service! @hasRole(role: WORKSPACE_MEMBER)
+  rollback(deployment: DeploymentID!): Boolean! @hasRole(role: WORKSPACE_MEMBER)
+  generateDomain(service: ServiceID!): Service! @hasRole(role: WORKSPACE_MEMBER)
+  addCustomDomain(service: ServiceID!, hostname: String! @constraint(constraint: "min=4,max=253")): Service! @hasRole(role: WORKSPACE_MEMBER)
+  removeDomain(service: ServiceID!, hostname: String!): Service! @hasRole(role: WORKSPACE_MEMBER)
+}

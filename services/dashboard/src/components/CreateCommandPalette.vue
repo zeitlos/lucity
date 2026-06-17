@@ -42,35 +42,26 @@ const CreateProjectDocument = graphql(`
     createProject(input: $input) {
       id
       name
-    }
-  }
-`);
-
-const AddServiceDocument = graphql(`
-  mutation AddService($input: AddServiceInput!) {
-    addService(input: $input) {
-      id
-      name
-      environment
-      image
-      port
-      framework
-      startCommand
-      sourceUrl
-      contextPath
-      customStartCommand
-      imageTag
-      initialDeploy {
+      environments {
         id
-        phase
+        name
       }
     }
   }
 `);
 
+const AddServiceDocument = graphql(`
+  mutation AddService($environmentId: EnvironmentID!, $input: AddServiceInput!) {
+    addService(environment: $environmentId, input: $input) {
+      id
+      name
+    }
+  }
+`);
+
 const DetectServicesDocument = graphql(`
-  query DetectServices($installationId: ID!, $repository: String!) {
-    detectServices(installationId: $installationId, repository: $repository) {
+  query DetectServices($installationId: ID!, $repositoryUrl: String!) {
+    detectServices(installationId: $installationId, repositoryUrl: $repositoryUrl) {
       name
       language
       framework
@@ -95,6 +86,7 @@ const SearchImagesDocument = graphql(`
 const CreateDatabaseDocument = graphql(`
   mutation CreateDatabase($input: CreateDatabaseInput!) {
     createDatabase(input: $input) {
+      id
       name
       version
       instances
@@ -113,8 +105,8 @@ import NameSlugField from '@/components/NameSlugField.vue';
 
 const props = defineProps<{
   open: boolean;
-  context: 'projects' | 'project';
-  projectId?: string;
+  context: 'projects' | 'environment';
+  environmentId?: string;
   initialView?: 'main' | 'github-repos';
 }>();
 
@@ -163,20 +155,17 @@ watch(() => props.open, (open) => {
     pendingRepo.value = null;
     pendingImage.value = null;
     processingItemId.value = null;
-    // Re-select first source from cache (watcher won't fire if sources didn't change)
     selectedSource.value = sources.value[0] ?? null;
     nextTick(() => inputRef.value?.focus());
   }
 });
 
-// Focus input when view changes
 watch(view, () => {
   search.value = '';
   focusedIndex.value = 0;
   nextTick(() => inputRef.value?.focus());
 });
 
-// Close on Escape
 onKeyStroke('Escape', () => {
   if (!props.open) return;
   if (sourcePickerOpen.value) {
@@ -206,7 +195,6 @@ const { result: sourcesResult, loading: sourcesLoading } = useQuery(GitHubSource
 
 const sources = computed(() => sourcesResult.value?.githubSources ?? []);
 
-// Auto-select first source when freshly loaded
 watch(sources, (s) => {
   if (s.length > 0 && !selectedSource.value) {
     selectedSource.value = s[0] ?? null;
@@ -242,7 +230,6 @@ async function handleSelectRepo(repo: { fullName: string; htmlUrl: string }) {
 function showProjectNaming(repo: { fullName: string; htmlUrl: string }) {
   pendingRepo.value = repo;
   pendingImage.value = null;
-  // Pre-fill display name from repo name (e.g. "cblaettl/beast-website" -> "beast-website")
   const repoShortName = repo.fullName.split('/').pop() || '';
   projectDisplayName.value = repoShortName;
   projectSlug.value = '';
@@ -268,38 +255,45 @@ async function handleConfirmProjectCreation() {
       return;
     }
 
-    const projectId = res?.data?.createProject?.id;
-    if (!projectId) return;
+    const project = res?.data?.createProject;
+    if (!project) return;
 
-    // Add services from pending source
-    if (pendingRepo.value) {
-      detectingServices.value = true;
-      try {
-        await detectAndAddServices(projectId, pendingRepo.value);
-      } finally {
-        detectingServices.value = false;
+    const firstEnv = project.environments?.[0];
+    const targetEnvId = firstEnv?.id;
+
+    // Add services from pending source into the first env
+    if (targetEnvId) {
+      if (pendingRepo.value) {
+        detectingServices.value = true;
+        try {
+          await detectAndAddServices(targetEnvId, pendingRepo.value);
+        } finally {
+          detectingServices.value = false;
+        }
+      } else if (pendingImage.value) {
+        await addImageService(targetEnvId, pendingImage.value);
       }
-    } else if (pendingImage.value) {
-      await addImageService(projectId, pendingImage.value);
     }
 
     close();
-    router.push({ name: 'project', params: { id: projectId } });
+    if (targetEnvId) {
+      router.push({ name: 'environment', params: { projectId: project.id, environmentId: targetEnvId } });
+    }
   } catch (e: unknown) {
     errorToast('Failed to create project', { description: errorMessage(e) });
   }
 }
 
-// Detect services from a repo and add them to a project
+// Detect services from a repo and add them to an environment
 const detectingServices = ref(false);
 
-async function detectAndAddServices(projectId: string, repo: { fullName: string; htmlUrl: string }) {
+async function detectAndAddServices(environmentId: string, repo: { fullName: string; htmlUrl: string }) {
   const client = resolveClient();
   const { data } = await client.query({
     query: DetectServicesDocument,
     variables: {
       installationId: selectedSource.value?.id ?? '',
-      repository: repo.fullName,
+      repositoryUrl: repo.htmlUrl,
     },
   });
 
@@ -309,23 +303,16 @@ async function detectAndAddServices(projectId: string, repo: { fullName: string;
     return;
   }
 
-  // Use repo short name as the service name (e.g., "cblaettl/beast-website" -> "beast-website")
   const repoName = repo.fullName.split('/').pop()!;
 
   const addedNames: string[] = [];
   for (const svc of detected) {
-    // For single-service repos, use the repo name directly.
-    // For multi-service repos (monorepos), suffix with the detected name.
     const name = detected.length === 1 ? repoName : `${repoName}-${svc.name}`;
     try {
       await addServiceMutate({
+        environmentId: environmentId,
         input: {
-          projectId,
-          environment: activeEnvironment.value?.name ?? 'development',
           name,
-          port: svc.suggestedPort,
-          framework: svc.framework || undefined,
-          startCommand: svc.startCommand || undefined,
           repository: repo.fullName,
           installationId: selectedSource.value?.id,
         },
@@ -344,12 +331,12 @@ async function detectAndAddServices(projectId: string, repo: { fullName: string;
 }
 
 async function handleAddServicesFromRepo(repo: { fullName: string; htmlUrl: string }) {
-  if (!props.projectId) return;
+  if (!props.environmentId) return;
 
   processingItemId.value = repo.fullName;
   detectingServices.value = true;
   try {
-    await detectAndAddServices(props.projectId, repo);
+    await detectAndAddServices(props.environmentId, repo);
     close();
     emit('created');
   } catch (e: unknown) {
@@ -360,23 +347,23 @@ async function handleAddServicesFromRepo(repo: { fullName: string; htmlUrl: stri
   }
 }
 
-// Add service (within project context)
+// Add service (within environment context)
 const { mutate: addServiceMutate, loading: addingService } = useMutation(AddServiceDocument);
 
 const newServiceName = ref('web');
-const newServicePort = ref(3000);
+const newServicePort = ref<number | null>(null);
 
-// Create database (within project context)
+// Create database (within environment context)
 const { mutate: createDatabaseMutate, loading: creatingDatabase } = useMutation(CreateDatabaseDocument);
 const newDatabaseName = ref('main');
 
 async function handleCreateDatabase() {
-  if (!props.projectId) return;
+  if (!props.environmentId) return;
 
   try {
     const res = await createDatabaseMutate({
       input: {
-        projectId: props.projectId,
+        environment: props.environmentId,
         name: newDatabaseName.value,
       },
     });
@@ -397,15 +384,13 @@ async function handleCreateDatabase() {
 }
 
 async function handleAddManualService() {
-  if (!props.projectId) return;
+  if (!props.environmentId) return;
 
   try {
     const res = await addServiceMutate({
+      environmentId: props.environmentId,
       input: {
-        projectId: props.projectId,
-        environment: activeEnvironment.value?.name ?? 'development',
         name: newServiceName.value,
-        port: newServicePort.value,
       },
     });
 
@@ -434,7 +419,6 @@ const { openInstallPopup } = useGitHubInstall(() => {
 const containerImageRef = ref('');
 const containerImageDebounced = refDebounced(containerImageRef, 300);
 
-// Search Docker Hub (skip if it looks like a full registry path with dots)
 const shouldSearchImages = computed(() => {
   const q = containerImageDebounced.value;
   if (!q) return false;
@@ -464,7 +448,6 @@ async function handleSelectImage(imageRef: string) {
   if (props.context === 'projects') {
     pendingImage.value = imageRef;
     pendingRepo.value = null;
-    // Pre-fill display name from image name (e.g. "nginx" or "myregistry.com/myapp")
     const imageName = imageRef.split('/').pop() || imageRef;
     projectDisplayName.value = imageName;
     projectSlug.value = '';
@@ -472,10 +455,10 @@ async function handleSelectImage(imageRef: string) {
     nextTick(() => nameSlugRef.value?.focusName());
     return;
   } else {
-    if (!props.projectId) return;
+    if (!props.environmentId) return;
     processingItemId.value = imageRef;
     try {
-      await addImageService(props.projectId, imageRef);
+      await addImageService(props.environmentId, imageRef);
       close();
       emit('created');
     } catch (e: unknown) {
@@ -486,11 +469,10 @@ async function handleSelectImage(imageRef: string) {
   }
 }
 
-async function addImageService(projectId: string, imageRef: string) {
+async function addImageService(environmentId: string, imageRef: string) {
   const res = await addServiceMutate({
+    environmentId: environmentId,
     input: {
-      projectId,
-      environment: activeEnvironment.value?.name ?? 'development',
       image: imageRef,
     },
   });
@@ -505,7 +487,6 @@ async function addImageService(projectId: string, imageRef: string) {
   toast.success('Service added', { description: imageRef });
 }
 
-// Reset focused index when lists change
 watch([search, imageResults, repos], () => {
   focusedIndex.value = 0;
 });
@@ -514,7 +495,6 @@ watch(sourcePickerOpen, (isOpen) => {
   if (isOpen) focusedIndex.value = 0;
 });
 
-// Keyboard navigation
 const currentItemCount = computed(() => {
   if (sourcePickerOpen.value) return sources.value.length + 1;
   switch (view.value) {
@@ -607,7 +587,6 @@ onKeyStroke('Enter', (e) => {
   }
 });
 
-// Main menu items filtering
 const mainItems = computed(() => {
   const items = props.context === 'projects'
     ? [
@@ -633,6 +612,9 @@ const mainItems = computed(() => {
   const q = search.value.toLowerCase();
   return items.filter(i => i.label.toLowerCase().includes(q));
 });
+
+// Suppress unused warning — kept for future env-context UI
+void activeEnvironment;
 </script>
 
 <template>
@@ -712,7 +694,6 @@ const mainItems = computed(() => {
               </button>
             </div>
 
-            <!-- Not connected state -->
             <template v-if="connectedLoading || sourcesLoading">
               <div class="px-2 py-6 text-center text-sm text-muted-foreground">Loading...</div>
             </template>
@@ -730,7 +711,6 @@ const mainItems = computed(() => {
               </div>
             </template>
             <template v-else>
-              <!-- Source picker -->
               <div
                 v-if="sources.length > 0"
                 class="relative border-b px-3 py-2"
@@ -753,7 +733,6 @@ const mainItems = computed(() => {
                   >Org</Badge>
                   <ChevronDown :size="14" class="text-muted-foreground" />
                 </button>
-                <!-- Source dropdown -->
                 <div
                   v-if="sourcePickerOpen"
                   class="absolute left-0 right-0 top-full z-20 rounded-b-xl border border-t-0 bg-popover shadow-lg"
@@ -794,7 +773,6 @@ const mainItems = computed(() => {
                 </div>
               </div>
 
-              <!-- No sources state -->
               <div v-if="sources.length === 0" class="px-4 py-6 text-center">
                 <Github :size="24" class="mx-auto mb-3 text-muted-foreground" />
                 <p class="text-sm font-medium text-foreground">No GitHub App installations found</p>
@@ -807,7 +785,6 @@ const mainItems = computed(() => {
                 </Button>
               </div>
 
-              <!-- Repo list -->
               <div v-else class="max-h-[320px] overflow-y-auto">
                 <div class="p-1">
                   <p class="px-2 py-1.5 text-xs font-medium text-muted-foreground">Repositories</p>
@@ -881,7 +858,6 @@ const mainItems = computed(() => {
               </button>
             </div>
 
-            <!-- Search results -->
             <div
               v-if="imageResults.length > 0"
               class="max-h-[320px] overflow-y-auto"
@@ -928,7 +904,6 @@ const mainItems = computed(() => {
               </div>
             </div>
 
-            <!-- Empty state -->
             <div
               v-if="!containerImageRef && imageResults.length === 0"
               class="px-4 py-6 text-center text-sm text-muted-foreground"
@@ -936,7 +911,6 @@ const mainItems = computed(() => {
               Search Docker Hub or type any image reference and press Enter.
             </div>
 
-            <!-- Hint for custom refs (shown when typing a registry path) -->
             <div
               v-if="containerImageRef && containerImageRef.includes('.') && !addingService"
               class="px-4 py-6 text-center text-sm text-muted-foreground"
@@ -973,13 +947,16 @@ const mainItems = computed(() => {
                 />
               </div>
               <div class="space-y-2">
-                <label class="text-sm font-medium text-foreground">Port</label>
+                <label class="text-sm font-medium text-foreground">Port (optional)</label>
                 <input
                   v-model.number="newServicePort"
                   type="number"
                   class="flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                   placeholder="3000"
                 />
+                <p class="text-xs text-muted-foreground">
+                  The port your app listens on. Leave empty if it doesn't serve traffic.
+                </p>
               </div>
               <button
                 class="inline-flex h-9 w-full items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"

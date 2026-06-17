@@ -3,8 +3,8 @@ import { useSubscription } from '@vue/apollo-composable';
 import { graphql } from '@/gql';
 
 const ServiceLogsDocument = graphql(`
-  subscription ServiceLogs($projectId: ID!, $service: String!, $environment: String!, $tailLines: Int) {
-    serviceLogs(projectId: $projectId, service: $service, environment: $environment, tailLines: $tailLines) {
+  subscription ServiceLogs($service: ServiceID!, $tailLines: Int) {
+    serviceLogs(service: $service, tailLines: $tailLines) {
       line
       pod
     }
@@ -17,9 +17,7 @@ export interface LogLine {
 }
 
 export function useServiceLogs(
-  projectId: Ref<string>,
-  service: Ref<string>,
-  environment: Ref<string | null>,
+  serviceId: Ref<string>,
   enabled: Ref<boolean>,
 ) {
   const lines = ref<LogLine[]>([]);
@@ -28,12 +26,10 @@ export function useServiceLogs(
   const { onResult, onError, stop, restart } = useSubscription(
     ServiceLogsDocument,
     () => ({
-      projectId: projectId.value,
-      service: service.value,
-      environment: environment.value!,
+      service: serviceId.value,
       tailLines: 1000,
     }),
-    () => ({ enabled: enabled.value && !!environment.value }),
+    () => ({ enabled: enabled.value && !!serviceId.value }),
   );
 
   onResult(({ data }) => {
@@ -47,7 +43,7 @@ export function useServiceLogs(
     isActive.value = false;
   });
 
-  watch([projectId, service, environment], () => {
+  watch(serviceId, () => {
     lines.value = [];
     isActive.value = false;
   });

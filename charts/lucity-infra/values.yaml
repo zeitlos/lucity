@@ -124,6 +124,36 @@ certificates: []
 cloudnative-pg:
   enabled: true
 
+# -- Traefik — Postgres SNI router for exposing user databases on :5432
+traefik:
+  enabled: false
+  deployment:
+    replicas: 2
+  providers:
+    kubernetesCRD:
+      enabled: true
+    kubernetesIngress:
+      enabled: false
+  ingressRoute:
+    dashboard:
+      enabled: false
+  ports:
+    web:
+      expose:
+        default: false
+    websecure:
+      expose:
+        default: false
+    postgres:
+      port: 5432
+      exposedPort: 5432
+      expose:
+        default: true
+      protocol: TCP
+  service:
+    spec:
+      type: LoadBalancer
+
 # -- Rybbit Web Analytics (ClickHouse + CNPG PostgreSQL + Backend + Client)
 rybbit:
   enabled: false

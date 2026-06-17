@@ -1,5 +1,5 @@
-{{- if .Values.builder.serviceAccount.create }}
-{{- $ns := .Values.builder.buildNamespace | default "lucity-builds" }}
+{{- if .Values.conductor.buildkit.enabled }}
+{{- $ns := .Values.conductor.buildNamespace | default "lucity-builds" }}
 # ServiceAccount for build Job pods in the builds namespace.
 # Separate from the builder service SA (which stays in the release namespace).
 apiVersion: v1

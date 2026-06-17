@@ -6,6 +6,11 @@ metadata:
   name: {{ include "lucity-app.fullname" $ }}-{{ $name }}
   labels:
     {{- include "lucity-app.labels" $ | nindent 4 }}
+    {{- with $.Values.commonLabels }}{{- toYaml . | nindent 4 }}{{- end }}
+  {{- with $.Values.commonAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 data:
   {{- range $key, $val := $data }}
   {{ $key }}: {{ $val | quote }}

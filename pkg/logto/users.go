@@ -10,21 +10,12 @@ import (
 	"strings"
 )
 
-// User represents a Logto user.
 type User struct {
 	ID           string `json:"id"`
 	PrimaryEmail string `json:"primaryEmail,omitempty"`
 	Username     string `json:"username,omitempty"`
 	Name         string `json:"name,omitempty"`
 	Avatar       string `json:"avatar,omitempty"`
-}
-
-// UserWithOrgs represents a Logto user with their organization memberships.
-type UserOrganization struct {
-	ID          string                 `json:"id"`
-	Name        string                 `json:"name"`
-	Description string                 `json:"description,omitempty"`
-	CustomData  map[string]interface{} `json:"customData,omitempty"`
 }
 
 // User returns a single user by ID.
@@ -147,8 +138,8 @@ func (c *Client) EnsureUsername(ctx context.Context, userID, login string) (stri
 }
 
 // UserOrganizations returns all organizations a user belongs to.
-func (c *Client) UserOrganizations(ctx context.Context, userID string) ([]UserOrganization, error) {
-	var orgs []UserOrganization
+func (c *Client) UserOrganizations(ctx context.Context, userID string) ([]Organization, error) {
+	var orgs []Organization
 	if err := c.doJSON(ctx, "GET", "/api/users/"+userID+"/organizations", nil, &orgs); err != nil {
 		return nil, fmt.Errorf("failed to get organizations for user %q: %w", userID, err)
 	}

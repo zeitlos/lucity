@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/bradleyfalzon/ghinstallation/v2"
 	gh "github.com/google/go-github/v68/github"
@@ -30,8 +31,6 @@ func (a *App) InstallationID(ctx context.Context, userToken *oauth2.Token) (int6
 	return 0, fmt.Errorf("github app not installed for this user")
 }
 
-// InstallationToken creates a short-lived installation access token string.
-// This is used by the webhook service to authenticate gRPC calls when no user session exists.
 func (a *App) InstallationToken(ctx context.Context, installationID int64) (string, error) {
 	transport, err := ghinstallation.New(http.DefaultTransport, a.appID, installationID, a.privateKey)
 	if err != nil {
@@ -155,3 +154,27 @@ func (a *App) Installation(ctx context.Context, installationID int64) (*Installa
 	}, nil
 }
 
+// FindInstallation returns the installation ID of the GitHub App for the given
+// repository. repository must be in "owner/repo" form. Uses app-level JWT auth
+// (private key required).
+func (a *App) FindInstallation(ctx context.Context, repository string) (int64, error) {
+	owner, repo, ok := strings.Cut(repository, "/")
+
+	if !ok || owner == "" || repo == "" {
+		return 0, fmt.Errorf("repository must be in owner/repo format, got %q", repository)
+	}
+
+	client, err := a.appClient()
+
+	if err != nil {
+		return 0, err
+	}
+
+	inst, _, err := client.Apps.FindRepositoryInstallation(ctx, owner, repo)
+
+	if err != nil {
+		return 0, fmt.Errorf("find installation for %s: %w", repository, err)
+	}
+
+	return inst.GetID(), nil
+}

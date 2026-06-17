@@ -1,53 +1,47 @@
 import { reactive } from 'vue';
 import { apolloClient } from '@/lib/apollo';
 import { graphql } from '@/gql';
-import { DeployPhase } from '@/gql/graphql';
+import { BuildStatus } from '@/gql/graphql';
 import { toast, errorToast } from '@/components/ui/sonner';
 import { errorMessage } from '@/lib/utils';
 
 const DeployDocument = graphql(`
-  mutation Deploy($input: DeployInput!) {
-    deploy(input: $input) {
+  mutation Deploy($service: ServiceID!, $gitRef: String) {
+    deploy(service: $service, gitRef: $gitRef) {
       id
-      phase
-      buildId
-      imageRef
-      digest
-      error
+      status
       startedAt
+      finishedAt
     }
   }
 `);
 
-const DeployStatusDocument = graphql(`
-  query DeployStatus($id: ID!) {
-    deployStatus(id: $id) {
+const BuildStatusDocument = graphql(`
+  query BuildStatus($id: String!) {
+    build(id: $id) {
       id
-      phase
-      buildId
-      imageRef
-      digest
-      error
+      status
       startedAt
-      rolloutHealth
-      rolloutMessage
+      finishedAt
     }
   }
 `);
 
 export interface DeployState {
-  deployId: string | null;
-  phase: string | null;
-  error: string | null;
+  buildId: string | null;
+  status: BuildStatus | null;
   isDeploying: boolean;
-  imageRef: string | null;
-  digest: string | null;
-  rolloutHealth: string | null;
-  rolloutMessage: string | null;
-  startDeploy: (projectId: string, service: string, environment: string, gitRef?: string) => Promise<void>;
-  pollDeploy: (deployId: string) => void;
+  error: string | null;
+  startDeploy: (serviceId: string, serviceName: string, gitRef?: string) => Promise<void>;
+  pollBuild: (buildId: string) => void;
   reset: () => void;
 }
+
+const TERMINAL_STATUSES = new Set<BuildStatus>([
+  BuildStatus.Succeeded,
+  BuildStatus.Failed,
+  BuildStatus.Cancelled,
+]);
 
 export function useDeploy(): DeployState {
   let pollTimer: ReturnType<typeof setInterval> | null = null;
@@ -61,72 +55,60 @@ export function useDeploy(): DeployState {
 
   function startPolling() {
     pollTimer = setInterval(async () => {
-      if (!state.deployId) return;
+      if (!state.buildId) return;
 
       try {
         const { data } = await apolloClient.query({
-          query: DeployStatusDocument,
-          variables: { id: state.deployId },
+          query: BuildStatusDocument,
+          variables: { id: state.buildId },
           fetchPolicy: 'network-only',
         });
 
-        const status = data?.deployStatus;
-        if (!status) return;
+        const build = data?.build;
+        if (!build) return;
 
-        state.phase = status.phase;
-        state.rolloutHealth = status.rolloutHealth ?? null;
-        state.rolloutMessage = status.rolloutMessage ?? null;
+        state.status = build.status;
 
-        if (status.phase === DeployPhase.Succeeded) {
-          stopPolling();
-          state.imageRef = status.imageRef ?? null;
-          state.digest = status.digest ?? null;
-          state.isDeploying = false;
-          toast.success('Deployed');
-        } else if (status.phase === DeployPhase.Failed) {
+        if (build.status === BuildStatus.Succeeded) {
           stopPolling();
           state.isDeploying = false;
-          state.error = status.error ?? 'Deploy failed';
-          errorToast('Deploy failed', { description: status.error ?? undefined });
+          toast.success('Build complete');
+        } else if (build.status === BuildStatus.Failed) {
+          stopPolling();
+          state.isDeploying = false;
+          state.error = 'Build failed';
+          errorToast('Build failed');
+        } else if (build.status === BuildStatus.Cancelled) {
+          stopPolling();
+          state.isDeploying = false;
+          state.error = 'Build cancelled';
         }
       } catch (e: unknown) {
         stopPolling();
         state.isDeploying = false;
         state.error = errorMessage(e);
-        errorToast('Deploy status check failed', { description: state.error });
+        errorToast('Build status check failed', { description: state.error });
       }
     }, 2000);
   }
 
   const state: DeployState = reactive({
-    deployId: null,
-    phase: null,
-    error: null,
+    buildId: null,
+    status: null,
     isDeploying: false,
-    imageRef: null,
-    digest: null,
-    rolloutHealth: null,
-    rolloutMessage: null,
+    error: null,
 
-    async startDeploy(projectId: string, service: string, environment: string, gitRef?: string) {
+    async startDeploy(serviceId: string, serviceName: string, gitRef?: string) {
       state.error = null;
-      state.phase = 'QUEUED';
+      state.status = BuildStatus.Queued;
       state.isDeploying = true;
-      state.imageRef = null;
-      state.digest = null;
-      state.rolloutHealth = null;
-      state.rolloutMessage = null;
 
       try {
         const res = await apolloClient.mutate({
           mutation: DeployDocument,
           variables: {
-            input: {
-              projectId,
-              service,
-              environment,
-              gitRef: gitRef || undefined,
-            },
+            service: serviceId,
+            gitRef: gitRef || undefined,
           },
         });
 
@@ -134,10 +116,10 @@ export function useDeploy(): DeployState {
           throw new Error('Failed to start deploy');
         }
 
-        state.deployId = res.data.deploy.id;
-        state.phase = res.data.deploy.phase;
+        state.buildId = res.data.deploy.id;
+        state.status = res.data.deploy.status;
         startPolling();
-        toast.info('Deploy started', { description: `Deploying ${service}...` });
+        toast.info('Deploy started', { description: `Building ${serviceName}...` });
       } catch (e: unknown) {
         state.isDeploying = false;
         state.error = errorMessage(e);
@@ -145,25 +127,23 @@ export function useDeploy(): DeployState {
       }
     },
 
-    pollDeploy(deployId: string) {
-      state.deployId = deployId;
-      state.phase = 'QUEUED';
+    pollBuild(buildId: string) {
+      state.buildId = buildId;
+      state.status = BuildStatus.Running;
       state.isDeploying = true;
       startPolling();
     },
 
     reset() {
       stopPolling();
-      state.deployId = null;
-      state.phase = null;
-      state.error = null;
+      state.buildId = null;
+      state.status = null;
       state.isDeploying = false;
-      state.imageRef = null;
-      state.digest = null;
-      state.rolloutHealth = null;
-      state.rolloutMessage = null;
+      state.error = null;
     },
   });
 
   return state;
 }
+
+export { TERMINAL_STATUSES };

@@ -1,0 +1,63 @@
+enum ResourceTier { ECO, PRODUCTION }
+
+type ResourceAllocation {
+  cpuMillicores: Int!
+  memoryMB: Int!
+  diskMB: Int!
+}
+
+type EnvironmentResources {
+  tier: ResourceTier!
+  allocation: ResourceAllocation!
+}
+
+input SetEnvironmentResourcesInput {
+  environment: EnvironmentID!
+  tier: ResourceTier!
+  cpuMillicores: Int! @constraint(constraint: "min=100,max=32000")
+  memoryMB: Int! @constraint(constraint: "min=128,max=65536")
+  diskMB: Int! @constraint(constraint: "min=0,max=102400")
+}
+
+enum Plan { HOBBY, PRO }
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  INCOMPLETE
+  TRIALING
+}
+
+type BillingSubscription {
+  plan: Plan
+  status: SubscriptionStatus!
+  currentPeriodEnd: Time!
+  creditAmountCents: Int!
+  creditExpiry: Time
+  hasPaymentMethod: Boolean!
+}
+
+type UsageSummary {
+  resourceCostCents: Int!
+  creditsCents: Int!
+  estimatedTotalCents: Int!
+}
+
+type BillingPortalUrl {
+  url: String!
+}
+
+extend type Query {
+  environmentResources(environment: EnvironmentID!): EnvironmentResources @hasRole(role: WORKSPACE_MEMBER)
+  subscription: BillingSubscription @hasRole(role: WORKSPACE_MEMBER)
+  usageSummary: UsageSummary @hasRole(role: WORKSPACE_MEMBER)
+}
+
+extend type Mutation {
+  setEnvironmentResources(input: SetEnvironmentResourcesInput!): Environment! @hasRole(role: WORKSPACE_MEMBER)
+  changePlan(plan: Plan!): BillingSubscription! @allowSuspended @hasRole(role: WORKSPACE_ADMIN)
+  billingPortalUrl: BillingPortalUrl! @allowSuspended @hasRole(role: WORKSPACE_ADMIN)
+  createPlanCheckout(plan: Plan!): CheckoutSession! @allowSuspended @hasRole(role: WORKSPACE_ADMIN)
+  completePlanCheckout(sessionId: String!): BillingSubscription! @allowSuspended @hasRole(role: WORKSPACE_ADMIN)
+}

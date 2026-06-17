@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "lucity.fullname" . }}-conductor
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+    app.kubernetes.io/component: conductor
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "lucity.selectorLabels" (dict "name" "conductor" "release" .Release.Name) | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ .Values.conductor.httpPort }}
+      targetPort: http
+      protocol: TCP
+    - name: grpc
+      port: {{ .Values.conductor.grpcPort }}
+      targetPort: grpc
+      protocol: TCP
+    - name: webhook
+      port: {{ .Values.conductor.webhookPort }}
+      targetPort: webhook
+      protocol: TCP

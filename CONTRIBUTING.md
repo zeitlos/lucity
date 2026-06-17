@@ -10,6 +10,10 @@ That said, we'd love to hear from you:
 
 The rest of this guide covers the local development setup if you want to explore the codebase.
 
+## Architecture in one breath
+
+Lucity is a single Go control-plane binary (**conductor**) plus a Vue 3 **dashboard** and a separate **cashier** billing service. The conductor serves the GraphQL API, spawns build jobs, deploys workloads via Helm, and receives GitHub webhooks. Deployment state lives in the cluster as Helm releases. See [Architecture](https://lucity.cloud/architecture/how-it-works) for the full picture.
+
 ## Prerequisites
 
 - [Go 1.26+](https://go.dev/dl/)
@@ -38,7 +42,7 @@ Starts minikube with `--insecure-registry "10.96.0.0/12"` so Docker on the node 
 make infra
 ```
 
-Installs Gateway API CRDs, Envoy Gateway, and deploys Zot (OCI registry), Soft-serve (Git server), ArgoCD, and a Gateway resource via Helm into the `lucity-system` namespace.
+Installs the Gateway API CRDs and Envoy Gateway, then deploys the `lucity-infra` chart into the `lucity-system` namespace: the OCI registry (Zot), the PostgreSQL operator (CloudNativePG), the observability stack, and a Gateway resource.
 
 ### 3. Set up local DNS
 
@@ -61,55 +65,42 @@ Exposes infrastructure on localhost:
 | Service | Local Port |
 |---------|-----------|
 | Zot (OCI registry) | `:5000` |
-| Soft-serve (SSH) | `:23231` |
-| Soft-serve (HTTP) | `:23232` |
-| ArgoCD | `:8443` |
 | Envoy Gateway | `:8880` |
+| Logto (admin) | `:3002` |
+| VictoriaMetrics | `:8428` |
+| Grafana | `:3000` |
 
 Deployed services with a configured hostname are accessible at `http://<name>.lucity.local:8880` via Envoy Gateway and Gateway API HTTPRoutes.
 
-### 5. Generate API tokens
+### 5. Generate internal JWT keys
 
 ```sh
-make infra-tokens
+make generate-internal-keys
 ```
 
-> Requires `make infra-forward` to be running.
-
-Prints an ArgoCD token and a Soft-serve token. Add them to the service `.env` files:
-
-| Token | Goes into |
-|-------|-----------|
-| `ARGOCD_TOKEN` | `services/deployer/.env` |
-| `SOFTSERVE_TOKEN` | `services/deployer/.env`, `services/packager/.env` |
+Writes the ES256 keypair used to authenticate the conductor ↔ cashier gRPC boundary. Reference the generated paths from each service's `.env`.
 
 ### 6. Configure services
 
-Each service has a `.env.example`. Copy and fill in the values:
+The conductor and cashier each ship a `.env.example`. Copy and fill in the values:
 
 ```sh
-cp services/gateway/.env.example services/gateway/.env
-cp services/builder/.env.example services/builder/.env
-cp services/packager/.env.example services/packager/.env
-cp services/deployer/.env.example services/deployer/.env
+cp services/conductor/.env.example services/conductor/.env
+cp services/cashier/.env.example services/cashier/.env
 ```
 
 Key configuration:
 
 | Service | Required Variables |
 |---------|-------------------|
-| Gateway | `GITHUB_APP_ID`, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `REGISTRY_IMAGE_PREFIX` |
-| Builder | `REGISTRY_INSECURE=true` (default for local Zot) |
-| Packager | `SOFTSERVE_SSH_KEY_PATH`, `SOFTSERVE_TOKEN` |
-| Deployer | `ARGOCD_TOKEN`, `SOFTSERVE_TOKEN` |
+| Conductor | GitHub App (`GITHUB_APP_ID`, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, private key), OIDC/Logto (`OIDC_*`, `LOGTO_*`), registry URLs, `WORKLOAD_DOMAIN` |
+| Cashier | `STRIPE_*`, `LOGTO_*` (only needed when working on billing) |
 
-Set `REGISTRY_IMAGE_PREFIX` to Zot's fixed ClusterIP (assigned in `deployments/minikube/values.yaml`):
-
-```
-REGISTRY_IMAGE_PREFIX=10.96.100.50:5000
-```
+Point the conductor at Zot's fixed ClusterIP (assigned in `deployments/minikube/values.yaml`, e.g. `10.96.100.50:5000`) for the image refs it writes into Helm values, so kubelet can pull them.
 
 > **Why a ClusterIP, not a DNS name?** Docker on minikube uses the host DNS resolver, not CoreDNS. Cluster-internal DNS names like `*.svc.cluster.local` don't resolve for image pulls. The fixed ClusterIP works because `--insecure-registry` already covers the service CIDR.
+
+Billing is optional in dev: leave `CASHIER_ADDR` unset on the conductor to run without cashier.
 
 ### 7. Start all services
 
@@ -117,41 +108,40 @@ REGISTRY_IMAGE_PREFIX=10.96.100.50:5000
 make dev
 ```
 
-Dashboard at http://localhost:5173, GraphQL playground at http://localhost:8080/playground.
+Conductor, cashier, and dashboard start with hot reload (air for the Go services, Vite for the dashboard). Dashboard at http://localhost:5173, GraphQL playground at http://localhost:8080/playground.
 
 ## Quick Reference
 
 ```sh
-make minikube        # 1. Create cluster (one-time)
-make infra           # 2. CRDs + Envoy Gateway + Helm deploy
-make dns             # 3. Wildcard DNS for *.lucity.local (one-time)
-make infra-forward   # 4. Port-forward services
-make infra-tokens    # 5. Generate tokens → paste into .env files
-make dev             # 6. Start services with hot reload
+make minikube                # 1. Create cluster (one-time)
+make infra                   # 2. CRDs + Envoy Gateway + lucity-infra chart
+make dns                     # 3. Wildcard DNS for *.lucity.local (one-time)
+make infra-forward           # 4. Port-forward infrastructure
+make generate-internal-keys  # 5. ES256 keypair for conductor <-> cashier
+make dev                     # 6. Start services with hot reload
 ```
 
 ## Services
 
 | Service | Port | Protocol | Purpose |
 |---------|------|----------|---------|
-| Gateway | 8080 | HTTP/GraphQL | API entry point, delegates to backend services |
-| Builder | 9001 | gRPC | Source-to-image builds via railpack, pushes to Zot |
-| Packager | 9002 | gRPC | GitOps repo management, Helm values generation |
-| Deployer | 9003 | gRPC | ArgoCD Application lifecycle, sync, promotion |
-| Webhook | 9004 | HTTP | GitHub webhook reception and event routing |
+| Conductor | 8080 (HTTP), 9090 (gRPC), 9004 (webhook) | HTTP + gRPC | Unified control plane: GraphQL API, Helm release management, build orchestration, GitHub webhooks |
+| Cashier | 9005 (gRPC), 9006 (HTTP) | gRPC + HTTP | Stripe billing, metering, suspension callbacks |
 | Dashboard | 5173 | HTTP | Vue 3 SPA for project and environment management |
+
+`builder` is a separate image (`ghcr.io/zeitlos/lucity/builder`) that the conductor runs inside a per-build Kubernetes Job, not a long-running service.
 
 ## Makefile Targets
 
 | Target | Description |
 |--------|-------------|
 | `make minikube` | Create minikube cluster with insecure registry config |
-| `make infra` | Install CRDs + Envoy Gateway + deploy Zot, Soft-serve, ArgoCD |
+| `make infra` | Install CRDs + Envoy Gateway + deploy the `lucity-infra` chart |
 | `make dns` | Set up wildcard DNS for `*.lucity.local` (one-time) |
 | `make infra-forward` | Port-forward infrastructure to localhost |
-| `make infra-tokens` | Generate ArgoCD + Soft-serve API tokens |
+| `make generate-internal-keys` | Generate the ES256 keypair for internal gRPC auth |
 | `make dev` | Start all services with hot reload |
-| `make dev-<service>` | Start one service (e.g. `make dev-gateway`) |
+| `make dev-<service>` | Start one service (e.g. `make dev-conductor`) |
 | `make dev-logs` | Tail all service logs |
 | `make dev-stop` | Stop all services |
 | `make build` | Build all Go services |

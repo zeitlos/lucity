@@ -1,0 +1,121 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "lucity.fullname" . }}-conductor
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+    app.kubernetes.io/component: conductor
+spec:
+  replicas: {{ .Values.conductor.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "lucity.selectorLabels" (dict "name" "conductor" "release" .Release.Name) | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/secrets: {{ include (print $.Template.BasePath "/secrets.yaml") . | sha256sum }}
+      labels:
+        {{- include "lucity.labels" . | nindent 8 }}
+        {{- include "lucity.selectorLabels" (dict "name" "conductor" "release" .Release.Name) | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "lucity.fullname" . }}-conductor
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        fsGroup: 65534
+      containers:
+        - name: conductor
+          image: "{{ .Values.conductor.image.repository }}:{{ .Values.conductor.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.conductor.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+            readOnlyRootFilesystem: false
+          ports:
+            - name: http
+              containerPort: {{ .Values.conductor.httpPort }}
+              protocol: TCP
+            - name: grpc
+              containerPort: {{ .Values.conductor.grpcPort }}
+              protocol: TCP
+            - name: webhook
+              containerPort: {{ .Values.conductor.webhookPort }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          env:
+            - name: PORT
+              value: {{ .Values.conductor.httpPort | quote }}
+            - name: GRPC_PORT
+              value: {{ .Values.conductor.grpcPort | quote }}
+            - name: WEBHOOK_PORT
+              value: {{ .Values.conductor.webhookPort | quote }}
+            - name: BUILD_NAMESPACE
+              value: {{ .Values.conductor.buildNamespace | quote }}
+            - name: BUILD_IMAGE
+              value: "{{ .Values.conductor.builderImage.repository }}:{{ .Values.conductor.builderImage.tag | default .Chart.AppVersion }}"
+            {{- range $key, $value := .Values.conductor.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+            {{- range $key, $value := .Values.conductor.envSecret }}
+            - name: {{ $key }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "lucity.fullname" $ }}
+                  key: {{ $value }}
+            {{- end }}
+          volumeMounts:
+            {{- if .Values.githubPrivateKey }}
+            - name: github-app-key
+              mountPath: /secrets/github
+              readOnly: true
+            {{- end }}
+            {{- if .Values.softserveKey }}
+            - name: softserve-key
+              mountPath: /secrets/softserve
+              readOnly: true
+            {{- end }}
+            {{- if and .Values.internalJWT .Values.internalJWT.privateKey }}
+            - name: internal-jwt
+              mountPath: /secrets/internal-jwt
+              readOnly: true
+            {{- end }}
+            - name: workdir
+              mountPath: /tmp/lucity-builds
+          resources:
+            {{- toYaml .Values.conductor.resources | nindent 12 }}
+      volumes:
+        {{- if .Values.githubPrivateKey }}
+        - name: github-app-key
+          secret:
+            secretName: {{ include "lucity.fullname" . }}-github-app
+        {{- end }}
+        {{- if .Values.softserveKey }}
+        - name: softserve-key
+          secret:
+            secretName: {{ include "lucity.fullname" . }}-softserve-key
+            defaultMode: 0o600
+        {{- end }}
+        {{- if and .Values.internalJWT .Values.internalJWT.privateKey }}
+        - name: internal-jwt
+          secret:
+            secretName: {{ include "lucity.fullname" . }}-internal-jwt
+        {{- end }}
+        - name: workdir
+          emptyDir: {}

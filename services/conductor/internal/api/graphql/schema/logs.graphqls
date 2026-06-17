@@ -1,0 +1,10 @@
+type ServiceLogEntry {
+  """Log line text. Prefixed with [pod-suffix] when multiple replicas exist."""
+  line: String!
+  """Name of the pod that produced this line."""
+  pod: String!
+}
+
+extend type Subscription {
+  serviceLogs(service: ServiceID!, tailLines: Int): ServiceLogEntry! @hasRole(role: WORKSPACE_MEMBER)
+}

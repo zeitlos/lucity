@@ -1,97 +1,126 @@
 import { ref, computed } from 'vue';
+import type {
+  BuildStatus,
+  DatabaseStatus,
+  ResourceTier,
+  ServiceStatus,
+  Protocol,
+  DeploymentStatus,
+  DnsStatus,
+  DnsRecordType,
+  TlsStatus,
+  EndpointType,
+} from '@/gql/graphql';
 
-export interface DeploymentInfo {
-  id: string;
-  imageTag: string;
-  active: boolean;
-  timestamp?: string | null;
-  sourceCommitMessage?: string | null;
-  sourceUrl?: string | null;
+export interface DnsRecord {
+  type: DnsRecordType;
+  host: string;
+  value: string;
 }
 
-export interface DomainInfo {
-  hostname: string;
-  type: 'PLATFORM' | 'CUSTOM';
-  dnsStatus: 'VALID' | 'PENDING' | 'MISCONFIGURED' | 'ERROR';
-  tlsStatus: 'NONE' | 'PROVISIONING' | 'ACTIVE' | 'ERROR';
+export interface DnsState {
+  status: DnsStatus;
+  requiredRecords: DnsRecord[];
 }
 
-export interface AutoscalingInfo {
-  enabled: boolean;
+export interface Endpoint {
+  host: string;
+  port: number;
+  protocol: Protocol;
+  dns: DnsState;
+  tls: TlsStatus;
+  type: EndpointType;
+}
+
+export interface ReplicaCount {
+  desired: number;
+  ready: number;
+}
+
+export interface AutoscalingSettings {
   minReplicas: number;
   maxReplicas: number;
-  targetCPU: number;
+  targetCpu: number;
 }
 
-export interface ScalingInfo {
-  replicas: number;
-  autoscaling?: AutoscalingInfo | null;
+export interface Resources {
+  cpu: string;
+  memory: string;
 }
 
-export interface ResourcesInfo {
-  cpuMillicores: number;
-  memoryMB: number;
-  cpuLimitMillicores: number;
-  memoryLimitMB: number;
-}
-
-export interface ServiceInstance {
-  name: string;
-  environment: string;
+export interface Deployment {
+  id: string;
   image: string;
-  port?: number | null;
-  framework?: string | null;
-  sourceUrl?: string | null;
-  contextPath?: string | null;
-  startCommand?: string | null;
-  customStartCommand?: string | null;
-  imageTag: string;
-  ready: boolean;
-  replicas: number;
-  scaling?: ScalingInfo | null;
-  resources?: ResourcesInfo | null;
-  domains: DomainInfo[];
-  deployments: DeploymentInfo[];
+  imageDigest?: string | null;
+  commit: string;
+  commitMessage: string;
+  ref: string;
+  status: DeploymentStatus;
+  createdAt: string;
+  deployedBy: string;
 }
 
-export interface VolumeInfo {
-  name: string;
-  size: string;
-  requestedSize: string;
-  usedBytes: number;
-  capacityBytes: number;
+export interface Build {
+  id: string;
+  status: BuildStatus;
+  startedAt: string;
+  finishedAt?: string | null;
 }
 
-export interface DatabaseInstance {
+export interface Service {
+  id: string;
   name: string;
-  environment: string;
-  ready: boolean;
-  instances: number;
+  status: ServiceStatus;
+  replicas: ReplicaCount;
+  autoscaling?: AutoscalingSettings | null;
+  port: number;
+  endpoints: Endpoint[];
+  sourceUrl: string;
+  contextPath: string;
+  resources: Resources;
+  command: string;
+  defaultCommand: string;
+  activeDeployment?: Deployment | null;
+  deployments: Deployment[];
+  builds: Build[];
+  lastDeployedAt?: string | null;
+  createdAt: string;
+}
+
+export interface Database {
+  id: string;
+  name: string;
   version: string;
+  instances: number;
+  status: DatabaseStatus;
   size: string;
-  volume?: VolumeInfo | null;
+  createdAt: string;
 }
 
 export interface Environment {
   id: string;
   name: string;
-  namespace: string;
-  ephemeral: boolean;
-  syncStatus: string;
-  resourceTier?: string | null;
-  services: ServiceInstance[];
-  databases: DatabaseInstance[];
+  resourceTier: ResourceTier;
+  services: Service[];
+  databases: Database[];
 }
 
 const activeEnvironment = ref<Environment | null>(null);
 const environments = ref<Environment[]>([]);
 
+const TERMINAL_BUILD_STATUSES = new Set<string>(['SUCCEEDED', 'FAILED', 'CANCELLED']);
+
+export function activeBuild(service: Pick<Service, 'builds'>): Build | null {
+  const list = service.builds ?? [];
+  return list.find(b => !TERMINAL_BUILD_STATUSES.has(b.status)) ?? null;
+}
+
 export function useEnvironment() {
-  function setEnvironments(envs: Environment[], preferredEnvName?: string) {
+  function setEnvironments(envs: Environment[], preferredEnvId?: string) {
     environments.value = envs;
 
-    if (preferredEnvName) {
-      const preferred = envs.find(e => e.name === preferredEnvName);
+    if (preferredEnvId) {
+      const preferred = envs.find(e => e.id === preferredEnvId);
       if (preferred) {
         activeEnvironment.value = preferred;
         return;
@@ -99,8 +128,7 @@ export function useEnvironment() {
     }
 
     if (!activeEnvironment.value || !envs.find(e => e.id === activeEnvironment.value!.id)) {
-      const nonEphemeral = envs.find(e => !e.ephemeral);
-      activeEnvironment.value = nonEphemeral ?? envs[0] ?? null;
+      activeEnvironment.value = envs[0] ?? null;
     }
   }
 
@@ -108,8 +136,8 @@ export function useEnvironment() {
     activeEnvironment.value = env;
   }
 
-  function setEnvironmentByName(name: string) {
-    const env = environments.value.find(e => e.name === name);
+  function setEnvironmentById(id: string) {
+    const env = environments.value.find(e => e.id === id);
     if (env) {
       activeEnvironment.value = env;
     }
@@ -118,25 +146,6 @@ export function useEnvironment() {
   const activeEnvServices = computed(() => activeEnvironment.value?.services ?? []);
   const activeEnvDatabases = computed(() => activeEnvironment.value?.databases ?? []);
 
-  function refreshActiveEnvironment(envs: Environment[]) {
-    if (activeEnvironment.value) {
-      const updated = envs.find(e => e.id === activeEnvironment.value!.id);
-      if (updated) {
-        activeEnvironment.value = updated;
-      }
-    }
-  }
-
-  function updateServiceDomains(serviceName: string, domains: DomainInfo[]) {
-    if (!activeEnvironment.value) return;
-    activeEnvironment.value = {
-      ...activeEnvironment.value,
-      services: activeEnvironment.value.services.map(s =>
-        s.name === serviceName ? { ...s, domains } : s,
-      ),
-    };
-  }
-
   return {
     activeEnvironment,
     environments,
@@ -144,8 +153,6 @@ export function useEnvironment() {
     activeEnvDatabases,
     setEnvironments,
     setEnvironment,
-    setEnvironmentByName,
-    refreshActiveEnvironment,
-    updateServiceDomains,
+    setEnvironmentById,
   };
 }

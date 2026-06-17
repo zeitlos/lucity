@@ -6,6 +6,7 @@
 *.dylib
 *.test
 *.out
+__debug_bin*
 vendor/
 
 # Frontend
@@ -41,17 +42,11 @@ bin/
 tmp/
 
 # Go binaries (at repo root and in service dirs)
-/gateway
+/conductor
 /builder
-/packager
-/deployer
-/webhook
 /cashier
-services/*/gateway
+services/*/conductor
 services/*/builder
-services/*/packager
-services/*/deployer
-services/*/webhook
 services/*/cashier
 
 # Proto generated

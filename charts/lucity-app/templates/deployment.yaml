@@ -1,5 +1,5 @@
 {{- range $name, $svc := .Values.services }}
-{{- if and $svc.image $svc.image.tag }}
+{{- if $svc.image }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -9,15 +9,17 @@ metadata:
     {{- include "lucity-app.labels" $ | nindent 4 }}
     {{- include "lucity-app.selectorLabels" (dict "name" $name "release" $.Release.Name) | nindent 4 }}
     app.kubernetes.io/component: {{ $name }}
-    {{- if $svc.githubInstallationId }}
-    lucity.dev/github-installation: {{ $svc.githubInstallationId | quote }}
-    {{- end }}
-  {{- if $svc.sourceUrl }}
+    {{- with $.Values.commonLabels }}{{- toYaml . | nindent 4 }}{{- end }}
+    {{- with $svc.labels }}{{- toYaml . | nindent 4 }}{{- end }}
+  {{- if or $.Values.commonAnnotations $svc.annotations }}
   annotations:
-    lucity.dev/source-repo: {{ $svc.sourceUrl | quote }}
+    {{- with $.Values.commonAnnotations }}{{- toYaml . | nindent 4 }}{{- end }}
+    {{- with $svc.annotations }}{{- toYaml . | nindent 4 }}{{- end }}
   {{- end }}
 spec:
   {{- if $.Values.suspended }}
+  replicas: 0
+  {{- else if not $svc.image.tag }}
   replicas: 0
   {{- else if not (and $svc.autoscaling $svc.autoscaling.enabled) }}
   replicas: {{ $svc.replicas | default 1 }}
@@ -30,37 +32,51 @@ spec:
       labels:
         {{- include "lucity-app.labels" $ | nindent 8 }}
         {{- include "lucity-app.selectorLabels" (dict "name" $name "release" $.Release.Name) | nindent 8 }}
+        {{- with $.Values.commonLabels }}{{- toYaml . | nindent 8 }}{{- end }}
+        {{- with $svc.podLabels }}{{- toYaml . | nindent 8 }}{{- end }}
+      {{- if or $.Values.commonAnnotations $svc.podAnnotations }}
+      annotations:
+        {{- with $.Values.commonAnnotations }}{{- toYaml . | nindent 8 }}{{- end }}
+        {{- with $svc.podAnnotations }}{{- toYaml . | nindent 8 }}{{- end }}
+      {{- end }}
     spec:
+      hostUsers: false
+      {{- with $.Values.imagePullSecrets }}
       imagePullSecrets:
-        - name: lucity-registry
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       securityContext:
-        runAsNonRoot: true
-        runAsUser: 1000
-        runAsGroup: 1000
-        fsGroup: 1000
         seccompProfile:
           type: RuntimeDefault
       containers:
         - name: {{ $name }}
-          image: "{{ $svc.image.repository }}:{{ $svc.image.tag }}"
+          image: {{ printf "%s:%s" $svc.image.repository ($svc.image.tag | default "build-pending") | quote }}
           imagePullPolicy: {{ $svc.image.pullPolicy | default "IfNotPresent" }}
           {{- if $svc.customStartCommand }}
           command: ["sh", "-c", {{ $svc.customStartCommand | quote }}]
           {{- end }}
+          {{- if $svc.port }}
           ports:
             - name: http
               containerPort: {{ $svc.port }}
               protocol: TCP
+          {{- end }}
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
               drop:
                 - ALL
+          envFrom:
+            - configMapRef:
+                name: {{ include "lucity-app.fullname" $ }}-shared
+                optional: true
           env:
+            {{- if $svc.port }}
             - name: HOST
               value: "0.0.0.0"
             - name: PORT
               value: {{ $svc.port | quote }}
+            {{- end }}
             {{- range $key, $val := $svc.env }}
             - name: {{ $key }}
               value: {{ $val | quote }}
@@ -71,11 +87,6 @@ spec:
                 secretKeyRef:
                   name: {{ include "lucity-app.fullname" $ }}-pg-{{ $ref.database }}-app
                   key: {{ $ref.key }}
-            {{- end }}
-            {{- range $key, $ref := $svc.serviceRefs }}
-            {{- $target := index $.Values.services $ref.service }}
-            - name: {{ $key }}
-              value: {{ printf "http://%s-%s:%d" (include "lucity-app.fullname" $) $ref.service ($target.port | int) | quote }}
             {{- end }}
           {{- with $svc.resources }}
           resources:

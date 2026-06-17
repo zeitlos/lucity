@@ -29,7 +29,7 @@ Create chart name and version as used by the chart label.
 {{- end }}
 
 {{/*
-Common labels.
+Common chart identity labels.
 */}}
 {{- define "lucity-app.labels" -}}
 helm.sh/chart: {{ include "lucity-app.chart" . }}

@@ -9,9 +9,9 @@ import DatabaseTablesTab from './DatabaseTablesTab.vue';
 import DatabaseQueryTab from './DatabaseQueryTab.vue';
 import DatabaseSettingsTab from './DatabaseSettingsTab.vue';
 
-defineProps<{
-  projectId: string;
+const props = defineProps<{
   database: {
+    id: string;
     name: string;
     version: string;
     instances: number;
@@ -30,7 +30,7 @@ onKeyStroke('Escape', () => {
 </script>
 
 <template>
-  <div class="flex h-full flex-col rounded-lg border bg-card/80 shadow-sm backdrop-blur-sm [background-image:var(--gradient-card)]">
+  <div class="flex h-full flex-col rounded-lg border bg-card shadow-sm">
     <!-- Header -->
     <div class="flex shrink-0 items-center justify-between border-b px-4 py-3">
       <div class="flex items-center gap-3">
@@ -68,29 +68,23 @@ onKeyStroke('Escape', () => {
 
         <TabsContent value="connect" class="px-4 py-4">
           <DatabaseConnectionTab
-            :project-id="projectId"
-            :database="database"
+            :database-id="props.database.id"
+            :database-name="props.database.name"
           />
         </TabsContent>
 
         <TabsContent value="tables" class="px-4 py-4">
-          <DatabaseTablesTab
-            :project-id="projectId"
-            :database="database"
-          />
+          <DatabaseTablesTab :database-id="props.database.id" />
         </TabsContent>
 
         <TabsContent value="query" class="px-4 py-4">
-          <DatabaseQueryTab
-            :project-id="projectId"
-            :database="database"
-          />
+          <DatabaseQueryTab :database-id="props.database.id" />
         </TabsContent>
 
         <TabsContent value="settings" class="px-4 py-4">
           <DatabaseSettingsTab
-            :project-id="projectId"
-            :database="database"
+            :database-id="props.database.id"
+            :database="props.database"
             @database-removed="emit('database-removed')"
           />
         </TabsContent>

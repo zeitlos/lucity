@@ -14,7 +14,7 @@
     {
       "guid": "lucity",
       "name": "Lucity",
-      "description": "Open-source PaaS on Kubernetes with full ejectability. Deploy like Railway, eject to standard Helm and ArgoCD when you're ready. No lock-in, no database, no magic.",
+      "description": "Deploy your code in minutes (no Dockerfile or YAML required). One-click Postgres databases. Minimal lock-in thanks to unique ejectable architecture.",
       "webpageUrl": {
         "url": "https://lucity.cloud"
       },

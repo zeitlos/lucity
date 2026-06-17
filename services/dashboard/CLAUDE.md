@@ -11,12 +11,12 @@ npm run lint     # ESLint with auto-fix
 npm run codegen  # Regenerate GraphQL TypeScript types
 ```
 
-Requires gateway running on `:8080`.
+Requires conductor running on `:8080`.
 
 ## Key URLs
 
 - Dashboard: http://localhost:5173/
-- GraphQL proxy: `/graphql` → gateway :8080
+- GraphQL proxy: `/graphql` → conductor :8080
 
 ## Architecture
 
@@ -24,7 +24,7 @@ Vue 3 + Vite + TypeScript SPA with Vue Router. Apollo Client for GraphQL.
 
 ### GraphQL
 
-- Schema source: `../gateway/graphql/schema/*.graphqls`
+- Schema source: `../conductor/internal/api/graphql/schema/*.graphqls`
 - Queries and mutations are defined **inline in the consuming component or composable** using the `graphql()` tagged template from `@/gql`. Codegen ([.graphqlrc.yaml](.graphqlrc.yaml)) scans `./src/**/*.vue` and `./src/**/*.ts` for these calls.
 - `npm run codegen` generates `src/gql/{gql,graphql,index}.ts` — never hand-edit these files.
 - Input types, result types, and enums (e.g. `DnsStatus`, `DeployPhase`) are imported from `@/gql/graphql`. The `graphql()` helper itself is imported from `@/gql`.
@@ -43,7 +43,7 @@ const GenerateDomainDocument = graphql(`
 `);
 ```
 
-After editing any `graphql()` call or changing the gateway schema, run `npm run codegen`.
+After editing any `graphql()` call or changing the conductor schema, run `npm run codegen`.
 
 ### Key Composables
 

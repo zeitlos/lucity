@@ -1,11 +1,11 @@
 # Lucity platform values for lucity-prod (Hetzner)
 #
-# Secrets are passed via --set at install time:
-#   --set secrets.GITHUB_WEBHOOK_SECRET="<from-github-app>"
-#   --set secrets.ARGOCD_TOKEN="$ARGOCD_TOKEN"
-#   --set secrets.SOFTSERVE_TOKEN="$SOFTSERVE_TOKEN"
-#   --set-file githubPrivateKey=<path-to-github-app.pem>
-#   --set-file softserveKey=~/.ssh/lucity-admin-prod
+# Single-binary layout: the conductor block holds every env var that
+# was previously split across gateway/builder/packager/deployer/webhook.
+# Cashier remains a separate Deployment.
+#
+# Secrets are passed via -f secrets.yaml at install time; see
+# secrets.yaml.example for required keys.
 
 registryPull:
   host: "10.96.100.100:5000"
@@ -14,91 +14,72 @@ registryPull:
 routes:
   enabled: true
 
-gateway:
+conductor:
+  # Push host BuildKit advertises in the build runner; same value
+  # workloads pull from (via REGISTRY_IMAGE_PREFIX below).
+  registryHost: lucity-infra-zot.lucity-system.svc.cluster.local:5000
+  registryUsername: builder
+  buildkit:
+    enabled: true
   env:
-    INTERNAL_JWT_PRIVATE_KEY_PATH: /secrets/internal-jwt/private.pem
+    # OIDC (Logto)
     OIDC_ISSUER_URL: https://id.lucity.cloud/oidc
     OIDC_CLIENT_ID: 30ztkgeb1c7hwmnx6bf4s
     OIDC_CALLBACK_URL: https://lucity.cloud/auth/callback
     DASHBOARD_URL: https://lucity.cloud/app
+
+    # GitHub App
     GITHUB_APP_ID: "2882801"
     GITHUB_PRIVATE_KEY_PATH: /secrets/github/github-app.pem
     GITHUB_APP_SLUG: lucity-platform
     GITHUB_CLIENT_ID: Iv23liMzm79VIgvNtglX
     GITHUB_OAUTH_CALLBACK_URL: https://lucity.cloud/auth/github/callback
-    BUILDER_ADDR: lucity-builder:9001
-    PACKAGER_ADDR: lucity-packager:9002
-    DEPLOYER_ADDR: lucity-deployer:9003
-    CASHIER_ADDR: lucity-cashier:9005
-    REGISTRY_URL: lucity-infra-zot.lucity-system.svc.cluster.local:5000
-    REGISTRY_IMAGE_PREFIX: 10.96.100.100:5000
-    WORKLOAD_DOMAIN: lucity.app
-    IP_ADDRESS: "46.225.47.40"
+
+    # Logto Management API
     LOGTO_ENDPOINT: http://lucity-infra-logto.lucity-system.svc.cluster.local:3001
-  envSecret:
-    JWT_SECRET: JWT_SECRET
-    GITHUB_CLIENT_SECRET: GITHUB_CLIENT_SECRET
-    SESSION_SECRET: SESSION_SECRET
-    LOGTO_M2M_APP_ID: LOGTO_M2M_APP_ID
-    LOGTO_M2M_APP_SECRET: LOGTO_M2M_APP_SECRET
 
-builder:
-  serviceAccount:
-    create: true
-  registryHost: lucity-infra-zot.lucity-system.svc.cluster.local:5000
-  registryUsername: builder
-  env:
-    INTERNAL_JWT_PUBLIC_KEY_PATH: /secrets/internal-jwt/public.pem
-    REGISTRY_URL: lucity-infra-zot.lucity-system.svc.cluster.local:5000
-    REGISTRY_USERNAME: builder
-    REGISTRY_INSECURE: "true"
-  envSecret:
-    REGISTRY_PASSWORD: REGISTRY_PASSWORD
-
-packager:
-  env:
-    INTERNAL_JWT_PUBLIC_KEY_PATH: /secrets/internal-jwt/public.pem
+    # Internal JWT (signs outgoing cashier calls + verifies inbound on :9090)
     INTERNAL_JWT_PRIVATE_KEY_PATH: /secrets/internal-jwt/private.pem
+    INTERNAL_JWT_PUBLIC_KEY_PATH: /secrets/internal-jwt/public.pem
+
+    # Soft-serve (GitOps repo storage)
     SOFTSERVE_SSH_ADDR: lucity-infra-soft-serve.lucity-system.svc.cluster.local:23231
     SOFTSERVE_HTTP_ADDR: http://lucity-infra-soft-serve.lucity-system.svc.cluster.local:23232
     SOFTSERVE_SSH_KEY_PATH: /secrets/softserve/admin-key
-    DEPLOYER_ADDR: lucity-deployer:9003
-    WORKLOAD_DOMAIN: lucity.app
-  envSecret:
-    SOFTSERVE_TOKEN: SOFTSERVE_TOKEN
 
-deployer:
-  serviceAccount:
-    create: true
-  env:
-    INTERNAL_JWT_PUBLIC_KEY_PATH: /secrets/internal-jwt/public.pem
-    INTERNAL_JWT_PRIVATE_KEY_PATH: /secrets/internal-jwt/private.pem
+    # ArgoCD
     ARGOCD_ADDR: http://lucity-infra-argocd-server.lucity-system.svc.cluster.local:80
     ARGOCD_INSECURE: "true"
-    SOFTSERVE_HTTP_ADDR: http://lucity-infra-soft-serve.lucity-system.svc.cluster.local:23232
-    PACKAGER_ADDR: lucity-packager:9002
+
+    # Cashier (real gRPC, separate Deployment)
+    CASHIER_ADDR: lucity-cashier:9005
+
+    # Registry (used by build runner pods to push images)
+    REGISTRY_URL: lucity-infra-zot.lucity-system.svc.cluster.local:5000
+    REGISTRY_IMAGE_PREFIX: 10.96.100.100:5000
+    REGISTRY_USERNAME: builder
+    REGISTRY_INSECURE: "true"
+
+    # Workload domain + LB IP
+    WORKLOAD_DOMAIN: lucity.app
+    DATABASE_DOMAIN: db.lucity.app
+    IP_ADDRESS: "46.225.47.40"
   envSecret:
+    SESSION_SECRET: SESSION_SECRET
+    GITHUB_CLIENT_SECRET: GITHUB_CLIENT_SECRET
+    LOGTO_M2M_APP_ID: LOGTO_M2M_APP_ID
+    LOGTO_M2M_APP_SECRET: LOGTO_M2M_APP_SECRET
     ARGOCD_TOKEN: ARGOCD_TOKEN
     SOFTSERVE_TOKEN: SOFTSERVE_TOKEN
-
-webhook:
-  env:
-    INTERNAL_JWT_PRIVATE_KEY_PATH: /secrets/internal-jwt/private.pem
-    GITHUB_APP_ID: "2882801"
-    GITHUB_PRIVATE_KEY_PATH: /secrets/github/github-app.pem
-    BUILDER_ADDR: lucity-builder:9001
-    PACKAGER_ADDR: lucity-packager:9002
-    DEPLOYER_ADDR: lucity-deployer:9003
-    REGISTRY_PUSH_URL: lucity-infra-zot.lucity-system.svc.cluster.local:5000
-  envSecret:
     WEBHOOK_SECRET: GITHUB_WEBHOOK_SECRET
+    REGISTRY_PASSWORD: REGISTRY_PASSWORD
 
 cashier:
   enabled: true
   env:
     INTERNAL_JWT_PUBLIC_KEY_PATH: /secrets/internal-jwt/public.pem
     INTERNAL_JWT_PRIVATE_KEY_PATH: /secrets/internal-jwt/private.pem
-    DEPLOYER_ADDR: lucity-deployer:9003
+    CONDUCTOR_ADDR: lucity-conductor:9090
     LOGTO_ENDPOINT: http://lucity-infra-logto.lucity-system.svc.cluster.local:3001
     STRIPE_HOBBY_PRICE_ID: price_1TASy6AoheV3Drw6W13KVFYm
     STRIPE_PRO_PRICE_ID: price_1TASy7AoheV3Drw6t22UVU8C

@@ -27,8 +27,8 @@
 
 ## Helm Charts
 
-- **`lucity-infra`** — infrastructure: Zot, Soft-serve, ArgoCD, Gateway, certificates
-- **`lucity`** — platform services: gateway, builder, packager, deployer, webhook, dashboard, docs
+- **`lucity-infra`** — infrastructure: Zot (registry), CloudNativePG, observability (VictoriaMetrics/Logs, Grafana, OpenTelemetry), Gateway, certificates. (Still bundles ArgoCD + Soft-serve from the old GitOps deploy path; both are unused by the conductor now and slated for removal.)
+- **`lucity`** — platform services: conductor, cashier, dashboard, docs
 - **Deployment profiles**: `deployments/lucity-prod/` (infra-values.yaml + values.yaml)
 
 ## Registry
@@ -38,7 +38,7 @@ User workload images are stored in Zot (self-hosted OCI registry) at `lucity-inf
 - **Pods** access the registry via cluster DNS (works because CoreDNS resolves `*.svc.cluster.local`)
 - **Kubelet** (containerd) accesses the registry via fixed ClusterIP `10.96.100.100:5000` (kubelet uses node DNS, not CoreDNS)
 - **Insecure (HTTP)**: containerd is configured with `/etc/containerd/certs.d/10.96.100.100:5000/hosts.toml` on each node
-- **Gateway config**: `REGISTRY_URL` (for pod-to-registry) uses DNS; `REGISTRY_IMAGE_PREFIX` (for image refs in Helm values) uses ClusterIP
+- **Conductor config**: `REGISTRY_URL` (for pod-to-registry) uses DNS; `REGISTRY_IMAGE_PREFIX` (for image refs in Helm values) uses ClusterIP
 
 ### Containerd Insecure Registry Config
 

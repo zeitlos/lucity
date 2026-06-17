@@ -10,29 +10,24 @@ Concise, precise, consistent. Use domain terminology.
 - **No obscure abbreviations**: prefer clarity over brevity
 - **Consistent across layers**: same names in GraphQL schema, Go resolvers, and gRPC methods
 
-## Module Pattern
+## Service Layout
 
-Each module is three things:
+The platform is a small set of binaries, not a fleet of microservices:
 
-1. **Go library** — importable package for programmatic use
-2. **CLI tool** — cobra-based CLI for local use and debugging
-3. **gRPC service** — network-accessible API for inter-service communication
+1. **Conductor** — the unified control plane. Its internal packages (deployer, planner, buildjob, ...) are plain Go packages behind narrow interfaces, not standalone services.
+2. **Cashier** — a separate billing service, reachable over gRPC (conductor ↔ cashier).
+3. **Builder** — a separate binary that runs inside a per-build Kubernetes Job, not a long-running service.
 
-```bash
-# CLI usage
-lucity-builder build --source ./src/api --registry registry.example.com/myapp/api
-# gRPC usage (called by gateway or other services)
-# Programmatic usage (imported as Go package)
-```
+Inside the conductor, prefer plain packages and interfaces. Reach for gRPC only at a real process boundary (cashier).
 
 ## Dependency Injection
 
 Through constructors, not globals. Optional parameters via functional options (`With*` pattern).
 
 ```go
-server, err := gateway.New(
-    gateway.WithPort(config.Port),
-    gateway.WithBuilderClient(builderConn),
+server, err := conductor.New(
+    conductor.WithPort(config.Port),
+    conductor.WithDeployer(deployer),
 )
 ```
 
@@ -50,6 +45,6 @@ Never manually edit files with `.gen.go` suffix or `generated.go`. Regenerate fr
 
 ## Deployment
 
-- Docker images tagged with git commit hash
+- Docker images tagged with `git describe` output
 - Standard Helm charts (no HULL)
-- ArgoCD for GitOps delivery
+- Workloads applied as imperative Helm releases by the conductor

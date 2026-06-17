@@ -2,15 +2,7 @@ package auth
 
 import (
 	"context"
-)
-
-// Role represents a user's authorization level.
-type Role string
-
-const (
-	RoleAnonymous Role = "ANONYMOUS"
-	RoleUser      Role = "USER"
-	RoleAdmin     Role = "ADMIN"
+	"errors"
 )
 
 // WorkspaceRole represents a user's role within a workspace.
@@ -20,6 +12,15 @@ const (
 	WorkspaceRoleUser  WorkspaceRole = "user"
 	WorkspaceRoleAdmin WorkspaceRole = "admin"
 )
+
+var roleRank = map[WorkspaceRole]int{
+	WorkspaceRoleUser:  1,
+	WorkspaceRoleAdmin: 2,
+}
+
+func (r WorkspaceRole) Satisfies(required WorkspaceRole) bool {
+	return roleRank[r] >= roleRank[required]
+}
 
 // WorkspaceMembership represents a user's membership in a workspace.
 type WorkspaceMembership struct {
@@ -31,22 +32,11 @@ type contextKey struct{}
 
 // Claims represents the authenticated user's identity and roles.
 type Claims struct {
-	Subject    string // OIDC subject (stable user identifier)
-	Name       string // Display name
+	Subject    string
+	Name       string
 	Email      string
-	Roles      []Role
 	AvatarURL  string
 	Workspaces []WorkspaceMembership
-}
-
-// HasRole checks if the claims include the given role.
-func (c *Claims) HasRole(role Role) bool {
-	for _, r := range c.Roles {
-		if r == role {
-			return true
-		}
-	}
-	return false
 }
 
 // IsMemberOf checks if the user is a member of the given workspace.
@@ -69,14 +59,16 @@ func (c *Claims) WorkspaceRoleIn(workspace string) WorkspaceRole {
 	return ""
 }
 
-// WithClaims attaches claims to a context.
-func WithClaims(ctx context.Context, claims *Claims) context.Context {
+func NewContext(ctx context.Context, claims *Claims) context.Context {
 	return context.WithValue(ctx, contextKey{}, claims)
 }
 
-// FromContext extracts claims from a context.
-// Returns nil if no claims are present.
-func FromContext(ctx context.Context) *Claims {
-	claims, _ := ctx.Value(contextKey{}).(*Claims)
-	return claims
+func FromContext(ctx context.Context) (*Claims, error) {
+	claims, set := ctx.Value(contextKey{}).(*Claims)
+
+	if !set || claims == nil {
+		return nil, errors.New("unauthenticated")
+	}
+
+	return claims, nil
 }

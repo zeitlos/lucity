@@ -6,13 +6,11 @@ The user starts services with `make dev` (all services with hot reload via air) 
 
 | Service | Port | Protocol | Log file |
 |---------|------|----------|----------|
-| Gateway | 8080 | HTTP/GraphQL | `tmp/logs/gateway.log` |
-| Builder | 9001 | gRPC | `tmp/logs/builder.log` |
-| Packager | 9002 | gRPC | `tmp/logs/packager.log` |
-| Deployer | 9003 | gRPC | `tmp/logs/deployer.log` |
-| Webhook | 9004 | HTTP | `tmp/logs/webhook.log` |
-| Cashier | 9005 | gRPC + 9006 HTTP | `tmp/logs/cashier.log` |
+| Conductor | 8080 (HTTP), 9090 (gRPC), 9004 (webhook) | HTTP+gRPC | `tmp/logs/conductor.log` |
+| Cashier | 9005 (gRPC), 9006 (HTTP) | gRPC + HTTP | `tmp/logs/cashier.log` |
 | Dashboard | 5173 | HTTP | `tmp/logs/dashboard.log` |
+
+The conductor is the unified control-plane binary; it serves the GraphQL API, applies Helm releases, orchestrates builds, reconciles custom domains, and receives GitHub webhooks. Its internal packages (deployer / planner / buildjob) are plain Go packages behind interfaces — no internal network hops. Cashier is the one separate service, reached over gRPC.
 
 ## Verifying Changes
 
@@ -20,21 +18,15 @@ After editing code, read the relevant log file(s) in `tmp/logs/` to check for er
 
 ## Integration Tests
 
-```sh
-make test-integration          # full suite (all services + Minikube infrastructure)
-make test-integration-short    # quick tests (gateway only)
-make test-watch                # auto-rerun on file changes (requires watchexec)
-```
+The integration test suite (`tests/`) is currently in disrepair after the conductor merge. Verification leans on:
 
-Tests are in `tests/` — a separate Go module that hits the GraphQL API with generated JWT tokens. Tests verify side effects with `kubectl` (namespaces, ArgoCD apps, deployments, CNPG clusters) and `psql`.
+- `go build ./...` (workspace-wide compile check)
+- `go vet ./...`
+- Manual smoke tests via the GraphQL playground at http://localhost:8080/playground
+- Manual end-to-end clicks through the dashboard at http://localhost:5173/
+- `tmp/logs/conductor.log` inspection while running `make dev`
 
-| Runner | Log file | Status file |
-|--------|----------|-------------|
-| Tests  | `tmp/logs/tests.log` | `tmp/dev/tests.status` |
-
-After making changes that affect the GraphQL API or backend services, read `tmp/logs/tests.log` to verify integration tests still pass. If the test runner is in watch mode (`make test-watch`), tests re-run automatically.
-
-See `tests/CLAUDE.md` for test organization, infrastructure requirements, and cleanup instructions.
+When the suite is restored, the targets will be `make test-integration`, `make test-integration-short`, `make test-watch`. Output goes to `tmp/logs/tests.log`.
 
 ## Paths
 

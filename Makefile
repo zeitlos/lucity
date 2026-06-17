@@ -1,12 +1,9 @@
-.PHONY: build proto dev dev-gateway dev-builder dev-packager dev-deployer dev-cashier dev-webhook dev-dashboard dev-docs dev-logs dev-stop generate-graphql lint test-integration test-integration-short test-watch minikube dns infra infra-down infra-forward infra-forward-stop argocd-password infra-tokens argocd-token softserve-token db-forward deploy-prod deploy-prod-infra generate-internal-keys
+.PHONY: build proto dev dev-conductor dev-cashier dev-dashboard dev-docs dev-logs dev-stop generate-graphql lint test-integration test-integration-short test-watch minikube dns infra infra-down infra-forward infra-forward-stop argocd-password infra-tokens argocd-token softserve-token db-forward deploy-prod deploy-prod-infra generate-internal-keys
 
 # Build all Go services
 build:
-	go build ./services/gateway/cmd/gateway/...
+	go build ./services/conductor/cmd/conductor/...
 	go build ./services/builder/cmd/builder/...
-	go build ./services/packager/cmd/packager/...
-	go build ./services/deployer/cmd/deployer/...
-	go build ./services/webhook/cmd/webhook/...
 	go build ./services/cashier/cmd/cashier/...
 
 # Generate protobuf code (requires protoc, protoc-gen-go, protoc-gen-go-grpc)
@@ -15,7 +12,7 @@ proto:
 
 # Generate GraphQL resolvers (requires gqlgen)
 generate-graphql:
-	cd services/gateway && go generate ./graphql/resolver.go
+	cd services/conductor && go generate ./internal/api/graphql/resolver.go
 
 # Start all services with hot reload (air + vite)
 dev:
@@ -25,32 +22,17 @@ dev:
 dev-logs:
 	@tail -f tmp/logs/*.log
 
-# View specific service logs (e.g., make dev-logs-gateway)
+# View specific service logs (e.g., make dev-logs-conductor)
 dev-logs-%:
 	@tail -f tmp/logs/$*.log
 
 # Stop all dev services
 dev-stop:
-	@for port in 8080 9001 9002 9003 9004 9005 9006 5173; do \
-		lsof -ti :$$port -sTCP:LISTEN | xargs kill 2>/dev/null || true; \
-	done
-	@echo "All services stopped."
+	@bash scripts/dev-stop.sh
 
 # Run individual services (without air)
-dev-gateway:
-	cd services/gateway && set -a && . .env 2>/dev/null && set +a && go run ./cmd/gateway/...
-
-dev-builder:
-	cd services/builder && set -a && . .env 2>/dev/null && set +a && go run ./cmd/builder/...
-
-dev-packager:
-	cd services/packager && set -a && . .env 2>/dev/null && set +a && go run ./cmd/packager/...
-
-dev-deployer:
-	cd services/deployer && set -a && . .env 2>/dev/null && set +a && go run ./cmd/deployer/...
-
-dev-webhook:
-	cd services/webhook && set -a && . .env 2>/dev/null && set +a && go run ./cmd/webhook/...
+dev-conductor:
+	cd services/conductor && set -a && . .env 2>/dev/null && set +a && go run ./cmd/conductor/...
 
 dev-cashier:
 	cd services/cashier && set -a && . .env 2>/dev/null && set +a && go run ./cmd/cashier/...
@@ -158,11 +140,11 @@ argocd-token:
 	TOKEN=$$(curl -sk -H "Content-Type: application/json" -H "Authorization: Bearer $$SESSION" -X POST http://localhost:8443/api/v1/account/lucity/token | jq -r '.token') && \
 	echo "ARGOCD_TOKEN=$$TOKEN"
 
-# Generate a Soft-serve access token for the packager
+# Generate a Soft-serve access token for the conductor
 # Requires: infra-forward running (Soft-serve SSH on localhost:23231)
 softserve-token:
 	@ssh-keygen -R "[localhost]:23231" 2>/dev/null || true
-	@ssh -i ~/.ssh/lucity-admin-minikube -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -p 23231 localhost token create 'packager'
+	@ssh -i ~/.ssh/lucity-admin-minikube -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -p 23231 localhost token create 'conductor'
 
 # Port-forward a project's database for local development (interactive picker)
 db-forward:
@@ -206,5 +188,5 @@ generate-internal-keys:
 	openssl ecparam -name prime256v1 -genkey -noout -out internal-jwt-private.pem
 	openssl ec -in internal-jwt-private.pem -pubout -out internal-jwt-public.pem
 	@echo "Generated internal-jwt-private.pem and internal-jwt-public.pem"
-	@echo "Set INTERNAL_JWT_PRIVATE_KEY_PATH in gateway and webhook .env files"
-	@echo "Set INTERNAL_JWT_PUBLIC_KEY_PATH in backend service .env files"
+	@echo "Set INTERNAL_JWT_PRIVATE_KEY_PATH and INTERNAL_JWT_PUBLIC_KEY_PATH"
+	@echo "in services/conductor/.env and services/cashier/.env"

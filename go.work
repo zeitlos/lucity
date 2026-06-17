@@ -1,13 +1,10 @@
-go 1.26.0
+go 1.26.3
 
 use (
 	./charts
 	./pkg
 	./services/builder
 	./services/cashier
-	./services/deployer
-	./services/gateway
-	./services/packager
-	./services/webhook
+	./services/conductor
 	./tests
 )

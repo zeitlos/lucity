@@ -44,14 +44,14 @@ onUnmounted(() => document.removeEventListener('click', onClickOutside));
 <template>
   <div ref="root" class="fixed bottom-0 left-0 z-50 pb-px pl-4">
     <Transition
-      enter-active-class="transition-all duration-200 ease-out"
-      leave-active-class="transition-all duration-150 ease-in"
+      enter-active-class="transition duration-200 ease-out"
+      leave-active-class="transition duration-150 ease-in"
       enter-from-class="opacity-0 translate-y-2 scale-95"
       leave-to-class="opacity-0 translate-y-2 scale-95"
     >
       <div
         v-if="expanded"
-        class="mb-1.5 min-w-40 rounded-lg border bg-card/95 p-3 shadow-lg backdrop-blur-sm"
+        class="mb-1.5 min-w-40 rounded-lg border bg-card p-3 shadow-lg"
       >
         <p class="mb-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
           Components

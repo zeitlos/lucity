@@ -1,0 +1,231 @@
+MIGRATION CHECKLIST — domain verification + helm deployer + new packages
+=========================================================================
+
+This branch lands the hostname package, the new helm deployer, the values
+refactor (domains gain verified flag), chart updates (XListenerSet for
+custom domains), and the reconciliation loop. Production cutover requires
+the steps below.
+
+Run order: prereqs → values migration → image bump → label migration →
+chart deploy → orphan cleanup → verification.
+
+
+1. CLUSTER PREREQS — NONE
+-------------------------
+
+This branch ships against the existing cluster stack:
+  - Gateway API: pre-v1.5 standard channel (current install)
+  - cert-manager: v1.19.1 (current install)
+  - Cilium: current install with its standard Gateway controller
+
+The chart's custom-domain TLS goes through conductor.ReconcileDomains: it
+collects verified custom hostnames from K8s and calls gateway.Sync, which
+ensures an HTTP+HTTPS listener pair exists per host on the shared Gateway.
+cert-manager auto-creates Certificates from the Gateway's
+`cert-manager.io/cluster-issuer` annotation — the conductor no longer
+manages Certificate CRs directly.
+
+The legacy reconcileCustomDomains goroutine in cmd/conductor/main.go still
+runs. It DOES still create cert-manager Certificate CRs directly (the new
+path relies on the Gateway annotation instead). Both reconcilers use the
+same `custom-*` listener naming and both end up with cert-manager-issued
+certs, so they converge cleanly. Delete the legacy goroutine after the
+GraphQL resolver cutover (step 6) and at that point switch gateway.Sync
+to also prune orphan listeners.
+
+The ListenerSet / XListenerSet path was scoped out — it's blocked on
+Cilium not yet implementing the resource (CFP open at cilium/cilium#42756).
+Revisit when Cilium ships support.
+
+
+2. PER-RELEASE VALUES MIGRATION (critical)
+------------------------------------------
+
+The chart now expects services.<name>.domains to be a list of
+{host, verified} objects instead of plain strings. Grandfather existing
+domains as already-verified — they were vetted by the previous flow.
+
+  for release in $(helm list -n lucity-system -o json | jq -r '.[].name'); do
+    helm get values "$release" -n lucity-system -o yaml | \
+      yq '.services[].domains |= map({"host": ., "verified": true})' | \
+      helm upgrade "$release" -n lucity-system \
+        oci://ghcr.io/zeitlos/lucity/charts/lucity-app \
+        --reuse-values --values -
+  done
+
+Do this BEFORE bumping the chart version on the conductor. The new chart
+gates rendering on verified=true; if the values still hold bare strings,
+HTTPRoutes will disappear and TLS will drop.
+
+
+3. BUILDER IMAGE BUMP
+---------------------
+
+The runner now uses envconfig and the BUILD_TARGET_REFS contract.
+Build + publish, then update the conductor's BUILD_IMAGE env var.
+
+  make build-builder VERSION=<new-tag>
+  docker push ghcr.io/zeitlos/lucity/builder:<new-tag>
+
+In deployments/lucity-prod/values.yaml:
+  conductor.env.BUILD_IMAGE=ghcr.io/zeitlos/lucity/builder:<new-tag>
+
+  make deploy-prod VERSION=<chart-tag>
+
+
+4. LABEL MIGRATION: lucity.dev/managed-by → app.kubernetes.io/managed-by
+------------------------------------------------------------------------
+
+  kubectl get all,resourcequota,limitrange,secret,networkpolicy -A \
+    -l lucity.dev/managed-by=lucity \
+    -o json --context lucity-prod | \
+    jq -r '.items[] | "\(.kind)/\(.metadata.name) -n \(.metadata.namespace)"' | \
+    while read res; do
+      kubectl label $res app.kubernetes.io/managed-by=lucity --overwrite --context lucity-prod
+      kubectl label $res lucity.dev/managed-by-                  --context lucity-prod
+    done
+
+
+5. ORPHAN CLEANUP (one-time deletes)
+------------------------------------
+
+  # Dead user-github-token Secrets (the StoreUserGitHubToken feature is gone)
+  kubectl delete secrets -n lucity-system \
+    -l lucity.dev/resource-type=user-github-token \
+    --context lucity-prod
+
+  # Dead build-job SA + RBAC (lucity-build-job — never actually assigned
+  # to the Job spec, and the runner no longer needs K8s API access)
+  kubectl delete sa,role,rolebinding -n lucity-builds \
+    lucity-build-job --context lucity-prod
+
+  # Failed build Jobs from old runner image (will not succeed; new builds
+  # land at different buildHash because runner image is part of the hash)
+  kubectl delete jobs -n lucity-builds \
+    --field-selector status.successful!=1 \
+    --context lucity-prod
+
+
+6. NETWORK POLICY CLEANUP (chart-driven, sanity check)
+------------------------------------------------------
+
+The conductor chart now removes:
+  - builds-networkpolicy.yaml: K8s API egress rule for build pods
+  - builds-networkpolicy.yaml: "Builder service" cross-namespace Gateway ingress
+  - builds-rbac.yaml: deleted entirely
+
+Verify after `make deploy-prod`:
+  kubectl get networkpolicy -n lucity-builds --context lucity-prod -o yaml | \
+    grep -E "10\.96\.0\.1|builder"
+  # Should return nothing.
+
+
+7. RESOURCE QUOTA ROLLOUT
+-------------------------
+
+Previously eco envs had no ResourceQuota. They now get one (4 CPU / 8Gi /
+40Gi) per namespace. Before deploying, spot-check that no env is currently
+running above those caps.
+
+  for ns in $(kubectl get ns -l app.kubernetes.io/managed-by=lucity \
+              --context lucity-prod -o jsonpath='{.items[*].metadata.name}'); do
+    echo "=== $ns ==="
+    kubectl top pods -n $ns --context lucity-prod 2>/dev/null
+  done
+
+
+8. CONFIG ENV VARS (conductor)
+------------------------------
+
+These must be set on the conductor pod for the hostname client + domain
+reconciler to work:
+
+  WORKLOAD_DOMAIN=lucity.app
+  DOMAIN_TARGET=lb.lucity.app
+  IP_ADDRESS=<your platform LB IP>
+
+Already in deployments/lucity-prod/values.yaml under conductor.env — verify.
+
+
+9. POST-ROLLOUT VERIFICATION
+----------------------------
+
+  # Conductor pod healthy and reconciler running
+  kubectl logs -n lucity-system -l app.kubernetes.io/name=conductor \
+    --context lucity-prod | grep -i "reconcile"
+
+  # Existing custom domains still reachable + TLS intact
+  for host in $(kubectl get httproute -A --context lucity-prod \
+                -o jsonpath='{range .items[*]}{.spec.hostnames[*]}{"\n"}{end}'); do
+    echo -n "$host: "
+    curl -sI "https://$host" | head -1
+  done
+
+  # ResourceQuota enforced on every env
+  kubectl get resourcequota -A --context lucity-prod -o wide
+
+  # Test build via the dashboard "Deploy" button — confirm new runner
+  # image is invoked and the build completes
+
+
+10. THINGS TO REMEMBER (no script)
+-----------------------------------
+
+  - New custom domains: users now need a _lucity-verify.<host> TXT record
+    in addition to the routing CNAME/A. The dashboard's domain modal will
+    surface the values. Send a heads-up before this rolls out.
+
+  - Existing custom domains are grandfathered (verified=true via the
+    values migration). They do NOT need the TXT record retroactively.
+
+  - Watch HPAs for ScalingLimited after the rollout — the new namespace-
+    wide ResourceQuota might bite an env that was running uncapped.
+
+  - DO NOT pass --force-recreate-pods during the chart upgrade —
+    Gateway + cert-manager need steady-state HTTPRoutes to keep certs
+    valid through the cutover.
+
+  - Backup Soft-serve repos before the rollout. Deployerold can still
+    read them as a fallback if rollback is needed.
+
+  - The deployer field on conductor.Client is now wired to the new helm
+    backend, but legacy AddCustomDomain / GenerateDomain / RemoveDomain
+    methods still call deployerold.Packager / deployerold.Deployer.
+    Switching the GraphQL resolvers to the new path is step 6 of the
+    refactor sequence and is intentionally NOT part of this merge.
+
+  - Two reconcilers run side-by-side post-merge:
+      * conductor.ReconcileDomains (new, 2 min) — DNS verification + adds
+        per-host HTTP+HTTPS listener pairs on the shared Gateway. No
+        Certificate CR creation; cert-manager handles cert lifecycle from
+        the Gateway annotation. Additive only (no orphan pruning).
+      * deployerold.ReconcileCustomDomains (legacy, existing cadence) —
+        Same Gateway sync logic plus Certificate CR creation. Owns
+        deletion during coexistence.
+    Both target the shared Gateway with the same `custom-*` listener
+    prefix. Delete the legacy goroutine when the GraphQL resolvers
+    switch to the new deployer (step 6 of refactor); at that point
+    gateway.Sync gains a prune step for orphan listeners.
+
+  - Reconcile loop interval is 2 minutes. Users configuring DNS will
+    wait up to that long for verified=true to flip and TLS to start
+    provisioning. Tune in cmd/conductor/reconcile.go if needed.
+
+
+11. ROLLBACK
+------------
+
+If the rollout breaks:
+
+  # Roll back the conductor + chart to previous version
+  make deploy-prod VERSION=<previous-tag>
+
+  # Restore values.yaml from the per-release backup taken in step 2
+  # (helm get values pre-migration → file)
+
+  # Verify HTTPRoutes are back
+  kubectl get httproute -A --context lucity-prod
+
+The new packages (hostname, deployer/helm, environment, resources,
+dbquery) are additive on the Go side — rollback to the previous binary
+removes the reconciler goroutine and restores legacy CheckDns behavior.

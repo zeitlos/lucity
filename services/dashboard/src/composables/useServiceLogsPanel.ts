@@ -1,24 +1,21 @@
 import { ref, computed } from 'vue';
 
 interface ServiceLogsPanelState {
-  projectId: string;
+  serviceId: string;
   serviceName: string;
-  environment: string;
 }
 
 const panelState = ref<ServiceLogsPanelState | null>(null);
 
 export function useServiceLogsPanel() {
   const isOpen = computed(() => panelState.value !== null);
-  const projectId = computed(() => panelState.value?.projectId ?? null);
+  const serviceId = computed(() => panelState.value?.serviceId ?? null);
   const serviceName = computed(() => panelState.value?.serviceName ?? '');
-  const environment = computed(() => panelState.value?.environment ?? null);
 
-  function open(projectIdValue: string, serviceNameValue: string, environmentValue: string) {
+  function open(serviceIdValue: string, serviceNameValue: string) {
     panelState.value = {
-      projectId: projectIdValue,
+      serviceId: serviceIdValue,
       serviceName: serviceNameValue,
-      environment: environmentValue,
     };
   }
 
@@ -26,5 +23,5 @@ export function useServiceLogsPanel() {
     panelState.value = null;
   }
 
-  return { isOpen, projectId, serviceName, environment, open, close };
+  return { isOpen, serviceId, serviceName, open, close };
 }

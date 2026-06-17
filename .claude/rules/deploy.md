@@ -4,7 +4,7 @@
 
 All service images are tagged with `git describe` output (e.g. `0.0.0-304-gdc54d87`). The Helm chart's `appVersion` is set to this tag during CI — each service template falls back to `.Chart.AppVersion` when no per-service `image.tag` is set.
 
-Never use `--set global.image.tag` or per-service `--set gateway.image.tag` — the chart version pins the image tag via `appVersion`.
+Never use `--set global.image.tag` or per-service `--set conductor.image.tag` — the chart version pins the image tag via `appVersion`.
 
 ## Production Deploys
 
@@ -40,7 +40,7 @@ Same pattern — OCI chart from GHCR with explicit values file. Uses `infra-secr
 
 Production secrets are split into two files (both gitignored):
 
-- **`deployments/lucity-prod/secrets.yaml`** — platform secrets (GitHub App, ArgoCD/Soft-serve tokens, Stripe, Logto M2M, SSH keys)
+- **`deployments/lucity-prod/secrets.yaml`** — platform secrets (GitHub App private key, Stripe, Logto M2M, internal JWT keys, registry auth)
 - **`deployments/lucity-prod/infra-secrets.yaml`** — infrastructure secrets (Zot htpasswd, Soft-serve admin key, Rybbit, Logto)
 
 Copy from the corresponding `.example` files for first deploy.

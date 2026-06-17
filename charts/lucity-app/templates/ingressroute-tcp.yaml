@@ -1,0 +1,29 @@
+{{- range $name, $pg := .Values.databases.postgres }}
+{{- if and $pg.publicHost (not $.Values.suspended) }}
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRouteTCP
+metadata:
+  name: {{ include "lucity-app.fullname" $ }}-pg-{{ $name }}-tcp
+  labels:
+    {{- include "lucity-app.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: postgres-{{ $name }}
+    {{- with $.Values.commonLabels }}{{- toYaml . | nindent 4 }}{{- end }}
+    {{- with $pg.labels }}{{- toYaml . | nindent 4 }}{{- end }}
+  {{- if or $.Values.commonAnnotations $pg.annotations }}
+  annotations:
+    {{- with $.Values.commonAnnotations }}{{- toYaml . | nindent 4 }}{{- end }}
+    {{- with $pg.annotations }}{{- toYaml . | nindent 4 }}{{- end }}
+  {{- end }}
+spec:
+  entryPoints:
+    - postgres
+  routes:
+    - match: HostSNI(`{{ $pg.publicHost }}`)
+      services:
+        - name: {{ include "lucity-app.fullname" $ }}-pg-{{ $name }}-rw
+          port: 5432
+  tls:
+    passthrough: true
+{{- end }}
+{{- end }}

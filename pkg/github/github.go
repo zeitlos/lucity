@@ -8,7 +8,6 @@ import (
 	githubOAuth "golang.org/x/oauth2/github"
 )
 
-// App holds the GitHub App configuration for OAuth and API access.
 type App struct {
 	appID         int64
 	clientID      string
@@ -18,7 +17,6 @@ type App struct {
 	oauthConfig   *oauth2.Config
 }
 
-// User represents a GitHub user profile.
 type User struct {
 	Login     string
 	Name      string
@@ -55,7 +53,6 @@ func NewApp(appID int64, clientID, clientSecret, webhookSecret, callbackURL, pri
 	}, nil
 }
 
-// WebhookSecret returns the configured webhook secret for signature validation.
 func (a *App) WebhookSecret() string {
 	return a.webhookSecret
 }

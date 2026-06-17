@@ -28,7 +28,7 @@ const navItems = [
       },
       {
         label: 'Eject anytime',
-        description: 'Standard Helm charts and ArgoCD configs.',
+        description: 'Standard container images, Helm chart and environment configs.',
         icon: 'i-lucide-door-open',
         to: '/features/eject',
       },

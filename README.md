@@ -8,7 +8,7 @@
 <h1 align="center">The PaaS you can leave.</h1>
 
 <p align="center">
-  Open-source PaaS on Kubernetes. Deploy like Railway. Eject to standard Helm & ArgoCD when you're ready.
+  Deploy your code in minutes (no Dockerfile or YAML required). One-click Postgres databases. Minimal lock-in thanks to unique ejectable architecture.
 </p>
 
 <p align="center">
@@ -38,8 +38,8 @@ Lucity is a self-hosted PaaS that deploys your apps to Kubernetes from a GitHub 
 ## Why Lucity?
 
 - **No lock-in.** `lucity eject` produces real Helm charts and ArgoCD configs — the actual infrastructure-as-code, not a proprietary dump. Try asking Railway for that.
-- **No database.** The platform is stateless. All state lives in Git, Kubernetes, and your OCI registry. If Lucity goes down, your workloads keep running.
-- **No magic.** Built on Kubernetes, Helm, ArgoCD, Gateway API, and CloudNativePG. Standard `kubectl` works for everything. Nothing proprietary under the hood.
+- **No database.** The platform is stateless. All state lives in Kubernetes and your OCI registry. If Lucity goes down, your workloads keep running.
+- **No magic.** Built on Kubernetes, Helm, Gateway API, and CloudNativePG. Standard `kubectl` works for everything. Nothing proprietary under the hood.
 - **No compromise.** Swiss-engineered, self-hostable anywhere, AGPL-licensed. Or let us host it in Switzerland.
 
 ## Features
@@ -82,46 +82,37 @@ Lucity is a self-hosted PaaS that deploys your apps to Kubernetes from a GitHub 
 ```mermaid
 flowchart LR
     GH["GitHub Repo"]
-    WH["Webhook"]
-    GW["Gateway"]
-    BU["Builder"]
-    PA["Packager"]
-    DE["Deployer"]
+    CO["Conductor"]
+    BK["BuildKit"]
     ZO["OCI Registry"]
-    SS["Git Server"]
-    AR["ArgoCD"]
     K8["Kubernetes"]
     UI["Dashboard"]
+    CA["Cashier"]
 
-    GH -- "webhook" --> WH
-    WH --> GW
-    UI -- "GraphQL" --> GW
-    GW -- "gRPC" --> BU
-    GW -- "gRPC" --> PA
-    GW -- "gRPC" --> DE
-    BU -- "push image" --> ZO
-    PA -- "commit values" --> SS
-    DE -- "sync" --> AR
-    AR -- "deploy" --> K8
+    GH -- "webhook" --> CO
+    UI -- "GraphQL" --> CO
+    CO -- "build (LLB)" --> BK
+    BK -- "push image" --> ZO
+    CO -- "helm upgrade" --> K8
     ZO -. "pull" .-> K8
-    SS -. "watch" .-> AR
+    CO -- "gRPC (billing)" --> CA
 ```
 
-The platform is **stateless** — no central database. All state lives in Git (Soft-serve), Kubernetes, and the OCI registry (Zot). Your source repo is read-only to the platform; all managed configuration lives in a separate GitOps repo. If the platform goes down, your workloads keep running.
+The platform is **stateless** — no central database. All state lives in Kubernetes (namespaces, labels, Helm release state) and the OCI registry (Zot). Your source repo is read-only to the platform; deployments are applied as standard Helm releases, never written back to your repo. If the platform goes down, your workloads keep running.
 
 ## Concepts
 
-Every Lucity concept maps to standard Kubernetes and GitOps primitives — no proprietary abstractions.
+Every Lucity concept maps to standard Kubernetes and Helm primitives — no proprietary abstractions.
 
 | Concept | Source of Truth | Kubernetes |
 |---------|----------------|------------|
-| **Project** | GitOps repo on Soft-serve | Namespaces via `lucity.dev/project` label |
-| **Environment** | `environments/{env}/values.yaml` | Namespace + ArgoCD Application |
-| **Service** | `base/values.yaml` → `services.{name}` | Deployment + ClusterIP Service |
-| **Database** | `base/values.yaml` → `databases.postgres.{name}` | CloudNativePG `Cluster` + `Secret` |
+| **Project** | Namespace labels | Namespaces via `lucity.dev/project` label |
+| **Environment** | Helm release values | Namespace + Deployments |
+| **Service** | lucity-app values (`services.{name}`) | Deployment + ClusterIP Service |
+| **Database** | lucity-app values (`databases.postgres.{name}`) | CloudNativePG `Cluster` + `Secret` |
 | **Build** | OCI image in Zot registry | Tagged with commit SHA |
-| **Deployment** | Git commit in GitOps repo | ArgoCD sync → rolling update |
-| **Promotion** | Image tag copied between env values | Same digest, no rebuild |
+| **Deployment** | Helm release revision | `helm upgrade` → rolling update |
+| **Promotion** | Image digest copied between env values | Same digest, no rebuild |
 | **Domain** | `services.{name}.domains[]` | Gateway API `HTTPRoute` |
 | **Cron Job** | `cronJobs.{name}` in env values | `CronJob` |
 | **Variables** | Helm values (shared, per-service, DB refs) | `ConfigMap`, pod env, CNPG `Secret` |
@@ -144,12 +135,11 @@ For local development, see the [Contributing guide](CONTRIBUTING.md).
 | Component | Technology |
 |-----------|-----------|
 | Runtime | Kubernetes |
-| Builds | [railpack](https://github.com/nichochar/railpack) |
-| GitOps | [ArgoCD](https://argoproj.github.io/cd/) + [Helm](https://helm.sh/) |
+| Builds | [railpack](https://github.com/railwayapp/railpack) + [BuildKit](https://github.com/moby/buildkit) |
+| Deployments | [Helm](https://helm.sh/) (imperative releases) |
 | Networking | [Gateway API](https://gateway-api.sigs.k8s.io/) (Envoy) |
 | Databases | [CloudNativePG](https://cloudnative-pg.io/) |
 | Registry | [Zot](https://zotregistry.dev/) (OCI) |
-| Git Server | [Soft-serve](https://github.com/charmbracelet/soft-serve) |
 | API | GraphQL ([gqlgen](https://gqlgen.com/)) + gRPC |
 | Dashboard | [Vue 3](https://vuejs.org/) + [Vite](https://vite.dev/) |
 | Language | [Go 1.26](https://go.dev/) |

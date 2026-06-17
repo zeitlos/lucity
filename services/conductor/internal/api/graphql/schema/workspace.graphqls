@@ -1,0 +1,53 @@
+type Workspace {
+  id: ID!
+  name: String!
+  personal: Boolean!
+  suspended: Boolean!
+  members: [WorkspaceMember!]!
+}
+
+type WorkspaceMember {
+  id: ID!
+  email: String!
+  name: String
+  role: WorkspaceRole!
+}
+
+input UpdateWorkspaceInput {
+  name: String!
+}
+
+input InviteMemberInput {
+  email: String!
+  role: WorkspaceRole!
+}
+
+input UpdateMemberRoleInput {
+  userId: ID!
+  role: WorkspaceRole!
+}
+
+extend type Query {
+  workspace: Workspace! @hasRole(role: WORKSPACE_MEMBER)
+  workspaces: [Workspace!]! @hasRole(role: AUTHENTICATED)
+}
+
+input CreateWorkspaceCheckoutInput {
+  id: String! @constraint(constraint: "resource_name,min=2,max=16")
+  name: String! @constraint(constraint: "min=1,max=128")
+  plan: Plan!
+}
+
+type CheckoutSession {
+  url: String!
+}
+
+extend type Mutation {
+  createWorkspaceCheckout(input: CreateWorkspaceCheckoutInput!): CheckoutSession! @hasRole(role: AUTHENTICATED)
+  completeWorkspaceCheckout(sessionId: String!): Workspace! @hasRole(role: AUTHENTICATED)
+  updateWorkspace(input: UpdateWorkspaceInput!): Workspace! @allowSuspended @hasRole(role: WORKSPACE_ADMIN)
+  deleteWorkspace: Boolean! @allowSuspended @hasRole(role: WORKSPACE_ADMIN)
+  inviteMember(input: InviteMemberInput!): WorkspaceMember! @hasRole(role: WORKSPACE_ADMIN)
+  removeMember(userId: ID!): Boolean! @hasRole(role: WORKSPACE_ADMIN)
+  updateMemberRole(input: UpdateMemberRoleInput!): WorkspaceMember! @hasRole(role: WORKSPACE_ADMIN)
+}
