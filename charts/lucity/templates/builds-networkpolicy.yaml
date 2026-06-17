@@ -80,6 +80,7 @@ spec:
             except:
               - {{ .Values.networkPolicy.serviceCIDR }}
               - {{ .Values.networkPolicy.podCIDR }}
+              - {{ .Values.networkPolicy.linkLocalCIDR }}
 ---
 # Build Jobs: egress to BuildKit (same namespace), K8s API (annotate Job),
 # DNS, and internet (clone repos, pull dependencies).
@@ -131,4 +132,5 @@ spec:
             except:
               - {{ .Values.networkPolicy.serviceCIDR }}
               - {{ .Values.networkPolicy.podCIDR }}
+              - {{ .Values.networkPolicy.linkLocalCIDR }}
 {{- end }}

@@ -137,6 +137,8 @@ networkPolicy:
   podCIDR: 10.244.0.0/16
   # -- Kubernetes service CIDR (used to block cluster-internal egress from builds)
   serviceCIDR: 10.96.0.0/12
+  # -- Link-local CIDR (used to block cloud metadata endpoint egress from builds)
+  linkLocalCIDR: 169.254.0.0/16
 
 # -- Docs
 docs:
