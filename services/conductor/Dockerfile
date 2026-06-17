@@ -18,8 +18,23 @@ COPY services/conductor/ services/conductor/
 RUN cd services/conductor && \
     CGO_ENABLED=0 go build -ldflags="-s -w -X main.Version=${VERSION}" -o /app ./cmd/conductor/...
 
-FROM gcr.io/distroless/static-debian12
+ARG TARGETARCH=amd64
+RUN set -eux; \
+    miseVersion="$(cat "$(go env GOMODCACHE)"/github.com/railwayapp/railpack@*/core/mise/version.txt)"; \
+    case "${TARGETARCH}" in \
+      amd64) miseArch=linux-x64 ;; \
+      arm64) miseArch=linux-arm64 ;; \
+      *) echo "unsupported arch ${TARGETARCH}" >&2; exit 1 ;; \
+    esac; \
+    mkdir -p /railpack/mise; \
+    wget -qO /tmp/mise.tar.gz "https://github.com/jdx/mise/releases/download/v${miseVersion}/mise-v${miseVersion}-${miseArch}.tar.gz"; \
+    tar -xzf /tmp/mise.tar.gz -C /tmp; \
+    cp "$(find /tmp -type f -name mise -perm -u+x | head -n1)" "/railpack/mise/mise-${miseVersion}"; \
+    chmod 0755 "/railpack/mise/mise-${miseVersion}"
 
+FROM gcr.io/distroless/cc-debian12
+
+COPY --from=builder --chown=65534:65534 /railpack /tmp/railpack
 COPY --from=builder /app /app
 
 ENTRYPOINT ["/app"]
