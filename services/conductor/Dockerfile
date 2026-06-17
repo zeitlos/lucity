@@ -32,7 +32,12 @@ RUN set -eux; \
     cp "$(find /tmp -type f -name mise -perm -u+x | head -n1)" "/railpack/mise/mise-${miseVersion}"; \
     chmod 0755 "/railpack/mise/mise-${miseVersion}"
 
-FROM gcr.io/distroless/cc-debian12
+FROM debian:bookworm-slim
+
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends ca-certificates git curl xz-utils; \
+    rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder --chown=65534:65534 /railpack /tmp/railpack
 COPY --from=builder /app /app
