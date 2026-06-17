@@ -301,7 +301,8 @@ async function detectAndAddServices(environmentId: string, repo: { fullName: str
     return;
   }
 
-  const repoName = repo.fullName.split('/').pop()!;
+  // TODO: We should probably show a pre-filled input field where the user can customize the name themselves.
+  const repoName = repo.fullName.split('/').pop()!.replace(/[._]/g, '-');
 
   const addedNames: string[] = [];
   for (const svc of detected) {
