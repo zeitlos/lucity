@@ -170,7 +170,7 @@ func (c *Client) newBuildJob(id, workspaceID string, repoURL url.URL, contextPat
 	}
 
 	if varsSecret != "" {
-		volumeMounts = append(volumeMounts, core.VolumeMount{Name: "build-vars", MountPath: "/etc/lucity/build-vars", ReadOnly: true})
+		volumeMounts = append(volumeMounts, core.VolumeMount{Name: "build-vars", MountPath: "/etc/lucity", ReadOnly: true})
 		volumes = append(volumes, core.Volume{Name: "build-vars", VolumeSource: core.VolumeSource{Secret: &core.SecretVolumeSource{SecretName: varsSecret}}})
 	}
 
