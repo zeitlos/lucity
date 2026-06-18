@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/joho/godotenv"
 	"github.com/zeitlos/lucity/services/conductor/internal/buildjob"
 
 	batch "k8s.io/api/batch/v1"
@@ -66,17 +67,25 @@ func (c *Client) Start(ctx context.Context, opts buildjob.StartOptions) (*buildj
 		return nil, err
 	}
 
+	dotEnv, err := godotenv.Marshal(opts.BuildVars)
+
+	if err != nil {
+		return nil, err
+	}
+
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: secretName,
 			OwnerReferences: []metav1.OwnerReference{{
-				APIVersion: job.APIVersion,
-				Kind:       job.Kind,
+				APIVersion: "batch/v1",
+				Kind:       "Job",
 				Name:       job.Name,
 				UID:        job.UID,
 			}},
 		},
-		StringData: opts.BuildVars,
+		StringData: map[string]string{
+			".env": dotEnv,
+		},
 	}
 
 	secret, err = c.kubernetes.CoreV1().Secrets(c.namespace).Create(ctx, secret, meta.CreateOptions{})

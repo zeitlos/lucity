@@ -166,6 +166,7 @@ func (c *Client) AddService(ctx context.Context, environmentID platform.Environm
 			ContextPath:      contextPath,
 			TargetImageNames: []string{imageName},
 			Token:            token,
+			BuildVars:        service.Variables,
 		})
 
 		if err != nil {

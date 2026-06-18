@@ -83,6 +83,7 @@ func (c *Client) Deploy(ctx context.Context, serviceID ServiceID, gitRef string)
 		ContextPath:      service.ContextPath,
 		TargetImageNames: []string{imageName},
 		Token:            token,
+		BuildVars:        service.Variables,
 	})
 
 	if err != nil {
