@@ -2,7 +2,9 @@ package kubernetes
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -47,6 +49,14 @@ func (c *Client) Services(ctx context.Context, environmentID platform.Environmen
 		return nil, err
 	}
 
+	secrets, err := c.kubernetes.CoreV1().Secrets(namespace).List(ctx, meta.ListOptions{
+		LabelSelector: selector.String(),
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
 	routes, err := c.dynamic.Resource(httpRouteGVR).Namespace(namespace).List(ctx, meta.ListOptions{
 		LabelSelector: selector.String(),
 	})
@@ -68,6 +78,13 @@ func (c *Client) Services(ctx context.Context, environmentID platform.Environmen
 	for _, replicaSet := range replicaSets.Items {
 		name := replicaSet.Labels[serviceLabel]
 		replicaSetsByService[name] = append(replicaSetsByService[name], replicaSet)
+	}
+
+	secretsByService := make(map[string]core.Secret)
+
+	for _, secret := range secrets.Items {
+		name := secret.Labels[serviceLabel]
+		secretsByService[name] = secret
 	}
 
 	routesByService := make(map[string][]unstructured.Unstructured)
@@ -92,6 +109,7 @@ func (c *Client) Services(ctx context.Context, environmentID platform.Environmen
 			replicaSetsByService[name],
 			routesByService[name],
 			hpasByService[name],
+			secretsByService[name],
 			environmentID,
 		)
 
@@ -148,6 +166,12 @@ func (c *Client) Service(ctx context.Context, id platform.ServiceID) (*platform.
 		return nil, err
 	}
 
+	secret, err := c.secretFor(ctx, id)
+
+	if err != nil {
+		return nil, err
+	}
+
 	selector := labels.SelectorFromSet(labels.Set{serviceLabel: id.Name}).String()
 
 	routes, err := c.dynamic.Resource(httpRouteGVR).Namespace(id.Namespace()).List(ctx, meta.ListOptions{
@@ -172,7 +196,7 @@ func (c *Client) Service(ctx context.Context, id platform.ServiceID) (*platform.
 		hpa = hpas.Items[0]
 	}
 
-	return new(toService(*deployment, replicaSets, routes.Items, hpa, id.EnvironmentID())), nil
+	return new(toService(*deployment, replicaSets, routes.Items, hpa, *secret, id.EnvironmentID())), nil
 }
 
 func (c *Client) deploymentFor(ctx context.Context, serviceID platform.ServiceID) (*apps.Deployment, error) {
@@ -195,7 +219,27 @@ func (c *Client) deploymentFor(ctx context.Context, serviceID platform.ServiceID
 	return &deployments.Items[0], nil
 }
 
-func toService(deployment apps.Deployment, replicaSets []apps.ReplicaSet, routes []unstructured.Unstructured, hpa autoscaling.HorizontalPodAutoscaler, environmentID platform.EnvironmentID) platform.Service {
+func (c *Client) secretFor(ctx context.Context, serviceID platform.ServiceID) (*core.Secret, error) {
+	set := labels.Set{
+		serviceLabel: serviceID.Name,
+	}
+
+	secrets, err := c.kubernetes.CoreV1().Secrets(serviceID.Namespace()).List(ctx, meta.ListOptions{
+		LabelSelector: labels.SelectorFromSet(set).String(),
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	if len(secrets.Items) == 0 {
+		return nil, fmt.Errorf("variables for service %q not found", serviceID)
+	}
+
+	return &secrets.Items[0], nil
+}
+
+func toService(deployment apps.Deployment, replicaSets []apps.ReplicaSet, routes []unstructured.Unstructured, hpa autoscaling.HorizontalPodAutoscaler, secret core.Secret, environmentID platform.EnvironmentID) platform.Service {
 	annotations := deployment.Annotations
 	containers := deployment.Spec.Template.Spec.Containers
 
@@ -218,10 +262,21 @@ func toService(deployment apps.Deployment, replicaSets []apps.ReplicaSet, routes
 		ContextPath: annotations[annotationSourceContext],
 		Resources:   containerResources(containers),
 		Command:     containerCommand(containers),
-		Variables:   containerVariables(containers),
+		Variables:   make(map[string]string),
 
 		LastDeployedAt: latestReplicaSetTime(replicaSets),
 		CreatedAt:      deployment.CreationTimestamp.Time,
+	}
+
+	for key, val := range secret.Data {
+		decoded, err := base64.StdEncoding.DecodeString(string(val))
+
+		if err != nil {
+			slog.Warn("failed to decode variables", "secret", secret.Name, "key", key)
+			continue
+		}
+
+		service.Variables[key] = string(decoded)
 	}
 
 	currentRevision := deployment.Annotations[annotationRevision]
@@ -416,33 +471,6 @@ func containerResources(containers []core.Container) platform.Resources {
 	}
 }
 
-// containerVariables returns the literal env vars set on the running
-// container. Excludes HOST/PORT (chart defaults) and entries sourced from
-// secrets or ConfigMaps (those represent refs, not user-set literals).
-func containerVariables(containers []core.Container) map[string]string {
-	if len(containers) == 0 {
-		return nil
-	}
-
-	out := map[string]string{}
-
-	for _, e := range containers[0].Env {
-		if e.Name == "HOST" || e.Name == "PORT" {
-			continue
-		}
-
-		if e.ValueFrom != nil {
-			continue
-		}
-
-		out[e.Name] = e.Value
-	}
-
-	return out
-}
-
-// containerCommand returns the user's command override as a single string.
-// Empty means no override (image default is used at runtime).
 func containerCommand(containers []core.Container) string {
 	if len(containers) == 0 {
 		return ""

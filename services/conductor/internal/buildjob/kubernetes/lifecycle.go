@@ -12,8 +12,10 @@ import (
 
 	batch "k8s.io/api/batch/v1"
 	core "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/utils/ptr"
@@ -55,16 +57,35 @@ func (c *Client) Start(ctx context.Context, opts buildjob.StartOptions) (*buildj
 	}
 
 	id := "build-" + rand.String(6)
+	secretName := id + "-variables"
 
-	job := c.newBuildJob(id, opts.Workspace, *parsed, opts.ContextPath, opts.Commit, opts.Token, tag, opts.TargetImageNames)
-
-	created, err := c.kubernetes.BatchV1().Jobs(c.namespace).Create(ctx, job, meta.CreateOptions{})
+	job := c.newBuildJob(id, opts.Workspace, *parsed, opts.ContextPath, opts.Commit, opts.Token, tag, opts.TargetImageNames, secretName)
+	job, err = c.kubernetes.BatchV1().Jobs(c.namespace).Create(ctx, job, meta.CreateOptions{})
 
 	if err != nil {
 		return nil, err
 	}
 
-	return new(toJob(*created)), nil
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: secretName,
+			OwnerReferences: []metav1.OwnerReference{{
+				APIVersion: job.APIVersion,
+				Kind:       job.Kind,
+				Name:       job.Name,
+				UID:        job.UID,
+			}},
+		},
+		StringData: opts.BuildVars,
+	}
+
+	secret, err = c.kubernetes.CoreV1().Secrets(c.namespace).Create(ctx, secret, meta.CreateOptions{})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return new(toJob(*job)), nil
 }
 
 func (c *Client) Cancel(ctx context.Context, id buildjob.BuildID) (*buildjob.Job, error) {
@@ -110,7 +131,7 @@ func isDone(job batch.Job) bool {
 	return slices.Contains(terminalStatuses, status)
 }
 
-func (c *Client) newBuildJob(id string, workspaceID string, repoURL url.URL, contextPath, commit, githubToken, tag string, targetImageNames []string) *batch.Job {
+func (c *Client) newBuildJob(id, workspaceID string, repoURL url.URL, contextPath, commit, githubToken, tag string, targetImageNames []string, varsSecret string) *batch.Job {
 	targetImages := make([]string, len(targetImageNames))
 	targetRefs := make([]string, len(targetImageNames))
 
@@ -137,6 +158,11 @@ func (c *Client) newBuildJob(id string, workspaceID string, repoURL url.URL, con
 	volumes := []core.Volume{
 		{Name: "work", VolumeSource: core.VolumeSource{EmptyDir: &core.EmptyDirVolumeSource{}}},
 		{Name: "registry-auth", VolumeSource: core.VolumeSource{Secret: &core.SecretVolumeSource{SecretName: c.registryAuthSecret}}},
+	}
+
+	if varsSecret != "" {
+		volumeMounts = append(volumeMounts, core.VolumeMount{Name: "build-vars", MountPath: "/etc/lucity/build-vars", ReadOnly: true})
+		volumes = append(volumes, core.Volume{Name: "build-vars", VolumeSource: core.VolumeSource{Secret: &core.SecretVolumeSource{SecretName: varsSecret}}})
 	}
 
 	if c.buildKitTLSSecret != "" {

@@ -26,6 +26,7 @@ type StartOptions struct {
 	ContextPath      string
 	TargetImageNames []string
 	Token            string
+	BuildVars        map[string]string
 }
 
 type Job struct {
