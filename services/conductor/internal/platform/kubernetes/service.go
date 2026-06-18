@@ -2,9 +2,7 @@ package kubernetes
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
-	"log/slog"
 	"strings"
 	"time"
 
@@ -269,14 +267,7 @@ func toService(deployment apps.Deployment, replicaSets []apps.ReplicaSet, routes
 	}
 
 	for key, val := range secret.Data {
-		decoded, err := base64.StdEncoding.DecodeString(string(val))
-
-		if err != nil {
-			slog.Warn("failed to decode variables", "secret", secret.Name, "key", key)
-			continue
-		}
-
-		service.Variables[key] = string(decoded)
+		service.Variables[key] = string(val)
 	}
 
 	currentRevision := deployment.Annotations[annotationRevision]
