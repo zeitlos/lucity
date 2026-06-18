@@ -68,6 +68,8 @@ spec:
               drop:
                 - ALL
           envFrom:
+            - secretRef:
+                name: {{ include "lucity-app.fullname" $ }}-{{ $name }}-vars
             - configMapRef:
                 name: {{ include "lucity-app.fullname" $ }}-shared
                 optional: true
@@ -77,10 +79,6 @@ spec:
               value: "0.0.0.0"
             - name: PORT
               value: {{ $svc.port | quote }}
-            {{- end }}
-            {{- range $key, $val := $svc.env }}
-            - name: {{ $key }}
-              value: {{ $val | quote }}
             {{- end }}
             {{- range $key, $ref := $svc.databaseRefs }}
             - name: {{ $key }}
