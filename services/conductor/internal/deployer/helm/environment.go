@@ -2,6 +2,7 @@ package helm
 
 import (
 	"context"
+	"log/slog"
 	"strconv"
 
 	"github.com/blang/semver/v4"
@@ -69,6 +70,8 @@ func (e *environmentClient) Reconcile(ctx context.Context, id platform.Environme
 	if !updateRequired {
 		return deployer.RevisionID(strconv.Itoa(metadata.Revision)), nil
 	}
+
+	slog.Info("reconcile environment", "environment", id)
 
 	return e.client.applyEnv(ctx, id, func(env *values.Env) error {
 		// Empty apply to ensure a fresh install.
