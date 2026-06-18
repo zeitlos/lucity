@@ -1,82 +1,41 @@
-# Architecture & Design Principles
+# Architecture
 
-## Simplicity First
+The principles that shape every design decision. When a change conflicts with one of these, reconsider the change, not the principle.
 
-Prefer simplicity over abstraction. Simple code is easier to read, debug, and operate. Three similar lines of code are better than a premature abstraction. Don't build frameworks — build features.
+## Stateless
 
-If a design feels complicated, step back and ask: is there a simpler way? Usually there is.
+No central database. All state is derived from external systems of record: Kubernetes (namespaces, labels, Helm release state, operator CRDs), the OCI registry (images, tags, digests), and the identity provider (users, roles, workspaces). If you reach for a database, you are almost certainly solving the wrong problem. A read-optimized cache is acceptable only when it is fully derivable from those sources.
 
-## Stateless Platform
+## Ejectable
 
-No central database. All state is derived from external systems:
+Every feature must survive ejection as standard Kubernetes, Helm, and ArgoCD config with no Lucity dependency. If a feature can't be expressed as plain infrastructure-as-code, it doesn't belong in the platform.
 
-- **Kubernetes**: namespaces, labels, Helm release state (Secrets), operator CRDs
-- **OCI Registry (Zot)**: built images, tags, digests
-- **Identity Provider (OIDC/Logto)**: users, roles, authentication, workspace metadata
+## Discovery over definition
 
-If you're tempted to add a database, reconsider. The right answer is almost always to store state in one of the systems above. A read-optimized cache may be acceptable when query performance demands it, but it must be derivable from the sources above.
+Truth lives in Kubernetes, queried via `lucity.dev/*` labels and annotations. Don't invent CRDs or mapping tables when a label selector answers the question. Don't duplicate state that Helm, an operator, or the registry already owns.
 
-## Ejectability
+## The user's repo is sacred
 
-Every feature must be ejectable to standard Kubernetes, Helm, and ArgoCD configurations. If a feature can't be represented as standard infrastructure-as-code after ejection, it doesn't belong in the platform.
+The platform reads source repos and writes to them never: not a commit, not a file, not a hook. All platform-managed config lives outside the user's repo, as the Helm values the control plane computes and applies.
 
-Test this by asking: "If a user runs `lucity eject` right now, does this feature survive?"
+## Zero-trust
 
-## User's Repo is Sacred
+Users and workspaces are hostile by default; the platform runs arbitrary user code on shared infrastructure. Three trust boundaries, hardest first:
 
-The platform never writes to the user's source repository. Not a commit, not a file, not a webhook configuration file. The user's repo is read-only to the platform. All platform-managed configuration lives outside the user's repo, as the Helm release values the conductor computes and applies.
+1. **Platform vs. workloads** — the platform namespace is the crown jewel. Workloads must never reach it. This boundary never breaks.
+2. **Workspace vs. workspace** — hard isolation. No tenant ever sees or touches another's data, images, or workloads.
+3. **Environment vs. environment** — soft isolation, same owner, separate blast radius.
 
-## Zero-Trust Security
+Never trust a user-provided value that crosses into Kubernetes (names, env keys, refs, domains, start commands), shell, or a template. Validate at the boundary; pass values as structured data, never string-interpolated. Workspace identity comes from the verified token, never from a parameter. Every new feature is secure by default: assume a malicious user controls each input and ask whether it can escape a boundary, reach another tenant, or exhaust shared resources.
 
-Users and workspaces are hostile by default. Every user is assumed to be malicious. Never trust user-provided values. Never trust user-generated code. All inputs crossing a trust boundary must be validated and sanitized. Workspaces are hard isolation boundaries. Build-time execution of user code is the highest-risk operation on the platform.
+## Deployment model
 
-See `security.md` for comprehensive rules covering input validation, injection prevention, workspace isolation, build-time security, runtime isolation, and platform service protection.
+One Helm release per project per environment, applied imperatively and idempotently. The control plane generates chart *values*; it never touches chart templates. A change (replicas, image, variable) is a fresh release revision. Promotion copies an image digest between environments and re-applies; it never rebuilds. Operations on external state must be safe to repeat: detect existing state and converge, treat "already gone" as success.
 
-## Discovery Over Definition
+## Simplicity
 
-Query Kubernetes for truth via labels and annotations. Don't define custom CRDs. Don't maintain mapping tables.
+Prefer three plain lines to one premature abstraction. Build features, not frameworks. A little copying beats a little dependency. Features must be operable by a small team: self-healing over manual intervention, small blast radius, observability built in.
 
-- A "Project" is namespaces with `lucity.dev/project` labels
-- A "Service" is a Deployment discovered via Helm values or K8s API
-- A "Database" is a CNPG Cluster CRD with platform labels
+## No backward compatibility
 
-Standard `kubectl` works for everything. No special tooling needed.
-
-## Loose Coupling
-
-The control plane is a single binary (conductor); the one cross-service boundary, conductor ↔ cashier, talks over gRPC for commands but doesn't hold connections open for long-running operations. Use polling and observation:
-
-- Watch the OCI registry for built images to appear
-- Poll Helm/Kubernetes for rollout status
-- Query Kubernetes for deployment state
-
-Components own their domain behind narrow interfaces. For long-running work, observe state rather than holding a connection open.
-
-## Minimal Day-2 Operations
-
-Features should be operable by a small team. Ask:
-
-- Does this add ongoing maintenance burden?
-- Can it self-heal or does it need manual intervention?
-- What happens when it breaks — does the blast radius stay small?
-- Is observability built in, not bolted on?
-
-If a feature can't be run without a dedicated on-call team, it's too complex.
-
-## Idempotent Operations
-
-Operations that touch external state — applying Helm releases, pushing images, creating namespaces — must be idempotent. If something already exists, detect it and handle it gracefully instead of failing.
-
-- **Create operations**: check if the resource already exists and is in the expected state. If yes, return success. If it exists but is incomplete (partial failure), recover by completing the remaining steps.
-- **Delete operations**: if the resource is already gone, return success — don't error on "not found".
-- **Update operations**: verify current state before applying changes. Don't assume a clean slate.
-
-This matters because the platform is stateless and distributed. Retries, crashes, and partial failures are normal. Every operation should be safe to repeat.
-
-## No Backward Compatibility
-
-Don't support legacy API versions. Just change APIs directly — no fallbacks, no deprecation shims, no version negotiation. This is an early-stage project with no external consumers. Clean breaks are better than compatibility layers.
-
-## Don't Reinvent
-
-If Helm, a Kubernetes operator, or the OCI registry already manages a piece of state, use it. Don't duplicate it. Don't wrap it in an unnecessary abstraction. Leverage what's already there.
+Early-stage, no external consumers. Change APIs directly. No fallbacks, no deprecation shims, no version negotiation.

@@ -1,82 +1,10 @@
-# Vue Conventions
+# Frontend (Vue 3)
 
-## Framework
+`<script setup lang="ts">` throughout. Standard Vue/TS idioms assumed. Project-specific rules:
 
-Vue 3 + Vite + TypeScript. Always use `<script setup lang="ts">`.
-
-## Components
-
-- PascalCase filenames: `BaseButton.vue`, `ProjectCard.vue`
-- `Base*` prefix for atomic/reusable primitives
-- Feature or domain prefix for page-specific components
-- Polymorphic components: use `useAttrs()` to detect `to`/`href` and render `RouterLink`, `<a>`, or `<button>`
-
-## Navigation
-
-App-local links must use `RouterLink` (or `router.push`) for SPA navigation — never plain `<a href>` which causes full page reloads. For shadcn/Reka components that render `<a>` by default (e.g. `BreadcrumbLink`), use `as-child` with a `RouterLink` slot. External links use `<a>` as normal.
-
-## Props & Events
-
-```vue
-<script setup lang="ts">
-const props = defineProps<{
-  color?: ButtonColors;
-  loading?: boolean;
-}>();
-
-const emit = defineEmits<{
-  (e: 'update', value: string): void;
-}>();
-</script>
-```
-
-## Global Context
-
-The header breadcrumb provides project and environment context via `useEnvironment()`. Components must read `activeEnvironment` from this composable — never add local environment selectors or project pickers. The global `EnvironmentSwitcher` is the single control for environment selection. Same applies to project context from the route.
-
-## Composables
-
-- `use<Name>` convention in `composables/` directory
-- Small, focused, heavily composed
-- Examples: `useAuth`, `useProjects`, `useToast`, `useConfirmation`, `useLoading`
-
-## State Management
-
-- Apollo cache for server state (GraphQL)
-- Composables for local/shared state
-- `provide`/`inject` for hierarchical state
-- No Vuex or Pinia
-
-## Styling
-
-- Tailwind CSS v4 with `@tailwindcss/vite` plugin
-- `cn()` helper (clsx + tailwind-merge) for conditional classes
-- Icons: `lucide-vue-next`
-
-## UI Libraries
-
-- shadcn-vue + Reka UI (`components/ui/`)
-- **Never use `export` inside `<script setup>`** — `<script setup>` cannot contain ES module exports. If a component needs to export a value (e.g. `cva` variants), use a separate `<script lang="ts">` block for the export and keep component logic in `<script setup lang="ts">`
-- shadcn-vue components live in `src/components/ui/` and are exempt from `vue/multi-word-component-names` via eslint config
-- Never manually edit shadcn-vue components unless fixing a build/lint issue — regenerate with the CLI instead
-
-## Imports
-
-- `@/` alias for `src/` directory
-- `import type { ... }` for type-only imports
-
-## GraphQL
-
-- Codegen from the conductor's GraphQL schema via `npm run codegen`
-- `graphql()` template tag for defining queries and mutations in `.ts` files
-- Import generated `*Document` nodes and types from `@/gql/graphql` (not manual per-domain files)
-- Fragment-based reuse for shared fields
-
-## ESLint (enforced)
-
-- Single quotes
-- Semicolons required
-- Max 3 attributes per single-line element
-- Props don't require defaults
-- Always run `npx eslint .` from `services/dashboard/` before committing frontend changes
-- shadcn-vue overrides in `eslint.config.ts`: `multi-word-component-names`, `no-explicit-any`, `no-unused-vars` are off for `src/components/ui/**`
+- **No `export` inside `<script setup>`** — it's not a module context. If a component must export something (e.g. `cva` variants), use a separate `<script lang="ts">` block.
+- **Global context, not local pickers.** Project and environment context come from shared composables (the header breadcrumb / environment switcher are the single source). Never add a local project or environment selector to a page.
+- **SPA navigation only.** App-local links use `RouterLink` / `router.push`, never `<a href>` (full reload). For UI-library components that render `<a>`, use `as-child` with a `RouterLink` slot.
+- **Server state in the Apollo cache, shared local state in composables.** No Vuex/Pinia.
+- **shadcn-vue components are generated** — regenerate via the CLI rather than hand-editing, except to fix a build/lint break.
+- Style is enforced by ESLint/Prettier; don't restate it here, just run the linter before finishing frontend work.

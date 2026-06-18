@@ -9,7 +9,7 @@ Open-source PaaS on Kubernetes with full ejectability. Monorepo with a single Go
 - **Monorepo**: `services/conductor` (control plane), `services/cashier` (billing), `services/dashboard` (Vue), `pkg/` (shared Go), `charts/` (Helm)
 - **Platform images**: `ghcr.io/zeitlos/lucity/{conductor,cashier,dashboard,docs}`
 - **User workload images**: Zot (self-hosted OCI registry, `localhost:5000` in dev)
-- **Coding rules**: see `.claude/rules/` for Go, Vue, GraphQL, deployment, general, architecture, and marketing conventions
+- **Coding rules**: see `.claude/rules/` for architecture, Go, frontend, GraphQL, marketing, and working conventions
 
 ## Build & Run
 
