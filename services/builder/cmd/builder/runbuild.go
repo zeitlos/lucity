@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -18,6 +20,7 @@ import (
 	"github.com/moby/buildkit/client/llb"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/session/auth/authprovider"
+	"github.com/moby/buildkit/session/secrets/secretsprovider"
 	_ "github.com/moby/buildkit/util/grpcutil/encoding/proto"
 	"github.com/moby/buildkit/util/progress/progressui"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
@@ -29,7 +32,7 @@ import (
 	"github.com/tonistiigi/fsutil"
 )
 
-func executeBuild(cfg Config) error {
+func executeBuild(cfg Config, buildVars map[string]string) error {
 	if len(cfg.TargetRefs) == 0 || cfg.TargetRefs[0] == "" {
 		return fmt.Errorf("BUILD_TARGET_REFS is empty")
 	}
@@ -79,7 +82,7 @@ func executeBuild(cfg Config) error {
 
 	slog.Info("generating railpack plan", "dir", buildDir)
 
-	buildPlan, err := generatePlan(buildDir)
+	buildPlan, err := generatePlan(buildDir, buildVars)
 
 	if err != nil {
 		return err
@@ -93,7 +96,7 @@ func executeBuild(cfg Config) error {
 
 	slog.Info("building image", "image", imageName, "cache", cacheRef)
 
-	digest, err := buildWithBuildKit(context.Background(), cfg, buildDir, imageName, cacheRef, buildPlan)
+	digest, err := buildWithBuildKit(context.Background(), cfg, buildDir, imageName, cacheRef, buildVars, buildPlan)
 
 	if err != nil {
 		return err
@@ -216,13 +219,13 @@ func normalizeTimestamps(repoPath string) error {
 	})
 }
 
-func generatePlan(buildDir string) (*plan.BuildPlan, error) {
+func generatePlan(buildDir string, buildVariables map[string]string) (*plan.BuildPlan, error) {
 	a, err := app.NewApp(buildDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read app: %w", err)
 	}
 
-	env := app.NewEnvironment(nil)
+	env := app.NewEnvironment(&buildVariables)
 	result := core.GenerateBuildPlan(a, env, &core.GenerateBuildPlanOptions{})
 	if !result.Success || result.Plan == nil {
 		errMsg := "unknown error"
@@ -247,7 +250,7 @@ func generatePlan(buildDir string) (*plan.BuildPlan, error) {
 //
 // The platform's OCI registry (Zot) is served over plain HTTP on the cluster-internal
 // address, so all registry interactions are flagged insecure.
-func buildWithBuildKit(ctx context.Context, cfg Config, buildDir, imageName, cacheRef string, buildPlan *plan.BuildPlan) (string, error) {
+func buildWithBuildKit(ctx context.Context, cfg Config, buildDir, imageName, cacheRef string, buildVars map[string]string, buildPlan *plan.BuildPlan) (string, error) {
 	var clientOpts []client.ClientOpt
 
 	if cfg.BuildkitTLSCACert != "" {
@@ -263,10 +266,17 @@ func buildWithBuildKit(ctx context.Context, cfg Config, buildDir, imageName, cac
 	}
 	defer c.Close()
 
+	secretsMap := make(map[string][]byte, len(buildVars))
+
+	for k, v := range buildVars {
+		secretsMap[k] = []byte(v)
+	}
+
 	// Convert railpack plan to LLB
 	buildPlatform := specs.Platform{OS: "linux", Architecture: "amd64"}
 	llbState, image, err := rpbuildkit.ConvertPlanToLLB(buildPlan, rpbuildkit.ConvertPlanOptions{
 		BuildPlatform: buildPlatform,
+		SecretsHash:   hashMap(secretsMap),
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to convert plan to LLB: %w", err)
@@ -322,7 +332,8 @@ func buildWithBuildKit(ctx context.Context, cfg Config, buildDir, imageName, cac
 		slog.Warn("failed to load docker config for registry auth", "error", err)
 	}
 
-	var sessionAttachables []session.Attachable
+	sessionAttachables := []session.Attachable{secretsprovider.FromMap(secretsMap)}
+
 	if dockerCfg != nil {
 		sessionAttachables = append(sessionAttachables, authprovider.NewDockerAuthProvider(authprovider.DockerAuthProviderConfig{
 			AuthConfigProvider: authprovider.LoadAuthConfig(dockerCfg),
@@ -372,4 +383,11 @@ func buildWithBuildKit(ctx context.Context, cfg Config, buildDir, imageName, cac
 
 	slog.Info("buildkit solve completed", "duration", time.Since(startTime).Round(time.Millisecond))
 	return resp.ExporterResponse["containerimage.digest"], nil
+}
+
+func hashMap(vars map[string][]byte) string {
+	b, _ := json.Marshal(vars) // Go sorts map keys in JSON output
+	sum := sha256.Sum256(b)
+
+	return hex.EncodeToString(sum[:])
 }

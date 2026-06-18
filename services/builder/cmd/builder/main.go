@@ -4,9 +4,10 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/kelseyhightower/envconfig"
-
 	"github.com/zeitlos/lucity/pkg/logger"
+
+	"github.com/joho/godotenv"
+	"github.com/kelseyhightower/envconfig"
 )
 
 type Config struct {
@@ -24,6 +25,8 @@ type Config struct {
 	BuildkitServer    string `envconfig:"BUILDKIT_SERVER_NAME"`
 }
 
+const buildVarsFile = "/etc/lucity/.env"
+
 func main() {
 	logger.Setup("info")
 
@@ -40,7 +43,20 @@ func main() {
 		"target_refs", config.TargetRefs,
 	)
 
-	if err := executeBuild(config); err != nil {
+	var buildVars map[string]string
+
+	if _, err := os.Stat(buildVarsFile); err == nil {
+		buildVars, err = godotenv.Read("/etc/lucity/.env")
+
+		if err != nil {
+			slog.Error("failed to load build vars file", "error", err, "file", buildVarsFile)
+			os.Exit(1)
+		}
+
+		slog.Info("build vars loaded from file", "file", buildVarsFile, "varsCount", len(buildVars))
+	}
+
+	if err := executeBuild(config, buildVars); err != nil {
 		slog.Error("build failed", "error", err)
 
 		os.Exit(1)
