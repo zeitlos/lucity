@@ -9,6 +9,7 @@ replace (
 
 require (
 	github.com/99designs/gqlgen v0.17.90
+	github.com/blang/semver/v4 v4.0.0
 	github.com/coreos/go-oidc/v3 v3.17.0
 	github.com/go-git/go-git/v5 v5.18.0
 	github.com/go-playground/validator/v10 v10.30.2
@@ -16,6 +17,7 @@ require (
 	github.com/google/go-github/v68 v68.0.0
 	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674
 	github.com/jackc/pgx/v5 v5.9.2
+	github.com/joho/godotenv v1.5.1
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/railwayapp/railpack v0.23.0
 	github.com/rs/cors v1.11.1
@@ -41,7 +43,6 @@ require (
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
 	github.com/avast/retry-go/v5 v5.0.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/chai2010/gettext-go v1.0.2 // indirect
 	github.com/cloudnative-pg/barman-cloud v0.5.0 // indirect
