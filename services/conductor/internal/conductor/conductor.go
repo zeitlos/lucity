@@ -54,6 +54,7 @@ type Client struct {
 }
 
 type Config struct {
+	Version              string
 	RegistryPullSecret   authn.Keychain
 	RegistryURL          string
 	RegistryPushURL      string

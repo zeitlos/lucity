@@ -9,9 +9,28 @@ import (
 )
 
 const domainReconcileInterval = 2 * time.Minute
+const serviceReconcileInterval = 2 * time.Minute
 
 func runDomainReconciler(ctx context.Context, c *conductor.Client) {
-	ticker := time.NewTicker(domainReconcileInterval)
+	reconcile(ctx, domainReconcileInterval, func() {
+		if err := c.ReconcileDomains(ctx); err != nil {
+			slog.Error("domain reconcile failed", "error", err)
+		}
+	})
+}
+
+func runServiceReconciler(ctx context.Context, c *conductor.Client) {
+	reconcile(ctx, serviceReconcileInterval, func() {
+		if err := c.ReconcileServices(ctx); err != nil {
+			slog.Error("service reconcile failed", "error", err)
+		}
+	})
+}
+
+func reconcile(ctx context.Context, interval time.Duration, fun func()) {
+	fun()
+
+	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
 	for {
@@ -19,9 +38,8 @@ func runDomainReconciler(ctx context.Context, c *conductor.Client) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			if err := c.ReconcileDomains(ctx); err != nil {
-				slog.Error("domain reconcile failed", "error", err)
-			}
+			fun()
 		}
 	}
+
 }

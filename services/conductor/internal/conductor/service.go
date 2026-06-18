@@ -322,6 +322,31 @@ func (c *Client) RemoveDomain(ctx context.Context, serviceID platform.ServiceID,
 	return c.Service(ctx, serviceID)
 }
 
+func (c *Client) ReconcileServices(ctx context.Context) error {
+	workspaces, err := c.directory.Workspaces(ctx)
+
+	if err != nil {
+		return err
+	}
+
+	for _, workspace := range workspaces {
+		environments, err := c.platform.EnvironmentsByWorkspace(ctx, workspace.ID)
+
+		if err != nil {
+			slog.Warn("reconcile services: failed to list projects", "error", err, "workspace", workspace.ID)
+			continue
+		}
+
+		for _, environment := range environments {
+			if _, err := c.deployer.Environments().Reconcile(ctx, environment.ID); err != nil {
+				slog.Warn("reconcile services: failed to reconcile", "error", err, "environment", environment)
+			}
+		}
+	}
+
+	return nil
+}
+
 func (c *Client) imageRepository(id ServiceID) string {
 	return id.Workspace + "/" + id.Project + "/" + id.Name
 }

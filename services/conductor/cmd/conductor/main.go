@@ -4,21 +4,7 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/kelseyhightower/envconfig"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
-
-	"github.com/zeitlos/lucity/pkg/auth"
-	"github.com/zeitlos/lucity/pkg/cashier"
-	ghpkg "github.com/zeitlos/lucity/pkg/github"
-	"github.com/zeitlos/lucity/pkg/graceful"
-	"github.com/zeitlos/lucity/pkg/logger"
-	"github.com/zeitlos/lucity/pkg/logto"
-
-	kauth "github.com/google/go-containerregistry/pkg/authn/kubernetes"
+	"github.com/blang/semver/v4"
 	"github.com/zeitlos/lucity/charts"
 	webhookhttp "github.com/zeitlos/lucity/services/conductor/internal/api/webhook/http"
 	buildjobK8s "github.com/zeitlos/lucity/services/conductor/internal/buildjob/kubernetes"
@@ -33,8 +19,23 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/resources"
 	sourceGH "github.com/zeitlos/lucity/services/conductor/internal/source/github"
 	conductorgrpc "github.com/zeitlos/lucity/services/conductor/internal/transport/grpc"
+
+	"github.com/zeitlos/lucity/pkg/auth"
+	"github.com/zeitlos/lucity/pkg/cashier"
+	ghpkg "github.com/zeitlos/lucity/pkg/github"
+	"github.com/zeitlos/lucity/pkg/graceful"
+	"github.com/zeitlos/lucity/pkg/logger"
+	"github.com/zeitlos/lucity/pkg/logto"
+
+	kauth "github.com/google/go-containerregistry/pkg/authn/kubernetes"
+	"github.com/kelseyhightower/envconfig"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 type Config struct {
@@ -218,6 +219,13 @@ func main() {
 		os.Exit(1)
 	}
 
+	version, err := semver.Parse(Version)
+
+	if err != nil {
+		slog.Error("failed to parse version", "error", err, "version", Version)
+		os.Exit(1)
+	}
+
 	source := sourceGH.New(githubApp)
 
 	planner := railpack.New()
@@ -229,7 +237,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	deployerClient := helmDeployer.New(chartRef, config.GatewayName, config.GatewayNamespace, resources.DefaultCPULimit, resources.DefaultMemoryLimit)
+	chartRef.Metadata.Version = version.String()
+
+	deployerClient, err := helmDeployer.New(chartRef, config.GatewayName, config.GatewayNamespace, resources.DefaultCPULimit, resources.DefaultMemoryLimit)
+
+	if err != nil {
+		slog.Error("failed to create deployer client", "error", err)
+		os.Exit(1)
+	}
 
 	hostnameClient := hostname.New(config.WorkloadDomain, domainTarget, config.IPAddress, config.GatewayNamespace, k8sClient, dynClient)
 
@@ -238,6 +253,7 @@ func main() {
 	environmentClient := environmentK8s.New(k8sClient, dynClient, config.SystemNamespace, config.RegistryPullSecret, config.PodCIDR, config.ServiceCIDR)
 
 	conductorConfig := conductor.Config{
+		Version:              Version,
 		RegistryURL:          config.RegistryURL,
 		RegistryPushURL:      config.RegistryURL,
 		RegistryPullURL:      config.RegistryPullURL,
@@ -252,6 +268,7 @@ func main() {
 	conductor := conductor.New(cashierClient, githubApp, logtoClient, tokenRefresher, directoryClient, platformClient, jobsClient, planner, source, hostnameClient, gatewayClient, deployerClient, environmentClient, conductorConfig)
 
 	go runDomainReconciler(ctx, conductor)
+	go runServiceReconciler(ctx, conductor)
 
 	// ---- Servers ----
 	components := []grpcComponent{}

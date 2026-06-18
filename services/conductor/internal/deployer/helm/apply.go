@@ -30,7 +30,7 @@ func (c *Client) applyEnv(ctx context.Context, envID platform.EnvironmentID, mut
 		return "", err
 	}
 
-	env, err := loadCurrent(config, releaseName)
+	env, err := loadCurrent(config)
 
 	if err != nil {
 		return "", err
@@ -67,9 +67,6 @@ func (c *Client) applyEnv(ctx context.Context, envID platform.EnvironmentID, mut
 // whether the release already exists. The helm SDK's Upgrade.Install field
 // is purely informational — it does NOT auto-install missing releases.
 // Callers must check history and route manually.
-//
-// Release name equals the namespace (see helm release naming notes); we
-// reuse it across the install/upgrade branches.
 func installOrUpgrade(ctx context.Context, config *action.Configuration, releaseName, namespace string, chart *helmchart.Chart, vals map[string]any) (*release.Release, error) {
 	exists, replace, err := releaseState(config, releaseName)
 
@@ -132,22 +129,22 @@ func releaseState(config *action.Configuration, name string) (exists, replace bo
 }
 
 func (c *Client) loadEnv(_ context.Context, envID platform.EnvironmentID) (*values.Env, error) {
-	ns := envID.Namespace()
+	namespace := envID.Namespace()
 
 	cfg := new(action.Configuration)
 
-	if err := cfg.Init(restGetterFor(ns), ns, "secret", debugLog); err != nil {
+	if err := cfg.Init(restGetterFor(namespace), namespace, "secret", debugLog); err != nil {
 		return nil, err
 	}
 
-	return loadCurrent(cfg, releaseName)
+	return loadCurrent(cfg)
 }
 
-func loadCurrent(cfg *action.Configuration, name string) (*values.Env, error) {
+func loadCurrent(cfg *action.Configuration) (*values.Env, error) {
 	get := action.NewGetValues(cfg)
 	get.AllValues = true
 
-	raw, err := get.Run(name)
+	raw, err := get.Run(releaseName)
 
 	if errors.Is(err, driver.ErrReleaseNotFound) {
 		return values.New(), nil

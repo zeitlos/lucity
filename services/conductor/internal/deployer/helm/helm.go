@@ -1,16 +1,16 @@
 package helm
 
 import (
-	"helm.sh/helm/v3/pkg/chart"
-	"helm.sh/helm/v3/pkg/cli"
-	"k8s.io/apimachinery/pkg/api/resource"
-
+	"github.com/blang/semver/v4"
 	"github.com/zeitlos/lucity/services/conductor/internal/deployer"
+
+	"helm.sh/helm/v3/pkg/chart"
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 type Client struct {
+	chartVersion     semver.Version
 	chart            *chart.Chart
-	settings         *cli.EnvSettings
 	gatewayName      string
 	gatewayNamespace string
 
@@ -18,16 +18,22 @@ type Client struct {
 	defaultMemoryLimit resource.Quantity
 }
 
-func New(chart *chart.Chart, gatewayName, gatewayNamespace string, defaultCPULimit, defaultMemoryLimit resource.Quantity) *Client {
+func New(chart *chart.Chart, gatewayName, gatewayNamespace string, defaultCPULimit, defaultMemoryLimit resource.Quantity) (*Client, error) {
+	chartVersion, err := semver.Parse(chart.Metadata.Version)
+
+	if err != nil {
+		return nil, err
+	}
+
 	return &Client{
+		chartVersion:     chartVersion,
 		chart:            chart,
-		settings:         cli.New(),
 		gatewayName:      gatewayName,
 		gatewayNamespace: gatewayNamespace,
 
 		defaultCPULimit:    defaultCPULimit,
 		defaultMemoryLimit: defaultMemoryLimit,
-	}
+	}, nil
 }
 
 func (c *Client) Services() deployer.ServiceClient {

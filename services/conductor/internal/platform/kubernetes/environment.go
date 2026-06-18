@@ -64,6 +64,30 @@ func (c *Client) Environment(ctx context.Context, id platform.EnvironmentID) (*p
 	return &env, nil
 }
 
+func (c *Client) EnvironmentsByWorkspace(ctx context.Context, workspaceID string) ([]platform.Environment, error) {
+	set := labels.Set{
+		workspaceLabel: workspaceID,
+	}
+
+	list, err := c.kubernetes.CoreV1().Namespaces().List(ctx, meta.ListOptions{
+		LabelSelector: labels.SelectorFromSet(set).String(),
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]platform.Environment, 0, len(list.Items))
+
+	for _, namespace := range list.Items {
+		env := toEnvironment(namespace)
+		env.Variables, _ = c.sharedVariables(ctx, namespace.Name)
+		result = append(result, env)
+	}
+
+	return result, nil
+}
+
 // sharedVariables returns the contents of the namespace's shared-variables
 // ConfigMap. Returns nil if no such ConfigMap exists (release not yet
 // installed, or no shared vars configured).

@@ -11,6 +11,7 @@ type Interface interface {
 
 	Environments(ctx context.Context, projectID ProjectID) ([]Environment, error)
 	Environment(ctx context.Context, id EnvironmentID) (*Environment, error)
+	EnvironmentsByWorkspace(ctx context.Context, workspaceID string) ([]Environment, error)
 
 	Services(ctx context.Context, environmentID EnvironmentID) ([]Service, error)
 	Service(ctx context.Context, id ServiceID) (*Service, error)
