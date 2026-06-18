@@ -40,7 +40,6 @@ func executeBuild(cfg Config) error {
 		return fmt.Errorf("failed to create work dir: %w", err)
 	}
 
-	// 1. Wait for BuildKit to be ready
 	slog.Info("waiting for buildkit")
 
 	if err := waitForBuildKit(cfg.BuildkitAddr); err != nil {
@@ -118,7 +117,6 @@ func stripTag(ref string) string {
 	return ref
 }
 
-// waitForBuildKit waits for BuildKit to become available (TCP or Unix socket).
 func waitForBuildKit(addr string) error {
 	network := "unix"
 	dialAddr := strings.TrimPrefix(addr, "unix://")
@@ -128,20 +126,23 @@ func waitForBuildKit(addr string) error {
 		dialAddr = strings.TrimPrefix(addr, "tcp://")
 	}
 
-	for i := 0; i < 60; i++ {
+	for range 60 {
 		conn, err := net.DialTimeout(network, dialAddr, time.Second)
+
 		if err == nil {
 			conn.Close()
 			return nil
 		}
+
 		time.Sleep(time.Second)
 	}
+
 	return fmt.Errorf("buildkit not available at %s after 60s", addr)
 }
 
-// cloneForBuild clones a repo for the build runner.
 func cloneForBuild(workDir, sourceURL, token string) (string, error) {
 	tmpDir, err := os.MkdirTemp(workDir, "build-*")
+
 	if err != nil {
 		return "", fmt.Errorf("failed to create work dir: %w", err)
 	}
@@ -215,7 +216,6 @@ func normalizeTimestamps(repoPath string) error {
 	})
 }
 
-// generatePlan creates a railpack build plan from the source directory.
 func generatePlan(buildDir string) (*plan.BuildPlan, error) {
 	a, err := app.NewApp(buildDir)
 	if err != nil {
