@@ -39,12 +39,16 @@ func (s *serviceClient) Delete(ctx context.Context, id platform.ServiceID) error
 	return err
 }
 
-func (s *serviceClient) SetImage(ctx context.Context, id platform.ServiceID, ref image.Ref, provenance deployer.ImageProvenance) (deployer.RevisionID, error) {
+func (s *serviceClient) SetImage(ctx context.Context, id platform.ServiceID, ref image.Ref, provenance deployer.ImageProvenance, release deployer.ReleaseMeta) (deployer.RevisionID, error) {
 	return s.client.applyEnv(ctx, id.EnvironmentID(), func(e *values.Env) error {
 		return values.SetServiceImage(e, id.Name, ref, values.ImageProvenance{
 			Commit:        provenance.Commit,
 			CommitMessage: provenance.CommitMessage,
 			BuildID:       provenance.BuildID,
+		}, values.ReleaseMeta{
+			ID:      release.ID,
+			Trigger: string(release.Trigger),
+			Actor:   release.Actor,
 		})
 	})
 }

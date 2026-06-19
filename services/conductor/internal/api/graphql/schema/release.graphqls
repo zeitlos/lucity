@@ -1,0 +1,59 @@
+type Release {
+  id: ReleaseID!
+  status: ReleaseStatus!
+
+  source: GitSource
+  trigger: ReleaseTrigger!
+
+  build: Build
+  deployment: Deployment
+
+  createdAt: Time!
+}
+
+type GitSource {
+  provider: SourceProvider!
+  repository: String!
+  url: String!
+  ref: String!
+  contextPath: String!
+  commit: Commit!
+}
+
+type Commit {
+  sha: String!
+  message: String!
+  url: String
+}
+
+type ReleaseTrigger {
+  kind: ReleaseTriggerKind!
+  actor: String
+}
+
+enum SourceProvider {
+  GITHUB
+  GITLAB
+  BITBUCKET
+}
+
+enum ReleaseStatus {
+  QUEUED
+  BUILDING
+  DEPLOYING
+  LIVE
+  FAILED
+  CANCELLED
+  SUPERSEDED
+}
+
+enum ReleaseTriggerKind {
+  MANUAL
+  ROLLBACK
+  PROMOTION
+  PUSH
+}
+
+extend type Service {
+  releases: [Release!]! @goField(forceResolver: true)
+}

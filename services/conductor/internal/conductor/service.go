@@ -157,6 +157,9 @@ func (c *Client) AddService(ctx context.Context, environmentID platform.Environm
 			return service, nil
 		}
 
+		claims, _ := auth.FromContext(ctx)
+		release := deployer.NewRelease(deployer.TriggerManual, actorFromClaims(claims))
+
 		imageName := workspace + "/" + projectID + "/" + name
 
 		build, err := c.buildjob.Start(ctx, buildjob.StartOptions{
@@ -167,6 +170,7 @@ func (c *Client) AddService(ctx context.Context, environmentID platform.Environm
 			TargetImageNames: []string{imageName},
 			Token:            token,
 			BuildVars:        service.Variables,
+			ReleaseID:        release.ID,
 		})
 
 		if err != nil {
@@ -174,9 +178,7 @@ func (c *Client) AddService(ctx context.Context, environmentID platform.Environm
 			return service, nil
 		}
 
-		claims, _ := auth.FromContext(ctx)
-
-		go c.runDeploy(claims, service.ID, build.ID, commit.Message)
+		go c.runDeploy(claims, service.ID, build.ID, commit.Message, release)
 	}
 
 	return service, nil
@@ -266,7 +268,10 @@ func (c *Client) Rollback(ctx context.Context, deploymentID DeploymentID) (bool,
 		BuildID:       deployment.BuildID,
 	}
 
-	if _, err := c.deployer.Services().SetImage(ctx, serviceID, deployment.Image, provenance); err != nil {
+	claims, _ := auth.FromContext(ctx)
+	release := deployer.NewRelease(deployer.TriggerRollback, actorFromClaims(claims))
+
+	if _, err := c.deployer.Services().SetImage(ctx, serviceID, deployment.Image, provenance, release); err != nil {
 		return false, fmt.Errorf("rollback set image: %w", err)
 	}
 
@@ -363,7 +368,7 @@ const maxBuildDuration = 30 * time.Minute
 // runDeploy waits for a build to complete, then stamps the new image onto
 // the service via the deployer (single helm upgrade applies both the values
 // change and the K8s deployment patch — no separate sync step needed).
-func (c *Client) runDeploy(claims *auth.Claims, serviceID platform.ServiceID, buildID buildjob.BuildID, commitMessage string) {
+func (c *Client) runDeploy(claims *auth.Claims, serviceID platform.ServiceID, buildID buildjob.BuildID, commitMessage string, release deployer.ReleaseMeta) {
 	ctx, cancel := context.WithTimeout(auth.NewContext(context.Background(), claims), maxBuildDuration)
 	defer cancel()
 
@@ -406,7 +411,7 @@ func (c *Client) runDeploy(claims *auth.Claims, serviceID platform.ServiceID, bu
 				BuildID:       buildID.String(),
 			}
 
-			if _, err := c.deployer.Services().SetImage(ctx, serviceID, ref, provenance); err != nil {
+			if _, err := c.deployer.Services().SetImage(ctx, serviceID, ref, provenance, release); err != nil {
 				log.ErrorContext(ctx, "deploy: set image failed", "error", err)
 				return
 			}

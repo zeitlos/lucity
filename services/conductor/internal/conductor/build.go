@@ -3,9 +3,11 @@ package conductor
 import (
 	"bufio"
 	"context"
+	"time"
 
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/services/conductor/internal/buildjob"
+	"github.com/zeitlos/lucity/services/conductor/internal/deployer"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
@@ -49,7 +51,7 @@ func (c *Client) BuildLogs(ctx context.Context, id BuildID) (<-chan string, erro
 	return out, nil
 }
 
-func (c *Client) Deploy(ctx context.Context, serviceID ServiceID, gitRef string) (*Build, error) {
+func (c *Client) Deploy(ctx context.Context, serviceID ServiceID, gitRef string) (*Release, error) {
 	service, err := c.platform.Service(ctx, serviceID)
 
 	if err != nil {
@@ -74,6 +76,9 @@ func (c *Client) Deploy(ctx context.Context, serviceID ServiceID, gitRef string)
 		return nil, err
 	}
 
+	claims, _ := auth.FromContext(ctx)
+	release := deployer.NewRelease(deployer.TriggerManual, actorFromClaims(claims))
+
 	imageName := service.ID.Workspace + "/" + service.ID.Project + "/" + service.Name
 
 	build, err := c.buildjob.Start(ctx, buildjob.StartOptions{
@@ -84,15 +89,23 @@ func (c *Client) Deploy(ctx context.Context, serviceID ServiceID, gitRef string)
 		TargetImageNames: []string{imageName},
 		Token:            token,
 		BuildVars:        service.Variables,
+		ReleaseID:        release.ID,
 	})
 
 	if err != nil {
 		return nil, err
 	}
 
-	claims, _ := auth.FromContext(ctx)
+	go c.runDeploy(claims, service.ID, build.ID, commit.Message, release)
 
-	go c.runDeploy(claims, service.ID, build.ID, commit.Message)
+	result := Release{
+		ID:        ReleaseID{Workspace: serviceID.Workspace, Name: release.ID},
+		Status:    releaseStatus(build, nil),
+		Source:    gitSource(service.SourceURL, ref, service.ContextPath, Commit{SHA: commit.SHA, Message: commit.Message}),
+		Trigger:   ReleaseTrigger{Kind: release.Trigger, Actor: release.Actor},
+		Build:     build,
+		CreatedAt: time.Now(),
+	}
 
-	return build, nil
+	return &result, nil
 }

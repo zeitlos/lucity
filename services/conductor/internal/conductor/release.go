@@ -1,0 +1,363 @@
+package conductor
+
+import (
+	"context"
+	"fmt"
+	"io"
+	"net/url"
+	"sort"
+	"strings"
+	"time"
+
+	"github.com/99designs/gqlgen/graphql"
+
+	"github.com/zeitlos/lucity/pkg/auth"
+	"github.com/zeitlos/lucity/services/conductor/internal/buildjob"
+	"github.com/zeitlos/lucity/services/conductor/internal/deployer"
+	"github.com/zeitlos/lucity/services/conductor/internal/platform"
+)
+
+type ReleaseStatus string
+
+const (
+	ReleaseQueued     ReleaseStatus = "queued"
+	ReleaseBuilding   ReleaseStatus = "building"
+	ReleaseDeploying  ReleaseStatus = "deploying"
+	ReleaseLive       ReleaseStatus = "live"
+	ReleaseFailed     ReleaseStatus = "failed"
+	ReleaseCancelled  ReleaseStatus = "cancelled"
+	ReleaseSuperseded ReleaseStatus = "superseded"
+)
+
+type SourceProvider string
+
+const (
+	ProviderGitHub    SourceProvider = "github"
+	ProviderGitLab    SourceProvider = "gitlab"
+	ProviderBitbucket SourceProvider = "bitbucket"
+)
+
+type Commit struct {
+	SHA     string
+	Message string
+	URL     string
+}
+
+type GitSource struct {
+	Provider    SourceProvider
+	Repository  string
+	URL         string
+	Ref         string
+	ContextPath string
+	Commit      Commit
+}
+
+type ReleaseTrigger struct {
+	Kind  deployer.TriggerKind
+	Actor string
+}
+
+type Release struct {
+	ID         ReleaseID
+	Status     ReleaseStatus
+	Source     *GitSource
+	Trigger    ReleaseTrigger
+	Build      *Build
+	Deployment *Deployment
+	CreatedAt  time.Time
+}
+
+func (c *Client) Releases(ctx context.Context, serviceID ServiceID) ([]Release, error) {
+	deployments, err := c.platform.Deployments(ctx, serviceID)
+
+	if err != nil {
+		return nil, err
+	}
+
+	service, err := c.platform.Service(ctx, serviceID)
+
+	if err != nil {
+		return nil, err
+	}
+
+	var builds []Build
+
+	if service.SourceURL != "" {
+		all, err := c.buildjob.List(ctx, serviceID.Workspace, service.SourceURL, service.ContextPath)
+
+		if err != nil {
+			return nil, err
+		}
+
+		target := c.imageRepository(serviceID)
+
+		for _, build := range all {
+			if _, ok := build.ImageRefs[target]; ok {
+				builds = append(builds, build)
+			}
+		}
+	}
+
+	type group struct {
+		build      *Build
+		deployment *Deployment
+	}
+
+	groups := map[string]*group{}
+
+	groupFor := func(key string) *group {
+		if groups[key] == nil {
+			groups[key] = &group{}
+		}
+
+		return groups[key]
+	}
+
+	for i := range deployments {
+		deployment := &deployments[i]
+		key := deployment.ReleaseID
+
+		if key == "" {
+			key = "dep-" + deployment.ID.Hash
+		}
+
+		g := groupFor(key)
+
+		if g.deployment == nil || deployment.CreatedAt.After(g.deployment.CreatedAt) {
+			g.deployment = deployment
+		}
+	}
+
+	for i := range builds {
+		build := &builds[i]
+		key := build.ReleaseID
+
+		if key == "" {
+			key = build.ID.Name
+		}
+
+		groupFor(key).build = build
+	}
+
+	releases := make([]Release, 0, len(groups))
+
+	for key, g := range groups {
+		releases = append(releases, assembleRelease(serviceID.Workspace, key, g.build, g.deployment))
+	}
+
+	sort.Slice(releases, func(i, j int) bool {
+		return releases[i].CreatedAt.After(releases[j].CreatedAt)
+	})
+
+	return releases, nil
+}
+
+func assembleRelease(workspace, name string, build *Build, deployment *Deployment) Release {
+	return Release{
+		ID:         ReleaseID{Workspace: workspace, Name: name},
+		Status:     releaseStatus(build, deployment),
+		Source:     releaseSource(build, deployment),
+		Trigger:    releaseTrigger(deployment),
+		Build:      build,
+		Deployment: deployment,
+		CreatedAt:  releaseCreatedAt(build, deployment),
+	}
+}
+
+func releaseStatus(build *Build, deployment *Deployment) ReleaseStatus {
+	if deployment != nil {
+		switch deployment.Status {
+		case platform.DeploymentDeploying:
+			return ReleaseDeploying
+		case platform.DeploymentActive:
+			return ReleaseLive
+		case platform.DeploymentSuperseded:
+			return ReleaseSuperseded
+		case platform.DeploymentFailed:
+			return ReleaseFailed
+		}
+	}
+
+	if build != nil {
+		switch build.Status {
+		case buildjob.StatusQueued:
+			return ReleaseQueued
+		case buildjob.StatusRunning, buildjob.StatusCancelling:
+			return ReleaseBuilding
+		case buildjob.StatusSucceeded:
+			return ReleaseDeploying
+		case buildjob.StatusFailed:
+			return ReleaseFailed
+		case buildjob.StatusCancelled:
+			return ReleaseCancelled
+		}
+	}
+
+	return ReleaseDeploying
+}
+
+func releaseSource(build *Build, deployment *Deployment) *GitSource {
+	if deployment != nil && deployment.SourceURL != "" {
+		return gitSource(deployment.SourceURL, deployment.Ref, deployment.ContextPath, Commit{
+			SHA:     deployment.Commit,
+			Message: deployment.CommitMessage,
+		})
+	}
+
+	if build != nil && build.SourceURL != "" {
+		return gitSource(build.SourceURL, "", build.ContextPath, Commit{SHA: build.Commit})
+	}
+
+	return nil
+}
+
+func releaseTrigger(deployment *Deployment) ReleaseTrigger {
+	if deployment != nil && deployment.ReleaseTrigger != "" {
+		return ReleaseTrigger{
+			Kind:  deployer.TriggerKind(deployment.ReleaseTrigger),
+			Actor: deployment.ReleaseActor,
+		}
+	}
+
+	return ReleaseTrigger{Kind: deployer.TriggerManual}
+}
+
+func releaseCreatedAt(build *Build, deployment *Deployment) time.Time {
+	if build != nil && build.StartedAt != nil {
+		return *build.StartedAt
+	}
+
+	if deployment != nil {
+		return deployment.CreatedAt
+	}
+
+	return time.Time{}
+}
+
+func gitSource(repoURL, ref, contextPath string, commit Commit) *GitSource {
+	if repoURL == "" {
+		return nil
+	}
+
+	provider := deriveProvider(repoURL)
+	commit.URL = commitURL(provider, repoURL, commit.SHA)
+
+	return &GitSource{
+		Provider:    provider,
+		Repository:  repositoryName(repoURL),
+		URL:         strings.TrimSuffix(repoURL, ".git"),
+		Ref:         ref,
+		ContextPath: contextPath,
+		Commit:      commit,
+	}
+}
+
+func deriveProvider(repoURL string) SourceProvider {
+	parsed, err := url.Parse(repoURL)
+
+	if err != nil {
+		return ProviderGitHub
+	}
+
+	host := strings.ToLower(parsed.Host)
+
+	switch {
+	case strings.Contains(host, "gitlab"):
+		return ProviderGitLab
+	case strings.Contains(host, "bitbucket"):
+		return ProviderBitbucket
+	default:
+		return ProviderGitHub
+	}
+}
+
+func repositoryName(repoURL string) string {
+	parsed, err := url.Parse(repoURL)
+
+	if err != nil {
+		return ""
+	}
+
+	return strings.TrimSuffix(strings.TrimPrefix(parsed.Path, "/"), ".git")
+}
+
+func commitURL(provider SourceProvider, repoURL, sha string) string {
+	if repoURL == "" || sha == "" {
+		return ""
+	}
+
+	base := strings.TrimSuffix(repoURL, ".git")
+
+	if provider == ProviderBitbucket {
+		return base + "/commits/" + sha
+	}
+
+	return base + "/commit/" + sha
+}
+
+func actorFromClaims(claims *auth.Claims) string {
+	if claims == nil {
+		return ""
+	}
+
+	if claims.Name != "" {
+		return claims.Name
+	}
+
+	if claims.Email != "" {
+		return claims.Email
+	}
+
+	return claims.Subject
+}
+
+type ReleaseID struct {
+	Workspace string
+	Name      string
+}
+
+func ParseReleaseID(s string) (ReleaseID, error) {
+	workspace, name, ok := strings.Cut(s, "/")
+
+	if !ok || workspace == "" || name == "" {
+		return ReleaseID{}, fmt.Errorf("invalid release id %q", s)
+	}
+
+	return ReleaseID{Workspace: workspace, Name: name}, nil
+}
+
+func (r ReleaseID) String() string {
+	return r.Workspace + "/" + r.Name
+}
+
+func (r ReleaseID) WorkspaceID() string {
+	return r.Workspace
+}
+
+func (r *ReleaseID) UnmarshalGQL(val interface{}) error {
+	str, ok := val.(string)
+
+	if !ok {
+		return fmt.Errorf("ReleaseID must be a string")
+	}
+
+	parsed, err := ParseReleaseID(str)
+
+	if err != nil {
+		return err
+	}
+
+	*r = parsed
+
+	return nil
+}
+
+func (r ReleaseID) MarshalGQL(w io.Writer) {
+	graphql.MarshalString(r.String()).MarshalGQL(w)
+}
+
+var (
+	_ platform.WorkspaceScoped = ReleaseID{}
+	_ graphql.Marshaler        = ReleaseID{}
+	_ graphql.Unmarshaler      = (*ReleaseID)(nil)
+)

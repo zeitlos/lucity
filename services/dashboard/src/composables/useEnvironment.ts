@@ -10,6 +10,9 @@ import type {
   DnsRecordType,
   TlsStatus,
   EndpointType,
+  ReleaseStatus,
+  ReleaseTriggerKind,
+  SourceProvider,
 } from '@/gql/graphql';
 
 export interface DnsRecord {
@@ -66,6 +69,36 @@ export interface Build {
   finishedAt?: string | null;
 }
 
+export interface ReleaseCommit {
+  sha: string;
+  message: string;
+  url?: string | null;
+}
+
+export interface GitSource {
+  provider: SourceProvider;
+  repository: string;
+  url: string;
+  ref: string;
+  contextPath: string;
+  commit: ReleaseCommit;
+}
+
+export interface ReleaseTrigger {
+  kind: ReleaseTriggerKind;
+  actor?: string | null;
+}
+
+export interface Release {
+  id: string;
+  status: ReleaseStatus;
+  source?: GitSource | null;
+  trigger: ReleaseTrigger;
+  build?: Build | null;
+  deployment?: Deployment | null;
+  createdAt: string;
+}
+
 export interface Service {
   id: string;
   name: string;
@@ -82,6 +115,7 @@ export interface Service {
   activeDeployment?: Deployment | null;
   deployments: Deployment[];
   builds: Build[];
+  releases: Release[];
   lastDeployedAt?: string | null;
   createdAt: string;
 }

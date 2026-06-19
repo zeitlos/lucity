@@ -27,15 +27,18 @@ const (
 )
 
 const (
-	annotationSourceRepo    = "lucity.dev/source-repo"
-	annotationSourceCommit  = "lucity.dev/source-commit"
-	annotationSourceMessage = "lucity.dev/source-commit-message"
-	annotationSourceRef     = "lucity.dev/source-ref"
-	annotationSourceContext = "lucity.dev/source-context"
-	annotationSourceBranch  = "lucity.dev/source-branch"
-	annotationBuildID       = "lucity.dev/build-id"
-	annotationRevision      = "deployment.kubernetes.io/revision"
-	annotationDatabaseHost  = "lucity.dev/db-host"
+	annotationSourceRepo     = "lucity.dev/source-repo"
+	annotationSourceCommit   = "lucity.dev/source-commit"
+	annotationSourceMessage  = "lucity.dev/source-commit-message"
+	annotationSourceRef      = "lucity.dev/source-ref"
+	annotationSourceContext  = "lucity.dev/source-context"
+	annotationSourceBranch   = "lucity.dev/source-branch"
+	annotationBuildID        = "lucity.dev/build-id"
+	annotationRelease        = "lucity.dev/release"
+	annotationReleaseTrigger = "lucity.dev/release-trigger"
+	annotationReleaseActor   = "lucity.dev/release-actor"
+	annotationRevision       = "deployment.kubernetes.io/revision"
+	annotationDatabaseHost   = "lucity.dev/db-host"
 )
 
 type Client struct {

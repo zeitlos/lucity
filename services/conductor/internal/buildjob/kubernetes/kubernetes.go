@@ -22,6 +22,7 @@ const (
 	labelRepoHash     = "lucity.dev/source-repo-hash"
 	labelSourceCommit = "lucity.dev/source-commit"
 	labelContextHash  = "lucity.dev/source-context-hash"
+	labelRelease      = "lucity.dev/release"
 )
 
 const (
@@ -68,6 +69,7 @@ func toJob(job batch.Job) buildjob.Job {
 		Commit:      job.Labels[labelSourceCommit],
 		ContextPath: job.Annotations[annotationContext],
 		TriggeredBy: job.Annotations[annotationTriggeredBy],
+		ReleaseID:   job.Labels[labelRelease],
 		ImageRefs:   make(map[string]name.Reference),
 	}
 

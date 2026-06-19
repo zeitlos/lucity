@@ -10,8 +10,12 @@ const DeployDocument = graphql(`
     deploy(service: $service, gitRef: $gitRef) {
       id
       status
-      startedAt
-      finishedAt
+      build {
+        id
+        status
+        startedAt
+        finishedAt
+      }
     }
   }
 `);
@@ -112,12 +116,14 @@ export function useDeploy(): DeployState {
           },
         });
 
-        if (!res?.data?.deploy) {
+        const build = res?.data?.deploy?.build;
+
+        if (!build) {
           throw new Error('Failed to start deploy');
         }
 
-        state.buildId = res.data.deploy.id;
-        state.status = res.data.deploy.status;
+        state.buildId = build.id;
+        state.status = build.status;
         startPolling();
         toast.info('Deploy started', { description: `Building ${serviceName}...` });
       } catch (e: unknown) {

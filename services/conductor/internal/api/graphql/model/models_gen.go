@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/zeitlos/lucity/services/conductor/internal/buildjob"
+	"github.com/zeitlos/lucity/services/conductor/internal/conductor"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
@@ -55,6 +56,12 @@ type Build struct {
 
 type CheckoutSession struct {
 	URL string `json:"url"`
+}
+
+type Commit struct {
+	Sha     string  `json:"sha"`
+	Message string  `json:"message"`
+	URL     *string `json:"url,omitempty"`
 }
 
 type CreateDatabaseInput struct {
@@ -218,6 +225,15 @@ type GitHubRepository struct {
 	Private       bool   `json:"private"`
 }
 
+type GitSource struct {
+	Provider    SourceProvider `json:"provider"`
+	Repository  string         `json:"repository"`
+	URL         string         `json:"url"`
+	Ref         string         `json:"ref"`
+	ContextPath string         `json:"contextPath"`
+	Commit      *Commit        `json:"commit"`
+}
+
 // A container image from a public registry (Docker Hub).
 type ImageSearchResult struct {
 	Name        string `json:"name"`
@@ -267,6 +283,21 @@ type QueryResult struct {
 	AffectedRows int         `json:"affectedRows"`
 }
 
+type Release struct {
+	ID         conductor.ReleaseID `json:"id"`
+	Status     ReleaseStatus       `json:"status"`
+	Source     *GitSource          `json:"source,omitempty"`
+	Trigger    *ReleaseTrigger     `json:"trigger"`
+	Build      *Build              `json:"build,omitempty"`
+	Deployment *Deployment         `json:"deployment,omitempty"`
+	CreatedAt  time.Time           `json:"createdAt"`
+}
+
+type ReleaseTrigger struct {
+	Kind  ReleaseTriggerKind `json:"kind"`
+	Actor *string            `json:"actor,omitempty"`
+}
+
 type ReplicaCount struct {
 	Desired int `json:"desired"`
 	Ready   int `json:"ready"`
@@ -306,6 +337,7 @@ type Service struct {
 	Builds            []Build              `json:"builds"`
 	LastDeployedAt    *time.Time           `json:"lastDeployedAt,omitempty"`
 	CreatedAt         time.Time            `json:"createdAt"`
+	Releases          []Release            `json:"releases"`
 	PlatformEndpoints []platform.Endpoint  `json:"-"`
 }
 
@@ -932,6 +964,130 @@ func (e Protocol) MarshalJSON() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+type ReleaseStatus string
+
+const (
+	ReleaseStatusQueued     ReleaseStatus = "QUEUED"
+	ReleaseStatusBuilding   ReleaseStatus = "BUILDING"
+	ReleaseStatusDeploying  ReleaseStatus = "DEPLOYING"
+	ReleaseStatusLive       ReleaseStatus = "LIVE"
+	ReleaseStatusFailed     ReleaseStatus = "FAILED"
+	ReleaseStatusCancelled  ReleaseStatus = "CANCELLED"
+	ReleaseStatusSuperseded ReleaseStatus = "SUPERSEDED"
+)
+
+var AllReleaseStatus = []ReleaseStatus{
+	ReleaseStatusQueued,
+	ReleaseStatusBuilding,
+	ReleaseStatusDeploying,
+	ReleaseStatusLive,
+	ReleaseStatusFailed,
+	ReleaseStatusCancelled,
+	ReleaseStatusSuperseded,
+}
+
+func (e ReleaseStatus) IsValid() bool {
+	switch e {
+	case ReleaseStatusQueued, ReleaseStatusBuilding, ReleaseStatusDeploying, ReleaseStatusLive, ReleaseStatusFailed, ReleaseStatusCancelled, ReleaseStatusSuperseded:
+		return true
+	}
+	return false
+}
+
+func (e ReleaseStatus) String() string {
+	return string(e)
+}
+
+func (e *ReleaseStatus) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = ReleaseStatus(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid ReleaseStatus", str)
+	}
+	return nil
+}
+
+func (e ReleaseStatus) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *ReleaseStatus) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e ReleaseStatus) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type ReleaseTriggerKind string
+
+const (
+	ReleaseTriggerKindManual    ReleaseTriggerKind = "MANUAL"
+	ReleaseTriggerKindRollback  ReleaseTriggerKind = "ROLLBACK"
+	ReleaseTriggerKindPromotion ReleaseTriggerKind = "PROMOTION"
+	ReleaseTriggerKindPush      ReleaseTriggerKind = "PUSH"
+)
+
+var AllReleaseTriggerKind = []ReleaseTriggerKind{
+	ReleaseTriggerKindManual,
+	ReleaseTriggerKindRollback,
+	ReleaseTriggerKindPromotion,
+	ReleaseTriggerKindPush,
+}
+
+func (e ReleaseTriggerKind) IsValid() bool {
+	switch e {
+	case ReleaseTriggerKindManual, ReleaseTriggerKindRollback, ReleaseTriggerKindPromotion, ReleaseTriggerKindPush:
+		return true
+	}
+	return false
+}
+
+func (e ReleaseTriggerKind) String() string {
+	return string(e)
+}
+
+func (e *ReleaseTriggerKind) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = ReleaseTriggerKind(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid ReleaseTriggerKind", str)
+	}
+	return nil
+}
+
+func (e ReleaseTriggerKind) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *ReleaseTriggerKind) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e ReleaseTriggerKind) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
 type ResourceTier string
 
 const (
@@ -1104,6 +1260,63 @@ func (e *ServiceStatus) UnmarshalJSON(b []byte) error {
 }
 
 func (e ServiceStatus) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type SourceProvider string
+
+const (
+	SourceProviderGithub    SourceProvider = "GITHUB"
+	SourceProviderGitlab    SourceProvider = "GITLAB"
+	SourceProviderBitbucket SourceProvider = "BITBUCKET"
+)
+
+var AllSourceProvider = []SourceProvider{
+	SourceProviderGithub,
+	SourceProviderGitlab,
+	SourceProviderBitbucket,
+}
+
+func (e SourceProvider) IsValid() bool {
+	switch e {
+	case SourceProviderGithub, SourceProviderGitlab, SourceProviderBitbucket:
+		return true
+	}
+	return false
+}
+
+func (e SourceProvider) String() string {
+	return string(e)
+}
+
+func (e *SourceProvider) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = SourceProvider(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid SourceProvider", str)
+	}
+	return nil
+}
+
+func (e SourceProvider) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *SourceProvider) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e SourceProvider) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

@@ -9,20 +9,20 @@ import (
 )
 
 type Service struct {
-	Image              ImageRef               `yaml:"image"`
-	Port               int                    `yaml:"port,omitempty"`
-	Replicas           int                    `yaml:"replicas,omitempty"`
-	Autoscaling        *Autoscaling           `yaml:"autoscaling,omitempty"`
-	Resources          Resources              `yaml:"resources,omitempty"`
-	Domains            []Domain               `yaml:"domains,omitempty"`
-	Command            string                 `yaml:"command,omitempty"`
-	Env                map[string]string      `yaml:"env,omitempty"`
-	SharedRefs         []string               `yaml:"sharedRefs,omitempty"`
-	DatabaseRefs       map[string]DatabaseRef `yaml:"databaseRefs,omitempty"`
-	Labels             map[string]string      `yaml:"labels,omitempty"`
-	Annotations        map[string]string      `yaml:"annotations,omitempty"`
-	PodLabels          map[string]string      `yaml:"podLabels,omitempty"`
-	PodAnnotations     map[string]string      `yaml:"podAnnotations,omitempty"`
+	Image          ImageRef               `yaml:"image"`
+	Port           int                    `yaml:"port,omitempty"`
+	Replicas       int                    `yaml:"replicas,omitempty"`
+	Autoscaling    *Autoscaling           `yaml:"autoscaling,omitempty"`
+	Resources      Resources              `yaml:"resources,omitempty"`
+	Domains        []Domain               `yaml:"domains,omitempty"`
+	Command        string                 `yaml:"command,omitempty"`
+	Env            map[string]string      `yaml:"env,omitempty"`
+	SharedRefs     []string               `yaml:"sharedRefs,omitempty"`
+	DatabaseRefs   map[string]DatabaseRef `yaml:"databaseRefs,omitempty"`
+	Labels         map[string]string      `yaml:"labels,omitempty"`
+	Annotations    map[string]string      `yaml:"annotations,omitempty"`
+	PodLabels      map[string]string      `yaml:"podLabels,omitempty"`
+	PodAnnotations map[string]string      `yaml:"podAnnotations,omitempty"`
 }
 
 type ImageRef struct {
@@ -140,7 +140,13 @@ type ImageProvenance struct {
 	BuildID       string
 }
 
-func SetServiceImage(env *Env, name string, ref image.Ref, provenance ImageProvenance) error {
+type ReleaseMeta struct {
+	ID      string
+	Trigger string
+	Actor   string
+}
+
+func SetServiceImage(env *Env, name string, ref image.Ref, provenance ImageProvenance, release ReleaseMeta) error {
 	return mutateService(env, name, func(s *Service) {
 		s.Image.Repository = ref.Repository
 		s.Image.Tag = ref.Tag
@@ -153,6 +159,10 @@ func SetServiceImage(env *Env, name string, ref image.Ref, provenance ImageProve
 		setOrDelete(s.PodAnnotations, annotationSourceCommit, provenance.Commit)
 		setOrDelete(s.PodAnnotations, annotationSourceMessage, provenance.CommitMessage)
 		setOrDelete(s.PodAnnotations, annotationBuildID, provenance.BuildID)
+
+		setOrDelete(s.PodAnnotations, annotationRelease, release.ID)
+		setOrDelete(s.PodAnnotations, annotationReleaseTrigger, release.Trigger)
+		setOrDelete(s.PodAnnotations, annotationReleaseActor, release.Actor)
 	})
 }
 

@@ -8,6 +8,7 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
 	"github.com/zeitlos/lucity/services/conductor/internal/buildjob"
 	"github.com/zeitlos/lucity/services/conductor/internal/conductor"
+	"github.com/zeitlos/lucity/services/conductor/internal/deployer"
 	"github.com/zeitlos/lucity/services/conductor/internal/hostname"
 	"github.com/zeitlos/lucity/services/conductor/internal/planner"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
@@ -248,6 +249,115 @@ func convertBuild(build conductor.Build) model.Build {
 		StartedAt:  build.StartedAt,
 		FinishedAt: build.FinishedAt,
 	}
+}
+
+func convertRelease(release conductor.Release) model.Release {
+	result := model.Release{
+		ID:        release.ID,
+		Status:    convertReleaseStatus(release.Status),
+		Trigger:   convertReleaseTrigger(release.Trigger),
+		CreatedAt: release.CreatedAt,
+	}
+
+	if release.Source != nil {
+		source := convertGitSource(*release.Source)
+		result.Source = &source
+	}
+
+	if release.Build != nil {
+		build := convertBuild(*release.Build)
+		result.Build = &build
+	}
+
+	if release.Deployment != nil {
+		deployment := convertDeployment(*release.Deployment)
+		result.Deployment = &deployment
+	}
+
+	return result
+}
+
+func convertGitSource(source conductor.GitSource) model.GitSource {
+	commit := model.Commit{
+		Sha:     source.Commit.SHA,
+		Message: source.Commit.Message,
+	}
+
+	if source.Commit.URL != "" {
+		commit.URL = &source.Commit.URL
+	}
+
+	return model.GitSource{
+		Provider:    convertSourceProvider(source.Provider),
+		Repository:  source.Repository,
+		URL:         source.URL,
+		Ref:         source.Ref,
+		ContextPath: source.ContextPath,
+		Commit:      &commit,
+	}
+}
+
+func convertReleaseTrigger(trigger conductor.ReleaseTrigger) *model.ReleaseTrigger {
+	result := &model.ReleaseTrigger{
+		Kind: convertReleaseTriggerKind(trigger.Kind),
+	}
+
+	if trigger.Actor != "" {
+		result.Actor = &trigger.Actor
+	}
+
+	return result
+}
+
+func convertReleaseStatus(status conductor.ReleaseStatus) model.ReleaseStatus {
+	switch status {
+	case conductor.ReleaseQueued:
+		return model.ReleaseStatusQueued
+	case conductor.ReleaseBuilding:
+		return model.ReleaseStatusBuilding
+	case conductor.ReleaseDeploying:
+		return model.ReleaseStatusDeploying
+	case conductor.ReleaseLive:
+		return model.ReleaseStatusLive
+	case conductor.ReleaseFailed:
+		return model.ReleaseStatusFailed
+	case conductor.ReleaseCancelled:
+		return model.ReleaseStatusCancelled
+	case conductor.ReleaseSuperseded:
+		return model.ReleaseStatusSuperseded
+	}
+
+	slog.Warn("unknown release status", "status", status)
+
+	return model.ReleaseStatusFailed
+}
+
+func convertSourceProvider(provider conductor.SourceProvider) model.SourceProvider {
+	switch provider {
+	case conductor.ProviderGitHub:
+		return model.SourceProviderGithub
+	case conductor.ProviderGitLab:
+		return model.SourceProviderGitlab
+	case conductor.ProviderBitbucket:
+		return model.SourceProviderBitbucket
+	}
+
+	return model.SourceProviderGithub
+}
+
+func convertReleaseTriggerKind(kind deployer.TriggerKind) model.ReleaseTriggerKind {
+	switch kind {
+	case deployer.TriggerManual:
+		return model.ReleaseTriggerKindManual
+	case deployer.TriggerRollback:
+		return model.ReleaseTriggerKindRollback
+	case deployer.TriggerPromotion:
+		return model.ReleaseTriggerKindPromotion
+	case deployer.TriggerPush:
+		return model.ReleaseTriggerKindPush
+	}
+
+	return model.ReleaseTriggerKindManual
 }
 
 func convertDatabase(d conductor.Database) model.Database {

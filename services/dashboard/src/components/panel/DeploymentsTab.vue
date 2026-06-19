@@ -3,12 +3,12 @@ import { computed, ref, onMounted, watch } from 'vue';
 import {
   Rocket, Loader2, Check, AlertCircle, Terminal,
   ExternalLink, GitCommitHorizontal, RefreshCw,
-  MoreVertical, ChevronDown, Container, Hammer,
+  MoreVertical, ChevronDown, Container,
 } from 'lucide-vue-next';
 import { useDeploy } from '@/composables/useDeploy';
 import { useBuildLogsPanel } from '@/composables/useBuildLogsPanel';
-import { BuildStatus, DeploymentStatus } from '@/gql/graphql';
-import { activeBuild, type Build, type Deployment } from '@/composables/useEnvironment';
+import { BuildStatus, DeploymentStatus, ReleaseStatus } from '@/gql/graphql';
+import { activeBuild, type Release } from '@/composables/useEnvironment';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
@@ -35,22 +35,19 @@ function showLogs() {
 }
 
 const activeDeployment = computed(() => props.service.activeDeployment ?? null);
-const sortedBuilds = computed(() =>
-  [...(props.service.builds ?? [])].sort((a, b) => {
-    const at = a.startedAt ? new Date(a.startedAt).getTime() : Infinity;
-    const bt = b.startedAt ? new Date(b.startedAt).getTime() : Infinity;
-    return bt - at;
-  }),
+
+const sortedReleases = computed(() =>
+  [...(props.service.releases ?? [])].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+  ),
 );
-const sortedDeployments = computed(() =>
-  [...(props.service.deployments ?? [])].sort((a, b) => {
-    const at = new Date(a.createdAt).getTime();
-    const bt = new Date(b.createdAt).getTime();
-    return bt - at;
-  }),
+
+const historyReleases = computed(() =>
+  sortedReleases.value.filter(r => !r.deployment || r.deployment.id !== activeDeployment.value?.id),
 );
-const historyDeployments = computed(() =>
-  sortedDeployments.value.filter(dep => dep.id !== activeDeployment.value?.id),
+
+const activeRelease = computed(() =>
+  sortedReleases.value.find(r => r.deployment && r.deployment.id === activeDeployment.value?.id) ?? null,
 );
 
 const inFlightBuild = computed(() => activeBuild(props.service));
@@ -107,30 +104,9 @@ function shortCommit(commit?: string | null): string | null {
   return commit.slice(0, 7);
 }
 
-function buildDuration(build: Build): string | null {
-  if (!build.finishedAt || !build.startedAt) return null;
-  const start = new Date(build.startedAt).getTime();
-  const end = new Date(build.finishedAt).getTime();
-  const secs = Math.max(0, Math.floor((end - start) / 1000));
-  if (secs < 60) return `${secs}s`;
-  const mins = Math.floor(secs / 60);
-  const remSecs = secs % 60;
-  return `${mins}m ${remSecs}s`;
-}
-
 interface StatusMeta {
   label: string;
   color: string;
-}
-
-function buildStatusMeta(status: BuildStatus): StatusMeta {
-  switch (status) {
-    case BuildStatus.Succeeded: return { label: 'Succeeded', color: 'var(--status-ok)' };
-    case BuildStatus.Running: return { label: 'Running', color: 'var(--status-warn)' };
-    case BuildStatus.Failed: return { label: 'Failed', color: 'var(--status-danger)' };
-    case BuildStatus.Cancelled: return { label: 'Cancelled', color: 'var(--status-neutral)' };
-    default: return { label: 'Queued', color: 'var(--status-neutral)' };
-  }
 }
 
 function deploymentStatusMeta(status: DeploymentStatus): StatusMeta {
@@ -142,11 +118,41 @@ function deploymentStatusMeta(status: DeploymentStatus): StatusMeta {
   }
 }
 
-function deploymentLabel(deployment: Deployment): string {
-  if (deployment.commitMessage) return deployment.commitMessage;
-  const short = shortCommit(deployment.commit);
-  if (short) return short;
-  return deployment.image;
+function releaseStatusMeta(status: ReleaseStatus): StatusMeta {
+  switch (status) {
+    case ReleaseStatus.Live: return { label: 'Live', color: 'var(--status-ok)' };
+    case ReleaseStatus.Deploying: return { label: 'Deploying', color: 'var(--status-warn)' };
+    case ReleaseStatus.Building: return { label: 'Building', color: 'var(--status-warn)' };
+    case ReleaseStatus.Queued: return { label: 'Queued', color: 'var(--status-neutral)' };
+    case ReleaseStatus.Failed: return { label: 'Failed', color: 'var(--status-danger)' };
+    case ReleaseStatus.Cancelled: return { label: 'Cancelled', color: 'var(--status-neutral)' };
+    default: return { label: 'Superseded', color: 'var(--status-neutral)' };
+  }
+}
+
+const providerLabels: Record<string, string> = {
+  GITHUB: 'GitHub',
+  GITLAB: 'GitLab',
+  BITBUCKET: 'Bitbucket',
+};
+
+function releaseTitle(release: Release): string {
+  const message = release.source?.commit.message;
+  if (message) return message;
+  const sha = release.source?.commit.sha;
+  if (sha) return sha.slice(0, 7);
+  return release.deployment?.image ?? 'Release';
+}
+
+function releaseMeta(release: Release): string {
+  const parts: string[] = [formatRelativeTime(release.createdAt)];
+  if (release.source) {
+    parts.push(`via ${providerLabels[release.source.provider] ?? release.source.provider}`);
+  }
+  if (release.trigger.actor) {
+    parts.push(`by ${release.trigger.actor}`);
+  }
+  return parts.join(' · ');
 }
 
 const replicasReady = computed(() => props.service.replicas?.ready ?? 0);
@@ -247,9 +253,20 @@ const showActiveDetails = ref(false);
               {{ activeDeployment.commitMessage || shortCommit(activeDeployment.commit) || activeDeployment.image }}
             </p>
             <div class="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-              <GitCommitHorizontal v-if="shortCommit(activeDeployment.commit)" :size="10" class="shrink-0" />
-              <span v-if="shortCommit(activeDeployment.commit)" class="font-mono">{{ shortCommit(activeDeployment.commit) }}</span>
+              <template v-if="shortCommit(activeDeployment.commit)">
+                <GitCommitHorizontal :size="10" class="shrink-0" />
+                <a
+                  v-if="activeRelease?.source?.commit.url"
+                  :href="activeRelease.source.commit.url"
+                  target="_blank"
+                  rel="noopener"
+                  class="font-mono hover:text-foreground hover:underline"
+                >{{ shortCommit(activeDeployment.commit) }}</a>
+                <span v-else class="font-mono">{{ shortCommit(activeDeployment.commit) }}</span>
+              </template>
               <span v-if="activeDeployment.createdAt">&middot; {{ formatRelativeTime(activeDeployment.createdAt) }}</span>
+              <span v-if="activeRelease?.source">&middot; via {{ providerLabels[activeRelease.source.provider] ?? activeRelease.source.provider }}</span>
+              <span v-if="activeRelease?.trigger.actor">&middot; by {{ activeRelease.trigger.actor }}</span>
             </div>
           </div>
 
@@ -265,6 +282,14 @@ const showActiveDetails = ref(false);
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  v-if="activeRelease?.build"
+                  @click="activeRelease?.build && logsPanel.open(activeRelease.build.id, service.name)"
+                >
+                  <Terminal :size="14" class="mr-2" />
+                  View logs
+                </DropdownMenuItem>
+                <DropdownMenuSeparator v-if="activeRelease?.build" />
                 <DropdownMenuItem :disabled="deploy.isDeploying" @click="handleRedeploy">
                   <RefreshCw :size="14" class="mr-2" />
                   Redeploy
@@ -325,87 +350,75 @@ const showActiveDetails = ref(false);
       </div>
     </div>
 
-    <!-- Deployment history -->
-    <div v-if="historyDeployments.length > 0" class="space-y-2">
+    <!-- Release history -->
+    <div v-if="historyReleases.length > 0" class="space-y-2">
       <h3 class="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-        Deployments
+        History
       </h3>
 
       <div class="space-y-2">
         <div
-          v-for="dep in historyDeployments"
-          :key="dep.id"
-          class="flex items-start gap-3 rounded-lg border border-border/60 bg-muted/30 px-4 py-2.5"
+          v-for="release in historyReleases"
+          :key="release.id"
+          class="flex items-center gap-3 rounded-lg border border-border/60 bg-muted/30 px-4 py-3"
         >
           <span
-            class="mt-1 h-1.5 w-1.5 shrink-0 rounded-full"
-            :style="{ backgroundColor: deploymentStatusMeta(dep.status).color }"
-            :title="deploymentStatusMeta(dep.status).label"
-          />
+            class="inline-flex w-[84px] shrink-0 justify-center rounded py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+            :style="{
+              color: releaseStatusMeta(release.status).color,
+              backgroundColor: `color-mix(in srgb, ${releaseStatusMeta(release.status).color} 15%, transparent)`,
+            }"
+          >
+            {{ releaseStatusMeta(release.status).label }}
+          </span>
+
           <div class="min-w-0 flex-1">
             <p
-              class="truncate text-sm text-foreground"
-              :title="dep.commitMessage || dep.commit"
+              class="truncate text-sm font-medium text-foreground"
+              :title="releaseTitle(release)"
             >
-              {{ deploymentLabel(dep) }}
+              {{ releaseTitle(release) }}
             </p>
             <div class="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-              <GitCommitHorizontal v-if="shortCommit(dep.commit)" :size="10" class="shrink-0" />
-              <span v-if="shortCommit(dep.commit)" class="font-mono">{{ shortCommit(dep.commit) }}</span>
-              <span>&middot; {{ formatRelativeTime(dep.createdAt) }}</span>
+              <template v-if="release.source">
+                <GitCommitHorizontal :size="10" class="shrink-0" />
+                <a
+                  v-if="release.source.commit.url"
+                  :href="release.source.commit.url"
+                  target="_blank"
+                  rel="noopener"
+                  class="font-mono hover:text-foreground hover:underline"
+                  @click.stop
+                >{{ shortCommit(release.source.commit.sha) }}</a>
+                <span v-else class="font-mono">{{ shortCommit(release.source.commit.sha) }}</span>
+                <span>&middot;</span>
+              </template>
+              <span>{{ releaseMeta(release) }}</span>
             </div>
           </div>
+
+          <DropdownMenu v-if="release.build">
+            <DropdownMenuTrigger as-child>
+              <Button variant="ghost" size="sm" class="h-8 w-8 shrink-0 p-0">
+                <MoreVertical :size="16" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem @click="release.build && logsPanel.open(release.build.id, service.name)">
+                <Terminal :size="14" class="mr-2" />
+                View logs
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     </div>
 
-    <!-- Build history -->
-    <div v-if="sortedBuilds.length > 0" class="space-y-2">
-      <h3 class="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-        Builds
-      </h3>
-
-      <div class="space-y-2">
-        <div
-          v-for="build in sortedBuilds"
-          :key="build.id"
-          class="flex items-center gap-3 rounded-lg border border-border/60 bg-muted/30 px-4 py-2.5"
-        >
-          <span
-            class="h-1.5 w-1.5 shrink-0 rounded-full"
-            :style="{ backgroundColor: buildStatusMeta(build.status).color }"
-            :title="buildStatusMeta(build.status).label"
-          />
-          <div class="min-w-0 flex-1">
-            <div class="flex items-center gap-1.5 text-sm text-foreground">
-              <Hammer :size="12" class="shrink-0 text-muted-foreground" />
-              <span class="font-mono">{{ shortBuildId(build.id) }}</span>
-            </div>
-            <div class="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-              <span>{{ buildStatusMeta(build.status).label }}</span>
-              <span>&middot; {{ formatRelativeTime(build.startedAt) }}</span>
-              <span v-if="buildDuration(build)">&middot; {{ buildDuration(build) }}</span>
-            </div>
-          </div>
-
-          <Button
-            variant="ghost"
-            size="sm"
-            class="shrink-0 h-7 text-xs text-muted-foreground"
-            @click="logsPanel.open(build.id, service.name)"
-          >
-            <Terminal :size="13" class="mr-1.5" />
-            Logs
-          </Button>
-        </div>
-      </div>
-    </div>
-
-    <!-- No builds yet -->
+    <!-- No releases yet -->
     <EmptyState
       v-else-if="!deploy.isDeploying && !activeDeployment"
-      title="No builds yet"
-      description="This service hasn't been built yet. Click Deploy to get started."
+      title="No deployments yet"
+      description="This service hasn't been deployed yet. Click Deploy to get started."
       pattern="diagonal"
     />
   </div>

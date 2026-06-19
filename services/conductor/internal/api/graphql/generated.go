@@ -19,6 +19,7 @@ import (
 	"github.com/vektah/gqlparser/v2/ast"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
 	"github.com/zeitlos/lucity/services/conductor/internal/buildjob"
+	"github.com/zeitlos/lucity/services/conductor/internal/conductor"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
@@ -74,6 +75,12 @@ type ComplexityRoot struct {
 
 	CheckoutSession struct {
 		URL func(childComplexity int) int
+	}
+
+	Commit struct {
+		Message func(childComplexity int) int
+		Sha     func(childComplexity int) int
+		URL     func(childComplexity int) int
 	}
 
 	Database struct {
@@ -196,6 +203,15 @@ type ComplexityRoot struct {
 		Private       func(childComplexity int) int
 	}
 
+	GitSource struct {
+		Commit      func(childComplexity int) int
+		ContextPath func(childComplexity int) int
+		Provider    func(childComplexity int) int
+		Ref         func(childComplexity int) int
+		Repository  func(childComplexity int) int
+		URL         func(childComplexity int) int
+	}
+
 	ImageSearchResult struct {
 		Description func(childComplexity int) int
 		Name        func(childComplexity int) int
@@ -301,6 +317,21 @@ type ComplexityRoot struct {
 		Rows         func(childComplexity int) int
 	}
 
+	Release struct {
+		Build      func(childComplexity int) int
+		CreatedAt  func(childComplexity int) int
+		Deployment func(childComplexity int) int
+		ID         func(childComplexity int) int
+		Source     func(childComplexity int) int
+		Status     func(childComplexity int) int
+		Trigger    func(childComplexity int) int
+	}
+
+	ReleaseTrigger struct {
+		Actor func(childComplexity int) int
+		Kind  func(childComplexity int) int
+	}
+
 	ReplicaCount struct {
 		Desired func(childComplexity int) int
 		Ready   func(childComplexity int) int
@@ -331,6 +362,7 @@ type ComplexityRoot struct {
 		LastDeployedAt   func(childComplexity int) int
 		Name             func(childComplexity int) int
 		Port             func(childComplexity int) int
+		Releases         func(childComplexity int) int
 		Replicas         func(childComplexity int) int
 		Resources        func(childComplexity int) int
 		SourceURL        func(childComplexity int) int
@@ -418,7 +450,7 @@ type MutationResolver interface {
 	ExecuteQuery(ctx context.Context, database platform.DatabaseID, query string) (*model.QueryResult, error)
 	ExposeDatabase(ctx context.Context, database platform.DatabaseID) (*model.Database, error)
 	UnexposeDatabase(ctx context.Context, database platform.DatabaseID) (*model.Database, error)
-	Deploy(ctx context.Context, service platform.ServiceID, gitRef *string) (*model.Build, error)
+	Deploy(ctx context.Context, service platform.ServiceID, gitRef *string) (*model.Release, error)
 	CreateEnvironment(ctx context.Context, input model.CreateEnvironmentInput) (*model.Environment, error)
 	DeleteEnvironment(ctx context.Context, environment platform.EnvironmentID) (bool, error)
 	CreateKeyValueStore(ctx context.Context, input model.CreateKeyValueStoreInput) (*model.KeyValueStore, error)
@@ -480,6 +512,8 @@ type ServiceResolver interface {
 
 	Deployments(ctx context.Context, obj *model.Service) ([]model.Deployment, error)
 	Builds(ctx context.Context, obj *model.Service) ([]model.Build, error)
+
+	Releases(ctx context.Context, obj *model.Service) ([]model.Release, error)
 }
 type SubscriptionResolver interface {
 	BuildLogs(ctx context.Context, id buildjob.BuildID) (<-chan string, error)
@@ -594,6 +628,25 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.CheckoutSession.URL(childComplexity), true
+
+	case "Commit.message":
+		if e.ComplexityRoot.Commit.Message == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Commit.Message(childComplexity), true
+	case "Commit.sha":
+		if e.ComplexityRoot.Commit.Sha == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Commit.Sha(childComplexity), true
+	case "Commit.url":
+		if e.ComplexityRoot.Commit.URL == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Commit.URL(childComplexity), true
 
 	case "Database.createdAt":
 		if e.ComplexityRoot.Database.CreatedAt == nil {
@@ -1059,6 +1112,43 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.GitHubRepository.Private(childComplexity), true
+
+	case "GitSource.commit":
+		if e.ComplexityRoot.GitSource.Commit == nil {
+			break
+		}
+
+		return e.ComplexityRoot.GitSource.Commit(childComplexity), true
+	case "GitSource.contextPath":
+		if e.ComplexityRoot.GitSource.ContextPath == nil {
+			break
+		}
+
+		return e.ComplexityRoot.GitSource.ContextPath(childComplexity), true
+	case "GitSource.provider":
+		if e.ComplexityRoot.GitSource.Provider == nil {
+			break
+		}
+
+		return e.ComplexityRoot.GitSource.Provider(childComplexity), true
+	case "GitSource.ref":
+		if e.ComplexityRoot.GitSource.Ref == nil {
+			break
+		}
+
+		return e.ComplexityRoot.GitSource.Ref(childComplexity), true
+	case "GitSource.repository":
+		if e.ComplexityRoot.GitSource.Repository == nil {
+			break
+		}
+
+		return e.ComplexityRoot.GitSource.Repository(childComplexity), true
+	case "GitSource.url":
+		if e.ComplexityRoot.GitSource.URL == nil {
+			break
+		}
+
+		return e.ComplexityRoot.GitSource.URL(childComplexity), true
 
 	case "ImageSearchResult.description":
 		if e.ComplexityRoot.ImageSearchResult.Description == nil {
@@ -1832,6 +1922,62 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.QueryResult.Rows(childComplexity), true
 
+	case "Release.build":
+		if e.ComplexityRoot.Release.Build == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Release.Build(childComplexity), true
+	case "Release.createdAt":
+		if e.ComplexityRoot.Release.CreatedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Release.CreatedAt(childComplexity), true
+	case "Release.deployment":
+		if e.ComplexityRoot.Release.Deployment == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Release.Deployment(childComplexity), true
+	case "Release.id":
+		if e.ComplexityRoot.Release.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Release.ID(childComplexity), true
+	case "Release.source":
+		if e.ComplexityRoot.Release.Source == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Release.Source(childComplexity), true
+	case "Release.status":
+		if e.ComplexityRoot.Release.Status == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Release.Status(childComplexity), true
+	case "Release.trigger":
+		if e.ComplexityRoot.Release.Trigger == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Release.Trigger(childComplexity), true
+
+	case "ReleaseTrigger.actor":
+		if e.ComplexityRoot.ReleaseTrigger.Actor == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ReleaseTrigger.Actor(childComplexity), true
+	case "ReleaseTrigger.kind":
+		if e.ComplexityRoot.ReleaseTrigger.Kind == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ReleaseTrigger.Kind(childComplexity), true
+
 	case "ReplicaCount.desired":
 		if e.ComplexityRoot.ReplicaCount.Desired == nil {
 			break
@@ -1955,6 +2101,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Service.Port(childComplexity), true
+	case "Service.releases":
+		if e.ComplexityRoot.Service.Releases == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Service.Releases(childComplexity), true
 	case "Service.replicas":
 		if e.ComplexityRoot.Service.Replicas == nil {
 			break
@@ -2319,7 +2471,7 @@ func newExecutionContext(
 	}
 }
 
-//go:embed "schema/auth.graphqls" "schema/billing.graphqls" "schema/build.graphqls" "schema/database.graphqls" "schema/deployment.graphqls" "schema/environment.graphqls" "schema/github.graphqls" "schema/keyvaluestore.graphqls" "schema/logs.graphqls" "schema/project.graphqls" "schema/registry.graphqls" "schema/schema.graphqls" "schema/service.graphqls" "schema/variable.graphqls" "schema/workspace.graphqls"
+//go:embed "schema/auth.graphqls" "schema/billing.graphqls" "schema/build.graphqls" "schema/database.graphqls" "schema/deployment.graphqls" "schema/environment.graphqls" "schema/github.graphqls" "schema/keyvaluestore.graphqls" "schema/logs.graphqls" "schema/project.graphqls" "schema/registry.graphqls" "schema/release.graphqls" "schema/schema.graphqls" "schema/service.graphqls" "schema/variable.graphqls" "schema/workspace.graphqls"
 var sourcesFS embed.FS
 
 func sourceData(filename string) string {
@@ -2342,6 +2494,7 @@ var sources = []*ast.Source{
 	{Name: "schema/logs.graphqls", Input: sourceData("schema/logs.graphqls"), BuiltIn: false},
 	{Name: "schema/project.graphqls", Input: sourceData("schema/project.graphqls"), BuiltIn: false},
 	{Name: "schema/registry.graphqls", Input: sourceData("schema/registry.graphqls"), BuiltIn: false},
+	{Name: "schema/release.graphqls", Input: sourceData("schema/release.graphqls"), BuiltIn: false},
 	{Name: "schema/schema.graphqls", Input: sourceData("schema/schema.graphqls"), BuiltIn: false},
 	{Name: "schema/service.graphqls", Input: sourceData("schema/service.graphqls"), BuiltIn: false},
 	{Name: "schema/variable.graphqls", Input: sourceData("schema/variable.graphqls"), BuiltIn: false},
@@ -2411,6 +2564,18 @@ func (ec *executionContext) childFields_CheckoutSession(ctx context.Context, fie
 		return ec.fieldContext_CheckoutSession_url(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type CheckoutSession", field.Name)
+}
+
+func (ec *executionContext) childFields_Commit(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "sha":
+		return ec.fieldContext_Commit_sha(ctx, field)
+	case "message":
+		return ec.fieldContext_Commit_message(ctx, field)
+	case "url":
+		return ec.fieldContext_Commit_url(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type Commit", field.Name)
 }
 
 func (ec *executionContext) childFields_Database(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
@@ -2653,6 +2818,24 @@ func (ec *executionContext) childFields_GitHubRepository(ctx context.Context, fi
 	return nil, fmt.Errorf("no field named %q was found under type GitHubRepository", field.Name)
 }
 
+func (ec *executionContext) childFields_GitSource(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "provider":
+		return ec.fieldContext_GitSource_provider(ctx, field)
+	case "repository":
+		return ec.fieldContext_GitSource_repository(ctx, field)
+	case "url":
+		return ec.fieldContext_GitSource_url(ctx, field)
+	case "ref":
+		return ec.fieldContext_GitSource_ref(ctx, field)
+	case "contextPath":
+		return ec.fieldContext_GitSource_contextPath(ctx, field)
+	case "commit":
+		return ec.fieldContext_GitSource_commit(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type GitSource", field.Name)
+}
+
 func (ec *executionContext) childFields_ImageSearchResult(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
 	case "name":
@@ -2727,6 +2910,36 @@ func (ec *executionContext) childFields_QueryResult(ctx context.Context, field g
 	return nil, fmt.Errorf("no field named %q was found under type QueryResult", field.Name)
 }
 
+func (ec *executionContext) childFields_Release(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "id":
+		return ec.fieldContext_Release_id(ctx, field)
+	case "status":
+		return ec.fieldContext_Release_status(ctx, field)
+	case "source":
+		return ec.fieldContext_Release_source(ctx, field)
+	case "trigger":
+		return ec.fieldContext_Release_trigger(ctx, field)
+	case "build":
+		return ec.fieldContext_Release_build(ctx, field)
+	case "deployment":
+		return ec.fieldContext_Release_deployment(ctx, field)
+	case "createdAt":
+		return ec.fieldContext_Release_createdAt(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type Release", field.Name)
+}
+
+func (ec *executionContext) childFields_ReleaseTrigger(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "kind":
+		return ec.fieldContext_ReleaseTrigger_kind(ctx, field)
+	case "actor":
+		return ec.fieldContext_ReleaseTrigger_actor(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type ReleaseTrigger", field.Name)
+}
+
 func (ec *executionContext) childFields_ReplicaCount(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
 	case "desired":
@@ -2795,6 +3008,8 @@ func (ec *executionContext) childFields_Service(ctx context.Context, field graph
 		return ec.fieldContext_Service_lastDeployedAt(ctx, field)
 	case "createdAt":
 		return ec.fieldContext_Service_createdAt(ctx, field)
+	case "releases":
+		return ec.fieldContext_Service_releases(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type Service", field.Name)
 }
@@ -4419,6 +4634,75 @@ func (ec *executionContext) _CheckoutSession_url(ctx context.Context, field grap
 }
 func (ec *executionContext) fieldContext_CheckoutSession_url(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("CheckoutSession", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _Commit_sha(ctx context.Context, field graphql.CollectedField, obj *model.Commit) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Commit_sha(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Sha, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Commit_sha(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Commit", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _Commit_message(ctx context.Context, field graphql.CollectedField, obj *model.Commit) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Commit_message(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Message, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Commit_message(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Commit", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _Commit_url(ctx context.Context, field graphql.CollectedField, obj *model.Commit) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Commit_url(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.URL, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_Commit_url(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Commit", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
 func (ec *executionContext) _Database_id(ctx context.Context, field graphql.CollectedField, obj *model.Database) (ret graphql.Marshaler) {
@@ -6227,6 +6511,153 @@ func (ec *executionContext) fieldContext_GitHubRepository_private(_ context.Cont
 	return graphql.NewScalarFieldContext("GitHubRepository", field, false, false, errors.New("field of type Boolean does not have child fields"))
 }
 
+func (ec *executionContext) _GitSource_provider(ctx context.Context, field graphql.CollectedField, obj *model.GitSource) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_GitSource_provider(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Provider, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v model.SourceProvider) graphql.Marshaler {
+			return ec.marshalNSourceProvider2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐSourceProvider(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_GitSource_provider(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("GitSource", field, false, false, errors.New("field of type SourceProvider does not have child fields"))
+}
+
+func (ec *executionContext) _GitSource_repository(ctx context.Context, field graphql.CollectedField, obj *model.GitSource) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_GitSource_repository(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Repository, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_GitSource_repository(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("GitSource", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _GitSource_url(ctx context.Context, field graphql.CollectedField, obj *model.GitSource) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_GitSource_url(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.URL, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_GitSource_url(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("GitSource", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _GitSource_ref(ctx context.Context, field graphql.CollectedField, obj *model.GitSource) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_GitSource_ref(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Ref, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_GitSource_ref(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("GitSource", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _GitSource_contextPath(ctx context.Context, field graphql.CollectedField, obj *model.GitSource) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_GitSource_contextPath(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ContextPath, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_GitSource_contextPath(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("GitSource", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _GitSource_commit(ctx context.Context, field graphql.CollectedField, obj *model.GitSource) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_GitSource_commit(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Commit, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Commit) graphql.Marshaler {
+			return ec.marshalNCommit2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐCommit(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_GitSource_commit(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GitSource",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Commit(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _ImageSearchResult_name(ctx context.Context, field graphql.CollectedField, obj *model.ImageSearchResult) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -7249,11 +7680,11 @@ func (ec *executionContext) _Mutation_deploy(ctx context.Context, field graphql.
 			directive1 := func(ctx context.Context) (any, error) {
 				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
 				if err != nil {
-					var zeroVal *model.Build
+					var zeroVal *model.Release
 					return zeroVal, err
 				}
 				if ec.Directives.HasRole == nil {
-					var zeroVal *model.Build
+					var zeroVal *model.Release
 					return zeroVal, errors.New("directive hasRole is not implemented")
 				}
 				return ec.Directives.HasRole(ctx, nil, directive0, role)
@@ -7262,8 +7693,8 @@ func (ec *executionContext) _Mutation_deploy(ctx context.Context, field graphql.
 			next = directive1
 			return next
 		},
-		func(ctx context.Context, selections ast.SelectionSet, v *model.Build) graphql.Marshaler {
-			return ec.marshalNBuild2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐBuild(ctx, selections, v)
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Release) graphql.Marshaler {
+			return ec.marshalNRelease2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRelease(ctx, selections, v)
 		},
 		true,
 		true,
@@ -7276,7 +7707,7 @@ func (ec *executionContext) fieldContext_Mutation_deploy(ctx context.Context, fi
 		IsMethod:   true,
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.childFields_Build(ctx, field)
+			return ec.childFields_Release(ctx, field)
 		},
 	}
 	defer func() {
@@ -10566,6 +10997,249 @@ func (ec *executionContext) fieldContext_QueryResult_affectedRows(_ context.Cont
 	return graphql.NewScalarFieldContext("QueryResult", field, false, false, errors.New("field of type Int does not have child fields"))
 }
 
+func (ec *executionContext) _Release_id(ctx context.Context, field graphql.CollectedField, obj *model.Release) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Release_id(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v conductor.ReleaseID) graphql.Marshaler {
+			return ec.marshalNReleaseID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋconductorᚐReleaseID(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Release_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Release", field, false, false, errors.New("field of type ReleaseID does not have child fields"))
+}
+
+func (ec *executionContext) _Release_status(ctx context.Context, field graphql.CollectedField, obj *model.Release) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Release_status(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Status, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v model.ReleaseStatus) graphql.Marshaler {
+			return ec.marshalNReleaseStatus2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐReleaseStatus(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Release_status(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Release", field, false, false, errors.New("field of type ReleaseStatus does not have child fields"))
+}
+
+func (ec *executionContext) _Release_source(ctx context.Context, field graphql.CollectedField, obj *model.Release) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Release_source(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Source, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.GitSource) graphql.Marshaler {
+			return ec.marshalOGitSource2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐGitSource(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_Release_source(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Release",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_GitSource(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Release_trigger(ctx context.Context, field graphql.CollectedField, obj *model.Release) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Release_trigger(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Trigger, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.ReleaseTrigger) graphql.Marshaler {
+			return ec.marshalNReleaseTrigger2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐReleaseTrigger(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Release_trigger(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Release",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_ReleaseTrigger(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Release_build(ctx context.Context, field graphql.CollectedField, obj *model.Release) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Release_build(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Build, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Build) graphql.Marshaler {
+			return ec.marshalOBuild2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐBuild(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_Release_build(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Release",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Build(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Release_deployment(ctx context.Context, field graphql.CollectedField, obj *model.Release) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Release_deployment(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Deployment, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Deployment) graphql.Marshaler {
+			return ec.marshalODeployment2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDeployment(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_Release_deployment(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Release",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Deployment(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Release_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.Release) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Release_createdAt(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CreatedAt, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v time.Time) graphql.Marshaler {
+			return ec.marshalNTime2timeᚐTime(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Release_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Release", field, false, false, errors.New("field of type Time does not have child fields"))
+}
+
+func (ec *executionContext) _ReleaseTrigger_kind(ctx context.Context, field graphql.CollectedField, obj *model.ReleaseTrigger) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ReleaseTrigger_kind(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Kind, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v model.ReleaseTriggerKind) graphql.Marshaler {
+			return ec.marshalNReleaseTriggerKind2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐReleaseTriggerKind(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ReleaseTrigger_kind(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ReleaseTrigger", field, false, false, errors.New("field of type ReleaseTriggerKind does not have child fields"))
+}
+
+func (ec *executionContext) _ReleaseTrigger_actor(ctx context.Context, field graphql.CollectedField, obj *model.ReleaseTrigger) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ReleaseTrigger_actor(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Actor, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_ReleaseTrigger_actor(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ReleaseTrigger", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
 func (ec *executionContext) _ReplicaCount_desired(ctx context.Context, field graphql.CollectedField, obj *model.ReplicaCount) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -11179,6 +11853,38 @@ func (ec *executionContext) _Service_createdAt(ctx context.Context, field graphq
 }
 func (ec *executionContext) fieldContext_Service_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("Service", field, false, false, errors.New("field of type Time does not have child fields"))
+}
+
+func (ec *executionContext) _Service_releases(ctx context.Context, field graphql.CollectedField, obj *model.Service) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Service_releases(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Service().Releases(ctx, obj)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []model.Release) graphql.Marshaler {
+			return ec.marshalNRelease2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐReleaseᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Service_releases(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Service",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Release(ctx, field)
+		},
+	}
+	return fc, nil
 }
 
 func (ec *executionContext) _ServiceLogEntry_line(ctx context.Context, field graphql.CollectedField, obj *model.ServiceLogEntry) (ret graphql.Marshaler) {
@@ -14405,6 +15111,52 @@ func (ec *executionContext) _CheckoutSession(ctx context.Context, sel ast.Select
 	return out
 }
 
+var commitImplementors = []string{"Commit"}
+
+func (ec *executionContext) _Commit(ctx context.Context, sel ast.SelectionSet, obj *model.Commit) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, commitImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Commit")
+		case "sha":
+			out.Values[i] = ec._Commit_sha(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "message":
+			out.Values[i] = ec._Commit_message(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "url":
+			out.Values[i] = ec._Commit_url(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferred), math.MaxInt32)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var databaseImplementors = []string{"Database"}
 
 func (ec *executionContext) _Database(ctx context.Context, sel ast.SelectionSet, obj *model.Database) graphql.Marshaler {
@@ -15354,6 +16106,70 @@ func (ec *executionContext) _GitHubRepository(ctx context.Context, sel ast.Selec
 			}
 		case "private":
 			out.Values[i] = ec._GitHubRepository_private(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferred), math.MaxInt32)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var gitSourceImplementors = []string{"GitSource"}
+
+func (ec *executionContext) _GitSource(ctx context.Context, sel ast.SelectionSet, obj *model.GitSource) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, gitSourceImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("GitSource")
+		case "provider":
+			out.Values[i] = ec._GitSource_provider(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "repository":
+			out.Values[i] = ec._GitSource_repository(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "url":
+			out.Values[i] = ec._GitSource_url(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "ref":
+			out.Values[i] = ec._GitSource_ref(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "contextPath":
+			out.Values[i] = ec._GitSource_contextPath(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "commit":
+			out.Values[i] = ec._GitSource_commit(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -16567,6 +17383,107 @@ func (ec *executionContext) _QueryResult(ctx context.Context, sel ast.SelectionS
 	return out
 }
 
+var releaseImplementors = []string{"Release"}
+
+func (ec *executionContext) _Release(ctx context.Context, sel ast.SelectionSet, obj *model.Release) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, releaseImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Release")
+		case "id":
+			out.Values[i] = ec._Release_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "status":
+			out.Values[i] = ec._Release_status(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "source":
+			out.Values[i] = ec._Release_source(ctx, field, obj)
+		case "trigger":
+			out.Values[i] = ec._Release_trigger(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "build":
+			out.Values[i] = ec._Release_build(ctx, field, obj)
+		case "deployment":
+			out.Values[i] = ec._Release_deployment(ctx, field, obj)
+		case "createdAt":
+			out.Values[i] = ec._Release_createdAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferred), math.MaxInt32)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var releaseTriggerImplementors = []string{"ReleaseTrigger"}
+
+func (ec *executionContext) _ReleaseTrigger(ctx context.Context, sel ast.SelectionSet, obj *model.ReleaseTrigger) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, releaseTriggerImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ReleaseTrigger")
+		case "kind":
+			out.Values[i] = ec._ReleaseTrigger_kind(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "actor":
+			out.Values[i] = ec._ReleaseTrigger_actor(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferred), math.MaxInt32)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var replicaCountImplementors = []string{"ReplicaCount"}
 
 func (ec *executionContext) _ReplicaCount(ctx context.Context, sel ast.SelectionSet, obj *model.ReplicaCount) graphql.Marshaler {
@@ -16915,6 +17832,42 @@ func (ec *executionContext) _Service(ctx context.Context, sel ast.SelectionSet, 
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
+		case "releases":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Service_releases(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -17862,6 +18815,16 @@ func (ec *executionContext) marshalNCheckoutSession2ᚖgithubᚗcomᚋzeitlosᚋ
 	return ec._CheckoutSession(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNCommit2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐCommit(ctx context.Context, sel ast.SelectionSet, v *model.Commit) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._Commit(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalNCreateDatabaseInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐCreateDatabaseInput(ctx context.Context, v any) (model.CreateDatabaseInput, error) {
 	res, err := ec.unmarshalInputCreateDatabaseInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -18442,6 +19405,76 @@ func (ec *executionContext) marshalNQueryResult2ᚖgithubᚗcomᚋzeitlosᚋluci
 	return ec._QueryResult(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNRelease2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRelease(ctx context.Context, sel ast.SelectionSet, v model.Release) graphql.Marshaler {
+	return ec._Release(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNRelease2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐReleaseᚄ(ctx context.Context, sel ast.SelectionSet, v []model.Release) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNRelease2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRelease(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNRelease2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRelease(ctx context.Context, sel ast.SelectionSet, v *model.Release) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._Release(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNReleaseID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋconductorᚐReleaseID(ctx context.Context, v any) (conductor.ReleaseID, error) {
+	var res conductor.ReleaseID
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNReleaseID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋconductorᚐReleaseID(ctx context.Context, sel ast.SelectionSet, v conductor.ReleaseID) graphql.Marshaler {
+	return v
+}
+
+func (ec *executionContext) unmarshalNReleaseStatus2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐReleaseStatus(ctx context.Context, v any) (model.ReleaseStatus, error) {
+	var res model.ReleaseStatus
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNReleaseStatus2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐReleaseStatus(ctx context.Context, sel ast.SelectionSet, v model.ReleaseStatus) graphql.Marshaler {
+	return v
+}
+
+func (ec *executionContext) marshalNReleaseTrigger2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐReleaseTrigger(ctx context.Context, sel ast.SelectionSet, v *model.ReleaseTrigger) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._ReleaseTrigger(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNReleaseTriggerKind2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐReleaseTriggerKind(ctx context.Context, v any) (model.ReleaseTriggerKind, error) {
+	var res model.ReleaseTriggerKind
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNReleaseTriggerKind2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐReleaseTriggerKind(ctx context.Context, sel ast.SelectionSet, v model.ReleaseTriggerKind) graphql.Marshaler {
+	return v
+}
+
 func (ec *executionContext) marshalNReplicaCount2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐReplicaCount(ctx context.Context, sel ast.SelectionSet, v *model.ReplicaCount) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
@@ -18609,6 +19642,16 @@ func (ec *executionContext) unmarshalNSetEnvironmentResourcesInput2githubᚗcom�
 func (ec *executionContext) unmarshalNSetServiceScalingInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐSetServiceScalingInput(ctx context.Context, v any) (model.SetServiceScalingInput, error) {
 	res, err := ec.unmarshalInputSetServiceScalingInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNSourceProvider2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐSourceProvider(ctx context.Context, v any) (model.SourceProvider, error) {
+	var res model.SourceProvider
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNSourceProvider2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐSourceProvider(ctx context.Context, sel ast.SelectionSet, v model.SourceProvider) graphql.Marshaler {
+	return v
 }
 
 func (ec *executionContext) unmarshalNString2string(ctx context.Context, v any) (string, error) {
@@ -19074,6 +20117,13 @@ func (ec *executionContext) marshalOBoolean2ᚖbool(ctx context.Context, sel ast
 	return res
 }
 
+func (ec *executionContext) marshalOBuild2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐBuild(ctx context.Context, sel ast.SelectionSet, v *model.Build) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._Build(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalODatabaseRef2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabaseRef(ctx context.Context, sel ast.SelectionSet, v *model.DatabaseRef) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
@@ -19117,6 +20167,13 @@ func (ec *executionContext) marshalOEnvironmentResources2ᚖgithubᚗcomᚋzeitl
 		return graphql.Null
 	}
 	return ec._EnvironmentResources(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOGitSource2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐGitSource(ctx context.Context, sel ast.SelectionSet, v *model.GitSource) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._GitSource(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalOInt2ᚖint(ctx context.Context, v any) (*int, error) {

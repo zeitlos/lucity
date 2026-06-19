@@ -14,13 +14,13 @@ import (
 )
 
 // Deploy is the resolver for the deploy field.
-func (r *mutationResolver) Deploy(ctx context.Context, service platform.ServiceID, gitRef *string) (*model.Build, error) {
-	build, err := r.Conductor.Deploy(ctx, service, to.Val(gitRef))
+func (r *mutationResolver) Deploy(ctx context.Context, service platform.ServiceID, gitRef *string) (*model.Release, error) {
+	release, err := r.Conductor.Deploy(ctx, service, to.Val(gitRef))
 
 	if err != nil {
 		return nil, err
 	}
-	result := convertBuild(*build)
+	result := convertRelease(*release)
 	return &result, nil
 }
 

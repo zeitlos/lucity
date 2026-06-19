@@ -17,6 +17,7 @@ scalar DatabaseID
 scalar KeyValueStoreID
 scalar VolumeID
 scalar BuildID
+scalar ReleaseID
 
 enum Role {
   ANONYMOUS

@@ -60,7 +60,7 @@ func (c *Client) Start(ctx context.Context, opts buildjob.StartOptions) (*buildj
 	id := "build-" + rand.String(6)
 	secretName := id + "-variables"
 
-	job := c.newBuildJob(id, opts.Workspace, *parsed, opts.ContextPath, opts.Commit, opts.Token, tag, opts.TargetImageNames, secretName)
+	job := c.newBuildJob(id, opts.Workspace, *parsed, opts.ContextPath, opts.Commit, opts.Token, tag, opts.TargetImageNames, secretName, opts.ReleaseID)
 	job, err = c.kubernetes.BatchV1().Jobs(c.namespace).Create(ctx, job, meta.CreateOptions{})
 
 	if err != nil {
@@ -140,7 +140,7 @@ func isDone(job batch.Job) bool {
 	return slices.Contains(terminalStatuses, status)
 }
 
-func (c *Client) newBuildJob(id, workspaceID string, repoURL url.URL, contextPath, commit, githubToken, tag string, targetImageNames []string, varsSecret string) *batch.Job {
+func (c *Client) newBuildJob(id, workspaceID string, repoURL url.URL, contextPath, commit, githubToken, tag string, targetImageNames []string, varsSecret, releaseID string) *batch.Job {
 	targetImages := make([]string, len(targetImageNames))
 	targetRefs := make([]string, len(targetImageNames))
 
@@ -193,6 +193,10 @@ func (c *Client) newBuildJob(id, workspaceID string, repoURL url.URL, contextPat
 	}
 
 	labels := buildJobLabels(workspaceID, repoURL, contextPath, commit)
+
+	if releaseID != "" {
+		labels[labelRelease] = releaseID
+	}
 
 	return &batch.Job{
 		ObjectMeta: meta.ObjectMeta{

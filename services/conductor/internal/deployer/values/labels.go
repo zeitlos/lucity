@@ -16,6 +16,10 @@ const (
 	annotationSourceCommit  = "lucity.dev/source-commit"
 	annotationSourceMessage = "lucity.dev/source-commit-message"
 	annotationBuildID       = "lucity.dev/build-id"
+
+	annotationRelease        = "lucity.dev/release"
+	annotationReleaseTrigger = "lucity.dev/release-trigger"
+	annotationReleaseActor   = "lucity.dev/release-actor"
 )
 
 func CommonLabels(workspace, project, environment string) map[string]string {

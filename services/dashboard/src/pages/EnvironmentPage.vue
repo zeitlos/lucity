@@ -74,6 +74,43 @@ const EnvironmentDocument = graphql(`
           startedAt
           finishedAt
         }
+        releases {
+          id
+          status
+          createdAt
+          trigger {
+            kind
+            actor
+          }
+          source {
+            provider
+            repository
+            url
+            ref
+            contextPath
+            commit {
+              sha
+              message
+              url
+            }
+          }
+          build {
+            id
+            status
+            startedAt
+            finishedAt
+          }
+          deployment {
+            id
+            image
+            imageDigest
+            commit
+            commitMessage
+            ref
+            status
+            createdAt
+          }
+        }
         lastDeployedAt
         createdAt
       }
@@ -254,6 +291,49 @@ watch(
           status: b.status,
           startedAt: b.startedAt,
           finishedAt: b.finishedAt ?? null,
+        })),
+        releases: s.releases.map(r => ({
+          id: r.id,
+          status: r.status,
+          createdAt: r.createdAt,
+          trigger: {
+            kind: r.trigger.kind,
+            actor: r.trigger.actor ?? null,
+          },
+          source: r.source
+            ? {
+              provider: r.source.provider,
+              repository: r.source.repository,
+              url: r.source.url,
+              ref: r.source.ref,
+              contextPath: r.source.contextPath,
+              commit: {
+                sha: r.source.commit.sha,
+                message: r.source.commit.message,
+                url: r.source.commit.url ?? null,
+              },
+            }
+            : null,
+          build: r.build
+            ? {
+              id: r.build.id,
+              status: r.build.status,
+              startedAt: r.build.startedAt,
+              finishedAt: r.build.finishedAt ?? null,
+            }
+            : null,
+          deployment: r.deployment
+            ? {
+              id: r.deployment.id,
+              image: r.deployment.image,
+              imageDigest: r.deployment.imageDigest ?? null,
+              commit: r.deployment.commit,
+              commitMessage: r.deployment.commitMessage,
+              ref: r.deployment.ref,
+              status: r.deployment.status,
+              createdAt: r.deployment.createdAt,
+            }
+            : null,
         })),
         lastDeployedAt: s.lastDeployedAt ?? null,
         createdAt: s.createdAt,

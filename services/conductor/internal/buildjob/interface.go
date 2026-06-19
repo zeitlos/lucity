@@ -29,6 +29,7 @@ type StartOptions struct {
 	TargetImageNames []string
 	Token            string
 	BuildVars        map[string]string
+	ReleaseID        string
 }
 
 type Job struct {
@@ -38,6 +39,7 @@ type Job struct {
 	Commit      string
 	ContextPath string
 	TriggeredBy string
+	ReleaseID   string
 	StartedAt   *time.Time
 	FinishedAt  *time.Time
 	ImageRefs   map[string]name.Reference
