@@ -3,7 +3,6 @@ package graphql
 import (
 	"fmt"
 	"log/slog"
-	"time"
 
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
@@ -251,8 +250,6 @@ func convertBuild(build conductor.Build) model.Build {
 
 	if build.StartedAt != nil {
 		result.StartedAt = *build.StartedAt
-	} else {
-		result.StartedAt = time.Time{}
 	}
 
 	return result

@@ -134,7 +134,13 @@ func DeleteService(env *Env, name string) error {
 	return nil
 }
 
-func SetServiceImage(env *Env, name string, ref image.Ref, commit, commitMessage, buildID string) error {
+type ImageProvenance struct {
+	Commit        string
+	CommitMessage string
+	BuildID       string
+}
+
+func SetServiceImage(env *Env, name string, ref image.Ref, provenance ImageProvenance) error {
 	return mutateService(env, name, func(s *Service) {
 		s.Image.Repository = ref.Repository
 		s.Image.Tag = ref.Tag
@@ -144,9 +150,9 @@ func SetServiceImage(env *Env, name string, ref image.Ref, commit, commitMessage
 			s.PodAnnotations = map[string]string{}
 		}
 
-		setOrDelete(s.PodAnnotations, annotationSourceCommit, commit)
-		setOrDelete(s.PodAnnotations, annotationSourceMessage, commitMessage)
-		setOrDelete(s.PodAnnotations, annotationBuildID, buildID)
+		setOrDelete(s.PodAnnotations, annotationSourceCommit, provenance.Commit)
+		setOrDelete(s.PodAnnotations, annotationSourceMessage, provenance.CommitMessage)
+		setOrDelete(s.PodAnnotations, annotationBuildID, provenance.BuildID)
 	})
 }
 
