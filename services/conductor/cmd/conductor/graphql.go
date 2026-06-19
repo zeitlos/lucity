@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -206,27 +207,29 @@ func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvid
 		return next(ctx)
 	})
 
-	// Enforcing IDs stay within workspace provided by header
+	// Enforcing IDs stay within workspace provided by header.
 	srv.AroundFields(func(ctx context.Context, next graphql.Resolver) (any, error) {
 		fc := graphql.GetFieldContext(ctx)
 
 		for _, arg := range fc.Args {
-			scoped, ok := arg.(platform.WorkspaceScoped)
+			err := walkWorkspaceScoped(reflect.ValueOf(arg), func(scoped platform.WorkspaceScoped) error {
+				callerWorkspace, err := tenant.FromContext(ctx)
 
-			if !ok {
-				continue
-			}
+				if err != nil {
+					return err
+				}
 
-			callerWorkspace, err := tenant.FromContext(ctx)
+				if scoped.WorkspaceID() != callerWorkspace {
+					slog.WarnContext(ctx, "workspaces of id and header don't match", "id", scoped.WorkspaceID(), "header", callerWorkspace)
+
+					return errors.New("not found")
+				}
+
+				return nil
+			})
 
 			if err != nil {
 				return nil, err
-			}
-
-			if scoped.WorkspaceID() != callerWorkspace {
-				slog.WarnContext(ctx, "workspaces of id and header don't match", "id", scoped.WorkspaceID(), "header", callerWorkspace)
-
-				return nil, errors.New("not found")
 			}
 		}
 
@@ -344,6 +347,43 @@ func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvid
 			IdleTimeout:  120 * time.Second,
 		},
 	}
+}
+
+func walkWorkspaceScoped(v reflect.Value, visit func(platform.WorkspaceScoped) error) error {
+	if !v.IsValid() || !v.CanInterface() {
+		return nil
+	}
+
+	if (v.Kind() == reflect.Pointer || v.Kind() == reflect.Interface) && v.IsNil() {
+		return nil
+	}
+
+	if scoped, ok := v.Interface().(platform.WorkspaceScoped); ok {
+		return visit(scoped)
+	}
+
+	switch v.Kind() {
+	case reflect.Pointer, reflect.Interface:
+		return walkWorkspaceScoped(v.Elem(), visit)
+	case reflect.Struct:
+		for i := range v.NumField() {
+			if v.Type().Field(i).PkgPath != "" {
+				continue
+			}
+
+			if err := walkWorkspaceScoped(v.Field(i), visit); err != nil {
+				return err
+			}
+		}
+	case reflect.Slice, reflect.Array:
+		for i := range v.Len() {
+			if err := walkWorkspaceScoped(v.Index(i), visit); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
 func (s *GraphQLServer) Start() error {
