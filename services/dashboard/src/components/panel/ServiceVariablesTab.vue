@@ -263,6 +263,7 @@ async function handleSave() {
       <h3 class="text-sm font-medium text-foreground">Service Variables</h3>
       <p class="text-xs text-muted-foreground">
         Environment variables for <strong>{{ serviceName }}</strong> in {{ activeEnvironment?.name || 'this environment' }}.
+        These are available at both build time and runtime.
       </p>
     </div>
 
