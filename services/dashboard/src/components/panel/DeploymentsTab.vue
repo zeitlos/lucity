@@ -79,7 +79,8 @@ async function handleRedeploy() {
   await deploy.startDeploy(props.service.id, props.service.name);
 }
 
-function formatRelativeTime(timestamp: string): string {
+function formatRelativeTime(timestamp?: string | null): string {
+  if (!timestamp) return 'queued';
   const date = new Date(timestamp);
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
