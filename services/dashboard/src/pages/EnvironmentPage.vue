@@ -395,7 +395,7 @@ watch(error, (err) => {
         <Transition name="slide-panel">
           <div
             v-if="logsPanel.isOpen.value"
-            class="absolute -top-1 -right-1 bottom-6 z-10 shadow-2xl"
+            class="absolute inset-y-3 right-0 z-10"
             style="left: calc(45% + 12px + 2rem)"
           >
             <BuildLogsPanel

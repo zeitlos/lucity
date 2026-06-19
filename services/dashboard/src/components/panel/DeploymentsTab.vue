@@ -9,7 +9,6 @@ import { useDeploy } from '@/composables/useDeploy';
 import { useBuildLogsPanel } from '@/composables/useBuildLogsPanel';
 import { BuildStatus, DeploymentStatus } from '@/gql/graphql';
 import { activeBuild, type Build, type Deployment } from '@/composables/useEnvironment';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
@@ -49,6 +48,9 @@ const sortedDeployments = computed(() =>
     const bt = new Date(b.createdAt).getTime();
     return bt - at;
   }),
+);
+const historyDeployments = computed(() =>
+  sortedDeployments.value.filter(dep => dep.id !== activeDeployment.value?.id),
 );
 
 const inFlightBuild = computed(() => activeBuild(props.service));
@@ -94,8 +96,8 @@ function formatRelativeTime(timestamp: string): string {
 }
 
 function shortBuildId(id: string): string {
-  // build-<hash> → <hash>[:7]
-  const trimmed = id.startsWith('build-') ? id.slice(6) : id;
+  const name = id.includes('/') ? id.slice(id.lastIndexOf('/') + 1) : id;
+  const trimmed = name.startsWith('build-') ? name.slice(6) : name;
   return trimmed.slice(0, 7);
 }
 
@@ -115,16 +117,28 @@ function buildDuration(build: Build): string | null {
   return `${mins}m ${remSecs}s`;
 }
 
-function buildStatusVariant(status: BuildStatus): 'default' | 'destructive' | 'secondary' {
-  if (status === BuildStatus.Succeeded) return 'default';
-  if (status === BuildStatus.Failed) return 'destructive';
-  return 'secondary';
+interface StatusMeta {
+  label: string;
+  color: string;
 }
 
-function deploymentStatusVariant(status: DeploymentStatus): 'default' | 'destructive' | 'secondary' {
-  if (status === DeploymentStatus.Active) return 'default';
-  if (status === DeploymentStatus.Failed) return 'destructive';
-  return 'secondary';
+function buildStatusMeta(status: BuildStatus): StatusMeta {
+  switch (status) {
+    case BuildStatus.Succeeded: return { label: 'Succeeded', color: 'var(--status-ok)' };
+    case BuildStatus.Running: return { label: 'Running', color: 'var(--status-warn)' };
+    case BuildStatus.Failed: return { label: 'Failed', color: 'var(--status-danger)' };
+    case BuildStatus.Cancelled: return { label: 'Cancelled', color: 'var(--status-neutral)' };
+    default: return { label: 'Queued', color: 'var(--status-neutral)' };
+  }
+}
+
+function deploymentStatusMeta(status: DeploymentStatus): StatusMeta {
+  switch (status) {
+    case DeploymentStatus.Active: return { label: 'Active', color: 'var(--status-ok)' };
+    case DeploymentStatus.Deploying: return { label: 'Deploying', color: 'var(--status-warn)' };
+    case DeploymentStatus.Failed: return { label: 'Failed', color: 'var(--status-danger)' };
+    default: return { label: 'Superseded', color: 'var(--status-neutral)' };
+  }
 }
 
 function deploymentLabel(deployment: Deployment): string {
@@ -171,48 +185,15 @@ const showActiveDetails = ref(false);
         {{ deploy.isDeploying ? 'Building...' : 'Deploy' }}
       </Button>
 
-      <Badge
-        v-if="deploy.status"
-        :variant="buildStatusVariant(deploy.status)"
-        :hide-dot="deploy.isDeploying"
+      <button
+        v-if="deploy.isDeploying && deploy.buildId"
+        class="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+        @click="showLogs"
       >
-        <Loader2
-          v-if="deploy.isDeploying"
-          :size="12"
-          class="mr-1 animate-spin"
-        />
-        {{ deploy.status }}
-      </Badge>
-    </div>
-
-    <!-- In-flight build -->
-    <div
-      v-if="deploy.isDeploying"
-      class="rounded-lg border border-border/60 bg-muted/30"
-    >
-      <div class="flex items-center gap-2.5 px-3 py-2.5">
-        <Loader2 :size="14" class="animate-spin text-[var(--primary)]" />
-        <div class="min-w-0 flex-1">
-          <p class="text-xs font-medium text-foreground">
-            {{ deploy.status === BuildStatus.Queued ? 'Queued' : 'Building' }}
-          </p>
-          <p
-            v-if="deploy.buildId"
-            class="font-mono text-[11px] text-muted-foreground"
-          >
-            {{ shortBuildId(deploy.buildId) }}
-          </p>
-        </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          class="h-7 text-xs text-muted-foreground"
-          @click="showLogs"
-        >
-          <Terminal :size="13" class="mr-1.5" />
-          Show Logs
-        </Button>
-      </div>
+        <Terminal :size="13" />
+        Show logs
+        <span class="font-mono text-[11px] text-muted-foreground/70">{{ shortBuildId(deploy.buildId) }}</span>
+      </button>
     </div>
 
     <!-- Build failed -->
@@ -249,12 +230,13 @@ const showActiveDetails = ref(false);
       <div class="rounded-lg border border-border/60 bg-card">
         <!-- Main row -->
         <div class="flex items-start gap-3 px-4 py-3">
-          <Badge
-            :variant="activeDeployment.status === DeploymentStatus.Active ? 'default' : 'secondary'"
-            class="mt-0.5 shrink-0"
+          <span
+            class="mt-1 flex shrink-0 items-center gap-1.5 text-[11px] font-medium"
+            :style="{ color: deploymentStatusMeta(activeDeployment.status).color }"
           >
-            {{ activeDeployment.status }}
-          </Badge>
+            <span class="h-1.5 w-1.5 rounded-full" :style="{ backgroundColor: deploymentStatusMeta(activeDeployment.status).color }" />
+            {{ deploymentStatusMeta(activeDeployment.status).label }}
+          </span>
 
           <div class="min-w-0 flex-1">
             <p
@@ -343,36 +325,35 @@ const showActiveDetails = ref(false);
     </div>
 
     <!-- Deployment history -->
-    <div v-if="sortedDeployments.length > 0" class="space-y-2">
+    <div v-if="historyDeployments.length > 0" class="space-y-2">
       <h3 class="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
         Deployments
       </h3>
 
       <div class="space-y-2">
         <div
-          v-for="dep in sortedDeployments"
+          v-for="dep in historyDeployments"
           :key="dep.id"
-          class="rounded-lg border border-border/60 bg-muted/30 px-4 py-3"
+          class="flex items-start gap-3 rounded-lg border border-border/60 bg-muted/30 px-4 py-2.5"
         >
-          <Badge
-            v-if="dep.status === DeploymentStatus.Active"
-            :variant="deploymentStatusVariant(dep.status)"
-            class="mb-1.5 text-[0.65rem]"
-          >
-            {{ dep.status }}
-          </Badge>
-
-          <p
-            class="truncate text-sm text-foreground"
-            :title="dep.commitMessage || dep.commit"
-          >
-            {{ deploymentLabel(dep) }}
-          </p>
-          <div class="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-            <GitCommitHorizontal v-if="shortCommit(dep.commit)" :size="10" class="shrink-0" />
-            <span v-if="shortCommit(dep.commit)" class="font-mono">{{ shortCommit(dep.commit) }}</span>
-            <span>&middot; {{ formatRelativeTime(dep.createdAt) }}</span>
-            <span v-if="dep.deployedBy">&middot; by {{ dep.deployedBy }}</span>
+          <span
+            class="mt-1 h-1.5 w-1.5 shrink-0 rounded-full"
+            :style="{ backgroundColor: deploymentStatusMeta(dep.status).color }"
+            :title="deploymentStatusMeta(dep.status).label"
+          />
+          <div class="min-w-0 flex-1">
+            <p
+              class="truncate text-sm text-foreground"
+              :title="dep.commitMessage || dep.commit"
+            >
+              {{ deploymentLabel(dep) }}
+            </p>
+            <div class="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+              <GitCommitHorizontal v-if="shortCommit(dep.commit)" :size="10" class="shrink-0" />
+              <span v-if="shortCommit(dep.commit)" class="font-mono">{{ shortCommit(dep.commit) }}</span>
+              <span>&middot; {{ formatRelativeTime(dep.createdAt) }}</span>
+              <span v-if="dep.deployedBy">&middot; by {{ dep.deployedBy }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -388,37 +369,34 @@ const showActiveDetails = ref(false);
         <div
           v-for="build in sortedBuilds"
           :key="build.id"
-          class="rounded-lg border border-border/60 bg-muted/30 px-4 py-3"
+          class="flex items-center gap-3 rounded-lg border border-border/60 bg-muted/30 px-4 py-2.5"
         >
-          <Badge
-            :variant="buildStatusVariant(build.status)"
-            class="mb-1.5 text-[0.65rem]"
-          >
-            {{ build.status }}
-          </Badge>
-
-          <div class="flex items-center gap-3">
-            <div class="min-w-0 flex-1">
-              <div class="flex items-center gap-1.5 text-sm text-foreground">
-                <Hammer :size="12" class="shrink-0 text-muted-foreground" />
-                <span class="font-mono">{{ shortBuildId(build.id) }}</span>
-              </div>
-              <div class="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-                <span>{{ formatRelativeTime(build.startedAt) }}</span>
-                <span v-if="buildDuration(build)">&middot; {{ buildDuration(build) }}</span>
-              </div>
+          <span
+            class="h-1.5 w-1.5 shrink-0 rounded-full"
+            :style="{ backgroundColor: buildStatusMeta(build.status).color }"
+            :title="buildStatusMeta(build.status).label"
+          />
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-1.5 text-sm text-foreground">
+              <Hammer :size="12" class="shrink-0 text-muted-foreground" />
+              <span class="font-mono">{{ shortBuildId(build.id) }}</span>
             </div>
-
-            <Button
-              variant="ghost"
-              size="sm"
-              class="shrink-0 h-7 text-xs text-muted-foreground"
-              @click="logsPanel.open(build.id, service.name)"
-            >
-              <Terminal :size="13" class="mr-1.5" />
-              Logs
-            </Button>
+            <div class="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+              <span>{{ buildStatusMeta(build.status).label }}</span>
+              <span>&middot; {{ formatRelativeTime(build.startedAt) }}</span>
+              <span v-if="buildDuration(build)">&middot; {{ buildDuration(build) }}</span>
+            </div>
           </div>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            class="shrink-0 h-7 text-xs text-muted-foreground"
+            @click="logsPanel.open(build.id, service.name)"
+          >
+            <Terminal :size="13" class="mr-1.5" />
+            Logs
+          </Button>
         </div>
       </div>
     </div>
