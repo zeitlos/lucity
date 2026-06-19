@@ -2,7 +2,7 @@ type Build {
   id: BuildID!
   status: BuildStatus!
 
-  startedAt: Time!
+  startedAt: Time
   finishedAt: Time
 }
 

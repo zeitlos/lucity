@@ -62,7 +62,7 @@ export interface Deployment {
 export interface Build {
   id: string;
   status: BuildStatus;
-  startedAt: string;
+  startedAt?: string | null;
   finishedAt?: string | null;
 }
 

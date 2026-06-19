@@ -65,7 +65,7 @@ export type Build = {
   __typename?: 'Build';
   finishedAt?: Maybe<Scalars['Time']['output']>;
   id: Scalars['BuildID']['output'];
-  startedAt: Scalars['Time']['output'];
+  startedAt?: Maybe<Scalars['Time']['output']>;
   status: BuildStatus;
 };
 
@@ -1122,7 +1122,7 @@ export type CanvasServiceBuildsQueryVariables = Exact<{
 }>;
 
 
-export type CanvasServiceBuildsQuery = { __typename?: 'Query', service: { __typename?: 'Service', id: string, builds: Array<{ __typename?: 'Build', id: string, status: BuildStatus, startedAt: string, finishedAt?: string | null }> } };
+export type CanvasServiceBuildsQuery = { __typename?: 'Query', service: { __typename?: 'Service', id: string, builds: Array<{ __typename?: 'Build', id: string, status: BuildStatus, startedAt?: string | null, finishedAt?: string | null }> } };
 
 export type DeployMutationVariables = Exact<{
   service: Scalars['ServiceID']['input'];
@@ -1130,14 +1130,14 @@ export type DeployMutationVariables = Exact<{
 }>;
 
 
-export type DeployMutation = { __typename?: 'Mutation', deploy: { __typename?: 'Build', id: string, status: BuildStatus, startedAt: string, finishedAt?: string | null } };
+export type DeployMutation = { __typename?: 'Mutation', deploy: { __typename?: 'Build', id: string, status: BuildStatus, startedAt?: string | null, finishedAt?: string | null } };
 
 export type BuildStatusQueryVariables = Exact<{
   id: Scalars['BuildID']['input'];
 }>;
 
 
-export type BuildStatusQuery = { __typename?: 'Query', build: { __typename?: 'Build', id: string, status: BuildStatus, startedAt: string, finishedAt?: string | null } };
+export type BuildStatusQuery = { __typename?: 'Query', build: { __typename?: 'Build', id: string, status: BuildStatus, startedAt?: string | null, finishedAt?: string | null } };
 
 export type ServiceLogsSubscriptionVariables = Exact<{
   service: Scalars['ServiceID']['input'];
@@ -1164,7 +1164,7 @@ export type EnvironmentQueryVariables = Exact<{
 }>;
 
 
-export type EnvironmentQuery = { __typename?: 'Query', environment: { __typename?: 'Environment', id: string, name: string, resourceTier: ResourceTier, services: Array<{ __typename?: 'Service', id: string, name: string, status: ServiceStatus, port: number, sourceUrl: string, contextPath: string, command: string, defaultCommand: string, lastDeployedAt?: string | null, createdAt: string, replicas: { __typename?: 'ReplicaCount', desired: number, ready: number }, autoscaling?: { __typename?: 'AutoscalingSettings', minReplicas: number, maxReplicas: number, targetCpu: number } | null, endpoints: Array<{ __typename?: 'Endpoint', host: string, port: number, protocol: Protocol, type: EndpointType, tls: TlsStatus, dns: { __typename?: 'DnsState', status: DnsStatus, requiredRecords: Array<{ __typename?: 'DnsRecord', type: DnsRecordType, host: string, value: string }> } }>, resources: { __typename?: 'Resources', cpu: string, memory: string }, activeDeployment?: { __typename?: 'Deployment', id: string, image: string, imageDigest?: string | null, commit: string, commitMessage: string, ref: string, status: DeploymentStatus, createdAt: string } | null, deployments: Array<{ __typename?: 'Deployment', id: string, image: string, imageDigest?: string | null, commit: string, commitMessage: string, ref: string, status: DeploymentStatus, createdAt: string }>, builds: Array<{ __typename?: 'Build', id: string, status: BuildStatus, startedAt: string, finishedAt?: string | null }> }>, databases: Array<{ __typename?: 'Database', id: string, name: string, version: string, instances: number, status: DatabaseStatus, size: string, createdAt: string }> } };
+export type EnvironmentQuery = { __typename?: 'Query', environment: { __typename?: 'Environment', id: string, name: string, resourceTier: ResourceTier, services: Array<{ __typename?: 'Service', id: string, name: string, status: ServiceStatus, port: number, sourceUrl: string, contextPath: string, command: string, defaultCommand: string, lastDeployedAt?: string | null, createdAt: string, replicas: { __typename?: 'ReplicaCount', desired: number, ready: number }, autoscaling?: { __typename?: 'AutoscalingSettings', minReplicas: number, maxReplicas: number, targetCpu: number } | null, endpoints: Array<{ __typename?: 'Endpoint', host: string, port: number, protocol: Protocol, type: EndpointType, tls: TlsStatus, dns: { __typename?: 'DnsState', status: DnsStatus, requiredRecords: Array<{ __typename?: 'DnsRecord', type: DnsRecordType, host: string, value: string }> } }>, resources: { __typename?: 'Resources', cpu: string, memory: string }, activeDeployment?: { __typename?: 'Deployment', id: string, image: string, imageDigest?: string | null, commit: string, commitMessage: string, ref: string, status: DeploymentStatus, createdAt: string } | null, deployments: Array<{ __typename?: 'Deployment', id: string, image: string, imageDigest?: string | null, commit: string, commitMessage: string, ref: string, status: DeploymentStatus, createdAt: string }>, builds: Array<{ __typename?: 'Build', id: string, status: BuildStatus, startedAt?: string | null, finishedAt?: string | null }> }>, databases: Array<{ __typename?: 'Database', id: string, name: string, version: string, instances: number, status: DatabaseStatus, size: string, createdAt: string }> } };
 
 export type ProjectEnvironmentsQueryVariables = Exact<{
   id: Scalars['ProjectID']['input'];

@@ -242,17 +242,12 @@ func convertBillingSubscription(s *conductor.BillingSubscription) *model.Billing
 }
 
 func convertBuild(build conductor.Build) model.Build {
-	result := model.Build{
+	return model.Build{
 		ID:         build.ID,
 		Status:     convertBuildStatus(build.Status),
+		StartedAt:  build.StartedAt,
 		FinishedAt: build.FinishedAt,
 	}
-
-	if build.StartedAt != nil {
-		result.StartedAt = *build.StartedAt
-	}
-
-	return result
 }
 
 func convertDatabase(d conductor.Database) model.Database {

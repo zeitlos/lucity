@@ -4125,11 +4125,11 @@ func (ec *executionContext) _Build_startedAt(ctx context.Context, field graphql.
 			return obj.StartedAt, nil
 		},
 		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v time.Time) graphql.Marshaler {
-			return ec.marshalNTime2timeᚐTime(ctx, selections, v)
+		func(ctx context.Context, selections ast.SelectionSet, v *time.Time) graphql.Marshaler {
+			return ec.marshalOTime2ᚖtimeᚐTime(ctx, selections, v)
 		},
 		true,
-		true,
+		false,
 	)
 }
 func (ec *executionContext) fieldContext_Build_startedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -13498,9 +13498,6 @@ func (ec *executionContext) _Build(ctx context.Context, sel ast.SelectionSet, ob
 			}
 		case "startedAt":
 			out.Values[i] = ec._Build_startedAt(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
 		case "finishedAt":
 			out.Values[i] = ec._Build_finishedAt(ctx, field, obj)
 		default:

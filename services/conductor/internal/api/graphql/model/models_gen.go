@@ -49,7 +49,7 @@ type BillingSubscription struct {
 type Build struct {
 	ID         buildjob.BuildID `json:"id"`
 	Status     BuildStatus      `json:"status"`
-	StartedAt  time.Time        `json:"startedAt"`
+	StartedAt  *time.Time       `json:"startedAt,omitempty"`
 	FinishedAt *time.Time       `json:"finishedAt,omitempty"`
 }
 

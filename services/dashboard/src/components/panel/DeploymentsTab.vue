@@ -37,8 +37,8 @@ function showLogs() {
 const activeDeployment = computed(() => props.service.activeDeployment ?? null);
 const sortedBuilds = computed(() =>
   [...(props.service.builds ?? [])].sort((a, b) => {
-    const at = new Date(a.startedAt).getTime();
-    const bt = new Date(b.startedAt).getTime();
+    const at = a.startedAt ? new Date(a.startedAt).getTime() : Infinity;
+    const bt = b.startedAt ? new Date(b.startedAt).getTime() : Infinity;
     return bt - at;
   }),
 );
@@ -107,7 +107,7 @@ function shortCommit(commit?: string | null): string | null {
 }
 
 function buildDuration(build: Build): string | null {
-  if (!build.finishedAt) return null;
+  if (!build.finishedAt || !build.startedAt) return null;
   const start = new Date(build.startedAt).getTime();
   const end = new Date(build.finishedAt).getTime();
   const secs = Math.max(0, Math.floor((end - start) / 1000));
