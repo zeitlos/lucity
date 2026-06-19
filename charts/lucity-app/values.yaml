@@ -8,7 +8,7 @@
 #       pullPolicy: IfNotPresent
 #     port: 3000
 #     replicas: 1
-#     customStartCommand: "node server.js"   # optional
+#     command: "npm run migrate && node server.js"   # optional; runs via /bin/sh -c
 #     env:                                    # literal environment variables
 #       LOG_LEVEL: info
 #     databaseRefs:                           # env var <- CNPG cluster secret key

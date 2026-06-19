@@ -480,10 +480,13 @@ func containerCommand(containers []core.Container) string {
 		return ""
 	}
 
-	parts := append([]string{}, containers[0].Command...)
-	parts = append(parts, containers[0].Args...)
+	command := containers[0].Command
 
-	return strings.Join(parts, " ")
+	if len(command) == 2 && command[0] == "/bin/sh" && command[1] == "-c" {
+		return strings.Join(containers[0].Args, " ")
+	}
+
+	return ""
 }
 
 var httpRouteGVR = schema.GroupVersionResource{

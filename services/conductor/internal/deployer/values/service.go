@@ -15,7 +15,7 @@ type Service struct {
 	Autoscaling        *Autoscaling           `yaml:"autoscaling,omitempty"`
 	Resources          Resources              `yaml:"resources,omitempty"`
 	Domains            []Domain               `yaml:"domains,omitempty"`
-	CustomStartCommand string                 `yaml:"customStartCommand,omitempty"`
+	Command            string                 `yaml:"command,omitempty"`
 	Env                map[string]string      `yaml:"env,omitempty"`
 	SharedRefs         []string               `yaml:"sharedRefs,omitempty"`
 	DatabaseRefs       map[string]DatabaseRef `yaml:"databaseRefs,omitempty"`
@@ -196,7 +196,7 @@ func SetServiceCommand(env *Env, name, command string) error {
 	}
 
 	return mutateService(env, name, func(s *Service) {
-		s.CustomStartCommand = command
+		s.Command = command
 	})
 }
 

@@ -53,8 +53,9 @@ spec:
         - name: {{ $name }}
           image: {{ include "lucity-app.image" $svc.image | quote }}
           imagePullPolicy: {{ $svc.image.pullPolicy | default "IfNotPresent" }}
-          {{- if $svc.customStartCommand }}
-          command: [{{ $svc.customStartCommand | quote }}]
+          {{- with $svc.command }}
+          command: ["/bin/sh", "-c"]
+          args: [{{ . | quote }}]
           {{- end }}
           {{- if $svc.port }}
           ports:
