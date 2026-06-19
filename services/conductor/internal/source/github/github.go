@@ -18,7 +18,7 @@ func New(app *github.App) *Client {
 	return &Client{app: app}
 }
 
-func (c *Client) CommitSHA(ctx context.Context, repoURL, ref string) (string, error) {
+func (c *Client) Commit(ctx context.Context, repoURL, ref string) (source.Commit, error) {
 	if ref == "" {
 		ref = "HEAD" // GitHub treats this as the head commit of the default branch
 	}
@@ -26,16 +26,22 @@ func (c *Client) CommitSHA(ctx context.Context, repoURL, ref string) (string, er
 	repository, err := parseRepoURL(repoURL)
 
 	if err != nil {
-		return "", err
+		return source.Commit{}, err
 	}
 
 	installationID, err := c.app.FindInstallation(ctx, repository)
 
 	if err != nil {
-		return "", err
+		return source.Commit{}, err
 	}
 
-	return c.app.CommitSHA(ctx, installationID, repository, ref)
+	commit, err := c.app.Commit(ctx, installationID, repository, ref)
+
+	if err != nil {
+		return source.Commit{}, err
+	}
+
+	return source.Commit{SHA: commit.SHA, Message: commit.Message}, nil
 }
 
 func (c *Client) Token(ctx context.Context, repoURL string) (string, error) {

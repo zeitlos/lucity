@@ -66,7 +66,7 @@ func (c *Client) DetectServices(ctx context.Context, repositoryURL string) ([]Pl
 		return nil, err
 	}
 
-	commit, err := c.source.CommitSHA(ctx, repositoryURL, "")
+	commit, err := c.source.Commit(ctx, repositoryURL, "")
 
 	if err != nil {
 		return nil, err
@@ -78,7 +78,7 @@ func (c *Client) DetectServices(ctx context.Context, repositoryURL string) ([]Pl
 		return nil, err
 	}
 
-	return c.planner.Plan(ctx, repositoryURL, commit, token)
+	return c.planner.Plan(ctx, repositoryURL, commit.SHA, token)
 }
 
 func (c *Client) AddService(ctx context.Context, environmentID platform.EnvironmentID, name string, repository, contextPath string, externalImage string) (*Service, error) {
@@ -143,7 +143,7 @@ func (c *Client) AddService(ctx context.Context, environmentID platform.Environm
 	}
 
 	if spec.SourceURL != "" {
-		commit, err := c.source.CommitSHA(ctx, spec.SourceURL, "")
+		commit, err := c.source.Commit(ctx, spec.SourceURL, "")
 
 		if err != nil {
 			slog.Warn("initial commit lookup failed", "project", projectID, "service", name, "error", err)
@@ -162,7 +162,7 @@ func (c *Client) AddService(ctx context.Context, environmentID platform.Environm
 		build, err := c.buildjob.Start(ctx, buildjob.StartOptions{
 			Workspace:        workspace,
 			RepoURL:          spec.SourceURL,
-			Commit:           commit,
+			Commit:           commit.SHA,
 			ContextPath:      contextPath,
 			TargetImageNames: []string{imageName},
 			Token:            token,
@@ -176,7 +176,7 @@ func (c *Client) AddService(ctx context.Context, environmentID platform.Environm
 
 		claims, _ := auth.FromContext(ctx)
 
-		go c.runDeploy(claims, service.ID, build.ID)
+		go c.runDeploy(claims, service.ID, build.ID, commit.Message)
 	}
 
 	return service, nil
@@ -260,7 +260,7 @@ func (c *Client) Rollback(ctx context.Context, deploymentID DeploymentID) (bool,
 		Name:        deploymentID.Service,
 	}
 
-	if _, err := c.deployer.Services().SetImage(ctx, serviceID, deployment.Image, ""); err != nil {
+	if _, err := c.deployer.Services().SetImage(ctx, serviceID, deployment.Image, deployment.ImageDigest, deployment.CommitMessage); err != nil {
 		return false, fmt.Errorf("rollback set image: %w", err)
 	}
 
@@ -357,7 +357,7 @@ const maxBuildDuration = 30 * time.Minute
 // runDeploy waits for a build to complete, then stamps the new image onto
 // the service via the deployer (single helm upgrade applies both the values
 // change and the K8s deployment patch — no separate sync step needed).
-func (c *Client) runDeploy(claims *auth.Claims, serviceID platform.ServiceID, buildID buildjob.BuildID) {
+func (c *Client) runDeploy(claims *auth.Claims, serviceID platform.ServiceID, buildID buildjob.BuildID, commitMessage string) {
 	ctx, cancel := context.WithTimeout(auth.NewContext(context.Background(), claims), maxBuildDuration)
 	defer cancel()
 
@@ -383,18 +383,27 @@ func (c *Client) runDeploy(claims *auth.Claims, serviceID platform.ServiceID, bu
 
 		switch job.Status {
 		case buildjob.StatusSucceeded:
-			built, err := job.ImageRef(c.imageRepository(serviceID))
+			repository := c.imageRepository(serviceID)
+
+			built, err := job.ImageRef(repository)
 
 			if err != nil {
 				log.ErrorContext(ctx, "deploy: failed to get image ref", "error", err)
 				return
 			}
 
+			digest := job.Digest(repository)
+
+			if digest == "" {
+				log.ErrorContext(ctx, "deploy: build succeeded but reported no image digest", "repository", repository)
+				return
+			}
+
 			ref := c.config.RegistryPullURL + "/" + built.Context().RepositoryStr() + tagOrDigest(built)
 
-			log.InfoContext(ctx, "deploy: build succeeded, applying image", "ref", ref)
+			log.InfoContext(ctx, "deploy: build succeeded, applying image", "ref", ref, "digest", digest)
 
-			if _, err := c.deployer.Services().SetImage(ctx, serviceID, ref, ""); err != nil {
+			if _, err := c.deployer.Services().SetImage(ctx, serviceID, ref, digest, commitMessage); err != nil {
 				log.ErrorContext(ctx, "deploy: set image failed", "error", err)
 				return
 			}

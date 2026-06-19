@@ -3,7 +3,6 @@ package graphql
 import (
 	"fmt"
 	"log/slog"
-	"strconv"
 	"time"
 
 	"github.com/zeitlos/lucity/pkg/auth"
@@ -48,13 +47,16 @@ func convertService(service platform.Service) model.Service {
 
 func convertDeployment(deployment platform.Deployment) model.Deployment {
 	result := model.Deployment{
-		ID:                   deployment.ID,
-		Image:                deployment.Image,
-		Status:               convertDeploymentStatus(deployment.Status),
-		Replicas:             convertReplicaCount(deployment.Replicas),
-		Resources:            convertResources(deployment.Resources),
-		CreatedAt:            deployment.CreatedAt,
-		GitHubInstallationID: strconv.Itoa(deployment.GitHubInstallationID),
+		ID:        deployment.ID,
+		Image:     deployment.Image,
+		Status:    convertDeploymentStatus(deployment.Status),
+		Replicas:  convertReplicaCount(deployment.Replicas),
+		Resources: convertResources(deployment.Resources),
+		CreatedAt: deployment.CreatedAt,
+	}
+
+	if deployment.CommitMessage != "" {
+		result.CommitMessage = deployment.CommitMessage
 	}
 
 	if deployment.ImageDigest != "" {

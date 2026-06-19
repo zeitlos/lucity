@@ -62,7 +62,7 @@ func (c *Client) Deploy(ctx context.Context, serviceID ServiceID, gitRef string)
 		ref = service.Branch
 	}
 
-	commit, err := c.source.CommitSHA(ctx, service.SourceURL, ref)
+	commit, err := c.source.Commit(ctx, service.SourceURL, ref)
 
 	if err != nil {
 		return nil, err
@@ -79,7 +79,7 @@ func (c *Client) Deploy(ctx context.Context, serviceID ServiceID, gitRef string)
 	build, err := c.buildjob.Start(ctx, buildjob.StartOptions{
 		Workspace:        service.ID.Workspace,
 		RepoURL:          service.SourceURL,
-		Commit:           commit,
+		Commit:           commit.SHA,
 		ContextPath:      service.ContextPath,
 		TargetImageNames: []string{imageName},
 		Token:            token,
@@ -92,7 +92,7 @@ func (c *Client) Deploy(ctx context.Context, serviceID ServiceID, gitRef string)
 
 	claims, _ := auth.FromContext(ctx)
 
-	go c.runDeploy(claims, service.ID, build.ID)
+	go c.runDeploy(claims, service.ID, build.ID, commit.Message)
 
 	return build, nil
 }

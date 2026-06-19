@@ -32,7 +32,6 @@ func NewExecutableSchema(cfg Config) graphql.ExecutableSchema {
 type Config = graphql.Config[ResolverRoot, DirectiveRoot, ComplexityRoot]
 
 type ResolverRoot interface {
-	Deployment() DeploymentResolver
 	Environment() EnvironmentResolver
 	Mutation() MutationResolver
 	Query() QueryResolver
@@ -382,9 +381,6 @@ type ComplexityRoot struct {
 	}
 }
 
-type DeploymentResolver interface {
-	CommitMessage(ctx context.Context, obj *model.Deployment) (string, error)
-}
 type EnvironmentResolver interface {
 	Services(ctx context.Context, obj *model.Environment) ([]model.Service, error)
 	Databases(ctx context.Context, obj *model.Environment) ([]model.Database, error)
@@ -4949,7 +4945,7 @@ func (ec *executionContext) _Deployment_commitMessage(ctx context.Context, field
 			return ec.fieldContext_Deployment_commitMessage(ctx, field)
 		},
 		func(ctx context.Context) (any, error) {
-			return ec.Resolvers.Deployment().CommitMessage(ctx, obj)
+			return obj.CommitMessage, nil
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
@@ -4960,7 +4956,7 @@ func (ec *executionContext) _Deployment_commitMessage(ctx context.Context, field
 	)
 }
 func (ec *executionContext) fieldContext_Deployment_commitMessage(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Deployment", field, true, true, errors.New("field of type String does not have child fields"))
+	return graphql.NewScalarFieldContext("Deployment", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
 func (ec *executionContext) _Deployment_ref(ctx context.Context, field graphql.CollectedField, obj *model.Deployment) (ret graphql.Marshaler) {
@@ -13959,105 +13955,74 @@ func (ec *executionContext) _Deployment(ctx context.Context, sel ast.SelectionSe
 		case "id":
 			out.Values[i] = ec._Deployment_id(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
+				out.Invalids++
 			}
 		case "image":
 			out.Values[i] = ec._Deployment_image(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
+				out.Invalids++
 			}
 		case "imageDigest":
 			out.Values[i] = ec._Deployment_imageDigest(ctx, field, obj)
 		case "commit":
 			out.Values[i] = ec._Deployment_commit(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
+				out.Invalids++
 			}
 		case "commitMessage":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Deployment_commitMessage(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
+			out.Values[i] = ec._Deployment_commitMessage(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
 			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "ref":
 			out.Values[i] = ec._Deployment_ref(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
+				out.Invalids++
 			}
 		case "sourceUrl":
 			out.Values[i] = ec._Deployment_sourceUrl(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
+				out.Invalids++
 			}
 		case "contextPath":
 			out.Values[i] = ec._Deployment_contextPath(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
+				out.Invalids++
 			}
 		case "resources":
 			out.Values[i] = ec._Deployment_resources(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
+				out.Invalids++
 			}
 		case "command":
 			out.Values[i] = ec._Deployment_command(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
+				out.Invalids++
 			}
 		case "buildId":
 			out.Values[i] = ec._Deployment_buildId(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
+				out.Invalids++
 			}
 		case "deployedBy":
 			out.Values[i] = ec._Deployment_deployedBy(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
+				out.Invalids++
 			}
 		case "status":
 			out.Values[i] = ec._Deployment_status(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
+				out.Invalids++
 			}
 		case "replicas":
 			out.Values[i] = ec._Deployment_replicas(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
+				out.Invalids++
 			}
 		case "createdAt":
 			out.Values[i] = ec._Deployment_createdAt(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
+				out.Invalids++
 			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))

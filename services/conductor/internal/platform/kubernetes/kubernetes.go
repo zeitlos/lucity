@@ -28,10 +28,10 @@ const (
 const (
 	annotationSourceRepo    = "lucity.dev/source-repo"
 	annotationSourceCommit  = "lucity.dev/source-commit"
+	annotationSourceMessage = "lucity.dev/source-commit-message"
 	annotationSourceRef     = "lucity.dev/source-ref"
 	annotationSourceContext = "lucity.dev/source-context"
 	annotationSourceBranch  = "lucity.dev/source-branch"
-	annotationImageDigest   = "lucity.dev/image-digest"
 	annotationBuildID       = "lucity.dev/build-id"
 	annotationDeployedBy    = "lucity.dev/deployed-by"
 	annotationRevision      = "deployment.kubernetes.io/revision"

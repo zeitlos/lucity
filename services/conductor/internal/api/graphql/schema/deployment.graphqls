@@ -1,11 +1,11 @@
-type Deployment @goExtraField(name: "GitHubInstallationID", type: "string") {
+type Deployment {
   id: DeploymentID!
 
   image: String!
   imageDigest: String
 
   commit: String!
-  commitMessage: String! @goField(forceResolver: true)
+  commitMessage: String!
   ref: String!
   sourceUrl: String!
   contextPath: String!

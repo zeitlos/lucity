@@ -12,7 +12,7 @@ const (
 	annotationSourceRepo    = "lucity.dev/source-repo"
 	annotationSourceBranch  = "lucity.dev/source-branch"
 	annotationSourceContext = "lucity.dev/source-context"
-	annotationImageDigest   = "lucity.dev/image-digest"
+	annotationSourceMessage = "lucity.dev/source-commit-message"
 	annotationAwaitingBuild = "lucity.dev/awaiting-build"
 )
 

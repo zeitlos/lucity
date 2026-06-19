@@ -3,9 +3,6 @@ package conductor
 import (
 	"context"
 	"fmt"
-	"net/url"
-	"path"
-	"strconv"
 	"strings"
 
 	"github.com/google/go-containerregistry/pkg/authn"
@@ -19,44 +16,6 @@ func (c *Client) Deployments(ctx context.Context, serviceID ServiceID) ([]Deploy
 
 func (c *Client) Deployment(ctx context.Context, id DeploymentID) (*Deployment, error) {
 	return c.platform.Deployment(ctx, id)
-}
-
-func (c *Client) CommitMessage(ctx context.Context, installationID, repo, hash string) (string, error) {
-	if !isCommitSHA(hash) {
-		return "", nil
-	}
-
-	id, err := strconv.Atoi(installationID)
-
-	if err != nil {
-		return "", fmt.Errorf("inalid installation id: %v", err)
-	}
-
-	repoURL, err := url.Parse(repo)
-
-	if err != nil {
-		return "", err
-	}
-
-	ownerRepo := repoURL.Path
-	ownerRepo = strings.TrimPrefix(ownerRepo, "/")
-	ownerRepo = strings.TrimSuffix(ownerRepo, path.Ext(ownerRepo))
-
-	return c.gitHubApp.CommitMessage(ctx, int64(id), ownerRepo, hash)
-}
-
-func isCommitSHA(s string) bool {
-	if len(s) < 7 || len(s) > 64 {
-		return false
-	}
-
-	for _, r := range s {
-		if (r < '0' || r > '9') && (r < 'a' || r > 'f') && (r < 'A' || r > 'F') {
-			return false
-		}
-	}
-
-	return true
 }
 
 func (c *Client) DefaultCommand(ctx context.Context, imageRef string) (string, error) {

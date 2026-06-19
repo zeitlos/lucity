@@ -13,15 +13,6 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
-// CommitMessage is the resolver for the commitMessage field.
-func (r *deploymentResolver) CommitMessage(ctx context.Context, obj *model.Deployment) (string, error) {
-	if obj.GitHubInstallationID == "" || obj.SourceURL == "" || obj.Commit == "" {
-		return "", nil
-	}
-
-	return r.Conductor.CommitMessage(ctx, obj.GitHubInstallationID, obj.SourceURL, obj.Commit)
-}
-
 // Deploy is the resolver for the deploy field.
 func (r *mutationResolver) Deploy(ctx context.Context, service platform.ServiceID, gitRef *string) (*model.Build, error) {
 	build, err := r.Conductor.Deploy(ctx, service, to.Val(gitRef))
@@ -43,8 +34,3 @@ func (r *queryResolver) Deployment(ctx context.Context, id platform.DeploymentID
 
 	return new(convertDeployment(*result)), nil
 }
-
-// Deployment returns DeploymentResolver implementation.
-func (r *Resolver) Deployment() DeploymentResolver { return &deploymentResolver{r} }
-
-type deploymentResolver struct{ *Resolver }

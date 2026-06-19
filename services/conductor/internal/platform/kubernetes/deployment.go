@@ -90,12 +90,11 @@ func toDeployment(replicaSet apps.ReplicaSet, deployment apps.Deployment, servic
 		ID:     deploymentID(replicaSet, serviceID),
 		Status: deploymentStatus(replicaSet, deployment),
 
-		ImageDigest: annotations[annotationImageDigest],
-
-		Commit:      annotations[annotationSourceCommit],
-		Ref:         annotations[annotationSourceRef],
-		SourceURL:   annotations[annotationSourceRepo],
-		ContextPath: annotations[annotationSourceContext],
+		Commit:        annotations[annotationSourceCommit],
+		CommitMessage: annotations[annotationSourceMessage],
+		Ref:           annotations[annotationSourceRef],
+		SourceURL:     annotations[annotationSourceRepo],
+		ContextPath:   annotations[annotationSourceContext],
 
 		Resources: containerResources(containers),
 		Command:   containerCommand(containers),
@@ -114,12 +113,11 @@ func toDeployment(replicaSet apps.ReplicaSet, deployment apps.Deployment, servic
 	if len(containers) > 0 {
 		result.Image = containers[0].Image
 
-		if deployment.Annotations[annotationAwaitingBuild] != "true" {
-			parts := strings.Split(result.Image, ":")
+		tag, digest := imageTagAndDigest(result.Image)
+		result.ImageDigest = digest
 
-			if len(parts) > 1 {
-				result.Commit = parts[len(parts)-1]
-			}
+		if deployment.Annotations[annotationAwaitingBuild] != "true" && tag != "" {
+			result.Commit = tag
 		}
 	}
 
@@ -160,4 +158,19 @@ func deploymentStatus(replicaSet apps.ReplicaSet, deployment apps.Deployment) pl
 	}
 
 	return platform.DeploymentDeploying
+}
+
+func imageTagAndDigest(image string) (tag, digest string) {
+	if at := strings.LastIndex(image, "@"); at != -1 {
+		digest = image[at+1:]
+		image = image[:at]
+	}
+
+	slash := strings.LastIndex(image, "/")
+
+	if colon := strings.LastIndex(image, ":"); colon > slash {
+		tag = image[colon+1:]
+	}
+
+	return tag, digest
 }

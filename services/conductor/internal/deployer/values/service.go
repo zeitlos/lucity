@@ -77,7 +77,7 @@ func CreateService(env *Env, name string, spec ServiceSpec) error {
 		return nil
 	}
 
-	repository, tag := splitImageRef(spec.Image)
+	repository, tag, digest := splitImageRef(spec.Image)
 
 	if env.Services == nil {
 		env.Services = map[string]Service{}
@@ -102,7 +102,7 @@ func CreateService(env *Env, name string, spec ServiceSpec) error {
 		podAnnotations[annotationSourceContext] = spec.ContextPath
 	}
 
-	if tag == "" {
+	if tag == "" && digest == "" {
 		annotations[annotationAwaitingBuild] = "true"
 	}
 
@@ -110,6 +110,7 @@ func CreateService(env *Env, name string, spec ServiceSpec) error {
 		Image: ImageRef{
 			Repository: repository,
 			Tag:        tag,
+			Digest:     digest,
 		},
 		Port:           spec.Port,
 		Labels:         labels,
@@ -132,27 +133,30 @@ func DeleteService(env *Env, name string) error {
 	return nil
 }
 
-func SetServiceImage(env *Env, name, ref, digest string) error {
+func SetServiceImage(env *Env, name, ref, digest, commitMessage string) error {
 	return mutateService(env, name, func(s *Service) {
-		repository, tag := splitImageRef(ref)
+		repository, tag, refDigest := splitImageRef(ref)
+
+		if digest == "" {
+			digest = refDigest
+		}
+
 		s.Image.Repository = repository
 		s.Image.Tag = tag
 		s.Image.Digest = digest
 
-		if tag != "" {
+		if tag != "" || digest != "" {
 			delete(s.Annotations, annotationAwaitingBuild)
 		}
 
-		// Keep the image-digest annotation consistent with the current image:
-		// set it when a digest is known, clear any stale value otherwise.
-		if digest != "" {
-			if s.PodAnnotations == nil {
-				s.PodAnnotations = map[string]string{}
-			}
+		if s.PodAnnotations == nil {
+			s.PodAnnotations = map[string]string{}
+		}
 
-			s.PodAnnotations[annotationImageDigest] = digest
+		if commitMessage != "" {
+			s.PodAnnotations[annotationSourceMessage] = commitMessage
 		} else {
-			delete(s.PodAnnotations, annotationImageDigest)
+			delete(s.PodAnnotations, annotationSourceMessage)
 		}
 	})
 }
@@ -303,13 +307,18 @@ func mutateService(env *Env, name string, mutate func(*Service)) error {
 	return nil
 }
 
-func splitImageRef(ref string) (repository, tag string) {
+func splitImageRef(ref string) (repository, tag, digest string) {
+	if at := strings.LastIndex(ref, "@"); at != -1 {
+		digest = ref[at+1:]
+		ref = ref[:at]
+	}
+
 	slashIdx := strings.LastIndex(ref, "/")
 	colonIdx := strings.LastIndex(ref, ":")
 
 	if colonIdx > slashIdx {
-		return ref[:colonIdx], ref[colonIdx+1:]
+		return ref[:colonIdx], ref[colonIdx+1:], digest
 	}
 
-	return ref, ""
+	return ref, "", digest
 }
