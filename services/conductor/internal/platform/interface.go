@@ -41,6 +41,7 @@ type Interface interface {
 // billing pipeline (Cashier) to meter consumption.
 type ResourceAllocation struct {
 	EnvironmentID EnvironmentID
+	Namespace     string
 	Tier          ResourceTier
 	CPUMillicores int
 	MemoryMB      int

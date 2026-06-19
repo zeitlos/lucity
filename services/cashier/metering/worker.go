@@ -263,7 +263,7 @@ func (w *Worker) processWindow(ctx context.Context, windowStart, windowEnd time.
 			continue
 		}
 
-		ns := labels.NamespaceFor(alloc.Workspace, alloc.Project, alloc.Environment)
+		ns := alloc.Namespace
 		entry := allocEntry{
 			namespace: ns,
 			cpuMillis: alloc.CpuMillicores,

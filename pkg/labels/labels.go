@@ -38,9 +38,3 @@ const LucityNamespace = "lucity-system"
 func Selector(key, value string) string {
 	return fmt.Sprintf("%s=%s", key, value)
 }
-
-// NamespaceFor derives the K8s namespace from workspace, project, and environment.
-// "acme" + "api" + "production" → "acme-api-production"
-func NamespaceFor(workspace, project, environment string) string {
-	return workspace + "-" + project + "-" + environment
-}

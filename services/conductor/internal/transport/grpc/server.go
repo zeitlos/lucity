@@ -88,6 +88,7 @@ func (s *Service) ListResourceAllocations(ctx context.Context, req *conductor.Li
 			Workspace:     allocation.EnvironmentID.Workspace,
 			Project:       allocation.EnvironmentID.Project,
 			Environment:   allocation.EnvironmentID.Name,
+			Namespace:     allocation.Namespace,
 			Tier:          tierToProto(allocation.Tier),
 			CpuMillicores: int32(allocation.CPUMillicores),
 			MemoryMb:      int32(allocation.MemoryMB),

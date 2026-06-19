@@ -35,6 +35,7 @@ func (c *Client) ResourceAllocations(ctx context.Context) ([]platform.ResourceAl
 
 		out = append(out, platform.ResourceAllocation{
 			EnvironmentID: id,
+			Namespace:     ns.Name,
 			Tier:          tierFromLabel(ns.Labels[resourceTierLabel]),
 			CPUMillicores: cpu,
 			MemoryMB:      mem,

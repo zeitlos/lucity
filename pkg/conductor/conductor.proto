@@ -52,6 +52,7 @@ message ResourceAllocation {
   int32 cpu_millicores = 5;
   int32 memory_mb = 6;
   int32 disk_mb = 7;
+  string namespace = 8;
 }
 
 message ListResourceAllocationsRequest {}
