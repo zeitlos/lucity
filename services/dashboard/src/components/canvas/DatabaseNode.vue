@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import { Handle, Position } from '@vue-flow/core';
 import { DatabaseStatus } from '@/gql/graphql';
-import { Badge } from '@/components/ui/badge';
+import { Status } from '@/components/ui/status';
 
 const props = defineProps<{
   data: {
@@ -19,14 +19,16 @@ const emit = defineEmits<{
   (e: 'select'): void;
 }>();
 
-const badgeVariant = computed(() => {
+const statusTone = computed(() => {
   switch (props.data.status) {
     case DatabaseStatus.Healthy:
-      return 'default' as const;
+      return 'ok' as const;
     case DatabaseStatus.Failed:
-      return 'destructive' as const;
+      return 'danger' as const;
+    case DatabaseStatus.Pending:
+      return 'warn' as const;
     default:
-      return 'secondary' as const;
+      return 'neutral' as const;
   }
 });
 
@@ -84,7 +86,7 @@ const instances = computed(() => props.data.instances ?? 0);
 
       <!-- Status row -->
       <div class="mt-4 flex items-center justify-between border-t border-border/50 pt-4">
-        <Badge :variant="badgeVariant" class="text-[0.65rem]">{{ statusLabel }}</Badge>
+        <Status :tone="statusTone" class="text-[0.65rem]">{{ statusLabel }}</Status>
         <span class="text-[0.65rem] font-mono text-muted-foreground">{{ data.size }}</span>
       </div>
     </div>

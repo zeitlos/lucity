@@ -136,7 +136,7 @@ const SetServiceResourcesDocument = graphql(`
 `);
 import { useEnvironment } from '@/composables/useEnvironment';
 import type { Endpoint, Service } from '@/composables/useEnvironment';
-import { Badge } from '@/components/ui/badge';
+import { Status } from '@/components/ui/status';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -800,14 +800,14 @@ async function handleRemoveService() {
                 {{ platformEndpoint ? platformEndpoint.host : 'Not configured' }}
               </p>
             </div>
-            <Badge
+            <Status
               v-if="platformEndpoint"
-              variant="default"
+              tone="ok"
               class="text-[0.6rem]"
             >
               Active
-            </Badge>
-            <Badge v-else variant="secondary" class="text-[0.6rem]">Off</Badge>
+            </Status>
+            <Status v-else tone="neutral" class="text-[0.6rem]">Off</Status>
             <ChevronDown
               :size="14"
               class="shrink-0 text-muted-foreground transition-transform duration-200 [[data-state=open]>&]:rotate-180"

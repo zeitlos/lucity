@@ -5,7 +5,7 @@ import { onKeyStroke } from '@vueuse/core';
 import { useBuildLogs } from '@/composables/useBuildLogs';
 import { BuildStatus } from '@/gql/graphql';
 import { useDeploy } from '@/composables/useDeploy';
-import { Badge } from '@/components/ui/badge';
+import { Status } from '@/components/ui/status';
 import { Button } from '@/components/ui/button';
 
 const props = defineProps<{
@@ -22,6 +22,19 @@ onKeyStroke('Escape', () => emit('close'));
 const buildIdRef = computed(() => props.buildId);
 const { lines, isActive, error, clear, stop, restart } = useBuildLogs(buildIdRef);
 const deploy = useDeploy();
+
+const statusTone = computed(() => {
+  switch (deploy.status) {
+    case BuildStatus.Succeeded:
+      return 'ok' as const;
+    case BuildStatus.Failed:
+      return 'danger' as const;
+    case BuildStatus.Running:
+      return 'warn' as const;
+    default:
+      return 'neutral' as const;
+  }
+});
 
 const logContainer = ref<HTMLElement | null>(null);
 const userScrolled = ref(false);
@@ -66,18 +79,13 @@ function togglePause() {
         <h2 class="text-sm font-semibold text-zinc-200">
           {{ serviceName }}
         </h2>
-        <Badge
+        <Status
           v-if="deploy.status"
-          :variant="deploy.status === BuildStatus.Succeeded ? 'default' : deploy.status === BuildStatus.Failed ? 'destructive' : 'secondary'"
+          :tone="statusTone"
           class="text-xs"
         >
-          <Loader2
-            v-if="deploy.isDeploying"
-            :size="10"
-            class="mr-1 animate-spin"
-          />
           {{ deploy.status }}
-        </Badge>
+        </Status>
       </div>
 
       <div class="flex items-center gap-1">

@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Status } from '@/components/ui/status';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -633,9 +634,9 @@ async function handleDelete() {
               <div v-if="!isTrial" class="rounded-lg border p-4 space-y-3">
                 <div class="flex items-center justify-between">
                   <h3 class="text-sm font-medium">Subscription</h3>
-                  <Badge :variant="subscription!.status === SubscriptionStatus.Active ? 'default' : 'destructive'">
+                  <Status :tone="subscription!.status === SubscriptionStatus.Active ? 'ok' : 'danger'">
                     {{ subscription!.status === SubscriptionStatus.Active ? 'Active' : subscription!.status === SubscriptionStatus.PastDue ? 'Past Due' : subscription!.status }}
-                  </Badge>
+                  </Status>
                 </div>
                 <div class="flex items-center justify-between text-sm">
                   <span class="text-muted-foreground">Current plan</span>

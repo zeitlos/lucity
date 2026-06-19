@@ -3,7 +3,7 @@ import { computed, ref, watch, onUnmounted } from 'vue';
 import { Handle, Position } from '@vue-flow/core';
 import { ExternalLink, Github, Globe, Loader2, Container } from 'lucide-vue-next';
 import { BuildStatus, EndpointType, ServiceStatus, type Protocol } from '@/gql/graphql';
-import { Badge } from '@/components/ui/badge';
+import { Status } from '@/components/ui/status';
 
 interface Endpoint {
   host: string;
@@ -36,14 +36,16 @@ const emit = defineEmits<{
 
 const isFromRepo = computed(() => !!props.data.sourceUrl);
 
-const badgeVariant = computed(() => {
+const statusTone = computed(() => {
   switch (props.data.status) {
     case ServiceStatus.Healthy:
-      return 'default' as const;
+      return 'ok' as const;
     case ServiceStatus.Failed:
-      return 'destructive' as const;
+      return 'danger' as const;
+    case ServiceStatus.Deploying:
+      return 'warn' as const;
     default:
-      return 'secondary' as const;
+      return 'neutral' as const;
   }
 });
 
@@ -180,7 +182,7 @@ const hostUrl = computed(() => {
 
       <!-- Status row -->
       <div class="mt-4 flex items-center justify-between border-t border-border/50 pt-4">
-        <Badge :variant="badgeVariant" class="text-[0.65rem]">{{ statusLabel }}</Badge>
+        <Status :tone="statusTone" class="text-[0.65rem]">{{ statusLabel }}</Status>
         <span v-if="deployLabel" class="flex items-center gap-1.5 text-[0.65rem] text-muted-foreground">
           <Loader2 :size="12" class="animate-spin text-primary" />
           {{ deployLabel }} ({{ formattedElapsed }})
