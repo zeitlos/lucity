@@ -99,8 +99,7 @@ func toDeployment(replicaSet apps.ReplicaSet, deployment apps.Deployment, servic
 		Resources: containerResources(containers),
 		Command:   containerCommand(containers),
 
-		BuildID:    annotations[annotationBuildID],
-		DeployedBy: annotations[annotationDeployedBy],
+		BuildID: annotations[annotationBuildID],
 
 		Replicas: platform.ReplicaCount{
 			Desired: int(to.Val(replicaSet.Spec.Replicas)),

@@ -49,7 +49,13 @@ func convertDeployment(deployment platform.Deployment) model.Deployment {
 	result := model.Deployment{
 		ID:            deployment.ID,
 		Image:         deployment.Image.String(),
+		Commit:        deployment.Commit,
 		CommitMessage: deployment.CommitMessage,
+		Ref:           deployment.Ref,
+		SourceURL:     deployment.SourceURL,
+		ContextPath:   deployment.ContextPath,
+		Command:       deployment.Command,
+		BuildID:       deployment.BuildID,
 		Status:        convertDeploymentStatus(deployment.Status),
 		Replicas:      convertReplicaCount(deployment.Replicas),
 		Resources:     convertResources(deployment.Resources),
@@ -58,34 +64,6 @@ func convertDeployment(deployment platform.Deployment) model.Deployment {
 
 	if deployment.Image.Digest != "" {
 		result.ImageDigest = &deployment.Image.Digest
-	}
-
-	if deployment.Commit != "" {
-		result.Commit = deployment.Commit
-	}
-
-	if deployment.Ref != "" {
-		result.Ref = deployment.Ref
-	}
-
-	if deployment.SourceURL != "" {
-		result.SourceURL = deployment.SourceURL
-	}
-
-	if deployment.ContextPath != "" {
-		result.ContextPath = deployment.ContextPath
-	}
-
-	if deployment.Command != "" {
-		result.Command = deployment.Command
-	}
-
-	if deployment.BuildID != "" {
-		result.BuildID = deployment.BuildID
-	}
-
-	if deployment.DeployedBy != "" {
-		result.DeployedBy = deployment.DeployedBy
 	}
 
 	return result

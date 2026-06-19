@@ -14,6 +14,7 @@ const (
 	annotationSourceContext = "lucity.dev/source-context"
 	annotationSourceCommit  = "lucity.dev/source-commit"
 	annotationSourceMessage = "lucity.dev/source-commit-message"
+	annotationBuildID       = "lucity.dev/build-id"
 )
 
 func CommonLabels(workspace, project, environment string) map[string]string {

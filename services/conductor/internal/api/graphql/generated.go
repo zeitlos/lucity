@@ -129,7 +129,6 @@ type ComplexityRoot struct {
 		CommitMessage func(childComplexity int) int
 		ContextPath   func(childComplexity int) int
 		CreatedAt     func(childComplexity int) int
-		DeployedBy    func(childComplexity int) int
 		ID            func(childComplexity int) int
 		Image         func(childComplexity int) int
 		ImageDigest   func(childComplexity int) int
@@ -779,12 +778,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Deployment.CreatedAt(childComplexity), true
-	case "Deployment.deployedBy":
-		if e.ComplexityRoot.Deployment.DeployedBy == nil {
-			break
-		}
-
-		return e.ComplexityRoot.Deployment.DeployedBy(childComplexity), true
 	case "Deployment.id":
 		if e.ComplexityRoot.Deployment.ID == nil {
 			break
@@ -2389,8 +2382,6 @@ func (ec *executionContext) childFields_Deployment(ctx context.Context, field gr
 		return ec.fieldContext_Deployment_command(ctx, field)
 	case "buildId":
 		return ec.fieldContext_Deployment_buildId(ctx, field)
-	case "deployedBy":
-		return ec.fieldContext_Deployment_deployedBy(ctx, field)
 	case "status":
 		return ec.fieldContext_Deployment_status(ctx, field)
 	case "replicas":
@@ -5103,29 +5094,6 @@ func (ec *executionContext) _Deployment_buildId(ctx context.Context, field graph
 	)
 }
 func (ec *executionContext) fieldContext_Deployment_buildId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Deployment", field, false, false, errors.New("field of type String does not have child fields"))
-}
-
-func (ec *executionContext) _Deployment_deployedBy(ctx context.Context, field graphql.CollectedField, obj *model.Deployment) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_Deployment_deployedBy(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.DeployedBy, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
-			return ec.marshalNString2string(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_Deployment_deployedBy(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("Deployment", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
@@ -14001,11 +13969,6 @@ func (ec *executionContext) _Deployment(ctx context.Context, sel ast.SelectionSe
 			}
 		case "buildId":
 			out.Values[i] = ec._Deployment_buildId(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "deployedBy":
-			out.Values[i] = ec._Deployment_deployedBy(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}

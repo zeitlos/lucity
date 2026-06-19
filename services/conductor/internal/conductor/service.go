@@ -260,7 +260,7 @@ func (c *Client) Rollback(ctx context.Context, deploymentID DeploymentID) (bool,
 		Name:        deploymentID.Service,
 	}
 
-	if _, err := c.deployer.Services().SetImage(ctx, serviceID, deployment.Image, deployment.Commit, deployment.CommitMessage); err != nil {
+	if _, err := c.deployer.Services().SetImage(ctx, serviceID, deployment.Image, deployment.Commit, deployment.CommitMessage, deployment.BuildID); err != nil {
 		return false, fmt.Errorf("rollback set image: %w", err)
 	}
 
@@ -394,7 +394,7 @@ func (c *Client) runDeploy(claims *auth.Claims, serviceID platform.ServiceID, bu
 
 			log.InfoContext(ctx, "deploy: build succeeded, applying image", "ref", ref.String())
 
-			if _, err := c.deployer.Services().SetImage(ctx, serviceID, ref, job.Commit, commitMessage); err != nil {
+			if _, err := c.deployer.Services().SetImage(ctx, serviceID, ref, job.Commit, commitMessage, buildID.String()); err != nil {
 				log.ErrorContext(ctx, "deploy: set image failed", "error", err)
 				return
 			}

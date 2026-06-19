@@ -29,9 +29,8 @@ type Deployment struct {
 	Status   DeploymentStatus
 	Replicas ReplicaCount
 
-	BuildID    string
-	DeployedBy string
-	CreatedAt  time.Time
+	BuildID   string
+	CreatedAt time.Time
 }
 
 type DeploymentStatus string

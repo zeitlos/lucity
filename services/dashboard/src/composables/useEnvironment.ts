@@ -57,7 +57,6 @@ export interface Deployment {
   ref: string;
   status: DeploymentStatus;
   createdAt: string;
-  deployedBy: string;
 }
 
 export interface Build {

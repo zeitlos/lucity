@@ -57,7 +57,6 @@ const EnvironmentDocument = graphql(`
           ref
           status
           createdAt
-          deployedBy
         }
         deployments {
           id
@@ -68,7 +67,6 @@ const EnvironmentDocument = graphql(`
           ref
           status
           createdAt
-          deployedBy
         }
         builds {
           id
@@ -227,7 +225,6 @@ watch(
             ref: s.activeDeployment.ref,
             status: s.activeDeployment.status,
             createdAt: s.activeDeployment.createdAt,
-            deployedBy: s.activeDeployment.deployedBy,
           }
           : null,
         deployments: s.deployments.map(d => ({
@@ -239,7 +236,6 @@ watch(
           ref: d.ref,
           status: d.status,
           createdAt: d.createdAt,
-          deployedBy: d.deployedBy,
         })),
         builds: s.builds.map(b => ({
           id: b.id,

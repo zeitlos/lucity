@@ -352,7 +352,6 @@ const showActiveDetails = ref(false);
               <GitCommitHorizontal v-if="shortCommit(dep.commit)" :size="10" class="shrink-0" />
               <span v-if="shortCommit(dep.commit)" class="font-mono">{{ shortCommit(dep.commit) }}</span>
               <span>&middot; {{ formatRelativeTime(dep.createdAt) }}</span>
-              <span v-if="dep.deployedBy">&middot; by {{ dep.deployedBy }}</span>
             </div>
           </div>
         </div>

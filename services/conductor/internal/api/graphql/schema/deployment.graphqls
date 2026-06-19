@@ -14,7 +14,6 @@ type Deployment {
   command: String!
 
   buildId: String!
-  deployedBy: String!
 
   status: DeploymentStatus!
   replicas: ReplicaCount!

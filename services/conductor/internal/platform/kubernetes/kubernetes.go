@@ -33,7 +33,6 @@ const (
 	annotationSourceContext = "lucity.dev/source-context"
 	annotationSourceBranch  = "lucity.dev/source-branch"
 	annotationBuildID       = "lucity.dev/build-id"
-	annotationDeployedBy    = "lucity.dev/deployed-by"
 	annotationRevision      = "deployment.kubernetes.io/revision"
 	annotationDatabaseHost  = "lucity.dev/db-host"
 )

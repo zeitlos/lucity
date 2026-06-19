@@ -107,6 +107,7 @@ func (c *Client) reconcileWorkspaceDomains(ctx context.Context, workspaceID stri
 		environments, err := c.platform.Environments(ctx, project.ID)
 
 		if err != nil {
+			// TODO: Ensure failed domains don't get instantly removed. Separaate between case a) misconfigured and case b) failed to verify due to timeout or similar.
 			slog.Warn("reconcile domains: list environments failed", "project", project.ID, "error", err)
 			continue
 		}
@@ -115,6 +116,7 @@ func (c *Client) reconcileWorkspaceDomains(ctx context.Context, workspaceID stri
 			hosts, err := c.reconcileEnvironmentDomains(ctx, workspaceID, env.ID)
 
 			if err != nil {
+				// TODO: Ensure failed domains don't get instantly removed. Separaate between case a) misconfigured and case b) failed to verify due to timeout or similar.
 				slog.Warn("reconcile domains: env failed", "env", env.ID, "error", err)
 				continue
 			}

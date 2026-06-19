@@ -149,7 +149,6 @@ type Deployment struct {
 	Resources     *Resources            `json:"resources"`
 	Command       string                `json:"command"`
 	BuildID       string                `json:"buildId"`
-	DeployedBy    string                `json:"deployedBy"`
 	Status        DeploymentStatus      `json:"status"`
 	Replicas      *ReplicaCount         `json:"replicas"`
 	CreatedAt     time.Time             `json:"createdAt"`
