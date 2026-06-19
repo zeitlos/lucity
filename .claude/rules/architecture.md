@@ -35,7 +35,3 @@ One Helm release per project per environment, applied imperatively and idempoten
 ## Simplicity
 
 Prefer three plain lines to one premature abstraction. Build features, not frameworks. A little copying beats a little dependency. Features must be operable by a small team: self-healing over manual intervention, small blast radius, observability built in.
-
-## No backward compatibility
-
-Early-stage, no external consumers. Change APIs directly. No fallbacks, no deprecation shims, no version negotiation.
