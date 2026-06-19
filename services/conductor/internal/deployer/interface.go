@@ -22,7 +22,7 @@ type ServiceClient interface {
 	Create(ctx context.Context, env platform.EnvironmentID, name string, spec ServiceSpec) (RevisionID, error)
 	Delete(ctx context.Context, id platform.ServiceID) error
 
-	SetImage(ctx context.Context, id platform.ServiceID, ref image.Ref, commitMessage string) (RevisionID, error)
+	SetImage(ctx context.Context, id platform.ServiceID, ref image.Ref, commit, commitMessage string) (RevisionID, error)
 	SetReplicas(ctx context.Context, id platform.ServiceID, replicas int) (RevisionID, error)
 	SetAutoscaling(ctx context.Context, id platform.ServiceID, config Autoscaling) (RevisionID, error)
 	SetResources(ctx context.Context, id platform.ServiceID, tier platform.ResourceTier, resources Resources) (RevisionID, error)

@@ -39,9 +39,9 @@ func (s *serviceClient) Delete(ctx context.Context, id platform.ServiceID) error
 	return err
 }
 
-func (s *serviceClient) SetImage(ctx context.Context, id platform.ServiceID, ref image.Ref, commitMessage string) (deployer.RevisionID, error) {
+func (s *serviceClient) SetImage(ctx context.Context, id platform.ServiceID, ref image.Ref, commit, commitMessage string) (deployer.RevisionID, error) {
 	return s.client.applyEnv(ctx, id.EnvironmentID(), func(e *values.Env) error {
-		return values.SetServiceImage(e, id.Name, ref, commitMessage)
+		return values.SetServiceImage(e, id.Name, ref, commit, commitMessage)
 	})
 }
 

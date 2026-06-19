@@ -111,14 +111,8 @@ func toDeployment(replicaSet apps.ReplicaSet, deployment apps.Deployment, servic
 	}
 
 	if len(containers) > 0 {
-		ref, err := image.Parse(containers[0].Image)
-
-		if err == nil {
+		if ref, err := image.Parse(containers[0].Image); err == nil {
 			result.Image = ref
-
-			if ref.Tag != "" {
-				result.Commit = ref.Tag
-			}
 		}
 	}
 

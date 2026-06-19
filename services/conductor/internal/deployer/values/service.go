@@ -134,7 +134,7 @@ func DeleteService(env *Env, name string) error {
 	return nil
 }
 
-func SetServiceImage(env *Env, name string, ref image.Ref, commitMessage string) error {
+func SetServiceImage(env *Env, name string, ref image.Ref, commit, commitMessage string) error {
 	return mutateService(env, name, func(s *Service) {
 		s.Image.Repository = ref.Repository
 		s.Image.Tag = ref.Tag
@@ -144,12 +144,17 @@ func SetServiceImage(env *Env, name string, ref image.Ref, commitMessage string)
 			s.PodAnnotations = map[string]string{}
 		}
 
-		if commitMessage != "" {
-			s.PodAnnotations[annotationSourceMessage] = commitMessage
-		} else {
-			delete(s.PodAnnotations, annotationSourceMessage)
-		}
+		setOrDelete(s.PodAnnotations, annotationSourceCommit, commit)
+		setOrDelete(s.PodAnnotations, annotationSourceMessage, commitMessage)
 	})
+}
+
+func setOrDelete(m map[string]string, key, value string) {
+	if value != "" {
+		m[key] = value
+	} else {
+		delete(m, key)
+	}
 }
 
 func SetServiceReplicas(env *Env, name string, replicas int) error {
