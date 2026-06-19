@@ -82,8 +82,8 @@ spec:
               - {{ .Values.networkPolicy.podCIDR }}
               - {{ .Values.networkPolicy.linkLocalCIDR }}
 ---
-# Build Jobs: egress to BuildKit (same namespace), K8s API (annotate Job),
-# DNS, and internet (clone repos, pull dependencies).
+# Build Jobs: egress to BuildKit (same namespace), DNS, and internet (clone
+# repos, pull dependencies).
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -117,13 +117,6 @@ spec:
               {{- include "lucity.selectorLabels" (dict "name" "buildkit" "release" .Release.Name) | nindent 14 }}
       ports:
         - port: 1234
-          protocol: TCP
-    # K8s API server (annotate Job with build result/error)
-    - to:
-        - ipBlock:
-            cidr: 10.96.0.1/32
-      ports:
-        - port: 443
           protocol: TCP
     # Internet (clone repos from GitHub, pull dependencies)
     - to:

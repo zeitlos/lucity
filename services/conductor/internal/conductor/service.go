@@ -260,7 +260,7 @@ func (c *Client) Rollback(ctx context.Context, deploymentID DeploymentID) (bool,
 		Name:        deploymentID.Service,
 	}
 
-	if _, err := c.deployer.Services().SetImage(ctx, serviceID, deployment.Image, deployment.ImageDigest, deployment.CommitMessage); err != nil {
+	if _, err := c.deployer.Services().SetImage(ctx, serviceID, deployment.Image, deployment.CommitMessage); err != nil {
 		return false, fmt.Errorf("rollback set image: %w", err)
 	}
 
@@ -383,27 +383,18 @@ func (c *Client) runDeploy(claims *auth.Claims, serviceID platform.ServiceID, bu
 
 		switch job.Status {
 		case buildjob.StatusSucceeded:
-			repository := c.imageRepository(serviceID)
-
-			built, err := job.ImageRef(repository)
+			ref, err := job.BuiltImage(c.imageRepository(serviceID))
 
 			if err != nil {
-				log.ErrorContext(ctx, "deploy: failed to get image ref", "error", err)
+				log.ErrorContext(ctx, "deploy: build succeeded but image unusable", "error", err)
 				return
 			}
 
-			digest := job.Digest(repository)
+			ref.Repository = c.config.RegistryPullURL + "/" + ref.Repository
 
-			if digest == "" {
-				log.ErrorContext(ctx, "deploy: build succeeded but reported no image digest", "repository", repository)
-				return
-			}
+			log.InfoContext(ctx, "deploy: build succeeded, applying image", "ref", ref.String())
 
-			ref := c.config.RegistryPullURL + "/" + built.Context().RepositoryStr() + tagOrDigest(built)
-
-			log.InfoContext(ctx, "deploy: build succeeded, applying image", "ref", ref, "digest", digest)
-
-			if _, err := c.deployer.Services().SetImage(ctx, serviceID, ref, digest, commitMessage); err != nil {
+			if _, err := c.deployer.Services().SetImage(ctx, serviceID, ref, commitMessage); err != nil {
 				log.ErrorContext(ctx, "deploy: set image failed", "error", err)
 				return
 			}
@@ -521,23 +512,12 @@ func validateHostname(hostname string) error {
 	return nil
 }
 
-func tagOrDigest(ref containername.Reference) string {
-	switch v := ref.(type) {
-	case containername.Tag:
-		return ":" + v.TagStr()
-	case containername.Digest:
-		return "@" + v.DigestStr()
-	}
-
-	return ""
-}
-
-func ensureImageTag(image string) string {
-	lastComponent := image[strings.LastIndex(image, "/")+1:]
+func ensureImageTag(ref string) string {
+	lastComponent := ref[strings.LastIndex(ref, "/")+1:]
 
 	if strings.ContainsAny(lastComponent, ":@") {
-		return image
+		return ref
 	}
 
-	return image + ":latest"
+	return ref + ":latest"
 }

@@ -1,5 +1,5 @@
 {{- range $name, $svc := .Values.services }}
-{{- if and $svc.image $svc.image.tag $svc.autoscaling $svc.autoscaling.enabled (not $.Values.suspended) }}
+{{- if and $svc.image (or $svc.image.tag $svc.image.digest) $svc.autoscaling $svc.autoscaling.enabled (not $.Values.suspended) }}
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler

@@ -1,5 +1,5 @@
 {{- range $name, $svc := .Values.services }}
-{{- if and $svc.image $svc.image.tag $svc.port (not $.Values.suspended) }}
+{{- if and $svc.image (or $svc.image.tag $svc.image.digest) $svc.port (not $.Values.suspended) }}
 {{- range $domain := $svc.domains }}
 ---
 apiVersion: gateway.networking.k8s.io/v1

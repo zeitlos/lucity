@@ -47,20 +47,17 @@ func convertService(service platform.Service) model.Service {
 
 func convertDeployment(deployment platform.Deployment) model.Deployment {
 	result := model.Deployment{
-		ID:        deployment.ID,
-		Image:     deployment.Image,
-		Status:    convertDeploymentStatus(deployment.Status),
-		Replicas:  convertReplicaCount(deployment.Replicas),
-		Resources: convertResources(deployment.Resources),
-		CreatedAt: deployment.CreatedAt,
+		ID:            deployment.ID,
+		Image:         deployment.Image.String(),
+		CommitMessage: deployment.CommitMessage,
+		Status:        convertDeploymentStatus(deployment.Status),
+		Replicas:      convertReplicaCount(deployment.Replicas),
+		Resources:     convertResources(deployment.Resources),
+		CreatedAt:     deployment.CreatedAt,
 	}
 
-	if deployment.CommitMessage != "" {
-		result.CommitMessage = deployment.CommitMessage
-	}
-
-	if deployment.ImageDigest != "" {
-		result.ImageDigest = &deployment.ImageDigest
+	if deployment.Image.Digest != "" {
+		result.ImageDigest = &deployment.Image.Digest
 	}
 
 	if deployment.Commit != "" {

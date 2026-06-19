@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"slices"
 	"strconv"
-	"strings"
+
+	"github.com/zeitlos/lucity/services/conductor/internal/image"
 )
 
 type Service struct {
@@ -77,7 +78,11 @@ func CreateService(env *Env, name string, spec ServiceSpec) error {
 		return nil
 	}
 
-	repository, tag, digest := splitImageRef(spec.Image)
+	ref, err := image.Parse(spec.Image)
+
+	if err != nil {
+		return fmt.Errorf("invalid image %q: %w", spec.Image, err)
+	}
 
 	if env.Services == nil {
 		env.Services = map[string]Service{}
@@ -102,15 +107,11 @@ func CreateService(env *Env, name string, spec ServiceSpec) error {
 		podAnnotations[annotationSourceContext] = spec.ContextPath
 	}
 
-	if tag == "" && digest == "" {
-		annotations[annotationAwaitingBuild] = "true"
-	}
-
 	env.Services[name] = Service{
 		Image: ImageRef{
-			Repository: repository,
-			Tag:        tag,
-			Digest:     digest,
+			Repository: ref.Repository,
+			Tag:        ref.Tag,
+			Digest:     ref.Digest,
 		},
 		Port:           spec.Port,
 		Labels:         labels,
@@ -133,21 +134,11 @@ func DeleteService(env *Env, name string) error {
 	return nil
 }
 
-func SetServiceImage(env *Env, name, ref, digest, commitMessage string) error {
+func SetServiceImage(env *Env, name string, ref image.Ref, commitMessage string) error {
 	return mutateService(env, name, func(s *Service) {
-		repository, tag, refDigest := splitImageRef(ref)
-
-		if digest == "" {
-			digest = refDigest
-		}
-
-		s.Image.Repository = repository
-		s.Image.Tag = tag
-		s.Image.Digest = digest
-
-		if tag != "" || digest != "" {
-			delete(s.Annotations, annotationAwaitingBuild)
-		}
+		s.Image.Repository = ref.Repository
+		s.Image.Tag = ref.Tag
+		s.Image.Digest = ref.Digest
 
 		if s.PodAnnotations == nil {
 			s.PodAnnotations = map[string]string{}
@@ -305,20 +296,4 @@ func mutateService(env *Env, name string, mutate func(*Service)) error {
 	env.Services[name] = svc
 
 	return nil
-}
-
-func splitImageRef(ref string) (repository, tag, digest string) {
-	if at := strings.LastIndex(ref, "@"); at != -1 {
-		digest = ref[at+1:]
-		ref = ref[:at]
-	}
-
-	slashIdx := strings.LastIndex(ref, "/")
-	colonIdx := strings.LastIndex(ref, ":")
-
-	if colonIdx > slashIdx {
-		return ref[:colonIdx], ref[colonIdx+1:], digest
-	}
-
-	return ref, "", digest
 }

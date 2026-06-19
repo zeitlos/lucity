@@ -102,9 +102,35 @@ func executeBuild(cfg Config, buildVars map[string]string) error {
 		return err
 	}
 
+	if digest == "" {
+		return fmt.Errorf("buildkit returned an empty image digest")
+	}
+
 	slog.Info("build completed", "image", imageName, "digest", digest)
 
+	digestRef := stripTag(imageName) + "@" + digest
+
+	if err := writeBuildResult([]string{digestRef}); err != nil {
+		return fmt.Errorf("failed to report build result: %w", err)
+	}
+
 	return nil
+}
+
+const terminationLogPath = "/dev/termination-log"
+
+type buildResult struct {
+	Images []string `json:"images"`
+}
+
+func writeBuildResult(digestRefs []string) error {
+	payload, err := json.Marshal(buildResult{Images: digestRefs})
+
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(terminationLogPath, payload, 0o644)
 }
 
 // stripTag returns the image ref without its trailing tag.

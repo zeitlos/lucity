@@ -1,5 +1,5 @@
 {{- range $name, $svc := .Values.services }}
-{{- if and $svc.image $svc.image.tag $svc.port }}
+{{- if and $svc.image (or $svc.image.tag $svc.image.digest) $svc.port }}
 ---
 apiVersion: v1
 kind: Service

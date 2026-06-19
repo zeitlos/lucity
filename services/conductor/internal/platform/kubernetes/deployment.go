@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 	"strconv"
-	"strings"
 
 	"github.com/zeitlos/lucity/pkg/to"
+	"github.com/zeitlos/lucity/services/conductor/internal/image"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 
 	apps "k8s.io/api/apps/v1"
@@ -111,13 +111,14 @@ func toDeployment(replicaSet apps.ReplicaSet, deployment apps.Deployment, servic
 	}
 
 	if len(containers) > 0 {
-		result.Image = containers[0].Image
+		ref, err := image.Parse(containers[0].Image)
 
-		tag, digest := imageTagAndDigest(result.Image)
-		result.ImageDigest = digest
+		if err == nil {
+			result.Image = ref
 
-		if deployment.Annotations[annotationAwaitingBuild] != "true" && tag != "" {
-			result.Commit = tag
+			if ref.Tag != "" {
+				result.Commit = ref.Tag
+			}
 		}
 	}
 
@@ -158,19 +159,4 @@ func deploymentStatus(replicaSet apps.ReplicaSet, deployment apps.Deployment) pl
 	}
 
 	return platform.DeploymentDeploying
-}
-
-func imageTagAndDigest(image string) (tag, digest string) {
-	if at := strings.LastIndex(image, "@"); at != -1 {
-		digest = image[at+1:]
-		image = image[:at]
-	}
-
-	slash := strings.LastIndex(image, "/")
-
-	if colon := strings.LastIndex(image, ":"); colon > slash {
-		tag = image[colon+1:]
-	}
-
-	return tag, digest
 }

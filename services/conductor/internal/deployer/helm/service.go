@@ -6,6 +6,7 @@ import (
 
 	"github.com/zeitlos/lucity/services/conductor/internal/deployer"
 	"github.com/zeitlos/lucity/services/conductor/internal/deployer/values"
+	"github.com/zeitlos/lucity/services/conductor/internal/image"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 	"github.com/zeitlos/lucity/services/conductor/internal/resources"
 )
@@ -38,9 +39,9 @@ func (s *serviceClient) Delete(ctx context.Context, id platform.ServiceID) error
 	return err
 }
 
-func (s *serviceClient) SetImage(ctx context.Context, id platform.ServiceID, ref, digest, commitMessage string) (deployer.RevisionID, error) {
+func (s *serviceClient) SetImage(ctx context.Context, id platform.ServiceID, ref image.Ref, commitMessage string) (deployer.RevisionID, error) {
 	return s.client.applyEnv(ctx, id.EnvironmentID(), func(e *values.Env) error {
-		return values.SetServiceImage(e, id.Name, ref, digest, commitMessage)
+		return values.SetServiceImage(e, id.Name, ref, commitMessage)
 	})
 }
 

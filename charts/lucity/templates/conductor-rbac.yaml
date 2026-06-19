@@ -79,9 +79,7 @@ subjects:
     namespace: {{ .Release.Namespace }}
 ---
 # Namespace-scoped permissions in lucity-builds: conductor creates
-# build Jobs and reads their pods/logs. Inherited from the previous
-# builder service. The build Pods themselves run as a separate SA
-# (lucity-build-job) with their own RBAC — see builds-rbac.yaml.
+# build Jobs and reads their pods/logs.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:

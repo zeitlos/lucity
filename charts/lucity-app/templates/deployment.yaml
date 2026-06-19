@@ -19,7 +19,7 @@ metadata:
 spec:
   {{- if $.Values.suspended }}
   replicas: 0
-  {{- else if not $svc.image.tag }}
+  {{- else if and (not $svc.image.tag) (not $svc.image.digest) }}
   replicas: 0
   {{- else if not (and $svc.autoscaling $svc.autoscaling.enabled) }}
   replicas: {{ $svc.replicas | default 1 }}
@@ -51,7 +51,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: {{ $name }}
-          image: {{ printf "%s:%s" $svc.image.repository ($svc.image.tag | default "build-pending") | quote }}
+          image: {{ include "lucity-app.image" $svc.image | quote }}
           imagePullPolicy: {{ $svc.image.pullPolicy | default "IfNotPresent" }}
           {{- if $svc.customStartCommand }}
           command: [{{ $svc.customStartCommand | quote }}]

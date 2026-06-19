@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/zeitlos/lucity/pkg/to"
+	"github.com/zeitlos/lucity/services/conductor/internal/image"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 
 	apps "k8s.io/api/apps/v1"
@@ -292,8 +293,20 @@ func serviceID(deployment apps.Deployment, environmentID platform.EnvironmentID)
 	}
 }
 
+func awaitingFirstBuild(deployment apps.Deployment) bool {
+	containers := deployment.Spec.Template.Spec.Containers
+
+	if len(containers) == 0 {
+		return false
+	}
+
+	ref, err := image.Parse(containers[0].Image)
+
+	return err == nil && !ref.Built()
+}
+
 func serviceStatus(deployment apps.Deployment, replicaSets []apps.ReplicaSet) platform.ServiceStatus {
-	if deployment.Annotations[annotationAwaitingBuild] == "true" {
+	if awaitingFirstBuild(deployment) {
 		return platform.ServiceBuilding
 	}
 

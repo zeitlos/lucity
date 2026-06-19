@@ -9,6 +9,8 @@ import (
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/google/go-containerregistry/pkg/name"
+
+	"github.com/zeitlos/lucity/services/conductor/internal/image"
 )
 
 type Interface interface {
@@ -39,16 +41,27 @@ type Job struct {
 	StartedAt   *time.Time
 	FinishedAt  *time.Time
 	ImageRefs   map[string]name.Reference
+	Digests     map[string]string
 }
 
-func (j *Job) ImageRef(imageName string) (name.Reference, error) {
+func (j *Job) BuiltImage(imageName string) (image.Ref, error) {
 	ref, ok := j.ImageRefs[imageName]
 
 	if !ok {
-		return nil, fmt.Errorf("image ref for %q not defined on job %q", imageName, j.ID)
+		return image.Ref{}, fmt.Errorf("image ref for %q not defined on job %q", imageName, j.ID)
 	}
 
-	return ref, nil
+	digest := j.Digests[imageName]
+
+	if digest == "" {
+		return image.Ref{}, fmt.Errorf("no image digest reported for %q on job %q", imageName, j.ID)
+	}
+
+	return image.Ref{
+		Repository: ref.Context().RepositoryStr(),
+		Tag:        ref.Identifier(),
+		Digest:     digest,
+	}, nil
 }
 
 type Status string

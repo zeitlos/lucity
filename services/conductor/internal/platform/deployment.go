@@ -8,13 +8,14 @@ import (
 	"time"
 
 	"github.com/99designs/gqlgen/graphql"
+
+	"github.com/zeitlos/lucity/services/conductor/internal/image"
 )
 
 type Deployment struct {
 	ID DeploymentID
 
-	Image                string
-	ImageDigest          string
+	Image                image.Ref
 	Commit               string
 	CommitMessage        string
 	Ref                  string

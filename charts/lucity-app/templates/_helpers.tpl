@@ -44,3 +44,27 @@ Selector labels for a specific component.
 app.kubernetes.io/name: {{ .name }}
 app.kubernetes.io/instance: {{ .release }}
 {{- end }}
+
+{{/*
+Container image reference for a service.
+
+Pins by digest whenever one is known: Kubernetes pulls by digest while the
+tag stays visible for humans ("repo:tag@sha256:..."). Before the first build
+has reported a digest the bare tag is used, and a service still awaiting its
+initial build (no tag, no digest) renders just the repository. That service is
+scaled to zero, so the implicit ":latest" is never pulled.
+*/}}
+{{- define "lucity-app.image" -}}
+{{- $image := . -}}
+{{- if $image.digest -}}
+{{- if $image.tag -}}
+{{- printf "%s:%s@%s" $image.repository $image.tag $image.digest -}}
+{{- else -}}
+{{- printf "%s@%s" $image.repository $image.digest -}}
+{{- end -}}
+{{- else if $image.tag -}}
+{{- printf "%s:%s" $image.repository $image.tag -}}
+{{- else -}}
+{{- $image.repository -}}
+{{- end -}}
+{{- end }}
