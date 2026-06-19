@@ -44,6 +44,10 @@ func (c *Client) Databases() deployer.DatabaseClient {
 	return &databaseClient{client: c}
 }
 
+func (c *Client) KeyValueStores() deployer.KeyValueStoreClient {
+	return &keyValueStoreClient{client: c}
+}
+
 func (c *Client) Volumes() deployer.VolumeClient {
 	return &volumeClient{client: c}
 }

@@ -72,6 +72,13 @@ type CreateEnvironmentInput struct {
 	Tier            *ResourceTier           `json:"tier,omitempty"`
 }
 
+type CreateKeyValueStoreInput struct {
+	Environment platform.EnvironmentID `json:"environment"`
+	Name        string                 `json:"name"`
+	Version     *string                `json:"version,omitempty"`
+	Size        *string                `json:"size,omitempty"`
+}
+
 type CreateProjectInput struct {
 	// Human-readable project name (e.g. "My API").
 	Name string `json:"name"`
@@ -183,11 +190,12 @@ type Endpoint struct {
 }
 
 type Environment struct {
-	ID           platform.EnvironmentID `json:"id"`
-	Name         string                 `json:"name"`
-	ResourceTier ResourceTier           `json:"resourceTier"`
-	Services     []Service              `json:"services"`
-	Databases    []Database             `json:"databases"`
+	ID             platform.EnvironmentID `json:"id"`
+	Name           string                 `json:"name"`
+	ResourceTier   ResourceTier           `json:"resourceTier"`
+	Services       []Service              `json:"services"`
+	Databases      []Database             `json:"databases"`
+	KeyValueStores []KeyValueStore        `json:"keyValueStores"`
 }
 
 type EnvironmentResources struct {
@@ -222,6 +230,23 @@ type ImageSearchResult struct {
 type InviteMemberInput struct {
 	Email string        `json:"email"`
 	Role  WorkspaceRole `json:"role"`
+}
+
+type KeyValueStore struct {
+	ID        platform.KeyValueStoreID `json:"id"`
+	Name      string                   `json:"name"`
+	Version   string                   `json:"version"`
+	Status    DatabaseStatus           `json:"status"`
+	Size      string                   `json:"size"`
+	CreatedAt time.Time                `json:"createdAt"`
+}
+
+type KeyValueStoreCredentials struct {
+	Type     EndpointType `json:"type"`
+	Host     string       `json:"host"`
+	Port     string       `json:"port"`
+	Password string       `json:"password"`
+	URI      string       `json:"uri"`
 }
 
 type Mutation struct {

@@ -1,0 +1,37 @@
+type KeyValueStore {
+  id: KeyValueStoreID!
+  name: String!
+  version: String!
+  status: DatabaseStatus!
+  size: String!
+  createdAt: Time!
+}
+
+type KeyValueStoreCredentials {
+  type: EndpointType!
+  host: String!
+  port: String!
+  password: String!
+  uri: String!
+}
+
+input CreateKeyValueStoreInput {
+  environment: EnvironmentID!
+  name: String! @constraint(constraint: "resource_name,min=2,max=16")
+  version: String
+  size: String
+}
+
+extend type Environment {
+  keyValueStores: [KeyValueStore!]! @goField(forceResolver: true)
+}
+
+extend type Query {
+  keyValueStore(id: KeyValueStoreID!): KeyValueStore! @hasRole(role: WORKSPACE_MEMBER)
+  keyValueStoreCredentials(keyValueStore: KeyValueStoreID!): [KeyValueStoreCredentials!]! @hasRole(role: WORKSPACE_MEMBER)
+}
+
+extend type Mutation {
+  createKeyValueStore(input: CreateKeyValueStoreInput!): KeyValueStore! @hasRole(role: WORKSPACE_MEMBER)
+  deleteKeyValueStore(keyValueStore: KeyValueStoreID!): Boolean! @hasRole(role: WORKSPACE_MEMBER)
+}

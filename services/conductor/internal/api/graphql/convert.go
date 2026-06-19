@@ -275,6 +275,27 @@ func convertDatabaseCredentials(c conductor.DatabaseCredentials) model.DatabaseC
 	}
 }
 
+func convertKeyValueStore(s conductor.KeyValueStore) model.KeyValueStore {
+	return model.KeyValueStore{
+		ID:        s.ID,
+		Name:      s.Name,
+		Version:   s.Version,
+		Status:    convertDatabaseStatus(s.Status),
+		Size:      s.Size.String(),
+		CreatedAt: s.CreatedAt,
+	}
+}
+
+func convertKeyValueStoreCredentials(c conductor.KeyValueStoreCredentials) model.KeyValueStoreCredentials {
+	return model.KeyValueStoreCredentials{
+		Type:     convertEndpointType(c.Type),
+		Host:     c.Host,
+		Port:     c.Port,
+		Password: c.Password,
+		URI:      c.URI,
+	}
+}
+
 // --- Enum converters ----------------------------------------------------
 //
 // Each GraphQL enum gets a typed switch instead of a free-form string cast.

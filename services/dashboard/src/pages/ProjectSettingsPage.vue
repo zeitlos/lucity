@@ -101,6 +101,7 @@ watch(
         resourceTier: e.resourceTier,
         services: [],
         databases: [],
+        keyValueStores: [],
       }));
       setEnvironments(shells);
     }

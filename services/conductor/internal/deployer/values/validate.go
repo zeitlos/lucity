@@ -53,6 +53,20 @@ func Validate(env *Env) error {
 		}
 	}
 
+	for name, vk := range env.Databases.Valkey {
+		if !isValidName(name) {
+			return fmt.Errorf("invalid key-value store name %q", name)
+		}
+
+		if err := validateLabels(fmt.Sprintf("key-value store %q labels", name), vk.Labels); err != nil {
+			return err
+		}
+
+		if err := validateAnnotationKeys(fmt.Sprintf("key-value store %q annotations", name), vk.Annotations); err != nil {
+			return err
+		}
+	}
+
 	for k := range env.SharedVariables {
 		if !isValidVarName(k) {
 			return fmt.Errorf("invalid shared variable name %q", k)

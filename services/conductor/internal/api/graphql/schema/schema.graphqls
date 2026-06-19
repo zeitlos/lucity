@@ -14,6 +14,7 @@ scalar EnvironmentID
 scalar ServiceID
 scalar DeploymentID
 scalar DatabaseID
+scalar KeyValueStoreID
 scalar VolumeID
 scalar BuildID
 

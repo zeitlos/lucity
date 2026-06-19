@@ -15,6 +15,7 @@ const (
 	serviceLabel            = "lucity.dev/service"
 	volumeLabel             = "lucity.dev/volume"
 	databaseLabel           = "lucity.dev/database"
+	keyValueStoreLabel      = "lucity.dev/keyvaluestore"
 	podTemplateHashLabel    = apps.DefaultDeploymentUniqueLabelKey
 	resourceTierLabel       = "lucity.dev/resource-tier"
 	gitHubInstallationLabel = "lucity.dev/github-installation"

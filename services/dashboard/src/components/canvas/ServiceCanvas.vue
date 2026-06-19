@@ -5,9 +5,11 @@ import { Background } from '@vue-flow/background';
 import { Plus, Maximize2 } from 'lucide-vue-next';
 import { usePanel } from '@/composables/usePanel';
 import { useCanvasBuildStatus } from '@/composables/useCanvasBuildStatus';
-import type { Service, Database } from '@/composables/useEnvironment';
+import { useCanvasLayout } from '@/composables/useCanvasLayout';
+import type { Service, Database, KeyValueStore } from '@/composables/useEnvironment';
 import ServiceNode from './ServiceNode.vue';
 import DatabaseNode from './DatabaseNode.vue';
+import KeyValueStoreNode from './KeyValueStoreNode.vue';
 import { Button } from '@/components/ui/button';
 import '@vue-flow/core/dist/style.css';
 import '@vue-flow/core/dist/theme-default.css';
@@ -15,6 +17,8 @@ import '@vue-flow/core/dist/theme-default.css';
 const props = defineProps<{
   services: Service[];
   databases: Database[];
+  keyValueStores: KeyValueStore[];
+  environmentId: string;
 }>();
 
 const emit = defineEmits<{
@@ -30,9 +34,11 @@ const { statusMap } = useCanvasBuildStatus(
   () => emit('deploy-completed'),
 );
 
-const { fitView, findNode, setCenter, dimensions } = useVueFlow({
+const { fitView, findNode, setCenter, dimensions, onNodeDragStop } = useVueFlow({
   id: 'service-canvas',
 });
+
+const { positionFor, setPosition } = useCanvasLayout(() => props.environmentId);
 
 const nodes = computed(() => {
   const serviceNodes = props.services.map((svc, index) => {
@@ -40,7 +46,7 @@ const nodes = computed(() => {
     return {
       id: svc.id,
       type: 'service',
-      position: { x: 0, y: index * 180 },
+      position: positionFor(svc.id) ?? { x: 0, y: index * 180 },
       data: {
         name: svc.name,
         sourceUrl: svc.sourceUrl,
@@ -58,7 +64,7 @@ const nodes = computed(() => {
     return {
       id: db.id,
       type: 'database',
-      position: { x: 340, y: index * 220 },
+      position: positionFor(db.id) ?? { x: 340, y: index * 220 },
       data: {
         name: db.name,
         version: db.version,
@@ -70,7 +76,22 @@ const nodes = computed(() => {
     };
   });
 
-  return [...serviceNodes, ...databaseNodes];
+  const keyValueStoreNodes = props.keyValueStores.map((kv, index) => {
+    return {
+      id: kv.id,
+      type: 'keyValueStore',
+      position: positionFor(kv.id) ?? { x: 680, y: index * 220 },
+      data: {
+        name: kv.name,
+        version: kv.version,
+        size: kv.size,
+        status: kv.status,
+      },
+      selected: currentPanel.value?.id === kv.id && currentPanel.value?.type === 'keyValueStore',
+    };
+  });
+
+  return [...serviceNodes, ...databaseNodes, ...keyValueStoreNodes];
 });
 
 const edges = ref([]);
@@ -78,6 +99,8 @@ const edges = ref([]);
 function handleNodeClick(event: { node: { id: string; type: string; data: { name: string } } }) {
   if (event.node.type === 'database') {
     openPanel({ type: 'database', id: event.node.id, label: event.node.data.name });
+  } else if (event.node.type === 'keyValueStore') {
+    openPanel({ type: 'keyValueStore', id: event.node.id, label: event.node.data.name });
   } else {
     openPanel({ type: 'service', id: event.node.id, label: event.node.data.name });
   }
@@ -87,10 +110,16 @@ function handleFitView() {
   fitView({ padding: 0.3, maxZoom: 1 });
 }
 
+onNodeDragStop(({ nodes: draggedNodes }) => {
+  for (const node of draggedNodes) {
+    setPosition(node.id, node.position);
+  }
+});
+
 onMounted(() => {
   setTimeout(() => {
     const panel = currentPanel.value;
-    if (panel?.type === 'service' || panel?.type === 'database') {
+    if (panel?.type === 'service' || panel?.type === 'database' || panel?.type === 'keyValueStore') {
       const node = findNode(panel.id);
       if (node) {
         const nodeCenterX = node.position.x + (node.dimensions.width / 2);
@@ -104,7 +133,7 @@ onMounted(() => {
   }, 200);
 });
 
-const totalNodes = computed(() => props.services.length + props.databases.length);
+const totalNodes = computed(() => props.services.length + props.databases.length + props.keyValueStores.length);
 watch(totalNodes, () => {
   setTimeout(() => handleFitView(), 100);
 });
@@ -112,7 +141,7 @@ watch(totalNodes, () => {
 watch(
   () => currentPanel.value,
   (panel, oldPanel) => {
-    if (panel?.type === 'service' || panel?.type === 'database') {
+    if (panel?.type === 'service' || panel?.type === 'database' || panel?.type === 'keyValueStore') {
       const node = findNode(panel.id);
       if (node) {
         const nodeCenterX = node.position.x + (node.dimensions.width / 2);
@@ -158,6 +187,14 @@ watch(
           :data="nodeProps.data"
           :selected="nodeProps.selected"
           @select="openPanel({ type: 'database', id: nodeProps.id, label: nodeProps.data.name })"
+        />
+      </template>
+
+      <template #node-keyValueStore="nodeProps">
+        <KeyValueStoreNode
+          :data="nodeProps.data"
+          :selected="nodeProps.selected"
+          @select="openPanel({ type: 'keyValueStore', id: nodeProps.id, label: nodeProps.data.name })"
         />
       </template>
 

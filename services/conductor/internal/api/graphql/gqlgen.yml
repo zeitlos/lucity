@@ -43,6 +43,8 @@ models:
     model: github.com/zeitlos/lucity/services/conductor/internal/conductor.DeploymentID
   DatabaseID:
     model: github.com/zeitlos/lucity/services/conductor/internal/conductor.DatabaseID
+  KeyValueStoreID:
+    model: github.com/zeitlos/lucity/services/conductor/internal/conductor.KeyValueStoreID
   VolumeID:
     model: github.com/zeitlos/lucity/services/conductor/internal/conductor.VolumeID
   BuildID:

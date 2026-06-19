@@ -16,6 +16,7 @@ func New() *Env {
 		Config:            map[string]map[string]string{},
 		Databases: Databases{
 			Postgres: map[string]Postgres{},
+			Valkey:   map[string]Valkey{},
 		},
 	}
 }

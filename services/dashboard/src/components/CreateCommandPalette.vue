@@ -2,7 +2,7 @@
 import { ref, computed, watch, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { useQuery, useMutation, useApolloClient } from '@vue/apollo-composable';
-import { Github, FolderPlus, Plus, Lock, Globe, ArrowLeft, Search, X, Database, ChevronDown, Container, Star, Award, Loader2 } from 'lucide-vue-next';
+import { Github, FolderPlus, Plus, Lock, Globe, ArrowLeft, Search, X, Database, DatabaseZap, ChevronDown, Container, Star, Award, Loader2 } from 'lucide-vue-next';
 import { onKeyStroke, refDebounced } from '@vueuse/core';
 import { graphql } from '@/gql';
 import { GitHubAccountType } from '@/gql/graphql';
@@ -93,6 +93,17 @@ const CreateDatabaseDocument = graphql(`
     }
   }
 `);
+
+const CreateKeyValueStoreDocument = graphql(`
+  mutation CreateKeyValueStore($input: CreateKeyValueStoreInput!) {
+    createKeyValueStore(input: $input) {
+      id
+      name
+      version
+      size
+    }
+  }
+`);
 import { useEnvironment } from '@/composables/useEnvironment';
 import { useGitHubInstall } from '@/composables/useGitHubInstall';
 import { toast, errorToast } from '@/components/ui/sonner';
@@ -119,7 +130,7 @@ const { resolveClient } = useApolloClient();
 const { activeEnvironment } = useEnvironment();
 
 // Drill-down state
-type PaletteView = 'main' | 'github-repos' | 'manual-service' | 'database' | 'container-image' | 'name-project';
+type PaletteView = 'main' | 'github-repos' | 'manual-service' | 'database' | 'keyValueStore' | 'container-image' | 'name-project';
 const view = ref<PaletteView>('main');
 const search = ref('');
 const inputRef = ref<HTMLInputElement>();
@@ -381,6 +392,36 @@ async function handleCreateDatabase() {
   }
 }
 
+// Create Redis store (within environment context)
+const { mutate: createKeyValueStoreMutate, loading: creatingKeyValueStore } = useMutation(CreateKeyValueStoreDocument);
+const newKeyValueStoreName = ref('cache');
+
+async function handleCreateKeyValueStore() {
+  if (!props.environmentId) return;
+
+  try {
+    const res = await createKeyValueStoreMutate({
+      input: {
+        environment: props.environmentId,
+        name: newKeyValueStoreName.value,
+      },
+    });
+
+    if (res?.errors?.length) {
+      errorToast('Failed to create Redis store', {
+        description: res.errors.map(e => e.message).join(', '),
+      });
+      return;
+    }
+
+    toast.success('Redis store created');
+    close();
+    emit('created');
+  } catch (e: unknown) {
+    errorToast('Failed to create Redis store', { description: errorMessage(e) });
+  }
+}
+
 async function handleAddManualService() {
   if (!props.environmentId) return;
 
@@ -509,7 +550,7 @@ function scrollFocusedIntoView() {
 
 onKeyStroke('ArrowDown', (e) => {
   if (!props.open) return;
-  if (view.value === 'manual-service' || view.value === 'database') return;
+  if (view.value === 'manual-service' || view.value === 'database' || view.value === 'keyValueStore') return;
   if (currentItemCount.value === 0) return;
   e.preventDefault();
   focusedIndex.value = (focusedIndex.value + 1) % currentItemCount.value;
@@ -518,7 +559,7 @@ onKeyStroke('ArrowDown', (e) => {
 
 onKeyStroke('ArrowUp', (e) => {
   if (!props.open) return;
-  if (view.value === 'manual-service' || view.value === 'database') return;
+  if (view.value === 'manual-service' || view.value === 'database' || view.value === 'keyValueStore') return;
   if (currentItemCount.value === 0) return;
   e.preventDefault();
   focusedIndex.value = (focusedIndex.value - 1 + currentItemCount.value) % currentItemCount.value;
@@ -576,6 +617,12 @@ onKeyStroke('Enter', (e) => {
         handleCreateDatabase();
       }
       break;
+    case 'keyValueStore':
+      if (!creatingKeyValueStore.value && newKeyValueStoreName.value) {
+        e.preventDefault();
+        handleCreateKeyValueStore();
+      }
+      break;
     case 'name-project':
       if (isProjectValid.value && !creating.value) {
         e.preventDefault();
@@ -604,6 +651,7 @@ const mainItems = computed(() => {
         { id: 'container-image', label: 'Container Image', icon: Container, action: () => { view.value = 'container-image'; } },
         { id: 'manual-service', label: 'Manual Service', icon: Plus, action: () => { view.value = 'manual-service'; } },
         { id: 'database', label: 'PostgreSQL Database', icon: Database, action: () => { view.value = 'database'; } },
+        { id: 'keyValueStore', label: 'Redis', icon: DatabaseZap, action: () => { view.value = 'keyValueStore'; } },
       ];
 
   if (!search.value) return items;
@@ -1000,6 +1048,44 @@ void activeEnvironment;
                 @click="handleCreateDatabase"
               >
                 {{ creatingDatabase ? 'Creating...' : 'Create Database' }}
+              </button>
+            </div>
+          </template>
+
+          <!-- Redis view -->
+          <template v-if="view === 'keyValueStore'">
+            <div class="flex h-12 items-center border-b px-3">
+              <button
+                class="mr-1 shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"
+                @click="view = 'main'"
+              >
+                <ArrowLeft :size="16" />
+              </button>
+              <Badge variant="secondary">Redis</Badge>
+              <div class="flex-1" />
+              <button
+                class="shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"
+                @click="close"
+              >
+                <X :size="16" />
+              </button>
+            </div>
+            <div class="space-y-4 p-4">
+              <div class="space-y-2">
+                <label class="text-sm font-medium text-foreground">Store Name</label>
+                <input
+                  v-model="newKeyValueStoreName"
+                  class="flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  placeholder="cache"
+                />
+                <p class="text-xs text-muted-foreground">Redis 8 &middot; powered by Valkey &middot; 1Gi storage</p>
+              </div>
+              <button
+                class="inline-flex h-9 w-full items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+                :disabled="creatingKeyValueStore || !newKeyValueStoreName"
+                @click="handleCreateKeyValueStore"
+              >
+                {{ creatingKeyValueStore ? 'Creating...' : 'Create Redis' }}
               </button>
             </div>
           </template>

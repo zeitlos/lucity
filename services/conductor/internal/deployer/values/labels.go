@@ -7,6 +7,7 @@ const (
 	labelEnvironment        = "lucity.dev/environment"
 	labelService            = "lucity.dev/service"
 	labelDatabase           = "lucity.dev/database"
+	labelKeyValueStore      = "lucity.dev/keyvaluestore"
 	labelGitHubInstallation = "lucity.dev/github-installation"
 
 	annotationSourceRepo    = "lucity.dev/source-repo"

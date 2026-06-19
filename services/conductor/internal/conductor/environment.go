@@ -84,6 +84,16 @@ func (c *Client) checkEnvironmentEmpty(ctx context.Context, id platform.Environm
 		return fmt.Errorf("environment %q has %d database(s); remove them first", id, len(databases))
 	}
 
+	keyValueStores, err := c.platform.KeyValueStores(ctx, id)
+
+	if err != nil {
+		return err
+	}
+
+	if len(keyValueStores) > 0 {
+		return fmt.Errorf("environment %q has %d key-value store(s); remove them first", id, len(keyValueStores))
+	}
+
 	volumes, err := c.platform.Volumes(ctx, id)
 
 	if err != nil {

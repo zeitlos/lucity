@@ -96,12 +96,22 @@ export interface Database {
   createdAt: string;
 }
 
+export interface KeyValueStore {
+  id: string;
+  name: string;
+  version: string;
+  status: DatabaseStatus;
+  size: string;
+  createdAt: string;
+}
+
 export interface Environment {
   id: string;
   name: string;
   resourceTier: ResourceTier;
   services: Service[];
   databases: Database[];
+  keyValueStores: KeyValueStore[];
 }
 
 const activeEnvironment = ref<Environment | null>(null);
@@ -144,12 +154,14 @@ export function useEnvironment() {
 
   const activeEnvServices = computed(() => activeEnvironment.value?.services ?? []);
   const activeEnvDatabases = computed(() => activeEnvironment.value?.databases ?? []);
+  const activeEnvKeyValueStores = computed(() => activeEnvironment.value?.keyValueStores ?? []);
 
   return {
     activeEnvironment,
     environments,
     activeEnvServices,
     activeEnvDatabases,
+    activeEnvKeyValueStores,
     setEnvironments,
     setEnvironment,
     setEnvironmentById,

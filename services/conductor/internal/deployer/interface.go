@@ -14,6 +14,7 @@ type RevisionID string
 type Interface interface {
 	Services() ServiceClient
 	Databases() DatabaseClient
+	KeyValueStores() KeyValueStoreClient
 	Volumes() VolumeClient
 	Environments() EnvironmentClient
 }
@@ -46,6 +47,11 @@ type DatabaseClient interface {
 	Delete(ctx context.Context, id platform.DatabaseID) error
 	Expose(ctx context.Context, id platform.DatabaseID, host string) error
 	Unexpose(ctx context.Context, id platform.DatabaseID) error
+}
+
+type KeyValueStoreClient interface {
+	Create(ctx context.Context, env platform.EnvironmentID, name string, spec KeyValueStoreSpec) (RevisionID, error)
+	Delete(ctx context.Context, id platform.KeyValueStoreID) error
 }
 
 type VolumeClient interface {
@@ -108,6 +114,12 @@ type DatabaseSpec struct {
 	Version   string
 	Instances int
 	Size      resource.Quantity
+}
+
+type KeyValueStoreSpec struct {
+	Version  string
+	Size     resource.Quantity
+	Password string
 }
 
 type VolumeSpec struct {

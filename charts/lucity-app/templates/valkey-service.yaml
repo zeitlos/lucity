@@ -1,0 +1,20 @@
+{{- range $name, $vk := .Values.databases.valkey }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "lucity-app.fullname" $ }}-valkey-{{ $name }}
+  labels:
+    {{- include "lucity-app.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: valkey-{{ $name }}
+    {{- with $.Values.commonLabels }}{{- toYaml . | nindent 4 }}{{- end }}
+spec:
+  clusterIP: None
+  selector:
+    {{- include "lucity-app.selectorLabels" (dict "name" (printf "valkey-%s" $name) "release" $.Release.Name) | nindent 4 }}
+  ports:
+    - name: valkey
+      port: 6379
+      targetPort: valkey
+      protocol: TCP
+{{- end }}

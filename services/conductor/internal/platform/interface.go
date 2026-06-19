@@ -24,6 +24,10 @@ type Interface interface {
 	Database(ctx context.Context, id DatabaseID) (*Database, error)
 	DatabaseCredentials(ctx context.Context, id DatabaseID) (*DatabaseCredentials, error)
 
+	KeyValueStores(ctx context.Context, environmentID EnvironmentID) ([]KeyValueStore, error)
+	KeyValueStore(ctx context.Context, id KeyValueStoreID) (*KeyValueStore, error)
+	KeyValueStoreCredentials(ctx context.Context, id KeyValueStoreID) (*KeyValueStoreCredentials, error)
+
 	Volumes(ctx context.Context, environmentID EnvironmentID) ([]Volume, error)
 	Volume(ctx context.Context, id VolumeID) (*Volume, error)
 

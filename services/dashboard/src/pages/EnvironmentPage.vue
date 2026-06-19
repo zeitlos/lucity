@@ -86,6 +86,14 @@ const EnvironmentDocument = graphql(`
         size
         createdAt
       }
+      keyValueStores {
+        id
+        name
+        version
+        status
+        size
+        createdAt
+      }
     }
   }
 `);
@@ -108,6 +116,7 @@ import { Button } from '@/components/ui/button';
 import ServiceCanvas from '@/components/canvas/ServiceCanvas.vue';
 import ServicePanel from '@/components/panel/ServicePanel.vue';
 import DatabasePanel from '@/components/panel/DatabasePanel.vue';
+import KeyValueStorePanel from '@/components/panel/KeyValueStorePanel.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import CreateCommandPalette from '@/components/CreateCommandPalette.vue';
 import BuildLogsPanel from '@/components/panel/BuildLogsPanel.vue';
@@ -165,6 +174,7 @@ const {
   setEnvironment,
   activeEnvServices,
   activeEnvDatabases,
+  activeEnvKeyValueStores,
 } = useEnvironment();
 const { isOpen, currentPanel, closePanel } = usePanel();
 const logsPanel = useBuildLogsPanel();
@@ -181,6 +191,7 @@ watch(
         resourceTier: e.resourceTier,
         services: [],
         databases: [],
+        keyValueStores: [],
       }));
       setEnvironments(shells, environmentId.value);
     }
@@ -196,7 +207,8 @@ watch(
 
     isReconciling.value =
       env.services.some(s => SERVICE_TRANSIENT_STATUSES.has(s.status)) ||
-      env.databases.some(d => DATABASE_TRANSIENT_STATUSES.has(d.status));
+      env.databases.some(d => DATABASE_TRANSIENT_STATUSES.has(d.status)) ||
+      env.keyValueStores.some(v => DATABASE_TRANSIENT_STATUSES.has(v.status));
 
     const full: Environment = {
       id: env.id,
@@ -255,6 +267,14 @@ watch(
         size: d.size,
         createdAt: d.createdAt,
       })),
+      keyValueStores: env.keyValueStores.map(v => ({
+        id: v.id,
+        name: v.name,
+        version: v.version,
+        status: v.status,
+        size: v.size,
+        createdAt: v.createdAt,
+      })),
     };
     setEnvironment(full);
   },
@@ -273,6 +293,12 @@ const selectedDatabase = computed(() => {
   return activeEnvDatabases.value.find(d => d.id === currentPanel.value!.id) ?? null;
 });
 
+// Selected key-value store for the panel
+const selectedKeyValueStore = computed(() => {
+  if (!currentPanel.value || currentPanel.value.type !== 'keyValueStore') return null;
+  return activeEnvKeyValueStores.value.find(v => v.id === currentPanel.value!.id) ?? null;
+});
+
 // Command palette
 const paletteOpen = ref(false);
 
@@ -285,7 +311,11 @@ function handleCreateFromPalette() {
   refetch();
 }
 
-const hasResources = computed(() => activeEnvServices.value.length > 0 || activeEnvDatabases.value.length > 0);
+const hasResources = computed(() =>
+  activeEnvServices.value.length > 0 ||
+  activeEnvDatabases.value.length > 0 ||
+  activeEnvKeyValueStores.value.length > 0,
+);
 
 // If the env returns an error, bounce to the projects list
 watch(error, (err) => {
@@ -322,6 +352,8 @@ watch(error, (err) => {
             <ServiceCanvas
               :services="activeEnvServices"
               :databases="activeEnvDatabases"
+              :key-value-stores="activeEnvKeyValueStores"
+              :environment-id="environmentId"
               @create="paletteOpen = true"
               @deploy-completed="refetch()"
             />
@@ -368,6 +400,20 @@ watch(error, (err) => {
               :database="selectedDatabase"
               @close="closePanel"
               @database-removed="handleResourceRemoved"
+            />
+          </div>
+        </Transition>
+
+        <!-- Redis Detail Panel -->
+        <Transition name="slide-panel">
+          <div
+            v-if="isOpen && selectedKeyValueStore"
+            class="absolute inset-y-3 right-0 w-[55%]"
+          >
+            <KeyValueStorePanel
+              :store="selectedKeyValueStore"
+              @close="closePanel"
+              @store-removed="handleResourceRemoved"
             />
           </div>
         </Transition>

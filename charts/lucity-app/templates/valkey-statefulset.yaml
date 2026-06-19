@@ -1,0 +1,89 @@
+{{- range $name, $vk := .Values.databases.valkey }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "lucity-app.fullname" $ }}-valkey-{{ $name }}
+  labels:
+    {{- include "lucity-app.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: valkey-{{ $name }}
+    {{- with $.Values.commonLabels }}{{- toYaml . | nindent 4 }}{{- end }}
+    {{- with $vk.labels }}{{- toYaml . | nindent 4 }}{{- end }}
+  {{- if or $.Values.commonAnnotations $vk.annotations }}
+  annotations:
+    {{- with $.Values.commonAnnotations }}{{- toYaml . | nindent 4 }}{{- end }}
+    {{- with $vk.annotations }}{{- toYaml . | nindent 4 }}{{- end }}
+  {{- end }}
+spec:
+  replicas: {{ if $.Values.suspended }}0{{ else }}1{{ end }}
+  serviceName: {{ include "lucity-app.fullname" $ }}-valkey-{{ $name }}
+  selector:
+    matchLabels:
+      {{- include "lucity-app.selectorLabels" (dict "name" (printf "valkey-%s" $name) "release" $.Release.Name) | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "lucity-app.labels" $ | nindent 8 }}
+        {{- include "lucity-app.selectorLabels" (dict "name" (printf "valkey-%s" $name) "release" $.Release.Name) | nindent 8 }}
+        {{- with $.Values.commonLabels }}{{- toYaml . | nindent 8 }}{{- end }}
+    spec:
+      hostUsers: false
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: valkey
+          image: valkey/valkey:{{ $vk.version | default "8" }}-alpine
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "-c"]
+          args:
+            - exec valkey-server --requirepass "$VALKEY_PASSWORD" --appendonly yes --dir /data
+          ports:
+            - name: valkey
+              containerPort: 6379
+              protocol: TCP
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          env:
+            - name: VALKEY_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "lucity-app.fullname" $ }}-valkey-{{ $name }}
+                  key: password
+          readinessProbe:
+            tcpSocket:
+              port: valkey
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: valkey
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          {{- with $vk.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        labels:
+          {{- include "lucity-app.labels" $ | nindent 10 }}
+          {{- with $.Values.commonLabels }}{{- toYaml . | nindent 10 }}{{- end }}
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: {{ $vk.size | default "1Gi" }}
+{{- end }}

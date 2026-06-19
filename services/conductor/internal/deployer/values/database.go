@@ -8,6 +8,7 @@ import (
 
 type Databases struct {
 	Postgres map[string]Postgres `yaml:"postgres"`
+	Valkey   map[string]Valkey   `yaml:"valkey"`
 }
 
 type Postgres struct {
