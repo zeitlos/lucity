@@ -68,6 +68,16 @@ spec:
             - name: http
               containerPort: {{ $svc.port }}
               protocol: TCP
+          readinessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sleep", "10"]
           {{- end }}
           securityContext:
             allowPrivilegeEscalation: false
