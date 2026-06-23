@@ -8,6 +8,12 @@ metadata:
     app.kubernetes.io/component: cashier
 spec:
   replicas: {{ .Values.cashier.replicaCount }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: {{ .Values.rollout.maxSurge }}
+      maxUnavailable: {{ .Values.rollout.maxUnavailable }}
+  minReadySeconds: {{ .Values.rollout.minReadySeconds }}
   selector:
     matchLabels:
       {{- include "lucity.selectorLabels" (dict "name" "cashier" "release" .Release.Name) | nindent 6 }}
@@ -19,6 +25,7 @@ spec:
         {{- include "lucity.labels" . | nindent 8 }}
         {{- include "lucity.selectorLabels" (dict "name" "cashier" "release" .Release.Name) | nindent 8 }}
     spec:
+      terminationGracePeriodSeconds: {{ .Values.rollout.terminationGracePeriodSeconds }}
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}

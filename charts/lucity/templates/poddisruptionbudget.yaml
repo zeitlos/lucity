@@ -1,0 +1,23 @@
+{{- $components := list
+  (dict "name" "conductor" "replicas" .Values.conductor.replicaCount "enabled" true)
+  (dict "name" "dashboard" "replicas" .Values.dashboard.replicaCount "enabled" true)
+  (dict "name" "docs" "replicas" .Values.docs.replicaCount "enabled" true)
+  (dict "name" "cashier" "replicas" .Values.cashier.replicaCount "enabled" .Values.cashier.enabled)
+}}
+{{- range $c := $components }}
+{{- if and $c.enabled (gt (int $c.replicas) 1) }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "lucity.fullname" $ }}-{{ $c.name }}
+  labels:
+    {{- include "lucity.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $c.name }}
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      {{- include "lucity.selectorLabels" (dict "name" $c.name "release" $.Release.Name) | nindent 6 }}
+{{- end }}
+{{- end }}

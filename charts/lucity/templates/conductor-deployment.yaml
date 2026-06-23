@@ -7,6 +7,12 @@ metadata:
     app.kubernetes.io/component: conductor
 spec:
   replicas: {{ .Values.conductor.replicaCount }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: {{ .Values.rollout.maxSurge }}
+      maxUnavailable: {{ .Values.rollout.maxUnavailable }}
+  minReadySeconds: {{ .Values.rollout.minReadySeconds }}
   selector:
     matchLabels:
       {{- include "lucity.selectorLabels" (dict "name" "conductor" "release" .Release.Name) | nindent 6 }}
@@ -18,6 +24,7 @@ spec:
         {{- include "lucity.labels" . | nindent 8 }}
         {{- include "lucity.selectorLabels" (dict "name" "conductor" "release" .Release.Name) | nindent 8 }}
     spec:
+      terminationGracePeriodSeconds: {{ .Values.rollout.terminationGracePeriodSeconds }}
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
@@ -36,6 +43,10 @@ spec:
             capabilities:
               drop: [ALL]
             readOnlyRootFilesystem: false
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sleep", {{ .Values.rollout.drainSeconds | quote }}]
           ports:
             - name: http
               containerPort: {{ .Values.conductor.httpPort }}
