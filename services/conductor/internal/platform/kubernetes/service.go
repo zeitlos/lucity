@@ -137,12 +137,14 @@ func (c *Client) ServicesByRepo(ctx context.Context, repoURL, branch string) ([]
 
 	var result []platform.ServiceID
 
+	wantRepo := strings.TrimSuffix(repoURL, ".git")
+
 	for _, deployment := range deployments.Items {
-		if deployment.Annotations[annotationSourceRepo] != repoURL {
+		if !strings.EqualFold(strings.TrimSuffix(deployment.Annotations[annotationSourceRepo], ".git"), wantRepo) {
 			continue
 		}
 
-		if branch != "" && deployment.Annotations[annotationSourceBranch] != branch {
+		if ann := deployment.Annotations[annotationSourceBranch]; ann != "" && ann != branch {
 			continue
 		}
 
