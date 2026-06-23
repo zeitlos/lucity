@@ -64,7 +64,7 @@ type Config struct {
 	CashierAddr string `envconfig:"CASHIER_ADDR"`
 
 	// Webhook (GitHub events)
-	WebhookSecret string `envconfig:"WEBHOOK_SECRET" default:"dev-secret"`
+	WebhookSecret string `envconfig:"WEBHOOK_SECRET" required:"true"`
 
 	// Cluster
 	GatewayName        string `envconfig:"GATEWAY_NAME" default:"lucity-gateway"`
