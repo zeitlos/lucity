@@ -154,6 +154,7 @@ func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvid
 
 	srv.AddTransport(transport.Websocket{
 		KeepAlivePingInterval: 10 * time.Second,
+		PingPongInterval:      15 * time.Second,
 		Upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool {
 				origin := r.Header.Get("Origin")
