@@ -119,6 +119,10 @@ func (h *Handler) handlePush(event *github.Event) {
 		return
 	}
 
+	if len(ids) == 0 {
+		slog.Info("push: no matching services", "repo", repoURL, "branch", event.DefaultBranch)
+	}
+
 	for _, id := range ids {
 		if id.Environment != targetEnv {
 			continue
