@@ -47,6 +47,7 @@ spec:
     spec:
       hostUsers: false
       automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
       {{- with $.Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
