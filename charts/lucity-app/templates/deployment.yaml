@@ -24,6 +24,11 @@ spec:
   {{- else if not (and $svc.autoscaling $svc.autoscaling.enabled) }}
   replicas: {{ $svc.replicas | default 1 }}
   {{- end }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   selector:
     matchLabels:
       {{- include "lucity-app.selectorLabels" (dict "name" $name "release" $.Release.Name) | nindent 6 }}
@@ -42,6 +47,7 @@ spec:
     spec:
       hostUsers: false
       automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
       {{- with $.Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
@@ -62,6 +68,16 @@ spec:
             - name: http
               containerPort: {{ $svc.port }}
               protocol: TCP
+          readinessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sleep", "10"]
           {{- end }}
           securityContext:
             allowPrivilegeEscalation: false
