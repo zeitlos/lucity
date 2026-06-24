@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from 'vue';
-import { X, Loader2, Trash2, Pause, Play } from 'lucide-vue-next';
+import { X, Loader2, Trash2, Pause, Play } from '@lucide/vue';
 import { onKeyStroke } from '@vueuse/core';
 import { useServiceLogs } from '@/composables/useServiceLogs';
 import { Button } from '@/components/ui/button';

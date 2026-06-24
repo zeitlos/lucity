@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue';
 import { useQuery } from '@vue/apollo-composable';
 import { useRouter } from 'vue-router';
-import { Clock, Sparkles, AlertTriangle } from 'lucide-vue-next';
+import { Clock, Sparkles, AlertTriangle } from '@lucide/vue';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { HTMLAttributes } from 'vue';
 import { RadioGroupIndicator, RadioGroupItem, type RadioGroupItemProps } from 'reka-ui';
-import { Circle } from 'lucide-vue-next';
+import { Circle } from '@lucide/vue';
 import { cn } from '@/lib/utils';
 
 const props = defineProps<RadioGroupItemProps & { class?: HTMLAttributes['class'] }>();

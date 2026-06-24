@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { HTMLAttributes } from 'vue';
 import { ComboboxInput, type ComboboxInputProps } from 'reka-ui';
-import { Search } from 'lucide-vue-next';
+import { Search } from '@lucide/vue';
 import { cn } from '@/lib/utils';
 
 const props = defineProps<ComboboxInputProps & { class?: HTMLAttributes['class'] }>();

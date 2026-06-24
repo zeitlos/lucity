@@ -64,6 +64,7 @@ type EnvironmentClient interface {
 	SetVariables(ctx context.Context, id platform.EnvironmentID, vars map[string]string) (RevisionID, error)
 	Suspend(ctx context.Context, id platform.EnvironmentID, suspended bool) (RevisionID, error)
 	Reconcile(ctx context.Context, id platform.EnvironmentID) (RevisionID, error)
+	Export(ctx context.Context, id platform.EnvironmentID) ([]byte, error)
 }
 
 // ServiceVariablesSpec is the full per-service variable state.

@@ -4,7 +4,7 @@ import {
   Rocket, Loader2, Check, AlertCircle, Terminal,
   ExternalLink, GitCommitHorizontal, RefreshCw,
   MoreVertical, ChevronDown, Container,
-} from 'lucide-vue-next';
+} from '@lucide/vue';
 import { useDeploy } from '@/composables/useDeploy';
 import { useBuildLogsPanel } from '@/composables/useBuildLogsPanel';
 import { BuildStatus, DeploymentStatus, ReleaseStatus } from '@/gql/graphql';

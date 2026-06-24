@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { Bug, BookOpen, CircleHelp, Github, Lightbulb } from 'lucide-vue-next';
+import { Bug, BookOpen, CircleHelp, Lightbulb } from '@lucide/vue';
+import GithubIcon from '@/components/GithubIcon.vue';
 import { useReportBug } from '@/composables/useReportBug';
 import {
   DropdownMenu,
@@ -37,7 +38,7 @@ const { report, requestFeature } = useReportBug();
       </DropdownMenuItem>
       <DropdownMenuItem as-child>
         <a href="https://github.com/zeitlos/lucity" target="_blank" rel="noopener">
-          <Github :size="14" class="mr-2" />
+          <GithubIcon :size="14" class="mr-2" />
           GitHub
         </a>
       </DropdownMenuItem>

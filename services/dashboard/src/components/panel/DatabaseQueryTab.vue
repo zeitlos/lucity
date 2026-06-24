@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useApolloClient } from '@vue/apollo-composable';
-import { Play, Loader2 } from 'lucide-vue-next';
+import { Play, Loader2 } from '@lucide/vue';
 import { graphql } from '@/gql';
 
 const ExecuteQueryDocument = graphql(`

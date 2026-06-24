@@ -295,9 +295,6 @@ func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvid
 	// Auth endpoints
 	registerAuthRoutes(mux, oidcProvider, conductorClient, logtoClient, sessionSecret, dashboardURL, githubAppSlug)
 
-	// REST API endpoints
-	mux.HandleFunc("/api/eject/", ejectHandler(conductorClient))
-
 	// GraphQL endpoints
 	mux.Handle("/playground", playground.Handler("GraphQL playground", "/graphql"))
 	mux.Handle("/graphql", srv)

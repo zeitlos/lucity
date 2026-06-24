@@ -8,7 +8,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { CircleHelp, Pencil } from 'lucide-vue-next';
+import { CircleHelp, Pencil } from '@lucide/vue';
 import { deriveSlug, isValidSlug } from '@/lib/slug';
 
 const props = withDefaults(defineProps<{

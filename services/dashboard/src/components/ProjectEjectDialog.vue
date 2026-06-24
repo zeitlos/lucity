@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
+import { useApolloClient } from '@vue/apollo-composable';
 import {
   Download,
   FileArchive,
@@ -7,7 +8,8 @@ import {
   Ship,
   GitBranch,
   Shield,
-} from 'lucide-vue-next';
+} from '@lucide/vue';
+import { graphql } from '@/gql';
 import { toast, errorToast } from '@/components/ui/sonner';
 import {
   Dialog,
@@ -18,7 +20,6 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { errorMessage } from '@/lib/utils';
-import { useAuth } from '@/composables/useAuth';
 
 const props = defineProps<{
   open: boolean;
@@ -30,7 +31,17 @@ const emit = defineEmits<{
   (e: 'update:open', value: boolean): void;
 }>();
 
-const { activeWorkspace } = useAuth();
+const EjectProjectDocument = graphql(`
+  query EjectProject($id: ProjectID!) {
+    ejectProject(id: $id) {
+      filename
+      contentType
+      content
+    }
+  }
+`);
+
+const { resolveClient } = useApolloClient();
 const ejecting = ref(false);
 
 const features = [
@@ -42,22 +53,26 @@ const features = [
 async function handleEject() {
   ejecting.value = true;
   try {
-    const url = `/api/eject/${encodeURIComponent(props.projectId)}`;
-    const res = await fetch(url, {
-      credentials: 'include',
-      headers: { 'X-Lucity-Workspace': activeWorkspace.value },
+    const client = resolveClient();
+    const { data } = await client.query({
+      query: EjectProjectDocument,
+      variables: { id: props.projectId },
+      fetchPolicy: 'no-cache',
     });
 
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(text || 'Eject failed');
-    }
+    const artifact = data?.ejectProject;
+    if (!artifact) throw new Error('Eject failed');
 
-    const blob = await res.blob();
+    const binary = atob(artifact.content);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    const blob = new Blob([bytes], { type: artifact.contentType });
+
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    const shortName = props.projectName.split('/').pop() || props.projectName;
-    a.download = `${shortName}-ejected.zip`;
+    a.download = artifact.filename;
     a.click();
     URL.revokeObjectURL(a.href);
 

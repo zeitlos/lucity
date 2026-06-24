@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useMutation } from '@vue/apollo-composable';
-import { Trash2, Database, Server, HardDrive } from 'lucide-vue-next';
+import { Trash2, Database, Server, HardDrive } from '@lucide/vue';
 import { graphql } from '@/gql';
 
 const DeleteDatabaseDocument = graphql(`

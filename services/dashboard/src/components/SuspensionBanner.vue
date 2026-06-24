@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useQuery } from '@vue/apollo-composable';
-import { AlertTriangle, Sparkles } from 'lucide-vue-next';
+import { AlertTriangle, Sparkles } from '@lucide/vue';
 import { graphql } from '@/gql';
 import { SubscriptionStatus } from '@/gql/graphql';
 

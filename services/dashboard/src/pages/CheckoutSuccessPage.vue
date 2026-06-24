@@ -15,7 +15,7 @@ const CompleteWorkspaceCheckoutDocument = graphql(`
 `);
 import { useAuth } from '@/composables/useAuth';
 import { apolloClient } from '@/lib/apollo';
-import { Loader2, AlertCircle } from 'lucide-vue-next';
+import { Loader2, AlertCircle } from '@lucide/vue';
 import { Button } from '@/components/ui/button';
 import { errorMessage } from '@/lib/utils';
 

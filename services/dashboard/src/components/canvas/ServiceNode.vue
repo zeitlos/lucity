@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, watch, onUnmounted } from 'vue';
 import { Handle, Position } from '@vue-flow/core';
-import { ExternalLink, Github, Globe, Loader2, Container } from 'lucide-vue-next';
+import { ExternalLink, Globe, Loader2, Container, FolderGit2 } from '@lucide/vue';
+import GithubIcon from '@/components/GithubIcon.vue';
 import { BuildStatus, EndpointType, ServiceStatus, type Protocol } from '@/gql/graphql';
 import { Status } from '@/components/ui/status';
 
@@ -154,7 +155,7 @@ const hostUrl = computed(() => {
     >
       <!-- Header: icon + name -->
       <div class="flex items-center gap-3">
-        <Github v-if="isFromRepo" :size="28" />
+        <GithubIcon v-if="isFromRepo" :size="28" class="shrink-0" />
         <Container v-else :size="28" />
         <span class="truncate font-semibold text-foreground">{{ data.name }}</span>
       </div>
@@ -175,7 +176,7 @@ const hostUrl = computed(() => {
           <ExternalLink :size="10" class="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
         </a>
         <div v-if="shortRepoName" class="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <Github :size="12" class="shrink-0" />
+          <FolderGit2 :size="12" class="shrink-0" />
           <span class="truncate">{{ shortRepoName }}</span>
         </div>
       </div>

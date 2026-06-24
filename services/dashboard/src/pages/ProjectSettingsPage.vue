@@ -2,7 +2,7 @@
 import { computed, ref, reactive, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuery, useMutation } from '@vue/apollo-composable';
-import { ArrowLeft, Trash2, ChevronDown, ChevronRight } from 'lucide-vue-next';
+import { ArrowLeft, Trash2, ChevronDown, ChevronRight } from '@lucide/vue';
 import { graphql } from '@/gql';
 import { ResourceTier } from '@/gql/graphql';
 
@@ -102,6 +102,7 @@ watch(
         services: [],
         databases: [],
         keyValueStores: [],
+        buckets: [],
       }));
       setEnvironments(shells);
     }
