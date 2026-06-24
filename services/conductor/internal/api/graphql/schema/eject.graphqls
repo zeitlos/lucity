@@ -1,0 +1,10 @@
+type EjectArtifact {
+  filename: String!
+  contentType: String!
+  """Base64-encoded zip archive of the ejected project."""
+  content: String!
+}
+
+extend type Query {
+  ejectProject(id: ProjectID!): EjectArtifact! @hasRole(role: WORKSPACE_MEMBER)
+}

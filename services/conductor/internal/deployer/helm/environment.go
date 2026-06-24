@@ -44,6 +44,34 @@ func (e *environmentClient) Suspend(ctx context.Context, id platform.Environment
 	})
 }
 
+func (e *environmentClient) Export(_ context.Context, id platform.EnvironmentID) ([]byte, error) {
+	namespace := id.Namespace()
+
+	config := new(action.Configuration)
+
+	if err := config.Init(restGetterFor(namespace), namespace, "secret", debugLog); err != nil {
+		return nil, err
+	}
+
+	exists, _, err := releaseState(config, releaseName)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if !exists {
+		return nil, nil
+	}
+
+	env, err := loadCurrent(config)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return values.Marshal(env)
+}
+
 func (e *environmentClient) Reconcile(ctx context.Context, id platform.EnvironmentID) (deployer.RevisionID, error) {
 	namespace := id.Namespace()
 

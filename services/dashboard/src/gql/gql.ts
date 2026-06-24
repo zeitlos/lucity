@@ -28,6 +28,7 @@ type Documents = {
     "\n  mutation CreateBucket($input: CreateBucketInput!) {\n    createBucket(input: $input) {\n      id\n      name\n      region\n      endpoint\n    }\n  }\n": typeof types.CreateBucketDocument,
     "\n  mutation CreateEnvironment($input: CreateEnvironmentInput!) {\n    createEnvironment(input: $input) {\n      id\n      name\n      resourceTier\n    }\n  }\n": typeof types.CreateEnvironmentDocument,
     "\n  mutation CreateWorkspaceCheckout($input: CreateWorkspaceCheckoutInput!) {\n    createWorkspaceCheckout(input: $input) {\n      url\n    }\n  }\n": typeof types.CreateWorkspaceCheckoutDocument,
+    "\n  query EjectProject($id: ProjectID!) {\n    ejectProject(id: $id) {\n      filename\n      contentType\n      content\n    }\n  }\n": typeof types.EjectProjectDocument,
     "\n  query SharedVariables($environment: EnvironmentID!) {\n    sharedVariables(environment: $environment) {\n      key\n      value\n    }\n  }\n": typeof types.SharedVariablesDocument,
     "\n  mutation SetSharedVariables($environment: EnvironmentID!, $variables: [VariableInput!]!) {\n    setSharedVariables(environment: $environment, variables: $variables)\n  }\n": typeof types.SetSharedVariablesDocument,
     "\n  query Subscription {\n    subscription {\n      plan\n      status\n      currentPeriodEnd\n      creditAmountCents\n      creditExpiry\n      hasPaymentMethod\n    }\n  }\n": typeof types.SubscriptionDocument,
@@ -95,6 +96,7 @@ const documents: Documents = {
     "\n  mutation CreateBucket($input: CreateBucketInput!) {\n    createBucket(input: $input) {\n      id\n      name\n      region\n      endpoint\n    }\n  }\n": types.CreateBucketDocument,
     "\n  mutation CreateEnvironment($input: CreateEnvironmentInput!) {\n    createEnvironment(input: $input) {\n      id\n      name\n      resourceTier\n    }\n  }\n": types.CreateEnvironmentDocument,
     "\n  mutation CreateWorkspaceCheckout($input: CreateWorkspaceCheckoutInput!) {\n    createWorkspaceCheckout(input: $input) {\n      url\n    }\n  }\n": types.CreateWorkspaceCheckoutDocument,
+    "\n  query EjectProject($id: ProjectID!) {\n    ejectProject(id: $id) {\n      filename\n      contentType\n      content\n    }\n  }\n": types.EjectProjectDocument,
     "\n  query SharedVariables($environment: EnvironmentID!) {\n    sharedVariables(environment: $environment) {\n      key\n      value\n    }\n  }\n": types.SharedVariablesDocument,
     "\n  mutation SetSharedVariables($environment: EnvironmentID!, $variables: [VariableInput!]!) {\n    setSharedVariables(environment: $environment, variables: $variables)\n  }\n": types.SetSharedVariablesDocument,
     "\n  query Subscription {\n    subscription {\n      plan\n      status\n      currentPeriodEnd\n      creditAmountCents\n      creditExpiry\n      hasPaymentMethod\n    }\n  }\n": types.SubscriptionDocument,
@@ -218,6 +220,10 @@ export function graphql(source: "\n  mutation CreateEnvironment($input: CreateEn
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation CreateWorkspaceCheckout($input: CreateWorkspaceCheckoutInput!) {\n    createWorkspaceCheckout(input: $input) {\n      url\n    }\n  }\n"): (typeof documents)["\n  mutation CreateWorkspaceCheckout($input: CreateWorkspaceCheckoutInput!) {\n    createWorkspaceCheckout(input: $input) {\n      url\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query EjectProject($id: ProjectID!) {\n    ejectProject(id: $id) {\n      filename\n      contentType\n      content\n    }\n  }\n"): (typeof documents)["\n  query EjectProject($id: ProjectID!) {\n    ejectProject(id: $id) {\n      filename\n      contentType\n      content\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

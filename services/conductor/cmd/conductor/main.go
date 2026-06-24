@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io/fs"
 	"log/slog"
 	"os"
 
@@ -278,8 +279,16 @@ func main() {
 
 	objectStorageClient := objectstorage.NewManager(ovhBackend, k8sClient)
 
+	chartFS, err := fs.Sub(charts.LucityApp, "lucity-app")
+
+	if err != nil {
+		slog.Error("failed to open lucity-app chart fs", "error", err)
+		os.Exit(1)
+	}
+
 	conductorConfig := conductor.Config{
 		Version:              Version,
+		ChartFS:              chartFS,
 		RegistryURL:          config.RegistryURL,
 		RegistryPushURL:      config.RegistryURL,
 		RegistryPullURL:      config.RegistryPullURL,

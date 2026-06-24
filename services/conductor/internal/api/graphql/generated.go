@@ -185,6 +185,12 @@ type ComplexityRoot struct {
 		Status          func(childComplexity int) int
 	}
 
+	EjectArtifact struct {
+		Content     func(childComplexity int) int
+		ContentType func(childComplexity int) int
+		Filename    func(childComplexity int) int
+	}
+
 	Endpoint struct {
 		DNS      func(childComplexity int) int
 		Host     func(childComplexity int) int
@@ -315,6 +321,7 @@ type ComplexityRoot struct {
 		DatabaseTables           func(childComplexity int, database platform.DatabaseID) int
 		Deployment               func(childComplexity int, id platform.DeploymentID) int
 		DetectServices           func(childComplexity int, repositoryURL string) int
+		EjectProject             func(childComplexity int, id platform.ProjectID) int
 		Environment              func(childComplexity int, environment platform.EnvironmentID) int
 		EnvironmentResources     func(childComplexity int, environment platform.EnvironmentID) int
 		Environments             func(childComplexity int, project platform.ProjectID) int
@@ -516,6 +523,7 @@ type QueryResolver interface {
 	DatabaseTableData(ctx context.Context, database platform.DatabaseID, table string, schema *string, limit *int, offset *int) (*model.DatabaseTableData, error)
 	DatabaseCredentials(ctx context.Context, database platform.DatabaseID) ([]model.DatabaseCredentials, error)
 	Deployment(ctx context.Context, id platform.DeploymentID) (*model.Deployment, error)
+	EjectProject(ctx context.Context, id platform.ProjectID) (*model.EjectArtifact, error)
 	Environments(ctx context.Context, project platform.ProjectID) ([]model.Environment, error)
 	Environment(ctx context.Context, environment platform.EnvironmentID) (*model.Environment, error)
 	GithubSources(ctx context.Context) ([]model.GitHubInstallation, error)
@@ -1085,6 +1093,25 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.DnsState.Status(childComplexity), true
+
+	case "EjectArtifact.content":
+		if e.ComplexityRoot.EjectArtifact.Content == nil {
+			break
+		}
+
+		return e.ComplexityRoot.EjectArtifact.Content(childComplexity), true
+	case "EjectArtifact.contentType":
+		if e.ComplexityRoot.EjectArtifact.ContentType == nil {
+			break
+		}
+
+		return e.ComplexityRoot.EjectArtifact.ContentType(childComplexity), true
+	case "EjectArtifact.filename":
+		if e.ComplexityRoot.EjectArtifact.Filename == nil {
+			break
+		}
+
+		return e.ComplexityRoot.EjectArtifact.Filename(childComplexity), true
 
 	case "Endpoint.dns":
 		if e.ComplexityRoot.Endpoint.DNS == nil {
@@ -1898,6 +1925,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.DetectServices(childComplexity, args["repositoryUrl"].(string)), true
+	case "Query.ejectProject":
+		if e.ComplexityRoot.Query.EjectProject == nil {
+			break
+		}
+
+		args, err := ec.field_Query_ejectProject_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.EjectProject(childComplexity, args["id"].(platform.ProjectID)), true
 	case "Query.environment":
 		if e.ComplexityRoot.Query.Environment == nil {
 			break
@@ -2638,7 +2676,7 @@ func newExecutionContext(
 	}
 }
 
-//go:embed "schema/auth.graphqls" "schema/billing.graphqls" "schema/build.graphqls" "schema/database.graphqls" "schema/deployment.graphqls" "schema/environment.graphqls" "schema/github.graphqls" "schema/keyvaluestore.graphqls" "schema/logs.graphqls" "schema/objectstorage.graphqls" "schema/project.graphqls" "schema/registry.graphqls" "schema/release.graphqls" "schema/schema.graphqls" "schema/service.graphqls" "schema/variable.graphqls" "schema/workspace.graphqls"
+//go:embed "schema/auth.graphqls" "schema/billing.graphqls" "schema/build.graphqls" "schema/database.graphqls" "schema/deployment.graphqls" "schema/eject.graphqls" "schema/environment.graphqls" "schema/github.graphqls" "schema/keyvaluestore.graphqls" "schema/logs.graphqls" "schema/objectstorage.graphqls" "schema/project.graphqls" "schema/registry.graphqls" "schema/release.graphqls" "schema/schema.graphqls" "schema/service.graphqls" "schema/variable.graphqls" "schema/workspace.graphqls"
 var sourcesFS embed.FS
 
 func sourceData(filename string) string {
@@ -2655,6 +2693,7 @@ var sources = []*ast.Source{
 	{Name: "schema/build.graphqls", Input: sourceData("schema/build.graphqls"), BuiltIn: false},
 	{Name: "schema/database.graphqls", Input: sourceData("schema/database.graphqls"), BuiltIn: false},
 	{Name: "schema/deployment.graphqls", Input: sourceData("schema/deployment.graphqls"), BuiltIn: false},
+	{Name: "schema/eject.graphqls", Input: sourceData("schema/eject.graphqls"), BuiltIn: false},
 	{Name: "schema/environment.graphqls", Input: sourceData("schema/environment.graphqls"), BuiltIn: false},
 	{Name: "schema/github.graphqls", Input: sourceData("schema/github.graphqls"), BuiltIn: false},
 	{Name: "schema/keyvaluestore.graphqls", Input: sourceData("schema/keyvaluestore.graphqls"), BuiltIn: false},
@@ -2948,6 +2987,18 @@ func (ec *executionContext) childFields_DnsState(ctx context.Context, field grap
 		return ec.fieldContext_DnsState_requiredRecords(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type DnsState", field.Name)
+}
+
+func (ec *executionContext) childFields_EjectArtifact(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "filename":
+		return ec.fieldContext_EjectArtifact_filename(ctx, field)
+	case "contentType":
+		return ec.fieldContext_EjectArtifact_contentType(ctx, field)
+	case "content":
+		return ec.fieldContext_EjectArtifact_content(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type EjectArtifact", field.Name)
 }
 
 func (ec *executionContext) childFields_Endpoint(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
@@ -4300,6 +4351,20 @@ func (ec *executionContext) field_Query_detectServices_args(ctx context.Context,
 		return nil, err
 	}
 	args["repositoryUrl"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_ejectProject_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id",
+		func(ctx context.Context, v any) (platform.ProjectID, error) {
+			return ec.unmarshalNProjectID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐProjectID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
 	return args, nil
 }
 
@@ -6523,6 +6588,75 @@ func (ec *executionContext) fieldContext_DnsState_requiredRecords(_ context.Cont
 		},
 	}
 	return fc, nil
+}
+
+func (ec *executionContext) _EjectArtifact_filename(ctx context.Context, field graphql.CollectedField, obj *model.EjectArtifact) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_EjectArtifact_filename(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Filename, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_EjectArtifact_filename(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("EjectArtifact", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _EjectArtifact_contentType(ctx context.Context, field graphql.CollectedField, obj *model.EjectArtifact) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_EjectArtifact_contentType(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ContentType, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_EjectArtifact_contentType(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("EjectArtifact", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _EjectArtifact_content(ctx context.Context, field graphql.CollectedField, obj *model.EjectArtifact) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_EjectArtifact_content(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Content, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_EjectArtifact_content(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("EjectArtifact", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
 func (ec *executionContext) _Endpoint_host(ctx context.Context, field graphql.CollectedField, obj *model.Endpoint) (ret graphql.Marshaler) {
@@ -10667,6 +10801,68 @@ func (ec *executionContext) fieldContext_Query_deployment(ctx context.Context, f
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_deployment_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_ejectProject(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Query_ejectProject(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().EjectProject(ctx, fc.Args["id"].(platform.ProjectID))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
+				if err != nil {
+					var zeroVal *model.EjectArtifact
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal *model.EjectArtifact
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *model.EjectArtifact) graphql.Marshaler {
+			return ec.marshalNEjectArtifact2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐEjectArtifact(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Query_ejectProject(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_EjectArtifact(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_ejectProject_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -16817,6 +17013,55 @@ func (ec *executionContext) _DnsState(ctx context.Context, sel ast.SelectionSet,
 	return out
 }
 
+var ejectArtifactImplementors = []string{"EjectArtifact"}
+
+func (ec *executionContext) _EjectArtifact(ctx context.Context, sel ast.SelectionSet, obj *model.EjectArtifact) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, ejectArtifactImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("EjectArtifact")
+		case "filename":
+			out.Values[i] = ec._EjectArtifact_filename(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "contentType":
+			out.Values[i] = ec._EjectArtifact_contentType(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "content":
+			out.Values[i] = ec._EjectArtifact_content(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferred), math.MaxInt32)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var endpointImplementors = []string{"Endpoint"}
 
 func (ec *executionContext) _Endpoint(ctx context.Context, sel ast.SelectionSet, obj *model.Endpoint) graphql.Marshaler {
@@ -18052,6 +18297,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_deployment(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "ejectProject":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_ejectProject(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -20318,6 +20585,20 @@ func (ec *executionContext) unmarshalNDnsStatus2githubᚗcomᚋzeitlosᚋlucity�
 
 func (ec *executionContext) marshalNDnsStatus2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDNSStatus(ctx context.Context, sel ast.SelectionSet, v model.DNSStatus) graphql.Marshaler {
 	return v
+}
+
+func (ec *executionContext) marshalNEjectArtifact2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐEjectArtifact(ctx context.Context, sel ast.SelectionSet, v model.EjectArtifact) graphql.Marshaler {
+	return ec._EjectArtifact(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNEjectArtifact2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐEjectArtifact(ctx context.Context, sel ast.SelectionSet, v *model.EjectArtifact) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._EjectArtifact(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNEndpoint2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐEndpoint(ctx context.Context, sel ast.SelectionSet, v model.Endpoint) graphql.Marshaler {
