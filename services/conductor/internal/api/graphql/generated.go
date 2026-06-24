@@ -131,11 +131,6 @@ type ComplexityRoot struct {
 		User     func(childComplexity int) int
 	}
 
-	DatabaseRef struct {
-		Database func(childComplexity int) int
-		Key      func(childComplexity int) int
-	}
-
 	DatabaseTable struct {
 		Columns       func(childComplexity int) int
 		EstimatedRows func(childComplexity int) int
@@ -312,6 +307,7 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
+		AvailableVariables       func(childComplexity int, environment platform.EnvironmentID) int
 		Bucket                   func(childComplexity int, id platform.BucketID) int
 		BucketCredentials        func(childComplexity int, bucket platform.BucketID) int
 		Build                    func(childComplexity int, id buildjob.BuildID) int
@@ -336,7 +332,6 @@ type ComplexityRoot struct {
 		SearchImages             func(childComplexity int, query string) int
 		Service                  func(childComplexity int, id platform.ServiceID) int
 		ServiceVariables         func(childComplexity int, service platform.ServiceID) int
-		SharedVariables          func(childComplexity int, environment platform.EnvironmentID) int
 		Subscription             func(childComplexity int) int
 		UsageSummary             func(childComplexity int) int
 		Workspace                func(childComplexity int) int
@@ -407,10 +402,9 @@ type ComplexityRoot struct {
 	}
 
 	ServiceVariable struct {
-		DatabaseRef func(childComplexity int) int
-		FromShared  func(childComplexity int) int
-		Key         func(childComplexity int) int
-		Value       func(childComplexity int) int
+		Key   func(childComplexity int) int
+		Ref   func(childComplexity int) int
+		Value func(childComplexity int) int
 	}
 
 	Subscription struct {
@@ -432,8 +426,8 @@ type ComplexityRoot struct {
 	}
 
 	Variable struct {
-		Key   func(childComplexity int) int
-		Value func(childComplexity int) int
+		ID  func(childComplexity int) int
+		Key func(childComplexity int) int
 	}
 
 	Volume struct {
@@ -538,7 +532,7 @@ type QueryResolver interface {
 	SearchImages(ctx context.Context, query string) ([]model.ImageSearchResult, error)
 	Service(ctx context.Context, id platform.ServiceID) (*model.Service, error)
 	DetectServices(ctx context.Context, repositoryURL string) ([]model.DetectedService, error)
-	SharedVariables(ctx context.Context, environment platform.EnvironmentID) ([]model.Variable, error)
+	AvailableVariables(ctx context.Context, environment platform.EnvironmentID) ([]model.Variable, error)
 	ServiceVariables(ctx context.Context, service platform.ServiceID) ([]model.ServiceVariable, error)
 	Workspace(ctx context.Context) (*model.Workspace, error)
 	Workspaces(ctx context.Context) ([]model.Workspace, error)
@@ -888,19 +882,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.DatabaseCredentials.User(childComplexity), true
-
-	case "DatabaseRef.database":
-		if e.ComplexityRoot.DatabaseRef.Database == nil {
-			break
-		}
-
-		return e.ComplexityRoot.DatabaseRef.Database(childComplexity), true
-	case "DatabaseRef.key":
-		if e.ComplexityRoot.DatabaseRef.Key == nil {
-			break
-		}
-
-		return e.ComplexityRoot.DatabaseRef.Key(childComplexity), true
 
 	case "DatabaseTable.columns":
 		if e.ComplexityRoot.DatabaseTable.Columns == nil {
@@ -1826,6 +1807,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.Project.Name(childComplexity), true
 
+	case "Query.availableVariables":
+		if e.ComplexityRoot.Query.AvailableVariables == nil {
+			break
+		}
+
+		args, err := ec.field_Query_availableVariables_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.AvailableVariables(childComplexity, args["environment"].(platform.EnvironmentID)), true
 	case "Query.bucket":
 		if e.ComplexityRoot.Query.Bucket == nil {
 			break
@@ -2071,17 +2063,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.ServiceVariables(childComplexity, args["service"].(platform.ServiceID)), true
-	case "Query.sharedVariables":
-		if e.ComplexityRoot.Query.SharedVariables == nil {
-			break
-		}
-
-		args, err := ec.field_Query_sharedVariables_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.ComplexityRoot.Query.SharedVariables(childComplexity, args["environment"].(platform.EnvironmentID)), true
 	case "Query.subscription":
 		if e.ComplexityRoot.Query.Subscription == nil {
 			break
@@ -2349,24 +2330,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.ServiceLogEntry.Pod(childComplexity), true
 
-	case "ServiceVariable.databaseRef":
-		if e.ComplexityRoot.ServiceVariable.DatabaseRef == nil {
-			break
-		}
-
-		return e.ComplexityRoot.ServiceVariable.DatabaseRef(childComplexity), true
-	case "ServiceVariable.fromShared":
-		if e.ComplexityRoot.ServiceVariable.FromShared == nil {
-			break
-		}
-
-		return e.ComplexityRoot.ServiceVariable.FromShared(childComplexity), true
 	case "ServiceVariable.key":
 		if e.ComplexityRoot.ServiceVariable.Key == nil {
 			break
 		}
 
 		return e.ComplexityRoot.ServiceVariable.Key(childComplexity), true
+	case "ServiceVariable.ref":
+		if e.ComplexityRoot.ServiceVariable.Ref == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ServiceVariable.Ref(childComplexity), true
 	case "ServiceVariable.value":
 		if e.ComplexityRoot.ServiceVariable.Value == nil {
 			break
@@ -2441,18 +2416,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.User.Workspaces(childComplexity), true
 
+	case "Variable.id":
+		if e.ComplexityRoot.Variable.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Variable.ID(childComplexity), true
 	case "Variable.key":
 		if e.ComplexityRoot.Variable.Key == nil {
 			break
 		}
 
 		return e.ComplexityRoot.Variable.Key(childComplexity), true
-	case "Variable.value":
-		if e.ComplexityRoot.Variable.Value == nil {
-			break
-		}
-
-		return e.ComplexityRoot.Variable.Value(childComplexity), true
 
 	case "Volume.capacityBytes":
 		if e.ComplexityRoot.Volume.CapacityBytes == nil {
@@ -2576,7 +2551,6 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputCreateKeyValueStoreInput,
 		ec.unmarshalInputCreateProjectInput,
 		ec.unmarshalInputCreateWorkspaceCheckoutInput,
-		ec.unmarshalInputDatabaseRefInput,
 		ec.unmarshalInputInviteMemberInput,
 		ec.unmarshalInputResourcesInput,
 		ec.unmarshalInputServiceVariableInput,
@@ -2879,16 +2853,6 @@ func (ec *executionContext) childFields_DatabaseCredentials(ctx context.Context,
 		return ec.fieldContext_DatabaseCredentials_uri(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type DatabaseCredentials", field.Name)
-}
-
-func (ec *executionContext) childFields_DatabaseRef(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-	switch field.Name {
-	case "database":
-		return ec.fieldContext_DatabaseRef_database(ctx, field)
-	case "key":
-		return ec.fieldContext_DatabaseRef_key(ctx, field)
-	}
-	return nil, fmt.Errorf("no field named %q was found under type DatabaseRef", field.Name)
 }
 
 func (ec *executionContext) childFields_DatabaseTable(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
@@ -3291,10 +3255,8 @@ func (ec *executionContext) childFields_ServiceVariable(ctx context.Context, fie
 		return ec.fieldContext_ServiceVariable_key(ctx, field)
 	case "value":
 		return ec.fieldContext_ServiceVariable_value(ctx, field)
-	case "fromShared":
-		return ec.fieldContext_ServiceVariable_fromShared(ctx, field)
-	case "databaseRef":
-		return ec.fieldContext_ServiceVariable_databaseRef(ctx, field)
+	case "ref":
+		return ec.fieldContext_ServiceVariable_ref(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type ServiceVariable", field.Name)
 }
@@ -3327,10 +3289,10 @@ func (ec *executionContext) childFields_User(ctx context.Context, field graphql.
 
 func (ec *executionContext) childFields_Variable(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
+	case "id":
+		return ec.fieldContext_Variable_id(ctx, field)
 	case "key":
 		return ec.fieldContext_Variable_key(ctx, field)
-	case "value":
-		return ec.fieldContext_Variable_value(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type Variable", field.Name)
 }
@@ -4196,6 +4158,20 @@ func (ec *executionContext) field_Query___type_args(ctx context.Context, rawArgs
 	return args, nil
 }
 
+func (ec *executionContext) field_Query_availableVariables_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "environment",
+		func(ctx context.Context, v any) (platform.EnvironmentID, error) {
+			return ec.unmarshalNEnvironmentID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐEnvironmentID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["environment"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Query_bucketCredentials_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -4505,20 +4481,6 @@ func (ec *executionContext) field_Query_service_args(ctx context.Context, rawArg
 		return nil, err
 	}
 	args["id"] = arg0
-	return args, nil
-}
-
-func (ec *executionContext) field_Query_sharedVariables_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "environment",
-		func(ctx context.Context, v any) (platform.EnvironmentID, error) {
-			return ec.unmarshalNEnvironmentID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐEnvironmentID(ctx, v)
-		})
-	if err != nil {
-		return nil, err
-	}
-	args["environment"] = arg0
 	return args, nil
 }
 
@@ -5793,52 +5755,6 @@ func (ec *executionContext) _DatabaseCredentials_uri(ctx context.Context, field 
 }
 func (ec *executionContext) fieldContext_DatabaseCredentials_uri(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("DatabaseCredentials", field, false, false, errors.New("field of type String does not have child fields"))
-}
-
-func (ec *executionContext) _DatabaseRef_database(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseRef) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_DatabaseRef_database(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.Database, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v platform.DatabaseID) graphql.Marshaler {
-			return ec.marshalNDatabaseID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐDatabaseID(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_DatabaseRef_database(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("DatabaseRef", field, false, false, errors.New("field of type DatabaseID does not have child fields"))
-}
-
-func (ec *executionContext) _DatabaseRef_key(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseRef) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_DatabaseRef_key(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.Key, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
-			return ec.marshalNString2string(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_DatabaseRef_key(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("DatabaseRef", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
 func (ec *executionContext) _DatabaseTable_name(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseTable) (ret graphql.Marshaler) {
@@ -11692,17 +11608,17 @@ func (ec *executionContext) fieldContext_Query_detectServices(ctx context.Contex
 	return fc, nil
 }
 
-func (ec *executionContext) _Query_sharedVariables(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+func (ec *executionContext) _Query_availableVariables(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
 		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_Query_sharedVariables(ctx, field)
+			return ec.fieldContext_Query_availableVariables(ctx, field)
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Query().SharedVariables(ctx, fc.Args["environment"].(platform.EnvironmentID))
+			return ec.Resolvers.Query().AvailableVariables(ctx, fc.Args["environment"].(platform.EnvironmentID))
 		},
 		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
 			directive0 := next
@@ -11730,7 +11646,7 @@ func (ec *executionContext) _Query_sharedVariables(ctx context.Context, field gr
 		true,
 	)
 }
-func (ec *executionContext) fieldContext_Query_sharedVariables(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Query_availableVariables(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Query",
 		Field:      field,
@@ -11747,7 +11663,7 @@ func (ec *executionContext) fieldContext_Query_sharedVariables(ctx context.Conte
 		}
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Query_sharedVariables_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+	if fc.Args, err = ec.field_Query_availableVariables_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -13032,70 +12948,38 @@ func (ec *executionContext) _ServiceVariable_value(ctx context.Context, field gr
 			return obj.Value, nil
 		},
 		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
-			return ec.marshalNString2string(ctx, selections, v)
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOString2ᚖstring(ctx, selections, v)
 		},
 		true,
-		true,
+		false,
 	)
 }
 func (ec *executionContext) fieldContext_ServiceVariable_value(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("ServiceVariable", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
-func (ec *executionContext) _ServiceVariable_fromShared(ctx context.Context, field graphql.CollectedField, obj *model.ServiceVariable) (ret graphql.Marshaler) {
+func (ec *executionContext) _ServiceVariable_ref(ctx context.Context, field graphql.CollectedField, obj *model.ServiceVariable) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
 		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_ServiceVariable_fromShared(ctx, field)
+			return ec.fieldContext_ServiceVariable_ref(ctx, field)
 		},
 		func(ctx context.Context) (any, error) {
-			return obj.FromShared, nil
+			return obj.Ref, nil
 		},
 		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
-			return ec.marshalNBoolean2bool(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_ServiceVariable_fromShared(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ServiceVariable", field, false, false, errors.New("field of type Boolean does not have child fields"))
-}
-
-func (ec *executionContext) _ServiceVariable_databaseRef(ctx context.Context, field graphql.CollectedField, obj *model.ServiceVariable) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_ServiceVariable_databaseRef(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.DatabaseRef, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v *model.DatabaseRef) graphql.Marshaler {
-			return ec.marshalODatabaseRef2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabaseRef(ctx, selections, v)
+		func(ctx context.Context, selections ast.SelectionSet, v *platform.VariableID) graphql.Marshaler {
+			return ec.marshalOVariableID2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐVariableID(ctx, selections, v)
 		},
 		true,
 		false,
 	)
 }
-func (ec *executionContext) fieldContext_ServiceVariable_databaseRef(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "ServiceVariable",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.childFields_DatabaseRef(ctx, field)
-		},
-	}
-	return fc, nil
+func (ec *executionContext) fieldContext_ServiceVariable_ref(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ServiceVariable", field, false, false, errors.New("field of type VariableID does not have child fields"))
 }
 
 func (ec *executionContext) _Subscription_buildLogs(ctx context.Context, field graphql.CollectedField) (ret func(ctx context.Context) graphql.Marshaler) {
@@ -13392,6 +13276,29 @@ func (ec *executionContext) fieldContext_User_workspaces(_ context.Context, fiel
 	return fc, nil
 }
 
+func (ec *executionContext) _Variable_id(ctx context.Context, field graphql.CollectedField, obj *model.Variable) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Variable_id(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v platform.VariableID) graphql.Marshaler {
+			return ec.marshalNVariableID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐVariableID(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Variable_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Variable", field, false, false, errors.New("field of type VariableID does not have child fields"))
+}
+
 func (ec *executionContext) _Variable_key(ctx context.Context, field graphql.CollectedField, obj *model.Variable) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -13412,29 +13319,6 @@ func (ec *executionContext) _Variable_key(ctx context.Context, field graphql.Col
 	)
 }
 func (ec *executionContext) fieldContext_Variable_key(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Variable", field, false, false, errors.New("field of type String does not have child fields"))
-}
-
-func (ec *executionContext) _Variable_value(ctx context.Context, field graphql.CollectedField, obj *model.Variable) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_Variable_value(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.Value, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
-			return ec.marshalNString2string(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_Variable_value(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("Variable", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
@@ -15543,43 +15427,6 @@ func (ec *executionContext) unmarshalInputCreateWorkspaceCheckoutInput(ctx conte
 	return it, nil
 }
 
-func (ec *executionContext) unmarshalInputDatabaseRefInput(ctx context.Context, obj any) (model.DatabaseRefInput, error) {
-	var it model.DatabaseRefInput
-	if obj == nil {
-		return it, nil
-	}
-
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"database", "key"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
-		case "database":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("database"))
-			data, err := ec.unmarshalNDatabaseID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐDatabaseID(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Database = data
-		case "key":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("key"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Key = data
-		}
-	}
-	return it, nil
-}
-
 func (ec *executionContext) unmarshalInputInviteMemberInput(ctx context.Context, obj any) (model.InviteMemberInput, error) {
 	var it model.InviteMemberInput
 	if obj == nil {
@@ -15665,7 +15512,7 @@ func (ec *executionContext) unmarshalInputServiceVariableInput(ctx context.Conte
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"key", "value", "fromShared", "databaseRef"}
+	fieldsInOrder := [...]string{"key", "value", "ref"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -15686,20 +15533,13 @@ func (ec *executionContext) unmarshalInputServiceVariableInput(ctx context.Conte
 				return it, err
 			}
 			it.Value = data
-		case "fromShared":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("fromShared"))
-			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+		case "ref":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("ref"))
+			data, err := ec.unmarshalOVariableID2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐVariableID(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.FromShared = data
-		case "databaseRef":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("databaseRef"))
-			data, err := ec.unmarshalODatabaseRefInput2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabaseRefInput(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.DatabaseRef = data
+			it.Ref = data
 		}
 	}
 	return it, nil
@@ -16587,50 +16427,6 @@ func (ec *executionContext) _DatabaseCredentials(ctx context.Context, sel ast.Se
 			}
 		case "uri":
 			out.Values[i] = ec._DatabaseCredentials_uri(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch(ctx)
-	if out.Invalids > 0 {
-		return graphql.Null
-	}
-
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferred), math.MaxInt32)))
-
-	for label, dfs := range deferred {
-		ec.ProcessDeferredGroup(graphql.DeferredGroup{
-			Label:    label,
-			Path:     graphql.GetPath(ctx),
-			FieldSet: dfs,
-			Context:  ctx,
-		})
-	}
-
-	return out
-}
-
-var databaseRefImplementors = []string{"DatabaseRef"}
-
-func (ec *executionContext) _DatabaseRef(ctx context.Context, sel ast.SelectionSet, obj *model.DatabaseRef) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, databaseRefImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	deferred := make(map[string]*graphql.FieldSet)
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("DatabaseRef")
-		case "database":
-			out.Values[i] = ec._DatabaseRef_database(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "key":
-			out.Values[i] = ec._DatabaseRef_key(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -18639,7 +18435,7 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
-		case "sharedVariables":
+		case "availableVariables":
 			field := field
 
 			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
@@ -18648,7 +18444,7 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 						ec.Error(ctx, ec.Recover(ctx, r))
 					}
 				}()
-				res = ec._Query_sharedVariables(ctx, field)
+				res = ec._Query_availableVariables(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -19377,16 +19173,8 @@ func (ec *executionContext) _ServiceVariable(ctx context.Context, sel ast.Select
 			}
 		case "value":
 			out.Values[i] = ec._ServiceVariable_value(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "fromShared":
-			out.Values[i] = ec._ServiceVariable_fromShared(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "databaseRef":
-			out.Values[i] = ec._ServiceVariable_databaseRef(ctx, field, obj)
+		case "ref":
+			out.Values[i] = ec._ServiceVariable_ref(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -19540,13 +19328,13 @@ func (ec *executionContext) _Variable(ctx context.Context, sel ast.SelectionSet,
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Variable")
-		case "key":
-			out.Values[i] = ec._Variable_key(ctx, field, obj)
+		case "id":
+			out.Values[i] = ec._Variable_id(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "value":
-			out.Values[i] = ec._Variable_value(ctx, field, obj)
+		case "key":
+			out.Values[i] = ec._Variable_key(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -21311,6 +21099,16 @@ func (ec *executionContext) marshalNVariable2ᚕgithubᚗcomᚋzeitlosᚋlucity�
 	return ret
 }
 
+func (ec *executionContext) unmarshalNVariableID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐVariableID(ctx context.Context, v any) (platform.VariableID, error) {
+	var res platform.VariableID
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNVariableID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐVariableID(ctx context.Context, sel ast.SelectionSet, v platform.VariableID) graphql.Marshaler {
+	return v
+}
+
 func (ec *executionContext) unmarshalNVariableInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐVariableInput(ctx context.Context, v any) (model.VariableInput, error) {
 	res, err := ec.unmarshalInputVariableInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -21631,21 +21429,6 @@ func (ec *executionContext) marshalOBuild2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋs
 	return ec._Build(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalODatabaseRef2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabaseRef(ctx context.Context, sel ast.SelectionSet, v *model.DatabaseRef) graphql.Marshaler {
-	if v == nil {
-		return graphql.Null
-	}
-	return ec._DatabaseRef(ctx, sel, v)
-}
-
-func (ec *executionContext) unmarshalODatabaseRefInput2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabaseRefInput(ctx context.Context, v any) (*model.DatabaseRefInput, error) {
-	if v == nil {
-		return nil, nil
-	}
-	res, err := ec.unmarshalInputDatabaseRefInput(ctx, v)
-	return &res, graphql.ErrorOnPath(ctx, err)
-}
-
 func (ec *executionContext) marshalODeployment2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDeployment(ctx context.Context, sel ast.SelectionSet, v *model.Deployment) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
@@ -21840,6 +21623,22 @@ func (ec *executionContext) marshalOUsageSummary2ᚖgithubᚗcomᚋzeitlosᚋluc
 		return graphql.Null
 	}
 	return ec._UsageSummary(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOVariableID2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐVariableID(ctx context.Context, v any) (*platform.VariableID, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var res = new(platform.VariableID)
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOVariableID2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐVariableID(ctx context.Context, sel ast.SelectionSet, v *platform.VariableID) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return v
 }
 
 func (ec *executionContext) marshalO__EnumValue2ᚕgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐEnumValueᚄ(ctx context.Context, sel ast.SelectionSet, v []introspection.EnumValue) graphql.Marshaler {

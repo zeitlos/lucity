@@ -152,17 +152,6 @@ type DatabaseCredentials struct {
 	URI      string       `json:"uri"`
 }
 
-// A reference to a CNPG database secret key (resolved at pod startup via secretKeyRef).
-type DatabaseRef struct {
-	Database platform.DatabaseID `json:"database"`
-	Key      string              `json:"key"`
-}
-
-type DatabaseRefInput struct {
-	Database platform.DatabaseID `json:"database"`
-	Key      string              `json:"key"`
-}
-
 type DatabaseTable struct {
 	Name          string           `json:"name"`
 	Schema        string           `json:"schema"`
@@ -382,20 +371,18 @@ type ServiceLogEntry struct {
 }
 
 type ServiceVariable struct {
-	Key         string       `json:"key"`
-	Value       string       `json:"value"`
-	FromShared  bool         `json:"fromShared"`
-	DatabaseRef *DatabaseRef `json:"databaseRef,omitempty"`
+	Key   string               `json:"key"`
+	Value *string              `json:"value,omitempty"`
+	Ref   *platform.VariableID `json:"ref,omitempty"`
 }
 
 type ServiceVariableInput struct {
+	// Key of the variable. e.g. PORT or HOST
 	Key string `json:"key"`
-	// Direct value. Required when no ref is set.
+	// Literal value. Required when no ref is set. Mutually exclusive with ref.
 	Value *string `json:"value,omitempty"`
-	// If true, value is resolved from the shared variable with the same key.
-	FromShared *bool `json:"fromShared,omitempty"`
-	// Reference to a database secret key.
-	DatabaseRef *DatabaseRefInput `json:"databaseRef,omitempty"`
+	// Reference to an available variable. Required when no value is set. Mutually exclusive with value.
+	Ref *platform.VariableID `json:"ref,omitempty"`
 }
 
 type SetEnvironmentResourcesInput struct {
@@ -438,11 +425,12 @@ type User struct {
 }
 
 type Variable struct {
-	Key   string `json:"key"`
-	Value string `json:"value"`
+	ID  platform.VariableID `json:"id"`
+	Key string              `json:"key"`
 }
 
 type VariableInput struct {
+	// Key of the variable. e.g. PORT or HOST
 	Key   string `json:"key"`
 	Value string `json:"value"`
 }

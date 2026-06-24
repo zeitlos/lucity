@@ -259,15 +259,6 @@ async function handleSave() {
 
 <template>
   <div class="space-y-4">
-    <div>
-      <h3 class="text-sm font-medium text-foreground">Service Variables</h3>
-      <p class="text-xs text-muted-foreground">
-        Environment variables for <strong>{{ serviceName }}</strong> in {{ activeEnvironment?.name || 'this environment' }}.
-        These are available at both build time and runtime.
-      </p>
-    </div>
-
-    <Separator />
 
     <!-- Loading state -->
     <div v-if="loading" class="space-y-2">
@@ -398,5 +389,11 @@ async function handleSave() {
         </Button>
       </div>
     </div>
+
+    <Separator />
+
+    <p class="text-sm text-muted-foreground">
+      These variables are available at both build time and runtime.
+    </p>
   </div>
 </template>

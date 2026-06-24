@@ -87,9 +87,6 @@ spec:
           envFrom:
             - secretRef:
                 name: {{ include "lucity-app.fullname" $ }}-{{ $name }}-variables
-            - secretRef:
-                name: {{ include "lucity-app.fullname" $ }}-shared
-                optional: true
           env:
             {{- if $svc.port }}
             - name: HOST
@@ -97,11 +94,11 @@ spec:
             - name: PORT
               value: {{ $svc.port | quote }}
             {{- end }}
-            {{- range $key, $ref := $svc.databaseRefs }}
+            {{- range $key, $ref := $svc.refs }}
             - name: {{ $key }}
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "lucity-app.fullname" $ }}-pg-{{ $ref.database }}-app
+                  name: {{ $ref.secret }}
                   key: {{ $ref.key }}
             {{- end }}
           {{- with $svc.resources }}

@@ -67,31 +67,14 @@ type EnvironmentClient interface {
 	Export(ctx context.Context, id platform.EnvironmentID) ([]byte, error)
 }
 
-// ServiceVariablesSpec is the full per-service variable state.
-//
-// Literals: KEY=VALUE pairs the user typed directly. Rendered into the
-// container's `env:` list, overriding anything with the same name coming
-// from the env-level shared bag.
-//
-// DatabaseRefs: KEY → {database, secretKey} bindings. Rendered as
-// container env entries sourced from the CNPG-managed Secret. Resolved at
-// pod startup.
-//
-// SharedRefs: keys from the env-level shared bag that the user explicitly
-// chose to surface as variables on this service. PURE UI METADATA — the
-// chart does not render these (envFrom on the shared ConfigMap makes
-// every shared var available to every service unconditionally). The
-// resolver uses this list to mark dashboard rows as "from shared" on
-// round-trip.
 type ServiceVariablesSpec struct {
-	Literals     map[string]string
-	DatabaseRefs map[string]DatabaseRef
-	SharedRefs   []string
+	Literals map[string]string
+	Refs     map[string]VariableRef
 }
 
-type DatabaseRef struct {
-	Database string
-	Key      string
+type VariableRef struct {
+	Secret string
+	Key    string
 }
 
 type ServiceSpec struct {

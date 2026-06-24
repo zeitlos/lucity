@@ -106,19 +106,13 @@ func Validate(env *Env) error {
 			}
 		}
 
-		for _, ref := range svc.SharedRefs {
-			if _, ok := env.SharedVariables[ref]; !ok {
-				return fmt.Errorf("service %q: sharedRef %q has no matching sharedVariable", svcName, ref)
-			}
-		}
-
-		for envKey, ref := range svc.DatabaseRefs {
+		for envKey, ref := range svc.Refs {
 			if !isValidVarName(envKey) {
-				return fmt.Errorf("service %q: invalid databaseRef env key %q", svcName, envKey)
+				return fmt.Errorf("service %q: invalid ref env key %q", svcName, envKey)
 			}
 
-			if _, ok := env.Databases.Postgres[ref.Database]; !ok {
-				return fmt.Errorf("service %q: databaseRef %q points at unknown database %q", svcName, envKey, ref.Database)
+			if ref.Secret == "" || ref.Key == "" {
+				return fmt.Errorf("service %q: ref %q must set secret and key", svcName, envKey)
 			}
 		}
 

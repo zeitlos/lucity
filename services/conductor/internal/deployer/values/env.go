@@ -1,6 +1,9 @@
 package values
 
-import "fmt"
+import (
+	"fmt"
+	"maps"
+)
 
 type Env struct {
 	Suspended         bool               `yaml:"suspended"`
@@ -34,21 +37,7 @@ func SetEnvironmentVariables(env *Env, vars map[string]string) error {
 		}
 	}
 
-	env.SharedVariables = cloneStringMap(vars)
+	env.SharedVariables = maps.Clone(vars)
 
 	return nil
-}
-
-func cloneStringMap(in map[string]string) map[string]string {
-	if in == nil {
-		return map[string]string{}
-	}
-
-	out := make(map[string]string, len(in))
-
-	for k, v := range in {
-		out[k] = v
-	}
-
-	return out
 }

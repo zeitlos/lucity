@@ -24,6 +24,22 @@ var (
 	keyValueStoreSelector = existsSelector(keyValueStoreLabel)
 )
 
+func (c *Client) AvailableVariables(ctx context.Context, environmentID platform.EnvironmentID) ([]platform.Variable, error) {
+	var variables []platform.Variable
+
+	for _, source := range c.variableSources {
+		found, err := source(ctx, environmentID)
+
+		if err != nil {
+			return nil, err
+		}
+
+		variables = append(variables, found...)
+	}
+
+	return variables, nil
+}
+
 type variableSource func(ctx context.Context, environmentID platform.EnvironmentID) ([]platform.Variable, error)
 
 func newVariableSource(client kubernetes.Interface, selector labels.Selector, offeredKeys []string) variableSource {
@@ -99,20 +115,4 @@ func existsSelector(key string) labels.Selector {
 	}
 
 	return labels.NewSelector().Add(*requirement)
-}
-
-func (c *Client) SharedVariables(ctx context.Context, environmentID platform.EnvironmentID) ([]platform.Variable, error) {
-	var variables []platform.Variable
-
-	for _, source := range c.variableSources {
-		found, err := source(ctx, environmentID)
-
-		if err != nil {
-			return nil, err
-		}
-
-		variables = append(variables, found...)
-	}
-
-	return variables, nil
 }

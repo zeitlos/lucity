@@ -7,80 +7,81 @@ package graphql
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
-	"github.com/zeitlos/lucity/services/conductor/internal/conductor"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
 // SetSharedVariables is the resolver for the setSharedVariables field.
 func (r *mutationResolver) SetSharedVariables(ctx context.Context, environment platform.EnvironmentID, variables []model.VariableInput) (bool, error) {
-	vars := make([]conductor.Variable, len(variables))
-	for i, v := range variables {
-		vars[i] = conductor.Variable{Key: v.Key, Value: v.Value}
+	vars := make(map[string]string, len(variables))
+
+	for _, v := range variables {
+		vars[v.Key] = v.Value
 	}
+
 	return r.Conductor.SetSharedVariables(ctx, environment, vars)
 }
 
 // SetServiceVariables is the resolver for the setServiceVariables field.
 func (r *mutationResolver) SetServiceVariables(ctx context.Context, service platform.ServiceID, variables []model.ServiceVariableInput) (bool, error) {
-	var directVars []conductor.Variable
-	var sharedRefs []string
-	dbRefs := make(map[string]conductor.DatabaseRef)
+	literals := make(map[string]string)
+	refs := make(map[string]platform.VariableID)
 
 	for _, v := range variables {
 		switch {
-		case v.DatabaseRef != nil:
-			dbRefs[v.Key] = conductor.DatabaseRef{Database: v.DatabaseRef.Database, Key: v.DatabaseRef.Key}
-		case v.FromShared != nil && *v.FromShared:
-			sharedRefs = append(sharedRefs, v.Key)
+		case v.Ref != nil:
+			refs[v.Key] = *v.Ref
+		case v.Value != nil:
+			literals[v.Key] = *v.Value
 		default:
-			val := ""
-			if v.Value != nil {
-				val = *v.Value
-			}
-			directVars = append(directVars, conductor.Variable{Key: v.Key, Value: val})
+			return false, fmt.Errorf("variable %q: set either value or ref", v.Key)
 		}
 	}
 
-	return r.Conductor.SetServiceVariables(ctx, service, directVars, sharedRefs, dbRefs)
+	return r.Conductor.SetServiceVariables(ctx, service, literals, refs)
 }
 
-// SharedVariables is the resolver for the sharedVariables field.
-func (r *queryResolver) SharedVariables(ctx context.Context, environment platform.EnvironmentID) ([]model.Variable, error) {
-	vars, err := r.Conductor.SharedVariables(ctx, environment)
+// AvailableVariables is the resolver for the availableVariables field.
+func (r *queryResolver) AvailableVariables(ctx context.Context, environment platform.EnvironmentID) ([]model.Variable, error) {
+	vars, err := r.Conductor.AvailableVariables(ctx, environment)
+
 	if err != nil {
 		return nil, err
 	}
 
 	result := make([]model.Variable, len(vars))
+
 	for i, v := range vars {
-		result[i] = model.Variable{Key: v.Key, Value: v.Value}
+		result[i] = convertVariable(v)
 	}
+
 	return result, nil
 }
 
 // ServiceVariables is the resolver for the serviceVariables field.
 func (r *queryResolver) ServiceVariables(ctx context.Context, service platform.ServiceID) ([]model.ServiceVariable, error) {
 	vars, err := r.Conductor.ServiceVariables(ctx, service)
+
 	if err != nil {
 		return nil, err
 	}
 
 	result := make([]model.ServiceVariable, len(vars))
+
 	for i, v := range vars {
-		sv := model.ServiceVariable{
-			Key:        v.Key,
-			Value:      v.Value,
-			FromShared: v.FromShared,
+		sv := model.ServiceVariable{Key: v.Key}
+
+		if v.Ref != nil {
+			sv.Ref = v.Ref
+		} else {
+			value := v.Value
+			sv.Value = &value
 		}
-		if v.DatabaseRef != nil {
-			sv.DatabaseRef = &model.DatabaseRef{
-				Database: v.DatabaseRef.Database,
-				Key:      v.DatabaseRef.Key,
-			}
-		}
+
 		result[i] = sv
 	}
+
 	return result, nil
 }

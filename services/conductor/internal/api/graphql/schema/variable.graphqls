@@ -1,43 +1,31 @@
 type Variable {
-  key: String!
-  value: String!
-}
-
-"""A reference to a CNPG database secret key (resolved at pod startup via secretKeyRef)."""
-type DatabaseRef {
-  database: DatabaseID!
-  key: String!
-}
-
-input DatabaseRefInput {
-  database: DatabaseID!
+  id: VariableID!
   key: String!
 }
 
 type ServiceVariable {
   key: String!
-  value: String!
-  fromShared: Boolean!
-  databaseRef: DatabaseRef
+  value: String
+  ref: VariableID
 }
 
 input VariableInput {
+  """Key of the variable. e.g. PORT or HOST"""
   key: String!
   value: String!
 }
 
 input ServiceVariableInput {
+  """Key of the variable. e.g. PORT or HOST"""
   key: String!
-  """Direct value. Required when no ref is set."""
+  """Literal value. Required when no ref is set. Mutually exclusive with ref."""
   value: String
-  """If true, value is resolved from the shared variable with the same key."""
-  fromShared: Boolean
-  """Reference to a database secret key."""
-  databaseRef: DatabaseRefInput
+  """Reference to an available variable. Required when no value is set. Mutually exclusive with value."""
+  ref: VariableID
 }
 
 extend type Query {
-  sharedVariables(environment: EnvironmentID!): [Variable!]! @hasRole(role: WORKSPACE_MEMBER)
+  availableVariables(environment: EnvironmentID!): [Variable!]! @hasRole(role: WORKSPACE_MEMBER)
   serviceVariables(service: ServiceID!): [ServiceVariable!]! @hasRole(role: WORKSPACE_MEMBER)
 }
 
