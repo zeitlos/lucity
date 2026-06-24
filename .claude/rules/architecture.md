@@ -8,7 +8,7 @@ No central database. All state is derived from external systems of record: Kuber
 
 ## Ejectable
 
-Every feature must survive ejection as standard Kubernetes, Helm, and ArgoCD config with no Lucity dependency. If a feature can't be expressed as plain infrastructure-as-code, it doesn't belong in the platform.
+Every feature must survive ejection as standard Kubernetes and Helm config with no Lucity dependency. If a feature can't be expressed as plain infrastructure-as-code, it doesn't belong in the platform.
 
 ## Discovery over definition
 
