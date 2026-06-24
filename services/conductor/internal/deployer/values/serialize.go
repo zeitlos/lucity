@@ -13,7 +13,6 @@ func New() *Env {
 		CommonAnnotations: map[string]string{},
 		Services:          map[string]Service{},
 		SharedVariables:   map[string]string{},
-		Config:            map[string]map[string]string{},
 		Databases: Databases{
 			Postgres: map[string]Postgres{},
 			Valkey:   map[string]Valkey{},

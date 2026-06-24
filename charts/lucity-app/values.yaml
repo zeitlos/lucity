@@ -32,11 +32,7 @@
 #     podLabels: {}
 #     podAnnotations: {}
 #
-# config:                                     # plain ConfigMaps
-#   app-config:
-#     APP_ENV: production
-#
-# sharedVariables:                            # env shared across services (a ConfigMap)
+# sharedVariables:                            # env shared across services (a Secret)
 #   SENTRY_DSN: https://...
 #
 # databases:
@@ -73,8 +69,6 @@ commonAnnotations: {}
 imagePullSecrets: []
 
 services: {}
-
-config: {}
 
 sharedVariables: {}
 
