@@ -11,9 +11,6 @@ metadata:
     {{- with $pg.labels }}{{- toYaml . | nindent 4 }}{{- end }}
   annotations:
     cnpg.io/hibernation: {{ if $.Values.suspended }}"on"{{ else }}"off"{{ end }}
-    {{- if $pg.publicHost }}
-    lucity.dev/db-host: {{ $pg.publicHost | quote }}
-    {{- end }}
     {{- with $.Values.commonAnnotations }}{{- toYaml . | nindent 4 }}{{- end }}
     {{- with $pg.annotations }}{{- toYaml . | nindent 4 }}{{- end }}
 spec:

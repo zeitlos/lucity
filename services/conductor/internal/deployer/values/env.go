@@ -6,14 +6,15 @@ import (
 )
 
 type Env struct {
-	Suspended         bool               `yaml:"suspended"`
-	CommonLabels      map[string]string  `yaml:"commonLabels,omitempty"`
-	CommonAnnotations map[string]string  `yaml:"commonAnnotations,omitempty"`
-	ImagePullSecrets  []PullSecret       `yaml:"imagePullSecrets,omitempty"`
-	Services          map[string]Service `yaml:"services"`
-	SharedVariables   map[string]string  `yaml:"sharedVariables"`
-	Databases         Databases          `yaml:"databases"`
-	Gateway           Gateway            `yaml:"gateway"`
+	Suspended            bool               `yaml:"suspended"`
+	CommonLabels         map[string]string  `yaml:"commonLabels,omitempty"`
+	CommonAnnotations    map[string]string  `yaml:"commonAnnotations,omitempty"`
+	ImagePullSecrets     []PullSecret       `yaml:"imagePullSecrets,omitempty"`
+	Services             map[string]Service `yaml:"services"`
+	SharedVariables      map[string]string  `yaml:"sharedVariables"`
+	SharedVariableLabels map[string]string  `yaml:"sharedVariableLabels,omitempty"`
+	Databases            Databases          `yaml:"databases"`
+	Gateway              Gateway            `yaml:"gateway"`
 }
 
 type Gateway struct {

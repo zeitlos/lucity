@@ -37,6 +37,7 @@ func (c *Client) applyEnv(ctx context.Context, envID platform.EnvironmentID, mut
 	}
 
 	env.CommonLabels = values.CommonLabels(envID.Workspace, envID.Project, envID.Name)
+	env.SharedVariableLabels = values.SharedVariableLabels()
 	env.ImagePullSecrets = []values.PullSecret{{Name: kubernetes.PullSecretName}}
 	env.Gateway = values.Gateway{Name: c.gatewayName, Namespace: c.gatewayNamespace}
 

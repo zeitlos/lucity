@@ -74,12 +74,19 @@ func ExposeDatabase(env *Env, name, host string) error {
 
 	return mutateDatabase(env, name, func(p *Postgres) {
 		p.PublicHost = host
+
+		if p.Annotations == nil {
+			p.Annotations = map[string]string{}
+		}
+
+		p.Annotations[annotationDatabaseHost] = host
 	})
 }
 
 func UnexposeDatabase(env *Env, name string) error {
 	return mutateDatabase(env, name, func(p *Postgres) {
 		p.PublicHost = ""
+		delete(p.Annotations, annotationDatabaseHost)
 	})
 }
 
