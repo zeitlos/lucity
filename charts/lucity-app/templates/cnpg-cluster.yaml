@@ -17,6 +17,11 @@ metadata:
     {{- with $.Values.commonAnnotations }}{{- toYaml . | nindent 4 }}{{- end }}
     {{- with $pg.annotations }}{{- toYaml . | nindent 4 }}{{- end }}
 spec:
+  {{- with $pg.labels }}
+  inheritedMetadata:
+    labels:
+      {{- toYaml . | nindent 6 }}
+  {{- end }}
   instances: {{ $pg.instances | default 1 }}
   imageName: ghcr.io/cloudnative-pg/postgresql:{{ $pg.version | default "17" }}-standard-bookworm
   storage:
