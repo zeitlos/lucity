@@ -87,7 +87,7 @@ spec:
           envFrom:
             - secretRef:
                 name: {{ include "lucity-app.fullname" $ }}-{{ $name }}-variables
-            - configMapRef:
+            - secretRef:
                 name: {{ include "lucity-app.fullname" $ }}-shared
                 optional: true
           env:

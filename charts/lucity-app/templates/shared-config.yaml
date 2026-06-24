@@ -1,7 +1,7 @@
 {{- if .Values.sharedVariables }}
 ---
 apiVersion: v1
-kind: ConfigMap
+kind: Secret
 metadata:
   name: {{ include "lucity-app.fullname" . }}-shared
   labels:
@@ -12,7 +12,8 @@ metadata:
   annotations:
     {{- toYaml . | nindent 4 }}
   {{- end }}
-data:
+type: Opaque
+stringData:
   {{- range $key, $val := .Values.sharedVariables }}
   {{ $key }}: {{ $val | quote }}
   {{- end }}
