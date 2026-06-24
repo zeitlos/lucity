@@ -14,6 +14,10 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
+type VariableSource interface {
+	IsVariableSource()
+}
+
 type AddServiceInput struct {
 	Name        *string `json:"name,omitempty"`
 	Repository  *string `json:"repository,omitempty"`
@@ -66,6 +70,13 @@ type BucketCredentials struct {
 	AccessKeyID     string `json:"accessKeyId"`
 	SecretAccessKey string `json:"secretAccessKey"`
 }
+
+type BucketSource struct {
+	ID   platform.BucketID `json:"id"`
+	Name string            `json:"name"`
+}
+
+func (BucketSource) IsVariableSource() {}
 
 type Build struct {
 	ID         buildjob.BuildID `json:"id"`
@@ -151,6 +162,13 @@ type DatabaseCredentials struct {
 	Password string       `json:"password"`
 	URI      string       `json:"uri"`
 }
+
+type DatabaseSource struct {
+	ID   platform.DatabaseID `json:"id"`
+	Name string              `json:"name"`
+}
+
+func (DatabaseSource) IsVariableSource() {}
 
 type DatabaseTable struct {
 	Name          string           `json:"name"`
@@ -287,6 +305,13 @@ type KeyValueStoreCredentials struct {
 	URI      string       `json:"uri"`
 }
 
+type KeyValueStoreSource struct {
+	ID   platform.KeyValueStoreID `json:"id"`
+	Name string                   `json:"name"`
+}
+
+func (KeyValueStoreSource) IsVariableSource() {}
+
 type Mutation struct {
 }
 
@@ -399,6 +424,12 @@ type SetServiceScalingInput struct {
 	Autoscaling *AutoscalingInput  `json:"autoscaling,omitempty"`
 }
 
+type SharedSource struct {
+	Name string `json:"name"`
+}
+
+func (SharedSource) IsVariableSource() {}
+
 type SharedVariable struct {
 	Key   string `json:"key"`
 	Value string `json:"value"`
@@ -430,8 +461,9 @@ type User struct {
 }
 
 type Variable struct {
-	ID  platform.VariableID `json:"id"`
-	Key string              `json:"key"`
+	ID     platform.VariableID `json:"id"`
+	Key    string              `json:"key"`
+	Source VariableSource      `json:"source"`
 }
 
 type VariableInput struct {

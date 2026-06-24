@@ -10,8 +10,16 @@ import (
 )
 
 type Variable struct {
-	ID   VariableID
-	Name string
+	ID     VariableID
+	Name   string
+	Source VariableSource
+}
+
+type VariableSource struct {
+	Database      *DatabaseID
+	KeyValueStore *KeyValueStoreID
+	Bucket        *BucketID
+	Shared        bool
 }
 
 type VariableID struct {

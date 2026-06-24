@@ -14,14 +14,16 @@ import (
 )
 
 const (
-	cnpgUserTypeLabel = "cnpg.io/userType"
-	cnpgAppUserType   = "app"
+	cnpgUserTypeLabel        = "cnpg.io/userType"
+	cnpgAppUserType          = "app"
+	objectStorageBucketLabel = "lucity.dev/object-storage-bucket"
 )
 
 var (
 	cnpgAppSecretSelector = labels.SelectorFromSet(labels.Set{cnpgUserTypeLabel: cnpgAppUserType})
 	sharedSecretSelector  = labels.SelectorFromSet(labels.Set{sharedVariablesLabel: "true"})
 	keyValueStoreSelector = existsSelector(keyValueStoreLabel)
+	objectStorageSelector = existsSelector(objectStorageBucketLabel)
 )
 
 func (c *Client) AvailableVariables(ctx context.Context, environmentID platform.EnvironmentID) ([]platform.Variable, error) {
@@ -42,7 +44,7 @@ func (c *Client) AvailableVariables(ctx context.Context, environmentID platform.
 
 type variableSource func(ctx context.Context, environmentID platform.EnvironmentID) ([]platform.Variable, error)
 
-func newVariableSource(client kubernetes.Interface, selector labels.Selector, offeredKeys []string) variableSource {
+func newVariableSource(client kubernetes.Interface, selector labels.Selector, offeredKeys []string, source func(platform.EnvironmentID, *core.Secret) platform.VariableSource) variableSource {
 	return func(ctx context.Context, environmentID platform.EnvironmentID) ([]platform.Variable, error) {
 		secrets, err := client.CoreV1().Secrets(environmentID.Namespace()).List(ctx, meta.ListOptions{
 			LabelSelector: selector.String(),
@@ -56,23 +58,62 @@ func newVariableSource(client kubernetes.Interface, selector labels.Selector, of
 
 		for i := range secrets.Items {
 			secret := &secrets.Items[i]
+			src := source(environmentID, secret)
 
-			for _, name := range offeredNames(secret, offeredKeys) {
+			for _, key := range offeredNames(secret, offeredKeys) {
 				variables = append(variables, platform.Variable{
 					ID: platform.VariableID{
 						Workspace:   environmentID.Workspace,
 						Project:     environmentID.Project,
 						Environment: environmentID.Name,
 						Secret:      secret.Name,
-						Name:        name,
+						Name:        key,
 					},
-					Name: name,
+					Name:   key,
+					Source: src,
 				})
 			}
 		}
 
 		return variables, nil
 	}
+}
+
+func databaseSource(label string) func(platform.EnvironmentID, *core.Secret) platform.VariableSource {
+	return func(environmentID platform.EnvironmentID, secret *core.Secret) platform.VariableSource {
+		return platform.VariableSource{Database: &platform.DatabaseID{
+			Workspace:   environmentID.Workspace,
+			Project:     environmentID.Project,
+			Environment: environmentID.Name,
+			Name:        secret.Labels[label],
+		}}
+	}
+}
+
+func keyValueStoreSource(label string) func(platform.EnvironmentID, *core.Secret) platform.VariableSource {
+	return func(environmentID platform.EnvironmentID, secret *core.Secret) platform.VariableSource {
+		return platform.VariableSource{KeyValueStore: &platform.KeyValueStoreID{
+			Workspace:   environmentID.Workspace,
+			Project:     environmentID.Project,
+			Environment: environmentID.Name,
+			Name:        secret.Labels[label],
+		}}
+	}
+}
+
+func bucketSource(label string) func(platform.EnvironmentID, *core.Secret) platform.VariableSource {
+	return func(environmentID platform.EnvironmentID, secret *core.Secret) platform.VariableSource {
+		return platform.VariableSource{Bucket: &platform.BucketID{
+			Workspace:   environmentID.Workspace,
+			Project:     environmentID.Project,
+			Environment: environmentID.Name,
+			Name:        secret.Labels[label],
+		}}
+	}
+}
+
+func sharedSource(platform.EnvironmentID, *core.Secret) platform.VariableSource {
+	return platform.VariableSource{Shared: true}
 }
 
 func offeredNames(secret *core.Secret, offeredKeys []string) []string {
@@ -101,9 +142,10 @@ func offeredNames(secret *core.Secret, offeredKeys []string) []string {
 
 func defaultVariableSources(client kubernetes.Interface) []variableSource {
 	return []variableSource{
-		newVariableSource(client, cnpgAppSecretSelector, []string{"uri", "host", "port", "dbname", "user", "password"}),
-		newVariableSource(client, sharedSecretSelector, nil),
-		newVariableSource(client, keyValueStoreSelector, []string{"host", "port", "password", "uri"}),
+		newVariableSource(client, cnpgAppSecretSelector, []string{"uri", "host", "port", "dbname", "user", "password"}, databaseSource(databaseLabel)),
+		newVariableSource(client, sharedSecretSelector, nil, sharedSource),
+		newVariableSource(client, keyValueStoreSelector, []string{"host", "port", "password", "uri"}, keyValueStoreSource(keyValueStoreLabel)),
+		newVariableSource(client, objectStorageSelector, []string{"accessKeyId", "secretAccessKey", "endpoint", "region", "bucket"}, bucketSource(objectStorageBucketLabel)),
 	}
 }
 

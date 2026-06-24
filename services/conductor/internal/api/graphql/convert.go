@@ -740,8 +740,22 @@ func convertQueryResult(r *conductor.QueryResult) *model.QueryResult {
 
 func convertVariable(variable conductor.Variable) model.Variable {
 	return model.Variable{
-		ID:  variable.ID,
-		Key: variable.Name,
+		ID:     variable.ID,
+		Key:    variable.Name,
+		Source: convertVariableSource(variable.Source),
+	}
+}
+
+func convertVariableSource(source platform.VariableSource) model.VariableSource {
+	switch {
+	case source.Database != nil:
+		return model.DatabaseSource{ID: *source.Database, Name: source.Database.Name}
+	case source.KeyValueStore != nil:
+		return model.KeyValueStoreSource{ID: *source.KeyValueStore, Name: source.KeyValueStore.Name}
+	case source.Bucket != nil:
+		return model.BucketSource{ID: *source.Bucket, Name: source.Bucket.Name}
+	default:
+		return model.SharedSource{}
 	}
 }
 

@@ -55,7 +55,7 @@ type Documents = {
     "\n  mutation SetServicePort($service: ServiceID!, $port: Int) {\n    setServicePort(service: $service, port: $port) {\n      id\n      port\n    }\n  }\n": typeof types.SetServicePortDocument,
     "\n  mutation SetServiceResources($service: ServiceID!, $resources: ResourcesInput!) {\n    setServiceResources(service: $service, resources: $resources) {\n      id\n      resources {\n        cpu\n        memory\n      }\n    }\n  }\n": typeof types.SetServiceResourcesDocument,
     "\n  query ServiceVariables($service: ServiceID!) {\n    serviceVariables(service: $service) {\n      key\n      value\n      ref\n    }\n  }\n": typeof types.ServiceVariablesDocument,
-    "\n  query AvailableVariables($environment: EnvironmentID!) {\n    availableVariables(environment: $environment) {\n      id\n      key\n    }\n  }\n": typeof types.AvailableVariablesDocument,
+    "\n  query AvailableVariables($environment: EnvironmentID!) {\n    availableVariables(environment: $environment) {\n      id\n      key\n      source {\n        __typename\n        ... on DatabaseSource { databaseId: id name }\n        ... on KeyValueStoreSource { keyValueStoreId: id name }\n        ... on BucketSource { bucketId: id name }\n        ... on SharedSource { name }\n      }\n    }\n  }\n": typeof types.AvailableVariablesDocument,
     "\n  mutation SetServiceVariables($service: ServiceID!, $variables: [ServiceVariableInput!]!) {\n    setServiceVariables(service: $service, variables: $variables)\n  }\n": typeof types.SetServiceVariablesDocument,
     "\n  subscription BuildLogs($id: BuildID!) {\n    buildLogs(id: $id)\n  }\n": typeof types.BuildLogsDocument,
     "\n  query CanvasServiceBuilds($id: ServiceID!) {\n    service(id: $id) {\n      id\n      builds {\n        id\n        status\n        startedAt\n        finishedAt\n      }\n    }\n  }\n": typeof types.CanvasServiceBuildsDocument,
@@ -124,7 +124,7 @@ const documents: Documents = {
     "\n  mutation SetServicePort($service: ServiceID!, $port: Int) {\n    setServicePort(service: $service, port: $port) {\n      id\n      port\n    }\n  }\n": types.SetServicePortDocument,
     "\n  mutation SetServiceResources($service: ServiceID!, $resources: ResourcesInput!) {\n    setServiceResources(service: $service, resources: $resources) {\n      id\n      resources {\n        cpu\n        memory\n      }\n    }\n  }\n": types.SetServiceResourcesDocument,
     "\n  query ServiceVariables($service: ServiceID!) {\n    serviceVariables(service: $service) {\n      key\n      value\n      ref\n    }\n  }\n": types.ServiceVariablesDocument,
-    "\n  query AvailableVariables($environment: EnvironmentID!) {\n    availableVariables(environment: $environment) {\n      id\n      key\n    }\n  }\n": types.AvailableVariablesDocument,
+    "\n  query AvailableVariables($environment: EnvironmentID!) {\n    availableVariables(environment: $environment) {\n      id\n      key\n      source {\n        __typename\n        ... on DatabaseSource { databaseId: id name }\n        ... on KeyValueStoreSource { keyValueStoreId: id name }\n        ... on BucketSource { bucketId: id name }\n        ... on SharedSource { name }\n      }\n    }\n  }\n": types.AvailableVariablesDocument,
     "\n  mutation SetServiceVariables($service: ServiceID!, $variables: [ServiceVariableInput!]!) {\n    setServiceVariables(service: $service, variables: $variables)\n  }\n": types.SetServiceVariablesDocument,
     "\n  subscription BuildLogs($id: BuildID!) {\n    buildLogs(id: $id)\n  }\n": types.BuildLogsDocument,
     "\n  query CanvasServiceBuilds($id: ServiceID!) {\n    service(id: $id) {\n      id\n      builds {\n        id\n        status\n        startedAt\n        finishedAt\n      }\n    }\n  }\n": types.CanvasServiceBuildsDocument,
@@ -333,7 +333,7 @@ export function graphql(source: "\n  query ServiceVariables($service: ServiceID!
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query AvailableVariables($environment: EnvironmentID!) {\n    availableVariables(environment: $environment) {\n      id\n      key\n    }\n  }\n"): (typeof documents)["\n  query AvailableVariables($environment: EnvironmentID!) {\n    availableVariables(environment: $environment) {\n      id\n      key\n    }\n  }\n"];
+export function graphql(source: "\n  query AvailableVariables($environment: EnvironmentID!) {\n    availableVariables(environment: $environment) {\n      id\n      key\n      source {\n        __typename\n        ... on DatabaseSource { databaseId: id name }\n        ... on KeyValueStoreSource { keyValueStoreId: id name }\n        ... on BucketSource { bucketId: id name }\n        ... on SharedSource { name }\n      }\n    }\n  }\n"): (typeof documents)["\n  query AvailableVariables($environment: EnvironmentID!) {\n    availableVariables(environment: $environment) {\n      id\n      key\n      source {\n        __typename\n        ... on DatabaseSource { databaseId: id name }\n        ... on KeyValueStoreSource { keyValueStoreId: id name }\n        ... on BucketSource { bucketId: id name }\n        ... on SharedSource { name }\n      }\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

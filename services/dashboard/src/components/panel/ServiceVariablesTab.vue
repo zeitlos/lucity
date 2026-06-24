@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
+import type { Component } from 'vue';
 import { useQuery, useMutation } from '@vue/apollo-composable';
-import { Plus, Trash2, Link } from '@lucide/vue';
+import { Plus, Trash2, Link, Database, Layers, HardDrive } from '@lucide/vue';
 import { graphql } from '@/gql';
 import { useEnvironment } from '@/composables/useEnvironment';
 import { Button } from '@/components/ui/button';
@@ -35,6 +36,13 @@ const AvailableVariablesDocument = graphql(`
     availableVariables(environment: $environment) {
       id
       key
+      source {
+        __typename
+        ... on DatabaseSource { databaseId: id name }
+        ... on KeyValueStoreSource { keyValueStoreId: id name }
+        ... on BucketSource { bucketId: id name }
+        ... on SharedSource { name }
+      }
     }
   }
 `);
@@ -96,48 +104,67 @@ watch(
 
 // ── Reference catalog ─────────────────────────────────────────────────
 
-// VariableID format: workspace/project/environment/secret/key
-function parseVariableId(id: string): { secret: string; key: string } {
-  const parts = id.split('/');
-  return { secret: parts[3] ?? '', key: parts[4] ?? '' };
+type SourceTypename = 'DatabaseSource' | 'KeyValueStoreSource' | 'BucketSource' | 'SharedSource';
+
+const SOURCE_META: Record<SourceTypename, { label: string; icon: Component }> = {
+  DatabaseSource: { label: 'Postgres', icon: Database },
+  KeyValueStoreSource: { label: 'Redis', icon: Layers },
+  BucketSource: { label: 'Object Storage', icon: HardDrive },
+  SharedSource: { label: 'Shared', icon: Link },
+};
+
+function sourceIcon(typename: SourceTypename): Component {
+  return SOURCE_META[typename].icon;
 }
 
-function capitalize(s: string): string {
-  return s.charAt(0).toUpperCase() + s.slice(1);
-}
-
-function sourceLabel(secret: string): string {
-  const postgres = secret.match(/-pg-(.+)-app$/);
-  if (postgres) return `${capitalize(postgres[1]!)} (Postgres)`;
-
-  const redis = secret.match(/-valkey-(.+)$/);
-  if (redis) return `${capitalize(redis[1]!)} (Redis)`;
-
-  if (secret.endsWith('-shared')) return 'Shared Variables';
-
-  return secret;
+function sourceLabel(typename: SourceTypename, name: string): string {
+  const label = SOURCE_META[typename].label;
+  return name ? `${label}: ${name}` : label;
 }
 
 interface RefOption {
   id: string;
   key: string;
-  group: string;
+  typename: SourceTypename;
+  sourceName: string;
 }
 
 const availableRefs = computed<RefOption[]>(() =>
   (availableResult.value?.availableVariables ?? []).map((v) => ({
     id: v.id,
     key: v.key,
-    group: sourceLabel(parseVariableId(v.id).secret),
+    typename: v.source.__typename as SourceTypename,
+    sourceName: v.source.name,
   })),
 );
 
-const refGroups = computed(() => {
-  const groups: Record<string, RefOption[]> = {};
+interface RefGroup {
+  key: string;
+  typename: SourceTypename;
+  label: string;
+  items: RefOption[];
+}
+
+const refGroups = computed<RefGroup[]>(() => {
+  const map = new Map<string, RefGroup>();
   for (const opt of availableRefs.value) {
-    (groups[opt.group] ??= []).push(opt);
+    const key = `${opt.typename}:${opt.sourceName}`;
+    let group = map.get(key);
+    if (!group) {
+      group = { key, typename: opt.typename, label: sourceLabel(opt.typename, opt.sourceName), items: [] };
+      map.set(key, group);
+    }
+    group.items.push(opt);
   }
-  return groups;
+  return [...map.values()];
+});
+
+const refById = computed(() => {
+  const map = new Map<string, RefOption>();
+  for (const opt of availableRefs.value) {
+    map.set(opt.id, opt);
+  }
+  return map;
 });
 
 // ── Row actions ───────────────────────────────────────────────────────
@@ -178,8 +205,9 @@ function isRefRow(row: VarRow): boolean {
 
 function refDisplay(row: VarRow): string {
   if (!row.ref) return '';
-  const { secret, key } = parseVariableId(row.ref);
-  return `${sourceLabel(secret)} · ${key}`;
+  const opt = refById.value.get(row.ref);
+  if (opt) return `${sourceLabel(opt.typename, opt.sourceName)} · ${opt.key}`;
+  return row.ref.split('/').pop() ?? row.ref;
 }
 
 // ── Save ──────────────────────────────────────────────────────────────
@@ -263,17 +291,17 @@ async function handleSave() {
                 <CommandList>
                   <CommandEmpty>No references found.</CommandEmpty>
                   <CommandGroup
-                    v-for="(items, groupName) in refGroups"
-                    :key="groupName"
+                    v-for="group in refGroups"
+                    :key="group.key"
                   >
                     <template #heading>
                       <div class="flex items-center gap-1.5">
-                        <Link :size="12" />
-                        {{ groupName }}
+                        <component :is="sourceIcon(group.typename)" :size="12" />
+                        {{ group.label }}
                       </div>
                     </template>
                     <CommandItem
-                      v-for="opt in items"
+                      v-for="opt in group.items"
                       :key="opt.id"
                       :value="opt.id"
                       class="font-mono text-xs"

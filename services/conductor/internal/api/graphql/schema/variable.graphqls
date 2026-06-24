@@ -1,6 +1,28 @@
 type Variable {
   id: VariableID!
   key: String!
+  source: VariableSource!
+}
+
+union VariableSource = DatabaseSource | KeyValueStoreSource | BucketSource | SharedSource
+
+type DatabaseSource {
+  id: DatabaseID!
+  name: String!
+}
+
+type KeyValueStoreSource {
+  id: KeyValueStoreID!
+  name: String!
+}
+
+type BucketSource {
+  id: BucketID!
+  name: String!
+}
+
+type SharedSource {
+  name: String!
 }
 
 type ServiceVariable {
