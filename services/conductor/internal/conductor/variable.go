@@ -29,6 +29,27 @@ func (c *Client) SetSharedVariables(ctx context.Context, environment platform.En
 	return true, nil
 }
 
+type SharedVariable struct {
+	Key   string
+	Value string
+}
+
+func (c *Client) SharedVariables(ctx context.Context, environment platform.EnvironmentID) ([]SharedVariable, error) {
+	vars, err := c.deployer.Environments().Variables(ctx, environment)
+
+	if err != nil {
+		return nil, fmt.Errorf("read shared variables: %w", err)
+	}
+
+	result := make([]SharedVariable, 0, len(vars))
+
+	for key, value := range vars {
+		result = append(result, SharedVariable{Key: key, Value: value})
+	}
+
+	return result, nil
+}
+
 func (c *Client) ServiceVariables(ctx context.Context, service platform.ServiceID) ([]ServiceVariable, error) {
 	spec, err := c.deployer.Services().Variables(ctx, service)
 

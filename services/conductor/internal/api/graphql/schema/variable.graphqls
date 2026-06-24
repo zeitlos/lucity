@@ -9,6 +9,11 @@ type ServiceVariable {
   ref: VariableID
 }
 
+type SharedVariable {
+  key: String!
+  value: String!
+}
+
 input VariableInput {
   """Key of the variable. e.g. PORT or HOST"""
   key: String!
@@ -26,6 +31,7 @@ input ServiceVariableInput {
 
 extend type Query {
   availableVariables(environment: EnvironmentID!): [Variable!]! @hasRole(role: WORKSPACE_MEMBER)
+  sharedVariables(environment: EnvironmentID!): [SharedVariable!]! @hasRole(role: WORKSPACE_MEMBER)
   serviceVariables(service: ServiceID!): [ServiceVariable!]! @hasRole(role: WORKSPACE_MEMBER)
 }
 

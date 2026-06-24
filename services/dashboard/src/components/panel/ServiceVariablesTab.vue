@@ -1,37 +1,8 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
 import { useQuery, useMutation } from '@vue/apollo-composable';
-import { Plus, Trash2, Link, Database } from '@lucide/vue';
+import { Plus, Trash2, Link } from '@lucide/vue';
 import { graphql } from '@/gql';
-
-const ServiceVariablesDocument = graphql(`
-  query ServiceVariables($service: ServiceID!) {
-    serviceVariables(service: $service) {
-      key
-      value
-      fromShared
-      databaseRef {
-        database
-        key
-      }
-    }
-  }
-`);
-
-const SetServiceVariablesDocument = graphql(`
-  mutation SetServiceVariables($service: ServiceID!, $variables: [ServiceVariableInput!]!) {
-    setServiceVariables(service: $service, variables: $variables)
-  }
-`);
-
-const SharedVariablesDocument = graphql(`
-  query SharedVariables($environment: EnvironmentID!) {
-    sharedVariables(environment: $environment) {
-      key
-      value
-    }
-  }
-`);
 import { useEnvironment } from '@/composables/useEnvironment';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -49,6 +20,31 @@ import {
 import { toast, errorToast } from '@/components/ui/sonner';
 import { errorMessage } from '@/lib/utils';
 
+const ServiceVariablesDocument = graphql(`
+  query ServiceVariables($service: ServiceID!) {
+    serviceVariables(service: $service) {
+      key
+      value
+      ref
+    }
+  }
+`);
+
+const AvailableVariablesDocument = graphql(`
+  query AvailableVariables($environment: EnvironmentID!) {
+    availableVariables(environment: $environment) {
+      id
+      key
+    }
+  }
+`);
+
+const SetServiceVariablesDocument = graphql(`
+  mutation SetServiceVariables($service: ServiceID!, $variables: [ServiceVariableInput!]!) {
+    setServiceVariables(service: $service, variables: $variables)
+  }
+`);
+
 const props = defineProps<{
   serviceId: string;
   serviceName: string;
@@ -57,113 +53,31 @@ const props = defineProps<{
 const { activeEnvironment } = useEnvironment();
 const environmentId = computed(() => activeEnvironment.value?.id ?? '');
 
-// ── Data types ────────────────────────────────────────────────────────
-
-interface DatabaseRefData {
-  database: string;
-  key: string;
-}
+// ── Row state ─────────────────────────────────────────────────────────
 
 interface VarRow {
   key: string;
   value: string;
-  fromShared: boolean;
-  databaseRef?: DatabaseRefData | null;
-  isNew?: boolean;
+  ref: string | null;
 }
-
-// ── CNPG exports ──────────────────────────────────────────────────────
-
-const CNPG_EXPORTS = [
-  { key: 'uri', displayName: 'DATABASE_URL' },
-  { key: 'host', displayName: 'PGHOST' },
-  { key: 'port', displayName: 'PGPORT' },
-  { key: 'dbname', displayName: 'PGDATABASE' },
-  { key: 'user', displayName: 'PGUSER' },
-  { key: 'password', displayName: 'PGPASSWORD' },
-] as const;
-
-// ── Queries ───────────────────────────────────────────────────────────
-
-const { result, loading, refetch } = useQuery(ServiceVariablesDocument, () => ({
-  service: props.serviceId,
-}), () => ({
-  enabled: !!props.serviceId,
-}));
-
-const { result: sharedResult } = useQuery(SharedVariablesDocument, () => ({
-  environment: environmentId.value,
-}), () => ({
-  enabled: !!environmentId.value,
-}));
-
-// ── Reference option model ────────────────────────────────────────────
-
-interface RefOption {
-  type: 'database' | 'shared';
-  key: string;
-  displayName: string;
-  displayValue: string;
-  group: string;
-  groupIcon: 'database' | 'link';
-  databaseRef?: DatabaseRefData;
-}
-
-function capitalize(s: string): string {
-  return s.charAt(0).toUpperCase() + s.slice(1);
-}
-
-const availableRefs = computed<RefOption[]>(() => {
-  const options: RefOption[] = [];
-
-  // Database references
-  const databases = activeEnvironment.value?.databases ?? [];
-  for (const db of databases) {
-    for (const exp of CNPG_EXPORTS) {
-      options.push({
-        type: 'database',
-        key: `${db.id}-${exp.key}`,
-        displayName: exp.displayName,
-        displayValue: `\${{${capitalize(db.name)}.${exp.displayName}}}`,
-        group: `${capitalize(db.name)} (Postgres)`,
-        groupIcon: 'database',
-        databaseRef: { database: db.id, key: exp.key },
-      });
-    }
-  }
-
-  // Shared variable references
-  const sharedVars = sharedResult.value?.sharedVariables ?? [];
-  for (const v of sharedVars) {
-    options.push({
-      type: 'shared',
-      key: `shared-${v.key}`,
-      displayName: v.key,
-      displayValue: v.value,
-      group: 'Shared Variables',
-      groupIcon: 'link',
-    });
-  }
-
-  return options;
-});
-
-const refGroups = computed(() => {
-  const groups: Record<string, { icon: 'database' | 'link'; items: RefOption[] }> = {};
-  for (const opt of availableRefs.value) {
-    if (!groups[opt.group]) {
-      groups[opt.group] = { icon: opt.groupIcon, items: [] };
-    }
-    groups[opt.group]!.items.push(opt);
-  }
-  return groups;
-});
-
-// ── Row state ─────────────────────────────────────────────────────────
 
 const rows = ref<VarRow[]>([]);
 const hasChanges = ref(false);
 const openPopoverIndex = ref<number | null>(null);
+
+// ── Queries ───────────────────────────────────────────────────────────
+
+const { result, loading, refetch } = useQuery(
+  ServiceVariablesDocument,
+  () => ({ service: props.serviceId }),
+  () => ({ enabled: !!props.serviceId }),
+);
+
+const { result: availableResult } = useQuery(
+  AvailableVariablesDocument,
+  () => ({ environment: environmentId.value }),
+  () => ({ enabled: !!environmentId.value }),
+);
 
 watch(
   () => result.value?.serviceVariables,
@@ -171,9 +85,8 @@ watch(
     if (vars) {
       rows.value = vars.map((v) => ({
         key: v.key,
-        value: v.value,
-        fromShared: v.fromShared,
-        databaseRef: v.databaseRef ? { database: v.databaseRef.database, key: v.databaseRef.key } : undefined,
+        value: v.value ?? '',
+        ref: v.ref ?? null,
       }));
       hasChanges.value = false;
     }
@@ -181,29 +94,72 @@ watch(
   { immediate: true },
 );
 
+// ── Reference catalog ─────────────────────────────────────────────────
+
+// VariableID format: workspace/project/environment/secret/key
+function parseVariableId(id: string): { secret: string; key: string } {
+  const parts = id.split('/');
+  return { secret: parts[3] ?? '', key: parts[4] ?? '' };
+}
+
+function capitalize(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function sourceLabel(secret: string): string {
+  const postgres = secret.match(/-pg-(.+)-app$/);
+  if (postgres) return `${capitalize(postgres[1]!)} (Postgres)`;
+
+  const redis = secret.match(/-valkey-(.+)$/);
+  if (redis) return `${capitalize(redis[1]!)} (Redis)`;
+
+  if (secret.endsWith('-shared')) return 'Shared Variables';
+
+  return secret;
+}
+
+interface RefOption {
+  id: string;
+  key: string;
+  group: string;
+}
+
+const availableRefs = computed<RefOption[]>(() =>
+  (availableResult.value?.availableVariables ?? []).map((v) => ({
+    id: v.id,
+    key: v.key,
+    group: sourceLabel(parseVariableId(v.id).secret),
+  })),
+);
+
+const refGroups = computed(() => {
+  const groups: Record<string, RefOption[]> = {};
+  for (const opt of availableRefs.value) {
+    (groups[opt.group] ??= []).push(opt);
+  }
+  return groups;
+});
+
 // ── Row actions ───────────────────────────────────────────────────────
 
 function addRow() {
-  rows.value.push({ key: '', value: '', fromShared: false, isNew: true });
+  rows.value.push({ key: '', value: '', ref: null });
   hasChanges.value = true;
 }
 
 function selectRef(index: number, opt: RefOption) {
-  rows.value[index] = {
-    key: opt.displayName,
-    value: opt.displayValue,
-    fromShared: opt.type === 'shared',
-    databaseRef: opt.databaseRef,
-  };
+  const row = rows.value[index]!;
+  row.ref = opt.id;
+  row.value = '';
+  if (!row.key.trim()) {
+    row.key = opt.key.toUpperCase();
+  }
   hasChanges.value = true;
   openPopoverIndex.value = null;
 }
 
 function clearRef(index: number) {
-  const row = rows.value[index]!;
-  row.databaseRef = undefined;
-  row.fromShared = false;
-  row.value = '';
+  rows.value[index]!.ref = null;
   hasChanges.value = true;
 }
 
@@ -216,10 +172,14 @@ function markChanged() {
   hasChanges.value = true;
 }
 
-// ── Row display helpers ───────────────────────────────────────────────
-
 function isRefRow(row: VarRow): boolean {
-  return !!row.databaseRef || row.fromShared;
+  return !!row.ref;
+}
+
+function refDisplay(row: VarRow): string {
+  if (!row.ref) return '';
+  const { secret, key } = parseVariableId(row.ref);
+  return `${sourceLabel(secret)} · ${key}`;
 }
 
 // ── Save ──────────────────────────────────────────────────────────────
@@ -227,13 +187,12 @@ function isRefRow(row: VarRow): boolean {
 const { mutate: setVarsMutate, loading: saving } = useMutation(SetServiceVariablesDocument);
 
 async function handleSave() {
-  const validRows = rows.value.filter(r => r.key.trim());
+  const validRows = rows.value.filter((r) => r.key.trim());
   try {
-    const variables = validRows.map(r => ({
+    const variables = validRows.map((r) => ({
       key: r.key.trim(),
-      value: (!r.databaseRef && !r.fromShared) ? r.value : undefined,
-      fromShared: r.fromShared || undefined,
-      databaseRef: r.databaseRef || undefined,
+      value: r.ref ? undefined : r.value,
+      ref: r.ref ?? undefined,
     }));
 
     const res = await setVarsMutate({
@@ -279,7 +238,6 @@ async function handleSave() {
             v-model="row.key"
             placeholder="KEY"
             class="font-mono text-sm uppercase rounded-r-none border-r-0"
-            :readonly="isRefRow(row)"
             @input="markChanged"
           />
           <Popover
@@ -293,8 +251,7 @@ async function handleSave() {
                 class="shrink-0 rounded-l-none"
                 :disabled="availableRefs.length === 0"
               >
-                <Database v-if="row.databaseRef" :size="14" />
-                <Link v-else :size="14" class="opacity-50" />
+                <Link :size="14" :class="row.ref ? '' : 'opacity-50'" />
               </Button>
             </PopoverTrigger>
             <PopoverContent
@@ -305,27 +262,26 @@ async function handleSave() {
                 <CommandInput placeholder="Search references..." />
                 <CommandList>
                   <CommandEmpty>No references found.</CommandEmpty>
-                  <template v-for="(group, groupName) in refGroups" :key="groupName">
-                    <CommandGroup>
-                      <template #heading>
-                        <div class="flex items-center gap-1.5">
-                          <Database v-if="group.icon === 'database'" :size="12" />
-                          <Link v-else :size="12" />
-                          {{ groupName }}
-                        </div>
-                      </template>
-                      <CommandItem
-                        v-for="opt in group.items"
-                        :key="opt.key"
-                        :value="opt.key"
-                        class="flex items-center justify-between"
-                        @select="selectRef(index, opt)"
-                      >
-                        <span class="font-mono text-xs">{{ opt.displayName }}</span>
-                        <span class="text-xs text-muted-foreground">{{ opt.displayValue }}</span>
-                      </CommandItem>
-                    </CommandGroup>
-                  </template>
+                  <CommandGroup
+                    v-for="(items, groupName) in refGroups"
+                    :key="groupName"
+                  >
+                    <template #heading>
+                      <div class="flex items-center gap-1.5">
+                        <Link :size="12" />
+                        {{ groupName }}
+                      </div>
+                    </template>
+                    <CommandItem
+                      v-for="opt in items"
+                      :key="opt.id"
+                      :value="opt.id"
+                      class="font-mono text-xs"
+                      @select="selectRef(index, opt)"
+                    >
+                      {{ opt.key }}
+                    </CommandItem>
+                  </CommandGroup>
                   <!-- Clear reference option -->
                   <CommandGroup v-if="isRefRow(row)">
                     <CommandItem
@@ -347,7 +303,7 @@ async function handleSave() {
           v-if="isRefRow(row)"
           class="flex h-9 flex-1 items-center rounded-md border border-input bg-muted px-3 font-mono text-xs text-muted-foreground"
         >
-          {{ row.value }}
+          {{ refDisplay(row) }}
         </div>
         <Input
           v-else

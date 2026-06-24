@@ -25,6 +25,7 @@ export type Scalars = {
   ReleaseID: { input: any; output: any; }
   ServiceID: { input: string; output: string; }
   Time: { input: string; output: string; }
+  VariableID: { input: any; output: any; }
   VolumeID: { input: string; output: string; }
 };
 
@@ -189,18 +190,6 @@ export type DatabaseCredentials = {
   type: EndpointType;
   uri: Scalars['String']['output'];
   user: Scalars['String']['output'];
-};
-
-/** A reference to a CNPG database secret key (resolved at pod startup via secretKeyRef). */
-export type DatabaseRef = {
-  __typename?: 'DatabaseRef';
-  database: Scalars['DatabaseID']['output'];
-  key: Scalars['String']['output'];
-};
-
-export type DatabaseRefInput = {
-  database: Scalars['DatabaseID']['input'];
-  key: Scalars['String']['input'];
 };
 
 export enum DatabaseStatus {
@@ -645,6 +634,7 @@ export enum Protocol {
 
 export type Query = {
   __typename?: 'Query';
+  availableVariables: Array<Variable>;
   bucket: Bucket;
   bucketCredentials: BucketCredentials;
   build: Build;
@@ -673,11 +663,16 @@ export type Query = {
   searchImages: Array<ImageSearchResult>;
   service: Service;
   serviceVariables: Array<ServiceVariable>;
-  sharedVariables: Array<Variable>;
+  sharedVariables: Array<SharedVariable>;
   subscription?: Maybe<BillingSubscription>;
   usageSummary?: Maybe<UsageSummary>;
   workspace: Workspace;
   workspaces: Array<Workspace>;
+};
+
+
+export type QueryAvailableVariablesArgs = {
+  environment: Scalars['EnvironmentID']['input'];
 };
 
 
@@ -907,19 +902,17 @@ export enum ServiceStatus {
 
 export type ServiceVariable = {
   __typename?: 'ServiceVariable';
-  databaseRef?: Maybe<DatabaseRef>;
-  fromShared: Scalars['Boolean']['output'];
   key: Scalars['String']['output'];
-  value: Scalars['String']['output'];
+  ref?: Maybe<Scalars['VariableID']['output']>;
+  value?: Maybe<Scalars['String']['output']>;
 };
 
 export type ServiceVariableInput = {
-  /** Reference to a database secret key. */
-  databaseRef?: InputMaybe<DatabaseRefInput>;
-  /** If true, value is resolved from the shared variable with the same key. */
-  fromShared?: InputMaybe<Scalars['Boolean']['input']>;
+  /** Key of the variable. e.g. PORT or HOST */
   key: Scalars['String']['input'];
-  /** Direct value. Required when no ref is set. */
+  /** Reference to an available variable. Required when no value is set. Mutually exclusive with value. */
+  ref?: InputMaybe<Scalars['VariableID']['input']>;
+  /** Literal value. Required when no ref is set. Mutually exclusive with ref. */
   value?: InputMaybe<Scalars['String']['input']>;
 };
 
@@ -935,6 +928,12 @@ export type SetServiceScalingInput = {
   autoscaling?: InputMaybe<AutoscalingInput>;
   replicas: Scalars['Int']['input'];
   service: Scalars['ServiceID']['input'];
+};
+
+export type SharedVariable = {
+  __typename?: 'SharedVariable';
+  key: Scalars['String']['output'];
+  value: Scalars['String']['output'];
 };
 
 export enum SourceProvider {
@@ -1001,11 +1000,12 @@ export type User = {
 
 export type Variable = {
   __typename?: 'Variable';
+  id: Scalars['VariableID']['output'];
   key: Scalars['String']['output'];
-  value: Scalars['String']['output'];
 };
 
 export type VariableInput = {
+  /** Key of the variable. e.g. PORT or HOST */
   key: Scalars['String']['input'];
   value: Scalars['String']['input'];
 };
@@ -1151,7 +1151,7 @@ export type SharedVariablesQueryVariables = Exact<{
 }>;
 
 
-export type SharedVariablesQuery = { __typename?: 'Query', sharedVariables: Array<{ __typename?: 'Variable', key: string, value: string }> };
+export type SharedVariablesQuery = { __typename?: 'Query', sharedVariables: Array<{ __typename?: 'SharedVariable', key: string, value: string }> };
 
 export type SetSharedVariablesMutationVariables = Exact<{
   environment: Scalars['EnvironmentID']['input'];
@@ -1333,7 +1333,14 @@ export type ServiceVariablesQueryVariables = Exact<{
 }>;
 
 
-export type ServiceVariablesQuery = { __typename?: 'Query', serviceVariables: Array<{ __typename?: 'ServiceVariable', key: string, value: string, fromShared: boolean, databaseRef?: { __typename?: 'DatabaseRef', database: string, key: string } | null }> };
+export type ServiceVariablesQuery = { __typename?: 'Query', serviceVariables: Array<{ __typename?: 'ServiceVariable', key: string, value?: string | null, ref?: any | null }> };
+
+export type AvailableVariablesQueryVariables = Exact<{
+  environment: Scalars['EnvironmentID']['input'];
+}>;
+
+
+export type AvailableVariablesQuery = { __typename?: 'Query', availableVariables: Array<{ __typename?: 'Variable', id: any, key: string }> };
 
 export type SetServiceVariablesMutationVariables = Exact<{
   service: Scalars['ServiceID']['input'];
@@ -1546,7 +1553,8 @@ export const RemoveDomainDocument = {"kind":"Document","definitions":[{"kind":"O
 export const SetServiceScalingDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"SetServiceScaling"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"SetServiceScalingInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"setServiceScaling"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"replicas"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"desired"}},{"kind":"Field","name":{"kind":"Name","value":"ready"}}]}},{"kind":"Field","name":{"kind":"Name","value":"autoscaling"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"minReplicas"}},{"kind":"Field","name":{"kind":"Name","value":"maxReplicas"}},{"kind":"Field","name":{"kind":"Name","value":"targetCpu"}}]}}]}}]}}]} as unknown as DocumentNode<SetServiceScalingMutation, SetServiceScalingMutationVariables>;
 export const SetServicePortDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"SetServicePort"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"service"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ServiceID"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"port"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"setServicePort"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"service"},"value":{"kind":"Variable","name":{"kind":"Name","value":"service"}}},{"kind":"Argument","name":{"kind":"Name","value":"port"},"value":{"kind":"Variable","name":{"kind":"Name","value":"port"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"port"}}]}}]}}]} as unknown as DocumentNode<SetServicePortMutation, SetServicePortMutationVariables>;
 export const SetServiceResourcesDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"SetServiceResources"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"service"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ServiceID"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"resources"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ResourcesInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"setServiceResources"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"service"},"value":{"kind":"Variable","name":{"kind":"Name","value":"service"}}},{"kind":"Argument","name":{"kind":"Name","value":"resources"},"value":{"kind":"Variable","name":{"kind":"Name","value":"resources"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"resources"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"cpu"}},{"kind":"Field","name":{"kind":"Name","value":"memory"}}]}}]}}]}}]} as unknown as DocumentNode<SetServiceResourcesMutation, SetServiceResourcesMutationVariables>;
-export const ServiceVariablesDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"ServiceVariables"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"service"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ServiceID"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"serviceVariables"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"service"},"value":{"kind":"Variable","name":{"kind":"Name","value":"service"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"key"}},{"kind":"Field","name":{"kind":"Name","value":"value"}},{"kind":"Field","name":{"kind":"Name","value":"fromShared"}},{"kind":"Field","name":{"kind":"Name","value":"databaseRef"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"database"}},{"kind":"Field","name":{"kind":"Name","value":"key"}}]}}]}}]}}]} as unknown as DocumentNode<ServiceVariablesQuery, ServiceVariablesQueryVariables>;
+export const ServiceVariablesDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"ServiceVariables"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"service"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ServiceID"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"serviceVariables"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"service"},"value":{"kind":"Variable","name":{"kind":"Name","value":"service"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"key"}},{"kind":"Field","name":{"kind":"Name","value":"value"}},{"kind":"Field","name":{"kind":"Name","value":"ref"}}]}}]}}]} as unknown as DocumentNode<ServiceVariablesQuery, ServiceVariablesQueryVariables>;
+export const AvailableVariablesDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"AvailableVariables"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"environment"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"EnvironmentID"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"availableVariables"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"environment"},"value":{"kind":"Variable","name":{"kind":"Name","value":"environment"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"key"}}]}}]}}]} as unknown as DocumentNode<AvailableVariablesQuery, AvailableVariablesQueryVariables>;
 export const SetServiceVariablesDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"SetServiceVariables"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"service"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ServiceID"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"variables"}},"type":{"kind":"NonNullType","type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ServiceVariableInput"}}}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"setServiceVariables"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"service"},"value":{"kind":"Variable","name":{"kind":"Name","value":"service"}}},{"kind":"Argument","name":{"kind":"Name","value":"variables"},"value":{"kind":"Variable","name":{"kind":"Name","value":"variables"}}}]}]}}]} as unknown as DocumentNode<SetServiceVariablesMutation, SetServiceVariablesMutationVariables>;
 export const BuildLogsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"subscription","name":{"kind":"Name","value":"BuildLogs"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"BuildID"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"buildLogs"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}}]}]}}]} as unknown as DocumentNode<BuildLogsSubscription, BuildLogsSubscriptionVariables>;
 export const CanvasServiceBuildsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"CanvasServiceBuilds"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ServiceID"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"service"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"builds"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"startedAt"}},{"kind":"Field","name":{"kind":"Name","value":"finishedAt"}}]}}]}}]}}]} as unknown as DocumentNode<CanvasServiceBuildsQuery, CanvasServiceBuildsQueryVariables>;

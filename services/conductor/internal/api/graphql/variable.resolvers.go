@@ -60,6 +60,23 @@ func (r *queryResolver) AvailableVariables(ctx context.Context, environment plat
 	return result, nil
 }
 
+// SharedVariables is the resolver for the sharedVariables field.
+func (r *queryResolver) SharedVariables(ctx context.Context, environment platform.EnvironmentID) ([]model.SharedVariable, error) {
+	vars, err := r.Conductor.SharedVariables(ctx, environment)
+
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]model.SharedVariable, len(vars))
+
+	for i, v := range vars {
+		result[i] = model.SharedVariable{Key: v.Key, Value: v.Value}
+	}
+
+	return result, nil
+}
+
 // ServiceVariables is the resolver for the serviceVariables field.
 func (r *queryResolver) ServiceVariables(ctx context.Context, service platform.ServiceID) ([]model.ServiceVariable, error) {
 	vars, err := r.Conductor.ServiceVariables(ctx, service)
