@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { graphql } from '@/gql';
 import { useQuery } from '@vue/apollo-composable';
-import { Loader } from 'lucide-vue-next';
+import { Loader } from '@lucide/vue';
 import { computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 

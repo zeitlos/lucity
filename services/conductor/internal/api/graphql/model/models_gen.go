@@ -47,6 +47,26 @@ type BillingSubscription struct {
 	HasPaymentMethod  bool               `json:"hasPaymentMethod"`
 }
 
+type Bucket struct {
+	ID          platform.BucketID `json:"id"`
+	Name        string            `json:"name"`
+	Region      string            `json:"region"`
+	Endpoint    string            `json:"endpoint"`
+	Status      BucketStatus      `json:"status"`
+	SizeBytes   int               `json:"sizeBytes"`
+	ObjectCount int               `json:"objectCount"`
+	Public      bool              `json:"public"`
+	CreatedAt   time.Time         `json:"createdAt"`
+}
+
+type BucketCredentials struct {
+	Endpoint        string `json:"endpoint"`
+	Region          string `json:"region"`
+	Bucket          string `json:"bucket"`
+	AccessKeyID     string `json:"accessKeyId"`
+	SecretAccessKey string `json:"secretAccessKey"`
+}
+
 type Build struct {
 	ID         buildjob.BuildID `json:"id"`
 	Status     BuildStatus      `json:"status"`
@@ -62,6 +82,11 @@ type Commit struct {
 	Sha     string  `json:"sha"`
 	Message string  `json:"message"`
 	URL     *string `json:"url,omitempty"`
+}
+
+type CreateBucketInput struct {
+	Environment platform.EnvironmentID `json:"environment"`
+	Name        string                 `json:"name"`
 }
 
 type CreateDatabaseInput struct {
@@ -203,6 +228,7 @@ type Environment struct {
 	Services       []Service              `json:"services"`
 	Databases      []Database             `json:"databases"`
 	KeyValueStores []KeyValueStore        `json:"keyValueStores"`
+	Buckets        []Bucket               `json:"buckets"`
 }
 
 type EnvironmentResources struct {
@@ -441,6 +467,63 @@ type WorkspaceMember struct {
 type WorkspaceMembership struct {
 	Workspace string        `json:"workspace"`
 	Role      WorkspaceRole `json:"role"`
+}
+
+type BucketStatus string
+
+const (
+	BucketStatusReady   BucketStatus = "READY"
+	BucketStatusPending BucketStatus = "PENDING"
+	BucketStatusFailed  BucketStatus = "FAILED"
+)
+
+var AllBucketStatus = []BucketStatus{
+	BucketStatusReady,
+	BucketStatusPending,
+	BucketStatusFailed,
+}
+
+func (e BucketStatus) IsValid() bool {
+	switch e {
+	case BucketStatusReady, BucketStatusPending, BucketStatusFailed:
+		return true
+	}
+	return false
+}
+
+func (e BucketStatus) String() string {
+	return string(e)
+}
+
+func (e *BucketStatus) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = BucketStatus(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid BucketStatus", str)
+	}
+	return nil
+}
+
+func (e BucketStatus) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *BucketStatus) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e BucketStatus) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
 }
 
 type BuildStatus string

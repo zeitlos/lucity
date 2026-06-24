@@ -2,7 +2,7 @@
 import { ref, computed, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useQuery, useMutation } from '@vue/apollo-composable';
-import { ArrowLeft, Trash2, UserPlus, X, Shield, User as UserIcon, CreditCard, ExternalLink } from 'lucide-vue-next';
+import { ArrowLeft, Trash2, UserPlus, X, Shield, User as UserIcon, CreditCard, ExternalLink } from '@lucide/vue';
 import { useAuth } from '@/composables/useAuth';
 import { apolloClient } from '@/lib/apollo';
 import { Button } from '@/components/ui/button';

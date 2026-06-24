@@ -16,6 +16,7 @@ scalar DeploymentID
 scalar DatabaseID
 scalar KeyValueStoreID
 scalar VolumeID
+scalar BucketID
 scalar BuildID
 scalar ReleaseID
 

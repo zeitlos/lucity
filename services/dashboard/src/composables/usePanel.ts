@@ -1,7 +1,7 @@
 import { ref, computed } from 'vue';
 
 export interface PanelEntry {
-  type: 'service' | 'database' | 'keyValueStore';
+  type: 'service' | 'database' | 'keyValueStore' | 'bucket';
   id: string;
   label: string;
 }

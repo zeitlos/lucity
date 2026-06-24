@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue';
-import { Circle } from 'lucide-vue-next';
+import { Circle } from '@lucide/vue';
 
 const version = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev';
 

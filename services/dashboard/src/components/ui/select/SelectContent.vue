@@ -2,7 +2,7 @@
 import type { HTMLAttributes } from 'vue';
 import { SelectContent, type SelectContentEmits, type SelectContentProps, SelectPortal, SelectViewport, useForwardPropsEmits } from 'reka-ui';
 import { SelectScrollDownButton, SelectScrollUpButton } from 'reka-ui';
-import { ChevronDown, ChevronUp } from 'lucide-vue-next';
+import { ChevronDown, ChevronUp } from '@lucide/vue';
 import { cn } from '@/lib/utils';
 
 const props = withDefaults(defineProps<SelectContentProps & { class?: HTMLAttributes['class'] }>(), {

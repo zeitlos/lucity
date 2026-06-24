@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { type HTMLAttributes, inject } from 'vue';
-import { ArrowRight } from 'lucide-vue-next';
+import { ArrowRight } from '@lucide/vue';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 

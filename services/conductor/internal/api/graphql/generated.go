@@ -66,6 +66,26 @@ type ComplexityRoot struct {
 		Status            func(childComplexity int) int
 	}
 
+	Bucket struct {
+		CreatedAt   func(childComplexity int) int
+		Endpoint    func(childComplexity int) int
+		ID          func(childComplexity int) int
+		Name        func(childComplexity int) int
+		ObjectCount func(childComplexity int) int
+		Public      func(childComplexity int) int
+		Region      func(childComplexity int) int
+		SizeBytes   func(childComplexity int) int
+		Status      func(childComplexity int) int
+	}
+
+	BucketCredentials struct {
+		AccessKeyID     func(childComplexity int) int
+		Bucket          func(childComplexity int) int
+		Endpoint        func(childComplexity int) int
+		Region          func(childComplexity int) int
+		SecretAccessKey func(childComplexity int) int
+	}
+
 	Build struct {
 		FinishedAt func(childComplexity int) int
 		ID         func(childComplexity int) int
@@ -175,6 +195,7 @@ type ComplexityRoot struct {
 	}
 
 	Environment struct {
+		Buckets        func(childComplexity int) int
 		Databases      func(childComplexity int) int
 		ID             func(childComplexity int) int
 		KeyValueStores func(childComplexity int) int
@@ -244,12 +265,14 @@ type ComplexityRoot struct {
 		ChangePlan                func(childComplexity int, plan model.Plan) int
 		CompletePlanCheckout      func(childComplexity int, sessionID string) int
 		CompleteWorkspaceCheckout func(childComplexity int, sessionID string) int
+		CreateBucket              func(childComplexity int, input model.CreateBucketInput) int
 		CreateDatabase            func(childComplexity int, input model.CreateDatabaseInput) int
 		CreateEnvironment         func(childComplexity int, input model.CreateEnvironmentInput) int
 		CreateKeyValueStore       func(childComplexity int, input model.CreateKeyValueStoreInput) int
 		CreatePlanCheckout        func(childComplexity int, plan model.Plan) int
 		CreateProject             func(childComplexity int, input model.CreateProjectInput) int
 		CreateWorkspaceCheckout   func(childComplexity int, input model.CreateWorkspaceCheckoutInput) int
+		DeleteBucket              func(childComplexity int, bucket platform.BucketID) int
 		DeleteDatabase            func(childComplexity int, database platform.DatabaseID) int
 		DeleteEnvironment         func(childComplexity int, environment platform.EnvironmentID) int
 		DeleteKeyValueStore       func(childComplexity int, keyValueStore platform.KeyValueStoreID) int
@@ -283,6 +306,8 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
+		Bucket                   func(childComplexity int, id platform.BucketID) int
+		BucketCredentials        func(childComplexity int, bucket platform.BucketID) int
 		Build                    func(childComplexity int, id buildjob.BuildID) int
 		Database                 func(childComplexity int, id platform.DatabaseID) int
 		DatabaseCredentials      func(childComplexity int, database platform.DatabaseID) int
@@ -438,6 +463,7 @@ type EnvironmentResolver interface {
 	Services(ctx context.Context, obj *model.Environment) ([]model.Service, error)
 	Databases(ctx context.Context, obj *model.Environment) ([]model.Database, error)
 	KeyValueStores(ctx context.Context, obj *model.Environment) ([]model.KeyValueStore, error)
+	Buckets(ctx context.Context, obj *model.Environment) ([]model.Bucket, error)
 }
 type MutationResolver interface {
 	SetEnvironmentResources(ctx context.Context, input model.SetEnvironmentResourcesInput) (*model.Environment, error)
@@ -455,6 +481,8 @@ type MutationResolver interface {
 	DeleteEnvironment(ctx context.Context, environment platform.EnvironmentID) (bool, error)
 	CreateKeyValueStore(ctx context.Context, input model.CreateKeyValueStoreInput) (*model.KeyValueStore, error)
 	DeleteKeyValueStore(ctx context.Context, keyValueStore platform.KeyValueStoreID) (bool, error)
+	CreateBucket(ctx context.Context, input model.CreateBucketInput) (*model.Bucket, error)
+	DeleteBucket(ctx context.Context, bucket platform.BucketID) (bool, error)
 	CreateProject(ctx context.Context, input model.CreateProjectInput) (*model.Project, error)
 	DeleteProject(ctx context.Context, id platform.ProjectID) (bool, error)
 	AddService(ctx context.Context, environment platform.EnvironmentID, input model.AddServiceInput) (*model.Service, error)
@@ -495,6 +523,8 @@ type QueryResolver interface {
 	GithubConnected(ctx context.Context) (bool, error)
 	KeyValueStore(ctx context.Context, id platform.KeyValueStoreID) (*model.KeyValueStore, error)
 	KeyValueStoreCredentials(ctx context.Context, keyValueStore platform.KeyValueStoreID) ([]model.KeyValueStoreCredentials, error)
+	Bucket(ctx context.Context, id platform.BucketID) (*model.Bucket, error)
+	BucketCredentials(ctx context.Context, bucket platform.BucketID) (*model.BucketCredentials, error)
 	Projects(ctx context.Context) ([]model.Project, error)
 	Project(ctx context.Context, id platform.ProjectID) (*model.Project, error)
 	SearchImages(ctx context.Context, query string) ([]model.ImageSearchResult, error)
@@ -596,6 +626,92 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.BillingSubscription.Status(childComplexity), true
+
+	case "Bucket.createdAt":
+		if e.ComplexityRoot.Bucket.CreatedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Bucket.CreatedAt(childComplexity), true
+	case "Bucket.endpoint":
+		if e.ComplexityRoot.Bucket.Endpoint == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Bucket.Endpoint(childComplexity), true
+	case "Bucket.id":
+		if e.ComplexityRoot.Bucket.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Bucket.ID(childComplexity), true
+	case "Bucket.name":
+		if e.ComplexityRoot.Bucket.Name == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Bucket.Name(childComplexity), true
+	case "Bucket.objectCount":
+		if e.ComplexityRoot.Bucket.ObjectCount == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Bucket.ObjectCount(childComplexity), true
+	case "Bucket.public":
+		if e.ComplexityRoot.Bucket.Public == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Bucket.Public(childComplexity), true
+	case "Bucket.region":
+		if e.ComplexityRoot.Bucket.Region == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Bucket.Region(childComplexity), true
+	case "Bucket.sizeBytes":
+		if e.ComplexityRoot.Bucket.SizeBytes == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Bucket.SizeBytes(childComplexity), true
+	case "Bucket.status":
+		if e.ComplexityRoot.Bucket.Status == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Bucket.Status(childComplexity), true
+
+	case "BucketCredentials.accessKeyId":
+		if e.ComplexityRoot.BucketCredentials.AccessKeyID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.BucketCredentials.AccessKeyID(childComplexity), true
+	case "BucketCredentials.bucket":
+		if e.ComplexityRoot.BucketCredentials.Bucket == nil {
+			break
+		}
+
+		return e.ComplexityRoot.BucketCredentials.Bucket(childComplexity), true
+	case "BucketCredentials.endpoint":
+		if e.ComplexityRoot.BucketCredentials.Endpoint == nil {
+			break
+		}
+
+		return e.ComplexityRoot.BucketCredentials.Endpoint(childComplexity), true
+	case "BucketCredentials.region":
+		if e.ComplexityRoot.BucketCredentials.Region == nil {
+			break
+		}
+
+		return e.ComplexityRoot.BucketCredentials.Region(childComplexity), true
+	case "BucketCredentials.secretAccessKey":
+		if e.ComplexityRoot.BucketCredentials.SecretAccessKey == nil {
+			break
+		}
+
+		return e.ComplexityRoot.BucketCredentials.SecretAccessKey(childComplexity), true
 
 	case "Build.finishedAt":
 		if e.ComplexityRoot.Build.FinishedAt == nil {
@@ -1007,6 +1123,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.Endpoint.Type(childComplexity), true
 
+	case "Environment.buckets":
+		if e.ComplexityRoot.Environment.Buckets == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Environment.Buckets(childComplexity), true
 	case "Environment.databases":
 		if e.ComplexityRoot.Environment.Databases == nil {
 			break
@@ -1310,6 +1432,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.CompleteWorkspaceCheckout(childComplexity, args["sessionId"].(string)), true
+	case "Mutation.createBucket":
+		if e.ComplexityRoot.Mutation.CreateBucket == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_createBucket_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.CreateBucket(childComplexity, args["input"].(model.CreateBucketInput)), true
 	case "Mutation.createDatabase":
 		if e.ComplexityRoot.Mutation.CreateDatabase == nil {
 			break
@@ -1376,6 +1509,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.CreateWorkspaceCheckout(childComplexity, args["input"].(model.CreateWorkspaceCheckoutInput)), true
+	case "Mutation.deleteBucket":
+		if e.ComplexityRoot.Mutation.DeleteBucket == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_deleteBucket_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.DeleteBucket(childComplexity, args["bucket"].(platform.BucketID)), true
 	case "Mutation.deleteDatabase":
 		if e.ComplexityRoot.Mutation.DeleteDatabase == nil {
 			break
@@ -1655,6 +1799,28 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.Project.Name(childComplexity), true
 
+	case "Query.bucket":
+		if e.ComplexityRoot.Query.Bucket == nil {
+			break
+		}
+
+		args, err := ec.field_Query_bucket_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.Bucket(childComplexity, args["id"].(platform.BucketID)), true
+	case "Query.bucketCredentials":
+		if e.ComplexityRoot.Query.BucketCredentials == nil {
+			break
+		}
+
+		args, err := ec.field_Query_bucketCredentials_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.BucketCredentials(childComplexity, args["bucket"].(platform.BucketID)), true
 	case "Query.build":
 		if e.ComplexityRoot.Query.Build == nil {
 			break
@@ -2366,6 +2532,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 	inputUnmarshalMap := graphql.BuildUnmarshalerMap(
 		ec.unmarshalInputAddServiceInput,
 		ec.unmarshalInputAutoscalingInput,
+		ec.unmarshalInputCreateBucketInput,
 		ec.unmarshalInputCreateDatabaseInput,
 		ec.unmarshalInputCreateEnvironmentInput,
 		ec.unmarshalInputCreateKeyValueStoreInput,
@@ -2471,7 +2638,7 @@ func newExecutionContext(
 	}
 }
 
-//go:embed "schema/auth.graphqls" "schema/billing.graphqls" "schema/build.graphqls" "schema/database.graphqls" "schema/deployment.graphqls" "schema/environment.graphqls" "schema/github.graphqls" "schema/keyvaluestore.graphqls" "schema/logs.graphqls" "schema/project.graphqls" "schema/registry.graphqls" "schema/release.graphqls" "schema/schema.graphqls" "schema/service.graphqls" "schema/variable.graphqls" "schema/workspace.graphqls"
+//go:embed "schema/auth.graphqls" "schema/billing.graphqls" "schema/build.graphqls" "schema/database.graphqls" "schema/deployment.graphqls" "schema/environment.graphqls" "schema/github.graphqls" "schema/keyvaluestore.graphqls" "schema/logs.graphqls" "schema/objectstorage.graphqls" "schema/project.graphqls" "schema/registry.graphqls" "schema/release.graphqls" "schema/schema.graphqls" "schema/service.graphqls" "schema/variable.graphqls" "schema/workspace.graphqls"
 var sourcesFS embed.FS
 
 func sourceData(filename string) string {
@@ -2492,6 +2659,7 @@ var sources = []*ast.Source{
 	{Name: "schema/github.graphqls", Input: sourceData("schema/github.graphqls"), BuiltIn: false},
 	{Name: "schema/keyvaluestore.graphqls", Input: sourceData("schema/keyvaluestore.graphqls"), BuiltIn: false},
 	{Name: "schema/logs.graphqls", Input: sourceData("schema/logs.graphqls"), BuiltIn: false},
+	{Name: "schema/objectstorage.graphqls", Input: sourceData("schema/objectstorage.graphqls"), BuiltIn: false},
 	{Name: "schema/project.graphqls", Input: sourceData("schema/project.graphqls"), BuiltIn: false},
 	{Name: "schema/registry.graphqls", Input: sourceData("schema/registry.graphqls"), BuiltIn: false},
 	{Name: "schema/release.graphqls", Input: sourceData("schema/release.graphqls"), BuiltIn: false},
@@ -2542,6 +2710,46 @@ func (ec *executionContext) childFields_BillingSubscription(ctx context.Context,
 		return ec.fieldContext_BillingSubscription_hasPaymentMethod(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type BillingSubscription", field.Name)
+}
+
+func (ec *executionContext) childFields_Bucket(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "id":
+		return ec.fieldContext_Bucket_id(ctx, field)
+	case "name":
+		return ec.fieldContext_Bucket_name(ctx, field)
+	case "region":
+		return ec.fieldContext_Bucket_region(ctx, field)
+	case "endpoint":
+		return ec.fieldContext_Bucket_endpoint(ctx, field)
+	case "status":
+		return ec.fieldContext_Bucket_status(ctx, field)
+	case "sizeBytes":
+		return ec.fieldContext_Bucket_sizeBytes(ctx, field)
+	case "objectCount":
+		return ec.fieldContext_Bucket_objectCount(ctx, field)
+	case "public":
+		return ec.fieldContext_Bucket_public(ctx, field)
+	case "createdAt":
+		return ec.fieldContext_Bucket_createdAt(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type Bucket", field.Name)
+}
+
+func (ec *executionContext) childFields_BucketCredentials(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "endpoint":
+		return ec.fieldContext_BucketCredentials_endpoint(ctx, field)
+	case "region":
+		return ec.fieldContext_BucketCredentials_region(ctx, field)
+	case "bucket":
+		return ec.fieldContext_BucketCredentials_bucket(ctx, field)
+	case "accessKeyId":
+		return ec.fieldContext_BucketCredentials_accessKeyId(ctx, field)
+	case "secretAccessKey":
+		return ec.fieldContext_BucketCredentials_secretAccessKey(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type BucketCredentials", field.Name)
 }
 
 func (ec *executionContext) childFields_Build(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
@@ -2774,6 +2982,8 @@ func (ec *executionContext) childFields_Environment(ctx context.Context, field g
 		return ec.fieldContext_Environment_databases(ctx, field)
 	case "keyValueStores":
 		return ec.fieldContext_Environment_keyValueStores(ctx, field)
+	case "buckets":
+		return ec.fieldContext_Environment_buckets(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type Environment", field.Name)
 }
@@ -3382,6 +3592,20 @@ func (ec *executionContext) field_Mutation_completeWorkspaceCheckout_args(ctx co
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_createBucket_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input",
+		func(ctx context.Context, v any) (model.CreateBucketInput, error) {
+			return ec.unmarshalNCreateBucketInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐCreateBucketInput(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_createDatabase_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -3463,6 +3687,20 @@ func (ec *executionContext) field_Mutation_createWorkspaceCheckout_args(ctx cont
 		return nil, err
 	}
 	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_deleteBucket_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "bucket",
+		func(ctx context.Context, v any) (platform.BucketID, error) {
+			return ec.unmarshalNBucketID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐBucketID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["bucket"] = arg0
 	return args, nil
 }
 
@@ -3904,6 +4142,34 @@ func (ec *executionContext) field_Query___type_args(ctx context.Context, rawArgs
 		return nil, err
 	}
 	args["name"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_bucketCredentials_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "bucket",
+		func(ctx context.Context, v any) (platform.BucketID, error) {
+			return ec.unmarshalNBucketID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐBucketID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["bucket"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_bucket_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id",
+		func(ctx context.Context, v any) (platform.BucketID, error) {
+			return ec.unmarshalNBucketID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐBucketID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
 	return args, nil
 }
 
@@ -4519,6 +4785,328 @@ func (ec *executionContext) _BillingSubscription_hasPaymentMethod(ctx context.Co
 }
 func (ec *executionContext) fieldContext_BillingSubscription_hasPaymentMethod(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("BillingSubscription", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
+func (ec *executionContext) _Bucket_id(ctx context.Context, field graphql.CollectedField, obj *model.Bucket) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Bucket_id(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v platform.BucketID) graphql.Marshaler {
+			return ec.marshalNBucketID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐBucketID(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Bucket_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Bucket", field, false, false, errors.New("field of type BucketID does not have child fields"))
+}
+
+func (ec *executionContext) _Bucket_name(ctx context.Context, field graphql.CollectedField, obj *model.Bucket) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Bucket_name(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Bucket_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Bucket", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _Bucket_region(ctx context.Context, field graphql.CollectedField, obj *model.Bucket) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Bucket_region(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Region, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Bucket_region(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Bucket", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _Bucket_endpoint(ctx context.Context, field graphql.CollectedField, obj *model.Bucket) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Bucket_endpoint(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Endpoint, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Bucket_endpoint(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Bucket", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _Bucket_status(ctx context.Context, field graphql.CollectedField, obj *model.Bucket) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Bucket_status(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Status, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v model.BucketStatus) graphql.Marshaler {
+			return ec.marshalNBucketStatus2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐBucketStatus(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Bucket_status(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Bucket", field, false, false, errors.New("field of type BucketStatus does not have child fields"))
+}
+
+func (ec *executionContext) _Bucket_sizeBytes(ctx context.Context, field graphql.CollectedField, obj *model.Bucket) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Bucket_sizeBytes(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.SizeBytes, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Bucket_sizeBytes(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Bucket", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _Bucket_objectCount(ctx context.Context, field graphql.CollectedField, obj *model.Bucket) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Bucket_objectCount(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ObjectCount, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Bucket_objectCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Bucket", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _Bucket_public(ctx context.Context, field graphql.CollectedField, obj *model.Bucket) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Bucket_public(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Public, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Bucket_public(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Bucket", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
+func (ec *executionContext) _Bucket_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.Bucket) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Bucket_createdAt(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CreatedAt, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v time.Time) graphql.Marshaler {
+			return ec.marshalNTime2timeᚐTime(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Bucket_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Bucket", field, false, false, errors.New("field of type Time does not have child fields"))
+}
+
+func (ec *executionContext) _BucketCredentials_endpoint(ctx context.Context, field graphql.CollectedField, obj *model.BucketCredentials) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_BucketCredentials_endpoint(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Endpoint, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_BucketCredentials_endpoint(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("BucketCredentials", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _BucketCredentials_region(ctx context.Context, field graphql.CollectedField, obj *model.BucketCredentials) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_BucketCredentials_region(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Region, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_BucketCredentials_region(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("BucketCredentials", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _BucketCredentials_bucket(ctx context.Context, field graphql.CollectedField, obj *model.BucketCredentials) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_BucketCredentials_bucket(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Bucket, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_BucketCredentials_bucket(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("BucketCredentials", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _BucketCredentials_accessKeyId(ctx context.Context, field graphql.CollectedField, obj *model.BucketCredentials) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_BucketCredentials_accessKeyId(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.AccessKeyID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_BucketCredentials_accessKeyId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("BucketCredentials", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _BucketCredentials_secretAccessKey(ctx context.Context, field graphql.CollectedField, obj *model.BucketCredentials) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_BucketCredentials_secretAccessKey(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.SecretAccessKey, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_BucketCredentials_secretAccessKey(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("BucketCredentials", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
 func (ec *executionContext) _Build_id(ctx context.Context, field graphql.CollectedField, obj *model.Build) (ret graphql.Marshaler) {
@@ -6249,6 +6837,38 @@ func (ec *executionContext) fieldContext_Environment_keyValueStores(_ context.Co
 	return fc, nil
 }
 
+func (ec *executionContext) _Environment_buckets(ctx context.Context, field graphql.CollectedField, obj *model.Environment) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Environment_buckets(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Environment().Buckets(ctx, obj)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []model.Bucket) graphql.Marshaler {
+			return ec.marshalNBucket2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐBucketᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Environment_buckets(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Environment",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Bucket(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _EnvironmentResources_tier(ctx context.Context, field graphql.CollectedField, obj *model.EnvironmentResources) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -7966,6 +8586,130 @@ func (ec *executionContext) fieldContext_Mutation_deleteKeyValueStore(ctx contex
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_deleteKeyValueStore_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_createBucket(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_createBucket(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().CreateBucket(ctx, fc.Args["input"].(model.CreateBucketInput))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
+				if err != nil {
+					var zeroVal *model.Bucket
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal *model.Bucket
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Bucket) graphql.Marshaler {
+			return ec.marshalNBucket2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐBucket(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_createBucket(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Bucket(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_createBucket_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_deleteBucket(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_deleteBucket(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().DeleteBucket(ctx, fc.Args["bucket"].(platform.BucketID))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
+				if err != nil {
+					var zeroVal bool
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal bool
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_deleteBucket(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_deleteBucket_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -10324,6 +11068,130 @@ func (ec *executionContext) fieldContext_Query_keyValueStoreCredentials(ctx cont
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_keyValueStoreCredentials_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_bucket(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Query_bucket(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().Bucket(ctx, fc.Args["id"].(platform.BucketID))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
+				if err != nil {
+					var zeroVal *model.Bucket
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal *model.Bucket
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Bucket) graphql.Marshaler {
+			return ec.marshalNBucket2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐBucket(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Query_bucket(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Bucket(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_bucket_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_bucketCredentials(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Query_bucketCredentials(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().BucketCredentials(ctx, fc.Args["bucket"].(platform.BucketID))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
+				if err != nil {
+					var zeroVal *model.BucketCredentials
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal *model.BucketCredentials
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *model.BucketCredentials) graphql.Marshaler {
+			return ec.marshalNBucketCredentials2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐBucketCredentials(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Query_bucketCredentials(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_BucketCredentials(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_bucketCredentials_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -14039,6 +14907,63 @@ func (ec *executionContext) unmarshalInputAutoscalingInput(ctx context.Context, 
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputCreateBucketInput(ctx context.Context, obj any) (model.CreateBucketInput, error) {
+	var it model.CreateBucketInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"environment", "name"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "environment":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("environment"))
+			data, err := ec.unmarshalNEnvironmentID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐEnvironmentID(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Environment = data
+		case "name":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNString2string(ctx, v) }
+
+			directive1 := func(ctx context.Context) (any, error) {
+				constraint, err := ec.unmarshalNString2string(ctx, "resource_name,min=2,max=16")
+				if err != nil {
+					var zeroVal string
+					return zeroVal, err
+				}
+				if ec.Directives.Constraint == nil {
+					var zeroVal string
+					return zeroVal, errors.New("directive constraint is not implemented")
+				}
+				return ec.Directives.Constraint(ctx, obj, directive0, constraint)
+			}
+
+			tmp, err := directive1(ctx)
+			if err != nil {
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+			if data, ok := tmp.(string); ok {
+				it.Name = data
+			} else {
+				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+		}
+	}
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputCreateDatabaseInput(ctx context.Context, obj any) (model.CreateDatabaseInput, error) {
 	var it model.CreateDatabaseInput
 	if obj == nil {
@@ -15024,6 +15949,144 @@ func (ec *executionContext) _BillingSubscription(ctx context.Context, sel ast.Se
 	return out
 }
 
+var bucketImplementors = []string{"Bucket"}
+
+func (ec *executionContext) _Bucket(ctx context.Context, sel ast.SelectionSet, obj *model.Bucket) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, bucketImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Bucket")
+		case "id":
+			out.Values[i] = ec._Bucket_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "name":
+			out.Values[i] = ec._Bucket_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "region":
+			out.Values[i] = ec._Bucket_region(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "endpoint":
+			out.Values[i] = ec._Bucket_endpoint(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "status":
+			out.Values[i] = ec._Bucket_status(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "sizeBytes":
+			out.Values[i] = ec._Bucket_sizeBytes(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "objectCount":
+			out.Values[i] = ec._Bucket_objectCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "public":
+			out.Values[i] = ec._Bucket_public(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "createdAt":
+			out.Values[i] = ec._Bucket_createdAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferred), math.MaxInt32)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var bucketCredentialsImplementors = []string{"BucketCredentials"}
+
+func (ec *executionContext) _BucketCredentials(ctx context.Context, sel ast.SelectionSet, obj *model.BucketCredentials) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, bucketCredentialsImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("BucketCredentials")
+		case "endpoint":
+			out.Values[i] = ec._BucketCredentials_endpoint(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "region":
+			out.Values[i] = ec._BucketCredentials_region(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "bucket":
+			out.Values[i] = ec._BucketCredentials_bucket(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "accessKeyId":
+			out.Values[i] = ec._BucketCredentials_accessKeyId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "secretAccessKey":
+			out.Values[i] = ec._BucketCredentials_secretAccessKey(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferred), math.MaxInt32)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var buildImplementors = []string{"Build"}
 
 func (ec *executionContext) _Build(ctx context.Context, sel ast.SelectionSet, obj *model.Build) graphql.Marshaler {
@@ -15952,6 +17015,42 @@ func (ec *executionContext) _Environment(ctx context.Context, sel ast.SelectionS
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "buckets":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Environment_buckets(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -16498,6 +17597,20 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "deleteKeyValueStore":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_deleteKeyValueStore(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "createBucket":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_createBucket(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "deleteBucket":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_deleteBucket(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -17093,6 +18206,50 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_keyValueStoreCredentials(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "bucket":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_bucket(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "bucketCredentials":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_bucketCredentials(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -18751,6 +19908,70 @@ func (ec *executionContext) marshalNBoolean2bool(ctx context.Context, sel ast.Se
 	return res
 }
 
+func (ec *executionContext) marshalNBucket2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐBucket(ctx context.Context, sel ast.SelectionSet, v model.Bucket) graphql.Marshaler {
+	return ec._Bucket(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNBucket2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐBucketᚄ(ctx context.Context, sel ast.SelectionSet, v []model.Bucket) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNBucket2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐBucket(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNBucket2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐBucket(ctx context.Context, sel ast.SelectionSet, v *model.Bucket) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._Bucket(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNBucketCredentials2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐBucketCredentials(ctx context.Context, sel ast.SelectionSet, v model.BucketCredentials) graphql.Marshaler {
+	return ec._BucketCredentials(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNBucketCredentials2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐBucketCredentials(ctx context.Context, sel ast.SelectionSet, v *model.BucketCredentials) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._BucketCredentials(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNBucketID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐBucketID(ctx context.Context, v any) (platform.BucketID, error) {
+	var res platform.BucketID
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNBucketID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐBucketID(ctx context.Context, sel ast.SelectionSet, v platform.BucketID) graphql.Marshaler {
+	return v
+}
+
+func (ec *executionContext) unmarshalNBucketStatus2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐBucketStatus(ctx context.Context, v any) (model.BucketStatus, error) {
+	var res model.BucketStatus
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNBucketStatus2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐBucketStatus(ctx context.Context, sel ast.SelectionSet, v model.BucketStatus) graphql.Marshaler {
+	return v
+}
+
 func (ec *executionContext) marshalNBuild2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐBuild(ctx context.Context, sel ast.SelectionSet, v model.Build) graphql.Marshaler {
 	return ec._Build(ctx, sel, &v)
 }
@@ -18823,6 +20044,11 @@ func (ec *executionContext) marshalNCommit2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋ
 		return graphql.Null
 	}
 	return ec._Commit(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNCreateBucketInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐCreateBucketInput(ctx context.Context, v any) (model.CreateBucketInput, error) {
+	res, err := ec.unmarshalInputCreateBucketInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) unmarshalNCreateDatabaseInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐCreateDatabaseInput(ctx context.Context, v any) (model.CreateDatabaseInput, error) {

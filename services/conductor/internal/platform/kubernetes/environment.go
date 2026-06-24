@@ -128,9 +128,9 @@ func toEnvironment(namespace core.Namespace) platform.Environment {
 	}
 
 	switch namespace.Labels[resourceTierLabel] {
-	case resourceTierProd:
+	case string(tierFromLabel(resourceTierProd)):
 		env.ResourceTier = platform.ProductionTier
-	case resourceTierEco:
+	case string(tierFromLabel(resourceTierEco)):
 		env.ResourceTier = platform.EcoTier
 	default:
 		slog.Warn("invalid value for label",

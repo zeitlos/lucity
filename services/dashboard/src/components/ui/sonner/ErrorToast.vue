@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { Clipboard, Check } from 'lucide-vue-next';
+import { Clipboard, Check } from '@lucide/vue';
 
 const props = defineProps<{
   title: string;

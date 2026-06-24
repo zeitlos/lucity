@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { reactive, computed, ref } from 'vue';
 import { useQuery, useMutation } from '@vue/apollo-composable';
-import { X, Copy, Eye, EyeOff, Loader2, DatabaseZap, Trash2, Database, HardDrive } from 'lucide-vue-next';
+import { X, Copy, Eye, EyeOff, Loader2, DatabaseZap, Trash2, Database, HardDrive } from '@lucide/vue';
 import { onKeyStroke } from '@vueuse/core';
 import { graphql } from '@/gql';
 import { Button } from '@/components/ui/button';

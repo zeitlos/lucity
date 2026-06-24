@@ -2,14 +2,15 @@
 import { computed, watch, ref, onMounted, toRef } from 'vue';
 import { VueFlow, useVueFlow, Panel, PanOnScrollMode } from '@vue-flow/core';
 import { Background } from '@vue-flow/background';
-import { Plus, Maximize2 } from 'lucide-vue-next';
+import { Plus, Maximize2 } from '@lucide/vue';
 import { usePanel } from '@/composables/usePanel';
 import { useCanvasBuildStatus } from '@/composables/useCanvasBuildStatus';
 import { useCanvasLayout } from '@/composables/useCanvasLayout';
-import type { Service, Database, KeyValueStore } from '@/composables/useEnvironment';
+import type { Service, Database, KeyValueStore, Bucket } from '@/composables/useEnvironment';
 import ServiceNode from './ServiceNode.vue';
 import DatabaseNode from './DatabaseNode.vue';
 import KeyValueStoreNode from './KeyValueStoreNode.vue';
+import BucketNode from './BucketNode.vue';
 import { Button } from '@/components/ui/button';
 import '@vue-flow/core/dist/style.css';
 import '@vue-flow/core/dist/theme-default.css';
@@ -18,6 +19,7 @@ const props = defineProps<{
   services: Service[];
   databases: Database[];
   keyValueStores: KeyValueStore[];
+  buckets: Bucket[];
   environmentId: string;
 }>();
 
@@ -91,7 +93,22 @@ const nodes = computed(() => {
     };
   });
 
-  return [...serviceNodes, ...databaseNodes, ...keyValueStoreNodes];
+  const bucketNodes = props.buckets.map((bucket, index) => {
+    return {
+      id: bucket.id,
+      type: 'bucket',
+      position: positionFor(bucket.id) ?? { x: 1020, y: index * 220 },
+      data: {
+        name: bucket.name,
+        region: bucket.region,
+        sizeBytes: bucket.sizeBytes,
+        status: bucket.status,
+      },
+      selected: currentPanel.value?.id === bucket.id && currentPanel.value?.type === 'bucket',
+    };
+  });
+
+  return [...serviceNodes, ...databaseNodes, ...keyValueStoreNodes, ...bucketNodes];
 });
 
 const edges = ref([]);
@@ -101,6 +118,8 @@ function handleNodeClick(event: { node: { id: string; type: string; data: { name
     openPanel({ type: 'database', id: event.node.id, label: event.node.data.name });
   } else if (event.node.type === 'keyValueStore') {
     openPanel({ type: 'keyValueStore', id: event.node.id, label: event.node.data.name });
+  } else if (event.node.type === 'bucket') {
+    openPanel({ type: 'bucket', id: event.node.id, label: event.node.data.name });
   } else {
     openPanel({ type: 'service', id: event.node.id, label: event.node.data.name });
   }
@@ -119,7 +138,7 @@ onNodeDragStop(({ nodes: draggedNodes }) => {
 onMounted(() => {
   setTimeout(() => {
     const panel = currentPanel.value;
-    if (panel?.type === 'service' || panel?.type === 'database' || panel?.type === 'keyValueStore') {
+    if (panel?.type === 'service' || panel?.type === 'database' || panel?.type === 'keyValueStore' || panel?.type === 'bucket') {
       const node = findNode(panel.id);
       if (node) {
         const nodeCenterX = node.position.x + (node.dimensions.width / 2);
@@ -133,7 +152,7 @@ onMounted(() => {
   }, 200);
 });
 
-const totalNodes = computed(() => props.services.length + props.databases.length + props.keyValueStores.length);
+const totalNodes = computed(() => props.services.length + props.databases.length + props.keyValueStores.length + props.buckets.length);
 watch(totalNodes, () => {
   setTimeout(() => handleFitView(), 100);
 });
@@ -141,7 +160,7 @@ watch(totalNodes, () => {
 watch(
   () => currentPanel.value,
   (panel, oldPanel) => {
-    if (panel?.type === 'service' || panel?.type === 'database' || panel?.type === 'keyValueStore') {
+    if (panel?.type === 'service' || panel?.type === 'database' || panel?.type === 'keyValueStore' || panel?.type === 'bucket') {
       const node = findNode(panel.id);
       if (node) {
         const nodeCenterX = node.position.x + (node.dimensions.width / 2);
@@ -195,6 +214,14 @@ watch(
           :data="nodeProps.data"
           :selected="nodeProps.selected"
           @select="openPanel({ type: 'keyValueStore', id: nodeProps.id, label: nodeProps.data.name })"
+        />
+      </template>
+
+      <template #node-bucket="nodeProps">
+        <BucketNode
+          :data="nodeProps.data"
+          :selected="nodeProps.selected"
+          @select="openPanel({ type: 'bucket', id: nodeProps.id, label: nodeProps.data.name })"
         />
       </template>
 

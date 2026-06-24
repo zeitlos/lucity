@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onUnmounted } from 'vue';
 import { useQuery, useApolloClient } from '@vue/apollo-composable';
-import { ArrowLeft, Table2, Key, ChevronLeft, ChevronRight, Loader2, DatabaseZap } from 'lucide-vue-next';
+import { ArrowLeft, Table2, Key, ChevronLeft, ChevronRight, Loader2, DatabaseZap } from '@lucide/vue';
 import { graphql } from '@/gql';
 
 const DatabaseTablesDocument = graphql(`

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
-import { Github } from 'lucide-vue-next';
+import GithubIcon from '@/components/GithubIcon.vue';
 import { useAuth } from '@/composables/useAuth';
 import { toast } from '@/components/ui/sonner';
 import { Button } from '@/components/ui/button';
@@ -159,7 +159,7 @@ onUnmounted(() => {
             class="w-full gap-2"
             @click="login"
           >
-            <Github :size="18" />
+            <GithubIcon :size="18" primary />
             Continue with GitHub
           </Button>
 

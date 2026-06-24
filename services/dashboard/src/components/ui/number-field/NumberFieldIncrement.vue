@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { HTMLAttributes } from 'vue';
 import { NumberFieldIncrement, type NumberFieldIncrementProps } from 'reka-ui';
-import { ChevronUp } from 'lucide-vue-next';
+import { ChevronUp } from '@lucide/vue';
 import { cn } from '@/lib/utils';
 
 const props = defineProps<NumberFieldIncrementProps & { class?: HTMLAttributes['class'] }>();
