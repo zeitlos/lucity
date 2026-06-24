@@ -71,7 +71,7 @@ func (r *queryResolver) SharedVariables(ctx context.Context, environment platfor
 	result := make([]model.SharedVariable, len(vars))
 
 	for i, v := range vars {
-		result[i] = model.SharedVariable{Key: v.Key, Value: v.Value}
+		result[i] = convertSharedVariable(v)
 	}
 
 	return result, nil
@@ -88,16 +88,7 @@ func (r *queryResolver) ServiceVariables(ctx context.Context, service platform.S
 	result := make([]model.ServiceVariable, len(vars))
 
 	for i, v := range vars {
-		sv := model.ServiceVariable{Key: v.Key}
-
-		if v.Ref != nil {
-			sv.Ref = v.Ref
-		} else {
-			value := v.Value
-			sv.Value = &value
-		}
-
-		result[i] = sv
+		result[i] = convertServiceVariable(v)
 	}
 
 	return result, nil

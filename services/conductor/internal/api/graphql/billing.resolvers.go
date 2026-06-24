@@ -119,9 +119,5 @@ func (r *queryResolver) UsageSummary(ctx context.Context) (*model.UsageSummary, 
 	if err != nil {
 		return nil, err
 	}
-	return &model.UsageSummary{
-		ResourceCostCents:   res.ResourceCostCents,
-		CreditsCents:        res.CreditsCents,
-		EstimatedTotalCents: res.EstimatedTotalCents,
-	}, nil
+	return new(convertUsageSummary(*res)), nil
 }

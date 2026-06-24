@@ -19,13 +19,7 @@ func (r *queryResolver) SearchImages(ctx context.Context, query string) ([]model
 	}
 	results := make([]model.ImageSearchResult, 0, len(images))
 	for _, img := range images {
-		results = append(results, model.ImageSearchResult{
-			Name:        img.Name,
-			Description: img.Description,
-			StarCount:   img.StarCount,
-			PullCount:   int(img.PullCount),
-			Official:    img.Official,
-		})
+		results = append(results, convertImageSearchResult(img))
 	}
 	return results, nil
 }

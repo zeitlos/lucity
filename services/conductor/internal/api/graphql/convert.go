@@ -737,3 +737,55 @@ func convertQueryResult(r *conductor.QueryResult) *model.QueryResult {
 		AffectedRows: r.AffectedRows,
 	}
 }
+
+func convertVariable(variable conductor.Variable) model.Variable {
+	return model.Variable{
+		ID:  variable.ID,
+		Key: variable.Name,
+	}
+}
+
+func convertSharedVariable(variable conductor.SharedVariable) model.SharedVariable {
+	return model.SharedVariable{
+		Key:   variable.Key,
+		Value: variable.Value,
+	}
+}
+
+func convertServiceVariable(variable conductor.ServiceVariable) model.ServiceVariable {
+	result := model.ServiceVariable{Key: variable.Key}
+
+	if variable.Ref != nil {
+		result.Ref = variable.Ref
+	} else {
+		value := variable.Value
+		result.Value = &value
+	}
+
+	return result
+}
+
+func convertImageSearchResult(image conductor.ImageSearchResult) model.ImageSearchResult {
+	return model.ImageSearchResult{
+		Name:        image.Name,
+		Description: image.Description,
+		StarCount:   image.StarCount,
+		PullCount:   int(image.PullCount),
+		Official:    image.Official,
+	}
+}
+
+func convertUsageSummary(summary conductor.UsageSummaryResult) model.UsageSummary {
+	return model.UsageSummary{
+		ResourceCostCents:   summary.ResourceCostCents,
+		CreditsCents:        summary.CreditsCents,
+		EstimatedTotalCents: summary.EstimatedTotalCents,
+	}
+}
+
+func convertServiceLogEntry(entry platform.LogEntry) *model.ServiceLogEntry {
+	return &model.ServiceLogEntry{
+		Line: entry.Line,
+		Pod:  entry.Pod,
+	}
+}
