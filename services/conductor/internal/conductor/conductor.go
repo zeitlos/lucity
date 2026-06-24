@@ -3,6 +3,7 @@ package conductor
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"sync"
 
@@ -57,6 +58,7 @@ type Client struct {
 
 type Config struct {
 	Version              string
+	ChartFS              fs.FS
 	RegistryPullSecret   authn.Keychain
 	RegistryURL          string
 	RegistryPushURL      string

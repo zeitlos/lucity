@@ -212,6 +212,13 @@ type DNSState struct {
 	RequiredRecords []DNSRecord `json:"requiredRecords"`
 }
 
+type EjectArtifact struct {
+	Filename    string `json:"filename"`
+	ContentType string `json:"contentType"`
+	// Base64-encoded zip archive of the ejected project.
+	Content string `json:"content"`
+}
+
 type Endpoint struct {
 	Host     string       `json:"host"`
 	Port     int          `json:"port"`
