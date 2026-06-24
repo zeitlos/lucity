@@ -88,9 +88,6 @@ func (c *Client) EnvironmentsByWorkspace(ctx context.Context, workspaceID string
 	return result, nil
 }
 
-// sharedVariables returns the contents of the namespace's shared-variables
-// Secret. Returns nil if no such Secret exists (release not yet installed,
-// or no shared vars configured).
 func (c *Client) sharedVariables(ctx context.Context, namespace string) (map[string]string, error) {
 	list, err := c.kubernetes.CoreV1().Secrets(namespace).List(ctx, meta.ListOptions{
 		LabelSelector: sharedVariablesLabel + "=true",
@@ -113,9 +110,6 @@ func (c *Client) sharedVariables(ctx context.Context, namespace string) (map[str
 	return variables, nil
 }
 
-// toEnvironments builds Environment values from namespaces without
-// populating Variables (avoids one Secret fetch per env when only the
-// summary view is needed, e.g. project listings).
 func toEnvironments(namespaces []core.Namespace) []platform.Environment {
 	result := make([]platform.Environment, 0, len(namespaces))
 
