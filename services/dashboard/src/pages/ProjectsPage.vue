@@ -2,7 +2,7 @@
 import { useQuery } from '@vue/apollo-composable';
 import { useRoute, useRouter } from 'vue-router';
 import { computed, ref, watch } from 'vue';
-import { Plus, Box } from '@lucide/vue';
+import { Plus, Box, FolderGit2 } from '@lucide/vue';
 import GithubIcon from '@/components/GithubIcon.vue';
 import { graphql } from '@/gql';
 
@@ -188,7 +188,7 @@ function uniqueRepoCount(services: { sourceUrl: string }[]): number {
                 {{ allServices(project).length }} service{{ allServices(project).length !== 1 ? 's' : '' }}
               </span>
               <span class="flex items-center gap-1">
-                <GithubIcon :size="12" />
+                <FolderGit2 :size="12" />
                 {{ uniqueRepoCount(allServices(project)) }} repo{{ uniqueRepoCount(allServices(project)) !== 1 ? 's' : '' }}
               </span>
             </CardDescription>

@@ -765,8 +765,8 @@ void activeEnvironment;
                 @click="item.action()"
                 @mouseenter="focusedIndex = index"
               >
-                <img v-if="item.iconSrc" :src="item.iconSrc" :width="16" :height="16" class="shrink-0" alt="" />
-                <component v-else-if="item.icon" :is="item.icon" :size="16" class="text-muted-foreground" />
+                <img v-if="item.iconSrc" :src="item.iconSrc" :width="20" :height="20" class="shrink-0" alt="" />
+                <component v-else-if="item.icon" :is="item.icon" :size="20" class="text-muted-foreground" />
                 {{ item.label }}
               </button>
               <p v-if="mainItems.length === 0" class="px-2 py-6 text-center text-sm text-muted-foreground">
