@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { HTMLAttributes } from 'vue';
 import { NumberFieldDecrement, type NumberFieldDecrementProps } from 'reka-ui';
-import { ChevronDown } from 'lucide-vue-next';
+import { ChevronDown } from '@lucide/vue';
 import { cn } from '@/lib/utils';
 
 const props = defineProps<NumberFieldDecrementProps & { class?: HTMLAttributes['class'] }>();

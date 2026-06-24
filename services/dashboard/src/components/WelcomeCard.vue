@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useMutation } from '@vue/apollo-composable';
-import { ArrowRight, FolderPlus } from 'lucide-vue-next';
+import { ArrowRight, FolderPlus } from '@lucide/vue';
 import GithubIcon from '@/components/GithubIcon.vue';
 import { graphql } from '@/gql';
 import { Plan } from '@/gql/graphql';

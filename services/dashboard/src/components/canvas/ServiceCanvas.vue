@@ -2,7 +2,7 @@
 import { computed, watch, ref, onMounted, toRef } from 'vue';
 import { VueFlow, useVueFlow, Panel, PanOnScrollMode } from '@vue-flow/core';
 import { Background } from '@vue-flow/background';
-import { Plus, Maximize2 } from 'lucide-vue-next';
+import { Plus, Maximize2 } from '@lucide/vue';
 import { usePanel } from '@/composables/usePanel';
 import { useCanvasBuildStatus } from '@/composables/useCanvasBuildStatus';
 import { useCanvasLayout } from '@/composables/useCanvasLayout';

@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuery } from '@vue/apollo-composable';
-import { ChevronDown, Plus, Check, User, Users, Loader2, Settings } from 'lucide-vue-next';
+import { ChevronDown, Plus, Check, User, Users, Loader2, Settings } from '@lucide/vue';
 import { useAuth } from '@/composables/useAuth';
 import { useEnvironment } from '@/composables/useEnvironment';
 import { graphql } from '@/gql';

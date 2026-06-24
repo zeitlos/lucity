@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { HTMLAttributes } from 'vue';
 import { ToastClose, type ToastCloseProps } from 'reka-ui';
-import { X } from 'lucide-vue-next';
+import { X } from '@lucide/vue';
 import { cn } from '@/lib/utils';
 
 const props = defineProps<ToastCloseProps & { class?: HTMLAttributes['class'] }>();

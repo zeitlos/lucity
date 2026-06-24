@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useMutation } from '@vue/apollo-composable';
-import { Trash2, MapPin, HardDrive, Files } from 'lucide-vue-next';
+import { Trash2, MapPin, HardDrive, Files } from '@lucide/vue';
 import { graphql } from '@/gql';
 import { Button } from '@/components/ui/button';
 import {

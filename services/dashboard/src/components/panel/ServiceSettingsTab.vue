@@ -5,7 +5,7 @@ import {
   Trash2, Copy, X, Globe, Plus, Minus, RefreshCw,
   ChevronDown, Network, ExternalLink, Scaling, GitBranch, Play, Container, ArrowRight,
   Cpu, MemoryStick, Leaf, ShieldCheck,
-} from 'lucide-vue-next';
+} from '@lucide/vue';
 import GithubIcon from '@/components/GithubIcon.vue';
 import { graphql } from '@/gql';
 import {

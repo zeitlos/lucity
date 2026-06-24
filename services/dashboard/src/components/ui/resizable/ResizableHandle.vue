@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { HTMLAttributes } from 'vue';
 import { SplitterResizeHandle, type SplitterResizeHandleProps } from 'reka-ui';
-import { GripVertical } from 'lucide-vue-next';
+import { GripVertical } from '@lucide/vue';
 import { cn } from '@/lib/utils';
 
 const props = defineProps<SplitterResizeHandleProps & { class?: HTMLAttributes['class']; withHandle?: boolean }>();

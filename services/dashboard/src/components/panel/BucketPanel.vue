@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { X } from 'lucide-vue-next';
+import { X } from '@lucide/vue';
 import BucketIcon from '@/components/BucketIcon.vue';
 import { onKeyStroke } from '@vueuse/core';
 import { Button } from '@/components/ui/button';

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Bug, BookOpen, CircleHelp, Lightbulb } from 'lucide-vue-next';
+import { Bug, BookOpen, CircleHelp, Lightbulb } from '@lucide/vue';
 import GithubIcon from '@/components/GithubIcon.vue';
 import { useReportBug } from '@/composables/useReportBug';
 import {

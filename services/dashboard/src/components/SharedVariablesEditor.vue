@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
 import { useQuery, useMutation } from '@vue/apollo-composable';
-import { Plus, Trash2 } from 'lucide-vue-next';
+import { Plus, Trash2 } from '@lucide/vue';
 import { graphql } from '@/gql';
 
 const SharedVariablesDocument = graphql(`

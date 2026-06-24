@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { HTMLAttributes } from 'vue';
 import { TagsInputItem, type TagsInputItemProps, TagsInputItemDelete, TagsInputItemText } from 'reka-ui';
-import { X } from 'lucide-vue-next';
+import { X } from '@lucide/vue';
 import { cn } from '@/lib/utils';
 
 const props = defineProps<TagsInputItemProps & { class?: HTMLAttributes['class'] }>();

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { X, SquareArrowOutUpRight, Container } from 'lucide-vue-next';
+import { X, SquareArrowOutUpRight, Container } from '@lucide/vue';
 import GithubIcon from '@/components/GithubIcon.vue';
 import { onKeyStroke } from '@vueuse/core';
 import { useServiceLogsPanel } from '@/composables/useServiceLogsPanel';

@@ -2,7 +2,7 @@
 import { ref, computed, watch, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { useQuery, useMutation, useApolloClient } from '@vue/apollo-composable';
-import { FolderPlus, Plus, Lock, Globe, ArrowLeft, Search, X, ChevronDown, Container, Star, Award, Loader2 } from 'lucide-vue-next';
+import { FolderPlus, Plus, Lock, Globe, ArrowLeft, Search, X, ChevronDown, Container, Star, Award, Loader2 } from '@lucide/vue';
 import type { Component } from 'vue';
 import BucketIcon from '@/components/BucketIcon.vue';
 import GithubIcon from '@/components/GithubIcon.vue';
@@ -693,7 +693,7 @@ type PaletteItem = {
 const mainItems = computed(() => {
   const items: PaletteItem[] = props.context === 'projects'
     ? [
-        { id: 'github-repo', label: 'GitHub Repository', icon: Github, action: () => { view.value = 'github-repos'; } },
+        { id: 'github-repo', label: 'GitHub Repository', icon: GithubIcon, action: () => { view.value = 'github-repos'; } },
         { id: 'container-image', label: 'Container Image', iconSrc: 'https://devicons.railway.com/i/docker.svg', action: () => { view.value = 'container-image'; } },
         { id: 'empty-project', label: 'Empty Project', icon: FolderPlus, action: () => {
           pendingRepo.value = null;
@@ -705,7 +705,7 @@ const mainItems = computed(() => {
         } },
       ]
     : [
-        { id: 'github-repo', label: 'GitHub Repository', icon: Github, action: () => { view.value = 'github-repos'; } },
+        { id: 'github-repo', label: 'GitHub Repository', icon: GithubIcon, action: () => { view.value = 'github-repos'; } },
         { id: 'container-image', label: 'Container Image', iconSrc: 'https://devicons.railway.com/i/docker.svg', action: () => { view.value = 'container-image'; } },
         { id: 'database', label: 'PostgreSQL', iconSrc: 'https://devicons.railway.com/i/postgresql.svg', action: () => { view.value = 'database'; } },
         { id: 'keyValueStore', label: 'Redis', iconSrc: 'https://devicons.railway.com/i/redis.svg', action: () => { view.value = 'keyValueStore'; } },

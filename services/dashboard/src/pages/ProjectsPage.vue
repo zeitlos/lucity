@@ -2,7 +2,7 @@
 import { useQuery } from '@vue/apollo-composable';
 import { useRoute, useRouter } from 'vue-router';
 import { computed, ref, watch } from 'vue';
-import { Plus, Box } from 'lucide-vue-next';
+import { Plus, Box } from '@lucide/vue';
 import GithubIcon from '@/components/GithubIcon.vue';
 import { graphql } from '@/gql';
 

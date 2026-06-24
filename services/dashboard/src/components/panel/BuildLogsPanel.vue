@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from 'vue';
-import { X, Loader2, Trash2, Pause, Play, AlertCircle } from 'lucide-vue-next';
+import { X, Loader2, Trash2, Pause, Play, AlertCircle } from '@lucide/vue';
 import { onKeyStroke } from '@vueuse/core';
 import { useBuildLogs } from '@/composables/useBuildLogs';
 import { BuildStatus } from '@/gql/graphql';

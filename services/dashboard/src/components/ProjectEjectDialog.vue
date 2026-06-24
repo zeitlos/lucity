@@ -7,7 +7,7 @@ import {
   Ship,
   GitBranch,
   Shield,
-} from 'lucide-vue-next';
+} from '@lucide/vue';
 import { toast, errorToast } from '@/components/ui/sonner';
 import {
   Dialog,
