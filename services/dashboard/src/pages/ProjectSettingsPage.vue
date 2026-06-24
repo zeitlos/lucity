@@ -102,6 +102,7 @@ watch(
         services: [],
         databases: [],
         keyValueStores: [],
+        buckets: [],
       }));
       setEnvironments(shells);
     }

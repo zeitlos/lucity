@@ -3,9 +3,10 @@ import { ref, computed, watch } from 'vue';
 import { useMutation, useApolloClient } from '@vue/apollo-composable';
 import {
   Trash2, Copy, X, Globe, Plus, Minus, RefreshCw,
-  ChevronDown, Network, ExternalLink, Scaling, GitBranch, Github, Play, Container, ArrowRight,
+  ChevronDown, Network, ExternalLink, Scaling, GitBranch, Play, Container, ArrowRight,
   Cpu, MemoryStick, Leaf, ShieldCheck,
 } from 'lucide-vue-next';
+import GithubIcon from '@/components/GithubIcon.vue';
 import { graphql } from '@/gql';
 import {
   type SetServiceScalingInput,
@@ -598,7 +599,7 @@ async function handleRemoveService() {
         <div class="overflow-hidden rounded-lg border">
           <CollapsibleTrigger class="flex w-full items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/30">
             <div class="rounded-lg bg-muted/60 p-1.5">
-              <Github v-if="isFromRepo" :size="20" />
+              <GithubIcon v-if="isFromRepo" :size="20" />
               <Container v-else :size="20" />
             </div>
             <div class="min-w-0 flex-1 text-left">
@@ -644,7 +645,7 @@ async function handleRemoveService() {
       <Collapsible>
         <div class="overflow-hidden rounded-lg border">
           <CollapsibleTrigger class="flex w-full items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/30">
-            <Github :size="16" class="shrink-0 text-muted-foreground" />
+            <GithubIcon :size="16" class="shrink-0" />
             <div class="min-w-0 flex-1 text-left">
               <p class="text-sm font-medium text-foreground">Repository</p>
               <p class="truncate text-xs text-muted-foreground">
@@ -667,7 +668,7 @@ async function handleRemoveService() {
                   rel="noopener noreferrer"
                   class="flex items-center gap-2 rounded-md border bg-muted/50 px-3 py-2 transition-colors hover:bg-muted/80"
                 >
-                  <Github :size="14" class="shrink-0 text-muted-foreground" />
+                  <GithubIcon :size="14" class="shrink-0" />
                   <span class="min-w-0 flex-1 truncate font-mono text-sm">{{ service.sourceUrl }}</span>
                   <ExternalLink :size="12" class="shrink-0 text-muted-foreground" />
                 </a>

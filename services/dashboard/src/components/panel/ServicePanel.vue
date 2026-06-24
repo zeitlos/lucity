@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { X, SquareArrowOutUpRight, Github, Container } from 'lucide-vue-next';
+import { X, SquareArrowOutUpRight, Container } from 'lucide-vue-next';
+import GithubIcon from '@/components/GithubIcon.vue';
 import { onKeyStroke } from '@vueuse/core';
 import { useServiceLogsPanel } from '@/composables/useServiceLogsPanel';
 import type { Service } from '@/composables/useEnvironment';
@@ -36,7 +37,7 @@ onKeyStroke('Escape', () => {
     <!-- Header -->
     <div class="flex shrink-0 items-center justify-between border-b px-4 py-3">
       <div class="flex items-center gap-3">
-        <Github v-if="service.sourceUrl" :size="24" />
+        <GithubIcon v-if="service.sourceUrl" :size="24" />
         <Container v-else :size="24" />
         <h2 class="text-lg font-semibold text-foreground">{{ service.name }}</h2>
       </div>

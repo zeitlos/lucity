@@ -1,0 +1,44 @@
+type Bucket {
+  id: BucketID!
+  name: String!
+  region: String!
+  endpoint: String!
+  status: BucketStatus!
+  sizeBytes: Int!
+  objectCount: Int!
+  public: Boolean!
+  createdAt: Time!
+}
+
+enum BucketStatus {
+  READY
+  PENDING
+  FAILED
+}
+
+type BucketCredentials {
+  endpoint: String!
+  region: String!
+  bucket: String!
+  accessKeyId: String!
+  secretAccessKey: String!
+}
+
+input CreateBucketInput {
+  environment: EnvironmentID!
+  name: String! @constraint(constraint: "resource_name,min=2,max=16")
+}
+
+extend type Environment {
+  buckets: [Bucket!]! @goField(forceResolver: true)
+}
+
+extend type Query {
+  bucket(id: BucketID!): Bucket! @hasRole(role: WORKSPACE_MEMBER)
+  bucketCredentials(bucket: BucketID!): BucketCredentials! @hasRole(role: WORKSPACE_MEMBER)
+}
+
+extend type Mutation {
+  createBucket(input: CreateBucketInput!): Bucket! @hasRole(role: WORKSPACE_MEMBER)
+  deleteBucket(bucket: BucketID!): Boolean! @hasRole(role: WORKSPACE_MEMBER)
+}

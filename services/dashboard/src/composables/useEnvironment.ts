@@ -1,6 +1,7 @@
 import { ref, computed } from 'vue';
 import type {
   BuildStatus,
+  BucketStatus,
   DatabaseStatus,
   ResourceTier,
   ServiceStatus,
@@ -139,6 +140,17 @@ export interface KeyValueStore {
   createdAt: string;
 }
 
+export interface Bucket {
+  id: string;
+  name: string;
+  region: string;
+  endpoint: string;
+  status: BucketStatus;
+  sizeBytes: number;
+  objectCount: number;
+  createdAt: string;
+}
+
 export interface Environment {
   id: string;
   name: string;
@@ -146,6 +158,7 @@ export interface Environment {
   services: Service[];
   databases: Database[];
   keyValueStores: KeyValueStore[];
+  buckets: Bucket[];
 }
 
 const activeEnvironment = ref<Environment | null>(null);
@@ -189,6 +202,7 @@ export function useEnvironment() {
   const activeEnvServices = computed(() => activeEnvironment.value?.services ?? []);
   const activeEnvDatabases = computed(() => activeEnvironment.value?.databases ?? []);
   const activeEnvKeyValueStores = computed(() => activeEnvironment.value?.keyValueStores ?? []);
+  const activeEnvBuckets = computed(() => activeEnvironment.value?.buckets ?? []);
 
   return {
     activeEnvironment,
@@ -196,6 +210,7 @@ export function useEnvironment() {
     activeEnvServices,
     activeEnvDatabases,
     activeEnvKeyValueStores,
+    activeEnvBuckets,
     setEnvironments,
     setEnvironment,
     setEnvironmentById,

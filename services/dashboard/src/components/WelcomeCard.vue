@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useMutation } from '@vue/apollo-composable';
-import { Github, ArrowRight, FolderPlus } from 'lucide-vue-next';
+import { ArrowRight, FolderPlus } from 'lucide-vue-next';
+import GithubIcon from '@/components/GithubIcon.vue';
 import { graphql } from '@/gql';
 import { Plan } from '@/gql/graphql';
 
@@ -91,7 +92,7 @@ const firstName = ref(
               @click="$emit('import-github')"
             >
               <div class="flex items-center gap-3">
-                <Github :size="18" class="text-muted-foreground" />
+                <GithubIcon :size="18" />
                 <span class="text-sm font-medium">Import from GitHub</span>
               </div>
               <ArrowRight :size="16" class="text-muted-foreground" />

@@ -2,7 +2,8 @@
 import { useQuery } from '@vue/apollo-composable';
 import { useRoute, useRouter } from 'vue-router';
 import { computed, ref, watch } from 'vue';
-import { Plus, Github, Box } from 'lucide-vue-next';
+import { Plus, Box } from 'lucide-vue-next';
+import GithubIcon from '@/components/GithubIcon.vue';
 import { graphql } from '@/gql';
 
 const ProjectsDocument = graphql(`
@@ -149,7 +150,7 @@ function uniqueRepoCount(services: { sourceUrl: string }[]): number {
       >
         <template #action>
           <Button @click="openInstallPopup()">
-            <Github :size="16" class="mr-2" />
+            <GithubIcon :size="16" class="mr-2" primary />
             Connect GitHub
           </Button>
         </template>
@@ -187,7 +188,7 @@ function uniqueRepoCount(services: { sourceUrl: string }[]): number {
                 {{ allServices(project).length }} service{{ allServices(project).length !== 1 ? 's' : '' }}
               </span>
               <span class="flex items-center gap-1">
-                <Github :size="12" />
+                <GithubIcon :size="12" />
                 {{ uniqueRepoCount(allServices(project)) }} repo{{ uniqueRepoCount(allServices(project)) !== 1 ? 's' : '' }}
               </span>
             </CardDescription>

@@ -14,6 +14,8 @@ import (
 	environmentK8s "github.com/zeitlos/lucity/services/conductor/internal/environment/kubernetes"
 	"github.com/zeitlos/lucity/services/conductor/internal/gateway"
 	"github.com/zeitlos/lucity/services/conductor/internal/hostname"
+	"github.com/zeitlos/lucity/services/conductor/internal/objectstorage"
+	objectstorageOVH "github.com/zeitlos/lucity/services/conductor/internal/objectstorage/ovh"
 	"github.com/zeitlos/lucity/services/conductor/internal/planner/railpack"
 	platformK8s "github.com/zeitlos/lucity/services/conductor/internal/platform/kubernetes"
 	"github.com/zeitlos/lucity/services/conductor/internal/resources"
@@ -106,6 +108,14 @@ type Config struct {
 	// Internal JWT (ES256)
 	InternalJWTPrivateKeyPath string `envconfig:"INTERNAL_JWT_PRIVATE_KEY_PATH"`
 	InternalJWTPublicKeyPath  string `envconfig:"INTERNAL_JWT_PUBLIC_KEY_PATH"`
+
+	// OVH
+	OVHEndpoint    string `envconfig:"OVH_ENDPOINT" default:"ovh-eu"`
+	OVHAppKey      string `envconfig:"OVH_APPLICATION_KEY" required:"true"`
+	OVHAppSecret   string `envconfig:"OVH_APPLICATION_SECRET" required:"true"`
+	OVHConsumerKey string `envconfig:"OVH_CONSUMER_KEY" required:"true"`
+	OVHProjectID   string `envconfig:"OVH_PROJECT_ID" required:"true"`
+	OVHRegion      string `envconfig:"OVH_REGION" default:"GRA"`
 }
 
 func main() {
@@ -252,6 +262,22 @@ func main() {
 
 	environmentClient := environmentK8s.New(k8sClient, dynClient, config.SystemNamespace, config.RegistryPullSecret, config.PodCIDR, config.ServiceCIDR)
 
+	ovhBackend, err := objectstorageOVH.New(
+		config.OVHEndpoint,
+		config.OVHAppKey,
+		config.OVHAppSecret,
+		config.OVHConsumerKey,
+		config.OVHProjectID,
+		config.OVHRegion,
+	)
+
+	if err != nil {
+		slog.Error("failed to create object storage backend", "error", err)
+		os.Exit(1)
+	}
+
+	objectStorageClient := objectstorage.NewManager(ovhBackend, k8sClient)
+
 	conductorConfig := conductor.Config{
 		Version:              Version,
 		RegistryURL:          config.RegistryURL,
@@ -265,7 +291,7 @@ func main() {
 		GitHubAppSlug:        config.GitHubAppSlug,
 		DashboardURL:         config.DashboardURL,
 	}
-	conductor := conductor.New(cashierClient, githubApp, logtoClient, tokenRefresher, directoryClient, platformClient, jobsClient, planner, source, hostnameClient, gatewayClient, deployerClient, environmentClient, conductorConfig)
+	conductor := conductor.New(cashierClient, githubApp, logtoClient, tokenRefresher, directoryClient, platformClient, jobsClient, planner, source, hostnameClient, gatewayClient, deployerClient, environmentClient, objectStorageClient, conductorConfig)
 
 	go runDomainReconciler(ctx, conductor)
 	go runServiceReconciler(ctx, conductor)

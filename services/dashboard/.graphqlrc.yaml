@@ -18,6 +18,7 @@ generates:
         DeploymentID: string
         DatabaseID: string
         VolumeID: string
+        BucketID: string
         BuildID: string
     presetConfig:
       fragmentMasking: false

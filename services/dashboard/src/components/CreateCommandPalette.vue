@@ -2,7 +2,10 @@
 import { ref, computed, watch, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { useQuery, useMutation, useApolloClient } from '@vue/apollo-composable';
-import { Github, FolderPlus, Plus, Lock, Globe, ArrowLeft, Search, X, Database, DatabaseZap, ChevronDown, Container, Star, Award, Loader2 } from 'lucide-vue-next';
+import { FolderPlus, Plus, Lock, Globe, ArrowLeft, Search, X, ChevronDown, Container, Star, Award, Loader2 } from 'lucide-vue-next';
+import type { Component } from 'vue';
+import BucketIcon from '@/components/BucketIcon.vue';
+import GithubIcon from '@/components/GithubIcon.vue';
 import { onKeyStroke, refDebounced } from '@vueuse/core';
 import { graphql } from '@/gql';
 import { GitHubAccountType } from '@/gql/graphql';
@@ -104,6 +107,17 @@ const CreateKeyValueStoreDocument = graphql(`
     }
   }
 `);
+
+const CreateBucketDocument = graphql(`
+  mutation CreateBucket($input: CreateBucketInput!) {
+    createBucket(input: $input) {
+      id
+      name
+      region
+      endpoint
+    }
+  }
+`);
 import { useEnvironment } from '@/composables/useEnvironment';
 import { useGitHubInstall } from '@/composables/useGitHubInstall';
 import { toast, errorToast } from '@/components/ui/sonner';
@@ -130,7 +144,7 @@ const { resolveClient } = useApolloClient();
 const { activeEnvironment } = useEnvironment();
 
 // Drill-down state
-type PaletteView = 'main' | 'github-repos' | 'manual-service' | 'database' | 'keyValueStore' | 'container-image' | 'name-project';
+type PaletteView = 'main' | 'github-repos' | 'manual-service' | 'database' | 'keyValueStore' | 'bucket' | 'container-image' | 'name-project';
 const view = ref<PaletteView>('main');
 const search = ref('');
 const inputRef = ref<HTMLInputElement>();
@@ -422,6 +436,36 @@ async function handleCreateKeyValueStore() {
   }
 }
 
+// Create object storage bucket (within environment context)
+const { mutate: createBucketMutate, loading: creatingBucket } = useMutation(CreateBucketDocument);
+const newBucketName = ref('uploads');
+
+async function handleCreateBucket() {
+  if (!props.environmentId) return;
+
+  try {
+    const res = await createBucketMutate({
+      input: {
+        environment: props.environmentId,
+        name: newBucketName.value,
+      },
+    });
+
+    if (res?.errors?.length) {
+      errorToast('Failed to create bucket', {
+        description: res.errors.map(e => e.message).join(', '),
+      });
+      return;
+    }
+
+    toast.success('Bucket created');
+    close();
+    emit('created');
+  } catch (e: unknown) {
+    errorToast('Failed to create bucket', { description: errorMessage(e) });
+  }
+}
+
 async function handleAddManualService() {
   if (!props.environmentId) return;
 
@@ -623,6 +667,12 @@ onKeyStroke('Enter', (e) => {
         handleCreateKeyValueStore();
       }
       break;
+    case 'bucket':
+      if (!creatingBucket.value && newBucketName.value) {
+        e.preventDefault();
+        handleCreateBucket();
+      }
+      break;
     case 'name-project':
       if (isProjectValid.value && !creating.value) {
         e.preventDefault();
@@ -632,11 +682,19 @@ onKeyStroke('Enter', (e) => {
   }
 });
 
+type PaletteItem = {
+  id: string;
+  label: string;
+  icon?: Component;
+  iconSrc?: string;
+  action: () => void;
+};
+
 const mainItems = computed(() => {
-  const items = props.context === 'projects'
+  const items: PaletteItem[] = props.context === 'projects'
     ? [
         { id: 'github-repo', label: 'GitHub Repository', icon: Github, action: () => { view.value = 'github-repos'; } },
-        { id: 'container-image', label: 'Container Image', icon: Container, action: () => { view.value = 'container-image'; } },
+        { id: 'container-image', label: 'Container Image', iconSrc: 'https://devicons.railway.com/i/docker.svg', action: () => { view.value = 'container-image'; } },
         { id: 'empty-project', label: 'Empty Project', icon: FolderPlus, action: () => {
           pendingRepo.value = null;
           pendingImage.value = null;
@@ -648,10 +706,11 @@ const mainItems = computed(() => {
       ]
     : [
         { id: 'github-repo', label: 'GitHub Repository', icon: Github, action: () => { view.value = 'github-repos'; } },
-        { id: 'container-image', label: 'Container Image', icon: Container, action: () => { view.value = 'container-image'; } },
-        { id: 'manual-service', label: 'Manual Service', icon: Plus, action: () => { view.value = 'manual-service'; } },
-        { id: 'database', label: 'PostgreSQL Database', icon: Database, action: () => { view.value = 'database'; } },
-        { id: 'keyValueStore', label: 'Redis', icon: DatabaseZap, action: () => { view.value = 'keyValueStore'; } },
+        { id: 'container-image', label: 'Container Image', iconSrc: 'https://devicons.railway.com/i/docker.svg', action: () => { view.value = 'container-image'; } },
+        { id: 'database', label: 'PostgreSQL', iconSrc: 'https://devicons.railway.com/i/postgresql.svg', action: () => { view.value = 'database'; } },
+        { id: 'keyValueStore', label: 'Redis', iconSrc: 'https://devicons.railway.com/i/redis.svg', action: () => { view.value = 'keyValueStore'; } },
+        { id: 'bucket', label: 'Bucket', icon: BucketIcon, action: () => { view.value = 'bucket'; } },
+        { id: 'manual-service', label: 'Empty Service', icon: Plus, action: () => { view.value = 'manual-service'; } },
       ];
 
   if (!search.value) return items;
@@ -706,7 +765,8 @@ void activeEnvironment;
                 @click="item.action()"
                 @mouseenter="focusedIndex = index"
               >
-                <component :is="item.icon" :size="16" class="text-muted-foreground" />
+                <img v-if="item.iconSrc" :src="item.iconSrc" :width="16" :height="16" class="shrink-0" alt="" />
+                <component v-else-if="item.icon" :is="item.icon" :size="16" class="text-muted-foreground" />
                 {{ item.label }}
               </button>
               <p v-if="mainItems.length === 0" class="px-2 py-6 text-center text-sm text-muted-foreground">
@@ -724,7 +784,6 @@ void activeEnvironment;
               >
                 <ArrowLeft :size="16" />
               </button>
-              <Badge variant="secondary" class="mr-2 shrink-0">GitHub</Badge>
               <Search :size="16" class="shrink-0 text-muted-foreground" />
               <input
                 ref="inputRef"
@@ -745,13 +804,13 @@ void activeEnvironment;
             </template>
             <template v-else-if="!githubConnected">
               <div class="px-4 py-6 text-center">
-                <Github :size="24" class="mx-auto mb-3 text-muted-foreground" />
+                <GithubIcon :size="24" class="mx-auto mb-3" />
                 <p class="text-sm font-medium text-foreground">Connect your GitHub account</p>
                 <p class="mt-1 text-xs text-muted-foreground">
                   Link your GitHub account to browse and import repositories.
                 </p>
                 <Button size="sm" class="mt-3" @click="openInstallPopup()">
-                  <Github :size="14" class="mr-1.5" />
+                  <GithubIcon :size="14" class="mr-1.5" primary />
                   Connect GitHub
                 </Button>
               </div>
@@ -820,7 +879,7 @@ void activeEnvironment;
               </div>
 
               <div v-if="sources.length === 0" class="px-4 py-6 text-center">
-                <Github :size="24" class="mx-auto mb-3 text-muted-foreground" />
+                <GithubIcon :size="24" class="mx-auto mb-3" />
                 <p class="text-sm font-medium text-foreground">No GitHub App installations found</p>
                 <p class="mt-1 text-xs text-muted-foreground">
                   Install the Lucity GitHub App on your account or organization.
@@ -883,7 +942,6 @@ void activeEnvironment;
               >
                 <ArrowLeft :size="16" />
               </button>
-              <Badge variant="secondary" class="mr-2 shrink-0">Image</Badge>
               <Search :size="16" class="shrink-0 text-muted-foreground" />
               <input
                 ref="inputRef"
@@ -974,7 +1032,7 @@ void activeEnvironment;
               >
                 <ArrowLeft :size="16" />
               </button>
-              <Badge variant="secondary">Add Service</Badge>
+              <span class="ml-1 text-sm font-medium text-foreground">Empty Service</span>
               <div class="flex-1" />
               <button
                 class="shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"
@@ -1023,7 +1081,7 @@ void activeEnvironment;
               >
                 <ArrowLeft :size="16" />
               </button>
-              <Badge variant="secondary">PostgreSQL Database</Badge>
+              <span class="ml-1 text-sm font-medium text-foreground">PostgreSQL</span>
               <div class="flex-1" />
               <button
                 class="shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"
@@ -1061,7 +1119,7 @@ void activeEnvironment;
               >
                 <ArrowLeft :size="16" />
               </button>
-              <Badge variant="secondary">Redis</Badge>
+              <span class="ml-1 text-sm font-medium text-foreground">Redis</span>
               <div class="flex-1" />
               <button
                 class="shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"
@@ -1090,6 +1148,44 @@ void activeEnvironment;
             </div>
           </template>
 
+          <!-- Object storage view -->
+          <template v-if="view === 'bucket'">
+            <div class="flex h-12 items-center border-b px-3">
+              <button
+                class="mr-1 shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"
+                @click="view = 'main'"
+              >
+                <ArrowLeft :size="16" />
+              </button>
+              <span class="ml-1 text-sm font-medium text-foreground">Bucket</span>
+              <div class="flex-1" />
+              <button
+                class="shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"
+                @click="close"
+              >
+                <X :size="16" />
+              </button>
+            </div>
+            <div class="space-y-4 p-4">
+              <div class="space-y-2">
+                <label class="text-sm font-medium text-foreground">Bucket Name</label>
+                <input
+                  v-model="newBucketName"
+                  class="flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  placeholder="uploads"
+                />
+                <p class="text-xs text-muted-foreground">S3-compatible &middot; works with any S3 SDK or the AWS CLI</p>
+              </div>
+              <button
+                class="inline-flex h-9 w-full items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+                :disabled="creatingBucket || !newBucketName"
+                @click="handleCreateBucket"
+              >
+                {{ creatingBucket ? 'Creating...' : 'Create Bucket' }}
+              </button>
+            </div>
+          </template>
+
           <!-- Name project view -->
           <template v-if="view === 'name-project'">
             <div class="flex h-12 items-center border-b px-3">
@@ -1099,7 +1195,7 @@ void activeEnvironment;
               >
                 <ArrowLeft :size="16" />
               </button>
-              <Badge variant="secondary">New Project</Badge>
+              <span class="ml-1 text-sm font-medium text-foreground">New Project</span>
               <div class="flex-1" />
               <button
                 class="shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"
@@ -1121,7 +1217,7 @@ void activeEnvironment;
                   :size="14"
                   class="shrink-0 animate-spin"
                 />
-                <Github
+                <GithubIcon
                   v-else-if="pendingRepo"
                   :size="14"
                   class="shrink-0"
