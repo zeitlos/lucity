@@ -42,15 +42,20 @@ const (
 )
 
 type Client struct {
-	kubernetes kubernetes.Interface
-	dynamic    dynamic.Interface
+	kubernetes      kubernetes.Interface
+	dynamic         dynamic.Interface
+	variableSources []variableSource
 }
 
 func New(kubernetes kubernetes.Interface, dynamic dynamic.Interface) *Client {
-	return &Client{
+	client := &Client{
 		kubernetes: kubernetes,
 		dynamic:    dynamic,
 	}
+
+	client.variableSources = defaultVariableSources(kubernetes)
+
+	return client
 }
 
 var _ platform.Interface = (*Client)(nil)
