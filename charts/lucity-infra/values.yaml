@@ -281,7 +281,7 @@ victoria-metrics-alert:
                 annotations:
                   summary: "Node {{ $labels.node }} is not Ready"
               - alert: PodCrashLoopBackOff
-                expr: kube_pod_container_status_waiting_reason{reason="CrashLoopBackOff"} == 1
+                expr: kube_pod_container_status_waiting_reason{reason="CrashLoopBackOff", namespace=~"lucity-system|lucity-builds"} == 1
                 for: 15m
                 labels: { severity: warning }
                 annotations:
