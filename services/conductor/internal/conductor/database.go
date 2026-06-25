@@ -161,8 +161,8 @@ func (c *Client) SetDatabaseStorage(ctx context.Context, database platform.Datab
 		return nil, fmt.Errorf("invalid storage size %q: %w", size, err)
 	}
 
-	if parsedSize.Cmp(resources.DefaultStorageQuota) > 0 {
-		return nil, fmt.Errorf("storage exceeds the maximum of %s", resources.DefaultStorageQuota.String())
+	if parsedSize.Cmp(resources.MaxDatabaseStorage) > 0 {
+		return nil, fmt.Errorf("storage exceeds the maximum of %s", resources.MaxDatabaseStorage.String())
 	}
 
 	current, err := c.platform.Database(ctx, database)

@@ -100,6 +100,10 @@ const storageOptions = [
   { value: '10Gi', gib: 10, label: '10 GB' },
   { value: '20Gi', gib: 20, label: '20 GB' },
   { value: '40Gi', gib: 40, label: '40 GB' },
+  { value: '100Gi', gib: 100, label: '100 GB' },
+  { value: '250Gi', gib: 250, label: '250 GB' },
+  { value: '500Gi', gib: 500, label: '500 GB' },
+  { value: '1Ti', gib: 1024, label: '1 TB' },
 ];
 
 const { result: resourcesResult, refetch: refetchResources } = useQuery(DatabaseResourcesDocument, {
@@ -155,7 +159,10 @@ async function handleSaveResources() {
 }
 
 // Storage can only grow: a PVC cannot be shrunk.
-const parseGib = (size: string) => Number(/^(\d+)Gi$/.exec(size)?.[1] ?? 0);
+const parseGib = (size: string) => {
+  const match = /^(\d+)(Gi|Ti)$/.exec(size);
+  return match ? Number(match[1]) * (match[2] === 'Ti' ? 1024 : 1) : 0;
+};
 const availableStorageOptions = computed(() =>
   storageOptions.filter(option => option.gib >= parseGib(currentSize.value)),
 );
