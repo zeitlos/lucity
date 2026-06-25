@@ -106,34 +106,33 @@ func (s *serviceClient) Variables(ctx context.Context, id platform.ServiceID) (d
 		return deployer.ServiceVariablesSpec{}, fmt.Errorf("service %q not found", id.Name)
 	}
 
-	dbRefs := make(map[string]deployer.DatabaseRef, len(svc.DatabaseRefs))
+	refs := make(map[string]deployer.VariableRef, len(svc.Refs))
 
-	for k, ref := range svc.DatabaseRefs {
-		dbRefs[k] = deployer.DatabaseRef{
-			Database: ref.Database,
-			Key:      ref.Key,
+	for k, ref := range svc.Refs {
+		refs[k] = deployer.VariableRef{
+			Secret: ref.Secret,
+			Key:    ref.Key,
 		}
 	}
 
 	return deployer.ServiceVariablesSpec{
-		Literals:     cloneStringMap(svc.Env),
-		DatabaseRefs: dbRefs,
-		SharedRefs:   append([]string(nil), svc.SharedRefs...),
+		Literals: cloneStringMap(svc.Env),
+		Refs:     refs,
 	}, nil
 }
 
 func (s *serviceClient) SetVariables(ctx context.Context, id platform.ServiceID, spec deployer.ServiceVariablesSpec) (deployer.RevisionID, error) {
-	dbRefs := make(map[string]values.DatabaseRef, len(spec.DatabaseRefs))
+	refs := make(map[string]values.SecretRef, len(spec.Refs))
 
-	for k, ref := range spec.DatabaseRefs {
-		dbRefs[k] = values.DatabaseRef{
-			Database: ref.Database,
-			Key:      ref.Key,
+	for k, ref := range spec.Refs {
+		refs[k] = values.SecretRef{
+			Secret: ref.Secret,
+			Key:    ref.Key,
 		}
 	}
 
 	return s.client.applyEnv(ctx, id.EnvironmentID(), func(e *values.Env) error {
-		return values.SetServiceVariables(e, id.Name, spec.Literals, dbRefs, spec.SharedRefs)
+		return values.SetServiceVariables(e, id.Name, spec.Literals, refs)
 	})
 }
 

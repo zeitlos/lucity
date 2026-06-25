@@ -11,11 +11,10 @@
 #     command: "npm run migrate && node server.js"   # optional; runs via /bin/sh -c
 #     env:                                    # literal environment variables
 #       LOG_LEVEL: info
-#     databaseRefs:                           # env var <- CNPG cluster secret key
+#     refs:                                   # env var <- a referenced secret key
 #       DATABASE_URL:
-#         database: main
+#         secret: lucity-app-pg-main-app
 #         key: uri
-#     sharedRefs: [SENTRY_DSN]                # keys sourced from sharedVariables
 #     domains:
 #       - host: api.example.com
 #         verified: true                      # only verified hosts get an HTTPRoute
@@ -32,11 +31,7 @@
 #     podLabels: {}
 #     podAnnotations: {}
 #
-# config:                                     # plain ConfigMaps
-#   app-config:
-#     APP_ENV: production
-#
-# sharedVariables:                            # env shared across services (a ConfigMap)
+# sharedVariables:                            # env shared across services (a Secret)
 #   SENTRY_DSN: https://...
 #
 # databases:
@@ -73,8 +68,6 @@ commonAnnotations: {}
 imagePullSecrets: []
 
 services: {}
-
-config: {}
 
 sharedVariables: {}
 

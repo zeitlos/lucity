@@ -22,17 +22,9 @@ Create a default fully qualified app name.
 {{- end }}
 
 {{/*
-Create chart name and version as used by the chart label.
-*/}}
-{{- define "lucity-app.chart" -}}
-{{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
-{{- end }}
-
-{{/*
-Common chart identity labels.
+Common identity labels.
 */}}
 {{- define "lucity-app.labels" -}}
-helm.sh/chart: {{ include "lucity-app.chart" . }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 app.kubernetes.io/part-of: {{ include "lucity-app.name" . }}
 {{- end }}

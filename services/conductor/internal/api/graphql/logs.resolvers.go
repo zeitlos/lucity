@@ -24,7 +24,7 @@ func (r *subscriptionResolver) ServiceLogs(ctx context.Context, service platform
 		defer close(out)
 		for entry := range ch {
 			select {
-			case out <- &model.ServiceLogEntry{Line: entry.Line, Pod: entry.Pod}:
+			case out <- convertServiceLogEntry(entry):
 			case <-ctx.Done():
 				return
 			}

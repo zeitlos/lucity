@@ -28,6 +28,8 @@ type Interface interface {
 	KeyValueStore(ctx context.Context, id KeyValueStoreID) (*KeyValueStore, error)
 	KeyValueStoreCredentials(ctx context.Context, id KeyValueStoreID) (*KeyValueStoreCredentials, error)
 
+	AvailableVariables(ctx context.Context, environmentID EnvironmentID) ([]Variable, error)
+
 	Volumes(ctx context.Context, environmentID EnvironmentID) ([]Volume, error)
 	Volume(ctx context.Context, id VolumeID) (*Volume, error)
 

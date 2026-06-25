@@ -8,8 +8,10 @@ const (
 	labelService            = "lucity.dev/service"
 	labelDatabase           = "lucity.dev/database"
 	labelKeyValueStore      = "lucity.dev/keyvaluestore"
+	labelSharedVariables    = "lucity.dev/shared-variables"
 	labelGitHubInstallation = "lucity.dev/github-installation"
 
+	annotationDatabaseHost  = "lucity.dev/db-host"
 	annotationSourceRepo    = "lucity.dev/source-repo"
 	annotationSourceBranch  = "lucity.dev/source-branch"
 	annotationSourceContext = "lucity.dev/source-context"
@@ -28,4 +30,8 @@ func CommonLabels(workspace, project, environment string) map[string]string {
 		labelProject:     project,
 		labelEnvironment: environment,
 	}
+}
+
+func SharedVariableLabels() map[string]string {
+	return map[string]string{labelSharedVariables: "true"}
 }

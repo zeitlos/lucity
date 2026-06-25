@@ -26,6 +26,7 @@ import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast, errorToast } from '@/components/ui/sonner';
 import { errorMessage } from '@/lib/utils';
+import { parseEnvAssignments } from '@/lib/env';
 
 const { activeEnvironment } = useEnvironment();
 const environmentId = computed(() => activeEnvironment.value?.id ?? '');
@@ -61,6 +62,16 @@ watch(
 
 function addRow() {
   rows.value.push({ key: '', value: '', isNew: true });
+  hasChanges.value = true;
+}
+
+function onPaste(event: ClipboardEvent, index: number) {
+  const parsed = parseEnvAssignments(event.clipboardData?.getData('text') ?? '');
+
+  if (parsed.length === 0) return;
+
+  event.preventDefault();
+  rows.value.splice(index, 1, ...parsed.map((p) => ({ key: p.key, value: p.value })));
   hasChanges.value = true;
 }
 
@@ -128,6 +139,7 @@ async function handleSave() {
           placeholder="KEY"
           class="flex-1 font-mono text-sm uppercase"
           @input="markChanged"
+          @paste="onPaste($event, index)"
         />
         <Input
           v-model="row.value"
@@ -169,6 +181,12 @@ async function handleSave() {
           </Button>
         </div>
       </div>
+    </div>
+
+    <Separator />
+
+    <div class="space-y-1 text-sm text-muted-foreground">
+      <p>Paste <code class="rounded bg-muted px-1 py-0.5 font-mono text-xs">KEY=value</code> lines into a key field to add several at once.</p>
     </div>
   </div>
 </template>

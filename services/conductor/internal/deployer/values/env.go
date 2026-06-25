@@ -1,17 +1,20 @@
 package values
 
-import "fmt"
+import (
+	"fmt"
+	"maps"
+)
 
 type Env struct {
-	Suspended         bool                         `yaml:"suspended"`
-	CommonLabels      map[string]string            `yaml:"commonLabels,omitempty"`
-	CommonAnnotations map[string]string            `yaml:"commonAnnotations,omitempty"`
-	ImagePullSecrets  []PullSecret                 `yaml:"imagePullSecrets,omitempty"`
-	Services          map[string]Service           `yaml:"services"`
-	SharedVariables   map[string]string            `yaml:"sharedVariables"`
-	Config            map[string]map[string]string `yaml:"config"`
-	Databases         Databases                    `yaml:"databases"`
-	Gateway           Gateway                      `yaml:"gateway"`
+	Suspended            bool               `yaml:"suspended"`
+	CommonLabels         map[string]string  `yaml:"commonLabels,omitempty"`
+	CommonAnnotations    map[string]string  `yaml:"commonAnnotations,omitempty"`
+	ImagePullSecrets     []PullSecret       `yaml:"imagePullSecrets,omitempty"`
+	Services             map[string]Service `yaml:"services"`
+	SharedVariables      map[string]string  `yaml:"sharedVariables"`
+	SharedVariableLabels map[string]string  `yaml:"sharedVariableLabels,omitempty"`
+	Databases            Databases          `yaml:"databases"`
+	Gateway              Gateway            `yaml:"gateway"`
 }
 
 type Gateway struct {
@@ -35,21 +38,7 @@ func SetEnvironmentVariables(env *Env, vars map[string]string) error {
 		}
 	}
 
-	env.SharedVariables = cloneStringMap(vars)
+	env.SharedVariables = maps.Clone(vars)
 
 	return nil
-}
-
-func cloneStringMap(in map[string]string) map[string]string {
-	if in == nil {
-		return map[string]string{}
-	}
-
-	out := make(map[string]string, len(in))
-
-	for k, v := range in {
-		out[k] = v
-	}
-
-	return out
 }

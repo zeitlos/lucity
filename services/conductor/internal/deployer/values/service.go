@@ -2,6 +2,7 @@ package values
 
 import (
 	"fmt"
+	"maps"
 	"slices"
 	"strconv"
 
@@ -9,20 +10,19 @@ import (
 )
 
 type Service struct {
-	Image          ImageRef               `yaml:"image"`
-	Port           int                    `yaml:"port,omitempty"`
-	Replicas       int                    `yaml:"replicas,omitempty"`
-	Autoscaling    *Autoscaling           `yaml:"autoscaling,omitempty"`
-	Resources      Resources              `yaml:"resources,omitempty"`
-	Domains        []Domain               `yaml:"domains,omitempty"`
-	Command        string                 `yaml:"command,omitempty"`
-	Env            map[string]string      `yaml:"env,omitempty"`
-	SharedRefs     []string               `yaml:"sharedRefs,omitempty"`
-	DatabaseRefs   map[string]DatabaseRef `yaml:"databaseRefs,omitempty"`
-	Labels         map[string]string      `yaml:"labels,omitempty"`
-	Annotations    map[string]string      `yaml:"annotations,omitempty"`
-	PodLabels      map[string]string      `yaml:"podLabels,omitempty"`
-	PodAnnotations map[string]string      `yaml:"podAnnotations,omitempty"`
+	Image          ImageRef             `yaml:"image"`
+	Port           int                  `yaml:"port,omitempty"`
+	Replicas       int                  `yaml:"replicas,omitempty"`
+	Autoscaling    *Autoscaling         `yaml:"autoscaling,omitempty"`
+	Resources      Resources            `yaml:"resources,omitempty"`
+	Domains        []Domain             `yaml:"domains,omitempty"`
+	Command        string               `yaml:"command,omitempty"`
+	Env            map[string]string    `yaml:"env,omitempty"`
+	Refs           map[string]SecretRef `yaml:"refs,omitempty"`
+	Labels         map[string]string    `yaml:"labels,omitempty"`
+	Annotations    map[string]string    `yaml:"annotations,omitempty"`
+	PodLabels      map[string]string    `yaml:"podLabels,omitempty"`
+	PodAnnotations map[string]string    `yaml:"podAnnotations,omitempty"`
 }
 
 type ImageRef struct {
@@ -49,9 +49,9 @@ type ResourceList struct {
 	Memory string `yaml:"memory,omitempty"`
 }
 
-type DatabaseRef struct {
-	Database string `yaml:"database"`
-	Key      string `yaml:"key"`
+type SecretRef struct {
+	Secret string `yaml:"secret"`
+	Key    string `yaml:"key"`
 }
 
 type Domain struct {
@@ -234,45 +234,24 @@ func SetServicePort(env *Env, name string, port int) error {
 }
 
 // SetServiceVariables replaces a service's entire variable surface:
-// literals (Env), database refs, and shared-ref UI metadata.
-func SetServiceVariables(env *Env, name string, literals map[string]string, dbRefs map[string]DatabaseRef, sharedRefs []string) error {
+// literal values and secret-key references.
+func SetServiceVariables(env *Env, name string, literals map[string]string, refs map[string]SecretRef) error {
 	for k := range literals {
 		if !isValidVarName(k) {
 			return fmt.Errorf("invalid variable name %q", k)
 		}
 	}
 
-	for k := range dbRefs {
+	for k := range refs {
 		if !isValidVarName(k) {
-			return fmt.Errorf("invalid databaseRef env key %q", k)
-		}
-	}
-
-	for _, k := range sharedRefs {
-		if !isValidVarName(k) {
-			return fmt.Errorf("invalid sharedRef key %q", k)
+			return fmt.Errorf("invalid ref env key %q", k)
 		}
 	}
 
 	return mutateService(env, name, func(s *Service) {
-		s.Env = cloneStringMap(literals)
-		s.DatabaseRefs = cloneDatabaseRefs(dbRefs)
-		s.SharedRefs = append([]string(nil), sharedRefs...)
+		s.Env = maps.Clone(literals)
+		s.Refs = maps.Clone(refs)
 	})
-}
-
-func cloneDatabaseRefs(in map[string]DatabaseRef) map[string]DatabaseRef {
-	if in == nil {
-		return nil
-	}
-
-	out := make(map[string]DatabaseRef, len(in))
-
-	for k, v := range in {
-		out[k] = v
-	}
-
-	return out
 }
 
 func AddServiceDomain(env *Env, name, host string) error {

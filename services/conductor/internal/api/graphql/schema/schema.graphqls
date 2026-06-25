@@ -19,6 +19,7 @@ scalar VolumeID
 scalar BucketID
 scalar BuildID
 scalar ReleaseID
+scalar VariableID
 
 enum Role {
   ANONYMOUS

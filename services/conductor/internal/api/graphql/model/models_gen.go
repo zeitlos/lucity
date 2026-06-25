@@ -14,6 +14,10 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
+type VariableSource interface {
+	IsVariableSource()
+}
+
 type AddServiceInput struct {
 	Name        *string `json:"name,omitempty"`
 	Repository  *string `json:"repository,omitempty"`
@@ -66,6 +70,13 @@ type BucketCredentials struct {
 	AccessKeyID     string `json:"accessKeyId"`
 	SecretAccessKey string `json:"secretAccessKey"`
 }
+
+type BucketSource struct {
+	ID   platform.BucketID `json:"id"`
+	Name string            `json:"name"`
+}
+
+func (BucketSource) IsVariableSource() {}
 
 type Build struct {
 	ID         buildjob.BuildID `json:"id"`
@@ -152,16 +163,12 @@ type DatabaseCredentials struct {
 	URI      string       `json:"uri"`
 }
 
-// A reference to a CNPG database secret key (resolved at pod startup via secretKeyRef).
-type DatabaseRef struct {
-	Database platform.DatabaseID `json:"database"`
-	Key      string              `json:"key"`
+type DatabaseSource struct {
+	ID   platform.DatabaseID `json:"id"`
+	Name string              `json:"name"`
 }
 
-type DatabaseRefInput struct {
-	Database platform.DatabaseID `json:"database"`
-	Key      string              `json:"key"`
-}
+func (DatabaseSource) IsVariableSource() {}
 
 type DatabaseTable struct {
 	Name          string           `json:"name"`
@@ -298,6 +305,13 @@ type KeyValueStoreCredentials struct {
 	URI      string       `json:"uri"`
 }
 
+type KeyValueStoreSource struct {
+	ID   platform.KeyValueStoreID `json:"id"`
+	Name string                   `json:"name"`
+}
+
+func (KeyValueStoreSource) IsVariableSource() {}
+
 type Mutation struct {
 }
 
@@ -382,20 +396,18 @@ type ServiceLogEntry struct {
 }
 
 type ServiceVariable struct {
-	Key         string       `json:"key"`
-	Value       string       `json:"value"`
-	FromShared  bool         `json:"fromShared"`
-	DatabaseRef *DatabaseRef `json:"databaseRef,omitempty"`
+	Key   string               `json:"key"`
+	Value *string              `json:"value,omitempty"`
+	Ref   *platform.VariableID `json:"ref,omitempty"`
 }
 
 type ServiceVariableInput struct {
+	// Key of the variable. e.g. PORT or HOST
 	Key string `json:"key"`
-	// Direct value. Required when no ref is set.
+	// Literal value. Required when no ref is set. Mutually exclusive with ref.
 	Value *string `json:"value,omitempty"`
-	// If true, value is resolved from the shared variable with the same key.
-	FromShared *bool `json:"fromShared,omitempty"`
-	// Reference to a database secret key.
-	DatabaseRef *DatabaseRefInput `json:"databaseRef,omitempty"`
+	// Reference to an available variable. Required when no value is set. Mutually exclusive with value.
+	Ref *platform.VariableID `json:"ref,omitempty"`
 }
 
 type SetEnvironmentResourcesInput struct {
@@ -410,6 +422,17 @@ type SetServiceScalingInput struct {
 	Service     platform.ServiceID `json:"service"`
 	Replicas    int                `json:"replicas"`
 	Autoscaling *AutoscalingInput  `json:"autoscaling,omitempty"`
+}
+
+type SharedSource struct {
+	Name string `json:"name"`
+}
+
+func (SharedSource) IsVariableSource() {}
+
+type SharedVariable struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
 }
 
 type Subscription struct {
@@ -438,11 +461,13 @@ type User struct {
 }
 
 type Variable struct {
-	Key   string `json:"key"`
-	Value string `json:"value"`
+	ID     platform.VariableID `json:"id"`
+	Key    string              `json:"key"`
+	Source VariableSource      `json:"source"`
 }
 
 type VariableInput struct {
+	// Key of the variable. e.g. PORT or HOST
 	Key   string `json:"key"`
 	Value string `json:"value"`
 }
