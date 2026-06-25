@@ -37,7 +37,7 @@ spec:
     enablePodAntiAffinity: true
     topologyKey: kubernetes.io/hostname
   storage:
-    size: {{ $pg.size | default "20Gi" }}
+    size: {{ $pg.size | default "16Gi" }}
   {{- if $pg.resources }}
   resources:
     {{- toYaml $pg.resources | nindent 4 }}

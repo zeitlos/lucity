@@ -80,7 +80,7 @@ func (c *Client) CreateDatabase(ctx context.Context, environment platform.Enviro
 	}
 
 	if size == "" {
-		size = "20Gi"
+		size = "16Gi"
 	}
 
 	parsedSize, err := resource.ParseQuantity(size)
