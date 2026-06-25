@@ -3,6 +3,8 @@ package helm
 import (
 	"context"
 
+	"k8s.io/apimachinery/pkg/api/resource"
+
 	"github.com/zeitlos/lucity/services/conductor/internal/deployer"
 	"github.com/zeitlos/lucity/services/conductor/internal/deployer/values"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
@@ -25,6 +27,12 @@ func (d *databaseClient) Create(ctx context.Context, env platform.EnvironmentID,
 func (d *databaseClient) SetResources(ctx context.Context, id platform.DatabaseID, tier platform.ResourceTier, res deployer.Resources) (deployer.RevisionID, error) {
 	return d.client.applyEnv(ctx, id.EnvironmentID(), func(e *values.Env) error {
 		return values.SetDatabaseResources(e, id.Name, deriveRequestsAndLimtis(res, tier))
+	})
+}
+
+func (d *databaseClient) SetStorage(ctx context.Context, id platform.DatabaseID, size resource.Quantity) (deployer.RevisionID, error) {
+	return d.client.applyEnv(ctx, id.EnvironmentID(), func(e *values.Env) error {
+		return values.SetDatabaseStorage(e, id.Name, size.String())
 	})
 }
 

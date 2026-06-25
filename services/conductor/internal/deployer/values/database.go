@@ -57,6 +57,12 @@ func SetDatabaseResources(env *Env, name string, resources Resources) error {
 	})
 }
 
+func SetDatabaseStorage(env *Env, name, size string) error {
+	return mutateDatabase(env, name, func(p *Postgres) {
+		p.Size = size
+	})
+}
+
 func DeleteDatabase(env *Env, name string) error {
 	if _, ok := env.Databases.Postgres[name]; !ok {
 		return fmt.Errorf("database %q not found", name)

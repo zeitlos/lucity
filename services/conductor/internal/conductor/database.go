@@ -76,11 +76,11 @@ func (c *Client) Database(ctx context.Context, id DatabaseID) (*Database, error)
 
 func (c *Client) CreateDatabase(ctx context.Context, environment platform.EnvironmentID, name, version string, size string) (*Database, error) {
 	if version == "" {
-		version = "16"
+		version = "17"
 	}
 
 	if size == "" {
-		size = "10Gi"
+		size = "20Gi"
 	}
 
 	parsedSize, err := resource.ParseQuantity(size)
@@ -149,6 +149,34 @@ func (c *Client) SetDatabaseResources(ctx context.Context, database platform.Dat
 
 	if _, err := c.deployer.Databases().SetResources(ctx, database, environment.ResourceTier, spec); err != nil {
 		return nil, fmt.Errorf("set resources: %w", err)
+	}
+
+	return c.Database(ctx, database)
+}
+
+func (c *Client) SetDatabaseStorage(ctx context.Context, database platform.DatabaseID, size string) (*Database, error) {
+	parsedSize, err := resource.ParseQuantity(size)
+
+	if err != nil {
+		return nil, fmt.Errorf("invalid storage size %q: %w", size, err)
+	}
+
+	if parsedSize.Cmp(resources.DefaultStorageQuota) > 0 {
+		return nil, fmt.Errorf("storage exceeds the maximum of %s", resources.DefaultStorageQuota.String())
+	}
+
+	current, err := c.platform.Database(ctx, database)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if parsedSize.Cmp(current.Size) < 0 {
+		return nil, fmt.Errorf("storage can only be increased, not shrunk from %s to %s", current.Size.String(), parsedSize.String())
+	}
+
+	if _, err := c.deployer.Databases().SetStorage(ctx, database, parsedSize); err != nil {
+		return nil, fmt.Errorf("set storage: %w", err)
 	}
 
 	return c.Database(ctx, database)

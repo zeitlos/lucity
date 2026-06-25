@@ -25,6 +25,7 @@ const statusTone = computed(() => {
     case DatabaseStatus.Failed:
       return 'danger' as const;
     case DatabaseStatus.Pending:
+    case DatabaseStatus.Updating:
       return 'warn' as const;
     default:
       return 'neutral' as const;
@@ -37,6 +38,8 @@ const statusLabel = computed(() => {
       return 'Online';
     case DatabaseStatus.Degraded:
       return 'Degraded';
+    case DatabaseStatus.Updating:
+      return 'Updating';
     case DatabaseStatus.Pending:
       return 'Provisioning';
     case DatabaseStatus.Failed:

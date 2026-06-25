@@ -29,6 +29,7 @@ type DatabaseStatus string
 const (
 	DatabaseHealthy  DatabaseStatus = "healthy"
 	DatabaseDegraded DatabaseStatus = "degraded"
+	DatabaseUpdating DatabaseStatus = "updating"
 	DatabaseFailed   DatabaseStatus = "failed"
 	DatabasePending  DatabaseStatus = "pending"
 	DatabaseStopped  DatabaseStatus = "stopped"

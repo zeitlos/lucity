@@ -13,6 +13,7 @@ type Database {
 enum DatabaseStatus {
   HEALTHY
   DEGRADED
+  UPDATING
   FAILED
   PENDING
   STOPPED
@@ -86,6 +87,7 @@ extend type Query {
 extend type Mutation {
   createDatabase(input: CreateDatabaseInput!): Database! @hasRole(role: WORKSPACE_MEMBER)
   setDatabaseResources(database: DatabaseID!, resources: ResourcesInput!): Database! @hasRole(role: WORKSPACE_MEMBER)
+  setDatabaseStorage(database: DatabaseID!, size: String!): Database! @hasRole(role: WORKSPACE_MEMBER)
   deleteDatabase(database: DatabaseID!): Boolean! @hasRole(role: WORKSPACE_MEMBER)
   executeQuery(database: DatabaseID!, query: String!): QueryResult! @hasRole(role: WORKSPACE_MEMBER)
   exposeDatabase(database: DatabaseID!): Database! @hasRole(role: WORKSPACE_MEMBER)

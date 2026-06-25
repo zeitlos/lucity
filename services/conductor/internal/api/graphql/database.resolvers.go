@@ -40,6 +40,16 @@ func (r *mutationResolver) SetDatabaseResources(ctx context.Context, database pl
 	return &db, nil
 }
 
+// SetDatabaseStorage is the resolver for the setDatabaseStorage field.
+func (r *mutationResolver) SetDatabaseStorage(ctx context.Context, database platform.DatabaseID, size string) (*model.Database, error) {
+	result, err := r.Conductor.SetDatabaseStorage(ctx, database, size)
+	if err != nil {
+		return nil, err
+	}
+	db := convertDatabase(*result)
+	return &db, nil
+}
+
 // DeleteDatabase is the resolver for the deleteDatabase field.
 func (r *mutationResolver) DeleteDatabase(ctx context.Context, database platform.DatabaseID) (bool, error) {
 	return r.Conductor.DeleteDatabase(ctx, database)

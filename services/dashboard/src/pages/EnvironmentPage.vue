@@ -197,6 +197,7 @@ const SERVICE_TRANSIENT_STATUSES = new Set<ServiceStatus>([
 ]);
 const DATABASE_TRANSIENT_STATUSES = new Set<DatabaseStatus>([
   DatabaseStatus.Pending,
+  DatabaseStatus.Updating,
   DatabaseStatus.Degraded,
 ]);
 

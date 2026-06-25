@@ -161,27 +161,43 @@ func (c *Client) DatabaseCredentials(ctx context.Context, id platform.DatabaseID
 	}, nil
 }
 
+var databaseFailurePhases = map[string]bool{
+	cnpgv1.PhaseUnrecoverable:             true,
+	cnpgv1.PhaseCannotCreateClusterObjects: true,
+	cnpgv1.PhaseFailurePlugin:             true,
+	cnpgv1.PhaseUnknownPlugin:             true,
+	cnpgv1.PhaseImageCatalogError:         true,
+	cnpgv1.PhaseArchitectureBinaryMissing: true,
+}
+
 func databaseStatus(cluster cnpgv1.Cluster) platform.DatabaseStatus {
 	desired := cluster.Spec.Instances
-	ready := cluster.Status.ReadyInstances
 
 	if desired == 0 {
 		return platform.DatabaseStopped
 	}
 
-	if ready == 0 {
-		isInitialBootstrap := cluster.Status.CurrentPrimary == ""
-
-		if isInitialBootstrap {
-			return platform.DatabasePending
-		}
-
+	if databaseFailurePhases[cluster.Status.Phase] {
 		return platform.DatabaseFailed
 	}
 
-	if ready < desired {
+	ready := cluster.Status.ReadyInstances
+
+	if ready == 0 {
+		if cluster.Status.CurrentPrimary == "" {
+			return platform.DatabasePending
+		}
+
+		return platform.DatabaseUpdating
+	}
+
+	if ready >= desired && cluster.Status.Phase == cnpgv1.PhaseHealthy {
+		return platform.DatabaseHealthy
+	}
+
+	if ready < desired && cluster.Status.Phase == cnpgv1.PhaseHealthy {
 		return platform.DatabaseDegraded
 	}
 
-	return platform.DatabaseHealthy
+	return platform.DatabaseUpdating
 }

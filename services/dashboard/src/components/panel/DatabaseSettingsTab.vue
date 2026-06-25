@@ -9,6 +9,7 @@ const DatabaseResourcesDocument = graphql(`
   query DatabaseResources($database: DatabaseID!) {
     database(id: $database) {
       id
+      size
       resources {
         cpu
         memory
@@ -25,6 +26,15 @@ const SetDatabaseResourcesDocument = graphql(`
         cpu
         memory
       }
+    }
+  }
+`);
+
+const SetDatabaseStorageDocument = graphql(`
+  mutation SetDatabaseStorage($database: DatabaseID!, $size: String!) {
+    setDatabaseStorage(database: $database, size: $size) {
+      id
+      size
     }
   }
 `);
@@ -86,11 +96,18 @@ const memoryOptions = [
   { value: '8Gi', label: '8 GB' },
 ];
 
+const storageOptions = [
+  { value: '10Gi', gib: 10, label: '10 GB' },
+  { value: '20Gi', gib: 20, label: '20 GB' },
+  { value: '40Gi', gib: 40, label: '40 GB' },
+];
+
 const { result: resourcesResult, refetch: refetchResources } = useQuery(DatabaseResourcesDocument, {
   database: props.databaseId,
 });
 
 const resources = computed(() => resourcesResult.value?.database.resources ?? null);
+const currentSize = computed(() => resourcesResult.value?.database.size ?? props.database.size);
 
 const selectedCpu = ref('');
 const selectedMemory = ref('');
@@ -137,6 +154,48 @@ async function handleSaveResources() {
   }
 }
 
+// Storage can only grow: a PVC cannot be shrunk.
+const parseGib = (size: string) => Number(/^(\d+)Gi$/.exec(size)?.[1] ?? 0);
+const availableStorageOptions = computed(() =>
+  storageOptions.filter(option => option.gib >= parseGib(currentSize.value)),
+);
+
+const selectedStorage = ref('');
+const storageSaving = ref(false);
+
+const { mutate: setStorageMutate } = useMutation(SetDatabaseStorageDocument);
+
+watch(
+  currentSize,
+  value => {
+    selectedStorage.value = value;
+  },
+  { immediate: true },
+);
+
+const storageChanged = computed(() =>
+  !!selectedStorage.value && selectedStorage.value !== currentSize.value,
+);
+
+async function handleSaveStorage() {
+  storageSaving.value = true;
+  try {
+    const res = await setStorageMutate({ database: props.databaseId, size: selectedStorage.value });
+
+    if (res?.errors?.length) {
+      errorToast('Failed to update storage', { description: res.errors.map(e => e.message).join(', ') });
+      return;
+    }
+
+    toast.success('Storage updated');
+    await refetchResources();
+  } catch (e: unknown) {
+    errorToast('Failed to update storage', { description: errorMessage(e) });
+  } finally {
+    storageSaving.value = false;
+  }
+}
+
 const { mutate: deleteDatabase, loading: deleting } = useMutation(DeleteDatabaseDocument);
 const deleteDialogOpen = ref(false);
 
@@ -171,11 +230,6 @@ async function handleDelete() {
             <Server :size="16" class="shrink-0 text-muted-foreground" />
             <span class="flex-1 text-sm text-muted-foreground">Instances</span>
             <span class="text-sm font-medium text-foreground">{{ database.instances }}</span>
-          </div>
-          <div class="flex items-center gap-3 px-4 py-3">
-            <HardDrive :size="16" class="shrink-0 text-muted-foreground" />
-            <span class="flex-1 text-sm text-muted-foreground">Storage</span>
-            <span class="font-mono text-sm font-medium text-foreground">{{ database.size }}</span>
           </div>
         </div>
       </div>
@@ -241,6 +295,51 @@ async function handleDelete() {
               @click="handleSaveResources"
             >
               {{ resourcesSaving ? 'Saving...' : 'Save' }}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Storage -->
+    <section class="space-y-2">
+      <h3 class="px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        Storage
+      </h3>
+
+      <div class="overflow-hidden rounded-lg border">
+        <div class="divide-y">
+          <div class="flex items-center gap-3 px-4 py-3">
+            <HardDrive :size="16" class="shrink-0 text-muted-foreground" />
+            <div class="min-w-0 flex-1">
+              <p class="text-sm font-medium text-foreground">Disk</p>
+              <p class="text-xs text-muted-foreground">Volume per instance</p>
+            </div>
+            <Select v-model="selectedStorage">
+              <SelectTrigger class="h-8 w-36">
+                <SelectValue placeholder="Select" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem
+                  v-for="option in availableStorageOptions"
+                  :key="option.value"
+                  :value="option.value"
+                >
+                  {{ option.label }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div class="flex items-center justify-between gap-3 px-4 py-3">
+            <p class="text-xs text-muted-foreground">
+              You can add more space anytime, but storage can't be made smaller later.
+            </p>
+            <Button
+              size="sm"
+              :disabled="!storageChanged || storageSaving"
+              @click="handleSaveStorage"
+            >
+              {{ storageSaving ? 'Saving...' : 'Save' }}
             </Button>
           </div>
         </div>

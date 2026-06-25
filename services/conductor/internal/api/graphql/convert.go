@@ -503,6 +503,8 @@ func convertDatabaseStatus(status platform.DatabaseStatus) model.DatabaseStatus 
 		return model.DatabaseStatusHealthy
 	case platform.DatabaseDegraded:
 		return model.DatabaseStatusDegraded
+	case platform.DatabaseUpdating:
+		return model.DatabaseStatusUpdating
 	case platform.DatabaseFailed:
 		return model.DatabaseStatusFailed
 	case platform.DatabasePending:
