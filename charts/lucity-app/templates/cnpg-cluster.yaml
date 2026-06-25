@@ -30,6 +30,10 @@ spec:
       wal_compression: "on"
       max_wal_size: "2GB"
       checkpoint_completion_target: "0.9"
+      random_page_cost: "1.1"
+      {{- range $key, $value := $pg.parameters }}
+      {{ $key }}: {{ $value | quote }}
+      {{- end }}
   replicationSlots:
     highAvailability:
       enabled: true

@@ -17,14 +17,16 @@ type Postgres struct {
 	Version     string            `yaml:"version,omitempty"`
 	PublicHost  string            `yaml:"publicHost,omitempty"`
 	Resources   Resources         `yaml:"resources,omitempty"`
+	Parameters  map[string]string `yaml:"parameters,omitempty"`
 	Labels      map[string]string `yaml:"labels,omitempty"`
 	Annotations map[string]string `yaml:"annotations,omitempty"`
 }
 
 type DatabaseSpec struct {
-	Version   string
-	Size      resource.Quantity
-	Resources Resources
+	Version    string
+	Size       resource.Quantity
+	Resources  Resources
+	Parameters map[string]string
 }
 
 func CreateDatabase(env *Env, name string, spec DatabaseSpec) error {
@@ -42,10 +44,11 @@ func CreateDatabase(env *Env, name string, spec DatabaseSpec) error {
 	}
 
 	env.Databases.Postgres[name] = Postgres{
-		Version:   spec.Version,
-		Size:      spec.Size.String(),
-		Resources: spec.Resources,
-		Labels:    map[string]string{labelDatabase: name},
+		Version:    spec.Version,
+		Size:       spec.Size.String(),
+		Resources:  spec.Resources,
+		Parameters: spec.Parameters,
+		Labels:     map[string]string{labelDatabase: name},
 	}
 
 	return nil
@@ -54,6 +57,12 @@ func CreateDatabase(env *Env, name string, spec DatabaseSpec) error {
 func SetDatabaseResources(env *Env, name string, resources Resources) error {
 	return mutateDatabase(env, name, func(p *Postgres) {
 		p.Resources = resources
+	})
+}
+
+func SetDatabaseParameters(env *Env, name string, parameters map[string]string) error {
+	return mutateDatabase(env, name, func(p *Postgres) {
+		p.Parameters = parameters
 	})
 }
 

@@ -17,16 +17,21 @@ type databaseClient struct {
 func (d *databaseClient) Create(ctx context.Context, env platform.EnvironmentID, name string, spec deployer.DatabaseSpec) (deployer.RevisionID, error) {
 	return d.client.applyEnv(ctx, env, func(e *values.Env) error {
 		return values.CreateDatabase(e, name, values.DatabaseSpec{
-			Version:   spec.Version,
-			Size:      spec.Size,
-			Resources: deriveRequestsAndLimtis(spec.Resources, spec.ResourceTier),
+			Version:    spec.Version,
+			Size:       spec.Size,
+			Resources:  deriveRequestsAndLimtis(spec.Resources, spec.ResourceTier),
+			Parameters: postgresParameters(spec.Resources.CPU, spec.Resources.Memory),
 		})
 	})
 }
 
 func (d *databaseClient) SetResources(ctx context.Context, id platform.DatabaseID, tier platform.ResourceTier, res deployer.Resources) (deployer.RevisionID, error) {
 	return d.client.applyEnv(ctx, id.EnvironmentID(), func(e *values.Env) error {
-		return values.SetDatabaseResources(e, id.Name, deriveRequestsAndLimtis(res, tier))
+		if err := values.SetDatabaseResources(e, id.Name, deriveRequestsAndLimtis(res, tier)); err != nil {
+			return err
+		}
+
+		return values.SetDatabaseParameters(e, id.Name, postgresParameters(res.CPU, res.Memory))
 	})
 }
 
