@@ -19,6 +19,7 @@ type Database struct {
 	Instances  int
 	Status     DatabaseStatus
 	Size       resource.Quantity
+	Resources  Resources
 	CreatedAt  time.Time
 	PublicHost string
 }

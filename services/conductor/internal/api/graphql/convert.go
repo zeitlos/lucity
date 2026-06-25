@@ -368,6 +368,7 @@ func convertDatabase(d conductor.Database) model.Database {
 		Instances: d.Instances,
 		Status:    convertDatabaseStatus(d.Status),
 		Size:      d.Size.String(),
+		Resources: convertResources(d.Resources),
 		CreatedAt: d.CreatedAt,
 		Public:    d.PublicHost != "",
 	}

@@ -104,7 +104,6 @@ type CreateDatabaseInput struct {
 	Environment platform.EnvironmentID `json:"environment"`
 	Name        string                 `json:"name"`
 	Version     *string                `json:"version,omitempty"`
-	Instances   *int                   `json:"instances,omitempty"`
 	Size        *string                `json:"size,omitempty"`
 }
 
@@ -142,6 +141,7 @@ type Database struct {
 	Instances int                 `json:"instances"`
 	Status    DatabaseStatus      `json:"status"`
 	Size      string              `json:"size"`
+	Resources *Resources          `json:"resources"`
 	CreatedAt time.Time           `json:"createdAt"`
 	Public    bool                `json:"public"`
 }

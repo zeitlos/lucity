@@ -9,6 +9,7 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 
 	cnpgv1 "github.com/cloudnative-pg/cloudnative-pg/api/v1"
+	core "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -85,11 +86,17 @@ func toCluster(item unstructured.Unstructured) (*cnpgv1.Cluster, error) {
 }
 
 func toDatabase(cluster cnpgv1.Cluster, environmentID platform.EnvironmentID) platform.Database {
+	limits := cluster.Spec.Resources.Limits
+
 	database := platform.Database{
-		ID:         databaseID(cluster, environmentID),
-		Name:       cluster.Labels[databaseLabel],
-		Instances:  cluster.Spec.Instances,
-		Status:     databaseStatus(cluster),
+		ID:        databaseID(cluster, environmentID),
+		Name:      cluster.Labels[databaseLabel],
+		Instances: cluster.Spec.Instances,
+		Status:    databaseStatus(cluster),
+		Resources: platform.Resources{
+			CPU:    limits[core.ResourceCPU],
+			Memory: limits[core.ResourceMemory],
+		},
 		CreatedAt:  cluster.GetCreationTimestamp().Time,
 		PublicHost: cluster.Annotations[annotationDatabaseHost],
 	}

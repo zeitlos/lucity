@@ -23,8 +23,8 @@ type Postgres struct {
 
 type DatabaseSpec struct {
 	Version   string
-	Instances int
 	Size      resource.Quantity
+	Resources Resources
 }
 
 func CreateDatabase(env *Env, name string, spec DatabaseSpec) error {
@@ -41,20 +41,20 @@ func CreateDatabase(env *Env, name string, spec DatabaseSpec) error {
 		env.Databases.Postgres = map[string]Postgres{}
 	}
 
-	instances := spec.Instances
-
-	if instances == 0 {
-		instances = 1
-	}
-
 	env.Databases.Postgres[name] = Postgres{
 		Version:   spec.Version,
-		Instances: instances,
 		Size:      spec.Size.String(),
+		Resources: spec.Resources,
 		Labels:    map[string]string{labelDatabase: name},
 	}
 
 	return nil
+}
+
+func SetDatabaseResources(env *Env, name string, resources Resources) error {
+	return mutateDatabase(env, name, func(p *Postgres) {
+		p.Resources = resources
+	})
 }
 
 func DeleteDatabase(env *Env, name string) error {

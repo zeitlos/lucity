@@ -23,7 +23,7 @@ type Documents = {
     "\n  mutation AddService($environmentId: EnvironmentID!, $input: AddServiceInput!) {\n    addService(environment: $environmentId, input: $input) {\n      id\n      name\n    }\n  }\n": typeof types.AddServiceDocument,
     "\n  query DetectServices($repositoryUrl: String!) {\n    detectServices(repositoryUrl: $repositoryUrl) {\n      name\n      language\n      framework\n      startCommand\n      suggestedPort\n    }\n  }\n": typeof types.DetectServicesDocument,
     "\n  query SearchImages($query: String!) {\n    searchImages(query: $query) {\n      name\n      description\n      starCount\n      pullCount\n      official\n    }\n  }\n": typeof types.SearchImagesDocument,
-    "\n  mutation CreateDatabase($input: CreateDatabaseInput!) {\n    createDatabase(input: $input) {\n      id\n      name\n      version\n      instances\n      size\n    }\n  }\n": typeof types.CreateDatabaseDocument,
+    "\n  mutation CreateDatabase($input: CreateDatabaseInput!) {\n    createDatabase(input: $input) {\n      id\n      name\n      version\n      size\n    }\n  }\n": typeof types.CreateDatabaseDocument,
     "\n  mutation CreateKeyValueStore($input: CreateKeyValueStoreInput!) {\n    createKeyValueStore(input: $input) {\n      id\n      name\n      version\n      size\n    }\n  }\n": typeof types.CreateKeyValueStoreDocument,
     "\n  mutation CreateBucket($input: CreateBucketInput!) {\n    createBucket(input: $input) {\n      id\n      name\n      region\n      endpoint\n    }\n  }\n": typeof types.CreateBucketDocument,
     "\n  mutation CreateEnvironment($input: CreateEnvironmentInput!) {\n    createEnvironment(input: $input) {\n      id\n      name\n      resourceTier\n    }\n  }\n": typeof types.CreateEnvironmentDocument,
@@ -41,6 +41,8 @@ type Documents = {
     "\n  mutation ExposeDatabase($database: DatabaseID!) {\n    exposeDatabase(database: $database) {\n      id\n      public\n    }\n  }\n": typeof types.ExposeDatabaseDocument,
     "\n  mutation UnexposeDatabase($database: DatabaseID!) {\n    unexposeDatabase(database: $database) {\n      id\n      public\n    }\n  }\n": typeof types.UnexposeDatabaseDocument,
     "\n  mutation ExecuteQuery($database: DatabaseID!, $query: String!) {\n    executeQuery(database: $database, query: $query) {\n      columns\n      rows\n      affectedRows\n    }\n  }\n": typeof types.ExecuteQueryDocument,
+    "\n  query DatabaseResources($database: DatabaseID!) {\n    database(id: $database) {\n      id\n      resources {\n        cpu\n        memory\n      }\n    }\n  }\n": typeof types.DatabaseResourcesDocument,
+    "\n  mutation SetDatabaseResources($database: DatabaseID!, $resources: ResourcesInput!) {\n    setDatabaseResources(database: $database, resources: $resources) {\n      id\n      resources {\n        cpu\n        memory\n      }\n    }\n  }\n": typeof types.SetDatabaseResourcesDocument,
     "\n  mutation DeleteDatabase($database: DatabaseID!) {\n    deleteDatabase(database: $database)\n  }\n": typeof types.DeleteDatabaseDocument,
     "\n  query DatabaseTables($database: DatabaseID!) {\n    databaseTables(database: $database) {\n      name\n      schema\n      estimatedRows\n      columns {\n        name\n        type\n        nullable\n        primaryKey\n      }\n    }\n  }\n": typeof types.DatabaseTablesDocument,
     "\n  query DatabaseTableData(\n    $database: DatabaseID!\n    $table: String!\n    $schema: String\n    $limit: Int\n    $offset: Int\n  ) {\n    databaseTableData(\n      database: $database\n      table: $table\n      schema: $schema\n      limit: $limit\n      offset: $offset\n    ) {\n      columns\n      rows\n      totalEstimatedRows\n    }\n  }\n": typeof types.DatabaseTableDataDocument,
@@ -92,7 +94,7 @@ const documents: Documents = {
     "\n  mutation AddService($environmentId: EnvironmentID!, $input: AddServiceInput!) {\n    addService(environment: $environmentId, input: $input) {\n      id\n      name\n    }\n  }\n": types.AddServiceDocument,
     "\n  query DetectServices($repositoryUrl: String!) {\n    detectServices(repositoryUrl: $repositoryUrl) {\n      name\n      language\n      framework\n      startCommand\n      suggestedPort\n    }\n  }\n": types.DetectServicesDocument,
     "\n  query SearchImages($query: String!) {\n    searchImages(query: $query) {\n      name\n      description\n      starCount\n      pullCount\n      official\n    }\n  }\n": types.SearchImagesDocument,
-    "\n  mutation CreateDatabase($input: CreateDatabaseInput!) {\n    createDatabase(input: $input) {\n      id\n      name\n      version\n      instances\n      size\n    }\n  }\n": types.CreateDatabaseDocument,
+    "\n  mutation CreateDatabase($input: CreateDatabaseInput!) {\n    createDatabase(input: $input) {\n      id\n      name\n      version\n      size\n    }\n  }\n": types.CreateDatabaseDocument,
     "\n  mutation CreateKeyValueStore($input: CreateKeyValueStoreInput!) {\n    createKeyValueStore(input: $input) {\n      id\n      name\n      version\n      size\n    }\n  }\n": types.CreateKeyValueStoreDocument,
     "\n  mutation CreateBucket($input: CreateBucketInput!) {\n    createBucket(input: $input) {\n      id\n      name\n      region\n      endpoint\n    }\n  }\n": types.CreateBucketDocument,
     "\n  mutation CreateEnvironment($input: CreateEnvironmentInput!) {\n    createEnvironment(input: $input) {\n      id\n      name\n      resourceTier\n    }\n  }\n": types.CreateEnvironmentDocument,
@@ -110,6 +112,8 @@ const documents: Documents = {
     "\n  mutation ExposeDatabase($database: DatabaseID!) {\n    exposeDatabase(database: $database) {\n      id\n      public\n    }\n  }\n": types.ExposeDatabaseDocument,
     "\n  mutation UnexposeDatabase($database: DatabaseID!) {\n    unexposeDatabase(database: $database) {\n      id\n      public\n    }\n  }\n": types.UnexposeDatabaseDocument,
     "\n  mutation ExecuteQuery($database: DatabaseID!, $query: String!) {\n    executeQuery(database: $database, query: $query) {\n      columns\n      rows\n      affectedRows\n    }\n  }\n": types.ExecuteQueryDocument,
+    "\n  query DatabaseResources($database: DatabaseID!) {\n    database(id: $database) {\n      id\n      resources {\n        cpu\n        memory\n      }\n    }\n  }\n": types.DatabaseResourcesDocument,
+    "\n  mutation SetDatabaseResources($database: DatabaseID!, $resources: ResourcesInput!) {\n    setDatabaseResources(database: $database, resources: $resources) {\n      id\n      resources {\n        cpu\n        memory\n      }\n    }\n  }\n": types.SetDatabaseResourcesDocument,
     "\n  mutation DeleteDatabase($database: DatabaseID!) {\n    deleteDatabase(database: $database)\n  }\n": types.DeleteDatabaseDocument,
     "\n  query DatabaseTables($database: DatabaseID!) {\n    databaseTables(database: $database) {\n      name\n      schema\n      estimatedRows\n      columns {\n        name\n        type\n        nullable\n        primaryKey\n      }\n    }\n  }\n": types.DatabaseTablesDocument,
     "\n  query DatabaseTableData(\n    $database: DatabaseID!\n    $table: String!\n    $schema: String\n    $limit: Int\n    $offset: Int\n  ) {\n    databaseTableData(\n      database: $database\n      table: $table\n      schema: $schema\n      limit: $limit\n      offset: $offset\n    ) {\n      columns\n      rows\n      totalEstimatedRows\n    }\n  }\n": types.DatabaseTableDataDocument,
@@ -205,7 +209,7 @@ export function graphql(source: "\n  query SearchImages($query: String!) {\n    
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation CreateDatabase($input: CreateDatabaseInput!) {\n    createDatabase(input: $input) {\n      id\n      name\n      version\n      instances\n      size\n    }\n  }\n"): (typeof documents)["\n  mutation CreateDatabase($input: CreateDatabaseInput!) {\n    createDatabase(input: $input) {\n      id\n      name\n      version\n      instances\n      size\n    }\n  }\n"];
+export function graphql(source: "\n  mutation CreateDatabase($input: CreateDatabaseInput!) {\n    createDatabase(input: $input) {\n      id\n      name\n      version\n      size\n    }\n  }\n"): (typeof documents)["\n  mutation CreateDatabase($input: CreateDatabaseInput!) {\n    createDatabase(input: $input) {\n      id\n      name\n      version\n      size\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -274,6 +278,14 @@ export function graphql(source: "\n  mutation UnexposeDatabase($database: Databa
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation ExecuteQuery($database: DatabaseID!, $query: String!) {\n    executeQuery(database: $database, query: $query) {\n      columns\n      rows\n      affectedRows\n    }\n  }\n"): (typeof documents)["\n  mutation ExecuteQuery($database: DatabaseID!, $query: String!) {\n    executeQuery(database: $database, query: $query) {\n      columns\n      rows\n      affectedRows\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query DatabaseResources($database: DatabaseID!) {\n    database(id: $database) {\n      id\n      resources {\n        cpu\n        memory\n      }\n    }\n  }\n"): (typeof documents)["\n  query DatabaseResources($database: DatabaseID!) {\n    database(id: $database) {\n      id\n      resources {\n        cpu\n        memory\n      }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation SetDatabaseResources($database: DatabaseID!, $resources: ResourcesInput!) {\n    setDatabaseResources(database: $database, resources: $resources) {\n      id\n      resources {\n        cpu\n        memory\n      }\n    }\n  }\n"): (typeof documents)["\n  mutation SetDatabaseResources($database: DatabaseID!, $resources: ResourcesInput!) {\n    setDatabaseResources(database: $database, resources: $resources) {\n      id\n      resources {\n        cpu\n        memory\n      }\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

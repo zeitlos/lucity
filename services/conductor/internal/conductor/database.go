@@ -12,6 +12,12 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/dbquery"
 	"github.com/zeitlos/lucity/services/conductor/internal/deployer"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
+	"github.com/zeitlos/lucity/services/conductor/internal/resources"
+)
+
+var (
+	minDatabaseCPU    = resource.MustParse("250m")
+	minDatabaseMemory = resource.MustParse("256Mi")
 )
 
 // DatabaseProvisioningError indicates the database is still being provisioned
@@ -68,13 +74,9 @@ func (c *Client) Database(ctx context.Context, id DatabaseID) (*Database, error)
 	return c.platform.Database(ctx, id)
 }
 
-func (c *Client) CreateDatabase(ctx context.Context, environment platform.EnvironmentID, name, version string, instances int, size string) (*Database, error) {
+func (c *Client) CreateDatabase(ctx context.Context, environment platform.EnvironmentID, name, version string, size string) (*Database, error) {
 	if version == "" {
 		version = "16"
-	}
-
-	if instances == 0 {
-		instances = 1
 	}
 
 	if size == "" {
@@ -87,20 +89,69 @@ func (c *Client) CreateDatabase(ctx context.Context, environment platform.Enviro
 		return nil, fmt.Errorf("parse size: %w", err)
 	}
 
+	env, err := c.platform.Environment(ctx, environment)
+
+	if err != nil {
+		return nil, fmt.Errorf("read environment: %w", err)
+	}
+
 	if _, err := c.deployer.Databases().Create(ctx, environment, name, deployer.DatabaseSpec{
-		Version:   version,
-		Instances: instances,
-		Size:      parsedSize,
+		Version:      version,
+		Size:         parsedSize,
+		ResourceTier: env.ResourceTier,
 	}); err != nil {
 		return nil, fmt.Errorf("create database: %w", err)
 	}
 
 	return &Database{
-		Name:      name,
-		Version:   version,
-		Instances: instances,
-		Size:      parsedSize,
+		Name:    name,
+		Version: version,
+		Size:    parsedSize,
 	}, nil
+}
+
+func (c *Client) SetDatabaseResources(ctx context.Context, database platform.DatabaseID, cpu, memory string) (*Database, error) {
+	cpuQuantity, err := resource.ParseQuantity(cpu)
+
+	if err != nil {
+		return nil, fmt.Errorf("invalid cpu value %q: %w", cpu, err)
+	}
+
+	memoryQuantity, err := resource.ParseQuantity(memory)
+
+	if err != nil {
+		return nil, fmt.Errorf("invalid memory value %q: %w", memory, err)
+	}
+
+	if cpuQuantity.Cmp(minDatabaseCPU) < 0 {
+		return nil, fmt.Errorf("cpu must be at least %s", minDatabaseCPU.String())
+	}
+
+	if memoryQuantity.Cmp(minDatabaseMemory) < 0 {
+		return nil, fmt.Errorf("memory must be at least %s", minDatabaseMemory.String())
+	}
+
+	if cpuQuantity.Cmp(resources.DefaultCPUQuota) > 0 {
+		return nil, fmt.Errorf("cpu exceeds the maximum of %s", resources.DefaultCPUQuota.String())
+	}
+
+	if memoryQuantity.Cmp(resources.DefaultMemoryQuota) > 0 {
+		return nil, fmt.Errorf("memory exceeds the maximum of %s", resources.DefaultMemoryQuota.String())
+	}
+
+	environment, err := c.platform.Environment(ctx, database.EnvironmentID())
+
+	if err != nil {
+		return nil, err
+	}
+
+	spec := deployer.Resources{CPU: cpuQuantity, Memory: memoryQuantity}
+
+	if _, err := c.deployer.Databases().SetResources(ctx, database, environment.ResourceTier, spec); err != nil {
+		return nil, fmt.Errorf("set resources: %w", err)
+	}
+
+	return c.Database(ctx, database)
 }
 
 func (c *Client) DeleteDatabase(ctx context.Context, database platform.DatabaseID) (bool, error) {

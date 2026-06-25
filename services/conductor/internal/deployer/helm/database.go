@@ -16,9 +16,15 @@ func (d *databaseClient) Create(ctx context.Context, env platform.EnvironmentID,
 	return d.client.applyEnv(ctx, env, func(e *values.Env) error {
 		return values.CreateDatabase(e, name, values.DatabaseSpec{
 			Version:   spec.Version,
-			Instances: spec.Instances,
 			Size:      spec.Size,
+			Resources: deriveRequestsAndLimtis(spec.Resources, spec.ResourceTier),
 		})
+	})
+}
+
+func (d *databaseClient) SetResources(ctx context.Context, id platform.DatabaseID, tier platform.ResourceTier, res deployer.Resources) (deployer.RevisionID, error) {
+	return d.client.applyEnv(ctx, id.EnvironmentID(), func(e *values.Env) error {
+		return values.SetDatabaseResources(e, id.Name, deriveRequestsAndLimtis(res, tier))
 	})
 }
 

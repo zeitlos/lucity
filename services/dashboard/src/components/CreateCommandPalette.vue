@@ -91,7 +91,6 @@ const CreateDatabaseDocument = graphql(`
       id
       name
       version
-      instances
       size
     }
   }
