@@ -22,6 +22,7 @@ const SetDatabaseResourcesDocument = graphql(`
   mutation SetDatabaseResources($database: DatabaseID!, $resources: ResourcesInput!) {
     setDatabaseResources(database: $database, resources: $resources) {
       id
+      status
       resources {
         cpu
         memory
@@ -34,6 +35,7 @@ const SetDatabaseStorageDocument = graphql(`
   mutation SetDatabaseStorage($database: DatabaseID!, $size: String!) {
     setDatabaseStorage(database: $database, size: $size) {
       id
+      status
       size
     }
   }
