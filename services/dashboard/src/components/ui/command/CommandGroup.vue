@@ -7,7 +7,7 @@ const props = defineProps<ComboboxGroupProps & { class?: HTMLAttributes['class']
 </script>
 
 <template>
-  <ComboboxGroup v-bind="props" :class="cn('overflow-hidden p-1 text-foreground', props.class)">
+  <ComboboxGroup v-bind="props" :class="cn('shrink-0 overflow-hidden p-1 text-foreground', props.class)">
     <ComboboxLabel v-if="heading" class="px-2 py-1.5 text-xs font-medium text-muted-foreground">
       {{ heading }}
     </ComboboxLabel>
