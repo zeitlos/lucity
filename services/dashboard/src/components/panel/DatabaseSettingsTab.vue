@@ -97,12 +97,12 @@ const memoryOptions = [
 ];
 
 const storageOptions = [
-  { value: '10Gi', gib: 10, label: '10 GB' },
-  { value: '20Gi', gib: 20, label: '20 GB' },
-  { value: '40Gi', gib: 40, label: '40 GB' },
-  { value: '100Gi', gib: 100, label: '100 GB' },
-  { value: '250Gi', gib: 250, label: '250 GB' },
-  { value: '500Gi', gib: 500, label: '500 GB' },
+  { value: '16Gi', gib: 16, label: '16 GB' },
+  { value: '32Gi', gib: 32, label: '32 GB' },
+  { value: '64Gi', gib: 64, label: '64 GB' },
+  { value: '128Gi', gib: 128, label: '128 GB' },
+  { value: '256Gi', gib: 256, label: '256 GB' },
+  { value: '512Gi', gib: 512, label: '512 GB' },
   { value: '1Ti', gib: 1024, label: '1 TB' },
 ];
 

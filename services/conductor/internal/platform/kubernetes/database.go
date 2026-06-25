@@ -101,9 +101,10 @@ func toDatabase(cluster cnpgv1.Cluster, environmentID platform.EnvironmentID) pl
 		PublicHost: cluster.Annotations[annotationDatabaseHost],
 	}
 
-	// CNPG image: "ghcr.io/cloudnative-pg/postgresql:16.0"
+	// CNPG image: "ghcr.io/cloudnative-pg/postgresql:17-standard-bookworm"
 	if i := strings.LastIndex(cluster.Spec.ImageName, ":"); i != -1 {
-		database.Version = cluster.Spec.ImageName[i+1:]
+		tag := cluster.Spec.ImageName[i+1:]
+		database.Version = strings.SplitN(tag, "-", 2)[0]
 	}
 
 	size := cluster.Spec.StorageConfiguration.Size
