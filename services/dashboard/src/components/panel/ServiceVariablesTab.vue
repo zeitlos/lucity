@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/command';
 import { toast, errorToast } from '@/components/ui/sonner';
 import { errorMessage } from '@/lib/utils';
+import { parseEnvAssignments } from '@/lib/env';
 
 const ServiceVariablesDocument = graphql(`
   query ServiceVariables($service: ServiceID!) {
@@ -170,6 +171,16 @@ function addRow() {
   hasChanges.value = true;
 }
 
+function onPasteKey(event: ClipboardEvent, index: number) {
+  const parsed = parseEnvAssignments(event.clipboardData?.getData('text') ?? '');
+
+  if (parsed.length === 0) return;
+
+  event.preventDefault();
+  rows.value.splice(index, 1, ...parsed.map((p) => ({ key: p.key, value: p.value, ref: null })));
+  hasChanges.value = true;
+}
+
 function selectRef(index: number, opt: RefOption) {
   const row = rows.value[index]!;
   row.ref = opt.id;
@@ -266,6 +277,7 @@ async function handleSave() {
             placeholder="KEY"
             class="font-mono text-sm uppercase rounded-r-none border-r-0"
             @input="markChanged"
+            @paste="onPasteKey($event, index)"
           />
           <Popover
             :open="openPopoverIndex === index"
