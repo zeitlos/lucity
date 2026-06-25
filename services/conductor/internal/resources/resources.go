@@ -15,9 +15,11 @@ var (
 	DefaultCPULimit    = resource.MustParse("500m")
 	DefaultMemoryLimit = resource.MustParse("512Mi")
 
-	DefaultCPUQuota     = resource.MustParse("4")
-	DefaultMemoryQuota  = resource.MustParse("8Gi")
-	DefaultStorageQuota = resource.MustParse("40Gi")
+	DefaultCPUQuota     = resource.MustParse("8")
+	DefaultMemoryQuota  = resource.MustParse("16Gi")
+	DefaultStorageQuota = resource.MustParse("2Ti")
+
+	MaxDatabaseStorage = resource.MustParse("1Ti")
 )
 
 // Request returns the K8s request value for the given limit under the given

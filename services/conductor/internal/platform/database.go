@@ -19,6 +19,7 @@ type Database struct {
 	Instances  int
 	Status     DatabaseStatus
 	Size       resource.Quantity
+	Resources  Resources
 	CreatedAt  time.Time
 	PublicHost string
 }
@@ -28,6 +29,7 @@ type DatabaseStatus string
 const (
 	DatabaseHealthy  DatabaseStatus = "healthy"
 	DatabaseDegraded DatabaseStatus = "degraded"
+	DatabaseUpdating DatabaseStatus = "updating"
 	DatabaseFailed   DatabaseStatus = "failed"
 	DatabasePending  DatabaseStatus = "pending"
 	DatabaseStopped  DatabaseStatus = "stopped"

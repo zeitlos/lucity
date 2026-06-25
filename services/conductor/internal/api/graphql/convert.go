@@ -368,6 +368,7 @@ func convertDatabase(d conductor.Database) model.Database {
 		Instances: d.Instances,
 		Status:    convertDatabaseStatus(d.Status),
 		Size:      d.Size.String(),
+		Resources: convertResources(d.Resources),
 		CreatedAt: d.CreatedAt,
 		Public:    d.PublicHost != "",
 	}
@@ -502,6 +503,8 @@ func convertDatabaseStatus(status platform.DatabaseStatus) model.DatabaseStatus 
 		return model.DatabaseStatusHealthy
 	case platform.DatabaseDegraded:
 		return model.DatabaseStatusDegraded
+	case platform.DatabaseUpdating:
+		return model.DatabaseStatusUpdating
 	case platform.DatabaseFailed:
 		return model.DatabaseStatusFailed
 	case platform.DatabasePending:

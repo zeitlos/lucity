@@ -136,8 +136,8 @@ function copyToClipboard(text: string) {
 }
 
 const endpointLabels: Record<string, string> = {
-  INTERNAL: 'Internal (in-cluster)',
-  PLATFORM: 'Public (internet)',
+  INTERNAL: 'Private network',
+  PLATFORM: 'Public internet',
   CUSTOM: 'Custom domain',
 };
 
@@ -176,8 +176,8 @@ const groups = computed(() =>
         </div>
         <p class="text-xs text-muted-foreground">
           {{ isPublic
-            ? 'Reachable from the internet over TLS on port 5432.'
-            : 'Only reachable from inside the cluster.' }}
+            ? 'Reachable from anywhere over TLS on port 5432.'
+            : 'Reachable only from your other services over the private network.' }}
         </p>
       </div>
       <Switch

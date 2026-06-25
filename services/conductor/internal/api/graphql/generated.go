@@ -114,6 +114,7 @@ type ComplexityRoot struct {
 		Instances func(childComplexity int) int
 		Name      func(childComplexity int) int
 		Public    func(childComplexity int) int
+		Resources func(childComplexity int) int
 		Size      func(childComplexity int) int
 		Status    func(childComplexity int) int
 		Version   func(childComplexity int) int
@@ -304,6 +305,8 @@ type ComplexityRoot struct {
 		RemoveService             func(childComplexity int, service platform.ServiceID) int
 		Rollback                  func(childComplexity int, deployment platform.DeploymentID) int
 		SetCustomStartCommand     func(childComplexity int, service platform.ServiceID, command string) int
+		SetDatabaseResources      func(childComplexity int, database platform.DatabaseID, resources model.ResourcesInput) int
+		SetDatabaseStorage        func(childComplexity int, database platform.DatabaseID, size string) int
 		SetEnvironmentResources   func(childComplexity int, input model.SetEnvironmentResourcesInput) int
 		SetServicePort            func(childComplexity int, service platform.ServiceID, port *int) int
 		SetServiceResources       func(childComplexity int, service platform.ServiceID, resources model.ResourcesInput) int
@@ -499,6 +502,8 @@ type MutationResolver interface {
 	CreatePlanCheckout(ctx context.Context, plan model.Plan) (*model.CheckoutSession, error)
 	CompletePlanCheckout(ctx context.Context, sessionID string) (*model.BillingSubscription, error)
 	CreateDatabase(ctx context.Context, input model.CreateDatabaseInput) (*model.Database, error)
+	SetDatabaseResources(ctx context.Context, database platform.DatabaseID, resources model.ResourcesInput) (*model.Database, error)
+	SetDatabaseStorage(ctx context.Context, database platform.DatabaseID, size string) (*model.Database, error)
 	DeleteDatabase(ctx context.Context, database platform.DatabaseID) (bool, error)
 	ExecuteQuery(ctx context.Context, database platform.DatabaseID, query string) (*model.QueryResult, error)
 	ExposeDatabase(ctx context.Context, database platform.DatabaseID) (*model.Database, error)
@@ -836,6 +841,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Database.Public(childComplexity), true
+	case "Database.resources":
+		if e.ComplexityRoot.Database.Resources == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Database.Resources(childComplexity), true
 	case "Database.size":
 		if e.ComplexityRoot.Database.Size == nil {
 			break
@@ -1754,6 +1765,28 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.SetCustomStartCommand(childComplexity, args["service"].(platform.ServiceID), args["command"].(string)), true
+	case "Mutation.setDatabaseResources":
+		if e.ComplexityRoot.Mutation.SetDatabaseResources == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setDatabaseResources_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.SetDatabaseResources(childComplexity, args["database"].(platform.DatabaseID), args["resources"].(model.ResourcesInput)), true
+	case "Mutation.setDatabaseStorage":
+		if e.ComplexityRoot.Mutation.SetDatabaseStorage == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setDatabaseStorage_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.SetDatabaseStorage(childComplexity, args["database"].(platform.DatabaseID), args["size"].(string)), true
 	case "Mutation.setEnvironmentResources":
 		if e.ComplexityRoot.Mutation.SetEnvironmentResources == nil {
 			break
@@ -2916,6 +2949,8 @@ func (ec *executionContext) childFields_Database(ctx context.Context, field grap
 		return ec.fieldContext_Database_status(ctx, field)
 	case "size":
 		return ec.fieldContext_Database_size(ctx, field)
+	case "resources":
+		return ec.fieldContext_Database_resources(ctx, field)
 	case "createdAt":
 		return ec.fieldContext_Database_createdAt(ctx, field)
 	case "public":
@@ -4057,6 +4092,50 @@ func (ec *executionContext) field_Mutation_setCustomStartCommand_args(ctx contex
 		return nil, err
 	}
 	args["command"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_setDatabaseResources_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "database",
+		func(ctx context.Context, v any) (platform.DatabaseID, error) {
+			return ec.unmarshalNDatabaseID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐDatabaseID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["database"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "resources",
+		func(ctx context.Context, v any) (model.ResourcesInput, error) {
+			return ec.unmarshalNResourcesInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐResourcesInput(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["resources"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_setDatabaseStorage_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "database",
+		func(ctx context.Context, v any) (platform.DatabaseID, error) {
+			return ec.unmarshalNDatabaseID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐDatabaseID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["database"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "size",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["size"] = arg1
 	return args, nil
 }
 
@@ -5631,6 +5710,38 @@ func (ec *executionContext) _Database_size(ctx context.Context, field graphql.Co
 }
 func (ec *executionContext) fieldContext_Database_size(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("Database", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _Database_resources(ctx context.Context, field graphql.CollectedField, obj *model.Database) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Database_resources(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Resources, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Resources) graphql.Marshaler {
+			return ec.marshalNResources2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐResources(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Database_resources(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Database",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Resources(ctx, field)
+		},
+	}
+	return fc, nil
 }
 
 func (ec *executionContext) _Database_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.Database) (ret graphql.Marshaler) {
@@ -8345,6 +8456,130 @@ func (ec *executionContext) fieldContext_Mutation_createDatabase(ctx context.Con
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_createDatabase_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_setDatabaseResources(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_setDatabaseResources(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().SetDatabaseResources(ctx, fc.Args["database"].(platform.DatabaseID), fc.Args["resources"].(model.ResourcesInput))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
+				if err != nil {
+					var zeroVal *model.Database
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal *model.Database
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Database) graphql.Marshaler {
+			return ec.marshalNDatabase2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabase(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_setDatabaseResources(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Database(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_setDatabaseResources_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_setDatabaseStorage(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_setDatabaseStorage(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().SetDatabaseStorage(ctx, fc.Args["database"].(platform.DatabaseID), fc.Args["size"].(string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
+				if err != nil {
+					var zeroVal *model.Database
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal *model.Database
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Database) graphql.Marshaler {
+			return ec.marshalNDatabase2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabase(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_setDatabaseStorage(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Database(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_setDatabaseStorage_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -15476,7 +15711,7 @@ func (ec *executionContext) unmarshalInputCreateDatabaseInput(ctx context.Contex
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"environment", "name", "version", "instances", "size"}
+	fieldsInOrder := [...]string{"environment", "name", "version", "size"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -15524,13 +15759,6 @@ func (ec *executionContext) unmarshalInputCreateDatabaseInput(ctx context.Contex
 				return it, err
 			}
 			it.Version = data
-		case "instances":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("instances"))
-			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Instances = data
 		case "size":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("size"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
@@ -16800,6 +17028,11 @@ func (ec *executionContext) _Database(ctx context.Context, sel ast.SelectionSet,
 			}
 		case "size":
 			out.Values[i] = ec._Database_size(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "resources":
+			out.Values[i] = ec._Database_resources(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -18169,6 +18402,20 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "createDatabase":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_createDatabase(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "setDatabaseResources":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_setDatabaseResources(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "setDatabaseStorage":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_setDatabaseStorage(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++

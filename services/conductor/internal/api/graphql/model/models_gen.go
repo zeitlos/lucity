@@ -104,7 +104,6 @@ type CreateDatabaseInput struct {
 	Environment platform.EnvironmentID `json:"environment"`
 	Name        string                 `json:"name"`
 	Version     *string                `json:"version,omitempty"`
-	Instances   *int                   `json:"instances,omitempty"`
 	Size        *string                `json:"size,omitempty"`
 }
 
@@ -142,6 +141,7 @@ type Database struct {
 	Instances int                 `json:"instances"`
 	Status    DatabaseStatus      `json:"status"`
 	Size      string              `json:"size"`
+	Resources *Resources          `json:"resources"`
 	CreatedAt time.Time           `json:"createdAt"`
 	Public    bool                `json:"public"`
 }
@@ -624,6 +624,7 @@ type DatabaseStatus string
 const (
 	DatabaseStatusHealthy  DatabaseStatus = "HEALTHY"
 	DatabaseStatusDegraded DatabaseStatus = "DEGRADED"
+	DatabaseStatusUpdating DatabaseStatus = "UPDATING"
 	DatabaseStatusFailed   DatabaseStatus = "FAILED"
 	DatabaseStatusPending  DatabaseStatus = "PENDING"
 	DatabaseStatusStopped  DatabaseStatus = "STOPPED"
@@ -632,6 +633,7 @@ const (
 var AllDatabaseStatus = []DatabaseStatus{
 	DatabaseStatusHealthy,
 	DatabaseStatusDegraded,
+	DatabaseStatusUpdating,
 	DatabaseStatusFailed,
 	DatabaseStatusPending,
 	DatabaseStatusStopped,
@@ -639,7 +641,7 @@ var AllDatabaseStatus = []DatabaseStatus{
 
 func (e DatabaseStatus) IsValid() bool {
 	switch e {
-	case DatabaseStatusHealthy, DatabaseStatusDegraded, DatabaseStatusFailed, DatabaseStatusPending, DatabaseStatusStopped:
+	case DatabaseStatusHealthy, DatabaseStatusDegraded, DatabaseStatusUpdating, DatabaseStatusFailed, DatabaseStatusPending, DatabaseStatusStopped:
 		return true
 	}
 	return false

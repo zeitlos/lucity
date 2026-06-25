@@ -5,6 +5,7 @@ type Database {
   instances: Int!
   status: DatabaseStatus!
   size: String!
+  resources: Resources!
   createdAt: Time!
   public: Boolean!
 }
@@ -12,6 +13,7 @@ type Database {
 enum DatabaseStatus {
   HEALTHY
   DEGRADED
+  UPDATING
   FAILED
   PENDING
   STOPPED
@@ -66,7 +68,6 @@ input CreateDatabaseInput {
   environment: EnvironmentID!
   name: String! @constraint(constraint: "resource_name,min=2,max=16")
   version: String
-  instances: Int
   size: String
 }
 
@@ -85,6 +86,8 @@ extend type Query {
 
 extend type Mutation {
   createDatabase(input: CreateDatabaseInput!): Database! @hasRole(role: WORKSPACE_MEMBER)
+  setDatabaseResources(database: DatabaseID!, resources: ResourcesInput!): Database! @hasRole(role: WORKSPACE_MEMBER)
+  setDatabaseStorage(database: DatabaseID!, size: String!): Database! @hasRole(role: WORKSPACE_MEMBER)
   deleteDatabase(database: DatabaseID!): Boolean! @hasRole(role: WORKSPACE_MEMBER)
   executeQuery(database: DatabaseID!, query: String!): QueryResult! @hasRole(role: WORKSPACE_MEMBER)
   exposeDatabase(database: DatabaseID!): Database! @hasRole(role: WORKSPACE_MEMBER)

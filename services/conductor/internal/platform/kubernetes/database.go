@@ -9,6 +9,7 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 
 	cnpgv1 "github.com/cloudnative-pg/cloudnative-pg/api/v1"
+	core "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -85,18 +86,25 @@ func toCluster(item unstructured.Unstructured) (*cnpgv1.Cluster, error) {
 }
 
 func toDatabase(cluster cnpgv1.Cluster, environmentID platform.EnvironmentID) platform.Database {
+	limits := cluster.Spec.Resources.Limits
+
 	database := platform.Database{
-		ID:         databaseID(cluster, environmentID),
-		Name:       cluster.Labels[databaseLabel],
-		Instances:  cluster.Spec.Instances,
-		Status:     databaseStatus(cluster),
+		ID:        databaseID(cluster, environmentID),
+		Name:      cluster.Labels[databaseLabel],
+		Instances: cluster.Spec.Instances,
+		Status:    databaseStatus(cluster),
+		Resources: platform.Resources{
+			CPU:    limits[core.ResourceCPU],
+			Memory: limits[core.ResourceMemory],
+		},
 		CreatedAt:  cluster.GetCreationTimestamp().Time,
 		PublicHost: cluster.Annotations[annotationDatabaseHost],
 	}
 
-	// CNPG image: "ghcr.io/cloudnative-pg/postgresql:16.0"
+	// CNPG image: "ghcr.io/cloudnative-pg/postgresql:17-standard-bookworm"
 	if i := strings.LastIndex(cluster.Spec.ImageName, ":"); i != -1 {
-		database.Version = cluster.Spec.ImageName[i+1:]
+		tag := cluster.Spec.ImageName[i+1:]
+		database.Version = strings.SplitN(tag, "-", 2)[0]
 	}
 
 	size := cluster.Spec.StorageConfiguration.Size
@@ -154,27 +162,43 @@ func (c *Client) DatabaseCredentials(ctx context.Context, id platform.DatabaseID
 	}, nil
 }
 
+var databaseFailurePhases = map[string]bool{
+	cnpgv1.PhaseUnrecoverable:             true,
+	cnpgv1.PhaseCannotCreateClusterObjects: true,
+	cnpgv1.PhaseFailurePlugin:             true,
+	cnpgv1.PhaseUnknownPlugin:             true,
+	cnpgv1.PhaseImageCatalogError:         true,
+	cnpgv1.PhaseArchitectureBinaryMissing: true,
+}
+
 func databaseStatus(cluster cnpgv1.Cluster) platform.DatabaseStatus {
 	desired := cluster.Spec.Instances
-	ready := cluster.Status.ReadyInstances
 
 	if desired == 0 {
 		return platform.DatabaseStopped
 	}
 
-	if ready == 0 {
-		isInitialBootstrap := cluster.Status.CurrentPrimary == ""
-
-		if isInitialBootstrap {
-			return platform.DatabasePending
-		}
-
+	if databaseFailurePhases[cluster.Status.Phase] {
 		return platform.DatabaseFailed
 	}
 
-	if ready < desired {
+	ready := cluster.Status.ReadyInstances
+
+	if ready == 0 {
+		if cluster.Status.CurrentPrimary == "" {
+			return platform.DatabasePending
+		}
+
+		return platform.DatabaseUpdating
+	}
+
+	if ready >= desired && cluster.Status.Phase == cnpgv1.PhaseHealthy {
+		return platform.DatabaseHealthy
+	}
+
+	if ready < desired && cluster.Status.Phase == cnpgv1.PhaseHealthy {
 		return platform.DatabaseDegraded
 	}
 
-	return platform.DatabaseHealthy
+	return platform.DatabaseUpdating
 }

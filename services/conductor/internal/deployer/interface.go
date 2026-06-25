@@ -45,6 +45,8 @@ type ServiceClient interface {
 type DatabaseClient interface {
 	Create(ctx context.Context, env platform.EnvironmentID, name string, spec DatabaseSpec) (RevisionID, error)
 	Delete(ctx context.Context, id platform.DatabaseID) error
+	SetResources(ctx context.Context, id platform.DatabaseID, tier platform.ResourceTier, resources Resources) (RevisionID, error)
+	SetStorage(ctx context.Context, id platform.DatabaseID, size resource.Quantity) (RevisionID, error)
 	Expose(ctx context.Context, id platform.DatabaseID, host string) error
 	Unexpose(ctx context.Context, id platform.DatabaseID) error
 }
@@ -95,9 +97,10 @@ type ImageProvenance struct {
 }
 
 type DatabaseSpec struct {
-	Version   string
-	Instances int
-	Size      resource.Quantity
+	Version      string
+	Size         resource.Quantity
+	Resources    Resources
+	ResourceTier platform.ResourceTier
 }
 
 type KeyValueStoreSpec struct {

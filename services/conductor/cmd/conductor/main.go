@@ -106,6 +106,9 @@ type Config struct {
 	DatabaseDomain string `envconfig:"DATABASE_DOMAIN" required:"true"`
 	IPAddress      string `envconfig:"IP_ADDRESS"`
 
+	// Reconciliation
+	ReconcileEnabled bool `envconfig:"RECONCILE_ENABLED" default:"true"`
+
 	// Internal JWT (ES256)
 	InternalJWTPrivateKeyPath string `envconfig:"INTERNAL_JWT_PRIVATE_KEY_PATH"`
 	InternalJWTPublicKeyPath  string `envconfig:"INTERNAL_JWT_PUBLIC_KEY_PATH"`
@@ -302,8 +305,12 @@ func main() {
 	}
 	conductor := conductor.New(cashierClient, githubApp, logtoClient, tokenRefresher, directoryClient, platformClient, jobsClient, planner, source, hostnameClient, gatewayClient, deployerClient, environmentClient, objectStorageClient, conductorConfig)
 
-	go runDomainReconciler(ctx, conductor)
-	go runServiceReconciler(ctx, conductor)
+	if config.ReconcileEnabled {
+		go runDomainReconciler(ctx, conductor)
+		go runServiceReconciler(ctx, conductor)
+	} else {
+		slog.Warn("reconcilers disabled")
+	}
 
 	// ---- Servers ----
 	components := []grpcComponent{}
