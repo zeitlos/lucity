@@ -1,8 +1,10 @@
 package conductor
 
 import (
+	"cmp"
 	"context"
 	"fmt"
+	"slices"
 
 	"github.com/zeitlos/lucity/services/conductor/internal/deployer"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
@@ -47,6 +49,10 @@ func (c *Client) SharedVariables(ctx context.Context, environment platform.Envir
 		result = append(result, SharedVariable{Key: key, Value: value})
 	}
 
+	slices.SortFunc(result, func(a, b SharedVariable) int {
+		return cmp.Compare(a.Key, b.Key)
+	})
+
 	return result, nil
 }
 
@@ -74,6 +80,10 @@ func (c *Client) ServiceVariables(ctx context.Context, service platform.ServiceI
 
 		result = append(result, ServiceVariable{Key: key, Ref: &id})
 	}
+
+	slices.SortFunc(result, func(a, b ServiceVariable) int {
+		return cmp.Compare(a.Key, b.Key)
+	})
 
 	return result, nil
 }
