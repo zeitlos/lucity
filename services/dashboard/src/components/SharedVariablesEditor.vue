@@ -182,5 +182,11 @@ async function handleSave() {
         </div>
       </div>
     </div>
+
+    <Separator />
+
+    <div class="space-y-1 text-sm text-muted-foreground">
+      <p>Paste <code class="rounded bg-muted px-1 py-0.5 font-mono text-xs">KEY=value</code> lines into a key field to add several at once.</p>
+    </div>
   </div>
 </template>

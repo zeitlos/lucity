@@ -388,9 +388,10 @@ async function handleSave() {
 
     <Separator />
 
-    <p class="text-sm text-muted-foreground">
-      These variables are available at both build time and runtime.
-    </p>
+    <div class="space-y-1 text-sm text-muted-foreground">
+      <p>These variables are available at both build time and runtime.</p>
+      <p>Paste <code class="rounded bg-muted px-1 py-0.5 font-mono text-xs">KEY=value</code> lines into a key field to add several at once.</p>
+    </div>
   </div>
 </template>
 
