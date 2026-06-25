@@ -73,8 +73,8 @@ const isProvisioning = computed(() => {
 });
 
 const endpointLabels: Record<string, string> = {
-  INTERNAL: 'Internal (in-cluster)',
-  PLATFORM: 'Public (internet)',
+  INTERNAL: 'Private network',
+  PLATFORM: 'Public internet',
   CUSTOM: 'Custom domain',
 };
 
@@ -157,7 +157,7 @@ async function handleDelete() {
             <div>
               <h3 class="text-sm font-medium text-foreground">Connection Details</h3>
               <p class="text-xs text-muted-foreground">
-                Credentials for <strong>{{ store.name }}</strong>. Reachable from inside the cluster.
+                Credentials for <strong>{{ store.name }}</strong>. Reachable from your other services over the private network.
               </p>
             </div>
 
