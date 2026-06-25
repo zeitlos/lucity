@@ -19,8 +19,23 @@ spec:
     labels:
       {{- toYaml . | nindent 6 }}
   {{- end }}
-  instances: {{ $pg.instances | default 1 }}
+  instances: {{ $pg.instances | default 2 }}
   imageName: ghcr.io/cloudnative-pg/postgresql:{{ $pg.version | default "17" }}-standard-bookworm
+  primaryUpdateStrategy: unsupervised
+  primaryUpdateMethod: switchover
+  postgresql:
+    shared_preload_libraries:
+      - pg_stat_statements
+    parameters:
+      wal_compression: "on"
+      max_wal_size: "2GB"
+      checkpoint_completion_target: "0.9"
+  replicationSlots:
+    highAvailability:
+      enabled: true
+  affinity:
+    enablePodAntiAffinity: true
+    topologyKey: kubernetes.io/hostname
   storage:
     size: {{ $pg.size | default "10Gi" }}
   {{- if $pg.resources }}
@@ -31,4 +46,5 @@ spec:
     initdb:
       postInitApplicationSQL:
         - CREATE EXTENSION IF NOT EXISTS vector
+        - CREATE EXTENSION IF NOT EXISTS pg_stat_statements
 {{- end }}
