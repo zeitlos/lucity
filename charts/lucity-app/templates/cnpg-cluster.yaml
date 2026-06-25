@@ -44,7 +44,12 @@ spec:
   {{- end }}
   bootstrap:
     initdb:
+      database: app
+      owner: app
       postInitApplicationSQL:
         - CREATE EXTENSION IF NOT EXISTS vector
         - CREATE EXTENSION IF NOT EXISTS pg_stat_statements
+        - ALTER DATABASE app OWNER TO postgres
+        - GRANT CONNECT, CREATE, TEMPORARY ON DATABASE app TO app
+        - GRANT USAGE, CREATE ON SCHEMA public TO app
 {{- end }}
