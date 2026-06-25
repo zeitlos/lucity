@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
-import type { Component } from 'vue';
 import { useQuery, useMutation } from '@vue/apollo-composable';
-import { Plus, Trash2, Link, Database, Layers, HardDrive } from '@lucide/vue';
+import { Plus, Trash2, Link } from '@lucide/vue';
+import SourceIcon from '@/components/SourceIcon.vue';
 import { graphql } from '@/gql';
 import { useEnvironment } from '@/composables/useEnvironment';
 import { Button } from '@/components/ui/button';
@@ -106,19 +106,15 @@ watch(
 
 type SourceTypename = 'DatabaseSource' | 'KeyValueStoreSource' | 'BucketSource' | 'SharedSource';
 
-const SOURCE_META: Record<SourceTypename, { label: string; icon: Component }> = {
-  DatabaseSource: { label: 'Postgres', icon: Database },
-  KeyValueStoreSource: { label: 'Redis', icon: Layers },
-  BucketSource: { label: 'Object Storage', icon: HardDrive },
-  SharedSource: { label: 'Shared', icon: Link },
+const SOURCE_LABELS: Record<SourceTypename, string> = {
+  DatabaseSource: 'Postgres',
+  KeyValueStoreSource: 'Redis',
+  BucketSource: 'Object Storage',
+  SharedSource: 'Shared',
 };
 
-function sourceIcon(typename: SourceTypename): Component {
-  return SOURCE_META[typename].icon;
-}
-
 function sourceLabel(typename: SourceTypename, name: string): string {
-  const label = SOURCE_META[typename].label;
+  const label = SOURCE_LABELS[typename];
   return name ? `${label}: ${name}` : label;
 }
 
@@ -203,11 +199,14 @@ function isRefRow(row: VarRow): boolean {
   return !!row.ref;
 }
 
-function refDisplay(row: VarRow): string {
-  if (!row.ref) return '';
-  const opt = refById.value.get(row.ref);
-  if (opt) return `${sourceLabel(opt.typename, opt.sourceName)} · ${opt.key}`;
-  return row.ref.split('/').pop() ?? row.ref;
+function refInfo(row: VarRow): { typename: SourceTypename | null; label: string; key: string } {
+  const opt = row.ref ? refById.value.get(row.ref) : undefined;
+
+  if (opt) {
+    return { typename: opt.typename, label: opt.sourceName || SOURCE_LABELS[opt.typename], key: opt.key };
+  }
+
+  return { typename: null, label: 'Reference', key: row.ref?.split('/').pop() ?? '' };
 }
 
 // ── Save ──────────────────────────────────────────────────────────────
@@ -294,12 +293,10 @@ async function handleSave() {
                     v-for="group in refGroups"
                     :key="group.key"
                   >
-                    <template #heading>
-                      <div class="flex items-center gap-1.5">
-                        <component :is="sourceIcon(group.typename)" :size="12" />
-                        {{ group.label }}
-                      </div>
-                    </template>
+                    <div class="flex items-center gap-1.5 px-2 py-1.5 text-xs font-medium text-muted-foreground">
+                      <SourceIcon :typename="group.typename" />
+                      {{ group.label }}
+                    </div>
                     <CommandItem
                       v-for="opt in group.items"
                       :key="opt.id"
@@ -329,9 +326,12 @@ async function handleSave() {
         <!-- Value -->
         <div
           v-if="isRefRow(row)"
-          class="flex h-9 flex-1 items-center rounded-md border border-input bg-muted px-3 font-mono text-xs text-muted-foreground"
+          class="magic-border flex h-10 flex-1 items-center gap-1.5 rounded-md px-3"
         >
-          {{ refDisplay(row) }}
+          <SourceIcon :typename="refInfo(row).typename" />
+          <span class="text-xs font-medium">{{ refInfo(row).label }}</span>
+          <span class="text-muted-foreground/40">·</span>
+          <span class="font-mono text-xs text-muted-foreground">{{ refInfo(row).key }}</span>
         </div>
         <Input
           v-else
@@ -381,3 +381,24 @@ async function handleSave() {
     </p>
   </div>
 </template>
+
+<style scoped>
+.magic-border {
+  border: 1.5px solid transparent;
+  background:
+    linear-gradient(var(--background), var(--background)) padding-box,
+    linear-gradient(90deg, #f43f5e, #f59e0b, #facc15, #22c55e, #3b82f6, #a855f7, #f43f5e) border-box;
+  background-size:
+    100% 100%,
+    200% 100%;
+  animation: magic-flow 5s linear infinite;
+}
+
+@keyframes magic-flow {
+  to {
+    background-position:
+      0 0,
+      -200% 0;
+  }
+}
+</style>
