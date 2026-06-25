@@ -39,11 +39,17 @@ spec:
         {{- include "lucity-app.selectorLabels" (dict "name" $name "release" $.Release.Name) | nindent 8 }}
         {{- with $.Values.commonLabels }}{{- toYaml . | nindent 8 }}{{- end }}
         {{- with $svc.podLabels }}{{- toYaml . | nindent 8 }}{{- end }}
-      {{- if or $.Values.commonAnnotations $svc.podAnnotations }}
+      {{- $sharedSecret := printf "%s-shared" (include "lucity-app.fullname" $) }}
+      {{- $variablesHash := toYaml $svc.env }}
+      {{- range $svc.refs }}
+      {{- if eq .secret $sharedSecret }}
+      {{- $variablesHash = printf "%s\n%s=%v" $variablesHash .key (index $.Values.sharedVariables .key) }}
+      {{- end }}
+      {{- end }}
       annotations:
+        checksum/variables: {{ $variablesHash | sha256sum }}
         {{- with $.Values.commonAnnotations }}{{- toYaml . | nindent 8 }}{{- end }}
         {{- with $svc.podAnnotations }}{{- toYaml . | nindent 8 }}{{- end }}
-      {{- end }}
     spec:
       hostUsers: false
       automountServiceAccountToken: false
