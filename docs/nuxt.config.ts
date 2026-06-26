@@ -4,6 +4,11 @@ export default defineNuxtConfig({
     name: 'Lucity'
   },
   modules: ['nuxt-vitalizer'],
+  fonts: {
+    families: [
+      { name: 'Mona Sans', provider: 'google', weights: [400, 500, 600, 700] }
+    ]
+  },
   hooks: {
     'pages:extend'(pages) {
       // Remove the [[lang]]/[...slug] route from the Docus layer.

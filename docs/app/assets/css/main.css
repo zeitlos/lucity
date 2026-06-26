@@ -169,7 +169,24 @@
     font-display: swap;
 }
 
+@font-face {
+    font-family: 'Mona Sans Condensed';
+    src: url('/fonts/MonaSans-Condensed.woff2') format('woff2');
+    font-weight: 400 700;
+    font-stretch: 75%;
+    font-style: normal;
+    font-display: swap;
+}
+
 @theme {
+  --font-sans-condensed: 'Mona Sans Condensed', 'Mona Sans', sans-serif;
+
+  --animate-tech-scroll: tech-scroll 90s linear infinite;
+  @keyframes tech-scroll {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+
   /* Fonts — exact match to dashboard */
   --font-sans: 'Mona Sans', system-ui, sans-serif;
   --font-serif: 'Instrument Serif', Georgia, serif;
