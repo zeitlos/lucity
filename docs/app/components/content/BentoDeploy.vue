@@ -14,14 +14,13 @@ const topRow = [
 
 const bottomRow = [
   { icon: 'i-lucide-container', label: 'Registry' },
-  { icon: 'i-simple-icons-argo', label: 'ArgoCD' },
-  { icon: 'i-simple-icons-kubernetes', label: 'K8s' },
+  { img: '/logo-light.svg', imgDark: '/logo-dark.svg', label: 'Lucity' },
 ];
 
 watch(visible, (v) => {
   if (!v) return;
-  /* Steps 1-3: top row, step 4: snake connector, steps 5-7: bottom row */
-  const delays = [0, 600, 1200, 1900, 2500, 3100, 3700];
+  /* Steps 1-3: top row, step 4: snake connector, steps 5-6: bottom row */
+  const delays = [0, 600, 1200, 1900, 2500, 3100];
   delays.forEach((delay, i) => {
     setTimeout(() => { step.value = i + 1; }, delay);
   });
@@ -110,14 +109,27 @@ watch(visible, (v) => {
               'bento-node-current': step === i + 5,
             }"
           >
+            <template v-if="node.img">
+              <img
+                :src="node.img"
+                alt=""
+                class="size-4 object-contain sm:size-5 dark:hidden"
+              >
+              <img
+                :src="node.imgDark"
+                alt=""
+                class="hidden size-4 object-contain sm:size-5 dark:block"
+              >
+            </template>
             <UIcon
+              v-else
               :name="node.icon"
               class="size-4 sm:size-5"
             />
             <span class="text-[10px] font-medium sm:text-xs">{{ node.label }}</span>
             <!-- Checkmark on final node -->
             <span
-              v-if="i === bottomRow.length - 1 && step >= 7"
+              v-if="i === bottomRow.length - 1 && step >= 6"
               class="bento-check"
             >
               <UIcon
@@ -142,7 +154,7 @@ watch(visible, (v) => {
 
     <!-- Tagline -->
     <div
-      v-if="step >= 7"
+      v-if="step >= 6"
       class="bento-tagline"
     >
       Zero YAML. No Dockerfile required.

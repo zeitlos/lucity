@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import BentoDeploy from './BentoDeploy.vue';
-import BentoEnvironments from './BentoEnvironments.vue';
+import BentoDomains from './BentoDomains.vue';
 import BentoBatteries from './BentoBatteries.vue';
 import BentoEject from './BentoEject.vue';
-import BentoGitOps from './BentoGitOps.vue';
+import BentoScale from './BentoScale.vue';
+import BentoSwiss from './BentoSwiss.vue';
 import BentoOpenSource from './BentoOpenSource.vue';
 
 const cards = [
@@ -15,7 +16,7 @@ const cards = [
     span: 'bento-span-3',
     corner: 'bento-corner-tl',
     title: 'Push to deploy',
-    description: 'Connect your GitHub repo. Push your code, watch it flow through the pipeline and land on <span class="bento-hl">Kubernetes</span>. Zero Dockerfiles required.',
+    description: 'Connect your GitHub repo, push, and watch it build and go live. No Dockerfile or YAML required.',
   },
   {
     id: 'batteries',
@@ -24,7 +25,7 @@ const cards = [
     corner: 'bento-corner-tr',
     textFirst: true,
     title: 'Batteries included',
-    description: '<span class="bento-hl">PostgreSQL</span> via CloudNativePG, <span class="bento-hl">Redis</span>, cron jobs, and HTTP routing via Gateway API. Everything your app needs.',
+    description: 'Provision replicated, highly-available <span class="bento-hl">PostgreSQL</span>, <span class="bento-hl">Redis</span> and <span class="bento-hl">S3-compatible Object Storage</span> in one click.',
   },
   /* Row 2: 66 / 33 */
   {
@@ -32,32 +33,40 @@ const cards = [
     component: BentoEject,
     span: 'bento-span-4',
     title: 'Eject anytime',
-    description: 'One command. Standard <span class="bento-hl">Helm charts</span>, <span class="bento-hl">ArgoCD configs</span>, environment values, and a README. No lock-in, no strings attached.',
+    description: 'Deliberately designed to be lock-in free. Want to leave? Download the full <span class="bento-hl">Helm chart</span>, <span class="bento-hl">build config</span>, and <span class="bento-hl">values</span> for your app and run it anywhere.',
   },
   {
-    id: 'gitops',
-    component: BentoGitOps,
+    id: 'scale',
+    component: BentoScale,
     span: 'bento-span-2',
-    title: 'GitOps native',
-    description: 'Every deploy is a <span class="bento-hl">Git commit</span>. ArgoCD syncs it to your cluster. The enterprise workflow, minus the enterprise.',
+    title: 'Scale without thinking about it',
+    description: 'Spin up more replicas or give them more power. Enable <span class="bento-hl">auto-scaling</span> for turbulent workloads.',
   },
   /* Row 3: 33 / 66 */
   {
     id: 'envs',
-    component: BentoEnvironments,
+    component: BentoDomains,
     span: 'bento-span-2',
-    corner: 'bento-corner-bl',
-    title: 'Multi-environment',
-    description: 'Dev, staging, production, and <span class="bento-hl">PR previews</span>. Clone environments in seconds. Promote images without rebuilding.',
+    title: 'Free public domain + custom domains',
+    description: 'Every deploy gets a live URL on a built-in <span class="bento-hl">platform domain</span>, instantly. Bring your own <span class="bento-hl">custom domain</span> when you\'re ready to go live.',
   },
   {
     id: 'oss',
     component: BentoOpenSource,
     span: 'bento-span-4',
-    corner: 'bento-corner-br',
     textFirst: true,
     title: 'Open source',
-    description: '<span class="bento-hl">AGPL-3.0</span> licensed. Self-host on your own Kubernetes cluster. Built on ArgoCD, Helm, CloudNativePG, and friends.',
+    description: '<span class="bento-hl">AGPL-3.0</span> licensed. Self-host on your own Kubernetes cluster. Built on Helm, CloudNativePG, Valkey, VictoriaMetrics, and friends.',
+  },
+  /* Row 4: full width */
+  {
+    id: 'swiss',
+    component: BentoSwiss,
+    span: 'bento-span-6',
+    corner: 'bento-corner-bl bento-corner-br',
+    textFirst: true,
+    title: 'Backed by a Swiss company',
+    description: 'There’s a US law called the <span class="bento-hl">CLOUD Act</span>. This cloud isn’t subject to it. Your data stays under Swiss and EU jurisdiction, where US subpoenas don’t reach.',
   },
 ];
 
@@ -80,81 +89,92 @@ function onMouseLeave() {
 </script>
 
 <template>
-  <div class="bento-grid">
-    <div
-      v-for="card in cards"
-      :key="card.id"
-      :class="[
-        'bento-card-wrap',
-        `bento-card-${card.id}`,
-        card.span,
-        card.corner,
-      ]"
-      @mousemove="(e) => onMouseMove(e, card.id)"
-      @mouseleave="onMouseLeave"
-    >
-      <!-- Gradient border glow — cursor-following accent edge.
-           The 1px padding on the wrapper creates a "border" gap.
-           This gradient overlays it with the accent color at the cursor. -->
-      <div
-        v-if="spotlightCard === card.id"
-        class="bento-border-glow"
-        :style="{
-          background: `radial-gradient(400px circle at ${spotlightX}px ${spotlightY}px, var(--bento-accent), transparent 60%)`,
-        }"
-      />
+  <section class="px-6 mx-auto max-w-352">
+    <h2 class="font-display text-5xl leading-tight text-neutral-800 md:text-6xl dark:text-neutral-100">
+      Everything you need to ship
+    </h2>
 
-      <!-- Inner card shell -->
-      <div class="bento-card">
-        <!-- Surface spotlight glow -->
+    <p class="mt-8 text-2xl leading-relaxed mb-22">
+       All the building blocks for deploying and running your apps on Kubernetes. Built on standard tools, so you can eject whenever you want.
+    </p>
+
+
+    <div class="bento-grid">
+      <div
+        v-for="card in cards"
+        :key="card.id"
+        :class="[
+          'bento-card-wrap',
+          `bento-card-${card.id}`,
+          card.span,
+          card.corner,
+        ]"
+        @mousemove="(e) => onMouseMove(e, card.id)"
+        @mouseleave="onMouseLeave"
+      >
+        <!-- Gradient border glow — cursor-following accent edge.
+            The 1px padding on the wrapper creates a "border" gap.
+            This gradient overlays it with the accent color at the cursor. -->
         <div
           v-if="spotlightCard === card.id"
-          class="bento-spotlight"
+          class="bento-border-glow"
           :style="{
-            background: `radial-gradient(400px circle at ${spotlightX}px ${spotlightY}px, var(--bento-accent-glow), transparent 70%)`,
+            background: `radial-gradient(400px circle at ${spotlightX}px ${spotlightY}px, var(--bento-accent), transparent 60%)`,
           }"
         />
 
-        <!-- Depth gradient — slight highlight at top, shadow at bottom -->
-        <div class="bento-depth" />
-
-        <!-- Text content (shows first when textFirst) -->
-        <div
-          v-if="card.textFirst"
-          class="bento-text"
-        >
-          <h3 class="bento-title">
-            {{ card.title }}
-          </h3>
-          <!-- eslint-disable-next-line vue/no-v-html -->
-          <p
-            class="bento-desc"
-            v-html="card.description"
+        <!-- Inner card shell -->
+        <div class="bento-card">
+          <!-- Surface spotlight glow -->
+          <div
+            v-if="spotlightCard === card.id"
+            class="bento-spotlight"
+            :style="{
+              background: `radial-gradient(400px circle at ${spotlightX}px ${spotlightY}px, var(--bento-accent-glow), transparent 70%)`,
+            }"
           />
-        </div>
 
-        <!-- Visual area -->
-        <div class="bento-visual">
-          <component :is="card.component" />
-        </div>
+          <!-- Depth gradient — slight highlight at top, shadow at bottom -->
+          <div class="bento-depth" />
 
-        <!-- Text content (shows after visual when not textFirst) -->
-        <div
-          v-if="!card.textFirst"
-          class="bento-text"
-        >
-          <h3 class="bento-title">
-            {{ card.title }}
-          </h3>
-          <!-- eslint-disable-next-line vue/no-v-html -->
-          <p
-            class="bento-desc"
-            v-html="card.description"
-          />
+          <!-- Text content (shows first when textFirst) -->
+          <div
+            v-if="card.textFirst"
+            class="bento-text"
+          >
+            <h3 class="bento-title">
+              {{ card.title }}
+            </h3>
+            <!-- eslint-disable-next-line vue/no-v-html -->
+            <p
+              class="bento-desc"
+              v-html="card.description"
+            />
+          </div>
+
+          <!-- Visual area -->
+          <div class="bento-visual">
+            <component :is="card.component" />
+          </div>
+
+          <!-- Text content (shows after visual when not textFirst) -->
+          <div
+            v-if="!card.textFirst"
+            class="bento-text"
+          >
+            <h3 class="bento-title">
+              {{ card.title }}
+            </h3>
+            <!-- eslint-disable-next-line vue/no-v-html -->
+            <p
+              class="bento-desc"
+              v-html="card.description"
+            />
+          </div>
         </div>
       </div>
     </div>
-  </div>
+  </section>
 </template>
 
 <style scoped>
@@ -174,7 +194,8 @@ function onMouseLeave() {
 /* All spans are full-width on mobile */
 .bento-span-2,
 .bento-span-3,
-.bento-span-4 {
+.bento-span-4,
+.bento-span-6 {
   grid-column: 1 / -1;
 }
 
@@ -182,6 +203,7 @@ function onMouseLeave() {
   .bento-span-2 { grid-column: span 2; }
   .bento-span-3 { grid-column: span 3; }
   .bento-span-4 { grid-column: span 4; }
+  .bento-span-6 { grid-column: span 6; }
 }
 
 /* Outer wrapper — 1px padding acts as the "border".
@@ -299,7 +321,7 @@ function onMouseLeave() {
 }
 
 .bento-title {
-  font-family: var(--font-serif);
+  font-family: var(--font-display);
   font-size: 1.75rem;
   font-weight: normal;
   color: var(--ui-text);

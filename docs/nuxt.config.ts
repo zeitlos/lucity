@@ -3,7 +3,11 @@ export default defineNuxtConfig({
     url: 'https://lucity.cloud',
     name: 'Lucity'
   },
-  modules: ['nuxt-vitalizer'],
+  fonts: {
+    families: [
+      { name: 'Mona Sans', provider: 'google', weights: [400, 500, 600, 700] }
+    ]
+  },
   hooks: {
     'pages:extend'(pages) {
       // Remove the [[lang]]/[...slug] route from the Docus layer.
@@ -13,9 +17,6 @@ export default defineNuxtConfig({
       const idx = pages.findIndex(p => p.path === '/:lang?/:slug(.*)*');
       if (idx !== -1) pages.splice(idx, 1);
     }
-  },
-  vitalizer: {
-    disableStylesheets: 'entry'
   },
   llms: {
     domain: 'https://lucity.cloud',

@@ -6,33 +6,33 @@ const currentTime = ref(0);
 
 const segments = [
   {
-    icon: 'i-lucide-rocket',
+    // icon: 'i-lucide-rocket',
     label: 'Build & Deploy',
-    description: 'From GitHub repo to running app. Zero config.',
+    description: 'From GitHub repo to running app with zero config.',
     color: 'oklch(0.75 0.18 160)',
     start: 0,
     end: 22,
   },
   {
-    icon: 'i-lucide-globe',
+    // icon: 'i-lucide-globe',
     label: 'Go Live',
-    description: 'Publicly reachable in seconds, with custom domains and automatic TLS',
+    description: 'Free public domain or bring custom domains. Natrually with autoamtic TLS.',
     color: 'oklch(0.70 0.22 0)',
     start: 22,
     end: 26,
   },
   {
-    icon: 'i-lucide-database',
-    label: 'Managed Databases',
-    description: 'PostgreSQL in one click, auto-wired',
+    // icon: 'i-lucide-database',
+    label: 'Batteries included',
+    description: 'Deploy PostgreSQL, Redis, Object Storage in one click. Automatically wired to your app.',
     color: 'oklch(0.85 0.15 95)',
     start: 26,
     end: 44,
   },
   {
-    icon: 'i-lucide-table',
-    label: 'Database Explorer',
-    description: 'Browse tables and run queries in the dashboard',
+    // icon: 'i-lucide-table',
+    label: 'Clever integrations',
+    description: 'Browse datbases, configure dynamic variables and scale effotlessly.',
     color: 'oklch(0.72 0.14 300)',
     start: 44,
     end: 60.33,
@@ -77,9 +77,9 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="hero-demo">
-    <div class="video-container">
-      <div class="video-wrapper">
+  <div class="flex justify-center">
+    <div class="w-full">
+      <div class="shadow-2xl rounded-3xl overflow-hidden">
         <video
           ref="video"
           src="/video/demo.mp4"
@@ -88,32 +88,26 @@ onUnmounted(() => {
           loop
           playsinline
           preload="metadata"
+          class="block h-auto w-full"
         />
       </div>
-      <div class="tabs">
+      <div class="mt-3 flex flex-col items-stretch gap-1.5 min-[651px]:flex-row min-[651px]:flex-wrap min-[651px]:gap-0.5 min-[1001px]:flex-nowrap">
         <button
           v-for="(seg, i) in segments"
           :key="seg.label"
-          class="tab"
-          :class="{ 'tab-active': activeIndex === i }"
+          class="flex w-full cursor-pointer flex-col items-start gap-1.5 rounded-lg px-4 py-3 text-left transition-colors duration-200 hover:bg-[var(--ui-bg-elevated)] min-[651px]:w-[calc(50%-1px)] min-[1001px]:w-auto min-[1001px]:flex-1"
+          :class="activeIndex === i ? 'bg-[var(--ui-bg-elevated)]' : ''"
           @click="seek(i)"
         >
-          <div class="tab-header">
-            <span
-              class="tab-icon"
-              :style="activeIndex === i ? { color: seg.color } : undefined"
-            >
-              <UIcon
-                :name="seg.icon"
-                class="size-4"
-              />
-            </span>
-            <span class="tab-label">{{ seg.label }}</span>
+          <div class="text-muted text-xl font-bold" :class="{ 'text-neutral-950 dark:text-neutral-50': activeIndex === i }">
+            {{ seg.label }}
           </div>
-          <span class="tab-description">{{ seg.description }}</span>
-          <div class="progress-track">
+          <span class="font-sans-condensed">
+            {{ seg.description }}
+          </span>
+          <div class="mt-auto h-1.5 w-full overflow-hidden rounded-sm bg-[var(--ui-border)] max-[650px]:mt-2">
             <div
-              class="progress-fill"
+              class="h-full rounded transition-[width] duration-[250ms] ease-linear"
               :style="{
                 width: `${segmentProgress(i)}%`,
                 background: seg.color,
@@ -125,140 +119,3 @@ onUnmounted(() => {
     </div>
   </div>
 </template>
-
-<style scoped>
-.hero-demo {
-  display: flex;
-  justify-content: center;
-  padding: 2rem 1rem 0;
-}
-
-.video-container {
-  width: 100%;
-  max-width: 1100px;
-}
-
-.video-wrapper {
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow:
-    0 4px 24px oklch(0.3 0.02 55 / 0.08),
-    0 1px 4px oklch(0.3 0.02 55 / 0.04);
-  border: 1px solid var(--ui-border);
-}
-
-.video-wrapper video {
-  display: block;
-  width: 100%;
-  height: auto;
-}
-
-.tabs {
-  display: flex;
-  gap: 2px;
-  margin-top: 12px;
-  align-items: stretch;
-}
-
-.tab {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
-  padding: 12px 16px;
-  border-radius: 8px;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  transition: background 0.2s ease;
-  text-align: left;
-}
-
-.tab:hover {
-  background: var(--ui-bg-elevated);
-}
-
-.tab-active {
-  background: var(--ui-bg-elevated);
-}
-
-.tab-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.tab-icon {
-  color: var(--ui-text-muted);
-  transition: color 0.2s ease;
-  display: flex;
-  align-items: center;
-}
-
-.tab-label {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--ui-text-muted);
-  transition: color 0.2s ease;
-  white-space: nowrap;
-}
-
-.tab-active .tab-label {
-  color: var(--ui-text);
-}
-
-.tab-description {
-  font-size: 12px;
-  color: var(--ui-text-dimmed);
-  line-height: 1.4;
-  transition: color 0.2s ease;
-}
-
-.tab-active .tab-description {
-  color: var(--ui-text-muted);
-}
-
-.progress-track {
-  width: 100%;
-  height: 2px;
-  background: var(--ui-border);
-  border-radius: 1px;
-  overflow: hidden;
-  margin-top: auto;
-}
-
-.progress-fill {
-  height: 100%;
-  border-radius: 1px;
-  transition: width 0.25s linear;
-}
-
-/* Dark mode shadow adjustment */
-.dark .video-wrapper {
-  box-shadow:
-    0 4px 24px oklch(0 0 0 / 0.3),
-    0 1px 4px oklch(0 0 0 / 0.2);
-}
-
-/* Responsive: hide descriptions on mobile */
-@media (max-width: 640px) {
-  .tab {
-    padding: 10px 8px;
-    gap: 4px;
-  }
-
-  .tab-label {
-    font-size: 11px;
-  }
-
-  .tab-description {
-    display: none;
-  }
-
-  .tab-icon .size-4 {
-    width: 14px;
-    height: 14px;
-  }
-}
-</style>
