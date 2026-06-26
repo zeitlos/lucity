@@ -38,7 +38,7 @@ const loop = [...icons, ...icons];
 
 <template>
   <section>
-    <p class="px-6 text-center text-lg font-medium text-neutral-600 mb-12">
+    <p class="px-6 text-center text-lg font-medium text-neutral-600 mb-12 dark:text-neutral-400">
       Lucity supports your favorite technology
     </p>
 
@@ -48,7 +48,7 @@ const loop = [...icons, ...icons];
           v-for="(cls, i) in loop"
           :key="i"
           :class="cls"
-          class="shrink-0 max-w-12 w-full text-7xl text-neutral-800"
+          class="shrink-0 max-w-12 w-full text-7xl text-neutral-800 dark:text-neutral-200"
           aria-hidden="true"
         />
       </div>

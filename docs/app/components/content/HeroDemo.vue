@@ -99,7 +99,7 @@ onUnmounted(() => {
           :class="activeIndex === i ? 'bg-[var(--ui-bg-elevated)]' : ''"
           @click="seek(i)"
         >
-          <div class="text-muted text-xl font-bold" :class="{ 'text-neutral-950': activeIndex === i }">
+          <div class="text-muted text-xl font-bold" :class="{ 'text-neutral-950 dark:text-neutral-50': activeIndex === i }">
             {{ seg.label }}
           </div>
           <span class="font-sans-condensed">

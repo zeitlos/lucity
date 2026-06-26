@@ -10,8 +10,8 @@ const artifactCount = ref(0);
 
 const outputs = [
   { icon: 'i-simple-icons-helm', label: 'Helm chart', path: 'ejected/chart/' },
-  { icon: 'i-simple-icons-argo', label: 'ArgoCD apps', path: 'ejected/argocd/' },
-  { icon: 'i-lucide-settings', label: 'Env values', path: 'ejected/environments/' },
+  { icon: 'i-lucide-terminal', label: 'Build script', path: 'ejected/build.sh' },
+  { icon: 'i-lucide-settings', label: 'Configurations', path: 'ejected/config/' },
   { icon: 'i-lucide-file-text', label: 'README', path: 'ejected/README.md' },
 ];
 

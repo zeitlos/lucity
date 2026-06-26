@@ -375,6 +375,20 @@
   --bento-card-bg: oklch(0.95 0.04 290);
 }
 
+.bento-card-scale {
+  --bento-accent: oklch(0.55 0.15 215);
+  --bento-accent-glow: oklch(0.55 0.15 215 / 0.3);
+  --bento-accent-subtle: oklch(0.55 0.15 215 / 0.12);
+  --bento-card-bg: oklch(0.95 0.04 215);
+}
+
+.bento-card-swiss {
+  --bento-accent: oklch(0.55 0.20 27);
+  --bento-accent-glow: oklch(0.55 0.20 27 / 0.3);
+  --bento-accent-subtle: oklch(0.55 0.20 27 / 0.12);
+  --bento-card-bg: oklch(0.95 0.045 27);
+}
+
 /* ── Dark mode ── */
 
 .dark .bento-card-deploy {
@@ -417,4 +431,18 @@
   --bento-accent-glow: oklch(0.70 0.14 290 / 0.3);
   --bento-accent-subtle: oklch(0.70 0.14 290 / 0.12);
   --bento-card-bg: oklch(0.22 0.02 290);
+}
+
+.dark .bento-card-scale {
+  --bento-accent: oklch(0.72 0.14 215);
+  --bento-accent-glow: oklch(0.72 0.14 215 / 0.3);
+  --bento-accent-subtle: oklch(0.72 0.14 215 / 0.12);
+  --bento-card-bg: oklch(0.22 0.02 215);
+}
+
+.dark .bento-card-swiss {
+  --bento-accent: oklch(0.72 0.17 27);
+  --bento-accent-glow: oklch(0.72 0.17 27 / 0.3);
+  --bento-accent-subtle: oklch(0.72 0.17 27 / 0.12);
+  --bento-card-bg: oklch(0.22 0.02 27);
 }

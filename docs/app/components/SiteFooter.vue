@@ -50,7 +50,7 @@ const columns = [
   <footer class="px-6 pb-16 pt-20">
     <div class="mx-auto grid max-w-[96rem] grid-cols-2 gap-x-8 gap-y-12 sm:grid-cols-3 lg:grid-cols-5">
       <div v-for="col in columns" :key="col.title">
-        <h3 class="text-lg font-bold text-neutral-900">
+        <h3 class="text-lg font-bold text-neutral-900 dark:text-neutral-100">
           {{ col.title }}
         </h3>
         <ul class="mt-4 space-y-3">
@@ -58,14 +58,14 @@ const columns = [
             <a
               v-if="link.href"
               :href="link.href"
-              class="text-base text-neutral-600 transition-colors hover:text-neutral-900"
+              class="text-base text-neutral-600 transition-colors hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
             >
               {{ link.label }}
             </a>
             <NuxtLink
               v-else
               :to="link.to"
-              class="text-base text-neutral-600 transition-colors hover:text-neutral-900"
+              class="text-base text-neutral-600 transition-colors hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
             >
               {{ link.label }}
             </NuxtLink>

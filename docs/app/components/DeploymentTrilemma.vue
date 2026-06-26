@@ -49,16 +49,16 @@ function coord(axis: keyof typeof axes, s: number) {
   const a = axes[axis];
   return { x: cx + R * s * a.ux, y: cy + R * s * a.uy };
 }
-function tri(s: number) {
-  return [coord('simplicity', s), coord('sovereignty', s), coord('scalability', s)]
+function poly(scores: AxisScores) {
+  return [coord('simplicity', scores.simplicity), coord('sovereignty', scores.sovereignty), coord('scalability', scores.scalability)]
     .map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`)
     .join(' ');
 }
-const dataPoly = computed(() =>
-  [coord('simplicity', displayed.simplicity), coord('sovereignty', displayed.sovereignty), coord('scalability', displayed.scalability)]
-    .map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`)
-    .join(' '),
-);
+function tri(s: number) {
+  return poly({ simplicity: s, scalability: s, sovereignty: s });
+}
+
+const dataPoly = computed(() => poly(displayed));
 const dots = computed(() => [
   coord('simplicity', displayed.simplicity),
   coord('sovereignty', displayed.sovereignty),
@@ -72,72 +72,76 @@ function sectionStyle(key: keyof typeof profiles) {
     paddingLeft: active.value === key ? '1.75rem' : '0',
   };
 }
+
+const sectionClass = 'block w-full cursor-pointer text-left text-2xl leading-relaxed transition-all duration-300';
 </script>
 
 <template>
-  <section class="px-6">
-    <div class="mx-auto grid max-w-[88rem] items-center gap-12 lg:grid-cols-2 lg:gap-20">
-      <div>
-        <h2 class="font-display text-5xl leading-tight text-neutral-800 md:text-6xl">
-          We’re not saying the competition is bad…
-        </h2>
+  <section class="px-6 mx-auto grid max-w-352 items-center gap-12 lg:grid-cols-2 lg:gap-20">
+    <div>
+      <h2 class="font-display text-5xl leading-tight text-neutral-800 md:text-6xl dark:text-neutral-100">
+        The competition makes you pick two of three…
+      </h2>
 
-        <p class="mt-8 text-2xl leading-relaxed text-neutral-700">
-          …it just seems there are obvious tradeoffs for each alternative.
-        </p>
+      <p class="mt-8 text-2xl leading-relaxed text-neutral-700 dark:text-neutral-300">
+        Each of Lucity’s competitors has pretty major tradeoffs.
+      </p>
 
-        <div class="mt-8 space-y-5">
-          <button type="button" class="block w-full cursor-pointer text-left text-2xl leading-relaxed transition-all duration-300" :style="sectionStyle('paas')" @click="select('paas')">
-            <i class="devicon-vercel-plain mr-1.5 align-middle text-[1.1em]" aria-hidden="true" />Vercel,
-            <i class="devicon-heroku-plain mr-1.5 align-middle text-[1.1em]" aria-hidden="true" />Heroku and
-            <i class="devicon-railway-plain mr-1.5 align-middle text-[1.1em]" aria-hidden="true" />Railway are easy to use, but really the anti-christ of sovereignty.
-          </button>
+      <div class="mt-8 space-y-5">
+        <button type="button" :class="sectionClass" :style="sectionStyle('paas')" @click="select('paas')">
+          <i class="devicon-vercel-plain mr-1.5 align-middle text-[1.1em]" aria-hidden="true" />Vercel,
+          <i class="devicon-heroku-plain mr-1.5 align-middle text-[1.1em]" aria-hidden="true" />Heroku and
+          <i class="devicon-railway-plain mr-1.5 align-middle text-[1.1em]" aria-hidden="true" />Railway are easy to use, but really the anti-christ of sovereignty.
+        </button>
 
-          <button type="button" class="block w-full cursor-pointer text-left text-2xl leading-relaxed transition-all duration-300" :style="sectionStyle('selfhost')" @click="select('selfhost')">
-            Self-hosting tools like <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" class="mr-1.5 inline-block size-[1.05em] align-middle"><path d="M4.364 4.364V0h17.454v4.364zm0 13.09H0V4.365h4.364zm0 0h17.454v4.364H4.364ZM6.545 6.546v-1.7H22.3V2.182H24v4.363zm0 0v10.4h-1.7v-10.4Zm-2.663 11.39v1.7h-1.7v-1.7ZM24 24H6.545v-1.7H22.3v-2.664H24Z" /></svg>Coolify provide sovereignty but reach their limits once you need to scale beyond one server or grow your team.
-          </button>
+        <button type="button" :class="sectionClass" :style="sectionStyle('selfhost')" @click="select('selfhost')">
+          Self-hosting tools like <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" class="mr-1.5 inline-block size-[1.05em] align-middle"><path d="M4.364 4.364V0h17.454v4.364zm0 13.09H0V4.365h4.364zm0 0h17.454v4.364H4.364ZM6.545 6.546v-1.7H22.3V2.182H24v4.363zm0 0v10.4h-1.7v-10.4Zm-2.663 11.39v1.7h-1.7v-1.7ZM24 24H6.545v-1.7H22.3v-2.664H24Z" /></svg>Coolify provide sovereignty but reach their limits once you need to scale beyond one server or grow your team.
+        </button>
 
-          <button type="button" class="block w-full cursor-pointer text-left text-2xl leading-relaxed transition-all duration-300" :style="sectionStyle('k8s')" @click="select('k8s')">
-            <i class="devicon-kubernetes-plain mr-1.5 align-middle text-[1.1em]" aria-hidden="true" />Kubernetes scales, but requires you to have a dedicated platform team to run in production.
-          </button>
-        </div>
-
-        <p class="mt-8 text-2xl leading-relaxed text-neutral-700">
-          We call this the Software Deployment Trilemma.
-          <NuxtLink to="/blog/the-software-deployment-trilemma" class="font-semibold text-neutral-800 underline decoration-2 underline-offset-4 hover:text-neutral-950">
-            Read the blog post.
-          </NuxtLink>
-        </p>
+        <button type="button" :class="sectionClass" :style="sectionStyle('k8s')" @click="select('k8s')">
+          <i class="devicon-kubernetes-plain mr-1.5 align-middle text-[1.1em]" aria-hidden="true" />Kubernetes scales, but requires you to have a dedicated platform team to run in production.
+        </button>
       </div>
 
-      <div class="flex justify-center">
-        <div class="relative w-full max-w-lg">
-          <svg viewBox="0 0 440 400" class="w-full" role="img" aria-label="Deployment trilemma chart">
-            <g fill="none" stroke="#d2b78b">
-              <polygon :points="tri(1)" stroke-width="1.25" />
-              <polygon :points="tri(0.66)" stroke-opacity="0.55" />
-              <polygon :points="tri(0.33)" stroke-opacity="0.55" />
-              <line v-for="(tip, i) in axisTips" :key="i" :x1="cx" :y1="cy" :x2="tip.x" :y2="tip.y" stroke-opacity="0.55" />
-            </g>
+      <p class="mt-8 text-2xl leading-relaxed text-neutral-700 dark:text-neutral-300">
+        We call this the Software Deployment Trilemma.
+        <NuxtLink to="/blog/the-software-deployment-trilemma" class="font-semibold text-neutral-800 underline decoration-2 underline-offset-4 hover:text-neutral-950 dark:text-neutral-100 dark:hover:text-white">
+          Read the blog post.
+        </NuxtLink>
+      </p>
+    </div>
 
-            <g :style="{ color: activeColor }">
-              <polygon
-                :points="dataPoly"
-                fill="currentColor"
-                fill-opacity="0.2"
-                stroke="currentColor"
-                stroke-width="2.5"
-                stroke-linejoin="round"
-              />
-              <circle v-for="(d, i) in dots" :key="i" :cx="d.x" :cy="d.y" r="5" fill="currentColor" />
-            </g>
-          </svg>
+    <div class="relative w-full">
+      <svg viewBox="0 0 440 400" class="w-full" role="img" aria-label="Deployment trilemma chart">
+        <g fill="none" stroke="#d2b78b" class="chart-grid">
+          <polygon :points="tri(1)" stroke-width="1.25" />
+          <polygon :points="tri(0.66)" stroke-opacity="0.55" />
+          <polygon :points="tri(0.33)" stroke-opacity="0.55" />
+          <line v-for="(tip, i) in axisTips" :key="i" :x1="cx" :y1="cy" :x2="tip.x" :y2="tip.y" stroke-opacity="0.55" />
+        </g>
 
-          <span class="absolute left-1/2 top-[1%] -translate-x-1/2 text-2xl font-medium text-neutral-800">Simplicity</span>
-          <span class="absolute left-[20.5%] top-[70%] -translate-x-1/2 text-2xl font-medium text-neutral-800">Scalability</span>
-          <span class="absolute left-[79.5%] top-[70%] -translate-x-1/2 text-2xl font-medium text-neutral-800">Sovereignty</span>
-        </div>
-      </div>
+        <g :style="{ color: activeColor }">
+          <polygon
+            :points="dataPoly"
+            fill="currentColor"
+            fill-opacity="0.2"
+            stroke="currentColor"
+            stroke-width="2.5"
+            stroke-linejoin="round"
+          />
+          <circle v-for="(d, i) in dots" :key="i" :cx="d.x" :cy="d.y" r="5" fill="currentColor" />
+        </g>
+      </svg>
+
+      <span class="absolute left-1/2 top-[1%] -translate-x-1/2 text-2xl font-medium text-neutral-800 dark:text-neutral-100">Simplicity</span>
+      <span class="absolute left-[20.5%] top-[70%] -translate-x-1/2 text-2xl font-medium text-neutral-800 dark:text-neutral-100">Scalability</span>
+      <span class="absolute left-[79.5%] top-[70%] -translate-x-1/2 text-2xl font-medium text-neutral-800 dark:text-neutral-100">Sovereignty</span>
     </div>
   </section>
 </template>
+
+<style scoped>
+.dark .chart-grid {
+  stroke: oklch(0.48 0.04 75);
+}
+</style>

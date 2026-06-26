@@ -10,11 +10,11 @@ const colorMode = useColorMode();
 const isDark = computed(() => colorMode.value === 'dark');
 
 const tools = [
-  { name: 'ArgoCD', icon: 'i-simple-icons-argo', color: 'oklch(0.52 0.18 30)', darkColor: 'oklch(0.70 0.16 30)' },
   { name: 'Helm', icon: 'i-simple-icons-helm', color: 'oklch(0.50 0.16 250)', darkColor: 'oklch(0.70 0.14 250)' },
   { name: 'CloudNativePG', icon: 'i-simple-icons-postgresql', color: 'oklch(0.50 0.16 250)', darkColor: 'oklch(0.70 0.14 250)' },
+  { name: 'Valkey', icon: 'i-lucide-database', color: 'oklch(0.55 0.14 200)', darkColor: 'oklch(0.72 0.13 200)' },
+  { name: 'VictoriaMetrics', icon: 'i-simple-icons-victoriametrics', color: 'oklch(0.58 0.18 25)', darkColor: 'oklch(0.72 0.15 25)' },
   { name: 'Zot', icon: 'i-lucide-package', color: 'oklch(0.55 0.16 30)', darkColor: 'oklch(0.72 0.14 30)' },
-  { name: 'Soft-serve', icon: 'i-lucide-git-branch', color: 'oklch(0.50 0.16 140)', darkColor: 'oklch(0.70 0.14 140)' },
   { name: 'Gateway API', icon: 'i-simple-icons-kubernetes', color: 'oklch(0.50 0.16 250)', darkColor: 'oklch(0.70 0.14 250)' },
 ];
 
