@@ -8,6 +8,7 @@ type Volume {
   name: String!
   size: String!
   mount: Mount
+  metrics(metrics: [ResourceMetric!]!, range: MetricsRange!): [MetricSeries!]! @goField(forceResolver: true)
 }
 
 extend type Query {

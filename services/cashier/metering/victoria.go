@@ -2,38 +2,32 @@ package metering
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/zeitlos/lucity/pkg/victoria"
 )
 
 // VMClient queries VictoriaMetrics via the Prometheus-compatible HTTP API.
 type VMClient struct {
-	url    string
-	client *http.Client
+	client *victoria.Client
 }
 
 // NewVMClient connects to VictoriaMetrics at vmURL (e.g. http://lucity-infra-victoria-metrics-single-server:8428).
 func NewVMClient(vmURL string) (*VMClient, error) {
-	if vmURL == "" {
-		return nil, fmt.Errorf("VictoriaMetrics URL is empty")
-	}
-
-	c := &VMClient{
-		url:    strings.TrimRight(vmURL, "/"),
-		client: &http.Client{Timeout: 30 * time.Second},
+	client, err := victoria.New(vmURL)
+	if err != nil {
+		return nil, err
 	}
 
 	// Sanity check: VM exposes vm_app_uptime_seconds for itself.
-	if _, err := c.queryVector(context.Background(), "vm_app_uptime_seconds", time.Now()); err != nil {
+	if err := client.Ping(context.Background()); err != nil {
 		return nil, fmt.Errorf("failed to ping VictoriaMetrics: %w", err)
 	}
-	return c, nil
+
+	return &VMClient{client: client}, nil
 }
 
 // CPUByNamespace returns total CPU-seconds consumed per namespace over the given window.
@@ -80,83 +74,18 @@ func (c *VMClient) DiskByNamespace(ctx context.Context, namespaces []string, sta
 
 // queryByLabel runs an instant PromQL query at evalTime and returns a map keyed by
 // the named label.
-func (c *VMClient) queryByLabel(ctx context.Context, promql string, evalTime time.Time, label string) (map[string]float64, error) {
-	res, err := c.queryVector(ctx, promql, evalTime)
+func (c *VMClient) queryByLabel(ctx context.Context, query string, evalTime time.Time, label string) (map[string]float64, error) {
+	samples, err := c.client.QueryVector(ctx, query, evalTime)
 	if err != nil {
 		return nil, err
 	}
-	out := make(map[string]float64, len(res))
-	for _, r := range res {
-		key, ok := r.Metric[label]
+	out := make(map[string]float64, len(samples))
+	for _, s := range samples {
+		key, ok := s.Labels[label]
 		if !ok {
 			continue
 		}
-		out[key] = r.Value
-	}
-	return out, nil
-}
-
-type vmSample struct {
-	Metric map[string]string
-	Value  float64
-}
-
-// queryVector executes /api/v1/query and returns the vector result.
-func (c *VMClient) queryVector(ctx context.Context, promql string, evalTime time.Time) ([]vmSample, error) {
-	form := url.Values{}
-	form.Set("query", promql)
-	form.Set("time", strconv.FormatInt(evalTime.Unix(), 10))
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.url+"/api/v1/query", strings.NewReader(form.Encode()))
-	if err != nil {
-		return nil, fmt.Errorf("failed to build request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-
-	resp, err := c.client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query VictoriaMetrics: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response: %w", err)
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("VictoriaMetrics returned %d: %s", resp.StatusCode, string(body))
-	}
-
-	var parsed struct {
-		Status string `json:"status"`
-		Data   struct {
-			ResultType string `json:"resultType"`
-			Result     []struct {
-				Metric map[string]string `json:"metric"`
-				Value  [2]any            `json:"value"`
-			} `json:"result"`
-		} `json:"data"`
-		ErrorType string `json:"errorType"`
-		Error     string `json:"error"`
-	}
-	if err := json.Unmarshal(body, &parsed); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w (body=%s)", err, string(body))
-	}
-	if parsed.Status != "success" {
-		return nil, fmt.Errorf("VictoriaMetrics error: %s: %s", parsed.ErrorType, parsed.Error)
-	}
-
-	out := make([]vmSample, 0, len(parsed.Data.Result))
-	for _, r := range parsed.Data.Result {
-		s, ok := r.Value[1].(string)
-		if !ok {
-			return nil, fmt.Errorf("unexpected value type %T in response", r.Value[1])
-		}
-		v, err := strconv.ParseFloat(s, 64)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse value %q: %w", s, err)
-		}
-		out = append(out, vmSample{Metric: r.Metric, Value: v})
+		out[key] = s.Value
 	}
 	return out, nil
 }

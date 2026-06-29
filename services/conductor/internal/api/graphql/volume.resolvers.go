@@ -60,3 +60,39 @@ func (r *queryResolver) Volume(ctx context.Context, id platform.VolumeID) (*mode
 
 	return new(convertVolume(*result)), nil
 }
+
+// Metrics is the resolver for the metrics field.
+func (r *volumeResolver) Metrics(ctx context.Context, obj *model.Volume, metrics []model.ResourceMetric, rangeArg model.MetricsRange) ([]model.MetricSeries, error) {
+	window, err := convertMetricWindow(rangeArg.Window)
+
+	if err != nil {
+		return nil, err
+	}
+
+	series := make([]model.MetricSeries, 0, len(metrics))
+
+	for _, metric := range metrics {
+		if metric != model.ResourceMetricStorageUsed {
+			continue
+		}
+
+		used, err := r.Conductor.VolumeStorageUsed(ctx, obj.ID, window)
+
+		if err != nil {
+			return nil, err
+		}
+
+		series = append(series, model.MetricSeries{
+			Metric: model.ResourceMetricStorageUsed,
+			Unit:   model.MetricUnitBytes,
+			Points: convertMetricPoints(used.Points),
+		})
+	}
+
+	return series, nil
+}
+
+// Volume returns VolumeResolver implementation.
+func (r *Resolver) Volume() VolumeResolver { return &volumeResolver{r} }
+
+type volumeResolver struct{ *Resolver }

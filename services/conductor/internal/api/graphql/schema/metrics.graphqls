@@ -1,0 +1,30 @@
+enum ResourceMetric {
+  STORAGE_USED
+}
+
+enum MetricUnit {
+  BYTES
+}
+
+enum MetricWindow {
+  LAST_1H
+  LAST_6H
+  LAST_24H
+  LAST_7D
+  LAST_30D
+}
+
+input MetricsRange {
+  window: MetricWindow!
+}
+
+type MetricPoint {
+  timestamp: Time!
+  value: Float
+}
+
+type MetricSeries {
+  metric: ResourceMetric!
+  unit: MetricUnit!
+  points: [MetricPoint!]!
+}

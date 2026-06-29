@@ -17,6 +17,7 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/environment"
 	"github.com/zeitlos/lucity/services/conductor/internal/gateway"
 	"github.com/zeitlos/lucity/services/conductor/internal/hostname"
+	"github.com/zeitlos/lucity/services/conductor/internal/metrics"
 	"github.com/zeitlos/lucity/services/conductor/internal/objectstorage"
 	"github.com/zeitlos/lucity/services/conductor/internal/planner"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
@@ -44,6 +45,7 @@ type Client struct {
 	deployer      deployer.Interface
 	environment   environment.Interface
 	objectStorage objectstorage.Interface
+	metrics       *metrics.Provider
 
 	config Config
 
@@ -71,7 +73,7 @@ type Config struct {
 	DashboardURL         string
 }
 
-func New(cashier cashier.CashierServiceClient, githubApp *ghpkg.App, logto *logto.Client, tokenRefresher TokenRefresher, directory directory.Interface, platform platform.Interface, buildjob buildjob.Interface, planner planner.Interface, source source.Interface, hostname *hostname.Client, gateway *gateway.Client, deployer deployer.Interface, environment environment.Interface, objectStorage objectstorage.Interface, config Config) *Client {
+func New(cashier cashier.CashierServiceClient, githubApp *ghpkg.App, logto *logto.Client, tokenRefresher TokenRefresher, directory directory.Interface, platform platform.Interface, buildjob buildjob.Interface, planner planner.Interface, source source.Interface, hostname *hostname.Client, gateway *gateway.Client, deployer deployer.Interface, environment environment.Interface, objectStorage objectstorage.Interface, metrics *metrics.Provider, config Config) *Client {
 	return &Client{
 		cashier:        cashier,
 		gitHubApp:      githubApp,
@@ -89,6 +91,7 @@ func New(cashier cashier.CashierServiceClient, githubApp *ghpkg.App, logto *logt
 		deployer:       deployer,
 		environment:    environment,
 		objectStorage:  objectStorage,
+		metrics:        metrics,
 	}
 }
 

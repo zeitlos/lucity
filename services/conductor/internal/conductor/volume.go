@@ -6,11 +6,16 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/resource"
 
+	"github.com/zeitlos/lucity/services/conductor/internal/metrics"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
 type VolumeID = platform.VolumeID
 type Volume = platform.Volume
+
+func (c *Client) VolumeStorageUsed(ctx context.Context, id VolumeID, window metrics.Window) (metrics.Series, error) {
+	return c.metrics.VolumeStorageUsed(ctx, id.Namespace(), id.Name, window)
+}
 
 func (c *Client) Volumes(ctx context.Context, environment EnvironmentID) ([]Volume, error) {
 	return c.platform.Volumes(ctx, environment)

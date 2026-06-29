@@ -38,6 +38,7 @@ type ResolverRoot interface {
 	Query() QueryResolver
 	Service() ServiceResolver
 	Subscription() SubscriptionResolver
+	Volume() VolumeResolver
 }
 
 type DirectiveRoot struct {
@@ -276,6 +277,17 @@ type ComplexityRoot struct {
 		Name func(childComplexity int) int
 	}
 
+	MetricPoint struct {
+		Timestamp func(childComplexity int) int
+		Value     func(childComplexity int) int
+	}
+
+	MetricSeries struct {
+		Metric func(childComplexity int) int
+		Points func(childComplexity int) int
+		Unit   func(childComplexity int) int
+	}
+
 	Mount struct {
 		Path    func(childComplexity int) int
 		Service func(childComplexity int) int
@@ -471,10 +483,11 @@ type ComplexityRoot struct {
 	}
 
 	Volume struct {
-		ID    func(childComplexity int) int
-		Mount func(childComplexity int) int
-		Name  func(childComplexity int) int
-		Size  func(childComplexity int) int
+		ID      func(childComplexity int) int
+		Metrics func(childComplexity int, metrics []model.ResourceMetric, rangeArg model.MetricsRange) int
+		Mount   func(childComplexity int) int
+		Name    func(childComplexity int) int
+		Size    func(childComplexity int) int
 	}
 
 	Workspace struct {
@@ -597,6 +610,9 @@ type ServiceResolver interface {
 type SubscriptionResolver interface {
 	BuildLogs(ctx context.Context, id buildjob.BuildID) (<-chan string, error)
 	ServiceLogs(ctx context.Context, service platform.ServiceID, tailLines *int) (<-chan *model.ServiceLogEntry, error)
+}
+type VolumeResolver interface {
+	Metrics(ctx context.Context, obj *model.Volume, metrics []model.ResourceMetric, rangeArg model.MetricsRange) ([]model.MetricSeries, error)
 }
 
 type executableSchema graphql.ExecutableSchemaState[ResolverRoot, DirectiveRoot, ComplexityRoot]
@@ -1476,6 +1492,38 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.KeyValueStoreSource.Name(childComplexity), true
+
+	case "MetricPoint.timestamp":
+		if e.ComplexityRoot.MetricPoint.Timestamp == nil {
+			break
+		}
+
+		return e.ComplexityRoot.MetricPoint.Timestamp(childComplexity), true
+	case "MetricPoint.value":
+		if e.ComplexityRoot.MetricPoint.Value == nil {
+			break
+		}
+
+		return e.ComplexityRoot.MetricPoint.Value(childComplexity), true
+
+	case "MetricSeries.metric":
+		if e.ComplexityRoot.MetricSeries.Metric == nil {
+			break
+		}
+
+		return e.ComplexityRoot.MetricSeries.Metric(childComplexity), true
+	case "MetricSeries.points":
+		if e.ComplexityRoot.MetricSeries.Points == nil {
+			break
+		}
+
+		return e.ComplexityRoot.MetricSeries.Points(childComplexity), true
+	case "MetricSeries.unit":
+		if e.ComplexityRoot.MetricSeries.Unit == nil {
+			break
+		}
+
+		return e.ComplexityRoot.MetricSeries.Unit(childComplexity), true
 
 	case "Mount.path":
 		if e.ComplexityRoot.Mount.Path == nil {
@@ -2660,6 +2708,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Volume.ID(childComplexity), true
+	case "Volume.metrics":
+		if e.ComplexityRoot.Volume.Metrics == nil {
+			break
+		}
+
+		args, err := ec.field_Volume_metrics_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Volume.Metrics(childComplexity, args["metrics"].([]model.ResourceMetric), args["range"].(model.MetricsRange)), true
 	case "Volume.mount":
 		if e.ComplexityRoot.Volume.Mount == nil {
 			break
@@ -2765,6 +2824,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputCreateProjectInput,
 		ec.unmarshalInputCreateWorkspaceCheckoutInput,
 		ec.unmarshalInputInviteMemberInput,
+		ec.unmarshalInputMetricsRange,
 		ec.unmarshalInputResourcesInput,
 		ec.unmarshalInputServiceVariableInput,
 		ec.unmarshalInputSetEnvironmentResourcesInput,
@@ -2863,7 +2923,7 @@ func newExecutionContext(
 	}
 }
 
-//go:embed "schema/auth.graphqls" "schema/billing.graphqls" "schema/build.graphqls" "schema/database.graphqls" "schema/deployment.graphqls" "schema/eject.graphqls" "schema/environment.graphqls" "schema/github.graphqls" "schema/keyvaluestore.graphqls" "schema/logs.graphqls" "schema/objectstorage.graphqls" "schema/project.graphqls" "schema/registry.graphqls" "schema/release.graphqls" "schema/schema.graphqls" "schema/service.graphqls" "schema/variable.graphqls" "schema/volume.graphqls" "schema/workspace.graphqls"
+//go:embed "schema/auth.graphqls" "schema/billing.graphqls" "schema/build.graphqls" "schema/database.graphqls" "schema/deployment.graphqls" "schema/eject.graphqls" "schema/environment.graphqls" "schema/github.graphqls" "schema/keyvaluestore.graphqls" "schema/logs.graphqls" "schema/metrics.graphqls" "schema/objectstorage.graphqls" "schema/project.graphqls" "schema/registry.graphqls" "schema/release.graphqls" "schema/schema.graphqls" "schema/service.graphqls" "schema/variable.graphqls" "schema/volume.graphqls" "schema/workspace.graphqls"
 var sourcesFS embed.FS
 
 func sourceData(filename string) string {
@@ -2885,6 +2945,7 @@ var sources = []*ast.Source{
 	{Name: "schema/github.graphqls", Input: sourceData("schema/github.graphqls"), BuiltIn: false},
 	{Name: "schema/keyvaluestore.graphqls", Input: sourceData("schema/keyvaluestore.graphqls"), BuiltIn: false},
 	{Name: "schema/logs.graphqls", Input: sourceData("schema/logs.graphqls"), BuiltIn: false},
+	{Name: "schema/metrics.graphqls", Input: sourceData("schema/metrics.graphqls"), BuiltIn: false},
 	{Name: "schema/objectstorage.graphqls", Input: sourceData("schema/objectstorage.graphqls"), BuiltIn: false},
 	{Name: "schema/project.graphqls", Input: sourceData("schema/project.graphqls"), BuiltIn: false},
 	{Name: "schema/registry.graphqls", Input: sourceData("schema/registry.graphqls"), BuiltIn: false},
@@ -3329,6 +3390,28 @@ func (ec *executionContext) childFields_KeyValueStoreCredentials(ctx context.Con
 	return nil, fmt.Errorf("no field named %q was found under type KeyValueStoreCredentials", field.Name)
 }
 
+func (ec *executionContext) childFields_MetricPoint(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "timestamp":
+		return ec.fieldContext_MetricPoint_timestamp(ctx, field)
+	case "value":
+		return ec.fieldContext_MetricPoint_value(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type MetricPoint", field.Name)
+}
+
+func (ec *executionContext) childFields_MetricSeries(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "metric":
+		return ec.fieldContext_MetricSeries_metric(ctx, field)
+	case "unit":
+		return ec.fieldContext_MetricSeries_unit(ctx, field)
+	case "points":
+		return ec.fieldContext_MetricSeries_points(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type MetricSeries", field.Name)
+}
+
 func (ec *executionContext) childFields_Mount(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
 	case "service":
@@ -3547,6 +3630,8 @@ func (ec *executionContext) childFields_Volume(ctx context.Context, field graphq
 		return ec.fieldContext_Volume_size(ctx, field)
 	case "mount":
 		return ec.fieldContext_Volume_mount(ctx, field)
+	case "metrics":
+		return ec.fieldContext_Volume_metrics(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type Volume", field.Name)
 }
@@ -4969,6 +5054,28 @@ func (ec *executionContext) field_Subscription_serviceLogs_args(ctx context.Cont
 		return nil, err
 	}
 	args["tailLines"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Volume_metrics_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "metrics",
+		func(ctx context.Context, v any) ([]model.ResourceMetric, error) {
+			return ec.unmarshalNResourceMetric2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐResourceMetricᚄ(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["metrics"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "range",
+		func(ctx context.Context, v any) (model.MetricsRange, error) {
+			return ec.unmarshalNMetricsRange2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐMetricsRange(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["range"] = arg1
 	return args, nil
 }
 
@@ -8348,6 +8455,130 @@ func (ec *executionContext) _KeyValueStoreSource_name(ctx context.Context, field
 }
 func (ec *executionContext) fieldContext_KeyValueStoreSource_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("KeyValueStoreSource", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _MetricPoint_timestamp(ctx context.Context, field graphql.CollectedField, obj *model.MetricPoint) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_MetricPoint_timestamp(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Timestamp, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v time.Time) graphql.Marshaler {
+			return ec.marshalNTime2timeᚐTime(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_MetricPoint_timestamp(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("MetricPoint", field, false, false, errors.New("field of type Time does not have child fields"))
+}
+
+func (ec *executionContext) _MetricPoint_value(ctx context.Context, field graphql.CollectedField, obj *model.MetricPoint) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_MetricPoint_value(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Value, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *float64) graphql.Marshaler {
+			return ec.marshalOFloat2ᚖfloat64(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_MetricPoint_value(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("MetricPoint", field, false, false, errors.New("field of type Float does not have child fields"))
+}
+
+func (ec *executionContext) _MetricSeries_metric(ctx context.Context, field graphql.CollectedField, obj *model.MetricSeries) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_MetricSeries_metric(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Metric, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v model.ResourceMetric) graphql.Marshaler {
+			return ec.marshalNResourceMetric2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐResourceMetric(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_MetricSeries_metric(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("MetricSeries", field, false, false, errors.New("field of type ResourceMetric does not have child fields"))
+}
+
+func (ec *executionContext) _MetricSeries_unit(ctx context.Context, field graphql.CollectedField, obj *model.MetricSeries) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_MetricSeries_unit(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Unit, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v model.MetricUnit) graphql.Marshaler {
+			return ec.marshalNMetricUnit2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐMetricUnit(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_MetricSeries_unit(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("MetricSeries", field, false, false, errors.New("field of type MetricUnit does not have child fields"))
+}
+
+func (ec *executionContext) _MetricSeries_points(ctx context.Context, field graphql.CollectedField, obj *model.MetricSeries) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_MetricSeries_points(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Points, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []model.MetricPoint) graphql.Marshaler {
+			return ec.marshalNMetricPoint2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐMetricPointᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_MetricSeries_points(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MetricSeries",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_MetricPoint(ctx, field)
+		},
+	}
+	return fc, nil
 }
 
 func (ec *executionContext) _Mount_service(ctx context.Context, field graphql.CollectedField, obj *model.Mount) (ret graphql.Marshaler) {
@@ -14711,6 +14942,50 @@ func (ec *executionContext) fieldContext_Volume_mount(_ context.Context, field g
 	return fc, nil
 }
 
+func (ec *executionContext) _Volume_metrics(ctx context.Context, field graphql.CollectedField, obj *model.Volume) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Volume_metrics(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Volume().Metrics(ctx, obj, fc.Args["metrics"].([]model.ResourceMetric), fc.Args["range"].(model.MetricsRange))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []model.MetricSeries) graphql.Marshaler {
+			return ec.marshalNMetricSeries2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐMetricSeriesᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Volume_metrics(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Volume",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_MetricSeries(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Volume_metrics_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Workspace_id(ctx context.Context, field graphql.CollectedField, obj *model.Workspace) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -16703,6 +16978,36 @@ func (ec *executionContext) unmarshalInputInviteMemberInput(ctx context.Context,
 				return it, err
 			}
 			it.Role = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputMetricsRange(ctx context.Context, obj any) (model.MetricsRange, error) {
+	var it model.MetricsRange
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"window"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "window":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("window"))
+			data, err := ec.unmarshalNMetricWindow2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐMetricWindow(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Window = data
 		}
 	}
 	return it, nil
@@ -18976,6 +19281,96 @@ func (ec *executionContext) _KeyValueStoreSource(ctx context.Context, sel ast.Se
 	return out
 }
 
+var metricPointImplementors = []string{"MetricPoint"}
+
+func (ec *executionContext) _MetricPoint(ctx context.Context, sel ast.SelectionSet, obj *model.MetricPoint) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, metricPointImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("MetricPoint")
+		case "timestamp":
+			out.Values[i] = ec._MetricPoint_timestamp(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "value":
+			out.Values[i] = ec._MetricPoint_value(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferred), math.MaxInt32)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var metricSeriesImplementors = []string{"MetricSeries"}
+
+func (ec *executionContext) _MetricSeries(ctx context.Context, sel ast.SelectionSet, obj *model.MetricSeries) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, metricSeriesImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("MetricSeries")
+		case "metric":
+			out.Values[i] = ec._MetricSeries_metric(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "unit":
+			out.Values[i] = ec._MetricSeries_unit(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "points":
+			out.Values[i] = ec._MetricSeries_points(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferred), math.MaxInt32)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var mountImplementors = []string{"Mount"}
 
 func (ec *executionContext) _Mount(ctx context.Context, sel ast.SelectionSet, obj *model.Mount) graphql.Marshaler {
@@ -21051,20 +21446,56 @@ func (ec *executionContext) _Volume(ctx context.Context, sel ast.SelectionSet, o
 		case "id":
 			out.Values[i] = ec._Volume_id(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "name":
 			out.Values[i] = ec._Volume_name(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "size":
 			out.Values[i] = ec._Volume_size(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "mount":
 			out.Values[i] = ec._Volume_mount(ctx, field, obj)
+		case "metrics":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Volume_metrics(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -22289,6 +22720,71 @@ func (ec *executionContext) marshalNKeyValueStoreID2githubᚗcomᚋzeitlosᚋluc
 	return v
 }
 
+func (ec *executionContext) marshalNMetricPoint2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐMetricPoint(ctx context.Context, sel ast.SelectionSet, v model.MetricPoint) graphql.Marshaler {
+	return ec._MetricPoint(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNMetricPoint2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐMetricPointᚄ(ctx context.Context, sel ast.SelectionSet, v []model.MetricPoint) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNMetricPoint2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐMetricPoint(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNMetricSeries2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐMetricSeries(ctx context.Context, sel ast.SelectionSet, v model.MetricSeries) graphql.Marshaler {
+	return ec._MetricSeries(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNMetricSeries2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐMetricSeriesᚄ(ctx context.Context, sel ast.SelectionSet, v []model.MetricSeries) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNMetricSeries2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐMetricSeries(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) unmarshalNMetricUnit2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐMetricUnit(ctx context.Context, v any) (model.MetricUnit, error) {
+	var res model.MetricUnit
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNMetricUnit2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐMetricUnit(ctx context.Context, sel ast.SelectionSet, v model.MetricUnit) graphql.Marshaler {
+	return v
+}
+
+func (ec *executionContext) unmarshalNMetricWindow2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐMetricWindow(ctx context.Context, v any) (model.MetricWindow, error) {
+	var res model.MetricWindow
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNMetricWindow2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐMetricWindow(ctx context.Context, sel ast.SelectionSet, v model.MetricWindow) graphql.Marshaler {
+	return v
+}
+
+func (ec *executionContext) unmarshalNMetricsRange2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐMetricsRange(ctx context.Context, v any) (model.MetricsRange, error) {
+	res, err := ec.unmarshalInputMetricsRange(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) unmarshalNPlan2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐPlan(ctx context.Context, v any) (model.Plan, error) {
 	var res model.Plan
 	err := res.UnmarshalGQL(v)
@@ -22451,6 +22947,47 @@ func (ec *executionContext) marshalNResourceAllocation2ᚖgithubᚗcomᚋzeitlos
 		return graphql.Null
 	}
 	return ec._ResourceAllocation(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNResourceMetric2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐResourceMetric(ctx context.Context, v any) (model.ResourceMetric, error) {
+	var res model.ResourceMetric
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNResourceMetric2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐResourceMetric(ctx context.Context, sel ast.SelectionSet, v model.ResourceMetric) graphql.Marshaler {
+	return v
+}
+
+func (ec *executionContext) unmarshalNResourceMetric2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐResourceMetricᚄ(ctx context.Context, v any) ([]model.ResourceMetric, error) {
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]model.ResourceMetric, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNResourceMetric2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐResourceMetric(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalNResourceMetric2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐResourceMetricᚄ(ctx context.Context, sel ast.SelectionSet, v []model.ResourceMetric) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNResourceMetric2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐResourceMetric(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
 }
 
 func (ec *executionContext) unmarshalNResourceTier2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐResourceTier(ctx context.Context, v any) (model.ResourceTier, error) {
@@ -23180,6 +23717,23 @@ func (ec *executionContext) marshalOEnvironmentResources2ᚖgithubᚗcomᚋzeitl
 		return graphql.Null
 	}
 	return ec._EnvironmentResources(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOFloat2ᚖfloat64(ctx context.Context, v any) (*float64, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := graphql.UnmarshalFloatContext(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOFloat2ᚖfloat64(ctx context.Context, sel ast.SelectionSet, v *float64) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	_ = sel
+	res := graphql.MarshalFloatContext(*v)
+	return graphql.WrapContextMarshaler(ctx, res)
 }
 
 func (ec *executionContext) marshalOGitSource2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐGitSource(ctx context.Context, sel ast.SelectionSet, v *model.GitSource) graphql.Marshaler {
