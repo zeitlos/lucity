@@ -3,10 +3,12 @@ import { computed, ref } from 'vue';
 import { useElementSize } from '@vueuse/core';
 
 type Point = { timestamp: string; value?: number | null };
+type Series = { label?: string; points: Point[] };
+type Seg = { time: number; value: number }[];
 
 const props = withDefaults(
   defineProps<{
-    points: Point[];
+    series: Series[];
     from: number;
     to: number;
     max?: number | null;
@@ -20,6 +22,8 @@ const props = withDefaults(
   },
 );
 
+const palette = ['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)', 'var(--chart-5)'];
+
 const padding = { top: 12, right: 12, bottom: 22, left: 56 };
 
 const container = ref<HTMLElement | null>(null);
@@ -29,18 +33,18 @@ const width = computed(() => Math.round(measured.value) || 600);
 const innerWidth = computed(() => width.value - padding.left - padding.right);
 const innerHeight = computed(() => props.height - padding.top - padding.bottom);
 
-const samples = computed(() =>
-  props.points.map(p => ({ time: new Date(p.timestamp).getTime(), value: p.value })),
-);
+const multi = computed(() => props.series.length > 1);
 
-const values = computed(() =>
-  samples.value.map(s => s.value).filter((v): v is number => v != null),
-);
+function colorFor(index: number): string {
+  return multi.value ? palette[index % palette.length]! : 'var(--primary)';
+}
 
-const dataMax = computed(() => (values.value.length ? Math.max(...values.value) : 0));
+const allValues = computed(() =>
+  props.series.flatMap(s => s.points.map(p => p.value).filter((v): v is number => v != null)),
+);
 
 const yMax = computed(() => {
-  const candidate = Math.max(props.max ?? 0, dataMax.value);
+  const candidate = Math.max(props.max ?? 0, allValues.value.length ? Math.max(...allValues.value) : 0);
   return candidate > 0 ? candidate * 1.1 : 1;
 });
 
@@ -54,43 +58,43 @@ function yFor(value: number): number {
   return padding.top + innerHeight.value - (value / yMax.value) * innerHeight.value;
 }
 
-const segments = computed(() => {
-  const result: { time: number; value: number }[][] = [];
-  let current: { time: number; value: number }[] = [];
+function segmentsOf(points: Point[]): Seg[] {
+  const result: Seg[] = [];
+  let current: Seg = [];
 
-  samples.value.forEach(sample => {
-    if (sample.value == null) {
+  for (const p of points) {
+    if (p.value == null) {
       if (current.length) result.push(current);
       current = [];
-      return;
+      continue;
     }
-    current.push({ time: sample.time, value: sample.value });
-  });
+    current.push({ time: new Date(p.timestamp).getTime(), value: p.value });
+  }
 
   if (current.length) result.push(current);
   return result;
-});
+}
 
-const lineSegments = computed(() => segments.value.filter(s => s.length >= 2));
-const dots = computed(() => segments.value.filter(s => s.length === 1).map(s => s[0]!));
+const rendered = computed(() =>
+  props.series.map((s, i) => {
+    const segs = segmentsOf(s.points);
+    const lineSegs = segs.filter(seg => seg.length >= 2);
 
-const linePaths = computed(() =>
-  lineSegments.value.map(segment =>
-    segment.map((p, i) => `${i === 0 ? 'M' : 'L'} ${xFor(p.time)} ${yFor(p.value)}`).join(' '),
-  ),
-);
-
-const areaPaths = computed(() =>
-  lineSegments.value.map(segment => {
-    const baseline = yFor(0);
-    const first = segment[0]!;
-    const last = segment[segment.length - 1]!;
-    const line = segment.map(p => `L ${xFor(p.time)} ${yFor(p.value)}`).join(' ');
-    return `M ${xFor(first.time)} ${baseline} ${line} L ${xFor(last.time)} ${baseline} Z`;
+    return {
+      color: colorFor(i),
+      lines: lineSegs.map(seg => seg.map((p, j) => `${j === 0 ? 'M' : 'L'} ${xFor(p.time)} ${yFor(p.value)}`).join(' ')),
+      areas: multi.value
+        ? []
+        : lineSegs.map(seg => {
+            const first = seg[0]!;
+            const last = seg[seg.length - 1]!;
+            const line = seg.map(p => `L ${xFor(p.time)} ${yFor(p.value)}`).join(' ');
+            return `M ${xFor(first.time)} ${yFor(0)} ${line} L ${xFor(last.time)} ${yFor(0)} Z`;
+          }),
+      dots: segs.filter(seg => seg.length === 1).map(seg => seg[0]!),
+    };
   }),
 );
-
-const ceilingY = computed(() => (props.max && props.max > 0 ? yFor(props.max) : null));
 
 const gridLines = computed(() => {
   const lines: { y: number; label: string }[] = [];
@@ -118,21 +122,29 @@ const xLabels = computed(() => [
 
 const hoverTime = ref<number | null>(null);
 
-const hoverPoint = computed(() => {
-  if (hoverTime.value == null) return null;
-  let nearest: { time: number; value: number } | null = null;
-  let best = Infinity;
-  for (const segment of segments.value) {
-    for (const p of segment) {
-      const distance = Math.abs(p.time - hoverTime.value);
-      if (distance < best) {
-        best = distance;
-        nearest = p;
+const hoverEntries = computed(() => {
+  if (hoverTime.value == null) return [];
+  const cursor = hoverTime.value;
+
+  return props.series
+    .map((s, i) => {
+      let nearest: { time: number; value: number } | null = null;
+      let best = Infinity;
+      for (const p of s.points) {
+        if (p.value == null) continue;
+        const time = new Date(p.timestamp).getTime();
+        const distance = Math.abs(time - cursor);
+        if (distance < best) {
+          best = distance;
+          nearest = { time, value: p.value };
+        }
       }
-    }
-  }
-  return nearest;
+      return nearest ? { label: s.label, color: colorFor(i), ...nearest } : null;
+    })
+    .filter((e): e is NonNullable<typeof e> => e != null);
 });
+
+const crosshairX = computed(() => (hoverEntries.value.length ? xFor(hoverEntries.value[0]!.time) : 0));
 
 function onMove(event: MouseEvent) {
   const rect = (event.currentTarget as SVGElement).getBoundingClientRect();
@@ -178,56 +190,50 @@ function onLeave() {
         {{ line.label }}
       </text>
 
-      <path
-        v-for="(area, i) in areaPaths"
-        :key="`area-${i}`"
-        :d="area"
-        class="fill-primary/10"
-        stroke="none"
-      />
-      <path
-        v-for="(line, i) in linePaths"
-        :key="`line-${i}`"
-        :d="line"
-        class="stroke-primary"
-        fill="none"
-        stroke-width="2"
-        stroke-linejoin="round"
-      />
-      <circle
-        v-for="(dot, i) in dots"
-        :key="`dot-${i}`"
-        :cx="xFor(dot.time)"
-        :cy="yFor(dot.value)"
-        r="2.5"
-        class="fill-primary"
-      />
+      <template v-for="(s, i) in rendered" :key="`series-${i}`">
+        <path
+          v-for="(area, j) in s.areas"
+          :key="`area-${i}-${j}`"
+          :d="area"
+          :fill="s.color"
+          fill-opacity="0.1"
+          stroke="none"
+        />
+        <path
+          v-for="(line, j) in s.lines"
+          :key="`line-${i}-${j}`"
+          :d="line"
+          :stroke="s.color"
+          fill="none"
+          stroke-width="2"
+          stroke-linejoin="round"
+        />
+        <circle
+          v-for="(dot, j) in s.dots"
+          :key="`dot-${i}-${j}`"
+          :cx="xFor(dot.time)"
+          :cy="yFor(dot.value)"
+          r="2.5"
+          :fill="s.color"
+        />
+      </template>
 
-      <line
-        v-if="ceilingY != null"
-        :x1="padding.left"
-        :x2="width - padding.right"
-        :y1="ceilingY"
-        :y2="ceilingY"
-        class="stroke-destructive/60"
-        stroke-width="1"
-        stroke-dasharray="4 4"
-      />
-
-      <g v-if="hoverPoint">
+      <g v-if="hoverEntries.length">
         <line
-          :x1="xFor(hoverPoint.time)"
-          :x2="xFor(hoverPoint.time)"
+          :x1="crosshairX"
+          :x2="crosshairX"
           :y1="padding.top"
           :y2="padding.top + innerHeight"
           class="stroke-muted-foreground/40"
           stroke-width="1"
         />
         <circle
-          :cx="xFor(hoverPoint.time)"
-          :cy="yFor(hoverPoint.value)"
+          v-for="(entry, i) in hoverEntries"
+          :key="`hover-${i}`"
+          :cx="xFor(entry.time)"
+          :cy="yFor(entry.value)"
           r="3"
-          class="fill-primary"
+          :fill="entry.color"
         />
       </g>
 
@@ -244,13 +250,28 @@ function onLeave() {
       </text>
     </svg>
 
+    <div v-if="multi" class="mt-2 flex flex-wrap gap-x-3 gap-y-1 px-1">
+      <div
+        v-for="(s, i) in series"
+        :key="`legend-${i}`"
+        class="flex items-center gap-1.5 text-xs text-muted-foreground"
+      >
+        <span class="inline-block h-2 w-2 rounded-full" :style="{ background: colorFor(i) }"></span>
+        {{ s.label }}
+      </div>
+    </div>
+
     <div
-      v-if="hoverPoint"
+      v-if="hoverEntries.length"
       class="pointer-events-none absolute -translate-x-1/2 rounded-md border bg-popover px-2 py-1 text-xs shadow-sm"
-      :style="{ left: `${(xFor(hoverPoint.time) / width) * 100}%`, top: '0' }"
+      :style="{ left: `${(crosshairX / width) * 100}%`, top: '0' }"
     >
-      <div class="font-medium text-foreground">{{ formatValue(hoverPoint.value) }}</div>
-      <div class="text-muted-foreground">{{ formatTime(hoverPoint.time) }}</div>
+      <div class="mb-0.5 text-muted-foreground">{{ formatTime(hoverEntries[0]!.time) }}</div>
+      <div v-for="(entry, i) in hoverEntries" :key="`tip-${i}`" class="flex items-center gap-1.5">
+        <span class="inline-block h-2 w-2 rounded-full" :style="{ background: entry.color }"></span>
+        <span v-if="entry.label" class="text-muted-foreground">{{ entry.label }}</span>
+        <span class="ml-auto font-medium text-foreground">{{ formatValue(entry.value) }}</span>
+      </div>
     </div>
   </div>
 </template>

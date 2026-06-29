@@ -13,7 +13,7 @@ import (
 type VolumeID = platform.VolumeID
 type Volume = platform.Volume
 
-func (c *Client) VolumeStorageUsed(ctx context.Context, id VolumeID, window metrics.Window) (metrics.Series, error) {
+func (c *Client) VolumeStorageUsed(ctx context.Context, id VolumeID, window metrics.Window) ([]metrics.Series, error) {
 	return c.metrics.VolumeStorageUsed(ctx, id.Namespace(), id.Name, window)
 }
 

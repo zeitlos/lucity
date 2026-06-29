@@ -218,6 +218,23 @@ func (r *serviceResolver) Builds(ctx context.Context, obj *model.Service) ([]mod
 	return result, nil
 }
 
+// Metrics is the resolver for the metrics field.
+func (r *serviceResolver) Metrics(ctx context.Context, obj *model.Service, metrics []model.ResourceMetric, rangeArg model.MetricsRange, grouping model.MetricGrouping) ([]model.MetricSeries, error) {
+	window, err := convertMetricWindow(rangeArg.Window)
+
+	if err != nil {
+		return nil, err
+	}
+
+	series, err := r.Conductor.ServiceUsage(ctx, obj.ID, serviceMetricKinds(metrics), window, grouping == model.MetricGroupingPerReplica)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return convertMetricSeries(series), nil
+}
+
 // Service returns ServiceResolver implementation.
 func (r *Resolver) Service() ServiceResolver { return &serviceResolver{r} }
 

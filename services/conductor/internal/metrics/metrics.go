@@ -3,12 +3,24 @@ package metrics
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/zeitlos/lucity/pkg/victoria"
 )
 
-const podVolumePrefix = "volume-"
+const (
+	podVolumePrefix         = "volume-"
+	serviceDeploymentPrefix = "lucity-app-"
+)
+
+type Kind string
+
+const (
+	KindStorageUsed Kind = "storage_used"
+	KindCPUUsage    Kind = "cpu_usage"
+	KindMemoryUsage Kind = "memory_usage"
+)
 
 type Window string
 
@@ -39,7 +51,9 @@ type Point struct {
 }
 
 type Series struct {
-	Points []Point
+	Kind    Kind
+	Replica string
+	Points  []Point
 }
 
 type Provider struct {
@@ -54,10 +68,10 @@ func New(vmURL string) (*Provider, error) {
 	return &Provider{vm: vm}, nil
 }
 
-func (p *Provider) VolumeStorageUsed(ctx context.Context, namespace, volumeName string, window Window) (Series, error) {
+func (p *Provider) VolumeStorageUsed(ctx context.Context, namespace, volumeName string, window Window) ([]Series, error) {
 	params, ok := windows[window]
 	if !ok {
-		return Series{}, fmt.Errorf("unknown window %q", window)
+		return nil, fmt.Errorf("unknown window %q", window)
 	}
 
 	end := time.Now().UTC()
@@ -69,20 +83,78 @@ func (p *Provider) VolumeStorageUsed(ctx context.Context, namespace, volumeName 
 		selector,
 	)
 
-	series, err := p.vm.QueryRange(ctx, query, start, end, params.step)
+	samples, err := p.vm.QueryRange(ctx, query, start, end, params.step)
 	if err != nil {
-		return Series{}, err
+		return nil, err
 	}
 
-	if len(series) == 0 {
-		return Series{}, nil
+	if len(samples) == 0 {
+		return nil, nil
 	}
 
-	points := make([]Point, 0, len(series[0].Points))
-	for _, pt := range series[0].Points {
+	return []Series{{Kind: KindStorageUsed, Points: toPoints(samples[0].Points)}}, nil
+}
+
+func (p *Provider) ServiceUsage(ctx context.Context, namespace, service string, kinds []Kind, window Window, perReplica bool) ([]Series, error) {
+	params, ok := windows[window]
+	if !ok {
+		return nil, fmt.Errorf("unknown window %q", window)
+	}
+
+	end := time.Now().UTC()
+	start := end.Add(-params.duration)
+
+	selector := fmt.Sprintf(`k8s_namespace_name=%q,k8s_deployment_name=%q`, namespace, serviceDeploymentPrefix+service)
+
+	var result []Series
+	for _, kind := range kinds {
+		query := serviceQuery(kind, selector, params.step, perReplica)
+		if query == "" {
+			continue
+		}
+
+		samples, err := p.vm.QueryRange(ctx, query, start, end, params.step)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, s := range samples {
+			result = append(result, Series{
+				Kind:    kind,
+				Replica: s.Labels["k8s_pod_name"],
+				Points:  toPoints(s.Points),
+			})
+		}
+	}
+
+	return result, nil
+}
+
+func serviceQuery(kind Kind, selector string, step time.Duration, perReplica bool) string {
+	grouping := ""
+	if perReplica {
+		grouping = " by (k8s_pod_name)"
+	}
+
+	switch kind {
+	case KindCPUUsage:
+		return fmt.Sprintf(`sum%s(rate(container_cpu_time_seconds_total{%s}[%s]))`, grouping, selector, promDuration(step))
+	case KindMemoryUsage:
+		return fmt.Sprintf(`sum%s(container_memory_working_set_bytes{%s})`, grouping, selector)
+	default:
+		return ""
+	}
+}
+
+func promDuration(d time.Duration) string {
+	return strconv.FormatInt(int64(d.Seconds()), 10) + "s"
+}
+
+func toPoints(pts []victoria.Point) []Point {
+	out := make([]Point, 0, len(pts))
+	for _, pt := range pts {
 		value := pt.Value
-		points = append(points, Point{Timestamp: pt.Time, Value: &value})
+		out = append(out, Point{Timestamp: pt.Time, Value: &value})
 	}
-
-	return Series{Points: points}, nil
+	return out
 }

@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import DeploymentsTab from './DeploymentsTab.vue';
+import ServiceMetricsTab from './ServiceMetricsTab.vue';
 import ServiceVariablesTab from './ServiceVariablesTab.vue';
 import ServiceSettingsTab from './ServiceSettingsTab.vue';
 
@@ -65,6 +66,7 @@ onKeyStroke('Escape', () => {
               Logs
               <SquareArrowOutUpRight :size="11" class="opacity-50" />
             </button>
+            <TabsTrigger value="metrics">Metrics</TabsTrigger>
             <TabsTrigger value="variables">Variables</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
@@ -72,6 +74,10 @@ onKeyStroke('Escape', () => {
 
         <TabsContent value="deployments" class="px-4 py-4">
           <DeploymentsTab :service="service" />
+        </TabsContent>
+
+        <TabsContent value="metrics" class="px-4 py-4">
+          <ServiceMetricsTab :service-id="service.id" />
         </TabsContent>
 
         <TabsContent value="variables" class="px-4 py-4">

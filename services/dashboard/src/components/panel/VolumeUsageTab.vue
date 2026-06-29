@@ -110,7 +110,7 @@ const usagePercent = computed(() => {
 
       <MetricAreaChart
         v-if="hasData"
-        :points="points"
+        :series="[{ points }]"
         :from="range.from"
         :to="range.to"
         :format-value="formatBytes"

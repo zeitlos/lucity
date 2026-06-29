@@ -19,9 +19,14 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/buildjob"
 	"github.com/zeitlos/lucity/services/conductor/internal/deployer"
 	"github.com/zeitlos/lucity/services/conductor/internal/planner"
+	"github.com/zeitlos/lucity/services/conductor/internal/metrics"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 	"github.com/zeitlos/lucity/services/conductor/internal/resources"
 )
+
+func (c *Client) ServiceUsage(ctx context.Context, id platform.ServiceID, kinds []metrics.Kind, window metrics.Window, perReplica bool) ([]metrics.Series, error) {
+	return c.metrics.ServiceUsage(ctx, id.Namespace(), id.Name, kinds, window, perReplica)
+}
 
 func randCrockford32(n int) string {
 	const alphabet = "0123456789abcdefghjkmnpqrstvwxyz"

@@ -80,27 +80,24 @@ func (r *volumeResolver) Metrics(ctx context.Context, obj *model.Volume, metrics
 		return nil, err
 	}
 
-	series := make([]model.MetricSeries, 0, len(metrics))
-
+	wantsStorage := false
 	for _, metric := range metrics {
-		if metric != model.ResourceMetricStorageUsed {
-			continue
+		if metric == model.ResourceMetricStorageUsed {
+			wantsStorage = true
 		}
-
-		used, err := r.Conductor.VolumeStorageUsed(ctx, obj.ID, window)
-
-		if err != nil {
-			return nil, err
-		}
-
-		series = append(series, model.MetricSeries{
-			Metric: model.ResourceMetricStorageUsed,
-			Unit:   model.MetricUnitBytes,
-			Points: convertMetricPoints(used.Points),
-		})
 	}
 
-	return series, nil
+	if !wantsStorage {
+		return []model.MetricSeries{}, nil
+	}
+
+	series, err := r.Conductor.VolumeStorageUsed(ctx, obj.ID, window)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return convertMetricSeries(series), nil
 }
 
 // Volume returns VolumeResolver implementation.
