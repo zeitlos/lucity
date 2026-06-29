@@ -35,7 +35,7 @@ const emit = defineEmits<{
 
 const step = ref<'service' | 'path'>('service');
 const selectedServiceId = ref<string>('');
-const path = ref('/data');
+const path = ref('');
 const search = ref('');
 const focusedIndex = ref(0);
 const inputRef = ref<HTMLInputElement>();
@@ -44,7 +44,7 @@ watch(() => props.open, (open) => {
   if (open) {
     step.value = 'service';
     selectedServiceId.value = '';
-    path.value = '/data';
+    path.value = '';
     search.value = '';
     focusedIndex.value = 0;
     nextTick(() => inputRef.value?.focus());
@@ -219,15 +219,20 @@ async function handleMount() {
 
           <!-- Step: mount path -->
           <template v-else>
-            <div class="flex h-12 items-center border-b px-3">
+            <div class="flex items-center border-b px-3">
               <button
                 class="mr-1 shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"
                 @click="step = 'service'"
               >
                 <ArrowLeft :size="16" />
               </button>
-              <span class="ml-1 text-sm font-medium text-foreground">Mount path</span>
-              <div class="flex-1" />
+              <input
+                ref="inputRef"
+                v-model="path"
+                spellcheck="false"
+                placeholder="Directory to mount the volume to? (e.g. /data)"
+                class="flex h-12 w-full bg-transparent px-3 text-sm outline-none placeholder:text-muted-foreground"
+              />
               <button
                 class="shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"
                 @click="close"
@@ -235,25 +240,11 @@ async function handleMount() {
                 <X :size="16" />
               </button>
             </div>
-            <div class="space-y-4 p-4">
-              <div class="flex items-center gap-3 rounded-md border px-3 py-2.5 text-sm">
-                <Server :size="16" class="shrink-0 text-muted-foreground" />
-                <span class="flex-1 truncate font-medium text-foreground">{{ selectedServiceName }}</span>
-              </div>
-              <div class="space-y-2">
-                <label class="text-sm font-medium text-foreground">Mount path</label>
-                <input
-                  ref="inputRef"
-                  v-model="path"
-                  spellcheck="false"
-                  placeholder="/data"
-                  class="flex h-9 w-full rounded-md border bg-transparent px-3 py-1 font-mono text-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                />
-                <p v-if="pathError" class="text-xs text-destructive">{{ pathError }}</p>
-                <p v-else class="text-xs text-muted-foreground">
-                  Mounting attaches the volume and restarts the service.
-                </p>
-              </div>
+            <div class="space-y-3 p-4">
+              <p v-if="pathError" class="text-xs text-destructive">{{ pathError }}</p>
+              <p v-else class="text-xs text-muted-foreground">
+                Mounting attaches the volume and restarts the service.
+              </p>
               <button
                 class="inline-flex h-9 w-full items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
                 :disabled="mounting || !!pathError"
