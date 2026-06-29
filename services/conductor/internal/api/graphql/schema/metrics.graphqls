@@ -1,9 +1,12 @@
 enum ResourceMetric {
   STORAGE_USED
+  CPU_USAGE
+  MEMORY_USAGE
 }
 
 enum MetricUnit {
   BYTES
+  CORES
 }
 
 enum MetricWindow {
@@ -12,6 +15,11 @@ enum MetricWindow {
   LAST_24H
   LAST_7D
   LAST_30D
+}
+
+enum MetricGrouping {
+  TOTAL
+  PER_REPLICA
 }
 
 input MetricsRange {
@@ -26,5 +34,6 @@ type MetricPoint {
 type MetricSeries {
   metric: ResourceMetric!
   unit: MetricUnit!
+  replica: String
   points: [MetricPoint!]!
 }

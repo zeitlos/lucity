@@ -319,9 +319,10 @@ type MetricPoint struct {
 }
 
 type MetricSeries struct {
-	Metric ResourceMetric `json:"metric"`
-	Unit   MetricUnit     `json:"unit"`
-	Points []MetricPoint  `json:"points"`
+	Metric  ResourceMetric `json:"metric"`
+	Unit    MetricUnit     `json:"unit"`
+	Replica *string        `json:"replica,omitempty"`
+	Points  []MetricPoint  `json:"points"`
 }
 
 type MetricsRange struct {
@@ -403,6 +404,7 @@ type Service struct {
 	ActiveDeployment  *Deployment          `json:"activeDeployment,omitempty"`
 	Deployments       []Deployment         `json:"deployments"`
 	Builds            []Build              `json:"builds"`
+	Metrics           []MetricSeries       `json:"metrics"`
 	LastDeployedAt    *time.Time           `json:"lastDeployedAt,omitempty"`
 	CreatedAt         time.Time            `json:"createdAt"`
 	Releases          []Release            `json:"releases"`
@@ -989,19 +991,76 @@ func (e GitHubAccountType) MarshalJSON() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+type MetricGrouping string
+
+const (
+	MetricGroupingTotal      MetricGrouping = "TOTAL"
+	MetricGroupingPerReplica MetricGrouping = "PER_REPLICA"
+)
+
+var AllMetricGrouping = []MetricGrouping{
+	MetricGroupingTotal,
+	MetricGroupingPerReplica,
+}
+
+func (e MetricGrouping) IsValid() bool {
+	switch e {
+	case MetricGroupingTotal, MetricGroupingPerReplica:
+		return true
+	}
+	return false
+}
+
+func (e MetricGrouping) String() string {
+	return string(e)
+}
+
+func (e *MetricGrouping) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = MetricGrouping(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid MetricGrouping", str)
+	}
+	return nil
+}
+
+func (e MetricGrouping) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *MetricGrouping) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e MetricGrouping) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
 type MetricUnit string
 
 const (
 	MetricUnitBytes MetricUnit = "BYTES"
+	MetricUnitCores MetricUnit = "CORES"
 )
 
 var AllMetricUnit = []MetricUnit{
 	MetricUnitBytes,
+	MetricUnitCores,
 }
 
 func (e MetricUnit) IsValid() bool {
 	switch e {
-	case MetricUnitBytes:
+	case MetricUnitBytes, MetricUnitCores:
 		return true
 	}
 	return false
@@ -1343,15 +1402,19 @@ type ResourceMetric string
 
 const (
 	ResourceMetricStorageUsed ResourceMetric = "STORAGE_USED"
+	ResourceMetricCPUUsage    ResourceMetric = "CPU_USAGE"
+	ResourceMetricMemoryUsage ResourceMetric = "MEMORY_USAGE"
 )
 
 var AllResourceMetric = []ResourceMetric{
 	ResourceMetricStorageUsed,
+	ResourceMetricCPUUsage,
+	ResourceMetricMemoryUsage,
 }
 
 func (e ResourceMetric) IsValid() bool {
 	switch e {
-	case ResourceMetricStorageUsed:
+	case ResourceMetricStorageUsed, ResourceMetricCPUUsage, ResourceMetricMemoryUsage:
 		return true
 	}
 	return false

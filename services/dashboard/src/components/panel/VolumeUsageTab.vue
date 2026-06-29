@@ -110,7 +110,7 @@ const usagePercent = computed(() => {
 
       <MetricAreaChart
         v-if="hasData"
-        :points="points"
+        :series="[{ points }]"
         :from="range.from"
         :to="range.to"
         :format-value="formatBytes"
@@ -118,7 +118,7 @@ const usagePercent = computed(() => {
 
       <div
         v-else
-        class="flex h-[180px] items-center justify-center text-center text-sm text-muted-foreground"
+        class="flex h-[280px] items-center justify-center text-center text-sm text-muted-foreground"
       >
         <span v-if="metricsLoading">Loading usage…</span>
         <span v-else-if="!volume.mount">

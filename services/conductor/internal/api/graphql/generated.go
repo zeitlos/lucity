@@ -283,9 +283,10 @@ type ComplexityRoot struct {
 	}
 
 	MetricSeries struct {
-		Metric func(childComplexity int) int
-		Points func(childComplexity int) int
-		Unit   func(childComplexity int) int
+		Metric  func(childComplexity int) int
+		Points  func(childComplexity int) int
+		Replica func(childComplexity int) int
+		Unit    func(childComplexity int) int
 	}
 
 	Mount struct {
@@ -430,6 +431,7 @@ type ComplexityRoot struct {
 		Endpoints        func(childComplexity int) int
 		ID               func(childComplexity int) int
 		LastDeployedAt   func(childComplexity int) int
+		Metrics          func(childComplexity int, metrics []model.ResourceMetric, rangeArg model.MetricsRange, grouping model.MetricGrouping) int
 		Name             func(childComplexity int) int
 		Port             func(childComplexity int) int
 		Releases         func(childComplexity int) int
@@ -606,6 +608,7 @@ type ServiceResolver interface {
 
 	Deployments(ctx context.Context, obj *model.Service) ([]model.Deployment, error)
 	Builds(ctx context.Context, obj *model.Service) ([]model.Build, error)
+	Metrics(ctx context.Context, obj *model.Service, metrics []model.ResourceMetric, rangeArg model.MetricsRange, grouping model.MetricGrouping) ([]model.MetricSeries, error)
 
 	Releases(ctx context.Context, obj *model.Service) ([]model.Release, error)
 }
@@ -1520,6 +1523,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.MetricSeries.Points(childComplexity), true
+	case "MetricSeries.replica":
+		if e.ComplexityRoot.MetricSeries.Replica == nil {
+			break
+		}
+
+		return e.ComplexityRoot.MetricSeries.Replica(childComplexity), true
 	case "MetricSeries.unit":
 		if e.ComplexityRoot.MetricSeries.Unit == nil {
 			break
@@ -2534,6 +2543,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Service.LastDeployedAt(childComplexity), true
+	case "Service.metrics":
+		if e.ComplexityRoot.Service.Metrics == nil {
+			break
+		}
+
+		args, err := ec.field_Service_metrics_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Service.Metrics(childComplexity, args["metrics"].([]model.ResourceMetric), args["range"].(model.MetricsRange), args["grouping"].(model.MetricGrouping)), true
 	case "Service.name":
 		if e.ComplexityRoot.Service.Name == nil {
 			break
@@ -3419,6 +3439,8 @@ func (ec *executionContext) childFields_MetricSeries(ctx context.Context, field 
 		return ec.fieldContext_MetricSeries_metric(ctx, field)
 	case "unit":
 		return ec.fieldContext_MetricSeries_unit(ctx, field)
+	case "replica":
+		return ec.fieldContext_MetricSeries_replica(ctx, field)
 	case "points":
 		return ec.fieldContext_MetricSeries_points(ctx, field)
 	}
@@ -3553,6 +3575,8 @@ func (ec *executionContext) childFields_Service(ctx context.Context, field graph
 		return ec.fieldContext_Service_deployments(ctx, field)
 	case "builds":
 		return ec.fieldContext_Service_builds(ctx, field)
+	case "metrics":
+		return ec.fieldContext_Service_metrics(ctx, field)
 	case "lastDeployedAt":
 		return ec.fieldContext_Service_lastDeployedAt(ctx, field)
 	case "createdAt":
@@ -5053,6 +5077,36 @@ func (ec *executionContext) field_Query_volume_args(ctx context.Context, rawArgs
 		return nil, err
 	}
 	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Service_metrics_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "metrics",
+		func(ctx context.Context, v any) ([]model.ResourceMetric, error) {
+			return ec.unmarshalNResourceMetric2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐResourceMetricᚄ(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["metrics"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "range",
+		func(ctx context.Context, v any) (model.MetricsRange, error) {
+			return ec.unmarshalNMetricsRange2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐMetricsRange(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["range"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "grouping",
+		func(ctx context.Context, v any) (model.MetricGrouping, error) {
+			return ec.unmarshalNMetricGrouping2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐMetricGrouping(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["grouping"] = arg2
 	return args, nil
 }
 
@@ -8582,6 +8636,29 @@ func (ec *executionContext) _MetricSeries_unit(ctx context.Context, field graphq
 }
 func (ec *executionContext) fieldContext_MetricSeries_unit(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("MetricSeries", field, false, false, errors.New("field of type MetricUnit does not have child fields"))
+}
+
+func (ec *executionContext) _MetricSeries_replica(ctx context.Context, field graphql.CollectedField, obj *model.MetricSeries) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_MetricSeries_replica(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Replica, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_MetricSeries_replica(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("MetricSeries", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
 func (ec *executionContext) _MetricSeries_points(ctx context.Context, field graphql.CollectedField, obj *model.MetricSeries) (ret graphql.Marshaler) {
@@ -14313,6 +14390,50 @@ func (ec *executionContext) fieldContext_Service_builds(_ context.Context, field
 	return fc, nil
 }
 
+func (ec *executionContext) _Service_metrics(ctx context.Context, field graphql.CollectedField, obj *model.Service) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Service_metrics(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Service().Metrics(ctx, obj, fc.Args["metrics"].([]model.ResourceMetric), fc.Args["range"].(model.MetricsRange), fc.Args["grouping"].(model.MetricGrouping))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []model.MetricSeries) graphql.Marshaler {
+			return ec.marshalNMetricSeries2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐMetricSeriesᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Service_metrics(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Service",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_MetricSeries(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Service_metrics_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Service_lastDeployedAt(ctx context.Context, field graphql.CollectedField, obj *model.Service) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -19440,6 +19561,8 @@ func (ec *executionContext) _MetricSeries(ctx context.Context, sel ast.Selection
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "replica":
+			out.Values[i] = ec._MetricSeries_replica(ctx, field, obj)
 		case "points":
 			out.Values[i] = ec._MetricSeries_points(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -21106,6 +21229,42 @@ func (ec *executionContext) _Service(ctx context.Context, sel ast.SelectionSet, 
 					}
 				}()
 				res = ec._Service_builds(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "metrics":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Service_metrics(ctx, field, obj)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -22821,6 +22980,16 @@ func (ec *executionContext) unmarshalNKeyValueStoreID2githubᚗcomᚋzeitlosᚋl
 }
 
 func (ec *executionContext) marshalNKeyValueStoreID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐKeyValueStoreID(ctx context.Context, sel ast.SelectionSet, v platform.KeyValueStoreID) graphql.Marshaler {
+	return v
+}
+
+func (ec *executionContext) unmarshalNMetricGrouping2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐMetricGrouping(ctx context.Context, v any) (model.MetricGrouping, error) {
+	var res model.MetricGrouping
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNMetricGrouping2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐMetricGrouping(ctx context.Context, sel ast.SelectionSet, v model.MetricGrouping) graphql.Marshaler {
 	return v
 }
 

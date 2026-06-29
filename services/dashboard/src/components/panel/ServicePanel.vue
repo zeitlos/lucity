@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ref } from 'vue';
 import { X, SquareArrowOutUpRight, Container } from '@lucide/vue';
 import GithubIcon from '@/components/GithubIcon.vue';
 import { onKeyStroke } from '@vueuse/core';
@@ -8,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import DeploymentsTab from './DeploymentsTab.vue';
+import ServiceMetricsTab from './ServiceMetricsTab.vue';
 import ServiceVariablesTab from './ServiceVariablesTab.vue';
 import ServiceSettingsTab from './ServiceSettingsTab.vue';
 
@@ -20,6 +22,8 @@ const emit = defineEmits<{
   (e: 'service-removed'): void;
   (e: 'refetch'): void;
 }>();
+
+const activeTab = ref('deployments');
 
 const serviceLogsPanel = useServiceLogsPanel();
 
@@ -54,7 +58,7 @@ onKeyStroke('Escape', () => {
 
     <!-- Tab Content -->
     <ScrollArea class="flex-1">
-      <Tabs default-value="deployments" class="h-full">
+      <Tabs v-model="activeTab" class="h-full">
         <div class="px-4 pt-2">
           <TabsList class="w-full">
             <TabsTrigger value="deployments">Deployments</TabsTrigger>
@@ -65,6 +69,7 @@ onKeyStroke('Escape', () => {
               Logs
               <SquareArrowOutUpRight :size="11" class="opacity-50" />
             </button>
+            <TabsTrigger value="metrics">Metrics</TabsTrigger>
             <TabsTrigger value="variables">Variables</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
@@ -72,6 +77,13 @@ onKeyStroke('Escape', () => {
 
         <TabsContent value="deployments" class="px-4 py-4">
           <DeploymentsTab :service="service" />
+        </TabsContent>
+
+        <TabsContent value="metrics" class="px-4 py-4">
+          <ServiceMetricsTab
+            :service-id="service.id"
+            @edit-resources="activeTab = 'settings'"
+          />
         </TabsContent>
 
         <TabsContent value="variables" class="px-4 py-4">

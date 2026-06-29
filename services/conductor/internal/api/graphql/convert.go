@@ -32,6 +32,68 @@ func convertMetricWindow(window model.MetricWindow) (metrics.Window, error) {
 	}
 }
 
+func convertMetricSeries(series []metrics.Series) []model.MetricSeries {
+	out := make([]model.MetricSeries, 0, len(series))
+
+	for _, s := range series {
+		var replica *string
+		if s.Replica != "" {
+			value := s.Replica
+			replica = &value
+		}
+
+		out = append(out, model.MetricSeries{
+			Metric:  metricKindToModel(s.Kind),
+			Unit:    metricUnit(s.Kind),
+			Replica: replica,
+			Points:  convertMetricPoints(s.Points),
+		})
+	}
+
+	return out
+}
+
+func metricKindToModel(kind metrics.Kind) model.ResourceMetric {
+	switch kind {
+	case metrics.KindCPUUsage:
+		return model.ResourceMetricCPUUsage
+	case metrics.KindMemoryUsage:
+		return model.ResourceMetricMemoryUsage
+	default:
+		return model.ResourceMetricStorageUsed
+	}
+}
+
+func metricUnit(kind metrics.Kind) model.MetricUnit {
+	if kind == metrics.KindCPUUsage {
+		return model.MetricUnitCores
+	}
+	return model.MetricUnitBytes
+}
+
+func serviceMetricKinds(requested []model.ResourceMetric) []metrics.Kind {
+	kinds := make([]metrics.Kind, 0, len(requested))
+
+	for _, metric := range requested {
+		if metric == model.ResourceMetricCPUUsage || metric == model.ResourceMetricMemoryUsage {
+			kinds = append(kinds, metricModelToKind(metric))
+		}
+	}
+
+	return kinds
+}
+
+func metricModelToKind(metric model.ResourceMetric) metrics.Kind {
+	switch metric {
+	case model.ResourceMetricCPUUsage:
+		return metrics.KindCPUUsage
+	case model.ResourceMetricMemoryUsage:
+		return metrics.KindMemoryUsage
+	default:
+		return metrics.KindStorageUsed
+	}
+}
+
 func convertMetricPoints(points []metrics.Point) []model.MetricPoint {
 	out := make([]model.MetricPoint, 0, len(points))
 
