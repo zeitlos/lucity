@@ -320,20 +320,8 @@ victoria-metrics-alert:
                 labels: { severity: warning }
                 annotations:
                   summary: "Certificate {{ $labels.namespace }}/{{ $labels.name }} expires in <14d"
-              - alert: ArgoCDAppOutOfSync
-                expr: argocd_app_info{sync_status!="Synced"} == 1
-                for: 1h
-                labels: { severity: warning }
-                annotations:
-                  summary: "ArgoCD app {{ $labels.name }} out of sync"
-              - alert: SoftServeDown
-                expr: up{job=~".*soft-serve.*"} == 0
-                for: 5m
-                labels: { severity: critical }
-                annotations:
-                  summary: "Soft-serve is down"
               - alert: ZotDown
-                expr: up{job=~".*zot.*"} == 0
+                expr: kube_statefulset_status_replicas_ready{namespace="lucity-system", statefulset=~".*zot.*"} == 0
                 for: 5m
                 labels: { severity: critical }
                 annotations:
