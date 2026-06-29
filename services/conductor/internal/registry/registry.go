@@ -13,7 +13,10 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 )
 
-const defaultCacheTTL = 10 * time.Minute
+const (
+	defaultCacheTTL = 10 * time.Minute
+	errorCacheTTL   = time.Minute
+)
 
 type Config struct {
 	Endpoint     string
@@ -34,6 +37,7 @@ type Client struct {
 
 type entry struct {
 	config  *v1.Config
+	err     error
 	expires time.Time
 }
 
@@ -58,34 +62,35 @@ func New(cfg Config) *Client {
 }
 
 func (c *Client) ImageConfig(ctx context.Context, imageRef string) (*v1.Config, error) {
-	if cfg, ok := c.cached(imageRef); ok {
-		return cfg, nil
+	if e, ok := c.cached(imageRef); ok {
+		return e.config, e.err
 	}
 
 	cfg, err := c.fetch(ctx, imageRef)
-	if err != nil {
-		return nil, err
-	}
-
-	c.store(imageRef, cfg)
-	return cfg, nil
+	c.store(imageRef, cfg, err)
+	return cfg, err
 }
 
-func (c *Client) cached(ref string) (*v1.Config, bool) {
+func (c *Client) cached(ref string) (entry, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	e, ok := c.cache[ref]
 	if !ok || time.Now().After(e.expires) {
-		return nil, false
+		return entry{}, false
 	}
-	return e.config, true
+	return e, true
 }
 
-func (c *Client) store(ref string, cfg *v1.Config) {
+func (c *Client) store(ref string, cfg *v1.Config, err error) {
+	ttl := c.ttl
+	if err != nil {
+		ttl = errorCacheTTL
+	}
+
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.cache[ref] = entry{config: cfg, expires: time.Now().Add(c.ttl)}
+	c.cache[ref] = entry{config: cfg, err: err, expires: time.Now().Add(ttl)}
 }
 
 func (c *Client) fetch(ctx context.Context, imageRef string) (*v1.Config, error) {
