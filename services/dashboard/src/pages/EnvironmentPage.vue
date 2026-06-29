@@ -248,6 +248,13 @@ const { isOpen, currentPanel, closePanel } = usePanel();
 const logsPanel = useBuildLogsPanel();
 const serviceLogsPanel = useServiceLogsPanel();
 
+watch(currentPanel, (panel, oldPanel) => {
+  if (panel?.id !== oldPanel?.id || panel?.type !== oldPanel?.type) {
+    serviceLogsPanel.close();
+    logsPanel.close();
+  }
+});
+
 // Sync sibling environments into the global composable when the project loads
 watch(
   () => projectResult.value?.project?.environments,
