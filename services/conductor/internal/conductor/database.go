@@ -74,10 +74,8 @@ func (c *Client) Database(ctx context.Context, id DatabaseID) (*Database, error)
 	return c.platform.Database(ctx, id)
 }
 
-func (c *Client) CreateDatabase(ctx context.Context, environment platform.EnvironmentID, name, version string, size string) (*Database, error) {
-	if version == "" {
-		version = "17"
-	}
+func (c *Client) CreateDatabase(ctx context.Context, environment platform.EnvironmentID, name string, size string) (*Database, error) {
+	const version = "17"
 
 	if size == "" {
 		size = "16Gi"

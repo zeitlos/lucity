@@ -14,15 +14,11 @@ import (
 
 // CreateDatabase is the resolver for the createDatabase field.
 func (r *mutationResolver) CreateDatabase(ctx context.Context, input model.CreateDatabaseInput) (*model.Database, error) {
-	version := ""
-	if input.Version != nil {
-		version = *input.Version
-	}
 	size := ""
 	if input.Size != nil {
 		size = *input.Size
 	}
-	db, err := r.Conductor.CreateDatabase(ctx, input.Environment, input.Name, version, size)
+	db, err := r.Conductor.CreateDatabase(ctx, input.Environment, input.Name, size)
 	if err != nil {
 		return nil, err
 	}

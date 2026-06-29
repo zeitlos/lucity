@@ -136,7 +136,6 @@ export type CreateDatabaseInput = {
   environment: Scalars['EnvironmentID']['input'];
   name: Scalars['String']['input'];
   size?: InputMaybe<Scalars['String']['input']>;
-  version?: InputMaybe<Scalars['String']['input']>;
 };
 
 export type CreateEnvironmentInput = {

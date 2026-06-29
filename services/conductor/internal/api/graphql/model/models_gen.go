@@ -103,7 +103,6 @@ type CreateBucketInput struct {
 type CreateDatabaseInput struct {
 	Environment platform.EnvironmentID `json:"environment"`
 	Name        string                 `json:"name"`
-	Version     *string                `json:"version,omitempty"`
 	Size        *string                `json:"size,omitempty"`
 }
 
