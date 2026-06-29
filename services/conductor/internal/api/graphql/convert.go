@@ -397,6 +397,23 @@ func convertKeyValueStore(s conductor.KeyValueStore) model.KeyValueStore {
 	}
 }
 
+func convertVolume(v conductor.Volume) model.Volume {
+	volume := model.Volume{
+		ID:   v.ID,
+		Name: v.Name,
+		Size: v.Size.String(),
+	}
+
+	if v.Mount != nil {
+		volume.Mount = &model.Mount{
+			Service: v.Mount.Service,
+			Path:    v.Mount.Path,
+		}
+	}
+
+	return volume
+}
+
 func convertKeyValueStoreCredentials(c conductor.KeyValueStoreCredentials) model.KeyValueStoreCredentials {
 	return model.KeyValueStoreCredentials{
 		Type:     convertEndpointType(c.Type),

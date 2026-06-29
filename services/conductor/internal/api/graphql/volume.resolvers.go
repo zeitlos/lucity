@@ -7,33 +7,56 @@ package graphql
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
 // CreateVolume is the resolver for the createVolume field.
-func (r *mutationResolver) CreateVolume(ctx context.Context, name string, size string) (*model.Volume, error) {
-	panic(fmt.Errorf("not implemented: CreateVolume - createVolume"))
+func (r *mutationResolver) CreateVolume(ctx context.Context, environment platform.EnvironmentID, name string, size string) (*model.Volume, error) {
+	volume, err := r.Conductor.CreateVolume(ctx, environment, name, size)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return new(convertVolume(*volume)), nil
 }
 
 // MountVolume is the resolver for the mountVolume field.
 func (r *mutationResolver) MountVolume(ctx context.Context, volume platform.VolumeID, service platform.ServiceID, path string) (*model.Volume, error) {
-	panic(fmt.Errorf("not implemented: MountVolume - mountVolume"))
+	result, err := r.Conductor.MountVolume(ctx, volume, service, path)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return new(convertVolume(*result)), nil
 }
 
 // UnmountVolume is the resolver for the unmountVolume field.
 func (r *mutationResolver) UnmountVolume(ctx context.Context, volume platform.VolumeID) (*model.Volume, error) {
-	panic(fmt.Errorf("not implemented: UnmountVolume - unmountVolume"))
+	result, err := r.Conductor.UnmountVolume(ctx, volume)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return new(convertVolume(*result)), nil
 }
 
 // DeleteVolume is the resolver for the deleteVolume field.
 func (r *mutationResolver) DeleteVolume(ctx context.Context, volume platform.VolumeID) (bool, error) {
-	panic(fmt.Errorf("not implemented: DeleteVolume - deleteVolume"))
+	return r.Conductor.DeleteVolume(ctx, volume)
 }
 
 // Volume is the resolver for the volume field.
 func (r *queryResolver) Volume(ctx context.Context, id platform.VolumeID) (*model.Volume, error) {
-	panic(fmt.Errorf("not implemented: Volume - volume"))
+	result, err := r.Conductor.Volume(ctx, id)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return new(convertVolume(*result)), nil
 }

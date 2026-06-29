@@ -7,7 +7,6 @@ package graphql
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
@@ -49,7 +48,19 @@ func (r *environmentResolver) Databases(ctx context.Context, obj *model.Environm
 
 // Volumes is the resolver for the volumes field.
 func (r *environmentResolver) Volumes(ctx context.Context, obj *model.Environment) ([]model.Volume, error) {
-	panic(fmt.Errorf("not implemented: Volumes - volumes"))
+	volumes, err := r.Conductor.Volumes(ctx, obj.ID)
+
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]model.Volume, 0, len(volumes))
+
+	for _, volume := range volumes {
+		result = append(result, convertVolume(volume))
+	}
+
+	return result, nil
 }
 
 // CreateEnvironment is the resolver for the createEnvironment field.

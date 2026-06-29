@@ -313,6 +313,11 @@ type KeyValueStoreSource struct {
 
 func (KeyValueStoreSource) IsVariableSource() {}
 
+type Mount struct {
+	Service platform.ServiceID `json:"service"`
+	Path    string             `json:"path"`
+}
+
 type Mutation struct {
 }
 
@@ -474,12 +479,10 @@ type VariableInput struct {
 }
 
 type Volume struct {
-	ID            platform.VolumeID `json:"id"`
-	Name          string            `json:"name"`
-	Size          string            `json:"size"`
-	RequestedSize string            `json:"requestedSize"`
-	UsedBytes     int               `json:"usedBytes"`
-	CapacityBytes int               `json:"capacityBytes"`
+	ID    platform.VolumeID `json:"id"`
+	Name  string            `json:"name"`
+	Size  string            `json:"size"`
+	Mount *Mount            `json:"mount,omitempty"`
 }
 
 type Workspace struct {
