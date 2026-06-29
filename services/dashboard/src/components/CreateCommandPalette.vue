@@ -132,6 +132,7 @@ import { useGitHubInstall } from '@/composables/useGitHubInstall';
 import { toast, errorToast } from '@/components/ui/sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Slider } from '@/components/ui/slider';
 import { errorMessage } from '@/lib/utils';
 import { isValidSlug } from '@/lib/slug';
 import NameSlugField from '@/components/NameSlugField.vue';
@@ -479,9 +480,9 @@ async function handleCreateBucket() {
 // Create volume (within environment context)
 const { mutate: createVolumeMutate, loading: creatingVolume } = useMutation(CreateVolumeDocument);
 const newVolumeName = ref('data');
-const newVolumeSize = ref('5Gi');
+const volumeSizes = ['10Gi', '16Gi', '32Gi', '64Gi', '128Gi', '256Gi', '512Gi', '1Ti'];
+const newVolumeSize = ref('10Gi');
 const volumeStep = ref<'name' | 'size'>('name');
-const volumeSizes = ['1Gi', '5Gi', '10Gi', '25Gi', '50Gi'];
 
 async function handleCreateVolume() {
   if (!props.environmentId) return;
@@ -1279,19 +1280,21 @@ void activeEnvironment;
 
             <!-- Step: size -->
             <div v-else class="space-y-4 p-4">
-              <div class="space-y-2">
-                <label class="text-sm font-medium text-foreground">Size</label>
-                <div class="grid grid-cols-5 gap-2">
-                  <button
-                    v-for="size in volumeSizes"
-                    :key="size"
-                    type="button"
-                    class="rounded-md border px-2 py-2 font-mono text-sm transition-colors"
-                    :class="newVolumeSize === size ? 'border-primary bg-primary/5 text-foreground' : 'border-border text-muted-foreground hover:bg-accent'"
-                    @click="newVolumeSize = size"
-                  >
-                    {{ size }}
-                  </button>
+              <div class="space-y-3">
+                <div class="flex items-center justify-between">
+                  <label class="text-sm font-medium text-foreground">Size</label>
+                  <span class="font-mono text-sm font-semibold text-foreground">{{ newVolumeSize }}</span>
+                </div>
+                <Slider
+                  :model-value="[volumeSizes.indexOf(newVolumeSize)]"
+                  :min="0"
+                  :max="volumeSizes.length - 1"
+                  :step="1"
+                  @update:model-value="newVolumeSize = volumeSizes[$event?.[0] ?? 0]!"
+                />
+                <div class="flex justify-between text-[10px] text-muted-foreground">
+                  <span>{{ volumeSizes[0] }}</span>
+                  <span>{{ volumeSizes[volumeSizes.length - 1] }}</span>
                 </div>
                 <p class="text-xs text-muted-foreground">Volumes can be grown later, but not shrunk.</p>
               </div>
