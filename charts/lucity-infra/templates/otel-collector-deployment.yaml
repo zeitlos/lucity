@@ -66,6 +66,14 @@ spec:
                 - source_labels: [__meta_kubernetes_service_name]
                   regex: hubble-metrics
                   action: keep
+            - job_name: cert-manager
+              scrape_interval: 60s
+              static_configs:
+                - targets: ['cert-manager.cert-manager.svc.cluster.local:9402']
+            - job_name: victoria-metrics
+              scrape_interval: 30s
+              static_configs:
+                - targets: ['{{ .Release.Name }}-victoria-metrics-single-server:8428']
     processors:
       memory_limiter:
         check_interval: 1s
