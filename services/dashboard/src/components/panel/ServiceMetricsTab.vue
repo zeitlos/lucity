@@ -3,13 +3,24 @@ import { computed, ref } from 'vue';
 import { useQuery } from '@vue/apollo-composable';
 import { graphql } from '@/gql';
 import { MetricWindow, MetricGrouping, ResourceMetric } from '@/gql/graphql';
-import { formatBytes, cn } from '@/lib/utils';
+import { Cpu, MemoryStick } from '@lucide/vue';
+import { formatBytes, parseCpu, parseStorageSize, cn } from '@/lib/utils';
 import MetricAreaChart from '@/components/metrics/MetricAreaChart.vue';
 
 const ServiceMetricsDocument = graphql(`
   query ServiceMetrics($id: ServiceID!, $range: MetricsRange!, $grouping: MetricGrouping!) {
     service(id: $id) {
       id
+      replicas {
+        desired
+      }
+      resources {
+        cpu
+        memory
+      }
+      deployments {
+        createdAt
+      }
       metrics(metrics: [CPU_USAGE, MEMORY_USAGE], range: $range, grouping: $grouping) {
         metric
         replica
@@ -24,6 +35,10 @@ const ServiceMetricsDocument = graphql(`
 
 const props = defineProps<{
   serviceId: string;
+}>();
+
+const emit = defineEmits<{
+  (e: 'editResources'): void;
 }>();
 
 const windowOptions: { value: MetricWindow; label: string }[] = [
@@ -44,6 +59,7 @@ const windowMs: Record<MetricWindow, number> = {
 
 const selectedWindow = ref<MetricWindow>(MetricWindow.Last_24H);
 const perReplica = ref(false);
+const cursor = ref<number | null>(null);
 
 const grouping = computed(() => (perReplica.value ? MetricGrouping.PerReplica : MetricGrouping.Total));
 
@@ -59,6 +75,13 @@ const range = computed(() => {
   return { from: to - windowMs[selectedWindow.value], to };
 });
 
+const markers = computed(() => {
+  const deployments = result.value?.service.deployments ?? [];
+  return deployments
+    .map(d => new Date(d.createdAt).getTime())
+    .filter(t => t >= range.value.from && t <= range.value.to);
+});
+
 function shortReplica(replica?: string | null): string | undefined {
   if (!replica) return undefined;
   const parts = replica.split('-');
@@ -69,11 +92,27 @@ function seriesFor(metric: ResourceMetric) {
   const all = result.value?.service.metrics ?? [];
   return all
     .filter(s => s.metric === metric)
-    .map(s => ({ label: shortReplica(s.replica), points: s.points }));
+    .map(s => ({ label: shortReplica(s.replica), points: s.points }))
+    .sort((a, b) => (a.label ?? '').localeCompare(b.label ?? ''));
 }
 
 const cpuSeries = computed(() => seriesFor(ResourceMetric.CpuUsage));
 const memorySeries = computed(() => seriesFor(ResourceMetric.MemoryUsage));
+
+const replicaCount = computed(() => Math.max(1, result.value?.service.replicas.desired ?? 1));
+
+const cpuMax = computed(() => {
+  const limit = parseCpu(result.value?.service.resources.cpu ?? '');
+  return limit > 0 ? limit * replicaCount.value : null;
+});
+
+const memoryMax = computed(() => {
+  const limit = parseStorageSize(result.value?.service.resources.memory ?? '');
+  return limit > 0 ? limit * replicaCount.value : null;
+});
+
+const cpuMaxLabel = computed(() => (cpuMax.value != null ? `${Number(cpuMax.value.toFixed(2))} cores` : null));
+const memoryMaxLabel = computed(() => (memoryMax.value != null ? formatBytes(memoryMax.value) : null));
 
 function hasData(series: { points: { value?: number | null }[] }[]): boolean {
   return series.some(s => s.points.some(p => p.value != null));
@@ -129,39 +168,73 @@ function formatCpu(value: number): string {
       </div>
     </div>
 
-    <template v-if="hasAny">
-      <section class="space-y-2">
-        <h3 class="px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          CPU
-        </h3>
-        <div class="rounded-lg border p-4">
-          <MetricAreaChart
-            :series="cpuSeries"
-            :from="range.from"
-            :to="range.to"
-            :format-value="formatCpu"
-          />
+    <div
+      v-if="hasAny"
+      class="grid gap-5"
+      style="grid-template-columns: repeat(auto-fit, minmax(320px, 1fr))"
+    >
+      <section class="group rounded-lg border p-4">
+        <div class="mb-3 flex items-center justify-between gap-2">
+          <div class="flex items-center gap-1.5 text-sm font-medium text-foreground">
+            <Cpu :size="15" class="text-muted-foreground" />
+            CPU
+          </div>
+          <div class="flex items-center gap-2 text-xs text-muted-foreground">
+            <span v-if="cpuMaxLabel">max {{ cpuMaxLabel }}</span>
+            <button
+              type="button"
+              class="text-primary opacity-0 transition-opacity hover:underline group-hover:opacity-100"
+              @click="emit('editResources')"
+            >
+              Edit
+            </button>
+          </div>
         </div>
+        <MetricAreaChart
+          v-model:cursor="cursor"
+          :series="cpuSeries"
+          :from="range.from"
+          :to="range.to"
+          :markers="markers"
+          :max="cpuMax"
+          :stacked="perReplica"
+          :format-value="formatCpu"
+        />
       </section>
 
-      <section class="space-y-2">
-        <h3 class="px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Memory
-        </h3>
-        <div class="rounded-lg border p-4">
-          <MetricAreaChart
-            :series="memorySeries"
-            :from="range.from"
-            :to="range.to"
-            :format-value="formatBytes"
-          />
+      <section class="group rounded-lg border p-4">
+        <div class="mb-3 flex items-center justify-between gap-2">
+          <div class="flex items-center gap-1.5 text-sm font-medium text-foreground">
+            <MemoryStick :size="15" class="text-muted-foreground" />
+            Memory
+          </div>
+          <div class="flex items-center gap-2 text-xs text-muted-foreground">
+            <span v-if="memoryMaxLabel">max {{ memoryMaxLabel }}</span>
+            <button
+              type="button"
+              class="text-primary opacity-0 transition-opacity hover:underline group-hover:opacity-100"
+              @click="emit('editResources')"
+            >
+              Edit
+            </button>
+          </div>
         </div>
+        <MetricAreaChart
+          v-model:cursor="cursor"
+          :series="memorySeries"
+          :from="range.from"
+          :to="range.to"
+          :markers="markers"
+          :max="memoryMax"
+          :stacked="perReplica"
+          :format-value="formatBytes"
+        />
       </section>
-    </template>
+    </div>
 
     <div
       v-else
-      class="flex h-[180px] items-center justify-center text-center text-sm text-muted-foreground"
+      class="flex h-[280px] items-center justify-center text-center text-sm text-muted-foreground"
     >
       <span v-if="loading">Loading metrics…</span>
       <span v-else>No metrics yet. They appear within a minute or two of the service running.</span>

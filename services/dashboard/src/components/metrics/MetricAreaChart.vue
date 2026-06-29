@@ -12,15 +12,21 @@ const props = withDefaults(
     from: number;
     to: number;
     max?: number | null;
+    markers?: number[];
+    stacked?: boolean;
     height?: number;
     formatValue?: (value: number) => string;
   }>(),
   {
     max: null,
-    height: 180,
+    markers: () => [],
+    stacked: false,
+    height: 280,
     formatValue: (value: number) => String(value),
   },
 );
+
+const visibleMarkers = computed(() => props.markers.filter(m => m >= props.from && m <= props.to));
 
 const palette = ['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)', 'var(--chart-5)'];
 
@@ -44,7 +50,8 @@ const allValues = computed(() =>
 );
 
 const yMax = computed(() => {
-  const candidate = Math.max(props.max ?? 0, allValues.value.length ? Math.max(...allValues.value) : 0);
+  if (props.max != null && props.max > 0) return props.max;
+  const candidate = allValues.value.length ? Math.max(...allValues.value) : 0;
   return candidate > 0 ? candidate * 1.1 : 1;
 });
 
@@ -55,8 +62,61 @@ function xFor(time: number): number {
 }
 
 function yFor(value: number): number {
-  return padding.top + innerHeight.value - (value / yMax.value) * innerHeight.value;
+  const y = padding.top + innerHeight.value - (value / yMax.value) * innerHeight.value;
+  return Math.min(padding.top + innerHeight.value, Math.max(padding.top, y));
 }
+
+const stackedBands = computed(() => {
+  if (!props.stacked) return [];
+
+  const times = new Set<number>();
+  const lookups = props.series.map(s => {
+    const m = new Map<number, number>();
+    for (const p of s.points) {
+      if (p.value == null) continue;
+      const time = new Date(p.timestamp).getTime();
+      m.set(time, p.value);
+      times.add(time);
+    }
+    return m;
+  });
+
+  const sorted = [...times].sort((a, b) => a - b);
+  const runningBottom = sorted.map(() => 0);
+
+  return props.series.map((s, i) => {
+    const lookup = lookups[i]!;
+    const segments: { x: number; topY: number; bottomY: number }[][] = [];
+    let current: { x: number; topY: number; bottomY: number }[] = [];
+
+    sorted.forEach((time, ti) => {
+      const bottom = runningBottom[ti]!;
+      if (lookup.has(time)) {
+        const top = bottom + lookup.get(time)!;
+        current.push({ x: xFor(time), topY: yFor(top), bottomY: yFor(bottom) });
+        runningBottom[ti] = top;
+      } else if (current.length) {
+        segments.push(current);
+        current = [];
+      }
+    });
+    if (current.length) segments.push(current);
+
+    return {
+      color: colorFor(i),
+      areas: segments.map(seg => {
+        const top = seg.map((p, j) => `${j === 0 ? 'M' : 'L'} ${p.x} ${p.topY}`).join(' ');
+        const bottom = seg
+          .slice()
+          .reverse()
+          .map(p => `L ${p.x} ${p.bottomY}`)
+          .join(' ');
+        return `${top} ${bottom} Z`;
+      }),
+      lines: segments.map(seg => seg.map((p, j) => `${j === 0 ? 'M' : 'L'} ${p.x} ${p.topY}`).join(' ')),
+    };
+  });
+});
 
 function segmentsOf(points: Point[]): Seg[] {
   const result: Seg[] = [];
@@ -120,35 +180,56 @@ const xLabels = computed(() => [
   { x: xFor(props.to), label: formatTime(props.to), anchor: 'end' },
 ]);
 
-const hoverTime = ref<number | null>(null);
+const hoverTime = defineModel<number | null>('cursor', { default: null });
+
+const focusTime = computed(() => {
+  if (hoverTime.value == null) return null;
+  const cursor = hoverTime.value;
+
+  let best = Infinity;
+  let focus: number | null = null;
+  for (const s of props.series) {
+    for (const p of s.points) {
+      if (p.value == null) continue;
+      const time = new Date(p.timestamp).getTime();
+      const distance = Math.abs(time - cursor);
+      if (distance < best) {
+        best = distance;
+        focus = time;
+      }
+    }
+  }
+  return focus;
+});
 
 const hoverEntries = computed(() => {
-  if (hoverTime.value == null) return [];
-  const cursor = hoverTime.value;
+  if (focusTime.value == null) return [];
+  const focus = focusTime.value;
 
   return props.series
     .map((s, i) => {
-      let nearest: { time: number; value: number } | null = null;
-      let best = Infinity;
-      for (const p of s.points) {
-        if (p.value == null) continue;
-        const time = new Date(p.timestamp).getTime();
-        const distance = Math.abs(time - cursor);
-        if (distance < best) {
-          best = distance;
-          nearest = { time, value: p.value };
-        }
-      }
-      return nearest ? { label: s.label, color: colorFor(i), ...nearest } : null;
+      const point = s.points.find(p => p.value != null && new Date(p.timestamp).getTime() === focus);
+      if (!point || point.value == null) return null;
+      return { label: s.label, color: colorFor(i), time: focus, value: point.value };
     })
     .filter((e): e is NonNullable<typeof e> => e != null);
 });
 
-const crosshairX = computed(() => (hoverEntries.value.length ? xFor(hoverEntries.value[0]!.time) : 0));
+const crosshairX = computed(() => (focusTime.value == null ? 0 : xFor(focusTime.value)));
+
+const tooltipTop = computed(() => {
+  if (!hoverEntries.value.length) return 0;
+  if (props.stacked) return yFor(0) + 8;
+  return Math.max(...hoverEntries.value.map(e => yFor(e.value))) + 8;
+});
+
+const hoveredMarker = ref<number | null>(null);
 
 function onMove(event: MouseEvent) {
   const rect = (event.currentTarget as SVGElement).getBoundingClientRect();
-  const fraction = (event.clientX - rect.left) / rect.width;
+  if (rect.width === 0) return;
+  const viewBoxX = ((event.clientX - rect.left) / rect.width) * width.value;
+  const fraction = (viewBoxX - padding.left) / innerWidth.value;
   hoverTime.value = props.from + Math.min(1, Math.max(0, fraction)) * (props.to - props.from);
 }
 
@@ -190,32 +271,72 @@ function onLeave() {
         {{ line.label }}
       </text>
 
-      <template v-for="(s, i) in rendered" :key="`series-${i}`">
-        <path
-          v-for="(area, j) in s.areas"
-          :key="`area-${i}-${j}`"
-          :d="area"
-          :fill="s.color"
-          fill-opacity="0.1"
-          stroke="none"
+      <g v-for="(marker, i) in visibleMarkers" :key="`marker-${i}`">
+        <line
+          :x1="xFor(marker)"
+          :x2="xFor(marker)"
+          :y1="padding.top"
+          :y2="padding.top + innerHeight"
+          class="stroke-muted-foreground/30"
+          stroke-width="1"
+          stroke-dasharray="3 3"
         />
         <path
-          v-for="(line, j) in s.lines"
-          :key="`line-${i}-${j}`"
-          :d="line"
-          :stroke="s.color"
-          fill="none"
-          stroke-width="2"
-          stroke-linejoin="round"
+          :d="`M ${xFor(marker) - 3} ${padding.top} L ${xFor(marker) + 3} ${padding.top} L ${xFor(marker)} ${padding.top + 5} Z`"
+          class="fill-muted-foreground/60"
         />
-        <circle
-          v-for="(dot, j) in s.dots"
-          :key="`dot-${i}-${j}`"
-          :cx="xFor(dot.time)"
-          :cy="yFor(dot.value)"
-          r="2.5"
-          :fill="s.color"
-        />
+      </g>
+
+      <template v-if="stacked">
+        <template v-for="(band, i) in stackedBands" :key="`band-${i}`">
+          <path
+            v-for="(area, j) in band.areas"
+            :key="`band-area-${i}-${j}`"
+            :d="area"
+            :fill="band.color"
+            fill-opacity="0.3"
+            stroke="none"
+          />
+          <path
+            v-for="(line, j) in band.lines"
+            :key="`band-line-${i}-${j}`"
+            :d="line"
+            :stroke="band.color"
+            fill="none"
+            stroke-width="1.5"
+            stroke-linejoin="round"
+          />
+        </template>
+      </template>
+
+      <template v-else>
+        <template v-for="(s, i) in rendered" :key="`series-${i}`">
+          <path
+            v-for="(area, j) in s.areas"
+            :key="`area-${i}-${j}`"
+            :d="area"
+            :fill="s.color"
+            fill-opacity="0.1"
+            stroke="none"
+          />
+          <path
+            v-for="(line, j) in s.lines"
+            :key="`line-${i}-${j}`"
+            :d="line"
+            :stroke="s.color"
+            fill="none"
+            stroke-width="2"
+            stroke-linejoin="round"
+          />
+          <circle
+            v-for="(dot, j) in s.dots"
+            :key="`dot-${i}-${j}`"
+            :cx="xFor(dot.time)"
+            :cy="yFor(dot.value)"
+            r="2.5"
+            :fill="s.color"
+          />
+        </template>
       </template>
 
       <g v-if="hoverEntries.length">
@@ -229,6 +350,7 @@ function onLeave() {
         />
         <circle
           v-for="(entry, i) in hoverEntries"
+          v-show="!stacked"
           :key="`hover-${i}`"
           :cx="xFor(entry.time)"
           :cy="yFor(entry.value)"
@@ -248,6 +370,19 @@ function onLeave() {
       >
         {{ label.label }}
       </text>
+
+      <rect
+        v-for="(marker, i) in visibleMarkers"
+        :key="`marker-hit-${i}`"
+        :x="xFor(marker) - 5"
+        :y="padding.top"
+        width="10"
+        :height="innerHeight"
+        fill="transparent"
+        style="cursor: pointer"
+        @mouseenter="hoveredMarker = marker"
+        @mouseleave="hoveredMarker = null"
+      />
     </svg>
 
     <div v-if="multi" class="mt-2 flex flex-wrap gap-x-3 gap-y-1 px-1">
@@ -263,15 +398,23 @@ function onLeave() {
 
     <div
       v-if="hoverEntries.length"
-      class="pointer-events-none absolute -translate-x-1/2 rounded-md border bg-popover px-2 py-1 text-xs shadow-sm"
-      :style="{ left: `${(crosshairX / width) * 100}%`, top: '0' }"
+      class="pointer-events-none absolute z-10 w-max -translate-x-1/2 whitespace-nowrap rounded-md border bg-popover px-2 py-1 text-xs shadow-sm"
+      :style="{ left: `${(crosshairX / width) * 100}%`, top: `${tooltipTop}px` }"
     >
-      <div class="mb-0.5 text-muted-foreground">{{ formatTime(hoverEntries[0]!.time) }}</div>
+      <div class="mb-0.5 text-muted-foreground">{{ formatTime(focusTime!) }}</div>
       <div v-for="(entry, i) in hoverEntries" :key="`tip-${i}`" class="flex items-center gap-1.5">
-        <span class="inline-block h-2 w-2 rounded-full" :style="{ background: entry.color }"></span>
+        <span v-if="multi" class="inline-block h-2 w-2 rounded-full" :style="{ background: entry.color }"></span>
         <span v-if="entry.label" class="text-muted-foreground">{{ entry.label }}</span>
         <span class="ml-auto font-medium text-foreground">{{ formatValue(entry.value) }}</span>
       </div>
+    </div>
+
+    <div
+      v-if="hoveredMarker != null"
+      class="pointer-events-none absolute top-0 z-20 w-max -translate-x-1/2 whitespace-nowrap rounded-md border bg-popover px-2 py-1 text-xs text-muted-foreground shadow-sm"
+      :style="{ left: `${(xFor(hoveredMarker) / width) * 100}%` }"
+    >
+      Deployed {{ formatTime(hoveredMarker) }}
     </div>
   </div>
 </template>

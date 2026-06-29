@@ -23,6 +23,16 @@ export function formatBytes(bytes: number): string {
   return `${value.toFixed(i === 0 || value >= 100 ? 0 : 1)} ${units[i]}`;
 }
 
+export function parseCpu(cpu: string): number {
+  const trimmed = cpu.trim();
+  if (trimmed.endsWith('m')) {
+    const millis = parseFloat(trimmed.slice(0, -1));
+    return isNaN(millis) ? 0 : millis / 1000;
+  }
+  const cores = parseFloat(trimmed);
+  return isNaN(cores) ? 0 : cores;
+}
+
 export function parseStorageSize(size: string): number {
   const match = /^(\d+(?:\.\d+)?)\s*([KMGTPE]i?)?$/.exec(size.trim());
   if (!match) return 0;
