@@ -151,6 +151,18 @@ export interface Bucket {
   createdAt: string;
 }
 
+export interface Mount {
+  service: string;
+  path: string;
+}
+
+export interface Volume {
+  id: string;
+  name: string;
+  size: string;
+  mount?: Mount | null;
+}
+
 export interface Environment {
   id: string;
   name: string;
@@ -159,6 +171,7 @@ export interface Environment {
   databases: Database[];
   keyValueStores: KeyValueStore[];
   buckets: Bucket[];
+  volumes: Volume[];
 }
 
 const activeEnvironment = ref<Environment | null>(null);
@@ -203,6 +216,7 @@ export function useEnvironment() {
   const activeEnvDatabases = computed(() => activeEnvironment.value?.databases ?? []);
   const activeEnvKeyValueStores = computed(() => activeEnvironment.value?.keyValueStores ?? []);
   const activeEnvBuckets = computed(() => activeEnvironment.value?.buckets ?? []);
+  const activeEnvVolumes = computed(() => activeEnvironment.value?.volumes ?? []);
 
   return {
     activeEnvironment,
@@ -211,6 +225,7 @@ export function useEnvironment() {
     activeEnvDatabases,
     activeEnvKeyValueStores,
     activeEnvBuckets,
+    activeEnvVolumes,
     setEnvironments,
     setEnvironment,
     setEnvironmentById,
