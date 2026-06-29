@@ -3,6 +3,7 @@ package directive
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"regexp"
 
 	"github.com/99designs/gqlgen/graphql"
@@ -29,6 +30,13 @@ func (c *Constraint) Validate(ctx context.Context, obj interface{}, next graphql
 	val, err := next(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("invalid value for %s", graphql.GetPathContext(ctx).Path())
+	}
+
+	if val == nil {
+		return val, nil
+	}
+	if rv := reflect.ValueOf(val); rv.Kind() == reflect.Ptr && rv.IsNil() {
+		return val, nil
 	}
 
 	path := graphql.GetPathContext(ctx).Path()
