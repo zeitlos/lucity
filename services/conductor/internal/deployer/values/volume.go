@@ -6,6 +6,11 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
+var (
+	minVolumeSize = resource.MustParse("10Gi")
+	maxVolumeSize = resource.MustParse("1Ti")
+)
+
 type Volume struct {
 	Size        string            `yaml:"size,omitempty"`
 	Labels      map[string]string `yaml:"labels,omitempty"`
@@ -15,6 +20,10 @@ type Volume struct {
 func CreateVolume(env *Env, name string, size resource.Quantity) error {
 	if !isValidName(name) {
 		return fmt.Errorf("invalid volume name %q", name)
+	}
+
+	if size.Cmp(minVolumeSize) < 0 || size.Cmp(maxVolumeSize) > 0 {
+		return fmt.Errorf("volume size must be between %s and %s", minVolumeSize.String(), maxVolumeSize.String())
 	}
 
 	if _, ok := env.Volumes[name]; ok {
