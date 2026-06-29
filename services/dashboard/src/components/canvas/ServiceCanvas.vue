@@ -66,6 +66,7 @@ const nodes = computed(() => {
             id: mountedVolume.id,
             name: mountedVolume.name,
             path: mountedVolume.mount!.path,
+            usagePercent: mountedVolume.usagePercent ?? null,
             selected: currentPanel.value?.id === mountedVolume.id && currentPanel.value?.type === 'volume',
           }
           : null,

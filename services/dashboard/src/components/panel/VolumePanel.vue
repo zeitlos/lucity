@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { Service } from '@/composables/useEnvironment';
-import VolumeOverviewTab from './VolumeOverviewTab.vue';
+import VolumeUsageTab from './VolumeUsageTab.vue';
 import VolumeSettingsTab from './VolumeSettingsTab.vue';
 
 const props = defineProps<{
@@ -51,21 +51,18 @@ onKeyStroke('Escape', () => {
 
     <!-- Tab Content -->
     <ScrollArea class="flex-1">
-      <Tabs default-value="overview" class="h-full">
+      <Tabs default-value="usage" class="h-full">
         <div class="px-4 pt-2">
           <TabsList class="w-full">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="usage">Usage</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
         </div>
 
-        <TabsContent value="overview" class="px-4 py-4">
-          <VolumeOverviewTab
+        <TabsContent value="usage" class="px-4 py-4">
+          <VolumeUsageTab
             :volume-id="props.volume.id"
             :volume="props.volume"
-            :services="props.services"
-            @mount="emit('mount')"
-            @unmounted="emit('refetch')"
           />
         </TabsContent>
 
@@ -73,7 +70,10 @@ onKeyStroke('Escape', () => {
           <VolumeSettingsTab
             :volume-id="props.volume.id"
             :volume="props.volume"
+            :services="props.services"
             @volume-removed="emit('volume-removed')"
+            @mount="emit('mount')"
+            @unmounted="emit('refetch')"
           />
         </TabsContent>
       </Tabs>

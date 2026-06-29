@@ -161,6 +161,7 @@ export interface Volume {
   name: string;
   size: string;
   mount?: Mount | null;
+  usagePercent?: number | null;
 }
 
 export interface Environment {

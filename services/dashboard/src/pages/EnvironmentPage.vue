@@ -149,6 +149,11 @@ const EnvironmentDocument = graphql(`
           service
           path
         }
+        metrics(metrics: [STORAGE_USED], range: { window: LAST_1H }) {
+          points {
+            value
+          }
+        }
       }
     }
   }
@@ -184,6 +189,7 @@ import { useEnvironment, type Environment } from '@/composables/useEnvironment';
 import { usePanel } from '@/composables/usePanel';
 import { useBuildLogsPanel } from '@/composables/useBuildLogsPanel';
 import { useServiceLogsPanel } from '@/composables/useServiceLogsPanel';
+import { parseStorageSize } from '@/lib/utils';
 
 const route = useRoute();
 const router = useRouter();
@@ -392,12 +398,21 @@ watch(
         objectCount: b.objectCount,
         createdAt: b.createdAt,
       })),
-      volumes: env.volumes.map(v => ({
-        id: v.id,
-        name: v.name,
-        size: v.size,
-        mount: v.mount ? { service: v.mount.service, path: v.mount.path } : null,
-      })),
+      volumes: env.volumes.map(v => {
+        const points = v.metrics[0]?.points ?? [];
+        const usedBytes = [...points].reverse().find(p => p.value != null)?.value ?? null;
+        const capacityBytes = parseStorageSize(v.size);
+        const usagePercent = usedBytes != null && capacityBytes > 0
+          ? Math.min(100, Math.round((usedBytes / capacityBytes) * 100))
+          : null;
+        return {
+          id: v.id,
+          name: v.name,
+          size: v.size,
+          mount: v.mount ? { service: v.mount.service, path: v.mount.path } : null,
+          usagePercent,
+        };
+      }),
     };
     setEnvironment(full);
   },

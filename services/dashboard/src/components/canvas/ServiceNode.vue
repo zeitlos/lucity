@@ -27,7 +27,7 @@ const props = defineProps<{
     replicas: ReplicaCount;
     activeBuildStatus?: BuildStatus | null;
     activeBuildStartedAt?: number | null;
-    volume?: { id: string; name: string; path: string; selected?: boolean } | null;
+    volume?: { id: string; name: string; path: string; selected?: boolean; usagePercent?: number | null } | null;
   };
   selected?: boolean;
 }>();
@@ -197,18 +197,27 @@ const hostUrl = computed(() => {
       <Handle type="target" :position="Position.Top" class="!invisible" />
     </div>
 
-    <!-- Mounted volume, attached underneath -->
+    <!-- Mounted volume, attached underneath (tucked behind the card) -->
     <div
       v-if="data.volume"
       :class="[
-        'relative z-[2] mx-4 -mt-px flex cursor-pointer items-center gap-2 rounded-b-lg border border-t-0 bg-card px-3 py-2 shadow-sm transition-colors hover:bg-accent',
+        'volume-attachment relative -mt-3 cursor-pointer overflow-hidden rounded-b-xl border border-t-0 transition-colors',
         data.volume.selected ? 'border-primary' : 'border-border',
       ]"
       @click.stop="emit('select-volume')"
     >
-      <HardDrive :size="14" class="shrink-0 text-muted-foreground" />
-      <span class="truncate text-xs font-medium text-foreground">{{ data.volume.name }}</span>
-      <span class="ml-auto shrink-0 font-mono text-[0.6rem] text-muted-foreground">{{ data.volume.path }}</span>
+      <!-- Usage fill (background progress bar) -->
+      <div
+        v-if="data.volume.usagePercent != null"
+        class="volume-usage-fill absolute inset-y-0 left-0 transition-[width] duration-500"
+        :style="{ width: `${data.volume.usagePercent}%` }"
+      />
+      <!-- Content -->
+      <div class="relative z-[1] flex items-center gap-2.5 px-6 pb-3 pt-6">
+        <HardDrive :size="16" class="shrink-0 text-muted-foreground" />
+        <span class="truncate text-sm font-medium text-foreground">{{ data.volume.name }}</span>
+        <span class="ml-auto shrink-0 font-mono text-xs text-muted-foreground">{{ data.volume.path }}</span>
+      </div>
     </div>
 
     <div class="flex flex-col-reverse relative -top-14 group-hover:translate-y-0.5 transition">
@@ -228,5 +237,17 @@ const hostUrl = computed(() => {
     var(--card) 0%,
     color-mix(in oklch, var(--card) 94%, var(--muted)) 100%
   );
+}
+
+.volume-attachment {
+  background: color-mix(in oklch, var(--card) 90%, var(--muted));
+}
+
+.volume-attachment:hover {
+  background: color-mix(in oklch, var(--card) 86%, var(--muted));
+}
+
+.volume-usage-fill {
+  background: color-mix(in oklch, var(--card) 74%, var(--muted));
 }
 </style>
