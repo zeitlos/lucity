@@ -287,13 +287,29 @@ victoria-metrics-alert:
                 annotations:
                   summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} is crash-looping"
               - alert: PVCNearlyFull
-                expr: kubelet_volume_stats_used_bytes / kubelet_volume_stats_capacity_bytes > 0.85
+                expr: |-
+                  label_replace(label_replace(label_replace(
+                    (1 - k8s_volume_available_bytes / k8s_volume_capacity_bytes),
+                    "namespace", "$1", "k8s_namespace_name", "(.*)"),
+                    "pod", "$1", "k8s_pod_name", "(.*)"),
+                    "volume", "$1", "k8s_volume_name", "(.*)")
+                  * on (namespace, pod, volume) group_left(persistentvolumeclaim)
+                    kube_pod_spec_volumes_persistentvolumeclaims_info
+                  > 0.85
                 for: 10m
                 labels: { severity: warning }
                 annotations:
                   summary: "PVC {{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }} >85% full"
               - alert: PVCCriticallyFull
-                expr: kubelet_volume_stats_used_bytes / kubelet_volume_stats_capacity_bytes > 0.95
+                expr: |-
+                  label_replace(label_replace(label_replace(
+                    (1 - k8s_volume_available_bytes / k8s_volume_capacity_bytes),
+                    "namespace", "$1", "k8s_namespace_name", "(.*)"),
+                    "pod", "$1", "k8s_pod_name", "(.*)"),
+                    "volume", "$1", "k8s_volume_name", "(.*)")
+                  * on (namespace, pod, volume) group_left(persistentvolumeclaim)
+                    kube_pod_spec_volumes_persistentvolumeclaims_info
+                  > 0.95
                 for: 5m
                 labels: { severity: critical }
                 annotations:
