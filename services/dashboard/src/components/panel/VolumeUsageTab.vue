@@ -81,11 +81,17 @@ const usagePercent = computed(() => {
 <template>
   <div class="space-y-6">
     <!-- Usage -->
-    <section class="space-y-2">
-      <div class="flex items-center justify-between px-1">
-        <h3 class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Usage
-        </h3>
+    <section class="space-y-3">
+      <div class="flex items-center justify-between gap-3 px-1">
+        <div class="flex items-baseline gap-2">
+          <span class="text-2xl font-semibold text-foreground">
+            {{ currentUsage != null ? formatBytes(currentUsage) : '—' }}
+          </span>
+          <span class="text-sm text-muted-foreground">
+            / {{ formatBytes(capacityBytes) }}
+            <template v-if="usagePercent != null">({{ usagePercent }}%)</template>
+          </span>
+        </div>
         <div class="inline-flex overflow-hidden rounded-md border text-xs">
           <button
             v-for="option in windowOptions"
@@ -102,35 +108,23 @@ const usagePercent = computed(() => {
         </div>
       </div>
 
-      <div class="rounded-lg border p-4">
-        <div class="mb-3 flex items-baseline gap-2">
-          <span class="text-2xl font-semibold text-foreground">
-            {{ currentUsage != null ? formatBytes(currentUsage) : '—' }}
-          </span>
-          <span class="text-sm text-muted-foreground">
-            / {{ formatBytes(capacityBytes) }}
-            <template v-if="usagePercent != null">({{ usagePercent }}%)</template>
-          </span>
-        </div>
+      <MetricAreaChart
+        v-if="hasData"
+        :points="points"
+        :from="range.from"
+        :to="range.to"
+        :format-value="formatBytes"
+      />
 
-        <MetricAreaChart
-          v-if="hasData"
-          :points="points"
-          :from="range.from"
-          :to="range.to"
-          :format-value="formatBytes"
-        />
-
-        <div
-          v-else
-          class="flex h-[180px] items-center justify-center text-center text-sm text-muted-foreground"
-        >
-          <span v-if="metricsLoading">Loading usage…</span>
-          <span v-else-if="!volume.mount">
-            Mount this volume to a service to start collecting usage.
-          </span>
-          <span v-else>No usage data yet. Metrics appear within a minute or two.</span>
-        </div>
+      <div
+        v-else
+        class="flex h-[180px] items-center justify-center text-center text-sm text-muted-foreground"
+      >
+        <span v-if="metricsLoading">Loading usage…</span>
+        <span v-else-if="!volume.mount">
+          Mount this volume to a service to start collecting usage.
+        </span>
+        <span v-else>No usage data yet. Metrics appear within a minute or two.</span>
       </div>
     </section>
   </div>
