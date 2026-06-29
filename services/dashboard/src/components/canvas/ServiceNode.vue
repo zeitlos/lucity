@@ -248,6 +248,6 @@ const hostUrl = computed(() => {
 }
 
 .volume-usage-fill {
-  background: color-mix(in oklch, var(--card) 74%, var(--muted));
+  background: color-mix(in oklch, var(--card) 30%, var(--muted));
 }
 </style>
