@@ -26,22 +26,15 @@ const emit = defineEmits<{
       style="width: 280px;"
       @click="emit('select')"
     >
-      <!-- Icon + name -->
+      <!-- Icon + name + hover mount button -->
       <div class="flex items-center gap-3">
         <HardDrive :size="26" class="shrink-0 text-muted-foreground" />
-        <span class="truncate font-semibold text-foreground">{{ data.name }}</span>
-      </div>
-
-      <!-- Hover overlay: mount this volume -->
-      <div
-        class="pointer-events-none absolute inset-0 flex items-center justify-center rounded-xl bg-background/70 opacity-0 backdrop-blur-[1px] transition-opacity duration-150 group-hover:pointer-events-auto group-hover:opacity-100"
-        @click="emit('select')"
-      >
+        <span class="min-w-0 flex-1 truncate font-semibold text-foreground">{{ data.name }}</span>
         <button
-          class="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
+          class="pointer-events-none inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground opacity-0 shadow-sm transition-opacity duration-150 hover:bg-primary/90 group-hover:pointer-events-auto group-hover:opacity-100"
           @click.stop="emit('mount')"
         >
-          <Plug :size="15" />
+          <Plug :size="14" />
           Mount
         </button>
       </div>
