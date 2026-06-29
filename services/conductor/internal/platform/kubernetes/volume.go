@@ -3,14 +3,18 @@ package kubernetes
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 
+	apps "k8s.io/api/apps/v1"
 	core "k8s.io/api/core/v1"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 )
+
+const volumeMountPrefix = "volume-"
 
 func (c *Client) Volumes(ctx context.Context, environmentID platform.EnvironmentID) ([]platform.Volume, error) {
 	req, err := labels.NewRequirement(volumeLabel, selection.Exists, nil)
@@ -29,10 +33,22 @@ func (c *Client) Volumes(ctx context.Context, environmentID platform.Environment
 		return nil, err
 	}
 
+	mounts, err := c.volumeMounts(ctx, environmentID)
+
+	if err != nil {
+		return nil, err
+	}
+
 	volumes := make([]platform.Volume, 0, len(list.Items))
 
 	for _, pvc := range list.Items {
-		volumes = append(volumes, toVolume(pvc, environmentID))
+		volume := toVolume(pvc, environmentID)
+
+		if mount, ok := mounts[volume.Name]; ok {
+			volume.Mount = &mount
+		}
+
+		volumes = append(volumes, volume)
 	}
 
 	return volumes, nil
@@ -55,7 +71,80 @@ func (c *Client) Volume(ctx context.Context, id platform.VolumeID) (*platform.Vo
 		return nil, fmt.Errorf("volume %q not found", id)
 	}
 
-	return new(toVolume(list.Items[0], id.EnvironmentID())), nil
+	volume := toVolume(list.Items[0], id.EnvironmentID())
+
+	mounts, err := c.volumeMounts(ctx, id.EnvironmentID())
+
+	if err != nil {
+		return nil, err
+	}
+
+	if mount, ok := mounts[volume.Name]; ok {
+		volume.Mount = &mount
+	}
+
+	return &volume, nil
+}
+
+func (c *Client) volumeMounts(ctx context.Context, environmentID platform.EnvironmentID) (map[string]platform.VolumeMount, error) {
+	req, err := labels.NewRequirement(serviceLabel, selection.Exists, nil)
+
+	if err != nil {
+		return nil, err
+	}
+
+	selector := labels.NewSelector().Add(*req)
+
+	deployments, err := c.kubernetes.AppsV1().Deployments(environmentID.Namespace()).List(ctx, meta.ListOptions{
+		LabelSelector: selector.String(),
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	mounts := make(map[string]platform.VolumeMount)
+
+	for _, deployment := range deployments.Items {
+		service := serviceID(deployment, environmentID)
+
+		for volumeName, path := range deploymentVolumeMounts(deployment) {
+			mounts[volumeName] = platform.VolumeMount{
+				Service: service,
+				Path:    path,
+			}
+		}
+	}
+
+	return mounts, nil
+}
+
+func deploymentVolumeMounts(deployment apps.Deployment) map[string]string {
+	spec := deployment.Spec.Template.Spec
+
+	paths := make(map[string]string)
+
+	for _, container := range spec.Containers {
+		for _, mount := range container.VolumeMounts {
+			paths[mount.Name] = mount.MountPath
+		}
+	}
+
+	mounts := make(map[string]string)
+
+	for _, volume := range spec.Volumes {
+		if volume.PersistentVolumeClaim == nil {
+			continue
+		}
+
+		if !strings.HasPrefix(volume.Name, volumeMountPrefix) {
+			continue
+		}
+
+		mounts[strings.TrimPrefix(volume.Name, volumeMountPrefix)] = paths[volume.Name]
+	}
+
+	return mounts
 }
 
 func toVolume(pvc core.PersistentVolumeClaim, environmentID platform.EnvironmentID) platform.Volume {

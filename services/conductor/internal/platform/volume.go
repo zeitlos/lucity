@@ -26,11 +26,17 @@ const (
 	VolumeFailed  VolumeStatus = "failed"
 )
 
+type VolumeMount struct {
+	Service ServiceID
+	Path    string
+}
+
 type Volume struct {
 	ID        VolumeID
 	Name      string
 	Size      resource.Quantity
 	Status    VolumeStatus
+	Mount     *VolumeMount
 	CreatedAt time.Time
 }
 
