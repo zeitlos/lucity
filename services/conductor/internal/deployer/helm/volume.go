@@ -28,9 +28,9 @@ func (v *volumeClient) Delete(ctx context.Context, id platform.VolumeID) error {
 	return err
 }
 
-func (v *volumeClient) SetStorage(ctx context.Context, id platform.VolumeID, size resource.Quantity) (deployer.RevisionID, error) {
+func (v *volumeClient) Expand(ctx context.Context, id platform.VolumeID, size resource.Quantity) (deployer.RevisionID, error) {
 	return v.client.applyEnv(ctx, id.EnvironmentID(), func(e *values.Env) error {
-		return values.SetVolumeStorage(e, id.Name, size)
+		return values.ExpandVolume(e, id.Name, size)
 	})
 }
 

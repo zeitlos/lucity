@@ -59,7 +59,7 @@ type KeyValueStoreClient interface {
 type VolumeClient interface {
 	Create(ctx context.Context, env platform.EnvironmentID, name string, size resource.Quantity) (RevisionID, error)
 	Delete(ctx context.Context, id platform.VolumeID) error
-	SetStorage(ctx context.Context, id platform.VolumeID, size resource.Quantity) (RevisionID, error)
+	Expand(ctx context.Context, id platform.VolumeID, size resource.Quantity) (RevisionID, error)
 }
 
 type EnvironmentClient interface {

@@ -42,7 +42,7 @@ func CreateVolume(env *Env, name string, size resource.Quantity) error {
 	return nil
 }
 
-func SetVolumeStorage(env *Env, name string, size resource.Quantity) error {
+func ExpandVolume(env *Env, name string, size resource.Quantity) error {
 	volume, ok := env.Volumes[name]
 
 	if !ok {

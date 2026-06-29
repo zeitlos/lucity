@@ -23,9 +23,9 @@ func (r *mutationResolver) CreateVolume(ctx context.Context, environment platfor
 	return new(convertVolume(*volume)), nil
 }
 
-// SetVolumeStorage is the resolver for the setVolumeStorage field.
-func (r *mutationResolver) SetVolumeStorage(ctx context.Context, volume platform.VolumeID, size string) (*model.Volume, error) {
-	result, err := r.Conductor.SetVolumeStorage(ctx, volume, size)
+// ExpandVolume is the resolver for the expandVolume field.
+func (r *mutationResolver) ExpandVolume(ctx context.Context, volume platform.VolumeID, size string) (*model.Volume, error) {
+	result, err := r.Conductor.ExpandVolume(ctx, volume, size)
 
 	if err != nil {
 		return nil, err
