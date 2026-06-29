@@ -169,11 +169,15 @@ func (s *serviceClient) VerifyDomain(ctx context.Context, id platform.ServiceID,
 }
 
 func (s *serviceClient) Mount(ctx context.Context, id platform.ServiceID, volume platform.VolumeID, mountPath string) (deployer.RevisionID, error) {
-	return "", fmt.Errorf("Mount: chart does not support volumes yet")
+	return s.client.applyEnv(ctx, id.EnvironmentID(), func(e *values.Env) error {
+		return values.MountVolume(e, volume.Name, id.Name, mountPath)
+	})
 }
 
-func (s *serviceClient) Unmount(ctx context.Context, id platform.ServiceID, volume platform.VolumeID) (deployer.RevisionID, error) {
-	return "", fmt.Errorf("Unmount: chart does not support volumes yet")
+func (s *serviceClient) Unmount(ctx context.Context, volume platform.VolumeID) (deployer.RevisionID, error) {
+	return s.client.applyEnv(ctx, volume.EnvironmentID(), func(e *values.Env) error {
+		return values.UnmountVolume(e, volume.Name)
+	})
 }
 
 func deriveRequestsAndLimtis(res deployer.Resources, tier platform.ResourceTier) values.Resources {

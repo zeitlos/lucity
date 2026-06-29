@@ -3,6 +3,9 @@ package values
 import (
 	"fmt"
 	"regexp"
+	"strings"
+
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 var (
@@ -15,6 +18,8 @@ var (
 	imageRepoRe   = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9._/:@-]*$`)
 	imageTagRe    = regexp.MustCompile(`^[a-zA-Z0-9_][a-zA-Z0-9._-]*$`)
 	imageDigestRe = regexp.MustCompile(`^[a-zA-Z0-9]+:[a-zA-Z0-9]+$`)
+
+	mountPathRe = regexp.MustCompile(`^/[a-zA-Z0-9._/-]+$`)
 
 	maxNameLen    = 63
 	maxHostLen    = 253
@@ -67,6 +72,24 @@ func Validate(env *Env) error {
 		}
 	}
 
+	for name, vol := range env.Volumes {
+		if !isValidName(name) {
+			return fmt.Errorf("invalid volume name %q", name)
+		}
+
+		if err := validateLabels(fmt.Sprintf("volume %q labels", name), vol.Labels); err != nil {
+			return err
+		}
+
+		if err := validateAnnotationKeys(fmt.Sprintf("volume %q annotations", name), vol.Annotations); err != nil {
+			return err
+		}
+
+		if _, err := resource.ParseQuantity(vol.Size); err != nil {
+			return fmt.Errorf("volume %q: invalid size %q: %w", name, vol.Size, err)
+		}
+	}
+
 	for k := range env.SharedVariables {
 		if !isValidVarName(k) {
 			return fmt.Errorf("invalid shared variable name %q", k)
@@ -116,6 +139,16 @@ func Validate(env *Env) error {
 			}
 		}
 
+		for volName, path := range svc.VolumeMounts {
+			if _, ok := env.Volumes[volName]; !ok {
+				return fmt.Errorf("service %q: mounts unknown volume %q", svcName, volName)
+			}
+
+			if !isValidMountPath(path) {
+				return fmt.Errorf("service %q: invalid mount path %q for volume %q", svcName, path, volName)
+			}
+		}
+
 	}
 
 	return nil
@@ -154,6 +187,24 @@ func isValidVarName(name string) bool {
 
 func isValidHostname(host string) bool {
 	return len(host) > 0 && len(host) <= maxHostLen && hostnameRe.MatchString(host)
+}
+
+func isValidMountPath(path string) bool {
+	if len(path) < 2 || len(path) > 256 {
+		return false
+	}
+
+	if !mountPathRe.MatchString(path) {
+		return false
+	}
+
+	for _, segment := range strings.Split(path, "/") {
+		if segment == ".." {
+			return false
+		}
+	}
+
+	return true
 }
 
 func validateImage(svcName string, image ImageRef) error {

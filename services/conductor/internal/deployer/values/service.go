@@ -19,6 +19,7 @@ type Service struct {
 	Command        string               `yaml:"command,omitempty"`
 	Env            map[string]string    `yaml:"env,omitempty"`
 	Refs           map[string]SecretRef `yaml:"refs,omitempty"`
+	VolumeMounts   map[string]string    `yaml:"volumeMounts,omitempty"`
 	Labels         map[string]string    `yaml:"labels,omitempty"`
 	Annotations    map[string]string    `yaml:"annotations,omitempty"`
 	PodLabels      map[string]string    `yaml:"podLabels,omitempty"`
@@ -179,6 +180,10 @@ func SetServiceReplicas(env *Env, name string, replicas int) error {
 		return fmt.Errorf("replicas must be non-negative")
 	}
 
+	if svc, ok := env.Services[name]; ok && replicas > 1 && len(svc.VolumeMounts) > 0 {
+		return fmt.Errorf("service %q mounts a volume and cannot scale beyond a single replica", name)
+	}
+
 	return mutateService(env, name, func(s *Service) {
 		s.Replicas = replicas
 		s.Autoscaling = nil
@@ -192,6 +197,10 @@ func SetServiceAutoscaling(env *Env, name string, cfg Autoscaling) error {
 
 	if cfg.TargetCPU <= 0 || cfg.TargetCPU > 100 {
 		return fmt.Errorf("targetCPU must be in (0, 100]")
+	}
+
+	if svc, ok := env.Services[name]; ok && len(svc.VolumeMounts) > 0 {
+		return fmt.Errorf("service %q mounts a volume and cannot use autoscaling", name)
 	}
 
 	cfg.Enabled = true

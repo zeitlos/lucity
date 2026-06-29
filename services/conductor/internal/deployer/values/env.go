@@ -14,6 +14,7 @@ type Env struct {
 	SharedVariables      map[string]string  `yaml:"sharedVariables"`
 	SharedVariableLabels map[string]string  `yaml:"sharedVariableLabels,omitempty"`
 	Databases            Databases          `yaml:"databases"`
+	Volumes              map[string]Volume  `yaml:"volumes,omitempty"`
 	Gateway              Gateway            `yaml:"gateway"`
 }
 
