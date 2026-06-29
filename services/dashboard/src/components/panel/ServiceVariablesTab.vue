@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
 import { useQuery, useMutation } from '@vue/apollo-composable';
-import { Plus, Trash2, Link } from '@lucide/vue';
+import { Plus, Trash2, Link, Eye, EyeOff } from '@lucide/vue';
 import SourceIcon from '@/components/SourceIcon.vue';
 import { graphql } from '@/gql';
 import { useEnvironment } from '@/composables/useEnvironment';
@@ -68,6 +68,7 @@ interface VarRow {
   key: string;
   value: string;
   ref: string | null;
+  revealed?: boolean;
 }
 
 const rows = ref<VarRow[]>([]);
@@ -167,8 +168,22 @@ const refById = computed(() => {
 // ── Row actions ───────────────────────────────────────────────────────
 
 function addRow() {
-  rows.value.push({ key: '', value: '', ref: null });
+  rows.value.push({ key: '', value: '', ref: null, revealed: true });
   hasChanges.value = true;
+}
+
+// ── Concealment ───────────────────────────────────────────────────────
+
+const valueRows = computed(() => rows.value.filter((r) => !r.ref));
+const allRevealed = computed(
+  () => valueRows.value.length > 0 && valueRows.value.every((r) => r.revealed),
+);
+
+function toggleAll() {
+  const next = !allRevealed.value;
+  for (const row of rows.value) {
+    if (!row.ref) row.revealed = next;
+  }
 }
 
 function onPasteKey(event: ClipboardEvent, index: number) {
@@ -345,13 +360,26 @@ async function handleSave() {
           <span class="text-muted-foreground/40">·</span>
           <span class="font-mono text-xs text-muted-foreground">{{ refInfo(row).key }}</span>
         </div>
-        <Input
-          v-else
-          v-model="row.value"
-          placeholder="value"
-          class="flex-1 font-mono text-sm"
-          @input="markChanged"
-        />
+        <div v-else class="relative flex-1">
+          <Input
+            v-model="row.value"
+            :type="row.revealed ? 'text' : 'password'"
+            placeholder="value"
+            autocomplete="off"
+            data-1p-ignore="true"
+            class="w-full pr-9 font-mono text-sm"
+            @input="markChanged"
+          />
+          <button
+            type="button"
+            tabindex="-1"
+            class="absolute right-0 top-0 flex h-10 w-9 items-center justify-center text-muted-foreground hover:text-foreground"
+            @click="row.revealed = !row.revealed"
+          >
+            <EyeOff v-if="row.revealed" :size="14" />
+            <Eye v-else :size="14" />
+          </button>
+        </div>
 
         <!-- Delete -->
         <Button
@@ -371,10 +399,23 @@ async function handleSave() {
 
       <!-- Actions -->
       <div class="flex items-center justify-between pt-2">
-        <Button variant="outline" size="sm" @click="addRow">
-          <Plus :size="14" class="mr-1" />
-          Add Variable
-        </Button>
+        <div class="flex items-center gap-2">
+          <Button variant="outline" size="sm" @click="addRow">
+            <Plus :size="14" class="mr-1" />
+            Add Variable
+          </Button>
+          <Button
+            v-if="valueRows.length > 0"
+            variant="ghost"
+            size="sm"
+            class="text-muted-foreground"
+            @click="toggleAll"
+          >
+            <EyeOff v-if="allRevealed" :size="14" class="mr-1" />
+            <Eye v-else :size="14" class="mr-1" />
+            {{ allRevealed ? 'Hide all' : 'Show all' }}
+          </Button>
+        </div>
 
         <Button
           size="sm"
