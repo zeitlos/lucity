@@ -4,6 +4,7 @@ type Environment {
   resourceTier: ResourceTier!
   services: [Service!]! @goField(forceResolver: true)
   databases: [Database!]! @goField(forceResolver: true)
+  volumes: [Volume!]! @goField(forceResolver: true)
 }
 
 input CreateEnvironmentInput {

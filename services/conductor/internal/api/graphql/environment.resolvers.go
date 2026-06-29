@@ -7,6 +7,7 @@ package graphql
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
@@ -44,6 +45,11 @@ func (r *environmentResolver) Databases(ctx context.Context, obj *model.Environm
 	}
 
 	return result, nil
+}
+
+// Volumes is the resolver for the volumes field.
+func (r *environmentResolver) Volumes(ctx context.Context, obj *model.Environment) ([]model.Volume, error) {
+	panic(fmt.Errorf("not implemented: Volumes - volumes"))
 }
 
 // CreateEnvironment is the resolver for the createEnvironment field.

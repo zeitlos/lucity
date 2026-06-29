@@ -241,6 +241,7 @@ type Environment struct {
 	ResourceTier   ResourceTier           `json:"resourceTier"`
 	Services       []Service              `json:"services"`
 	Databases      []Database             `json:"databases"`
+	Volumes        []Volume               `json:"volumes"`
 	KeyValueStores []KeyValueStore        `json:"keyValueStores"`
 	Buckets        []Bucket               `json:"buckets"`
 }

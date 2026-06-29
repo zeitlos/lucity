@@ -1,0 +1,19 @@
+type Volume {
+  id: VolumeID!
+  name: String!
+  size: String!
+  requestedSize: String!
+  usedBytes: Int!
+  capacityBytes: Int!
+}
+
+extend type Query {
+  volume(id: VolumeID!): Volume! @hasRole(role: WORKSPACE_MEMBER)
+}
+
+extend type Mutation {
+  createVolume(name: String!, size: String!): Volume! @hasRole(role: WORKSPACE_MEMBER)
+  mountVolume(volume: VolumeID!, service: ServiceID!, path: String!): Volume! @hasRole(role: WORKSPACE_MEMBER)
+  unmountVolume(volume: VolumeID!): Volume! @hasRole(role: WORKSPACE_MEMBER)
+  deleteVolume(volume: VolumeID!): Boolean! @hasRole(role: WORKSPACE_MEMBER)
+}
