@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, watch, onMounted, toRef } from 'vue';
+import { computed, watch, ref, onMounted, toRef } from 'vue';
 import { VueFlow, useVueFlow, Panel, PanOnScrollMode } from '@vue-flow/core';
 import { Background } from '@vue-flow/background';
 import { Plus, Maximize2 } from '@lucide/vue';
@@ -48,6 +48,7 @@ const { positionFor, setPosition } = useCanvasLayout(() => props.environmentId);
 const nodes = computed(() => {
   const serviceNodes = props.services.map((svc, index) => {
     const buildInfo = statusMap.value[svc.id];
+    const mountedVolume = props.volumes.find(vol => vol.mount?.service === svc.id);
     return {
       id: svc.id,
       type: 'service',
@@ -60,6 +61,14 @@ const nodes = computed(() => {
         replicas: svc.replicas,
         activeBuildStatus: buildInfo?.status ?? null,
         activeBuildStartedAt: buildInfo?.startedAt ?? null,
+        volume: mountedVolume
+          ? {
+            id: mountedVolume.id,
+            name: mountedVolume.name,
+            path: mountedVolume.mount!.path,
+            selected: currentPanel.value?.id === mountedVolume.id && currentPanel.value?.type === 'volume',
+          }
+          : null,
       },
       selected: currentPanel.value?.id === svc.id && currentPanel.value?.type === 'service',
     };
@@ -111,37 +120,24 @@ const nodes = computed(() => {
     };
   });
 
-  const volumeNodes = props.volumes.map((volume, index) => {
-    const mountServiceName = volume.mount
-      ? (props.services.find(s => s.id === volume.mount!.service)?.name ?? 'service')
-      : null;
-    return {
-      id: volume.id,
-      type: 'volume',
-      position: positionFor(volume.id) ?? { x: 1360, y: index * 220 },
-      data: {
-        name: volume.name,
-        size: volume.size,
-        mounted: !!volume.mount,
-        mountServiceName,
-      },
-      selected: currentPanel.value?.id === volume.id && currentPanel.value?.type === 'volume',
-    };
-  });
+  const volumeNodes = props.volumes
+    .filter(volume => !volume.mount)
+    .map((volume, index) => {
+      return {
+        id: volume.id,
+        type: 'volume',
+        position: positionFor(volume.id) ?? { x: 1360, y: index * 220 },
+        data: {
+          name: volume.name,
+        },
+        selected: currentPanel.value?.id === volume.id && currentPanel.value?.type === 'volume',
+      };
+    });
 
   return [...serviceNodes, ...databaseNodes, ...keyValueStoreNodes, ...bucketNodes, ...volumeNodes];
 });
 
-const edges = computed(() =>
-  props.volumes
-    .filter(volume => !!volume.mount)
-    .map(volume => ({
-      id: `mount-${volume.id}`,
-      source: volume.mount!.service,
-      target: volume.id,
-      animated: false,
-    })),
-);
+const edges = ref<never[]>([]);
 
 function handleNodeClick(event: { node: { id: string; type: string; data: { name: string } } }) {
   if (event.node.type === 'database') {
@@ -230,6 +226,7 @@ watch(
           :data="nodeProps.data"
           :selected="nodeProps.selected"
           @select="openPanel({ type: 'service', id: nodeProps.id, label: nodeProps.data.name })"
+          @select-volume="openPanel({ type: 'volume', id: nodeProps.data.volume.id, label: nodeProps.data.volume.name })"
         />
       </template>
 

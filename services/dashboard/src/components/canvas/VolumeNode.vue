@@ -5,9 +5,6 @@ import { HardDrive, Plug } from '@lucide/vue';
 defineProps<{
   data: {
     name: string;
-    size: string;
-    mounted: boolean;
-    mountServiceName: string | null;
   };
   selected?: boolean;
 }>();
@@ -29,33 +26,14 @@ const emit = defineEmits<{
       style="width: 280px;"
       @click="emit('select')"
     >
-      <!-- Header: icon + name -->
+      <!-- Icon + name -->
       <div class="flex items-center gap-3">
         <HardDrive :size="26" class="shrink-0 text-muted-foreground" />
         <span class="truncate font-semibold text-foreground">{{ data.name }}</span>
       </div>
 
-      <!-- Size -->
-      <div class="mt-3">
-        <div class="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <span class="font-mono">{{ data.size }} volume</span>
-        </div>
-      </div>
-
-      <!-- Mount state row -->
-      <div class="mt-4 flex items-center justify-between border-t border-border/50 pt-4">
-        <span class="text-[0.65rem] uppercase tracking-wider text-muted-foreground">
-          {{ data.mounted ? 'Mounted' : 'Not mounted' }}
-        </span>
-        <span
-          v-if="data.mounted && data.mountServiceName"
-          class="truncate text-[0.65rem] font-mono text-muted-foreground"
-        >→ {{ data.mountServiceName }}</span>
-      </div>
-
-      <!-- Hover overlay: mount an unmounted volume -->
+      <!-- Hover overlay: mount this volume -->
       <div
-        v-if="!data.mounted"
         class="pointer-events-none absolute inset-0 flex items-center justify-center rounded-xl bg-background/70 opacity-0 backdrop-blur-[1px] transition-opacity duration-150 group-hover:pointer-events-auto group-hover:opacity-100"
         @click="emit('select')"
       >

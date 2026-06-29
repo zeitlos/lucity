@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch, onUnmounted } from 'vue';
 import { Handle, Position } from '@vue-flow/core';
-import { ExternalLink, Globe, Loader2, Container, FolderGit2 } from '@lucide/vue';
+import { ExternalLink, Globe, Loader2, Container, FolderGit2, HardDrive } from '@lucide/vue';
 import GithubIcon from '@/components/GithubIcon.vue';
 import { BuildStatus, EndpointType, ServiceStatus, type Protocol } from '@/gql/graphql';
 import { Status } from '@/components/ui/status';
@@ -27,12 +27,14 @@ const props = defineProps<{
     replicas: ReplicaCount;
     activeBuildStatus?: BuildStatus | null;
     activeBuildStartedAt?: number | null;
+    volume?: { id: string; name: string; path: string; selected?: boolean } | null;
   };
   selected?: boolean;
 }>();
 
 const emit = defineEmits<{
   (e: 'select'): void;
+  (e: 'select-volume'): void;
 }>();
 
 const isFromRepo = computed(() => !!props.data.sourceUrl);
@@ -193,6 +195,20 @@ const hostUrl = computed(() => {
       <!-- Vue Flow handles (invisible, for potential edges) -->
       <Handle type="source" :position="Position.Bottom" class="!invisible" />
       <Handle type="target" :position="Position.Top" class="!invisible" />
+    </div>
+
+    <!-- Mounted volume, attached underneath -->
+    <div
+      v-if="data.volume"
+      :class="[
+        'relative z-[2] mx-4 -mt-px flex cursor-pointer items-center gap-2 rounded-b-lg border border-t-0 bg-card px-3 py-2 shadow-sm transition-colors hover:bg-accent',
+        data.volume.selected ? 'border-primary' : 'border-border',
+      ]"
+      @click.stop="emit('select-volume')"
+    >
+      <HardDrive :size="14" class="shrink-0 text-muted-foreground" />
+      <span class="truncate text-xs font-medium text-foreground">{{ data.volume.name }}</span>
+      <span class="ml-auto shrink-0 font-mono text-[0.6rem] text-muted-foreground">{{ data.volume.path }}</span>
     </div>
 
     <div class="flex flex-col-reverse relative -top-14 group-hover:translate-y-0.5 transition">
