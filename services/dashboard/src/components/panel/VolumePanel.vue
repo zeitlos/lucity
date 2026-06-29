@@ -74,7 +74,7 @@ onKeyStroke('Escape', () => {
             @volume-removed="emit('volume-removed')"
             @mount="emit('mount')"
             @unmounted="emit('refetch')"
-            @resized="emit('refetch')"
+            @expanded="emit('refetch')"
           />
         </TabsContent>
       </Tabs>

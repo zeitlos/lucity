@@ -26,9 +26,9 @@ const DeleteVolumeDocument = graphql(`
   }
 `);
 
-const SetVolumeStorageDocument = graphql(`
-  mutation SetVolumeStorage($volume: VolumeID!, $size: String!) {
-    setVolumeStorage(volume: $volume, size: $size) {
+const ExpandVolumeDocument = graphql(`
+  mutation ExpandVolume($volume: VolumeID!, $size: String!) {
+    expandVolume(volume: $volume, size: $size) {
       id
       size
     }
@@ -61,7 +61,7 @@ const emit = defineEmits<{
   (e: 'volume-removed'): void;
   (e: 'mount'): void;
   (e: 'unmounted'): void;
-  (e: 'resized'): void;
+  (e: 'expanded'): void;
 }>();
 
 const mountedServiceName = computed(() => {
@@ -90,22 +90,22 @@ watch(currentSize, () => { selectedSize.value = volumeSizes[minIndex.value]!; },
 const storageChanged = computed(() => parseGib(selectedSize.value) > parseGib(currentSize.value));
 const storageSaving = ref(false);
 
-const { mutate: setVolumeStorage } = useMutation(SetVolumeStorageDocument);
+const { mutate: expandVolume } = useMutation(ExpandVolumeDocument);
 
-async function handleSaveStorage() {
+async function handleExpand() {
   storageSaving.value = true;
   try {
-    const res = await setVolumeStorage({ volume: props.volumeId, size: selectedSize.value });
+    const res = await expandVolume({ volume: props.volumeId, size: selectedSize.value });
 
     if (res?.errors?.length) {
-      errorToast('Failed to resize volume', { description: res.errors.map(e => e.message).join(', ') });
+      errorToast('Failed to expand volume', { description: res.errors.map(e => e.message).join(', ') });
       return;
     }
 
-    toast.success('Volume resized');
-    emit('resized');
+    toast.success('Volume expanded');
+    emit('expanded');
   } catch (e: unknown) {
-    errorToast('Failed to resize volume', { description: errorMessage(e) });
+    errorToast('Failed to expand volume', { description: errorMessage(e) });
   } finally {
     storageSaving.value = false;
   }
@@ -247,7 +247,7 @@ async function handleDelete() {
             <Button
               size="sm"
               :disabled="!storageChanged || storageSaving"
-              @click="handleSaveStorage"
+              @click="handleExpand"
             >
               {{ storageSaving ? 'Saving...' : 'Save' }}
             </Button>

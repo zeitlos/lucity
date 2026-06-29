@@ -63,7 +63,7 @@ type Documents = {
     "\n  query AvailableVariables($environment: EnvironmentID!) {\n    availableVariables(environment: $environment) {\n      id\n      key\n      source {\n        __typename\n        ... on DatabaseSource { databaseId: id name }\n        ... on KeyValueStoreSource { keyValueStoreId: id name }\n        ... on BucketSource { bucketId: id name }\n        ... on SharedSource { name }\n      }\n    }\n  }\n": typeof types.AvailableVariablesDocument,
     "\n  mutation SetServiceVariables($service: ServiceID!, $variables: [ServiceVariableInput!]!) {\n    setServiceVariables(service: $service, variables: $variables)\n  }\n": typeof types.SetServiceVariablesDocument,
     "\n  mutation DeleteVolume($volume: VolumeID!) {\n    deleteVolume(volume: $volume)\n  }\n": typeof types.DeleteVolumeDocument,
-    "\n  mutation SetVolumeStorage($volume: VolumeID!, $size: String!) {\n    setVolumeStorage(volume: $volume, size: $size) {\n      id\n      size\n    }\n  }\n": typeof types.SetVolumeStorageDocument,
+    "\n  mutation ExpandVolume($volume: VolumeID!, $size: String!) {\n    expandVolume(volume: $volume, size: $size) {\n      id\n      size\n    }\n  }\n": typeof types.ExpandVolumeDocument,
     "\n  mutation UnmountVolume($volume: VolumeID!) {\n    unmountVolume(volume: $volume) {\n      id\n      mount {\n        service\n        path\n      }\n    }\n  }\n": typeof types.UnmountVolumeDocument,
     "\n  query VolumeMetrics($id: VolumeID!, $range: MetricsRange!) {\n    volume(id: $id) {\n      id\n      metrics(metrics: [STORAGE_USED], range: $range) {\n        metric\n        points {\n          timestamp\n          value\n        }\n      }\n    }\n  }\n": typeof types.VolumeMetricsDocument,
     "\n  subscription BuildLogs($id: BuildID!) {\n    buildLogs(id: $id)\n  }\n": typeof types.BuildLogsDocument,
@@ -141,7 +141,7 @@ const documents: Documents = {
     "\n  query AvailableVariables($environment: EnvironmentID!) {\n    availableVariables(environment: $environment) {\n      id\n      key\n      source {\n        __typename\n        ... on DatabaseSource { databaseId: id name }\n        ... on KeyValueStoreSource { keyValueStoreId: id name }\n        ... on BucketSource { bucketId: id name }\n        ... on SharedSource { name }\n      }\n    }\n  }\n": types.AvailableVariablesDocument,
     "\n  mutation SetServiceVariables($service: ServiceID!, $variables: [ServiceVariableInput!]!) {\n    setServiceVariables(service: $service, variables: $variables)\n  }\n": types.SetServiceVariablesDocument,
     "\n  mutation DeleteVolume($volume: VolumeID!) {\n    deleteVolume(volume: $volume)\n  }\n": types.DeleteVolumeDocument,
-    "\n  mutation SetVolumeStorage($volume: VolumeID!, $size: String!) {\n    setVolumeStorage(volume: $volume, size: $size) {\n      id\n      size\n    }\n  }\n": types.SetVolumeStorageDocument,
+    "\n  mutation ExpandVolume($volume: VolumeID!, $size: String!) {\n    expandVolume(volume: $volume, size: $size) {\n      id\n      size\n    }\n  }\n": types.ExpandVolumeDocument,
     "\n  mutation UnmountVolume($volume: VolumeID!) {\n    unmountVolume(volume: $volume) {\n      id\n      mount {\n        service\n        path\n      }\n    }\n  }\n": types.UnmountVolumeDocument,
     "\n  query VolumeMetrics($id: VolumeID!, $range: MetricsRange!) {\n    volume(id: $id) {\n      id\n      metrics(metrics: [STORAGE_USED], range: $range) {\n        metric\n        points {\n          timestamp\n          value\n        }\n      }\n    }\n  }\n": types.VolumeMetricsDocument,
     "\n  subscription BuildLogs($id: BuildID!) {\n    buildLogs(id: $id)\n  }\n": types.BuildLogsDocument,
@@ -383,7 +383,7 @@ export function graphql(source: "\n  mutation DeleteVolume($volume: VolumeID!) {
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation SetVolumeStorage($volume: VolumeID!, $size: String!) {\n    setVolumeStorage(volume: $volume, size: $size) {\n      id\n      size\n    }\n  }\n"): (typeof documents)["\n  mutation SetVolumeStorage($volume: VolumeID!, $size: String!) {\n    setVolumeStorage(volume: $volume, size: $size) {\n      id\n      size\n    }\n  }\n"];
+export function graphql(source: "\n  mutation ExpandVolume($volume: VolumeID!, $size: String!) {\n    expandVolume(volume: $volume, size: $size) {\n      id\n      size\n    }\n  }\n"): (typeof documents)["\n  mutation ExpandVolume($volume: VolumeID!, $size: String!) {\n    expandVolume(volume: $volume, size: $size) {\n      id\n      size\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
