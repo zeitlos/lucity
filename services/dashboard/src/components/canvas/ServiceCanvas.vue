@@ -6,11 +6,12 @@ import { Plus, Maximize2 } from '@lucide/vue';
 import { usePanel } from '@/composables/usePanel';
 import { useCanvasBuildStatus } from '@/composables/useCanvasBuildStatus';
 import { useCanvasLayout } from '@/composables/useCanvasLayout';
-import type { Service, Database, KeyValueStore, Bucket } from '@/composables/useEnvironment';
+import type { Service, Database, KeyValueStore, Bucket, Volume } from '@/composables/useEnvironment';
 import ServiceNode from './ServiceNode.vue';
 import DatabaseNode from './DatabaseNode.vue';
 import KeyValueStoreNode from './KeyValueStoreNode.vue';
 import BucketNode from './BucketNode.vue';
+import VolumeNode from './VolumeNode.vue';
 import { Button } from '@/components/ui/button';
 import '@vue-flow/core/dist/style.css';
 import '@vue-flow/core/dist/theme-default.css';
@@ -20,12 +21,14 @@ const props = defineProps<{
   databases: Database[];
   keyValueStores: KeyValueStore[];
   buckets: Bucket[];
+  volumes: Volume[];
   environmentId: string;
 }>();
 
 const emit = defineEmits<{
   (e: 'create'): void;
   (e: 'deploy-completed'): void;
+  (e: 'mount-volume', volumeId: string): void;
 }>();
 
 const { openPanel, currentPanel } = usePanel();
@@ -45,6 +48,7 @@ const { positionFor, setPosition } = useCanvasLayout(() => props.environmentId);
 const nodes = computed(() => {
   const serviceNodes = props.services.map((svc, index) => {
     const buildInfo = statusMap.value[svc.id];
+    const mountedVolume = props.volumes.find(vol => vol.mount?.service === svc.id);
     return {
       id: svc.id,
       type: 'service',
@@ -57,6 +61,15 @@ const nodes = computed(() => {
         replicas: svc.replicas,
         activeBuildStatus: buildInfo?.status ?? null,
         activeBuildStartedAt: buildInfo?.startedAt ?? null,
+        volume: mountedVolume
+          ? {
+            id: mountedVolume.id,
+            name: mountedVolume.name,
+            path: mountedVolume.mount!.path,
+            usagePercent: mountedVolume.usagePercent ?? null,
+            selected: currentPanel.value?.id === mountedVolume.id && currentPanel.value?.type === 'volume',
+          }
+          : null,
       },
       selected: currentPanel.value?.id === svc.id && currentPanel.value?.type === 'service',
     };
@@ -108,10 +121,24 @@ const nodes = computed(() => {
     };
   });
 
-  return [...serviceNodes, ...databaseNodes, ...keyValueStoreNodes, ...bucketNodes];
+  const volumeNodes = props.volumes
+    .filter(volume => !volume.mount)
+    .map((volume, index) => {
+      return {
+        id: volume.id,
+        type: 'volume',
+        position: positionFor(volume.id) ?? { x: 1360, y: index * 220 },
+        data: {
+          name: volume.name,
+        },
+        selected: currentPanel.value?.id === volume.id && currentPanel.value?.type === 'volume',
+      };
+    });
+
+  return [...serviceNodes, ...databaseNodes, ...keyValueStoreNodes, ...bucketNodes, ...volumeNodes];
 });
 
-const edges = ref([]);
+const edges = ref<never[]>([]);
 
 function handleNodeClick(event: { node: { id: string; type: string; data: { name: string } } }) {
   if (event.node.type === 'database') {
@@ -120,6 +147,8 @@ function handleNodeClick(event: { node: { id: string; type: string; data: { name
     openPanel({ type: 'keyValueStore', id: event.node.id, label: event.node.data.name });
   } else if (event.node.type === 'bucket') {
     openPanel({ type: 'bucket', id: event.node.id, label: event.node.data.name });
+  } else if (event.node.type === 'volume') {
+    openPanel({ type: 'volume', id: event.node.id, label: event.node.data.name });
   } else {
     openPanel({ type: 'service', id: event.node.id, label: event.node.data.name });
   }
@@ -138,7 +167,7 @@ onNodeDragStop(({ nodes: draggedNodes }) => {
 onMounted(() => {
   setTimeout(() => {
     const panel = currentPanel.value;
-    if (panel?.type === 'service' || panel?.type === 'database' || panel?.type === 'keyValueStore' || panel?.type === 'bucket') {
+    if (panel?.type === 'service' || panel?.type === 'database' || panel?.type === 'keyValueStore' || panel?.type === 'bucket' || panel?.type === 'volume') {
       const node = findNode(panel.id);
       if (node) {
         const nodeCenterX = node.position.x + (node.dimensions.width / 2);
@@ -152,7 +181,7 @@ onMounted(() => {
   }, 200);
 });
 
-const totalNodes = computed(() => props.services.length + props.databases.length + props.keyValueStores.length + props.buckets.length);
+const totalNodes = computed(() => props.services.length + props.databases.length + props.keyValueStores.length + props.buckets.length + props.volumes.length);
 watch(totalNodes, () => {
   setTimeout(() => handleFitView(), 100);
 });
@@ -160,7 +189,7 @@ watch(totalNodes, () => {
 watch(
   () => currentPanel.value,
   (panel, oldPanel) => {
-    if (panel?.type === 'service' || panel?.type === 'database' || panel?.type === 'keyValueStore' || panel?.type === 'bucket') {
+    if (panel?.type === 'service' || panel?.type === 'database' || panel?.type === 'keyValueStore' || panel?.type === 'bucket' || panel?.type === 'volume') {
       const node = findNode(panel.id);
       if (node) {
         const nodeCenterX = node.position.x + (node.dimensions.width / 2);
@@ -198,6 +227,7 @@ watch(
           :data="nodeProps.data"
           :selected="nodeProps.selected"
           @select="openPanel({ type: 'service', id: nodeProps.id, label: nodeProps.data.name })"
+          @select-volume="openPanel({ type: 'volume', id: nodeProps.data.volume.id, label: nodeProps.data.volume.name })"
         />
       </template>
 
@@ -222,6 +252,15 @@ watch(
           :data="nodeProps.data"
           :selected="nodeProps.selected"
           @select="openPanel({ type: 'bucket', id: nodeProps.id, label: nodeProps.data.name })"
+        />
+      </template>
+
+      <template #node-volume="nodeProps">
+        <VolumeNode
+          :data="nodeProps.data"
+          :selected="nodeProps.selected"
+          @select="openPanel({ type: 'volume', id: nodeProps.id, label: nodeProps.data.name })"
+          @mount="emit('mount-volume', nodeProps.id)"
         />
       </template>
 

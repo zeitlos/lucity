@@ -163,22 +163,8 @@ const showActiveDetails = ref(false);
 
 <template>
   <div class="space-y-4">
-    <!-- Image-based service info -->
-    <div
-      v-if="isImageBased"
-      class="flex items-start gap-2 rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5"
-    >
-      <Container :size="14" class="mt-0.5 shrink-0 text-muted-foreground" />
-      <div class="min-w-0 space-y-0.5">
-        <p class="text-sm font-medium text-foreground">External container image</p>
-        <p class="text-xs text-muted-foreground">
-          This service uses a pre-built image. Deployments sync automatically.
-        </p>
-      </div>
-    </div>
-
     <!-- Deploy Action (source-based services only) -->
-    <div v-else class="flex items-center gap-3">
+    <div v-if="!isImageBased" class="flex items-center gap-3">
       <Button
         :disabled="deploy.isDeploying"
         @click="handleDeploy"

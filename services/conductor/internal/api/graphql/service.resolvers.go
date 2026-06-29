@@ -7,6 +7,7 @@ package graphql
 
 import (
 	"context"
+	"log/slog"
 
 	"github.com/zeitlos/lucity/pkg/to"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
@@ -174,7 +175,13 @@ func (r *serviceResolver) DefaultCommand(ctx context.Context, obj *model.Service
 		return "", nil
 	}
 
-	return r.Conductor.DefaultCommand(ctx, obj.ActiveDeployment.Image)
+	command, err := r.Conductor.DefaultCommand(ctx, obj.ActiveDeployment.Image)
+	if err != nil {
+		slog.Warn("could not resolve default command", "service", obj.ID, "image", obj.ActiveDeployment.Image, "error", err)
+		return "", nil
+	}
+
+	return command, nil
 }
 
 // Deployments is the resolver for the deployments field.

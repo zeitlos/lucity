@@ -241,6 +241,7 @@ type Environment struct {
 	ResourceTier   ResourceTier           `json:"resourceTier"`
 	Services       []Service              `json:"services"`
 	Databases      []Database             `json:"databases"`
+	Volumes        []Volume               `json:"volumes"`
 	KeyValueStores []KeyValueStore        `json:"keyValueStores"`
 	Buckets        []Bucket               `json:"buckets"`
 }
@@ -311,6 +312,26 @@ type KeyValueStoreSource struct {
 }
 
 func (KeyValueStoreSource) IsVariableSource() {}
+
+type MetricPoint struct {
+	Timestamp time.Time `json:"timestamp"`
+	Value     *float64  `json:"value,omitempty"`
+}
+
+type MetricSeries struct {
+	Metric ResourceMetric `json:"metric"`
+	Unit   MetricUnit     `json:"unit"`
+	Points []MetricPoint  `json:"points"`
+}
+
+type MetricsRange struct {
+	Window MetricWindow `json:"window"`
+}
+
+type Mount struct {
+	Service platform.ServiceID `json:"service"`
+	Path    string             `json:"path"`
+}
 
 type Mutation struct {
 }
@@ -473,12 +494,11 @@ type VariableInput struct {
 }
 
 type Volume struct {
-	ID            platform.VolumeID `json:"id"`
-	Name          string            `json:"name"`
-	Size          string            `json:"size"`
-	RequestedSize string            `json:"requestedSize"`
-	UsedBytes     int               `json:"usedBytes"`
-	CapacityBytes int               `json:"capacityBytes"`
+	ID      platform.VolumeID `json:"id"`
+	Name    string            `json:"name"`
+	Size    string            `json:"size"`
+	Mount   *Mount            `json:"mount,omitempty"`
+	Metrics []MetricSeries    `json:"metrics"`
 }
 
 type Workspace struct {
@@ -969,6 +989,120 @@ func (e GitHubAccountType) MarshalJSON() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+type MetricUnit string
+
+const (
+	MetricUnitBytes MetricUnit = "BYTES"
+)
+
+var AllMetricUnit = []MetricUnit{
+	MetricUnitBytes,
+}
+
+func (e MetricUnit) IsValid() bool {
+	switch e {
+	case MetricUnitBytes:
+		return true
+	}
+	return false
+}
+
+func (e MetricUnit) String() string {
+	return string(e)
+}
+
+func (e *MetricUnit) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = MetricUnit(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid MetricUnit", str)
+	}
+	return nil
+}
+
+func (e MetricUnit) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *MetricUnit) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e MetricUnit) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type MetricWindow string
+
+const (
+	MetricWindowLast1h  MetricWindow = "LAST_1H"
+	MetricWindowLast6h  MetricWindow = "LAST_6H"
+	MetricWindowLast24h MetricWindow = "LAST_24H"
+	MetricWindowLast7d  MetricWindow = "LAST_7D"
+	MetricWindowLast30d MetricWindow = "LAST_30D"
+)
+
+var AllMetricWindow = []MetricWindow{
+	MetricWindowLast1h,
+	MetricWindowLast6h,
+	MetricWindowLast24h,
+	MetricWindowLast7d,
+	MetricWindowLast30d,
+}
+
+func (e MetricWindow) IsValid() bool {
+	switch e {
+	case MetricWindowLast1h, MetricWindowLast6h, MetricWindowLast24h, MetricWindowLast7d, MetricWindowLast30d:
+		return true
+	}
+	return false
+}
+
+func (e MetricWindow) String() string {
+	return string(e)
+}
+
+func (e *MetricWindow) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = MetricWindow(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid MetricWindow", str)
+	}
+	return nil
+}
+
+func (e MetricWindow) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *MetricWindow) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e MetricWindow) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
 type Plan string
 
 const (
@@ -1200,6 +1334,59 @@ func (e *ReleaseTriggerKind) UnmarshalJSON(b []byte) error {
 }
 
 func (e ReleaseTriggerKind) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type ResourceMetric string
+
+const (
+	ResourceMetricStorageUsed ResourceMetric = "STORAGE_USED"
+)
+
+var AllResourceMetric = []ResourceMetric{
+	ResourceMetricStorageUsed,
+}
+
+func (e ResourceMetric) IsValid() bool {
+	switch e {
+	case ResourceMetricStorageUsed:
+		return true
+	}
+	return false
+}
+
+func (e ResourceMetric) String() string {
+	return string(e)
+}
+
+func (e *ResourceMetric) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = ResourceMetric(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid ResourceMetric", str)
+	}
+	return nil
+}
+
+func (e ResourceMetric) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *ResourceMetric) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e ResourceMetric) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

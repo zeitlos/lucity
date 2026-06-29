@@ -141,6 +141,20 @@ const EnvironmentDocument = graphql(`
         objectCount
         createdAt
       }
+      volumes {
+        id
+        name
+        size
+        mount {
+          service
+          path
+        }
+        metrics(metrics: [STORAGE_USED], range: { window: LAST_1H }) {
+          points {
+            value
+          }
+        }
+      }
     }
   }
 `);
@@ -165,14 +179,17 @@ import ServicePanel from '@/components/panel/ServicePanel.vue';
 import DatabasePanel from '@/components/panel/DatabasePanel.vue';
 import KeyValueStorePanel from '@/components/panel/KeyValueStorePanel.vue';
 import BucketPanel from '@/components/panel/BucketPanel.vue';
+import VolumePanel from '@/components/panel/VolumePanel.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import CreateCommandPalette from '@/components/CreateCommandPalette.vue';
+import MountVolumeDialog from '@/components/MountVolumeDialog.vue';
 import BuildLogsPanel from '@/components/panel/BuildLogsPanel.vue';
 import ServiceLogsPanel from '@/components/panel/ServiceLogsPanel.vue';
 import { useEnvironment, type Environment } from '@/composables/useEnvironment';
 import { usePanel } from '@/composables/usePanel';
 import { useBuildLogsPanel } from '@/composables/useBuildLogsPanel';
 import { useServiceLogsPanel } from '@/composables/useServiceLogsPanel';
+import { parseStorageSize } from '@/lib/utils';
 
 const route = useRoute();
 const router = useRouter();
@@ -225,10 +242,18 @@ const {
   activeEnvDatabases,
   activeEnvKeyValueStores,
   activeEnvBuckets,
+  activeEnvVolumes,
 } = useEnvironment();
 const { isOpen, currentPanel, closePanel } = usePanel();
 const logsPanel = useBuildLogsPanel();
 const serviceLogsPanel = useServiceLogsPanel();
+
+watch(currentPanel, (panel, oldPanel) => {
+  if (panel?.id !== oldPanel?.id || panel?.type !== oldPanel?.type) {
+    serviceLogsPanel.close();
+    logsPanel.close();
+  }
+});
 
 // Sync sibling environments into the global composable when the project loads
 watch(
@@ -243,6 +268,7 @@ watch(
         databases: [],
         keyValueStores: [],
         buckets: [],
+        volumes: [],
       }));
       setEnvironments(shells, environmentId.value);
     }
@@ -379,6 +405,21 @@ watch(
         objectCount: b.objectCount,
         createdAt: b.createdAt,
       })),
+      volumes: env.volumes.map(v => {
+        const points = v.metrics[0]?.points ?? [];
+        const usedBytes = [...points].reverse().find(p => p.value != null)?.value ?? null;
+        const capacityBytes = parseStorageSize(v.size);
+        const usagePercent = usedBytes != null && capacityBytes > 0
+          ? Math.min(100, Math.round((usedBytes / capacityBytes) * 100))
+          : null;
+        return {
+          id: v.id,
+          name: v.name,
+          size: v.size,
+          mount: v.mount ? { service: v.mount.service, path: v.mount.path } : null,
+          usagePercent,
+        };
+      }),
     };
     setEnvironment(full);
   },
@@ -409,6 +450,32 @@ const selectedBucket = computed(() => {
   return activeEnvBuckets.value.find(b => b.id === currentPanel.value!.id) ?? null;
 });
 
+// Selected volume for the panel
+const selectedVolume = computed(() => {
+  if (!currentPanel.value || currentPanel.value.type !== 'volume') return null;
+  return activeEnvVolumes.value.find(v => v.id === currentPanel.value!.id) ?? null;
+});
+
+// Services that already hold a mounted volume (one volume per service)
+const mountedServiceIds = computed(() =>
+  activeEnvVolumes.value
+    .map(v => v.mount?.service)
+    .filter((id): id is string => !!id),
+);
+
+// Mount volume dialog
+const mountDialogOpen = ref(false);
+const mountVolumeId = ref<string | null>(null);
+
+const mountVolumeName = computed(
+  () => activeEnvVolumes.value.find(v => v.id === mountVolumeId.value)?.name ?? '',
+);
+
+function openMountDialog(volumeId: string) {
+  mountVolumeId.value = volumeId;
+  mountDialogOpen.value = true;
+}
+
 // Command palette
 const paletteOpen = ref(false);
 
@@ -425,7 +492,8 @@ const hasResources = computed(() =>
   activeEnvServices.value.length > 0 ||
   activeEnvDatabases.value.length > 0 ||
   activeEnvKeyValueStores.value.length > 0 ||
-  activeEnvBuckets.value.length > 0,
+  activeEnvBuckets.value.length > 0 ||
+  activeEnvVolumes.value.length > 0,
 );
 
 // If the env returns an error, bounce to the projects list
@@ -465,9 +533,11 @@ watch(error, (err) => {
               :databases="activeEnvDatabases"
               :key-value-stores="activeEnvKeyValueStores"
               :buckets="activeEnvBuckets"
+              :volumes="activeEnvVolumes"
               :environment-id="environmentId"
               @create="paletteOpen = true"
               @deploy-completed="refetch()"
+              @mount-volume="openMountDialog"
             />
           </template>
           <template v-else>
@@ -544,6 +614,23 @@ watch(error, (err) => {
           </div>
         </Transition>
 
+        <!-- Volume Detail Panel -->
+        <Transition name="slide-panel">
+          <div
+            v-if="isOpen && selectedVolume"
+            class="absolute inset-y-3 right-0 w-[55%]"
+          >
+            <VolumePanel
+              :volume="selectedVolume"
+              :services="activeEnvServices"
+              @close="closePanel"
+              @volume-removed="handleResourceRemoved"
+              @mount="openMountDialog(selectedVolume.id)"
+              @refetch="refetch()"
+            />
+          </div>
+        </Transition>
+
         <!-- Service Runtime Logs Panel -->
         <Transition name="slide-panel">
           <div
@@ -582,6 +669,16 @@ watch(error, (err) => {
       context="environment"
       :environment-id="environmentId"
       @created="handleCreateFromPalette"
+    />
+
+    <!-- Mount Volume Dialog -->
+    <MountVolumeDialog
+      v-model:open="mountDialogOpen"
+      :volume-id="mountVolumeId"
+      :volume-name="mountVolumeName"
+      :services="activeEnvServices"
+      :mounted-service-ids="mountedServiceIds"
+      @mounted="refetch()"
     />
   </div>
 </template>

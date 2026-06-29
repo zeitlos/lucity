@@ -46,6 +46,23 @@ func (r *environmentResolver) Databases(ctx context.Context, obj *model.Environm
 	return result, nil
 }
 
+// Volumes is the resolver for the volumes field.
+func (r *environmentResolver) Volumes(ctx context.Context, obj *model.Environment) ([]model.Volume, error) {
+	volumes, err := r.Conductor.Volumes(ctx, obj.ID)
+
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]model.Volume, 0, len(volumes))
+
+	for _, volume := range volumes {
+		result = append(result, convertVolume(volume))
+	}
+
+	return result, nil
+}
+
 // CreateEnvironment is the resolver for the createEnvironment field.
 func (r *mutationResolver) CreateEnvironment(ctx context.Context, input model.CreateEnvironmentInput) (*model.Environment, error) {
 	tier := platform.EcoTier

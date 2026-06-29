@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch, onUnmounted } from 'vue';
 import { Handle, Position } from '@vue-flow/core';
-import { ExternalLink, Globe, Loader2, Container, FolderGit2 } from '@lucide/vue';
+import { ExternalLink, Globe, Loader2, Container, FolderGit2, HardDrive } from '@lucide/vue';
 import GithubIcon from '@/components/GithubIcon.vue';
 import { BuildStatus, EndpointType, ServiceStatus, type Protocol } from '@/gql/graphql';
 import { Status } from '@/components/ui/status';
@@ -27,12 +27,14 @@ const props = defineProps<{
     replicas: ReplicaCount;
     activeBuildStatus?: BuildStatus | null;
     activeBuildStartedAt?: number | null;
+    volume?: { id: string; name: string; path: string; selected?: boolean; usagePercent?: number | null } | null;
   };
   selected?: boolean;
 }>();
 
 const emit = defineEmits<{
   (e: 'select'): void;
+  (e: 'select-volume'): void;
 }>();
 
 const isFromRepo = computed(() => !!props.data.sourceUrl);
@@ -195,6 +197,29 @@ const hostUrl = computed(() => {
       <Handle type="target" :position="Position.Top" class="!invisible" />
     </div>
 
+    <!-- Mounted volume, attached underneath (tucked behind the card) -->
+    <div
+      v-if="data.volume"
+      :class="[
+        'volume-attachment relative -mt-3 cursor-pointer overflow-hidden rounded-b-xl border border-t-0 transition-colors',
+        data.volume.selected ? 'border-primary' : 'border-border',
+      ]"
+      @click.stop="emit('select-volume')"
+    >
+      <!-- Usage fill (background progress bar) -->
+      <div
+        v-if="data.volume.usagePercent != null"
+        class="volume-usage-fill absolute inset-y-0 left-0 transition-[width] duration-500"
+        :style="{ width: `${data.volume.usagePercent}%` }"
+      />
+      <!-- Content -->
+      <div class="relative z-[1] flex items-center gap-2.5 px-6 pb-3 pt-6">
+        <HardDrive :size="16" class="shrink-0 text-muted-foreground" />
+        <span class="truncate text-sm font-medium text-foreground">{{ data.volume.name }}</span>
+        <span class="ml-auto shrink-0 font-mono text-xs text-muted-foreground">{{ data.volume.path }}</span>
+      </div>
+    </div>
+
     <div class="flex flex-col-reverse relative -top-14 group-hover:translate-y-0.5 transition">
       <div v-for="i in Math.max(0, props.data.replicas.desired - 1)" :key="i" class="h-2 group-hover:h-3">
         <div class="bg-muted shadow-sm rounded-b-lg h-16 border border-muted-foreground/30"></div>
@@ -212,5 +237,17 @@ const hostUrl = computed(() => {
     var(--card) 0%,
     color-mix(in oklch, var(--card) 94%, var(--muted)) 100%
   );
+}
+
+.volume-attachment {
+  background: color-mix(in oklch, var(--card) 90%, var(--muted));
+}
+
+.volume-attachment:hover {
+  background: color-mix(in oklch, var(--card) 86%, var(--muted));
+}
+
+.volume-usage-fill {
+  background: color-mix(in oklch, var(--card) 30%, var(--muted));
 }
 </style>

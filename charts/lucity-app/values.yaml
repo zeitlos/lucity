@@ -50,6 +50,19 @@
 #       resources: {}
 #       labels: {}
 #       annotations: {}
+#
+# volumes:                                     # standalone persistent disks (RWO)
+#   uploads:
+#     size: 10Gi
+#     labels: {}
+#     annotations: {}
+#
+# A service mounts a volume by name at a path. A mounted service stays single-replica
+# and deploys with a Recreate strategy:
+#   services:
+#     api:
+#       volumeMounts:
+#         uploads: /data/uploads
 
 nameOverride: ""
 fullnameOverride: ""
@@ -74,6 +87,10 @@ sharedVariables: {}
 databases:
   postgres: {}
   valkey: {}
+
+# Standalone persistent volumes (RWO PVCs), keyed by name, mounted into services via
+# services.<name>.volumeMounts.
+volumes: {}
 
 # Gateway API parent the HTTPRoutes attach to.
 gateway:

@@ -22,3 +22,14 @@ export function formatBytes(bytes: number): string {
   const value = bytes / Math.pow(1024, i);
   return `${value.toFixed(i === 0 || value >= 100 ? 0 : 1)} ${units[i]}`;
 }
+
+export function parseStorageSize(size: string): number {
+  const match = /^(\d+(?:\.\d+)?)\s*([KMGTPE]i?)?$/.exec(size.trim());
+  if (!match) return 0;
+  const value = parseFloat(match[1]!);
+  const unit = match[2];
+  if (!unit) return value;
+  const exponents: Record<string, number> = { K: 1, M: 2, G: 3, T: 4, P: 5, E: 6 };
+  const base = unit.endsWith('i') ? 1024 : 1000;
+  return value * Math.pow(base, exponents[unit[0]!] ?? 0);
+}

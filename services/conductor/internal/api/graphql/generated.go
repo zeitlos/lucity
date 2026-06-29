@@ -38,6 +38,7 @@ type ResolverRoot interface {
 	Query() QueryResolver
 	Service() ServiceResolver
 	Subscription() SubscriptionResolver
+	Volume() VolumeResolver
 }
 
 type DirectiveRoot struct {
@@ -214,6 +215,7 @@ type ComplexityRoot struct {
 		Name           func(childComplexity int) int
 		ResourceTier   func(childComplexity int) int
 		Services       func(childComplexity int) int
+		Volumes        func(childComplexity int) int
 	}
 
 	EnvironmentResources struct {
@@ -275,6 +277,22 @@ type ComplexityRoot struct {
 		Name func(childComplexity int) int
 	}
 
+	MetricPoint struct {
+		Timestamp func(childComplexity int) int
+		Value     func(childComplexity int) int
+	}
+
+	MetricSeries struct {
+		Metric func(childComplexity int) int
+		Points func(childComplexity int) int
+		Unit   func(childComplexity int) int
+	}
+
+	Mount struct {
+		Path    func(childComplexity int) int
+		Service func(childComplexity int) int
+	}
+
 	Mutation struct {
 		AddCustomDomain           func(childComplexity int, service platform.ServiceID, hostname string) int
 		AddService                func(childComplexity int, environment platform.EnvironmentID, input model.AddServiceInput) int
@@ -288,18 +306,22 @@ type ComplexityRoot struct {
 		CreateKeyValueStore       func(childComplexity int, input model.CreateKeyValueStoreInput) int
 		CreatePlanCheckout        func(childComplexity int, plan model.Plan) int
 		CreateProject             func(childComplexity int, input model.CreateProjectInput) int
+		CreateVolume              func(childComplexity int, environment platform.EnvironmentID, name string, size string) int
 		CreateWorkspaceCheckout   func(childComplexity int, input model.CreateWorkspaceCheckoutInput) int
 		DeleteBucket              func(childComplexity int, bucket platform.BucketID) int
 		DeleteDatabase            func(childComplexity int, database platform.DatabaseID) int
 		DeleteEnvironment         func(childComplexity int, environment platform.EnvironmentID) int
 		DeleteKeyValueStore       func(childComplexity int, keyValueStore platform.KeyValueStoreID) int
 		DeleteProject             func(childComplexity int, id platform.ProjectID) int
+		DeleteVolume              func(childComplexity int, volume platform.VolumeID) int
 		DeleteWorkspace           func(childComplexity int) int
 		Deploy                    func(childComplexity int, service platform.ServiceID, gitRef *string) int
 		ExecuteQuery              func(childComplexity int, database platform.DatabaseID, query string) int
+		ExpandVolume              func(childComplexity int, volume platform.VolumeID, size string) int
 		ExposeDatabase            func(childComplexity int, database platform.DatabaseID) int
 		GenerateDomain            func(childComplexity int, service platform.ServiceID) int
 		InviteMember              func(childComplexity int, input model.InviteMemberInput) int
+		MountVolume               func(childComplexity int, volume platform.VolumeID, service platform.ServiceID, path string) int
 		RemoveDomain              func(childComplexity int, service platform.ServiceID, hostname string) int
 		RemoveMember              func(childComplexity int, userID string) int
 		RemoveService             func(childComplexity int, service platform.ServiceID) int
@@ -314,6 +336,7 @@ type ComplexityRoot struct {
 		SetServiceVariables       func(childComplexity int, service platform.ServiceID, variables []model.ServiceVariableInput) int
 		SetSharedVariables        func(childComplexity int, environment platform.EnvironmentID, variables []model.VariableInput) int
 		UnexposeDatabase          func(childComplexity int, database platform.DatabaseID) int
+		UnmountVolume             func(childComplexity int, volume platform.VolumeID) int
 		UpdateMemberRole          func(childComplexity int, input model.UpdateMemberRoleInput) int
 		UpdateWorkspace           func(childComplexity int, input model.UpdateWorkspaceInput) int
 	}
@@ -353,6 +376,7 @@ type ComplexityRoot struct {
 		SharedVariables          func(childComplexity int, environment platform.EnvironmentID) int
 		Subscription             func(childComplexity int) int
 		UsageSummary             func(childComplexity int) int
+		Volume                   func(childComplexity int, id platform.VolumeID) int
 		Workspace                func(childComplexity int) int
 		Workspaces               func(childComplexity int) int
 	}
@@ -460,12 +484,11 @@ type ComplexityRoot struct {
 	}
 
 	Volume struct {
-		CapacityBytes func(childComplexity int) int
-		ID            func(childComplexity int) int
-		Name          func(childComplexity int) int
-		RequestedSize func(childComplexity int) int
-		Size          func(childComplexity int) int
-		UsedBytes     func(childComplexity int) int
+		ID      func(childComplexity int) int
+		Metrics func(childComplexity int, metrics []model.ResourceMetric, rangeArg model.MetricsRange) int
+		Mount   func(childComplexity int) int
+		Name    func(childComplexity int) int
+		Size    func(childComplexity int) int
 	}
 
 	Workspace struct {
@@ -492,6 +515,7 @@ type ComplexityRoot struct {
 type EnvironmentResolver interface {
 	Services(ctx context.Context, obj *model.Environment) ([]model.Service, error)
 	Databases(ctx context.Context, obj *model.Environment) ([]model.Database, error)
+	Volumes(ctx context.Context, obj *model.Environment) ([]model.Volume, error)
 	KeyValueStores(ctx context.Context, obj *model.Environment) ([]model.KeyValueStore, error)
 	Buckets(ctx context.Context, obj *model.Environment) ([]model.Bucket, error)
 }
@@ -529,6 +553,11 @@ type MutationResolver interface {
 	RemoveDomain(ctx context.Context, service platform.ServiceID, hostname string) (*model.Service, error)
 	SetSharedVariables(ctx context.Context, environment platform.EnvironmentID, variables []model.VariableInput) (bool, error)
 	SetServiceVariables(ctx context.Context, service platform.ServiceID, variables []model.ServiceVariableInput) (bool, error)
+	CreateVolume(ctx context.Context, environment platform.EnvironmentID, name string, size string) (*model.Volume, error)
+	ExpandVolume(ctx context.Context, volume platform.VolumeID, size string) (*model.Volume, error)
+	MountVolume(ctx context.Context, volume platform.VolumeID, service platform.ServiceID, path string) (*model.Volume, error)
+	UnmountVolume(ctx context.Context, volume platform.VolumeID) (*model.Volume, error)
+	DeleteVolume(ctx context.Context, volume platform.VolumeID) (bool, error)
 	CreateWorkspaceCheckout(ctx context.Context, input model.CreateWorkspaceCheckoutInput) (*model.CheckoutSession, error)
 	CompleteWorkspaceCheckout(ctx context.Context, sessionID string) (*model.Workspace, error)
 	UpdateWorkspace(ctx context.Context, input model.UpdateWorkspaceInput) (*model.Workspace, error)
@@ -566,6 +595,7 @@ type QueryResolver interface {
 	AvailableVariables(ctx context.Context, environment platform.EnvironmentID) ([]model.Variable, error)
 	SharedVariables(ctx context.Context, environment platform.EnvironmentID) ([]model.SharedVariable, error)
 	ServiceVariables(ctx context.Context, service platform.ServiceID) ([]model.ServiceVariable, error)
+	Volume(ctx context.Context, id platform.VolumeID) (*model.Volume, error)
 	Workspace(ctx context.Context) (*model.Workspace, error)
 	Workspaces(ctx context.Context) ([]model.Workspace, error)
 }
@@ -582,6 +612,9 @@ type ServiceResolver interface {
 type SubscriptionResolver interface {
 	BuildLogs(ctx context.Context, id buildjob.BuildID) (<-chan string, error)
 	ServiceLogs(ctx context.Context, service platform.ServiceID, tailLines *int) (<-chan *model.ServiceLogEntry, error)
+}
+type VolumeResolver interface {
+	Metrics(ctx context.Context, obj *model.Volume, metrics []model.ResourceMetric, rangeArg model.MetricsRange) ([]model.MetricSeries, error)
 }
 
 type executableSchema graphql.ExecutableSchemaState[ResolverRoot, DirectiveRoot, ComplexityRoot]
@@ -1237,6 +1270,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Environment.Services(childComplexity), true
+	case "Environment.volumes":
+		if e.ComplexityRoot.Environment.Volumes == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Environment.Volumes(childComplexity), true
 
 	case "EnvironmentResources.allocation":
 		if e.ComplexityRoot.EnvironmentResources.Allocation == nil {
@@ -1456,6 +1495,51 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.KeyValueStoreSource.Name(childComplexity), true
 
+	case "MetricPoint.timestamp":
+		if e.ComplexityRoot.MetricPoint.Timestamp == nil {
+			break
+		}
+
+		return e.ComplexityRoot.MetricPoint.Timestamp(childComplexity), true
+	case "MetricPoint.value":
+		if e.ComplexityRoot.MetricPoint.Value == nil {
+			break
+		}
+
+		return e.ComplexityRoot.MetricPoint.Value(childComplexity), true
+
+	case "MetricSeries.metric":
+		if e.ComplexityRoot.MetricSeries.Metric == nil {
+			break
+		}
+
+		return e.ComplexityRoot.MetricSeries.Metric(childComplexity), true
+	case "MetricSeries.points":
+		if e.ComplexityRoot.MetricSeries.Points == nil {
+			break
+		}
+
+		return e.ComplexityRoot.MetricSeries.Points(childComplexity), true
+	case "MetricSeries.unit":
+		if e.ComplexityRoot.MetricSeries.Unit == nil {
+			break
+		}
+
+		return e.ComplexityRoot.MetricSeries.Unit(childComplexity), true
+
+	case "Mount.path":
+		if e.ComplexityRoot.Mount.Path == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Mount.Path(childComplexity), true
+	case "Mount.service":
+		if e.ComplexityRoot.Mount.Service == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Mount.Service(childComplexity), true
+
 	case "Mutation.addCustomDomain":
 		if e.ComplexityRoot.Mutation.AddCustomDomain == nil {
 			break
@@ -1583,6 +1667,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.CreateProject(childComplexity, args["input"].(model.CreateProjectInput)), true
+	case "Mutation.createVolume":
+		if e.ComplexityRoot.Mutation.CreateVolume == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_createVolume_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.CreateVolume(childComplexity, args["environment"].(platform.EnvironmentID), args["name"].(string), args["size"].(string)), true
 	case "Mutation.createWorkspaceCheckout":
 		if e.ComplexityRoot.Mutation.CreateWorkspaceCheckout == nil {
 			break
@@ -1649,6 +1744,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.DeleteProject(childComplexity, args["id"].(platform.ProjectID)), true
+	case "Mutation.deleteVolume":
+		if e.ComplexityRoot.Mutation.DeleteVolume == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_deleteVolume_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.DeleteVolume(childComplexity, args["volume"].(platform.VolumeID)), true
 	case "Mutation.deleteWorkspace":
 		if e.ComplexityRoot.Mutation.DeleteWorkspace == nil {
 			break
@@ -1677,6 +1783,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.ExecuteQuery(childComplexity, args["database"].(platform.DatabaseID), args["query"].(string)), true
+	case "Mutation.expandVolume":
+		if e.ComplexityRoot.Mutation.ExpandVolume == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_expandVolume_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.ExpandVolume(childComplexity, args["volume"].(platform.VolumeID), args["size"].(string)), true
 	case "Mutation.exposeDatabase":
 		if e.ComplexityRoot.Mutation.ExposeDatabase == nil {
 			break
@@ -1710,6 +1827,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.InviteMember(childComplexity, args["input"].(model.InviteMemberInput)), true
+	case "Mutation.mountVolume":
+		if e.ComplexityRoot.Mutation.MountVolume == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_mountVolume_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.MountVolume(childComplexity, args["volume"].(platform.VolumeID), args["service"].(platform.ServiceID), args["path"].(string)), true
 	case "Mutation.removeDomain":
 		if e.ComplexityRoot.Mutation.RemoveDomain == nil {
 			break
@@ -1864,6 +1992,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.UnexposeDatabase(childComplexity, args["database"].(platform.DatabaseID)), true
+	case "Mutation.unmountVolume":
+		if e.ComplexityRoot.Mutation.UnmountVolume == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_unmountVolume_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.UnmountVolume(childComplexity, args["volume"].(platform.VolumeID)), true
 	case "Mutation.updateMemberRole":
 		if e.ComplexityRoot.Mutation.UpdateMemberRole == nil {
 			break
@@ -2185,6 +2324,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.UsageSummary(childComplexity), true
+	case "Query.volume":
+		if e.ComplexityRoot.Query.Volume == nil {
+			break
+		}
+
+		args, err := ec.field_Query_volume_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.Volume(childComplexity, args["id"].(platform.VolumeID)), true
 	case "Query.workspace":
 		if e.ComplexityRoot.Query.Workspace == nil {
 			break
@@ -2565,42 +2715,41 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.Variable.Source(childComplexity), true
 
-	case "Volume.capacityBytes":
-		if e.ComplexityRoot.Volume.CapacityBytes == nil {
-			break
-		}
-
-		return e.ComplexityRoot.Volume.CapacityBytes(childComplexity), true
 	case "Volume.id":
 		if e.ComplexityRoot.Volume.ID == nil {
 			break
 		}
 
 		return e.ComplexityRoot.Volume.ID(childComplexity), true
+	case "Volume.metrics":
+		if e.ComplexityRoot.Volume.Metrics == nil {
+			break
+		}
+
+		args, err := ec.field_Volume_metrics_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Volume.Metrics(childComplexity, args["metrics"].([]model.ResourceMetric), args["range"].(model.MetricsRange)), true
+	case "Volume.mount":
+		if e.ComplexityRoot.Volume.Mount == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Volume.Mount(childComplexity), true
 	case "Volume.name":
 		if e.ComplexityRoot.Volume.Name == nil {
 			break
 		}
 
 		return e.ComplexityRoot.Volume.Name(childComplexity), true
-	case "Volume.requestedSize":
-		if e.ComplexityRoot.Volume.RequestedSize == nil {
-			break
-		}
-
-		return e.ComplexityRoot.Volume.RequestedSize(childComplexity), true
 	case "Volume.size":
 		if e.ComplexityRoot.Volume.Size == nil {
 			break
 		}
 
 		return e.ComplexityRoot.Volume.Size(childComplexity), true
-	case "Volume.usedBytes":
-		if e.ComplexityRoot.Volume.UsedBytes == nil {
-			break
-		}
-
-		return e.ComplexityRoot.Volume.UsedBytes(childComplexity), true
 
 	case "Workspace.id":
 		if e.ComplexityRoot.Workspace.ID == nil {
@@ -2688,6 +2837,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputCreateProjectInput,
 		ec.unmarshalInputCreateWorkspaceCheckoutInput,
 		ec.unmarshalInputInviteMemberInput,
+		ec.unmarshalInputMetricsRange,
 		ec.unmarshalInputResourcesInput,
 		ec.unmarshalInputServiceVariableInput,
 		ec.unmarshalInputSetEnvironmentResourcesInput,
@@ -2786,7 +2936,7 @@ func newExecutionContext(
 	}
 }
 
-//go:embed "schema/auth.graphqls" "schema/billing.graphqls" "schema/build.graphqls" "schema/database.graphqls" "schema/deployment.graphqls" "schema/eject.graphqls" "schema/environment.graphqls" "schema/github.graphqls" "schema/keyvaluestore.graphqls" "schema/logs.graphqls" "schema/objectstorage.graphqls" "schema/project.graphqls" "schema/registry.graphqls" "schema/release.graphqls" "schema/schema.graphqls" "schema/service.graphqls" "schema/variable.graphqls" "schema/workspace.graphqls"
+//go:embed "schema/auth.graphqls" "schema/billing.graphqls" "schema/build.graphqls" "schema/database.graphqls" "schema/deployment.graphqls" "schema/eject.graphqls" "schema/environment.graphqls" "schema/github.graphqls" "schema/keyvaluestore.graphqls" "schema/logs.graphqls" "schema/metrics.graphqls" "schema/objectstorage.graphqls" "schema/project.graphqls" "schema/registry.graphqls" "schema/release.graphqls" "schema/schema.graphqls" "schema/service.graphqls" "schema/variable.graphqls" "schema/volume.graphqls" "schema/workspace.graphqls"
 var sourcesFS embed.FS
 
 func sourceData(filename string) string {
@@ -2808,6 +2958,7 @@ var sources = []*ast.Source{
 	{Name: "schema/github.graphqls", Input: sourceData("schema/github.graphqls"), BuiltIn: false},
 	{Name: "schema/keyvaluestore.graphqls", Input: sourceData("schema/keyvaluestore.graphqls"), BuiltIn: false},
 	{Name: "schema/logs.graphqls", Input: sourceData("schema/logs.graphqls"), BuiltIn: false},
+	{Name: "schema/metrics.graphqls", Input: sourceData("schema/metrics.graphqls"), BuiltIn: false},
 	{Name: "schema/objectstorage.graphqls", Input: sourceData("schema/objectstorage.graphqls"), BuiltIn: false},
 	{Name: "schema/project.graphqls", Input: sourceData("schema/project.graphqls"), BuiltIn: false},
 	{Name: "schema/registry.graphqls", Input: sourceData("schema/registry.graphqls"), BuiltIn: false},
@@ -2815,6 +2966,7 @@ var sources = []*ast.Source{
 	{Name: "schema/schema.graphqls", Input: sourceData("schema/schema.graphqls"), BuiltIn: false},
 	{Name: "schema/service.graphqls", Input: sourceData("schema/service.graphqls"), BuiltIn: false},
 	{Name: "schema/variable.graphqls", Input: sourceData("schema/variable.graphqls"), BuiltIn: false},
+	{Name: "schema/volume.graphqls", Input: sourceData("schema/volume.graphqls"), BuiltIn: false},
 	{Name: "schema/workspace.graphqls", Input: sourceData("schema/workspace.graphqls"), BuiltIn: false},
 }
 var parsedSchema = gqlparser.MustLoadSchema(sources...)
@@ -3133,6 +3285,8 @@ func (ec *executionContext) childFields_Environment(ctx context.Context, field g
 		return ec.fieldContext_Environment_services(ctx, field)
 	case "databases":
 		return ec.fieldContext_Environment_databases(ctx, field)
+	case "volumes":
+		return ec.fieldContext_Environment_volumes(ctx, field)
 	case "keyValueStores":
 		return ec.fieldContext_Environment_keyValueStores(ctx, field)
 	case "buckets":
@@ -3247,6 +3401,38 @@ func (ec *executionContext) childFields_KeyValueStoreCredentials(ctx context.Con
 		return ec.fieldContext_KeyValueStoreCredentials_uri(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type KeyValueStoreCredentials", field.Name)
+}
+
+func (ec *executionContext) childFields_MetricPoint(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "timestamp":
+		return ec.fieldContext_MetricPoint_timestamp(ctx, field)
+	case "value":
+		return ec.fieldContext_MetricPoint_value(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type MetricPoint", field.Name)
+}
+
+func (ec *executionContext) childFields_MetricSeries(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "metric":
+		return ec.fieldContext_MetricSeries_metric(ctx, field)
+	case "unit":
+		return ec.fieldContext_MetricSeries_unit(ctx, field)
+	case "points":
+		return ec.fieldContext_MetricSeries_points(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type MetricSeries", field.Name)
+}
+
+func (ec *executionContext) childFields_Mount(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "service":
+		return ec.fieldContext_Mount_service(ctx, field)
+	case "path":
+		return ec.fieldContext_Mount_path(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type Mount", field.Name)
 }
 
 func (ec *executionContext) childFields_Project(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
@@ -3445,6 +3631,22 @@ func (ec *executionContext) childFields_Variable(ctx context.Context, field grap
 		return ec.fieldContext_Variable_source(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type Variable", field.Name)
+}
+
+func (ec *executionContext) childFields_Volume(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "id":
+		return ec.fieldContext_Volume_id(ctx, field)
+	case "name":
+		return ec.fieldContext_Volume_name(ctx, field)
+	case "size":
+		return ec.fieldContext_Volume_size(ctx, field)
+	case "mount":
+		return ec.fieldContext_Volume_mount(ctx, field)
+	case "metrics":
+		return ec.fieldContext_Volume_metrics(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type Volume", field.Name)
 }
 
 func (ec *executionContext) childFields_Workspace(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
@@ -3839,6 +4041,74 @@ func (ec *executionContext) field_Mutation_createProject_args(ctx context.Contex
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_createVolume_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "environment",
+		func(ctx context.Context, v any) (platform.EnvironmentID, error) {
+			return ec.unmarshalNEnvironmentID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐEnvironmentID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["environment"] = arg0
+
+	arg1, err := ec.field_Mutation_createVolume_argsName(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["name"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "size",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["size"] = arg2
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_createVolume_argsName(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+	directive0 := func(ctx context.Context) (any, error) {
+		tmp, ok := rawArgs["name"]
+		if !ok {
+			var zeroVal string
+			return zeroVal, nil
+		}
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	directive1 := func(ctx context.Context) (any, error) {
+		constraint, err := ec.unmarshalNString2string(ctx, "resource_name,min=2,max=16")
+		if err != nil {
+			var zeroVal string
+			return zeroVal, err
+		}
+		if ec.Directives.Constraint == nil {
+			var zeroVal string
+			return zeroVal, errors.New("directive constraint is not implemented")
+		}
+		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
+	}
+
+	tmp, err := directive1(ctx)
+	if err != nil {
+		var zeroVal string
+		return zeroVal, graphql.ErrorOnPath(ctx, err)
+	}
+	if data, ok := tmp.(string); ok {
+		return data, nil
+	} else {
+		var zeroVal string
+		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
+	}
+}
+
 func (ec *executionContext) field_Mutation_createWorkspaceCheckout_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -3923,6 +4193,20 @@ func (ec *executionContext) field_Mutation_deleteProject_args(ctx context.Contex
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_deleteVolume_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "volume",
+		func(ctx context.Context, v any) (platform.VolumeID, error) {
+			return ec.unmarshalNVolumeID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐVolumeID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["volume"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_deploy_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -3967,6 +4251,28 @@ func (ec *executionContext) field_Mutation_executeQuery_args(ctx context.Context
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_expandVolume_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "volume",
+		func(ctx context.Context, v any) (platform.VolumeID, error) {
+			return ec.unmarshalNVolumeID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐVolumeID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["volume"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "size",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["size"] = arg1
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_exposeDatabase_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -4006,6 +4312,36 @@ func (ec *executionContext) field_Mutation_inviteMember_args(ctx context.Context
 		return nil, err
 	}
 	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_mountVolume_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "volume",
+		func(ctx context.Context, v any) (platform.VolumeID, error) {
+			return ec.unmarshalNVolumeID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐVolumeID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["volume"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "service",
+		func(ctx context.Context, v any) (platform.ServiceID, error) {
+			return ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐServiceID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["service"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "path",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["path"] = arg2
 	return args, nil
 }
 
@@ -4307,6 +4643,20 @@ func (ec *executionContext) field_Mutation_unexposeDatabase_args(ctx context.Con
 		return nil, err
 	}
 	args["database"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_unmountVolume_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "volume",
+		func(ctx context.Context, v any) (platform.VolumeID, error) {
+			return ec.unmarshalNVolumeID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐVolumeID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["volume"] = arg0
 	return args, nil
 }
 
@@ -4692,6 +5042,20 @@ func (ec *executionContext) field_Query_sharedVariables_args(ctx context.Context
 	return args, nil
 }
 
+func (ec *executionContext) field_Query_volume_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id",
+		func(ctx context.Context, v any) (platform.VolumeID, error) {
+			return ec.unmarshalNVolumeID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐVolumeID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Subscription_buildLogs_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -4725,6 +5089,28 @@ func (ec *executionContext) field_Subscription_serviceLogs_args(ctx context.Cont
 		return nil, err
 	}
 	args["tailLines"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Volume_metrics_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "metrics",
+		func(ctx context.Context, v any) ([]model.ResourceMetric, error) {
+			return ec.unmarshalNResourceMetric2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐResourceMetricᚄ(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["metrics"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "range",
+		func(ctx context.Context, v any) (model.MetricsRange, error) {
+			return ec.unmarshalNMetricsRange2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐMetricsRange(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["range"] = arg1
 	return args, nil
 }
 
@@ -7187,6 +7573,38 @@ func (ec *executionContext) fieldContext_Environment_databases(_ context.Context
 	return fc, nil
 }
 
+func (ec *executionContext) _Environment_volumes(ctx context.Context, field graphql.CollectedField, obj *model.Environment) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Environment_volumes(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Environment().Volumes(ctx, obj)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []model.Volume) graphql.Marshaler {
+			return ec.marshalNVolume2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐVolumeᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Environment_volumes(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Environment",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Volume(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Environment_keyValueStores(ctx context.Context, field graphql.CollectedField, obj *model.Environment) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -8072,6 +8490,176 @@ func (ec *executionContext) _KeyValueStoreSource_name(ctx context.Context, field
 }
 func (ec *executionContext) fieldContext_KeyValueStoreSource_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("KeyValueStoreSource", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _MetricPoint_timestamp(ctx context.Context, field graphql.CollectedField, obj *model.MetricPoint) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_MetricPoint_timestamp(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Timestamp, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v time.Time) graphql.Marshaler {
+			return ec.marshalNTime2timeᚐTime(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_MetricPoint_timestamp(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("MetricPoint", field, false, false, errors.New("field of type Time does not have child fields"))
+}
+
+func (ec *executionContext) _MetricPoint_value(ctx context.Context, field graphql.CollectedField, obj *model.MetricPoint) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_MetricPoint_value(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Value, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *float64) graphql.Marshaler {
+			return ec.marshalOFloat2ᚖfloat64(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_MetricPoint_value(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("MetricPoint", field, false, false, errors.New("field of type Float does not have child fields"))
+}
+
+func (ec *executionContext) _MetricSeries_metric(ctx context.Context, field graphql.CollectedField, obj *model.MetricSeries) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_MetricSeries_metric(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Metric, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v model.ResourceMetric) graphql.Marshaler {
+			return ec.marshalNResourceMetric2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐResourceMetric(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_MetricSeries_metric(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("MetricSeries", field, false, false, errors.New("field of type ResourceMetric does not have child fields"))
+}
+
+func (ec *executionContext) _MetricSeries_unit(ctx context.Context, field graphql.CollectedField, obj *model.MetricSeries) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_MetricSeries_unit(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Unit, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v model.MetricUnit) graphql.Marshaler {
+			return ec.marshalNMetricUnit2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐMetricUnit(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_MetricSeries_unit(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("MetricSeries", field, false, false, errors.New("field of type MetricUnit does not have child fields"))
+}
+
+func (ec *executionContext) _MetricSeries_points(ctx context.Context, field graphql.CollectedField, obj *model.MetricSeries) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_MetricSeries_points(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Points, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []model.MetricPoint) graphql.Marshaler {
+			return ec.marshalNMetricPoint2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐMetricPointᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_MetricSeries_points(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MetricSeries",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_MetricPoint(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mount_service(ctx context.Context, field graphql.CollectedField, obj *model.Mount) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mount_service(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Service, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v platform.ServiceID) graphql.Marshaler {
+			return ec.marshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐServiceID(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mount_service(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Mount", field, false, false, errors.New("field of type ServiceID does not have child fields"))
+}
+
+func (ec *executionContext) _Mount_path(ctx context.Context, field graphql.CollectedField, obj *model.Mount) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mount_path(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Path, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mount_path(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Mount", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
 func (ec *executionContext) _Mutation_setEnvironmentResources(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -10130,6 +10718,316 @@ func (ec *executionContext) fieldContext_Mutation_setServiceVariables(ctx contex
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_setServiceVariables_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_createVolume(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_createVolume(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().CreateVolume(ctx, fc.Args["environment"].(platform.EnvironmentID), fc.Args["name"].(string), fc.Args["size"].(string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
+				if err != nil {
+					var zeroVal *model.Volume
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal *model.Volume
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Volume) graphql.Marshaler {
+			return ec.marshalNVolume2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐVolume(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_createVolume(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Volume(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_createVolume_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_expandVolume(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_expandVolume(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().ExpandVolume(ctx, fc.Args["volume"].(platform.VolumeID), fc.Args["size"].(string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
+				if err != nil {
+					var zeroVal *model.Volume
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal *model.Volume
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Volume) graphql.Marshaler {
+			return ec.marshalNVolume2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐVolume(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_expandVolume(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Volume(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_expandVolume_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_mountVolume(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_mountVolume(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().MountVolume(ctx, fc.Args["volume"].(platform.VolumeID), fc.Args["service"].(platform.ServiceID), fc.Args["path"].(string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
+				if err != nil {
+					var zeroVal *model.Volume
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal *model.Volume
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Volume) graphql.Marshaler {
+			return ec.marshalNVolume2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐVolume(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_mountVolume(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Volume(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_mountVolume_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_unmountVolume(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_unmountVolume(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().UnmountVolume(ctx, fc.Args["volume"].(platform.VolumeID))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
+				if err != nil {
+					var zeroVal *model.Volume
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal *model.Volume
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Volume) graphql.Marshaler {
+			return ec.marshalNVolume2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐVolume(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_unmountVolume(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Volume(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_unmountVolume_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_deleteVolume(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_deleteVolume(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().DeleteVolume(ctx, fc.Args["volume"].(platform.VolumeID))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
+				if err != nil {
+					var zeroVal bool
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal bool
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_deleteVolume(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_deleteVolume_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -12296,6 +13194,68 @@ func (ec *executionContext) fieldContext_Query_serviceVariables(ctx context.Cont
 	return fc, nil
 }
 
+func (ec *executionContext) _Query_volume(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Query_volume(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().Volume(ctx, fc.Args["id"].(platform.VolumeID))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
+				if err != nil {
+					var zeroVal *model.Volume
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal *model.Volume
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Volume) graphql.Marshaler {
+			return ec.marshalNVolume2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐVolume(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Query_volume(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Volume(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_volume_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_workspace(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -14047,73 +15007,80 @@ func (ec *executionContext) fieldContext_Volume_size(_ context.Context, field gr
 	return graphql.NewScalarFieldContext("Volume", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
-func (ec *executionContext) _Volume_requestedSize(ctx context.Context, field graphql.CollectedField, obj *model.Volume) (ret graphql.Marshaler) {
+func (ec *executionContext) _Volume_mount(ctx context.Context, field graphql.CollectedField, obj *model.Volume) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
 		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_Volume_requestedSize(ctx, field)
+			return ec.fieldContext_Volume_mount(ctx, field)
 		},
 		func(ctx context.Context) (any, error) {
-			return obj.RequestedSize, nil
+			return obj.Mount, nil
 		},
 		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
-			return ec.marshalNString2string(ctx, selections, v)
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Mount) graphql.Marshaler {
+			return ec.marshalOMount2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐMount(ctx, selections, v)
 		},
 		true,
-		true,
+		false,
 	)
 }
-func (ec *executionContext) fieldContext_Volume_requestedSize(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Volume", field, false, false, errors.New("field of type String does not have child fields"))
+func (ec *executionContext) fieldContext_Volume_mount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Volume",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Mount(ctx, field)
+		},
+	}
+	return fc, nil
 }
 
-func (ec *executionContext) _Volume_usedBytes(ctx context.Context, field graphql.CollectedField, obj *model.Volume) (ret graphql.Marshaler) {
+func (ec *executionContext) _Volume_metrics(ctx context.Context, field graphql.CollectedField, obj *model.Volume) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
 		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_Volume_usedBytes(ctx, field)
+			return ec.fieldContext_Volume_metrics(ctx, field)
 		},
 		func(ctx context.Context) (any, error) {
-			return obj.UsedBytes, nil
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Volume().Metrics(ctx, obj, fc.Args["metrics"].([]model.ResourceMetric), fc.Args["range"].(model.MetricsRange))
 		},
 		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
-			return ec.marshalNInt2int(ctx, selections, v)
+		func(ctx context.Context, selections ast.SelectionSet, v []model.MetricSeries) graphql.Marshaler {
+			return ec.marshalNMetricSeries2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐMetricSeriesᚄ(ctx, selections, v)
 		},
 		true,
 		true,
 	)
 }
-func (ec *executionContext) fieldContext_Volume_usedBytes(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Volume", field, false, false, errors.New("field of type Int does not have child fields"))
-}
-
-func (ec *executionContext) _Volume_capacityBytes(ctx context.Context, field graphql.CollectedField, obj *model.Volume) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_Volume_capacityBytes(ctx, field)
+func (ec *executionContext) fieldContext_Volume_metrics(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Volume",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_MetricSeries(ctx, field)
 		},
-		func(ctx context.Context) (any, error) {
-			return obj.CapacityBytes, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
-			return ec.marshalNInt2int(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_Volume_capacityBytes(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Volume", field, false, false, errors.New("field of type Int does not have child fields"))
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Volume_metrics_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
 }
 
 func (ec *executionContext) _Workspace_id(ctx context.Context, field graphql.CollectedField, obj *model.Workspace) (ret graphql.Marshaler) {
@@ -16113,6 +17080,36 @@ func (ec *executionContext) unmarshalInputInviteMemberInput(ctx context.Context,
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputMetricsRange(ctx context.Context, obj any) (model.MetricsRange, error) {
+	var it model.MetricsRange
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"window"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "window":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("window"))
+			data, err := ec.unmarshalNMetricWindow2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐMetricWindow(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Window = data
+		}
+	}
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputResourcesInput(ctx context.Context, obj any) (model.ResourcesInput, error) {
 	var it model.ResourcesInput
 	if obj == nil {
@@ -17803,6 +18800,42 @@ func (ec *executionContext) _Environment(ctx context.Context, sel ast.SelectionS
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "volumes":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Environment_volumes(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "keyValueStores":
 			field := field
 
@@ -18345,6 +19378,140 @@ func (ec *executionContext) _KeyValueStoreSource(ctx context.Context, sel ast.Se
 	return out
 }
 
+var metricPointImplementors = []string{"MetricPoint"}
+
+func (ec *executionContext) _MetricPoint(ctx context.Context, sel ast.SelectionSet, obj *model.MetricPoint) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, metricPointImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("MetricPoint")
+		case "timestamp":
+			out.Values[i] = ec._MetricPoint_timestamp(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "value":
+			out.Values[i] = ec._MetricPoint_value(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferred), math.MaxInt32)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var metricSeriesImplementors = []string{"MetricSeries"}
+
+func (ec *executionContext) _MetricSeries(ctx context.Context, sel ast.SelectionSet, obj *model.MetricSeries) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, metricSeriesImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("MetricSeries")
+		case "metric":
+			out.Values[i] = ec._MetricSeries_metric(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "unit":
+			out.Values[i] = ec._MetricSeries_unit(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "points":
+			out.Values[i] = ec._MetricSeries_points(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferred), math.MaxInt32)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var mountImplementors = []string{"Mount"}
+
+func (ec *executionContext) _Mount(ctx context.Context, sel ast.SelectionSet, obj *model.Mount) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, mountImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Mount")
+		case "service":
+			out.Values[i] = ec._Mount_service(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "path":
+			out.Values[i] = ec._Mount_path(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferred), math.MaxInt32)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var mutationImplementors = []string{"Mutation"}
 
 func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet) graphql.Marshaler {
@@ -18591,6 +19758,41 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "setServiceVariables":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_setServiceVariables(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "createVolume":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_createVolume(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "expandVolume":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_expandVolume(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "mountVolume":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_mountVolume(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "unmountVolume":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_unmountVolume(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "deleteVolume":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_deleteVolume(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -19330,6 +20532,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_serviceVariables(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "volume":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_volume(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -20326,33 +21550,56 @@ func (ec *executionContext) _Volume(ctx context.Context, sel ast.SelectionSet, o
 		case "id":
 			out.Values[i] = ec._Volume_id(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "name":
 			out.Values[i] = ec._Volume_name(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "size":
 			out.Values[i] = ec._Volume_size(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
-		case "requestedSize":
-			out.Values[i] = ec._Volume_requestedSize(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
+		case "mount":
+			out.Values[i] = ec._Volume_mount(ctx, field, obj)
+		case "metrics":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Volume_metrics(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
 			}
-		case "usedBytes":
-			out.Values[i] = ec._Volume_usedBytes(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
 			}
-		case "capacityBytes":
-			out.Values[i] = ec._Volume_capacityBytes(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -21577,6 +22824,71 @@ func (ec *executionContext) marshalNKeyValueStoreID2githubᚗcomᚋzeitlosᚋluc
 	return v
 }
 
+func (ec *executionContext) marshalNMetricPoint2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐMetricPoint(ctx context.Context, sel ast.SelectionSet, v model.MetricPoint) graphql.Marshaler {
+	return ec._MetricPoint(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNMetricPoint2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐMetricPointᚄ(ctx context.Context, sel ast.SelectionSet, v []model.MetricPoint) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNMetricPoint2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐMetricPoint(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNMetricSeries2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐMetricSeries(ctx context.Context, sel ast.SelectionSet, v model.MetricSeries) graphql.Marshaler {
+	return ec._MetricSeries(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNMetricSeries2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐMetricSeriesᚄ(ctx context.Context, sel ast.SelectionSet, v []model.MetricSeries) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNMetricSeries2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐMetricSeries(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) unmarshalNMetricUnit2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐMetricUnit(ctx context.Context, v any) (model.MetricUnit, error) {
+	var res model.MetricUnit
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNMetricUnit2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐMetricUnit(ctx context.Context, sel ast.SelectionSet, v model.MetricUnit) graphql.Marshaler {
+	return v
+}
+
+func (ec *executionContext) unmarshalNMetricWindow2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐMetricWindow(ctx context.Context, v any) (model.MetricWindow, error) {
+	var res model.MetricWindow
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNMetricWindow2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐMetricWindow(ctx context.Context, sel ast.SelectionSet, v model.MetricWindow) graphql.Marshaler {
+	return v
+}
+
+func (ec *executionContext) unmarshalNMetricsRange2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐMetricsRange(ctx context.Context, v any) (model.MetricsRange, error) {
+	res, err := ec.unmarshalInputMetricsRange(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) unmarshalNPlan2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐPlan(ctx context.Context, v any) (model.Plan, error) {
 	var res model.Plan
 	err := res.UnmarshalGQL(v)
@@ -21739,6 +23051,47 @@ func (ec *executionContext) marshalNResourceAllocation2ᚖgithubᚗcomᚋzeitlos
 		return graphql.Null
 	}
 	return ec._ResourceAllocation(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNResourceMetric2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐResourceMetric(ctx context.Context, v any) (model.ResourceMetric, error) {
+	var res model.ResourceMetric
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNResourceMetric2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐResourceMetric(ctx context.Context, sel ast.SelectionSet, v model.ResourceMetric) graphql.Marshaler {
+	return v
+}
+
+func (ec *executionContext) unmarshalNResourceMetric2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐResourceMetricᚄ(ctx context.Context, v any) ([]model.ResourceMetric, error) {
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]model.ResourceMetric, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNResourceMetric2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐResourceMetric(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalNResourceMetric2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐResourceMetricᚄ(ctx context.Context, sel ast.SelectionSet, v []model.ResourceMetric) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNResourceMetric2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐResourceMetric(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
 }
 
 func (ec *executionContext) unmarshalNResourceTier2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐResourceTier(ctx context.Context, v any) (model.ResourceTier, error) {
@@ -22110,6 +23463,36 @@ func (ec *executionContext) marshalNVariableSource2githubᚗcomᚋzeitlosᚋluci
 	return ec._VariableSource(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNVolume2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐVolume(ctx context.Context, sel ast.SelectionSet, v model.Volume) graphql.Marshaler {
+	return ec._Volume(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNVolume2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐVolumeᚄ(ctx context.Context, sel ast.SelectionSet, v []model.Volume) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNVolume2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐVolume(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNVolume2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐVolume(ctx context.Context, sel ast.SelectionSet, v *model.Volume) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._Volume(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalNVolumeID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐVolumeID(ctx context.Context, v any) (platform.VolumeID, error) {
 	var res platform.VolumeID
 	err := res.UnmarshalGQL(v)
@@ -22440,6 +23823,23 @@ func (ec *executionContext) marshalOEnvironmentResources2ᚖgithubᚗcomᚋzeitl
 	return ec._EnvironmentResources(ctx, sel, v)
 }
 
+func (ec *executionContext) unmarshalOFloat2ᚖfloat64(ctx context.Context, v any) (*float64, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := graphql.UnmarshalFloatContext(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOFloat2ᚖfloat64(ctx context.Context, sel ast.SelectionSet, v *float64) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	_ = sel
+	res := graphql.MarshalFloatContext(*v)
+	return graphql.WrapContextMarshaler(ctx, res)
+}
+
 func (ec *executionContext) marshalOGitSource2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐGitSource(ctx context.Context, sel ast.SelectionSet, v *model.GitSource) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
@@ -22463,6 +23863,13 @@ func (ec *executionContext) marshalOInt2ᚖint(ctx context.Context, sel ast.Sele
 	_ = ctx
 	res := graphql.MarshalInt(*v)
 	return res
+}
+
+func (ec *executionContext) marshalOMount2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐMount(ctx context.Context, sel ast.SelectionSet, v *model.Mount) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._Mount(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalOPlan2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐPlan(ctx context.Context, v any) (*model.Plan, error) {

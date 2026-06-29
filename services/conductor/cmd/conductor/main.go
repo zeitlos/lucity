@@ -15,6 +15,7 @@ import (
 	environmentK8s "github.com/zeitlos/lucity/services/conductor/internal/environment/kubernetes"
 	"github.com/zeitlos/lucity/services/conductor/internal/gateway"
 	"github.com/zeitlos/lucity/services/conductor/internal/hostname"
+	"github.com/zeitlos/lucity/services/conductor/internal/metrics"
 	"github.com/zeitlos/lucity/services/conductor/internal/objectstorage"
 	objectstorageOVH "github.com/zeitlos/lucity/services/conductor/internal/objectstorage/ovh"
 	"github.com/zeitlos/lucity/services/conductor/internal/planner/railpack"
@@ -92,6 +93,9 @@ type Config struct {
 	BuildkitServerName string `envconfig:"BUILDKIT_SERVER_NAME"`
 
 	SystemNamespace string `envconfig:"SYSTEM_NAMESPACE" default:"lucity-system"`
+
+	// Observability
+	VictoriaMetricsURL string `envconfig:"VICTORIA_METRICS_URL" required:"true"`
 
 	// GitHub App (for installation tokens + OAuth)
 	GitHubAppID            int64  `envconfig:"GITHUB_APP_ID" required:"true"`
@@ -282,6 +286,12 @@ func main() {
 
 	objectStorageClient := objectstorage.NewManager(ovhBackend, k8sClient)
 
+	metricsProvider, err := metrics.New(config.VictoriaMetricsURL)
+	if err != nil {
+		slog.Error("failed to create metrics provider", "error", err)
+		os.Exit(1)
+	}
+
 	chartFS, err := fs.Sub(charts.LucityApp, "lucity-app")
 
 	if err != nil {
@@ -303,7 +313,7 @@ func main() {
 		GitHubAppSlug:        config.GitHubAppSlug,
 		DashboardURL:         config.DashboardURL,
 	}
-	conductor := conductor.New(cashierClient, githubApp, logtoClient, tokenRefresher, directoryClient, platformClient, jobsClient, planner, source, hostnameClient, gatewayClient, deployerClient, environmentClient, objectStorageClient, conductorConfig)
+	conductor := conductor.New(cashierClient, githubApp, logtoClient, tokenRefresher, directoryClient, platformClient, jobsClient, planner, source, hostnameClient, gatewayClient, deployerClient, environmentClient, objectStorageClient, metricsProvider, conductorConfig)
 
 	if config.ReconcileEnabled {
 		go runDomainReconciler(ctx, conductor)

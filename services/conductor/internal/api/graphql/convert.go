@@ -10,9 +10,40 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/conductor"
 	"github.com/zeitlos/lucity/services/conductor/internal/deployer"
 	"github.com/zeitlos/lucity/services/conductor/internal/hostname"
+	"github.com/zeitlos/lucity/services/conductor/internal/metrics"
 	"github.com/zeitlos/lucity/services/conductor/internal/planner"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
+
+func convertMetricWindow(window model.MetricWindow) (metrics.Window, error) {
+	switch window {
+	case model.MetricWindowLast1h:
+		return metrics.Window1h, nil
+	case model.MetricWindowLast6h:
+		return metrics.Window6h, nil
+	case model.MetricWindowLast24h:
+		return metrics.Window24h, nil
+	case model.MetricWindowLast7d:
+		return metrics.Window7d, nil
+	case model.MetricWindowLast30d:
+		return metrics.Window30d, nil
+	default:
+		return "", fmt.Errorf("unknown metric window %q", window)
+	}
+}
+
+func convertMetricPoints(points []metrics.Point) []model.MetricPoint {
+	out := make([]model.MetricPoint, 0, len(points))
+
+	for _, p := range points {
+		out = append(out, model.MetricPoint{
+			Timestamp: p.Timestamp,
+			Value:     p.Value,
+		})
+	}
+
+	return out
+}
 
 func convertService(service platform.Service) model.Service {
 	result := model.Service{
@@ -395,6 +426,23 @@ func convertKeyValueStore(s conductor.KeyValueStore) model.KeyValueStore {
 		Size:      s.Size.String(),
 		CreatedAt: s.CreatedAt,
 	}
+}
+
+func convertVolume(v conductor.Volume) model.Volume {
+	volume := model.Volume{
+		ID:   v.ID,
+		Name: v.Name,
+		Size: v.Size.String(),
+	}
+
+	if v.Mount != nil {
+		volume.Mount = &model.Mount{
+			Service: v.Mount.Service,
+			Path:    v.Mount.Path,
+		}
+	}
+
+	return volume
 }
 
 func convertKeyValueStoreCredentials(c conductor.KeyValueStoreCredentials) model.KeyValueStoreCredentials {

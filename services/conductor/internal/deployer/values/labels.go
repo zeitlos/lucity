@@ -8,6 +8,7 @@ const (
 	labelService            = "lucity.dev/service"
 	labelDatabase           = "lucity.dev/database"
 	labelKeyValueStore      = "lucity.dev/keyvaluestore"
+	labelVolume             = "lucity.dev/volume"
 	labelSharedVariables    = "lucity.dev/shared-variables"
 	labelGitHubInstallation = "lucity.dev/github-installation"
 

@@ -100,11 +100,12 @@ func (c *Client) AddService(ctx context.Context, environmentID platform.Environm
 	serviceName := name
 	spec := deployer.ServiceSpec{
 		ContextPath:  contextPath,
-		Port:         8080,
 		ResourceTier: environment.ResourceTier,
 	}
 
 	if repository != "" {
+		spec.Port = 8080
+
 		installationID, err := c.installationForRepo(ctx, repository)
 
 		if err != nil {
@@ -125,6 +126,7 @@ func (c *Client) AddService(ctx context.Context, environmentID platform.Environm
 		}
 
 		spec.Image = ensureImageTag(externalImage)
+		spec.Port = c.imageExposedPort(ctx, spec.Image)
 
 		if serviceName == "" {
 			serviceName = deriveServiceName(externalImage)

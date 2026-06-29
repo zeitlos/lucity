@@ -19,15 +19,6 @@ enum DatabaseStatus {
   STOPPED
 }
 
-type Volume {
-  id: VolumeID!
-  name: String!
-  size: String!
-  requestedSize: String!
-  usedBytes: Int!
-  capacityBytes: Int!
-}
-
 type DatabaseTable {
   name: String!
   schema: String!

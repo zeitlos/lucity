@@ -2,7 +2,7 @@
 import { ref, computed, watch, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { useQuery, useMutation, useApolloClient } from '@vue/apollo-composable';
-import { FolderPlus, Plus, Lock, Globe, ArrowLeft, Search, X, ChevronDown, Container, Star, Award, Loader2 } from '@lucide/vue';
+import { FolderPlus, Plus, Lock, Globe, ArrowLeft, Search, X, ChevronDown, Container, Star, Award, Loader2, HardDrive } from '@lucide/vue';
 import type { Component } from 'vue';
 import BucketIcon from '@/components/BucketIcon.vue';
 import GithubIcon from '@/components/GithubIcon.vue';
@@ -117,11 +117,22 @@ const CreateBucketDocument = graphql(`
     }
   }
 `);
+
+const CreateVolumeDocument = graphql(`
+  mutation CreateVolume($environment: EnvironmentID!, $name: String!, $size: String!) {
+    createVolume(environment: $environment, name: $name, size: $size) {
+      id
+      name
+      size
+    }
+  }
+`);
 import { useEnvironment } from '@/composables/useEnvironment';
 import { useGitHubInstall } from '@/composables/useGitHubInstall';
 import { toast, errorToast } from '@/components/ui/sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Slider } from '@/components/ui/slider';
 import { errorMessage } from '@/lib/utils';
 import { isValidSlug } from '@/lib/slug';
 import NameSlugField from '@/components/NameSlugField.vue';
@@ -143,7 +154,7 @@ const { resolveClient } = useApolloClient();
 const { activeEnvironment } = useEnvironment();
 
 // Drill-down state
-type PaletteView = 'main' | 'github-repos' | 'manual-service' | 'database' | 'keyValueStore' | 'bucket' | 'container-image' | 'name-project';
+type PaletteView = 'main' | 'github-repos' | 'manual-service' | 'database' | 'keyValueStore' | 'bucket' | 'volume' | 'container-image' | 'name-project';
 const view = ref<PaletteView>('main');
 const search = ref('');
 const inputRef = ref<HTMLInputElement>();
@@ -178,6 +189,7 @@ watch(() => props.open, (open) => {
     pendingRepo.value = null;
     pendingImage.value = null;
     processingItemId.value = null;
+    volumeStep.value = 'name';
     selectedSource.value = sources.value[0] ?? null;
     nextTick(() => inputRef.value?.focus());
   }
@@ -372,12 +384,12 @@ async function handleAddServicesFromRepo(repo: { fullName: string; htmlUrl: stri
 // Add service (within environment context)
 const { mutate: addServiceMutate, loading: addingService } = useMutation(AddServiceDocument);
 
-const newServiceName = ref('web');
+const newServiceName = ref('');
 const newServicePort = ref<number | null>(null);
 
 // Create database (within environment context)
 const { mutate: createDatabaseMutate, loading: creatingDatabase } = useMutation(CreateDatabaseDocument);
-const newDatabaseName = ref('main');
+const newDatabaseName = ref('');
 
 async function handleCreateDatabase() {
   if (!props.environmentId) return;
@@ -407,7 +419,7 @@ async function handleCreateDatabase() {
 
 // Create Redis store (within environment context)
 const { mutate: createKeyValueStoreMutate, loading: creatingKeyValueStore } = useMutation(CreateKeyValueStoreDocument);
-const newKeyValueStoreName = ref('cache');
+const newKeyValueStoreName = ref('');
 
 async function handleCreateKeyValueStore() {
   if (!props.environmentId) return;
@@ -437,7 +449,7 @@ async function handleCreateKeyValueStore() {
 
 // Create object storage bucket (within environment context)
 const { mutate: createBucketMutate, loading: creatingBucket } = useMutation(CreateBucketDocument);
-const newBucketName = ref('uploads');
+const newBucketName = ref('');
 
 async function handleCreateBucket() {
   if (!props.environmentId) return;
@@ -462,6 +474,38 @@ async function handleCreateBucket() {
     emit('created');
   } catch (e: unknown) {
     errorToast('Failed to create bucket', { description: errorMessage(e) });
+  }
+}
+
+// Create volume (within environment context)
+const { mutate: createVolumeMutate, loading: creatingVolume } = useMutation(CreateVolumeDocument);
+const newVolumeName = ref('');
+const volumeSizes = ['10Gi', '16Gi', '32Gi', '64Gi', '128Gi', '256Gi', '512Gi', '1Ti'];
+const newVolumeSize = ref('10Gi');
+const volumeStep = ref<'name' | 'size'>('name');
+
+async function handleCreateVolume() {
+  if (!props.environmentId) return;
+
+  try {
+    const res = await createVolumeMutate({
+      environment: props.environmentId,
+      name: newVolumeName.value,
+      size: newVolumeSize.value,
+    });
+
+    if (res?.errors?.length) {
+      errorToast('Failed to create volume', {
+        description: res.errors.map(e => e.message).join(', '),
+      });
+      return;
+    }
+
+    toast.success('Volume created');
+    close();
+    emit('created');
+  } catch (e: unknown) {
+    errorToast('Failed to create volume', { description: errorMessage(e) });
   }
 }
 
@@ -593,7 +637,7 @@ function scrollFocusedIntoView() {
 
 onKeyStroke('ArrowDown', (e) => {
   if (!props.open) return;
-  if (view.value === 'manual-service' || view.value === 'database' || view.value === 'keyValueStore') return;
+  if (view.value === 'manual-service' || view.value === 'database' || view.value === 'keyValueStore' || view.value === 'volume') return;
   if (currentItemCount.value === 0) return;
   e.preventDefault();
   focusedIndex.value = (focusedIndex.value + 1) % currentItemCount.value;
@@ -602,7 +646,7 @@ onKeyStroke('ArrowDown', (e) => {
 
 onKeyStroke('ArrowUp', (e) => {
   if (!props.open) return;
-  if (view.value === 'manual-service' || view.value === 'database' || view.value === 'keyValueStore') return;
+  if (view.value === 'manual-service' || view.value === 'database' || view.value === 'keyValueStore' || view.value === 'volume') return;
   if (currentItemCount.value === 0) return;
   e.preventDefault();
   focusedIndex.value = (focusedIndex.value - 1 + currentItemCount.value) % currentItemCount.value;
@@ -672,6 +716,14 @@ onKeyStroke('Enter', (e) => {
         handleCreateBucket();
       }
       break;
+    case 'volume':
+      e.preventDefault();
+      if (volumeStep.value === 'name') {
+        if (newVolumeName.value) volumeStep.value = 'size';
+      } else if (!creatingVolume.value && newVolumeSize.value) {
+        handleCreateVolume();
+      }
+      break;
     case 'name-project':
       if (isProjectValid.value && !creating.value) {
         e.preventDefault();
@@ -709,6 +761,7 @@ const mainItems = computed(() => {
         { id: 'database', label: 'PostgreSQL', iconSrc: 'https://devicons.railway.com/i/postgresql.svg', action: () => { view.value = 'database'; } },
         { id: 'keyValueStore', label: 'Redis', iconSrc: 'https://devicons.railway.com/i/redis.svg', action: () => { view.value = 'keyValueStore'; } },
         { id: 'bucket', label: 'Bucket', icon: BucketIcon, action: () => { view.value = 'bucket'; } },
+        { id: 'volume', label: 'Volume', icon: HardDrive, action: () => { volumeStep.value = 'name'; view.value = 'volume'; } },
         { id: 'manual-service', label: 'Empty Service', icon: Plus, action: () => { view.value = 'manual-service'; } },
       ];
 
@@ -1181,6 +1234,76 @@ void activeEnvironment;
                 @click="handleCreateBucket"
               >
                 {{ creatingBucket ? 'Creating...' : 'Create Bucket' }}
+              </button>
+            </div>
+          </template>
+
+          <!-- Volume view -->
+          <template v-if="view === 'volume'">
+            <div class="flex h-12 items-center border-b px-3">
+              <button
+                class="mr-1 shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"
+                @click="volumeStep === 'size' ? (volumeStep = 'name') : (view = 'main')"
+              >
+                <ArrowLeft :size="16" />
+              </button>
+              <span class="ml-1 text-sm font-medium text-foreground">Volume</span>
+              <div class="flex-1" />
+              <button
+                class="shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"
+                @click="close"
+              >
+                <X :size="16" />
+              </button>
+            </div>
+
+            <!-- Step: name -->
+            <div v-if="volumeStep === 'name'" class="space-y-4 p-4">
+              <div class="space-y-2">
+                <label class="text-sm font-medium text-foreground">Volume Name</label>
+                <input
+                  ref="inputRef"
+                  v-model="newVolumeName"
+                  class="flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  placeholder="data"
+                />
+                <p class="text-xs text-muted-foreground">Persistent storage you can mount to a service.</p>
+              </div>
+              <button
+                class="inline-flex h-9 w-full items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+                :disabled="!newVolumeName"
+                @click="volumeStep = 'size'"
+              >
+                Next
+              </button>
+            </div>
+
+            <!-- Step: size -->
+            <div v-else class="space-y-4 p-4">
+              <div class="space-y-3">
+                <div class="flex items-center justify-between">
+                  <label class="text-sm font-medium text-foreground">Size</label>
+                  <span class="font-mono text-sm font-semibold text-foreground">{{ newVolumeSize }}</span>
+                </div>
+                <Slider
+                  :model-value="[volumeSizes.indexOf(newVolumeSize)]"
+                  :min="0"
+                  :max="volumeSizes.length - 1"
+                  :step="1"
+                  @update:model-value="newVolumeSize = volumeSizes[$event?.[0] ?? 0]!"
+                />
+                <div class="flex justify-between text-[10px] text-muted-foreground">
+                  <span>{{ volumeSizes[0] }}</span>
+                  <span>{{ volumeSizes[volumeSizes.length - 1] }}</span>
+                </div>
+                <p class="text-xs text-muted-foreground">Volumes can be grown later, but not shrunk.</p>
+              </div>
+              <button
+                class="inline-flex h-9 w-full items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+                :disabled="creatingVolume || !newVolumeSize"
+                @click="handleCreateVolume"
+              >
+                {{ creatingVolume ? 'Creating...' : 'Create Volume' }}
               </button>
             </div>
           </template>

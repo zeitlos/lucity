@@ -24,11 +24,16 @@ spec:
   {{- else if not (and $svc.autoscaling $svc.autoscaling.enabled) }}
   replicas: {{ $svc.replicas | default 1 }}
   {{- end }}
+  {{- if $svc.volumeMounts }}
+  strategy:
+    type: Recreate
+  {{- else }}
   strategy:
     type: RollingUpdate
     rollingUpdate:
       maxUnavailable: 0
       maxSurge: 1
+  {{- end }}
   selector:
     matchLabels:
       {{- include "lucity-app.selectorLabels" (dict "name" $name "release" $.Release.Name) | nindent 6 }}
@@ -111,5 +116,20 @@ spec:
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
+          {{- with $svc.volumeMounts }}
+          volumeMounts:
+            {{- range $volName, $path := . }}
+            - name: volume-{{ $volName }}
+              mountPath: {{ $path | quote }}
+            {{- end }}
+          {{- end }}
+      {{- with $svc.volumeMounts }}
+      volumes:
+        {{- range $volName, $path := . }}
+        - name: volume-{{ $volName }}
+          persistentVolumeClaim:
+            claimName: {{ include "lucity-app.fullname" $ }}-volume-{{ $volName }}
+        {{- end }}
+      {{- end }}
 {{- end }}
 {{- end }}

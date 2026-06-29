@@ -39,7 +39,7 @@ type ServiceClient interface {
 	VerifyDomain(ctx context.Context, id platform.ServiceID, host string, verified bool) (RevisionID, error)
 
 	Mount(ctx context.Context, id platform.ServiceID, volume platform.VolumeID, mountPath string) (RevisionID, error)
-	Unmount(ctx context.Context, id platform.ServiceID, volume platform.VolumeID) (RevisionID, error)
+	Unmount(ctx context.Context, volume platform.VolumeID) (RevisionID, error)
 }
 
 type DatabaseClient interface {
@@ -57,8 +57,9 @@ type KeyValueStoreClient interface {
 }
 
 type VolumeClient interface {
-	Create(ctx context.Context, env platform.EnvironmentID, name string, spec VolumeSpec) (RevisionID, error)
+	Create(ctx context.Context, env platform.EnvironmentID, name string, size resource.Quantity) (RevisionID, error)
 	Delete(ctx context.Context, id platform.VolumeID) error
+	Expand(ctx context.Context, id platform.VolumeID, size resource.Quantity) (RevisionID, error)
 }
 
 type EnvironmentClient interface {
@@ -107,10 +108,6 @@ type KeyValueStoreSpec struct {
 	Version  string
 	Size     resource.Quantity
 	Password string
-}
-
-type VolumeSpec struct {
-	Size resource.Quantity
 }
 
 type Autoscaling struct {
