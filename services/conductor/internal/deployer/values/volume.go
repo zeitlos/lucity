@@ -42,6 +42,33 @@ func CreateVolume(env *Env, name string, size resource.Quantity) error {
 	return nil
 }
 
+func SetVolumeStorage(env *Env, name string, size resource.Quantity) error {
+	volume, ok := env.Volumes[name]
+
+	if !ok {
+		return fmt.Errorf("volume %q not found", name)
+	}
+
+	if size.Cmp(minVolumeSize) < 0 || size.Cmp(maxVolumeSize) > 0 {
+		return fmt.Errorf("volume size must be between %s and %s", minVolumeSize.String(), maxVolumeSize.String())
+	}
+
+	current, err := resource.ParseQuantity(volume.Size)
+
+	if err != nil {
+		return fmt.Errorf("parse current size %q: %w", volume.Size, err)
+	}
+
+	if size.Cmp(current) < 0 {
+		return fmt.Errorf("volume storage can only be increased, not shrunk from %s to %s", current.String(), size.String())
+	}
+
+	volume.Size = size.String()
+	env.Volumes[name] = volume
+
+	return nil
+}
+
 func DeleteVolume(env *Env, name string) error {
 	if _, ok := env.Volumes[name]; !ok {
 		return fmt.Errorf("volume %q not found", name)

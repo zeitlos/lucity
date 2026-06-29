@@ -49,6 +49,20 @@ func (c *Client) CreateVolume(ctx context.Context, environment platform.Environm
 	}, nil
 }
 
+func (c *Client) SetVolumeStorage(ctx context.Context, volume platform.VolumeID, size string) (*Volume, error) {
+	parsedSize, err := resource.ParseQuantity(size)
+
+	if err != nil {
+		return nil, fmt.Errorf("invalid storage size %q: %w", size, err)
+	}
+
+	if _, err := c.deployer.Volumes().SetStorage(ctx, volume, parsedSize); err != nil {
+		return nil, fmt.Errorf("set storage: %w", err)
+	}
+
+	return c.platform.Volume(ctx, volume)
+}
+
 func (c *Client) DeleteVolume(ctx context.Context, id platform.VolumeID) (bool, error) {
 	if err := c.deployer.Volumes().Delete(ctx, id); err != nil {
 		return false, fmt.Errorf("delete volume: %w", err)

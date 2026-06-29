@@ -17,6 +17,7 @@ extend type Query {
 
 extend type Mutation {
   createVolume(environment: EnvironmentID!, name: String! @constraint(constraint: "resource_name,min=2,max=16"), size: String!): Volume! @hasRole(role: WORKSPACE_MEMBER)
+  setVolumeStorage(volume: VolumeID!, size: String!): Volume! @hasRole(role: WORKSPACE_MEMBER)
   mountVolume(volume: VolumeID!, service: ServiceID!, path: String!): Volume! @hasRole(role: WORKSPACE_MEMBER)
   unmountVolume(volume: VolumeID!): Volume! @hasRole(role: WORKSPACE_MEMBER)
   deleteVolume(volume: VolumeID!): Boolean! @hasRole(role: WORKSPACE_MEMBER)
