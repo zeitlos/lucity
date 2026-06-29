@@ -384,12 +384,12 @@ async function handleAddServicesFromRepo(repo: { fullName: string; htmlUrl: stri
 // Add service (within environment context)
 const { mutate: addServiceMutate, loading: addingService } = useMutation(AddServiceDocument);
 
-const newServiceName = ref('web');
+const newServiceName = ref('');
 const newServicePort = ref<number | null>(null);
 
 // Create database (within environment context)
 const { mutate: createDatabaseMutate, loading: creatingDatabase } = useMutation(CreateDatabaseDocument);
-const newDatabaseName = ref('main');
+const newDatabaseName = ref('');
 
 async function handleCreateDatabase() {
   if (!props.environmentId) return;
@@ -419,7 +419,7 @@ async function handleCreateDatabase() {
 
 // Create Redis store (within environment context)
 const { mutate: createKeyValueStoreMutate, loading: creatingKeyValueStore } = useMutation(CreateKeyValueStoreDocument);
-const newKeyValueStoreName = ref('cache');
+const newKeyValueStoreName = ref('');
 
 async function handleCreateKeyValueStore() {
   if (!props.environmentId) return;
@@ -449,7 +449,7 @@ async function handleCreateKeyValueStore() {
 
 // Create object storage bucket (within environment context)
 const { mutate: createBucketMutate, loading: creatingBucket } = useMutation(CreateBucketDocument);
-const newBucketName = ref('uploads');
+const newBucketName = ref('');
 
 async function handleCreateBucket() {
   if (!props.environmentId) return;
@@ -479,7 +479,7 @@ async function handleCreateBucket() {
 
 // Create volume (within environment context)
 const { mutate: createVolumeMutate, loading: creatingVolume } = useMutation(CreateVolumeDocument);
-const newVolumeName = ref('data');
+const newVolumeName = ref('');
 const volumeSizes = ['10Gi', '16Gi', '32Gi', '64Gi', '128Gi', '256Gi', '512Gi', '1Ti'];
 const newVolumeSize = ref('10Gi');
 const volumeStep = ref<'name' | 'size'>('name');
