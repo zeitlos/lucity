@@ -294,7 +294,7 @@ victoria-metrics-alert:
                     "pod", "$1", "k8s_pod_name", "(.*)"),
                     "volume", "$1", "k8s_volume_name", "(.*)")
                   * on (namespace, pod, volume) group_left(persistentvolumeclaim)
-                    kube_pod_spec_volumes_persistentvolumeclaims_info
+                    kube_pod_spec_volumes_persistentvolumeclaims_info{namespace=~"lucity-system|lucity-builds"}
                   > 0.85
                 for: 10m
                 labels: { severity: warning }
@@ -308,7 +308,7 @@ victoria-metrics-alert:
                     "pod", "$1", "k8s_pod_name", "(.*)"),
                     "volume", "$1", "k8s_volume_name", "(.*)")
                   * on (namespace, pod, volume) group_left(persistentvolumeclaim)
-                    kube_pod_spec_volumes_persistentvolumeclaims_info
+                    kube_pod_spec_volumes_persistentvolumeclaims_info{namespace=~"lucity-system|lucity-builds"}
                   > 0.95
                 for: 5m
                 labels: { severity: critical }
