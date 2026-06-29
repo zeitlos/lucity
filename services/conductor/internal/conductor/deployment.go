@@ -2,12 +2,11 @@ package conductor
 
 import (
 	"context"
-	"fmt"
+	"log/slog"
+	"strconv"
 	"strings"
 
-	"github.com/google/go-containerregistry/pkg/authn"
-	"github.com/google/go-containerregistry/pkg/name"
-	"github.com/google/go-containerregistry/pkg/v1/remote"
+	v1 "github.com/google/go-containerregistry/pkg/v1"
 )
 
 func (c *Client) Deployments(ctx context.Context, serviceID ServiceID) ([]Deployment, error) {
@@ -19,62 +18,55 @@ func (c *Client) Deployment(ctx context.Context, id DeploymentID) (*Deployment, 
 }
 
 func (c *Client) DefaultCommand(ctx context.Context, imageRef string) (string, error) {
-	ref, err := name.ParseReference(imageRef)
+	cfg, err := c.registry.ImageConfig(ctx, imageRef)
 
 	if err != nil {
 		return "", err
 	}
 
-	registry := ref.Context().RegistryStr()
-	authConfig := authn.Anonymous
-
-	if strings.EqualFold(registry, c.config.RegistryPullURL) {
-		registry = c.config.RegistryPushURL
-
-		pullRegistry, err := name.NewRegistry(c.config.RegistryPullURL)
-
-		if err != nil {
-			return "", err
-		}
-
-		authConfig, err = c.config.RegistryPullSecret.Resolve(pullRegistry)
-
-		if err != nil {
-			return "", err
-		}
-	}
-
-	repo, err := name.NewRepository(registry + "/" + ref.Context().RepositoryStr())
-
-	if err != nil {
-		return "", err
-	}
-
-	switch r := ref.(type) {
-	case name.Tag:
-		ref = repo.Tag(r.TagStr())
-	case name.Digest:
-		ref = repo.Digest(r.DigestStr())
-	default:
-		return "", fmt.Errorf("unexpected reference type %T", ref)
-	}
-
-	img, err := remote.Image(ref,
-		remote.WithContext(ctx),
-		remote.WithAuth(authConfig),
-	)
-
-	if err != nil {
-		return "", err
-	}
-
-	cfg, err := img.ConfigFile()
-
-	if err != nil {
-		return "", err
-	}
-
-	args := append(cfg.Config.Entrypoint, cfg.Config.Cmd...)
+	args := make([]string, 0, len(cfg.Entrypoint)+len(cfg.Cmd))
+	args = append(args, cfg.Entrypoint...)
+	args = append(args, cfg.Cmd...)
 
 	return strings.Join(args, " "), nil
+}
+
+func (c *Client) imageExposedPort(ctx context.Context, imageRef string) int {
+	cfg, err := c.registry.ImageConfig(ctx, imageRef)
+
+	if err != nil {
+		slog.Warn("could not inspect image for exposed port", "image", imageRef, "error", err)
+		return 0
+	}
+
+	return exposedPort(cfg)
+}
+
+func exposedPort(cfg *v1.Config) int {
+	best := 0
+
+	for spec := range cfg.ExposedPorts {
+		proto := "tcp"
+
+		if i := strings.IndexByte(spec, '/'); i >= 0 {
+			proto = strings.ToLower(spec[i+1:])
+			spec = spec[:i]
+		}
+
+		if proto != "tcp" {
+			continue
+		}
+
+		port, err := strconv.Atoi(spec)
+
+		if err != nil || port < 1 || port > 65535 {
+			continue
+		}
+
+		if best == 0 || port < best {
+			best = port
+		}
+	}
+
+	return best
 }

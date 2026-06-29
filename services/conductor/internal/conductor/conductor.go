@@ -21,6 +21,7 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/objectstorage"
 	"github.com/zeitlos/lucity/services/conductor/internal/planner"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
+	"github.com/zeitlos/lucity/services/conductor/internal/registry"
 	"github.com/zeitlos/lucity/services/conductor/internal/source"
 )
 
@@ -46,6 +47,7 @@ type Client struct {
 	environment   environment.Interface
 	objectStorage objectstorage.Interface
 	metrics       *metrics.Provider
+	registry      *registry.Client
 
 	config Config
 
@@ -92,6 +94,11 @@ func New(cashier cashier.CashierServiceClient, githubApp *ghpkg.App, logto *logt
 		environment:    environment,
 		objectStorage:  objectStorage,
 		metrics:        metrics,
+		registry: registry.New(registry.Config{
+			Endpoint:     config.RegistryPullURL,
+			DialEndpoint: config.RegistryPushURL,
+			Keychain:     config.RegistryPullSecret,
+		}),
 	}
 }
 
