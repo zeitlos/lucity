@@ -317,10 +317,10 @@ const { mutate: removeDomainMutate } = useMutation(RemoveDomainDocument);
 const { mutate: setServicePortMutate, loading: portSaving } = useMutation(SetServicePortDocument);
 
 const currentPort = computed(() => props.service.port);
-const portInput = ref<number | undefined>(currentPort.value);
+const portInput = ref<number | undefined>(currentPort.value || undefined);
 
 watch(currentPort, value => {
-  portInput.value = value;
+  portInput.value = value || undefined;
 });
 
 const portChanged = computed(() => (portInput.value || null) !== (currentPort.value || null));
