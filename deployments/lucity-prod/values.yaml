@@ -37,6 +37,8 @@ conductor:
     WORKLOAD_DOMAIN: lucity.app
     DATABASE_DOMAIN: db.lucity.app
     IP_ADDRESS: "46.225.47.40"
+
+    VICTORIA_METRICS_URL: http://lucity-infra-victoria-metrics-single-server.lucity-system.svc.cluster.local:8428
   envSecret:
     SESSION_SECRET: SESSION_SECRET
     GITHUB_CLIENT_SECRET: GITHUB_CLIENT_SECRET
