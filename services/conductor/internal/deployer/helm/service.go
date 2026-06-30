@@ -25,6 +25,7 @@ func (s *serviceClient) Create(ctx context.Context, env platform.EnvironmentID, 
 			GitHubInstallationID: spec.GitHubInstallationID,
 			Port:                 spec.Port,
 			Resources:            deriveRequestsAndLimtis(spec.Resources, spec.ResourceTier),
+			Env:                  spec.Env,
 		}
 
 		return values.CreateService(e, name, spec)

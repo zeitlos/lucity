@@ -43,23 +43,6 @@ const props = defineProps<{
   border-color: var(--border) !important;
 }
 
-/* Colored left-border accents per toast type */
-[data-sonner-toast][data-type='success'] {
-  border-left: 3px solid var(--status-ok) !important;
-}
-
-[data-sonner-toast][data-type='error'] {
-  border-left: 3px solid var(--status-danger) !important;
-}
-
-[data-sonner-toast][data-type='info'] {
-  border-left: 3px solid var(--primary) !important;
-}
-
-[data-sonner-toast][data-type='warning'] {
-  border-left: 3px solid var(--status-warn) !important;
-}
-
 /* Icon color overrides — sonner rich colors paint the icon too */
 [data-sonner-toast][data-type='success'] [data-icon] {
   color: var(--status-ok) !important;

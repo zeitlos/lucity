@@ -19,10 +19,11 @@ type VariableSource interface {
 }
 
 type AddServiceInput struct {
-	Name        *string `json:"name,omitempty"`
-	Repository  *string `json:"repository,omitempty"`
-	ContextPath *string `json:"contextPath,omitempty"`
-	Image       *string `json:"image,omitempty"`
+	Name        *string         `json:"name,omitempty"`
+	Repository  *string         `json:"repository,omitempty"`
+	ContextPath *string         `json:"contextPath,omitempty"`
+	Image       *string         `json:"image,omitempty"`
+	Variables   []VariableInput `json:"variables,omitempty"`
 }
 
 type AutoscalingInput struct {
@@ -203,6 +204,7 @@ type DetectedService struct {
 	Name          string `json:"name"`
 	Language      string `json:"language"`
 	Framework     string `json:"framework"`
+	ContextPath   string `json:"contextPath"`
 	StartCommand  string `json:"startCommand"`
 	SuggestedPort int    `json:"suggestedPort"`
 }

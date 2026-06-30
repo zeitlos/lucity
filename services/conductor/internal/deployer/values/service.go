@@ -67,6 +67,7 @@ type ServiceSpec struct {
 	GitHubInstallationID int64
 	Port                 int
 	Resources            Resources
+	Env                  map[string]string
 }
 
 func CreateService(env *Env, name string, spec ServiceSpec) error {
@@ -120,6 +121,7 @@ func CreateService(env *Env, name string, spec ServiceSpec) error {
 		PodLabels:      podLabels,
 		PodAnnotations: podAnnotations,
 		Resources:      spec.Resources,
+		Env:            maps.Clone(spec.Env),
 	}
 
 	return nil

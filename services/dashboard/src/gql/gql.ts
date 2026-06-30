@@ -21,7 +21,7 @@ type Documents = {
     "\n  query GitHubRepositories($account: String!) {\n    githubRepositories(account: $account) {\n      id\n      name\n      fullName\n      htmlUrl\n      defaultBranch\n      private\n    }\n  }\n": typeof types.GitHubRepositoriesDocument,
     "\n  mutation CreateProject($input: CreateProjectInput!) {\n    createProject(input: $input) {\n      id\n      name\n      environments {\n        id\n        name\n      }\n    }\n  }\n": typeof types.CreateProjectDocument,
     "\n  mutation AddService($environmentId: EnvironmentID!, $input: AddServiceInput!) {\n    addService(environment: $environmentId, input: $input) {\n      id\n      name\n    }\n  }\n": typeof types.AddServiceDocument,
-    "\n  query DetectServices($repositoryUrl: String!) {\n    detectServices(repositoryUrl: $repositoryUrl) {\n      name\n      language\n      framework\n      startCommand\n      suggestedPort\n    }\n  }\n": typeof types.DetectServicesDocument,
+    "\n  query DetectServices($repositoryUrl: String!) {\n    detectServices(repositoryUrl: $repositoryUrl) {\n      name\n      language\n      framework\n      contextPath\n      startCommand\n      suggestedPort\n    }\n  }\n": typeof types.DetectServicesDocument,
     "\n  query SearchImages($query: String!) {\n    searchImages(query: $query) {\n      name\n      description\n      starCount\n      pullCount\n      official\n    }\n  }\n": typeof types.SearchImagesDocument,
     "\n  mutation CreateDatabase($input: CreateDatabaseInput!) {\n    createDatabase(input: $input) {\n      id\n      name\n      version\n      size\n    }\n  }\n": typeof types.CreateDatabaseDocument,
     "\n  mutation CreateKeyValueStore($input: CreateKeyValueStoreInput!) {\n    createKeyValueStore(input: $input) {\n      id\n      name\n      version\n      size\n    }\n  }\n": typeof types.CreateKeyValueStoreDocument,
@@ -100,7 +100,7 @@ const documents: Documents = {
     "\n  query GitHubRepositories($account: String!) {\n    githubRepositories(account: $account) {\n      id\n      name\n      fullName\n      htmlUrl\n      defaultBranch\n      private\n    }\n  }\n": types.GitHubRepositoriesDocument,
     "\n  mutation CreateProject($input: CreateProjectInput!) {\n    createProject(input: $input) {\n      id\n      name\n      environments {\n        id\n        name\n      }\n    }\n  }\n": types.CreateProjectDocument,
     "\n  mutation AddService($environmentId: EnvironmentID!, $input: AddServiceInput!) {\n    addService(environment: $environmentId, input: $input) {\n      id\n      name\n    }\n  }\n": types.AddServiceDocument,
-    "\n  query DetectServices($repositoryUrl: String!) {\n    detectServices(repositoryUrl: $repositoryUrl) {\n      name\n      language\n      framework\n      startCommand\n      suggestedPort\n    }\n  }\n": types.DetectServicesDocument,
+    "\n  query DetectServices($repositoryUrl: String!) {\n    detectServices(repositoryUrl: $repositoryUrl) {\n      name\n      language\n      framework\n      contextPath\n      startCommand\n      suggestedPort\n    }\n  }\n": types.DetectServicesDocument,
     "\n  query SearchImages($query: String!) {\n    searchImages(query: $query) {\n      name\n      description\n      starCount\n      pullCount\n      official\n    }\n  }\n": types.SearchImagesDocument,
     "\n  mutation CreateDatabase($input: CreateDatabaseInput!) {\n    createDatabase(input: $input) {\n      id\n      name\n      version\n      size\n    }\n  }\n": types.CreateDatabaseDocument,
     "\n  mutation CreateKeyValueStore($input: CreateKeyValueStoreInput!) {\n    createKeyValueStore(input: $input) {\n      id\n      name\n      version\n      size\n    }\n  }\n": types.CreateKeyValueStoreDocument,
@@ -217,7 +217,7 @@ export function graphql(source: "\n  mutation AddService($environmentId: Environ
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query DetectServices($repositoryUrl: String!) {\n    detectServices(repositoryUrl: $repositoryUrl) {\n      name\n      language\n      framework\n      startCommand\n      suggestedPort\n    }\n  }\n"): (typeof documents)["\n  query DetectServices($repositoryUrl: String!) {\n    detectServices(repositoryUrl: $repositoryUrl) {\n      name\n      language\n      framework\n      startCommand\n      suggestedPort\n    }\n  }\n"];
+export function graphql(source: "\n  query DetectServices($repositoryUrl: String!) {\n    detectServices(repositoryUrl: $repositoryUrl) {\n      name\n      language\n      framework\n      contextPath\n      startCommand\n      suggestedPort\n    }\n  }\n"): (typeof documents)["\n  query DetectServices($repositoryUrl: String!) {\n    detectServices(repositoryUrl: $repositoryUrl) {\n      name\n      language\n      framework\n      contextPath\n      startCommand\n      suggestedPort\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

@@ -2,7 +2,7 @@
 import { computed, watch, ref, onMounted, toRef } from 'vue';
 import { VueFlow, useVueFlow, Panel, PanOnScrollMode } from '@vue-flow/core';
 import { Background } from '@vue-flow/background';
-import { Plus, Maximize2 } from '@lucide/vue';
+import { Plus, Maximize2, RotateCcw } from '@lucide/vue';
 import { usePanel } from '@/composables/usePanel';
 import { useCanvasBuildStatus } from '@/composables/useCanvasBuildStatus';
 import { useCanvasLayout } from '@/composables/useCanvasLayout';
@@ -43,7 +43,21 @@ const { fitView, findNode, setCenter, dimensions, onNodeDragStop } = useVueFlow(
   id: 'service-canvas',
 });
 
-const { positionFor, setPosition } = useCanvasLayout(() => props.environmentId);
+const { positionFor, setPosition, reconcile, reset } = useCanvasLayout(() => props.environmentId);
+
+const allNodeIds = computed(() => [
+  ...props.services,
+  ...props.databases,
+  ...props.keyValueStores,
+  ...props.buckets,
+  ...props.volumes,
+].map(node => node.id));
+
+watch(
+  () => allNodeIds.value.join('|'),
+  () => reconcile(allNodeIds.value),
+  { immediate: true },
+);
 
 const nodes = computed(() => {
   const serviceNodes = props.services.map((svc, index) => {
@@ -158,6 +172,11 @@ function handleFitView() {
   fitView({ padding: 0.3, maxZoom: 1 });
 }
 
+function handleResetLayout() {
+  reset();
+  setTimeout(() => handleFitView(), 50);
+}
+
 onNodeDragStop(({ nodes: draggedNodes }) => {
   for (const node of draggedNodes) {
     setPosition(node.id, node.position);
@@ -266,13 +285,20 @@ watch(
 
       <Background variant="dots" :gap="24" :size="1" />
 
-      <Panel position="top-left" class="!m-3">
+      <Panel position="top-left" class="!m-3 flex gap-2">
         <button
           class="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-foreground"
           title="Fit view"
           @click="handleFitView"
         >
           <Maximize2 :size="14" />
+        </button>
+        <button
+          class="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-foreground"
+          title="Reset layout"
+          @click="handleResetLayout"
+        >
+          <RotateCcw :size="14" />
         </button>
       </Panel>
     </VueFlow>
