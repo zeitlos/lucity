@@ -231,8 +231,6 @@ const wizardPlaceholder = computed(() => {
   return '';
 });
 
-// Selectable command rows shown below the input. Navigated with arrows, the
-// focused row is activated with Enter (green ↵ badge) or clicked.
 type WizardItem = { id: string; label: string; icon: Component; actionLabel: string; disabled?: boolean; mono?: boolean; action: () => void };
 
 const wizardItems = computed<WizardItem[]>(() => {
@@ -328,8 +326,6 @@ watch(view, (newView) => {
   nextTick(() => inputRef.value?.focus());
 });
 
-// Stepping through the wizard keeps the input focused and the primary command
-// row (Create / Continue) pre-selected so Enter does the expected thing.
 watch(serviceStep, () => {
   focusedIndex.value = wizardPrimaryIndex.value;
   nextTick(() => inputRef.value?.focus());
@@ -416,9 +412,6 @@ function showProjectNaming(repo: { fullName: string; htmlUrl: string }) {
   nextTick(() => nameSlugRef.value?.focusName());
 }
 
-// Submit handler for the name-project view. Repo-backed projects defer creation
-// until the service is confirmed (so an abandoned flow leaves no empty project);
-// empty and image-backed projects are created immediately.
 async function handleProjectNamingNext() {
   if (!isProjectValid.value || creating.value || detectingServices.value) return;
   if (pendingRepo.value) {
@@ -465,7 +458,6 @@ async function finishEmptyOrImageProject() {
   }
 }
 
-// Detect services in a repo, then route to the confirm/overwrite step.
 async function detectAndConfirm(repo: { fullName: string; htmlUrl: string }) {
   confirmRepo.value = repo;
   processingItemId.value = repo.fullName;
@@ -491,7 +483,6 @@ function proceedAfterDetection(repo: { fullName: string; htmlUrl: string }) {
   const detected = detectedServices.value;
 
   if (detected.length === 0) {
-    // Nothing detected — fall through to manual setup (name + root directory).
     startManualService(repo);
     return;
   }
@@ -551,8 +542,6 @@ function removeEnvVarRow(index: number) {
   focusedIndex.value = Math.min(focusedIndex.value, wizardItems.value.length - 1);
 }
 
-// Enter on the wizard: while typing a KEY=value draft it adds the variable,
-// otherwise it activates the focused command row.
 function wizardEnter() {
   if (creating.value || addingService.value || detectingServices.value) return;
   if (serviceStep.value === 'variables' && envVarDraft.value.trim()) {
@@ -590,8 +579,6 @@ function selectServicesBack() {
   view.value = props.context === 'projects' ? 'name-project' : 'github-repos';
 }
 
-// Create the confirmed service. In the project flow the project is created
-// here (lazily) so the confirm step is the single point of no return.
 async function handleCreateService() {
   if (!isServiceValid.value || creating.value || addingService.value || detectingServices.value) return;
   if (!confirmRepo.value) return;
@@ -664,9 +651,7 @@ const { mutate: addServiceMutate, loading: addingService } = useMutation(AddServ
 const newServiceName = ref('');
 const newServicePort = ref<number | null>(null);
 
-// Create database (within environment context) — first flow on the generic
-// config-driven CommandFlow renderer. Other create flows still use bespoke
-// views below until they are migrated.
+// Create database (within environment context)
 const databaseFlow = computed<CommandFlowConfig>(() => ({
   title: 'Database',
   iconSrc: 'https://devicons.railway.com/i/postgresql.svg',
