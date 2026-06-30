@@ -2,17 +2,12 @@
 secrets: {}
   # GITHUB_CLIENT_SECRET: ""
   # GITHUB_WEBHOOK_SECRET: ""
-  # ARGOCD_TOKEN: ""
-  # SOFTSERVE_TOKEN: ""
   # LOGTO_OIDC_CLIENT_ID: ""
   # LOGTO_M2M_APP_ID: ""
   # LOGTO_M2M_APP_SECRET: ""
 
 # -- GitHub App private key (mounted as file)
 githubPrivateKey: ""
-
-# -- Soft-serve admin SSH key (mounted as file)
-softserveKey: ""
 
 # -- Registry pull credentials for workload imagePullSecrets.
 # The deployer clones this Secret into each workload namespace so kubelet
@@ -43,8 +38,8 @@ routes:
   gatewayNamespace: lucity-system
   hostname: lucity.cloud
 
-# -- Conductor (unified control plane: GraphQL + GitOps repo management
-#    + ArgoCD lifecycle + build orchestration + webhook receiver).
+# -- Conductor (unified control plane: GraphQL + Helm release management
+#    + build orchestration + webhook receiver).
 #    Absorbs what were previously gateway, packager, deployer, builder,
 #    and webhook.
 conductor:

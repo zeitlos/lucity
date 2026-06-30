@@ -5,7 +5,15 @@ export default defineNuxtConfig({
   },
   fonts: {
     families: [
-      { name: 'Mona Sans', provider: 'google', weights: [400, 500, 600, 700] }
+      { name: 'Mona Sans', provider: 'none' },
+      { name: 'Mona Sans Condensed', provider: 'none' },
+      { name: 'Redaction', provider: 'none' },
+      { name: 'Redaction 10', provider: 'none' },
+      { name: 'Redaction 20', provider: 'none' },
+      { name: 'Redaction 35', provider: 'none' },
+      { name: 'Redaction 50', provider: 'none' },
+      { name: 'Redaction 70', provider: 'none' },
+      { name: 'Redaction 100', provider: 'none' }
     ]
   },
   hooks: {

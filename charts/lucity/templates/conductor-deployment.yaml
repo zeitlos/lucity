@@ -103,11 +103,6 @@ spec:
               mountPath: /secrets/github
               readOnly: true
             {{- end }}
-            {{- if .Values.softserveKey }}
-            - name: softserve-key
-              mountPath: /secrets/softserve
-              readOnly: true
-            {{- end }}
             {{- if and .Values.internalJWT .Values.internalJWT.privateKey }}
             - name: internal-jwt
               mountPath: /secrets/internal-jwt
@@ -122,12 +117,6 @@ spec:
         - name: github-app-key
           secret:
             secretName: {{ include "lucity.fullname" . }}-github-app
-        {{- end }}
-        {{- if .Values.softserveKey }}
-        - name: softserve-key
-          secret:
-            secretName: {{ include "lucity.fullname" . }}-softserve-key
-            defaultMode: 0o600
         {{- end }}
         {{- if and .Values.internalJWT .Values.internalJWT.privateKey }}
         - name: internal-jwt
