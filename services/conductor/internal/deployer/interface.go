@@ -89,6 +89,7 @@ type ServiceSpec struct {
 	Port                 int
 	Resources            Resources
 	ResourceTier         platform.ResourceTier
+	Env                  map[string]string
 }
 
 type ImageProvenance struct {

@@ -108,6 +108,7 @@ type DetectedService {
   name: String!
   language: String!
   framework: String!
+  contextPath: String!
   startCommand: String!
   suggestedPort: Int!
 }
@@ -117,6 +118,7 @@ input AddServiceInput {
   repository: String @constraint(constraint: "min=3,max=200")
   contextPath: String
   image: String
+  variables: [VariableInput!]
 }
 
 input SetServiceScalingInput {

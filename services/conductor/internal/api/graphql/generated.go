@@ -174,6 +174,7 @@ type ComplexityRoot struct {
 	}
 
 	DetectedService struct {
+		ContextPath   func(childComplexity int) int
 		Framework     func(childComplexity int) int
 		Language      func(childComplexity int) int
 		Name          func(childComplexity int) int
@@ -1112,6 +1113,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.Deployment.Status(childComplexity), true
 
+	case "DetectedService.contextPath":
+		if e.ComplexityRoot.DetectedService.ContextPath == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DetectedService.ContextPath(childComplexity), true
 	case "DetectedService.framework":
 		if e.ComplexityRoot.DetectedService.Framework == nil {
 			break
@@ -3233,6 +3240,8 @@ func (ec *executionContext) childFields_DetectedService(ctx context.Context, fie
 		return ec.fieldContext_DetectedService_language(ctx, field)
 	case "framework":
 		return ec.fieldContext_DetectedService_framework(ctx, field)
+	case "contextPath":
+		return ec.fieldContext_DetectedService_contextPath(ctx, field)
 	case "startCommand":
 		return ec.fieldContext_DetectedService_startCommand(ctx, field)
 	case "suggestedPort":
@@ -7105,6 +7114,29 @@ func (ec *executionContext) _DetectedService_framework(ctx context.Context, fiel
 	)
 }
 func (ec *executionContext) fieldContext_DetectedService_framework(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DetectedService", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _DetectedService_contextPath(ctx context.Context, field graphql.CollectedField, obj *model.DetectedService) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DetectedService_contextPath(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ContextPath, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DetectedService_contextPath(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("DetectedService", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
@@ -16536,7 +16568,7 @@ func (ec *executionContext) unmarshalInputAddServiceInput(ctx context.Context, o
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "repository", "contextPath", "image"}
+	fieldsInOrder := [...]string{"name", "repository", "contextPath", "image", "variables"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -16615,6 +16647,13 @@ func (ec *executionContext) unmarshalInputAddServiceInput(ctx context.Context, o
 				return it, err
 			}
 			it.Image = data
+		case "variables":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("variables"))
+			data, err := ec.unmarshalOVariableInput2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐVariableInputᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Variables = data
 		}
 	}
 	return it, nil
@@ -18574,6 +18613,11 @@ func (ec *executionContext) _DetectedService(ctx context.Context, sel ast.Select
 			}
 		case "framework":
 			out.Values[i] = ec._DetectedService_framework(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "contextPath":
+			out.Values[i] = ec._DetectedService_contextPath(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -24189,6 +24233,24 @@ func (ec *executionContext) marshalOVariableID2ᚖgithubᚗcomᚋzeitlosᚋlucit
 		return graphql.Null
 	}
 	return v
+}
+
+func (ec *executionContext) unmarshalOVariableInput2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐVariableInputᚄ(ctx context.Context, v any) ([]model.VariableInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]model.VariableInput, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNVariableInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐVariableInput(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
 }
 
 func (ec *executionContext) marshalO__EnumValue2ᚕgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐEnumValueᚄ(ctx context.Context, sel ast.SelectionSet, v []introspection.EnumValue) graphql.Marshaler {

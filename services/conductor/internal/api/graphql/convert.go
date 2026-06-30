@@ -222,6 +222,7 @@ func convertDetectedService(s planner.Plan) model.DetectedService {
 		Name:         s.Name,
 		Language:     language,
 		Framework:    framework,
+		ContextPath:  s.ContextPath,
 		StartCommand: s.StartCommand,
 		// SuggestedPort: buildjob.DetectedService no longer carries port info.
 		// Left at zero until the new detector returns a port or we drop the field.

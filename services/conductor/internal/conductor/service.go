@@ -86,7 +86,7 @@ func (c *Client) DetectServices(ctx context.Context, repositoryURL string) ([]Pl
 	return c.planner.Plan(ctx, repositoryURL, commit.SHA, token)
 }
 
-func (c *Client) AddService(ctx context.Context, environmentID platform.EnvironmentID, name string, repository, contextPath string, externalImage string) (*Service, error) {
+func (c *Client) AddService(ctx context.Context, environmentID platform.EnvironmentID, name string, repository, contextPath string, externalImage string, variables map[string]string) (*Service, error) {
 	workspace := environmentID.Workspace
 	projectID := environmentID.Project
 	id := platform.ServiceID{
@@ -106,6 +106,7 @@ func (c *Client) AddService(ctx context.Context, environmentID platform.Environm
 	spec := deployer.ServiceSpec{
 		ContextPath:  contextPath,
 		ResourceTier: environment.ResourceTier,
+		Env:          variables,
 	}
 
 	if repository != "" {
@@ -145,8 +146,9 @@ func (c *Client) AddService(ctx context.Context, environmentID platform.Environm
 	}
 
 	service := &platform.Service{
-		ID:   id,
-		Name: serviceName,
+		ID:        id,
+		Name:      serviceName,
+		Variables: variables,
 	}
 
 	if spec.SourceURL != "" {
