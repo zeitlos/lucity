@@ -2,10 +2,13 @@
 import { ref, computed, watch, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { useQuery, useMutation, useApolloClient } from '@vue/apollo-composable';
-import { FolderPlus, Plus, Lock, Globe, ArrowLeft, Search, X, ChevronDown, Container, Star, Award, Loader2, HardDrive } from '@lucide/vue';
+import { FolderPlus, FolderGit2, Plus, Lock, Globe, ArrowLeft, Search, ChevronDown, ChevronRight, Container, Star, Award, Loader2, HardDrive, Braces, CornerDownLeft, Check } from '@lucide/vue';
 import type { Component } from 'vue';
 import BucketIcon from '@/components/BucketIcon.vue';
+import FrameworkIcon from '@/components/FrameworkIcon.vue';
 import GithubIcon from '@/components/GithubIcon.vue';
+import CommandFlow from '@/components/CommandFlow.vue';
+import type { CommandFlowConfig } from '@/lib/commandFlow';
 import { onKeyStroke, refDebounced } from '@vueuse/core';
 import { graphql } from '@/gql';
 import { GitHubAccountType } from '@/gql/graphql';
@@ -67,6 +70,7 @@ const DetectServicesDocument = graphql(`
       name
       language
       framework
+      contextPath
       startCommand
       suggestedPort
     }
@@ -129,12 +133,12 @@ const CreateVolumeDocument = graphql(`
 `);
 import { useEnvironment } from '@/composables/useEnvironment';
 import { useGitHubInstall } from '@/composables/useGitHubInstall';
-import { toast, errorToast } from '@/components/ui/sonner';
+import { errorToast } from '@/components/ui/sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { errorMessage } from '@/lib/utils';
-import { isValidSlug } from '@/lib/slug';
+import { isValidSlug, deriveServiceName, isValidServiceName } from '@/lib/slug';
 import NameSlugField from '@/components/NameSlugField.vue';
 
 const props = defineProps<{
@@ -154,7 +158,7 @@ const { resolveClient } = useApolloClient();
 const { activeEnvironment } = useEnvironment();
 
 // Drill-down state
-type PaletteView = 'main' | 'github-repos' | 'manual-service' | 'database' | 'keyValueStore' | 'bucket' | 'volume' | 'container-image' | 'name-project';
+type PaletteView = 'main' | 'github-repos' | 'select-services' | 'service-wizard' | 'manual-service' | 'database' | 'keyValueStore' | 'bucket' | 'volume' | 'container-image' | 'name-project';
 const view = ref<PaletteView>('main');
 const search = ref('');
 const inputRef = ref<HTMLInputElement>();
@@ -176,6 +180,120 @@ const isProjectValid = computed(() =>
   projectDisplayName.value.trim().length > 0 && isValidSlug(projectSlug.value),
 );
 
+type DetectedService = {
+  name: string;
+  language: string;
+  framework: string;
+  contextPath: string;
+  startCommand: string;
+};
+const detectedServices = ref<DetectedService[]>([]);
+const selectedDetectedIndex = ref(0);
+const activeDetected = computed(() => detectedServices.value[selectedDetectedIndex.value] ?? null);
+
+type ServiceStep = 'name' | 'context' | 'variables';
+const serviceStep = ref<ServiceStep>('name');
+const serviceName = ref('');
+const serviceContextPath = ref('/');
+const serviceEnvVars = ref<{ key: string; value: string }[]>([]);
+const envVarDraft = ref('');
+
+const confirmEnvironmentId = ref<string | null>(null);
+const confirmRepo = ref<{ fullName: string; htmlUrl: string } | null>(null);
+
+const isServiceValid = computed(() => isValidServiceName(serviceName.value));
+const serviceDetected = computed(() => activeDetected.value !== null);
+
+const wizardInput = computed<string>({
+  get() {
+    switch (serviceStep.value) {
+      case 'name': return serviceName.value;
+      case 'context': return serviceContextPath.value;
+      case 'variables': return envVarDraft.value;
+    }
+    return '';
+  },
+  set(value: string) {
+    switch (serviceStep.value) {
+      case 'name': serviceName.value = value; break;
+      case 'context': serviceContextPath.value = value; break;
+      case 'variables': envVarDraft.value = value; break;
+    }
+  },
+});
+
+const wizardPlaceholder = computed(() => {
+  switch (serviceStep.value) {
+    case 'name': return 'Service name';
+    case 'context': return 'Root directory, e.g. /';
+    case 'variables': return 'KEY=value';
+  }
+  return '';
+});
+
+// Selectable command rows shown below the input. Navigated with arrows, the
+// focused row is activated with Enter (green ↵ badge) or clicked.
+type WizardItem = { id: string; label: string; icon: Component; actionLabel: string; disabled?: boolean; mono?: boolean; action: () => void };
+
+const wizardItems = computed<WizardItem[]>(() => {
+  const createItem: WizardItem = {
+    id: 'create',
+    label: creating.value || addingService.value ? 'Creating service...' : 'Create service',
+    icon: Check,
+    actionLabel: 'create',
+    disabled: !isServiceValid.value || creating.value || addingService.value,
+    action: () => { handleCreateService(); },
+  };
+  const variablesItem: WizardItem = {
+    id: 'add-variables',
+    label: serviceEnvVars.value.length > 0 ? `Variables (${serviceEnvVars.value.length})` : 'Add variables',
+    icon: Braces,
+    actionLabel: 'open',
+    action: openVariablesStep,
+  };
+
+  if (serviceStep.value === 'name' && !serviceDetected.value) {
+    return [{
+      id: 'continue',
+      label: 'Continue',
+      icon: ChevronRight,
+      actionLabel: 'next',
+      disabled: !isServiceValid.value,
+      action: goToContextStep,
+    }];
+  }
+
+  if (serviceStep.value === 'variables') {
+    const draft = envVarDraft.value.trim();
+    const varRows: WizardItem[] = serviceEnvVars.value.map((row, index) => ({
+      id: `var-${row.key}`,
+      label: row.value ? `${row.key}=${row.value}` : row.key,
+      icon: Braces,
+      mono: true,
+      actionLabel: 'remove',
+      action: () => removeEnvVarRow(index),
+    }));
+    return [
+      ...varRows,
+      {
+        id: 'add-variable',
+        label: draft ? `Add ${draft}` : 'Add variable',
+        icon: Plus,
+        actionLabel: 'add',
+        action: addEnvVarFromDraft,
+      },
+      createItem,
+    ];
+  }
+
+  return [variablesItem, createItem];
+});
+
+const wizardPrimaryIndex = computed(() => {
+  const index = wizardItems.value.findIndex(i => i.id === 'create' || i.id === 'continue');
+  return index >= 0 ? index : 0;
+});
+
 // Reset when palette opens
 watch(() => props.open, (open) => {
   if (open) {
@@ -190,14 +308,30 @@ watch(() => props.open, (open) => {
     pendingImage.value = null;
     processingItemId.value = null;
     volumeStep.value = 'name';
+    detectedServices.value = [];
+    selectedDetectedIndex.value = 0;
+    serviceStep.value = 'name';
+    serviceName.value = '';
+    serviceContextPath.value = '/';
+    serviceEnvVars.value = [];
+    envVarDraft.value = '';
+    confirmEnvironmentId.value = null;
+    confirmRepo.value = null;
     selectedSource.value = sources.value[0] ?? null;
     nextTick(() => inputRef.value?.focus());
   }
 });
 
-watch(view, () => {
+watch(view, (newView) => {
   search.value = '';
-  focusedIndex.value = 0;
+  focusedIndex.value = newView === 'service-wizard' ? wizardPrimaryIndex.value : 0;
+  nextTick(() => inputRef.value?.focus());
+});
+
+// Stepping through the wizard keeps the input focused and the primary command
+// row (Create / Continue) pre-selected so Enter does the expected thing.
+watch(serviceStep, () => {
+  focusedIndex.value = wizardPrimaryIndex.value;
   nextTick(() => inputRef.value?.focus());
 });
 
@@ -205,6 +339,12 @@ onKeyStroke('Escape', () => {
   if (!props.open) return;
   if (sourcePickerOpen.value) {
     sourcePickerOpen.value = false;
+  } else if (view.value === 'service-wizard') {
+    wizardBack();
+  } else if (view.value === 'select-services') {
+    selectServicesBack();
+  } else if (view.value === 'volume' && volumeStep.value === 'size') {
+    volumeStep.value = 'name';
   } else if (view.value !== 'main') {
     view.value = 'main';
   } else {
@@ -253,12 +393,16 @@ const repos = computed(() => {
 // Create project
 const { mutate: createProject, loading: creating } = useMutation(CreateProjectDocument);
 
+const detectingServices = ref(false);
+
 async function handleSelectRepo(repo: { fullName: string; htmlUrl: string }) {
   if (creating.value || detectingServices.value) return;
   if (props.context === 'projects') {
     showProjectNaming(repo);
   } else {
-    await handleAddServicesFromRepo(repo);
+    if (!props.environmentId) return;
+    confirmEnvironmentId.value = props.environmentId;
+    await detectAndConfirm(repo);
   }
 }
 
@@ -272,8 +416,21 @@ function showProjectNaming(repo: { fullName: string; htmlUrl: string }) {
   nextTick(() => nameSlugRef.value?.focusName());
 }
 
-async function handleConfirmProjectCreation() {
-  if (!isProjectValid.value || creating.value) return;
+// Submit handler for the name-project view. Repo-backed projects defer creation
+// until the service is confirmed (so an abandoned flow leaves no empty project);
+// empty and image-backed projects are created immediately.
+async function handleProjectNamingNext() {
+  if (!isProjectValid.value || creating.value || detectingServices.value) return;
+  if (pendingRepo.value) {
+    confirmEnvironmentId.value = null;
+    await detectAndConfirm(pendingRepo.value);
+  } else {
+    await finishEmptyOrImageProject();
+  }
+}
+
+async function finishEmptyOrImageProject() {
+  if (creating.value) return;
 
   try {
     const res = await createProject({
@@ -293,21 +450,10 @@ async function handleConfirmProjectCreation() {
     const project = res?.data?.createProject;
     if (!project) return;
 
-    const firstEnv = project.environments?.[0];
-    const targetEnvId = firstEnv?.id;
+    const targetEnvId = project.environments?.[0]?.id;
 
-    // Add services from pending source into the first env
-    if (targetEnvId) {
-      if (pendingRepo.value) {
-        detectingServices.value = true;
-        try {
-          await detectAndAddServices(targetEnvId, pendingRepo.value);
-        } finally {
-          detectingServices.value = false;
-        }
-      } else if (pendingImage.value) {
-        await addImageService(targetEnvId, pendingImage.value);
-      }
+    if (targetEnvId && pendingImage.value) {
+      await addImageService(targetEnvId, pendingImage.value);
     }
 
     close();
@@ -319,65 +465,196 @@ async function handleConfirmProjectCreation() {
   }
 }
 
-// Detect services from a repo and add them to an environment
-const detectingServices = ref(false);
-
-async function detectAndAddServices(environmentId: string, repo: { fullName: string; htmlUrl: string }) {
-  const client = resolveClient();
-  const { data } = await client.query({
-    query: DetectServicesDocument,
-    variables: {
-      repositoryUrl: repo.htmlUrl,
-    },
-  });
-
-  const detected = data?.detectServices ?? [];
-  if (detected.length === 0) {
-    toast.info('No services detected', { description: `No services found in ${repo.fullName}` });
-    return;
-  }
-
-  // TODO: We should probably show a pre-filled input field where the user can customize the name themselves.
-  const repoName = repo.fullName.split('/').pop()!.replace(/[._]/g, '-');
-
-  const addedNames: string[] = [];
-  for (const svc of detected) {
-    const name = detected.length === 1 ? repoName : `${repoName}-${svc.name}`;
-    try {
-      await addServiceMutate({
-        environmentId: environmentId,
-        input: {
-          name,
-          repository: repo.fullName,
-        },
-      });
-      addedNames.push(name);
-    } catch (e: unknown) {
-      errorToast(`Failed to add service ${name}`, { description: errorMessage(e) });
-    }
-  }
-
-  if (addedNames.length > 0) {
-    toast.success(`Added ${addedNames.length} service${addedNames.length !== 1 ? 's' : ''}`, {
-      description: `from ${repo.fullName}`,
-    });
-  }
-}
-
-async function handleAddServicesFromRepo(repo: { fullName: string; htmlUrl: string }) {
-  if (!props.environmentId) return;
-
+// Detect services in a repo, then route to the confirm/overwrite step.
+async function detectAndConfirm(repo: { fullName: string; htmlUrl: string }) {
+  confirmRepo.value = repo;
   processingItemId.value = repo.fullName;
   detectingServices.value = true;
+
   try {
-    await detectAndAddServices(props.environmentId, repo);
-    close();
-    emit('created');
+    const client = resolveClient();
+    const { data } = await client.query({
+      query: DetectServicesDocument,
+      variables: { repositoryUrl: repo.htmlUrl },
+    });
+    detectedServices.value = data?.detectServices ?? [];
+    proceedAfterDetection(repo);
   } catch (e: unknown) {
     errorToast('Failed to detect services', { description: errorMessage(e) });
   } finally {
     detectingServices.value = false;
     processingItemId.value = null;
+  }
+}
+
+function proceedAfterDetection(repo: { fullName: string; htmlUrl: string }) {
+  const detected = detectedServices.value;
+
+  if (detected.length === 0) {
+    // Nothing detected — fall through to manual setup (name + root directory).
+    startManualService(repo);
+    return;
+  }
+
+  if (detected.length > 1) {
+    view.value = 'select-services';
+    return;
+  }
+
+  selectDetectedService(0);
+}
+
+function enterServiceWizard() {
+  serviceEnvVars.value = [];
+  envVarDraft.value = '';
+  serviceStep.value = 'name';
+  view.value = 'service-wizard';
+  nextTick(() => inputRef.value?.focus());
+}
+
+function selectDetectedService(index: number) {
+  selectedDetectedIndex.value = index;
+  const detected = detectedServices.value[index];
+  if (!detected) return;
+  serviceName.value = deriveServiceName(detected.name);
+  serviceContextPath.value = detected.contextPath || '/';
+  enterServiceWizard();
+}
+
+function startManualService(repo: { fullName: string; htmlUrl: string }) {
+  detectedServices.value = [];
+  selectedDetectedIndex.value = 0;
+  serviceName.value = deriveServiceName(repo.fullName.split('/').pop() || '');
+  serviceContextPath.value = '/';
+  enterServiceWizard();
+}
+
+function addEnvVarFromDraft() {
+  const raw = envVarDraft.value.trim();
+  if (!raw) return;
+  const eq = raw.indexOf('=');
+  const key = (eq === -1 ? raw : raw.slice(0, eq)).trim();
+  const value = eq === -1 ? '' : raw.slice(eq + 1).trim();
+  if (!key) return;
+  const existing = serviceEnvVars.value.findIndex(v => v.key === key);
+  if (existing >= 0) {
+    serviceEnvVars.value[existing]!.value = value;
+  } else {
+    serviceEnvVars.value.push({ key, value });
+  }
+  envVarDraft.value = '';
+  focusedIndex.value = wizardPrimaryIndex.value;
+}
+
+function removeEnvVarRow(index: number) {
+  serviceEnvVars.value.splice(index, 1);
+  focusedIndex.value = Math.min(focusedIndex.value, wizardItems.value.length - 1);
+}
+
+// Enter on the wizard: while typing a KEY=value draft it adds the variable,
+// otherwise it activates the focused command row.
+function wizardEnter() {
+  if (creating.value || addingService.value || detectingServices.value) return;
+  if (serviceStep.value === 'variables' && envVarDraft.value.trim()) {
+    addEnvVarFromDraft();
+    return;
+  }
+  const item = wizardItems.value[focusedIndex.value];
+  if (item && !item.disabled) item.action();
+}
+
+function goToContextStep() {
+  if (!isServiceValid.value) return;
+  serviceStep.value = 'context';
+}
+
+function openVariablesStep() {
+  serviceStep.value = 'variables';
+}
+
+function wizardBack() {
+  if (serviceStep.value === 'variables') {
+    serviceStep.value = serviceDetected.value ? 'name' : 'context';
+    nextTick(() => inputRef.value?.focus());
+  } else if (serviceStep.value === 'context') {
+    serviceStep.value = 'name';
+    nextTick(() => inputRef.value?.focus());
+  } else if (detectedServices.value.length > 1) {
+    view.value = 'select-services';
+  } else {
+    view.value = props.context === 'projects' ? 'name-project' : 'github-repos';
+  }
+}
+
+function selectServicesBack() {
+  view.value = props.context === 'projects' ? 'name-project' : 'github-repos';
+}
+
+// Create the confirmed service. In the project flow the project is created
+// here (lazily) so the confirm step is the single point of no return.
+async function handleCreateService() {
+  if (!isServiceValid.value || creating.value || addingService.value || detectingServices.value) return;
+  if (!confirmRepo.value) return;
+
+  try {
+    let environmentId = confirmEnvironmentId.value;
+    let navigate: { projectId: string; environmentId: string } | null = null;
+
+    if (props.context === 'projects' && !environmentId) {
+      const res = await createProject({
+        input: {
+          name: projectDisplayName.value.trim(),
+          id: projectSlug.value,
+        },
+      });
+
+      if (res?.errors?.length) {
+        errorToast('Failed to create project', {
+          description: res.errors.map(e => e.message).join(', '),
+        });
+        return;
+      }
+
+      const project = res?.data?.createProject;
+      const envId = project?.environments?.[0]?.id;
+      if (!project || !envId) return;
+
+      environmentId = envId;
+      navigate = { projectId: project.id, environmentId: envId };
+    }
+
+    if (!environmentId) return;
+
+    addEnvVarFromDraft();
+    const variables = serviceEnvVars.value
+      .map(v => ({ key: v.key.trim(), value: v.value }))
+      .filter(v => v.key.length > 0);
+
+    const res = await addServiceMutate({
+      environmentId,
+      input: {
+        name: serviceName.value,
+        repository: confirmRepo.value.fullName,
+        contextPath: serviceContextPath.value || undefined,
+        variables: variables.length > 0 ? variables : undefined,
+      },
+    });
+
+    if (res?.errors?.length) {
+      errorToast('Failed to create service', {
+        description: res.errors.map(e => e.message).join(', '),
+      });
+      return;
+    }
+
+    close();
+    if (navigate) {
+      router.push({ name: 'environment', params: navigate });
+    } else {
+      emit('created');
+    }
+  } catch (e: unknown) {
+    errorToast('Failed to create service', { description: errorMessage(e) });
   }
 }
 
@@ -387,34 +664,28 @@ const { mutate: addServiceMutate, loading: addingService } = useMutation(AddServ
 const newServiceName = ref('');
 const newServicePort = ref<number | null>(null);
 
-// Create database (within environment context)
-const { mutate: createDatabaseMutate, loading: creatingDatabase } = useMutation(CreateDatabaseDocument);
-const newDatabaseName = ref('');
+// Create database (within environment context) — first flow on the generic
+// config-driven CommandFlow renderer. Other create flows still use bespoke
+// views below until they are migrated.
+const databaseFlow = computed<CommandFlowConfig>(() => ({
+  title: 'Database',
+  iconSrc: 'https://devicons.railway.com/i/postgresql.svg',
+  submitLabel: 'Create database',
+  mutation: CreateDatabaseDocument,
+  variables: (values) => ({ input: { environment: props.environmentId, name: values.name } }),
+  steps: [
+    {
+      id: 'name',
+      placeholder: 'Database name',
+      validate: isValidServiceName,
+      invalidHint: 'Lowercase letters, digits and hyphens only (2–16 characters).',
+    },
+  ],
+}));
 
-async function handleCreateDatabase() {
-  if (!props.environmentId) return;
-
-  try {
-    const res = await createDatabaseMutate({
-      input: {
-        environment: props.environmentId,
-        name: newDatabaseName.value,
-      },
-    });
-
-    if (res?.errors?.length) {
-      errorToast('Failed to create database', {
-        description: res.errors.map(e => e.message).join(', '),
-      });
-      return;
-    }
-
-    toast.success('Database created');
-    close();
-    emit('created');
-  } catch (e: unknown) {
-    errorToast('Failed to create database', { description: errorMessage(e) });
-  }
+function handleFlowCreated() {
+  emit('created');
+  close();
 }
 
 // Create Redis store (within environment context)
@@ -439,7 +710,6 @@ async function handleCreateKeyValueStore() {
       return;
     }
 
-    toast.success('Redis store created');
     close();
     emit('created');
   } catch (e: unknown) {
@@ -469,7 +739,6 @@ async function handleCreateBucket() {
       return;
     }
 
-    toast.success('Bucket created');
     close();
     emit('created');
   } catch (e: unknown) {
@@ -501,7 +770,6 @@ async function handleCreateVolume() {
       return;
     }
 
-    toast.success('Volume created');
     close();
     emit('created');
   } catch (e: unknown) {
@@ -527,7 +795,6 @@ async function handleAddManualService() {
       return;
     }
 
-    toast.success('Service added');
     close();
     emit('created');
   } catch (e: unknown) {
@@ -609,8 +876,6 @@ async function addImageService(environmentId: string, imageRef: string) {
     });
     return;
   }
-
-  toast.success('Service added', { description: imageRef });
 }
 
 watch([search, imageResults, repos], () => {
@@ -627,6 +892,8 @@ const currentItemCount = computed(() => {
     case 'main': return mainItems.value.length;
     case 'github-repos': return repos.value.length;
     case 'container-image': return imageResults.value.length;
+    case 'select-services': return detectedServices.value.length;
+    case 'service-wizard': return wizardItems.value.length;
     default: return 0;
   }
 });
@@ -683,6 +950,16 @@ onKeyStroke('Enter', (e) => {
       }
       break;
     }
+    case 'select-services':
+      if (focusedIndex.value < detectedServices.value.length) {
+        e.preventDefault();
+        selectDetectedService(focusedIndex.value);
+      }
+      break;
+    case 'service-wizard':
+      e.preventDefault();
+      wizardEnter();
+      break;
     case 'container-image':
       if (!containerImageRef.value || creating.value || addingService.value) break;
       e.preventDefault();
@@ -696,12 +973,6 @@ onKeyStroke('Enter', (e) => {
       if (!addingService.value && newServiceName.value) {
         e.preventDefault();
         handleAddManualService();
-      }
-      break;
-    case 'database':
-      if (!creatingDatabase.value && newDatabaseName.value) {
-        e.preventDefault();
-        handleCreateDatabase();
       }
       break;
     case 'keyValueStore':
@@ -725,9 +996,9 @@ onKeyStroke('Enter', (e) => {
       }
       break;
     case 'name-project':
-      if (isProjectValid.value && !creating.value) {
+      if (isProjectValid.value && !creating.value && !detectingServices.value) {
         e.preventDefault();
-        handleConfirmProjectCreation();
+        handleProjectNamingNext();
       }
       break;
   }
@@ -798,14 +1069,7 @@ void activeEnvironment;
                 v-model="search"
                 placeholder="What would you like to create?"
                 class="flex h-12 w-full bg-transparent px-3 text-sm outline-none placeholder:text-muted-foreground"
-              />
-              <button
-                class="shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"
-                @click="close"
-              >
-                <X :size="16" />
-              </button>
-            </div>
+              />            </div>
             <div class="p-1">
               <p class="px-2 py-1.5 text-xs font-medium text-muted-foreground">Create</p>
               <button
@@ -842,14 +1106,7 @@ void activeEnvironment;
                 v-model="search"
                 placeholder="Search repositories..."
                 class="flex h-12 w-full bg-transparent px-3 text-sm outline-none placeholder:text-muted-foreground"
-              />
-              <button
-                class="shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"
-                @click="close"
-              >
-                <X :size="16" />
-              </button>
-            </div>
+              />            </div>
 
             <template v-if="connectedLoading || sourcesLoading">
               <div class="px-2 py-6 text-center text-sm text-muted-foreground">Loading...</div>
@@ -1005,14 +1262,7 @@ void activeEnvironment;
                 v-if="searchingImages || addingService"
                 :size="14"
                 class="shrink-0 animate-spin text-muted-foreground"
-              />
-              <button
-                class="shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"
-                @click="close"
-              >
-                <X :size="16" />
-              </button>
-            </div>
+              />            </div>
 
             <div
               v-if="imageResults.length > 0"
@@ -1085,14 +1335,7 @@ void activeEnvironment;
                 <ArrowLeft :size="16" />
               </button>
               <span class="ml-1 text-sm font-medium text-foreground">Empty Service</span>
-              <div class="flex-1" />
-              <button
-                class="shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"
-                @click="close"
-              >
-                <X :size="16" />
-              </button>
-            </div>
+              <div class="flex-1" />            </div>
             <div class="space-y-4 p-4">
               <div class="space-y-2">
                 <label class="text-sm font-medium text-foreground">Service Name</label>
@@ -1124,43 +1367,13 @@ void activeEnvironment;
             </div>
           </template>
 
-          <!-- Database view -->
-          <template v-if="view === 'database'">
-            <div class="flex h-12 items-center border-b px-3">
-              <button
-                class="mr-1 shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"
-                @click="view = 'main'"
-              >
-                <ArrowLeft :size="16" />
-              </button>
-              <span class="ml-1 text-sm font-medium text-foreground">PostgreSQL</span>
-              <div class="flex-1" />
-              <button
-                class="shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"
-                @click="close"
-              >
-                <X :size="16" />
-              </button>
-            </div>
-            <div class="space-y-4 p-4">
-              <div class="space-y-2">
-                <label class="text-sm font-medium text-foreground">Database Name</label>
-                <input
-                  v-model="newDatabaseName"
-                  class="flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                  placeholder="main"
-                />
-                <p class="text-xs text-muted-foreground">PostgreSQL 16 &middot; 1 instance &middot; 10Gi storage</p>
-              </div>
-              <button
-                class="inline-flex h-9 w-full items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
-                :disabled="creatingDatabase || !newDatabaseName"
-                @click="handleCreateDatabase"
-              >
-                {{ creatingDatabase ? 'Creating...' : 'Create Database' }}
-              </button>
-            </div>
-          </template>
+          <!-- Database view (migrated to the generic CommandFlow renderer) -->
+          <CommandFlow
+            v-if="view === 'database'"
+            :flow="databaseFlow"
+            @back="view = 'main'"
+            @created="handleFlowCreated"
+          />
 
           <!-- Redis view -->
           <template v-if="view === 'keyValueStore'">
@@ -1172,14 +1385,7 @@ void activeEnvironment;
                 <ArrowLeft :size="16" />
               </button>
               <span class="ml-1 text-sm font-medium text-foreground">Redis</span>
-              <div class="flex-1" />
-              <button
-                class="shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"
-                @click="close"
-              >
-                <X :size="16" />
-              </button>
-            </div>
+              <div class="flex-1" />            </div>
             <div class="space-y-4 p-4">
               <div class="space-y-2">
                 <label class="text-sm font-medium text-foreground">Store Name</label>
@@ -1210,14 +1416,7 @@ void activeEnvironment;
                 <ArrowLeft :size="16" />
               </button>
               <span class="ml-1 text-sm font-medium text-foreground">Bucket</span>
-              <div class="flex-1" />
-              <button
-                class="shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"
-                @click="close"
-              >
-                <X :size="16" />
-              </button>
-            </div>
+              <div class="flex-1" />            </div>
             <div class="space-y-4 p-4">
               <div class="space-y-2">
                 <label class="text-sm font-medium text-foreground">Bucket Name</label>
@@ -1248,14 +1447,7 @@ void activeEnvironment;
                 <ArrowLeft :size="16" />
               </button>
               <span class="ml-1 text-sm font-medium text-foreground">Volume</span>
-              <div class="flex-1" />
-              <button
-                class="shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"
-                @click="close"
-              >
-                <X :size="16" />
-              </button>
-            </div>
+              <div class="flex-1" />            </div>
 
             <!-- Step: name -->
             <div v-if="volumeStep === 'name'" class="space-y-4 p-4">
@@ -1318,17 +1510,10 @@ void activeEnvironment;
                 <ArrowLeft :size="16" />
               </button>
               <span class="ml-1 text-sm font-medium text-foreground">New Project</span>
-              <div class="flex-1" />
-              <button
-                class="shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"
-                @click="close"
-              >
-                <X :size="16" />
-              </button>
-            </div>
+              <div class="flex-1" />            </div>
             <form
               class="space-y-4 p-4"
-              @submit.prevent="handleConfirmProjectCreation"
+              @submit.prevent="handleProjectNamingNext"
             >
               <div
                 v-if="pendingRepo || pendingImage"
@@ -1363,9 +1548,126 @@ void activeEnvironment;
                 class="inline-flex h-9 w-full items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
                 :disabled="!isProjectValid || creating || detectingServices"
               >
-                {{ creating || detectingServices ? 'Creating...' : 'Create Project' }}
+                <template v-if="pendingRepo">
+                  {{ detectingServices ? 'Detecting services...' : 'Continue' }}
+                </template>
+                <template v-else>
+                  {{ creating ? 'Creating...' : 'Create Project' }}
+                </template>
               </button>
             </form>
+          </template>
+
+          <!-- Select detected service view (shown when a repo yields more than one) -->
+          <template v-if="view === 'select-services'">
+            <div class="flex h-12 items-center border-b px-3">
+              <button
+                class="mr-1 shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"
+                @click="selectServicesBack"
+              >
+                <ArrowLeft :size="16" />
+              </button>
+              <span class="ml-1 text-sm font-medium text-foreground">Select a service</span>
+              <div class="flex-1" />            </div>
+            <div class="max-h-[320px] overflow-y-auto p-1">
+              <p class="px-2 py-1.5 text-xs font-medium text-muted-foreground">
+                Detected in {{ confirmRepo?.fullName }}
+              </p>
+              <button
+                v-for="(svc, index) in detectedServices"
+                :key="`${svc.name}-${svc.contextPath}`"
+                :data-focused="focusedIndex === index"
+                class="flex w-full items-center gap-2.5 rounded-lg px-2 py-2.5 text-left text-sm text-popover-foreground transition-colors"
+                :class="focusedIndex === index ? 'bg-accent' : 'hover:bg-accent'"
+                @click="selectDetectedService(index)"
+                @mouseenter="focusedIndex = index"
+              >
+                <FrameworkIcon :framework="svc.framework" :language="svc.language" :size="20" />
+                <div class="min-w-0 flex-1">
+                  <div class="font-medium">{{ svc.name }}</div>
+                  <div class="truncate text-xs text-muted-foreground">
+                    {{ svc.framework || svc.language || 'Service' }} &middot;
+                    <span class="font-mono">{{ svc.contextPath }}</span>
+                  </div>
+                </div>
+                <ChevronRight :size="14" class="shrink-0 text-muted-foreground" />
+              </button>
+            </div>
+          </template>
+
+          <!-- Service wizard view (single-input, step-driven) -->
+          <template v-if="view === 'service-wizard'">
+            <div class="flex items-center border-b px-3">
+              <button
+                class="mr-1 shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"
+                @click="wizardBack"
+              >
+                <ArrowLeft :size="16" />
+              </button>
+              <FrameworkIcon
+                v-if="serviceStep === 'name'"
+                :framework="activeDetected?.framework"
+                :language="activeDetected?.language"
+                :size="18"
+              />
+              <FolderGit2
+                v-else-if="serviceStep === 'context'"
+                :size="16"
+                class="shrink-0 text-muted-foreground"
+              />
+              <Braces v-else :size="16" class="shrink-0 text-muted-foreground" />
+              <input
+                ref="inputRef"
+                v-model="wizardInput"
+                :placeholder="wizardPlaceholder"
+                class="flex h-12 w-full bg-transparent px-3 text-sm outline-none placeholder:text-muted-foreground"
+                autocomplete="off"
+                data-1p-ignore
+                spellcheck="false"
+              />
+              <Loader2
+                v-if="creating || addingService"
+                :size="14"
+                class="shrink-0 animate-spin text-muted-foreground"
+              />            </div>
+
+            <div class="max-h-[50vh] overflow-y-auto">
+              <p
+                v-if="serviceStep === 'name' && serviceName && !isServiceValid"
+                class="px-3 py-1.5 text-xs text-destructive"
+              >
+                Lowercase letters, digits and hyphens only (2&ndash;16 characters).
+              </p>
+
+              <button
+                v-for="(item, index) in wizardItems"
+                :key="item.id"
+                :data-focused="focusedIndex === index"
+                :disabled="item.disabled"
+                class="group flex h-12 w-full items-center gap-2 px-3 text-sm text-popover-foreground transition-colors disabled:opacity-50"
+                :class="[
+                  focusedIndex === index ? 'bg-accent' : 'hover:bg-accent/40',
+                  index === wizardItems.length - 1 ? 'rounded-b-xl' : 'rounded-none',
+                ]"
+                @click="item.action()"
+              >
+                <component :is="item.icon" :size="16" class="shrink-0 text-muted-foreground" />
+                <span class="min-w-0 flex-1 truncate text-left" :class="{ 'font-mono': item.mono }">{{ item.label }}</span>
+                <span
+                  v-if="focusedIndex === index && !item.disabled"
+                  class="flex shrink-0 items-center gap-1 text-xs font-medium text-green-500"
+                >
+                  {{ item.actionLabel }}
+                  <CornerDownLeft :size="14" />
+                </span>
+                <span
+                  v-else-if="!item.disabled"
+                  class="shrink-0 text-xs text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
+                >
+                  {{ item.actionLabel }}
+                </span>
+              </button>
+            </div>
           </template>
         </div>
       </div>
