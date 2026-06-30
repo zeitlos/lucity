@@ -70,7 +70,7 @@ function formatDate(date: string) {
 }
 
 .blog-header h1 {
-  font-family: var(--font-serif);
+  font-family: var(--font-display);
   font-size: 3.5rem;
   font-weight: normal;
   color: var(--ui-text-highlighted);
@@ -114,7 +114,7 @@ function formatDate(date: string) {
 }
 
 .blog-post-title {
-  font-family: var(--font-serif);
+  font-family: var(--font-display);
   font-size: 2.25rem;
   font-weight: normal;
   color: var(--ui-text-highlighted);

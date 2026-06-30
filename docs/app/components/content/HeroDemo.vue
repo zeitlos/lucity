@@ -91,12 +91,12 @@ onUnmounted(() => {
           class="block h-auto w-full"
         />
       </div>
-      <div class="mt-3 flex flex-col items-stretch gap-1.5 min-[651px]:flex-row min-[651px]:flex-wrap min-[651px]:gap-0.5 min-[1001px]:flex-nowrap">
+      <div class="mt-3 flex flex-col items-stretch gap-1.5 sm:flex-row sm:flex-wrap sm:gap-0.5 lg:flex-nowrap">
         <button
           v-for="(seg, i) in segments"
           :key="seg.label"
-          class="flex w-full cursor-pointer flex-col items-start gap-1.5 rounded-lg px-4 py-3 text-left transition-colors duration-200 hover:bg-[var(--ui-bg-elevated)] min-[651px]:w-[calc(50%-1px)] min-[1001px]:w-auto min-[1001px]:flex-1"
-          :class="activeIndex === i ? 'bg-[var(--ui-bg-elevated)]' : ''"
+          class="flex w-full cursor-pointer flex-col items-start gap-1.5 rounded-lg px-4 py-3 text-left transition-colors duration-200 hover:bg-elevated sm:w-[calc(50%-1px)] lg:w-auto lg:flex-1"
+          :class="activeIndex === i ? 'bg-elevated' : ''"
           @click="seek(i)"
         >
           <div class="text-muted text-xl font-bold" :class="{ 'text-neutral-950 dark:text-neutral-50': activeIndex === i }">
@@ -105,7 +105,7 @@ onUnmounted(() => {
           <span class="font-sans-condensed">
             {{ seg.description }}
           </span>
-          <div class="mt-auto h-1.5 w-full overflow-hidden rounded-sm bg-[var(--ui-border)] max-[650px]:mt-2">
+          <div class="mt-auto h-1.5 w-full overflow-hidden rounded-sm bg-accented max-sm:mt-2">
             <div
               class="h-full rounded transition-[width] duration-[250ms] ease-linear"
               :style="{

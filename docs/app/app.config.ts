@@ -22,7 +22,7 @@ export default defineAppConfig({
       slots: {
         container: 'font-sans relative flex flex-col flex-1 lg:grid gap-x-10 gap-y-2 p-8 sm:p-12',
         wrapper: 'flex flex-col flex-1 items-start text-left',
-        title: 'font-serif text-3xl sm:text-4xl font-normal text-highlighted',
+        title: 'font-display text-3xl sm:text-4xl font-normal text-highlighted',
         description: 'font-sans text-base sm:text-lg text-pretty mt-4 !text-muted'
       }
     },

@@ -6,35 +6,6 @@ const appUrl = 'https://lucity.cloud/app';
 
 const navItems = [
   {
-    label: 'Features',
-    children: [
-      {
-        label: 'Push to deploy',
-        description: 'Connect GitHub and ship with git push.',
-        icon: 'i-lucide-rocket',
-        to: '/features/builds',
-      },
-      {
-        label: 'Environments',
-        description: 'Dev, staging, production, and PR previews.',
-        icon: 'i-lucide-git-branch',
-        to: '/features/environments',
-      },
-      {
-        label: 'Databases',
-        description: 'Managed PostgreSQL via CloudNativePG.',
-        icon: 'i-lucide-database',
-        to: '/infrastructure/databases',
-      },
-      {
-        label: 'Eject anytime',
-        description: 'Standard container images, Helm chart and environment configs.',
-        icon: 'i-lucide-door-open',
-        to: '/features/eject',
-      },
-    ],
-  },
-  {
     label: 'Pricing',
     to: '/pricing',
   },
@@ -58,6 +29,7 @@ const githubLink = computed(() =>
 <template>
   <UHeader
     :ui="{
+      root: 'docs-nav border-b-0 bg-transparent backdrop-blur-none',
       center: 'flex-[3] justify-center',
     }"
     to="/"
@@ -65,9 +37,9 @@ const githubLink = computed(() =>
   >
     <template #title>
       <div class="flex items-center gap-2">
-        <img src="/logo-light.svg" alt="Lucity" width="24" height="24" class="dark:hidden h-6 w-6 shrink-0">
-        <img src="/logo-dark.svg" alt="Lucity" width="24" height="24" class="hidden dark:block h-6 w-6 shrink-0">
-        <span class="font-serif text-2xl tracking-tight">Lucity</span>
+        <img src="/logo-light.svg" alt="Lucity" width="36" height="36" class="dark:hidden h-9 w-9 shrink-0">
+        <img src="/logo-dark.svg" alt="Lucity" width="36" height="36" class="hidden dark:block h-9 w-9 shrink-0">
+        <span class="wordmark text-3xl leading-none">Lucity</span>
       </div>
     </template>
 
@@ -87,14 +59,6 @@ const githubLink = computed(() =>
       />
 
       <UContentSearchButton class="lg:hidden" />
-
-      <ClientOnly>
-        <UColorModeButton />
-
-        <template #fallback>
-          <div class="h-8 w-8 animate-pulse bg-neutral-200 dark:bg-neutral-800 rounded-md" />
-        </template>
-      </ClientOnly>
 
       <UButton
         v-if="githubLink"
@@ -146,3 +110,10 @@ const githubLink = computed(() =>
     </template>
   </UHeader>
 </template>
+
+<style scoped>
+.wordmark {
+  font-family: 'Redaction 35', Georgia, serif;
+  font-weight: 400;
+}
+</style>

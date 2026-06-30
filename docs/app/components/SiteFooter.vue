@@ -48,7 +48,7 @@ const columns = [
 
 <template>
   <footer class="px-6 pb-16 pt-20">
-    <div class="mx-auto grid max-w-[96rem] grid-cols-2 gap-x-8 gap-y-12 sm:grid-cols-3 lg:grid-cols-5">
+    <div class="mx-auto grid max-w-wide grid-cols-2 gap-x-8 gap-y-12 sm:grid-cols-3 lg:grid-cols-5">
       <div v-for="col in columns" :key="col.title">
         <h3 class="text-lg font-bold text-neutral-900 dark:text-neutral-100">
           {{ col.title }}
@@ -71,6 +71,24 @@ const columns = [
             </NuxtLink>
           </li>
         </ul>
+      </div>
+    </div>
+
+    <div class="mx-auto mt-14 flex max-w-wide flex-col items-center gap-4 border-t border-default pt-8 sm:flex-row sm:justify-between">
+      <p class="text-base text-neutral-600 dark:text-neutral-400">
+        Built in Switzerland, hosted in the EU
+      </p>
+      <div class="flex items-center gap-5">
+        <a
+          href="https://github.com/zeitlos/lucity"
+          target="_blank"
+          rel="noopener"
+          aria-label="Lucity on GitHub"
+          class="inline-flex items-center text-neutral-600 transition-colors hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
+        >
+          <UIcon name="i-simple-icons-github" class="size-5" />
+        </a>
+        <ThemeToggle />
       </div>
     </div>
   </footer>
