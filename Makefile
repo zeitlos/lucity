@@ -1,4 +1,4 @@
-.PHONY: build proto dev dev-conductor dev-cashier dev-dashboard dev-docs dev-logs dev-stop generate-graphql lint test-integration test-integration-short test-watch minikube dns infra infra-down infra-forward infra-forward-stop argocd-password infra-tokens argocd-token softserve-token db-forward deploy-prod deploy-prod-infra generate-internal-keys
+.PHONY: build proto dev dev-conductor dev-cashier dev-dashboard dev-docs dev-logs dev-stop generate-graphql lint test-integration test-integration-short test-watch minikube dns infra infra-down infra-forward infra-forward-stop db-forward deploy-prod deploy-prod-infra generate-internal-keys
 
 # Build all Go services
 build:
@@ -89,7 +89,7 @@ dns:
 	@brew services restart dnsmasq
 	@echo "Done. All *.lucity.local domains now resolve to 127.0.0.1."
 
-# Deploy infrastructure (Zot + Soft-serve + ArgoCD + Envoy Gateway + CNPG) to a cluster
+# Deploy infrastructure (Zot + Envoy Gateway + CNPG) to a cluster
 # Envoy Gateway is installed separately — it needs its own namespace for cert management.
 # Usage: make infra CLUSTER=flxp
 CLUSTER ?= minikube
@@ -108,10 +108,8 @@ infra-down:
 
 # Port-forward infrastructure services for local development
 infra-forward: infra-forward-stop
-	@echo "Port-forwarding Zot (5000), Soft-serve (23231, 23232), ArgoCD (8443), Gateway (8880), VictoriaMetrics (8428), Logto Admin (3002), Grafana (3000)..."
+	@echo "Port-forwarding Zot (5000), Gateway (8880), VictoriaMetrics (8428), Logto Admin (3002), Grafana (3000)..."
 	@kubectl port-forward svc/lucity-infra-zot 5000:5000 -n lucity-system &
-	@kubectl port-forward svc/lucity-infra-soft-serve 23231:23231 23232:23232 -n lucity-system &
-	@kubectl port-forward svc/lucity-infra-argocd-server 8443:80 -n lucity-system &
 	@(GATEWAY_SVC=$$(kubectl get svc -n envoy-gateway-system -l gateway.envoyproxy.io/owning-gateway-name=lucity-gateway -o name 2>/dev/null) && \
 		[ -n "$$GATEWAY_SVC" ] && kubectl port-forward $$GATEWAY_SVC 8880:80 -n envoy-gateway-system &) 2>/dev/null || true
 	@kubectl port-forward svc/lucity-infra-logto 3002:3002 -n lucity-system &
@@ -120,31 +118,9 @@ infra-forward: infra-forward-stop
 	@echo "Ready. Use 'make infra-forward-stop' to stop."
 
 infra-forward-stop:
-	@for port in 5000 23231 23232 8443 8880 3002 8428 3000; do \
+	@for port in 5000 8880 3002 8428 3000; do \
 		lsof -ti :$$port | xargs kill 2>/dev/null || true; \
 	done
-
-# Print the ArgoCD admin password (auto-generated, stored in K8s secret)
-argocd-password:
-	@kubectl get secret argocd-initial-admin-secret -n lucity-system -o jsonpath='{.data.password}' | base64 -d && echo
-
-# Generate API tokens for infrastructure services
-# Requires: infra-forward running
-infra-tokens: argocd-token softserve-token
-
-# Generate an ArgoCD API token for the lucity service account
-# Requires: infra-forward running (ArgoCD on localhost:8443)
-argocd-token:
-	@ADMIN_PASS=$$(kubectl get secret argocd-initial-admin-secret -n lucity-system -o jsonpath='{.data.password}' | base64 -d) && \
-	SESSION=$$(curl -sk -H "Content-Type: application/json" http://localhost:8443/api/v1/session -d "{\"username\":\"admin\",\"password\":\"$$ADMIN_PASS\"}" | jq -r '.token') && \
-	TOKEN=$$(curl -sk -H "Content-Type: application/json" -H "Authorization: Bearer $$SESSION" -X POST http://localhost:8443/api/v1/account/lucity/token | jq -r '.token') && \
-	echo "ARGOCD_TOKEN=$$TOKEN"
-
-# Generate a Soft-serve access token for the conductor
-# Requires: infra-forward running (Soft-serve SSH on localhost:23231)
-softserve-token:
-	@ssh-keygen -R "[localhost]:23231" 2>/dev/null || true
-	@ssh -i ~/.ssh/lucity-admin-minikube -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -p 23231 localhost token create 'conductor'
 
 # Port-forward a project's database for local development (interactive picker)
 db-forward:

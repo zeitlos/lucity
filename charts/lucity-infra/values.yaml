@@ -1,4 +1,4 @@
-# Lucity infrastructure chart — Zot (OCI registry) + Soft-serve (Git server) + ArgoCD (GitOps) + Envoy Gateway (Gateway API) + CNPG (PostgreSQL)
+# Lucity infrastructure chart — Zot (OCI registry) + Gateway API + CNPG (PostgreSQL)
 
 # -- Zot OCI Registry
 zot:
@@ -11,95 +11,6 @@ zot:
   service:
     type: ClusterIP
     port: 5000
-
-# -- Soft-serve Git Server
-softServe:
-  enabled: true
-  image:
-    repository: charmcli/soft-serve
-    tag: latest
-    pullPolicy: IfNotPresent
-  service:
-    type: ClusterIP
-    sshPort: 23231
-    httpPort: 23232
-    statsPort: 23233
-    gitPort: 9418
-  persistence:
-    enabled: true
-    size: 5Gi
-    storageClass: ""
-    accessMode: ReadWriteOnce
-  # SSH public key for the initial admin user.
-  # Generate with: ssh-keygen -t ed25519 -f lucity-admin
-  # Then paste the .pub contents here.
-  initialAdminKey: ""
-  resources:
-    requests:
-      cpu: 100m
-      memory: 128Mi
-    limits:
-      cpu: 500m
-      memory: 256Mi
-
-# -- ArgoCD GitOps Controller
-argo-cd:
-  enabled: true
-
-  # Single-replica, non-HA, dev-friendly defaults
-  global:
-    logging:
-      format: text
-      level: info
-
-  # Disable components we don't need for dev
-  dex:
-    enabled: false
-  notifications:
-    enabled: false
-  applicationSet:
-    enabled: false
-
-  # Server: insecure mode (HTTP), ClusterIP
-  server:
-    replicas: 1
-    service:
-      type: ClusterIP
-
-  # Controller: single replica
-  controller:
-    replicas: 1
-
-  # Redis: standard (not HA)
-  redis:
-    enabled: true
-  redis-ha:
-    enabled: false
-
-  configs:
-    # Run server without TLS (dev only)
-    params:
-      server.insecure: true
-
-    # Enable admin account, create lucity service account for API tokens
-    cm:
-      admin.enabled: "true"
-      accounts.lucity: apiKey
-      timeout.reconciliation: 180s
-
-    # RBAC: give lucity account full app and repo management
-    rbac:
-      policy.csv: |
-        p, role:lucity, applications, *, */*, allow
-        p, role:lucity, logs, get, */*, allow
-        p, role:lucity, repositories, *, *, allow
-        g, lucity, role:lucity
-
-    # Credential template so ArgoCD trusts any repo on Soft-serve (no auth needed)
-    credentialTemplates:
-      soft-serve:
-        url: http://lucity-infra-soft-serve.lucity-system.svc.cluster.local:23232
-        type: git
 
 # -- Gateway resource configuration
 # Set enabled: true and configure listeners for your environment.

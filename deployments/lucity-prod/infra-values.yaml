@@ -60,12 +60,6 @@ zot:
     #           htpasswd -bBn reader "$(openssl rand -hex 16)" >> htpasswd
     htpasswd: ""  # --set zot.configFiles.htpasswd
 
-softServe:
-  persistence:
-    size: 10Gi
-    storageClass: hcloud-volumes
-  initialAdminKey: "" # --set softServe.initialAdminKey="$(cat ~/.ssh/lucity-admin-prod.pub)"
-
 gateway:
   className: cilium
   customDomainPlaceholder: true

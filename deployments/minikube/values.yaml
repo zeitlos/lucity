@@ -10,8 +10,3 @@ zot:
   # don't resolve for image pulls. A fixed IP in the service CIDR solves this.
   service:
     clusterIP: 10.96.100.50
-
-softServe:
-  persistence:
-    size: 2Gi
-  initialAdminKey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHWFwhUiR9NfDEQYZpx5Th1WC+9wG7ZJAClNNt1Rmee2"
