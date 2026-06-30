@@ -27,16 +27,16 @@ const lines: ReceiptLine[] = [
   { type: 'justify',      left: 'Plan: Hobby', right: '5.00' },
   { type: 'dash' },
   { type: 'line' },
-  { type: 'label',        text: 'Resources (Eco):' },
-  { type: 'item',         desc: '0.25 vCPU @ €20/core', amount: '5.00' },
-  { type: 'item',         desc: '256 MB    @ €10/GB',   amount: '2.56' },
-  { type: 'item',         desc: '1 GB Disk @ €0.10/GB', amount: '0.10' },
-  { type: 'item',         desc: '0.5 GB    @ €0.02/GB', amount: '0.01' },
+  { type: 'label',        text: 'Resources (On-demand):' },
+  { type: 'item',         desc: '0.25 vCPU @ CHF 20/core', amount: '5.00' },
+  { type: 'item',         desc: '256 MB    @ CHF 10/GB',   amount: '2.56' },
+  { type: 'item',         desc: '1 GB Disk @ CHF 0.10/GB', amount: '0.10' },
+  { type: 'item',         desc: '0.5 GB    @ CHF 0.02/GB', amount: '0.01' },
   { type: 'subtotal-dash' },
   { type: 'justify',      left: 'Subtotal:', right: '7.67' },
   { type: 'justify',      left: 'Credits:', right: '-5.00', highlight: true },
   { type: 'total-dash' },
-  { type: 'total',        left: 'TOTAL:         €', right: '2.67' },
+  { type: 'total',        left: 'TOTAL:', right: 'CHF 2.67' },
   { type: 'separator' },
   { type: 'line' },
   { type: 'center',       text: 'Thank you for shipping!' },
@@ -175,7 +175,7 @@ onUnmounted(() => {
   width: 100%;
   max-width: 380px;
   height: 18px;
-  background: linear-gradient(180deg,
+  background: linear-gradient(181deg,
     var(--printer-bg) 0%,
     oklch(0.34 0.01 55) 100%
   );
@@ -206,6 +206,7 @@ onUnmounted(() => {
   width: 100%;
   max-width: 380px;
   overflow: hidden;
+  clip-path: inset(0);
 }
 
 /* ---- Paper slide — moves downward in steps ---- */

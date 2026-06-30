@@ -12,138 +12,53 @@ useSeo({
 
 <template>
   <div class="pricing-page">
-    <UPageHero
-    title="Simple, transparent pricing"
-    description="Two plans, usage-based resources. Pay for what you use, eject whenever you want."
-  />
-
-  <UContainer>
-    <PricingCards />
-
-    <div class="explainer">
-      <h2 class="explainer-title">
-        How credits work
-      </h2>
-      <p class="explainer-body">
-        Every plan includes a monthly credit allowance that covers your resource usage.
-        Hobby comes with €5, Pro with €25. Credits are applied automatically to your
-        resource bill each month. If your usage is lower than your credits, you pay
-        nothing extra. No rollover, no surprises.
+    <section class="mx-auto max-w-page px-6 pt-24 pb-12 text-center">
+      <h1 class="font-display text-6xl leading-tight text-neutral-800 md:text-7xl dark:text-neutral-100">
+        Simple, transparent pricing
+      </h1>
+      <p class="mx-auto mt-8 max-w-3xl text-2xl leading-relaxed text-neutral-700 dark:text-neutral-300">
+        Two plans, usage-based resources: pay only for what you use. Each plan includes a monthly credit allowance applied automatically to your bill everymonth.
       </p>
-    </div>
-  </UContainer>
+    </section>
 
-  <UPageSection>
-    <template #title>
-      Resource pricing
-    </template>
-    <template #description>
-      Two tiers, pick what fits. Eco for experiments, Production for the real thing.
-    </template>
+    <section class="mx-auto max-w-page px-6">
+      <PricingCards />
+    </section>
 
-    <PricingMenuBoard />
-
-    <div class="explainer explainer-cols">
-      <div class="explainer-col">
-        <h2 class="explainer-title">
-          Eco
+    <section class="mx-auto max-w-page px-6 mt-28 md:mt-36">
+      <div class="mx-auto mb-16 max-w-3xl text-center">
+        <h2 class="font-display text-5xl leading-tight text-neutral-800 md:text-6xl dark:text-neutral-100">
+          Resource pricing
         </h2>
-        <p class="explainer-body">
-          Shared infrastructure in the EU. Great for side projects, staging
-          environments, and anything that doesn't need guaranteed resources.
-          Metered per vCPU and GB, you only pay for what you use.
+        <p class="mt-6 text-xl leading-relaxed text-neutral-600 dark:text-neutral-400">
+          Two ways to pay for compute. <strong class="font-semibold text-neutral-800 dark:text-neutral-200">On-demand</strong> is fully metered, so you pay only for what you use, with burstable resources that suit development and spiky workloads. <strong class="font-semibold text-neutral-800 dark:text-neutral-200">Guaranteed</strong> reserves your capacity for consistent performance with no noisy neighbors, predictable billing, and 20% off vCPU and memory.
         </p>
       </div>
-      <div class="explainer-col">
-        <h2 class="explainer-title">
-          Production
+
+      <PricingMenuBoard />
+    </section>
+
+    <section class="mx-auto max-w-page px-6 mt-28 md:mt-36">
+      <div class="mx-auto mb-16 max-w-3xl text-center">
+        <h2 class="font-display text-5xl leading-tight text-neutral-800 md:text-6xl dark:text-neutral-100">
+          Sample monthly bill
         </h2>
-        <p class="explainer-body">
-          Dedicated resources with predictable monthly pricing. No metering
-          surprises, no noisy neighbors. Perfect for agencies and teams that
-          need stable, pass-through-friendly bills. Swiss data residency coming soon.
+        <p class="mt-6 text-xl leading-relaxed text-neutral-600 dark:text-neutral-400">
+          Here's what a typical Hobby plan bill looks like.
         </p>
       </div>
-    </div>
-  </UPageSection>
 
-  <UPageSection>
-    <template #title>
-      Sample monthly bill
-    </template>
-    <template #description>
-      Here's what a typical Hobby plan bill looks like.
-    </template>
+      <PricingReceipt />
+    </section>
 
-    <PricingReceipt />
-  </UPageSection>
-
-  <UPageSection>
-    <PricingSelfHost />
-  </UPageSection>
+    <section class="mx-auto max-w-page px-6 mt-28 mb-28 md:mt-36 md:mb-36">
+      <PricingSelfHost />
+    </section>
   </div>
 </template>
 
 <style scoped>
 .pricing-page {
   overflow-x: clip;
-}
-
-.explainer {
-  max-width: 640px;
-  margin: 2.5rem auto 0;
-  padding: 1.5rem 2rem;
-  border: 1px solid var(--ui-border);
-  border-radius: 12px;
-  background: var(--ui-bg-elevated);
-  text-align: left;
-}
-
-.explainer-title {
-  font-family: var(--font-serif);
-  font-size: 1.25rem;
-  font-weight: 600;
-  margin-bottom: 0.75rem;
-  color: var(--ui-text-highlighted);
-}
-
-.explainer-body {
-  font-size: 0.9375rem;
-  line-height: 1.7;
-  color: var(--ui-text-muted);
-  margin-bottom: 0.75rem;
-}
-
-.explainer-body:last-child {
-  margin-bottom: 0;
-}
-
-.explainer-body :deep(strong) {
-  color: var(--ui-text-highlighted);
-  font-weight: 600;
-}
-
-.explainer-cols {
-  max-width: 760px;
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-  text-align: left;
-}
-
-@media (min-width: 640px) {
-  .explainer-cols {
-    flex-direction: row;
-    gap: 2rem;
-  }
-
-  .explainer-col {
-    flex: 1 1 0%;
-  }
-
-  .explainer-col + .explainer-col {
-    border-left: 1px solid var(--ui-border);
-    padding-left: 2rem;
-  }
 }
 </style>

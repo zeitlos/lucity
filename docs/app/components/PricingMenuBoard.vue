@@ -13,23 +13,23 @@ interface Tier {
 
 const tiers: Tier[] = [
   {
-    name: 'Eco',
-    detail: 'Metered · Shared EU',
+    name: 'On-demand',
+    detail: 'Metered · pay as you go',
     prices: [
-      { label: 'vCPU', value: '€20', unit: '/ core / mo' },
-      { label: 'Memory', value: '€10', unit: '/ GB / mo' },
-      { label: 'Disk', value: '€0.10', unit: '/ GB / mo' },
-      { label: 'Egress', value: '€0.02', unit: '/ GB' },
+      { label: 'vCPU', value: 'CHF 20', unit: '/ core / mo' },
+      { label: 'Memory', value: 'CHF 10', unit: '/ GB / mo' },
+      { label: 'Disk', value: 'CHF 0.10', unit: '/ GB / mo' },
+      { label: 'Egress', value: 'CHF 0.02', unit: '/ GB' },
     ],
   },
   {
-    name: 'Production',
-    detail: 'Predictable · Dedicated EU',
+    name: 'Guaranteed',
+    detail: 'Reserved · predictable · <span class="board-discount">20% off CPU &amp; RAM</span>',
     prices: [
-      { label: 'vCPU', value: '€50', unit: '/ core / mo' },
-      { label: 'Memory', value: '€25', unit: '/ GB / mo' },
-      { label: 'Disk', value: '€0.25', unit: '/ GB / mo' },
-      { label: 'Egress', value: '€0.05', unit: '/ GB' },
+      { label: 'vCPU', value: 'CHF 16', unit: '/ core / mo' },
+      { label: 'Memory', value: 'CHF 8', unit: '/ GB / mo' },
+      { label: 'Disk', value: 'CHF 0.10', unit: '/ GB / mo' },
+      { label: 'Egress', value: 'CHF 0.02', unit: '/ GB' },
     ],
   },
 ];
@@ -53,7 +53,11 @@ const tiers: Tier[] = [
           >
             <div class="board-tier-header">
               <span class="board-tier-name">{{ tier.name }}</span>
-              <span class="board-tier-detail">{{ tier.detail }}</span>
+              <!-- eslint-disable-next-line vue/no-v-html -->
+              <span
+                class="board-tier-detail"
+                v-html="tier.detail"
+              />
             </div>
 
             <div
@@ -94,7 +98,7 @@ const tiers: Tier[] = [
 
 .board-anchor {
   position: relative;
-  max-width: 760px;
+  max-width: 1000px;
   width: 100%;
   overflow: visible;
 }
@@ -106,15 +110,15 @@ const tiers: Tier[] = [
   z-index: 2;
   background: oklch(0.12 0.005 55);
   border: 1px solid oklch(0.22 0.01 55);
-  border-radius: 10px;
-  padding: 20px 24px;
+  border-radius: 16px;
+  padding: 36px 48px;
   font-family: var(--font-mono);
-  font-size: 13px;
-  line-height: 1.8;
+  font-size: 20px;
+  line-height: 1.85;
   color: oklch(0.88 0.02 80);
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
   box-shadow:
     inset 0 1px 0 oklch(0.2 0.01 55 / 0.5),
     inset 0 -1px 0 oklch(0.05 0.005 55),
@@ -127,10 +131,10 @@ const tiers: Tier[] = [
 .board::before {
   content: '';
   position: absolute;
-  inset: -12px;
-  border-radius: 20px;
+  inset: -18px;
+  border-radius: 28px;
   background: oklch(0.7 0.16 65 / 0.12);
-  filter: blur(25px);
+  filter: blur(32px);
   z-index: -1;
   animation: backlight-flicker 10s ease-in-out infinite;
 }
@@ -144,7 +148,7 @@ const tiers: Tier[] = [
 .board-title {
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  font-size: 11px;
+  font-size: 16px;
   font-weight: 500;
   color: oklch(0.5 0.01 80);
 }
@@ -154,7 +158,7 @@ const tiers: Tier[] = [
 .board-separator {
   border: none;
   border-top: 1px solid oklch(0.22 0.01 55);
-  margin: 6px 0;
+  margin: 12px 0;
 }
 
 /* ---- Two-column layout ---- */
@@ -162,13 +166,13 @@ const tiers: Tier[] = [
 .board-columns {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 24px;
 }
 
 @media (min-width: 640px) {
   .board-columns {
     flex-direction: row;
-    gap: 24px;
+    gap: 48px;
   }
 
   .board-column {
@@ -181,7 +185,7 @@ const tiers: Tier[] = [
 @media (min-width: 640px) {
   .board-column + .board-column {
     border-left: 1px solid oklch(0.22 0.01 55);
-    padding-left: 24px;
+    padding-left: 48px;
   }
 }
 
@@ -189,24 +193,30 @@ const tiers: Tier[] = [
 
 .board-tier-header {
   display: flex;
-  align-items: baseline;
-  gap: 8px;
-  margin-bottom: 2px;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
 }
 
 .board-tier-name {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  font-size: 12px;
+  font-size: 19px;
   color: oklch(0.82 0.08 65);
-  text-shadow: 0 0 12px oklch(0.8 0.1 65 / 0.2);
+  text-shadow: 0 0 14px oklch(0.8 0.1 65 / 0.25);
 }
 
 .board-tier-detail {
-  font-size: 10px;
+  font-size: 14px;
   color: oklch(0.45 0.01 80);
   letter-spacing: 0.02em;
+}
+
+:deep(.board-discount) {
+  color: var(--ui-primary);
+  font-weight: 700;
+  text-shadow: 0 0 14px oklch(0.75 0.18 160 / 0.45);
 }
 
 /* ---- Rows ---- */
@@ -214,7 +224,7 @@ const tiers: Tier[] = [
 .board-row {
   display: flex;
   align-items: baseline;
-  gap: 6px;
+  gap: 12px;
 }
 
 .board-name {
@@ -227,10 +237,10 @@ const tiers: Tier[] = [
 
 .board-dots {
   flex: 1;
-  min-width: 12px;
+  min-width: 16px;
   border-bottom: 1px dotted oklch(0.28 0.005 55);
   position: relative;
-  top: -3px;
+  top: -5px;
 }
 
 .board-price {
@@ -240,7 +250,7 @@ const tiers: Tier[] = [
 }
 
 .board-unit {
-  font-size: 10px;
+  font-size: 14px;
   color: oklch(0.5 0.01 80);
   white-space: nowrap;
 }
@@ -250,21 +260,21 @@ const tiers: Tier[] = [
 .board-wordmark {
   font-family: var(--font-sans);
   font-weight: 900;
-  font-size: 2.5rem;
+  font-size: 4rem;
   letter-spacing: 0.12em;
   text-align: center;
   color: oklch(0.9 0.02 80);
-  text-shadow: 0 0 20px oklch(0.9 0.08 80 / 0.25);
-  margin-top: 4px;
+  text-shadow: 0 0 28px oklch(0.9 0.08 80 / 0.25);
+  margin-top: 12px;
   line-height: 1.2;
 }
 
 .board-tagline {
   text-align: center;
-  font-size: 10px;
+  font-size: 14px;
   color: oklch(0.45 0.01 80);
   letter-spacing: 0.04em;
-  margin-top: 2px;
+  margin-top: 8px;
 }
 
 /* ---- Cable ---- */

@@ -36,7 +36,7 @@ const ejectPoly = poly({ simplicity: 0.18, scalability: 0.95, sovereignty: 0.85 
 
 <template>
   <section class="px-6">
-    <div class="mx-auto grid max-w-352 items-center gap-12 lg:grid-cols-2 lg:gap-20">
+    <div class="mx-auto grid max-w-content items-center gap-12 lg:grid-cols-2 lg:gap-20">
       <div>
         <h2 class="font-display text-5xl leading-tight text-neutral-800 md:text-6xl dark:text-neutral-100">
           …Lucity is the one you can walk away from.

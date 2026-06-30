@@ -77,7 +77,7 @@ const sectionClass = 'block w-full cursor-pointer text-left text-2xl leading-rel
 </script>
 
 <template>
-  <section class="px-6 mx-auto grid max-w-352 items-center gap-12 lg:grid-cols-2 lg:gap-20">
+  <section class="px-6 mx-auto grid max-w-content items-center gap-12 lg:grid-cols-2 lg:gap-20">
     <div>
       <h2 class="font-display text-5xl leading-tight text-neutral-800 md:text-6xl dark:text-neutral-100">
         The competition makes you pick two of three…

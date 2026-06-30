@@ -177,7 +177,7 @@ useSeo({
 }
 
 .blog-article-header h1 {
-  font-family: var(--font-serif);
+  font-family: var(--font-display);
   font-size: 2.25rem;
   font-weight: normal;
   color: var(--ui-text-highlighted);
@@ -260,7 +260,7 @@ useSeo({
 
 <style>
 .blog-body p:first-of-type::first-letter {
-  font-family: var(--font-serif);
+  font-family: var(--font-display);
   font-size: 3.75rem;
   float: left;
   line-height: 0.8;

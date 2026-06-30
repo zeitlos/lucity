@@ -310,7 +310,7 @@ watch(visible, (v) => {
 }
 
 .vs-title {
-  font-family: var(--font-serif);
+  font-family: var(--font-display);
   font-weight: normal;
   font-size: 2.8rem;
   line-height: 1.1;

@@ -6,6 +6,7 @@ import BentoBatteries from './BentoBatteries.vue';
 import BentoEject from './BentoEject.vue';
 import BentoScale from './BentoScale.vue';
 import BentoSwiss from './BentoSwiss.vue';
+import BentoPricing from './BentoPricing.vue';
 import BentoOpenSource from './BentoOpenSource.vue';
 
 const cards = [
@@ -58,15 +59,25 @@ const cards = [
     title: 'Open source',
     description: '<span class="bento-hl">AGPL-3.0</span> licensed. Self-host on your own Kubernetes cluster. Built on Helm, CloudNativePG, Valkey, VictoriaMetrics, and friends.',
   },
-  /* Row 4: full width */
+  /* Row 4: 50 / 50 */
   {
     id: 'swiss',
     component: BentoSwiss,
-    span: 'bento-span-6',
-    corner: 'bento-corner-bl bento-corner-br',
+    span: 'bento-span-3',
+    corner: 'bento-corner-bl',
     textFirst: true,
     title: 'Backed by a Swiss company',
     description: 'There’s a US law called the <span class="bento-hl">CLOUD Act</span>. This cloud isn’t subject to it. Your data stays under Swiss and EU jurisdiction, where US subpoenas don’t reach.',
+  },
+  {
+    id: 'pricing',
+    component: BentoPricing,
+    span: 'bento-span-3',
+    corner: 'bento-corner-br',
+    textFirst: true,
+    title: 'Pricing so simple, you’d think our sales team is lazy.',
+    description: 'Just kidding, we don’t have a sales team… we only bill you for <span class="bento-hl">what you actually use</span>.',
+    link: { label: 'Learn more', to: '/pricing' },
   },
 ];
 
@@ -89,87 +100,112 @@ function onMouseLeave() {
 </script>
 
 <template>
-  <section class="px-6 mx-auto max-w-352">
-    <h2 class="font-display text-5xl leading-tight text-neutral-800 md:text-6xl dark:text-neutral-100">
-      Everything you need to ship
-    </h2>
+  <section class="px-6">
+    <div class="mx-auto max-w-content">
 
-    <p class="mt-8 text-2xl leading-relaxed mb-22">
-       All the building blocks for deploying and running your apps on Kubernetes. Built on standard tools, so you can eject whenever you want.
-    </p>
+      <h2 class="font-display text-5xl leading-tight text-neutral-800 md:text-6xl dark:text-neutral-100">
+        Everything you need to ship
+      </h2>
+
+      <p class="mt-8 text-2xl leading-relaxed mb-22">
+        All the building blocks for deploying and running your apps. Built on standard, open tools, so you can eject whenever you want.
+      </p>
 
 
-    <div class="bento-grid">
-      <div
-        v-for="card in cards"
-        :key="card.id"
-        :class="[
-          'bento-card-wrap',
-          `bento-card-${card.id}`,
-          card.span,
-          card.corner,
-        ]"
-        @mousemove="(e) => onMouseMove(e, card.id)"
-        @mouseleave="onMouseLeave"
-      >
-        <!-- Gradient border glow — cursor-following accent edge.
-            The 1px padding on the wrapper creates a "border" gap.
-            This gradient overlays it with the accent color at the cursor. -->
+      <div class="bento-grid">
         <div
-          v-if="spotlightCard === card.id"
-          class="bento-border-glow"
-          :style="{
-            background: `radial-gradient(400px circle at ${spotlightX}px ${spotlightY}px, var(--bento-accent), transparent 60%)`,
-          }"
-        />
-
-        <!-- Inner card shell -->
-        <div class="bento-card">
-          <!-- Surface spotlight glow -->
+          v-for="card in cards"
+          :key="card.id"
+          :class="[
+            'bento-card-wrap',
+            `bento-card-${card.id}`,
+            card.span,
+            card.corner,
+          ]"
+          @mousemove="(e) => onMouseMove(e, card.id)"
+          @mouseleave="onMouseLeave"
+        >
+          <!-- Gradient border glow — cursor-following accent edge.
+              The 1px padding on the wrapper creates a "border" gap.
+              This gradient overlays it with the accent color at the cursor. -->
           <div
             v-if="spotlightCard === card.id"
-            class="bento-spotlight"
+            class="bento-border-glow"
             :style="{
-              background: `radial-gradient(400px circle at ${spotlightX}px ${spotlightY}px, var(--bento-accent-glow), transparent 70%)`,
+              background: `radial-gradient(400px circle at ${spotlightX}px ${spotlightY}px, var(--bento-accent), transparent 60%)`,
             }"
           />
 
-          <!-- Depth gradient — slight highlight at top, shadow at bottom -->
-          <div class="bento-depth" />
-
-          <!-- Text content (shows first when textFirst) -->
-          <div
-            v-if="card.textFirst"
-            class="bento-text"
-          >
-            <h3 class="bento-title">
-              {{ card.title }}
-            </h3>
-            <!-- eslint-disable-next-line vue/no-v-html -->
-            <p
-              class="bento-desc"
-              v-html="card.description"
+          <!-- Inner card shell -->
+          <div class="bento-card">
+            <!-- Surface spotlight glow -->
+            <div
+              v-if="spotlightCard === card.id"
+              class="bento-spotlight"
+              :style="{
+                background: `radial-gradient(400px circle at ${spotlightX}px ${spotlightY}px, var(--bento-accent-glow), transparent 70%)`,
+              }"
             />
-          </div>
 
-          <!-- Visual area -->
-          <div class="bento-visual">
-            <component :is="card.component" />
-          </div>
+            <!-- Depth gradient — slight highlight at top, shadow at bottom -->
+            <div class="bento-depth" />
 
-          <!-- Text content (shows after visual when not textFirst) -->
-          <div
-            v-if="!card.textFirst"
-            class="bento-text"
-          >
-            <h3 class="bento-title">
-              {{ card.title }}
-            </h3>
-            <!-- eslint-disable-next-line vue/no-v-html -->
-            <p
-              class="bento-desc"
-              v-html="card.description"
-            />
+            <!-- Text content (shows first when textFirst) -->
+            <div
+              v-if="card.textFirst"
+              class="bento-text"
+            >
+              <h3 class="bento-title">
+                {{ card.title }}
+              </h3>
+              <!-- eslint-disable-next-line vue/no-v-html -->
+              <p
+                class="bento-desc"
+                v-html="card.description"
+              />
+              <NuxtLink
+                v-if="card.link"
+                :to="card.link.to"
+                class="bento-link"
+              >
+                {{ card.link.label }}
+                <UIcon
+                  name="i-lucide-arrow-right"
+                  class="size-4"
+                />
+              </NuxtLink>
+            </div>
+
+            <!-- Visual area -->
+            <div class="bento-visual">
+              <component :is="card.component" />
+            </div>
+
+            <!-- Text content (shows after visual when not textFirst) -->
+            <div
+              v-if="!card.textFirst"
+              class="bento-text"
+            >
+              <h3 class="bento-title">
+                {{ card.title }}
+              </h3>
+              <!-- eslint-disable-next-line vue/no-v-html -->
+              <p
+                class="bento-desc"
+                v-html="card.description"
+              />
+              <NuxtLink
+                v-if="card.link"
+                :to="card.link.to"
+                class="bento-link"
+              >
+                {{ card.link.label }}
+                <UIcon
+                  name="i-lucide-arrow-right"
+                  class="size-4"
+                />
+              </NuxtLink>
+            </div>
           </div>
         </div>
       </div>
@@ -211,6 +247,7 @@ function onMouseLeave() {
    On hover, bento-border-glow overlays an accent gradient. */
 .bento-card-wrap {
   position: relative;
+  min-width: 0;
   border-radius: 17px;
   padding: 1px;
   background: var(--ui-border);
@@ -348,5 +385,21 @@ function onMouseLeave() {
   .bento-desc {
     font-size: 1.125rem;
   }
+}
+
+.bento-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 16px;
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--bento-accent);
+  transition: gap 0.2s ease;
+}
+
+.bento-link:hover {
+  gap: 10px;
 }
 </style>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 const baseUi = {
   root: 'pricing-card rounded-2xl bg-gradient-to-b from-[var(--ui-bg-elevated)]/60 to-transparent relative overflow-hidden',
-  title: 'font-serif text-3xl sm:text-4xl font-normal',
+  title: 'font-display text-3xl sm:text-4xl font-normal',
 };
 
 const hobbyUi = {
@@ -17,15 +17,13 @@ const proUi = {
 const hobby = {
   title: 'Hobby',
   description: 'For side projects and experiments.',
-  price: '€5',
+  price: 'CHF 5',
   billingCycle: '/month',
   variant: 'outline' as const,
-  tagline: '€5 in credits included',
+  tagline: 'CHF 5 in credits included',
   features: [
     'Just you',
     '1 custom domain',
-    'Eco resources',
-    'Production resources',
     'Community support',
   ],
   button: {
@@ -39,15 +37,13 @@ const hobby = {
 const pro = {
   title: 'Pro',
   description: 'For teams shipping to production.',
-  price: '€25',
+  price: 'CHF 25',
   billingCycle: '/month',
   highlight: true,
-  tagline: '€25 in credits included',
+  tagline: 'CHF 25 in credits included',
   features: [
     'Unlimited collaborators',
     'Unlimited custom domains',
-    'Eco resources',
-    'Production resources',
     'FADP/nDSG compliance ready',
     'Priority support',
   ],

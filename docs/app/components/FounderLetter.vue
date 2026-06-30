@@ -3,7 +3,7 @@
 
 <template>
   <section class="px-6">
-    <div class="relative mx-auto max-w-450 -rotate-[0.5deg] px-10 py-9 shadow-xl shadow-neutral-900/5 md:px-10 lg:px-22 2xl:px-42 md:py-20 bg-white md:bg-[linear-gradient(90deg,#ffffff_0%,#ffffff_50%,#F7F7F7_50%,#ffffff_50.5%,#ffffff_100%)]">
+    <div class="relative mx-auto max-w-page -rotate-[0.5deg] px-10 py-9 shadow-xl shadow-neutral-900/5 md:px-10 lg:px-22 2xl:px-42 md:py-20 bg-white md:bg-[linear-gradient(90deg,#ffffff_0%,#ffffff_50%,#F7F7F7_50%,#ffffff_50.5%,#ffffff_100%)]">
       <div class="pointer-events-none absolute inset-y-0 left-1/2 hidden w-32 -translate-x-1/2 md:block bg-[linear-gradient(to_right,transparent,rgba(49,30,4,0.06)_49%,rgba(49,30,4,0.09)_50%,rgba(49,30,4,0.06)_55%,transparent)]" />
       <div class="relative grid gap-12 md:grid-cols-2 md:gap-20 lg:gap-44 2xl:gap-84">
         <div class="space-y-6 text-justify font-light leading-[1.7] text-neutral-900 text-lg lg:text-xl 2xl:text-2xl">
