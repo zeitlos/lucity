@@ -21,6 +21,11 @@ func (c *Client) Sync(ctx context.Context, hostnames []string) error {
 	for host := range desired {
 		state := listeners[host]
 
+		if err := c.ensureCertificate(ctx, host); err != nil {
+			slog.Warn("gateway sync: ensure certificate failed", "host", host, "error", err)
+			continue
+		}
+
 		if !state.http {
 			if err := c.addListener(ctx, host, "HTTP", ""); err != nil {
 				slog.Warn("gateway sync: add http listener failed", "host", host, "error", err)
@@ -32,6 +37,18 @@ func (c *Client) Sync(ctx context.Context, hostnames []string) error {
 
 		if !state.https {
 			secretName := ResourceNameFor(host) + "-tls"
+
+			exists, err := c.secretExists(ctx, secretName)
+
+			if err != nil {
+				slog.Warn("gateway sync: check tls secret failed", "host", host, "error", err)
+				continue
+			}
+
+			if !exists {
+				slog.Info("gateway sync: waiting for tls secret before adding https listener", "host", host, "secret", secretName)
+				continue
+			}
 
 			if err := c.addListener(ctx, host, "HTTPS", secretName); err != nil {
 				slog.Warn("gateway sync: add https listener failed", "host", host, "error", err)

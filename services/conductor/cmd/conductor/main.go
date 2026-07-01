@@ -106,9 +106,10 @@ type Config struct {
 	GitHubAppSlug          string `envconfig:"GITHUB_APP_SLUG" required:"true"`
 
 	// Domains
-	WorkloadDomain string `envconfig:"WORKLOAD_DOMAIN" required:"true"`
-	DatabaseDomain string `envconfig:"DATABASE_DOMAIN" required:"true"`
-	IPAddress      string `envconfig:"IP_ADDRESS"`
+	WorkloadDomain            string `envconfig:"WORKLOAD_DOMAIN" required:"true"`
+	DatabaseDomain            string `envconfig:"DATABASE_DOMAIN" required:"true"`
+	IPAddress                 string `envconfig:"IP_ADDRESS"`
+	CustomDomainClusterIssuer string `envconfig:"CUSTOM_DOMAIN_CLUSTER_ISSUER" default:"letsencrypt-http01"`
 
 	// Reconciliation
 	ReconcileEnabled bool `envconfig:"RECONCILE_ENABLED" default:"true"`
@@ -266,7 +267,7 @@ func main() {
 
 	hostnameClient := hostname.New(config.WorkloadDomain, domainTarget, config.IPAddress, config.GatewayNamespace, k8sClient, dynClient)
 
-	gatewayClient := gateway.New(dynClient, config.GatewayName, config.GatewayNamespace)
+	gatewayClient := gateway.New(dynClient, config.GatewayName, config.GatewayNamespace, config.CustomDomainClusterIssuer)
 
 	environmentClient := environmentK8s.New(k8sClient, dynClient, config.SystemNamespace, config.RegistryPullSecret, config.PodCIDR, config.ServiceCIDR)
 
