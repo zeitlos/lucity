@@ -25,7 +25,7 @@ rules:
     verbs: [get, list, create, update]
   - apiGroups: [""]
     resources: [persistentvolumeclaims]
-    verbs: [list]
+    verbs: [get, list, watch, create, update, patch, delete]
   - apiGroups: [""]
     resources: [pods]
     verbs: [get, list, watch]
