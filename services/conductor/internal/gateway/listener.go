@@ -157,9 +157,10 @@ func (c *Client) listListeners(ctx context.Context) (map[string]listenerState, e
 		protocol, _ := entry["protocol"].(string)
 		state := result[hostname]
 
-		if protocol == "HTTP" {
+		switch protocol {
+		case "HTTP":
 			state.http = true
-		} else if protocol == "HTTPS" {
+		case "HTTPS":
 			state.https = true
 		}
 
