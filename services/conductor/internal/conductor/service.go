@@ -174,6 +174,7 @@ func (c *Client) AddService(ctx context.Context, environmentID platform.Environm
 			Workspace:        workspace,
 			RepoURL:          spec.SourceURL,
 			Commit:           commit.SHA,
+			CommitMessage:    commit.Message,
 			ContextPath:      contextPath,
 			TargetImageNames: []string{imageName},
 			Token:            token,

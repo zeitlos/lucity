@@ -26,11 +26,12 @@ const (
 )
 
 const (
-	annotationSourceRepo  = "lucity.dev/source-repo"
-	annotationContext     = "lucity.dev/source-context"
-	annotationTargets     = "lucity.dev/target-image-refs"
-	annotationTriggeredBy = "lucity.dev/triggered-by"
-	annotationCancelledAt = "lucity.dev/cancelled-at"
+	annotationSourceRepo    = "lucity.dev/source-repo"
+	annotationContext       = "lucity.dev/source-context"
+	annotationTargets       = "lucity.dev/target-image-refs"
+	annotationTriggeredBy   = "lucity.dev/triggered-by"
+	annotationCancelledAt   = "lucity.dev/cancelled-at"
+	annotationCommitMessage = "lucity.dev/commit-message"
 )
 
 type Client struct {
@@ -63,14 +64,15 @@ var _ buildjob.Interface = (*Client)(nil)
 
 func toJob(job batch.Job) buildjob.Job {
 	build := buildjob.Job{
-		ID:          buildjob.BuildID{Workspace: job.Labels[labelWorkspace], Name: job.Name},
-		Status:      buildStatus(job),
-		SourceURL:   job.Annotations[annotationSourceRepo],
-		Commit:      job.Labels[labelSourceCommit],
-		ContextPath: job.Annotations[annotationContext],
-		TriggeredBy: job.Annotations[annotationTriggeredBy],
-		ReleaseID:   job.Labels[labelRelease],
-		ImageRefs:   make(map[string]name.Reference),
+		ID:            buildjob.BuildID{Workspace: job.Labels[labelWorkspace], Name: job.Name},
+		Status:        buildStatus(job),
+		SourceURL:     job.Annotations[annotationSourceRepo],
+		Commit:        job.Labels[labelSourceCommit],
+		CommitMessage: job.Annotations[annotationCommitMessage],
+		ContextPath:   job.Annotations[annotationContext],
+		TriggeredBy:   job.Annotations[annotationTriggeredBy],
+		ReleaseID:     job.Labels[labelRelease],
+		ImageRefs:     make(map[string]name.Reference),
 	}
 
 	if job.Status.StartTime != nil {

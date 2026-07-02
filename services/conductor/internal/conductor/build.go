@@ -117,6 +117,7 @@ func (c *Client) Deploy(ctx context.Context, serviceID ServiceID, gitRef string)
 		Workspace:        service.ID.Workspace,
 		RepoURL:          service.SourceURL,
 		Commit:           commit.SHA,
+		CommitMessage:    commit.Message,
 		ContextPath:      service.ContextPath,
 		TargetImageNames: []string{imageName},
 		Token:            token,

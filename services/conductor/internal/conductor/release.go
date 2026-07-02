@@ -230,7 +230,7 @@ func releaseSource(build *Build, deployment *Deployment) *GitSource {
 	}
 
 	if build != nil && build.SourceURL != "" {
-		return gitSource(build.SourceURL, "", build.ContextPath, Commit{SHA: build.Commit})
+		return gitSource(build.SourceURL, "", build.ContextPath, Commit{SHA: build.Commit, Message: build.CommitMessage})
 	}
 
 	return nil

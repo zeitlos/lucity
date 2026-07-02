@@ -25,6 +25,7 @@ type StartOptions struct {
 	Workspace        string
 	RepoURL          string
 	Commit           string
+	CommitMessage    string
 	ContextPath      string
 	TargetImageNames []string
 	Token            string
@@ -33,17 +34,18 @@ type StartOptions struct {
 }
 
 type Job struct {
-	ID          BuildID
-	Status      Status
-	SourceURL   string
-	Commit      string
-	ContextPath string
-	TriggeredBy string
-	ReleaseID   string
-	StartedAt   *time.Time
-	FinishedAt  *time.Time
-	ImageRefs   map[string]name.Reference
-	Digests     map[string]string
+	ID            BuildID
+	Status        Status
+	SourceURL     string
+	Commit        string
+	CommitMessage string
+	ContextPath   string
+	TriggeredBy   string
+	ReleaseID     string
+	StartedAt     *time.Time
+	FinishedAt    *time.Time
+	ImageRefs     map[string]name.Reference
+	Digests       map[string]string
 }
 
 func (j *Job) BuiltImage(imageName string) (image.Ref, error) {
