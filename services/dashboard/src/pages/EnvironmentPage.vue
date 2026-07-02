@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuery } from '@vue/apollo-composable';
 import { graphql } from '@/gql';
-import { ServiceStatus, DatabaseStatus } from '@/gql/graphql';
+import { ServiceStatus, DatabaseStatus, ReleaseStatus } from '@/gql/graphql';
 
 const EnvironmentDocument = graphql(`
   query Environment($environment: EnvironmentID!) {
@@ -223,6 +223,11 @@ const DATABASE_TRANSIENT_STATUSES = new Set<DatabaseStatus>([
   DatabaseStatus.Updating,
   DatabaseStatus.Degraded,
 ]);
+const RELEASE_TRANSIENT_STATUSES = new Set<ReleaseStatus>([
+  ReleaseStatus.Queued,
+  ReleaseStatus.Building,
+  ReleaseStatus.Deploying,
+]);
 
 const isReconciling = ref(false);
 
@@ -290,6 +295,7 @@ watch(
 
     isReconciling.value =
       env.services.some(s => SERVICE_TRANSIENT_STATUSES.has(s.status)) ||
+      env.services.some(s => s.releases.some(r => RELEASE_TRANSIENT_STATUSES.has(r.status))) ||
       env.databases.some(d => DATABASE_TRANSIENT_STATUSES.has(d.status)) ||
       env.keyValueStores.some(v => DATABASE_TRANSIENT_STATUSES.has(v.status));
 
@@ -366,6 +372,14 @@ watch(
               status: r.build.status,
               startedAt: r.build.startedAt,
               finishedAt: r.build.finishedAt ?? null,
+            }
+            : null,
+          deploy: r.deploy
+            ? {
+              id: r.deploy.id,
+              status: r.deploy.status,
+              startedAt: r.deploy.startedAt,
+              finishedAt: r.deploy.finishedAt ?? null,
             }
             : null,
           deployment: r.deployment

@@ -2,12 +2,13 @@
 import { computed, ref, onMounted, watch } from 'vue';
 import {
   Rocket, Loader2, Check, AlertCircle, Terminal,
-  ExternalLink, GitCommitHorizontal, RefreshCw,
-  MoreVertical, ChevronDown, Container,
+  ExternalLink, RefreshCw,
+  MoreVertical, ChevronDown, Clock, CircleSlash,
 } from '@lucide/vue';
+import { useNow } from '@vueuse/core';
 import { useDeploy } from '@/composables/useDeploy';
-import { useBuildLogsPanel } from '@/composables/useBuildLogsPanel';
-import { BuildStatus, DeploymentStatus, ReleaseStatus } from '@/gql/graphql';
+import { useBuildLogsPanel, type LogsPanelKind } from '@/composables/useBuildLogsPanel';
+import { DeploymentStatus, ReleaseStatus } from '@/gql/graphql';
 import { activeBuild, type Release } from '@/composables/useEnvironment';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -25,14 +26,12 @@ const props = defineProps<{
   service: Service;
 }>();
 
+const emit = defineEmits<{
+  (e: 'refetch'): void;
+}>();
+
 const deploy = useDeploy();
 const logsPanel = useBuildLogsPanel();
-
-function showLogs() {
-  if (deploy.buildId) {
-    logsPanel.open(deploy.buildId, props.service.name);
-  }
-}
 
 const activeDeployment = computed(() => props.service.activeDeployment ?? null);
 
@@ -70,10 +69,12 @@ const isImageBased = computed(() => !props.service.sourceUrl);
 
 async function handleDeploy() {
   await deploy.startDeploy(props.service.id, props.service.name);
+  emit('refetch');
 }
 
 async function handleRedeploy() {
   await deploy.startDeploy(props.service.id, props.service.name);
+  emit('refetch');
 }
 
 function formatRelativeTime(timestamp?: string | null): string {
@@ -91,12 +92,6 @@ function formatRelativeTime(timestamp?: string | null): string {
   if (diffHours < 24) return `${diffHours}h ago`;
   if (diffDays < 30) return `${diffDays}d ago`;
   return date.toLocaleDateString();
-}
-
-function shortBuildId(id: string): string {
-  const name = id.includes('/') ? id.slice(id.lastIndexOf('/') + 1) : id;
-  const trimmed = name.startsWith('build-') ? name.slice(6) : name;
-  return trimmed.slice(0, 7);
 }
 
 function shortCommit(commit?: string | null): string | null {
@@ -130,6 +125,147 @@ function releaseStatusMeta(status: ReleaseStatus): StatusMeta {
   }
 }
 
+const IN_FLIGHT_RELEASE_STATUSES = new Set<ReleaseStatus>([
+  ReleaseStatus.Queued,
+  ReleaseStatus.Building,
+  ReleaseStatus.Deploying,
+]);
+
+function isInFlight(release: Release): boolean {
+  return IN_FLIGHT_RELEASE_STATUSES.has(release.status);
+}
+
+type StepStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'skipped';
+
+interface ReleaseStep {
+  key: string;
+  label: string;
+  status: StepStatus;
+  detail?: string;
+  startedAt?: string | null;
+  finishedAt?: string | null;
+  logId?: string;
+  logKind?: LogsPanelKind;
+}
+
+function rolloutStep(release: Release, live: boolean): ReleaseStep | null {
+  const deployment = release.deployment;
+
+  if (!deployment) return null;
+
+  let status: StepStatus;
+
+  switch (deployment.status) {
+    case DeploymentStatus.Deploying:
+      status = 'running';
+      break;
+    case DeploymentStatus.Failed:
+      status = 'failed';
+      break;
+    case DeploymentStatus.Active:
+      status = live && !isReady.value ? 'running' : 'succeeded';
+      break;
+    default:
+      return null;
+  }
+
+  let detail: string | undefined;
+
+  if (live) {
+    const parts = [
+      props.service.autoscaling
+        ? `${replicasDesired.value} replica${replicasDesired.value !== 1 ? 's' : ''} (autoscaling ${props.service.autoscaling.minReplicas}–${props.service.autoscaling.maxReplicas})`
+        : `${replicasDesired.value} replica${replicasDesired.value !== 1 ? 's' : ''}`,
+    ];
+
+    if (!isReady.value) {
+      parts.push(`${replicasReady.value}/${replicasDesired.value} ready`);
+    }
+
+    detail = parts.join(' · ');
+  }
+
+  return {
+    key: 'rollout',
+    label: 'Rollout',
+    status,
+    detail,
+    startedAt: status === 'running' ? deployment.createdAt : null,
+  };
+}
+
+function releaseSteps(release: Release, live = false): ReleaseStep[] {
+  const steps: ReleaseStep[] = [];
+
+  if (release.build) {
+    steps.push({
+      key: 'build',
+      label: 'Build',
+      status: release.build.status.toLowerCase() as StepStatus,
+      startedAt: release.build.startedAt,
+      finishedAt: release.build.finishedAt,
+      logId: release.build.id,
+      logKind: 'build',
+    });
+  }
+
+  if (release.deploy) {
+    steps.push({
+      key: 'deploy',
+      label: 'Deploy',
+      status: release.deploy.status.toLowerCase() as StepStatus,
+      startedAt: release.deploy.startedAt,
+      finishedAt: release.deploy.finishedAt,
+      logId: release.deploy.id,
+      logKind: 'deploy',
+    });
+  }
+
+  const rollout = rolloutStep(release, live);
+
+  if (rollout) {
+    steps.push(rollout);
+  }
+
+  return steps;
+}
+
+const stepIcons = {
+  succeeded: Check,
+  failed: AlertCircle,
+  running: Loader2,
+  queued: Clock,
+  cancelled: CircleSlash,
+  skipped: CircleSlash,
+} as const;
+
+function stepColor(status: StepStatus): string {
+  switch (status) {
+    case 'succeeded': return 'var(--status-ok)';
+    case 'failed': return 'var(--status-danger)';
+    case 'running': return 'var(--status-warn)';
+    default: return 'var(--status-neutral)';
+  }
+}
+
+const now = useNow({ interval: 1000 });
+
+function stepDuration(step: ReleaseStep): string | null {
+  if (!step.startedAt) return null;
+  const start = new Date(step.startedAt).getTime();
+  const end = step.finishedAt
+    ? new Date(step.finishedAt).getTime()
+    : (step.status === 'running' ? now.value.getTime() : null);
+  if (end === null) return null;
+  const secs = Math.max(0, Math.floor((end - start) / 1000));
+  if (secs < 60) return `${secs}s`;
+  return `${Math.floor(secs / 60)}m ${secs % 60}s`;
+}
+
+function releaseGitHubURL(release: Release): string | null {
+  return release.source?.commit.url ?? release.source?.url ?? null;
+}
+
 const providerLabels: Record<string, string> = {
   GITHUB: 'GitHub',
   GITLAB: 'GitLab',
@@ -158,7 +294,7 @@ function releaseMeta(release: Release): string {
 const replicasReady = computed(() => props.service.replicas?.ready ?? 0);
 const replicasDesired = computed(() => props.service.replicas?.desired ?? 0);
 const isReady = computed(() => replicasReady.value > 0 && replicasReady.value === replicasDesired.value);
-const showActiveDetails = ref(false);
+const showActiveDetails = ref(!isReady.value);
 </script>
 
 <template>
@@ -177,57 +313,28 @@ const showActiveDetails = ref(false);
         <Rocket v-else :size="14" class="mr-2" />
         {{ deploy.isDeploying ? 'Building...' : 'Deploy' }}
       </Button>
-
-      <button
-        v-if="deploy.isDeploying && deploy.buildId"
-        class="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
-        @click="showLogs"
-      >
-        <Terminal :size="13" />
-        Show logs
-        <span class="font-mono text-[11px] text-muted-foreground/70">{{ shortBuildId(deploy.buildId) }}</span>
-      </button>
-    </div>
-
-    <!-- Build failed -->
-    <div
-      v-if="deploy.status === BuildStatus.Failed"
-      class="rounded-lg border border-[var(--status-danger)]/30 bg-[var(--status-danger)]/5 px-3 py-2.5"
-    >
-      <div class="flex items-start gap-2">
-        <AlertCircle
-          :size="14"
-          class="mt-0.5 shrink-0 text-[var(--status-danger)]"
-        />
-        <div class="min-w-0 space-y-0.5">
-          <p class="text-xs font-medium text-[var(--status-danger)]">Build failed</p>
-          <p
-            v-if="deploy.error"
-            class="break-words font-mono text-[11px] text-muted-foreground"
-          >
-            {{ deploy.error }}
-          </p>
-          <button
-            v-if="deploy.buildId"
-            class="mt-1 text-[11px] text-muted-foreground underline decoration-muted-foreground/40 underline-offset-2 hover:text-foreground"
-            @click="showLogs"
-          >
-            Show Logs
-          </button>
-        </div>
-      </div>
     </div>
 
     <!-- Active Deployment Card -->
-    <div v-if="activeDeployment" class="space-y-0">
-      <div class="rounded-lg border border-border/60 bg-card">
-        <!-- Main row -->
-        <div class="flex items-start gap-3 px-4 py-3">
+    <Collapsible
+      v-if="activeDeployment"
+      v-model:open="showActiveDetails"
+      class="rounded-lg border bg-card shadow-sm"
+    >
+      <div class="flex items-center gap-3 pr-2">
+        <CollapsibleTrigger class="group flex min-w-0 flex-1 cursor-pointer items-center gap-3 py-3 pl-4 text-left">
           <span
-            class="mt-1 flex shrink-0 items-center gap-1.5 text-[11px] font-medium"
-            :style="{ color: deploymentStatusMeta(activeDeployment.status).color }"
+            class="inline-flex w-[84px] shrink-0 items-center justify-center gap-1 rounded py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+            :style="{
+              color: deploymentStatusMeta(activeDeployment.status).color,
+              backgroundColor: `color-mix(in srgb, ${deploymentStatusMeta(activeDeployment.status).color} 15%, transparent)`,
+            }"
           >
-            <span class="h-1.5 w-1.5 rounded-full" :style="{ backgroundColor: deploymentStatusMeta(activeDeployment.status).color }" />
+            <Loader2
+              v-if="activeDeployment.status === DeploymentStatus.Deploying || !isReady"
+              :size="10"
+              class="shrink-0 animate-spin"
+            />
             {{ deploymentStatusMeta(activeDeployment.status).label }}
           </span>
 
@@ -239,58 +346,144 @@ const showActiveDetails = ref(false);
               {{ activeDeployment.commitMessage || shortCommit(activeDeployment.commit) || activeDeployment.image }}
             </p>
             <div class="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-              <template v-if="shortCommit(activeDeployment.commit)">
-                <GitCommitHorizontal :size="10" class="shrink-0" />
-                <a
-                  v-if="activeRelease?.source?.commit.url"
-                  :href="activeRelease.source.commit.url"
-                  target="_blank"
-                  rel="noopener"
-                  class="font-mono hover:text-foreground hover:underline"
-                >{{ shortCommit(activeDeployment.commit) }}</a>
-                <span v-else class="font-mono">{{ shortCommit(activeDeployment.commit) }}</span>
-              </template>
-              <span v-if="activeDeployment.createdAt">&middot; {{ formatRelativeTime(activeDeployment.createdAt) }}</span>
+              <span v-if="activeDeployment.createdAt">{{ formatRelativeTime(activeDeployment.createdAt) }}</span>
               <span v-if="activeRelease?.source">&middot; via {{ providerLabels[activeRelease.source.provider] ?? activeRelease.source.provider }}</span>
               <span v-if="activeRelease?.trigger.actor">&middot; by {{ activeRelease.trigger.actor }}</span>
             </div>
           </div>
 
-          <div class="flex shrink-0 items-center gap-1.5">
-            <DropdownMenu>
-              <DropdownMenuTrigger as-child>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  class="h-8 w-8 p-0"
+          <ChevronDown
+            :size="14"
+            class="shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180"
+          />
+        </CollapsibleTrigger>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger as-child>
+            <Button
+              variant="ghost"
+              size="sm"
+              class="h-8 w-8 shrink-0 p-0"
+            >
+              <MoreVertical :size="16" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem :disabled="deploy.isDeploying" @click="handleRedeploy">
+              <RefreshCw :size="14" class="mr-2" />
+              Redeploy
+            </DropdownMenuItem>
+            <DropdownMenuSeparator v-if="service.sourceUrl" />
+            <DropdownMenuItem v-if="service.sourceUrl" as-child>
+              <a
+                :href="service.sourceUrl"
+                target="_blank"
+                rel="noopener"
+              >
+                <ExternalLink :size="14" class="mr-2" />
+                View on GitHub
+              </a>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      <CollapsibleContent>
+        <div v-if="activeRelease" class="border-t border-border/40 px-4 py-2">
+          <div
+            v-for="step in releaseSteps(activeRelease, true)"
+            :key="step.key"
+            class="flex items-center gap-3 py-2"
+          >
+            <span class="w-36 shrink-0 truncate text-sm font-medium text-foreground">
+              {{ step.label }}
+              <span v-if="stepDuration(step)" class="font-normal text-muted-foreground">{{ stepDuration(step) }}</span>
+            </span>
+            <span
+              class="flex w-32 shrink-0 items-center gap-1.5 text-sm capitalize"
+              :style="{ color: stepColor(step.status) }"
+            >
+              <component
+                :is="stepIcons[step.status]"
+                :size="14"
+                :class="step.status === 'running' ? 'animate-spin' : ''"
+              />
+              {{ step.status }}
+            </span>
+            <span class="flex-1 truncate text-sm text-muted-foreground">{{ step.detail }}</span>
+            <Button
+              v-if="step.logId && step.logKind"
+              variant="outline"
+              size="sm"
+              class="h-7 shrink-0 gap-1.5 px-2.5"
+              @click="logsPanel.open(step.logId, service.name, step.logKind)"
+            >
+              <Terminal :size="12" />
+              Logs
+            </Button>
+          </div>
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+
+    <!-- Release history -->
+    <div v-if="historyReleases.length > 0" class="space-y-2">
+      <h3 class="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        History
+      </h3>
+
+      <div class="space-y-2">
+        <Collapsible
+          v-for="release in historyReleases"
+          :key="release.id"
+          class="rounded-lg border border-border/60 bg-muted/30"
+          :default-open="isInFlight(release)"
+        >
+          <div class="flex items-center gap-3 pr-2">
+            <CollapsibleTrigger class="group flex min-w-0 flex-1 cursor-pointer items-center gap-3 py-3 pl-4 text-left">
+              <span
+                class="inline-flex w-[84px] shrink-0 items-center justify-center gap-1 rounded py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+                :style="{
+                  color: releaseStatusMeta(release.status).color,
+                  backgroundColor: `color-mix(in srgb, ${releaseStatusMeta(release.status).color} 15%, transparent)`,
+                }"
+              >
+                <Loader2
+                  v-if="isInFlight(release)"
+                  :size="10"
+                  class="shrink-0 animate-spin"
+                />
+                {{ releaseStatusMeta(release.status).label }}
+              </span>
+
+              <div class="min-w-0 flex-1">
+                <p
+                  class="truncate text-sm font-medium text-foreground"
+                  :title="releaseTitle(release)"
                 >
+                  {{ releaseTitle(release) }}
+                </p>
+                <div class="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <span>{{ releaseMeta(release) }}</span>
+                </div>
+              </div>
+
+              <ChevronDown
+                :size="14"
+                class="shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180"
+              />
+            </CollapsibleTrigger>
+
+            <DropdownMenu v-if="releaseGitHubURL(release)">
+              <DropdownMenuTrigger as-child>
+                <Button variant="ghost" size="sm" class="h-8 w-8 shrink-0 p-0">
                   <MoreVertical :size="16" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem
-                  v-if="activeRelease?.build"
-                  @click="activeRelease?.build && logsPanel.open(activeRelease.build.id, service.name, 'build')"
-                >
-                  <Terminal :size="14" class="mr-2" />
-                  Build logs
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  v-if="activeRelease?.deploy"
-                  @click="activeRelease?.deploy && logsPanel.open(activeRelease.deploy.id, service.name, 'deploy')"
-                >
-                  <Terminal :size="14" class="mr-2" />
-                  Deploy logs
-                </DropdownMenuItem>
-                <DropdownMenuSeparator v-if="activeRelease?.build || activeRelease?.deploy" />
-                <DropdownMenuItem :disabled="deploy.isDeploying" @click="handleRedeploy">
-                  <RefreshCw :size="14" class="mr-2" />
-                  Redeploy
-                </DropdownMenuItem>
-                <DropdownMenuSeparator v-if="service.sourceUrl" />
-                <DropdownMenuItem v-if="service.sourceUrl" as-child>
+                <DropdownMenuItem as-child>
                   <a
-                    :href="service.sourceUrl"
+                    :href="releaseGitHubURL(release)!"
                     target="_blank"
                     rel="noopener"
                   >
@@ -301,119 +494,49 @@ const showActiveDetails = ref(false);
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-        </div>
 
-        <!-- Deployment status expandable -->
-        <Collapsible v-model:open="showActiveDetails">
-          <CollapsibleTrigger class="flex w-full cursor-pointer items-center gap-2 border-t border-border/40 px-4 py-2.5 text-left">
-            <template v-if="isReady">
-              <Check :size="14" class="shrink-0 text-[var(--status-ok)]" />
-              <span class="flex-1 text-xs font-medium text-[var(--status-ok)]">Deployment successful</span>
-            </template>
-            <template v-else>
-              <Loader2 :size="14" class="shrink-0 animate-spin text-[var(--status-warn)]" />
-              <span class="flex-1 text-xs font-medium text-[var(--status-warn)]">Waiting for pods</span>
-            </template>
-            <ChevronDown
-              :size="14"
-              class="shrink-0 text-muted-foreground transition-transform"
-              :class="showActiveDetails ? 'rotate-180' : ''"
-            />
-          </CollapsibleTrigger>
           <CollapsibleContent>
-            <div class="space-y-2 border-t border-border/40 px-4 py-3">
-              <div class="flex items-center gap-2">
-                <Container :size="12" class="shrink-0 text-muted-foreground" />
-                <span class="font-mono text-xs text-muted-foreground">{{ activeDeployment.image }}</span>
-              </div>
-              <div class="text-xs text-muted-foreground">
-                <template v-if="service.autoscaling">
-                  {{ replicasDesired }} replica{{ replicasDesired !== 1 ? 's' : '' }}
-                  (autoscaling {{ service.autoscaling.minReplicas }}&ndash;{{ service.autoscaling.maxReplicas }})
-                </template>
-                <template v-else>
-                  {{ replicasDesired }} replica{{ replicasDesired !== 1 ? 's' : '' }}
-                </template>
-                <template v-if="isReady"> &middot; healthy</template>
-                <template v-else> &middot; {{ replicasReady }}/{{ replicasDesired }} ready</template>
-              </div>
+            <div class="border-t border-border/40 px-4 py-2">
+              <template v-if="releaseSteps(release).length > 0">
+                <div
+                  v-for="step in releaseSteps(release)"
+                  :key="step.key"
+                  class="flex items-center gap-3 py-2"
+                >
+                  <span class="w-36 shrink-0 truncate text-sm font-medium text-foreground">
+                    {{ step.label }}
+                    <span v-if="stepDuration(step)" class="font-normal text-muted-foreground">{{ stepDuration(step) }}</span>
+                  </span>
+                  <span
+                    class="flex w-32 shrink-0 items-center gap-1.5 text-sm capitalize"
+                    :style="{ color: stepColor(step.status) }"
+                  >
+                    <component
+                      :is="stepIcons[step.status]"
+                      :size="14"
+                      :class="step.status === 'running' ? 'animate-spin' : ''"
+                    />
+                    {{ step.status }}
+                  </span>
+                  <span class="flex-1 truncate text-sm text-muted-foreground">{{ step.detail }}</span>
+                  <Button
+                    v-if="step.logId && step.logKind"
+                    variant="outline"
+                    size="sm"
+                    class="h-7 shrink-0 gap-1.5 px-2.5"
+                    @click="logsPanel.open(step.logId, service.name, step.logKind)"
+                  >
+                    <Terminal :size="12" />
+                    Logs
+                  </Button>
+                </div>
+              </template>
+              <p v-else class="py-2 text-sm text-muted-foreground">
+                No pipeline details for this release.
+              </p>
             </div>
           </CollapsibleContent>
         </Collapsible>
-      </div>
-    </div>
-
-    <!-- Release history -->
-    <div v-if="historyReleases.length > 0" class="space-y-2">
-      <h3 class="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-        History
-      </h3>
-
-      <div class="space-y-2">
-        <div
-          v-for="release in historyReleases"
-          :key="release.id"
-          class="flex items-center gap-3 rounded-lg border border-border/60 bg-muted/30 px-4 py-3"
-        >
-          <span
-            class="inline-flex w-[84px] shrink-0 justify-center rounded py-0.5 text-[10px] font-semibold uppercase tracking-wide"
-            :style="{
-              color: releaseStatusMeta(release.status).color,
-              backgroundColor: `color-mix(in srgb, ${releaseStatusMeta(release.status).color} 15%, transparent)`,
-            }"
-          >
-            {{ releaseStatusMeta(release.status).label }}
-          </span>
-
-          <div class="min-w-0 flex-1">
-            <p
-              class="truncate text-sm font-medium text-foreground"
-              :title="releaseTitle(release)"
-            >
-              {{ releaseTitle(release) }}
-            </p>
-            <div class="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-              <template v-if="release.source">
-                <GitCommitHorizontal :size="10" class="shrink-0" />
-                <a
-                  v-if="release.source.commit.url"
-                  :href="release.source.commit.url"
-                  target="_blank"
-                  rel="noopener"
-                  class="font-mono hover:text-foreground hover:underline"
-                  @click.stop
-                >{{ shortCommit(release.source.commit.sha) }}</a>
-                <span v-else class="font-mono">{{ shortCommit(release.source.commit.sha) }}</span>
-                <span>&middot;</span>
-              </template>
-              <span>{{ releaseMeta(release) }}</span>
-            </div>
-          </div>
-
-          <DropdownMenu v-if="release.build || release.deploy">
-            <DropdownMenuTrigger as-child>
-              <Button variant="ghost" size="sm" class="h-8 w-8 shrink-0 p-0">
-                <MoreVertical :size="16" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                v-if="release.build"
-                @click="release.build && logsPanel.open(release.build.id, service.name, 'build')"
-              >
-                <Terminal :size="14" class="mr-2" />
-                Build logs
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                v-if="release.deploy"
-                @click="release.deploy && logsPanel.open(release.deploy.id, service.name, 'deploy')"
-              >
-                <Terminal :size="14" class="mr-2" />
-                Deploy logs
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
       </div>
     </div>
 

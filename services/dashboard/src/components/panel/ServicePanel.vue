@@ -76,7 +76,7 @@ onKeyStroke('Escape', () => {
         </div>
 
         <TabsContent value="deployments" class="px-4 py-4">
-          <DeploymentsTab :service="service" />
+          <DeploymentsTab :service="service" @refetch="emit('refetch')" />
         </TabsContent>
 
         <TabsContent value="metrics" class="px-4 py-4">
