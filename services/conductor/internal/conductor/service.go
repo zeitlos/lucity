@@ -9,7 +9,6 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
-	"time"
 
 	containername "github.com/google/go-containerregistry/pkg/name"
 	gh "github.com/google/go-github/v68/github"
@@ -187,7 +186,9 @@ func (c *Client) AddService(ctx context.Context, environmentID platform.Environm
 			return service, nil
 		}
 
-		go c.runDeploy(claims, service.ID, build.ID, commit.Message, release)
+		if _, err := c.startDeploy(ctx, service.ID, build.ID.Name, commit.Message, release); err != nil {
+			slog.Warn("initial deploy start failed", "project", projectID, "service", name, "error", err)
+		}
 	}
 
 	return service, nil
@@ -370,72 +371,6 @@ func (c *Client) ReconcileServices(ctx context.Context) error {
 
 func (c *Client) imageRepository(id ServiceID) string {
 	return id.Workspace + "/" + id.Project + "/" + id.Name
-}
-
-const maxBuildDuration = 30 * time.Minute
-
-// runDeploy waits for a build to complete, then stamps the new image onto
-// the service via the deployer (single helm upgrade applies both the values
-// change and the K8s deployment patch — no separate sync step needed).
-func (c *Client) runDeploy(claims *auth.Claims, serviceID platform.ServiceID, buildID buildjob.BuildID, commitMessage string, release deployer.ReleaseMeta) {
-	ctx, cancel := context.WithTimeout(auth.NewContext(context.Background(), claims), maxBuildDuration)
-	defer cancel()
-
-	log := slog.With(
-		"buildId", buildID.Name,
-		"project", serviceID.Project,
-		"service", serviceID.Name,
-		"environment", serviceID.Environment,
-	)
-	log.InfoContext(ctx, "deploy: waiting for build")
-
-	deadline := time.Now().Add(maxBuildDuration)
-
-	for time.Now().Before(deadline) {
-		time.Sleep(2 * time.Second)
-
-		job, err := c.buildjob.Get(ctx, buildID)
-
-		if err != nil {
-			log.ErrorContext(ctx, "deploy: build poll failed", "error", err)
-			return
-		}
-
-		switch job.Status {
-		case buildjob.StatusSucceeded:
-			ref, err := job.BuiltImage(c.imageRepository(serviceID))
-
-			if err != nil {
-				log.ErrorContext(ctx, "deploy: build succeeded but image unusable", "error", err)
-				return
-			}
-
-			ref.Repository = c.config.RegistryPullURL + "/" + ref.Repository
-
-			log.InfoContext(ctx, "deploy: build succeeded, applying image", "ref", ref.String())
-
-			provenance := deployer.ImageProvenance{
-				Commit:        job.Commit,
-				CommitMessage: commitMessage,
-				BuildID:       buildID.String(),
-			}
-
-			if _, err := c.deployer.Services().SetImage(ctx, serviceID, ref, provenance, release); err != nil {
-				log.ErrorContext(ctx, "deploy: set image failed", "error", err)
-				return
-			}
-
-			log.InfoContext(ctx, "deploy: complete")
-
-			return
-
-		case buildjob.StatusFailed, buildjob.StatusCancelled:
-			log.WarnContext(ctx, "deploy: build did not succeed", "status", string(job.Status))
-			return
-		}
-	}
-
-	log.ErrorContext(ctx, "deploy: timed out waiting for build", "timeout", maxBuildDuration)
 }
 
 // deriveServiceName extracts a service name from an image reference.

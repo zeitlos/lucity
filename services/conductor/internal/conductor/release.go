@@ -14,6 +14,7 @@ import (
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/services/conductor/internal/buildjob"
 	"github.com/zeitlos/lucity/services/conductor/internal/deployer"
+	"github.com/zeitlos/lucity/services/conductor/internal/deployjob"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
@@ -63,6 +64,7 @@ type Release struct {
 	Source     *GitSource
 	Trigger    ReleaseTrigger
 	Build      *Build
+	Deploy     *Deploy
 	Deployment *Deployment
 	CreatedAt  time.Time
 }
@@ -98,8 +100,15 @@ func (c *Client) Releases(ctx context.Context, serviceID ServiceID) ([]Release, 
 		}
 	}
 
+	deploys, err := c.deployjob.List(ctx, serviceID)
+
+	if err != nil {
+		return nil, err
+	}
+
 	type group struct {
 		build      *Build
+		deploy     *Deploy
 		deployment *Deployment
 	}
 
@@ -139,10 +148,21 @@ func (c *Client) Releases(ctx context.Context, serviceID ServiceID) ([]Release, 
 		groupFor(key).build = build
 	}
 
+	for i := range deploys {
+		deploy := &deploys[i]
+		key := deploy.ReleaseID
+
+		if key == "" {
+			key = deploy.BuildName
+		}
+
+		groupFor(key).deploy = deploy
+	}
+
 	releases := make([]Release, 0, len(groups))
 
 	for key, g := range groups {
-		releases = append(releases, assembleRelease(serviceID.Workspace, key, g.build, g.deployment))
+		releases = append(releases, assembleRelease(serviceID.Workspace, key, g.build, g.deploy, g.deployment))
 	}
 
 	sort.Slice(releases, func(i, j int) bool {
@@ -152,19 +172,20 @@ func (c *Client) Releases(ctx context.Context, serviceID ServiceID) ([]Release, 
 	return releases, nil
 }
 
-func assembleRelease(workspace, name string, build *Build, deployment *Deployment) Release {
+func assembleRelease(workspace, name string, build *Build, deploy *Deploy, deployment *Deployment) Release {
 	return Release{
 		ID:         ReleaseID{Workspace: workspace, Name: name},
-		Status:     releaseStatus(build, deployment),
+		Status:     releaseStatus(build, deploy, deployment),
 		Source:     releaseSource(build, deployment),
 		Trigger:    releaseTrigger(deployment),
 		Build:      build,
+		Deploy:     deploy,
 		Deployment: deployment,
-		CreatedAt:  releaseCreatedAt(build, deployment),
+		CreatedAt:  releaseCreatedAt(build, deploy, deployment),
 	}
 }
 
-func releaseStatus(build *Build, deployment *Deployment) ReleaseStatus {
+func releaseStatus(build *Build, deploy *Deploy, deployment *Deployment) ReleaseStatus {
 	if deployment != nil {
 		switch deployment.Status {
 		case platform.DeploymentDeploying:
@@ -176,6 +197,10 @@ func releaseStatus(build *Build, deployment *Deployment) ReleaseStatus {
 		case platform.DeploymentFailed:
 			return ReleaseFailed
 		}
+	}
+
+	if deploy != nil && deploy.Status == deployjob.StatusFailed && (build == nil || build.Status == buildjob.StatusSucceeded) {
+		return ReleaseFailed
 	}
 
 	if build != nil {
@@ -222,13 +247,17 @@ func releaseTrigger(deployment *Deployment) ReleaseTrigger {
 	return ReleaseTrigger{Kind: deployer.TriggerManual}
 }
 
-func releaseCreatedAt(build *Build, deployment *Deployment) time.Time {
+func releaseCreatedAt(build *Build, deploy *Deploy, deployment *Deployment) time.Time {
 	if build != nil && build.StartedAt != nil {
 		return *build.StartedAt
 	}
 
 	if deployment != nil {
 		return deployment.CreatedAt
+	}
+
+	if deploy != nil && deploy.StartedAt != nil {
+		return *deploy.StartedAt
 	}
 
 	return time.Time{}

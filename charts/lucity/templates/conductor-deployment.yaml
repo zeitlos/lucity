@@ -80,6 +80,12 @@ spec:
               value: {{ .Values.conductor.buildNamespace | quote }}
             - name: BUILD_IMAGE
               value: "{{ .Values.conductor.builderImage.repository }}:{{ .Values.conductor.builderImage.tag | default .Chart.AppVersion }}"
+            - name: SYSTEM_NAMESPACE
+              value: {{ .Release.Namespace | quote }}
+            - name: DEPLOY_IMAGE
+              value: "{{ .Values.conductor.image.repository }}:{{ .Values.conductor.image.tag | default .Chart.AppVersion }}"
+            - name: DEPLOY_SERVICE_ACCOUNT
+              value: {{ include "lucity.fullname" . }}-conductor
             {{- if and .Values.conductor.buildkit.enabled .Values.conductor.buildkit.tls.enabled }}
             - name: BUILDKIT_TLS_SECRET
               value: {{ include "lucity.fullname" . }}-buildkit-tls-client
