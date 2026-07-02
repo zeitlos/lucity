@@ -3,12 +3,12 @@ import { computed, onMounted, watch } from 'vue';
 import {
   Rocket, Loader2, Check, AlertCircle, Terminal,
   ExternalLink, RefreshCw,
-  MoreVertical, ChevronDown, Clock, CircleSlash,
+  MoreVertical, ChevronDown, Clock, CircleSlash, TriangleAlert,
 } from '@lucide/vue';
 import { useNow } from '@vueuse/core';
 import { useDeploy } from '@/composables/useDeploy';
 import { useBuildLogsPanel, type LogsPanelKind } from '@/composables/useBuildLogsPanel';
-import { DeploymentStatus, ReleaseStatus } from '@/gql/graphql';
+import { DeploymentStatus, ReleaseStatus, ScanStatus } from '@/gql/graphql';
 import { activeBuild, type Deployment, type Release } from '@/composables/useEnvironment';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -135,7 +135,7 @@ function isInFlight(release: Release): boolean {
   return IN_FLIGHT_RELEASE_STATUSES.has(release.status);
 }
 
-type StepStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'skipped';
+type StepStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'skipped' | 'findings';
 
 interface ReleaseStep {
   key: string;
@@ -191,6 +191,19 @@ function releaseSteps(release: Release, live = false): ReleaseStep[] {
     });
   }
 
+  for (const scan of release.scans ?? []) {
+    steps.push({
+      key: `scan-${scan.scanner}`,
+      label: scannerLabels[scan.scanner] ?? scan.scanner,
+      status: scanStepStatus(scan.status),
+      detail: scan.findingsCount ? `${scan.findingsCount} potential secret${scan.findingsCount !== 1 ? 's' : ''}` : undefined,
+      startedAt: scan.startedAt,
+      finishedAt: scan.finishedAt,
+      logId: scan.id,
+      logKind: 'scan',
+    });
+  }
+
   if (release.deploy) {
     steps.push({
       key: 'deploy',
@@ -222,6 +235,21 @@ const activeSteps = computed<ReleaseStep[]>(() => {
   return rollout ? [rollout] : [];
 });
 
+const scannerLabels: Record<string, string> = {
+  gitleaks: 'Gitleaks',
+  trufflehog: 'TruffleHog',
+};
+
+function scanStepStatus(status: ScanStatus): StepStatus {
+  switch (status) {
+    case ScanStatus.Clean: return 'succeeded';
+    case ScanStatus.Findings: return 'findings';
+    case ScanStatus.Failed: return 'failed';
+    case ScanStatus.Running: return 'running';
+    default: return 'queued';
+  }
+}
+
 const stepIcons = {
   succeeded: Check,
   failed: AlertCircle,
@@ -229,12 +257,14 @@ const stepIcons = {
   queued: Clock,
   cancelled: CircleSlash,
   skipped: CircleSlash,
+  findings: TriangleAlert,
 } as const;
 
 function stepColor(status: StepStatus): string {
   switch (status) {
     case 'succeeded': return 'var(--status-ok)';
     case 'failed': return 'var(--status-danger)';
+    case 'findings': return 'var(--status-warn)';
     case 'running': return 'var(--status-progress)';
     default: return 'var(--status-neutral)';
   }

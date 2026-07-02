@@ -4,6 +4,7 @@ import { X, Loader2, Trash2, Pause, Play, AlertCircle } from '@lucide/vue';
 import { onKeyStroke } from '@vueuse/core';
 import { useBuildLogs } from '@/composables/useBuildLogs';
 import { useDeployLogs } from '@/composables/useDeployLogs';
+import { useScanLogs } from '@/composables/useScanLogs';
 import type { LogsPanelKind } from '@/composables/useBuildLogsPanel';
 import { BuildStatus } from '@/gql/graphql';
 import { useDeploy } from '@/composables/useDeploy';
@@ -24,9 +25,17 @@ onKeyStroke('Escape', () => emit('close'));
 
 const buildIdRef = computed(() => (props.kind === 'build' ? props.id : null));
 const deployIdRef = computed(() => (props.kind === 'deploy' ? props.id : null));
+const scanIdRef = computed(() => (props.kind === 'scan' ? props.id : null));
 const buildLogs = useBuildLogs(buildIdRef);
 const deployLogs = useDeployLogs(deployIdRef);
-const logs = computed(() => (props.kind === 'deploy' ? deployLogs : buildLogs));
+const scanLogs = useScanLogs(scanIdRef);
+const logs = computed(() => {
+  switch (props.kind) {
+    case 'deploy': return deployLogs;
+    case 'scan': return scanLogs;
+    default: return buildLogs;
+  }
+});
 
 const lines = computed(() => logs.value.lines.value);
 const isActive = computed(() => logs.value.isActive.value);

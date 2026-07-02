@@ -106,6 +106,14 @@ const EnvironmentDocument = graphql(`
             startedAt
             finishedAt
           }
+          scans {
+            id
+            scanner
+            status
+            findingsCount
+            startedAt
+            finishedAt
+          }
           deployment {
             id
             image
@@ -390,6 +398,14 @@ watch(
               finishedAt: r.deploy.finishedAt ?? null,
             }
             : null,
+          scans: r.scans.map(scan => ({
+            id: scan.id,
+            scanner: scan.scanner,
+            status: scan.status,
+            findingsCount: scan.findingsCount ?? null,
+            startedAt: scan.startedAt,
+            finishedAt: scan.finishedAt ?? null,
+          })),
           deployment: r.deployment
             ? {
               id: r.deployment.id,
