@@ -228,6 +228,16 @@ const RELEASE_TRANSIENT_STATUSES = new Set<ReleaseStatus>([
   ReleaseStatus.Building,
   ReleaseStatus.Deploying,
 ]);
+// Stop live-polling for releases stuck in a transient state (e.g. orphaned
+// legacy builds) — they'd otherwise keep the environment query polling forever.
+const RELEASE_POLL_MAX_AGE_MS = 60 * 60 * 1000;
+
+function isReleaseInFlight(release: { status: ReleaseStatus; createdAt: string }): boolean {
+  return (
+    RELEASE_TRANSIENT_STATUSES.has(release.status)
+    && Date.now() - new Date(release.createdAt).getTime() < RELEASE_POLL_MAX_AGE_MS
+  );
+}
 
 const isReconciling = ref(false);
 
@@ -295,7 +305,7 @@ watch(
 
     isReconciling.value =
       env.services.some(s => SERVICE_TRANSIENT_STATUSES.has(s.status)) ||
-      env.services.some(s => s.releases.some(r => RELEASE_TRANSIENT_STATUSES.has(r.status))) ||
+      env.services.some(s => s.releases.some(isReleaseInFlight)) ||
       env.databases.some(d => DATABASE_TRANSIENT_STATUSES.has(d.status)) ||
       env.keyValueStores.some(v => DATABASE_TRANSIENT_STATUSES.has(v.status));
 
