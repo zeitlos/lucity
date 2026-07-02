@@ -34,7 +34,7 @@ func (c *Client) ensureCertificate(ctx context.Context, host string) error {
 					labels.ManagedBy: labels.ManagedByLucity,
 				},
 				"annotations": map[string]any{
-					labels.Prefix + "custom-domain": host,
+					labels.CustomDomain: host,
 				},
 			},
 			"spec": map[string]any{
