@@ -12,15 +12,21 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/deployer"
 	"github.com/zeitlos/lucity/services/conductor/internal/deployjob"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
+	"github.com/zeitlos/lucity/services/conductor/internal/scanjob"
+	"github.com/zeitlos/lucity/services/conductor/internal/scanreport"
 )
 
 type Build = buildjob.Job
 type BuildID = buildjob.BuildID
 type Deploy = deployjob.Job
 type DeployID = deployjob.DeployID
+type Scan = scanjob.Job
+type ScanID = scanjob.ScanID
+type SecretScanReport = scanreport.Report
 
 var _ platform.WorkspaceScoped = BuildID{}
 var _ platform.WorkspaceScoped = DeployID{}
+var _ platform.WorkspaceScoped = ScanID{}
 
 func (c *Client) Builds(ctx context.Context, workspace, repoURL, contextPath string) ([]Build, error) {
 	return c.buildjob.List(ctx, workspace, repoURL, contextPath)
@@ -146,6 +152,8 @@ func (c *Client) Deploy(ctx context.Context, serviceID ServiceID, gitRef string)
 		return nil, fmt.Errorf("start deploy for build %q: %w", build.ID.Name, err)
 	}
 
+	c.startScans(ctx, service.ID, build.ID.Name, service.SourceURL, commit.SHA, token, release.ID)
+
 	result := Release{
 		ID:        ReleaseID{Workspace: serviceID.Workspace, Name: release.ID},
 		Status:    releaseStatus(build, deploy, nil),
@@ -168,4 +176,68 @@ func (c *Client) startDeploy(ctx context.Context, serviceID platform.ServiceID, 
 		ReleaseTrigger: string(release.Trigger),
 		ReleaseActor:   release.Actor,
 	})
+}
+
+func (c *Client) startScans(ctx context.Context, serviceID platform.ServiceID, buildName, sourceURL, commit, token, releaseID string) {
+	for _, scanner := range scanjob.Scanners {
+		_, err := c.scanjob.Start(ctx, scanjob.StartOptions{
+			Service:   serviceID,
+			Scanner:   scanner,
+			BuildName: buildName,
+			SourceURL: sourceURL,
+			Commit:    commit,
+			Token:     token,
+			ReleaseID: releaseID,
+		})
+
+		if err != nil {
+			slog.WarnContext(ctx, "scan start failed", "scanner", scanner, "service", serviceID, "error", err)
+		}
+	}
+}
+
+func (c *Client) ScanLogs(ctx context.Context, id ScanID) (<-chan string, error) {
+	reader, err := c.scanjob.Logs(ctx, id)
+
+	if err != nil {
+		return nil, err
+	}
+
+	out := make(chan string, 128)
+
+	go func() {
+		defer close(out)
+		defer reader.Close()
+
+		scanner := bufio.NewScanner(reader)
+
+		for scanner.Scan() {
+			select {
+			case out <- scanner.Text():
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	return out, nil
+}
+
+func (c *Client) SecretScanReports(ctx context.Context, serviceID ServiceID) ([]SecretScanReport, error) {
+	reports := make([]SecretScanReport, 0, len(scanjob.Scanners))
+
+	for _, scanner := range scanjob.Scanners {
+		report, err := c.scanreport.Latest(ctx, serviceID, scanner)
+
+		if err != nil {
+			slog.WarnContext(ctx, "scan report fetch failed", "scanner", scanner, "service", serviceID, "error", err)
+			continue
+		}
+
+		if report != nil {
+			reports = append(reports, *report)
+		}
+	}
+
+	return reports, nil
 }

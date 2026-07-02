@@ -24,6 +24,8 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/planner"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 	"github.com/zeitlos/lucity/services/conductor/internal/registry"
+	"github.com/zeitlos/lucity/services/conductor/internal/scanjob"
+	"github.com/zeitlos/lucity/services/conductor/internal/scanreport"
 	"github.com/zeitlos/lucity/services/conductor/internal/source"
 )
 
@@ -42,6 +44,8 @@ type Client struct {
 	platform    platform.Interface
 	buildjob    buildjob.Interface
 	deployjob   deployjob.Interface
+	scanjob     scanjob.Interface
+	scanreport  *scanreport.Client
 	pipeline    pipeline.Interface
 	planner     planner.Interface
 	source      source.Interface
@@ -80,7 +84,7 @@ type Config struct {
 	MaxQueuedReleases    int
 }
 
-func New(cashier cashier.CashierServiceClient, githubApp *ghpkg.App, logto *logto.Client, tokenRefresher TokenRefresher, directory directory.Interface, platform platform.Interface, buildjob buildjob.Interface, deployjob deployjob.Interface, pipeline pipeline.Interface, planner planner.Interface, source source.Interface, hostname *hostname.Client, gateway *gateway.Client, deployer deployer.Interface, environment environment.Interface, objectStorage objectstorage.Interface, metrics *metrics.Provider, config Config) *Client {
+func New(cashier cashier.CashierServiceClient, githubApp *ghpkg.App, logto *logto.Client, tokenRefresher TokenRefresher, directory directory.Interface, platform platform.Interface, buildjob buildjob.Interface, deployjob deployjob.Interface, scanjob scanjob.Interface, scanreport *scanreport.Client, pipeline pipeline.Interface, planner planner.Interface, source source.Interface, hostname *hostname.Client, gateway *gateway.Client, deployer deployer.Interface, environment environment.Interface, objectStorage objectstorage.Interface, metrics *metrics.Provider, config Config) *Client {
 	return &Client{
 		cashier:        cashier,
 		gitHubApp:      githubApp,
@@ -92,6 +96,8 @@ func New(cashier cashier.CashierServiceClient, githubApp *ghpkg.App, logto *logt
 		platform:       platform,
 		buildjob:       buildjob,
 		deployjob:      deployjob,
+		scanjob:        scanjob,
+		scanreport:     scanreport,
 		pipeline:       pipeline,
 		planner:        planner,
 		source:         source,

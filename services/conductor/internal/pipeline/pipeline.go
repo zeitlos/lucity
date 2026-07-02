@@ -180,7 +180,7 @@ func (c *Client) resume(ctx context.Context, r run) error {
 
 func (c *Client) runs(ctx context.Context) ([]run, error) {
 	builds, err := c.kubernetes.BatchV1().Jobs(c.buildNamespace).List(ctx, meta.ListOptions{
-		LabelSelector: labelComponent + "=build",
+		LabelSelector: labelComponent + " in (build, scan)",
 	})
 
 	if err != nil {

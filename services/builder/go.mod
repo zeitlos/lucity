@@ -5,7 +5,7 @@ go 1.26.0
 replace github.com/zeitlos/lucity/pkg => ../../pkg
 
 require (
-	github.com/docker/cli v29.4.2+incompatible
+	github.com/docker/cli v29.5.3+incompatible
 	github.com/go-git/go-git/v5 v5.18.0
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/moby/buildkit v0.29.0
@@ -14,6 +14,8 @@ require (
 	github.com/tonistiigi/fsutil v0.0.0-20251211185533-a2aa163d723f
 	github.com/zeitlos/lucity/pkg v0.0.0-00010101000000-000000000000
 )
+
+require github.com/google/go-containerregistry v0.21.7
 
 require (
 	dario.cat/mergo v1.0.2 // indirect
@@ -72,7 +74,7 @@ require (
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
 	github.com/joho/godotenv v1.5.1
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
-	github.com/klauspost/compress v1.18.5 // indirect
+	github.com/klauspost/compress v1.18.6 // indirect
 	github.com/lmittmann/tint v1.1.3 // indirect
 	github.com/lucasb-eyer/go-colorful v1.3.0 // indirect
 	github.com/mailru/easyjson v0.9.2 // indirect
@@ -115,8 +117,8 @@ require (
 	golang.org/x/crypto v0.52.0 // indirect
 	golang.org/x/exp v0.0.0-20260312153236-7ab1446f8b90 // indirect
 	golang.org/x/net v0.55.0 // indirect
-	golang.org/x/sync v0.20.0 // indirect
-	golang.org/x/sys v0.45.0 // indirect
+	golang.org/x/sync v0.21.0 // indirect
+	golang.org/x/sys v0.46.0 // indirect
 	golang.org/x/text v0.37.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260319201613-d00831a3d3e7 // indirect

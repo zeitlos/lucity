@@ -23,6 +23,8 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/planner/railpack"
 	platformK8s "github.com/zeitlos/lucity/services/conductor/internal/platform/kubernetes"
 	"github.com/zeitlos/lucity/services/conductor/internal/resources"
+	scanjobK8s "github.com/zeitlos/lucity/services/conductor/internal/scanjob/kubernetes"
+	"github.com/zeitlos/lucity/services/conductor/internal/scanreport"
 	sourceGH "github.com/zeitlos/lucity/services/conductor/internal/source/github"
 	conductorgrpc "github.com/zeitlos/lucity/services/conductor/internal/transport/grpc"
 
@@ -250,6 +252,13 @@ func main() {
 
 	pipelineClient := pipeline.New(k8sClient, config.BuildNamespace, config.SystemNamespace, config.MaxConcurrentReleases)
 
+	scanJobsClient := scanjobK8s.New(k8sClient, scanjobK8s.Config{
+		Namespace:          config.BuildNamespace,
+		Image:              config.BuildImage,
+		Registry:           config.RegistryPushURL,
+		RegistryAuthSecret: config.RegistryAuthSecret,
+	})
+
 	secret, err := k8sClient.CoreV1().Secrets(config.SystemNamespace).Get(ctx, config.RegistryPullSecret, metav1.GetOptions{})
 
 	if err != nil {
@@ -341,7 +350,13 @@ func main() {
 		DashboardURL:         config.DashboardURL,
 		MaxQueuedReleases:    config.MaxQueuedReleases,
 	}
-	conductor := conductor.New(cashierClient, githubApp, logtoClient, tokenRefresher, directoryClient, platformClient, jobsClient, deployJobsClient, pipelineClient, planner, source, hostnameClient, gatewayClient, deployerClient, environmentClient, objectStorageClient, metricsProvider, conductorConfig)
+	scanReportClient := scanreport.New(scanreport.Config{
+		Endpoint:     config.RegistryPullURL,
+		DialEndpoint: config.RegistryURL,
+		Keychain:     keychain,
+	})
+
+	conductor := conductor.New(cashierClient, githubApp, logtoClient, tokenRefresher, directoryClient, platformClient, jobsClient, deployJobsClient, scanJobsClient, scanReportClient, pipelineClient, planner, source, hostnameClient, gatewayClient, deployerClient, environmentClient, objectStorageClient, metricsProvider, conductorConfig)
 
 	go runAdmissionReconciler(ctx, pipelineClient)
 	slog.Info("release admission ready", "maxConcurrent", config.MaxConcurrentReleases, "maxQueuedPerWorkspace", config.MaxQueuedReleases)

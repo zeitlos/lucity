@@ -1,0 +1,41 @@
+type Scan {
+  id: ScanID!
+  scanner: String!
+  status: ScanStatus!
+  findingsCount: Int
+
+  startedAt: Time
+  finishedAt: Time
+}
+
+enum ScanStatus {
+  QUEUED
+  RUNNING
+  CLEAN
+  FINDINGS
+  FAILED
+}
+
+type SecretScanReport {
+  scanner: String!
+  commit: String!
+  scannedAt: Time!
+  findings: [SecretFinding!]!
+}
+
+type SecretFinding {
+  rule: String!
+  file: String!
+  line: Int!
+  commit: String!
+  secret: String!
+  author: String
+}
+
+extend type Service {
+  secretScanReports: [SecretScanReport!]! @goField(forceResolver: true)
+}
+
+extend type Subscription {
+  scanLogs(id: ScanID!): String! @hasRole(role: WORKSPACE_MEMBER)
+}

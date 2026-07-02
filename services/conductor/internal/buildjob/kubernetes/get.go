@@ -7,9 +7,9 @@ import (
 	"log/slog"
 
 	"github.com/zeitlos/lucity/services/conductor/internal/buildjob"
+	"github.com/zeitlos/lucity/services/conductor/internal/jobs"
 
 	"github.com/google/go-containerregistry/pkg/name"
-	core "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -47,41 +47,23 @@ type buildResult struct {
 }
 
 func (c *Client) builtDigests(ctx context.Context, jobName string) (map[string]string, error) {
-	pods, err := c.kubernetes.CoreV1().Pods(c.namespace).List(ctx, meta.ListOptions{
-		LabelSelector: "job-name=" + jobName,
-	})
+	message, err := jobs.TerminationMessage(ctx, c.kubernetes, c.namespace, jobName)
 
 	if err != nil {
 		return nil, err
 	}
 
-	for _, pod := range pods.Items {
-		for _, status := range pod.Status.ContainerStatuses {
-			message := terminatedMessage(status)
-
-			if message == "" {
-				continue
-			}
-
-			var result buildResult
-
-			if err := json.Unmarshal([]byte(message), &result); err != nil {
-				continue
-			}
-
-			return parseDigestRefs(result.Images), nil
-		}
+	if message == "" {
+		return nil, nil
 	}
 
-	return nil, nil
-}
+	var result buildResult
 
-func terminatedMessage(status core.ContainerStatus) string {
-	if status.State.Terminated != nil {
-		return status.State.Terminated.Message
+	if err := json.Unmarshal([]byte(message), &result); err != nil {
+		return nil, nil
 	}
 
-	return ""
+	return parseDigestRefs(result.Images), nil
 }
 
 func parseDigestRefs(refs []string) map[string]string {

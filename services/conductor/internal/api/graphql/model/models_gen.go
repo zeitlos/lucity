@@ -13,6 +13,7 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/conductor"
 	"github.com/zeitlos/lucity/services/conductor/internal/deployjob"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
+	"github.com/zeitlos/lucity/services/conductor/internal/scanjob"
 )
 
 type VariableSource interface {
@@ -368,6 +369,7 @@ type Release struct {
 	Trigger    *ReleaseTrigger     `json:"trigger"`
 	Build      *Build              `json:"build,omitempty"`
 	Deploy     *Deploy             `json:"deploy,omitempty"`
+	Scans      []Scan              `json:"scans"`
 	Deployment *Deployment         `json:"deployment,omitempty"`
 	CreatedAt  time.Time           `json:"createdAt"`
 }
@@ -398,6 +400,31 @@ type ResourcesInput struct {
 	Memory string `json:"memory"`
 }
 
+type Scan struct {
+	ID            scanjob.ScanID `json:"id"`
+	Scanner       string         `json:"scanner"`
+	Status        ScanStatus     `json:"status"`
+	FindingsCount *int           `json:"findingsCount,omitempty"`
+	StartedAt     *time.Time     `json:"startedAt,omitempty"`
+	FinishedAt    *time.Time     `json:"finishedAt,omitempty"`
+}
+
+type SecretFinding struct {
+	Rule   string  `json:"rule"`
+	File   string  `json:"file"`
+	Line   int     `json:"line"`
+	Commit string  `json:"commit"`
+	Secret string  `json:"secret"`
+	Author *string `json:"author,omitempty"`
+}
+
+type SecretScanReport struct {
+	Scanner   string          `json:"scanner"`
+	Commit    string          `json:"commit"`
+	ScannedAt time.Time       `json:"scannedAt"`
+	Findings  []SecretFinding `json:"findings"`
+}
+
 type Service struct {
 	ID                platform.ServiceID   `json:"id"`
 	Name              string               `json:"name"`
@@ -418,6 +445,7 @@ type Service struct {
 	LastDeployedAt    *time.Time           `json:"lastDeployedAt,omitempty"`
 	CreatedAt         time.Time            `json:"createdAt"`
 	Releases          []Release            `json:"releases"`
+	SecretScanReports []SecretScanReport   `json:"secretScanReports"`
 	PlatformEndpoints []platform.Endpoint  `json:"-"`
 }
 
@@ -1635,6 +1663,67 @@ func (e *Role) UnmarshalJSON(b []byte) error {
 }
 
 func (e Role) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type ScanStatus string
+
+const (
+	ScanStatusQueued   ScanStatus = "QUEUED"
+	ScanStatusRunning  ScanStatus = "RUNNING"
+	ScanStatusClean    ScanStatus = "CLEAN"
+	ScanStatusFindings ScanStatus = "FINDINGS"
+	ScanStatusFailed   ScanStatus = "FAILED"
+)
+
+var AllScanStatus = []ScanStatus{
+	ScanStatusQueued,
+	ScanStatusRunning,
+	ScanStatusClean,
+	ScanStatusFindings,
+	ScanStatusFailed,
+}
+
+func (e ScanStatus) IsValid() bool {
+	switch e {
+	case ScanStatusQueued, ScanStatusRunning, ScanStatusClean, ScanStatusFindings, ScanStatusFailed:
+		return true
+	}
+	return false
+}
+
+func (e ScanStatus) String() string {
+	return string(e)
+}
+
+func (e *ScanStatus) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = ScanStatus(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid ScanStatus", str)
+	}
+	return nil
+}
+
+func (e ScanStatus) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *ScanStatus) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e ScanStatus) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil
