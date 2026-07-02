@@ -89,11 +89,11 @@ func (c *Client) newScanJob(name string, opts scanjob.StartOptions) *batch.Job {
 						Resources: core.ResourceRequirements{
 							Requests: core.ResourceList{
 								core.ResourceCPU:    resource.MustParse("250m"),
-								core.ResourceMemory: resource.MustParse("256Mi"),
+								core.ResourceMemory: resource.MustParse("512Mi"),
 							},
 							Limits: core.ResourceList{
 								core.ResourceCPU:    resource.MustParse("1"),
-								core.ResourceMemory: resource.MustParse("2Gi"),
+								core.ResourceMemory: resource.MustParse("3Gi"),
 							},
 						},
 						SecurityContext: &core.SecurityContext{
