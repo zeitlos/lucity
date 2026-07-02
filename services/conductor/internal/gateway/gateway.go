@@ -43,20 +43,26 @@ var secretGVR = schema.GroupVersionResource{
 	Resource: "secrets",
 }
 
-const listenerPrefix = "custom-"
+const (
+	resourcePrefix      = "custom-"
+	resourceNameHashLen = 10
+	resourceNameMaxLen  = 200
+)
 
 func ResourceNameFor(hostname string) string {
 	hostname = strings.ToLower(hostname)
-	sum := sha256.Sum256([]byte(hostname))
 	name := strings.ReplaceAll(hostname, ".", "-")
 
-	if len(name) > 200 {
-		name = name[:200]
+	if len(name) > resourceNameMaxLen {
+		name = name[:resourceNameMaxLen]
 	}
 
-	return listenerPrefix + name + "-" + hex.EncodeToString(sum[:4])
+	// Suffixing with hash of the hostname to avoid name collisions (foo-bar.com vs foo.bar.com) which could result in a takeover.
+	sum := sha256.Sum256([]byte(hostname))
+
+	return resourcePrefix + name + "-" + hex.EncodeToString(sum[:])[:resourceNameHashLen]
 }
 
 func isManagedListener(name string) bool {
-	return strings.HasPrefix(name, listenerPrefix) && name != "custom-http" && name != "custom-https"
+	return strings.HasPrefix(name, resourcePrefix) && name != "custom-http" && name != "custom-https"
 }
