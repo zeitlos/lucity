@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useQuery } from '@vue/apollo-composable';
-import { ShieldCheck, TriangleAlert, Loader2 } from '@lucide/vue';
+import { ShieldCheck, TriangleAlert } from '@lucide/vue';
+import Spinner from '@/components/LoadingSpinner.vue';
 import { graphql } from '@/gql';
 import EmptyState from '@/components/EmptyState.vue';
 
@@ -64,7 +65,7 @@ function formatRelativeTime(timestamp: string): string {
 <template>
   <div class="space-y-4">
     <div v-if="loading && reports.length === 0" class="flex items-center gap-2 py-8 text-sm text-muted-foreground">
-      <Loader2 :size="14" class="animate-spin" />
+      <Spinner :size="14" class="animate-spin" />
       Loading scan reports...
     </div>
 

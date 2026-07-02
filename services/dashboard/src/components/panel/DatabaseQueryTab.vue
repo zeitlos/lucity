@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useApolloClient } from '@vue/apollo-composable';
-import { Play, Loader2 } from '@lucide/vue';
+import { Play } from '@lucide/vue';
+import Spinner from '@/components/LoadingSpinner.vue';
 import { graphql } from '@/gql';
 
 const ExecuteQueryDocument = graphql(`
@@ -106,7 +107,7 @@ function handleKeydown(event: KeyboardEvent) {
           @click="executeQuery"
         >
           <Play v-if="!loading" :size="14" class="mr-1" />
-          <Loader2 v-else :size="14" class="mr-1 animate-spin" />
+          <Spinner v-else :size="14" class="mr-1 animate-spin" />
           Run Query
         </Button>
       </div>

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, watch, onUnmounted } from 'vue';
 import { Handle, Position } from '@vue-flow/core';
-import { ExternalLink, Globe, Loader2, Container, FolderGit2, HardDrive } from '@lucide/vue';
+import { ExternalLink, Globe, Container, FolderGit2, HardDrive } from '@lucide/vue';
+import Spinner from '@/components/LoadingSpinner.vue';
 import GithubIcon from '@/components/GithubIcon.vue';
 import { EndpointType, ServiceStatus, type Protocol } from '@/gql/graphql';
 import type { CanvasReleasePhase } from '@/composables/useCanvasReleaseStatus';
@@ -197,7 +198,7 @@ const hostUrl = computed(() => {
       <div class="mt-4 flex items-center justify-between border-t border-border/50 pt-4">
         <Status :tone="statusTone" class="text-[0.65rem]">{{ statusLabel }}</Status>
         <span v-if="deployLabel" class="flex items-center gap-1.5 text-[0.65rem] text-muted-foreground">
-          <Loader2 :size="12" class="animate-spin text-[var(--status-progress)]" />
+          <Spinner :size="12" class="animate-spin text-[var(--status-progress)]" />
           {{ deployLabel }} ({{ formattedElapsed }})
         </span>
       </div>

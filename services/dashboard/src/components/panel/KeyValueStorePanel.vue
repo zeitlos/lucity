@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { reactive, computed, ref } from 'vue';
 import { useQuery, useMutation } from '@vue/apollo-composable';
-import { X, Copy, Eye, EyeOff, Loader2, DatabaseZap, Trash2, Database, HardDrive } from '@lucide/vue';
+import { X, Copy, Eye, EyeOff, DatabaseZap, Trash2, Database, HardDrive } from '@lucide/vue';
+import Spinner from '@/components/LoadingSpinner.vue';
 import { onKeyStroke } from '@vueuse/core';
 import { graphql } from '@/gql';
 import { Button } from '@/components/ui/button';
@@ -176,7 +177,7 @@ async function handleDelete() {
                 <p class="text-sm font-medium">Redis is provisioning</p>
                 <p class="text-xs text-muted-foreground">Credentials will appear once the store is ready.</p>
               </div>
-              <Loader2 :size="16" class="animate-spin text-muted-foreground" />
+              <Spinner :size="16" class="animate-spin text-muted-foreground" />
             </div>
 
             <!-- Error (non-provisioning) -->

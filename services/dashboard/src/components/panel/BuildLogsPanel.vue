@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from 'vue';
-import { X, Loader2, Trash2, Pause, Play, AlertCircle } from '@lucide/vue';
+import { X, Trash2, Pause, Play, AlertCircle } from '@lucide/vue';
+import Spinner from '@/components/LoadingSpinner.vue';
 import { onKeyStroke } from '@vueuse/core';
 import { useBuildLogs } from '@/composables/useBuildLogs';
 import { useDeployLogs } from '@/composables/useDeployLogs';
@@ -171,7 +172,7 @@ function togglePause() {
         v-else-if="lines.length === 0 && !isTerminal"
         class="flex items-center gap-2 text-zinc-500"
       >
-        <Loader2
+        <Spinner
           :size="12"
           class="animate-spin"
         />
@@ -190,7 +191,7 @@ function togglePause() {
         v-if="isActive && !isTerminal && lines.length > 0 && !paused"
         class="mt-2 flex items-center gap-2 text-zinc-500"
       >
-        <Loader2
+        <Spinner
           :size="12"
           class="animate-spin"
         />

@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed, onMounted, watch } from 'vue';
 import {
-  Rocket, Loader2, Check, AlertCircle, Terminal,
+  Rocket, Check, AlertCircle, Terminal,
   ExternalLink, RefreshCw,
   MoreVertical, ChevronDown, Clock, CircleSlash, TriangleAlert,
 } from '@lucide/vue';
+import Spinner from '@/components/LoadingSpinner.vue';
 import { useNow } from '@vueuse/core';
 import { useDeploy } from '@/composables/useDeploy';
 import { useBuildLogsPanel, type LogsPanelKind } from '@/composables/useBuildLogsPanel';
@@ -253,7 +254,7 @@ function scanStepStatus(status: ScanStatus): StepStatus {
 const stepIcons = {
   succeeded: Check,
   failed: AlertCircle,
-  running: Loader2,
+  running: Spinner,
   queued: Clock,
   cancelled: CircleSlash,
   skipped: CircleSlash,
@@ -326,7 +327,7 @@ const isReady = computed(() => replicasReady.value > 0 && replicasReady.value ==
         :disabled="deploy.isDeploying"
         @click="handleDeploy"
       >
-        <Loader2
+        <Spinner
           v-if="deploy.isDeploying"
           :size="14"
           class="mr-2 animate-spin"
@@ -351,7 +352,7 @@ const isReady = computed(() => replicasReady.value > 0 && replicasReady.value ==
               backgroundColor: `color-mix(in srgb, ${deploymentStatusMeta(activeDeployment.status).color} 15%, transparent)`,
             }"
           >
-            <Loader2
+            <Spinner
               v-if="activeDeployment.status === DeploymentStatus.Deploying || !isReady"
               :size="10"
               class="shrink-0 animate-spin"
@@ -469,7 +470,7 @@ const isReady = computed(() => replicasReady.value > 0 && replicasReady.value ==
                   backgroundColor: `color-mix(in srgb, ${releaseStatusMeta(release.status).color} 15%, transparent)`,
                 }"
               >
-                <Loader2
+                <Spinner
                   v-if="isInFlight(release)"
                   :size="10"
                   class="shrink-0 animate-spin"
