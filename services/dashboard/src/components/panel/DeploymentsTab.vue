@@ -271,7 +271,7 @@ function stepColor(status: StepStatus): string {
   }
 }
 
-const now = useNow({ interval: 1000 });
+const { now, pause: pauseNow, resume: resumeNow } = useNow({ interval: 1000, controls: true });
 
 function stepDuration(step: ReleaseStep): string | null {
   if (!step.startedAt) return null;
@@ -317,6 +317,18 @@ function releaseMeta(release: Release): string {
 const replicasReady = computed(() => props.service.replicas?.ready ?? 0);
 const replicasDesired = computed(() => props.service.replicas?.desired ?? 0);
 const isReady = computed(() => replicasReady.value > 0 && replicasReady.value === replicasDesired.value);
+
+watch(
+  () => sortedReleases.value.some(isInFlight) || !isReady.value,
+  (ticking) => {
+    if (ticking) {
+      resumeNow();
+    } else {
+      pauseNow();
+    }
+  },
+  { immediate: true },
+);
 </script>
 
 <template>
