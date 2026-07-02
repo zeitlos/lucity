@@ -402,12 +402,12 @@ func convertScanStatus(scan conductor.Scan) model.ScanStatus {
 	case scanjob.StatusRunning:
 		return model.ScanStatusRunning
 	case scanjob.StatusSucceeded:
-		return model.ScanStatusClean
-	case scanjob.StatusFailed:
 		if scan.FindingsCount != nil && *scan.FindingsCount > 0 {
 			return model.ScanStatusFindings
 		}
 
+		return model.ScanStatusClean
+	case scanjob.StatusFailed:
 		return model.ScanStatusFailed
 	}
 

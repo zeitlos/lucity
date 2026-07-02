@@ -81,7 +81,7 @@ func runScan() {
 
 	if len(findings) > 0 {
 		slog.Warn("scan found potential secrets", "count", len(findings))
-		os.Exit(1)
+		return
 	}
 
 	slog.Info("scan clean")
