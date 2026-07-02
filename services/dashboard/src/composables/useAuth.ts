@@ -6,15 +6,46 @@ export interface WorkspaceMembership {
 }
 
 export interface AuthUser {
+  id: string;
   name: string | null;
   email: string | null;
   avatarUrl: string;
   workspaces: WorkspaceMembership[];
 }
 
+declare global {
+  interface Window {
+    rybbit?: {
+      identify: (userId: string) => void;
+      clearUserId: () => void;
+    };
+  }
+}
+
 const user = ref<AuthUser | null>(null);
 const loading = ref(true);
 const activeWorkspace = ref<string>(localStorage.getItem('lucity_workspace') || '');
+
+let identifiedUserId: string | null = null;
+
+function identifyUser(userId: string) {
+  if (identifiedUserId === userId) return;
+  identifiedUserId = userId;
+  let attempts = 0;
+  const run = () => {
+    if (window.rybbit) {
+      window.rybbit.identify(userId);
+    } else if (attempts++ < 50) {
+      setTimeout(run, 100);
+    }
+  };
+  run();
+}
+
+function clearIdentifiedUser() {
+  identifiedUserId = null;
+  window.rybbit?.clearUserId();
+}
 
 export function useAuth() {
   const isAuthenticated = computed(() => user.value !== null);
@@ -44,6 +75,10 @@ export function useAuth() {
         if (user.value && (!activeWorkspace.value || !user.value.workspaces.some(w => w.workspace === activeWorkspace.value))) {
           setActiveWorkspace(user.value.workspaces[0]?.workspace || '');
         }
+
+        if (user.value?.id) {
+          identifyUser(user.value.id);
+        }
       } else {
         user.value = null;
       }
@@ -57,6 +92,7 @@ export function useAuth() {
   async function logout() {
     await fetch('/auth/logout', { method: 'POST', credentials: 'include' });
     user.value = null;
+    clearIdentifiedUser();
   }
 
   function login() {
