@@ -76,14 +76,34 @@ func (c *Client) ReconcileDomains(ctx context.Context) error {
 	complete := true
 
 	for _, workspace := range workspaces {
-		hosts, ok := c.reconcileWorkspaceDomains(ctx, workspace.ID)
+		projects, err := c.platform.Projects(ctx, workspace.ID)
 
-		if !ok {
+		if err != nil {
+			slog.Warn("reconcile domains: list projects failed", "workspace", workspace.ID, "error", err)
 			complete = false
+			continue
 		}
 
-		for _, host := range hosts {
-			desired[host] = struct{}{}
+		for _, project := range projects {
+			environments, err := c.platform.Environments(ctx, project.ID)
+
+			if err != nil {
+				slog.Warn("reconcile domains: list environments failed", "project", project.ID, "error", err)
+				complete = false
+				continue
+			}
+
+			for _, env := range environments {
+				hosts, ok := c.reconcileEnvironmentDomains(ctx, env.ID)
+
+				if !ok {
+					complete = false
+				}
+
+				for _, host := range hosts {
+					desired[host] = struct{}{}
+				}
+			}
 		}
 	}
 
@@ -94,41 +114,7 @@ func (c *Client) ReconcileDomains(ctx context.Context) error {
 	return nil
 }
 
-func (c *Client) reconcileWorkspaceDomains(ctx context.Context, workspaceID string) ([]string, bool) {
-	projects, err := c.platform.Projects(ctx, workspaceID)
-
-	if err != nil {
-		slog.Warn("reconcile domains: list projects failed", "workspace", workspaceID, "error", err)
-		return nil, false
-	}
-
-	var desired []string
-	complete := true
-
-	for _, project := range projects {
-		environments, err := c.platform.Environments(ctx, project.ID)
-
-		if err != nil {
-			slog.Warn("reconcile domains: list environments failed", "project", project.ID, "error", err)
-			complete = false
-			continue
-		}
-
-		for _, env := range environments {
-			hosts, ok := c.reconcileEnvironmentDomains(ctx, workspaceID, env.ID)
-
-			if !ok {
-				complete = false
-			}
-
-			desired = append(desired, hosts...)
-		}
-	}
-
-	return desired, complete
-}
-
-func (c *Client) reconcileEnvironmentDomains(ctx context.Context, workspaceID string, envID platform.EnvironmentID) ([]string, bool) {
+func (c *Client) reconcileEnvironmentDomains(ctx context.Context, envID platform.EnvironmentID) ([]string, bool) {
 	services, err := c.platform.Services(ctx, envID)
 
 	if err != nil {
@@ -148,7 +134,7 @@ func (c *Client) reconcileEnvironmentDomains(ctx context.Context, workspaceID st
 
 			enabled := endpoint.Enabled
 
-			verified, err := c.isDomainVerified(ctx, workspaceID, host)
+			verified, err := c.isDomainVerified(ctx, envID.Workspace, host)
 
 			if err != nil {
 				slog.Warn("reconcile domains: dns lookup failed", "host", host, "error", err)
