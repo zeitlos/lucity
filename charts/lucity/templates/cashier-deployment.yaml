@@ -68,6 +68,8 @@ spec:
               value: {{ .Values.cashier.port | quote }}
             - name: WEBHOOK_PORT
               value: {{ .Values.cashier.webhookPort | quote }}
+            - name: SYSTEM_NAMESPACE
+              value: {{ .Release.Namespace | quote }}
             {{- range $key, $value := .Values.cashier.env }}
             - name: {{ $key }}
               value: {{ $value | quote }}

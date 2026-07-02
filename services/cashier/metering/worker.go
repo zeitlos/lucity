@@ -44,6 +44,7 @@ type Worker struct {
 	logto     *logto.Client
 	vm        *VMClient
 	k8s       kubernetes.Interface // nil if K8s not available (no checkpoint/backfill)
+	namespace string
 	issuer    *auth.Issuer
 	interval  time.Duration
 	cancel    context.CancelFunc
@@ -51,13 +52,14 @@ type Worker struct {
 }
 
 // NewWorker creates a metering worker. k8sClient may be nil (disables checkpoint/backfill).
-func NewWorker(stripeClient *stripelib.Client, conductorClient conductor.ConductorServiceClient, logtoClient *logto.Client, vmClient *VMClient, k8sClient kubernetes.Interface, issuer *auth.Issuer, interval time.Duration) *Worker {
+func NewWorker(stripeClient *stripelib.Client, conductorClient conductor.ConductorServiceClient, logtoClient *logto.Client, vmClient *VMClient, k8sClient kubernetes.Interface, namespace string, issuer *auth.Issuer, interval time.Duration) *Worker {
 	return &Worker{
 		stripe:    stripeClient,
 		conductor: conductorClient,
 		logto:     logtoClient,
 		vm:        vmClient,
 		k8s:       k8sClient,
+		namespace: namespace,
 		issuer:    issuer,
 		interval:  interval,
 		done:      make(chan struct{}),
@@ -471,7 +473,7 @@ func (w *Worker) lastCheckpoint(ctx context.Context) time.Time {
 		return time.Time{}
 	}
 
-	cm, err := w.k8s.CoreV1().ConfigMaps(labels.LucityNamespace).Get(ctx, checkpointCMName, metav1.GetOptions{})
+	cm, err := w.k8s.CoreV1().ConfigMaps(w.namespace).Get(ctx, checkpointCMName, metav1.GetOptions{})
 	if err != nil {
 		return time.Time{}
 	}
@@ -491,12 +493,12 @@ func (w *Worker) saveCheckpoint(ctx context.Context, windowEnd time.Time) error 
 
 	data := map[string]string{checkpointKey: strconv.FormatInt(windowEnd.Unix(), 10)}
 
-	cm, err := w.k8s.CoreV1().ConfigMaps(labels.LucityNamespace).Get(ctx, checkpointCMName, metav1.GetOptions{})
+	cm, err := w.k8s.CoreV1().ConfigMaps(w.namespace).Get(ctx, checkpointCMName, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
-		_, err = w.k8s.CoreV1().ConfigMaps(labels.LucityNamespace).Create(ctx, &corev1.ConfigMap{
+		_, err = w.k8s.CoreV1().ConfigMaps(w.namespace).Create(ctx, &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      checkpointCMName,
-				Namespace: labels.LucityNamespace,
+				Namespace: w.namespace,
 				Labels: map[string]string{
 					labels.ManagedBy: labels.ManagedByLucity,
 				},
@@ -510,7 +512,7 @@ func (w *Worker) saveCheckpoint(ctx context.Context, windowEnd time.Time) error 
 	}
 
 	cm.Data = data
-	_, err = w.k8s.CoreV1().ConfigMaps(labels.LucityNamespace).Update(ctx, cm, metav1.UpdateOptions{})
+	_, err = w.k8s.CoreV1().ConfigMaps(w.namespace).Update(ctx, cm, metav1.UpdateOptions{})
 	return err
 }
 

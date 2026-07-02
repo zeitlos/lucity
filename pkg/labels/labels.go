@@ -33,9 +33,6 @@ const (
 	ManagedByLucity = "lucity"
 )
 
-// Well-known namespace.
-const LucityNamespace = "lucity-system"
-
 // Selector returns a Kubernetes label selector string for the given key-value pair.
 func Selector(key, value string) string {
 	return fmt.Sprintf("%s=%s", key, value)
