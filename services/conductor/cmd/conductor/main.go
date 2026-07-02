@@ -10,8 +10,8 @@ import (
 	webhookhttp "github.com/zeitlos/lucity/services/conductor/internal/api/webhook/http"
 	buildjobK8s "github.com/zeitlos/lucity/services/conductor/internal/buildjob/kubernetes"
 	"github.com/zeitlos/lucity/services/conductor/internal/conductor"
-	deployjobK8s "github.com/zeitlos/lucity/services/conductor/internal/deployjob/kubernetes"
 	helmDeployer "github.com/zeitlos/lucity/services/conductor/internal/deployer/helm"
+	deployjobK8s "github.com/zeitlos/lucity/services/conductor/internal/deployjob/kubernetes"
 	directoryLogto "github.com/zeitlos/lucity/services/conductor/internal/directory/logto"
 	environmentK8s "github.com/zeitlos/lucity/services/conductor/internal/environment/kubernetes"
 	"github.com/zeitlos/lucity/services/conductor/internal/gateway"
@@ -19,6 +19,7 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/metrics"
 	"github.com/zeitlos/lucity/services/conductor/internal/objectstorage"
 	objectstorageOVH "github.com/zeitlos/lucity/services/conductor/internal/objectstorage/ovh"
+	"github.com/zeitlos/lucity/services/conductor/internal/pipeline"
 	"github.com/zeitlos/lucity/services/conductor/internal/planner/railpack"
 	platformK8s "github.com/zeitlos/lucity/services/conductor/internal/platform/kubernetes"
 	"github.com/zeitlos/lucity/services/conductor/internal/resources"
@@ -96,6 +97,9 @@ type Config struct {
 	// Deploy jobs
 	DeployImage          string `envconfig:"DEPLOY_IMAGE" required:"true"`
 	DeployServiceAccount string `envconfig:"DEPLOY_SERVICE_ACCOUNT"`
+
+	MaxConcurrentReleases int `envconfig:"MAX_CONCURRENT_RELEASES" default:"5"`
+	MaxQueuedReleases     int `envconfig:"MAX_QUEUED_RELEASES" default:"10"`
 
 	SystemNamespace string `envconfig:"SYSTEM_NAMESPACE" default:"lucity-system"`
 
@@ -244,6 +248,8 @@ func main() {
 		GatewayNS:       config.GatewayNamespace,
 	})
 
+	pipelineClient := pipeline.New(k8sClient, config.BuildNamespace, config.SystemNamespace, config.MaxConcurrentReleases)
+
 	secret, err := k8sClient.CoreV1().Secrets(config.SystemNamespace).Get(ctx, config.RegistryPullSecret, metav1.GetOptions{})
 
 	if err != nil {
@@ -333,8 +339,12 @@ func main() {
 		LoadBalancerIP:       config.IPAddress,
 		GitHubAppSlug:        config.GitHubAppSlug,
 		DashboardURL:         config.DashboardURL,
+		MaxQueuedReleases:    config.MaxQueuedReleases,
 	}
-	conductor := conductor.New(cashierClient, githubApp, logtoClient, tokenRefresher, directoryClient, platformClient, jobsClient, deployJobsClient, planner, source, hostnameClient, gatewayClient, deployerClient, environmentClient, objectStorageClient, metricsProvider, conductorConfig)
+	conductor := conductor.New(cashierClient, githubApp, logtoClient, tokenRefresher, directoryClient, platformClient, jobsClient, deployJobsClient, pipelineClient, planner, source, hostnameClient, gatewayClient, deployerClient, environmentClient, objectStorageClient, metricsProvider, conductorConfig)
+
+	go runAdmissionReconciler(ctx, pipelineClient)
+	slog.Info("release admission ready", "maxConcurrent", config.MaxConcurrentReleases, "maxQueuedPerWorkspace", config.MaxQueuedReleases)
 
 	if config.ReconcileEnabled {
 		go runDomainReconciler(ctx, conductor)

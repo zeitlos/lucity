@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/zeitlos/lucity/pkg/auth"
@@ -106,6 +107,16 @@ func (c *Client) Deploy(ctx context.Context, serviceID ServiceID, gitRef string)
 
 	if err != nil {
 		return nil, err
+	}
+
+	if c.config.MaxQueuedReleases > 0 {
+		queued, err := c.pipeline.QueuedRuns(ctx, service.ID.Workspace)
+
+		if err != nil {
+			slog.WarnContext(ctx, "queued release count failed", "error", err, "workspace", service.ID.Workspace)
+		} else if queued >= c.config.MaxQueuedReleases {
+			return nil, fmt.Errorf("deployment queue is full (%d queued) — wait for queued releases to finish", queued)
+		}
 	}
 
 	claims, _ := auth.FromContext(ctx)

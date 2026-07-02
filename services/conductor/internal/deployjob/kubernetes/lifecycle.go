@@ -65,6 +65,7 @@ func (c *Client) newDeployJob(name string, opts deployjob.StartOptions) *batch.J
 			},
 		},
 		Spec: batch.JobSpec{
+			Suspend:                 ptr.To(true),
 			BackoffLimit:            ptr.To(int32(2)),
 			TTLSecondsAfterFinished: ptr.To(int32(7 * 24 * 3600)),
 			ActiveDeadlineSeconds:   ptr.To(int64(40 * 60)),

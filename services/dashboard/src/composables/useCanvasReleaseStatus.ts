@@ -26,8 +26,6 @@ const IN_FLIGHT_STATUSES = new Set<ReleaseStatus>([
   ReleaseStatus.Deploying,
 ]);
 
-// Ignore releases stuck in a transient state for over an hour (e.g. orphaned
-// legacy builds) so a wedged release doesn't show a permanent spinner.
 const IN_FLIGHT_MAX_AGE_MS = 60 * 60 * 1000;
 
 export type CanvasReleasePhase = 'queued' | 'building' | 'deploying' | 'rollout';

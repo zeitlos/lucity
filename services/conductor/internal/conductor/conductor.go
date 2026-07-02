@@ -20,6 +20,7 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/hostname"
 	"github.com/zeitlos/lucity/services/conductor/internal/metrics"
 	"github.com/zeitlos/lucity/services/conductor/internal/objectstorage"
+	"github.com/zeitlos/lucity/services/conductor/internal/pipeline"
 	"github.com/zeitlos/lucity/services/conductor/internal/planner"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 	"github.com/zeitlos/lucity/services/conductor/internal/registry"
@@ -41,6 +42,7 @@ type Client struct {
 	platform    platform.Interface
 	buildjob    buildjob.Interface
 	deployjob   deployjob.Interface
+	pipeline    pipeline.Interface
 	planner     planner.Interface
 	source      source.Interface
 	hostname      *hostname.Client
@@ -75,9 +77,10 @@ type Config struct {
 	LoadBalancerIP       string
 	GitHubAppSlug        string
 	DashboardURL         string
+	MaxQueuedReleases    int
 }
 
-func New(cashier cashier.CashierServiceClient, githubApp *ghpkg.App, logto *logto.Client, tokenRefresher TokenRefresher, directory directory.Interface, platform platform.Interface, buildjob buildjob.Interface, deployjob deployjob.Interface, planner planner.Interface, source source.Interface, hostname *hostname.Client, gateway *gateway.Client, deployer deployer.Interface, environment environment.Interface, objectStorage objectstorage.Interface, metrics *metrics.Provider, config Config) *Client {
+func New(cashier cashier.CashierServiceClient, githubApp *ghpkg.App, logto *logto.Client, tokenRefresher TokenRefresher, directory directory.Interface, platform platform.Interface, buildjob buildjob.Interface, deployjob deployjob.Interface, pipeline pipeline.Interface, planner planner.Interface, source source.Interface, hostname *hostname.Client, gateway *gateway.Client, deployer deployer.Interface, environment environment.Interface, objectStorage objectstorage.Interface, metrics *metrics.Provider, config Config) *Client {
 	return &Client{
 		cashier:        cashier,
 		gitHubApp:      githubApp,
@@ -89,6 +92,7 @@ func New(cashier cashier.CashierServiceClient, githubApp *ghpkg.App, logto *logt
 		platform:       platform,
 		buildjob:       buildjob,
 		deployjob:      deployjob,
+		pipeline:       pipeline,
 		planner:        planner,
 		source:         source,
 		hostname:       hostname,

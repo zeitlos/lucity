@@ -72,6 +72,7 @@ func toJob(job batch.Job) buildjob.Job {
 		ContextPath:   job.Annotations[annotationContext],
 		TriggeredBy:   job.Annotations[annotationTriggeredBy],
 		ReleaseID:     job.Labels[labelRelease],
+		CreatedAt:     job.CreationTimestamp.Time,
 		ImageRefs:     make(map[string]name.Reference),
 	}
 
