@@ -18,6 +18,7 @@ const (
 	ResourceTier        = Prefix + "resource-tier"
 	GitHubInstallation  = Prefix + "github-installation"
 	ObjectStorageBucket = Prefix + "object-storage-bucket"
+	CustomDomain        = Prefix + "custom-domain"
 )
 
 // OCI image label constants.
