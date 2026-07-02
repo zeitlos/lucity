@@ -3,6 +3,7 @@ import type {
   BuildStatus,
   BucketStatus,
   DatabaseStatus,
+  DeployStatus,
   ResourceTier,
   ServiceStatus,
   Protocol,
@@ -70,6 +71,13 @@ export interface Build {
   finishedAt?: string | null;
 }
 
+export interface Deploy {
+  id: string;
+  status: DeployStatus;
+  startedAt?: string | null;
+  finishedAt?: string | null;
+}
+
 export interface ReleaseCommit {
   sha: string;
   message: string;
@@ -96,6 +104,7 @@ export interface Release {
   source?: GitSource | null;
   trigger: ReleaseTrigger;
   build?: Build | null;
+  deploy?: Deploy | null;
   deployment?: Deployment | null;
   createdAt: string;
 }

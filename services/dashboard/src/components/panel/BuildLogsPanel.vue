@@ -3,13 +3,16 @@ import { ref, computed, watch, nextTick } from 'vue';
 import { X, Loader2, Trash2, Pause, Play, AlertCircle } from '@lucide/vue';
 import { onKeyStroke } from '@vueuse/core';
 import { useBuildLogs } from '@/composables/useBuildLogs';
+import { useDeployLogs } from '@/composables/useDeployLogs';
+import type { LogsPanelKind } from '@/composables/useBuildLogsPanel';
 import { BuildStatus } from '@/gql/graphql';
 import { useDeploy } from '@/composables/useDeploy';
 import { Status } from '@/components/ui/status';
 import { Button } from '@/components/ui/button';
 
 const props = defineProps<{
-  buildId: string;
+  id: string;
+  kind: LogsPanelKind;
   serviceName: string;
 }>();
 
@@ -19,8 +22,20 @@ const emit = defineEmits<{
 
 onKeyStroke('Escape', () => emit('close'));
 
-const buildIdRef = computed(() => props.buildId);
-const { lines, isActive, error, clear, stop, restart } = useBuildLogs(buildIdRef);
+const buildIdRef = computed(() => (props.kind === 'build' ? props.id : null));
+const deployIdRef = computed(() => (props.kind === 'deploy' ? props.id : null));
+const buildLogs = useBuildLogs(buildIdRef);
+const deployLogs = useDeployLogs(deployIdRef);
+const logs = computed(() => (props.kind === 'deploy' ? deployLogs : buildLogs));
+
+const lines = computed(() => logs.value.lines.value);
+const isActive = computed(() => logs.value.isActive.value);
+const error = computed(() => logs.value.error.value);
+
+function clear() {
+  logs.value.clear();
+}
+
 const deploy = useDeploy();
 
 const statusTone = computed(() => {
@@ -56,17 +71,19 @@ watch(lines, async () => {
 }, { deep: true });
 
 const isTerminal = computed(() =>
-  deploy.status === BuildStatus.Succeeded
-    || deploy.status === BuildStatus.Failed
-    || deploy.status === BuildStatus.Cancelled
+  props.kind === 'build' && (
+    deploy.status === BuildStatus.Succeeded
+      || deploy.status === BuildStatus.Failed
+      || deploy.status === BuildStatus.Cancelled
+  )
 );
 
 function togglePause() {
   paused.value = !paused.value;
   if (paused.value) {
-    stop();
+    logs.value.stop();
   } else {
-    restart();
+    logs.value.restart();
   }
 }
 </script>
@@ -79,8 +96,9 @@ function togglePause() {
         <h2 class="text-sm font-semibold text-zinc-200">
           {{ serviceName }}
         </h2>
+        <span class="text-xs uppercase tracking-wider text-zinc-500">{{ kind }}</span>
         <Status
-          v-if="deploy.status"
+          v-if="kind === 'build' && deploy.status"
           :tone="statusTone"
           class="text-xs"
         >

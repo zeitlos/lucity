@@ -270,12 +270,19 @@ const showActiveDetails = ref(false);
               <DropdownMenuContent align="end">
                 <DropdownMenuItem
                   v-if="activeRelease?.build"
-                  @click="activeRelease?.build && logsPanel.open(activeRelease.build.id, service.name)"
+                  @click="activeRelease?.build && logsPanel.open(activeRelease.build.id, service.name, 'build')"
                 >
                   <Terminal :size="14" class="mr-2" />
-                  View logs
+                  Build logs
                 </DropdownMenuItem>
-                <DropdownMenuSeparator v-if="activeRelease?.build" />
+                <DropdownMenuItem
+                  v-if="activeRelease?.deploy"
+                  @click="activeRelease?.deploy && logsPanel.open(activeRelease.deploy.id, service.name, 'deploy')"
+                >
+                  <Terminal :size="14" class="mr-2" />
+                  Deploy logs
+                </DropdownMenuItem>
+                <DropdownMenuSeparator v-if="activeRelease?.build || activeRelease?.deploy" />
                 <DropdownMenuItem :disabled="deploy.isDeploying" @click="handleRedeploy">
                   <RefreshCw :size="14" class="mr-2" />
                   Redeploy
@@ -383,16 +390,26 @@ const showActiveDetails = ref(false);
             </div>
           </div>
 
-          <DropdownMenu v-if="release.build">
+          <DropdownMenu v-if="release.build || release.deploy">
             <DropdownMenuTrigger as-child>
               <Button variant="ghost" size="sm" class="h-8 w-8 shrink-0 p-0">
                 <MoreVertical :size="16" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem @click="release.build && logsPanel.open(release.build.id, service.name)">
+              <DropdownMenuItem
+                v-if="release.build"
+                @click="release.build && logsPanel.open(release.build.id, service.name, 'build')"
+              >
                 <Terminal :size="14" class="mr-2" />
-                View logs
+                Build logs
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                v-if="release.deploy"
+                @click="release.deploy && logsPanel.open(release.deploy.id, service.name, 'deploy')"
+              >
+                <Terminal :size="14" class="mr-2" />
+                Deploy logs
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

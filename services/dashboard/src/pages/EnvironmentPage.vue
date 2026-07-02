@@ -100,6 +100,12 @@ const EnvironmentDocument = graphql(`
             startedAt
             finishedAt
           }
+          deploy {
+            id
+            status
+            startedAt
+            finishedAt
+          }
           deployment {
             id
             image
@@ -654,7 +660,8 @@ watch(error, (err) => {
             style="left: calc(45% + 12px + 2rem)"
           >
             <BuildLogsPanel
-              :build-id="logsPanel.buildId.value!"
+              :id="logsPanel.id.value!"
+              :kind="logsPanel.kind.value"
               :service-name="logsPanel.serviceName.value"
               @close="logsPanel.close()"
             />
