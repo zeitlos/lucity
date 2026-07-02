@@ -1,30 +1,35 @@
 import { ref, watch, onUnmounted, computed, type Ref } from 'vue';
 import { apolloClient } from '@/lib/apollo';
 import { graphql } from '@/gql';
-import { BuildStatus } from '@/gql/graphql';
+import { DeploymentStatus, ReleaseStatus } from '@/gql/graphql';
 
-const CanvasServiceBuildsDocument = graphql(`
-  query CanvasServiceBuilds($id: ServiceID!) {
+const CanvasServiceReleasesDocument = graphql(`
+  query CanvasServiceReleases($id: ServiceID!) {
     service(id: $id) {
       id
-      builds {
+      releases {
         id
         status
-        startedAt
-        finishedAt
+        createdAt
+        deployment {
+          id
+          status
+        }
       }
     }
   }
 `);
 
-const TERMINAL_STATUSES = new Set<BuildStatus>([
-  BuildStatus.Succeeded,
-  BuildStatus.Failed,
-  BuildStatus.Cancelled,
+const IN_FLIGHT_STATUSES = new Set<ReleaseStatus>([
+  ReleaseStatus.Queued,
+  ReleaseStatus.Building,
+  ReleaseStatus.Deploying,
 ]);
 
-export interface CanvasBuildInfo {
-  status: BuildStatus;
+export type CanvasReleasePhase = 'queued' | 'building' | 'deploying' | 'rollout';
+
+export interface CanvasReleaseInfo {
+  phase: CanvasReleasePhase;
   startedAt: number;
 }
 
@@ -32,31 +37,31 @@ interface CanvasService {
   id: string;
 }
 
-export function useCanvasBuildStatus(
+export function useCanvasReleaseStatus(
   services: Ref<CanvasService[]>,
   onCompleted?: () => void,
 ) {
-  const statusMap = ref<Record<string, CanvasBuildInfo>>({});
+  const statusMap = ref<Record<string, CanvasReleaseInfo>>({});
   let pollTimer: ReturnType<typeof setInterval> | null = null;
 
   async function pollAll() {
     const prev = statusMap.value;
-    const results: Record<string, CanvasBuildInfo> = {};
+    const results: Record<string, CanvasReleaseInfo> = {};
 
     await Promise.allSettled(
       services.value.map(async (svc) => {
         try {
           const { data } = await apolloClient.query({
-            query: CanvasServiceBuildsDocument,
+            query: CanvasServiceReleasesDocument,
             variables: { id: svc.id },
             fetchPolicy: 'network-only',
           });
-          const builds = data?.service?.builds ?? [];
-          const inFlight = builds.find(b => !TERMINAL_STATUSES.has(b.status));
+          const releases = data?.service?.releases ?? [];
+          const inFlight = releases.find(r => IN_FLIGHT_STATUSES.has(r.status));
           if (inFlight) {
             results[svc.id] = {
-              status: inFlight.status,
-              startedAt: inFlight.startedAt ? new Date(inFlight.startedAt).getTime() : Date.now(),
+              phase: releasePhase(inFlight.status, inFlight.deployment?.status),
+              startedAt: inFlight.createdAt ? new Date(inFlight.createdAt).getTime() : Date.now(),
             };
           }
         } catch {
@@ -71,6 +76,17 @@ export function useCanvasBuildStatus(
 
     if (completed && onCompleted) {
       onCompleted();
+    }
+  }
+
+  function releasePhase(status: ReleaseStatus, deploymentStatus?: DeploymentStatus): CanvasReleasePhase {
+    switch (status) {
+      case ReleaseStatus.Queued:
+        return 'queued';
+      case ReleaseStatus.Building:
+        return 'building';
+      default:
+        return deploymentStatus === DeploymentStatus.Deploying ? 'rollout' : 'deploying';
     }
   }
 

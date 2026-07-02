@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, onMounted, watch } from 'vue';
+import { computed, onMounted, watch } from 'vue';
 import {
   Rocket, Loader2, Check, AlertCircle, Terminal,
   ExternalLink, RefreshCw,
@@ -9,7 +9,7 @@ import { useNow } from '@vueuse/core';
 import { useDeploy } from '@/composables/useDeploy';
 import { useBuildLogsPanel, type LogsPanelKind } from '@/composables/useBuildLogsPanel';
 import { DeploymentStatus, ReleaseStatus } from '@/gql/graphql';
-import { activeBuild, type Release } from '@/composables/useEnvironment';
+import { activeBuild, type Deployment, type Release } from '@/composables/useEnvironment';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
@@ -107,7 +107,7 @@ interface StatusMeta {
 function deploymentStatusMeta(status: DeploymentStatus): StatusMeta {
   switch (status) {
     case DeploymentStatus.Active: return { label: 'Active', color: 'var(--status-ok)' };
-    case DeploymentStatus.Deploying: return { label: 'Deploying', color: 'var(--status-warn)' };
+    case DeploymentStatus.Deploying: return { label: 'Deploying', color: 'var(--status-progress)' };
     case DeploymentStatus.Failed: return { label: 'Failed', color: 'var(--status-danger)' };
     default: return { label: 'Superseded', color: 'var(--status-neutral)' };
   }
@@ -116,8 +116,8 @@ function deploymentStatusMeta(status: DeploymentStatus): StatusMeta {
 function releaseStatusMeta(status: ReleaseStatus): StatusMeta {
   switch (status) {
     case ReleaseStatus.Live: return { label: 'Live', color: 'var(--status-ok)' };
-    case ReleaseStatus.Deploying: return { label: 'Deploying', color: 'var(--status-warn)' };
-    case ReleaseStatus.Building: return { label: 'Building', color: 'var(--status-warn)' };
+    case ReleaseStatus.Deploying: return { label: 'Deploying', color: 'var(--status-progress)' };
+    case ReleaseStatus.Building: return { label: 'Building', color: 'var(--status-progress)' };
     case ReleaseStatus.Queued: return { label: 'Queued', color: 'var(--status-neutral)' };
     case ReleaseStatus.Failed: return { label: 'Failed', color: 'var(--status-danger)' };
     case ReleaseStatus.Cancelled: return { label: 'Cancelled', color: 'var(--status-neutral)' };
@@ -148,9 +148,7 @@ interface ReleaseStep {
   logKind?: LogsPanelKind;
 }
 
-function rolloutStep(release: Release, live: boolean): ReleaseStep | null {
-  const deployment = release.deployment;
-
+function rolloutStep(deployment: Deployment | null | undefined, live: boolean): ReleaseStep | null {
   if (!deployment) return null;
 
   let status: StepStatus;
@@ -169,27 +167,11 @@ function rolloutStep(release: Release, live: boolean): ReleaseStep | null {
       return null;
   }
 
-  let detail: string | undefined;
-
-  if (live) {
-    const parts = [
-      props.service.autoscaling
-        ? `${replicasDesired.value} replica${replicasDesired.value !== 1 ? 's' : ''} (autoscaling ${props.service.autoscaling.minReplicas}–${props.service.autoscaling.maxReplicas})`
-        : `${replicasDesired.value} replica${replicasDesired.value !== 1 ? 's' : ''}`,
-    ];
-
-    if (!isReady.value) {
-      parts.push(`${replicasReady.value}/${replicasDesired.value} ready`);
-    }
-
-    detail = parts.join(' · ');
-  }
-
   return {
     key: 'rollout',
     label: 'Rollout',
     status,
-    detail,
+    detail: live && !isReady.value ? `${replicasReady.value}/${replicasDesired.value} ready` : undefined,
     startedAt: status === 'running' ? deployment.createdAt : null,
   };
 }
@@ -221,7 +203,7 @@ function releaseSteps(release: Release, live = false): ReleaseStep[] {
     });
   }
 
-  const rollout = rolloutStep(release, live);
+  const rollout = rolloutStep(release.deployment, live);
 
   if (rollout) {
     steps.push(rollout);
@@ -229,6 +211,16 @@ function releaseSteps(release: Release, live = false): ReleaseStep[] {
 
   return steps;
 }
+
+const activeSteps = computed<ReleaseStep[]>(() => {
+  if (activeRelease.value) {
+    return releaseSteps(activeRelease.value, true);
+  }
+
+  const rollout = rolloutStep(activeDeployment.value, true);
+
+  return rollout ? [rollout] : [];
+});
 
 const stepIcons = {
   succeeded: Check,
@@ -243,7 +235,7 @@ function stepColor(status: StepStatus): string {
   switch (status) {
     case 'succeeded': return 'var(--status-ok)';
     case 'failed': return 'var(--status-danger)';
-    case 'running': return 'var(--status-warn)';
+    case 'running': return 'var(--status-progress)';
     default: return 'var(--status-neutral)';
   }
 }
@@ -294,7 +286,6 @@ function releaseMeta(release: Release): string {
 const replicasReady = computed(() => props.service.replicas?.ready ?? 0);
 const replicasDesired = computed(() => props.service.replicas?.desired ?? 0);
 const isReady = computed(() => replicasReady.value > 0 && replicasReady.value === replicasDesired.value);
-const showActiveDetails = ref(!isReady.value);
 </script>
 
 <template>
@@ -318,7 +309,7 @@ const showActiveDetails = ref(!isReady.value);
     <!-- Active Deployment Card -->
     <Collapsible
       v-if="activeDeployment"
-      v-model:open="showActiveDetails"
+      :default-open="!isReady"
       class="rounded-lg border bg-card shadow-sm"
     >
       <div class="flex items-center gap-3 pr-2">
@@ -389,16 +380,16 @@ const showActiveDetails = ref(!isReady.value);
       </div>
 
       <CollapsibleContent>
-        <div v-if="activeRelease" class="border-t border-border/40 px-4 py-2">
+        <div class="border-t border-border/40 px-4 py-2">
           <div
-            v-for="step in releaseSteps(activeRelease, true)"
+            v-for="step in activeSteps"
             :key="step.key"
             class="flex items-center gap-3 py-2"
           >
-            <span class="w-36 shrink-0 truncate text-sm font-medium text-foreground">
-              {{ step.label }}
-              <span v-if="stepDuration(step)" class="font-normal text-muted-foreground">{{ stepDuration(step) }}</span>
-            </span>
+            <div class="flex w-[84px] shrink-0 flex-col">
+              <span class="text-sm font-medium text-foreground">{{ step.label }}</span>
+              <span v-if="stepDuration(step)" class="text-xs text-muted-foreground">{{ stepDuration(step) }}</span>
+            </div>
             <span
               class="flex w-32 shrink-0 items-center gap-1.5 text-sm capitalize"
               :style="{ color: stepColor(step.status) }"
@@ -503,10 +494,10 @@ const showActiveDetails = ref(!isReady.value);
                   :key="step.key"
                   class="flex items-center gap-3 py-2"
                 >
-                  <span class="w-36 shrink-0 truncate text-sm font-medium text-foreground">
-                    {{ step.label }}
-                    <span v-if="stepDuration(step)" class="font-normal text-muted-foreground">{{ stepDuration(step) }}</span>
-                  </span>
+                  <div class="flex w-[84px] shrink-0 flex-col">
+                    <span class="text-sm font-medium text-foreground">{{ step.label }}</span>
+                    <span v-if="stepDuration(step)" class="text-xs text-muted-foreground">{{ stepDuration(step) }}</span>
+                  </div>
                   <span
                     class="flex w-32 shrink-0 items-center gap-1.5 text-sm capitalize"
                     :style="{ color: stepColor(step.status) }"

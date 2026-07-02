@@ -3,7 +3,8 @@ import { computed, ref, watch, onUnmounted } from 'vue';
 import { Handle, Position } from '@vue-flow/core';
 import { ExternalLink, Globe, Loader2, Container, FolderGit2, HardDrive } from '@lucide/vue';
 import GithubIcon from '@/components/GithubIcon.vue';
-import { BuildStatus, EndpointType, ServiceStatus, type Protocol } from '@/gql/graphql';
+import { EndpointType, ServiceStatus, type Protocol } from '@/gql/graphql';
+import type { CanvasReleasePhase } from '@/composables/useCanvasReleaseStatus';
 import { Status } from '@/components/ui/status';
 
 interface Endpoint {
@@ -25,8 +26,8 @@ const props = defineProps<{
     endpoints: Endpoint[];
     status: ServiceStatus;
     replicas: ReplicaCount;
-    activeBuildStatus?: BuildStatus | null;
-    activeBuildStartedAt?: number | null;
+    activeReleasePhase?: CanvasReleasePhase | null;
+    activeReleaseStartedAt?: number | null;
     volume?: { id: string; name: string; path: string; selected?: boolean; usagePercent?: number | null } | null;
   };
   selected?: boolean;
@@ -85,24 +86,33 @@ function clearTimer() {
   }
 }
 
-watch(() => props.data.activeBuildStatus, (status) => {
-  clearTimer();
-  if (status === BuildStatus.Queued || status === BuildStatus.Running) {
-    elapsed.value = props.data.activeBuildStartedAt
-      ? Math.floor((Date.now() - props.data.activeBuildStartedAt) / 1000)
-      : 0;
-    timer = setInterval(() => elapsed.value++, 1000);
+watch(() => props.data.activeReleasePhase, (phase, oldPhase) => {
+  if (!phase) {
+    clearTimer();
+    return;
   }
+
+  if (oldPhase) return;
+
+  clearTimer();
+  elapsed.value = props.data.activeReleaseStartedAt
+    ? Math.floor((Date.now() - props.data.activeReleaseStartedAt) / 1000)
+    : 0;
+  timer = setInterval(() => elapsed.value++, 1000);
 }, { immediate: true });
 
 onUnmounted(clearTimer);
 
 const deployLabel = computed(() => {
-  switch (props.data.activeBuildStatus) {
-    case BuildStatus.Queued:
+  switch (props.data.activeReleasePhase) {
+    case 'queued':
       return 'Queued';
-    case BuildStatus.Running:
+    case 'building':
       return 'Building';
+    case 'deploying':
+      return 'Deploying';
+    case 'rollout':
+      return 'Rolling out';
     default:
       return null;
   }
@@ -187,7 +197,7 @@ const hostUrl = computed(() => {
       <div class="mt-4 flex items-center justify-between border-t border-border/50 pt-4">
         <Status :tone="statusTone" class="text-[0.65rem]">{{ statusLabel }}</Status>
         <span v-if="deployLabel" class="flex items-center gap-1.5 text-[0.65rem] text-muted-foreground">
-          <Loader2 :size="12" class="animate-spin text-primary" />
+          <Loader2 :size="12" class="animate-spin text-[var(--status-progress)]" />
           {{ deployLabel }} ({{ formattedElapsed }})
         </span>
       </div>

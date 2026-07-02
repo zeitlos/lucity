@@ -68,7 +68,7 @@ type Documents = {
     "\n  mutation UnmountVolume($volume: VolumeID!) {\n    unmountVolume(volume: $volume) {\n      id\n      mount {\n        service\n        path\n      }\n    }\n  }\n": typeof types.UnmountVolumeDocument,
     "\n  query VolumeMetrics($id: VolumeID!, $range: MetricsRange!) {\n    volume(id: $id) {\n      id\n      metrics(metrics: [STORAGE_USED], range: $range) {\n        metric\n        points {\n          timestamp\n          value\n        }\n      }\n    }\n  }\n": typeof types.VolumeMetricsDocument,
     "\n  subscription BuildLogs($id: BuildID!) {\n    buildLogs(id: $id)\n  }\n": typeof types.BuildLogsDocument,
-    "\n  query CanvasServiceBuilds($id: ServiceID!) {\n    service(id: $id) {\n      id\n      builds {\n        id\n        status\n        startedAt\n        finishedAt\n      }\n    }\n  }\n": typeof types.CanvasServiceBuildsDocument,
+    "\n  query CanvasServiceReleases($id: ServiceID!) {\n    service(id: $id) {\n      id\n      releases {\n        id\n        status\n        createdAt\n        deployment {\n          id\n          status\n        }\n      }\n    }\n  }\n": typeof types.CanvasServiceReleasesDocument,
     "\n  mutation Deploy($service: ServiceID!, $gitRef: String) {\n    deploy(service: $service, gitRef: $gitRef) {\n      id\n      status\n      build {\n        id\n        status\n        startedAt\n        finishedAt\n      }\n    }\n  }\n": typeof types.DeployDocument,
     "\n  query BuildStatus($id: BuildID!) {\n    build(id: $id) {\n      id\n      status\n      startedAt\n      finishedAt\n    }\n  }\n": typeof types.BuildStatusDocument,
     "\n  subscription DeployLogs($id: DeployID!) {\n    deployLogs(id: $id)\n  }\n": typeof types.DeployLogsDocument,
@@ -148,7 +148,7 @@ const documents: Documents = {
     "\n  mutation UnmountVolume($volume: VolumeID!) {\n    unmountVolume(volume: $volume) {\n      id\n      mount {\n        service\n        path\n      }\n    }\n  }\n": types.UnmountVolumeDocument,
     "\n  query VolumeMetrics($id: VolumeID!, $range: MetricsRange!) {\n    volume(id: $id) {\n      id\n      metrics(metrics: [STORAGE_USED], range: $range) {\n        metric\n        points {\n          timestamp\n          value\n        }\n      }\n    }\n  }\n": types.VolumeMetricsDocument,
     "\n  subscription BuildLogs($id: BuildID!) {\n    buildLogs(id: $id)\n  }\n": types.BuildLogsDocument,
-    "\n  query CanvasServiceBuilds($id: ServiceID!) {\n    service(id: $id) {\n      id\n      builds {\n        id\n        status\n        startedAt\n        finishedAt\n      }\n    }\n  }\n": types.CanvasServiceBuildsDocument,
+    "\n  query CanvasServiceReleases($id: ServiceID!) {\n    service(id: $id) {\n      id\n      releases {\n        id\n        status\n        createdAt\n        deployment {\n          id\n          status\n        }\n      }\n    }\n  }\n": types.CanvasServiceReleasesDocument,
     "\n  mutation Deploy($service: ServiceID!, $gitRef: String) {\n    deploy(service: $service, gitRef: $gitRef) {\n      id\n      status\n      build {\n        id\n        status\n        startedAt\n        finishedAt\n      }\n    }\n  }\n": types.DeployDocument,
     "\n  query BuildStatus($id: BuildID!) {\n    build(id: $id) {\n      id\n      status\n      startedAt\n      finishedAt\n    }\n  }\n": types.BuildStatusDocument,
     "\n  subscription DeployLogs($id: DeployID!) {\n    deployLogs(id: $id)\n  }\n": types.DeployLogsDocument,
@@ -407,7 +407,7 @@ export function graphql(source: "\n  subscription BuildLogs($id: BuildID!) {\n  
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query CanvasServiceBuilds($id: ServiceID!) {\n    service(id: $id) {\n      id\n      builds {\n        id\n        status\n        startedAt\n        finishedAt\n      }\n    }\n  }\n"): (typeof documents)["\n  query CanvasServiceBuilds($id: ServiceID!) {\n    service(id: $id) {\n      id\n      builds {\n        id\n        status\n        startedAt\n        finishedAt\n      }\n    }\n  }\n"];
+export function graphql(source: "\n  query CanvasServiceReleases($id: ServiceID!) {\n    service(id: $id) {\n      id\n      releases {\n        id\n        status\n        createdAt\n        deployment {\n          id\n          status\n        }\n      }\n    }\n  }\n"): (typeof documents)["\n  query CanvasServiceReleases($id: ServiceID!) {\n    service(id: $id) {\n      id\n      releases {\n        id\n        status\n        createdAt\n        deployment {\n          id\n          status\n        }\n      }\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
