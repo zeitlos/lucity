@@ -40,6 +40,8 @@ type ScanConfig struct {
 const (
 	reportMediaType       = "application/vnd.lucity.scan-report.v1+json"
 	reportConfigMediaType = "application/vnd.lucity.scan-report.config.v1+json"
+
+	scanHistoryDepth = 200
 )
 
 type scanReport struct {
@@ -135,7 +137,11 @@ func cloneForScan(ctx context.Context, config ScanConfig) (string, string, error
 		return "", "", err
 	}
 
-	cloneOpts := &git.CloneOptions{URL: config.SourceURL}
+	cloneOpts := &git.CloneOptions{
+		URL:          config.SourceURL,
+		Depth:        scanHistoryDepth,
+		SingleBranch: true,
+	}
 
 	if config.GitHubToken != "" {
 		cloneOpts.Auth = &githttp.BasicAuth{
@@ -256,6 +262,7 @@ func runTrufflehog(ctx context.Context, repoPath string) ([]scanFinding, error) 
 		"--json",
 		"--no-update",
 		"--fail",
+		"--concurrency=1",
 	)
 
 	var stdout bytes.Buffer
