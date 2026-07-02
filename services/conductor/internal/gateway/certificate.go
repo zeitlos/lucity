@@ -53,6 +53,16 @@ func (c *Client) ensureCertificate(ctx context.Context, host string) error {
 	return err
 }
 
+func (c *Client) removeCertificate(ctx context.Context, host string) error {
+	err := c.dyn.Resource(certificateGVR).Namespace(c.gatewayNamespace).Delete(ctx, ResourceNameFor(host), metav1.DeleteOptions{})
+
+	if apierrors.IsNotFound(err) {
+		return nil
+	}
+
+	return err
+}
+
 func (c *Client) secretExists(ctx context.Context, name string) (bool, error) {
 	_, err := c.dyn.Resource(secretGVR).Namespace(c.gatewayNamespace).Get(ctx, name, metav1.GetOptions{})
 

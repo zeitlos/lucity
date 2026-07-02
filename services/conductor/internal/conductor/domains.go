@@ -72,110 +72,115 @@ func (c *Client) ReconcileDomains(ctx context.Context) error {
 		return err
 	}
 
-	seen := make(map[string]struct{})
+	desired := make(map[string]struct{})
+	complete := true
 
 	for _, workspace := range workspaces {
-		hosts, err := c.reconcileWorkspaceDomains(ctx, workspace.ID)
+		hosts, ok := c.reconcileWorkspaceDomains(ctx, workspace.ID)
 
-		if err != nil {
-			slog.Warn("reconcile domains: workspace failed", "workspace", workspace.ID, "error", err)
-			continue
+		if !ok {
+			complete = false
 		}
 
 		for _, host := range hosts {
-			seen[host] = struct{}{}
+			desired[host] = struct{}{}
 		}
 	}
 
-	if err := c.gateway.Sync(ctx, slices.Collect(maps.Keys(seen))); err != nil {
+	if err := c.gateway.Sync(ctx, slices.Collect(maps.Keys(desired)), complete); err != nil {
 		slog.Warn("reconcile domains: gateway sync failed", "error", err)
 	}
 
 	return nil
 }
 
-func (c *Client) reconcileWorkspaceDomains(ctx context.Context, workspaceID string) ([]string, error) {
+func (c *Client) reconcileWorkspaceDomains(ctx context.Context, workspaceID string) ([]string, bool) {
 	projects, err := c.platform.Projects(ctx, workspaceID)
 
 	if err != nil {
-		return nil, err
+		slog.Warn("reconcile domains: list projects failed", "workspace", workspaceID, "error", err)
+		return nil, false
 	}
 
-	var verified []string
+	var desired []string
+	complete := true
 
 	for _, project := range projects {
 		environments, err := c.platform.Environments(ctx, project.ID)
 
 		if err != nil {
-			// TODO: Ensure failed domains don't get instantly removed. Separaate between case a) misconfigured and case b) failed to verify due to timeout or similar.
 			slog.Warn("reconcile domains: list environments failed", "project", project.ID, "error", err)
+			complete = false
 			continue
 		}
 
 		for _, env := range environments {
-			hosts, err := c.reconcileEnvironmentDomains(ctx, workspaceID, env.ID)
+			hosts, ok := c.reconcileEnvironmentDomains(ctx, workspaceID, env.ID)
 
-			if err != nil {
-				// TODO: Ensure failed domains don't get instantly removed. Separaate between case a) misconfigured and case b) failed to verify due to timeout or similar.
-				slog.Warn("reconcile domains: env failed", "env", env.ID, "error", err)
-				continue
+			if !ok {
+				complete = false
 			}
 
-			verified = append(verified, hosts...)
+			desired = append(desired, hosts...)
 		}
 	}
 
-	return verified, nil
+	return desired, complete
 }
 
-func (c *Client) reconcileEnvironmentDomains(ctx context.Context, workspaceID string, envID platform.EnvironmentID) ([]string, error) {
+func (c *Client) reconcileEnvironmentDomains(ctx context.Context, workspaceID string, envID platform.EnvironmentID) ([]string, bool) {
 	services, err := c.platform.Services(ctx, envID)
 
 	if err != nil {
-		return nil, err
+		slog.Warn("reconcile domains: list services failed", "env", envID, "error", err)
+		return nil, false
 	}
 
-	var verified []string
+	var desired []string
+	complete := true
 
 	for _, service := range services {
 		for _, endpoint := range service.Endpoints {
 			host := endpoint.Host
 
-			if host == "" {
+			if host == "" || !c.hostname.IsCustom(host) {
 				continue
 			}
 
-			if !c.hostname.IsCustom(host) {
-				continue
-			}
+			enabled := endpoint.Enabled
 
-			currentVerified := endpoint.Enabled
-			desiredVerified, err := c.isDomainVerified(ctx, workspaceID, host)
+			valid, err := c.isDomainVerified(ctx, workspaceID, host)
 
 			if err != nil {
-				return nil, err
+				slog.Warn("reconcile domains: dns lookup failed", "host", host, "error", err)
+				complete = false
+
+				if enabled && !c.hostname.IsPlatform(host) {
+					desired = append(desired, host)
+				}
+
+				continue
 			}
 
-			if currentVerified != desiredVerified {
-				if _, err := c.deployer.Services().VerifyDomain(ctx, service.ID, host, desiredVerified); err != nil {
+			if valid && !enabled {
+				if _, err := c.deployer.Services().VerifyDomain(ctx, service.ID, host, true); err != nil {
 					slog.Warn("reconcile domains: verify call failed", "host", host, "error", err)
+					complete = false
 					continue
 				}
 
-				slog.Info("reconcile domains: flipped",
-					"service", service.ID,
-					"host", host,
-					"verified", desiredVerified,
-				)
+				enabled = true
+
+				slog.Info("reconcile domains: verified", "service", service.ID, "host", host)
 			}
 
-			if desiredVerified && !c.hostname.IsPlatform(host) {
-				verified = append(verified, host)
+			if enabled && !c.hostname.IsPlatform(host) {
+				desired = append(desired, host)
 			}
 		}
 	}
 
-	return verified, nil
+	return desired, complete
 }
 
 func (c *Client) isDomainVerified(ctx context.Context, workspaceID, host string) (bool, error) {

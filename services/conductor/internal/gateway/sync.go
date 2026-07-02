@@ -5,7 +5,7 @@ import (
 	"log/slog"
 )
 
-func (c *Client) Sync(ctx context.Context, hostnames []string) error {
+func (c *Client) Sync(ctx context.Context, hostnames []string, removeOrphans bool) error {
 	desired := make(map[string]struct{}, len(hostnames))
 
 	for _, host := range hostnames {
@@ -59,6 +59,10 @@ func (c *Client) Sync(ctx context.Context, hostnames []string) error {
 		}
 	}
 
+	if !removeOrphans {
+		return nil
+	}
+
 	for host, state := range listeners {
 		if _, ok := desired[host]; ok {
 			continue
@@ -67,21 +71,23 @@ func (c *Client) Sync(ctx context.Context, hostnames []string) error {
 		name := ResourceNameFor(host)
 
 		if state.http {
-			slog.WarnContext(ctx, "dry run: would remove orphan https listener", "host", host, "name", name+"-http")
-			// if err := c.removeListener(ctx, name+"-http"); err != nil {
-			// 	slog.Warn("gateway sync: remove orphan http listener failed", "host", host, "error", err)
-			// } else {
-			// 	slog.Info("gateway sync: removed orphan http listener", "host", host)
-			// }
+			if err := c.removeListener(ctx, name+"-http"); err != nil {
+				slog.Warn("gateway sync: remove orphan http listener failed", "host", host, "error", err)
+			} else {
+				slog.Info("gateway sync: removed orphan http listener", "host", host)
+			}
 		}
 
 		if state.https {
-			slog.WarnContext(ctx, "dry run: would remove orphan https listener", "host", host, "name", name+"-https")
-			// if err := c.removeListener(ctx, name+"-https"); err != nil {
-			// 	slog.Warn("gateway sync: remove orphan https listener failed", "host", host, "error", err)
-			// } else {
-			// 	slog.Info("gateway sync: removed orphan https listener", "host", host)
-			// }
+			if err := c.removeListener(ctx, name+"-https"); err != nil {
+				slog.Warn("gateway sync: remove orphan https listener failed", "host", host, "error", err)
+			} else {
+				slog.Info("gateway sync: removed orphan https listener", "host", host)
+			}
+		}
+
+		if err := c.removeCertificate(ctx, host); err != nil {
+			slog.Warn("gateway sync: remove orphan certificate failed", "host", host, "error", err)
 		}
 	}
 
