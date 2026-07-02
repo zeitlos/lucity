@@ -148,7 +148,7 @@ func (c *Client) reconcileEnvironmentDomains(ctx context.Context, workspaceID st
 
 			enabled := endpoint.Enabled
 
-			valid, err := c.isDomainVerified(ctx, workspaceID, host)
+			verified, err := c.isDomainVerified(ctx, workspaceID, host)
 
 			if err != nil {
 				slog.Warn("reconcile domains: dns lookup failed", "host", host, "error", err)
@@ -160,15 +160,15 @@ func (c *Client) reconcileEnvironmentDomains(ctx context.Context, workspaceID st
 				continue
 			}
 
-			if valid != enabled {
-				if _, err := c.deployer.Services().VerifyDomain(ctx, service.ID, host, valid); err != nil {
+			if verified != enabled {
+				if _, err := c.deployer.Services().VerifyDomain(ctx, service.ID, host, verified); err != nil {
 					slog.Warn("reconcile domains: verify call failed", "host", host, "error", err)
 					continue
 				}
 
-				enabled = valid
+				enabled = verified
 
-				slog.Info("reconcile domains: verification changed", "service", service.ID, "host", host, "verified", valid)
+				slog.Info("reconcile domains: verification changed", "service", service.ID, "host", host, "verified", verified)
 			}
 
 			if enabled {
