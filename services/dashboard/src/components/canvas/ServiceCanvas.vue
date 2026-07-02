@@ -4,7 +4,7 @@ import { VueFlow, useVueFlow, Panel, PanOnScrollMode } from '@vue-flow/core';
 import { Background } from '@vue-flow/background';
 import { Plus, Maximize2, RotateCcw } from '@lucide/vue';
 import { usePanel } from '@/composables/usePanel';
-import { useCanvasBuildStatus } from '@/composables/useCanvasBuildStatus';
+import { useCanvasReleaseStatus } from '@/composables/useCanvasReleaseStatus';
 import { useCanvasLayout } from '@/composables/useCanvasLayout';
 import type { Service, Database, KeyValueStore, Bucket, Volume } from '@/composables/useEnvironment';
 import ServiceNode from './ServiceNode.vue';
@@ -34,7 +34,7 @@ const emit = defineEmits<{
 const { openPanel, currentPanel } = usePanel();
 
 const servicesRef = toRef(props, 'services');
-const { statusMap } = useCanvasBuildStatus(
+const { statusMap } = useCanvasReleaseStatus(
   servicesRef,
   () => emit('deploy-completed'),
 );
@@ -61,7 +61,7 @@ watch(
 
 const nodes = computed(() => {
   const serviceNodes = props.services.map((svc, index) => {
-    const buildInfo = statusMap.value[svc.id];
+    const releaseInfo = statusMap.value[svc.id];
     const mountedVolume = props.volumes.find(vol => vol.mount?.service === svc.id);
     return {
       id: svc.id,
@@ -73,8 +73,8 @@ const nodes = computed(() => {
         endpoints: svc.endpoints,
         status: svc.status,
         replicas: svc.replicas,
-        activeBuildStatus: buildInfo?.status ?? null,
-        activeBuildStartedAt: buildInfo?.startedAt ?? null,
+        activeReleasePhase: releaseInfo?.phase ?? null,
+        activeReleaseStartedAt: releaseInfo?.startedAt ?? null,
         volume: mountedVolume
           ? {
             id: mountedVolume.id,

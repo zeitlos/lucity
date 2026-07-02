@@ -6,6 +6,7 @@ type Release {
   trigger: ReleaseTrigger!
 
   build: Build
+  deploy: Deploy
   deployment: Deployment
 
   createdAt: Time!

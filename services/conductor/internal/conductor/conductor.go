@@ -13,6 +13,7 @@ import (
 	"github.com/zeitlos/lucity/pkg/logto"
 	"github.com/zeitlos/lucity/services/conductor/internal/buildjob"
 	"github.com/zeitlos/lucity/services/conductor/internal/deployer"
+	"github.com/zeitlos/lucity/services/conductor/internal/deployjob"
 	"github.com/zeitlos/lucity/services/conductor/internal/directory"
 	"github.com/zeitlos/lucity/services/conductor/internal/environment"
 	"github.com/zeitlos/lucity/services/conductor/internal/gateway"
@@ -39,6 +40,7 @@ type Client struct {
 	directory   directory.Interface
 	platform    platform.Interface
 	buildjob    buildjob.Interface
+	deployjob   deployjob.Interface
 	planner     planner.Interface
 	source      source.Interface
 	hostname      *hostname.Client
@@ -75,7 +77,7 @@ type Config struct {
 	DashboardURL         string
 }
 
-func New(cashier cashier.CashierServiceClient, githubApp *ghpkg.App, logto *logto.Client, tokenRefresher TokenRefresher, directory directory.Interface, platform platform.Interface, buildjob buildjob.Interface, planner planner.Interface, source source.Interface, hostname *hostname.Client, gateway *gateway.Client, deployer deployer.Interface, environment environment.Interface, objectStorage objectstorage.Interface, metrics *metrics.Provider, config Config) *Client {
+func New(cashier cashier.CashierServiceClient, githubApp *ghpkg.App, logto *logto.Client, tokenRefresher TokenRefresher, directory directory.Interface, platform platform.Interface, buildjob buildjob.Interface, deployjob deployjob.Interface, planner planner.Interface, source source.Interface, hostname *hostname.Client, gateway *gateway.Client, deployer deployer.Interface, environment environment.Interface, objectStorage objectstorage.Interface, metrics *metrics.Provider, config Config) *Client {
 	return &Client{
 		cashier:        cashier,
 		gitHubApp:      githubApp,
@@ -86,6 +88,7 @@ func New(cashier cashier.CashierServiceClient, githubApp *ghpkg.App, logto *logt
 		directory:      directory,
 		platform:       platform,
 		buildjob:       buildjob,
+		deployjob:      deployjob,
 		planner:        planner,
 		source:         source,
 		hostname:       hostname,

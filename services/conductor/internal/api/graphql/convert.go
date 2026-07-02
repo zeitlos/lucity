@@ -9,6 +9,7 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/buildjob"
 	"github.com/zeitlos/lucity/services/conductor/internal/conductor"
 	"github.com/zeitlos/lucity/services/conductor/internal/deployer"
+	"github.com/zeitlos/lucity/services/conductor/internal/deployjob"
 	"github.com/zeitlos/lucity/services/conductor/internal/hostname"
 	"github.com/zeitlos/lucity/services/conductor/internal/metrics"
 	"github.com/zeitlos/lucity/services/conductor/internal/planner"
@@ -363,12 +364,56 @@ func convertRelease(release conductor.Release) model.Release {
 		result.Build = &build
 	}
 
+	if release.Deploy != nil {
+		deploy := convertDeploy(*release.Deploy, release.Build)
+		result.Deploy = &deploy
+	}
+
 	if release.Deployment != nil {
 		deployment := convertDeployment(*release.Deployment)
 		result.Deployment = &deployment
 	}
 
 	return result
+}
+
+func convertDeploy(deploy conductor.Deploy, build *conductor.Build) model.Deploy {
+	return model.Deploy{
+		ID:         deploy.ID,
+		Status:     convertDeployStatus(deploy.Status, build),
+		StartedAt:  deploy.StartedAt,
+		FinishedAt: deploy.FinishedAt,
+	}
+}
+
+func convertDeployStatus(status deployjob.Status, build *conductor.Build) model.DeployStatus {
+	if build != nil {
+		switch build.Status {
+		case buildjob.StatusFailed, buildjob.StatusCancelled, buildjob.StatusCancelling:
+			return model.DeployStatusSkipped
+		case buildjob.StatusQueued, buildjob.StatusRunning:
+			if status == deployjob.StatusFailed {
+				return model.DeployStatusFailed
+			}
+
+			return model.DeployStatusQueued
+		}
+	}
+
+	switch status {
+	case deployjob.StatusQueued:
+		return model.DeployStatusQueued
+	case deployjob.StatusRunning:
+		return model.DeployStatusRunning
+	case deployjob.StatusSucceeded:
+		return model.DeployStatusSucceeded
+	case deployjob.StatusFailed:
+		return model.DeployStatusFailed
+	}
+
+	slog.Warn("unknown deploy status", "status", status)
+
+	return model.DeployStatusFailed
 }
 
 func convertGitSource(source conductor.GitSource) model.GitSource {

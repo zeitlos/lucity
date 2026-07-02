@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuery } from '@vue/apollo-composable';
 import { graphql } from '@/gql';
-import { ServiceStatus, DatabaseStatus } from '@/gql/graphql';
+import { ServiceStatus, DatabaseStatus, ReleaseStatus } from '@/gql/graphql';
 
 const EnvironmentDocument = graphql(`
   query Environment($environment: EnvironmentID!) {
@@ -95,6 +95,12 @@ const EnvironmentDocument = graphql(`
             }
           }
           build {
+            id
+            status
+            startedAt
+            finishedAt
+          }
+          deploy {
             id
             status
             startedAt
@@ -217,6 +223,21 @@ const DATABASE_TRANSIENT_STATUSES = new Set<DatabaseStatus>([
   DatabaseStatus.Updating,
   DatabaseStatus.Degraded,
 ]);
+const RELEASE_TRANSIENT_STATUSES = new Set<ReleaseStatus>([
+  ReleaseStatus.Queued,
+  ReleaseStatus.Building,
+  ReleaseStatus.Deploying,
+]);
+// Stop live-polling for releases stuck in a transient state (e.g. orphaned
+// legacy builds) — they'd otherwise keep the environment query polling forever.
+const RELEASE_POLL_MAX_AGE_MS = 60 * 60 * 1000;
+
+function isReleaseInFlight(release: { status: ReleaseStatus; createdAt: string }): boolean {
+  return (
+    RELEASE_TRANSIENT_STATUSES.has(release.status)
+    && Date.now() - new Date(release.createdAt).getTime() < RELEASE_POLL_MAX_AGE_MS
+  );
+}
 
 const isReconciling = ref(false);
 
@@ -284,6 +305,7 @@ watch(
 
     isReconciling.value =
       env.services.some(s => SERVICE_TRANSIENT_STATUSES.has(s.status)) ||
+      env.services.some(s => s.releases.some(isReleaseInFlight)) ||
       env.databases.some(d => DATABASE_TRANSIENT_STATUSES.has(d.status)) ||
       env.keyValueStores.some(v => DATABASE_TRANSIENT_STATUSES.has(v.status));
 
@@ -360,6 +382,14 @@ watch(
               status: r.build.status,
               startedAt: r.build.startedAt,
               finishedAt: r.build.finishedAt ?? null,
+            }
+            : null,
+          deploy: r.deploy
+            ? {
+              id: r.deploy.id,
+              status: r.deploy.status,
+              startedAt: r.deploy.startedAt,
+              finishedAt: r.deploy.finishedAt ?? null,
             }
             : null,
           deployment: r.deployment
@@ -654,7 +684,8 @@ watch(error, (err) => {
             style="left: calc(45% + 12px + 2rem)"
           >
             <BuildLogsPanel
-              :build-id="logsPanel.buildId.value!"
+              :id="logsPanel.id.value!"
+              :kind="logsPanel.kind.value"
               :service-name="logsPanel.serviceName.value"
               @close="logsPanel.close()"
             />

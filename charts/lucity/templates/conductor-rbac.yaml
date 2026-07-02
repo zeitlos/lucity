@@ -110,3 +110,34 @@ subjects:
   - kind: ServiceAccount
     name: {{ include "lucity.fullname" . }}-conductor
     namespace: {{ .Release.Namespace }}
+---
+# Namespace-scoped permissions in the platform namespace: conductor
+# creates deploy Jobs (which run the conductor image's run-deploy
+# subcommand) and streams their pod logs.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "lucity.fullname" . }}-conductor-deploys
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["batch"]
+    resources: [jobs]
+    verbs: [get, list, watch, create]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "lucity.fullname" . }}-conductor-deploys
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "lucity.fullname" . }}-conductor-deploys
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "lucity.fullname" . }}-conductor
+    namespace: {{ .Release.Namespace }}

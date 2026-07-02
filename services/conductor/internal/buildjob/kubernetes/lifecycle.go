@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/joho/godotenv"
 	"github.com/zeitlos/lucity/services/conductor/internal/buildjob"
@@ -60,7 +61,7 @@ func (c *Client) Start(ctx context.Context, opts buildjob.StartOptions) (*buildj
 	id := "build-" + rand.String(6)
 	secretName := id + "-variables"
 
-	job := c.newBuildJob(id, opts.Workspace, *parsed, opts.ContextPath, opts.Commit, opts.Token, tag, opts.TargetImageNames, secretName, opts.ReleaseID)
+	job := c.newBuildJob(id, opts, *parsed, tag, secretName)
 	job, err = c.kubernetes.BatchV1().Jobs(c.namespace).Create(ctx, job, meta.CreateOptions{})
 
 	if err != nil {
@@ -140,11 +141,11 @@ func isDone(job batch.Job) bool {
 	return slices.Contains(terminalStatuses, status)
 }
 
-func (c *Client) newBuildJob(id, workspaceID string, repoURL url.URL, contextPath, commit, githubToken, tag string, targetImageNames []string, varsSecret, releaseID string) *batch.Job {
-	targetImages := make([]string, len(targetImageNames))
-	targetRefs := make([]string, len(targetImageNames))
+func (c *Client) newBuildJob(id string, opts buildjob.StartOptions, repoURL url.URL, tag, varsSecret string) *batch.Job {
+	targetImages := make([]string, len(opts.TargetImageNames))
+	targetRefs := make([]string, len(opts.TargetImageNames))
 
-	for i, name := range targetImageNames {
+	for i, name := range opts.TargetImageNames {
 		targetImages[i] = name + ":" + tag
 		targetRefs[i] = c.registry + "/" + name + ":" + tag
 	}
@@ -152,11 +153,11 @@ func (c *Client) newBuildJob(id, workspaceID string, repoURL url.URL, contextPat
 	env := []core.EnvVar{
 		{Name: "BUILD_ID", Value: id},
 		{Name: "BUILD_SOURCE_URL", Value: repoURL.String()},
-		{Name: "BUILD_GIT_REF", Value: commit},
-		{Name: "BUILD_CONTEXT_PATH", Value: contextPath},
+		{Name: "BUILD_GIT_REF", Value: opts.Commit},
+		{Name: "BUILD_CONTEXT_PATH", Value: opts.ContextPath},
 		{Name: "BUILD_TARGET_REFS", Value: strings.Join(targetRefs, ",")},
 		{Name: "BUILDKIT_ADDR", Value: c.buildKitAddr},
-		{Name: "GITHUB_TOKEN", Value: githubToken},
+		{Name: "GITHUB_TOKEN", Value: opts.Token},
 		{Name: "DOCKER_CONFIG", Value: "/etc/registry-auth"},
 	}
 
@@ -192,22 +193,28 @@ func (c *Client) newBuildJob(id, workspaceID string, repoURL url.URL, contextPat
 		})
 	}
 
-	labels := buildJobLabels(workspaceID, repoURL, contextPath, commit)
+	labels := buildJobLabels(opts.Workspace, repoURL, opts.ContextPath, opts.Commit)
 
-	if releaseID != "" {
-		labels[labelRelease] = releaseID
+	if opts.ReleaseID != "" {
+		labels[labelRelease] = opts.ReleaseID
+	}
+
+	annotations := map[string]string{
+		annotationSourceRepo: repoURL.String(),
+		annotationContext:    opts.ContextPath,
+		annotationTargets:    strings.Join(targetImages, ","),
+	}
+
+	if opts.CommitMessage != "" {
+		annotations[annotationCommitMessage] = truncate(opts.CommitMessage, 1024)
 	}
 
 	return &batch.Job{
 		ObjectMeta: meta.ObjectMeta{
-			Name:      id,
-			Namespace: c.namespace,
-			Labels:    labels,
-			Annotations: map[string]string{
-				annotationSourceRepo: repoURL.String(),
-				annotationContext:    contextPath,
-				annotationTargets:    strings.Join(targetImages, ","),
-			},
+			Name:        id,
+			Namespace:   c.namespace,
+			Labels:      labels,
+			Annotations: annotations,
 		},
 		Spec: batch.JobSpec{
 			BackoffLimit:            ptr.To(int32(0)),
@@ -248,6 +255,20 @@ func (c *Client) newBuildJob(id, workspaceID string, repoURL url.URL, contextPat
 			},
 		},
 	}
+}
+
+func truncate(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+
+	cut := s[:max]
+
+	for len(cut) > 0 && !utf8.ValidString(cut) {
+		cut = cut[:len(cut)-1]
+	}
+
+	return cut
 }
 
 func buildJobLabels(workspaceID string, repoURL url.URL, contextPath, commit string) map[string]string {

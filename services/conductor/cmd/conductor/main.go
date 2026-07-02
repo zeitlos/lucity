@@ -10,6 +10,7 @@ import (
 	webhookhttp "github.com/zeitlos/lucity/services/conductor/internal/api/webhook/http"
 	buildjobK8s "github.com/zeitlos/lucity/services/conductor/internal/buildjob/kubernetes"
 	"github.com/zeitlos/lucity/services/conductor/internal/conductor"
+	deployjobK8s "github.com/zeitlos/lucity/services/conductor/internal/deployjob/kubernetes"
 	helmDeployer "github.com/zeitlos/lucity/services/conductor/internal/deployer/helm"
 	directoryLogto "github.com/zeitlos/lucity/services/conductor/internal/directory/logto"
 	environmentK8s "github.com/zeitlos/lucity/services/conductor/internal/environment/kubernetes"
@@ -92,6 +93,10 @@ type Config struct {
 	BuildkitTLSSecret  string `envconfig:"BUILDKIT_TLS_SECRET"`
 	BuildkitServerName string `envconfig:"BUILDKIT_SERVER_NAME"`
 
+	// Deploy jobs
+	DeployImage          string `envconfig:"DEPLOY_IMAGE" required:"true"`
+	DeployServiceAccount string `envconfig:"DEPLOY_SERVICE_ACCOUNT"`
+
 	SystemNamespace string `envconfig:"SYSTEM_NAMESPACE" default:"lucity-system"`
 
 	// Observability
@@ -128,6 +133,11 @@ type Config struct {
 }
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "run-deploy" {
+		runDeploy()
+		return
+	}
+
 	var config Config
 	if err := envconfig.Process("", &config); err != nil {
 		slog.Error("failed to load config", "error", err)
@@ -224,6 +234,16 @@ func main() {
 
 	jobsClient := buildjobK8s.New(k8sClient, config.BuildNamespace, config.RegistryPushURL, config.RegistryAuthSecret, config.BuildImage, config.BuildkitTLSSecret, config.BuildkitServerName)
 
+	deployJobsClient := deployjobK8s.New(k8sClient, deployjobK8s.Config{
+		Namespace:       config.SystemNamespace,
+		Image:           config.DeployImage,
+		ServiceAccount:  config.DeployServiceAccount,
+		BuildNamespace:  config.BuildNamespace,
+		RegistryPullURL: config.RegistryPullURL,
+		GatewayName:     config.GatewayName,
+		GatewayNS:       config.GatewayNamespace,
+	})
+
 	secret, err := k8sClient.CoreV1().Secrets(config.SystemNamespace).Get(ctx, config.RegistryPullSecret, metav1.GetOptions{})
 
 	if err != nil {
@@ -314,7 +334,7 @@ func main() {
 		GitHubAppSlug:        config.GitHubAppSlug,
 		DashboardURL:         config.DashboardURL,
 	}
-	conductor := conductor.New(cashierClient, githubApp, logtoClient, tokenRefresher, directoryClient, platformClient, jobsClient, planner, source, hostnameClient, gatewayClient, deployerClient, environmentClient, objectStorageClient, metricsProvider, conductorConfig)
+	conductor := conductor.New(cashierClient, githubApp, logtoClient, tokenRefresher, directoryClient, platformClient, jobsClient, deployJobsClient, planner, source, hostnameClient, gatewayClient, deployerClient, environmentClient, objectStorageClient, metricsProvider, conductorConfig)
 
 	if config.ReconcileEnabled {
 		go runDomainReconciler(ctx, conductor)

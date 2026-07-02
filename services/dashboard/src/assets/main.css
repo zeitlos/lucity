@@ -48,9 +48,10 @@
 
     /* Status colors */
     --status-ok: oklch(0.65 0.20 155);
-    --status-warn: oklch(0.78 0.16 75);
+    --status-warn: oklch(0.62 0.15 70);
     --status-danger: oklch(0.60 0.22 25);
     --status-neutral: oklch(0.55 0.03 55);
+    --status-progress: oklch(0.55 0.22 300);
 
     /* Gradient variables */
     --gradient-subtle: linear-gradient(135deg, oklch(0.95 0.02 80) 0%, oklch(0.93 0.03 70) 100%);
@@ -118,6 +119,7 @@
     --status-warn: oklch(0.82 0.16 75);
     --status-danger: oklch(0.68 0.22 25);
     --status-neutral: oklch(0.55 0.03 55);
+    --status-progress: oklch(0.72 0.18 300);
 
     /* Dark gradients */
     --gradient-subtle: linear-gradient(135deg, oklch(0.20 0.03 55) 0%, oklch(0.22 0.035 45) 100%);

@@ -11,6 +11,7 @@ import (
 
 	"github.com/zeitlos/lucity/services/conductor/internal/buildjob"
 	"github.com/zeitlos/lucity/services/conductor/internal/conductor"
+	"github.com/zeitlos/lucity/services/conductor/internal/deployjob"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
@@ -181,6 +182,13 @@ type DatabaseTableData struct {
 	Columns            []string    `json:"columns"`
 	Rows               [][]*string `json:"rows"`
 	TotalEstimatedRows int         `json:"totalEstimatedRows"`
+}
+
+type Deploy struct {
+	ID         deployjob.DeployID `json:"id"`
+	Status     DeployStatus       `json:"status"`
+	StartedAt  *time.Time         `json:"startedAt,omitempty"`
+	FinishedAt *time.Time         `json:"finishedAt,omitempty"`
 }
 
 type Deployment struct {
@@ -359,6 +367,7 @@ type Release struct {
 	Source     *GitSource          `json:"source,omitempty"`
 	Trigger    *ReleaseTrigger     `json:"trigger"`
 	Build      *Build              `json:"build,omitempty"`
+	Deploy     *Deploy             `json:"deploy,omitempty"`
 	Deployment *Deployment         `json:"deployment,omitempty"`
 	CreatedAt  time.Time           `json:"createdAt"`
 }
@@ -700,6 +709,67 @@ func (e *DatabaseStatus) UnmarshalJSON(b []byte) error {
 }
 
 func (e DatabaseStatus) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type DeployStatus string
+
+const (
+	DeployStatusQueued    DeployStatus = "QUEUED"
+	DeployStatusRunning   DeployStatus = "RUNNING"
+	DeployStatusSucceeded DeployStatus = "SUCCEEDED"
+	DeployStatusFailed    DeployStatus = "FAILED"
+	DeployStatusSkipped   DeployStatus = "SKIPPED"
+)
+
+var AllDeployStatus = []DeployStatus{
+	DeployStatusQueued,
+	DeployStatusRunning,
+	DeployStatusSucceeded,
+	DeployStatusFailed,
+	DeployStatusSkipped,
+}
+
+func (e DeployStatus) IsValid() bool {
+	switch e {
+	case DeployStatusQueued, DeployStatusRunning, DeployStatusSucceeded, DeployStatusFailed, DeployStatusSkipped:
+		return true
+	}
+	return false
+}
+
+func (e DeployStatus) String() string {
+	return string(e)
+}
+
+func (e *DeployStatus) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = DeployStatus(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid DeployStatus", str)
+	}
+	return nil
+}
+
+func (e DeployStatus) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *DeployStatus) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e DeployStatus) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

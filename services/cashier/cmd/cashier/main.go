@@ -55,6 +55,7 @@ type Config struct {
 
 	MeteringInterval   time.Duration `envconfig:"METERING_INTERVAL" default:"1h"`
 	VictoriaMetricsURL string        `envconfig:"VICTORIA_METRICS_URL"`
+	SystemNamespace    string        `envconfig:"SYSTEM_NAMESPACE" default:"lucity-system"`
 
 	// Logto Management API (M2M)
 	LogtoEndpoint     string `envconfig:"LOGTO_ENDPOINT" required:"true"`
@@ -154,7 +155,7 @@ func main() {
 		// without checkpoint/backfill if unavailable (e.g. local dev without cluster).
 		k8sClient := buildK8sClient()
 
-		worker := metering.NewWorker(stripeClient, conductorClient, logtoClient, vmClient, k8sClient, issuer, config.MeteringInterval)
+		worker := metering.NewWorker(stripeClient, conductorClient, logtoClient, vmClient, k8sClient, config.SystemNamespace, issuer, config.MeteringInterval)
 		servers = append(servers, worker)
 		slog.Info("metering enabled", "interval", config.MeteringInterval)
 	} else {

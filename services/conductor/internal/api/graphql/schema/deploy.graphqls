@@ -1,0 +1,19 @@
+type Deploy {
+  id: DeployID!
+  status: DeployStatus!
+
+  startedAt: Time
+  finishedAt: Time
+}
+
+enum DeployStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+  SKIPPED
+}
+
+extend type Subscription {
+  deployLogs(id: DeployID!): String! @hasRole(role: WORKSPACE_MEMBER)
+}

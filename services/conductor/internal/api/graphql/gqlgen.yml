@@ -51,6 +51,8 @@ models:
     model: github.com/zeitlos/lucity/services/conductor/internal/conductor.BucketID
   BuildID:
     model: github.com/zeitlos/lucity/services/conductor/internal/conductor.BuildID
+  DeployID:
+    model: github.com/zeitlos/lucity/services/conductor/internal/conductor.DeployID
   ReleaseID:
     model: github.com/zeitlos/lucity/services/conductor/internal/conductor.ReleaseID
   VariableID:

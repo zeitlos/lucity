@@ -3,18 +3,23 @@ package conductor
 import (
 	"bufio"
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/services/conductor/internal/buildjob"
 	"github.com/zeitlos/lucity/services/conductor/internal/deployer"
+	"github.com/zeitlos/lucity/services/conductor/internal/deployjob"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
 type Build = buildjob.Job
 type BuildID = buildjob.BuildID
+type Deploy = deployjob.Job
+type DeployID = deployjob.DeployID
 
 var _ platform.WorkspaceScoped = BuildID{}
+var _ platform.WorkspaceScoped = DeployID{}
 
 func (c *Client) Builds(ctx context.Context, workspace, repoURL, contextPath string) ([]Build, error) {
 	return c.buildjob.List(ctx, workspace, repoURL, contextPath)
@@ -26,6 +31,33 @@ func (c *Client) Build(ctx context.Context, id BuildID) (*Build, error) {
 
 func (c *Client) BuildLogs(ctx context.Context, id BuildID) (<-chan string, error) {
 	reader, err := c.buildjob.Logs(ctx, id)
+
+	if err != nil {
+		return nil, err
+	}
+
+	out := make(chan string, 128)
+
+	go func() {
+		defer close(out)
+		defer reader.Close()
+
+		scanner := bufio.NewScanner(reader)
+
+		for scanner.Scan() {
+			select {
+			case out <- scanner.Text():
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	return out, nil
+}
+
+func (c *Client) DeployLogs(ctx context.Context, id DeployID) (<-chan string, error) {
+	reader, err := c.deployjob.Logs(ctx, id)
 
 	if err != nil {
 		return nil, err
@@ -85,6 +117,7 @@ func (c *Client) Deploy(ctx context.Context, serviceID ServiceID, gitRef string)
 		Workspace:        service.ID.Workspace,
 		RepoURL:          service.SourceURL,
 		Commit:           commit.SHA,
+		CommitMessage:    commit.Message,
 		ContextPath:      service.ContextPath,
 		TargetImageNames: []string{imageName},
 		Token:            token,
@@ -96,16 +129,32 @@ func (c *Client) Deploy(ctx context.Context, serviceID ServiceID, gitRef string)
 		return nil, err
 	}
 
-	go c.runDeploy(claims, service.ID, build.ID, commit.Message, release)
+	deploy, err := c.startDeploy(ctx, service.ID, build.ID.Name, commit.Message, release)
+
+	if err != nil {
+		return nil, fmt.Errorf("start deploy for build %q: %w", build.ID.Name, err)
+	}
 
 	result := Release{
 		ID:        ReleaseID{Workspace: serviceID.Workspace, Name: release.ID},
-		Status:    releaseStatus(build, nil),
+		Status:    releaseStatus(build, deploy, nil),
 		Source:    gitSource(service.SourceURL, ref, service.ContextPath, Commit{SHA: commit.SHA, Message: commit.Message}),
 		Trigger:   ReleaseTrigger{Kind: release.Trigger, Actor: release.Actor},
 		Build:     build,
+		Deploy:    deploy,
 		CreatedAt: time.Now(),
 	}
 
 	return &result, nil
+}
+
+func (c *Client) startDeploy(ctx context.Context, serviceID platform.ServiceID, buildName, commitMessage string, release deployer.ReleaseMeta) (*Deploy, error) {
+	return c.deployjob.Start(ctx, deployjob.StartOptions{
+		Service:        serviceID,
+		BuildName:      buildName,
+		CommitMessage:  commitMessage,
+		ReleaseID:      release.ID,
+		ReleaseTrigger: string(release.Trigger),
+		ReleaseActor:   release.Actor,
+	})
 }
