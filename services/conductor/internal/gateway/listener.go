@@ -11,8 +11,31 @@ import (
 )
 
 type listenerState struct {
-	http  bool
-	https bool
+	http        bool
+	https       bool
+	httpsSecret string
+}
+
+func findListener(listeners []any, hostname, protocol string) int {
+	for i, raw := range listeners {
+		entry, ok := raw.(map[string]any)
+
+		if !ok {
+			continue
+		}
+
+		name, _ := entry["name"].(string)
+
+		if !isManagedListener(name) {
+			continue
+		}
+
+		if entry["hostname"] == hostname && entry["protocol"] == protocol {
+			return i
+		}
+	}
+
+	return -1
 }
 
 func (c *Client) addListener(ctx context.Context, hostname, protocol, secretName string) error {
@@ -34,16 +57,8 @@ func (c *Client) addListener(ctx context.Context, hostname, protocol, secretName
 
 	listeners, _, _ := unstructured.NestedSlice(gw.Object, "spec", "listeners")
 
-	for _, raw := range listeners {
-		entry, ok := raw.(map[string]any)
-
-		if !ok {
-			continue
-		}
-
-		if entry["name"] == listenerName {
-			return nil
-		}
+	if findListener(listeners, hostname, protocol) != -1 {
+		return nil
 	}
 
 	newListener := map[string]any{
@@ -85,7 +100,7 @@ func (c *Client) addListener(ctx context.Context, hostname, protocol, secretName
 	return err
 }
 
-func (c *Client) removeListener(ctx context.Context, listenerName string) error {
+func (c *Client) removeListener(ctx context.Context, hostname, protocol string) error {
 	gw, err := c.dyn.Resource(gatewayGVR).Namespace(c.gatewayNamespace).Get(ctx, c.gatewayName, metav1.GetOptions{})
 
 	if err != nil {
@@ -93,20 +108,7 @@ func (c *Client) removeListener(ctx context.Context, listenerName string) error 
 	}
 
 	listeners, _, _ := unstructured.NestedSlice(gw.Object, "spec", "listeners")
-	idx := -1
-
-	for i, raw := range listeners {
-		entry, ok := raw.(map[string]any)
-
-		if !ok {
-			continue
-		}
-
-		if entry["name"] == listenerName {
-			idx = i
-			break
-		}
-	}
+	idx := findListener(listeners, hostname, protocol)
 
 	if idx == -1 {
 		return nil
@@ -162,6 +164,14 @@ func (c *Client) listListeners(ctx context.Context) (map[string]listenerState, e
 			state.http = true
 		case "HTTPS":
 			state.https = true
+
+			refs, _, _ := unstructured.NestedSlice(entry, "tls", "certificateRefs")
+
+			if len(refs) > 0 {
+				if ref, ok := refs[0].(map[string]any); ok {
+					state.httpsSecret, _ = ref["name"].(string)
+				}
+			}
 		}
 
 		result[hostname] = state

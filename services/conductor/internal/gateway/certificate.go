@@ -54,7 +54,13 @@ func (c *Client) ensureCertificate(ctx context.Context, host string) error {
 }
 
 func (c *Client) removeCertificate(ctx context.Context, host string) error {
-	err := c.dyn.Resource(certificateGVR).Namespace(c.gatewayNamespace).Delete(ctx, ResourceNameFor(host), metav1.DeleteOptions{})
+	name := ResourceNameFor(host)
+
+	if err := c.dyn.Resource(certificateGVR).Namespace(c.gatewayNamespace).Delete(ctx, name, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+		return err
+	}
+
+	err := c.dyn.Resource(secretGVR).Namespace(c.gatewayNamespace).Delete(ctx, name+"-tls", metav1.DeleteOptions{})
 
 	if apierrors.IsNotFound(err) {
 		return nil

@@ -137,7 +137,6 @@ func (c *Client) reconcileEnvironmentDomains(ctx context.Context, workspaceID st
 	}
 
 	var desired []string
-	complete := true
 
 	for _, service := range services {
 		for _, endpoint := range service.Endpoints {
@@ -153,34 +152,32 @@ func (c *Client) reconcileEnvironmentDomains(ctx context.Context, workspaceID st
 
 			if err != nil {
 				slog.Warn("reconcile domains: dns lookup failed", "host", host, "error", err)
-				complete = false
 
-				if enabled && !c.hostname.IsPlatform(host) {
+				if enabled {
 					desired = append(desired, host)
 				}
 
 				continue
 			}
 
-			if valid && !enabled {
-				if _, err := c.deployer.Services().VerifyDomain(ctx, service.ID, host, true); err != nil {
+			if valid != enabled {
+				if _, err := c.deployer.Services().VerifyDomain(ctx, service.ID, host, valid); err != nil {
 					slog.Warn("reconcile domains: verify call failed", "host", host, "error", err)
-					complete = false
 					continue
 				}
 
-				enabled = true
+				enabled = valid
 
-				slog.Info("reconcile domains: verified", "service", service.ID, "host", host)
+				slog.Info("reconcile domains: verification changed", "service", service.ID, "host", host, "verified", valid)
 			}
 
-			if enabled && !c.hostname.IsPlatform(host) {
+			if enabled {
 				desired = append(desired, host)
 			}
 		}
 	}
 
-	return desired, complete
+	return desired, true
 }
 
 func (c *Client) isDomainVerified(ctx context.Context, workspaceID, host string) (bool, error) {

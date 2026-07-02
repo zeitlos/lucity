@@ -1,6 +1,8 @@
 package gateway
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -44,7 +46,15 @@ var secretGVR = schema.GroupVersionResource{
 const listenerPrefix = "custom-"
 
 func ResourceNameFor(hostname string) string {
-	return listenerPrefix + strings.ReplaceAll(hostname, ".", "-")
+	hostname = strings.ToLower(hostname)
+	sum := sha256.Sum256([]byte(hostname))
+	name := strings.ReplaceAll(hostname, ".", "-")
+
+	if len(name) > 200 {
+		name = name[:200]
+	}
+
+	return listenerPrefix + name + "-" + hex.EncodeToString(sum[:4])
 }
 
 func isManagedListener(name string) bool {
