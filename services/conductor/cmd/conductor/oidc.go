@@ -420,6 +420,7 @@ func handleMe() http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
+			"id":         claims.Subject,
 			"name":       claims.Name,
 			"email":      claims.Email,
 			"avatarUrl":  claims.AvatarURL,
