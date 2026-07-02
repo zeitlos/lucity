@@ -228,8 +228,6 @@ const RELEASE_TRANSIENT_STATUSES = new Set<ReleaseStatus>([
   ReleaseStatus.Building,
   ReleaseStatus.Deploying,
 ]);
-// Stop live-polling for releases stuck in a transient state (e.g. orphaned
-// legacy builds) — they'd otherwise keep the environment query polling forever.
 const RELEASE_POLL_MAX_AGE_MS = 60 * 60 * 1000;
 
 function isReleaseInFlight(release: { status: ReleaseStatus; createdAt: string }): boolean {

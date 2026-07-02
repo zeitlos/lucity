@@ -217,6 +217,7 @@ func (c *Client) newBuildJob(id string, opts buildjob.StartOptions, repoURL url.
 			Annotations: annotations,
 		},
 		Spec: batch.JobSpec{
+			Suspend:                 ptr.To(true),
 			BackoffLimit:            ptr.To(int32(0)),
 			TTLSecondsAfterFinished: ptr.To(int32(7 * 24 * 3600)),
 			ActiveDeadlineSeconds:   ptr.To(int64(30 * 60)),

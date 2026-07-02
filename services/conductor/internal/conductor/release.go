@@ -248,8 +248,14 @@ func releaseTrigger(deployment *Deployment) ReleaseTrigger {
 }
 
 func releaseCreatedAt(build *Build, deploy *Deploy, deployment *Deployment) time.Time {
-	if build != nil && build.StartedAt != nil {
-		return *build.StartedAt
+	if build != nil {
+		if build.StartedAt != nil {
+			return *build.StartedAt
+		}
+
+		if !build.CreatedAt.IsZero() {
+			return build.CreatedAt
+		}
 	}
 
 	if deployment != nil {

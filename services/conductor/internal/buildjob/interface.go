@@ -42,6 +42,7 @@ type Job struct {
 	ContextPath   string
 	TriggeredBy   string
 	ReleaseID     string
+	CreatedAt     time.Time
 	StartedAt     *time.Time
 	FinishedAt    *time.Time
 	ImageRefs     map[string]name.Reference
