@@ -234,10 +234,12 @@ func runGitleaks(ctx context.Context, repoPath string) ([]rawFinding, error) {
 		"--report-format", "json",
 		"--report-path", reportPath,
 		"--exit-code", "3",
+		"--max-target-megabytes", "25",
 		"--no-banner",
 	)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+	cmd.Env = append(os.Environ(), "GOMAXPROCS=2")
 
 	err := cmd.Run()
 
