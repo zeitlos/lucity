@@ -3,6 +3,7 @@ package kubernetes
 import (
 	"context"
 	"errors"
+	"strconv"
 	"strings"
 
 	batch "k8s.io/api/batch/v1"
@@ -46,9 +47,14 @@ func (c *Client) newScanJob(name string, opts scanjob.StartOptions) *batch.Job {
 		{Name: "SCAN_REPORT_REPO", Value: reportRepo},
 		{Name: "GITHUB_TOKEN", Value: opts.Token},
 		{Name: "DOCKER_CONFIG", Value: "/etc/registry-auth"},
+		{Name: "SCAN_TIMEOUT", Value: c.config.Timeout.String()},
+		{Name: "SCAN_GITLEAKS_WORKERS", Value: strconv.Itoa(c.config.GitleaksWorkers)},
+		{Name: "SCAN_TRUFFLEHOG_CONCURRENCY", Value: strconv.Itoa(c.config.TrufflehogConcurrency)},
 	}
 
 	labelSet := scanJobLabels(opts.Service, opts.ReleaseID)
+
+	deadline := int64(c.config.Timeout.Seconds()) + 5*60
 
 	return &batch.Job{
 		ObjectMeta: meta.ObjectMeta{
@@ -63,7 +69,7 @@ func (c *Client) newScanJob(name string, opts scanjob.StartOptions) *batch.Job {
 			Suspend:                 ptr.To(true),
 			BackoffLimit:            ptr.To(int32(0)),
 			TTLSecondsAfterFinished: ptr.To(int32(7 * 24 * 3600)),
-			ActiveDeadlineSeconds:   ptr.To(int64(65 * 60)), // 1 hour 5 minutes
+			ActiveDeadlineSeconds:   ptr.To(deadline),
 			Template: core.PodTemplateSpec{
 				ObjectMeta: meta.ObjectMeta{Labels: labelSet},
 				Spec: core.PodSpec{

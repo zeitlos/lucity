@@ -4,6 +4,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"os"
+	"time"
 
 	"github.com/blang/semver/v4"
 	"github.com/zeitlos/lucity/charts"
@@ -99,6 +100,11 @@ type Config struct {
 	// Deploy jobs
 	DeployImage          string `envconfig:"DEPLOY_IMAGE" required:"true"`
 	DeployServiceAccount string `envconfig:"DEPLOY_SERVICE_ACCOUNT"`
+
+	// Secret scan tuning
+	ScanTimeout               time.Duration `envconfig:"SCAN_TIMEOUT" default:"60m"`
+	ScanGitleaksWorkers       int           `envconfig:"SCAN_GITLEAKS_WORKERS" default:"3"`
+	ScanTrufflehogConcurrency int           `envconfig:"SCAN_TRUFFLEHOG_CONCURRENCY" default:"2"`
 
 	MaxConcurrentReleases int `envconfig:"MAX_CONCURRENT_RELEASES" default:"5"`
 	MaxQueuedReleases     int `envconfig:"MAX_QUEUED_RELEASES" default:"10"`
@@ -253,10 +259,13 @@ func main() {
 	pipelineClient := pipeline.New(k8sClient, config.BuildNamespace, config.SystemNamespace, config.MaxConcurrentReleases)
 
 	scanJobsClient := scanjobK8s.New(k8sClient, scanjobK8s.Config{
-		Namespace:          config.BuildNamespace,
-		Image:              config.BuildImage,
-		Registry:           config.RegistryPushURL,
-		RegistryAuthSecret: config.RegistryAuthSecret,
+		Namespace:             config.BuildNamespace,
+		Image:                 config.BuildImage,
+		Registry:              config.RegistryPushURL,
+		RegistryAuthSecret:    config.RegistryAuthSecret,
+		Timeout:               config.ScanTimeout,
+		GitleaksWorkers:       config.ScanGitleaksWorkers,
+		TrufflehogConcurrency: config.ScanTrufflehogConcurrency,
 	})
 
 	secret, err := k8sClient.CoreV1().Secrets(config.SystemNamespace).Get(ctx, config.RegistryPullSecret, metav1.GetOptions{})

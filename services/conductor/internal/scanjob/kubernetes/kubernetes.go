@@ -23,10 +23,13 @@ const (
 )
 
 type Config struct {
-	Namespace          string
-	Image              string
-	Registry           string
-	RegistryAuthSecret string
+	Namespace             string
+	Image                 string
+	Registry              string
+	RegistryAuthSecret    string
+	Timeout               time.Duration
+	GitleaksWorkers       int
+	TrufflehogConcurrency int
 }
 
 type Client struct {

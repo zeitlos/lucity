@@ -34,6 +34,10 @@ type ScanConfig struct {
 	Commit      string `envconfig:"SCAN_COMMIT"`
 	ReportRepo  string `envconfig:"SCAN_REPORT_REPO" required:"true"`
 	GitHubToken string `envconfig:"GITHUB_TOKEN"`
+
+	Timeout               time.Duration `envconfig:"SCAN_TIMEOUT" default:"60m"`
+	GitleaksWorkers       int           `envconfig:"SCAN_GITLEAKS_WORKERS" default:"3"`
+	TrufflehogConcurrency int           `envconfig:"SCAN_TRUFFLEHOG_CONCURRENCY" default:"2"`
 }
 
 const (
@@ -94,7 +98,7 @@ func runScan() {
 }
 
 func executeScan(config ScanConfig) ([]scanFinding, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Hour)
+	ctx, cancel := context.WithTimeout(context.Background(), config.Timeout)
 	defer cancel()
 
 	repoPath, commit, err := cloneForScan(ctx, config)
@@ -105,13 +109,13 @@ func executeScan(config ScanConfig) ([]scanFinding, error) {
 
 	defer os.RemoveAll(repoPath)
 
-	gitleaksFindings, err := runGitleaks(ctx, repoPath)
+	gitleaksFindings, err := runGitleaks(ctx, repoPath, config.GitleaksWorkers)
 
 	if err != nil {
 		return nil, err
 	}
 
-	trufflehogFindings, err := runTrufflehog(ctx, repoPath)
+	trufflehogFindings, err := runTrufflehog(ctx, repoPath, config.TrufflehogConcurrency)
 
 	if err != nil {
 		return nil, err
@@ -225,7 +229,7 @@ type gitleaksFinding struct {
 	Author    string `json:"Author"`
 }
 
-func runGitleaks(ctx context.Context, repoPath string) ([]rawFinding, error) {
+func runGitleaks(ctx context.Context, repoPath string, workers int) ([]rawFinding, error) {
 	reportPath := repoPath + "-gitleaks.json"
 	defer os.Remove(reportPath)
 
@@ -239,7 +243,10 @@ func runGitleaks(ctx context.Context, repoPath string) ([]rawFinding, error) {
 	)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	cmd.Env = append(os.Environ(), "GOMAXPROCS=3")
+
+	if workers > 0 {
+		cmd.Env = append(os.Environ(), "GOMAXPROCS="+strconv.Itoa(workers))
+	}
 
 	err := cmd.Run()
 
@@ -295,12 +302,16 @@ type trufflehogFinding struct {
 	} `json:"SourceMetadata"`
 }
 
-func runTrufflehog(ctx context.Context, repoPath string) ([]rawFinding, error) {
+func runTrufflehog(ctx context.Context, repoPath string, concurrency int) ([]rawFinding, error) {
+	if concurrency < 1 {
+		concurrency = 1
+	}
+
 	cmd := exec.CommandContext(ctx, "trufflehog", "git", "file://"+repoPath,
 		"--json",
 		"--no-update",
 		"--fail",
-		"--concurrency=2",
+		"--concurrency="+strconv.Itoa(concurrency),
 		"--results=verified,unknown",
 	)
 
