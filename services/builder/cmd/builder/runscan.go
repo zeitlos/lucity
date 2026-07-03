@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"os/exec"
@@ -21,6 +22,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
+	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 	"github.com/google/go-containerregistry/pkg/v1/static"
 	gcrtypes "github.com/google/go-containerregistry/pkg/v1/types"
 	"github.com/kelseyhightower/envconfig"
@@ -48,9 +50,10 @@ const (
 )
 
 type scanReport struct {
-	Commit    string        `json:"commit"`
-	ScannedAt time.Time     `json:"scannedAt"`
-	Findings  []scanFinding `json:"findings"`
+	Commit     string        `json:"commit"`
+	BaseCommit string        `json:"baseCommit,omitempty"`
+	ScannedAt  time.Time     `json:"scannedAt"`
+	Findings   []scanFinding `json:"findings"`
 }
 
 type scanFinding struct {
@@ -101,6 +104,8 @@ func executeScan(config ScanConfig) ([]scanFinding, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), config.Timeout)
 	defer cancel()
 
+	previous := fetchPreviousReport(ctx, config)
+
 	repoPath, commit, err := cloneForScan(ctx, config)
 
 	if err != nil {
@@ -109,13 +114,26 @@ func executeScan(config ScanConfig) ([]scanFinding, error) {
 
 	defer os.RemoveAll(repoPath)
 
-	gitleaksFindings, err := runGitleaks(ctx, repoPath, config.GitleaksWorkers)
+	base := scanBase(ctx, repoPath, previous, commit)
+
+	if previous != nil && base == commit {
+		slog.Info("head commit already scanned, skipping", "commit", commit)
+		return previous.Findings, nil
+	}
+
+	if base != "" {
+		slog.Info("incremental scan", "base", base, "head", commit)
+	} else {
+		slog.Info("full scan", "head", commit)
+	}
+
+	gitleaksFindings, err := runGitleaks(ctx, repoPath, config.GitleaksWorkers, base, commit)
 
 	if err != nil {
 		return nil, err
 	}
 
-	trufflehogFindings, err := runTrufflehog(ctx, repoPath, config.TrufflehogConcurrency)
+	trufflehogFindings, err := runTrufflehog(ctx, repoPath, config.TrufflehogConcurrency, base)
 
 	if err != nil {
 		return nil, err
@@ -123,10 +141,15 @@ func executeScan(config ScanConfig) ([]scanFinding, error) {
 
 	findings := mergeFindings(gitleaksFindings, trufflehogFindings)
 
+	if base != "" {
+		findings = carryForward(previous.Findings, findings)
+	}
+
 	report := scanReport{
-		Commit:    commit,
-		ScannedAt: time.Now().UTC(),
-		Findings:  findings,
+		Commit:     commit,
+		BaseCommit: base,
+		ScannedAt:  time.Now().UTC(),
+		Findings:   findings,
 	}
 
 	if err := pushReport(ctx, config, report); err != nil {
@@ -163,6 +186,58 @@ func mergeFindings(sets ...[]rawFinding) []scanFinding {
 	})
 
 	return merged
+}
+
+func carryForward(previous, current []scanFinding) []scanFinding {
+	key := func(finding scanFinding) string {
+		return finding.Rule + "|" + finding.Commit + "|" + finding.File + "|" + strconv.Itoa(finding.Line)
+	}
+
+	index := map[string]int{}
+	merged := make([]scanFinding, 0, len(previous)+len(current))
+
+	for _, finding := range previous {
+		index[key(finding)] = len(merged)
+		merged = append(merged, finding)
+	}
+
+	for _, finding := range current {
+		if at, ok := index[key(finding)]; ok {
+			if finding.Verified {
+				merged[at].Verified = true
+			}
+
+			continue
+		}
+
+		index[key(finding)] = len(merged)
+		merged = append(merged, finding)
+	}
+
+	sort.SliceStable(merged, func(i, j int) bool {
+		return merged[i].Verified && !merged[j].Verified
+	})
+
+	return merged
+}
+
+func scanBase(ctx context.Context, repoPath string, previous *scanReport, head string) string {
+	if previous == nil || previous.Commit == "" {
+		return ""
+	}
+
+	if previous.Commit == head {
+		return previous.Commit
+	}
+
+	check := exec.CommandContext(ctx, "git", "-C", repoPath, "merge-base", "--is-ancestor", previous.Commit, head)
+
+	if err := check.Run(); err != nil {
+		slog.Warn("previously scanned commit is not an ancestor of head, running full scan", "previous", previous.Commit, "head", head)
+		return ""
+	}
+
+	return previous.Commit
 }
 
 func cloneForScan(ctx context.Context, config ScanConfig) (string, string, error) {
@@ -229,18 +304,24 @@ type gitleaksFinding struct {
 	Author    string `json:"Author"`
 }
 
-func runGitleaks(ctx context.Context, repoPath string, workers int) ([]rawFinding, error) {
+func runGitleaks(ctx context.Context, repoPath string, workers int, base, head string) ([]rawFinding, error) {
 	reportPath := repoPath + "-gitleaks.json"
 	defer os.Remove(reportPath)
 
-	cmd := exec.CommandContext(ctx, "gitleaks", "detect",
+	args := []string{"detect",
 		"--source", repoPath,
 		"--report-format", "json",
 		"--report-path", reportPath,
 		"--exit-code", "3",
 		"--max-target-megabytes", "25",
 		"--no-banner",
-	)
+	}
+
+	if base != "" {
+		args = append(args, "--log-opts="+base+".."+head)
+	}
+
+	cmd := exec.CommandContext(ctx, "gitleaks", args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
@@ -302,18 +383,24 @@ type trufflehogFinding struct {
 	} `json:"SourceMetadata"`
 }
 
-func runTrufflehog(ctx context.Context, repoPath string, concurrency int) ([]rawFinding, error) {
+func runTrufflehog(ctx context.Context, repoPath string, concurrency int, base string) ([]rawFinding, error) {
 	if concurrency < 1 {
 		concurrency = 1
 	}
 
-	cmd := exec.CommandContext(ctx, "trufflehog", "git", "file://"+repoPath,
+	args := []string{"git", "file://" + repoPath,
 		"--json",
 		"--no-update",
 		"--fail",
-		"--concurrency="+strconv.Itoa(concurrency),
+		"--concurrency=" + strconv.Itoa(concurrency),
 		"--results=verified,unknown",
-	)
+	}
+
+	if base != "" {
+		args = append(args, "--since-commit="+base)
+	}
+
+	cmd := exec.CommandContext(ctx, "trufflehog", args...)
 
 	var stdout bytes.Buffer
 	cmd.Stdout = &stdout
@@ -364,6 +451,71 @@ func maskSecret(secret string) string {
 	}
 
 	return secret[:4] + strings.Repeat("•", 8) + fmt.Sprintf(" (%d chars)", len(secret))
+}
+
+func fetchPreviousReport(ctx context.Context, config ScanConfig) *scanReport {
+	ref, err := name.ParseReference(config.ReportRepo+":"+reportTagPrefix+"-latest", name.Insecure)
+
+	if err != nil {
+		slog.Warn("previous report reference invalid, running full scan", "error", err)
+		return nil
+	}
+
+	img, err := remote.Image(ref, remote.WithContext(ctx), remote.WithAuthFromKeychain(authn.DefaultKeychain))
+
+	if err != nil {
+		if isNotFound(err) {
+			slog.Info("no previous scan report, running full scan")
+		} else {
+			slog.Warn("previous report fetch failed, running full scan", "error", err)
+		}
+
+		return nil
+	}
+
+	layers, err := img.Layers()
+
+	if err != nil || len(layers) == 0 {
+		slog.Warn("previous report has no layers, running full scan", "error", err)
+		return nil
+	}
+
+	reader, err := layers[0].Uncompressed()
+
+	if err != nil {
+		slog.Warn("previous report read failed, running full scan", "error", err)
+		return nil
+	}
+
+	defer reader.Close()
+
+	data, err := io.ReadAll(io.LimitReader(reader, 4<<20))
+
+	if err != nil {
+		slog.Warn("previous report read failed, running full scan", "error", err)
+		return nil
+	}
+
+	previous := new(scanReport)
+
+	if err := json.Unmarshal(data, previous); err != nil {
+		slog.Warn("previous report parse failed, running full scan", "error", err)
+		return nil
+	}
+
+	slog.Info("previous scan report found", "commit", previous.Commit, "findings", len(previous.Findings))
+
+	return previous
+}
+
+func isNotFound(err error) bool {
+	var transportErr *transport.Error
+
+	if errors.As(err, &transportErr) {
+		return transportErr.StatusCode == 404
+	}
+
+	return strings.Contains(err.Error(), "NAME_UNKNOWN") || strings.Contains(err.Error(), "MANIFEST_UNKNOWN")
 }
 
 func pushReport(ctx context.Context, config ScanConfig, report scanReport) error {
