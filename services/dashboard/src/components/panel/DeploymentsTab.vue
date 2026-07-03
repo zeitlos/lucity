@@ -192,15 +192,15 @@ function releaseSteps(release: Release, live = false): ReleaseStep[] {
     });
   }
 
-  for (const scan of release.scans ?? []) {
+  if (release.scan) {
     steps.push({
-      key: `scan-${scan.scanner}`,
-      label: scannerLabels[scan.scanner] ?? scan.scanner,
-      status: scanStepStatus(scan.status),
-      detail: scan.findingsCount ? `${scan.findingsCount} potential secret${scan.findingsCount !== 1 ? 's' : ''}` : undefined,
-      startedAt: scan.startedAt,
-      finishedAt: scan.finishedAt,
-      logId: scan.id,
+      key: 'scan',
+      label: 'Secrets',
+      status: scanStepStatus(release.scan.status),
+      detail: release.scan.findingsCount ? `${release.scan.findingsCount} potential secret${release.scan.findingsCount !== 1 ? 's' : ''}` : undefined,
+      startedAt: release.scan.startedAt,
+      finishedAt: release.scan.finishedAt,
+      logId: release.scan.id,
       logKind: 'scan',
     });
   }
@@ -235,11 +235,6 @@ const activeSteps = computed<ReleaseStep[]>(() => {
 
   return rollout ? [rollout] : [];
 });
-
-const scannerLabels: Record<string, string> = {
-  gitleaks: 'Gitleaks',
-  trufflehog: 'TruffleHog',
-};
 
 function scanStepStatus(status: ScanStatus): StepStatus {
   switch (status) {

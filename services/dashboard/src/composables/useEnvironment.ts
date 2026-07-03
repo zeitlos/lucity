@@ -81,7 +81,6 @@ export interface Deploy {
 
 export interface Scan {
   id: string;
-  scanner: string;
   status: ScanStatus;
   findingsCount?: number | null;
   startedAt?: string | null;
@@ -115,7 +114,7 @@ export interface Release {
   trigger: ReleaseTrigger;
   build?: Build | null;
   deploy?: Deploy | null;
-  scans: Scan[];
+  scan?: Scan | null;
   deployment?: Deployment | null;
   createdAt: string;
 }
@@ -212,7 +211,9 @@ export function useEnvironment() {
     if (preferredEnvId) {
       const preferred = envs.find(e => e.id === preferredEnvId);
       if (preferred) {
-        activeEnvironment.value = preferred;
+        if (activeEnvironment.value?.id !== preferred.id) {
+          activeEnvironment.value = preferred;
+        }
         return;
       }
     }

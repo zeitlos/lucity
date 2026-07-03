@@ -7067,25 +7067,13 @@
             "deprecationReason": null
           },
           {
-            "name": "scans",
+            "name": "scan",
             "description": null,
             "args": [],
             "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "LIST",
-                "name": null,
-                "ofType": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "OBJECT",
-                    "name": "Scan",
-                    "ofType": null
-                  }
-                }
-              }
+              "kind": "OBJECT",
+              "name": "Scan",
+              "ofType": null
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -7610,22 +7598,6 @@
             "deprecationReason": null
           },
           {
-            "name": "scanner",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "String",
-                "ofType": null
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "startedAt",
             "description": null,
             "args": [],
@@ -7872,22 +7844,6 @@
               "ofType": {
                 "kind": "SCALAR",
                 "name": "Time",
-                "ofType": null
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "scanner",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "String",
                 "ofType": null
               }
             },
@@ -8264,25 +8220,13 @@
             "deprecationReason": null
           },
           {
-            "name": "secretScanReports",
+            "name": "secretScanReport",
             "description": null,
             "args": [],
             "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "LIST",
-                "name": null,
-                "ofType": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "OBJECT",
-                    "name": "SecretScanReport",
-                    "ofType": null
-                  }
-                }
-              }
+              "kind": "OBJECT",
+              "name": "SecretScanReport",
+              "ofType": null
             },
             "isDeprecated": false,
             "deprecationReason": null

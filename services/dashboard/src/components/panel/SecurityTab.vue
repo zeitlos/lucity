@@ -6,12 +6,11 @@ import Spinner from '@/components/LoadingSpinner.vue';
 import { graphql } from '@/gql';
 import EmptyState from '@/components/EmptyState.vue';
 
-const SecretScanReportsDocument = graphql(`
-  query SecretScanReports($id: ServiceID!) {
+const SecretScanReportDocument = graphql(`
+  query SecretScanReport($id: ServiceID!) {
     service(id: $id) {
       id
-      secretScanReports {
-        scanner
+      secretScanReport {
         commit
         scannedAt
         findings {
@@ -32,17 +31,12 @@ const props = defineProps<{
 }>();
 
 const { result, loading } = useQuery(
-  SecretScanReportsDocument,
+  SecretScanReportDocument,
   () => ({ id: props.serviceId }),
   { fetchPolicy: 'cache-and-network' },
 );
 
-const reports = computed(() => result.value?.service?.secretScanReports ?? []);
-
-const scannerLabels: Record<string, string> = {
-  gitleaks: 'Gitleaks',
-  trufflehog: 'TruffleHog',
-};
+const report = computed(() => result.value?.service?.secretScanReport ?? null);
 
 function shortCommit(commit: string): string {
   return commit.slice(0, 7);
@@ -64,21 +58,20 @@ function formatRelativeTime(timestamp: string): string {
 
 <template>
   <div class="space-y-4">
-    <div v-if="loading && reports.length === 0" class="flex items-center gap-2 py-8 text-sm text-muted-foreground">
-      <Spinner :size="14" class="animate-spin" />
-      Loading scan reports...
+    <div v-if="loading && !report" class="flex items-center gap-2 py-8 text-sm text-muted-foreground">
+      <Spinner :size="14" />
+      Loading scan report...
     </div>
 
     <EmptyState
-      v-else-if="reports.length === 0"
+      v-else-if="!report"
       title="No scans yet"
-      description="Secret scans run automatically with every deployment. Reports for the latest scanned commit show up here."
+      description="Secret scans run automatically with every deployment. The report for the latest scanned commit shows up here."
       pattern="diagonal"
     />
 
     <div
-      v-for="report in reports"
-      :key="report.scanner"
+      v-else
       class="rounded-lg border border-border/60 bg-card"
     >
       <div class="flex items-center gap-3 px-4 py-3">
@@ -95,7 +88,7 @@ function formatRelativeTime(timestamp: string): string {
 
         <div class="min-w-0 flex-1">
           <p class="text-sm font-medium text-foreground">
-            {{ scannerLabels[report.scanner] ?? report.scanner }}
+            Secret scan
           </p>
           <p class="mt-0.5 text-xs text-muted-foreground">
             scanned {{ formatRelativeTime(report.scannedAt) }} &middot;
