@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,9 +16,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-git/go-git/v5"
-	"github.com/go-git/go-git/v5/plumbing"
-	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
@@ -170,43 +168,49 @@ func cloneForScan(ctx context.Context, config ScanConfig) (string, string, error
 		return "", "", err
 	}
 
-	cloneOpts := &git.CloneOptions{URL: config.SourceURL}
+	env := os.Environ()
 
 	if config.GitHubToken != "" {
-		cloneOpts.Auth = &githttp.BasicAuth{
-			Username: "x-access-token",
-			Password: config.GitHubToken,
-		}
+		header := "Authorization: Basic " + base64.StdEncoding.EncodeToString([]byte("x-access-token:"+config.GitHubToken))
+		env = append(env,
+			"GIT_CONFIG_COUNT=1",
+			"GIT_CONFIG_KEY_0=http.extraHeader",
+			"GIT_CONFIG_VALUE_0="+header,
+			"GIT_TERMINAL_PROMPT=0",
+		)
 	}
 
-	repo, err := git.PlainCloneContext(ctx, tmpDir, false, cloneOpts)
+	clone := exec.CommandContext(ctx, "git", "clone", "--single-branch", "--no-tags", config.SourceURL, tmpDir)
+	clone.Env = env
+	clone.Stderr = os.Stderr
 
-	if err != nil {
+	if err := clone.Run(); err != nil {
 		os.RemoveAll(tmpDir)
-		return "", "", err
+		return "", "", fmt.Errorf("git clone: %w", err)
 	}
 
 	commit := config.Commit
 
 	if commit != "" {
-		worktree, err := repo.Worktree()
+		checkout := exec.CommandContext(ctx, "git", "-C", tmpDir, "checkout", "--quiet", commit)
+		checkout.Env = env
+		checkout.Stderr = os.Stderr
 
-		if err == nil {
-			if err := worktree.Checkout(&git.CheckoutOptions{Hash: plumbing.NewHash(commit)}); err != nil {
-				slog.Warn("checkout failed, scanning default branch head", "commit", commit, "error", err)
-			}
+		if err := checkout.Run(); err != nil {
+			slog.Warn("checkout failed, scanning default branch head", "commit", commit, "error", err)
+			commit = ""
 		}
 	}
 
 	if commit == "" {
-		head, err := repo.Head()
+		out, err := exec.CommandContext(ctx, "git", "-C", tmpDir, "rev-parse", "HEAD").Output()
 
 		if err != nil {
 			os.RemoveAll(tmpDir)
-			return "", "", err
+			return "", "", fmt.Errorf("resolve HEAD: %w", err)
 		}
 
-		commit = head.Hash().String()
+		commit = strings.TrimSpace(string(out))
 	}
 
 	return tmpDir, commit, nil
