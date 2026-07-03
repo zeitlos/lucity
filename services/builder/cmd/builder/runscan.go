@@ -41,8 +41,7 @@ const (
 	reportMediaType       = "application/vnd.lucity.scan-report.v1+json"
 	reportConfigMediaType = "application/vnd.lucity.scan-report.config.v1+json"
 
-	scanHistoryDepth = 200
-	reportTagPrefix  = "secrets"
+	reportTagPrefix = "secrets"
 )
 
 type scanReport struct {
@@ -95,7 +94,7 @@ func runScan() {
 }
 
 func executeScan(config ScanConfig) ([]scanFinding, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 12*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Minute)
 	defer cancel()
 
 	repoPath, commit, err := cloneForScan(ctx, config)
@@ -161,11 +160,7 @@ func cloneForScan(ctx context.Context, config ScanConfig) (string, string, error
 		return "", "", err
 	}
 
-	cloneOpts := &git.CloneOptions{
-		URL:          config.SourceURL,
-		Depth:        scanHistoryDepth,
-		SingleBranch: true,
-	}
+	cloneOpts := &git.CloneOptions{URL: config.SourceURL}
 
 	if config.GitHubToken != "" {
 		cloneOpts.Auth = &githttp.BasicAuth{
@@ -288,8 +283,8 @@ func runTrufflehog(ctx context.Context, repoPath string) ([]rawFinding, error) {
 		"--json",
 		"--no-update",
 		"--fail",
-		"--concurrency=1",
-		"--results=verified,unknown",
+		"--concurrency=2",
+		"--results=verified",
 	)
 
 	var stdout bytes.Buffer
