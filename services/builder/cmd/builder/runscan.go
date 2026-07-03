@@ -94,7 +94,7 @@ func runScan() {
 }
 
 func executeScan(config ScanConfig) ([]scanFinding, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Hour)
 	defer cancel()
 
 	repoPath, commit, err := cloneForScan(ctx, config)
@@ -239,7 +239,7 @@ func runGitleaks(ctx context.Context, repoPath string) ([]rawFinding, error) {
 	)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	cmd.Env = append(os.Environ(), "GOMAXPROCS=2")
+	cmd.Env = append(os.Environ(), "GOMAXPROCS=3")
 
 	err := cmd.Run()
 
