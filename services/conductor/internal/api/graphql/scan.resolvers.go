@@ -12,21 +12,21 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/scanjob"
 )
 
-// SecretScanReports is the resolver for the secretScanReports field.
-func (r *serviceResolver) SecretScanReports(ctx context.Context, obj *model.Service) ([]model.SecretScanReport, error) {
-	reports, err := r.Conductor.SecretScanReports(ctx, obj.ID)
+// SecretScanReport is the resolver for the secretScanReport field.
+func (r *serviceResolver) SecretScanReport(ctx context.Context, obj *model.Service) (*model.SecretScanReport, error) {
+	report, err := r.Conductor.SecretScanReport(ctx, obj.ID)
 
 	if err != nil {
 		return nil, err
 	}
 
-	result := make([]model.SecretScanReport, 0, len(reports))
-
-	for _, report := range reports {
-		result = append(result, convertSecretScanReport(report))
+	if report == nil {
+		return nil, nil
 	}
 
-	return result, nil
+	converted := convertSecretScanReport(*report)
+
+	return &converted, nil
 }
 
 // ScanLogs is the resolver for the scanLogs field.

@@ -27,7 +27,6 @@ type Finding struct {
 }
 
 type Report struct {
-	Scanner   string    `json:"scanner"`
 	Commit    string    `json:"commit"`
 	ScannedAt time.Time `json:"scannedAt"`
 	Findings  []Finding `json:"findings"`
@@ -51,9 +50,9 @@ func New(config Config) *Client {
 	return &Client{config: config}
 }
 
-// Latest returns the most recent report for the given scanner, or nil when
-// the service has never been scanned by it.
-func (c *Client) Latest(ctx context.Context, service platform.ServiceID, scanner string) (*Report, error) {
+// Latest returns the most recent secret-scan report, or nil when the
+// service has never been scanned.
+func (c *Client) Latest(ctx context.Context, service platform.ServiceID) (*Report, error) {
 	repoPath := service.Workspace + "/" + service.Project + "/" + service.Name + "/scans"
 
 	repo, err := name.NewRepository(c.config.DialEndpoint+"/"+repoPath, name.Insecure)
@@ -78,7 +77,7 @@ func (c *Client) Latest(ctx context.Context, service platform.ServiceID, scanner
 		}
 	}
 
-	img, err := remote.Image(repo.Tag(scanner+"-latest"), remote.WithContext(ctx), remote.WithAuth(auth))
+	img, err := remote.Image(repo.Tag("secrets-latest"), remote.WithContext(ctx), remote.WithAuth(auth))
 
 	if err != nil {
 		if isNotFound(err) {

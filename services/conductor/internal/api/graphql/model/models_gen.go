@@ -369,7 +369,7 @@ type Release struct {
 	Trigger    *ReleaseTrigger     `json:"trigger"`
 	Build      *Build              `json:"build,omitempty"`
 	Deploy     *Deploy             `json:"deploy,omitempty"`
-	Scans      []Scan              `json:"scans"`
+	Scan       *Scan               `json:"scan,omitempty"`
 	Deployment *Deployment         `json:"deployment,omitempty"`
 	CreatedAt  time.Time           `json:"createdAt"`
 }
@@ -402,7 +402,6 @@ type ResourcesInput struct {
 
 type Scan struct {
 	ID            scanjob.ScanID `json:"id"`
-	Scanner       string         `json:"scanner"`
 	Status        ScanStatus     `json:"status"`
 	FindingsCount *int           `json:"findingsCount,omitempty"`
 	StartedAt     *time.Time     `json:"startedAt,omitempty"`
@@ -419,7 +418,6 @@ type SecretFinding struct {
 }
 
 type SecretScanReport struct {
-	Scanner   string          `json:"scanner"`
 	Commit    string          `json:"commit"`
 	ScannedAt time.Time       `json:"scannedAt"`
 	Findings  []SecretFinding `json:"findings"`
@@ -445,7 +443,7 @@ type Service struct {
 	LastDeployedAt    *time.Time           `json:"lastDeployedAt,omitempty"`
 	CreatedAt         time.Time            `json:"createdAt"`
 	Releases          []Release            `json:"releases"`
-	SecretScanReports []SecretScanReport   `json:"secretScanReports"`
+	SecretScanReport  *SecretScanReport    `json:"secretScanReport,omitempty"`
 	PlatformEndpoints []platform.Endpoint  `json:"-"`
 }
 

@@ -370,10 +370,9 @@ func convertRelease(release conductor.Release) model.Release {
 		result.Deploy = &deploy
 	}
 
-	result.Scans = make([]model.Scan, 0, len(release.Scans))
-
-	for _, scan := range release.Scans {
-		result.Scans = append(result.Scans, convertScan(scan))
+	if release.Scan != nil {
+		scan := convertScan(*release.Scan)
+		result.Scan = &scan
 	}
 
 	if release.Deployment != nil {
@@ -387,7 +386,6 @@ func convertRelease(release conductor.Release) model.Release {
 func convertScan(scan conductor.Scan) model.Scan {
 	return model.Scan{
 		ID:            scan.ID,
-		Scanner:       scan.Scanner,
 		Status:        convertScanStatus(scan),
 		FindingsCount: scan.FindingsCount,
 		StartedAt:     scan.StartedAt,
@@ -432,7 +430,6 @@ func convertSecretScanReport(report conductor.SecretScanReport) model.SecretScan
 	}
 
 	return model.SecretScanReport{
-		Scanner:   report.Scanner,
 		Commit:    report.Commit,
 		ScannedAt: report.ScannedAt,
 		Findings:  findings,

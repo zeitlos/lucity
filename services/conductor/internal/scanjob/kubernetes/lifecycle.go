@@ -20,11 +20,7 @@ func (c *Client) Start(ctx context.Context, opts scanjob.StartOptions) (*scanjob
 		return nil, errors.New("build name cannot be empty")
 	}
 
-	if opts.Scanner == "" {
-		return nil, errors.New("scanner cannot be empty")
-	}
-
-	name := "scan-" + opts.Scanner + "-" + strings.TrimPrefix(opts.BuildName, "build-")
+	name := "scan-" + strings.TrimPrefix(opts.BuildName, "build-")
 
 	job := c.newScanJob(name, opts)
 	job, err := c.kubernetes.BatchV1().Jobs(c.config.Namespace).Create(ctx, job, meta.CreateOptions{})
@@ -45,7 +41,6 @@ func (c *Client) newScanJob(name string, opts scanjob.StartOptions) *batch.Job {
 
 	env := []core.EnvVar{
 		{Name: "SCAN_ID", Value: name},
-		{Name: "SCAN_SCANNER", Value: opts.Scanner},
 		{Name: "SCAN_SOURCE_URL", Value: opts.SourceURL},
 		{Name: "SCAN_COMMIT", Value: opts.Commit},
 		{Name: "SCAN_REPORT_REPO", Value: reportRepo},
@@ -53,7 +48,7 @@ func (c *Client) newScanJob(name string, opts scanjob.StartOptions) *batch.Job {
 		{Name: "DOCKER_CONFIG", Value: "/etc/registry-auth"},
 	}
 
-	labelSet := scanJobLabels(opts.Service, opts.Scanner, opts.ReleaseID)
+	labelSet := scanJobLabels(opts.Service, opts.ReleaseID)
 
 	return &batch.Job{
 		ObjectMeta: meta.ObjectMeta{

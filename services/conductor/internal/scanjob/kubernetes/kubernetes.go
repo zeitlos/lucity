@@ -17,7 +17,6 @@ import (
 
 const (
 	labelComponent = labels.Prefix + "component"
-	labelScanner   = labels.Prefix + "scanner"
 	componentScan  = "scan"
 
 	annotationBuildName = labels.Prefix + "build-name"
@@ -46,9 +45,8 @@ var _ scanjob.Interface = (*Client)(nil)
 
 func (c *Client) toJob(ctx context.Context, job batch.Job) scanjob.Job {
 	scan := scanjob.Job{
-		ID:      scanjob.ScanID{Workspace: job.Labels[labels.Workspace], Name: job.Name},
-		Scanner: job.Labels[labelScanner],
-		Status:  scanStatus(job),
+		ID:     scanjob.ScanID{Workspace: job.Labels[labels.Workspace], Name: job.Name},
+		Status: scanStatus(job),
 		Service: platform.ServiceID{
 			Workspace:   job.Labels[labels.Workspace],
 			Project:     job.Labels[labels.Project],
@@ -78,8 +76,7 @@ func (c *Client) toJob(ctx context.Context, job batch.Job) scanjob.Job {
 }
 
 type scanSummary struct {
-	Scanner  string `json:"scanner"`
-	Findings int    `json:"findings"`
+	Findings int `json:"findings"`
 }
 
 func (c *Client) findingsCount(ctx context.Context, jobName string) *int {
@@ -129,17 +126,13 @@ func failureTime(job batch.Job) *time.Time {
 	return nil
 }
 
-func scanJobLabels(service platform.ServiceID, scanner, releaseID string) map[string]string {
+func scanJobLabels(service platform.ServiceID, releaseID string) map[string]string {
 	set := map[string]string{
 		labels.Workspace:   service.Workspace,
 		labels.Project:     service.Project,
 		labels.Environment: service.Environment,
 		labels.Service:     service.Name,
 		labelComponent:     componentScan,
-	}
-
-	if scanner != "" {
-		set[labelScanner] = scanner
 	}
 
 	if releaseID != "" {

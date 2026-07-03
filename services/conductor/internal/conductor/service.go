@@ -191,7 +191,7 @@ func (c *Client) AddService(ctx context.Context, environmentID platform.Environm
 			slog.Warn("initial deploy start failed", "project", projectID, "service", name, "error", err)
 		}
 
-		c.startScans(ctx, service.ID, build.ID.Name, spec.SourceURL, commit.SHA, token, release.ID)
+		c.startScan(ctx, service.ID, build.ID.Name, spec.SourceURL, commit.SHA, token, release.ID)
 	}
 
 	return service, nil

@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"time"
 
@@ -30,7 +31,6 @@ import (
 
 type ScanConfig struct {
 	ScanID      string `envconfig:"SCAN_ID" required:"true"`
-	Scanner     string `envconfig:"SCAN_SCANNER" required:"true"`
 	SourceURL   string `envconfig:"SCAN_SOURCE_URL" required:"true"`
 	Commit      string `envconfig:"SCAN_COMMIT"`
 	ReportRepo  string `envconfig:"SCAN_REPORT_REPO" required:"true"`
@@ -42,10 +42,10 @@ const (
 	reportConfigMediaType = "application/vnd.lucity.scan-report.config.v1+json"
 
 	scanHistoryDepth = 200
+	reportTagPrefix  = "secrets"
 )
 
 type scanReport struct {
-	Scanner   string        `json:"scanner"`
 	Commit    string        `json:"commit"`
 	ScannedAt time.Time     `json:"scannedAt"`
 	Findings  []scanFinding `json:"findings"`
@@ -60,6 +60,11 @@ type scanFinding struct {
 	Author string `json:"author,omitempty"`
 }
 
+type rawFinding struct {
+	scanFinding
+	raw string
+}
+
 func runScan() {
 	logger.Setup("info")
 
@@ -70,7 +75,7 @@ func runScan() {
 		os.Exit(1)
 	}
 
-	slog.Info("scan runner starting", "scan_id", config.ScanID, "scanner", config.Scanner, "source_url", config.SourceURL)
+	slog.Info("scan runner starting", "scan_id", config.ScanID, "source_url", config.SourceURL)
 
 	findings, err := executeScan(config)
 
@@ -79,7 +84,7 @@ func runScan() {
 		os.Exit(1)
 	}
 
-	writeTerminationSummary(config.Scanner, len(findings))
+	writeTerminationSummary(len(findings))
 
 	if len(findings) > 0 {
 		slog.Warn("scan found potential secrets", "count", len(findings))
@@ -90,7 +95,7 @@ func runScan() {
 }
 
 func executeScan(config ScanConfig) ([]scanFinding, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 12*time.Minute)
 	defer cancel()
 
 	repoPath, commit, err := cloneForScan(ctx, config)
@@ -101,23 +106,21 @@ func executeScan(config ScanConfig) ([]scanFinding, error) {
 
 	defer os.RemoveAll(repoPath)
 
-	var findings []scanFinding
-
-	switch config.Scanner {
-	case "gitleaks":
-		findings, err = runGitleaks(ctx, repoPath)
-	case "trufflehog":
-		findings, err = runTrufflehog(ctx, repoPath)
-	default:
-		return nil, fmt.Errorf("unknown scanner %q", config.Scanner)
-	}
+	gitleaksFindings, err := runGitleaks(ctx, repoPath)
 
 	if err != nil {
 		return nil, err
 	}
 
+	trufflehogFindings, err := runTrufflehog(ctx, repoPath)
+
+	if err != nil {
+		return nil, err
+	}
+
+	findings := mergeFindings(gitleaksFindings, trufflehogFindings)
+
 	report := scanReport{
-		Scanner:   config.Scanner,
 		Commit:    commit,
 		ScannedAt: time.Now().UTC(),
 		Findings:  findings,
@@ -128,6 +131,27 @@ func executeScan(config ScanConfig) ([]scanFinding, error) {
 	}
 
 	return findings, nil
+}
+
+func mergeFindings(sets ...[]rawFinding) []scanFinding {
+	seen := map[string]bool{}
+	merged := []scanFinding{}
+
+	for _, set := range sets {
+		for _, finding := range set {
+			key := finding.File + "|" + strconv.Itoa(finding.Line) + "|" + finding.raw
+
+			if seen[key] {
+				continue
+			}
+
+			seen[key] = true
+			finding.Secret = maskSecret(finding.raw)
+			merged = append(merged, finding.scanFinding)
+		}
+	}
+
+	return merged
 }
 
 func cloneForScan(ctx context.Context, config ScanConfig) (string, string, error) {
@@ -192,7 +216,7 @@ type gitleaksFinding struct {
 	Author    string `json:"Author"`
 }
 
-func runGitleaks(ctx context.Context, repoPath string) ([]scanFinding, error) {
+func runGitleaks(ctx context.Context, repoPath string) ([]rawFinding, error) {
 	reportPath := repoPath + "-gitleaks.json"
 	defer os.Remove(reportPath)
 
@@ -226,16 +250,18 @@ func runGitleaks(ctx context.Context, repoPath string) ([]scanFinding, error) {
 		return nil, fmt.Errorf("parse gitleaks report: %w", err)
 	}
 
-	findings := make([]scanFinding, 0, len(raw))
+	findings := make([]rawFinding, 0, len(raw))
 
 	for _, f := range raw {
-		findings = append(findings, scanFinding{
-			Rule:   f.RuleID,
-			File:   f.File,
-			Line:   f.StartLine,
-			Commit: f.Commit,
-			Secret: maskSecret(f.Secret),
-			Author: f.Author,
+		findings = append(findings, rawFinding{
+			scanFinding: scanFinding{
+				Rule:   f.RuleID,
+				File:   f.File,
+				Line:   f.StartLine,
+				Commit: f.Commit,
+				Author: f.Author,
+			},
+			raw: f.Secret,
 		})
 	}
 
@@ -257,12 +283,13 @@ type trufflehogFinding struct {
 	} `json:"SourceMetadata"`
 }
 
-func runTrufflehog(ctx context.Context, repoPath string) ([]scanFinding, error) {
+func runTrufflehog(ctx context.Context, repoPath string) ([]rawFinding, error) {
 	cmd := exec.CommandContext(ctx, "trufflehog", "git", "file://"+repoPath,
 		"--json",
 		"--no-update",
 		"--fail",
 		"--concurrency=1",
+		"--results=verified,unknown",
 	)
 
 	var stdout bytes.Buffer
@@ -277,7 +304,7 @@ func runTrufflehog(ctx context.Context, repoPath string) ([]scanFinding, error) 
 		return nil, fmt.Errorf("trufflehog: %w", err)
 	}
 
-	var findings []scanFinding
+	var findings []rawFinding
 	scanner := bufio.NewScanner(&stdout)
 	scanner.Buffer(make([]byte, 0, 1024*1024), 1024*1024)
 
@@ -290,13 +317,15 @@ func runTrufflehog(ctx context.Context, repoPath string) ([]scanFinding, error) 
 			continue
 		}
 
-		findings = append(findings, scanFinding{
-			Rule:   f.DetectorName,
-			File:   f.SourceMetadata.Data.Git.File,
-			Line:   f.SourceMetadata.Data.Git.Line,
-			Commit: f.SourceMetadata.Data.Git.Commit,
-			Secret: maskSecret(f.Raw),
-			Author: f.SourceMetadata.Data.Git.Email,
+		findings = append(findings, rawFinding{
+			scanFinding: scanFinding{
+				Rule:   f.DetectorName,
+				File:   f.SourceMetadata.Data.Git.File,
+				Line:   f.SourceMetadata.Data.Git.Line,
+				Commit: f.SourceMetadata.Data.Git.Commit,
+				Author: f.SourceMetadata.Data.Git.Email,
+			},
+			raw: f.Raw,
 		})
 	}
 
@@ -335,7 +364,7 @@ func pushReport(ctx context.Context, config ScanConfig, report scanReport) error
 		shortCommit = shortCommit[:7]
 	}
 
-	for _, tag := range []string{config.Scanner + "-" + shortCommit, config.Scanner + "-latest"} {
+	for _, tag := range []string{reportTagPrefix + "-" + shortCommit, reportTagPrefix + "-latest"} {
 		ref, err := name.ParseReference(config.ReportRepo+":"+tag, name.Insecure)
 
 		if err != nil {
@@ -352,8 +381,8 @@ func pushReport(ctx context.Context, config ScanConfig, report scanReport) error
 	return nil
 }
 
-func writeTerminationSummary(scanner string, findings int) {
-	summary, err := json.Marshal(map[string]any{"scanner": scanner, "findings": findings})
+func writeTerminationSummary(findings int) {
+	summary, err := json.Marshal(map[string]any{"findings": findings})
 
 	if err != nil {
 		return

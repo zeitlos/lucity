@@ -21,7 +21,6 @@ type Interface interface {
 
 type StartOptions struct {
 	Service   platform.ServiceID
-	Scanner   string
 	BuildName string
 	SourceURL string
 	Commit    string
@@ -31,7 +30,6 @@ type StartOptions struct {
 
 type Job struct {
 	ID            ScanID
-	Scanner       string
 	Status        Status
 	Service       platform.ServiceID
 	ReleaseID     string
@@ -50,8 +48,6 @@ const (
 	StatusSucceeded Status = "succeeded"
 	StatusFailed    Status = "failed"
 )
-
-var Scanners = []string{"gitleaks", "trufflehog"}
 
 type ScanID struct {
 	Workspace string

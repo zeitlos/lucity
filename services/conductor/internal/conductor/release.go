@@ -65,7 +65,7 @@ type Release struct {
 	Trigger    ReleaseTrigger
 	Build      *Build
 	Deploy     *Deploy
-	Scans      []Scan
+	Scan       *Scan
 	Deployment *Deployment
 	CreatedAt  time.Time
 }
@@ -116,7 +116,7 @@ func (c *Client) Releases(ctx context.Context, serviceID ServiceID) ([]Release, 
 	type group struct {
 		build      *Build
 		deploy     *Deploy
-		scans      []Scan
+		scan       *Scan
 		deployment *Deployment
 	}
 
@@ -167,7 +167,8 @@ func (c *Client) Releases(ctx context.Context, serviceID ServiceID) ([]Release, 
 		groupFor(key).deploy = deploy
 	}
 
-	for _, scan := range scans {
+	for i := range scans {
+		scan := &scans[i]
 		key := scan.ReleaseID
 
 		if key == "" {
@@ -175,17 +176,16 @@ func (c *Client) Releases(ctx context.Context, serviceID ServiceID) ([]Release, 
 		}
 
 		g := groupFor(key)
-		g.scans = append(g.scans, scan)
+
+		if g.scan == nil || scan.CreatedAt.After(g.scan.CreatedAt) {
+			g.scan = scan
+		}
 	}
 
 	releases := make([]Release, 0, len(groups))
 
 	for key, g := range groups {
-		sort.Slice(g.scans, func(i, j int) bool {
-			return g.scans[i].Scanner < g.scans[j].Scanner
-		})
-
-		releases = append(releases, assembleRelease(serviceID.Workspace, key, g.build, g.deploy, g.scans, g.deployment))
+		releases = append(releases, assembleRelease(serviceID.Workspace, key, g.build, g.deploy, g.scan, g.deployment))
 	}
 
 	sort.Slice(releases, func(i, j int) bool {
@@ -195,7 +195,7 @@ func (c *Client) Releases(ctx context.Context, serviceID ServiceID) ([]Release, 
 	return releases, nil
 }
 
-func assembleRelease(workspace, name string, build *Build, deploy *Deploy, scans []Scan, deployment *Deployment) Release {
+func assembleRelease(workspace, name string, build *Build, deploy *Deploy, scan *Scan, deployment *Deployment) Release {
 	return Release{
 		ID:         ReleaseID{Workspace: workspace, Name: name},
 		Status:     releaseStatus(build, deploy, deployment),
@@ -203,7 +203,7 @@ func assembleRelease(workspace, name string, build *Build, deploy *Deploy, scans
 		Trigger:    releaseTrigger(deployment),
 		Build:      build,
 		Deploy:     deploy,
-		Scans:      scans,
+		Scan:       scan,
 		Deployment: deployment,
 		CreatedAt:  releaseCreatedAt(build, deploy, deployment),
 	}

@@ -404,7 +404,7 @@ type ComplexityRoot struct {
 		Deploy     func(childComplexity int) int
 		Deployment func(childComplexity int) int
 		ID         func(childComplexity int) int
-		Scans      func(childComplexity int) int
+		Scan       func(childComplexity int) int
 		Source     func(childComplexity int) int
 		Status     func(childComplexity int) int
 		Trigger    func(childComplexity int) int
@@ -435,7 +435,6 @@ type ComplexityRoot struct {
 		FindingsCount func(childComplexity int) int
 		FinishedAt    func(childComplexity int) int
 		ID            func(childComplexity int) int
-		Scanner       func(childComplexity int) int
 		StartedAt     func(childComplexity int) int
 		Status        func(childComplexity int) int
 	}
@@ -453,30 +452,29 @@ type ComplexityRoot struct {
 		Commit    func(childComplexity int) int
 		Findings  func(childComplexity int) int
 		ScannedAt func(childComplexity int) int
-		Scanner   func(childComplexity int) int
 	}
 
 	Service struct {
-		ActiveDeployment  func(childComplexity int) int
-		Autoscaling       func(childComplexity int) int
-		Builds            func(childComplexity int) int
-		Command           func(childComplexity int) int
-		ContextPath       func(childComplexity int) int
-		CreatedAt         func(childComplexity int) int
-		DefaultCommand    func(childComplexity int) int
-		Deployments       func(childComplexity int) int
-		Endpoints         func(childComplexity int) int
-		ID                func(childComplexity int) int
-		LastDeployedAt    func(childComplexity int) int
-		Metrics           func(childComplexity int, metrics []model.ResourceMetric, rangeArg model.MetricsRange, grouping model.MetricGrouping) int
-		Name              func(childComplexity int) int
-		Port              func(childComplexity int) int
-		Releases          func(childComplexity int) int
-		Replicas          func(childComplexity int) int
-		Resources         func(childComplexity int) int
-		SecretScanReports func(childComplexity int) int
-		SourceURL         func(childComplexity int) int
-		Status            func(childComplexity int) int
+		ActiveDeployment func(childComplexity int) int
+		Autoscaling      func(childComplexity int) int
+		Builds           func(childComplexity int) int
+		Command          func(childComplexity int) int
+		ContextPath      func(childComplexity int) int
+		CreatedAt        func(childComplexity int) int
+		DefaultCommand   func(childComplexity int) int
+		Deployments      func(childComplexity int) int
+		Endpoints        func(childComplexity int) int
+		ID               func(childComplexity int) int
+		LastDeployedAt   func(childComplexity int) int
+		Metrics          func(childComplexity int, metrics []model.ResourceMetric, rangeArg model.MetricsRange, grouping model.MetricGrouping) int
+		Name             func(childComplexity int) int
+		Port             func(childComplexity int) int
+		Releases         func(childComplexity int) int
+		Replicas         func(childComplexity int) int
+		Resources        func(childComplexity int) int
+		SecretScanReport func(childComplexity int) int
+		SourceURL        func(childComplexity int) int
+		Status           func(childComplexity int) int
 	}
 
 	ServiceLogEntry struct {
@@ -651,7 +649,7 @@ type ServiceResolver interface {
 	Metrics(ctx context.Context, obj *model.Service, metrics []model.ResourceMetric, rangeArg model.MetricsRange, grouping model.MetricGrouping) ([]model.MetricSeries, error)
 
 	Releases(ctx context.Context, obj *model.Service) ([]model.Release, error)
-	SecretScanReports(ctx context.Context, obj *model.Service) ([]model.SecretScanReport, error)
+	SecretScanReport(ctx context.Context, obj *model.Service) (*model.SecretScanReport, error)
 }
 type SubscriptionResolver interface {
 	BuildLogs(ctx context.Context, id buildjob.BuildID) (<-chan string, error)
@@ -2480,12 +2478,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Release.ID(childComplexity), true
-	case "Release.scans":
-		if e.ComplexityRoot.Release.Scans == nil {
+	case "Release.scan":
+		if e.ComplexityRoot.Release.Scan == nil {
 			break
 		}
 
-		return e.ComplexityRoot.Release.Scans(childComplexity), true
+		return e.ComplexityRoot.Release.Scan(childComplexity), true
 	case "Release.source":
 		if e.ComplexityRoot.Release.Source == nil {
 			break
@@ -2581,12 +2579,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Scan.ID(childComplexity), true
-	case "Scan.scanner":
-		if e.ComplexityRoot.Scan.Scanner == nil {
-			break
-		}
-
-		return e.ComplexityRoot.Scan.Scanner(childComplexity), true
 	case "Scan.startedAt":
 		if e.ComplexityRoot.Scan.StartedAt == nil {
 			break
@@ -2655,12 +2647,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.SecretScanReport.ScannedAt(childComplexity), true
-	case "SecretScanReport.scanner":
-		if e.ComplexityRoot.SecretScanReport.Scanner == nil {
-			break
-		}
-
-		return e.ComplexityRoot.SecretScanReport.Scanner(childComplexity), true
 
 	case "Service.activeDeployment":
 		if e.ComplexityRoot.Service.ActiveDeployment == nil {
@@ -2769,12 +2755,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Service.Resources(childComplexity), true
-	case "Service.secretScanReports":
-		if e.ComplexityRoot.Service.SecretScanReports == nil {
+	case "Service.secretScanReport":
+		if e.ComplexityRoot.Service.SecretScanReport == nil {
 			break
 		}
 
-		return e.ComplexityRoot.Service.SecretScanReports(childComplexity), true
+		return e.ComplexityRoot.Service.SecretScanReport(childComplexity), true
 	case "Service.sourceUrl":
 		if e.ComplexityRoot.Service.SourceURL == nil {
 			break
@@ -3726,8 +3712,8 @@ func (ec *executionContext) childFields_Release(ctx context.Context, field graph
 		return ec.fieldContext_Release_build(ctx, field)
 	case "deploy":
 		return ec.fieldContext_Release_deploy(ctx, field)
-	case "scans":
-		return ec.fieldContext_Release_scans(ctx, field)
+	case "scan":
+		return ec.fieldContext_Release_scan(ctx, field)
 	case "deployment":
 		return ec.fieldContext_Release_deployment(ctx, field)
 	case "createdAt":
@@ -3782,8 +3768,6 @@ func (ec *executionContext) childFields_Scan(ctx context.Context, field graphql.
 	switch field.Name {
 	case "id":
 		return ec.fieldContext_Scan_id(ctx, field)
-	case "scanner":
-		return ec.fieldContext_Scan_scanner(ctx, field)
 	case "status":
 		return ec.fieldContext_Scan_status(ctx, field)
 	case "findingsCount":
@@ -3816,8 +3800,6 @@ func (ec *executionContext) childFields_SecretFinding(ctx context.Context, field
 
 func (ec *executionContext) childFields_SecretScanReport(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
-	case "scanner":
-		return ec.fieldContext_SecretScanReport_scanner(ctx, field)
 	case "commit":
 		return ec.fieldContext_SecretScanReport_commit(ctx, field)
 	case "scannedAt":
@@ -3868,8 +3850,8 @@ func (ec *executionContext) childFields_Service(ctx context.Context, field graph
 		return ec.fieldContext_Service_createdAt(ctx, field)
 	case "releases":
 		return ec.fieldContext_Service_releases(ctx, field)
-	case "secretScanReports":
-		return ec.fieldContext_Service_secretScanReports(ctx, field)
+	case "secretScanReport":
+		return ec.fieldContext_Service_secretScanReport(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type Service", field.Name)
 }
@@ -14182,26 +14164,26 @@ func (ec *executionContext) fieldContext_Release_deploy(_ context.Context, field
 	return fc, nil
 }
 
-func (ec *executionContext) _Release_scans(ctx context.Context, field graphql.CollectedField, obj *model.Release) (ret graphql.Marshaler) {
+func (ec *executionContext) _Release_scan(ctx context.Context, field graphql.CollectedField, obj *model.Release) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
 		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_Release_scans(ctx, field)
+			return ec.fieldContext_Release_scan(ctx, field)
 		},
 		func(ctx context.Context) (any, error) {
-			return obj.Scans, nil
+			return obj.Scan, nil
 		},
 		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v []model.Scan) graphql.Marshaler {
-			return ec.marshalNScan2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐScanᚄ(ctx, selections, v)
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Scan) graphql.Marshaler {
+			return ec.marshalOScan2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐScan(ctx, selections, v)
 		},
 		true,
-		true,
+		false,
 	)
 }
-func (ec *executionContext) fieldContext_Release_scans(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Release_scan(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Release",
 		Field:      field,
@@ -14499,29 +14481,6 @@ func (ec *executionContext) fieldContext_Scan_id(_ context.Context, field graphq
 	return graphql.NewScalarFieldContext("Scan", field, false, false, errors.New("field of type ScanID does not have child fields"))
 }
 
-func (ec *executionContext) _Scan_scanner(ctx context.Context, field graphql.CollectedField, obj *model.Scan) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_Scan_scanner(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.Scanner, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
-			return ec.marshalNString2string(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_Scan_scanner(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Scan", field, false, false, errors.New("field of type String does not have child fields"))
-}
-
 func (ec *executionContext) _Scan_status(ctx context.Context, field graphql.CollectedField, obj *model.Scan) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -14750,29 +14709,6 @@ func (ec *executionContext) _SecretFinding_author(ctx context.Context, field gra
 }
 func (ec *executionContext) fieldContext_SecretFinding_author(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("SecretFinding", field, false, false, errors.New("field of type String does not have child fields"))
-}
-
-func (ec *executionContext) _SecretScanReport_scanner(ctx context.Context, field graphql.CollectedField, obj *model.SecretScanReport) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_SecretScanReport_scanner(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.Scanner, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
-			return ec.marshalNString2string(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_SecretScanReport_scanner(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("SecretScanReport", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
 func (ec *executionContext) _SecretScanReport_commit(ctx context.Context, field graphql.CollectedField, obj *model.SecretScanReport) (ret graphql.Marshaler) {
@@ -15383,26 +15319,26 @@ func (ec *executionContext) fieldContext_Service_releases(_ context.Context, fie
 	return fc, nil
 }
 
-func (ec *executionContext) _Service_secretScanReports(ctx context.Context, field graphql.CollectedField, obj *model.Service) (ret graphql.Marshaler) {
+func (ec *executionContext) _Service_secretScanReport(ctx context.Context, field graphql.CollectedField, obj *model.Service) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
 		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_Service_secretScanReports(ctx, field)
+			return ec.fieldContext_Service_secretScanReport(ctx, field)
 		},
 		func(ctx context.Context) (any, error) {
-			return ec.Resolvers.Service().SecretScanReports(ctx, obj)
+			return ec.Resolvers.Service().SecretScanReport(ctx, obj)
 		},
 		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v []model.SecretScanReport) graphql.Marshaler {
-			return ec.marshalNSecretScanReport2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐSecretScanReportᚄ(ctx, selections, v)
+		func(ctx context.Context, selections ast.SelectionSet, v *model.SecretScanReport) graphql.Marshaler {
+			return ec.marshalOSecretScanReport2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐSecretScanReport(ctx, selections, v)
 		},
 		true,
-		true,
+		false,
 	)
 }
-func (ec *executionContext) fieldContext_Service_secretScanReports(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Service_secretScanReport(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Service",
 		Field:      field,
@@ -21925,11 +21861,8 @@ func (ec *executionContext) _Release(ctx context.Context, sel ast.SelectionSet, 
 			out.Values[i] = ec._Release_build(ctx, field, obj)
 		case "deploy":
 			out.Values[i] = ec._Release_deploy(ctx, field, obj)
-		case "scans":
-			out.Values[i] = ec._Release_scans(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
+		case "scan":
+			out.Values[i] = ec._Release_scan(ctx, field, obj)
 		case "deployment":
 			out.Values[i] = ec._Release_deployment(ctx, field, obj)
 		case "createdAt":
@@ -22154,11 +22087,6 @@ func (ec *executionContext) _Scan(ctx context.Context, sel ast.SelectionSet, obj
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "scanner":
-			out.Values[i] = ec._Scan_scanner(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
 		case "status":
 			out.Values[i] = ec._Scan_status(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -22265,11 +22193,6 @@ func (ec *executionContext) _SecretScanReport(ctx context.Context, sel ast.Selec
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("SecretScanReport")
-		case "scanner":
-			out.Values[i] = ec._SecretScanReport_scanner(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
 		case "commit":
 			out.Values[i] = ec._SecretScanReport_commit(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -22591,19 +22514,16 @@ func (ec *executionContext) _Service(ctx context.Context, sel ast.SelectionSet, 
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-		case "secretScanReports":
+		case "secretScanReport":
 			field := field
 
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
 				defer func() {
 					if r := recover(); r != nil {
 						ec.Error(ctx, ec.Recover(ctx, r))
 					}
 				}()
-				res = ec._Service_secretScanReports(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
+				res = ec._Service_secretScanReport(ctx, field, obj)
 				return res
 			}
 
@@ -24615,26 +24535,6 @@ func (ec *executionContext) marshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservi
 	return v
 }
 
-func (ec *executionContext) marshalNScan2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐScan(ctx context.Context, sel ast.SelectionSet, v model.Scan) graphql.Marshaler {
-	return ec._Scan(ctx, sel, &v)
-}
-
-func (ec *executionContext) marshalNScan2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐScanᚄ(ctx context.Context, sel ast.SelectionSet, v []model.Scan) graphql.Marshaler {
-	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
-		fc := graphql.GetFieldContext(ctx)
-		fc.Result = &v[i]
-		return ec.marshalNScan2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐScan(ctx, sel, v[i])
-	})
-
-	for _, e := range ret {
-		if e == graphql.Null {
-			return graphql.Null
-		}
-	}
-
-	return ret
-}
-
 func (ec *executionContext) unmarshalNScanID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋscanjobᚐScanID(ctx context.Context, v any) (scanjob.ScanID, error) {
 	var res scanjob.ScanID
 	err := res.UnmarshalGQL(v)
@@ -24664,26 +24564,6 @@ func (ec *executionContext) marshalNSecretFinding2ᚕgithubᚗcomᚋzeitlosᚋlu
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
 		return ec.marshalNSecretFinding2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐSecretFinding(ctx, sel, v[i])
-	})
-
-	for _, e := range ret {
-		if e == graphql.Null {
-			return graphql.Null
-		}
-	}
-
-	return ret
-}
-
-func (ec *executionContext) marshalNSecretScanReport2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐSecretScanReport(ctx context.Context, sel ast.SelectionSet, v model.SecretScanReport) graphql.Marshaler {
-	return ec._SecretScanReport(ctx, sel, &v)
-}
-
-func (ec *executionContext) marshalNSecretScanReport2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐSecretScanReportᚄ(ctx context.Context, sel ast.SelectionSet, v []model.SecretScanReport) graphql.Marshaler {
-	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
-		fc := graphql.GetFieldContext(ctx)
-		fc.Result = &v[i]
-		return ec.marshalNSecretScanReport2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐSecretScanReport(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {
@@ -25475,6 +25355,20 @@ func (ec *executionContext) marshalOResourceTier2ᚖgithubᚗcomᚋzeitlosᚋluc
 		return graphql.Null
 	}
 	return v
+}
+
+func (ec *executionContext) marshalOScan2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐScan(ctx context.Context, sel ast.SelectionSet, v *model.Scan) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._Scan(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOSecretScanReport2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐSecretScanReport(ctx context.Context, sel ast.SelectionSet, v *model.SecretScanReport) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._SecretScanReport(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalOString2ᚕstringᚄ(ctx context.Context, v any) ([]string, error) {

@@ -152,7 +152,7 @@ func (c *Client) Deploy(ctx context.Context, serviceID ServiceID, gitRef string)
 		return nil, fmt.Errorf("start deploy for build %q: %w", build.ID.Name, err)
 	}
 
-	c.startScans(ctx, service.ID, build.ID.Name, service.SourceURL, commit.SHA, token, release.ID)
+	c.startScan(ctx, service.ID, build.ID.Name, service.SourceURL, commit.SHA, token, release.ID)
 
 	result := Release{
 		ID:        ReleaseID{Workspace: serviceID.Workspace, Name: release.ID},
@@ -178,21 +178,18 @@ func (c *Client) startDeploy(ctx context.Context, serviceID platform.ServiceID, 
 	})
 }
 
-func (c *Client) startScans(ctx context.Context, serviceID platform.ServiceID, buildName, sourceURL, commit, token, releaseID string) {
-	for _, scanner := range scanjob.Scanners {
-		_, err := c.scanjob.Start(ctx, scanjob.StartOptions{
-			Service:   serviceID,
-			Scanner:   scanner,
-			BuildName: buildName,
-			SourceURL: sourceURL,
-			Commit:    commit,
-			Token:     token,
-			ReleaseID: releaseID,
-		})
+func (c *Client) startScan(ctx context.Context, serviceID platform.ServiceID, buildName, sourceURL, commit, token, releaseID string) {
+	_, err := c.scanjob.Start(ctx, scanjob.StartOptions{
+		Service:   serviceID,
+		BuildName: buildName,
+		SourceURL: sourceURL,
+		Commit:    commit,
+		Token:     token,
+		ReleaseID: releaseID,
+	})
 
-		if err != nil {
-			slog.WarnContext(ctx, "scan start failed", "scanner", scanner, "service", serviceID, "error", err)
-		}
+	if err != nil {
+		slog.WarnContext(ctx, "scan start failed", "service", serviceID, "error", err)
 	}
 }
 
@@ -223,21 +220,6 @@ func (c *Client) ScanLogs(ctx context.Context, id ScanID) (<-chan string, error)
 	return out, nil
 }
 
-func (c *Client) SecretScanReports(ctx context.Context, serviceID ServiceID) ([]SecretScanReport, error) {
-	reports := make([]SecretScanReport, 0, len(scanjob.Scanners))
-
-	for _, scanner := range scanjob.Scanners {
-		report, err := c.scanreport.Latest(ctx, serviceID, scanner)
-
-		if err != nil {
-			slog.WarnContext(ctx, "scan report fetch failed", "scanner", scanner, "service", serviceID, "error", err)
-			continue
-		}
-
-		if report != nil {
-			reports = append(reports, *report)
-		}
-	}
-
-	return reports, nil
+func (c *Client) SecretScanReport(ctx context.Context, serviceID ServiceID) (*SecretScanReport, error) {
+	return c.scanreport.Latest(ctx, serviceID)
 }

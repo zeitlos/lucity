@@ -7,7 +7,7 @@ type Release {
 
   build: Build
   deploy: Deploy
-  scans: [Scan!]!
+  scan: Scan
   deployment: Deployment
 
   createdAt: Time!

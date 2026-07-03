@@ -1,6 +1,5 @@
 type Scan {
   id: ScanID!
-  scanner: String!
   status: ScanStatus!
   findingsCount: Int
 
@@ -17,7 +16,6 @@ enum ScanStatus {
 }
 
 type SecretScanReport {
-  scanner: String!
   commit: String!
   scannedAt: Time!
   findings: [SecretFinding!]!
@@ -33,7 +31,7 @@ type SecretFinding {
 }
 
 extend type Service {
-  secretScanReports: [SecretScanReport!]! @goField(forceResolver: true)
+  secretScanReport: SecretScanReport @goField(forceResolver: true)
 }
 
 extend type Subscription {
