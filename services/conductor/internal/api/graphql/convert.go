@@ -414,18 +414,26 @@ func convertScanStatus(scan conductor.Scan) model.ScanStatus {
 	return model.ScanStatusFailed
 }
 
+func optional(s string) *string {
+	if s == "" {
+		return nil
+	}
+
+	return &s
+}
+
 func convertSecretScanReport(report conductor.SecretScanReport) model.SecretScanReport {
 	findings := make([]model.SecretFinding, 0, len(report.Findings))
 
 	for _, finding := range report.Findings {
-		author := finding.Author
 		findings = append(findings, model.SecretFinding{
 			Rule:   finding.Rule,
 			File:   finding.File,
 			Line:   finding.Line,
 			Commit: finding.Commit,
 			Secret: finding.Secret,
-			Author: &author,
+			Author: optional(finding.Author),
+			URL:    optional(finding.URL),
 		})
 	}
 

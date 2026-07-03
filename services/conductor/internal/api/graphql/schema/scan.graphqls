@@ -28,6 +28,7 @@ type SecretFinding {
   commit: String!
   secret: String!
   author: String
+  url: String
 }
 
 extend type Service {

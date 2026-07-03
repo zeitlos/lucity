@@ -415,6 +415,7 @@ type SecretFinding struct {
 	Commit string  `json:"commit"`
 	Secret string  `json:"secret"`
 	Author *string `json:"author,omitempty"`
+	URL    *string `json:"url,omitempty"`
 }
 
 type SecretScanReport struct {

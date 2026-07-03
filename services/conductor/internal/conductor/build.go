@@ -5,6 +5,8 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/zeitlos/lucity/pkg/auth"
@@ -221,5 +223,40 @@ func (c *Client) ScanLogs(ctx context.Context, id ScanID) (<-chan string, error)
 }
 
 func (c *Client) SecretScanReport(ctx context.Context, serviceID ServiceID) (*SecretScanReport, error) {
-	return c.scanreport.Latest(ctx, serviceID)
+	report, err := c.scanreport.Latest(ctx, serviceID)
+
+	if err != nil || report == nil {
+		return report, err
+	}
+
+	service, err := c.platform.Service(ctx, serviceID)
+
+	if err != nil {
+		slog.WarnContext(ctx, "service lookup for finding links failed", "service", serviceID, "error", err)
+		return report, nil
+	}
+
+	for i := range report.Findings {
+		report.Findings[i].URL = findingURL(service.SourceURL, report.Findings[i])
+	}
+
+	return report, nil
+}
+
+func findingURL(repoURL string, finding scanreport.Finding) string {
+	if repoURL == "" || finding.Commit == "" || finding.File == "" {
+		return ""
+	}
+
+	base := strings.TrimSuffix(repoURL, ".git")
+	line := strconv.Itoa(finding.Line)
+
+	switch deriveProvider(repoURL) {
+	case ProviderGitLab:
+		return base + "/-/blob/" + finding.Commit + "/" + finding.File + "#L" + line
+	case ProviderBitbucket:
+		return base + "/src/" + finding.Commit + "/" + finding.File + "#lines-" + line
+	default:
+		return base + "/blob/" + finding.Commit + "/" + finding.File + "#L" + line
+	}
 }

@@ -24,6 +24,7 @@ type Finding struct {
 	Commit string `json:"commit"`
 	Secret string `json:"secret"`
 	Author string `json:"author,omitempty"`
+	URL    string `json:"-"`
 }
 
 type Report struct {

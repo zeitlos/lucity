@@ -446,6 +446,7 @@ type ComplexityRoot struct {
 		Line   func(childComplexity int) int
 		Rule   func(childComplexity int) int
 		Secret func(childComplexity int) int
+		URL    func(childComplexity int) int
 	}
 
 	SecretScanReport struct {
@@ -2628,6 +2629,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.SecretFinding.Secret(childComplexity), true
+	case "SecretFinding.url":
+		if e.ComplexityRoot.SecretFinding.URL == nil {
+			break
+		}
+
+		return e.ComplexityRoot.SecretFinding.URL(childComplexity), true
 
 	case "SecretScanReport.commit":
 		if e.ComplexityRoot.SecretScanReport.Commit == nil {
@@ -3794,6 +3801,8 @@ func (ec *executionContext) childFields_SecretFinding(ctx context.Context, field
 		return ec.fieldContext_SecretFinding_secret(ctx, field)
 	case "author":
 		return ec.fieldContext_SecretFinding_author(ctx, field)
+	case "url":
+		return ec.fieldContext_SecretFinding_url(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type SecretFinding", field.Name)
 }
@@ -14711,6 +14720,29 @@ func (ec *executionContext) fieldContext_SecretFinding_author(_ context.Context,
 	return graphql.NewScalarFieldContext("SecretFinding", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
+func (ec *executionContext) _SecretFinding_url(ctx context.Context, field graphql.CollectedField, obj *model.SecretFinding) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_SecretFinding_url(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.URL, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_SecretFinding_url(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("SecretFinding", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
 func (ec *executionContext) _SecretScanReport_commit(ctx context.Context, field graphql.CollectedField, obj *model.SecretScanReport) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -22159,6 +22191,8 @@ func (ec *executionContext) _SecretFinding(ctx context.Context, sel ast.Selectio
 			}
 		case "author":
 			out.Values[i] = ec._SecretFinding_author(ctx, field, obj)
+		case "url":
+			out.Values[i] = ec._SecretFinding_url(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}

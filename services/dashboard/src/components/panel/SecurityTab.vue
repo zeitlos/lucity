@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useQuery } from '@vue/apollo-composable';
-import { ShieldCheck, TriangleAlert } from '@lucide/vue';
-import Spinner from '@/components/LoadingSpinner.vue';
+import { ShieldCheck, TriangleAlert, ExternalLink } from '@lucide/vue';
 import { graphql } from '@/gql';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import EmptyState from '@/components/EmptyState.vue';
 
 const SecretScanReportDocument = graphql(`
@@ -20,6 +21,7 @@ const SecretScanReportDocument = graphql(`
           commit
           secret
           author
+          url
         }
       }
     }
@@ -58,71 +60,76 @@ function formatRelativeTime(timestamp: string): string {
 
 <template>
   <div class="space-y-4">
-    <div v-if="loading && !report" class="flex items-center gap-2 py-8 text-sm text-muted-foreground">
-      <Spinner :size="14" />
-      Loading scan report...
+    <div class="space-y-1 text-sm text-muted-foreground">
+      <p v-if="report">
+        Scanned {{ formatRelativeTime(report.scannedAt) }} at
+        <code class="rounded bg-muted px-1 py-0.5 font-mono text-xs">{{ shortCommit(report.commit) }}</code>.
+        Every deployment scans the repository and its history for leaked credentials.
+      </p>
+      <p v-else>Every deployment scans the repository and its history for leaked credentials.</p>
+      <p>
+        Secrets committed to git stay readable in history even after the file is deleted.
+        If something shows up here: rotate the credential first, then rewrite history with a
+        tool like git-filter-repo.
+      </p>
+    </div>
+
+    <div v-if="loading && !report" class="space-y-2">
+      <Skeleton class="h-16 w-full" />
+      <Skeleton class="h-16 w-full" />
+      <Skeleton class="h-16 w-full" />
     </div>
 
     <EmptyState
       v-else-if="!report"
       title="No scans yet"
-      description="Secret scans run automatically with every deployment. The report for the latest scanned commit shows up here."
+      description="The report for the latest scanned commit shows up here after the first deployment."
       pattern="diagonal"
     />
 
     <div
-      v-else
-      class="rounded-lg border border-border/60 bg-card"
+      v-else-if="report.findings.length === 0"
+      class="flex flex-col items-center justify-center overflow-hidden rounded-lg border border-border bg-card px-8 py-[4.5rem] text-center"
     >
-      <div class="flex items-center gap-3 px-4 py-3">
-        <ShieldCheck
-          v-if="report.findings.length === 0"
-          :size="16"
-          class="shrink-0 text-[var(--status-ok)]"
-        />
-        <TriangleAlert
-          v-else
-          :size="16"
-          class="shrink-0 text-[var(--status-warn)]"
-        />
-
-        <div class="min-w-0 flex-1">
-          <p class="text-sm font-medium text-foreground">
-            Secret scan
-          </p>
-          <p class="mt-0.5 text-xs text-muted-foreground">
-            scanned {{ formatRelativeTime(report.scannedAt) }} &middot;
-            <span class="font-mono">{{ shortCommit(report.commit) }}</span>
-          </p>
-        </div>
-
-        <span
-          class="shrink-0 rounded px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
-          :style="{
-            color: report.findings.length === 0 ? 'var(--status-ok)' : 'var(--status-warn)',
-            backgroundColor: `color-mix(in srgb, ${report.findings.length === 0 ? 'var(--status-ok)' : 'var(--status-warn)'} 15%, transparent)`,
-          }"
-        >
-          {{ report.findings.length === 0 ? 'Clean' : `${report.findings.length} finding${report.findings.length !== 1 ? 's' : ''}` }}
-        </span>
+      <div
+        class="mb-4 rounded-full p-4"
+        :style="{ backgroundColor: 'color-mix(in srgb, var(--status-ok) 12%, transparent)' }"
+      >
+        <ShieldCheck :size="32" class="text-[var(--status-ok)]" />
       </div>
+      <h3 class="text-sm font-semibold text-foreground">No secrets found</h3>
+      <p class="mt-1 max-w-sm text-sm text-muted-foreground">
+        The latest scan found no leaked credentials in this repository or its history.
+      </p>
+    </div>
 
-      <div v-if="report.findings.length > 0" class="border-t border-border/40">
-        <div
-          v-for="(finding, idx) in report.findings"
-          :key="idx"
-          class="flex items-start gap-3 border-b border-border/30 px-4 py-2.5 last:border-b-0"
-        >
-          <TriangleAlert :size="13" class="mt-0.5 shrink-0 text-[var(--status-warn)]" />
-          <div class="min-w-0 flex-1">
-            <p class="text-sm font-medium text-foreground">{{ finding.rule }}</p>
-            <p class="mt-0.5 truncate font-mono text-xs text-muted-foreground">
-              {{ finding.file }}:{{ finding.line }}
-              <template v-if="finding.commit"> &middot; {{ shortCommit(finding.commit) }}</template>
-            </p>
-            <p class="mt-1 rounded bg-muted/60 px-2 py-1 font-mono text-xs text-foreground">{{ finding.secret }}</p>
-          </div>
+    <div v-else class="rounded-lg border border-border/60">
+      <div
+        v-for="(finding, idx) in report.findings"
+        :key="idx"
+        class="flex items-center gap-3 border-b border-border/30 px-4 py-3 last:border-b-0"
+      >
+        <TriangleAlert :size="14" class="shrink-0 text-[var(--status-warn)]" />
+        <div class="min-w-0 flex-1">
+          <p class="text-sm font-medium text-foreground">{{ finding.rule }}</p>
+          <p class="mt-0.5 truncate font-mono text-xs text-muted-foreground">
+            {{ finding.file }}:{{ finding.line }}
+            <template v-if="finding.commit"> &middot; {{ shortCommit(finding.commit) }}</template>
+          </p>
+          <p class="mt-1 inline-block rounded bg-muted/60 px-2 py-1 font-mono text-xs text-foreground">{{ finding.secret }}</p>
         </div>
+        <Button
+          v-if="finding.url"
+          variant="outline"
+          size="sm"
+          class="h-7 shrink-0 gap-1.5 px-2.5"
+          as-child
+        >
+          <a :href="finding.url" target="_blank" rel="noopener">
+            <ExternalLink :size="12" />
+            Open on GitHub
+          </a>
+        </Button>
       </div>
     </div>
   </div>
