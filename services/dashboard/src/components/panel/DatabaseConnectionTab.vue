@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { reactive, computed, ref } from 'vue';
 import { useQuery, useMutation } from '@vue/apollo-composable';
-import { Copy, Eye, EyeOff, Loader2, DatabaseZap, Globe, ShieldAlert } from '@lucide/vue';
+import { Copy, Eye, EyeOff, DatabaseZap, Globe, ShieldAlert } from '@lucide/vue';
+import Spinner from '@/components/LoadingSpinner.vue';
 import { graphql } from '@/gql';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -202,7 +203,7 @@ const groups = computed(() =>
         <p class="text-sm font-medium">Database is provisioning</p>
         <p class="text-xs text-muted-foreground">Credentials will appear once PostgreSQL is ready.</p>
       </div>
-      <Loader2 :size="16" class="animate-spin text-muted-foreground" />
+      <Spinner :size="16" class="animate-spin text-muted-foreground" />
     </div>
 
     <!-- Error (non-provisioning) -->

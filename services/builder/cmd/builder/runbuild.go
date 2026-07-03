@@ -3,19 +3,20 @@ package main
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
 
 	dockerconfig "github.com/docker/cli/cli/config"
 	"github.com/go-git/go-git/v5"
-	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/client/llb"
 	"github.com/moby/buildkit/session"
@@ -179,37 +180,32 @@ func cloneForBuild(workDir, sourceURL, token string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
-	cloneOpts := &git.CloneOptions{
-		URL: sourceURL,
-		Auth: &githttp.BasicAuth{
-			Username: "x-access-token",
-			Password: token,
-		},
-		Depth:        1,
-		SingleBranch: true,
+	env := append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
+
+	if token != "" {
+		header := "Authorization: Basic " + base64.StdEncoding.EncodeToString([]byte("x-access-token:"+token))
+		env = append(env,
+			"GIT_CONFIG_COUNT=1",
+			"GIT_CONFIG_KEY_0=http.extraHeader",
+			"GIT_CONFIG_VALUE_0="+header,
+		)
 	}
 
-	type cloneResult struct{ err error }
-	done := make(chan cloneResult, 1)
-	go func() {
-		_, err := git.PlainCloneContext(ctx, tmpDir, false, cloneOpts)
-		done <- cloneResult{err}
-	}()
+	clone := exec.CommandContext(ctx, "git", "clone", "--quiet", "--depth", "1", "--single-branch", sourceURL, tmpDir)
+	clone.Env = env
+	clone.Stderr = os.Stderr
 
-	select {
-	case result := <-done:
-		if result.err != nil {
-			os.RemoveAll(tmpDir)
-			return "", fmt.Errorf("git clone failed: %w", result.err)
+	if err := clone.Run(); err != nil {
+		os.RemoveAll(tmpDir)
+
+		if ctx.Err() != nil {
+			return "", fmt.Errorf("git clone timed out: %w", ctx.Err())
 		}
-		return tmpDir, nil
-	case <-ctx.Done():
-		go func() {
-			<-done
-			os.RemoveAll(tmpDir)
-		}()
-		return "", fmt.Errorf("git clone timed out: %w", ctx.Err())
+
+		return "", fmt.Errorf("git clone failed: %w", err)
 	}
+
+	return tmpDir, nil
 }
 
 // normalizeTimestamps sets all file modification times in the repo to the HEAD

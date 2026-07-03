@@ -77,7 +77,9 @@ export function useCanvasReleaseStatus(
 
     const completed = Object.keys(prev).some(id => !(id in results));
 
-    statusMap.value = results;
+    if (JSON.stringify(results) !== JSON.stringify(prev)) {
+      statusMap.value = results;
+    }
 
     if (completed && onCompleted) {
       onCompleted();

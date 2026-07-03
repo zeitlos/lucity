@@ -4,6 +4,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"os"
+	"time"
 
 	"github.com/blang/semver/v4"
 	"github.com/zeitlos/lucity/charts"
@@ -23,6 +24,8 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/planner/railpack"
 	platformK8s "github.com/zeitlos/lucity/services/conductor/internal/platform/kubernetes"
 	"github.com/zeitlos/lucity/services/conductor/internal/resources"
+	scanjobK8s "github.com/zeitlos/lucity/services/conductor/internal/scanjob/kubernetes"
+	"github.com/zeitlos/lucity/services/conductor/internal/scanreport"
 	sourceGH "github.com/zeitlos/lucity/services/conductor/internal/source/github"
 	conductorgrpc "github.com/zeitlos/lucity/services/conductor/internal/transport/grpc"
 
@@ -97,6 +100,11 @@ type Config struct {
 	// Deploy jobs
 	DeployImage          string `envconfig:"DEPLOY_IMAGE" required:"true"`
 	DeployServiceAccount string `envconfig:"DEPLOY_SERVICE_ACCOUNT"`
+
+	// Secret scan tuning
+	ScanTimeout               time.Duration `envconfig:"SCAN_TIMEOUT" default:"60m"`
+	ScanGitleaksWorkers       int           `envconfig:"SCAN_GITLEAKS_WORKERS" default:"3"`
+	ScanTrufflehogConcurrency int           `envconfig:"SCAN_TRUFFLEHOG_CONCURRENCY" default:"2"`
 
 	MaxConcurrentReleases int `envconfig:"MAX_CONCURRENT_RELEASES" default:"5"`
 	MaxQueuedReleases     int `envconfig:"MAX_QUEUED_RELEASES" default:"10"`
@@ -250,6 +258,16 @@ func main() {
 
 	pipelineClient := pipeline.New(k8sClient, config.BuildNamespace, config.SystemNamespace, config.MaxConcurrentReleases)
 
+	scanJobsClient := scanjobK8s.New(k8sClient, scanjobK8s.Config{
+		Namespace:             config.BuildNamespace,
+		Image:                 config.BuildImage,
+		Registry:              config.RegistryPushURL,
+		RegistryAuthSecret:    config.RegistryAuthSecret,
+		Timeout:               config.ScanTimeout,
+		GitleaksWorkers:       config.ScanGitleaksWorkers,
+		TrufflehogConcurrency: config.ScanTrufflehogConcurrency,
+	})
+
 	secret, err := k8sClient.CoreV1().Secrets(config.SystemNamespace).Get(ctx, config.RegistryPullSecret, metav1.GetOptions{})
 
 	if err != nil {
@@ -341,7 +359,13 @@ func main() {
 		DashboardURL:         config.DashboardURL,
 		MaxQueuedReleases:    config.MaxQueuedReleases,
 	}
-	conductor := conductor.New(cashierClient, githubApp, logtoClient, tokenRefresher, directoryClient, platformClient, jobsClient, deployJobsClient, pipelineClient, planner, source, hostnameClient, gatewayClient, deployerClient, environmentClient, objectStorageClient, metricsProvider, conductorConfig)
+	scanReportClient := scanreport.New(scanreport.Config{
+		Endpoint:     config.RegistryPullURL,
+		DialEndpoint: config.RegistryURL,
+		Keychain:     keychain,
+	})
+
+	conductor := conductor.New(cashierClient, githubApp, logtoClient, tokenRefresher, directoryClient, platformClient, jobsClient, deployJobsClient, scanJobsClient, scanReportClient, pipelineClient, planner, source, hostnameClient, gatewayClient, deployerClient, environmentClient, objectStorageClient, metricsProvider, conductorConfig)
 
 	go runAdmissionReconciler(ctx, pipelineClient)
 	slog.Info("release admission ready", "maxConcurrent", config.MaxConcurrentReleases, "maxQueuedPerWorkspace", config.MaxQueuedReleases)

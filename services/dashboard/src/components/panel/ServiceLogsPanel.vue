@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from 'vue';
-import { X, Loader2, Trash2, Pause, Play } from '@lucide/vue';
+import { X, Trash2, Pause, Play } from '@lucide/vue';
+import Spinner from '@/components/LoadingSpinner.vue';
 import { onKeyStroke } from '@vueuse/core';
 import { useServiceLogs } from '@/composables/useServiceLogs';
 import { Button } from '@/components/ui/button';
@@ -113,7 +114,7 @@ function clearLogs() {
         v-if="lines.length === 0 && !isActive"
         class="flex items-center gap-2 text-zinc-500"
       >
-        <Loader2
+        <Spinner
           :size="12"
           class="animate-spin"
         />
@@ -132,7 +133,7 @@ function clearLogs() {
         v-if="isActive && lines.length > 0 && !paused"
         class="mt-2 flex items-center gap-2 text-zinc-500"
       >
-        <Loader2
+        <Spinner
           :size="12"
           class="animate-spin"
         />

@@ -2,15 +2,13 @@ package railpack
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"os"
+	"os/exec"
 	"path"
 	"strings"
 
-	"github.com/go-git/go-git/v5"
-	"github.com/go-git/go-git/v5/config"
-	"github.com/go-git/go-git/v5/plumbing"
-	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/railwayapp/railpack/core"
 	"github.com/railwayapp/railpack/core/app"
 	"github.com/railwayapp/railpack/core/logger"
@@ -18,7 +16,7 @@ import (
 )
 
 func (c *Client) Plan(ctx context.Context, repoURL, ref, token string) ([]planner.Plan, error) {
-	tmpDir, err := os.MkdirTemp("", "build-*")
+	tmpDir, err := os.MkdirTemp("", "plan-*")
 
 	if err != nil {
 		return nil, err
@@ -26,41 +24,8 @@ func (c *Client) Plan(ctx context.Context, repoURL, ref, token string) ([]planne
 
 	defer os.RemoveAll(tmpDir)
 
-	repo, err := git.PlainInit(tmpDir, false)
-
-	if err != nil {
+	if err := shallowFetch(ctx, tmpDir, repoURL, ref, token); err != nil {
 		return nil, err
-	}
-
-	if _, err := repo.CreateRemote(&config.RemoteConfig{
-		Name: "origin",
-		URLs: []string{repoURL},
-	}); err != nil {
-		return nil, err
-	}
-
-	auth := &githttp.BasicAuth{Username: "x-access-token", Password: token}
-
-	if err := repo.FetchContext(ctx, &git.FetchOptions{
-		Auth:  auth,
-		Depth: 1,
-		RefSpecs: []config.RefSpec{
-			config.RefSpec(ref + ":refs/heads/lucity-plan"),
-		},
-	}); err != nil {
-		return nil, fmt.Errorf("fetch %s: %w", ref, err)
-	}
-
-	worktree, err := repo.Worktree()
-
-	if err != nil {
-		return nil, err
-	}
-
-	if err := worktree.Checkout(&git.CheckoutOptions{
-		Hash: plumbing.NewHash(ref),
-	}); err != nil {
-		return nil, fmt.Errorf("checkout %s: %w", ref, err)
 	}
 
 	a, err := app.NewApp(tmpDir)
@@ -106,4 +71,44 @@ func (c *Client) Plan(ctx context.Context, repoURL, ref, token string) ([]planne
 	}
 
 	return []planner.Plan{service}, nil
+}
+
+func shallowFetch(ctx context.Context, dir, repoURL, ref, token string) error {
+	env := append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
+
+	if token != "" {
+		header := "Authorization: Basic " + base64.StdEncoding.EncodeToString([]byte("x-access-token:"+token))
+		env = append(env,
+			"GIT_CONFIG_COUNT=1",
+			"GIT_CONFIG_KEY_0=http.extraHeader",
+			"GIT_CONFIG_VALUE_0="+header,
+		)
+	}
+
+	run := func(args ...string) error {
+		cmd := exec.CommandContext(ctx, "git", args...)
+		cmd.Dir = dir
+		cmd.Env = env
+		cmd.Stderr = os.Stderr
+
+		return cmd.Run()
+	}
+
+	if err := run("init", "--quiet"); err != nil {
+		return fmt.Errorf("git init: %w", err)
+	}
+
+	if err := run("remote", "add", "origin", repoURL); err != nil {
+		return fmt.Errorf("git remote add: %w", err)
+	}
+
+	if err := run("fetch", "--quiet", "--depth", "1", "origin", ref); err != nil {
+		return fmt.Errorf("git fetch %s: %w", ref, err)
+	}
+
+	if err := run("checkout", "--quiet", "FETCH_HEAD"); err != nil {
+		return fmt.Errorf("git checkout %s: %w", ref, err)
+	}
+
+	return nil
 }

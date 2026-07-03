@@ -65,6 +65,7 @@ type Release struct {
 	Trigger    ReleaseTrigger
 	Build      *Build
 	Deploy     *Deploy
+	Scan       *Scan
 	Deployment *Deployment
 	CreatedAt  time.Time
 }
@@ -106,9 +107,16 @@ func (c *Client) Releases(ctx context.Context, serviceID ServiceID) ([]Release, 
 		return nil, err
 	}
 
+	scans, err := c.scanjob.List(ctx, serviceID)
+
+	if err != nil {
+		return nil, err
+	}
+
 	type group struct {
 		build      *Build
 		deploy     *Deploy
+		scan       *Scan
 		deployment *Deployment
 	}
 
@@ -159,10 +167,25 @@ func (c *Client) Releases(ctx context.Context, serviceID ServiceID) ([]Release, 
 		groupFor(key).deploy = deploy
 	}
 
+	for i := range scans {
+		scan := &scans[i]
+		key := scan.ReleaseID
+
+		if key == "" {
+			key = scan.BuildName
+		}
+
+		g := groupFor(key)
+
+		if g.scan == nil || scan.CreatedAt.After(g.scan.CreatedAt) {
+			g.scan = scan
+		}
+	}
+
 	releases := make([]Release, 0, len(groups))
 
 	for key, g := range groups {
-		releases = append(releases, assembleRelease(serviceID.Workspace, key, g.build, g.deploy, g.deployment))
+		releases = append(releases, assembleRelease(serviceID.Workspace, key, g.build, g.deploy, g.scan, g.deployment))
 	}
 
 	sort.Slice(releases, func(i, j int) bool {
@@ -172,7 +195,7 @@ func (c *Client) Releases(ctx context.Context, serviceID ServiceID) ([]Release, 
 	return releases, nil
 }
 
-func assembleRelease(workspace, name string, build *Build, deploy *Deploy, deployment *Deployment) Release {
+func assembleRelease(workspace, name string, build *Build, deploy *Deploy, scan *Scan, deployment *Deployment) Release {
 	return Release{
 		ID:         ReleaseID{Workspace: workspace, Name: name},
 		Status:     releaseStatus(build, deploy, deployment),
@@ -180,6 +203,7 @@ func assembleRelease(workspace, name string, build *Build, deploy *Deploy, deplo
 		Trigger:    releaseTrigger(deployment),
 		Build:      build,
 		Deploy:     deploy,
+		Scan:       scan,
 		Deployment: deployment,
 		CreatedAt:  releaseCreatedAt(build, deploy, deployment),
 	}

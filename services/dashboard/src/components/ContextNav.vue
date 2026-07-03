@@ -2,7 +2,8 @@
 import { ref, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuery } from '@vue/apollo-composable';
-import { ChevronDown, Plus, Check, User, Users, Loader2, Settings } from '@lucide/vue';
+import { ChevronDown, Plus, Check, User, Users, Settings } from '@lucide/vue';
+import Spinner from '@/components/LoadingSpinner.vue';
 import { useAuth } from '@/composables/useAuth';
 import { useEnvironment } from '@/composables/useEnvironment';
 import { graphql } from '@/gql';
@@ -95,7 +96,7 @@ function handleProjectSwitch(id: string) {
   const project = projects.value.find((p: { id: string }) => p.id === id);
   const firstEnv = project?.environments?.[0];
   if (firstEnv) {
-    router.push({ name: 'environment', params: { environmentId: firstEnv.id } });
+    router.push({ name: 'environment', params: { projectId: id, environmentId: firstEnv.id } });
   } else {
     router.push({ name: 'project-settings', params: { projectId: id, section: 'environments' } });
   }
@@ -103,7 +104,19 @@ function handleProjectSwitch(id: string) {
 
 function handleEnvironmentSwitch(envId: string) {
   if (envId === activeEnvironment.value?.id) return;
-  router.push({ name: 'environment', params: { environmentId: envId } });
+  if (!activeProjectId.value) return;
+  router.push({
+    name: 'environment',
+    params: { projectId: activeProjectId.value, environmentId: envId },
+  });
+}
+
+function handleEnvironmentCreated(environmentId: string) {
+  if (!activeProjectId.value) return;
+  router.push({
+    name: 'environment',
+    params: { projectId: activeProjectId.value, environmentId },
+  });
 }
 
 function tierLabel(tier?: string | null) {
@@ -263,13 +276,13 @@ const projectEnvironments = computed(() => {
     v-if="activeProjectId"
     v-model:open="envDialogOpen"
     :project-id="activeProjectId"
-    @created="(id) => router.push({ name: 'environment', params: { environmentId: id } })"
+    @created="handleEnvironmentCreated"
   />
 
   <AlertDialog :open="switchingWorkspace">
     <AlertDialogContent class="flex flex-col items-center gap-4 sm:max-w-sm">
       <AlertDialogTitle class="sr-only">Switching workspace</AlertDialogTitle>
-      <Loader2 :size="32" class="animate-spin text-muted-foreground" />
+      <Spinner :size="32" class="animate-spin text-muted-foreground" />
       <AlertDialogDescription class="text-center text-sm">
         Switching to <span class="font-medium text-foreground">{{ switchingWorkspaceName }}</span>... hang tight
       </AlertDialogDescription>

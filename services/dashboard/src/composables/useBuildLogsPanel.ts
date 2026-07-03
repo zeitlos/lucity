@@ -1,6 +1,6 @@
 import { ref, computed } from 'vue';
 
-export type LogsPanelKind = 'build' | 'deploy';
+export type LogsPanelKind = 'build' | 'deploy' | 'scan';
 
 interface LogsPanelState {
   id: string;

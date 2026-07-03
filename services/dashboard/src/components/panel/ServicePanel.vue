@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import DeploymentsTab from './DeploymentsTab.vue';
+import SecurityTab from './SecurityTab.vue';
 import ServiceMetricsTab from './ServiceMetricsTab.vue';
 import ServiceVariablesTab from './ServiceVariablesTab.vue';
 import ServiceSettingsTab from './ServiceSettingsTab.vue';
@@ -71,6 +72,7 @@ onKeyStroke('Escape', () => {
             </button>
             <TabsTrigger value="metrics">Metrics</TabsTrigger>
             <TabsTrigger value="variables">Variables</TabsTrigger>
+            <TabsTrigger value="security">Security</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
         </div>
@@ -91,6 +93,10 @@ onKeyStroke('Escape', () => {
             :service-id="service.id"
             :service-name="service.name"
           />
+        </TabsContent>
+
+        <TabsContent value="security" class="px-4 py-4">
+          <SecurityTab :service-id="service.id" />
         </TabsContent>
 
         <TabsContent value="settings" class="px-4 py-4">

@@ -4,11 +4,11 @@ import { useApolloClient } from '@vue/apollo-composable';
 import {
   Download,
   FileArchive,
-  Loader2,
   Ship,
   GitBranch,
   Shield,
 } from '@lucide/vue';
+import Spinner from '@/components/LoadingSpinner.vue';
 import { graphql } from '@/gql';
 import { toast, errorToast } from '@/components/ui/sonner';
 import {
@@ -157,7 +157,7 @@ async function handleEject() {
             :disabled="ejecting"
             @click="handleEject"
           >
-            <Loader2
+            <Spinner
               v-if="ejecting"
               :size="14"
               class="mr-1.5 animate-spin"

@@ -126,4 +126,52 @@ spec:
               - {{ .Values.networkPolicy.serviceCIDR }}
               - {{ .Values.networkPolicy.podCIDR }}
               - {{ .Values.networkPolicy.linkLocalCIDR }}
+---
+# Scan Jobs: egress to DNS, internet (clone repos), and Zot (push scan
+# report artifacts).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "lucity.fullname" . }}-scan-jobs
+  namespace: {{ $ns }}
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      lucity.dev/component: scan
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress: []
+  egress:
+    # DNS (CoreDNS in kube-system)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    # Zot registry (cross-namespace in lucity-system)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Release.Namespace }}
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: zot
+      ports:
+        - port: 5000
+          protocol: TCP
+    # Internet (clone repos from GitHub)
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - {{ .Values.networkPolicy.serviceCIDR }}
+              - {{ .Values.networkPolicy.podCIDR }}
+              - {{ .Values.networkPolicy.linkLocalCIDR }}
 {{- end }}

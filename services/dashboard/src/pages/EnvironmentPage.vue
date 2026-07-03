@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuery } from '@vue/apollo-composable';
 import { graphql } from '@/gql';
-import { ServiceStatus, DatabaseStatus, ReleaseStatus } from '@/gql/graphql';
+import { ServiceStatus, DatabaseStatus, ReleaseStatus, ScanStatus } from '@/gql/graphql';
 
 const EnvironmentDocument = graphql(`
   query Environment($environment: EnvironmentID!) {
@@ -103,6 +103,14 @@ const EnvironmentDocument = graphql(`
           deploy {
             id
             status
+            startedAt
+            finishedAt
+          }
+          scan {
+            id
+            status
+            findingsCount
+            verifiedCount
             startedAt
             finishedAt
           }
@@ -229,12 +237,13 @@ const RELEASE_TRANSIENT_STATUSES = new Set<ReleaseStatus>([
   ReleaseStatus.Deploying,
 ]);
 const RELEASE_POLL_MAX_AGE_MS = 60 * 60 * 1000;
+const SCAN_TRANSIENT_STATUSES = new Set<ScanStatus>([ScanStatus.Queued, ScanStatus.Running]);
 
-function isReleaseInFlight(release: { status: ReleaseStatus; createdAt: string }): boolean {
-  return (
-    RELEASE_TRANSIENT_STATUSES.has(release.status)
-    && Date.now() - new Date(release.createdAt).getTime() < RELEASE_POLL_MAX_AGE_MS
-  );
+function isReleaseInFlight(release: { status: ReleaseStatus; createdAt: string; scan?: { status: ScanStatus } | null }): boolean {
+  const active = RELEASE_TRANSIENT_STATUSES.has(release.status)
+    || (release.scan != null && SCAN_TRANSIENT_STATUSES.has(release.scan.status));
+
+  return active && Date.now() - new Date(release.createdAt).getTime() < RELEASE_POLL_MAX_AGE_MS;
 }
 
 const isReconciling = ref(false);
@@ -388,6 +397,16 @@ watch(
               status: r.deploy.status,
               startedAt: r.deploy.startedAt,
               finishedAt: r.deploy.finishedAt ?? null,
+            }
+            : null,
+          scan: r.scan
+            ? {
+              id: r.scan.id,
+              status: r.scan.status,
+              findingsCount: r.scan.findingsCount ?? null,
+              verifiedCount: r.scan.verifiedCount ?? null,
+              startedAt: r.scan.startedAt,
+              finishedAt: r.scan.finishedAt ?? null,
             }
             : null,
           deployment: r.deployment

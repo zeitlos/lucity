@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, watch, onUnmounted } from 'vue';
 import { useQuery, useApolloClient } from '@vue/apollo-composable';
-import { ArrowLeft, Table2, Key, ChevronLeft, ChevronRight, Loader2, DatabaseZap } from '@lucide/vue';
+import { ArrowLeft, Table2, Key, ChevronLeft, ChevronRight, DatabaseZap } from '@lucide/vue';
+import Spinner from '@/components/LoadingSpinner.vue';
 import { graphql } from '@/gql';
 
 const DatabaseTablesDocument = graphql(`
@@ -284,7 +285,7 @@ watch(() => props.databaseId, () => {
           <p class="text-sm font-medium">Database is provisioning</p>
           <p class="text-xs text-muted-foreground">Waiting for PostgreSQL to become ready (~30–60s)</p>
         </div>
-        <Loader2 :size="16" class="animate-spin text-muted-foreground" />
+        <Spinner :size="16" class="animate-spin text-muted-foreground" />
       </div>
 
       <!-- Error -->
@@ -341,7 +342,7 @@ watch(() => props.databaseId, () => {
       v-if="selectedTable && dataLoading && dataColumns.length > 0"
       class="flex items-center justify-center gap-2 py-2"
     >
-      <Loader2 :size="14" class="animate-spin text-muted-foreground" />
+      <Spinner :size="14" class="animate-spin text-muted-foreground" />
       <span class="text-xs text-muted-foreground">Loading...</span>
     </div>
   </div>

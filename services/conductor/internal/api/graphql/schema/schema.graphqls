@@ -19,6 +19,7 @@ scalar VolumeID
 scalar BucketID
 scalar BuildID
 scalar DeployID
+scalar ScanID
 scalar ReleaseID
 scalar VariableID
 

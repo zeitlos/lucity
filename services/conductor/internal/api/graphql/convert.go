@@ -14,6 +14,7 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/metrics"
 	"github.com/zeitlos/lucity/services/conductor/internal/planner"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
+	"github.com/zeitlos/lucity/services/conductor/internal/scanjob"
 )
 
 func convertMetricWindow(window model.MetricWindow) (metrics.Window, error) {
@@ -369,12 +370,80 @@ func convertRelease(release conductor.Release) model.Release {
 		result.Deploy = &deploy
 	}
 
+	if release.Scan != nil {
+		scan := convertScan(*release.Scan)
+		result.Scan = &scan
+	}
+
 	if release.Deployment != nil {
 		deployment := convertDeployment(*release.Deployment)
 		result.Deployment = &deployment
 	}
 
 	return result
+}
+
+func convertScan(scan conductor.Scan) model.Scan {
+	return model.Scan{
+		ID:            scan.ID,
+		Status:        convertScanStatus(scan),
+		FindingsCount: scan.FindingsCount,
+		VerifiedCount: scan.VerifiedCount,
+		StartedAt:     scan.StartedAt,
+		FinishedAt:    scan.FinishedAt,
+	}
+}
+
+func convertScanStatus(scan conductor.Scan) model.ScanStatus {
+	switch scan.Status {
+	case scanjob.StatusQueued:
+		return model.ScanStatusQueued
+	case scanjob.StatusRunning:
+		return model.ScanStatusRunning
+	case scanjob.StatusSucceeded:
+		if scan.FindingsCount != nil && *scan.FindingsCount > 0 {
+			return model.ScanStatusFindings
+		}
+
+		return model.ScanStatusClean
+	case scanjob.StatusFailed:
+		return model.ScanStatusFailed
+	}
+
+	slog.Warn("unknown scan status", "status", scan.Status)
+
+	return model.ScanStatusFailed
+}
+
+func optional(s string) *string {
+	if s == "" {
+		return nil
+	}
+
+	return &s
+}
+
+func convertSecretScanReport(report conductor.SecretScanReport) model.SecretScanReport {
+	findings := make([]model.SecretFinding, 0, len(report.Findings))
+
+	for _, finding := range report.Findings {
+		findings = append(findings, model.SecretFinding{
+			Rule:     finding.Rule,
+			File:     finding.File,
+			Line:     finding.Line,
+			Commit:   finding.Commit,
+			Secret:   finding.Secret,
+			Author:   optional(finding.Author),
+			URL:      optional(finding.URL),
+			Verified: finding.Verified,
+		})
+	}
+
+	return model.SecretScanReport{
+		Commit:    report.Commit,
+		ScannedAt: report.ScannedAt,
+		Findings:  findings,
+	}
 }
 
 func convertDeploy(deploy conductor.Deploy, build *conductor.Build) model.Deploy {

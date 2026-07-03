@@ -5,6 +5,8 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/zeitlos/lucity/pkg/auth"
@@ -12,15 +14,21 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/deployer"
 	"github.com/zeitlos/lucity/services/conductor/internal/deployjob"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
+	"github.com/zeitlos/lucity/services/conductor/internal/scanjob"
+	"github.com/zeitlos/lucity/services/conductor/internal/scanreport"
 )
 
 type Build = buildjob.Job
 type BuildID = buildjob.BuildID
 type Deploy = deployjob.Job
 type DeployID = deployjob.DeployID
+type Scan = scanjob.Job
+type ScanID = scanjob.ScanID
+type SecretScanReport = scanreport.Report
 
 var _ platform.WorkspaceScoped = BuildID{}
 var _ platform.WorkspaceScoped = DeployID{}
+var _ platform.WorkspaceScoped = ScanID{}
 
 func (c *Client) Builds(ctx context.Context, workspace, repoURL, contextPath string) ([]Build, error) {
 	return c.buildjob.List(ctx, workspace, repoURL, contextPath)
@@ -146,6 +154,8 @@ func (c *Client) Deploy(ctx context.Context, serviceID ServiceID, gitRef string)
 		return nil, fmt.Errorf("start deploy for build %q: %w", build.ID.Name, err)
 	}
 
+	c.startScan(ctx, service.ID, build.ID.Name, service.SourceURL, commit.SHA, token, release.ID)
+
 	result := Release{
 		ID:        ReleaseID{Workspace: serviceID.Workspace, Name: release.ID},
 		Status:    releaseStatus(build, deploy, nil),
@@ -168,4 +178,85 @@ func (c *Client) startDeploy(ctx context.Context, serviceID platform.ServiceID, 
 		ReleaseTrigger: string(release.Trigger),
 		ReleaseActor:   release.Actor,
 	})
+}
+
+func (c *Client) startScan(ctx context.Context, serviceID platform.ServiceID, buildName, sourceURL, commit, token, releaseID string) {
+	_, err := c.scanjob.Start(ctx, scanjob.StartOptions{
+		Service:   serviceID,
+		BuildName: buildName,
+		SourceURL: sourceURL,
+		Commit:    commit,
+		Token:     token,
+		ReleaseID: releaseID,
+	})
+
+	if err != nil {
+		slog.WarnContext(ctx, "scan start failed", "service", serviceID, "error", err)
+	}
+}
+
+func (c *Client) ScanLogs(ctx context.Context, id ScanID) (<-chan string, error) {
+	reader, err := c.scanjob.Logs(ctx, id)
+
+	if err != nil {
+		return nil, err
+	}
+
+	out := make(chan string, 128)
+
+	go func() {
+		defer close(out)
+		defer reader.Close()
+
+		scanner := bufio.NewScanner(reader)
+
+		for scanner.Scan() {
+			select {
+			case out <- scanner.Text():
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	return out, nil
+}
+
+func (c *Client) SecretScanReport(ctx context.Context, serviceID ServiceID) (*SecretScanReport, error) {
+	report, err := c.scanreport.Latest(ctx, serviceID)
+
+	if err != nil || report == nil {
+		return report, err
+	}
+
+	service, err := c.platform.Service(ctx, serviceID)
+
+	if err != nil {
+		slog.WarnContext(ctx, "service lookup for finding links failed", "service", serviceID, "error", err)
+		return report, nil
+	}
+
+	for i := range report.Findings {
+		report.Findings[i].URL = findingURL(service.SourceURL, report.Findings[i])
+	}
+
+	return report, nil
+}
+
+func findingURL(repoURL string, finding scanreport.Finding) string {
+	if repoURL == "" || finding.Commit == "" || finding.File == "" {
+		return ""
+	}
+
+	base := strings.TrimSuffix(repoURL, ".git")
+	line := strconv.Itoa(finding.Line)
+
+	switch deriveProvider(repoURL) {
+	case ProviderGitLab:
+		return base + "/-/blob/" + finding.Commit + "/" + finding.File + "#L" + line
+	case ProviderBitbucket:
+		return base + "/src/" + finding.Commit + "/" + finding.File + "#lines-" + line
+	default:
+		return base + "/blob/" + finding.Commit + "/" + finding.File + "#L" + line
+	}
 }

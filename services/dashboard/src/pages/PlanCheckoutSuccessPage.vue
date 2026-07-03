@@ -29,7 +29,8 @@ const SubscriptionDocument = graphql(`
   }
 `);
 import { apolloClient } from '@/lib/apollo';
-import { Loader2, AlertCircle } from '@lucide/vue';
+import { AlertCircle } from '@lucide/vue';
+import Spinner from '@/components/LoadingSpinner.vue';
 import { Button } from '@/components/ui/button';
 import { errorMessage } from '@/lib/utils';
 
@@ -88,7 +89,7 @@ onMounted(async () => {
       v-else
       class="space-y-4 text-center"
     >
-      <Loader2
+      <Spinner
         :size="32"
         class="mx-auto animate-spin text-muted-foreground"
       />

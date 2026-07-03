@@ -28,6 +28,11 @@ type Config struct {
 const buildVarsFile = "/etc/lucity/.env"
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "run-scan" {
+		runScan()
+		return
+	}
+
 	logger.Setup("info")
 
 	var config Config

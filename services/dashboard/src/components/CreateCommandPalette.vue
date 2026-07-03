@@ -2,7 +2,8 @@
 import { ref, computed, watch, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { useQuery, useMutation, useApolloClient } from '@vue/apollo-composable';
-import { FolderPlus, FolderGit2, Plus, Lock, Globe, ArrowLeft, Search, ChevronDown, ChevronRight, Container, Star, Award, Loader2, HardDrive, Braces, CornerDownLeft, Check } from '@lucide/vue';
+import { FolderPlus, FolderGit2, Plus, Lock, Globe, ArrowLeft, Search, ChevronDown, ChevronRight, Container, Star, Award, HardDrive, Braces, CornerDownLeft, Check } from '@lucide/vue';
+import Spinner from '@/components/LoadingSpinner.vue';
 import type { Component } from 'vue';
 import BucketIcon from '@/components/BucketIcon.vue';
 import FrameworkIcon from '@/components/FrameworkIcon.vue';
@@ -1210,7 +1211,7 @@ void activeEnvironment;
                         class="shrink-0 text-muted-foreground"
                       />
                       <span class="flex-1 truncate text-left">{{ repo.fullName }}</span>
-                      <Loader2
+                      <Spinner
                         v-if="processingItemId === repo.fullName"
                         :size="14"
                         class="shrink-0 animate-spin text-muted-foreground"
@@ -1243,7 +1244,7 @@ void activeEnvironment;
                 placeholder="Search Docker Hub or enter image..."
                 class="flex h-12 w-full bg-transparent px-3 text-sm outline-none placeholder:text-muted-foreground"
               />
-              <Loader2
+              <Spinner
                 v-if="searchingImages || addingService"
                 :size="14"
                 class="shrink-0 animate-spin text-muted-foreground"
@@ -1279,7 +1280,7 @@ void activeEnvironment;
                       class="mt-0.5 truncate text-xs text-muted-foreground"
                     >{{ img.description }}</p>
                   </div>
-                  <Loader2
+                  <Spinner
                     v-if="processingItemId === img.name"
                     :size="14"
                     class="shrink-0 animate-spin text-muted-foreground"
@@ -1504,7 +1505,7 @@ void activeEnvironment;
                 v-if="pendingRepo || pendingImage"
                 class="flex items-center gap-2 rounded-md border px-3 py-2 text-sm text-muted-foreground"
               >
-                <Loader2
+                <Spinner
                   v-if="creating || detectingServices"
                   :size="14"
                   class="shrink-0 animate-spin"
@@ -1610,7 +1611,7 @@ void activeEnvironment;
                 data-1p-ignore
                 spellcheck="false"
               />
-              <Loader2
+              <Spinner
                 v-if="creating || addingService"
                 :size="14"
                 class="shrink-0 animate-spin text-muted-foreground"

@@ -3,7 +3,8 @@ import { ref, reactive, computed, watch, nextTick, onMounted } from 'vue';
 import type { Component } from 'vue';
 import { useApolloClient } from '@vue/apollo-composable';
 import { onKeyStroke } from '@vueuse/core';
-import { ArrowLeft, Loader2, Check, ChevronRight, CornerDownLeft } from '@lucide/vue';
+import { ArrowLeft, Check, ChevronRight, CornerDownLeft } from '@lucide/vue';
+import Spinner from '@/components/LoadingSpinner.vue';
 import type { CommandFlowConfig } from '@/lib/commandFlow';
 import { errorToast } from '@/components/ui/sonner';
 import { errorMessage } from '@/lib/utils';
@@ -133,7 +134,7 @@ onKeyStroke('Enter', (e) => {
         data-1p-ignore
         spellcheck="false"
       />
-      <Loader2 v-if="submitting" :size="14" class="shrink-0 animate-spin text-muted-foreground" />
+      <Spinner v-if="submitting" :size="14" class="shrink-0 animate-spin text-muted-foreground" />
     </div>
 
     <div class="max-h-[50vh] overflow-y-auto">

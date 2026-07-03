@@ -1,15 +1,16 @@
 <script setup lang="ts">
 import { computed, onMounted, watch } from 'vue';
 import {
-  Rocket, Loader2, Check, AlertCircle, Terminal,
+  Rocket, Check, AlertCircle, Terminal,
   ExternalLink, RefreshCw,
-  MoreVertical, ChevronDown, Clock, CircleSlash,
+  MoreVertical, ChevronDown, Clock, CircleSlash, TriangleAlert,
 } from '@lucide/vue';
+import Spinner from '@/components/LoadingSpinner.vue';
 import { useNow } from '@vueuse/core';
 import { useDeploy } from '@/composables/useDeploy';
 import { useBuildLogsPanel, type LogsPanelKind } from '@/composables/useBuildLogsPanel';
-import { DeploymentStatus, ReleaseStatus } from '@/gql/graphql';
-import { activeBuild, type Deployment, type Release } from '@/composables/useEnvironment';
+import { DeploymentStatus, ReleaseStatus, ScanStatus } from '@/gql/graphql';
+import { activeBuild, type Deployment, type Release, type Scan } from '@/composables/useEnvironment';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
@@ -135,7 +136,13 @@ function isInFlight(release: Release): boolean {
   return IN_FLIGHT_RELEASE_STATUSES.has(release.status);
 }
 
-type StepStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'skipped';
+const ACTIVE_SCAN_STATUSES = new Set<ScanStatus>([ScanStatus.Queued, ScanStatus.Running]);
+
+function hasActiveScan(release: Release): boolean {
+  return !!release.scan && ACTIVE_SCAN_STATUSES.has(release.scan.status);
+}
+
+type StepStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'skipped' | 'findings' | 'leaked';
 
 interface ReleaseStep {
   key: string;
@@ -191,6 +198,19 @@ function releaseSteps(release: Release, live = false): ReleaseStep[] {
     });
   }
 
+  if (release.scan) {
+    steps.push({
+      key: 'scan',
+      label: 'Secrets',
+      status: scanStepStatus(release.scan),
+      detail: scanStepDetail(release.scan),
+      startedAt: release.scan.startedAt,
+      finishedAt: release.scan.finishedAt,
+      logId: release.scan.id,
+      logKind: 'scan',
+    });
+  }
+
   if (release.deploy) {
     steps.push({
       key: 'deploy',
@@ -222,25 +242,55 @@ const activeSteps = computed<ReleaseStep[]>(() => {
   return rollout ? [rollout] : [];
 });
 
+function scanStepStatus(scan: Scan): StepStatus {
+  switch (scan.status) {
+    case ScanStatus.Clean: return 'succeeded';
+    case ScanStatus.Findings: return scan.verifiedCount ? 'leaked' : 'findings';
+    case ScanStatus.Failed: return 'failed';
+    case ScanStatus.Running: return 'running';
+    default: return 'queued';
+  }
+}
+
+function scanStepDetail(scan: Scan): string | undefined {
+  const verified = scan.verifiedCount ?? 0;
+  const possible = (scan.findingsCount ?? 0) - verified;
+
+  if (verified > 0) {
+    const base = `${verified} leaked credential${verified !== 1 ? 's' : ''}`;
+    return possible > 0 ? `${base} · ${possible} possible` : base;
+  }
+
+  if (possible > 0) {
+    return `${possible} possible finding${possible !== 1 ? 's' : ''}`;
+  }
+
+  return undefined;
+}
+
 const stepIcons = {
   succeeded: Check,
   failed: AlertCircle,
-  running: Loader2,
+  running: Spinner,
   queued: Clock,
   cancelled: CircleSlash,
   skipped: CircleSlash,
+  findings: TriangleAlert,
+  leaked: TriangleAlert,
 } as const;
 
 function stepColor(status: StepStatus): string {
   switch (status) {
     case 'succeeded': return 'var(--status-ok)';
     case 'failed': return 'var(--status-danger)';
+    case 'leaked': return 'var(--status-danger)';
+    case 'findings': return 'var(--status-warn)';
     case 'running': return 'var(--status-progress)';
     default: return 'var(--status-neutral)';
   }
 }
 
-const now = useNow({ interval: 1000 });
+const { now, pause: pauseNow, resume: resumeNow } = useNow({ interval: 1000, controls: true });
 
 function stepDuration(step: ReleaseStep): string | null {
   if (!step.startedAt) return null;
@@ -286,6 +336,18 @@ function releaseMeta(release: Release): string {
 const replicasReady = computed(() => props.service.replicas?.ready ?? 0);
 const replicasDesired = computed(() => props.service.replicas?.desired ?? 0);
 const isReady = computed(() => replicasReady.value > 0 && replicasReady.value === replicasDesired.value);
+
+watch(
+  () => sortedReleases.value.some(r => isInFlight(r) || hasActiveScan(r)) || !isReady.value,
+  (ticking) => {
+    if (ticking) {
+      resumeNow();
+    } else {
+      pauseNow();
+    }
+  },
+  { immediate: true },
+);
 </script>
 
 <template>
@@ -296,7 +358,7 @@ const isReady = computed(() => replicasReady.value > 0 && replicasReady.value ==
         :disabled="deploy.isDeploying"
         @click="handleDeploy"
       >
-        <Loader2
+        <Spinner
           v-if="deploy.isDeploying"
           :size="14"
           class="mr-2 animate-spin"
@@ -321,7 +383,7 @@ const isReady = computed(() => replicasReady.value > 0 && replicasReady.value ==
               backgroundColor: `color-mix(in srgb, ${deploymentStatusMeta(activeDeployment.status).color} 15%, transparent)`,
             }"
           >
-            <Loader2
+            <Spinner
               v-if="activeDeployment.status === DeploymentStatus.Deploying || !isReady"
               :size="10"
               class="shrink-0 animate-spin"
@@ -439,7 +501,7 @@ const isReady = computed(() => replicasReady.value > 0 && replicasReady.value ==
                   backgroundColor: `color-mix(in srgb, ${releaseStatusMeta(release.status).color} 15%, transparent)`,
                 }"
               >
-                <Loader2
+                <Spinner
                   v-if="isInFlight(release)"
                   :size="10"
                   class="shrink-0 animate-spin"

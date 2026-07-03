@@ -4,6 +4,7 @@ import type {
   BucketStatus,
   DatabaseStatus,
   DeployStatus,
+  ScanStatus,
   ResourceTier,
   ServiceStatus,
   Protocol,
@@ -78,6 +79,15 @@ export interface Deploy {
   finishedAt?: string | null;
 }
 
+export interface Scan {
+  id: string;
+  status: ScanStatus;
+  findingsCount?: number | null;
+  verifiedCount?: number | null;
+  startedAt?: string | null;
+  finishedAt?: string | null;
+}
+
 export interface ReleaseCommit {
   sha: string;
   message: string;
@@ -105,6 +115,7 @@ export interface Release {
   trigger: ReleaseTrigger;
   build?: Build | null;
   deploy?: Deploy | null;
+  scan?: Scan | null;
   deployment?: Deployment | null;
   createdAt: string;
 }
@@ -201,7 +212,9 @@ export function useEnvironment() {
     if (preferredEnvId) {
       const preferred = envs.find(e => e.id === preferredEnvId);
       if (preferred) {
-        activeEnvironment.value = preferred;
+        if (activeEnvironment.value?.id !== preferred.id) {
+          activeEnvironment.value = preferred;
+        }
         return;
       }
     }
