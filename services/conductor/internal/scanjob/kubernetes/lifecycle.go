@@ -63,7 +63,7 @@ func (c *Client) newScanJob(name string, opts scanjob.StartOptions) *batch.Job {
 			Suspend:                 ptr.To(true),
 			BackoffLimit:            ptr.To(int32(0)),
 			TTLSecondsAfterFinished: ptr.To(int32(7 * 24 * 3600)),
-			ActiveDeadlineSeconds:   ptr.To(int64(15 * 60)),
+			ActiveDeadlineSeconds:   ptr.To(int64(25 * 60)),
 			Template: core.PodTemplateSpec{
 				ObjectMeta: meta.ObjectMeta{Labels: labelSet},
 				Spec: core.PodSpec{
@@ -83,12 +83,12 @@ func (c *Client) newScanJob(name string, opts scanjob.StartOptions) *batch.Job {
 						},
 						Resources: core.ResourceRequirements{
 							Requests: core.ResourceList{
-								core.ResourceCPU:    resource.MustParse("250m"),
-								core.ResourceMemory: resource.MustParse("512Mi"),
+								core.ResourceCPU:    resource.MustParse("500m"),
+								core.ResourceMemory: resource.MustParse("1Gi"),
 							},
 							Limits: core.ResourceList{
-								core.ResourceCPU:    resource.MustParse("1"),
-								core.ResourceMemory: resource.MustParse("3Gi"),
+								core.ResourceCPU:    resource.MustParse("4"),
+								core.ResourceMemory: resource.MustParse("4Gi"),
 							},
 						},
 						SecurityContext: &core.SecurityContext{
