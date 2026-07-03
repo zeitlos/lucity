@@ -136,6 +136,12 @@ function isInFlight(release: Release): boolean {
   return IN_FLIGHT_RELEASE_STATUSES.has(release.status);
 }
 
+const ACTIVE_SCAN_STATUSES = new Set<ScanStatus>([ScanStatus.Queued, ScanStatus.Running]);
+
+function hasActiveScan(release: Release): boolean {
+  return !!release.scan && ACTIVE_SCAN_STATUSES.has(release.scan.status);
+}
+
 type StepStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'skipped' | 'findings';
 
 interface ReleaseStep {
@@ -314,7 +320,7 @@ const replicasDesired = computed(() => props.service.replicas?.desired ?? 0);
 const isReady = computed(() => replicasReady.value > 0 && replicasReady.value === replicasDesired.value);
 
 watch(
-  () => sortedReleases.value.some(isInFlight) || !isReady.value,
+  () => sortedReleases.value.some(r => isInFlight(r) || hasActiveScan(r)) || !isReady.value,
   (ticking) => {
     if (ticking) {
       resumeNow();
