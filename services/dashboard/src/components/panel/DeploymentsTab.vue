@@ -10,7 +10,7 @@ import { useNow } from '@vueuse/core';
 import { useDeploy } from '@/composables/useDeploy';
 import { useBuildLogsPanel, type LogsPanelKind } from '@/composables/useBuildLogsPanel';
 import { DeploymentStatus, ReleaseStatus, ScanStatus } from '@/gql/graphql';
-import { activeBuild, type Deployment, type Release } from '@/composables/useEnvironment';
+import { activeBuild, type Deployment, type Release, type Scan } from '@/composables/useEnvironment';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
@@ -142,7 +142,7 @@ function hasActiveScan(release: Release): boolean {
   return !!release.scan && ACTIVE_SCAN_STATUSES.has(release.scan.status);
 }
 
-type StepStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'skipped' | 'findings';
+type StepStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'skipped' | 'findings' | 'leaked';
 
 interface ReleaseStep {
   key: string;
@@ -202,8 +202,8 @@ function releaseSteps(release: Release, live = false): ReleaseStep[] {
     steps.push({
       key: 'scan',
       label: 'Secrets',
-      status: scanStepStatus(release.scan.status),
-      detail: release.scan.findingsCount ? `${release.scan.findingsCount} potential secret${release.scan.findingsCount !== 1 ? 's' : ''}` : undefined,
+      status: scanStepStatus(release.scan),
+      detail: scanStepDetail(release.scan),
       startedAt: release.scan.startedAt,
       finishedAt: release.scan.finishedAt,
       logId: release.scan.id,
@@ -242,14 +242,30 @@ const activeSteps = computed<ReleaseStep[]>(() => {
   return rollout ? [rollout] : [];
 });
 
-function scanStepStatus(status: ScanStatus): StepStatus {
-  switch (status) {
+function scanStepStatus(scan: Scan): StepStatus {
+  switch (scan.status) {
     case ScanStatus.Clean: return 'succeeded';
-    case ScanStatus.Findings: return 'findings';
+    case ScanStatus.Findings: return scan.verifiedCount ? 'leaked' : 'findings';
     case ScanStatus.Failed: return 'failed';
     case ScanStatus.Running: return 'running';
     default: return 'queued';
   }
+}
+
+function scanStepDetail(scan: Scan): string | undefined {
+  const verified = scan.verifiedCount ?? 0;
+  const possible = (scan.findingsCount ?? 0) - verified;
+
+  if (verified > 0) {
+    const base = `${verified} leaked credential${verified !== 1 ? 's' : ''}`;
+    return possible > 0 ? `${base} · ${possible} possible` : base;
+  }
+
+  if (possible > 0) {
+    return `${possible} possible finding${possible !== 1 ? 's' : ''}`;
+  }
+
+  return undefined;
 }
 
 const stepIcons = {
@@ -260,12 +276,14 @@ const stepIcons = {
   cancelled: CircleSlash,
   skipped: CircleSlash,
   findings: TriangleAlert,
+  leaked: TriangleAlert,
 } as const;
 
 function stepColor(status: StepStatus): string {
   switch (status) {
     case 'succeeded': return 'var(--status-ok)';
     case 'failed': return 'var(--status-danger)';
+    case 'leaked': return 'var(--status-danger)';
     case 'findings': return 'var(--status-warn)';
     case 'running': return 'var(--status-progress)';
     default: return 'var(--status-neutral)';

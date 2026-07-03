@@ -404,18 +404,20 @@ type Scan struct {
 	ID            scanjob.ScanID `json:"id"`
 	Status        ScanStatus     `json:"status"`
 	FindingsCount *int           `json:"findingsCount,omitempty"`
+	VerifiedCount *int           `json:"verifiedCount,omitempty"`
 	StartedAt     *time.Time     `json:"startedAt,omitempty"`
 	FinishedAt    *time.Time     `json:"finishedAt,omitempty"`
 }
 
 type SecretFinding struct {
-	Rule   string  `json:"rule"`
-	File   string  `json:"file"`
-	Line   int     `json:"line"`
-	Commit string  `json:"commit"`
-	Secret string  `json:"secret"`
-	Author *string `json:"author,omitempty"`
-	URL    *string `json:"url,omitempty"`
+	Rule     string  `json:"rule"`
+	File     string  `json:"file"`
+	Line     int     `json:"line"`
+	Commit   string  `json:"commit"`
+	Secret   string  `json:"secret"`
+	Author   *string `json:"author,omitempty"`
+	URL      *string `json:"url,omitempty"`
+	Verified bool    `json:"verified"`
 }
 
 type SecretScanReport struct {

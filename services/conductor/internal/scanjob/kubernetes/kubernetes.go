@@ -69,7 +69,10 @@ func (c *Client) toJob(ctx context.Context, job batch.Job) scanjob.Job {
 	}
 
 	if scan.Status == scanjob.StatusSucceeded || scan.Status == scanjob.StatusFailed {
-		scan.FindingsCount = c.findingsCount(ctx, job.Name)
+		if summary := c.summary(ctx, job.Name); summary != nil {
+			scan.FindingsCount = &summary.Findings
+			scan.VerifiedCount = &summary.Verified
+		}
 	}
 
 	return scan
@@ -77,22 +80,23 @@ func (c *Client) toJob(ctx context.Context, job batch.Job) scanjob.Job {
 
 type scanSummary struct {
 	Findings int `json:"findings"`
+	Verified int `json:"verified"`
 }
 
-func (c *Client) findingsCount(ctx context.Context, jobName string) *int {
+func (c *Client) summary(ctx context.Context, jobName string) *scanSummary {
 	message, err := jobs.TerminationMessage(ctx, c.kubernetes, c.config.Namespace, jobName)
 
 	if err != nil || message == "" {
 		return nil
 	}
 
-	var summary scanSummary
+	summary := new(scanSummary)
 
-	if err := json.Unmarshal([]byte(message), &summary); err != nil {
+	if err := json.Unmarshal([]byte(message), summary); err != nil {
 		return nil
 	}
 
-	return &summary.Findings
+	return summary
 }
 
 func scanStatus(job batch.Job) scanjob.Status {

@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useQuery } from '@vue/apollo-composable';
-import { ShieldCheck, TriangleAlert, ExternalLink } from '@lucide/vue';
+import { ShieldCheck, TriangleAlert, ExternalLink, ChevronDown } from '@lucide/vue';
 import { graphql } from '@/gql';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -22,6 +22,7 @@ const SecretScanReportDocument = graphql(`
           secret
           author
           url
+          verified
         }
       }
     }
@@ -39,6 +40,10 @@ const { result, loading } = useQuery(
 );
 
 const report = computed(() => result.value?.service?.secretScanReport ?? null);
+const verifiedFindings = computed(() => report.value?.findings.filter(f => f.verified) ?? []);
+const possibleFindings = computed(() => report.value?.findings.filter(f => !f.verified) ?? []);
+
+const showPossible = ref(false);
 
 function shortCommit(commit: string): string {
   return commit.slice(0, 7);
@@ -87,50 +92,106 @@ function formatRelativeTime(timestamp: string): string {
       pattern="diagonal"
     />
 
-    <div
-      v-else-if="report.findings.length === 0"
-      class="flex flex-col items-center justify-center overflow-hidden rounded-lg border border-border bg-card px-8 py-[4.5rem] text-center"
-    >
+    <template v-else>
       <div
-        class="mb-4 rounded-full p-4"
-        :style="{ backgroundColor: 'color-mix(in srgb, var(--status-ok) 12%, transparent)' }"
+        v-if="verifiedFindings.length > 0"
+        class="rounded-lg border border-[var(--status-danger)]/40"
       >
-        <ShieldCheck :size="32" class="text-[var(--status-ok)]" />
-      </div>
-      <h3 class="text-sm font-semibold text-foreground">No secrets found</h3>
-      <p class="mt-1 max-w-sm text-sm text-muted-foreground">
-        The latest scan found no leaked credentials in this repository or its history.
-      </p>
-    </div>
-
-    <div v-else class="rounded-lg border border-border/60">
-      <div
-        v-for="(finding, idx) in report.findings"
-        :key="idx"
-        class="flex items-center gap-3 border-b border-border/30 px-4 py-3 last:border-b-0"
-      >
-        <TriangleAlert :size="14" class="shrink-0 text-[var(--status-warn)]" />
-        <div class="min-w-0 flex-1">
-          <p class="text-sm font-medium text-foreground">{{ finding.rule }}</p>
-          <p class="mt-0.5 truncate font-mono text-xs text-muted-foreground">
-            {{ finding.file }}:{{ finding.line }}
-            <template v-if="finding.commit"> &middot; {{ shortCommit(finding.commit) }}</template>
-          </p>
-          <p class="mt-1 inline-block rounded bg-muted/60 px-2 py-1 font-mono text-xs text-foreground">{{ finding.secret }}</p>
-        </div>
-        <Button
-          v-if="finding.url"
-          variant="outline"
-          size="sm"
-          class="h-7 shrink-0 gap-1.5 px-2.5"
-          as-child
+        <div
+          class="flex items-center gap-2 border-b border-[var(--status-danger)]/20 px-4 py-2.5 text-sm font-medium text-[var(--status-danger)]"
+          :style="{ backgroundColor: 'color-mix(in srgb, var(--status-danger) 6%, transparent)' }"
         >
-          <a :href="finding.url" target="_blank" rel="noopener">
-            <ExternalLink :size="12" />
-            Open on GitHub
-          </a>
-        </Button>
+          <TriangleAlert :size="14" class="shrink-0" />
+          {{ verifiedFindings.length }} leaked credential{{ verifiedFindings.length !== 1 ? 's' : '' }} confirmed live. Rotate now.
+        </div>
+        <div
+          v-for="(finding, idx) in verifiedFindings"
+          :key="idx"
+          class="flex items-center gap-3 border-b border-border/30 px-4 py-3 last:border-b-0"
+        >
+          <TriangleAlert :size="14" class="shrink-0 text-[var(--status-danger)]" />
+          <div class="min-w-0 flex-1">
+            <p class="text-sm font-medium text-foreground">{{ finding.rule }}</p>
+            <p class="mt-0.5 truncate font-mono text-xs text-muted-foreground">
+              {{ finding.file }}:{{ finding.line }}
+              <template v-if="finding.commit"> &middot; {{ shortCommit(finding.commit) }}</template>
+            </p>
+            <p class="mt-1 inline-block rounded bg-muted/60 px-2 py-1 font-mono text-xs text-foreground">{{ finding.secret }}</p>
+          </div>
+          <Button
+            v-if="finding.url"
+            variant="outline"
+            size="sm"
+            class="h-7 shrink-0 gap-1.5 px-2.5"
+            as-child
+          >
+            <a :href="finding.url" target="_blank" rel="noopener">
+              <ExternalLink :size="12" />
+              Open on GitHub
+            </a>
+          </Button>
+        </div>
       </div>
-    </div>
+
+      <div
+        v-else
+        class="flex flex-col items-center justify-center overflow-hidden rounded-lg border border-border bg-card px-8 py-[4.5rem] text-center"
+      >
+        <div
+          class="mb-4 rounded-full p-4"
+          :style="{ backgroundColor: 'color-mix(in srgb, var(--status-ok) 12%, transparent)' }"
+        >
+          <ShieldCheck :size="32" class="text-[var(--status-ok)]" />
+        </div>
+        <h3 class="text-sm font-semibold text-foreground">No leaked credentials</h3>
+        <p class="mt-1 max-w-sm text-sm text-muted-foreground">
+          The latest scan confirmed no live credentials in this repository or its history.
+        </p>
+      </div>
+
+      <div v-if="possibleFindings.length > 0">
+        <button
+          class="flex w-full items-center gap-1.5 py-1 text-sm text-muted-foreground hover:text-foreground"
+          @click="showPossible = !showPossible"
+        >
+          <ChevronDown
+            :size="14"
+            class="shrink-0 transition-transform"
+            :class="showPossible ? 'rotate-180' : ''"
+          />
+          {{ possibleFindings.length }} possible finding{{ possibleFindings.length !== 1 ? 's' : '' }} that could not be verified
+        </button>
+
+        <div v-if="showPossible" class="mt-2 rounded-lg border border-border/60">
+          <div
+            v-for="(finding, idx) in possibleFindings"
+            :key="idx"
+            class="flex items-center gap-3 border-b border-border/30 px-4 py-3 last:border-b-0"
+          >
+            <TriangleAlert :size="14" class="shrink-0 text-muted-foreground" />
+            <div class="min-w-0 flex-1">
+              <p class="text-sm font-medium text-foreground">{{ finding.rule }}</p>
+              <p class="mt-0.5 truncate font-mono text-xs text-muted-foreground">
+                {{ finding.file }}:{{ finding.line }}
+                <template v-if="finding.commit"> &middot; {{ shortCommit(finding.commit) }}</template>
+              </p>
+              <p class="mt-1 inline-block rounded bg-muted/60 px-2 py-1 font-mono text-xs text-foreground">{{ finding.secret }}</p>
+            </div>
+            <Button
+              v-if="finding.url"
+              variant="outline"
+              size="sm"
+              class="h-7 shrink-0 gap-1.5 px-2.5"
+              as-child
+            >
+              <a :href="finding.url" target="_blank" rel="noopener">
+                <ExternalLink :size="12" />
+                Open on GitHub
+              </a>
+            </Button>
+          </div>
+        </div>
+      </div>
+    </template>
   </div>
 </template>

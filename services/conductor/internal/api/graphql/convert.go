@@ -388,6 +388,7 @@ func convertScan(scan conductor.Scan) model.Scan {
 		ID:            scan.ID,
 		Status:        convertScanStatus(scan),
 		FindingsCount: scan.FindingsCount,
+		VerifiedCount: scan.VerifiedCount,
 		StartedAt:     scan.StartedAt,
 		FinishedAt:    scan.FinishedAt,
 	}
@@ -427,13 +428,14 @@ func convertSecretScanReport(report conductor.SecretScanReport) model.SecretScan
 
 	for _, finding := range report.Findings {
 		findings = append(findings, model.SecretFinding{
-			Rule:   finding.Rule,
-			File:   finding.File,
-			Line:   finding.Line,
-			Commit: finding.Commit,
-			Secret: finding.Secret,
-			Author: optional(finding.Author),
-			URL:    optional(finding.URL),
+			Rule:     finding.Rule,
+			File:     finding.File,
+			Line:     finding.Line,
+			Commit:   finding.Commit,
+			Secret:   finding.Secret,
+			Author:   optional(finding.Author),
+			URL:      optional(finding.URL),
+			Verified: finding.Verified,
 		})
 	}
 

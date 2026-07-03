@@ -110,6 +110,7 @@ const EnvironmentDocument = graphql(`
             id
             status
             findingsCount
+            verifiedCount
             startedAt
             finishedAt
           }
@@ -403,6 +404,7 @@ watch(
               id: r.scan.id,
               status: r.scan.status,
               findingsCount: r.scan.findingsCount ?? null,
+              verifiedCount: r.scan.verifiedCount ?? null,
               startedAt: r.scan.startedAt,
               finishedAt: r.scan.finishedAt ?? null,
             }

@@ -83,6 +83,7 @@ export interface Scan {
   id: string;
   status: ScanStatus;
   findingsCount?: number | null;
+  verifiedCount?: number | null;
   startedAt?: string | null;
   finishedAt?: string | null;
 }

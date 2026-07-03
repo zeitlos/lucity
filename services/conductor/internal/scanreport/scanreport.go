@@ -18,13 +18,14 @@ import (
 )
 
 type Finding struct {
-	Rule   string `json:"rule"`
-	File   string `json:"file"`
-	Line   int    `json:"line"`
-	Commit string `json:"commit"`
-	Secret string `json:"secret"`
-	Author string `json:"author,omitempty"`
-	URL    string `json:"-"`
+	Rule     string `json:"rule"`
+	File     string `json:"file"`
+	Line     int    `json:"line"`
+	Commit   string `json:"commit"`
+	Secret   string `json:"secret"`
+	Author   string `json:"author,omitempty"`
+	Verified bool   `json:"verified"`
+	URL      string `json:"-"`
 }
 
 type Report struct {

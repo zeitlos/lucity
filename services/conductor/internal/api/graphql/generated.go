@@ -437,16 +437,18 @@ type ComplexityRoot struct {
 		ID            func(childComplexity int) int
 		StartedAt     func(childComplexity int) int
 		Status        func(childComplexity int) int
+		VerifiedCount func(childComplexity int) int
 	}
 
 	SecretFinding struct {
-		Author func(childComplexity int) int
-		Commit func(childComplexity int) int
-		File   func(childComplexity int) int
-		Line   func(childComplexity int) int
-		Rule   func(childComplexity int) int
-		Secret func(childComplexity int) int
-		URL    func(childComplexity int) int
+		Author   func(childComplexity int) int
+		Commit   func(childComplexity int) int
+		File     func(childComplexity int) int
+		Line     func(childComplexity int) int
+		Rule     func(childComplexity int) int
+		Secret   func(childComplexity int) int
+		URL      func(childComplexity int) int
+		Verified func(childComplexity int) int
 	}
 
 	SecretScanReport struct {
@@ -2592,6 +2594,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Scan.Status(childComplexity), true
+	case "Scan.verifiedCount":
+		if e.ComplexityRoot.Scan.VerifiedCount == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Scan.VerifiedCount(childComplexity), true
 
 	case "SecretFinding.author":
 		if e.ComplexityRoot.SecretFinding.Author == nil {
@@ -2635,6 +2643,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.SecretFinding.URL(childComplexity), true
+	case "SecretFinding.verified":
+		if e.ComplexityRoot.SecretFinding.Verified == nil {
+			break
+		}
+
+		return e.ComplexityRoot.SecretFinding.Verified(childComplexity), true
 
 	case "SecretScanReport.commit":
 		if e.ComplexityRoot.SecretScanReport.Commit == nil {
@@ -3779,6 +3793,8 @@ func (ec *executionContext) childFields_Scan(ctx context.Context, field graphql.
 		return ec.fieldContext_Scan_status(ctx, field)
 	case "findingsCount":
 		return ec.fieldContext_Scan_findingsCount(ctx, field)
+	case "verifiedCount":
+		return ec.fieldContext_Scan_verifiedCount(ctx, field)
 	case "startedAt":
 		return ec.fieldContext_Scan_startedAt(ctx, field)
 	case "finishedAt":
@@ -3803,6 +3819,8 @@ func (ec *executionContext) childFields_SecretFinding(ctx context.Context, field
 		return ec.fieldContext_SecretFinding_author(ctx, field)
 	case "url":
 		return ec.fieldContext_SecretFinding_url(ctx, field)
+	case "verified":
+		return ec.fieldContext_SecretFinding_verified(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type SecretFinding", field.Name)
 }
@@ -14536,6 +14554,29 @@ func (ec *executionContext) fieldContext_Scan_findingsCount(_ context.Context, f
 	return graphql.NewScalarFieldContext("Scan", field, false, false, errors.New("field of type Int does not have child fields"))
 }
 
+func (ec *executionContext) _Scan_verifiedCount(ctx context.Context, field graphql.CollectedField, obj *model.Scan) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Scan_verifiedCount(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.VerifiedCount, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *int) graphql.Marshaler {
+			return ec.marshalOInt2ᚖint(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_Scan_verifiedCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Scan", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
 func (ec *executionContext) _Scan_startedAt(ctx context.Context, field graphql.CollectedField, obj *model.Scan) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -14741,6 +14782,29 @@ func (ec *executionContext) _SecretFinding_url(ctx context.Context, field graphq
 }
 func (ec *executionContext) fieldContext_SecretFinding_url(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("SecretFinding", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _SecretFinding_verified(ctx context.Context, field graphql.CollectedField, obj *model.SecretFinding) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_SecretFinding_verified(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Verified, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_SecretFinding_verified(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("SecretFinding", field, false, false, errors.New("field of type Boolean does not have child fields"))
 }
 
 func (ec *executionContext) _SecretScanReport_commit(ctx context.Context, field graphql.CollectedField, obj *model.SecretScanReport) (ret graphql.Marshaler) {
@@ -22126,6 +22190,8 @@ func (ec *executionContext) _Scan(ctx context.Context, sel ast.SelectionSet, obj
 			}
 		case "findingsCount":
 			out.Values[i] = ec._Scan_findingsCount(ctx, field, obj)
+		case "verifiedCount":
+			out.Values[i] = ec._Scan_verifiedCount(ctx, field, obj)
 		case "startedAt":
 			out.Values[i] = ec._Scan_startedAt(ctx, field, obj)
 		case "finishedAt":
@@ -22193,6 +22259,11 @@ func (ec *executionContext) _SecretFinding(ctx context.Context, sel ast.Selectio
 			out.Values[i] = ec._SecretFinding_author(ctx, field, obj)
 		case "url":
 			out.Values[i] = ec._SecretFinding_url(ctx, field, obj)
+		case "verified":
+			out.Values[i] = ec._SecretFinding_verified(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}

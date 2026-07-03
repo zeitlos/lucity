@@ -2,6 +2,7 @@ type Scan {
   id: ScanID!
   status: ScanStatus!
   findingsCount: Int
+  verifiedCount: Int
 
   startedAt: Time
   finishedAt: Time
@@ -29,6 +30,7 @@ type SecretFinding {
   secret: String!
   author: String
   url: String
+  verified: Boolean!
 }
 
 extend type Service {

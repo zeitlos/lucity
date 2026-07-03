@@ -35,6 +35,7 @@ type Job struct {
 	ReleaseID     string
 	BuildName     string
 	FindingsCount *int
+	VerifiedCount *int
 	CreatedAt     time.Time
 	StartedAt     *time.Time
 	FinishedAt    *time.Time

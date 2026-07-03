@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -51,12 +52,13 @@ type scanReport struct {
 }
 
 type scanFinding struct {
-	Rule   string `json:"rule"`
-	File   string `json:"file"`
-	Line   int    `json:"line"`
-	Commit string `json:"commit"`
-	Secret string `json:"secret"`
-	Author string `json:"author,omitempty"`
+	Rule     string `json:"rule"`
+	File     string `json:"file"`
+	Line     int    `json:"line"`
+	Commit   string `json:"commit"`
+	Secret   string `json:"secret"`
+	Author   string `json:"author,omitempty"`
+	Verified bool   `json:"verified"`
 }
 
 type rawFinding struct {
@@ -83,7 +85,7 @@ func runScan() {
 		os.Exit(1)
 	}
 
-	writeTerminationSummary(len(findings))
+	writeTerminationSummary(findings)
 
 	if len(findings) > 0 {
 		slog.Warn("scan found potential secrets", "count", len(findings))
@@ -133,22 +135,30 @@ func executeScan(config ScanConfig) ([]scanFinding, error) {
 }
 
 func mergeFindings(sets ...[]rawFinding) []scanFinding {
-	seen := map[string]bool{}
+	index := map[string]int{}
 	merged := []scanFinding{}
 
 	for _, set := range sets {
 		for _, finding := range set {
 			key := finding.File + "|" + strconv.Itoa(finding.Line) + "|" + finding.raw
 
-			if seen[key] {
+			if at, ok := index[key]; ok {
+				if finding.Verified {
+					merged[at].Verified = true
+				}
+
 				continue
 			}
 
-			seen[key] = true
+			index[key] = len(merged)
 			finding.Secret = maskSecret(finding.raw)
 			merged = append(merged, finding.scanFinding)
 		}
 	}
+
+	sort.SliceStable(merged, func(i, j int) bool {
+		return merged[i].Verified && !merged[j].Verified
+	})
 
 	return merged
 }
@@ -266,6 +276,7 @@ func runGitleaks(ctx context.Context, repoPath string) ([]rawFinding, error) {
 type trufflehogFinding struct {
 	DetectorName   string `json:"DetectorName"`
 	Raw            string `json:"Raw"`
+	Verified       bool   `json:"Verified"`
 	SourceMetadata struct {
 		Data struct {
 			Git struct {
@@ -284,7 +295,7 @@ func runTrufflehog(ctx context.Context, repoPath string) ([]rawFinding, error) {
 		"--no-update",
 		"--fail",
 		"--concurrency=2",
-		"--results=verified",
+		"--results=verified,unknown",
 	)
 
 	var stdout bytes.Buffer
@@ -314,11 +325,12 @@ func runTrufflehog(ctx context.Context, repoPath string) ([]rawFinding, error) {
 
 		findings = append(findings, rawFinding{
 			scanFinding: scanFinding{
-				Rule:   f.DetectorName,
-				File:   f.SourceMetadata.Data.Git.File,
-				Line:   f.SourceMetadata.Data.Git.Line,
-				Commit: f.SourceMetadata.Data.Git.Commit,
-				Author: f.SourceMetadata.Data.Git.Email,
+				Rule:     f.DetectorName,
+				File:     f.SourceMetadata.Data.Git.File,
+				Line:     f.SourceMetadata.Data.Git.Line,
+				Commit:   f.SourceMetadata.Data.Git.Commit,
+				Author:   f.SourceMetadata.Data.Git.Email,
+				Verified: f.Verified,
 			},
 			raw: f.Raw,
 		})
@@ -376,8 +388,16 @@ func pushReport(ctx context.Context, config ScanConfig, report scanReport) error
 	return nil
 }
 
-func writeTerminationSummary(findings int) {
-	summary, err := json.Marshal(map[string]any{"findings": findings})
+func writeTerminationSummary(findings []scanFinding) {
+	verified := 0
+
+	for _, finding := range findings {
+		if finding.Verified {
+			verified++
+		}
+	}
+
+	summary, err := json.Marshal(map[string]any{"findings": len(findings), "verified": verified})
 
 	if err != nil {
 		return
