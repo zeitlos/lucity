@@ -9,6 +9,7 @@ generates:
     plugins: []
     config:
       useTypeImports: true
+      enumType: native
       scalars:
         Time: string
         Duration: string
@@ -20,6 +21,11 @@ generates:
         VolumeID: string
         BucketID: string
         BuildID: string
+        DeployID: string
+        KeyValueStoreID: string
+        ReleaseID: string
+        ScanID: string
+        VariableID: string
     presetConfig:
       fragmentMasking: false
   ./graphql.schema.json:

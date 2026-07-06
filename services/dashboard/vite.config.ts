@@ -28,10 +28,12 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          'vue-vendor': ['vue', 'vue-router'],
-          'apollo': ['@apollo/client', 'graphql'],
-          'ui': ['reka-ui'],
+        advancedChunks: {
+          groups: [
+            { name: 'vue-vendor', test: /node_modules\/(?:vue|vue-router|@vue)\// },
+            { name: 'apollo', test: /node_modules\/(?:@apollo\/client|graphql)\// },
+            { name: 'ui', test: /node_modules\/reka-ui\// },
+          ],
         },
       },
     },
