@@ -1,99 +1,22 @@
 /* eslint-disable */
-import type { TypedDocumentNode as DocumentNode } from '@graphql-typed-document-node/core';
-export type Maybe<T> = T | null;
-export type InputMaybe<T> = T | null | undefined;
-export type Exact<T extends { [key: string]: unknown }> = { [K in keyof T]: T[K] };
-export type MakeOptional<T, K extends keyof T> = Omit<T, K> & { [SubKey in K]?: Maybe<T[SubKey]> };
-export type MakeMaybe<T, K extends keyof T> = Omit<T, K> & { [SubKey in K]: Maybe<T[SubKey]> };
-export type MakeEmpty<T extends { [key: string]: unknown }, K extends keyof T> = { [_ in K]?: never };
+/** Internal type. DO NOT USE DIRECTLY. */
+type Exact<T extends { [key: string]: unknown }> = { [K in keyof T]: T[K] };
+/** Internal type. DO NOT USE DIRECTLY. */
 export type Incremental<T> = T | { [P in keyof T]?: P extends ' $fragmentName' | '__typename' ? T[P] : never };
-/** All built-in and custom scalars, mapped to their actual values */
-export type Scalars = {
-  ID: { input: string; output: string; }
-  String: { input: string; output: string; }
-  Boolean: { input: boolean; output: boolean; }
-  Int: { input: number; output: number; }
-  Float: { input: number; output: number; }
-  BucketID: { input: string; output: string; }
-  BuildID: { input: string; output: string; }
-  DatabaseID: { input: string; output: string; }
-  DeployID: { input: any; output: any; }
-  DeploymentID: { input: string; output: string; }
-  Duration: { input: string; output: string; }
-  EnvironmentID: { input: string; output: string; }
-  KeyValueStoreID: { input: any; output: any; }
-  ProjectID: { input: string; output: string; }
-  ReleaseID: { input: any; output: any; }
-  ScanID: { input: any; output: any; }
-  ServiceID: { input: string; output: string; }
-  Time: { input: string; output: string; }
-  VariableID: { input: any; output: any; }
-  VolumeID: { input: string; output: string; }
-};
-
+import type { TypedDocumentNode as DocumentNode } from '@graphql-typed-document-node/core';
 export type AddServiceInput = {
-  contextPath?: InputMaybe<Scalars['String']['input']>;
-  image?: InputMaybe<Scalars['String']['input']>;
-  name?: InputMaybe<Scalars['String']['input']>;
-  repository?: InputMaybe<Scalars['String']['input']>;
-  variables?: InputMaybe<Array<VariableInput>>;
+  contextPath?: string | null | undefined;
+  image?: string | null | undefined;
+  name?: string | null | undefined;
+  repository?: string | null | undefined;
+  variables?: Array<VariableInput> | null | undefined;
 };
 
 export type AutoscalingInput = {
-  enabled: Scalars['Boolean']['input'];
-  maxReplicas: Scalars['Int']['input'];
-  minReplicas: Scalars['Int']['input'];
-  targetCPU: Scalars['Int']['input'];
-};
-
-export type AutoscalingSettings = {
-  __typename?: 'AutoscalingSettings';
-  maxReplicas: Scalars['Int']['output'];
-  minReplicas: Scalars['Int']['output'];
-  targetCpu: Scalars['Int']['output'];
-};
-
-export type BillingPortalUrl = {
-  __typename?: 'BillingPortalUrl';
-  url: Scalars['String']['output'];
-};
-
-export type BillingSubscription = {
-  __typename?: 'BillingSubscription';
-  creditAmountCents: Scalars['Int']['output'];
-  creditExpiry?: Maybe<Scalars['Time']['output']>;
-  currentPeriodEnd: Scalars['Time']['output'];
-  hasPaymentMethod: Scalars['Boolean']['output'];
-  plan?: Maybe<Plan>;
-  status: SubscriptionStatus;
-};
-
-export type Bucket = {
-  __typename?: 'Bucket';
-  createdAt: Scalars['Time']['output'];
-  endpoint: Scalars['String']['output'];
-  id: Scalars['BucketID']['output'];
-  name: Scalars['String']['output'];
-  objectCount: Scalars['Int']['output'];
-  public: Scalars['Boolean']['output'];
-  region: Scalars['String']['output'];
-  sizeBytes: Scalars['Int']['output'];
-  status: BucketStatus;
-};
-
-export type BucketCredentials = {
-  __typename?: 'BucketCredentials';
-  accessKeyId: Scalars['String']['output'];
-  bucket: Scalars['String']['output'];
-  endpoint: Scalars['String']['output'];
-  region: Scalars['String']['output'];
-  secretAccessKey: Scalars['String']['output'];
-};
-
-export type BucketSource = {
-  __typename?: 'BucketSource';
-  id: Scalars['BucketID']['output'];
-  name: Scalars['String']['output'];
+  enabled: boolean;
+  maxReplicas: number;
+  minReplicas: number;
+  targetCPU: number;
 };
 
 export enum BucketStatus {
@@ -101,14 +24,6 @@ export enum BucketStatus {
   Pending = 'PENDING',
   Ready = 'READY'
 }
-
-export type Build = {
-  __typename?: 'Build';
-  finishedAt?: Maybe<Scalars['Time']['output']>;
-  id: Scalars['BuildID']['output'];
-  startedAt?: Maybe<Scalars['Time']['output']>;
-  status: BuildStatus;
-};
 
 export enum BuildStatus {
   Cancelled = 'CANCELLED',
@@ -118,92 +33,42 @@ export enum BuildStatus {
   Succeeded = 'SUCCEEDED'
 }
 
-export type CheckoutSession = {
-  __typename?: 'CheckoutSession';
-  url: Scalars['String']['output'];
-};
-
-export type Commit = {
-  __typename?: 'Commit';
-  message: Scalars['String']['output'];
-  sha: Scalars['String']['output'];
-  url?: Maybe<Scalars['String']['output']>;
-};
-
 export type CreateBucketInput = {
-  environment: Scalars['EnvironmentID']['input'];
-  name: Scalars['String']['input'];
+  environment: string;
+  name: string;
 };
 
 export type CreateDatabaseInput = {
-  environment: Scalars['EnvironmentID']['input'];
-  name: Scalars['String']['input'];
-  size?: InputMaybe<Scalars['String']['input']>;
+  environment: string;
+  name: string;
+  size?: string | null | undefined;
 };
 
 export type CreateEnvironmentInput = {
-  fromEnvironment?: InputMaybe<Scalars['EnvironmentID']['input']>;
-  name: Scalars['String']['input'];
-  project: Scalars['ProjectID']['input'];
-  tier?: InputMaybe<ResourceTier>;
+  fromEnvironment?: string | null | undefined;
+  name: string;
+  project: string;
+  tier?: ResourceTier | null | undefined;
 };
 
 export type CreateKeyValueStoreInput = {
-  environment: Scalars['EnvironmentID']['input'];
-  name: Scalars['String']['input'];
-  size?: InputMaybe<Scalars['String']['input']>;
-  version?: InputMaybe<Scalars['String']['input']>;
+  environment: string;
+  name: string;
+  size?: string | null | undefined;
+  version?: string | null | undefined;
 };
 
 export type CreateProjectInput = {
   /** Optional URL-safe slug. Auto-derived from name if omitted. */
-  id?: InputMaybe<Scalars['String']['input']>;
+  id?: string | null | undefined;
   /** Human-readable project name (e.g. "My API"). */
-  name: Scalars['String']['input'];
+  name: string;
 };
 
 export type CreateWorkspaceCheckoutInput = {
-  id: Scalars['String']['input'];
-  name: Scalars['String']['input'];
+  id: string;
+  name: string;
   plan: Plan;
-};
-
-export type Database = {
-  __typename?: 'Database';
-  createdAt: Scalars['Time']['output'];
-  id: Scalars['DatabaseID']['output'];
-  instances: Scalars['Int']['output'];
-  name: Scalars['String']['output'];
-  public: Scalars['Boolean']['output'];
-  resources: Resources;
-  size: Scalars['String']['output'];
-  status: DatabaseStatus;
-  version: Scalars['String']['output'];
-};
-
-export type DatabaseColumn = {
-  __typename?: 'DatabaseColumn';
-  name: Scalars['String']['output'];
-  nullable: Scalars['Boolean']['output'];
-  primaryKey: Scalars['Boolean']['output'];
-  type: Scalars['String']['output'];
-};
-
-export type DatabaseCredentials = {
-  __typename?: 'DatabaseCredentials';
-  dbname: Scalars['String']['output'];
-  host: Scalars['String']['output'];
-  password: Scalars['String']['output'];
-  port: Scalars['String']['output'];
-  type: EndpointType;
-  uri: Scalars['String']['output'];
-  user: Scalars['String']['output'];
-};
-
-export type DatabaseSource = {
-  __typename?: 'DatabaseSource';
-  id: Scalars['DatabaseID']['output'];
-  name: Scalars['String']['output'];
 };
 
 export enum DatabaseStatus {
@@ -215,29 +80,6 @@ export enum DatabaseStatus {
   Updating = 'UPDATING'
 }
 
-export type DatabaseTable = {
-  __typename?: 'DatabaseTable';
-  columns: Array<DatabaseColumn>;
-  estimatedRows: Scalars['Int']['output'];
-  name: Scalars['String']['output'];
-  schema: Scalars['String']['output'];
-};
-
-export type DatabaseTableData = {
-  __typename?: 'DatabaseTableData';
-  columns: Array<Scalars['String']['output']>;
-  rows: Array<Maybe<Array<Maybe<Scalars['String']['output']>>>>;
-  totalEstimatedRows: Scalars['Int']['output'];
-};
-
-export type Deploy = {
-  __typename?: 'Deploy';
-  finishedAt?: Maybe<Scalars['Time']['output']>;
-  id: Scalars['DeployID']['output'];
-  startedAt?: Maybe<Scalars['Time']['output']>;
-  status: DeployStatus;
-};
-
 export enum DeployStatus {
   Failed = 'FAILED',
   Queued = 'QUEUED',
@@ -246,25 +88,6 @@ export enum DeployStatus {
   Succeeded = 'SUCCEEDED'
 }
 
-export type Deployment = {
-  __typename?: 'Deployment';
-  buildId: Scalars['String']['output'];
-  command: Scalars['String']['output'];
-  commit: Scalars['String']['output'];
-  commitMessage: Scalars['String']['output'];
-  contextPath: Scalars['String']['output'];
-  createdAt: Scalars['Time']['output'];
-  id: Scalars['DeploymentID']['output'];
-  image: Scalars['String']['output'];
-  imageDigest?: Maybe<Scalars['String']['output']>;
-  ref: Scalars['String']['output'];
-  replicas: ReplicaCount;
-  resources: Resources;
-  rollout?: Maybe<Rollout>;
-  sourceUrl: Scalars['String']['output'];
-  status: DeploymentStatus;
-};
-
 export enum DeploymentStatus {
   Active = 'ACTIVE',
   Deploying = 'DEPLOYING',
@@ -272,34 +95,11 @@ export enum DeploymentStatus {
   Superseded = 'SUPERSEDED'
 }
 
-export type DetectedService = {
-  __typename?: 'DetectedService';
-  contextPath: Scalars['String']['output'];
-  framework: Scalars['String']['output'];
-  language: Scalars['String']['output'];
-  name: Scalars['String']['output'];
-  startCommand: Scalars['String']['output'];
-  suggestedPort: Scalars['Int']['output'];
-};
-
-export type DnsRecord = {
-  __typename?: 'DnsRecord';
-  host: Scalars['String']['output'];
-  type: DnsRecordType;
-  value: Scalars['String']['output'];
-};
-
 export enum DnsRecordType {
   A = 'A',
   Cname = 'CNAME',
   Txt = 'TXT'
 }
-
-export type DnsState = {
-  __typename?: 'DnsState';
-  requiredRecords: Array<DnsRecord>;
-  status: DnsStatus;
-};
 
 export enum DnsStatus {
   Error = 'ERROR',
@@ -308,142 +108,25 @@ export enum DnsStatus {
   Valid = 'VALID'
 }
 
-export type EjectArtifact = {
-  __typename?: 'EjectArtifact';
-  /** Base64-encoded zip archive of the ejected project. */
-  content: Scalars['String']['output'];
-  contentType: Scalars['String']['output'];
-  filename: Scalars['String']['output'];
-};
-
-export type Endpoint = {
-  __typename?: 'Endpoint';
-  dns: DnsState;
-  host: Scalars['String']['output'];
-  port: Scalars['Int']['output'];
-  protocol: Protocol;
-  tls: TlsStatus;
-  type: EndpointType;
-};
-
 export enum EndpointType {
   Custom = 'CUSTOM',
   Internal = 'INTERNAL',
   Platform = 'PLATFORM'
 }
 
-export type Environment = {
-  __typename?: 'Environment';
-  buckets: Array<Bucket>;
-  databases: Array<Database>;
-  id: Scalars['EnvironmentID']['output'];
-  keyValueStores: Array<KeyValueStore>;
-  name: Scalars['String']['output'];
-  resourceTier: ResourceTier;
-  services: Array<Service>;
-  volumes: Array<Volume>;
-};
-
-export type EnvironmentResources = {
-  __typename?: 'EnvironmentResources';
-  allocation: ResourceAllocation;
-  tier: ResourceTier;
-};
-
 export enum GitHubAccountType {
   Organization = 'ORGANIZATION',
   User = 'USER'
 }
 
-export type GitHubInstallation = {
-  __typename?: 'GitHubInstallation';
-  accountAvatarUrl: Scalars['String']['output'];
-  accountLogin: Scalars['String']['output'];
-  accountType: GitHubAccountType;
-};
-
-export type GitHubRepository = {
-  __typename?: 'GitHubRepository';
-  defaultBranch: Scalars['String']['output'];
-  fullName: Scalars['String']['output'];
-  htmlUrl: Scalars['String']['output'];
-  id: Scalars['ID']['output'];
-  name: Scalars['String']['output'];
-  private: Scalars['Boolean']['output'];
-};
-
-export type GitSource = {
-  __typename?: 'GitSource';
-  commit: Commit;
-  contextPath: Scalars['String']['output'];
-  provider: SourceProvider;
-  ref: Scalars['String']['output'];
-  repository: Scalars['String']['output'];
-  url: Scalars['String']['output'];
-};
-
-/** A container image from a public registry (Docker Hub). */
-export type ImageSearchResult = {
-  __typename?: 'ImageSearchResult';
-  description: Scalars['String']['output'];
-  name: Scalars['String']['output'];
-  official: Scalars['Boolean']['output'];
-  pullCount: Scalars['Int']['output'];
-  starCount: Scalars['Int']['output'];
-};
-
 export type InviteMemberInput = {
-  email: Scalars['String']['input'];
+  email: string;
   role: WorkspaceRole;
-};
-
-export type KeyValueStore = {
-  __typename?: 'KeyValueStore';
-  createdAt: Scalars['Time']['output'];
-  id: Scalars['KeyValueStoreID']['output'];
-  name: Scalars['String']['output'];
-  size: Scalars['String']['output'];
-  status: DatabaseStatus;
-  version: Scalars['String']['output'];
-};
-
-export type KeyValueStoreCredentials = {
-  __typename?: 'KeyValueStoreCredentials';
-  host: Scalars['String']['output'];
-  password: Scalars['String']['output'];
-  port: Scalars['String']['output'];
-  type: EndpointType;
-  uri: Scalars['String']['output'];
-};
-
-export type KeyValueStoreSource = {
-  __typename?: 'KeyValueStoreSource';
-  id: Scalars['KeyValueStoreID']['output'];
-  name: Scalars['String']['output'];
 };
 
 export enum MetricGrouping {
   PerReplica = 'PER_REPLICA',
   Total = 'TOTAL'
-}
-
-export type MetricPoint = {
-  __typename?: 'MetricPoint';
-  timestamp: Scalars['Time']['output'];
-  value?: Maybe<Scalars['Float']['output']>;
-};
-
-export type MetricSeries = {
-  __typename?: 'MetricSeries';
-  metric: ResourceMetric;
-  points: Array<MetricPoint>;
-  replica?: Maybe<Scalars['String']['output']>;
-  unit: MetricUnit;
-};
-
-export enum MetricUnit {
-  Bytes = 'BYTES',
-  Cores = 'CORES'
 }
 
 export enum MetricWindow {
@@ -458,488 +141,16 @@ export type MetricsRange = {
   window: MetricWindow;
 };
 
-export type Mount = {
-  __typename?: 'Mount';
-  path: Scalars['String']['output'];
-  service: Scalars['ServiceID']['output'];
-};
-
-export type Mutation = {
-  __typename?: 'Mutation';
-  addCustomDomain: Service;
-  addService: Service;
-  billingPortalUrl: BillingPortalUrl;
-  changePlan: BillingSubscription;
-  completePlanCheckout: BillingSubscription;
-  completeWorkspaceCheckout: Workspace;
-  createBucket: Bucket;
-  createDatabase: Database;
-  createEnvironment: Environment;
-  createKeyValueStore: KeyValueStore;
-  createPlanCheckout: CheckoutSession;
-  createProject: Project;
-  createVolume: Volume;
-  createWorkspaceCheckout: CheckoutSession;
-  deleteBucket: Scalars['Boolean']['output'];
-  deleteDatabase: Scalars['Boolean']['output'];
-  deleteEnvironment: Scalars['Boolean']['output'];
-  deleteKeyValueStore: Scalars['Boolean']['output'];
-  deleteProject: Scalars['Boolean']['output'];
-  deleteVolume: Scalars['Boolean']['output'];
-  deleteWorkspace: Scalars['Boolean']['output'];
-  deploy: Release;
-  executeQuery: QueryResult;
-  expandVolume: Volume;
-  exposeDatabase: Database;
-  generateDomain: Service;
-  inviteMember: WorkspaceMember;
-  mountVolume: Volume;
-  removeDomain: Service;
-  removeMember: Scalars['Boolean']['output'];
-  removeService: Scalars['Boolean']['output'];
-  rollback: Scalars['Boolean']['output'];
-  setCustomStartCommand: Service;
-  setDatabaseResources: Database;
-  setDatabaseStorage: Database;
-  setEnvironmentResources: Environment;
-  setServicePort: Service;
-  setServiceResources: Service;
-  setServiceScaling: Service;
-  setServiceVariables: Scalars['Boolean']['output'];
-  setSharedVariables: Scalars['Boolean']['output'];
-  unexposeDatabase: Database;
-  unmountVolume: Volume;
-  updateMemberRole: WorkspaceMember;
-  updateWorkspace: Workspace;
-};
-
-
-export type MutationAddCustomDomainArgs = {
-  hostname: Scalars['String']['input'];
-  service: Scalars['ServiceID']['input'];
-};
-
-
-export type MutationAddServiceArgs = {
-  environment: Scalars['EnvironmentID']['input'];
-  input: AddServiceInput;
-};
-
-
-export type MutationChangePlanArgs = {
-  plan: Plan;
-};
-
-
-export type MutationCompletePlanCheckoutArgs = {
-  sessionId: Scalars['String']['input'];
-};
-
-
-export type MutationCompleteWorkspaceCheckoutArgs = {
-  sessionId: Scalars['String']['input'];
-};
-
-
-export type MutationCreateBucketArgs = {
-  input: CreateBucketInput;
-};
-
-
-export type MutationCreateDatabaseArgs = {
-  input: CreateDatabaseInput;
-};
-
-
-export type MutationCreateEnvironmentArgs = {
-  input: CreateEnvironmentInput;
-};
-
-
-export type MutationCreateKeyValueStoreArgs = {
-  input: CreateKeyValueStoreInput;
-};
-
-
-export type MutationCreatePlanCheckoutArgs = {
-  plan: Plan;
-};
-
-
-export type MutationCreateProjectArgs = {
-  input: CreateProjectInput;
-};
-
-
-export type MutationCreateVolumeArgs = {
-  environment: Scalars['EnvironmentID']['input'];
-  name: Scalars['String']['input'];
-  size: Scalars['String']['input'];
-};
-
-
-export type MutationCreateWorkspaceCheckoutArgs = {
-  input: CreateWorkspaceCheckoutInput;
-};
-
-
-export type MutationDeleteBucketArgs = {
-  bucket: Scalars['BucketID']['input'];
-};
-
-
-export type MutationDeleteDatabaseArgs = {
-  database: Scalars['DatabaseID']['input'];
-};
-
-
-export type MutationDeleteEnvironmentArgs = {
-  environment: Scalars['EnvironmentID']['input'];
-};
-
-
-export type MutationDeleteKeyValueStoreArgs = {
-  keyValueStore: Scalars['KeyValueStoreID']['input'];
-};
-
-
-export type MutationDeleteProjectArgs = {
-  id: Scalars['ProjectID']['input'];
-};
-
-
-export type MutationDeleteVolumeArgs = {
-  volume: Scalars['VolumeID']['input'];
-};
-
-
-export type MutationDeployArgs = {
-  gitRef?: InputMaybe<Scalars['String']['input']>;
-  service: Scalars['ServiceID']['input'];
-};
-
-
-export type MutationExecuteQueryArgs = {
-  database: Scalars['DatabaseID']['input'];
-  query: Scalars['String']['input'];
-};
-
-
-export type MutationExpandVolumeArgs = {
-  size: Scalars['String']['input'];
-  volume: Scalars['VolumeID']['input'];
-};
-
-
-export type MutationExposeDatabaseArgs = {
-  database: Scalars['DatabaseID']['input'];
-};
-
-
-export type MutationGenerateDomainArgs = {
-  service: Scalars['ServiceID']['input'];
-};
-
-
-export type MutationInviteMemberArgs = {
-  input: InviteMemberInput;
-};
-
-
-export type MutationMountVolumeArgs = {
-  path: Scalars['String']['input'];
-  service: Scalars['ServiceID']['input'];
-  volume: Scalars['VolumeID']['input'];
-};
-
-
-export type MutationRemoveDomainArgs = {
-  hostname: Scalars['String']['input'];
-  service: Scalars['ServiceID']['input'];
-};
-
-
-export type MutationRemoveMemberArgs = {
-  userId: Scalars['ID']['input'];
-};
-
-
-export type MutationRemoveServiceArgs = {
-  service: Scalars['ServiceID']['input'];
-};
-
-
-export type MutationRollbackArgs = {
-  deployment: Scalars['DeploymentID']['input'];
-};
-
-
-export type MutationSetCustomStartCommandArgs = {
-  command: Scalars['String']['input'];
-  service: Scalars['ServiceID']['input'];
-};
-
-
-export type MutationSetDatabaseResourcesArgs = {
-  database: Scalars['DatabaseID']['input'];
-  resources: ResourcesInput;
-};
-
-
-export type MutationSetDatabaseStorageArgs = {
-  database: Scalars['DatabaseID']['input'];
-  size: Scalars['String']['input'];
-};
-
-
-export type MutationSetEnvironmentResourcesArgs = {
-  input: SetEnvironmentResourcesInput;
-};
-
-
-export type MutationSetServicePortArgs = {
-  port?: InputMaybe<Scalars['Int']['input']>;
-  service: Scalars['ServiceID']['input'];
-};
-
-
-export type MutationSetServiceResourcesArgs = {
-  resources: ResourcesInput;
-  service: Scalars['ServiceID']['input'];
-};
-
-
-export type MutationSetServiceScalingArgs = {
-  input: SetServiceScalingInput;
-};
-
-
-export type MutationSetServiceVariablesArgs = {
-  service: Scalars['ServiceID']['input'];
-  variables: Array<ServiceVariableInput>;
-};
-
-
-export type MutationSetSharedVariablesArgs = {
-  environment: Scalars['EnvironmentID']['input'];
-  variables: Array<VariableInput>;
-};
-
-
-export type MutationUnexposeDatabaseArgs = {
-  database: Scalars['DatabaseID']['input'];
-};
-
-
-export type MutationUnmountVolumeArgs = {
-  volume: Scalars['VolumeID']['input'];
-};
-
-
-export type MutationUpdateMemberRoleArgs = {
-  input: UpdateMemberRoleInput;
-};
-
-
-export type MutationUpdateWorkspaceArgs = {
-  input: UpdateWorkspaceInput;
-};
-
 export enum Plan {
   Hobby = 'HOBBY',
   Pro = 'PRO'
 }
-
-export type Project = {
-  __typename?: 'Project';
-  environments: Array<Environment>;
-  id: Scalars['ProjectID']['output'];
-  name: Scalars['String']['output'];
-};
 
 export enum Protocol {
   Http = 'HTTP',
   Https = 'HTTPS',
   Tcp = 'TCP'
 }
-
-export type Query = {
-  __typename?: 'Query';
-  availableVariables: Array<Variable>;
-  bucket: Bucket;
-  bucketCredentials: BucketCredentials;
-  build: Build;
-  database: Database;
-  databaseCredentials: Array<DatabaseCredentials>;
-  databaseTableData: DatabaseTableData;
-  databaseTables: Array<DatabaseTable>;
-  deployment: Deployment;
-  detectServices: Array<DetectedService>;
-  ejectProject: EjectArtifact;
-  environment: Environment;
-  environmentResources?: Maybe<EnvironmentResources>;
-  environments: Array<Environment>;
-  /** Whether the current user has connected their GitHub account. */
-  githubConnected: Scalars['Boolean']['output'];
-  /** Repos accessible to the user under a GitHub account (org or user login). */
-  githubRepositories: Array<GitHubRepository>;
-  /** User's accessible GitHub App installations. Requires connected GitHub account. */
-  githubSources: Array<GitHubInstallation>;
-  keyValueStore: KeyValueStore;
-  keyValueStoreCredentials: Array<KeyValueStoreCredentials>;
-  me: User;
-  project: Project;
-  projects: Array<Project>;
-  /** Search Docker Hub for public container images. */
-  searchImages: Array<ImageSearchResult>;
-  service: Service;
-  serviceVariables: Array<ServiceVariable>;
-  sharedVariables: Array<SharedVariable>;
-  subscription?: Maybe<BillingSubscription>;
-  usageSummary?: Maybe<UsageSummary>;
-  volume: Volume;
-  workspace: Workspace;
-  workspaces: Array<Workspace>;
-};
-
-
-export type QueryAvailableVariablesArgs = {
-  environment: Scalars['EnvironmentID']['input'];
-};
-
-
-export type QueryBucketArgs = {
-  id: Scalars['BucketID']['input'];
-};
-
-
-export type QueryBucketCredentialsArgs = {
-  bucket: Scalars['BucketID']['input'];
-};
-
-
-export type QueryBuildArgs = {
-  id: Scalars['BuildID']['input'];
-};
-
-
-export type QueryDatabaseArgs = {
-  id: Scalars['DatabaseID']['input'];
-};
-
-
-export type QueryDatabaseCredentialsArgs = {
-  database: Scalars['DatabaseID']['input'];
-};
-
-
-export type QueryDatabaseTableDataArgs = {
-  database: Scalars['DatabaseID']['input'];
-  limit?: InputMaybe<Scalars['Int']['input']>;
-  offset?: InputMaybe<Scalars['Int']['input']>;
-  schema?: InputMaybe<Scalars['String']['input']>;
-  table: Scalars['String']['input'];
-};
-
-
-export type QueryDatabaseTablesArgs = {
-  database: Scalars['DatabaseID']['input'];
-};
-
-
-export type QueryDeploymentArgs = {
-  id: Scalars['DeploymentID']['input'];
-};
-
-
-export type QueryDetectServicesArgs = {
-  repositoryUrl: Scalars['String']['input'];
-};
-
-
-export type QueryEjectProjectArgs = {
-  id: Scalars['ProjectID']['input'];
-};
-
-
-export type QueryEnvironmentArgs = {
-  environment: Scalars['EnvironmentID']['input'];
-};
-
-
-export type QueryEnvironmentResourcesArgs = {
-  environment: Scalars['EnvironmentID']['input'];
-};
-
-
-export type QueryEnvironmentsArgs = {
-  project: Scalars['ProjectID']['input'];
-};
-
-
-export type QueryGithubRepositoriesArgs = {
-  account: Scalars['String']['input'];
-};
-
-
-export type QueryKeyValueStoreArgs = {
-  id: Scalars['KeyValueStoreID']['input'];
-};
-
-
-export type QueryKeyValueStoreCredentialsArgs = {
-  keyValueStore: Scalars['KeyValueStoreID']['input'];
-};
-
-
-export type QueryProjectArgs = {
-  id: Scalars['ProjectID']['input'];
-};
-
-
-export type QuerySearchImagesArgs = {
-  query: Scalars['String']['input'];
-};
-
-
-export type QueryServiceArgs = {
-  id: Scalars['ServiceID']['input'];
-};
-
-
-export type QueryServiceVariablesArgs = {
-  service: Scalars['ServiceID']['input'];
-};
-
-
-export type QuerySharedVariablesArgs = {
-  environment: Scalars['EnvironmentID']['input'];
-};
-
-
-export type QueryVolumeArgs = {
-  id: Scalars['VolumeID']['input'];
-};
-
-export type QueryResult = {
-  __typename?: 'QueryResult';
-  affectedRows: Scalars['Int']['output'];
-  columns: Array<Scalars['String']['output']>;
-  rows: Array<Maybe<Array<Maybe<Scalars['String']['output']>>>>;
-};
-
-export type Release = {
-  __typename?: 'Release';
-  build?: Maybe<Build>;
-  createdAt: Scalars['Time']['output'];
-  deploy?: Maybe<Deploy>;
-  deployment?: Maybe<Deployment>;
-  id: Scalars['ReleaseID']['output'];
-  scan?: Maybe<Scan>;
-  source?: Maybe<GitSource>;
-  status: ReleaseStatus;
-  trigger: ReleaseTrigger;
-};
 
 export enum ReleaseStatus {
   Building = 'BUILDING',
@@ -951,31 +162,12 @@ export enum ReleaseStatus {
   Superseded = 'SUPERSEDED'
 }
 
-export type ReleaseTrigger = {
-  __typename?: 'ReleaseTrigger';
-  actor?: Maybe<Scalars['String']['output']>;
-  kind: ReleaseTriggerKind;
-};
-
 export enum ReleaseTriggerKind {
   Manual = 'MANUAL',
   Promotion = 'PROMOTION',
   Push = 'PUSH',
   Rollback = 'ROLLBACK'
 }
-
-export type ReplicaCount = {
-  __typename?: 'ReplicaCount';
-  desired: Scalars['Int']['output'];
-  ready: Scalars['Int']['output'];
-};
-
-export type ResourceAllocation = {
-  __typename?: 'ResourceAllocation';
-  cpuMillicores: Scalars['Int']['output'];
-  diskMB: Scalars['Int']['output'];
-  memoryMB: Scalars['Int']['output'];
-};
 
 export enum ResourceMetric {
   CpuUsage = 'CPU_USAGE',
@@ -988,31 +180,9 @@ export enum ResourceTier {
   Production = 'PRODUCTION'
 }
 
-export type Resources = {
-  __typename?: 'Resources';
-  cpu: Scalars['String']['output'];
-  memory: Scalars['String']['output'];
-};
-
 export type ResourcesInput = {
-  cpu: Scalars['String']['input'];
-  memory: Scalars['String']['input'];
-};
-
-export enum Role {
-  Anonymous = 'ANONYMOUS',
-  Authenticated = 'AUTHENTICATED',
-  WorkspaceAdmin = 'WORKSPACE_ADMIN',
-  WorkspaceMember = 'WORKSPACE_MEMBER'
-}
-
-export type Rollout = {
-  __typename?: 'Rollout';
-  message?: Maybe<Scalars['String']['output']>;
-  reason?: Maybe<RolloutReason>;
-  restarts: Scalars['Int']['output'];
-  startedAt: Scalars['Time']['output'];
-  status: RolloutStatus;
+  cpu: string;
+  memory: string;
 };
 
 export enum RolloutReason {
@@ -1034,16 +204,6 @@ export enum RolloutStatus {
   Superseded = 'SUPERSEDED'
 }
 
-export type Scan = {
-  __typename?: 'Scan';
-  findingsCount?: Maybe<Scalars['Int']['output']>;
-  finishedAt?: Maybe<Scalars['Time']['output']>;
-  id: Scalars['ScanID']['output'];
-  startedAt?: Maybe<Scalars['Time']['output']>;
-  status: ScanStatus;
-  verifiedCount?: Maybe<Scalars['Int']['output']>;
-};
-
 export enum ScanStatus {
   Clean = 'CLEAN',
   Failed = 'FAILED',
@@ -1051,64 +211,6 @@ export enum ScanStatus {
   Queued = 'QUEUED',
   Running = 'RUNNING'
 }
-
-export type SecretFinding = {
-  __typename?: 'SecretFinding';
-  author?: Maybe<Scalars['String']['output']>;
-  commit: Scalars['String']['output'];
-  file: Scalars['String']['output'];
-  line: Scalars['Int']['output'];
-  rule: Scalars['String']['output'];
-  secret: Scalars['String']['output'];
-  url?: Maybe<Scalars['String']['output']>;
-  verified: Scalars['Boolean']['output'];
-};
-
-export type SecretScanReport = {
-  __typename?: 'SecretScanReport';
-  commit: Scalars['String']['output'];
-  findings: Array<SecretFinding>;
-  scannedAt: Scalars['Time']['output'];
-};
-
-export type Service = {
-  __typename?: 'Service';
-  activeDeployment?: Maybe<Deployment>;
-  autoscaling?: Maybe<AutoscalingSettings>;
-  builds: Array<Build>;
-  command: Scalars['String']['output'];
-  contextPath: Scalars['String']['output'];
-  createdAt: Scalars['Time']['output'];
-  defaultCommand: Scalars['String']['output'];
-  deployments: Array<Deployment>;
-  endpoints: Array<Endpoint>;
-  id: Scalars['ServiceID']['output'];
-  lastDeployedAt?: Maybe<Scalars['Time']['output']>;
-  metrics: Array<MetricSeries>;
-  name: Scalars['String']['output'];
-  port: Scalars['Int']['output'];
-  releases: Array<Release>;
-  replicas: ReplicaCount;
-  resources: Resources;
-  secretScanReport?: Maybe<SecretScanReport>;
-  sourceUrl: Scalars['String']['output'];
-  status: ServiceStatus;
-};
-
-
-export type ServiceMetricsArgs = {
-  grouping?: MetricGrouping;
-  metrics: Array<ResourceMetric>;
-  range: MetricsRange;
-};
-
-export type ServiceLogEntry = {
-  __typename?: 'ServiceLogEntry';
-  /** Log line text. Prefixed with [pod-suffix] when multiple replicas exist. */
-  line: Scalars['String']['output'];
-  /** Name of the pod that produced this line. */
-  pod: Scalars['String']['output'];
-};
 
 export enum ServiceStatus {
   Building = 'BUILDING',
@@ -1119,45 +221,27 @@ export enum ServiceStatus {
   Stopped = 'STOPPED'
 }
 
-export type ServiceVariable = {
-  __typename?: 'ServiceVariable';
-  key: Scalars['String']['output'];
-  ref?: Maybe<Scalars['VariableID']['output']>;
-  value?: Maybe<Scalars['String']['output']>;
-};
-
 export type ServiceVariableInput = {
   /** Key of the variable. e.g. PORT or HOST */
-  key: Scalars['String']['input'];
+  key: string;
   /** Reference to an available variable. Required when no value is set. Mutually exclusive with value. */
-  ref?: InputMaybe<Scalars['VariableID']['input']>;
+  ref?: string | null | undefined;
   /** Literal value. Required when no ref is set. Mutually exclusive with ref. */
-  value?: InputMaybe<Scalars['String']['input']>;
+  value?: string | null | undefined;
 };
 
 export type SetEnvironmentResourcesInput = {
-  cpuMillicores: Scalars['Int']['input'];
-  diskMB: Scalars['Int']['input'];
-  environment: Scalars['EnvironmentID']['input'];
-  memoryMB: Scalars['Int']['input'];
+  cpuMillicores: number;
+  diskMB: number;
+  environment: string;
+  memoryMB: number;
   tier: ResourceTier;
 };
 
 export type SetServiceScalingInput = {
-  autoscaling?: InputMaybe<AutoscalingInput>;
-  replicas: Scalars['Int']['input'];
-  service: Scalars['ServiceID']['input'];
-};
-
-export type SharedSource = {
-  __typename?: 'SharedSource';
-  name: Scalars['String']['output'];
-};
-
-export type SharedVariable = {
-  __typename?: 'SharedVariable';
-  key: Scalars['String']['output'];
-  value: Scalars['String']['output'];
+  autoscaling?: AutoscalingInput | null | undefined;
+  replicas: number;
+  service: string;
 };
 
 export enum SourceProvider {
@@ -1165,35 +249,6 @@ export enum SourceProvider {
   Github = 'GITHUB',
   Gitlab = 'GITLAB'
 }
-
-export type Subscription = {
-  __typename?: 'Subscription';
-  buildLogs: Scalars['String']['output'];
-  deployLogs: Scalars['String']['output'];
-  scanLogs: Scalars['String']['output'];
-  serviceLogs: ServiceLogEntry;
-};
-
-
-export type SubscriptionBuildLogsArgs = {
-  id: Scalars['BuildID']['input'];
-};
-
-
-export type SubscriptionDeployLogsArgs = {
-  id: Scalars['DeployID']['input'];
-};
-
-
-export type SubscriptionScanLogsArgs = {
-  id: Scalars['ScanID']['input'];
-};
-
-
-export type SubscriptionServiceLogsArgs = {
-  service: Scalars['ServiceID']['input'];
-  tailLines?: InputMaybe<Scalars['Int']['input']>;
-};
 
 export enum SubscriptionStatus {
   Active = 'ACTIVE',
@@ -1212,79 +267,17 @@ export enum TlsStatus {
 
 export type UpdateMemberRoleInput = {
   role: WorkspaceRole;
-  userId: Scalars['ID']['input'];
+  userId: string | number;
 };
 
 export type UpdateWorkspaceInput = {
-  name: Scalars['String']['input'];
-};
-
-export type UsageSummary = {
-  __typename?: 'UsageSummary';
-  creditsCents: Scalars['Int']['output'];
-  estimatedTotalCents: Scalars['Int']['output'];
-  resourceCostCents: Scalars['Int']['output'];
-};
-
-export type User = {
-  __typename?: 'User';
-  avatarUrl: Scalars['String']['output'];
-  email?: Maybe<Scalars['String']['output']>;
-  name?: Maybe<Scalars['String']['output']>;
-  workspaces: Array<WorkspaceMembership>;
-};
-
-export type Variable = {
-  __typename?: 'Variable';
-  id: Scalars['VariableID']['output'];
-  key: Scalars['String']['output'];
-  source: VariableSource;
+  name: string;
 };
 
 export type VariableInput = {
   /** Key of the variable. e.g. PORT or HOST */
-  key: Scalars['String']['input'];
-  value: Scalars['String']['input'];
-};
-
-export type VariableSource = BucketSource | DatabaseSource | KeyValueStoreSource | SharedSource;
-
-export type Volume = {
-  __typename?: 'Volume';
-  id: Scalars['VolumeID']['output'];
-  metrics: Array<MetricSeries>;
-  mount?: Maybe<Mount>;
-  name: Scalars['String']['output'];
-  size: Scalars['String']['output'];
-};
-
-
-export type VolumeMetricsArgs = {
-  metrics: Array<ResourceMetric>;
-  range: MetricsRange;
-};
-
-export type Workspace = {
-  __typename?: 'Workspace';
-  id: Scalars['ID']['output'];
-  members: Array<WorkspaceMember>;
-  name: Scalars['String']['output'];
-  personal: Scalars['Boolean']['output'];
-  suspended: Scalars['Boolean']['output'];
-};
-
-export type WorkspaceMember = {
-  __typename?: 'WorkspaceMember';
-  email: Scalars['String']['output'];
-  id: Scalars['ID']['output'];
-  name?: Maybe<Scalars['String']['output']>;
-  role: WorkspaceRole;
-};
-
-export type WorkspaceMembership = {
-  __typename?: 'WorkspaceMembership';
-  role: WorkspaceRole;
-  workspace: Scalars['String']['output'];
+  key: string;
+  value: string;
 };
 
 export enum WorkspaceRole {
@@ -1295,579 +288,579 @@ export enum WorkspaceRole {
 export type WorkspacesQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type WorkspacesQuery = { __typename?: 'Query', workspaces: Array<{ __typename?: 'Workspace', id: string, name: string, personal: boolean }> };
+export type WorkspacesQuery = { workspaces: Array<{ id: string, name: string, personal: boolean }> };
 
 export type ProjectsForNavQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type ProjectsForNavQuery = { __typename?: 'Query', projects: Array<{ __typename?: 'Project', id: string, name: string, environments: Array<{ __typename?: 'Environment', id: string, name: string, resourceTier: ResourceTier }> }> };
+export type ProjectsForNavQuery = { projects: Array<{ id: string, name: string, environments: Array<{ id: string, name: string, resourceTier: ResourceTier }> }> };
 
 export type GitHubConnectedQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type GitHubConnectedQuery = { __typename?: 'Query', githubConnected: boolean };
+export type GitHubConnectedQuery = { githubConnected: boolean };
 
 export type GitHubSourcesQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type GitHubSourcesQuery = { __typename?: 'Query', githubSources: Array<{ __typename?: 'GitHubInstallation', accountLogin: string, accountAvatarUrl: string, accountType: GitHubAccountType }> };
+export type GitHubSourcesQuery = { githubSources: Array<{ accountLogin: string, accountAvatarUrl: string, accountType: GitHubAccountType }> };
 
 export type GitHubRepositoriesQueryVariables = Exact<{
-  account: Scalars['String']['input'];
+  account: string;
 }>;
 
 
-export type GitHubRepositoriesQuery = { __typename?: 'Query', githubRepositories: Array<{ __typename?: 'GitHubRepository', id: string, name: string, fullName: string, htmlUrl: string, defaultBranch: string, private: boolean }> };
+export type GitHubRepositoriesQuery = { githubRepositories: Array<{ id: string, name: string, fullName: string, htmlUrl: string, defaultBranch: string, private: boolean }> };
 
 export type CreateProjectMutationVariables = Exact<{
   input: CreateProjectInput;
 }>;
 
 
-export type CreateProjectMutation = { __typename?: 'Mutation', createProject: { __typename?: 'Project', id: string, name: string, environments: Array<{ __typename?: 'Environment', id: string, name: string }> } };
+export type CreateProjectMutation = { createProject: { id: string, name: string, environments: Array<{ id: string, name: string }> } };
 
 export type AddServiceMutationVariables = Exact<{
-  environmentId: Scalars['EnvironmentID']['input'];
+  environmentId: string;
   input: AddServiceInput;
 }>;
 
 
-export type AddServiceMutation = { __typename?: 'Mutation', addService: { __typename?: 'Service', id: string, name: string } };
+export type AddServiceMutation = { addService: { id: string, name: string } };
 
 export type DetectServicesQueryVariables = Exact<{
-  repositoryUrl: Scalars['String']['input'];
+  repositoryUrl: string;
 }>;
 
 
-export type DetectServicesQuery = { __typename?: 'Query', detectServices: Array<{ __typename?: 'DetectedService', name: string, language: string, framework: string, contextPath: string, startCommand: string, suggestedPort: number }> };
+export type DetectServicesQuery = { detectServices: Array<{ name: string, language: string, framework: string, contextPath: string, startCommand: string, suggestedPort: number }> };
 
 export type SearchImagesQueryVariables = Exact<{
-  query: Scalars['String']['input'];
+  query: string;
 }>;
 
 
-export type SearchImagesQuery = { __typename?: 'Query', searchImages: Array<{ __typename?: 'ImageSearchResult', name: string, description: string, starCount: number, pullCount: number, official: boolean }> };
+export type SearchImagesQuery = { searchImages: Array<{ name: string, description: string, starCount: number, pullCount: number, official: boolean }> };
 
 export type CreateDatabaseMutationVariables = Exact<{
   input: CreateDatabaseInput;
 }>;
 
 
-export type CreateDatabaseMutation = { __typename?: 'Mutation', createDatabase: { __typename?: 'Database', id: string, name: string, version: string, size: string } };
+export type CreateDatabaseMutation = { createDatabase: { id: string, name: string, version: string, size: string } };
 
 export type CreateKeyValueStoreMutationVariables = Exact<{
   input: CreateKeyValueStoreInput;
 }>;
 
 
-export type CreateKeyValueStoreMutation = { __typename?: 'Mutation', createKeyValueStore: { __typename?: 'KeyValueStore', id: any, name: string, version: string, size: string } };
+export type CreateKeyValueStoreMutation = { createKeyValueStore: { id: string, name: string, version: string, size: string } };
 
 export type CreateBucketMutationVariables = Exact<{
   input: CreateBucketInput;
 }>;
 
 
-export type CreateBucketMutation = { __typename?: 'Mutation', createBucket: { __typename?: 'Bucket', id: string, name: string, region: string, endpoint: string } };
+export type CreateBucketMutation = { createBucket: { id: string, name: string, region: string, endpoint: string } };
 
 export type CreateVolumeMutationVariables = Exact<{
-  environment: Scalars['EnvironmentID']['input'];
-  name: Scalars['String']['input'];
-  size: Scalars['String']['input'];
+  environment: string;
+  name: string;
+  size: string;
 }>;
 
 
-export type CreateVolumeMutation = { __typename?: 'Mutation', createVolume: { __typename?: 'Volume', id: string, name: string, size: string } };
+export type CreateVolumeMutation = { createVolume: { id: string, name: string, size: string } };
 
 export type CreateEnvironmentMutationVariables = Exact<{
   input: CreateEnvironmentInput;
 }>;
 
 
-export type CreateEnvironmentMutation = { __typename?: 'Mutation', createEnvironment: { __typename?: 'Environment', id: string, name: string, resourceTier: ResourceTier } };
+export type CreateEnvironmentMutation = { createEnvironment: { id: string, name: string, resourceTier: ResourceTier } };
 
 export type CreateWorkspaceCheckoutMutationVariables = Exact<{
   input: CreateWorkspaceCheckoutInput;
 }>;
 
 
-export type CreateWorkspaceCheckoutMutation = { __typename?: 'Mutation', createWorkspaceCheckout: { __typename?: 'CheckoutSession', url: string } };
+export type CreateWorkspaceCheckoutMutation = { createWorkspaceCheckout: { url: string } };
 
 export type MountVolumeMutationVariables = Exact<{
-  volume: Scalars['VolumeID']['input'];
-  service: Scalars['ServiceID']['input'];
-  path: Scalars['String']['input'];
+  volume: string;
+  service: string;
+  path: string;
 }>;
 
 
-export type MountVolumeMutation = { __typename?: 'Mutation', mountVolume: { __typename?: 'Volume', id: string, mount?: { __typename?: 'Mount', service: string, path: string } | null } };
+export type MountVolumeMutation = { mountVolume: { id: string, mount: { service: string, path: string } | null } };
 
 export type EjectProjectQueryVariables = Exact<{
-  id: Scalars['ProjectID']['input'];
+  id: string;
 }>;
 
 
-export type EjectProjectQuery = { __typename?: 'Query', ejectProject: { __typename?: 'EjectArtifact', filename: string, contentType: string, content: string } };
+export type EjectProjectQuery = { ejectProject: { filename: string, contentType: string, content: string } };
 
 export type SharedVariablesQueryVariables = Exact<{
-  environment: Scalars['EnvironmentID']['input'];
+  environment: string;
 }>;
 
 
-export type SharedVariablesQuery = { __typename?: 'Query', sharedVariables: Array<{ __typename?: 'SharedVariable', key: string, value: string }> };
+export type SharedVariablesQuery = { sharedVariables: Array<{ key: string, value: string }> };
 
 export type SetSharedVariablesMutationVariables = Exact<{
-  environment: Scalars['EnvironmentID']['input'];
+  environment: string;
   variables: Array<VariableInput> | VariableInput;
 }>;
 
 
-export type SetSharedVariablesMutation = { __typename?: 'Mutation', setSharedVariables: boolean };
+export type SetSharedVariablesMutation = { setSharedVariables: boolean };
 
 export type SubscriptionQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type SubscriptionQuery = { __typename?: 'Query', subscription?: { __typename?: 'BillingSubscription', plan?: Plan | null, status: SubscriptionStatus, currentPeriodEnd: string, creditAmountCents: number, creditExpiry?: string | null, hasPaymentMethod: boolean } | null };
+export type SubscriptionQuery = { subscription: { plan: Plan | null, status: SubscriptionStatus, currentPeriodEnd: string, creditAmountCents: number, creditExpiry: string | null, hasPaymentMethod: boolean } | null };
 
 export type UsageSummaryQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type UsageSummaryQuery = { __typename?: 'Query', usageSummary?: { __typename?: 'UsageSummary', resourceCostCents: number, creditsCents: number, estimatedTotalCents: number } | null };
+export type UsageSummaryQuery = { usageSummary: { resourceCostCents: number, creditsCents: number, estimatedTotalCents: number } | null };
 
 export type CreatePlanCheckoutMutationVariables = Exact<{
   plan: Plan;
 }>;
 
 
-export type CreatePlanCheckoutMutation = { __typename?: 'Mutation', createPlanCheckout: { __typename?: 'CheckoutSession', url: string } };
+export type CreatePlanCheckoutMutation = { createPlanCheckout: { url: string } };
 
 export type BucketCredentialsQueryVariables = Exact<{
-  bucket: Scalars['BucketID']['input'];
+  bucket: string;
 }>;
 
 
-export type BucketCredentialsQuery = { __typename?: 'Query', bucketCredentials: { __typename?: 'BucketCredentials', endpoint: string, region: string, bucket: string, accessKeyId: string, secretAccessKey: string } };
+export type BucketCredentialsQuery = { bucketCredentials: { endpoint: string, region: string, bucket: string, accessKeyId: string, secretAccessKey: string } };
 
 export type DeleteBucketMutationVariables = Exact<{
-  bucket: Scalars['BucketID']['input'];
+  bucket: string;
 }>;
 
 
-export type DeleteBucketMutation = { __typename?: 'Mutation', deleteBucket: boolean };
+export type DeleteBucketMutation = { deleteBucket: boolean };
 
 export type DatabasePublicQueryVariables = Exact<{
-  database: Scalars['DatabaseID']['input'];
+  database: string;
 }>;
 
 
-export type DatabasePublicQuery = { __typename?: 'Query', database: { __typename?: 'Database', id: string, public: boolean } };
+export type DatabasePublicQuery = { database: { id: string, public: boolean } };
 
 export type DatabaseCredentialsQueryVariables = Exact<{
-  database: Scalars['DatabaseID']['input'];
+  database: string;
 }>;
 
 
-export type DatabaseCredentialsQuery = { __typename?: 'Query', databaseCredentials: Array<{ __typename?: 'DatabaseCredentials', type: EndpointType, host: string, port: string, dbname: string, user: string, password: string, uri: string }> };
+export type DatabaseCredentialsQuery = { databaseCredentials: Array<{ type: EndpointType, host: string, port: string, dbname: string, user: string, password: string, uri: string }> };
 
 export type ExposeDatabaseMutationVariables = Exact<{
-  database: Scalars['DatabaseID']['input'];
+  database: string;
 }>;
 
 
-export type ExposeDatabaseMutation = { __typename?: 'Mutation', exposeDatabase: { __typename?: 'Database', id: string, public: boolean } };
+export type ExposeDatabaseMutation = { exposeDatabase: { id: string, public: boolean } };
 
 export type UnexposeDatabaseMutationVariables = Exact<{
-  database: Scalars['DatabaseID']['input'];
+  database: string;
 }>;
 
 
-export type UnexposeDatabaseMutation = { __typename?: 'Mutation', unexposeDatabase: { __typename?: 'Database', id: string, public: boolean } };
+export type UnexposeDatabaseMutation = { unexposeDatabase: { id: string, public: boolean } };
 
 export type ExecuteQueryMutationVariables = Exact<{
-  database: Scalars['DatabaseID']['input'];
-  query: Scalars['String']['input'];
+  database: string;
+  query: string;
 }>;
 
 
-export type ExecuteQueryMutation = { __typename?: 'Mutation', executeQuery: { __typename?: 'QueryResult', columns: Array<string>, rows: Array<Array<string | null> | null>, affectedRows: number } };
+export type ExecuteQueryMutation = { executeQuery: { columns: Array<string>, rows: Array<Array<string | null> | null>, affectedRows: number } };
 
 export type DatabaseResourcesQueryVariables = Exact<{
-  database: Scalars['DatabaseID']['input'];
+  database: string;
 }>;
 
 
-export type DatabaseResourcesQuery = { __typename?: 'Query', database: { __typename?: 'Database', id: string, size: string, resources: { __typename?: 'Resources', cpu: string, memory: string } } };
+export type DatabaseResourcesQuery = { database: { id: string, size: string, resources: { cpu: string, memory: string } } };
 
 export type SetDatabaseResourcesMutationVariables = Exact<{
-  database: Scalars['DatabaseID']['input'];
+  database: string;
   resources: ResourcesInput;
 }>;
 
 
-export type SetDatabaseResourcesMutation = { __typename?: 'Mutation', setDatabaseResources: { __typename?: 'Database', id: string, status: DatabaseStatus, resources: { __typename?: 'Resources', cpu: string, memory: string } } };
+export type SetDatabaseResourcesMutation = { setDatabaseResources: { id: string, status: DatabaseStatus, resources: { cpu: string, memory: string } } };
 
 export type SetDatabaseStorageMutationVariables = Exact<{
-  database: Scalars['DatabaseID']['input'];
-  size: Scalars['String']['input'];
+  database: string;
+  size: string;
 }>;
 
 
-export type SetDatabaseStorageMutation = { __typename?: 'Mutation', setDatabaseStorage: { __typename?: 'Database', id: string, status: DatabaseStatus, size: string } };
+export type SetDatabaseStorageMutation = { setDatabaseStorage: { id: string, status: DatabaseStatus, size: string } };
 
 export type DeleteDatabaseMutationVariables = Exact<{
-  database: Scalars['DatabaseID']['input'];
+  database: string;
 }>;
 
 
-export type DeleteDatabaseMutation = { __typename?: 'Mutation', deleteDatabase: boolean };
+export type DeleteDatabaseMutation = { deleteDatabase: boolean };
 
 export type DatabaseTablesQueryVariables = Exact<{
-  database: Scalars['DatabaseID']['input'];
+  database: string;
 }>;
 
 
-export type DatabaseTablesQuery = { __typename?: 'Query', databaseTables: Array<{ __typename?: 'DatabaseTable', name: string, schema: string, estimatedRows: number, columns: Array<{ __typename?: 'DatabaseColumn', name: string, type: string, nullable: boolean, primaryKey: boolean }> }> };
+export type DatabaseTablesQuery = { databaseTables: Array<{ name: string, schema: string, estimatedRows: number, columns: Array<{ name: string, type: string, nullable: boolean, primaryKey: boolean }> }> };
 
 export type DatabaseTableDataQueryVariables = Exact<{
-  database: Scalars['DatabaseID']['input'];
-  table: Scalars['String']['input'];
-  schema?: InputMaybe<Scalars['String']['input']>;
-  limit?: InputMaybe<Scalars['Int']['input']>;
-  offset?: InputMaybe<Scalars['Int']['input']>;
+  database: string;
+  table: string;
+  schema?: string | null | undefined;
+  limit?: number | null | undefined;
+  offset?: number | null | undefined;
 }>;
 
 
-export type DatabaseTableDataQuery = { __typename?: 'Query', databaseTableData: { __typename?: 'DatabaseTableData', columns: Array<string>, rows: Array<Array<string | null> | null>, totalEstimatedRows: number } };
+export type DatabaseTableDataQuery = { databaseTableData: { columns: Array<string>, rows: Array<Array<string | null> | null>, totalEstimatedRows: number } };
 
 export type KeyValueStoreCredentialsQueryVariables = Exact<{
-  keyValueStore: Scalars['KeyValueStoreID']['input'];
+  keyValueStore: string;
 }>;
 
 
-export type KeyValueStoreCredentialsQuery = { __typename?: 'Query', keyValueStoreCredentials: Array<{ __typename?: 'KeyValueStoreCredentials', type: EndpointType, host: string, port: string, password: string, uri: string }> };
+export type KeyValueStoreCredentialsQuery = { keyValueStoreCredentials: Array<{ type: EndpointType, host: string, port: string, password: string, uri: string }> };
 
 export type DeleteKeyValueStoreMutationVariables = Exact<{
-  keyValueStore: Scalars['KeyValueStoreID']['input'];
+  keyValueStore: string;
 }>;
 
 
-export type DeleteKeyValueStoreMutation = { __typename?: 'Mutation', deleteKeyValueStore: boolean };
+export type DeleteKeyValueStoreMutation = { deleteKeyValueStore: boolean };
 
 export type SecretScanReportQueryVariables = Exact<{
-  id: Scalars['ServiceID']['input'];
+  id: string;
 }>;
 
 
-export type SecretScanReportQuery = { __typename?: 'Query', service: { __typename?: 'Service', id: string, secretScanReport?: { __typename?: 'SecretScanReport', commit: string, scannedAt: string, findings: Array<{ __typename?: 'SecretFinding', rule: string, file: string, line: number, commit: string, secret: string, author?: string | null, url?: string | null, verified: boolean }> } | null } };
+export type SecretScanReportQuery = { service: { id: string, secretScanReport: { commit: string, scannedAt: string, findings: Array<{ rule: string, file: string, line: number, commit: string, secret: string, author: string | null, url: string | null, verified: boolean }> } | null } };
 
 export type ServiceMetricsQueryVariables = Exact<{
-  id: Scalars['ServiceID']['input'];
+  id: string;
   range: MetricsRange;
   grouping: MetricGrouping;
 }>;
 
 
-export type ServiceMetricsQuery = { __typename?: 'Query', service: { __typename?: 'Service', id: string, replicas: { __typename?: 'ReplicaCount', desired: number }, resources: { __typename?: 'Resources', cpu: string, memory: string }, deployments: Array<{ __typename?: 'Deployment', createdAt: string }>, metrics: Array<{ __typename?: 'MetricSeries', metric: ResourceMetric, replica?: string | null, points: Array<{ __typename?: 'MetricPoint', timestamp: string, value?: number | null }> }> } };
+export type ServiceMetricsQuery = { service: { id: string, replicas: { desired: number }, resources: { cpu: string, memory: string }, deployments: Array<{ createdAt: string }>, metrics: Array<{ metric: ResourceMetric, replica: string | null, points: Array<{ timestamp: string, value: number | null }> }> } };
 
 export type RemoveServiceMutationVariables = Exact<{
-  service: Scalars['ServiceID']['input'];
+  service: string;
 }>;
 
 
-export type RemoveServiceMutation = { __typename?: 'Mutation', removeService: boolean };
+export type RemoveServiceMutation = { removeService: boolean };
 
 export type SetCustomStartCommandMutationVariables = Exact<{
-  service: Scalars['ServiceID']['input'];
-  command: Scalars['String']['input'];
+  service: string;
+  command: string;
 }>;
 
 
-export type SetCustomStartCommandMutation = { __typename?: 'Mutation', setCustomStartCommand: { __typename?: 'Service', id: string } };
+export type SetCustomStartCommandMutation = { setCustomStartCommand: { id: string } };
 
 export type GenerateDomainMutationVariables = Exact<{
-  service: Scalars['ServiceID']['input'];
+  service: string;
 }>;
 
 
-export type GenerateDomainMutation = { __typename?: 'Mutation', generateDomain: { __typename?: 'Service', id: string, endpoints: Array<{ __typename?: 'Endpoint', host: string, port: number, type: EndpointType, protocol: Protocol, dns: { __typename?: 'DnsState', status: DnsStatus, requiredRecords: Array<{ __typename?: 'DnsRecord', type: DnsRecordType, host: string, value: string }> } }> } };
+export type GenerateDomainMutation = { generateDomain: { id: string, endpoints: Array<{ host: string, port: number, type: EndpointType, protocol: Protocol, dns: { status: DnsStatus, requiredRecords: Array<{ type: DnsRecordType, host: string, value: string }> } }> } };
 
 export type AddCustomDomainMutationVariables = Exact<{
-  service: Scalars['ServiceID']['input'];
-  hostname: Scalars['String']['input'];
+  service: string;
+  hostname: string;
 }>;
 
 
-export type AddCustomDomainMutation = { __typename?: 'Mutation', addCustomDomain: { __typename?: 'Service', id: string, endpoints: Array<{ __typename?: 'Endpoint', host: string, port: number, type: EndpointType, protocol: Protocol, dns: { __typename?: 'DnsState', status: DnsStatus, requiredRecords: Array<{ __typename?: 'DnsRecord', type: DnsRecordType, host: string, value: string }> } }> } };
+export type AddCustomDomainMutation = { addCustomDomain: { id: string, endpoints: Array<{ host: string, port: number, type: EndpointType, protocol: Protocol, dns: { status: DnsStatus, requiredRecords: Array<{ type: DnsRecordType, host: string, value: string }> } }> } };
 
 export type RemoveDomainMutationVariables = Exact<{
-  service: Scalars['ServiceID']['input'];
-  hostname: Scalars['String']['input'];
+  service: string;
+  hostname: string;
 }>;
 
 
-export type RemoveDomainMutation = { __typename?: 'Mutation', removeDomain: { __typename?: 'Service', id: string, endpoints: Array<{ __typename?: 'Endpoint', host: string, port: number, type: EndpointType, protocol: Protocol, dns: { __typename?: 'DnsState', status: DnsStatus, requiredRecords: Array<{ __typename?: 'DnsRecord', type: DnsRecordType, host: string, value: string }> } }> } };
+export type RemoveDomainMutation = { removeDomain: { id: string, endpoints: Array<{ host: string, port: number, type: EndpointType, protocol: Protocol, dns: { status: DnsStatus, requiredRecords: Array<{ type: DnsRecordType, host: string, value: string }> } }> } };
 
 export type SetServiceScalingMutationVariables = Exact<{
   input: SetServiceScalingInput;
 }>;
 
 
-export type SetServiceScalingMutation = { __typename?: 'Mutation', setServiceScaling: { __typename?: 'Service', id: string, replicas: { __typename?: 'ReplicaCount', desired: number, ready: number }, autoscaling?: { __typename?: 'AutoscalingSettings', minReplicas: number, maxReplicas: number, targetCpu: number } | null } };
+export type SetServiceScalingMutation = { setServiceScaling: { id: string, replicas: { desired: number, ready: number }, autoscaling: { minReplicas: number, maxReplicas: number, targetCpu: number } | null } };
 
 export type SetServicePortMutationVariables = Exact<{
-  service: Scalars['ServiceID']['input'];
-  port?: InputMaybe<Scalars['Int']['input']>;
+  service: string;
+  port?: number | null | undefined;
 }>;
 
 
-export type SetServicePortMutation = { __typename?: 'Mutation', setServicePort: { __typename?: 'Service', id: string, port: number } };
+export type SetServicePortMutation = { setServicePort: { id: string, port: number } };
 
 export type SetServiceResourcesMutationVariables = Exact<{
-  service: Scalars['ServiceID']['input'];
+  service: string;
   resources: ResourcesInput;
 }>;
 
 
-export type SetServiceResourcesMutation = { __typename?: 'Mutation', setServiceResources: { __typename?: 'Service', id: string, resources: { __typename?: 'Resources', cpu: string, memory: string } } };
+export type SetServiceResourcesMutation = { setServiceResources: { id: string, resources: { cpu: string, memory: string } } };
 
 export type ServiceVariablesQueryVariables = Exact<{
-  service: Scalars['ServiceID']['input'];
+  service: string;
 }>;
 
 
-export type ServiceVariablesQuery = { __typename?: 'Query', serviceVariables: Array<{ __typename?: 'ServiceVariable', key: string, value?: string | null, ref?: any | null }> };
+export type ServiceVariablesQuery = { serviceVariables: Array<{ key: string, value: string | null, ref: string | null }> };
 
 export type AvailableVariablesQueryVariables = Exact<{
-  environment: Scalars['EnvironmentID']['input'];
+  environment: string;
 }>;
 
 
-export type AvailableVariablesQuery = { __typename?: 'Query', availableVariables: Array<{ __typename?: 'Variable', id: any, key: string, source:
+export type AvailableVariablesQuery = { availableVariables: Array<{ id: string, key: string, source:
       | { __typename: 'BucketSource', name: string, bucketId: string }
       | { __typename: 'DatabaseSource', name: string, databaseId: string }
-      | { __typename: 'KeyValueStoreSource', name: string, keyValueStoreId: any }
+      | { __typename: 'KeyValueStoreSource', name: string, keyValueStoreId: string }
       | { __typename: 'SharedSource', name: string }
      }> };
 
 export type SetServiceVariablesMutationVariables = Exact<{
-  service: Scalars['ServiceID']['input'];
+  service: string;
   variables: Array<ServiceVariableInput> | ServiceVariableInput;
 }>;
 
 
-export type SetServiceVariablesMutation = { __typename?: 'Mutation', setServiceVariables: boolean };
+export type SetServiceVariablesMutation = { setServiceVariables: boolean };
 
 export type DeleteVolumeMutationVariables = Exact<{
-  volume: Scalars['VolumeID']['input'];
+  volume: string;
 }>;
 
 
-export type DeleteVolumeMutation = { __typename?: 'Mutation', deleteVolume: boolean };
+export type DeleteVolumeMutation = { deleteVolume: boolean };
 
 export type ExpandVolumeMutationVariables = Exact<{
-  volume: Scalars['VolumeID']['input'];
-  size: Scalars['String']['input'];
+  volume: string;
+  size: string;
 }>;
 
 
-export type ExpandVolumeMutation = { __typename?: 'Mutation', expandVolume: { __typename?: 'Volume', id: string, size: string } };
+export type ExpandVolumeMutation = { expandVolume: { id: string, size: string } };
 
 export type UnmountVolumeMutationVariables = Exact<{
-  volume: Scalars['VolumeID']['input'];
+  volume: string;
 }>;
 
 
-export type UnmountVolumeMutation = { __typename?: 'Mutation', unmountVolume: { __typename?: 'Volume', id: string, mount?: { __typename?: 'Mount', service: string, path: string } | null } };
+export type UnmountVolumeMutation = { unmountVolume: { id: string, mount: { service: string, path: string } | null } };
 
 export type VolumeMetricsQueryVariables = Exact<{
-  id: Scalars['VolumeID']['input'];
+  id: string;
   range: MetricsRange;
 }>;
 
 
-export type VolumeMetricsQuery = { __typename?: 'Query', volume: { __typename?: 'Volume', id: string, metrics: Array<{ __typename?: 'MetricSeries', metric: ResourceMetric, points: Array<{ __typename?: 'MetricPoint', timestamp: string, value?: number | null }> }> } };
+export type VolumeMetricsQuery = { volume: { id: string, metrics: Array<{ metric: ResourceMetric, points: Array<{ timestamp: string, value: number | null }> }> } };
 
 export type BuildLogsSubscriptionVariables = Exact<{
-  id: Scalars['BuildID']['input'];
+  id: string;
 }>;
 
 
-export type BuildLogsSubscription = { __typename?: 'Subscription', buildLogs: string };
+export type BuildLogsSubscription = { buildLogs: string };
 
 export type DeployMutationVariables = Exact<{
-  service: Scalars['ServiceID']['input'];
-  gitRef?: InputMaybe<Scalars['String']['input']>;
+  service: string;
+  gitRef?: string | null | undefined;
 }>;
 
 
-export type DeployMutation = { __typename?: 'Mutation', deploy: { __typename?: 'Release', id: any, status: ReleaseStatus, build?: { __typename?: 'Build', id: string, status: BuildStatus, startedAt?: string | null, finishedAt?: string | null } | null } };
+export type DeployMutation = { deploy: { id: string, status: ReleaseStatus, build: { id: string, status: BuildStatus, startedAt: string | null, finishedAt: string | null } | null } };
 
 export type BuildStatusQueryVariables = Exact<{
-  id: Scalars['BuildID']['input'];
+  id: string;
 }>;
 
 
-export type BuildStatusQuery = { __typename?: 'Query', build: { __typename?: 'Build', id: string, status: BuildStatus, startedAt?: string | null, finishedAt?: string | null } };
+export type BuildStatusQuery = { build: { id: string, status: BuildStatus, startedAt: string | null, finishedAt: string | null } };
 
 export type DeployLogsSubscriptionVariables = Exact<{
-  id: Scalars['DeployID']['input'];
+  id: string;
 }>;
 
 
-export type DeployLogsSubscription = { __typename?: 'Subscription', deployLogs: string };
+export type DeployLogsSubscription = { deployLogs: string };
 
 export type ScanLogsSubscriptionVariables = Exact<{
-  id: Scalars['ScanID']['input'];
+  id: string;
 }>;
 
 
-export type ScanLogsSubscription = { __typename?: 'Subscription', scanLogs: string };
+export type ScanLogsSubscription = { scanLogs: string };
 
 export type ServiceLogsSubscriptionVariables = Exact<{
-  service: Scalars['ServiceID']['input'];
-  tailLines?: InputMaybe<Scalars['Int']['input']>;
+  service: string;
+  tailLines?: number | null | undefined;
 }>;
 
 
-export type ServiceLogsSubscription = { __typename?: 'Subscription', serviceLogs: { __typename?: 'ServiceLogEntry', line: string, pod: string } };
+export type ServiceLogsSubscription = { serviceLogs: { line: string, pod: string } };
 
 export type WorkspaceQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type WorkspaceQuery = { __typename?: 'Query', workspace: { __typename?: 'Workspace', id: string, name: string, personal: boolean, suspended: boolean, members: Array<{ __typename?: 'WorkspaceMember', id: string, email: string, name?: string | null, role: WorkspaceRole }> } };
+export type WorkspaceQuery = { workspace: { id: string, name: string, personal: boolean, suspended: boolean, members: Array<{ id: string, email: string, name: string | null, role: WorkspaceRole }> } };
 
 export type CompleteWorkspaceCheckoutMutationVariables = Exact<{
-  sessionId: Scalars['String']['input'];
+  sessionId: string;
 }>;
 
 
-export type CompleteWorkspaceCheckoutMutation = { __typename?: 'Mutation', completeWorkspaceCheckout: { __typename?: 'Workspace', id: string, name: string, personal: boolean } };
+export type CompleteWorkspaceCheckoutMutation = { completeWorkspaceCheckout: { id: string, name: string, personal: boolean } };
 
 export type EnvironmentQueryVariables = Exact<{
-  environment: Scalars['EnvironmentID']['input'];
+  environment: string;
 }>;
 
 
-export type EnvironmentQuery = { __typename?: 'Query', environment: { __typename?: 'Environment', id: string, name: string, resourceTier: ResourceTier, services: Array<{ __typename?: 'Service', id: string, name: string, status: ServiceStatus, port: number, sourceUrl: string, contextPath: string, command: string, lastDeployedAt?: string | null, createdAt: string, replicas: { __typename?: 'ReplicaCount', desired: number, ready: number }, autoscaling?: { __typename?: 'AutoscalingSettings', minReplicas: number, maxReplicas: number, targetCpu: number } | null, endpoints: Array<{ __typename?: 'Endpoint', host: string, port: number, protocol: Protocol, type: EndpointType, tls: TlsStatus, dns: { __typename?: 'DnsState', status: DnsStatus, requiredRecords: Array<{ __typename?: 'DnsRecord', type: DnsRecordType, host: string, value: string }> } }>, resources: { __typename?: 'Resources', cpu: string, memory: string }, activeDeployment?: { __typename?: 'Deployment', id: string, image: string, imageDigest?: string | null, commit: string, commitMessage: string, ref: string, status: DeploymentStatus, createdAt: string, replicas: { __typename?: 'ReplicaCount', desired: number, ready: number }, rollout?: { __typename?: 'Rollout', status: RolloutStatus, reason?: RolloutReason | null, message?: string | null, restarts: number, startedAt: string } | null } | null, deployments: Array<{ __typename?: 'Deployment', id: string, image: string, imageDigest?: string | null, commit: string, commitMessage: string, ref: string, status: DeploymentStatus, createdAt: string }>, builds: Array<{ __typename?: 'Build', id: string, status: BuildStatus, startedAt?: string | null, finishedAt?: string | null }>, releases: Array<{ __typename?: 'Release', id: any, status: ReleaseStatus, createdAt: string, trigger: { __typename?: 'ReleaseTrigger', kind: ReleaseTriggerKind, actor?: string | null }, source?: { __typename?: 'GitSource', provider: SourceProvider, repository: string, url: string, ref: string, contextPath: string, commit: { __typename?: 'Commit', sha: string, message: string, url?: string | null } } | null, build?: { __typename?: 'Build', id: string, status: BuildStatus, startedAt?: string | null, finishedAt?: string | null } | null, deploy?: { __typename?: 'Deploy', id: any, status: DeployStatus, startedAt?: string | null, finishedAt?: string | null } | null, scan?: { __typename?: 'Scan', id: any, status: ScanStatus, findingsCount?: number | null, verifiedCount?: number | null, startedAt?: string | null, finishedAt?: string | null } | null, deployment?: { __typename?: 'Deployment', id: string, image: string, imageDigest?: string | null, commit: string, commitMessage: string, ref: string, status: DeploymentStatus, createdAt: string, replicas: { __typename?: 'ReplicaCount', desired: number, ready: number }, rollout?: { __typename?: 'Rollout', status: RolloutStatus, reason?: RolloutReason | null, message?: string | null, restarts: number, startedAt: string } | null } | null }> }>, databases: Array<{ __typename?: 'Database', id: string, name: string, version: string, instances: number, status: DatabaseStatus, size: string, createdAt: string }>, keyValueStores: Array<{ __typename?: 'KeyValueStore', id: any, name: string, version: string, status: DatabaseStatus, size: string, createdAt: string }>, buckets: Array<{ __typename?: 'Bucket', id: string, name: string, region: string, endpoint: string, status: BucketStatus, sizeBytes: number, objectCount: number, createdAt: string }>, volumes: Array<{ __typename?: 'Volume', id: string, name: string, size: string, mount?: { __typename?: 'Mount', service: string, path: string } | null }> } };
+export type EnvironmentQuery = { environment: { id: string, name: string, resourceTier: ResourceTier, services: Array<{ id: string, name: string, status: ServiceStatus, port: number, sourceUrl: string, contextPath: string, command: string, lastDeployedAt: string | null, createdAt: string, replicas: { desired: number, ready: number }, autoscaling: { minReplicas: number, maxReplicas: number, targetCpu: number } | null, endpoints: Array<{ host: string, port: number, protocol: Protocol, type: EndpointType, tls: TlsStatus, dns: { status: DnsStatus, requiredRecords: Array<{ type: DnsRecordType, host: string, value: string }> } }>, resources: { cpu: string, memory: string }, activeDeployment: { id: string, image: string, imageDigest: string | null, commit: string, commitMessage: string, ref: string, status: DeploymentStatus, createdAt: string, replicas: { desired: number, ready: number }, rollout: { status: RolloutStatus, reason: RolloutReason | null, message: string | null, restarts: number, startedAt: string } | null } | null, deployments: Array<{ id: string, image: string, imageDigest: string | null, commit: string, commitMessage: string, ref: string, status: DeploymentStatus, createdAt: string }>, builds: Array<{ id: string, status: BuildStatus, startedAt: string | null, finishedAt: string | null }>, releases: Array<{ id: string, status: ReleaseStatus, createdAt: string, trigger: { kind: ReleaseTriggerKind, actor: string | null }, source: { provider: SourceProvider, repository: string, url: string, ref: string, contextPath: string, commit: { sha: string, message: string, url: string | null } } | null, build: { id: string, status: BuildStatus, startedAt: string | null, finishedAt: string | null } | null, deploy: { id: string, status: DeployStatus, startedAt: string | null, finishedAt: string | null } | null, scan: { id: string, status: ScanStatus, findingsCount: number | null, verifiedCount: number | null, startedAt: string | null, finishedAt: string | null } | null, deployment: { id: string, image: string, imageDigest: string | null, commit: string, commitMessage: string, ref: string, status: DeploymentStatus, createdAt: string, replicas: { desired: number, ready: number }, rollout: { status: RolloutStatus, reason: RolloutReason | null, message: string | null, restarts: number, startedAt: string } | null } | null }> }>, databases: Array<{ id: string, name: string, version: string, instances: number, status: DatabaseStatus, size: string, createdAt: string }>, keyValueStores: Array<{ id: string, name: string, version: string, status: DatabaseStatus, size: string, createdAt: string }>, buckets: Array<{ id: string, name: string, region: string, endpoint: string, status: BucketStatus, sizeBytes: number, objectCount: number, createdAt: string }>, volumes: Array<{ id: string, name: string, size: string, mount: { service: string, path: string } | null }> } };
 
 export type EnvironmentVolumeUsageQueryVariables = Exact<{
-  environment: Scalars['EnvironmentID']['input'];
+  environment: string;
 }>;
 
 
-export type EnvironmentVolumeUsageQuery = { __typename?: 'Query', environment: { __typename?: 'Environment', id: string, volumes: Array<{ __typename?: 'Volume', id: string, size: string, metrics: Array<{ __typename?: 'MetricSeries', points: Array<{ __typename?: 'MetricPoint', value?: number | null }> }> }> } };
+export type EnvironmentVolumeUsageQuery = { environment: { id: string, volumes: Array<{ id: string, size: string, metrics: Array<{ points: Array<{ value: number | null }> }> }> } };
 
 export type EnvironmentDefaultCommandsQueryVariables = Exact<{
-  environment: Scalars['EnvironmentID']['input'];
+  environment: string;
 }>;
 
 
-export type EnvironmentDefaultCommandsQuery = { __typename?: 'Query', environment: { __typename?: 'Environment', id: string, services: Array<{ __typename?: 'Service', id: string, defaultCommand: string }> } };
+export type EnvironmentDefaultCommandsQuery = { environment: { id: string, services: Array<{ id: string, defaultCommand: string }> } };
 
 export type ProjectEnvironmentsQueryVariables = Exact<{
-  id: Scalars['ProjectID']['input'];
+  id: string;
 }>;
 
 
-export type ProjectEnvironmentsQuery = { __typename?: 'Query', project: { __typename?: 'Project', id: string, name: string, environments: Array<{ __typename?: 'Environment', id: string, name: string, resourceTier: ResourceTier }> } };
+export type ProjectEnvironmentsQuery = { project: { id: string, name: string, environments: Array<{ id: string, name: string, resourceTier: ResourceTier }> } };
 
 export type CompletePlanCheckoutMutationVariables = Exact<{
-  sessionId: Scalars['String']['input'];
+  sessionId: string;
 }>;
 
 
-export type CompletePlanCheckoutMutation = { __typename?: 'Mutation', completePlanCheckout: { __typename?: 'BillingSubscription', plan?: Plan | null, status: SubscriptionStatus, currentPeriodEnd: string, creditAmountCents: number, hasPaymentMethod: boolean } };
+export type CompletePlanCheckoutMutation = { completePlanCheckout: { plan: Plan | null, status: SubscriptionStatus, currentPeriodEnd: string, creditAmountCents: number, hasPaymentMethod: boolean } };
 
 export type ProjectPageQueryVariables = Exact<{
-  id: Scalars['ProjectID']['input'];
+  id: string;
 }>;
 
 
-export type ProjectPageQuery = { __typename?: 'Query', project: { __typename?: 'Project', id: string, name: string, environments: Array<{ __typename?: 'Environment', id: string, name: string, resourceTier: ResourceTier }> } };
+export type ProjectPageQuery = { project: { id: string, name: string, environments: Array<{ id: string, name: string, resourceTier: ResourceTier }> } };
 
 export type ProjectSettingsQueryVariables = Exact<{
-  id: Scalars['ProjectID']['input'];
+  id: string;
 }>;
 
 
-export type ProjectSettingsQuery = { __typename?: 'Query', project: { __typename?: 'Project', id: string, name: string, environments: Array<{ __typename?: 'Environment', id: string, name: string, resourceTier: ResourceTier }> } };
+export type ProjectSettingsQuery = { project: { id: string, name: string, environments: Array<{ id: string, name: string, resourceTier: ResourceTier }> } };
 
 export type DeleteProjectMutationVariables = Exact<{
-  id: Scalars['ProjectID']['input'];
+  id: string;
 }>;
 
 
-export type DeleteProjectMutation = { __typename?: 'Mutation', deleteProject: boolean };
+export type DeleteProjectMutation = { deleteProject: boolean };
 
 export type DeleteEnvironmentMutationVariables = Exact<{
-  environment: Scalars['EnvironmentID']['input'];
+  environment: string;
 }>;
 
 
-export type DeleteEnvironmentMutation = { __typename?: 'Mutation', deleteEnvironment: boolean };
+export type DeleteEnvironmentMutation = { deleteEnvironment: boolean };
 
 export type EnvironmentResourcesQueryVariables = Exact<{
-  environment: Scalars['EnvironmentID']['input'];
+  environment: string;
 }>;
 
 
-export type EnvironmentResourcesQuery = { __typename?: 'Query', environmentResources?: { __typename?: 'EnvironmentResources', tier: ResourceTier, allocation: { __typename?: 'ResourceAllocation', cpuMillicores: number, memoryMB: number, diskMB: number } } | null };
+export type EnvironmentResourcesQuery = { environmentResources: { tier: ResourceTier, allocation: { cpuMillicores: number, memoryMB: number, diskMB: number } } | null };
 
 export type SetEnvironmentResourcesMutationVariables = Exact<{
   input: SetEnvironmentResourcesInput;
 }>;
 
 
-export type SetEnvironmentResourcesMutation = { __typename?: 'Mutation', setEnvironmentResources: { __typename?: 'Environment', id: string, resourceTier: ResourceTier } };
+export type SetEnvironmentResourcesMutation = { setEnvironmentResources: { id: string, resourceTier: ResourceTier } };
 
 export type ProjectsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type ProjectsQuery = { __typename?: 'Query', projects: Array<{ __typename?: 'Project', id: string, name: string, environments: Array<{ __typename?: 'Environment', id: string, name: string, resourceTier: ResourceTier, services: Array<{ __typename?: 'Service', id: string, name: string, sourceUrl: string }> }> }> };
+export type ProjectsQuery = { projects: Array<{ id: string, name: string, environments: Array<{ id: string, name: string, resourceTier: ResourceTier, services: Array<{ id: string, name: string, sourceUrl: string }> }> }> };
 
 export type UpdateWorkspaceMutationVariables = Exact<{
   input: UpdateWorkspaceInput;
 }>;
 
 
-export type UpdateWorkspaceMutation = { __typename?: 'Mutation', updateWorkspace: { __typename?: 'Workspace', id: string, name: string } };
+export type UpdateWorkspaceMutation = { updateWorkspace: { id: string, name: string } };
 
 export type DeleteWorkspaceMutationVariables = Exact<{ [key: string]: never; }>;
 
 
-export type DeleteWorkspaceMutation = { __typename?: 'Mutation', deleteWorkspace: boolean };
+export type DeleteWorkspaceMutation = { deleteWorkspace: boolean };
 
 export type InviteMemberMutationVariables = Exact<{
   input: InviteMemberInput;
 }>;
 
 
-export type InviteMemberMutation = { __typename?: 'Mutation', inviteMember: { __typename?: 'WorkspaceMember', id: string, email: string, name?: string | null, role: WorkspaceRole } };
+export type InviteMemberMutation = { inviteMember: { id: string, email: string, name: string | null, role: WorkspaceRole } };
 
 export type RemoveMemberMutationVariables = Exact<{
-  userId: Scalars['ID']['input'];
+  userId: string | number;
 }>;
 
 
-export type RemoveMemberMutation = { __typename?: 'Mutation', removeMember: boolean };
+export type RemoveMemberMutation = { removeMember: boolean };
 
 export type UpdateMemberRoleMutationVariables = Exact<{
   input: UpdateMemberRoleInput;
 }>;
 
 
-export type UpdateMemberRoleMutation = { __typename?: 'Mutation', updateMemberRole: { __typename?: 'WorkspaceMember', id: string, email: string, name?: string | null, role: WorkspaceRole } };
+export type UpdateMemberRoleMutation = { updateMemberRole: { id: string, email: string, name: string | null, role: WorkspaceRole } };
 
 export type ChangePlanMutationVariables = Exact<{
   plan: Plan;
 }>;
 
 
-export type ChangePlanMutation = { __typename?: 'Mutation', changePlan: { __typename?: 'BillingSubscription', plan?: Plan | null, status: SubscriptionStatus, currentPeriodEnd: string, creditAmountCents: number, creditExpiry?: string | null } };
+export type ChangePlanMutation = { changePlan: { plan: Plan | null, status: SubscriptionStatus, currentPeriodEnd: string, creditAmountCents: number, creditExpiry: string | null } };
 
 export type BillingPortalUrlMutationVariables = Exact<{ [key: string]: never; }>;
 
 
-export type BillingPortalUrlMutation = { __typename?: 'Mutation', billingPortalUrl: { __typename?: 'BillingPortalUrl', url: string } };
+export type BillingPortalUrlMutation = { billingPortalUrl: { url: string } };
 
 
 export const WorkspacesDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"Workspaces"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"workspaces"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"personal"}}]}}]}}]} as unknown as DocumentNode<WorkspacesQuery, WorkspacesQueryVariables>;
