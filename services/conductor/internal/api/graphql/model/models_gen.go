@@ -206,6 +206,7 @@ type Deployment struct {
 	BuildID       string                `json:"buildId"`
 	Status        DeploymentStatus      `json:"status"`
 	Replicas      *ReplicaCount         `json:"replicas"`
+	Rollout       *Rollout              `json:"rollout,omitempty"`
 	CreatedAt     time.Time             `json:"createdAt"`
 }
 
@@ -398,6 +399,14 @@ type Resources struct {
 type ResourcesInput struct {
 	CPU    string `json:"cpu"`
 	Memory string `json:"memory"`
+}
+
+type Rollout struct {
+	Status    RolloutStatus  `json:"status"`
+	Reason    *RolloutReason `json:"reason,omitempty"`
+	Message   *string        `json:"message,omitempty"`
+	Restarts  int            `json:"restarts"`
+	StartedAt time.Time      `json:"startedAt"`
 }
 
 type Scan struct {
@@ -1664,6 +1673,134 @@ func (e *Role) UnmarshalJSON(b []byte) error {
 }
 
 func (e Role) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type RolloutReason string
+
+const (
+	RolloutReasonCrashLoop        RolloutReason = "CRASH_LOOP"
+	RolloutReasonOomKilled        RolloutReason = "OOM_KILLED"
+	RolloutReasonImagePullFailed  RolloutReason = "IMAGE_PULL_FAILED"
+	RolloutReasonConfigError      RolloutReason = "CONFIG_ERROR"
+	RolloutReasonQuotaExceeded    RolloutReason = "QUOTA_EXCEEDED"
+	RolloutReasonUnschedulable    RolloutReason = "UNSCHEDULABLE"
+	RolloutReasonNotReady         RolloutReason = "NOT_READY"
+	RolloutReasonDeadlineExceeded RolloutReason = "DEADLINE_EXCEEDED"
+)
+
+var AllRolloutReason = []RolloutReason{
+	RolloutReasonCrashLoop,
+	RolloutReasonOomKilled,
+	RolloutReasonImagePullFailed,
+	RolloutReasonConfigError,
+	RolloutReasonQuotaExceeded,
+	RolloutReasonUnschedulable,
+	RolloutReasonNotReady,
+	RolloutReasonDeadlineExceeded,
+}
+
+func (e RolloutReason) IsValid() bool {
+	switch e {
+	case RolloutReasonCrashLoop, RolloutReasonOomKilled, RolloutReasonImagePullFailed, RolloutReasonConfigError, RolloutReasonQuotaExceeded, RolloutReasonUnschedulable, RolloutReasonNotReady, RolloutReasonDeadlineExceeded:
+		return true
+	}
+	return false
+}
+
+func (e RolloutReason) String() string {
+	return string(e)
+}
+
+func (e *RolloutReason) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = RolloutReason(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid RolloutReason", str)
+	}
+	return nil
+}
+
+func (e RolloutReason) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *RolloutReason) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e RolloutReason) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type RolloutStatus string
+
+const (
+	RolloutStatusProgressing RolloutStatus = "PROGRESSING"
+	RolloutStatusReady       RolloutStatus = "READY"
+	RolloutStatusDegraded    RolloutStatus = "DEGRADED"
+	RolloutStatusFailed      RolloutStatus = "FAILED"
+	RolloutStatusSuperseded  RolloutStatus = "SUPERSEDED"
+)
+
+var AllRolloutStatus = []RolloutStatus{
+	RolloutStatusProgressing,
+	RolloutStatusReady,
+	RolloutStatusDegraded,
+	RolloutStatusFailed,
+	RolloutStatusSuperseded,
+}
+
+func (e RolloutStatus) IsValid() bool {
+	switch e {
+	case RolloutStatusProgressing, RolloutStatusReady, RolloutStatusDegraded, RolloutStatusFailed, RolloutStatusSuperseded:
+		return true
+	}
+	return false
+}
+
+func (e RolloutStatus) String() string {
+	return string(e)
+}
+
+func (e *RolloutStatus) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = RolloutStatus(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid RolloutStatus", str)
+	}
+	return nil
+}
+
+func (e RolloutStatus) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *RolloutStatus) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e RolloutStatus) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

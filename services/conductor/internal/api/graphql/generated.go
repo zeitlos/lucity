@@ -178,6 +178,7 @@ type ComplexityRoot struct {
 		Ref           func(childComplexity int) int
 		Replicas      func(childComplexity int) int
 		Resources     func(childComplexity int) int
+		Rollout       func(childComplexity int) int
 		SourceURL     func(childComplexity int) int
 		Status        func(childComplexity int) int
 	}
@@ -429,6 +430,14 @@ type ComplexityRoot struct {
 	Resources struct {
 		CPU    func(childComplexity int) int
 		Memory func(childComplexity int) int
+	}
+
+	Rollout struct {
+		Message   func(childComplexity int) int
+		Reason    func(childComplexity int) int
+		Restarts  func(childComplexity int) int
+		StartedAt func(childComplexity int) int
+		Status    func(childComplexity int) int
 	}
 
 	Scan struct {
@@ -1168,6 +1177,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Deployment.Resources(childComplexity), true
+	case "Deployment.rollout":
+		if e.ComplexityRoot.Deployment.Rollout == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Deployment.Rollout(childComplexity), true
 	case "Deployment.sourceUrl":
 		if e.ComplexityRoot.Deployment.SourceURL == nil {
 			break
@@ -2564,6 +2579,37 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.Resources.Memory(childComplexity), true
 
+	case "Rollout.message":
+		if e.ComplexityRoot.Rollout.Message == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Rollout.Message(childComplexity), true
+	case "Rollout.reason":
+		if e.ComplexityRoot.Rollout.Reason == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Rollout.Reason(childComplexity), true
+	case "Rollout.restarts":
+		if e.ComplexityRoot.Rollout.Restarts == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Rollout.Restarts(childComplexity), true
+	case "Rollout.startedAt":
+		if e.ComplexityRoot.Rollout.StartedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Rollout.StartedAt(childComplexity), true
+	case "Rollout.status":
+		if e.ComplexityRoot.Rollout.Status == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Rollout.Status(childComplexity), true
+
 	case "Scan.findingsCount":
 		if e.ComplexityRoot.Scan.FindingsCount == nil {
 			break
@@ -3455,6 +3501,8 @@ func (ec *executionContext) childFields_Deployment(ctx context.Context, field gr
 		return ec.fieldContext_Deployment_status(ctx, field)
 	case "replicas":
 		return ec.fieldContext_Deployment_replicas(ctx, field)
+	case "rollout":
+		return ec.fieldContext_Deployment_rollout(ctx, field)
 	case "createdAt":
 		return ec.fieldContext_Deployment_createdAt(ctx, field)
 	}
@@ -3783,6 +3831,22 @@ func (ec *executionContext) childFields_Resources(ctx context.Context, field gra
 		return ec.fieldContext_Resources_memory(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type Resources", field.Name)
+}
+
+func (ec *executionContext) childFields_Rollout(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "status":
+		return ec.fieldContext_Rollout_status(ctx, field)
+	case "reason":
+		return ec.fieldContext_Rollout_reason(ctx, field)
+	case "message":
+		return ec.fieldContext_Rollout_message(ctx, field)
+	case "restarts":
+		return ec.fieldContext_Rollout_restarts(ctx, field)
+	case "startedAt":
+		return ec.fieldContext_Rollout_startedAt(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type Rollout", field.Name)
 }
 
 func (ec *executionContext) childFields_Scan(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
@@ -7427,6 +7491,38 @@ func (ec *executionContext) fieldContext_Deployment_replicas(_ context.Context, 
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return ec.childFields_ReplicaCount(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Deployment_rollout(ctx context.Context, field graphql.CollectedField, obj *model.Deployment) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Deployment_rollout(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Rollout, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Rollout) graphql.Marshaler {
+			return ec.marshalORollout2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRollout(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_Deployment_rollout(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Deployment",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Rollout(ctx, field)
 		},
 	}
 	return fc, nil
@@ -14485,6 +14581,121 @@ func (ec *executionContext) fieldContext_Resources_memory(_ context.Context, fie
 	return graphql.NewScalarFieldContext("Resources", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
+func (ec *executionContext) _Rollout_status(ctx context.Context, field graphql.CollectedField, obj *model.Rollout) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Rollout_status(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Status, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v model.RolloutStatus) graphql.Marshaler {
+			return ec.marshalNRolloutStatus2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRolloutStatus(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Rollout_status(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Rollout", field, false, false, errors.New("field of type RolloutStatus does not have child fields"))
+}
+
+func (ec *executionContext) _Rollout_reason(ctx context.Context, field graphql.CollectedField, obj *model.Rollout) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Rollout_reason(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Reason, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.RolloutReason) graphql.Marshaler {
+			return ec.marshalORolloutReason2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRolloutReason(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_Rollout_reason(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Rollout", field, false, false, errors.New("field of type RolloutReason does not have child fields"))
+}
+
+func (ec *executionContext) _Rollout_message(ctx context.Context, field graphql.CollectedField, obj *model.Rollout) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Rollout_message(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Message, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_Rollout_message(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Rollout", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _Rollout_restarts(ctx context.Context, field graphql.CollectedField, obj *model.Rollout) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Rollout_restarts(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Restarts, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Rollout_restarts(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Rollout", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _Rollout_startedAt(ctx context.Context, field graphql.CollectedField, obj *model.Rollout) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Rollout_startedAt(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.StartedAt, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v time.Time) graphql.Marshaler {
+			return ec.marshalNTime2timeᚐTime(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Rollout_startedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Rollout", field, false, false, errors.New("field of type Time does not have child fields"))
+}
+
 func (ec *executionContext) _Scan_id(ctx context.Context, field graphql.CollectedField, obj *model.Scan) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -19637,6 +19848,8 @@ func (ec *executionContext) _Deployment(ctx context.Context, sel ast.SelectionSe
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "rollout":
+			out.Values[i] = ec._Deployment_rollout(ctx, field, obj)
 		case "createdAt":
 			out.Values[i] = ec._Deployment_createdAt(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -22167,6 +22380,59 @@ func (ec *executionContext) _Resources(ctx context.Context, sel ast.SelectionSet
 	return out
 }
 
+var rolloutImplementors = []string{"Rollout"}
+
+func (ec *executionContext) _Rollout(ctx context.Context, sel ast.SelectionSet, obj *model.Rollout) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, rolloutImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Rollout")
+		case "status":
+			out.Values[i] = ec._Rollout_status(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "reason":
+			out.Values[i] = ec._Rollout_reason(ctx, field, obj)
+		case "message":
+			out.Values[i] = ec._Rollout_message(ctx, field, obj)
+		case "restarts":
+			out.Values[i] = ec._Rollout_restarts(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "startedAt":
+			out.Values[i] = ec._Rollout_startedAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferred), math.MaxInt32)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var scanImplementors = []string{"Scan"}
 
 func (ec *executionContext) _Scan(ctx context.Context, sel ast.SelectionSet, obj *model.Scan) graphql.Marshaler {
@@ -24640,6 +24906,16 @@ func (ec *executionContext) marshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservi
 	return v
 }
 
+func (ec *executionContext) unmarshalNRolloutStatus2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRolloutStatus(ctx context.Context, v any) (model.RolloutStatus, error) {
+	var res model.RolloutStatus
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNRolloutStatus2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRolloutStatus(ctx context.Context, sel ast.SelectionSet, v model.RolloutStatus) graphql.Marshaler {
+	return v
+}
+
 func (ec *executionContext) unmarshalNScanID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋscanjobᚐScanID(ctx context.Context, v any) (scanjob.ScanID, error) {
 	var res scanjob.ScanID
 	err := res.UnmarshalGQL(v)
@@ -25456,6 +25732,29 @@ func (ec *executionContext) unmarshalOResourceTier2ᚖgithubᚗcomᚋzeitlosᚋl
 }
 
 func (ec *executionContext) marshalOResourceTier2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐResourceTier(ctx context.Context, sel ast.SelectionSet, v *model.ResourceTier) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return v
+}
+
+func (ec *executionContext) marshalORollout2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRollout(ctx context.Context, sel ast.SelectionSet, v *model.Rollout) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._Rollout(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalORolloutReason2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRolloutReason(ctx context.Context, v any) (*model.RolloutReason, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var res = new(model.RolloutReason)
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalORolloutReason2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRolloutReason(ctx context.Context, sel ast.SelectionSet, v *model.RolloutReason) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}

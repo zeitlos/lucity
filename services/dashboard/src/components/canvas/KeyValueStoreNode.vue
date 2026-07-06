@@ -24,9 +24,11 @@ const statusTone = computed(() => {
       return 'ok' as const;
     case DatabaseStatus.Failed:
       return 'danger' as const;
+    case DatabaseStatus.Degraded:
+      return 'warn' as const;
     case DatabaseStatus.Pending:
     case DatabaseStatus.Updating:
-      return 'warn' as const;
+      return 'progress' as const;
     default:
       return 'neutral' as const;
   }

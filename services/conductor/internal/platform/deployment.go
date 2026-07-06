@@ -28,6 +28,7 @@ type Deployment struct {
 
 	Status   DeploymentStatus
 	Replicas ReplicaCount
+	Rollout  *Rollout
 
 	BuildID        string
 	ReleaseID      string
@@ -43,6 +44,38 @@ const (
 	DeploymentActive     DeploymentStatus = "active"
 	DeploymentSuperseded DeploymentStatus = "superseded"
 	DeploymentFailed     DeploymentStatus = "failed"
+)
+
+type Rollout struct {
+	Status    RolloutStatus
+	Reason    RolloutReason
+	Message   string
+	Restarts  int
+	StartedAt time.Time
+}
+
+type RolloutStatus string
+
+const (
+	RolloutProgressing RolloutStatus = "progressing"
+	RolloutReady       RolloutStatus = "ready"
+	RolloutDegraded    RolloutStatus = "degraded"
+	RolloutFailed      RolloutStatus = "failed"
+	RolloutSuperseded  RolloutStatus = "superseded"
+)
+
+type RolloutReason string
+
+const (
+	RolloutReasonNone             RolloutReason = ""
+	RolloutReasonCrashLoop        RolloutReason = "crash_loop"
+	RolloutReasonOOMKilled        RolloutReason = "oom_killed"
+	RolloutReasonImagePullFailed  RolloutReason = "image_pull_failed"
+	RolloutReasonConfigError      RolloutReason = "config_error"
+	RolloutReasonQuotaExceeded    RolloutReason = "quota_exceeded"
+	RolloutReasonUnschedulable    RolloutReason = "unschedulable"
+	RolloutReasonNotReady         RolloutReason = "not_ready"
+	RolloutReasonDeadlineExceeded RolloutReason = "deadline_exceeded"
 )
 
 type DeploymentID struct {

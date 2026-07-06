@@ -72,11 +72,26 @@ func (c *Client) Services(ctx context.Context, environmentID platform.Environmen
 		return nil, err
 	}
 
+	pods, err := c.kubernetes.CoreV1().Pods(namespace).List(ctx, meta.ListOptions{
+		LabelSelector: selector.String(),
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
 	replicaSetsByService := make(map[string][]apps.ReplicaSet)
 
 	for _, replicaSet := range replicaSets.Items {
 		name := replicaSet.Labels[serviceLabel]
 		replicaSetsByService[name] = append(replicaSetsByService[name], replicaSet)
+	}
+
+	podsByService := make(map[string][]core.Pod)
+
+	for _, pod := range pods.Items {
+		name := pod.Labels[serviceLabel]
+		podsByService[name] = append(podsByService[name], pod)
 	}
 
 	secretsByService := make(map[string]core.Secret)
@@ -106,6 +121,7 @@ func (c *Client) Services(ctx context.Context, environmentID platform.Environmen
 		service := toService(
 			deployment,
 			replicaSetsByService[name],
+			podsByService[name],
 			routesByService[name],
 			hpasByService[name],
 			secretsByService[name],
@@ -167,6 +183,12 @@ func (c *Client) Service(ctx context.Context, id platform.ServiceID) (*platform.
 		return nil, err
 	}
 
+	pods, err := c.podsFor(ctx, id)
+
+	if err != nil {
+		return nil, err
+	}
+
 	secret, err := c.secretFor(ctx, id)
 
 	if err != nil {
@@ -197,7 +219,7 @@ func (c *Client) Service(ctx context.Context, id platform.ServiceID) (*platform.
 		hpa = hpas.Items[0]
 	}
 
-	return new(toService(*deployment, replicaSets, routes.Items, hpa, *secret, id.EnvironmentID())), nil
+	return new(toService(*deployment, replicaSets, pods, routes.Items, hpa, *secret, id.EnvironmentID())), nil
 }
 
 func (c *Client) deploymentFor(ctx context.Context, serviceID platform.ServiceID) (*apps.Deployment, error) {
@@ -240,15 +262,34 @@ func (c *Client) secretFor(ctx context.Context, serviceID platform.ServiceID) (*
 	return &secrets.Items[0], nil
 }
 
-func toService(deployment apps.Deployment, replicaSets []apps.ReplicaSet, routes []unstructured.Unstructured, hpa autoscaling.HorizontalPodAutoscaler, secret core.Secret, environmentID platform.EnvironmentID) platform.Service {
+func toService(deployment apps.Deployment, replicaSets []apps.ReplicaSet, pods []core.Pod, routes []unstructured.Unstructured, hpa autoscaling.HorizontalPodAutoscaler, secret core.Secret, environmentID platform.EnvironmentID) platform.Service {
 	annotations := deployment.Annotations
 	containers := deployment.Spec.Template.Spec.Containers
 
+	id := serviceID(deployment, environmentID)
+	currentRevision := deployment.Annotations[annotationRevision]
+
+	var activeDeployment *platform.Deployment
+
+	for _, replicaSet := range replicaSets {
+		if replicaSet.Annotations[annotationRevision] != currentRevision {
+			continue
+		}
+
+		activeDeployment = new(toDeployment(replicaSet, deployment, pods, id))
+	}
+
+	var rollout *platform.Rollout
+
+	if activeDeployment != nil {
+		rollout = activeDeployment.Rollout
+	}
+
 	service := platform.Service{
-		ID:   serviceID(deployment, environmentID),
+		ID:   id,
 		Name: deployment.Labels[serviceLabel],
 
-		Status: serviceStatus(deployment, replicaSets),
+		Status: serviceStatus(deployment, replicaSets, rollout),
 		Replicas: platform.ReplicaCount{
 			Desired: int(to.Val(deployment.Spec.Replicas)),
 			Ready:   int(deployment.Status.ReadyReplicas),
@@ -265,22 +306,14 @@ func toService(deployment apps.Deployment, replicaSets []apps.ReplicaSet, routes
 		Command:     containerCommand(containers),
 		Variables:   make(map[string]string),
 
+		ActiveDeployment: activeDeployment,
+
 		LastDeployedAt: latestReplicaSetTime(replicaSets),
 		CreatedAt:      deployment.CreationTimestamp.Time,
 	}
 
 	for key, val := range secret.Data {
 		service.Variables[key] = string(val)
-	}
-
-	currentRevision := deployment.Annotations[annotationRevision]
-
-	for _, replicaSet := range replicaSets {
-		if replicaSet.Annotations[annotationRevision] != currentRevision {
-			continue
-		}
-
-		service.ActiveDeployment = new(toDeployment(replicaSet, deployment, service.ID))
 	}
 
 	return service
@@ -307,7 +340,7 @@ func awaitingFirstBuild(deployment apps.Deployment) bool {
 	return err == nil && !ref.Built()
 }
 
-func serviceStatus(deployment apps.Deployment, replicaSets []apps.ReplicaSet) platform.ServiceStatus {
+func serviceStatus(deployment apps.Deployment, replicaSets []apps.ReplicaSet, rollout *platform.Rollout) platform.ServiceStatus {
 	if awaitingFirstBuild(deployment) {
 		return platform.ServiceBuilding
 	}
@@ -318,6 +351,7 @@ func serviceStatus(deployment apps.Deployment, replicaSets []apps.ReplicaSet) pl
 		return platform.ServiceStopped
 	}
 
+	rolloutHasFailed := rollout != nil && rollout.Status == platform.RolloutFailed
 	currentRevision := deployment.Annotations[annotationRevision]
 
 	// Rollout in flight if any non-current replica set still has live pods
@@ -327,12 +361,16 @@ func serviceStatus(deployment apps.Deployment, replicaSets []apps.ReplicaSet) pl
 		}
 
 		if replicaSet.Status.Replicas > 0 {
+			if rolloutHasFailed {
+				return platform.ServiceDegraded
+			}
+
 			return platform.ServiceDeploying
 		}
 	}
 
 	// Only the current replica set has pods, indicating a steady state.
-	if rolloutFailed(deployment) {
+	if rolloutHasFailed {
 		return platform.ServiceFailed
 	}
 
