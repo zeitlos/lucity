@@ -189,14 +189,10 @@ const EnvironmentDocument = graphql(`
   }
 `);
 
-const EnvironmentDetailsDocument = graphql(`
-  query EnvironmentDetails($environment: EnvironmentID!) {
+const EnvironmentVolumeUsageDocument = graphql(`
+  query EnvironmentVolumeUsage($environment: EnvironmentID!) {
     environment(environment: $environment) {
       id
-      services {
-        id
-        defaultCommand
-      }
       volumes {
         id
         size
@@ -205,6 +201,18 @@ const EnvironmentDetailsDocument = graphql(`
             value
           }
         }
+      }
+    }
+  }
+`);
+
+const EnvironmentDefaultCommandsDocument = graphql(`
+  query EnvironmentDefaultCommands($environment: EnvironmentID!) {
+    environment(environment: $environment) {
+      id
+      services {
+        id
+        defaultCommand
       }
     }
   }
@@ -291,11 +299,28 @@ const { result, loading, error, refetch } = useQuery(
   () => ({ pollInterval: isReconciling.value ? 3000 : 0 }),
 );
 
-const { result: detailsResult } = useQuery(
-  EnvironmentDetailsDocument,
+const { result: volumeUsageResult } = useQuery(
+  EnvironmentVolumeUsageDocument,
   () => ({ environment: environmentId.value }),
   { pollInterval: 30000 },
 );
+
+const { result: defaultCommandsResult, refetch: refetchDefaultCommands } = useQuery(
+  EnvironmentDefaultCommandsDocument,
+  () => ({ environment: environmentId.value }),
+);
+
+const activeImageDigests = computed(() =>
+  (result.value?.environment?.services ?? [])
+    .map(s => `${s.id}=${s.activeDeployment?.imageDigest ?? s.activeDeployment?.image ?? ''}`)
+    .join('|'),
+);
+
+watch(activeImageDigests, (current, previous) => {
+  if (previous && current !== previous) {
+    refetchDefaultCommands();
+  }
+});
 
 const environment = computed(() => result.value?.environment ?? null);
 
@@ -349,12 +374,16 @@ watch(
 
 // When the env detail loads, replace the active environment shell with the full payload
 watch(
-  () => [result.value?.environment, detailsResult.value?.environment] as const,
-  ([env, details]) => {
+  () => [
+    result.value?.environment,
+    defaultCommandsResult.value?.environment,
+    volumeUsageResult.value?.environment,
+  ] as const,
+  ([env, commands, usage]) => {
     if (!env) return;
 
-    const defaultCommands = new Map((details?.services ?? []).map(s => [s.id, s.defaultCommand]));
-    const volumeUsage = new Map((details?.volumes ?? []).map(v => [v.id, volumeUsagePercent(v)]));
+    const defaultCommands = new Map((commands?.services ?? []).map(s => [s.id, s.defaultCommand]));
+    const volumeUsage = new Map((usage?.volumes ?? []).map(v => [v.id, volumeUsagePercent(v)]));
 
     isReconciling.value =
       env.services.some(s => SERVICE_TRANSIENT_STATUSES.has(s.status)) ||
