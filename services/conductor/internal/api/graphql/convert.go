@@ -111,17 +111,17 @@ func convertMetricPoints(points []metrics.Point) []model.MetricPoint {
 
 func convertService(service platform.Service) model.Service {
 	result := model.Service{
-		ID:                service.ID,
-		Name:              service.Name,
-		Status:            convertServiceStatus(service.Status),
-		Replicas:          convertReplicaCount(service.Replicas),
-		Port:              service.Port,
-		PlatformEndpoints: service.Endpoints,
-		SourceURL:         service.SourceURL,
-		ContextPath:       service.ContextPath,
-		Resources:         convertResources(service.Resources),
-		Command:           service.Command,
-		CreatedAt:         service.CreatedAt,
+		ID:              service.ID,
+		Name:            service.Name,
+		Status:          convertServiceStatus(service.Status),
+		Replicas:        convertReplicaCount(service.Replicas),
+		Port:            service.Port,
+		PlatformService: service,
+		SourceURL:       service.SourceURL,
+		ContextPath:     service.ContextPath,
+		Resources:       convertResources(service.Resources),
+		Command:         service.Command,
+		CreatedAt:       service.CreatedAt,
 	}
 
 	if service.Autoscaling != nil {

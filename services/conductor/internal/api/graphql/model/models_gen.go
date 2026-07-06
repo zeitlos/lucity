@@ -436,27 +436,27 @@ type SecretScanReport struct {
 }
 
 type Service struct {
-	ID                platform.ServiceID   `json:"id"`
-	Name              string               `json:"name"`
-	Status            ServiceStatus        `json:"status"`
-	Replicas          *ReplicaCount        `json:"replicas"`
-	Autoscaling       *AutoscalingSettings `json:"autoscaling,omitempty"`
-	Port              int                  `json:"port"`
-	Endpoints         []Endpoint           `json:"endpoints"`
-	SourceURL         string               `json:"sourceUrl"`
-	ContextPath       string               `json:"contextPath"`
-	Resources         *Resources           `json:"resources"`
-	Command           string               `json:"command"`
-	DefaultCommand    string               `json:"defaultCommand"`
-	ActiveDeployment  *Deployment          `json:"activeDeployment,omitempty"`
-	Deployments       []Deployment         `json:"deployments"`
-	Builds            []Build              `json:"builds"`
-	Metrics           []MetricSeries       `json:"metrics"`
-	LastDeployedAt    *time.Time           `json:"lastDeployedAt,omitempty"`
-	CreatedAt         time.Time            `json:"createdAt"`
-	Releases          []Release            `json:"releases"`
-	SecretScanReport  *SecretScanReport    `json:"secretScanReport,omitempty"`
-	PlatformEndpoints []platform.Endpoint  `json:"-"`
+	ID               platform.ServiceID   `json:"id"`
+	Name             string               `json:"name"`
+	Status           ServiceStatus        `json:"status"`
+	Replicas         *ReplicaCount        `json:"replicas"`
+	Autoscaling      *AutoscalingSettings `json:"autoscaling,omitempty"`
+	Port             int                  `json:"port"`
+	Endpoints        []Endpoint           `json:"endpoints"`
+	SourceURL        string               `json:"sourceUrl"`
+	ContextPath      string               `json:"contextPath"`
+	Resources        *Resources           `json:"resources"`
+	Command          string               `json:"command"`
+	DefaultCommand   string               `json:"defaultCommand"`
+	ActiveDeployment *Deployment          `json:"activeDeployment,omitempty"`
+	Deployments      []Deployment         `json:"deployments"`
+	Builds           []Build              `json:"builds"`
+	Metrics          []MetricSeries       `json:"metrics"`
+	LastDeployedAt   *time.Time           `json:"lastDeployedAt,omitempty"`
+	CreatedAt        time.Time            `json:"createdAt"`
+	Releases         []Release            `json:"releases"`
+	SecretScanReport *SecretScanReport    `json:"secretScanReport,omitempty"`
+	PlatformService  platform.Service     `json:"-"`
 }
 
 type ServiceLogEntry struct {

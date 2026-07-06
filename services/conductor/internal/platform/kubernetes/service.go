@@ -269,14 +269,16 @@ func toService(deployment apps.Deployment, replicaSets []apps.ReplicaSet, pods [
 	id := serviceID(deployment, environmentID)
 	currentRevision := deployment.Annotations[annotationRevision]
 
+	deployments := make([]platform.Deployment, 0, len(replicaSets))
+
 	var activeDeployment *platform.Deployment
 
-	for _, replicaSet := range replicaSets {
-		if replicaSet.Annotations[annotationRevision] != currentRevision {
-			continue
-		}
+	for i, replicaSet := range replicaSets {
+		deployments = append(deployments, toDeployment(replicaSet, deployment, pods, id))
 
-		activeDeployment = new(toDeployment(replicaSet, deployment, pods, id))
+		if replicaSet.Annotations[annotationRevision] == currentRevision {
+			activeDeployment = &deployments[i]
+		}
 	}
 
 	var rollout *platform.Rollout
@@ -307,6 +309,7 @@ func toService(deployment apps.Deployment, replicaSets []apps.ReplicaSet, pods [
 		Variables:   make(map[string]string),
 
 		ActiveDeployment: activeDeployment,
+		Deployments:      deployments,
 
 		LastDeployedAt: latestReplicaSetTime(replicaSets),
 		CreatedAt:      deployment.CreationTimestamp.Time,

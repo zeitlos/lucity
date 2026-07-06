@@ -70,18 +70,9 @@ type Release struct {
 	CreatedAt  time.Time
 }
 
-func (c *Client) Releases(ctx context.Context, serviceID ServiceID) ([]Release, error) {
-	deployments, err := c.platform.Deployments(ctx, serviceID)
-
-	if err != nil {
-		return nil, err
-	}
-
-	service, err := c.platform.Service(ctx, serviceID)
-
-	if err != nil {
-		return nil, err
-	}
+func (c *Client) Releases(ctx context.Context, service platform.Service) ([]Release, error) {
+	serviceID := service.ID
+	deployments := service.Deployments
 
 	var builds []Build
 

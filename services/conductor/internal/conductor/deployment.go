@@ -9,10 +9,6 @@ import (
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 )
 
-func (c *Client) Deployments(ctx context.Context, serviceID ServiceID) ([]Deployment, error) {
-	return c.platform.Deployments(ctx, serviceID)
-}
-
 func (c *Client) Deployment(ctx context.Context, id DeploymentID) (*Deployment, error) {
 	return c.platform.Deployment(ctx, id)
 }

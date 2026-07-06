@@ -30,6 +30,7 @@ type Service struct {
 	Variables   map[string]string
 
 	ActiveDeployment *Deployment
+	Deployments      []Deployment
 
 	LastDeployedAt time.Time
 	CreatedAt      time.Time
