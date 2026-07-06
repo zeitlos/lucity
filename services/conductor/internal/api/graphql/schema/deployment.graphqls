@@ -17,6 +17,7 @@ type Deployment {
 
   status: DeploymentStatus!
   replicas: ReplicaCount!
+  rollout: Rollout
 
   createdAt: Time!
 }
@@ -26,6 +27,33 @@ enum DeploymentStatus {
   ACTIVE
   SUPERSEDED
   FAILED
+}
+
+type Rollout {
+  status: RolloutStatus!
+  reason: RolloutReason
+  message: String
+  restarts: Int!
+  startedAt: Time!
+}
+
+enum RolloutStatus {
+  PROGRESSING
+  READY
+  DEGRADED
+  FAILED
+  SUPERSEDED
+}
+
+enum RolloutReason {
+  CRASH_LOOP
+  OOM_KILLED
+  IMAGE_PULL_FAILED
+  CONFIG_ERROR
+  QUOTA_EXCEEDED
+  UNSCHEDULABLE
+  NOT_READY
+  DEADLINE_EXCEEDED
 }
 
 extend type Query {

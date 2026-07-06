@@ -161,7 +161,30 @@ func convertDeployment(deployment platform.Deployment) model.Deployment {
 		result.ImageDigest = &deployment.Image.Digest
 	}
 
+	if deployment.Rollout != nil {
+		result.Rollout = convertRollout(*deployment.Rollout)
+	}
+
 	return result
+}
+
+func convertRollout(rollout platform.Rollout) *model.Rollout {
+	result := model.Rollout{
+		Status:    convertRolloutStatus(rollout.Status),
+		Restarts:  rollout.Restarts,
+		StartedAt: rollout.StartedAt,
+	}
+
+	if rollout.Reason != platform.RolloutReasonNone {
+		reason := convertRolloutReason(rollout.Reason)
+		result.Reason = &reason
+	}
+
+	if rollout.Message != "" {
+		result.Message = &rollout.Message
+	}
+
+	return &result
 }
 
 func convertReplicaCount(replicas platform.ReplicaCount) *model.ReplicaCount {
@@ -699,6 +722,50 @@ func convertDeploymentStatus(status platform.DeploymentStatus) model.DeploymentS
 	slog.Warn("unknown deployment status", "status", status)
 
 	return model.DeploymentStatusFailed
+}
+
+func convertRolloutStatus(status platform.RolloutStatus) model.RolloutStatus {
+	switch status {
+	case platform.RolloutProgressing:
+		return model.RolloutStatusProgressing
+	case platform.RolloutReady:
+		return model.RolloutStatusReady
+	case platform.RolloutDegraded:
+		return model.RolloutStatusDegraded
+	case platform.RolloutFailed:
+		return model.RolloutStatusFailed
+	case platform.RolloutSuperseded:
+		return model.RolloutStatusSuperseded
+	}
+
+	slog.Warn("unknown rollout status", "status", status)
+
+	return model.RolloutStatusFailed
+}
+
+func convertRolloutReason(reason platform.RolloutReason) model.RolloutReason {
+	switch reason {
+	case platform.RolloutReasonCrashLoop:
+		return model.RolloutReasonCrashLoop
+	case platform.RolloutReasonOOMKilled:
+		return model.RolloutReasonOomKilled
+	case platform.RolloutReasonImagePullFailed:
+		return model.RolloutReasonImagePullFailed
+	case platform.RolloutReasonConfigError:
+		return model.RolloutReasonConfigError
+	case platform.RolloutReasonQuotaExceeded:
+		return model.RolloutReasonQuotaExceeded
+	case platform.RolloutReasonUnschedulable:
+		return model.RolloutReasonUnschedulable
+	case platform.RolloutReasonNotReady:
+		return model.RolloutReasonNotReady
+	case platform.RolloutReasonDeadlineExceeded:
+		return model.RolloutReasonDeadlineExceeded
+	}
+
+	slog.Warn("unknown rollout reason", "reason", reason)
+
+	return model.RolloutReasonNotReady
 }
 
 func convertBuildStatus(status buildjob.Status) model.BuildStatus {
