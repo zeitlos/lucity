@@ -47,8 +47,10 @@ const statusTone = computed(() => {
       return 'ok' as const;
     case ServiceStatus.Failed:
       return 'danger' as const;
-    case ServiceStatus.Deploying:
+    case ServiceStatus.Degraded:
       return 'warn' as const;
+    case ServiceStatus.Deploying:
+      return 'progress' as const;
     default:
       return 'neutral' as const;
   }

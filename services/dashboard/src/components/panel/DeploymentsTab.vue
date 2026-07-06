@@ -3,14 +3,14 @@ import { computed, onMounted, watch } from 'vue';
 import {
   Rocket, Check, AlertCircle, Terminal,
   ExternalLink, RefreshCw,
-  MoreVertical, ChevronDown, Clock, CircleSlash, TriangleAlert,
+  MoreVertical, ChevronDown, Clock, CircleSlash, TriangleAlert, EyeOff,
 } from '@lucide/vue';
 import Spinner from '@/components/LoadingSpinner.vue';
 import { useNow } from '@vueuse/core';
 import { useDeploy } from '@/composables/useDeploy';
 import { useBuildLogsPanel, type LogsPanelKind } from '@/composables/useBuildLogsPanel';
-import { DeploymentStatus, ReleaseStatus, ScanStatus } from '@/gql/graphql';
-import { activeBuild, type Deployment, type Release, type Scan } from '@/composables/useEnvironment';
+import { DeploymentStatus, ReleaseStatus, RolloutReason, RolloutStatus, ScanStatus } from '@/gql/graphql';
+import { activeBuild, type Deployment, type Release, type Rollout, type Scan } from '@/composables/useEnvironment';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
@@ -142,7 +142,7 @@ function hasActiveScan(release: Release): boolean {
   return !!release.scan && ACTIVE_SCAN_STATUSES.has(release.scan.status);
 }
 
-type StepStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'skipped' | 'findings' | 'leaked';
+type StepStatus = 'queued' | 'running' | 'succeeded' | 'degraded' | 'failed' | 'cancelled' | 'skipped' | 'superseded' | 'findings' | 'leaked';
 
 interface ReleaseStep {
   key: string;
@@ -155,35 +155,69 @@ interface ReleaseStep {
   logKind?: LogsPanelKind;
 }
 
-function rolloutStep(deployment: Deployment | null | undefined, live: boolean): ReleaseStep | null {
-  if (!deployment) return null;
+const RELEASE_STATUSES_WITHOUT_ROLLOUT = new Set<ReleaseStatus>([
+  ReleaseStatus.Failed,
+  ReleaseStatus.Cancelled,
+]);
+
+function rolloutStep(deployment: Deployment | null | undefined, releaseStatus?: ReleaseStatus): ReleaseStep {
+  const rollout = deployment?.rollout;
+
+  if (!deployment || !rollout) {
+    const skipped = releaseStatus && RELEASE_STATUSES_WITHOUT_ROLLOUT.has(releaseStatus);
+
+    return { key: 'rollout', label: 'Rollout', status: skipped ? 'skipped' : 'queued' };
+  }
 
   let status: StepStatus;
 
-  switch (deployment.status) {
-    case DeploymentStatus.Deploying:
+  switch (rollout.status) {
+    case RolloutStatus.Progressing:
       status = 'running';
       break;
-    case DeploymentStatus.Failed:
+    case RolloutStatus.Degraded:
+      status = 'degraded';
+      break;
+    case RolloutStatus.Failed:
       status = 'failed';
       break;
-    case DeploymentStatus.Active:
-      status = live && !isReady.value ? 'running' : 'succeeded';
+    case RolloutStatus.Superseded:
+      status = 'superseded';
       break;
     default:
-      return null;
+      status = 'succeeded';
   }
 
   return {
     key: 'rollout',
     label: 'Rollout',
     status,
-    detail: live && !isReady.value ? `${replicasReady.value}/${replicasDesired.value} ready` : undefined,
-    startedAt: status === 'running' ? deployment.createdAt : null,
+    detail: rolloutDetail(deployment, rollout),
+    startedAt: status === 'running' ? rollout.startedAt : null,
   };
 }
 
-function releaseSteps(release: Release, live = false): ReleaseStep[] {
+function rolloutDetail(deployment: Deployment, rollout: Rollout): string | undefined {
+  const parts: string[] = [];
+
+  if (rollout.message) {
+    parts.push(rollout.message);
+  } else if (rollout.status === RolloutStatus.Progressing && deployment.replicas) {
+    parts.push(`${deployment.replicas.ready}/${deployment.replicas.desired} ready`);
+  }
+
+  if (rollout.reason === RolloutReason.QuotaExceeded) {
+    parts.push('contact support to increase it');
+  }
+
+  if (rollout.restarts > 0) {
+    parts.push(`${rollout.restarts} restart${rollout.restarts !== 1 ? 's' : ''}`);
+  }
+
+  return parts.length ? parts.join(' · ') : undefined;
+}
+
+function releaseSteps(release: Release): ReleaseStep[] {
   const steps: ReleaseStep[] = [];
 
   if (release.build) {
@@ -223,23 +257,17 @@ function releaseSteps(release: Release, live = false): ReleaseStep[] {
     });
   }
 
-  const rollout = rolloutStep(release.deployment, live);
-
-  if (rollout) {
-    steps.push(rollout);
-  }
+  steps.push(rolloutStep(release.deployment, release.status));
 
   return steps;
 }
 
 const activeSteps = computed<ReleaseStep[]>(() => {
   if (activeRelease.value) {
-    return releaseSteps(activeRelease.value, true);
+    return releaseSteps(activeRelease.value);
   }
 
-  const rollout = rolloutStep(activeDeployment.value, true);
-
-  return rollout ? [rollout] : [];
+  return [rolloutStep(activeDeployment.value)];
 });
 
 function scanStepStatus(scan: Scan): StepStatus {
@@ -270,11 +298,13 @@ function scanStepDetail(scan: Scan): string | undefined {
 
 const stepIcons = {
   succeeded: Check,
+  degraded: TriangleAlert,
   failed: AlertCircle,
   running: Spinner,
   queued: Clock,
   cancelled: CircleSlash,
   skipped: CircleSlash,
+  superseded: EyeOff,
   findings: TriangleAlert,
   leaked: TriangleAlert,
 } as const;
@@ -282,6 +312,7 @@ const stepIcons = {
 function stepColor(status: StepStatus): string {
   switch (status) {
     case 'succeeded': return 'var(--status-ok)';
+    case 'degraded': return 'var(--status-warn)';
     case 'failed': return 'var(--status-danger)';
     case 'leaked': return 'var(--status-danger)';
     case 'findings': return 'var(--status-warn)';
@@ -333,12 +364,12 @@ function releaseMeta(release: Release): string {
   return parts.join(' · ');
 }
 
-const replicasReady = computed(() => props.service.replicas?.ready ?? 0);
-const replicasDesired = computed(() => props.service.replicas?.desired ?? 0);
-const isReady = computed(() => replicasReady.value > 0 && replicasReady.value === replicasDesired.value);
+const activeRollout = computed(() => activeDeployment.value?.rollout ?? null);
+const rolloutInFlight = computed(() => activeRollout.value?.status === RolloutStatus.Progressing);
+const rolloutSettled = computed(() => !activeRollout.value || activeRollout.value.status === RolloutStatus.Ready);
 
 watch(
-  () => sortedReleases.value.some(r => isInFlight(r) || hasActiveScan(r)) || !isReady.value,
+  () => sortedReleases.value.some(r => isInFlight(r) || hasActiveScan(r)) || rolloutInFlight.value,
   (ticking) => {
     if (ticking) {
       resumeNow();
@@ -371,7 +402,7 @@ watch(
     <!-- Active Deployment Card -->
     <Collapsible
       v-if="activeDeployment"
-      :default-open="!isReady"
+      :default-open="!rolloutSettled"
       class="rounded-lg border bg-card shadow-sm"
     >
       <div class="flex items-center gap-3 pr-2">
@@ -383,11 +414,6 @@ watch(
               backgroundColor: `color-mix(in srgb, ${deploymentStatusMeta(activeDeployment.status).color} 15%, transparent)`,
             }"
           >
-            <Spinner
-              v-if="activeDeployment.status === DeploymentStatus.Deploying || !isReady"
-              :size="10"
-              class="shrink-0 animate-spin"
-            />
             {{ deploymentStatusMeta(activeDeployment.status).label }}
           </span>
 
@@ -501,11 +527,6 @@ watch(
                   backgroundColor: `color-mix(in srgb, ${releaseStatusMeta(release.status).color} 15%, transparent)`,
                 }"
               >
-                <Spinner
-                  v-if="isInFlight(release)"
-                  :size="10"
-                  class="shrink-0 animate-spin"
-                />
                 {{ releaseStatusMeta(release.status).label }}
               </span>
 
@@ -550,43 +571,38 @@ watch(
 
           <CollapsibleContent>
             <div class="border-t border-border/40 px-4 py-2">
-              <template v-if="releaseSteps(release).length > 0">
-                <div
-                  v-for="step in releaseSteps(release)"
-                  :key="step.key"
-                  class="flex items-center gap-3 py-2"
-                >
-                  <div class="flex w-[84px] shrink-0 flex-col">
-                    <span class="text-sm font-medium text-foreground">{{ step.label }}</span>
-                    <span v-if="stepDuration(step)" class="text-xs text-muted-foreground">{{ stepDuration(step) }}</span>
-                  </div>
-                  <span
-                    class="flex w-32 shrink-0 items-center gap-1.5 text-sm capitalize"
-                    :style="{ color: stepColor(step.status) }"
-                  >
-                    <component
-                      :is="stepIcons[step.status]"
-                      :size="14"
-                      :class="step.status === 'running' ? 'animate-spin' : ''"
-                    />
-                    {{ step.status }}
-                  </span>
-                  <span class="flex-1 truncate text-sm text-muted-foreground">{{ step.detail }}</span>
-                  <Button
-                    v-if="step.logId && step.logKind"
-                    variant="outline"
-                    size="sm"
-                    class="h-7 shrink-0 gap-1.5 px-2.5"
-                    @click="logsPanel.open(step.logId, service.name, step.logKind)"
-                  >
-                    <Terminal :size="12" />
-                    Logs
-                  </Button>
+              <div
+                v-for="step in releaseSteps(release)"
+                :key="step.key"
+                class="flex items-center gap-3 py-2"
+              >
+                <div class="flex w-[84px] shrink-0 flex-col">
+                  <span class="text-sm font-medium text-foreground">{{ step.label }}</span>
+                  <span v-if="stepDuration(step)" class="text-xs text-muted-foreground">{{ stepDuration(step) }}</span>
                 </div>
-              </template>
-              <p v-else class="py-2 text-sm text-muted-foreground">
-                No pipeline details for this release.
-              </p>
+                <span
+                  class="flex w-32 shrink-0 items-center gap-1.5 text-sm capitalize"
+                  :style="{ color: stepColor(step.status) }"
+                >
+                  <component
+                    :is="stepIcons[step.status]"
+                    :size="14"
+                    :class="step.status === 'running' ? 'animate-spin' : ''"
+                  />
+                  {{ step.status }}
+                </span>
+                <span class="flex-1 truncate text-sm text-muted-foreground">{{ step.detail }}</span>
+                <Button
+                  v-if="step.logId && step.logKind"
+                  variant="outline"
+                  size="sm"
+                  class="h-7 shrink-0 gap-1.5 px-2.5"
+                  @click="logsPanel.open(step.logId, service.name, step.logKind)"
+                >
+                  <Terminal :size="12" />
+                  Logs
+                </Button>
+              </div>
             </div>
           </CollapsibleContent>
         </Collapsible>

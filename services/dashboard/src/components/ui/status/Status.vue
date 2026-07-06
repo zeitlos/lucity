@@ -9,6 +9,7 @@ export const statusVariants = cva(
         ok: '[&_.status-dot]:bg-[var(--status-ok)] [&_.status-dot]:shadow-[0_0_6px_var(--status-ok)]',
         warn: '[&_.status-dot]:bg-[var(--status-warn)] [&_.status-dot]:shadow-[0_0_6px_var(--status-warn)]',
         danger: '[&_.status-dot]:bg-[var(--status-danger)] [&_.status-dot]:shadow-[0_0_6px_var(--status-danger)]',
+        progress: '[&_.status-dot]:bg-[var(--status-progress)] [&_.status-dot]:shadow-[0_0_6px_var(--status-progress)]',
         neutral: '[&_.status-dot]:bg-[var(--status-neutral)]',
       },
     },

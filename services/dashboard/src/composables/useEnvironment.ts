@@ -9,6 +9,8 @@ import type {
   ServiceStatus,
   Protocol,
   DeploymentStatus,
+  RolloutStatus,
+  RolloutReason,
   DnsStatus,
   DnsRecordType,
   TlsStatus,
@@ -54,6 +56,14 @@ export interface Resources {
   memory: string;
 }
 
+export interface Rollout {
+  status: RolloutStatus;
+  reason?: RolloutReason | null;
+  message?: string | null;
+  restarts: number;
+  startedAt: string;
+}
+
 export interface Deployment {
   id: string;
   image: string;
@@ -62,6 +72,8 @@ export interface Deployment {
   commitMessage: string;
   ref: string;
   status: DeploymentStatus;
+  replicas?: ReplicaCount | null;
+  rollout?: Rollout | null;
   createdAt: string;
 }
 

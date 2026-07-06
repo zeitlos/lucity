@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuery } from '@vue/apollo-composable';
 import { graphql } from '@/gql';
-import { ServiceStatus, DatabaseStatus, ReleaseStatus, ScanStatus } from '@/gql/graphql';
+import { ServiceStatus, DatabaseStatus, ReleaseStatus, RolloutStatus, ScanStatus } from '@/gql/graphql';
 
 const EnvironmentDocument = graphql(`
   query Environment($environment: EnvironmentID!) {
@@ -57,6 +57,17 @@ const EnvironmentDocument = graphql(`
           ref
           status
           createdAt
+          replicas {
+            desired
+            ready
+          }
+          rollout {
+            status
+            reason
+            message
+            restarts
+            startedAt
+          }
         }
         deployments {
           id
@@ -123,6 +134,17 @@ const EnvironmentDocument = graphql(`
             ref
             status
             createdAt
+            replicas {
+              desired
+              ready
+            }
+            rollout {
+              status
+              reason
+              message
+              restarts
+              startedAt
+            }
           }
         }
         lastDeployedAt
@@ -312,6 +334,7 @@ watch(
 
     isReconciling.value =
       env.services.some(s => SERVICE_TRANSIENT_STATUSES.has(s.status)) ||
+      env.services.some(s => s.activeDeployment?.rollout?.status === RolloutStatus.Progressing) ||
       env.services.some(s => s.releases.some(isReleaseInFlight)) ||
       env.databases.some(d => DATABASE_TRANSIENT_STATUSES.has(d.status)) ||
       env.keyValueStores.some(v => DATABASE_TRANSIENT_STATUSES.has(v.status));
@@ -342,6 +365,8 @@ watch(
             commitMessage: s.activeDeployment.commitMessage,
             ref: s.activeDeployment.ref,
             status: s.activeDeployment.status,
+            replicas: s.activeDeployment.replicas,
+            rollout: s.activeDeployment.rollout ?? null,
             createdAt: s.activeDeployment.createdAt,
           }
           : null,
@@ -418,6 +443,8 @@ watch(
               commitMessage: r.deployment.commitMessage,
               ref: r.deployment.ref,
               status: r.deployment.status,
+              replicas: r.deployment.replicas,
+              rollout: r.deployment.rollout ?? null,
               createdAt: r.deployment.createdAt,
             }
             : null,

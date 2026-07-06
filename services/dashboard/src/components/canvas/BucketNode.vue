@@ -27,7 +27,7 @@ const statusTone = computed(() => {
     case BucketStatus.Failed:
       return 'danger' as const;
     case BucketStatus.Pending:
-      return 'warn' as const;
+      return 'progress' as const;
     default:
       return 'neutral' as const;
   }
