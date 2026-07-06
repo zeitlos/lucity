@@ -56,10 +56,11 @@ type job struct {
 }
 
 type run struct {
-	workspace string
-	key       string
-	createdAt time.Time
-	jobs      []job
+	workspace   string
+	environment string
+	key         string
+	createdAt   time.Time
+	jobs        []job
 }
 
 func (r run) state() runState {
@@ -84,8 +85,9 @@ func (r run) state() runState {
 	return runTerminal
 }
 
-// Reconcile admits queued release runs: at most one active run per workspace,
-// oldest first, bounded by the global concurrency cap.
+// Reconcile admits queued release runs: at most one active run per environment
+// (the Helm-release boundary, so concurrent applies to the same release can't
+// race), oldest first, bounded by the global concurrency cap.
 func (c *Client) Reconcile(ctx context.Context) error {
 	runs, err := c.runs(ctx)
 
@@ -94,27 +96,27 @@ func (c *Client) Reconcile(ctx context.Context) error {
 	}
 
 	active := 0
-	activeWorkspaces := map[string]bool{}
-	queuedByWorkspace := map[string][]run{}
+	activeEnvironments := map[string]bool{}
+	queuedByEnvironment := map[string][]run{}
 
 	for _, r := range runs {
 		switch r.state() {
 		case runActive:
 			active++
-			activeWorkspaces[r.workspace] = true
+			activeEnvironments[r.environment] = true
 
 			if err := c.resume(ctx, r); err != nil {
 				return fmt.Errorf("resume partially admitted run %q: %w", r.key, err)
 			}
 		case runQueued:
-			queuedByWorkspace[r.workspace] = append(queuedByWorkspace[r.workspace], r)
+			queuedByEnvironment[r.environment] = append(queuedByEnvironment[r.environment], r)
 		}
 	}
 
 	var candidates []run
 
-	for workspace, queue := range queuedByWorkspace {
-		if !activeWorkspaces[workspace] {
+	for environment, queue := range queuedByEnvironment {
+		if !activeEnvironments[environment] {
 			candidates = append(candidates, queue[0])
 		}
 	}
@@ -210,11 +212,19 @@ func (c *Client) runs(ctx context.Context) ([]run, error) {
 			key = k8sJob.Name
 		}
 
+		environment := workspace
+
+		if project := k8sJob.Labels[labels.Project]; project != "" {
+			if env := k8sJob.Labels[labels.Environment]; env != "" {
+				environment = workspace + "/" + project + "/" + env
+			}
+		}
+
 		groupKey := workspace + "/" + key
 		group, ok := groups[groupKey]
 
 		if !ok {
-			group = &run{workspace: workspace, key: groupKey, createdAt: k8sJob.CreationTimestamp.Time}
+			group = &run{workspace: workspace, environment: environment, key: groupKey, createdAt: k8sJob.CreationTimestamp.Time}
 			groups[groupKey] = group
 		}
 
