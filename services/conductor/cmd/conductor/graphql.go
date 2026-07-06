@@ -29,7 +29,7 @@ import (
 	"github.com/99designs/gqlgen/graphql/handler/lru"
 	"github.com/99designs/gqlgen/graphql/handler/transport"
 	"github.com/99designs/gqlgen/graphql/playground"
-	"github.com/gorilla/websocket"
+	"github.com/coder/websocket"
 	"github.com/rs/cors"
 	"github.com/vektah/gqlparser/v2/ast"
 	"github.com/vektah/gqlparser/v2/gqlerror"
@@ -143,25 +143,18 @@ func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvid
 	srv.AddTransport(transport.Options{})
 	srv.AddTransport(transport.POST{})
 
-	allowedOrigins := map[string]bool{
-		"http://localhost:5173": true,
-		dashboardURL:            true,
-	}
-	// The browser sends the origin without path, so also allow the base URL.
-	if u, err := url.Parse(dashboardURL); err == nil {
-		allowedOrigins[u.Scheme+"://"+u.Host] = true
+	originPatterns := []string{"localhost:5173"}
+	if u, err := url.Parse(dashboardURL); err == nil && u.Host != "" {
+		originPatterns = append(originPatterns, u.Host)
 	}
 
 	srv.AddTransport(transport.Websocket{
 		KeepAlivePingInterval: 10 * time.Second,
 		PingPongInterval:      15 * time.Second,
-		Upgrader: websocket.Upgrader{
-			CheckOrigin: func(r *http.Request) bool {
-				origin := r.Header.Get("Origin")
-				return allowedOrigins[origin]
+		Implementation: transport.CoderWebsocketImplementation{
+			AcceptOptions: websocket.AcceptOptions{
+				OriginPatterns: originPatterns,
 			},
-			ReadBufferSize:  1024,
-			WriteBufferSize: 1024,
 		},
 		InitFunc: func(ctx context.Context, initPayload transport.InitPayload) (context.Context, *transport.InitPayload, error) {
 			// Auth: prefer connectionParams token (non-browser clients),
