@@ -1,24 +1,6 @@
-import { ref, watch, onUnmounted, computed, type Ref } from 'vue';
-import { apolloClient } from '@/lib/apollo';
-import { graphql } from '@/gql';
+import { computed, watch, type Ref } from 'vue';
 import { DeploymentStatus, ReleaseStatus } from '@/gql/graphql';
-
-const CanvasServiceReleasesDocument = graphql(`
-  query CanvasServiceReleases($id: ServiceID!) {
-    service(id: $id) {
-      id
-      releases {
-        id
-        status
-        createdAt
-        deployment {
-          id
-          status
-        }
-      }
-    }
-  }
-`);
+import type { Service } from '@/composables/useEnvironment';
 
 const IN_FLIGHT_STATUSES = new Set<ReleaseStatus>([
   ReleaseStatus.Queued,
@@ -35,56 +17,29 @@ export interface CanvasReleaseInfo {
   startedAt: number;
 }
 
-interface CanvasService {
-  id: string;
-}
-
 export function useCanvasReleaseStatus(
-  services: Ref<CanvasService[]>,
+  services: Ref<Service[]>,
   onCompleted?: () => void,
 ) {
-  const statusMap = ref<Record<string, CanvasReleaseInfo>>({});
-  let pollTimer: ReturnType<typeof setInterval> | null = null;
+  const statusMap = computed<Record<string, CanvasReleaseInfo>>(() => {
+    const result: Record<string, CanvasReleaseInfo> = {};
 
-  async function pollAll() {
-    const prev = statusMap.value;
-    const results: Record<string, CanvasReleaseInfo> = {};
+    for (const service of services.value) {
+      const inFlight = (service.releases ?? []).find(r =>
+        IN_FLIGHT_STATUSES.has(r.status)
+        && Date.now() - new Date(r.createdAt).getTime() < IN_FLIGHT_MAX_AGE_MS,
+      );
 
-    await Promise.allSettled(
-      services.value.map(async (svc) => {
-        try {
-          const { data } = await apolloClient.query({
-            query: CanvasServiceReleasesDocument,
-            variables: { id: svc.id },
-            fetchPolicy: 'network-only',
-          });
-          const releases = data?.service?.releases ?? [];
-          const inFlight = releases.find(r =>
-            IN_FLIGHT_STATUSES.has(r.status)
-            && Date.now() - new Date(r.createdAt).getTime() < IN_FLIGHT_MAX_AGE_MS,
-          );
-          if (inFlight) {
-            results[svc.id] = {
-              phase: releasePhase(inFlight.status, inFlight.deployment?.status),
-              startedAt: inFlight.createdAt ? new Date(inFlight.createdAt).getTime() : Date.now(),
-            };
-          }
-        } catch {
-          // Service query failed — ignore for this tick.
-        }
-      }),
-    );
-
-    const completed = Object.keys(prev).some(id => !(id in results));
-
-    if (JSON.stringify(results) !== JSON.stringify(prev)) {
-      statusMap.value = results;
+      if (inFlight) {
+        result[service.id] = {
+          phase: releasePhase(inFlight.status, inFlight.deployment?.status),
+          startedAt: new Date(inFlight.createdAt).getTime(),
+        };
+      }
     }
 
-    if (completed && onCompleted) {
-      onCompleted();
-    }
-  }
+    return result;
+  });
 
   function releasePhase(status: ReleaseStatus, deploymentStatus?: DeploymentStatus): CanvasReleasePhase {
     switch (status) {
@@ -97,31 +52,11 @@ export function useCanvasReleaseStatus(
     }
   }
 
-  function startPolling() {
-    stopPolling();
-    pollAll();
-    pollTimer = setInterval(pollAll, 3000);
-  }
-
-  function stopPolling() {
-    if (pollTimer) {
-      clearInterval(pollTimer);
-      pollTimer = null;
+  watch(statusMap, (current, previous) => {
+    if (onCompleted && Object.keys(previous).some(id => !(id in current))) {
+      onCompleted();
     }
-  }
-
-  const hasServices = computed(() => services.value.length > 0);
-
-  watch(hasServices, (active) => {
-    if (active) {
-      startPolling();
-    } else {
-      stopPolling();
-      statusMap.value = {};
-    }
-  }, { immediate: true });
-
-  onUnmounted(stopPolling);
+  });
 
   return { statusMap };
 }

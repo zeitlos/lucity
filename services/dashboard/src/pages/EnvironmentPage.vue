@@ -47,7 +47,6 @@ const EnvironmentDocument = graphql(`
           memory
         }
         command
-        defaultCommand
         activeDeployment {
           id
           image
@@ -185,6 +184,22 @@ const EnvironmentDocument = graphql(`
           service
           path
         }
+      }
+    }
+  }
+`);
+
+const EnvironmentDetailsDocument = graphql(`
+  query EnvironmentDetails($environment: EnvironmentID!) {
+    environment(environment: $environment) {
+      id
+      services {
+        id
+        defaultCommand
+      }
+      volumes {
+        id
+        size
         metrics(metrics: [STORAGE_USED], range: { window: LAST_1H }) {
           points {
             value
@@ -276,6 +291,12 @@ const { result, loading, error, refetch } = useQuery(
   () => ({ pollInterval: isReconciling.value ? 3000 : 0 }),
 );
 
+const { result: detailsResult } = useQuery(
+  EnvironmentDetailsDocument,
+  () => ({ environment: environmentId.value }),
+  { pollInterval: 30000 },
+);
+
 const environment = computed(() => result.value?.environment ?? null);
 
 // Load sibling environments for the env switcher
@@ -328,9 +349,12 @@ watch(
 
 // When the env detail loads, replace the active environment shell with the full payload
 watch(
-  () => result.value?.environment,
-  (env) => {
+  () => [result.value?.environment, detailsResult.value?.environment] as const,
+  ([env, details]) => {
     if (!env) return;
+
+    const defaultCommands = new Map((details?.services ?? []).map(s => [s.id, s.defaultCommand]));
+    const volumeUsage = new Map((details?.volumes ?? []).map(v => [v.id, volumeUsagePercent(v)]));
 
     isReconciling.value =
       env.services.some(s => SERVICE_TRANSIENT_STATUSES.has(s.status)) ||
@@ -355,7 +379,7 @@ watch(
         contextPath: s.contextPath,
         resources: s.resources,
         command: s.command,
-        defaultCommand: s.defaultCommand,
+        defaultCommand: defaultCommands.get(s.id) ?? '',
         activeDeployment: s.activeDeployment
           ? {
             id: s.activeDeployment.id,
@@ -479,26 +503,28 @@ watch(
         objectCount: b.objectCount,
         createdAt: b.createdAt,
       })),
-      volumes: env.volumes.map(v => {
-        const points = v.metrics[0]?.points ?? [];
-        const usedBytes = [...points].reverse().find(p => p.value != null)?.value ?? null;
-        const capacityBytes = parseStorageSize(v.size);
-        const usagePercent = usedBytes != null && capacityBytes > 0
-          ? Math.min(100, Math.round((usedBytes / capacityBytes) * 100))
-          : null;
-        return {
-          id: v.id,
-          name: v.name,
-          size: v.size,
-          mount: v.mount ? { service: v.mount.service, path: v.mount.path } : null,
-          usagePercent,
-        };
-      }),
+      volumes: env.volumes.map(v => ({
+        id: v.id,
+        name: v.name,
+        size: v.size,
+        mount: v.mount ? { service: v.mount.service, path: v.mount.path } : null,
+        usagePercent: volumeUsage.get(v.id) ?? null,
+      })),
     };
     setEnvironment(full);
   },
   { immediate: true },
 );
+
+function volumeUsagePercent(volume: { size: string; metrics: { points: { value?: number | null }[] }[] }): number | null {
+  const points = volume.metrics[0]?.points ?? [];
+  const usedBytes = [...points].reverse().find(p => p.value != null)?.value ?? null;
+  const capacityBytes = parseStorageSize(volume.size);
+
+  return usedBytes != null && capacityBytes > 0
+    ? Math.min(100, Math.round((usedBytes / capacityBytes) * 100))
+    : null;
+}
 
 // Selected service for the panel
 const selectedService = computed(() => {
