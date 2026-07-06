@@ -431,6 +431,8 @@ func buildKubeClients() (kubernetes.Interface, dynamic.Interface, error) {
 	if err != nil {
 		return nil, nil, err
 	}
+	cfg.QPS = 50
+	cfg.Burst = 100
 	k8s, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
 		return nil, nil, err
