@@ -13,7 +13,7 @@ import (
 
 // Releases is the resolver for the releases field.
 func (r *serviceResolver) Releases(ctx context.Context, obj *model.Service) ([]model.Release, error) {
-	releases, err := r.Conductor.Releases(ctx, obj.ID)
+	releases, err := r.Conductor.Releases(ctx, obj.PlatformService)
 
 	if err != nil {
 		return nil, err

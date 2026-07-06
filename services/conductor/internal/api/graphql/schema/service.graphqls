@@ -1,5 +1,5 @@
 type Service
-@goExtraField(name: "PlatformEndpoints", type: "[]github.com/zeitlos/lucity/services/conductor/internal/platform.Endpoint"){
+@goExtraField(name: "PlatformService", type: "github.com/zeitlos/lucity/services/conductor/internal/platform.Service"){
   id: ServiceID!
   name: String!
 
