@@ -8,10 +8,12 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"golang.org/x/oauth2"
@@ -143,6 +145,7 @@ func registerAuthRoutes(mux *http.ServeMux, provider *OIDCProvider, conductor *c
 	mux.HandleFunc("/auth/me", handleMe())
 	mux.HandleFunc("/auth/logout", handleLogout(dashboardURL))
 	mux.HandleFunc("/auth/refresh", handleRefresh(provider, logtoClient, sessionSecret, secure))
+	mux.HandleFunc("/auth/cli/exchange", handleCLIExchange(sessionSecret))
 	mux.HandleFunc("/auth/github/install", handleGitHubInstall(githubAppSlug))
 	mux.HandleFunc("/auth/github/setup", handleGitHubSetup(dashboardURL))
 }
@@ -150,6 +153,25 @@ func registerAuthRoutes(mux *http.ServeMux, provider *OIDCProvider, conductor *c
 // handleLogin redirects to the OIDC provider's authorization page with PKCE.
 func handleLogin(provider *OIDCProvider, secure bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		cliPort := r.URL.Query().Get("cli_port")
+		cliState := r.URL.Query().Get("cli_state")
+		if cliPort != "" {
+			if !validCLIPort(cliPort) || !validCLIState(cliState) {
+				http.Error(w, "invalid cli parameters", http.StatusBadRequest)
+				return
+			}
+
+			http.SetCookie(w, &http.Cookie{
+				Name:     cliCookieName,
+				Value:    cliPort + ":" + cliState,
+				Path:     "/",
+				MaxAge:   600,
+				HttpOnly: true,
+				Secure:   secure,
+				SameSite: http.SameSiteLaxMode,
+			})
+		}
+
 		state := generateState()
 		verifier := generateCodeVerifier()
 		challenge := codeChallenge(verifier)
@@ -387,6 +409,32 @@ func handleCallback(provider *OIDCProvider, conductor *conductor.Client, logtoCl
 
 		slog.Info("user authenticated", "email", oidcClaims.Email)
 
+		if cliCookie, err := r.Cookie(cliCookieName); err == nil {
+			http.SetCookie(w, &http.Cookie{
+				Name:   cliCookieName,
+				Path:   "/",
+				MaxAge: -1,
+			})
+
+			cliPort, cliState, ok := strings.Cut(cliCookie.Value, ":")
+			if ok && validCLIPort(cliPort) && validCLIState(cliState) {
+				code, err := sealCLICode(sessionSecret, cliHandoff{
+					Token:        sessionToken,
+					RefreshToken: oauth2Token.RefreshToken,
+					LogtoToken:   oauth2Token.AccessToken,
+					ExpiresAt:    time.Now().Add(sessionExpiry),
+				})
+				if err != nil {
+					slog.Error("failed to seal cli handoff code", "error", err)
+				} else {
+					cliURL := fmt.Sprintf("http://127.0.0.1:%s/callback?code=%s&state=%s",
+						cliPort, url.QueryEscape(code), url.QueryEscape(cliState))
+					http.Redirect(w, r, cliURL, http.StatusTemporaryRedirect)
+					return
+				}
+			}
+		}
+
 		redirectURL := dashboardURL
 		if isNewUser {
 			redirectURL = dashboardURL + "/?welcome=true"
@@ -467,8 +515,25 @@ func handleRefresh(provider *OIDCProvider, logtoClient *logto.Client, sessionSec
 			return
 		}
 
-		refreshCookie, err := r.Cookie(refreshCookieName)
-		if err != nil || refreshCookie.Value == "" {
+		jsonRequest := strings.Contains(r.Header.Get("Content-Type"), "application/json")
+
+		var refreshToken string
+		if jsonRequest {
+			var body struct {
+				RefreshToken string `json:"refreshToken"`
+			}
+			if err := json.NewDecoder(io.LimitReader(r.Body, 16<<10)).Decode(&body); err != nil {
+				http.Error(w, "no refresh token", http.StatusUnauthorized)
+				return
+			}
+			refreshToken = body.RefreshToken
+		} else {
+			refreshCookie, err := r.Cookie(refreshCookieName)
+			if err == nil {
+				refreshToken = refreshCookie.Value
+			}
+		}
+		if refreshToken == "" {
 			http.Error(w, "no refresh token", http.StatusUnauthorized)
 			return
 		}
@@ -476,7 +541,7 @@ func handleRefresh(provider *OIDCProvider, logtoClient *logto.Client, sessionSec
 		// Use the OIDC provider's oauth config for refresh — the refresh token
 		// was issued for the OIDC public client, not the M2M app.
 		tokenSource := provider.oauthConfig.TokenSource(provider.httpContext(r.Context()), &oauth2.Token{
-			RefreshToken: refreshCookie.Value,
+			RefreshToken: refreshToken,
 		})
 		oauth2Token, err := tokenSource.Token()
 		if err != nil {
@@ -486,6 +551,9 @@ func handleRefresh(provider *OIDCProvider, logtoClient *logto.Client, sessionSec
 		}
 		newAccessToken := oauth2Token.AccessToken
 		newRefreshToken := oauth2Token.RefreshToken
+
+		var reMintedToken string
+		var reMintedExpiry time.Time
 
 		// Re-mint session JWT if we have existing claims (refreshes workspace memberships)
 		claims, err := auth.FromContext(r.Context())
@@ -515,6 +583,8 @@ func handleRefresh(provider *OIDCProvider, logtoClient *logto.Client, sessionSec
 
 			sessionToken, err := mintSessionToken(sessionSecret, claims)
 			if err == nil {
+				reMintedToken = sessionToken
+				reMintedExpiry = time.Now().Add(sessionExpiry)
 				http.SetCookie(w, &http.Cookie{
 					Name:     sessionCookieName,
 					Value:    sessionToken,
@@ -551,6 +621,27 @@ func handleRefresh(provider *OIDCProvider, logtoClient *logto.Client, sessionSec
 		}
 
 		slog.Info("token refreshed")
+
+		if jsonRequest {
+			rotatedRefresh := newRefreshToken
+			if rotatedRefresh == "" {
+				rotatedRefresh = refreshToken
+			}
+
+			resp := map[string]string{
+				"token":        reMintedToken,
+				"refreshToken": rotatedRefresh,
+				"logtoToken":   newAccessToken,
+			}
+			if reMintedToken != "" {
+				resp["expiresAt"] = reMintedExpiry.Format(time.RFC3339)
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(resp)
+			return
+		}
+
 		w.WriteHeader(http.StatusOK)
 	}
 }
