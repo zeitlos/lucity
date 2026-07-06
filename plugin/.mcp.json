@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "lucity": {
+      "command": "lucity",
+      "args": ["mcp"]
+    }
+  }
+}
