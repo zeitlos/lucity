@@ -179,6 +179,11 @@ func (r *queryResolver) DetectServices(ctx context.Context, repositoryURL string
 	return result, nil
 }
 
+// RepositoryBranches is the resolver for the repositoryBranches field.
+func (r *queryResolver) RepositoryBranches(ctx context.Context, repositoryURL string) ([]string, error) {
+	return r.Conductor.RepositoryBranches(ctx, repositoryURL)
+}
+
 // Endpoints is the resolver for the endpoints field.
 func (r *serviceResolver) Endpoints(ctx context.Context, obj *model.Service) ([]model.Endpoint, error) {
 	endpoints, err := r.Conductor.Endpoints(ctx, obj.ID, obj.PlatformService.Endpoints)

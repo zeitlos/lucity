@@ -3,8 +3,8 @@ import { ref, computed, watch } from 'vue';
 import { useMutation, useApolloClient } from '@vue/apollo-composable';
 import {
   Trash2, Copy, X, Globe, Plus, Minus, RefreshCw,
-  ChevronDown, Network, ExternalLink, Scaling, GitBranch, Play, Container, ArrowRight,
-  Cpu, MemoryStick, Leaf, ShieldCheck,
+  ChevronDown, Network, ExternalLink, Scaling, GitBranch, Play, Zap, ArrowRight,
+  Cpu, MemoryStick, Leaf, ShieldCheck, Check, ChevronsUpDown,
 } from '@lucide/vue';
 import GithubIcon from '@/components/GithubIcon.vue';
 import { graphql } from '@/gql';
@@ -142,6 +142,12 @@ const SetAutoDeployDocument = graphql(`
   }
 `);
 
+const RepositoryBranchesDocument = graphql(`
+  query RepositoryBranches($repositoryUrl: String!) {
+    repositoryBranches(repositoryUrl: $repositoryUrl)
+  }
+`);
+
 const SetServiceResourcesDocument = graphql(`
   mutation SetServiceResources($service: ServiceID!, $resources: ResourcesInput!) {
     setServiceResources(service: $service, resources: $resources) {
@@ -173,6 +179,15 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -196,8 +211,6 @@ const emit = defineEmits<{
 }>();
 
 const { activeEnvironment } = useEnvironment();
-
-const activeDeployment = computed(() => props.service.activeDeployment ?? null);
 
 const endpoints = computed(() => props.service.endpoints ?? []);
 const platformEndpoint = computed(() => endpoints.value.find(e => e.type === EndpointType.Platform));
@@ -365,30 +378,56 @@ async function handleSavePort() {
 const { mutate: setServiceBranchMutate, loading: branchSaving } = useMutation(SetServiceBranchDocument);
 const { mutate: setAutoDeployMutate } = useMutation(SetAutoDeployDocument);
 
-const branchInput = ref(props.service.branch ?? '');
 const autoDeploySaving = ref(false);
 
-watch(
-  () => props.service.branch,
-  value => {
-    branchInput.value = value ?? '';
-  },
-);
+const branchPickerOpen = ref(false);
+const branches = ref<string[]>([]);
+const branchesLoading = ref(false);
+const branchesLoaded = ref(false);
 
-const branchChanged = computed(() => branchInput.value.trim() !== (props.service.branch ?? ''));
+const currentBranch = computed(() => props.service.branch ?? '');
+const currentBranchLabel = computed(() => props.service.branch || 'Default branch');
 
-async function handleSaveBranch() {
-  const branch = branchInput.value.trim() || null;
+async function loadBranches() {
+  if (branchesLoaded.value || branchesLoading.value || !props.service.sourceUrl) return;
+
+  branchesLoading.value = true;
 
   try {
-    const res = await setServiceBranchMutate({ service: props.service.id, branch });
+    const { data } = await resolveClient().query({
+      query: RepositoryBranchesDocument,
+      variables: { repositoryUrl: props.service.sourceUrl },
+    });
+    branches.value = data?.repositoryBranches ?? [];
+    branchesLoaded.value = true;
+  } catch (e: unknown) {
+    errorToast('Failed to load branches', { description: errorMessage(e) });
+  } finally {
+    branchesLoading.value = false;
+  }
+}
+
+function toggleBranchPicker(open: boolean) {
+  branchPickerOpen.value = open;
+  if (open) loadBranches();
+}
+
+async function chooseBranch(branch: string | null) {
+  branchPickerOpen.value = false;
+
+  const value = branch?.trim() || null;
+
+  if (value === (props.service.branch ?? null)) return;
+
+  try {
+    const res = await setServiceBranchMutate({ service: props.service.id, branch: value });
 
     if (res?.errors?.length) {
       errorToast('Failed to update branch', { description: res.errors.map(e => e.message).join(', ') });
       return;
     }
 
-    toast.success(branch ? `Tracking ${branch}` : 'Tracking default branch');
+    toast.success(value ? `Tracking ${value}` : 'Tracking default branch');
     emit('refetch');
   } catch (e: unknown) {
     errorToast('Failed to update branch', { description: errorMessage(e) });
@@ -497,8 +536,6 @@ const sourceRepoUrl = computed(() => {
   if (!url) return null;
   return url.startsWith('http') ? url : `https://${url}`;
 });
-
-const isFromRepo = computed(() => !!props.service.sourceUrl);
 
 // Scaling
 const autoscalingEnabled = ref(false);
@@ -661,141 +698,110 @@ async function handleRemoveService() {
 
 <template>
   <div class="space-y-6">
-    <!-- General -->
-    <section class="space-y-2">
-      <h3 class="px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-        General
-      </h3>
-
-      <Collapsible default-open>
-        <div class="overflow-hidden rounded-lg border">
-          <CollapsibleTrigger class="flex w-full items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/30">
-            <div class="rounded-lg bg-muted/60 p-1.5">
-              <GithubIcon v-if="isFromRepo" :size="20" />
-              <Container v-else :size="20" />
-            </div>
-            <div class="min-w-0 flex-1 text-left">
-              <p class="text-sm font-medium text-foreground">{{ service.name }}</p>
-              <p class="text-xs text-muted-foreground">
-                {{ isFromRepo ? 'GitHub repository' : 'Container image' }}
-              </p>
-            </div>
-            <ChevronDown
-              :size="14"
-              class="shrink-0 text-muted-foreground transition-transform duration-200 [[data-state=open]>&]:rotate-180"
-            />
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <div class="space-y-3 border-t px-4 py-3">
-              <div v-if="activeDeployment?.image" class="space-y-1.5">
-                <Label class="text-xs font-medium">Image</Label>
-                <div class="group flex items-center gap-2 rounded-md border bg-muted/50 px-3 py-2">
-                  <Container :size="14" class="shrink-0 text-muted-foreground" />
-                  <span class="min-w-0 flex-1 truncate font-mono text-sm">{{ activeDeployment.image }}</span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    class="h-5 w-5 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
-                    @click="copyToClipboard(activeDeployment!.image)"
-                  >
-                    <Copy :size="10" />
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </CollapsibleContent>
-        </div>
-      </Collapsible>
-    </section>
-
     <!-- Source -->
     <section v-if="service.sourceUrl" class="space-y-2">
       <h3 class="px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
         Source
       </h3>
 
-      <Collapsible>
-        <div class="overflow-hidden rounded-lg border">
-          <CollapsibleTrigger class="flex w-full items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/30">
+      <div class="overflow-hidden rounded-lg border">
+        <div class="divide-y">
+          <!-- Repository (read-only) -->
+          <div class="flex items-center gap-3 px-4 py-3">
             <GithubIcon :size="16" class="shrink-0" />
-            <div class="min-w-0 flex-1 text-left">
+            <div class="min-w-0 flex-1">
               <p class="text-sm font-medium text-foreground">Repository</p>
-              <p class="truncate text-xs text-muted-foreground">
-                {{ sourceRepo ?? 'Not connected' }}
+              <p class="truncate font-mono text-xs text-muted-foreground">
+                {{ sourceRepo ?? 'Not connected' }}<span
+                  v-if="service.contextPath && service.contextPath !== '.'"
+                > · {{ service.contextPath }}</span>
               </p>
             </div>
-            <ChevronDown
-              :size="14"
-              class="shrink-0 text-muted-foreground transition-transform duration-200 [[data-state=open]>&]:rotate-180"
-            />
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <div class="space-y-3 border-t px-4 py-3">
-              <div class="space-y-1.5">
-                <Label class="text-xs font-medium">Source Repo</Label>
-                <a
-                  v-if="sourceRepoUrl"
-                  :href="sourceRepoUrl"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="flex items-center gap-2 rounded-md border bg-muted/50 px-3 py-2 transition-colors hover:bg-muted/80"
-                >
-                  <GithubIcon :size="14" class="shrink-0" />
-                  <span class="min-w-0 flex-1 truncate font-mono text-sm">{{ service.sourceUrl }}</span>
-                  <ExternalLink :size="12" class="shrink-0 text-muted-foreground" />
-                </a>
-              </div>
+            <a
+              v-if="sourceRepoUrl"
+              :href="sourceRepoUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+            >
+              <ExternalLink :size="14" />
+            </a>
+          </div>
 
-              <div v-if="service.contextPath && service.contextPath !== '.'" class="space-y-1.5">
-                <Label class="text-xs font-medium">Root Directory</Label>
-                <div class="flex items-center gap-2 rounded-md border bg-muted/50 px-3 py-2">
-                  <span class="truncate font-mono text-sm">{{ service.contextPath }}</span>
-                </div>
-              </div>
-
-              <div class="space-y-1.5">
-                <Label class="text-xs font-medium">Branch</Label>
-                <div class="flex items-center gap-2">
-                  <div class="relative flex-1">
-                    <GitBranch :size="14" class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                      v-model="branchInput"
-                      placeholder="Default branch"
-                      class="pl-8 font-mono text-sm"
-                      @keyup.enter="branchChanged && handleSaveBranch()"
-                    />
-                  </div>
-                  <Button
-                    size="sm"
-                    :disabled="!branchChanged || branchSaving"
-                    @click="handleSaveBranch"
-                  >
-                    {{ branchSaving ? 'Saving...' : 'Save' }}
-                  </Button>
-                </div>
-                <p class="text-xs text-muted-foreground">
-                  Branch to build from. Leave empty to track the repository's default branch.
-                </p>
-              </div>
-
-              <div class="flex items-center justify-between border-t pt-3">
-                <div class="pr-4">
-                  <Label class="text-sm font-medium">Auto-deploy</Label>
-                  <p class="text-xs text-muted-foreground">
-                    Deploy automatically on every push to the tracked branch.
-                  </p>
-                </div>
-                <Switch
-                  :model-value="service.autoDeploy"
-                  :disabled="autoDeploySaving"
-                  class="data-[state=unchecked]:bg-border"
-                  @update:model-value="handleToggleAutoDeploy"
-                />
-              </div>
+          <!-- Branch -->
+          <div class="flex items-center gap-3 px-4 py-3">
+            <GitBranch :size="16" class="shrink-0 text-muted-foreground" />
+            <div class="min-w-0 flex-1">
+              <p class="text-sm font-medium text-foreground">Branch</p>
+              <p class="text-xs text-muted-foreground">Branch to build from</p>
             </div>
-          </CollapsibleContent>
+            <Popover :open="branchPickerOpen" @update:open="toggleBranchPicker">
+              <PopoverTrigger as-child>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  size="sm"
+                  :disabled="branchSaving"
+                  class="h-8 w-48 justify-between font-mono text-xs font-normal"
+                >
+                  <span class="truncate">{{ currentBranchLabel }}</span>
+                  <ChevronsUpDown :size="14" class="shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent class="w-64 p-0" align="end">
+                <Command>
+                  <CommandInput placeholder="Search branches..." />
+                  <CommandList>
+                    <CommandGroup>
+                      <CommandItem value="Default branch" class="text-sm" @select="chooseBranch(null)">
+                        <Check :size="14" :class="currentBranch === '' ? 'opacity-100' : 'opacity-0'" />
+                        Default branch
+                      </CommandItem>
+                    </CommandGroup>
+                    <div
+                      v-if="branchesLoading"
+                      class="flex items-center justify-center gap-2 py-4 text-xs text-muted-foreground"
+                    >
+                      <RefreshCw :size="14" class="animate-spin" />
+                      Loading branches…
+                    </div>
+                    <template v-else>
+                      <CommandEmpty>No branches found.</CommandEmpty>
+                      <CommandGroup>
+                        <CommandItem
+                          v-for="branch in branches"
+                          :key="branch"
+                          :value="branch"
+                          class="font-mono text-sm"
+                          @select="chooseBranch(branch)"
+                        >
+                          <Check :size="14" :class="currentBranch === branch ? 'opacity-100' : 'opacity-0'" />
+                          {{ branch }}
+                        </CommandItem>
+                      </CommandGroup>
+                    </template>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          <!-- Auto-deploy -->
+          <div class="flex items-center gap-3 px-4 py-3">
+            <Zap :size="16" class="shrink-0 text-muted-foreground" />
+            <div class="min-w-0 flex-1">
+              <p class="text-sm font-medium text-foreground">Auto-deploy</p>
+              <p class="text-xs text-muted-foreground">Deploy on every push to the tracked branch</p>
+            </div>
+            <Switch
+              :model-value="service.autoDeploy"
+              :disabled="autoDeploySaving"
+              class="data-[state=unchecked]:bg-border"
+              @update:model-value="handleToggleAutoDeploy"
+            />
+          </div>
         </div>
-      </Collapsible>
+      </div>
     </section>
 
     <!-- Deploy -->

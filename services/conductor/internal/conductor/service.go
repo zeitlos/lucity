@@ -87,6 +87,26 @@ func (c *Client) DetectServices(ctx context.Context, repositoryURL string) ([]Pl
 	return c.planner.Plan(ctx, repositoryURL, commit.SHA, token)
 }
 
+func (c *Client) RepositoryBranches(ctx context.Context, repositoryURL string) ([]string, error) {
+	parsed, err := url.Parse(repositoryURL)
+
+	if err != nil {
+		return nil, fmt.Errorf("parse repository url %q: %w", repositoryURL, err)
+	}
+
+	repository := strings.TrimSuffix(strings.Trim(parsed.Path, "/"), ".git")
+
+	if !repositoryPattern.MatchString(repository) {
+		return nil, fmt.Errorf("invalid repository url %q: expected owner/repo path", repositoryURL)
+	}
+
+	if _, err := c.installationForRepo(ctx, repository); err != nil {
+		return nil, err
+	}
+
+	return c.source.Branches(ctx, repositoryURL)
+}
+
 func (c *Client) AddService(ctx context.Context, environmentID platform.EnvironmentID, name string, repository, contextPath string, externalImage string, variables map[string]string) (*Service, error) {
 	workspace := environmentID.Workspace
 	projectID := environmentID.Project

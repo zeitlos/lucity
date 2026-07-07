@@ -144,6 +144,7 @@ input AutoscalingInput {
 extend type Query {
   service(id: ServiceID!): Service! @hasRole(role: WORKSPACE_MEMBER)
   detectServices(repositoryUrl: String!): [DetectedService!]! @hasRole(role: WORKSPACE_MEMBER)
+  repositoryBranches(repositoryUrl: String!): [String!]! @hasRole(role: WORKSPACE_MEMBER)
 }
 
 extend type Mutation {

@@ -62,6 +62,7 @@ type Documents = {
     "\n  mutation SetServicePort($service: ServiceID!, $port: Int) {\n    setServicePort(service: $service, port: $port) {\n      id\n      port\n    }\n  }\n": typeof types.SetServicePortDocument,
     "\n  mutation SetServiceBranch($service: ServiceID!, $branch: String) {\n    setServiceBranch(service: $service, branch: $branch) {\n      id\n      branch\n    }\n  }\n": typeof types.SetServiceBranchDocument,
     "\n  mutation SetAutoDeploy($service: ServiceID!, $enabled: Boolean!) {\n    setAutoDeploy(service: $service, enabled: $enabled) {\n      id\n      autoDeploy\n    }\n  }\n": typeof types.SetAutoDeployDocument,
+    "\n  query RepositoryBranches($repositoryUrl: String!) {\n    repositoryBranches(repositoryUrl: $repositoryUrl)\n  }\n": typeof types.RepositoryBranchesDocument,
     "\n  mutation SetServiceResources($service: ServiceID!, $resources: ResourcesInput!) {\n    setServiceResources(service: $service, resources: $resources) {\n      id\n      resources {\n        cpu\n        memory\n      }\n    }\n  }\n": typeof types.SetServiceResourcesDocument,
     "\n  query ServiceVariables($service: ServiceID!) {\n    serviceVariables(service: $service) {\n      key\n      value\n      ref\n    }\n  }\n": typeof types.ServiceVariablesDocument,
     "\n  query AvailableVariables($environment: EnvironmentID!) {\n    availableVariables(environment: $environment) {\n      id\n      key\n      source {\n        __typename\n        ... on DatabaseSource { databaseId: id name }\n        ... on KeyValueStoreSource { keyValueStoreId: id name }\n        ... on BucketSource { bucketId: id name }\n        ... on SharedSource { name }\n      }\n    }\n  }\n": typeof types.AvailableVariablesDocument,
@@ -147,6 +148,7 @@ const documents: Documents = {
     "\n  mutation SetServicePort($service: ServiceID!, $port: Int) {\n    setServicePort(service: $service, port: $port) {\n      id\n      port\n    }\n  }\n": types.SetServicePortDocument,
     "\n  mutation SetServiceBranch($service: ServiceID!, $branch: String) {\n    setServiceBranch(service: $service, branch: $branch) {\n      id\n      branch\n    }\n  }\n": types.SetServiceBranchDocument,
     "\n  mutation SetAutoDeploy($service: ServiceID!, $enabled: Boolean!) {\n    setAutoDeploy(service: $service, enabled: $enabled) {\n      id\n      autoDeploy\n    }\n  }\n": types.SetAutoDeployDocument,
+    "\n  query RepositoryBranches($repositoryUrl: String!) {\n    repositoryBranches(repositoryUrl: $repositoryUrl)\n  }\n": types.RepositoryBranchesDocument,
     "\n  mutation SetServiceResources($service: ServiceID!, $resources: ResourcesInput!) {\n    setServiceResources(service: $service, resources: $resources) {\n      id\n      resources {\n        cpu\n        memory\n      }\n    }\n  }\n": types.SetServiceResourcesDocument,
     "\n  query ServiceVariables($service: ServiceID!) {\n    serviceVariables(service: $service) {\n      key\n      value\n      ref\n    }\n  }\n": types.ServiceVariablesDocument,
     "\n  query AvailableVariables($environment: EnvironmentID!) {\n    availableVariables(environment: $environment) {\n      id\n      key\n      source {\n        __typename\n        ... on DatabaseSource { databaseId: id name }\n        ... on KeyValueStoreSource { keyValueStoreId: id name }\n        ... on BucketSource { bucketId: id name }\n        ... on SharedSource { name }\n      }\n    }\n  }\n": types.AvailableVariablesDocument,
@@ -390,6 +392,10 @@ export function graphql(source: "\n  mutation SetServiceBranch($service: Service
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation SetAutoDeploy($service: ServiceID!, $enabled: Boolean!) {\n    setAutoDeploy(service: $service, enabled: $enabled) {\n      id\n      autoDeploy\n    }\n  }\n"): (typeof documents)["\n  mutation SetAutoDeploy($service: ServiceID!, $enabled: Boolean!) {\n    setAutoDeploy(service: $service, enabled: $enabled) {\n      id\n      autoDeploy\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query RepositoryBranches($repositoryUrl: String!) {\n    repositoryBranches(repositoryUrl: $repositoryUrl)\n  }\n"): (typeof documents)["\n  query RepositoryBranches($repositoryUrl: String!) {\n    repositoryBranches(repositoryUrl: $repositoryUrl)\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
