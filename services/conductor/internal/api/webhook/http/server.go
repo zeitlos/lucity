@@ -109,7 +109,7 @@ func (h *Handler) handlePush(event *github.Event) {
 		return
 	}
 
-	deployed := 0
+	matched := 0
 
 	for _, match := range matches {
 		if match.InstallationID != 0 && match.InstallationID != event.InstallationID {
@@ -132,6 +132,8 @@ func (h *Handler) handlePush(event *github.Event) {
 			continue
 		}
 
+		matched++
+
 		slog.Info("push: triggering deploy",
 			"workspace", match.ID.Workspace,
 			"project", match.ID.Project,
@@ -143,13 +145,10 @@ func (h *Handler) handlePush(event *github.Event) {
 
 		if _, err := h.Conductor.DeployPush(ctx, match.ID, event.CommitSHA); err != nil {
 			slog.Warn("push: deploy failed", "service", match.ID, "error", err)
-			continue
 		}
-
-		deployed++
 	}
 
-	if deployed == 0 {
+	if matched == 0 {
 		slog.Info("push: no matching services", "repo", repoURL, "branch", pushedBranch)
 	}
 }
