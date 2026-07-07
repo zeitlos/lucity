@@ -947,7 +947,7 @@ async function handleRemoveService() {
                         <AlertDialogFooter>
                           <AlertDialogCancel>Cancel</AlertDialogCancel>
                           <AlertDialogAction
-                            class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            variant="destructive"
                             @click="handleRemoveDomain(endpoint.host)"
                           >
                             Remove
@@ -1367,6 +1367,7 @@ async function handleRemoveService() {
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
                   <AlertDialogAction
+                    variant="destructive"
                     :disabled="removing"
                     @click="handleRemoveService"
                   >

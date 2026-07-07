@@ -558,7 +558,7 @@ async function handleDelete() {
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                           <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction @click="handleRemoveMember(member.id)">
+                          <AlertDialogAction variant="destructive" @click="handleRemoveMember(member.id)">
                             Remove
                           </AlertDialogAction>
                         </AlertDialogFooter>
@@ -791,7 +791,7 @@ async function handleDelete() {
                     <AlertDialogFooter>
                       <AlertDialogCancel>Cancel</AlertDialogCancel>
                       <AlertDialogAction
-                        class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        variant="destructive"
                         @click="handleDelete"
                       >
                         Delete workspace
