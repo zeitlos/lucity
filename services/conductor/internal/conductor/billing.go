@@ -63,8 +63,8 @@ func (c *Client) EnvironmentResources(ctx context.Context, environmentID platfor
 // cpu/memory/disk inputs from the GraphQL schema (and the matching sliders
 // on the dashboard's Project Settings page) are intentionally ignored:
 //
-//   - The K8s ResourceQuota is fixed at 4 CPU / 8Gi / 40Gi for every env,
-//     set in environment/kubernetes/quota.go::buildQuota.
+//   - The K8s ResourceQuota is fixed for every env at the defaults in
+//     resources.go, set in environment/kubernetes/quota.go::buildQuota.
 //   - Tier flips the LimitRange's default container *requests*: Eco runs
 //     burstable (~50% of limit as request), Production runs guaranteed
 //     (request == limit). It does NOT change the namespace ceiling.
