@@ -259,6 +259,8 @@ otelCollector:
 
 grafana:
   enabled: true
+  deploymentStrategy:
+    type: Recreate
   persistence:
     storageClassName: hcloud-volumes
   grafana.ini:
