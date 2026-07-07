@@ -41,6 +41,8 @@ const EnvironmentDocument = graphql(`
           tls
         }
         sourceUrl
+        branch
+        autoDeploy
         contextPath
         resources {
           cpu
@@ -405,6 +407,8 @@ watch(
         port: s.port,
         endpoints: s.endpoints,
         sourceUrl: s.sourceUrl,
+        branch: s.branch ?? null,
+        autoDeploy: s.autoDeploy,
         contextPath: s.contextPath,
         resources: s.resources,
         command: s.command,

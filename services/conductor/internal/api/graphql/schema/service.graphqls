@@ -11,6 +11,8 @@ type Service
   endpoints: [Endpoint!]! @goField(forceResolver: true)
 
   sourceUrl: String!
+  branch: String
+  autoDeploy: Boolean!
   contextPath: String!
   resources: Resources!
   command: String!
@@ -148,6 +150,8 @@ extend type Mutation {
   addService(environment: EnvironmentID!, input: AddServiceInput!): Service! @hasRole(role: WORKSPACE_MEMBER)
   removeService(service: ServiceID!): Boolean! @hasRole(role: WORKSPACE_MEMBER)
   setCustomStartCommand(service: ServiceID!, command: String!): Service! @hasRole(role: WORKSPACE_MEMBER)
+  setServiceBranch(service: ServiceID!, branch: String @constraint(constraint: "min=1,max=250")): Service! @hasRole(role: WORKSPACE_MEMBER)
+  setAutoDeploy(service: ServiceID!, enabled: Boolean!): Service! @hasRole(role: WORKSPACE_MEMBER)
   setServicePort(service: ServiceID!, port: Int @constraint(constraint: "min=1,max=65535")): Service! @hasRole(role: WORKSPACE_MEMBER)
   setServiceScaling(input: SetServiceScalingInput!): Service! @hasRole(role: WORKSPACE_MEMBER)
   setServiceResources(service: ServiceID!, resources: ResourcesInput!): Service! @hasRole(role: WORKSPACE_MEMBER)

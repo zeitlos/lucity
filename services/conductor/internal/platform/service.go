@@ -24,6 +24,7 @@ type Service struct {
 
 	SourceURL   string
 	Branch      string
+	AutoDeploy  bool
 	ContextPath string
 	Resources   Resources
 	Command     string
@@ -34,6 +35,13 @@ type Service struct {
 
 	LastDeployedAt time.Time
 	CreatedAt      time.Time
+}
+
+type RepoService struct {
+	ID             ServiceID
+	Branch         string
+	AutoDeploy     bool
+	InstallationID int64
 }
 
 type Resources struct {

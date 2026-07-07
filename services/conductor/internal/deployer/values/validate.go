@@ -20,6 +20,7 @@ var (
 	imageDigestRe = regexp.MustCompile(`^[a-zA-Z0-9]+:[a-zA-Z0-9]+$`)
 
 	mountPathRe = regexp.MustCompile(`^/[a-zA-Z0-9._/-]+$`)
+	gitRefRe    = regexp.MustCompile(`^[A-Za-z0-9._/-]+$`)
 
 	maxNameLen    = 63
 	maxHostLen    = 253
@@ -27,6 +28,7 @@ var (
 	maxImageLen   = 512
 	maxTagLen     = 128
 	maxCommandLen = 4096
+	maxBranchLen  = 250
 )
 
 func Validate(env *Env) error {
@@ -171,6 +173,32 @@ func validateStartCommand(command string) error {
 		if r < 0x20 || r == 0x7f {
 			return fmt.Errorf("start command contains a control character")
 		}
+	}
+
+	return nil
+}
+
+func validateBranch(branch string) error {
+	if branch == "" {
+		return nil
+	}
+
+	if len(branch) > maxBranchLen {
+		return fmt.Errorf("branch exceeds %d characters", maxBranchLen)
+	}
+
+	if !gitRefRe.MatchString(branch) {
+		return fmt.Errorf("invalid branch name %q", branch)
+	}
+
+	if strings.HasPrefix(branch, "-") ||
+		strings.HasPrefix(branch, "/") ||
+		strings.HasSuffix(branch, "/") ||
+		strings.HasSuffix(branch, ".") ||
+		strings.HasSuffix(branch, ".lock") ||
+		strings.Contains(branch, "..") ||
+		strings.Contains(branch, "//") {
+		return fmt.Errorf("invalid branch name %q", branch)
 	}
 
 	return nil

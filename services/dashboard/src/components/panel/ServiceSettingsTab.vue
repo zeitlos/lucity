@@ -124,6 +124,24 @@ const SetServicePortDocument = graphql(`
   }
 `);
 
+const SetServiceBranchDocument = graphql(`
+  mutation SetServiceBranch($service: ServiceID!, $branch: String) {
+    setServiceBranch(service: $service, branch: $branch) {
+      id
+      branch
+    }
+  }
+`);
+
+const SetAutoDeployDocument = graphql(`
+  mutation SetAutoDeploy($service: ServiceID!, $enabled: Boolean!) {
+    setAutoDeploy(service: $service, enabled: $enabled) {
+      id
+      autoDeploy
+    }
+  }
+`);
+
 const SetServiceResourcesDocument = graphql(`
   mutation SetServiceResources($service: ServiceID!, $resources: ResourcesInput!) {
     setServiceResources(service: $service, resources: $resources) {
@@ -340,6 +358,60 @@ async function handleSavePort() {
     emit('refetch');
   } catch (e: unknown) {
     errorToast('Failed to update port', { description: errorMessage(e) });
+  }
+}
+
+// Source branch + auto-deploy
+const { mutate: setServiceBranchMutate, loading: branchSaving } = useMutation(SetServiceBranchDocument);
+const { mutate: setAutoDeployMutate } = useMutation(SetAutoDeployDocument);
+
+const branchInput = ref(props.service.branch ?? '');
+const autoDeploySaving = ref(false);
+
+watch(
+  () => props.service.branch,
+  value => {
+    branchInput.value = value ?? '';
+  },
+);
+
+const branchChanged = computed(() => branchInput.value.trim() !== (props.service.branch ?? ''));
+
+async function handleSaveBranch() {
+  const branch = branchInput.value.trim() || null;
+
+  try {
+    const res = await setServiceBranchMutate({ service: props.service.id, branch });
+
+    if (res?.errors?.length) {
+      errorToast('Failed to update branch', { description: res.errors.map(e => e.message).join(', ') });
+      return;
+    }
+
+    toast.success(branch ? `Tracking ${branch}` : 'Tracking default branch');
+    emit('refetch');
+  } catch (e: unknown) {
+    errorToast('Failed to update branch', { description: errorMessage(e) });
+  }
+}
+
+async function handleToggleAutoDeploy(enabled: boolean) {
+  autoDeploySaving.value = true;
+
+  try {
+    const res = await setAutoDeployMutate({ service: props.service.id, enabled });
+
+    if (res?.errors?.length) {
+      errorToast('Failed to update auto-deploy', { description: res.errors.map(e => e.message).join(', ') });
+      return;
+    }
+
+    toast.success(enabled ? 'Auto-deploy enabled' : 'Auto-deploy disabled');
+    emit('refetch');
+  } catch (e: unknown) {
+    errorToast('Failed to update auto-deploy', { description: errorMessage(e) });
+  } finally {
+    autoDeploySaving.value = false;
   }
 }
 
@@ -683,11 +755,42 @@ async function handleRemoveService() {
 
               <div class="space-y-1.5">
                 <Label class="text-xs font-medium">Branch</Label>
-                <div class="flex items-center gap-2 rounded-md border bg-muted/50 px-3 py-2">
-                  <GitBranch :size="14" class="shrink-0 text-muted-foreground" />
-                  <span class="font-mono text-sm">Default branch</span>
-                  <span class="text-xs text-muted-foreground">(auto-deploy)</span>
+                <div class="flex items-center gap-2">
+                  <div class="relative flex-1">
+                    <GitBranch :size="14" class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      v-model="branchInput"
+                      placeholder="Default branch"
+                      class="pl-8 font-mono text-sm"
+                      @keyup.enter="branchChanged && handleSaveBranch()"
+                    />
+                  </div>
+                  <Button
+                    size="sm"
+                    :disabled="!branchChanged || branchSaving"
+                    @click="handleSaveBranch"
+                  >
+                    {{ branchSaving ? 'Saving...' : 'Save' }}
+                  </Button>
                 </div>
+                <p class="text-xs text-muted-foreground">
+                  Branch to build from. Leave empty to track the repository's default branch.
+                </p>
+              </div>
+
+              <div class="flex items-center justify-between border-t pt-3">
+                <div class="pr-4">
+                  <Label class="text-sm font-medium">Auto-deploy</Label>
+                  <p class="text-xs text-muted-foreground">
+                    Deploy automatically on every push to the tracked branch.
+                  </p>
+                </div>
+                <Switch
+                  :model-value="service.autoDeploy"
+                  :disabled="autoDeploySaving"
+                  class="data-[state=unchecked]:bg-border"
+                  @update:model-value="handleToggleAutoDeploy"
+                />
               </div>
             </div>
           </CollapsibleContent>

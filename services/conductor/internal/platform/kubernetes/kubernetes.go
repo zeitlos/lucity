@@ -33,6 +33,7 @@ const (
 	annotationSourceRef      = "lucity.dev/source-ref"
 	annotationSourceContext  = "lucity.dev/source-context"
 	annotationSourceBranch   = "lucity.dev/source-branch"
+	annotationAutoDeploy     = "lucity.dev/autodeploy"
 	annotationBuildID        = "lucity.dev/build-id"
 	annotationRelease        = "lucity.dev/release"
 	annotationReleaseTrigger = "lucity.dev/release-trigger"
