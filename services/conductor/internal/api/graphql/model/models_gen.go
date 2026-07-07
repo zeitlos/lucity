@@ -444,6 +444,8 @@ type Service struct {
 	Port             int                  `json:"port"`
 	Endpoints        []Endpoint           `json:"endpoints"`
 	SourceURL        string               `json:"sourceUrl"`
+	Branch           *string              `json:"branch,omitempty"`
+	AutoDeploy       bool                 `json:"autoDeploy"`
 	ContextPath      string               `json:"contextPath"`
 	Resources        *Resources           `json:"resources"`
 	Command          string               `json:"command"`

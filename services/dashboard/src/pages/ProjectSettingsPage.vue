@@ -396,6 +396,7 @@ async function handleDeleteEnvironment() {
                         <AlertDialogFooter>
                           <AlertDialogCancel>Cancel</AlertDialogCancel>
                           <AlertDialogAction
+                            variant="destructive"
                             :disabled="deleting"
                             @click="handleDeleteProject"
                           >

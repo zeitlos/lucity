@@ -218,6 +218,8 @@ func releaseStatus(build *Build, deploy *Deploy, deployment *Deployment) Release
 		return ReleaseFailed
 	}
 
+	deployInFlight := deploy != nil && (deploy.Status == deployjob.StatusQueued || deploy.Status == deployjob.StatusRunning)
+
 	if build != nil {
 		switch build.Status {
 		case buildjob.StatusQueued:
@@ -225,7 +227,11 @@ func releaseStatus(build *Build, deploy *Deploy, deployment *Deployment) Release
 		case buildjob.StatusRunning, buildjob.StatusCancelling:
 			return ReleaseBuilding
 		case buildjob.StatusSucceeded:
-			return ReleaseDeploying
+			if deployInFlight {
+				return ReleaseDeploying
+			}
+
+			return ReleaseSuperseded
 		case buildjob.StatusFailed:
 			return ReleaseFailed
 		case buildjob.StatusCancelled:
@@ -233,7 +239,11 @@ func releaseStatus(build *Build, deploy *Deploy, deployment *Deployment) Release
 		}
 	}
 
-	return ReleaseDeploying
+	if deployInFlight {
+		return ReleaseDeploying
+	}
+
+	return ReleaseSuperseded
 }
 
 func releaseSource(build *Build, deployment *Deployment) *GitSource {

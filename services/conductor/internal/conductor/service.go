@@ -45,6 +45,8 @@ type DeploymentID = platform.DeploymentID
 type Service = platform.Service
 type Plan = planner.Plan
 
+const defaultAutoDeployEnvironment = "development"
+
 func (c *Client) Services(ctx context.Context, environmentID EnvironmentID) ([]Service, error) {
 	return c.platform.Services(ctx, environmentID)
 }
@@ -85,6 +87,26 @@ func (c *Client) DetectServices(ctx context.Context, repositoryURL string) ([]Pl
 	return c.planner.Plan(ctx, repositoryURL, commit.SHA, token)
 }
 
+func (c *Client) RepositoryBranches(ctx context.Context, repositoryURL string) ([]string, error) {
+	parsed, err := url.Parse(repositoryURL)
+
+	if err != nil {
+		return nil, fmt.Errorf("parse repository url %q: %w", repositoryURL, err)
+	}
+
+	repository := strings.TrimSuffix(strings.Trim(parsed.Path, "/"), ".git")
+
+	if !repositoryPattern.MatchString(repository) {
+		return nil, fmt.Errorf("invalid repository url %q: expected owner/repo path", repositoryURL)
+	}
+
+	if _, err := c.installationForRepo(ctx, repository); err != nil {
+		return nil, err
+	}
+
+	return c.source.Branches(ctx, repositoryURL)
+}
+
 func (c *Client) AddService(ctx context.Context, environmentID platform.EnvironmentID, name string, repository, contextPath string, externalImage string, variables map[string]string) (*Service, error) {
 	workspace := environmentID.Workspace
 	projectID := environmentID.Project
@@ -110,6 +132,7 @@ func (c *Client) AddService(ctx context.Context, environmentID platform.Environm
 
 	if repository != "" {
 		spec.Port = 8080
+		spec.AutoDeploy = environmentID.Name == defaultAutoDeployEnvironment
 
 		installationID, err := c.installationForRepo(ctx, repository)
 
@@ -216,6 +239,22 @@ func (c *Client) SetCustomStartCommand(ctx context.Context, svc platform.Service
 func (c *Client) SetServicePort(ctx context.Context, svc platform.ServiceID, port int) (*Service, error) {
 	if _, err := c.deployer.Services().SetPort(ctx, svc, port); err != nil {
 		return nil, fmt.Errorf("set port: %w", err)
+	}
+
+	return c.Service(ctx, svc)
+}
+
+func (c *Client) SetServiceBranch(ctx context.Context, svc platform.ServiceID, branch string) (*Service, error) {
+	if _, err := c.deployer.Services().SetBranch(ctx, svc, branch); err != nil {
+		return nil, fmt.Errorf("set branch: %w", err)
+	}
+
+	return c.Service(ctx, svc)
+}
+
+func (c *Client) SetAutoDeploy(ctx context.Context, svc platform.ServiceID, enabled bool) (*Service, error) {
+	if _, err := c.deployer.Services().SetAutoDeploy(ctx, svc, enabled); err != nil {
+		return nil, fmt.Errorf("set autodeploy: %w", err)
 	}
 
 	return c.Service(ctx, svc)

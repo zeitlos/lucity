@@ -78,17 +78,8 @@ func handleGitHub(secret []byte, h *Handler) http.HandlerFunc {
 	}
 }
 
-// handlePush processes a push event: matches repos to services via
-// platform.ServicesByRepo and triggers builds for development-env hits
-// via conductor.Deploy — same code path the dashboard's deploy button
-// uses.
 func (h *Handler) handlePush(event *github.Event) {
-	refBranch := strings.TrimPrefix(event.Ref, "refs/heads/")
-
-	if refBranch != event.DefaultBranch {
-		slog.Debug("push: ignoring non-default branch", "ref", event.Ref, "default", event.DefaultBranch)
-		return
-	}
+	pushedBranch := strings.TrimPrefix(event.Ref, "refs/heads/")
 
 	if event.InstallationID == 0 {
 		slog.Warn("push: no installation ID in event, cannot mint token")
@@ -105,41 +96,69 @@ func (h *Handler) handlePush(event *github.Event) {
 	}
 
 	ctx = auth.NewContext(ctx, &auth.Claims{
-		Subject: "webhook",
+		Subject: pushActor(event),
 	})
 	ctx = auth.WithGitHubToken(ctx, ghToken)
 
 	repoURL := fmt.Sprintf("https://github.com/%s", event.RepoFullName)
-	const targetEnv = "development"
 
-	ids, err := h.Platform.ServicesByRepo(ctx, repoURL, event.DefaultBranch)
+	matches, err := h.Platform.ServicesByRepo(ctx, repoURL)
 
 	if err != nil {
 		slog.Error("push: failed to find services by repo", "repo", repoURL, "error", err)
 		return
 	}
 
-	if len(ids) == 0 {
-		slog.Info("push: no matching services", "repo", repoURL, "branch", event.DefaultBranch)
-	}
+	matched := 0
 
-	for _, id := range ids {
-		if id.Environment != targetEnv {
+	for _, match := range matches {
+		if match.InstallationID != 0 && match.InstallationID != event.InstallationID {
+			slog.Warn("push: installation mismatch, skipping service",
+				"service", match.ID, "expected", match.InstallationID, "got", event.InstallationID)
 			continue
 		}
 
+		if !match.AutoDeploy {
+			continue
+		}
+
+		trackedBranch := match.Branch
+
+		if trackedBranch == "" {
+			trackedBranch = event.DefaultBranch
+		}
+
+		if trackedBranch != pushedBranch {
+			continue
+		}
+
+		matched++
+
 		slog.Info("push: triggering deploy",
-			"workspace", id.Workspace,
-			"project", id.Project,
-			"service", id.Name,
-			"environment", id.Environment,
+			"workspace", match.ID.Workspace,
+			"project", match.ID.Project,
+			"service", match.ID.Name,
+			"environment", match.ID.Environment,
+			"branch", pushedBranch,
 			"sha", event.CommitSHA,
 		)
 
-		if _, err := h.Conductor.Deploy(ctx, id, event.CommitSHA); err != nil {
-			slog.Warn("push: deploy failed", "service", id, "error", err)
+		if _, err := h.Conductor.DeployPush(ctx, match.ID, event.CommitSHA); err != nil {
+			slog.Warn("push: deploy failed", "service", match.ID, "error", err)
 		}
 	}
+
+	if matched == 0 {
+		slog.Info("push: no matching services", "repo", repoURL, "branch", pushedBranch)
+	}
+}
+
+func pushActor(event *github.Event) string {
+	if event.Sender != "" {
+		return event.Sender
+	}
+
+	return "webhook"
 }
 
 func (s *Server) Label() string {

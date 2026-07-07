@@ -15,7 +15,7 @@ type Interface interface {
 
 	Services(ctx context.Context, environmentID EnvironmentID) ([]Service, error)
 	Service(ctx context.Context, id ServiceID) (*Service, error)
-	ServicesByRepo(ctx context.Context, repoURL, branch string) ([]ServiceID, error)
+	ServicesByRepo(ctx context.Context, repoURL string) ([]RepoService, error)
 
 	Deployments(ctx context.Context, serviceID ServiceID) ([]Deployment, error)
 	Deployment(ctx context.Context, id DeploymentID) (*Deployment, error)

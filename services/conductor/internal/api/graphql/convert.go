@@ -118,10 +118,15 @@ func convertService(service platform.Service) model.Service {
 		Port:            service.Port,
 		PlatformService: service,
 		SourceURL:       service.SourceURL,
+		AutoDeploy:      service.AutoDeploy,
 		ContextPath:     service.ContextPath,
 		Resources:       convertResources(service.Resources),
 		Command:         service.Command,
 		CreatedAt:       service.CreatedAt,
+	}
+
+	if service.Branch != "" {
+		result.Branch = &service.Branch
 	}
 
 	if service.Autoscaling != nil {

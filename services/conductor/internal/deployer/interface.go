@@ -29,6 +29,7 @@ type ServiceClient interface {
 	SetResources(ctx context.Context, id platform.ServiceID, tier platform.ResourceTier, resources Resources) (RevisionID, error)
 	SetCommand(ctx context.Context, id platform.ServiceID, command string) (RevisionID, error)
 	SetBranch(ctx context.Context, id platform.ServiceID, branch string) (RevisionID, error)
+	SetAutoDeploy(ctx context.Context, id platform.ServiceID, enabled bool) (RevisionID, error)
 	SetPort(ctx context.Context, id platform.ServiceID, port int) (RevisionID, error)
 
 	Variables(ctx context.Context, id platform.ServiceID) (ServiceVariablesSpec, error)
@@ -85,6 +86,7 @@ type ServiceSpec struct {
 	SourceURL            string
 	ContextPath          string
 	GitHubInstallationID int64
+	AutoDeploy           bool
 	StartCommand         string
 	Port                 int
 	Resources            Resources

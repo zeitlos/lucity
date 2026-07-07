@@ -65,6 +65,7 @@ type ServiceSpec struct {
 	SourceURL            string
 	ContextPath          string
 	GitHubInstallationID int64
+	AutoDeploy           bool
 	Port                 int
 	Resources            Resources
 	Env                  map[string]string
@@ -102,6 +103,7 @@ func CreateService(env *Env, name string, spec ServiceSpec) error {
 	if spec.SourceURL != "" {
 		annotations[annotationSourceRepo] = spec.SourceURL
 		podAnnotations[annotationSourceRepo] = spec.SourceURL
+		annotations[annotationAutoDeploy] = strconv.FormatBool(spec.AutoDeploy)
 	}
 
 	if spec.ContextPath != "" {
@@ -229,8 +231,26 @@ func SetServiceCommand(env *Env, name, command string) error {
 }
 
 func SetServiceBranch(env *Env, name, branch string) error {
+	if err := validateBranch(branch); err != nil {
+		return err
+	}
+
 	return mutateService(env, name, func(s *Service) {
-		s.Annotations[annotationSourceBranch] = branch
+		if s.Annotations == nil {
+			s.Annotations = map[string]string{}
+		}
+
+		setOrDelete(s.Annotations, annotationSourceBranch, branch)
+	})
+}
+
+func SetServiceAutoDeploy(env *Env, name string, enabled bool) error {
+	return mutateService(env, name, func(s *Service) {
+		if s.Annotations == nil {
+			s.Annotations = map[string]string{}
+		}
+
+		s.Annotations[annotationAutoDeploy] = strconv.FormatBool(enabled)
 	})
 }
 
