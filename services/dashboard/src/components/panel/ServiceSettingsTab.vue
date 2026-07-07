@@ -524,18 +524,15 @@ function copyToClipboard(text: string) {
 }
 
 // Source
-const sourceRepo = computed(() => {
-  const url = props.service.sourceUrl;
-  if (!url) return null;
-  const match = url.match(/github\.com\/([^/]+\/[^/]+)/);
-  return match ? match[1] : url.replace(/^https?:\/\//, '');
-});
-
 const sourceRepoUrl = computed(() => {
   const url = props.service.sourceUrl;
   if (!url) return null;
   return url.startsWith('http') ? url : `https://${url}`;
 });
+
+const repoDisplay = computed(() =>
+  props.service.sourceUrl.replace(/^https?:\/\//, '').replace(/\.git$/, ''),
+);
 
 // Scaling
 const autoscalingEnabled = ref(false);
@@ -710,11 +707,9 @@ async function handleRemoveService() {
           <div class="flex items-center gap-3 px-4 py-3">
             <GithubIcon :size="16" class="shrink-0" />
             <div class="min-w-0 flex-1">
-              <p class="text-sm font-medium text-foreground">Repository</p>
-              <p class="truncate font-mono text-xs text-muted-foreground">
-                {{ sourceRepo ?? 'Not connected' }}<span
-                  v-if="service.contextPath && service.contextPath !== '.'"
-                > · {{ service.contextPath }}</span>
+              <p class="truncate text-sm font-medium text-foreground">{{ repoDisplay }}</p>
+              <p class="text-xs text-muted-foreground">
+                Repository<span v-if="service.contextPath"> built from {{ service.contextPath }}</span>
               </p>
             </div>
             <a
@@ -732,20 +727,19 @@ async function handleRemoveService() {
           <div class="flex items-center gap-3 px-4 py-3">
             <GitBranch :size="16" class="shrink-0 text-muted-foreground" />
             <div class="min-w-0 flex-1">
-              <p class="text-sm font-medium text-foreground">Branch</p>
-              <p class="text-xs text-muted-foreground">Branch to build from</p>
+              <p class="truncate text-sm font-medium text-foreground">{{ currentBranchLabel }}</p>
+              <p class="text-xs text-muted-foreground">Tracked branch</p>
             </div>
             <Popover :open="branchPickerOpen" @update:open="toggleBranchPicker">
               <PopoverTrigger as-child>
                 <Button
                   variant="outline"
-                  role="combobox"
                   size="sm"
                   :disabled="branchSaving"
-                  class="h-8 w-48 justify-between font-mono text-xs font-normal"
+                  class="h-8"
                 >
-                  <span class="truncate">{{ currentBranchLabel }}</span>
-                  <ChevronsUpDown :size="14" class="shrink-0 opacity-50" />
+                  Change
+                  <ChevronsUpDown :size="14" class="ml-1.5 opacity-50" />
                 </Button>
               </PopoverTrigger>
               <PopoverContent class="w-64 p-0" align="end">
@@ -788,9 +782,15 @@ async function handleRemoveService() {
 
           <!-- Auto-deploy -->
           <div class="flex items-center gap-3 px-4 py-3">
-            <Zap :size="16" class="shrink-0 text-muted-foreground" />
+            <Zap
+              :size="16"
+              class="shrink-0"
+              :class="service.autoDeploy ? 'text-violet-500' : 'text-muted-foreground'"
+            />
             <div class="min-w-0 flex-1">
-              <p class="text-sm font-medium text-foreground">Auto-deploy</p>
+              <p class="text-sm font-medium text-foreground">
+                Auto-Deploy {{ service.autoDeploy ? 'enabled' : 'disabled' }}
+              </p>
               <p class="text-xs text-muted-foreground">Deploy on every push to the tracked branch</p>
             </div>
             <Switch
