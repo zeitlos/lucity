@@ -3,6 +3,7 @@ package kubernetes
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -134,7 +135,7 @@ func (c *Client) Services(ctx context.Context, environmentID platform.Environmen
 	return services, nil
 }
 
-func (c *Client) ServicesByRepo(ctx context.Context, repoURL, branch string) ([]platform.ServiceID, error) {
+func (c *Client) ServicesByRepo(ctx context.Context, repoURL string) ([]platform.RepoService, error) {
 	req, err := labels.NewRequirement(serviceLabel, selection.Exists, nil)
 
 	if err != nil {
@@ -151,7 +152,7 @@ func (c *Client) ServicesByRepo(ctx context.Context, repoURL, branch string) ([]
 		return nil, err
 	}
 
-	var result []platform.ServiceID
+	var result []platform.RepoService
 
 	wantRepo := strings.TrimSuffix(repoURL, ".git")
 
@@ -160,11 +161,14 @@ func (c *Client) ServicesByRepo(ctx context.Context, repoURL, branch string) ([]
 			continue
 		}
 
-		if ann := deployment.Annotations[annotationSourceBranch]; ann != "" && ann != branch {
-			continue
-		}
+		installationID, _ := strconv.ParseInt(deployment.Labels[gitHubInstallationLabel], 10, 64)
 
-		result = append(result, serviceID(deployment, environmentID(deployment.Labels)))
+		result = append(result, platform.RepoService{
+			ID:             serviceID(deployment, environmentID(deployment.Labels)),
+			Branch:         deployment.Annotations[annotationSourceBranch],
+			AutoDeploy:     deployment.Annotations[annotationAutoDeploy] == "true",
+			InstallationID: installationID,
+		})
 	}
 
 	return result, nil
@@ -303,6 +307,7 @@ func toService(deployment apps.Deployment, replicaSets []apps.ReplicaSet, pods [
 
 		SourceURL:   annotations[annotationSourceRepo],
 		Branch:      annotations[annotationSourceBranch],
+		AutoDeploy:  annotations[annotationAutoDeploy] == "true",
 		ContextPath: annotations[annotationSourceContext],
 		Resources:   containerResources(containers),
 		Command:     containerCommand(containers),

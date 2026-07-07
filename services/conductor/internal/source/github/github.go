@@ -60,6 +60,22 @@ func (c *Client) Token(ctx context.Context, repoURL string) (string, error) {
 	return c.app.InstallationTokenForRepo(ctx, installationID, repository)
 }
 
+func (c *Client) Branches(ctx context.Context, repoURL string) ([]string, error) {
+	repository, err := parseRepoURL(repoURL)
+
+	if err != nil {
+		return nil, err
+	}
+
+	installationID, err := c.app.FindInstallation(ctx, repository)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return c.app.Branches(ctx, installationID, repository)
+}
+
 // parseRepoURL extracts the "owner/repo" path from a GitHub HTTPS URL,
 // stripping the optional ".git" suffix and any trailing slashes.
 func parseRepoURL(repoURL string) (string, error) {

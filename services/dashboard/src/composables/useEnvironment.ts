@@ -141,6 +141,8 @@ export interface Service {
   port: number;
   endpoints: Endpoint[];
   sourceUrl: string;
+  branch?: string | null;
+  autoDeploy: boolean;
   contextPath: string;
   resources: Resources;
   command: string;

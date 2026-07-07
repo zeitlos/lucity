@@ -93,6 +93,14 @@ func (c *Client) DeployLogs(ctx context.Context, id DeployID) (<-chan string, er
 }
 
 func (c *Client) Deploy(ctx context.Context, serviceID ServiceID, gitRef string) (*Release, error) {
+	return c.deploy(ctx, serviceID, gitRef, deployer.TriggerManual)
+}
+
+func (c *Client) DeployPush(ctx context.Context, serviceID ServiceID, gitRef string) (*Release, error) {
+	return c.deploy(ctx, serviceID, gitRef, deployer.TriggerPush)
+}
+
+func (c *Client) deploy(ctx context.Context, serviceID ServiceID, gitRef string, trigger deployer.TriggerKind) (*Release, error) {
 	service, err := c.platform.Service(ctx, serviceID)
 
 	if err != nil {
@@ -128,7 +136,7 @@ func (c *Client) Deploy(ctx context.Context, serviceID ServiceID, gitRef string)
 	}
 
 	claims, _ := auth.FromContext(ctx)
-	release := deployer.NewRelease(deployer.TriggerManual, actorFromClaims(claims))
+	release := deployer.NewRelease(trigger, actorFromClaims(claims))
 
 	imageName := service.ID.Workspace + "/" + service.ID.Project + "/" + service.Name
 

@@ -23,6 +23,7 @@ func (s *serviceClient) Create(ctx context.Context, env platform.EnvironmentID, 
 			SourceURL:            spec.SourceURL,
 			ContextPath:          spec.ContextPath,
 			GitHubInstallationID: spec.GitHubInstallationID,
+			AutoDeploy:           spec.AutoDeploy,
 			Port:                 spec.Port,
 			Resources:            deriveRequestsAndLimtis(spec.Resources, spec.ResourceTier),
 			Env:                  spec.Env,
@@ -85,6 +86,12 @@ func (s *serviceClient) SetCommand(ctx context.Context, id platform.ServiceID, c
 func (s *serviceClient) SetBranch(ctx context.Context, id platform.ServiceID, branch string) (deployer.RevisionID, error) {
 	return s.client.applyEnv(ctx, id.EnvironmentID(), func(e *values.Env) error {
 		return values.SetServiceBranch(e, id.Name, branch)
+	})
+}
+
+func (s *serviceClient) SetAutoDeploy(ctx context.Context, id platform.ServiceID, enabled bool) (deployer.RevisionID, error) {
+	return s.client.applyEnv(ctx, id.EnvironmentID(), func(e *values.Env) error {
+		return values.SetServiceAutoDeploy(e, id.Name, enabled)
 	})
 }
 

@@ -47,6 +47,28 @@ func (r *mutationResolver) SetCustomStartCommand(ctx context.Context, service pl
 	return new(convertService(*result)), nil
 }
 
+// SetServiceBranch is the resolver for the setServiceBranch field.
+func (r *mutationResolver) SetServiceBranch(ctx context.Context, service platform.ServiceID, branch *string) (*model.Service, error) {
+	result, err := r.Conductor.SetServiceBranch(ctx, service, to.Val(branch))
+
+	if err != nil {
+		return nil, err
+	}
+
+	return new(convertService(*result)), nil
+}
+
+// SetAutoDeploy is the resolver for the setAutoDeploy field.
+func (r *mutationResolver) SetAutoDeploy(ctx context.Context, service platform.ServiceID, enabled bool) (*model.Service, error) {
+	result, err := r.Conductor.SetAutoDeploy(ctx, service, enabled)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return new(convertService(*result)), nil
+}
+
 // SetServicePort is the resolver for the setServicePort field.
 func (r *mutationResolver) SetServicePort(ctx context.Context, service platform.ServiceID, port *int) (*model.Service, error) {
 	p := 0
@@ -155,6 +177,11 @@ func (r *queryResolver) DetectServices(ctx context.Context, repositoryURL string
 		result = append(result, convertDetectedService(s))
 	}
 	return result, nil
+}
+
+// RepositoryBranches is the resolver for the repositoryBranches field.
+func (r *queryResolver) RepositoryBranches(ctx context.Context, repositoryURL string) ([]string, error) {
+	return r.Conductor.RepositoryBranches(ctx, repositoryURL)
 }
 
 // Endpoints is the resolver for the endpoints field.

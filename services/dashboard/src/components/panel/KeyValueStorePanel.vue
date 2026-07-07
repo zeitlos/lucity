@@ -284,8 +284,8 @@ async function handleDelete() {
                         <AlertDialogFooter>
                           <AlertDialogCancel>Cancel</AlertDialogCancel>
                           <AlertDialogAction
+                            variant="destructive"
                             :disabled="deleting"
-                            class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                             @click="handleDelete"
                           >
                             {{ deleting ? 'Deleting...' : 'Delete Redis' }}
