@@ -2,7 +2,7 @@
   "name": "lucity",
   "displayName": "Lucity",
   "version": "0.1.0",
-  "description": "Deploy software to your Lucity platform with one prompt — zero-config builds, PostgreSQL, Redis, S3-compatible storage.",
+  "description": "Deploy software to Lucity with one prompt — zero-config builds, PostgreSQL, Redis, S3-compatible storage.",
   "author": {
     "name": "zeitlos",
     "url": "https://github.com/zeitlos/lucity"
@@ -11,14 +11,12 @@
   "license": "AGPL-3.0",
   "keywords": [
     "deploy",
-    "paas",
+    "container",
+    "lucity",
     "kubernetes",
     "helm",
-    "railpack",
     "postgresql",
     "redis",
-    "s3",
-    "ejectable",
-    "lucity"
+    "s3"
   ]
 }
