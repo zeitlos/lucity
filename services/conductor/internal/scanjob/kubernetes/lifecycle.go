@@ -38,7 +38,7 @@ func (c *Client) Start(ctx context.Context, opts scanjob.StartOptions) (*scanjob
 }
 
 func (c *Client) newScanJob(name string, opts scanjob.StartOptions) *batch.Job {
-	reportRepo := c.config.Registry + "/" + opts.Service.Workspace + "/" + opts.Service.Project + "/" + opts.Service.Name + "/scans"
+	reportRepo := c.config.Registry + "/" + opts.Service.ImageRepository() + "/scans"
 
 	env := []core.EnvVar{
 		{Name: "SCAN_ID", Value: name},

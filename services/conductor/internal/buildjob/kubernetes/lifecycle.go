@@ -10,6 +10,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/joho/godotenv"
+	"github.com/zeitlos/lucity/pkg/labels"
 	"github.com/zeitlos/lucity/services/conductor/internal/buildjob"
 
 	batch "k8s.io/api/batch/v1"
@@ -18,7 +19,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
+	k8slabels "k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/utils/ptr"
 )
@@ -44,8 +45,11 @@ func (c *Client) Start(ctx context.Context, opts buildjob.StartOptions) (*buildj
 		tag = tag[:7]
 	}
 
+	dedupe := buildJobLabels(opts.Service)
+	dedupe[labelSourceCommit] = opts.Commit
+
 	existing, err := c.kubernetes.BatchV1().Jobs(c.namespace).List(ctx, meta.ListOptions{
-		LabelSelector: labels.Set(buildJobLabels(opts.Workspace, *parsed, opts.ContextPath, opts.Commit)).String(),
+		LabelSelector: k8slabels.Set(dedupe).String(),
 	})
 
 	if err != nil {
@@ -105,7 +109,7 @@ func (c *Client) Cancel(ctx context.Context, id buildjob.BuildID) (*buildjob.Job
 		return nil, err
 	}
 
-	if job.Labels[labelWorkspace] != id.Workspace {
+	if job.Labels[labels.Workspace] != id.Workspace {
 		return nil, errors.New("build not found")
 	}
 
@@ -193,10 +197,11 @@ func (c *Client) newBuildJob(id string, opts buildjob.StartOptions, repoURL url.
 		})
 	}
 
-	labels := buildJobLabels(opts.Workspace, repoURL, opts.ContextPath, opts.Commit)
+	labelSet := buildJobLabels(opts.Service)
+	labelSet[labelSourceCommit] = opts.Commit
 
 	if opts.ReleaseID != "" {
-		labels[labelRelease] = opts.ReleaseID
+		labelSet[labels.Release] = opts.ReleaseID
 	}
 
 	annotations := map[string]string{
@@ -213,7 +218,7 @@ func (c *Client) newBuildJob(id string, opts buildjob.StartOptions, repoURL url.
 		ObjectMeta: meta.ObjectMeta{
 			Name:        id,
 			Namespace:   c.namespace,
-			Labels:      labels,
+			Labels:      labelSet,
 			Annotations: annotations,
 		},
 		Spec: batch.JobSpec{
@@ -222,7 +227,7 @@ func (c *Client) newBuildJob(id string, opts buildjob.StartOptions, repoURL url.
 			TTLSecondsAfterFinished: ptr.To(int32(7 * 24 * 3600)),
 			ActiveDeadlineSeconds:   ptr.To(int64(30 * 60)),
 			Template: core.PodTemplateSpec{
-				ObjectMeta: meta.ObjectMeta{Labels: labels},
+				ObjectMeta: meta.ObjectMeta{Labels: labelSet},
 				Spec: core.PodSpec{
 					HostUsers:                    ptr.To(false),
 					RestartPolicy:                core.RestartPolicyNever,
@@ -270,14 +275,4 @@ func truncate(s string, max int) string {
 	}
 
 	return cut
-}
-
-func buildJobLabels(workspaceID string, repoURL url.URL, contextPath, commit string) map[string]string {
-	return map[string]string{
-		labelWorkspace:         workspaceID,
-		labelRepoHash:          repoURLHash(repoURL),
-		labelContextHash:       contextHash(contextPath),
-		labelSourceCommit:      commit,
-		"lucity.dev/component": "build",
-	}
 }

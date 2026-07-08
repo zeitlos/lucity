@@ -240,7 +240,7 @@ func (r *serviceResolver) Deployments(ctx context.Context, obj *model.Service) (
 
 // Builds is the resolver for the builds field.
 func (r *serviceResolver) Builds(ctx context.Context, obj *model.Service) ([]model.Build, error) {
-	builds, err := r.Conductor.Builds(ctx, obj.ID.Workspace, obj.SourceURL, obj.ContextPath)
+	builds, err := r.Conductor.Builds(ctx, obj.ID)
 
 	if err != nil {
 		return nil, err

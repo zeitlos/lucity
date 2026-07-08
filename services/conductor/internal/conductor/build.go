@@ -30,8 +30,8 @@ var _ platform.WorkspaceScoped = BuildID{}
 var _ platform.WorkspaceScoped = DeployID{}
 var _ platform.WorkspaceScoped = ScanID{}
 
-func (c *Client) Builds(ctx context.Context, workspace, repoURL, contextPath string) ([]Build, error) {
-	return c.buildjob.List(ctx, workspace, repoURL, contextPath)
+func (c *Client) Builds(ctx context.Context, service platform.ServiceID) ([]Build, error) {
+	return c.buildjob.List(ctx, service)
 }
 
 func (c *Client) Build(ctx context.Context, id BuildID) (*Build, error) {
@@ -138,10 +138,10 @@ func (c *Client) deploy(ctx context.Context, serviceID ServiceID, gitRef string,
 	claims, _ := auth.FromContext(ctx)
 	release := deployer.NewRelease(trigger, actorFromClaims(claims))
 
-	imageName := service.ID.Workspace + "/" + service.ID.Project + "/" + service.Name
+	imageName := service.ID.ImageRepository()
 
 	build, err := c.buildjob.Start(ctx, buildjob.StartOptions{
-		Workspace:        service.ID.Workspace,
+		Service:          service.ID,
 		RepoURL:          service.SourceURL,
 		Commit:           commit.SHA,
 		CommitMessage:    commit.Message,

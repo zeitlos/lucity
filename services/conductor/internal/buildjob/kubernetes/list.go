@@ -2,27 +2,16 @@ package kubernetes
 
 import (
 	"context"
-	"net/url"
 	"sort"
 
 	"github.com/zeitlos/lucity/services/conductor/internal/buildjob"
+	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
+	k8slabels "k8s.io/apimachinery/pkg/labels"
 )
 
-func (c *Client) List(ctx context.Context, workspaceID, repoURL, contextPath string) ([]buildjob.Job, error) {
-	parsedURL, err := url.Parse(repoURL)
-
-	if err != nil {
-		return nil, err
-	}
-
-	// TODO: Figure out if we can figure by "labelTriggerRef".
-	selector := labels.SelectorFromSet(labels.Set{
-		labelWorkspace:   workspaceID,
-		labelRepoHash:    repoURLHash(*parsedURL),
-		labelContextHash: contextHash(contextPath),
-	})
+func (c *Client) List(ctx context.Context, service platform.ServiceID) ([]buildjob.Job, error) {
+	selector := k8slabels.SelectorFromSet(buildJobLabels(service))
 
 	jobs, err := c.kubernetes.BatchV1().Jobs(c.namespace).List(ctx, meta.ListOptions{
 		LabelSelector: selector.String(),
