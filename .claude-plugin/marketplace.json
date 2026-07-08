@@ -1,6 +1,6 @@
 {
-  "name": "lucity-dev",
-  "description": "Local development marketplace for the Lucity deploy plugin",
+  "name": "lucity",
+  "description": "Deploy software to Lucity from Claude Code.",
   "version": "0.1.0",
   "owner": {
     "name": "zeitlos",
