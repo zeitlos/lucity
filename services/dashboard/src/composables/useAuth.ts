@@ -16,7 +16,7 @@ export interface AuthUser {
 declare global {
   interface Window {
     rybbit?: {
-      identify: (userId: string) => void;
+      identify: (userId: string, traits?: Record<string, unknown>) => void;
       clearUserId: () => void;
     };
   }
@@ -28,13 +28,13 @@ const activeWorkspace = ref<string>(localStorage.getItem('lucity_workspace') || 
 
 let identifiedUserId: string | null = null;
 
-function identifyUser(userId: string) {
+function identifyUser(userId: string, traits: Record<string, unknown>) {
   if (identifiedUserId === userId) return;
   identifiedUserId = userId;
   let attempts = 0;
   const run = () => {
     if (window.rybbit) {
-      window.rybbit.identify(userId);
+      window.rybbit.identify(userId, traits);
     } else if (attempts++ < 50) {
       setTimeout(run, 100);
     }
@@ -77,7 +77,11 @@ export function useAuth() {
         }
 
         if (user.value?.id) {
-          identifyUser(user.value.id);
+          const traits: Record<string, unknown> = {};
+          if (user.value.name) traits.name = user.value.name;
+          if (user.value.email) traits.email = user.value.email;
+          if (activeWorkspace.value) traits.workspace = activeWorkspace.value;
+          identifyUser(user.value.id, traits);
         }
       } else {
         user.value = null;
