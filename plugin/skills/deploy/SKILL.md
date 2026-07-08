@@ -17,6 +17,7 @@ repo — the platform only reads it.
 
 Run these before anything else. Stop and instruct the user if a check fails.
 
+- **CLI present**: if the `lucity` MCP tools are not available (the server failed to connect), the CLI is not installed or not on `PATH`. Tell the user to `brew install zeitlos/tap/lucity`, then `lucity login`, then **restart the Claude Code session** so the plugin can start `lucity mcp`. Do not try to install it yourself — it cannot take effect in this session.
 - **Auth**: call `get_account`. If it errors on auth, tell the user to run `lucity login` in a terminal, then retry.
 - **Workspace**: `get_account` returns the active workspace. If none is active, tell the user to select one (`lucity workspace`). Every resource is workspace-scoped.
 - **GitHub auth (separate token!)**: `get_account` passing does NOT mean GitHub access works — source-build calls (`list_github_repos`, `detect_services`, `add_service`) use a distinct GitHub/Logto token that can be expired even when `get_account` is green. So run `list_github_repos` as its own preflight check. If it fails with an expired-session/auth error, the user must run `lucity login` (a re-login refreshes that token); stop and tell them rather than retrying.
