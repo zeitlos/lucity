@@ -94,7 +94,7 @@ type endpointView struct {
 	Host     string `json:"host"`
 	Protocol string `json:"protocol"`
 	Type     string `json:"type"`
-	TLS      bool   `json:"tls"`
+	TLS      string `json:"tls"`
 }
 
 type serviceView struct {
@@ -359,7 +359,7 @@ func endpointHosts(endpoints []endpointView) []string {
 	var hosts []string
 	for _, endpoint := range endpoints {
 		scheme := "http"
-		if endpoint.TLS {
+		if endpoint.TLS != "" && endpoint.TLS != "NONE" {
 			scheme = "https"
 		}
 		hosts = append(hosts, scheme+"://"+endpoint.Host)
