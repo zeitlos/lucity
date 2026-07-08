@@ -1,0 +1,62 @@
+version: 2
+
+project_name: lucity
+
+builds:
+  - id: lucity
+    dir: ./cli
+    main: ./cmd/lucity
+    binary: lucity
+    env:
+      - CGO_ENABLED=0
+      - GOWORK=off
+    goos:
+      - darwin
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    ldflags:
+      - -s -w -X main.version={{ .Version }}
+
+archives:
+  - id: lucity
+    ids:
+      - lucity
+    formats:
+      - tar.gz
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  disable: true
+
+release:
+  prerelease: auto
+  name_template: "lucity CLI {{ .Version }}"
+
+brews:
+  - name: lucity
+    ids:
+      - lucity
+    repository:
+      owner: zeitlos
+      name: homebrew-tap
+      branch: main
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    directory: Formula
+    homepage: "https://lucity.cloud"
+    description: "Deploy software on Lucity from the command line"
+    license: AGPL-3.0
+    skip_upload: auto
+    commit_author:
+      name: lucity-release
+      email: noreply@lucity.cloud
+    install: |
+      bin.install "lucity"
+    test: |
+      assert_match "lucity", shell_output("#{bin}/lucity version")

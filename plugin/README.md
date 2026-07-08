@@ -20,10 +20,10 @@ ships it, self-heals a failed rollout, and hands you back a live URL.
 ## Prerequisites
 
 1. **A Lucity workspace.** You need a [Lucity](https://lucity.cloud) account with an active workspace.
-2. **The `lucity` CLI**, on your `PATH` as `lucity`. Install it with Go (ensure `$(go env GOPATH)/bin` is on your `PATH`), then authenticate:
+2. **The `lucity` CLI**, on your `PATH` as `lucity`. Install it with Homebrew, then authenticate:
 
    ```sh
-   go install github.com/zeitlos/lucity/cli/cmd/lucity@latest
+   brew install zeitlos/tap/lucity
    lucity login
    lucity workspace   # confirm an active workspace
    ```
