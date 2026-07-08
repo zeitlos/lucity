@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/zeitlos/lucity/pkg/labels"
 	"github.com/zeitlos/lucity/services/conductor/internal/buildjob"
 	"github.com/zeitlos/lucity/services/conductor/internal/jobs"
 
@@ -25,7 +26,7 @@ func (c *Client) Get(ctx context.Context, id buildjob.BuildID) (*buildjob.Job, e
 		return nil, err
 	}
 
-	if job.Labels[labelWorkspace] != id.Workspace {
+	if job.Labels[labels.Workspace] != id.Workspace {
 		return nil, fmt.Errorf("build %q not found", id.Name)
 	}
 

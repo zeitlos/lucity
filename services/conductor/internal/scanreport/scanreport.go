@@ -55,7 +55,7 @@ func New(config Config) *Client {
 // Latest returns the most recent secret-scan report, or nil when the
 // service has never been scanned.
 func (c *Client) Latest(ctx context.Context, service platform.ServiceID) (*Report, error) {
-	repoPath := service.Workspace + "/" + service.Project + "/" + service.Name + "/scans"
+	repoPath := service.ImageRepository() + "/scans"
 
 	repo, err := name.NewRepository(c.config.DialEndpoint+"/"+repoPath, name.Insecure)
 

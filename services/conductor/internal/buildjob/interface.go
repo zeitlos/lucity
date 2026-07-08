@@ -11,18 +11,19 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 
 	"github.com/zeitlos/lucity/services/conductor/internal/image"
+	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
 type Interface interface {
 	Get(ctx context.Context, id BuildID) (*Job, error)
-	List(ctx context.Context, workspaceID, repoURL, contextPath string) ([]Job, error)
+	List(ctx context.Context, service platform.ServiceID) ([]Job, error)
 	Start(ctx context.Context, opts StartOptions) (*Job, error)
 	Cancel(ctx context.Context, id BuildID) (*Job, error)
 	Logs(ctx context.Context, id BuildID) (io.ReadCloser, error)
 }
 
 type StartOptions struct {
-	Workspace        string
+	Service          platform.ServiceID
 	RepoURL          string
 	Commit           string
 	CommitMessage    string

@@ -147,7 +147,7 @@ func (c *Client) AddService(ctx context.Context, environmentID platform.Environm
 			return nil, err
 		}
 
-		spec.Image = c.config.RegistryPullURL + "/" + c.imageRepository(id)
+		spec.Image = c.config.RegistryPullURL + "/" + id.ImageRepository()
 	} else if externalImage != "" {
 		if _, err := containername.ParseReference(externalImage); err != nil {
 			return nil, fmt.Errorf("invalid image reference %q: %w", externalImage, err)
@@ -191,10 +191,10 @@ func (c *Client) AddService(ctx context.Context, environmentID platform.Environm
 		claims, _ := auth.FromContext(ctx)
 		release := deployer.NewRelease(deployer.TriggerManual, actorFromClaims(claims))
 
-		imageName := workspace + "/" + projectID + "/" + name
+		imageName := id.ImageRepository()
 
 		build, err := c.buildjob.Start(ctx, buildjob.StartOptions{
-			Workspace:        workspace,
+			Service:          id,
 			RepoURL:          spec.SourceURL,
 			Commit:           commit.SHA,
 			CommitMessage:    commit.Message,
@@ -417,10 +417,6 @@ func (c *Client) ReconcileServices(ctx context.Context) error {
 	}
 
 	return nil
-}
-
-func (c *Client) imageRepository(id ServiceID) string {
-	return id.Workspace + "/" + id.Project + "/" + id.Name
 }
 
 // deriveServiceName extracts a service name from an image reference.

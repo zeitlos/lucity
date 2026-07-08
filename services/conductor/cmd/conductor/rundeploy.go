@@ -93,8 +93,7 @@ func runDeploy() {
 		return
 	}
 
-	imageRepository := serviceID.Workspace + "/" + serviceID.Project + "/" + serviceID.Name
-	ref, err := build.BuiltImage(imageRepository)
+	ref, err := build.BuiltImage(serviceID.ImageRepository())
 
 	if err != nil {
 		log.Error("deploy: build succeeded but image unusable", "error", err)

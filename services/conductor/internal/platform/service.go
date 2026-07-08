@@ -116,6 +116,10 @@ func (s ServiceID) EnvironmentID() EnvironmentID {
 	return EnvironmentID{Workspace: s.Workspace, Project: s.Project, Name: s.Environment}
 }
 
+func (s ServiceID) ImageRepository() string {
+	return s.Workspace + "/" + s.Project + "/" + s.Environment + "/" + s.Name
+}
+
 func (s ServiceID) Namespace() string {
 	return s.EnvironmentID().Namespace()
 }

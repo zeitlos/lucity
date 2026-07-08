@@ -77,18 +77,11 @@ func (c *Client) Releases(ctx context.Context, service platform.Service) ([]Rele
 	var builds []Build
 
 	if service.SourceURL != "" {
-		all, err := c.buildjob.List(ctx, serviceID.Workspace, service.SourceURL, service.ContextPath)
+		var err error
+		builds, err = c.buildjob.List(ctx, serviceID)
 
 		if err != nil {
 			return nil, err
-		}
-
-		target := c.imageRepository(serviceID)
-
-		for _, build := range all {
-			if _, ok := build.ImageRefs[target]; ok {
-				builds = append(builds, build)
-			}
 		}
 	}
 

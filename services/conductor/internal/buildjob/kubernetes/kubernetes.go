@@ -1,15 +1,13 @@
 package kubernetes
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"log/slog"
-	"net/url"
-	"path"
 	"strings"
 
 	"github.com/zeitlos/lucity/pkg/github"
+	"github.com/zeitlos/lucity/pkg/labels"
 	"github.com/zeitlos/lucity/services/conductor/internal/buildjob"
+	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 
 	"github.com/google/go-containerregistry/pkg/name"
 	batch "k8s.io/api/batch/v1"
@@ -18,11 +16,9 @@ import (
 )
 
 const (
-	labelWorkspace    = "lucity.dev/workspace"
-	labelRepoHash     = "lucity.dev/source-repo-hash"
-	labelSourceCommit = "lucity.dev/source-commit"
-	labelContextHash  = "lucity.dev/source-context-hash"
-	labelRelease      = "lucity.dev/release"
+	labelComponent    = labels.Prefix + "component"
+	componentBuild    = "build"
+	labelSourceCommit = labels.Prefix + "source-commit"
 )
 
 const (
@@ -64,14 +60,14 @@ var _ buildjob.Interface = (*Client)(nil)
 
 func toJob(job batch.Job) buildjob.Job {
 	build := buildjob.Job{
-		ID:            buildjob.BuildID{Workspace: job.Labels[labelWorkspace], Name: job.Name},
+		ID:            buildjob.BuildID{Workspace: job.Labels[labels.Workspace], Name: job.Name},
 		Status:        buildStatus(job),
 		SourceURL:     job.Annotations[annotationSourceRepo],
 		Commit:        job.Labels[labelSourceCommit],
 		CommitMessage: job.Annotations[annotationCommitMessage],
 		ContextPath:   job.Annotations[annotationContext],
 		TriggeredBy:   job.Annotations[annotationTriggeredBy],
-		ReleaseID:     job.Labels[labelRelease],
+		ReleaseID:     job.Labels[labels.Release],
 		CreatedAt:     job.CreationTimestamp.Time,
 		ImageRefs:     make(map[string]name.Reference),
 	}
@@ -132,29 +128,12 @@ func buildStatus(job batch.Job) buildjob.Status {
 	return buildjob.StatusQueued
 }
 
-func normalizeRepoURL(u url.URL) string {
-	normalized := u.Host + strings.TrimSuffix(u.Path, ".git")
-	normalized = strings.ToLower(normalized)
-
-	return strings.TrimSuffix(normalized, "/")
-}
-
-func normalizeContextPath(contextPath string) string {
-	normalized := path.Clean(strings.TrimSpace(contextPath))
-
-	if normalized == "." || normalized == "/" {
-		return ""
+func buildJobLabels(service platform.ServiceID) map[string]string {
+	return map[string]string{
+		labels.Workspace:   service.Workspace,
+		labels.Project:     service.Project,
+		labels.Environment: service.Environment,
+		labels.Service:     service.Name,
+		labelComponent:     componentBuild,
 	}
-
-	return strings.TrimPrefix(normalized, "/")
-}
-
-func repoURLHash(u url.URL) string {
-	hash := sha256.Sum256([]byte(normalizeRepoURL(u)))
-	return hex.EncodeToString(hash[:8])
-}
-
-func contextHash(contextPath string) string {
-	hash := sha256.Sum256([]byte(normalizeContextPath(contextPath)))
-	return hex.EncodeToString(hash[:8])
 }
