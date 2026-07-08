@@ -12,6 +12,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/zeitlos/lucity/cli/internal/api"
+	"github.com/zeitlos/lucity/cli/internal/ids"
 	"github.com/zeitlos/lucity/cli/internal/session"
 )
 
@@ -91,26 +92,7 @@ func (s *server) scopedID(id string, segments int) (string, error) {
 	if err != nil {
 		return "", err
 	}
-
-	id = strings.Trim(strings.TrimSpace(id), "/")
-	if id == "" {
-		return "", errors.New("id must not be empty")
-	}
-
-	parts := strings.Split(id, "/")
-
-	if len(parts) == segments-1 {
-		return workspace + "/" + id, nil
-	}
-
-	if len(parts) == segments {
-		if parts[0] != workspace {
-			return "", fmt.Errorf("id belongs to workspace %s but your active workspace is %s — run 'lucity workspace %s'", parts[0], workspace, parts[0])
-		}
-		return id, nil
-	}
-
-	return "", fmt.Errorf("invalid id %q: expected %d '/'-separated segments (or %d relative to the active workspace)", id, segments, segments-1)
+	return ids.Scoped(workspace, id, segments)
 }
 
 func (s *server) projectID(id string) (string, error)     { return s.scopedID(id, 2) }

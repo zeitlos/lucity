@@ -24,6 +24,7 @@ Usage:
   lucity logout                Discard the stored session
   lucity account               Show identity and workspace memberships
   lucity workspace [<id>]      Show or switch the active workspace
+  lucity deploy <service>      Build and roll out a service (--ref, --wait)
   lucity token                 Print a valid bearer token for scripting
   lucity mcp                   Serve the Lucity MCP server on stdio
   lucity version               Print the CLI version
@@ -53,6 +54,8 @@ func main() {
 		err = cmdAccount(ctx)
 	case "workspace":
 		err = cmdWorkspace(ctx, os.Args[2:])
+	case "deploy":
+		err = cmdDeploy(ctx, os.Args[2:])
 	case "token":
 		err = cmdToken(ctx)
 	case "mcp":
