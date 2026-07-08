@@ -95,6 +95,12 @@ func (s *serviceClient) SetAutoDeploy(ctx context.Context, id platform.ServiceID
 	})
 }
 
+func (s *serviceClient) SetCIDeploy(ctx context.Context, id platform.ServiceID, enabled bool) (deployer.RevisionID, error) {
+	return s.client.applyEnv(ctx, id.EnvironmentID(), func(e *values.Env) error {
+		return values.SetServiceCIDeploy(e, id.Name, enabled)
+	})
+}
+
 func (s *serviceClient) SetPort(ctx context.Context, id platform.ServiceID, port int) (deployer.RevisionID, error) {
 	return s.client.applyEnv(ctx, id.EnvironmentID(), func(e *values.Env) error {
 		return values.SetServicePort(e, id.Name, port)

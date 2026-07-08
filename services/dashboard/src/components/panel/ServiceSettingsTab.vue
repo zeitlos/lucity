@@ -142,6 +142,15 @@ const SetAutoDeployDocument = graphql(`
   }
 `);
 
+const SetCIDeployDocument = graphql(`
+  mutation SetCIDeploy($service: ServiceID!, $enabled: Boolean!) {
+    setCIDeploy(service: $service, enabled: $enabled) {
+      id
+      ciDeploy
+    }
+  }
+`);
+
 const RepositoryBranchesDocument = graphql(`
   query RepositoryBranches($repositoryUrl: String!) {
     repositoryBranches(repositoryUrl: $repositoryUrl)
@@ -377,8 +386,40 @@ async function handleSavePort() {
 // Source branch + auto-deploy
 const { mutate: setServiceBranchMutate, loading: branchSaving } = useMutation(SetServiceBranchDocument);
 const { mutate: setAutoDeployMutate } = useMutation(SetAutoDeployDocument);
+const { mutate: setCIDeployMutate } = useMutation(SetCIDeployDocument);
 
 const autoDeploySaving = ref(false);
+const ciDeploySaving = ref(false);
+const ciSnippetCopied = ref(false);
+
+const ciWorkflowSnippet = computed(
+  () => `name: Deploy
+on:
+  push:
+    branches: [${props.service.branch || 'main'}]
+permissions:
+  id-token: write   # required
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-go@v5
+        with: { go-version: stable }
+      - run: go install github.com/zeitlos/lucity/cli/cmd/lucity@latest
+      - run: lucity deploy ${props.service.id.split('/').slice(1).join('/')} --ref "$GITHUB_SHA" --wait
+        env:
+          LUCITY_API_URL: ${window.location.origin}`,
+);
+
+async function copyCISnippet() {
+  try {
+    await navigator.clipboard.writeText(ciWorkflowSnippet.value);
+    ciSnippetCopied.value = true;
+    setTimeout(() => (ciSnippetCopied.value = false), 2000);
+  } catch (e: unknown) {
+    errorToast('Failed to copy', { description: errorMessage(e) });
+  }
+}
 
 const branchPickerOpen = ref(false);
 const branches = ref<string[]>([]);
@@ -451,6 +492,26 @@ async function handleToggleAutoDeploy(enabled: boolean) {
     errorToast('Failed to update auto-deploy', { description: errorMessage(e) });
   } finally {
     autoDeploySaving.value = false;
+  }
+}
+
+async function handleToggleCIDeploy(enabled: boolean) {
+  ciDeploySaving.value = true;
+
+  try {
+    const res = await setCIDeployMutate({ service: props.service.id, enabled });
+
+    if (res?.errors?.length) {
+      errorToast('Failed to update CI deploys', { description: res.errors.map(e => e.message).join(', ') });
+      return;
+    }
+
+    toast.success(enabled ? 'CI deploys enabled' : 'CI deploys disabled');
+    emit('refetch');
+  } catch (e: unknown) {
+    errorToast('Failed to update CI deploys', { description: errorMessage(e) });
+  } finally {
+    ciDeploySaving.value = false;
   }
 }
 
@@ -799,6 +860,43 @@ async function handleRemoveService() {
               class="data-[state=unchecked]:bg-border"
               @update:model-value="handleToggleAutoDeploy"
             />
+          </div>
+
+          <!-- CI deploys -->
+          <div class="flex items-center gap-3 px-4 py-3">
+            <ShieldCheck
+              :size="16"
+              class="shrink-0"
+              :class="service.ciDeploy ? 'text-violet-500' : 'text-muted-foreground'"
+            />
+            <div class="min-w-0 flex-1">
+              <p class="text-sm font-medium text-foreground">
+                CI Deploys {{ service.ciDeploy ? 'enabled' : 'disabled' }}
+              </p>
+              <p class="text-xs text-muted-foreground">
+                Let GitHub Actions from this repo deploy this service, keyless. No stored token.
+              </p>
+            </div>
+            <Switch
+              :model-value="service.ciDeploy"
+              :disabled="ciDeploySaving"
+              class="data-[state=unchecked]:bg-border"
+              @update:model-value="handleToggleCIDeploy"
+            />
+          </div>
+
+          <!-- CI workflow snippet -->
+          <div v-if="service.ciDeploy" class="space-y-2 px-4 py-3">
+            <div class="flex items-center justify-between">
+              <p class="text-xs font-medium text-muted-foreground">
+                Add to your workflow (needs <code class="font-mono">permissions: id-token: write</code>)
+              </p>
+              <Button variant="ghost" size="sm" class="h-7 gap-1.5" @click="copyCISnippet">
+                <component :is="ciSnippetCopied ? Check : Copy" :size="13" />
+                {{ ciSnippetCopied ? 'Copied' : 'Copy' }}
+              </Button>
+            </div>
+            <pre class="overflow-x-auto rounded-md bg-muted/60 p-3 font-mono text-xs leading-relaxed text-foreground">{{ ciWorkflowSnippet }}</pre>
           </div>
         </div>
       </div>

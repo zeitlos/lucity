@@ -16,6 +16,7 @@ const (
 	annotationSourceRepo    = "lucity.dev/source-repo"
 	annotationSourceBranch  = "lucity.dev/source-branch"
 	annotationAutoDeploy    = "lucity.dev/autodeploy"
+	annotationCIDeploy      = "lucity.dev/ci-deploy"
 	annotationSourceContext = "lucity.dev/source-context"
 	annotationSourceCommit  = "lucity.dev/source-commit"
 	annotationSourceMessage = "lucity.dev/source-commit-message"

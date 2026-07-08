@@ -69,6 +69,17 @@ func (r *mutationResolver) SetAutoDeploy(ctx context.Context, service platform.S
 	return new(convertService(*result)), nil
 }
 
+// SetCIDeploy is the resolver for the setCIDeploy field.
+func (r *mutationResolver) SetCIDeploy(ctx context.Context, service platform.ServiceID, enabled bool) (*model.Service, error) {
+	result, err := r.Conductor.SetCIDeploy(ctx, service, enabled)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return new(convertService(*result)), nil
+}
+
 // SetServicePort is the resolver for the setServicePort field.
 func (r *mutationResolver) SetServicePort(ctx context.Context, service platform.ServiceID, port *int) (*model.Service, error) {
 	p := 0

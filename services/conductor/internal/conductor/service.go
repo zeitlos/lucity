@@ -260,6 +260,14 @@ func (c *Client) SetAutoDeploy(ctx context.Context, svc platform.ServiceID, enab
 	return c.Service(ctx, svc)
 }
 
+func (c *Client) SetCIDeploy(ctx context.Context, svc platform.ServiceID, enabled bool) (*Service, error) {
+	if _, err := c.deployer.Services().SetCIDeploy(ctx, svc, enabled); err != nil {
+		return nil, fmt.Errorf("set ci-deploy: %w", err)
+	}
+
+	return c.Service(ctx, svc)
+}
+
 func (c *Client) SetServiceResources(ctx context.Context, service platform.ServiceID, cpu, memory string) (*Service, error) {
 	cpuQuantity, err := resource.ParseQuantity(cpu)
 

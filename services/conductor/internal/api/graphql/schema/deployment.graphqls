@@ -61,5 +61,5 @@ extend type Query {
 }
 
 extend type Mutation {
-  deploy(service: ServiceID!, gitRef: String): Release! @hasRole(role: WORKSPACE_MEMBER)
+  deploy(service: ServiceID!, gitRef: String): Release! @hasRole(role: WORKSPACE_DEPLOYER)
 }

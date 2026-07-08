@@ -446,6 +446,7 @@ type Service struct {
 	SourceURL        string               `json:"sourceUrl"`
 	Branch           *string              `json:"branch,omitempty"`
 	AutoDeploy       bool                 `json:"autoDeploy"`
+	CiDeploy         bool                 `json:"ciDeploy"`
 	ContextPath      string               `json:"contextPath"`
 	Resources        *Resources           `json:"resources"`
 	Command          string               `json:"command"`
@@ -1624,22 +1625,24 @@ func (e ResourceTier) MarshalJSON() ([]byte, error) {
 type Role string
 
 const (
-	RoleAnonymous       Role = "ANONYMOUS"
-	RoleAuthenticated   Role = "AUTHENTICATED"
-	RoleWorkspaceMember Role = "WORKSPACE_MEMBER"
-	RoleWorkspaceAdmin  Role = "WORKSPACE_ADMIN"
+	RoleAnonymous         Role = "ANONYMOUS"
+	RoleAuthenticated     Role = "AUTHENTICATED"
+	RoleWorkspaceDeployer Role = "WORKSPACE_DEPLOYER"
+	RoleWorkspaceMember   Role = "WORKSPACE_MEMBER"
+	RoleWorkspaceAdmin    Role = "WORKSPACE_ADMIN"
 )
 
 var AllRole = []Role{
 	RoleAnonymous,
 	RoleAuthenticated,
+	RoleWorkspaceDeployer,
 	RoleWorkspaceMember,
 	RoleWorkspaceAdmin,
 }
 
 func (e Role) IsValid() bool {
 	switch e {
-	case RoleAnonymous, RoleAuthenticated, RoleWorkspaceMember, RoleWorkspaceAdmin:
+	case RoleAnonymous, RoleAuthenticated, RoleWorkspaceDeployer, RoleWorkspaceMember, RoleWorkspaceAdmin:
 		return true
 	}
 	return false

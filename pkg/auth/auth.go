@@ -9,13 +9,15 @@ import (
 type WorkspaceRole string
 
 const (
-	WorkspaceRoleUser  WorkspaceRole = "user"
-	WorkspaceRoleAdmin WorkspaceRole = "admin"
+	WorkspaceRoleDeployer WorkspaceRole = "deployer"
+	WorkspaceRoleUser     WorkspaceRole = "user"
+	WorkspaceRoleAdmin    WorkspaceRole = "admin"
 )
 
 var roleRank = map[WorkspaceRole]int{
-	WorkspaceRoleUser:  1,
-	WorkspaceRoleAdmin: 2,
+	WorkspaceRoleDeployer: 1,
+	WorkspaceRoleUser:     2,
+	WorkspaceRoleAdmin:    3,
 }
 
 func (r WorkspaceRole) Satisfies(required WorkspaceRole) bool {

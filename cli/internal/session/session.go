@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/zeitlos/lucity/cli/internal/api"
+	"github.com/zeitlos/lucity/cli/internal/ciauth"
 	"github.com/zeitlos/lucity/cli/internal/config"
 )
 
@@ -20,6 +21,11 @@ var ErrLoggedOut = errors.New("not logged in — run `lucity login`")
 type Manager struct {
 	mu  sync.Mutex
 	cfg *config.Config
+
+	ciMu     sync.Mutex
+	ciTried  bool
+	ciResult *ciauth.Session
+	ciErr    error
 }
 
 func Load() (*Manager, error) {
@@ -44,7 +50,50 @@ func (m *Manager) Workspace() string {
 	if workspace := os.Getenv("LUCITY_WORKSPACE"); workspace != "" {
 		return workspace
 	}
-	return m.cfg.Workspace
+	if m.cfg.Workspace != "" {
+		return m.cfg.Workspace
+	}
+	if session, _ := m.ciSession(context.Background()); session != nil {
+		return session.Workspace
+	}
+	return ""
+}
+
+func (m *Manager) Prepare(ctx context.Context) error {
+	if os.Getenv("LUCITY_TOKEN") != "" {
+		return nil
+	}
+
+	m.mu.Lock()
+	hasStored := m.cfg.Token != ""
+	m.mu.Unlock()
+
+	if hasStored {
+		return nil
+	}
+
+	_, err := m.ciSession(ctx)
+	return err
+}
+
+func (m *Manager) ciSession(ctx context.Context) (*ciauth.Session, error) {
+	if !ciauth.Available() {
+		if ciauth.Detected() {
+			return nil, ciauth.ErrNoIDToken
+		}
+		return nil, nil
+	}
+
+	m.ciMu.Lock()
+	defer m.ciMu.Unlock()
+
+	if m.ciTried {
+		return m.ciResult, m.ciErr
+	}
+
+	m.ciTried = true
+	m.ciResult, m.ciErr = ciauth.Exchange(ctx, &http.Client{Timeout: 30 * time.Second}, m.APIURL())
+	return m.ciResult, m.ciErr
 }
 
 func (m *Manager) SetWorkspace(workspace string) error {
@@ -115,11 +164,23 @@ func (m *Manager) Token(ctx context.Context) (string, error) {
 	}
 
 	m.mu.Lock()
-	defer m.mu.Unlock()
+	hasStored := m.cfg.Token != ""
+	m.mu.Unlock()
 
-	if m.cfg.Token == "" {
+	if !hasStored {
+		session, err := m.ciSession(ctx)
+		if session != nil {
+			return session.Token, nil
+		}
+		if err != nil {
+			return "", fmt.Errorf("CI deploy authentication failed: %w", err)
+		}
 		return "", ErrLoggedOut
 	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	if m.cfg.ExpiresAt.IsZero() || time.Until(m.cfg.ExpiresAt) > refreshLeeway {
 		return m.cfg.Token, nil
 	}

@@ -13,6 +13,7 @@ type Service
   sourceUrl: String!
   branch: String
   autoDeploy: Boolean!
+  ciDeploy: Boolean!
   contextPath: String!
   resources: Resources!
   command: String!
@@ -142,7 +143,7 @@ input AutoscalingInput {
 }
 
 extend type Query {
-  service(id: ServiceID!): Service! @hasRole(role: WORKSPACE_MEMBER)
+  service(id: ServiceID!): Service! @hasRole(role: WORKSPACE_DEPLOYER)
   detectServices(repositoryUrl: String!): [DetectedService!]! @hasRole(role: WORKSPACE_MEMBER)
   repositoryBranches(repositoryUrl: String!): [String!]! @hasRole(role: WORKSPACE_MEMBER)
 }
@@ -153,6 +154,7 @@ extend type Mutation {
   setCustomStartCommand(service: ServiceID!, command: String!): Service! @hasRole(role: WORKSPACE_MEMBER)
   setServiceBranch(service: ServiceID!, branch: String @constraint(constraint: "min=1,max=250")): Service! @hasRole(role: WORKSPACE_MEMBER)
   setAutoDeploy(service: ServiceID!, enabled: Boolean!): Service! @hasRole(role: WORKSPACE_MEMBER)
+  setCIDeploy(service: ServiceID!, enabled: Boolean!): Service! @hasRole(role: WORKSPACE_MEMBER)
   setServicePort(service: ServiceID!, port: Int @constraint(constraint: "min=1,max=65535")): Service! @hasRole(role: WORKSPACE_MEMBER)
   setServiceScaling(input: SetServiceScalingInput!): Service! @hasRole(role: WORKSPACE_MEMBER)
   setServiceResources(service: ServiceID!, resources: ResourcesInput!): Service! @hasRole(role: WORKSPACE_MEMBER)

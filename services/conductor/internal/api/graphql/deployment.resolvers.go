@@ -15,6 +15,10 @@ import (
 
 // Deploy is the resolver for the deploy field.
 func (r *mutationResolver) Deploy(ctx context.Context, service platform.ServiceID, gitRef *string) (*model.Release, error) {
+	if err := r.requireServiceDeployBinding(ctx, service); err != nil {
+		return nil, err
+	}
+
 	release, err := r.Conductor.Deploy(ctx, service, to.Val(gitRef))
 
 	if err != nil {
