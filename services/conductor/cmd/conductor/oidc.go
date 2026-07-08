@@ -31,6 +31,10 @@ const (
 	refreshCookieName  = "lucity_refresh"
 )
 
+// directSignIn skips Logto's connector picker and goes straight to GitHub,
+// the only configured sign-in method.
+const directSignIn = "social:github"
+
 // OIDCProvider wraps the OIDC discovery provider, ID token verifier, and OAuth2 config.
 type OIDCProvider struct {
 	provider    *oidc.Provider
@@ -198,6 +202,7 @@ func handleLogin(provider *OIDCProvider, secure bool) http.HandlerFunc {
 		url := provider.oauthConfig.AuthCodeURL(state,
 			oauth2.SetAuthURLParam("code_challenge", challenge),
 			oauth2.SetAuthURLParam("code_challenge_method", "S256"),
+			oauth2.SetAuthURLParam("direct_sign_in", directSignIn),
 		)
 		http.Redirect(w, r, url, http.StatusTemporaryRedirect)
 	}
