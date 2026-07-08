@@ -43,6 +43,7 @@ const EnvironmentDocument = graphql(`
         sourceUrl
         branch
         autoDeploy
+        ciDeploy
         contextPath
         resources {
           cpu
@@ -409,6 +410,7 @@ watch(
         sourceUrl: s.sourceUrl,
         branch: s.branch ?? null,
         autoDeploy: s.autoDeploy,
+        ciDeploy: s.ciDeploy,
         contextPath: s.contextPath,
         resources: s.resources,
         command: s.command,

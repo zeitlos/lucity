@@ -143,6 +143,7 @@ export interface Service {
   sourceUrl: string;
   branch?: string | null;
   autoDeploy: boolean;
+  ciDeploy: boolean;
   contextPath: string;
   resources: Resources;
   command: string;
