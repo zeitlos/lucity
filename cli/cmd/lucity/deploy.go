@@ -32,11 +32,18 @@ Flags:
   --json            Emit the final release as JSON on stdout
 
 Examples:
-  lucity deploy site/production/web --ref "$GITHUB_REF_NAME" --wait
+  lucity deploy site/production/web --ref "$GITHUB_SHA" --wait
   lucity deploy acme/site/production/web --ref v1.4.2 --wait --timeout 30m
 
-In CI, authenticate with LUCITY_TOKEN (and LUCITY_LOGTO_TOKEN for source access);
-set LUCITY_WORKSPACE to pin the workspace.
+Authentication:
+  In GitHub Actions, deploys are keyless — no stored secret. Grant the job
+  "permissions: id-token: write" and enable CI deploys for the service in its
+  Lucity settings; the CLI exchanges the job's OIDC token for a short-lived,
+  deploy-only session automatically. The workspace is inferred, so
+  LUCITY_WORKSPACE is optional.
+
+  For other CI systems, set LUCITY_TOKEN (and LUCITY_WORKSPACE to pin the
+  workspace).
 `
 
 const deployStatusQuery = `query($id: ServiceID!) {
@@ -125,6 +132,9 @@ func cmdDeploy(ctx context.Context, args []string) error {
 
 	manager, err := session.Load()
 	if err != nil {
+		return err
+	}
+	if err := manager.Prepare(ctx); err != nil {
 		return err
 	}
 	workspace := manager.Workspace()
