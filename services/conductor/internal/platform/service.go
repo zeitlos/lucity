@@ -25,6 +25,7 @@ type Service struct {
 	SourceURL   string
 	Branch      string
 	AutoDeploy  bool
+	CIDeploy    bool
 	ContextPath string
 	Resources   Resources
 	Command     string
@@ -41,6 +42,7 @@ type RepoService struct {
 	ID             ServiceID
 	Branch         string
 	AutoDeploy     bool
+	CIDeploy       bool
 	InstallationID int64
 }
 

@@ -119,6 +119,7 @@ func convertService(service platform.Service) model.Service {
 		PlatformService: service,
 		SourceURL:       service.SourceURL,
 		AutoDeploy:      service.AutoDeploy,
+		CiDeploy:        service.CIDeploy,
 		ContextPath:     service.ContextPath,
 		Resources:       convertResources(service.Resources),
 		Command:         service.Command,

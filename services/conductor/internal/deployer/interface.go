@@ -30,6 +30,7 @@ type ServiceClient interface {
 	SetCommand(ctx context.Context, id platform.ServiceID, command string) (RevisionID, error)
 	SetBranch(ctx context.Context, id platform.ServiceID, branch string) (RevisionID, error)
 	SetAutoDeploy(ctx context.Context, id platform.ServiceID, enabled bool) (RevisionID, error)
+	SetCIDeploy(ctx context.Context, id platform.ServiceID, enabled bool) (RevisionID, error)
 	SetPort(ctx context.Context, id platform.ServiceID, port int) (RevisionID, error)
 
 	Variables(ctx context.Context, id platform.ServiceID) (ServiceVariablesSpec, error)

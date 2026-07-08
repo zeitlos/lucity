@@ -9,9 +9,9 @@ import (
 	"github.com/zeitlos/lucity/pkg/auth"
 )
 
-// hmacValidateFunc returns an auth.ValidateFunc that validates HS256 JWTs
-// signed with the given secret. Used only for integration tests when
-// AUTH_TEST_SECRET is set. Never use in production.
+// hmacValidateFunc validates HS256 session tokens minted by the conductor
+// (mintSessionToken). This is the production session-validation path, not
+// test-only; AUTH_TEST_SECRET reuses it for test tokens.
 func hmacValidateFunc(secret string) auth.ValidateFunc {
 	return func(_ context.Context, tokenString string) (*auth.Claims, error) {
 		token, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {

@@ -398,7 +398,7 @@ on:
   push:
     branches: [${props.service.branch || 'main'}]
 permissions:
-  id-token: write   # required — mints the keyless deploy token
+  id-token: write   # required
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -862,7 +862,7 @@ async function handleRemoveService() {
             />
           </div>
 
-          <!-- CI deploys (keyless GitHub Actions) -->
+          <!-- CI deploys -->
           <div class="flex items-center gap-3 px-4 py-3">
             <ShieldCheck
               :size="16"

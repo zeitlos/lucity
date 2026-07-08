@@ -142,7 +142,7 @@ func secureCookies(dashboardURL string) bool {
 }
 
 // registerAuthRoutes adds OIDC auth endpoints to the mux.
-func registerAuthRoutes(mux *http.ServeMux, provider *OIDCProvider, conductor *conductor.Client, logtoClient *logto.Client, sessionSecret, dashboardURL, githubAppSlug string) {
+func registerAuthRoutes(mux *http.ServeMux, provider *OIDCProvider, conductor *conductor.Client, logtoClient *logto.Client, sessionSecret, dashboardURL, githubAppSlug string, ciVerifier *githubActionsVerifier, ciSessionTTL time.Duration) {
 	secure := secureCookies(dashboardURL)
 	mux.HandleFunc("/auth/login", handleLogin(provider, secure))
 	mux.HandleFunc("/auth/callback", handleCallback(provider, conductor, logtoClient, sessionSecret, dashboardURL, secure))
@@ -152,6 +152,11 @@ func registerAuthRoutes(mux *http.ServeMux, provider *OIDCProvider, conductor *c
 	mux.HandleFunc("/auth/cli/exchange", handleCLIExchange(sessionSecret))
 	mux.HandleFunc("/auth/github/install", handleGitHubInstall(githubAppSlug))
 	mux.HandleFunc("/auth/github/setup", handleGitHubSetup(dashboardURL))
+
+	if ciVerifier != nil {
+		mux.HandleFunc("/auth/ci/exchange", handleCIExchange(ciVerifier, conductor, sessionSecret, ciSessionTTL))
+		slog.Info("keyless CI deploy exchange enabled", "audience", ciVerifier.audience)
+	}
 }
 
 // handleLogin redirects to the OIDC provider's authorization page with PKCE.

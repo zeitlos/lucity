@@ -114,6 +114,10 @@ type Config struct {
 	// Observability
 	VictoriaMetricsURL string `envconfig:"VICTORIA_METRICS_URL" required:"true"`
 
+	// Keyless CI deploys (GitHub Actions OIDC)
+	GitHubActionsAudience string        `envconfig:"GITHUB_ACTIONS_AUDIENCE"`
+	CISessionTTL          time.Duration `envconfig:"CI_SESSION_TTL" default:"1h"`
+
 	// GitHub App (for installation tokens + OAuth)
 	GitHubAppID            int64  `envconfig:"GITHUB_APP_ID" required:"true"`
 	GitHubPrivateKeyPath   string `envconfig:"GITHUB_PRIVATE_KEY_PATH" required:"true"`
@@ -383,7 +387,12 @@ func main() {
 		components = append(components, grpcComponent{name: "cashier", conn: cashierConn})
 	}
 
-	graphqlServer := NewGraphQLServer(config.Port, conductor, oidcProvider, verifier, logtoClient, internalIssuer, sessionSecret, config.DashboardURL, config.GitHubAppSlug, components)
+	githubActionsAudience := config.GitHubActionsAudience
+	if githubActionsAudience == "" {
+		githubActionsAudience = originFromURL(config.OIDCCallbackURL)
+	}
+
+	graphqlServer := NewGraphQLServer(config.Port, conductor, oidcProvider, verifier, logtoClient, internalIssuer, sessionSecret, config.DashboardURL, config.GitHubAppSlug, githubActionsAudience, config.CISessionTTL, components)
 
 	servers := []graceful.Server{graphqlServer}
 

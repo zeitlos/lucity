@@ -167,6 +167,7 @@ func (c *Client) ServicesByRepo(ctx context.Context, repoURL string) ([]platform
 			ID:             serviceID(deployment, environmentID(deployment.Labels)),
 			Branch:         deployment.Annotations[annotationSourceBranch],
 			AutoDeploy:     deployment.Annotations[annotationAutoDeploy] == "true",
+			CIDeploy:       deployment.Annotations[annotationCIDeploy] == "true",
 			InstallationID: installationID,
 		})
 	}
@@ -308,6 +309,7 @@ func toService(deployment apps.Deployment, replicaSets []apps.ReplicaSet, pods [
 		SourceURL:   annotations[annotationSourceRepo],
 		Branch:      annotations[annotationSourceBranch],
 		AutoDeploy:  annotations[annotationAutoDeploy] == "true",
+		CIDeploy:    annotations[annotationCIDeploy] == "true",
 		ContextPath: annotations[annotationSourceContext],
 		Resources:   containerResources(containers),
 		Command:     containerCommand(containers),

@@ -45,7 +45,7 @@ const (
 	allowSuspendedDirective = "allowSuspended"
 )
 
-func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvider *OIDCProvider, verifier *auth.Verifier, logtoClient *logto.Client, internalIssuer *auth.Issuer, sessionSecret, dashboardURL, githubAppSlug string, grpcComponents []grpcComponent) *GraphQLServer {
+func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvider *OIDCProvider, verifier *auth.Verifier, logtoClient *logto.Client, internalIssuer *auth.Issuer, sessionSecret, dashboardURL, githubAppSlug, githubActionsAudience string, ciSessionTTL time.Duration, grpcComponents []grpcComponent) *GraphQLServer {
 	resolver := gatewaygraphql.Resolver{
 		Conductor: conductorClient,
 	}
@@ -286,7 +286,11 @@ func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvid
 	mux.HandleFunc("/version", versionHandler(grpcComponents))
 
 	// Auth endpoints
-	registerAuthRoutes(mux, oidcProvider, conductorClient, logtoClient, sessionSecret, dashboardURL, githubAppSlug)
+	var ciVerifier *githubActionsVerifier
+	if githubActionsAudience != "" {
+		ciVerifier = newGitHubActionsVerifier(githubActionsAudience)
+	}
+	registerAuthRoutes(mux, oidcProvider, conductorClient, logtoClient, sessionSecret, dashboardURL, githubAppSlug, ciVerifier, ciSessionTTL)
 
 	// GraphQL endpoints
 	mux.Handle("/playground", playground.Handler("GraphQL playground", "/graphql"))
@@ -483,6 +487,8 @@ func convertRole(role model.Role) (auth.WorkspaceRole, error) {
 		return auth.WorkspaceRoleAdmin, nil
 	case model.RoleWorkspaceMember:
 		return auth.WorkspaceRoleUser, nil
+	case model.RoleWorkspaceDeployer:
+		return auth.WorkspaceRoleDeployer, nil
 	}
 
 	return "", fmt.Errorf("unknown role: %q", role)

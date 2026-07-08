@@ -339,6 +339,7 @@ type ComplexityRoot struct {
 		RemoveService             func(childComplexity int, service platform.ServiceID) int
 		Rollback                  func(childComplexity int, deployment platform.DeploymentID) int
 		SetAutoDeploy             func(childComplexity int, service platform.ServiceID, enabled bool) int
+		SetCIDeploy               func(childComplexity int, service platform.ServiceID, enabled bool) int
 		SetCustomStartCommand     func(childComplexity int, service platform.ServiceID, command string) int
 		SetDatabaseResources      func(childComplexity int, database platform.DatabaseID, resources model.ResourcesInput) int
 		SetDatabaseStorage        func(childComplexity int, database platform.DatabaseID, size string) int
@@ -475,6 +476,7 @@ type ComplexityRoot struct {
 		Autoscaling      func(childComplexity int) int
 		Branch           func(childComplexity int) int
 		Builds           func(childComplexity int) int
+		CiDeploy         func(childComplexity int) int
 		Command          func(childComplexity int) int
 		ContextPath      func(childComplexity int) int
 		CreatedAt        func(childComplexity int) int
@@ -607,6 +609,7 @@ type MutationResolver interface {
 	SetCustomStartCommand(ctx context.Context, service platform.ServiceID, command string) (*model.Service, error)
 	SetServiceBranch(ctx context.Context, service platform.ServiceID, branch *string) (*model.Service, error)
 	SetAutoDeploy(ctx context.Context, service platform.ServiceID, enabled bool) (*model.Service, error)
+	SetCIDeploy(ctx context.Context, service platform.ServiceID, enabled bool) (*model.Service, error)
 	SetServicePort(ctx context.Context, service platform.ServiceID, port *int) (*model.Service, error)
 	SetServiceScaling(ctx context.Context, input model.SetServiceScalingInput) (*model.Service, error)
 	SetServiceResources(ctx context.Context, service platform.ServiceID, resources model.ResourcesInput) (*model.Service, error)
@@ -2008,6 +2011,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.SetAutoDeploy(childComplexity, args["service"].(platform.ServiceID), args["enabled"].(bool)), true
+	case "Mutation.setCIDeploy":
+		if e.ComplexityRoot.Mutation.SetCIDeploy == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setCIDeploy_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.SetCIDeploy(childComplexity, args["service"].(platform.ServiceID), args["enabled"].(bool)), true
 	case "Mutation.setCustomStartCommand":
 		if e.ComplexityRoot.Mutation.SetCustomStartCommand == nil {
 			break
@@ -2794,6 +2808,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Service.Builds(childComplexity), true
+	case "Service.ciDeploy":
+		if e.ComplexityRoot.Service.CiDeploy == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Service.CiDeploy(childComplexity), true
 	case "Service.command":
 		if e.ComplexityRoot.Service.Command == nil {
 			break
@@ -3984,6 +4004,8 @@ func (ec *executionContext) childFields_Service(ctx context.Context, field graph
 		return ec.fieldContext_Service_branch(ctx, field)
 	case "autoDeploy":
 		return ec.fieldContext_Service_autoDeploy(ctx, field)
+	case "ciDeploy":
+		return ec.fieldContext_Service_ciDeploy(ctx, field)
 	case "contextPath":
 		return ec.fieldContext_Service_contextPath(ctx, field)
 	case "resources":
@@ -4859,6 +4881,28 @@ func (ec *executionContext) field_Mutation_rollback_args(ctx context.Context, ra
 }
 
 func (ec *executionContext) field_Mutation_setAutoDeploy_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "service",
+		func(ctx context.Context, v any) (platform.ServiceID, error) {
+			return ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐServiceID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["service"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "enabled",
+		func(ctx context.Context, v any) (bool, error) {
+			return ec.unmarshalNBoolean2bool(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["enabled"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_setCIDeploy_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "service",
@@ -10210,7 +10254,7 @@ func (ec *executionContext) _Mutation_deploy(ctx context.Context, field graphql.
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_DEPLOYER")
 				if err != nil {
 					var zeroVal *model.Release
 					return zeroVal, err
@@ -11056,6 +11100,68 @@ func (ec *executionContext) fieldContext_Mutation_setAutoDeploy(ctx context.Cont
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_setAutoDeploy_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_setCIDeploy(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_setCIDeploy(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().SetCIDeploy(ctx, fc.Args["service"].(platform.ServiceID), fc.Args["enabled"].(bool))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
+				if err != nil {
+					var zeroVal *model.Service
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal *model.Service
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Service) graphql.Marshaler {
+			return ec.marshalNService2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐService(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_setCIDeploy(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Service(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_setCIDeploy_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -13796,7 +13902,7 @@ func (ec *executionContext) _Query_service(ctx context.Context, field graphql.Co
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_DEPLOYER")
 				if err != nil {
 					var zeroVal *model.Service
 					return zeroVal, err
@@ -15696,6 +15802,29 @@ func (ec *executionContext) _Service_autoDeploy(ctx context.Context, field graph
 	)
 }
 func (ec *executionContext) fieldContext_Service_autoDeploy(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Service", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
+func (ec *executionContext) _Service_ciDeploy(ctx context.Context, field graphql.CollectedField, obj *model.Service) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Service_ciDeploy(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CiDeploy, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Service_ciDeploy(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("Service", field, false, false, errors.New("field of type Boolean does not have child fields"))
 }
 
@@ -21563,6 +21692,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "setCIDeploy":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_setCIDeploy(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "setServicePort":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_setServicePort(ctx, field)
@@ -23175,6 +23311,11 @@ func (ec *executionContext) _Service(ctx context.Context, sel ast.SelectionSet, 
 			}
 		case "autoDeploy":
 			out.Values[i] = ec._Service_autoDeploy(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "ciDeploy":
+			out.Values[i] = ec._Service_ciDeploy(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}

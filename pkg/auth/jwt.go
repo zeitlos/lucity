@@ -38,7 +38,8 @@ func NewVerifier(ctx context.Context, issuerURL, audience string) (*Verifier, er
 }
 
 // WithFallback returns a copy of the verifier that tries the given ValidateFunc
-// when JWKS validation fails. Useful for accepting test tokens in development.
+// when JWKS validation fails. This is the primary path: conductor-minted session
+// tokens are HS256 and always land here.
 func (v *Verifier) WithFallback(fn ValidateFunc) *Verifier {
 	return &Verifier{
 		provider: v.provider,
@@ -108,8 +109,11 @@ func claimsFromRaw(sub, name, email, picture string, wsClaims []workspaceClaimEn
 	for _, ws := range wsClaims {
 		role := WorkspaceRoleUser
 
-		if ws.Role == "admin" {
+		switch ws.Role {
+		case "admin":
 			role = WorkspaceRoleAdmin
+		case "deployer":
+			role = WorkspaceRoleDeployer
 		}
 
 		workspaces = append(workspaces, WorkspaceMembership{

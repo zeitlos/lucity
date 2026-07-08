@@ -254,6 +254,23 @@ func SetServiceAutoDeploy(env *Env, name string, enabled bool) error {
 	})
 }
 
+func SetServiceCIDeploy(env *Env, name string, enabled bool) error {
+	return mutateService(env, name, func(s *Service) {
+		if s.Annotations == nil {
+			s.Annotations = map[string]string{}
+		}
+
+		setOrDelete(s.Annotations, annotationCIDeploy, ciDeployValue(enabled))
+	})
+}
+
+func ciDeployValue(enabled bool) string {
+	if enabled {
+		return "true"
+	}
+	return ""
+}
+
 func SetServicePort(env *Env, name string, port int) error {
 	if !isValidPort(port) {
 		return fmt.Errorf("port must be in [0, 65535]")
