@@ -78,17 +78,9 @@ const statusLabel = computed(() => {
         <span class="truncate font-semibold text-foreground">{{ data.name }}</span>
       </div>
 
-      <!-- Version -->
-      <div class="mt-3">
-        <div class="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <span class="font-mono">PostgreSQL {{ data.version }}</span>
-        </div>
-      </div>
-
       <!-- Status row -->
       <div class="mt-4 flex items-center justify-between border-t border-border/50 pt-4">
         <Status :tone="statusTone" class="text-[0.65rem]">{{ statusLabel }}</Status>
-        <span class="text-[0.65rem] font-mono text-muted-foreground">{{ data.size }}</span>
       </div>
     </div>
 

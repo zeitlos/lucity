@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import { reactive, computed, ref } from 'vue';
 import { useQuery, useMutation } from '@vue/apollo-composable';
-import { Copy, Eye, EyeOff, DatabaseZap, Globe, ShieldAlert } from '@lucide/vue';
+import { Copy, Eye, EyeOff, DatabaseZap, Globe, Lock, ShieldAlert } from '@lucide/vue';
 import Spinner from '@/components/LoadingSpinner.vue';
 import { graphql } from '@/gql';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
-import { Badge } from '@/components/ui/badge';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -142,12 +141,18 @@ const endpointLabels: Record<string, string> = {
   CUSTOM: 'Custom domain',
 };
 
+const endpointDescriptions: Record<string, string> = {
+  INTERNAL: 'Reachable only from your other services over the private network.',
+  CUSTOM: 'Reachable over your custom domain.',
+};
+
 const groups = computed(() =>
   credentials.value.map(cred => ({
     type: cred.type,
     label: endpointLabels[cred.type] ?? cred.type,
+    description: endpointDescriptions[cred.type] ?? '',
     fields: [
-      { key: `${cred.type}-uri`, label: 'DATABASE_URL', value: cred.uri, sensitive: true },
+      { key: `${cred.type}-uri`, label: 'Connection URL', value: cred.uri, sensitive: true },
       { key: `${cred.type}-host`, label: 'Host', value: cred.host, sensitive: false },
       { key: `${cred.type}-port`, label: 'Port', value: cred.port, sensitive: false },
       { key: `${cred.type}-dbname`, label: 'Database', value: cred.dbname, sensitive: false },
@@ -156,36 +161,61 @@ const groups = computed(() =>
     ],
   })),
 );
+
+const publicGroup = computed(() => groups.value.find(g => g.type === 'PLATFORM'));
+const privateGroups = computed(() => groups.value.filter(g => g.type !== 'PLATFORM'));
 </script>
 
 <template>
   <div class="space-y-4">
-    <div>
-      <h3 class="text-sm font-medium text-foreground">Connection Details</h3>
-      <p class="text-xs text-muted-foreground">
-        Credentials for <strong>{{ databaseName }}</strong>.
-      </p>
-    </div>
-
-    <!-- Public access toggle -->
-    <div class="flex items-start gap-3 rounded-lg border px-4 py-3">
-      <Globe :size="16" class="mt-0.5 shrink-0 text-muted-foreground" />
-      <div class="flex-1 space-y-0.5">
-        <div class="flex items-center gap-2">
+    <!-- Internet access card -->
+    <div class="rounded-lg border">
+      <div class="flex items-start gap-3 px-4 py-3">
+        <Globe :size="16" class="mt-0.5 shrink-0 text-muted-foreground" />
+        <div class="flex-1 space-y-0.5">
           <span class="text-sm font-medium text-foreground">Internet access</span>
-          <Badge v-if="isPublic" variant="secondary" class="text-[10px]">Public</Badge>
+          <p class="text-xs text-muted-foreground">
+            {{ isPublic
+              ? 'Reachable from anywhere over TLS on port 5432.'
+              : 'Reachable only from your other services over the private network.' }}
+          </p>
         </div>
-        <p class="text-xs text-muted-foreground">
-          {{ isPublic
-            ? 'Reachable from anywhere over TLS on port 5432.'
-            : 'Reachable only from your other services over the private network.' }}
-        </p>
+        <Switch
+          :model-value="isPublic"
+          :disabled="toggling"
+          @update:model-value="onToggle"
+        />
       </div>
-      <Switch
-        :model-value="isPublic"
-        :disabled="toggling"
-        @update:model-value="onToggle"
-      />
+      <div v-if="isPublic && publicGroup" class="space-y-1.5 border-t px-4 py-3">
+        <div
+          v-for="field in publicGroup.fields"
+          :key="field.key"
+          class="group flex items-start gap-2 rounded-md bg-muted/40 px-3 py-2"
+        >
+          <span class="w-28 shrink-0 pt-1 text-xs font-medium text-muted-foreground">{{ field.label }}</span>
+          <span class="min-w-0 flex-1 break-all pt-0.5 font-mono text-xs text-foreground">
+            {{ field.sensitive && !revealed[field.key] ? mask(field.value) : field.value }}
+          </span>
+          <Button
+            v-if="field.sensitive"
+            variant="ghost"
+            size="icon"
+            class="h-6 w-6 shrink-0"
+            @click="toggleReveal(field.key)"
+          >
+            <EyeOff v-if="revealed[field.key]" :size="12" />
+            <Eye v-else :size="12" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            class="h-6 w-6 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
+            @click="copyToClipboard(field.value)"
+          >
+            <Copy :size="12" />
+          </Button>
+        </div>
+      </div>
     </div>
 
     <!-- Loading -->
@@ -214,40 +244,48 @@ const groups = computed(() =>
       <p class="font-mono text-xs text-destructive">{{ error.message }}</p>
     </div>
 
-    <!-- Credentials -->
-    <div v-else-if="groups.length" class="space-y-4">
-      <div v-for="group in groups" :key="group.type" class="space-y-1.5">
-        <span class="text-xs font-medium text-muted-foreground">{{ group.label }}</span>
-        <div
-          v-for="field in group.fields"
-          :key="field.key"
-          class="group flex items-center gap-2 rounded-md bg-muted/40 px-3 py-2"
-        >
-          <span class="w-28 shrink-0 text-xs font-medium text-muted-foreground">{{ field.label }}</span>
-          <span class="flex-1 truncate font-mono text-xs text-foreground">
-            {{ field.sensitive && !revealed[field.key] ? mask(field.value) : field.value }}
-          </span>
-          <Button
-            v-if="field.sensitive"
-            variant="ghost"
-            size="icon"
-            class="h-6 w-6 shrink-0"
-            @click="toggleReveal(field.key)"
+    <!-- Private network / custom domain cards -->
+    <template v-else>
+      <div v-for="group in privateGroups" :key="group.type" class="rounded-lg border">
+        <div class="flex items-start gap-3 px-4 py-3">
+          <Lock :size="16" class="mt-0.5 shrink-0 text-muted-foreground" />
+          <div class="flex-1 space-y-0.5">
+            <span class="text-sm font-medium text-foreground">{{ group.label }}</span>
+            <p v-if="group.description" class="text-xs text-muted-foreground">{{ group.description }}</p>
+          </div>
+        </div>
+        <div class="space-y-1.5 border-t px-4 py-3">
+          <div
+            v-for="field in group.fields"
+            :key="field.key"
+            class="group flex items-start gap-2 rounded-md bg-muted/40 px-3 py-2"
           >
-            <EyeOff v-if="revealed[field.key]" :size="12" />
-            <Eye v-else :size="12" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            class="h-6 w-6 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
-            @click="copyToClipboard(field.value)"
-          >
-            <Copy :size="12" />
-          </Button>
+            <span class="w-28 shrink-0 pt-1 text-xs font-medium text-muted-foreground">{{ field.label }}</span>
+            <span class="min-w-0 flex-1 break-all pt-0.5 font-mono text-xs text-foreground">
+              {{ field.sensitive && !revealed[field.key] ? mask(field.value) : field.value }}
+            </span>
+            <Button
+              v-if="field.sensitive"
+              variant="ghost"
+              size="icon"
+              class="h-6 w-6 shrink-0"
+              @click="toggleReveal(field.key)"
+            >
+              <EyeOff v-if="revealed[field.key]" :size="12" />
+              <Eye v-else :size="12" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              class="h-6 w-6 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
+              @click="copyToClipboard(field.value)"
+            >
+              <Copy :size="12" />
+            </Button>
+          </div>
         </div>
       </div>
-    </div>
+    </template>
 
     <!-- Expose confirmation -->
     <AlertDialog v-model:open="exposeDialogOpen">
