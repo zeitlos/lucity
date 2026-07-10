@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
 import { useQuery, useMutation } from '@vue/apollo-composable';
-import { Plus, Trash2, Link, Eye, EyeOff } from '@lucide/vue';
+import { Plus, Trash2, Link, Unlink, Eye, EyeOff } from '@lucide/vue';
 import SourceIcon from '@/components/SourceIcon.vue';
 import { graphql } from '@/gql';
 import { useEnvironment } from '@/composables/useEnvironment';
@@ -285,16 +285,20 @@ async function handleSave() {
         :key="index"
         class="flex items-center gap-2"
       >
-        <!-- Key input with integrated reference picker -->
+        <!-- Key input -->
+        <Input
+          v-model="row.key"
+          placeholder="KEY"
+          class="flex-1 font-mono text-sm uppercase"
+          @input="markChanged"
+          @paste="onPasteKey($event, index)"
+        />
+
+        <!-- Value with integrated reference control -->
         <div class="flex flex-1">
-          <Input
-            v-model="row.key"
-            placeholder="KEY"
-            class="font-mono text-sm uppercase rounded-r-none border-r-0"
-            @input="markChanged"
-            @paste="onPasteKey($event, index)"
-          />
+          <!-- Link to a dynamic value -->
           <Popover
+            v-if="!isRefRow(row)"
             :open="openPopoverIndex === index"
             @update:open="(v: boolean) => openPopoverIndex = v ? index : null"
           >
@@ -302,15 +306,16 @@ async function handleSave() {
               <Button
                 variant="outline"
                 size="icon"
-                class="shrink-0 rounded-l-none"
+                class="shrink-0 rounded-r-none border-r-0"
                 :disabled="availableRefs.length === 0"
+                title="Link to a dynamic value"
               >
-                <Link :size="14" :class="row.ref ? '' : 'opacity-50'" />
+                <Link :size="14" class="opacity-50" />
               </Button>
             </PopoverTrigger>
             <PopoverContent
               class="w-80 p-0"
-              align="end"
+              align="start"
             >
               <Command>
                 <CommandInput placeholder="Search references..." />
@@ -334,51 +339,55 @@ async function handleSave() {
                       {{ opt.key }}
                     </CommandItem>
                   </CommandGroup>
-                  <!-- Clear reference option -->
-                  <CommandGroup v-if="isRefRow(row)">
-                    <CommandItem
-                      value="__clear__"
-                      class="text-muted-foreground"
-                      @select="clearRef(index)"
-                    >
-                      Clear reference
-                    </CommandItem>
-                  </CommandGroup>
                 </CommandList>
               </Command>
             </PopoverContent>
           </Popover>
-        </div>
 
-        <!-- Value -->
-        <div
-          v-if="isRefRow(row)"
-          class="magic-border flex h-10 flex-1 items-center gap-1.5 rounded-md px-3"
-        >
-          <SourceIcon :typename="refInfo(row).typename" />
-          <span class="text-xs font-medium">{{ refInfo(row).label }}</span>
-          <span class="text-muted-foreground/40">·</span>
-          <span class="font-mono text-xs text-muted-foreground">{{ refInfo(row).key }}</span>
-        </div>
-        <div v-else class="relative flex-1">
-          <Input
-            v-model="row.value"
-            :type="row.revealed ? 'text' : 'password'"
-            placeholder="value"
-            autocomplete="off"
-            data-1p-ignore="true"
-            class="w-full pr-9 font-mono text-sm"
-            @input="markChanged"
-          />
-          <button
-            type="button"
-            tabindex="-1"
-            class="absolute right-0 top-0 flex h-10 w-9 items-center justify-center text-muted-foreground hover:text-foreground"
-            @click="row.revealed = !row.revealed"
+          <!-- Detach from a dynamic value -->
+          <Button
+            v-else
+            variant="outline"
+            size="icon"
+            class="shrink-0 rounded-r-none border-r-0"
+            title="Detach from dynamic value"
+            @click="clearRef(index)"
           >
-            <EyeOff v-if="row.revealed" :size="14" />
-            <Eye v-else :size="14" />
-          </button>
+            <Unlink :size="14" class="opacity-50" />
+          </Button>
+
+          <!-- Linked value display -->
+          <div
+            v-if="isRefRow(row)"
+            class="magic-border flex h-10 flex-1 items-center gap-1.5 rounded-md rounded-l-none px-3"
+          >
+            <SourceIcon :typename="refInfo(row).typename" />
+            <span class="text-xs font-medium">{{ refInfo(row).label }}</span>
+            <span class="text-muted-foreground/40">·</span>
+            <span class="font-mono text-xs text-muted-foreground">{{ refInfo(row).key }}</span>
+          </div>
+
+          <!-- Plain value input -->
+          <div v-else class="relative flex-1">
+            <Input
+              v-model="row.value"
+              :type="row.revealed ? 'text' : 'password'"
+              placeholder="value"
+              autocomplete="off"
+              data-1p-ignore="true"
+              class="w-full rounded-l-none pr-9 font-mono text-sm"
+              @input="markChanged"
+            />
+            <button
+              type="button"
+              tabindex="-1"
+              class="absolute right-0 top-0 flex h-10 w-9 items-center justify-center text-muted-foreground hover:text-foreground"
+              @click="row.revealed = !row.revealed"
+            >
+              <EyeOff v-if="row.revealed" :size="14" />
+              <Eye v-else :size="14" />
+            </button>
+          </div>
         </div>
 
         <!-- Delete -->

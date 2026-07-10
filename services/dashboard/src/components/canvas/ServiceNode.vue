@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch, onUnmounted } from 'vue';
 import { Handle, Position } from '@vue-flow/core';
-import { ExternalLink, Globe, Container, FolderGit2, HardDrive } from '@lucide/vue';
+import { ExternalLink, Globe, Container, HardDrive } from '@lucide/vue';
 import Spinner from '@/components/LoadingSpinner.vue';
 import GithubIcon from '@/components/GithubIcon.vue';
 import { EndpointType, ServiceStatus, type Protocol } from '@/gql/graphql';
@@ -75,7 +75,7 @@ const statusLabel = computed(() => {
 
 const shortRepoName = computed(() => {
   if (!props.data.sourceUrl) return null;
-  return props.data.sourceUrl.replace('https://github.com/', '');
+  return props.data.sourceUrl.replace('https://github.com/', '').replace(/\.git$/, '');
 });
 
 // Deploy timer
@@ -191,7 +191,20 @@ const hostUrl = computed(() => {
           <ExternalLink :size="10" class="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
         </a>
         <div v-if="shortRepoName" class="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <FolderGit2 :size="12" class="shrink-0" />
+          <span
+            class="shrink-0"
+            :style="{
+              width: '12px',
+              height: '12px',
+              backgroundColor: 'currentColor',
+              maskImage: 'url(https://devicons.railway.com/i/git.svg)',
+              WebkitMaskImage: 'url(https://devicons.railway.com/i/git.svg)',
+              maskSize: 'contain',
+              WebkitMaskSize: 'contain',
+              maskRepeat: 'no-repeat',
+              WebkitMaskRepeat: 'no-repeat',
+            }"
+          />
           <span class="truncate">{{ shortRepoName }}</span>
         </div>
       </div>

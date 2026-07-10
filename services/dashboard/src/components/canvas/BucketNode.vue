@@ -4,7 +4,6 @@ import { Handle, Position } from '@vue-flow/core';
 import BucketIcon from '@/components/BucketIcon.vue';
 import { BucketStatus } from '@/gql/graphql';
 import { Status } from '@/components/ui/status';
-import { formatBytes } from '@/lib/utils';
 
 const props = defineProps<{
   data: {
@@ -64,17 +63,9 @@ const statusLabel = computed(() => {
         <span class="truncate font-semibold text-foreground">{{ data.name }}</span>
       </div>
 
-      <!-- Region -->
-      <div class="mt-3">
-        <div class="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <span class="font-mono">Object Storage &middot; {{ data.region }}</span>
-        </div>
-      </div>
-
       <!-- Status row -->
       <div class="mt-4 flex items-center justify-between border-t border-border/50 pt-4">
         <Status :tone="statusTone" class="text-[0.65rem]">{{ statusLabel }}</Status>
-        <span class="text-[0.65rem] font-mono text-muted-foreground">{{ formatBytes(data.sizeBytes) }}</span>
       </div>
     </div>
 
