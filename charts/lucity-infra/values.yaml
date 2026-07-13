@@ -166,6 +166,8 @@ victoria-logs-single:
 victoria-metrics-alert:
   enabled: false
   server:
+    extraArgs:
+      configCheckInterval: "30s"
     datasource:
       url: "http://lucity-infra-victoria-metrics-single-server:8428"
     notifier:
