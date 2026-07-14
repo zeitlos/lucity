@@ -15,6 +15,8 @@ const props = defineProps<{
     region: string;
     sizeBytes: number;
     objectCount: number;
+    public: boolean;
+    publicEndpoint: string;
   };
 }>();
 
@@ -61,6 +63,8 @@ onKeyStroke('Escape', () => {
           <BucketConnectionTab
             :bucket-id="props.bucket.id"
             :bucket-name="props.bucket.name"
+            :public="props.bucket.public"
+            :public-endpoint="props.bucket.publicEndpoint"
           />
         </TabsContent>
 

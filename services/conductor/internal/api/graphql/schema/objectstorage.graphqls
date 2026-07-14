@@ -3,6 +3,7 @@ type Bucket {
   name: String!
   region: String!
   endpoint: String!
+  publicEndpoint: String!
   status: BucketStatus!
   sizeBytes: Int!
   objectCount: Int!
@@ -41,4 +42,5 @@ extend type Query {
 extend type Mutation {
   createBucket(input: CreateBucketInput!): Bucket! @hasRole(role: WORKSPACE_MEMBER)
   deleteBucket(bucket: BucketID!): Boolean! @hasRole(role: WORKSPACE_MEMBER)
+  setBucketPublic(bucket: BucketID!, public: Boolean!): Bucket! @hasRole(role: WORKSPACE_MEMBER)
 }

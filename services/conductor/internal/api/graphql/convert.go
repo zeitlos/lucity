@@ -663,15 +663,16 @@ func convertKeyValueStoreCredentials(c conductor.KeyValueStoreCredentials) model
 
 func convertBucket(b conductor.Bucket) model.Bucket {
 	return model.Bucket{
-		ID:          b.ID,
-		Name:        b.Name,
-		Region:      b.Region,
-		Endpoint:    b.Endpoint,
-		Status:      model.BucketStatusReady,
-		SizeBytes:   int(b.SizeBytes),
-		ObjectCount: int(b.ObjectCount),
-		Public:      b.Public,
-		CreatedAt:   b.CreatedAt,
+		ID:             b.ID,
+		Name:           b.Name,
+		Region:         b.Region,
+		Endpoint:       b.Endpoint,
+		PublicEndpoint: b.PublicEndpoint,
+		Status:         model.BucketStatusReady,
+		SizeBytes:      int(b.SizeBytes),
+		ObjectCount:    int(b.ObjectCount),
+		Public:         b.Public,
+		CreatedAt:      b.CreatedAt,
 	}
 }
 

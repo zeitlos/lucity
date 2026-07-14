@@ -180,9 +180,11 @@ export interface Bucket {
   name: string;
   region: string;
   endpoint: string;
+  publicEndpoint: string;
   status: BucketStatus;
   sizeBytes: number;
   objectCount: number;
+  public: boolean;
   createdAt: string;
 }
 

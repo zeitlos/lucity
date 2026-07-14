@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/ovh/go-ovh/ovh"
 
@@ -115,6 +116,56 @@ func (b *Backend) CreateBucket(ctx context.Context, req objectstorage.BucketRequ
 	}, nil
 }
 
+func (b *Backend) Credentials(ctx context.Context, req objectstorage.CredentialsRequest) (objectstorage.BucketConnection, error) {
+	if req.Permission == objectstorage.ReadOnly {
+		userID, err := b.ensureReadUser(ctx, req.Workspace)
+
+		if err != nil {
+			return objectstorage.BucketConnection{}, err
+		}
+
+		access, secret, err := b.ensureCredential(ctx, userID)
+
+		if err != nil {
+			return objectstorage.BucketConnection{}, err
+		}
+
+		if err := b.syncReadPolicy(ctx, userID, req.ReadScope); err != nil {
+			return objectstorage.BucketConnection{}, fmt.Errorf("sync read policy: %w", err)
+		}
+
+		return objectstorage.BucketConnection{
+			Endpoint:        b.endpoint(),
+			Region:          b.region,
+			AccessKeyID:     access,
+			SecretAccessKey: secret,
+		}, nil
+	}
+
+	userID, err := b.ensureUser(ctx, req.Workspace)
+
+	if err != nil {
+		return objectstorage.BucketConnection{}, err
+	}
+
+	access, secret, err := b.ensureCredential(ctx, userID)
+
+	if err != nil {
+		return objectstorage.BucketConnection{}, err
+	}
+
+	return objectstorage.BucketConnection{
+		Endpoint:        b.endpoint(),
+		Region:          b.region,
+		AccessKeyID:     access,
+		SecretAccessKey: secret,
+	}, nil
+}
+
+func (b *Backend) SetPublic(context.Context, objectstorage.SetPublicRequest) (objectstorage.SetPublicResult, error) {
+	return objectstorage.SetPublicResult{}, objectstorage.ErrNotImplemented
+}
+
 func (b *Backend) DeleteBucket(ctx context.Context, region, physicalName string) error {
 	base := fmt.Sprintf("/cloud/project/%s/region/%s/storage/%s", b.projectID, strings.ToUpper(region), physicalName)
 
@@ -152,8 +203,14 @@ func (b *Backend) Stats(ctx context.Context) (map[string]objectstorage.BucketSta
 }
 
 func (b *Backend) ensureUser(ctx context.Context, workspace string) (int64, error) {
-	description := userDescription(workspace)
+	return b.ensureUserByDescription(ctx, userDescription(workspace))
+}
 
+func (b *Backend) ensureReadUser(ctx context.Context, workspace string) (int64, error) {
+	return b.ensureUserByDescription(ctx, readUserDescription(workspace))
+}
+
+func (b *Backend) ensureUserByDescription(ctx context.Context, description string) (int64, error) {
 	var users []ovhUser
 
 	if err := b.client.GetWithContext(ctx, fmt.Sprintf("/cloud/project/%s/user", b.projectID), &users); err != nil {
@@ -181,9 +238,9 @@ func (b *Backend) ensureUser(ctx context.Context, workspace string) (int64, erro
 func (b *Backend) ensureCredential(ctx context.Context, userID int64) (string, string, error) {
 	listPath := fmt.Sprintf("/cloud/project/%s/user/%d/s3Credentials", b.projectID, userID)
 
-	var existing []ovhCredential
+	existing, err := b.listCredentials(ctx, listPath)
 
-	if err := b.client.GetWithContext(ctx, listPath, &existing); err != nil {
+	if err != nil {
 		return "", "", fmt.Errorf("list credentials: %w", err)
 	}
 
@@ -206,6 +263,35 @@ func (b *Backend) ensureCredential(ctx context.Context, userID int64) (string, s
 	}
 
 	return created.Access, created.Secret, nil
+}
+
+func (b *Backend) listCredentials(ctx context.Context, listPath string) ([]ovhCredential, error) {
+	var (
+		existing []ovhCredential
+		err      error
+	)
+
+	for attempt := 0; attempt < 8; attempt++ {
+		if attempt > 0 {
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(time.Second):
+			}
+		}
+
+		err = b.client.GetWithContext(ctx, listPath, &existing)
+
+		if err == nil {
+			return existing, nil
+		}
+
+		if !isNotFound(err) {
+			return nil, err
+		}
+	}
+
+	return nil, err
 }
 
 func (b *Backend) syncPolicy(ctx context.Context, userID int64) error {
@@ -249,6 +335,33 @@ func (b *Backend) syncPolicy(ctx context.Context, userID int64) error {
 	return b.client.PostWithContext(ctx, fmt.Sprintf("/cloud/project/%s/user/%d/policy", b.projectID, userID), map[string]string{"policy": string(document)}, nil)
 }
 
+func (b *Backend) syncReadPolicy(ctx context.Context, userID int64, physicalNames []string) error {
+	statements := make([]map[string]any, 0, 1)
+
+	if len(physicalNames) > 0 {
+		resources := make([]string, 0, len(physicalNames)*2)
+
+		for _, name := range physicalNames {
+			resources = append(resources, "arn:aws:s3:::"+name, "arn:aws:s3:::"+name+"/*")
+		}
+
+		statements = append(statements, map[string]any{
+			"Sid":      "lucityPublicRead",
+			"Effect":   "Allow",
+			"Action":   []string{"s3:GetObject", "s3:ListBucket", "s3:GetBucketLocation"},
+			"Resource": resources,
+		})
+	}
+
+	document, err := json.Marshal(map[string]any{"Statement": statements})
+
+	if err != nil {
+		return err
+	}
+
+	return b.client.PostWithContext(ctx, fmt.Sprintf("/cloud/project/%s/user/%d/policy", b.projectID, userID), map[string]string{"policy": string(document)}, nil)
+}
+
 func (b *Backend) empty(ctx context.Context, base string) error {
 	for range 1000 {
 		var objects []ovhStorageObject
@@ -284,6 +397,10 @@ func userDescription(workspace string) string {
 	sum := sha256.Sum256([]byte(workspace))
 	hash := strings.ToLower(base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(sum[:]))[:12]
 	return "lucity-ws-" + hash
+}
+
+func readUserDescription(workspace string) string {
+	return userDescription(workspace) + "-ro"
 }
 
 func isNotFound(err error) bool {

@@ -3,9 +3,10 @@ package objectstorage
 import (
 	"context"
 	"crypto/rand"
-	"encoding/hex"
+	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
@@ -18,15 +19,37 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
+var ErrNotImplemented = errors.New("objectstorage: not implemented")
+
+type Permission int
+
+const (
+	ReadWrite Permission = iota
+	ReadOnly
+)
+
+const (
+	secretKeyName            = "name"
+	secretKeyPhysicalName    = "bucket"
+	secretKeyRegion          = "region"
+	secretKeyEndpoint        = "endpoint"
+	secretKeyAccessKeyID     = "accessKeyId"
+	secretKeySecretAccessKey = "secretAccessKey"
+	secretKeyPublic          = "public"
+	secretKeyPublicEndpoint  = "publicEndpoint"
+	secretKeyPullZoneID      = "cdnPullZoneId"
+)
+
 type Bucket struct {
-	ID          platform.BucketID
-	Name        string
-	Region      string
-	Endpoint    string
-	SizeBytes   int64
-	ObjectCount int64
-	Public      bool
-	CreatedAt   time.Time
+	ID             platform.BucketID
+	Name           string
+	Region         string
+	Endpoint       string
+	PublicEndpoint string
+	SizeBytes      int64
+	ObjectCount    int64
+	Public         bool
+	CreatedAt      time.Time
 }
 
 type Credentials struct {
@@ -43,12 +66,36 @@ type Interface interface {
 	Create(ctx context.Context, environment platform.EnvironmentID, name string) (*Bucket, error)
 	Delete(ctx context.Context, id platform.BucketID) error
 	Credentials(ctx context.Context, id platform.BucketID) (*Credentials, error)
+	SetPublic(ctx context.Context, id platform.BucketID, public bool) (*Bucket, error)
 }
 
 type Backend interface {
 	CreateBucket(ctx context.Context, req BucketRequest) (BucketConnection, error)
 	DeleteBucket(ctx context.Context, region, physicalName string) error
 	Stats(ctx context.Context) (map[string]BucketStats, error)
+	Credentials(ctx context.Context, req CredentialsRequest) (BucketConnection, error)
+	SetPublic(ctx context.Context, req SetPublicRequest) (SetPublicResult, error)
+}
+
+type CredentialsRequest struct {
+	Workspace  string
+	Permission Permission
+	ReadScope  []string
+}
+
+type SetPublicRequest struct {
+	Public     bool
+	Slug       string
+	OriginURL  string
+	Region     string
+	Workspace  string
+	PublicSet  []string
+	PullZoneID string
+}
+
+type SetPublicResult struct {
+	PullZoneID     string
+	PublicEndpoint string
 }
 
 type BucketStats struct {
@@ -67,6 +114,32 @@ type BucketConnection struct {
 	Region          string
 	AccessKeyID     string
 	SecretAccessKey string
+}
+
+type bucketState struct {
+	Name            string
+	PhysicalName    string
+	Region          string
+	Endpoint        string
+	AccessKeyID     string
+	SecretAccessKey string
+	Public          bool
+	PublicEndpoint  string
+	PullZoneID      string
+}
+
+func parseBucketState(secret *corev1.Secret) bucketState {
+	return bucketState{
+		Name:            string(secret.Data[secretKeyName]),
+		PhysicalName:    string(secret.Data[secretKeyPhysicalName]),
+		Region:          string(secret.Data[secretKeyRegion]),
+		Endpoint:        string(secret.Data[secretKeyEndpoint]),
+		AccessKeyID:     string(secret.Data[secretKeyAccessKeyID]),
+		SecretAccessKey: string(secret.Data[secretKeySecretAccessKey]),
+		Public:          string(secret.Data[secretKeyPublic]) == "true",
+		PublicEndpoint:  string(secret.Data[secretKeyPublicEndpoint]),
+		PullZoneID:      string(secret.Data[secretKeyPullZoneID]),
+	}
 }
 
 type Manager struct {
@@ -97,7 +170,7 @@ func (m *Manager) Create(ctx context.Context, environment platform.EnvironmentID
 		return nil, err
 	}
 
-	physical := physicalName()
+	physical := physicalName(name)
 
 	conn, err := m.backend.CreateBucket(ctx, BucketRequest{
 		Workspace:    environment.Workspace,
@@ -127,12 +200,12 @@ func (m *Manager) Create(ctx context.Context, environment platform.EnvironmentID
 			},
 		},
 		Data: map[string][]byte{
-			"name":            []byte(name),
-			"bucket":          []byte(physical),
-			"region":          []byte(conn.Region),
-			"endpoint":        []byte(conn.Endpoint),
-			"accessKeyId":     []byte(conn.AccessKeyID),
-			"secretAccessKey": []byte(conn.SecretAccessKey),
+			secretKeyName:            []byte(name),
+			secretKeyPhysicalName:    []byte(physical),
+			secretKeyRegion:          []byte(conn.Region),
+			secretKeyEndpoint:        []byte(conn.Endpoint),
+			secretKeyAccessKeyID:     []byte(conn.AccessKeyID),
+			secretKeySecretAccessKey: []byte(conn.SecretAccessKey),
 		},
 	}
 
@@ -172,7 +245,7 @@ func (m *Manager) Buckets(ctx context.Context, environment platform.EnvironmentI
 	for i := range list.Items {
 		bucket := bucketFromSecret(&list.Items[i])
 
-		if stat, ok := stats[string(list.Items[i].Data["bucket"])]; ok {
+		if stat, ok := stats[parseBucketState(&list.Items[i]).PhysicalName]; ok {
 			bucket.SizeBytes = stat.SizeBytes
 			bucket.ObjectCount = stat.ObjectCount
 		}
@@ -193,7 +266,7 @@ func (m *Manager) Bucket(ctx context.Context, id platform.BucketID) (*Bucket, er
 	bucket := bucketFromSecret(secret)
 
 	if stats, err := m.backend.Stats(ctx); err == nil {
-		if stat, ok := stats[string(secret.Data["bucket"])]; ok {
+		if stat, ok := stats[parseBucketState(secret).PhysicalName]; ok {
 			bucket.SizeBytes = stat.SizeBytes
 			bucket.ObjectCount = stat.ObjectCount
 		}
@@ -209,12 +282,14 @@ func (m *Manager) Credentials(ctx context.Context, id platform.BucketID) (*Crede
 		return nil, err
 	}
 
+	state := parseBucketState(secret)
+
 	return &Credentials{
-		Endpoint:        string(secret.Data["endpoint"]),
-		Region:          string(secret.Data["region"]),
-		Bucket:          string(secret.Data["bucket"]),
-		AccessKeyID:     string(secret.Data["accessKeyId"]),
-		SecretAccessKey: string(secret.Data["secretAccessKey"]),
+		Endpoint:        state.Endpoint,
+		Region:          state.Region,
+		Bucket:          state.PhysicalName,
+		AccessKeyID:     state.AccessKeyID,
+		SecretAccessKey: state.SecretAccessKey,
 	}, nil
 }
 
@@ -229,10 +304,27 @@ func (m *Manager) Delete(ctx context.Context, id platform.BucketID) error {
 		return err
 	}
 
-	region := string(secret.Data["region"])
-	physical := string(secret.Data["bucket"])
+	state := parseBucketState(secret)
 
-	if err := m.backend.DeleteBucket(ctx, region, physical); err != nil {
+	if state.Public {
+		remaining, err := m.publicPhysicalNames(ctx, id.Workspace, state.PhysicalName, false)
+
+		if err != nil {
+			return err
+		}
+
+		if _, err := m.backend.SetPublic(ctx, SetPublicRequest{
+			Public:     false,
+			Slug:       state.PhysicalName,
+			Workspace:  id.Workspace,
+			PublicSet:  remaining,
+			PullZoneID: state.PullZoneID,
+		}); err != nil {
+			slog.WarnContext(ctx, "unpublish bucket during delete failed", "bucket", id.String(), "error", err)
+		}
+	}
+
+	if err := m.backend.DeleteBucket(ctx, state.Region, state.PhysicalName); err != nil {
 		return fmt.Errorf("delete backend bucket: %w", err)
 	}
 
@@ -241,6 +333,99 @@ func (m *Manager) Delete(ctx context.Context, id platform.BucketID) error {
 	}
 
 	return nil
+}
+
+func (m *Manager) SetPublic(ctx context.Context, id platform.BucketID, public bool) (*Bucket, error) {
+	secret, err := m.secret(ctx, id)
+
+	if err != nil {
+		return nil, err
+	}
+
+	state := parseBucketState(secret)
+
+	if state.Public == public {
+		bucket := bucketFromSecret(secret)
+		return &bucket, nil
+	}
+
+	publicSet, err := m.publicPhysicalNames(ctx, id.Workspace, state.PhysicalName, public)
+
+	if err != nil {
+		return nil, err
+	}
+
+	result, err := m.backend.SetPublic(ctx, SetPublicRequest{
+		Public:     public,
+		Slug:       state.PhysicalName,
+		OriginURL:  originURL(state.Endpoint, state.PhysicalName),
+		Region:     strings.ToLower(state.Region),
+		Workspace:  id.Workspace,
+		PublicSet:  publicSet,
+		PullZoneID: state.PullZoneID,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	if secret.Data == nil {
+		secret.Data = map[string][]byte{}
+	}
+
+	if public {
+		secret.Data[secretKeyPublic] = []byte("true")
+		secret.Data[secretKeyPullZoneID] = []byte(result.PullZoneID)
+		secret.Data[secretKeyPublicEndpoint] = []byte(result.PublicEndpoint)
+	} else {
+		secret.Data[secretKeyPublic] = []byte("false")
+		delete(secret.Data, secretKeyPullZoneID)
+		delete(secret.Data, secretKeyPublicEndpoint)
+	}
+
+	updated, err := m.kube.CoreV1().Secrets(id.Namespace()).Update(ctx, secret, metav1.UpdateOptions{})
+
+	if err != nil {
+		return nil, fmt.Errorf("update bucket secret: %w", err)
+	}
+
+	bucket := bucketFromSecret(updated)
+
+	return &bucket, nil
+}
+
+func (m *Manager) publicPhysicalNames(ctx context.Context, workspace, toggled string, include bool) ([]string, error) {
+	list, err := m.kube.CoreV1().Secrets("").List(ctx, metav1.ListOptions{
+		LabelSelector: labels.Workspace + "=" + workspace + "," + labels.ObjectStorageBucket,
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("list workspace bucket secrets: %w", err)
+	}
+
+	set := make(map[string]struct{})
+
+	for i := range list.Items {
+		state := parseBucketState(&list.Items[i])
+
+		if state.Public {
+			set[state.PhysicalName] = struct{}{}
+		}
+	}
+
+	if include {
+		set[toggled] = struct{}{}
+	} else {
+		delete(set, toggled)
+	}
+
+	names := make([]string, 0, len(set))
+
+	for name := range set {
+		names = append(names, name)
+	}
+
+	return names, nil
 }
 
 func (m *Manager) secret(ctx context.Context, id platform.BucketID) (*corev1.Secret, error) {
@@ -257,14 +442,30 @@ func (m *Manager) secret(ctx context.Context, id platform.BucketID) (*corev1.Sec
 	return secret, nil
 }
 
-func physicalName() string {
-	suffix := make([]byte, 16)
-	_, _ = rand.Read(suffix)
+func physicalName(name string) string {
+	return name + "-" + randCrockford32(12)
+}
 
-	return "lc-" + hex.EncodeToString(suffix)
+func randCrockford32(n int) string {
+	const alphabet = "0123456789abcdefghjkmnpqrstvwxyz"
+
+	b := make([]byte, n)
+	_, _ = rand.Read(b)
+
+	for i, v := range b {
+		b[i] = alphabet[v&31]
+	}
+
+	return string(b)
+}
+
+func originURL(endpoint, physical string) string {
+	return "https://" + physical + "." + strings.TrimPrefix(endpoint, "https://")
 }
 
 func bucketFromSecret(secret *corev1.Secret) Bucket {
+	state := parseBucketState(secret)
+
 	return Bucket{
 		ID: platform.BucketID{
 			Workspace:   secret.Labels[labels.Workspace],
@@ -272,9 +473,11 @@ func bucketFromSecret(secret *corev1.Secret) Bucket {
 			Environment: secret.Labels[labels.Environment],
 			Name:        secret.Labels[labels.ObjectStorageBucket],
 		},
-		Name:      string(secret.Data["name"]),
-		Region:    string(secret.Data["region"]),
-		Endpoint:  string(secret.Data["endpoint"]),
-		CreatedAt: secret.CreationTimestamp.Time,
+		Name:           state.Name,
+		Region:         state.Region,
+		Endpoint:       state.Endpoint,
+		PublicEndpoint: state.PublicEndpoint,
+		Public:         state.Public,
+		CreatedAt:      secret.CreationTimestamp.Time,
 	}
 }

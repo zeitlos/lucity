@@ -47,6 +47,19 @@ func (r *mutationResolver) DeleteBucket(ctx context.Context, bucket platform.Buc
 	return r.Conductor.DeleteBucket(ctx, bucket)
 }
 
+// SetBucketPublic is the resolver for the setBucketPublic field.
+func (r *mutationResolver) SetBucketPublic(ctx context.Context, bucket platform.BucketID, public bool) (*model.Bucket, error) {
+	result, err := r.Conductor.SetBucketPublic(ctx, bucket, public)
+
+	if err != nil {
+		return nil, err
+	}
+
+	converted := convertBucket(*result)
+
+	return &converted, nil
+}
+
 // Bucket is the resolver for the bucket field.
 func (r *queryResolver) Bucket(ctx context.Context, id platform.BucketID) (*model.Bucket, error) {
 	bucket, err := r.Conductor.Bucket(ctx, id)

@@ -19,6 +19,7 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/hostname"
 	"github.com/zeitlos/lucity/services/conductor/internal/metrics"
 	"github.com/zeitlos/lucity/services/conductor/internal/objectstorage"
+	objectstorageBunny "github.com/zeitlos/lucity/services/conductor/internal/objectstorage/bunny"
 	objectstorageOVH "github.com/zeitlos/lucity/services/conductor/internal/objectstorage/ovh"
 	"github.com/zeitlos/lucity/services/conductor/internal/pipeline"
 	"github.com/zeitlos/lucity/services/conductor/internal/planner/railpack"
@@ -146,6 +147,10 @@ type Config struct {
 	OVHConsumerKey string `envconfig:"OVH_CONSUMER_KEY" required:"true"`
 	OVHProjectID   string `envconfig:"OVH_PROJECT_ID" required:"true"`
 	OVHRegion      string `envconfig:"OVH_REGION" default:"GRA"`
+
+	// Public buckets (CDN)
+	BunnyAPIKey        string `envconfig:"BUNNY_API_KEY"`
+	PublicBucketDomain string `envconfig:"PUBLIC_BUCKET_DOMAIN" default:"storage.lucity.app"`
 }
 
 func main() {
@@ -333,7 +338,15 @@ func main() {
 		os.Exit(1)
 	}
 
-	objectStorageClient := objectstorage.NewManager(ovhBackend, k8sClient)
+	var storageBackend objectstorage.Backend = ovhBackend
+
+	if config.BunnyAPIKey != "" {
+		storageBackend = objectstorageBunny.New(ovhBackend, config.BunnyAPIKey, config.PublicBucketDomain)
+	} else {
+		slog.Warn("BUNNY_API_KEY not set; public buckets disabled")
+	}
+
+	objectStorageClient := objectstorage.NewManager(storageBackend, k8sClient)
 
 	metricsProvider, err := metrics.New(config.VictoriaMetricsURL)
 	if err != nil {
