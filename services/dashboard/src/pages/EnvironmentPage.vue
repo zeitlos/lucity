@@ -50,6 +50,15 @@ const EnvironmentDocument = graphql(`
           memory
         }
         command
+        healthCheck {
+          path
+          port
+          initialDelaySeconds
+          periodSeconds
+          timeoutSeconds
+          failureThreshold
+          startupFailureThreshold
+        }
         activeDeployment {
           id
           image
@@ -416,6 +425,7 @@ watch(
         contextPath: s.contextPath,
         resources: s.resources,
         command: s.command,
+        healthCheck: s.healthCheck ?? null,
         defaultCommand: defaultCommands.get(s.id) ?? '',
         activeDeployment: s.activeDeployment
           ? {

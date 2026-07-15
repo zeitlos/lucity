@@ -18,6 +18,7 @@ type Service
   resources: Resources!
   command: String!
   defaultCommand: String! @goField(forceResolver: true)
+  healthCheck: HealthCheck
 
   activeDeployment: Deployment
   deployments: [Deployment!]! @goField(forceResolver: true)
@@ -44,6 +45,16 @@ type AutoscalingSettings {
 type Resources {
   cpu: String!
   memory: String!
+}
+
+type HealthCheck {
+  path: String!
+  port: Int!
+  initialDelaySeconds: Int!
+  periodSeconds: Int!
+  timeoutSeconds: Int!
+  failureThreshold: Int!
+  startupFailureThreshold: Int!
 }
 
 type Endpoint {
@@ -135,6 +146,16 @@ input ResourcesInput {
   memory: String!
 }
 
+input HealthCheckInput {
+  path: String! @constraint(constraint: "min=1,max=255")
+  port: Int @constraint(constraint: "min=1,max=65535")
+  initialDelaySeconds: Int @constraint(constraint: "min=0,max=600")
+  periodSeconds: Int @constraint(constraint: "min=1,max=300")
+  timeoutSeconds: Int @constraint(constraint: "min=1,max=60")
+  failureThreshold: Int @constraint(constraint: "min=1,max=20")
+  startupFailureThreshold: Int @constraint(constraint: "min=0,max=120")
+}
+
 input AutoscalingInput {
   enabled: Boolean!
   minReplicas: Int! @constraint(constraint: "min=1,max=20")
@@ -156,6 +177,7 @@ extend type Mutation {
   setAutoDeploy(service: ServiceID!, enabled: Boolean!): Service! @hasRole(role: WORKSPACE_MEMBER)
   setCIDeploy(service: ServiceID!, enabled: Boolean!): Service! @hasRole(role: WORKSPACE_MEMBER)
   setServicePort(service: ServiceID!, port: Int @constraint(constraint: "min=1,max=65535")): Service! @hasRole(role: WORKSPACE_MEMBER)
+  setServiceHealthCheck(service: ServiceID!, healthCheck: HealthCheckInput): Service! @hasRole(role: WORKSPACE_MEMBER)
   setServiceScaling(input: SetServiceScalingInput!): Service! @hasRole(role: WORKSPACE_MEMBER)
   setServiceResources(service: ServiceID!, resources: ResourcesInput!): Service! @hasRole(role: WORKSPACE_MEMBER)
   rollback(deployment: DeploymentID!): Boolean! @hasRole(role: WORKSPACE_MEMBER)
