@@ -1161,9 +1161,14 @@ async function handleRemoveService() {
                     />
                   </div>
                 </div>
-                <p v-if="healthCheckPathError" class="-mt-2 px-1 text-xs text-destructive">
-                  {{ healthCheckPathError }}
-                </p>
+                <div class="-mt-2 space-y-0.5 px-1">
+                  <p v-if="healthCheckPathError" class="text-xs text-destructive">
+                    {{ healthCheckPathError }}
+                  </p>
+                  <p class="text-[11px] text-muted-foreground">
+                    Leave the port blank to use the service port ({{ currentPort }}).
+                  </p>
+                </div>
 
                 <!-- Steady-state timing -->
                 <div class="grid grid-cols-4 gap-2">
