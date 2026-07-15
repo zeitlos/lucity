@@ -25,6 +25,9 @@ Usage:
   lucity account               Show identity and workspace memberships
   lucity workspace [<id>]      Show or switch the active workspace
   lucity deploy <service>      Build and roll out a service (--ref, --wait)
+  lucity db <cmd> <args>       Manage databases (create, list, credentials, expose, unexpose, delete)
+  lucity vars <cmd> <args>     Manage service variables (list, available, set)
+  lucity status <service>      Show the latest rollout status of a service
   lucity token                 Print a valid bearer token for scripting
   lucity mcp                   Serve the Lucity MCP server on stdio
   lucity version               Print the CLI version
@@ -56,6 +59,12 @@ func main() {
 		err = cmdWorkspace(ctx, os.Args[2:])
 	case "deploy":
 		err = cmdDeploy(ctx, os.Args[2:])
+	case "db":
+		err = cmdDB(ctx, os.Args[2:])
+	case "vars":
+		err = cmdVars(ctx, os.Args[2:])
+	case "status":
+		err = cmdStatus(ctx, os.Args[2:])
 	case "token":
 		err = cmdToken(ctx)
 	case "mcp":
