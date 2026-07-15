@@ -79,12 +79,36 @@ spec:
             - name: http
               containerPort: {{ $svc.port }}
               protocol: TCP
+          {{- $hc := $svc.healthCheck | default dict }}
+          {{- if $hc.path }}
+          {{- $probePort := $hc.port | default $svc.port }}
+          {{- if $hc.startupFailureThreshold }}
+          startupProbe:
+            httpGet:
+              path: {{ $hc.path }}
+              port: {{ $probePort }}
+            periodSeconds: {{ $hc.periodSeconds | default 5 }}
+            timeoutSeconds: {{ $hc.timeoutSeconds | default 3 }}
+            failureThreshold: {{ $hc.startupFailureThreshold }}
+          {{- end }}
+          readinessProbe:
+            httpGet:
+              path: {{ $hc.path }}
+              port: {{ $probePort }}
+            {{- with $hc.initialDelaySeconds }}
+            initialDelaySeconds: {{ . }}
+            {{- end }}
+            periodSeconds: {{ $hc.periodSeconds | default 5 }}
+            timeoutSeconds: {{ $hc.timeoutSeconds | default 3 }}
+            failureThreshold: {{ $hc.failureThreshold | default 3 }}
+          {{- else }}
           readinessProbe:
             tcpSocket:
               port: http
             periodSeconds: 5
             timeoutSeconds: 3
             failureThreshold: 3
+          {{- end }}
           lifecycle:
             preStop:
               exec:

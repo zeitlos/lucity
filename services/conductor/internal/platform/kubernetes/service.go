@@ -313,6 +313,7 @@ func toService(deployment apps.Deployment, replicaSets []apps.ReplicaSet, pods [
 		ContextPath: annotations[annotationSourceContext],
 		Resources:   containerResources(containers),
 		Command:     containerCommand(containers),
+		HealthCheck: containerHealthCheck(containers),
 		Variables:   make(map[string]string),
 
 		ActiveDeployment: activeDeployment,
@@ -537,6 +538,36 @@ func containerCommand(containers []core.Container) string {
 	}
 
 	return ""
+}
+
+// containerHealthCheck reconstructs the health-check config from the rendered
+// probes. Only an httpGet readiness probe maps to a configured health check;
+// the default tcpSocket probe reads back as no health check (nil).
+func containerHealthCheck(containers []core.Container) *platform.HealthCheck {
+	if len(containers) == 0 {
+		return nil
+	}
+
+	probe := containers[0].ReadinessProbe
+
+	if probe == nil || probe.HTTPGet == nil {
+		return nil
+	}
+
+	healthCheck := &platform.HealthCheck{
+		Path:                probe.HTTPGet.Path,
+		Port:                probe.HTTPGet.Port.IntValue(),
+		InitialDelaySeconds: int(probe.InitialDelaySeconds),
+		PeriodSeconds:       int(probe.PeriodSeconds),
+		TimeoutSeconds:      int(probe.TimeoutSeconds),
+		FailureThreshold:    int(probe.FailureThreshold),
+	}
+
+	if startup := containers[0].StartupProbe; startup != nil && startup.HTTPGet != nil {
+		healthCheck.StartupFailureThreshold = int(startup.FailureThreshold)
+	}
+
+	return healthCheck
 }
 
 var httpRouteGVR = schema.GroupVersionResource{

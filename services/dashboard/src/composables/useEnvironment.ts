@@ -56,6 +56,16 @@ export interface Resources {
   memory: string;
 }
 
+export interface HealthCheck {
+  path: string;
+  port: number;
+  initialDelaySeconds: number;
+  periodSeconds: number;
+  timeoutSeconds: number;
+  failureThreshold: number;
+  startupFailureThreshold: number;
+}
+
 export interface Rollout {
   status: RolloutStatus;
   reason?: RolloutReason | null;
@@ -147,6 +157,7 @@ export interface Service {
   contextPath: string;
   resources: Resources;
   command: string;
+  healthCheck?: HealthCheck | null;
   defaultCommand: string;
   activeDeployment?: Deployment | null;
   deployments: Deployment[];

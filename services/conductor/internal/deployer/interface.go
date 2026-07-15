@@ -32,6 +32,7 @@ type ServiceClient interface {
 	SetAutoDeploy(ctx context.Context, id platform.ServiceID, enabled bool) (RevisionID, error)
 	SetCIDeploy(ctx context.Context, id platform.ServiceID, enabled bool) (RevisionID, error)
 	SetPort(ctx context.Context, id platform.ServiceID, port int) (RevisionID, error)
+	SetHealthCheck(ctx context.Context, id platform.ServiceID, healthCheck *HealthCheck) (RevisionID, error)
 
 	Variables(ctx context.Context, id platform.ServiceID) (ServiceVariablesSpec, error)
 	SetVariables(ctx context.Context, id platform.ServiceID, spec ServiceVariablesSpec) (RevisionID, error)
@@ -118,6 +119,16 @@ type Autoscaling struct {
 	MinReplicas int
 	MaxReplicas int
 	TargetCPU   int
+}
+
+type HealthCheck struct {
+	Path                    string
+	Port                    int
+	InitialDelaySeconds     int
+	PeriodSeconds           int
+	TimeoutSeconds          int
+	FailureThreshold        int
+	StartupFailureThreshold int
 }
 
 type Resources struct {

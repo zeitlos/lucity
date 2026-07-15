@@ -4,13 +4,14 @@ import { useMutation, useApolloClient } from '@vue/apollo-composable';
 import {
   Trash2, Copy, X, Globe, Plus, Minus, RefreshCw,
   ChevronDown, Network, ExternalLink, Scaling, GitBranch, Play, Zap, ArrowRight,
-  Cpu, MemoryStick, Leaf, ShieldCheck, Check, ChevronsUpDown,
+  Cpu, MemoryStick, Leaf, ShieldCheck, Check, ChevronsUpDown, Activity,
 } from '@lucide/vue';
 import GithubIcon from '@/components/GithubIcon.vue';
 import { graphql } from '@/gql';
 import {
   type SetServiceScalingInput,
   type ResourcesInput,
+  type HealthCheckInput,
   DnsStatus,
   EndpointType,
   Protocol,
@@ -120,6 +121,23 @@ const SetServicePortDocument = graphql(`
     setServicePort(service: $service, port: $port) {
       id
       port
+    }
+  }
+`);
+
+const SetServiceHealthCheckDocument = graphql(`
+  mutation SetServiceHealthCheck($service: ServiceID!, $healthCheck: HealthCheckInput) {
+    setServiceHealthCheck(service: $service, healthCheck: $healthCheck) {
+      id
+      healthCheck {
+        path
+        port
+        initialDelaySeconds
+        periodSeconds
+        timeoutSeconds
+        failureThreshold
+        startupFailureThreshold
+      }
     }
   }
 `);
@@ -380,6 +398,99 @@ async function handleSavePort() {
     emit('refetch');
   } catch (e: unknown) {
     errorToast('Failed to update port', { description: errorMessage(e) });
+  }
+}
+
+// Health check
+const { mutate: setHealthCheckMutate, loading: healthCheckSaving } = useMutation(SetServiceHealthCheckDocument);
+
+const healthCheckEnabled = ref(false);
+const hcPath = ref('');
+const hcPort = ref<number | undefined>(undefined);
+const hcInitialDelay = ref<number | undefined>(undefined);
+const hcPeriod = ref<number | undefined>(undefined);
+const hcTimeout = ref<number | undefined>(undefined);
+const hcFailureThreshold = ref<number | undefined>(undefined);
+const hcStartupFailureThreshold = ref<number | undefined>(undefined);
+
+function syncHealthCheckFromService() {
+  const hc = props.service.healthCheck;
+  healthCheckEnabled.value = !!hc;
+  hcPath.value = hc?.path ?? '';
+  hcPort.value = hc && hc.port && hc.port !== props.service.port ? hc.port : undefined;
+  hcInitialDelay.value = hc?.initialDelaySeconds || undefined;
+  hcPeriod.value = hc?.periodSeconds || undefined;
+  hcTimeout.value = hc?.timeoutSeconds || undefined;
+  hcFailureThreshold.value = hc?.failureThreshold || undefined;
+  hcStartupFailureThreshold.value = hc?.startupFailureThreshold || undefined;
+}
+
+watch(() => props.service.healthCheck, syncHealthCheckFromService, { immediate: true });
+
+const healthCheckSummary = computed(() => {
+  const hc = props.service.healthCheck;
+  if (!hc) return 'TCP port check (default)';
+  return `HTTP GET ${hc.path}`;
+});
+
+const startupBudgetSeconds = computed(() => {
+  const threshold = hcStartupFailureThreshold.value || 0;
+  const period = hcPeriod.value || 5;
+  return threshold * period;
+});
+
+const startupBudgetLabel = computed(() => {
+  const total = startupBudgetSeconds.value;
+  if (total <= 0) return '';
+  const minutes = Math.floor(total / 60);
+  const seconds = total % 60;
+  if (minutes && seconds) return `~${minutes}m ${seconds}s`;
+  if (minutes) return `~${minutes}m`;
+  return `~${seconds}s`;
+});
+
+const healthCheckPathError = computed(() => {
+  if (!healthCheckEnabled.value) return '';
+  const path = hcPath.value.trim();
+  if (!path) return 'A path is required for an HTTP health check';
+  if (!path.startsWith('/')) return 'Path must start with /';
+  return '';
+});
+
+const canSaveHealthCheck = computed(
+  () => !healthCheckSaving.value && (!healthCheckEnabled.value || !healthCheckPathError.value),
+);
+
+async function handleSaveHealthCheck() {
+  let input: HealthCheckInput | null = null;
+
+  if (healthCheckEnabled.value) {
+    const path = hcPath.value.trim();
+    if (!path || healthCheckPathError.value) return;
+
+    input = {
+      path,
+      port: hcPort.value || null,
+      initialDelaySeconds: hcInitialDelay.value ?? null,
+      periodSeconds: hcPeriod.value || null,
+      timeoutSeconds: hcTimeout.value || null,
+      failureThreshold: hcFailureThreshold.value || null,
+      startupFailureThreshold: hcStartupFailureThreshold.value ?? null,
+    };
+  }
+
+  try {
+    const res = await setHealthCheckMutate({ service: props.service.id, healthCheck: input });
+
+    if (res?.errors?.length) {
+      errorToast('Failed to update health check', { description: res.errors.map(e => e.message).join(', ') });
+      return;
+    }
+
+    toast.success(input ? 'Health check updated' : 'Health check reset to default');
+    emit('refetch');
+  } catch (e: unknown) {
+    errorToast('Failed to update health check', { description: errorMessage(e) });
   }
 }
 
@@ -990,6 +1101,148 @@ async function handleRemoveService() {
                   @click="handleSavePort"
                 >
                   {{ portSaving ? 'Saving...' : 'Save' }}
+                </Button>
+              </div>
+            </div>
+          </CollapsibleContent>
+        </div>
+      </Collapsible>
+
+      <!-- Health Check -->
+      <Collapsible v-if="currentPort">
+        <div class="overflow-hidden rounded-lg border">
+          <CollapsibleTrigger class="flex w-full items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/30">
+            <Activity :size="16" class="shrink-0 text-muted-foreground" />
+            <div class="min-w-0 flex-1 text-left">
+              <p class="text-sm font-medium text-foreground">Health Check</p>
+              <p class="truncate text-xs text-muted-foreground">{{ healthCheckSummary }}</p>
+            </div>
+            <ChevronDown
+              :size="14"
+              class="shrink-0 text-muted-foreground transition-transform duration-200 [[data-state=open]>&]:rotate-180"
+            />
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div class="space-y-4 border-t px-4 py-3">
+              <p class="text-xs text-muted-foreground">
+                How the platform decides an instance is ready to receive traffic. By default it
+                checks that the port accepts connections. Switch to an HTTP check for apps that
+                need to warm up before they can serve requests.
+              </p>
+
+              <!-- Enable HTTP check -->
+              <div class="flex items-center justify-between">
+                <div>
+                  <Label class="text-sm font-medium">HTTP health check</Label>
+                  <p class="text-xs text-muted-foreground">Probe an HTTP endpoint instead of the raw port.</p>
+                </div>
+                <Switch v-model="healthCheckEnabled" class="data-[state=unchecked]:bg-border" />
+              </div>
+
+              <template v-if="healthCheckEnabled">
+                <!-- Path + port -->
+                <div class="grid grid-cols-3 gap-3">
+                  <div class="col-span-2 space-y-1.5">
+                    <Label class="text-xs font-medium">Path</Label>
+                    <Input
+                      v-model="hcPath"
+                      placeholder="/health/ready"
+                      class="h-8 font-mono text-sm"
+                      :class="{ 'border-destructive': healthCheckPathError }"
+                    />
+                  </div>
+                  <div class="space-y-1.5">
+                    <Label class="text-xs font-medium">Port</Label>
+                    <Input
+                      v-model.number="hcPort"
+                      type="number"
+                      :placeholder="String(currentPort)"
+                      class="h-8 font-mono text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                    />
+                  </div>
+                </div>
+                <div class="-mt-2 space-y-0.5 px-1">
+                  <p v-if="healthCheckPathError" class="text-xs text-destructive">
+                    {{ healthCheckPathError }}
+                  </p>
+                  <p class="text-[11px] text-muted-foreground">
+                    Leave the port blank to use the service port ({{ currentPort }}).
+                  </p>
+                </div>
+
+                <!-- Steady-state timing -->
+                <div class="grid grid-cols-4 gap-2">
+                  <div class="space-y-1.5">
+                    <Label class="text-xs font-medium">Delay</Label>
+                    <Input
+                      v-model.number="hcInitialDelay"
+                      type="number"
+                      placeholder="0"
+                      class="h-8 text-center text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                    />
+                  </div>
+                  <div class="space-y-1.5">
+                    <Label class="text-xs font-medium">Period</Label>
+                    <Input
+                      v-model.number="hcPeriod"
+                      type="number"
+                      placeholder="5"
+                      class="h-8 text-center text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                    />
+                  </div>
+                  <div class="space-y-1.5">
+                    <Label class="text-xs font-medium">Timeout</Label>
+                    <Input
+                      v-model.number="hcTimeout"
+                      type="number"
+                      placeholder="3"
+                      class="h-8 text-center text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                    />
+                  </div>
+                  <div class="space-y-1.5">
+                    <Label class="text-xs font-medium">Failures</Label>
+                    <Input
+                      v-model.number="hcFailureThreshold"
+                      type="number"
+                      placeholder="3"
+                      class="h-8 text-center text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                    />
+                  </div>
+                </div>
+                <p class="-mt-2 px-1 text-[11px] text-muted-foreground">
+                  All values in seconds, except failures. Left blank, sensible defaults apply.
+                </p>
+
+                <!-- Startup budget -->
+                <div class="space-y-1.5">
+                  <div class="flex items-center justify-between">
+                    <Label class="text-xs font-medium">Startup budget</Label>
+                    <span v-if="startupBudgetLabel" class="text-[11px] text-muted-foreground">
+                      {{ startupBudgetLabel }} before traffic
+                    </span>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <Input
+                      v-model.number="hcStartupFailureThreshold"
+                      type="number"
+                      placeholder="0"
+                      class="h-8 w-24 text-center text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                    />
+                    <p class="text-[11px] text-muted-foreground">
+                      Extra failed checks tolerated only while the instance is starting. Lets a slow
+                      warm-up finish without failing the steady-state check.
+                    </p>
+                  </div>
+                </div>
+              </template>
+
+              <div class="flex justify-end">
+                <Button
+                  size="sm"
+                  :disabled="!canSaveHealthCheck"
+                  @click="handleSaveHealthCheck"
+                >
+                  {{ healthCheckSaving ? 'Saving...' : 'Save' }}
                 </Button>
               </div>
             </div>

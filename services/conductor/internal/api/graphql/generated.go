@@ -259,6 +259,16 @@ type ComplexityRoot struct {
 		URL         func(childComplexity int) int
 	}
 
+	HealthCheck struct {
+		FailureThreshold        func(childComplexity int) int
+		InitialDelaySeconds     func(childComplexity int) int
+		Path                    func(childComplexity int) int
+		PeriodSeconds           func(childComplexity int) int
+		Port                    func(childComplexity int) int
+		StartupFailureThreshold func(childComplexity int) int
+		TimeoutSeconds          func(childComplexity int) int
+	}
+
 	ImageSearchResult struct {
 		Description func(childComplexity int) int
 		Name        func(childComplexity int) int
@@ -347,6 +357,7 @@ type ComplexityRoot struct {
 		SetDatabaseStorage        func(childComplexity int, database platform.DatabaseID, size string) int
 		SetEnvironmentResources   func(childComplexity int, input model.SetEnvironmentResourcesInput) int
 		SetServiceBranch          func(childComplexity int, service platform.ServiceID, branch *string) int
+		SetServiceHealthCheck     func(childComplexity int, service platform.ServiceID, healthCheck *model.HealthCheckInput) int
 		SetServicePort            func(childComplexity int, service platform.ServiceID, port *int) int
 		SetServiceResources       func(childComplexity int, service platform.ServiceID, resources model.ResourcesInput) int
 		SetServiceScaling         func(childComplexity int, input model.SetServiceScalingInput) int
@@ -485,6 +496,7 @@ type ComplexityRoot struct {
 		DefaultCommand   func(childComplexity int) int
 		Deployments      func(childComplexity int) int
 		Endpoints        func(childComplexity int) int
+		HealthCheck      func(childComplexity int) int
 		ID               func(childComplexity int) int
 		LastDeployedAt   func(childComplexity int) int
 		Metrics          func(childComplexity int, metrics []model.ResourceMetric, rangeArg model.MetricsRange, grouping model.MetricGrouping) int
@@ -614,6 +626,7 @@ type MutationResolver interface {
 	SetAutoDeploy(ctx context.Context, service platform.ServiceID, enabled bool) (*model.Service, error)
 	SetCIDeploy(ctx context.Context, service platform.ServiceID, enabled bool) (*model.Service, error)
 	SetServicePort(ctx context.Context, service platform.ServiceID, port *int) (*model.Service, error)
+	SetServiceHealthCheck(ctx context.Context, service platform.ServiceID, healthCheck *model.HealthCheckInput) (*model.Service, error)
 	SetServiceScaling(ctx context.Context, input model.SetServiceScalingInput) (*model.Service, error)
 	SetServiceResources(ctx context.Context, service platform.ServiceID, resources model.ResourcesInput) (*model.Service, error)
 	Rollback(ctx context.Context, deployment platform.DeploymentID) (bool, error)
@@ -1504,6 +1517,49 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.GitSource.URL(childComplexity), true
 
+	case "HealthCheck.failureThreshold":
+		if e.ComplexityRoot.HealthCheck.FailureThreshold == nil {
+			break
+		}
+
+		return e.ComplexityRoot.HealthCheck.FailureThreshold(childComplexity), true
+	case "HealthCheck.initialDelaySeconds":
+		if e.ComplexityRoot.HealthCheck.InitialDelaySeconds == nil {
+			break
+		}
+
+		return e.ComplexityRoot.HealthCheck.InitialDelaySeconds(childComplexity), true
+	case "HealthCheck.path":
+		if e.ComplexityRoot.HealthCheck.Path == nil {
+			break
+		}
+
+		return e.ComplexityRoot.HealthCheck.Path(childComplexity), true
+	case "HealthCheck.periodSeconds":
+		if e.ComplexityRoot.HealthCheck.PeriodSeconds == nil {
+			break
+		}
+
+		return e.ComplexityRoot.HealthCheck.PeriodSeconds(childComplexity), true
+	case "HealthCheck.port":
+		if e.ComplexityRoot.HealthCheck.Port == nil {
+			break
+		}
+
+		return e.ComplexityRoot.HealthCheck.Port(childComplexity), true
+	case "HealthCheck.startupFailureThreshold":
+		if e.ComplexityRoot.HealthCheck.StartupFailureThreshold == nil {
+			break
+		}
+
+		return e.ComplexityRoot.HealthCheck.StartupFailureThreshold(childComplexity), true
+	case "HealthCheck.timeoutSeconds":
+		if e.ComplexityRoot.HealthCheck.TimeoutSeconds == nil {
+			break
+		}
+
+		return e.ComplexityRoot.HealthCheck.TimeoutSeconds(childComplexity), true
+
 	case "ImageSearchResult.description":
 		if e.ComplexityRoot.ImageSearchResult.Description == nil {
 			break
@@ -2097,6 +2153,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.SetServiceBranch(childComplexity, args["service"].(platform.ServiceID), args["branch"].(*string)), true
+	case "Mutation.setServiceHealthCheck":
+		if e.ComplexityRoot.Mutation.SetServiceHealthCheck == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setServiceHealthCheck_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.SetServiceHealthCheck(childComplexity, args["service"].(platform.ServiceID), args["healthCheck"].(*model.HealthCheckInput)), true
 	case "Mutation.setServicePort":
 		if e.ComplexityRoot.Mutation.SetServicePort == nil {
 			break
@@ -2870,6 +2937,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Service.Endpoints(childComplexity), true
+	case "Service.healthCheck":
+		if e.ComplexityRoot.Service.HealthCheck == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Service.HealthCheck(childComplexity), true
 	case "Service.id":
 		if e.ComplexityRoot.Service.ID == nil {
 			break
@@ -3223,6 +3296,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputCreateKeyValueStoreInput,
 		ec.unmarshalInputCreateProjectInput,
 		ec.unmarshalInputCreateWorkspaceCheckoutInput,
+		ec.unmarshalInputHealthCheckInput,
 		ec.unmarshalInputInviteMemberInput,
 		ec.unmarshalInputMetricsRange,
 		ec.unmarshalInputResourcesInput,
@@ -3762,6 +3836,26 @@ func (ec *executionContext) childFields_GitSource(ctx context.Context, field gra
 	return nil, fmt.Errorf("no field named %q was found under type GitSource", field.Name)
 }
 
+func (ec *executionContext) childFields_HealthCheck(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "path":
+		return ec.fieldContext_HealthCheck_path(ctx, field)
+	case "port":
+		return ec.fieldContext_HealthCheck_port(ctx, field)
+	case "initialDelaySeconds":
+		return ec.fieldContext_HealthCheck_initialDelaySeconds(ctx, field)
+	case "periodSeconds":
+		return ec.fieldContext_HealthCheck_periodSeconds(ctx, field)
+	case "timeoutSeconds":
+		return ec.fieldContext_HealthCheck_timeoutSeconds(ctx, field)
+	case "failureThreshold":
+		return ec.fieldContext_HealthCheck_failureThreshold(ctx, field)
+	case "startupFailureThreshold":
+		return ec.fieldContext_HealthCheck_startupFailureThreshold(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type HealthCheck", field.Name)
+}
+
 func (ec *executionContext) childFields_ImageSearchResult(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
 	case "name":
@@ -4036,6 +4130,8 @@ func (ec *executionContext) childFields_Service(ctx context.Context, field graph
 		return ec.fieldContext_Service_command(ctx, field)
 	case "defaultCommand":
 		return ec.fieldContext_Service_defaultCommand(ctx, field)
+	case "healthCheck":
+		return ec.fieldContext_Service_healthCheck(ctx, field)
 	case "activeDeployment":
 		return ec.fieldContext_Service_activeDeployment(ctx, field)
 	case "deployments":
@@ -5109,6 +5205,28 @@ func (ec *executionContext) field_Mutation_setServiceBranch_argsBranch(
 		var zeroVal *string
 		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be *string`, tmp))
 	}
+}
+
+func (ec *executionContext) field_Mutation_setServiceHealthCheck_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "service",
+		func(ctx context.Context, v any) (platform.ServiceID, error) {
+			return ec.unmarshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐServiceID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["service"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "healthCheck",
+		func(ctx context.Context, v any) (*model.HealthCheckInput, error) {
+			return ec.unmarshalOHealthCheckInput2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐHealthCheckInput(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["healthCheck"] = arg1
+	return args, nil
 }
 
 func (ec *executionContext) field_Mutation_setServicePort_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
@@ -8938,6 +9056,167 @@ func (ec *executionContext) fieldContext_GitSource_commit(_ context.Context, fie
 	return fc, nil
 }
 
+func (ec *executionContext) _HealthCheck_path(ctx context.Context, field graphql.CollectedField, obj *model.HealthCheck) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_HealthCheck_path(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Path, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_HealthCheck_path(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("HealthCheck", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _HealthCheck_port(ctx context.Context, field graphql.CollectedField, obj *model.HealthCheck) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_HealthCheck_port(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Port, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_HealthCheck_port(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("HealthCheck", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _HealthCheck_initialDelaySeconds(ctx context.Context, field graphql.CollectedField, obj *model.HealthCheck) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_HealthCheck_initialDelaySeconds(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.InitialDelaySeconds, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_HealthCheck_initialDelaySeconds(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("HealthCheck", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _HealthCheck_periodSeconds(ctx context.Context, field graphql.CollectedField, obj *model.HealthCheck) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_HealthCheck_periodSeconds(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.PeriodSeconds, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_HealthCheck_periodSeconds(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("HealthCheck", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _HealthCheck_timeoutSeconds(ctx context.Context, field graphql.CollectedField, obj *model.HealthCheck) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_HealthCheck_timeoutSeconds(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.TimeoutSeconds, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_HealthCheck_timeoutSeconds(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("HealthCheck", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _HealthCheck_failureThreshold(ctx context.Context, field graphql.CollectedField, obj *model.HealthCheck) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_HealthCheck_failureThreshold(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.FailureThreshold, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_HealthCheck_failureThreshold(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("HealthCheck", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _HealthCheck_startupFailureThreshold(ctx context.Context, field graphql.CollectedField, obj *model.HealthCheck) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_HealthCheck_startupFailureThreshold(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.StartupFailureThreshold, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_HealthCheck_startupFailureThreshold(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("HealthCheck", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
 func (ec *executionContext) _ImageSearchResult_name(ctx context.Context, field graphql.CollectedField, obj *model.ImageSearchResult) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -11353,6 +11632,68 @@ func (ec *executionContext) fieldContext_Mutation_setServicePort(ctx context.Con
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_setServicePort_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_setServiceHealthCheck(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_setServiceHealthCheck(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().SetServiceHealthCheck(ctx, fc.Args["service"].(platform.ServiceID), fc.Args["healthCheck"].(*model.HealthCheckInput))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
+				if err != nil {
+					var zeroVal *model.Service
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal *model.Service
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Service) graphql.Marshaler {
+			return ec.marshalNService2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐService(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_setServiceHealthCheck(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Service(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_setServiceHealthCheck_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -16058,6 +16399,38 @@ func (ec *executionContext) fieldContext_Service_defaultCommand(_ context.Contex
 	return graphql.NewScalarFieldContext("Service", field, true, true, errors.New("field of type String does not have child fields"))
 }
 
+func (ec *executionContext) _Service_healthCheck(ctx context.Context, field graphql.CollectedField, obj *model.Service) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Service_healthCheck(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.HealthCheck, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.HealthCheck) graphql.Marshaler {
+			return ec.marshalOHealthCheck2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐHealthCheck(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_Service_healthCheck(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Service",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_HealthCheck(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Service_activeDeployment(ctx context.Context, field graphql.CollectedField, obj *model.Service) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -19084,6 +19457,230 @@ func (ec *executionContext) unmarshalInputCreateWorkspaceCheckoutInput(ctx conte
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputHealthCheckInput(ctx context.Context, obj any) (model.HealthCheckInput, error) {
+	var it model.HealthCheckInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"path", "port", "initialDelaySeconds", "periodSeconds", "timeoutSeconds", "failureThreshold", "startupFailureThreshold"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "path":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("path"))
+			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNString2string(ctx, v) }
+
+			directive1 := func(ctx context.Context) (any, error) {
+				constraint, err := ec.unmarshalNString2string(ctx, "min=1,max=255")
+				if err != nil {
+					var zeroVal string
+					return zeroVal, err
+				}
+				if ec.Directives.Constraint == nil {
+					var zeroVal string
+					return zeroVal, errors.New("directive constraint is not implemented")
+				}
+				return ec.Directives.Constraint(ctx, obj, directive0, constraint)
+			}
+
+			tmp, err := directive1(ctx)
+			if err != nil {
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+			if data, ok := tmp.(string); ok {
+				it.Path = data
+			} else {
+				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+		case "port":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("port"))
+			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalOInt2ᚖint(ctx, v) }
+
+			directive1 := func(ctx context.Context) (any, error) {
+				constraint, err := ec.unmarshalNString2string(ctx, "min=1,max=65535")
+				if err != nil {
+					var zeroVal *int
+					return zeroVal, err
+				}
+				if ec.Directives.Constraint == nil {
+					var zeroVal *int
+					return zeroVal, errors.New("directive constraint is not implemented")
+				}
+				return ec.Directives.Constraint(ctx, obj, directive0, constraint)
+			}
+
+			tmp, err := directive1(ctx)
+			if err != nil {
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+			if data, ok := tmp.(*int); ok {
+				it.Port = data
+			} else if tmp == nil {
+				it.Port = nil
+			} else {
+				err := fmt.Errorf(`unexpected type %T from directive, should be *int`, tmp)
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+		case "initialDelaySeconds":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("initialDelaySeconds"))
+			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalOInt2ᚖint(ctx, v) }
+
+			directive1 := func(ctx context.Context) (any, error) {
+				constraint, err := ec.unmarshalNString2string(ctx, "min=0,max=600")
+				if err != nil {
+					var zeroVal *int
+					return zeroVal, err
+				}
+				if ec.Directives.Constraint == nil {
+					var zeroVal *int
+					return zeroVal, errors.New("directive constraint is not implemented")
+				}
+				return ec.Directives.Constraint(ctx, obj, directive0, constraint)
+			}
+
+			tmp, err := directive1(ctx)
+			if err != nil {
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+			if data, ok := tmp.(*int); ok {
+				it.InitialDelaySeconds = data
+			} else if tmp == nil {
+				it.InitialDelaySeconds = nil
+			} else {
+				err := fmt.Errorf(`unexpected type %T from directive, should be *int`, tmp)
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+		case "periodSeconds":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("periodSeconds"))
+			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalOInt2ᚖint(ctx, v) }
+
+			directive1 := func(ctx context.Context) (any, error) {
+				constraint, err := ec.unmarshalNString2string(ctx, "min=1,max=300")
+				if err != nil {
+					var zeroVal *int
+					return zeroVal, err
+				}
+				if ec.Directives.Constraint == nil {
+					var zeroVal *int
+					return zeroVal, errors.New("directive constraint is not implemented")
+				}
+				return ec.Directives.Constraint(ctx, obj, directive0, constraint)
+			}
+
+			tmp, err := directive1(ctx)
+			if err != nil {
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+			if data, ok := tmp.(*int); ok {
+				it.PeriodSeconds = data
+			} else if tmp == nil {
+				it.PeriodSeconds = nil
+			} else {
+				err := fmt.Errorf(`unexpected type %T from directive, should be *int`, tmp)
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+		case "timeoutSeconds":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("timeoutSeconds"))
+			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalOInt2ᚖint(ctx, v) }
+
+			directive1 := func(ctx context.Context) (any, error) {
+				constraint, err := ec.unmarshalNString2string(ctx, "min=1,max=60")
+				if err != nil {
+					var zeroVal *int
+					return zeroVal, err
+				}
+				if ec.Directives.Constraint == nil {
+					var zeroVal *int
+					return zeroVal, errors.New("directive constraint is not implemented")
+				}
+				return ec.Directives.Constraint(ctx, obj, directive0, constraint)
+			}
+
+			tmp, err := directive1(ctx)
+			if err != nil {
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+			if data, ok := tmp.(*int); ok {
+				it.TimeoutSeconds = data
+			} else if tmp == nil {
+				it.TimeoutSeconds = nil
+			} else {
+				err := fmt.Errorf(`unexpected type %T from directive, should be *int`, tmp)
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+		case "failureThreshold":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("failureThreshold"))
+			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalOInt2ᚖint(ctx, v) }
+
+			directive1 := func(ctx context.Context) (any, error) {
+				constraint, err := ec.unmarshalNString2string(ctx, "min=1,max=20")
+				if err != nil {
+					var zeroVal *int
+					return zeroVal, err
+				}
+				if ec.Directives.Constraint == nil {
+					var zeroVal *int
+					return zeroVal, errors.New("directive constraint is not implemented")
+				}
+				return ec.Directives.Constraint(ctx, obj, directive0, constraint)
+			}
+
+			tmp, err := directive1(ctx)
+			if err != nil {
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+			if data, ok := tmp.(*int); ok {
+				it.FailureThreshold = data
+			} else if tmp == nil {
+				it.FailureThreshold = nil
+			} else {
+				err := fmt.Errorf(`unexpected type %T from directive, should be *int`, tmp)
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+		case "startupFailureThreshold":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("startupFailureThreshold"))
+			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalOInt2ᚖint(ctx, v) }
+
+			directive1 := func(ctx context.Context) (any, error) {
+				constraint, err := ec.unmarshalNString2string(ctx, "min=0,max=120")
+				if err != nil {
+					var zeroVal *int
+					return zeroVal, err
+				}
+				if ec.Directives.Constraint == nil {
+					var zeroVal *int
+					return zeroVal, errors.New("directive constraint is not implemented")
+				}
+				return ec.Directives.Constraint(ctx, obj, directive0, constraint)
+			}
+
+			tmp, err := directive1(ctx)
+			if err != nil {
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+			if data, ok := tmp.(*int); ok {
+				it.StartupFailureThreshold = data
+			} else if tmp == nil {
+				it.StartupFailureThreshold = nil
+			} else {
+				err := fmt.Errorf(`unexpected type %T from directive, should be *int`, tmp)
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+		}
+	}
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputInviteMemberInput(ctx context.Context, obj any) (model.InviteMemberInput, error) {
 	var it model.InviteMemberInput
 	if obj == nil {
@@ -21263,6 +21860,74 @@ func (ec *executionContext) _GitSource(ctx context.Context, sel ast.SelectionSet
 	return out
 }
 
+var healthCheckImplementors = []string{"HealthCheck"}
+
+func (ec *executionContext) _HealthCheck(ctx context.Context, sel ast.SelectionSet, obj *model.HealthCheck) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, healthCheckImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("HealthCheck")
+		case "path":
+			out.Values[i] = ec._HealthCheck_path(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "port":
+			out.Values[i] = ec._HealthCheck_port(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "initialDelaySeconds":
+			out.Values[i] = ec._HealthCheck_initialDelaySeconds(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "periodSeconds":
+			out.Values[i] = ec._HealthCheck_periodSeconds(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "timeoutSeconds":
+			out.Values[i] = ec._HealthCheck_timeoutSeconds(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "failureThreshold":
+			out.Values[i] = ec._HealthCheck_failureThreshold(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "startupFailureThreshold":
+			out.Values[i] = ec._HealthCheck_startupFailureThreshold(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
 var imageSearchResultImplementors = []string{"ImageSearchResult"}
 
 func (ec *executionContext) _ImageSearchResult(ctx context.Context, sel ast.SelectionSet, obj *model.ImageSearchResult) graphql.Marshaler {
@@ -21843,6 +22508,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "setServicePort":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_setServicePort(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "setServiceHealthCheck":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_setServiceHealthCheck(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -23513,6 +24185,11 @@ func (ec *executionContext) _Service(ctx context.Context, sel ast.SelectionSet, 
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "healthCheck":
+			out.Values[i] = ec._Service_healthCheck(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
 		case "activeDeployment":
 			out.Values[i] = ec._Service_activeDeployment(ctx, field, obj)
 			if out.Values[i] == graphql.RequiredNull {
@@ -26543,6 +27220,21 @@ func (ec *executionContext) marshalOGitSource2ᚖgithubᚗcomᚋzeitlosᚋlucity
 		return graphql.Null
 	}
 	return ec._GitSource(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOHealthCheck2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐHealthCheck(ctx context.Context, sel ast.SelectionSet, v *model.HealthCheck) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._HealthCheck(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOHealthCheckInput2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐHealthCheckInput(ctx context.Context, v any) (*model.HealthCheckInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputHealthCheckInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) unmarshalOInt2ᚖint(ctx context.Context, v any) (*int, error) {
