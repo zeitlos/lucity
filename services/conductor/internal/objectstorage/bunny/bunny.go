@@ -59,6 +59,10 @@ func (b *Backend) SetPublic(ctx context.Context, req objectstorage.SetPublicRequ
 			return objectstorage.SetPublicResult{}, err
 		}
 
+		if err := b.deleteDNSRecord(ctx, req.Slug); err != nil {
+			return objectstorage.SetPublicResult{}, fmt.Errorf("delete dns record: %w", err)
+		}
+
 		if _, err := b.inner.Credentials(ctx, objectstorage.CredentialsRequest{
 			Workspace:  req.Workspace,
 			Permission: objectstorage.ReadOnly,
@@ -90,6 +94,10 @@ func (b *Backend) SetPublic(ctx context.Context, req objectstorage.SetPublicRequ
 
 	if err := b.addHostname(ctx, pullZoneID, hostname); err != nil {
 		return objectstorage.SetPublicResult{}, err
+	}
+
+	if err := b.ensureDNSRecord(ctx, req.Slug); err != nil {
+		return objectstorage.SetPublicResult{}, fmt.Errorf("ensure dns record: %w", err)
 	}
 
 	go b.loadFreeCertificate(hostname)
@@ -216,6 +224,109 @@ func (b *Backend) unpublish(ctx context.Context, req objectstorage.SetPublicRequ
 	}
 
 	return nil
+}
+
+const dnsRecordTypeCNAME = 2
+
+type dnsRecord struct {
+	ID    int64  `json:"Id"`
+	Type  int    `json:"Type"`
+	Name  string `json:"Name"`
+	Value string `json:"Value"`
+}
+
+func (b *Backend) ensureDNSRecord(ctx context.Context, slug string) error {
+	zoneID, err := b.dnsZoneID(ctx)
+
+	if err != nil {
+		return err
+	}
+
+	records, err := b.dnsRecords(ctx, zoneID)
+
+	if err != nil {
+		return err
+	}
+
+	for _, record := range records {
+		if record.Name == slug {
+			return nil
+		}
+	}
+
+	body := map[string]any{
+		"Type":  dnsRecordTypeCNAME,
+		"Name":  slug,
+		"Value": slug + ".b-cdn.net",
+		"Ttl":   300,
+	}
+
+	if err := b.do(ctx, http.MethodPut, "/dnszone/"+strconv.FormatInt(zoneID, 10)+"/records", body, nil); err != nil {
+		return fmt.Errorf("create dns record: %w", err)
+	}
+
+	return nil
+}
+
+func (b *Backend) deleteDNSRecord(ctx context.Context, slug string) error {
+	zoneID, err := b.dnsZoneID(ctx)
+
+	if err != nil {
+		return err
+	}
+
+	records, err := b.dnsRecords(ctx, zoneID)
+
+	if err != nil {
+		return err
+	}
+
+	for _, record := range records {
+		if record.Name != slug {
+			continue
+		}
+
+		if err := b.do(ctx, http.MethodDelete, fmt.Sprintf("/dnszone/%d/records/%d", zoneID, record.ID), nil, nil); err != nil && !isNotFound(err) {
+			return fmt.Errorf("delete dns record: %w", err)
+		}
+
+		return nil
+	}
+
+	return nil
+}
+
+func (b *Backend) dnsZoneID(ctx context.Context) (int64, error) {
+	var page struct {
+		Items []struct {
+			ID     int64  `json:"Id"`
+			Domain string `json:"Domain"`
+		} `json:"Items"`
+	}
+
+	if err := b.do(ctx, http.MethodGet, "/dnszone?search="+url.QueryEscape(b.domain), nil, &page); err != nil {
+		return 0, fmt.Errorf("search dns zone: %w", err)
+	}
+
+	for _, item := range page.Items {
+		if item.Domain == b.domain {
+			return item.ID, nil
+		}
+	}
+
+	return 0, fmt.Errorf("dns zone %q not found", b.domain)
+}
+
+func (b *Backend) dnsRecords(ctx context.Context, zoneID int64) ([]dnsRecord, error) {
+	var zone struct {
+		Records []dnsRecord `json:"Records"`
+	}
+
+	if err := b.do(ctx, http.MethodGet, "/dnszone/"+strconv.FormatInt(zoneID, 10), nil, &zone); err != nil {
+		return nil, fmt.Errorf("get dns zone: %w", err)
+	}
+
+	return zone.Records, nil
 }
 
 func (b *Backend) do(ctx context.Context, method, path string, body, out any) error {
