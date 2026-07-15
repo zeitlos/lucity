@@ -107,6 +107,26 @@ func (s *serviceClient) SetPort(ctx context.Context, id platform.ServiceID, port
 	})
 }
 
+func (s *serviceClient) SetHealthCheck(ctx context.Context, id platform.ServiceID, healthCheck *deployer.HealthCheck) (deployer.RevisionID, error) {
+	var spec *values.HealthCheck
+
+	if healthCheck != nil {
+		spec = &values.HealthCheck{
+			Path:                    healthCheck.Path,
+			Port:                    healthCheck.Port,
+			InitialDelaySeconds:     healthCheck.InitialDelaySeconds,
+			PeriodSeconds:           healthCheck.PeriodSeconds,
+			TimeoutSeconds:          healthCheck.TimeoutSeconds,
+			FailureThreshold:        healthCheck.FailureThreshold,
+			StartupFailureThreshold: healthCheck.StartupFailureThreshold,
+		}
+	}
+
+	return s.client.applyEnv(ctx, id.EnvironmentID(), func(e *values.Env) error {
+		return values.SetServiceHealthCheck(e, id.Name, spec)
+	})
+}
+
 func (s *serviceClient) Variables(ctx context.Context, id platform.ServiceID) (deployer.ServiceVariablesSpec, error) {
 	env, err := s.client.loadEnv(ctx, id.EnvironmentID())
 

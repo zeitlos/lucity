@@ -29,6 +29,7 @@ type Service struct {
 	ContextPath string
 	Resources   Resources
 	Command     string
+	HealthCheck *HealthCheck
 	Variables   map[string]string
 
 	ActiveDeployment *Deployment
@@ -49,6 +50,16 @@ type RepoService struct {
 type Resources struct {
 	CPU    resource.Quantity
 	Memory resource.Quantity
+}
+
+type HealthCheck struct {
+	Path                    string
+	Port                    int
+	InitialDelaySeconds     int
+	PeriodSeconds           int
+	TimeoutSeconds          int
+	FailureThreshold        int
+	StartupFailureThreshold int
 }
 
 type Endpoint struct {

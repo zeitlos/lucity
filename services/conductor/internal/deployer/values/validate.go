@@ -22,13 +22,14 @@ var (
 	mountPathRe = regexp.MustCompile(`^/[a-zA-Z0-9._/-]+$`)
 	gitRefRe    = regexp.MustCompile(`^[A-Za-z0-9._/-]+$`)
 
-	maxNameLen    = 63
-	maxHostLen    = 253
-	maxKeyLen     = 253
-	maxImageLen   = 512
-	maxTagLen     = 128
-	maxCommandLen = 4096
-	maxBranchLen  = 250
+	maxNameLen            = 63
+	maxHostLen            = 253
+	maxKeyLen             = 253
+	maxImageLen           = 512
+	maxTagLen             = 128
+	maxCommandLen         = 4096
+	maxBranchLen          = 250
+	maxHealthCheckPathLen = 255
 )
 
 func Validate(env *Env) error {
@@ -207,6 +208,40 @@ func validateBranch(branch string) error {
 func isValidPort(port int) bool {
 	// port == 0 means no port specified.
 	return port >= 0 && port <= 65535
+}
+
+func validateHealthCheck(healthCheck HealthCheck) error {
+	if healthCheck.Path == "" {
+		return fmt.Errorf("health check path is required")
+	}
+
+	if !strings.HasPrefix(healthCheck.Path, "/") {
+		return fmt.Errorf("health check path must start with /")
+	}
+
+	if len(healthCheck.Path) > maxHealthCheckPathLen {
+		return fmt.Errorf("health check path exceeds %d characters", maxHealthCheckPathLen)
+	}
+
+	for _, r := range healthCheck.Path {
+		if r <= 0x20 || r == 0x7f {
+			return fmt.Errorf("health check path contains an invalid character")
+		}
+	}
+
+	if !isValidPort(healthCheck.Port) {
+		return fmt.Errorf("health check port must be in [0, 65535]")
+	}
+
+	if healthCheck.InitialDelaySeconds < 0 ||
+		healthCheck.PeriodSeconds < 0 ||
+		healthCheck.TimeoutSeconds < 0 ||
+		healthCheck.FailureThreshold < 0 ||
+		healthCheck.StartupFailureThreshold < 0 {
+		return fmt.Errorf("health check timing values must be non-negative")
+	}
+
+	return nil
 }
 
 func isValidVarName(name string) bool {

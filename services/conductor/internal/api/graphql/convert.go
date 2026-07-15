@@ -134,6 +134,10 @@ func convertService(service platform.Service) model.Service {
 		result.Autoscaling = convertAutoscaling(*service.Autoscaling)
 	}
 
+	if service.HealthCheck != nil {
+		result.HealthCheck = convertHealthCheck(*service.HealthCheck)
+	}
+
 	if service.ActiveDeployment != nil {
 		deployment := convertDeployment(*service.ActiveDeployment)
 		result.ActiveDeployment = &deployment
@@ -212,6 +216,18 @@ func convertResources(resources platform.Resources) *model.Resources {
 	return &model.Resources{
 		CPU:    resources.CPU.String(),
 		Memory: resources.Memory.String(),
+	}
+}
+
+func convertHealthCheck(healthCheck platform.HealthCheck) *model.HealthCheck {
+	return &model.HealthCheck{
+		Path:                    healthCheck.Path,
+		Port:                    healthCheck.Port,
+		InitialDelaySeconds:     healthCheck.InitialDelaySeconds,
+		PeriodSeconds:           healthCheck.PeriodSeconds,
+		TimeoutSeconds:          healthCheck.TimeoutSeconds,
+		FailureThreshold:        healthCheck.FailureThreshold,
+		StartupFailureThreshold: healthCheck.StartupFailureThreshold,
 	}
 }
 

@@ -17,6 +17,7 @@ type Service struct {
 	Resources      Resources            `yaml:"resources,omitempty"`
 	Domains        []Domain             `yaml:"domains,omitempty"`
 	Command        string               `yaml:"command,omitempty"`
+	HealthCheck    *HealthCheck         `yaml:"healthCheck,omitempty"`
 	Env            map[string]string    `yaml:"env,omitempty"`
 	Refs           map[string]SecretRef `yaml:"refs,omitempty"`
 	VolumeMounts   map[string]string    `yaml:"volumeMounts,omitempty"`
@@ -24,6 +25,16 @@ type Service struct {
 	Annotations    map[string]string    `yaml:"annotations,omitempty"`
 	PodLabels      map[string]string    `yaml:"podLabels,omitempty"`
 	PodAnnotations map[string]string    `yaml:"podAnnotations,omitempty"`
+}
+
+type HealthCheck struct {
+	Path                    string `yaml:"path"`
+	Port                    int    `yaml:"port,omitempty"`
+	InitialDelaySeconds     int    `yaml:"initialDelaySeconds,omitempty"`
+	PeriodSeconds           int    `yaml:"periodSeconds,omitempty"`
+	TimeoutSeconds          int    `yaml:"timeoutSeconds,omitempty"`
+	FailureThreshold        int    `yaml:"failureThreshold,omitempty"`
+	StartupFailureThreshold int    `yaml:"startupFailureThreshold,omitempty"`
 }
 
 type ImageRef struct {
@@ -278,6 +289,20 @@ func SetServicePort(env *Env, name string, port int) error {
 
 	return mutateService(env, name, func(s *Service) {
 		s.Port = port
+	})
+}
+
+// SetServiceHealthCheck configures the readiness/startup probe for a service.
+// A nil health check clears the config, reverting to the default TCP probe.
+func SetServiceHealthCheck(env *Env, name string, healthCheck *HealthCheck) error {
+	if healthCheck != nil {
+		if err := validateHealthCheck(*healthCheck); err != nil {
+			return err
+		}
+	}
+
+	return mutateService(env, name, func(s *Service) {
+		s.HealthCheck = healthCheck
 	})
 }
 

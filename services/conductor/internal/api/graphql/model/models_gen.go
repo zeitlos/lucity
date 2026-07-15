@@ -287,6 +287,26 @@ type GitSource struct {
 	Commit      *Commit        `json:"commit"`
 }
 
+type HealthCheck struct {
+	Path                    string `json:"path"`
+	Port                    int    `json:"port"`
+	InitialDelaySeconds     int    `json:"initialDelaySeconds"`
+	PeriodSeconds           int    `json:"periodSeconds"`
+	TimeoutSeconds          int    `json:"timeoutSeconds"`
+	FailureThreshold        int    `json:"failureThreshold"`
+	StartupFailureThreshold int    `json:"startupFailureThreshold"`
+}
+
+type HealthCheckInput struct {
+	Path                    string `json:"path"`
+	Port                    *int   `json:"port,omitempty"`
+	InitialDelaySeconds     *int   `json:"initialDelaySeconds,omitempty"`
+	PeriodSeconds           *int   `json:"periodSeconds,omitempty"`
+	TimeoutSeconds          *int   `json:"timeoutSeconds,omitempty"`
+	FailureThreshold        *int   `json:"failureThreshold,omitempty"`
+	StartupFailureThreshold *int   `json:"startupFailureThreshold,omitempty"`
+}
+
 // A container image from a public registry (Docker Hub).
 type ImageSearchResult struct {
 	Name        string `json:"name"`
@@ -452,6 +472,7 @@ type Service struct {
 	Resources        *Resources           `json:"resources"`
 	Command          string               `json:"command"`
 	DefaultCommand   string               `json:"defaultCommand"`
+	HealthCheck      *HealthCheck         `json:"healthCheck,omitempty"`
 	ActiveDeployment *Deployment          `json:"activeDeployment,omitempty"`
 	Deployments      []Deployment         `json:"deployments"`
 	Builds           []Build              `json:"builds"`

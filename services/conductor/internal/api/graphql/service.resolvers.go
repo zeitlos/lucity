@@ -96,6 +96,31 @@ func (r *mutationResolver) SetServicePort(ctx context.Context, service platform.
 	return new(convertService(*result)), nil
 }
 
+// SetServiceHealthCheck is the resolver for the setServiceHealthCheck field.
+func (r *mutationResolver) SetServiceHealthCheck(ctx context.Context, service platform.ServiceID, healthCheck *model.HealthCheckInput) (*model.Service, error) {
+	var config *conductor.HealthCheckConfig
+
+	if healthCheck != nil {
+		config = &conductor.HealthCheckConfig{
+			Path:                    healthCheck.Path,
+			Port:                    to.Val(healthCheck.Port),
+			InitialDelaySeconds:     to.Val(healthCheck.InitialDelaySeconds),
+			PeriodSeconds:           to.Val(healthCheck.PeriodSeconds),
+			TimeoutSeconds:          to.Val(healthCheck.TimeoutSeconds),
+			FailureThreshold:        to.Val(healthCheck.FailureThreshold),
+			StartupFailureThreshold: to.Val(healthCheck.StartupFailureThreshold),
+		}
+	}
+
+	result, err := r.Conductor.SetServiceHealthCheck(ctx, service, config)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return new(convertService(*result)), nil
+}
+
 // SetServiceScaling is the resolver for the setServiceScaling field.
 func (r *mutationResolver) SetServiceScaling(ctx context.Context, input model.SetServiceScalingInput) (*model.Service, error) {
 	var autoscaling *conductor.AutoscalingConfig
