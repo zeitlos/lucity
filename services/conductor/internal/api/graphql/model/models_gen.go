@@ -55,15 +55,16 @@ type BillingSubscription struct {
 }
 
 type Bucket struct {
-	ID          platform.BucketID `json:"id"`
-	Name        string            `json:"name"`
-	Region      string            `json:"region"`
-	Endpoint    string            `json:"endpoint"`
-	Status      BucketStatus      `json:"status"`
-	SizeBytes   int               `json:"sizeBytes"`
-	ObjectCount int               `json:"objectCount"`
-	Public      bool              `json:"public"`
-	CreatedAt   time.Time         `json:"createdAt"`
+	ID             platform.BucketID `json:"id"`
+	Name           string            `json:"name"`
+	Region         string            `json:"region"`
+	Endpoint       string            `json:"endpoint"`
+	PublicEndpoint string            `json:"publicEndpoint"`
+	Status         BucketStatus      `json:"status"`
+	SizeBytes      int               `json:"sizeBytes"`
+	ObjectCount    int               `json:"objectCount"`
+	Public         bool              `json:"public"`
+	CreatedAt      time.Time         `json:"createdAt"`
 }
 
 type BucketCredentials struct {

@@ -53,3 +53,13 @@ func (c *Client) DeleteBucket(ctx context.Context, id BucketID) (bool, error) {
 func (c *Client) BucketCredentials(ctx context.Context, id BucketID) (*BucketCredentials, error) {
 	return c.objectStorage.Credentials(ctx, id)
 }
+
+func (c *Client) SetBucketPublic(ctx context.Context, id BucketID, public bool) (*Bucket, error) {
+	bucket, err := c.objectStorage.SetPublic(ctx, id, public)
+
+	if err != nil {
+		return nil, fmt.Errorf("set bucket public: %w", err)
+	}
+
+	return bucket, nil
+}

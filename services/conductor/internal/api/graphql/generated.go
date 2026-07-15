@@ -70,15 +70,16 @@ type ComplexityRoot struct {
 	}
 
 	Bucket struct {
-		CreatedAt   func(childComplexity int) int
-		Endpoint    func(childComplexity int) int
-		ID          func(childComplexity int) int
-		Name        func(childComplexity int) int
-		ObjectCount func(childComplexity int) int
-		Public      func(childComplexity int) int
-		Region      func(childComplexity int) int
-		SizeBytes   func(childComplexity int) int
-		Status      func(childComplexity int) int
+		CreatedAt      func(childComplexity int) int
+		Endpoint       func(childComplexity int) int
+		ID             func(childComplexity int) int
+		Name           func(childComplexity int) int
+		ObjectCount    func(childComplexity int) int
+		Public         func(childComplexity int) int
+		PublicEndpoint func(childComplexity int) int
+		Region         func(childComplexity int) int
+		SizeBytes      func(childComplexity int) int
+		Status         func(childComplexity int) int
 	}
 
 	BucketCredentials struct {
@@ -339,6 +340,7 @@ type ComplexityRoot struct {
 		RemoveService             func(childComplexity int, service platform.ServiceID) int
 		Rollback                  func(childComplexity int, deployment platform.DeploymentID) int
 		SetAutoDeploy             func(childComplexity int, service platform.ServiceID, enabled bool) int
+		SetBucketPublic           func(childComplexity int, bucket platform.BucketID, public bool) int
 		SetCIDeploy               func(childComplexity int, service platform.ServiceID, enabled bool) int
 		SetCustomStartCommand     func(childComplexity int, service platform.ServiceID, command string) int
 		SetDatabaseResources      func(childComplexity int, database platform.DatabaseID, resources model.ResourcesInput) int
@@ -602,6 +604,7 @@ type MutationResolver interface {
 	DeleteKeyValueStore(ctx context.Context, keyValueStore platform.KeyValueStoreID) (bool, error)
 	CreateBucket(ctx context.Context, input model.CreateBucketInput) (*model.Bucket, error)
 	DeleteBucket(ctx context.Context, bucket platform.BucketID) (bool, error)
+	SetBucketPublic(ctx context.Context, bucket platform.BucketID, public bool) (*model.Bucket, error)
 	CreateProject(ctx context.Context, input model.CreateProjectInput) (*model.Project, error)
 	DeleteProject(ctx context.Context, id platform.ProjectID) (bool, error)
 	AddService(ctx context.Context, environment platform.EnvironmentID, input model.AddServiceInput) (*model.Service, error)
@@ -805,6 +808,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Bucket.Public(childComplexity), true
+	case "Bucket.publicEndpoint":
+		if e.ComplexityRoot.Bucket.PublicEndpoint == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Bucket.PublicEndpoint(childComplexity), true
 	case "Bucket.region":
 		if e.ComplexityRoot.Bucket.Region == nil {
 			break
@@ -2011,6 +2020,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.SetAutoDeploy(childComplexity, args["service"].(platform.ServiceID), args["enabled"].(bool)), true
+	case "Mutation.setBucketPublic":
+		if e.ComplexityRoot.Mutation.SetBucketPublic == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setBucketPublic_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.SetBucketPublic(childComplexity, args["bucket"].(platform.BucketID), args["public"].(bool)), true
 	case "Mutation.setCIDeploy":
 		if e.ComplexityRoot.Mutation.SetCIDeploy == nil {
 			break
@@ -3392,6 +3412,8 @@ func (ec *executionContext) childFields_Bucket(ctx context.Context, field graphq
 		return ec.fieldContext_Bucket_region(ctx, field)
 	case "endpoint":
 		return ec.fieldContext_Bucket_endpoint(ctx, field)
+	case "publicEndpoint":
+		return ec.fieldContext_Bucket_publicEndpoint(ctx, field)
 	case "status":
 		return ec.fieldContext_Bucket_status(ctx, field)
 	case "sizeBytes":
@@ -4902,6 +4924,28 @@ func (ec *executionContext) field_Mutation_setAutoDeploy_args(ctx context.Contex
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_setBucketPublic_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "bucket",
+		func(ctx context.Context, v any) (platform.BucketID, error) {
+			return ec.unmarshalNBucketID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐBucketID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["bucket"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "public",
+		func(ctx context.Context, v any) (bool, error) {
+			return ec.unmarshalNBoolean2bool(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["public"] = arg1
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_setCIDeploy_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -6143,6 +6187,29 @@ func (ec *executionContext) _Bucket_endpoint(ctx context.Context, field graphql.
 	)
 }
 func (ec *executionContext) fieldContext_Bucket_endpoint(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Bucket", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _Bucket_publicEndpoint(ctx context.Context, field graphql.CollectedField, obj *model.Bucket) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Bucket_publicEndpoint(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.PublicEndpoint, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Bucket_publicEndpoint(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("Bucket", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
@@ -10666,6 +10733,68 @@ func (ec *executionContext) fieldContext_Mutation_deleteBucket(ctx context.Conte
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_deleteBucket_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_setBucketPublic(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_setBucketPublic(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().SetBucketPublic(ctx, fc.Args["bucket"].(platform.BucketID), fc.Args["public"].(bool))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
+				if err != nil {
+					var zeroVal *model.Bucket
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal *model.Bucket
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Bucket) graphql.Marshaler {
+			return ec.marshalNBucket2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐBucket(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_setBucketPublic(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Bucket(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_setBucketPublic_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -19619,6 +19748,11 @@ func (ec *executionContext) _Bucket(ctx context.Context, sel ast.SelectionSet, o
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "publicEndpoint":
+			out.Values[i] = ec._Bucket_publicEndpoint(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "status":
 			out.Values[i] = ec._Bucket_status(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -21639,6 +21773,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "deleteBucket":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_deleteBucket(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "setBucketPublic":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_setBucketPublic(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++

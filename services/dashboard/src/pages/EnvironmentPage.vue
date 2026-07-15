@@ -174,9 +174,11 @@ const EnvironmentDocument = graphql(`
         name
         region
         endpoint
+        publicEndpoint
         status
         sizeBytes
         objectCount
+        public
         createdAt
       }
       volumes {
@@ -533,9 +535,11 @@ watch(
         name: b.name,
         region: b.region,
         endpoint: b.endpoint,
+        publicEndpoint: b.publicEndpoint,
         status: b.status,
         sizeBytes: b.sizeBytes,
         objectCount: b.objectCount,
+        public: b.public,
         createdAt: b.createdAt,
       })),
       volumes: env.volumes.map(v => ({
