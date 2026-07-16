@@ -61,6 +61,7 @@ type DatabaseCredentials struct {
 	DBName   string
 	User     string
 	Password string
+	URI      string
 }
 
 // ErrDatabaseProvisioning is returned by DatabaseCredentials when the CNPG

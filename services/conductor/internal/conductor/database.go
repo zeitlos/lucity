@@ -318,7 +318,7 @@ func (c *Client) DatabaseCredentials(ctx context.Context, database platform.Data
 		DBName:   creds.DBName,
 		User:     creds.User,
 		Password: creds.Password,
-		URI:      databaseURI(creds),
+		URI:      creds.URI,
 	}}
 
 	db, err := c.platform.Database(ctx, database)
@@ -374,6 +374,6 @@ func validateDatabaseResources(cpu, memory string) (deployer.Resources, error) {
 }
 
 func databaseURI(creds *platform.DatabaseCredentials) string {
-	return fmt.Sprintf("postgres://%s:%s@%s:%s/%s",
+	return fmt.Sprintf("postgresql://%s:%s@%s:%s/%s",
 		creds.User, creds.Password, creds.Host, creds.Port, creds.DBName)
 }

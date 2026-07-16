@@ -142,7 +142,7 @@ func offeredNames(secret *core.Secret, offeredKeys []string) []string {
 
 func defaultVariableSources(client kubernetes.Interface) []variableSource {
 	return []variableSource{
-		newVariableSource(client, cnpgAppSecretSelector, []string{"uri", "host", "port", "dbname", "user", "password"}, databaseSource(databaseLabel)),
+		newVariableSource(client, cnpgAppSecretSelector, []string{"fqdn-uri", "host", "port", "dbname", "user", "password"}, databaseSource(databaseLabel)),
 		newVariableSource(client, sharedSecretSelector, nil, sharedSource),
 		newVariableSource(client, keyValueStoreSelector, []string{"host", "port", "password", "uri"}, keyValueStoreSource(keyValueStoreLabel)),
 		newVariableSource(client, objectStorageSelector, []string{"accessKeyId", "secretAccessKey", "endpoint", "region", "bucket"}, bucketSource(objectStorageBucketLabel)),

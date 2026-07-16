@@ -159,16 +159,17 @@ func (c *Client) DatabaseCredentials(ctx context.Context, id platform.DatabaseID
 		DBName:   string(secret.Data["dbname"]),
 		User:     string(secret.Data["user"]),
 		Password: string(secret.Data["password"]),
+		URI:      string(secret.Data["fqdn-uri"]),
 	}, nil
 }
 
 var databaseFailurePhases = map[string]bool{
-	cnpgv1.PhaseUnrecoverable:             true,
+	cnpgv1.PhaseUnrecoverable:              true,
 	cnpgv1.PhaseCannotCreateClusterObjects: true,
-	cnpgv1.PhaseFailurePlugin:             true,
-	cnpgv1.PhaseUnknownPlugin:             true,
-	cnpgv1.PhaseImageCatalogError:         true,
-	cnpgv1.PhaseArchitectureBinaryMissing: true,
+	cnpgv1.PhaseFailurePlugin:              true,
+	cnpgv1.PhaseUnknownPlugin:              true,
+	cnpgv1.PhaseImageCatalogError:          true,
+	cnpgv1.PhaseArchitectureBinaryMissing:  true,
 }
 
 func databaseStatus(cluster cnpgv1.Cluster) platform.DatabaseStatus {
