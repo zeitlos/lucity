@@ -30,8 +30,8 @@ Arguments:
 
 Flags:
   --size <size>   Storage size for a new database (e.g. 32Gi)
-  --cpu <cpu>     CPU limit for a new database (e.g. 500m); pass with --memory
-  --memory <mem>  Memory limit for a new database (e.g. 512Mi); pass with --cpu
+  --cpu <cpu>     CPU limit for a new database, e.g. 500m (with --memory)
+  --memory <mem>  Memory limit for a new database, e.g. 512Mi (with --cpu)
   --yes           Skip the confirmation prompt on delete
   --json          Emit the result as JSON on stdout
 
@@ -40,11 +40,17 @@ not sufficient for database operations.
 `
 
 type databaseView struct {
-	ID     string `json:"id"`
-	Name   string `json:"name"`
-	Status string `json:"status"`
-	Size   string `json:"size"`
-	Public bool   `json:"public"`
+	ID        string         `json:"id"`
+	Name      string         `json:"name"`
+	Status    string         `json:"status"`
+	Size      string         `json:"size"`
+	Public    bool           `json:"public"`
+	Resources *resourcesView `json:"resources,omitempty"`
+}
+
+type resourcesView struct {
+	CPU    string `json:"cpu"`
+	Memory string `json:"memory"`
 }
 
 type credentialsView struct {
@@ -124,7 +130,7 @@ func dbCreate(ctx context.Context, args []string) error {
 		input["resources"] = map[string]any{"cpu": *cpu, "memory": *memory}
 	}
 	const mutation = `mutation($input: CreateDatabaseInput!) {
-  createDatabase(input: $input) { id name status size public }
+  createDatabase(input: $input) { id name status size public resources { cpu memory } }
 }`
 	var out struct {
 		CreateDatabase databaseView `json:"createDatabase"`
@@ -363,4 +369,8 @@ func printDatabase(database databaseView) {
 	fmt.Printf("  status: %s\n", database.Status)
 	fmt.Printf("  size:   %s\n", database.Size)
 	fmt.Printf("  public: %t\n", database.Public)
+	if database.Resources != nil {
+		fmt.Printf("  cpu:    %s\n", database.Resources.CPU)
+		fmt.Printf("  memory: %s\n", database.Resources.Memory)
+	}
 }
