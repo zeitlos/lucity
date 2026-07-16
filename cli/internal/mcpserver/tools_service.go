@@ -12,7 +12,7 @@ const serviceSummaryFields = `id name status replicas { desired ready } port com
 func (s *server) registerService(m *mcp.Server) {
 	mcp.AddTool(m, &mcp.Tool{
 		Name:        "add_service",
-		Description: "Add a service to an environment. repository = owner/repo or a full https URL for source builds (mutually exclusive with image, which deploys a prebuilt image). variables set initial env vars; build-time pins like RAILPACK_PYTHON_VERSION belong here so the first build already sees them.",
+		Description: "Add a service to an environment. repository = owner/repo or a full https URL for source builds (mutually exclusive with image, which deploys a prebuilt image). variables set initial env vars; build-time pins like RAILPACK_PYTHON_VERSION belong here so the first build already sees them. cpu and memory (Kubernetes quantities, e.g. '500m'/'512Mi') size the service at creation; pass both or omit both for platform defaults.",
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: ptr(false)},
 	}, s.addService)
 
@@ -48,6 +48,8 @@ type addServiceInput struct {
 	ContextPath string          `json:"context_path,omitempty" jsonschema:"subdirectory within the repository to build from"`
 	Image       string          `json:"image,omitempty" jsonschema:"prebuilt image reference (e.g. docker.io/library/nginx:latest); mutually exclusive with repository"`
 	Variables   []variableEntry `json:"variables,omitempty" jsonschema:"initial environment variables (literal values only)"`
+	CPU         string          `json:"cpu,omitempty" jsonschema:"CPU limit as a Kubernetes quantity (e.g. 500m); provide together with memory, or omit both for platform defaults"`
+	Memory      string          `json:"memory,omitempty" jsonschema:"memory limit as a Kubernetes quantity (e.g. 512Mi); provide together with cpu, or omit both for platform defaults"`
 }
 
 func (s *server) addService(ctx context.Context, _ *mcp.CallToolRequest, input addServiceInput) (*mcp.CallToolResult, any, error) {
@@ -60,6 +62,9 @@ func (s *server) addService(ctx context.Context, _ *mcp.CallToolRequest, input a
 	}
 	if input.Repository != "" && input.Image != "" {
 		return nil, nil, fmt.Errorf("repository and image are mutually exclusive")
+	}
+	if (input.CPU == "") != (input.Memory == "") {
+		return nil, nil, fmt.Errorf("cpu and memory must be provided together")
 	}
 
 	serviceInput := map[string]any{}
@@ -82,6 +87,9 @@ func (s *server) addService(ctx context.Context, _ *mcp.CallToolRequest, input a
 		}
 		serviceInput["variables"] = vars
 	}
+	if input.CPU != "" {
+		serviceInput["resources"] = map[string]any{"cpu": input.CPU, "memory": input.Memory}
+	}
 
 	mutation := `mutation($environment: EnvironmentID!, $input: AddServiceInput!) {
   addService(environment: $environment, input: $input) { ` + serviceSummaryFields + ` }
@@ -95,7 +103,7 @@ func (s *server) addService(ctx context.Context, _ *mcp.CallToolRequest, input a
 	}
 	return jsonResult(map[string]any{
 		"service": out.AddService,
-		"note":    "service created but not deployed yet. 'status: FAILED' and the zero port/resources are EXPECTED for a brand-new service (it means no successful deploy yet, NOT an error). Call deploy once to build the image and roll it out — the first deploy always builds. After that first build, config changes (set_variables, configure_service) roll out automatically with no rebuild. Poll get_deploy_status after deploy.",
+		"note":    "service created but not deployed yet. 'status: FAILED' and a zero port are EXPECTED here (no successful deploy yet, NOT an error). Call deploy once to build and roll it out — the first deploy always builds; after that, config changes (set_variables, configure_service) roll out automatically with no rebuild. Poll get_deploy_status after deploy.",
 	})
 }
 
