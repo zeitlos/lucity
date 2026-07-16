@@ -16,7 +16,7 @@ import (
 const dbUsage = `lucity db — manage databases
 
 Usage:
-  lucity db create <env> <name> [--size <size>] [--json]
+  lucity db create <env> <name> [--size <size>] [--cpu <cpu>] [--memory <mem>] [--json]
   lucity db list <env> [--json]
   lucity db credentials <db> [--json]
   lucity db expose <db> [--json]
@@ -30,6 +30,8 @@ Arguments:
 
 Flags:
   --size <size>   Storage size for a new database (e.g. 32Gi)
+  --cpu <cpu>     CPU limit for a new database (e.g. 500m); pass with --memory
+  --memory <mem>  Memory limit for a new database (e.g. 512Mi); pass with --cpu
   --yes           Skip the confirmation prompt on delete
   --json          Emit the result as JSON on stdout
 
@@ -88,6 +90,8 @@ func dbCreate(ctx context.Context, args []string) error {
 	flags.SetOutput(os.Stderr)
 	flags.Usage = func() { fmt.Fprint(os.Stderr, dbUsage) }
 	size := flags.String("size", "", "storage size (e.g. 32Gi)")
+	cpu := flags.String("cpu", "", "CPU limit (e.g. 500m)")
+	memory := flags.String("memory", "", "memory limit (e.g. 512Mi)")
 	asJSON := flags.Bool("json", false, "emit the database as JSON")
 
 	positionals, err := positionalArgs(flags, args)
@@ -96,7 +100,10 @@ func dbCreate(ctx context.Context, args []string) error {
 	}
 	if len(positionals) < 2 {
 		flags.Usage()
-		return errors.New("usage: lucity db create <env> <name> [--size <size>]")
+		return errors.New("usage: lucity db create <env> <name> [--size <size>] [--cpu <cpu>] [--memory <mem>]")
+	}
+	if (*cpu == "") != (*memory == "") {
+		return errors.New("--cpu and --memory must be provided together")
 	}
 	envArg, nameArg := positionals[0], positionals[1]
 
@@ -112,6 +119,9 @@ func dbCreate(ctx context.Context, args []string) error {
 	input := map[string]any{"environment": environmentID, "name": nameArg}
 	if *size != "" {
 		input["size"] = *size
+	}
+	if *cpu != "" {
+		input["resources"] = map[string]any{"cpu": *cpu, "memory": *memory}
 	}
 	const mutation = `mutation($input: CreateDatabaseInput!) {
   createDatabase(input: $input) { id name status size public }
