@@ -27,6 +27,7 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/scanjob"
 	"github.com/zeitlos/lucity/services/conductor/internal/scanreport"
 	"github.com/zeitlos/lucity/services/conductor/internal/source"
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 // TokenRefresher refreshes the Logto access token using a refresh token.
@@ -40,15 +41,15 @@ type Client struct {
 	logto          *logto.Client
 	tokenRefresher TokenRefresher // refreshes expired Logto access tokens (nil if not configured)
 
-	directory   directory.Interface
-	platform    platform.Interface
-	buildjob    buildjob.Interface
-	deployjob   deployjob.Interface
-	scanjob     scanjob.Interface
-	scanreport  *scanreport.Client
-	pipeline    pipeline.Interface
-	planner     planner.Interface
-	source      source.Interface
+	directory     directory.Interface
+	platform      platform.Interface
+	buildjob      buildjob.Interface
+	deployjob     deployjob.Interface
+	scanjob       scanjob.Interface
+	scanreport    *scanreport.Client
+	pipeline      pipeline.Interface
+	planner       planner.Interface
+	source        source.Interface
 	hostname      *hostname.Client
 	gateway       *gateway.Client
 	deployer      deployer.Interface
@@ -144,4 +145,39 @@ func (c *Client) orgRoleIDs(ctx context.Context) (adminID, memberID string, err 
 		return "", "", err
 	}
 	return c.adminRoleID, c.memberRoleID, nil
+}
+
+func validateResources(cpu, memory string, minCPU, maxCPU, minMemory, maxMemory resource.Quantity) (deployer.Resources, error) {
+	cpuQuantity, err := resource.ParseQuantity(cpu)
+
+	if err != nil {
+		return deployer.Resources{}, fmt.Errorf("invalid cpu value %q: %w", cpu, err)
+	}
+
+	memoryQuantity, err := resource.ParseQuantity(memory)
+
+	if err != nil {
+		return deployer.Resources{}, fmt.Errorf("invalid memory value %q: %w", memory, err)
+	}
+
+	if cpuQuantity.Cmp(minCPU) < 0 {
+		return deployer.Resources{}, fmt.Errorf("cpu must be at least %s", minCPU.String())
+	}
+
+	if memoryQuantity.Cmp(minMemory) < 0 {
+		return deployer.Resources{}, fmt.Errorf("memory must be at least %s", minMemory.String())
+	}
+
+	if cpuQuantity.Cmp(maxCPU) > 0 {
+		return deployer.Resources{}, fmt.Errorf("cpu exceeds the maximum of %s", maxCPU.String())
+	}
+
+	if memoryQuantity.Cmp(maxMemory) > 0 {
+		return deployer.Resources{}, fmt.Errorf("memory exceeds the maximum of %s", maxMemory.String())
+	}
+
+	return deployer.Resources{
+		CPU:    cpuQuantity,
+		Memory: memoryQuantity,
+	}, nil
 }

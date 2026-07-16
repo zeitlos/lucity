@@ -17,12 +17,20 @@ import (
 
 // AddService is the resolver for the addService field.
 func (r *mutationResolver) AddService(ctx context.Context, environment platform.EnvironmentID, input model.AddServiceInput) (*model.Service, error) {
+	var cpu string
+	var memory string
+
+	if input.Resources != nil {
+		cpu = input.Resources.CPU
+		memory = input.Resources.Memory
+	}
+
 	variables := make(map[string]string, len(input.Variables))
 	for _, variable := range input.Variables {
 		variables[variable.Key] = variable.Value
 	}
 
-	service, err := r.Conductor.AddService(ctx, environment, to.Val(input.Name), to.Val(input.Repository), to.Val(input.ContextPath), to.Val(input.Image), variables)
+	service, err := r.Conductor.AddService(ctx, environment, to.Val(input.Name), to.Val(input.Repository), to.Val(input.ContextPath), to.Val(input.Image), variables, cpu, memory)
 
 	if err != nil {
 		return nil, err

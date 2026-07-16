@@ -16,7 +16,7 @@ import (
 const dbUsage = `lucity db — manage databases
 
 Usage:
-  lucity db create <env> <name> [--size <size>] [--json]
+  lucity db create <env> <name> [--size <size>] [--cpu <cpu>] [--memory <mem>] [--json]
   lucity db list <env> [--json]
   lucity db credentials <db> [--json]
   lucity db expose <db> [--json]
@@ -30,6 +30,8 @@ Arguments:
 
 Flags:
   --size <size>   Storage size for a new database (e.g. 32Gi)
+  --cpu <cpu>     CPU limit for a new database, e.g. 500m (with --memory)
+  --memory <mem>  Memory limit for a new database, e.g. 512Mi (with --cpu)
   --yes           Skip the confirmation prompt on delete
   --json          Emit the result as JSON on stdout
 
@@ -38,11 +40,17 @@ not sufficient for database operations.
 `
 
 type databaseView struct {
-	ID     string `json:"id"`
-	Name   string `json:"name"`
-	Status string `json:"status"`
-	Size   string `json:"size"`
-	Public bool   `json:"public"`
+	ID        string         `json:"id"`
+	Name      string         `json:"name"`
+	Status    string         `json:"status"`
+	Size      string         `json:"size"`
+	Public    bool           `json:"public"`
+	Resources *resourcesView `json:"resources,omitempty"`
+}
+
+type resourcesView struct {
+	CPU    string `json:"cpu"`
+	Memory string `json:"memory"`
 }
 
 type credentialsView struct {
@@ -88,6 +96,8 @@ func dbCreate(ctx context.Context, args []string) error {
 	flags.SetOutput(os.Stderr)
 	flags.Usage = func() { fmt.Fprint(os.Stderr, dbUsage) }
 	size := flags.String("size", "", "storage size (e.g. 32Gi)")
+	cpu := flags.String("cpu", "", "CPU limit (e.g. 500m)")
+	memory := flags.String("memory", "", "memory limit (e.g. 512Mi)")
 	asJSON := flags.Bool("json", false, "emit the database as JSON")
 
 	positionals, err := positionalArgs(flags, args)
@@ -96,7 +106,10 @@ func dbCreate(ctx context.Context, args []string) error {
 	}
 	if len(positionals) < 2 {
 		flags.Usage()
-		return errors.New("usage: lucity db create <env> <name> [--size <size>]")
+		return errors.New("usage: lucity db create <env> <name> [--size <size>] [--cpu <cpu>] [--memory <mem>]")
+	}
+	if (*cpu == "") != (*memory == "") {
+		return errors.New("--cpu and --memory must be provided together")
 	}
 	envArg, nameArg := positionals[0], positionals[1]
 
@@ -113,8 +126,11 @@ func dbCreate(ctx context.Context, args []string) error {
 	if *size != "" {
 		input["size"] = *size
 	}
+	if *cpu != "" {
+		input["resources"] = map[string]any{"cpu": *cpu, "memory": *memory}
+	}
 	const mutation = `mutation($input: CreateDatabaseInput!) {
-  createDatabase(input: $input) { id name status size public }
+  createDatabase(input: $input) { id name status size public resources { cpu memory } }
 }`
 	var out struct {
 		CreateDatabase databaseView `json:"createDatabase"`
@@ -353,4 +369,8 @@ func printDatabase(database databaseView) {
 	fmt.Printf("  status: %s\n", database.Status)
 	fmt.Printf("  size:   %s\n", database.Size)
 	fmt.Printf("  public: %t\n", database.Public)
+	if database.Resources != nil {
+		fmt.Printf("  cpu:    %s\n", database.Resources.CPU)
+		fmt.Printf("  memory: %s\n", database.Resources.Memory)
+	}
 }

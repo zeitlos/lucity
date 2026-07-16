@@ -133,6 +133,7 @@ input AddServiceInput {
   contextPath: String
   image: String
   variables: [VariableInput!]
+  resources: ResourcesInput
 }
 
 input SetServiceScalingInput {

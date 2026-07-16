@@ -21,7 +21,7 @@ func withResourceID(resource any, id string) any {
 func (s *server) registerResource(m *mcp.Server) {
 	mcp.AddTool(m, &mcp.Tool{
 		Name:        "create_database",
-		Description: "Provision a managed PostgreSQL database in an environment. size is a Kubernetes quantity (e.g. 10Gi). Provisioning takes ~1-2 min; poll get_project for status. Wire credentials into a service with set_variables (ref) or read them with get_credentials.",
+		Description: "Provision a managed PostgreSQL database in an environment. size is the storage size as a Kubernetes quantity (e.g. 10Gi). cpu and memory (e.g. '500m'/'512Mi') size the database; pass both or omit both for platform defaults. Provisioning takes ~1-2 min; poll get_project for status. Wire credentials into a service with set_variables (ref) or read them with get_credentials.",
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: ptr(false)},
 	}, s.createDatabase)
 
@@ -59,6 +59,8 @@ type createDatabaseInput struct {
 	Environment string `json:"environment" jsonschema:"environment id (workspace/project/environment)"`
 	Name        string `json:"name" jsonschema:"database name (2-16 chars, lowercase alphanumeric and hyphens)"`
 	Size        string `json:"size,omitempty" jsonschema:"storage size as a Kubernetes quantity (e.g. 10Gi)"`
+	CPU         string `json:"cpu,omitempty" jsonschema:"CPU limit as a Kubernetes quantity (e.g. 500m); provide together with memory, or omit both for platform defaults"`
+	Memory      string `json:"memory,omitempty" jsonschema:"memory limit as a Kubernetes quantity (e.g. 512Mi); provide together with cpu, or omit both for platform defaults"`
 }
 
 func (s *server) createDatabase(ctx context.Context, _ *mcp.CallToolRequest, input createDatabaseInput) (*mcp.CallToolResult, any, error) {
@@ -66,14 +68,20 @@ func (s *server) createDatabase(ctx context.Context, _ *mcp.CallToolRequest, inp
 	if err != nil {
 		return nil, nil, err
 	}
+	if (input.CPU == "") != (input.Memory == "") {
+		return nil, nil, fmt.Errorf("cpu and memory must be provided together")
+	}
 
 	dbInput := map[string]any{"environment": environmentID, "name": input.Name}
 	if input.Size != "" {
 		dbInput["size"] = input.Size
 	}
+	if input.CPU != "" {
+		dbInput["resources"] = map[string]any{"cpu": input.CPU, "memory": input.Memory}
+	}
 
 	const mutation = `mutation($input: CreateDatabaseInput!) {
-  createDatabase(input: $input) { id name status version size public }
+  createDatabase(input: $input) { id name status version size public resources { cpu memory } }
 }`
 	var out struct {
 		CreateDatabase any `json:"createDatabase"`

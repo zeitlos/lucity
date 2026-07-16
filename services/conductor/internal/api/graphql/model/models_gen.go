@@ -26,6 +26,7 @@ type AddServiceInput struct {
 	ContextPath *string         `json:"contextPath,omitempty"`
 	Image       *string         `json:"image,omitempty"`
 	Variables   []VariableInput `json:"variables,omitempty"`
+	Resources   *ResourcesInput `json:"resources,omitempty"`
 }
 
 type AutoscalingInput struct {
@@ -108,6 +109,7 @@ type CreateDatabaseInput struct {
 	Environment platform.EnvironmentID `json:"environment"`
 	Name        string                 `json:"name"`
 	Size        *string                `json:"size,omitempty"`
+	Resources   *ResourcesInput        `json:"resources,omitempty"`
 }
 
 type CreateEnvironmentInput struct {

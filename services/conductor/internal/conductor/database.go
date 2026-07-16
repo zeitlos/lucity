@@ -16,8 +16,12 @@ import (
 )
 
 var (
-	minDatabaseCPU    = resource.MustParse("250m")
-	minDatabaseMemory = resource.MustParse("256Mi")
+	minDatabaseCPU        = resource.MustParse("250m")
+	minDatabaseMemory     = resource.MustParse("256Mi")
+	maxDatabaseCPU        = resource.MustParse("4")
+	maxDatabaseMemory     = resource.MustParse("16Gi")
+	defaultDatabaseCPU    = resources.DefaultCPULimit
+	defaultDatabaseMemory = resources.DefaultMemoryLimit
 )
 
 // DatabaseProvisioningError indicates the database is still being provisioned
@@ -74,17 +78,32 @@ func (c *Client) Database(ctx context.Context, id DatabaseID) (*Database, error)
 	return c.platform.Database(ctx, id)
 }
 
-func (c *Client) CreateDatabase(ctx context.Context, environment platform.EnvironmentID, name string, size string) (*Database, error) {
+func (c *Client) CreateDatabase(ctx context.Context, environment platform.EnvironmentID, name string, size, cpu, memory string) (*Database, error) {
 	const version = "17"
+	const defaultDiskSize = "16Gi"
 
 	if size == "" {
-		size = "16Gi"
+		size = defaultDiskSize
+	}
+
+	if cpu == "" {
+		cpu = defaultDatabaseCPU.String()
+	}
+
+	if memory == "" {
+		memory = defaultDatabaseMemory.String()
 	}
 
 	parsedSize, err := resource.ParseQuantity(size)
 
 	if err != nil {
 		return nil, fmt.Errorf("parse size: %w", err)
+	}
+
+	resources, err := validateDatabaseResources(cpu, memory)
+
+	if err != nil {
+		return nil, err
 	}
 
 	env, err := c.platform.Environment(ctx, environment)
@@ -97,44 +116,24 @@ func (c *Client) CreateDatabase(ctx context.Context, environment platform.Enviro
 		Version:      version,
 		Size:         parsedSize,
 		ResourceTier: env.ResourceTier,
+		Resources:    resources,
 	}); err != nil {
 		return nil, fmt.Errorf("create database: %w", err)
 	}
 
 	return &Database{
-		Name:    name,
-		Version: version,
-		Size:    parsedSize,
+		Name:      name,
+		Version:   version,
+		Size:      parsedSize,
+		Resources: platform.Resources{CPU: resources.CPU, Memory: resources.Memory},
 	}, nil
 }
 
 func (c *Client) SetDatabaseResources(ctx context.Context, database platform.DatabaseID, cpu, memory string) (*Database, error) {
-	cpuQuantity, err := resource.ParseQuantity(cpu)
+	spec, err := validateDatabaseResources(cpu, memory)
 
 	if err != nil {
-		return nil, fmt.Errorf("invalid cpu value %q: %w", cpu, err)
-	}
-
-	memoryQuantity, err := resource.ParseQuantity(memory)
-
-	if err != nil {
-		return nil, fmt.Errorf("invalid memory value %q: %w", memory, err)
-	}
-
-	if cpuQuantity.Cmp(minDatabaseCPU) < 0 {
-		return nil, fmt.Errorf("cpu must be at least %s", minDatabaseCPU.String())
-	}
-
-	if memoryQuantity.Cmp(minDatabaseMemory) < 0 {
-		return nil, fmt.Errorf("memory must be at least %s", minDatabaseMemory.String())
-	}
-
-	if cpuQuantity.Cmp(resources.DefaultCPUQuota) > 0 {
-		return nil, fmt.Errorf("cpu exceeds the maximum of %s", resources.DefaultCPUQuota.String())
-	}
-
-	if memoryQuantity.Cmp(resources.DefaultMemoryQuota) > 0 {
-		return nil, fmt.Errorf("memory exceeds the maximum of %s", resources.DefaultMemoryQuota.String())
+		return nil, err
 	}
 
 	environment, err := c.platform.Environment(ctx, database.EnvironmentID())
@@ -142,8 +141,6 @@ func (c *Client) SetDatabaseResources(ctx context.Context, database platform.Dat
 	if err != nil {
 		return nil, err
 	}
-
-	spec := deployer.Resources{CPU: cpuQuantity, Memory: memoryQuantity}
 
 	if _, err := c.deployer.Databases().SetResources(ctx, database, environment.ResourceTier, spec); err != nil {
 		return nil, fmt.Errorf("set resources: %w", err)
@@ -370,6 +367,10 @@ func (c *Client) databaseQueryClient(ctx context.Context, id platform.DatabaseID
 	creds.Host = host
 
 	return dbquery.New(databaseURI(creds) + "?sslmode=require"), nil
+}
+
+func validateDatabaseResources(cpu, memory string) (deployer.Resources, error) {
+	return validateResources(cpu, memory, minDatabaseCPU, maxDatabaseCPU, minDatabaseMemory, maxDatabaseMemory)
 }
 
 func databaseURI(creds *platform.DatabaseCredentials) string {

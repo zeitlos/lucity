@@ -119,7 +119,7 @@ Then `deploy` again.
 **Deploy FAILED** — `get_logs kind=deploy`: bad config applied during rollout; read the message and fix the offending variable/setting.
 
 **Rollout failure reasons** (from `get_deploy_status`):
-- `OOM_KILLED` → double the memory with `configure_service` (cap at the workspace quota). It rolls out automatically with the current image; just re-check status. No rebuild.
+- `OOM_KILLED` → double the memory with `configure_service` (up to the per-service ceiling). It rolls out automatically with the current image; just re-check status. No rebuild.
 - `CRASH_LOOP` → `get_logs kind=runtime`. Usually wrong start command, `PORT` not honored, or a missing env var. Fix it with `configure_service` (start command) or `set_variables` — the change rolls out automatically with the current image; re-check status. No `deploy`/rebuild unless you changed source.
 - `IMAGE_PULL_FAILED` → the image ref is wrong or unreachable (prebuilt-image deploys); fix the ref.
 - `CONFIG_ERROR` → an invalid variable or setting; correct it.
@@ -155,9 +155,10 @@ Account/projects: `get_account`, `list_projects`, `get_project`, `create_project
 `development` environment), `create_environment`.
 Detection/source: `detect_services`, `list_github_repos`.
 Services: `add_service` (accepts initial variables — put build-time `RAILPACK_*` pins here so the first
-build sees them), `configure_service` (start command, resources), `set_variables`, `list_variables`.
-Resources: `create_database`, `create_kv_store`, `create_bucket`, `create_volume`, `get_credentials`,
-`run_sql`.
+build sees them; optional `cpu`/`memory` to size it), `configure_service` (start command, resources),
+`set_variables`, `list_variables`.
+Resources: `create_database` (optional `cpu`/`memory`), `create_kv_store`, `create_bucket`,
+`create_volume`, `get_credentials`, `run_sql`.
 Deploy: `deploy`, `get_deploy_status`, `get_logs`, `rollback`, `add_domain`.
 
 There are no delete tools — the user removes projects, services, and resources from the dashboard.

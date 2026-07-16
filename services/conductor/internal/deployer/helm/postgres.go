@@ -6,22 +6,12 @@ import (
 	"strconv"
 
 	"k8s.io/apimachinery/pkg/api/resource"
-
-	"github.com/zeitlos/lucity/services/conductor/internal/resources"
 )
 
-func postgresParameters(cpu, memory resource.Quantity) map[string]string {
-	if cpu.IsZero() {
-		cpu = resources.DefaultCPULimit
-	}
+func postgresParameters(cpuLimit, memoryLimit resource.Quantity) map[string]string {
+	memMB := memoryLimit.Value() / (1024 * 1024)
 
-	if memory.IsZero() {
-		memory = resources.DefaultMemoryLimit
-	}
-
-	memMB := memory.Value() / (1024 * 1024)
-
-	cores := int(math.Ceil(float64(cpu.MilliValue()) / 1000.0))
+	cores := int(math.Ceil(float64(cpuLimit.MilliValue()) / 1000.0))
 	if cores < 1 {
 		cores = 1
 	}

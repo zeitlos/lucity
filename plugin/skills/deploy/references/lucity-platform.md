@@ -19,8 +19,10 @@ CPU and memory use Kubernetes quantity strings:
 - CPU: millicores or cores — `250m`, `500m`, `1`, `2`.
 - Memory: binary suffixes — `256Mi`, `512Mi`, `1Gi`, `2Gi`.
 
-Set these with `configure_service`. When remediating `OOM_KILLED`, double the memory (`512Mi` → `1Gi`)
-and re-check; stay within the workspace quota (`QUOTA_EXCEEDED` if you exceed it).
+Pass `cpu` and `memory` (both together) to `add_service` / `create_database` to size a resource at
+creation, or set them later with `configure_service`; omit them for platform defaults. Each service or
+database has its own ceiling below the whole-workspace quota: a larger request is rejected, and
+exhausting the quota surfaces as `QUOTA_EXCEEDED`.
 
 ## ID formats
 
@@ -71,7 +73,7 @@ Use it for one-off imports, then rely on in-cluster refs for the running app.
 
 | Reason | Meaning | Remedy |
 | :-- | :-- | :-- |
-| `OOM_KILLED` | Container exceeded its memory limit. | Double memory via `configure_service` (cap at quota), re-check. No rebuild. |
+| `OOM_KILLED` | Container exceeded its memory limit. | Double memory via `configure_service` (up to the per-service ceiling), re-check. No rebuild. |
 | `CRASH_LOOP` | Container starts then exits repeatedly. | `get_logs kind=runtime`: wrong start command, `PORT` not honored, or missing env var. Fix + redeploy. |
 | `IMAGE_PULL_FAILED` | The image ref cannot be pulled. | Fix the image reference (prebuilt-image deploys) or rebuild. |
 | `CONFIG_ERROR` | Invalid configuration applied during rollout. | Read the message; correct the offending variable/setting. |

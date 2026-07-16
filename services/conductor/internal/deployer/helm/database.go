@@ -15,6 +15,10 @@ type databaseClient struct {
 }
 
 func (d *databaseClient) Create(ctx context.Context, env platform.EnvironmentID, name string, spec deployer.DatabaseSpec) (deployer.RevisionID, error) {
+	if err := validateResources(spec.Resources); err != nil {
+		return "", err
+	}
+
 	return d.client.applyEnv(ctx, env, func(e *values.Env) error {
 		return values.CreateDatabase(e, name, values.DatabaseSpec{
 			Version:    spec.Version,
@@ -26,6 +30,10 @@ func (d *databaseClient) Create(ctx context.Context, env platform.EnvironmentID,
 }
 
 func (d *databaseClient) SetResources(ctx context.Context, id platform.DatabaseID, tier platform.ResourceTier, res deployer.Resources) (deployer.RevisionID, error) {
+	if err := validateResources(res); err != nil {
+		return "", err
+	}
+
 	return d.client.applyEnv(ctx, id.EnvironmentID(), func(e *values.Env) error {
 		if err := values.SetDatabaseResources(e, id.Name, deriveRequestsAndLimtis(res, tier)); err != nil {
 			return err

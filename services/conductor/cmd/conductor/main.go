@@ -24,7 +24,6 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/pipeline"
 	"github.com/zeitlos/lucity/services/conductor/internal/planner/railpack"
 	platformK8s "github.com/zeitlos/lucity/services/conductor/internal/platform/kubernetes"
-	"github.com/zeitlos/lucity/services/conductor/internal/resources"
 	scanjobK8s "github.com/zeitlos/lucity/services/conductor/internal/scanjob/kubernetes"
 	"github.com/zeitlos/lucity/services/conductor/internal/scanreport"
 	sourceGH "github.com/zeitlos/lucity/services/conductor/internal/source/github"
@@ -311,7 +310,7 @@ func main() {
 
 	chartRef.Metadata.Version = version.String()
 
-	deployerClient, err := helmDeployer.New(chartRef, config.GatewayName, config.GatewayNamespace, resources.DefaultCPULimit, resources.DefaultMemoryLimit)
+	deployerClient, err := helmDeployer.New(chartRef, config.GatewayName, config.GatewayNamespace)
 
 	if err != nil {
 		slog.Error("failed to create deployer client", "error", err)
