@@ -122,9 +122,10 @@ func (c *Client) CreateDatabase(ctx context.Context, environment platform.Enviro
 	}
 
 	return &Database{
-		Name:    name,
-		Version: version,
-		Size:    parsedSize,
+		Name:      name,
+		Version:   version,
+		Size:      parsedSize,
+		Resources: platform.Resources{CPU: resources.CPU, Memory: resources.Memory},
 	}, nil
 }
 

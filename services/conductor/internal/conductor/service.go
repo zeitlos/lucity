@@ -195,6 +195,7 @@ func (c *Client) AddService(ctx context.Context, environmentID platform.Environm
 		ID:        id,
 		Name:      serviceName,
 		Variables: variables,
+		Resources: platform.Resources{CPU: resources.CPU, Memory: resources.Memory},
 	}
 
 	if spec.SourceURL != "" {
