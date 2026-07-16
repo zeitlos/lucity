@@ -5,7 +5,6 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/deployer"
 
 	"helm.sh/helm/v3/pkg/chart"
-	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 type Client struct {
@@ -13,12 +12,9 @@ type Client struct {
 	chart            *chart.Chart
 	gatewayName      string
 	gatewayNamespace string
-
-	defaultCPULimit    resource.Quantity
-	defaultMemoryLimit resource.Quantity
 }
 
-func New(chart *chart.Chart, gatewayName, gatewayNamespace string, defaultCPULimit, defaultMemoryLimit resource.Quantity) (*Client, error) {
+func New(chart *chart.Chart, gatewayName, gatewayNamespace string) (*Client, error) {
 	chartVersion, err := semver.Parse(chart.Metadata.Version)
 
 	if err != nil {
@@ -30,9 +26,6 @@ func New(chart *chart.Chart, gatewayName, gatewayNamespace string, defaultCPULim
 		chart:            chart,
 		gatewayName:      gatewayName,
 		gatewayNamespace: gatewayNamespace,
-
-		defaultCPULimit:    defaultCPULimit,
-		defaultMemoryLimit: defaultMemoryLimit,
 	}, nil
 }
 

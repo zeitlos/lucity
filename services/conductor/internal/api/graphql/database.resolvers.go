@@ -8,17 +8,22 @@ package graphql
 import (
 	"context"
 
+	"github.com/zeitlos/lucity/pkg/to"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
 // CreateDatabase is the resolver for the createDatabase field.
 func (r *mutationResolver) CreateDatabase(ctx context.Context, input model.CreateDatabaseInput) (*model.Database, error) {
-	size := ""
-	if input.Size != nil {
-		size = *input.Size
+	var cpu string
+	var memory string
+
+	if input.Resources != nil {
+		cpu = input.Resources.CPU
+		memory = input.Resources.Memory
 	}
-	db, err := r.Conductor.CreateDatabase(ctx, input.Environment, input.Name, size)
+
+	db, err := r.Conductor.CreateDatabase(ctx, input.Environment, input.Name, to.Val(input.Size), cpu, memory)
 	if err != nil {
 		return nil, err
 	}

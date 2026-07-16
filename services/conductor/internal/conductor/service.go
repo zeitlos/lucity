@@ -17,10 +17,19 @@ import (
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/services/conductor/internal/buildjob"
 	"github.com/zeitlos/lucity/services/conductor/internal/deployer"
-	"github.com/zeitlos/lucity/services/conductor/internal/planner"
 	"github.com/zeitlos/lucity/services/conductor/internal/metrics"
+	"github.com/zeitlos/lucity/services/conductor/internal/planner"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 	"github.com/zeitlos/lucity/services/conductor/internal/resources"
+)
+
+var (
+	minServiceCPU        = resource.MustParse("250m")
+	minServiceMemory     = resource.MustParse("256Mi")
+	maxServiceCPU        = resource.MustParse("4")
+	maxServiceMemory     = resource.MustParse("16Gi")
+	defaultServiceCPU    = resources.DefaultCPULimit
+	defaultServiceMemory = resources.DefaultMemoryLimit
 )
 
 func (c *Client) ServiceUsage(ctx context.Context, id platform.ServiceID, kinds []metrics.Kind, window metrics.Window, perReplica bool) ([]metrics.Series, error) {
@@ -107,7 +116,21 @@ func (c *Client) RepositoryBranches(ctx context.Context, repositoryURL string) (
 	return c.source.Branches(ctx, repositoryURL)
 }
 
-func (c *Client) AddService(ctx context.Context, environmentID platform.EnvironmentID, name string, repository, contextPath string, externalImage string, variables map[string]string) (*Service, error) {
+func (c *Client) AddService(ctx context.Context, environmentID platform.EnvironmentID, name, repository, contextPath string, externalImage string, variables map[string]string, cpu, memory string) (*Service, error) {
+	if cpu == "" {
+		cpu = defaultServiceCPU.String()
+	}
+
+	if memory == "" {
+		memory = defaultServiceMemory.String()
+	}
+
+	resources, err := validateServiceResources(cpu, memory)
+
+	if err != nil {
+		return nil, err
+	}
+
 	workspace := environmentID.Workspace
 	projectID := environmentID.Project
 	id := platform.ServiceID{
@@ -128,6 +151,7 @@ func (c *Client) AddService(ctx context.Context, environmentID platform.Environm
 		ContextPath:  contextPath,
 		ResourceTier: environment.ResourceTier,
 		Env:          variables,
+		Resources:    resources,
 	}
 
 	if repository != "" {
@@ -269,28 +293,10 @@ func (c *Client) SetCIDeploy(ctx context.Context, svc platform.ServiceID, enable
 }
 
 func (c *Client) SetServiceResources(ctx context.Context, service platform.ServiceID, cpu, memory string) (*Service, error) {
-	cpuQuantity, err := resource.ParseQuantity(cpu)
+	spec, err := validateServiceResources(cpu, memory)
 
 	if err != nil {
-		return nil, fmt.Errorf("invalid cpu value %q: %w", cpu, err)
-	}
-
-	memoryQuantity, err := resource.ParseQuantity(memory)
-
-	if err != nil {
-		return nil, fmt.Errorf("invalid memory value %q: %w", memory, err)
-	}
-
-	if cpuQuantity.Sign() <= 0 || memoryQuantity.Sign() <= 0 {
-		return nil, fmt.Errorf("cpu and memory must be greater than zero")
-	}
-
-	if cpuQuantity.Cmp(resources.DefaultCPUQuota) > 0 {
-		return nil, fmt.Errorf("cpu exceeds the maximum of %s", resources.DefaultCPUQuota.String())
-	}
-
-	if memoryQuantity.Cmp(resources.DefaultMemoryQuota) > 0 {
-		return nil, fmt.Errorf("memory exceeds the maximum of %s", resources.DefaultMemoryQuota.String())
+		return nil, err
 	}
 
 	environment, err := c.platform.Environment(ctx, service.EnvironmentID())
@@ -298,8 +304,6 @@ func (c *Client) SetServiceResources(ctx context.Context, service platform.Servi
 	if err != nil {
 		return nil, err
 	}
-
-	spec := deployer.Resources{CPU: cpuQuantity, Memory: memoryQuantity}
 
 	if _, err := c.deployer.Services().SetResources(ctx, service, environment.ResourceTier, spec); err != nil {
 		return nil, fmt.Errorf("set resources: %w", err)
@@ -417,6 +421,10 @@ func (c *Client) ReconcileServices(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func validateServiceResources(cpu, memory string) (deployer.Resources, error) {
+	return validateResources(cpu, memory, minServiceCPU, maxServiceCPU, minServiceMemory, maxServiceMemory)
 }
 
 // deriveServiceName extracts a service name from an image reference.

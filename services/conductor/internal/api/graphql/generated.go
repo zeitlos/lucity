@@ -18829,7 +18829,7 @@ func (ec *executionContext) unmarshalInputAddServiceInput(ctx context.Context, o
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "repository", "contextPath", "image", "variables"}
+	fieldsInOrder := [...]string{"name", "repository", "contextPath", "image", "variables", "resources"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -18915,6 +18915,13 @@ func (ec *executionContext) unmarshalInputAddServiceInput(ctx context.Context, o
 				return it, err
 			}
 			it.Variables = data
+		case "resources":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("resources"))
+			data, err := ec.unmarshalOResourcesInput2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐResourcesInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Resources = data
 		}
 	}
 	return it, nil
@@ -19099,7 +19106,7 @@ func (ec *executionContext) unmarshalInputCreateDatabaseInput(ctx context.Contex
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"environment", "name", "size"}
+	fieldsInOrder := [...]string{"environment", "name", "size", "resources"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -19147,6 +19154,13 @@ func (ec *executionContext) unmarshalInputCreateDatabaseInput(ctx context.Contex
 				return it, err
 			}
 			it.Size = data
+		case "resources":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("resources"))
+			data, err := ec.unmarshalOResourcesInput2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐResourcesInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Resources = data
 		}
 	}
 	return it, nil
@@ -27292,6 +27306,14 @@ func (ec *executionContext) marshalOResourceTier2ᚖgithubᚗcomᚋzeitlosᚋluc
 		return graphql.Null
 	}
 	return v
+}
+
+func (ec *executionContext) unmarshalOResourcesInput2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐResourcesInput(ctx context.Context, v any) (*model.ResourcesInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputResourcesInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalORollout2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRollout(ctx context.Context, sel ast.SelectionSet, v *model.Rollout) graphql.Marshaler {

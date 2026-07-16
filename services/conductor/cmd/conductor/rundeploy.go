@@ -16,7 +16,6 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/deployer"
 	helmDeployer "github.com/zeitlos/lucity/services/conductor/internal/deployer/helm"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
-	"github.com/zeitlos/lucity/services/conductor/internal/resources"
 )
 
 type DeployConfig struct {
@@ -120,7 +119,7 @@ func runDeploy() {
 
 	chartRef.Metadata.Version = version.String()
 
-	deployerClient, err := helmDeployer.New(chartRef, config.GatewayName, config.GatewayNamespace, resources.DefaultCPULimit, resources.DefaultMemoryLimit)
+	deployerClient, err := helmDeployer.New(chartRef, config.GatewayName, config.GatewayNamespace)
 
 	if err != nil {
 		log.Error("deploy: failed to create deployer client", "error", err)
