@@ -2,6 +2,7 @@
 import { ref, computed, watch, nextTick } from 'vue';
 import { X, Trash2, Pause, Play } from '@lucide/vue';
 import Spinner from '@/components/LoadingSpinner.vue';
+import LogLine from '@/components/LogLine.vue';
 import { onKeyStroke } from '@vueuse/core';
 import { useServiceLogs } from '@/composables/useServiceLogs';
 import { Button } from '@/components/ui/button';
@@ -126,7 +127,7 @@ function clearLogs() {
         :key="idx"
       >
         <span class="select-none pr-3 text-zinc-600">{{ String(idx + 1).padStart(4, ' ') }}</span>
-        <span class="whitespace-pre-wrap break-all">{{ entry.line }}</span>
+        <LogLine :text="entry.line" />
       </div>
 
       <div

@@ -2,6 +2,7 @@
 import { ref, computed, watch, nextTick } from 'vue';
 import { X, Trash2, Pause, Play, AlertCircle } from '@lucide/vue';
 import Spinner from '@/components/LoadingSpinner.vue';
+import LogLine from '@/components/LogLine.vue';
 import { onKeyStroke } from '@vueuse/core';
 import { useBuildLogs } from '@/composables/useBuildLogs';
 import { useDeployLogs } from '@/composables/useDeployLogs';
@@ -184,7 +185,7 @@ function togglePause() {
         :key="idx"
       >
         <span class="select-none pr-3 text-zinc-600">{{ String(idx + 1).padStart(4, ' ') }}</span>
-        <span class="whitespace-pre-wrap break-all">{{ line }}</span>
+        <LogLine :text="line" />
       </div>
 
       <div
