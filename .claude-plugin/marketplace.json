@@ -9,7 +9,6 @@
   "plugins": [
     {
       "name": "lucity",
-      "displayName": "Lucity",
       "description": "Deploy software to Lucity with one prompt: zero-config builds, PostgreSQL, Redis, S3-compatible storage.",
       "source": "./plugin",
       "version": "0.1.0"
