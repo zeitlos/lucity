@@ -1,6 +1,5 @@
 {
   "name": "lucity",
-  "displayName": "Lucity",
   "version": "0.1.0",
   "description": "Deploy software to Lucity with one prompt — zero-config builds, PostgreSQL, Redis, S3-compatible storage.",
   "author": {
