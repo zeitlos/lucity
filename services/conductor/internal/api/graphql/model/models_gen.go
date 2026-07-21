@@ -76,6 +76,22 @@ type BucketCredentials struct {
 	SecretAccessKey string `json:"secretAccessKey"`
 }
 
+type BucketFolder struct {
+	Prefix string `json:"prefix"`
+}
+
+type BucketObject struct {
+	Key          string    `json:"key"`
+	Size         int       `json:"size"`
+	LastModified time.Time `json:"lastModified"`
+}
+
+type BucketObjectListing struct {
+	Prefix  string         `json:"prefix"`
+	Folders []BucketFolder `json:"folders"`
+	Objects []BucketObject `json:"objects"`
+}
+
 type BucketSource struct {
 	ID   platform.BucketID `json:"id"`
 	Name string            `json:"name"`

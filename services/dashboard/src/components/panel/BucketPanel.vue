@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import BucketConnectionTab from './BucketConnectionTab.vue';
+import BucketFilesTab from './BucketFilesTab.vue';
 import BucketSettingsTab from './BucketSettingsTab.vue';
 
 const props = defineProps<{
@@ -51,13 +52,18 @@ onKeyStroke('Escape', () => {
 
     <!-- Tab Content -->
     <ScrollArea class="flex-1">
-      <Tabs default-value="connect" class="h-full">
+      <Tabs default-value="files" class="h-full">
         <div class="px-4 pt-2">
           <TabsList class="w-full">
+            <TabsTrigger value="files">Files</TabsTrigger>
             <TabsTrigger value="connect">Connect</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
         </div>
+
+        <TabsContent value="files" class="px-4 py-4">
+          <BucketFilesTab :bucket-id="props.bucket.id" />
+        </TabsContent>
 
         <TabsContent value="connect" class="px-4 py-4">
           <BucketConnectionTab

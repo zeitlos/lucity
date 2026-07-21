@@ -67,6 +67,10 @@ type Interface interface {
 	Delete(ctx context.Context, id platform.BucketID) error
 	Credentials(ctx context.Context, id platform.BucketID) (*Credentials, error)
 	SetPublic(ctx context.Context, id platform.BucketID, public bool) (*Bucket, error)
+	Objects(ctx context.Context, id platform.BucketID, prefix string) (*ObjectListing, error)
+	PresignDownload(ctx context.Context, id platform.BucketID, key string) (string, error)
+	PresignUpload(ctx context.Context, id platform.BucketID, key string) (string, error)
+	DeleteObject(ctx context.Context, id platform.BucketID, key string) error
 }
 
 type Backend interface {
@@ -216,6 +220,14 @@ func (m *Manager) Create(ctx context.Context, environment platform.EnvironmentID
 
 		return nil, err
 	}
+
+	m.ensureCORS(ctx, &Credentials{
+		Endpoint:        conn.Endpoint,
+		Region:          conn.Region,
+		Bucket:          physical,
+		AccessKeyID:     conn.AccessKeyID,
+		SecretAccessKey: conn.SecretAccessKey,
+	})
 
 	return &Bucket{
 		ID:       id,

@@ -322,7 +322,7 @@ func (b *Backend) syncPolicy(ctx context.Context, userID int64) error {
 				"s3:GetObject", "s3:PutObject", "s3:DeleteObject",
 				"s3:ListBucket", "s3:ListMultipartUploadParts",
 				"s3:ListBucketMultipartUploads", "s3:AbortMultipartUpload",
-				"s3:GetBucketLocation",
+				"s3:GetBucketLocation", "s3:GetBucketCORS", "s3:PutBucketCORS",
 			},
 			"Resource": resources,
 		}},

@@ -38,6 +38,10 @@ type Documents = {
     "\n  mutation CreatePlanCheckout($plan: Plan!) {\n    createPlanCheckout(plan: $plan) {\n      url\n    }\n  }\n": typeof types.CreatePlanCheckoutDocument,
     "\n  query BucketCredentials($bucket: BucketID!) {\n    bucketCredentials(bucket: $bucket) {\n      endpoint\n      region\n      bucket\n      accessKeyId\n      secretAccessKey\n    }\n  }\n": typeof types.BucketCredentialsDocument,
     "\n  mutation SetBucketPublic($bucket: BucketID!, $public: Boolean!) {\n    setBucketPublic(bucket: $bucket, public: $public) {\n      id\n      public\n      publicEndpoint\n    }\n  }\n": typeof types.SetBucketPublicDocument,
+    "\n  query BucketObjects($bucket: BucketID!, $prefix: String) {\n    bucketObjects(bucket: $bucket, prefix: $prefix) {\n      prefix\n      folders {\n        prefix\n      }\n      objects {\n        key\n        size\n        lastModified\n      }\n    }\n  }\n": typeof types.BucketObjectsDocument,
+    "\n  mutation BucketObjectUploadUrl($bucket: BucketID!, $key: String!) {\n    bucketObjectUploadUrl(bucket: $bucket, key: $key)\n  }\n": typeof types.BucketObjectUploadUrlDocument,
+    "\n  query BucketObjectDownloadUrl($bucket: BucketID!, $key: String!) {\n    bucketObjectDownloadUrl(bucket: $bucket, key: $key)\n  }\n": typeof types.BucketObjectDownloadUrlDocument,
+    "\n  mutation DeleteBucketObject($bucket: BucketID!, $key: String!) {\n    deleteBucketObject(bucket: $bucket, key: $key)\n  }\n": typeof types.DeleteBucketObjectDocument,
     "\n  mutation DeleteBucket($bucket: BucketID!) {\n    deleteBucket(bucket: $bucket)\n  }\n": typeof types.DeleteBucketDocument,
     "\n  query DatabasePublic($database: DatabaseID!) {\n    database(id: $database) {\n      id\n      public\n    }\n  }\n": typeof types.DatabasePublicDocument,
     "\n  query DatabaseCredentials($database: DatabaseID!) {\n    databaseCredentials(database: $database) {\n      type\n      host\n      port\n      dbname\n      user\n      password\n      uri\n    }\n  }\n": typeof types.DatabaseCredentialsDocument,
@@ -127,6 +131,10 @@ const documents: Documents = {
     "\n  mutation CreatePlanCheckout($plan: Plan!) {\n    createPlanCheckout(plan: $plan) {\n      url\n    }\n  }\n": types.CreatePlanCheckoutDocument,
     "\n  query BucketCredentials($bucket: BucketID!) {\n    bucketCredentials(bucket: $bucket) {\n      endpoint\n      region\n      bucket\n      accessKeyId\n      secretAccessKey\n    }\n  }\n": types.BucketCredentialsDocument,
     "\n  mutation SetBucketPublic($bucket: BucketID!, $public: Boolean!) {\n    setBucketPublic(bucket: $bucket, public: $public) {\n      id\n      public\n      publicEndpoint\n    }\n  }\n": types.SetBucketPublicDocument,
+    "\n  query BucketObjects($bucket: BucketID!, $prefix: String) {\n    bucketObjects(bucket: $bucket, prefix: $prefix) {\n      prefix\n      folders {\n        prefix\n      }\n      objects {\n        key\n        size\n        lastModified\n      }\n    }\n  }\n": types.BucketObjectsDocument,
+    "\n  mutation BucketObjectUploadUrl($bucket: BucketID!, $key: String!) {\n    bucketObjectUploadUrl(bucket: $bucket, key: $key)\n  }\n": types.BucketObjectUploadUrlDocument,
+    "\n  query BucketObjectDownloadUrl($bucket: BucketID!, $key: String!) {\n    bucketObjectDownloadUrl(bucket: $bucket, key: $key)\n  }\n": types.BucketObjectDownloadUrlDocument,
+    "\n  mutation DeleteBucketObject($bucket: BucketID!, $key: String!) {\n    deleteBucketObject(bucket: $bucket, key: $key)\n  }\n": types.DeleteBucketObjectDocument,
     "\n  mutation DeleteBucket($bucket: BucketID!) {\n    deleteBucket(bucket: $bucket)\n  }\n": types.DeleteBucketDocument,
     "\n  query DatabasePublic($database: DatabaseID!) {\n    database(id: $database) {\n      id\n      public\n    }\n  }\n": types.DatabasePublicDocument,
     "\n  query DatabaseCredentials($database: DatabaseID!) {\n    databaseCredentials(database: $database) {\n      type\n      host\n      port\n      dbname\n      user\n      password\n      uri\n    }\n  }\n": types.DatabaseCredentialsDocument,
@@ -302,6 +310,22 @@ export function graphql(source: "\n  query BucketCredentials($bucket: BucketID!)
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation SetBucketPublic($bucket: BucketID!, $public: Boolean!) {\n    setBucketPublic(bucket: $bucket, public: $public) {\n      id\n      public\n      publicEndpoint\n    }\n  }\n"): (typeof documents)["\n  mutation SetBucketPublic($bucket: BucketID!, $public: Boolean!) {\n    setBucketPublic(bucket: $bucket, public: $public) {\n      id\n      public\n      publicEndpoint\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query BucketObjects($bucket: BucketID!, $prefix: String) {\n    bucketObjects(bucket: $bucket, prefix: $prefix) {\n      prefix\n      folders {\n        prefix\n      }\n      objects {\n        key\n        size\n        lastModified\n      }\n    }\n  }\n"): (typeof documents)["\n  query BucketObjects($bucket: BucketID!, $prefix: String) {\n    bucketObjects(bucket: $bucket, prefix: $prefix) {\n      prefix\n      folders {\n        prefix\n      }\n      objects {\n        key\n        size\n        lastModified\n      }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation BucketObjectUploadUrl($bucket: BucketID!, $key: String!) {\n    bucketObjectUploadUrl(bucket: $bucket, key: $key)\n  }\n"): (typeof documents)["\n  mutation BucketObjectUploadUrl($bucket: BucketID!, $key: String!) {\n    bucketObjectUploadUrl(bucket: $bucket, key: $key)\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query BucketObjectDownloadUrl($bucket: BucketID!, $key: String!) {\n    bucketObjectDownloadUrl(bucket: $bucket, key: $key)\n  }\n"): (typeof documents)["\n  query BucketObjectDownloadUrl($bucket: BucketID!, $key: String!) {\n    bucketObjectDownloadUrl(bucket: $bucket, key: $key)\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation DeleteBucketObject($bucket: BucketID!, $key: String!) {\n    deleteBucketObject(bucket: $bucket, key: $key)\n  }\n"): (typeof documents)["\n  mutation DeleteBucketObject($bucket: BucketID!, $key: String!) {\n    deleteBucketObject(bucket: $bucket, key: $key)\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
