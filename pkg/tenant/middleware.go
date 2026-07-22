@@ -12,6 +12,11 @@ import (
 func Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ws := r.Header.Get(Header)
+
+		if claims, err := auth.FromContext(r.Context()); err == nil && len(claims.Workspaces) == 1 {
+			ws = claims.Workspaces[0].Workspace
+		}
+
 		if ws != "" {
 			ctx := NewContext(r.Context(), ws)
 			ctx = auth.WithActiveWorkspace(ctx, ws)

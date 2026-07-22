@@ -58,6 +58,7 @@ type Config struct {
 	OIDCDiscoveryURL string `envconfig:"OIDC_DISCOVERY_URL"`
 	OIDCClientID     string `envconfig:"OIDC_CLIENT_ID" required:"true"`
 	OIDCCallbackURL  string `envconfig:"OIDC_CALLBACK_URL" default:"http://localhost:8080/auth/callback"`
+	OIDCAudience     string `envconfig:"OIDC_AUDIENCE"`
 
 	// Auth
 	DashboardURL   string `envconfig:"DASHBOARD_URL" default:"http://localhost:5173"`
@@ -176,7 +177,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	verifier, err := auth.NewVerifier(ctx, config.OIDCIssuerURL, config.OIDCClientID)
+	apiAudience := config.OIDCClientID
+	if config.OIDCAudience != "" {
+		apiAudience = config.OIDCAudience
+	}
+	verifier, err := auth.NewVerifier(ctx, config.OIDCIssuerURL, apiAudience)
 	if err != nil {
 		slog.Error("failed to create JWT verifier", "error", err)
 		os.Exit(1)
@@ -237,6 +242,8 @@ func main() {
 
 	logtoClient := logto.New(config.LogtoEndpoint, config.LogtoM2MAppID, config.LogtoM2MAppSecret)
 	slog.Info("logto management API configured", "endpoint", config.LogtoEndpoint)
+
+	verifier = verifier.WithOrgResolver(newOrgResolver(logtoClient))
 
 	domainTarget := "lb." + config.WorkloadDomain
 
