@@ -191,6 +191,23 @@ func Me(ctx context.Context, httpClient *http.Client, baseURL, token string) (*I
 	return &identity, nil
 }
 
+type AuthConfig struct {
+	Issuer   string `json:"issuer"`
+	Audience string `json:"audience"`
+}
+
+func Config(ctx context.Context, httpClient *http.Client, baseURL string) (*AuthConfig, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimSuffix(baseURL, "/")+"/auth/config", nil)
+	if err != nil {
+		return nil, err
+	}
+	var cfg AuthConfig
+	if err := doJSON(httpClient, req, &cfg); err != nil {
+		return nil, err
+	}
+	return &cfg, nil
+}
+
 func ExchangeCode(ctx context.Context, httpClient *http.Client, baseURL, code string) (*Session, error) {
 	return postAuthJSON(ctx, httpClient, strings.TrimSuffix(baseURL, "/")+"/auth/cli/exchange", "", map[string]string{"code": code})
 }

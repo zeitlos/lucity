@@ -36,6 +36,7 @@ Environment:
   LUCITY_API_URL    Override the platform URL (default: stored, then ` + api.DefaultBaseURL + `)
   LUCITY_WORKSPACE  Override the active workspace
   LUCITY_TOKEN      Use a fixed bearer token instead of the stored session
+  LUCITY_API_KEY    Authenticate with a workspace API key (for CI and automation)
 `
 
 func main() {

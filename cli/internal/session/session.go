@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/zeitlos/lucity/cli/internal/api"
+	"github.com/zeitlos/lucity/cli/internal/apikey"
 	"github.com/zeitlos/lucity/cli/internal/ciauth"
 	"github.com/zeitlos/lucity/cli/internal/config"
 )
@@ -26,6 +27,47 @@ type Manager struct {
 	ciTried  bool
 	ciResult *ciauth.Session
 	ciErr    error
+
+	apiKeyMu    sync.Mutex
+	apiKeyToken string
+	apiKeyExp   time.Time
+}
+
+func (m *Manager) apiKey() string {
+	return os.Getenv("LUCITY_API_KEY")
+}
+
+func (m *Manager) apiKeyBearer(ctx context.Context, raw string) (string, error) {
+	m.apiKeyMu.Lock()
+	defer m.apiKeyMu.Unlock()
+
+	if m.apiKeyToken != "" && time.Now().Before(m.apiKeyExp) {
+		return m.apiKeyToken, nil
+	}
+
+	key, err := apikey.Parse(raw)
+	if err != nil {
+		return "", err
+	}
+
+	httpClient := &http.Client{Timeout: 30 * time.Second}
+	cfg, err := api.Config(ctx, httpClient, m.APIURL())
+	if err != nil {
+		return "", fmt.Errorf("fetch auth config: %w", err)
+	}
+
+	token, expiresIn, err := key.Exchange(ctx, httpClient, cfg.Issuer, cfg.Audience)
+	if err != nil {
+		return "", err
+	}
+
+	m.apiKeyToken = token
+	leeway := expiresIn - 60
+	if leeway < 0 {
+		leeway = expiresIn
+	}
+	m.apiKeyExp = time.Now().Add(time.Duration(leeway) * time.Second)
+	return token, nil
 }
 
 func Load() (*Manager, error) {
@@ -50,6 +92,11 @@ func (m *Manager) Workspace() string {
 	if workspace := os.Getenv("LUCITY_WORKSPACE"); workspace != "" {
 		return workspace
 	}
+	if raw := m.apiKey(); raw != "" {
+		if key, err := apikey.Parse(raw); err == nil {
+			return key.Workspace
+		}
+	}
 	if m.cfg.Workspace != "" {
 		return m.cfg.Workspace
 	}
@@ -60,7 +107,7 @@ func (m *Manager) Workspace() string {
 }
 
 func (m *Manager) Prepare(ctx context.Context) error {
-	if os.Getenv("LUCITY_TOKEN") != "" {
+	if os.Getenv("LUCITY_TOKEN") != "" || m.apiKey() != "" {
 		return nil
 	}
 
@@ -123,6 +170,9 @@ func (m *Manager) Client() *api.Client {
 }
 
 func (m *Manager) CookieTokens(context.Context) (logtoToken, refreshToken string) {
+	if m.apiKey() != "" {
+		return "", ""
+	}
 	if token := os.Getenv("LUCITY_LOGTO_TOKEN"); token != "" {
 		return token, os.Getenv("LUCITY_REFRESH_TOKEN")
 	}
@@ -161,6 +211,10 @@ func (m *Manager) PersistRotatedTokens(sessionToken, logtoToken, refreshToken st
 func (m *Manager) Token(ctx context.Context) (string, error) {
 	if token := os.Getenv("LUCITY_TOKEN"); token != "" {
 		return token, nil
+	}
+
+	if raw := m.apiKey(); raw != "" {
+		return m.apiKeyBearer(ctx, raw)
 	}
 
 	m.mu.Lock()
