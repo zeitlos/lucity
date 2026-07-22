@@ -702,6 +702,30 @@ func convertBucketCredentials(c conductor.BucketCredentials) model.BucketCredent
 	}
 }
 
+func convertBucketObjectListing(l conductor.BucketObjectListing) model.BucketObjectListing {
+	folders := make([]model.BucketFolder, 0, len(l.Folders))
+
+	for _, folder := range l.Folders {
+		folders = append(folders, model.BucketFolder{Prefix: folder.Prefix})
+	}
+
+	objects := make([]model.BucketObject, 0, len(l.Objects))
+
+	for _, object := range l.Objects {
+		objects = append(objects, model.BucketObject{
+			Key:          object.Key,
+			Size:         int(object.Size),
+			LastModified: object.LastModified,
+		})
+	}
+
+	return model.BucketObjectListing{
+		Prefix:  l.Prefix,
+		Folders: folders,
+		Objects: objects,
+	}
+}
+
 // --- Enum converters ----------------------------------------------------
 //
 // Each GraphQL enum gets a typed switch instead of a free-form string cast.

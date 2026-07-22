@@ -25,6 +25,22 @@ type BucketCredentials {
   secretAccessKey: String!
 }
 
+type BucketObject {
+  key: String!
+  size: Int!
+  lastModified: Time!
+}
+
+type BucketFolder {
+  prefix: String!
+}
+
+type BucketObjectListing {
+  prefix: String!
+  folders: [BucketFolder!]!
+  objects: [BucketObject!]!
+}
+
 input CreateBucketInput {
   environment: EnvironmentID!
   name: String! @constraint(constraint: "resource_name,min=2,max=16")
@@ -37,10 +53,26 @@ extend type Environment {
 extend type Query {
   bucket(id: BucketID!): Bucket! @hasRole(role: WORKSPACE_MEMBER)
   bucketCredentials(bucket: BucketID!): BucketCredentials! @hasRole(role: WORKSPACE_MEMBER)
+  bucketObjects(
+    bucket: BucketID!
+    prefix: String @constraint(constraint: "max=1024")
+  ): BucketObjectListing! @hasRole(role: WORKSPACE_MEMBER)
+  bucketObjectDownloadUrl(
+    bucket: BucketID!
+    key: String! @constraint(constraint: "min=1,max=1024")
+  ): String! @hasRole(role: WORKSPACE_MEMBER)
 }
 
 extend type Mutation {
   createBucket(input: CreateBucketInput!): Bucket! @hasRole(role: WORKSPACE_MEMBER)
   deleteBucket(bucket: BucketID!): Boolean! @hasRole(role: WORKSPACE_MEMBER)
   setBucketPublic(bucket: BucketID!, public: Boolean!): Bucket! @hasRole(role: WORKSPACE_MEMBER)
+  bucketObjectUploadUrl(
+    bucket: BucketID!
+    key: String! @constraint(constraint: "min=1,max=1024")
+  ): String! @hasRole(role: WORKSPACE_MEMBER)
+  deleteBucketObject(
+    bucket: BucketID!
+    key: String! @constraint(constraint: "min=1,max=1024")
+  ): Boolean! @hasRole(role: WORKSPACE_MEMBER)
 }

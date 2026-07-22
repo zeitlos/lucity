@@ -11,6 +11,7 @@ import (
 type BucketID = platform.BucketID
 type Bucket = objectstorage.Bucket
 type BucketCredentials = objectstorage.Credentials
+type BucketObjectListing = objectstorage.ObjectListing
 
 const maxBucketsPerEnvironment = 10
 
@@ -62,4 +63,24 @@ func (c *Client) SetBucketPublic(ctx context.Context, id BucketID, public bool) 
 	}
 
 	return bucket, nil
+}
+
+func (c *Client) BucketObjects(ctx context.Context, id BucketID, prefix string) (*BucketObjectListing, error) {
+	return c.objectStorage.Objects(ctx, id, prefix)
+}
+
+func (c *Client) BucketObjectDownloadURL(ctx context.Context, id BucketID, key string) (string, error) {
+	return c.objectStorage.PresignDownload(ctx, id, key)
+}
+
+func (c *Client) BucketObjectUploadURL(ctx context.Context, id BucketID, key string) (string, error) {
+	return c.objectStorage.PresignUpload(ctx, id, key)
+}
+
+func (c *Client) DeleteBucketObject(ctx context.Context, id BucketID, key string) (bool, error) {
+	if err := c.objectStorage.DeleteObject(ctx, id, key); err != nil {
+		return false, fmt.Errorf("delete bucket object: %w", err)
+	}
+
+	return true, nil
 }

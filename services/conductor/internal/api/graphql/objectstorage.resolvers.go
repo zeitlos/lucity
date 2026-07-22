@@ -8,6 +8,7 @@ package graphql
 import (
 	"context"
 
+	"github.com/zeitlos/lucity/pkg/to"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
@@ -60,6 +61,16 @@ func (r *mutationResolver) SetBucketPublic(ctx context.Context, bucket platform.
 	return &converted, nil
 }
 
+// BucketObjectUploadURL is the resolver for the bucketObjectUploadUrl field.
+func (r *mutationResolver) BucketObjectUploadURL(ctx context.Context, bucket platform.BucketID, key string) (string, error) {
+	return r.Conductor.BucketObjectUploadURL(ctx, bucket, key)
+}
+
+// DeleteBucketObject is the resolver for the deleteBucketObject field.
+func (r *mutationResolver) DeleteBucketObject(ctx context.Context, bucket platform.BucketID, key string) (bool, error) {
+	return r.Conductor.DeleteBucketObject(ctx, bucket, key)
+}
+
 // Bucket is the resolver for the bucket field.
 func (r *queryResolver) Bucket(ctx context.Context, id platform.BucketID) (*model.Bucket, error) {
 	bucket, err := r.Conductor.Bucket(ctx, id)
@@ -84,4 +95,22 @@ func (r *queryResolver) BucketCredentials(ctx context.Context, bucket platform.B
 	result := convertBucketCredentials(*creds)
 
 	return &result, nil
+}
+
+// BucketObjects is the resolver for the bucketObjects field.
+func (r *queryResolver) BucketObjects(ctx context.Context, bucket platform.BucketID, prefix *string) (*model.BucketObjectListing, error) {
+	listing, err := r.Conductor.BucketObjects(ctx, bucket, to.Val(prefix))
+
+	if err != nil {
+		return nil, err
+	}
+
+	result := convertBucketObjectListing(*listing)
+
+	return &result, nil
+}
+
+// BucketObjectDownloadURL is the resolver for the bucketObjectDownloadUrl field.
+func (r *queryResolver) BucketObjectDownloadURL(ctx context.Context, bucket platform.BucketID, key string) (string, error) {
+	return r.Conductor.BucketObjectDownloadURL(ctx, bucket, key)
 }

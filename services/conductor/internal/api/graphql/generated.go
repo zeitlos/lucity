@@ -90,6 +90,22 @@ type ComplexityRoot struct {
 		SecretAccessKey func(childComplexity int) int
 	}
 
+	BucketFolder struct {
+		Prefix func(childComplexity int) int
+	}
+
+	BucketObject struct {
+		Key          func(childComplexity int) int
+		LastModified func(childComplexity int) int
+		Size         func(childComplexity int) int
+	}
+
+	BucketObjectListing struct {
+		Folders func(childComplexity int) int
+		Objects func(childComplexity int) int
+		Prefix  func(childComplexity int) int
+	}
+
 	BucketSource struct {
 		ID   func(childComplexity int) int
 		Name func(childComplexity int) int
@@ -320,6 +336,7 @@ type ComplexityRoot struct {
 		AddCustomDomain           func(childComplexity int, service platform.ServiceID, hostname string) int
 		AddService                func(childComplexity int, environment platform.EnvironmentID, input model.AddServiceInput) int
 		BillingPortalURL          func(childComplexity int) int
+		BucketObjectUploadURL     func(childComplexity int, bucket platform.BucketID, key string) int
 		ChangePlan                func(childComplexity int, plan model.Plan) int
 		CompletePlanCheckout      func(childComplexity int, sessionID string) int
 		CompleteWorkspaceCheckout func(childComplexity int, sessionID string) int
@@ -332,6 +349,7 @@ type ComplexityRoot struct {
 		CreateVolume              func(childComplexity int, environment platform.EnvironmentID, name string, size string) int
 		CreateWorkspaceCheckout   func(childComplexity int, input model.CreateWorkspaceCheckoutInput) int
 		DeleteBucket              func(childComplexity int, bucket platform.BucketID) int
+		DeleteBucketObject        func(childComplexity int, bucket platform.BucketID, key string) int
 		DeleteDatabase            func(childComplexity int, database platform.DatabaseID) int
 		DeleteEnvironment         func(childComplexity int, environment platform.EnvironmentID) int
 		DeleteKeyValueStore       func(childComplexity int, keyValueStore platform.KeyValueStoreID) int
@@ -379,6 +397,8 @@ type ComplexityRoot struct {
 		AvailableVariables       func(childComplexity int, environment platform.EnvironmentID) int
 		Bucket                   func(childComplexity int, id platform.BucketID) int
 		BucketCredentials        func(childComplexity int, bucket platform.BucketID) int
+		BucketObjectDownloadURL  func(childComplexity int, bucket platform.BucketID, key string) int
+		BucketObjects            func(childComplexity int, bucket platform.BucketID, prefix *string) int
 		Build                    func(childComplexity int, id buildjob.BuildID) int
 		Database                 func(childComplexity int, id platform.DatabaseID) int
 		DatabaseCredentials      func(childComplexity int, database platform.DatabaseID) int
@@ -617,6 +637,8 @@ type MutationResolver interface {
 	CreateBucket(ctx context.Context, input model.CreateBucketInput) (*model.Bucket, error)
 	DeleteBucket(ctx context.Context, bucket platform.BucketID) (bool, error)
 	SetBucketPublic(ctx context.Context, bucket platform.BucketID, public bool) (*model.Bucket, error)
+	BucketObjectUploadURL(ctx context.Context, bucket platform.BucketID, key string) (string, error)
+	DeleteBucketObject(ctx context.Context, bucket platform.BucketID, key string) (bool, error)
 	CreateProject(ctx context.Context, input model.CreateProjectInput) (*model.Project, error)
 	DeleteProject(ctx context.Context, id platform.ProjectID) (bool, error)
 	AddService(ctx context.Context, environment platform.EnvironmentID, input model.AddServiceInput) (*model.Service, error)
@@ -669,6 +691,8 @@ type QueryResolver interface {
 	KeyValueStoreCredentials(ctx context.Context, keyValueStore platform.KeyValueStoreID) ([]model.KeyValueStoreCredentials, error)
 	Bucket(ctx context.Context, id platform.BucketID) (*model.Bucket, error)
 	BucketCredentials(ctx context.Context, bucket platform.BucketID) (*model.BucketCredentials, error)
+	BucketObjects(ctx context.Context, bucket platform.BucketID, prefix *string) (*model.BucketObjectListing, error)
+	BucketObjectDownloadURL(ctx context.Context, bucket platform.BucketID, key string) (string, error)
 	Projects(ctx context.Context) ([]model.Project, error)
 	Project(ctx context.Context, id platform.ProjectID) (*model.Project, error)
 	SearchImages(ctx context.Context, query string) ([]model.ImageSearchResult, error)
@@ -876,6 +900,51 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.BucketCredentials.SecretAccessKey(childComplexity), true
+
+	case "BucketFolder.prefix":
+		if e.ComplexityRoot.BucketFolder.Prefix == nil {
+			break
+		}
+
+		return e.ComplexityRoot.BucketFolder.Prefix(childComplexity), true
+
+	case "BucketObject.key":
+		if e.ComplexityRoot.BucketObject.Key == nil {
+			break
+		}
+
+		return e.ComplexityRoot.BucketObject.Key(childComplexity), true
+	case "BucketObject.lastModified":
+		if e.ComplexityRoot.BucketObject.LastModified == nil {
+			break
+		}
+
+		return e.ComplexityRoot.BucketObject.LastModified(childComplexity), true
+	case "BucketObject.size":
+		if e.ComplexityRoot.BucketObject.Size == nil {
+			break
+		}
+
+		return e.ComplexityRoot.BucketObject.Size(childComplexity), true
+
+	case "BucketObjectListing.folders":
+		if e.ComplexityRoot.BucketObjectListing.Folders == nil {
+			break
+		}
+
+		return e.ComplexityRoot.BucketObjectListing.Folders(childComplexity), true
+	case "BucketObjectListing.objects":
+		if e.ComplexityRoot.BucketObjectListing.Objects == nil {
+			break
+		}
+
+		return e.ComplexityRoot.BucketObjectListing.Objects(childComplexity), true
+	case "BucketObjectListing.prefix":
+		if e.ComplexityRoot.BucketObjectListing.Prefix == nil {
+			break
+		}
+
+		return e.ComplexityRoot.BucketObjectListing.Prefix(childComplexity), true
 
 	case "BucketSource.id":
 		if e.ComplexityRoot.BucketSource.ID == nil {
@@ -1751,6 +1820,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.BillingPortalURL(childComplexity), true
+	case "Mutation.bucketObjectUploadUrl":
+		if e.ComplexityRoot.Mutation.BucketObjectUploadURL == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_bucketObjectUploadUrl_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.BucketObjectUploadURL(childComplexity, args["bucket"].(platform.BucketID), args["key"].(string)), true
 	case "Mutation.changePlan":
 		if e.ComplexityRoot.Mutation.ChangePlan == nil {
 			break
@@ -1883,6 +1963,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.DeleteBucket(childComplexity, args["bucket"].(platform.BucketID)), true
+	case "Mutation.deleteBucketObject":
+		if e.ComplexityRoot.Mutation.DeleteBucketObject == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_deleteBucketObject_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.DeleteBucketObject(childComplexity, args["bucket"].(platform.BucketID), args["key"].(string)), true
 	case "Mutation.deleteDatabase":
 		if e.ComplexityRoot.Mutation.DeleteDatabase == nil {
 			break
@@ -2316,6 +2407,28 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.BucketCredentials(childComplexity, args["bucket"].(platform.BucketID)), true
+	case "Query.bucketObjectDownloadUrl":
+		if e.ComplexityRoot.Query.BucketObjectDownloadURL == nil {
+			break
+		}
+
+		args, err := ec.field_Query_bucketObjectDownloadUrl_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.BucketObjectDownloadURL(childComplexity, args["bucket"].(platform.BucketID), args["key"].(string)), true
+	case "Query.bucketObjects":
+		if e.ComplexityRoot.Query.BucketObjects == nil {
+			break
+		}
+
+		args, err := ec.field_Query_bucketObjects_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.BucketObjects(childComplexity, args["bucket"].(platform.BucketID), args["prefix"].(*string)), true
 	case "Query.build":
 		if e.ComplexityRoot.Query.Build == nil {
 			break
@@ -3518,6 +3631,38 @@ func (ec *executionContext) childFields_BucketCredentials(ctx context.Context, f
 	return nil, fmt.Errorf("no field named %q was found under type BucketCredentials", field.Name)
 }
 
+func (ec *executionContext) childFields_BucketFolder(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "prefix":
+		return ec.fieldContext_BucketFolder_prefix(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type BucketFolder", field.Name)
+}
+
+func (ec *executionContext) childFields_BucketObject(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "key":
+		return ec.fieldContext_BucketObject_key(ctx, field)
+	case "size":
+		return ec.fieldContext_BucketObject_size(ctx, field)
+	case "lastModified":
+		return ec.fieldContext_BucketObject_lastModified(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type BucketObject", field.Name)
+}
+
+func (ec *executionContext) childFields_BucketObjectListing(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "prefix":
+		return ec.fieldContext_BucketObjectListing_prefix(ctx, field)
+	case "folders":
+		return ec.fieldContext_BucketObjectListing_folders(ctx, field)
+	case "objects":
+		return ec.fieldContext_BucketObjectListing_objects(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type BucketObjectListing", field.Name)
+}
+
 func (ec *executionContext) childFields_Build(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
 	case "id":
@@ -4504,6 +4649,66 @@ func (ec *executionContext) field_Mutation_addService_args(ctx context.Context, 
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_bucketObjectUploadUrl_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "bucket",
+		func(ctx context.Context, v any) (platform.BucketID, error) {
+			return ec.unmarshalNBucketID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐBucketID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["bucket"] = arg0
+
+	arg1, err := ec.field_Mutation_bucketObjectUploadUrl_argsKey(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["key"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_bucketObjectUploadUrl_argsKey(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("key"))
+	directive0 := func(ctx context.Context) (any, error) {
+		tmp, ok := rawArgs["key"]
+		if !ok {
+			var zeroVal string
+			return zeroVal, nil
+		}
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	directive1 := func(ctx context.Context) (any, error) {
+		constraint, err := ec.unmarshalNString2string(ctx, "min=1,max=1024")
+		if err != nil {
+			var zeroVal string
+			return zeroVal, err
+		}
+		if ec.Directives.Constraint == nil {
+			var zeroVal string
+			return zeroVal, errors.New("directive constraint is not implemented")
+		}
+		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
+	}
+
+	tmp, err := directive1(ctx)
+	if err != nil {
+		var zeroVal string
+		return zeroVal, graphql.ErrorOnPath(ctx, err)
+	}
+	if data, ok := tmp.(string); ok {
+		return data, nil
+	} else {
+		var zeroVal string
+		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
+	}
+}
+
 func (ec *executionContext) field_Mutation_changePlan_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -4710,6 +4915,66 @@ func (ec *executionContext) field_Mutation_createWorkspaceCheckout_args(ctx cont
 	}
 	args["input"] = arg0
 	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_deleteBucketObject_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "bucket",
+		func(ctx context.Context, v any) (platform.BucketID, error) {
+			return ec.unmarshalNBucketID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐBucketID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["bucket"] = arg0
+
+	arg1, err := ec.field_Mutation_deleteBucketObject_argsKey(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["key"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_deleteBucketObject_argsKey(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("key"))
+	directive0 := func(ctx context.Context) (any, error) {
+		tmp, ok := rawArgs["key"]
+		if !ok {
+			var zeroVal string
+			return zeroVal, nil
+		}
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	directive1 := func(ctx context.Context) (any, error) {
+		constraint, err := ec.unmarshalNString2string(ctx, "min=1,max=1024")
+		if err != nil {
+			var zeroVal string
+			return zeroVal, err
+		}
+		if ec.Directives.Constraint == nil {
+			var zeroVal string
+			return zeroVal, errors.New("directive constraint is not implemented")
+		}
+		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
+	}
+
+	tmp, err := directive1(ctx)
+	if err != nil {
+		var zeroVal string
+		return zeroVal, graphql.ErrorOnPath(ctx, err)
+	}
+	if data, ok := tmp.(string); ok {
+		return data, nil
+	} else {
+		var zeroVal string
+		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
+	}
 }
 
 func (ec *executionContext) field_Mutation_deleteBucket_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
@@ -5468,6 +5733,129 @@ func (ec *executionContext) field_Query_bucketCredentials_args(ctx context.Conte
 	}
 	args["bucket"] = arg0
 	return args, nil
+}
+
+func (ec *executionContext) field_Query_bucketObjectDownloadUrl_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "bucket",
+		func(ctx context.Context, v any) (platform.BucketID, error) {
+			return ec.unmarshalNBucketID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐBucketID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["bucket"] = arg0
+
+	arg1, err := ec.field_Query_bucketObjectDownloadUrl_argsKey(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["key"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_bucketObjectDownloadUrl_argsKey(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("key"))
+	directive0 := func(ctx context.Context) (any, error) {
+		tmp, ok := rawArgs["key"]
+		if !ok {
+			var zeroVal string
+			return zeroVal, nil
+		}
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	directive1 := func(ctx context.Context) (any, error) {
+		constraint, err := ec.unmarshalNString2string(ctx, "min=1,max=1024")
+		if err != nil {
+			var zeroVal string
+			return zeroVal, err
+		}
+		if ec.Directives.Constraint == nil {
+			var zeroVal string
+			return zeroVal, errors.New("directive constraint is not implemented")
+		}
+		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
+	}
+
+	tmp, err := directive1(ctx)
+	if err != nil {
+		var zeroVal string
+		return zeroVal, graphql.ErrorOnPath(ctx, err)
+	}
+	if data, ok := tmp.(string); ok {
+		return data, nil
+	} else {
+		var zeroVal string
+		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
+	}
+}
+
+func (ec *executionContext) field_Query_bucketObjects_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "bucket",
+		func(ctx context.Context, v any) (platform.BucketID, error) {
+			return ec.unmarshalNBucketID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐBucketID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["bucket"] = arg0
+
+	arg1, err := ec.field_Query_bucketObjects_argsPrefix(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["prefix"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_bucketObjects_argsPrefix(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("prefix"))
+	directive0 := func(ctx context.Context) (any, error) {
+		tmp, ok := rawArgs["prefix"]
+		if !ok {
+			var zeroVal *string
+			return zeroVal, nil
+		}
+		return ec.unmarshalOString2ᚖstring(ctx, tmp)
+	}
+
+	directive1 := func(ctx context.Context) (any, error) {
+		constraint, err := ec.unmarshalNString2string(ctx, "max=1024")
+		if err != nil {
+			var zeroVal *string
+			return zeroVal, err
+		}
+		if ec.Directives.Constraint == nil {
+			var zeroVal *string
+			return zeroVal, errors.New("directive constraint is not implemented")
+		}
+		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
+	}
+
+	tmp, err := directive1(ctx)
+	if err != nil {
+		var zeroVal *string
+		return zeroVal, graphql.ErrorOnPath(ctx, err)
+	}
+	if data, ok := tmp.(*string); ok {
+		return data, nil
+	} else if tmp == nil {
+		var zeroVal *string
+		return zeroVal, nil
+	} else {
+		var zeroVal *string
+		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be *string`, tmp))
+	}
 }
 
 func (ec *executionContext) field_Query_bucket_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
@@ -6559,6 +6947,185 @@ func (ec *executionContext) _BucketCredentials_secretAccessKey(ctx context.Conte
 }
 func (ec *executionContext) fieldContext_BucketCredentials_secretAccessKey(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("BucketCredentials", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _BucketFolder_prefix(ctx context.Context, field graphql.CollectedField, obj *model.BucketFolder) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_BucketFolder_prefix(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Prefix, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_BucketFolder_prefix(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("BucketFolder", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _BucketObject_key(ctx context.Context, field graphql.CollectedField, obj *model.BucketObject) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_BucketObject_key(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Key, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_BucketObject_key(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("BucketObject", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _BucketObject_size(ctx context.Context, field graphql.CollectedField, obj *model.BucketObject) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_BucketObject_size(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Size, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_BucketObject_size(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("BucketObject", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _BucketObject_lastModified(ctx context.Context, field graphql.CollectedField, obj *model.BucketObject) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_BucketObject_lastModified(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.LastModified, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v time.Time) graphql.Marshaler {
+			return ec.marshalNTime2timeᚐTime(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_BucketObject_lastModified(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("BucketObject", field, false, false, errors.New("field of type Time does not have child fields"))
+}
+
+func (ec *executionContext) _BucketObjectListing_prefix(ctx context.Context, field graphql.CollectedField, obj *model.BucketObjectListing) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_BucketObjectListing_prefix(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Prefix, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_BucketObjectListing_prefix(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("BucketObjectListing", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _BucketObjectListing_folders(ctx context.Context, field graphql.CollectedField, obj *model.BucketObjectListing) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_BucketObjectListing_folders(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Folders, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []model.BucketFolder) graphql.Marshaler {
+			return ec.marshalNBucketFolder2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐBucketFolderᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_BucketObjectListing_folders(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BucketObjectListing",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_BucketFolder(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BucketObjectListing_objects(ctx context.Context, field graphql.CollectedField, obj *model.BucketObjectListing) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_BucketObjectListing_objects(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Objects, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []model.BucketObject) graphql.Marshaler {
+			return ec.marshalNBucketObject2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐBucketObjectᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_BucketObjectListing_objects(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BucketObjectListing",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_BucketObject(ctx, field)
+		},
+	}
+	return fc, nil
 }
 
 func (ec *executionContext) _BucketSource_id(ctx context.Context, field graphql.CollectedField, obj *model.BucketSource) (ret graphql.Marshaler) {
@@ -11080,6 +11647,130 @@ func (ec *executionContext) fieldContext_Mutation_setBucketPublic(ctx context.Co
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_bucketObjectUploadUrl(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_bucketObjectUploadUrl(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().BucketObjectUploadURL(ctx, fc.Args["bucket"].(platform.BucketID), fc.Args["key"].(string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
+				if err != nil {
+					var zeroVal string
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal string
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_bucketObjectUploadUrl(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_bucketObjectUploadUrl_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_deleteBucketObject(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_deleteBucketObject(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().DeleteBucketObject(ctx, fc.Args["bucket"].(platform.BucketID), fc.Args["key"].(string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
+				if err != nil {
+					var zeroVal bool
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal bool
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_deleteBucketObject(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_deleteBucketObject_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_createProject(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -14176,6 +14867,130 @@ func (ec *executionContext) fieldContext_Query_bucketCredentials(ctx context.Con
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_bucketCredentials_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_bucketObjects(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Query_bucketObjects(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().BucketObjects(ctx, fc.Args["bucket"].(platform.BucketID), fc.Args["prefix"].(*string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
+				if err != nil {
+					var zeroVal *model.BucketObjectListing
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal *model.BucketObjectListing
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *model.BucketObjectListing) graphql.Marshaler {
+			return ec.marshalNBucketObjectListing2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐBucketObjectListing(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Query_bucketObjects(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_BucketObjectListing(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_bucketObjects_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_bucketObjectDownloadUrl(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Query_bucketObjectDownloadUrl(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().BucketObjectDownloadURL(ctx, fc.Args["bucket"].(platform.BucketID), fc.Args["key"].(string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
+				if err != nil {
+					var zeroVal string
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal string
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Query_bucketObjectDownloadUrl(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_bucketObjectDownloadUrl_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -20468,6 +21283,140 @@ func (ec *executionContext) _BucketCredentials(ctx context.Context, sel ast.Sele
 	return out
 }
 
+var bucketFolderImplementors = []string{"BucketFolder"}
+
+func (ec *executionContext) _BucketFolder(ctx context.Context, sel ast.SelectionSet, obj *model.BucketFolder) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, bucketFolderImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("BucketFolder")
+		case "prefix":
+			out.Values[i] = ec._BucketFolder_prefix(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var bucketObjectImplementors = []string{"BucketObject"}
+
+func (ec *executionContext) _BucketObject(ctx context.Context, sel ast.SelectionSet, obj *model.BucketObject) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, bucketObjectImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("BucketObject")
+		case "key":
+			out.Values[i] = ec._BucketObject_key(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "size":
+			out.Values[i] = ec._BucketObject_size(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "lastModified":
+			out.Values[i] = ec._BucketObject_lastModified(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var bucketObjectListingImplementors = []string{"BucketObjectListing"}
+
+func (ec *executionContext) _BucketObjectListing(ctx context.Context, sel ast.SelectionSet, obj *model.BucketObjectListing) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, bucketObjectListingImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("BucketObjectListing")
+		case "prefix":
+			out.Values[i] = ec._BucketObjectListing_prefix(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "folders":
+			out.Values[i] = ec._BucketObjectListing_folders(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "objects":
+			out.Values[i] = ec._BucketObjectListing_objects(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
 var bucketSourceImplementors = []string{"BucketSource", "VariableSource"}
 
 func (ec *executionContext) _BucketSource(ctx context.Context, sel ast.SelectionSet, obj *model.BucketSource) graphql.Marshaler {
@@ -22463,6 +23412,20 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "bucketObjectUploadUrl":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_bucketObjectUploadUrl(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "deleteBucketObject":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_deleteBucketObject(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "createProject":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_createProject(ctx, field)
@@ -23190,6 +24153,50 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_bucketCredentials(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "bucketObjects":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_bucketObjects(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "bucketObjectDownloadUrl":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_bucketObjectDownloadUrl(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -25507,6 +26514,26 @@ func (ec *executionContext) marshalNBucketCredentials2ᚖgithubᚗcomᚋzeitlos�
 	return ec._BucketCredentials(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNBucketFolder2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐBucketFolder(ctx context.Context, sel ast.SelectionSet, v model.BucketFolder) graphql.Marshaler {
+	return ec._BucketFolder(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNBucketFolder2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐBucketFolderᚄ(ctx context.Context, sel ast.SelectionSet, v []model.BucketFolder) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNBucketFolder2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐBucketFolder(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
 func (ec *executionContext) unmarshalNBucketID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐBucketID(ctx context.Context, v any) (platform.BucketID, error) {
 	var res platform.BucketID
 	err := res.UnmarshalGQL(v)
@@ -25515,6 +26542,40 @@ func (ec *executionContext) unmarshalNBucketID2githubᚗcomᚋzeitlosᚋlucity�
 
 func (ec *executionContext) marshalNBucketID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐBucketID(ctx context.Context, sel ast.SelectionSet, v platform.BucketID) graphql.Marshaler {
 	return v
+}
+
+func (ec *executionContext) marshalNBucketObject2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐBucketObject(ctx context.Context, sel ast.SelectionSet, v model.BucketObject) graphql.Marshaler {
+	return ec._BucketObject(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNBucketObject2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐBucketObjectᚄ(ctx context.Context, sel ast.SelectionSet, v []model.BucketObject) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNBucketObject2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐBucketObject(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNBucketObjectListing2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐBucketObjectListing(ctx context.Context, sel ast.SelectionSet, v model.BucketObjectListing) graphql.Marshaler {
+	return ec._BucketObjectListing(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNBucketObjectListing2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐBucketObjectListing(ctx context.Context, sel ast.SelectionSet, v *model.BucketObjectListing) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._BucketObjectListing(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNBucketStatus2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐBucketStatus(ctx context.Context, v any) (model.BucketStatus, error) {
