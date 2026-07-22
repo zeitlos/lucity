@@ -104,6 +104,7 @@ type Documents = {
     "\n  mutation UpdateMemberRole($input: UpdateMemberRoleInput!) {\n    updateMemberRole(input: $input) {\n      id\n      email\n      name\n      role\n    }\n  }\n": typeof types.UpdateMemberRoleDocument,
     "\n  mutation ChangePlan($plan: Plan!) {\n    changePlan(plan: $plan) {\n      plan\n      status\n      currentPeriodEnd\n      creditAmountCents\n      creditExpiry\n    }\n  }\n": typeof types.ChangePlanDocument,
     "\n  mutation BillingPortalUrl {\n    billingPortalUrl {\n      url\n    }\n  }\n": typeof types.BillingPortalUrlDocument,
+    "\n  query BootstrapWorkspaces {\n    workspaces {\n      id\n    }\n  }\n": typeof types.BootstrapWorkspacesDocument,
 };
 const documents: Documents = {
     "\n  query ApiKeys {\n    apiKeys {\n      id\n      name\n      role\n      createdAt\n    }\n  }\n": types.ApiKeysDocument,
@@ -196,6 +197,7 @@ const documents: Documents = {
     "\n  mutation UpdateMemberRole($input: UpdateMemberRoleInput!) {\n    updateMemberRole(input: $input) {\n      id\n      email\n      name\n      role\n    }\n  }\n": types.UpdateMemberRoleDocument,
     "\n  mutation ChangePlan($plan: Plan!) {\n    changePlan(plan: $plan) {\n      plan\n      status\n      currentPeriodEnd\n      creditAmountCents\n      creditExpiry\n    }\n  }\n": types.ChangePlanDocument,
     "\n  mutation BillingPortalUrl {\n    billingPortalUrl {\n      url\n    }\n  }\n": types.BillingPortalUrlDocument,
+    "\n  query BootstrapWorkspaces {\n    workspaces {\n      id\n    }\n  }\n": types.BootstrapWorkspacesDocument,
 };
 
 /**
@@ -572,6 +574,10 @@ export function graphql(source: "\n  mutation ChangePlan($plan: Plan!) {\n    ch
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation BillingPortalUrl {\n    billingPortalUrl {\n      url\n    }\n  }\n"): (typeof documents)["\n  mutation BillingPortalUrl {\n    billingPortalUrl {\n      url\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query BootstrapWorkspaces {\n    workspaces {\n      id\n    }\n  }\n"): (typeof documents)["\n  query BootstrapWorkspaces {\n    workspaces {\n      id\n    }\n  }\n"];
 
 export function graphql(source: string) {
   return (documents as any)[source] ?? {};

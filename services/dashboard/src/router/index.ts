@@ -1,6 +1,16 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import DefaultLayout from '@/layouts/DefaultLayout.vue';
 import { useAuth } from '@/composables/useAuth';
+import { apolloClient } from '@/lib/apollo';
+import { graphql } from '@/gql';
+
+const BootstrapWorkspacesDocument = graphql(`
+  query BootstrapWorkspaces {
+    workspaces {
+      id
+    }
+  }
+`);
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -50,6 +60,11 @@ const router = createRouter({
       component: () => import('@/pages/PlanCheckoutSuccessPage.vue'),
     },
     {
+      path: '/callback',
+      name: 'callback',
+      component: () => import('@/pages/CallbackPage.vue'),
+    },
+    {
       path: '/login',
       name: 'login',
       component: () => import('@/pages/LoginPage.vue'),
@@ -75,11 +90,12 @@ router.beforeEach(async (to) => {
     return { name: 'login' };
   }
 
-  // If no valid workspace could be resolved (stale JWT, removed from workspace),
-  // force a full re-login to get fresh OIDC claims.
   if (!activeWorkspace.value) {
-    login();
-    return false;
+    await apolloClient.query({ query: BootstrapWorkspacesDocument, fetchPolicy: 'network-only' }).catch(() => {});
+    await fetchUser();
+    if (!activeWorkspace.value) {
+      return { name: 'login' };
+    }
   }
 });
 

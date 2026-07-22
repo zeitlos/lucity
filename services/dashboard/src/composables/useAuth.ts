@@ -1,4 +1,5 @@
 import { ref, computed } from 'vue';
+import { logto, apiResource } from '@/lib/logto';
 
 export interface WorkspaceMembership {
   workspace: string;
@@ -24,7 +25,9 @@ declare global {
 
 const user = ref<AuthUser | null>(null);
 const loading = ref(true);
+const authed = ref(false);
 const activeWorkspace = ref<string>(localStorage.getItem('lucity_workspace') || '');
+const orgIdByWorkspace = new Map<string, string>();
 
 let identifiedUserId: string | null = null;
 
@@ -47,85 +50,88 @@ function clearIdentifiedUser() {
   window.rybbit?.clearUserId();
 }
 
+function setActiveWorkspace(ws: string) {
+  activeWorkspace.value = ws;
+  localStorage.setItem('lucity_workspace', ws);
+}
+
 export function useAuth() {
-  const isAuthenticated = computed(() => user.value !== null);
+  const isAuthenticated = computed(() => authed.value);
 
   async function fetchUser() {
     try {
-      const res = await fetch('/auth/me', { credentials: 'include' });
-      if (res.ok) {
-        user.value = await res.json();
-
-        // If JWT has no workspace claims (e.g., minted before workspace support),
-        // refresh the token to pick up current OIDC claims.
-        if (user.value && user.value.workspaces.length === 0) {
-          const refreshRes = await fetch('/auth/refresh', {
-            method: 'POST',
-            credentials: 'include',
-          });
-          if (refreshRes.ok) {
-            const meRes = await fetch('/auth/me', { credentials: 'include' });
-            if (meRes.ok) {
-              user.value = await meRes.json();
-            }
-          }
-        }
-
-        // Default to first workspace if none selected or stale
-        if (user.value && (!activeWorkspace.value || !user.value.workspaces.some(w => w.workspace === activeWorkspace.value))) {
-          setActiveWorkspace(user.value.workspaces[0]?.workspace || '');
-        }
-
-        if (user.value?.id) {
-          const traits: Record<string, unknown> = {};
-          if (user.value.name) traits.name = user.value.name;
-          if (user.value.email) traits.email = user.value.email;
-          if (activeWorkspace.value) traits.workspace = activeWorkspace.value;
-          identifyUser(user.value.id, traits);
-        }
-      } else {
+      authed.value = await logto.isAuthenticated();
+      if (!authed.value) {
         user.value = null;
+        return;
       }
+
+      const claims = await logto.getIdTokenClaims();
+      const info = await logto.fetchUserInfo();
+
+      const roleByOrg = new Map<string, 'user' | 'admin'>();
+      for (const entry of [...(claims.organization_roles ?? []), ...(info.organization_roles ?? [])]) {
+        const [orgId, roleName] = entry.split(':');
+        if (roleName === 'admin') {
+          roleByOrg.set(orgId, 'admin');
+        } else if (!roleByOrg.has(orgId)) {
+          roleByOrg.set(orgId, 'user');
+        }
+      }
+
+      orgIdByWorkspace.clear();
+      const workspaces: WorkspaceMembership[] = [];
+      for (const org of info.organization_data ?? []) {
+        orgIdByWorkspace.set(org.name, org.id);
+        workspaces.push({ workspace: org.name, role: roleByOrg.get(org.id) ?? 'user' });
+      }
+
+      user.value = {
+        id: claims.sub,
+        name: claims.name ?? null,
+        email: claims.email ?? null,
+        avatarUrl: claims.picture ?? '',
+        workspaces,
+      };
+
+      if (!activeWorkspace.value || !workspaces.some(w => w.workspace === activeWorkspace.value)) {
+        setActiveWorkspace(workspaces[0]?.workspace || '');
+      }
+
+      const traits: Record<string, unknown> = {};
+      if (user.value.name) traits.name = user.value.name;
+      if (user.value.email) traits.email = user.value.email;
+      if (activeWorkspace.value) traits.workspace = activeWorkspace.value;
+      identifyUser(user.value.id, traits);
     } catch {
+      authed.value = false;
       user.value = null;
     } finally {
       loading.value = false;
     }
   }
 
+  async function login() {
+    await logto.signIn({
+      redirectUri: `${window.location.origin}${import.meta.env.BASE_URL}callback`,
+      directSignIn: { method: 'social', target: 'github' },
+    });
+  }
+
   async function logout() {
-    await fetch('/auth/logout', { method: 'POST', credentials: 'include' });
     user.value = null;
+    authed.value = false;
     clearIdentifiedUser();
-  }
-
-  function login() {
-    const now = Date.now();
-    const last = Number(sessionStorage.getItem('lucity_last_login_redirect') || '0');
-    if (now - last < 10_000) {
-      return;
-    }
-    sessionStorage.setItem('lucity_last_login_redirect', String(now));
-    window.location.href = '/auth/login';
-  }
-
-  function setActiveWorkspace(ws: string) {
-    activeWorkspace.value = ws;
-    localStorage.setItem('lucity_workspace', ws);
+    await logto.signOut(`${window.location.origin}${import.meta.env.BASE_URL}`);
   }
 
   async function refreshToken() {
-    try {
-      const res = await fetch('/auth/refresh', {
-        method: 'POST',
-        credentials: 'include',
-      });
-      if (res.ok) {
-        await fetchUser();
-      }
-    } catch {
-      // Token refresh failed — user will need to re-login on next protected action
-    }
+    await fetchUser();
+  }
+
+  async function bearerToken(): Promise<string | undefined> {
+    const orgId = activeWorkspace.value ? orgIdByWorkspace.get(activeWorkspace.value) : undefined;
+    return logto.getAccessToken(apiResource, orgId);
   }
 
   return {
@@ -138,5 +144,6 @@ export function useAuth() {
     login,
     setActiveWorkspace,
     refreshToken,
+    bearerToken,
   };
 }

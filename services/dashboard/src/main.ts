@@ -6,10 +6,13 @@ import { DefaultApolloClient } from '@vue/apollo-composable';
 import App from './App.vue';
 import router from './router';
 import { apolloClient } from './lib/apollo';
+import { initLogto } from './lib/logto';
 
-const app = createApp(App);
+initLogto().then(() => {
+  const app = createApp(App);
 
-app.provide(DefaultApolloClient, apolloClient);
-app.use(router);
+  app.provide(DefaultApolloClient, apolloClient);
+  app.use(router);
 
-app.mount('#app');
+  app.mount('#app');
+});
