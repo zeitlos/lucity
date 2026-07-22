@@ -1,0 +1,25 @@
+type ApiKey {
+  id: ID!
+  name: String!
+  role: WorkspaceRole!
+  createdAt: Time!
+}
+
+type CreatedApiKey {
+  apiKey: ApiKey!
+  key: String!
+}
+
+input CreateApiKeyInput {
+  name: String! @constraint(constraint: "min=1,max=128")
+  role: WorkspaceRole!
+}
+
+extend type Query {
+  apiKeys: [ApiKey!]! @hasRole(role: WORKSPACE_ADMIN)
+}
+
+extend type Mutation {
+  createApiKey(input: CreateApiKeyInput!): CreatedApiKey! @hasRole(role: WORKSPACE_ADMIN)
+  revokeApiKey(id: ID!): Boolean! @hasRole(role: WORKSPACE_ADMIN)
+}

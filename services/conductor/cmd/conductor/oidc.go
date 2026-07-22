@@ -142,8 +142,9 @@ func secureCookies(dashboardURL string) bool {
 }
 
 // registerAuthRoutes adds OIDC auth endpoints to the mux.
-func registerAuthRoutes(mux *http.ServeMux, provider *OIDCProvider, conductor *conductor.Client, logtoClient *logto.Client, sessionSecret, dashboardURL, githubAppSlug string, ciVerifier *githubActionsVerifier, ciSessionTTL time.Duration) {
+func registerAuthRoutes(mux *http.ServeMux, provider *OIDCProvider, conductor *conductor.Client, logtoClient *logto.Client, sessionSecret, dashboardURL, githubAppSlug, oidcIssuer, oidcAudience string, ciVerifier *githubActionsVerifier, ciSessionTTL time.Duration) {
 	secure := secureCookies(dashboardURL)
+	mux.HandleFunc("/auth/config", handleAuthConfig(oidcIssuer, oidcAudience))
 	mux.HandleFunc("/auth/login", handleLogin(provider, secure))
 	mux.HandleFunc("/auth/callback", handleCallback(provider, conductor, logtoClient, sessionSecret, dashboardURL, secure))
 	mux.HandleFunc("/auth/me", handleMe())
@@ -154,8 +155,20 @@ func registerAuthRoutes(mux *http.ServeMux, provider *OIDCProvider, conductor *c
 	mux.HandleFunc("/auth/github/setup", handleGitHubSetup(dashboardURL))
 
 	if ciVerifier != nil {
-		mux.HandleFunc("/auth/ci/exchange", handleCIExchange(ciVerifier, conductor, sessionSecret, ciSessionTTL))
+		mux.HandleFunc("/auth/ci/exchange", handleCIExchange(ciVerifier, conductor, oidcAudience))
 		slog.Info("keyless CI deploy exchange enabled", "audience", ciVerifier.audience)
+	}
+}
+
+// handleAuthConfig advertises the OIDC issuer and API audience so non-interactive
+// clients can exchange credentials directly with the identity provider.
+func handleAuthConfig(issuer, audience string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{
+			"issuer":   issuer,
+			"audience": audience,
+		})
 	}
 }
 

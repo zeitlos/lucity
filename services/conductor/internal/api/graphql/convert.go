@@ -1022,6 +1022,30 @@ func convertWorkspaceRole(role auth.WorkspaceRole) model.WorkspaceRole {
 	return model.WorkspaceRoleUser
 }
 
+func convertModelWorkspaceRole(r model.WorkspaceRole) auth.WorkspaceRole {
+	switch r {
+	case model.WorkspaceRoleAdmin:
+		return auth.WorkspaceRoleAdmin
+	}
+	return auth.WorkspaceRoleUser
+}
+
+func convertAPIKey(k *conductor.APIKey) *model.APIKey {
+	return &model.APIKey{
+		ID:        k.ID,
+		Name:      k.Name,
+		Role:      convertWorkspaceRole(k.Role),
+		CreatedAt: k.CreatedAt,
+	}
+}
+
+func convertCreatedAPIKey(c *conductor.CreatedAPIKey) *model.CreatedAPIKey {
+	return &model.CreatedAPIKey{
+		APIKey: convertAPIKey(&c.APIKey),
+		Key:    c.Key,
+	}
+}
+
 func convertDatabaseTable(t conductor.DatabaseTable) model.DatabaseTable {
 	cols := make([]model.DatabaseColumn, 0, len(t.Columns))
 	for _, c := range t.Columns {

@@ -12,7 +12,6 @@ import (
 
 	"github.com/coreos/go-oidc/v3/oidc"
 
-	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/services/conductor/internal/conductor"
 )
 
@@ -90,7 +89,7 @@ func (v *githubActionsVerifier) idTokenVerifier(ctx context.Context) (*oidc.IDTo
 	return v.verifier, nil
 }
 
-func handleCIExchange(verifier *githubActionsVerifier, conductorClient *conductor.Client, sessionSecret string, ttl time.Duration) http.HandlerFunc {
+func handleCIExchange(verifier *githubActionsVerifier, conductorClient *conductor.Client, audience string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -125,21 +124,9 @@ func handleCIExchange(verifier *githubActionsVerifier, conductorClient *conducto
 			return
 		}
 
-		memberships := make([]auth.WorkspaceMembership, 0, len(match.Workspaces))
-		for _, workspace := range match.Workspaces {
-			memberships = append(memberships, auth.WorkspaceMembership{
-				Workspace: workspace,
-				Role:      auth.WorkspaceRoleDeployer,
-			})
-		}
-
-		token, err := mintMachineToken(sessionSecret, &auth.Claims{
-			Subject:    conductor.GitHubActionsSubject(claims.Repository),
-			Name:       "GitHub Actions",
-			Workspaces: memberships,
-		}, ttl)
+		token, expiresAt, err := conductorClient.IssueCIDeployToken(r.Context(), claims.Repository, match.Workspaces[0], audience)
 		if err != nil {
-			slog.ErrorContext(r.Context(), "ci exchange: mint token failed", "error", err)
+			slog.ErrorContext(r.Context(), "ci exchange: issue token failed", "error", err)
 			http.Error(w, "token issue failed", http.StatusInternalServerError)
 			return
 		}
@@ -162,7 +149,7 @@ func handleCIExchange(verifier *githubActionsVerifier, conductorClient *conducto
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]any{
 			"token":     token,
-			"expiresAt": time.Now().Add(ttl).Format(time.RFC3339),
+			"expiresAt": expiresAt.Format(time.RFC3339),
 			"workspace": match.Workspaces[0],
 			"services":  services,
 		})
