@@ -280,7 +280,7 @@ async function confirmDelete() {
 </script>
 
 <template>
-  <div class="space-y-3">
+  <div class="flex h-full flex-col space-y-3">
     <!-- Toolbar -->
     <div class="flex items-center justify-between gap-2">
       <nav class="flex min-w-0 items-center gap-1 text-sm">
@@ -330,7 +330,7 @@ async function confirmDelete() {
     <!-- Drop zone -->
     <div
       ref="dropZone"
-      class="relative rounded-lg transition-colors"
+      class="relative flex-1 rounded-lg transition-colors"
       :class="{ 'bg-primary/5 ring-2 ring-inset ring-primary/40': isOverDropZone }"
     >
       <div

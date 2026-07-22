@@ -51,8 +51,8 @@ onKeyStroke('Escape', () => {
     </div>
 
     <!-- Tab Content -->
-    <ScrollArea class="flex-1">
-      <Tabs default-value="files" class="h-full">
+    <ScrollArea class="flex-1 [&>[data-reka-scroll-area-viewport]>div]:h-full">
+      <Tabs default-value="files" class="flex h-full flex-col">
         <div class="px-4 pt-2">
           <TabsList class="w-full">
             <TabsTrigger value="files">Files</TabsTrigger>
@@ -61,7 +61,7 @@ onKeyStroke('Escape', () => {
           </TabsList>
         </div>
 
-        <TabsContent value="files" class="px-4 py-4">
+        <TabsContent value="files" class="flex-1 px-4 py-4">
           <BucketFilesTab :bucket-id="props.bucket.id" />
         </TabsContent>
 
