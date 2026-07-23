@@ -41,7 +41,7 @@ import {
 import { toast, errorToast } from '@/components/ui/sonner';
 import { errorMessage } from '@/lib/utils';
 import PlanPicker from '@/components/PlanPicker.vue';
-import ApiKeysSection from '@/components/ApiKeysSection.vue';
+import ApiTokensSection from '@/components/ApiTokensSection.vue';
 import { graphql } from '@/gql';
 import {
   SubscriptionStatus,
@@ -185,7 +185,7 @@ const isAdmin = computed(() => {
 
 // Settings sections — sync with ?tab= query param for deep linking.
 const route = useRoute();
-const validSections = ['general', 'members', 'apikeys', 'billing', 'danger'];
+const validSections = ['general', 'members', 'apitokens', 'billing', 'danger'];
 const initialTab = validSections.includes(route.query.tab as string) ? (route.query.tab as string) : 'general';
 const activeSection = ref(initialTab);
 const sections = computed(() => {
@@ -194,7 +194,7 @@ const sections = computed(() => {
     { id: 'members', label: 'Members' },
   ];
   if (isAdmin.value) {
-    s.push({ id: 'apikeys', label: 'API keys' });
+    s.push({ id: 'apitokens', label: 'API tokens' });
   }
   s.push({ id: 'billing', label: 'Billing' });
   if (isAdmin.value && !workspace.value?.personal) {
@@ -418,8 +418,8 @@ async function handleDelete() {
 
           <!-- Content -->
           <div class="flex-1 overflow-y-auto p-6">
-          <!-- API keys -->
-          <ApiKeysSection v-if="activeSection === 'apikeys' && isAdmin" />
+          <!-- API tokens -->
+          <ApiTokensSection v-if="activeSection === 'apitokens' && isAdmin" />
 
           <!-- General -->
           <section v-if="activeSection === 'general'" class="space-y-6">

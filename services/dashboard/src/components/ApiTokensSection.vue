@@ -46,9 +46,9 @@ import { errorMessage } from '@/lib/utils';
 import { graphql } from '@/gql';
 import { WorkspaceRole } from '@/gql/graphql';
 
-const ApiKeysDocument = graphql(`
-  query ApiKeys {
-    apiKeys {
+const ApiTokensDocument = graphql(`
+  query ApiTokens {
+    apiTokens {
       id
       name
       role
@@ -57,70 +57,70 @@ const ApiKeysDocument = graphql(`
   }
 `);
 
-const CreateApiKeyDocument = graphql(`
-  mutation CreateApiKey($input: CreateApiKeyInput!) {
-    createApiKey(input: $input) {
-      apiKey {
+const CreateApiTokenDocument = graphql(`
+  mutation CreateApiToken($input: CreateApiTokenInput!) {
+    createApiToken(input: $input) {
+      apiToken {
         id
         name
         role
         createdAt
       }
-      key
+      token
     }
   }
 `);
 
-const RevokeApiKeyDocument = graphql(`
-  mutation RevokeApiKey($id: ID!) {
-    revokeApiKey(id: $id)
+const RevokeApiTokenDocument = graphql(`
+  mutation RevokeApiToken($id: ID!) {
+    revokeApiToken(id: $id)
   }
 `);
 
-const { result, loading, refetch } = useQuery(ApiKeysDocument);
-const apiKeys = computed(() => result.value?.apiKeys ?? []);
+const { result, loading, refetch } = useQuery(ApiTokensDocument);
+const apiTokens = computed(() => result.value?.apiTokens ?? []);
 
 const newName = ref('');
 const newRole = ref<WorkspaceRole>(WorkspaceRole.User);
-const createdKey = ref<string | null>(null);
-const showKeyDialog = ref(false);
+const createdToken = ref<string | null>(null);
+const showTokenDialog = ref(false);
 
-const { mutate: createMutate, loading: creating } = useMutation(CreateApiKeyDocument);
-const { mutate: revokeMutate } = useMutation(RevokeApiKeyDocument);
+const { mutate: createMutate, loading: creating } = useMutation(CreateApiTokenDocument);
+const { mutate: revokeMutate } = useMutation(RevokeApiTokenDocument);
 
 async function handleCreate() {
   if (!newName.value.trim()) return;
   try {
     const res = await createMutate({ input: { name: newName.value.trim(), role: newRole.value } });
     if (res?.errors?.length) {
-      errorToast('Failed to create API key', {
+      errorToast('Failed to create API token', {
         description: res.errors.map((e: { message: string }) => e.message).join(', '),
       });
       return;
     }
-    createdKey.value = res?.data?.createApiKey?.key ?? null;
-    showKeyDialog.value = true;
+    createdToken.value = res?.data?.createApiToken?.token ?? null;
+    showTokenDialog.value = true;
     newName.value = '';
     newRole.value = WorkspaceRole.User;
     refetch();
   } catch (e: unknown) {
-    errorToast('Failed to create API key', { description: errorMessage(e) });
+    errorToast('Failed to create API token', { description: errorMessage(e) });
   }
 }
 
 async function handleRevoke(id: string) {
   try {
     await revokeMutate({ id });
-    toast.success('API key revoked');
+    toast.success('API token revoked');
     refetch();
   } catch (e: unknown) {
-    errorToast('Failed to revoke API key', { description: errorMessage(e) });
+    errorToast('Failed to revoke API token', { description: errorMessage(e) });
   }
 }
 
-async function copyKey() {
-  if (!createdKey.value) return;
-  await navigator.clipboard.writeText(createdKey.value);
+async function copyToken() {
+  if (!createdToken.value) return;
+  await navigator.clipboard.writeText(createdToken.value);
   toast.success('Copied to clipboard');
 }
 
@@ -132,7 +132,7 @@ function formatDate(dateStr: string): string {
 <template>
   <section class="space-y-6">
     <div>
-      <h2 class="text-lg font-semibold text-foreground">API keys</h2>
+      <h2 class="text-lg font-semibold text-foreground">API tokens</h2>
       <p class="text-sm text-muted-foreground">
         Machine credentials for CLI and CI automation, scoped to this workspace.
       </p>
@@ -140,8 +140,8 @@ function formatDate(dateStr: string): string {
 
     <div class="flex items-end gap-2">
       <div class="flex-1 space-y-2">
-        <Label for="apikey-name">Name</Label>
-        <Input id="apikey-name" v-model="newName" placeholder="ci-deploy" :disabled="creating" />
+        <Label for="apitoken-name">Name</Label>
+        <Input id="apitoken-name" v-model="newName" placeholder="ci-deploy" :disabled="creating" />
       </div>
       <div class="w-32 space-y-2">
         <Label>Role</Label>
@@ -165,7 +165,7 @@ function formatDate(dateStr: string): string {
       <Skeleton class="h-10 w-full" />
       <Skeleton class="h-10 w-full" />
     </div>
-    <Table v-else-if="apiKeys.length">
+    <Table v-else-if="apiTokens.length">
       <TableHeader>
         <TableRow>
           <TableHead>Name</TableHead>
@@ -175,12 +175,12 @@ function formatDate(dateStr: string): string {
         </TableRow>
       </TableHeader>
       <TableBody>
-        <TableRow v-for="key in apiKeys" :key="key.id">
-          <TableCell class="font-medium">{{ key.name }}</TableCell>
+        <TableRow v-for="token in apiTokens" :key="token.id">
+          <TableCell class="font-medium">{{ token.name }}</TableCell>
           <TableCell>
-            <Badge variant="secondary">{{ key.role === 'ADMIN' ? 'Admin' : 'Member' }}</Badge>
+            <Badge variant="secondary">{{ token.role === 'ADMIN' ? 'Admin' : 'Member' }}</Badge>
           </TableCell>
-          <TableCell class="text-muted-foreground">{{ formatDate(key.createdAt) }}</TableCell>
+          <TableCell class="text-muted-foreground">{{ formatDate(token.createdAt) }}</TableCell>
           <TableCell>
             <AlertDialog>
               <AlertDialogTrigger as-child>
@@ -190,14 +190,14 @@ function formatDate(dateStr: string): string {
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Revoke API key?</AlertDialogTitle>
+                  <AlertDialogTitle>Revoke API token?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    "{{ key.name }}" will stop working immediately. This cannot be undone.
+                    "{{ token.name }}" will stop working immediately. This cannot be undone.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction @click="handleRevoke(key.id)">Revoke</AlertDialogAction>
+                  <AlertDialogAction @click="handleRevoke(token.id)">Revoke</AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
@@ -207,23 +207,23 @@ function formatDate(dateStr: string): string {
     </Table>
     <div v-else class="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
       <KeyRound :size="20" class="mx-auto mb-2 opacity-50" />
-      No API keys yet.
+      No API tokens yet.
     </div>
 
-    <Dialog v-model:open="showKeyDialog">
+    <Dialog v-model:open="showTokenDialog">
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>API key created</DialogTitle>
+          <DialogTitle>API token created</DialogTitle>
           <DialogDescription>Copy it now. You won't be able to see it again.</DialogDescription>
         </DialogHeader>
         <div class="flex min-w-0 items-start gap-2">
-          <code class="min-w-0 flex-1 break-all rounded bg-muted px-2 py-1.5 font-mono text-xs">{{ createdKey }}</code>
-          <Button variant="outline" size="icon" class="shrink-0" @click="copyKey">
+          <code class="min-w-0 flex-1 break-all rounded bg-muted px-2 py-1.5 font-mono text-xs">{{ createdToken }}</code>
+          <Button variant="outline" size="icon" class="shrink-0" @click="copyToken">
             <Copy :size="14" />
           </Button>
         </div>
         <DialogFooter>
-          <Button @click="showKeyDialog = false">Done</Button>
+          <Button @click="showTokenDialog = false">Done</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

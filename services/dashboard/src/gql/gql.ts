@@ -14,9 +14,9 @@ import type { TypedDocumentNode as DocumentNode } from '@graphql-typed-document-
  * Learn more about it here: https://the-guild.dev/graphql/codegen/plugins/presets/preset-client#reducing-bundle-size
  */
 type Documents = {
-    "\n  query ApiKeys {\n    apiKeys {\n      id\n      name\n      role\n      createdAt\n    }\n  }\n": typeof types.ApiKeysDocument,
-    "\n  mutation CreateApiKey($input: CreateApiKeyInput!) {\n    createApiKey(input: $input) {\n      apiKey {\n        id\n        name\n        role\n        createdAt\n      }\n      key\n    }\n  }\n": typeof types.CreateApiKeyDocument,
-    "\n  mutation RevokeApiKey($id: ID!) {\n    revokeApiKey(id: $id)\n  }\n": typeof types.RevokeApiKeyDocument,
+    "\n  query ApiTokens {\n    apiTokens {\n      id\n      name\n      role\n      createdAt\n    }\n  }\n": typeof types.ApiTokensDocument,
+    "\n  mutation CreateApiToken($input: CreateApiTokenInput!) {\n    createApiToken(input: $input) {\n      apiToken {\n        id\n        name\n        role\n        createdAt\n      }\n      token\n    }\n  }\n": typeof types.CreateApiTokenDocument,
+    "\n  mutation RevokeApiToken($id: ID!) {\n    revokeApiToken(id: $id)\n  }\n": typeof types.RevokeApiTokenDocument,
     "\n  query Workspaces {\n    workspaces {\n      id\n      name\n      personal\n    }\n  }\n": typeof types.WorkspacesDocument,
     "\n  query ProjectsForNav {\n    projects {\n      id\n      name\n      environments {\n        id\n        name\n        resourceTier\n      }\n    }\n  }\n": typeof types.ProjectsForNavDocument,
     "\n  query GitHubConnected {\n    githubConnected\n  }\n": typeof types.GitHubConnectedDocument,
@@ -107,9 +107,9 @@ type Documents = {
     "\n  query BootstrapWorkspaces {\n    workspaces {\n      id\n    }\n  }\n": typeof types.BootstrapWorkspacesDocument,
 };
 const documents: Documents = {
-    "\n  query ApiKeys {\n    apiKeys {\n      id\n      name\n      role\n      createdAt\n    }\n  }\n": types.ApiKeysDocument,
-    "\n  mutation CreateApiKey($input: CreateApiKeyInput!) {\n    createApiKey(input: $input) {\n      apiKey {\n        id\n        name\n        role\n        createdAt\n      }\n      key\n    }\n  }\n": types.CreateApiKeyDocument,
-    "\n  mutation RevokeApiKey($id: ID!) {\n    revokeApiKey(id: $id)\n  }\n": types.RevokeApiKeyDocument,
+    "\n  query ApiTokens {\n    apiTokens {\n      id\n      name\n      role\n      createdAt\n    }\n  }\n": types.ApiTokensDocument,
+    "\n  mutation CreateApiToken($input: CreateApiTokenInput!) {\n    createApiToken(input: $input) {\n      apiToken {\n        id\n        name\n        role\n        createdAt\n      }\n      token\n    }\n  }\n": types.CreateApiTokenDocument,
+    "\n  mutation RevokeApiToken($id: ID!) {\n    revokeApiToken(id: $id)\n  }\n": types.RevokeApiTokenDocument,
     "\n  query Workspaces {\n    workspaces {\n      id\n      name\n      personal\n    }\n  }\n": types.WorkspacesDocument,
     "\n  query ProjectsForNav {\n    projects {\n      id\n      name\n      environments {\n        id\n        name\n        resourceTier\n      }\n    }\n  }\n": types.ProjectsForNavDocument,
     "\n  query GitHubConnected {\n    githubConnected\n  }\n": types.GitHubConnectedDocument,
@@ -217,15 +217,15 @@ export function graphql(source: string): unknown;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query ApiKeys {\n    apiKeys {\n      id\n      name\n      role\n      createdAt\n    }\n  }\n"): (typeof documents)["\n  query ApiKeys {\n    apiKeys {\n      id\n      name\n      role\n      createdAt\n    }\n  }\n"];
+export function graphql(source: "\n  query ApiTokens {\n    apiTokens {\n      id\n      name\n      role\n      createdAt\n    }\n  }\n"): (typeof documents)["\n  query ApiTokens {\n    apiTokens {\n      id\n      name\n      role\n      createdAt\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation CreateApiKey($input: CreateApiKeyInput!) {\n    createApiKey(input: $input) {\n      apiKey {\n        id\n        name\n        role\n        createdAt\n      }\n      key\n    }\n  }\n"): (typeof documents)["\n  mutation CreateApiKey($input: CreateApiKeyInput!) {\n    createApiKey(input: $input) {\n      apiKey {\n        id\n        name\n        role\n        createdAt\n      }\n      key\n    }\n  }\n"];
+export function graphql(source: "\n  mutation CreateApiToken($input: CreateApiTokenInput!) {\n    createApiToken(input: $input) {\n      apiToken {\n        id\n        name\n        role\n        createdAt\n      }\n      token\n    }\n  }\n"): (typeof documents)["\n  mutation CreateApiToken($input: CreateApiTokenInput!) {\n    createApiToken(input: $input) {\n      apiToken {\n        id\n        name\n        role\n        createdAt\n      }\n      token\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation RevokeApiKey($id: ID!) {\n    revokeApiKey(id: $id)\n  }\n"): (typeof documents)["\n  mutation RevokeApiKey($id: ID!) {\n    revokeApiKey(id: $id)\n  }\n"];
+export function graphql(source: "\n  mutation RevokeApiToken($id: ID!) {\n    revokeApiToken(id: $id)\n  }\n"): (typeof documents)["\n  mutation RevokeApiToken($id: ID!) {\n    revokeApiToken(id: $id)\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

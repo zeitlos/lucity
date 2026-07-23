@@ -5,12 +5,12 @@ export let apiResource = '';
 
 export async function initLogto(): Promise<void> {
   const res = await fetch('/auth/config');
-  const cfg = (await res.json()) as { endpoint: string; audience: string; spaClientId: string };
+  const cfg = (await res.json()) as { endpoint: string; audience: string; dashboardClientId: string };
 
   apiResource = cfg.audience;
   logto = new LogtoClient({
     endpoint: cfg.endpoint,
-    appId: cfg.spaClientId,
+    appId: cfg.dashboardClientId,
     resources: [cfg.audience],
     scopes: [
       UserScope.Email,

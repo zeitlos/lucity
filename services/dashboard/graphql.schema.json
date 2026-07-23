@@ -107,7 +107,7 @@
       },
       {
         "kind": "OBJECT",
-        "name": "ApiKey",
+        "name": "ApiToken",
         "description": null,
         "isOneOf": null,
         "fields": [
@@ -1012,7 +1012,7 @@
       },
       {
         "kind": "INPUT_OBJECT",
-        "name": "CreateApiKeyInput",
+        "name": "CreateApiTokenInput",
         "description": null,
         "isOneOf": false,
         "fields": null,
@@ -1404,19 +1404,19 @@
       },
       {
         "kind": "OBJECT",
-        "name": "CreatedApiKey",
+        "name": "CreatedApiToken",
         "description": null,
         "isOneOf": null,
         "fields": [
           {
-            "name": "apiKey",
+            "name": "apiToken",
             "description": null,
             "args": [],
             "type": {
               "kind": "NON_NULL",
               "name": null,
               "ofType": {
-                "name": "ApiKey",
+                "name": "ApiToken",
                 "kind": "OBJECT",
                 "ofType": null
               }
@@ -1425,7 +1425,7 @@
             "deprecationReason": null
           },
           {
-            "name": "key",
+            "name": "token",
             "description": null,
             "args": [],
             "type": {
@@ -4657,7 +4657,7 @@
             "deprecationReason": null
           },
           {
-            "name": "createApiKey",
+            "name": "createApiToken",
             "description": null,
             "args": [
               {
@@ -4667,7 +4667,7 @@
                   "kind": "NON_NULL",
                   "name": null,
                   "ofType": {
-                    "name": "CreateApiKeyInput",
+                    "name": "CreateApiTokenInput",
                     "kind": "INPUT_OBJECT",
                     "ofType": null
                   }
@@ -4681,7 +4681,7 @@
               "kind": "NON_NULL",
               "name": null,
               "ofType": {
-                "name": "CreatedApiKey",
+                "name": "CreatedApiToken",
                 "kind": "OBJECT",
                 "ofType": null
               }
@@ -5622,7 +5622,7 @@
             "deprecationReason": null
           },
           {
-            "name": "revokeApiKey",
+            "name": "revokeApiToken",
             "description": null,
             "args": [
               {
@@ -6623,7 +6623,7 @@
         "isOneOf": null,
         "fields": [
           {
-            "name": "apiKeys",
+            "name": "apiTokens",
             "description": null,
             "args": [],
             "type": {
@@ -6636,7 +6636,7 @@
                   "name": null,
                   "kind": "NON_NULL",
                   "ofType": {
-                    "name": "ApiKey",
+                    "name": "ApiToken",
                     "kind": "OBJECT",
                     "ofType": null
                   }
