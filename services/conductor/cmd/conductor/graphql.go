@@ -47,7 +47,7 @@ const (
 	allowSuspendedDirective = "allowSuspended"
 )
 
-func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvider *oidc.Provider, store *sessionStore, codec *session.Codec, verifier *auth.Verifier, logtoClient *logto.Client, internalIssuer *auth.Issuer, callbackURL, dashboardURL, githubAppSlug, githubActionsAudience, oidcIssuer, oidcAudience, oidcDashboardClientID, oidcCLIClientID string, grpcComponents []grpcComponent) *GraphQLServer {
+func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvider *oidc.Provider, store *sessionStore, codec *session.Codec, verifier *auth.Verifier, logtoClient *logto.Client, internalIssuer *auth.Issuer, callbackURL, dashboardURL, githubAppSlug, githubActionsAudience, oidcIssuer, oidcAudience, oidcCLIClientID string, grpcComponents []grpcComponent) *GraphQLServer {
 	resolver := gatewaygraphql.Resolver{
 		Conductor: conductorClient,
 	}
@@ -159,9 +159,9 @@ func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvid
 			},
 		},
 		InitFunc: func(ctx context.Context, initPayload transport.InitPayload) (context.Context, *transport.InitPayload, error) {
-			// Auth: prefer connectionParams token (non-browser clients),
-			// fall back to session cookie on the HTTP upgrade request
-			// (already in ctx from auth.Middleware).
+			// Non-browser clients authenticate with a bearer token in
+			// connectionParams. Browser clients arrive with their session
+			// cookie already resolved to claims on the HTTP upgrade request.
 			token, _ := initPayload["Authorization"].(string)
 			if token != "" {
 				token = strings.TrimPrefix(token, "Bearer ")
@@ -181,6 +181,19 @@ func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvid
 			if ws, ok := initPayload[tenant.Header].(string); ok && ws != "" {
 				ctx = tenant.NewContext(ctx, ws)
 				ctx = auth.WithActiveWorkspace(ctx, ws)
+
+				// Cookie clients have no per-workspace token yet; mint it
+				// from the session and fold the role into the claims.
+				if sid, ok := sessionIDFromContext(ctx); ok {
+					if orgToken, err := store.orgToken(ctx, sid, ws); err == nil {
+						if tokenClaims, err := verifier.ValidateToken(ctx, orgToken); err == nil {
+							if claims, err := auth.FromContext(ctx); err == nil {
+								claims.Workspaces = tokenClaims.Workspaces
+								ctx = auth.NewContext(ctx, claims)
+							}
+						}
+					}
+				}
 			}
 
 			return ctx, &initPayload, nil
@@ -292,7 +305,7 @@ func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvid
 	if githubActionsAudience != "" {
 		ciVerifier = newGitHubActionsVerifier(githubActionsAudience)
 	}
-	registerAuthRoutes(mux, oidcProvider, store, codec, conductorClient, logtoClient, callbackURL, dashboardURL, githubAppSlug, oidcIssuer, oidcAudience, oidcDashboardClientID, oidcCLIClientID, ciVerifier)
+	registerAuthRoutes(mux, oidcProvider, store, codec, conductorClient, logtoClient, callbackURL, dashboardURL, githubAppSlug, oidcIssuer, oidcAudience, oidcCLIClientID, ciVerifier)
 
 	// GraphQL endpoints
 	mux.Handle("/playground", playground.Handler("GraphQL playground", "/graphql"))

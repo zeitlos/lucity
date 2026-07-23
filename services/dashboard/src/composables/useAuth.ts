@@ -1,5 +1,4 @@
 import { ref, computed } from 'vue';
-import { logto, apiResource } from '@/lib/logto';
 
 export interface WorkspaceMembership {
   workspace: string;
@@ -27,7 +26,6 @@ const user = ref<AuthUser | null>(null);
 const loading = ref(true);
 const authed = ref(false);
 const activeWorkspace = ref<string>(localStorage.getItem('lucity_workspace') || '');
-const orgIdByWorkspace = new Map<string, string>();
 
 let identifiedUserId: string | null = null;
 
@@ -60,49 +58,27 @@ export function useAuth() {
 
   async function fetchUser() {
     try {
-      authed.value = await logto.isAuthenticated();
-      if (!authed.value) {
+      const res = await fetch('/auth/me', { credentials: 'include' });
+      if (!res.ok) {
+        authed.value = false;
         user.value = null;
         return;
       }
 
-      const claims = await logto.getIdTokenClaims();
-      const info = await logto.fetchUserInfo();
+      const me = (await res.json()) as AuthUser;
+      authed.value = true;
+      user.value = me;
 
-      const roleByOrg = new Map<string, 'user' | 'admin'>();
-      for (const entry of [...(claims.organization_roles ?? []), ...(info.organization_roles ?? [])]) {
-        const [orgId, roleName] = entry.split(':');
-        if (roleName === 'admin') {
-          roleByOrg.set(orgId, 'admin');
-        } else if (!roleByOrg.has(orgId)) {
-          roleByOrg.set(orgId, 'user');
-        }
-      }
-
-      orgIdByWorkspace.clear();
-      const workspaces: WorkspaceMembership[] = [];
-      for (const org of info.organization_data ?? []) {
-        orgIdByWorkspace.set(org.name, org.id);
-        workspaces.push({ workspace: org.name, role: roleByOrg.get(org.id) ?? 'user' });
-      }
-
-      user.value = {
-        id: claims.sub,
-        name: claims.name ?? null,
-        email: claims.email ?? null,
-        avatarUrl: claims.picture ?? '',
-        workspaces,
-      };
-
+      const workspaces = me.workspaces ?? [];
       if (!activeWorkspace.value || !workspaces.some(w => w.workspace === activeWorkspace.value)) {
         setActiveWorkspace(workspaces[0]?.workspace || '');
       }
 
       const traits: Record<string, unknown> = {};
-      if (user.value.name) traits.name = user.value.name;
-      if (user.value.email) traits.email = user.value.email;
+      if (me.name) traits.name = me.name;
+      if (me.email) traits.email = me.email;
       if (activeWorkspace.value) traits.workspace = activeWorkspace.value;
-      identifyUser(user.value.id, traits);
+      identifyUser(me.id, traits);
     } catch {
       authed.value = false;
       user.value = null;
@@ -111,27 +87,15 @@ export function useAuth() {
     }
   }
 
-  async function login() {
-    await logto.signIn({
-      redirectUri: `${window.location.origin}${import.meta.env.BASE_URL}callback`,
-      directSignIn: { method: 'social', target: 'github' },
-    });
+  function login() {
+    window.location.href = '/auth/login';
   }
 
-  async function logout() {
+  function logout() {
     user.value = null;
     authed.value = false;
     clearIdentifiedUser();
-    await logto.signOut(`${window.location.origin}${import.meta.env.BASE_URL}`);
-  }
-
-  async function refreshToken() {
-    await fetchUser();
-  }
-
-  async function bearerToken(): Promise<string | undefined> {
-    const orgId = activeWorkspace.value ? orgIdByWorkspace.get(activeWorkspace.value) : undefined;
-    return logto.getAccessToken(apiResource, orgId);
+    window.location.href = '/auth/logout';
   }
 
   return {
@@ -140,10 +104,9 @@ export function useAuth() {
     isAuthenticated,
     activeWorkspace,
     fetchUser,
+    refreshToken: fetchUser,
     logout,
     login,
     setActiveWorkspace,
-    refreshToken,
-    bearerToken,
   };
 }

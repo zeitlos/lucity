@@ -18,8 +18,8 @@ import (
 	"github.com/zeitlos/lucity/cli/internal/api"
 	"github.com/zeitlos/lucity/cli/internal/authflow"
 	"github.com/zeitlos/lucity/cli/internal/mcpserver"
-	"github.com/zeitlos/lucity/cli/internal/oidc"
 	"github.com/zeitlos/lucity/cli/internal/session"
+	"github.com/zeitlos/lucity/pkg/oidc"
 )
 
 func decodeJWTClaims(token string) map[string]any {
@@ -132,10 +132,12 @@ func cmdLogin(ctx context.Context, args []string) error {
 	}
 
 	provider := &oidc.Provider{
-		Endpoint: authCfg.Endpoint,
-		ClientID: authCfg.CliClientID,
-		Audience: authCfg.Audience,
-		HTTP:     httpClient,
+		Endpoint:     authCfg.Endpoint,
+		ClientID:     authCfg.CliClientID,
+		Audience:     authCfg.Audience,
+		DirectSignIn: session.DirectSignIn,
+		Scopes:       session.LoginScopes,
+		HTTP:         httpClient,
 	}
 
 	refreshToken, err := authflow.Login(ctx, provider)

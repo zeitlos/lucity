@@ -14,10 +14,18 @@ import (
 	"github.com/zeitlos/lucity/cli/internal/apitoken"
 	"github.com/zeitlos/lucity/cli/internal/ciauth"
 	"github.com/zeitlos/lucity/cli/internal/config"
-	"github.com/zeitlos/lucity/cli/internal/oidc"
+	"github.com/zeitlos/lucity/pkg/oidc"
 )
 
 var ErrLoggedOut = errors.New("not logged in — run `lucity login`")
+
+const DirectSignIn = "social:github"
+
+var (
+	LoginScopes    = []string{"openid", "profile", "email", "offline_access", "identities", "urn:logto:scope:organizations", "urn:logto:scope:organization_roles", "admin", "member"}
+	accountScopes  = []string{"openid", "profile", "email", "identities", "urn:logto:scope:organizations", "urn:logto:scope:organization_roles"}
+	resourceScopes = []string{"admin", "member"}
+)
 
 type cachedToken struct {
 	token string
@@ -218,10 +226,12 @@ func (m *Manager) provider(ctx context.Context) (*oidc.Provider, error) {
 		return nil, err
 	}
 	return &oidc.Provider{
-		Endpoint: cfg.Endpoint,
-		ClientID: cfg.CliClientID,
-		Audience: cfg.Audience,
-		HTTP:     &http.Client{Timeout: 30 * time.Second},
+		Endpoint:     cfg.Endpoint,
+		ClientID:     cfg.CliClientID,
+		Audience:     cfg.Audience,
+		DirectSignIn: DirectSignIn,
+		Scopes:       LoginScopes,
+		HTTP:         &http.Client{Timeout: 30 * time.Second},
 	}, nil
 }
 
@@ -274,7 +284,7 @@ func (m *Manager) orgBearer(ctx context.Context, workspace string) (string, erro
 		return "", err
 	}
 
-	token, expiresIn, err := m.refreshGrant(ctx, cfg.Audience, orgID, oidc.ResourceScopes)
+	token, expiresIn, err := m.refreshGrant(ctx, cfg.Audience, orgID, resourceScopes)
 	if err != nil {
 		return "", err
 	}
@@ -299,7 +309,7 @@ func (m *Manager) accountBearer(ctx context.Context) (string, error) {
 		return "", err
 	}
 
-	token, expiresIn, err := m.refreshGrant(ctx, cfg.Audience, "", oidc.ResourceScopes)
+	token, expiresIn, err := m.refreshGrant(ctx, cfg.Audience, "", resourceScopes)
 	if err != nil {
 		return "", err
 	}
@@ -319,7 +329,7 @@ func (m *Manager) accountAPIToken(ctx context.Context) (string, error) {
 	}
 	m.tokMu.Unlock()
 
-	token, expiresIn, err := m.refreshGrant(ctx, "", "", oidc.AccountScopes)
+	token, expiresIn, err := m.refreshGrant(ctx, "", "", accountScopes)
 	if err != nil {
 		return "", err
 	}

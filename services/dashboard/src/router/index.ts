@@ -1,16 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import DefaultLayout from '@/layouts/DefaultLayout.vue';
 import { useAuth } from '@/composables/useAuth';
-import { apolloClient } from '@/lib/apollo';
-import { graphql } from '@/gql';
-
-const BootstrapWorkspacesDocument = graphql(`
-  query BootstrapWorkspaces {
-    workspaces {
-      id
-    }
-  }
-`);
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -60,11 +50,6 @@ const router = createRouter({
       component: () => import('@/pages/PlanCheckoutSuccessPage.vue'),
     },
     {
-      path: '/callback',
-      name: 'callback',
-      component: () => import('@/pages/CallbackPage.vue'),
-    },
-    {
       path: '/login',
       name: 'login',
       component: () => import('@/pages/LoginPage.vue'),
@@ -80,7 +65,7 @@ const router = createRouter({
 router.beforeEach(async (to) => {
   if (!to.meta.requiresAuth) return;
 
-  const { isAuthenticated, loading, fetchUser, activeWorkspace, login } = useAuth();
+  const { isAuthenticated, loading, fetchUser, activeWorkspace } = useAuth();
 
   if (loading.value) {
     await fetchUser();
@@ -91,11 +76,7 @@ router.beforeEach(async (to) => {
   }
 
   if (!activeWorkspace.value) {
-    await apolloClient.query({ query: BootstrapWorkspacesDocument, fetchPolicy: 'network-only' }).catch(() => {});
-    await fetchUser();
-    if (!activeWorkspace.value) {
-      return { name: 'login' };
-    }
+    return { name: 'login', query: { error: 'no_workspace' } };
   }
 });
 

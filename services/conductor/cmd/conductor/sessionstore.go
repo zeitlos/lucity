@@ -4,14 +4,24 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
+	"errors"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/zeitlos/lucity/pkg/kvstore"
 	"github.com/zeitlos/lucity/pkg/logto"
 	"github.com/zeitlos/lucity/pkg/oidc"
 )
 
+const sessionTTL = 30 * 24 * time.Hour
+
 var (
+	errNoSession           = errors.New("session not found")
+	errWorkspaceRoleNotSet = errors.New("workspace role not yet propagated")
+
+	roleScopes         = []string{"admin", "member", "deployer"}
 	orgTokenScopes     = []string{"admin", "member"}
 	accountTokenScopes = []string{"openid", "profile", "email", "identities", "urn:logto:scope:organizations", "urn:logto:scope:organization_roles"}
 	loginScopes        = []string{"openid", "profile", "email", "offline_access", "identities", "urn:logto:scope:organizations", "urn:logto:scope:organization_roles", "admin", "member"}
@@ -27,83 +37,148 @@ type sessionData struct {
 }
 
 type cachedToken struct {
-	token string
-	exp   time.Time
+	Token string    `json:"token"`
+	Exp   time.Time `json:"exp"`
 }
 
-type userSession struct {
-	mu           sync.Mutex
-	refreshToken string
-	tokens       map[string]cachedToken
+type sessionValue struct {
+	RefreshToken string                 `json:"refreshToken"`
+	Tokens       map[string]cachedToken `json:"tokens"`
 }
 
 type sessionStore struct {
-	mu       sync.Mutex
-	sessions map[string]*userSession
-
+	mint     sync.Mutex
+	store    kvstore.Store[sessionValue]
 	provider *oidc.Provider
 	logto    *logto.Client
 }
 
-func newSessionStore(provider *oidc.Provider, logtoClient *logto.Client) *sessionStore {
-	return &sessionStore{
-		sessions: map[string]*userSession{},
-		provider: provider,
-		logto:    logtoClient,
-	}
+func newSessionStore(store kvstore.Store[sessionValue], provider *oidc.Provider, logtoClient *logto.Client) *sessionStore {
+	return &sessionStore{store: store, provider: provider, logto: logtoClient}
 }
 
-func (s *sessionStore) get(data *sessionData) *userSession {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	sess, ok := s.sessions[data.SID]
+func (s *sessionStore) create(ctx context.Context, refreshToken string) (string, error) {
+	sid := generateSessionID()
+	if err := s.store.Set(ctx, sid, sessionValue{RefreshToken: refreshToken, Tokens: map[string]cachedToken{}}, sessionTTL); err != nil {
+		return "", err
+	}
+	return sid, nil
+}
+
+func (s *sessionStore) ensure(ctx context.Context, sid, refreshToken string) {
+	if _, ok, _ := s.store.Get(ctx, sid); ok {
+		return
+	}
+	s.mint.Lock()
+	defer s.mint.Unlock()
+	if _, ok, _ := s.store.Get(ctx, sid); ok {
+		return
+	}
+	_ = s.store.Set(ctx, sid, sessionValue{RefreshToken: refreshToken, Tokens: map[string]cachedToken{}}, sessionTTL)
+}
+
+func (s *sessionStore) delete(ctx context.Context, sid string) {
+	_ = s.store.Delete(ctx, sid)
+}
+
+func (s *sessionStore) refreshToken(ctx context.Context, sid string) (string, bool) {
+	val, ok, _ := s.store.Get(ctx, sid)
 	if !ok {
-		sess = &userSession{refreshToken: data.RefreshToken, tokens: map[string]cachedToken{}}
-		s.sessions[data.SID] = sess
+		return "", false
 	}
-	return sess
+	return val.RefreshToken, true
 }
 
-func (s *sessionStore) drop(sid string) {
-	s.mu.Lock()
-	delete(s.sessions, sid)
-	s.mu.Unlock()
-}
-
-func (s *sessionStore) orgToken(ctx context.Context, sess *userSession, workspace string) (token, rotated string, err error) {
+func (s *sessionStore) orgToken(ctx context.Context, sid, workspace string) (string, error) {
 	orgID, err := s.orgID(ctx, workspace)
 	if err != nil {
-		return "", "", err
+		return "", err
 	}
-	return s.token(ctx, sess, workspace, s.provider.Audience, orgID, orgTokenScopes)
+	return s.token(ctx, sid, workspace, s.provider.Audience, orgID, orgTokenScopes, true)
 }
 
-func (s *sessionStore) accountAPIToken(ctx context.Context, sess *userSession) (token, rotated string, err error) {
-	return s.token(ctx, sess, "@acctapi", "", "", accountTokenScopes)
+func (s *sessionStore) accountAPIToken(ctx context.Context, sid string) (string, error) {
+	return s.token(ctx, sid, "@acctapi", "", "", accountTokenScopes, false)
 }
 
-func (s *sessionStore) token(ctx context.Context, sess *userSession, cacheKey, resource, orgID string, scopes []string) (token, rotated string, err error) {
-	sess.mu.Lock()
-	defer sess.mu.Unlock()
-
-	if t, ok := sess.tokens[cacheKey]; ok && time.Now().Before(t.exp) {
-		return t.token, "", nil
+func (s *sessionStore) token(ctx context.Context, sid, cacheKey, resource, orgID string, scopes []string, requireRole bool) (string, error) {
+	if val, ok, _ := s.store.Get(ctx, sid); ok {
+		if t, ok := val.Tokens[cacheKey]; ok && time.Now().Before(t.Exp) {
+			return t.Token, nil
+		}
 	}
 
-	tokens, err := s.provider.Refresh(ctx, sess.refreshToken, resource, orgID, scopes)
+	s.mint.Lock()
+	defer s.mint.Unlock()
+
+	val, ok, err := s.store.Get(ctx, sid)
 	if err != nil {
-		return "", "", err
+		return "", err
 	}
-	if tokens.RefreshToken != "" && tokens.RefreshToken != sess.refreshToken {
-		sess.refreshToken = tokens.RefreshToken
-		rotated = tokens.RefreshToken
+	if !ok {
+		return "", errNoSession
+	}
+	if t, ok := val.Tokens[cacheKey]; ok && time.Now().Before(t.Exp) {
+		return t.Token, nil
+	}
+
+	tokens, err := s.provider.Refresh(ctx, val.RefreshToken, resource, orgID, scopes)
+	if err != nil {
+		return "", err
+	}
+
+	// Persist the rotated refresh token even when the grant is otherwise
+	// unusable — Logto invalidates the previous one on every exchange.
+	if tokens.RefreshToken != "" {
+		val.RefreshToken = tokens.RefreshToken
+	}
+
+	if requireRole && !accessTokenHasRole(tokens.AccessToken) {
+		_ = s.store.Set(ctx, sid, val, sessionTTL)
+		return "", errWorkspaceRoleNotSet
+	}
+
+	if val.Tokens == nil {
+		val.Tokens = map[string]cachedToken{}
 	}
 	leeway := tokens.ExpiresIn - 60
 	if leeway < 0 {
 		leeway = tokens.ExpiresIn
 	}
-	sess.tokens[cacheKey] = cachedToken{token: tokens.AccessToken, exp: time.Now().Add(time.Duration(leeway) * time.Second)}
-	return tokens.AccessToken, rotated, nil
+	val.Tokens[cacheKey] = cachedToken{Token: tokens.AccessToken, Exp: time.Now().Add(time.Duration(leeway) * time.Second)}
+	if err := s.store.Set(ctx, sid, val, sessionTTL); err != nil {
+		return "", err
+	}
+	return tokens.AccessToken, nil
+}
+
+func accessTokenHasRole(accessToken string) bool {
+	parts := strings.Split(accessToken, ".")
+	if len(parts) < 2 {
+		return false
+	}
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return false
+	}
+	var claims struct {
+		Scope string `json:"scope"`
+	}
+	if err := json.Unmarshal(payload, &claims); err != nil {
+		return false
+	}
+	return hasRoleScope(claims.Scope)
+}
+
+func hasRoleScope(scope string) bool {
+	for _, granted := range strings.Fields(scope) {
+		for _, role := range roleScopes {
+			if granted == role {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (s *sessionStore) orgID(ctx context.Context, workspace string) (string, error) {

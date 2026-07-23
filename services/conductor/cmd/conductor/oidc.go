@@ -20,10 +20,11 @@ import (
 )
 
 const (
-	stateCookieName    = "lucity_oauth_state"
-	verifierCookieName = "lucity_pkce_verifier"
-	sessionCookieName  = "lucity_session"
-	directSignIn       = "social:github"
+	stateCookieName     = "lucity_oauth_state"
+	verifierCookieName  = "lucity_pkce_verifier"
+	sessionCookieName   = "lucity_session"
+	bootstrapCookieName = "lucity_bootstrap"
+	directSignIn        = "social:github"
 )
 
 type issuerRewriteTransport struct {
@@ -63,9 +64,9 @@ func secureCookies(dashboardURL string) bool {
 	return strings.HasPrefix(dashboardURL, "https://")
 }
 
-func registerAuthRoutes(mux *http.ServeMux, provider *oidc.Provider, store *sessionStore, codec *session.Codec, conductorClient *conductor.Client, logtoClient *logto.Client, callbackURL, dashboardURL, githubAppSlug, oidcIssuer, oidcAudience, oidcDashboardClientID, oidcCLIClientID string, ciVerifier *githubActionsVerifier) {
+func registerAuthRoutes(mux *http.ServeMux, provider *oidc.Provider, store *sessionStore, codec *session.Codec, conductorClient *conductor.Client, logtoClient *logto.Client, callbackURL, dashboardURL, githubAppSlug, oidcIssuer, oidcAudience, oidcCLIClientID string, ciVerifier *githubActionsVerifier) {
 	secure := secureCookies(dashboardURL)
-	mux.HandleFunc("/auth/config", handleAuthConfig(oidcIssuer, oidcAudience, oidcDashboardClientID, oidcCLIClientID))
+	mux.HandleFunc("/auth/config", handleAuthConfig(oidcIssuer, oidcAudience, oidcCLIClientID))
 	mux.HandleFunc("/auth/login", handleLogin(provider, callbackURL, secure))
 	mux.HandleFunc("/auth/callback", handleCallback(provider, store, codec, conductorClient, callbackURL, dashboardURL, secure))
 	mux.HandleFunc("/auth/me", handleMe(logtoClient))
@@ -79,15 +80,14 @@ func registerAuthRoutes(mux *http.ServeMux, provider *oidc.Provider, store *sess
 	}
 }
 
-func handleAuthConfig(issuer, audience, dashboardClientID, cliClientID string) http.HandlerFunc {
+func handleAuthConfig(issuer, audience, cliClientID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{
-			"issuer":            issuer,
-			"endpoint":          strings.TrimSuffix(issuer, "/oidc"),
-			"audience":          audience,
-			"dashboardClientId": dashboardClientID,
-			"cliClientId":       cliClientID,
+			"issuer":      issuer,
+			"endpoint":    strings.TrimSuffix(issuer, "/oidc"),
+			"audience":    audience,
+			"cliClientId": cliClientID,
 		})
 	}
 }
@@ -144,27 +144,32 @@ func handleCallback(provider *oidc.Provider, store *sessionStore, codec *session
 		}
 
 		svcCtx := auth.NewContext(r.Context(), &auth.Claims{Subject: info.Subject, Email: info.Email})
-		if err := conductorClient.EnsureAccount(svcCtx, info.Subject); err != nil {
+		_, created, err := conductorClient.EnsureAccount(svcCtx, info.Subject)
+		if err != nil {
 			slog.Error("failed to provision account", "error", err, "email", info.Email)
 			http.Error(w, "failed to create workspace", http.StatusInternalServerError)
 			return
 		}
 
-		data := sessionData{
-			SID:          generateSessionID(),
-			Sub:          info.Subject,
-			Name:         info.Name,
-			Email:        info.Email,
-			Picture:      info.Picture,
-			RefreshToken: tokens.RefreshToken,
+		if created && !bootstrapRetry(r) {
+			slog.Info("new account provisioned; re-authenticating for org-aware session", "email", info.Email)
+			setShortCookie(w, bootstrapCookieName, "1", secure)
+			http.Redirect(w, r, "/auth/login", http.StatusTemporaryRedirect)
+			return
 		}
-		sealed, err := codec.Seal(data)
+		clearCookie(w, bootstrapCookieName)
+
+		sid, err := store.create(r.Context(), tokens.RefreshToken)
 		if err != nil {
-			slog.Error("failed to seal session", "error", err)
+			slog.Error("failed to create session", "error", err)
 			http.Error(w, "authentication failed", http.StatusInternalServerError)
 			return
 		}
-		codec.SetCookie(w, sealed)
+		if err := codec.Save(w, sessionData{SID: sid, Sub: info.Subject, Name: info.Name, Email: info.Email, Picture: info.Picture, RefreshToken: tokens.RefreshToken}); err != nil {
+			slog.Error("failed to save session", "error", err)
+			http.Error(w, "authentication failed", http.StatusInternalServerError)
+			return
+		}
 
 		slog.Info("user authenticated", "email", info.Email)
 		http.Redirect(w, r, dashboardURL, http.StatusTemporaryRedirect)
@@ -214,13 +219,11 @@ func handleMe(logtoClient *logto.Client) http.HandlerFunc {
 
 func handleLogout(store *sessionStore, codec *session.Codec, dashboardURL string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if value, ok := codec.Read(r); ok {
-			var data sessionData
-			if err := codec.Open(value, &data); err == nil {
-				store.drop(data.SID)
-			}
+		var data sessionData
+		if err := codec.Load(r, &data); err == nil {
+			store.delete(r.Context(), data.SID)
 		}
-		codec.ClearCookie(w)
+		codec.Clear(w)
 
 		if r.Method == http.MethodPost {
 			w.WriteHeader(http.StatusOK)
@@ -283,6 +286,11 @@ func setShortCookie(w http.ResponseWriter, name, value string, secure bool) {
 
 func clearCookie(w http.ResponseWriter, name string) {
 	http.SetCookie(w, &http.Cookie{Name: name, Path: "/", MaxAge: -1})
+}
+
+func bootstrapRetry(r *http.Request) bool {
+	cookie, err := r.Cookie(bootstrapCookieName)
+	return err == nil && cookie.Value == "1"
 }
 
 func generateState() string {

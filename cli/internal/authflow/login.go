@@ -16,7 +16,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/zeitlos/lucity/cli/internal/oidc"
+	"github.com/zeitlos/lucity/pkg/oidc"
 )
 
 const loginTimeout = 5 * time.Minute

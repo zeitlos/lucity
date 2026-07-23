@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"strings"
 
@@ -13,6 +14,17 @@ const (
 	sessionCookieMaxAge = 30 * 24 * 3600
 	accountTokenHeader  = "X-Lucity-Account-Token"
 )
+
+type sessionIDContextKey struct{}
+
+func withSessionID(ctx context.Context, sid string) context.Context {
+	return context.WithValue(ctx, sessionIDContextKey{}, sid)
+}
+
+func sessionIDFromContext(ctx context.Context) (string, bool) {
+	sid, ok := ctx.Value(sessionIDContextKey{}).(string)
+	return sid, ok
+}
 
 func sessionAuth(store *sessionStore, codec *session.Codec, verifier *auth.Verifier) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
@@ -30,44 +42,31 @@ func sessionAuth(store *sessionStore, codec *session.Codec, verifier *auth.Verif
 				return
 			}
 
-			value, ok := codec.Read(r)
-			if !ok {
-				next.ServeHTTP(w, r.WithContext(ctx))
-				return
-			}
 			var data sessionData
-			if err := codec.Open(value, &data); err != nil {
+			if err := codec.Load(r, &data); err != nil {
 				next.ServeHTTP(w, r.WithContext(ctx))
 				return
 			}
-			sess := store.get(&data)
+			store.ensure(ctx, data.SID, data.RefreshToken)
+			ctx = withSessionID(ctx, data.SID)
 
 			claims := &auth.Claims{Subject: data.Sub, Name: data.Name, Email: data.Email, AvatarURL: data.Picture}
-			var rotated string
 
 			if workspace := r.Header.Get(tenant.Header); workspace != "" {
-				if orgToken, rot, err := store.orgToken(ctx, sess, workspace); err == nil {
-					if rot != "" {
-						rotated = rot
-					}
+				if orgToken, err := store.orgToken(ctx, data.SID, workspace); err == nil {
 					if tokenClaims, err := verifier.ValidateToken(ctx, orgToken); err == nil {
 						claims.Workspaces = tokenClaims.Workspaces
 					}
 				}
 			}
 
-			if account, rot, err := store.accountAPIToken(ctx, sess); err == nil {
-				if rot != "" {
-					rotated = rot
-				}
+			if account, err := store.accountAPIToken(ctx, data.SID); err == nil {
 				ctx = auth.WithToken(ctx, account)
 			}
 
-			if rotated != "" {
-				data.RefreshToken = sess.refreshToken
-				if sealed, err := codec.Seal(data); err == nil {
-					codec.SetCookie(w, sealed)
-				}
+			if rotated, ok := store.refreshToken(ctx, data.SID); ok && rotated != data.RefreshToken {
+				data.RefreshToken = rotated
+				_ = codec.Save(w, data)
 			}
 
 			ctx = auth.NewContext(ctx, claims)
