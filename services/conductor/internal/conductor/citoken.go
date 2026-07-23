@@ -19,7 +19,7 @@ func (c *Client) IssueCIDeployToken(ctx context.Context, repo, workspace, audien
 	if err != nil {
 		return "", time.Time{}, err
 	}
-	roleID, err := c.orgRoleIDByName(ctx, "deployer")
+	roleID, err := c.orgRoleIDByName(ctx, "machine-deployer")
 	if err != nil {
 		return "", time.Time{}, err
 	}

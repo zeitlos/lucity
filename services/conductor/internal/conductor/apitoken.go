@@ -141,9 +141,9 @@ func (c *Client) apiTokenRoleID(ctx context.Context, role auth.WorkspaceRole) (s
 	var name string
 	switch role {
 	case auth.WorkspaceRoleAdmin:
-		name = "api-admin"
+		name = "machine-admin"
 	case auth.WorkspaceRoleUser:
-		name = "api-member"
+		name = "machine-member"
 	default:
 		return "", fmt.Errorf("unsupported api token role %q", role)
 	}

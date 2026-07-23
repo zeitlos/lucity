@@ -52,11 +52,6 @@ func hmacValidateFunc(secret string) auth.ValidateFunc {
 			}
 		}
 
-		// Reached only when JWKS/OIDC verification already failed and this HS256
-		// token verified — i.e. a legacy client that hasn't migrated to bearer
-		// tokens. This warning is the signal for when it's safe to delete HS256
-		// (see TODO(stage-6b) above): once it stops appearing, no clients rely
-		// on the fallback anymore.
 		slog.WarnContext(ctx, "legacy HS256 session token accepted (fallback) — client not migrated to OIDC bearer tokens",
 			"subject", sub, "legacy_auth", "hs256")
 
