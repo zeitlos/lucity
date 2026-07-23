@@ -16,7 +16,7 @@ conductor:
     OIDC_CLIENT_ID: 30ztkgeb1c7hwmnx6bf4s
     OIDC_AUDIENCE: https://api.lucity.cloud
     OIDC_DASHBOARD_CLIENT_ID: 5xvs3sla2n4v43tzjgibd
-    OIDC_CLI_CLIENT_ID: k9ysdd5hpso52ehn2m165
+    OIDC_CLI_CLIENT_ID: y4jzqbb1vm92i7v05djd7
     OIDC_CALLBACK_URL: https://lucity.cloud/auth/callback
     DASHBOARD_URL: https://lucity.cloud/app
 
