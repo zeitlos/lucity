@@ -2,16 +2,20 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"text/tabwriter"
+	"time"
 
 	"github.com/zeitlos/lucity/cli/internal/api"
 	"github.com/zeitlos/lucity/cli/internal/authflow"
 	"github.com/zeitlos/lucity/cli/internal/mcpserver"
+	"github.com/zeitlos/lucity/cli/internal/oidc"
 	"github.com/zeitlos/lucity/cli/internal/session"
 )
 
@@ -35,8 +39,7 @@ Usage:
 Environment:
   LUCITY_API_URL    Override the platform URL (default: stored, then ` + api.DefaultBaseURL + `)
   LUCITY_WORKSPACE  Override the active workspace
-  LUCITY_TOKEN      Use a fixed bearer token instead of the stored session
-  LUCITY_API_KEY    Authenticate with a workspace API key (for CI and automation)
+  LUCITY_API_TOKEN  Authenticate with a workspace API token (for CI and automation)
 `
 
 func main() {
@@ -100,17 +103,43 @@ func cmdLogin(ctx context.Context, args []string) error {
 		base = *apiURL
 	}
 
-	newSession, err := authflow.Login(ctx, base)
+	httpClient := &http.Client{Timeout: 30 * time.Second}
+	authCfg, err := api.Config(ctx, httpClient, base)
+	if err != nil {
+		return fmt.Errorf("fetch auth config from %s: %w", base, err)
+	}
+	if authCfg.CliClientID == "" {
+		return errors.New("this platform has no CLI login configured — the maintainer must register a native CLI client and set OIDC_CLI_CLIENT_ID")
+	}
+
+	provider := &oidc.Provider{
+		Endpoint: authCfg.Endpoint,
+		ClientID: authCfg.CliClientID,
+		Audience: authCfg.Audience,
+		HTTP:     httpClient,
+	}
+
+	refreshToken, err := authflow.Login(ctx, provider)
 	if err != nil {
 		return err
 	}
-	if err := manager.SetSession(base, newSession); err != nil {
+	if err := manager.SetLogin(base, refreshToken); err != nil {
 		return err
 	}
 
-	identity, err := manager.Client().Me(ctx)
+	identity, err := manager.Identity(ctx)
 	if err != nil {
 		return fmt.Errorf("signed in, but fetching the account failed: %w", err)
+	}
+
+	// A brand-new user has no workspace yet; the authenticated query lazily
+	// provisions their personal workspace on the platform.
+	if len(identity.Workspaces) == 0 {
+		if err := manager.BootstrapWorkspaces(ctx); err == nil {
+			if refreshed, err := manager.Identity(ctx); err == nil {
+				identity = refreshed
+			}
+		}
 	}
 
 	if manager.Workspace() == "" && len(identity.Workspaces) > 0 {
@@ -141,8 +170,15 @@ func cmdAccount(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	identity, err := manager.Client().Me(ctx)
+	identity, err := manager.Identity(ctx)
 	if err != nil {
+		// Non-interactive credentials (API token, CI) carry no user account;
+		// show the active workspace instead of failing.
+		if workspace := manager.Workspace(); workspace != "" {
+			fmt.Printf("Platform: %s\n", manager.APIURL())
+			fmt.Printf("Active workspace: %s\n", workspace)
+			return nil
+		}
 		return err
 	}
 
@@ -176,7 +212,7 @@ func cmdWorkspace(ctx context.Context, args []string) error {
 	}
 
 	target := args[0]
-	identity, err := manager.Client().Me(ctx)
+	identity, err := manager.Identity(ctx)
 	if err != nil {
 		return err
 	}

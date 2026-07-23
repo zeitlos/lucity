@@ -3,24 +3,28 @@ package authflow
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"net"
 	"net/http"
-	"net/url"
 	"os"
 	"os/exec"
 	"runtime"
-	"strconv"
-	"strings"
 	"sync"
 	"time"
 
-	"github.com/zeitlos/lucity/cli/internal/api"
+	"github.com/zeitlos/lucity/cli/internal/oidc"
 )
 
 const loginTimeout = 5 * time.Minute
+
+// callbackPorts are the loopback ports the CLI binds for the OAuth redirect.
+// They are fixed because the identity provider rejects wildcard and dynamic
+// loopback redirect URIs; each must be registered on the native client.
+var callbackPorts = []int{8765, 8766, 8767}
 
 const successPage = `<!doctype html>
 <html lang="en">
@@ -53,23 +57,28 @@ type callbackResult struct {
 	err  error
 }
 
-func Login(ctx context.Context, baseURL string) (*api.Session, error) {
-	base, err := url.Parse(strings.TrimSuffix(baseURL, "/"))
-	if err != nil || (base.Scheme != "http" && base.Scheme != "https") || base.Host == "" {
-		return nil, fmt.Errorf("invalid base URL %q: expected an http(s) URL", baseURL)
+// Login runs a native Authorization-Code + PKCE flow against the identity
+// provider using a loopback redirect, and returns the resulting refresh token.
+func Login(ctx context.Context, provider *oidc.Provider) (string, error) {
+	if provider.ClientID == "" {
+		return "", errors.New("the platform did not advertise a CLI client id — the maintainer must register a native CLI client and set OIDC_CLI_CLIENT_ID")
 	}
 
-	stateBytes := make([]byte, 32)
-	if _, err := rand.Read(stateBytes); err != nil {
-		return nil, fmt.Errorf("generate login state: %w", err)
-	}
-	state := hex.EncodeToString(stateBytes)
-
-	listener, err := net.Listen("tcp4", "127.0.0.1:0")
+	listener, port, err := listenLoopback()
 	if err != nil {
-		return nil, fmt.Errorf("listen for login callback: %w", err)
+		return "", err
 	}
-	port := listener.Addr().(*net.TCPAddr).Port
+	redirectURI := fmt.Sprintf("http://127.0.0.1:%d/callback", port)
+
+	state, err := randomToken()
+	if err != nil {
+		return "", fmt.Errorf("generate login state: %w", err)
+	}
+	verifier, err := randomToken()
+	if err != nil {
+		return "", fmt.Errorf("generate PKCE verifier: %w", err)
+	}
+	challenge := codeChallenge(verifier)
 
 	results := make(chan callbackResult, 1)
 
@@ -80,7 +89,6 @@ func Login(ctx context.Context, baseURL string) (*api.Session, error) {
 	claim := func() bool {
 		mu.Lock()
 		defer mu.Unlock()
-
 		if delivered {
 			return false
 		}
@@ -95,6 +103,14 @@ func Login(ctx context.Context, baseURL string) (*api.Session, error) {
 			http.Error(w, "state mismatch", http.StatusBadRequest)
 			if claim() {
 				results <- callbackResult{err: errors.New("login callback state mismatch")}
+			}
+			return
+		}
+
+		if errParam := query.Get("error"); errParam != "" {
+			http.Error(w, "sign-in failed", http.StatusBadRequest)
+			if claim() {
+				results <- callbackResult{err: fmt.Errorf("sign-in failed: %s", errParam)}
 			}
 			return
 		}
@@ -133,11 +149,7 @@ func Login(ctx context.Context, baseURL string) (*api.Session, error) {
 		_ = server.Shutdown(shutdownCtx)
 	}()
 
-	loginQuery := url.Values{}
-	loginQuery.Set("cli_port", strconv.Itoa(port))
-	loginQuery.Set("cli_state", state)
-	loginURL := base.String() + "/auth/login?" + loginQuery.Encode()
-
+	loginURL := provider.AuthCodeURL(redirectURI, state, challenge)
 	fmt.Fprintln(os.Stderr, "Opening your browser to sign in…")
 	fmt.Fprintln(os.Stderr, "If nothing opens, visit: "+loginURL)
 	openBrowser(loginURL)
@@ -146,20 +158,49 @@ func Login(ctx context.Context, baseURL string) (*api.Session, error) {
 	select {
 	case result := <-results:
 		if result.err != nil {
-			return nil, result.err
+			return "", result.err
 		}
 		code = result.code
 	case <-ctx.Done():
-		return nil, ctx.Err()
+		return "", ctx.Err()
 	case <-time.After(loginTimeout):
-		return nil, errors.New("login timed out after 5 minutes")
+		return "", errors.New("login timed out after 5 minutes")
 	}
 
-	session, err := api.ExchangeCode(ctx, &http.Client{Timeout: 30 * time.Second}, baseURL, code)
+	tokens, err := provider.Exchange(ctx, code, redirectURI, verifier)
 	if err != nil {
-		return nil, fmt.Errorf("exchange login code: %w", err)
+		return "", fmt.Errorf("exchange login code: %w", err)
 	}
-	return session, nil
+	if tokens.RefreshToken == "" {
+		return "", errors.New("the identity provider did not return a refresh token")
+	}
+	return tokens.RefreshToken, nil
+}
+
+// listenLoopback binds the first available fixed callback port.
+func listenLoopback() (net.Listener, int, error) {
+	var lastErr error
+	for _, port := range callbackPorts {
+		listener, err := net.Listen("tcp4", fmt.Sprintf("127.0.0.1:%d", port))
+		if err == nil {
+			return listener, port, nil
+		}
+		lastErr = err
+	}
+	return nil, 0, fmt.Errorf("no free login callback port (tried %v): %w", callbackPorts, lastErr)
+}
+
+func randomToken() (string, error) {
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(b), nil
+}
+
+func codeChallenge(verifier string) string {
+	sum := sha256.Sum256([]byte(verifier))
+	return base64.RawURLEncoding.EncodeToString(sum[:])
 }
 
 func openBrowser(target string) {

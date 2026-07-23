@@ -6,68 +6,50 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/zeitlos/lucity/cli/internal/api"
-	"github.com/zeitlos/lucity/cli/internal/apikey"
+	"github.com/zeitlos/lucity/cli/internal/apitoken"
 	"github.com/zeitlos/lucity/cli/internal/ciauth"
 	"github.com/zeitlos/lucity/cli/internal/config"
+	"github.com/zeitlos/lucity/cli/internal/oidc"
 )
-
-const refreshLeeway = 48 * time.Hour
 
 var ErrLoggedOut = errors.New("not logged in — run `lucity login`")
 
+type cachedToken struct {
+	token string
+	exp   time.Time
+}
+
+// Manager resolves the credentials for a CLI invocation. Interactive sessions
+// store a Logto refresh token and derive short-lived access tokens from it;
+// automation uses a workspace API token (LUCITY_API_TOKEN) or GitHub Actions OIDC.
 type Manager struct {
 	mu  sync.Mutex
 	cfg *config.Config
+
+	cfgMu      sync.Mutex
+	authConfig *api.AuthConfig
 
 	ciMu     sync.Mutex
 	ciTried  bool
 	ciResult *ciauth.Session
 	ciErr    error
 
-	apiKeyMu    sync.Mutex
-	apiKeyToken string
-	apiKeyExp   time.Time
-}
+	apiTokenMu     sync.Mutex
+	apiTokenAccess string
+	apiTokenExp    time.Time
 
-func (m *Manager) apiKey() string {
-	return os.Getenv("LUCITY_API_KEY")
-}
+	refreshMu sync.Mutex
 
-func (m *Manager) apiKeyBearer(ctx context.Context, raw string) (string, error) {
-	m.apiKeyMu.Lock()
-	defer m.apiKeyMu.Unlock()
-
-	if m.apiKeyToken != "" && time.Now().Before(m.apiKeyExp) {
-		return m.apiKeyToken, nil
-	}
-
-	key, err := apikey.Parse(raw)
-	if err != nil {
-		return "", err
-	}
-
-	httpClient := &http.Client{Timeout: 30 * time.Second}
-	cfg, err := api.Config(ctx, httpClient, m.APIURL())
-	if err != nil {
-		return "", fmt.Errorf("fetch auth config: %w", err)
-	}
-
-	token, expiresIn, err := key.Exchange(ctx, httpClient, cfg.Issuer, cfg.Audience)
-	if err != nil {
-		return "", err
-	}
-
-	m.apiKeyToken = token
-	leeway := expiresIn - 60
-	if leeway < 0 {
-		leeway = expiresIn
-	}
-	m.apiKeyExp = time.Now().Add(time.Duration(leeway) * time.Second)
-	return token, nil
+	tokMu       sync.Mutex
+	orgTokens   map[string]cachedToken
+	accountTok  cachedToken
+	acctAPITok  cachedToken
+	orgIDByName map[string]string
 }
 
 func Load() (*Manager, error) {
@@ -75,7 +57,11 @@ func Load() (*Manager, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Manager{cfg: cfg}, nil
+	return &Manager{
+		cfg:         cfg,
+		orgTokens:   map[string]cachedToken{},
+		orgIDByName: map[string]string{},
+	}, nil
 }
 
 func (m *Manager) APIURL() string {
@@ -92,9 +78,9 @@ func (m *Manager) Workspace() string {
 	if workspace := os.Getenv("LUCITY_WORKSPACE"); workspace != "" {
 		return workspace
 	}
-	if raw := m.apiKey(); raw != "" {
-		if key, err := apikey.Parse(raw); err == nil {
-			return key.Workspace
+	if raw := m.apiToken(); raw != "" {
+		if token, err := apitoken.Parse(raw); err == nil {
+			return token.Workspace
 		}
 	}
 	if m.cfg.Workspace != "" {
@@ -106,21 +92,336 @@ func (m *Manager) Workspace() string {
 	return ""
 }
 
-func (m *Manager) Prepare(ctx context.Context) error {
-	if os.Getenv("LUCITY_TOKEN") != "" || m.apiKey() != "" {
-		return nil
-	}
-
+func (m *Manager) SetWorkspace(workspace string) error {
 	m.mu.Lock()
-	hasStored := m.cfg.Token != ""
+	defer m.mu.Unlock()
+	m.cfg.Workspace = workspace
+	return config.Save(m.cfg)
+}
+
+// SetLogin persists the platform URL and the Logto refresh token obtained from
+// an interactive login.
+func (m *Manager) SetLogin(apiURL, refreshToken string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.cfg.APIURL = apiURL
+	m.cfg.RefreshToken = refreshToken
+	return config.Save(m.cfg)
+}
+
+func (m *Manager) Clear() error {
+	m.mu.Lock()
+	m.cfg.RefreshToken = ""
+	err := config.Save(m.cfg)
 	m.mu.Unlock()
 
-	if hasStored {
+	m.tokMu.Lock()
+	m.orgTokens = map[string]cachedToken{}
+	m.accountTok = cachedToken{}
+	m.acctAPITok = cachedToken{}
+	m.orgIDByName = map[string]string{}
+	m.tokMu.Unlock()
+	return err
+}
+
+func (m *Manager) Client() *api.Client {
+	return api.NewClient(m.APIURL(), m.Workspace(), m)
+}
+
+// Prepare fails fast if no credentials are available, so commands can surface a
+// clear error before doing work.
+func (m *Manager) Prepare(ctx context.Context) error {
+	if m.apiToken() != "" {
 		return nil
 	}
-
+	if m.storedRefreshToken() != "" {
+		return nil
+	}
 	_, err := m.ciSession(ctx)
 	return err
+}
+
+// Token returns the bearer for the Authorization header.
+func (m *Manager) Token(ctx context.Context) (string, error) {
+	if raw := m.apiToken(); raw != "" {
+		return m.apiTokenBearer(ctx, raw)
+	}
+
+	if m.storedRefreshToken() != "" {
+		if workspace := m.Workspace(); workspace != "" {
+			return m.orgBearer(ctx, workspace)
+		}
+		return m.accountBearer(ctx)
+	}
+
+	session, err := m.ciSession(ctx)
+	if session != nil {
+		return session.Token, nil
+	}
+	if err != nil {
+		return "", fmt.Errorf("CI deploy authentication failed: %w", err)
+	}
+	return "", ErrLoggedOut
+}
+
+// AccountToken returns the Account-API token used for server-side calls made on
+// the user's behalf (e.g. their GitHub installations). It is empty for API token
+// and CI sessions, which carry no user account.
+func (m *Manager) AccountToken(ctx context.Context) (string, error) {
+	if m.apiToken() != "" {
+		return "", nil
+	}
+	if m.storedRefreshToken() == "" {
+		return "", nil
+	}
+	return m.accountAPIToken(ctx)
+}
+
+// Identity reads the signed-in user's profile and workspace memberships from the
+// identity provider.
+func (m *Manager) Identity(ctx context.Context) (*api.Identity, error) {
+	accountToken, err := m.accountAPIToken(ctx)
+	if err != nil {
+		return nil, err
+	}
+	provider, err := m.provider(ctx)
+	if err != nil {
+		return nil, err
+	}
+	info, err := provider.UserInfo(ctx, accountToken)
+	if err != nil {
+		return nil, err
+	}
+	return identityFromUserInfo(info), nil
+}
+
+// BootstrapWorkspaces triggers lazy account provisioning on the platform for a
+// brand-new user by issuing the authenticated workspaces query.
+func (m *Manager) BootstrapWorkspaces(ctx context.Context) error {
+	const query = `query { workspaces { id } }`
+	return m.Client().GraphQL(ctx, query, nil, nil)
+}
+
+func (m *Manager) apiToken() string {
+	return os.Getenv("LUCITY_API_TOKEN")
+}
+
+func (m *Manager) storedRefreshToken() string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.cfg.RefreshToken
+}
+
+func (m *Manager) authConfigCached(ctx context.Context) (*api.AuthConfig, error) {
+	m.cfgMu.Lock()
+	defer m.cfgMu.Unlock()
+
+	if m.authConfig != nil {
+		return m.authConfig, nil
+	}
+	cfg, err := api.Config(ctx, &http.Client{Timeout: 30 * time.Second}, m.APIURL())
+	if err != nil {
+		return nil, fmt.Errorf("fetch auth config: %w", err)
+	}
+	m.authConfig = cfg
+	return cfg, nil
+}
+
+func (m *Manager) provider(ctx context.Context) (*oidc.Provider, error) {
+	cfg, err := m.authConfigCached(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &oidc.Provider{
+		Endpoint: cfg.Endpoint,
+		ClientID: cfg.CliClientID,
+		Audience: cfg.Audience,
+		HTTP:     &http.Client{Timeout: 30 * time.Second},
+	}, nil
+}
+
+// Provider exposes the configured identity provider for the login flow.
+func (m *Manager) Provider(ctx context.Context) (*oidc.Provider, error) {
+	return m.provider(ctx)
+}
+
+func (m *Manager) apiTokenBearer(ctx context.Context, raw string) (string, error) {
+	m.apiTokenMu.Lock()
+	defer m.apiTokenMu.Unlock()
+
+	if m.apiTokenAccess != "" && time.Now().Before(m.apiTokenExp) {
+		return m.apiTokenAccess, nil
+	}
+
+	parsed, err := apitoken.Parse(raw)
+	if err != nil {
+		return "", err
+	}
+
+	cfg, err := m.authConfigCached(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	token, expiresIn, err := parsed.Exchange(ctx, &http.Client{Timeout: 30 * time.Second}, cfg.Issuer, cfg.Audience)
+	if err != nil {
+		return "", err
+	}
+
+	m.apiTokenAccess = token
+	m.apiTokenExp = tokenExpiry(expiresIn)
+	return token, nil
+}
+
+func (m *Manager) orgBearer(ctx context.Context, workspace string) (string, error) {
+	m.tokMu.Lock()
+	if t, ok := m.orgTokens[workspace]; ok && time.Now().Before(t.exp) {
+		m.tokMu.Unlock()
+		return t.token, nil
+	}
+	m.tokMu.Unlock()
+
+	cfg, err := m.authConfigCached(ctx)
+	if err != nil {
+		return "", err
+	}
+	orgID, err := m.orgID(ctx, workspace)
+	if err != nil {
+		return "", err
+	}
+
+	token, expiresIn, err := m.refreshGrant(ctx, cfg.Audience, orgID, oidc.ResourceScopes)
+	if err != nil {
+		return "", err
+	}
+
+	m.tokMu.Lock()
+	m.orgTokens[workspace] = cachedToken{token: token, exp: tokenExpiry(expiresIn)}
+	m.tokMu.Unlock()
+	return token, nil
+}
+
+func (m *Manager) accountBearer(ctx context.Context) (string, error) {
+	m.tokMu.Lock()
+	if m.accountTok.token != "" && time.Now().Before(m.accountTok.exp) {
+		token := m.accountTok.token
+		m.tokMu.Unlock()
+		return token, nil
+	}
+	m.tokMu.Unlock()
+
+	cfg, err := m.authConfigCached(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	token, expiresIn, err := m.refreshGrant(ctx, cfg.Audience, "", oidc.ResourceScopes)
+	if err != nil {
+		return "", err
+	}
+
+	m.tokMu.Lock()
+	m.accountTok = cachedToken{token: token, exp: tokenExpiry(expiresIn)}
+	m.tokMu.Unlock()
+	return token, nil
+}
+
+func (m *Manager) accountAPIToken(ctx context.Context) (string, error) {
+	m.tokMu.Lock()
+	if m.acctAPITok.token != "" && time.Now().Before(m.acctAPITok.exp) {
+		token := m.acctAPITok.token
+		m.tokMu.Unlock()
+		return token, nil
+	}
+	m.tokMu.Unlock()
+
+	token, expiresIn, err := m.refreshGrant(ctx, "", "", oidc.AccountScopes)
+	if err != nil {
+		return "", err
+	}
+
+	m.tokMu.Lock()
+	m.acctAPITok = cachedToken{token: token, exp: tokenExpiry(expiresIn)}
+	m.tokMu.Unlock()
+	return token, nil
+}
+
+func (m *Manager) orgID(ctx context.Context, workspace string) (string, error) {
+	m.tokMu.Lock()
+	id, ok := m.orgIDByName[workspace]
+	m.tokMu.Unlock()
+	if ok {
+		return id, nil
+	}
+
+	if err := m.loadOrgIDs(ctx); err != nil {
+		return "", err
+	}
+
+	m.tokMu.Lock()
+	id, ok = m.orgIDByName[workspace]
+	m.tokMu.Unlock()
+	if !ok {
+		return "", fmt.Errorf("you are not a member of workspace %q — run `lucity account` to list memberships", workspace)
+	}
+	return id, nil
+}
+
+func (m *Manager) loadOrgIDs(ctx context.Context) error {
+	accountToken, err := m.accountAPIToken(ctx)
+	if err != nil {
+		return err
+	}
+	provider, err := m.provider(ctx)
+	if err != nil {
+		return err
+	}
+	info, err := provider.UserInfo(ctx, accountToken)
+	if err != nil {
+		return err
+	}
+
+	m.tokMu.Lock()
+	for _, org := range info.OrganizationData {
+		m.orgIDByName[org.Name] = org.ID
+	}
+	m.tokMu.Unlock()
+	return nil
+}
+
+// refreshGrant trades the stored refresh token for an access token, serialized
+// so the identity provider's refresh-token rotation stays consistent, and
+// persists a rotated refresh token.
+func (m *Manager) refreshGrant(ctx context.Context, resource, organizationID string, scopes []string) (string, int, error) {
+	m.refreshMu.Lock()
+	defer m.refreshMu.Unlock()
+
+	refreshToken := m.storedRefreshToken()
+	if refreshToken == "" {
+		return "", 0, ErrLoggedOut
+	}
+
+	provider, err := m.provider(ctx)
+	if err != nil {
+		return "", 0, err
+	}
+
+	tokens, err := provider.Refresh(ctx, refreshToken, resource, organizationID, scopes)
+	if err != nil {
+		return "", 0, err
+	}
+
+	if tokens.RefreshToken != "" && tokens.RefreshToken != refreshToken {
+		m.mu.Lock()
+		m.cfg.RefreshToken = tokens.RefreshToken
+		_ = config.Save(m.cfg)
+		m.mu.Unlock()
+	}
+
+	if tokens.AccessToken == "" {
+		return "", 0, errors.New("the identity provider returned an empty access token")
+	}
+	return tokens.AccessToken, tokens.ExpiresIn, nil
 }
 
 func (m *Manager) ciSession(ctx context.Context) (*ciauth.Session, error) {
@@ -143,125 +444,42 @@ func (m *Manager) ciSession(ctx context.Context) (*ciauth.Session, error) {
 	return m.ciResult, m.ciErr
 }
 
-func (m *Manager) SetWorkspace(workspace string) error {
-	m.cfg.Workspace = workspace
-	return config.Save(m.cfg)
-}
-
-func (m *Manager) SetSession(apiURL string, s *api.Session) error {
-	m.cfg.APIURL = apiURL
-	m.cfg.Token = s.Token
-	m.cfg.RefreshToken = s.RefreshToken
-	m.cfg.LogtoToken = s.LogtoToken
-	m.cfg.ExpiresAt = s.ExpiresAt
-	return config.Save(m.cfg)
-}
-
-func (m *Manager) Clear() error {
-	m.cfg.Token = ""
-	m.cfg.RefreshToken = ""
-	m.cfg.LogtoToken = ""
-	m.cfg.ExpiresAt = time.Time{}
-	return config.Save(m.cfg)
-}
-
-func (m *Manager) Client() *api.Client {
-	return api.NewClient(m.APIURL(), m.Workspace(), m)
-}
-
-func (m *Manager) CookieTokens(context.Context) (logtoToken, refreshToken string) {
-	if m.apiKey() != "" {
-		return "", ""
-	}
-	if token := os.Getenv("LUCITY_LOGTO_TOKEN"); token != "" {
-		return token, os.Getenv("LUCITY_REFRESH_TOKEN")
-	}
-
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	return m.cfg.LogtoToken, m.cfg.RefreshToken
-}
-
-func (m *Manager) PersistRotatedTokens(sessionToken, logtoToken, refreshToken string) {
-	if os.Getenv("LUCITY_TOKEN") != "" || os.Getenv("LUCITY_LOGTO_TOKEN") != "" {
-		return
-	}
-
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	changed := false
-	if sessionToken != "" && sessionToken != m.cfg.Token {
-		m.cfg.Token = sessionToken
-		changed = true
-	}
-	if logtoToken != "" && logtoToken != m.cfg.LogtoToken {
-		m.cfg.LogtoToken = logtoToken
-		changed = true
-	}
-	if refreshToken != "" && refreshToken != m.cfg.RefreshToken {
-		m.cfg.RefreshToken = refreshToken
-		changed = true
-	}
-	if changed {
-		_ = config.Save(m.cfg)
-	}
-}
-
-func (m *Manager) Token(ctx context.Context) (string, error) {
-	if token := os.Getenv("LUCITY_TOKEN"); token != "" {
-		return token, nil
-	}
-
-	if raw := m.apiKey(); raw != "" {
-		return m.apiKeyBearer(ctx, raw)
-	}
-
-	m.mu.Lock()
-	hasStored := m.cfg.Token != ""
-	m.mu.Unlock()
-
-	if !hasStored {
-		session, err := m.ciSession(ctx)
-		if session != nil {
-			return session.Token, nil
+func identityFromUserInfo(info *oidc.UserInfo) *api.Identity {
+	roleByOrg := map[string]string{}
+	for _, entry := range info.OrganizationRoles {
+		orgID, roleName, ok := strings.Cut(entry, ":")
+		if !ok {
+			continue
 		}
-		if err != nil {
-			return "", fmt.Errorf("CI deploy authentication failed: %w", err)
-		}
-		return "", ErrLoggedOut
-	}
-
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if m.cfg.ExpiresAt.IsZero() || time.Until(m.cfg.ExpiresAt) > refreshLeeway {
-		return m.cfg.Token, nil
-	}
-	if time.Now().After(m.cfg.ExpiresAt) {
-		if m.cfg.RefreshToken == "" {
-			return "", fmt.Errorf("session expired — run `lucity login`")
+		if roleName == "admin" {
+			roleByOrg[orgID] = "admin"
+		} else if _, exists := roleByOrg[orgID]; !exists {
+			roleByOrg[orgID] = "user"
 		}
 	}
 
-	refreshed, err := api.Refresh(ctx, &http.Client{Timeout: 30 * time.Second}, m.APIURL(), m.cfg.Token, m.cfg.RefreshToken)
-	if err != nil {
-		if time.Now().Before(m.cfg.ExpiresAt) {
-			return m.cfg.Token, nil
+	workspaces := make([]api.WorkspaceMembership, 0, len(info.OrganizationData))
+	for _, org := range info.OrganizationData {
+		role := roleByOrg[org.ID]
+		if role == "" {
+			role = "user"
 		}
-		return "", fmt.Errorf("session expired and refresh failed (%w) — run `lucity login`", err)
+		workspaces = append(workspaces, api.WorkspaceMembership{Workspace: org.Name, Role: role})
 	}
 
-	m.cfg.Token = refreshed.Token
-	if refreshed.RefreshToken != "" {
-		m.cfg.RefreshToken = refreshed.RefreshToken
+	return &api.Identity{
+		ID:         info.Subject,
+		Name:       info.Name,
+		Email:      info.Email,
+		AvatarURL:  info.Picture,
+		Workspaces: workspaces,
 	}
-	if refreshed.LogtoToken != "" {
-		m.cfg.LogtoToken = refreshed.LogtoToken
+}
+
+func tokenExpiry(expiresIn int) time.Time {
+	leeway := expiresIn - 60
+	if leeway < 0 {
+		leeway = expiresIn
 	}
-	m.cfg.ExpiresAt = refreshed.ExpiresAt
-	if err := config.Save(m.cfg); err != nil {
-		return "", err
-	}
-	return m.cfg.Token, nil
+	return time.Now().Add(time.Duration(leeway) * time.Second)
 }
