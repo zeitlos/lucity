@@ -39,30 +39,14 @@ const (
 // the only configured sign-in method.
 const directSignIn = "social:github"
 
-// TODO(stage-6b): delete OIDCProvider and its constructor, plus the helpers that
-// only support it (httpContext, issuerRewriteTransport, newIssuerRewriteClient,
-// newTokenRefresher). It powers the server-side login/callback/refresh flow and
-// the server-side Logto token refresher, all removed in stage-6b. Token
-// verification uses auth.NewVerifier (JWKS) independently, so nothing else
-// depends on this. Note: if internal DNS routing is still needed for JWKS
-// discovery, move the issuer-rewrite client onto the verifier before deleting.
-
-// OIDCProvider wraps the OIDC discovery provider, ID token verifier, and OAuth2 config.
 type OIDCProvider struct {
 	provider    *oidc.Provider
 	verifier    *oidc.IDTokenVerifier
 	oauthConfig oauth2.Config
-	httpClient  *http.Client // custom client for internal routing (nil if not needed)
+	httpClient  *http.Client
 }
 
-// NewOIDCProvider performs OIDC discovery against the issuer and returns a configured provider.
-// Uses PKCE (S256) — no client secret needed. The client must be configured as "public" in the IDP.
-//
-// If discoveryURL is set, HTTP requests to the issuer host are rewritten to the discovery URL.
-// This avoids hairpin routing when the issuer's public domain resolves to the same load balancer.
-// The issuer URL is still used for validation (iss claim matching), and the callback URL is
-// unaffected since it's a browser redirect.
-func NewOIDCProvider(ctx context.Context, issuerURL, discoveryURL, clientID, callbackURL string) (*OIDCProvider, error) {
+func NewOIDCProvider(ctx context.Context, issuerURL, discoveryURL, clientID, clientSecret, callbackURL string) (*OIDCProvider, error) {
 	var httpClient *http.Client
 	if discoveryURL != "" {
 		var err error
@@ -80,14 +64,15 @@ func NewOIDCProvider(ctx context.Context, issuerURL, discoveryURL, clientID, cal
 	}
 
 	oauthConfig := oauth2.Config{
-		ClientID:    clientID,
-		Endpoint:    provider.Endpoint(),
-		RedirectURL: callbackURL,
+		ClientID:     clientID,
+		ClientSecret: clientSecret,
+		Endpoint:     provider.Endpoint(),
+		RedirectURL:  callbackURL,
 		Scopes: []string{
 			oidc.ScopeOpenID, "profile", "email", oidc.ScopeOfflineAccess,
-			"identities",                         // Account API: access social identity tokens (GitHub)
-			"urn:logto:scope:organizations",      // ID token: organization memberships
-			"urn:logto:scope:organization_roles", // ID token: organization roles
+			"identities",
+			"urn:logto:scope:organizations",
+			"urn:logto:scope:organization_roles",
 		},
 	}
 

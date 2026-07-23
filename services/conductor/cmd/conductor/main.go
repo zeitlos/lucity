@@ -57,6 +57,7 @@ type Config struct {
 	OIDCIssuerURL         string `envconfig:"OIDC_ISSUER_URL" required:"true"`
 	OIDCDiscoveryURL      string `envconfig:"OIDC_DISCOVERY_URL"`
 	OIDCClientID          string `envconfig:"OIDC_CLIENT_ID" required:"true"`
+	OIDCClientSecret      string `envconfig:"OIDC_CLIENT_SECRET"`
 	OIDCCallbackURL       string `envconfig:"OIDC_CALLBACK_URL" default:"http://localhost:8080/auth/callback"`
 	OIDCAudience          string `envconfig:"OIDC_AUDIENCE"`
 	OIDCDashboardClientID string `envconfig:"OIDC_DASHBOARD_CLIENT_ID"`
@@ -179,7 +180,7 @@ func main() {
 	// TODO(stage-6b): delete the OIDCProvider — it only powers the removed
 	// server-side login/callback/refresh flow and newTokenRefresher. Token
 	// verification (auth.NewVerifier below) does its own JWKS discovery.
-	oidcProvider, err := NewOIDCProvider(ctx, config.OIDCIssuerURL, config.OIDCDiscoveryURL, config.OIDCClientID, config.OIDCCallbackURL)
+	oidcProvider, err := NewOIDCProvider(ctx, config.OIDCIssuerURL, config.OIDCDiscoveryURL, config.OIDCClientID, config.OIDCClientSecret, config.OIDCCallbackURL)
 	if err != nil {
 		slog.Error("failed to initialize OIDC provider", "error", err)
 		os.Exit(1)
