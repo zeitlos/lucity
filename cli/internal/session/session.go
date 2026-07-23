@@ -24,9 +24,6 @@ type cachedToken struct {
 	exp   time.Time
 }
 
-// Manager resolves the credentials for a CLI invocation. Interactive sessions
-// store a Logto refresh token and derive short-lived access tokens from it;
-// automation uses a workspace API token (LUCITY_API_TOKEN) or GitHub Actions OIDC.
 type Manager struct {
 	mu  sync.Mutex
 	cfg *config.Config
@@ -99,8 +96,6 @@ func (m *Manager) SetWorkspace(workspace string) error {
 	return config.Save(m.cfg)
 }
 
-// SetLogin persists the platform URL and the Logto refresh token obtained from
-// an interactive login.
 func (m *Manager) SetLogin(apiURL, refreshToken string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -128,8 +123,6 @@ func (m *Manager) Client() *api.Client {
 	return api.NewClient(m.APIURL(), m.Workspace(), m)
 }
 
-// Prepare fails fast if no credentials are available, so commands can surface a
-// clear error before doing work.
 func (m *Manager) Prepare(ctx context.Context) error {
 	if m.apiToken() != "" {
 		return nil
@@ -141,7 +134,6 @@ func (m *Manager) Prepare(ctx context.Context) error {
 	return err
 }
 
-// Token returns the bearer for the Authorization header.
 func (m *Manager) Token(ctx context.Context) (string, error) {
 	if raw := m.apiToken(); raw != "" {
 		return m.apiTokenBearer(ctx, raw)
@@ -164,9 +156,6 @@ func (m *Manager) Token(ctx context.Context) (string, error) {
 	return "", ErrLoggedOut
 }
 
-// AccountToken returns the Account-API token used for server-side calls made on
-// the user's behalf (e.g. their GitHub installations). It is empty for API token
-// and CI sessions, which carry no user account.
 func (m *Manager) AccountToken(ctx context.Context) (string, error) {
 	if m.apiToken() != "" {
 		return "", nil
@@ -177,8 +166,6 @@ func (m *Manager) AccountToken(ctx context.Context) (string, error) {
 	return m.accountAPIToken(ctx)
 }
 
-// Identity reads the signed-in user's profile and workspace memberships from the
-// identity provider.
 func (m *Manager) Identity(ctx context.Context) (*api.Identity, error) {
 	accountToken, err := m.accountAPIToken(ctx)
 	if err != nil {
@@ -195,8 +182,6 @@ func (m *Manager) Identity(ctx context.Context) (*api.Identity, error) {
 	return identityFromUserInfo(info), nil
 }
 
-// BootstrapWorkspaces triggers lazy account provisioning on the platform for a
-// brand-new user by issuing the authenticated workspaces query.
 func (m *Manager) BootstrapWorkspaces(ctx context.Context) error {
 	const query = `query { workspaces { id } }`
 	return m.Client().GraphQL(ctx, query, nil, nil)
@@ -240,7 +225,6 @@ func (m *Manager) provider(ctx context.Context) (*oidc.Provider, error) {
 	}, nil
 }
 
-// Provider exposes the configured identity provider for the login flow.
 func (m *Manager) Provider(ctx context.Context) (*oidc.Provider, error) {
 	return m.provider(ctx)
 }
@@ -389,9 +373,6 @@ func (m *Manager) loadOrgIDs(ctx context.Context) error {
 	return nil
 }
 
-// refreshGrant trades the stored refresh token for an access token, serialized
-// so the identity provider's refresh-token rotation stays consistent, and
-// persists a rotated refresh token.
 func (m *Manager) refreshGrant(ctx context.Context, resource, organizationID string, scopes []string) (string, int, error) {
 	m.refreshMu.Lock()
 	defer m.refreshMu.Unlock()

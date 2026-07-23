@@ -31,15 +31,10 @@ type Identity struct {
 	Workspaces []WorkspaceMembership `json:"workspaces"`
 }
 
-// TokenSource yields the bearer token for the Authorization header.
 type TokenSource interface {
 	Token(ctx context.Context) (string, error)
 }
 
-// AccountTokenSource yields the Account-API token for server-side calls that act
-// on the user's behalf (e.g. listing their GitHub installations). An empty
-// string means the current session has no account token (API token or CI), in
-// which case no header is sent.
 type AccountTokenSource interface {
 	AccountToken(ctx context.Context) (string, error)
 }

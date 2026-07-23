@@ -2,12 +2,15 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"text/tabwriter"
 	"time"
@@ -18,6 +21,22 @@ import (
 	"github.com/zeitlos/lucity/cli/internal/oidc"
 	"github.com/zeitlos/lucity/cli/internal/session"
 )
+
+func decodeJWTClaims(token string) map[string]any {
+	parts := strings.Split(token, ".")
+	if len(parts) < 2 {
+		return nil
+	}
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return nil
+	}
+	var claims map[string]any
+	if err := json.Unmarshal(payload, &claims); err != nil {
+		return nil
+	}
+	return claims
+}
 
 var version = "dev"
 
@@ -132,8 +151,6 @@ func cmdLogin(ctx context.Context, args []string) error {
 		return fmt.Errorf("signed in, but fetching the account failed: %w", err)
 	}
 
-	// A brand-new user has no workspace yet; the authenticated query lazily
-	// provisions their personal workspace on the platform.
 	if len(identity.Workspaces) == 0 {
 		if err := manager.BootstrapWorkspaces(ctx); err == nil {
 			if refreshed, err := manager.Identity(ctx); err == nil {
@@ -170,30 +187,56 @@ func cmdAccount(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	identity, err := manager.Identity(ctx)
+
+	token, err := manager.Token(ctx)
 	if err != nil {
-		// Non-interactive credentials (API token, CI) carry no user account;
-		// show the active workspace instead of failing.
-		if workspace := manager.Workspace(); workspace != "" {
-			fmt.Printf("Platform: %s\n", manager.APIURL())
-			fmt.Printf("Active workspace: %s\n", workspace)
+		if errors.Is(err, session.ErrLoggedOut) {
+			fmt.Println("Not signed in. Run `lucity login`, or set LUCITY_API_TOKEN for automation.")
 			return nil
 		}
 		return err
 	}
 
-	fmt.Printf("%s <%s>\n", identity.Name, identity.Email)
-	fmt.Printf("Platform: %s\n\n", manager.APIURL())
-	writer := tabwriter.NewWriter(os.Stdout, 2, 4, 2, ' ', 0)
-	fmt.Fprintln(writer, "WORKSPACE\tROLE\tACTIVE")
-	for _, membership := range identity.Workspaces {
-		active := ""
-		if membership.Workspace == manager.Workspace() {
-			active = "*"
-		}
-		fmt.Fprintf(writer, "%s\t%s\t%s\n", membership.Workspace, membership.Role, active)
+	claims := decodeJWTClaims(token)
+	subject, _ := claims["sub"].(string)
+	clientID, _ := claims["client_id"].(string)
+	email, _ := claims["email"].(string)
+	scope, _ := claims["scope"].(string)
+
+	machine := subject != "" && subject == clientID
+	sessionKind := "personal"
+	if machine {
+		sessionKind = "API token"
 	}
-	return writer.Flush()
+
+	if !machine {
+		if identity, idErr := manager.Identity(ctx); idErr == nil {
+			fmt.Printf("%s <%s>\n", identity.Name, identity.Email)
+			fmt.Printf("Platform: %s\n", manager.APIURL())
+			fmt.Printf("Session:  %s\n\n", sessionKind)
+			writer := tabwriter.NewWriter(os.Stdout, 2, 4, 2, ' ', 0)
+			fmt.Fprintln(writer, "WORKSPACE\tROLE\tACTIVE")
+			for _, membership := range identity.Workspaces {
+				active := ""
+				if membership.Workspace == manager.Workspace() {
+					active = "*"
+				}
+				fmt.Fprintf(writer, "%s\t%s\t%s\n", membership.Workspace, membership.Role, active)
+			}
+			return writer.Flush()
+		}
+	}
+
+	fmt.Printf("Platform:  %s\n", manager.APIURL())
+	fmt.Printf("Session:   %s\n", sessionKind)
+	fmt.Printf("Workspace: %s\n", manager.Workspace())
+	if email != "" {
+		fmt.Printf("Email:     %s\n", email)
+	}
+	if scope != "" {
+		fmt.Printf("Roles:     %s\n", scope)
+	}
+	return nil
 }
 
 func cmdWorkspace(ctx context.Context, args []string) error {

@@ -21,9 +21,6 @@ import (
 
 const loginTimeout = 5 * time.Minute
 
-// callbackPorts are the loopback ports the CLI binds for the OAuth redirect.
-// They are fixed because the identity provider rejects wildcard and dynamic
-// loopback redirect URIs; each must be registered on the native client.
 var callbackPorts = []int{8765, 8766, 8767}
 
 const successPage = `<!doctype html>
@@ -57,8 +54,6 @@ type callbackResult struct {
 	err  error
 }
 
-// Login runs a native Authorization-Code + PKCE flow against the identity
-// provider using a loopback redirect, and returns the resulting refresh token.
 func Login(ctx context.Context, provider *oidc.Provider) (string, error) {
 	if provider.ClientID == "" {
 		return "", errors.New("the platform did not advertise a CLI client id — the maintainer must register a native CLI client and set OIDC_CLI_CLIENT_ID")
@@ -177,7 +172,6 @@ func Login(ctx context.Context, provider *oidc.Provider) (string, error) {
 	return tokens.RefreshToken, nil
 }
 
-// listenLoopback binds the first available fixed callback port.
 func listenLoopback() (net.Listener, int, error) {
 	var lastErr error
 	for _, port := range callbackPorts {

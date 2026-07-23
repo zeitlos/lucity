@@ -1,7 +1,4 @@
-// Package oidc is a minimal OpenID Connect client for the identity provider,
-// enough for the CLI to run a native Authorization-Code + PKCE login and to
-// trade the resulting refresh token for account, organization, and Account-API
-// access tokens directly against the IdP.
+// Package oidc is a minimal OpenID Connect client for the CLI's native login.
 package oidc
 
 import (
@@ -14,9 +11,6 @@ import (
 	"strings"
 )
 
-// Scopes requested at sign-in. offline_access yields a refresh token; the
-// organization scopes let the refresh token mint per-workspace org tokens; the
-// resource scopes (admin/member/deployer) are granted per the caller's org role.
 var LoginScopes = []string{
 	"openid",
 	"profile",
@@ -27,11 +21,8 @@ var LoginScopes = []string{
 	"urn:logto:scope:organization_roles",
 	"admin",
 	"member",
-	"deployer",
 }
 
-// AccountScopes are requested for the Account-API token (no resource): enough to
-// read the profile, organization memberships, and linked social identities.
 var AccountScopes = []string{
 	"openid",
 	"profile",
@@ -41,16 +32,10 @@ var AccountScopes = []string{
 	"urn:logto:scope:organization_roles",
 }
 
-// ResourceScopes are requested for API resource access tokens; the IdP returns
-// the subset granted to the caller's organization role.
-var ResourceScopes = []string{"admin", "member", "deployer"}
+var ResourceScopes = []string{"admin", "member"}
 
-// directSignIn skips the connector picker and goes straight to GitHub, the only
-// configured sign-in method.
 const directSignIn = "social:github"
 
-// Provider addresses a single IdP tenant. Endpoint is the issuer without its
-// /oidc suffix (as advertised by the conductor's /auth/config endpoint).
 type Provider struct {
 	Endpoint string
 	ClientID string
@@ -93,7 +78,6 @@ func (p *Provider) userInfoEndpoint() string {
 	return strings.TrimRight(p.Endpoint, "/") + "/oidc/me"
 }
 
-// AuthCodeURL builds the browser authorization URL for the PKCE login.
 func (p *Provider) AuthCodeURL(redirectURI, state, challenge string) string {
 	query := url.Values{
 		"client_id":             {p.ClientID},
@@ -105,13 +89,11 @@ func (p *Provider) AuthCodeURL(redirectURI, state, challenge string) string {
 		"code_challenge":        {challenge},
 		"code_challenge_method": {"S256"},
 		"direct_sign_in":        {directSignIn},
+		"prompt":                {"consent"},
 	}
 	return p.authEndpoint() + "?" + query.Encode()
 }
 
-// Exchange trades an authorization code for tokens. It requests no resource, so
-// the returned access token targets the IdP itself (Account API / userinfo); the
-// caller keeps the refresh token to mint resource tokens later.
 func (p *Provider) Exchange(ctx context.Context, code, redirectURI, verifier string) (*Tokens, error) {
 	form := url.Values{
 		"grant_type":    {"authorization_code"},
@@ -123,10 +105,6 @@ func (p *Provider) Exchange(ctx context.Context, code, redirectURI, verifier str
 	return p.token(ctx, form)
 }
 
-// Refresh mints an access token from a refresh token. Passing a resource and
-// organization ID yields an organization access token; passing neither yields
-// an Account-API token. The IdP rotates the refresh token, so callers must
-// persist Tokens.RefreshToken when it changes.
 func (p *Provider) Refresh(ctx context.Context, refreshToken, resource, organizationID string, scopes []string) (*Tokens, error) {
 	form := url.Values{
 		"grant_type":    {"refresh_token"},
@@ -174,8 +152,6 @@ func (p *Provider) token(ctx context.Context, form url.Values) (*Tokens, error) 
 	return &tokens, nil
 }
 
-// UserInfo reads the profile, organization memberships, and roles from the
-// IdP userinfo endpoint using an Account-API access token.
 func (p *Provider) UserInfo(ctx context.Context, accessToken string) (*UserInfo, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, p.userInfoEndpoint(), nil)
 	if err != nil {
