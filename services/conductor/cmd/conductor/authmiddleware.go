@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/zeitlos/lucity/pkg/auth"
+	"github.com/zeitlos/lucity/pkg/session"
 	"github.com/zeitlos/lucity/pkg/tenant"
 )
 
@@ -13,7 +14,7 @@ const (
 	accountTokenHeader  = "X-Lucity-Account-Token"
 )
 
-func sessionAuth(store *sessionStore, verifier *auth.Verifier, secret string, secure bool) func(http.Handler) http.Handler {
+func sessionAuth(store *sessionStore, codec *session.Codec, verifier *auth.Verifier) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx := auth.WithResponseWriter(r.Context(), w)
@@ -21,25 +22,25 @@ func sessionAuth(store *sessionStore, verifier *auth.Verifier, secret string, se
 			if bearer := bearerToken(r); bearer != "" {
 				if claims, err := verifier.ValidateToken(ctx, bearer); err == nil {
 					ctx = auth.NewContext(ctx, claims)
-					if acct := r.Header.Get(accountTokenHeader); acct != "" {
-						ctx = auth.WithToken(ctx, acct)
+					if account := r.Header.Get(accountTokenHeader); account != "" {
+						ctx = auth.WithToken(ctx, account)
 					}
 				}
 				next.ServeHTTP(w, r.WithContext(ctx))
 				return
 			}
 
-			cookie, err := r.Cookie(sessionCookieName)
-			if err != nil {
+			value, ok := codec.Read(r)
+			if !ok {
 				next.ServeHTTP(w, r.WithContext(ctx))
 				return
 			}
-			data, err := openSession(secret, cookie.Value)
-			if err != nil {
+			var data sessionData
+			if err := codec.Open(value, &data); err != nil {
 				next.ServeHTTP(w, r.WithContext(ctx))
 				return
 			}
-			sess := store.get(data)
+			sess := store.get(&data)
 
 			claims := &auth.Claims{Subject: data.Sub, Name: data.Name, Email: data.Email, AvatarURL: data.Picture}
 			var rotated string
@@ -64,8 +65,8 @@ func sessionAuth(store *sessionStore, verifier *auth.Verifier, secret string, se
 
 			if rotated != "" {
 				data.RefreshToken = sess.refreshToken
-				if sealed, err := sealSession(secret, *data); err == nil {
-					setSessionCookie(w, sealed, secure)
+				if sealed, err := codec.Seal(data); err == nil {
+					codec.SetCookie(w, sealed)
 				}
 			}
 
@@ -80,20 +81,4 @@ func bearerToken(r *http.Request) string {
 		return strings.TrimPrefix(h, "Bearer ")
 	}
 	return ""
-}
-
-func setSessionCookie(w http.ResponseWriter, value string, secure bool) {
-	http.SetCookie(w, &http.Cookie{
-		Name:     sessionCookieName,
-		Value:    value,
-		Path:     "/",
-		MaxAge:   sessionCookieMaxAge,
-		HttpOnly: true,
-		Secure:   secure,
-		SameSite: http.SameSiteLaxMode,
-	})
-}
-
-func clearSessionCookie(w http.ResponseWriter) {
-	http.SetCookie(w, &http.Cookie{Name: sessionCookieName, Path: "/", MaxAge: -1})
 }

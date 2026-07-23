@@ -3,7 +3,9 @@ package main
 import (
 	"io/fs"
 	"log/slog"
+	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/blang/semver/v4"
@@ -35,6 +37,8 @@ import (
 	"github.com/zeitlos/lucity/pkg/graceful"
 	"github.com/zeitlos/lucity/pkg/logger"
 	"github.com/zeitlos/lucity/pkg/logto"
+	"github.com/zeitlos/lucity/pkg/oidc"
+	"github.com/zeitlos/lucity/pkg/session"
 
 	kauth "github.com/google/go-containerregistry/pkg/authn/kubernetes"
 	"github.com/kelseyhightower/envconfig"
@@ -176,20 +180,31 @@ func main() {
 	ctx, cancel := graceful.Context()
 	defer cancel()
 
-	// ---- Auth: OIDC, session JWT, internal-JWT issuer ----
-	// TODO(stage-6b): delete the OIDCProvider — it only powers the removed
-	// server-side login/callback/refresh flow and newTokenRefresher. Token
-	// verification (auth.NewVerifier below) does its own JWKS discovery.
-	oidcProvider, err := NewOIDCProvider(ctx, config.OIDCIssuerURL, config.OIDCDiscoveryURL, config.OIDCClientID, config.OIDCClientSecret, config.OIDCCallbackURL)
-	if err != nil {
-		slog.Error("failed to initialize OIDC provider", "error", err)
-		os.Exit(1)
-	}
-
+	// ---- Auth: OIDC client, session codec, token verifier ----
 	apiAudience := config.OIDCClientID
 	if config.OIDCAudience != "" {
 		apiAudience = config.OIDCAudience
 	}
+
+	var oidcHTTP *http.Client
+	if config.OIDCDiscoveryURL != "" {
+		client, err := newIssuerRewriteClient(config.OIDCIssuerURL, config.OIDCDiscoveryURL)
+		if err != nil {
+			slog.Error("failed to create OIDC HTTP client", "error", err)
+			os.Exit(1)
+		}
+		oidcHTTP = client
+	}
+	oidcProvider := &oidc.Provider{
+		Endpoint:     strings.TrimSuffix(config.OIDCIssuerURL, "/oidc"),
+		ClientID:     config.OIDCClientID,
+		ClientSecret: config.OIDCClientSecret,
+		Audience:     apiAudience,
+		DirectSignIn: directSignIn,
+		Scopes:       loginScopes,
+		HTTP:         oidcHTTP,
+	}
+
 	verifier, err := auth.NewVerifier(ctx, config.OIDCIssuerURL, apiAudience)
 	if err != nil {
 		slog.Error("failed to create JWT verifier", "error", err)
@@ -259,11 +274,9 @@ func main() {
 
 	domainTarget := "lb." + config.WorkloadDomain
 
-	// TODO(stage-6b): delete secure + tokenRefresher and pass nil (or drop the
-	// arg) for the refresher into conductor.New — clients send fresh Account-API
-	// tokens per request, so the server no longer refreshes Logto tokens.
 	secure := secureCookies(config.DashboardURL)
-	tokenRefresher := newTokenRefresher(oidcProvider, secure)
+	sessionStore := newSessionStore(oidcProvider, logtoClient)
+	sessionCodec := session.NewCodec(sessionSecret, sessionCookieName, secure, sessionCookieMaxAge)
 
 	platformClient := platformK8s.New(k8sClient, dynClient)
 
@@ -403,7 +416,7 @@ func main() {
 		Keychain:     keychain,
 	})
 
-	conductor := conductor.New(cashierClient, githubApp, logtoClient, tokenRefresher, directoryClient, platformClient, jobsClient, deployJobsClient, scanJobsClient, scanReportClient, pipelineClient, planner, source, hostnameClient, gatewayClient, deployerClient, environmentClient, objectStorageClient, metricsProvider, conductorConfig)
+	conductor := conductor.New(cashierClient, githubApp, logtoClient, nil, directoryClient, platformClient, jobsClient, deployJobsClient, scanJobsClient, scanReportClient, pipelineClient, planner, source, hostnameClient, gatewayClient, deployerClient, environmentClient, objectStorageClient, metricsProvider, conductorConfig)
 
 	go runAdmissionReconciler(ctx, pipelineClient)
 	slog.Info("release admission ready", "maxConcurrent", config.MaxConcurrentReleases, "maxQueuedPerWorkspace", config.MaxQueuedReleases)
@@ -426,7 +439,7 @@ func main() {
 		githubActionsAudience = originFromURL(config.OIDCCallbackURL)
 	}
 
-	graphqlServer := NewGraphQLServer(config.Port, conductor, oidcProvider, verifier, logtoClient, internalIssuer, sessionSecret, config.DashboardURL, config.GitHubAppSlug, githubActionsAudience, config.OIDCIssuerURL, apiAudience, config.OIDCDashboardClientID, config.OIDCCLIClientID, config.CISessionTTL, components)
+	graphqlServer := NewGraphQLServer(config.Port, conductor, oidcProvider, sessionStore, sessionCodec, verifier, logtoClient, internalIssuer, config.OIDCCallbackURL, config.DashboardURL, config.GitHubAppSlug, githubActionsAudience, config.OIDCIssuerURL, apiAudience, config.OIDCDashboardClientID, config.OIDCCLIClientID, components)
 
 	servers := []graceful.Server{graphqlServer}
 

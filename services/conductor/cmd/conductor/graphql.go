@@ -13,6 +13,8 @@ import (
 	"time"
 
 	"github.com/zeitlos/lucity/pkg/logto"
+	"github.com/zeitlos/lucity/pkg/oidc"
+	"github.com/zeitlos/lucity/pkg/session"
 	gatewaygraphql "github.com/zeitlos/lucity/services/conductor/internal/api/graphql"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/directive"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
@@ -45,10 +47,7 @@ const (
 	allowSuspendedDirective = "allowSuspended"
 )
 
-// TODO(stage-6b): drop the oidcProvider and sessionSecret parameters — they exist
-// only to feed the removed server-side auth routes (registerAuthRoutes). Update
-// the call site in main.go accordingly.
-func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvider *OIDCProvider, verifier *auth.Verifier, logtoClient *logto.Client, internalIssuer *auth.Issuer, sessionSecret, dashboardURL, githubAppSlug, githubActionsAudience, oidcIssuer, oidcAudience, oidcDashboardClientID, oidcCLIClientID string, ciSessionTTL time.Duration, grpcComponents []grpcComponent) *GraphQLServer {
+func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvider *oidc.Provider, store *sessionStore, codec *session.Codec, verifier *auth.Verifier, logtoClient *logto.Client, internalIssuer *auth.Issuer, callbackURL, dashboardURL, githubAppSlug, githubActionsAudience, oidcIssuer, oidcAudience, oidcDashboardClientID, oidcCLIClientID string, grpcComponents []grpcComponent) *GraphQLServer {
 	resolver := gatewaygraphql.Resolver{
 		Conductor: conductorClient,
 	}
@@ -293,13 +292,13 @@ func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvid
 	if githubActionsAudience != "" {
 		ciVerifier = newGitHubActionsVerifier(githubActionsAudience)
 	}
-	registerAuthRoutes(mux, oidcProvider, conductorClient, logtoClient, sessionSecret, dashboardURL, githubAppSlug, oidcIssuer, oidcAudience, oidcDashboardClientID, oidcCLIClientID, ciVerifier, ciSessionTTL)
+	registerAuthRoutes(mux, oidcProvider, store, codec, conductorClient, logtoClient, callbackURL, dashboardURL, githubAppSlug, oidcIssuer, oidcAudience, oidcDashboardClientID, oidcCLIClientID, ciVerifier)
 
 	// GraphQL endpoints
 	mux.Handle("/playground", playground.Handler("GraphQL playground", "/graphql"))
 	mux.Handle("/graphql", srv)
 
-	authMiddleware := auth.Middleware(verifier)
+	authMiddleware := sessionAuth(store, codec, verifier)
 
 	// Issuer middleware injects the internal JWT issuer into the request context.
 	// This enables auth.OutgoingContext to mint ES256 JWTs for gRPC calls.
