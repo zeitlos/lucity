@@ -45,7 +45,10 @@ const (
 	allowSuspendedDirective = "allowSuspended"
 )
 
-func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvider *OIDCProvider, verifier *auth.Verifier, logtoClient *logto.Client, internalIssuer *auth.Issuer, sessionSecret, dashboardURL, githubAppSlug, githubActionsAudience, oidcIssuer, oidcAudience string, ciSessionTTL time.Duration, grpcComponents []grpcComponent) *GraphQLServer {
+// TODO(stage-6b): drop the oidcProvider and sessionSecret parameters — they exist
+// only to feed the removed server-side auth routes (registerAuthRoutes). Update
+// the call site in main.go accordingly.
+func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvider *OIDCProvider, verifier *auth.Verifier, logtoClient *logto.Client, internalIssuer *auth.Issuer, sessionSecret, dashboardURL, githubAppSlug, githubActionsAudience, oidcIssuer, oidcAudience, oidcDashboardClientID, oidcCLIClientID string, ciSessionTTL time.Duration, grpcComponents []grpcComponent) *GraphQLServer {
 	resolver := gatewaygraphql.Resolver{
 		Conductor: conductorClient,
 	}
@@ -290,7 +293,7 @@ func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvid
 	if githubActionsAudience != "" {
 		ciVerifier = newGitHubActionsVerifier(githubActionsAudience)
 	}
-	registerAuthRoutes(mux, oidcProvider, conductorClient, logtoClient, sessionSecret, dashboardURL, githubAppSlug, oidcIssuer, oidcAudience, ciVerifier, ciSessionTTL)
+	registerAuthRoutes(mux, oidcProvider, conductorClient, logtoClient, sessionSecret, dashboardURL, githubAppSlug, oidcIssuer, oidcAudience, oidcDashboardClientID, oidcCLIClientID, ciVerifier, ciSessionTTL)
 
 	// GraphQL endpoints
 	mux.Handle("/playground", playground.Handler("GraphQL playground", "/graphql"))
@@ -314,7 +317,7 @@ func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvid
 	corsHandler := cors.New(cors.Options{
 		AllowedOrigins:   []string{"http://localhost:5173", dashboardURL},
 		AllowedMethods:   []string{"GET", "POST", "OPTIONS"},
-		AllowedHeaders:   []string{"Content-Type", "Authorization", tenant.Header},
+		AllowedHeaders:   []string{"Content-Type", "Authorization", "X-Lucity-Account-Token", tenant.Header},
 		AllowCredentials: true,
 	})
 

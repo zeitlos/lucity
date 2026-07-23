@@ -1030,19 +1030,19 @@ func convertModelWorkspaceRole(r model.WorkspaceRole) auth.WorkspaceRole {
 	return auth.WorkspaceRoleUser
 }
 
-func convertAPIKey(k *conductor.APIKey) *model.APIKey {
-	return &model.APIKey{
-		ID:        k.ID,
-		Name:      k.Name,
-		Role:      convertWorkspaceRole(k.Role),
-		CreatedAt: k.CreatedAt,
+func convertAPIToken(t *conductor.APIToken) *model.APIToken {
+	return &model.APIToken{
+		ID:        t.ID,
+		Name:      t.Name,
+		Role:      convertWorkspaceRole(t.Role),
+		CreatedAt: t.CreatedAt,
 	}
 }
 
-func convertCreatedAPIKey(c *conductor.CreatedAPIKey) *model.CreatedAPIKey {
-	return &model.CreatedAPIKey{
-		APIKey: convertAPIKey(&c.APIKey),
-		Key:    c.Key,
+func convertCreatedAPIToken(c *conductor.CreatedAPIToken) *model.CreatedAPIToken {
+	return &model.CreatedAPIToken{
+		APIToken: convertAPIToken(&c.APIToken),
+		Token:    c.Token,
 	}
 }
 

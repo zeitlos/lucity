@@ -15,6 +15,12 @@ import (
 	"time"
 )
 
+// TODO(stage-6b): delete this entire file. The sealed AES-GCM CLI handoff
+// (sealCLICode/openCLICode/handleCLIExchange + validCLIPort/validCLIState/
+// cliHandoff/cliCookieName) is replaced by the CLI's native OIDC PKCE login.
+// Remove alongside the /auth/cli/exchange route and the cli_port/cli_state
+// branch in handleLogin/handleCallback (oidc.go).
+
 const cliCookieName = "lucity_cli"
 
 var cliStatePattern = regexp.MustCompile(`^[A-Za-z0-9_-]{8,128}$`)

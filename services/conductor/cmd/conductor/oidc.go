@@ -23,6 +23,10 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/conductor"
 )
 
+// TODO(stage-6b): delete these cookie names + directSignIn. They belong to the
+// server-side OIDC login/callback/refresh flow (handleLogin/handleCallback/
+// handleRefresh/handleLogout) which is removed in stage-6b; the dashboard and
+// CLI now run the OIDC flow themselves and present bearer tokens.
 const (
 	stateCookieName    = "lucity_oauth_state"
 	verifierCookieName = "lucity_pkce_verifier"
@@ -34,6 +38,14 @@ const (
 // directSignIn skips Logto's connector picker and goes straight to GitHub,
 // the only configured sign-in method.
 const directSignIn = "social:github"
+
+// TODO(stage-6b): delete OIDCProvider and its constructor, plus the helpers that
+// only support it (httpContext, issuerRewriteTransport, newIssuerRewriteClient,
+// newTokenRefresher). It powers the server-side login/callback/refresh flow and
+// the server-side Logto token refresher, all removed in stage-6b. Token
+// verification uses auth.NewVerifier (JWKS) independently, so nothing else
+// depends on this. Note: if internal DNS routing is still needed for JWKS
+// discovery, move the issuer-rewrite client onto the verifier before deleting.
 
 // OIDCProvider wraps the OIDC discovery provider, ID token verifier, and OAuth2 config.
 type OIDCProvider struct {
@@ -135,22 +147,31 @@ func newIssuerRewriteClient(issuerURL, discoveryURL string) (*http.Client, error
 	}, nil
 }
 
+// TODO(stage-6b): delete secureCookies — its only remaining callers set cookies
+// on the login/callback/refresh handlers and newTokenRefresher, all removed.
+//
 // secureCookies returns true if cookies should have the Secure flag set,
 // derived from whether the dashboard URL uses HTTPS.
 func secureCookies(dashboardURL string) bool {
 	return strings.HasPrefix(dashboardURL, "https://")
 }
 
+// TODO(stage-6b): prune registerAuthRoutes to only /auth/config, /auth/ci/exchange,
+// and /auth/github/{install,setup}. Delete the /auth/{login,callback,me,logout,
+// refresh,cli/exchange} registrations and the now-unused params (provider,
+// sessionSecret, and the `secure` local). Also unthread provider + sessionSecret
+// from NewGraphQLServer (graphql.go) and main.go.
+//
 // registerAuthRoutes adds OIDC auth endpoints to the mux.
-func registerAuthRoutes(mux *http.ServeMux, provider *OIDCProvider, conductor *conductor.Client, logtoClient *logto.Client, sessionSecret, dashboardURL, githubAppSlug, oidcIssuer, oidcAudience string, ciVerifier *githubActionsVerifier, ciSessionTTL time.Duration) {
+func registerAuthRoutes(mux *http.ServeMux, provider *OIDCProvider, conductor *conductor.Client, logtoClient *logto.Client, sessionSecret, dashboardURL, githubAppSlug, oidcIssuer, oidcAudience, oidcDashboardClientID, oidcCLIClientID string, ciVerifier *githubActionsVerifier, ciSessionTTL time.Duration) {
 	secure := secureCookies(dashboardURL)
-	mux.HandleFunc("/auth/config", handleAuthConfig(oidcIssuer, oidcAudience))
-	mux.HandleFunc("/auth/login", handleLogin(provider, secure))
-	mux.HandleFunc("/auth/callback", handleCallback(provider, conductor, logtoClient, sessionSecret, dashboardURL, secure))
-	mux.HandleFunc("/auth/me", handleMe())
-	mux.HandleFunc("/auth/logout", handleLogout(dashboardURL))
-	mux.HandleFunc("/auth/refresh", handleRefresh(provider, logtoClient, sessionSecret, secure))
-	mux.HandleFunc("/auth/cli/exchange", handleCLIExchange(sessionSecret))
+	mux.HandleFunc("/auth/config", handleAuthConfig(oidcIssuer, oidcAudience, oidcDashboardClientID, oidcCLIClientID))
+	mux.HandleFunc("/auth/login", handleLogin(provider, secure))                                                            // TODO(stage-6b): delete
+	mux.HandleFunc("/auth/callback", handleCallback(provider, conductor, logtoClient, sessionSecret, dashboardURL, secure)) // TODO(stage-6b): delete
+	mux.HandleFunc("/auth/me", handleMe())                                                                                  // TODO(stage-6b): delete
+	mux.HandleFunc("/auth/logout", handleLogout(dashboardURL))                                                              // TODO(stage-6b): delete
+	mux.HandleFunc("/auth/refresh", handleRefresh(provider, logtoClient, sessionSecret, secure))                            // TODO(stage-6b): delete
+	mux.HandleFunc("/auth/cli/exchange", handleCLIExchange(sessionSecret))                                                  // TODO(stage-6b): delete
 	mux.HandleFunc("/auth/github/install", handleGitHubInstall(githubAppSlug))
 	mux.HandleFunc("/auth/github/setup", handleGitHubSetup(dashboardURL))
 
@@ -162,16 +183,22 @@ func registerAuthRoutes(mux *http.ServeMux, provider *OIDCProvider, conductor *c
 
 // handleAuthConfig advertises the OIDC issuer and API audience so non-interactive
 // clients can exchange credentials directly with the identity provider.
-func handleAuthConfig(issuer, audience string) http.HandlerFunc {
+func handleAuthConfig(issuer, audience, dashboardClientID, cliClientID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{
-			"issuer":   issuer,
-			"audience": audience,
+			"issuer":            issuer,
+			"endpoint":          strings.TrimSuffix(issuer, "/oidc"),
+			"audience":          audience,
+			"dashboardClientId": dashboardClientID,
+			"cliClientId":       cliClientID,
 		})
 	}
 }
 
+// TODO(stage-6b): delete handleLogin — the dashboard and CLI initiate the OIDC
+// flow themselves; the server no longer redirects to the authorization page.
+//
 // handleLogin redirects to the OIDC provider's authorization page with PKCE.
 func handleLogin(provider *OIDCProvider, secure bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -226,6 +253,11 @@ func handleLogin(provider *OIDCProvider, secure bool) http.HandlerFunc {
 	}
 }
 
+// TODO(stage-6b): delete handleCallback — the OIDC redirect callback is handled
+// client-side (dashboard /callback route, CLI loopback). First-login side
+// effects (username + personal workspace provisioning) now run lazily via
+// conductor.EnsureAccount in the workspaces resolver.
+//
 // handleCallback exchanges the auth code for tokens, verifies the ID token,
 // extracts claims, and creates a session. Stores two cookies:
 // - lucity_session: HMAC-signed JWT with auth claims and workspace memberships
@@ -466,6 +498,9 @@ func handleCallback(provider *OIDCProvider, conductor *conductor.Client, logtoCl
 	}
 }
 
+// TODO(stage-6b): delete handleMe (/auth/me). The dashboard and CLI read the
+// profile + memberships straight from the IdP (ID token / userinfo).
+//
 // handleMe returns the current user's profile from the JWT claims in context.
 func handleMe() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -500,6 +535,9 @@ func handleMe() http.HandlerFunc {
 	}
 }
 
+// TODO(stage-6b): delete handleLogout (/auth/logout). Sign-out is client-side
+// (Logto signOut); there are no server session cookies to clear.
+//
 // handleLogout clears the session cookies.
 func handleLogout(dashboardURL string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -528,6 +566,10 @@ func handleLogout(dashboardURL string) http.HandlerFunc {
 	}
 }
 
+// TODO(stage-6b): delete handleRefresh (/auth/refresh). Token refresh is done by
+// the clients directly against the IdP; the server no longer holds refresh
+// tokens or re-mints session JWTs.
+//
 // handleRefresh uses the Logto refresh token to obtain a new access token
 // and re-mints the session JWT with fresh workspace memberships.
 // Called by the dashboard when the access token expires.
@@ -720,6 +762,11 @@ else { window.location.href = %q; }
 	}
 }
 
+// TODO(stage-6b): delete newTokenRefresher and drop the tokenRefresher argument
+// from conductor.New (main.go). Clients now send a fresh Account-API token on
+// each request (X-Lucity-Account-Token), so the server never refreshes Logto
+// tokens on their behalf. Also revisit userGitHubToken's refresher branch
+// (internal/conductor/github.go), which becomes dead once this is nil.
 func newTokenRefresher(provider *OIDCProvider, secure bool) conductor.TokenRefresher {
 	return func(ctx context.Context, refreshToken string) (string, error) {
 		tokenSource := provider.oauthConfig.TokenSource(provider.httpContext(ctx), &oauth2.Token{
@@ -760,6 +807,8 @@ func newTokenRefresher(provider *OIDCProvider, secure bool) conductor.TokenRefre
 	}
 }
 
+// TODO(stage-6b): delete generateState, generateCodeVerifier, and codeChallenge
+// — they are only used by handleLogin's server-side PKCE, which is removed.
 func generateState() string {
 	b := make([]byte, 16)
 	rand.Read(b)

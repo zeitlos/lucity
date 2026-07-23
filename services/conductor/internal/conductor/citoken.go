@@ -46,7 +46,7 @@ func (c *Client) ensureCIApplication(ctx context.Context, orgID, repo, workspace
 		return nil, err
 	}
 	for i := range apps {
-		if apiKeyString(apps[i].CustomData, "kind") == ciAppKind && apiKeyString(apps[i].CustomData, "repo") == repo {
+		if customDataString(apps[i].CustomData, "kind") == ciAppKind && customDataString(apps[i].CustomData, "repo") == repo {
 			return &apps[i], nil
 		}
 	}
@@ -82,8 +82,8 @@ func (c *Client) CIDeployRepo(ctx context.Context, workspace, clientID string) (
 		return "", false
 	}
 	for i := range apps {
-		if apps[i].ID == clientID && apiKeyString(apps[i].CustomData, "kind") == ciAppKind {
-			return apiKeyString(apps[i].CustomData, "repo"), true
+		if apps[i].ID == clientID && customDataString(apps[i].CustomData, "kind") == ciAppKind {
+			return customDataString(apps[i].CustomData, "repo"), true
 		}
 	}
 	return "", false

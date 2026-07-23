@@ -54,14 +54,19 @@ type Config struct {
 	LogLevel    string `envconfig:"LOG_LEVEL" default:"info"`
 
 	// OIDC
-	OIDCIssuerURL    string `envconfig:"OIDC_ISSUER_URL" required:"true"`
-	OIDCDiscoveryURL string `envconfig:"OIDC_DISCOVERY_URL"`
-	OIDCClientID     string `envconfig:"OIDC_CLIENT_ID" required:"true"`
-	OIDCCallbackURL  string `envconfig:"OIDC_CALLBACK_URL" default:"http://localhost:8080/auth/callback"`
-	OIDCAudience     string `envconfig:"OIDC_AUDIENCE"`
+	OIDCIssuerURL         string `envconfig:"OIDC_ISSUER_URL" required:"true"`
+	OIDCDiscoveryURL      string `envconfig:"OIDC_DISCOVERY_URL"`
+	OIDCClientID          string `envconfig:"OIDC_CLIENT_ID" required:"true"`
+	OIDCCallbackURL       string `envconfig:"OIDC_CALLBACK_URL" default:"http://localhost:8080/auth/callback"`
+	OIDCAudience          string `envconfig:"OIDC_AUDIENCE"`
+	OIDCDashboardClientID string `envconfig:"OIDC_DASHBOARD_CLIENT_ID"`
+	OIDCCLIClientID       string `envconfig:"OIDC_CLI_CLIENT_ID"`
 
 	// Auth
-	DashboardURL   string `envconfig:"DASHBOARD_URL" default:"http://localhost:5173"`
+	DashboardURL string `envconfig:"DASHBOARD_URL" default:"http://localhost:5173"`
+	// TODO(stage-6b): delete SessionSecret + AuthTestSecret (SESSION_SECRET /
+	// AUTH_TEST_SECRET). They key the HS256 session fallback; once HS256 is
+	// removed, drop these fields and rotate the secrets out of the prod secret.
 	SessionSecret  string `envconfig:"SESSION_SECRET" required:"true"`
 	AuthTestSecret string `envconfig:"AUTH_TEST_SECRET"`
 
@@ -171,6 +176,9 @@ func main() {
 	defer cancel()
 
 	// ---- Auth: OIDC, session JWT, internal-JWT issuer ----
+	// TODO(stage-6b): delete the OIDCProvider — it only powers the removed
+	// server-side login/callback/refresh flow and newTokenRefresher. Token
+	// verification (auth.NewVerifier below) does its own JWKS discovery.
 	oidcProvider, err := NewOIDCProvider(ctx, config.OIDCIssuerURL, config.OIDCDiscoveryURL, config.OIDCClientID, config.OIDCCallbackURL)
 	if err != nil {
 		slog.Error("failed to initialize OIDC provider", "error", err)
@@ -187,6 +195,9 @@ func main() {
 		os.Exit(1)
 	}
 
+	// TODO(stage-6b): delete this HS256 fallback wiring (sessionSecret derivation
+	// + verifier.WithFallback). After removal, the verifier is JWKS-only; also
+	// stop threading sessionSecret into NewGraphQLServer below.
 	sessionSecret := config.SessionSecret
 	if config.AuthTestSecret != "" {
 		sessionSecret = config.AuthTestSecret
@@ -247,6 +258,9 @@ func main() {
 
 	domainTarget := "lb." + config.WorkloadDomain
 
+	// TODO(stage-6b): delete secure + tokenRefresher and pass nil (or drop the
+	// arg) for the refresher into conductor.New — clients send fresh Account-API
+	// tokens per request, so the server no longer refreshes Logto tokens.
 	secure := secureCookies(config.DashboardURL)
 	tokenRefresher := newTokenRefresher(oidcProvider, secure)
 
@@ -411,7 +425,7 @@ func main() {
 		githubActionsAudience = originFromURL(config.OIDCCallbackURL)
 	}
 
-	graphqlServer := NewGraphQLServer(config.Port, conductor, oidcProvider, verifier, logtoClient, internalIssuer, sessionSecret, config.DashboardURL, config.GitHubAppSlug, githubActionsAudience, config.OIDCIssuerURL, apiAudience, config.CISessionTTL, components)
+	graphqlServer := NewGraphQLServer(config.Port, conductor, oidcProvider, verifier, logtoClient, internalIssuer, sessionSecret, config.DashboardURL, config.GitHubAppSlug, githubActionsAudience, config.OIDCIssuerURL, apiAudience, config.OIDCDashboardClientID, config.OIDCCLIClientID, config.CISessionTTL, components)
 
 	servers := []graceful.Server{graphqlServer}
 

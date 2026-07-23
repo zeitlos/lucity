@@ -10,10 +10,10 @@ import (
 	"github.com/zeitlos/lucity/pkg/tenant"
 )
 
-const apiKeyKind = "api-key"
+const apiTokenKind = "api-token"
 
-// APIKey is a workspace-scoped machine credential.
-type APIKey struct {
+// APIToken is a workspace-scoped machine credential.
+type APIToken struct {
 	ID        string
 	Name      string
 	Role      auth.WorkspaceRole
@@ -21,15 +21,15 @@ type APIKey struct {
 	CreatedBy string
 }
 
-// CreatedAPIKey pairs a newly created key with its one-time secret string.
-type CreatedAPIKey struct {
-	APIKey APIKey
-	Key    string
+// CreatedAPIToken pairs a newly created token with its one-time secret string.
+type CreatedAPIToken struct {
+	APIToken APIToken
+	Token    string
 }
 
-// CreateAPIKey provisions a machine identity in the active workspace, scoped to
-// the given role, and returns the one-time key string.
-func (c *Client) CreateAPIKey(ctx context.Context, name string, role auth.WorkspaceRole) (*CreatedAPIKey, error) {
+// CreateAPIToken provisions a machine identity in the active workspace, scoped to
+// the given role, and returns the one-time token string.
+func (c *Client) CreateAPIToken(ctx context.Context, name string, role auth.WorkspaceRole) (*CreatedAPIToken, error) {
 	claims, err := auth.FromContext(ctx)
 	if err != nil {
 		return nil, err
@@ -42,13 +42,13 @@ func (c *Client) CreateAPIKey(ctx context.Context, name string, role auth.Worksp
 	if err != nil {
 		return nil, err
 	}
-	roleID, err := c.apiKeyRoleID(ctx, role)
+	roleID, err := c.apiTokenRoleID(ctx, role)
 	if err != nil {
 		return nil, err
 	}
 
 	app, err := c.logto.CreateApplication(ctx, name, "", map[string]any{
-		"kind":      apiKeyKind,
+		"kind":      apiTokenKind,
 		"workspace": workspace,
 		"role":      string(role),
 		"createdBy": claims.Subject,
@@ -71,20 +71,20 @@ func (c *Client) CreateAPIKey(ctx context.Context, name string, role auth.Worksp
 		return nil, err
 	}
 
-	return &CreatedAPIKey{
-		APIKey: APIKey{
+	return &CreatedAPIToken{
+		APIToken: APIToken{
 			ID:        app.ID,
 			Name:      app.Name,
 			Role:      role,
 			CreatedAt: time.UnixMilli(app.CreatedAt),
 			CreatedBy: claims.Subject,
 		},
-		Key: encodeAPIKey(app.ID, secret.Value, orgID, workspace),
+		Token: encodeAPIToken(app.ID, secret.Value, orgID, workspace),
 	}, nil
 }
 
-// APIKeys lists the machine credentials in the active workspace.
-func (c *Client) APIKeys(ctx context.Context) ([]APIKey, error) {
+// APITokens lists the machine credentials in the active workspace.
+func (c *Client) APITokens(ctx context.Context) ([]APIToken, error) {
 	workspace, err := tenant.FromContext(ctx)
 	if err != nil {
 		return nil, err
@@ -98,25 +98,25 @@ func (c *Client) APIKeys(ctx context.Context) ([]APIKey, error) {
 		return nil, err
 	}
 
-	keys := make([]APIKey, 0)
+	tokens := make([]APIToken, 0)
 	for _, app := range apps {
-		if apiKeyString(app.CustomData, "kind") != apiKeyKind {
+		if customDataString(app.CustomData, "kind") != apiTokenKind {
 			continue
 		}
-		keys = append(keys, APIKey{
+		tokens = append(tokens, APIToken{
 			ID:        app.ID,
 			Name:      app.Name,
-			Role:      apiKeyRole(app.CustomData),
+			Role:      apiTokenRole(app.CustomData),
 			CreatedAt: time.UnixMilli(app.CreatedAt),
-			CreatedBy: apiKeyString(app.CustomData, "createdBy"),
+			CreatedBy: customDataString(app.CustomData, "createdBy"),
 		})
 	}
-	return keys, nil
+	return tokens, nil
 }
 
-// RevokeAPIKey deletes a machine credential. It only revokes keys that belong to
-// the active workspace, so a key ID from another tenant cannot be deleted.
-func (c *Client) RevokeAPIKey(ctx context.Context, id string) error {
+// RevokeAPIToken deletes a machine credential. It only revokes tokens that belong
+// to the active workspace, so a token ID from another tenant cannot be deleted.
+func (c *Client) RevokeAPIToken(ctx context.Context, id string) error {
 	workspace, err := tenant.FromContext(ctx)
 	if err != nil {
 		return err
@@ -130,14 +130,14 @@ func (c *Client) RevokeAPIKey(ctx context.Context, id string) error {
 		return err
 	}
 	for _, app := range apps {
-		if app.ID == id && apiKeyString(app.CustomData, "kind") == apiKeyKind {
+		if app.ID == id && customDataString(app.CustomData, "kind") == apiTokenKind {
 			return c.logto.DeleteApplication(ctx, id)
 		}
 	}
-	return fmt.Errorf("api key %q not found in workspace %q", id, workspace)
+	return fmt.Errorf("api token %q not found in workspace %q", id, workspace)
 }
 
-func (c *Client) apiKeyRoleID(ctx context.Context, role auth.WorkspaceRole) (string, error) {
+func (c *Client) apiTokenRoleID(ctx context.Context, role auth.WorkspaceRole) (string, error) {
 	var name string
 	switch role {
 	case auth.WorkspaceRoleAdmin:
@@ -145,7 +145,7 @@ func (c *Client) apiKeyRoleID(ctx context.Context, role auth.WorkspaceRole) (str
 	case auth.WorkspaceRoleUser:
 		name = "api-member"
 	default:
-		return "", fmt.Errorf("unsupported api key role %q", role)
+		return "", fmt.Errorf("unsupported api token role %q", role)
 	}
 	roles, err := c.logto.OrganizationRoles(ctx)
 	if err != nil {
@@ -156,15 +156,15 @@ func (c *Client) apiKeyRoleID(ctx context.Context, role auth.WorkspaceRole) (str
 			return r.ID, nil
 		}
 	}
-	return "", fmt.Errorf("missing machine org role %q for api keys", name)
+	return "", fmt.Errorf("missing machine org role %q for api tokens", name)
 }
 
-func encodeAPIKey(clientID, secret, orgID, workspace string) string {
+func encodeAPIToken(clientID, secret, orgID, workspace string) string {
 	return "lucity_" + base64.RawURLEncoding.EncodeToString([]byte(clientID+":"+secret+":"+orgID+":"+workspace))
 }
 
-func apiKeyRole(customData map[string]any) auth.WorkspaceRole {
-	switch auth.WorkspaceRole(apiKeyString(customData, "role")) {
+func apiTokenRole(customData map[string]any) auth.WorkspaceRole {
+	switch auth.WorkspaceRole(customDataString(customData, "role")) {
 	case auth.WorkspaceRoleAdmin:
 		return auth.WorkspaceRoleAdmin
 	case auth.WorkspaceRoleDeployer:
@@ -174,7 +174,7 @@ func apiKeyRole(customData map[string]any) auth.WorkspaceRole {
 	}
 }
 
-func apiKeyString(customData map[string]any, key string) string {
+func customDataString(customData map[string]any, key string) string {
 	if s, ok := customData[key].(string); ok {
 		return s
 	}

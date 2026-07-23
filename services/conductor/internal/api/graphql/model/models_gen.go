@@ -29,7 +29,7 @@ type AddServiceInput struct {
 	Resources   *ResourcesInput `json:"resources,omitempty"`
 }
 
-type APIKey struct {
+type APIToken struct {
 	ID        string        `json:"id"`
 	Name      string        `json:"name"`
 	Role      WorkspaceRole `json:"role"`
@@ -107,7 +107,7 @@ type Commit struct {
 	URL     *string `json:"url,omitempty"`
 }
 
-type CreateAPIKeyInput struct {
+type CreateAPITokenInput struct {
 	Name string        `json:"name"`
 	Role WorkspaceRole `json:"role"`
 }
@@ -151,9 +151,9 @@ type CreateWorkspaceCheckoutInput struct {
 	Plan Plan   `json:"plan"`
 }
 
-type CreatedAPIKey struct {
-	APIKey *APIKey `json:"apiKey"`
-	Key    string  `json:"key"`
+type CreatedAPIToken struct {
+	APIToken *APIToken `json:"apiToken"`
+	Token    string    `json:"token"`
 }
 
 type Database struct {
