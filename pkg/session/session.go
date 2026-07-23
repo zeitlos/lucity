@@ -12,7 +12,10 @@ import (
 	"net/http"
 )
 
-var ErrInvalid = errors.New("invalid session")
+var (
+	ErrNoCookie = errors.New("no session cookie")
+	ErrInvalid  = errors.New("invalid session cookie")
+)
 
 type Codec struct {
 	key    [32]byte
@@ -30,7 +33,36 @@ func NewCodec(secret, cookieName string, secure bool, maxAge int) *Codec {
 	}
 }
 
-func (c *Codec) Seal(v any) (string, error) {
+func (c *Codec) Save(w http.ResponseWriter, v any) error {
+	sealed, err := c.seal(v)
+	if err != nil {
+		return err
+	}
+	http.SetCookie(w, &http.Cookie{
+		Name:     c.name,
+		Value:    sealed,
+		Path:     "/",
+		MaxAge:   c.maxAge,
+		HttpOnly: true,
+		Secure:   c.secure,
+		SameSite: http.SameSiteLaxMode,
+	})
+	return nil
+}
+
+func (c *Codec) Load(r *http.Request, v any) error {
+	cookie, err := r.Cookie(c.name)
+	if err != nil {
+		return ErrNoCookie
+	}
+	return c.open(cookie.Value, v)
+}
+
+func (c *Codec) Clear(w http.ResponseWriter) {
+	http.SetCookie(w, &http.Cookie{Name: c.name, Path: "/", MaxAge: -1})
+}
+
+func (c *Codec) seal(v any) (string, error) {
 	plaintext, err := json.Marshal(v)
 	if err != nil {
 		return "", err
@@ -46,7 +78,7 @@ func (c *Codec) Seal(v any) (string, error) {
 	return base64.RawURLEncoding.EncodeToString(gcm.Seal(nonce, nonce, plaintext, nil)), nil
 }
 
-func (c *Codec) Open(value string, v any) error {
+func (c *Codec) open(value string, v any) error {
 	sealed, err := base64.RawURLEncoding.DecodeString(value)
 	if err != nil {
 		return ErrInvalid
@@ -74,28 +106,4 @@ func (c *Codec) gcm() (cipher.AEAD, error) {
 		return nil, err
 	}
 	return cipher.NewGCM(block)
-}
-
-func (c *Codec) Read(r *http.Request) (string, bool) {
-	cookie, err := r.Cookie(c.name)
-	if err != nil {
-		return "", false
-	}
-	return cookie.Value, true
-}
-
-func (c *Codec) SetCookie(w http.ResponseWriter, sealed string) {
-	http.SetCookie(w, &http.Cookie{
-		Name:     c.name,
-		Value:    sealed,
-		Path:     "/",
-		MaxAge:   c.maxAge,
-		HttpOnly: true,
-		Secure:   c.secure,
-		SameSite: http.SameSiteLaxMode,
-	})
-}
-
-func (c *Codec) ClearCookie(w http.ResponseWriter) {
-	http.SetCookie(w, &http.Cookie{Name: c.name, Path: "/", MaxAge: -1})
 }
