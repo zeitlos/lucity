@@ -50,7 +50,18 @@ export default defineNuxtConfig({
             url: 'https://lucity.cloud',
             logo: 'https://lucity.cloud/logo-light.png',
             description: 'The European open source alternative to Vercel, Heroku, and Railway. Deploy anything, own your stack.',
-            sameAs: ['https://github.com/zeitlos/lucity']
+            sameAs: [
+              'https://github.com/zeitlos/lucity',
+              'https://www.linkedin.com/company/lucity/'
+            ],
+            parentOrganization: {
+              '@type': 'Organization',
+              name: 'zeitlos',
+              sameAs: [
+                'https://www.linkedin.com/company/zeitlossoftware',
+                'https://github.com/zeitlos'
+              ]
+            }
           })
         },
         ...(process.env.NODE_ENV === 'production'
