@@ -7,7 +7,7 @@
     { "src": "/web-app-manifest-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
   ],
   "theme_color": "#301c0e",
-  "background_color": "#301c0e",
+  "background_color": "#e9dcc8",
   "display": "standalone",
   "start_url": "/"
 }

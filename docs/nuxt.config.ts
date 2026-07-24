@@ -64,6 +64,27 @@ export default defineNuxtConfig({
             }
           })
         },
+        {
+          type: 'application/ld+json',
+          innerHTML: JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'SoftwareApplication',
+            '@id': 'https://lucity.cloud/#software',
+            name: 'Lucity',
+            applicationCategory: 'DeveloperApplication',
+            operatingSystem: 'Web-based',
+            url: 'https://lucity.cloud',
+            description: 'The European open source alternative to Vercel, Heroku, and Railway. Deploy anything, own your stack.',
+            publisher: { '@id': 'https://lucity.cloud/#organization' },
+            offers: {
+              '@type': 'AggregateOffer',
+              priceCurrency: 'CHF',
+              lowPrice: '0',
+              highPrice: '25',
+              offerCount: '3'
+            }
+          })
+        },
         ...(process.env.NODE_ENV === 'production'
           ? [{ src: 'https://p.lucity.cloud/api/script.js', defer: true, 'data-site-id': '42cfa77ed96d' }]
           : [])

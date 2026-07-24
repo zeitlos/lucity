@@ -68,6 +68,7 @@ useSeo({
   title: page.value.title,
   description: page.value.description,
   type: 'article',
+  publishedAt: page.value.date,
 });
 </script>
 
