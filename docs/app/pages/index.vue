@@ -6,8 +6,8 @@ definePageMeta({
 });
 
 useSeo({
-  title: 'Lucity: The PaaS you can leave',
-  description: 'Open-source PaaS on Kubernetes. Git push to deploy, environments out of the box, and a real exit door. Eject to standard Helm charts at any time. Self-hostable, no lock-in.',
+  title: 'Deploy anything. Own your stack.',
+  description: 'Get your apps online and running in production, without the lock-in. Lucity is the European open source alternative to Vercel, Heroku, and Railway: the same effortless developer experience, but your whole stack stays yours to move anywhere, anytime.',
   type: 'website',
 });
 </script>

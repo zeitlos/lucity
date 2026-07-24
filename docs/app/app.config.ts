@@ -7,6 +7,9 @@ export default defineAppConfig({
       github: 'zeitlos/lucity'
     }
   },
+  seo: {
+    titleTemplate: '%s | Lucity'
+  },
   ui: {
     colors: {
       primary: 'teal',
