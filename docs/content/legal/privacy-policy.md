@@ -6,7 +6,7 @@ description: How Lucity handles your data.
 # Privacy Policy
 
 **Effective date:** March 16, 2026
-**Last updated:** March 16, 2026
+**Last updated:** July 24, 2026
 
 This privacy policy explains how lucity.cloud ("Lucity", "we", "us") collects, uses, and protects your data.
 
@@ -26,14 +26,14 @@ Mattenhofstrasse 5, 3007 Bern, Switzerland
 When you sign up, we collect:
 
 - **Email address** and **display name** (via our authentication service)
-- **Billing information** (name, billing address, payment method) — processed by Stripe
+- **Billing information** (name, billing address, payment method) processed by Stripe
 
 ### Usage Data
 
 When you use the platform, we process:
 
-- **Project and deployment metadata** — project names, environment configurations, build logs, deployment status
-- **Resource consumption** — CPU, memory, disk, and egress usage for billing
+- **Project and deployment metadata**: project names, environment configurations, build logs, deployment status
+- **Resource consumption**: CPU, memory, disk, and egress usage for billing
 
 ### Analytics
 
@@ -48,32 +48,38 @@ We use [Rybbit](https://rybbit.com) (self-hosted) for website analytics. Rybbit 
 
 ## 2. How We Use Your Data
 
-- **Provide the service** — run your workloads, manage deployments, process builds
-- **Billing** — calculate resource usage, process payments, send invoices
-- **Communication** — service notifications, security alerts, billing updates
-- **Improve the platform** — aggregated, anonymized usage patterns
+- **Provide the service**: run your workloads, manage deployments, process builds
+- **Billing**: calculate resource usage, process payments, send invoices
+- **Communication**: service notifications, security alerts, billing updates
+- **Improve the platform**: aggregated, anonymized usage patterns
 
 ## 3. Data Processing and Storage
 
-All platform data is processed and stored in the **European Union** (Hetzner Cloud, Nuremberg, Germany).
+The platform core, your workloads, and their databases run on **Hetzner Cloud** in Nuremberg, Germany. Object storage buckets are hosted on **OVHcloud** in Gravelines, France. Both are in the **European Union**.
 
-Our infrastructure services (authentication, Git server, container registry, deployment tooling, analytics) are **self-hosted** within our own cluster. No third party has access to your workload data, source code, or deployment configurations.
+Our infrastructure services (authentication, container registry, deployment tooling, analytics) are **self-hosted** within our own cluster. The third parties listed below are the only external processors that handle data on our behalf.
 
 ### Third-Party Processors
 
 | Provider | Purpose | Data Shared | Privacy Info |
 |----------|---------|-------------|--------------|
 | **Stripe** | Payment processing | Name, email, billing address, payment method | [stripe.com/privacy](https://stripe.com/privacy) |
-| **Hetzner** | Infrastructure hosting | Data stored on their servers (encrypted at rest) | [hetzner.com/privacy-policy](https://www.hetzner.com/privacy-policy/) |
+| **Hetzner** | Core infrastructure hosting (EU) | Platform data, workloads, and databases (encrypted at rest) | [hetzner.com/privacy-policy](https://www.hetzner.com/privacy-policy/) |
+| **OVHcloud** | Object storage hosting (EU) | Files you store in buckets (encrypted at rest) | [ovhcloud.com/en/personal-data-protection](https://www.ovhcloud.com/en/personal-data-protection/) |
+| **Bunny** | Content delivery for public buckets and custom-domain TLS | Publicly served bucket content; request metadata (IP address, user agent) of visitors to public content | [bunny.net/privacy](https://bunny.net/privacy) |
 
-Stripe may process data outside the EU. Stripe maintains EU Standard Contractual Clauses for international transfers. We do not share data with any other third parties.
+Stripe may process data outside the EU and maintains EU Standard Contractual Clauses for international transfers. Bunny operates a global content-delivery network, so publicly served content and visitor request metadata may be cached at edge locations outside the EU. We do not share data with any other third parties.
+
+### Data Your Applications Process
+
+For your **account and billing data**, we are the data controller, and this policy describes how we handle it. For personal data that **your applications** process about **your own end users**, you are the controller and we act only as your processor, running your workloads on your instructions. That relationship is governed by our [Data Processing Agreement](/legal/data-processing-agreement). We do not access, use, or disclose that data except as needed to operate the platform.
 
 ## 4. Data Retention
 
-- **Account data** — retained while your account is active. Deleted within 30 days of account deletion.
-- **Build artifacts and logs** — retained while the associated project exists.
-- **Billing records** — retained for 10 years as required by Swiss law (OR Art. 958f).
-- **Analytics data** — aggregated and anonymous; no personal data retained.
+- **Account data**: retained while your account is active. Deleted within 30 days of account deletion.
+- **Build artifacts and logs**: retained while the associated project exists.
+- **Billing records**: retained for 10 years as required by Swiss law (OR Art. 958f).
+- **Analytics data**: aggregated and anonymous; no personal data retained.
 
 ## 5. Your Rights
 
