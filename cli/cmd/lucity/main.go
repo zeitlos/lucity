@@ -2,18 +2,41 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"text/tabwriter"
+	"time"
 
 	"github.com/zeitlos/lucity/cli/internal/api"
 	"github.com/zeitlos/lucity/cli/internal/authflow"
 	"github.com/zeitlos/lucity/cli/internal/mcpserver"
 	"github.com/zeitlos/lucity/cli/internal/session"
+	"github.com/zeitlos/lucity/pkg/oidc"
 )
+
+func decodeJWTClaims(token string) map[string]any {
+	parts := strings.Split(token, ".")
+	if len(parts) < 2 {
+		return nil
+	}
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return nil
+	}
+	var claims map[string]any
+	if err := json.Unmarshal(payload, &claims); err != nil {
+		return nil
+	}
+	return claims
+}
 
 var version = "dev"
 
@@ -35,7 +58,7 @@ Usage:
 Environment:
   LUCITY_API_URL    Override the platform URL (default: stored, then ` + api.DefaultBaseURL + `)
   LUCITY_WORKSPACE  Override the active workspace
-  LUCITY_TOKEN      Use a fixed bearer token instead of the stored session
+  LUCITY_API_TOKEN  Authenticate with a workspace API token (for CI and automation)
 `
 
 func main() {
@@ -99,17 +122,43 @@ func cmdLogin(ctx context.Context, args []string) error {
 		base = *apiURL
 	}
 
-	newSession, err := authflow.Login(ctx, base)
+	httpClient := &http.Client{Timeout: 30 * time.Second}
+	authCfg, err := api.Config(ctx, httpClient, base)
+	if err != nil {
+		return fmt.Errorf("fetch auth config from %s: %w", base, err)
+	}
+	if authCfg.CliClientID == "" {
+		return errors.New("this platform has no CLI login configured — the maintainer must register a native CLI client and set OIDC_CLI_CLIENT_ID")
+	}
+
+	provider := &oidc.Provider{
+		Endpoint:     authCfg.Endpoint,
+		ClientID:     authCfg.CliClientID,
+		Audience:     authCfg.Audience,
+		DirectSignIn: session.DirectSignIn,
+		Scopes:       session.LoginScopes,
+		HTTP:         httpClient,
+	}
+
+	refreshToken, err := authflow.Login(ctx, provider)
 	if err != nil {
 		return err
 	}
-	if err := manager.SetSession(base, newSession); err != nil {
+	if err := manager.SetLogin(base, refreshToken); err != nil {
 		return err
 	}
 
-	identity, err := manager.Client().Me(ctx)
+	identity, err := manager.Identity(ctx)
 	if err != nil {
 		return fmt.Errorf("signed in, but fetching the account failed: %w", err)
+	}
+
+	if len(identity.Workspaces) == 0 {
+		if err := manager.BootstrapWorkspaces(ctx); err == nil {
+			if refreshed, err := manager.Identity(ctx); err == nil {
+				identity = refreshed
+			}
+		}
 	}
 
 	if manager.Workspace() == "" && len(identity.Workspaces) > 0 {
@@ -140,23 +189,56 @@ func cmdAccount(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	identity, err := manager.Client().Me(ctx)
+
+	token, err := manager.Token(ctx)
 	if err != nil {
+		if errors.Is(err, session.ErrLoggedOut) {
+			fmt.Println("Not signed in. Run `lucity login`, or set LUCITY_API_TOKEN for automation.")
+			return nil
+		}
 		return err
 	}
 
-	fmt.Printf("%s <%s>\n", identity.Name, identity.Email)
-	fmt.Printf("Platform: %s\n\n", manager.APIURL())
-	writer := tabwriter.NewWriter(os.Stdout, 2, 4, 2, ' ', 0)
-	fmt.Fprintln(writer, "WORKSPACE\tROLE\tACTIVE")
-	for _, membership := range identity.Workspaces {
-		active := ""
-		if membership.Workspace == manager.Workspace() {
-			active = "*"
-		}
-		fmt.Fprintf(writer, "%s\t%s\t%s\n", membership.Workspace, membership.Role, active)
+	claims := decodeJWTClaims(token)
+	subject, _ := claims["sub"].(string)
+	clientID, _ := claims["client_id"].(string)
+	email, _ := claims["email"].(string)
+	scope, _ := claims["scope"].(string)
+
+	machine := subject != "" && subject == clientID
+	sessionKind := "personal"
+	if machine {
+		sessionKind = "API token"
 	}
-	return writer.Flush()
+
+	if !machine {
+		if identity, idErr := manager.Identity(ctx); idErr == nil {
+			fmt.Printf("%s <%s>\n", identity.Name, identity.Email)
+			fmt.Printf("Platform: %s\n", manager.APIURL())
+			fmt.Printf("Session:  %s\n\n", sessionKind)
+			writer := tabwriter.NewWriter(os.Stdout, 2, 4, 2, ' ', 0)
+			fmt.Fprintln(writer, "WORKSPACE\tROLE\tACTIVE")
+			for _, membership := range identity.Workspaces {
+				active := ""
+				if membership.Workspace == manager.Workspace() {
+					active = "*"
+				}
+				fmt.Fprintf(writer, "%s\t%s\t%s\n", membership.Workspace, membership.Role, active)
+			}
+			return writer.Flush()
+		}
+	}
+
+	fmt.Printf("Platform:  %s\n", manager.APIURL())
+	fmt.Printf("Session:   %s\n", sessionKind)
+	fmt.Printf("Workspace: %s\n", manager.Workspace())
+	if email != "" {
+		fmt.Printf("Email:     %s\n", email)
+	}
+	if scope != "" {
+		fmt.Printf("Roles:     %s\n", scope)
+	}
+	return nil
 }
 
 func cmdWorkspace(ctx context.Context, args []string) error {
@@ -175,7 +257,7 @@ func cmdWorkspace(ctx context.Context, args []string) error {
 	}
 
 	target := args[0]
-	identity, err := manager.Client().Me(ctx)
+	identity, err := manager.Identity(ctx)
 	if err != nil {
 		return err
 	}

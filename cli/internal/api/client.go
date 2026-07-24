@@ -13,22 +13,10 @@ import (
 
 const DefaultBaseURL = "https://lucity.cloud"
 
-const WorkspaceHeader = "X-Lucity-Workspace"
-
-type Session struct {
-	Token        string    `json:"token"`
-	RefreshToken string    `json:"refreshToken"`
-	LogtoToken   string    `json:"logtoToken"`
-	ExpiresAt    time.Time `json:"expiresAt"`
-}
-
-type CookieTokenSource interface {
-	CookieTokens(ctx context.Context) (logtoToken, refreshToken string)
-}
-
-type RotatedTokenSink interface {
-	PersistRotatedTokens(sessionToken, logtoToken, refreshToken string)
-}
+const (
+	WorkspaceHeader    = "X-Lucity-Workspace"
+	accountTokenHeader = "X-Lucity-Account-Token"
+)
 
 type WorkspaceMembership struct {
 	Workspace string `json:"workspace"`
@@ -45,6 +33,10 @@ type Identity struct {
 
 type TokenSource interface {
 	Token(ctx context.Context) (string, error)
+}
+
+type AccountTokenSource interface {
+	AccountToken(ctx context.Context) (string, error)
 }
 
 type StaticToken string
@@ -106,17 +98,9 @@ func (c *Client) GraphQL(ctx context.Context, query string, variables map[string
 		req.Header.Set(WorkspaceHeader, c.Workspace)
 	}
 
-	if source, ok := c.Tokens.(CookieTokenSource); ok {
-		logtoToken, refreshToken := source.CookieTokens(ctx)
-		var cookies []string
-		if logtoToken != "" {
-			cookies = append(cookies, "lucity_token="+logtoToken)
-		}
-		if refreshToken != "" {
-			cookies = append(cookies, "lucity_refresh="+refreshToken)
-		}
-		if len(cookies) > 0 {
-			req.Header.Set("Cookie", strings.Join(cookies, "; "))
+	if source, ok := c.Tokens.(AccountTokenSource); ok {
+		if accountToken, err := source.AccountToken(ctx); err == nil && accountToken != "" {
+			req.Header.Set(accountTokenHeader, accountToken)
 		}
 	}
 
@@ -125,23 +109,6 @@ func (c *Client) GraphQL(ctx context.Context, query string, variables map[string
 		return fmt.Errorf("request %s: %w", c.BaseURL, err)
 	}
 	defer resp.Body.Close()
-
-	if sink, ok := c.Tokens.(RotatedTokenSink); ok {
-		var sessionToken, logtoToken, refreshToken string
-		for _, cookie := range resp.Cookies() {
-			switch cookie.Name {
-			case "lucity_session":
-				sessionToken = cookie.Value
-			case "lucity_token":
-				logtoToken = cookie.Value
-			case "lucity_refresh":
-				refreshToken = cookie.Value
-			}
-		}
-		if sessionToken != "" || logtoToken != "" || refreshToken != "" {
-			sink.PersistRotatedTokens(sessionToken, logtoToken, refreshToken)
-		}
-	}
 
 	payload, err := io.ReadAll(io.LimitReader(resp.Body, 32<<20))
 	if err != nil {
@@ -169,59 +136,23 @@ func (c *Client) GraphQL(ctx context.Context, query string, variables map[string
 	return nil
 }
 
-func (c *Client) Me(ctx context.Context) (*Identity, error) {
-	token, err := c.Tokens.Token(ctx)
+type AuthConfig struct {
+	Issuer      string `json:"issuer"`
+	Endpoint    string `json:"endpoint"`
+	Audience    string `json:"audience"`
+	CliClientID string `json:"cliClientId"`
+}
+
+func Config(ctx context.Context, httpClient *http.Client, baseURL string) (*AuthConfig, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimSuffix(baseURL, "/")+"/auth/config", nil)
 	if err != nil {
 		return nil, err
 	}
-	return Me(ctx, c.HTTP, c.BaseURL, token)
-}
-
-func Me(ctx context.Context, httpClient *http.Client, baseURL, token string) (*Identity, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimSuffix(baseURL, "/")+"/auth/me", nil)
-	if err != nil {
+	var cfg AuthConfig
+	if err := doJSON(httpClient, req, &cfg); err != nil {
 		return nil, err
 	}
-	req.Header.Set("Authorization", "Bearer "+token)
-
-	var identity Identity
-	if err := doJSON(httpClient, req, &identity); err != nil {
-		return nil, err
-	}
-	return &identity, nil
-}
-
-func ExchangeCode(ctx context.Context, httpClient *http.Client, baseURL, code string) (*Session, error) {
-	return postAuthJSON(ctx, httpClient, strings.TrimSuffix(baseURL, "/")+"/auth/cli/exchange", "", map[string]string{"code": code})
-}
-
-func Refresh(ctx context.Context, httpClient *http.Client, baseURL, sessionToken, refreshToken string) (*Session, error) {
-	return postAuthJSON(ctx, httpClient, strings.TrimSuffix(baseURL, "/")+"/auth/refresh", sessionToken, map[string]string{"refreshToken": refreshToken})
-}
-
-func postAuthJSON(ctx context.Context, httpClient *http.Client, url, bearer string, body any) (*Session, error) {
-	data, err := json.Marshal(body)
-	if err != nil {
-		return nil, err
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(data))
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", "application/json")
-	if bearer != "" {
-		req.Header.Set("Authorization", "Bearer "+bearer)
-	}
-
-	var session Session
-	if err := doJSON(httpClient, req, &session); err != nil {
-		return nil, err
-	}
-	if session.Token == "" {
-		return nil, fmt.Errorf("no token in response from %s", url)
-	}
-	return &session, nil
+	return &cfg, nil
 }
 
 func doJSON(httpClient *http.Client, req *http.Request, out any) error {

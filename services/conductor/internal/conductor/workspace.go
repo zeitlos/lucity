@@ -31,7 +31,33 @@ func (c *Client) Workspaces(ctx context.Context) ([]Workspace, error) {
 		return nil, err
 	}
 
+	if len(workspaces) == 0 {
+		if _, _, ensureErr := c.EnsureAccount(ctx, claims.Subject); ensureErr == nil {
+			workspaces, err = c.directory.WorkspacesForUser(ctx, claims.Subject)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
 	return workspaces, nil
+}
+
+// EnsureAccount idempotently provisions a user's Logto username and personal
+// workspace. It runs lazily on first authenticated access, since clients now
+// sign in directly with the identity provider.
+func (c *Client) EnsureAccount(ctx context.Context, userID string) (string, bool, error) {
+	login, err := c.logto.SocialLogin(ctx, userID)
+	if err != nil {
+		return "", false, err
+	}
+
+	username, err := c.logto.EnsureUsername(ctx, userID, login)
+	if err != nil {
+		return "", false, err
+	}
+
+	return c.EnsurePersonalWorkspace(ctx, userID, username)
 }
 
 func (c *Client) Workspace(ctx context.Context, id string) (*WorkspaceDetails, error) {

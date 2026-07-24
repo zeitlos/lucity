@@ -1,106 +1,32 @@
 package main
 
 import (
-	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
-
-	"github.com/coreos/go-oidc/v3/oidc"
-	"golang.org/x/oauth2"
 
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/logto"
+	"github.com/zeitlos/lucity/pkg/oidc"
+	"github.com/zeitlos/lucity/pkg/session"
 	"github.com/zeitlos/lucity/services/conductor/internal/conductor"
 )
 
 const (
-	stateCookieName    = "lucity_oauth_state"
-	verifierCookieName = "lucity_pkce_verifier"
-	sessionCookieName  = "lucity_session" // HMAC-signed session JWT (auth claims)
-	tokenCookieName    = "lucity_token"   // Logto opaque access token (Account API)
-	refreshCookieName  = "lucity_refresh"
+	stateCookieName     = "lucity_oauth_state"
+	verifierCookieName  = "lucity_pkce_verifier"
+	sessionCookieName   = "lucity_session"
+	bootstrapCookieName = "lucity_bootstrap"
+	directSignIn        = "social:github"
 )
 
-// directSignIn skips Logto's connector picker and goes straight to GitHub,
-// the only configured sign-in method.
-const directSignIn = "social:github"
-
-// OIDCProvider wraps the OIDC discovery provider, ID token verifier, and OAuth2 config.
-type OIDCProvider struct {
-	provider    *oidc.Provider
-	verifier    *oidc.IDTokenVerifier
-	oauthConfig oauth2.Config
-	httpClient  *http.Client // custom client for internal routing (nil if not needed)
-}
-
-// NewOIDCProvider performs OIDC discovery against the issuer and returns a configured provider.
-// Uses PKCE (S256) — no client secret needed. The client must be configured as "public" in the IDP.
-//
-// If discoveryURL is set, HTTP requests to the issuer host are rewritten to the discovery URL.
-// This avoids hairpin routing when the issuer's public domain resolves to the same load balancer.
-// The issuer URL is still used for validation (iss claim matching), and the callback URL is
-// unaffected since it's a browser redirect.
-func NewOIDCProvider(ctx context.Context, issuerURL, discoveryURL, clientID, callbackURL string) (*OIDCProvider, error) {
-	var httpClient *http.Client
-	if discoveryURL != "" {
-		var err error
-		httpClient, err = newIssuerRewriteClient(issuerURL, discoveryURL)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create internal HTTP client: %w", err)
-		}
-		ctx = oidc.ClientContext(ctx, httpClient)
-		slog.Info("OIDC using internal discovery URL", "issuer", issuerURL, "discovery", discoveryURL)
-	}
-
-	provider, err := oidc.NewProvider(ctx, issuerURL)
-	if err != nil {
-		return nil, fmt.Errorf("failed to discover OIDC provider at %s: %w", issuerURL, err)
-	}
-
-	oauthConfig := oauth2.Config{
-		ClientID:    clientID,
-		Endpoint:    provider.Endpoint(),
-		RedirectURL: callbackURL,
-		Scopes: []string{
-			oidc.ScopeOpenID, "profile", "email", oidc.ScopeOfflineAccess,
-			"identities",                         // Account API: access social identity tokens (GitHub)
-			"urn:logto:scope:organizations",      // ID token: organization memberships
-			"urn:logto:scope:organization_roles", // ID token: organization roles
-		},
-	}
-
-	verifier := provider.Verifier(&oidc.Config{ClientID: clientID})
-
-	return &OIDCProvider{
-		provider:    provider,
-		verifier:    verifier,
-		oauthConfig: oauthConfig,
-		httpClient:  httpClient,
-	}, nil
-}
-
-// httpContext returns a context with the internal HTTP client injected, so that
-// server-side calls (token exchange, JWKS refresh) route through internal DNS.
-func (p *OIDCProvider) httpContext(ctx context.Context) context.Context {
-	if p.httpClient != nil {
-		return oidc.ClientContext(ctx, p.httpClient)
-	}
-	return ctx
-}
-
-// issuerRewriteTransport rewrites HTTP requests from the public issuer host to
-// an internal service URL. This lets the OIDC library validate the issuer normally
-// while all HTTP traffic stays cluster-internal.
 type issuerRewriteTransport struct {
 	publicHost  string
 	internalURL *url.URL
@@ -125,7 +51,6 @@ func newIssuerRewriteClient(issuerURL, discoveryURL string) (*http.Client, error
 	if err != nil {
 		return nil, fmt.Errorf("invalid discovery URL %q: %w", discoveryURL, err)
 	}
-
 	return &http.Client{
 		Transport: &issuerRewriteTransport{
 			publicHost:  pub.Host,
@@ -135,115 +60,63 @@ func newIssuerRewriteClient(issuerURL, discoveryURL string) (*http.Client, error
 	}, nil
 }
 
-// secureCookies returns true if cookies should have the Secure flag set,
-// derived from whether the dashboard URL uses HTTPS.
 func secureCookies(dashboardURL string) bool {
 	return strings.HasPrefix(dashboardURL, "https://")
 }
 
-// registerAuthRoutes adds OIDC auth endpoints to the mux.
-func registerAuthRoutes(mux *http.ServeMux, provider *OIDCProvider, conductor *conductor.Client, logtoClient *logto.Client, sessionSecret, dashboardURL, githubAppSlug string, ciVerifier *githubActionsVerifier, ciSessionTTL time.Duration) {
+func registerAuthRoutes(mux *http.ServeMux, provider *oidc.Provider, store *sessionStore, codec *session.Codec, conductorClient *conductor.Client, logtoClient *logto.Client, callbackURL, dashboardURL, githubAppSlug, oidcIssuer, oidcAudience, oidcCLIClientID string, ciVerifier *githubActionsVerifier) {
 	secure := secureCookies(dashboardURL)
-	mux.HandleFunc("/auth/login", handleLogin(provider, secure))
-	mux.HandleFunc("/auth/callback", handleCallback(provider, conductor, logtoClient, sessionSecret, dashboardURL, secure))
-	mux.HandleFunc("/auth/me", handleMe())
-	mux.HandleFunc("/auth/logout", handleLogout(dashboardURL))
-	mux.HandleFunc("/auth/refresh", handleRefresh(provider, logtoClient, sessionSecret, secure))
-	mux.HandleFunc("/auth/cli/exchange", handleCLIExchange(sessionSecret))
+	mux.HandleFunc("/auth/config", handleAuthConfig(oidcIssuer, oidcAudience, oidcCLIClientID))
+	mux.HandleFunc("/auth/login", handleLogin(provider, callbackURL, secure))
+	mux.HandleFunc("/auth/callback", handleCallback(provider, store, codec, conductorClient, callbackURL, dashboardURL, secure))
+	mux.HandleFunc("/auth/me", handleMe(logtoClient))
+	mux.HandleFunc("/auth/logout", handleLogout(store, codec, dashboardURL))
 	mux.HandleFunc("/auth/github/install", handleGitHubInstall(githubAppSlug))
 	mux.HandleFunc("/auth/github/setup", handleGitHubSetup(dashboardURL))
 
 	if ciVerifier != nil {
-		mux.HandleFunc("/auth/ci/exchange", handleCIExchange(ciVerifier, conductor, sessionSecret, ciSessionTTL))
+		mux.HandleFunc("/auth/ci/exchange", handleCIExchange(ciVerifier, conductorClient, oidcAudience))
 		slog.Info("keyless CI deploy exchange enabled", "audience", ciVerifier.audience)
 	}
 }
 
-// handleLogin redirects to the OIDC provider's authorization page with PKCE.
-func handleLogin(provider *OIDCProvider, secure bool) http.HandlerFunc {
+func handleAuthConfig(issuer, audience, cliClientID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		cliPort := r.URL.Query().Get("cli_port")
-		cliState := r.URL.Query().Get("cli_state")
-		if cliPort != "" {
-			if !validCLIPort(cliPort) || !validCLIState(cliState) {
-				http.Error(w, "invalid cli parameters", http.StatusBadRequest)
-				return
-			}
-
-			http.SetCookie(w, &http.Cookie{
-				Name:     cliCookieName,
-				Value:    cliPort + ":" + cliState,
-				Path:     "/",
-				MaxAge:   600,
-				HttpOnly: true,
-				Secure:   secure,
-				SameSite: http.SameSiteLaxMode,
-			})
-		}
-
-		state := generateState()
-		verifier := generateCodeVerifier()
-		challenge := codeChallenge(verifier)
-
-		http.SetCookie(w, &http.Cookie{
-			Name:     stateCookieName,
-			Value:    state,
-			Path:     "/",
-			MaxAge:   600, // 10 minutes
-			HttpOnly: true,
-			Secure:   secure,
-			SameSite: http.SameSiteLaxMode,
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{
+			"issuer":      issuer,
+			"endpoint":    strings.TrimSuffix(issuer, "/oidc"),
+			"audience":    audience,
+			"cliClientId": cliClientID,
 		})
-		http.SetCookie(w, &http.Cookie{
-			Name:     verifierCookieName,
-			Value:    verifier,
-			Path:     "/",
-			MaxAge:   600,
-			HttpOnly: true,
-			Secure:   secure,
-			SameSite: http.SameSiteLaxMode,
-		})
-
-		url := provider.oauthConfig.AuthCodeURL(state,
-			oauth2.SetAuthURLParam("code_challenge", challenge),
-			oauth2.SetAuthURLParam("code_challenge_method", "S256"),
-			oauth2.SetAuthURLParam("direct_sign_in", directSignIn),
-		)
-		http.Redirect(w, r, url, http.StatusTemporaryRedirect)
 	}
 }
 
-// handleCallback exchanges the auth code for tokens, verifies the ID token,
-// extracts claims, and creates a session. Stores two cookies:
-// - lucity_session: HMAC-signed JWT with auth claims and workspace memberships
-// - lucity_token: Logto opaque access token for Account API calls (e.g. GitHub token)
-func handleCallback(provider *OIDCProvider, conductor *conductor.Client, logtoClient *logto.Client, sessionSecret, dashboardURL string, secure bool) http.HandlerFunc {
+func handleLogin(provider *oidc.Provider, callbackURL string, secure bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Verify state
+		state := generateState()
+		verifier := generateCodeVerifier()
+		setShortCookie(w, stateCookieName, state, secure)
+		setShortCookie(w, verifierCookieName, verifier, secure)
+		http.Redirect(w, r, provider.AuthCodeURL(callbackURL, state, codeChallenge(verifier)), http.StatusTemporaryRedirect)
+	}
+}
+
+func handleCallback(provider *oidc.Provider, store *sessionStore, codec *session.Codec, conductorClient *conductor.Client, callbackURL, dashboardURL string, secure bool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 		stateCookie, err := r.Cookie(stateCookieName)
 		if err != nil || stateCookie.Value != r.URL.Query().Get("state") {
 			http.Error(w, "invalid state", http.StatusBadRequest)
 			return
 		}
+		clearCookie(w, stateCookieName)
 
-		// Clear state cookie
-		http.SetCookie(w, &http.Cookie{
-			Name:   stateCookieName,
-			Path:   "/",
-			MaxAge: -1,
-		})
-
-		// Retrieve PKCE verifier
 		verifierCookie, err := r.Cookie(verifierCookieName)
 		if err != nil {
 			http.Error(w, "missing PKCE verifier", http.StatusBadRequest)
 			return
 		}
-		http.SetCookie(w, &http.Cookie{
-			Name:   verifierCookieName,
-			Path:   "/",
-			MaxAge: -1,
-		})
+		clearCookie(w, verifierCookieName)
 
 		code := r.URL.Query().Get("code")
 		if code == "" {
@@ -251,233 +124,90 @@ func handleCallback(provider *OIDCProvider, conductor *conductor.Client, logtoCl
 			return
 		}
 
-		// Exchange code for OAuth2 token (with PKCE verifier).
-		// Use httpContext so the token exchange routes through internal DNS.
-		oauth2Token, err := provider.oauthConfig.Exchange(provider.httpContext(r.Context()), code,
-			oauth2.SetAuthURLParam("code_verifier", verifierCookie.Value),
-		)
+		tokens, err := provider.Exchange(r.Context(), code, callbackURL, verifierCookie.Value)
 		if err != nil {
-			// Try to extract the OAuth2 error details
-			if rErr, ok := err.(*oauth2.RetrieveError); ok {
-				slog.Error("failed to exchange code", "error", err, "status", rErr.Response.StatusCode, "body", string(rErr.Body))
-			} else {
-				slog.Error("failed to exchange code", "error", err)
-			}
+			slog.Error("code exchange failed", "error", err)
+			http.Error(w, "authentication failed", http.StatusInternalServerError)
+			return
+		}
+		if tokens.RefreshToken == "" {
+			slog.Error("no refresh token in token response")
 			http.Error(w, "authentication failed", http.StatusInternalServerError)
 			return
 		}
 
-		// Extract and verify the ID token
-		rawIDToken, ok := oauth2Token.Extra("id_token").(string)
-		if !ok {
-			slog.Error("no id_token in OAuth2 token response")
-			http.Error(w, "authentication failed", http.StatusInternalServerError)
-			return
-		}
-
-		idToken, err := provider.verifier.Verify(provider.httpContext(r.Context()), rawIDToken)
+		info, err := provider.UserInfo(r.Context(), tokens.AccessToken)
 		if err != nil {
-			slog.Error("failed to verify id token", "error", err)
+			slog.Error("userinfo request failed", "error", err)
 			http.Error(w, "authentication failed", http.StatusInternalServerError)
 			return
 		}
 
-		// Extract claims from the ID token for user identity
-		var oidcClaims struct {
-			Email    string `json:"email"`
-			Name     string `json:"name"`
-			Picture  string `json:"picture"`
-			Username string `json:"username"`
-		}
-		if err := idToken.Claims(&oidcClaims); err != nil {
-			slog.Error("failed to extract claims", "error", err)
-			http.Error(w, "authentication failed", http.StatusInternalServerError)
-			return
-		}
-
-		// The Logto username is the stable source of truth for workspace ID.
-		// On first login it's empty — derive it from the social identity (GitHub/
-		// GitLab/Bitbucket login), sanitize it, and persist it on Logto with
-		// conflict resolution. On subsequent logins, read it straight from the
-		// ID token claims.
-		username := oidcClaims.Username
-		if username == "" && logtoClient != nil {
-			socialLogin, err := logtoClient.SocialLogin(r.Context(), idToken.Subject)
-			if err != nil {
-				slog.Error("failed to fetch social login from Logto", "error", err)
-			} else if socialLogin != "" {
-				set, err := logtoClient.EnsureUsername(r.Context(), idToken.Subject, socialLogin)
-				if err != nil {
-					slog.Error("failed to set Logto username", "error", err, "login", socialLogin)
-				} else {
-					slog.Info("username set from social login", "username", set, "login", socialLogin, "email", oidcClaims.Email)
-					username = set
-				}
-			}
-		}
-		if username == "" {
-			slog.Warn("no username for personal workspace", "email", oidcClaims.Email)
-			http.Redirect(w, r, dashboardURL+"/login?error=no_workspace", http.StatusTemporaryRedirect)
-			return
-		}
-
-		// Set claims on context so auth.OutgoingContext() can propagate identity
-		// to backend services via gRPC metadata. No JWT needed — backends trust
-		// the gateway as the auth boundary.
-		svcCtx := auth.NewContext(r.Context(), &auth.Claims{
-			Subject: idToken.Subject,
-			Email:   oidcClaims.Email,
-		})
-
-		personalWSID, isNewUser, err := conductor.EnsurePersonalWorkspace(svcCtx, idToken.Subject, username)
+		svcCtx := auth.NewContext(r.Context(), &auth.Claims{Subject: info.Subject, Email: info.Email})
+		_, created, err := conductorClient.EnsureAccount(svcCtx, info.Subject)
 		if err != nil {
-			slog.Error("failed to ensure personal workspace", "error", err, "email", oidcClaims.Email)
+			slog.Error("failed to provision account", "error", err, "email", info.Email)
 			http.Error(w, "failed to create workspace", http.StatusInternalServerError)
 			return
 		}
 
-		slog.Info("personal workspace ensured", "email", oidcClaims.Email, "workspace", personalWSID)
-
-		// Build workspace memberships for the session token.
-		// Fetch all orgs the user belongs to (not just the personal one).
-		var workspaces []auth.WorkspaceMembership
-		if logtoClient != nil {
-			userOrgs, err := logtoClient.UserOrganizations(r.Context(), idToken.Subject)
-			if err != nil {
-				slog.Warn("failed to fetch user organizations for session", "error", err)
-			} else {
-				for _, org := range userOrgs {
-					role := auth.WorkspaceRoleUser
-					// Check if user has admin role in this org
-					roles, rolesErr := logtoClient.MemberRoles(r.Context(), org.ID, idToken.Subject)
-					if rolesErr == nil {
-						for _, r := range roles {
-							if r.Name == "admin" {
-								role = auth.WorkspaceRoleAdmin
-								break
-							}
-						}
-					}
-					workspaces = append(workspaces, auth.WorkspaceMembership{
-						Workspace: org.Name, // org name = workspace ID
-						Role:      role,
-					})
-				}
-			}
+		if created && !bootstrapRetry(r) {
+			slog.Info("new account provisioned; re-authenticating for org-aware session", "email", info.Email)
+			setShortCookie(w, bootstrapCookieName, "1", secure)
+			http.Redirect(w, r, "/auth/login", http.StatusTemporaryRedirect)
+			return
 		}
+		clearCookie(w, bootstrapCookieName)
 
-		// Mint session JWT with all claims and workspace memberships.
-		sessionClaims := &auth.Claims{
-			Subject:    idToken.Subject,
-			Name:       oidcClaims.Name,
-			Email:      oidcClaims.Email,
-			AvatarURL:  oidcClaims.Picture,
-			Workspaces: workspaces,
-		}
-		sessionToken, err := mintSessionToken(sessionSecret, sessionClaims)
+		sid, err := store.create(r.Context(), tokens.RefreshToken)
 		if err != nil {
-			slog.Error("failed to mint session token", "error", err)
+			slog.Error("failed to create session", "error", err)
+			http.Error(w, "authentication failed", http.StatusInternalServerError)
+			return
+		}
+		if err := codec.Save(w, sessionData{SID: sid, Sub: info.Subject, Name: info.Name, Email: info.Email, Picture: info.Picture, RefreshToken: tokens.RefreshToken}); err != nil {
+			slog.Error("failed to save session", "error", err)
 			http.Error(w, "authentication failed", http.StatusInternalServerError)
 			return
 		}
 
-		// Session cookie: HMAC JWT verified by auth middleware
-		http.SetCookie(w, &http.Cookie{
-			Name:     sessionCookieName,
-			Value:    sessionToken,
-			Path:     "/",
-			MaxAge:   7 * 24 * 3600, // 7 days
-			HttpOnly: true,
-			Secure:   secure,
-			SameSite: http.SameSiteLaxMode,
-		})
-
-		// Logto access token cookie: opaque token for Account API calls (e.g. GitHub token)
-		http.SetCookie(w, &http.Cookie{
-			Name:     tokenCookieName,
-			Value:    oauth2Token.AccessToken,
-			Path:     "/",
-			MaxAge:   7 * 24 * 3600,
-			HttpOnly: true,
-			Secure:   secure,
-			SameSite: http.SameSiteLaxMode,
-		})
-
-		// Store refresh token for silent token renewal
-		slog.Debug("oauth2 token response", "has_refresh_token", oauth2Token.RefreshToken != "", "has_access_token", oauth2Token.AccessToken != "", "token_type", oauth2Token.TokenType, "expiry", oauth2Token.Expiry)
-		if oauth2Token.RefreshToken != "" {
-			http.SetCookie(w, &http.Cookie{
-				Name:     refreshCookieName,
-				Value:    oauth2Token.RefreshToken,
-				Path:     "/",
-				MaxAge:   30 * 24 * 3600, // 30 days
-				HttpOnly: true,
-				Secure:   secure,
-				SameSite: http.SameSiteLaxMode,
-			})
-		}
-
-		slog.Info("user authenticated", "email", oidcClaims.Email)
-
-		if cliCookie, err := r.Cookie(cliCookieName); err == nil {
-			http.SetCookie(w, &http.Cookie{
-				Name:   cliCookieName,
-				Path:   "/",
-				MaxAge: -1,
-			})
-
-			cliPort, cliState, ok := strings.Cut(cliCookie.Value, ":")
-			if ok && validCLIPort(cliPort) && validCLIState(cliState) {
-				code, err := sealCLICode(sessionSecret, cliHandoff{
-					Token:        sessionToken,
-					RefreshToken: oauth2Token.RefreshToken,
-					LogtoToken:   oauth2Token.AccessToken,
-					ExpiresAt:    time.Now().Add(sessionExpiry),
-				})
-				if err != nil {
-					slog.Error("failed to seal cli handoff code", "error", err)
-				} else {
-					cliURL := fmt.Sprintf("http://127.0.0.1:%s/callback?code=%s&state=%s",
-						cliPort, url.QueryEscape(code), url.QueryEscape(cliState))
-					http.Redirect(w, r, cliURL, http.StatusTemporaryRedirect)
-					return
-				}
-			}
-		}
-
-		redirectURL := dashboardURL
-		if isNewUser {
-			redirectURL = dashboardURL + "/?welcome=true"
-		}
-		http.Redirect(w, r, redirectURL, http.StatusTemporaryRedirect)
+		slog.Info("user authenticated", "email", info.Email)
+		http.Redirect(w, r, dashboardURL, http.StatusTemporaryRedirect)
 	}
 }
 
-// handleMe returns the current user's profile from the JWT claims in context.
-func handleMe() http.HandlerFunc {
+func handleMe(logtoClient *logto.Client) http.HandlerFunc {
+	type workspaceEntry struct {
+		Workspace string             `json:"workspace"`
+		Role      auth.WorkspaceRole `json:"role"`
+	}
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims, err := auth.FromContext(r.Context())
-
 		if err != nil {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
 		}
 
-		type workspaceEntry struct {
-			Workspace string             `json:"workspace"`
-			Role      auth.WorkspaceRole `json:"role"`
-		}
-
-		workspaces := make([]workspaceEntry, len(claims.Workspaces))
-		for i, m := range claims.Workspaces {
-			workspaces[i] = workspaceEntry{
-				Workspace: m.Workspace,
-				Role:      m.Role,
+		workspaces := []workspaceEntry{}
+		if logtoClient != nil {
+			if orgs, err := logtoClient.UserOrganizations(r.Context(), claims.Subject); err == nil {
+				for _, org := range orgs {
+					role := auth.WorkspaceRoleUser
+					if roles, err := logtoClient.MemberRoles(r.Context(), org.ID, claims.Subject); err == nil {
+						for _, role2 := range roles {
+							if role2.Name == "admin" {
+								role = auth.WorkspaceRoleAdmin
+								break
+							}
+						}
+					}
+					workspaces = append(workspaces, workspaceEntry{Workspace: org.Name, Role: role})
+				}
 			}
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		json.NewEncoder(w).Encode(map[string]any{
 			"id":         claims.Subject,
 			"name":       claims.Name,
 			"email":      claims.Email,
@@ -487,193 +217,33 @@ func handleMe() http.HandlerFunc {
 	}
 }
 
-// handleLogout clears the session cookies.
-func handleLogout(dashboardURL string) http.HandlerFunc {
+func handleLogout(store *sessionStore, codec *session.Codec, dashboardURL string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		http.SetCookie(w, &http.Cookie{
-			Name:   sessionCookieName,
-			Path:   "/",
-			MaxAge: -1,
-		})
-		http.SetCookie(w, &http.Cookie{
-			Name:   tokenCookieName,
-			Path:   "/",
-			MaxAge: -1,
-		})
-		http.SetCookie(w, &http.Cookie{
-			Name:   refreshCookieName,
-			Path:   "/",
-			MaxAge: -1,
-		})
+		var data sessionData
+		if err := codec.Load(r, &data); err == nil {
+			store.delete(r.Context(), data.SID)
+		}
+		codec.Clear(w)
 
 		if r.Method == http.MethodPost {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
-
 		http.Redirect(w, r, dashboardURL+"/login", http.StatusTemporaryRedirect)
 	}
 }
 
-// handleRefresh uses the Logto refresh token to obtain a new access token
-// and re-mints the session JWT with fresh workspace memberships.
-// Called by the dashboard when the access token expires.
-func handleRefresh(provider *OIDCProvider, logtoClient *logto.Client, sessionSecret string, secure bool) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-
-		jsonRequest := strings.Contains(r.Header.Get("Content-Type"), "application/json")
-
-		var refreshToken string
-		if jsonRequest {
-			var body struct {
-				RefreshToken string `json:"refreshToken"`
-			}
-			if err := json.NewDecoder(io.LimitReader(r.Body, 16<<10)).Decode(&body); err != nil {
-				http.Error(w, "no refresh token", http.StatusUnauthorized)
-				return
-			}
-			refreshToken = body.RefreshToken
-		} else {
-			refreshCookie, err := r.Cookie(refreshCookieName)
-			if err == nil {
-				refreshToken = refreshCookie.Value
-			}
-		}
-		if refreshToken == "" {
-			http.Error(w, "no refresh token", http.StatusUnauthorized)
-			return
-		}
-
-		// Use the OIDC provider's oauth config for refresh — the refresh token
-		// was issued for the OIDC public client, not the M2M app.
-		tokenSource := provider.oauthConfig.TokenSource(provider.httpContext(r.Context()), &oauth2.Token{
-			RefreshToken: refreshToken,
-		})
-		oauth2Token, err := tokenSource.Token()
-		if err != nil {
-			slog.Error("failed to refresh access token", "error", err)
-			http.Error(w, "failed to refresh token", http.StatusUnauthorized)
-			return
-		}
-		newAccessToken := oauth2Token.AccessToken
-		newRefreshToken := oauth2Token.RefreshToken
-
-		var reMintedToken string
-		var reMintedExpiry time.Time
-
-		// Re-mint session JWT if we have existing claims (refreshes workspace memberships)
-		claims, err := auth.FromContext(r.Context())
-
-		if err == nil && logtoClient != nil {
-			userOrgs, err := logtoClient.UserOrganizations(r.Context(), claims.Subject)
-			if err == nil {
-				var workspaces []auth.WorkspaceMembership
-				for _, org := range userOrgs {
-					role := auth.WorkspaceRoleUser
-					roles, rolesErr := logtoClient.MemberRoles(r.Context(), org.ID, claims.Subject)
-					if rolesErr == nil {
-						for _, r := range roles {
-							if r.Name == "admin" {
-								role = auth.WorkspaceRoleAdmin
-								break
-							}
-						}
-					}
-					workspaces = append(workspaces, auth.WorkspaceMembership{
-						Workspace: org.Name,
-						Role:      role,
-					})
-				}
-				claims.Workspaces = workspaces
-			}
-
-			sessionToken, err := mintSessionToken(sessionSecret, claims)
-			if err == nil {
-				reMintedToken = sessionToken
-				reMintedExpiry = time.Now().Add(sessionExpiry)
-				http.SetCookie(w, &http.Cookie{
-					Name:     sessionCookieName,
-					Value:    sessionToken,
-					Path:     "/",
-					MaxAge:   7 * 24 * 3600,
-					HttpOnly: true,
-					Secure:   secure,
-					SameSite: http.SameSiteLaxMode,
-				})
-			}
-		}
-
-		// Update the Logto access token cookie
-		http.SetCookie(w, &http.Cookie{
-			Name:     tokenCookieName,
-			Value:    newAccessToken,
-			Path:     "/",
-			MaxAge:   7 * 24 * 3600,
-			HttpOnly: true,
-			Secure:   secure,
-			SameSite: http.SameSiteLaxMode,
-		})
-
-		if newRefreshToken != "" {
-			http.SetCookie(w, &http.Cookie{
-				Name:     refreshCookieName,
-				Value:    newRefreshToken,
-				Path:     "/",
-				MaxAge:   30 * 24 * 3600,
-				HttpOnly: true,
-				Secure:   secure,
-				SameSite: http.SameSiteLaxMode,
-			})
-		}
-
-		slog.Info("token refreshed")
-
-		if jsonRequest {
-			rotatedRefresh := newRefreshToken
-			if rotatedRefresh == "" {
-				rotatedRefresh = refreshToken
-			}
-
-			resp := map[string]string{
-				"token":        reMintedToken,
-				"refreshToken": rotatedRefresh,
-				"logtoToken":   newAccessToken,
-			}
-			if reMintedToken != "" {
-				resp["expiresAt"] = reMintedExpiry.Format(time.RFC3339)
-			}
-
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(resp)
-			return
-		}
-
-		w.WriteHeader(http.StatusOK)
-	}
-}
-
-// handleGitHubInstall redirects to GitHub App installation page.
-// Users can install the GitHub App on new accounts to make them available as sources.
-// Passes redirect_url so GitHub redirects back to our setup handler after installation,
-// regardless of how the App's "Setup URL" is configured on GitHub.
 func handleGitHubInstall(githubAppSlug string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if githubAppSlug == "" {
 			http.Error(w, "GitHub App not configured", http.StatusServiceUnavailable)
 			return
 		}
-
 		if _, err := auth.FromContext(r.Context()); err != nil {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
 		}
 
-		// Use the request's scheme+host to build the setup callback URL.
-		// This ensures the redirect works in both dev (localhost:8080) and prod (lucity.cloud).
 		scheme := r.Header.Get("X-Forwarded-Proto")
 		if scheme == "" {
 			if r.TLS != nil {
@@ -687,16 +257,11 @@ func handleGitHubInstall(githubAppSlug string) http.HandlerFunc {
 			host = r.Host
 		}
 		setupURL := fmt.Sprintf("%s://%s/auth/github/setup", scheme, host)
-
-		installURL := fmt.Sprintf("https://github.com/apps/%s/installations/new?redirect_url=%s",
-			githubAppSlug, url.QueryEscape(setupURL))
+		installURL := fmt.Sprintf("https://github.com/apps/%s/installations/new?redirect_url=%s", githubAppSlug, url.QueryEscape(setupURL))
 		http.Redirect(w, r, installURL, http.StatusTemporaryRedirect)
 	}
 }
 
-// handleGitHubSetup is the callback from GitHub after App installation.
-// Returns an HTML page that signals the opener and closes the popup.
-// Falls back to a redirect if not opened as a popup.
 func handleGitHubSetup(dashboardURL string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -707,44 +272,25 @@ else { window.location.href = %q; }
 	}
 }
 
-func newTokenRefresher(provider *OIDCProvider, secure bool) conductor.TokenRefresher {
-	return func(ctx context.Context, refreshToken string) (string, error) {
-		tokenSource := provider.oauthConfig.TokenSource(provider.httpContext(ctx), &oauth2.Token{
-			RefreshToken: refreshToken,
-		})
-		oauth2Token, err := tokenSource.Token()
-		if err != nil {
-			return "", fmt.Errorf("token refresh failed: %w", err)
-		}
+func setShortCookie(w http.ResponseWriter, name, value string, secure bool) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     name,
+		Value:    value,
+		Path:     "/",
+		MaxAge:   600,
+		HttpOnly: true,
+		Secure:   secure,
+		SameSite: http.SameSiteLaxMode,
+	})
+}
 
-		// Write updated cookies to the response
-		w := auth.ResponseWriterFrom(ctx)
-		if w != nil {
-			http.SetCookie(w, &http.Cookie{
-				Name:     tokenCookieName,
-				Value:    oauth2Token.AccessToken,
-				Path:     "/",
-				MaxAge:   7 * 24 * 3600,
-				HttpOnly: true,
-				Secure:   secure,
-				SameSite: http.SameSiteLaxMode,
-			})
-			if oauth2Token.RefreshToken != "" {
-				http.SetCookie(w, &http.Cookie{
-					Name:     refreshCookieName,
-					Value:    oauth2Token.RefreshToken,
-					Path:     "/",
-					MaxAge:   30 * 24 * 3600,
-					HttpOnly: true,
-					Secure:   secure,
-					SameSite: http.SameSiteLaxMode,
-				})
-			}
-		}
+func clearCookie(w http.ResponseWriter, name string) {
+	http.SetCookie(w, &http.Cookie{Name: name, Path: "/", MaxAge: -1})
+}
 
-		slog.Info("logto access token refreshed via token refresher")
-		return oauth2Token.AccessToken, nil
-	}
+func bootstrapRetry(r *http.Request) bool {
+	cookie, err := r.Cookie(bootstrapCookieName)
+	return err == nil && cookie.Value == "1"
 }
 
 func generateState() string {
@@ -753,14 +299,12 @@ func generateState() string {
 	return hex.EncodeToString(b)
 }
 
-// generateCodeVerifier creates a random PKCE code verifier (43–128 chars, base64url).
 func generateCodeVerifier() string {
 	b := make([]byte, 32)
 	rand.Read(b)
 	return base64.RawURLEncoding.EncodeToString(b)
 }
 
-// codeChallenge computes the S256 PKCE code challenge from a verifier.
 func codeChallenge(verifier string) string {
 	h := sha256.Sum256([]byte(verifier))
 	return base64.RawURLEncoding.EncodeToString(h[:])

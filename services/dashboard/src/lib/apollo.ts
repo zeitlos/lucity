@@ -4,17 +4,13 @@ import { onError } from '@apollo/client/link/error';
 import { GraphQLWsLink } from '@apollo/client/link/subscriptions';
 import { getMainDefinition } from '@apollo/client/utilities';
 import { createClient } from 'graphql-ws';
-import router from '@/router';
 import { errorToast } from '@/components/ui/sonner';
 import { useAuth } from '@/composables/useAuth';
 import { openBugReport } from '@/composables/useReportBug';
 
 const { activeWorkspace, login } = useAuth();
 
-const httpLink = createHttpLink({
-  uri: '/graphql',
-  credentials: 'include',
-});
+const httpLink = createHttpLink({ uri: '/graphql', credentials: 'include' });
 
 const workspaceLink = setContext((_, { headers }) => ({
   headers: {
@@ -24,19 +20,16 @@ const workspaceLink = setContext((_, { headers }) => ({
 }));
 
 const errorLink = onError(({ graphQLErrors, networkError, operation }) => {
-  if (graphQLErrors) {
-    for (const err of graphQLErrors) {
-      if (err.message === 'unauthorized') {
-        router.push('/login');
-        return;
-      }
-      if (err.extensions?.code === 'SESSION_EXPIRED') {
-        login();
-        return;
-      }
-    }
+  const authFailed =
+    graphQLErrors?.some(e => e.message === 'unauthenticated' || e.message === 'unauthorized') ||
+    (!!networkError && 'statusCode' in networkError && (networkError.statusCode === 401 || networkError.statusCode === 403));
 
-    // Toast query errors globally (mutations handle errors at component level)
+  if (authFailed) {
+    login();
+    return;
+  }
+
+  if (graphQLErrors) {
     const def = getMainDefinition(operation.query);
     if (def.kind === 'OperationDefinition' && def.operation === 'query') {
       const msg = graphQLErrors.map(e => e.message).join(', ');
@@ -47,11 +40,6 @@ const errorLink = onError(({ graphQLErrors, networkError, operation }) => {
   }
 
   if (networkError) {
-    // 403 from workspace authorization — JWT has stale workspace claims, re-login
-    if ('statusCode' in networkError && networkError.statusCode === 403) {
-      login();
-      return;
-    }
     errorToast('Network error', {
       description: networkError.message,
       action: { label: 'Report', onClick: () => openBugReport({ error: networkError.message }) },

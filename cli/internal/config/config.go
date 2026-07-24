@@ -7,16 +7,12 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"time"
 )
 
 type Config struct {
-	APIURL       string    `json:"apiUrl,omitempty"`
-	Workspace    string    `json:"workspace,omitempty"`
-	Token        string    `json:"token,omitempty"`
-	RefreshToken string    `json:"refreshToken,omitempty"`
-	LogtoToken   string    `json:"logtoToken,omitempty"`
-	ExpiresAt    time.Time `json:"expiresAt,omitzero"`
+	APIURL       string `json:"apiUrl,omitempty"`
+	Workspace    string `json:"workspace,omitempty"`
+	RefreshToken string `json:"refreshToken,omitempty"`
 }
 
 func Dir() (string, error) {

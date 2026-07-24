@@ -5,7 +5,10 @@ go 1.26
 require (
 	github.com/coder/websocket v1.8.15
 	github.com/modelcontextprotocol/go-sdk v1.6.1
+	github.com/zeitlos/lucity/pkg v0.0.0-20260706084318-3ef7184f18d8
 )
+
+replace github.com/zeitlos/lucity/pkg => ../pkg
 
 require (
 	github.com/google/jsonschema-go v0.4.3 // indirect

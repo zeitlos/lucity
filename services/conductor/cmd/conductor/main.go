@@ -3,7 +3,9 @@ package main
 import (
 	"io/fs"
 	"log/slog"
+	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/blang/semver/v4"
@@ -33,8 +35,11 @@ import (
 	"github.com/zeitlos/lucity/pkg/cashier"
 	ghpkg "github.com/zeitlos/lucity/pkg/github"
 	"github.com/zeitlos/lucity/pkg/graceful"
+	"github.com/zeitlos/lucity/pkg/kvstore"
 	"github.com/zeitlos/lucity/pkg/logger"
 	"github.com/zeitlos/lucity/pkg/logto"
+	"github.com/zeitlos/lucity/pkg/oidc"
+	"github.com/zeitlos/lucity/pkg/session"
 
 	kauth "github.com/google/go-containerregistry/pkg/authn/kubernetes"
 	"github.com/kelseyhightower/envconfig"
@@ -57,10 +62,16 @@ type Config struct {
 	OIDCIssuerURL    string `envconfig:"OIDC_ISSUER_URL" required:"true"`
 	OIDCDiscoveryURL string `envconfig:"OIDC_DISCOVERY_URL"`
 	OIDCClientID     string `envconfig:"OIDC_CLIENT_ID" required:"true"`
+	OIDCClientSecret string `envconfig:"OIDC_CLIENT_SECRET"`
 	OIDCCallbackURL  string `envconfig:"OIDC_CALLBACK_URL" default:"http://localhost:8080/auth/callback"`
+	OIDCAudience     string `envconfig:"OIDC_AUDIENCE"`
+	OIDCCLIClientID  string `envconfig:"OIDC_CLI_CLIENT_ID"`
 
 	// Auth
-	DashboardURL   string `envconfig:"DASHBOARD_URL" default:"http://localhost:5173"`
+	DashboardURL string `envconfig:"DASHBOARD_URL" default:"http://localhost:5173"`
+	// TODO(stage-6b): delete SessionSecret + AuthTestSecret (SESSION_SECRET /
+	// AUTH_TEST_SECRET). They key the HS256 session fallback; once HS256 is
+	// removed, drop these fields and rotate the secrets out of the prod secret.
 	SessionSecret  string `envconfig:"SESSION_SECRET" required:"true"`
 	AuthTestSecret string `envconfig:"AUTH_TEST_SECRET"`
 
@@ -169,19 +180,40 @@ func main() {
 	ctx, cancel := graceful.Context()
 	defer cancel()
 
-	// ---- Auth: OIDC, session JWT, internal-JWT issuer ----
-	oidcProvider, err := NewOIDCProvider(ctx, config.OIDCIssuerURL, config.OIDCDiscoveryURL, config.OIDCClientID, config.OIDCCallbackURL)
-	if err != nil {
-		slog.Error("failed to initialize OIDC provider", "error", err)
-		os.Exit(1)
+	// ---- Auth: OIDC client, session codec, token verifier ----
+	apiAudience := config.OIDCClientID
+	if config.OIDCAudience != "" {
+		apiAudience = config.OIDCAudience
 	}
 
-	verifier, err := auth.NewVerifier(ctx, config.OIDCIssuerURL, config.OIDCClientID)
+	var oidcHTTP *http.Client
+	if config.OIDCDiscoveryURL != "" {
+		client, err := newIssuerRewriteClient(config.OIDCIssuerURL, config.OIDCDiscoveryURL)
+		if err != nil {
+			slog.Error("failed to create OIDC HTTP client", "error", err)
+			os.Exit(1)
+		}
+		oidcHTTP = client
+	}
+	oidcProvider := &oidc.Provider{
+		Endpoint:     strings.TrimSuffix(config.OIDCIssuerURL, "/oidc"),
+		ClientID:     config.OIDCClientID,
+		ClientSecret: config.OIDCClientSecret,
+		Audience:     apiAudience,
+		DirectSignIn: directSignIn,
+		Scopes:       loginScopes,
+		HTTP:         oidcHTTP,
+	}
+
+	verifier, err := auth.NewVerifier(ctx, config.OIDCIssuerURL, apiAudience)
 	if err != nil {
 		slog.Error("failed to create JWT verifier", "error", err)
 		os.Exit(1)
 	}
 
+	// TODO(stage-6b): delete this HS256 fallback wiring (sessionSecret derivation
+	// + verifier.WithFallback). After removal, the verifier is JWKS-only; also
+	// stop threading sessionSecret into NewGraphQLServer below.
 	sessionSecret := config.SessionSecret
 	if config.AuthTestSecret != "" {
 		sessionSecret = config.AuthTestSecret
@@ -238,10 +270,13 @@ func main() {
 	logtoClient := logto.New(config.LogtoEndpoint, config.LogtoM2MAppID, config.LogtoM2MAppSecret)
 	slog.Info("logto management API configured", "endpoint", config.LogtoEndpoint)
 
+	verifier = verifier.WithOrgResolver(newOrgResolver(logtoClient))
+
 	domainTarget := "lb." + config.WorkloadDomain
 
 	secure := secureCookies(config.DashboardURL)
-	tokenRefresher := newTokenRefresher(oidcProvider, secure)
+	sessionStore := newSessionStore(kvstore.NewMemory[sessionValue](), oidcProvider, logtoClient)
+	sessionCodec := session.NewCodec(sessionSecret, sessionCookieName, secure, sessionCookieMaxAge)
 
 	platformClient := platformK8s.New(k8sClient, dynClient)
 
@@ -381,7 +416,7 @@ func main() {
 		Keychain:     keychain,
 	})
 
-	conductor := conductor.New(cashierClient, githubApp, logtoClient, tokenRefresher, directoryClient, platformClient, jobsClient, deployJobsClient, scanJobsClient, scanReportClient, pipelineClient, planner, source, hostnameClient, gatewayClient, deployerClient, environmentClient, objectStorageClient, metricsProvider, conductorConfig)
+	conductor := conductor.New(cashierClient, githubApp, logtoClient, nil, directoryClient, platformClient, jobsClient, deployJobsClient, scanJobsClient, scanReportClient, pipelineClient, planner, source, hostnameClient, gatewayClient, deployerClient, environmentClient, objectStorageClient, metricsProvider, conductorConfig)
 
 	go runAdmissionReconciler(ctx, pipelineClient)
 	slog.Info("release admission ready", "maxConcurrent", config.MaxConcurrentReleases, "maxQueuedPerWorkspace", config.MaxQueuedReleases)
@@ -404,7 +439,7 @@ func main() {
 		githubActionsAudience = originFromURL(config.OIDCCallbackURL)
 	}
 
-	graphqlServer := NewGraphQLServer(config.Port, conductor, oidcProvider, verifier, logtoClient, internalIssuer, sessionSecret, config.DashboardURL, config.GitHubAppSlug, githubActionsAudience, config.CISessionTTL, components)
+	graphqlServer := NewGraphQLServer(config.Port, conductor, oidcProvider, sessionStore, sessionCodec, verifier, logtoClient, internalIssuer, config.OIDCCallbackURL, config.DashboardURL, config.GitHubAppSlug, githubActionsAudience, config.OIDCIssuerURL, apiAudience, config.OIDCCLIClientID, components)
 
 	servers := []graceful.Server{graphqlServer}
 

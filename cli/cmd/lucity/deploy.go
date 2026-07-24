@@ -42,8 +42,8 @@ Authentication:
   deploy-only session automatically. The workspace is inferred, so
   LUCITY_WORKSPACE is optional.
 
-  For other CI systems, set LUCITY_TOKEN (and LUCITY_WORKSPACE to pin the
-  workspace).
+  For other CI systems, set LUCITY_API_TOKEN to a workspace API token (created in
+  the Lucity dashboard); the workspace is inferred from the token.
 `
 
 const deployStatusQuery = `query($id: ServiceID!) {
@@ -387,7 +387,7 @@ func deployError(operation string, err error) error {
 	if errors.As(err, &requestErr) {
 		lower := strings.ToLower(requestErr.Error())
 		if strings.Contains(lower, "logto access token") || strings.Contains(lower, "github token") || strings.Contains(lower, "invalid_grant") {
-			return fmt.Errorf("%s failed: the platform could not access the source repository — run `lucity login`, or in CI set LUCITY_LOGTO_TOKEN", operation)
+			return fmt.Errorf("%s failed: the platform could not access the source repository — run `lucity login`, or in CI set LUCITY_API_TOKEN", operation)
 		}
 		if strings.Contains(lower, "not found") {
 			return fmt.Errorf("%s failed: %s — check the service id; its first segment must be your active workspace", operation, requestErr.Error())

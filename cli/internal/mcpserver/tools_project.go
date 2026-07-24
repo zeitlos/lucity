@@ -17,7 +17,7 @@ func (s *server) registerAccount(m *mcp.Server) {
 type emptyInput struct{}
 
 func (s *server) getAccount(ctx context.Context, _ *mcp.CallToolRequest, _ emptyInput) (*mcp.CallToolResult, any, error) {
-	identity, err := s.manager.Client().Me(ctx)
+	identity, err := s.manager.Identity(ctx)
 	if err != nil {
 		return nil, nil, err
 	}

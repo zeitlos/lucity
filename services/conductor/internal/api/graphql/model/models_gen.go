@@ -29,6 +29,13 @@ type AddServiceInput struct {
 	Resources   *ResourcesInput `json:"resources,omitempty"`
 }
 
+type APIToken struct {
+	ID        string        `json:"id"`
+	Name      string        `json:"name"`
+	Role      WorkspaceRole `json:"role"`
+	CreatedAt time.Time     `json:"createdAt"`
+}
+
 type AutoscalingInput struct {
 	Enabled     bool `json:"enabled"`
 	MinReplicas int  `json:"minReplicas"`
@@ -116,6 +123,11 @@ type Commit struct {
 	URL     *string `json:"url,omitempty"`
 }
 
+type CreateAPITokenInput struct {
+	Name string        `json:"name"`
+	Role WorkspaceRole `json:"role"`
+}
+
 type CreateBucketInput struct {
 	Environment platform.EnvironmentID `json:"environment"`
 	Name        string                 `json:"name"`
@@ -153,6 +165,11 @@ type CreateWorkspaceCheckoutInput struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
 	Plan Plan   `json:"plan"`
+}
+
+type CreatedAPIToken struct {
+	APIToken *APIToken `json:"apiToken"`
+	Token    string    `json:"token"`
 }
 
 type Database struct {

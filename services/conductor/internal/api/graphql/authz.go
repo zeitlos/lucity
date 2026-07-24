@@ -32,7 +32,10 @@ func (r *Resolver) requireServiceDeployBinding(ctx context.Context, serviceID pl
 	repository, ok := conductor.GitHubActionsRepo(claims.Subject)
 
 	if !ok {
-		return errors.New("not found")
+		repository, ok = r.Conductor.CIDeployRepo(ctx, workspace, claims.Subject)
+		if !ok {
+			return errors.New("not found")
+		}
 	}
 
 	service, err := r.Conductor.Service(ctx, serviceID)

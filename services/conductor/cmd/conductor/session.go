@@ -8,6 +8,13 @@ import (
 	"github.com/zeitlos/lucity/pkg/auth"
 )
 
+// TODO(stage-6b): delete this entire file (mintSessionToken, mintMachineToken,
+// signSessionToken, sessionExpiry). HS256 session minting is replaced by
+// IdP-issued OIDC bearer tokens. Its only callers are handleCallback/
+// handleRefresh (oidc.go) and the CLI handoff (clihandoff.go), all also removed
+// in stage-6b. Gate on the "legacy HS256 session token accepted" log in
+// testauth.go going quiet in prod first.
+
 const sessionExpiry = 7 * 24 * time.Hour // 7 days
 
 // mintSessionToken creates an HMAC-SHA256 signed JWT containing the user's

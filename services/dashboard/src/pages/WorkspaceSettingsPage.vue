@@ -41,6 +41,7 @@ import {
 import { toast, errorToast } from '@/components/ui/sonner';
 import { errorMessage } from '@/lib/utils';
 import PlanPicker from '@/components/PlanPicker.vue';
+import ApiTokensSection from '@/components/ApiTokensSection.vue';
 import { graphql } from '@/gql';
 import {
   SubscriptionStatus,
@@ -184,15 +185,18 @@ const isAdmin = computed(() => {
 
 // Settings sections — sync with ?tab= query param for deep linking.
 const route = useRoute();
-const validSections = ['general', 'members', 'billing', 'danger'];
+const validSections = ['general', 'members', 'apitokens', 'billing', 'danger'];
 const initialTab = validSections.includes(route.query.tab as string) ? (route.query.tab as string) : 'general';
 const activeSection = ref(initialTab);
 const sections = computed(() => {
   const s = [
     { id: 'general', label: 'General' },
     { id: 'members', label: 'Members' },
-    { id: 'billing', label: 'Billing' },
   ];
+  if (isAdmin.value) {
+    s.push({ id: 'apitokens', label: 'API tokens' });
+  }
+  s.push({ id: 'billing', label: 'Billing' });
   if (isAdmin.value && !workspace.value?.personal) {
     s.push({ id: 'danger', label: 'Danger Zone' });
   }
@@ -414,6 +418,9 @@ async function handleDelete() {
 
           <!-- Content -->
           <div class="flex-1 overflow-y-auto p-6">
+          <!-- API tokens -->
+          <ApiTokensSection v-if="activeSection === 'apitokens' && isAdmin" />
+
           <!-- General -->
           <section v-if="activeSection === 'general'" class="space-y-6">
             <div>

@@ -1,0 +1,25 @@
+type ApiToken {
+  id: ID!
+  name: String!
+  role: WorkspaceRole!
+  createdAt: Time!
+}
+
+type CreatedApiToken {
+  apiToken: ApiToken!
+  token: String!
+}
+
+input CreateApiTokenInput {
+  name: String! @constraint(constraint: "min=1,max=128")
+  role: WorkspaceRole!
+}
+
+extend type Query {
+  apiTokens: [ApiToken!]! @hasRole(role: WORKSPACE_ADMIN)
+}
+
+extend type Mutation {
+  createApiToken(input: CreateApiTokenInput!): CreatedApiToken! @hasRole(role: WORKSPACE_ADMIN)
+  revokeApiToken(id: ID!): Boolean! @hasRole(role: WORKSPACE_ADMIN)
+}

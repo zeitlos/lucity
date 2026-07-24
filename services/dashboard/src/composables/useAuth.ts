@@ -24,6 +24,7 @@ declare global {
 
 const user = ref<AuthUser | null>(null);
 const loading = ref(true);
+const authed = ref(false);
 const activeWorkspace = ref<string>(localStorage.getItem('lucity_workspace') || '');
 
 let identifiedUserId: string | null = null;
@@ -47,85 +48,54 @@ function clearIdentifiedUser() {
   window.rybbit?.clearUserId();
 }
 
+function setActiveWorkspace(ws: string) {
+  activeWorkspace.value = ws;
+  localStorage.setItem('lucity_workspace', ws);
+}
+
 export function useAuth() {
-  const isAuthenticated = computed(() => user.value !== null);
+  const isAuthenticated = computed(() => authed.value);
 
   async function fetchUser() {
     try {
       const res = await fetch('/auth/me', { credentials: 'include' });
-      if (res.ok) {
-        user.value = await res.json();
-
-        // If JWT has no workspace claims (e.g., minted before workspace support),
-        // refresh the token to pick up current OIDC claims.
-        if (user.value && user.value.workspaces.length === 0) {
-          const refreshRes = await fetch('/auth/refresh', {
-            method: 'POST',
-            credentials: 'include',
-          });
-          if (refreshRes.ok) {
-            const meRes = await fetch('/auth/me', { credentials: 'include' });
-            if (meRes.ok) {
-              user.value = await meRes.json();
-            }
-          }
-        }
-
-        // Default to first workspace if none selected or stale
-        if (user.value && (!activeWorkspace.value || !user.value.workspaces.some(w => w.workspace === activeWorkspace.value))) {
-          setActiveWorkspace(user.value.workspaces[0]?.workspace || '');
-        }
-
-        if (user.value?.id) {
-          const traits: Record<string, unknown> = {};
-          if (user.value.name) traits.name = user.value.name;
-          if (user.value.email) traits.email = user.value.email;
-          if (activeWorkspace.value) traits.workspace = activeWorkspace.value;
-          identifyUser(user.value.id, traits);
-        }
-      } else {
+      if (!res.ok) {
+        authed.value = false;
         user.value = null;
+        return;
       }
+
+      const me = (await res.json()) as AuthUser;
+      authed.value = true;
+      user.value = me;
+
+      const workspaces = me.workspaces ?? [];
+      if (!activeWorkspace.value || !workspaces.some(w => w.workspace === activeWorkspace.value)) {
+        setActiveWorkspace(workspaces[0]?.workspace || '');
+      }
+
+      const traits: Record<string, unknown> = {};
+      if (me.name) traits.name = me.name;
+      if (me.email) traits.email = me.email;
+      if (activeWorkspace.value) traits.workspace = activeWorkspace.value;
+      identifyUser(me.id, traits);
     } catch {
+      authed.value = false;
       user.value = null;
     } finally {
       loading.value = false;
     }
   }
 
-  async function logout() {
-    await fetch('/auth/logout', { method: 'POST', credentials: 'include' });
-    user.value = null;
-    clearIdentifiedUser();
-  }
-
   function login() {
-    const now = Date.now();
-    const last = Number(sessionStorage.getItem('lucity_last_login_redirect') || '0');
-    if (now - last < 10_000) {
-      return;
-    }
-    sessionStorage.setItem('lucity_last_login_redirect', String(now));
     window.location.href = '/auth/login';
   }
 
-  function setActiveWorkspace(ws: string) {
-    activeWorkspace.value = ws;
-    localStorage.setItem('lucity_workspace', ws);
-  }
-
-  async function refreshToken() {
-    try {
-      const res = await fetch('/auth/refresh', {
-        method: 'POST',
-        credentials: 'include',
-      });
-      if (res.ok) {
-        await fetchUser();
-      }
-    } catch {
-      // Token refresh failed — user will need to re-login on next protected action
-    }
+  function logout() {
+    user.value = null;
+    authed.value = false;
+    clearIdentifiedUser();
+    window.location.href = '/auth/logout';
   }
 
   return {
@@ -134,9 +104,9 @@ export function useAuth() {
     isAuthenticated,
     activeWorkspace,
     fetchUser,
+    refreshToken: fetchUser,
     logout,
     login,
     setActiveWorkspace,
-    refreshToken,
   };
 }
