@@ -41,6 +41,7 @@ const columns = [
     links: [
       { label: 'Privacy Policy', to: '/legal/privacy-policy' },
       { label: 'Terms of Use', to: '/legal/terms-of-use' },
+      { label: 'Data Processing', to: '/legal/data-processing-agreement' },
     ],
   },
 ];
