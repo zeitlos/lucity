@@ -73,7 +73,7 @@ We reserve the right to suspend or terminate accounts that violate these terms.
 
 ### Reporting Abuse
 
-To report content or activity on the platform that you believe violates these terms, contact **abuse@lucity.cloud**. We review reports and, where appropriate, remove content or suspend the responsible account. We may act immediately in cases of severe abuse or legal risk.
+To report content or activity on the platform that you believe violates these terms, contact **hello@lucity.cloud**. We review reports and, where appropriate, remove content or suspend the responsible account. We may act immediately in cases of severe abuse or legal risk.
 
 ## 5. Your Data and Content
 
@@ -108,7 +108,7 @@ To the maximum extent permitted by Swiss law:
 - Our total liability is limited to the amount you paid for the service in the 12 months preceding the claim.
 - We are not responsible for outages, data loss, or issues caused by third-party services, your application code, or circumstances beyond our control.
 
-Nothing in these terms excludes or limits liability that cannot be excluded or limited under Swiss law, including liability for unlawful intent (Absicht) or gross negligence (grobe Fahrlässigkeit) under Art. 100 of the Swiss Code of Obligations.
+Nothing in these terms excludes or limits liability that cannot be excluded or limited under Swiss law, including liability for unlawful intent or gross negligence under Art. 100 of the Swiss Code of Obligations.
 
 ## 9. Indemnification
 
