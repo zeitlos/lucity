@@ -18,5 +18,8 @@
   "devDependencies": {
     "@iconify-json/devicon": "^1.2.62",
     "opentype.js": "^2.0.0"
+  },
+  "engines": {
+    "node": ">=24"
   }
 }
