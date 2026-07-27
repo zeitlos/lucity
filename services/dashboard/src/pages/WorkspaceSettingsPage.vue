@@ -301,7 +301,8 @@ const { mutate: portalMutate, loading: openingPortal } = useMutation(BillingPort
 const { mutate: planCheckoutMutate, loading: startingPlanCheckout } = useMutation(CreatePlanCheckoutDocument);
 const confirmPlan = ref<Plan | null>(null);
 const trialSelectedPlan = ref<Plan>(Plan.Hobby);
-const isTrial = computed(() => billingAvailable.value && subscription.value?.status === SubscriptionStatus.Trialing);
+const hasPlan = computed(() => billingAvailable.value && !!subscription.value?.plan);
+const isTrialing = computed(() => billingAvailable.value && subscription.value?.status === SubscriptionStatus.Trialing);
 
 function formatCents(cents: number): string {
   return `€${(cents / 100).toFixed(2)}`;
@@ -604,9 +605,9 @@ async function handleDelete() {
             </template>
 
             <template v-else>
-              <!-- Trial: upgrade prompt -->
+              <!-- No plan yet: pick one and add a payment method (trial or lapsed) -->
               <div
-                v-if="isTrial && isAdmin"
+                v-if="!hasPlan && isAdmin"
                 class="rounded-lg border p-6 space-y-5"
               >
                 <div class="flex items-start gap-4">
@@ -617,9 +618,12 @@ async function handleDelete() {
                     <h3 class="text-sm font-medium text-foreground">
                       Choose a plan to continue
                     </h3>
-                    <p class="mt-1 text-sm text-muted-foreground">
+                    <p v-if="isTrialing" class="mt-1 text-sm text-muted-foreground">
                       You're on a trial with &euro;5 in free credits<template v-if="subscription!.creditExpiry">, expiring {{ formatDate(subscription!.creditExpiry) }}</template>.
                       Pick a plan and add a payment method to keep your workspace running.
+                    </p>
+                    <p v-else class="mt-1 text-sm text-muted-foreground">
+                      Your trial has ended. Pick a plan and add a payment method to reactivate your workspace.
                     </p>
                   </div>
                 </div>
@@ -637,8 +641,8 @@ async function handleDelete() {
                 </Button>
               </div>
 
-              <!-- Non-trial: subscription summary -->
-              <div v-if="!isTrial" class="rounded-lg border p-4 space-y-3">
+              <!-- Has a plan: subscription summary -->
+              <div v-if="hasPlan" class="rounded-lg border p-4 space-y-3">
                 <div class="flex items-center justify-between">
                   <h3 class="text-sm font-medium">Subscription</h3>
                   <Status :tone="subscription!.status === SubscriptionStatus.Active ? 'ok' : 'danger'">
@@ -659,9 +663,9 @@ async function handleDelete() {
                 </div>
               </div>
 
-              <!-- Credits banner: no payment method yet (non-trial, e.g. workspace checkout) -->
+              <!-- Credits banner: no payment method yet (has a plan, e.g. workspace checkout) -->
               <div
-                v-if="!isTrial && subscription!.creditExpiry && !subscription!.hasPaymentMethod"
+                v-if="hasPlan && subscription!.creditExpiry && !subscription!.hasPaymentMethod"
                 class="rounded-lg border border-primary/30 bg-primary/5 p-4"
               >
                 <p class="text-sm font-medium text-foreground">
@@ -685,7 +689,7 @@ async function handleDelete() {
 
               <!-- Credits banner: payment method set -->
               <div
-                v-else-if="!isTrial && subscription!.creditExpiry && subscription!.hasPaymentMethod"
+                v-else-if="hasPlan && subscription!.creditExpiry && subscription!.hasPaymentMethod"
                 class="rounded-lg border border-green-500/30 bg-green-500/5 p-4"
               >
                 <p class="text-sm font-medium text-foreground">
@@ -694,7 +698,7 @@ async function handleDelete() {
               </div>
 
               <!-- Plan switcher (admin only, only when already on a plan) -->
-              <div v-if="isAdmin && !isTrial" class="space-y-3">
+              <div v-if="isAdmin && hasPlan" class="space-y-3">
                 <h3 class="text-sm font-medium">Plan</h3>
                 <PlanPicker
                   :model-value="subscription!.plan ?? Plan.Hobby"
