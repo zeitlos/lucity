@@ -194,11 +194,17 @@ victoria-metrics-alert:
                 annotations:
                   summary: "Node {{ $labels.node }} is not Ready"
               - alert: PodCrashLoopBackOff
-                expr: kube_pod_container_status_waiting_reason{reason="CrashLoopBackOff", namespace=~"lucity-system|lucity-builds"} == 1
+                expr: kube_pod_container_status_waiting_reason{reason="CrashLoopBackOff", namespace=~"kube-system|lucity-system|lucity-builds"} == 1
                 for: 15m
                 labels: { severity: warning }
                 annotations:
                   summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} is crash-looping"
+              - alert: ContainerRestartingRepeatedly
+                expr: increase(kube_pod_container_status_restarts_total{namespace=~"kube-system|lucity-system"}[1h]) >= 3
+                for: 5m
+                labels: { severity: warning }
+                annotations:
+                  summary: "{{ $labels.namespace }}/{{ $labels.pod }} restarted {{ $value | humanize }} times in the last hour"
               - alert: PVCNearlyFull
                 expr: |-
                   label_replace(label_replace(label_replace(
@@ -233,6 +239,12 @@ victoria-metrics-alert:
                 labels: { severity: warning }
                 annotations:
                   summary: "Certificate {{ $labels.namespace }}/{{ $labels.name }} expires in <14d"
+              - alert: CertificateNotReady
+                expr: certmanager_certificate_ready_status{condition="True"} == 0
+                for: 1h
+                labels: { severity: warning }
+                annotations:
+                  summary: "Certificate {{ $labels.namespace }}/{{ $labels.name }} not Ready for >1h"
               - alert: ZotDown
                 expr: kube_statefulset_status_replicas_ready{namespace="lucity-system", statefulset=~".*zot.*"} == 0
                 for: 5m
