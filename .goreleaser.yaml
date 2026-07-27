@@ -39,7 +39,7 @@ release:
   mode: keep-existing
   prerelease: auto
 
-brews:
+homebrew_casks:
   - name: lucity
     ids:
       - lucity
@@ -48,15 +48,17 @@ brews:
       name: homebrew-tap
       branch: main
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
-    directory: Formula
     homepage: "https://lucity.cloud"
     description: "Deploy software on Lucity from the command line"
-    license: AGPL-3.0
     skip_upload: auto
     commit_author:
       name: lucity-release
       email: noreply@lucity.cloud
-    install: |
-      bin.install "lucity"
-    test: |
-      assert_match "lucity", shell_output("#{bin}/lucity version")
+    url:
+      verified: "github.com/zeitlos/lucity/"
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/lucity"]
+          end
