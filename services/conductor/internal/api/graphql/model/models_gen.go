@@ -511,10 +511,10 @@ type Service struct {
 	ActiveDeployment *Deployment          `json:"activeDeployment,omitempty"`
 	Deployments      []Deployment         `json:"deployments"`
 	Builds           []Build              `json:"builds"`
+	Releases         []Release            `json:"releases"`
 	Metrics          []MetricSeries       `json:"metrics"`
 	LastDeployedAt   *time.Time           `json:"lastDeployedAt,omitempty"`
 	CreatedAt        time.Time            `json:"createdAt"`
-	Releases         []Release            `json:"releases"`
 	SecretScanReport *SecretScanReport    `json:"secretScanReport,omitempty"`
 	PlatformService  platform.Service     `json:"-"`
 }

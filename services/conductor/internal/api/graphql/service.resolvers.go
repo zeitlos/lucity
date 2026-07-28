@@ -288,6 +288,23 @@ func (r *serviceResolver) Builds(ctx context.Context, obj *model.Service) ([]mod
 	return result, nil
 }
 
+// Releases is the resolver for the releases field.
+func (r *serviceResolver) Releases(ctx context.Context, obj *model.Service) ([]model.Release, error) {
+	releases, err := r.Conductor.Releases(ctx, obj.PlatformService)
+
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]model.Release, 0, len(releases))
+
+	for _, release := range releases {
+		result = append(result, convertRelease(release))
+	}
+
+	return result, nil
+}
+
 // Metrics is the resolver for the metrics field.
 func (r *serviceResolver) Metrics(ctx context.Context, obj *model.Service, metrics []model.ResourceMetric, rangeArg model.MetricsRange, grouping model.MetricGrouping) ([]model.MetricSeries, error) {
 	window, err := convertMetricWindow(rangeArg.Window)

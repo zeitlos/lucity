@@ -25,6 +25,8 @@ type Service
 
   builds: [Build!]! @goField(forceResolver: true)
 
+  releases: [Release!]! @goField(forceResolver: true)
+
   metrics(metrics: [ResourceMetric!]!, range: MetricsRange!, grouping: MetricGrouping! = TOTAL): [MetricSeries!]! @goField(forceResolver: true)
 
   lastDeployedAt: Time

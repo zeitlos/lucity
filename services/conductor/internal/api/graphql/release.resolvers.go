@@ -8,22 +8,56 @@ package graphql
 import (
 	"context"
 
+	"github.com/zeitlos/lucity/pkg/to"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
+	"github.com/zeitlos/lucity/services/conductor/internal/buildjob"
+	"github.com/zeitlos/lucity/services/conductor/internal/deployjob"
+	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
-// Releases is the resolver for the releases field.
-func (r *serviceResolver) Releases(ctx context.Context, obj *model.Service) ([]model.Release, error) {
-	releases, err := r.Conductor.Releases(ctx, obj.PlatformService)
+// Deploy is the resolver for the deploy field.
+func (r *mutationResolver) Deploy(ctx context.Context, service platform.ServiceID, gitRef *string) (*model.Release, error) {
+	if err := r.requireServiceDeployBinding(ctx, service); err != nil {
+		return nil, err
+	}
+
+	release, err := r.Conductor.Deploy(ctx, service, to.Val(gitRef))
+
+	if err != nil {
+		return nil, err
+	}
+	result := convertRelease(*release)
+	return &result, nil
+}
+
+// Build is the resolver for the build field.
+func (r *queryResolver) Build(ctx context.Context, id buildjob.BuildID) (*model.Build, error) {
+	build, err := r.Conductor.Build(ctx, id)
 
 	if err != nil {
 		return nil, err
 	}
 
-	result := make([]model.Release, 0, len(releases))
+	return new(convertBuild(*build)), nil
+}
 
-	for _, release := range releases {
-		result = append(result, convertRelease(release))
+// Deployment is the resolver for the deployment field.
+func (r *queryResolver) Deployment(ctx context.Context, id platform.DeploymentID) (*model.Deployment, error) {
+	result, err := r.Conductor.Deployment(ctx, id)
+
+	if err != nil {
+		return nil, err
 	}
 
-	return result, nil
+	return new(convertDeployment(*result)), nil
+}
+
+// BuildLogs is the resolver for the buildLogs field.
+func (r *subscriptionResolver) BuildLogs(ctx context.Context, id buildjob.BuildID) (<-chan string, error) {
+	return r.Conductor.BuildLogs(ctx, id)
+}
+
+// DeployLogs is the resolver for the deployLogs field.
+func (r *subscriptionResolver) DeployLogs(ctx context.Context, id deployjob.DeployID) (<-chan string, error) {
+	return r.Conductor.DeployLogs(ctx, id)
 }

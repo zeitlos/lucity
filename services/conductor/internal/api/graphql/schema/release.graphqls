@@ -13,6 +13,96 @@ type Release {
   createdAt: Time!
 }
 
+type Build {
+  id: BuildID!
+  status: BuildStatus!
+
+  startedAt: Time
+  finishedAt: Time
+}
+
+enum BuildStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+type Deploy {
+  id: DeployID!
+  status: DeployStatus!
+
+  startedAt: Time
+  finishedAt: Time
+}
+
+enum DeployStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+  SKIPPED
+}
+
+type Deployment {
+  id: DeploymentID!
+
+  image: String!
+  imageDigest: String
+
+  commit: String!
+  commitMessage: String!
+  ref: String!
+  sourceUrl: String!
+  contextPath: String!
+
+  resources: Resources!
+  command: String!
+
+  buildId: String!
+
+  status: DeploymentStatus!
+  replicas: ReplicaCount!
+  rollout: Rollout
+
+  createdAt: Time!
+}
+
+enum DeploymentStatus {
+  DEPLOYING
+  ACTIVE
+  SUPERSEDED
+  FAILED
+}
+
+type Rollout {
+  status: RolloutStatus!
+  reason: RolloutReason
+  message: String
+  restarts: Int!
+  startedAt: Time!
+}
+
+enum RolloutStatus {
+  PROGRESSING
+  READY
+  DEGRADED
+  FAILED
+  SUPERSEDED
+}
+
+enum RolloutReason {
+  CRASH_LOOP
+  OOM_KILLED
+  IMAGE_PULL_FAILED
+  CONFIG_ERROR
+  QUOTA_EXCEEDED
+  UNSCHEDULABLE
+  NOT_READY
+  DEADLINE_EXCEEDED
+}
+
 type GitSource {
   provider: SourceProvider!
   repository: String!
@@ -56,6 +146,16 @@ enum ReleaseTriggerKind {
   PUSH
 }
 
-extend type Service {
-  releases: [Release!]! @goField(forceResolver: true)
+extend type Query {
+  build(id: BuildID!): Build! @hasRole(role: WORKSPACE_MEMBER)
+  deployment(id: DeploymentID!): Deployment! @hasRole(role: WORKSPACE_MEMBER)
+}
+
+extend type Subscription {
+  buildLogs(id: BuildID!): String! @hasRole(role: WORKSPACE_MEMBER)
+  deployLogs(id: DeployID!): String! @hasRole(role: WORKSPACE_MEMBER)
+}
+
+extend type Mutation {
+  deploy(service: ServiceID!, gitRef: String): Release! @hasRole(role: WORKSPACE_DEPLOYER)
 }
