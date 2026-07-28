@@ -116,7 +116,7 @@ func handleCIExchange(verifier *githubActionsVerifier, conductorClient *conducto
 			return
 		}
 
-		match, err := conductorClient.MatchCIDeploy(r.Context(), claims.Repository, claims.Ref)
+		match, err := conductorClient.MatchCIDeploy(r.Context(), claims.Repository)
 		if err != nil {
 			slog.WarnContext(r.Context(), "ci exchange: no matching service",
 				"repo", claims.Repository, "ref", claims.Ref, "error", err)

@@ -23,7 +23,7 @@ type CIDeployMatch struct {
 	Workspaces []string
 }
 
-func (c *Client) MatchCIDeploy(ctx context.Context, repository, ref string) (*CIDeployMatch, error) {
+func (c *Client) MatchCIDeploy(ctx context.Context, repository string) (*CIDeployMatch, error) {
 	repoURL := "https://github.com/" + repository
 
 	candidates, err := c.platform.ServicesByRepo(ctx, repoURL)
@@ -58,10 +58,6 @@ func (c *Client) MatchCIDeploy(ctx context.Context, repository, ref string) (*CI
 			continue
 		}
 
-		if !ciRefAllowed(ref, service.Branch) {
-			continue
-		}
-
 		match.Services = append(match.Services, service.ID)
 
 		if !seen[service.ID.Workspace] {
@@ -71,16 +67,8 @@ func (c *Client) MatchCIDeploy(ctx context.Context, repository, ref string) (*CI
 	}
 
 	if len(match.Services) == 0 {
-		return nil, fmt.Errorf("ref %q is not the tracked branch of any CI-deploy service connected to %s", ref, repository)
+		return nil, fmt.Errorf("no CI-deploy service connected to %s matches the Lucity GitHub App installation", repository)
 	}
 
 	return match, nil
-}
-
-func ciRefAllowed(ref, branch string) bool {
-	if branch != "" {
-		return ref == "refs/heads/"+branch
-	}
-
-	return strings.HasPrefix(ref, "refs/heads/")
 }
