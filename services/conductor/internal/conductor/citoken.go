@@ -28,7 +28,9 @@ func (c *Client) IssueCIDeployToken(ctx context.Context, repo, workspace, audien
 		return "", time.Time{}, err
 	}
 
-	secret, err := c.logto.CreateApplicationSecret(ctx, app.ID, "ci", time.Now().Add(2*time.Minute))
+	secretName := fmt.Sprintf("ci-%d", time.Now().UnixNano())
+
+	secret, err := c.logto.CreateApplicationSecret(ctx, app.ID, secretName, time.Now().Add(2*time.Minute))
 	if err != nil {
 		return "", time.Time{}, err
 	}
