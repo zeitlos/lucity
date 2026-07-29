@@ -26,6 +26,10 @@ func (r *mutationResolver) SetSharedVariables(ctx context.Context, environment p
 
 // SetServiceVariables is the resolver for the setServiceVariables field.
 func (r *mutationResolver) SetServiceVariables(ctx context.Context, service platform.ServiceID, variables []model.ServiceVariableInput) (bool, error) {
+	if err := r.requireServiceDeployBinding(ctx, service); err != nil {
+		return false, err
+	}
+
 	literals := make(map[string]string)
 	refs := make(map[string]platform.VariableID)
 
@@ -79,6 +83,10 @@ func (r *queryResolver) SharedVariables(ctx context.Context, environment platfor
 
 // ServiceVariables is the resolver for the serviceVariables field.
 func (r *queryResolver) ServiceVariables(ctx context.Context, service platform.ServiceID) ([]model.ServiceVariable, error) {
+	if err := r.requireServiceDeployBinding(ctx, service); err != nil {
+		return nil, err
+	}
+
 	vars, err := r.Conductor.ServiceVariables(ctx, service)
 
 	if err != nil {

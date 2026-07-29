@@ -54,10 +54,10 @@ input ServiceVariableInput {
 extend type Query {
   availableVariables(environment: EnvironmentID!): [Variable!]! @hasRole(role: WORKSPACE_MEMBER)
   sharedVariables(environment: EnvironmentID!): [SharedVariable!]! @hasRole(role: WORKSPACE_MEMBER)
-  serviceVariables(service: ServiceID!): [ServiceVariable!]! @hasRole(role: WORKSPACE_MEMBER)
+  serviceVariables(service: ServiceID!): [ServiceVariable!]! @hasRole(role: WORKSPACE_DEPLOYER)
 }
 
 extend type Mutation {
   setSharedVariables(environment: EnvironmentID!, variables: [VariableInput!]!): Boolean! @hasRole(role: WORKSPACE_MEMBER)
-  setServiceVariables(service: ServiceID!, variables: [ServiceVariableInput!]!): Boolean! @hasRole(role: WORKSPACE_MEMBER)
+  setServiceVariables(service: ServiceID!, variables: [ServiceVariableInput!]!): Boolean! @hasRole(role: WORKSPACE_DEPLOYER)
 }

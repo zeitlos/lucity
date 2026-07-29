@@ -31,8 +31,9 @@ Flags:
 'vars set' is non-destructive: it merges your changes into the existing variables
 and re-sends the complete set, so variables you do not name are preserved.
 
-Requires a signed-in member session (run 'lucity login'); a CI deploy token is
-not sufficient for variable operations.
+Works with a signed-in member session (run 'lucity login') or a CI deploy token.
+A CI deploy token may only read and set variables for services connected to its
+own repository.
 `
 
 const serviceVariablesQuery = `query($service: ServiceID!) {
