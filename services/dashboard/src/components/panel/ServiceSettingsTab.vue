@@ -799,6 +799,7 @@ const memoryOptions = [
   { value: '2Gi', label: '2 GB' },
   { value: '4Gi', label: '4 GB' },
   { value: '8Gi', label: '8 GB' },
+  { value: '16Gi', label: '16 GB' },
 ];
 
 const selectedCpu = ref('');
