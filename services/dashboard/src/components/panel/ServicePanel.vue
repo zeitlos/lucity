@@ -96,7 +96,7 @@ onKeyStroke('Escape', () => {
         </TabsContent>
 
         <TabsContent value="security" class="px-4 py-4">
-          <SecurityTab :service-id="service.id" />
+          <SecurityTab :service-id="service.id" :service-name="service.name" />
         </TabsContent>
 
         <TabsContent value="settings" class="px-4 py-4">

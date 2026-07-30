@@ -59,7 +59,7 @@ type Documents = {
     "\n  query DatabaseTableData(\n    $database: DatabaseID!\n    $table: String!\n    $schema: String\n    $limit: Int\n    $offset: Int\n  ) {\n    databaseTableData(\n      database: $database\n      table: $table\n      schema: $schema\n      limit: $limit\n      offset: $offset\n    ) {\n      columns\n      rows\n      totalEstimatedRows\n    }\n  }\n": typeof types.DatabaseTableDataDocument,
     "\n  query KeyValueStoreCredentials($keyValueStore: KeyValueStoreID!) {\n    keyValueStoreCredentials(keyValueStore: $keyValueStore) {\n      type\n      host\n      port\n      password\n      uri\n    }\n  }\n": typeof types.KeyValueStoreCredentialsDocument,
     "\n  mutation DeleteKeyValueStore($keyValueStore: KeyValueStoreID!) {\n    deleteKeyValueStore(keyValueStore: $keyValueStore)\n  }\n": typeof types.DeleteKeyValueStoreDocument,
-    "\n  query SecretScanReport($id: ServiceID!) {\n    service(id: $id) {\n      id\n      secretScanReport {\n        commit\n        scannedAt\n        findings {\n          rule\n          file\n          line\n          commit\n          secret\n          author\n          url\n          verified\n        }\n      }\n    }\n  }\n": typeof types.SecretScanReportDocument,
+    "\n  query ServiceSecurity($id: ServiceID!) {\n    service(id: $id) {\n      id\n      sourceUrl\n      vulnerabilityReport {\n        summary {\n          critical\n          high\n          medium\n          low\n          unknown\n          total\n        }\n      }\n      secretScanReport {\n        commit\n        scannedAt\n        findings {\n          rule\n          file\n          line\n          commit\n          secret\n          author\n          url\n          verified\n        }\n      }\n    }\n  }\n": typeof types.ServiceSecurityDocument,
     "\n  query ServiceMetrics($id: ServiceID!, $range: MetricsRange!, $grouping: MetricGrouping!) {\n    service(id: $id) {\n      id\n      replicas {\n        desired\n      }\n      resources {\n        cpu\n        memory\n      }\n      deployments {\n        createdAt\n      }\n      metrics(metrics: [CPU_USAGE, MEMORY_USAGE], range: $range, grouping: $grouping) {\n        metric\n        replica\n        points {\n          timestamp\n          value\n        }\n      }\n    }\n  }\n": typeof types.ServiceMetricsDocument,
     "\n  mutation RemoveService($service: ServiceID!) {\n    removeService(service: $service)\n  }\n": typeof types.RemoveServiceDocument,
     "\n  mutation SetCustomStartCommand($service: ServiceID!, $command: String!) {\n    setCustomStartCommand(service: $service, command: $command) {\n      id\n    }\n  }\n": typeof types.SetCustomStartCommandDocument,
@@ -77,6 +77,7 @@ type Documents = {
     "\n  query ServiceVariables($service: ServiceID!) {\n    serviceVariables(service: $service) {\n      key\n      value\n      ref\n    }\n  }\n": typeof types.ServiceVariablesDocument,
     "\n  query AvailableVariables($environment: EnvironmentID!) {\n    availableVariables(environment: $environment) {\n      id\n      key\n      source {\n        __typename\n        ... on DatabaseSource { databaseId: id name }\n        ... on KeyValueStoreSource { keyValueStoreId: id name }\n        ... on BucketSource { bucketId: id name }\n        ... on SharedSource { name }\n      }\n    }\n  }\n": typeof types.AvailableVariablesDocument,
     "\n  mutation SetServiceVariables($service: ServiceID!, $variables: [ServiceVariableInput!]!) {\n    setServiceVariables(service: $service, variables: $variables)\n  }\n": typeof types.SetServiceVariablesDocument,
+    "\n  query ServiceVulnerabilities($id: ServiceID!) {\n    service(id: $id) {\n      id\n      vulnerabilityReport {\n        image\n        summary {\n          critical\n          high\n          medium\n          low\n          unknown\n          total\n        }\n        vulnerabilities {\n          id\n          severity\n          source\n          title\n          reference\n          packages {\n            name\n            installedVersion\n            fixedVersion\n            path\n          }\n        }\n      }\n    }\n  }\n": typeof types.ServiceVulnerabilitiesDocument,
     "\n  mutation DeleteVolume($volume: VolumeID!) {\n    deleteVolume(volume: $volume)\n  }\n": typeof types.DeleteVolumeDocument,
     "\n  mutation ExpandVolume($volume: VolumeID!, $size: String!) {\n    expandVolume(volume: $volume, size: $size) {\n      id\n      size\n    }\n  }\n": typeof types.ExpandVolumeDocument,
     "\n  mutation UnmountVolume($volume: VolumeID!) {\n    unmountVolume(volume: $volume) {\n      id\n      mount {\n        service\n        path\n      }\n    }\n  }\n": typeof types.UnmountVolumeDocument,
@@ -108,7 +109,6 @@ type Documents = {
     "\n  mutation UpdateMemberRole($input: UpdateMemberRoleInput!) {\n    updateMemberRole(input: $input) {\n      id\n      email\n      name\n      role\n    }\n  }\n": typeof types.UpdateMemberRoleDocument,
     "\n  mutation ChangePlan($plan: Plan!) {\n    changePlan(plan: $plan) {\n      plan\n      status\n      currentPeriodEnd\n      creditAmountCents\n      creditExpiry\n    }\n  }\n": typeof types.ChangePlanDocument,
     "\n  mutation BillingPortalUrl {\n    billingPortalUrl {\n      url\n    }\n  }\n": typeof types.BillingPortalUrlDocument,
-    "\n  query BootstrapWorkspaces {\n    workspaces {\n      id\n    }\n  }\n": typeof types.BootstrapWorkspacesDocument,
 };
 const documents: Documents = {
     "\n  query ApiTokens {\n    apiTokens {\n      id\n      name\n      role\n      createdAt\n    }\n  }\n": types.ApiTokensDocument,
@@ -156,7 +156,7 @@ const documents: Documents = {
     "\n  query DatabaseTableData(\n    $database: DatabaseID!\n    $table: String!\n    $schema: String\n    $limit: Int\n    $offset: Int\n  ) {\n    databaseTableData(\n      database: $database\n      table: $table\n      schema: $schema\n      limit: $limit\n      offset: $offset\n    ) {\n      columns\n      rows\n      totalEstimatedRows\n    }\n  }\n": types.DatabaseTableDataDocument,
     "\n  query KeyValueStoreCredentials($keyValueStore: KeyValueStoreID!) {\n    keyValueStoreCredentials(keyValueStore: $keyValueStore) {\n      type\n      host\n      port\n      password\n      uri\n    }\n  }\n": types.KeyValueStoreCredentialsDocument,
     "\n  mutation DeleteKeyValueStore($keyValueStore: KeyValueStoreID!) {\n    deleteKeyValueStore(keyValueStore: $keyValueStore)\n  }\n": types.DeleteKeyValueStoreDocument,
-    "\n  query SecretScanReport($id: ServiceID!) {\n    service(id: $id) {\n      id\n      secretScanReport {\n        commit\n        scannedAt\n        findings {\n          rule\n          file\n          line\n          commit\n          secret\n          author\n          url\n          verified\n        }\n      }\n    }\n  }\n": types.SecretScanReportDocument,
+    "\n  query ServiceSecurity($id: ServiceID!) {\n    service(id: $id) {\n      id\n      sourceUrl\n      vulnerabilityReport {\n        summary {\n          critical\n          high\n          medium\n          low\n          unknown\n          total\n        }\n      }\n      secretScanReport {\n        commit\n        scannedAt\n        findings {\n          rule\n          file\n          line\n          commit\n          secret\n          author\n          url\n          verified\n        }\n      }\n    }\n  }\n": types.ServiceSecurityDocument,
     "\n  query ServiceMetrics($id: ServiceID!, $range: MetricsRange!, $grouping: MetricGrouping!) {\n    service(id: $id) {\n      id\n      replicas {\n        desired\n      }\n      resources {\n        cpu\n        memory\n      }\n      deployments {\n        createdAt\n      }\n      metrics(metrics: [CPU_USAGE, MEMORY_USAGE], range: $range, grouping: $grouping) {\n        metric\n        replica\n        points {\n          timestamp\n          value\n        }\n      }\n    }\n  }\n": types.ServiceMetricsDocument,
     "\n  mutation RemoveService($service: ServiceID!) {\n    removeService(service: $service)\n  }\n": types.RemoveServiceDocument,
     "\n  mutation SetCustomStartCommand($service: ServiceID!, $command: String!) {\n    setCustomStartCommand(service: $service, command: $command) {\n      id\n    }\n  }\n": types.SetCustomStartCommandDocument,
@@ -174,6 +174,7 @@ const documents: Documents = {
     "\n  query ServiceVariables($service: ServiceID!) {\n    serviceVariables(service: $service) {\n      key\n      value\n      ref\n    }\n  }\n": types.ServiceVariablesDocument,
     "\n  query AvailableVariables($environment: EnvironmentID!) {\n    availableVariables(environment: $environment) {\n      id\n      key\n      source {\n        __typename\n        ... on DatabaseSource { databaseId: id name }\n        ... on KeyValueStoreSource { keyValueStoreId: id name }\n        ... on BucketSource { bucketId: id name }\n        ... on SharedSource { name }\n      }\n    }\n  }\n": types.AvailableVariablesDocument,
     "\n  mutation SetServiceVariables($service: ServiceID!, $variables: [ServiceVariableInput!]!) {\n    setServiceVariables(service: $service, variables: $variables)\n  }\n": types.SetServiceVariablesDocument,
+    "\n  query ServiceVulnerabilities($id: ServiceID!) {\n    service(id: $id) {\n      id\n      vulnerabilityReport {\n        image\n        summary {\n          critical\n          high\n          medium\n          low\n          unknown\n          total\n        }\n        vulnerabilities {\n          id\n          severity\n          source\n          title\n          reference\n          packages {\n            name\n            installedVersion\n            fixedVersion\n            path\n          }\n        }\n      }\n    }\n  }\n": types.ServiceVulnerabilitiesDocument,
     "\n  mutation DeleteVolume($volume: VolumeID!) {\n    deleteVolume(volume: $volume)\n  }\n": types.DeleteVolumeDocument,
     "\n  mutation ExpandVolume($volume: VolumeID!, $size: String!) {\n    expandVolume(volume: $volume, size: $size) {\n      id\n      size\n    }\n  }\n": types.ExpandVolumeDocument,
     "\n  mutation UnmountVolume($volume: VolumeID!) {\n    unmountVolume(volume: $volume) {\n      id\n      mount {\n        service\n        path\n      }\n    }\n  }\n": types.UnmountVolumeDocument,
@@ -205,7 +206,6 @@ const documents: Documents = {
     "\n  mutation UpdateMemberRole($input: UpdateMemberRoleInput!) {\n    updateMemberRole(input: $input) {\n      id\n      email\n      name\n      role\n    }\n  }\n": types.UpdateMemberRoleDocument,
     "\n  mutation ChangePlan($plan: Plan!) {\n    changePlan(plan: $plan) {\n      plan\n      status\n      currentPeriodEnd\n      creditAmountCents\n      creditExpiry\n    }\n  }\n": types.ChangePlanDocument,
     "\n  mutation BillingPortalUrl {\n    billingPortalUrl {\n      url\n    }\n  }\n": types.BillingPortalUrlDocument,
-    "\n  query BootstrapWorkspaces {\n    workspaces {\n      id\n    }\n  }\n": types.BootstrapWorkspacesDocument,
 };
 
 /**
@@ -405,7 +405,7 @@ export function graphql(source: "\n  mutation DeleteKeyValueStore($keyValueStore
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query SecretScanReport($id: ServiceID!) {\n    service(id: $id) {\n      id\n      secretScanReport {\n        commit\n        scannedAt\n        findings {\n          rule\n          file\n          line\n          commit\n          secret\n          author\n          url\n          verified\n        }\n      }\n    }\n  }\n"): (typeof documents)["\n  query SecretScanReport($id: ServiceID!) {\n    service(id: $id) {\n      id\n      secretScanReport {\n        commit\n        scannedAt\n        findings {\n          rule\n          file\n          line\n          commit\n          secret\n          author\n          url\n          verified\n        }\n      }\n    }\n  }\n"];
+export function graphql(source: "\n  query ServiceSecurity($id: ServiceID!) {\n    service(id: $id) {\n      id\n      sourceUrl\n      vulnerabilityReport {\n        summary {\n          critical\n          high\n          medium\n          low\n          unknown\n          total\n        }\n      }\n      secretScanReport {\n        commit\n        scannedAt\n        findings {\n          rule\n          file\n          line\n          commit\n          secret\n          author\n          url\n          verified\n        }\n      }\n    }\n  }\n"): (typeof documents)["\n  query ServiceSecurity($id: ServiceID!) {\n    service(id: $id) {\n      id\n      sourceUrl\n      vulnerabilityReport {\n        summary {\n          critical\n          high\n          medium\n          low\n          unknown\n          total\n        }\n      }\n      secretScanReport {\n        commit\n        scannedAt\n        findings {\n          rule\n          file\n          line\n          commit\n          secret\n          author\n          url\n          verified\n        }\n      }\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -474,6 +474,10 @@ export function graphql(source: "\n  query AvailableVariables($environment: Envi
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation SetServiceVariables($service: ServiceID!, $variables: [ServiceVariableInput!]!) {\n    setServiceVariables(service: $service, variables: $variables)\n  }\n"): (typeof documents)["\n  mutation SetServiceVariables($service: ServiceID!, $variables: [ServiceVariableInput!]!) {\n    setServiceVariables(service: $service, variables: $variables)\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query ServiceVulnerabilities($id: ServiceID!) {\n    service(id: $id) {\n      id\n      vulnerabilityReport {\n        image\n        summary {\n          critical\n          high\n          medium\n          low\n          unknown\n          total\n        }\n        vulnerabilities {\n          id\n          severity\n          source\n          title\n          reference\n          packages {\n            name\n            installedVersion\n            fixedVersion\n            path\n          }\n        }\n      }\n    }\n  }\n"): (typeof documents)["\n  query ServiceVulnerabilities($id: ServiceID!) {\n    service(id: $id) {\n      id\n      vulnerabilityReport {\n        image\n        summary {\n          critical\n          high\n          medium\n          low\n          unknown\n          total\n        }\n        vulnerabilities {\n          id\n          severity\n          source\n          title\n          reference\n          packages {\n            name\n            installedVersion\n            fixedVersion\n            path\n          }\n        }\n      }\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -598,10 +602,6 @@ export function graphql(source: "\n  mutation ChangePlan($plan: Plan!) {\n    ch
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation BillingPortalUrl {\n    billingPortalUrl {\n      url\n    }\n  }\n"): (typeof documents)["\n  mutation BillingPortalUrl {\n    billingPortalUrl {\n      url\n    }\n  }\n"];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  query BootstrapWorkspaces {\n    workspaces {\n      id\n    }\n  }\n"): (typeof documents)["\n  query BootstrapWorkspaces {\n    workspaces {\n      id\n    }\n  }\n"];
 
 export function graphql(source: string) {
   return (documents as any)[source] ?? {};

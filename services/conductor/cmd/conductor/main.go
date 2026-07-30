@@ -30,6 +30,7 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/scanreport"
 	sourceGH "github.com/zeitlos/lucity/services/conductor/internal/source/github"
 	conductorgrpc "github.com/zeitlos/lucity/services/conductor/internal/transport/grpc"
+	"github.com/zeitlos/lucity/services/conductor/internal/vulnerabilities"
 
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/cashier"
@@ -416,7 +417,13 @@ func main() {
 		Keychain:     keychain,
 	})
 
-	conductor := conductor.New(cashierClient, githubApp, logtoClient, nil, directoryClient, platformClient, jobsClient, deployJobsClient, scanJobsClient, scanReportClient, pipelineClient, planner, source, hostnameClient, gatewayClient, deployerClient, environmentClient, objectStorageClient, metricsProvider, conductorConfig)
+	vulnerabilitiesClient := vulnerabilities.New(vulnerabilities.Config{
+		Endpoint:     config.RegistryPullURL,
+		DialEndpoint: config.RegistryURL,
+		Keychain:     keychain,
+	})
+
+	conductor := conductor.New(cashierClient, githubApp, logtoClient, nil, directoryClient, platformClient, jobsClient, deployJobsClient, scanJobsClient, scanReportClient, vulnerabilitiesClient, pipelineClient, planner, source, hostnameClient, gatewayClient, deployerClient, environmentClient, objectStorageClient, metricsProvider, conductorConfig)
 
 	go runAdmissionReconciler(ctx, pipelineClient)
 	slog.Info("release admission ready", "maxConcurrent", config.MaxConcurrentReleases, "maxQueuedPerWorkspace", config.MaxQueuedReleases)
