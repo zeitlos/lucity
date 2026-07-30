@@ -27,6 +27,7 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/scanjob"
 	"github.com/zeitlos/lucity/services/conductor/internal/scanreport"
 	"github.com/zeitlos/lucity/services/conductor/internal/source"
+	"github.com/zeitlos/lucity/services/conductor/internal/vulnerabilities"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
@@ -41,22 +42,23 @@ type Client struct {
 	logto          *logto.Client
 	tokenRefresher TokenRefresher // refreshes expired Logto access tokens (nil if not configured)
 
-	directory     directory.Interface
-	platform      platform.Interface
-	buildjob      buildjob.Interface
-	deployjob     deployjob.Interface
-	scanjob       scanjob.Interface
-	scanreport    *scanreport.Client
-	pipeline      pipeline.Interface
-	planner       planner.Interface
-	source        source.Interface
-	hostname      *hostname.Client
-	gateway       *gateway.Client
-	deployer      deployer.Interface
-	environment   environment.Interface
-	objectStorage objectstorage.Interface
-	metrics       *metrics.Provider
-	registry      *registry.Client
+	directory       directory.Interface
+	platform        platform.Interface
+	buildjob        buildjob.Interface
+	deployjob       deployjob.Interface
+	scanjob         scanjob.Interface
+	scanreport      *scanreport.Client
+	vulnerabilities *vulnerabilities.Client
+	pipeline        pipeline.Interface
+	planner         planner.Interface
+	source          source.Interface
+	hostname        *hostname.Client
+	gateway         *gateway.Client
+	deployer        deployer.Interface
+	environment     environment.Interface
+	objectStorage   objectstorage.Interface
+	metrics         *metrics.Provider
+	registry        *registry.Client
 
 	config Config
 
@@ -85,29 +87,30 @@ type Config struct {
 	MaxQueuedReleases    int
 }
 
-func New(cashier cashier.CashierServiceClient, githubApp *ghpkg.App, logto *logto.Client, tokenRefresher TokenRefresher, directory directory.Interface, platform platform.Interface, buildjob buildjob.Interface, deployjob deployjob.Interface, scanjob scanjob.Interface, scanreport *scanreport.Client, pipeline pipeline.Interface, planner planner.Interface, source source.Interface, hostname *hostname.Client, gateway *gateway.Client, deployer deployer.Interface, environment environment.Interface, objectStorage objectstorage.Interface, metrics *metrics.Provider, config Config) *Client {
+func New(cashier cashier.CashierServiceClient, githubApp *ghpkg.App, logto *logto.Client, tokenRefresher TokenRefresher, directory directory.Interface, platform platform.Interface, buildjob buildjob.Interface, deployjob deployjob.Interface, scanjob scanjob.Interface, scanreport *scanreport.Client, vulnerabilities *vulnerabilities.Client, pipeline pipeline.Interface, planner planner.Interface, source source.Interface, hostname *hostname.Client, gateway *gateway.Client, deployer deployer.Interface, environment environment.Interface, objectStorage objectstorage.Interface, metrics *metrics.Provider, config Config) *Client {
 	return &Client{
-		cashier:        cashier,
-		gitHubApp:      githubApp,
-		logto:          logto,
-		tokenRefresher: tokenRefresher,
-		config:         config,
-		orgIDCache:     make(map[string]string),
-		directory:      directory,
-		platform:       platform,
-		buildjob:       buildjob,
-		deployjob:      deployjob,
-		scanjob:        scanjob,
-		scanreport:     scanreport,
-		pipeline:       pipeline,
-		planner:        planner,
-		source:         source,
-		hostname:       hostname,
-		gateway:        gateway,
-		deployer:       deployer,
-		environment:    environment,
-		objectStorage:  objectStorage,
-		metrics:        metrics,
+		cashier:         cashier,
+		gitHubApp:       githubApp,
+		logto:           logto,
+		tokenRefresher:  tokenRefresher,
+		config:          config,
+		orgIDCache:      make(map[string]string),
+		directory:       directory,
+		platform:        platform,
+		buildjob:        buildjob,
+		deployjob:       deployjob,
+		scanjob:         scanjob,
+		scanreport:      scanreport,
+		vulnerabilities: vulnerabilities,
+		pipeline:        pipeline,
+		planner:         planner,
+		source:          source,
+		hostname:        hostname,
+		gateway:         gateway,
+		deployer:        deployer,
+		environment:     environment,
+		objectStorage:   objectStorage,
+		metrics:         metrics,
 		registry: registry.New(registry.Config{
 			Endpoint:     config.RegistryPullURL,
 			DialEndpoint: config.RegistryPushURL,

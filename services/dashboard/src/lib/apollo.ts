@@ -69,5 +69,11 @@ const splitLink = split(
 
 export const apolloClient = new ApolloClient({
   link: splitLink,
-  cache: new InMemoryCache(),
+  cache: new InMemoryCache({
+    typePolicies: {
+      VulnerabilityReport: {
+        merge: true,
+      },
+    },
+  }),
 });

@@ -258,10 +258,12 @@ import CreateCommandPalette from '@/components/CreateCommandPalette.vue';
 import MountVolumeDialog from '@/components/MountVolumeDialog.vue';
 import BuildLogsPanel from '@/components/panel/BuildLogsPanel.vue';
 import ServiceLogsPanel from '@/components/panel/ServiceLogsPanel.vue';
+import ServiceVulnerabilitiesPanel from '@/components/panel/ServiceVulnerabilitiesPanel.vue';
 import { useEnvironment, type Environment } from '@/composables/useEnvironment';
 import { usePanel } from '@/composables/usePanel';
 import { useBuildLogsPanel } from '@/composables/useBuildLogsPanel';
 import { useServiceLogsPanel } from '@/composables/useServiceLogsPanel';
+import { useVulnerabilitiesPanel } from '@/composables/useVulnerabilitiesPanel';
 import { parseStorageSize } from '@/lib/utils';
 
 const route = useRoute();
@@ -357,10 +359,12 @@ const {
 const { isOpen, currentPanel, closePanel } = usePanel();
 const logsPanel = useBuildLogsPanel();
 const serviceLogsPanel = useServiceLogsPanel();
+const vulnerabilitiesPanel = useVulnerabilitiesPanel();
 
 watch(currentPanel, (panel, oldPanel) => {
   if (panel?.id !== oldPanel?.id || panel?.type !== oldPanel?.type) {
     serviceLogsPanel.close();
+    vulnerabilitiesPanel.close();
     logsPanel.close();
   }
 });
@@ -791,6 +795,21 @@ watch(error, (err) => {
               :service-id="serviceLogsPanel.serviceId.value!"
               :service-name="serviceLogsPanel.serviceName.value"
               @close="serviceLogsPanel.close()"
+            />
+          </div>
+        </Transition>
+
+        <!-- Vulnerabilities Panel -->
+        <Transition name="slide-panel">
+          <div
+            v-if="vulnerabilitiesPanel.isOpen.value"
+            class="absolute inset-y-3 right-0 z-10"
+            style="left: calc(45% + 12px + 2rem)"
+          >
+            <ServiceVulnerabilitiesPanel
+              :service-id="vulnerabilitiesPanel.serviceId.value!"
+              :service-name="vulnerabilitiesPanel.serviceName.value"
+              @close="vulnerabilitiesPanel.close()"
             />
           </div>
         </Transition>

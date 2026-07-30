@@ -16,6 +16,7 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 	"github.com/zeitlos/lucity/services/conductor/internal/scanjob"
 	"github.com/zeitlos/lucity/services/conductor/internal/scanreport"
+	"github.com/zeitlos/lucity/services/conductor/internal/vulnerabilities"
 )
 
 type Build = buildjob.Job
@@ -25,6 +26,9 @@ type DeployID = deployjob.DeployID
 type Scan = scanjob.Job
 type ScanID = scanjob.ScanID
 type SecretScanReport = scanreport.Report
+type VulnerabilityReport = vulnerabilities.Report
+type Vulnerability = vulnerabilities.Vulnerability
+type VulnerabilitySeverity = vulnerabilities.Severity
 
 var _ platform.WorkspaceScoped = BuildID{}
 var _ platform.WorkspaceScoped = DeployID{}
@@ -249,6 +253,34 @@ func (c *Client) SecretScanReport(ctx context.Context, serviceID ServiceID) (*Se
 	}
 
 	return report, nil
+}
+
+func (c *Client) VulnerabilityReport(ctx context.Context, serviceID ServiceID) (*VulnerabilityReport, error) {
+	service, err := c.platform.Service(ctx, serviceID)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if service.SourceURL == "" {
+		return nil, nil
+	}
+
+	deployment := service.ActiveDeployment
+
+	if deployment == nil || !deployment.Image.Built() {
+		return nil, nil
+	}
+
+	imageRef := serviceID.ImageRepository()
+
+	if deployment.Image.Tag != "" {
+		imageRef += ":" + deployment.Image.Tag
+	} else {
+		imageRef += "@" + deployment.Image.Digest
+	}
+
+	return c.vulnerabilities.ForImage(ctx, imageRef)
 }
 
 func findingURL(repoURL string, finding scanreport.Finding) string {

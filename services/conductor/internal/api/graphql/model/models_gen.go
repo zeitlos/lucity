@@ -492,31 +492,32 @@ type SecretScanReport struct {
 }
 
 type Service struct {
-	ID               platform.ServiceID   `json:"id"`
-	Name             string               `json:"name"`
-	Status           ServiceStatus        `json:"status"`
-	Replicas         *ReplicaCount        `json:"replicas"`
-	Autoscaling      *AutoscalingSettings `json:"autoscaling,omitempty"`
-	Port             int                  `json:"port"`
-	Endpoints        []Endpoint           `json:"endpoints"`
-	SourceURL        string               `json:"sourceUrl"`
-	Branch           *string              `json:"branch,omitempty"`
-	AutoDeploy       bool                 `json:"autoDeploy"`
-	CiDeploy         bool                 `json:"ciDeploy"`
-	ContextPath      string               `json:"contextPath"`
-	Resources        *Resources           `json:"resources"`
-	Command          string               `json:"command"`
-	DefaultCommand   string               `json:"defaultCommand"`
-	HealthCheck      *HealthCheck         `json:"healthCheck,omitempty"`
-	ActiveDeployment *Deployment          `json:"activeDeployment,omitempty"`
-	Deployments      []Deployment         `json:"deployments"`
-	Builds           []Build              `json:"builds"`
-	Releases         []Release            `json:"releases"`
-	Metrics          []MetricSeries       `json:"metrics"`
-	LastDeployedAt   *time.Time           `json:"lastDeployedAt,omitempty"`
-	CreatedAt        time.Time            `json:"createdAt"`
-	SecretScanReport *SecretScanReport    `json:"secretScanReport,omitempty"`
-	PlatformService  platform.Service     `json:"-"`
+	ID                  platform.ServiceID   `json:"id"`
+	Name                string               `json:"name"`
+	Status              ServiceStatus        `json:"status"`
+	Replicas            *ReplicaCount        `json:"replicas"`
+	Autoscaling         *AutoscalingSettings `json:"autoscaling,omitempty"`
+	Port                int                  `json:"port"`
+	Endpoints           []Endpoint           `json:"endpoints"`
+	SourceURL           string               `json:"sourceUrl"`
+	Branch              *string              `json:"branch,omitempty"`
+	AutoDeploy          bool                 `json:"autoDeploy"`
+	CiDeploy            bool                 `json:"ciDeploy"`
+	ContextPath         string               `json:"contextPath"`
+	Resources           *Resources           `json:"resources"`
+	Command             string               `json:"command"`
+	DefaultCommand      string               `json:"defaultCommand"`
+	HealthCheck         *HealthCheck         `json:"healthCheck,omitempty"`
+	ActiveDeployment    *Deployment          `json:"activeDeployment,omitempty"`
+	Deployments         []Deployment         `json:"deployments"`
+	Builds              []Build              `json:"builds"`
+	Releases            []Release            `json:"releases"`
+	Metrics             []MetricSeries       `json:"metrics"`
+	LastDeployedAt      *time.Time           `json:"lastDeployedAt,omitempty"`
+	CreatedAt           time.Time            `json:"createdAt"`
+	SecretScanReport    *SecretScanReport    `json:"secretScanReport,omitempty"`
+	VulnerabilityReport *VulnerabilityReport `json:"vulnerabilityReport,omitempty"`
+	PlatformService     platform.Service     `json:"-"`
 }
 
 type ServiceLogEntry struct {
@@ -609,6 +610,38 @@ type Volume struct {
 	Size    string            `json:"size"`
 	Mount   *Mount            `json:"mount,omitempty"`
 	Metrics []MetricSeries    `json:"metrics"`
+}
+
+type Vulnerability struct {
+	ID          string                `json:"id"`
+	Severity    VulnerabilitySeverity `json:"severity"`
+	Source      VulnerabilitySource   `json:"source"`
+	Title       *string               `json:"title,omitempty"`
+	Description *string               `json:"description,omitempty"`
+	Reference   *string               `json:"reference,omitempty"`
+	Packages    []VulnerablePackage   `json:"packages"`
+}
+
+type VulnerabilityReport struct {
+	Image           string                `json:"image"`
+	Summary         *VulnerabilitySummary `json:"summary"`
+	Vulnerabilities []Vulnerability       `json:"vulnerabilities"`
+}
+
+type VulnerabilitySummary struct {
+	Critical int `json:"critical"`
+	High     int `json:"high"`
+	Medium   int `json:"medium"`
+	Low      int `json:"low"`
+	Unknown  int `json:"unknown"`
+	Total    int `json:"total"`
+}
+
+type VulnerablePackage struct {
+	Name             string  `json:"name"`
+	InstalledVersion string  `json:"installedVersion"`
+	FixedVersion     *string `json:"fixedVersion,omitempty"`
+	Path             *string `json:"path,omitempty"`
 }
 
 type Workspace struct {
@@ -2164,6 +2197,124 @@ func (e *TLSStatus) UnmarshalJSON(b []byte) error {
 }
 
 func (e TLSStatus) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type VulnerabilitySeverity string
+
+const (
+	VulnerabilitySeverityCritical VulnerabilitySeverity = "CRITICAL"
+	VulnerabilitySeverityHigh     VulnerabilitySeverity = "HIGH"
+	VulnerabilitySeverityMedium   VulnerabilitySeverity = "MEDIUM"
+	VulnerabilitySeverityLow      VulnerabilitySeverity = "LOW"
+	VulnerabilitySeverityUnknown  VulnerabilitySeverity = "UNKNOWN"
+)
+
+var AllVulnerabilitySeverity = []VulnerabilitySeverity{
+	VulnerabilitySeverityCritical,
+	VulnerabilitySeverityHigh,
+	VulnerabilitySeverityMedium,
+	VulnerabilitySeverityLow,
+	VulnerabilitySeverityUnknown,
+}
+
+func (e VulnerabilitySeverity) IsValid() bool {
+	switch e {
+	case VulnerabilitySeverityCritical, VulnerabilitySeverityHigh, VulnerabilitySeverityMedium, VulnerabilitySeverityLow, VulnerabilitySeverityUnknown:
+		return true
+	}
+	return false
+}
+
+func (e VulnerabilitySeverity) String() string {
+	return string(e)
+}
+
+func (e *VulnerabilitySeverity) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = VulnerabilitySeverity(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid VulnerabilitySeverity", str)
+	}
+	return nil
+}
+
+func (e VulnerabilitySeverity) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *VulnerabilitySeverity) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e VulnerabilitySeverity) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type VulnerabilitySource string
+
+const (
+	VulnerabilitySourceOperatingSystem VulnerabilitySource = "OPERATING_SYSTEM"
+	VulnerabilitySourceApplication     VulnerabilitySource = "APPLICATION"
+	VulnerabilitySourceUnknown         VulnerabilitySource = "UNKNOWN"
+)
+
+var AllVulnerabilitySource = []VulnerabilitySource{
+	VulnerabilitySourceOperatingSystem,
+	VulnerabilitySourceApplication,
+	VulnerabilitySourceUnknown,
+}
+
+func (e VulnerabilitySource) IsValid() bool {
+	switch e {
+	case VulnerabilitySourceOperatingSystem, VulnerabilitySourceApplication, VulnerabilitySourceUnknown:
+		return true
+	}
+	return false
+}
+
+func (e VulnerabilitySource) String() string {
+	return string(e)
+}
+
+func (e *VulnerabilitySource) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = VulnerabilitySource(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid VulnerabilitySource", str)
+	}
+	return nil
+}
+
+func (e VulnerabilitySource) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *VulnerabilitySource) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e VulnerabilitySource) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

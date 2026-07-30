@@ -15,6 +15,7 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/planner"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 	"github.com/zeitlos/lucity/services/conductor/internal/scanjob"
+	"github.com/zeitlos/lucity/services/conductor/internal/vulnerabilities"
 )
 
 func convertMetricWindow(window model.MetricWindow) (metrics.Window, error) {
@@ -488,6 +489,72 @@ func convertSecretScanReport(report conductor.SecretScanReport) model.SecretScan
 		Commit:    report.Commit,
 		ScannedAt: report.ScannedAt,
 		Findings:  findings,
+	}
+}
+
+func convertVulnerabilityReport(report conductor.VulnerabilityReport) model.VulnerabilityReport {
+	vulnerabilities := make([]model.Vulnerability, 0, len(report.Vulnerabilities))
+
+	for _, vulnerability := range report.Vulnerabilities {
+		packages := make([]model.VulnerablePackage, 0, len(vulnerability.Packages))
+
+		for _, pkg := range vulnerability.Packages {
+			packages = append(packages, model.VulnerablePackage{
+				Name:             pkg.Name,
+				InstalledVersion: pkg.InstalledVersion,
+				FixedVersion:     optional(pkg.FixedVersion),
+				Path:             optional(pkg.Path),
+			})
+		}
+
+		vulnerabilities = append(vulnerabilities, model.Vulnerability{
+			ID:          vulnerability.ID,
+			Severity:    convertVulnerabilitySeverity(vulnerability.Severity),
+			Source:      convertVulnerabilitySource(vulnerability.Source),
+			Title:       optional(vulnerability.Title),
+			Description: optional(vulnerability.Description),
+			Reference:   optional(vulnerability.Reference),
+			Packages:    packages,
+		})
+	}
+
+	return model.VulnerabilityReport{
+		Image: report.Image,
+		Summary: &model.VulnerabilitySummary{
+			Critical: report.Summary.Critical,
+			High:     report.Summary.High,
+			Medium:   report.Summary.Medium,
+			Low:      report.Summary.Low,
+			Unknown:  report.Summary.Unknown,
+			Total:    report.Summary.Total,
+		},
+		Vulnerabilities: vulnerabilities,
+	}
+}
+
+func convertVulnerabilitySeverity(severity conductor.VulnerabilitySeverity) model.VulnerabilitySeverity {
+	switch severity {
+	case vulnerabilities.SeverityCritical:
+		return model.VulnerabilitySeverityCritical
+	case vulnerabilities.SeverityHigh:
+		return model.VulnerabilitySeverityHigh
+	case vulnerabilities.SeverityMedium:
+		return model.VulnerabilitySeverityMedium
+	case vulnerabilities.SeverityLow:
+		return model.VulnerabilitySeverityLow
+	default:
+		return model.VulnerabilitySeverityUnknown
+	}
+}
+
+func convertVulnerabilitySource(source vulnerabilities.Source) model.VulnerabilitySource {
+	switch source {
+	case vulnerabilities.SourceOperatingSystem:
+		return model.VulnerabilitySourceOperatingSystem
+	case vulnerabilities.SourceApplication:
+		return model.VulnerabilitySourceApplication
+	default:
+		return model.VulnerabilitySourceUnknown
 	}
 }
 
