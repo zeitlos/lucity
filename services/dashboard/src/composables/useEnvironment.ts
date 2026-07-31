@@ -158,6 +158,8 @@ export interface Service {
   resources: Resources;
   command: string;
   healthCheck?: HealthCheck | null;
+  user?: string | null;
+  volumeGroup?: number | null;
   defaultCommand: string;
   activeDeployment?: Deployment | null;
   deployments: Deployment[];

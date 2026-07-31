@@ -81,6 +81,18 @@
             "deprecationReason": null
           },
           {
+            "name": "user",
+            "description": "Run-as user for image-based services: \"uid\" or \"uid:gid\".",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "variables",
             "description": null,
             "type": {
@@ -95,6 +107,18 @@
                   "ofType": null
                 }
               }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "volumeGroup",
+            "description": "Group that owns the service's mounted volumes (image-based services only).",
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
             },
             "defaultValue": null,
             "isDeprecated": false,
@@ -6494,6 +6518,63 @@
             "deprecationReason": null
           },
           {
+            "name": "setServiceUser",
+            "description": "Set the run-as user (\"uid\" or \"uid:gid\") and volume-owning group for an image-based service. Null args clear the respective field. Rejected for source-built services.",
+            "args": [
+              {
+                "name": "service",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "name": "ServiceID",
+                    "kind": "SCALAR",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "user",
+                "description": null,
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "volumeGroup",
+                "description": null,
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "Int",
+                  "ofType": null
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "Service",
+                "kind": "OBJECT",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "setServiceVariables",
             "description": null,
             "args": [
@@ -9711,6 +9792,30 @@
                 "kind": "ENUM",
                 "ofType": null
               }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "user",
+            "description": "Run-as user for image-based services: \"uid\" or \"uid:gid\". Null means the image default.",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "volumeGroup",
+            "description": "Group that owns the service's mounted volumes (image-based services only).",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
             },
             "isDeprecated": false,
             "deprecationReason": null

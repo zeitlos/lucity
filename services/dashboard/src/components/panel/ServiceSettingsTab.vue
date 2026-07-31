@@ -4,7 +4,7 @@ import { useMutation, useApolloClient } from '@vue/apollo-composable';
 import {
   Trash2, Copy, X, Globe, Plus, Minus, RefreshCw,
   ChevronDown, Network, ExternalLink, Scaling, GitBranch, Play, Zap, ArrowRight,
-  Cpu, MemoryStick, Leaf, ShieldCheck, Check, ChevronsUpDown, Activity,
+  Cpu, MemoryStick, Leaf, ShieldCheck, Check, ChevronsUpDown, Activity, UserCog,
 } from '@lucide/vue';
 import GithubIcon from '@/components/GithubIcon.vue';
 import { graphql } from '@/gql';
@@ -183,6 +183,16 @@ const SetServiceResourcesDocument = graphql(`
         cpu
         memory
       }
+    }
+  }
+`);
+
+const SetServiceUserDocument = graphql(`
+  mutation SetServiceUser($service: ServiceID!, $user: String, $volumeGroup: Int) {
+    setServiceUser(service: $service, user: $user, volumeGroup: $volumeGroup) {
+      id
+      user
+      volumeGroup
     }
   }
 `);
@@ -844,6 +854,63 @@ async function handleSaveResources() {
     errorToast('Failed to update compute', { description: errorMessage(e) });
   } finally {
     resourcesSaving.value = false;
+  }
+}
+
+// Run-as user (image-based services only)
+const userInput = ref('');
+const volumeGroupInput = ref('');
+const userSaving = ref(false);
+
+const { mutate: setUserMutate } = useMutation(SetServiceUserDocument);
+
+watch(
+  () => props.service,
+  s => {
+    userInput.value = s.user ?? '';
+    volumeGroupInput.value = s.volumeGroup != null ? String(s.volumeGroup) : '';
+  },
+  { immediate: true },
+);
+
+const userChanged = computed(() => {
+  const currentUser = props.service.user ?? '';
+  const currentVolumeGroup = props.service.volumeGroup != null ? String(props.service.volumeGroup) : '';
+  return userInput.value.trim() !== currentUser || volumeGroupInput.value.trim() !== currentVolumeGroup;
+});
+
+async function handleSaveUser() {
+  const user = userInput.value.trim() === '' ? null : userInput.value.trim();
+
+  if (user !== null && !/^\d+(:\d+)?$/.test(user)) {
+    errorToast('Invalid user', { description: 'Use "uid" or "uid:gid", e.g. 999 or 999:999' });
+    return;
+  }
+
+  let volumeGroup: number | null = null;
+  if (volumeGroupInput.value.trim() !== '') {
+    volumeGroup = Number(volumeGroupInput.value);
+    if (!Number.isInteger(volumeGroup) || volumeGroup < 0 || volumeGroup > 65535) {
+      errorToast('Invalid volume group', { description: 'Must be a whole number between 0 and 65535' });
+      return;
+    }
+  }
+
+  userSaving.value = true;
+  try {
+    const res = await setUserMutate({ service: props.service.id, user, volumeGroup });
+
+    if (res?.errors?.length) {
+      errorToast('Failed to update run-as user', { description: res.errors.map(e => e.message).join(', ') });
+      return;
+    }
+
+    toast.success('Run-as user updated');
+    emit('refetch');
+  } catch (e: unknown) {
+    errorToast('Failed to update run-as user', { description: errorMessage(e) });
+  } finally {
+    userSaving.value = false;
   }
 }
 
@@ -1787,6 +1854,46 @@ async function handleRemoveService() {
               @click="handleSaveResources"
             >
               {{ resourcesSaving ? 'Saving...' : 'Save' }}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Run as user (image-based services only) -->
+    <section v-if="!service.sourceUrl" class="space-y-2">
+      <h3 class="px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        Run as user
+      </h3>
+
+      <div class="overflow-hidden rounded-lg border">
+        <div class="divide-y">
+          <div class="flex items-center gap-3 px-4 py-3">
+            <UserCog :size="16" class="shrink-0 text-muted-foreground" />
+            <div class="min-w-0 flex-1">
+              <p class="text-sm font-medium text-foreground">User</p>
+              <p class="text-xs text-muted-foreground">"uid" or "uid:gid" (e.g. 999:999). Empty uses the image default.</p>
+            </div>
+            <Input v-model="userInput" placeholder="image default" class="h-8 w-36" />
+          </div>
+          <div class="flex items-center gap-3 px-4 py-3">
+            <UserCog :size="16" class="shrink-0 text-muted-foreground" />
+            <div class="min-w-0 flex-1">
+              <p class="text-sm font-medium text-foreground">Volume group</p>
+              <p class="text-xs text-muted-foreground">Group id that owns mounted volumes, so a non-root user can write.</p>
+            </div>
+            <Input v-model="volumeGroupInput" type="number" min="0" max="65535" placeholder="none" class="h-8 w-36" />
+          </div>
+          <div class="flex items-center justify-between gap-3 px-4 py-3">
+            <p class="text-xs text-muted-foreground">
+              Saving restarts running instances.
+            </p>
+            <Button
+              size="sm"
+              :disabled="!userChanged || userSaving"
+              @click="handleSaveUser"
+            >
+              {{ userSaving ? 'Saving...' : 'Save' }}
             </Button>
           </div>
         </div>
