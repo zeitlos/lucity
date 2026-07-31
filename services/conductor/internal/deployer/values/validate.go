@@ -152,6 +152,10 @@ func Validate(env *Env) error {
 			}
 		}
 
+		if err := validateSecurityContext(svc.RunAsUser, svc.RunAsGroup, svc.FsGroup); err != nil {
+			return fmt.Errorf("service %q: %w", svcName, err)
+		}
+
 	}
 
 	return nil
@@ -241,6 +245,26 @@ func validateHealthCheck(healthCheck HealthCheck) error {
 		return fmt.Errorf("health check timing values must be non-negative")
 	}
 
+	return nil
+}
+
+func validateSecurityContext(runAsUser, runAsGroup, fsGroup *int64) error {
+	check := func(label string, v *int64) error {
+		if v != nil && (*v < 0 || *v > 65535) {
+			return fmt.Errorf("%s must be in [0, 65535]", label)
+		}
+		return nil
+	}
+
+	if err := check("user id", runAsUser); err != nil {
+		return err
+	}
+	if err := check("group id", runAsGroup); err != nil {
+		return err
+	}
+	if err := check("volumeGroup", fsGroup); err != nil {
+		return err
+	}
 	return nil
 }
 

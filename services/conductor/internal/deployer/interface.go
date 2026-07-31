@@ -33,6 +33,7 @@ type ServiceClient interface {
 	SetCIDeploy(ctx context.Context, id platform.ServiceID, enabled bool) (RevisionID, error)
 	SetPort(ctx context.Context, id platform.ServiceID, port int) (RevisionID, error)
 	SetHealthCheck(ctx context.Context, id platform.ServiceID, healthCheck *HealthCheck) (RevisionID, error)
+	SetSecurityContext(ctx context.Context, id platform.ServiceID, sc SecurityContext) (RevisionID, error)
 
 	Variables(ctx context.Context, id platform.ServiceID) (ServiceVariablesSpec, error)
 	SetVariables(ctx context.Context, id platform.ServiceID, spec ServiceVariablesSpec) (RevisionID, error)
@@ -94,6 +95,7 @@ type ServiceSpec struct {
 	Resources            Resources
 	ResourceTier         platform.ResourceTier
 	Env                  map[string]string
+	SecurityContext      SecurityContext
 }
 
 type ImageProvenance struct {
@@ -134,4 +136,12 @@ type HealthCheck struct {
 type Resources struct {
 	CPU    resource.Quantity
 	Memory resource.Quantity
+}
+
+// SecurityContext holds the run-as user/group and the volume-owning group
+// (fsGroup) for a service. A nil field means unset (image default).
+type SecurityContext struct {
+	RunAsUser  *int64
+	RunAsGroup *int64
+	FsGroup    *int64
 }

@@ -306,15 +306,16 @@ func toService(deployment apps.Deployment, replicaSets []apps.ReplicaSet, pods [
 		Port:      containersPort(containers),
 		Endpoints: endpoints(deployment, routes),
 
-		SourceURL:   annotations[annotationSourceRepo],
-		Branch:      annotations[annotationSourceBranch],
-		AutoDeploy:  annotations[annotationAutoDeploy] == "true",
-		CIDeploy:    annotations[annotationCIDeploy] == "true",
-		ContextPath: annotations[annotationSourceContext],
-		Resources:   containerResources(containers),
-		Command:     containerCommand(containers),
-		HealthCheck: containerHealthCheck(containers),
-		Variables:   make(map[string]string),
+		SourceURL:       annotations[annotationSourceRepo],
+		Branch:          annotations[annotationSourceBranch],
+		AutoDeploy:      annotations[annotationAutoDeploy] == "true",
+		CIDeploy:        annotations[annotationCIDeploy] == "true",
+		ContextPath:     annotations[annotationSourceContext],
+		Resources:       containerResources(containers),
+		Command:         containerCommand(containers),
+		HealthCheck:     containerHealthCheck(containers),
+		SecurityContext: podSecurityContext(deployment),
+		Variables:       make(map[string]string),
 
 		ActiveDeployment: activeDeployment,
 		Deployments:      deployments,
@@ -523,6 +524,20 @@ func containerResources(containers []core.Container) platform.Resources {
 	return platform.Resources{
 		CPU:    limits[core.ResourceCPU],
 		Memory: limits[core.ResourceMemory],
+	}
+}
+
+func podSecurityContext(deployment apps.Deployment) platform.SecurityContext {
+	sc := deployment.Spec.Template.Spec.SecurityContext
+
+	if sc == nil {
+		return platform.SecurityContext{}
+	}
+
+	return platform.SecurityContext{
+		RunAsUser:  sc.RunAsUser,
+		RunAsGroup: sc.RunAsGroup,
+		FsGroup:    sc.FSGroup,
 	}
 }
 

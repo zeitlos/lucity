@@ -29,6 +29,9 @@ func (s *serviceClient) Create(ctx context.Context, env platform.EnvironmentID, 
 			Port:                 spec.Port,
 			Resources:            deriveRequestsAndLimtis(spec.Resources, spec.ResourceTier),
 			Env:                  spec.Env,
+			RunAsUser:            spec.SecurityContext.RunAsUser,
+			RunAsGroup:           spec.SecurityContext.RunAsGroup,
+			FsGroup:              spec.SecurityContext.FsGroup,
 		}
 
 		return values.CreateService(e, name, spec)
@@ -130,6 +133,12 @@ func (s *serviceClient) SetHealthCheck(ctx context.Context, id platform.ServiceI
 
 	return s.client.applyEnv(ctx, id.EnvironmentID(), func(e *values.Env) error {
 		return values.SetServiceHealthCheck(e, id.Name, spec)
+	})
+}
+
+func (s *serviceClient) SetSecurityContext(ctx context.Context, id platform.ServiceID, sc deployer.SecurityContext) (deployer.RevisionID, error) {
+	return s.client.applyEnv(ctx, id.EnvironmentID(), func(e *values.Env) error {
+		return values.SetServiceSecurityContext(e, id.Name, sc.RunAsUser, sc.RunAsGroup, sc.FsGroup)
 	})
 }
 

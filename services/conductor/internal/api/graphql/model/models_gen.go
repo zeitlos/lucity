@@ -27,6 +27,10 @@ type AddServiceInput struct {
 	Image       *string         `json:"image,omitempty"`
 	Variables   []VariableInput `json:"variables,omitempty"`
 	Resources   *ResourcesInput `json:"resources,omitempty"`
+	// Run-as user for image-based services: "uid" or "uid:gid".
+	User *string `json:"user,omitempty"`
+	// Group that owns the service's mounted volumes (image-based services only).
+	VolumeGroup *int `json:"volumeGroup,omitempty"`
 }
 
 type APIToken struct {
@@ -492,22 +496,26 @@ type SecretScanReport struct {
 }
 
 type Service struct {
-	ID                  platform.ServiceID   `json:"id"`
-	Name                string               `json:"name"`
-	Status              ServiceStatus        `json:"status"`
-	Replicas            *ReplicaCount        `json:"replicas"`
-	Autoscaling         *AutoscalingSettings `json:"autoscaling,omitempty"`
-	Port                int                  `json:"port"`
-	Endpoints           []Endpoint           `json:"endpoints"`
-	SourceURL           string               `json:"sourceUrl"`
-	Branch              *string              `json:"branch,omitempty"`
-	AutoDeploy          bool                 `json:"autoDeploy"`
-	CiDeploy            bool                 `json:"ciDeploy"`
-	ContextPath         string               `json:"contextPath"`
-	Resources           *Resources           `json:"resources"`
-	Command             string               `json:"command"`
-	DefaultCommand      string               `json:"defaultCommand"`
-	HealthCheck         *HealthCheck         `json:"healthCheck,omitempty"`
+	ID             platform.ServiceID   `json:"id"`
+	Name           string               `json:"name"`
+	Status         ServiceStatus        `json:"status"`
+	Replicas       *ReplicaCount        `json:"replicas"`
+	Autoscaling    *AutoscalingSettings `json:"autoscaling,omitempty"`
+	Port           int                  `json:"port"`
+	Endpoints      []Endpoint           `json:"endpoints"`
+	SourceURL      string               `json:"sourceUrl"`
+	Branch         *string              `json:"branch,omitempty"`
+	AutoDeploy     bool                 `json:"autoDeploy"`
+	CiDeploy       bool                 `json:"ciDeploy"`
+	ContextPath    string               `json:"contextPath"`
+	Resources      *Resources           `json:"resources"`
+	Command        string               `json:"command"`
+	DefaultCommand string               `json:"defaultCommand"`
+	HealthCheck    *HealthCheck         `json:"healthCheck,omitempty"`
+	// Run-as user for image-based services: "uid" or "uid:gid". Null means the image default.
+	User *string `json:"user,omitempty"`
+	// Group that owns the service's mounted volumes (image-based services only).
+	VolumeGroup         *int                 `json:"volumeGroup,omitempty"`
 	ActiveDeployment    *Deployment          `json:"activeDeployment,omitempty"`
 	Deployments         []Deployment         `json:"deployments"`
 	Builds              []Build              `json:"builds"`

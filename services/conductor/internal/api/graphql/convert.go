@@ -139,6 +139,15 @@ func convertService(service platform.Service) model.Service {
 		result.HealthCheck = convertHealthCheck(*service.HealthCheck)
 	}
 
+	if user := formatUser(service.SecurityContext.RunAsUser, service.SecurityContext.RunAsGroup); user != "" {
+		result.User = &user
+	}
+
+	if service.SecurityContext.FsGroup != nil {
+		volumeGroup := int(*service.SecurityContext.FsGroup)
+		result.VolumeGroup = &volumeGroup
+	}
+
 	if service.ActiveDeployment != nil {
 		deployment := convertDeployment(*service.ActiveDeployment)
 		result.ActiveDeployment = &deployment
@@ -218,6 +227,30 @@ func convertResources(resources platform.Resources) *model.Resources {
 		CPU:    resources.CPU.String(),
 		Memory: resources.Memory.String(),
 	}
+}
+
+// toInt64Ptr widens a nullable GraphQL Int (*int) to the *int64 the domain uses.
+func toInt64Ptr(v *int) *int64 {
+	if v == nil {
+		return nil
+	}
+
+	n := int64(*v)
+	return &n
+}
+
+// formatUser renders a runAsUser/runAsGroup pair back into the Docker-style
+// "uid" or "uid:gid" string. Empty when no run-as user is set.
+func formatUser(runAsUser, runAsGroup *int64) string {
+	if runAsUser == nil {
+		return ""
+	}
+
+	if runAsGroup != nil {
+		return fmt.Sprintf("%d:%d", *runAsUser, *runAsGroup)
+	}
+
+	return fmt.Sprintf("%d", *runAsUser)
 }
 
 func convertHealthCheck(healthCheck platform.HealthCheck) *model.HealthCheck {
