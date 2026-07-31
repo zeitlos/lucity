@@ -32,8 +32,15 @@ differ.
 ## Safety rails (read first)
 
 - **This is production.** Never apply without showing the user the resolved version and the
-  change summary first, and getting an explicit go-ahead. A deploy is a fresh release
-  revision that rolls the control plane.
+  change summary first. A deploy is a fresh release revision that rolls the control plane.
+  - **Clean bumps are auto-approved.** When Step 3 finds **no migrations and no blocker**
+    (see below), present the summary and apply in the same turn — no confirmation ask. This
+    is the common case: an app-code version bump with no values/template/secret/immutability
+    changes and no downgrade.
+  - **Everything else stops for an explicit go-ahead.** If there is any migration (`[I can
+    apply]` or `[you must do]` is non-empty) or any blocker — a new secret key, a downgrade,
+    broken git ancestry, an unreachable cluster, or ambiguous scope — you must stop after the
+    summary and wait for the user before applying.
 - **Scope is a choice.** Ask up front which chart(s) to deploy: platform (`lucity`), infra
   (`lucity-infra`), or both. Default to whichever the user named; if they said "deploy prod"
   without qualifying, ask.
@@ -53,8 +60,10 @@ the conclusions, not the play-by-play. Emit user-facing text at exactly these mo
 
 1. **One consolidated report** after Steps 1-3: the selected version vs what is installed, the
    change summary (commit list plus any notable value/template/secret diffs), and the migration
-   classification split into `[I can apply]` and `[you must do]`. End it with the single
-   confirmation ask.
+   classification split into `[I can apply]` and `[you must do]`.
+   - **No migrations and no blocker** → end the report by stating you are proceeding (clean
+     bump, auto-approved) and continue straight to Step 4 in the **same turn**.
+   - **Migrations or a blocker** → end the report with the single confirmation ask and wait.
 2. **One short result** after Step 4: what deployed, the new revision, and rollout health.
 
 The only thing that interrupts this is a **blocker** you must surface immediately: broken git
@@ -167,8 +176,13 @@ step first. What to look for, and who fixes it:
   stamping script) and `[you must do]` (add new secret keys, since those are yours). Propose the
   concrete edits/commands, apply the auto-fixable ones after confirmation, and wait for the user
   to confirm secrets are in place before applying.
-- **No migrations** → show the summary (the `git log` commit list plus a rendered manifest diff,
-  see below) and go straight to confirm-then-apply.
+- **No migrations (and no blocker)** → show the summary (the `git log` commit list plus a
+  rendered manifest diff, see below) and **apply immediately in the same turn — this case is
+  auto-approved, no confirmation ask.** A clean bump means: the migration-surface diff is empty
+  (no `values.yaml` / template / `lucity-app` / secret-example changes), no new required env var,
+  no immutable-field or subchart-CRD change, and the version is an upgrade (not a downgrade).
+  Any blocker — downgrade, broken ancestry, unreachable cluster, a new secret key, or ambiguous
+  scope — cancels the auto-approval and you stop for the user, even if nothing else migrates.
 
 Preview the exact manifest changes against the live release with the `helm diff` plugin (it
 is installed). This is the most reliable "what will actually change" view and catches
@@ -186,7 +200,8 @@ form works too, but `helm diff` shows only what changes.)
 
 ## Step 4 — apply, then check rollout health
 
-After the user confirms the version and any migrations are handled:
+Once approved — either **automatically** (Step 3 found no migrations and no blocker) or by the
+user's explicit go-ahead — apply:
 
 ```sh
 make deploy-prod       VERSION=<selected-version>     # platform
