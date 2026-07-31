@@ -89,6 +89,15 @@ const columns = [
         >
           <UIcon name="i-simple-icons-github" class="size-5" />
         </a>
+        <a
+          href="https://www.linkedin.com/company/lucity"
+          target="_blank"
+          rel="noopener"
+          aria-label="Lucity on LinkedIn"
+          class="inline-flex items-center text-neutral-600 transition-colors hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
+        >
+          <UIcon name="i-simple-icons-linkedin" class="size-5" />
+        </a>
         <ThemeToggle />
       </div>
     </div>
