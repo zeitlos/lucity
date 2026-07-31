@@ -16,7 +16,7 @@ const segments = [
   {
     // icon: 'i-lucide-globe',
     label: 'Go Live',
-    description: 'Free public domain or bring custom domains. Natrually with autoamtic TLS.',
+    description: 'Free public domain or bring custom domains. Naturally with automatic TLS.',
     color: 'oklch(0.70 0.22 0)',
     start: 22,
     end: 26,
@@ -32,7 +32,7 @@ const segments = [
   {
     // icon: 'i-lucide-table',
     label: 'Clever integrations',
-    description: 'Browse datbases, configure dynamic variables and scale effotlessly.',
+    description: 'Browse databases, configure dynamic variables and scale effortlessly.',
     color: 'oklch(0.72 0.14 300)',
     start: 44,
     end: 60.33,
