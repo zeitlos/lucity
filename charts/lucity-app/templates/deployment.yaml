@@ -72,6 +72,7 @@ spec:
         {{- end }}
         {{- if hasKey $svc "fsGroup" }}
         fsGroup: {{ $svc.fsGroup }}
+        fsGroupChangePolicy: OnRootMismatch
         {{- end }}
         seccompProfile:
           type: RuntimeDefault
