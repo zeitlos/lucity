@@ -155,6 +155,7 @@ spec:
             {{- range $volName, $path := . }}
             - name: volume-{{ $volName }}
               mountPath: {{ $path | quote }}
+              subPath: data
             {{- end }}
           {{- end }}
       {{- with $svc.volumeMounts }}
