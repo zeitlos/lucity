@@ -19,6 +19,8 @@ type Service
   command: String!
   defaultCommand: String! @goField(forceResolver: true)
   healthCheck: HealthCheck
+  """Run-as user id for image-based services. Also owns the service's mounted volumes. Null means the image default."""
+  user: Int
 
   activeDeployment: Deployment
   deployments: [Deployment!]! @goField(forceResolver: true)
@@ -136,6 +138,8 @@ input AddServiceInput {
   image: String
   variables: [VariableInput!]
   resources: ResourcesInput
+  """Run-as user id for image-based services. Also owns the service's mounted volumes."""
+  user: Int @constraint(constraint: "min=0,max=65535")
 }
 
 input SetServiceScalingInput {
@@ -183,6 +187,8 @@ extend type Mutation {
   setServiceHealthCheck(service: ServiceID!, healthCheck: HealthCheckInput): Service! @hasRole(role: WORKSPACE_MEMBER)
   setServiceScaling(input: SetServiceScalingInput!): Service! @hasRole(role: WORKSPACE_MEMBER)
   setServiceResources(service: ServiceID!, resources: ResourcesInput!): Service! @hasRole(role: WORKSPACE_MEMBER)
+  """Set the run-as user id for an image-based service. The same id becomes the run-as group and the owner of mounted volumes. Null clears it, reverting to the image default. Rejected for source-built services."""
+  setServiceUser(service: ServiceID!, user: Int @constraint(constraint: "min=0,max=65535")): Service! @hasRole(role: WORKSPACE_MEMBER)
   rollback(deployment: DeploymentID!): Boolean! @hasRole(role: WORKSPACE_MEMBER)
   generateDomain(service: ServiceID!): Service! @hasRole(role: WORKSPACE_MEMBER)
   addCustomDomain(service: ServiceID!, hostname: String! @constraint(constraint: "min=4,max=253")): Service! @hasRole(role: WORKSPACE_MEMBER)

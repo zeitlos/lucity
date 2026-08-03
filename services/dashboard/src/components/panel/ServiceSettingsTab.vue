@@ -4,7 +4,7 @@ import { useMutation, useApolloClient } from '@vue/apollo-composable';
 import {
   Trash2, Copy, X, Globe, Plus, Minus, RefreshCw,
   ChevronDown, Network, ExternalLink, Scaling, GitBranch, Play, Zap, ArrowRight,
-  Cpu, MemoryStick, Leaf, ShieldCheck, Check, ChevronsUpDown, Activity,
+  Cpu, MemoryStick, Leaf, ShieldCheck, Check, ChevronsUpDown, Activity, UserCog,
 } from '@lucide/vue';
 import GithubIcon from '@/components/GithubIcon.vue';
 import { graphql } from '@/gql';
@@ -183,6 +183,15 @@ const SetServiceResourcesDocument = graphql(`
         cpu
         memory
       }
+    }
+  }
+`);
+
+const SetServiceUserDocument = graphql(`
+  mutation SetServiceUser($service: ServiceID!, $user: Int) {
+    setServiceUser(service: $service, user: $user) {
+      id
+      user
     }
   }
 `);
@@ -844,6 +853,54 @@ async function handleSaveResources() {
     errorToast('Failed to update compute', { description: errorMessage(e) });
   } finally {
     resourcesSaving.value = false;
+  }
+}
+
+// Run-as user (image-based services only)
+const userInput = ref('');
+const userSaving = ref(false);
+
+const { mutate: setUserMutate } = useMutation(SetServiceUserDocument);
+
+watch(
+  () => props.service,
+  s => {
+    userInput.value = s.user != null ? String(s.user) : '';
+  },
+  { immediate: true },
+);
+
+const userChanged = computed(() => {
+  const current = props.service.user != null ? String(props.service.user) : '';
+  return userInput.value.trim() !== current;
+});
+
+async function handleSaveUser() {
+  let user: number | null = null;
+
+  if (userInput.value.trim() !== '') {
+    user = Number(userInput.value);
+    if (!Number.isInteger(user) || user < 0 || user > 65535) {
+      errorToast('Invalid user id', { description: 'Must be a whole number between 0 and 65535' });
+      return;
+    }
+  }
+
+  userSaving.value = true;
+  try {
+    const res = await setUserMutate({ service: props.service.id, user });
+
+    if (res?.errors?.length) {
+      errorToast('Failed to update run-as user', { description: res.errors.map(e => e.message).join(', ') });
+      return;
+    }
+
+    toast.success('Run-as user updated');
+    emit('refetch');
+  } catch (e: unknown) {
+    errorToast('Failed to update run-as user', { description: errorMessage(e) });
+  } finally {
+    userSaving.value = false;
   }
 }
 
@@ -1787,6 +1844,41 @@ async function handleRemoveService() {
               @click="handleSaveResources"
             >
               {{ resourcesSaving ? 'Saving...' : 'Save' }}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Run as user (image-based services only) -->
+    <section v-if="!service.sourceUrl" class="space-y-2">
+      <h3 class="px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        Run as user
+      </h3>
+
+      <div class="overflow-hidden rounded-lg border">
+        <div class="divide-y">
+          <div class="flex items-center gap-3 px-4 py-3">
+            <UserCog :size="16" class="shrink-0 text-muted-foreground" />
+            <div class="min-w-0 flex-1">
+              <p class="text-sm font-medium text-foreground">User id</p>
+              <p class="text-xs text-muted-foreground">
+                Runs the container as this user. Mounted volumes are owned by the same id. Leave empty to use the image
+                default.
+              </p>
+            </div>
+            <Input v-model="userInput" type="number" min="0" max="65535" placeholder="image default" class="h-8 w-36" />
+          </div>
+          <div class="flex items-center justify-between gap-3 px-4 py-3">
+            <p class="text-xs text-muted-foreground">
+              Saving restarts running instances.
+            </p>
+            <Button
+              size="sm"
+              :disabled="!userChanged || userSaving"
+              @click="handleSaveUser"
+            >
+              {{ userSaving ? 'Saving...' : 'Save' }}
             </Button>
           </div>
         </div>

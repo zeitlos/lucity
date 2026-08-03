@@ -21,6 +21,9 @@
 #     resources:                              # optional — overrides namespace LimitRange
 #       requests: { cpu: 100m, memory: 128Mi }
 #       limits:   { cpu: 500m, memory: 256Mi }
+#     runAsUser: 999                           # optional
+#     runAsGroup: 999                          # optional
+#     fsGroup: 999                             # optional
 #     autoscaling:                            # optional — HPA
 #       enabled: true
 #       minReplicas: 1

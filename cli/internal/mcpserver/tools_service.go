@@ -7,18 +7,18 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-const serviceSummaryFields = `id name status replicas { desired ready } port command resources { cpu memory } endpoints { host protocol type tls }`
+const serviceSummaryFields = `id name status replicas { desired ready } port command resources { cpu memory } user endpoints { host protocol type tls }`
 
 func (s *server) registerService(m *mcp.Server) {
 	mcp.AddTool(m, &mcp.Tool{
 		Name:        "add_service",
-		Description: "Add a service to an environment. repository = owner/repo or a full https URL for source builds (mutually exclusive with image, which deploys a prebuilt image). variables set initial env vars; build-time pins like RAILPACK_PYTHON_VERSION belong here so the first build already sees them. cpu and memory (Kubernetes quantities, e.g. '500m'/'512Mi') size the service at creation; pass both or omit both for platform defaults.",
+		Description: "Add a service to an environment. repository = owner/repo or a full https URL for source builds (mutually exclusive with image, which deploys a prebuilt image). variables set initial env vars; build-time pins like RAILPACK_PYTHON_VERSION belong here so the first build already sees them. cpu and memory (Kubernetes quantities, e.g. '500m'/'512Mi') size the service at creation; pass both or omit both for platform defaults. user is the run-as user id for an image-based service (999 for mysql/postgres/redis, 1000 for node-based images like ghost): it makes stock images whose entrypoint would otherwise chown a data dir as root start cleanly under the hardened default, and the same id owns mounted volumes.",
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: ptr(false)},
 	}, s.addService)
 
 	mcp.AddTool(m, &mcp.Tool{
 		Name:        "configure_service",
-		Description: "Change service settings. Only the fields you provide are applied: start_command, port, replicas, cpu, memory. cpu and memory are Kubernetes quantities (e.g. cpu '500m', memory '512Mi').",
+		Description: "Change service settings. Only the fields you provide are applied: start_command, port, replicas, cpu, memory, user. cpu and memory are Kubernetes quantities (e.g. cpu '500m', memory '512Mi'). user sets the run-as user id for image-based services only (rejected for source builds); the same id owns mounted volumes.",
 		Annotations: &mcp.ToolAnnotations{IdempotentHint: true, DestructiveHint: ptr(false)},
 	}, s.configureService)
 
@@ -50,6 +50,7 @@ type addServiceInput struct {
 	Variables   []variableEntry `json:"variables,omitempty" jsonschema:"initial environment variables (literal values only)"`
 	CPU         string          `json:"cpu,omitempty" jsonschema:"CPU limit as a Kubernetes quantity (e.g. 500m); provide together with memory, or omit both for platform defaults"`
 	Memory      string          `json:"memory,omitempty" jsonschema:"memory limit as a Kubernetes quantity (e.g. 512Mi); provide together with cpu, or omit both for platform defaults"`
+	User        *int            `json:"user,omitempty" jsonschema:"run-as user id (0-65535) for image-based services, e.g. 999 for mysql/postgres/redis or 1000 for node-based images; the same id owns mounted volumes; rejected for source builds"`
 }
 
 func (s *server) addService(ctx context.Context, _ *mcp.CallToolRequest, input addServiceInput) (*mcp.CallToolResult, any, error) {
@@ -90,6 +91,9 @@ func (s *server) addService(ctx context.Context, _ *mcp.CallToolRequest, input a
 	if input.CPU != "" {
 		serviceInput["resources"] = map[string]any{"cpu": input.CPU, "memory": input.Memory}
 	}
+	if input.User != nil {
+		serviceInput["user"] = *input.User
+	}
 
 	mutation := `mutation($environment: EnvironmentID!, $input: AddServiceInput!) {
   addService(environment: $environment, input: $input) { ` + serviceSummaryFields + ` }
@@ -108,12 +112,13 @@ func (s *server) addService(ctx context.Context, _ *mcp.CallToolRequest, input a
 }
 
 type configureServiceInput struct {
-	Service      string `json:"service" jsonschema:"service id (workspace/project/environment/service)"`
-	StartCommand string `json:"start_command,omitempty" jsonschema:"custom start command; overrides the detected default"`
-	Port         *int   `json:"port,omitempty" jsonschema:"container port (1-65535)"`
-	Replicas     *int   `json:"replicas,omitempty" jsonschema:"desired replica count (1-20)"`
-	CPU          string `json:"cpu,omitempty" jsonschema:"CPU request as a Kubernetes quantity (e.g. 500m)"`
-	Memory       string `json:"memory,omitempty" jsonschema:"memory request as a Kubernetes quantity (e.g. 512Mi)"`
+	Service      string  `json:"service" jsonschema:"service id (workspace/project/environment/service)"`
+	StartCommand string  `json:"start_command,omitempty" jsonschema:"custom start command; overrides the detected default"`
+	Port         *int    `json:"port,omitempty" jsonschema:"container port (1-65535)"`
+	Replicas     *int    `json:"replicas,omitempty" jsonschema:"desired replica count (1-20)"`
+	CPU          string  `json:"cpu,omitempty" jsonschema:"CPU request as a Kubernetes quantity (e.g. 500m)"`
+	Memory       string  `json:"memory,omitempty" jsonschema:"memory request as a Kubernetes quantity (e.g. 512Mi)"`
+	User         *int    `json:"user,omitempty" jsonschema:"run-as user id (0-65535) for image-based services; the same id owns mounted volumes; -1 clears it back to the image default. Rejected for source builds"`
 }
 
 func (s *server) configureService(ctx context.Context, _ *mcp.CallToolRequest, input configureServiceInput) (*mcp.CallToolResult, any, error) {
@@ -161,6 +166,17 @@ func (s *server) configureService(ctx context.Context, _ *mcp.CallToolRequest, i
 		const mutation = `mutation($service: ServiceID!, $resources: ResourcesInput!) { setServiceResources(service: $service, resources: $resources) { id } }`
 		resources := map[string]any{"cpu": cpu, "memory": memory}
 		if err := s.query(ctx, "configure_service (resources)", mutation, map[string]any{"service": serviceID, "resources": resources}, nil); err != nil {
+			return nil, nil, err
+		}
+	}
+
+	if input.User != nil {
+		const mutation = `mutation($service: ServiceID!, $user: Int) { setServiceUser(service: $service, user: $user) { id } }`
+		vars := map[string]any{"service": serviceID}
+		if *input.User >= 0 {
+			vars["user"] = *input.User
+		}
+		if err := s.query(ctx, "configure_service (user)", mutation, vars, nil); err != nil {
 			return nil, nil, err
 		}
 	}

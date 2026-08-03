@@ -64,6 +64,16 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       securityContext:
+        {{- if hasKey $svc "runAsUser" }}
+        runAsUser: {{ $svc.runAsUser }}
+        {{- end }}
+        {{- if hasKey $svc "runAsGroup" }}
+        runAsGroup: {{ $svc.runAsGroup }}
+        {{- end }}
+        {{- if hasKey $svc "fsGroup" }}
+        fsGroup: {{ $svc.fsGroup }}
+        fsGroupChangePolicy: OnRootMismatch
+        {{- end }}
         seccompProfile:
           type: RuntimeDefault
       containers:

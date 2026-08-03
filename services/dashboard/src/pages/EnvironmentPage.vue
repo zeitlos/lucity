@@ -59,6 +59,7 @@ const EnvironmentDocument = graphql(`
           failureThreshold
           startupFailureThreshold
         }
+        user
         activeDeployment {
           id
           image
@@ -430,6 +431,7 @@ watch(
         resources: s.resources,
         command: s.command,
         healthCheck: s.healthCheck ?? null,
+        user: s.user ?? null,
         defaultCommand: defaultCommands.get(s.id) ?? '',
         activeDeployment: s.activeDeployment
           ? {

@@ -139,6 +139,11 @@ func convertService(service platform.Service) model.Service {
 		result.HealthCheck = convertHealthCheck(*service.HealthCheck)
 	}
 
+	if service.SecurityContext.RunAsUser != nil {
+		user := int(*service.SecurityContext.RunAsUser)
+		result.User = &user
+	}
+
 	if service.ActiveDeployment != nil {
 		deployment := convertDeployment(*service.ActiveDeployment)
 		result.ActiveDeployment = &deployment
@@ -218,6 +223,16 @@ func convertResources(resources platform.Resources) *model.Resources {
 		CPU:    resources.CPU.String(),
 		Memory: resources.Memory.String(),
 	}
+}
+
+// toInt64Ptr widens a nullable GraphQL Int (*int) to the *int64 the domain uses.
+func toInt64Ptr(v *int) *int64 {
+	if v == nil {
+		return nil
+	}
+
+	n := int64(*v)
+	return &n
 }
 
 func convertHealthCheck(healthCheck platform.HealthCheck) *model.HealthCheck {

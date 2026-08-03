@@ -18,6 +18,9 @@ type Service struct {
 	Domains        []Domain             `yaml:"domains,omitempty"`
 	Command        string               `yaml:"command,omitempty"`
 	HealthCheck    *HealthCheck         `yaml:"healthCheck,omitempty"`
+	RunAsUser      *int64               `yaml:"runAsUser,omitempty"`
+	RunAsGroup     *int64               `yaml:"runAsGroup,omitempty"`
+	FsGroup        *int64               `yaml:"fsGroup,omitempty"`
 	Env            map[string]string    `yaml:"env,omitempty"`
 	Refs           map[string]SecretRef `yaml:"refs,omitempty"`
 	VolumeMounts   map[string]string    `yaml:"volumeMounts,omitempty"`
@@ -80,6 +83,9 @@ type ServiceSpec struct {
 	Port                 int
 	Resources            Resources
 	Env                  map[string]string
+	RunAsUser            *int64
+	RunAsGroup           *int64
+	FsGroup              *int64
 }
 
 func CreateService(env *Env, name string, spec ServiceSpec) error {
@@ -96,6 +102,10 @@ func CreateService(env *Env, name string, spec ServiceSpec) error {
 
 	if err != nil {
 		return fmt.Errorf("invalid image %q: %w", spec.Image, err)
+	}
+
+	if err := validateSecurityContext(spec.RunAsUser, spec.RunAsGroup, spec.FsGroup); err != nil {
+		return err
 	}
 
 	if env.Services == nil {
@@ -135,6 +145,9 @@ func CreateService(env *Env, name string, spec ServiceSpec) error {
 		PodAnnotations: podAnnotations,
 		Resources:      spec.Resources,
 		Env:            maps.Clone(spec.Env),
+		RunAsUser:      spec.RunAsUser,
+		RunAsGroup:     spec.RunAsGroup,
+		FsGroup:        spec.FsGroup,
 	}
 
 	return nil
@@ -303,6 +316,21 @@ func SetServiceHealthCheck(env *Env, name string, healthCheck *HealthCheck) erro
 
 	return mutateService(env, name, func(s *Service) {
 		s.HealthCheck = healthCheck
+	})
+}
+
+// SetServiceSecurityContext sets the run-as user/group and the volume-owning
+// group (fsGroup) for a service. A nil field clears that setting, reverting to
+// the image default.
+func SetServiceSecurityContext(env *Env, name string, runAsUser, runAsGroup, fsGroup *int64) error {
+	if err := validateSecurityContext(runAsUser, runAsGroup, fsGroup); err != nil {
+		return err
+	}
+
+	return mutateService(env, name, func(s *Service) {
+		s.RunAsUser = runAsUser
+		s.RunAsGroup = runAsGroup
+		s.FsGroup = fsGroup
 	})
 }
 

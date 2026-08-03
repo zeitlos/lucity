@@ -22,15 +22,16 @@ type Service struct {
 	Port      int
 	Endpoints []Endpoint
 
-	SourceURL   string
-	Branch      string
-	AutoDeploy  bool
-	CIDeploy    bool
-	ContextPath string
-	Resources   Resources
-	Command     string
-	HealthCheck *HealthCheck
-	Variables   map[string]string
+	SourceURL       string
+	Branch          string
+	AutoDeploy      bool
+	CIDeploy        bool
+	ContextPath     string
+	Resources       Resources
+	Command         string
+	HealthCheck     *HealthCheck
+	SecurityContext SecurityContext
+	Variables       map[string]string
 
 	ActiveDeployment *Deployment
 	Deployments      []Deployment
@@ -50,6 +51,14 @@ type RepoService struct {
 type Resources struct {
 	CPU    resource.Quantity
 	Memory resource.Quantity
+}
+
+// SecurityContext reflects the run-as user/group and volume-owning group
+// (fsGroup) applied to a service's pod. Nil fields mean unset (image default).
+type SecurityContext struct {
+	RunAsUser  *int64
+	RunAsGroup *int64
+	FsGroup    *int64
 }
 
 type HealthCheck struct {

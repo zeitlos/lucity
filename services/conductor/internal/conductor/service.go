@@ -116,7 +116,7 @@ func (c *Client) RepositoryBranches(ctx context.Context, repositoryURL string) (
 	return c.source.Branches(ctx, repositoryURL)
 }
 
-func (c *Client) AddService(ctx context.Context, environmentID platform.EnvironmentID, name, repository, contextPath string, externalImage string, variables map[string]string, cpu, memory string) (*Service, error) {
+func (c *Client) AddService(ctx context.Context, environmentID platform.EnvironmentID, name, repository, contextPath string, externalImage string, variables map[string]string, cpu, memory string, user *int64) (*Service, error) {
 	if cpu == "" {
 		cpu = defaultServiceCPU.String()
 	}
@@ -185,6 +185,14 @@ func (c *Client) AddService(ctx context.Context, environmentID platform.Environm
 		}
 	} else {
 		return nil, errors.New("either repository or external image must be set to create a new service")
+	}
+
+	if user != nil {
+		if repository != "" {
+			return nil, errors.New("user can only be set on image-based services, not repository-built ones")
+		}
+
+		spec.SecurityContext = securityContextFor(user)
 	}
 
 	if _, err := c.deployer.Services().Create(ctx, environmentID, serviceName, spec); err != nil {
@@ -311,6 +319,39 @@ func (c *Client) SetServiceResources(ctx context.Context, service platform.Servi
 	}
 
 	return c.Service(ctx, service)
+}
+
+// SetServiceUser sets the run-as user id for an image-based service. The same id
+// becomes the run-as group and the owner of mounted volumes. A nil id clears the
+// setting. It is rejected for source-built services, whose runtime user is
+// managed by the build.
+func (c *Client) SetServiceUser(ctx context.Context, serviceID platform.ServiceID, user *int64) (*Service, error) {
+	service, err := c.Service(ctx, serviceID)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if service.SourceURL != "" {
+		return nil, errors.New("user can only be set on image-based services, not repository-built ones")
+	}
+
+	if _, err := c.deployer.Services().SetSecurityContext(ctx, serviceID, securityContextFor(user)); err != nil {
+		return nil, fmt.Errorf("set security context: %w", err)
+	}
+
+	return c.Service(ctx, serviceID)
+}
+
+// securityContextFor derives the pod security context from a single user id.
+// Images conventionally give a user a matching group, so the id serves as
+// runAsUser, runAsGroup, and the fsGroup owning mounted volumes.
+func securityContextFor(user *int64) deployer.SecurityContext {
+	return deployer.SecurityContext{
+		RunAsUser:  user,
+		RunAsGroup: user,
+		FsGroup:    user,
+	}
 }
 
 func (c *Client) Rollback(ctx context.Context, deploymentID DeploymentID) (bool, error) {
