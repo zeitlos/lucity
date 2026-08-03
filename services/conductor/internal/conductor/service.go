@@ -8,7 +8,6 @@ import (
 	"log/slog"
 	"net/url"
 	"regexp"
-	"strconv"
 	"strings"
 
 	containername "github.com/google/go-containerregistry/pkg/name"
@@ -117,7 +116,7 @@ func (c *Client) RepositoryBranches(ctx context.Context, repositoryURL string) (
 	return c.source.Branches(ctx, repositoryURL)
 }
 
-func (c *Client) AddService(ctx context.Context, environmentID platform.EnvironmentID, name, repository, contextPath string, externalImage string, variables map[string]string, cpu, memory string, user *string, volumeGroup *int64) (*Service, error) {
+func (c *Client) AddService(ctx context.Context, environmentID platform.EnvironmentID, name, repository, contextPath string, externalImage string, variables map[string]string, cpu, memory string, user *int64) (*Service, error) {
 	if cpu == "" {
 		cpu = defaultServiceCPU.String()
 	}
@@ -188,22 +187,12 @@ func (c *Client) AddService(ctx context.Context, environmentID platform.Environm
 		return nil, errors.New("either repository or external image must be set to create a new service")
 	}
 
-	if user != nil || volumeGroup != nil {
+	if user != nil {
 		if repository != "" {
-			return nil, errors.New("user and volume group can only be set on image-based services, not repository-built ones")
+			return nil, errors.New("user can only be set on image-based services, not repository-built ones")
 		}
 
-		runAsUser, runAsGroup, err := parseUser(user)
-
-		if err != nil {
-			return nil, err
-		}
-
-		spec.SecurityContext = deployer.SecurityContext{
-			RunAsUser:  runAsUser,
-			RunAsGroup: runAsGroup,
-			FsGroup:    volumeGroup,
-		}
+		spec.SecurityContext = securityContextFor(user)
 	}
 
 	if _, err := c.deployer.Services().Create(ctx, environmentID, serviceName, spec); err != nil {
@@ -332,10 +321,11 @@ func (c *Client) SetServiceResources(ctx context.Context, service platform.Servi
 	return c.Service(ctx, service)
 }
 
-// SetServiceUser sets the run-as user ("uid" or "uid:gid") and the volume-owning
-// group for an image-based service. Nil args clear the respective field. It is
-// rejected for source-built services, whose runtime user is managed by the build.
-func (c *Client) SetServiceUser(ctx context.Context, serviceID platform.ServiceID, user *string, volumeGroup *int64) (*Service, error) {
+// SetServiceUser sets the run-as user id for an image-based service. The same id
+// becomes the run-as group and the owner of mounted volumes. A nil id clears the
+// setting. It is rejected for source-built services, whose runtime user is
+// managed by the build.
+func (c *Client) SetServiceUser(ctx context.Context, serviceID platform.ServiceID, user *int64) (*Service, error) {
 	service, err := c.Service(ctx, serviceID)
 
 	if err != nil {
@@ -343,66 +333,25 @@ func (c *Client) SetServiceUser(ctx context.Context, serviceID platform.ServiceI
 	}
 
 	if service.SourceURL != "" {
-		return nil, errors.New("user and volume group can only be set on image-based services, not repository-built ones")
+		return nil, errors.New("user can only be set on image-based services, not repository-built ones")
 	}
 
-	runAsUser, runAsGroup, err := parseUser(user)
-
-	if err != nil {
-		return nil, err
-	}
-
-	sc := deployer.SecurityContext{
-		RunAsUser:  runAsUser,
-		RunAsGroup: runAsGroup,
-		FsGroup:    volumeGroup,
-	}
-
-	if _, err := c.deployer.Services().SetSecurityContext(ctx, serviceID, sc); err != nil {
+	if _, err := c.deployer.Services().SetSecurityContext(ctx, serviceID, securityContextFor(user)); err != nil {
 		return nil, fmt.Errorf("set security context: %w", err)
 	}
 
 	return c.Service(ctx, serviceID)
 }
 
-// parseUser parses a Docker-style "uid" or "uid:gid" string into runAsUser /
-// runAsGroup. A nil or empty input yields nil pointers (clears the setting).
-func parseUser(user *string) (runAsUser, runAsGroup *int64, err error) {
-	if user == nil || *user == "" {
-		return nil, nil, nil
+// securityContextFor derives the pod security context from a single user id.
+// Images conventionally give a user a matching group, so the id serves as
+// runAsUser, runAsGroup, and the fsGroup owning mounted volumes.
+func securityContextFor(user *int64) deployer.SecurityContext {
+	return deployer.SecurityContext{
+		RunAsUser:  user,
+		RunAsGroup: user,
+		FsGroup:    user,
 	}
-
-	uidStr, gidStr, hasGID := strings.Cut(*user, ":")
-
-	uid, err := parseID(uidStr)
-
-	if err != nil {
-		return nil, nil, fmt.Errorf("invalid user %q: %w", *user, err)
-	}
-
-	runAsUser = &uid
-
-	if hasGID {
-		gid, err := parseID(gidStr)
-
-		if err != nil {
-			return nil, nil, fmt.Errorf("invalid user %q: %w", *user, err)
-		}
-
-		runAsGroup = &gid
-	}
-
-	return runAsUser, runAsGroup, nil
-}
-
-func parseID(s string) (int64, error) {
-	id, err := strconv.ParseInt(s, 10, 64)
-
-	if err != nil || id < 0 || id > 65535 {
-		return 0, fmt.Errorf("expected an integer in [0, 65535]")
-	}
-
-	return id, nil
 }
 
 func (c *Client) Rollback(ctx context.Context, deploymentID DeploymentID) (bool, error) {

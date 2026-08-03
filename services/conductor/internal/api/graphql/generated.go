@@ -393,7 +393,7 @@ type ComplexityRoot struct {
 		SetServicePort            func(childComplexity int, service platform.ServiceID, port *int) int
 		SetServiceResources       func(childComplexity int, service platform.ServiceID, resources model.ResourcesInput) int
 		SetServiceScaling         func(childComplexity int, input model.SetServiceScalingInput) int
-		SetServiceUser            func(childComplexity int, service platform.ServiceID, user *string, volumeGroup *int) int
+		SetServiceUser            func(childComplexity int, service platform.ServiceID, user *int) int
 		SetServiceVariables       func(childComplexity int, service platform.ServiceID, variables []model.ServiceVariableInput) int
 		SetSharedVariables        func(childComplexity int, environment platform.EnvironmentID, variables []model.VariableInput) int
 		UnexposeDatabase          func(childComplexity int, database platform.DatabaseID) int
@@ -545,7 +545,6 @@ type ComplexityRoot struct {
 		SourceURL           func(childComplexity int) int
 		Status              func(childComplexity int) int
 		User                func(childComplexity int) int
-		VolumeGroup         func(childComplexity int) int
 		VulnerabilityReport func(childComplexity int) int
 	}
 
@@ -704,7 +703,7 @@ type MutationResolver interface {
 	SetServiceHealthCheck(ctx context.Context, service platform.ServiceID, healthCheck *model.HealthCheckInput) (*model.Service, error)
 	SetServiceScaling(ctx context.Context, input model.SetServiceScalingInput) (*model.Service, error)
 	SetServiceResources(ctx context.Context, service platform.ServiceID, resources model.ResourcesInput) (*model.Service, error)
-	SetServiceUser(ctx context.Context, service platform.ServiceID, user *string, volumeGroup *int) (*model.Service, error)
+	SetServiceUser(ctx context.Context, service platform.ServiceID, user *int) (*model.Service, error)
 	Rollback(ctx context.Context, deployment platform.DeploymentID) (bool, error)
 	GenerateDomain(ctx context.Context, service platform.ServiceID) (*model.Service, error)
 	AddCustomDomain(ctx context.Context, service platform.ServiceID, hostname string) (*model.Service, error)
@@ -2414,7 +2413,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Mutation.SetServiceUser(childComplexity, args["service"].(platform.ServiceID), args["user"].(*string), args["volumeGroup"].(*int)), true
+		return e.ComplexityRoot.Mutation.SetServiceUser(childComplexity, args["service"].(platform.ServiceID), args["user"].(*int)), true
 	case "Mutation.setServiceVariables":
 		if e.ComplexityRoot.Mutation.SetServiceVariables == nil {
 			break
@@ -3266,12 +3265,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Service.User(childComplexity), true
-	case "Service.volumeGroup":
-		if e.ComplexityRoot.Service.VolumeGroup == nil {
-			break
-		}
-
-		return e.ComplexityRoot.Service.VolumeGroup(childComplexity), true
 	case "Service.vulnerabilityReport":
 		if e.ComplexityRoot.Service.VulnerabilityReport == nil {
 			break
@@ -4578,8 +4571,6 @@ func (ec *executionContext) childFields_Service(ctx context.Context, field graph
 		return ec.fieldContext_Service_healthCheck(ctx, field)
 	case "user":
 		return ec.fieldContext_Service_user(ctx, field)
-	case "volumeGroup":
-		return ec.fieldContext_Service_volumeGroup(ctx, field)
 	case "activeDeployment":
 		return ec.fieldContext_Service_activeDeployment(ctx, field)
 	case "deployments":
@@ -6007,65 +5998,16 @@ func (ec *executionContext) field_Mutation_setServiceUser_args(ctx context.Conte
 		return nil, err
 	}
 	args["user"] = arg1
-
-	arg2, err := ec.field_Mutation_setServiceUser_argsVolumeGroup(ctx, rawArgs)
-	if err != nil {
-		return nil, err
-	}
-	args["volumeGroup"] = arg2
 	return args, nil
 }
 
 func (ec *executionContext) field_Mutation_setServiceUser_argsUser(
 	ctx context.Context,
 	rawArgs map[string]any,
-) (*string, error) {
+) (*int, error) {
 	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("user"))
 	directive0 := func(ctx context.Context) (any, error) {
 		tmp, ok := rawArgs["user"]
-		if !ok {
-			var zeroVal *string
-			return zeroVal, nil
-		}
-		return ec.unmarshalOString2ᚖstring(ctx, tmp)
-	}
-
-	directive1 := func(ctx context.Context) (any, error) {
-		constraint, err := ec.unmarshalNString2string(ctx, "min=1,max=11")
-		if err != nil {
-			var zeroVal *string
-			return zeroVal, err
-		}
-		if ec.Directives.Constraint == nil {
-			var zeroVal *string
-			return zeroVal, errors.New("directive constraint is not implemented")
-		}
-		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
-	}
-
-	tmp, err := directive1(ctx)
-	if err != nil {
-		var zeroVal *string
-		return zeroVal, graphql.ErrorOnPath(ctx, err)
-	}
-	if data, ok := tmp.(*string); ok {
-		return data, nil
-	} else if tmp == nil {
-		var zeroVal *string
-		return zeroVal, nil
-	} else {
-		var zeroVal *string
-		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be *string`, tmp))
-	}
-}
-
-func (ec *executionContext) field_Mutation_setServiceUser_argsVolumeGroup(
-	ctx context.Context,
-	rawArgs map[string]any,
-) (*int, error) {
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("volumeGroup"))
-	directive0 := func(ctx context.Context) (any, error) {
-		tmp, ok := rawArgs["volumeGroup"]
 		if !ok {
 			var zeroVal *int
 			return zeroVal, nil
@@ -13305,7 +13247,7 @@ func (ec *executionContext) _Mutation_setServiceUser(ctx context.Context, field 
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().SetServiceUser(ctx, fc.Args["service"].(platform.ServiceID), fc.Args["user"].(*string), fc.Args["volumeGroup"].(*int))
+			return ec.Resolvers.Mutation().SetServiceUser(ctx, fc.Args["service"].(platform.ServiceID), fc.Args["user"].(*int))
 		},
 		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
 			directive0 := next
@@ -18150,29 +18092,6 @@ func (ec *executionContext) _Service_user(ctx context.Context, field graphql.Col
 			return obj.User, nil
 		},
 		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
-			return ec.marshalOString2ᚖstring(ctx, selections, v)
-		},
-		true,
-		false,
-	)
-}
-func (ec *executionContext) fieldContext_Service_user(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Service", field, false, false, errors.New("field of type String does not have child fields"))
-}
-
-func (ec *executionContext) _Service_volumeGroup(ctx context.Context, field graphql.CollectedField, obj *model.Service) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_Service_volumeGroup(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.VolumeGroup, nil
-		},
-		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *int) graphql.Marshaler {
 			return ec.marshalOInt2ᚖint(ctx, selections, v)
 		},
@@ -18180,7 +18099,7 @@ func (ec *executionContext) _Service_volumeGroup(ctx context.Context, field grap
 		false,
 	)
 }
-func (ec *executionContext) fieldContext_Service_volumeGroup(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Service_user(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("Service", field, false, false, errors.New("field of type Int does not have child fields"))
 }
 
@@ -21101,7 +21020,7 @@ func (ec *executionContext) unmarshalInputAddServiceInput(ctx context.Context, o
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "repository", "contextPath", "image", "variables", "resources", "user", "volumeGroup"}
+	fieldsInOrder := [...]string{"name", "repository", "contextPath", "image", "variables", "resources", "user"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -21196,35 +21115,6 @@ func (ec *executionContext) unmarshalInputAddServiceInput(ctx context.Context, o
 			it.Resources = data
 		case "user":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("user"))
-			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalOString2ᚖstring(ctx, v) }
-
-			directive1 := func(ctx context.Context) (any, error) {
-				constraint, err := ec.unmarshalNString2string(ctx, "min=1,max=11")
-				if err != nil {
-					var zeroVal *string
-					return zeroVal, err
-				}
-				if ec.Directives.Constraint == nil {
-					var zeroVal *string
-					return zeroVal, errors.New("directive constraint is not implemented")
-				}
-				return ec.Directives.Constraint(ctx, obj, directive0, constraint)
-			}
-
-			tmp, err := directive1(ctx)
-			if err != nil {
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-			if data, ok := tmp.(*string); ok {
-				it.User = data
-			} else if tmp == nil {
-				it.User = nil
-			} else {
-				err := fmt.Errorf(`unexpected type %T from directive, should be *string`, tmp)
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-		case "volumeGroup":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("volumeGroup"))
 			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalOInt2ᚖint(ctx, v) }
 
 			directive1 := func(ctx context.Context) (any, error) {
@@ -21245,9 +21135,9 @@ func (ec *executionContext) unmarshalInputAddServiceInput(ctx context.Context, o
 				return it, graphql.ErrorOnPath(ctx, err)
 			}
 			if data, ok := tmp.(*int); ok {
-				it.VolumeGroup = data
+				it.User = data
 			} else if tmp == nil {
-				it.VolumeGroup = nil
+				it.User = nil
 			} else {
 				err := fmt.Errorf(`unexpected type %T from directive, should be *int`, tmp)
 				return it, graphql.ErrorOnPath(ctx, err)
@@ -26924,11 +26814,6 @@ func (ec *executionContext) _Service(ctx context.Context, sel ast.SelectionSet, 
 			}
 		case "user":
 			out.Values[i] = ec._Service_user(ctx, field, obj)
-			if out.Values[i] == graphql.RequiredNull {
-				atomic.AddUint32(&out.Invalids, 1)
-			}
-		case "volumeGroup":
-			out.Values[i] = ec._Service_volumeGroup(ctx, field, obj)
 			if out.Values[i] == graphql.RequiredNull {
 				atomic.AddUint32(&out.Invalids, 1)
 			}

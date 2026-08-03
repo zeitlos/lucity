@@ -27,10 +27,8 @@ type AddServiceInput struct {
 	Image       *string         `json:"image,omitempty"`
 	Variables   []VariableInput `json:"variables,omitempty"`
 	Resources   *ResourcesInput `json:"resources,omitempty"`
-	// Run-as user for image-based services: "uid" or "uid:gid".
-	User *string `json:"user,omitempty"`
-	// Group that owns the service's mounted volumes (image-based services only).
-	VolumeGroup *int `json:"volumeGroup,omitempty"`
+	// Run-as user id for image-based services. Also owns the service's mounted volumes.
+	User *int `json:"user,omitempty"`
 }
 
 type APIToken struct {
@@ -512,10 +510,8 @@ type Service struct {
 	Command        string               `json:"command"`
 	DefaultCommand string               `json:"defaultCommand"`
 	HealthCheck    *HealthCheck         `json:"healthCheck,omitempty"`
-	// Run-as user for image-based services: "uid" or "uid:gid". Null means the image default.
-	User *string `json:"user,omitempty"`
-	// Group that owns the service's mounted volumes (image-based services only).
-	VolumeGroup         *int                 `json:"volumeGroup,omitempty"`
+	// Run-as user id for image-based services. Also owns the service's mounted volumes. Null means the image default.
+	User                *int                 `json:"user,omitempty"`
 	ActiveDeployment    *Deployment          `json:"activeDeployment,omitempty"`
 	Deployments         []Deployment         `json:"deployments"`
 	Builds              []Build              `json:"builds"`

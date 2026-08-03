@@ -188,11 +188,10 @@ const SetServiceResourcesDocument = graphql(`
 `);
 
 const SetServiceUserDocument = graphql(`
-  mutation SetServiceUser($service: ServiceID!, $user: String, $volumeGroup: Int) {
-    setServiceUser(service: $service, user: $user, volumeGroup: $volumeGroup) {
+  mutation SetServiceUser($service: ServiceID!, $user: Int) {
+    setServiceUser(service: $service, user: $user) {
       id
       user
-      volumeGroup
     }
   }
 `);
@@ -859,7 +858,6 @@ async function handleSaveResources() {
 
 // Run-as user (image-based services only)
 const userInput = ref('');
-const volumeGroupInput = ref('');
 const userSaving = ref(false);
 
 const { mutate: setUserMutate } = useMutation(SetServiceUserDocument);
@@ -867,38 +865,30 @@ const { mutate: setUserMutate } = useMutation(SetServiceUserDocument);
 watch(
   () => props.service,
   s => {
-    userInput.value = s.user ?? '';
-    volumeGroupInput.value = s.volumeGroup != null ? String(s.volumeGroup) : '';
+    userInput.value = s.user != null ? String(s.user) : '';
   },
   { immediate: true },
 );
 
 const userChanged = computed(() => {
-  const currentUser = props.service.user ?? '';
-  const currentVolumeGroup = props.service.volumeGroup != null ? String(props.service.volumeGroup) : '';
-  return userInput.value.trim() !== currentUser || volumeGroupInput.value.trim() !== currentVolumeGroup;
+  const current = props.service.user != null ? String(props.service.user) : '';
+  return userInput.value.trim() !== current;
 });
 
 async function handleSaveUser() {
-  const user = userInput.value.trim() === '' ? null : userInput.value.trim();
+  let user: number | null = null;
 
-  if (user !== null && !/^\d+(:\d+)?$/.test(user)) {
-    errorToast('Invalid user', { description: 'Use "uid" or "uid:gid", e.g. 999 or 999:999' });
-    return;
-  }
-
-  let volumeGroup: number | null = null;
-  if (volumeGroupInput.value.trim() !== '') {
-    volumeGroup = Number(volumeGroupInput.value);
-    if (!Number.isInteger(volumeGroup) || volumeGroup < 0 || volumeGroup > 65535) {
-      errorToast('Invalid volume group', { description: 'Must be a whole number between 0 and 65535' });
+  if (userInput.value.trim() !== '') {
+    user = Number(userInput.value);
+    if (!Number.isInteger(user) || user < 0 || user > 65535) {
+      errorToast('Invalid user id', { description: 'Must be a whole number between 0 and 65535' });
       return;
     }
   }
 
   userSaving.value = true;
   try {
-    const res = await setUserMutate({ service: props.service.id, user, volumeGroup });
+    const res = await setUserMutate({ service: props.service.id, user });
 
     if (res?.errors?.length) {
       errorToast('Failed to update run-as user', { description: res.errors.map(e => e.message).join(', ') });
@@ -1871,18 +1861,13 @@ async function handleRemoveService() {
           <div class="flex items-center gap-3 px-4 py-3">
             <UserCog :size="16" class="shrink-0 text-muted-foreground" />
             <div class="min-w-0 flex-1">
-              <p class="text-sm font-medium text-foreground">User</p>
-              <p class="text-xs text-muted-foreground">"uid" or "uid:gid" (e.g. 999:999). Empty uses the image default.</p>
+              <p class="text-sm font-medium text-foreground">User id</p>
+              <p class="text-xs text-muted-foreground">
+                Runs the container as this user. Mounted volumes are owned by the same id. Leave empty to use the image
+                default.
+              </p>
             </div>
-            <Input v-model="userInput" placeholder="image default" class="h-8 w-36" />
-          </div>
-          <div class="flex items-center gap-3 px-4 py-3">
-            <UserCog :size="16" class="shrink-0 text-muted-foreground" />
-            <div class="min-w-0 flex-1">
-              <p class="text-sm font-medium text-foreground">Volume group</p>
-              <p class="text-xs text-muted-foreground">Group id that owns mounted volumes, so a non-root user can write.</p>
-            </div>
-            <Input v-model="volumeGroupInput" type="number" min="0" max="65535" placeholder="none" class="h-8 w-36" />
+            <Input v-model="userInput" type="number" min="0" max="65535" placeholder="image default" class="h-8 w-36" />
           </div>
           <div class="flex items-center justify-between gap-3 px-4 py-3">
             <p class="text-xs text-muted-foreground">

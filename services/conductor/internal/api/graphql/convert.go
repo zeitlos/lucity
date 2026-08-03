@@ -139,13 +139,9 @@ func convertService(service platform.Service) model.Service {
 		result.HealthCheck = convertHealthCheck(*service.HealthCheck)
 	}
 
-	if user := formatUser(service.SecurityContext.RunAsUser, service.SecurityContext.RunAsGroup); user != "" {
+	if service.SecurityContext.RunAsUser != nil {
+		user := int(*service.SecurityContext.RunAsUser)
 		result.User = &user
-	}
-
-	if service.SecurityContext.FsGroup != nil {
-		volumeGroup := int(*service.SecurityContext.FsGroup)
-		result.VolumeGroup = &volumeGroup
 	}
 
 	if service.ActiveDeployment != nil {
@@ -237,20 +233,6 @@ func toInt64Ptr(v *int) *int64 {
 
 	n := int64(*v)
 	return &n
-}
-
-// formatUser renders a runAsUser/runAsGroup pair back into the Docker-style
-// "uid" or "uid:gid" string. Empty when no run-as user is set.
-func formatUser(runAsUser, runAsGroup *int64) string {
-	if runAsUser == nil {
-		return ""
-	}
-
-	if runAsGroup != nil {
-		return fmt.Sprintf("%d:%d", *runAsUser, *runAsGroup)
-	}
-
-	return fmt.Sprintf("%d", *runAsUser)
 }
 
 func convertHealthCheck(healthCheck platform.HealthCheck) *model.HealthCheck {

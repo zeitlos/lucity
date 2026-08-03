@@ -82,10 +82,10 @@
           },
           {
             "name": "user",
-            "description": "Run-as user for image-based services: \"uid\" or \"uid:gid\".",
+            "description": "Run-as user id for image-based services. Also owns the service's mounted volumes.",
             "type": {
               "kind": "SCALAR",
-              "name": "String",
+              "name": "Int",
               "ofType": null
             },
             "defaultValue": null,
@@ -107,18 +107,6 @@
                   "ofType": null
                 }
               }
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "volumeGroup",
-            "description": "Group that owns the service's mounted volumes (image-based services only).",
-            "type": {
-              "kind": "SCALAR",
-              "name": "Int",
-              "ofType": null
             },
             "defaultValue": null,
             "isDeprecated": false,
@@ -6519,7 +6507,7 @@
           },
           {
             "name": "setServiceUser",
-            "description": "Set the run-as user (\"uid\" or \"uid:gid\") and volume-owning group for an image-based service. Null args clear the respective field. Rejected for source-built services.",
+            "description": "Set the run-as user id for an image-based service. The same id becomes the run-as group and the owner of mounted volumes. Null clears it, reverting to the image default. Rejected for source-built services.",
             "args": [
               {
                 "name": "service",
@@ -6539,18 +6527,6 @@
               },
               {
                 "name": "user",
-                "description": null,
-                "type": {
-                  "kind": "SCALAR",
-                  "name": "String",
-                  "ofType": null
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              },
-              {
-                "name": "volumeGroup",
                 "description": null,
                 "type": {
                   "kind": "SCALAR",
@@ -9798,19 +9774,7 @@
           },
           {
             "name": "user",
-            "description": "Run-as user for image-based services: \"uid\" or \"uid:gid\". Null means the image default.",
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "volumeGroup",
-            "description": "Group that owns the service's mounted volumes (image-based services only).",
+            "description": "Run-as user id for image-based services. Also owns the service's mounted volumes. Null means the image default.",
             "args": [],
             "type": {
               "kind": "SCALAR",

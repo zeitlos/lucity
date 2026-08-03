@@ -30,7 +30,7 @@ func (r *mutationResolver) AddService(ctx context.Context, environment platform.
 		variables[variable.Key] = variable.Value
 	}
 
-	service, err := r.Conductor.AddService(ctx, environment, to.Val(input.Name), to.Val(input.Repository), to.Val(input.ContextPath), to.Val(input.Image), variables, cpu, memory, input.User, toInt64Ptr(input.VolumeGroup))
+	service, err := r.Conductor.AddService(ctx, environment, to.Val(input.Name), to.Val(input.Repository), to.Val(input.ContextPath), to.Val(input.Image), variables, cpu, memory, toInt64Ptr(input.User))
 
 	if err != nil {
 		return nil, err
@@ -162,8 +162,8 @@ func (r *mutationResolver) SetServiceResources(ctx context.Context, service plat
 }
 
 // SetServiceUser is the resolver for the setServiceUser field.
-func (r *mutationResolver) SetServiceUser(ctx context.Context, service platform.ServiceID, user *string, volumeGroup *int) (*model.Service, error) {
-	result, err := r.Conductor.SetServiceUser(ctx, service, user, toInt64Ptr(volumeGroup))
+func (r *mutationResolver) SetServiceUser(ctx context.Context, service platform.ServiceID, user *int) (*model.Service, error) {
+	result, err := r.Conductor.SetServiceUser(ctx, service, toInt64Ptr(user))
 
 	if err != nil {
 		return nil, err

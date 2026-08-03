@@ -262,7 +262,7 @@ func validateSecurityContext(runAsUser, runAsGroup, fsGroup *int64) error {
 	if err := check("group id", runAsGroup); err != nil {
 		return err
 	}
-	if err := check("volumeGroup", fsGroup); err != nil {
+	if err := check("volume group id", fsGroup); err != nil {
 		return err
 	}
 	return nil
