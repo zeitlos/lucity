@@ -289,7 +289,7 @@ async function handleSave() {
         <Input
           v-model="row.key"
           placeholder="KEY"
-          class="flex-1 font-mono text-sm uppercase"
+          class="flex-1 font-mono text-sm"
           @input="markChanged"
           @paste="onPasteKey($event, index)"
         />
