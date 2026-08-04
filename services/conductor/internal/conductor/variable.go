@@ -91,12 +91,30 @@ func (c *Client) ServiceVariables(ctx context.Context, service platform.ServiceI
 func (c *Client) SetServiceVariables(ctx context.Context, service platform.ServiceID, literals map[string]string, refs map[string]platform.VariableID) (bool, error) {
 	specRefs := make(map[string]deployer.VariableRef, len(refs))
 
-	for key, id := range refs {
-		if id.EnvironmentID() != service.EnvironmentID() {
-			return false, fmt.Errorf("variable %q: reference must be in the same environment", key)
+	if len(refs) > 0 {
+		available, err := c.platform.AvailableVariables(ctx, service.EnvironmentID())
+
+		if err != nil {
+			return false, fmt.Errorf("list available variables: %w", err)
 		}
 
-		specRefs[key] = deployer.VariableRef{Secret: id.Secret, Key: id.Name}
+		known := make(map[string]struct{}, len(available))
+
+		for _, variable := range available {
+			known[variable.ID.String()] = struct{}{}
+		}
+
+		for key, id := range refs {
+			if id.EnvironmentID() != service.EnvironmentID() {
+				return false, fmt.Errorf("variable %q: reference must be in the same environment", key)
+			}
+
+			if _, ok := known[id.String()]; !ok {
+				return false, fmt.Errorf("variable %q: reference %q does not point to an available variable", key, id.String())
+			}
+
+			specRefs[key] = deployer.VariableRef{Secret: id.Secret, Key: id.Name}
+		}
 	}
 
 	if _, err := c.deployer.Services().SetVariables(ctx, service, deployer.ServiceVariablesSpec{
