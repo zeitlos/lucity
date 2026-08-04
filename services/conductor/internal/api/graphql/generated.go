@@ -22096,11 +22096,31 @@ func (ec *executionContext) unmarshalInputServiceVariableInput(ctx context.Conte
 		switch k {
 		case "key":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("key"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
+			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNString2string(ctx, v) }
+
+			directive1 := func(ctx context.Context) (any, error) {
+				constraint, err := ec.unmarshalNString2string(ctx, "min=1,max=128")
+				if err != nil {
+					var zeroVal string
+					return zeroVal, err
+				}
+				if ec.Directives.Constraint == nil {
+					var zeroVal string
+					return zeroVal, errors.New("directive constraint is not implemented")
+				}
+				return ec.Directives.Constraint(ctx, obj, directive0, constraint)
 			}
-			it.Key = data
+
+			tmp, err := directive1(ctx)
+			if err != nil {
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+			if data, ok := tmp.(string); ok {
+				it.Key = data
+			} else {
+				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
 		case "value":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("value"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
@@ -22389,11 +22409,31 @@ func (ec *executionContext) unmarshalInputVariableInput(ctx context.Context, obj
 		switch k {
 		case "key":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("key"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
+			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNString2string(ctx, v) }
+
+			directive1 := func(ctx context.Context) (any, error) {
+				constraint, err := ec.unmarshalNString2string(ctx, "min=1,max=128")
+				if err != nil {
+					var zeroVal string
+					return zeroVal, err
+				}
+				if ec.Directives.Constraint == nil {
+					var zeroVal string
+					return zeroVal, errors.New("directive constraint is not implemented")
+				}
+				return ec.Directives.Constraint(ctx, obj, directive0, constraint)
 			}
-			it.Key = data
+
+			tmp, err := directive1(ctx)
+			if err != nil {
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+			if data, ok := tmp.(string); ok {
+				it.Key = data
+			} else {
+				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
 		case "value":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("value"))
 			data, err := ec.unmarshalNString2string(ctx, v)

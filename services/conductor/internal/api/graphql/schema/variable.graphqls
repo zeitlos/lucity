@@ -38,13 +38,13 @@ type SharedVariable {
 
 input VariableInput {
   """Key of the variable. e.g. PORT or HOST"""
-  key: String!
+  key: String! @constraint(constraint: "min=1,max=128")
   value: String!
 }
 
 input ServiceVariableInput {
   """Key of the variable. e.g. PORT or HOST"""
-  key: String!
+  key: String! @constraint(constraint: "min=1,max=128")
   """Literal value. Required when no ref is set. Mutually exclusive with ref."""
   value: String
   """Reference to an available variable. Required when no value is set. Mutually exclusive with value."""
