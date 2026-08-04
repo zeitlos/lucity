@@ -133,18 +133,24 @@ spec:
             - secretRef:
                 name: {{ include "lucity-app.fullname" $ }}-{{ $name }}-variables
           env:
+            {{- $env := $svc.env | default dict }}
+            {{- $refs := $svc.refs | default dict }}
             {{- if $svc.port }}
+            {{- if not (or (hasKey $env "HOST") (hasKey $refs "HOST")) }}
             - name: HOST
               value: "0.0.0.0"
+            {{- end }}
+            {{- if not (or (hasKey $env "PORT") (hasKey $refs "PORT")) }}
             - name: PORT
               value: {{ $svc.port | quote }}
             {{- end }}
-            {{- range $key, $ref := $svc.refs }}
-            - name: {{ $key }}
+            {{- end }}
+            {{- range $key, $ref := $refs }}
+            - name: {{ $key | quote }}
               valueFrom:
                 secretKeyRef:
-                  name: {{ $ref.secret }}
-                  key: {{ $ref.key }}
+                  name: {{ $ref.secret | quote }}
+                  key: {{ $ref.key | quote }}
             {{- end }}
           {{- with $svc.resources }}
           resources:
