@@ -11,7 +11,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -282,14 +281,14 @@ async function handleDelete() {
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
+                          <AlertDialogCancel :disabled="deleting">Cancel</AlertDialogCancel>
+                          <Button
                             variant="destructive"
                             :disabled="deleting"
                             @click="handleDelete"
                           >
                             {{ deleting ? 'Deleting...' : 'Delete Redis' }}
-                          </AlertDialogAction>
+                          </Button>
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>

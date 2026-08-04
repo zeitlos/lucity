@@ -6,7 +6,6 @@ import { graphql } from '@/gql';
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -115,14 +114,14 @@ async function handleDelete() {
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction
+                  <AlertDialogCancel :disabled="deleting">Cancel</AlertDialogCancel>
+                  <Button
                     variant="destructive"
                     :disabled="deleting"
                     @click="handleDelete"
                   >
                     {{ deleting ? 'Deleting...' : 'Delete Bucket' }}
-                  </AlertDialogAction>
+                  </Button>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>

@@ -16,14 +16,12 @@ import {
 } from '@/components/ui/select';
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import {
   Dialog,
@@ -86,7 +84,8 @@ const createdToken = ref<string | null>(null);
 const showTokenDialog = ref(false);
 
 const { mutate: createMutate, loading: creating } = useMutation(CreateApiTokenDocument);
-const { mutate: revokeMutate } = useMutation(RevokeApiTokenDocument);
+const { mutate: revokeMutate, loading: revoking } = useMutation(RevokeApiTokenDocument);
+const tokenToRevoke = ref<{ id: string; name: string } | null>(null);
 
 async function handleCreate() {
   if (!newName.value.trim()) return;
@@ -108,10 +107,12 @@ async function handleCreate() {
   }
 }
 
-async function handleRevoke(id: string) {
+async function handleRevoke() {
+  if (!tokenToRevoke.value) return;
   try {
-    await revokeMutate({ id });
+    await revokeMutate({ id: tokenToRevoke.value.id });
     toast.success('API token revoked');
+    tokenToRevoke.value = null;
     refetch();
   } catch (e: unknown) {
     errorToast('Failed to revoke API token', { description: errorMessage(e) });
@@ -157,7 +158,7 @@ function formatDate(dateStr: string): string {
       </div>
       <Button :disabled="!newName.trim() || creating" @click="handleCreate">
         <Plus :size="14" />
-        Create
+        {{ creating ? 'Creating...' : 'Create' }}
       </Button>
     </div>
 
@@ -182,25 +183,14 @@ function formatDate(dateStr: string): string {
           </TableCell>
           <TableCell class="text-muted-foreground">{{ formatDate(token.createdAt) }}</TableCell>
           <TableCell>
-            <AlertDialog>
-              <AlertDialogTrigger as-child>
-                <Button variant="ghost" size="icon">
-                  <Trash2 :size="14" />
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Revoke API token?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    "{{ token.name }}" will stop working immediately. This cannot be undone.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction @click="handleRevoke(token.id)">Revoke</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+            <Button
+              variant="ghost"
+              size="icon"
+              :disabled="revoking"
+              @click="tokenToRevoke = { id: token.id, name: token.name }"
+            >
+              <Trash2 :size="14" />
+            </Button>
           </TableCell>
         </TableRow>
       </TableBody>
@@ -209,6 +199,23 @@ function formatDate(dateStr: string): string {
       <KeyRound :size="20" class="mx-auto mb-2 opacity-50" />
       No API tokens yet.
     </div>
+
+    <AlertDialog :open="!!tokenToRevoke">
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Revoke API token?</AlertDialogTitle>
+          <AlertDialogDescription>
+            "{{ tokenToRevoke?.name }}" will stop working immediately. This cannot be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel :disabled="revoking" @click="tokenToRevoke = null">Cancel</AlertDialogCancel>
+          <Button variant="destructive" :disabled="revoking" @click="handleRevoke">
+            {{ revoking ? 'Revoking...' : 'Revoke' }}
+          </Button>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
 
     <Dialog v-model:open="showTokenDialog">
       <DialogContent>

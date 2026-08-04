@@ -191,6 +191,7 @@ const { isOverDropZone } = useDropZone(dropZone, {
 // --- New folder ---------------------------------------------------------
 
 const creatingFolder = ref(false);
+const savingFolder = ref(false);
 const newFolderName = ref('');
 
 function startFolder() {
@@ -199,12 +200,16 @@ function startFolder() {
 }
 
 async function createFolder() {
+  if (savingFolder.value) return;
+
   const name = newFolderName.value.trim().replace(/^\/+|\/+$/g, '');
 
   if (!name) {
     creatingFolder.value = false;
     return;
   }
+
+  savingFolder.value = true;
 
   try {
     const key = `${prefix.value}${name}/`;
@@ -222,6 +227,8 @@ async function createFolder() {
     await refetch();
   } catch (e: unknown) {
     errorToast('Could not create folder', { description: errorMessage(e) });
+  } finally {
+    savingFolder.value = false;
   }
 }
 
@@ -365,11 +372,14 @@ async function confirmDelete() {
             placeholder="Folder name"
             class="h-7 flex-1"
             autofocus
+            :disabled="savingFolder"
             @keyup.enter="createFolder"
             @keyup.esc="creatingFolder = false"
           />
-          <Button variant="ghost" size="sm" class="h-7" @click="createFolder">Create</Button>
-          <Button variant="ghost" size="sm" class="h-7" @click="creatingFolder = false">Cancel</Button>
+          <Button variant="ghost" size="sm" class="h-7" :disabled="savingFolder" @click="createFolder">
+            {{ savingFolder ? 'Creating...' : 'Create' }}
+          </Button>
+          <Button variant="ghost" size="sm" class="h-7" :disabled="savingFolder" @click="creatingFolder = false">Cancel</Button>
         </div>
 
         <!-- Empty -->

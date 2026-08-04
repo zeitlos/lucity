@@ -197,6 +197,7 @@ const SetServiceUserDocument = graphql(`
 `);
 import { useEnvironment } from '@/composables/useEnvironment';
 import type { Endpoint, Service } from '@/composables/useEnvironment';
+import Spinner from '@/components/LoadingSpinner.vue';
 import { Status } from '@/components/ui/status';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -226,7 +227,6 @@ import {
 } from '@/components/ui/command';
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -380,6 +380,8 @@ const { mutate: removeServiceMutate, loading: removing } = useMutation(RemoveSer
 const { mutate: generateDomainMutate, loading: generatingDomain } = useMutation(GenerateDomainDocument);
 const { mutate: addCustomDomainMutate, loading: addingCustomDomain } = useMutation(AddCustomDomainDocument);
 const { mutate: removeDomainMutate } = useMutation(RemoveDomainDocument);
+const removingHostname = ref<string | null>(null);
+const domainToRemove = ref<string | null>(null);
 
 const { mutate: setServicePortMutate, loading: portSaving } = useMutation(SetServicePortDocument);
 
@@ -679,6 +681,7 @@ async function handleAddCustomDomain() {
 }
 
 async function handleRemoveDomain(hostname: string) {
+  removingHostname.value = hostname;
   try {
     const res = await removeDomainMutate({
       service: props.service.id,
@@ -693,9 +696,12 @@ async function handleRemoveDomain(hostname: string) {
     }
 
     toast.success('Domain removed');
+    domainToRemove.value = null;
     emit('refetch');
   } catch (e: unknown) {
     errorToast('Failed to remove domain', { description: errorMessage(e) });
+  } finally {
+    removingHostname.value = null;
   }
 }
 
@@ -1373,9 +1379,11 @@ async function handleRemoveService() {
                     variant="ghost"
                     size="icon"
                     class="h-8 w-8 shrink-0 text-destructive"
+                    :disabled="removingHostname === platformEndpoint!.host"
                     @click="handleRemoveDomain(platformEndpoint!.host)"
                   >
-                    <X :size="14" />
+                    <Spinner v-if="removingHostname === platformEndpoint!.host" :size="14" />
+                    <X v-else :size="14" />
                   </Button>
                 </div>
                 <div class="flex items-center gap-1.5 pl-1 text-xs text-muted-foreground">
@@ -1445,34 +1453,16 @@ async function handleRemoveService() {
                     >
                       <Copy :size="14" />
                     </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger as-child>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          class="h-8 w-8 shrink-0 text-destructive"
-                        >
-                          <X :size="14" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Remove domain</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Remove <strong class="font-mono">{{ endpoint.host }}</strong> from this service? This will also delete the TLS certificate.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            variant="destructive"
-                            @click="handleRemoveDomain(endpoint.host)"
-                          >
-                            Remove
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      class="h-8 w-8 shrink-0 text-destructive"
+                      :disabled="removingHostname === endpoint.host"
+                      @click="domainToRemove = endpoint.host"
+                    >
+                      <Spinner v-if="removingHostname === endpoint.host" :size="14" />
+                      <X v-else :size="14" />
+                    </Button>
                   </div>
 
                   <div class="flex items-center gap-3 pl-1 text-[11px] text-muted-foreground">
@@ -1543,6 +1533,27 @@ async function handleRemoveService() {
           </CollapsibleContent>
         </div>
       </Collapsible>
+
+      <AlertDialog :open="!!domainToRemove">
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove domain</AlertDialogTitle>
+            <AlertDialogDescription>
+              Remove <strong class="font-mono">{{ domainToRemove }}</strong> from this service? This will also delete the TLS certificate.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel :disabled="!!removingHostname" @click="domainToRemove = null">Cancel</AlertDialogCancel>
+            <Button
+              variant="destructive"
+              :disabled="!!removingHostname"
+              @click="handleRemoveDomain(domainToRemove!)"
+            >
+              {{ removingHostname ? 'Removing...' : 'Remove' }}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <!-- Private Networking -->
       <Collapsible>
@@ -1918,14 +1929,14 @@ async function handleRemoveService() {
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction
+                  <AlertDialogCancel :disabled="removing">Cancel</AlertDialogCancel>
+                  <Button
                     variant="destructive"
                     :disabled="removing"
                     @click="handleRemoveService"
                   >
                     {{ removing ? 'Removing...' : 'Remove' }}
-                  </AlertDialogAction>
+                  </Button>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>

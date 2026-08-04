@@ -78,8 +78,8 @@ const firstName = ref(
             :disabled="checkingOut"
             @click="continueWithPlan"
           >
-            Continue with {{ selectedPlan === Plan.Pro ? 'Pro' : 'Hobby' }}
-            <ArrowRight :size="16" />
+            {{ checkingOut ? 'Redirecting...' : `Continue with ${selectedPlan === Plan.Pro ? 'Pro' : 'Hobby'}` }}
+            <ArrowRight v-if="!checkingOut" :size="16" />
           </button>
         </div>
 

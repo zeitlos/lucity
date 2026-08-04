@@ -64,7 +64,6 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Slider } from '@/components/ui/slider';
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -394,14 +393,14 @@ async function handleDeleteEnvironment() {
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
+                          <AlertDialogCancel :disabled="deleting">Cancel</AlertDialogCancel>
+                          <Button
                             variant="destructive"
                             :disabled="deleting"
                             @click="handleDeleteProject"
                           >
                             {{ deleting ? 'Deleting...' : 'Delete' }}
-                          </AlertDialogAction>
+                          </Button>
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>

@@ -9,7 +9,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -302,10 +301,10 @@ const privateGroups = computed(() => groups.value.filter(g => g.type !== 'PLATFO
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction :disabled="exposing" @click="setExposed(true)">
+          <AlertDialogCancel :disabled="exposing">Cancel</AlertDialogCancel>
+          <Button :disabled="exposing" @click="setExposed(true)">
             {{ exposing ? 'Exposing...' : 'Expose database' }}
-          </AlertDialogAction>
+          </Button>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

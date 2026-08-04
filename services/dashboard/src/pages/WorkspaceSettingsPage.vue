@@ -5,6 +5,7 @@ import { useQuery, useMutation } from '@vue/apollo-composable';
 import { ArrowLeft, Trash2, UserPlus, X, Shield, User as UserIcon, CreditCard, ExternalLink } from '@lucide/vue';
 import { useAuth } from '@/composables/useAuth';
 import { apolloClient } from '@/lib/apollo';
+import Spinner from '@/components/LoadingSpinner.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,7 +22,6 @@ import {
 } from '@/components/ui/select';
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -259,12 +259,15 @@ async function handleInvite() {
 }
 
 // Remove member
-const { mutate: removeMutate } = useMutation(RemoveMemberDocument);
+const { mutate: removeMutate, loading: removingMember } = useMutation(RemoveMemberDocument);
+const memberToRemove = ref<{ id: string; label: string } | null>(null);
 
-async function handleRemoveMember(userId: string) {
+async function handleRemoveMember() {
+  if (!memberToRemove.value) return;
   try {
-    await removeMutate({ userId });
+    await removeMutate({ userId: memberToRemove.value.id });
     toast.success('Member removed');
+    memberToRemove.value = null;
     await refreshToken();
     refetch();
   } catch (e: unknown) {
@@ -274,14 +277,18 @@ async function handleRemoveMember(userId: string) {
 
 // Update member role
 const { mutate: updateRoleMutate } = useMutation(UpdateMemberRoleDocument);
+const roleUpdatingFor = ref<string | null>(null);
 
 async function handleUpdateRole(userId: string, role: WorkspaceRole) {
+  roleUpdatingFor.value = userId;
   try {
     await updateRoleMutate({ input: { userId, role } });
     toast.success('Member role updated');
     refetch();
   } catch (e: unknown) {
     errorToast('Failed to update role', { description: errorMessage(e) });
+  } finally {
+    roleUpdatingFor.value = null;
   }
 }
 
@@ -523,10 +530,12 @@ async function handleDelete() {
                     <template v-if="isAdmin">
                       <Select
                         :model-value="member.role"
+                        :disabled="roleUpdatingFor === member.id"
                         @update:model-value="handleUpdateRole(member.id, $event as WorkspaceRole)"
                       >
                         <SelectTrigger class="w-28">
-                          <SelectValue />
+                          <Spinner v-if="roleUpdatingFor === member.id" :size="12" />
+                          <SelectValue v-else />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="USER">
@@ -551,31 +560,36 @@ async function handleDelete() {
                     </template>
                   </TableCell>
                   <TableCell v-if="isAdmin">
-                    <AlertDialog>
-                      <AlertDialogTrigger as-child>
-                        <Button variant="ghost" size="icon" class="h-8 w-8 text-muted-foreground hover:text-destructive">
-                          <X :size="14" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Remove member?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            {{ member.name || member.email }} will lose access to this workspace.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction variant="destructive" @click="handleRemoveMember(member.id)">
-                            Remove
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      class="h-8 w-8 text-muted-foreground hover:text-destructive"
+                      :disabled="removingMember"
+                      @click="memberToRemove = { id: member.id, label: member.name || member.email }"
+                    >
+                      <X :size="14" />
+                    </Button>
                   </TableCell>
                 </TableRow>
               </TableBody>
             </Table>
+
+            <AlertDialog :open="!!memberToRemove">
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Remove member?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {{ memberToRemove?.label }} will lose access to this workspace.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel :disabled="removingMember" @click="memberToRemove = null">Cancel</AlertDialogCancel>
+                  <Button variant="destructive" :disabled="removingMember" @click="handleRemoveMember">
+                    {{ removingMember ? 'Removing...' : 'Remove' }}
+                  </Button>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </section>
 
           <!-- Billing -->
@@ -719,10 +733,10 @@ async function handleDelete() {
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel @click="confirmPlan = null">Cancel</AlertDialogCancel>
-                    <AlertDialogAction :disabled="changingPlan" @click="handleChangePlan">
+                    <AlertDialogCancel :disabled="changingPlan" @click="confirmPlan = null">Cancel</AlertDialogCancel>
+                    <Button :disabled="changingPlan" @click="handleChangePlan">
                       {{ changingPlan ? 'Switching...' : 'Confirm' }}
-                    </AlertDialogAction>
+                    </Button>
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
@@ -800,13 +814,14 @@ async function handleDelete() {
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction
+                      <AlertDialogCancel :disabled="deleting">Cancel</AlertDialogCancel>
+                      <Button
                         variant="destructive"
+                        :disabled="deleting"
                         @click="handleDelete"
                       >
-                        Delete workspace
-                      </AlertDialogAction>
+                        {{ deleting ? 'Deleting...' : 'Delete workspace' }}
+                      </Button>
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
