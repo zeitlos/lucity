@@ -5,9 +5,9 @@ env_files = [".env"]
 [build]
   bin = "../../tmp/air/conductor/conductor"
   cmd = "go build -o ../../tmp/air/conductor/conductor ./cmd/conductor/..."
-  delay = 1000
+  delay = 2500
   exclude_dir = ["node_modules", "tmp", "vendor"]
-  exclude_regex = ["_test\\.go$", "\\.gen\\.go$", "generated\\.go$"]
+  exclude_regex = ["_test\\.go$"]
   include_ext = ["go", "env"]
   include_dir = [".", "../../pkg/auth", "../../pkg/builder", "../../pkg/cashier", "../../pkg/conductor", "../../pkg/deployer", "../../pkg/github", "../../pkg/graceful", "../../pkg/labels", "../../pkg/logger", "../../pkg/logto", "../../pkg/packager", "../../pkg/tenant", "../../charts"]
   kill_delay = "2s"
