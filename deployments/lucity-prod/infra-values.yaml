@@ -199,9 +199,13 @@ rybbit:
       size: 10Gi
   postgres:
     storageClass: hcloud-volumes
+  redis:
+    storageClass: hcloud-volumes
+    size: 10Gi              # Hetzner Cloud Volumes have a 10Gi minimum
   secrets:
     clickhousePassword: ""   # --set rybbit.secrets.clickhousePassword
     betterAuthSecret: ""     # --set rybbit.secrets.betterAuthSecret
+    redisPassword: ""        # --set rybbit.secrets.redisPassword
 
 # Logto Identity Provider
 logto:

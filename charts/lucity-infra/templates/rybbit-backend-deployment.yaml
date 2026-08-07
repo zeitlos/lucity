@@ -90,6 +90,16 @@ spec:
                 secretKeyRef:
                   name: {{ .Release.Name }}-rybbit-pg-app
                   key: password
+            # Redis (session store + bot-detection cache; used from 2.7.0 on)
+            - name: REDIS_HOST
+              value: "{{ .Release.Name }}-rybbit-valkey"
+            - name: REDIS_PORT
+              value: "6379"
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-rybbit
+                  key: redis-password
             # Auth
             - name: BETTER_AUTH_SECRET
               valueFrom:

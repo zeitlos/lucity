@@ -7,7 +7,7 @@ appVersion: "0.1.0"
 
 dependencies:
   - name: zot
-    version: "0.1.118"
+    version: "0.1.122"
     repository: "http://zotregistry.dev/helm-charts"
     condition: zot.enabled
   - name: cloudnative-pg
@@ -15,15 +15,15 @@ dependencies:
     repository: "https://cloudnative-pg.github.io/charts"
     condition: cloudnative-pg.enabled
   - name: victoria-metrics-single
-    version: "0.41.0"
+    version: "0.43.0"
     repository: "https://victoriametrics.github.io/helm-charts/"
     condition: victoria-metrics-single.enabled
   - name: victoria-logs-single
-    version: "0.13.8"
+    version: "0.13.9"
     repository: "https://victoriametrics.github.io/helm-charts/"
     condition: victoria-logs-single.enabled
   - name: victoria-metrics-alert
-    version: "0.43.0"
+    version: "0.45.0"
     repository: "https://victoriametrics.github.io/helm-charts/"
     condition: victoria-metrics-alert.enabled
   - name: opentelemetry-operator
@@ -31,10 +31,10 @@ dependencies:
     repository: "https://open-telemetry.github.io/opentelemetry-helm-charts"
     condition: opentelemetry-operator.enabled
   - name: grafana
-    version: "12.7.1"
+    version: "12.10.2"
     repository: "https://grafana-community.github.io/helm-charts"
     condition: grafana.enabled
   - name: traefik
-    version: "41.0.1"
+    version: "41.1.1"
     repository: "https://traefik.github.io/charts"
     condition: traefik.enabled

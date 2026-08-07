@@ -1,0 +1,85 @@
+{{- if .Values.rybbit.enabled }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .Release.Name }}-rybbit-valkey
+  labels:
+    app.kubernetes.io/name: rybbit-valkey
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: analytics
+spec:
+  serviceName: {{ .Release.Name }}-rybbit-valkey
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: rybbit-valkey
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      annotations:
+        checksum/secret: {{ include (print $.Template.BasePath "/rybbit-secret.yaml") . | sha256sum }}
+      labels:
+        app.kubernetes.io/name: rybbit-valkey
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: analytics
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: valkey
+          image: valkey/valkey:{{ .Values.rybbit.redis.version }}-alpine
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "-c"]
+          args:
+            - exec valkey-server --requirepass "$VALKEY_PASSWORD" --appendonly yes --dir /data
+          ports:
+            - name: valkey
+              containerPort: 6379
+              protocol: TCP
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          env:
+            - name: VALKEY_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-rybbit
+                  key: redis-password
+          readinessProbe:
+            tcpSocket:
+              port: valkey
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: valkey
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          {{- with .Values.rybbit.redis.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        {{- if .Values.rybbit.redis.storageClass }}
+        storageClassName: {{ .Values.rybbit.redis.storageClass | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.rybbit.redis.size }}
+{{- end }}
