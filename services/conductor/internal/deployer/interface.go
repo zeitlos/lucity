@@ -2,6 +2,7 @@ package deployer
 
 import (
 	"context"
+	"time"
 
 	"k8s.io/apimachinery/pkg/api/resource"
 
@@ -48,6 +49,7 @@ type ServiceClient interface {
 
 type DatabaseClient interface {
 	Create(ctx context.Context, env platform.EnvironmentID, name string, spec DatabaseSpec) (RevisionID, error)
+	Restore(ctx context.Context, source platform.DatabaseID, name string, spec DatabaseSpec, targetTime *time.Time) (RevisionID, error)
 	Delete(ctx context.Context, id platform.DatabaseID) error
 	SetResources(ctx context.Context, id platform.DatabaseID, tier platform.ResourceTier, resources Resources) (RevisionID, error)
 	SetStorage(ctx context.Context, id platform.DatabaseID, size resource.Quantity) (RevisionID, error)

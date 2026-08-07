@@ -3,6 +3,7 @@ package helm
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strconv"
 
 	"gopkg.in/yaml.v3"
@@ -16,6 +17,7 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/deployer/values"
 	"github.com/zeitlos/lucity/services/conductor/internal/environment/kubernetes"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
+	"github.com/zeitlos/lucity/services/conductor/internal/resources"
 )
 
 // Name releases the same as the chart to produce minimal resource names.
@@ -40,10 +42,13 @@ func (c *Client) applyEnv(ctx context.Context, envID platform.EnvironmentID, mut
 	env.SharedVariableLabels = values.SharedVariableLabels()
 	env.ImagePullSecrets = []values.PullSecret{{Name: kubernetes.PullSecretName}}
 	env.Gateway = values.Gateway{Name: c.gatewayName, Namespace: c.gatewayNamespace}
+	env.Databases.BackupStore = c.backupStore(envID)
 
 	if err := mutate(env); err != nil {
 		return "", err
 	}
+
+	values.EnsureBackupServerNames(env, namespace)
 
 	if err := values.Validate(env); err != nil {
 		return "", err
@@ -62,6 +67,28 @@ func (c *Client) applyEnv(ctx context.Context, envID platform.EnvironmentID, mut
 	}
 
 	return deployer.RevisionID(strconv.Itoa(rel.Version)), nil
+}
+
+func (c *Client) backupStore(envID platform.EnvironmentID) values.BackupStore {
+	if !c.backups.Enabled {
+		return values.BackupStore{}
+	}
+
+	return values.BackupStore{
+		Enabled:         true,
+		Endpoint:        c.backups.Endpoint,
+		DestinationPath: fmt.Sprintf("s3://%s/%s", c.backups.Bucket, envID.Workspace),
+		Retention:       resources.DefaultBackupRetention,
+		Schedule:        resources.DefaultBackupSchedule,
+		Credentials: values.BackupCredentials{
+			ExistingSecret: kubernetes.BackupSecretName,
+			SecretKeys: values.BackupSecretKeys{
+				AccessKeyIDKey:     kubernetes.BackupAccessKeyIDKey,
+				SecretAccessKeyKey: kubernetes.BackupSecretAccessKeyKey,
+				RegionKey:          kubernetes.BackupRegionKey,
+			},
+		},
+	}
 }
 
 // installOrUpgrade dispatches to action.Install or action.Upgrade based on

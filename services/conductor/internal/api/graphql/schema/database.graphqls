@@ -4,6 +4,8 @@ type Database {
   version: String!
   instances: Int!
   status: DatabaseStatus!
+  """Why the database is in this state, when it is not healthy."""
+  statusReason: String
   size: String!
   resources: Resources!
   createdAt: Time!

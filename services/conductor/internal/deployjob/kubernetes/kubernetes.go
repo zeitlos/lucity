@@ -27,6 +27,13 @@ type Config struct {
 	RegistryPullURL string
 	GatewayName     string
 	GatewayNS       string
+	Backups         BackupConfig
+}
+
+type BackupConfig struct {
+	Enabled  bool
+	Endpoint string
+	Bucket   string
 }
 
 type Client struct {

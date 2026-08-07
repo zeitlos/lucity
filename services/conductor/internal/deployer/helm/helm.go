@@ -12,9 +12,16 @@ type Client struct {
 	chart            *chart.Chart
 	gatewayName      string
 	gatewayNamespace string
+	backups          BackupConfig
 }
 
-func New(chart *chart.Chart, gatewayName, gatewayNamespace string) (*Client, error) {
+type BackupConfig struct {
+	Enabled  bool
+	Endpoint string
+	Bucket   string
+}
+
+func New(chart *chart.Chart, gatewayName, gatewayNamespace string, backups BackupConfig) (*Client, error) {
 	chartVersion, err := semver.Parse(chart.Metadata.Version)
 
 	if err != nil {
@@ -26,6 +33,7 @@ func New(chart *chart.Chart, gatewayName, gatewayNamespace string) (*Client, err
 		chart:            chart,
 		gatewayName:      gatewayName,
 		gatewayNamespace: gatewayNamespace,
+		backups:          backups,
 	}, nil
 }
 

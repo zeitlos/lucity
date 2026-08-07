@@ -35,6 +35,7 @@ func NewExecutableSchema(cfg Config) graphql.ExecutableSchema {
 type Config = graphql.Config[ResolverRoot, DirectiveRoot, ComplexityRoot]
 
 type ResolverRoot interface {
+	Database() DatabaseResolver
 	Environment() EnvironmentResolver
 	Mutation() MutationResolver
 	Query() QueryResolver
@@ -141,15 +142,37 @@ type ComplexityRoot struct {
 	}
 
 	Database struct {
-		CreatedAt func(childComplexity int) int
-		ID        func(childComplexity int) int
-		Instances func(childComplexity int) int
-		Name      func(childComplexity int) int
-		Public    func(childComplexity int) int
-		Resources func(childComplexity int) int
-		Size      func(childComplexity int) int
-		Status    func(childComplexity int) int
-		Version   func(childComplexity int) int
+		Backups      func(childComplexity int) int
+		CreatedAt    func(childComplexity int) int
+		ID           func(childComplexity int) int
+		Instances    func(childComplexity int) int
+		Name         func(childComplexity int) int
+		Public       func(childComplexity int) int
+		Resources    func(childComplexity int) int
+		Size         func(childComplexity int) int
+		Status       func(childComplexity int) int
+		StatusReason func(childComplexity int) int
+		Version      func(childComplexity int) int
+	}
+
+	DatabaseBackup struct {
+		CreatedAt  func(childComplexity int) int
+		Error      func(childComplexity int) int
+		FinishedAt func(childComplexity int) int
+		ID         func(childComplexity int) int
+		StartedAt  func(childComplexity int) int
+		Status     func(childComplexity int) int
+		Trigger    func(childComplexity int) int
+	}
+
+	DatabaseBackups struct {
+		Backups              func(childComplexity int) int
+		EarliestRestorePoint func(childComplexity int) int
+		Enabled              func(childComplexity int) int
+		LastBackupAt         func(childComplexity int) int
+		LatestRestorePoint   func(childComplexity int) int
+		RetentionDays        func(childComplexity int) int
+		Schedule             func(childComplexity int) int
 	}
 
 	DatabaseColumn struct {
@@ -355,6 +378,7 @@ type ComplexityRoot struct {
 		CreateAPIToken            func(childComplexity int, input model.CreateAPITokenInput) int
 		CreateBucket              func(childComplexity int, input model.CreateBucketInput) int
 		CreateDatabase            func(childComplexity int, input model.CreateDatabaseInput) int
+		CreateDatabaseBackup      func(childComplexity int, database platform.DatabaseID) int
 		CreateEnvironment         func(childComplexity int, input model.CreateEnvironmentInput) int
 		CreateKeyValueStore       func(childComplexity int, input model.CreateKeyValueStoreInput) int
 		CreatePlanCheckout        func(childComplexity int, plan model.Plan) int
@@ -379,6 +403,7 @@ type ComplexityRoot struct {
 		RemoveDomain              func(childComplexity int, service platform.ServiceID, hostname string) int
 		RemoveMember              func(childComplexity int, userID string) int
 		RemoveService             func(childComplexity int, service platform.ServiceID) int
+		RestoreDatabase           func(childComplexity int, input model.RestoreDatabaseInput) int
 		RevokeAPIToken            func(childComplexity int, id string) int
 		Rollback                  func(childComplexity int, deployment platform.DeploymentID) int
 		SetAutoDeploy             func(childComplexity int, service platform.ServiceID, enabled bool) int
@@ -483,6 +508,11 @@ type ComplexityRoot struct {
 	Resources struct {
 		CPU    func(childComplexity int) int
 		Memory func(childComplexity int) int
+	}
+
+	RestoreDatabaseResult struct {
+		ClampedToLatest func(childComplexity int) int
+		Database        func(childComplexity int) int
 	}
 
 	Rollout struct {
@@ -659,6 +689,9 @@ type ComplexityRoot struct {
 
 // region    ************************** generated!.gotpl **************************
 
+type DatabaseResolver interface {
+	Backups(ctx context.Context, obj *model.Database) (*model.DatabaseBackups, error)
+}
 type EnvironmentResolver interface {
 	Services(ctx context.Context, obj *model.Environment) ([]model.Service, error)
 	Databases(ctx context.Context, obj *model.Environment) ([]model.Database, error)
@@ -669,6 +702,8 @@ type EnvironmentResolver interface {
 type MutationResolver interface {
 	CreateAPIToken(ctx context.Context, input model.CreateAPITokenInput) (*model.CreatedAPIToken, error)
 	RevokeAPIToken(ctx context.Context, id string) (bool, error)
+	CreateDatabaseBackup(ctx context.Context, database platform.DatabaseID) (*model.DatabaseBackup, error)
+	RestoreDatabase(ctx context.Context, input model.RestoreDatabaseInput) (*model.RestoreDatabaseResult, error)
 	SetEnvironmentResources(ctx context.Context, input model.SetEnvironmentResourcesInput) (*model.Environment, error)
 	ChangePlan(ctx context.Context, plan model.Plan) (*model.BillingSubscription, error)
 	BillingPortalURL(ctx context.Context) (*model.BillingPortalURL, error)
@@ -1103,6 +1138,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.CreatedApiToken.Token(childComplexity), true
 
+	case "Database.backups":
+		if e.ComplexityRoot.Database.Backups == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Database.Backups(childComplexity), true
 	case "Database.createdAt":
 		if e.ComplexityRoot.Database.CreatedAt == nil {
 			break
@@ -1151,12 +1192,104 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Database.Status(childComplexity), true
+	case "Database.statusReason":
+		if e.ComplexityRoot.Database.StatusReason == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Database.StatusReason(childComplexity), true
 	case "Database.version":
 		if e.ComplexityRoot.Database.Version == nil {
 			break
 		}
 
 		return e.ComplexityRoot.Database.Version(childComplexity), true
+
+	case "DatabaseBackup.createdAt":
+		if e.ComplexityRoot.DatabaseBackup.CreatedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DatabaseBackup.CreatedAt(childComplexity), true
+	case "DatabaseBackup.error":
+		if e.ComplexityRoot.DatabaseBackup.Error == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DatabaseBackup.Error(childComplexity), true
+	case "DatabaseBackup.finishedAt":
+		if e.ComplexityRoot.DatabaseBackup.FinishedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DatabaseBackup.FinishedAt(childComplexity), true
+	case "DatabaseBackup.id":
+		if e.ComplexityRoot.DatabaseBackup.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DatabaseBackup.ID(childComplexity), true
+	case "DatabaseBackup.startedAt":
+		if e.ComplexityRoot.DatabaseBackup.StartedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DatabaseBackup.StartedAt(childComplexity), true
+	case "DatabaseBackup.status":
+		if e.ComplexityRoot.DatabaseBackup.Status == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DatabaseBackup.Status(childComplexity), true
+	case "DatabaseBackup.trigger":
+		if e.ComplexityRoot.DatabaseBackup.Trigger == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DatabaseBackup.Trigger(childComplexity), true
+
+	case "DatabaseBackups.backups":
+		if e.ComplexityRoot.DatabaseBackups.Backups == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DatabaseBackups.Backups(childComplexity), true
+	case "DatabaseBackups.earliestRestorePoint":
+		if e.ComplexityRoot.DatabaseBackups.EarliestRestorePoint == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DatabaseBackups.EarliestRestorePoint(childComplexity), true
+	case "DatabaseBackups.enabled":
+		if e.ComplexityRoot.DatabaseBackups.Enabled == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DatabaseBackups.Enabled(childComplexity), true
+	case "DatabaseBackups.lastBackupAt":
+		if e.ComplexityRoot.DatabaseBackups.LastBackupAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DatabaseBackups.LastBackupAt(childComplexity), true
+	case "DatabaseBackups.latestRestorePoint":
+		if e.ComplexityRoot.DatabaseBackups.LatestRestorePoint == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DatabaseBackups.LatestRestorePoint(childComplexity), true
+	case "DatabaseBackups.retentionDays":
+		if e.ComplexityRoot.DatabaseBackups.RetentionDays == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DatabaseBackups.RetentionDays(childComplexity), true
+	case "DatabaseBackups.schedule":
+		if e.ComplexityRoot.DatabaseBackups.Schedule == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DatabaseBackups.Schedule(childComplexity), true
 
 	case "DatabaseColumn.name":
 		if e.ComplexityRoot.DatabaseColumn.Name == nil {
@@ -1990,6 +2123,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.CreateDatabase(childComplexity, args["input"].(model.CreateDatabaseInput)), true
+	case "Mutation.createDatabaseBackup":
+		if e.ComplexityRoot.Mutation.CreateDatabaseBackup == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_createDatabaseBackup_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.CreateDatabaseBackup(childComplexity, args["database"].(platform.DatabaseID)), true
 	case "Mutation.createEnvironment":
 		if e.ComplexityRoot.Mutation.CreateEnvironment == nil {
 			break
@@ -2249,6 +2393,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.RemoveService(childComplexity, args["service"].(platform.ServiceID)), true
+	case "Mutation.restoreDatabase":
+		if e.ComplexityRoot.Mutation.RestoreDatabase == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_restoreDatabase_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.RestoreDatabase(childComplexity, args["input"].(model.RestoreDatabaseInput)), true
 	case "Mutation.revokeApiToken":
 		if e.ComplexityRoot.Mutation.RevokeAPIToken == nil {
 			break
@@ -2974,6 +3129,19 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.Resources.Memory(childComplexity), true
 
+	case "RestoreDatabaseResult.clampedToLatest":
+		if e.ComplexityRoot.RestoreDatabaseResult.ClampedToLatest == nil {
+			break
+		}
+
+		return e.ComplexityRoot.RestoreDatabaseResult.ClampedToLatest(childComplexity), true
+	case "RestoreDatabaseResult.database":
+		if e.ComplexityRoot.RestoreDatabaseResult.Database == nil {
+			break
+		}
+
+		return e.ComplexityRoot.RestoreDatabaseResult.Database(childComplexity), true
+
 	case "Rollout.message":
 		if e.ComplexityRoot.Rollout.Message == nil {
 			break
@@ -3682,6 +3850,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputInviteMemberInput,
 		ec.unmarshalInputMetricsRange,
 		ec.unmarshalInputResourcesInput,
+		ec.unmarshalInputRestoreDatabaseInput,
 		ec.unmarshalInputServiceVariableInput,
 		ec.unmarshalInputSetEnvironmentResourcesInput,
 		ec.unmarshalInputSetServiceScalingInput,
@@ -3779,7 +3948,7 @@ func newExecutionContext(
 	}
 }
 
-//go:embed "schema/apitoken.graphqls" "schema/auth.graphqls" "schema/billing.graphqls" "schema/database.graphqls" "schema/eject.graphqls" "schema/environment.graphqls" "schema/github.graphqls" "schema/keyvaluestore.graphqls" "schema/logs.graphqls" "schema/metrics.graphqls" "schema/objectstorage.graphqls" "schema/project.graphqls" "schema/registry.graphqls" "schema/release.graphqls" "schema/scan.graphqls" "schema/schema.graphqls" "schema/service.graphqls" "schema/variable.graphqls" "schema/volume.graphqls" "schema/vulnerability.graphqls" "schema/workspace.graphqls"
+//go:embed "schema/apitoken.graphqls" "schema/auth.graphqls" "schema/backup.graphqls" "schema/billing.graphqls" "schema/database.graphqls" "schema/eject.graphqls" "schema/environment.graphqls" "schema/github.graphqls" "schema/keyvaluestore.graphqls" "schema/logs.graphqls" "schema/metrics.graphqls" "schema/objectstorage.graphqls" "schema/project.graphqls" "schema/registry.graphqls" "schema/release.graphqls" "schema/scan.graphqls" "schema/schema.graphqls" "schema/service.graphqls" "schema/variable.graphqls" "schema/volume.graphqls" "schema/vulnerability.graphqls" "schema/workspace.graphqls"
 var sourcesFS embed.FS
 
 func sourceData(filename string) string {
@@ -3793,6 +3962,7 @@ func sourceData(filename string) string {
 var sources = []*ast.Source{
 	{Name: "schema/apitoken.graphqls", Input: sourceData("schema/apitoken.graphqls"), BuiltIn: false},
 	{Name: "schema/auth.graphqls", Input: sourceData("schema/auth.graphqls"), BuiltIn: false},
+	{Name: "schema/backup.graphqls", Input: sourceData("schema/backup.graphqls"), BuiltIn: false},
 	{Name: "schema/billing.graphqls", Input: sourceData("schema/billing.graphqls"), BuiltIn: false},
 	{Name: "schema/database.graphqls", Input: sourceData("schema/database.graphqls"), BuiltIn: false},
 	{Name: "schema/eject.graphqls", Input: sourceData("schema/eject.graphqls"), BuiltIn: false},
@@ -4001,6 +4171,8 @@ func (ec *executionContext) childFields_Database(ctx context.Context, field grap
 		return ec.fieldContext_Database_instances(ctx, field)
 	case "status":
 		return ec.fieldContext_Database_status(ctx, field)
+	case "statusReason":
+		return ec.fieldContext_Database_statusReason(ctx, field)
 	case "size":
 		return ec.fieldContext_Database_size(ctx, field)
 	case "resources":
@@ -4009,8 +4181,50 @@ func (ec *executionContext) childFields_Database(ctx context.Context, field grap
 		return ec.fieldContext_Database_createdAt(ctx, field)
 	case "public":
 		return ec.fieldContext_Database_public(ctx, field)
+	case "backups":
+		return ec.fieldContext_Database_backups(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type Database", field.Name)
+}
+
+func (ec *executionContext) childFields_DatabaseBackup(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "id":
+		return ec.fieldContext_DatabaseBackup_id(ctx, field)
+	case "status":
+		return ec.fieldContext_DatabaseBackup_status(ctx, field)
+	case "createdAt":
+		return ec.fieldContext_DatabaseBackup_createdAt(ctx, field)
+	case "trigger":
+		return ec.fieldContext_DatabaseBackup_trigger(ctx, field)
+	case "startedAt":
+		return ec.fieldContext_DatabaseBackup_startedAt(ctx, field)
+	case "finishedAt":
+		return ec.fieldContext_DatabaseBackup_finishedAt(ctx, field)
+	case "error":
+		return ec.fieldContext_DatabaseBackup_error(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type DatabaseBackup", field.Name)
+}
+
+func (ec *executionContext) childFields_DatabaseBackups(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "enabled":
+		return ec.fieldContext_DatabaseBackups_enabled(ctx, field)
+	case "retentionDays":
+		return ec.fieldContext_DatabaseBackups_retentionDays(ctx, field)
+	case "schedule":
+		return ec.fieldContext_DatabaseBackups_schedule(ctx, field)
+	case "earliestRestorePoint":
+		return ec.fieldContext_DatabaseBackups_earliestRestorePoint(ctx, field)
+	case "latestRestorePoint":
+		return ec.fieldContext_DatabaseBackups_latestRestorePoint(ctx, field)
+	case "lastBackupAt":
+		return ec.fieldContext_DatabaseBackups_lastBackupAt(ctx, field)
+	case "backups":
+		return ec.fieldContext_DatabaseBackups_backups(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type DatabaseBackups", field.Name)
 }
 
 func (ec *executionContext) childFields_DatabaseColumn(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
@@ -4465,6 +4679,16 @@ func (ec *executionContext) childFields_Resources(ctx context.Context, field gra
 		return ec.fieldContext_Resources_memory(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type Resources", field.Name)
+}
+
+func (ec *executionContext) childFields_RestoreDatabaseResult(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "database":
+		return ec.fieldContext_RestoreDatabaseResult_database(ctx, field)
+	case "clampedToLatest":
+		return ec.fieldContext_RestoreDatabaseResult_clampedToLatest(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type RestoreDatabaseResult", field.Name)
 }
 
 func (ec *executionContext) childFields_Rollout(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
@@ -5139,6 +5363,20 @@ func (ec *executionContext) field_Mutation_createBucket_args(ctx context.Context
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_createDatabaseBackup_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "database",
+		func(ctx context.Context, v any) (platform.DatabaseID, error) {
+			return ec.unmarshalNDatabaseID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐDatabaseID(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["database"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_createDatabase_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -5620,6 +5858,20 @@ func (ec *executionContext) field_Mutation_removeService_args(ctx context.Contex
 		return nil, err
 	}
 	args["service"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_restoreDatabase_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input",
+		func(ctx context.Context, v any) (model.RestoreDatabaseInput, error) {
+			return ec.unmarshalNRestoreDatabaseInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRestoreDatabaseInput(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
 	return args, nil
 }
 
@@ -8071,6 +8323,29 @@ func (ec *executionContext) fieldContext_Database_status(_ context.Context, fiel
 	return graphql.NewScalarFieldContext("Database", field, false, false, errors.New("field of type DatabaseStatus does not have child fields"))
 }
 
+func (ec *executionContext) _Database_statusReason(ctx context.Context, field graphql.CollectedField, obj *model.Database) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Database_statusReason(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.StatusReason, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_Database_statusReason(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Database", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
 func (ec *executionContext) _Database_size(ctx context.Context, field graphql.CollectedField, obj *model.Database) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -8170,6 +8445,369 @@ func (ec *executionContext) _Database_public(ctx context.Context, field graphql.
 }
 func (ec *executionContext) fieldContext_Database_public(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("Database", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
+func (ec *executionContext) _Database_backups(ctx context.Context, field graphql.CollectedField, obj *model.Database) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Database_backups(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Database().Backups(ctx, obj)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.DatabaseBackups) graphql.Marshaler {
+			return ec.marshalNDatabaseBackups2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabaseBackups(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Database_backups(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Database",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_DatabaseBackups(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DatabaseBackup_id(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseBackup) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DatabaseBackup_id(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNID2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DatabaseBackup_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DatabaseBackup", field, false, false, errors.New("field of type ID does not have child fields"))
+}
+
+func (ec *executionContext) _DatabaseBackup_status(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseBackup) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DatabaseBackup_status(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Status, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v model.BackupStatus) graphql.Marshaler {
+			return ec.marshalNBackupStatus2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐBackupStatus(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DatabaseBackup_status(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DatabaseBackup", field, false, false, errors.New("field of type BackupStatus does not have child fields"))
+}
+
+func (ec *executionContext) _DatabaseBackup_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseBackup) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DatabaseBackup_createdAt(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CreatedAt, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v time.Time) graphql.Marshaler {
+			return ec.marshalNTime2timeᚐTime(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DatabaseBackup_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DatabaseBackup", field, false, false, errors.New("field of type Time does not have child fields"))
+}
+
+func (ec *executionContext) _DatabaseBackup_trigger(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseBackup) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DatabaseBackup_trigger(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Trigger, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v model.BackupTrigger) graphql.Marshaler {
+			return ec.marshalNBackupTrigger2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐBackupTrigger(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DatabaseBackup_trigger(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DatabaseBackup", field, false, false, errors.New("field of type BackupTrigger does not have child fields"))
+}
+
+func (ec *executionContext) _DatabaseBackup_startedAt(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseBackup) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DatabaseBackup_startedAt(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.StartedAt, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *time.Time) graphql.Marshaler {
+			return ec.marshalOTime2ᚖtimeᚐTime(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_DatabaseBackup_startedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DatabaseBackup", field, false, false, errors.New("field of type Time does not have child fields"))
+}
+
+func (ec *executionContext) _DatabaseBackup_finishedAt(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseBackup) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DatabaseBackup_finishedAt(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.FinishedAt, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *time.Time) graphql.Marshaler {
+			return ec.marshalOTime2ᚖtimeᚐTime(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_DatabaseBackup_finishedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DatabaseBackup", field, false, false, errors.New("field of type Time does not have child fields"))
+}
+
+func (ec *executionContext) _DatabaseBackup_error(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseBackup) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DatabaseBackup_error(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Error, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_DatabaseBackup_error(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DatabaseBackup", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _DatabaseBackups_enabled(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseBackups) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DatabaseBackups_enabled(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Enabled, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DatabaseBackups_enabled(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DatabaseBackups", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
+func (ec *executionContext) _DatabaseBackups_retentionDays(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseBackups) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DatabaseBackups_retentionDays(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.RetentionDays, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DatabaseBackups_retentionDays(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DatabaseBackups", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _DatabaseBackups_schedule(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseBackups) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DatabaseBackups_schedule(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Schedule, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DatabaseBackups_schedule(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DatabaseBackups", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _DatabaseBackups_earliestRestorePoint(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseBackups) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DatabaseBackups_earliestRestorePoint(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.EarliestRestorePoint, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *time.Time) graphql.Marshaler {
+			return ec.marshalOTime2ᚖtimeᚐTime(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_DatabaseBackups_earliestRestorePoint(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DatabaseBackups", field, false, false, errors.New("field of type Time does not have child fields"))
+}
+
+func (ec *executionContext) _DatabaseBackups_latestRestorePoint(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseBackups) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DatabaseBackups_latestRestorePoint(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.LatestRestorePoint, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *time.Time) graphql.Marshaler {
+			return ec.marshalOTime2ᚖtimeᚐTime(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_DatabaseBackups_latestRestorePoint(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DatabaseBackups", field, false, false, errors.New("field of type Time does not have child fields"))
+}
+
+func (ec *executionContext) _DatabaseBackups_lastBackupAt(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseBackups) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DatabaseBackups_lastBackupAt(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.LastBackupAt, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *time.Time) graphql.Marshaler {
+			return ec.marshalOTime2ᚖtimeᚐTime(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_DatabaseBackups_lastBackupAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DatabaseBackups", field, false, false, errors.New("field of type Time does not have child fields"))
+}
+
+func (ec *executionContext) _DatabaseBackups_backups(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseBackups) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DatabaseBackups_backups(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Backups, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []model.DatabaseBackup) graphql.Marshaler {
+			return ec.marshalNDatabaseBackup2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabaseBackupᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DatabaseBackups_backups(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DatabaseBackups",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_DatabaseBackup(ctx, field)
+		},
+	}
+	return fc, nil
 }
 
 func (ec *executionContext) _DatabaseColumn_name(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseColumn) (ret graphql.Marshaler) {
@@ -11107,6 +11745,130 @@ func (ec *executionContext) fieldContext_Mutation_revokeApiToken(ctx context.Con
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_revokeApiToken_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_createDatabaseBackup(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_createDatabaseBackup(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().CreateDatabaseBackup(ctx, fc.Args["database"].(platform.DatabaseID))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
+				if err != nil {
+					var zeroVal *model.DatabaseBackup
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal *model.DatabaseBackup
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *model.DatabaseBackup) graphql.Marshaler {
+			return ec.marshalNDatabaseBackup2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabaseBackup(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_createDatabaseBackup(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_DatabaseBackup(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_createDatabaseBackup_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_restoreDatabase(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_restoreDatabase(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().RestoreDatabase(ctx, fc.Args["input"].(model.RestoreDatabaseInput))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
+				if err != nil {
+					var zeroVal *model.RestoreDatabaseResult
+					return zeroVal, err
+				}
+				if ec.Directives.HasRole == nil {
+					var zeroVal *model.RestoreDatabaseResult
+					return zeroVal, errors.New("directive hasRole is not implemented")
+				}
+				return ec.Directives.HasRole(ctx, nil, directive0, role)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *model.RestoreDatabaseResult) graphql.Marshaler {
+			return ec.marshalNRestoreDatabaseResult2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRestoreDatabaseResult(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_restoreDatabase(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_RestoreDatabaseResult(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_restoreDatabase_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -17152,6 +17914,61 @@ func (ec *executionContext) fieldContext_Resources_memory(_ context.Context, fie
 	return graphql.NewScalarFieldContext("Resources", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
+func (ec *executionContext) _RestoreDatabaseResult_database(ctx context.Context, field graphql.CollectedField, obj *model.RestoreDatabaseResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_RestoreDatabaseResult_database(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Database, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Database) graphql.Marshaler {
+			return ec.marshalNDatabase2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabase(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_RestoreDatabaseResult_database(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "RestoreDatabaseResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Database(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _RestoreDatabaseResult_clampedToLatest(ctx context.Context, field graphql.CollectedField, obj *model.RestoreDatabaseResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_RestoreDatabaseResult_clampedToLatest(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ClampedToLatest, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_RestoreDatabaseResult_clampedToLatest(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("RestoreDatabaseResult", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
 func (ec *executionContext) _Rollout_status(ctx context.Context, field graphql.CollectedField, obj *model.Rollout) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -22076,6 +22893,70 @@ func (ec *executionContext) unmarshalInputResourcesInput(ctx context.Context, ob
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputRestoreDatabaseInput(ctx context.Context, obj any) (model.RestoreDatabaseInput, error) {
+	var it model.RestoreDatabaseInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"database", "name", "targetTime"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "database":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("database"))
+			data, err := ec.unmarshalNDatabaseID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐDatabaseID(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Database = data
+		case "name":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNString2string(ctx, v) }
+
+			directive1 := func(ctx context.Context) (any, error) {
+				constraint, err := ec.unmarshalNString2string(ctx, "resource_name,min=2,max=16")
+				if err != nil {
+					var zeroVal string
+					return zeroVal, err
+				}
+				if ec.Directives.Constraint == nil {
+					var zeroVal string
+					return zeroVal, errors.New("directive constraint is not implemented")
+				}
+				return ec.Directives.Constraint(ctx, obj, directive0, constraint)
+			}
+
+			tmp, err := directive1(ctx)
+			if err != nil {
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+			if data, ok := tmp.(string); ok {
+				it.Name = data
+			} else {
+				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+		case "targetTime":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("targetTime"))
+			data, err := ec.unmarshalOTime2ᚖtimeᚐTime(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.TargetTime = data
+		}
+	}
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputServiceVariableInput(ctx context.Context, obj any) (model.ServiceVariableInput, error) {
 	var it model.ServiceVariableInput
 	if obj == nil {
@@ -23212,45 +24093,224 @@ func (ec *executionContext) _Database(ctx context.Context, sel ast.SelectionSet,
 		case "id":
 			out.Values[i] = ec._Database_id(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "name":
 			out.Values[i] = ec._Database_name(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "version":
 			out.Values[i] = ec._Database_version(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "instances":
 			out.Values[i] = ec._Database_instances(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "status":
 			out.Values[i] = ec._Database_status(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "statusReason":
+			out.Values[i] = ec._Database_statusReason(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "size":
 			out.Values[i] = ec._Database_size(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "resources":
 			out.Values[i] = ec._Database_resources(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "createdAt":
 			out.Values[i] = ec._Database_createdAt(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "public":
 			out.Values[i] = ec._Database_public(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "backups":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Database_backups(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.IsDeferred() {
+				deferredFieldSet.AddField(field)
+				fieldIndex := len(deferredFieldSet.Values) - 1
+				deferredFieldSet.Concurrently(fieldIndex, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, deferredFieldSet)
+				})
+
+				for _, deferrable := range field.Deferrables {
+					view, ok := deferLabelToView[deferrable.Label]
+					if !ok {
+						view = deferredFieldSet.NewView()
+						deferLabelToView[deferrable.Label] = view
+					}
+					view.AddIndices(fieldIndex)
+				}
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var databaseBackupImplementors = []string{"DatabaseBackup"}
+
+func (ec *executionContext) _DatabaseBackup(ctx context.Context, sel ast.SelectionSet, obj *model.DatabaseBackup) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, databaseBackupImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("DatabaseBackup")
+		case "id":
+			out.Values[i] = ec._DatabaseBackup_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "status":
+			out.Values[i] = ec._DatabaseBackup_status(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "createdAt":
+			out.Values[i] = ec._DatabaseBackup_createdAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "trigger":
+			out.Values[i] = ec._DatabaseBackup_trigger(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "startedAt":
+			out.Values[i] = ec._DatabaseBackup_startedAt(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "finishedAt":
+			out.Values[i] = ec._DatabaseBackup_finishedAt(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "error":
+			out.Values[i] = ec._DatabaseBackup_error(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var databaseBackupsImplementors = []string{"DatabaseBackups"}
+
+func (ec *executionContext) _DatabaseBackups(ctx context.Context, sel ast.SelectionSet, obj *model.DatabaseBackups) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, databaseBackupsImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("DatabaseBackups")
+		case "enabled":
+			out.Values[i] = ec._DatabaseBackups_enabled(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "retentionDays":
+			out.Values[i] = ec._DatabaseBackups_retentionDays(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "schedule":
+			out.Values[i] = ec._DatabaseBackups_schedule(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "earliestRestorePoint":
+			out.Values[i] = ec._DatabaseBackups_earliestRestorePoint(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "latestRestorePoint":
+			out.Values[i] = ec._DatabaseBackups_latestRestorePoint(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "lastBackupAt":
+			out.Values[i] = ec._DatabaseBackups_lastBackupAt(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "backups":
+			out.Values[i] = ec._DatabaseBackups_backups(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -24884,6 +25944,20 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "createDatabaseBackup":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_createDatabaseBackup(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "restoreDatabase":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_restoreDatabase(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "setEnvironmentResources":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_setEnvironmentResources(ctx, field)
@@ -26428,6 +27502,49 @@ func (ec *executionContext) _Resources(ctx context.Context, sel ast.SelectionSet
 			}
 		case "memory":
 			out.Values[i] = ec._Resources_memory(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var restoreDatabaseResultImplementors = []string{"RestoreDatabaseResult"}
+
+func (ec *executionContext) _RestoreDatabaseResult(ctx context.Context, sel ast.SelectionSet, obj *model.RestoreDatabaseResult) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, restoreDatabaseResultImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("RestoreDatabaseResult")
+		case "database":
+			out.Values[i] = ec._RestoreDatabaseResult_database(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "clampedToLatest":
+			out.Values[i] = ec._RestoreDatabaseResult_clampedToLatest(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -28372,6 +29489,26 @@ func (ec *executionContext) marshalNApiToken2ᚖgithubᚗcomᚋzeitlosᚋlucity�
 	return ec._ApiToken(ctx, sel, v)
 }
 
+func (ec *executionContext) unmarshalNBackupStatus2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐBackupStatus(ctx context.Context, v any) (model.BackupStatus, error) {
+	var res model.BackupStatus
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNBackupStatus2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐBackupStatus(ctx context.Context, sel ast.SelectionSet, v model.BackupStatus) graphql.Marshaler {
+	return v
+}
+
+func (ec *executionContext) unmarshalNBackupTrigger2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐBackupTrigger(ctx context.Context, v any) (model.BackupTrigger, error) {
+	var res model.BackupTrigger
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNBackupTrigger2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐBackupTrigger(ctx context.Context, sel ast.SelectionSet, v model.BackupTrigger) graphql.Marshaler {
+	return v
+}
+
 func (ec *executionContext) marshalNBillingPortalUrl2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐBillingPortalURL(ctx context.Context, sel ast.SelectionSet, v model.BillingPortalURL) graphql.Marshaler {
 	return ec._BillingPortalUrl(ctx, sel, &v)
 }
@@ -28685,6 +29822,50 @@ func (ec *executionContext) marshalNDatabase2ᚖgithubᚗcomᚋzeitlosᚋlucity�
 		return graphql.Null
 	}
 	return ec._Database(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNDatabaseBackup2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabaseBackup(ctx context.Context, sel ast.SelectionSet, v model.DatabaseBackup) graphql.Marshaler {
+	return ec._DatabaseBackup(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNDatabaseBackup2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabaseBackupᚄ(ctx context.Context, sel ast.SelectionSet, v []model.DatabaseBackup) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNDatabaseBackup2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabaseBackup(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNDatabaseBackup2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabaseBackup(ctx context.Context, sel ast.SelectionSet, v *model.DatabaseBackup) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._DatabaseBackup(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNDatabaseBackups2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabaseBackups(ctx context.Context, sel ast.SelectionSet, v model.DatabaseBackups) graphql.Marshaler {
+	return ec._DatabaseBackups(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNDatabaseBackups2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabaseBackups(ctx context.Context, sel ast.SelectionSet, v *model.DatabaseBackups) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._DatabaseBackups(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNDatabaseColumn2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabaseColumn(ctx context.Context, sel ast.SelectionSet, v model.DatabaseColumn) graphql.Marshaler {
@@ -29475,6 +30656,25 @@ func (ec *executionContext) marshalNResources2ᚖgithubᚗcomᚋzeitlosᚋlucity
 func (ec *executionContext) unmarshalNResourcesInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐResourcesInput(ctx context.Context, v any) (model.ResourcesInput, error) {
 	res, err := ec.unmarshalInputResourcesInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNRestoreDatabaseInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRestoreDatabaseInput(ctx context.Context, v any) (model.RestoreDatabaseInput, error) {
+	res, err := ec.unmarshalInputRestoreDatabaseInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNRestoreDatabaseResult2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRestoreDatabaseResult(ctx context.Context, sel ast.SelectionSet, v model.RestoreDatabaseResult) graphql.Marshaler {
+	return ec._RestoreDatabaseResult(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNRestoreDatabaseResult2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRestoreDatabaseResult(ctx context.Context, sel ast.SelectionSet, v *model.RestoreDatabaseResult) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._RestoreDatabaseResult(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx context.Context, v any) (model.Role, error) {

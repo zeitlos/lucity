@@ -13,9 +13,13 @@ import (
 var _ environment.Interface = (*Client)(nil)
 
 const (
-	resourceQuotaName = "lucity-resources"
-	limitRangeName    = "lucity-defaults"
-	PullSecretName    = "lucity-registry"
+	resourceQuotaName        = "lucity-resources"
+	limitRangeName           = "lucity-defaults"
+	PullSecretName           = "lucity-registry"
+	BackupSecretName         = "lucity-backups"
+	BackupAccessKeyIDKey     = "accessKeyId"
+	BackupSecretAccessKeyKey = "secretAccessKey"
+	BackupRegionKey          = "region"
 )
 
 type Client struct {
@@ -25,9 +29,16 @@ type Client struct {
 	systemPullSecret string
 	podCIDR          string
 	serviceCIDR      string
+	backups          BackupCredentials
 }
 
-func New(k8s kubernetes.Interface, dyn dynamic.Interface, systemNamespace, systemPullSecret, podCIDR, serviceCIDR string) *Client {
+type BackupCredentials struct {
+	AccessKeyID     string
+	SecretAccessKey string
+	Region          string
+}
+
+func New(k8s kubernetes.Interface, dyn dynamic.Interface, systemNamespace, systemPullSecret, podCIDR, serviceCIDR string, backups BackupCredentials) *Client {
 	return &Client{
 		k8s:              k8s,
 		dyn:              dyn,
@@ -35,6 +46,7 @@ func New(k8s kubernetes.Interface, dyn dynamic.Interface, systemNamespace, syste
 		systemPullSecret: systemPullSecret,
 		podCIDR:          podCIDR,
 		serviceCIDR:      serviceCIDR,
+		backups:          backups,
 	}
 }
 
@@ -64,6 +76,10 @@ func (c *Client) Ensure(ctx context.Context, id platform.EnvironmentID, tier pla
 	}
 
 	if err := c.ensurePullSecret(ctx, id); err != nil {
+		return err
+	}
+
+	if err := c.ensureBackupSecret(ctx, id); err != nil {
 		return err
 	}
 

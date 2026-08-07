@@ -72,6 +72,60 @@ func (c *Client) ensurePullSecret(ctx context.Context, id platform.EnvironmentID
 	return nil
 }
 
+func (c *Client) ensureBackupSecret(ctx context.Context, id platform.EnvironmentID) error {
+	if c.backups.AccessKeyID == "" || c.backups.SecretAccessKey == "" {
+		return nil
+	}
+
+	namespace := id.Namespace()
+
+	data := map[string][]byte{
+		BackupAccessKeyIDKey:     []byte(c.backups.AccessKeyID),
+		BackupSecretAccessKeyKey: []byte(c.backups.SecretAccessKey),
+		BackupRegionKey:          []byte(c.backups.Region),
+	}
+
+	target := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      BackupSecretName,
+			Namespace: namespace,
+			Labels: map[string]string{
+				pkglabels.ManagedBy: pkglabels.ManagedByLucity,
+			},
+		},
+		Type: corev1.SecretTypeOpaque,
+		Data: data,
+	}
+
+	existing, err := c.k8s.CoreV1().Secrets(namespace).Get(ctx, BackupSecretName, metav1.GetOptions{})
+
+	if apierrors.IsNotFound(err) {
+		if _, err := c.k8s.CoreV1().Secrets(namespace).Create(ctx, target, metav1.CreateOptions{}); err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	if err != nil {
+		return err
+	}
+
+	if secretDataEqual(existing.Data, data) {
+		return nil
+	}
+
+	existing.Type = corev1.SecretTypeOpaque
+	existing.Data = data
+	existing.Labels = target.Labels
+
+	if _, err := c.k8s.CoreV1().Secrets(namespace).Update(ctx, existing, metav1.UpdateOptions{}); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func secretDataEqual(a, b map[string][]byte) bool {
 	if len(a) != len(b) {
 		return false

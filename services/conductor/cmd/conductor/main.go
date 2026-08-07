@@ -11,6 +11,7 @@ import (
 	"github.com/blang/semver/v4"
 	"github.com/zeitlos/lucity/charts"
 	webhookhttp "github.com/zeitlos/lucity/services/conductor/internal/api/webhook/http"
+	"github.com/zeitlos/lucity/services/conductor/internal/backuparchive"
 	buildjobK8s "github.com/zeitlos/lucity/services/conductor/internal/buildjob/kubernetes"
 	"github.com/zeitlos/lucity/services/conductor/internal/conductor"
 	helmDeployer "github.com/zeitlos/lucity/services/conductor/internal/deployer/helm"
@@ -162,6 +163,16 @@ type Config struct {
 	// Public buckets (CDN)
 	BunnyAPIKey        string `envconfig:"BUNNY_API_KEY"`
 	PublicBucketDomain string `envconfig:"PUBLIC_BUCKET_DOMAIN" default:"storage.lucity.app"`
+
+	// Database backups. One archive bucket for the whole platform, addressed by a
+	// per-workspace prefix. Retention and schedule are product decisions and live
+	// in internal/resources, not here.
+	DatabaseBackupEnabled         bool   `envconfig:"DATABASE_BACKUP_ENABLED" default:"false"`
+	DatabaseBackupEndpoint        string `envconfig:"DATABASE_BACKUP_S3_ENDPOINT"`
+	DatabaseBackupBucket          string `envconfig:"DATABASE_BACKUP_S3_BUCKET"`
+	DatabaseBackupRegion          string `envconfig:"DATABASE_BACKUP_S3_REGION"`
+	DatabaseBackupAccessKeyID     string `envconfig:"DATABASE_BACKUP_S3_ACCESS_KEY_ID"`
+	DatabaseBackupSecretAccessKey string `envconfig:"DATABASE_BACKUP_S3_SECRET_ACCESS_KEY"`
 }
 
 func main() {
@@ -298,6 +309,11 @@ func main() {
 		RegistryPullURL: config.RegistryPullURL,
 		GatewayName:     config.GatewayName,
 		GatewayNS:       config.GatewayNamespace,
+		Backups: deployjobK8s.BackupConfig{
+			Enabled:  config.DatabaseBackupEnabled,
+			Endpoint: config.DatabaseBackupEndpoint,
+			Bucket:   config.DatabaseBackupBucket,
+		},
 	})
 
 	pipelineClient := pipeline.New(k8sClient, config.BuildNamespace, config.SystemNamespace, config.MaxConcurrentReleases)
@@ -346,7 +362,11 @@ func main() {
 
 	chartRef.Metadata.Version = version.String()
 
-	deployerClient, err := helmDeployer.New(chartRef, config.GatewayName, config.GatewayNamespace)
+	deployerClient, err := helmDeployer.New(chartRef, config.GatewayName, config.GatewayNamespace, helmDeployer.BackupConfig{
+		Enabled:  config.DatabaseBackupEnabled,
+		Endpoint: config.DatabaseBackupEndpoint,
+		Bucket:   config.DatabaseBackupBucket,
+	})
 
 	if err != nil {
 		slog.Error("failed to create deployer client", "error", err)
@@ -357,7 +377,11 @@ func main() {
 
 	gatewayClient := gateway.New(dynClient, config.GatewayName, config.GatewayNamespace, config.CustomDomainClusterIssuer)
 
-	environmentClient := environmentK8s.New(k8sClient, dynClient, config.SystemNamespace, config.RegistryPullSecret, config.PodCIDR, config.ServiceCIDR)
+	environmentClient := environmentK8s.New(k8sClient, dynClient, config.SystemNamespace, config.RegistryPullSecret, config.PodCIDR, config.ServiceCIDR, environmentK8s.BackupCredentials{
+		AccessKeyID:     config.DatabaseBackupAccessKeyID,
+		SecretAccessKey: config.DatabaseBackupSecretAccessKey,
+		Region:          config.DatabaseBackupRegion,
+	})
 
 	ovhBackend, err := objectstorageOVH.New(
 		config.OVHEndpoint,
@@ -410,6 +434,13 @@ func main() {
 		GitHubAppSlug:        config.GitHubAppSlug,
 		DashboardURL:         config.DashboardURL,
 		MaxQueuedReleases:    config.MaxQueuedReleases,
+		BackupArchive: backuparchive.New(backuparchive.Config{
+			Endpoint:        config.DatabaseBackupEndpoint,
+			Bucket:          config.DatabaseBackupBucket,
+			Region:          config.DatabaseBackupRegion,
+			AccessKeyID:     config.DatabaseBackupAccessKeyID,
+			SecretAccessKey: config.DatabaseBackupSecretAccessKey,
+		}),
 	}
 	scanReportClient := scanreport.New(scanreport.Config{
 		Endpoint:     config.RegistryPullURL,
@@ -431,6 +462,10 @@ func main() {
 	if config.ReconcileEnabled {
 		go runDomainReconciler(ctx, conductor)
 		go runServiceReconciler(ctx, conductor)
+
+		if config.DatabaseBackupEnabled {
+			go runBackupReconciler(ctx, conductor)
+		}
 	} else {
 		slog.Warn("reconcilers disabled")
 	}

@@ -69,6 +69,8 @@ func (e *environmentClient) Export(_ context.Context, id platform.EnvironmentID)
 		return nil, err
 	}
 
+	values.StripBackups(env)
+
 	return values.Marshal(env)
 }
 
