@@ -35,6 +35,24 @@ certificates: []
 cloudnative-pg:
   enabled: true
 
+# -- Barman Cloud plugin (CNPG-I) — WAL archiving and base backups for CNPG.
+plugin-barman-cloud:
+  enabled: true
+  replicaCount: 2
+  topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: kubernetes.io/hostname
+      whenUnsatisfiable: ScheduleAnyway
+      labelSelector:
+        matchLabels:
+          app.kubernetes.io/name: plugin-barman-cloud
+  resources:
+    requests:
+      cpu: 25m
+      memory: 64Mi
+    limits:
+      memory: 256Mi
+
 # -- Traefik — Postgres SNI router for exposing user databases on :5432
 traefik:
   enabled: false
@@ -257,6 +275,42 @@ victoria-metrics-alert:
                 labels: { severity: warning }
                 annotations:
                   summary: "VictoriaMetrics active series >500k — investigate top metrics with /api/v1/status/tsdb"
+          - name: postgres-backups
+            rules:
+              - alert: BarmanPluginDown
+                expr: kube_deployment_status_replicas_available{namespace="lucity-system", deployment=~".*plugin-barman-cloud"} == 0
+                for: 5m
+                labels: { severity: critical }
+                annotations:
+                  summary: "Barman Cloud plugin is down — CNPG cannot reconcile any database"
+              - alert: PostgresVolumeNearlyFull
+                expr: |-
+                  label_replace(label_replace(label_replace(
+                    (1 - k8s_volume_available_bytes / k8s_volume_capacity_bytes),
+                    "namespace", "$1", "k8s_namespace_name", "(.*)"),
+                    "pod", "$1", "k8s_pod_name", "(.*)"),
+                    "volume", "$1", "k8s_volume_name", "(.*)")
+                  * on (namespace, pod, volume) group_left(persistentvolumeclaim)
+                    kube_pod_spec_volumes_persistentvolumeclaims_info{persistentvolumeclaim=~"lucity-app-pg-.*"}
+                  > 0.85
+                for: 10m
+                labels: { severity: warning }
+                annotations:
+                  summary: "Database volume {{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }} >85% full — check WAL archiving"
+              - alert: PostgresVolumeCriticallyFull
+                expr: |-
+                  label_replace(label_replace(label_replace(
+                    (1 - k8s_volume_available_bytes / k8s_volume_capacity_bytes),
+                    "namespace", "$1", "k8s_namespace_name", "(.*)"),
+                    "pod", "$1", "k8s_pod_name", "(.*)"),
+                    "volume", "$1", "k8s_volume_name", "(.*)")
+                  * on (namespace, pod, volume) group_left(persistentvolumeclaim)
+                    kube_pod_spec_volumes_persistentvolumeclaims_info{persistentvolumeclaim=~"lucity-app-pg-.*"}
+                  > 0.95
+                for: 5m
+                labels: { severity: critical }
+                annotations:
+                  summary: "Database volume {{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }} >95% full — primary will go read-only"
           - name: edge-gateway
             rules:
               # Sustained Envoy-generated 5xx on the public listeners.

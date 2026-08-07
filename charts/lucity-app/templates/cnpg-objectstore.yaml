@@ -1,0 +1,39 @@
+{{- $store := .Values.databases.backupStore }}
+{{- if $store.enabled }}
+{{- $creds := $store.credentials }}
+{{- $keys := $creds.secretKeys | default dict }}
+apiVersion: barmancloud.cnpg.io/v1
+kind: ObjectStore
+metadata:
+  name: {{ include "lucity-app.fullname" . }}-backups
+  labels:
+    {{- include "lucity-app.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backups
+    {{- with .Values.commonLabels }}{{- toYaml . | nindent 4 }}{{- end }}
+spec:
+  retentionPolicy: {{ $store.retention | default "30d" }}
+  configuration:
+    destinationPath: {{ $store.destinationPath }}
+    endpointURL: {{ $store.endpoint }}
+    s3Credentials:
+      accessKeyId:
+        name: {{ $creds.existingSecret }}
+        key: {{ $keys.accessKeyIdKey | default "accessKeyId" }}
+      secretAccessKey:
+        name: {{ $creds.existingSecret }}
+        key: {{ $keys.secretAccessKeyKey | default "secretAccessKey" }}
+      region:
+        name: {{ $creds.existingSecret }}
+        key: {{ $keys.regionKey | default "region" }}
+    wal:
+      compression: gzip
+    data:
+      compression: gzip
+  instanceSidecarConfiguration:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        memory: 512Mi
+{{- end }}

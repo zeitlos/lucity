@@ -5,6 +5,9 @@ dependencies:
 - name: cloudnative-pg
   repository: https://cloudnative-pg.github.io/charts
   version: 0.29.0
+- name: plugin-barman-cloud
+  repository: https://cloudnative-pg.github.io/charts
+  version: 0.7.1
 - name: victoria-metrics-single
   repository: https://victoriametrics.github.io/helm-charts/
   version: 0.41.0
@@ -23,5 +26,5 @@ dependencies:
 - name: traefik
   repository: https://traefik.github.io/charts
   version: 41.0.1
-digest: sha256:e8a65fb01750099bf054a6d621926e7d56c905c67e57c7afa9723249ba996503
-generated: "2026-06-30T16:56:38.342826+02:00"
+digest: sha256:2df38156ab385937f7124633e64abec143e2f37a8501135e297a57abb34e8137
+generated: "2026-08-07T11:10:31.377939+02:00"

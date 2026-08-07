@@ -46,7 +46,25 @@ spec:
   resources:
     {{- toYaml $pg.resources | nindent 4 }}
   {{- end }}
+  {{- if and $.Values.databases.backupStore.enabled $pg.backup $pg.backup.serverName }}
+  plugins:
+    - name: barman-cloud.cloudnative-pg.io
+      isWALArchiver: true
+      parameters:
+        barmanObjectName: {{ include "lucity-app.fullname" $ }}-backups
+        serverName: {{ $pg.backup.serverName }}
+  {{- end }}
   bootstrap:
+    {{- if $pg.restore }}
+    recovery:
+      source: origin
+      database: app
+      owner: app
+      {{- if $pg.restore.targetTime }}
+      recoveryTarget:
+        targetTime: {{ $pg.restore.targetTime | quote }}
+      {{- end }}
+    {{- else }}
     initdb:
       database: app
       owner: app
@@ -56,4 +74,14 @@ spec:
         - ALTER DATABASE app OWNER TO postgres
         - GRANT CONNECT, CREATE, TEMPORARY ON DATABASE app TO app
         - GRANT USAGE, CREATE ON SCHEMA public TO app
+    {{- end }}
+  {{- if $pg.restore }}
+  externalClusters:
+    - name: origin
+      plugin:
+        name: barman-cloud.cloudnative-pg.io
+        parameters:
+          barmanObjectName: {{ include "lucity-app.fullname" $ }}-backups
+          serverName: {{ $pg.restore.sourceServerName }}
+  {{- end }}
 {{- end }}
