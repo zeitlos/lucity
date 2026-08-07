@@ -258,11 +258,6 @@ type ComplexityRoot struct {
 		Volumes        func(childComplexity int) int
 	}
 
-	EnvironmentResources struct {
-		Allocation func(childComplexity int) int
-		Tier       func(childComplexity int) int
-	}
-
 	GitHubInstallation struct {
 		AccountAvatarURL func(childComplexity int) int
 		AccountLogin     func(childComplexity int) int
@@ -424,7 +419,6 @@ type ComplexityRoot struct {
 		DetectServices           func(childComplexity int, repositoryURL string) int
 		EjectProject             func(childComplexity int, id platform.ProjectID) int
 		Environment              func(childComplexity int, environment platform.EnvironmentID) int
-		EnvironmentResources     func(childComplexity int, environment platform.EnvironmentID) int
 		Environments             func(childComplexity int, project platform.ProjectID) int
 		GithubConnected          func(childComplexity int) int
 		GithubRepositories       func(childComplexity int, account string) int
@@ -472,12 +466,6 @@ type ComplexityRoot struct {
 	ReplicaCount struct {
 		Desired func(childComplexity int) int
 		Ready   func(childComplexity int) int
-	}
-
-	ResourceAllocation struct {
-		CPUMillicores func(childComplexity int) int
-		DiskMb        func(childComplexity int) int
-		MemoryMb      func(childComplexity int) int
 	}
 
 	Resources struct {
@@ -726,7 +714,6 @@ type MutationResolver interface {
 type QueryResolver interface {
 	APITokens(ctx context.Context) ([]model.APIToken, error)
 	Me(ctx context.Context) (*model.User, error)
-	EnvironmentResources(ctx context.Context, environment platform.EnvironmentID) (*model.EnvironmentResources, error)
 	Subscription(ctx context.Context) (*model.BillingSubscription, error)
 	UsageSummary(ctx context.Context) (*model.UsageSummary, error)
 	Database(ctx context.Context, id platform.DatabaseID) (*model.Database, error)
@@ -1572,19 +1559,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Environment.Volumes(childComplexity), true
-
-	case "EnvironmentResources.allocation":
-		if e.ComplexityRoot.EnvironmentResources.Allocation == nil {
-			break
-		}
-
-		return e.ComplexityRoot.EnvironmentResources.Allocation(childComplexity), true
-	case "EnvironmentResources.tier":
-		if e.ComplexityRoot.EnvironmentResources.Tier == nil {
-			break
-		}
-
-		return e.ComplexityRoot.EnvironmentResources.Tier(childComplexity), true
 
 	case "GitHubInstallation.accountAvatarUrl":
 		if e.ComplexityRoot.GitHubInstallation.AccountAvatarURL == nil {
@@ -2660,17 +2634,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Environment(childComplexity, args["environment"].(platform.EnvironmentID)), true
-	case "Query.environmentResources":
-		if e.ComplexityRoot.Query.EnvironmentResources == nil {
-			break
-		}
-
-		args, err := ec.field_Query_environmentResources_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.ComplexityRoot.Query.EnvironmentResources(childComplexity, args["environment"].(platform.EnvironmentID)), true
 	case "Query.environments":
 		if e.ComplexityRoot.Query.Environments == nil {
 			break
@@ -2941,25 +2904,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.ReplicaCount.Ready(childComplexity), true
-
-	case "ResourceAllocation.cpuMillicores":
-		if e.ComplexityRoot.ResourceAllocation.CPUMillicores == nil {
-			break
-		}
-
-		return e.ComplexityRoot.ResourceAllocation.CPUMillicores(childComplexity), true
-	case "ResourceAllocation.diskMB":
-		if e.ComplexityRoot.ResourceAllocation.DiskMb == nil {
-			break
-		}
-
-		return e.ComplexityRoot.ResourceAllocation.DiskMb(childComplexity), true
-	case "ResourceAllocation.memoryMB":
-		if e.ComplexityRoot.ResourceAllocation.MemoryMb == nil {
-			break
-		}
-
-		return e.ComplexityRoot.ResourceAllocation.MemoryMb(childComplexity), true
 
 	case "Resources.cpu":
 		if e.ComplexityRoot.Resources.CPU == nil {
@@ -4215,16 +4159,6 @@ func (ec *executionContext) childFields_Environment(ctx context.Context, field g
 	return nil, fmt.Errorf("no field named %q was found under type Environment", field.Name)
 }
 
-func (ec *executionContext) childFields_EnvironmentResources(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-	switch field.Name {
-	case "tier":
-		return ec.fieldContext_EnvironmentResources_tier(ctx, field)
-	case "allocation":
-		return ec.fieldContext_EnvironmentResources_allocation(ctx, field)
-	}
-	return nil, fmt.Errorf("no field named %q was found under type EnvironmentResources", field.Name)
-}
-
 func (ec *executionContext) childFields_GitHubInstallation(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
 	case "accountLogin":
@@ -4443,18 +4377,6 @@ func (ec *executionContext) childFields_ReplicaCount(ctx context.Context, field 
 		return ec.fieldContext_ReplicaCount_ready(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type ReplicaCount", field.Name)
-}
-
-func (ec *executionContext) childFields_ResourceAllocation(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-	switch field.Name {
-	case "cpuMillicores":
-		return ec.fieldContext_ResourceAllocation_cpuMillicores(ctx, field)
-	case "memoryMB":
-		return ec.fieldContext_ResourceAllocation_memoryMB(ctx, field)
-	case "diskMB":
-		return ec.fieldContext_ResourceAllocation_diskMB(ctx, field)
-	}
-	return nil, fmt.Errorf("no field named %q was found under type ResourceAllocation", field.Name)
 }
 
 func (ec *executionContext) childFields_Resources(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
@@ -6464,20 +6386,6 @@ func (ec *executionContext) field_Query_ejectProject_args(ctx context.Context, r
 		return nil, err
 	}
 	args["id"] = arg0
-	return args, nil
-}
-
-func (ec *executionContext) field_Query_environmentResources_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "environment",
-		func(ctx context.Context, v any) (platform.EnvironmentID, error) {
-			return ec.unmarshalNEnvironmentID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐEnvironmentID(ctx, v)
-		})
-	if err != nil {
-		return nil, err
-	}
-	args["environment"] = arg0
 	return args, nil
 }
 
@@ -9807,61 +9715,6 @@ func (ec *executionContext) fieldContext_Environment_buckets(_ context.Context, 
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return ec.childFields_Bucket(ctx, field)
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _EnvironmentResources_tier(ctx context.Context, field graphql.CollectedField, obj *model.EnvironmentResources) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_EnvironmentResources_tier(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.Tier, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v model.ResourceTier) graphql.Marshaler {
-			return ec.marshalNResourceTier2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐResourceTier(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_EnvironmentResources_tier(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("EnvironmentResources", field, false, false, errors.New("field of type ResourceTier does not have child fields"))
-}
-
-func (ec *executionContext) _EnvironmentResources_allocation(ctx context.Context, field graphql.CollectedField, obj *model.EnvironmentResources) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_EnvironmentResources_allocation(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.Allocation, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v *model.ResourceAllocation) graphql.Marshaler {
-			return ec.marshalNResourceAllocation2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐResourceAllocation(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_EnvironmentResources_allocation(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "EnvironmentResources",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.childFields_ResourceAllocation(ctx, field)
 		},
 	}
 	return fc, nil
@@ -14586,68 +14439,6 @@ func (ec *executionContext) fieldContext_Query_me(_ context.Context, field graph
 	return fc, nil
 }
 
-func (ec *executionContext) _Query_environmentResources(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_Query_environmentResources(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Query().EnvironmentResources(ctx, fc.Args["environment"].(platform.EnvironmentID))
-		},
-		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
-			directive0 := next
-
-			directive1 := func(ctx context.Context) (any, error) {
-				role, err := ec.unmarshalNRole2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRole(ctx, "WORKSPACE_MEMBER")
-				if err != nil {
-					var zeroVal *model.EnvironmentResources
-					return zeroVal, err
-				}
-				if ec.Directives.HasRole == nil {
-					var zeroVal *model.EnvironmentResources
-					return zeroVal, errors.New("directive hasRole is not implemented")
-				}
-				return ec.Directives.HasRole(ctx, nil, directive0, role)
-			}
-
-			next = directive1
-			return next
-		},
-		func(ctx context.Context, selections ast.SelectionSet, v *model.EnvironmentResources) graphql.Marshaler {
-			return ec.marshalOEnvironmentResources2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐEnvironmentResources(ctx, selections, v)
-		},
-		true,
-		false,
-	)
-}
-func (ec *executionContext) fieldContext_Query_environmentResources(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Query",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.childFields_EnvironmentResources(ctx, field)
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Query_environmentResources_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _Query_subscription(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -17035,75 +16826,6 @@ func (ec *executionContext) _ReplicaCount_ready(ctx context.Context, field graph
 }
 func (ec *executionContext) fieldContext_ReplicaCount_ready(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("ReplicaCount", field, false, false, errors.New("field of type Int does not have child fields"))
-}
-
-func (ec *executionContext) _ResourceAllocation_cpuMillicores(ctx context.Context, field graphql.CollectedField, obj *model.ResourceAllocation) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_ResourceAllocation_cpuMillicores(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.CPUMillicores, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
-			return ec.marshalNInt2int(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_ResourceAllocation_cpuMillicores(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ResourceAllocation", field, false, false, errors.New("field of type Int does not have child fields"))
-}
-
-func (ec *executionContext) _ResourceAllocation_memoryMB(ctx context.Context, field graphql.CollectedField, obj *model.ResourceAllocation) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_ResourceAllocation_memoryMB(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.MemoryMb, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
-			return ec.marshalNInt2int(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_ResourceAllocation_memoryMB(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ResourceAllocation", field, false, false, errors.New("field of type Int does not have child fields"))
-}
-
-func (ec *executionContext) _ResourceAllocation_diskMB(ctx context.Context, field graphql.CollectedField, obj *model.ResourceAllocation) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_ResourceAllocation_diskMB(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.DiskMb, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
-			return ec.marshalNInt2int(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_ResourceAllocation_diskMB(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ResourceAllocation", field, false, false, errors.New("field of type Int does not have child fields"))
 }
 
 func (ec *executionContext) _Resources_cpu(ctx context.Context, field graphql.CollectedField, obj *model.Resources) (ret graphql.Marshaler) {
@@ -22151,7 +21873,7 @@ func (ec *executionContext) unmarshalInputSetEnvironmentResourcesInput(ctx conte
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"environment", "tier", "cpuMillicores", "memoryMB", "diskMB"}
+	fieldsInOrder := [...]string{"environment", "tier"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -22172,87 +21894,6 @@ func (ec *executionContext) unmarshalInputSetEnvironmentResourcesInput(ctx conte
 				return it, err
 			}
 			it.Tier = data
-		case "cpuMillicores":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("cpuMillicores"))
-			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNInt2int(ctx, v) }
-
-			directive1 := func(ctx context.Context) (any, error) {
-				constraint, err := ec.unmarshalNString2string(ctx, "min=100,max=32000")
-				if err != nil {
-					var zeroVal int
-					return zeroVal, err
-				}
-				if ec.Directives.Constraint == nil {
-					var zeroVal int
-					return zeroVal, errors.New("directive constraint is not implemented")
-				}
-				return ec.Directives.Constraint(ctx, obj, directive0, constraint)
-			}
-
-			tmp, err := directive1(ctx)
-			if err != nil {
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-			if data, ok := tmp.(int); ok {
-				it.CPUMillicores = data
-			} else {
-				err := fmt.Errorf(`unexpected type %T from directive, should be int`, tmp)
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-		case "memoryMB":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("memoryMB"))
-			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNInt2int(ctx, v) }
-
-			directive1 := func(ctx context.Context) (any, error) {
-				constraint, err := ec.unmarshalNString2string(ctx, "min=128,max=65536")
-				if err != nil {
-					var zeroVal int
-					return zeroVal, err
-				}
-				if ec.Directives.Constraint == nil {
-					var zeroVal int
-					return zeroVal, errors.New("directive constraint is not implemented")
-				}
-				return ec.Directives.Constraint(ctx, obj, directive0, constraint)
-			}
-
-			tmp, err := directive1(ctx)
-			if err != nil {
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-			if data, ok := tmp.(int); ok {
-				it.MemoryMb = data
-			} else {
-				err := fmt.Errorf(`unexpected type %T from directive, should be int`, tmp)
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-		case "diskMB":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("diskMB"))
-			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalNInt2int(ctx, v) }
-
-			directive1 := func(ctx context.Context) (any, error) {
-				constraint, err := ec.unmarshalNString2string(ctx, "min=0,max=102400")
-				if err != nil {
-					var zeroVal int
-					return zeroVal, err
-				}
-				if ec.Directives.Constraint == nil {
-					var zeroVal int
-					return zeroVal, errors.New("directive constraint is not implemented")
-				}
-				return ec.Directives.Constraint(ctx, obj, directive0, constraint)
-			}
-
-			tmp, err := directive1(ctx)
-			if err != nil {
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
-			if data, ok := tmp.(int); ok {
-				it.DiskMb = data
-			} else {
-				err := fmt.Errorf(`unexpected type %T from directive, should be int`, tmp)
-				return it, graphql.ErrorOnPath(ctx, err)
-			}
 		}
 	}
 	return it, nil
@@ -24204,49 +23845,6 @@ func (ec *executionContext) _Environment(ctx context.Context, sel ast.SelectionS
 	return out
 }
 
-var environmentResourcesImplementors = []string{"EnvironmentResources"}
-
-func (ec *executionContext) _EnvironmentResources(ctx context.Context, sel ast.SelectionSet, obj *model.EnvironmentResources) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, environmentResourcesImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	deferredFieldSet := graphql.NewFieldSet(nil)
-	deferLabelToView := make(map[string]*graphql.FieldSetView)
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("EnvironmentResources")
-		case "tier":
-			out.Values[i] = ec._EnvironmentResources_tier(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "allocation":
-			out.Values[i] = ec._EnvironmentResources_allocation(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch(ctx)
-	if out.Invalids > 0 {
-		return graphql.Null
-	}
-
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
-
-	ec.ProcessDeferredGroup(graphql.DeferredGroup{
-		Defers:   deferLabelToView,
-		Path:     graphql.GetPath(ctx),
-		FieldSet: deferredFieldSet,
-		Context:  ctx,
-	})
-
-	return out
-}
-
 var gitHubInstallationImplementors = []string{"GitHubInstallation"}
 
 func (ec *executionContext) _GitHubInstallation(ctx context.Context, sel ast.SelectionSet, obj *model.GitHubInstallation) graphql.Marshaler {
@@ -25388,28 +24986,6 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
-		case "environmentResources":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Query_environmentResources(ctx, field)
-				if res == graphql.RequiredNull {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			rrm := func(ctx context.Context) graphql.Marshaler {
-				return ec.OperationContext.RootResolverMiddleware(ctx,
-					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "subscription":
 			field := field
 
@@ -26337,54 +25913,6 @@ func (ec *executionContext) _ReplicaCount(ctx context.Context, sel ast.Selection
 			}
 		case "ready":
 			out.Values[i] = ec._ReplicaCount_ready(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch(ctx)
-	if out.Invalids > 0 {
-		return graphql.Null
-	}
-
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
-
-	ec.ProcessDeferredGroup(graphql.DeferredGroup{
-		Defers:   deferLabelToView,
-		Path:     graphql.GetPath(ctx),
-		FieldSet: deferredFieldSet,
-		Context:  ctx,
-	})
-
-	return out
-}
-
-var resourceAllocationImplementors = []string{"ResourceAllocation"}
-
-func (ec *executionContext) _ResourceAllocation(ctx context.Context, sel ast.SelectionSet, obj *model.ResourceAllocation) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, resourceAllocationImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	deferredFieldSet := graphql.NewFieldSet(nil)
-	deferLabelToView := make(map[string]*graphql.FieldSetView)
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("ResourceAllocation")
-		case "cpuMillicores":
-			out.Values[i] = ec._ResourceAllocation_cpuMillicores(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "memoryMB":
-			out.Values[i] = ec._ResourceAllocation_memoryMB(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "diskMB":
-			out.Values[i] = ec._ResourceAllocation_diskMB(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -29401,16 +28929,6 @@ func (ec *executionContext) marshalNReplicaCount2ᚖgithubᚗcomᚋzeitlosᚋluc
 	return ec._ReplicaCount(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNResourceAllocation2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐResourceAllocation(ctx context.Context, sel ast.SelectionSet, v *model.ResourceAllocation) graphql.Marshaler {
-	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
-		return graphql.Null
-	}
-	return ec._ResourceAllocation(ctx, sel, v)
-}
-
 func (ec *executionContext) unmarshalNResourceMetric2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐResourceMetric(ctx context.Context, v any) (model.ResourceMetric, error) {
 	var res model.ResourceMetric
 	err := res.UnmarshalGQL(v)
@@ -30299,13 +29817,6 @@ func (ec *executionContext) marshalOEnvironmentID2ᚖgithubᚗcomᚋzeitlosᚋlu
 		return graphql.Null
 	}
 	return v
-}
-
-func (ec *executionContext) marshalOEnvironmentResources2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐEnvironmentResources(ctx context.Context, sel ast.SelectionSet, v *model.EnvironmentResources) graphql.Marshaler {
-	if v == nil {
-		return graphql.Null
-	}
-	return ec._EnvironmentResources(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalOFloat2ᚖfloat64(ctx context.Context, v any) (*float64, error) {

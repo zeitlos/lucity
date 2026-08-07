@@ -10,7 +10,6 @@ import (
 
 	"github.com/zeitlos/lucity/pkg/tenant"
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
-	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
 // SetEnvironmentResources is the resolver for the setEnvironmentResources field.
@@ -21,7 +20,7 @@ func (r *mutationResolver) SetEnvironmentResources(ctx context.Context, input mo
 		return nil, err
 	}
 
-	result, err := r.Conductor.SetEnvironmentResources(ctx, input.Environment, tier, input.CPUMillicores, input.MemoryMb, input.DiskMb)
+	result, err := r.Conductor.SetEnvironmentResources(ctx, input.Environment, tier)
 
 	if err != nil {
 		return nil, err
@@ -84,16 +83,6 @@ func (r *mutationResolver) CompletePlanCheckout(ctx context.Context, sessionID s
 		return nil, err
 	}
 	return convertBillingSubscription(res), nil
-}
-
-// EnvironmentResources is the resolver for the environmentResources field.
-func (r *queryResolver) EnvironmentResources(ctx context.Context, environment platform.EnvironmentID) (*model.EnvironmentResources, error) {
-	res, err := r.Conductor.EnvironmentResources(ctx, environment)
-	if err != nil {
-		return nil, err
-	}
-	result := convertEnvironmentResources(*res)
-	return &result, nil
 }
 
 // Subscription is the resolver for the subscription field.

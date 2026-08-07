@@ -100,7 +100,6 @@ type Documents = {
     "\n  query ProjectSettings($id: ProjectID!) {\n    project(id: $id) {\n      id\n      name\n      environments {\n        id\n        name\n        resourceTier\n      }\n    }\n  }\n": typeof types.ProjectSettingsDocument,
     "\n  mutation DeleteProject($id: ProjectID!) {\n    deleteProject(id: $id)\n  }\n": typeof types.DeleteProjectDocument,
     "\n  mutation DeleteEnvironment($environment: EnvironmentID!) {\n    deleteEnvironment(environment: $environment)\n  }\n": typeof types.DeleteEnvironmentDocument,
-    "\n  query EnvironmentResources($environment: EnvironmentID!) {\n    environmentResources(environment: $environment) {\n      tier\n      allocation {\n        cpuMillicores\n        memoryMB\n        diskMB\n      }\n    }\n  }\n": typeof types.EnvironmentResourcesDocument,
     "\n  mutation SetEnvironmentResources($input: SetEnvironmentResourcesInput!) {\n    setEnvironmentResources(input: $input) {\n      id\n      resourceTier\n    }\n  }\n": typeof types.SetEnvironmentResourcesDocument,
     "\n  query Projects {\n    projects {\n      id\n      name\n      environments {\n        id\n        name\n        resourceTier\n        services {\n          id\n          name\n          sourceUrl\n        }\n      }\n    }\n  }\n": typeof types.ProjectsDocument,
     "\n  mutation UpdateWorkspace($input: UpdateWorkspaceInput!) {\n    updateWorkspace(input: $input) {\n      id\n      name\n    }\n  }\n": typeof types.UpdateWorkspaceDocument,
@@ -198,7 +197,6 @@ const documents: Documents = {
     "\n  query ProjectSettings($id: ProjectID!) {\n    project(id: $id) {\n      id\n      name\n      environments {\n        id\n        name\n        resourceTier\n      }\n    }\n  }\n": types.ProjectSettingsDocument,
     "\n  mutation DeleteProject($id: ProjectID!) {\n    deleteProject(id: $id)\n  }\n": types.DeleteProjectDocument,
     "\n  mutation DeleteEnvironment($environment: EnvironmentID!) {\n    deleteEnvironment(environment: $environment)\n  }\n": types.DeleteEnvironmentDocument,
-    "\n  query EnvironmentResources($environment: EnvironmentID!) {\n    environmentResources(environment: $environment) {\n      tier\n      allocation {\n        cpuMillicores\n        memoryMB\n        diskMB\n      }\n    }\n  }\n": types.EnvironmentResourcesDocument,
     "\n  mutation SetEnvironmentResources($input: SetEnvironmentResourcesInput!) {\n    setEnvironmentResources(input: $input) {\n      id\n      resourceTier\n    }\n  }\n": types.SetEnvironmentResourcesDocument,
     "\n  query Projects {\n    projects {\n      id\n      name\n      environments {\n        id\n        name\n        resourceTier\n        services {\n          id\n          name\n          sourceUrl\n        }\n      }\n    }\n  }\n": types.ProjectsDocument,
     "\n  mutation UpdateWorkspace($input: UpdateWorkspaceInput!) {\n    updateWorkspace(input: $input) {\n      id\n      name\n    }\n  }\n": types.UpdateWorkspaceDocument,
@@ -568,10 +566,6 @@ export function graphql(source: "\n  mutation DeleteProject($id: ProjectID!) {\n
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation DeleteEnvironment($environment: EnvironmentID!) {\n    deleteEnvironment(environment: $environment)\n  }\n"): (typeof documents)["\n  mutation DeleteEnvironment($environment: EnvironmentID!) {\n    deleteEnvironment(environment: $environment)\n  }\n"];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  query EnvironmentResources($environment: EnvironmentID!) {\n    environmentResources(environment: $environment) {\n      tier\n      allocation {\n        cpuMillicores\n        memoryMB\n        diskMB\n      }\n    }\n  }\n"): (typeof documents)["\n  query EnvironmentResources($environment: EnvironmentID!) {\n    environmentResources(environment: $environment) {\n      tier\n      allocation {\n        cpuMillicores\n        memoryMB\n        diskMB\n      }\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

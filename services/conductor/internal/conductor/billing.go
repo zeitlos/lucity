@@ -7,18 +7,10 @@ import (
 	"time"
 
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
-	"github.com/zeitlos/lucity/services/conductor/internal/resources"
 
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/cashier"
 )
-
-type EnvironmentResources struct {
-	Tier          ResourceTier
-	CpuMillicores int
-	MemoryMB      int
-	DiskMB        int
-}
 
 type BillingSubscription struct {
 	Plan              *string
@@ -44,36 +36,15 @@ type ResourceTier = platform.ResourceTier
 const ProductionTier = platform.ProductionTier
 const EcoTier = platform.EcoTier
 
-func (c *Client) EnvironmentResources(ctx context.Context, environmentID platform.EnvironmentID) (*EnvironmentResources, error) {
-	env, err := c.platform.Environment(ctx, environmentID)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return &EnvironmentResources{
-		Tier:          env.ResourceTier,
-		CpuMillicores: int(resources.DefaultCPULimit.MilliValue()),
-		MemoryMB:      int(resources.DefaultMemoryQuota.Value() / (1024 * 1024)),
-		DiskMB:        int(resources.DefaultStorageQuota.Value() / (1024 * 1024)),
-	}, nil
-}
-
-// SetEnvironmentResources only honors the tier change today. The
-// cpu/memory/disk inputs from the GraphQL schema (and the matching sliders
-// on the dashboard's Project Settings page) are intentionally ignored:
+// SetEnvironmentResources changes the environment's resource tier, which flips
+// the LimitRange's default container requests: Eco runs burstable (~50% of the
+// limit as request), Production runs guaranteed (request == limit). The
+// namespace ResourceQuota is fixed for every environment at the defaults in
+// resources.go and is not settable per environment.
 //
-//   - The K8s ResourceQuota is fixed for every env at the defaults in
-//     resources.go, set in environment/kubernetes/quota.go::buildQuota.
-//   - Tier flips the LimitRange's default container *requests*: Eco runs
-//     burstable (~50% of limit as request), Production runs guaranteed
-//     (request == limit). It does NOT change the namespace ceiling.
-//
-// The dashboard still ships the sliders so the surface is preserved for
-// when per-env capacity overrides become a real feature. To wire them up:
-// extend environment.Ensure with a quota override parameter and stamp the
-// values onto the namespace's ResourceQuota in environment/kubernetes.
-func (c *Client) SetEnvironmentResources(ctx context.Context, environmentID platform.EnvironmentID, tier ResourceTier, _, _, _ int) (*Environment, error) {
+// Existing services keep the requests baked into their Helm values until their
+// next deploy; the tier only reaches them through deriveRequestsAndLimits.
+func (c *Client) SetEnvironmentResources(ctx context.Context, environmentID platform.EnvironmentID, tier ResourceTier) (*Environment, error) {
 	if err := c.environment.Ensure(ctx, environmentID, tier); err != nil {
 		return nil, err
 	}

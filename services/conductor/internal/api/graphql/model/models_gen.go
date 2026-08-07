@@ -295,11 +295,6 @@ type Environment struct {
 	Buckets        []Bucket               `json:"buckets"`
 }
 
-type EnvironmentResources struct {
-	Tier       ResourceTier        `json:"tier"`
-	Allocation *ResourceAllocation `json:"allocation"`
-}
-
 type GitHubInstallation struct {
 	AccountLogin     string            `json:"accountLogin"`
 	AccountAvatarURL string            `json:"accountAvatarUrl"`
@@ -443,12 +438,6 @@ type ReplicaCount struct {
 	Ready   int `json:"ready"`
 }
 
-type ResourceAllocation struct {
-	CPUMillicores int `json:"cpuMillicores"`
-	MemoryMb      int `json:"memoryMB"`
-	DiskMb        int `json:"diskMB"`
-}
-
 type Resources struct {
 	CPU    string `json:"cpu"`
 	Memory string `json:"memory"`
@@ -546,12 +535,13 @@ type ServiceVariableInput struct {
 	Ref *platform.VariableID `json:"ref,omitempty"`
 }
 
+// The tier decides how a container's request relates to its limit: ECO runs
+// burstable and is billed on real consumption, PRODUCTION reserves the full limit
+// and is billed on allocation. Per-container sizing lives on the service itself;
+// the namespace capacity ceiling is fixed and not settable per environment.
 type SetEnvironmentResourcesInput struct {
-	Environment   platform.EnvironmentID `json:"environment"`
-	Tier          ResourceTier           `json:"tier"`
-	CPUMillicores int                    `json:"cpuMillicores"`
-	MemoryMb      int                    `json:"memoryMB"`
-	DiskMb        int                    `json:"diskMB"`
+	Environment platform.EnvironmentID `json:"environment"`
+	Tier        ResourceTier           `json:"tier"`
 }
 
 type SetServiceScalingInput struct {

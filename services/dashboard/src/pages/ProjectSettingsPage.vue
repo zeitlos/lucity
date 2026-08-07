@@ -32,19 +32,6 @@ const DeleteEnvironmentDocument = graphql(`
   }
 `);
 
-const EnvironmentResourcesDocument = graphql(`
-  query EnvironmentResources($environment: EnvironmentID!) {
-    environmentResources(environment: $environment) {
-      tier
-      allocation {
-        cpuMillicores
-        memoryMB
-        diskMB
-      }
-    }
-  }
-`);
-
 const SetEnvironmentResourcesDocument = graphql(`
   mutation SetEnvironmentResources($input: SetEnvironmentResourcesInput!) {
     setEnvironmentResources(input: $input) {
@@ -61,7 +48,6 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Slider } from '@/components/ui/slider';
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -155,78 +141,34 @@ async function handleDeleteProject() {
   }
 }
 
-// Resource presets — slider index maps to value
-const cpuSteps = [500, 1000, 2000, 4000, 8000, 16000];
-const memorySteps = [512, 1024, 2048, 4096, 8192, 16384];
-const diskSteps = [1024, 2048, 5120, 10240, 20480, 51200];
-
-function toIndex(steps: number[], value: number) {
-  const idx = steps.indexOf(value);
-  return idx >= 0 ? idx : 0;
-}
-
-function formatCpu(m: number) {
-  return `${m / 1000} vCPU`;
-}
-
-function formatMB(mb: number) {
-  return mb >= 1024 ? `${mb / 1024} GB` : `${mb} MB`;
-}
-
 // Environment resources — keyed by EnvironmentID
 interface EnvResourceState {
-  loading: boolean;
-  loaded: boolean;
   saving: boolean;
   tier: ResourceTier;
-  cpuMillicores: number;
-  memoryMB: number;
-  diskMB: number;
 }
 
 const expandedEnvId = ref<string | null>(null);
 const envResources: Record<string, EnvResourceState> = reactive({});
 
-const { mutate: setResourcesMutate } = useMutation(SetEnvironmentResourcesDocument);
+const { mutate: setResourcesMutate } = useMutation(SetEnvironmentResourcesDocument, {
+  refetchQueries: () => [{ query: ProjectDocument, variables: { id: projectId.value } }],
+});
 
-async function toggleEnvExpand(envId: string) {
+function toggleEnvExpand(envId: string) {
   if (expandedEnvId.value === envId) {
     expandedEnvId.value = null;
     return;
   }
   expandedEnvId.value = envId;
 
-  if (envResources[envId]?.loaded) return;
+  if (envResources[envId]) return;
+
+  const env = project.value?.environments?.find(e => e.id === envId);
 
   envResources[envId] = {
-    loading: true,
-    loaded: false,
     saving: false,
-    tier: ResourceTier.Eco,
-    cpuMillicores: 1000,
-    memoryMB: 1024,
-    diskMB: 1024,
+    tier: env?.resourceTier ?? ResourceTier.Eco,
   };
-
-  try {
-    const { data } = await apolloClient.query({
-      query: EnvironmentResourcesDocument,
-      variables: { environment: envId },
-      fetchPolicy: 'network-only',
-    });
-    if (data?.environmentResources) {
-      const r = data.environmentResources;
-      envResources[envId]!.tier = r.tier;
-      envResources[envId]!.cpuMillicores = r.allocation.cpuMillicores;
-      envResources[envId]!.memoryMB = r.allocation.memoryMB;
-      envResources[envId]!.diskMB = r.allocation.diskMB;
-    }
-  } catch {
-    // No resources set yet — keep defaults
-  } finally {
-    envResources[envId]!.loading = false;
-    envResources[envId]!.loaded = true;
-  }
 }
 
 // Auto-expand environment from query param (?env=name)
@@ -253,14 +195,11 @@ async function handleSaveResources(envId: string) {
       input: {
         environment: envId,
         tier: state.tier,
-        cpuMillicores: state.cpuMillicores,
-        memoryMB: state.memoryMB,
-        diskMB: state.diskMB,
       },
     });
-    toast.success('Resources updated');
+    toast.success('Resource tier updated');
   } catch (e: unknown) {
-    errorToast('Failed to update resources', { description: errorMessage(e) });
+    errorToast('Failed to update resource tier', { description: errorMessage(e) });
   } finally {
     state.saving = false;
   }
@@ -451,14 +390,7 @@ async function handleDeleteEnvironment() {
                       v-if="expandedEnvId === env.id"
                       class="border-t bg-muted/30 px-4 py-4"
                     >
-                      <template v-if="envResources[env.id]?.loading">
-                        <div class="space-y-3">
-                          <Skeleton class="h-8 w-full" />
-                          <Skeleton class="h-8 w-full" />
-                          <Skeleton class="h-8 w-full" />
-                        </div>
-                      </template>
-                      <template v-else-if="envResources[env.id]?.loaded">
+                      <template v-if="envResources[env.id]">
                         <div class="space-y-5">
                           <div class="space-y-2">
                             <Label>Resource tier</Label>
@@ -498,61 +430,15 @@ async function handleDeleteEnvironment() {
                             v-if="envResources[env.id]!.tier === ResourceTier.Eco"
                             class="text-sm text-muted-foreground"
                           >
-                            Cheaper. Best for development, staging, and side projects. Performance can vary.
+                            Services run burstable and are billed for what they actually consume.
+                            Performance can vary under load. CPU and memory per service are set on
+                            the service itself.
                           </p>
-
-                          <template v-else>
-                            <div class="space-y-2">
-                              <div class="flex items-center justify-between">
-                                <Label>CPU</Label>
-                                <span class="text-sm font-medium">{{ formatCpu(envResources[env.id]!.cpuMillicores) }}</span>
-                              </div>
-                              <Slider
-                                :model-value="[toIndex(cpuSteps, envResources[env.id]!.cpuMillicores)]"
-                                :min="0"
-                                :max="cpuSteps.length - 1"
-                                :step="1"
-                                @update:model-value="envResources[env.id]!.cpuMillicores = cpuSteps[$event?.[0] ?? 0]!"
-                              />
-                              <div class="flex justify-between text-[10px] text-muted-foreground">
-                                <span v-for="s in cpuSteps" :key="s">{{ formatCpu(s) }}</span>
-                              </div>
-                            </div>
-
-                            <div class="space-y-2">
-                              <div class="flex items-center justify-between">
-                                <Label>Memory</Label>
-                                <span class="text-sm font-medium">{{ formatMB(envResources[env.id]!.memoryMB) }}</span>
-                              </div>
-                              <Slider
-                                :model-value="[toIndex(memorySteps, envResources[env.id]!.memoryMB)]"
-                                :min="0"
-                                :max="memorySteps.length - 1"
-                                :step="1"
-                                @update:model-value="envResources[env.id]!.memoryMB = memorySteps[$event?.[0] ?? 0]!"
-                              />
-                              <div class="flex justify-between text-[10px] text-muted-foreground">
-                                <span v-for="s in memorySteps" :key="s">{{ formatMB(s) }}</span>
-                              </div>
-                            </div>
-
-                            <div class="space-y-2">
-                              <div class="flex items-center justify-between">
-                                <Label>Disk</Label>
-                                <span class="text-sm font-medium">{{ formatMB(envResources[env.id]!.diskMB) }}</span>
-                              </div>
-                              <Slider
-                                :model-value="[toIndex(diskSteps, envResources[env.id]!.diskMB)]"
-                                :min="0"
-                                :max="diskSteps.length - 1"
-                                :step="1"
-                                @update:model-value="envResources[env.id]!.diskMB = diskSteps[$event?.[0] ?? 0]!"
-                              />
-                              <div class="flex justify-between text-[10px] text-muted-foreground">
-                                <span v-for="s in diskSteps" :key="s">{{ formatMB(s) }}</span>
-                              </div>
-                            </div>
-                          </template>
+                          <p v-else class="text-sm text-muted-foreground">
+                            Services reserve their full CPU and memory limit and are billed for the
+                            reservation. Each service picks up the change on its next deploy. CPU and
+                            memory per service are set on the service itself.
+                          </p>
 
                           <div class="flex justify-end">
                             <Button
@@ -560,7 +446,7 @@ async function handleDeleteEnvironment() {
                               :disabled="envResources[env.id]!.saving"
                               @click="handleSaveResources(env.id)"
                             >
-                              {{ envResources[env.id]!.saving ? 'Saving...' : 'Save resources' }}
+                              {{ envResources[env.id]!.saving ? 'Saving...' : 'Save tier' }}
                             </Button>
                           </div>
                         </div>

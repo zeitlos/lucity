@@ -372,17 +372,6 @@ func convertWorkspaceMember(m *conductor.WorkspaceMember) *model.WorkspaceMember
 	return result
 }
 
-func convertEnvironmentResources(r conductor.EnvironmentResources) model.EnvironmentResources {
-	return model.EnvironmentResources{
-		Tier: convertResourceTier(r.Tier),
-		Allocation: &model.ResourceAllocation{
-			CPUMillicores: r.CpuMillicores,
-			MemoryMb:      r.MemoryMB,
-			DiskMb:        r.DiskMB,
-		},
-	}
-}
-
 func convertBillingSubscription(s *conductor.BillingSubscription) *model.BillingSubscription {
 	var plan *model.Plan
 	if s.Plan != nil {

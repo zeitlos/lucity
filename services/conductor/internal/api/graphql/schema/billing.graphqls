@@ -1,22 +1,14 @@
 enum ResourceTier { ECO, PRODUCTION }
 
-type ResourceAllocation {
-  cpuMillicores: Int!
-  memoryMB: Int!
-  diskMB: Int!
-}
-
-type EnvironmentResources {
-  tier: ResourceTier!
-  allocation: ResourceAllocation!
-}
-
+"""
+The tier decides how a container's request relates to its limit: ECO runs
+burstable and is billed on real consumption, PRODUCTION reserves the full limit
+and is billed on allocation. Per-container sizing lives on the service itself;
+the namespace capacity ceiling is fixed and not settable per environment.
+"""
 input SetEnvironmentResourcesInput {
   environment: EnvironmentID!
   tier: ResourceTier!
-  cpuMillicores: Int! @constraint(constraint: "min=100,max=32000")
-  memoryMB: Int! @constraint(constraint: "min=128,max=65536")
-  diskMB: Int! @constraint(constraint: "min=0,max=102400")
 }
 
 enum Plan { HOBBY, PRO }
@@ -49,7 +41,6 @@ type BillingPortalUrl {
 }
 
 extend type Query {
-  environmentResources(environment: EnvironmentID!): EnvironmentResources @hasRole(role: WORKSPACE_MEMBER)
   subscription: BillingSubscription @hasRole(role: WORKSPACE_MEMBER)
   usageSummary: UsageSummary @hasRole(role: WORKSPACE_MEMBER)
 }
