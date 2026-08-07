@@ -208,6 +208,7 @@ logto:
   enabled: true
   endpoint: https://id.lucity.cloud
   postgres:
+    instances: 2
     storageClass: hcloud-volumes
 
 # Observability stack
