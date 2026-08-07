@@ -12,7 +12,7 @@ import (
 
 // Version is set at build time via ldflags.
 // This string is used as a fallback if the flag is not set (e.g. during local development).
-var Version = "26.7.2"
+var Version = "26.7.3-rc.2"
 
 type componentStatus struct {
 	Name   string `json:"name"`
