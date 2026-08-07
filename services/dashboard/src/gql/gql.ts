@@ -46,6 +46,9 @@ type Documents = {
     "\n  query BucketObjectDownloadUrl($bucket: BucketID!, $key: String!) {\n    bucketObjectDownloadUrl(bucket: $bucket, key: $key)\n  }\n": typeof types.BucketObjectDownloadUrlDocument,
     "\n  mutation DeleteBucketObject($bucket: BucketID!, $key: String!) {\n    deleteBucketObject(bucket: $bucket, key: $key)\n  }\n": typeof types.DeleteBucketObjectDocument,
     "\n  mutation DeleteBucket($bucket: BucketID!) {\n    deleteBucket(bucket: $bucket)\n  }\n": typeof types.DeleteBucketDocument,
+    "\n  query DatabaseBackups($database: DatabaseID!) {\n    database(id: $database) {\n      id\n      name\n      backups {\n        enabled\n        retentionDays\n        earliestRestorePoint\n        latestRestorePoint\n        lastBackupAt\n        backups {\n          id\n          status\n          trigger\n          createdAt\n          startedAt\n          finishedAt\n          error\n        }\n      }\n    }\n  }\n": typeof types.DatabaseBackupsDocument,
+    "\n  mutation CreateDatabaseBackup($database: DatabaseID!) {\n    createDatabaseBackup(database: $database) {\n      id\n      status\n    }\n  }\n": typeof types.CreateDatabaseBackupDocument,
+    "\n  mutation RestoreDatabase($input: RestoreDatabaseInput!) {\n    restoreDatabase(input: $input) {\n      clampedToLatest\n      database {\n        id\n        name\n        status\n      }\n    }\n  }\n": typeof types.RestoreDatabaseDocument,
     "\n  query DatabasePublic($database: DatabaseID!) {\n    database(id: $database) {\n      id\n      public\n    }\n  }\n": typeof types.DatabasePublicDocument,
     "\n  query DatabaseCredentials($database: DatabaseID!) {\n    databaseCredentials(database: $database) {\n      type\n      host\n      port\n      dbname\n      user\n      password\n      uri\n    }\n  }\n": typeof types.DatabaseCredentialsDocument,
     "\n  mutation ExposeDatabase($database: DatabaseID!) {\n    exposeDatabase(database: $database) {\n      id\n      public\n    }\n  }\n": typeof types.ExposeDatabaseDocument,
@@ -144,6 +147,9 @@ const documents: Documents = {
     "\n  query BucketObjectDownloadUrl($bucket: BucketID!, $key: String!) {\n    bucketObjectDownloadUrl(bucket: $bucket, key: $key)\n  }\n": types.BucketObjectDownloadUrlDocument,
     "\n  mutation DeleteBucketObject($bucket: BucketID!, $key: String!) {\n    deleteBucketObject(bucket: $bucket, key: $key)\n  }\n": types.DeleteBucketObjectDocument,
     "\n  mutation DeleteBucket($bucket: BucketID!) {\n    deleteBucket(bucket: $bucket)\n  }\n": types.DeleteBucketDocument,
+    "\n  query DatabaseBackups($database: DatabaseID!) {\n    database(id: $database) {\n      id\n      name\n      backups {\n        enabled\n        retentionDays\n        earliestRestorePoint\n        latestRestorePoint\n        lastBackupAt\n        backups {\n          id\n          status\n          trigger\n          createdAt\n          startedAt\n          finishedAt\n          error\n        }\n      }\n    }\n  }\n": types.DatabaseBackupsDocument,
+    "\n  mutation CreateDatabaseBackup($database: DatabaseID!) {\n    createDatabaseBackup(database: $database) {\n      id\n      status\n    }\n  }\n": types.CreateDatabaseBackupDocument,
+    "\n  mutation RestoreDatabase($input: RestoreDatabaseInput!) {\n    restoreDatabase(input: $input) {\n      clampedToLatest\n      database {\n        id\n        name\n        status\n      }\n    }\n  }\n": types.RestoreDatabaseDocument,
     "\n  query DatabasePublic($database: DatabaseID!) {\n    database(id: $database) {\n      id\n      public\n    }\n  }\n": types.DatabasePublicDocument,
     "\n  query DatabaseCredentials($database: DatabaseID!) {\n    databaseCredentials(database: $database) {\n      type\n      host\n      port\n      dbname\n      user\n      password\n      uri\n    }\n  }\n": types.DatabaseCredentialsDocument,
     "\n  mutation ExposeDatabase($database: DatabaseID!) {\n    exposeDatabase(database: $database) {\n      id\n      public\n    }\n  }\n": types.ExposeDatabaseDocument,
@@ -352,6 +358,18 @@ export function graphql(source: "\n  mutation DeleteBucketObject($bucket: Bucket
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation DeleteBucket($bucket: BucketID!) {\n    deleteBucket(bucket: $bucket)\n  }\n"): (typeof documents)["\n  mutation DeleteBucket($bucket: BucketID!) {\n    deleteBucket(bucket: $bucket)\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query DatabaseBackups($database: DatabaseID!) {\n    database(id: $database) {\n      id\n      name\n      backups {\n        enabled\n        retentionDays\n        earliestRestorePoint\n        latestRestorePoint\n        lastBackupAt\n        backups {\n          id\n          status\n          trigger\n          createdAt\n          startedAt\n          finishedAt\n          error\n        }\n      }\n    }\n  }\n"): (typeof documents)["\n  query DatabaseBackups($database: DatabaseID!) {\n    database(id: $database) {\n      id\n      name\n      backups {\n        enabled\n        retentionDays\n        earliestRestorePoint\n        latestRestorePoint\n        lastBackupAt\n        backups {\n          id\n          status\n          trigger\n          createdAt\n          startedAt\n          finishedAt\n          error\n        }\n      }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation CreateDatabaseBackup($database: DatabaseID!) {\n    createDatabaseBackup(database: $database) {\n      id\n      status\n    }\n  }\n"): (typeof documents)["\n  mutation CreateDatabaseBackup($database: DatabaseID!) {\n    createDatabaseBackup(database: $database) {\n      id\n      status\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation RestoreDatabase($input: RestoreDatabaseInput!) {\n    restoreDatabase(input: $input) {\n      clampedToLatest\n      database {\n        id\n        name\n        status\n      }\n    }\n  }\n"): (typeof documents)["\n  mutation RestoreDatabase($input: RestoreDatabaseInput!) {\n    restoreDatabase(input: $input) {\n      clampedToLatest\n      database {\n        id\n        name\n        status\n      }\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

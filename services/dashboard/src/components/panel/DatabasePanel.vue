@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import DatabaseConnectionTab from './DatabaseConnectionTab.vue';
 import DatabaseTablesTab from './DatabaseTablesTab.vue';
 import DatabaseQueryTab from './DatabaseQueryTab.vue';
+import DatabaseBackupsTab from './DatabaseBackupsTab.vue';
 import DatabaseSettingsTab from './DatabaseSettingsTab.vue';
 
 const props = defineProps<{
@@ -22,6 +23,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'close'): void;
   (e: 'database-removed'): void;
+  (e: 'database-restored'): void;
 }>();
 
 onKeyStroke('Escape', () => {
@@ -62,6 +64,7 @@ onKeyStroke('Escape', () => {
             <TabsTrigger value="connect">Connect</TabsTrigger>
             <TabsTrigger value="tables">Tables</TabsTrigger>
             <TabsTrigger value="query">Query</TabsTrigger>
+            <TabsTrigger value="backups">Backups</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
         </div>
@@ -79,6 +82,14 @@ onKeyStroke('Escape', () => {
 
         <TabsContent value="query" class="px-4 py-4">
           <DatabaseQueryTab :database-id="props.database.id" />
+        </TabsContent>
+
+        <TabsContent value="backups" class="px-4 py-4">
+          <DatabaseBackupsTab
+            :database-id="props.database.id"
+            :database-name="props.database.name"
+            @database-restored="emit('database-restored')"
+          />
         </TabsContent>
 
         <TabsContent value="settings" class="px-4 py-4">
