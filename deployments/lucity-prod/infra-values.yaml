@@ -14,7 +14,24 @@ zot:
           "rootDirectory": "/var/lib/registry",
           "gc": true,
           "gcDelay": "1h",
-          "gcInterval": "24h"
+          "gcInterval": "24h",
+          "retention": {
+            "dryRun": true,
+            "delay": "168h",
+            "policies": [
+              {
+                "repositories": ["**"],
+                "deleteUntagged": true,
+                "deleteReferrers": false,
+                "keepTags": [
+                  { "patterns": ["^buildcache$"] },
+                  { "patterns": [".*"], "mostRecentlyPushedCount": 10 },
+                  { "patterns": [".*"], "mostRecentlyPulledCount": 5 },
+                  { "patterns": [".*"], "pushedWithin": "72h" }
+                ]
+              }
+            ]
+          }
         },
         "http": {
           "address": "0.0.0.0",
