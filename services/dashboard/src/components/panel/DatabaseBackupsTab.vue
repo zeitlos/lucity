@@ -277,6 +277,10 @@ const visibleEntries = computed(() => (showAll.value ? entries.value : entries.v
               Every write is archived as it happens, so you can restore to any moment in the last
               {{ backups.retentionDays }} days, not just when a backup ran.
             </p>
+            <p v-else-if="degenerate">
+              Every write is archived as it happens. Nothing has been written since the last
+              backup, so there is a single state to restore to.
+            </p>
             <p v-else>
               The first backup is still running. Once it finishes, everything from that moment
               onward becomes restorable.
