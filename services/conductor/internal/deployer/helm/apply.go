@@ -42,7 +42,10 @@ func (c *Client) applyEnv(ctx context.Context, envID platform.EnvironmentID, mut
 	env.SharedVariableLabels = values.SharedVariableLabels()
 	env.ImagePullSecrets = []values.PullSecret{{Name: kubernetes.PullSecretName}}
 	env.Gateway = values.Gateway{Name: c.gatewayName, Namespace: c.gatewayNamespace}
-	env.Databases.BackupStore = c.backupStore(envID)
+
+	if c.backups.Enabled {
+		env.Databases.BackupStore = c.backupStore(envID)
+	}
 
 	if err := mutate(env); err != nil {
 		return "", err
@@ -70,10 +73,6 @@ func (c *Client) applyEnv(ctx context.Context, envID platform.EnvironmentID, mut
 }
 
 func (c *Client) backupStore(envID platform.EnvironmentID) values.BackupStore {
-	if !c.backups.Enabled {
-		return values.BackupStore{}
-	}
-
 	return values.BackupStore{
 		Enabled:         true,
 		Endpoint:        c.backups.Endpoint,
