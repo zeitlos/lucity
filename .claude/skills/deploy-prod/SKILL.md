@@ -8,7 +8,7 @@ description: >-
   chart", "deploy the infra chart", "release to lucity-prod", or "upgrade the
   cluster", even if they don't say "skill". It lists published chart versions,
   reads what is currently installed, diffs the two with git, flags any breaking
-  changes or manual migrations (new values, annotations, new secrets), and then
+  changes or anything needing action first (new values, annotations, new secrets), and then
   applies with `make deploy-prod` / `make deploy-prod-infra`. This is for the
   platform's OWN charts, not for deploying user applications (that is the
   separate `lucity:deploy` skill).
@@ -33,21 +33,21 @@ differ.
 
 - **This is production.** Never apply without showing the user the resolved version and the
   change summary first. A deploy is a fresh release revision that rolls the control plane.
-  - **Clean bumps are auto-approved.** When Step 3 finds **no migrations and no blocker**
+  - **Clean bumps are auto-approved.** When Step 3 finds **no open tasks and no blocker**
     (see below), present the summary and apply in the same turn — no confirmation ask. This
     is the common case: an app-code version bump with no values/template/secret/immutability
     changes and no downgrade.
-  - **Everything else stops for an explicit go-ahead.** If there is any migration (`[I can
-    apply]` or `[you must do]` is non-empty) or any blocker — a new secret key, a downgrade,
-    broken git ancestry, an unreachable cluster, or ambiguous scope — you must stop after the
-    summary and wait for the user before applying.
+  - **Everything else stops for an explicit go-ahead.** If anything has to happen before the
+    upgrade is safe, or there is any blocker — a new secret key, a downgrade, broken git
+    ancestry, an unreachable cluster, or ambiguous scope — you must stop after the summary
+    and wait for the user before applying.
 - **Scope is a choice.** Ask up front which chart(s) to deploy: platform (`lucity`), infra
   (`lucity-infra`), or both. Default to whichever the user named; if they said "deploy prod"
   without qualifying, ask.
 - **Secrets are the user's job.** If a new version needs a new secret key, the user adds it
   to the gitignored `secrets.yaml` / `infra-secrets.yaml` by hand. Never invent or write
   secret values.
-- **Never commit or push** (repo rule). Value-file edits you make for a migration stay in the
+- **Never commit or push** (repo rule). Value-file edits you make stay in the
   working tree for the user to review.
 - The make targets pin `--kube-context lucity-prod`, so a deploy always targets prod
   regardless of your current kube context. Still, verify the context exists and is reachable.
@@ -59,11 +59,15 @@ without printing per-step progress prose ("now checking…", "found X, next I'll
 the conclusions, not the play-by-play. Emit user-facing text at exactly these moments:
 
 1. **One consolidated report** after Steps 1-3: the selected version vs what is installed, the
-   change summary (commit list plus any notable value/template/secret diffs), and the migration
-   classification split into `[I can apply]` and `[you must do]`.
-   - **No migrations and no blocker** → end the report by stating you are proceeding (clean
+   change summary (commit list plus any notable value/template/secret diffs), and anything that
+   has to be done before the upgrade is safe, under two plain headings — **Before I deploy**
+   (what you will do: values edits, an annotation stamping script) and **Needs you** (what only
+   the user can do: add new secret keys). Write them as ordinary prose bullets. Omit a heading
+   entirely when it has nothing under it, rather than writing "nothing".
+   - **Nothing to do and no blocker** → end the report by stating you are proceeding (clean
      bump, auto-approved) and continue straight to Step 4 in the **same turn**.
-   - **Migrations or a blocker** → end the report with the single confirmation ask and wait.
+   - **Anything outstanding, or a blocker** → end the report with the single confirmation ask
+     and wait.
 2. **One short result** after Step 4: what deployed, the new revision, and rollout health.
 
 The only thing that interrupts this is a **blocker** you must surface immediately: broken git
@@ -124,7 +128,7 @@ picked an older target than what is installed. Compare with `git log --oneline "
 if that has commits, this is a **downgrade / rollback**. Call that out explicitly before
 proceeding.
 
-Then diff the migration surfaces (only the paths that can require operator action), scoped
+Then diff the surfaces that can require operator action, scoped
 to the chart being deployed:
 
 ```sh
@@ -139,10 +143,10 @@ git diff "$FROM..$TO" -- charts/lucity-infra/Chart.yaml charts/lucity-infra/valu
   deployments/lucity-prod/infra-values.yaml deployments/lucity-prod/infra-secrets.yaml.example
 ```
 
-## Step 3 — classify: breaking changes or manual migrations?
+## Step 3 — classify: is anything needed before this is safe to apply?
 
-Read the diff and decide whether the upgrade is safe to apply as-is or needs a migration
-step first. What to look for, and who fixes it:
+Read the diff and decide whether the upgrade is safe to apply as-is, or whether something has
+to happen first. What to look for, and who does it:
 
 **Values schema changes** (`values.yaml`):
 - A new **required** value with no default: add it to the prod values file. You can propose
@@ -163,7 +167,7 @@ step first. What to look for, and who fixes it:
   `infra-secrets.yaml` **by hand** before deploying. List exactly which keys are new. Do not
   fill them in.
 
-**Annotations / runtime migrations on existing resources:**
+**Annotations / one-off stamping on existing resources:**
 - If the new version expects annotations or labels on already-running releases (e.g. an
   autodeploy annotation), that is a one-off stamping step, not part of `helm upgrade`.
   Propose a small `kubectl annotate` script over the affected releases; you can run it after
@@ -172,13 +176,15 @@ step first. What to look for, and who fixes it:
   reconciler; if a default changed, note it needs a re-Ensure (a Settings save or `kubectl patch`).
 
 **Decision:**
-- **Migrations needed** → tell the user, split into `[I can apply]` (values edits, an annotation
-  stamping script) and `[you must do]` (add new secret keys, since those are yours). Propose the
-  concrete edits/commands, apply the auto-fixable ones after confirmation, and wait for the user
-  to confirm secrets are in place before applying.
-- **No migrations (and no blocker)** → show the summary (the `git log` commit list plus a
+- **Something is outstanding** → tell the user, under two plain headings: **Before I deploy**
+  for what you will do (values edits, an annotation stamping script) and **Needs you** for what
+  only they can do (add new secret keys, since those are theirs). Ordinary prose bullets, no
+  bracket tags; drop a heading entirely if it has nothing under it. Propose the concrete
+  edits/commands, apply your own after confirmation, and wait for the user to confirm secrets
+  are in place before applying.
+- **Nothing outstanding (and no blocker)** → show the summary (the `git log` commit list plus a
   rendered manifest diff, see below) and **apply immediately in the same turn — this case is
-  auto-approved, no confirmation ask.** A clean bump means: the migration-surface diff is empty
+  auto-approved, no confirmation ask.** A clean bump means: the diff over the surfaces above is empty
   (no `values.yaml` / template / `lucity-app` / secret-example changes), no new required env var,
   no immutable-field or subchart-CRD change, and the version is an upgrade (not a downgrade).
   Any blocker — downgrade, broken ancestry, unreachable cluster, a new secret key, or ambiguous
@@ -200,7 +206,7 @@ form works too, but `helm diff` shows only what changes.)
 
 ## Step 4 — apply, then check rollout health
 
-Once approved — either **automatically** (Step 3 found no migrations and no blocker) or by the
+Once approved — either **automatically** (Step 3 found nothing outstanding and no blocker) or by the
 user's explicit go-ahead — apply:
 
 ```sh
