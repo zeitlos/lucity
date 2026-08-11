@@ -1,0 +1,68 @@
+"""
+The recovery picture for one database. Backups are continuous, not discrete: the
+base backups below are the anchors, and archived write-ahead logs cover the gaps
+between them, so any moment inside the window is restorable.
+"""
+type DatabaseBackups {
+  enabled: Boolean!
+  retentionDays: Int!
+  schedule: String!
+  """The furthest back this database can be restored to."""
+  earliestRestorePoint: Time
+  latestRestorePoint: Time
+  lastBackupAt: Time
+  backups: [DatabaseBackup!]!
+}
+
+type DatabaseBackup {
+  id: ID!
+  status: BackupStatus!
+  createdAt: Time!
+  trigger: BackupTrigger!
+  startedAt: Time
+  finishedAt: Time
+  error: String
+}
+
+enum BackupStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum BackupTrigger {
+  SCHEDULED
+  MANUAL
+}
+
+extend type Database {
+  backups: DatabaseBackups! @goField(forceResolver: true)
+}
+
+"""
+Restoring never touches the source database. It creates a second one holding the
+data as it was at targetTime, which keeps running alongside the original until
+you decide what to do with it.
+"""
+type RestoreDatabaseResult {
+  database: Database!
+  """
+  True when the requested moment was later than anything in the archive, so the
+  restore ran to the most recent state instead. Only happens while archiving is
+  healthy, which means nothing was written after that point.
+  """
+  clampedToLatest: Boolean!
+}
+
+input RestoreDatabaseInput {
+  database: DatabaseID!
+  name: String! @constraint(constraint: "resource_name,min=2,max=16")
+  """Omit to restore the most recent state in the archive."""
+  targetTime: Time
+}
+
+extend type Mutation {
+  createDatabaseBackup(database: DatabaseID!): DatabaseBackup! @hasRole(role: WORKSPACE_MEMBER)
+  restoreDatabase(input: RestoreDatabaseInput!): RestoreDatabaseResult! @hasRole(role: WORKSPACE_MEMBER)
+}

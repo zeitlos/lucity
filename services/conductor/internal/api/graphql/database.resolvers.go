@@ -144,3 +144,8 @@ func (r *queryResolver) DatabaseCredentials(ctx context.Context, database platfo
 	}
 	return result, nil
 }
+
+// Database returns DatabaseResolver implementation.
+func (r *Resolver) Database() DatabaseResolver { return &databaseResolver{r} }
+
+type databaseResolver struct{ *Resolver }

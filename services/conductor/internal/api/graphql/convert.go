@@ -685,7 +685,7 @@ func convertReleaseTriggerKind(kind deployer.TriggerKind) model.ReleaseTriggerKi
 }
 
 func convertDatabase(d conductor.Database) model.Database {
-	return model.Database{
+	database := model.Database{
 		ID:        d.ID,
 		Name:      d.Name,
 		Version:   d.Version,
@@ -696,6 +696,77 @@ func convertDatabase(d conductor.Database) model.Database {
 		CreatedAt: d.CreatedAt,
 		Public:    d.PublicHost != "",
 	}
+
+	if d.StatusReason != "" {
+		database.StatusReason = &d.StatusReason
+	}
+
+	return database
+}
+
+func convertDatabaseBackups(b platform.DatabaseBackups) model.DatabaseBackups {
+	backups := make([]model.DatabaseBackup, 0, len(b.Backups))
+
+	for _, backup := range b.Backups {
+		backups = append(backups, convertDatabaseBackup(backup))
+	}
+
+	return model.DatabaseBackups{
+		Enabled:              b.Enabled,
+		RetentionDays:        b.RetentionDays,
+		Schedule:             b.Schedule,
+		EarliestRestorePoint: b.EarliestRestorePoint,
+		LatestRestorePoint:   b.LatestRestorePoint,
+		LastBackupAt:         b.LastBackupAt,
+		Backups:              backups,
+	}
+}
+
+func convertDatabaseBackup(b platform.DatabaseBackup) model.DatabaseBackup {
+	backup := model.DatabaseBackup{
+		ID:         b.Name,
+		CreatedAt:  b.CreatedAt,
+		Status:     convertBackupStatus(b.Status),
+		Trigger:    convertBackupTrigger(b.Trigger),
+		StartedAt:  b.StartedAt,
+		FinishedAt: b.FinishedAt,
+	}
+
+	if b.Error != "" {
+		backup.Error = &b.Error
+	}
+
+	return backup
+}
+
+func convertBackupStatus(status platform.BackupStatus) model.BackupStatus {
+	switch status {
+	case platform.BackupPending:
+		return model.BackupStatusPending
+	case platform.BackupRunning:
+		return model.BackupStatusRunning
+	case platform.BackupCompleted:
+		return model.BackupStatusCompleted
+	case platform.BackupFailed:
+		return model.BackupStatusFailed
+	}
+
+	slog.Warn("unknown backup status", "status", status)
+
+	return model.BackupStatusFailed
+}
+
+func convertBackupTrigger(trigger platform.BackupTrigger) model.BackupTrigger {
+	switch trigger {
+	case platform.BackupScheduled:
+		return model.BackupTriggerScheduled
+	case platform.BackupManual:
+		return model.BackupTriggerManual
+	}
+
+	slog.Warn("unknown backup trigger", "trigger", trigger)
+
+	return model.BackupTriggerManual
 }
 
 func convertDatabaseCredentials(c conductor.DatabaseCredentials) model.DatabaseCredentials {

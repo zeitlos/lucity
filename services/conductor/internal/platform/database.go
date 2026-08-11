@@ -13,16 +13,55 @@ import (
 
 // TODO: Rename to Postgres, PostgresDatabase or PostgresCluster
 type Database struct {
-	ID         DatabaseID
-	Name       string
-	Version    string
-	Instances  int
-	Status     DatabaseStatus
-	Size       resource.Quantity
-	Resources  Resources
-	CreatedAt  time.Time
-	PublicHost string
+	ID           DatabaseID
+	Name         string
+	Version      string
+	Instances    int
+	Status       DatabaseStatus
+	StatusReason string
+	Size         resource.Quantity
+	Resources    Resources
+	CreatedAt    time.Time
+	PublicHost   string
 }
+
+type DatabaseBackups struct {
+	Enabled              bool
+	ArchivingHealthy     bool
+	RetentionDays        int
+	Schedule             string
+	ServerName           string
+	EarliestRestorePoint *time.Time
+	LatestRestorePoint   *time.Time
+	LastBackupAt         *time.Time
+	Backups              []DatabaseBackup
+}
+
+type DatabaseBackup struct {
+	Name       string
+	CreatedAt  time.Time
+	Status     BackupStatus
+	Trigger    BackupTrigger
+	StartedAt  *time.Time
+	FinishedAt *time.Time
+	Error      string
+}
+
+type BackupStatus string
+
+const (
+	BackupPending   BackupStatus = "pending"
+	BackupRunning   BackupStatus = "running"
+	BackupCompleted BackupStatus = "completed"
+	BackupFailed    BackupStatus = "failed"
+)
+
+type BackupTrigger string
+
+const (
+	BackupScheduled BackupTrigger = "scheduled"
+	BackupManual    BackupTrigger = "manual"
+)
 
 type DatabaseStatus string
 

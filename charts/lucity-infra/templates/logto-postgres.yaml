@@ -13,6 +13,14 @@ spec:
   imageName: ghcr.io/cloudnative-pg/postgresql:{{ .Values.logto.postgres.version }}
   {{- end }}
   enableSuperuserAccess: true
+  {{- if .Values.backups.enabled }}
+  plugins:
+    - name: barman-cloud.cloudnative-pg.io
+      isWALArchiver: true
+      parameters:
+        barmanObjectName: {{ .Release.Name }}-platform-backups
+        serverName: {{ .Release.Name }}-logto-pg
+  {{- end }}
   bootstrap:
     initdb:
       database: logto
@@ -22,4 +30,24 @@ spec:
     {{- if .Values.logto.postgres.storageClass }}
     storageClass: {{ .Values.logto.postgres.storageClass | quote }}
     {{- end }}
+{{- if .Values.backups.enabled }}
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: {{ .Release.Name }}-logto-pg
+  labels:
+    app.kubernetes.io/name: logto-postgres
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: identity-provider
+spec:
+  schedule: {{ .Values.backups.schedule | default "0 0 2 * * 0" | quote }}
+  immediate: true
+  backupOwnerReference: cluster
+  method: plugin
+  pluginConfiguration:
+    name: barman-cloud.cloudnative-pg.io
+  cluster:
+    name: {{ .Release.Name }}-logto-pg
+{{- end }}
 {{- end }}

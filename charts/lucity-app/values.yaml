@@ -45,6 +45,11 @@
 #       version: "16"
 #       labels: {}
 #       annotations: {}
+#       backup:
+#         serverName: <folder in the archive store, minted by the control plane>
+#       restore:                               # bootstrap from another database's archive
+#         sourceServerName: <the source's serverName>
+#         targetTime: "2026-08-07T14:32:10Z"
 #   valkey:                                    # Redis-compatible key-value store
 #     cache:
 #       size: 1Gi
@@ -90,6 +95,30 @@ sharedVariables: {}
 databases:
   postgres: {}
   valkey: {}
+
+  # Where PostgreSQL backups are archived: continuous WAL archiving plus scheduled
+  # base backups, via the CloudNativePG barman-cloud plugin.
+  #
+  # One store for the whole environment, not one per database. That mirrors the
+  # underlying resource, which is a destination rather than a database property:
+  # every database writes into its own folder underneath destinationPath, named by
+  # its own `backup.serverName`. Per-database retention, if it is ever needed, is
+  # expressed as a map of folder to window on the store itself.
+  #
+  # Only the name of a secret appears here. The credentials themselves never
+  # become values, because values are what you get when you eject.
+  backupStore:
+    enabled: false
+    endpoint: ""
+    destinationPath: ""
+    retention: 30d
+    schedule: "0 0 2 * * 0"
+    credentials:
+      existingSecret: ""
+      secretKeys:
+        accessKeyIdKey: accessKeyId
+        secretAccessKeyKey: secretAccessKey
+        regionKey: region
 
 # Standalone persistent volumes (RWO PVCs), keyed by name, mounted into services via
 # services.<name>.volumeMounts.

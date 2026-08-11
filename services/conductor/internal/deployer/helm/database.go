@@ -2,6 +2,7 @@ package helm
 
 import (
 	"context"
+	"time"
 
 	"k8s.io/apimachinery/pkg/api/resource"
 
@@ -26,6 +27,21 @@ func (d *databaseClient) Create(ctx context.Context, env platform.EnvironmentID,
 			Resources:  deriveRequestsAndLimtis(spec.Resources, spec.ResourceTier),
 			Parameters: postgresParameters(spec.Resources.CPU, spec.Resources.Memory),
 		})
+	})
+}
+
+func (d *databaseClient) Restore(ctx context.Context, source platform.DatabaseID, name string, spec deployer.DatabaseSpec, targetTime *time.Time) (deployer.RevisionID, error) {
+	if err := validateResources(spec.Resources); err != nil {
+		return "", err
+	}
+
+	return d.client.applyEnv(ctx, source.EnvironmentID(), func(e *values.Env) error {
+		return values.RestoreDatabase(e, source.Name, name, values.DatabaseSpec{
+			Version:    spec.Version,
+			Size:       spec.Size,
+			Resources:  deriveRequestsAndLimtis(spec.Resources, spec.ResourceTier),
+			Parameters: postgresParameters(spec.Resources.CPU, spec.Resources.Memory),
+		}, targetTime)
 	})
 }
 

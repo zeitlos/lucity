@@ -2,6 +2,7 @@ package kubernetes
 
 import (
 	"context"
+	"maps"
 
 	pkglabels "github.com/zeitlos/lucity/pkg/labels"
 	"github.com/zeitlos/lucity/pkg/to"
@@ -29,6 +30,10 @@ func (c *Client) ensureQuota(ctx context.Context, id platform.EnvironmentID) err
 
 	if err != nil {
 		return err
+	}
+
+	if resourceListEqual(existing.Spec.Hard, quota.Spec.Hard) && maps.Equal(existing.Labels, quota.Labels) {
+		return nil
 	}
 
 	existing.Spec.Hard = quota.Spec.Hard
@@ -59,6 +64,10 @@ func (c *Client) ensureLimitRange(ctx context.Context, id platform.EnvironmentID
 		return err
 	}
 
+	if limitRangeSpecEqual(existing.Spec, limitRange.Spec) && maps.Equal(existing.Labels, limitRange.Labels) {
+		return nil
+	}
+
 	existing.Spec = limitRange.Spec
 	existing.Labels = limitRange.Labels
 
@@ -67,6 +76,50 @@ func (c *Client) ensureLimitRange(ctx context.Context, id platform.EnvironmentID
 	}
 
 	return nil
+}
+
+func resourceListEqual(a, b corev1.ResourceList) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	for name, left := range a {
+		right, ok := b[name]
+
+		if !ok || left.Cmp(right) != 0 {
+			return false
+		}
+	}
+
+	return true
+}
+
+func limitRangeSpecEqual(a, b corev1.LimitRangeSpec) bool {
+	if len(a.Limits) != len(b.Limits) {
+		return false
+	}
+
+	for i, left := range a.Limits {
+		right := b.Limits[i]
+
+		if left.Type != right.Type {
+			return false
+		}
+
+		if !resourceListEqual(left.Default, right.Default) {
+			return false
+		}
+
+		if !resourceListEqual(left.DefaultRequest, right.DefaultRequest) {
+			return false
+		}
+
+		if !resourceListEqual(left.Max, right.Max) || !resourceListEqual(left.Min, right.Min) {
+			return false
+		}
+	}
+
+	return true
 }
 
 func buildQuota(namespace string) *corev1.ResourceQuota {

@@ -1,0 +1,26 @@
+{{- if $.Values.databases.backupStore.enabled }}
+{{- range $name, $pg := .Values.databases.postgres }}
+{{- if and $pg.backup $pg.backup.serverName }}
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: {{ include "lucity-app.fullname" $ }}-pg-{{ $name }}
+  labels:
+    {{- include "lucity-app.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: postgres-{{ $name }}
+    {{- with $.Values.commonLabels }}{{- toYaml . | nindent 4 }}{{- end }}
+    {{- with $pg.labels }}{{- toYaml . | nindent 4 }}{{- end }}
+spec:
+  schedule: {{ $.Values.databases.backupStore.schedule | default "0 0 2 * * 0" | quote }}
+  suspend: {{ $.Values.suspended | default false }}
+  immediate: true
+  backupOwnerReference: cluster
+  method: plugin
+  pluginConfiguration:
+    name: barman-cloud.cloudnative-pg.io
+  cluster:
+    name: {{ include "lucity-app.fullname" $ }}-pg-{{ $name }}
+{{- end }}
+{{- end }}
+{{- end }}

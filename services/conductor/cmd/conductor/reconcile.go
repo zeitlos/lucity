@@ -11,6 +11,7 @@ import (
 
 const domainReconcileInterval = 2 * time.Minute
 const serviceReconcileInterval = 2 * time.Minute
+const backupReconcileInterval = 10 * time.Minute
 const admissionInterval = 3 * time.Second
 
 func runAdmissionReconciler(ctx context.Context, p pipeline.Interface) {
@@ -33,6 +34,14 @@ func runServiceReconciler(ctx context.Context, c *conductor.Client) {
 	reconcile(ctx, serviceReconcileInterval, func() {
 		if err := c.ReconcileServices(ctx); err != nil {
 			slog.Error("service reconcile failed", "error", err)
+		}
+	})
+}
+
+func runBackupReconciler(ctx context.Context, c *conductor.Client) {
+	reconcile(ctx, backupReconcileInterval, func() {
+		if err := c.ReconcileDatabaseBackups(ctx); err != nil {
+			slog.Error("backup reconcile failed", "error", err)
 		}
 	})
 }

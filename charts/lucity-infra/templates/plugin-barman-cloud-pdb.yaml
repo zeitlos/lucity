@@ -1,0 +1,16 @@
+{{- if and (index .Values "plugin-barman-cloud" "enabled") (gt (int (index .Values "plugin-barman-cloud" "replicaCount")) 1) }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ .Release.Name }}-plugin-barman-cloud
+  labels:
+    app.kubernetes.io/name: plugin-barman-cloud
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: backup-plugin
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: plugin-barman-cloud
+      app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}

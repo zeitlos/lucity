@@ -54,6 +54,16 @@ func (c *Client) Databases(ctx context.Context, environmentID platform.Environme
 }
 
 func (c *Client) Database(ctx context.Context, id platform.DatabaseID) (*platform.Database, error) {
+	cluster, err := c.cluster(ctx, id)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return new(toDatabase(*cluster, id.EnvironmentID())), nil
+}
+
+func (c *Client) cluster(ctx context.Context, id platform.DatabaseID) (*cnpgv1.Cluster, error) {
 	set := labels.Set{
 		databaseLabel: id.Name,
 	}
@@ -70,13 +80,7 @@ func (c *Client) Database(ctx context.Context, id platform.DatabaseID) (*platfor
 		return nil, fmt.Errorf("database %q not found", id)
 	}
 
-	cluster, err := toCluster(list.Items[0])
-
-	if err != nil {
-		return nil, err
-	}
-
-	return new(toDatabase(*cluster, id.EnvironmentID())), nil
+	return toCluster(list.Items[0])
 }
 
 func toCluster(item unstructured.Unstructured) (*cnpgv1.Cluster, error) {
@@ -89,10 +93,11 @@ func toDatabase(cluster cnpgv1.Cluster, environmentID platform.EnvironmentID) pl
 	limits := cluster.Spec.Resources.Limits
 
 	database := platform.Database{
-		ID:        databaseID(cluster, environmentID),
-		Name:      cluster.Labels[databaseLabel],
-		Instances: cluster.Spec.Instances,
-		Status:    databaseStatus(cluster),
+		ID:           databaseID(cluster, environmentID),
+		Name:         cluster.Labels[databaseLabel],
+		Instances:    cluster.Spec.Instances,
+		Status:       databaseStatus(cluster),
+		StatusReason: cluster.Status.PhaseReason,
 		Resources: platform.Resources{
 			CPU:    limits[core.ResourceCPU],
 			Memory: limits[core.ResourceMemory],

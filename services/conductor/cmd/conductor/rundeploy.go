@@ -37,6 +37,12 @@ type DeployConfig struct {
 	RegistryPullURL  string `envconfig:"REGISTRY_PULL_URL" required:"true"`
 	GatewayName      string `envconfig:"GATEWAY_NAME" default:"lucity-gateway"`
 	GatewayNamespace string `envconfig:"GATEWAY_NAMESPACE" default:"lucity-system"`
+
+	// This process runs the same values apply as the conductor, so it needs the
+	// same archive-store settings or it would strip archiving on every deploy.
+	DatabaseBackupEnabled  bool   `envconfig:"DATABASE_BACKUP_ENABLED" default:"false"`
+	DatabaseBackupEndpoint string `envconfig:"DATABASE_BACKUP_S3_ENDPOINT"`
+	DatabaseBackupBucket   string `envconfig:"DATABASE_BACKUP_S3_BUCKET"`
 }
 
 const buildWaitTimeout = 30 * time.Minute
@@ -119,7 +125,11 @@ func runDeploy() {
 
 	chartRef.Metadata.Version = version.String()
 
-	deployerClient, err := helmDeployer.New(chartRef, config.GatewayName, config.GatewayNamespace)
+	deployerClient, err := helmDeployer.New(chartRef, config.GatewayName, config.GatewayNamespace, helmDeployer.BackupConfig{
+		Enabled:  config.DatabaseBackupEnabled,
+		Endpoint: config.DatabaseBackupEndpoint,
+		Bucket:   config.DatabaseBackupBucket,
+	})
 
 	if err != nil {
 		log.Error("deploy: failed to create deployer client", "error", err)

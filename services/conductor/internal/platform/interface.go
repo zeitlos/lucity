@@ -23,6 +23,8 @@ type Interface interface {
 	Databases(ctx context.Context, environmentID EnvironmentID) ([]Database, error)
 	Database(ctx context.Context, id DatabaseID) (*Database, error)
 	DatabaseCredentials(ctx context.Context, id DatabaseID) (*DatabaseCredentials, error)
+	DatabaseBackups(ctx context.Context, id DatabaseID) (*DatabaseBackups, error)
+	CreateDatabaseBackup(ctx context.Context, id DatabaseID) (*DatabaseBackup, error)
 
 	KeyValueStores(ctx context.Context, environmentID EnvironmentID) ([]KeyValueStore, error)
 	KeyValueStore(ctx context.Context, id KeyValueStoreID) (*KeyValueStore, error)

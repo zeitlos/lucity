@@ -22,6 +22,11 @@ var (
 	MaxDatabaseStorage = resource.MustParse("1Ti")
 )
 
+const (
+	DefaultBackupRetention = "30d"
+	DefaultBackupSchedule  = "0 0 2 * * 0"
+)
+
 // Request returns the K8s request value for the given limit under the given
 // tier. Guaranteed (production) returns the limit unchanged; burstable (eco)
 // scales the limit down by a fixed ratio.

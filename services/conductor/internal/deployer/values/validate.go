@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -30,6 +31,7 @@ var (
 	maxCommandLen         = 4096
 	maxBranchLen          = 250
 	maxHealthCheckPathLen = 255
+	maxServerNameLen      = 255
 )
 
 func Validate(env *Env) error {
@@ -59,6 +61,14 @@ func Validate(env *Env) error {
 		if err := validateAnnotationKeys(fmt.Sprintf("database %q annotations", name), pg.Annotations); err != nil {
 			return err
 		}
+
+		if err := validateDatabaseBackup(name, pg); err != nil {
+			return err
+		}
+	}
+
+	if err := validateBackupStore(env.Databases.BackupStore); err != nil {
+		return err
 	}
 
 	for name, vk := range env.Databases.Valkey {
@@ -163,6 +173,58 @@ func Validate(env *Env) error {
 
 func isValidName(name string) bool {
 	return len(name) > 0 && len(name) <= maxNameLen && dnsLabel.MatchString(name)
+}
+
+func validateBackupStore(store BackupStore) error {
+	if !store.Enabled {
+		return nil
+	}
+
+	if store.Credentials.ExistingSecret == "" {
+		return fmt.Errorf("backup store enabled without a credentials secret")
+	}
+
+	keys := store.Credentials.SecretKeys
+
+	if keys.AccessKeyIDKey == "" || keys.SecretAccessKeyKey == "" || keys.RegionKey == "" {
+		return fmt.Errorf("backup store enabled without a complete secret key mapping")
+	}
+
+	if store.Endpoint == "" {
+		return fmt.Errorf("backup store enabled without an endpoint")
+	}
+
+	if !strings.HasPrefix(store.DestinationPath, "s3://") {
+		return fmt.Errorf("invalid backup destination %q", store.DestinationPath)
+	}
+
+	return nil
+}
+
+func validateDatabaseBackup(name string, postgres Postgres) error {
+	if postgres.Backup != nil && !isValidServerName(postgres.Backup.ServerName) {
+		return fmt.Errorf("database %q has an invalid backup server name %q", name, postgres.Backup.ServerName)
+	}
+
+	if postgres.Restore == nil {
+		return nil
+	}
+
+	if !isValidServerName(postgres.Restore.SourceServerName) {
+		return fmt.Errorf("database %q has an invalid restore source %q", name, postgres.Restore.SourceServerName)
+	}
+
+	if postgres.Restore.TargetTime != "" {
+		if _, err := time.Parse(time.RFC3339, postgres.Restore.TargetTime); err != nil {
+			return fmt.Errorf("database %q has an invalid restore target time %q", name, postgres.Restore.TargetTime)
+		}
+	}
+
+	return nil
+}
+
+func isValidServerName(name string) bool {
+	return len(name) > 0 && len(name) <= maxServerNameLen && dnsLabel.MatchString(name)
 }
 
 func validateStartCommand(command string) error {

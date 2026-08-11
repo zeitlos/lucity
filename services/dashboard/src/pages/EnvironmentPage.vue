@@ -737,6 +737,7 @@ watch(error, (err) => {
               :database="selectedDatabase"
               @close="closePanel"
               @database-removed="handleResourceRemoved"
+              @database-restored="refetch()"
             />
           </div>
         </Transition>

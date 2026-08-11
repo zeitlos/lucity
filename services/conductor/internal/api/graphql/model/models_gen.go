@@ -180,10 +180,37 @@ type Database struct {
 	Version   string              `json:"version"`
 	Instances int                 `json:"instances"`
 	Status    DatabaseStatus      `json:"status"`
-	Size      string              `json:"size"`
-	Resources *Resources          `json:"resources"`
-	CreatedAt time.Time           `json:"createdAt"`
-	Public    bool                `json:"public"`
+	// Why the database is in this state, when it is not healthy.
+	StatusReason *string          `json:"statusReason,omitempty"`
+	Size         string           `json:"size"`
+	Resources    *Resources       `json:"resources"`
+	CreatedAt    time.Time        `json:"createdAt"`
+	Public       bool             `json:"public"`
+	Backups      *DatabaseBackups `json:"backups"`
+}
+
+type DatabaseBackup struct {
+	ID         string        `json:"id"`
+	Status     BackupStatus  `json:"status"`
+	CreatedAt  time.Time     `json:"createdAt"`
+	Trigger    BackupTrigger `json:"trigger"`
+	StartedAt  *time.Time    `json:"startedAt,omitempty"`
+	FinishedAt *time.Time    `json:"finishedAt,omitempty"`
+	Error      *string       `json:"error,omitempty"`
+}
+
+// The recovery picture for one database. Backups are continuous, not discrete: the
+// base backups below are the anchors, and archived write-ahead logs cover the gaps
+// between them, so any moment inside the window is restorable.
+type DatabaseBackups struct {
+	Enabled       bool   `json:"enabled"`
+	RetentionDays int    `json:"retentionDays"`
+	Schedule      string `json:"schedule"`
+	// The furthest back this database can be restored to.
+	EarliestRestorePoint *time.Time       `json:"earliestRestorePoint,omitempty"`
+	LatestRestorePoint   *time.Time       `json:"latestRestorePoint,omitempty"`
+	LastBackupAt         *time.Time       `json:"lastBackupAt,omitempty"`
+	Backups              []DatabaseBackup `json:"backups"`
 }
 
 type DatabaseColumn struct {
@@ -448,6 +475,24 @@ type ResourcesInput struct {
 	Memory string `json:"memory"`
 }
 
+type RestoreDatabaseInput struct {
+	Database platform.DatabaseID `json:"database"`
+	Name     string              `json:"name"`
+	// Omit to restore the most recent state in the archive.
+	TargetTime *time.Time `json:"targetTime,omitempty"`
+}
+
+// Restoring never touches the source database. It creates a second one holding the
+// data as it was at targetTime, which keeps running alongside the original until
+// you decide what to do with it.
+type RestoreDatabaseResult struct {
+	Database *Database `json:"database"`
+	// True when the requested moment was later than anything in the archive, so the
+	// restore ran to the most recent state instead. Only happens while archiving is
+	// healthy, which means nothing was written after that point.
+	ClampedToLatest bool `json:"clampedToLatest"`
+}
+
 type Rollout struct {
 	Status    RolloutStatus  `json:"status"`
 	Reason    *RolloutReason `json:"reason,omitempty"`
@@ -656,6 +701,120 @@ type WorkspaceMember struct {
 type WorkspaceMembership struct {
 	Workspace string        `json:"workspace"`
 	Role      WorkspaceRole `json:"role"`
+}
+
+type BackupStatus string
+
+const (
+	BackupStatusPending   BackupStatus = "PENDING"
+	BackupStatusRunning   BackupStatus = "RUNNING"
+	BackupStatusCompleted BackupStatus = "COMPLETED"
+	BackupStatusFailed    BackupStatus = "FAILED"
+)
+
+var AllBackupStatus = []BackupStatus{
+	BackupStatusPending,
+	BackupStatusRunning,
+	BackupStatusCompleted,
+	BackupStatusFailed,
+}
+
+func (e BackupStatus) IsValid() bool {
+	switch e {
+	case BackupStatusPending, BackupStatusRunning, BackupStatusCompleted, BackupStatusFailed:
+		return true
+	}
+	return false
+}
+
+func (e BackupStatus) String() string {
+	return string(e)
+}
+
+func (e *BackupStatus) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = BackupStatus(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid BackupStatus", str)
+	}
+	return nil
+}
+
+func (e BackupStatus) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *BackupStatus) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e BackupStatus) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type BackupTrigger string
+
+const (
+	BackupTriggerScheduled BackupTrigger = "SCHEDULED"
+	BackupTriggerManual    BackupTrigger = "MANUAL"
+)
+
+var AllBackupTrigger = []BackupTrigger{
+	BackupTriggerScheduled,
+	BackupTriggerManual,
+}
+
+func (e BackupTrigger) IsValid() bool {
+	switch e {
+	case BackupTriggerScheduled, BackupTriggerManual:
+		return true
+	}
+	return false
+}
+
+func (e BackupTrigger) String() string {
+	return string(e)
+}
+
+func (e *BackupTrigger) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = BackupTrigger(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid BackupTrigger", str)
+	}
+	return nil
+}
+
+func (e BackupTrigger) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *BackupTrigger) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e BackupTrigger) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
 }
 
 type BucketStatus string
