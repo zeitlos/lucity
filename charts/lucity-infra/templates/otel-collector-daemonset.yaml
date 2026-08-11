@@ -19,7 +19,7 @@ spec:
       valueFrom:
         fieldRef:
           fieldPath: spec.nodeName
-    # Used for the kubelet_stats endpoint — node hostnames aren't resolvable
+    # Used for the kubeletstats endpoint — node hostnames aren't resolvable
     # via CoreDNS, but the host IP is.
     - name: K8S_NODE_IP
       valueFrom:
@@ -50,7 +50,7 @@ spec:
       mountPropagation: HostToContainer
   config:
     receivers:
-      kubelet_stats:
+      kubeletstats:
         collection_interval: 30s
         auth_type: serviceAccount
         endpoint: https://${env:K8S_NODE_IP}:10250
@@ -88,7 +88,7 @@ spec:
         check_interval: 1s
         limit_percentage: 75
         spike_limit_percentage: 15
-      # Drop high-cardinality resource attributes that kubelet_stats/hostmetrics
+      # Drop high-cardinality resource attributes that kubeletstats/hostmetrics
       # emit by default. container.id changes on every pod restart and would
       # accumulate within the retention window; k8s.pod.uid changes on every
       # reschedule. Labels like `replicaset` and `uid` on KSM metrics are
@@ -152,7 +152,7 @@ spec:
           level: info
       pipelines:
         metrics:
-          receivers: [hostmetrics, kubelet_stats]
+          receivers: [hostmetrics, kubeletstats]
           processors: [memory_limiter, k8sattributes, resource, batch]
           exporters: [otlphttp/metrics]
         logs:
