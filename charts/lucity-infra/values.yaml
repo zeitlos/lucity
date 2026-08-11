@@ -83,6 +83,20 @@ traefik:
     spec:
       type: LoadBalancer
 
+# -- WAL archiving plus scheduled base backups for the platform's own PostgreSQL
+# clusters (Logto, Rybbit), via the barman-cloud plugin. Use a bucket of its own,
+# not the one holding workload backups.
+backups:
+  enabled: false
+  endpoint: ""
+  bucket: ""
+  retention: 30d
+  schedule: "0 0 2 * * 0"
+  credentials:
+    accessKeyId: ""
+    secretAccessKey: ""
+    region: ""
+
 # -- Rybbit Web Analytics (ClickHouse + CNPG PostgreSQL + Backend + Client)
 rybbit:
   enabled: false

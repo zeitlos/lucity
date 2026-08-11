@@ -1,0 +1,50 @@
+{{- if .Values.backups.enabled }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ .Release.Name }}-platform-backups
+  labels:
+    app.kubernetes.io/name: platform-backups
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: backups
+type: Opaque
+stringData:
+  accessKeyId: {{ .Values.backups.credentials.accessKeyId | quote }}
+  secretAccessKey: {{ .Values.backups.credentials.secretAccessKey | quote }}
+  region: {{ .Values.backups.credentials.region | quote }}
+---
+apiVersion: barmancloud.cnpg.io/v1
+kind: ObjectStore
+metadata:
+  name: {{ .Release.Name }}-platform-backups
+  labels:
+    app.kubernetes.io/name: platform-backups
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: backups
+spec:
+  retentionPolicy: {{ .Values.backups.retention | default "30d" }}
+  configuration:
+    destinationPath: s3://{{ required "backups.bucket is required when backups.enabled" .Values.backups.bucket }}/_platform
+    endpointURL: {{ required "backups.endpoint is required when backups.enabled" .Values.backups.endpoint }}
+    s3Credentials:
+      accessKeyId:
+        name: {{ .Release.Name }}-platform-backups
+        key: accessKeyId
+      secretAccessKey:
+        name: {{ .Release.Name }}-platform-backups
+        key: secretAccessKey
+      region:
+        name: {{ .Release.Name }}-platform-backups
+        key: region
+    wal:
+      compression: gzip
+    data:
+      compression: gzip
+  instanceSidecarConfiguration:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        memory: 512Mi
+{{- end }}
