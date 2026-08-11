@@ -92,6 +92,7 @@ backups:
   bucket: ""
   retention: 30d
   schedule: "0 0 2 * * 0"
+  jobs: 4
   credentials:
     accessKeyId: ""
     secretAccessKey: ""

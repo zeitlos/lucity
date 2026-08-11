@@ -40,6 +40,7 @@ spec:
       compression: gzip
     data:
       compression: gzip
+      jobs: {{ .Values.backups.jobs | default 4 }}
   instanceSidecarConfiguration:
     resources:
       requests:
