@@ -204,6 +204,11 @@ certificates:
     dnsNames:
       - id.lucity.cloud
 
+backups:
+  enabled: true
+  endpoint: https://s3.eu-west-par.io.cloud.ovh.net
+  bucket: lucity-prod-platform-backups
+
 # Rybbit Web Analytics
 rybbit:
   enabled: true

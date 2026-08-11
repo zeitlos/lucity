@@ -49,7 +49,7 @@ conductor:
 
     PUBLIC_BUCKET_DOMAIN: storage.lucity.app
 
-    DATABASE_BACKUP_ENABLED: "false"
+    DATABASE_BACKUP_ENABLED: "true"
     DATABASE_BACKUP_S3_ENDPOINT: https://s3.eu-west-par.io.cloud.ovh.net
     DATABASE_BACKUP_S3_BUCKET: lucity-prod-db-backups
     DATABASE_BACKUP_S3_REGION: eu-west-par
