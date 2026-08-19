@@ -284,7 +284,7 @@ func diagnoseReplicaSet(replicaSet apps.ReplicaSet) (platform.RolloutReason, str
 		}
 
 		if strings.Contains(condition.Message, "exceeded quota") {
-			return platform.RolloutReasonQuotaExceeded, "workspace resource limit reached"
+			return platform.RolloutReasonQuotaExceeded, "environment resource limit reached"
 		}
 
 		return platform.RolloutReasonConfigError, "pods could not be created"
