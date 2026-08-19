@@ -32,16 +32,10 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
-// TokenRefresher refreshes the Logto access token using a refresh token.
-// On success, it also writes updated cookies to the HTTP response.
-// Returns the new access token for immediate use.
-type TokenRefresher func(ctx context.Context, refreshToken string) (newAccessToken string, err error)
-
 type Client struct {
-	cashier        cashier.CashierServiceClient
-	gitHubApp      *ghpkg.App
-	logto          *logto.Client
-	tokenRefresher TokenRefresher // refreshes expired Logto access tokens (nil if not configured)
+	cashier   cashier.CashierServiceClient
+	gitHubApp *ghpkg.App
+	logto     *logto.Client
 
 	directory       directory.Interface
 	platform        platform.Interface
@@ -89,12 +83,11 @@ type Config struct {
 	BackupArchive        *backuparchive.Client
 }
 
-func New(cashier cashier.CashierServiceClient, githubApp *ghpkg.App, logto *logto.Client, tokenRefresher TokenRefresher, directory directory.Interface, platform platform.Interface, buildjob buildjob.Interface, deployjob deployjob.Interface, scanjob scanjob.Interface, scanreport *scanreport.Client, vulnerabilities *vulnerabilities.Client, pipeline pipeline.Interface, planner planner.Interface, source source.Interface, hostname *hostname.Client, gateway *gateway.Client, deployer deployer.Interface, environment environment.Interface, objectStorage objectstorage.Interface, metrics *metrics.Provider, config Config) *Client {
+func New(cashier cashier.CashierServiceClient, githubApp *ghpkg.App, logto *logto.Client, directory directory.Interface, platform platform.Interface, buildjob buildjob.Interface, deployjob deployjob.Interface, scanjob scanjob.Interface, scanreport *scanreport.Client, vulnerabilities *vulnerabilities.Client, pipeline pipeline.Interface, planner planner.Interface, source source.Interface, hostname *hostname.Client, gateway *gateway.Client, deployer deployer.Interface, environment environment.Interface, objectStorage objectstorage.Interface, metrics *metrics.Provider, config Config) *Client {
 	return &Client{
 		cashier:         cashier,
 		gitHubApp:       githubApp,
 		logto:           logto,
-		tokenRefresher:  tokenRefresher,
 		config:          config,
 		orgIDCache:      make(map[string]string),
 		directory:       directory,

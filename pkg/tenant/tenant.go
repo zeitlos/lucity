@@ -8,9 +8,6 @@ import (
 // Header is the HTTP header used to pass the workspace identifier.
 const Header = "X-Lucity-Workspace"
 
-// MetadataKey is the gRPC metadata key for workspace propagation (lowercase per gRPC convention).
-const MetadataKey = "x-lucity-workspace"
-
 type contextKey struct{}
 
 func NewContext(ctx context.Context, workspace string) context.Context {

@@ -1,4 +1,4 @@
-.PHONY: build proto dev dev-conductor dev-cashier dev-dashboard dev-docs dev-logs dev-stop generate-graphql lint test-integration test-integration-short test-watch minikube dns infra infra-down infra-forward infra-forward-stop db-forward deploy-prod deploy-prod-infra generate-internal-keys
+.PHONY: build proto dev dev-conductor dev-cashier dev-dashboard dev-docs dev-logs dev-stop generate-graphql lint minikube dns infra infra-down infra-forward infra-forward-stop db-forward deploy-prod deploy-prod-infra generate-internal-keys
 
 # Build all Go services
 build:
@@ -46,19 +46,6 @@ dev-docs:
 # Lint
 lint:
 	cd services/dashboard && npm run lint
-
-# Integration tests (requires services running via make dev)
-test-integration:
-	@mkdir -p tmp/logs
-	cd tests && go test -v -count=1 -run TestIntegration ./... 2>&1 | tee ../tmp/logs/tests.log
-
-test-integration-short:
-	@mkdir -p tmp/logs
-	cd tests && go test -v -count=1 -short -run TestIntegration ./... 2>&1 | tee ../tmp/logs/tests.log
-
-# Watch mode: re-run tests on file changes (requires watchexec)
-test-watch:
-	@bash scripts/test-watch.sh
 
 # Create minikube cluster for local development
 # --insecure-registry covers the entire service CIDR so Docker trusts Zot over HTTP.

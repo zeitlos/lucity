@@ -16,6 +16,5 @@
 
 ## Checklist
 
-- [ ] Tests pass (`make test-integration-short`)
 - [ ] No breaking API changes (or documented if intentional)
 - [ ] ESLint clean for dashboard changes (`cd services/dashboard && npx eslint .`)

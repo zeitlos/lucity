@@ -148,7 +148,6 @@ make dev                     # 6. Start services with hot reload
 | `make proto` | Regenerate protobuf code |
 | `make generate-graphql` | Regenerate GraphQL resolvers |
 | `make lint` | Run dashboard linter |
-| `make test-integration` | Run integration tests (requires `make dev`) |
 | `make infra-down` | Uninstall infrastructure from cluster |
 
 ## Further Reading

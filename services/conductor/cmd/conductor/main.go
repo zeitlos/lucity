@@ -71,11 +71,8 @@ type Config struct {
 
 	// Auth
 	DashboardURL string `envconfig:"DASHBOARD_URL" default:"http://localhost:5173"`
-	// TODO(stage-6b): delete SessionSecret + AuthTestSecret (SESSION_SECRET /
-	// AUTH_TEST_SECRET). They key the HS256 session fallback; once HS256 is
-	// removed, drop these fields and rotate the secrets out of the prod secret.
-	SessionSecret  string `envconfig:"SESSION_SECRET" required:"true"`
-	AuthTestSecret string `envconfig:"AUTH_TEST_SECRET"`
+	// SessionSecret keys the sealed browser session cookie (pkg/session).
+	SessionSecret string `envconfig:"SESSION_SECRET" required:"true"`
 
 	// Logto Management API (M2M)
 	LogtoEndpoint     string `envconfig:"LOGTO_ENDPOINT" required:"true"`
@@ -223,16 +220,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	// TODO(stage-6b): delete this HS256 fallback wiring (sessionSecret derivation
-	// + verifier.WithFallback). After removal, the verifier is JWKS-only; also
-	// stop threading sessionSecret into NewGraphQLServer below.
-	sessionSecret := config.SessionSecret
-	if config.AuthTestSecret != "" {
-		sessionSecret = config.AuthTestSecret
-		slog.Warn("test token authentication enabled — do not use in production")
-	}
-	verifier = verifier.WithFallback(hmacValidateFunc(sessionSecret))
-
 	var internalIssuer *auth.Issuer
 	if config.InternalJWTPrivateKeyPath != "" {
 		internalIssuer, err = auth.NewIssuerFromFile(config.InternalJWTPrivateKeyPath)
@@ -242,7 +229,7 @@ func main() {
 		}
 		slog.Info("internal JWT issuer initialized (ES256)")
 	} else {
-		slog.Warn("internal JWT not configured — outgoing service-to-service calls use legacy plain metadata headers")
+		slog.Warn("internal JWT not configured — outgoing service-to-service calls are unauthenticated")
 	}
 
 	// ---- Kubernetes clients ----
@@ -288,7 +275,7 @@ func main() {
 
 	secure := secureCookies(config.DashboardURL)
 	sessionStore := newSessionStore(kvstore.NewMemory[sessionValue](), oidcProvider, logtoClient)
-	sessionCodec := session.NewCodec(sessionSecret, sessionCookieName, secure, sessionCookieMaxAge)
+	sessionCodec := session.NewCodec(config.SessionSecret, sessionCookieName, secure, sessionCookieMaxAge)
 
 	platformClient := platformK8s.New(k8sClient, dynClient)
 
@@ -454,7 +441,7 @@ func main() {
 		Keychain:     keychain,
 	})
 
-	conductor := conductor.New(cashierClient, githubApp, logtoClient, nil, directoryClient, platformClient, jobsClient, deployJobsClient, scanJobsClient, scanReportClient, vulnerabilitiesClient, pipelineClient, planner, source, hostnameClient, gatewayClient, deployerClient, environmentClient, objectStorageClient, metricsProvider, conductorConfig)
+	conductor := conductor.New(cashierClient, githubApp, logtoClient, directoryClient, platformClient, jobsClient, deployJobsClient, scanJobsClient, scanReportClient, vulnerabilitiesClient, pipelineClient, planner, source, hostnameClient, gatewayClient, deployerClient, environmentClient, objectStorageClient, metricsProvider, conductorConfig)
 
 	go runAdmissionReconciler(ctx, pipelineClient)
 	slog.Info("release admission ready", "maxConcurrent", config.MaxConcurrentReleases, "maxQueuedPerWorkspace", config.MaxQueuedReleases)
