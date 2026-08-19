@@ -7,5 +7,4 @@ use (
 	./services/builder
 	./services/cashier
 	./services/conductor
-	./tests
 )
