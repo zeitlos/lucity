@@ -16,7 +16,6 @@ require (
 	github.com/coder/websocket v1.8.15
 	github.com/coreos/go-oidc/v3 v3.19.0
 	github.com/go-playground/validator/v10 v10.30.3
-	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/go-github/v68 v68.0.0
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/joho/godotenv v1.5.1
@@ -75,6 +74,7 @@ require (
 	github.com/go-gorp/gorp/v3 v3.1.0 // indirect
 	github.com/go-logr/zapr v1.3.0 // indirect
 	github.com/gobwas/glob v0.2.3 // indirect
+	github.com/golang-jwt/jwt/v5 v5.3.1 // indirect
 	github.com/google/btree v1.1.3 // indirect
 	github.com/google/go-github/v88 v88.0.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect

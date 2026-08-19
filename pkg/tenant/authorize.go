@@ -8,8 +8,8 @@ import (
 )
 
 // AuthorizeMiddleware validates that the authenticated user has access to
-// the workspace specified in the X-Lucity-Workspace header.
-// Must run after both auth.Middleware and tenant.Middleware.
+// the workspace in the request context.
+// Must run after the session auth middleware and tenant.Middleware.
 func AuthorizeMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ws, err := FromContext(r.Context())

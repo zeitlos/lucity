@@ -132,9 +132,6 @@ func (m *Manager) Client() *api.Client {
 }
 
 func (m *Manager) Prepare(ctx context.Context) error {
-	if m.staticToken() != "" {
-		return nil
-	}
 	if m.apiToken() != "" {
 		return nil
 	}
@@ -146,10 +143,6 @@ func (m *Manager) Prepare(ctx context.Context) error {
 }
 
 func (m *Manager) Token(ctx context.Context) (string, error) {
-	if token := m.staticToken(); token != "" {
-		return token, nil
-	}
-
 	if raw := m.apiToken(); raw != "" {
 		return m.apiTokenBearer(ctx, raw)
 	}
@@ -172,9 +165,6 @@ func (m *Manager) Token(ctx context.Context) (string, error) {
 }
 
 func (m *Manager) AccountToken(ctx context.Context) (string, error) {
-	if m.staticToken() != "" {
-		return "", nil
-	}
 	if m.apiToken() != "" {
 		return "", nil
 	}
@@ -209,14 +199,6 @@ func (m *Manager) apiToken() string {
 	return os.Getenv("LUCITY_API_TOKEN")
 }
 
-// TODO(stage-6b): delete staticToken and its call sites (Token, Prepare,
-// AccountToken). LUCITY_TOKEN is a raw HS256 session bearer passed through
-// verbatim; it only authenticates while the conductor keeps the HS256 fallback
-// (hmacValidateFunc). Remove it together with that fallback — automation then
-// uses LUCITY_API_TOKEN.
-func (m *Manager) staticToken() string {
-	return os.Getenv("LUCITY_TOKEN")
-}
 
 func (m *Manager) storedRefreshToken() string {
 	m.mu.Lock()
