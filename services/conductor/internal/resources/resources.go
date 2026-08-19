@@ -15,8 +15,8 @@ var (
 	DefaultCPULimit    = resource.MustParse("500m")
 	DefaultMemoryLimit = resource.MustParse("512Mi")
 
-	DefaultCPUQuota     = resource.MustParse("16")
-	DefaultMemoryQuota  = resource.MustParse("32Gi")
+	DefaultCPUQuota     = resource.MustParse("32")
+	DefaultMemoryQuota  = resource.MustParse("64Gi")
 	DefaultStorageQuota = resource.MustParse("4Ti")
 
 	MaxDatabaseStorage = resource.MustParse("1Ti")
