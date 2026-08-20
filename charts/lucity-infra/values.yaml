@@ -19,7 +19,13 @@ gateway:
   enabled: true
   name: lucity-gateway
   className: eg
-  # Custom domain listeners are managed by the deployer, not by this chart.
+  allowedListeners:
+    namespaces:
+      from: Selector
+      selector:
+        matchExpressions:
+          - key: lucity.dev/workspace
+            operator: Exists
   listeners:
     - name: http
       protocol: HTTP
