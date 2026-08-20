@@ -3,8 +3,6 @@ package conductor
 import (
 	"context"
 	"log/slog"
-	"maps"
-	"slices"
 
 	"github.com/zeitlos/lucity/services/conductor/internal/hostname"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
@@ -47,7 +45,7 @@ func (c *Client) Endpoints(ctx context.Context, serviceID ServiceID, endpoints [
 			slog.ErrorContext(ctx, "failed to lookup dns status", "error", err, "service", serviceID.String(), "host", endpoint.Host)
 		}
 
-		resolved.TLSStatus, err = c.hostname.TLSStatus(ctx, endpoint.Host)
+		resolved.TLSStatus, err = c.hostname.TLSStatus(ctx, serviceID.Namespace(), endpoint.Host)
 
 		if err != nil {
 			slog.ErrorContext(ctx, "failed to lookup tls status", "error", err, "service", serviceID.String(), "host", endpoint.Host)
@@ -72,15 +70,11 @@ func (c *Client) ReconcileDomains(ctx context.Context) error {
 		return err
 	}
 
-	desired := make(map[string]struct{})
-	complete := true
-
 	for _, workspace := range workspaces {
 		projects, err := c.platform.Projects(ctx, workspace.ID)
 
 		if err != nil {
 			slog.Warn("reconcile domains: list projects failed", "workspace", workspace.ID, "error", err)
-			complete = false
 			continue
 		}
 
@@ -89,40 +83,25 @@ func (c *Client) ReconcileDomains(ctx context.Context) error {
 
 			if err != nil {
 				slog.Warn("reconcile domains: list environments failed", "project", project.ID, "error", err)
-				complete = false
 				continue
 			}
 
 			for _, env := range environments {
-				hosts, ok := c.reconcileEnvironmentDomains(ctx, env.ID)
-
-				if !ok {
-					complete = false
-				}
-
-				for _, host := range hosts {
-					desired[host] = struct{}{}
-				}
+				c.reconcileEnvironmentDomains(ctx, env.ID)
 			}
 		}
-	}
-
-	if err := c.gateway.Sync(ctx, slices.Collect(maps.Keys(desired)), complete); err != nil {
-		slog.Warn("reconcile domains: gateway sync failed", "error", err)
 	}
 
 	return nil
 }
 
-func (c *Client) reconcileEnvironmentDomains(ctx context.Context, envID platform.EnvironmentID) ([]string, bool) {
+func (c *Client) reconcileEnvironmentDomains(ctx context.Context, envID platform.EnvironmentID) {
 	services, err := c.platform.Services(ctx, envID)
 
 	if err != nil {
 		slog.Warn("reconcile domains: list services failed", "env", envID, "error", err)
-		return nil, false
+		return
 	}
-
-	var desired []string
 
 	for _, service := range services {
 		for _, endpoint := range service.Endpoints {
@@ -132,38 +111,25 @@ func (c *Client) reconcileEnvironmentDomains(ctx context.Context, envID platform
 				continue
 			}
 
-			enabled := endpoint.Enabled
-
 			verified, err := c.isDomainVerified(ctx, envID.Workspace, host)
 
 			if err != nil {
 				slog.Warn("reconcile domains: dns lookup failed", "host", host, "error", err)
-
-				if enabled {
-					desired = append(desired, host)
-				}
-
 				continue
 			}
 
-			if verified != enabled {
-				if _, err := c.deployer.Services().VerifyDomain(ctx, service.ID, host, verified); err != nil {
-					slog.Warn("reconcile domains: verify call failed", "host", host, "error", err)
-					continue
-				}
-
-				enabled = verified
-
-				slog.Info("reconcile domains: verification changed", "service", service.ID, "host", host, "verified", verified)
+			if verified == endpoint.Enabled {
+				continue
 			}
 
-			if enabled {
-				desired = append(desired, host)
+			if _, err := c.deployer.Services().AttachDomain(ctx, service.ID, host, verified); err != nil {
+				slog.Warn("reconcile domains: verify call failed", "host", host, "error", err)
+				continue
 			}
+
+			slog.Info("reconcile domains: verification changed", "service", service.ID, "host", host, "verified", verified)
 		}
 	}
-
-	return desired, true
 }
 
 func (c *Client) isDomainVerified(ctx context.Context, workspaceID, host string) (bool, error) {

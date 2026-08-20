@@ -18,7 +18,6 @@ import (
 	deployjobK8s "github.com/zeitlos/lucity/services/conductor/internal/deployjob/kubernetes"
 	directoryLogto "github.com/zeitlos/lucity/services/conductor/internal/directory/logto"
 	environmentK8s "github.com/zeitlos/lucity/services/conductor/internal/environment/kubernetes"
-	"github.com/zeitlos/lucity/services/conductor/internal/gateway"
 	"github.com/zeitlos/lucity/services/conductor/internal/hostname"
 	"github.com/zeitlos/lucity/services/conductor/internal/metrics"
 	"github.com/zeitlos/lucity/services/conductor/internal/objectstorage"
@@ -309,6 +308,7 @@ func main() {
 		RegistryPullURL: config.RegistryPullURL,
 		GatewayName:     config.GatewayName,
 		GatewayNS:       config.GatewayNamespace,
+		ClusterIssuer:   config.CustomDomainClusterIssuer,
 		Backups: deployjobK8s.BackupConfig{
 			Enabled:  config.DatabaseBackupEnabled,
 			Endpoint: config.DatabaseBackupEndpoint,
@@ -362,7 +362,7 @@ func main() {
 
 	chartRef.Metadata.Version = version.String()
 
-	deployerClient, err := helmDeployer.New(chartRef, config.GatewayName, config.GatewayNamespace, helmDeployer.BackupConfig{
+	deployerClient, err := helmDeployer.New(chartRef, config.GatewayName, config.GatewayNamespace, config.CustomDomainClusterIssuer, helmDeployer.BackupConfig{
 		Enabled:  config.DatabaseBackupEnabled,
 		Endpoint: config.DatabaseBackupEndpoint,
 		Bucket:   config.DatabaseBackupBucket,
@@ -373,9 +373,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	hostnameClient := hostname.New(config.WorkloadDomain, domainTarget, config.IPAddress, config.GatewayNamespace, k8sClient, dynClient)
-
-	gatewayClient := gateway.New(dynClient, config.GatewayName, config.GatewayNamespace, config.CustomDomainClusterIssuer)
+	hostnameClient := hostname.New(config.WorkloadDomain, domainTarget, config.IPAddress, k8sClient, dynClient)
 
 	environmentClient := environmentK8s.New(k8sClient, dynClient, config.SystemNamespace, config.RegistryPullSecret, config.PodCIDR, config.ServiceCIDR, environmentK8s.BackupCredentials{
 		AccessKeyID:     config.DatabaseBackupAccessKeyID,
@@ -454,7 +452,7 @@ func main() {
 		Keychain:     keychain,
 	})
 
-	conductor := conductor.New(cashierClient, githubApp, logtoClient, nil, directoryClient, platformClient, jobsClient, deployJobsClient, scanJobsClient, scanReportClient, vulnerabilitiesClient, pipelineClient, planner, source, hostnameClient, gatewayClient, deployerClient, environmentClient, objectStorageClient, metricsProvider, conductorConfig)
+	conductor := conductor.New(cashierClient, githubApp, logtoClient, nil, directoryClient, platformClient, jobsClient, deployJobsClient, scanJobsClient, scanReportClient, vulnerabilitiesClient, pipelineClient, planner, source, hostnameClient, deployerClient, environmentClient, objectStorageClient, metricsProvider, conductorConfig)
 
 	go runAdmissionReconciler(ctx, pipelineClient)
 	slog.Info("release admission ready", "maxConcurrent", config.MaxConcurrentReleases, "maxQueuedPerWorkspace", config.MaxQueuedReleases)

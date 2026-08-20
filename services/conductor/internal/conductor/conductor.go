@@ -17,7 +17,6 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/deployjob"
 	"github.com/zeitlos/lucity/services/conductor/internal/directory"
 	"github.com/zeitlos/lucity/services/conductor/internal/environment"
-	"github.com/zeitlos/lucity/services/conductor/internal/gateway"
 	"github.com/zeitlos/lucity/services/conductor/internal/hostname"
 	"github.com/zeitlos/lucity/services/conductor/internal/metrics"
 	"github.com/zeitlos/lucity/services/conductor/internal/objectstorage"
@@ -54,7 +53,6 @@ type Client struct {
 	planner         planner.Interface
 	source          source.Interface
 	hostname        *hostname.Client
-	gateway         *gateway.Client
 	deployer        deployer.Interface
 	environment     environment.Interface
 	objectStorage   objectstorage.Interface
@@ -89,7 +87,7 @@ type Config struct {
 	BackupArchive        *backuparchive.Client
 }
 
-func New(cashier cashier.CashierServiceClient, githubApp *ghpkg.App, logto *logto.Client, tokenRefresher TokenRefresher, directory directory.Interface, platform platform.Interface, buildjob buildjob.Interface, deployjob deployjob.Interface, scanjob scanjob.Interface, scanreport *scanreport.Client, vulnerabilities *vulnerabilities.Client, pipeline pipeline.Interface, planner planner.Interface, source source.Interface, hostname *hostname.Client, gateway *gateway.Client, deployer deployer.Interface, environment environment.Interface, objectStorage objectstorage.Interface, metrics *metrics.Provider, config Config) *Client {
+func New(cashier cashier.CashierServiceClient, githubApp *ghpkg.App, logto *logto.Client, tokenRefresher TokenRefresher, directory directory.Interface, platform platform.Interface, buildjob buildjob.Interface, deployjob deployjob.Interface, scanjob scanjob.Interface, scanreport *scanreport.Client, vulnerabilities *vulnerabilities.Client, pipeline pipeline.Interface, planner planner.Interface, source source.Interface, hostname *hostname.Client, deployer deployer.Interface, environment environment.Interface, objectStorage objectstorage.Interface, metrics *metrics.Provider, config Config) *Client {
 	return &Client{
 		cashier:         cashier,
 		gitHubApp:       githubApp,
@@ -108,7 +106,6 @@ func New(cashier cashier.CashierServiceClient, githubApp *ghpkg.App, logto *logt
 		planner:         planner,
 		source:          source,
 		hostname:        hostname,
-		gateway:         gateway,
 		deployer:        deployer,
 		environment:     environment,
 		objectStorage:   objectStorage,

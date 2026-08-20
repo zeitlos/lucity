@@ -39,9 +39,9 @@ type ServiceClient interface {
 	Variables(ctx context.Context, id platform.ServiceID) (ServiceVariablesSpec, error)
 	SetVariables(ctx context.Context, id platform.ServiceID, spec ServiceVariablesSpec) (RevisionID, error)
 
-	AddDomain(ctx context.Context, id platform.ServiceID, host string) (RevisionID, error)
+	AddDomain(ctx context.Context, id platform.ServiceID, host string, ownListener bool) (RevisionID, error)
 	RemoveDomain(ctx context.Context, id platform.ServiceID, host string) (RevisionID, error)
-	VerifyDomain(ctx context.Context, id platform.ServiceID, host string, verified bool) (RevisionID, error)
+	AttachDomain(ctx context.Context, id platform.ServiceID, host string, attached bool) (RevisionID, error)
 
 	Mount(ctx context.Context, id platform.ServiceID, volume platform.VolumeID, mountPath string) (RevisionID, error)
 	Unmount(ctx context.Context, volume platform.VolumeID) (RevisionID, error)

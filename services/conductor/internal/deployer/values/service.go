@@ -70,8 +70,23 @@ type SecretRef struct {
 }
 
 type Domain struct {
-	Host     string `yaml:"host"`
-	Verified bool   `yaml:"verified"`
+	Host        string       `yaml:"host"`
+	Attached    bool         `yaml:"attached"`
+	ListenerSet *ListenerSet `yaml:"listenerSet,omitempty"`
+}
+
+type ListenerSet struct {
+	Enabled     bool                   `yaml:"enabled"`
+	Certificate ListenerSetCertificate `yaml:"certificate"`
+}
+
+type ListenerSetCertificate struct {
+	IssuerRef IssuerRef `yaml:"issuerRef"`
+}
+
+type IssuerRef struct {
+	Kind string `yaml:"kind"`
+	Name string `yaml:"name"`
 }
 
 type ServiceSpec struct {
@@ -355,17 +370,22 @@ func SetServiceVariables(env *Env, name string, literals map[string]string, refs
 	})
 }
 
-func AddServiceDomain(env *Env, name, host string) error {
+func AddServiceDomain(env *Env, name, host string, listenerSet *ListenerSet) error {
 	if !isValidHostname(host) {
 		return fmt.Errorf("invalid hostname %q", host)
 	}
 
+	if listenerSet != nil && len(host)+len(tlsSecretSuffix) > maxHostLen {
+		return fmt.Errorf("hostname %q is too long to get its own listener", host)
+	}
+
 	return mutateService(env, name, func(s *Service) {
-		if slices.ContainsFunc(s.Domains, func(d Domain) bool { return d.Host == host }) {
+		if i := slices.IndexFunc(s.Domains, func(d Domain) bool { return d.Host == host }); i >= 0 {
+			s.Domains[i].ListenerSet = listenerSet
 			return
 		}
 
-		s.Domains = append(s.Domains, Domain{Host: host, Verified: false})
+		s.Domains = append(s.Domains, Domain{Host: host, ListenerSet: listenerSet})
 	})
 }
 
@@ -377,12 +397,12 @@ func RemoveServiceDomain(env *Env, name, host string) error {
 	})
 }
 
-func VerifyServiceDomain(env *Env, name, host string, verified bool) error {
+func AttachServiceDomain(env *Env, name, host string, attached bool) error {
 	return mutateService(env, name, func(s *Service) {
 		i := slices.IndexFunc(s.Domains, func(d Domain) bool { return d.Host == host })
 
 		if i >= 0 {
-			s.Domains[i].Verified = verified
+			s.Domains[i].Attached = attached
 		}
 	})
 }

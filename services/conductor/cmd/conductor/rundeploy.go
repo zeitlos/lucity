@@ -37,6 +37,7 @@ type DeployConfig struct {
 	RegistryPullURL  string `envconfig:"REGISTRY_PULL_URL" required:"true"`
 	GatewayName      string `envconfig:"GATEWAY_NAME" default:"lucity-gateway"`
 	GatewayNamespace string `envconfig:"GATEWAY_NAMESPACE" default:"lucity-system"`
+	ClusterIssuer    string `envconfig:"CUSTOM_DOMAIN_CLUSTER_ISSUER" default:"letsencrypt-http01"`
 
 	// This process runs the same values apply as the conductor, so it needs the
 	// same archive-store settings or it would strip archiving on every deploy.
@@ -125,7 +126,7 @@ func runDeploy() {
 
 	chartRef.Metadata.Version = version.String()
 
-	deployerClient, err := helmDeployer.New(chartRef, config.GatewayName, config.GatewayNamespace, helmDeployer.BackupConfig{
+	deployerClient, err := helmDeployer.New(chartRef, config.GatewayName, config.GatewayNamespace, config.ClusterIssuer, helmDeployer.BackupConfig{
 		Enabled:  config.DatabaseBackupEnabled,
 		Endpoint: config.DatabaseBackupEndpoint,
 		Bucket:   config.DatabaseBackupBucket,

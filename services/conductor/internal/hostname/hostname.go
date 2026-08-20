@@ -12,17 +12,15 @@ type Client struct {
 	workloadDomain    string
 	customCNAMETarget string
 	customApexIP      string
-	gatewayNamespace  string
 	k8s               kubernetes.Interface
 	dyn               dynamic.Interface
 }
 
-func New(workloadDomain, customCNAMETarget, customApexIP, gatewayNamespace string, k8s kubernetes.Interface, dyn dynamic.Interface) *Client {
+func New(workloadDomain, customCNAMETarget, customApexIP string, k8s kubernetes.Interface, dyn dynamic.Interface) *Client {
 	return &Client{
 		workloadDomain:    workloadDomain,
 		customCNAMETarget: customCNAMETarget,
 		customApexIP:      customApexIP,
-		gatewayNamespace:  gatewayNamespace,
 		k8s:               k8s,
 		dyn:               dyn,
 	}
