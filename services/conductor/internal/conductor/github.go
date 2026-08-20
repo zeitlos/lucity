@@ -2,7 +2,6 @@ package conductor
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -12,7 +11,6 @@ import (
 
 	"github.com/zeitlos/lucity/pkg/auth"
 	ghpkg "github.com/zeitlos/lucity/pkg/github"
-	"github.com/zeitlos/lucity/pkg/logto"
 )
 
 // GitHubInstallation represents a GitHub App installation on an account.
@@ -154,8 +152,6 @@ func (c *Client) installationForRepo(ctx context.Context, repository string) (in
 
 // userGitHubToken retrieves the user's GitHub OAuth token from Logto's Account API.
 // The user must have signed in via GitHub (social sign-in) for a token to be available.
-// If the Logto access token is expired, it transparently refreshes using the refresh token
-// and updates the response cookies.
 func (c *Client) userGitHubToken(ctx context.Context) (string, error) {
 	logtoToken := auth.TokenFrom(ctx)
 	if logtoToken == "" {
@@ -163,35 +159,8 @@ func (c *Client) userGitHubToken(ctx context.Context) (string, error) {
 	}
 
 	token, err := c.logto.GitHubToken(ctx, logtoToken)
-	if err == nil {
-		return token, nil
-	}
-
-	// If the token is expired, try refreshing it
-	if !errors.Is(err, logto.ErrTokenExpired) {
-		return "", fmt.Errorf("failed to get github token: %w", err)
-	}
-
-	if c.tokenRefresher == nil {
-		return "", fmt.Errorf("failed to get github token (token expired, no refresher configured): %w", err)
-	}
-
-	refreshToken := auth.RefreshTokenFrom(ctx)
-	if refreshToken == "" {
-		return "", fmt.Errorf("failed to get github token (token expired, no refresh token): %w", err)
-	}
-
-	slog.Info("logto access token expired, refreshing")
-
-	newAccessToken, refreshErr := c.tokenRefresher(ctx, refreshToken)
-	if refreshErr != nil {
-		return "", fmt.Errorf("failed to get github token (token expired, refresh failed: %v): %w", refreshErr, err)
-	}
-
-	// Retry with the refreshed token
-	token, err = c.logto.GitHubToken(ctx, newAccessToken)
 	if err != nil {
-		return "", fmt.Errorf("failed to get github token after refresh: %w", err)
+		return "", fmt.Errorf("failed to get github token: %w", err)
 	}
 	return token, nil
 }

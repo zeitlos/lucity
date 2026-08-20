@@ -29,7 +29,7 @@ func sessionIDFromContext(ctx context.Context) (string, bool) {
 func sessionAuth(store *sessionStore, codec *session.Codec, verifier *auth.Verifier) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ctx := auth.WithResponseWriter(r.Context(), w)
+			ctx := r.Context()
 
 			if bearer := bearerToken(r); bearer != "" {
 				if claims, err := verifier.ValidateToken(ctx, bearer); err == nil {

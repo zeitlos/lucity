@@ -18,8 +18,12 @@ require (
 require github.com/google/go-containerregistry v0.21.7
 
 require (
+	github.com/gkampitakis/go-snaps v0.5.15 // indirect
+	github.com/goccy/go-yaml v1.19.2 // indirect
 	github.com/klauspost/cpuid/v2 v2.4.0 // indirect
+	github.com/onsi/gomega v1.42.1 // indirect
 	github.com/pb33f/ordered-map/v2 v2.3.1 // indirect
+	github.com/prometheus/procfs v0.21.1 // indirect
 	go.yaml.in/yaml/v4 v4.0.0-rc.6 // indirect
 )
 

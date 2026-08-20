@@ -172,8 +172,13 @@ to happen first. What to look for, and who does it:
   autodeploy annotation), that is a one-off stamping step, not part of `helm upgrade`.
   Propose a small `kubectl annotate` script over the affected releases; you can run it after
   the user confirms.
-- Reconciler-stamped defaults (e.g. a raised ResourceQuota) are not re-applied by the two-minute
-  reconciler; if a default changed, note it needs a re-Ensure (a Settings save or `kubectl patch`).
+- Reconciler-stamped defaults (e.g. a raised ResourceQuota) **are** re-applied automatically:
+  the two-minute `ReconcileServices` loop calls `environment.Ensure` per environment, which
+  re-runs the namespace scaffolding (quota, LimitRange, NetworkPolicies, pull secret). A changed
+  default reaches every live environment within ~2 min of the conductor rollout, with no Settings
+  save and no `kubectl patch`. Verified 2026-08-19: quota bump landed on all 34 envs 60s after
+  `helm upgrade` returned. The corollary is that `kubectl patch` on these resources is useless as
+  a fix, since `ensureQuota` overwrites it on the next tick.
 
 **Decision:**
 - **Something is outstanding** → tell the user, under two plain headings: **Before I deploy**

@@ -66,6 +66,9 @@ spec:
                 - source_labels: [__meta_kubernetes_service_name]
                   regex: hubble-metrics
                   action: keep
+                - source_labels: [__meta_kubernetes_endpoint_port_name]
+                  regex: hubble-metrics
+                  action: keep
             - job_name: cert-manager
               scrape_interval: 60s
               static_configs:
@@ -79,7 +82,7 @@ spec:
         check_interval: 1s
         limit_percentage: 75
         spike_limit_percentage: 15
-      # Drop high-cardinality resource attributes that kubeletstats/hostmetrics
+      # Drop high-cardinality resource attributes that kubelet_stats/host_metrics
       # emit by default. See otel-collector-daemonset.yaml for the rationale.
       resource:
         attributes:
@@ -87,7 +90,7 @@ spec:
             action: delete
           - key: k8s.pod.uid
             action: delete
-      k8sattributes:
+      k8s_attributes:
         auth_type: serviceAccount
         passthrough: false
         extract:
@@ -122,11 +125,11 @@ spec:
     exporters:
       # k8s collector distribution doesn't ship prometheusremotewrite,
       # so use VictoriaMetrics' native OTLP endpoint instead.
-      otlphttp/metrics:
+      otlp_http/metrics:
         metrics_endpoint: http://{{ .Release.Name }}-victoria-metrics-single-server:8428/opentelemetry/v1/metrics
         tls:
           insecure: true
-      otlphttp/logs:
+      otlp_http/logs:
         logs_endpoint: http://{{ .Release.Name }}-victoria-logs-single-server:9428/insert/opentelemetry/v1/logs
         tls:
           insecure: true
@@ -137,10 +140,10 @@ spec:
       pipelines:
         metrics:
           receivers: [otlp, prometheus]
-          processors: [memory_limiter, k8sattributes, resource, batch]
-          exporters: [otlphttp/metrics]
+          processors: [memory_limiter, k8s_attributes, resource, batch]
+          exporters: [otlp_http/metrics]
         logs:
           receivers: [otlp, k8s_events]
-          processors: [memory_limiter, k8sattributes, resource, batch]
-          exporters: [otlphttp/logs]
+          processors: [memory_limiter, k8s_attributes, resource, batch]
+          exporters: [otlp_http/logs]
 {{- end }}
