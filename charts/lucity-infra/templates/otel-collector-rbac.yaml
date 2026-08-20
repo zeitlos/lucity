@@ -17,7 +17,7 @@ metadata:
     app.kubernetes.io/instance: {{ .Release.Name }}
     app.kubernetes.io/component: observability
 rules:
-  # k8sattributes processor
+  # k8s_attributes processor
   - apiGroups: [""]
     resources: [pods, namespaces, nodes]
     verbs: [get, list, watch]
@@ -27,7 +27,7 @@ rules:
   - apiGroups: [extensions]
     resources: [replicasets]
     verbs: [get, list, watch]
-  # kubeletstats receiver (auth_type: serviceAccount)
+  # kubelet_stats receiver (auth_type: serviceAccount)
   - apiGroups: [""]
     resources: [nodes/stats, nodes/proxy]
     verbs: [get]

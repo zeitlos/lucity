@@ -19,7 +19,7 @@ spec:
       valueFrom:
         fieldRef:
           fieldPath: spec.nodeName
-    # Used for the kubeletstats endpoint — node hostnames aren't resolvable
+    # Used for the kubelet_stats endpoint — node hostnames aren't resolvable
     # via CoreDNS, but the host IP is.
     - name: K8S_NODE_IP
       valueFrom:
@@ -50,13 +50,13 @@ spec:
       mountPropagation: HostToContainer
   config:
     receivers:
-      kubeletstats:
+      kubelet_stats:
         collection_interval: 30s
         auth_type: serviceAccount
         endpoint: https://${env:K8S_NODE_IP}:10250
         insecure_skip_verify: true
         metric_groups: [node, pod, container, volume]
-      hostmetrics:
+      host_metrics:
         collection_interval: 30s
         root_path: /hostfs
         scrapers:
@@ -72,7 +72,7 @@ spec:
             exclude_fs_types:
               fs_types: ["overlay", "squashfs", "tmpfs", "devtmpfs"]
               match_type: strict
-      filelog:
+      file_log:
         include: [/var/log/pods/*/*/*.log]
         # Don't tail the agent's own logs (would create a loop)
         exclude: [/var/log/pods/{{ .Release.Namespace }}_{{ .Release.Name }}-otel-agent-*_*/otc-container/*.log]
@@ -88,7 +88,7 @@ spec:
         check_interval: 1s
         limit_percentage: 75
         spike_limit_percentage: 15
-      # Drop high-cardinality resource attributes that kubeletstats/hostmetrics
+      # Drop high-cardinality resource attributes that kubelet_stats/host_metrics
       # emit by default. container.id changes on every pod restart and would
       # accumulate within the retention window; k8s.pod.uid changes on every
       # reschedule. Labels like `replicaset` and `uid` on KSM metrics are
@@ -101,7 +101,7 @@ spec:
             action: delete
           - key: k8s.pod.uid
             action: delete
-      k8sattributes:
+      k8s_attributes:
         auth_type: serviceAccount
         passthrough: false
         filter:
@@ -138,11 +138,11 @@ spec:
     exporters:
       # k8s collector distribution doesn't ship prometheusremotewrite,
       # so use VictoriaMetrics' native OTLP endpoint instead.
-      otlphttp/metrics:
+      otlp_http/metrics:
         metrics_endpoint: http://{{ .Release.Name }}-victoria-metrics-single-server:8428/opentelemetry/v1/metrics
         tls:
           insecure: true
-      otlphttp/logs:
+      otlp_http/logs:
         logs_endpoint: http://{{ .Release.Name }}-victoria-logs-single-server:9428/insert/opentelemetry/v1/logs
         tls:
           insecure: true
@@ -152,11 +152,11 @@ spec:
           level: info
       pipelines:
         metrics:
-          receivers: [hostmetrics, kubeletstats]
-          processors: [memory_limiter, k8sattributes, resource, batch]
-          exporters: [otlphttp/metrics]
+          receivers: [host_metrics, kubelet_stats]
+          processors: [memory_limiter, k8s_attributes, resource, batch]
+          exporters: [otlp_http/metrics]
         logs:
-          receivers: [filelog]
-          processors: [memory_limiter, k8sattributes, resource, batch]
-          exporters: [otlphttp/logs]
+          receivers: [file_log]
+          processors: [memory_limiter, k8s_attributes, resource, batch]
+          exporters: [otlp_http/logs]
 {{- end }}

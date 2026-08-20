@@ -189,7 +189,7 @@ victoria-metrics-single:
     retentionPeriod: "30d"
     extraArgs:
       # Convert OTLP metric names and labels to Prometheus form on ingest.
-      # Affects only OTLP-pushed metrics (hostmetrics, kubeletstats); prometheus-scraped
+      # Affects only OTLP-pushed metrics (host_metrics, kubelet_stats); prometheus-scraped
       # ones (KSM, Cilium) are already Prom-named. Lets us reuse community dashboards.
       "opentelemetry.usePrometheusNaming": "true"
     resources:
@@ -444,7 +444,7 @@ victoria-metrics-alert:
 opentelemetry-operator:
   enabled: false
   # Default collector image is the k8s distribution which includes every receiver
-  # we use (kubeletstats, k8s_cluster, prometheus, filelog, k8s_events, k8sattributes).
+  # we use (kubelet_stats, k8s_cluster, prometheus, file_log, k8s_events, k8s_attributes).
   # cert-manager is required and already installed in lucity-prod via flex.plane.
 
 # -- OpenTelemetry Collector instances (rendered as OpenTelemetryCollector CRs)
