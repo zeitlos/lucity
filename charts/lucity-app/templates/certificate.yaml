@@ -1,0 +1,27 @@
+{{- $seen := dict }}
+{{- range $name, $svc := .Values.services }}
+{{- range $domain := $svc.domains }}
+{{- if and $domain.attached $domain.listenerSet $domain.listenerSet.enabled (not (hasKey $seen $domain.host)) }}
+{{- $_ := set $seen $domain.host true }}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ $domain.host | quote }}
+  labels:
+    {{- include "lucity-app.labels" $ | nindent 4 }}
+    {{- with $.Values.commonLabels }}{{- toYaml . | nindent 4 }}{{- end }}
+  annotations:
+    acme.cert-manager.io/http01-parentrefkind: ListenerSet
+    acme.cert-manager.io/http01-parentrefname: {{ $domain.host | quote }}
+    {{- with $.Values.commonAnnotations }}{{- toYaml . | nindent 4 }}{{- end }}
+spec:
+  secretName: {{ printf "%s-tls" $domain.host | quote }}
+  dnsNames:
+    - {{ $domain.host | quote }}
+  issuerRef:
+    kind: {{ $domain.listenerSet.certificate.issuerRef.kind }}
+    name: {{ $domain.listenerSet.certificate.issuerRef.name }}
+{{- end }}
+{{- end }}
+{{- end }}
