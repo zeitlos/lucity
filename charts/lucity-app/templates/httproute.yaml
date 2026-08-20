@@ -17,12 +17,16 @@ metadata:
     {{- with $svc.annotations }}{{- toYaml . | nindent 4 }}{{- end }}
   {{- end }}
 spec:
-  {{- if $domain.verified }}
+  {{- if $domain.attached }}
   parentRefs:
-    - name: {{ $.Values.gateway.name | default "lucity-gateway" }}
-      {{- if $.Values.gateway.namespace }}
+    {{- if and $domain.listenerSet $domain.listenerSet.enabled }}
+    - group: gateway.networking.k8s.io
+      kind: ListenerSet
+      name: {{ $domain.host | quote }}
+    {{- else }}
+    - name: {{ $.Values.gateway.name }}
       namespace: {{ $.Values.gateway.namespace }}
-      {{- end }}
+    {{- end }}
   {{- end }}
   hostnames:
     - {{ $domain.host | quote }}

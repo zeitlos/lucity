@@ -12,6 +12,7 @@ type Client struct {
 	chart            *chart.Chart
 	gatewayName      string
 	gatewayNamespace string
+	clusterIssuer    string
 	backups          BackupConfig
 }
 
@@ -21,7 +22,7 @@ type BackupConfig struct {
 	Bucket   string
 }
 
-func New(chart *chart.Chart, gatewayName, gatewayNamespace string, backups BackupConfig) (*Client, error) {
+func New(chart *chart.Chart, gatewayName, gatewayNamespace, clusterIssuer string, backups BackupConfig) (*Client, error) {
 	chartVersion, err := semver.Parse(chart.Metadata.Version)
 
 	if err != nil {
@@ -33,6 +34,7 @@ func New(chart *chart.Chart, gatewayName, gatewayNamespace string, backups Backu
 		chart:            chart,
 		gatewayName:      gatewayName,
 		gatewayNamespace: gatewayNamespace,
+		clusterIssuer:    clusterIssuer,
 		backups:          backups,
 	}, nil
 }

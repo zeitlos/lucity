@@ -1,0 +1,45 @@
+{{- $seen := dict }}
+{{- range $name, $svc := .Values.services }}
+{{- range $domain := $svc.domains }}
+{{- if and $domain.attached $domain.listenerSet $domain.listenerSet.enabled (not (hasKey $seen $domain.host)) }}
+{{- $_ := set $seen $domain.host true }}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: ListenerSet
+metadata:
+  name: {{ $domain.host | quote }}
+  labels:
+    {{- include "lucity-app.labels" $ | nindent 4 }}
+    {{- with $.Values.commonLabels }}{{- toYaml . | nindent 4 }}{{- end }}
+  {{- with $.Values.commonAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  parentRef:
+    group: gateway.networking.k8s.io
+    kind: Gateway
+    name: {{ $.Values.gateway.name }}
+    namespace: {{ $.Values.gateway.namespace }}
+  listeners:
+    - name: http
+      hostname: {{ $domain.host | quote }}
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same
+    - name: https
+      hostname: {{ $domain.host | quote }}
+      protocol: HTTPS
+      port: 443
+      allowedRoutes:
+        namespaces:
+          from: Same
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: {{ printf "%s-tls" $domain.host | quote }}
+{{- end }}
+{{- end }}
+{{- end }}

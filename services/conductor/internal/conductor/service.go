@@ -392,11 +392,11 @@ func (c *Client) GenerateDomain(ctx context.Context, serviceID platform.ServiceI
 		c.config.WorkloadDomain,
 	)
 
-	if _, err := c.deployer.Services().AddDomain(ctx, serviceID, hostname); err != nil {
+	if _, err := c.deployer.Services().AddDomain(ctx, serviceID, hostname, false); err != nil {
 		return nil, fmt.Errorf("add platform domain: %w", err)
 	}
 
-	if _, err := c.deployer.Services().VerifyDomain(ctx, serviceID, hostname, true); err != nil {
+	if _, err := c.deployer.Services().AttachDomain(ctx, serviceID, hostname, true); err != nil {
 		return nil, fmt.Errorf("verify platform domain: %w", err)
 	}
 
@@ -412,7 +412,7 @@ func (c *Client) AddCustomDomain(ctx context.Context, serviceID platform.Service
 		return nil, fmt.Errorf("invalid domain")
 	}
 
-	if _, err := c.deployer.Services().AddDomain(ctx, serviceID, hostname); err != nil {
+	if _, err := c.deployer.Services().AddDomain(ctx, serviceID, hostname, true); err != nil {
 		return nil, err
 	}
 
@@ -423,7 +423,7 @@ func (c *Client) AddCustomDomain(ctx context.Context, serviceID platform.Service
 	}
 
 	if verified {
-		if _, err := c.deployer.Services().VerifyDomain(ctx, serviceID, hostname, verified); err != nil {
+		if _, err := c.deployer.Services().AttachDomain(ctx, serviceID, hostname, verified); err != nil {
 			// This will be re-tried by the reconcile loop, therefore we don't surface the error.
 			slog.WarnContext(ctx, "failed to set domain to verified", "error", err, "service", serviceID, "domain", hostname)
 		}

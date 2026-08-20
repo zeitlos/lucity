@@ -68,7 +68,6 @@ services/conductor/
 │   ├── environment/                # namespace lifecycle (kubernetes/)
 │   ├── platform/                   # vendor-neutral value types + IDs (kubernetes/)
 │   ├── resources/                  # resource allocation listing (for cashier)
-│   ├── gateway/                    # Gateway API sync for custom domains
 │   ├── hostname/                   # custom-domain DNS verification
 │   ├── directory/                  # user/workspace directory (logto/)
 │   ├── dbquery/                    # database explorer query execution

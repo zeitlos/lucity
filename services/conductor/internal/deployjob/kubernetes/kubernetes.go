@@ -27,6 +27,7 @@ type Config struct {
 	RegistryPullURL string
 	GatewayName     string
 	GatewayNS       string
+	ClusterIssuer   string
 	Backups         BackupConfig
 }
 

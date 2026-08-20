@@ -199,9 +199,20 @@ func cloneStringMap(in map[string]string) map[string]string {
 	return out
 }
 
-func (s *serviceClient) AddDomain(ctx context.Context, id platform.ServiceID, host string) (deployer.RevisionID, error) {
+func (s *serviceClient) AddDomain(ctx context.Context, id platform.ServiceID, host string, ownListener bool) (deployer.RevisionID, error) {
+	var listenerSet *values.ListenerSet
+
+	if ownListener {
+		listenerSet = &values.ListenerSet{
+			Enabled: true,
+			Certificate: values.ListenerSetCertificate{
+				IssuerRef: values.IssuerRef{Kind: "ClusterIssuer", Name: s.client.clusterIssuer},
+			},
+		}
+	}
+
 	return s.client.applyEnv(ctx, id.EnvironmentID(), func(e *values.Env) error {
-		return values.AddServiceDomain(e, id.Name, host)
+		return values.AddServiceDomain(e, id.Name, host, listenerSet)
 	})
 }
 
@@ -211,9 +222,9 @@ func (s *serviceClient) RemoveDomain(ctx context.Context, id platform.ServiceID,
 	})
 }
 
-func (s *serviceClient) VerifyDomain(ctx context.Context, id platform.ServiceID, host string, verified bool) (deployer.RevisionID, error) {
+func (s *serviceClient) AttachDomain(ctx context.Context, id platform.ServiceID, host string, attached bool) (deployer.RevisionID, error) {
 	return s.client.applyEnv(ctx, id.EnvironmentID(), func(e *values.Env) error {
-		return values.VerifyServiceDomain(e, id.Name, host, verified)
+		return values.AttachServiceDomain(e, id.Name, host, attached)
 	})
 }
 

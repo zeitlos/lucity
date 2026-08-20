@@ -17,7 +17,13 @@
 #         key: uri
 #     domains:
 #       - host: api.example.com
-#         verified: true                      # only verified hosts get an HTTPRoute
+#         attached: true                      # false renders the HTTPRoute unattached
+#         listenerSet:                        # omit to use a listener the gateway already has
+#           enabled: true
+#           certificate:
+#             issuerRef:
+#               kind: ClusterIssuer
+#               name: letsencrypt-http01
 #     resources:                              # optional — overrides namespace LimitRange
 #       requests: { cpu: 100m, memory: 128Mi }
 #       limits:   { cpu: 500m, memory: 256Mi }
@@ -125,7 +131,7 @@ databases:
 # services.<name>.volumeMounts.
 volumes: {}
 
-# Gateway API parent the HTTPRoutes attach to.
+# Gateway that this release's HTTPRoutes and ListenerSets attach to.
 gateway:
   name: lucity-gateway
   namespace: lucity-system

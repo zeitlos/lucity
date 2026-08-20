@@ -3,8 +3,6 @@ package hostname
 import (
 	"context"
 
-	"github.com/zeitlos/lucity/services/conductor/internal/gateway"
-
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -17,7 +15,7 @@ var certificateGVR = schema.GroupVersionResource{
 	Resource: "certificates",
 }
 
-func (c *Client) TLSStatus(ctx context.Context, host string) (TLSStatus, error) {
+func (c *Client) TLSStatus(ctx context.Context, namespace, host string) (TLSStatus, error) {
 	if c.IsInternal(host) {
 		return TLSNone, nil
 	}
@@ -27,8 +25,8 @@ func (c *Client) TLSStatus(ctx context.Context, host string) (TLSStatus, error) 
 	}
 
 	cert, err := c.dyn.Resource(certificateGVR).
-		Namespace(c.gatewayNamespace).
-		Get(ctx, gateway.ResourceNameFor(host), metav1.GetOptions{})
+		Namespace(namespace).
+		Get(ctx, host, metav1.GetOptions{})
 
 	if apierrors.IsNotFound(err) {
 		return TLSProvisioning, nil

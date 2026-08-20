@@ -25,6 +25,7 @@ var (
 
 	maxNameLen            = 63
 	maxHostLen            = 253
+	tlsSecretSuffix       = "-tls"
 	maxKeyLen             = 253
 	maxImageLen           = 512
 	maxTagLen             = 128
