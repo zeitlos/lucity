@@ -79,7 +79,6 @@ zot:
 
 gateway:
   className: cilium
-  customDomainPlaceholder: true
   infrastructure:
     annotations:
       flexplane.io/provider: hetzner
@@ -147,8 +146,6 @@ gateway:
         mode: Terminate
         certificateRefs:
           - name: id-lucity-cloud-tls
-    # Custom domain listeners are managed by the deployer (per-domain HTTP + HTTPS pairs).
-    # No catch-all listeners here — each domain gets its own isolated listener.
 
 traefik:
   enabled: true
