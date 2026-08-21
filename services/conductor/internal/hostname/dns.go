@@ -10,7 +10,10 @@ import (
 	"time"
 )
 
-const dnsLookupTimeout = 5 * time.Second
+const (
+	dnsLookupTimeout  = 15 * time.Second
+	dnsAttemptTimeout = 3 * time.Second
+)
 
 func (c *Client) DNSStatus(ctx context.Context, workspace, host string) (DNSStatus, error) {
 	if c.IsPlatform(host) || c.IsInternal(host) {
@@ -22,13 +25,15 @@ func (c *Client) DNSStatus(ctx context.Context, workspace, host string) (DNSStat
 
 	zone := registrableDomain(host)
 
-	txtResolver, err := authoritativeResolver(lookupCtx, zone)
+	zoneServers, err := authoritativeServers(lookupCtx, zone)
 
 	if err != nil {
 		return DNSError, err
 	}
 
-	txtRecords, err := txtResolver.LookupTXT(lookupCtx, verifyRecordPrefix+zone)
+	txtRecords, err := firstAnswer(lookupCtx, zoneServers, func(ctx context.Context, resolver *net.Resolver) ([]string, error) {
+		return resolver.LookupTXT(ctx, verifyRecordPrefix+zone)
+	})
 
 	if err != nil && !isNotFound(err) {
 		return DNSError, err
@@ -36,10 +41,10 @@ func (c *Client) DNSStatus(ctx context.Context, workspace, host string) (DNSStat
 
 	txtOK := slices.Contains(txtRecords, challenge(workspace, zone))
 
-	routeResolver := txtResolver
+	routeServers := zoneServers
 
 	if host != zone {
-		routeResolver, err = authoritativeResolver(lookupCtx, host)
+		routeServers, err = authoritativeServers(lookupCtx, host)
 
 		if err != nil {
 			return DNSError, err
@@ -49,7 +54,9 @@ func (c *Client) DNSStatus(ctx context.Context, workspace, host string) (DNSStat
 	var routingOK bool
 
 	if isApex(host) {
-		addrs, err := routeResolver.LookupHost(lookupCtx, host)
+		addrs, err := firstAnswer(lookupCtx, routeServers, func(ctx context.Context, resolver *net.Resolver) ([]string, error) {
+			return resolver.LookupHost(ctx, host)
+		})
 
 		if err != nil && !isNotFound(err) {
 			return DNSError, err
@@ -57,7 +64,9 @@ func (c *Client) DNSStatus(ctx context.Context, workspace, host string) (DNSStat
 
 		routingOK = slices.Contains(addrs, c.customApexIP)
 	} else {
-		cname, err := routeResolver.LookupCNAME(lookupCtx, host)
+		cname, err := firstAnswer(lookupCtx, routeServers, func(ctx context.Context, resolver *net.Resolver) (string, error) {
+			return resolver.LookupCNAME(ctx, host)
+		})
 
 		if err != nil && !isNotFound(err) {
 			return DNSError, err
@@ -77,74 +86,79 @@ func (c *Client) DNSStatus(ctx context.Context, workspace, host string) (DNSStat
 	return DNSMisconfigured, nil
 }
 
-func authoritativeResolver(ctx context.Context, host string) (*net.Resolver, error) {
-	servers, err := authoritativeServers(ctx, host)
+func firstAnswer[T any](ctx context.Context, servers []string, lookup func(context.Context, *net.Resolver) (T, error)) (T, error) {
+	var (
+		zero    T
+		lastErr error = errors.New("no authoritative nameservers to query")
+	)
 
-	if err != nil {
-		return nil, err
+	for _, server := range servers {
+		attemptCtx, cancel := context.WithTimeout(ctx, dnsAttemptTimeout)
+		answer, err := lookup(attemptCtx, resolverFor(server))
+
+		cancel()
+
+		if err == nil || isNotFound(err) {
+			return answer, err
+		}
+
+		lastErr = err
 	}
 
-	dialer := &net.Dialer{Timeout: dnsLookupTimeout}
+	return zero, lastErr
+}
 
+func resolverFor(server string) *net.Resolver {
 	return &net.Resolver{
 		PreferGo: true,
 		Dial: func(ctx context.Context, network, _ string) (net.Conn, error) {
-			var lastErr error
+			var dialer net.Dialer
 
-			for _, server := range servers {
-				conn, err := dialer.DialContext(ctx, network, server)
-
-				if err == nil {
-					return conn, nil
-				}
-
-				lastErr = err
-			}
-
-			if lastErr == nil {
-				lastErr = fmt.Errorf("no authoritative nameservers reachable for %q", host)
-			}
-
-			return nil, lastErr
+			return dialer.DialContext(ctx, network, server)
 		},
-	}, nil
+	}
 }
 
 func authoritativeServers(ctx context.Context, host string) ([]string, error) {
 	sys := net.Resolver{}
-	name := strings.TrimSuffix(host, ".")
 
-	for {
+	for name := strings.TrimSuffix(host, "."); name != ""; name = parentDomain(name) {
 		nameservers, err := sys.LookupNS(ctx, name)
 
-		if err == nil && len(nameservers) > 0 {
-			var servers []string
+		if err != nil {
+			continue
+		}
 
-			for _, ns := range nameservers {
-				ips, err := sys.LookupHost(ctx, strings.TrimSuffix(ns.Host, "."))
+		var servers []string
 
-				if err != nil {
-					continue
-				}
+		for _, ns := range nameservers {
+			ips, err := sys.LookupHost(ctx, strings.TrimSuffix(ns.Host, "."))
 
-				for _, ip := range ips {
-					servers = append(servers, net.JoinHostPort(ip, "53"))
-				}
+			if err != nil {
+				continue
 			}
 
-			if len(servers) > 0 {
-				return servers, nil
+			for _, ip := range ips {
+				servers = append(servers, net.JoinHostPort(ip, "53"))
 			}
 		}
 
-		i := strings.IndexByte(name, '.')
-
-		if i < 0 {
-			return nil, fmt.Errorf("no authoritative nameservers found for %q", host)
+		if len(servers) > 0 {
+			return servers, nil
 		}
-
-		name = name[i+1:]
 	}
+
+	return nil, fmt.Errorf("no authoritative nameservers found for %q", host)
+}
+
+func parentDomain(name string) string {
+	i := strings.IndexByte(name, '.')
+
+	if i < 0 {
+		return ""
+	}
+
+	return name[i+1:]
 }
 
 func isNotFound(err error) bool {
