@@ -163,11 +163,7 @@ clusterIssuers:
       email: certificates@zeitlos.software
       solvers:
         - http01:
-            gatewayHTTPRoute:
-              parentRefs:
-                - name: lucity-gateway
-                  namespace: lucity-system
-                  kind: Gateway
+            gatewayHTTPRoute: {}
 
 certificates:
   - name: lucity-cloud-tls
