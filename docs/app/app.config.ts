@@ -13,7 +13,8 @@ export default defineAppConfig({
   ui: {
     colors: {
       primary: 'teal',
-      neutral: 'stone'
+      neutral: 'stone',
+      info: 'violet'
     },
     pageSection: {
       slots: {
@@ -31,23 +32,23 @@ export default defineAppConfig({
     },
     pageHeader: {
       slots: {
-        title: 'text-4xl sm:text-5xl'
+        title: 'font-display font-normal text-4xl sm:text-5xl'
       }
     },
     prose: {
       h1: {
         slots: {
-          base: 'text-5xl'
+          base: 'font-display font-normal text-5xl'
         }
       },
       h2: {
         slots: {
-          base: 'text-3xl'
+          base: 'font-display font-normal text-3xl'
         }
       },
       h3: {
         slots: {
-          base: 'text-2xl'
+          base: 'font-display font-normal text-2xl'
         }
       },
       h4: {

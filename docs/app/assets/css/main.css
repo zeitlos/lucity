@@ -497,3 +497,11 @@
   --bento-accent-subtle: oklch(0.72 0.14 150 / 0.12);
   --bento-card-bg: oklch(0.22 0.02 150);
 }
+
+/* Docs sidebar: separate it from the page body. */
+@media (min-width: 1024px) {
+  aside[data-slot="left"] {
+    border-inline-end: 1px solid var(--ui-border);
+    padding-top: 0.75rem;
+  }
+}

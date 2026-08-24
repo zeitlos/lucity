@@ -3,8 +3,6 @@ title: Terms of Use
 description: Terms governing your use of Lucity.
 ---
 
-# Terms of Use
-
 **Effective date:** March 16, 2026
 **Last updated:** July 24, 2026
 

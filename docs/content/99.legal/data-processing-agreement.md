@@ -3,8 +3,6 @@ title: Data Processing Agreement
 description: How Lucity processes personal data on your behalf.
 ---
 
-# Data Processing Agreement
-
 **Effective date:** July 24, 2026
 **Last updated:** July 24, 2026
 

@@ -38,6 +38,22 @@ const modifiedAt = computed(() => contentDates?.[route.path] || null);
 const headline = ref(findPageHeadline(navigation?.value, page.value?.path));
 const breadcrumbs = computed(() => findPageBreadcrumbs(navigation?.value, page.value?.path || ''));
 
+// "Docs > Guides > Next.js". A section and its index page share a path, so the
+// trail can repeat itself; the last crumb is the current page and gets no link.
+const breadcrumbItems = computed(() => {
+  const trail = (breadcrumbs.value ?? []).filter(
+    (item, index, list) => index === 0 || item.path !== list[index - 1]?.path,
+  );
+
+  return [
+    { label: 'Docs', to: '/quickstart' },
+    ...trail.map((item, index) => ({
+      label: item.title,
+      to: index === trail.length - 1 ? undefined : item.path,
+    })),
+  ];
+});
+
 useSeo({
   title,
   description,
@@ -49,7 +65,7 @@ watch(() => navigation?.value, () => {
   headline.value = findPageHeadline(navigation?.value, page.value?.path) || headline.value;
 });
 
-defineOgImageComponent('Docs', {
+defineOgImage('Docs', {
   headline: headline.value,
 });
 
@@ -92,11 +108,17 @@ addPrerenderPath(`/raw${route.path}.md`);
     <UPageHeader
       :title="page.title"
       :description="page.description"
-      :headline="headline"
       :ui="{
         wrapper: 'flex-row items-center flex-wrap justify-between',
       }"
     >
+      <template #headline>
+        <UBreadcrumb
+          :items="breadcrumbItems"
+          :ui="{ link: 'text-sm', separatorIcon: 'size-4' }"
+        />
+      </template>
+
       <template #links>
         <UButton
           v-for="(link, index) in (page as DocsCollectionItem).links"
