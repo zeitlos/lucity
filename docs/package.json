@@ -6,7 +6,8 @@
     "dev": "nuxt dev --extends docus",
     "build": "nuxt build --extends docus",
     "generate": "nuxt generate --extends docus",
-    "preview": "nuxt preview --extends docus"
+    "preview": "nuxt preview --extends docus",
+    "shots": "node scripts/capture-screenshots.mjs"
   },
   "dependencies": {
     "@nuxt/content": "^3.14.0",
@@ -18,7 +19,8 @@
   },
   "devDependencies": {
     "@iconify-json/devicon": "^1.2.62",
-    "opentype.js": "^2.0.0"
+    "opentype.js": "^2.0.0",
+    "playwright": "^1.62.1"
   },
   "engines": {
     "node": ">=24"
