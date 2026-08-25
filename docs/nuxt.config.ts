@@ -36,6 +36,49 @@ export default defineNuxtConfig({
       routes: ['/llms.txt', '/llms-full.txt']
     }
   },
+  routeRules: {
+    // The comparison overview is now the section index.
+    '/comparisons/overview': { redirect: { to: '/comparisons', statusCode: 301 } }
+  },
+  content: {
+    build: {
+      markdown: {
+        // Code blocks stay dark in both colour modes, so one theme everywhere.
+        highlight: {
+          theme: {
+            default: 'gruvbox-dark-medium',
+            light: 'gruvbox-dark-medium',
+            dark: 'gruvbox-dark-medium',
+          },
+          // Docus ships a short list; these are the languages the docs use.
+          langs: [
+            'bash',
+            'css',
+            'diff',
+            'dockerfile',
+            'go',
+            'html',
+            'ini',
+            'js',
+            'json',
+            'jsonc',
+            'md',
+            'mdc',
+            'php',
+            'python',
+            'shell',
+            'sql',
+            'svelte',
+            'toml',
+            'ts',
+            'tsx',
+            'vue',
+            'yaml',
+          ],
+        },
+      },
+    },
+  },
   css: ['~/assets/css/main.css'],
   app: {
     head: {
