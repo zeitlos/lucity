@@ -1,5 +1,5 @@
 ---
-title: Guides
+title: Deploy your framework
 description: "Deploy guides for the frameworks people actually ship: Next.js, Nuxt, SvelteKit, Astro, Express, FastAPI, Django, Laravel, and Go."
 navigation:
   title: Guides
