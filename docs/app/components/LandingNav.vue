@@ -30,7 +30,7 @@ const signUpUrl = `${appUrl}/login`;
         </a>
         <a
           :href="signUpUrl"
-          class="flex items-center gap-2 rounded-lg bg-teal-500 px-4 py-2 text-white shadow-sm transition-colors hover:bg-teal-600 sm:gap-3 sm:px-5 dark:bg-teal-400 dark:hover:bg-teal-500"
+          class="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-white shadow-sm transition-colors hover:bg-primary-600 sm:gap-3 sm:px-5"
         >
           <span class="text-center leading-tight">
             <span class="block text-lg font-semibold">Sign up</span>

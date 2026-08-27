@@ -12,7 +12,7 @@ const appUrl = 'https://lucity.cloud/app';
 
       <a
         :href="`${appUrl}/login`"
-        class="mt-auto self-end rounded-[15px] bg-[#00cf85] px-7 py-4 text-xl font-semibold text-white transition-colors hover:bg-[#00b876]"
+        class="mt-auto self-end rounded-lg bg-primary-500 px-7 py-4 text-xl font-semibold text-white transition-colors hover:bg-primary-600"
       >
         Deploy your first App
       </a>

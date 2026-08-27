@@ -11,8 +11,15 @@ export default defineAppConfig({
     titleTemplate: '%s | Lucity'
   },
   ui: {
+    contentToc: {
+      compoundVariants: [{
+        color: 'primary',
+        active: true,
+        class: { link: 'text-highlighted font-medium' },
+      }],
+    },
     colors: {
-      primary: 'teal',
+      primary: 'brand',
       neutral: 'stone',
       info: 'violet'
     },
@@ -36,6 +43,12 @@ export default defineAppConfig({
       }
     },
     prose: {
+      img: {
+        slots: {
+          base: 'rounded-lg border border-default shadow-[0_2px_8px_oklch(0_0_0/0.05)]',
+          zoomedImage: 'rounded-lg border border-default'
+        }
+      },
       h1: {
         slots: {
           base: 'font-display font-normal text-5xl'

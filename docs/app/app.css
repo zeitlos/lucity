@@ -1,6 +1,3 @@
-@import "tailwindcss";
-@import "@nuxt/ui";
-
 @font-face {
     font-family: 'Redaction 10';
     src: url('/fonts/Redaction_10-Bold.woff2') format('woff2');
@@ -208,20 +205,6 @@
   --font-lcd: 'VT323', monospace;
   --font-display: 'Redaction 20', Georgia, serif;
 
-  /* Primary palette — hue 160, chroma 0.18 at 500 */
-  /* Dashboard --primary: oklch(0.75 0.18 160) → mapped to 500 */
-  --color-teal-50:  oklch(0.97 0.02 160);
-  --color-teal-100: oklch(0.94 0.04 160);
-  --color-teal-200: oklch(0.89 0.08 160);
-  --color-teal-300: oklch(0.83 0.12 160);
-  --color-teal-400: oklch(0.79 0.16 160);
-  --color-teal-500: oklch(0.75 0.18 160);
-  --color-teal-600: oklch(0.65 0.17 160);
-  --color-teal-700: oklch(0.55 0.15 160);
-  --color-teal-800: oklch(0.44 0.12 160);
-  --color-teal-900: oklch(0.35 0.09 160);
-  --color-teal-950: oklch(0.26 0.06 160);
-
   /* Neutral palette — warm grays, hues 55-80 from dashboard */
   /* Derived directly from dashboard tokens:                  */
   /*   --card:             oklch(0.97 0.015 80) → 50          */
@@ -245,24 +228,33 @@
   --color-stone-950: oklch(0.20 0.03 55);
 }
 
+/* Brand green — hue 160, chroma 0.18 at 500, matching the dashboard --primary.
+   app.config.ts maps this to Nuxt UI's primary, so components address it as
+   `primary-*` (bg-primary, text-primary-600, ...). This is the only place the
+   ramp is defined.
+
+   `static` is required: Nuxt UI references these from a runtime-injected style
+   that Tailwind never parses, so a plain @theme would drop every shade that no
+   other rule happens to mention. */
+@theme static {
+  --color-brand-50:  oklch(0.97 0.02 160);
+  --color-brand-100: oklch(0.94 0.04 160);
+  --color-brand-200: oklch(0.89 0.08 160);
+  --color-brand-300: oklch(0.83 0.12 160);
+  --color-brand-400: oklch(0.79 0.16 160);
+  --color-brand-500: oklch(0.75 0.18 160);
+  --color-brand-600: oklch(0.65 0.17 160);
+  --color-brand-700: oklch(0.55 0.15 160);
+  --color-brand-800: oklch(0.44 0.12 160);
+  --color-brand-900: oklch(0.35 0.09 160);
+  --color-brand-950: oklch(0.26 0.06 160);
+}
+
 /*
  * Nuxt UI resolves palette names at build time into --ui-color-* variables.
  * Override those directly with the exact dashboard OKLCH values.
  */
 :root {
-  /* Primary palette — dashboard hue 160 */
-  --ui-color-primary-50:  oklch(0.97 0.02 160);
-  --ui-color-primary-100: oklch(0.94 0.04 160);
-  --ui-color-primary-200: oklch(0.89 0.08 160);
-  --ui-color-primary-300: oklch(0.83 0.12 160);
-  --ui-color-primary-400: oklch(0.79 0.16 160);
-  --ui-color-primary-500: oklch(0.75 0.18 160);
-  --ui-color-primary-600: oklch(0.65 0.17 160);
-  --ui-color-primary-700: oklch(0.55 0.15 160);
-  --ui-color-primary-800: oklch(0.44 0.12 160);
-  --ui-color-primary-900: oklch(0.35 0.09 160);
-  --ui-color-primary-950: oklch(0.26 0.06 160);
-
   /* Neutral palette — dashboard warm grays (hues 55-80) */
   --ui-color-neutral-50:  oklch(0.98 0.01 80);
   --ui-color-neutral-100: oklch(0.95 0.02 80);
@@ -292,7 +284,7 @@
   --ui-text-muted:       oklch(0.50 0.04 55);   /* --muted-foreground */
   --ui-text-highlighted: oklch(0.25 0.04 55);   /* --foreground */
   --ui-text-inverted:    oklch(0.97 0.015 80);  /* --card */
-  --ui-primary:          oklch(0.75 0.18 160);  /* --primary */
+  --ui-primary:          var(--color-brand-500);
 }
 
 .dark {
@@ -312,7 +304,7 @@
   --ui-text-muted:       oklch(0.60 0.03 55);   /* --muted-foreground */
   --ui-text-highlighted: oklch(0.90 0.03 80);   /* --foreground */
   --ui-text-inverted:    oklch(0.24 0.03 55);   /* --card */
-  --ui-primary:          oklch(0.72 0.16 160);  /* --primary (dark) */
+  --ui-primary:          oklch(0.72 0.16 160);  /* deliberately between brand-400 and -500 */
 }
 
 /* Docs header — iOS-style progressive blur to match the landing nav.
@@ -352,8 +344,8 @@
 
 :root {
   --bento-accent: var(--ui-primary);
-  --bento-accent-glow: oklch(0.75 0.18 160 / 0.25);
-  --bento-accent-subtle: oklch(0.75 0.18 160 / 0.12);
+  --bento-accent-glow: color-mix(in oklab, var(--ui-primary) 25%, transparent);
+  --bento-accent-subtle: color-mix(in oklab, var(--ui-primary) 12%, transparent);
 }
 
 [class*="bento-card-"] {
@@ -504,4 +496,201 @@
     border-inline-end: 1px solid var(--ui-border);
     padding-top: 0.75rem;
   }
+}
+
+/*
+ * Long-form reading: body copy sits a shade lighter than links and headings,
+ * so links read as darker rather than as coloured text.
+ */
+:root {
+  --doc-body-text: oklch(0.36 0.035 50);
+}
+
+.dark {
+  --doc-body-text: oklch(0.84 0.025 75);
+}
+
+.docs-body :is(p, li, blockquote, td),
+.solution-body :is(p, li, blockquote, td) {
+  color: var(--doc-body-text);
+}
+
+/* Content links: darker than the text around them, underlined in brand green,
+   with the underline wiping across on hover. The underline lives on the text
+   span so it stops before the trailing icon. */
+.doc-link {
+  color: var(--ui-text-highlighted);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.doc-link-text {
+  padding-bottom: 2px;
+  background-image:
+    linear-gradient(var(--ui-primary), var(--ui-primary)),
+    linear-gradient(
+      color-mix(in oklab, var(--ui-primary) 45%, transparent),
+      color-mix(in oklab, var(--ui-primary) 45%, transparent)
+    );
+  background-repeat: no-repeat;
+  background-position: 0 100%, 0 100%;
+  background-size: 0 2px, 100% 2px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  transition: background-size 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.doc-link:hover .doc-link-text,
+.doc-link:focus-visible .doc-link-text {
+  background-size: 100% 2px, 100% 2px;
+}
+
+/* Marks a link that leads to another documentation page. */
+.doc-link-icon {
+  width: 0.85em;
+  height: 0.85em;
+  margin-inline-start: 0.25em;
+  vertical-align: -0.08em;
+  color: color-mix(in oklab, var(--ui-primary) 70%, var(--ui-text-muted));
+  transition: color 0.15s ease;
+}
+
+.doc-link:hover .doc-link-icon {
+  color: var(--ui-primary);
+}
+
+/* Leaving the site: a quieter marker than the docs one. */
+.doc-link-icon-external {
+  width: 0.8em;
+  height: 0.8em;
+  margin-inline-start: 0.15em;
+  vertical-align: 0.02em;
+  color: var(--ui-text-dimmed);
+}
+
+.doc-link:hover .doc-link-icon-external {
+  color: var(--ui-text-highlighted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .doc-link-text {
+    transition: none;
+  }
+}
+
+/* ---------------------------------------------------------------- *
+ * Reading surface: code, callouts and the two navigations
+ * ---------------------------------------------------------------- */
+
+:root {
+  --code-bg: #282828;
+  --code-border: #3c3836;
+  --panel-shadow: 0 1px 2px oklch(0 0 0 / 0.05), 0 8px 24px -12px oklch(0 0 0 / 0.18);
+}
+
+.dark {
+  --code-bg: #282828;
+  --code-border: #3c3836;
+  --panel-shadow: 0 1px 2px oklch(0 0 0 / 0.3), 0 10px 28px -14px oklch(0 0 0 / 0.5);
+}
+
+/* Code is dark in both colour modes. */
+.docs-body pre,
+.solution-body pre,
+.blog-body pre {
+  background: var(--code-bg) !important;
+  border-color: var(--code-border) !important;
+  color: #ebdbb2;
+  box-shadow: var(--panel-shadow);
+}
+
+
+/* Callouts: a raised panel rather than a flat colour wash. */
+.docs-body [class*="bg-info/10"],
+.solution-body [class*="bg-info/10"] { --panel-accent: var(--ui-info); }
+
+.docs-body [class*="bg-success/10"],
+.solution-body [class*="bg-success/10"] { --panel-accent: var(--ui-success); }
+
+.docs-body [class*="bg-warning/10"],
+.solution-body [class*="bg-warning/10"] { --panel-accent: var(--ui-warning); }
+
+.docs-body [class*="bg-error/10"],
+.solution-body [class*="bg-error/10"] { --panel-accent: var(--ui-error); }
+
+.docs-body [class*="bg-info/10"],
+.docs-body [class*="bg-success/10"],
+.docs-body [class*="bg-warning/10"],
+.docs-body [class*="bg-error/10"],
+.solution-body [class*="bg-info/10"],
+.solution-body [class*="bg-success/10"],
+.solution-body [class*="bg-warning/10"],
+.solution-body [class*="bg-error/10"] {
+  background-color: transparent;
+  /* Lit from above: brightest along the top edge, settling darker at the base. */
+  background-image: radial-gradient(
+    145% 115% at 50% -12%,
+    color-mix(in oklab, var(--panel-accent) 10%, white) 0%,
+    color-mix(in oklab, var(--panel-accent) 15%, var(--ui-bg-elevated)) 55%,
+    color-mix(in oklab, var(--panel-accent) 19%, var(--ui-bg)) 100%
+  );
+  border: 1px solid color-mix(in oklab, var(--panel-accent) 24%, transparent);
+  border-radius: 0.75rem;
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklab, white 70%, transparent),
+    var(--panel-shadow);
+  color: color-mix(in oklab, var(--panel-accent) 32%, var(--doc-body-text));
+}
+
+.dark .docs-body [class*="bg-info/10"],
+.dark .docs-body [class*="bg-success/10"],
+.dark .docs-body [class*="bg-warning/10"],
+.dark .docs-body [class*="bg-error/10"],
+.dark .solution-body [class*="bg-info/10"],
+.dark .solution-body [class*="bg-success/10"],
+.dark .solution-body [class*="bg-warning/10"],
+.dark .solution-body [class*="bg-error/10"] {
+  background-image: radial-gradient(
+    145% 115% at 50% -12%,
+    color-mix(in oklab, var(--panel-accent) 18%, var(--ui-bg-elevated)) 0%,
+    color-mix(in oklab, var(--panel-accent) 11%, var(--ui-bg-elevated)) 55%,
+    color-mix(in oklab, var(--panel-accent) 7%, var(--ui-bg)) 100%
+  );
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklab, white 9%, transparent),
+    var(--panel-shadow);
+  color: color-mix(in oklab, var(--panel-accent) 26%, var(--doc-body-text));
+}
+
+/* The icon keeps the accent so the panel still reads as a note or a warning. */
+.docs-body [class*="bg-info/10"] > .iconify,
+.docs-body [class*="bg-success/10"] > .iconify,
+.docs-body [class*="bg-warning/10"] > .iconify,
+.docs-body [class*="bg-error/10"] > .iconify {
+  color: color-mix(in oklab, var(--panel-accent) 78%, var(--ui-text));
+}
+
+/* Tables: the same raised surface as the guide cards. The cell borders draw
+   the outline, so the panel only supplies the background and the shadow. */
+.docs-body div:has(> table) {
+  background: var(--ui-bg-elevated);
+  border-radius: 0.75rem;
+  box-shadow: var(--panel-shadow);
+}
+
+/* Nuxt UI rounds the corner cells to `md`; match the panel instead. */
+.docs-body table thead tr:first-child th:first-child {
+  border-start-start-radius: 0.75rem;
+}
+
+.docs-body table thead tr:first-child th:last-child {
+  border-start-end-radius: 0.75rem;
+}
+
+.docs-body table tbody tr:last-child td:first-child {
+  border-end-start-radius: 0.75rem;
+}
+
+.docs-body table tbody tr:last-child td:last-child {
+  border-end-end-radius: 0.75rem;
 }
