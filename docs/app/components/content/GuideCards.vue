@@ -110,15 +110,15 @@ const guides: Guide[] = [
         />
       </span>
 
-      <span class="guide-card-title">
-        {{ guide.title }}
-        <UBadge
-          :label="guide.runtime"
-          color="neutral"
-          variant="outline"
-          size="sm"
-        />
-      </span>
+      <UBadge
+        :label="guide.runtime"
+        color="neutral"
+        variant="outline"
+        size="sm"
+        class="guide-card-badge"
+      />
+
+      <span class="guide-card-title">{{ guide.title }}</span>
 
       <span class="guide-card-blurb">{{ guide.blurb }}</span>
 
@@ -163,7 +163,8 @@ const guides: Guide[] = [
   padding: 1.25rem;
   border-radius: 0.875rem;
   border: 1px solid var(--ui-border);
-  background: var(--ui-bg);
+  background: var(--ui-bg-elevated);
+  box-shadow: 0 1px 2px oklch(0 0 0 / 0.04);
   text-decoration: none;
   transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
@@ -171,7 +172,7 @@ const guides: Guide[] = [
 .guide-card:hover {
   transform: translateY(-2px);
   border-color: color-mix(in oklab, var(--accent) 45%, transparent);
-  box-shadow: 0 12px 30px -18px color-mix(in oklab, var(--accent) 70%, transparent);
+  box-shadow: 0 6px 18px -14px color-mix(in oklab, var(--accent) 55%, transparent);
 }
 
 .guide-card-glow {
@@ -201,11 +202,15 @@ const guides: Guide[] = [
   box-shadow: 0 1px 2px rgb(0 0 0 / 0.06);
 }
 
+.guide-card-badge {
+  position: absolute;
+  top: 1rem;
+  inset-inline-end: 1rem;
+  z-index: 1;
+}
+
 .guide-card-title {
   position: relative;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
   margin-top: 0.5rem;
   font-weight: 600;
   font-size: 1.0625rem;

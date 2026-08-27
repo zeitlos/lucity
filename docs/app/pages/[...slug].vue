@@ -131,16 +131,14 @@ addPrerenderPath(`/raw${route.path}.md`);
       </template>
     </UPageHeader>
 
-    <UPageBody>
+    <UPageBody class="docs-body">
       <ContentRenderer
         v-if="page"
         :value="page"
       />
 
       <USeparator v-if="github || formattedDate">
-        <div
-          class="flex items-center gap-2 text-sm text-muted"
-        >
+        <div class="flex flex-col items-center gap-1 text-center text-sm text-muted sm:flex-row sm:gap-x-2">
           <span
             v-if="formattedDate"
             class="flex items-center gap-1"
@@ -151,32 +149,38 @@ addPrerenderPath(`/raw${route.path}.md`);
             />
             Last updated {{ formattedDate }}
           </span>
-          <template v-if="github && formattedDate">
-            <span>&middot;</span>
-          </template>
-          <UButton
+
+          <span
+            v-if="github && formattedDate"
+            class="hidden sm:inline"
+          >&middot;</span>
+
+          <span
             v-if="github"
-            variant="link"
-            color="neutral"
-            :to="editLink"
-            target="_blank"
-            icon="i-lucide-pen"
-            :ui="{ leadingIcon: 'size-4' }"
+            class="flex items-center gap-x-2"
           >
-            {{ t('docs.edit') }}
-          </UButton>
-          <span v-if="github">{{ t('common.or') }}</span>
-          <UButton
-            v-if="github"
-            variant="link"
-            color="neutral"
-            :to="`${github.url}/issues/new/choose`"
-            target="_blank"
-            icon="i-lucide-alert-circle"
-            :ui="{ leadingIcon: 'size-4' }"
-          >
-            {{ t('docs.report') }}
-          </UButton>
+            <UButton
+              variant="link"
+              color="neutral"
+              :to="editLink"
+              target="_blank"
+              icon="i-lucide-pen"
+              :ui="{ leadingIcon: 'size-4' }"
+            >
+              {{ t('docs.edit') }}
+            </UButton>
+            <span>{{ t('common.or') }}</span>
+            <UButton
+              variant="link"
+              color="neutral"
+              :to="`${github.url}/issues/new/choose`"
+              target="_blank"
+              icon="i-lucide-alert-circle"
+              :ui="{ leadingIcon: 'size-4' }"
+            >
+              {{ t('docs.report') }}
+            </UButton>
+          </span>
         </div>
       </USeparator>
       <UContentSurround :surround="surround" />

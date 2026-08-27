@@ -118,6 +118,7 @@ function pages(item: ContentNavigationItem) {
   padding: 0.375rem 0.625rem;
   border-radius: 0.5rem;
   color: var(--ui-text-toned);
+  font-weight: 500;
   text-decoration: none;
   transition: color 0.15s ease, background-color 0.15s ease;
 }
@@ -129,9 +130,9 @@ function pages(item: ContentNavigationItem) {
 
 .docs-aside-link-active,
 .docs-aside-link-active:hover {
-  color: var(--ui-primary);
-  background: color-mix(in oklab, var(--ui-primary) 12%, transparent);
-  font-weight: 500;
+  color: var(--ui-text-highlighted);
+  background: color-mix(in oklab, var(--ui-primary) 14%, var(--ui-bg-elevated));
+  font-weight: 600;
 }
 
 .docs-aside-section {
@@ -194,5 +195,14 @@ function pages(item: ContentNavigationItem) {
   width: 2px;
   border-radius: 999px;
   background: var(--ui-primary);
+}
+</style>
+
+<style>
+/* Unscoped: the scoped compiler drops the descendant part of :global(.dark). */
+.dark .docs-aside-link-active,
+.dark .docs-aside-link-active:hover {
+  background: color-mix(in oklab, white 7%, var(--ui-bg-elevated));
+  color: var(--ui-text-highlighted);
 }
 </style>
