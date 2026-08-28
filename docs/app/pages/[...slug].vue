@@ -35,6 +35,12 @@ const title = page.value.seo?.title || page.value.title;
 const description = page.value.seo?.description || page.value.description;
 const modifiedAt = computed(() => contentDates?.[route.path] || null);
 
+const showToc = computed(() => !!page.value?.body?.toc?.links?.length && !unref(shouldHideToc));
+
+const pageUi = computed(() => showToc.value
+  ? { root: 'lg:grid-cols-12', center: 'lg:col-span-9', right: 'lg:col-span-3' }
+  : undefined);
+
 const headline = ref(findPageHeadline(navigation?.value, page.value?.path));
 const breadcrumbs = computed(() => findPageBreadcrumbs(navigation?.value, page.value?.path || ''));
 
@@ -104,6 +110,7 @@ addPrerenderPath(`/raw${route.path}.md`);
   <UPage
     v-if="page"
     :key="`page-${shouldHideToc}`"
+    :ui="pageUi"
   >
     <UPageHeader
       :title="page.title"
@@ -187,7 +194,7 @@ addPrerenderPath(`/raw${route.path}.md`);
     </UPageBody>
 
     <template
-      v-if="page?.body?.toc?.links?.length && !shouldHideToc"
+      v-if="showToc"
       #right
     >
       <UContentToc
