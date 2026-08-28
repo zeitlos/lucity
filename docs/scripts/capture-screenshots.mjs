@@ -69,6 +69,7 @@ const config = {
   database: process.env.SHOTS_DATABASE || 'feedback',
   bucket: process.env.SHOTS_BUCKET || 'attachments',
   table: process.env.SHOTS_TABLE || 'posts',
+  workspaceNames: (process.env.SHOTS_WORKSPACE_NAMES || 'acme,acme-labs,personal').split(','),
   query: process.env.SHOTS_QUERY || 'SELECT title, votes, status FROM posts ORDER BY votes DESC;',
   bucketPrefix: process.env.SHOTS_BUCKET_PREFIX || 'uploads',
   variableKey: process.env.SHOTS_VARIABLE_KEY || 'DATABASE_URL',
@@ -502,6 +503,33 @@ const shots = [
         await page.waitForTimeout(2_000);
       }
       return { rect: explorerRect(page) };
+    },
+  },
+  {
+    name: 'workspace-switcher',
+    dir: 'workspaces',
+    description: 'Workspace switcher open in the header',
+    async capture(page) {
+      await openCanvas(page);
+      const trigger = page.locator('nav button').first();
+      const active = (await trigger.innerText()).trim();
+      await trigger.click();
+      await page.waitForTimeout(800);
+
+      // The dropdown lists every workspace the account belongs to, which on a
+      // real account means other people's names. Swap them for placeholders.
+      await page.evaluate(({ active, placeholders }) => {
+        let next = 0;
+        for (const item of document.querySelectorAll('[role="menuitem"]')) {
+          const label = item.querySelector('span');
+          if (!label || label.textContent.trim() === active) continue;
+          if (next >= placeholders.length) { item.remove(); continue; }
+          label.textContent = placeholders[next++];
+        }
+      }, { active, placeholders: config.workspaceNames });
+
+      await page.waitForTimeout(200);
+      return { rect: viewportRect(page, { left: 6, top: 6, right: 300, bottom: 430 }) };
     },
   },
   {
