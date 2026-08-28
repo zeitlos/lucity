@@ -16,6 +16,10 @@ export default defineAppConfig({
         color: 'primary',
         active: true,
         class: { link: 'text-highlighted font-medium' },
+      }, {
+        highlight: true,
+        highlightVariant: 'straight',
+        class: { indicator: 'w-0.5' },
       }],
     },
     colors: {
