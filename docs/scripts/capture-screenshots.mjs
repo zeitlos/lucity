@@ -487,6 +487,24 @@ const shots = [
     },
   },
   {
+    name: 'files-explorer',
+    dir: 'object-storage',
+    description: 'Bucket file explorer on the Files tab',
+    async capture(page) {
+      await openPanel(page, config.bucket);
+      await openTab(page, 'Files');
+      const prefix = panel(page)
+        .locator('button')
+        .filter({ hasText: new RegExp(`^${config.bucketPrefix}$`) })
+        .first();
+      if (await prefix.isVisible().catch(() => false)) {
+        await prefix.click();
+        await page.waitForTimeout(2_000);
+      }
+      return { rect: explorerRect(page) };
+    },
+  },
+  {
     name: 'bucket-files',
     description: 'Bucket panel on the Files tab',
     async capture(page) {
