@@ -40,7 +40,17 @@ import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
-const outputDir = join(root, 'public/img/docs/quickstart');
+const imagesDir = join(root, 'public/img/docs');
+const outputDir = join(imagesDir, 'quickstart');
+
+/** Shots default to the quickstart folder; `dir` puts them somewhere else. */
+function shotDir(shot) {
+  return join(imagesDir, shot.dir ?? 'quickstart');
+}
+
+function shotPath(shot) {
+  return `img/docs/${shot.dir ?? 'quickstart'}/${shot.name}.png`;
+}
 const quickstartPage = join(root, 'content/01.quickstart.md');
 
 const args = process.argv.slice(2);
@@ -59,6 +69,7 @@ const config = {
   database: process.env.SHOTS_DATABASE || 'feedback',
   bucket: process.env.SHOTS_BUCKET || 'attachments',
   table: process.env.SHOTS_TABLE || 'posts',
+  query: process.env.SHOTS_QUERY || 'SELECT title, votes, status FROM posts ORDER BY votes DESC;',
   bucketPrefix: process.env.SHOTS_BUCKET_PREFIX || 'uploads',
   variableKey: process.env.SHOTS_VARIABLE_KEY || 'DATABASE_URL',
   appURL: process.env.SHOTS_APP_URL || '',
@@ -142,6 +153,12 @@ async function placeNode(page, name, to) {
     await page.mouse.up();
     await page.waitForTimeout(400);
   }
+}
+
+/** Trims the outer edges of the viewport, keeping the frame's shape. */
+function viewportRect(page, { left = 0, top = 0, right = 0, bottom = 0 } = {}) {
+  const { width, height } = page.viewportSize();
+  return { x: left, y: top, width: width - left - right, height: height - top - bottom };
 }
 
 /** Union of every canvas node, padded, for a tight canvas crop. */
@@ -243,6 +260,9 @@ async function contentRect(page, locator, padding = 24) {
 }
 
 // ── Shots ─────────────────────────────────────────────────────────────────
+
+const explorerCrop = { left: 110, top: 8, right: 10, bottom: 70 };
+const explorerRect = (page) => viewportRect(page, explorerCrop);
 
 const shots = [
   {
@@ -432,6 +452,40 @@ const shots = [
       return { rect: await contentRect(page, panel(page)) };
     },
   },
+  // Both explorer shots crop identically, trimming the empty canvas on the left
+  // and the strip below the panel while keeping the viewport's proportions.
+  // The explorer shots keep the whole dashboard in frame: the panel on its own
+  // reads as a floating card, and a tall crop eats vertical space in the docs.
+  {
+    name: 'explorer-tables',
+    dir: 'postgres',
+    description: 'Database explorer on the Tables tab',
+    async capture(page) {
+      await openPanel(page, config.database);
+      await openTab(page, 'Tables');
+      const table = page.getByText(config.table, { exact: true }).last();
+      if (await table.isVisible().catch(() => false)) {
+        await table.click();
+        await page.waitForTimeout(2_000);
+      }
+      return { rect: explorerRect(page) };
+    },
+  },
+  {
+    name: 'explorer-query',
+    dir: 'postgres',
+    description: 'Database explorer running a query',
+    async capture(page) {
+      await openPanel(page, config.database);
+      await openTab(page, 'Query');
+      const editor = panel(page).locator('textarea').first();
+      await editor.waitFor({ timeout: 15_000 });
+      await editor.fill(config.query);
+      await panel(page).getByRole('button', { name: 'Run Query' }).click();
+      await page.waitForTimeout(3_000);
+      return { rect: explorerRect(page) };
+    },
+  },
   {
     name: 'bucket-files',
     description: 'Bucket panel on the Files tab',
@@ -501,8 +555,8 @@ function pointDocsAt(names) {
   return switched;
 }
 
-function prunePlaceholder(name) {
-  const placeholder = join(outputDir, `${name}.svg`);
+function prunePlaceholder(shot) {
+  const placeholder = join(shotDir(shot), `${shot.name}.svg`);
   if (existsSync(placeholder)) unlinkSync(placeholder);
 }
 
@@ -613,7 +667,9 @@ for (const shot of selected) {
 
   const context = shot.auth === false ? plainContext : authedContext;
   const page = await context.newPage();
-  const target = join(outputDir, `${shot.name}.png`);
+  const dir = shotDir(shot);
+  mkdirSync(dir, { recursive: true });
+  const target = join(dir, `${shot.name}.png`);
 
   if (shot.viewport) await page.setViewportSize(shot.viewport);
 
@@ -625,7 +681,7 @@ for (const shot of selected) {
       await page.screenshot({ path: target, animations: 'disabled', ...(rect ? { clip: rect } : {}) });
     }
     captured.push(shot.name);
-    console.log(`ok    ${shot.name} -> public/img/docs/quickstart/${shot.name}.png`);
+    console.log(`ok    ${shot.name} -> public/${shotPath(shot)}`);
   } catch (error) {
     failed.push([shot.name, error.message.split('\n')[0]]);
     console.log(`fail  ${shot.name}: ${error.message.split('\n')[0]}`);
@@ -642,7 +698,9 @@ if (config.updateDocs && captured.length > 0) {
     console.log(`\nquickstart now points at: ${switched.join(', ')}`);
   }
   if (config.prunePlaceholders) {
-    for (const name of captured) prunePlaceholder(name);
+    for (const shot of selected) {
+      if (captured.includes(shot.name)) prunePlaceholder(shot);
+    }
   }
 }
 
