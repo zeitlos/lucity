@@ -260,6 +260,18 @@ victoria-metrics-alert:
                 labels: { severity: warning }
                 annotations:
                   summary: "{{ $labels.namespace }}/{{ $labels.pod }} restarted {{ $value | humanize }} times in the last hour"
+              - alert: ContainerOOMKilled
+                expr: kube_pod_container_status_last_terminated_reason{reason="OOMKilled", namespace=~"kube-system|lucity-system"} == 1
+                for: 1m
+                labels: { severity: warning }
+                annotations:
+                  summary: "{{ $labels.namespace }}/{{ $labels.pod }} container {{ $labels.container }} was OOMKilled"
+              - alert: MetricsPipelineStalled
+                expr: absent(kube_pod_container_status_restarts_total{namespace="lucity-system"})
+                for: 10m
+                labels: { severity: critical }
+                annotations:
+                  summary: "No kube-state-metrics samples for 10m: the metrics pipeline is stalled and every other alert is blind"
               - alert: PVCNearlyFull
                 expr: |-
                   label_replace(label_replace(label_replace(
