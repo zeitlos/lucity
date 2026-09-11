@@ -255,7 +255,7 @@ victoria-metrics-alert:
                 annotations:
                   summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} is crash-looping"
               - alert: ContainerRestartingRepeatedly
-                expr: increase(kube_pod_container_status_restarts_total{namespace=~"kube-system|lucity-system"}[1h]) >= 3
+                expr: increase_prometheus(kube_pod_container_status_restarts_total{namespace=~"kube-system|lucity-system"}[1h]) >= 3
                 for: 5m
                 labels: { severity: warning }
                 annotations:
@@ -359,8 +359,8 @@ victoria-metrics-alert:
               # this dips slightly negative next to a burst; harmless at > 0.1.
               - alert: GatewayOriginated5xxRate
                 expr: |-
-                  sum(rate(envoy_http_downstream_rq_xx_total{envoy_response_code_class="5",envoy_http_conn_manager_prefix=~"listener-(secure|insecure)"}[5m]))
-                  - sum(rate(envoy_cluster_upstream_rq_xx_total{envoy_response_code_class="5",envoy_cluster_name=~"lucity-system/cilium-gateway-.*"}[5m]))
+                  sum(rate_prometheus(envoy_http_downstream_rq_xx_total{envoy_response_code_class="5",envoy_http_conn_manager_prefix=~"listener-(secure|insecure)"}[5m]))
+                  - sum(rate_prometheus(envoy_cluster_upstream_rq_xx_total{envoy_response_code_class="5",envoy_cluster_name=~"lucity-system/cilium-gateway-.*"}[5m]))
                   > 0.1
                 for: 5m
                 labels: { severity: critical }
@@ -371,14 +371,14 @@ victoria-metrics-alert:
               # workloads are deliberately out of scope: a customer shipping a
               # broken service is not an operator page.
               - alert: PlatformService5xxRate
-                expr: sum by (envoy_cluster_name) (rate(envoy_cluster_upstream_rq_xx_total{envoy_response_code_class="5",envoy_cluster_name=~"lucity-system/cilium-gateway-.*/lucity-system_.*"}[5m])) > 0.1
+                expr: sum by (envoy_cluster_name) (rate_prometheus(envoy_cluster_upstream_rq_xx_total{envoy_response_code_class="5",envoy_cluster_name=~"lucity-system/cilium-gateway-.*/lucity-system_.*"}[5m])) > 0.1
                 for: 10m
                 labels: { severity: warning }
                 annotations:
                   summary: "Platform service 5xx: {{ $labels.envoy_cluster_name }} ({{ $value | humanize }} req/s)"
               # TLS handshake errors — cert/SNI mismatch, expired cert, or Cilium L4 issue.
               - alert: GatewayTLSHandshakeErrors
-                expr: sum(rate(envoy_listener_ssl_connection_error_total[5m])) > 0.5
+                expr: sum(rate_prometheus(envoy_listener_ssl_connection_error_total[5m])) > 0.5
                 for: 10m
                 labels: { severity: warning }
                 annotations:
@@ -387,7 +387,7 @@ victoria-metrics-alert:
               # blocking, wrong port. Scoped to platform services for the same
               # reason as PlatformService5xxRate above.
               - alert: PlatformServiceConnectFail
-                expr: sum by (envoy_cluster_name) (rate(envoy_cluster_upstream_cx_connect_fail_total{envoy_cluster_name=~"lucity-system/cilium-gateway-.*/lucity-system_.*"}[5m])) > 0.1
+                expr: sum by (envoy_cluster_name) (rate_prometheus(envoy_cluster_upstream_cx_connect_fail_total{envoy_cluster_name=~"lucity-system/cilium-gateway-.*/lucity-system_.*"}[5m])) > 0.1
                 for: 5m
                 labels: { severity: warning }
                 annotations:
@@ -478,9 +478,9 @@ otelCollector:
     resources:
       requests:
         cpu: 50m
-        memory: 128Mi
-      limits:
         memory: 512Mi
+      limits:
+        memory: 1Gi
 
 # -- Grafana — UI for VictoriaMetrics + VictoriaLogs
 grafana:
