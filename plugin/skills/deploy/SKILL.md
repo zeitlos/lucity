@@ -62,7 +62,8 @@ Every service must satisfy these (details in `references/lucity-platform.md`):
 
 - **Port**: the platform injects a `PORT` env var. The app MUST bind `0.0.0.0:$PORT`, not a hardcoded port or `localhost`. Most Railpack providers wire this automatically; verify the app respects `$PORT`.
 - **Config via env only**: no config files baked with secrets; read everything from env vars.
-- **Ephemeral filesystem**: containers lose local writes on restart. Persistent data → a volume (`create_volume`) or a bucket (`create_bucket`). Never assume local disk survives.
+- **Ephemeral filesystem**: containers lose local writes on restart. Persistent data → a volume (`create_volume`, **10Gi minimum**, one service per volume, single replica) or a bucket (`create_bucket`, for anything that scales). Never assume local disk survives.
+- **Service-to-service links use the internal endpoint**: read the `type: INTERNAL` host from `get_project` (or the `add_service` result) plus the service `port`, and set it as a literal variable on the consumer (e.g. `API_URL=http://lucity-app-api.<namespace>.svc.cluster.local:3000`). Never build the hostname by hand (the namespace carries a hash) and never expect cross-environment reach: internal DNS only works within one environment.
 - **Env files are a config manifest, not a security task**: read a committed `.env`, `env.zip`, or `.env.example` for the KEYS it lists (which variables the app expects) so you know what to wire from platform resources and what to ask the user for. Never trust or copy the values. Do NOT hunt for or audit leaked secrets: the platform scans every release automatically (see §5) and flags them; duplicating that locally is wasted effort.
 - **Wire by reference**: after `create_database`/`create_kv_store`/`create_bucket`, read the generated credential variables with `list_variables` and reference them in `set_variables` (ref, not literal). Never copy a credential value into a literal string.
 
@@ -158,7 +159,7 @@ Services: `add_service` (accepts initial variables — put build-time `RAILPACK_
 build sees them; optional `cpu`/`memory` to size it), `configure_service` (start command, resources),
 `set_variables`, `list_variables`.
 Resources: `create_database` (optional `cpu`/`memory`), `create_kv_store`, `create_bucket`,
-`create_volume`, `get_credentials`, `run_sql`.
+`create_volume` (10Gi to 1Ti; optional `mount_service` + `mount_path`), `get_credentials`, `run_sql`.
 Deploy: `deploy`, `get_deploy_status`, `get_logs`, `rollback`, `add_domain`.
 
 There are no delete tools — the user removes projects, services, and resources from the dashboard.
@@ -166,5 +167,5 @@ There are no delete tools — the user removes projects, services, and resources
 ## References
 
 - `references/railpack-config.md` — global Railpack config (build/install/start/packages, `railpack.json`, Procfile priority).
-- `references/lucity-platform.md` — PORT injection, resource-quantity format, ID formats, variable refs, public DB access, rollout failure reasons.
+- `references/lucity-platform.md` — PORT injection, resource-quantity format, ID formats, variable refs, public DB access, rollout failure reasons, internal DNS shape, volume rules (10Gi floor).
 - `references/<provider>.md` — per-language detection, version resolution, start command, config variables, and common failure fixes. One file per Railpack provider.
