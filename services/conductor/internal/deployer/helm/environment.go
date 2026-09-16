@@ -2,6 +2,7 @@ package helm
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"strconv"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/deployer/values"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 	"helm.sh/helm/v3/pkg/action"
+	"helm.sh/helm/v3/pkg/storage/driver"
 )
 
 type environmentClient struct {
@@ -84,6 +86,10 @@ func (e *environmentClient) Reconcile(ctx context.Context, id platform.Environme
 	}
 
 	metadata, err := action.NewGetMetadata(config).Run(releaseName)
+
+	if errors.Is(err, driver.ErrReleaseNotFound) {
+		return "", nil
+	}
 
 	if err != nil {
 		return "", err
