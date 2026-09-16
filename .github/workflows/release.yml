@@ -200,7 +200,11 @@ jobs:
 
       - name: Build dependencies
         if: matrix.chart == 'lucity-infra'
-        run: helm dependency build charts/${{ matrix.chart }}
+        run: |
+          helm dependency list charts/${{ matrix.chart }} | awk 'NR > 1 && NF { print $3 }' | sort -u | while read -r url; do
+            helm repo add "$(echo "$url" | sed -E 's#^https?://##; s#[^A-Za-z0-9]+#-#g; s#-+$##')" "$url"
+          done
+          helm dependency build charts/${{ matrix.chart }}
 
       - name: Package chart
         run: helm package charts/${{ matrix.chart }} --destination .helm-packages
