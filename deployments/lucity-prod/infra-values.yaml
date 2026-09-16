@@ -278,6 +278,10 @@ otelCollector:
   deployment:
     enabled: true
 
+# Hetzner Cloud exporter (LB connection ceiling + node egress); token lives in infra-secrets.yaml
+hcloud-exporter:
+  enabled: true
+
 grafana:
   enabled: true
   deploymentStrategy:

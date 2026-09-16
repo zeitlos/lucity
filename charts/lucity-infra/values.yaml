@@ -404,6 +404,33 @@ victoria-metrics-alert:
                 labels: { severity: warning }
                 annotations:
                   summary: "Cannot connect to platform service {{ $labels.envoy_cluster_name }} ({{ $value | humanize }}/s)"
+          - name: load-balancers
+            rules:
+              # Hard per-type ceiling (lb11 = 10,000) past which new connections
+              # are dropped. 50% leaves time to change the LB type in place.
+              # Relative to max so it follows tier changes.
+              - alert: LoadBalancerNearConnectionLimit
+                expr: hcloud_loadbalancer_open_connections / hcloud_loadbalancer_max_open_connections > 0.5
+                for: 5m
+                labels: { severity: critical }
+                annotations:
+                  summary: "Load balancer {{ $labels.name }} is at {{ $value | humanizePercentage }} of its connection ceiling — new connections are dropped at 100%"
+              # Targets are nodes, TCP-checked on the NodePort every 15s with
+              # 3 retries; 5m rides out a plain reboot.
+              - alert: LoadBalancerTargetUnhealthy
+                expr: hcloud_loadbalancer_targets_unhealthy > 0
+                for: 5m
+                labels: { severity: warning }
+                annotations:
+                  summary: "Load balancer {{ $labels.name }} has {{ $value }} unhealthy target(s)"
+              # An API failure (bad token, outage) drops the hcloud_* series
+              # silently instead of erroring. 5 = half the one-minute scrapes.
+              - alert: HcloudApiRequestsFailing
+                expr: increase_prometheus(hcloud_request_failures_total[10m]) >= 5
+                for: 5m
+                labels: { severity: warning }
+                annotations:
+                  summary: "Hetzner API requests failing for the {{ $labels.collector }} collector ({{ $value | humanize }} in 10m) — load balancer alerts are blind"
   alertmanager:
     enabled: false
     extraVolumes:
@@ -493,6 +520,25 @@ otelCollector:
         memory: 512Mi
       limits:
         memory: 1Gi
+
+# -- Hetzner Cloud exporter — load balancer saturation and server traffic from the Hetzner API
+hcloud-exporter:
+  enabled: false
+  collector:
+    loadBalancers: true
+    servers: true
+    serverMetrics: false
+    pricing: false
+    images: false
+    volumes: false
+    floatingIps: false
+    sshKeys: false
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      memory: 128Mi
 
 # -- Grafana — UI for VictoriaMetrics + VictoriaLogs
 grafana:

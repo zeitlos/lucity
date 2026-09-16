@@ -28,3 +28,8 @@ dependencies:
   version: 41.0.1
 digest: sha256:2df38156ab385937f7124633e64abec143e2f37a8501135e297a57abb34e8137
 generated: "2026-08-07T11:10:31.377939+02:00"
+- name: hcloud-exporter
+  repository: https://promhippie.github.io/charts
+  version: 4.28.0
+digest: sha256:f7449ca728644a18c38839b3c5bd32316ade242f7fd1f2f8bcb585e62eadc34f
+generated: "2026-09-16T15:00:45.689261+02:00"

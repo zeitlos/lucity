@@ -42,3 +42,7 @@ dependencies:
     version: "41.1.1"
     repository: "https://traefik.github.io/charts"
     condition: traefik.enabled
+  - name: hcloud-exporter
+    version: "4.28.0"
+    repository: "https://promhippie.github.io/charts"
+    condition: hcloud-exporter.enabled
