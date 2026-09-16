@@ -198,13 +198,11 @@ jobs:
           echo "Chart.yaml after version update:"
           cat "${CHART_DIR}/Chart.yaml"
 
-      - name: Build dependencies
+      - name: Update dependencies
         if: matrix.chart == 'lucity-infra'
         run: |
-          helm dependency list charts/${{ matrix.chart }} | awk 'NR > 1 && NF { print $3 }' | sort -u | while read -r url; do
-            helm repo add "$(echo "$url" | sed -E 's#^https?://##; s#[^A-Za-z0-9]+#-#g; s#-+$##')" "$url"
-          done
-          helm dependency build charts/${{ matrix.chart }}
+          helm dependency update charts/${{ matrix.chart }}
+          git diff --exit-code -I '^generated:' -- charts/${{ matrix.chart }}/Chart.lock
 
       - name: Package chart
         run: helm package charts/${{ matrix.chart }} --destination .helm-packages
