@@ -198,9 +198,9 @@ jobs:
           echo "Chart.yaml after version update:"
           cat "${CHART_DIR}/Chart.yaml"
 
-      - name: Update dependencies
+      - name: Build dependencies
         if: matrix.chart == 'lucity-infra'
-        run: helm dependency update charts/${{ matrix.chart }}
+        run: helm dependency build charts/${{ matrix.chart }}
 
       - name: Package chart
         run: helm package charts/${{ matrix.chart }} --destination .helm-packages
