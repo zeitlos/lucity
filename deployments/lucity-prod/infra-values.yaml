@@ -76,6 +76,10 @@ zot:
     # Generate: htpasswd -bBn builder "$(openssl rand -hex 16)" > htpasswd
     #           htpasswd -bBn reader "$(openssl rand -hex 16)" >> htpasswd
     htpasswd: ""  # --set zot.configFiles.htpasswd
+  resources:
+    requests:
+      cpu: 100m
+      memory: 4Gi
 
 gateway:
   className: cilium
@@ -241,9 +245,9 @@ victoria-metrics-single:
     resources:
       requests:
         cpu: 200m
-        memory: 512Mi
-      limits:
         memory: 2Gi
+      limits:
+        memory: 4Gi
 
 victoria-logs-single:
   enabled: true
