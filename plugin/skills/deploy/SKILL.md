@@ -134,7 +134,9 @@ the platform; code lives in the repo.
 
 ## 7. Verify & report
 
-- `add_domain` to get a generated domain for the web service.
+- `add_domain` to get a generated domain for the web service. For a custom apex domain
+  (`example.com`) pass `redirect_to: www.example.com` unless the user's DNS provider supports ALIAS
+  records; see `references/lucity-platform.md`.
 - `curl` the endpoint until it returns 200 (TLS provisioning can take ~1 minute; retry).
 - Report back:
   - Live URL(s).
@@ -167,5 +169,5 @@ There are no delete tools — the user removes projects, services, and resources
 ## References
 
 - `references/railpack-config.md` — global Railpack config (build/install/start/packages, `railpack.json`, Procfile priority).
-- `references/lucity-platform.md` — PORT injection, resource-quantity format, ID formats, variable refs, public DB access, rollout failure reasons, internal DNS shape, volume rules (10Gi floor).
+- `references/lucity-platform.md` — PORT injection, resource-quantity format, ID formats, variable refs, public DB access, rollout failure reasons, internal DNS shape, volume rules (10Gi floor), custom domains (apex redirect vs ALIAS).
 - `references/<provider>.md` — per-language detection, version resolution, start command, config variables, and common failure fixes. One file per Railpack provider.
