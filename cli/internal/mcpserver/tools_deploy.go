@@ -36,7 +36,7 @@ func (s *server) registerDeploy(m *mcp.Server) {
 
 	mcp.AddTool(m, &mcp.Tool{
 		Name:        "add_domain",
-		Description: "Add a domain to a service. Without hostname a platform subdomain is generated. With hostname a custom domain is added; the response includes the DNS records to create and the TLS provisioning status.",
+		Description: "Add a domain to a service. Without hostname a platform subdomain is generated. With hostname a custom domain is added; the response includes the DNS records to create and the TLS provisioning status. An apex domain (example.com) either redirects to a subdomain via redirect_to (usually www.example.com, added automatically) or is served directly, which needs an ALIAS record and therefore a DNS provider with ALIAS, ANAME or CNAME flattening support.",
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: ptr(false)},
 	}, s.addDomain)
 }
@@ -102,7 +102,7 @@ func (s *server) getDeployStatus(ctx context.Context, _ *mcp.CallToolRequest, in
 	const query = `query($id: ServiceID!) {
   service(id: $id) {
     id status
-    endpoints { host protocol type tls }
+    endpoints { host protocol type tls redirectTo }
     releases {
       id status createdAt
       trigger { kind }
@@ -265,8 +265,9 @@ func (s *server) rollback(ctx context.Context, _ *mcp.CallToolRequest, input rol
 }
 
 type addDomainInput struct {
-	Service  string `json:"service" jsonschema:"service id (workspace/project/environment/service)"`
-	Hostname string `json:"hostname,omitempty" jsonschema:"custom hostname (4-253 chars); omit to generate a platform subdomain"`
+	Service    string `json:"service" jsonschema:"service id (workspace/project/environment/service)"`
+	Hostname   string `json:"hostname,omitempty" jsonschema:"custom hostname (4-253 chars); omit to generate a platform subdomain"`
+	RedirectTo string `json:"redirect_to,omitempty" jsonschema:"another domain of the same service that hostname should permanently redirect to, e.g. www.example.com for the apex example.com; added automatically if missing. Re-adding an existing hostname without it clears the redirect"`
 }
 
 func (s *server) addDomain(ctx context.Context, _ *mcp.CallToolRequest, input addDomainInput) (*mcp.CallToolResult, any, error) {
@@ -275,7 +276,7 @@ func (s *server) addDomain(ctx context.Context, _ *mcp.CallToolRequest, input ad
 		return nil, nil, err
 	}
 
-	const endpointFields = `endpoints { host protocol type tls dns { status requiredRecords { type host value } } }`
+	const endpointFields = `endpoints { host protocol type tls redirectTo dns { status requiredRecords { type host value } } }`
 
 	if input.Hostname == "" {
 		mutation := `mutation($service: ServiceID!) { generateDomain(service: $service) { id ` + endpointFields + ` } }`
@@ -288,15 +289,19 @@ func (s *server) addDomain(ctx context.Context, _ *mcp.CallToolRequest, input ad
 		return jsonResult(map[string]any{"service": out.GenerateDomain})
 	}
 
-	mutation := `mutation($service: ServiceID!, $hostname: String!) { addCustomDomain(service: $service, hostname: $hostname) { id ` + endpointFields + ` } }`
+	mutation := `mutation($service: ServiceID!, $hostname: String!, $redirectTo: String) { addCustomDomain(service: $service, hostname: $hostname, redirectTo: $redirectTo) { id ` + endpointFields + ` } }`
+	variables := map[string]any{"service": serviceID, "hostname": input.Hostname}
+	if input.RedirectTo != "" {
+		variables["redirectTo"] = input.RedirectTo
+	}
 	var out struct {
 		AddCustomDomain any `json:"addCustomDomain"`
 	}
-	if err := s.query(ctx, "add_domain", mutation, map[string]any{"service": serviceID, "hostname": input.Hostname}, &out); err != nil {
+	if err := s.query(ctx, "add_domain", mutation, variables, &out); err != nil {
 		return nil, nil, err
 	}
 	return jsonResult(map[string]any{
 		"service": out.AddCustomDomain,
-		"note":    "create the DNS records shown under dns.requiredRecords, then poll get_deploy_status for TLS to become ACTIVE",
+		"note":    "create the DNS records shown under dns.requiredRecords for every endpoint (ALIAS needs a DNS provider with ALIAS, ANAME or CNAME flattening support), then poll get_deploy_status for TLS to become ACTIVE. When redirectTo is set, report the redirect target as the live URL",
 	})
 }
