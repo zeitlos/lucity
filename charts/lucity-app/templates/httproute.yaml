@@ -35,7 +35,6 @@ spec:
     - filters:
         - type: RequestRedirect
           requestRedirect:
-            scheme: https
             hostname: {{ $domain.redirectTo | quote }}
             statusCode: 301
     {{- else }}
