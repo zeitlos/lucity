@@ -24,6 +24,15 @@
 #             issuerRef:
 #               kind: ClusterIssuer
 #               name: letsencrypt-http01
+#       - host: example.com
+#         attached: true
+#         redirectTo: www.example.com         # 301 to another domain of this service instead of routing
+#         listenerSet:
+#           enabled: true
+#           certificate:
+#             issuerRef:
+#               kind: ClusterIssuer
+#               name: letsencrypt-http01
 #     resources:                              # optional — overrides namespace LimitRange
 #       requests: { cpu: 100m, memory: 128Mi }
 #       limits:   { cpu: 500m, memory: 256Mi }

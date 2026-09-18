@@ -189,8 +189,8 @@ func (r *mutationResolver) GenerateDomain(ctx context.Context, service platform.
 }
 
 // AddCustomDomain is the resolver for the addCustomDomain field.
-func (r *mutationResolver) AddCustomDomain(ctx context.Context, service platform.ServiceID, hostname string) (*model.Service, error) {
-	result, err := r.Conductor.AddCustomDomain(ctx, service, hostname)
+func (r *mutationResolver) AddCustomDomain(ctx context.Context, service platform.ServiceID, hostname string, redirectTo *string) (*model.Service, error) {
+	result, err := r.Conductor.AddCustomDomain(ctx, service, hostname, to.Val(redirectTo))
 
 	if err != nil {
 		return nil, err

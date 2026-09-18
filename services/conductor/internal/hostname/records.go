@@ -7,7 +7,7 @@ import (
 
 const verifyRecordPrefix = "_lucity-verify."
 
-func (c *Client) DNSRecords(workspace, host string) []DNSRecord {
+func (c *Client) DNSRecords(workspace, host string, redirect bool) []DNSRecord {
 	if c.IsPlatform(host) || c.IsInternal(host) {
 		return nil
 	}
@@ -22,11 +22,21 @@ func (c *Client) DNSRecords(workspace, host string) []DNSRecord {
 		},
 	}
 
-	if isApex(host) {
+	if isApex(host) && redirect {
 		records = append(records, DNSRecord{
 			Type:  A,
 			Host:  host,
 			Value: c.customApexIP,
+		})
+
+		return records
+	}
+
+	if isApex(host) {
+		records = append(records, DNSRecord{
+			Type:  ALIAS,
+			Host:  host,
+			Value: c.customCNAMETarget,
 		})
 
 		return records

@@ -303,12 +303,13 @@ type EjectArtifact struct {
 }
 
 type Endpoint struct {
-	Host     string       `json:"host"`
-	Port     int          `json:"port"`
-	Protocol Protocol     `json:"protocol"`
-	Type     EndpointType `json:"type"`
-	DNS      *DNSState    `json:"dns"`
-	TLS      TLSStatus    `json:"tls"`
+	Host       string       `json:"host"`
+	Port       int          `json:"port"`
+	Protocol   Protocol     `json:"protocol"`
+	Type       EndpointType `json:"type"`
+	DNS        *DNSState    `json:"dns"`
+	TLS        TLSStatus    `json:"tls"`
+	RedirectTo *string      `json:"redirectTo,omitempty"`
 }
 
 type Environment struct {
@@ -1124,17 +1125,19 @@ const (
 	DNSRecordTypeTxt   DNSRecordType = "TXT"
 	DNSRecordTypeCname DNSRecordType = "CNAME"
 	DNSRecordTypeA     DNSRecordType = "A"
+	DNSRecordTypeAlias DNSRecordType = "ALIAS"
 )
 
 var AllDNSRecordType = []DNSRecordType{
 	DNSRecordTypeTxt,
 	DNSRecordTypeCname,
 	DNSRecordTypeA,
+	DNSRecordTypeAlias,
 }
 
 func (e DNSRecordType) IsValid() bool {
 	switch e {
-	case DNSRecordTypeTxt, DNSRecordTypeCname, DNSRecordTypeA:
+	case DNSRecordTypeTxt, DNSRecordTypeCname, DNSRecordTypeA, DNSRecordTypeAlias:
 		return true
 	}
 	return false

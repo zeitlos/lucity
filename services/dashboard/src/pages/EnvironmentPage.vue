@@ -30,6 +30,7 @@ const EnvironmentDocument = graphql(`
           port
           protocol
           type
+          redirectTo
           dns {
             status
             requiredRecords {

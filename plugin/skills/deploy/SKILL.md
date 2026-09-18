@@ -167,5 +167,5 @@ There are no delete tools — the user removes projects, services, and resources
 ## References
 
 - `references/railpack-config.md` — global Railpack config (build/install/start/packages, `railpack.json`, Procfile priority).
-- `references/lucity-platform.md` — PORT injection, resource-quantity format, ID formats, variable refs, public DB access, rollout failure reasons, internal DNS shape, volume rules (10Gi floor).
+- `references/lucity-platform.md` — PORT injection, resource-quantity format, ID formats, variable refs, public DB access, rollout failure reasons, internal DNS shape, volume rules (10Gi floor), custom domains (apex redirect vs ALIAS).
 - `references/<provider>.md` — per-language detection, version resolution, start command, config variables, and common failure fixes. One file per Railpack provider.

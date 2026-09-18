@@ -12,6 +12,7 @@ type Endpoint struct {
 	Host               string
 	Port               int
 	Protocol           platform.Protocol
+	RedirectTo         string
 	RequiredDNSRecords []hostname.DNSRecord
 	DNSStatus          hostname.DNSStatus
 	TLSStatus          hostname.TLSStatus
@@ -35,7 +36,8 @@ func (c *Client) Endpoints(ctx context.Context, serviceID ServiceID, endpoints [
 			Host:               endpoint.Host,
 			Port:               endpoint.Port,
 			Protocol:           endpoint.Protocol,
-			RequiredDNSRecords: c.hostname.DNSRecords(serviceID.Workspace, endpoint.Host),
+			RedirectTo:         endpoint.RedirectTo,
+			RequiredDNSRecords: c.hostname.DNSRecords(serviceID.Workspace, endpoint.Host, endpoint.RedirectTo != ""),
 			Type:               CustomDomainEndpoint,
 		}
 

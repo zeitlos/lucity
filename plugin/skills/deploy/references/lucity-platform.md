@@ -84,8 +84,54 @@ Use it for one-off imports, then rely on in-cluster refs for the running app.
 
 Bound remediation to 3 iterations, then report honestly rather than looping.
 
-## Ephemeral filesystem
+## Internal networking (service to service)
+
+Every service with a port gets a cluster-internal endpoint. Its shape is
+
+```
+lucity-app-<service>.<namespace>.svc.cluster.local:<port>
+```
+
+The namespace is `<workspace>-<project>-<environment>-<10-char hash>`; the hash is not derivable by
+hand, so **never construct this hostname yourself**. Read it from `get_project` (or the `add_service`
+result): each service lists `endpoints`, and the one with `type: INTERNAL` carries the host, while the
+service's `port` is the port. Wire it into the consumer as a literal variable, e.g.
+`API_URL=http://lucity-app-api.<namespace>.svc.cluster.local:3000`. Inside the same environment the
+short name `lucity-app-<service>:<port>` resolves too; the fully qualified form is the safe default.
+
+Internal reach is **per environment**: a NetworkPolicy blocks traffic between environments and
+projects, so `development` cannot call `production`'s API by cluster DNS. Cross-environment calls go
+through a public domain. Internal endpoints are plain HTTP/TCP, no TLS.
+
+Databases, key-value stores, and buckets are different: their hosts arrive via variable refs (see
+above), not via endpoints. Only service-to-service links use the internal endpoint.
+
+## Ephemeral filesystem and volumes
 
 Container disk is ephemeral: local writes vanish on restart, redeploy, or reschedule. Persistent data
 needs a volume (`create_volume`) or an S3-compatible bucket (`create_bucket`). Never assume a file
 written at runtime survives.
+
+Volume rules, all enforced at creation or mount time:
+
+- **Size is 10Gi to 1Ti.** Anything smaller is rejected (`volume size must be between 10Gi and 1Ti`),
+  so a tiny config or upload directory still costs 10Gi. Default to `10Gi` unless the data is larger.
+- **Grow-only.** A volume can be expanded later, never shrunk.
+- **One service, one mount path.** A volume mounts into exactly one service at exactly one path; that
+  service must run a single replica with autoscaling off. Web services that scale horizontally should
+  use a bucket instead.
+- **Mounting rolls out with the current image** (no rebuild). `create_volume` with `mount_service` +
+  `mount_path` provisions and mounts in one call.
+- **The mount root ships with `lost+found`.** Tools that insist on an empty data directory (MySQL
+  `--initialize`, some migrators) must point at a subdirectory of the mount, never the mount root.
+- **Ownership follows the service `user`.** For prebuilt images, pass `user` on `add_service` (e.g.
+  `999` for postgres/mysql/redis images, `1000` for node-based images); the volume is then writable by
+  that uid. Containers run with all capabilities dropped, so an entrypoint that `chown`s the data dir
+  fails unless the uid already matches.
+
+## Custom domains
+
+Subdomains need `TXT` + `CNAME`, which every DNS provider supports. An apex (`example.com`) needs
+either `redirect_to: www.example.com` (add `www` first; records: `A` for the apex, `CNAME` for the target) or, without
+a redirect, an `ALIAS` record, which only providers with ALIAS/ANAME/CNAME flattening offer
+(Cloudflare, Route 53, DNSimple, Porkbun). When the provider is unknown, use the redirect.
