@@ -18,14 +18,6 @@ type Volume struct {
 }
 
 func CreateVolume(env *Env, name string, size resource.Quantity) error {
-	if !isValidName(name) {
-		return fmt.Errorf("invalid volume name %q", name)
-	}
-
-	if size.Cmp(minVolumeSize) < 0 || size.Cmp(maxVolumeSize) > 0 {
-		return fmt.Errorf("volume size must be between %s and %s", minVolumeSize.String(), maxVolumeSize.String())
-	}
-
 	if _, ok := env.Volumes[name]; ok {
 		return nil
 	}
@@ -47,10 +39,6 @@ func ExpandVolume(env *Env, name string, size resource.Quantity) error {
 
 	if !ok {
 		return fmt.Errorf("volume %q not found", name)
-	}
-
-	if size.Cmp(minVolumeSize) < 0 || size.Cmp(maxVolumeSize) > 0 {
-		return fmt.Errorf("volume size must be between %s and %s", minVolumeSize.String(), maxVolumeSize.String())
 	}
 
 	current, err := resource.ParseQuantity(volume.Size)
@@ -86,18 +74,10 @@ func DeleteVolume(env *Env, name string) error {
 }
 
 func MountVolume(env *Env, volumeName, serviceName, path string) error {
-	if _, ok := env.Volumes[volumeName]; !ok {
-		return fmt.Errorf("volume %q not found", volumeName)
-	}
-
 	svc, ok := env.Services[serviceName]
 
 	if !ok {
 		return fmt.Errorf("service %q not found", serviceName)
-	}
-
-	if !isValidMountPath(path) {
-		return fmt.Errorf("invalid mount path %q", path)
 	}
 
 	if existing, mounted := svc.VolumeMounts[volumeName]; mounted {
@@ -106,26 +86,6 @@ func MountVolume(env *Env, volumeName, serviceName, path string) error {
 		}
 
 		return fmt.Errorf("volume %q is already mounted on service %q at %q", volumeName, serviceName, existing)
-	}
-
-	for otherService, other := range env.Services {
-		if _, mounted := other.VolumeMounts[volumeName]; mounted {
-			return fmt.Errorf("volume %q is already mounted by service %q", volumeName, otherService)
-		}
-	}
-
-	if svc.Replicas > 1 {
-		return fmt.Errorf("service %q runs %d replicas; scale it to a single replica before mounting a volume", serviceName, svc.Replicas)
-	}
-
-	if svc.Autoscaling != nil && svc.Autoscaling.Enabled {
-		return fmt.Errorf("service %q has autoscaling enabled; disable it before mounting a volume", serviceName)
-	}
-
-	for existingVolume, existingPath := range svc.VolumeMounts {
-		if existingPath == path {
-			return fmt.Errorf("service %q already mounts volume %q at %q", serviceName, existingVolume, path)
-		}
 	}
 
 	return mutateService(env, serviceName, func(s *Service) {

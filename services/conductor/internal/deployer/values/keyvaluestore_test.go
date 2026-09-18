@@ -62,7 +62,11 @@ func TestCreateKeyValueStoreIdempotent(t *testing.T) {
 func TestCreateKeyValueStoreInvalidName(t *testing.T) {
 	env := New()
 
-	if err := CreateKeyValueStore(env, "Invalid_Name", KeyValueStoreSpec{}); err == nil {
+	if err := CreateKeyValueStore(env, "Invalid_Name", KeyValueStoreSpec{}); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := Validate(env); err == nil {
 		t.Fatal("expected error for invalid key-value store name")
 	}
 }

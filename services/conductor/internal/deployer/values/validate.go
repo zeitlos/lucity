@@ -67,6 +67,10 @@ func Validate(env *Env) error {
 		if err := validateDatabaseBackup(name, pg); err != nil {
 			return err
 		}
+
+		if pg.PublicHost != "" && !isValidHostname(pg.PublicHost) {
+			return fmt.Errorf("database %q: invalid public hostname %q", name, pg.PublicHost)
+		}
 	}
 
 	if err := validateBackupStore(env.Databases.BackupStore); err != nil {
@@ -100,10 +104,18 @@ func Validate(env *Env) error {
 			return err
 		}
 
-		if _, err := resource.ParseQuantity(vol.Size); err != nil {
+		size, err := resource.ParseQuantity(vol.Size)
+
+		if err != nil {
 			return fmt.Errorf("volume %q: invalid size %q: %w", name, vol.Size, err)
 		}
+
+		if size.Cmp(minVolumeSize) < 0 || size.Cmp(maxVolumeSize) > 0 {
+			return fmt.Errorf("volume %q: size must be between %s and %s", name, minVolumeSize.String(), maxVolumeSize.String())
+		}
 	}
+
+	mountedBy := map[string]string{}
 
 	for k := range env.SharedVariables {
 		if !isValidVarName(k) {
@@ -132,6 +144,38 @@ func Validate(env *Env) error {
 			return err
 		}
 
+		if !isValidPort(svc.Port) {
+			return fmt.Errorf("service %q: port must be in [0, 65535]", svcName)
+		}
+
+		if svc.Replicas < 0 {
+			return fmt.Errorf("service %q: replicas must be non-negative", svcName)
+		}
+
+		if svc.Autoscaling != nil {
+			if svc.Autoscaling.MinReplicas < 0 || svc.Autoscaling.MaxReplicas < svc.Autoscaling.MinReplicas {
+				return fmt.Errorf("service %q: invalid autoscaling range: min=%d max=%d", svcName, svc.Autoscaling.MinReplicas, svc.Autoscaling.MaxReplicas)
+			}
+
+			if svc.Autoscaling.TargetCPU <= 0 || svc.Autoscaling.TargetCPU > 100 {
+				return fmt.Errorf("service %q: targetCPU must be in (0, 100]", svcName)
+			}
+		}
+
+		if err := validateStartCommand(svc.Command); err != nil {
+			return fmt.Errorf("service %q: %w", svcName, err)
+		}
+
+		if err := validateBranch(svc.Annotations[annotationSourceBranch]); err != nil {
+			return fmt.Errorf("service %q: %w", svcName, err)
+		}
+
+		if svc.HealthCheck != nil {
+			if err := validateHealthCheck(*svc.HealthCheck); err != nil {
+				return fmt.Errorf("service %q: %w", svcName, err)
+			}
+		}
+
 		for k := range svc.Env {
 			if !isValidVarName(k) {
 				return fmt.Errorf("service %q: invalid variable name %q", svcName, k)
@@ -141,6 +185,10 @@ func Validate(env *Env) error {
 		for _, domain := range svc.Domains {
 			if !isValidHostname(domain.Host) {
 				return fmt.Errorf("service %q: invalid hostname %q", svcName, domain.Host)
+			}
+
+			if domain.ListenerSet != nil && len(domain.Host)+len(tlsSecretSuffix) > maxHostLen {
+				return fmt.Errorf("service %q: hostname %q is too long to get its own listener", svcName, domain.Host)
 			}
 
 			if domain.RedirectTo != "" {
@@ -160,6 +208,18 @@ func Validate(env *Env) error {
 			}
 		}
 
+		if len(svc.VolumeMounts) > 0 {
+			if svc.Replicas > 1 {
+				return fmt.Errorf("service %q mounts a volume and cannot scale beyond a single replica", svcName)
+			}
+
+			if svc.Autoscaling != nil && svc.Autoscaling.Enabled {
+				return fmt.Errorf("service %q mounts a volume and cannot use autoscaling", svcName)
+			}
+		}
+
+		mountPaths := map[string]string{}
+
 		for volName, path := range svc.VolumeMounts {
 			if _, ok := env.Volumes[volName]; !ok {
 				return fmt.Errorf("service %q: mounts unknown volume %q", svcName, volName)
@@ -168,6 +228,18 @@ func Validate(env *Env) error {
 			if !isValidMountPath(path) {
 				return fmt.Errorf("service %q: invalid mount path %q for volume %q", svcName, path, volName)
 			}
+
+			if other, ok := mountPaths[path]; ok {
+				return fmt.Errorf("service %q: volumes %q and %q share the mount path %q", svcName, other, volName, path)
+			}
+
+			mountPaths[path] = volName
+
+			if other, ok := mountedBy[volName]; ok && other != svcName {
+				return fmt.Errorf("volume %q is mounted by services %q and %q", volName, other, svcName)
+			}
+
+			mountedBy[volName] = svcName
 		}
 
 		if err := validateSecurityContext(svc.RunAsUser, svc.RunAsGroup, svc.FsGroup); err != nil {
