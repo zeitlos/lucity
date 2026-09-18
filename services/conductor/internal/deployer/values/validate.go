@@ -36,6 +36,9 @@ var (
 	maxServerNameLen      = 255
 )
 
+// Validate checks every invariant of env as a whole, whether the state was
+// produced by a mutator, by Reconcile, or by hand. Mutators do not repeat
+// these checks.
 func Validate(env *Env) error {
 	if err := validateLabels("commonLabels", env.CommonLabels); err != nil {
 		return err
