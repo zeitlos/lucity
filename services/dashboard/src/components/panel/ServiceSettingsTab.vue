@@ -1,17 +1,19 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, nextTick, type ComponentPublicInstance } from 'vue';
 import { useMutation, useApolloClient } from '@vue/apollo-composable';
 import {
   Trash2, Copy, X, Globe, Plus, Minus, RefreshCw,
   ChevronDown, Network, ExternalLink, Scaling, GitBranch, Play, Zap, ArrowRight,
-  Cpu, MemoryStick, Leaf, ShieldCheck, Check, ChevronsUpDown, Activity, UserCog,
+  Cpu, MemoryStick, Leaf, ShieldCheck, Check, ChevronsUpDown, Activity, UserCog, ClipboardList,
 } from '@lucide/vue';
 import GithubIcon from '@/components/GithubIcon.vue';
+import { getDomain } from 'tldts';
 import { graphql } from '@/gql';
 import {
   type SetServiceScalingInput,
   type ResourcesInput,
   type HealthCheckInput,
+  DnsRecordType,
   DnsStatus,
   EndpointType,
   Protocol,
@@ -42,6 +44,7 @@ const GenerateDomainDocument = graphql(`
         port
         type
         protocol
+        redirectTo
         dns {
           status
           requiredRecords {
@@ -56,14 +59,15 @@ const GenerateDomainDocument = graphql(`
 `);
 
 const AddCustomDomainDocument = graphql(`
-  mutation AddCustomDomain($service: ServiceID!, $hostname: String!) {
-    addCustomDomain(service: $service, hostname: $hostname) {
+  mutation AddCustomDomain($service: ServiceID!, $hostname: String!, $redirectTo: String) {
+    addCustomDomain(service: $service, hostname: $hostname, redirectTo: $redirectTo) {
       id
       endpoints {
         host
         port
         type
         protocol
+        redirectTo
         dns {
           status
           requiredRecords {
@@ -86,6 +90,7 @@ const RemoveDomainDocument = graphql(`
         port
         type
         protocol
+        redirectTo
         dns {
           status
           requiredRecords {
@@ -198,9 +203,17 @@ const SetServiceUserDocument = graphql(`
 import { useEnvironment } from '@/composables/useEnvironment';
 import type { Endpoint, Service } from '@/composables/useEnvironment';
 import Spinner from '@/components/LoadingSpinner.vue';
-import { Status } from '@/components/ui/status';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { toast, errorToast } from '@/components/ui/sonner';
 import { Switch } from '@/components/ui/switch';
@@ -310,7 +323,11 @@ function tlsStatusColor(status: TlsStatus): string {
 }
 
 // Custom domain input
+const addingDomain = ref(false);
 const customDomainInput = ref('');
+const redirectEnabled = ref(false);
+const redirectTarget = ref('');
+const recordsHost = ref<string | null>(null);
 
 const hostnamePattern = /^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/;
 
@@ -321,23 +338,71 @@ function normalizeHostname(input: string): string {
   return h;
 }
 
+const normalizedHostname = computed(() => normalizeHostname(customDomainInput.value));
+
+const isApexInput = computed(() => {
+  const host = normalizedHostname.value;
+  return hostnamePattern.test(host) && getDomain(host, { allowPrivateDomains: true }) === host;
+});
+
+const redirectTargets = computed(() =>
+  endpoints.value.filter(e => e.type !== EndpointType.Internal && !e.redirectTo && e.host !== normalizedHostname.value),
+);
+
+const existingEndpoint = computed(() => endpoints.value.find(d => d.host === normalizedHostname.value) ?? null);
+
+const requestedRedirect = computed(() => (redirectEnabled.value ? redirectTarget.value : ''));
+
+const isDomainUpdate = computed(() => {
+  const existing = existingEndpoint.value;
+  return existing !== null && existing.type === EndpointType.Custom && (existing.redirectTo ?? '') !== requestedRedirect.value;
+});
+
 const hostnameError = computed(() => {
   const raw = customDomainInput.value.trim();
   if (!raw) return '';
   const hostname = normalizeHostname(raw);
   if (!hostnamePattern.test(hostname)) {
-    return 'Enter a valid domain (e.g. api.example.com)';
+    return 'Enter a valid domain (e.g. www.example.com)';
   }
-  if (endpoints.value.some(d => d.host === hostname)) {
+  if (existingEndpoint.value && !isDomainUpdate.value) {
     return 'This domain is already added';
   }
   return '';
 });
 
+const redirectSourceByTarget = computed(() => {
+  const sources = new Map<string, string>();
+  for (const endpoint of customEndpoints.value) {
+    if (endpoint.redirectTo) sources.set(endpoint.redirectTo, endpoint.host);
+  }
+  return sources;
+});
+
 const canAddDomain = computed(() => {
   const raw = customDomainInput.value.trim();
-  return raw.length > 0 && !hostnameError.value && !addingCustomDomain.value;
+  const redirectReady = !redirectEnabled.value || redirectTargets.value.some(e => e.host === redirectTarget.value);
+  return raw.length > 0 && !hostnameError.value && redirectReady && !addingCustomDomain.value;
 });
+
+const recordsEndpoint = computed(() => customEndpoints.value.find(e => e.host === recordsHost.value) ?? null);
+
+const domainInputRef = ref<ComponentPublicInstance | null>(null);
+
+function openAddDomain() {
+  customDomainInput.value = '';
+  redirectEnabled.value = false;
+  redirectTarget.value = '';
+  addingDomain.value = true;
+  nextTick(() => (domainInputRef.value?.$el as HTMLInputElement | undefined)?.focus());
+}
+
+function closeAddDomain() {
+  addingDomain.value = false;
+  customDomainInput.value = '';
+  redirectEnabled.value = false;
+  redirectTarget.value = '';
+}
 
 // Command override
 const customStartCommand = ref(
@@ -382,6 +447,7 @@ const { mutate: addCustomDomainMutate, loading: addingCustomDomain } = useMutati
 const { mutate: removeDomainMutate } = useMutation(RemoveDomainDocument);
 const removingHostname = ref<string | null>(null);
 const domainToRemove = ref<string | null>(null);
+const endpointToRemove = computed(() => customEndpoints.value.find(e => e.host === domainToRemove.value) ?? null);
 
 const { mutate: setServicePortMutate, loading: portSaving } = useMutation(SetServicePortDocument);
 
@@ -658,12 +724,13 @@ async function handleGenerateDomain() {
 
 async function handleAddCustomDomain() {
   const hostname = normalizeHostname(customDomainInput.value);
-  if (!hostname || hostnameError.value) return;
+  if (!hostname || !canAddDomain.value) return;
 
   try {
     const res = await addCustomDomainMutate({
       service: props.service.id,
       hostname,
+      redirectTo: redirectEnabled.value ? redirectTarget.value : null,
     });
 
     if (res?.errors?.length) {
@@ -673,7 +740,8 @@ async function handleAddCustomDomain() {
       return;
     }
 
-    customDomainInput.value = '';
+    closeAddDomain();
+    recordsHost.value = hostname;
     emit('refetch');
   } catch (e: unknown) {
     errorToast('Failed to add custom domain', { description: errorMessage(e) });
@@ -1318,21 +1386,13 @@ async function handleRemoveService() {
       <Collapsible default-open>
         <div class="overflow-hidden rounded-lg border">
           <CollapsibleTrigger class="flex w-full items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/30">
-            <Globe :size="16" class="shrink-0 text-primary" />
+            <Globe :size="16" class="shrink-0" :class="platformEndpoint ? 'text-primary' : 'text-muted-foreground'" />
             <div class="min-w-0 flex-1 text-left">
               <p class="text-sm font-medium text-foreground">Platform Domain</p>
               <p class="truncate text-xs text-muted-foreground">
                 {{ platformEndpoint ? platformEndpoint.host : 'Not configured' }}
               </p>
             </div>
-            <Status
-              v-if="platformEndpoint"
-              tone="ok"
-              class="text-[0.6rem]"
-            >
-              Active
-            </Status>
-            <Status v-else tone="neutral" class="text-[0.6rem]">Off</Status>
             <ChevronDown
               :size="14"
               class="shrink-0 text-muted-foreground transition-transform duration-200 [[data-state=open]>&]:rotate-180"
@@ -1350,53 +1410,41 @@ async function handleRemoveService() {
                   :disabled="generatingDomain"
                   @click="handleGenerateDomain"
                 >
-                  <Globe :size="14" class="mr-1.5" />
-                  {{ generatingDomain ? 'Generating...' : 'Generate Domain' }}
+                  <Plus :size="14" class="mr-1" />
+                  {{ generatingDomain ? 'Generating...' : 'Generate domain' }}
                 </Button>
               </div>
 
-              <div v-else class="space-y-2">
-                <div class="flex items-center gap-2">
+              <div v-else class="flex items-center gap-2">
+                <div class="flex min-w-0 flex-1 items-stretch overflow-hidden rounded-md border bg-muted/30">
                   <a
                     :href="domainUrl(platformEndpoint)"
                     target="_blank"
                     rel="noopener noreferrer"
-                    class="flex flex-1 items-center gap-2 rounded-md border bg-muted/50 px-3 py-2 transition-colors hover:bg-muted/80"
+                    class="flex min-w-0 flex-1 items-center gap-2 px-3 py-2 transition-colors hover:bg-muted/80"
                   >
-                    <Globe :size="14" class="shrink-0 text-muted-foreground" />
+                    <ExternalLink :size="14" class="shrink-0 text-muted-foreground" />
                     <span class="truncate font-mono text-sm hover:underline">{{ platformEndpoint.host }}</span>
-                    <ExternalLink :size="12" class="ml-auto shrink-0 text-muted-foreground" />
                   </a>
                   <Button
                     variant="ghost"
-                    size="icon"
-                    class="h-8 w-8 shrink-0"
+                    class="h-auto shrink-0 rounded-none border-l px-2.5 text-muted-foreground hover:text-foreground"
+                    title="Copy"
                     @click="copyToClipboard(platformEndpoint!.host)"
                   >
                     <Copy :size="14" />
                   </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    class="h-8 w-8 shrink-0 text-destructive"
-                    :disabled="removingHostname === platformEndpoint!.host"
-                    @click="handleRemoveDomain(platformEndpoint!.host)"
-                  >
-                    <Spinner v-if="removingHostname === platformEndpoint!.host" :size="14" />
-                    <X v-else :size="14" />
-                  </Button>
                 </div>
-                <div class="flex items-center gap-1.5 pl-1 text-xs text-muted-foreground">
-                  <span>
-                    Listens on port
-                    <span class="font-mono font-medium text-foreground">{{ platformEndpoint.port }}</span>
-                  </span>
-                  <ArrowRight :size="10" class="shrink-0" />
-                  <span>
-                    routes to port
-                    <span class="font-mono font-medium text-foreground">{{ currentPort }}</span>
-                  </span>
-                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  class="h-8 w-8 shrink-0 text-destructive"
+                  :disabled="removingHostname === platformEndpoint!.host"
+                  @click="handleRemoveDomain(platformEndpoint!.host)"
+                >
+                  <Spinner v-if="removingHostname === platformEndpoint!.host" :size="14" />
+                  <X v-else :size="14" />
+                </Button>
               </div>
             </div>
           </CollapsibleContent>
@@ -1414,12 +1462,6 @@ async function handleRemoveService() {
                 {{ customEndpoints.length }} domain{{ customEndpoints.length !== 1 ? 's' : '' }} configured
               </p>
             </div>
-            <span
-              v-if="customEndpoints.length"
-              class="flex h-5 w-5 items-center justify-center rounded-full bg-muted text-[0.6rem] font-medium text-muted-foreground"
-            >
-              {{ customEndpoints.length }}
-            </span>
             <ChevronDown
               :size="14"
               class="shrink-0 text-muted-foreground transition-transform duration-200 [[data-state=open]>&]:rotate-180"
@@ -1427,112 +1469,189 @@ async function handleRemoveService() {
           </CollapsibleTrigger>
           <CollapsibleContent>
             <div class="space-y-3 border-t px-4 py-3">
-              <div v-if="customEndpoints.length" class="space-y-3">
+              <div v-if="customEndpoints.length" class="space-y-2">
                 <div
                   v-for="endpoint in customEndpoints"
                   :key="endpoint.host"
-                  class="space-y-2 rounded-md border bg-muted/30 p-2"
+                  class="flex items-center gap-2"
                 >
-                  <div class="flex items-center gap-2">
+                  <div class="flex min-w-0 flex-1 items-stretch overflow-hidden rounded-md border bg-muted/30">
                     <a
                       :href="domainUrl(endpoint)"
                       target="_blank"
                       rel="noopener noreferrer"
-                      class="flex flex-1 items-center gap-2 rounded-md border bg-muted/50 px-3 py-2 transition-colors hover:bg-muted/80"
+                      class="flex min-w-0 flex-1 items-center gap-2 px-3 py-2 transition-colors hover:bg-muted/80"
                     >
-                      <Globe :size="14" class="shrink-0 text-muted-foreground" />
+                      <ExternalLink :size="14" class="shrink-0 text-muted-foreground" />
                       <span class="truncate font-mono text-sm hover:underline">{{ endpoint.host }}</span>
-                      <span class="ml-auto shrink-0 text-xs text-muted-foreground">:{{ endpoint.port }}</span>
-                      <ExternalLink :size="12" class="shrink-0 text-muted-foreground" />
+                      <template v-if="endpoint.redirectTo">
+                        <ArrowRight :size="12" class="shrink-0 text-muted-foreground" />
+                        <span class="truncate font-mono text-sm text-muted-foreground">{{ endpoint.redirectTo }}</span>
+                      </template>
                     </a>
                     <Button
                       variant="ghost"
-                      size="icon"
-                      class="h-8 w-8 shrink-0"
+                      class="h-auto shrink-0 rounded-none border-l px-2.5 text-muted-foreground hover:text-foreground"
+                      title="Copy"
                       @click="copyToClipboard(endpoint.host)"
                     >
                       <Copy :size="14" />
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      class="h-8 w-8 shrink-0 text-destructive"
-                      :disabled="removingHostname === endpoint.host"
-                      @click="domainToRemove = endpoint.host"
-                    >
-                      <Spinner v-if="removingHostname === endpoint.host" :size="14" />
-                      <X v-else :size="14" />
-                    </Button>
                   </div>
-
-                  <div class="flex items-center gap-3 pl-1 text-[11px] text-muted-foreground">
-                    <span>DNS: <span :class="['font-medium', dnsStatusColor(endpoint.dns.status)]">{{ endpoint.dns.status }}</span></span>
-                    <span>TLS: <span :class="['font-medium', tlsStatusColor(endpoint.tls)]">{{ endpoint.tls }}</span></span>
-                    <Button
-                      v-if="!isEndpointVerified(endpoint)"
-                      variant="ghost"
-                      size="sm"
-                      class="ml-auto h-6 gap-1 px-2 text-[11px]"
-                      :disabled="refreshingDomains"
-                      @click="refreshDomains"
-                    >
-                      <RefreshCw :size="12" :class="{ 'animate-spin': refreshingDomains }" />
-                      {{ refreshingDomains ? 'Checking…' : 'Check' }}
-                    </Button>
+                  <div class="hidden shrink-0 items-center gap-3 text-[11px] text-muted-foreground sm:flex">
+                    <span>DNS <span :class="['font-medium', dnsStatusColor(endpoint.dns.status)]">{{ endpoint.dns.status }}</span></span>
+                    <span>TLS <span :class="['font-medium', tlsStatusColor(endpoint.tls)]">{{ endpoint.tls }}</span></span>
                   </div>
-
-                  <div v-if="endpoint.dns.requiredRecords.length" class="space-y-1">
-                    <p class="pl-1 text-[11px] text-muted-foreground">Add these DNS records:</p>
-                    <div
-                      v-for="record in endpoint.dns.requiredRecords"
-                      :key="record.type + record.host + record.value"
-                      class="flex items-center gap-2 rounded border bg-background px-2 py-1 font-mono text-[11px]"
-                    >
-                      <span class="w-12 shrink-0 font-semibold">{{ record.type }}</span>
-                      <span class="flex-1 truncate text-muted-foreground">{{ record.host }}</span>
-                      <ArrowRight :size="10" class="shrink-0 text-muted-foreground" />
-                      <span class="flex-1 truncate">{{ record.value }}</span>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        class="h-6 w-6 shrink-0"
-                        @click="copyToClipboard(record.value)"
-                      >
-                        <Copy :size="12" />
-                      </Button>
-                    </div>
-                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    class="h-8 w-8 shrink-0"
+                    title="DNS records"
+                    @click="recordsHost = endpoint.host"
+                  >
+                    <ClipboardList :size="14" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    class="h-8 w-8 shrink-0 text-destructive"
+                    :title="redirectSourceByTarget.has(endpoint.host) ? `Target of ${redirectSourceByTarget.get(endpoint.host)}` : 'Remove'"
+                    :disabled="removingHostname === endpoint.host || redirectSourceByTarget.has(endpoint.host)"
+                    @click="domainToRemove = endpoint.host"
+                  >
+                    <Spinner v-if="removingHostname === endpoint.host" :size="14" />
+                    <X v-else :size="14" />
+                  </Button>
                 </div>
               </div>
 
-              <!-- Add custom domain input -->
-              <div class="space-y-1.5">
-                <div class="flex items-center gap-2">
+              <div v-if="!addingDomain" class="flex justify-end">
+                <Button size="sm" variant="outline" @click="openAddDomain">
+                  <Plus :size="14" class="mr-1" />
+                  Add custom domain
+                </Button>
+              </div>
+
+              <div v-else class="space-y-3 rounded-md border p-3">
+                <p class="text-sm font-medium text-foreground">Add custom domain</p>
+                <div class="space-y-1.5">
                   <Input
+                    ref="domainInputRef"
                     v-model="customDomainInput"
-                    placeholder="api.example.com"
-                    class="flex-1 font-mono text-sm"
+                    placeholder="www.example.com"
+                    class="font-mono text-sm"
                     :class="{ 'border-destructive': hostnameError }"
                     @keyup.enter="canAddDomain && handleAddCustomDomain()"
+                    @keyup.esc="closeAddDomain"
                   />
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    :disabled="!canAddDomain"
-                    @click="handleAddCustomDomain"
-                  >
-                    <Plus :size="14" class="mr-1" />
-                    {{ addingCustomDomain ? 'Adding...' : 'Add' }}
+                  <p v-if="hostnameError" class="px-1 text-xs text-destructive">
+                    {{ hostnameError }}
+                  </p>
+                  <p v-else-if="isApexInput && !redirectEnabled" class="px-1 text-xs text-muted-foreground">
+                    An apex domain needs an ALIAS record at your DNS provider. If yours does not support that, redirect it to a subdomain instead.
+                  </p>
+                </div>
+                <div class="flex flex-wrap items-center gap-3">
+                  <label class="flex cursor-pointer items-center gap-2 text-sm">
+                    <Checkbox v-model="redirectEnabled" />
+                    Redirect to
+                  </label>
+                  <Select v-if="redirectEnabled" v-model="redirectTarget">
+                    <SelectTrigger class="h-8 w-64 font-mono text-xs">
+                      <SelectValue placeholder="Select a domain" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem
+                        v-for="target in redirectTargets"
+                        :key="target.host"
+                        :value="target.host"
+                        class="font-mono text-xs"
+                      >
+                        {{ target.host }}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <p v-if="redirectEnabled && !redirectTargets.length" class="px-1 text-xs text-muted-foreground">
+                  Add the domain to redirect to first.
+                </p>
+                <div class="flex justify-end gap-2">
+                  <Button size="sm" variant="ghost" @click="closeAddDomain">Cancel</Button>
+                  <Button size="sm" :disabled="!canAddDomain" @click="handleAddCustomDomain">
+                    {{ addingCustomDomain ? 'Saving...' : isDomainUpdate ? 'Update domain' : 'Add domain' }}
                   </Button>
                 </div>
-                <p v-if="hostnameError" class="px-1 text-xs text-destructive">
-                  {{ hostnameError }}
-                </p>
               </div>
             </div>
           </CollapsibleContent>
         </div>
       </Collapsible>
+
+      <Dialog :open="!!recordsHost" @update:open="(open) => { if (!open) recordsHost = null; }">
+        <DialogContent class="sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle class="font-mono">{{ recordsHost }}</DialogTitle>
+            <DialogDescription>
+              <template v-if="recordsEndpoint && isEndpointVerified(recordsEndpoint)">
+                This domain is live. Keep these DNS records in place.
+              </template>
+              <template v-else>
+                This domain goes live once these DNS records exist at your DNS provider. Changes can take a while to propagate.
+              </template>
+            </DialogDescription>
+          </DialogHeader>
+
+          <div v-if="recordsEndpoint" class="min-w-0 space-y-3">
+            <div class="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+              <span>DNS <span :class="['font-medium', dnsStatusColor(recordsEndpoint.dns.status)]">{{ recordsEndpoint.dns.status }}</span></span>
+              <span>TLS <span :class="['font-medium', tlsStatusColor(recordsEndpoint.tls)]">{{ recordsEndpoint.tls }}</span></span>
+              <span v-if="recordsEndpoint.redirectTo" class="truncate">
+                Redirects to <span class="font-mono">{{ recordsEndpoint.redirectTo }}</span>
+              </span>
+            </div>
+
+            <div class="space-y-2">
+              <div
+                v-for="record in recordsEndpoint.dns.requiredRecords"
+                :key="record.type + record.host + record.value"
+                class="rounded-md border bg-muted/30 px-3 py-2 text-xs"
+              >
+                <p class="mb-1 font-mono font-semibold">{{ record.type }}</p>
+                <div class="grid grid-cols-[3rem_minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1">
+                  <span class="text-muted-foreground">Name</span>
+                  <span class="min-w-0 break-all font-mono">{{ record.host }}</span>
+                  <Button variant="ghost" size="icon" class="h-6 w-6" @click="copyToClipboard(record.host)">
+                    <Copy :size="12" />
+                  </Button>
+                  <span class="text-muted-foreground">Value</span>
+                  <span class="min-w-0 break-all font-mono">{{ record.value }}</span>
+                  <Button variant="ghost" size="icon" class="h-6 w-6" @click="copyToClipboard(record.value)">
+                    <Copy :size="12" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            <p
+              v-if="recordsEndpoint.dns.requiredRecords.some(r => r.type === DnsRecordType.Alias)"
+              class="text-xs text-muted-foreground"
+            >
+              ALIAS, ANAME or CNAME flattening, depending on your DNS provider. Without that support, redirect the domain to a subdomain instead.
+            </p>
+          </div>
+          <div v-else class="flex items-center justify-center py-6">
+            <Spinner :size="16" />
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" :disabled="refreshingDomains" @click="refreshDomains">
+              <RefreshCw :size="14" class="mr-1" :class="{ 'animate-spin': refreshingDomains }" />
+              {{ refreshingDomains ? 'Checking…' : 'Check again' }}
+            </Button>
+            <Button @click="recordsHost = null">Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog :open="!!domainToRemove">
         <AlertDialogContent>
@@ -1540,6 +1659,9 @@ async function handleRemoveService() {
             <AlertDialogTitle>Remove domain</AlertDialogTitle>
             <AlertDialogDescription>
               Remove <strong class="font-mono">{{ domainToRemove }}</strong> from this service? This will also delete the TLS certificate.
+              <template v-if="endpointToRemove?.redirectTo">
+                It will no longer redirect to <strong class="font-mono">{{ endpointToRemove.redirectTo }}</strong>, which stays.
+              </template>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1576,20 +1698,19 @@ async function handleRemoveService() {
               <p class="text-xs text-muted-foreground">
                 Internal DNS name for service-to-service communication.
               </p>
-              <div v-if="internalEndpoint" class="space-y-2">
-                <div class="group flex items-center gap-2">
-                  <div class="flex-1 overflow-x-auto rounded-md border bg-muted/50 px-3 py-2">
-                    <span class="whitespace-nowrap font-mono text-xs">{{ internalEndpoint.host }}</span>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    class="h-8 w-8 shrink-0"
-                    @click="copyToClipboard(internalEndpoint.host)"
-                  >
-                    <Copy :size="14" />
-                  </Button>
+              <div v-if="internalEndpoint" class="flex min-w-0 items-stretch overflow-hidden rounded-md border bg-muted/30">
+                <div class="flex min-w-0 flex-1 items-center gap-2 px-3 py-2" :title="internalEndpoint.host">
+                  <Network :size="14" class="shrink-0 text-muted-foreground" />
+                  <span class="truncate font-mono text-sm">{{ internalEndpoint.host }}</span>
                 </div>
+                <Button
+                  variant="ghost"
+                  class="h-auto shrink-0 rounded-none border-l px-2.5 text-muted-foreground hover:text-foreground"
+                  title="Copy"
+                  @click="copyToClipboard(internalEndpoint.host)"
+                >
+                  <Copy :size="14" />
+                </Button>
               </div>
             </div>
           </CollapsibleContent>
