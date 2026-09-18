@@ -134,9 +134,7 @@ the platform; code lives in the repo.
 
 ## 7. Verify & report
 
-- `add_domain` to get a generated domain for the web service. For a custom apex domain
-  (`example.com`) pass `redirect_to: www.example.com` unless the user's DNS provider supports ALIAS
-  records; see `references/lucity-platform.md`.
+- `add_domain` to get a generated domain for the web service.
 - `curl` the endpoint until it returns 200 (TLS provisioning can take ~1 minute; retry).
 - Report back:
   - Live URL(s).

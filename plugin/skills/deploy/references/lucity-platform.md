@@ -132,6 +132,6 @@ Volume rules, all enforced at creation or mount time:
 ## Custom domains
 
 Subdomains need `TXT` + `CNAME`, which every DNS provider supports. An apex (`example.com`) needs
-either `redirect_to: www.example.com` (records: `A` for the apex, `CNAME` for the target) or, without
+either `redirect_to: www.example.com` (add `www` first; records: `A` for the apex, `CNAME` for the target) or, without
 a redirect, an `ALIAS` record, which only providers with ALIAS/ANAME/CNAME flattening offer
 (Cloudflare, Route 53, DNSimple, Porkbun). When the provider is unknown, use the redirect.
