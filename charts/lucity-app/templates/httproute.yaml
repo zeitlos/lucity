@@ -31,9 +31,18 @@ spec:
   hostnames:
     - {{ $domain.host | quote }}
   rules:
+    {{- if $domain.redirectTo }}
+    - filters:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
+            hostname: {{ $domain.redirectTo | quote }}
+            statusCode: 301
+    {{- else }}
     - backendRefs:
         - name: {{ include "lucity-app.fullname" $ }}-{{ $name }}
           port: {{ $svc.port }}
+    {{- end }}
 {{- end }}
 {{- end }}
 {{- end }}
