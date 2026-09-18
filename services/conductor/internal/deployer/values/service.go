@@ -72,7 +72,13 @@ type SecretRef struct {
 type Domain struct {
 	Host        string       `yaml:"host"`
 	Attached    bool         `yaml:"attached"`
+	RedirectTo  string       `yaml:"redirectTo,omitempty"`
 	ListenerSet *ListenerSet `yaml:"listenerSet,omitempty"`
+}
+
+type DomainOptions struct {
+	RedirectTo  string
+	ListenerSet *ListenerSet
 }
 
 type ListenerSet struct {
@@ -370,26 +376,37 @@ func SetServiceVariables(env *Env, name string, literals map[string]string, refs
 	})
 }
 
-func AddServiceDomain(env *Env, name, host string, listenerSet *ListenerSet) error {
+func AddServiceDomain(env *Env, name, host string, options DomainOptions) error {
 	if !isValidHostname(host) {
 		return fmt.Errorf("invalid hostname %q", host)
 	}
 
-	if listenerSet != nil && len(host)+len(tlsSecretSuffix) > maxHostLen {
+	if options.ListenerSet != nil && len(host)+len(tlsSecretSuffix) > maxHostLen {
 		return fmt.Errorf("hostname %q is too long to get its own listener", host)
 	}
 
 	return mutateService(env, name, func(s *Service) {
 		if i := slices.IndexFunc(s.Domains, func(d Domain) bool { return d.Host == host }); i >= 0 {
-			s.Domains[i].ListenerSet = listenerSet
+			s.Domains[i].RedirectTo = options.RedirectTo
+			s.Domains[i].ListenerSet = options.ListenerSet
 			return
 		}
 
-		s.Domains = append(s.Domains, Domain{Host: host, ListenerSet: listenerSet})
+		s.Domains = append(s.Domains, Domain{Host: host, RedirectTo: options.RedirectTo, ListenerSet: options.ListenerSet})
 	})
 }
 
 func RemoveServiceDomain(env *Env, name, host string) error {
+	svc, ok := env.Services[name]
+
+	if !ok {
+		return fmt.Errorf("service %q not found", name)
+	}
+
+	if i := slices.IndexFunc(svc.Domains, func(d Domain) bool { return d.RedirectTo == host }); i >= 0 {
+		return fmt.Errorf("%s redirects to %s; remove %s first", svc.Domains[i].Host, host, svc.Domains[i].Host)
+	}
+
 	return mutateService(env, name, func(s *Service) {
 		s.Domains = slices.DeleteFunc(s.Domains, func(d Domain) bool {
 			return d.Host == host

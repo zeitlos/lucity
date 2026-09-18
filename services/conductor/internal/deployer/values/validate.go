@@ -3,6 +3,7 @@ package values
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -140,6 +141,12 @@ func Validate(env *Env) error {
 		for _, domain := range svc.Domains {
 			if !isValidHostname(domain.Host) {
 				return fmt.Errorf("service %q: invalid hostname %q", svcName, domain.Host)
+			}
+
+			if domain.RedirectTo != "" {
+				if err := validateRedirect(domain.Host, domain.RedirectTo, svc.Domains); err != nil {
+					return fmt.Errorf("service %q: %w", svcName, err)
+				}
 			}
 		}
 
@@ -337,6 +344,26 @@ func isValidVarName(name string) bool {
 
 func isValidHostname(host string) bool {
 	return len(host) > 0 && len(host) <= maxHostLen && hostnameRe.MatchString(host)
+}
+
+func validateRedirect(host, redirectTo string, domains []Domain) error {
+	if !isValidHostname(redirectTo) {
+		return fmt.Errorf("invalid redirect target %q", redirectTo)
+	}
+
+	if redirectTo == host {
+		return fmt.Errorf("%s cannot redirect to itself", host)
+	}
+
+	if !slices.ContainsFunc(domains, func(d Domain) bool { return d.Host == redirectTo && d.RedirectTo == "" }) {
+		return fmt.Errorf("redirect target %s is not a served domain of this service", redirectTo)
+	}
+
+	if i := slices.IndexFunc(domains, func(d Domain) bool { return d.RedirectTo == host }); i >= 0 {
+		return fmt.Errorf("%s redirects to %s; a redirect target cannot redirect", domains[i].Host, host)
+	}
+
+	return nil
 }
 
 func isValidMountPath(path string) bool {

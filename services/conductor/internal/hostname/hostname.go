@@ -56,6 +56,7 @@ const (
 	TXT   RecordType = "TXT"
 	CNAME RecordType = "CNAME"
 	A     RecordType = "A"
+	ALIAS RecordType = "ALIAS"
 )
 
 func (c *Client) IsPlatform(host string) bool {

@@ -459,18 +459,52 @@ func endpoints(deployment apps.Deployment, routes []unstructured.Unstructured) [
 		parentRefs, _, _ := unstructured.NestedSlice(route.Object, "spec", "parentRefs")
 
 		enabled := len(parentRefs) > 0
+		redirectTo := redirectTarget(route)
 
 		for _, host := range hosts {
 			endpoints = append(endpoints, platform.Endpoint{
-				Enabled:  enabled,
-				Host:     host,
-				Port:     443,
-				Protocol: platform.ProtocolHTTPS,
+				Enabled:    enabled,
+				Host:       host,
+				Port:       443,
+				Protocol:   platform.ProtocolHTTPS,
+				RedirectTo: redirectTo,
 			})
 		}
 	}
 
 	return endpoints
+}
+
+func redirectTarget(route unstructured.Unstructured) string {
+	rules, _, _ := unstructured.NestedSlice(route.Object, "spec", "rules")
+
+	for _, rule := range rules {
+		ruleObject, ok := rule.(map[string]any)
+
+		if !ok {
+			continue
+		}
+
+		filters, _, _ := unstructured.NestedSlice(ruleObject, "filters")
+
+		for _, filter := range filters {
+			filterObject, ok := filter.(map[string]any)
+
+			if !ok {
+				continue
+			}
+
+			if filterType, _, _ := unstructured.NestedString(filterObject, "type"); filterType != "RequestRedirect" {
+				continue
+			}
+
+			target, _, _ := unstructured.NestedString(filterObject, "requestRedirect", "hostname")
+
+			return target
+		}
+	}
+
+	return ""
 }
 
 func autoscalingSettings(hpa autoscaling.HorizontalPodAutoscaler) *platform.AutoscalingSettings {
