@@ -108,6 +108,8 @@ backups:
 rybbit:
   enabled: false
   hostname: ""
+  route:
+    annotations: {}
 
   backend:
     image:
@@ -680,6 +682,8 @@ logto:
     tag: "1.37.1"
     pullPolicy: IfNotPresent
   endpoint: ""              # public URL, e.g. https://id.lucity.cloud
+  route:
+    annotations: {}
   postgres:
     instances: 1
     size: 1Gi

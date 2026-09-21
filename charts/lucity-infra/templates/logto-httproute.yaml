@@ -7,8 +7,10 @@ metadata:
     app.kubernetes.io/name: logto
     app.kubernetes.io/instance: {{ .Release.Name }}
     app.kubernetes.io/component: identity-provider
+  {{- with .Values.logto.route.annotations }}
   annotations:
-    external-dns.kubernetes.io/hostname: {{ trimPrefix "https://" .Values.logto.endpoint | quote }}
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 spec:
   parentRefs:
     - name: {{ .Values.gateway.name }}
