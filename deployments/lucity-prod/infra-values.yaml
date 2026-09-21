@@ -159,7 +159,7 @@ traefik:
       flexplane.io/provider: hetzner
       load-balancer.hetzner.cloud/location: nbg1
       load-balancer.hetzner.cloud/name: flexplane-lucity-prod-postgres
-      external-dns.alpha.kubernetes.io/hostname: "*.db.lucity.app"
+      external-dns.kubernetes.io/hostname: "*.db.lucity.app"
 
 clusterIssuers:
   - name: letsencrypt-http01

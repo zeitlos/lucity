@@ -7,6 +7,8 @@ metadata:
     app.kubernetes.io/name: logto
     app.kubernetes.io/instance: {{ .Release.Name }}
     app.kubernetes.io/component: identity-provider
+  annotations:
+    external-dns.kubernetes.io/hostname: {{ trimPrefix "https://" .Values.logto.endpoint | quote }}
 spec:
   parentRefs:
     - name: {{ .Values.gateway.name }}

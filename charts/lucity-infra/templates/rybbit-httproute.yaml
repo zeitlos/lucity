@@ -7,6 +7,8 @@ metadata:
     app.kubernetes.io/name: rybbit
     app.kubernetes.io/instance: {{ .Release.Name }}
     app.kubernetes.io/component: analytics
+  annotations:
+    external-dns.kubernetes.io/hostname: {{ .Values.rybbit.hostname | quote }}
 spec:
   parentRefs:
     - name: {{ .Values.gateway.name }}
