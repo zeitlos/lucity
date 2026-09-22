@@ -16,6 +16,7 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/deployer"
 	"github.com/zeitlos/lucity/services/conductor/internal/deployjob"
 	"github.com/zeitlos/lucity/services/conductor/internal/directory"
+	"github.com/zeitlos/lucity/services/conductor/internal/edge"
 	"github.com/zeitlos/lucity/services/conductor/internal/environment"
 	"github.com/zeitlos/lucity/services/conductor/internal/hostname"
 	"github.com/zeitlos/lucity/services/conductor/internal/metrics"
@@ -51,6 +52,7 @@ type Client struct {
 	environment     environment.Interface
 	objectStorage   objectstorage.Interface
 	metrics         *metrics.Provider
+	edge            edge.Interface
 	registry        *registry.Client
 
 	config Config
@@ -79,9 +81,11 @@ type Config struct {
 	DashboardURL         string
 	MaxQueuedReleases    int
 	BackupArchive        *backuparchive.Client
+	WildcardCertificate  func(context.Context) (*edge.Certificate, error)
+	CustomCertificate    func(ctx context.Context, namespace, host string) (*edge.Certificate, error)
 }
 
-func New(cashier cashier.CashierServiceClient, githubApp *ghpkg.App, logto *logto.Client, directory directory.Interface, platform platform.Interface, buildjob buildjob.Interface, deployjob deployjob.Interface, scanjob scanjob.Interface, scanreport *scanreport.Client, vulnerabilities *vulnerabilities.Client, pipeline pipeline.Interface, planner planner.Interface, source source.Interface, hostname *hostname.Client, deployer deployer.Interface, environment environment.Interface, objectStorage objectstorage.Interface, metrics *metrics.Provider, config Config) *Client {
+func New(cashier cashier.CashierServiceClient, githubApp *ghpkg.App, logto *logto.Client, directory directory.Interface, platform platform.Interface, buildjob buildjob.Interface, deployjob deployjob.Interface, scanjob scanjob.Interface, scanreport *scanreport.Client, vulnerabilities *vulnerabilities.Client, pipeline pipeline.Interface, planner planner.Interface, source source.Interface, hostname *hostname.Client, deployer deployer.Interface, environment environment.Interface, objectStorage objectstorage.Interface, metrics *metrics.Provider, edge edge.Interface, config Config) *Client {
 	return &Client{
 		cashier:         cashier,
 		gitHubApp:       githubApp,
@@ -103,6 +107,7 @@ func New(cashier cashier.CashierServiceClient, githubApp *ghpkg.App, logto *logt
 		environment:     environment,
 		objectStorage:   objectStorage,
 		metrics:         metrics,
+		edge:            edge,
 		registry: registry.New(registry.Config{
 			Endpoint:     config.RegistryPullURL,
 			DialEndpoint: config.RegistryPushURL,

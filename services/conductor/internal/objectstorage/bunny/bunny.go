@@ -1,37 +1,27 @@
 package bunny
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"errors"
 	"fmt"
-	"io"
 	"log/slog"
-	"net/http"
-	"net/url"
 	"strconv"
-	"strings"
 	"time"
 
+	"github.com/zeitlos/lucity/pkg/bunny"
 	"github.com/zeitlos/lucity/services/conductor/internal/objectstorage"
 )
 
-const apiBase = "https://api.bunny.net"
-
 type Backend struct {
 	inner  objectstorage.Backend
-	apiKey string
+	api    *bunny.Client
 	domain string
-	http   *http.Client
 }
 
-func New(inner objectstorage.Backend, apiKey, domain string) *Backend {
+func New(inner objectstorage.Backend, api *bunny.Client, domain string) *Backend {
 	return &Backend{
 		inner:  inner,
-		apiKey: apiKey,
+		api:    api,
 		domain: domain,
-		http:   &http.Client{Timeout: 30 * time.Second},
 	}
 }
 
@@ -92,7 +82,7 @@ func (b *Backend) SetPublic(ctx context.Context, req objectstorage.SetPublicRequ
 
 	hostname := req.Slug + "." + b.domain
 
-	if err := b.addHostname(ctx, pullZoneID, hostname); err != nil {
+	if err := b.api.AddHostname(ctx, pullZoneID, hostname); err != nil && !bunny.IsAlreadyExists(err) {
 		return objectstorage.SetPublicResult{}, err
 	}
 
@@ -100,82 +90,46 @@ func (b *Backend) SetPublic(ctx context.Context, req objectstorage.SetPublicRequ
 		return objectstorage.SetPublicResult{}, fmt.Errorf("ensure dns record: %w", err)
 	}
 
-	go b.loadFreeCertificate(hostname)
+	go b.issueCertificate(hostname)
 
 	return objectstorage.SetPublicResult{
-		PullZoneID:     pullZoneID,
+		PullZoneID:     strconv.FormatInt(pullZoneID, 10),
 		PublicEndpoint: "https://" + hostname,
 	}, nil
 }
 
-func (b *Backend) ensurePullZone(ctx context.Context, req objectstorage.SetPublicRequest, origin objectstorage.BucketConnection) (string, error) {
+func (b *Backend) ensurePullZone(ctx context.Context, req objectstorage.SetPublicRequest, origin objectstorage.BucketConnection) (int64, error) {
 	if req.PullZoneID != "" {
-		return req.PullZoneID, nil
+		return strconv.ParseInt(req.PullZoneID, 10, 64)
 	}
 
-	existing, err := b.findPullZone(ctx, req.Slug)
+	existing, err := b.api.PullZoneByName(ctx, req.Slug)
 
 	if err != nil {
-		return "", err
+		return 0, err
 	}
 
-	if existing != "" {
-		return existing, nil
+	if existing != nil {
+		return existing.ID, nil
 	}
 
-	var created struct {
-		ID int64 `json:"Id"`
+	created, err := b.api.CreatePullZone(ctx, bunny.PullZoneSpec{
+		Name:                 req.Slug,
+		OriginURL:            req.OriginURL,
+		AWSSigningEnabled:    true,
+		AWSSigningKey:        origin.AccessKeyID,
+		AWSSigningSecret:     origin.SecretAccessKey,
+		AWSSigningRegionName: req.Region,
+	})
+
+	if err != nil {
+		return 0, err
 	}
 
-	if err := b.do(ctx, http.MethodPost, "/pullzone", map[string]any{
-		"Name":                 req.Slug,
-		"OriginUrl":            req.OriginURL,
-		"OriginType":           0,
-		"AWSSigningEnabled":    true,
-		"AWSSigningKey":        origin.AccessKeyID,
-		"AWSSigningSecret":     origin.SecretAccessKey,
-		"AWSSigningRegionName": req.Region,
-	}, &created); err != nil {
-		return "", fmt.Errorf("create pull zone: %w", err)
-	}
-
-	return strconv.FormatInt(created.ID, 10), nil
+	return created.ID, nil
 }
 
-func (b *Backend) findPullZone(ctx context.Context, name string) (string, error) {
-	var page struct {
-		Items []struct {
-			ID   int64  `json:"Id"`
-			Name string `json:"Name"`
-		} `json:"Items"`
-	}
-
-	if err := b.do(ctx, http.MethodGet, "/pullzone?perPage=100&search="+url.QueryEscape(name), nil, &page); err != nil {
-		return "", fmt.Errorf("search pull zones: %w", err)
-	}
-
-	for _, item := range page.Items {
-		if item.Name == name {
-			return strconv.FormatInt(item.ID, 10), nil
-		}
-	}
-
-	return "", nil
-}
-
-func (b *Backend) addHostname(ctx context.Context, pullZoneID, hostname string) error {
-	if err := b.do(ctx, http.MethodPost, "/pullzone/"+pullZoneID+"/addHostname", map[string]string{"Hostname": hostname}, nil); err != nil {
-		if isAlreadyExists(err) {
-			return nil
-		}
-
-		return fmt.Errorf("add hostname: %w", err)
-	}
-
-	return nil
-}
-
-func (b *Backend) loadFreeCertificate(hostname string) {
+func (b *Backend) issueCertificate(hostname string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Minute)
 	defer cancel()
 
@@ -189,7 +143,7 @@ func (b *Backend) loadFreeCertificate(hostname string) {
 			}
 		}
 
-		if err := b.do(ctx, http.MethodGet, "/pullzone/loadFreeCertificate?hostname="+url.QueryEscape(hostname), nil, nil); err == nil {
+		if err := b.api.IssueCertificate(ctx, hostname); err == nil {
 			slog.InfoContext(ctx, "bunny free certificate issued", "hostname", hostname)
 			return
 		}
@@ -199,95 +153,72 @@ func (b *Backend) loadFreeCertificate(hostname string) {
 }
 
 func (b *Backend) unpublish(ctx context.Context, req objectstorage.SetPublicRequest) error {
-	id := req.PullZoneID
+	var id int64
 
-	if id == "" {
-		found, err := b.findPullZone(ctx, req.Slug)
+	if req.PullZoneID != "" {
+		parsed, err := strconv.ParseInt(req.PullZoneID, 10, 64)
 
 		if err != nil {
 			return err
 		}
 
-		id = found
-	}
+		id = parsed
+	} else {
+		found, err := b.api.PullZoneByName(ctx, req.Slug)
 
-	if id == "" {
-		return nil
-	}
+		if err != nil {
+			return err
+		}
 
-	if err := b.do(ctx, http.MethodDelete, "/pullzone/"+id, nil, nil); err != nil {
-		if isNotFound(err) {
+		if found == nil {
 			return nil
 		}
 
-		return fmt.Errorf("delete pull zone: %w", err)
+		id = found.ID
+	}
+
+	if err := b.api.DeletePullZone(ctx, id); err != nil && !bunny.IsNotFound(err) {
+		return err
 	}
 
 	return nil
 }
 
-const dnsRecordTypeCNAME = 2
-
-type dnsRecord struct {
-	ID    int64  `json:"Id"`
-	Type  int    `json:"Type"`
-	Name  string `json:"Name"`
-	Value string `json:"Value"`
-}
-
 func (b *Backend) ensureDNSRecord(ctx context.Context, slug string) error {
-	zoneID, err := b.dnsZoneID(ctx)
+	zone, err := b.dnsZone(ctx)
 
 	if err != nil {
 		return err
 	}
 
-	records, err := b.dnsRecords(ctx, zoneID)
-
-	if err != nil {
-		return err
-	}
-
-	for _, record := range records {
+	for _, record := range zone.Records {
 		if record.Name == slug {
 			return nil
 		}
 	}
 
-	body := map[string]any{
-		"Type":  dnsRecordTypeCNAME,
-		"Name":  slug,
-		"Value": slug + ".b-cdn.net",
-		"Ttl":   300,
-	}
-
-	if err := b.do(ctx, http.MethodPut, "/dnszone/"+strconv.FormatInt(zoneID, 10)+"/records", body, nil); err != nil {
-		return fmt.Errorf("create dns record: %w", err)
-	}
-
-	return nil
+	return b.api.CreateDNSRecord(ctx, zone.ID, bunny.DNSRecord{
+		Type:  bunny.DNSRecordTypeCNAME,
+		Name:  slug,
+		Value: slug + ".b-cdn.net",
+		TTL:   300,
+	})
 }
 
 func (b *Backend) deleteDNSRecord(ctx context.Context, slug string) error {
-	zoneID, err := b.dnsZoneID(ctx)
+	zone, err := b.dnsZone(ctx)
 
 	if err != nil {
 		return err
 	}
 
-	records, err := b.dnsRecords(ctx, zoneID)
-
-	if err != nil {
-		return err
-	}
-
-	for _, record := range records {
+	for _, record := range zone.Records {
 		if record.Name != slug {
 			continue
 		}
 
-		if err := b.do(ctx, http.MethodDelete, fmt.Sprintf("/dnszone/%d/records/%d", zoneID, record.ID), nil, nil); err != nil && !isNotFound(err) {
-			return fmt.Errorf("delete dns record: %w", err)
+		if err := b.api.DeleteDNSRecord(ctx, zone.ID, record.ID); err != nil && !bunny.IsNotFound(err) {
+			return err
 		}
 
 		return nil
@@ -296,109 +227,16 @@ func (b *Backend) deleteDNSRecord(ctx context.Context, slug string) error {
 	return nil
 }
 
-func (b *Backend) dnsZoneID(ctx context.Context) (int64, error) {
-	var page struct {
-		Items []struct {
-			ID     int64  `json:"Id"`
-			Domain string `json:"Domain"`
-		} `json:"Items"`
-	}
-
-	if err := b.do(ctx, http.MethodGet, "/dnszone?search="+url.QueryEscape(b.domain), nil, &page); err != nil {
-		return 0, fmt.Errorf("search dns zone: %w", err)
-	}
-
-	for _, item := range page.Items {
-		if item.Domain == b.domain {
-			return item.ID, nil
-		}
-	}
-
-	return 0, fmt.Errorf("dns zone %q not found", b.domain)
-}
-
-func (b *Backend) dnsRecords(ctx context.Context, zoneID int64) ([]dnsRecord, error) {
-	var zone struct {
-		Records []dnsRecord `json:"Records"`
-	}
-
-	if err := b.do(ctx, http.MethodGet, "/dnszone/"+strconv.FormatInt(zoneID, 10), nil, &zone); err != nil {
-		return nil, fmt.Errorf("get dns zone: %w", err)
-	}
-
-	return zone.Records, nil
-}
-
-func (b *Backend) do(ctx context.Context, method, path string, body, out any) error {
-	var reader io.Reader
-
-	if body != nil {
-		data, err := json.Marshal(body)
-
-		if err != nil {
-			return err
-		}
-
-		reader = bytes.NewReader(data)
-	}
-
-	request, err := http.NewRequestWithContext(ctx, method, apiBase+path, reader)
+func (b *Backend) dnsZone(ctx context.Context) (*bunny.DNSZone, error) {
+	zone, err := b.api.DNSZoneByDomain(ctx, b.domain)
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	request.Header.Set("AccessKey", b.apiKey)
-	request.Header.Set("Accept", "application/json")
-
-	if body != nil {
-		request.Header.Set("Content-Type", "application/json")
+	if zone == nil {
+		return nil, fmt.Errorf("dns zone %q not found", b.domain)
 	}
 
-	response, err := b.http.Do(request)
-
-	if err != nil {
-		return err
-	}
-
-	defer response.Body.Close()
-
-	data, _ := io.ReadAll(response.Body)
-
-	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		return &apiError{status: response.StatusCode, body: string(data)}
-	}
-
-	if out != nil && len(data) > 0 {
-		if err := json.Unmarshal(data, out); err != nil {
-			return fmt.Errorf("decode response: %w", err)
-		}
-	}
-
-	return nil
-}
-
-type apiError struct {
-	status int
-	body   string
-}
-
-func (e *apiError) Error() string {
-	return fmt.Sprintf("bunny api error %d: %s", e.status, e.body)
-}
-
-func isNotFound(err error) bool {
-	var apiErr *apiError
-	return errors.As(err, &apiErr) && apiErr.status == http.StatusNotFound
-}
-
-func isAlreadyExists(err error) bool {
-	var apiErr *apiError
-
-	if !errors.As(err, &apiErr) {
-		return false
-	}
-
-	return apiErr.status == http.StatusConflict ||
-		(apiErr.status == http.StatusBadRequest && strings.Contains(strings.ToLower(apiErr.body), "already"))
+	return b.api.DNSZone(ctx, zone.ID)
 }

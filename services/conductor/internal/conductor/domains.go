@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 
+	"github.com/zeitlos/lucity/services/conductor/internal/edge"
 	"github.com/zeitlos/lucity/services/conductor/internal/hostname"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
@@ -27,7 +28,7 @@ const (
 	CustomDomainEndpoint EndpointType = "custom"
 )
 
-func (c *Client) Endpoints(ctx context.Context, serviceID ServiceID, endpoints []platform.Endpoint) ([]Endpoint, error) {
+func (c *Client) ResolveEndpoints(ctx context.Context, serviceID ServiceID, endpoints []platform.Endpoint) ([]Endpoint, error) {
 	result := make([]Endpoint, 0, len(endpoints))
 
 	for _, endpoint := range endpoints {
@@ -38,7 +39,6 @@ func (c *Client) Endpoints(ctx context.Context, serviceID ServiceID, endpoints [
 			Protocol:           endpoint.Protocol,
 			RedirectTo:         endpoint.RedirectTo,
 			RequiredDNSRecords: c.hostname.DNSRecords(serviceID.Workspace, endpoint.Host, endpoint.RedirectTo != ""),
-			Type:               CustomDomainEndpoint,
 		}
 
 		resolved.DNSStatus, err = c.hostname.DNSStatus(ctx, serviceID.Workspace, endpoint.Host)
@@ -57,6 +57,8 @@ func (c *Client) Endpoints(ctx context.Context, serviceID ServiceID, endpoints [
 			resolved.Type = InternalEndpoint
 		} else if c.hostname.IsPlatform(endpoint.Host) {
 			resolved.Type = PlatformEndpoint
+		} else {
+			resolved.Type = CustomDomainEndpoint
 		}
 
 		result = append(result, resolved)
@@ -71,6 +73,9 @@ func (c *Client) ReconcileDomains(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
+	wildcard := c.wildcardCertificate(ctx)
+	attached := map[string][]edge.Host{}
 
 	for _, workspace := range workspaces {
 		projects, err := c.platform.Projects(ctx, workspace.ID)
@@ -89,48 +94,129 @@ func (c *Client) ReconcileDomains(ctx context.Context) error {
 			}
 
 			for _, env := range environments {
-				c.reconcileEnvironmentDomains(ctx, env.ID)
+				attached[workspace.ID] = append(attached[workspace.ID], c.reconcileEnvironmentDomains(ctx, env.ID, wildcard)...)
 			}
 		}
 	}
 
-	return nil
+	var routing []edge.Host
+
+	if wildcard != nil {
+		routing = []edge.Host{{Name: "*." + c.config.WorkloadDomain, Certificate: wildcard}}
+	}
+
+	return c.edge.Sync(ctx, attached, routing)
 }
 
-func (c *Client) reconcileEnvironmentDomains(ctx context.Context, envID platform.EnvironmentID) {
+func (c *Client) reconcileEnvironmentDomains(ctx context.Context, envID platform.EnvironmentID, wildcard *edge.Certificate) []edge.Host {
 	services, err := c.platform.Services(ctx, envID)
 
 	if err != nil {
 		slog.Warn("reconcile domains: list services failed", "env", envID, "error", err)
-		return
+		return nil
 	}
+
+	var attached []edge.Host
 
 	for _, service := range services {
 		for _, endpoint := range service.Endpoints {
 			host := endpoint.Host
 
-			if host == "" || !c.hostname.IsCustom(host) {
+			if host == "" || c.hostname.IsInternal(host) {
 				continue
 			}
 
-			verified, err := c.isDomainVerified(ctx, envID.Workspace, host)
+			enabled := endpoint.Enabled
 
-			if err != nil {
-				slog.Warn("reconcile domains: dns lookup failed", "host", host, "error", err)
+			if c.hostname.IsCustom(host) {
+				verified, err := c.isDomainVerified(ctx, envID.Workspace, host)
+
+				if err != nil {
+					slog.Warn("reconcile domains: dns lookup failed", "host", host, "error", err)
+				} else if verified != endpoint.Enabled {
+					if _, err := c.deployer.Services().AttachDomain(ctx, service.ID, host, verified); err != nil {
+						slog.Warn("reconcile domains: verify call failed", "host", host, "error", err)
+					} else {
+						slog.Info("reconcile domains: verification changed", "service", service.ID, "host", host, "verified", verified)
+						enabled = verified
+					}
+				}
+			}
+
+			if !enabled {
 				continue
 			}
 
-			if verified == endpoint.Enabled {
-				continue
+			if edgeHost, ok := c.edgeHost(ctx, envID.Namespace(), host, wildcard); ok {
+				attached = append(attached, edgeHost)
 			}
-
-			if _, err := c.deployer.Services().AttachDomain(ctx, service.ID, host, verified); err != nil {
-				slog.Warn("reconcile domains: verify call failed", "host", host, "error", err)
-				continue
-			}
-
-			slog.Info("reconcile domains: verification changed", "service", service.ID, "host", host, "verified", verified)
 		}
+	}
+
+	return attached
+}
+
+func (c *Client) edgeHost(ctx context.Context, namespace, host string, wildcard *edge.Certificate) (edge.Host, bool) {
+	if c.hostname.IsPlatform(host) {
+		if wildcard == nil {
+			return edge.Host{}, false
+		}
+
+		return edge.Host{Name: host, Certificate: wildcard}, true
+	}
+
+	return edge.Host{Name: host, Certificate: c.customCertificate(ctx, namespace, host)}, true
+}
+
+func (c *Client) customCertificate(ctx context.Context, namespace, host string) *edge.Certificate {
+	if c.config.CustomCertificate == nil {
+		return nil
+	}
+
+	certificate, err := c.config.CustomCertificate(ctx, namespace, host)
+
+	if err != nil {
+		slog.DebugContext(ctx, "edge: custom certificate unavailable", "host", host, "error", err)
+		return nil
+	}
+
+	return certificate
+}
+
+func (c *Client) wildcardCertificate(ctx context.Context) *edge.Certificate {
+	if c.config.WildcardCertificate == nil {
+		return nil
+	}
+
+	certificate, err := c.config.WildcardCertificate(ctx)
+
+	if err != nil {
+		slog.WarnContext(ctx, "edge: wildcard certificate unavailable", "error", err)
+		return nil
+	}
+
+	return certificate
+}
+
+func (c *Client) registerEdge(ctx context.Context, serviceID platform.ServiceID, host string) {
+	edgeHost, ok := c.edgeHost(ctx, serviceID.Namespace(), host, c.wildcardCertificate(ctx))
+
+	if !ok {
+		return
+	}
+
+	if err := c.edge.Register(ctx, serviceID.Workspace, edgeHost); err != nil {
+		slog.WarnContext(ctx, "edge register failed", "workspace", serviceID.Workspace, "host", host, "error", err)
+	}
+}
+
+func (c *Client) unregisterEdge(ctx context.Context, workspaceID, host string) {
+	if c.hostname.IsInternal(host) {
+		return
+	}
+
+	if err := c.edge.Unregister(ctx, workspaceID, host); err != nil {
+		slog.WarnContext(ctx, "edge unregister failed", "workspace", workspaceID, "host", host, "error", err)
 	}
 }
 

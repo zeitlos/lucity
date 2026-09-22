@@ -18,8 +18,22 @@ type Env struct {
 }
 
 type Gateway struct {
-	Name      string `yaml:"name"`
-	Namespace string `yaml:"namespace"`
+	Name          string        `yaml:"name"`
+	Namespace     string        `yaml:"namespace"`
+	HeaderMatches []HeaderMatch `yaml:"headerMatches,omitempty"`
+}
+
+type HeaderMatch struct {
+	Type      string        `yaml:"type,omitempty"`
+	Name      string        `yaml:"name"`
+	Value     string        `yaml:"value,omitempty"`
+	ValueFrom *SecretKeyRef `yaml:"valueFrom,omitempty"`
+}
+
+type SecretKeyRef struct {
+	SecretName string `yaml:"secretName"`
+	Key        string `yaml:"key"`
+	Namespace  string `yaml:"namespace,omitempty"`
 }
 
 type PullSecret struct {
