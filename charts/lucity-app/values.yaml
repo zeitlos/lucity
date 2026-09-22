@@ -141,13 +141,18 @@ databases:
 volumes: {}
 
 # Gateway that this release's HTTPRoutes and ListenerSets attach to.
-# edgeHeader (optional): backend rules then only match requests carrying this
-# exact header, whose value is read at render time from the named Secret in the
-# gateway namespace. Redirect rules stay open. Omit to route every request.
+# headerMatches (optional): backend rules then only match requests carrying all
+# of these headers, so traffic must pass whatever sets them. Redirect rules stay
+# open. A value is either literal or read at render time from a Secret, which
+# defaults to the gateway namespace. Omit to route every request.
 gateway:
   name: lucity-gateway
   namespace: lucity-system
-  # edgeHeader:
-  #   name: X-Lucity-Edge
-  #   secretName: lucity-edge
-  #   key: value
+  # headerMatches:
+  #   - name: X-Lucity-Edge
+  #     type: Exact            # or RegularExpression
+  #     valueFrom:
+  #       secretName: lucity-edge
+  #       key: value
+  #   - name: X-Env
+  #     value: staging

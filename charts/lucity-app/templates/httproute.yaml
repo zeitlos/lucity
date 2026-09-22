@@ -41,16 +41,23 @@ spec:
     - backendRefs:
         - name: {{ include "lucity-app.fullname" $ }}-{{ $name }}
           port: {{ $svc.port }}
-      {{- with $.Values.gateway.edgeHeader }}
-      {{- $value := dig "data" .key "" (lookup "v1" "Secret" $.Values.gateway.namespace .secretName) }}
+      {{- with $.Values.gateway.headerMatches }}
       matches:
         - path:
             type: PathPrefix
             value: /
           headers:
-            - type: Exact
+            {{- range . }}
+            - type: {{ .type | default "Exact" }}
               name: {{ .name | quote }}
-              value: {{ required (printf "edge header secret %s/%s key %s missing" $.Values.gateway.namespace .secretName .key) $value | b64dec | quote }}
+              {{- if .valueFrom }}
+              {{- $namespace := .valueFrom.namespace | default $.Values.gateway.namespace }}
+              {{- $data := dig "data" .valueFrom.key "" (lookup "v1" "Secret" $namespace .valueFrom.secretName) }}
+              value: {{ required (printf "header match %s: secret %s/%s has no key %s" .name $namespace .valueFrom.secretName .valueFrom.key) $data | b64dec | quote }}
+              {{- else }}
+              value: {{ .value | quote }}
+              {{- end }}
+            {{- end }}
       {{- end }}
     {{- end }}
 {{- end }}
