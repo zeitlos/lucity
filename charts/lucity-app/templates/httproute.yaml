@@ -41,6 +41,17 @@ spec:
     - backendRefs:
         - name: {{ include "lucity-app.fullname" $ }}-{{ $name }}
           port: {{ $svc.port }}
+      {{- with $.Values.gateway.edgeHeader }}
+      {{- $value := dig "data" .key "" (lookup "v1" "Secret" $.Values.gateway.namespace .secretName) }}
+      matches:
+        - path:
+            type: PathPrefix
+            value: /
+          headers:
+            - type: Exact
+              name: {{ .name | quote }}
+              value: {{ required (printf "edge header secret %s/%s key %s missing" $.Values.gateway.namespace .secretName .key) $value | b64dec | quote }}
+      {{- end }}
     {{- end }}
 {{- end }}
 {{- end }}
