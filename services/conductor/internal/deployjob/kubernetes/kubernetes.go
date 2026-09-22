@@ -29,6 +29,7 @@ type Config struct {
 	GatewayNS       string
 	ClusterIssuer   string
 	Backups         BackupConfig
+	EdgeHeader      bool
 }
 
 type BackupConfig struct {

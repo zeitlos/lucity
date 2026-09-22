@@ -241,7 +241,7 @@ func (r *queryResolver) RepositoryBranches(ctx context.Context, repositoryURL st
 
 // Endpoints is the resolver for the endpoints field.
 func (r *serviceResolver) Endpoints(ctx context.Context, obj *model.Service) ([]model.Endpoint, error) {
-	endpoints, err := r.Conductor.Endpoints(ctx, obj.ID, obj.PlatformService.Endpoints)
+	endpoints, err := r.Conductor.ResolveEndpoints(ctx, obj.ID, obj.PlatformService.Endpoints)
 
 	if err != nil {
 		return nil, err

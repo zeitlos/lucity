@@ -72,6 +72,7 @@ func (e *environmentClient) Export(_ context.Context, id platform.EnvironmentID)
 	}
 
 	values.StripBackups(env)
+	env.Gateway.HeaderMatches = nil
 
 	return values.Marshal(env)
 }

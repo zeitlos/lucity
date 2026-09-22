@@ -56,6 +56,7 @@ func (c *Client) newDeployJob(name string, opts deployjob.StartOptions) *batch.J
 		{Name: "DATABASE_BACKUP_ENABLED", Value: strconv.FormatBool(c.config.Backups.Enabled)},
 		{Name: "DATABASE_BACKUP_S3_ENDPOINT", Value: c.config.Backups.Endpoint},
 		{Name: "DATABASE_BACKUP_S3_BUCKET", Value: c.config.Backups.Bucket},
+		{Name: "EDGE_HEADER_ENFORCED", Value: strconv.FormatBool(c.config.EdgeHeader)},
 	}
 
 	labelSet := deployJobLabels(opts.Service, opts.ReleaseID)

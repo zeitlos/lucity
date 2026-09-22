@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"io/fs"
 	"log/slog"
 	"net/http"
@@ -15,8 +16,10 @@ import (
 	buildjobK8s "github.com/zeitlos/lucity/services/conductor/internal/buildjob/kubernetes"
 	"github.com/zeitlos/lucity/services/conductor/internal/conductor"
 	helmDeployer "github.com/zeitlos/lucity/services/conductor/internal/deployer/helm"
+	"github.com/zeitlos/lucity/services/conductor/internal/deployer/values"
 	deployjobK8s "github.com/zeitlos/lucity/services/conductor/internal/deployjob/kubernetes"
 	directoryLogto "github.com/zeitlos/lucity/services/conductor/internal/directory/logto"
+	"github.com/zeitlos/lucity/services/conductor/internal/edge"
 	environmentK8s "github.com/zeitlos/lucity/services/conductor/internal/environment/kubernetes"
 	"github.com/zeitlos/lucity/services/conductor/internal/hostname"
 	"github.com/zeitlos/lucity/services/conductor/internal/metrics"
@@ -33,6 +36,7 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/vulnerabilities"
 
 	"github.com/zeitlos/lucity/pkg/auth"
+	"github.com/zeitlos/lucity/pkg/bunny"
 	"github.com/zeitlos/lucity/pkg/cashier"
 	ghpkg "github.com/zeitlos/lucity/pkg/github"
 	"github.com/zeitlos/lucity/pkg/graceful"
@@ -160,6 +164,12 @@ type Config struct {
 	BunnyAPIKey        string `envconfig:"BUNNY_API_KEY"`
 	PublicBucketDomain string `envconfig:"PUBLIC_BUCKET_DOMAIN" default:"storage.lucity.app"`
 
+	// Edge (CDN in front of the workload gateway)
+	EdgeOriginURL         string `envconfig:"EDGE_ORIGIN_URL"`
+	EdgeHeaderSecret      string `envconfig:"EDGE_HEADER_SECRET"`
+	EdgeHeaderEnforced    bool   `envconfig:"EDGE_HEADER_ENFORCED" default:"false"`
+	EdgeWildcardTLSSecret string `envconfig:"EDGE_WILDCARD_TLS_SECRET" default:"lucity-app-wildcard-tls"`
+
 	// Database backups. One archive bucket for the whole platform, addressed by a
 	// per-workspace prefix. Retention and schedule are product decisions and live
 	// in internal/resources, not here.
@@ -183,12 +193,16 @@ func main() {
 		os.Exit(1)
 	}
 
+	if config.EdgeHeaderEnforced && config.EdgeHeaderSecret == "" {
+		slog.Error("EDGE_HEADER_ENFORCED requires EDGE_HEADER_SECRET")
+		os.Exit(1)
+	}
+
 	logger.Setup(config.LogLevel)
 
 	ctx, cancel := graceful.Context()
 	defer cancel()
 
-	// ---- Auth: OIDC client, session codec, token verifier ----
 	apiAudience := config.OIDCClientID
 	if config.OIDCAudience != "" {
 		apiAudience = config.OIDCAudience
@@ -231,14 +245,12 @@ func main() {
 		slog.Warn("internal JWT not configured — outgoing service-to-service calls are unauthenticated")
 	}
 
-	// ---- Kubernetes clients ----
 	k8sClient, dynClient, err := buildKubeClients()
 	if err != nil {
 		slog.Error("failed to build kube clients", "error", err)
 		os.Exit(1)
 	}
 
-	// ---- External cashier (still real gRPC) ----
 	var cashierClient cashier.CashierServiceClient
 	var cashierConn *grpc.ClientConn
 	if config.CashierAddr != "" {
@@ -270,7 +282,7 @@ func main() {
 
 	verifier = verifier.WithOrgResolver(newOrgResolver(logtoClient))
 
-	domainTarget := "lb." + config.WorkloadDomain
+	loadBalancerHostname := "lb." + config.WorkloadDomain
 
 	secure := secureCookies(config.DashboardURL)
 	sessionStore := newSessionStore(kvstore.NewMemory[sessionValue](), oidcProvider, logtoClient)
@@ -301,6 +313,7 @@ func main() {
 			Endpoint: config.DatabaseBackupEndpoint,
 			Bucket:   config.DatabaseBackupBucket,
 		},
+		EdgeHeader: config.EdgeHeaderEnforced,
 	})
 
 	pipelineClient := pipeline.New(k8sClient, config.BuildNamespace, config.SystemNamespace, config.MaxConcurrentReleases)
@@ -353,14 +366,12 @@ func main() {
 		Enabled:  config.DatabaseBackupEnabled,
 		Endpoint: config.DatabaseBackupEndpoint,
 		Bucket:   config.DatabaseBackupBucket,
-	})
+	}, edgeHeaderOptions(config.EdgeHeaderEnforced)...)
 
 	if err != nil {
 		slog.Error("failed to create deployer client", "error", err)
 		os.Exit(1)
 	}
-
-	hostnameClient := hostname.New(config.WorkloadDomain, domainTarget, config.IPAddress, k8sClient, dynClient)
 
 	environmentClient := environmentK8s.New(k8sClient, dynClient, config.SystemNamespace, config.RegistryPullSecret, config.PodCIDR, config.ServiceCIDR, environmentK8s.BackupCredentials{
 		AccessKeyID:     config.DatabaseBackupAccessKeyID,
@@ -382,15 +393,29 @@ func main() {
 		os.Exit(1)
 	}
 
-	var storageBackend objectstorage.Backend = ovhBackend
+	var (
+		storageBackend objectstorage.Backend = ovhBackend
+		bunnyClient    *bunny.Client
+	)
 
 	if config.BunnyAPIKey != "" {
-		storageBackend = objectstorageBunny.New(ovhBackend, config.BunnyAPIKey, config.PublicBucketDomain)
+		bunnyClient = bunny.New(config.BunnyAPIKey)
+		storageBackend = objectstorageBunny.New(ovhBackend, bunnyClient, config.PublicBucketDomain)
 	} else {
 		slog.Warn("BUNNY_API_KEY not set; public buckets disabled")
 	}
 
+	var edgeClient edge.Interface = edge.Disabled{}
+
+	if bunnyClient != nil && config.EdgeOriginURL != "" {
+		edgeClient = newEdge(bunnyClient, config)
+	} else {
+		slog.Warn("EDGE_ORIGIN_URL not set; edge disabled")
+	}
+
 	objectStorageClient := objectstorage.NewManager(storageBackend, k8sClient)
+
+	hostnameClient := hostname.New(config.WorkloadDomain, loadBalancerHostname, config.IPAddress, edgeClient.EdgeAddresses, k8sClient, dynClient)
 
 	metricsProvider, err := metrics.New(config.VictoriaMetricsURL)
 	if err != nil {
@@ -414,7 +439,7 @@ func main() {
 		RegistryPullSecret:   keychain,
 		WorkloadDomain:       config.WorkloadDomain,
 		DatabaseDomain:       config.DatabaseDomain,
-		LoadBalancerHostname: domainTarget,
+		LoadBalancerHostname: loadBalancerHostname,
 		LoadBalancerIP:       config.IPAddress,
 		GitHubAppSlug:        config.GitHubAppSlug,
 		DashboardURL:         config.DashboardURL,
@@ -427,6 +452,15 @@ func main() {
 			SecretAccessKey: config.DatabaseBackupSecretAccessKey,
 		}),
 	}
+	if _, disabled := edgeClient.(edge.Disabled); !disabled {
+		conductorConfig.WildcardCertificate = func(ctx context.Context) (*edge.Certificate, error) {
+			return tlsCertificate(ctx, k8sClient, config.GatewayNamespace, config.EdgeWildcardTLSSecret)
+		}
+		conductorConfig.CustomCertificate = func(ctx context.Context, namespace, host string) (*edge.Certificate, error) {
+			return tlsCertificate(ctx, k8sClient, namespace, values.TLSSecretName(host))
+		}
+	}
+
 	scanReportClient := scanreport.New(scanreport.Config{
 		Endpoint:     config.RegistryPullURL,
 		DialEndpoint: config.RegistryURL,
@@ -439,7 +473,7 @@ func main() {
 		Keychain:     keychain,
 	})
 
-	conductor := conductor.New(cashierClient, githubApp, logtoClient, directoryClient, platformClient, jobsClient, deployJobsClient, scanJobsClient, scanReportClient, vulnerabilitiesClient, pipelineClient, planner, source, hostnameClient, deployerClient, environmentClient, objectStorageClient, metricsProvider, conductorConfig)
+	conductor := conductor.New(cashierClient, githubApp, logtoClient, directoryClient, platformClient, jobsClient, deployJobsClient, scanJobsClient, scanReportClient, vulnerabilitiesClient, pipelineClient, planner, source, hostnameClient, deployerClient, environmentClient, objectStorageClient, metricsProvider, edgeClient, conductorConfig)
 
 	go runAdmissionReconciler(ctx, pipelineClient)
 	slog.Info("release admission ready", "maxConcurrent", config.MaxConcurrentReleases, "maxQueuedPerWorkspace", config.MaxQueuedReleases)
@@ -455,7 +489,6 @@ func main() {
 		slog.Warn("reconcilers disabled")
 	}
 
-	// ---- Servers ----
 	components := []grpcComponent{}
 	if cashierConn != nil {
 		components = append(components, grpcComponent{name: "cashier", conn: cashierConn})
@@ -470,9 +503,6 @@ func main() {
 
 	servers := []graceful.Server{graphqlServer}
 
-	// Webhook receiver (GitHub push/PR events). Wire only when GitHub
-	// App credentials are configured — otherwise the pipeline can't
-	// authenticate to clone source repos.
 	if githubApp != nil {
 		webhookHandler := &webhookhttp.Handler{
 			GitHubApp: githubApp,
@@ -503,9 +533,6 @@ func main() {
 	graceful.Serve(ctx, servers...)
 }
 
-// buildKubeClients constructs typed + dynamic Kubernetes clients
-// using the standard kubeconfig loading rules (in-cluster first,
-// then ~/.kube/config).
 func buildKubeClients() (kubernetes.Interface, dynamic.Interface, error) {
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 	cfg, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(

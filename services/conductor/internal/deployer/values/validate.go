@@ -13,6 +13,7 @@ import (
 var (
 	dnsLabel     = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]*[a-z0-9])?$`)
 	varName      = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
+	headerName   = regexp.MustCompile(`^[A-Za-z0-9!#$%&'*+.^_` + "`" + `|~-]+$`)
 	hostnameRe   = regexp.MustCompile(`^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$`)
 	labelValueRe = regexp.MustCompile(`^[a-z0-9A-Z]([a-z0-9A-Z._-]*[a-z0-9A-Z])?$`)
 	labelKeyRe   = regexp.MustCompile(`^([a-z0-9A-Z]([a-z0-9A-Z.-]*[a-z0-9A-Z])?/)?[a-z0-9A-Z]([a-z0-9A-Z._-]*[a-z0-9A-Z])?$`)
@@ -46,6 +47,12 @@ func Validate(env *Env) error {
 
 	if err := validateAnnotationKeys("commonAnnotations", env.CommonAnnotations); err != nil {
 		return err
+	}
+
+	for _, match := range env.Gateway.HeaderMatches {
+		if err := validateHeaderMatch(match); err != nil {
+			return err
+		}
 	}
 
 	for name := range env.Services {
@@ -190,7 +197,7 @@ func Validate(env *Env) error {
 				return fmt.Errorf("service %q: invalid hostname %q", svcName, domain.Host)
 			}
 
-			if domain.ListenerSet != nil && len(domain.Host)+len(tlsSecretSuffix) > maxHostLen {
+			if domain.ListenerSet != nil && len(TLSSecretName(domain.Host)) > maxHostLen {
 				return fmt.Errorf("service %q: hostname %q is too long to get its own listener", svcName, domain.Host)
 			}
 
@@ -509,4 +516,36 @@ func isValidLabelKey(key string) bool {
 
 func isValidLabelValue(value string) bool {
 	return len(value) <= maxNameLen && (value == "" || labelValueRe.MatchString(value))
+}
+
+func TLSSecretName(host string) string {
+	return host + tlsSecretSuffix
+}
+
+func validateHeaderMatch(match HeaderMatch) error {
+	if !headerName.MatchString(match.Name) {
+		return fmt.Errorf("invalid header match name %q", match.Name)
+	}
+
+	if match.Type != "" && match.Type != "Exact" && match.Type != "RegularExpression" {
+		return fmt.Errorf("invalid header match type %q", match.Type)
+	}
+
+	if (match.Value == "") == (match.ValueFrom == nil) {
+		return fmt.Errorf("header match %q needs either value or valueFrom", match.Name)
+	}
+
+	if match.ValueFrom == nil {
+		return nil
+	}
+
+	if !dnsLabel.MatchString(match.ValueFrom.SecretName) || match.ValueFrom.Key == "" {
+		return fmt.Errorf("invalid header match secret reference for %q", match.Name)
+	}
+
+	if match.ValueFrom.Namespace != "" && !dnsLabel.MatchString(match.ValueFrom.Namespace) {
+		return fmt.Errorf("invalid header match secret namespace for %q", match.Name)
+	}
+
+	return nil
 }

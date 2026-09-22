@@ -3,6 +3,7 @@ package helm
 import (
 	"github.com/blang/semver/v4"
 	"github.com/zeitlos/lucity/services/conductor/internal/deployer"
+	"github.com/zeitlos/lucity/services/conductor/internal/deployer/values"
 
 	"helm.sh/helm/v3/pkg/chart"
 )
@@ -12,8 +13,17 @@ type Client struct {
 	chart            *chart.Chart
 	gatewayName      string
 	gatewayNamespace string
+	headerMatches    []values.HeaderMatch
 	clusterIssuer    string
 	backups          BackupConfig
+}
+
+type Option func(*Client)
+
+func WithHeaderMatches(matches ...values.HeaderMatch) Option {
+	return func(c *Client) {
+		c.headerMatches = matches
+	}
 }
 
 type BackupConfig struct {
@@ -22,21 +32,27 @@ type BackupConfig struct {
 	Bucket   string
 }
 
-func New(chart *chart.Chart, gatewayName, gatewayNamespace, clusterIssuer string, backups BackupConfig) (*Client, error) {
+func New(chart *chart.Chart, gatewayName, gatewayNamespace, clusterIssuer string, backups BackupConfig, options ...Option) (*Client, error) {
 	chartVersion, err := semver.Parse(chart.Metadata.Version)
 
 	if err != nil {
 		return nil, err
 	}
 
-	return &Client{
+	client := &Client{
 		chartVersion:     chartVersion,
 		chart:            chart,
 		gatewayName:      gatewayName,
 		gatewayNamespace: gatewayNamespace,
 		clusterIssuer:    clusterIssuer,
 		backups:          backups,
-	}, nil
+	}
+
+	for _, option := range options {
+		option(client)
+	}
+
+	return client, nil
 }
 
 func (c *Client) Services() deployer.ServiceClient {

@@ -41,6 +41,24 @@ spec:
     - backendRefs:
         - name: {{ include "lucity-app.fullname" $ }}-{{ $name }}
           port: {{ $svc.port }}
+      {{- with $.Values.gateway.headerMatches }}
+      matches:
+        - path:
+            type: PathPrefix
+            value: /
+          headers:
+            {{- range . }}
+            - type: {{ .type | default "Exact" }}
+              name: {{ .name | quote }}
+              {{- if .valueFrom }}
+              {{- $namespace := .valueFrom.namespace | default $.Values.gateway.namespace }}
+              {{- $data := dig "data" .valueFrom.key "" (lookup "v1" "Secret" $namespace .valueFrom.secretName) }}
+              value: {{ required (printf "header match %s: secret %s/%s has no key %s" .name $namespace .valueFrom.secretName .valueFrom.key) $data | b64dec | quote }}
+              {{- else }}
+              value: {{ .value | quote }}
+              {{- end }}
+            {{- end }}
+      {{- end }}
     {{- end }}
 {{- end }}
 {{- end }}

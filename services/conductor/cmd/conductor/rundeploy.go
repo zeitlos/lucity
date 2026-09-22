@@ -44,6 +44,8 @@ type DeployConfig struct {
 	DatabaseBackupEnabled  bool   `envconfig:"DATABASE_BACKUP_ENABLED" default:"false"`
 	DatabaseBackupEndpoint string `envconfig:"DATABASE_BACKUP_S3_ENDPOINT"`
 	DatabaseBackupBucket   string `envconfig:"DATABASE_BACKUP_S3_BUCKET"`
+
+	EdgeHeaderEnforced bool `envconfig:"EDGE_HEADER_ENFORCED" default:"false"`
 }
 
 const buildWaitTimeout = 30 * time.Minute
@@ -87,7 +89,7 @@ func runDeploy() {
 
 	log.Info("deploy: waiting for build")
 
-	build, err := waitForBuild(ctx, builds, buildID, log)
+	build, err := waitForBuild(ctx, builds, buildID)
 
 	if err != nil {
 		log.Error("deploy: failed waiting for build", "error", err)
@@ -130,7 +132,7 @@ func runDeploy() {
 		Enabled:  config.DatabaseBackupEnabled,
 		Endpoint: config.DatabaseBackupEndpoint,
 		Bucket:   config.DatabaseBackupBucket,
-	})
+	}, edgeHeaderOptions(config.EdgeHeaderEnforced)...)
 
 	if err != nil {
 		log.Error("deploy: failed to create deployer client", "error", err)
@@ -157,7 +159,7 @@ func runDeploy() {
 	log.Info("deploy: complete")
 }
 
-func waitForBuild(ctx context.Context, builds buildjob.Interface, id buildjob.BuildID, log *slog.Logger) (*buildjob.Job, error) {
+func waitForBuild(ctx context.Context, builds buildjob.Interface, id buildjob.BuildID) (*buildjob.Job, error) {
 	for {
 		build, err := builds.Get(ctx, id)
 
