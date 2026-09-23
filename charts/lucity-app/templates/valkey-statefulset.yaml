@@ -17,6 +17,9 @@ metadata:
 spec:
   replicas: {{ if $.Values.suspended }}0{{ else }}1{{ end }}
   serviceName: {{ include "lucity-app.fullname" $ }}-valkey-{{ $name }}
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Delete
+    whenScaled: Retain
   selector:
     matchLabels:
       {{- include "lucity-app.selectorLabels" (dict "name" (printf "valkey-%s" $name) "release" $.Release.Name) | nindent 6 }}

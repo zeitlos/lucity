@@ -17,6 +17,12 @@ import (
 
 const objectStoreRole = "objectstore_operator"
 
+const (
+	propagationInterval = 2 * time.Second
+	propagationBudget   = 45 * time.Second
+	listingBudget       = 10 * time.Second
+)
+
 type Backend struct {
 	client    *ovh.Client
 	projectID string
@@ -82,6 +88,9 @@ type ovhStorageObject struct {
 }
 
 func (b *Backend) CreateBucket(ctx context.Context, req objectstorage.BucketRequest) (objectstorage.BucketConnection, error) {
+	ctx, cancel := context.WithTimeout(ctx, propagationBudget)
+	defer cancel()
+
 	userID, err := b.ensureUser(ctx, req.Workspace)
 
 	if err != nil {
@@ -96,15 +105,24 @@ func (b *Backend) CreateBucket(ctx context.Context, req objectstorage.BucketRequ
 
 	createPath := fmt.Sprintf("/cloud/project/%s/region/%s/storage", b.projectID, b.apiRegion())
 
-	if err := b.client.PostWithContext(ctx, createPath, ovhStorageCreate{
-		Name:    req.PhysicalName,
-		OwnerID: userID,
-		Tags:    req.Tags,
-	}, nil); err != nil {
+	if err := retryNotFound(ctx, func() error {
+		return b.client.PostWithContext(ctx, createPath, ovhStorageCreate{
+			Name:    req.PhysicalName,
+			OwnerID: userID,
+			Tags:    req.Tags,
+		}, nil)
+	}); err != nil {
 		return objectstorage.BucketConnection{}, fmt.Errorf("create bucket: %w", err)
 	}
 
-	if err := b.syncPolicy(ctx, userID); err != nil {
+	if err := b.syncPolicy(ctx, userID, req.PhysicalName); err != nil {
+		cleanupCtx, cleanupCancel := context.WithTimeout(context.WithoutCancel(ctx), listingBudget)
+		defer cleanupCancel()
+
+		if delErr := b.DeleteBucket(cleanupCtx, b.region, req.PhysicalName); delErr != nil {
+			return objectstorage.BucketConnection{}, fmt.Errorf("sync access policy: %w (orphaned bucket cleanup failed: %v)", err, delErr)
+		}
+
 		return objectstorage.BucketConnection{}, fmt.Errorf("sync access policy: %w", err)
 	}
 
@@ -266,48 +284,39 @@ func (b *Backend) ensureCredential(ctx context.Context, userID int64) (string, s
 }
 
 func (b *Backend) listCredentials(ctx context.Context, listPath string) ([]ovhCredential, error) {
-	var (
-		existing []ovhCredential
-		err      error
-	)
+	var existing []ovhCredential
 
-	for attempt := 0; attempt < 8; attempt++ {
-		if attempt > 0 {
-			select {
-			case <-ctx.Done():
-				return nil, ctx.Err()
-			case <-time.After(time.Second):
-			}
-		}
+	err := retryNotFound(ctx, func() error {
+		return b.client.GetWithContext(ctx, listPath, &existing)
+	})
 
-		err = b.client.GetWithContext(ctx, listPath, &existing)
-
-		if err == nil {
-			return existing, nil
-		}
-
-		if !isNotFound(err) {
-			return nil, err
-		}
-	}
-
-	return nil, err
+	return existing, err
 }
 
-func (b *Backend) syncPolicy(ctx context.Context, userID int64) error {
-	var containers []ovhStorage
+func retryNotFound(ctx context.Context, call func() error) error {
+	for {
+		err := call()
 
-	if err := b.client.GetWithContext(ctx, fmt.Sprintf("/cloud/project/%s/region/%s/storage", b.projectID, b.apiRegion()), &containers); err != nil {
-		return fmt.Errorf("list storage: %w", err)
-	}
-
-	resources := make([]string, 0, len(containers)*2)
-
-	for _, container := range containers {
-		if container.OwnerID != userID {
-			continue
+		if err == nil || !isNotFound(err) || !sleep(ctx) {
+			return err
 		}
-		resources = append(resources, "arn:aws:s3:::"+container.Name, "arn:aws:s3:::"+container.Name+"/*")
+	}
+}
+
+func sleep(ctx context.Context) bool {
+	select {
+	case <-ctx.Done():
+		return false
+	case <-time.After(propagationInterval):
+		return true
+	}
+}
+
+func (b *Backend) syncPolicy(ctx context.Context, userID int64, physicalName string) error {
+	resources, err := b.ownedResources(ctx, userID, physicalName)
+
+	if err != nil {
+		return err
 	}
 
 	if len(resources) == 0 {
@@ -333,6 +342,44 @@ func (b *Backend) syncPolicy(ctx context.Context, userID int64) error {
 	}
 
 	return b.client.PostWithContext(ctx, fmt.Sprintf("/cloud/project/%s/user/%d/policy", b.projectID, userID), map[string]string{"policy": string(document)}, nil)
+}
+
+func (b *Backend) ownedResources(ctx context.Context, userID int64, requirePhysicalName string) ([]string, error) {
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), listingBudget)
+	defer cancel()
+
+	listPath := fmt.Sprintf("/cloud/project/%s/region/%s/storage", b.projectID, b.apiRegion())
+
+	for {
+		var containers []ovhStorage
+
+		if err := b.client.GetWithContext(ctx, listPath, &containers); err != nil {
+			return nil, fmt.Errorf("list storage: %w", err)
+		}
+
+		resources := make([]string, 0, len(containers)*2)
+		found := false
+
+		for _, container := range containers {
+			if container.OwnerID != userID {
+				continue
+			}
+
+			if container.Name == requirePhysicalName {
+				found = true
+			}
+
+			resources = append(resources, "arn:aws:s3:::"+container.Name, "arn:aws:s3:::"+container.Name+"/*")
+		}
+
+		if found {
+			return resources, nil
+		}
+
+		if !sleep(ctx) {
+			return nil, fmt.Errorf("bucket %q not listed in region %s within %s", requirePhysicalName, b.apiRegion(), listingBudget)
+		}
+	}
 }
 
 func (b *Backend) syncReadPolicy(ctx context.Context, userID int64, physicalNames []string) error {

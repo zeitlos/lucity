@@ -65,10 +65,6 @@ type DatabaseSpec struct {
 }
 
 func CreateDatabase(env *Env, name string, spec DatabaseSpec) error {
-	if !isValidName(name) {
-		return fmt.Errorf("invalid database name %q", name)
-	}
-
 	if _, ok := env.Databases.Postgres[name]; ok {
 		// To keep this function idempotent, don't return an error if the database already exists.
 		return nil
@@ -169,10 +165,6 @@ func DeleteDatabase(env *Env, name string) error {
 }
 
 func ExposeDatabase(env *Env, name, host string) error {
-	if !isValidHostname(host) {
-		return fmt.Errorf("invalid hostname %q", host)
-	}
-
 	return mutateDatabase(env, name, func(p *Postgres) {
 		p.PublicHost = host
 

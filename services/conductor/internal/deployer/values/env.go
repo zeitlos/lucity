@@ -1,7 +1,6 @@
 package values
 
 import (
-	"fmt"
 	"maps"
 )
 
@@ -33,12 +32,6 @@ func SetSuspended(env *Env, suspended bool) error {
 }
 
 func SetEnvironmentVariables(env *Env, vars map[string]string) error {
-	for k := range vars {
-		if !isValidVarName(k) {
-			return fmt.Errorf("invalid variable name %q", k)
-		}
-	}
-
 	env.SharedVariables = maps.Clone(vars)
 
 	return nil

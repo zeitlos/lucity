@@ -392,7 +392,7 @@ func (c *Client) GenerateDomain(ctx context.Context, serviceID platform.ServiceI
 		c.config.WorkloadDomain,
 	)
 
-	if _, err := c.deployer.Services().AddDomain(ctx, serviceID, hostname, false); err != nil {
+	if _, err := c.deployer.Services().AddDomain(ctx, serviceID, hostname, deployer.DomainOptions{}); err != nil {
 		return nil, fmt.Errorf("add platform domain: %w", err)
 	}
 
@@ -403,7 +403,10 @@ func (c *Client) GenerateDomain(ctx context.Context, serviceID platform.ServiceI
 	return c.Service(ctx, serviceID)
 }
 
-func (c *Client) AddCustomDomain(ctx context.Context, serviceID platform.ServiceID, hostname string) (*Service, error) {
+func (c *Client) AddCustomDomain(ctx context.Context, serviceID platform.ServiceID, hostname, redirectTo string) (*Service, error) {
+	hostname = strings.ToLower(hostname)
+	redirectTo = strings.ToLower(redirectTo)
+
 	if err := validateHostname(hostname); err != nil {
 		return nil, fmt.Errorf("invalid hostname: %w", err)
 	}
@@ -412,7 +415,17 @@ func (c *Client) AddCustomDomain(ctx context.Context, serviceID platform.Service
 		return nil, fmt.Errorf("invalid domain")
 	}
 
-	if _, err := c.deployer.Services().AddDomain(ctx, serviceID, hostname, true); err != nil {
+	if redirectTo != "" {
+		if err := validateHostname(redirectTo); err != nil {
+			return nil, fmt.Errorf("invalid redirect target: %w", err)
+		}
+
+		if redirectTo == hostname || c.hostname.IsInternal(redirectTo) {
+			return nil, fmt.Errorf("invalid redirect target")
+		}
+	}
+
+	if _, err := c.deployer.Services().AddDomain(ctx, serviceID, hostname, deployer.DomainOptions{RedirectTo: redirectTo, OwnListener: true}); err != nil {
 		return nil, err
 	}
 

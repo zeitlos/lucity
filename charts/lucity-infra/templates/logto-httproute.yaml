@@ -7,6 +7,10 @@ metadata:
     app.kubernetes.io/name: logto
     app.kubernetes.io/instance: {{ .Release.Name }}
     app.kubernetes.io/component: identity-provider
+  {{- with .Values.logto.route.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 spec:
   parentRefs:
     - name: {{ .Values.gateway.name }}

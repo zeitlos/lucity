@@ -13,6 +13,7 @@ interface Endpoint {
   port: number;
   protocol: Protocol;
   type: EndpointType;
+  redirectTo?: string | null;
 }
 
 interface ReplicaCount {
@@ -127,14 +128,18 @@ const formattedElapsed = computed(() => {
   return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
 });
 
+const servedEndpoints = computed(() =>
+  props.data.endpoints.filter(e => e.type !== EndpointType.Internal && !e.redirectTo),
+);
+
 const primaryDomain = computed(() => {
-  const custom = props.data.endpoints.find(e => e.type === EndpointType.Custom);
+  const custom = servedEndpoints.value.find(e => e.type === EndpointType.Custom);
 
   if (custom) {
     return custom.host;
   }
 
-  const platform = props.data.endpoints.find(e => e.type === EndpointType.Platform);
+  const platform = servedEndpoints.value.find(e => e.type === EndpointType.Platform);
 
   if (platform) {
     return platform.host;
@@ -143,10 +148,7 @@ const primaryDomain = computed(() => {
   return null;
 });
 
-const extraDomainCount = computed(() => {
-  const total = props.data.endpoints.filter(e => e.type !== EndpointType.Internal).length;
-  return total > 1 ? total - 1 : 0;
-});
+const extraDomainCount = computed(() => Math.max(servedEndpoints.value.length - 1, 0));
 
 const hostUrl = computed(() => {
   if (!primaryDomain.value) {

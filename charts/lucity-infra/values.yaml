@@ -108,6 +108,8 @@ backups:
 rybbit:
   enabled: false
   hostname: ""
+  route:
+    annotations: {}
 
   backend:
     image:
@@ -248,6 +250,61 @@ victoria-metrics-alert:
                 labels: { severity: critical }
                 annotations:
                   summary: "Node {{ $labels.node }} is not Ready"
+              # kubelet working set over KSM capacity; eviction triggers on
+              # capacity minus working set.
+              - alert: NodeMemoryHigh
+                expr: |-
+                  label_replace(k8s_node_memory_working_set_bytes, "node", "$1", "k8s_node_name", "(.*)")
+                  / on (node) kube_node_status_capacity{resource="memory"}
+                  > 0.85
+                for: 15m
+                labels: { severity: warning }
+                annotations:
+                  summary: "Node {{ $labels.node }} memory working set at {{ $value | humanizePercentage }} of capacity"
+              - alert: NodeMemoryCritical
+                expr: |-
+                  label_replace(k8s_node_memory_working_set_bytes, "node", "$1", "k8s_node_name", "(.*)")
+                  / on (node) kube_node_status_capacity{resource="memory"}
+                  > 0.92
+                for: 5m
+                labels: { severity: critical }
+                annotations:
+                  summary: "Node {{ $labels.node }} memory working set at {{ $value | humanizePercentage }} of capacity — evictions imminent"
+              - alert: NodeCPUHigh
+                expr: |-
+                  label_replace(k8s_node_cpu_usage, "node", "$1", "k8s_node_name", "(.*)")
+                  / on (node) kube_node_status_capacity{resource="cpu"}
+                  > 0.8
+                for: 15m
+                labels: { severity: warning }
+                annotations:
+                  summary: "Node {{ $labels.node }} CPU at {{ $value | humanizePercentage }} of capacity for 15m"
+              # Scheduling capacity: requested vs allocatable across the cluster.
+              # Pods stop scheduling near 100% while node usage can still look idle.
+              - alert: ClusterRequestsHigh
+                expr: |-
+                  sum by (resource) (
+                    kube_pod_container_resource_requests{resource=~"cpu|memory"}
+                    * on (namespace, pod) group_left() max by (namespace, pod) (kube_pod_status_phase{phase=~"Pending|Running"} == 1)
+                  )
+                  / on (resource) sum by (resource) (kube_node_status_allocatable{resource=~"cpu|memory"})
+                  > 0.7
+                for: 30m
+                labels: { severity: warning }
+                annotations:
+                  summary: "Cluster {{ $labels.resource }} requests at {{ $value | humanizePercentage }} of allocatable — add a node before scheduling stalls"
+              - alert: ClusterRequestsCritical
+                expr: |-
+                  sum by (resource) (
+                    kube_pod_container_resource_requests{resource=~"cpu|memory"}
+                    * on (namespace, pod) group_left() max by (namespace, pod) (kube_pod_status_phase{phase=~"Pending|Running"} == 1)
+                  )
+                  / on (resource) sum by (resource) (kube_node_status_allocatable{resource=~"cpu|memory"})
+                  > 0.9
+                for: 15m
+                labels: { severity: critical }
+                annotations:
+                  summary: "Cluster {{ $labels.resource }} requests at {{ $value | humanizePercentage }} of allocatable — new pods will fail to schedule"
               - alert: PodCrashLoopBackOff
                 expr: kube_pod_container_status_waiting_reason{reason="CrashLoopBackOff", namespace=~"kube-system|lucity-system|lucity-builds"} == 1
                 for: 15m
@@ -255,11 +312,23 @@ victoria-metrics-alert:
                 annotations:
                   summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} is crash-looping"
               - alert: ContainerRestartingRepeatedly
-                expr: increase(kube_pod_container_status_restarts_total{namespace=~"kube-system|lucity-system"}[1h]) >= 3
+                expr: increase_prometheus(kube_pod_container_status_restarts_total{namespace=~"kube-system|lucity-system"}[1h]) >= 3
                 for: 5m
                 labels: { severity: warning }
                 annotations:
                   summary: "{{ $labels.namespace }}/{{ $labels.pod }} restarted {{ $value | humanize }} times in the last hour"
+              - alert: ContainerOOMKilled
+                expr: kube_pod_container_status_last_terminated_reason{reason="OOMKilled", namespace=~"kube-system|lucity-system"} == 1
+                for: 1m
+                labels: { severity: warning }
+                annotations:
+                  summary: "{{ $labels.namespace }}/{{ $labels.pod }} container {{ $labels.container }} was OOMKilled"
+              - alert: MetricsPipelineStalled
+                expr: absent(kube_pod_container_status_restarts_total{namespace="lucity-system"})
+                for: 10m
+                labels: { severity: critical }
+                annotations:
+                  summary: "No kube-state-metrics samples for 10m: the metrics pipeline is stalled and every other alert is blind"
               - alert: PVCNearlyFull
                 expr: |-
                   label_replace(label_replace(label_replace(
@@ -350,38 +419,75 @@ victoria-metrics-alert:
                   summary: "Database volume {{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }} >95% full — primary will go read-only"
           - name: edge-gateway
             rules:
-              # Sustained Envoy-generated 5xx on the public listeners.
-              # Catches Cilium L7 issues (e.g. the IPv6 incident on 2026-05-01),
-              # broken HTTPRoutes, TLS misconfig, upstream resets. Pair with
-              # GatewayUpstream5xxRate below to distinguish "gateway is broken"
-              # from "upstream service is broken".
-              - alert: GatewayHigh5xxRate
-                expr: sum by (envoy_http_conn_manager_prefix) (rate(envoy_http_downstream_rq_xx_total{envoy_response_code_class="5",envoy_http_conn_manager_prefix=~"listener-(secure|insecure)"}[5m])) > 0.1
+              # Only 5xx the gateway itself generated: downstream 5xx minus the
+              # 5xx an upstream actually returned. Catches broken HTTPRoutes,
+              # TLS misconfig, no healthy upstream, and Cilium L7 issues
+              # (e.g. the IPv6 incident on 2026-05-01) without counting 5xx
+              # that tenant applications produced. Baseline is p99 = 0.003/s.
+              # The two counters can skew by a request at scrape boundaries, so
+              # this dips slightly negative next to a burst; harmless at > 0.1.
+              - alert: GatewayOriginated5xxRate
+                expr: |-
+                  sum(rate_prometheus(envoy_http_downstream_rq_xx_total{envoy_response_code_class="5",envoy_http_conn_manager_prefix=~"listener-(secure|insecure)"}[5m]))
+                  - sum(rate_prometheus(envoy_cluster_upstream_rq_xx_total{envoy_response_code_class="5",envoy_cluster_name=~"lucity-system/cilium-gateway-.*"}[5m]))
+                  > 0.1
                 for: 5m
-                labels: { severity: warning }
+                labels: { severity: critical }
                 annotations:
-                  summary: "Gateway returning 5xx on {{ $labels.envoy_http_conn_manager_prefix }} ({{ $value | humanize }} req/s)"
-              # 5xx originating from upstream services (gateway, dashboard, docs, …).
-              - alert: GatewayUpstream5xxRate
-                expr: sum by (envoy_cluster_name) (rate(envoy_cluster_upstream_rq_xx_total{envoy_response_code_class="5",envoy_cluster_name=~"lucity-system/cilium-gateway-.*"}[5m])) > 0.1
+                  summary: "Gateway itself is generating 5xx ({{ $value | humanize }} req/s) — routing, TLS, or no healthy upstream"
+              # 5xx from the platform's OWN services behind the gateway
+              # (conductor, dashboard, docs, cashier, logto, rybbit). Tenant
+              # workloads are deliberately out of scope: a customer shipping a
+              # broken service is not an operator page.
+              - alert: PlatformService5xxRate
+                expr: sum by (envoy_cluster_name) (rate_prometheus(envoy_cluster_upstream_rq_xx_total{envoy_response_code_class="5",envoy_cluster_name=~"lucity-system/cilium-gateway-.*/lucity-system_.*"}[5m])) > 0.1
                 for: 10m
                 labels: { severity: warning }
                 annotations:
-                  summary: "Upstream service 5xx: {{ $labels.envoy_cluster_name }} ({{ $value | humanize }} req/s)"
+                  summary: "Platform service 5xx: {{ $labels.envoy_cluster_name }} ({{ $value | humanize }} req/s)"
               # TLS handshake errors — cert/SNI mismatch, expired cert, or Cilium L4 issue.
               - alert: GatewayTLSHandshakeErrors
-                expr: sum(rate(envoy_listener_ssl_connection_error_total[5m])) > 0.5
+                expr: sum(rate_prometheus(envoy_listener_ssl_connection_error_total[5m])) > 0.5
                 for: 10m
                 labels: { severity: warning }
                 annotations:
                   summary: "Elevated TLS handshake errors on the gateway ({{ $value | humanize }}/s)"
-              # Cannot connect to upstream pod — pod down, NetworkPolicy blocking, wrong port.
-              - alert: GatewayUpstreamConnectFail
-                expr: sum by (envoy_cluster_name) (rate(envoy_cluster_upstream_cx_connect_fail_total{envoy_cluster_name=~"lucity-system/cilium-gateway-.*"}[5m])) > 0.1
+              # Cannot connect to a platform service pod — pod down, NetworkPolicy
+              # blocking, wrong port. Scoped to platform services for the same
+              # reason as PlatformService5xxRate above.
+              - alert: PlatformServiceConnectFail
+                expr: sum by (envoy_cluster_name) (rate_prometheus(envoy_cluster_upstream_cx_connect_fail_total{envoy_cluster_name=~"lucity-system/cilium-gateway-.*/lucity-system_.*"}[5m])) > 0.1
                 for: 5m
                 labels: { severity: warning }
                 annotations:
-                  summary: "Cannot connect to upstream {{ $labels.envoy_cluster_name }} ({{ $value | humanize }}/s)"
+                  summary: "Cannot connect to platform service {{ $labels.envoy_cluster_name }} ({{ $value | humanize }}/s)"
+          - name: load-balancers
+            rules:
+              # Hard per-type ceiling (lb11 = 10,000) past which new connections
+              # are dropped. 50% leaves time to change the LB type in place.
+              # Relative to max so it follows tier changes.
+              - alert: LoadBalancerNearConnectionLimit
+                expr: hcloud_loadbalancer_open_connections / hcloud_loadbalancer_max_open_connections > 0.5
+                for: 5m
+                labels: { severity: critical }
+                annotations:
+                  summary: "Load balancer {{ $labels.name }} is at {{ $value | humanizePercentage }} of its connection ceiling — new connections are dropped at 100%"
+              # Targets are nodes, TCP-checked on the NodePort every 15s with
+              # 3 retries; 5m rides out a plain reboot.
+              - alert: LoadBalancerTargetUnhealthy
+                expr: hcloud_loadbalancer_targets_unhealthy > 0
+                for: 5m
+                labels: { severity: warning }
+                annotations:
+                  summary: "Load balancer {{ $labels.name }} has {{ $value }} unhealthy target(s)"
+              # An API failure (bad token, outage) drops the hcloud_* series
+              # silently instead of erroring. 5 = half the one-minute scrapes.
+              - alert: HcloudApiRequestsFailing
+                expr: increase_prometheus(hcloud_request_failures_total[10m]) >= 5
+                for: 5m
+                labels: { severity: warning }
+                annotations:
+                  summary: "Hetzner API requests failing for the {{ $labels.collector }} collector ({{ $value | humanize }} in 10m) — load balancer alerts are blind"
   alertmanager:
     enabled: false
     extraVolumes:
@@ -468,9 +574,28 @@ otelCollector:
     resources:
       requests:
         cpu: 50m
-        memory: 128Mi
-      limits:
         memory: 512Mi
+      limits:
+        memory: 1Gi
+
+# -- Hetzner Cloud exporter — load balancer saturation and server traffic from the Hetzner API
+hcloud-exporter:
+  enabled: false
+  collector:
+    loadBalancers: true
+    servers: true
+    serverMetrics: false
+    pricing: false
+    images: false
+    volumes: false
+    floatingIps: false
+    sshKeys: false
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      memory: 128Mi
 
 # -- Grafana — UI for VictoriaMetrics + VictoriaLogs
 grafana:
@@ -557,6 +682,8 @@ logto:
     tag: "1.37.1"
     pullPolicy: IfNotPresent
   endpoint: ""              # public URL, e.g. https://id.lucity.cloud
+  route:
+    annotations: {}
   postgres:
     instances: 1
     size: 1Gi

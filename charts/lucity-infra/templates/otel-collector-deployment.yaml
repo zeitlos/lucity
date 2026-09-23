@@ -77,6 +77,12 @@ spec:
               scrape_interval: 30s
               static_configs:
                 - targets: ['{{ .Release.Name }}-victoria-metrics-single-server:8428']
+            {{- if index .Values "hcloud-exporter" "enabled" }}
+            - job_name: hcloud-exporter
+              scrape_interval: 60s
+              static_configs:
+                - targets: ['{{ .Release.Name }}-hcloud-exporter:9501']
+            {{- end }}
     processors:
       memory_limiter:
         check_interval: 1s

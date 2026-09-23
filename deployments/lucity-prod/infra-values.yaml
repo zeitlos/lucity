@@ -76,6 +76,10 @@ zot:
     # Generate: htpasswd -bBn builder "$(openssl rand -hex 16)" > htpasswd
     #           htpasswd -bBn reader "$(openssl rand -hex 16)" >> htpasswd
     htpasswd: ""  # --set zot.configFiles.htpasswd
+  resources:
+    requests:
+      cpu: 100m
+      memory: 4Gi
 
 gateway:
   className: cilium
@@ -85,6 +89,7 @@ gateway:
       load-balancer.hetzner.cloud/location: nbg1
       load-balancer.hetzner.cloud/name: flexplane-lucity-prod-gateway
       load-balancer.hetzner.cloud/uses-proxyprotocol: "true"
+      load-balancer.hetzner.cloud/ipv6-disabled: "true"
   listeners:
     - name: platform-http
       protocol: HTTP
@@ -154,7 +159,7 @@ traefik:
       flexplane.io/provider: hetzner
       load-balancer.hetzner.cloud/location: nbg1
       load-balancer.hetzner.cloud/name: flexplane-lucity-prod-postgres
-      external-dns.alpha.kubernetes.io/hostname: "*.db.lucity.app"
+      external-dns.kubernetes.io/hostname: "*.db.lucity.app"
 
 clusterIssuers:
   - name: letsencrypt-http01
@@ -206,6 +211,9 @@ backups:
 rybbit:
   enabled: true
   hostname: p.lucity.cloud
+  route:
+    annotations:
+      external-dns.kubernetes.io/hostname: p.lucity.cloud
   backend:
     baseUrl: "https://p.lucity.cloud"
   clickhouse:
@@ -226,6 +234,9 @@ rybbit:
 logto:
   enabled: true
   endpoint: https://id.lucity.cloud
+  route:
+    annotations:
+      external-dns.kubernetes.io/hostname: id.lucity.cloud
   postgres:
     instances: 2
     storageClass: hcloud-volumes
@@ -240,9 +251,9 @@ victoria-metrics-single:
     resources:
       requests:
         cpu: 200m
-        memory: 512Mi
-      limits:
         memory: 2Gi
+      limits:
+        memory: 4Gi
 
 victoria-logs-single:
   enabled: true
@@ -276,6 +287,10 @@ otelCollector:
     enabled: true
   deployment:
     enabled: true
+
+# Hetzner Cloud exporter (LB connection ceiling + node egress); token lives in infra-secrets.yaml
+hcloud-exporter:
+  enabled: true
 
 grafana:
   enabled: true

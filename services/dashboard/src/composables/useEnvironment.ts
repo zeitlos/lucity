@@ -35,6 +35,7 @@ export interface Endpoint {
   host: string;
   port: number;
   protocol: Protocol;
+  redirectTo?: string | null;
   dns: DnsState;
   tls: TlsStatus;
   type: EndpointType;

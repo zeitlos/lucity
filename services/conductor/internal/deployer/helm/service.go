@@ -199,10 +199,10 @@ func cloneStringMap(in map[string]string) map[string]string {
 	return out
 }
 
-func (s *serviceClient) AddDomain(ctx context.Context, id platform.ServiceID, host string, ownListener bool) (deployer.RevisionID, error) {
+func (s *serviceClient) AddDomain(ctx context.Context, id platform.ServiceID, host string, options deployer.DomainOptions) (deployer.RevisionID, error) {
 	var listenerSet *values.ListenerSet
 
-	if ownListener {
+	if options.OwnListener {
 		listenerSet = &values.ListenerSet{
 			Enabled: true,
 			Certificate: values.ListenerSetCertificate{
@@ -212,7 +212,7 @@ func (s *serviceClient) AddDomain(ctx context.Context, id platform.ServiceID, ho
 	}
 
 	return s.client.applyEnv(ctx, id.EnvironmentID(), func(e *values.Env) error {
-		return values.AddServiceDomain(e, id.Name, host, listenerSet)
+		return values.AddServiceDomain(e, id.Name, host, values.DomainOptions{RedirectTo: options.RedirectTo, ListenerSet: listenerSet})
 	})
 }
 

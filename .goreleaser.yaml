@@ -54,8 +54,6 @@ homebrew_casks:
     commit_author:
       name: lucity-release
       email: noreply@lucity.cloud
-    url:
-      verified: "github.com/zeitlos/lucity/"
     hooks:
       post:
         install: |

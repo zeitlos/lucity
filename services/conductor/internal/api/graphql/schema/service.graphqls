@@ -68,6 +68,7 @@ type Endpoint {
   type: EndpointType!
   dns: DnsState!
   tls: TlsStatus!
+  redirectTo: String
 }
 
 type DnsState {
@@ -106,6 +107,7 @@ enum DnsRecordType {
   TXT
   CNAME
   A
+  ALIAS
 }
 
 enum TlsStatus {
@@ -191,6 +193,6 @@ extend type Mutation {
   setServiceUser(service: ServiceID!, user: Int @constraint(constraint: "min=0,max=65535")): Service! @hasRole(role: WORKSPACE_MEMBER)
   rollback(deployment: DeploymentID!): Boolean! @hasRole(role: WORKSPACE_MEMBER)
   generateDomain(service: ServiceID!): Service! @hasRole(role: WORKSPACE_MEMBER)
-  addCustomDomain(service: ServiceID!, hostname: String! @constraint(constraint: "min=4,max=253")): Service! @hasRole(role: WORKSPACE_MEMBER)
+  addCustomDomain(service: ServiceID!, hostname: String! @constraint(constraint: "min=4,max=253"), redirectTo: String @constraint(constraint: "min=4,max=253")): Service! @hasRole(role: WORKSPACE_MEMBER)
   removeDomain(service: ServiceID!, hostname: String!): Service! @hasRole(role: WORKSPACE_MEMBER)
 }

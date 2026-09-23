@@ -1,7 +1,7 @@
 dependencies:
 - name: zot
   repository: http://zotregistry.dev/helm-charts
-  version: 0.1.118
+  version: 0.1.122
 - name: cloudnative-pg
   repository: https://cloudnative-pg.github.io/charts
   version: 0.29.0
@@ -10,21 +10,24 @@ dependencies:
   version: 0.7.1
 - name: victoria-metrics-single
   repository: https://victoriametrics.github.io/helm-charts/
-  version: 0.41.0
+  version: 0.43.0
 - name: victoria-logs-single
   repository: https://victoriametrics.github.io/helm-charts/
-  version: 0.13.8
+  version: 0.13.9
 - name: victoria-metrics-alert
   repository: https://victoriametrics.github.io/helm-charts/
-  version: 0.43.0
+  version: 0.45.0
 - name: opentelemetry-operator
   repository: https://open-telemetry.github.io/opentelemetry-helm-charts
   version: 0.117.0
 - name: grafana
   repository: https://grafana-community.github.io/helm-charts
-  version: 12.7.1
+  version: 12.10.2
 - name: traefik
   repository: https://traefik.github.io/charts
-  version: 41.0.1
-digest: sha256:2df38156ab385937f7124633e64abec143e2f37a8501135e297a57abb34e8137
-generated: "2026-08-07T11:10:31.377939+02:00"
+  version: 41.1.1
+- name: hcloud-exporter
+  repository: https://promhippie.github.io/charts
+  version: 4.28.0
+digest: sha256:f7449ca728644a18c38839b3c5bd32316ade242f7fd1f2f8bcb585e62eadc34f
+generated: "2026-09-16T15:00:45.689261+02:00"

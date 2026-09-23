@@ -72,10 +72,11 @@ type HealthCheck struct {
 }
 
 type Endpoint struct {
-	Enabled  bool
-	Host     string
-	Port     int
-	Protocol Protocol
+	Enabled    bool
+	Host       string
+	Port       int
+	Protocol   Protocol
+	RedirectTo string
 }
 
 type Protocol string

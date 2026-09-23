@@ -262,12 +262,13 @@ type ComplexityRoot struct {
 	}
 
 	Endpoint struct {
-		DNS      func(childComplexity int) int
-		Host     func(childComplexity int) int
-		Port     func(childComplexity int) int
-		Protocol func(childComplexity int) int
-		TLS      func(childComplexity int) int
-		Type     func(childComplexity int) int
+		DNS        func(childComplexity int) int
+		Host       func(childComplexity int) int
+		Port       func(childComplexity int) int
+		Protocol   func(childComplexity int) int
+		RedirectTo func(childComplexity int) int
+		TLS        func(childComplexity int) int
+		Type       func(childComplexity int) int
 	}
 
 	Environment struct {
@@ -363,7 +364,7 @@ type ComplexityRoot struct {
 	}
 
 	Mutation struct {
-		AddCustomDomain           func(childComplexity int, service platform.ServiceID, hostname string) int
+		AddCustomDomain           func(childComplexity int, service platform.ServiceID, hostname string, redirectTo *string) int
 		AddService                func(childComplexity int, environment platform.EnvironmentID, input model.AddServiceInput) int
 		BillingPortalURL          func(childComplexity int) int
 		BucketObjectUploadURL     func(childComplexity int, bucket platform.BucketID, key string) int
@@ -729,7 +730,7 @@ type MutationResolver interface {
 	SetServiceUser(ctx context.Context, service platform.ServiceID, user *int) (*model.Service, error)
 	Rollback(ctx context.Context, deployment platform.DeploymentID) (bool, error)
 	GenerateDomain(ctx context.Context, service platform.ServiceID) (*model.Service, error)
-	AddCustomDomain(ctx context.Context, service platform.ServiceID, hostname string) (*model.Service, error)
+	AddCustomDomain(ctx context.Context, service platform.ServiceID, hostname string, redirectTo *string) (*model.Service, error)
 	RemoveDomain(ctx context.Context, service platform.ServiceID, hostname string) (*model.Service, error)
 	SetSharedVariables(ctx context.Context, environment platform.EnvironmentID, variables []model.VariableInput) (bool, error)
 	SetServiceVariables(ctx context.Context, service platform.ServiceID, variables []model.ServiceVariableInput) (bool, error)
@@ -1631,6 +1632,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Endpoint.Protocol(childComplexity), true
+	case "Endpoint.redirectTo":
+		if e.ComplexityRoot.Endpoint.RedirectTo == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Endpoint.RedirectTo(childComplexity), true
 	case "Endpoint.tls":
 		if e.ComplexityRoot.Endpoint.TLS == nil {
 			break
@@ -2002,7 +2009,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Mutation.AddCustomDomain(childComplexity, args["service"].(platform.ServiceID), args["hostname"].(string)), true
+		return e.ComplexityRoot.Mutation.AddCustomDomain(childComplexity, args["service"].(platform.ServiceID), args["hostname"].(string), args["redirectTo"].(*string)), true
 	case "Mutation.addService":
 		if e.ComplexityRoot.Mutation.AddService == nil {
 			break
@@ -4347,6 +4354,8 @@ func (ec *executionContext) childFields_Endpoint(ctx context.Context, field grap
 		return ec.fieldContext_Endpoint_dns(ctx, field)
 	case "tls":
 		return ec.fieldContext_Endpoint_tls(ctx, field)
+	case "redirectTo":
+		return ec.fieldContext_Endpoint_redirectTo(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type Endpoint", field.Name)
 }
@@ -5090,6 +5099,12 @@ func (ec *executionContext) field_Mutation_addCustomDomain_args(ctx context.Cont
 		return nil, err
 	}
 	args["hostname"] = arg1
+
+	arg2, err := ec.field_Mutation_addCustomDomain_argsRedirectTo(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["redirectTo"] = arg2
 	return args, nil
 }
 
@@ -5130,6 +5145,49 @@ func (ec *executionContext) field_Mutation_addCustomDomain_argsHostname(
 	} else {
 		var zeroVal string
 		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be string`, tmp))
+	}
+}
+
+func (ec *executionContext) field_Mutation_addCustomDomain_argsRedirectTo(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("redirectTo"))
+	directive0 := func(ctx context.Context) (any, error) {
+		tmp, ok := rawArgs["redirectTo"]
+		if !ok {
+			var zeroVal *string
+			return zeroVal, nil
+		}
+		return ec.unmarshalOString2ᚖstring(ctx, tmp)
+	}
+
+	directive1 := func(ctx context.Context) (any, error) {
+		constraint, err := ec.unmarshalNString2string(ctx, "min=4,max=253")
+		if err != nil {
+			var zeroVal *string
+			return zeroVal, err
+		}
+		if ec.Directives.Constraint == nil {
+			var zeroVal *string
+			return zeroVal, errors.New("directive constraint is not implemented")
+		}
+		return ec.Directives.Constraint(ctx, rawArgs, directive0, constraint)
+	}
+
+	tmp, err := directive1(ctx)
+	if err != nil {
+		var zeroVal *string
+		return zeroVal, graphql.ErrorOnPath(ctx, err)
+	}
+	if data, ok := tmp.(*string); ok {
+		return data, nil
+	} else if tmp == nil {
+		var zeroVal *string
+		return zeroVal, nil
+	} else {
+		var zeroVal *string
+		return zeroVal, graphql.ErrorOnPath(ctx, fmt.Errorf(`unexpected type %T from directive, should be *string`, tmp))
 	}
 }
 
@@ -10129,6 +10187,29 @@ func (ec *executionContext) fieldContext_Endpoint_tls(_ context.Context, field g
 	return graphql.NewScalarFieldContext("Endpoint", field, false, false, errors.New("field of type TlsStatus does not have child fields"))
 }
 
+func (ec *executionContext) _Endpoint_redirectTo(ctx context.Context, field graphql.CollectedField, obj *model.Endpoint) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Endpoint_redirectTo(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.RedirectTo, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_Endpoint_redirectTo(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Endpoint", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
 func (ec *executionContext) _Environment_id(ctx context.Context, field graphql.CollectedField, obj *model.Environment) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -14048,7 +14129,7 @@ func (ec *executionContext) _Mutation_addCustomDomain(ctx context.Context, field
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().AddCustomDomain(ctx, fc.Args["service"].(platform.ServiceID), fc.Args["hostname"].(string))
+			return ec.Resolvers.Mutation().AddCustomDomain(ctx, fc.Args["service"].(platform.ServiceID), fc.Args["hostname"].(string), fc.Args["redirectTo"].(*string))
 		},
 		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
 			directive0 := next
@@ -24644,6 +24725,11 @@ func (ec *executionContext) _Endpoint(ctx context.Context, sel ast.SelectionSet,
 		case "tls":
 			out.Values[i] = ec._Endpoint_tls(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "redirectTo":
+			out.Values[i] = ec._Endpoint_redirectTo(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
 				out.Invalids++
 			}
 		default:

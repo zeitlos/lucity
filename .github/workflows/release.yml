@@ -200,7 +200,9 @@ jobs:
 
       - name: Update dependencies
         if: matrix.chart == 'lucity-infra'
-        run: helm dependency update charts/${{ matrix.chart }}
+        run: |
+          helm dependency update charts/${{ matrix.chart }}
+          git diff --exit-code -I '^generated:' -- charts/${{ matrix.chart }}/Chart.lock
 
       - name: Package chart
         run: helm package charts/${{ matrix.chart }} --destination .helm-packages
@@ -236,5 +238,6 @@ jobs:
           version: '~> v2'
           args: release --clean
         env:
+          GORELEASER_CURRENT_TAG: ${{ github.event.release.tag_name }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}

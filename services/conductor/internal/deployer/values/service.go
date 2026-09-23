@@ -72,7 +72,13 @@ type SecretRef struct {
 type Domain struct {
 	Host        string       `yaml:"host"`
 	Attached    bool         `yaml:"attached"`
+	RedirectTo  string       `yaml:"redirectTo,omitempty"`
 	ListenerSet *ListenerSet `yaml:"listenerSet,omitempty"`
+}
+
+type DomainOptions struct {
+	RedirectTo  string
+	ListenerSet *ListenerSet
 }
 
 type ListenerSet struct {
@@ -104,10 +110,6 @@ type ServiceSpec struct {
 }
 
 func CreateService(env *Env, name string, spec ServiceSpec) error {
-	if !isValidName(name) {
-		return fmt.Errorf("invalid service name %q", name)
-	}
-
 	if _, ok := env.Services[name]; ok {
 		// To keep this function idempotent, don't return an error if the service already exists.
 		return nil
@@ -117,10 +119,6 @@ func CreateService(env *Env, name string, spec ServiceSpec) error {
 
 	if err != nil {
 		return fmt.Errorf("invalid image %q: %w", spec.Image, err)
-	}
-
-	if err := validateSecurityContext(spec.RunAsUser, spec.RunAsGroup, spec.FsGroup); err != nil {
-		return err
 	}
 
 	if env.Services == nil {
@@ -219,14 +217,6 @@ func setOrDelete(m map[string]string, key, value string) {
 }
 
 func SetServiceReplicas(env *Env, name string, replicas int) error {
-	if replicas < 0 {
-		return fmt.Errorf("replicas must be non-negative")
-	}
-
-	if svc, ok := env.Services[name]; ok && replicas > 1 && len(svc.VolumeMounts) > 0 {
-		return fmt.Errorf("service %q mounts a volume and cannot scale beyond a single replica", name)
-	}
-
 	return mutateService(env, name, func(s *Service) {
 		s.Replicas = replicas
 		s.Autoscaling = nil
@@ -234,18 +224,6 @@ func SetServiceReplicas(env *Env, name string, replicas int) error {
 }
 
 func SetServiceAutoscaling(env *Env, name string, cfg Autoscaling) error {
-	if cfg.MinReplicas < 0 || cfg.MaxReplicas < cfg.MinReplicas {
-		return fmt.Errorf("invalid autoscaling range: min=%d max=%d", cfg.MinReplicas, cfg.MaxReplicas)
-	}
-
-	if cfg.TargetCPU <= 0 || cfg.TargetCPU > 100 {
-		return fmt.Errorf("targetCPU must be in (0, 100]")
-	}
-
-	if svc, ok := env.Services[name]; ok && len(svc.VolumeMounts) > 0 {
-		return fmt.Errorf("service %q mounts a volume and cannot use autoscaling", name)
-	}
-
 	cfg.Enabled = true
 
 	return mutateService(env, name, func(s *Service) {
@@ -260,20 +238,12 @@ func SetServiceResources(env *Env, name string, resources Resources) error {
 }
 
 func SetServiceCommand(env *Env, name, command string) error {
-	if err := validateStartCommand(command); err != nil {
-		return err
-	}
-
 	return mutateService(env, name, func(s *Service) {
 		s.Command = command
 	})
 }
 
 func SetServiceBranch(env *Env, name, branch string) error {
-	if err := validateBranch(branch); err != nil {
-		return err
-	}
-
 	return mutateService(env, name, func(s *Service) {
 		if s.Annotations == nil {
 			s.Annotations = map[string]string{}
@@ -311,10 +281,6 @@ func ciDeployValue(enabled bool) string {
 }
 
 func SetServicePort(env *Env, name string, port int) error {
-	if !isValidPort(port) {
-		return fmt.Errorf("port must be in [0, 65535]")
-	}
-
 	return mutateService(env, name, func(s *Service) {
 		s.Port = port
 	})
@@ -323,12 +289,6 @@ func SetServicePort(env *Env, name string, port int) error {
 // SetServiceHealthCheck configures the readiness/startup probe for a service.
 // A nil health check clears the config, reverting to the default TCP probe.
 func SetServiceHealthCheck(env *Env, name string, healthCheck *HealthCheck) error {
-	if healthCheck != nil {
-		if err := validateHealthCheck(*healthCheck); err != nil {
-			return err
-		}
-	}
-
 	return mutateService(env, name, func(s *Service) {
 		s.HealthCheck = healthCheck
 	})
@@ -338,10 +298,6 @@ func SetServiceHealthCheck(env *Env, name string, healthCheck *HealthCheck) erro
 // group (fsGroup) for a service. A nil field clears that setting, reverting to
 // the image default.
 func SetServiceSecurityContext(env *Env, name string, runAsUser, runAsGroup, fsGroup *int64) error {
-	if err := validateSecurityContext(runAsUser, runAsGroup, fsGroup); err != nil {
-		return err
-	}
-
 	return mutateService(env, name, func(s *Service) {
 		s.RunAsUser = runAsUser
 		s.RunAsGroup = runAsGroup
@@ -352,44 +308,35 @@ func SetServiceSecurityContext(env *Env, name string, runAsUser, runAsGroup, fsG
 // SetServiceVariables replaces a service's entire variable surface:
 // literal values and secret-key references.
 func SetServiceVariables(env *Env, name string, literals map[string]string, refs map[string]SecretRef) error {
-	for k := range literals {
-		if !isValidVarName(k) {
-			return fmt.Errorf("invalid variable name %q", k)
-		}
-	}
-
-	for k := range refs {
-		if !isValidVarName(k) {
-			return fmt.Errorf("invalid ref env key %q", k)
-		}
-	}
-
 	return mutateService(env, name, func(s *Service) {
 		s.Env = maps.Clone(literals)
 		s.Refs = maps.Clone(refs)
 	})
 }
 
-func AddServiceDomain(env *Env, name, host string, listenerSet *ListenerSet) error {
-	if !isValidHostname(host) {
-		return fmt.Errorf("invalid hostname %q", host)
-	}
-
-	if listenerSet != nil && len(host)+len(tlsSecretSuffix) > maxHostLen {
-		return fmt.Errorf("hostname %q is too long to get its own listener", host)
-	}
-
+func AddServiceDomain(env *Env, name, host string, options DomainOptions) error {
 	return mutateService(env, name, func(s *Service) {
 		if i := slices.IndexFunc(s.Domains, func(d Domain) bool { return d.Host == host }); i >= 0 {
-			s.Domains[i].ListenerSet = listenerSet
+			s.Domains[i].RedirectTo = options.RedirectTo
+			s.Domains[i].ListenerSet = options.ListenerSet
 			return
 		}
 
-		s.Domains = append(s.Domains, Domain{Host: host, ListenerSet: listenerSet})
+		s.Domains = append(s.Domains, Domain{Host: host, RedirectTo: options.RedirectTo, ListenerSet: options.ListenerSet})
 	})
 }
 
 func RemoveServiceDomain(env *Env, name, host string) error {
+	svc, ok := env.Services[name]
+
+	if !ok {
+		return fmt.Errorf("service %q not found", name)
+	}
+
+	if i := slices.IndexFunc(svc.Domains, func(d Domain) bool { return d.RedirectTo == host }); i >= 0 {
+		return fmt.Errorf("%s redirects to %s; remove %s first", svc.Domains[i].Host, host, svc.Domains[i].Host)
+	}
+
 	return mutateService(env, name, func(s *Service) {
 		s.Domains = slices.DeleteFunc(s.Domains, func(d Domain) bool {
 			return d.Host == host

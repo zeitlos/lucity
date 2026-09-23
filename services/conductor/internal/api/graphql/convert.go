@@ -1030,7 +1030,8 @@ func convertEndpoint(endpoint conductor.Endpoint) model.Endpoint {
 			Status:          convertDNSStatus(endpoint.DNSStatus),
 			RequiredRecords: records,
 		},
-		TLS: convertTLSStatus(endpoint.TLSStatus),
+		TLS:        convertTLSStatus(endpoint.TLSStatus),
+		RedirectTo: optional(endpoint.RedirectTo),
 	}
 }
 
@@ -1099,6 +1100,8 @@ func convertDNSRecordType(t hostname.RecordType) model.DNSRecordType {
 		return model.DNSRecordTypeCname
 	case hostname.A:
 		return model.DNSRecordTypeA
+	case hostname.ALIAS:
+		return model.DNSRecordTypeAlias
 	}
 
 	slog.Warn("unknown dns record type", "type", t)

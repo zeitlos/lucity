@@ -22,10 +22,6 @@ type KeyValueStoreSpec struct {
 }
 
 func CreateKeyValueStore(env *Env, name string, spec KeyValueStoreSpec) error {
-	if !isValidName(name) {
-		return fmt.Errorf("invalid key-value store name %q", name)
-	}
-
 	if _, ok := env.Databases.Valkey[name]; ok {
 		// To keep this function idempotent, don't return an error if the store already exists.
 		return nil

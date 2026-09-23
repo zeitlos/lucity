@@ -39,7 +39,7 @@ func (s *server) registerResource(m *mcp.Server) {
 
 	mcp.AddTool(m, &mcp.Tool{
 		Name:        "create_volume",
-		Description: "Provision a persistent volume in an environment. size is a Kubernetes quantity (e.g. 5Gi). Optionally mount it into a service at a path.",
+		Description: "Provision a persistent volume in an environment. size is a Kubernetes quantity between 10Gi and 1Ti (e.g. 10Gi); it can grow later but never shrink. Optionally mount it into a service at a path; a volume mounts into one service only, and that service must run a single replica.",
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: ptr(false)},
 	}, s.createVolume)
 
@@ -152,7 +152,7 @@ func (s *server) createBucket(ctx context.Context, _ *mcp.CallToolRequest, input
 type createVolumeInput struct {
 	Environment  string `json:"environment" jsonschema:"environment id (workspace/project/environment)"`
 	Name         string `json:"name" jsonschema:"volume name (2-16 chars, lowercase alphanumeric and hyphens)"`
-	Size         string `json:"size" jsonschema:"size as a Kubernetes quantity (e.g. 5Gi)"`
+	Size         string `json:"size" jsonschema:"size as a Kubernetes quantity, 10Gi minimum, 1Ti maximum (e.g. 10Gi)"`
 	MountService string `json:"mount_service,omitempty" jsonschema:"optional service id to mount the volume into"`
 	MountPath    string `json:"mount_path,omitempty" jsonschema:"mount path inside the container; required when mount_service is set"`
 }

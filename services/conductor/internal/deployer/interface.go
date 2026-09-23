@@ -39,7 +39,7 @@ type ServiceClient interface {
 	Variables(ctx context.Context, id platform.ServiceID) (ServiceVariablesSpec, error)
 	SetVariables(ctx context.Context, id platform.ServiceID, spec ServiceVariablesSpec) (RevisionID, error)
 
-	AddDomain(ctx context.Context, id platform.ServiceID, host string, ownListener bool) (RevisionID, error)
+	AddDomain(ctx context.Context, id platform.ServiceID, host string, options DomainOptions) (RevisionID, error)
 	RemoveDomain(ctx context.Context, id platform.ServiceID, host string) (RevisionID, error)
 	AttachDomain(ctx context.Context, id platform.ServiceID, host string, attached bool) (RevisionID, error)
 
@@ -123,6 +123,11 @@ type Autoscaling struct {
 	MinReplicas int
 	MaxReplicas int
 	TargetCPU   int
+}
+
+type DomainOptions struct {
+	RedirectTo  string
+	OwnListener bool
 }
 
 type HealthCheck struct {
