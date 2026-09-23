@@ -79,10 +79,6 @@ type Installation struct {
 
 // appClient creates a go-github client authenticated as the GitHub App (JWT).
 func (a *App) appClient() (*gh.Client, error) {
-	if len(a.privateKey) == 0 {
-		return nil, fmt.Errorf("github app private key not configured")
-	}
-
 	transport, err := ghinstallation.NewAppsTransport(http.DefaultTransport, a.appID, a.privateKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create app transport: %w", err)

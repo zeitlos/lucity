@@ -128,12 +128,11 @@ type Config struct {
 	CISessionTTL          time.Duration `envconfig:"CI_SESSION_TTL" default:"1h"`
 
 	// GitHub App (for installation tokens + OAuth)
-	GitHubAppID            int64  `envconfig:"GITHUB_APP_ID" required:"true"`
-	GitHubPrivateKeyPath   string `envconfig:"GITHUB_PRIVATE_KEY_PATH" required:"true"`
-	GitHubClientID         string `envconfig:"GITHUB_CLIENT_ID" required:"true"`
-	GitHubClientSecret     string `envconfig:"GITHUB_CLIENT_SECRET" required:"true"`
-	GitHubOAuthCallbackURL string `envconfig:"GITHUB_OAUTH_CALLBACK_URL" required:"true"`
-	GitHubAppSlug          string `envconfig:"GITHUB_APP_SLUG" required:"true"`
+	GitHubAppID          int64  `envconfig:"GITHUB_APP_ID" required:"true"`
+	GitHubPrivateKeyPath string `envconfig:"GITHUB_PRIVATE_KEY_PATH" required:"true"`
+	GitHubClientID       string `envconfig:"GITHUB_CLIENT_ID" required:"true"`
+	GitHubClientSecret   string `envconfig:"GITHUB_CLIENT_SECRET" required:"true"`
+	GitHubAppSlug        string `envconfig:"GITHUB_APP_SLUG" required:"true"`
 
 	// Domains
 	WorkloadDomain            string `envconfig:"WORKLOAD_DOMAIN" required:"true"`
@@ -256,7 +255,7 @@ func main() {
 		slog.Info("cashier not configured — billing disabled")
 	}
 
-	githubApp, err := ghpkg.NewApp(config.GitHubAppID, config.GitHubClientID, config.GitHubClientSecret, "", config.GitHubOAuthCallbackURL, config.GitHubPrivateKeyPath)
+	githubApp, err := ghpkg.NewApp(config.GitHubAppID, config.GitHubClientID, config.GitHubClientSecret, config.GitHubPrivateKeyPath)
 
 	if err != nil {
 		slog.Error("failed to create github app", "error", err)
