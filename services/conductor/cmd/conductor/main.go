@@ -63,7 +63,6 @@ type Config struct {
 	OIDCIssuerURL    string `envconfig:"OIDC_ISSUER_URL" required:"true"`
 	OIDCDiscoveryURL string `envconfig:"OIDC_DISCOVERY_URL"`
 	OIDCClientID     string `envconfig:"OIDC_CLIENT_ID" required:"true"`
-	OIDCClientSecret string `envconfig:"OIDC_CLIENT_SECRET"`
 	OIDCCallbackURL  string `envconfig:"OIDC_CALLBACK_URL" default:"http://localhost:8080/auth/callback"`
 	OIDCAudience     string `envconfig:"OIDC_AUDIENCE"`
 	OIDCCLIClientID  string `envconfig:"OIDC_CLI_CLIENT_ID"`
@@ -205,7 +204,6 @@ func main() {
 	oidcProvider := &oidc.Provider{
 		Endpoint:     strings.TrimSuffix(config.OIDCIssuerURL, "/oidc"),
 		ClientID:     config.OIDCClientID,
-		ClientSecret: config.OIDCClientSecret,
 		Audience:     apiAudience,
 		DirectSignIn: directSignIn,
 		Scopes:       loginScopes,
