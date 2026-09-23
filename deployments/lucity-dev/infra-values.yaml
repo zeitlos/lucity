@@ -1,0 +1,251 @@
+zot:
+  persistence: true
+  pvc:
+    create: true
+    storage: 20Gi
+    storageClassName: hcloud-volumes
+  service:
+    clusterIP: "10.96.100.100"
+  mountConfig: true
+  configFiles:
+    config.json: |-
+      {
+        "storage": {
+          "rootDirectory": "/var/lib/registry",
+          "gc": true,
+          "gcDelay": "1h",
+          "gcInterval": "24h",
+          "retention": {
+            "dryRun": false,
+            "delay": "168h",
+            "policies": [
+              {
+                "repositories": ["**"],
+                "deleteUntagged": true,
+                "deleteReferrers": false,
+                "keepTags": [
+                  { "patterns": ["^buildcache$"] },
+                  { "patterns": [".*"], "mostRecentlyPushedCount": 5 },
+                  { "patterns": [".*"], "pushedWithin": "72h" }
+                ]
+              }
+            ]
+          }
+        },
+        "http": {
+          "address": "0.0.0.0",
+          "port": "5000",
+          "compat": ["docker2s2"],
+          "auth": {
+            "htpasswd": {
+              "path": "/etc/zot/htpasswd"
+            }
+          },
+          "accessControl": {
+            "repositories": {
+              "**": {
+                "defaultPolicy": ["read"],
+                "policies": [
+                  {
+                    "users": ["builder"],
+                    "actions": ["read", "create", "update", "delete"]
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "log": {
+          "level": "info"
+        },
+        "extensions": {
+          "search": {
+            "enable": true,
+            "cve": {
+              "updateInterval": "6h"
+            }
+          },
+          "ui": {
+            "enable": true
+          }
+        }
+      }
+    htpasswd: ""  # infra-secrets.yaml
+  resources:
+    requests:
+      cpu: 100m
+      memory: 1Gi
+
+gateway:
+  className: cilium
+  infrastructure:
+    annotations:
+      flexplane.io/provider: hetzner
+      load-balancer.hetzner.cloud/location: nbg1
+      load-balancer.hetzner.cloud/name: flexplane-lucity-dev-gateway
+      load-balancer.hetzner.cloud/uses-proxyprotocol: "true"
+      load-balancer.hetzner.cloud/ipv6-disabled: "true"
+  listeners:
+    - name: platform-http
+      protocol: HTTP
+      port: 80
+      hostname: lucity.dev
+    - name: platform-https
+      protocol: HTTPS
+      port: 443
+      hostname: lucity.dev
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: lucity-dev-tls
+    - name: workload-http
+      protocol: HTTP
+      port: 80
+      hostname: "*.lucity.io"
+    - name: workload-https
+      protocol: HTTPS
+      port: 443
+      hostname: "*.lucity.io"
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: lucity-io-wildcard-tls
+    - name: id-http
+      protocol: HTTP
+      port: 80
+      hostname: id.lucity.dev
+    - name: id-https
+      protocol: HTTPS
+      port: 443
+      hostname: id.lucity.dev
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: id-lucity-dev-tls
+
+clusterIssuers:
+  - name: letsencrypt-dns01
+    acme:
+      server: https://acme-v02.api.letsencrypt.org/directory
+      email: certificates@zeitlos.software
+      solvers:
+        - selector:
+            dnsZones: ["lucity.dev"]
+          dns01:
+            azureDNS:
+              clientID: c45a94f6-aa06-4a2e-8e6b-63dd04d2d5a6
+              clientSecretSecretRef:
+                name: azuredns-config
+                key: client-secret
+              subscriptionID: c81c5d5d-9c5e-4a9d-bdcc-da0452eb6a33
+              tenantID: 66bb3819-c8e4-4543-ac51-306e5feeb29c
+              resourceGroupName: lucity-dev
+              hostedZoneName: lucity.dev
+              environment: AzurePublicCloud
+        - selector:
+            dnsZones: ["lucity.io"]
+          dns01:
+            azureDNS:
+              clientID: c45a94f6-aa06-4a2e-8e6b-63dd04d2d5a6
+              clientSecretSecretRef:
+                name: azuredns-config
+                key: client-secret
+              subscriptionID: c81c5d5d-9c5e-4a9d-bdcc-da0452eb6a33
+              tenantID: 66bb3819-c8e4-4543-ac51-306e5feeb29c
+              resourceGroupName: lucity-dev
+              hostedZoneName: lucity.io
+              environment: AzurePublicCloud
+  - name: letsencrypt-http01
+    acme:
+      server: https://acme-v02.api.letsencrypt.org/directory
+      email: certificates@zeitlos.software
+      solvers:
+        - http01:
+            gatewayHTTPRoute: {}
+
+certificates:
+  - name: lucity-dev-tls
+    secretName: lucity-dev-tls
+    issuerRef:
+      name: letsencrypt-dns01
+    dnsNames:
+      - lucity.dev
+  - name: lucity-io-wildcard-tls
+    secretName: lucity-io-wildcard-tls
+    issuerRef:
+      name: letsencrypt-dns01
+    dnsNames:
+      - "*.lucity.io"
+  - name: id-lucity-dev-tls
+    secretName: id-lucity-dev-tls
+    issuerRef:
+      name: letsencrypt-dns01
+    dnsNames:
+      - id.lucity.dev
+
+plugin-barman-cloud:
+  enabled: false
+
+backups:
+  enabled: false
+
+rybbit:
+  enabled: false
+
+traefik:
+  enabled: false
+
+grafana:
+  enabled: false
+
+hcloud-exporter:
+  enabled: false
+
+victoria-metrics-alert:
+  enabled: false
+
+logto:
+  enabled: true
+  endpoint: https://id.lucity.dev
+  route:
+    annotations:
+      external-dns.kubernetes.io/hostname: id.lucity.dev
+  postgres:
+    instances: 1
+    size: 10Gi
+    storageClass: hcloud-volumes
+
+victoria-metrics-single:
+  enabled: true
+  server:
+    persistentVolume:
+      size: 10Gi
+      storageClassName: hcloud-volumes
+    resources:
+      requests:
+        cpu: 100m
+        memory: 512Mi
+      limits:
+        memory: 1Gi
+
+victoria-logs-single:
+  enabled: true
+  server:
+    persistentVolume:
+      size: 10Gi
+      storageClassName: hcloud-volumes
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        memory: 512Mi
+
+opentelemetry-operator:
+  enabled: false
+
+otelCollector:
+  daemonset:
+    enabled: true
+  deployment:
+    enabled: true

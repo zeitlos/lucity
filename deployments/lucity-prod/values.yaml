@@ -23,7 +23,6 @@ conductor:
     GITHUB_PRIVATE_KEY_PATH: /secrets/github/github-app.pem
     GITHUB_APP_SLUG: lucity-platform
     GITHUB_CLIENT_ID: Iv23liMzm79VIgvNtglX
-    GITHUB_OAUTH_CALLBACK_URL: https://lucity.cloud/auth/github/callback
 
     LOGTO_ENDPOINT: http://lucity-infra-logto.lucity-system.svc.cluster.local:3001
 

@@ -1,4 +1,5 @@
 {{- if .Values.routes.enabled }}
+{{- $responseHeaders := .Values.routes.responseHeaders }}
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
@@ -16,6 +17,10 @@ spec:
         - path:
             type: PathPrefix
             value: /graphql
+      {{- with $responseHeaders }}
+      filters:
+        {{- include "lucity.responseHeaderFilter" . | nindent 8 }}
+      {{- end }}
       backendRefs:
         - name: {{ include "lucity.fullname" . }}-conductor
           port: 8080
@@ -23,6 +28,10 @@ spec:
         - path:
             type: PathPrefix
             value: /auth
+      {{- with $responseHeaders }}
+      filters:
+        {{- include "lucity.responseHeaderFilter" . | nindent 8 }}
+      {{- end }}
       backendRefs:
         - name: {{ include "lucity.fullname" . }}-conductor
           port: 8080
@@ -30,6 +39,10 @@ spec:
         - path:
             type: PathPrefix
             value: /playground
+      {{- with $responseHeaders }}
+      filters:
+        {{- include "lucity.responseHeaderFilter" . | nindent 8 }}
+      {{- end }}
       backendRefs:
         - name: {{ include "lucity.fullname" . }}-conductor
           port: 8080
@@ -37,6 +50,10 @@ spec:
         - path:
             type: PathPrefix
             value: /version
+      {{- with $responseHeaders }}
+      filters:
+        {{- include "lucity.responseHeaderFilter" . | nindent 8 }}
+      {{- end }}
       backendRefs:
         - name: {{ include "lucity.fullname" . }}-conductor
           port: 8080
@@ -50,6 +67,9 @@ spec:
             path:
               type: ReplacePrefixMatch
               replacePrefixMatch: /
+        {{- with $responseHeaders }}
+        {{- include "lucity.responseHeaderFilter" . | nindent 8 }}
+        {{- end }}
       backendRefs:
         - name: {{ include "lucity.fullname" . }}-dashboard
           port: 80
@@ -58,6 +78,10 @@ spec:
         - path:
             type: PathPrefix
             value: /webhooks/stripe
+      {{- with $responseHeaders }}
+      filters:
+        {{- include "lucity.responseHeaderFilter" . | nindent 8 }}
+      {{- end }}
       backendRefs:
         - name: {{ include "lucity.fullname" . }}-cashier
           port: {{ .Values.cashier.webhookPort }}
@@ -66,6 +90,10 @@ spec:
         - path:
             type: PathPrefix
             value: /webhooks
+      {{- with $responseHeaders }}
+      filters:
+        {{- include "lucity.responseHeaderFilter" . | nindent 8 }}
+      {{- end }}
       backendRefs:
         - name: {{ include "lucity.fullname" . }}-conductor
           port: 9004
@@ -73,6 +101,10 @@ spec:
         - path:
             type: PathPrefix
             value: /api
+      {{- with $responseHeaders }}
+      filters:
+        {{- include "lucity.responseHeaderFilter" . | nindent 8 }}
+      {{- end }}
       backendRefs:
         - name: {{ include "lucity.fullname" . }}-conductor
           port: 8080
@@ -80,6 +112,10 @@ spec:
         - path:
             type: PathPrefix
             value: /
+      {{- with $responseHeaders }}
+      filters:
+        {{- include "lucity.responseHeaderFilter" . | nindent 8 }}
+      {{- end }}
       backendRefs:
         - name: {{ include "lucity.fullname" . }}-docs
           port: 80

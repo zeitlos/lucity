@@ -35,8 +35,30 @@ const title = page.value.seo?.title || page.value.title;
 const description = page.value.seo?.description || page.value.description;
 const modifiedAt = computed(() => contentDates?.[route.path] || null);
 
+const showToc = computed(() => !!page.value?.body?.toc?.links?.length && !unref(shouldHideToc));
+
+const pageUi = computed(() => showToc.value
+  ? { root: 'lg:grid-cols-12', center: 'lg:col-span-9', right: 'lg:col-span-3' }
+  : undefined);
+
 const headline = ref(findPageHeadline(navigation?.value, page.value?.path));
 const breadcrumbs = computed(() => findPageBreadcrumbs(navigation?.value, page.value?.path || ''));
+
+// "Docs > Guides > Next.js". A section and its index page share a path, so the
+// trail can repeat itself; the last crumb is the current page and gets no link.
+const breadcrumbItems = computed(() => {
+  const trail = (breadcrumbs.value ?? []).filter(
+    (item, index, list) => index === 0 || item.path !== list[index - 1]?.path,
+  );
+
+  return [
+    { label: 'Docs', to: '/quickstart' },
+    ...trail.map((item, index) => ({
+      label: item.title,
+      to: index === trail.length - 1 ? undefined : item.path,
+    })),
+  ];
+});
 
 useSeo({
   title,
@@ -49,7 +71,7 @@ watch(() => navigation?.value, () => {
   headline.value = findPageHeadline(navigation?.value, page.value?.path) || headline.value;
 });
 
-defineOgImageComponent('Docs', {
+defineOgImage('Docs', {
   headline: headline.value,
 });
 
@@ -88,15 +110,22 @@ addPrerenderPath(`/raw${route.path}.md`);
   <UPage
     v-if="page"
     :key="`page-${shouldHideToc}`"
+    :ui="pageUi"
   >
     <UPageHeader
       :title="page.title"
       :description="page.description"
-      :headline="headline"
       :ui="{
         wrapper: 'flex-row items-center flex-wrap justify-between',
       }"
     >
+      <template #headline>
+        <UBreadcrumb
+          :items="breadcrumbItems"
+          :ui="{ link: 'text-sm', separatorIcon: 'size-4' }"
+        />
+      </template>
+
       <template #links>
         <UButton
           v-for="(link, index) in (page as DocsCollectionItem).links"
@@ -109,16 +138,14 @@ addPrerenderPath(`/raw${route.path}.md`);
       </template>
     </UPageHeader>
 
-    <UPageBody>
+    <UPageBody class="docs-body">
       <ContentRenderer
         v-if="page"
         :value="page"
       />
 
       <USeparator v-if="github || formattedDate">
-        <div
-          class="flex items-center gap-2 text-sm text-muted"
-        >
+        <div class="flex flex-col items-center gap-1 text-center text-sm text-muted sm:flex-row sm:gap-x-2">
           <span
             v-if="formattedDate"
             class="flex items-center gap-1"
@@ -129,39 +156,45 @@ addPrerenderPath(`/raw${route.path}.md`);
             />
             Last updated {{ formattedDate }}
           </span>
-          <template v-if="github && formattedDate">
-            <span>&middot;</span>
-          </template>
-          <UButton
+
+          <span
+            v-if="github && formattedDate"
+            class="hidden sm:inline"
+          >&middot;</span>
+
+          <span
             v-if="github"
-            variant="link"
-            color="neutral"
-            :to="editLink"
-            target="_blank"
-            icon="i-lucide-pen"
-            :ui="{ leadingIcon: 'size-4' }"
+            class="flex items-center gap-x-2"
           >
-            {{ t('docs.edit') }}
-          </UButton>
-          <span v-if="github">{{ t('common.or') }}</span>
-          <UButton
-            v-if="github"
-            variant="link"
-            color="neutral"
-            :to="`${github.url}/issues/new/choose`"
-            target="_blank"
-            icon="i-lucide-alert-circle"
-            :ui="{ leadingIcon: 'size-4' }"
-          >
-            {{ t('docs.report') }}
-          </UButton>
+            <UButton
+              variant="link"
+              color="neutral"
+              :to="editLink"
+              target="_blank"
+              icon="i-lucide-pen"
+              :ui="{ leadingIcon: 'size-4' }"
+            >
+              {{ t('docs.edit') }}
+            </UButton>
+            <span>{{ t('common.or') }}</span>
+            <UButton
+              variant="link"
+              color="neutral"
+              :to="`${github.url}/issues/new/choose`"
+              target="_blank"
+              icon="i-lucide-alert-circle"
+              :ui="{ leadingIcon: 'size-4' }"
+            >
+              {{ t('docs.report') }}
+            </UButton>
+          </span>
         </div>
       </USeparator>
       <UContentSurround :surround="surround" />
     </UPageBody>
 
     <template
-      v-if="page?.body?.toc?.links?.length && !shouldHideToc"
+      v-if="showToc"
       #right
     >
       <UContentToc

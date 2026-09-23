@@ -11,9 +11,21 @@ export default defineAppConfig({
     titleTemplate: '%s | Lucity'
   },
   ui: {
+    contentToc: {
+      compoundVariants: [{
+        color: 'primary',
+        active: true,
+        class: { link: 'text-highlighted font-medium' },
+      }, {
+        highlight: true,
+        highlightVariant: 'straight',
+        class: { indicator: 'w-0.5' },
+      }],
+    },
     colors: {
-      primary: 'teal',
-      neutral: 'stone'
+      primary: 'brand',
+      neutral: 'stone',
+      info: 'violet'
     },
     pageSection: {
       slots: {
@@ -31,23 +43,29 @@ export default defineAppConfig({
     },
     pageHeader: {
       slots: {
-        title: 'text-4xl sm:text-5xl'
+        title: 'font-display font-normal text-4xl sm:text-5xl'
       }
     },
     prose: {
+      img: {
+        slots: {
+          base: 'rounded-lg border border-default shadow-[0_2px_8px_oklch(0_0_0/0.05)]',
+          zoomedImage: 'rounded-lg border border-default'
+        }
+      },
       h1: {
         slots: {
-          base: 'text-5xl'
+          base: 'font-display font-normal text-5xl'
         }
       },
       h2: {
         slots: {
-          base: 'text-3xl'
+          base: 'font-display font-normal text-3xl'
         }
       },
       h3: {
         slots: {
-          base: 'text-2xl'
+          base: 'font-display font-normal text-2xl'
         }
       },
       h4: {

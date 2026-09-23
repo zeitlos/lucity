@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -53,10 +54,14 @@ func sessionAuth(store *sessionStore, codec *session.Codec, verifier *auth.Verif
 			claims := &auth.Claims{Subject: data.Sub, Name: data.Name, Email: data.Email, AvatarURL: data.Picture}
 
 			if workspace := r.Header.Get(tenant.Header); workspace != "" {
-				if orgToken, err := store.orgToken(ctx, data.SID, workspace); err == nil {
-					if tokenClaims, err := verifier.ValidateToken(ctx, orgToken); err == nil {
-						claims.Workspaces = tokenClaims.Workspaces
-					}
+				orgToken, err := store.orgToken(ctx, data.SID, workspace)
+
+				if err != nil {
+					slog.WarnContext(ctx, "organization token unavailable; request will have no workspace", "workspace", workspace, "subject", data.Sub, "error", err)
+				} else if tokenClaims, err := verifier.ValidateToken(ctx, orgToken); err != nil {
+					slog.WarnContext(ctx, "organization token rejected; request will have no workspace", "workspace", workspace, "subject", data.Sub, "error", err)
+				} else {
+					claims.Workspaces = tokenClaims.Workspaces
 				}
 			}
 

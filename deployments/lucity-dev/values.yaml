@@ -1,0 +1,67 @@
+registryPull:
+  host: "10.96.100.100:5000"
+  username: reader
+
+routes:
+  enabled: true
+  hostname: lucity.dev
+  # Keep the development instance out of search indexes. It serves the same
+  # docs and dashboard as production, so it must never be indexed.
+  responseHeaders:
+    X-Robots-Tag: "noindex, nofollow"
+
+
+conductor:
+  registryHost: lucity-infra-zot.lucity-system.svc.cluster.local:5000
+  registryUsername: builder
+  buildkit:
+    enabled: true
+    storageSize: 20Gi
+  env:
+    OIDC_ISSUER_URL: https://id.lucity.dev/oidc
+    OIDC_CLIENT_ID: tra6m86tjgolnq6ubifd0
+    OIDC_AUDIENCE: https://api.lucity.dev
+    OIDC_CLI_CLIENT_ID: ifzsbmxdp02kaycalc81r
+    OIDC_CALLBACK_URL: https://lucity.dev/auth/callback
+    DASHBOARD_URL: https://lucity.dev/app
+
+    GITHUB_APP_ID: "5043321"
+    GITHUB_PRIVATE_KEY_PATH: /secrets/github/github-app.pem
+    GITHUB_APP_SLUG: lucity-platform-dev
+    GITHUB_CLIENT_ID: Iv23liXHnIbHQPI3iBzT
+
+    LOGTO_ENDPOINT: http://lucity-infra-logto.lucity-system.svc.cluster.local:3001
+
+    INTERNAL_JWT_PRIVATE_KEY_PATH: /secrets/internal-jwt/private.pem
+    INTERNAL_JWT_PUBLIC_KEY_PATH: /secrets/internal-jwt/public.pem
+
+    REGISTRY_URL: lucity-infra-zot.lucity-system.svc.cluster.local:5000
+    REGISTRY_PUSH_URL: lucity-infra-zot.lucity-system.svc.cluster.local:5000
+    REGISTRY_PULL_URL: 10.96.100.100:5000
+    REGISTRY_AUTH_SECRET: lucity-registry-auth
+
+    WORKLOAD_DOMAIN: lucity.io
+    DATABASE_DOMAIN: db.lucity.io
+    IP_ADDRESS: "46.225.44.63"
+
+    VICTORIA_METRICS_URL: http://lucity-infra-victoria-metrics-single-server.lucity-system.svc.cluster.local:8428
+
+    OVH_PROJECT_ID: "2eb456d1d19d4e30982a0d261743e2f3"
+    OVH_ENDPOINT: ovh-eu
+    OVH_REGION: GRA
+
+    PUBLIC_BUCKET_DOMAIN: storage.lucity.io
+
+    DATABASE_BACKUP_ENABLED: "false"
+  envSecret:
+    SESSION_SECRET: SESSION_SECRET
+    GITHUB_CLIENT_SECRET: GITHUB_CLIENT_SECRET
+    LOGTO_M2M_APP_ID: LOGTO_M2M_APP_ID
+    LOGTO_M2M_APP_SECRET: LOGTO_M2M_APP_SECRET
+    WEBHOOK_SECRET: GITHUB_WEBHOOK_SECRET
+    OVH_APPLICATION_KEY: OVH_APPLICATION_KEY
+    OVH_APPLICATION_SECRET: OVH_APPLICATION_SECRET
+    OVH_CONSUMER_KEY: OVH_CONSUMER_KEY
+
+cashier:
+  enabled: false

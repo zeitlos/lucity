@@ -63,7 +63,6 @@ type Config struct {
 	OIDCIssuerURL    string `envconfig:"OIDC_ISSUER_URL" required:"true"`
 	OIDCDiscoveryURL string `envconfig:"OIDC_DISCOVERY_URL"`
 	OIDCClientID     string `envconfig:"OIDC_CLIENT_ID" required:"true"`
-	OIDCClientSecret string `envconfig:"OIDC_CLIENT_SECRET"`
 	OIDCCallbackURL  string `envconfig:"OIDC_CALLBACK_URL" default:"http://localhost:8080/auth/callback"`
 	OIDCAudience     string `envconfig:"OIDC_AUDIENCE"`
 	OIDCCLIClientID  string `envconfig:"OIDC_CLI_CLIENT_ID"`
@@ -128,12 +127,11 @@ type Config struct {
 	CISessionTTL          time.Duration `envconfig:"CI_SESSION_TTL" default:"1h"`
 
 	// GitHub App (for installation tokens + OAuth)
-	GitHubAppID            int64  `envconfig:"GITHUB_APP_ID" required:"true"`
-	GitHubPrivateKeyPath   string `envconfig:"GITHUB_PRIVATE_KEY_PATH" required:"true"`
-	GitHubClientID         string `envconfig:"GITHUB_CLIENT_ID" required:"true"`
-	GitHubClientSecret     string `envconfig:"GITHUB_CLIENT_SECRET" required:"true"`
-	GitHubOAuthCallbackURL string `envconfig:"GITHUB_OAUTH_CALLBACK_URL" required:"true"`
-	GitHubAppSlug          string `envconfig:"GITHUB_APP_SLUG" required:"true"`
+	GitHubAppID          int64  `envconfig:"GITHUB_APP_ID" required:"true"`
+	GitHubPrivateKeyPath string `envconfig:"GITHUB_PRIVATE_KEY_PATH" required:"true"`
+	GitHubClientID       string `envconfig:"GITHUB_CLIENT_ID" required:"true"`
+	GitHubClientSecret   string `envconfig:"GITHUB_CLIENT_SECRET" required:"true"`
+	GitHubAppSlug        string `envconfig:"GITHUB_APP_SLUG" required:"true"`
 
 	// Domains
 	WorkloadDomain            string `envconfig:"WORKLOAD_DOMAIN" required:"true"`
@@ -206,7 +204,6 @@ func main() {
 	oidcProvider := &oidc.Provider{
 		Endpoint:     strings.TrimSuffix(config.OIDCIssuerURL, "/oidc"),
 		ClientID:     config.OIDCClientID,
-		ClientSecret: config.OIDCClientSecret,
 		Audience:     apiAudience,
 		DirectSignIn: directSignIn,
 		Scopes:       loginScopes,
@@ -256,7 +253,7 @@ func main() {
 		slog.Info("cashier not configured — billing disabled")
 	}
 
-	githubApp, err := ghpkg.NewApp(config.GitHubAppID, config.GitHubClientID, config.GitHubClientSecret, "", config.GitHubOAuthCallbackURL, config.GitHubPrivateKeyPath)
+	githubApp, err := ghpkg.NewApp(config.GitHubAppID, config.GitHubClientID, config.GitHubClientSecret, config.GitHubPrivateKeyPath)
 
 	if err != nil {
 		slog.Error("failed to create github app", "error", err)

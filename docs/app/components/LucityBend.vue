@@ -44,7 +44,7 @@ const ejectPoly = poly({ simplicity: 0.18, scalability: 0.95, sovereignty: 0.85 
 
         <p class="mt-8 text-2xl leading-relaxed">
           Lucity can bend the software deployment trilemma, thanks to its unique ejectable architecture.
-          <code class="rounded-md bg-[#00b87d] px-2 py-0.5 font-mono text-[0.9em] text-white">lucity eject</code>
+          <code class="rounded-md bg-primary-600 px-2 py-0.5 font-mono text-[0.9em] text-white">lucity eject</code>
           to native Kubernetes the moment you outgrow it.
         </p>
       </div>
@@ -53,7 +53,7 @@ const ejectPoly = poly({ simplicity: 0.18, scalability: 0.95, sovereignty: 0.85 
         <svg viewBox="0 0 440 400" class="w-full" role="img" aria-label="How Lucity bends the deployment trilemma">
           <defs>
             <pattern id="bend-hatch" width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-              <line x1="0" y1="0" x2="0" y2="9" stroke="#00b87d" stroke-width="1.3" stroke-opacity="0.5" />
+              <line x1="0" y1="0" x2="0" y2="9" class="stroke-primary-600" stroke-width="1.3" stroke-opacity="0.5" />
             </pattern>
           </defs>
 
@@ -65,10 +65,10 @@ const ejectPoly = poly({ simplicity: 0.18, scalability: 0.95, sovereignty: 0.85 
           </g>
 
           <!-- Ejected reach (native Kubernetes) -->
-          <polygon :points="ejectPoly" fill="url(#bend-hatch)" stroke="#00b87d" stroke-width="2" stroke-opacity="0.7" stroke-linejoin="round" />
+          <polygon :points="ejectPoly" fill="url(#bend-hatch)" class="stroke-primary-600" stroke-width="2" stroke-opacity="0.7" stroke-linejoin="round" />
 
           <!-- Lucity-as-PaaS shape -->
-          <g style="color: #00b87d">
+          <g class="text-primary-600">
             <polygon
               :points="paasPoly"
               fill="currentColor"
@@ -86,7 +86,7 @@ const ejectPoly = poly({ simplicity: 0.18, scalability: 0.95, sovereignty: 0.85 
         <span class="absolute left-[79.5%] top-[70%] -translate-x-1/2 text-2xl font-medium text-neutral-800 dark:text-neutral-100">Sovereignty</span>
 
         <div class="pointer-events-none absolute left-1/2 top-3/5 -translate-x-1/2 text-center">
-          <code class="rounded-md bg-[#00b87d] px-1 py-0.5 font-mono text-xs text-white">lucity eject</code>
+          <code class="rounded-md bg-primary-600 px-1 py-0.5 font-mono text-xs text-white">lucity eject</code>
         </div>
       </div>
     </div>
