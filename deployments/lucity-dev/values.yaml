@@ -19,7 +19,7 @@ conductor:
     storageSize: 20Gi
   env:
     OIDC_ISSUER_URL: https://id.lucity.dev/oidc
-    OIDC_CLIENT_ID: cs4jcmfrqm8aim00zkeu4
+    OIDC_CLIENT_ID: tra6m86tjgolnq6ubifd0
     OIDC_AUDIENCE: https://api.lucity.dev
     OIDC_CLI_CLIENT_ID: ifzsbmxdp02kaycalc81r
     OIDC_CALLBACK_URL: https://lucity.dev/auth/callback
