@@ -37,6 +37,10 @@ routes:
   gatewayName: lucity-gateway
   gatewayNamespace: lucity-system
   hostname: lucity.cloud
+  # Extra response headers set on every platform route rule. Use
+  # X-Robots-Tag on staging or development instances to keep them
+  # out of search indexes.
+  responseHeaders: {}
 
 # -- Conductor (unified control plane: GraphQL + Helm release management
 #    + build orchestration + webhook receiver).

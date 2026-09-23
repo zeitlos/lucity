@@ -45,3 +45,17 @@ Selector labels for a specific component.
 app.kubernetes.io/name: {{ .name }}
 app.kubernetes.io/instance: {{ .release }}
 {{- end }}
+
+{{/*
+Response header filter applied to every platform route rule.
+Takes routes.responseHeaders as the context.
+*/}}
+{{- define "lucity.responseHeaderFilter" -}}
+- type: ResponseHeaderModifier
+  responseHeaderModifier:
+    set:
+    {{- range $name, $value := . }}
+      - name: {{ $name }}
+        value: {{ $value | quote }}
+    {{- end }}
+{{- end }}
