@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const appUrl = 'https://lucity.cloud/app';
+const appUrl = '/app';
 </script>
 
 <template>

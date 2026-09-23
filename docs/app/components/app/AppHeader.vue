@@ -69,6 +69,7 @@ const githubLink = computed(() =>
 
       <UButton
         :to="`${appUrl}/login`"
+        external
         color="primary"
         class="whitespace-nowrap"
       >
@@ -97,6 +98,7 @@ const githubLink = computed(() =>
       <div class="px-4 pb-4">
         <UButton
           :to="`${appUrl}/login`"
+          external
           color="primary"
           block
         >
