@@ -383,6 +383,12 @@ victoria-metrics-alert:
                 labels: { severity: critical }
                 annotations:
                   summary: "Zot registry is down"
+              - alert: VPAComponentDown
+                expr: kube_deployment_status_replicas_available{namespace="lucity-system", deployment=~"vpa-(admission-controller|recommender|updater)"} == 0
+                for: 10m
+                labels: { severity: warning }
+                annotations:
+                  summary: "VPA {{ $labels.deployment }} has no available replicas"
               - alert: VictoriaMetricsHighCardinality
                 expr: vm_cache_entries{type="storage/hour_metric_ids"} > 500000
                 for: 1h
