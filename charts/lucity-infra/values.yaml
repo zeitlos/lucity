@@ -284,7 +284,11 @@ victoria-metrics-alert:
               - alert: ClusterRequestsHigh
                 expr: |-
                   sum by (resource) (
-                    kube_pod_container_resource_requests{resource=~"cpu|memory"}
+                    (
+                      kube_pod_container_resource_requests{resource=~"cpu|memory"}
+                      or kube_pod_init_container_resource_requests{resource=~"cpu|memory"}
+                        * on (namespace, pod, container) group_left() kube_pod_init_container_info{restart_policy="Always"}
+                    )
                     * on (namespace, pod) group_left() max by (namespace, pod) (kube_pod_status_phase{phase=~"Pending|Running"} == 1)
                   )
                   / on (resource) sum by (resource) (kube_node_status_allocatable{resource=~"cpu|memory"})
@@ -296,7 +300,11 @@ victoria-metrics-alert:
               - alert: ClusterRequestsCritical
                 expr: |-
                   sum by (resource) (
-                    kube_pod_container_resource_requests{resource=~"cpu|memory"}
+                    (
+                      kube_pod_container_resource_requests{resource=~"cpu|memory"}
+                      or kube_pod_init_container_resource_requests{resource=~"cpu|memory"}
+                        * on (namespace, pod, container) group_left() kube_pod_init_container_info{restart_policy="Always"}
+                    )
                     * on (namespace, pod) group_left() max by (namespace, pod) (kube_pod_status_phase{phase=~"Pending|Running"} == 1)
                   )
                   / on (resource) sum by (resource) (kube_node_status_allocatable{resource=~"cpu|memory"})
