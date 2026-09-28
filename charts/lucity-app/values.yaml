@@ -93,6 +93,11 @@ fullnameOverride: ""
 # Scale every workload to zero, hibernate databases, and drop routes.
 suspended: false
 
+verticalPodAutoscaler:
+  enabled: false
+  updatePolicy:
+    updateMode: "Off"
+
 # Labels and annotations stamped onto every rendered resource. The packager sets
 # commonLabels to the workspace/project/environment identity; platform discovery
 # relies on those labels being present.
