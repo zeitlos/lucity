@@ -611,6 +611,58 @@ hcloud-exporter:
     limits:
       memory: 128Mi
 
+# -- Vertical Pod Autoscaler, sizes tenant pod requests from observed usage
+vertical-pod-autoscaler:
+  enabled: true
+  fullnameOverride: vpa
+  recommender:
+    replicas: 1
+    logLevel: 2
+    podDisruptionBudget:
+      enabled: false
+    extraArgs:
+      - --pod-recommendation-min-memory-mb=32
+      - --round-memory-bytes=16777216
+      - --round-cpu-millicores=5
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        memory: 512Mi
+  updater:
+    replicas: 1
+    logLevel: 2
+    podDisruptionBudget:
+      enabled: false
+    extraArgs:
+      - --in-place-skip-disruption-budget=true
+    resources:
+      requests:
+        cpu: 25m
+        memory: 64Mi
+      limits:
+        memory: 256Mi
+  admissionController:
+    logLevel: 2
+    certGen:
+      enabled: false
+    certManager:
+      enabled: true
+      createSelfSignedIssuer:
+        enabled: true
+    mutatingWebhookConfiguration:
+      namespaceSelector:
+        matchExpressions:
+          - key: lucity.dev/environment
+            operator: Exists
+    resources:
+      requests:
+        cpu: 25m
+        memory: 64Mi
+      limits:
+        memory: 256Mi
+
 # -- Grafana — UI for VictoriaMetrics + VictoriaLogs
 grafana:
   enabled: false
