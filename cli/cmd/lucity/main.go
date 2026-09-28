@@ -51,7 +51,7 @@ Usage:
   lucity db <cmd> <args>       Manage databases (create, list, credentials, expose, unexpose, delete)
   lucity vars <cmd> <args>     Manage service variables (list, available, set)
   lucity status <service>      Show the latest rollout status of a service
-  lucity token                 Print a valid bearer token for scripting
+  lucity token [--account]     Print a valid bearer token for scripting
   lucity mcp                   Serve the Lucity MCP server on stdio
   lucity version               Print the CLI version
 
@@ -89,7 +89,7 @@ func main() {
 	case "status":
 		err = cmdStatus(ctx, os.Args[2:])
 	case "token":
-		err = cmdToken(ctx)
+		err = cmdToken(ctx, os.Args[2:])
 	case "mcp":
 		err = cmdMCP(ctx)
 	case "version", "--version", "-v":
@@ -273,11 +273,30 @@ func cmdWorkspace(ctx context.Context, args []string) error {
 	return fmt.Errorf("you are not a member of workspace %q — run `lucity account` to list memberships", target)
 }
 
-func cmdToken(ctx context.Context) error {
+func cmdToken(ctx context.Context, args []string) error {
+	flags := flag.NewFlagSet("token", flag.ExitOnError)
+	account := flags.Bool("account", false, "print the account token used for GitHub-backed calls")
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+
 	manager, err := session.Load()
 	if err != nil {
 		return err
 	}
+
+	if *account {
+		token, err := manager.AccountToken(ctx)
+		if err != nil {
+			return err
+		}
+		if token == "" {
+			return errors.New("no account token for this session — sign in with `lucity login`")
+		}
+		fmt.Println(token)
+		return nil
+	}
+
 	token, err := manager.Token(ctx)
 	if err != nil {
 		return err

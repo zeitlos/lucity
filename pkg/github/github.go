@@ -9,50 +9,26 @@ import (
 )
 
 type App struct {
-	appID         int64
-	clientID      string
-	clientSecret  string
-	webhookSecret string
-	privateKey    []byte
-	oauthConfig   *oauth2.Config
-}
-
-type User struct {
-	Login     string
-	Name      string
-	Email     string
-	AvatarURL string
+	appID       int64
+	privateKey  []byte
+	oauthConfig *oauth2.Config
 }
 
 // NewApp creates a new GitHub App client.
 // privateKeyPath is the path to the GitHub App's PEM private key file.
-// If empty, the app will work for OAuth but installation token features will be unavailable.
-func NewApp(appID int64, clientID, clientSecret, webhookSecret, callbackURL, privateKeyPath string) (*App, error) {
-	var key []byte
-	if privateKeyPath != "" {
-		var err error
-		key, err = os.ReadFile(privateKeyPath)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read private key: %w", err)
-		}
+func NewApp(appID int64, clientID, clientSecret, privateKeyPath string) (*App, error) {
+	key, err := os.ReadFile(privateKeyPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read private key: %w", err)
 	}
 
 	return &App{
-		appID:         appID,
-		clientID:      clientID,
-		clientSecret:  clientSecret,
-		webhookSecret: webhookSecret,
-		privateKey:    key,
+		appID:      appID,
+		privateKey: key,
 		oauthConfig: &oauth2.Config{
 			ClientID:     clientID,
 			ClientSecret: clientSecret,
 			Endpoint:     githubOAuth.Endpoint,
-			RedirectURL:  callbackURL,
-			Scopes:       []string{},
 		},
 	}, nil
-}
-
-func (a *App) WebhookSecret() string {
-	return a.webhookSecret
 }

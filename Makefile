@@ -142,6 +142,34 @@ deploy-prod:
 		-f deployments/lucity-prod/secrets.yaml \
 		$(HELM_ARGS)
 
+# Development cluster deployment from OCI registry charts
+# Usage: make deploy-dev VERSION=26.9.1
+# Always pass VERSION= explicitly: "latest" resolves to the highest stable tag,
+# which ranks below every prerelease.
+DEV_CONTEXT ?= lucity-dev
+
+deploy-dev-infra:
+	@test -f deployments/lucity-dev/infra-secrets.yaml || { echo "Error: deployments/lucity-dev/infra-secrets.yaml not found. Copy infra-secrets.yaml.example and fill in values."; exit 1; }
+	helm upgrade --install lucity-infra \
+		oci://ghcr.io/zeitlos/lucity/charts/lucity-infra \
+		$(if $(VERSION),--version $(VERSION)) \
+		--kube-context $(DEV_CONTEXT) \
+		-n lucity-system --create-namespace \
+		-f deployments/lucity-dev/infra-values.yaml \
+		-f deployments/lucity-dev/infra-secrets.yaml \
+		$(HELM_ARGS)
+
+deploy-dev:
+	@test -f deployments/lucity-dev/secrets.yaml || { echo "Error: deployments/lucity-dev/secrets.yaml not found. Copy secrets.yaml.example and fill in values."; exit 1; }
+	helm upgrade --install lucity \
+		oci://ghcr.io/zeitlos/lucity/charts/lucity \
+		$(if $(VERSION),--version $(VERSION)) \
+		--kube-context $(DEV_CONTEXT) \
+		-n lucity-system --create-namespace \
+		-f deployments/lucity-dev/values.yaml \
+		-f deployments/lucity-dev/secrets.yaml \
+		$(HELM_ARGS)
+
 # Sync workspace
 sync:
 	go work sync

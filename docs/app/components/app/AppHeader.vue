@@ -4,20 +4,25 @@ const site = useSiteConfig();
 
 const appUrl = 'https://lucity.cloud/app';
 
-const navItems = [
-  {
-    label: 'Pricing',
-    to: '/pricing',
-  },
+const route = useRoute();
+
+const inDocs = computed(() => route.meta.layout === 'docs');
+
+const navItems = computed(() => [
   {
     label: 'Docs',
-    to: '/getting-started/concepts',
+    to: '/quickstart',
+    active: inDocs.value,
   },
   {
     label: 'Blog',
     to: '/blog',
   },
-];
+  {
+    label: 'Pricing',
+    to: '/pricing',
+  },
+]);
 
 const githubLink = computed(() =>
   appConfig.github?.url
@@ -43,19 +48,12 @@ const githubLink = computed(() =>
       </div>
     </template>
 
-    <UNavigationMenu
-      :items="navItems"
-      variant="link"
-      content-orientation="horizontal"
-      class="hidden lg:flex w-full justify-center"
-    />
-
     <template #right>
-      <UContentSearchButton
-        :collapsed="false"
-        class="hidden lg:inline-flex w-full max-w-40"
-        variant="soft"
-        :ui="{ leadingIcon: 'size-4 mr-1' }"
+      <UNavigationMenu
+        :items="navItems"
+        variant="link"
+        content-orientation="horizontal"
+        class="hidden lg:flex"
       />
 
       <UContentSearchButton class="lg:hidden" />
@@ -71,6 +69,7 @@ const githubLink = computed(() =>
 
       <UButton
         :to="`${appUrl}/login`"
+        external
         color="primary"
         class="whitespace-nowrap"
       >
@@ -99,6 +98,7 @@ const githubLink = computed(() =>
       <div class="px-4 pb-4">
         <UButton
           :to="`${appUrl}/login`"
+          external
           color="primary"
           block
         >

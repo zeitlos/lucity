@@ -13,7 +13,6 @@ import (
 type Provider struct {
 	Endpoint     string
 	ClientID     string
-	ClientSecret string
 	Audience     string
 	DirectSignIn string
 	Scopes       []string
@@ -52,8 +51,6 @@ func (p *Provider) httpClient() *http.Client {
 func (p *Provider) authEndpoint() string     { return strings.TrimRight(p.Endpoint, "/") + "/oidc/auth" }
 func (p *Provider) tokenEndpoint() string    { return strings.TrimRight(p.Endpoint, "/") + "/oidc/token" }
 func (p *Provider) userInfoEndpoint() string { return strings.TrimRight(p.Endpoint, "/") + "/oidc/me" }
-
-func (p *Provider) confidential() bool { return p.ClientSecret != "" }
 
 func (p *Provider) AuthCodeURL(redirectURI, state, challenge string) string {
 	query := url.Values{
@@ -103,16 +100,11 @@ func (p *Provider) Refresh(ctx context.Context, refreshToken, resource, organiza
 }
 
 func (p *Provider) token(ctx context.Context, form url.Values) (*Tokens, error) {
-	if !p.confidential() {
-		form.Set("client_id", p.ClientID)
-	}
+	form.Set("client_id", p.ClientID)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, p.tokenEndpoint(), strings.NewReader(form.Encode()))
 	if err != nil {
 		return nil, err
-	}
-	if p.confidential() {
-		req.SetBasicAuth(p.ClientID, p.ClientSecret)
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("Accept", "application/json")
