@@ -3,12 +3,15 @@ package resources
 import (
 	"k8s.io/apimachinery/pkg/api/resource"
 
+	"github.com/zeitlos/lucity/services/conductor/internal/deployer/values"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
 const (
 	// TODO: This static ratio will be replaced by VPA at some point.
 	burstableRequestRatio = 0.5
+
+	VerticalPodAutoscalerUpdateMode = values.UpdateModeOff
 )
 
 var (
