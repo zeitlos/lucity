@@ -16,9 +16,10 @@ export function useDocPreviews() {
   async function load() {
     if (previews.value.size > 0) return;
 
-    const pages = data.value ?? (await useAsyncData('doc-previews', () =>
-      queryCollection('docs').select('path', 'title', 'description').all(),
-    )).data.value;
+    const pages = data.value ?? (await useAsyncData('doc-previews', async () => [
+      ...await queryCollection('docs').select('path', 'title', 'description').all(),
+      ...await queryCollection('legal').select('path', 'title', 'description').all(),
+    ])).data.value;
 
     previews.value = new Map((pages ?? []).map(page => [page.path, page as DocPreview]));
   }

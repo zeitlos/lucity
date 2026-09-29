@@ -15,7 +15,7 @@ export default defineEventHandler(async (event) => {
     { loc: '/blog' },
   ];
 
-  for (const collection of ['docs', 'landing', 'blog']) {
+  for (const collection of ['docs', 'legal', 'landing', 'blog', 'solutions']) {
     try {
       const pages = await queryCollection(event, collection as 'docs').all();
 

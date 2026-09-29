@@ -450,7 +450,7 @@ onUnmounted(() => { observer?.disconnect(); });
               </div>
 
               <NuxtLink
-                to="/getting-started/self-hosting"
+                to="/docs/self-hosting"
                 class="rack-button"
               >
                 <span class="rack-button-face">

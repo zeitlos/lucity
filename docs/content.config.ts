@@ -8,8 +8,8 @@ export default defineContentConfig({
       type: 'page',
       source: {
         include: '**',
-        exclude: ['index.md', 'blog/**'],
-        prefix: '/',
+        exclude: ['index.md', 'blog/**', '99.legal/**'],
+        prefix: '/docs',
       },
       schema: z.object({
         links: z.array(z.object({
@@ -19,6 +19,16 @@ export default defineContentConfig({
           target: z.string().optional(),
         })).optional(),
       }),
+    }),
+
+    // Terms, privacy and data processing. Rendered like the docs, with a
+    // sidebar and breadcrumbs of their own.
+    legal: defineCollection({
+      type: 'page',
+      source: {
+        include: '99.legal/**',
+        prefix: '/legal',
+      },
     }),
 
     // Audience-facing pages: use cases, comparisons, and anything else that

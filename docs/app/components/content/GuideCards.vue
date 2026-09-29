@@ -13,7 +13,7 @@ interface Guide {
 const guides: Guide[] = [
   {
     title: 'Next.js',
-    to: '/guides/nextjs',
+    to: '/docs/guides/nextjs',
     runtime: 'Node',
     blurb: 'App Router, server actions, and a PostgreSQL database.',
     icon: 'i-devicon-nextjs',
@@ -22,7 +22,7 @@ const guides: Guide[] = [
   },
   {
     title: 'Nuxt',
-    to: '/guides/nuxt',
+    to: '/docs/guides/nuxt',
     runtime: 'Node',
     blurb: 'Nitro output, runtime config, and server routes.',
     icon: 'i-devicon-nuxtjs',
@@ -30,7 +30,7 @@ const guides: Guide[] = [
   },
   {
     title: 'SvelteKit',
-    to: '/guides/sveltekit',
+    to: '/docs/guides/sveltekit',
     runtime: 'Node',
     blurb: 'The Node adapter, and what it takes to deploy.',
     icon: 'i-devicon-svelte',
@@ -38,7 +38,7 @@ const guides: Guide[] = [
   },
   {
     title: 'Astro',
-    to: '/guides/astro',
+    to: '/docs/guides/astro',
     runtime: 'Node',
     blurb: 'Static output or server rendering, your choice.',
     icon: 'i-devicon-astro',
@@ -46,7 +46,7 @@ const guides: Guide[] = [
   },
   {
     title: 'Express',
-    to: '/guides/express',
+    to: '/docs/guides/express',
     runtime: 'Node',
     blurb: 'A plain HTTP API, with health checks that pass.',
     icon: 'i-simple-icons-express',
@@ -56,7 +56,7 @@ const guides: Guide[] = [
   },
   {
     title: 'FastAPI',
-    to: '/guides/fastapi',
+    to: '/docs/guides/fastapi',
     runtime: 'Python',
     blurb: 'Uvicorn, async database access, and migrations.',
     icon: 'i-devicon-fastapi',
@@ -64,7 +64,7 @@ const guides: Guide[] = [
   },
   {
     title: 'Django',
-    to: '/guides/django',
+    to: '/docs/guides/django',
     runtime: 'Python',
     blurb: 'Gunicorn, migrations, and static files in a bucket.',
     icon: 'i-simple-icons-django',
@@ -74,7 +74,7 @@ const guides: Guide[] = [
   },
   {
     title: 'Laravel',
-    to: '/guides/laravel',
+    to: '/docs/guides/laravel',
     runtime: 'PHP',
     blurb: 'Artisan on release, plus a queue worker alongside.',
     icon: 'i-devicon-laravel',
@@ -82,7 +82,7 @@ const guides: Guide[] = [
   },
   {
     title: 'Go',
-    to: '/guides/go',
+    to: '/docs/guides/go',
     runtime: 'Go',
     blurb: 'One module in, one small binary out.',
     icon: 'i-devicon-go',

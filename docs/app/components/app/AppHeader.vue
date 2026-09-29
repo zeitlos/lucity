@@ -6,12 +6,14 @@ const appUrl = '/app';
 
 const route = useRoute();
 
-const inDocs = computed(() => route.meta.layout === 'docs');
+const inDocs = computed(() => route.path === '/docs' || route.path.startsWith('/docs/'));
+
+provide('navigation', await useContentSectionNavigation());
 
 const navItems = computed(() => [
   {
     label: 'Docs',
-    to: '/quickstart',
+    to: '/docs/quickstart',
     active: inDocs.value,
   },
   {

@@ -8,12 +8,13 @@ definePageMeta({
 });
 
 const route = useRoute();
-const { locale, isEnabled, t } = useDocusI18n();
+const { t } = useDocusI18n();
 const appConfig = useAppConfig();
 const navigation = inject<Ref<ContentNavigationItem[]>>('navigation');
 const { shouldPushContent: shouldHideToc } = useAssistant();
+const section = useContentSection();
 
-const collectionName = computed(() => isEnabled.value ? `docs_${locale.value}` : 'docs');
+const collectionName = computed(() => section.value.collection);
 
 const [{ data: page }, { data: surround }] = await Promise.all([
   useAsyncData(kebabCase(route.path), () => queryCollection(collectionName.value as keyof Collections).path(route.path).first() as Promise<DocsCollectionItem>),
@@ -52,7 +53,7 @@ const breadcrumbItems = computed(() => {
   );
 
   return [
-    { label: 'Docs', to: '/quickstart' },
+    { label: section.value.label, to: section.value.home },
     ...trail.map((item, index) => ({
       label: item.title,
       to: index === trail.length - 1 ? undefined : item.path,

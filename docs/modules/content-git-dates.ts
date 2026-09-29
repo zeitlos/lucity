@@ -18,11 +18,12 @@ function collectMarkdownFiles(dir: string, base: string): string[] {
 }
 
 function filePathToRoutePath(relPath: string): string {
-  return relPath
+  const route = relPath
     .replace(/\.md$/, '')
     .replace(/\/index$/, '')
     .replace(/\/(\d+\.)/g, '/')
     .replace(/^\/(\d+\.)/, '/');
+  return route === '' || /^\/(blog|legal)\//.test(route) ? route : `/docs${route}`;
 }
 
 export default defineNuxtModule({
