@@ -10,6 +10,11 @@ import (
 	"strings"
 )
 
+const (
+	releaseName = "lucity-app"
+	docsURL     = "https://lucity.cloud/docs/eject#installing-on-your-own-cluster"
+)
+
 type Project struct {
 	Name string
 	ID   string
@@ -94,15 +99,16 @@ func readme(project Project, envs []EnvValues) []byte {
 	b.WriteString("```\n\n")
 
 	b.WriteString("## Deploy an environment\n\n")
-	b.WriteString("Each environment is a separate Helm release. Install one with:\n\n")
+	fmt.Fprintf(&b, "Before the first install, read <%s>. It covers what your cluster needs, which values to change, and how to move your data.\n\n", docsURL)
+	fmt.Fprintf(&b, "Each environment is a separate Helm release in its own namespace. The release must be named `%s`, because the values refer to resources by names derived from it. Install one with:\n\n", releaseName)
 	b.WriteString("```sh\n")
 
 	if len(envs) > 0 {
-		fmt.Fprintf(&b, "helm upgrade --install %s ./chart \\\n", project.Name)
+		fmt.Fprintf(&b, "helm upgrade --install %s ./chart \\\n", releaseName)
 		fmt.Fprintf(&b, "  -f values/%s.yaml \\\n", envs[0].Name)
 		fmt.Fprintf(&b, "  --namespace %s-%s --create-namespace\n", project.Name, envs[0].Name)
 	} else {
-		fmt.Fprintf(&b, "helm upgrade --install %s ./chart \\\n", project.Name)
+		fmt.Fprintf(&b, "helm upgrade --install %s ./chart \\\n", releaseName)
 		fmt.Fprintf(&b, "  -f values/<environment>.yaml \\\n")
 		fmt.Fprintf(&b, "  --namespace <namespace> --create-namespace\n")
 	}
@@ -119,12 +125,13 @@ func readme(project Project, envs []EnvValues) []byte {
 
 	b.WriteString("## What you need to provide\n\n")
 	b.WriteString("The values reflect exactly what ran on Lucity, so they reference infrastructure the platform provided for you. On your own cluster you supply the equivalents:\n\n")
-	b.WriteString("- **Container images**: the `image` references point at the registry that built your workloads. Make sure your cluster can pull them, or rebuild and repoint the references.\n")
+	b.WriteString("- **Container images**: services built from source point at Lucity's internal registry, which your cluster cannot reach. Rebuild them, push them to a registry your cluster can pull from, and update `image` in the values, dropping the old `digest`.\n")
 	b.WriteString("- **Image pull secret**: if your images are private, create the pull secret referenced under `imagePullSecrets` in your target namespace.\n")
 	b.WriteString("- **Gateway**: HTTP routing expects a Gateway API gateway. Point the `gateway` values at one you run, or remove the routes if you front traffic differently.\n")
-	b.WriteString("- **Databases**: PostgreSQL clusters use the CloudNativePG operator. Install it before deploying, or adjust the database values to match your setup.\n\n")
+	b.WriteString("- **Databases**: PostgreSQL clusters use the CloudNativePG operator. Install it before deploying, or adjust the database values to match your setup.\n")
+	b.WriteString("- **Buckets**: services that use a bucket read its credentials from a secret named `lucity-bucket-<bucket>`. Create it in your target namespace.\n\n")
 
-	b.WriteString("Your project keeps running on Lucity. This export is a copy, not a migration.\n")
+	b.WriteString("Databases, key-value stores and volumes start out empty. Your project keeps running on Lucity. This export is a copy, not a migration.\n")
 
 	return []byte(b.String())
 }
