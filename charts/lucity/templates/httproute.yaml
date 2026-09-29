@@ -100,17 +100,6 @@ spec:
     - matches:
         - path:
             type: PathPrefix
-            value: /api
-      {{- with $responseHeaders }}
-      filters:
-        {{- include "lucity.responseHeaderFilter" . | nindent 8 }}
-      {{- end }}
-      backendRefs:
-        - name: {{ include "lucity.fullname" . }}-conductor
-          port: 8080
-    - matches:
-        - path:
-            type: PathPrefix
             value: /
       {{- with $responseHeaders }}
       filters:
