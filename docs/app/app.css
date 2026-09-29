@@ -604,6 +604,10 @@
   box-shadow: var(--panel-shadow);
 }
 
+.docs-body pre.language-text {
+  white-space: pre;
+  overflow-wrap: normal;
+}
 
 /* Callouts: a raised panel rather than a flat colour wash. */
 .docs-body [class*="bg-info/10"],
