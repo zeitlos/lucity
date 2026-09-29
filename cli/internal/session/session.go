@@ -98,25 +98,22 @@ func (m *Manager) Workspace() string {
 }
 
 func (m *Manager) SetWorkspace(workspace string) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.cfg.Workspace = workspace
-	return config.Save(m.cfg)
+	return m.updateConfig(func(cfg *config.Config) {
+		cfg.Workspace = workspace
+	})
 }
 
 func (m *Manager) SetLogin(apiURL, refreshToken string) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.cfg.APIURL = apiURL
-	m.cfg.RefreshToken = refreshToken
-	return config.Save(m.cfg)
+	return m.updateConfig(func(cfg *config.Config) {
+		cfg.APIURL = apiURL
+		cfg.RefreshToken = refreshToken
+	})
 }
 
 func (m *Manager) Clear() error {
-	m.mu.Lock()
-	m.cfg.RefreshToken = ""
-	err := config.Save(m.cfg)
-	m.mu.Unlock()
+	err := m.updateConfig(func(cfg *config.Config) {
+		cfg.RefreshToken = ""
+	})
 
 	m.tokMu.Lock()
 	m.orgTokens = map[string]cachedToken{}
@@ -198,7 +195,6 @@ func (m *Manager) BootstrapWorkspaces(ctx context.Context) error {
 func (m *Manager) apiToken() string {
 	return os.Getenv("LUCITY_API_TOKEN")
 }
-
 
 func (m *Manager) storedRefreshToken() string {
 	m.mu.Lock()
@@ -384,12 +380,46 @@ func (m *Manager) loadOrgIDs(ctx context.Context) error {
 	return nil
 }
 
+func (m *Manager) updateConfig(change func(*config.Config)) error {
+	unlock, err := config.Lock()
+	if err != nil {
+		return err
+	}
+	defer unlock()
+
+	stored, err := config.Load()
+	if err != nil {
+		return err
+	}
+	change(stored)
+	if err := config.Save(stored); err != nil {
+		return err
+	}
+
+	m.mu.Lock()
+	change(m.cfg)
+	m.mu.Unlock()
+	return nil
+}
+
 func (m *Manager) refreshGrant(ctx context.Context, resource, organizationID string, scopes []string) (string, int, error) {
 	m.refreshMu.Lock()
 	defer m.refreshMu.Unlock()
 
-	refreshToken := m.storedRefreshToken()
-	if refreshToken == "" {
+	unlock, err := config.Lock()
+	if err != nil {
+		return "", 0, err
+	}
+	defer unlock()
+
+	stored, err := config.Load()
+	if err != nil {
+		return "", 0, err
+	}
+	m.mu.Lock()
+	m.cfg.RefreshToken = stored.RefreshToken
+	m.mu.Unlock()
+	if stored.RefreshToken == "" {
 		return "", 0, ErrLoggedOut
 	}
 
@@ -398,16 +428,19 @@ func (m *Manager) refreshGrant(ctx context.Context, resource, organizationID str
 		return "", 0, err
 	}
 
-	tokens, err := provider.Refresh(ctx, refreshToken, resource, organizationID, scopes)
+	tokens, err := provider.Refresh(ctx, stored.RefreshToken, resource, organizationID, scopes)
 	if err != nil {
 		return "", 0, err
 	}
 
-	if tokens.RefreshToken != "" && tokens.RefreshToken != refreshToken {
+	if tokens.RefreshToken != "" && tokens.RefreshToken != stored.RefreshToken {
 		m.mu.Lock()
 		m.cfg.RefreshToken = tokens.RefreshToken
-		_ = config.Save(m.cfg)
 		m.mu.Unlock()
+		stored.RefreshToken = tokens.RefreshToken
+		if err := config.Save(stored); err != nil {
+			return "", 0, fmt.Errorf("store the rotated refresh token: %w", err)
+		}
 	}
 
 	if tokens.AccessToken == "" {

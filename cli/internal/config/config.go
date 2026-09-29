@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"syscall"
 )
 
 type Config struct {
@@ -54,6 +55,31 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("parse %s: %w", file, err)
 	}
 	return &cfg, nil
+}
+
+func Lock() (func(), error) {
+	dir, err := Dir()
+	if err != nil {
+		return nil, err
+	}
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return nil, fmt.Errorf("create config directory: %w", err)
+	}
+	file, err := os.OpenFile(filepath.Join(dir, "config.json.lock"), os.O_CREATE|os.O_RDWR, 0o600)
+	if err != nil {
+		return nil, fmt.Errorf("open config lock: %w", err)
+	}
+	for {
+		err = syscall.Flock(int(file.Fd()), syscall.LOCK_EX)
+		if err != syscall.EINTR {
+			break
+		}
+	}
+	if err != nil {
+		file.Close()
+		return nil, fmt.Errorf("lock config: %w", err)
+	}
+	return func() { file.Close() }, nil
 }
 
 func Save(cfg *Config) error {
