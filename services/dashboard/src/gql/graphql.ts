@@ -10,7 +10,7 @@ export type AddServiceInput = {
   name?: string | null | undefined;
   repository?: string | null | undefined;
   resources?: ResourcesInput | null | undefined;
-  /** Run-as user id for image-based services. Also owns the service's mounted volumes. */
+  /** The user id an image-based service runs as, which also owns its mounted volumes. */
   user?: number | null | undefined;
   variables?: Array<VariableInput> | null | undefined;
 };
@@ -66,9 +66,11 @@ export type CreateDatabaseInput = {
 };
 
 export type CreateEnvironmentInput = {
+  /** Not supported yet. Leave it unset, because new environments always start empty. */
   fromEnvironment?: string | null | undefined;
   name: string;
   project: string;
+  /** Defaults to `ECO`. */
   tier?: ResourceTier | null | undefined;
 };
 
@@ -80,9 +82,9 @@ export type CreateKeyValueStoreInput = {
 };
 
 export type CreateProjectInput = {
-  /** Optional URL-safe slug. Auto-derived from name if omitted. */
+  /** The project id. Derived from `name` when left out. */
   id?: string | null | undefined;
-  /** Human-readable project name (e.g. "My API"). */
+  /** The display name of the project, such as `My API`. */
   name: string;
 };
 
@@ -261,20 +263,15 @@ export enum ServiceStatus {
 }
 
 export type ServiceVariableInput = {
-  /** Key of the variable. e.g. PORT or HOST */
+  /** The name of the variable, such as `PORT` or `HOST`. */
   key: string;
-  /** Reference to an available variable. Required when no value is set. Mutually exclusive with value. */
+  /** Links the variable to one from `availableVariables`. Set either `value` or `ref`. */
   ref?: string | null | undefined;
-  /** Literal value. Required when no ref is set. Mutually exclusive with ref. */
+  /** A literal value. Set either `value` or `ref`. */
   value?: string | null | undefined;
 };
 
-/**
- * The tier decides how a container's request relates to its limit: ECO runs
- * burstable and is billed on real consumption, PRODUCTION reserves the full limit
- * and is billed on allocation. Per-container sizing lives on the service itself;
- * the namespace capacity ceiling is fixed and not settable per environment.
- */
+/** `ECO` lets services share capacity and burst beyond what is reserved for them. `PRODUCTION` reserves the full CPU and memory of every service. */
 export type SetEnvironmentResourcesInput = {
   environment: string;
   tier: ResourceTier;
@@ -317,7 +314,7 @@ export type UpdateWorkspaceInput = {
 };
 
 export type VariableInput = {
-  /** Key of the variable. e.g. PORT or HOST */
+  /** The name of the variable, such as `PORT` or `HOST`. */
   key: string;
   value: string;
 };

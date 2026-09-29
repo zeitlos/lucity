@@ -82,7 +82,7 @@
           },
           {
             "name": "user",
-            "description": "Run-as user id for image-based services. Also owns the service's mounted volumes.",
+            "description": "The user id an image-based service runs as, which also owns its mounted volumes.",
             "type": {
               "kind": "SCALAR",
               "name": "Int",
@@ -823,7 +823,7 @@
       {
         "kind": "SCALAR",
         "name": "BucketID",
-        "description": null,
+        "description": "A bucket, as `workspace/project/environment/bucket`. For example `acme/shop/production/assets`.",
         "isOneOf": null,
         "fields": null,
         "inputFields": null,
@@ -1112,7 +1112,7 @@
       {
         "kind": "SCALAR",
         "name": "BuildID",
-        "description": null,
+        "description": "A build, as `workspace/build`. Take it from the release it belongs to.",
         "isOneOf": null,
         "fields": null,
         "inputFields": null,
@@ -1411,7 +1411,7 @@
         "inputFields": [
           {
             "name": "fromEnvironment",
-            "description": null,
+            "description": "Not supported yet. Leave it unset, because new environments always start empty.",
             "type": {
               "kind": "SCALAR",
               "name": "EnvironmentID",
@@ -1455,7 +1455,7 @@
           },
           {
             "name": "tier",
-            "description": null,
+            "description": "Defaults to `ECO`.",
             "type": {
               "kind": "ENUM",
               "name": "ResourceTier",
@@ -1547,7 +1547,7 @@
         "inputFields": [
           {
             "name": "id",
-            "description": "Optional URL-safe slug. Auto-derived from name if omitted.",
+            "description": "The project id. Derived from `name` when left out.",
             "type": {
               "kind": "SCALAR",
               "name": "String",
@@ -1559,7 +1559,7 @@
           },
           {
             "name": "name",
-            "description": "Human-readable project name (e.g. \"My API\").",
+            "description": "The display name of the project, such as `My API`.",
             "type": {
               "kind": "NON_NULL",
               "name": null,
@@ -1981,7 +1981,7 @@
       {
         "kind": "OBJECT",
         "name": "DatabaseBackups",
-        "description": "The recovery picture for one database. Backups are continuous, not discrete: the\nbase backups below are the anchors, and archived write-ahead logs cover the gaps\nbetween them, so any moment inside the window is restorable.",
+        "description": "The backups of one database. Base backups are taken on a schedule and the write-ahead log is archived continuously in between, so any moment from `earliestRestorePoint` to `latestRestorePoint` can be restored.",
         "isOneOf": null,
         "fields": [
           {
@@ -2301,7 +2301,7 @@
       {
         "kind": "SCALAR",
         "name": "DatabaseID",
-        "description": null,
+        "description": "A database, as `workspace/project/environment/database`. For example `acme/shop/production/orders`.",
         "isOneOf": null,
         "fields": null,
         "inputFields": null,
@@ -2632,7 +2632,7 @@
       {
         "kind": "SCALAR",
         "name": "DeployID",
-        "description": null,
+        "description": "The deploy step of a release, as `workspace/deploy`. Take it from the release it belongs to.",
         "isOneOf": null,
         "fields": null,
         "inputFields": null,
@@ -2929,7 +2929,7 @@
       {
         "kind": "SCALAR",
         "name": "DeploymentID",
-        "description": null,
+        "description": "One deployment of a service, as its service id followed by a hash. For example `acme/shop/production/web/56bc5cdfc5`.",
         "isOneOf": null,
         "fields": null,
         "inputFields": null,
@@ -3669,7 +3669,7 @@
       {
         "kind": "SCALAR",
         "name": "EnvironmentID",
-        "description": null,
+        "description": "An environment, as `workspace/project/environment`. For example `acme/shop/production`.",
         "isOneOf": null,
         "fields": null,
         "inputFields": null,
@@ -4226,7 +4226,7 @@
       {
         "kind": "OBJECT",
         "name": "ImageSearchResult",
-        "description": "A container image from a public registry (Docker Hub).",
+        "description": "A public container image on Docker Hub.",
         "isOneOf": null,
         "fields": [
           {
@@ -4573,7 +4573,7 @@
       {
         "kind": "SCALAR",
         "name": "KeyValueStoreID",
-        "description": null,
+        "description": "A key-value store, as `workspace/project/environment/store`. For example `acme/shop/production/cache`.",
         "isOneOf": null,
         "fields": null,
         "inputFields": null,
@@ -4915,7 +4915,7 @@
         "fields": [
           {
             "name": "addCustomDomain",
-            "description": null,
+            "description": "Adds a domain you own to a service, served once its DNS records check out. With `redirectTo`, the domain permanently redirects to another domain of the same service.",
             "args": [
               {
                 "name": "hostname",
@@ -4976,7 +4976,7 @@
           },
           {
             "name": "addService",
-            "description": null,
+            "description": "Adds a service to an environment, either built from a GitHub `repository` such as `acme/api` or run from a container `image`. A repository build starts right away, and an image runs without one.",
             "args": [
               {
                 "name": "environment",
@@ -5025,7 +5025,7 @@
           },
           {
             "name": "billingPortalUrl",
-            "description": null,
+            "description": "A link to the billing portal, where payment details and invoices are managed.",
             "args": [],
             "type": {
               "kind": "NON_NULL",
@@ -5041,7 +5041,7 @@
           },
           {
             "name": "bucketObjectUploadUrl",
-            "description": null,
+            "description": "A link to upload one object with an HTTP `PUT`, valid for 15 minutes. An existing object with the same key is overwritten.",
             "args": [
               {
                 "name": "bucket",
@@ -5090,7 +5090,7 @@
           },
           {
             "name": "changePlan",
-            "description": null,
+            "description": "Switches the workspace to another plan, prorated. The workspace needs a plan already.",
             "args": [
               {
                 "name": "plan",
@@ -5123,7 +5123,7 @@
           },
           {
             "name": "completePlanCheckout",
-            "description": null,
+            "description": "Completes a plan checkout, starts the new billing period and returns the subscription.",
             "args": [
               {
                 "name": "sessionId",
@@ -5156,7 +5156,7 @@
           },
           {
             "name": "completeWorkspaceCheckout",
-            "description": null,
+            "description": "Completes a workspace checkout and returns the new workspace.",
             "args": [
               {
                 "name": "sessionId",
@@ -5189,7 +5189,7 @@
           },
           {
             "name": "createApiToken",
-            "description": null,
+            "description": "Creates an API token for the workspace with the given role. The `lucity_…` value is only returned in this response, and the token stays valid until it is revoked.",
             "args": [
               {
                 "name": "input",
@@ -5222,7 +5222,7 @@
           },
           {
             "name": "createBucket",
-            "description": null,
+            "description": "Creates a private bucket in an environment.",
             "args": [
               {
                 "name": "input",
@@ -5255,7 +5255,7 @@
           },
           {
             "name": "createDatabase",
-            "description": null,
+            "description": "Creates a PostgreSQL database in an environment. `size` defaults to `16Gi`, and CPU and memory to `500m` and `512Mi`.",
             "args": [
               {
                 "name": "input",
@@ -5288,7 +5288,7 @@
           },
           {
             "name": "createDatabaseBackup",
-            "description": null,
+            "description": "Starts a full backup of a database now. If a backup is already running, that one is returned instead.",
             "args": [
               {
                 "name": "database",
@@ -5321,7 +5321,7 @@
           },
           {
             "name": "createEnvironment",
-            "description": null,
+            "description": "Creates an empty environment in a project.",
             "args": [
               {
                 "name": "input",
@@ -5354,7 +5354,7 @@
           },
           {
             "name": "createKeyValueStore",
-            "description": null,
+            "description": "Creates a key-value store in an environment. `version` defaults to `8` and `size` to `1Gi`.",
             "args": [
               {
                 "name": "input",
@@ -5387,7 +5387,7 @@
           },
           {
             "name": "createPlanCheckout",
-            "description": null,
+            "description": "Starts a checkout that sets up a plan for a workspace without one, and returns the URL to complete it.",
             "args": [
               {
                 "name": "plan",
@@ -5420,7 +5420,7 @@
           },
           {
             "name": "createProject",
-            "description": null,
+            "description": "Creates a project with an empty `development` environment. Services and resources are added to the environment afterwards.",
             "args": [
               {
                 "name": "input",
@@ -5453,7 +5453,7 @@
           },
           {
             "name": "createVolume",
-            "description": null,
+            "description": "Creates a volume in an environment, with a `size` between `10Gi` and `1Ti`.",
             "args": [
               {
                 "name": "environment",
@@ -5518,7 +5518,7 @@
           },
           {
             "name": "createWorkspaceCheckout",
-            "description": null,
+            "description": "Starts the checkout for a new workspace on a paid plan and returns the URL to complete it. The workspace is created once the checkout completes.",
             "args": [
               {
                 "name": "input",
@@ -5551,7 +5551,7 @@
           },
           {
             "name": "deleteBucket",
-            "description": null,
+            "description": "Deletes a bucket and everything in it.",
             "args": [
               {
                 "name": "bucket",
@@ -5584,7 +5584,7 @@
           },
           {
             "name": "deleteBucketObject",
-            "description": null,
+            "description": "Deletes one object from a bucket.",
             "args": [
               {
                 "name": "bucket",
@@ -5633,7 +5633,7 @@
           },
           {
             "name": "deleteDatabase",
-            "description": null,
+            "description": "Deletes a database and all of its data.",
             "args": [
               {
                 "name": "database",
@@ -5666,7 +5666,7 @@
           },
           {
             "name": "deleteEnvironment",
-            "description": null,
+            "description": "Deletes an environment. It has to be empty, and the last environment of a project can't be deleted.",
             "args": [
               {
                 "name": "environment",
@@ -5699,7 +5699,7 @@
           },
           {
             "name": "deleteKeyValueStore",
-            "description": null,
+            "description": "Deletes a key-value store and its data.",
             "args": [
               {
                 "name": "keyValueStore",
@@ -5732,7 +5732,7 @@
           },
           {
             "name": "deleteProject",
-            "description": null,
+            "description": "Deletes a project. Every one of its environments has to be empty first.",
             "args": [
               {
                 "name": "id",
@@ -5765,7 +5765,7 @@
           },
           {
             "name": "deleteVolume",
-            "description": null,
+            "description": "Deletes a volume and its data. It has to be unmounted first.",
             "args": [
               {
                 "name": "volume",
@@ -5798,7 +5798,7 @@
           },
           {
             "name": "deleteWorkspace",
-            "description": null,
+            "description": "Deletes the workspace. It can't have any projects left, and a personal workspace can't be deleted.",
             "args": [],
             "type": {
               "kind": "NON_NULL",
@@ -5814,7 +5814,7 @@
           },
           {
             "name": "deploy",
-            "description": null,
+            "description": "Builds a service from source and rolls it out. `gitRef` takes a branch, tag or commit and defaults to the branch the service tracks. A deployer may only deploy services that build from its own repository and have CI deploys turned on.",
             "args": [
               {
                 "name": "gitRef",
@@ -5859,7 +5859,7 @@
           },
           {
             "name": "executeQuery",
-            "description": null,
+            "description": "Runs one SQL statement against a database, as the user from its credentials, and returns up to 1,000 rows with values as text. The statement commits right away and times out after 30 seconds.",
             "args": [
               {
                 "name": "database",
@@ -5908,7 +5908,7 @@
           },
           {
             "name": "expandVolume",
-            "description": null,
+            "description": "Grows a volume, up to 1Ti, without a restart. Volumes can't shrink.",
             "args": [
               {
                 "name": "size",
@@ -5957,7 +5957,7 @@
           },
           {
             "name": "exposeDatabase",
-            "description": null,
+            "description": "Gives a database a public hostname on port 5432. Clients have to connect with TLS.",
             "args": [
               {
                 "name": "database",
@@ -5990,7 +5990,7 @@
           },
           {
             "name": "generateDomain",
-            "description": null,
+            "description": "Adds a platform domain to a service, certificate included. Each call adds another one.",
             "args": [
               {
                 "name": "service",
@@ -6023,7 +6023,7 @@
           },
           {
             "name": "inviteMember",
-            "description": null,
+            "description": "Adds someone with an existing account to the workspace, by email and with a role.",
             "args": [
               {
                 "name": "input",
@@ -6056,7 +6056,7 @@
           },
           {
             "name": "mountVolume",
-            "description": null,
+            "description": "Mounts a volume into a service at an absolute `path`. A volume mounts into one service, and from then on the service runs a single instance and every rollout has a short downtime.",
             "args": [
               {
                 "name": "path",
@@ -6121,7 +6121,7 @@
           },
           {
             "name": "removeDomain",
-            "description": null,
+            "description": "Removes a platform or custom domain from a service. A domain that another domain redirects to can't be removed.",
             "args": [
               {
                 "name": "hostname",
@@ -6170,7 +6170,7 @@
           },
           {
             "name": "removeMember",
-            "description": null,
+            "description": "Removes a member from the workspace. You can't remove yourself.",
             "args": [
               {
                 "name": "userId",
@@ -6203,7 +6203,7 @@
           },
           {
             "name": "removeService",
-            "description": null,
+            "description": "Removes a service from its environment.",
             "args": [
               {
                 "name": "service",
@@ -6236,7 +6236,7 @@
           },
           {
             "name": "restoreDatabase",
-            "description": null,
+            "description": "Restores the backups of a database into a new database called `name` in the same environment, leaving the original untouched. Leave `targetTime` out to restore the latest state.",
             "args": [
               {
                 "name": "input",
@@ -6269,7 +6269,7 @@
           },
           {
             "name": "revokeApiToken",
-            "description": null,
+            "description": "Revokes an API token of the workspace.",
             "args": [
               {
                 "name": "id",
@@ -6302,7 +6302,7 @@
           },
           {
             "name": "rollback",
-            "description": null,
+            "description": "Rolls a service back to the image of an earlier deployment, without a build. Variables and other settings stay as they are now.",
             "args": [
               {
                 "name": "deployment",
@@ -6335,7 +6335,7 @@
           },
           {
             "name": "setAutoDeploy",
-            "description": null,
+            "description": "Turns deploying on every push to the tracked branch on or off.",
             "args": [
               {
                 "name": "enabled",
@@ -6384,7 +6384,7 @@
           },
           {
             "name": "setBucketPublic",
-            "description": null,
+            "description": "Makes every object in a bucket readable by anyone at its `publicEndpoint`, or private again. Writing always needs credentials.",
             "args": [
               {
                 "name": "bucket",
@@ -6433,7 +6433,7 @@
           },
           {
             "name": "setCIDeploy",
-            "description": null,
+            "description": "Turns keyless deploys from GitHub Actions workflows in the service's repository on or off.",
             "args": [
               {
                 "name": "enabled",
@@ -6482,7 +6482,7 @@
           },
           {
             "name": "setCustomStartCommand",
-            "description": null,
+            "description": "Sets the command a service starts with, run through a shell. An empty string goes back to the image's default.",
             "args": [
               {
                 "name": "command",
@@ -6531,7 +6531,7 @@
           },
           {
             "name": "setDatabaseResources",
-            "description": null,
+            "description": "Sets the CPU (250m to 4) and memory (256Mi to 16Gi) of a database.",
             "args": [
               {
                 "name": "database",
@@ -6580,7 +6580,7 @@
           },
           {
             "name": "setDatabaseStorage",
-            "description": null,
+            "description": "Grows the storage of a database to `size`, such as `32Gi`, up to 1Ti. Storage can't shrink.",
             "args": [
               {
                 "name": "database",
@@ -6629,7 +6629,7 @@
           },
           {
             "name": "setEnvironmentResources",
-            "description": null,
+            "description": "Sets the tier of an environment. Services and databases pick it up the next time they are created or resized.",
             "args": [
               {
                 "name": "input",
@@ -6662,7 +6662,7 @@
           },
           {
             "name": "setServiceBranch",
-            "description": null,
+            "description": "Sets the branch a service builds from, starting with its next deploy. Leave it out to follow the repository's default branch.",
             "args": [
               {
                 "name": "branch",
@@ -6707,7 +6707,7 @@
           },
           {
             "name": "setServiceHealthCheck",
-            "description": null,
+            "description": "Sets an HTTP health check on a path. Leave it out to go back to checking that the port accepts connections.",
             "args": [
               {
                 "name": "healthCheck",
@@ -6752,7 +6752,7 @@
           },
           {
             "name": "setServicePort",
-            "description": null,
+            "description": "Sets the port a service listens on. Leave it out for a service that doesn't listen on one, and its domains stop routing to it.",
             "args": [
               {
                 "name": "port",
@@ -6797,7 +6797,7 @@
           },
           {
             "name": "setServiceResources",
-            "description": null,
+            "description": "Sets the CPU (250m to 4) and memory (256Mi to 16Gi) of a service. The service rolls out again on the image it is already running.",
             "args": [
               {
                 "name": "resources",
@@ -6846,7 +6846,7 @@
           },
           {
             "name": "setServiceScaling",
-            "description": null,
+            "description": "Runs a fixed number of `replicas`, or with `autoscaling` enabled, scales between a minimum and a maximum to hold CPU at the target percentage. A service with a mounted volume runs a single instance.",
             "args": [
               {
                 "name": "input",
@@ -6879,7 +6879,7 @@
           },
           {
             "name": "setServiceUser",
-            "description": "Set the run-as user id for an image-based service. The same id becomes the run-as group and the owner of mounted volumes. Null clears it, reverting to the image default. Rejected for source-built services.",
+            "description": "Sets the user id an image-based service runs as, which also becomes its group and the owner of its mounted volumes. Leave it out to go back to the image's default. Services built from source can't set it.",
             "args": [
               {
                 "name": "service",
@@ -6924,7 +6924,7 @@
           },
           {
             "name": "setServiceVariables",
-            "description": null,
+            "description": "Replaces all variables of a service with the list given, so keys you leave out are removed. The service rolls out again on the image it is already running.",
             "args": [
               {
                 "name": "service",
@@ -6981,7 +6981,7 @@
           },
           {
             "name": "setSharedVariables",
-            "description": null,
+            "description": "Replaces all shared variables of an environment with the list given, so keys you leave out are removed. Services that link to a changed key roll out again.",
             "args": [
               {
                 "name": "environment",
@@ -7038,7 +7038,7 @@
           },
           {
             "name": "unexposeDatabase",
-            "description": null,
+            "description": "Removes the public hostname of a database.",
             "args": [
               {
                 "name": "database",
@@ -7071,7 +7071,7 @@
           },
           {
             "name": "unmountVolume",
-            "description": null,
+            "description": "Detaches a volume from its service. The data stays on the volume.",
             "args": [
               {
                 "name": "volume",
@@ -7104,7 +7104,7 @@
           },
           {
             "name": "updateMemberRole",
-            "description": null,
+            "description": "Changes the role of a member.",
             "args": [
               {
                 "name": "input",
@@ -7137,7 +7137,7 @@
           },
           {
             "name": "updateWorkspace",
-            "description": null,
+            "description": "Renames the workspace. Its id stays the same.",
             "args": [
               {
                 "name": "input",
@@ -7269,7 +7269,7 @@
       {
         "kind": "SCALAR",
         "name": "ProjectID",
-        "description": null,
+        "description": "A project, as `workspace/project`. For example `acme/shop`.",
         "isOneOf": null,
         "fields": null,
         "inputFields": null,
@@ -7315,7 +7315,7 @@
         "fields": [
           {
             "name": "apiTokens",
-            "description": null,
+            "description": "The API tokens of the workspace. Their values are never returned here.",
             "args": [],
             "type": {
               "kind": "NON_NULL",
@@ -7339,7 +7339,7 @@
           },
           {
             "name": "availableVariables",
-            "description": null,
+            "description": "Everything a service in the environment can link to, from its databases, key-value stores, buckets and shared variables.",
             "args": [
               {
                 "name": "environment",
@@ -7380,7 +7380,7 @@
           },
           {
             "name": "bucket",
-            "description": null,
+            "description": "One bucket.",
             "args": [
               {
                 "name": "id",
@@ -7413,7 +7413,7 @@
           },
           {
             "name": "bucketCredentials",
-            "description": null,
+            "description": "The S3 endpoint, region, bucket name and access keys for a bucket.",
             "args": [
               {
                 "name": "bucket",
@@ -7446,7 +7446,7 @@
           },
           {
             "name": "bucketObjectDownloadUrl",
-            "description": null,
+            "description": "A link that downloads one object, valid for 15 minutes.",
             "args": [
               {
                 "name": "bucket",
@@ -7495,7 +7495,7 @@
           },
           {
             "name": "bucketObjects",
-            "description": null,
+            "description": "The objects and folders one level below `prefix`, up to 1,000 entries.",
             "args": [
               {
                 "name": "bucket",
@@ -7540,7 +7540,7 @@
           },
           {
             "name": "build",
-            "description": null,
+            "description": "One build, with its status.",
             "args": [
               {
                 "name": "id",
@@ -7573,7 +7573,7 @@
           },
           {
             "name": "database",
-            "description": null,
+            "description": "One database, with its status, size and resources.",
             "args": [
               {
                 "name": "id",
@@ -7606,7 +7606,7 @@
           },
           {
             "name": "databaseCredentials",
-            "description": null,
+            "description": "Connection details for a database, password included. There is always an entry for the private hostname inside the environment, and one for the public hostname while the database is exposed.",
             "args": [
               {
                 "name": "database",
@@ -7647,7 +7647,7 @@
           },
           {
             "name": "databaseTableData",
-            "description": null,
+            "description": "Rows of a table, a page at a time. `schema` defaults to `public`, `limit` to 50 and `offset` to 0, and a page holds at most 1,000 rows.",
             "args": [
               {
                 "name": "database",
@@ -7732,7 +7732,7 @@
           },
           {
             "name": "databaseTables",
-            "description": null,
+            "description": "The tables of a database with their columns, in every schema except the system ones.",
             "args": [
               {
                 "name": "database",
@@ -7773,7 +7773,7 @@
           },
           {
             "name": "deployment",
-            "description": null,
+            "description": "One deployment of a service.",
             "args": [
               {
                 "name": "id",
@@ -7806,7 +7806,7 @@
           },
           {
             "name": "detectServices",
-            "description": null,
+            "description": "Inspects the default branch of a repository, given as a URL such as `https://github.com/acme/api`, and suggests a service for it with the detected language, framework and start command. The Lucity GitHub App needs access to the repository.",
             "args": [
               {
                 "name": "repositoryUrl",
@@ -7847,7 +7847,7 @@
           },
           {
             "name": "ejectProject",
-            "description": null,
+            "description": "Exports a project as a zip archive, base64-encoded, holding a Helm chart, a values file for each environment and install instructions. The project keeps running. The values include variables and passwords, so treat the archive as a secret.",
             "args": [
               {
                 "name": "id",
@@ -7880,7 +7880,7 @@
           },
           {
             "name": "environment",
-            "description": null,
+            "description": "One environment, with the services, databases, key-value stores, buckets and volumes in it.",
             "args": [
               {
                 "name": "environment",
@@ -7913,7 +7913,7 @@
           },
           {
             "name": "environments",
-            "description": null,
+            "description": "The environments of a project.",
             "args": [
               {
                 "name": "project",
@@ -7954,7 +7954,7 @@
           },
           {
             "name": "githubConnected",
-            "description": "Whether the current user has connected their GitHub account.",
+            "description": "Whether you have connected a GitHub account.",
             "args": [],
             "type": {
               "kind": "NON_NULL",
@@ -7970,7 +7970,7 @@
           },
           {
             "name": "githubRepositories",
-            "description": "Repos accessible to the user under a GitHub account (org or user login).",
+            "description": "The repositories of a GitHub account or organization that the Lucity GitHub App can read.",
             "args": [
               {
                 "name": "account",
@@ -8011,7 +8011,7 @@
           },
           {
             "name": "githubSources",
-            "description": "User's accessible GitHub App installations. Requires connected GitHub account.",
+            "description": "The GitHub accounts and organizations you can reach through the Lucity GitHub App. Needs a connected GitHub account.",
             "args": [],
             "type": {
               "kind": "NON_NULL",
@@ -8035,7 +8035,7 @@
           },
           {
             "name": "keyValueStore",
-            "description": null,
+            "description": "One key-value store.",
             "args": [
               {
                 "name": "id",
@@ -8068,7 +8068,7 @@
           },
           {
             "name": "keyValueStoreCredentials",
-            "description": null,
+            "description": "Connection details for a key-value store, password included. Key-value stores are only reachable inside their environment.",
             "args": [
               {
                 "name": "keyValueStore",
@@ -8109,7 +8109,7 @@
           },
           {
             "name": "me",
-            "description": null,
+            "description": "The signed-in user, with the workspaces they belong to and their role in each.",
             "args": [],
             "type": {
               "kind": "NON_NULL",
@@ -8125,7 +8125,7 @@
           },
           {
             "name": "project",
-            "description": null,
+            "description": "One project, with its environments.",
             "args": [
               {
                 "name": "id",
@@ -8158,7 +8158,7 @@
           },
           {
             "name": "projects",
-            "description": null,
+            "description": "The projects in the workspace.",
             "args": [],
             "type": {
               "kind": "NON_NULL",
@@ -8182,7 +8182,7 @@
           },
           {
             "name": "repositoryBranches",
-            "description": null,
+            "description": "The branches of a repository, given as a URL such as `https://github.com/acme/api`. The Lucity GitHub App needs access to the repository.",
             "args": [
               {
                 "name": "repositoryUrl",
@@ -8223,7 +8223,7 @@
           },
           {
             "name": "searchImages",
-            "description": "Search Docker Hub for public container images.",
+            "description": "Public container images on Docker Hub that match `query`.",
             "args": [
               {
                 "name": "query",
@@ -8264,7 +8264,7 @@
           },
           {
             "name": "service",
-            "description": null,
+            "description": "One service, with its configuration, endpoints and releases.",
             "args": [
               {
                 "name": "id",
@@ -8297,7 +8297,7 @@
           },
           {
             "name": "serviceVariables",
-            "description": null,
+            "description": "The variables of a service. Linked variables come back with their `ref` instead of a value.",
             "args": [
               {
                 "name": "service",
@@ -8338,7 +8338,7 @@
           },
           {
             "name": "sharedVariables",
-            "description": null,
+            "description": "The shared variables of an environment.",
             "args": [
               {
                 "name": "environment",
@@ -8379,7 +8379,7 @@
           },
           {
             "name": "subscription",
-            "description": null,
+            "description": "The plan of the workspace, with its subscription status, billing period and credit balance.",
             "args": [],
             "type": {
               "kind": "OBJECT",
@@ -8391,7 +8391,7 @@
           },
           {
             "name": "usageSummary",
-            "description": null,
+            "description": "The costs of the current billing period so far, in cents.",
             "args": [],
             "type": {
               "kind": "OBJECT",
@@ -8403,7 +8403,7 @@
           },
           {
             "name": "volume",
-            "description": null,
+            "description": "One volume.",
             "args": [
               {
                 "name": "id",
@@ -8436,7 +8436,7 @@
           },
           {
             "name": "workspace",
-            "description": null,
+            "description": "The workspace the token belongs to, with its members.",
             "args": [],
             "type": {
               "kind": "NON_NULL",
@@ -8452,7 +8452,7 @@
           },
           {
             "name": "workspaces",
-            "description": null,
+            "description": "Every workspace you belong to.",
             "args": [],
             "type": {
               "kind": "NON_NULL",
@@ -8695,7 +8695,7 @@
       {
         "kind": "SCALAR",
         "name": "ReleaseID",
-        "description": null,
+        "description": "A release, as `workspace/release`. For example `acme/rel-q7m2xk`.",
         "isOneOf": null,
         "fields": null,
         "inputFields": null,
@@ -9078,7 +9078,7 @@
       {
         "kind": "OBJECT",
         "name": "RestoreDatabaseResult",
-        "description": "Restoring never touches the source database. It creates a second one holding the\ndata as it was at targetTime, which keeps running alongside the original until\nyou decide what to do with it.",
+        "description": "Restoring never touches the source database. It creates a second one holding the data as it was at `targetTime`, which keeps running alongside the original until you decide what to do with it.",
         "isOneOf": null,
         "fields": [
           {
@@ -9442,7 +9442,7 @@
       {
         "kind": "SCALAR",
         "name": "ScanID",
-        "description": null,
+        "description": "A secret scan, as `workspace/scan`. Take it from the release it belongs to.",
         "isOneOf": null,
         "fields": null,
         "inputFields": null,
@@ -10157,7 +10157,7 @@
           },
           {
             "name": "user",
-            "description": "Run-as user id for image-based services. Also owns the service's mounted volumes. Null means the image default.",
+            "description": "The user id an image-based service runs as, which also owns its mounted volumes. Null means the image's default.",
             "args": [],
             "type": {
               "kind": "SCALAR",
@@ -10188,7 +10188,7 @@
       {
         "kind": "SCALAR",
         "name": "ServiceID",
-        "description": null,
+        "description": "A service, as `workspace/project/environment/service`. For example `acme/shop/production/web`.",
         "isOneOf": null,
         "fields": null,
         "inputFields": null,
@@ -10204,7 +10204,7 @@
         "fields": [
           {
             "name": "line",
-            "description": "Log line text. Prefixed with [pod-suffix] when multiple replicas exist.",
+            "description": "The log line, prefixed with the instance it came from when the service runs more than one.",
             "args": [],
             "type": {
               "kind": "NON_NULL",
@@ -10220,7 +10220,7 @@
           },
           {
             "name": "pod",
-            "description": "Name of the pod that produced this line.",
+            "description": "The instance that produced the line.",
             "args": [],
             "type": {
               "kind": "NON_NULL",
@@ -10349,7 +10349,7 @@
         "inputFields": [
           {
             "name": "key",
-            "description": "Key of the variable. e.g. PORT or HOST",
+            "description": "The name of the variable, such as `PORT` or `HOST`.",
             "type": {
               "kind": "NON_NULL",
               "name": null,
@@ -10365,7 +10365,7 @@
           },
           {
             "name": "ref",
-            "description": "Reference to an available variable. Required when no value is set. Mutually exclusive with value.",
+            "description": "Links the variable to one from `availableVariables`. Set either `value` or `ref`.",
             "type": {
               "kind": "SCALAR",
               "name": "VariableID",
@@ -10377,7 +10377,7 @@
           },
           {
             "name": "value",
-            "description": "Literal value. Required when no ref is set. Mutually exclusive with ref.",
+            "description": "A literal value. Set either `value` or `ref`.",
             "type": {
               "kind": "SCALAR",
               "name": "String",
@@ -10395,7 +10395,7 @@
       {
         "kind": "INPUT_OBJECT",
         "name": "SetEnvironmentResourcesInput",
-        "description": "The tier decides how a container's request relates to its limit: ECO runs\nburstable and is billed on real consumption, PRODUCTION reserves the full limit\nand is billed on allocation. Per-container sizing lives on the service itself;\nthe namespace capacity ceiling is fixed and not settable per environment.",
+        "description": "`ECO` lets services share capacity and burst beyond what is reserved for them. `PRODUCTION` reserves the full CPU and memory of every service.",
         "isOneOf": false,
         "fields": null,
         "inputFields": [
@@ -10613,7 +10613,7 @@
         "fields": [
           {
             "name": "buildLogs",
-            "description": null,
+            "description": "The output of a build, streamed as it is produced.",
             "args": [
               {
                 "name": "id",
@@ -10646,7 +10646,7 @@
           },
           {
             "name": "deployLogs",
-            "description": null,
+            "description": "The output of the deploy step of a release, streamed as it is produced.",
             "args": [
               {
                 "name": "id",
@@ -10679,7 +10679,7 @@
           },
           {
             "name": "scanLogs",
-            "description": null,
+            "description": "The output of a secret scan, streamed as it is produced.",
             "args": [
               {
                 "name": "id",
@@ -10712,7 +10712,7 @@
           },
           {
             "name": "serviceLogs",
-            "description": null,
+            "description": "The runtime logs of the running instances of a service, starting with the last `tailLines` lines of each (1,000 by default) and following new output. Instances that start later, for example during a rollout, are not included.",
             "args": [
               {
                 "name": "service",
@@ -10806,7 +10806,7 @@
       {
         "kind": "SCALAR",
         "name": "Time",
-        "description": null,
+        "description": "A point in time as an RFC 3339 string, such as `2026-09-28T14:05:00Z`.",
         "isOneOf": null,
         "fields": null,
         "inputFields": null,
@@ -11121,7 +11121,7 @@
       {
         "kind": "SCALAR",
         "name": "VariableID",
-        "description": null,
+        "description": "A variable that a database, key-value store, bucket or shared variable provides. Take the ids from `availableVariables`.",
         "isOneOf": null,
         "fields": null,
         "inputFields": null,
@@ -11138,7 +11138,7 @@
         "inputFields": [
           {
             "name": "key",
-            "description": "Key of the variable. e.g. PORT or HOST",
+            "description": "The name of the variable, such as `PORT` or `HOST`.",
             "type": {
               "kind": "NON_NULL",
               "name": null,
@@ -11345,7 +11345,7 @@
       {
         "kind": "SCALAR",
         "name": "VolumeID",
-        "description": null,
+        "description": "A volume, as `workspace/project/environment/volume`. For example `acme/shop/production/uploads`.",
         "isOneOf": null,
         "fields": null,
         "inputFields": null,
