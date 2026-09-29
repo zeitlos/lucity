@@ -199,6 +199,7 @@ addPrerenderPath(`/raw${route.path}.md`);
     >
       <UContentToc
         highlight
+        highlight-variant="circuit"
         :title="appConfig.toc?.title || t('docs.toc')"
         :links="page.body?.toc?.links"
       >
