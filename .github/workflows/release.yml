@@ -114,7 +114,7 @@ jobs:
               const d = execSync('git log -1 --format=%cI -- ' + JSON.stringify(join(contentDir, rel)), { encoding: 'utf-8' }).trim();
               if (d) {
                 const route = rel.replace(/\.md$/, '').replace(/\/index$/, '').replace(/\/(\d+\.)/g, '/').replace(/^\/(\d+\.)/, '/');
-                dates[route] = d;
+                dates[route === '' || /^\/(blog|legal)\//.test(route) ? route : '/docs' + route] = d;
               }
             } catch {}
           }
