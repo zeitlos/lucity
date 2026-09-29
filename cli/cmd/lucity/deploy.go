@@ -26,24 +26,27 @@ Arguments:
 
 Flags:
   --ref <ref>       Branch, tag, or commit to build (default: the service's branch)
-  --wait            Block until the release is live or failed; exit non-zero on failure
-  --timeout <dur>   Give up waiting after this long (default 20m; only with --wait)
+  --wait            Block until the release is live or failed, and exit non-zero on failure
+  --timeout <dur>   Give up waiting after this long (default 20m, only with --wait)
   --interval <dur>  Poll interval while waiting (default 4s)
   --json            Emit the final release as JSON on stdout
+
+Progress goes to stderr. Without --wait the command returns as soon as the
+release is queued, and prints the release id on stdout.
 
 Examples:
   lucity deploy site/production/web --ref "$GITHUB_SHA" --wait
   lucity deploy acme/site/production/web --ref v1.4.2 --wait --timeout 30m
 
 Authentication:
-  In GitHub Actions, deploys are keyless — no stored secret. Grant the job
-  "permissions: id-token: write" and enable CI deploys for the service in its
-  Lucity settings; the CLI exchanges the job's OIDC token for a short-lived,
-  deploy-only session automatically. The workspace is inferred, so
-  LUCITY_WORKSPACE is optional.
+  In GitHub Actions, deploys are keyless, so there is no secret to store. Grant
+  the job 'permissions: id-token: write' and turn on CI Deploys in the service's
+  settings, and the CLI trades the job's OIDC token for a short-lived session
+  that can only deploy services built from that repository. The session knows
+  its workspace, so LUCITY_WORKSPACE is optional.
 
-  For other CI systems, set LUCITY_API_TOKEN to a workspace API token (created in
-  the Lucity dashboard); the workspace is inferred from the token.
+  For other CI systems, set LUCITY_API_TOKEN to a workspace API token, created
+  in the Lucity dashboard. The workspace comes from the token.
 `
 
 const deployStatusQuery = `query($id: ServiceID!) {
