@@ -29,5 +29,8 @@ dependencies:
 - name: hcloud-exporter
   repository: https://promhippie.github.io/charts
   version: 4.28.0
-digest: sha256:f7449ca728644a18c38839b3c5bd32316ade242f7fd1f2f8bcb585e62eadc34f
-generated: "2026-09-16T15:00:45.689261+02:00"
+- name: vertical-pod-autoscaler
+  repository: https://kubernetes.github.io/autoscaler
+  version: 0.13.0
+digest: sha256:2e80b848dfd616a08ba343b1d698ce0b6fbc6477d0d729339c07f1490d164e0f
+generated: "2026-09-28T17:20:19.538759+02:00"

@@ -284,7 +284,11 @@ victoria-metrics-alert:
               - alert: ClusterRequestsHigh
                 expr: |-
                   sum by (resource) (
-                    kube_pod_container_resource_requests{resource=~"cpu|memory"}
+                    (
+                      kube_pod_container_resource_requests{resource=~"cpu|memory"}
+                      or kube_pod_init_container_resource_requests{resource=~"cpu|memory"}
+                        * on (namespace, pod, container) group_left() kube_pod_init_container_info{restart_policy="Always"}
+                    )
                     * on (namespace, pod) group_left() max by (namespace, pod) (kube_pod_status_phase{phase=~"Pending|Running"} == 1)
                   )
                   / on (resource) sum by (resource) (kube_node_status_allocatable{resource=~"cpu|memory"})
@@ -296,7 +300,11 @@ victoria-metrics-alert:
               - alert: ClusterRequestsCritical
                 expr: |-
                   sum by (resource) (
-                    kube_pod_container_resource_requests{resource=~"cpu|memory"}
+                    (
+                      kube_pod_container_resource_requests{resource=~"cpu|memory"}
+                      or kube_pod_init_container_resource_requests{resource=~"cpu|memory"}
+                        * on (namespace, pod, container) group_left() kube_pod_init_container_info{restart_policy="Always"}
+                    )
                     * on (namespace, pod) group_left() max by (namespace, pod) (kube_pod_status_phase{phase=~"Pending|Running"} == 1)
                   )
                   / on (resource) sum by (resource) (kube_node_status_allocatable{resource=~"cpu|memory"})
@@ -375,6 +383,12 @@ victoria-metrics-alert:
                 labels: { severity: critical }
                 annotations:
                   summary: "Zot registry is down"
+              - alert: VPAComponentDown
+                expr: kube_deployment_status_replicas_available{namespace="lucity-system", deployment=~"vpa-(admission-controller|recommender|updater)"} == 0
+                for: 10m
+                labels: { severity: warning }
+                annotations:
+                  summary: "VPA {{ $labels.deployment }} has no available replicas"
               - alert: VictoriaMetricsHighCardinality
                 expr: vm_cache_entries{type="storage/hour_metric_ids"} > 500000
                 for: 1h
@@ -596,6 +610,58 @@ hcloud-exporter:
       memory: 32Mi
     limits:
       memory: 128Mi
+
+# -- Vertical Pod Autoscaler, sizes tenant pod requests from observed usage
+vertical-pod-autoscaler:
+  enabled: true
+  fullnameOverride: vpa
+  recommender:
+    replicas: 1
+    logLevel: 2
+    podDisruptionBudget:
+      enabled: false
+    extraArgs:
+      - --pod-recommendation-min-memory-mb=32
+      - --round-memory-bytes=16777216
+      - --round-cpu-millicores=5
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        memory: 512Mi
+  updater:
+    replicas: 1
+    logLevel: 2
+    podDisruptionBudget:
+      enabled: false
+    extraArgs:
+      - --in-place-skip-disruption-budget=true
+    resources:
+      requests:
+        cpu: 25m
+        memory: 64Mi
+      limits:
+        memory: 256Mi
+  admissionController:
+    logLevel: 2
+    certGen:
+      enabled: false
+    certManager:
+      enabled: true
+      createSelfSignedIssuer:
+        enabled: true
+    mutatingWebhookConfiguration:
+      namespaceSelector:
+        matchExpressions:
+          - key: lucity.dev/environment
+            operator: Exists
+    resources:
+      requests:
+        cpu: 25m
+        memory: 64Mi
+      limits:
+        memory: 256Mi
 
 # -- Grafana — UI for VictoriaMetrics + VictoriaLogs
 grafana:
