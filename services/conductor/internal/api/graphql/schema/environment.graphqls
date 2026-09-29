@@ -10,16 +10,22 @@ type Environment {
 input CreateEnvironmentInput {
   project: ProjectID!
   name: String! @constraint(constraint: "resource_name,min=2,max=16")
+  """Not supported yet. Leave it unset, because new environments always start empty."""
   fromEnvironment: EnvironmentID
+  """Defaults to `ECO`."""
   tier: ResourceTier
 }
 
 extend type Query {
+  """The environments of a project."""
   environments(project: ProjectID!): [Environment!]! @hasRole(role: WORKSPACE_MEMBER)
+  """One environment, with the services, databases, key-value stores, buckets and volumes in it."""
   environment(environment: EnvironmentID!): Environment! @hasRole(role: WORKSPACE_MEMBER)
 }
 
 extend type Mutation {
+  """Creates an empty environment in a project."""
   createEnvironment(input: CreateEnvironmentInput!): Environment! @hasRole(role: WORKSPACE_MEMBER)
+  """Deletes an environment. It has to be empty, and the last environment of a project can't be deleted."""
   deleteEnvironment(environment: EnvironmentID!): Boolean! @hasRole(role: WORKSPACE_MEMBER)
 }

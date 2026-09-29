@@ -1,7 +1,6 @@
 ---
 title: Privacy Policy
 description: How Lucity handles your data.
-navigation: false
 ---
 
 **Effective date:** March 16, 2026

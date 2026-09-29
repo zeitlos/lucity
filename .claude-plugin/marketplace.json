@@ -1,7 +1,6 @@
 {
   "name": "lucity",
   "description": "Deploy software to Lucity from Claude Code.",
-  "version": "0.1.0",
   "owner": {
     "name": "zeitlos",
     "url": "https://github.com/zeitlos/lucity"
@@ -10,8 +9,7 @@
     {
       "name": "lucity",
       "description": "Deploy software to Lucity with one prompt: zero-config builds, PostgreSQL, Redis, S3-compatible storage.",
-      "source": "./plugin",
-      "version": "0.1.0"
+      "source": "./plugin"
     }
   ]
 }

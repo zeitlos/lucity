@@ -23,6 +23,14 @@ Usage:
   lucity db unexpose <db> [--json]
   lucity db delete <db> [--yes] [--json]
 
+Commands:
+  create        Create a PostgreSQL database in an environment
+  list          List the databases in an environment
+  credentials   Print the connection details, password included
+  expose        Give the database a public hostname, reachable over TLS
+  unexpose      Remove the public hostname again
+  delete        Delete the database and all of its data
+
 Arguments:
   <env>    Environment id (workspace/project/environment) or its relative form.
   <name>   Database name (2-16 chars).
@@ -35,8 +43,8 @@ Flags:
   --yes           Skip the confirmation prompt on delete
   --json          Emit the result as JSON on stdout
 
-Requires a signed-in member session (run 'lucity login'); a CI deploy token is
-not sufficient for database operations.
+Needs a signed-in session or a workspace API token. A keyless GitHub Actions
+session cannot manage databases.
 `
 
 type databaseView struct {

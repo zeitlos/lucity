@@ -16,10 +16,13 @@ input CreateApiTokenInput {
 }
 
 extend type Query {
+  """The API tokens of the workspace. Their values are never returned here."""
   apiTokens: [ApiToken!]! @hasRole(role: WORKSPACE_ADMIN)
 }
 
 extend type Mutation {
+  """Creates an API token for the workspace with the given role. The `lucity_…` value is only returned in this response, and the token stays valid until it is revoked."""
   createApiToken(input: CreateApiTokenInput!): CreatedApiToken! @hasRole(role: WORKSPACE_ADMIN)
+  """Revokes an API token of the workspace."""
   revokeApiToken(id: ID!): Boolean! @hasRole(role: WORKSPACE_ADMIN)
 }

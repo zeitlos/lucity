@@ -51,12 +51,16 @@ extend type Environment {
 }
 
 extend type Query {
+  """One bucket."""
   bucket(id: BucketID!): Bucket! @hasRole(role: WORKSPACE_MEMBER)
+  """The S3 endpoint, region, bucket name and access keys for a bucket."""
   bucketCredentials(bucket: BucketID!): BucketCredentials! @hasRole(role: WORKSPACE_MEMBER)
+  """The objects and folders one level below `prefix`, up to 1,000 entries."""
   bucketObjects(
     bucket: BucketID!
     prefix: String @constraint(constraint: "max=1024")
   ): BucketObjectListing! @hasRole(role: WORKSPACE_MEMBER)
+  """A link that downloads one object, valid for 15 minutes."""
   bucketObjectDownloadUrl(
     bucket: BucketID!
     key: String! @constraint(constraint: "min=1,max=1024")
@@ -64,13 +68,18 @@ extend type Query {
 }
 
 extend type Mutation {
+  """Creates a private bucket in an environment."""
   createBucket(input: CreateBucketInput!): Bucket! @hasRole(role: WORKSPACE_MEMBER)
+  """Deletes a bucket and everything in it."""
   deleteBucket(bucket: BucketID!): Boolean! @hasRole(role: WORKSPACE_MEMBER)
+  """Makes every object in a bucket readable by anyone at its `publicEndpoint`, or private again. Writing always needs credentials."""
   setBucketPublic(bucket: BucketID!, public: Boolean!): Bucket! @hasRole(role: WORKSPACE_MEMBER)
+  """A link to upload one object with an HTTP `PUT`, valid for 15 minutes. An existing object with the same key is overwritten."""
   bucketObjectUploadUrl(
     bucket: BucketID!
     key: String! @constraint(constraint: "min=1,max=1024")
   ): String! @hasRole(role: WORKSPACE_MEMBER)
+  """Deletes one object from a bucket."""
   deleteBucketObject(
     bucket: BucketID!
     key: String! @constraint(constraint: "min=1,max=1024")

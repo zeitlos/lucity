@@ -62,6 +62,8 @@ func (s *server) instructions() string {
 
 	b.WriteString("IMPORTANT — config changes do NOT need a rebuild. set_variables, configure_service (resources, port, scaling), start-command changes, and volume mounts each roll the service out automatically with its CURRENT image, applied in seconds. Only call deploy when the SOURCE CODE changed (deploy rebuilds from scratch, which takes minutes). So to fix an OOM, a missing env var, or a wrong start command: apply the change and poll get_deploy_status — do not deploy again.\n\n")
 
+	b.WriteString("Secret values never enter this conversation. list_variables shows keys and refs but never values, and check_variables tells you whether a variable holds the value you expect. set_variables with generate stores a random app secret (SECRET_KEY_BASE, a JWT secret) that you never see. Database, key-value store, and bucket credentials reach services only as refs, and runtime logs come back with known secrets redacted. Never ask the user to paste a secret here: they add third-party keys in the Lucity dashboard (the service's Variables tab), and you confirm the keys exist with list_variables. Bulk database dump imports need credentials, so the user runs them from their own terminal.\n\n")
+
 	b.WriteString("There is deliberately no delete tool. Removing projects, services, databases, or other resources happens in the Lucity dashboard.")
 
 	return b.String()

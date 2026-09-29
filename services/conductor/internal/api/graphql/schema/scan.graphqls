@@ -38,5 +38,6 @@ extend type Service {
 }
 
 extend type Subscription {
+  """The output of a secret scan, streamed as it is produced."""
   scanLogs(id: ScanID!): String! @hasRole(role: WORKSPACE_MEMBER)
 }

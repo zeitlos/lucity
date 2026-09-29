@@ -21,7 +21,7 @@ func withResourceID(resource any, id string) any {
 func (s *server) registerResource(m *mcp.Server) {
 	mcp.AddTool(m, &mcp.Tool{
 		Name:        "create_database",
-		Description: "Provision a managed PostgreSQL database in an environment. size is the storage size as a Kubernetes quantity (e.g. 10Gi). cpu and memory (e.g. '500m'/'512Mi') size the database; pass both or omit both for platform defaults. Provisioning takes ~1-2 min; poll get_project for status. Wire credentials into a service with set_variables (ref) or read them with get_credentials.",
+		Description: "Provision a managed PostgreSQL database in an environment. size is the storage size as a Kubernetes quantity (e.g. 10Gi). cpu and memory (e.g. '500m'/'512Mi') size the database; pass both or omit both for platform defaults. Provisioning takes ~1-2 min; poll get_project for status. Wire its credentials into a service with set_variables refs from list_variables' available list; credential values are never returned.",
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: ptr(false)},
 	}, s.createDatabase)
 
@@ -44,14 +44,8 @@ func (s *server) registerResource(m *mcp.Server) {
 	}, s.createVolume)
 
 	mcp.AddTool(m, &mcp.Tool{
-		Name:        "get_credentials",
-		Description: "Read connection credentials for a database, key-value store, or bucket. For databases, expose_publicly first opens a public internet endpoint (public endpoints require TLS with SNI: psql 'sslmode=require', libpq >= 14).",
-		Annotations: &mcp.ToolAnnotations{DestructiveHint: ptr(false)},
-	}, s.getCredentials)
-
-	mcp.AddTool(m, &mcp.Tool{
 		Name:        "run_sql",
-		Description: "Run a SQL statement against a database, for schema setup and quick checks. Returns up to 200 rows. For bulk imports prefer get_credentials(expose_publicly) plus a local psql.",
+		Description: "Run a SQL statement against a database, for schema setup and quick checks. Returns up to 200 rows. Bulk dump imports need the database credentials, which are never shown here, so the user runs those from their own terminal.",
 	}, s.runSQL)
 }
 
@@ -91,7 +85,7 @@ func (s *server) createDatabase(ctx context.Context, _ *mcp.CallToolRequest, inp
 	}
 	return jsonResult(map[string]any{
 		"database": withResourceID(out.CreateDatabase, environmentID+"/"+input.Name),
-		"note":     "PostgreSQL provisioning takes ~1-2 min; poll get_project until status is HEALTHY, then wire credentials via set_variables (ref) or read them with get_credentials",
+		"note":     "PostgreSQL provisioning takes ~1-2 min; poll get_project until status is HEALTHY, then wire its credentials into a service via set_variables refs from list_variables' available list",
 	})
 }
 
@@ -118,7 +112,7 @@ func (s *server) createKeyValueStore(ctx context.Context, _ *mcp.CallToolRequest
 	}
 	return jsonResult(map[string]any{
 		"keyValueStore": withResourceID(out.CreateKeyValueStore, environmentID+"/"+input.Name),
-		"note":          "Redis-compatible; read credentials with get_credentials(kind=kv_store)",
+		"note":          "Redis-compatible; wire its credentials into a service via set_variables refs from list_variables' available list",
 	})
 }
 
@@ -145,7 +139,7 @@ func (s *server) createBucket(ctx context.Context, _ *mcp.CallToolRequest, input
 	}
 	return jsonResult(map[string]any{
 		"bucket": withResourceID(out.CreateBucket, environmentID+"/"+input.Name),
-		"note":   "S3-compatible; read credentials with get_credentials(kind=bucket)",
+		"note":   "S3-compatible; wire its credentials into a service via set_variables refs from list_variables' available list",
 	})
 }
 
@@ -204,76 +198,6 @@ func (s *server) createVolume(ctx context.Context, _ *mcp.CallToolRequest, input
 	}
 
 	return jsonResult(result)
-}
-
-type getCredentialsInput struct {
-	Kind           string `json:"kind" jsonschema:"one of database, kv_store, bucket"`
-	ID             string `json:"id" jsonschema:"resource id (workspace/project/environment/name)"`
-	ExposePublicly bool   `json:"expose_publicly,omitempty" jsonschema:"database only: open a public internet endpoint before reading credentials"`
-}
-
-func (s *server) getCredentials(ctx context.Context, _ *mcp.CallToolRequest, input getCredentialsInput) (*mcp.CallToolResult, any, error) {
-	id, err := s.resourceID(input.ID)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	switch input.Kind {
-	case "database":
-		if input.ExposePublicly {
-			const mutation = `mutation($database: DatabaseID!) { exposeDatabase(database: $database) { id public } }`
-			if err := s.query(ctx, "get_credentials (expose)", mutation, map[string]any{"database": id}, nil); err != nil {
-				return nil, nil, err
-			}
-		}
-		const query = `query($database: DatabaseID!) {
-  databaseCredentials(database: $database) { type host port dbname user password uri }
-}`
-		var out struct {
-			DatabaseCredentials any `json:"databaseCredentials"`
-		}
-		if err := s.query(ctx, "get_credentials", query, map[string]any{"database": id}, &out); err != nil {
-			return nil, nil, err
-		}
-		result := map[string]any{"credentials": out.DatabaseCredentials}
-		if input.ExposePublicly {
-			result["note"] = "public endpoints (type PLATFORM) require TLS with SNI: connect with 'sslmode=require' and libpq >= 14"
-		}
-		return jsonResult(result)
-
-	case "kv_store":
-		if input.ExposePublicly {
-			return nil, nil, fmt.Errorf("expose_publicly is only valid for kind=database")
-		}
-		const query = `query($keyValueStore: KeyValueStoreID!) {
-  keyValueStoreCredentials(keyValueStore: $keyValueStore) { type host port password uri }
-}`
-		var out struct {
-			KeyValueStoreCredentials any `json:"keyValueStoreCredentials"`
-		}
-		if err := s.query(ctx, "get_credentials", query, map[string]any{"keyValueStore": id}, &out); err != nil {
-			return nil, nil, err
-		}
-		return jsonResult(map[string]any{"credentials": out.KeyValueStoreCredentials})
-
-	case "bucket":
-		if input.ExposePublicly {
-			return nil, nil, fmt.Errorf("expose_publicly is only valid for kind=database")
-		}
-		const query = `query($bucket: BucketID!) {
-  bucketCredentials(bucket: $bucket) { endpoint region bucket accessKeyId secretAccessKey }
-}`
-		var out struct {
-			BucketCredentials any `json:"bucketCredentials"`
-		}
-		if err := s.query(ctx, "get_credentials", query, map[string]any{"bucket": id}, &out); err != nil {
-			return nil, nil, err
-		}
-		return jsonResult(map[string]any{"credentials": out.BucketCredentials})
-
-	default:
-		return nil, nil, fmt.Errorf("invalid kind %q — use one of database, kv_store, bucket", input.Kind)
-	}
 }
 
 type runSQLInput struct {

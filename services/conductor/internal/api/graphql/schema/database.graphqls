@@ -65,8 +65,11 @@ input CreateDatabaseInput {
 }
 
 extend type Query {
+  """One database, with its status, size and resources."""
   database(id: DatabaseID!): Database! @hasRole(role: WORKSPACE_MEMBER)
+  """The tables of a database with their columns, in every schema except the system ones."""
   databaseTables(database: DatabaseID!): [DatabaseTable!]! @hasRole(role: WORKSPACE_MEMBER)
+  """Rows of a table, a page at a time. `schema` defaults to `public`, `limit` to 50 and `offset` to 0, and a page holds at most 1,000 rows."""
   databaseTableData(
     database: DatabaseID!
     table: String!
@@ -74,15 +77,23 @@ extend type Query {
     limit: Int
     offset: Int
   ): DatabaseTableData! @hasRole(role: WORKSPACE_MEMBER)
+  """Connection details for a database, password included. There is always an entry for the private hostname inside the environment, and one for the public hostname while the database is exposed."""
   databaseCredentials(database: DatabaseID!): [DatabaseCredentials!]! @hasRole(role: WORKSPACE_MEMBER)
 }
 
 extend type Mutation {
+  """Creates a PostgreSQL database in an environment. `size` defaults to `16Gi`, and CPU and memory to `500m` and `512Mi`."""
   createDatabase(input: CreateDatabaseInput!): Database! @hasRole(role: WORKSPACE_MEMBER)
+  """Sets the CPU (250m to 4) and memory (256Mi to 16Gi) of a database."""
   setDatabaseResources(database: DatabaseID!, resources: ResourcesInput!): Database! @hasRole(role: WORKSPACE_MEMBER)
+  """Grows the storage of a database to `size`, such as `32Gi`, up to 1Ti. Storage can't shrink."""
   setDatabaseStorage(database: DatabaseID!, size: String!): Database! @hasRole(role: WORKSPACE_MEMBER)
+  """Deletes a database and all of its data."""
   deleteDatabase(database: DatabaseID!): Boolean! @hasRole(role: WORKSPACE_MEMBER)
+  """Runs one SQL statement against a database, as the user from its credentials, and returns up to 1,000 rows with values as text. The statement commits right away and times out after 30 seconds."""
   executeQuery(database: DatabaseID!, query: String!): QueryResult! @hasRole(role: WORKSPACE_MEMBER)
+  """Gives a database a public hostname on port 5432. Clients have to connect with TLS."""
   exposeDatabase(database: DatabaseID!): Database! @hasRole(role: WORKSPACE_MEMBER)
+  """Removes the public hostname of a database."""
   unexposeDatabase(database: DatabaseID!): Database! @hasRole(role: WORKSPACE_MEMBER)
 }

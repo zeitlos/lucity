@@ -18,6 +18,7 @@
  *   LUCITY_WORKSPACE  workspace slug            (default: `lucity workspace`)
  *   SHOTS_PROJECT     demo project              (default vouch)
  *   SHOTS_ENV         demo environment          (default development)
+ *   SHOTS_PROD_ENV    second demo environment, on the Production tier (default production)
  *   SHOTS_SERVICE     demo service              (default vouch)
  *   SHOTS_DATABASE    demo database             (default feedback)
  *   SHOTS_BUCKET      demo bucket               (default attachments)
@@ -65,6 +66,7 @@ const config = {
   workspace: process.env.LUCITY_WORKSPACE || '',
   project: process.env.SHOTS_PROJECT || 'vouch',
   environment: process.env.SHOTS_ENV || 'development',
+  productionEnvironment: process.env.SHOTS_PROD_ENV || 'production',
   service: process.env.SHOTS_SERVICE || 'vouch',
   database: process.env.SHOTS_DATABASE || 'feedback',
   bucket: process.env.SHOTS_BUCKET || 'attachments',
@@ -146,8 +148,9 @@ async function placeNode(page, name, to) {
     if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
 
     // Grab low on the card: the title row selects instead of dragging.
-    const grabX = box.x + 40;
-    const grabY = box.y + box.height - 20;
+    const { width, height } = page.viewportSize();
+    const grabX = Math.min(Math.max(box.x + 40, 48), box.x + box.width - 12, width - 48);
+    const grabY = Math.min(box.y + box.height - 20, height - 48);
     await page.mouse.move(grabX, grabY);
     await page.mouse.down();
     await page.mouse.move(grabX + dx, grabY + dy, { steps: 12 });
@@ -570,7 +573,266 @@ const shots = [
       return { rect: await nodesRect(page) };
     },
   },
+  {
+    name: 'create-palette',
+    dir: 'projects',
+    description: 'Create palette with the three ways to start a project',
+    async capture(page) {
+      await page.goto(`${config.base}/app/`, { waitUntil: 'domcontentloaded' });
+      await page.getByRole('button', { name: 'New', exact: true }).click();
+      await page.getByText('Empty Project', { exact: true }).waitFor({ timeout: 15_000 });
+      await page.evaluate(() => {
+        document.querySelector('main')?.style.setProperty('visibility', 'hidden');
+      });
+      await page.waitForTimeout(800);
+      const palette = page.locator('div.rounded-xl.border.bg-popover').first();
+      return { rect: await paddedRect(page, palette, { x: 40, y: 40 }) };
+    },
+  },
+  {
+    name: 'canvas',
+    dir: 'projects',
+    description: 'Environment canvas in the full dashboard',
+    async capture(page) {
+      await openCanvas(page);
+      for (let pass = 0; pass < 2; pass++) {
+        await placeNode(page, config.service, { x: 200, y: 315 });
+        await placeNode(page, config.database, { x: 637, y: 218 });
+        await placeNode(page, config.bucket, { x: 637, y: 458 });
+      }
+      await page.mouse.click(1_000, 700);
+      await page.waitForTimeout(800);
+      return {};
+    },
+  },
+  {
+    name: 'project-settings',
+    dir: 'projects',
+    description: 'Project settings on the General section',
+    viewport: { width: 1120, height: 560 },
+    async capture(page) {
+      const project = encodeURIComponent(`${config.workspace}/${config.project}`);
+      await page.goto(`${config.base}/app/projects/${project}/settings`, { waitUntil: 'domcontentloaded' });
+      await page.getByText('Danger Zone', { exact: true }).waitFor({ timeout: 30_000 });
+      await page.waitForTimeout(800);
+      const card = page.locator('div.max-w-4xl.rounded-lg.border').first();
+      return { rect: await paddedRect(page, card, { x: 24, y: 24 }) };
+    },
+  },
+  {
+    name: 'eject-dialog',
+    dir: 'eject',
+    description: 'Eject dialog opened from the project header',
+    async capture(page) {
+      await openCanvas(page);
+      await page.locator('header').getByRole('button', { name: 'Eject', exact: true }).click();
+      const dialog = page.getByRole('dialog').filter({ hasText: 'Eject project' }).first();
+      await dialog.waitFor({ timeout: 10_000 });
+      await page.evaluate(() => {
+        for (const element of document.querySelectorAll('.bg-black\\/80, .vue-flow__node, .vue-flow__edge')) {
+          element.style.setProperty('visibility', 'hidden');
+        }
+      });
+      await page.waitForTimeout(800);
+      const box = await dialog.boundingBox();
+      return { rect: { x: 0, y: 0, width: page.viewportSize().width, height: Math.ceil(box.y + box.height + 40) } };
+    },
+  },
+  {
+    name: 'environment-switcher',
+    dir: 'environments',
+    description: 'Environment switcher open in the header',
+    async capture(page) {
+      await openCanvas(page);
+      const trigger = page.locator('nav button').filter({ hasText: new RegExp(`^\\s*${config.environment}\\s*$`) }).first();
+      await trigger.click();
+      const menu = page.locator('[role="menu"]').first();
+      await menu.getByText('New Environment').waitFor({ timeout: 10_000 });
+      await page.waitForTimeout(600);
+
+      const project = page.locator('nav button').filter({ hasText: new RegExp(`^\\s*${config.project}\\s*$`) }).first();
+      const [a, b] = [await trigger.boundingBox(), await menu.boundingBox()];
+      const left = Math.max(0, (await project.boundingBox()).x - 24);
+      const top = Math.max(0, Math.min(a.y, b.y) - 24);
+      return {
+        rect: {
+          x: left,
+          y: top,
+          width: Math.max(a.x + a.width, b.x + b.width) + 160 - left,
+          height: Math.max(a.y + a.height, b.y + b.height) + 32 - top,
+        },
+      };
+    },
+  },
+  {
+    name: 'environment-settings',
+    dir: 'environments',
+    description: 'Project settings on the Environments section, with the tier choice open',
+    viewport: { width: 1120, height: 600 },
+    async capture(page) {
+      const project = encodeURIComponent(`${config.workspace}/${config.project}`);
+      await page.goto(`${config.base}/app/projects/${project}/settings/environments?env=${config.productionEnvironment}`, {
+        waitUntil: 'domcontentloaded',
+      });
+      await page.getByText('Save tier', { exact: true }).waitFor({ timeout: 30_000 });
+      await page.locator('label', { hasText: 'Reserved resources' }).click();
+      await page.waitForTimeout(800);
+      const card = page.locator('div.max-w-4xl.rounded-lg.border').first();
+      return { rect: await paddedRect(page, card, { x: 24, y: 24 }) };
+    },
+  },
+  {
+    name: 'service-metrics',
+    dir: 'metrics',
+    description: 'Service panel on the Metrics tab',
+    viewport: { width: 1360, height: 820 },
+    async capture(page) {
+      await openPanel(page, config.service);
+      await openTab(page, 'Metrics');
+      await panel(page).getByRole('button', { name: '30d', exact: true }).click();
+      await panel(page).locator('section').filter({ hasText: 'Memory' }).first().waitFor({ timeout: 20_000 });
+      await page.waitForTimeout(2_500);
+      return { rect: await contentRect(page, panel(page), 40) };
+    },
+  },
+  {
+    name: 'runtime-logs',
+    dir: 'logs',
+    description: 'Runtime logs streaming next to the service panel',
+    viewport: { width: 1120, height: 580 },
+    async capture(page) {
+      await openPanel(page, config.service);
+      await page.locator('[role="tablist"]').getByRole('button', { name: 'Logs' }).click();
+      await page.locator('div.bg-zinc-950 div.font-mono > div').nth(3).waitFor({ timeout: 20_000 });
+      await page.waitForTimeout(2_000);
+      return {};
+    },
+  },
+  {
+    name: 'deployment-logs',
+    dir: 'logs',
+    description: 'Active deployment expanded, with a Logs button per step',
+    async capture(page) {
+      const project = encodeURIComponent(`${config.workspace}/${config.project}`);
+      const environment = encodeURIComponent(`${config.workspace}/${config.project}/${config.productionEnvironment}`);
+      await page.goto(`${config.base}/app/projects/${project}/environments/${environment}`, { waitUntil: 'domcontentloaded' });
+      const node = page.locator(`.vue-flow__node[data-id$="/${config.service}"]`).first();
+      await node.waitFor({ timeout: 30_000 });
+      await page.waitForTimeout(1_500);
+      await node.click();
+      await page.locator('[role="tablist"]').first().waitFor({ timeout: 15_000 });
+      await openTab(page, 'Deployments');
+      await page.getByText('ACTIVE').first().click();
+      await panel(page)
+        .getByRole('button', { name: 'Logs', exact: true })
+        .first()
+        .waitFor({ timeout: 15_000 })
+        .catch(() => {
+          throw new Error(`the active deployment in ${config.productionEnvironment} is over a week old and its step logs are gone, deploy it again`);
+        });
+      await page.waitForTimeout(800);
+
+      const card = page.getByText('ACTIVE').first().locator('xpath=ancestor::div[contains(@class,"rounded-lg")][1]');
+      const [panelBox, cardBox] = [await panel(page).boundingBox(), await card.boundingBox()];
+      return {
+        rect: {
+          x: panelBox.x,
+          y: panelBox.y,
+          width: panelBox.width,
+          height: Math.min(cardBox.y + cardBox.height + 10 - panelBox.y, page.viewportSize().height - panelBox.y),
+        },
+      };
+    },
+  },
+  {
+    name: 'billing-settings',
+    dir: 'billing',
+    description: 'Billing section of the workspace settings, with example figures',
+    viewport: { width: 1120, height: 1400 },
+    async capture(page) {
+      await answerBilling(page, {
+        subscription: {
+          plan: 'HOBBY',
+          status: 'ACTIVE',
+          currentPeriodEnd: daysFromNow(17),
+          creditAmountCents: 500,
+          creditExpiry: null,
+          hasPaymentMethod: true,
+        },
+        usageSummary: { resourceCostCents: 312, creditsCents: 312, estimatedTotalCents: 500 },
+      });
+      await page.goto(`${config.base}/app/workspace/settings?tab=billing`, { waitUntil: 'domcontentloaded' });
+      await page.getByText('Current Period Usage', { exact: true }).waitFor({ timeout: 30_000 });
+      await page.waitForTimeout(800);
+
+      const card = page.locator('div.max-w-4xl.rounded-lg.border').first();
+      const content = await contentRect(page, card, 32);
+      await page.setViewportSize({ width: 1120, height: Math.ceil(content.y + content.height + 24) });
+      await page.waitForTimeout(500);
+      return { rect: await paddedRect(page, card, { x: 24, y: 24 }) };
+    },
+  },
+  {
+    name: 'trial-badge',
+    dir: 'billing',
+    description: 'Trial badge in the header with its popover open, with example figures',
+    async capture(page) {
+      await answerBilling(page, {
+        subscription: {
+          plan: null,
+          status: 'TRIALING',
+          currentPeriodEnd: daysFromNow(9),
+          creditAmountCents: 500,
+          creditExpiry: daysFromNow(9),
+          hasPaymentMethod: false,
+        },
+        usageSummary: { resourceCostCents: 184, creditsCents: 184, estimatedTotalCents: 0 },
+      });
+      await openCanvas(page);
+      await page.evaluate(() => {
+        for (const element of document.querySelectorAll('.vue-flow__node, .vue-flow__edge')) {
+          element.style.setProperty('visibility', 'hidden');
+        }
+      });
+      const badge = page.locator('header button').filter({ hasText: /\d+d or / }).first();
+      await badge.click();
+      const popover = page.getByRole('dialog').filter({ hasText: 'Free Credits' }).first();
+      await popover.waitFor({ timeout: 10_000 });
+      await page.waitForTimeout(600);
+
+      const [a, b] = [await badge.boundingBox(), await popover.boundingBox()];
+      const left = Math.max(0, Math.min(a.x, b.x) - 120);
+      return {
+        rect: {
+          x: left,
+          y: 0,
+          width: page.viewportSize().width - left,
+          height: b.y + b.height + 28,
+        },
+      };
+    },
+  },
 ];
+
+async function answerBilling(page, { subscription, usageSummary }) {
+  const answers = {
+    Subscription: { subscription: { __typename: 'BillingSubscription', ...subscription } },
+    UsageSummary: { usageSummary: { __typename: 'UsageSummary', ...usageSummary } },
+  };
+  await page.route('**/graphql', async (route) => {
+    let operation;
+    try {
+      operation = route.request().postDataJSON()?.operationName;
+    } catch {}
+    const data = answers[operation];
+    if (!data) return route.continue();
+    return route.fulfill({ json: { data } });
+  });
+}
+
+function daysFromNow(days) {
+  return new Date(Date.now() + days * 86_400_000).toISOString();
+}
 
 async function discoverAppURL() {
   const data = await graphql(

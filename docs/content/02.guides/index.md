@@ -10,4 +10,4 @@ Lucity builds from source, so most apps deploy without a Dockerfile and without 
 ::guide-cards
 ::
 
-Working with something that isn't here? The [quickstart](/quickstart) applies to any language Railpack supports, and a [prebuilt container image](/services) works when you would rather build it yourself.
+Working with something that isn't here? The [quickstart](/docs/quickstart) applies to any language Railpack supports, and a [prebuilt container image](/docs/services) works when you would rather build it yourself.

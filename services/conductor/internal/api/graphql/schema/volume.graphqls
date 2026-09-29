@@ -12,13 +12,19 @@ type Volume {
 }
 
 extend type Query {
+  """One volume."""
   volume(id: VolumeID!): Volume! @hasRole(role: WORKSPACE_MEMBER)
 }
 
 extend type Mutation {
+  """Creates a volume in an environment, with a `size` between `10Gi` and `1Ti`."""
   createVolume(environment: EnvironmentID!, name: String! @constraint(constraint: "resource_name,min=2,max=16"), size: String!): Volume! @hasRole(role: WORKSPACE_MEMBER)
+  """Grows a volume, up to 1Ti, without a restart. Volumes can't shrink."""
   expandVolume(volume: VolumeID!, size: String!): Volume! @hasRole(role: WORKSPACE_MEMBER)
+  """Mounts a volume into a service at an absolute `path`. A volume mounts into one service, and from then on the service runs a single instance and every rollout has a short downtime."""
   mountVolume(volume: VolumeID!, service: ServiceID!, path: String!): Volume! @hasRole(role: WORKSPACE_MEMBER)
+  """Detaches a volume from its service. The data stays on the volume."""
   unmountVolume(volume: VolumeID!): Volume! @hasRole(role: WORKSPACE_MEMBER)
+  """Deletes a volume and its data. It has to be unmounted first."""
   deleteVolume(volume: VolumeID!): Boolean! @hasRole(role: WORKSPACE_MEMBER)
 }

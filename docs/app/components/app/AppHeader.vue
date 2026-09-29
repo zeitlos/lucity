@@ -2,16 +2,18 @@
 const appConfig = useAppConfig();
 const site = useSiteConfig();
 
-const appUrl = 'https://lucity.cloud/app';
+const appUrl = '/app';
 
 const route = useRoute();
 
-const inDocs = computed(() => route.meta.layout === 'docs');
+const inDocs = computed(() => route.path === '/docs' || route.path.startsWith('/docs/'));
+
+provide('navigation', await useContentSectionNavigation());
 
 const navItems = computed(() => [
   {
     label: 'Docs',
-    to: '/quickstart',
+    to: '/docs/quickstart',
     active: inDocs.value,
   },
   {
@@ -23,6 +25,14 @@ const navItems = computed(() => [
     to: '/pricing',
   },
 ]);
+
+const { panelOpen } = useLogoGenerator();
+
+const logoMenu = [[{
+  label: 'Open logo generator',
+  icon: 'i-lucide-pen-tool',
+  onSelect: () => { panelOpen.value = true; },
+}]];
 
 const githubLink = computed(() =>
   appConfig.github?.url
@@ -41,11 +51,18 @@ const githubLink = computed(() =>
     :title="appConfig.header?.title || site.name"
   >
     <template #title>
-      <div class="flex items-center gap-2">
-        <img src="/logo-light.svg" alt="Lucity" width="36" height="36" class="dark:hidden h-9 w-9 shrink-0">
-        <img src="/logo-dark.svg" alt="Lucity" width="36" height="36" class="hidden dark:block h-9 w-9 shrink-0">
-        <span class="wordmark text-3xl leading-none">Lucity</span>
-      </div>
+      <UContextMenu :items="logoMenu">
+        <div class="flex items-center gap-5 text-highlighted">
+          <img
+            src="/logo-mark.svg"
+            alt=""
+            width="59"
+            height="24"
+            class="h-6 w-auto shrink-0"
+          >
+          <span class="wordmark text-2xl leading-none">Lucity Docs</span>
+        </div>
+      </UContextMenu>
     </template>
 
     <template #right>
@@ -109,6 +126,8 @@ const githubLink = computed(() =>
       <AppHeaderBody />
     </template>
   </UHeader>
+
+  <LogoGeneratorPanel />
 </template>
 
 <style scoped>
