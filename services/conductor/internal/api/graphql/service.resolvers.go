@@ -212,6 +212,10 @@ func (r *mutationResolver) RemoveDomain(ctx context.Context, service platform.Se
 
 // Service is the resolver for the service field.
 func (r *queryResolver) Service(ctx context.Context, id platform.ServiceID) (*model.Service, error) {
+	if err := r.requireServiceDeployBinding(ctx, id); err != nil {
+		return nil, err
+	}
+
 	result, err := r.Conductor.Service(ctx, id)
 
 	if err != nil {
