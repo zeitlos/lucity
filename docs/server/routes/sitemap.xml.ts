@@ -13,6 +13,7 @@ export default defineEventHandler(async (event) => {
   const urls: SitemapUrl[] = [
     { loc: '/', lastmod: mostRecentDate(contentDates) },
     { loc: '/blog' },
+    { loc: '/pricing' },
   ];
 
   for (const collection of ['docs', 'legal', 'landing', 'blog', 'solutions']) {

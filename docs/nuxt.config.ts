@@ -36,10 +36,6 @@ export default defineNuxtConfig({
       routes: ['/llms.txt', '/llms-full.txt']
     }
   },
-  routeRules: {
-    // The comparison overview is now the section index.
-    '/comparisons/overview': { redirect: { to: '/comparisons', statusCode: 301 } }
-  },
   content: {
     build: {
       markdown: {
