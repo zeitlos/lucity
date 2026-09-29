@@ -20,6 +20,12 @@ Usage:
   lucity vars available <env> [--json]
   lucity vars set <service> KEY=VALUE... [--ref KEY=<variableID>]... [--json]
 
+Commands:
+  list        Show the variables set on a service
+  available   Show the variables a service in the environment can link to, from
+              its databases, key-value stores, buckets and shared variables
+  set         Add or change variables on a service
+
 Arguments:
   <service>  Service id (workspace/project/environment/service) or its relative form.
   <env>      Environment id (workspace/project/environment) or its relative form.
@@ -28,12 +34,13 @@ Flags:
   --ref KEY=<variableID>   Bind KEY to an available variable (list them with 'lucity vars available')
   --json                   Emit the result as JSON on stdout
 
-'vars set' is non-destructive: it merges your changes into the existing variables
-and re-sends the complete set, so variables you do not name are preserved.
+'lucity vars set' merges your changes into the existing variables, so variables
+you do not name are kept. The service then rolls out again on its current image,
+without a new build.
 
-Works with a signed-in member session (run 'lucity login') or a CI deploy token.
-A CI deploy token may only read and set variables for services connected to its
-own repository.
+Works with a signed-in session or a workspace API token. A keyless GitHub
+Actions session can list and set variables too, but only for services with CI
+Deploys turned on that build from its own repository.
 `
 
 const serviceVariablesQuery = `query($service: ServiceID!) {
@@ -194,6 +201,9 @@ func varsSet(ctx context.Context, args []string) error {
 	for index := 0; index < len(rest); index++ {
 		token := rest[index]
 		switch {
+		case token == "--help" || token == "-h":
+			fmt.Fprint(os.Stderr, varsUsage)
+			return flag.ErrHelp
 		case token == "--json" || token == "-json":
 			asJSON = true
 		case token == "--ref" || token == "-ref":

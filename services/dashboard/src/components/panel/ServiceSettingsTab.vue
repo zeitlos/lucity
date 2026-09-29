@@ -591,9 +591,13 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/setup-go@v5
-        with: { go-version: stable }
-      - run: go install github.com/zeitlos/lucity/cli/cmd/lucity@latest
+      - name: Install the Lucity CLI
+        env:
+          GH_TOKEN: \${{ github.token }}
+        run: |
+          gh release download --repo zeitlos/lucity \\
+            --pattern 'lucity_*_linux_amd64.tar.gz' --output - | tar xz
+          sudo install lucity /usr/local/bin/lucity
       - run: lucity deploy ${props.service.id.split('/').slice(1).join('/')} --ref "$GITHUB_SHA" --wait
         env:
           LUCITY_API_URL: ${window.location.origin}`,

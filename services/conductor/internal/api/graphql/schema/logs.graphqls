@@ -1,10 +1,11 @@
 type ServiceLogEntry {
-  """Log line text. Prefixed with [pod-suffix] when multiple replicas exist."""
+  """The log line, prefixed with the instance it came from when the service runs more than one."""
   line: String!
-  """Name of the pod that produced this line."""
+  """The instance that produced the line."""
   pod: String!
 }
 
 extend type Subscription {
+  """The runtime logs of the running instances of a service, starting with the last `tailLines` lines of each (1,000 by default) and following new output. Instances that start later, for example during a rollout, are not included."""
   serviceLogs(service: ServiceID!, tailLines: Int): ServiceLogEntry! @hasRole(role: WORKSPACE_MEMBER)
 }

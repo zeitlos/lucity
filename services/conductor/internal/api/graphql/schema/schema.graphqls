@@ -6,21 +6,35 @@ directive @goField(forceResolver: Boolean, name: String, omittable: Boolean) on 
 directive @goExtraField(name: String, type: String!, overrideTags: String, description: String) repeatable on OBJECT | INPUT_OBJECT
 directive @goTag(key: String!, value: String!) on INPUT_FIELD_DEFINITION | FIELD_DEFINITION
 
+"""A point in time as an RFC 3339 string, such as `2026-09-28T14:05:00Z`."""
 scalar Time
 scalar Duration
 
+"""A project, as `workspace/project`. For example `acme/shop`."""
 scalar ProjectID
+"""An environment, as `workspace/project/environment`. For example `acme/shop/production`."""
 scalar EnvironmentID
+"""A service, as `workspace/project/environment/service`. For example `acme/shop/production/web`."""
 scalar ServiceID
+"""One deployment of a service, as its service id followed by a hash. For example `acme/shop/production/web/56bc5cdfc5`."""
 scalar DeploymentID
+"""A database, as `workspace/project/environment/database`. For example `acme/shop/production/orders`."""
 scalar DatabaseID
+"""A key-value store, as `workspace/project/environment/store`. For example `acme/shop/production/cache`."""
 scalar KeyValueStoreID
+"""A volume, as `workspace/project/environment/volume`. For example `acme/shop/production/uploads`."""
 scalar VolumeID
+"""A bucket, as `workspace/project/environment/bucket`. For example `acme/shop/production/assets`."""
 scalar BucketID
+"""A build, as `workspace/build`. Take it from the release it belongs to."""
 scalar BuildID
+"""The deploy step of a release, as `workspace/deploy`. Take it from the release it belongs to."""
 scalar DeployID
+"""A secret scan, as `workspace/scan`. Take it from the release it belongs to."""
 scalar ScanID
+"""A release, as `workspace/release`. For example `acme/rel-q7m2xk`."""
 scalar ReleaseID
+"""A variable that a database, key-value store, bucket or shared variable provides. Take the ids from `availableVariables`."""
 scalar VariableID
 
 enum Role {

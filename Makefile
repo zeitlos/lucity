@@ -1,4 +1,4 @@
-.PHONY: build proto dev dev-conductor dev-cashier dev-dashboard dev-docs dev-logs dev-stop generate-graphql lint minikube dns infra infra-down infra-forward infra-forward-stop db-forward deploy-prod deploy-prod-infra generate-internal-keys
+.PHONY: build proto dev dev-conductor dev-cashier dev-dashboard dev-docs dev-logs dev-stop generate-graphql generate-cli-docs lint minikube dns infra infra-down infra-forward infra-forward-stop db-forward deploy-prod deploy-prod-infra generate-internal-keys
 
 # Build all Go services
 build:
@@ -13,6 +13,10 @@ proto:
 # Generate GraphQL resolvers (requires gqlgen)
 generate-graphql:
 	cd services/conductor && go generate ./internal/api/graphql/resolver.go
+
+# Regenerate the CLI reference in the docs from the CLI's help texts
+generate-cli-docs:
+	cd cli && go run ./cmd/docgen ./cmd/lucity ../docs/content/17.cli.md
 
 # Start all services with hot reload (air + vite)
 dev:
@@ -140,6 +144,34 @@ deploy-prod:
 		-n lucity-system --create-namespace \
 		-f deployments/lucity-prod/values.yaml \
 		-f deployments/lucity-prod/secrets.yaml \
+		$(HELM_ARGS)
+
+# Development cluster deployment from OCI registry charts
+# Usage: make deploy-dev VERSION=26.9.1
+# Always pass VERSION= explicitly: "latest" resolves to the highest stable tag,
+# which ranks below every prerelease.
+DEV_CONTEXT ?= lucity-dev
+
+deploy-dev-infra:
+	@test -f deployments/lucity-dev/infra-secrets.yaml || { echo "Error: deployments/lucity-dev/infra-secrets.yaml not found. Copy infra-secrets.yaml.example and fill in values."; exit 1; }
+	helm upgrade --install lucity-infra \
+		oci://ghcr.io/zeitlos/lucity/charts/lucity-infra \
+		$(if $(VERSION),--version $(VERSION)) \
+		--kube-context $(DEV_CONTEXT) \
+		-n lucity-system --create-namespace \
+		-f deployments/lucity-dev/infra-values.yaml \
+		-f deployments/lucity-dev/infra-secrets.yaml \
+		$(HELM_ARGS)
+
+deploy-dev:
+	@test -f deployments/lucity-dev/secrets.yaml || { echo "Error: deployments/lucity-dev/secrets.yaml not found. Copy secrets.yaml.example and fill in values."; exit 1; }
+	helm upgrade --install lucity \
+		oci://ghcr.io/zeitlos/lucity/charts/lucity \
+		$(if $(VERSION),--version $(VERSION)) \
+		--kube-context $(DEV_CONTEXT) \
+		-n lucity-system --create-namespace \
+		-f deployments/lucity-dev/values.yaml \
+		-f deployments/lucity-dev/secrets.yaml \
 		$(HELM_ARGS)
 
 # Sync workspace

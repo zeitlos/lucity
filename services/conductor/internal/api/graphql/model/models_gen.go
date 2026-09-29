@@ -27,7 +27,7 @@ type AddServiceInput struct {
 	Image       *string         `json:"image,omitempty"`
 	Variables   []VariableInput `json:"variables,omitempty"`
 	Resources   *ResourcesInput `json:"resources,omitempty"`
-	// Run-as user id for image-based services. Also owns the service's mounted volumes.
+	// The user id an image-based service runs as, which also owns its mounted volumes.
 	User *int `json:"user,omitempty"`
 }
 
@@ -143,10 +143,12 @@ type CreateDatabaseInput struct {
 }
 
 type CreateEnvironmentInput struct {
-	Project         platform.ProjectID      `json:"project"`
-	Name            string                  `json:"name"`
+	Project platform.ProjectID `json:"project"`
+	Name    string             `json:"name"`
+	// Not supported yet. Leave it unset, because new environments always start empty.
 	FromEnvironment *platform.EnvironmentID `json:"fromEnvironment,omitempty"`
-	Tier            *ResourceTier           `json:"tier,omitempty"`
+	// Defaults to `ECO`.
+	Tier *ResourceTier `json:"tier,omitempty"`
 }
 
 type CreateKeyValueStoreInput struct {
@@ -157,9 +159,9 @@ type CreateKeyValueStoreInput struct {
 }
 
 type CreateProjectInput struct {
-	// Human-readable project name (e.g. "My API").
+	// The display name of the project, such as `My API`.
 	Name string `json:"name"`
-	// Optional URL-safe slug. Auto-derived from name if omitted.
+	// The project id. Derived from `name` when left out.
 	ID *string `json:"id,omitempty"`
 }
 
@@ -199,9 +201,7 @@ type DatabaseBackup struct {
 	Error      *string       `json:"error,omitempty"`
 }
 
-// The recovery picture for one database. Backups are continuous, not discrete: the
-// base backups below are the anchors, and archived write-ahead logs cover the gaps
-// between them, so any moment inside the window is restorable.
+// The backups of one database. Base backups are taken on a schedule and the write-ahead log is archived continuously in between, so any moment from `earliestRestorePoint` to `latestRestorePoint` can be restored.
 type DatabaseBackups struct {
 	Enabled       bool   `json:"enabled"`
 	RetentionDays int    `json:"retentionDays"`
@@ -367,7 +367,7 @@ type HealthCheckInput struct {
 	StartupFailureThreshold *int   `json:"startupFailureThreshold,omitempty"`
 }
 
-// A container image from a public registry (Docker Hub).
+// A public container image on Docker Hub.
 type ImageSearchResult struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
@@ -483,9 +483,7 @@ type RestoreDatabaseInput struct {
 	TargetTime *time.Time `json:"targetTime,omitempty"`
 }
 
-// Restoring never touches the source database. It creates a second one holding the
-// data as it was at targetTime, which keeps running alongside the original until
-// you decide what to do with it.
+// Restoring never touches the source database. It creates a second one holding the data as it was at `targetTime`, which keeps running alongside the original until you decide what to do with it.
 type RestoreDatabaseResult struct {
 	Database *Database `json:"database"`
 	// True when the requested moment was later than anything in the archive, so the
@@ -545,7 +543,7 @@ type Service struct {
 	Command        string               `json:"command"`
 	DefaultCommand string               `json:"defaultCommand"`
 	HealthCheck    *HealthCheck         `json:"healthCheck,omitempty"`
-	// Run-as user id for image-based services. Also owns the service's mounted volumes. Null means the image default.
+	// The user id an image-based service runs as, which also owns its mounted volumes. Null means the image's default.
 	User                *int                 `json:"user,omitempty"`
 	ActiveDeployment    *Deployment          `json:"activeDeployment,omitempty"`
 	Deployments         []Deployment         `json:"deployments"`
@@ -560,9 +558,9 @@ type Service struct {
 }
 
 type ServiceLogEntry struct {
-	// Log line text. Prefixed with [pod-suffix] when multiple replicas exist.
+	// The log line, prefixed with the instance it came from when the service runs more than one.
 	Line string `json:"line"`
-	// Name of the pod that produced this line.
+	// The instance that produced the line.
 	Pod string `json:"pod"`
 }
 
@@ -573,18 +571,15 @@ type ServiceVariable struct {
 }
 
 type ServiceVariableInput struct {
-	// Key of the variable. e.g. PORT or HOST
+	// The name of the variable, such as `PORT` or `HOST`.
 	Key string `json:"key"`
-	// Literal value. Required when no ref is set. Mutually exclusive with ref.
+	// A literal value. Set either `value` or `ref`.
 	Value *string `json:"value,omitempty"`
-	// Reference to an available variable. Required when no value is set. Mutually exclusive with value.
+	// Links the variable to one from `availableVariables`. Set either `value` or `ref`.
 	Ref *platform.VariableID `json:"ref,omitempty"`
 }
 
-// The tier decides how a container's request relates to its limit: ECO runs
-// burstable and is billed on real consumption, PRODUCTION reserves the full limit
-// and is billed on allocation. Per-container sizing lives on the service itself;
-// the namespace capacity ceiling is fixed and not settable per environment.
+// `ECO` lets services share capacity and burst beyond what is reserved for them. `PRODUCTION` reserves the full CPU and memory of every service.
 type SetEnvironmentResourcesInput struct {
 	Environment platform.EnvironmentID `json:"environment"`
 	Tier        ResourceTier           `json:"tier"`
@@ -639,7 +634,7 @@ type Variable struct {
 }
 
 type VariableInput struct {
-	// Key of the variable. e.g. PORT or HOST
+	// The name of the variable, such as `PORT` or `HOST`.
 	Key   string `json:"key"`
 	Value string `json:"value"`
 }

@@ -27,11 +27,15 @@ extend type Environment {
 }
 
 extend type Query {
+  """One key-value store."""
   keyValueStore(id: KeyValueStoreID!): KeyValueStore! @hasRole(role: WORKSPACE_MEMBER)
+  """Connection details for a key-value store, password included. Key-value stores are only reachable inside their environment."""
   keyValueStoreCredentials(keyValueStore: KeyValueStoreID!): [KeyValueStoreCredentials!]! @hasRole(role: WORKSPACE_MEMBER)
 }
 
 extend type Mutation {
+  """Creates a key-value store in an environment. `version` defaults to `8` and `size` to `1Gi`."""
   createKeyValueStore(input: CreateKeyValueStoreInput!): KeyValueStore! @hasRole(role: WORKSPACE_MEMBER)
+  """Deletes a key-value store and its data."""
   deleteKeyValueStore(keyValueStore: KeyValueStoreID!): Boolean! @hasRole(role: WORKSPACE_MEMBER)
 }
