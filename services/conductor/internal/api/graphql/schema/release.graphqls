@@ -147,15 +147,20 @@ enum ReleaseTriggerKind {
 }
 
 extend type Query {
+  """One build, with its status."""
   build(id: BuildID!): Build! @hasRole(role: WORKSPACE_MEMBER)
+  """One deployment of a service."""
   deployment(id: DeploymentID!): Deployment! @hasRole(role: WORKSPACE_MEMBER)
 }
 
 extend type Subscription {
+  """The output of a build, streamed as it is produced."""
   buildLogs(id: BuildID!): String! @hasRole(role: WORKSPACE_MEMBER)
+  """The output of the deploy step of a release, streamed as it is produced."""
   deployLogs(id: DeployID!): String! @hasRole(role: WORKSPACE_MEMBER)
 }
 
 extend type Mutation {
+  """Builds a service from source and rolls it out. `gitRef` takes a branch, tag or commit and defaults to the branch the service tracks. A deployer may only deploy services that build from its own repository and have CI deploys turned on."""
   deploy(service: ServiceID!, gitRef: String): Release! @hasRole(role: WORKSPACE_DEPLOYER)
 }

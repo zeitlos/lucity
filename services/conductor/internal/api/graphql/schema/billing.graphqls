@@ -1,11 +1,6 @@
 enum ResourceTier { ECO, PRODUCTION }
 
-"""
-The tier decides how a container's request relates to its limit: ECO runs
-burstable and is billed on real consumption, PRODUCTION reserves the full limit
-and is billed on allocation. Per-container sizing lives on the service itself;
-the namespace capacity ceiling is fixed and not settable per environment.
-"""
+"""`ECO` lets services share capacity and burst beyond what is reserved for them. `PRODUCTION` reserves the full CPU and memory of every service."""
 input SetEnvironmentResourcesInput {
   environment: EnvironmentID!
   tier: ResourceTier!
@@ -41,14 +36,21 @@ type BillingPortalUrl {
 }
 
 extend type Query {
+  """The plan of the workspace, with its subscription status, billing period and credit balance."""
   subscription: BillingSubscription @hasRole(role: WORKSPACE_MEMBER)
+  """The costs of the current billing period so far, in cents."""
   usageSummary: UsageSummary @hasRole(role: WORKSPACE_MEMBER)
 }
 
 extend type Mutation {
+  """Sets the tier of an environment. Services and databases pick it up the next time they are created or resized."""
   setEnvironmentResources(input: SetEnvironmentResourcesInput!): Environment! @hasRole(role: WORKSPACE_MEMBER)
+  """Switches the workspace to another plan, prorated. The workspace needs a plan already."""
   changePlan(plan: Plan!): BillingSubscription! @allowSuspended @hasRole(role: WORKSPACE_ADMIN)
+  """A link to the billing portal, where payment details and invoices are managed."""
   billingPortalUrl: BillingPortalUrl! @allowSuspended @hasRole(role: WORKSPACE_ADMIN)
+  """Starts a checkout that sets up a plan for a workspace without one, and returns the URL to complete it."""
   createPlanCheckout(plan: Plan!): CheckoutSession! @allowSuspended @hasRole(role: WORKSPACE_ADMIN)
+  """Completes a plan checkout, starts the new billing period and returns the subscription."""
   completePlanCheckout(sessionId: String!): BillingSubscription! @allowSuspended @hasRole(role: WORKSPACE_ADMIN)
 }

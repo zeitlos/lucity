@@ -19,10 +19,10 @@ enum GitHubAccountType {
 }
 
 extend type Query {
-  """User's accessible GitHub App installations. Requires connected GitHub account."""
+  """The GitHub accounts and organizations you can reach through the Lucity GitHub App. Needs a connected GitHub account."""
   githubSources: [GitHubInstallation!]! @hasRole(role: WORKSPACE_MEMBER)
-  """Repos accessible to the user under a GitHub account (org or user login)."""
+  """The repositories of a GitHub account or organization that the Lucity GitHub App can read."""
   githubRepositories(account: String!): [GitHubRepository!]! @hasRole(role: WORKSPACE_MEMBER)
-  """Whether the current user has connected their GitHub account."""
+  """Whether you have connected a GitHub account."""
   githubConnected: Boolean! @hasRole(role: WORKSPACE_MEMBER)
 }

@@ -1,8 +1,4 @@
-"""
-The recovery picture for one database. Backups are continuous, not discrete: the
-base backups below are the anchors, and archived write-ahead logs cover the gaps
-between them, so any moment inside the window is restorable.
-"""
+"""The backups of one database. Base backups are taken on a schedule and the write-ahead log is archived continuously in between, so any moment from `earliestRestorePoint` to `latestRestorePoint` can be restored."""
 type DatabaseBackups {
   enabled: Boolean!
   retentionDays: Int!
@@ -40,11 +36,7 @@ extend type Database {
   backups: DatabaseBackups! @goField(forceResolver: true)
 }
 
-"""
-Restoring never touches the source database. It creates a second one holding the
-data as it was at targetTime, which keeps running alongside the original until
-you decide what to do with it.
-"""
+"""Restoring never touches the source database. It creates a second one holding the data as it was at `targetTime`, which keeps running alongside the original until you decide what to do with it."""
 type RestoreDatabaseResult {
   database: Database!
   """
@@ -63,6 +55,8 @@ input RestoreDatabaseInput {
 }
 
 extend type Mutation {
+  """Starts a full backup of a database now. If a backup is already running, that one is returned instead."""
   createDatabaseBackup(database: DatabaseID!): DatabaseBackup! @hasRole(role: WORKSPACE_MEMBER)
+  """Restores the backups of a database into a new database called `name` in the same environment, leaving the original untouched. Leave `targetTime` out to restore the latest state."""
   restoreDatabase(input: RestoreDatabaseInput!): RestoreDatabaseResult! @hasRole(role: WORKSPACE_MEMBER)
 }
