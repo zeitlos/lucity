@@ -11,7 +11,7 @@ const (
 	// TODO: This static ratio will be replaced by VPA at some point.
 	burstableRequestRatio = 0.5
 
-	VerticalPodAutoscalerUpdateMode = values.UpdateModeOff
+	VerticalPodAutoscalerUpdateMode = values.UpdateModeInPlaceOrRecreate
 )
 
 var (
