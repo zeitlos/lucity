@@ -52,7 +52,8 @@ On disagreement, or when detection is missing something, configure via the **thr
 3. **Custom start** — the service start command via `configure_service`.
 
 These are set as service variables. Build-time `RAILPACK_*` variables must exist **before the first
-build**, so pass them in the initial `add_service` variables (it accepts them). Consult
+build**, and `add_service` starts that build the moment it creates a repository service, so pass them
+in its initial variables. A `RAILPACK_*` variable set afterwards only reaches the next `deploy`. Consult
 `references/<provider>.md` for the exact variable names and gotchas. If a detected provider has no
 reference file, use the generic mechanisms above and https://railpack.com/languages/<provider>.
 
@@ -110,11 +111,14 @@ user; `get_logs kind=scan` is only a fallback for raw detail.
 
 ## 6. Deploy loop with self-heal
 
-Deploy, then poll and remediate. **Bound remediation to 3 iterations**, then report honestly instead of
-looping forever.
+Poll the first build, then remediate. **Bound remediation to 3 iterations**, then report honestly
+instead of looping forever.
 
-1. `deploy` the service (this triggers a Railpack build + rollout).
-2. Poll `get_deploy_status` every ~10s.
+1. `add_service` already started the first Railpack build + rollout (an image service rolls out
+   without a build). Do **not** call `deploy` now, which only builds a second time.
+2. Poll `get_deploy_status` every ~10s with the `release_id` that `add_service` returned. Config changes
+   made meanwhile create newer releases that would otherwise hide the build, and one issued while the
+   rollout runs can fail with "another operation ... is in progress", so retry it after a few seconds.
 3. On failure, classify by the **signal**, not the technology:
 
 > **`deploy` rebuilds from source (minutes). Config changes do not need it.** `set_variables`, `configure_service` (resources, port, start command), and volume mounts each roll the service out automatically with its **current image** in seconds. So every fix below that is config-only (a version pin for the *next* build aside) is applied and then you just poll `get_deploy_status` — **only call `deploy` again when you changed the source or a build-time `RAILPACK_*` variable.**
@@ -163,13 +167,14 @@ the platform; code lives in the repo.
 Account/projects: `get_account`, `list_projects`, `get_project`, `create_project` (auto-creates a
 `development` environment), `create_environment`.
 Detection/source: `detect_services`, `list_github_repos`.
-Services: `add_service` (accepts initial variables — put build-time `RAILPACK_*` pins here so the first
-build sees them; optional `cpu`/`memory` to size it), `configure_service` (start command, resources),
-`set_variables`, `list_variables`, `check_variables` (confirm a variable holds an expected value
-without revealing it).
+Services: `add_service` (starts the first build right away and returns its `release_id`; put build-time
+`RAILPACK_*` pins in its initial variables so that build sees them; optional `cpu`/`memory` to size it),
+`configure_service` (start command, resources), `set_variables`, `list_variables`, `check_variables`
+(confirm a variable holds an expected value without revealing it).
 Resources: `create_database` (optional `cpu`/`memory`), `create_kv_store`, `create_bucket`,
 `create_volume` (10Gi to 1Ti; optional `mount_service` + `mount_path`), `run_sql`.
-Deploy: `deploy`, `get_deploy_status`, `get_logs`, `rollback`, `add_domain`.
+Deploy: `deploy` (rebuild after a source or `RAILPACK_*` change), `get_deploy_status`, `get_logs`,
+`rollback`, `add_domain`.
 
 There are no delete tools — the user removes projects, services, and resources from the dashboard.
 

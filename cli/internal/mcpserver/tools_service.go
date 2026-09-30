@@ -17,7 +17,7 @@ const serviceSummaryFields = `id name status replicas { desired ready } port com
 func (s *server) registerService(m *mcp.Server) {
 	mcp.AddTool(m, &mcp.Tool{
 		Name:        "add_service",
-		Description: "Add a service to an environment. repository = owner/repo or a full https URL for source builds (mutually exclusive with image, which deploys a prebuilt image). variables set initial env vars; build-time pins like RAILPACK_PYTHON_VERSION belong here so the first build already sees them. cpu and memory (Kubernetes quantities, e.g. '500m'/'512Mi') size the service at creation; pass both or omit both for platform defaults. user is the run-as user id for an image-based service (999 for mysql/postgres/redis, 1000 for node-based images like ghost): it makes stock images whose entrypoint would otherwise chown a data dir as root start cleanly under the hardened default, and the same id owns mounted volumes.",
+		Description: "Add a service to an environment. repository = owner/repo or a full https URL for source builds (mutually exclusive with image, which deploys a prebuilt image). The service starts on its own: a repository service's first build begins immediately and an image rolls out immediately, so do not call deploy afterwards. variables set initial env vars; build-time pins like RAILPACK_PYTHON_VERSION must be passed here because the first build starts before any later set_variables call. cpu and memory (Kubernetes quantities, e.g. '500m'/'512Mi') size the service at creation; pass both or omit both for platform defaults. user is the run-as user id for an image-based service (999 for mysql/postgres/redis, 1000 for node-based images like ghost): it makes stock images whose entrypoint would otherwise chown a data dir as root start cleanly under the hardened default, and the same id owns mounted volumes.",
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: ptr(false)},
 	}, s.addService)
 
@@ -106,20 +106,61 @@ func (s *server) addService(ctx context.Context, _ *mcp.CallToolRequest, input a
 		serviceInput["user"] = *input.User
 	}
 
-	mutation := `mutation($environment: EnvironmentID!, $input: AddServiceInput!) {
-  addService(environment: $environment, input: $input) { ` + serviceSummaryFields + ` }
+	const mutation = `mutation($environment: EnvironmentID!, $input: AddServiceInput!) {
+  addService(environment: $environment, input: $input) { id }
 }`
 
 	var out struct {
-		AddService any `json:"addService"`
+		AddService struct {
+			ID string `json:"id"`
+		} `json:"addService"`
 	}
 	if err := s.query(ctx, "add_service", mutation, map[string]any{"environment": environmentID, "input": serviceInput}, &out); err != nil {
 		return nil, nil, err
 	}
-	return jsonResult(map[string]any{
-		"service": out.AddService,
-		"note":    "service created but not deployed yet. 'status: FAILED' and a zero port are EXPECTED here (no successful deploy yet, NOT an error). Call deploy once to build and roll it out — the first deploy always builds; after that, config changes (set_variables, configure_service) roll out automatically with no rebuild. Poll get_deploy_status after deploy.",
-	})
+	serviceID := out.AddService.ID
+
+	service, release, err := s.createdService(ctx, serviceID)
+	if err != nil {
+		return jsonResult(map[string]any{
+			"serviceId": serviceID,
+			"note":      "service created and starting on its own (a repository service's first build is already running), so do NOT call deploy now. Poll get_deploy_status for this service.",
+		})
+	}
+	result := map[string]any{"service": service}
+
+	switch {
+	case input.Image != "":
+		result["note"] = "image service created and rolling out now, no build involved. Poll get_deploy_status to watch it become ready. A port of 0 means the image exposes none, so set one with configure_service if the service takes traffic. deploy does not apply to image services (it builds from a repository); config changes roll the image out again on their own."
+	case release == nil:
+		result["note"] = "service created, but its first build did not start. Call deploy once to build and roll it out, then poll get_deploy_status with the release_id it returns."
+	default:
+		build, _ := release["build"].(map[string]any)
+		result["releaseId"] = release["id"]
+		result["buildId"] = build["id"]
+		result["buildStatus"] = build["status"]
+		result["note"] = fmt.Sprintf("the first build started with this call and rolls out when it finishes, so do NOT call deploy now (that builds a second time). Poll get_deploy_status with service=%q release_id=%q, because config changes made meanwhile create newer releases that hide this build. Only the variables passed here reach this build, so a RAILPACK_* variable set later needs a deploy. A config change can fail with 'another operation ... is in progress' while this rollout runs; retry it after a few seconds.", serviceID, release["id"])
+	}
+	return jsonResult(result)
+}
+
+func (s *server) createdService(ctx context.Context, serviceID string) (map[string]any, map[string]any, error) {
+	query := `query($id: ServiceID!) { service(id: $id) { ` + serviceSummaryFields + ` releases { id createdAt build { id status } } } }`
+	var out struct {
+		Service map[string]any `json:"service"`
+	}
+	if err := s.query(ctx, "add_service (read service)", query, map[string]any{"id": serviceID}, &out); err != nil {
+		return nil, nil, err
+	}
+	releases, _ := out.Service["releases"].([]any)
+	delete(out.Service, "releases")
+	var built []map[string]any
+	for _, entry := range releases {
+		if release, _ := entry.(map[string]any); release["build"] != nil {
+			built = append(built, release)
+		}
+	}
+	return out.Service, pickRelease(built, ""), nil
 }
 
 type configureServiceInput struct {

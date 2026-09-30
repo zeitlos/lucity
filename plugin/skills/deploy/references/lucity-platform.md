@@ -62,9 +62,9 @@ you expect to `check_variables`. It answers match, mismatch, missing, or ref.
 
 Variables reach the app at runtime. `RAILPACK_*` variables additionally reach the **Railpack build** as
 environment variables, so build-time pins (`RAILPACK_NODE_VERSION`, `RAILPACK_BUILD_CMD`, ...) must be
-present before the first build. Pass them in the initial `add_service` variables. Changing a build-time
-variable requires a fresh `deploy` (rebuild); changing a pure runtime variable takes effect on the next
-rollout.
+present before the first build, which `add_service` starts as soon as it creates a repository service.
+Pass them in its initial variables. Changing a build-time variable requires a fresh `deploy` (rebuild);
+changing a pure runtime variable takes effect on the next rollout.
 
 ## Public database access (SNI + TLS)
 
@@ -85,7 +85,7 @@ Use it for one-off imports, then rely on in-cluster refs for the running app.
 | Reason | Meaning | Remedy |
 | :-- | :-- | :-- |
 | `OOM_KILLED` | Container exceeded its memory limit. | Double memory via `configure_service` (up to the per-service ceiling), re-check. No rebuild. |
-| `CRASH_LOOP` | Container starts then exits repeatedly. | `get_logs kind=runtime`: wrong start command, `PORT` not honored, or missing env var. Fix + redeploy. |
+| `CRASH_LOOP` | Container starts then exits repeatedly. | `get_logs kind=runtime`: wrong start command, `PORT` not honored, or missing env var. Fix via `configure_service` or `set_variables`, re-check. No rebuild. |
 | `IMAGE_PULL_FAILED` | The image ref cannot be pulled. | Fix the image reference (prebuilt-image deploys) or rebuild. |
 | `CONFIG_ERROR` | Invalid configuration applied during rollout. | Read the message; correct the offending variable/setting. |
 | `QUOTA_EXCEEDED` | Workspace resource quota hit. | User raises the quota in the dashboard; you cannot. |
