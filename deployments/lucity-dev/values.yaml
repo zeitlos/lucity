@@ -11,8 +11,9 @@ routes:
     X-Robots-Tag: "noindex, nofollow"
 
 banner:
-  message: "Sign-ups are paused for now due to high demand. Existing accounts are not affected."
+  message: "This is the Lucity development environment, not production. For real projects, use lucity.cloud."
   severity: warn
+  dismissible: false
 
 conductor:
   registryHost: lucity-infra-zot.lucity-system.svc.cluster.local:5000
