@@ -42,6 +42,16 @@ routes:
   # out of search indexes.
   responseHeaders: {}
 
+# -- Announcement banner on the docs and the dashboard, read at runtime (no
+# rebuild or restart, the pods see changes within ~1 min). A closed banner
+# shows again when message or severity changes.
+banner:
+  # -- Empty hides the banner
+  message: ""
+  # -- info, warn, or danger
+  severity: info
+  dismissible: true
+
 # -- Conductor (unified control plane: GraphQL + Helm release management
 #    + build orchestration + webhook receiver).
 #    Absorbs what were previously gateway, packager, deployer, builder,

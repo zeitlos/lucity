@@ -1,0 +1,18 @@
+{{- $banner := .Values.banner }}
+{{- $content := dict }}
+{{- if $banner.message }}
+{{- if not (has $banner.severity (list "info" "warn" "danger")) }}
+{{- fail (printf "banner.severity must be info, warn, or danger, got %q" $banner.severity) }}
+{{- end }}
+{{- $content = dict "message" $banner.message "severity" $banner.severity }}
+{{- $_ := set $content "id" (toJson $content | sha256sum | trunc 16) }}
+{{- $_ := set $content "dismissible" $banner.dismissible }}
+{{- end }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "lucity.fullname" . }}-banner
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+data:
+  banner.json: {{ toJson $content | quote }}

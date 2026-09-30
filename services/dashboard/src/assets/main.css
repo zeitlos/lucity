@@ -76,6 +76,8 @@
 
     --tracking-normal: 0em;
     --spacing: 0.25rem;
+
+    --banner-height: 0px;
   }
 
   .dark {
