@@ -12,6 +12,7 @@
   "dependencies": {
     "@nuxt/content": "^3.14.0",
     "@nuxt/ui": "^4.9.0",
+    "@nuxtjs/sitemap": "^8.5.1",
     "better-sqlite3": "^12.5.0",
     "docus": "latest",
     "flo-mat": "^4.1.0",

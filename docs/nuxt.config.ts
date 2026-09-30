@@ -1,7 +1,11 @@
 export default defineNuxtConfig({
+  modules: ['@nuxtjs/sitemap'],
   site: {
     url: 'https://lucity.cloud',
     name: 'Lucity'
+  },
+  sitemap: {
+    xsl: false
   },
   fonts: {
     families: [
