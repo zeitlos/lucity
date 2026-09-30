@@ -291,6 +291,12 @@ func cmdLogin(ctx context.Context, args []string) error {
 		return fmt.Errorf("signed in, but fetching the account failed: %w", err)
 	}
 
+	if !identity.MemberOf(manager.Workspace()) {
+		if err := manager.SetWorkspace(""); err != nil {
+			return err
+		}
+	}
+
 	if len(identity.Workspaces) == 0 {
 		if err := manager.BootstrapWorkspaces(ctx); err == nil {
 			if refreshed, err := manager.Identity(ctx); err == nil {
@@ -328,6 +334,26 @@ func cmdAccount(ctx context.Context) error {
 		return err
 	}
 
+	if manager.Personal() {
+		identity, err := manager.Identity(ctx)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("%s <%s>\n", identity.Name, identity.Email)
+		fmt.Printf("Platform: %s\n", manager.APIURL())
+		fmt.Printf("Session:  personal\n\n")
+		writer := tabwriter.NewWriter(os.Stdout, 2, 4, 2, ' ', 0)
+		fmt.Fprintln(writer, "WORKSPACE\tROLE\tACTIVE")
+		for _, membership := range identity.Workspaces {
+			active := ""
+			if membership.Workspace == manager.Workspace() {
+				active = "*"
+			}
+			fmt.Fprintf(writer, "%s\t%s\t%s\n", membership.Workspace, membership.Role, active)
+		}
+		return writer.Flush()
+	}
+
 	token, err := manager.Token(ctx)
 	if err != nil {
 		if errors.Is(err, session.ErrLoggedOut) {
@@ -338,37 +364,11 @@ func cmdAccount(ctx context.Context) error {
 	}
 
 	claims := decodeJWTClaims(token)
-	subject, _ := claims["sub"].(string)
-	clientID, _ := claims["client_id"].(string)
 	email, _ := claims["email"].(string)
 	scope, _ := claims["scope"].(string)
 
-	machine := subject != "" && subject == clientID
-	sessionKind := "personal"
-	if machine {
-		sessionKind = "API token"
-	}
-
-	if !machine {
-		if identity, idErr := manager.Identity(ctx); idErr == nil {
-			fmt.Printf("%s <%s>\n", identity.Name, identity.Email)
-			fmt.Printf("Platform: %s\n", manager.APIURL())
-			fmt.Printf("Session:  %s\n\n", sessionKind)
-			writer := tabwriter.NewWriter(os.Stdout, 2, 4, 2, ' ', 0)
-			fmt.Fprintln(writer, "WORKSPACE\tROLE\tACTIVE")
-			for _, membership := range identity.Workspaces {
-				active := ""
-				if membership.Workspace == manager.Workspace() {
-					active = "*"
-				}
-				fmt.Fprintf(writer, "%s\t%s\t%s\n", membership.Workspace, membership.Role, active)
-			}
-			return writer.Flush()
-		}
-	}
-
 	fmt.Printf("Platform:  %s\n", manager.APIURL())
-	fmt.Printf("Session:   %s\n", sessionKind)
+	fmt.Printf("Session:   API token\n")
 	fmt.Printf("Workspace: %s\n", manager.Workspace())
 	if email != "" {
 		fmt.Printf("Email:     %s\n", email)
@@ -399,16 +399,14 @@ func cmdWorkspace(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	for _, membership := range identity.Workspaces {
-		if membership.Workspace == target {
-			if err := manager.SetWorkspace(target); err != nil {
-				return err
-			}
-			fmt.Printf("Active workspace: %s\n", target)
-			return nil
-		}
+	if !identity.MemberOf(target) {
+		return fmt.Errorf("you are not a member of workspace %q — run `lucity account` to list memberships", target)
 	}
-	return fmt.Errorf("you are not a member of workspace %q — run `lucity account` to list memberships", target)
+	if err := manager.SetWorkspace(target); err != nil {
+		return err
+	}
+	fmt.Printf("Active workspace: %s\n", target)
+	return nil
 }
 
 func cmdToken(ctx context.Context, args []string) error {

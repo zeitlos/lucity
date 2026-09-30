@@ -139,6 +139,10 @@ func (m *Manager) Prepare(ctx context.Context) error {
 	return err
 }
 
+func (m *Manager) Personal() bool {
+	return m.apiToken() == "" && m.storedRefreshToken() != ""
+}
+
 func (m *Manager) Token(ctx context.Context) (string, error) {
 	if raw := m.apiToken(); raw != "" {
 		return m.apiTokenBearer(ctx, raw)
