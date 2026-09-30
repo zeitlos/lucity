@@ -43,7 +43,7 @@ custom release name, set the start command via `configure_service`.
 ## Common failure modes
 
 - **Phoenix doesn't bind the injected port** → set `PORT`-aware config in `config/runtime.exs` (e.g. `http: [ip: {0,0,0,0}, port: String.to_integer(System.get_env("PORT") || "4000")]`) — code fix, propose it.
-- **`SECRET_KEY_BASE` / release env missing** → set required runtime vars with `set_variables`.
+- **`SECRET_KEY_BASE` / release env missing** → set `SECRET_KEY_BASE` with `generate` (length 64) in `set_variables`, plus any other required runtime vars.
 - **Asset deploy fails** → ensure `assets.deploy` is defined and its Node/esbuild deps are available.
 - **Elixir/OTP version mismatch** → pin `RAILPACK_ELIXIR_VERSION` and/or `RAILPACK_ERLANG_VERSION`.
 
