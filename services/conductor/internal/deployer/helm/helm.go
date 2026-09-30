@@ -8,12 +8,21 @@ import (
 )
 
 type Client struct {
-	chartVersion     semver.Version
-	chart            *chart.Chart
-	gatewayName      string
-	gatewayNamespace string
-	clusterIssuer    string
-	backups          BackupConfig
+	chartVersion         semver.Version
+	chart                *chart.Chart
+	gatewayName          string
+	gatewayNamespace     string
+	gatewayHTTPSListener string
+	clusterIssuer        string
+	backups              BackupConfig
+}
+
+type Option func(*Client)
+
+func WithHTTPSListener(name string) Option {
+	return func(c *Client) {
+		c.gatewayHTTPSListener = name
+	}
 }
 
 type BackupConfig struct {
@@ -22,21 +31,27 @@ type BackupConfig struct {
 	Bucket   string
 }
 
-func New(chart *chart.Chart, gatewayName, gatewayNamespace, clusterIssuer string, backups BackupConfig) (*Client, error) {
+func New(chart *chart.Chart, gatewayName, gatewayNamespace, clusterIssuer string, backups BackupConfig, options ...Option) (*Client, error) {
 	chartVersion, err := semver.Parse(chart.Metadata.Version)
 
 	if err != nil {
 		return nil, err
 	}
 
-	return &Client{
+	client := &Client{
 		chartVersion:     chartVersion,
 		chart:            chart,
 		gatewayName:      gatewayName,
 		gatewayNamespace: gatewayNamespace,
 		clusterIssuer:    clusterIssuer,
 		backups:          backups,
-	}, nil
+	}
+
+	for _, option := range options {
+		option(client)
+	}
+
+	return client, nil
 }
 
 func (c *Client) Services() deployer.ServiceClient {

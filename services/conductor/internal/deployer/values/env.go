@@ -36,8 +36,9 @@ const (
 )
 
 type Gateway struct {
-	Name      string `yaml:"name"`
-	Namespace string `yaml:"namespace"`
+	Name          string `yaml:"name"`
+	Namespace     string `yaml:"namespace"`
+	HTTPSListener string `yaml:"httpsListener,omitempty"`
 }
 
 type PullSecret struct {

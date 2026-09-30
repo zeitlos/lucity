@@ -84,9 +84,10 @@ type Config struct {
 	WebhookSecret string `envconfig:"WEBHOOK_SECRET" required:"true"`
 
 	// Cluster
-	GatewayName        string `envconfig:"GATEWAY_NAME" default:"lucity-gateway"`
-	GatewayNamespace   string `envconfig:"GATEWAY_NAMESPACE" default:"lucity-system"`
-	RegistryPullSecret string `envconfig:"REGISTRY_PULL_SECRET" default:"lucity-registry-pull"`
+	GatewayName          string `envconfig:"GATEWAY_NAME" default:"lucity-gateway"`
+	GatewayNamespace     string `envconfig:"GATEWAY_NAMESPACE" default:"lucity-system"`
+	GatewayHTTPSListener string `envconfig:"GATEWAY_HTTPS_LISTENER"`
+	RegistryPullSecret   string `envconfig:"REGISTRY_PULL_SECRET" default:"lucity-registry-pull"`
 
 	// Per-env NetworkPolicy needs the cluster's pod and service CIDRs to
 	// carve out "internet but not the cluster" egress. These are
@@ -285,14 +286,15 @@ func main() {
 	jobsClient := buildjobK8s.New(k8sClient, config.BuildNamespace, config.RegistryPushURL, config.RegistryAuthSecret, config.BuildImage, config.BuildkitTLSSecret, config.BuildkitServerName)
 
 	deployJobsClient := deployjobK8s.New(k8sClient, deployjobK8s.Config{
-		Namespace:       config.SystemNamespace,
-		Image:           config.DeployImage,
-		ServiceAccount:  config.DeployServiceAccount,
-		BuildNamespace:  config.BuildNamespace,
-		RegistryPullURL: config.RegistryPullURL,
-		GatewayName:     config.GatewayName,
-		GatewayNS:       config.GatewayNamespace,
-		ClusterIssuer:   config.CustomDomainClusterIssuer,
+		Namespace:            config.SystemNamespace,
+		Image:                config.DeployImage,
+		ServiceAccount:       config.DeployServiceAccount,
+		BuildNamespace:       config.BuildNamespace,
+		RegistryPullURL:      config.RegistryPullURL,
+		GatewayName:          config.GatewayName,
+		GatewayNS:            config.GatewayNamespace,
+		GatewayHTTPSListener: config.GatewayHTTPSListener,
+		ClusterIssuer:        config.CustomDomainClusterIssuer,
 		Backups: deployjobK8s.BackupConfig{
 			Enabled:  config.DatabaseBackupEnabled,
 			Endpoint: config.DatabaseBackupEndpoint,
@@ -350,7 +352,7 @@ func main() {
 		Enabled:  config.DatabaseBackupEnabled,
 		Endpoint: config.DatabaseBackupEndpoint,
 		Bucket:   config.DatabaseBackupBucket,
-	})
+	}, helmDeployer.WithHTTPSListener(config.GatewayHTTPSListener))
 
 	if err != nil {
 		slog.Error("failed to create deployer client", "error", err)

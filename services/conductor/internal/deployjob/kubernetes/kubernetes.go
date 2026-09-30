@@ -20,15 +20,16 @@ const (
 )
 
 type Config struct {
-	Namespace       string
-	Image           string
-	ServiceAccount  string
-	BuildNamespace  string
-	RegistryPullURL string
-	GatewayName     string
-	GatewayNS       string
-	ClusterIssuer   string
-	Backups         BackupConfig
+	Namespace            string
+	Image                string
+	ServiceAccount       string
+	BuildNamespace       string
+	RegistryPullURL      string
+	GatewayName          string
+	GatewayNS            string
+	GatewayHTTPSListener string
+	ClusterIssuer        string
+	Backups              BackupConfig
 }
 
 type BackupConfig struct {
