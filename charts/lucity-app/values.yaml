@@ -146,6 +146,9 @@ databases:
 volumes: {}
 
 # Gateway that this release's HTTPRoutes and ListenerSets attach to.
+# httpsListener pins routes without their own ListenerSet to that listener, so a
+# gateway that redirects plain HTTP keeps them off its HTTP listener.
 gateway:
   name: lucity-gateway
   namespace: lucity-system
+  httpsListener: ""
