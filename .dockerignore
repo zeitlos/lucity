@@ -1,7 +1,7 @@
 .git
 .github
 .claude
-tmp
+**/tmp
 tests
 deployments
 docs
@@ -12,3 +12,18 @@ LICENSE
 Makefile
 go.work
 go.work.sum
+**/.env
+**/.env.local
+**/.env.*.local
+**/*.pem
+**/__debug_bin*
+**/*.test
+**/*.out
+**/node_modules
+**/.DS_Store
+conductor
+builder
+cashier
+services/*/conductor
+services/*/builder
+services/*/cashier
