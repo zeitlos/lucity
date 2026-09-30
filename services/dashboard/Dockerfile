@@ -1,4 +1,4 @@
-FROM node:24-alpine AS builder
+FROM --platform=$BUILDPLATFORM node:24-alpine AS builder
 
 ARG VITE_BASE_PATH=/
 ARG VERSION=dev

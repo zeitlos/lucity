@@ -1,6 +1,6 @@
 ARG GO_VERSION=1.26
 
-FROM golang:${GO_VERSION}-alpine AS builder
+FROM --platform=$BUILDPLATFORM golang:${GO_VERSION}-alpine AS builder
 
 WORKDIR /workspace
 ENV GOWORK=off
@@ -11,8 +11,9 @@ RUN cd services/cashier && go mod download
 
 COPY pkg/ pkg/
 COPY services/cashier/ services/cashier/
+ARG TARGETOS TARGETARCH
 RUN cd services/cashier && \
-    CGO_ENABLED=0 go build -ldflags="-s -w" -o /app ./cmd/cashier/...
+    GOOS=$TARGETOS GOARCH=$TARGETARCH CGO_ENABLED=0 go build -ldflags="-s -w" -o /app ./cmd/cashier/...
 
 FROM gcr.io/distroless/static-debian12
 

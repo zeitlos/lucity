@@ -1,6 +1,6 @@
 ARG GO_VERSION=1.26
 
-FROM golang:${GO_VERSION}-alpine AS builder
+FROM --platform=$BUILDPLATFORM golang:${GO_VERSION}-alpine AS builder
 
 ARG VERSION=dev
 
@@ -15,10 +15,10 @@ RUN cd services/conductor && go mod download
 COPY pkg/ pkg/
 COPY charts/ charts/
 COPY services/conductor/ services/conductor/
+ARG TARGETOS TARGETARCH
 RUN cd services/conductor && \
-    CGO_ENABLED=0 go build -ldflags="-s -w -X main.Version=${VERSION}" -o /app ./cmd/conductor/...
+    GOOS=$TARGETOS GOARCH=$TARGETARCH CGO_ENABLED=0 go build -ldflags="-s -w -X main.Version=${VERSION}" -o /app ./cmd/conductor/...
 
-ARG TARGETARCH=amd64
 RUN set -eux; \
     miseVersion="$(cat "$(go env GOMODCACHE)"/github.com/railwayapp/railpack@*/core/mise/version.txt)"; \
     case "${TARGETARCH}" in \
