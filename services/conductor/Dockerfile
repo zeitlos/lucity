@@ -8,18 +8,24 @@ ENV GOWORK=off
 COPY pkg/go.mod pkg/go.sum pkg/
 COPY charts/go.mod charts/
 COPY services/conductor/go.mod services/conductor/go.sum services/conductor/
-RUN cd services/conductor && go mod download
+RUN --mount=type=cache,target=/go/pkg/mod \
+    cd services/conductor && go mod download
 
 COPY pkg/ pkg/
 COPY charts/ charts/
 COPY services/conductor/ services/conductor/
 ARG VERSION=dev
 ARG TARGETOS TARGETARCH
-RUN cd services/conductor && \
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    cd services/conductor && \
     GOOS=$TARGETOS GOARCH=$TARGETARCH CGO_ENABLED=0 go build -ldflags="-s -w -X main.Version=${VERSION}" -o /app ./cmd/conductor/...
 
-RUN set -eux; \
-    miseVersion="$(cat "$(go env GOMODCACHE)"/github.com/railwayapp/railpack@*/core/mise/version.txt)"; \
+RUN --mount=type=cache,target=/go/pkg/mod \
+    set -eux; \
+    cd services/conductor; \
+    go mod download github.com/railwayapp/railpack; \
+    miseVersion="$(cat "$(go list -m -f '{{.Dir}}' github.com/railwayapp/railpack)/core/mise/version.txt")"; \
     case "${TARGETARCH}" in \
       amd64) miseArch=linux-x64 ;; \
       arm64) miseArch=linux-arm64 ;; \
