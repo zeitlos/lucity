@@ -4,6 +4,7 @@ registryPull:
 
 routes:
   enabled: true
+  sectionName: platform-https
 
 conductor:
   registryHost: lucity-infra-zot.lucity-system.svc.cluster.local:5000
@@ -39,6 +40,7 @@ conductor:
     WORKLOAD_DOMAIN: lucity.app
     DATABASE_DOMAIN: db.lucity.app
     IP_ADDRESS: "46.225.47.40"
+    GATEWAY_HTTPS_LISTENER: workload-https
 
     VICTORIA_METRICS_URL: http://lucity-infra-victoria-metrics-single-server.lucity-system.svc.cluster.local:8428
 

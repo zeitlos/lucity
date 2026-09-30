@@ -5,6 +5,7 @@ registryPull:
 routes:
   enabled: true
   hostname: lucity.dev
+  sectionName: platform-https
   # Keep the development instance out of search indexes. It serves the same
   # docs and dashboard as production, so it must never be indexed.
   responseHeaders:
@@ -46,6 +47,7 @@ conductor:
     WORKLOAD_DOMAIN: lucity.io
     DATABASE_DOMAIN: db.lucity.io
     IP_ADDRESS: "46.225.44.63"
+    GATEWAY_HTTPS_LISTENER: workload-https
 
     VICTORIA_METRICS_URL: http://lucity-infra-victoria-metrics-single-server.lucity-system.svc.cluster.local:8428
 

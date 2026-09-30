@@ -95,6 +95,7 @@ gateway:
       protocol: HTTP
       port: 80
       hostname: lucity.cloud
+      httpsRedirect: true
     - name: platform-https
       protocol: HTTPS
       port: 443
@@ -107,6 +108,7 @@ gateway:
       protocol: HTTP
       port: 80
       hostname: "*.lucity.app"
+      httpsRedirect: true
     - name: workload-https
       protocol: HTTPS
       port: 443
@@ -119,6 +121,7 @@ gateway:
       protocol: HTTP
       port: 80
       hostname: p.lucity.cloud
+      httpsRedirect: true
     - name: analytics-https
       protocol: HTTPS
       port: 443
@@ -143,6 +146,7 @@ gateway:
       protocol: HTTP
       port: 80
       hostname: id.lucity.cloud
+      httpsRedirect: true
     - name: id-https
       protocol: HTTPS
       port: 443
@@ -214,6 +218,7 @@ rybbit:
   route:
     annotations:
       external-dns.kubernetes.io/hostname: p.lucity.cloud
+    sectionName: analytics-https
   backend:
     baseUrl: "https://p.lucity.cloud"
   clickhouse:
@@ -237,6 +242,7 @@ logto:
   route:
     annotations:
       external-dns.kubernetes.io/hostname: id.lucity.cloud
+    sectionName: id-https
   postgres:
     instances: 2
     storageClass: hcloud-volumes
