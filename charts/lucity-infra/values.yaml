@@ -30,6 +30,10 @@ gateway:
     - name: http
       protocol: HTTP
       port: 80
+      # true redirects every request on this listener to HTTPS. Backend routes for
+      # its hostnames must then attach to the matching HTTPS listener by sectionName,
+      # or their more specific match keeps serving HTTP.
+      httpsRedirect: false
 
 # -- cert-manager ClusterIssuer resources
 clusterIssuers: []
@@ -110,6 +114,7 @@ rybbit:
   hostname: ""
   route:
     annotations: {}
+    sectionName: ""
 
   backend:
     image:
@@ -366,11 +371,13 @@ victoria-metrics-alert:
                 annotations:
                   summary: "PVC {{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }} >95% full"
               - alert: CertExpiringSoon
-                expr: certmanager_certificate_expiration_timestamp_seconds - time() < 14 * 86400
+                expr: |-
+                  certmanager_certificate_expiration_timestamp_seconds - time() < 14 * 86400
+                    and on (namespace, name) certmanager_certificate_renewal_timestamp_seconds < time()
                 for: 1h
                 labels: { severity: warning }
                 annotations:
-                  summary: "Certificate {{ $labels.namespace }}/{{ $labels.name }} expires in <14d"
+                  summary: "Certificate {{ $labels.namespace }}/{{ $labels.name }} expires in {{ $value | humanizeDuration }} and cert-manager has not renewed it"
               - alert: CertificateNotReady
                 expr: certmanager_certificate_ready_status{condition="True"} == 0
                 for: 1h
@@ -750,6 +757,7 @@ logto:
   endpoint: ""              # public URL, e.g. https://id.lucity.cloud
   route:
     annotations: {}
+    sectionName: ""
   postgres:
     instances: 1
     size: 1Gi

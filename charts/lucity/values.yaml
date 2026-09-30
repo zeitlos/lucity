@@ -36,6 +36,9 @@ routes:
   enabled: false
   gatewayName: lucity-gateway
   gatewayNamespace: lucity-system
+  # Gateway listener to attach to, typically the HTTPS one when the gateway
+  # redirects plain HTTP. Empty attaches to every listener for the hostname.
+  sectionName: ""
   hostname: lucity.cloud
   # Extra response headers set on every platform route rule. Use
   # X-Robots-Tag on staging or development instances to keep them

@@ -455,6 +455,10 @@ func endpoints(deployment apps.Deployment, routes []unstructured.Unstructured) [
 	}
 
 	for _, route := range routes {
+		if _, ok := route.GetLabels()[httpsRedirectLabel]; ok {
+			continue
+		}
+
 		hosts, _, _ := unstructured.NestedStringSlice(route.Object, "spec", "hostnames")
 		parentRefs, _, _ := unstructured.NestedSlice(route.Object, "spec", "parentRefs")
 

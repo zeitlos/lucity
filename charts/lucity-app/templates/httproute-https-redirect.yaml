@@ -1,14 +1,16 @@
 {{- range $name, $svc := .Values.services }}
 {{- if and $svc.image (or $svc.image.tag $svc.image.digest) $svc.port (not $.Values.suspended) }}
 {{- range $domain := $svc.domains }}
+{{- if and $domain.attached $domain.listenerSet $domain.listenerSet.enabled }}
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
-  name: {{ include "lucity-app.fullname" $ }}-{{ $name }}-{{ $domain.host | sha1sum | trunc 5 }}
+  name: {{ include "lucity-app.fullname" $ }}-{{ $name }}-{{ $domain.host | sha1sum | trunc 5 }}-http
   labels:
     {{- include "lucity-app.labels" $ | nindent 4 }}
     app.kubernetes.io/component: {{ $name }}
+    lucity.dev/https-redirect: "true"
     {{- with $.Values.commonLabels }}{{- toYaml . | nindent 4 }}{{- end }}
     {{- with $svc.labels }}{{- toYaml . | nindent 4 }}{{- end }}
   {{- if or $.Values.commonAnnotations $svc.annotations }}
@@ -17,35 +19,23 @@ metadata:
     {{- with $svc.annotations }}{{- toYaml . | nindent 4 }}{{- end }}
   {{- end }}
 spec:
-  {{- if $domain.attached }}
   parentRefs:
-    {{- if and $domain.listenerSet $domain.listenerSet.enabled }}
     - group: gateway.networking.k8s.io
       kind: ListenerSet
       name: {{ $domain.host | quote }}
-      sectionName: https
-    {{- else }}
-    - name: {{ $.Values.gateway.name }}
-      namespace: {{ $.Values.gateway.namespace }}
-      {{- with $.Values.gateway.httpsListener }}
-      sectionName: {{ . }}
-      {{- end }}
-    {{- end }}
-  {{- end }}
+      sectionName: http
   hostnames:
     - {{ $domain.host | quote }}
   rules:
-    {{- if $domain.redirectTo }}
     - filters:
         - type: RequestRedirect
           requestRedirect:
-            hostname: {{ $domain.redirectTo | quote }}
-            statusCode: 301
-    {{- else }}
-    - backendRefs:
-        - name: {{ include "lucity-app.fullname" $ }}-{{ $name }}
-          port: {{ $svc.port }}
-    {{- end }}
+            scheme: https
+            {{- with $domain.redirectTo }}
+            hostname: {{ . | quote }}
+            {{- end }}
+            statusCode: 308
+{{- end }}
 {{- end }}
 {{- end }}
 {{- end }}
