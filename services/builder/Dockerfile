@@ -2,8 +2,6 @@ ARG GO_VERSION=1.26
 
 FROM --platform=$BUILDPLATFORM golang:${GO_VERSION}-alpine AS builder
 
-ARG VERSION=dev
-
 WORKDIR /workspace
 ENV GOWORK=off
 
@@ -13,6 +11,7 @@ RUN cd services/builder && go mod download
 
 COPY pkg/ pkg/
 COPY services/builder/ services/builder/
+ARG VERSION=dev
 ARG TARGETOS TARGETARCH
 RUN cd services/builder && \
     GOOS=$TARGETOS GOARCH=$TARGETARCH CGO_ENABLED=0 go build -ldflags="-s -w -X main.Version=${VERSION}" -o /app ./cmd/builder/...
