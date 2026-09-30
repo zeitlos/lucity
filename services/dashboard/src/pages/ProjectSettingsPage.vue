@@ -242,7 +242,7 @@ async function handleDeleteEnvironment() {
 </script>
 
 <template>
-  <div class="flex h-[calc(100vh-52px-0.75rem)] flex-col">
+  <div class="flex h-[calc(100vh-var(--banner-height)-52px-0.75rem)] flex-col">
     <div v-if="loading" class="flex flex-1 items-center justify-center">
       <div class="space-y-4 text-center">
         <Skeleton class="mx-auto h-8 w-48" />

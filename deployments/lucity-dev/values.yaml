@@ -10,6 +10,9 @@ routes:
   responseHeaders:
     X-Robots-Tag: "noindex, nofollow"
 
+banner:
+  message: "Sign-ups are paused for now due to high demand. Existing accounts are not affected."
+  severity: warn
 
 conductor:
   registryHost: lucity-infra-zot.lucity-system.svc.cluster.local:5000

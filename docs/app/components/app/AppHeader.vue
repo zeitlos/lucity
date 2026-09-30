@@ -42,6 +42,8 @@ const githubLink = computed(() =>
 </script>
 
 <template>
+  <AnnouncementBanner />
+
   <UHeader
     :ui="{
       root: 'docs-nav border-b-0 bg-transparent backdrop-blur-none',
