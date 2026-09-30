@@ -26,13 +26,14 @@ gateway:
         matchExpressions:
           - key: lucity.dev/workspace
             operator: Exists
-  # httpsRedirect: true on an HTTP listener redirects all of its requests to
-  # HTTPS. Backend routes for its hostnames must then attach to the matching
-  # HTTPS listener by sectionName, or their more specific match keeps serving HTTP.
   listeners:
     - name: http
       protocol: HTTP
       port: 80
+      # true redirects every request on this listener to HTTPS. Backend routes for
+      # its hostnames must then attach to the matching HTTPS listener by sectionName,
+      # or their more specific match keeps serving HTTP.
+      httpsRedirect: false
 
 # -- cert-manager ClusterIssuer resources
 clusterIssuers: []
