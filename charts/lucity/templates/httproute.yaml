@@ -10,6 +10,9 @@ spec:
   parentRefs:
     - name: {{ .Values.routes.gatewayName }}
       namespace: {{ .Values.routes.gatewayNamespace }}
+      {{- with .Values.routes.sectionName }}
+      sectionName: {{ . }}
+      {{- end }}
   hostnames:
     - {{ .Values.routes.hostname | quote }}
   rules:
