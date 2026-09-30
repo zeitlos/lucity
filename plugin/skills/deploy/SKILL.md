@@ -64,8 +64,10 @@ Every service must satisfy these (details in `references/lucity-platform.md`):
 - **Config via env only**: no config files baked with secrets; read everything from env vars.
 - **Ephemeral filesystem**: containers lose local writes on restart. Persistent data → a volume (`create_volume`, **10Gi minimum**, one service per volume, single replica) or a bucket (`create_bucket`, for anything that scales). Never assume local disk survives.
 - **Service-to-service links use the internal endpoint**: read the `type: INTERNAL` host from `get_project` (or the `add_service` result) plus the service `port`, and set it as a literal variable on the consumer (e.g. `API_URL=http://lucity-app-api.<namespace>.svc.cluster.local:3000`). Never build the hostname by hand (the namespace carries a hash) and never expect cross-environment reach: internal DNS only works within one environment.
-- **Env files are a config manifest, not a security task**: read a committed `.env`, `env.zip`, or `.env.example` for the KEYS it lists (which variables the app expects) so you know what to wire from platform resources and what to ask the user for. Never trust or copy the values. Do NOT hunt for or audit leaked secrets: the platform scans every release automatically (see §5) and flags them; duplicating that locally is wasted effort.
+- **Env files are a config manifest, not a security task**: read a committed `.env`, `env.zip`, or `.env.example` for the KEYS it lists (which variables the app expects) so you know what to wire from platform resources, what to generate, and what the user has to add. Never trust or copy the values. Do NOT hunt for or audit leaked secrets: the platform scans every release automatically (see §5) and flags them; duplicating that locally is wasted effort.
 - **Wire by reference**: after `create_database`/`create_kv_store`/`create_bucket`, read the generated credential variables with `list_variables` and reference them in `set_variables` (ref, not literal). Never copy a credential value into a literal string.
+- **Generate app-owned secrets**: a key the app only needs to be random (`SECRET_KEY_BASE`, `AUTH_SECRET`, a JWT secret) gets `generate` in `set_variables`, which stores a random value you never see. A key that already has a value keeps it, so repeating the call is safe.
+- **Secret values never reach you**: the tools return keys, refs, and `check_variables` results, never variable values or credentials. To confirm a value, pass the one you expect to `check_variables`. Don't route around this by running `lucity vars list` or `lucity db credentials` yourself or by asking the user to paste a secret into the chat.
 
 ## 5. Data dependencies scan
 
@@ -80,7 +82,9 @@ Provision what the platform offers: `create_database` (PostgreSQL), `create_kv_s
 
 **External managed dependencies the platform does NOT provide** (Azure Blob Storage, Google Cloud
 Storage, a hosted third-party API, SendGrid/Stripe/etc., an external database) need credentials you
-cannot create. **Ask the user to provide them** and set them with `set_variables`. Do NOT stub, fake,
+cannot create, and so do values that must match something elsewhere, like `RAILS_MASTER_KEY`. **Ask
+the user to add them** in the dashboard, in the service's **Variables** tab, instead of pasting them
+into the chat. Name the exact keys, then confirm they exist with `list_variables`. Do NOT stub, fake,
 or hack placeholder values to force the app past its boot checks — a half-broken deploy is worse than a
 clear "this app needs these credentials." Detect these from the dependency manifest (e.g.
 `azure-storage-blob`, `@google-cloud/storage`, `boto3` pointed at non-Lucity endpoints) and from env
@@ -90,8 +94,12 @@ usage, and surface them before you deploy.
 it** — do not silently deploy an empty database and call it done. To load it:
 - **Small schema / migrations**: `run_sql`. (It executes from the conductor; against a remote platform
   it works, but for anything large prefer the dump path below.)
-- **Bulk dumps**: `get_credentials` with `expose_publicly` for a temporary public endpoint, then a local
-  `psql`/`pg_restore` (needs `sslmode=require` and an SNI-capable client, libpq ≥ 14).
+- **Bulk dumps**: the credentials a local `psql`/`pg_restore` needs are never shown to you, so the user
+  runs the import from their own terminal. Hand them the steps with the database id filled in:
+  `lucity db expose <db>` (temporary public hostname), `lucity db credentials <db>` (its `PLATFORM`
+  entry's `uri` already has `sslmode=require`), the restore from a client with libpq ≥ 14 (it must
+  send SNI), then `lucity db unexpose <db>`. Never run `lucity db credentials` yourself or ask the user
+  to paste its output. Once they are done, spot-check the data with `run_sql`.
 
 Creating paid resources is a business question — ask before provisioning.
 
@@ -148,7 +156,7 @@ the platform; code lives in the repo.
 ## 8. Ask vs. decide
 
 - **Decide** anything evidenced in the repo (provider, versions, start command, which resources the code needs, what to pin) — and report it.
-- **Ask** only business questions: which repos form the product, whether it should be public, whether you may import a given data dump, whether you may create paid resources, and **any credentials for external managed services the platform does not provide** (Azure/GCS/third-party APIs) plus **any data dump the app needs that is not in the repo**. If a required external credential or dump is missing, stop and ask rather than shipping a broken deploy.
+- **Ask** only business questions: which repos form the product, whether it should be public, whether you may import a given data dump, whether you may create paid resources, and **any credentials for external managed services the platform does not provide** (Azure/GCS/third-party APIs, which the user adds in the dashboard, see §5) plus **any data dump the app needs that is not in the repo**. If a required external credential or dump is missing, stop and ask rather than shipping a broken deploy.
 
 ## MCP tools
 
@@ -157,9 +165,10 @@ Account/projects: `get_account`, `list_projects`, `get_project`, `create_project
 Detection/source: `detect_services`, `list_github_repos`.
 Services: `add_service` (accepts initial variables — put build-time `RAILPACK_*` pins here so the first
 build sees them; optional `cpu`/`memory` to size it), `configure_service` (start command, resources),
-`set_variables`, `list_variables`.
+`set_variables`, `list_variables`, `check_variables` (confirm a variable holds an expected value
+without revealing it).
 Resources: `create_database` (optional `cpu`/`memory`), `create_kv_store`, `create_bucket`,
-`create_volume` (10Gi to 1Ti; optional `mount_service` + `mount_path`), `get_credentials`, `run_sql`.
+`create_volume` (10Gi to 1Ti; optional `mount_service` + `mount_path`), `run_sql`.
 Deploy: `deploy`, `get_deploy_status`, `get_logs`, `rollback`, `add_domain`.
 
 There are no delete tools — the user removes projects, services, and resources from the dashboard.
