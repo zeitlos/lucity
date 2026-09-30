@@ -38,10 +38,11 @@ function dismiss(id: string) {
   <div
     v-if="banner"
     role="status"
-    class="banner relative flex items-center justify-center gap-2 border-b px-12 py-2.5 text-center text-sm font-medium text-highlighted"
+    class="banner relative flex items-start gap-2 border-b py-2.5 pl-3 text-left text-sm font-medium text-highlighted sm:items-center sm:justify-center sm:px-12 sm:text-center"
+    :class="banner.dismissible ? 'pr-9' : 'pr-3'"
     :style="{ '--tone': tones[banner.severity].color }"
   >
-    <UIcon :name="tones[banner.severity].icon" class="banner-icon size-4 shrink-0" />
+    <UIcon :name="tones[banner.severity].icon" class="banner-icon mt-0.5 size-4 shrink-0 sm:mt-0" />
     <span class="text-pretty">{{ banner.message }}</span>
     <UButton
       v-if="banner.dismissible"
@@ -50,7 +51,7 @@ function dismiss(id: string) {
       variant="ghost"
       size="sm"
       aria-label="Dismiss"
-      class="absolute top-1/2 right-3 -translate-y-1/2"
+      class="absolute top-1/2 right-1.5 -translate-y-1/2 sm:right-3"
       @click="dismiss(banner.id)"
     />
   </div>

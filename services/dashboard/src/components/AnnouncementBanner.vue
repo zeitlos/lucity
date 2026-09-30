@@ -46,16 +46,17 @@ function dismiss(id: string) {
     v-if="banner"
     ref="root"
     role="status"
-    class="banner relative z-1 flex items-center justify-center gap-2 border-b px-11 py-2 text-center text-xs font-medium text-foreground"
+    class="banner relative z-1 flex items-start gap-2 border-b py-2 pl-3 text-left text-xs font-medium text-foreground sm:items-center sm:justify-center sm:px-11 sm:text-center"
+    :class="banner.dismissible ? 'pr-8' : 'pr-3'"
     :style="{ '--tone': tones[banner.severity].color }"
   >
-    <component :is="tones[banner.severity].icon" :size="14" class="banner-icon shrink-0" />
+    <component :is="tones[banner.severity].icon" :size="14" class="banner-icon mt-px shrink-0 sm:mt-0" />
     <span class="text-pretty">{{ banner.message }}</span>
     <Button
       v-if="banner.dismissible"
       variant="ghost"
       size="icon"
-      class="absolute top-1/2 right-2 h-6 w-6 -translate-y-1/2 text-muted-foreground"
+      class="absolute top-1/2 right-1 h-6 w-6 -translate-y-1/2 text-muted-foreground sm:right-2"
       aria-label="Dismiss"
       @click="dismiss(banner.id)"
     >
