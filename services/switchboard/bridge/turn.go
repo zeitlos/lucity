@@ -22,7 +22,6 @@ type turn struct {
 	sessionID string
 	chatID    int64
 	threadID  int64
-	replyTo   int64
 	thread    string
 	statusID  int64
 
@@ -76,8 +75,8 @@ func (t *turn) stepCount() int {
 
 func prompt(message *telegram.Message, topic, text, quoted string) string {
 	var b strings.Builder
-	sent := time.Unix(message.Date, 0).UTC().Format("2006-01-02 15:04")
-	fmt.Fprintf(&b, "Telegram message from %s at %s UTC", actor(message.From), sent)
+	sent := time.Unix(message.Date, 0).Format("2006-01-02 15:04 MST")
+	fmt.Fprintf(&b, "Telegram message from %s at %s", actor(message.From), sent)
 	if topic != "" {
 		fmt.Fprintf(&b, " in the topic %q", topic)
 	}

@@ -127,6 +127,10 @@ func (c *Client) Edit(ctx context.Context, messageID int64, message Outgoing) er
 	return err
 }
 
+func (c *Client) Delete(ctx context.Context, chatID, messageID int64) error {
+	return c.call(ctx, "deleteMessage", map[string]any{"chat_id": chatID, "message_id": messageID}, nil)
+}
+
 func (c *Client) CreateTopic(ctx context.Context, chatID int64, name string) (int64, error) {
 	var topic struct {
 		MessageThreadID int64 `json:"message_thread_id"`

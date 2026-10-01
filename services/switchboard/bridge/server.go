@@ -197,7 +197,7 @@ func (s *Server) handleMessage(message *telegram.Message) {
 	text := strings.TrimSpace(message.Text)
 
 	if s.inSessionTopic(message) {
-		go s.converse(message, message.MessageThreadID, message.MessageID, text, "", topicOf(message))
+		go s.converse(message, message.MessageThreadID, text, "", topicOf(message))
 		return
 	}
 	if question, ok := command(text, "/new"); ok {
@@ -249,8 +249,7 @@ func (s *Server) open(message *telegram.Message, alert *telegram.Message, text s
 			slog.Warn("failed to copy the alert into its topic", "error", err)
 		}
 	}
-	replyTo, err := s.telegram.Forward(s.ctx, chatID, threadID, message)
-	if err != nil {
+	if _, err := s.telegram.Forward(s.ctx, chatID, threadID, message); err != nil {
 		slog.Warn("failed to forward the question into its topic", "error", err)
 	}
 
@@ -265,36 +264,35 @@ func (s *Server) open(message *telegram.Message, alert *telegram.Message, text s
 		slog.Warn("failed to post the topic link", "error", err)
 	}
 
-	s.converse(message, threadID, replyTo, text, quoted, name)
+	s.converse(message, threadID, text, quoted, name)
 }
 
-func (s *Server) converse(message *telegram.Message, threadID, replyTo int64, text, quoted, topic string) {
+func (s *Server) converse(message *telegram.Message, threadID int64, text, quoted, topic string) {
 	chatID := message.Chat.ID
 	thread := threadKey(chatID, threadID)
 
 	agent := s.waitForAgent(2 * time.Minute)
 	if agent == nil {
-		s.say(chatID, threadID, replyTo, "The agent is not running. Try again in a minute.")
+		s.say(chatID, threadID, 0, "The agent is not running. Try again in a minute.")
 		return
 	}
 
 	sessionID, err := s.session(agent, thread)
 	if err != nil {
 		slog.Error("failed to open session", "thread", thread, "error", err)
-		s.say(chatID, threadID, replyTo, "Could not start an agent session: "+err.Error())
+		s.say(chatID, threadID, 0, "Could not start an agent session: "+err.Error())
 		return
 	}
 
-	t, ok := s.begin(sessionID, chatID, threadID, replyTo, thread)
+	t, ok := s.begin(sessionID, chatID, threadID, thread)
 	if !ok {
-		s.say(chatID, threadID, replyTo, "Still working on the previous message in this topic. Tap Stop there to cancel it.")
+		s.say(chatID, threadID, 0, "Still working on the previous message in this topic. Tap Stop there to cancel it.")
 		return
 	}
 
 	statusID, err := s.telegram.Send(s.ctx, telegram.Outgoing{
 		ChatID:   chatID,
 		ThreadID: threadID,
-		ReplyTo:  replyTo,
 		Text:     "Working…",
 		Buttons:  stopButton(sessionID),
 	})
@@ -313,17 +311,25 @@ func (s *Server) converse(message *telegram.Message, threadID, replyTo int64, te
 	if answer == "" && err == nil && stopReason != "cancelled" {
 		answer = "The agent finished without an answer."
 	}
+	delivered := true
 	for _, part := range chunks(answer, 3500) {
-		if _, sendErr := s.telegram.Send(s.ctx, telegram.Outgoing{ChatID: chatID, ThreadID: threadID, ReplyTo: replyTo, Text: part}); sendErr != nil {
+		if _, sendErr := s.telegram.Send(s.ctx, telegram.Outgoing{ChatID: chatID, ThreadID: threadID, Text: part}); sendErr != nil {
 			slog.Error("failed to send answer", "session", sessionID, "error", sendErr)
+			delivered = false
 			break
 		}
 	}
 
 	if t.statusID != 0 {
-		status := telegram.Outgoing{ChatID: chatID, Text: finalStatus(stopReason, err, t.stepCount())}
-		if editErr := s.telegram.Edit(s.ctx, t.statusID, status); editErr != nil {
-			slog.Warn("failed to update status message", "error", editErr)
+		if err == nil && stopReason == "end_turn" && delivered {
+			if deleteErr := s.telegram.Delete(s.ctx, chatID, t.statusID); deleteErr != nil {
+				slog.Warn("failed to delete status message", "error", deleteErr)
+			}
+		} else {
+			status := telegram.Outgoing{ChatID: chatID, Text: finalStatus(stopReason, err, t.stepCount())}
+			if editErr := s.telegram.Edit(s.ctx, t.statusID, status); editErr != nil {
+				slog.Warn("failed to update status message", "error", editErr)
+			}
 		}
 	}
 	slog.Info("turn finished", "event", "turn.end", "session", sessionID, "thread", thread,
@@ -390,7 +396,6 @@ func (s *Server) Permission(ctx context.Context, request acp.PermissionRequest) 
 	card := telegram.Outgoing{
 		ChatID:   t.chatID,
 		ThreadID: t.threadID,
-		ReplyTo:  t.replyTo,
 		HTML:     true,
 		Text:     approvalCard(request.ToolCall, command, ""),
 		Buttons:  []telegram.Button{{Text: "Run", CallbackData: "run:" + key}, {Text: "Deny", CallbackData: "deny:" + key}},
@@ -491,7 +496,7 @@ func (s *Server) showProgress(t *turn, done chan<- struct{}) {
 	}
 }
 
-func (s *Server) begin(sessionID string, chatID, threadID, replyTo int64, thread string) (*turn, bool) {
+func (s *Server) begin(sessionID string, chatID, threadID int64, thread string) (*turn, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if _, busy := s.turns[sessionID]; busy {
@@ -505,7 +510,6 @@ func (s *Server) begin(sessionID string, chatID, threadID, replyTo int64, thread
 		sessionID: sessionID,
 		chatID:    chatID,
 		threadID:  threadID,
-		replyTo:   replyTo,
 		thread:    thread,
 	}
 	s.turns[sessionID] = t
