@@ -17,7 +17,6 @@ import (
 type Config struct {
 	LogLevel        string        `envconfig:"LOG_LEVEL" default:"info"`
 	TelegramToken   string        `envconfig:"TELEGRAM_BOT_TOKEN" required:"true"`
-	TelegramAPIURL  string        `envconfig:"TELEGRAM_API_URL" default:"https://api.telegram.org"`
 	ChatID          int64         `envconfig:"TELEGRAM_CHAT_ID" required:"true"`
 	AlertsTopicID   int64         `envconfig:"TELEGRAM_ALERTS_TOPIC_ID"`
 	AllowedUserIDs  []int64       `envconfig:"TELEGRAM_ALLOWED_USER_IDS" required:"true"`
@@ -50,7 +49,7 @@ func main() {
 	}
 
 	server := bridge.New(
-		telegram.New(config.TelegramToken, telegram.WithAPIURL(config.TelegramAPIURL)),
+		telegram.New(config.TelegramToken),
 		bridge.Forum{ChatID: config.ChatID, AlertsTopicID: config.AlertsTopicID},
 		threads,
 		bridge.Agent{Command: config.AgentCommand, Workdir: config.AgentWorkdir, MCPServers: mcpServers},

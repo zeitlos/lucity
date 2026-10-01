@@ -12,28 +12,15 @@ import (
 	"time"
 )
 
-const defaultAPIURL = "https://api.telegram.org"
+const apiURL = "https://api.telegram.org"
 
 type Client struct {
-	token  string
-	apiURL string
-	http   *http.Client
+	token string
+	http  *http.Client
 }
 
-type Option func(*Client)
-
-func WithAPIURL(apiURL string) Option {
-	return func(c *Client) {
-		c.apiURL = strings.TrimSuffix(apiURL, "/")
-	}
-}
-
-func New(token string, options ...Option) *Client {
-	c := &Client{token: token, apiURL: defaultAPIURL, http: &http.Client{Timeout: 70 * time.Second}}
-	for _, option := range options {
-		option(c)
-	}
-	return c
+func New(token string) *Client {
+	return &Client{token: token, http: &http.Client{Timeout: 70 * time.Second}}
 }
 
 type User struct {
@@ -200,7 +187,7 @@ func (c *Client) call(ctx context.Context, method string, params, result any) er
 	if err != nil {
 		return err
 	}
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, c.apiURL+"/bot"+c.token+"/"+method, bytes.NewReader(body))
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, apiURL+"/bot"+c.token+"/"+method, bytes.NewReader(body))
 	if err != nil {
 		return fmt.Errorf("telegram %s: build request failed", method)
 	}
