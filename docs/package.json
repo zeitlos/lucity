@@ -10,18 +10,18 @@
     "shots": "node scripts/capture-screenshots.mjs"
   },
   "dependencies": {
-    "@nuxt/content": "^3.14.0",
-    "@nuxt/ui": "^4.9.0",
-    "@nuxtjs/sitemap": "^8.5.1",
+    "@nuxt/content": "^3.16.1",
+    "@nuxt/ui": "^4.11.3",
+    "@nuxtjs/sitemap": "^8.6.1",
     "better-sqlite3": "^12.5.0",
     "docus": "latest",
-    "flo-mat": "^4.1.0",
-    "nuxt": "^4.5.1"
+    "flo-mat": "^4.1.4",
+    "nuxt": "^4.5.2"
   },
   "devDependencies": {
-    "@iconify-json/devicon": "^1.2.62",
+    "@iconify-json/devicon": "^1.2.68",
     "opentype.js": "^2.0.0",
-    "playwright": "^1.62.1"
+    "playwright": "^1.63.0"
   },
   "engines": {
     "node": ">=24"

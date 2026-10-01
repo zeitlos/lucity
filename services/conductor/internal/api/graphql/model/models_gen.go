@@ -741,7 +741,7 @@ func (e *BackupStatus) UnmarshalGQL(v any) error {
 }
 
 func (e BackupStatus) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *BackupStatus) UnmarshalJSON(b []byte) error {
@@ -796,7 +796,7 @@ func (e *BackupTrigger) UnmarshalGQL(v any) error {
 }
 
 func (e BackupTrigger) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *BackupTrigger) UnmarshalJSON(b []byte) error {
@@ -853,7 +853,7 @@ func (e *BucketStatus) UnmarshalGQL(v any) error {
 }
 
 func (e BucketStatus) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *BucketStatus) UnmarshalJSON(b []byte) error {
@@ -914,7 +914,7 @@ func (e *BuildStatus) UnmarshalGQL(v any) error {
 }
 
 func (e BuildStatus) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *BuildStatus) UnmarshalJSON(b []byte) error {
@@ -977,7 +977,7 @@ func (e *DatabaseStatus) UnmarshalGQL(v any) error {
 }
 
 func (e DatabaseStatus) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *DatabaseStatus) UnmarshalJSON(b []byte) error {
@@ -1038,7 +1038,7 @@ func (e *DeployStatus) UnmarshalGQL(v any) error {
 }
 
 func (e DeployStatus) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *DeployStatus) UnmarshalJSON(b []byte) error {
@@ -1097,7 +1097,7 @@ func (e *DeploymentStatus) UnmarshalGQL(v any) error {
 }
 
 func (e DeploymentStatus) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *DeploymentStatus) UnmarshalJSON(b []byte) error {
@@ -1156,7 +1156,7 @@ func (e *DNSRecordType) UnmarshalGQL(v any) error {
 }
 
 func (e DNSRecordType) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *DNSRecordType) UnmarshalJSON(b []byte) error {
@@ -1215,7 +1215,7 @@ func (e *DNSStatus) UnmarshalGQL(v any) error {
 }
 
 func (e DNSStatus) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *DNSStatus) UnmarshalJSON(b []byte) error {
@@ -1272,7 +1272,7 @@ func (e *EndpointType) UnmarshalGQL(v any) error {
 }
 
 func (e EndpointType) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *EndpointType) UnmarshalJSON(b []byte) error {
@@ -1327,7 +1327,7 @@ func (e *GitHubAccountType) UnmarshalGQL(v any) error {
 }
 
 func (e GitHubAccountType) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *GitHubAccountType) UnmarshalJSON(b []byte) error {
@@ -1382,7 +1382,7 @@ func (e *MetricGrouping) UnmarshalGQL(v any) error {
 }
 
 func (e MetricGrouping) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *MetricGrouping) UnmarshalJSON(b []byte) error {
@@ -1437,7 +1437,7 @@ func (e *MetricUnit) UnmarshalGQL(v any) error {
 }
 
 func (e MetricUnit) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *MetricUnit) UnmarshalJSON(b []byte) error {
@@ -1498,7 +1498,7 @@ func (e *MetricWindow) UnmarshalGQL(v any) error {
 }
 
 func (e MetricWindow) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *MetricWindow) UnmarshalJSON(b []byte) error {
@@ -1553,7 +1553,7 @@ func (e *Plan) UnmarshalGQL(v any) error {
 }
 
 func (e Plan) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *Plan) UnmarshalJSON(b []byte) error {
@@ -1610,7 +1610,7 @@ func (e *Protocol) UnmarshalGQL(v any) error {
 }
 
 func (e Protocol) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *Protocol) UnmarshalJSON(b []byte) error {
@@ -1675,7 +1675,7 @@ func (e *ReleaseStatus) UnmarshalGQL(v any) error {
 }
 
 func (e ReleaseStatus) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *ReleaseStatus) UnmarshalJSON(b []byte) error {
@@ -1734,7 +1734,7 @@ func (e *ReleaseTriggerKind) UnmarshalGQL(v any) error {
 }
 
 func (e ReleaseTriggerKind) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *ReleaseTriggerKind) UnmarshalJSON(b []byte) error {
@@ -1791,7 +1791,7 @@ func (e *ResourceMetric) UnmarshalGQL(v any) error {
 }
 
 func (e ResourceMetric) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *ResourceMetric) UnmarshalJSON(b []byte) error {
@@ -1846,7 +1846,7 @@ func (e *ResourceTier) UnmarshalGQL(v any) error {
 }
 
 func (e ResourceTier) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *ResourceTier) UnmarshalJSON(b []byte) error {
@@ -1907,7 +1907,7 @@ func (e *Role) UnmarshalGQL(v any) error {
 }
 
 func (e Role) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *Role) UnmarshalJSON(b []byte) error {
@@ -1974,7 +1974,7 @@ func (e *RolloutReason) UnmarshalGQL(v any) error {
 }
 
 func (e RolloutReason) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *RolloutReason) UnmarshalJSON(b []byte) error {
@@ -2035,7 +2035,7 @@ func (e *RolloutStatus) UnmarshalGQL(v any) error {
 }
 
 func (e RolloutStatus) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *RolloutStatus) UnmarshalJSON(b []byte) error {
@@ -2096,7 +2096,7 @@ func (e *ScanStatus) UnmarshalGQL(v any) error {
 }
 
 func (e ScanStatus) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *ScanStatus) UnmarshalJSON(b []byte) error {
@@ -2159,7 +2159,7 @@ func (e *ServiceStatus) UnmarshalGQL(v any) error {
 }
 
 func (e ServiceStatus) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *ServiceStatus) UnmarshalJSON(b []byte) error {
@@ -2216,7 +2216,7 @@ func (e *SourceProvider) UnmarshalGQL(v any) error {
 }
 
 func (e SourceProvider) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *SourceProvider) UnmarshalJSON(b []byte) error {
@@ -2277,7 +2277,7 @@ func (e *SubscriptionStatus) UnmarshalGQL(v any) error {
 }
 
 func (e SubscriptionStatus) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *SubscriptionStatus) UnmarshalJSON(b []byte) error {
@@ -2336,7 +2336,7 @@ func (e *TLSStatus) UnmarshalGQL(v any) error {
 }
 
 func (e TLSStatus) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *TLSStatus) UnmarshalJSON(b []byte) error {
@@ -2397,7 +2397,7 @@ func (e *VulnerabilitySeverity) UnmarshalGQL(v any) error {
 }
 
 func (e VulnerabilitySeverity) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *VulnerabilitySeverity) UnmarshalJSON(b []byte) error {
@@ -2454,7 +2454,7 @@ func (e *VulnerabilitySource) UnmarshalGQL(v any) error {
 }
 
 func (e VulnerabilitySource) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *VulnerabilitySource) UnmarshalJSON(b []byte) error {
@@ -2509,7 +2509,7 @@ func (e *WorkspaceRole) UnmarshalGQL(v any) error {
 }
 
 func (e WorkspaceRole) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *WorkspaceRole) UnmarshalJSON(b []byte) error {

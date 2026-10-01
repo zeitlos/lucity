@@ -29123,10 +29123,6 @@ func (ec *executionContext) marshalNBackupTrigger2githubᚗcomᚋzeitlosᚋlucit
 	return v
 }
 
-func (ec *executionContext) marshalNBillingPortalUrl2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐBillingPortalURL(ctx context.Context, sel ast.SelectionSet, v model.BillingPortalURL) graphql.Marshaler {
-	return ec._BillingPortalUrl(ctx, sel, &v)
-}
-
 func (ec *executionContext) marshalNBillingPortalUrl2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐBillingPortalURL(ctx context.Context, sel ast.SelectionSet, v *model.BillingPortalURL) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
@@ -29135,10 +29131,6 @@ func (ec *executionContext) marshalNBillingPortalUrl2ᚖgithubᚗcomᚋzeitlos�
 		return graphql.Null
 	}
 	return ec._BillingPortalUrl(ctx, sel, v)
-}
-
-func (ec *executionContext) marshalNBillingSubscription2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐBillingSubscription(ctx context.Context, sel ast.SelectionSet, v model.BillingSubscription) graphql.Marshaler {
-	return ec._BillingSubscription(ctx, sel, &v)
 }
 
 func (ec *executionContext) marshalNBillingSubscription2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐBillingSubscription(ctx context.Context, sel ast.SelectionSet, v *model.BillingSubscription) graphql.Marshaler {
@@ -29195,10 +29187,6 @@ func (ec *executionContext) marshalNBucket2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋ
 		return graphql.Null
 	}
 	return ec._Bucket(ctx, sel, v)
-}
-
-func (ec *executionContext) marshalNBucketCredentials2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐBucketCredentials(ctx context.Context, sel ast.SelectionSet, v model.BucketCredentials) graphql.Marshaler {
-	return ec._BucketCredentials(ctx, sel, &v)
 }
 
 func (ec *executionContext) marshalNBucketCredentials2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐBucketCredentials(ctx context.Context, sel ast.SelectionSet, v *model.BucketCredentials) graphql.Marshaler {
@@ -29259,10 +29247,6 @@ func (ec *executionContext) marshalNBucketObject2ᚕgithubᚗcomᚋzeitlosᚋluc
 	}
 
 	return ret
-}
-
-func (ec *executionContext) marshalNBucketObjectListing2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐBucketObjectListing(ctx context.Context, sel ast.SelectionSet, v model.BucketObjectListing) graphql.Marshaler {
-	return ec._BucketObjectListing(ctx, sel, &v)
 }
 
 func (ec *executionContext) marshalNBucketObjectListing2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐBucketObjectListing(ctx context.Context, sel ast.SelectionSet, v *model.BucketObjectListing) graphql.Marshaler {
@@ -29335,10 +29319,6 @@ func (ec *executionContext) marshalNBuildStatus2githubᚗcomᚋzeitlosᚋlucity�
 	return v
 }
 
-func (ec *executionContext) marshalNCheckoutSession2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐCheckoutSession(ctx context.Context, sel ast.SelectionSet, v model.CheckoutSession) graphql.Marshaler {
-	return ec._CheckoutSession(ctx, sel, &v)
-}
-
 func (ec *executionContext) marshalNCheckoutSession2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐCheckoutSession(ctx context.Context, sel ast.SelectionSet, v *model.CheckoutSession) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
@@ -29392,10 +29372,6 @@ func (ec *executionContext) unmarshalNCreateProjectInput2githubᚗcomᚋzeitlos�
 func (ec *executionContext) unmarshalNCreateWorkspaceCheckoutInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐCreateWorkspaceCheckoutInput(ctx context.Context, v any) (model.CreateWorkspaceCheckoutInput, error) {
 	res, err := ec.unmarshalInputCreateWorkspaceCheckoutInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) marshalNCreatedApiToken2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐCreatedAPIToken(ctx context.Context, sel ast.SelectionSet, v model.CreatedAPIToken) graphql.Marshaler {
-	return ec._CreatedApiToken(ctx, sel, &v)
 }
 
 func (ec *executionContext) marshalNCreatedApiToken2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐCreatedAPIToken(ctx context.Context, sel ast.SelectionSet, v *model.CreatedAPIToken) graphql.Marshaler {
@@ -29466,10 +29442,6 @@ func (ec *executionContext) marshalNDatabaseBackup2ᚖgithubᚗcomᚋzeitlosᚋl
 		return graphql.Null
 	}
 	return ec._DatabaseBackup(ctx, sel, v)
-}
-
-func (ec *executionContext) marshalNDatabaseBackups2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabaseBackups(ctx context.Context, sel ast.SelectionSet, v model.DatabaseBackups) graphql.Marshaler {
-	return ec._DatabaseBackups(ctx, sel, &v)
 }
 
 func (ec *executionContext) marshalNDatabaseBackups2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabaseBackups(ctx context.Context, sel ast.SelectionSet, v *model.DatabaseBackups) graphql.Marshaler {
@@ -29560,10 +29532,6 @@ func (ec *executionContext) marshalNDatabaseTable2ᚕgithubᚗcomᚋzeitlosᚋlu
 	}
 
 	return ret
-}
-
-func (ec *executionContext) marshalNDatabaseTableData2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabaseTableData(ctx context.Context, sel ast.SelectionSet, v model.DatabaseTableData) graphql.Marshaler {
-	return ec._DatabaseTableData(ctx, sel, &v)
 }
 
 func (ec *executionContext) marshalNDatabaseTableData2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabaseTableData(ctx context.Context, sel ast.SelectionSet, v *model.DatabaseTableData) graphql.Marshaler {
@@ -29714,10 +29682,6 @@ func (ec *executionContext) unmarshalNDnsStatus2githubᚗcomᚋzeitlosᚋlucity�
 
 func (ec *executionContext) marshalNDnsStatus2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDNSStatus(ctx context.Context, sel ast.SelectionSet, v model.DNSStatus) graphql.Marshaler {
 	return v
-}
-
-func (ec *executionContext) marshalNEjectArtifact2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐEjectArtifact(ctx context.Context, sel ast.SelectionSet, v model.EjectArtifact) graphql.Marshaler {
-	return ec._EjectArtifact(ctx, sel, &v)
 }
 
 func (ec *executionContext) marshalNEjectArtifact2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐEjectArtifact(ctx context.Context, sel ast.SelectionSet, v *model.EjectArtifact) graphql.Marshaler {
@@ -30102,10 +30066,6 @@ func (ec *executionContext) marshalNProtocol2githubᚗcomᚋzeitlosᚋlucityᚋs
 	return v
 }
 
-func (ec *executionContext) marshalNQueryResult2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐQueryResult(ctx context.Context, sel ast.SelectionSet, v model.QueryResult) graphql.Marshaler {
-	return ec._QueryResult(ctx, sel, &v)
-}
-
 func (ec *executionContext) marshalNQueryResult2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐQueryResult(ctx context.Context, sel ast.SelectionSet, v *model.QueryResult) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
@@ -30207,8 +30167,7 @@ func (ec *executionContext) marshalNResourceMetric2githubᚗcomᚋzeitlosᚋluci
 }
 
 func (ec *executionContext) unmarshalNResourceMetric2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐResourceMetricᚄ(ctx context.Context, v any) ([]model.ResourceMetric, error) {
-	var vSlice []any
-	vSlice = graphql.CoerceList(v)
+	vSlice := graphql.CoerceList(v)
 	var err error
 	res := make([]model.ResourceMetric, len(vSlice))
 	for i := range vSlice {
@@ -30265,10 +30224,6 @@ func (ec *executionContext) unmarshalNResourcesInput2githubᚗcomᚋzeitlosᚋlu
 func (ec *executionContext) unmarshalNRestoreDatabaseInput2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRestoreDatabaseInput(ctx context.Context, v any) (model.RestoreDatabaseInput, error) {
 	res, err := ec.unmarshalInputRestoreDatabaseInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) marshalNRestoreDatabaseResult2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRestoreDatabaseResult(ctx context.Context, sel ast.SelectionSet, v model.RestoreDatabaseResult) graphql.Marshaler {
-	return ec._RestoreDatabaseResult(ctx, sel, &v)
 }
 
 func (ec *executionContext) marshalNRestoreDatabaseResult2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐRestoreDatabaseResult(ctx context.Context, sel ast.SelectionSet, v *model.RestoreDatabaseResult) graphql.Marshaler {
@@ -30381,10 +30336,6 @@ func (ec *executionContext) marshalNServiceID2githubᚗcomᚋzeitlosᚋlucityᚋ
 	return v
 }
 
-func (ec *executionContext) marshalNServiceLogEntry2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐServiceLogEntry(ctx context.Context, sel ast.SelectionSet, v model.ServiceLogEntry) graphql.Marshaler {
-	return ec._ServiceLogEntry(ctx, sel, &v)
-}
-
 func (ec *executionContext) marshalNServiceLogEntry2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐServiceLogEntry(ctx context.Context, sel ast.SelectionSet, v *model.ServiceLogEntry) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
@@ -30431,8 +30382,7 @@ func (ec *executionContext) unmarshalNServiceVariableInput2githubᚗcomᚋzeitlo
 }
 
 func (ec *executionContext) unmarshalNServiceVariableInput2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐServiceVariableInputᚄ(ctx context.Context, v any) ([]model.ServiceVariableInput, error) {
-	var vSlice []any
-	vSlice = graphql.CoerceList(v)
+	vSlice := graphql.CoerceList(v)
 	var err error
 	res := make([]model.ServiceVariableInput, len(vSlice))
 	for i := range vSlice {
@@ -30502,8 +30452,7 @@ func (ec *executionContext) marshalNString2string(ctx context.Context, sel ast.S
 }
 
 func (ec *executionContext) unmarshalNString2ᚕstringᚄ(ctx context.Context, v any) ([]string, error) {
-	var vSlice []any
-	vSlice = graphql.CoerceList(v)
+	vSlice := graphql.CoerceList(v)
 	var err error
 	res := make([]string, len(vSlice))
 	for i := range vSlice {
@@ -30532,8 +30481,7 @@ func (ec *executionContext) marshalNString2ᚕstringᚄ(ctx context.Context, sel
 }
 
 func (ec *executionContext) unmarshalNString2ᚕᚕᚖstring(ctx context.Context, v any) ([][]*string, error) {
-	var vSlice []any
-	vSlice = graphql.CoerceList(v)
+	vSlice := graphql.CoerceList(v)
 	var err error
 	res := make([][]*string, len(vSlice))
 	for i := range vSlice {
@@ -30601,10 +30549,6 @@ func (ec *executionContext) unmarshalNUpdateWorkspaceInput2githubᚗcomᚋzeitlo
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNUser2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐUser(ctx context.Context, sel ast.SelectionSet, v model.User) graphql.Marshaler {
-	return ec._User(ctx, sel, &v)
-}
-
 func (ec *executionContext) marshalNUser2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐUser(ctx context.Context, sel ast.SelectionSet, v *model.User) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
@@ -30651,8 +30595,7 @@ func (ec *executionContext) unmarshalNVariableInput2githubᚗcomᚋzeitlosᚋluc
 }
 
 func (ec *executionContext) unmarshalNVariableInput2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐVariableInputᚄ(ctx context.Context, v any) ([]model.VariableInput, error) {
-	var vSlice []any
-	vSlice = graphql.CoerceList(v)
+	vSlice := graphql.CoerceList(v)
 	var err error
 	res := make([]model.VariableInput, len(vSlice))
 	for i := range vSlice {
@@ -30912,8 +30855,7 @@ func (ec *executionContext) marshalN__DirectiveLocation2string(ctx context.Conte
 }
 
 func (ec *executionContext) unmarshalN__DirectiveLocation2ᚕstringᚄ(ctx context.Context, v any) ([]string, error) {
-	var vSlice []any
-	vSlice = graphql.CoerceList(v)
+	vSlice := graphql.CoerceList(v)
 	var err error
 	res := make([]string, len(vSlice))
 	for i := range vSlice {
@@ -31250,8 +31192,7 @@ func (ec *executionContext) unmarshalOString2ᚕstringᚄ(ctx context.Context, v
 	if v == nil {
 		return nil, nil
 	}
-	var vSlice []any
-	vSlice = graphql.CoerceList(v)
+	vSlice := graphql.CoerceList(v)
 	var err error
 	res := make([]string, len(vSlice))
 	for i := range vSlice {
@@ -31286,8 +31227,7 @@ func (ec *executionContext) unmarshalOString2ᚕᚖstring(ctx context.Context, v
 	if v == nil {
 		return nil, nil
 	}
-	var vSlice []any
-	vSlice = graphql.CoerceList(v)
+	vSlice := graphql.CoerceList(v)
 	var err error
 	res := make([]*string, len(vSlice))
 	for i := range vSlice {
@@ -31375,8 +31315,7 @@ func (ec *executionContext) unmarshalOVariableInput2ᚕgithubᚗcomᚋzeitlosᚋ
 	if v == nil {
 		return nil, nil
 	}
-	var vSlice []any
-	vSlice = graphql.CoerceList(v)
+	vSlice := graphql.CoerceList(v)
 	var err error
 	res := make([]model.VariableInput, len(vSlice))
 	for i := range vSlice {

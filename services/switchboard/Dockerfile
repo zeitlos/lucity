@@ -18,11 +18,11 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     cd services/switchboard && \
     GOOS=$TARGETOS GOARCH=$TARGETARCH CGO_ENABLED=0 go build -ldflags="-s -w" -o /out/switchboard ./cmd/switchboard
 
-FROM --platform=$BUILDPLATFORM alpine:3.22 AS tools
+FROM --platform=$BUILDPLATFORM alpine:3.24 AS tools
 
 RUN apk add --no-cache ca-certificates curl git tar
 ARG TARGETARCH
-ARG KUBECTL_VERSION=v1.35.2
+ARG KUBECTL_VERSION=v1.35.9
 ARG KUBERNETES_MCP_VERSION=v0.0.67
 ARG VICTORIALOGS_MCP_VERSION=v1.9.0
 ARG VICTORIAMETRICS_MCP_VERSION=v1.20.2
@@ -38,7 +38,7 @@ RUN git clone --depth 1 https://github.com/zeitlos/lucity.git /lucity && rm -rf 
 FROM --platform=$BUILDPLATFORM node:24-bookworm-slim AS agent
 
 ARG TARGETARCH
-ARG CLAUDE_AGENT_ACP_VERSION=0.84.0
+ARG CLAUDE_AGENT_ACP_VERSION=0.85.0
 RUN NPM_CPU=$([ "$TARGETARCH" = "arm64" ] && echo arm64 || echo x64) && \
     npm install --global --prefix /opt/agent --os=linux --cpu="$NPM_CPU" --libc=glibc \
       @agentclientprotocol/claude-agent-acp@${CLAUDE_AGENT_ACP_VERSION} && \
