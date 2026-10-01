@@ -42,23 +42,14 @@ func (c *Client) Sync(ctx context.Context, workspaces map[string][]Host, routing
 		return nil
 	}
 
-	zone, ok := byName[c.config.ZonePrefix]
+	zone, err := c.ensureZone(ctx, c.config.ZonePrefix, byName[c.config.ZonePrefix])
 
-	if !ok {
-		slog.ErrorContext(ctx, "edge sync: routing zone missing", "zone", c.config.ZonePrefix)
+	if err != nil {
+		slog.WarnContext(ctx, "edge sync: routing zone failed", "zone", c.config.ZonePrefix, "error", err)
 		return nil
 	}
 
-	if _, err := c.ensureZone(ctx, zone.Name, zone); err != nil {
-		slog.WarnContext(ctx, "edge sync: routing zone rules failed", "error", err)
-	}
-
 	for _, host := range routing {
-		if hostnameOn(zone, host.Name) == nil {
-			slog.WarnContext(ctx, "edge sync: routing hostname not registered", "host", host.Name)
-			continue
-		}
-
 		c.syncHostLogged(ctx, zone, host)
 	}
 
