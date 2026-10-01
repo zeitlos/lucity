@@ -174,6 +174,21 @@ deploy-dev:
 		-f deployments/lucity-dev/secrets.yaml \
 		$(HELM_ARGS)
 
+# One release of charts/lucity-agent per agent, configured by deployments/lucity-dev/<agent>-values.yaml
+# Usage: make deploy-dev-agent VERSION=26.9.2 AGENT=ops-agent
+AGENT ?= ops-agent
+
+deploy-dev-agent:
+	@test -f deployments/lucity-dev/$(AGENT)-secrets.yaml || { echo "Error: deployments/lucity-dev/$(AGENT)-secrets.yaml not found. Copy deployments/$(AGENT)-secrets.yaml.example and fill in values."; exit 1; }
+	helm upgrade --install $(AGENT) \
+		oci://ghcr.io/zeitlos/lucity/charts/lucity-agent \
+		$(if $(VERSION),--version $(VERSION)) \
+		--kube-context $(DEV_CONTEXT) \
+		-n lucity-agents --create-namespace \
+		-f deployments/lucity-dev/$(AGENT)-values.yaml \
+		-f deployments/lucity-dev/$(AGENT)-secrets.yaml \
+		$(HELM_ARGS)
+
 # Sync workspace
 sync:
 	go work sync

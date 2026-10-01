@@ -1,0 +1,6 @@
+apiVersion: v2
+name: lucity-agent
+description: One Lucity agent, a chat bridge plus an ACP agent harness, one release per agent
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

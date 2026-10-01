@@ -62,7 +62,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [conductor, builder, cashier, dashboard, docs]
+        service: [conductor, builder, cashier, dashboard, docs, switchboard]
         include:
           - service: conductor
             dockerfile: services/conductor/Dockerfile
@@ -84,6 +84,9 @@ jobs:
           - service: docs
             dockerfile: docs/Dockerfile
             context: docs
+          - service: switchboard
+            dockerfile: services/switchboard/Dockerfile
+            context: .
 
     steps:
       - uses: actions/checkout@v6
@@ -175,7 +178,7 @@ jobs:
     needs: version
     strategy:
       matrix:
-        chart: [lucity, lucity-app, lucity-infra]
+        chart: [lucity, lucity-app, lucity-infra, lucity-agent]
 
     steps:
       - uses: actions/checkout@v6
