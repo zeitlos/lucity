@@ -148,7 +148,7 @@ Map both versions to commits (see the version scheme at the end) and require tha
 target or a newer build that contains it:
 
 ```sh
-ref_of() { case "$1" in *-g[0-9a-f]*) echo "${1##*-g}";; *) echo "v$1";; esac; }
+ref_of() { case "${1}" in *-g[0-9a-f]*) echo "${1##*-g}";; *) echo "v${1}";; esac; }
 TO=$(ref_of "<selected-version>")
 DEV=$(ref_of "<dev-installed-version>")
 
@@ -177,7 +177,9 @@ kubectl --context lucity-dev -n lucity-system get deploy,sts -o json \
       | [.kind, .metadata.name, (.status.readyReplicas // 0), .spec.replicas, .metadata.generation, (.status.observedGeneration // 0)] | @tsv' \
   | column -t                                              # READY == WANT and OBSERVED == GEN on every row
 
-kubectl --context lucity-dev -n lucity-system get pods | awk 'NR == 1 || ($3 != "Running" && $3 != "Completed")'
+kubectl --context lucity-dev -n lucity-system get pods -o json \
+  | jq -r '.items[] | select(.status.phase != "Succeeded") | . as $pod | [.status.containerStatuses[]? | select(.ready | not)]
+      | select(length > 0) | "\($pod.metadata.name)\t\($pod.status.phase)\t\(map(.state.waiting.reason // .state.terminated.reason // "starting") | join(","))"'
 
 kubectl --context lucity-dev get --raw \
   '/api/v1/namespaces/lucity-system/services/lucity-infra-victoria-metrics-alert-alertmanager:9093/proxy/api/v2/alerts?active=true&silenced=false&inhibited=false' \
@@ -187,8 +189,9 @@ kubectl --context lucity-dev get --raw \
 Gate rules:
 
 - The release is `deployed`, and every workload it owns is fully rolled out.
-- No pod in `lucity-system` is Pending, CrashLoopBackOff, or Error. Recent restarts (the
-  `RESTARTS` column shows "(5m ago)") on a platform pod also count against the gate.
+- The pod check prints nothing: every container in `lucity-system` is ready. Also glance at
+  `kubectl get pods` for recent restarts (the `RESTARTS` column shows "(5m ago)"); on a
+  platform pod those count against the gate too.
 - No critical alert is firing on dev. A firing warning is not automatically a blocker, but name
   it in the report and say whether it could relate to this change. If the Alertmanager service
   does not exist, say that alerting is off on dev and rely on the other checks.
@@ -318,7 +321,9 @@ kubectl --context "$CTX" -n lucity-system get deploy,sts -o json \
       | [.kind, .metadata.name, (.status.readyReplicas // 0), .spec.replicas, .metadata.generation, (.status.observedGeneration // 0)] | @tsv' \
   | column -t
 
-kubectl --context "$CTX" -n lucity-system get pods | awk 'NR == 1 || ($3 != "Running" && $3 != "Completed")'
+kubectl --context "$CTX" -n lucity-system get pods -o json \
+  | jq -r '.items[] | select(.status.phase != "Succeeded") | . as $pod | [.status.containerStatuses[]? | select(.ready | not)]
+      | select(length > 0) | "\($pod.metadata.name)\t\($pod.status.phase)\t\(map(.state.waiting.reason // .state.terminated.reason // "starting") | join(","))"'
 ```
 
 The rollout takes a moment after `helm upgrade` returns, so a snapshot right away may show it
@@ -349,3 +354,7 @@ That trailing `-g<sha>` (and the `v<tag>` for clean versions) is what lets you m
 published version back to a commit and diff two of them with plain git. Snapshot builds from a
 branch other than `main` map to commits that may not be ancestors of `main`, which is normal on
 dev and is why Step 2 checks ancestry against dev's commit rather than against `main`.
+
+The skill loader substitutes positional placeholders (a dollar sign followed by a digit) with
+invocation arguments, so the shell and jq snippets here avoid them on purpose. Keep it that way
+when editing: write `${1}` in shell, and use named variables elsewhere.
