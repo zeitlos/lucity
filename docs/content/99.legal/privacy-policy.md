@@ -65,10 +65,10 @@ Our infrastructure services (authentication, container registry, deployment tool
 | **Stripe** | Payment processing | Name, email, billing address, payment method | [stripe.com/privacy](https://stripe.com/privacy) |
 | **Hetzner** | Core infrastructure hosting (EU) | Platform data, workloads, and databases | [hetzner.com/privacy-policy](https://www.hetzner.com/privacy-policy/) |
 | **OVHcloud** | Object storage and database backups (EU) | Files you store in buckets; backups of your databases | [ovhcloud.com/en/personal-data-protection](https://www.ovhcloud.com/en/personal-data-protection/) |
-| **Bunny** | Content delivery for public buckets and custom-domain TLS | Publicly served bucket content; request metadata (IP address, user agent) of visitors to public content | [bunny.net/privacy](https://bunny.net/privacy) |
+| **Bunny** | Edge network for applications and public buckets | Requests to and responses from your applications and public buckets, including visitor request metadata (IP address, user agent) | [bunny.net/privacy](https://bunny.net/privacy) |
 | **Anthropic** | Internal operations and incident investigation | Platform metadata and logs needed for an investigation, such as project names, resource usage, and service logs | [anthropic.com/legal/privacy](https://www.anthropic.com/legal/privacy) |
 
-Stripe may process data outside the EU and maintains EU Standard Contractual Clauses for international transfers. Anthropic processes data in the United States under EU Standard Contractual Clauses and does not use it to train models. Bunny operates a global content-delivery network, so publicly served content and visitor request metadata may be cached at edge locations outside the EU. We do not share data with any other third parties.
+Stripe may process data outside the EU and maintains EU Standard Contractual Clauses for international transfers. Anthropic processes data in the United States under EU Standard Contractual Clauses and does not use it to train models. Bunny operates a global edge network, so requests to applications and public buckets may be processed at edge locations outside the EU, and publicly served bucket content may be cached there. We do not share data with any other third parties.
 
 ### Data Your Applications Process
 

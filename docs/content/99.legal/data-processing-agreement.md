@@ -60,7 +60,7 @@ You provide general authorization for us to engage the sub-processors listed bel
 |---------------|---------|----------|
 | **Hetzner** | Core infrastructure hosting (compute, workloads, databases) | Germany (EU) |
 | **OVHcloud** | Object storage hosting and database backups | France (EU) |
-| **Bunny** | Content delivery for public buckets and custom-domain TLS | EU company; global edge network |
+| **Bunny** | Edge network in front of your applications (TLS termination and proxying of all HTTP and WebSocket traffic) and content delivery for public buckets | EU company; global edge network |
 | **Anthropic** | Internal operations and incident investigation: AI-assisted analysis of platform metadata and logs. Anthropic does not train models on this data | United States, under Standard Contractual Clauses |
 
 We will give you at least 30 days' notice, by email or platform notification, before adding or replacing a sub-processor. If you reasonably object on data-protection grounds, we will work with you in good faith to address the concern, and if we cannot, you may terminate the affected service.
