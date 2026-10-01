@@ -77,7 +77,7 @@ spec:
               mountPath: /workspace/CLAUDE.md
               subPath: CLAUDE.md
             - name: config
-              mountPath: /workspace/.claude/settings.json
+              mountPath: /etc/claude-code/managed-settings.json
               subPath: settings.json
             - name: config
               mountPath: /etc/switchboard/mcp-servers.json
