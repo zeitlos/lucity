@@ -1,4 +1,4 @@
-.PHONY: build proto dev dev-conductor dev-cashier dev-dashboard dev-docs dev-logs dev-stop generate-graphql generate-cli-docs lint minikube dns infra infra-down infra-forward infra-forward-stop db-forward deploy-prod deploy-prod-infra generate-internal-keys
+.PHONY: build proto dev dev-conductor dev-cashier dev-dashboard dev-docs dev-logs dev-stop dev-agent generate-graphql generate-cli-docs lint minikube dns infra infra-down infra-forward infra-forward-stop db-forward deploy-prod deploy-prod-infra generate-internal-keys
 
 # Build all Go services
 build:
@@ -188,6 +188,11 @@ deploy-dev-agent:
 		-f deployments/lucity-dev/$(AGENT)-values.yaml \
 		-f deployments/lucity-dev/$(AGENT)-secrets.yaml \
 		$(HELM_ARGS)
+
+# The same agent from the working tree, run locally in Docker against lucity-dev with a temporary ServiceAccount that carries its RBAC
+# Usage: make dev-agent AGENT=ops-agent
+dev-agent:
+	@AGENT=$(AGENT) DEV_CONTEXT=$(DEV_CONTEXT) bash scripts/dev-agent.sh
 
 # Sync workspace
 sync:
