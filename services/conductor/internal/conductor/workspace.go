@@ -105,6 +105,10 @@ func (c *Client) DeleteWorkspace(ctx context.Context, id string) (bool, error) {
 		return false, err
 	}
 
+	if err := c.edge.DeleteZone(ctx, id); err != nil {
+		slog.WarnContext(ctx, "edge zone delete failed", "workspace", id, "error", err)
+	}
+
 	slog.InfoContext(ctx, "workspace deleted")
 
 	return true, nil

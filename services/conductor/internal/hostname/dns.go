@@ -62,7 +62,11 @@ func (c *Client) DNSStatus(ctx context.Context, workspace, host string) (DNSStat
 			return DNSError, err
 		}
 
-		routingOK = slices.Contains(addrs, c.customApexIP)
+		routingOK, err = c.pointsAtTarget(lookupCtx, addrs)
+
+		if err != nil {
+			return DNSError, err
+		}
 	} else {
 		cname, err := firstAnswer(lookupCtx, routeServers, func(ctx context.Context, resolver *net.Resolver) (string, error) {
 			return resolver.LookupCNAME(ctx, host)
@@ -72,7 +76,7 @@ func (c *Client) DNSStatus(ctx context.Context, workspace, host string) (DNSStat
 			return DNSError, err
 		}
 
-		routingOK = strings.EqualFold(strings.TrimSuffix(cname, "."), c.customCNAMETarget)
+		routingOK = strings.EqualFold(strings.TrimSuffix(cname, "."), c.loadBalancerHostname)
 	}
 
 	if txtOK && routingOK {
@@ -86,6 +90,30 @@ func (c *Client) DNSStatus(ctx context.Context, workspace, host string) (DNSStat
 	return DNSMisconfigured, nil
 }
 
+func (c *Client) pointsAtTarget(ctx context.Context, addrs []string) (bool, error) {
+	if len(addrs) == 0 {
+		return false, nil
+	}
+
+	if slices.Contains(addrs, c.loadBalancerIP) {
+		return true, nil
+	}
+
+	targets, err := c.targetAddresses(ctx)
+
+	if err != nil {
+		return false, err
+	}
+
+	for _, addr := range addrs {
+		if slices.Contains(targets, addr) {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
 func firstAnswer[T any](ctx context.Context, servers []string, lookup func(context.Context, *net.Resolver) (T, error)) (T, error) {
 	var (
 		zero    T
@@ -93,8 +121,17 @@ func firstAnswer[T any](ctx context.Context, servers []string, lookup func(conte
 	)
 
 	for _, server := range servers {
+		resolver := &net.Resolver{
+			PreferGo: true,
+			Dial: func(ctx context.Context, network, _ string) (net.Conn, error) {
+				var dialer net.Dialer
+
+				return dialer.DialContext(ctx, network, server)
+			},
+		}
+
 		attemptCtx, cancel := context.WithTimeout(ctx, dnsAttemptTimeout)
-		answer, err := lookup(attemptCtx, resolverFor(server))
+		answer, err := lookup(attemptCtx, resolver)
 
 		cancel()
 
@@ -106,17 +143,6 @@ func firstAnswer[T any](ctx context.Context, servers []string, lookup func(conte
 	}
 
 	return zero, lastErr
-}
-
-func resolverFor(server string) *net.Resolver {
-	return &net.Resolver{
-		PreferGo: true,
-		Dial: func(ctx context.Context, network, _ string) (net.Conn, error) {
-			var dialer net.Dialer
-
-			return dialer.DialContext(ctx, network, server)
-		},
-	}
 }
 
 func authoritativeServers(ctx context.Context, host string) ([]string, error) {

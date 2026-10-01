@@ -254,8 +254,20 @@ func (c *Client) AddService(ctx context.Context, environmentID platform.Environm
 }
 
 func (c *Client) RemoveService(ctx context.Context, svc platform.ServiceID) (bool, error) {
+	service, err := c.platform.Service(ctx, svc)
+
+	if err != nil {
+		slog.WarnContext(ctx, "remove service: endpoints unavailable, edge hostnames stay registered", "service", svc, "error", err)
+	}
+
 	if err := c.deployer.Services().Delete(ctx, svc); err != nil {
 		return false, fmt.Errorf("delete service: %w", err)
+	}
+
+	if service != nil {
+		for _, endpoint := range service.Endpoints {
+			c.unregisterEdge(ctx, svc.Workspace, endpoint.Host)
+		}
 	}
 
 	return true, nil
@@ -400,6 +412,8 @@ func (c *Client) GenerateDomain(ctx context.Context, serviceID platform.ServiceI
 		return nil, fmt.Errorf("verify platform domain: %w", err)
 	}
 
+	c.registerEdge(ctx, serviceID, hostname)
+
 	return c.Service(ctx, serviceID)
 }
 
@@ -439,6 +453,8 @@ func (c *Client) AddCustomDomain(ctx context.Context, serviceID platform.Service
 		if _, err := c.deployer.Services().AttachDomain(ctx, serviceID, hostname, verified); err != nil {
 			// This will be re-tried by the reconcile loop, therefore we don't surface the error.
 			slog.WarnContext(ctx, "failed to set domain to verified", "error", err, "service", serviceID, "domain", hostname)
+		} else {
+			c.registerEdge(ctx, serviceID, hostname)
 		}
 	}
 
@@ -449,6 +465,8 @@ func (c *Client) RemoveDomain(ctx context.Context, serviceID platform.ServiceID,
 	if _, err := c.deployer.Services().RemoveDomain(ctx, serviceID, hostname); err != nil {
 		return nil, err
 	}
+
+	c.unregisterEdge(ctx, serviceID.Workspace, hostname)
 
 	return c.Service(ctx, serviceID)
 }

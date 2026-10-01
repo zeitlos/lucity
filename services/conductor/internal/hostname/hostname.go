@@ -1,6 +1,7 @@
 package hostname
 
 import (
+	"context"
 	"strings"
 
 	"golang.org/x/net/publicsuffix"
@@ -9,20 +10,22 @@ import (
 )
 
 type Client struct {
-	workloadDomain    string
-	customCNAMETarget string
-	customApexIP      string
-	k8s               kubernetes.Interface
-	dyn               dynamic.Interface
+	workloadDomain       string
+	loadBalancerHostname string
+	loadBalancerIP       string
+	targetAddresses      func(context.Context) ([]string, error)
+	k8s                  kubernetes.Interface
+	dyn                  dynamic.Interface
 }
 
-func New(workloadDomain, customCNAMETarget, customApexIP string, k8s kubernetes.Interface, dyn dynamic.Interface) *Client {
+func New(workloadDomain, loadBalancerHostname, loadBalancerIP string, targetAddresses func(context.Context) ([]string, error), k8s kubernetes.Interface, dyn dynamic.Interface) *Client {
 	return &Client{
-		workloadDomain:    workloadDomain,
-		customCNAMETarget: customCNAMETarget,
-		customApexIP:      customApexIP,
-		k8s:               k8s,
-		dyn:               dyn,
+		workloadDomain:       workloadDomain,
+		loadBalancerHostname: loadBalancerHostname,
+		loadBalancerIP:       loadBalancerIP,
+		targetAddresses:      targetAddresses,
+		k8s:                  k8s,
+		dyn:                  dyn,
 	}
 }
 

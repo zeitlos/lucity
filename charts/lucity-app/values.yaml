@@ -148,7 +148,19 @@ volumes: {}
 # Gateway that this release's HTTPRoutes and ListenerSets attach to.
 # httpsListener pins routes without their own ListenerSet to that listener, so a
 # gateway that redirects plain HTTP keeps them off its HTTP listener.
+# headerMatches (optional): backend rules then only match requests carrying all
+# of these headers, so traffic must pass whatever sets them. Redirect rules stay
+# open. A value is either literal or read at render time from a Secret, which
+# defaults to the gateway namespace. Omit to route every request.
 gateway:
   name: lucity-gateway
   namespace: lucity-system
   httpsListener: ""
+  # headerMatches:
+  #   - name: X-Lucity-Edge
+  #     type: Exact            # or RegularExpression
+  #     valueFrom:
+  #       secretName: lucity-edge
+  #       key: value
+  #   - name: X-Env
+  #     value: staging

@@ -26,7 +26,7 @@ func (c *Client) DNSRecords(workspace, host string, redirect bool) []DNSRecord {
 		records = append(records, DNSRecord{
 			Type:  A,
 			Host:  host,
-			Value: c.customApexIP,
+			Value: c.loadBalancerIP,
 		})
 
 		return records
@@ -36,7 +36,7 @@ func (c *Client) DNSRecords(workspace, host string, redirect bool) []DNSRecord {
 		records = append(records, DNSRecord{
 			Type:  ALIAS,
 			Host:  host,
-			Value: c.customCNAMETarget,
+			Value: c.loadBalancerHostname,
 		})
 
 		return records
@@ -45,7 +45,7 @@ func (c *Client) DNSRecords(workspace, host string, redirect bool) []DNSRecord {
 	records = append(records, DNSRecord{
 		Type:  CNAME,
 		Host:  host,
-		Value: c.customCNAMETarget,
+		Value: c.loadBalancerHostname,
 	})
 
 	return records

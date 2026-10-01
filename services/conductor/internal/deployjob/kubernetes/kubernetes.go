@@ -30,6 +30,7 @@ type Config struct {
 	GatewayHTTPSListener string
 	ClusterIssuer        string
 	Backups              BackupConfig
+	EdgeHeader           bool
 }
 
 type BackupConfig struct {

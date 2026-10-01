@@ -3,6 +3,7 @@ package helm
 import (
 	"github.com/blang/semver/v4"
 	"github.com/zeitlos/lucity/services/conductor/internal/deployer"
+	"github.com/zeitlos/lucity/services/conductor/internal/deployer/values"
 
 	"helm.sh/helm/v3/pkg/chart"
 )
@@ -13,6 +14,7 @@ type Client struct {
 	gatewayName          string
 	gatewayNamespace     string
 	gatewayHTTPSListener string
+	headerMatches        []values.HeaderMatch
 	clusterIssuer        string
 	backups              BackupConfig
 }
@@ -22,6 +24,12 @@ type Option func(*Client)
 func WithHTTPSListener(name string) Option {
 	return func(c *Client) {
 		c.gatewayHTTPSListener = name
+	}
+}
+
+func WithHeaderMatches(matches ...values.HeaderMatch) Option {
+	return func(c *Client) {
+		c.headerMatches = matches
 	}
 }
 
