@@ -1,0 +1,47 @@
+nameOverride: ""
+fullnameOverride: ""
+
+image:
+  repository: ghcr.io/zeitlos/lucity/switchboard
+  tag: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+switchboard:
+  approvalTimeout: 15m
+  timezone: UTC
+  logLevel: info
+
+agent:
+  instructions: ""
+  settings: {}
+  mcpServers: []
+
+secrets: {}
+
+rbac:
+  clusterRoles: []
+  rules: []
+
+networkPolicy:
+  enabled: true
+  dnsSelector:
+    k8s:io.kubernetes.pod.namespace: kube-system
+    k8s-app: kube-dns
+  kubeAPIServer: false
+  endpoints: []
+  fqdns:
+    - api.anthropic.com
+    - api.telegram.org
+
+persistence:
+  size: 10Gi
+  storageClassName: ""
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 768Mi
+  limits:
+    memory: 2Gi
