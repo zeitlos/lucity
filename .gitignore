@@ -20,8 +20,7 @@ dist/
 .env.*.local
 
 # Deployment secrets
-deployments/*/secrets.yaml
-deployments/*/infra-secrets.yaml
+deployments/*/*secrets.yaml
 *.pem
 
 # IDE

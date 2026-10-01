@@ -1,0 +1,95 @@
+{{- $fullname := include "lucity-agent.fullname" . }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullname }}
+  labels:
+    {{- include "lucity-agent.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "lucity-agent.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        checksum/secrets: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+      labels:
+        {{- include "lucity-agent.labels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ $fullname }}
+      {{- if not (or .Values.rbac.clusterRoles .Values.rbac.rules) }}
+      automountServiceAccountToken: false
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: switchboard
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: HOME
+              value: /data/home
+            - name: STATE_PATH
+              value: /data/threads.json
+            - name: AGENT_WORKDIR
+              value: /workspace
+            - name: MCP_SERVERS_PATH
+              value: /etc/switchboard/mcp-servers.json
+            - name: APPROVAL_TIMEOUT
+              value: {{ .Values.switchboard.approvalTimeout | quote }}
+            - name: LOG_LEVEL
+              value: {{ .Values.switchboard.logLevel | quote }}
+            - name: TZ
+              value: {{ .Values.switchboard.timezone | quote }}
+            - name: CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC
+              value: "1"
+          envFrom:
+            - secretRef:
+                name: {{ $fullname }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: tmp
+              mountPath: /tmp
+            - name: workspace
+              mountPath: /workspace
+            - name: config
+              mountPath: /workspace/CLAUDE.md
+              subPath: CLAUDE.md
+            - name: config
+              mountPath: /etc/claude-code/managed-settings.json
+              subPath: settings.json
+            - name: config
+              mountPath: /etc/switchboard/mcp-servers.json
+              subPath: mcp-servers.json
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ $fullname }}-data
+        - name: tmp
+          emptyDir: {}
+        - name: workspace
+          emptyDir: {}
+        - name: config
+          configMap:
+            name: {{ $fullname }}

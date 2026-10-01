@@ -205,6 +205,7 @@ victoria-metrics-single:
       # Affects only OTLP-pushed metrics (host_metrics, kubelet_stats); prometheus-scraped
       # ones (KSM, Cilium) are already Prom-named. Lets us reuse community dashboards.
       "opentelemetry.usePrometheusNaming": "true"
+      "vmalert.proxyURL": "http://lucity-infra-victoria-metrics-alert-server:8880"
     resources:
       requests:
         cpu: 100m
@@ -356,6 +357,7 @@ victoria-metrics-alert:
                 labels: { severity: warning }
                 annotations:
                   summary: "PVC {{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }} >85% full"
+                  redacted: "A tenant volume is more than 85% full"
               - alert: PVCCriticallyFull
                 expr: |-
                   label_replace(label_replace(label_replace(
@@ -370,6 +372,7 @@ victoria-metrics-alert:
                 labels: { severity: critical }
                 annotations:
                   summary: "PVC {{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }} >95% full"
+                  redacted: "A tenant volume is more than 95% full"
               - alert: CertExpiringSoon
                 expr: |-
                   certmanager_certificate_expiration_timestamp_seconds - time() < 14 * 86400
@@ -378,12 +381,14 @@ victoria-metrics-alert:
                 labels: { severity: warning }
                 annotations:
                   summary: "Certificate {{ $labels.namespace }}/{{ $labels.name }} expires in {{ $value | humanizeDuration }} and cert-manager has not renewed it"
+                  redacted: "A tenant certificate expires in {{ $value | humanizeDuration }} and cert-manager has not renewed it"
               - alert: CertificateNotReady
                 expr: certmanager_certificate_ready_status{condition="True"} == 0
                 for: 1h
                 labels: { severity: warning }
                 annotations:
                   summary: "Certificate {{ $labels.namespace }}/{{ $labels.name }} not Ready for >1h"
+                  redacted: "A tenant certificate has not been Ready for more than 1h"
               - alert: ZotDown
                 expr: kube_statefulset_status_replicas_ready{namespace="lucity-system", statefulset=~".*zot.*"} == 0
                 for: 5m
@@ -424,6 +429,7 @@ victoria-metrics-alert:
                 labels: { severity: warning }
                 annotations:
                   summary: "Database volume {{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }} >85% full — check WAL archiving"
+                  redacted: "A tenant database volume is more than 85% full, check WAL archiving"
               - alert: PostgresVolumeCriticallyFull
                 expr: |-
                   label_replace(label_replace(label_replace(
@@ -438,6 +444,7 @@ victoria-metrics-alert:
                 labels: { severity: critical }
                 annotations:
                   summary: "Database volume {{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }} >95% full — primary will go read-only"
+                  redacted: "A tenant database volume is more than 95% full, the primary will go read-only"
           - name: edge-gateway
             rules:
               # Only 5xx the gateway itself generated: downstream 5xx minus the
@@ -511,6 +518,9 @@ victoria-metrics-alert:
                   summary: "Hetzner API requests failing for the {{ $labels.collector }} collector ({{ $value | humanize }} in 10m) — load balancer alerts are blind"
   alertmanager:
     enabled: false
+    podSecurityContext:
+      enabled: true
+      fsGroup: 65534
     extraVolumes:
       - name: telegram-token
         secret:
@@ -525,9 +535,40 @@ victoria-metrics-alert:
         memory: 32Mi
       limits:
         memory: 128Mi
+    templates:
+      lucity.tmpl: |-
+        {{ define "lucity.telegram" -}}
+        <b>{{ .Status | toUpper }}: {{ .CommonLabels.alertname }}</b> ({{ .CommonLabels.severity }})
+        {{ range .Alerts }}
+        {{- if and .Labels.namespace (not (match "^(cert-manager|cilium-secrets|default|external-dns|ingress-nginx|kube-node-lease|kube-public|kube-system|lucity-agents|lucity-builds|lucity-system|otel-system)$" .Labels.namespace)) }}
+        {{ or .Annotations.redacted "A tenant resource is affected" }}
+        • ref: <code>{{ slice .Fingerprint 0 8 }}</code>
+        {{- else }}
+        {{ .Annotations.summary }}
+        {{- with .Labels.namespace }}
+        • namespace: <code>{{ . }}</code>{{ end }}
+        {{- with .Labels.pod }}
+        • pod: <code>{{ . }}</code>{{ end }}
+        {{- with .Labels.container }}
+        • container: <code>{{ . }}</code>{{ end }}
+        {{- with .Labels.node }}
+        • node: <code>{{ . }}</code>{{ end }}
+        {{- with .Labels.persistentvolumeclaim }}
+        • pvc: <code>{{ . }}</code>{{ end }}
+        {{- with .Labels.name }}
+        • name: <code>{{ . }}</code>{{ end }}
+        {{- with .Labels.reason }}
+        • reason: <code>{{ . }}</code>{{ end }}
+        {{- with .Labels.job }}
+        • job: <code>{{ . }}</code>{{ end }}
+        {{- end }}
+        {{ end }}
+        {{- end }}
     config:
       global:
         resolve_timeout: 5m
+      templates:
+        - /config/*.tmpl
       route:
         receiver: telegram
         group_by: [alertname, severity]
@@ -549,29 +590,7 @@ victoria-metrics-alert:
               chat_id: 0
               parse_mode: HTML
               send_resolved: true
-              # Custom message keeps only useful labels — drops OTEL prom-receiver
-              # scrape metadata (scope_*, server_*, service_*, url_scheme, uid).
-              message: |-
-                <b>{{ .Status | toUpper }}: {{ .CommonLabels.alertname }}</b> ({{ .CommonLabels.severity }})
-                {{ range .Alerts }}
-                {{ .Annotations.summary }}
-                {{- with .Labels.namespace }}
-                • namespace: <code>{{ . }}</code>{{ end }}
-                {{- with .Labels.pod }}
-                • pod: <code>{{ . }}</code>{{ end }}
-                {{- with .Labels.container }}
-                • container: <code>{{ . }}</code>{{ end }}
-                {{- with .Labels.node }}
-                • node: <code>{{ . }}</code>{{ end }}
-                {{- with .Labels.persistentvolumeclaim }}
-                • pvc: <code>{{ . }}</code>{{ end }}
-                {{- with .Labels.name }}
-                • name: <code>{{ . }}</code>{{ end }}
-                {{- with .Labels.reason }}
-                • reason: <code>{{ . }}</code>{{ end }}
-                {{- with .Labels.job }}
-                • job: <code>{{ . }}</code>{{ end }}
-                {{ end }}
+              message: '{{ template "lucity.telegram" . }}'
 
 # -- OpenTelemetry Operator (provides OpenTelemetryCollector + Instrumentation CRDs)
 opentelemetry-operator:
@@ -774,8 +793,5 @@ logto:
       cpu: 500m
       memory: 512Mi
   secrets:
-    # M2M app credentials for Management API access (created in Logto admin console)
-    m2mAppId: ""
-    m2mAppSecret: ""
     secretVaultKek: ""    # base64-encoded 32-byte KEK for Secret Vault (token storage)
 

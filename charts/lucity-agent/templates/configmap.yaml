@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "lucity-agent.fullname" . }}
+  labels:
+    {{- include "lucity-agent.labels" . | nindent 4 }}
+data:
+  CLAUDE.md: |
+    {{- .Values.agent.instructions | nindent 4 }}
+  settings.json: |
+    {{- .Values.agent.settings | toPrettyJson | nindent 4 }}
+  mcp-servers.json: |
+    {{- .Values.agent.mcpServers | toPrettyJson | nindent 4 }}
