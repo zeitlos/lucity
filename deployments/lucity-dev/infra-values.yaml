@@ -199,13 +199,27 @@ traefik:
   enabled: false
 
 grafana:
-  enabled: false
+  enabled: true
+  persistence:
+    storageClassName: hcloud-volumes
+  grafana.ini:
+    auth.generic_oauth:
+      client_id: "ve1pxxlssuzg17ad62nnl"
+      auth_url: "https://id.lucity.dev/oidc/auth"
+      token_url: "https://id.lucity.dev/oidc/token"
+      api_url: "https://id.lucity.dev/oidc/me"
 
 hcloud-exporter:
   enabled: false
 
 victoria-metrics-alert:
-  enabled: false
+  enabled: true
+  alertmanager:
+    enabled: true
+    persistentVolume:
+      enabled: true
+      size: 10Gi
+      storageClassName: hcloud-volumes
 
 logto:
   enabled: true
