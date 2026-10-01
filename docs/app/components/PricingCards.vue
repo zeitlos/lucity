@@ -28,7 +28,8 @@ const hobby = {
   ],
   button: {
     label: 'Get Started',
-    to: 'https://lucity.cloud/app/login',
+    to: '/app/login',
+    external: true,
     color: 'neutral' as const,
   },
   ui: hobbyUi,
@@ -49,7 +50,8 @@ const pro = {
   ],
   button: {
     label: 'Get Started',
-    to: 'https://lucity.cloud/app/login',
+    to: '/app/login',
+    external: true,
   },
   ui: proUi,
 };

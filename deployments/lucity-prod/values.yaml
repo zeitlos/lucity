@@ -4,6 +4,7 @@ registryPull:
 
 routes:
   enabled: true
+  sectionName: platform-https
 
 conductor:
   registryHost: lucity-infra-zot.lucity-system.svc.cluster.local:5000
@@ -23,7 +24,6 @@ conductor:
     GITHUB_PRIVATE_KEY_PATH: /secrets/github/github-app.pem
     GITHUB_APP_SLUG: lucity-platform
     GITHUB_CLIENT_ID: Iv23liMzm79VIgvNtglX
-    GITHUB_OAUTH_CALLBACK_URL: https://lucity.cloud/auth/github/callback
 
     LOGTO_ENDPOINT: http://lucity-infra-logto.lucity-system.svc.cluster.local:3001
 
@@ -40,6 +40,7 @@ conductor:
     WORKLOAD_DOMAIN: lucity.app
     DATABASE_DOMAIN: db.lucity.app
     IP_ADDRESS: "46.225.47.40"
+    GATEWAY_HTTPS_LISTENER: workload-https
 
     VICTORIA_METRICS_URL: http://lucity-infra-victoria-metrics-single-server.lucity-system.svc.cluster.local:8428
 

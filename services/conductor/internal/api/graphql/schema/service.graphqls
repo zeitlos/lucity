@@ -19,7 +19,7 @@ type Service
   command: String!
   defaultCommand: String! @goField(forceResolver: true)
   healthCheck: HealthCheck
-  """Run-as user id for image-based services. Also owns the service's mounted volumes. Null means the image default."""
+  """The user id an image-based service runs as, which also owns its mounted volumes. Null means the image's default."""
   user: Int
 
   activeDeployment: Deployment
@@ -140,7 +140,7 @@ input AddServiceInput {
   image: String
   variables: [VariableInput!]
   resources: ResourcesInput
-  """Run-as user id for image-based services. Also owns the service's mounted volumes."""
+  """The user id an image-based service runs as, which also owns its mounted volumes."""
   user: Int @constraint(constraint: "min=0,max=65535")
 }
 
@@ -173,26 +173,43 @@ input AutoscalingInput {
 }
 
 extend type Query {
+  """One service, with its configuration, endpoints and releases."""
   service(id: ServiceID!): Service! @hasRole(role: WORKSPACE_DEPLOYER)
+  """Inspects the default branch of a repository, given as a URL such as `https://github.com/acme/api`, and suggests a service for it with the detected language, framework and start command. The Lucity GitHub App needs access to the repository."""
   detectServices(repositoryUrl: String!): [DetectedService!]! @hasRole(role: WORKSPACE_MEMBER)
+  """The branches of a repository, given as a URL such as `https://github.com/acme/api`. The Lucity GitHub App needs access to the repository."""
   repositoryBranches(repositoryUrl: String!): [String!]! @hasRole(role: WORKSPACE_MEMBER)
 }
 
 extend type Mutation {
+  """Adds a service to an environment, either built from a GitHub `repository` such as `acme/api` or run from a container `image`. A repository build starts right away, and an image runs without one."""
   addService(environment: EnvironmentID!, input: AddServiceInput!): Service! @hasRole(role: WORKSPACE_MEMBER)
+  """Removes a service from its environment."""
   removeService(service: ServiceID!): Boolean! @hasRole(role: WORKSPACE_MEMBER)
+  """Sets the command a service starts with, run through a shell. An empty string goes back to the image's default."""
   setCustomStartCommand(service: ServiceID!, command: String!): Service! @hasRole(role: WORKSPACE_MEMBER)
+  """Sets the branch a service builds from, starting with its next deploy. Leave it out to follow the repository's default branch."""
   setServiceBranch(service: ServiceID!, branch: String @constraint(constraint: "min=1,max=250")): Service! @hasRole(role: WORKSPACE_MEMBER)
+  """Turns deploying on every push to the tracked branch on or off."""
   setAutoDeploy(service: ServiceID!, enabled: Boolean!): Service! @hasRole(role: WORKSPACE_MEMBER)
+  """Turns keyless deploys from GitHub Actions workflows in the service's repository on or off."""
   setCIDeploy(service: ServiceID!, enabled: Boolean!): Service! @hasRole(role: WORKSPACE_MEMBER)
+  """Sets the port a service listens on. Leave it out for a service that doesn't listen on one, and its domains stop routing to it."""
   setServicePort(service: ServiceID!, port: Int @constraint(constraint: "min=1,max=65535")): Service! @hasRole(role: WORKSPACE_MEMBER)
+  """Sets an HTTP health check on a path. Leave it out to go back to checking that the port accepts connections."""
   setServiceHealthCheck(service: ServiceID!, healthCheck: HealthCheckInput): Service! @hasRole(role: WORKSPACE_MEMBER)
+  """Runs a fixed number of `replicas`, or with `autoscaling` enabled, scales between a minimum and a maximum to hold CPU at the target percentage. A service with a mounted volume runs a single instance."""
   setServiceScaling(input: SetServiceScalingInput!): Service! @hasRole(role: WORKSPACE_MEMBER)
+  """Sets the CPU (250m to 4) and memory (256Mi to 16Gi) of a service. The service rolls out again on the image it is already running."""
   setServiceResources(service: ServiceID!, resources: ResourcesInput!): Service! @hasRole(role: WORKSPACE_MEMBER)
-  """Set the run-as user id for an image-based service. The same id becomes the run-as group and the owner of mounted volumes. Null clears it, reverting to the image default. Rejected for source-built services."""
+  """Sets the user id an image-based service runs as, which also becomes its group and the owner of its mounted volumes. Leave it out to go back to the image's default. Services built from source can't set it."""
   setServiceUser(service: ServiceID!, user: Int @constraint(constraint: "min=0,max=65535")): Service! @hasRole(role: WORKSPACE_MEMBER)
+  """Rolls a service back to the image of an earlier deployment, without a build. Variables and other settings stay as they are now."""
   rollback(deployment: DeploymentID!): Boolean! @hasRole(role: WORKSPACE_MEMBER)
+  """Adds a platform domain to a service, certificate included. Each call adds another one."""
   generateDomain(service: ServiceID!): Service! @hasRole(role: WORKSPACE_MEMBER)
+  """Adds a domain you own to a service, served once its DNS records check out. With `redirectTo`, the domain permanently redirects to another domain of the same service."""
   addCustomDomain(service: ServiceID!, hostname: String! @constraint(constraint: "min=4,max=253"), redirectTo: String @constraint(constraint: "min=4,max=253")): Service! @hasRole(role: WORKSPACE_MEMBER)
+  """Removes a platform or custom domain from a service. A domain that another domain redirects to can't be removed."""
   removeDomain(service: ServiceID!, hostname: String!): Service! @hasRole(role: WORKSPACE_MEMBER)
 }

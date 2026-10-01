@@ -6,5 +6,6 @@ type EjectArtifact {
 }
 
 extend type Query {
+  """Exports a project as a zip archive, base64-encoded, holding a Helm chart, a values file for each environment and install instructions. The project keeps running. The values include variables and passwords, so treat the archive as a secret."""
   ejectProject(id: ProjectID!): EjectArtifact! @hasRole(role: WORKSPACE_MEMBER)
 }

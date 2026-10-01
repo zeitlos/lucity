@@ -87,6 +87,10 @@ func Validate(env *Env) error {
 		return err
 	}
 
+	if err := validateVerticalPodAutoscaler(env.VerticalPodAutoscaler); err != nil {
+		return err
+	}
+
 	for name, vk := range env.Databases.Valkey {
 		if !isValidName(name) {
 			return fmt.Errorf("invalid key-value store name %q", name)
@@ -286,6 +290,22 @@ func validateBackupStore(store BackupStore) error {
 
 	if !strings.HasPrefix(store.DestinationPath, "s3://") {
 		return fmt.Errorf("invalid backup destination %q", store.DestinationPath)
+	}
+
+	return nil
+}
+
+func validateVerticalPodAutoscaler(verticalPodAutoscaler VerticalPodAutoscaler) error {
+	updateMode := verticalPodAutoscaler.UpdatePolicy.UpdateMode
+
+	switch updateMode {
+	case "", UpdateModeOff, UpdateModeInitial, UpdateModeInPlaceOrRecreate:
+	default:
+		return fmt.Errorf("invalid vertical pod autoscaler update mode %q", updateMode)
+	}
+
+	if verticalPodAutoscaler.Enabled && updateMode == "" {
+		return fmt.Errorf("vertical pod autoscaler enabled without an update mode")
 	}
 
 	return nil

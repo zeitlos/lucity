@@ -30,6 +30,10 @@ gateway:
     - name: http
       protocol: HTTP
       port: 80
+      # true redirects every request on this listener to HTTPS. Backend routes for
+      # its hostnames must then attach to the matching HTTPS listener by sectionName,
+      # or their more specific match keeps serving HTTP.
+      httpsRedirect: false
 
 # -- cert-manager ClusterIssuer resources
 clusterIssuers: []
@@ -110,6 +114,7 @@ rybbit:
   hostname: ""
   route:
     annotations: {}
+    sectionName: ""
 
   backend:
     image:
@@ -284,7 +289,11 @@ victoria-metrics-alert:
               - alert: ClusterRequestsHigh
                 expr: |-
                   sum by (resource) (
-                    kube_pod_container_resource_requests{resource=~"cpu|memory"}
+                    (
+                      kube_pod_container_resource_requests{resource=~"cpu|memory"}
+                      or kube_pod_init_container_resource_requests{resource=~"cpu|memory"}
+                        * on (namespace, pod, container) group_left() kube_pod_init_container_info{restart_policy="Always"}
+                    )
                     * on (namespace, pod) group_left() max by (namespace, pod) (kube_pod_status_phase{phase=~"Pending|Running"} == 1)
                   )
                   / on (resource) sum by (resource) (kube_node_status_allocatable{resource=~"cpu|memory"})
@@ -296,7 +305,11 @@ victoria-metrics-alert:
               - alert: ClusterRequestsCritical
                 expr: |-
                   sum by (resource) (
-                    kube_pod_container_resource_requests{resource=~"cpu|memory"}
+                    (
+                      kube_pod_container_resource_requests{resource=~"cpu|memory"}
+                      or kube_pod_init_container_resource_requests{resource=~"cpu|memory"}
+                        * on (namespace, pod, container) group_left() kube_pod_init_container_info{restart_policy="Always"}
+                    )
                     * on (namespace, pod) group_left() max by (namespace, pod) (kube_pod_status_phase{phase=~"Pending|Running"} == 1)
                   )
                   / on (resource) sum by (resource) (kube_node_status_allocatable{resource=~"cpu|memory"})
@@ -358,11 +371,13 @@ victoria-metrics-alert:
                 annotations:
                   summary: "PVC {{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }} >95% full"
               - alert: CertExpiringSoon
-                expr: certmanager_certificate_expiration_timestamp_seconds - time() < 14 * 86400
+                expr: |-
+                  certmanager_certificate_expiration_timestamp_seconds - time() < 14 * 86400
+                    and on (namespace, name) certmanager_certificate_renewal_timestamp_seconds < time()
                 for: 1h
                 labels: { severity: warning }
                 annotations:
-                  summary: "Certificate {{ $labels.namespace }}/{{ $labels.name }} expires in <14d"
+                  summary: "Certificate {{ $labels.namespace }}/{{ $labels.name }} expires in {{ $value | humanizeDuration }} and cert-manager has not renewed it"
               - alert: CertificateNotReady
                 expr: certmanager_certificate_ready_status{condition="True"} == 0
                 for: 1h
@@ -375,6 +390,12 @@ victoria-metrics-alert:
                 labels: { severity: critical }
                 annotations:
                   summary: "Zot registry is down"
+              - alert: VPAComponentDown
+                expr: kube_deployment_status_replicas_available{namespace="lucity-system", deployment=~"vpa-(admission-controller|recommender|updater)"} == 0
+                for: 10m
+                labels: { severity: warning }
+                annotations:
+                  summary: "VPA {{ $labels.deployment }} has no available replicas"
               - alert: VictoriaMetricsHighCardinality
                 expr: vm_cache_entries{type="storage/hour_metric_ids"} > 500000
                 for: 1h
@@ -597,6 +618,58 @@ hcloud-exporter:
     limits:
       memory: 128Mi
 
+# -- Vertical Pod Autoscaler, sizes tenant pod requests from observed usage
+vertical-pod-autoscaler:
+  enabled: true
+  fullnameOverride: vpa
+  recommender:
+    replicas: 1
+    logLevel: 2
+    podDisruptionBudget:
+      enabled: false
+    extraArgs:
+      - --pod-recommendation-min-memory-mb=32
+      - --round-memory-bytes=16777216
+      - --round-cpu-millicores=5
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        memory: 512Mi
+  updater:
+    replicas: 1
+    logLevel: 2
+    podDisruptionBudget:
+      enabled: false
+    extraArgs:
+      - --in-place-skip-disruption-budget=true
+    resources:
+      requests:
+        cpu: 25m
+        memory: 64Mi
+      limits:
+        memory: 256Mi
+  admissionController:
+    logLevel: 2
+    certGen:
+      enabled: false
+    certManager:
+      enabled: true
+      createSelfSignedIssuer:
+        enabled: true
+    mutatingWebhookConfiguration:
+      namespaceSelector:
+        matchExpressions:
+          - key: lucity.dev/environment
+            operator: Exists
+    resources:
+      requests:
+        cpu: 25m
+        memory: 64Mi
+      limits:
+        memory: 256Mi
+
 # -- Grafana — UI for VictoriaMetrics + VictoriaLogs
 grafana:
   enabled: false
@@ -684,6 +757,7 @@ logto:
   endpoint: ""              # public URL, e.g. https://id.lucity.cloud
   route:
     annotations: {}
+    sectionName: ""
   postgres:
     instances: 1
     size: 1Gi

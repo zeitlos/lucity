@@ -3,10 +3,10 @@ const columns = [
   {
     title: 'Docs',
     links: [
-      { label: 'Getting started', to: '/getting-started/concepts' },
-      { label: 'Features', to: '/features/builds' },
-      { label: 'Architecture', to: '/architecture/how-it-works' },
-      { label: 'Security', to: '/security/overview' },
+      { label: 'Quickstart', to: '/docs/quickstart' },
+      { label: 'Framework guides', to: '/docs/guides' },
+      { label: 'Deployments', to: '/docs/deployments' },
+      { label: 'CLI', to: '/docs/cli' },
     ],
   },
   {

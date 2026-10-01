@@ -12,7 +12,7 @@ import (
 func (s *server) registerDeploy(m *mcp.Server) {
 	mcp.AddTool(m, &mcp.Tool{
 		Name:        "deploy",
-		Description: "Build and roll out a service, creating a new release. git_ref optionally pins the branch, tag, or commit to build. Deploys are asynchronous: poll get_deploy_status.",
+		Description: "Build and roll out a repository service, creating a new release. add_service already starts the first build, so call this for later source or RAILPACK_* changes; an image service has nothing to build. git_ref optionally pins the branch, tag, or commit to build. Deploys are asynchronous: poll get_deploy_status.",
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: ptr(false)},
 	}, s.deploy)
 
@@ -24,7 +24,7 @@ func (s *server) registerDeploy(m *mcp.Server) {
 
 	mcp.AddTool(m, &mcp.Tool{
 		Name:        "get_logs",
-		Description: "Fetch logs for a build, deploy, security scan, or a running service. kind=runtime streams live service logs and never completes, so it is sampled for a few seconds. Use the build/deploy/scan id from get_deploy_status, or the service id for runtime.",
+		Description: "Fetch logs for a build, deploy, security scan, or a running service. kind=runtime streams live service logs and never completes, so it is sampled for a few seconds; variable values and credentials in runtime logs are replaced with [redacted:<source>]. Use the build/deploy/scan id from get_deploy_status, or the service id for runtime.",
 		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, DestructiveHint: ptr(false)},
 	}, s.getLogs)
 

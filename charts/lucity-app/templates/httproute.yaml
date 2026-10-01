@@ -23,9 +23,13 @@ spec:
     - group: gateway.networking.k8s.io
       kind: ListenerSet
       name: {{ $domain.host | quote }}
+      sectionName: https
     {{- else }}
     - name: {{ $.Values.gateway.name }}
       namespace: {{ $.Values.gateway.namespace }}
+      {{- with $.Values.gateway.httpsListener }}
+      sectionName: {{ . }}
+      {{- end }}
     {{- end }}
   {{- end }}
   hostnames:

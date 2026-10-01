@@ -66,6 +66,9 @@ spec:
               mountPath: /var/cache/nginx
             - name: nginx-run
               mountPath: /var/run
+            - name: banner
+              mountPath: /usr/share/nginx/banner
+              readOnly: true
           resources:
             {{- toYaml .Values.docs.resources | nindent 12 }}
       volumes:
@@ -73,3 +76,6 @@ spec:
           emptyDir: {}
         - name: nginx-run
           emptyDir: {}
+        - name: banner
+          configMap:
+            name: {{ include "lucity.fullname" . }}-banner

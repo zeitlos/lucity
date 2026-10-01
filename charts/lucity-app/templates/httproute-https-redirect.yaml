@@ -1,0 +1,41 @@
+{{- range $name, $svc := .Values.services }}
+{{- if and $svc.image (or $svc.image.tag $svc.image.digest) $svc.port (not $.Values.suspended) }}
+{{- range $domain := $svc.domains }}
+{{- if and $domain.attached $domain.listenerSet $domain.listenerSet.enabled }}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ include "lucity-app.fullname" $ }}-{{ $name }}-{{ $domain.host | sha1sum | trunc 5 }}-http
+  labels:
+    {{- include "lucity-app.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $name }}
+    lucity.dev/https-redirect: "true"
+    {{- with $.Values.commonLabels }}{{- toYaml . | nindent 4 }}{{- end }}
+    {{- with $svc.labels }}{{- toYaml . | nindent 4 }}{{- end }}
+  {{- if or $.Values.commonAnnotations $svc.annotations }}
+  annotations:
+    {{- with $.Values.commonAnnotations }}{{- toYaml . | nindent 4 }}{{- end }}
+    {{- with $svc.annotations }}{{- toYaml . | nindent 4 }}{{- end }}
+  {{- end }}
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: ListenerSet
+      name: {{ $domain.host | quote }}
+      sectionName: http
+  hostnames:
+    - {{ $domain.host | quote }}
+  rules:
+    - filters:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
+            {{- with $domain.redirectTo }}
+            hostname: {{ . | quote }}
+            {{- end }}
+            statusCode: 308
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

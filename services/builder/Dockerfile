@@ -1,20 +1,23 @@
 ARG GO_VERSION=1.26
 
-FROM golang:${GO_VERSION}-alpine AS builder
-
-ARG VERSION=dev
+FROM --platform=$BUILDPLATFORM golang:${GO_VERSION}-alpine AS builder
 
 WORKDIR /workspace
 ENV GOWORK=off
 
 COPY pkg/go.mod pkg/go.sum pkg/
 COPY services/builder/go.mod services/builder/go.sum services/builder/
-RUN cd services/builder && go mod download
+RUN --mount=type=cache,target=/go/pkg/mod \
+    cd services/builder && go mod download
 
 COPY pkg/ pkg/
 COPY services/builder/ services/builder/
-RUN cd services/builder && \
-    CGO_ENABLED=0 go build -ldflags="-s -w -X main.Version=${VERSION}" -o /app ./cmd/builder/...
+ARG VERSION=dev
+ARG TARGETOS TARGETARCH
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    cd services/builder && \
+    GOOS=$TARGETOS GOARCH=$TARGETARCH CGO_ENABLED=0 go build -ldflags="-s -w -X main.Version=${VERSION}" -o /app ./cmd/builder/...
 
 # debian-slim (not distroless) because the build runner shells out
 # to git for cloning user source repos and the BuildKit client embeds

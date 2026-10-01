@@ -45,24 +45,35 @@ copying secret values into literals:
 1. `list_variables` to see the generated credential variable names.
 2. `set_variables` to bind the app's expected key (e.g. `DATABASE_URL`, `REDIS_URL`, `S3_ENDPOINT`) as a **ref** to the generated variable.
 
-A ref stays correct across rotations and never leaks a literal secret into your config or logs. Any
-secret you find committed in the repo goes into `set_variables` too — and you tell the user what you
-found and where.
+A ref stays correct across rotations and never leaks a literal secret into your config or logs.
+Secrets that no platform resource provides take one of two routes, and neither passes a value through
+you:
+
+- **App-owned** (`SECRET_KEY_BASE`, `AUTH_SECRET`, a JWT secret): `set_variables` with `generate`
+  stores a random value you never see. A key that already has a value keeps it.
+- **Everything else** (third-party API keys, `RAILS_MASTER_KEY`, anything that must match a value
+  elsewhere): the user adds it in the dashboard, in the service's **Variables** tab. That holds even
+  when the value sits in a committed or local file, so never copy it into `set_variables`.
+
+`list_variables` returns keys and refs, never values. To confirm what a variable holds, pass the value
+you expect to `check_variables`. It answers match, mismatch, missing, or ref.
 
 ## Build vs. runtime variables
 
 Variables reach the app at runtime. `RAILPACK_*` variables additionally reach the **Railpack build** as
 environment variables, so build-time pins (`RAILPACK_NODE_VERSION`, `RAILPACK_BUILD_CMD`, ...) must be
-present before the first build. Pass them in the initial `add_service` variables. Changing a build-time
-variable requires a fresh `deploy` (rebuild); changing a pure runtime variable takes effect on the next
-rollout.
+present before the first build, which `add_service` starts as soon as it creates a repository service.
+Pass them in its initial variables. Changing a build-time variable requires a fresh `deploy` (rebuild);
+changing a pure runtime variable takes effect on the next rollout.
 
 ## Public database access (SNI + TLS)
 
-`get_credentials` with `expose_publicly` mints a temporary public endpoint for a database (useful for
-importing a bulk dump with a local `psql`). The endpoint requires:
+`lucity db expose <db>` gives a database a temporary public hostname (useful for importing a bulk dump
+with a local `psql`/`pg_restore`), `lucity db credentials <db>` lists its connection details as the
+`PLATFORM` entry, and `lucity db unexpose <db>` removes it again. The user runs these in their own
+terminal so the credentials never reach you. The endpoint requires:
 
-- `sslmode=require` (TLS is mandatory).
+- `sslmode=require` (TLS is mandatory). The `PLATFORM` entry's `uri` already carries it.
 - An SNI-capable client — libpq ≥ 14. Older clients that do not send SNI get an "SSL EOF detected" style error because routing is by SNI.
 
 Use it for one-off imports, then rely on in-cluster refs for the running app.
@@ -74,7 +85,7 @@ Use it for one-off imports, then rely on in-cluster refs for the running app.
 | Reason | Meaning | Remedy |
 | :-- | :-- | :-- |
 | `OOM_KILLED` | Container exceeded its memory limit. | Double memory via `configure_service` (up to the per-service ceiling), re-check. No rebuild. |
-| `CRASH_LOOP` | Container starts then exits repeatedly. | `get_logs kind=runtime`: wrong start command, `PORT` not honored, or missing env var. Fix + redeploy. |
+| `CRASH_LOOP` | Container starts then exits repeatedly. | `get_logs kind=runtime`: wrong start command, `PORT` not honored, or missing env var. Fix via `configure_service` or `set_variables`, re-check. No rebuild. |
 | `IMAGE_PULL_FAILED` | The image ref cannot be pulled. | Fix the image reference (prebuilt-image deploys) or rebuild. |
 | `CONFIG_ERROR` | Invalid configuration applied during rollout. | Read the message; correct the offending variable/setting. |
 | `QUOTA_EXCEEDED` | Workspace resource quota hit. | User raises the quota in the dashboard; you cannot. |

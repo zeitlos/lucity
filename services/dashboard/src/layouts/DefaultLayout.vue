@@ -56,7 +56,7 @@ async function handleLogout() {
 </script>
 
 <template>
-  <div class="relative z-1 flex min-h-screen flex-col">
+  <div class="relative z-1 flex min-h-[calc(100vh-var(--banner-height))] flex-col">
     <SuspensionBanner v-if="suspended" />
 
     <div class="relative z-1 flex flex-1 flex-col overflow-hidden p-3 pb-0">

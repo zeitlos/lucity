@@ -2,7 +2,12 @@ package mcpserver
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
+	"maps"
+	"slices"
+	"strings"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -12,7 +17,7 @@ const serviceSummaryFields = `id name status replicas { desired ready } port com
 func (s *server) registerService(m *mcp.Server) {
 	mcp.AddTool(m, &mcp.Tool{
 		Name:        "add_service",
-		Description: "Add a service to an environment. repository = owner/repo or a full https URL for source builds (mutually exclusive with image, which deploys a prebuilt image). variables set initial env vars; build-time pins like RAILPACK_PYTHON_VERSION belong here so the first build already sees them. cpu and memory (Kubernetes quantities, e.g. '500m'/'512Mi') size the service at creation; pass both or omit both for platform defaults. user is the run-as user id for an image-based service (999 for mysql/postgres/redis, 1000 for node-based images like ghost): it makes stock images whose entrypoint would otherwise chown a data dir as root start cleanly under the hardened default, and the same id owns mounted volumes.",
+		Description: "Add a service to an environment. repository = owner/repo or a full https URL for source builds (mutually exclusive with image, which deploys a prebuilt image). The service starts on its own: a repository service's first build begins immediately and an image rolls out immediately, so do not call deploy afterwards. variables set initial env vars; build-time pins like RAILPACK_PYTHON_VERSION must be passed here because the first build starts before any later set_variables call. cpu and memory (Kubernetes quantities, e.g. '500m'/'512Mi') size the service at creation; pass both or omit both for platform defaults. user is the run-as user id for an image-based service (999 for mysql/postgres/redis, 1000 for node-based images like ghost): it makes stock images whose entrypoint would otherwise chown a data dir as root start cleanly under the hardened default, and the same id owns mounted volumes.",
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: ptr(false)},
 	}, s.addService)
 
@@ -24,15 +29,21 @@ func (s *server) registerService(m *mcp.Server) {
 
 	mcp.AddTool(m, &mcp.Tool{
 		Name:        "set_variables",
-		Description: "Set environment variables for a service or shared across an environment (exactly one of service/environment). set entries apply by key; unset removes keys; other keys are preserved. A service variable is either a literal value or a ref to a resource variable (from list_variables' available list, e.g. workspace/proj/env/maindb-app/DATABASE_URL wires a database's DATABASE_URL into the service). Shared (environment) variables are literal values only.",
+		Description: "Set environment variables for a service or shared across an environment (exactly one of service/environment). set entries apply by key; unset removes keys; other keys are preserved. Each entry is exactly one of: a literal value; a ref to a resource variable from list_variables' available list (service scope only, e.g. workspace/proj/env/lucity-app-pg-maindb-app/fqdn-uri wires a database's connection URI into the service); or generate, which stores a random secret you never see (for app-owned secrets like SECRET_KEY_BASE or a JWT secret; a key that already has a value keeps it). Values are never echoed back: the result lists keys and kinds only.",
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: ptr(false)},
 	}, s.setVariables)
 
 	mcp.AddTool(m, &mcp.Tool{
 		Name:        "list_variables",
-		Description: "List a service's environment variables (literal values or refs) plus the variables available to reference in that environment (database/kv-store/bucket/shared sources).",
+		Description: "List a service's environment variables as keys, each a literal or a ref (with its ref id), plus the variables available to reference in that environment (database/kv-store/bucket/shared sources). Values are never returned; confirm one with check_variables. HOST and PORT are injected by the platform for services with a port and are not listed.",
 		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, DestructiveHint: ptr(false)},
 	}, s.listVariables)
+
+	mcp.AddTool(m, &mcp.Tool{
+		Name:        "check_variables",
+		Description: "Check whether variables hold the values you expect without revealing them, e.g. that DEBUG is \"true\". Exactly one of service/environment (shared variables). Each check is an exact, case-sensitive comparison returning match, mismatch, missing (key not set), or ref (the key references a resource or shared variable: its ref id is returned and it is not compared, so check a shared variable with environment scope). A mismatch carries detail empty when the stored value is empty, or whitespace when the two differ only in surrounding whitespace. Each key may appear once per call. HOST and PORT are injected by the platform and are not variables.",
+		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, DestructiveHint: ptr(false)},
+	}, s.checkVariables)
 }
 
 type variableEntry struct {
@@ -95,20 +106,61 @@ func (s *server) addService(ctx context.Context, _ *mcp.CallToolRequest, input a
 		serviceInput["user"] = *input.User
 	}
 
-	mutation := `mutation($environment: EnvironmentID!, $input: AddServiceInput!) {
-  addService(environment: $environment, input: $input) { ` + serviceSummaryFields + ` }
+	const mutation = `mutation($environment: EnvironmentID!, $input: AddServiceInput!) {
+  addService(environment: $environment, input: $input) { id }
 }`
 
 	var out struct {
-		AddService any `json:"addService"`
+		AddService struct {
+			ID string `json:"id"`
+		} `json:"addService"`
 	}
 	if err := s.query(ctx, "add_service", mutation, map[string]any{"environment": environmentID, "input": serviceInput}, &out); err != nil {
 		return nil, nil, err
 	}
-	return jsonResult(map[string]any{
-		"service": out.AddService,
-		"note":    "service created but not deployed yet. 'status: FAILED' and a zero port are EXPECTED here (no successful deploy yet, NOT an error). Call deploy once to build and roll it out — the first deploy always builds; after that, config changes (set_variables, configure_service) roll out automatically with no rebuild. Poll get_deploy_status after deploy.",
-	})
+	serviceID := out.AddService.ID
+
+	service, release, err := s.createdService(ctx, serviceID)
+	if err != nil {
+		return jsonResult(map[string]any{
+			"serviceId": serviceID,
+			"note":      "service created and starting on its own (a repository service's first build is already running), so do NOT call deploy now. Poll get_deploy_status for this service.",
+		})
+	}
+	result := map[string]any{"service": service}
+
+	switch {
+	case input.Image != "":
+		result["note"] = "image service created and rolling out now, no build involved. Poll get_deploy_status to watch it become ready. A port of 0 means the image exposes none, so set one with configure_service if the service takes traffic. deploy does not apply to image services (it builds from a repository); config changes roll the image out again on their own."
+	case release == nil:
+		result["note"] = "service created, but its first build did not start. Call deploy once to build and roll it out, then poll get_deploy_status with the release_id it returns."
+	default:
+		build, _ := release["build"].(map[string]any)
+		result["releaseId"] = release["id"]
+		result["buildId"] = build["id"]
+		result["buildStatus"] = build["status"]
+		result["note"] = fmt.Sprintf("the first build started with this call and rolls out when it finishes, so do NOT call deploy now (that builds a second time). Poll get_deploy_status with service=%q release_id=%q, because config changes made meanwhile create newer releases that hide this build. Only the variables passed here reach this build, so a RAILPACK_* variable set later needs a deploy. A config change can fail with 'another operation ... is in progress' while this rollout runs; retry it after a few seconds.", serviceID, release["id"])
+	}
+	return jsonResult(result)
+}
+
+func (s *server) createdService(ctx context.Context, serviceID string) (map[string]any, map[string]any, error) {
+	query := `query($id: ServiceID!) { service(id: $id) { ` + serviceSummaryFields + ` releases { id createdAt build { id status } } } }`
+	var out struct {
+		Service map[string]any `json:"service"`
+	}
+	if err := s.query(ctx, "add_service (read service)", query, map[string]any{"id": serviceID}, &out); err != nil {
+		return nil, nil, err
+	}
+	releases, _ := out.Service["releases"].([]any)
+	delete(out.Service, "releases")
+	var built []map[string]any
+	for _, entry := range releases {
+		if release, _ := entry.(map[string]any); release["build"] != nil {
+			built = append(built, release)
+		}
+	}
+	return out.Service, pickRelease(built, ""), nil
 }
 
 type configureServiceInput struct {
@@ -220,10 +272,89 @@ func (s *server) serviceSummary(ctx context.Context, serviceID string) (any, err
 	return out.Service, nil
 }
 
+const (
+	minimumGeneratedLength = 16
+	maximumGeneratedLength = 256
+)
+
+type variable struct {
+	Key   string  `json:"key"`
+	Value *string `json:"value"`
+	Ref   *string `json:"ref"`
+}
+
+func (v variable) literal() string {
+	if v.Value == nil {
+		return ""
+	}
+	return *v.Value
+}
+
+func (v variable) view() variableView {
+	if v.Ref != nil {
+		return variableView{Key: v.Key, Kind: "ref", Ref: *v.Ref}
+	}
+	return variableView{Key: v.Key, Kind: "literal"}
+}
+
+type variableView struct {
+	Key  string `json:"key"`
+	Kind string `json:"kind"`
+	Ref  string `json:"ref,omitempty"`
+}
+
+func (s *server) serviceVariables(ctx context.Context, operation, serviceID string) ([]variable, error) {
+	const query = `query($service: ServiceID!) { serviceVariables(service: $service) { key value ref } }`
+	var out struct {
+		ServiceVariables []variable `json:"serviceVariables"`
+	}
+	if err := s.query(ctx, operation, query, map[string]any{"service": serviceID}, &out); err != nil {
+		return nil, err
+	}
+	return out.ServiceVariables, nil
+}
+
+func (s *server) sharedVariables(ctx context.Context, operation, environmentID string) ([]variable, error) {
+	const query = `query($environment: EnvironmentID!) { sharedVariables(environment: $environment) { key value } }`
+	var out struct {
+		SharedVariables []variable `json:"sharedVariables"`
+	}
+	if err := s.query(ctx, operation, query, map[string]any{"environment": environmentID}, &out); err != nil {
+		return nil, err
+	}
+	return out.SharedVariables, nil
+}
+
+func randomSecret(length int) string {
+	buffer := make([]byte, (length+1)/2)
+	rand.Read(buffer)
+	return hex.EncodeToString(buffer)[:length]
+}
+
 type setVariableEntry struct {
-	Key   string `json:"key" jsonschema:"variable name"`
-	Value string `json:"value,omitempty" jsonschema:"literal value; mutually exclusive with ref"`
-	Ref   string `json:"ref,omitempty" jsonschema:"reference id from list_variables' available list; service scope only; mutually exclusive with value"`
+	Key      string  `json:"key" jsonschema:"variable name"`
+	Value    *string `json:"value,omitempty" jsonschema:"literal value, may be empty; exactly one of value, ref, generate"`
+	Ref      string  `json:"ref,omitempty" jsonschema:"reference id from list_variables' available list; service scope only; exactly one of value, ref, generate"`
+	Generate int     `json:"generate,omitempty" jsonschema:"length (16-256) of a random hex secret to store instead of a value; it is never returned, and a key that already has a value keeps it (unset it in a separate call first to rotate). 64 suits SECRET_KEY_BASE, Django SECRET_KEY, AUTH_SECRET and JWT secrets; a Laravel APP_KEY needs exactly 32. Only for secrets the app owns, never for values that must match something elsewhere such as RAILS_MASTER_KEY or third-party API keys; exactly one of value, ref, generate"`
+}
+
+func validateVariableEntry(entry setVariableEntry, unset map[string]bool) error {
+	if unset[entry.Key] {
+		return fmt.Errorf("variable %q is in both set and unset", entry.Key)
+	}
+	given := 0
+	for _, present := range []bool{entry.Value != nil, entry.Ref != "", entry.Generate != 0} {
+		if present {
+			given++
+		}
+	}
+	if given != 1 {
+		return fmt.Errorf("variable %q: set exactly one of value, ref, or generate", entry.Key)
+	}
+	if entry.Generate != 0 && (entry.Generate < minimumGeneratedLength || entry.Generate > maximumGeneratedLength) {
+		return fmt.Errorf("variable %q: generate must be between %d and %d characters", entry.Key, minimumGeneratedLength, maximumGeneratedLength)
+	}
+	return nil
 }
 
 type setVariablesInput struct {
@@ -236,6 +367,15 @@ type setVariablesInput struct {
 func (s *server) setVariables(ctx context.Context, _ *mcp.CallToolRequest, input setVariablesInput) (*mcp.CallToolResult, any, error) {
 	if (input.Service == "") == (input.Environment == "") {
 		return nil, nil, fmt.Errorf("provide exactly one of service or environment")
+	}
+	unset := make(map[string]bool, len(input.Unset))
+	for _, key := range input.Unset {
+		unset[key] = true
+	}
+	for _, entry := range input.Set {
+		if err := validateVariableEntry(entry, unset); err != nil {
+			return nil, nil, err
+		}
 	}
 	if input.Environment != "" {
 		return s.setSharedVariables(ctx, input)
@@ -254,31 +394,37 @@ func (s *server) setSharedVariables(ctx context.Context, input setVariablesInput
 		}
 	}
 
-	const readQuery = `query($environment: EnvironmentID!) { sharedVariables(environment: $environment) { key value } }`
-	var current struct {
-		SharedVariables []struct {
-			Key   string `json:"key"`
-			Value string `json:"value"`
-		} `json:"sharedVariables"`
-	}
-	if err := s.query(ctx, "set_variables (read shared)", readQuery, map[string]any{"environment": environmentID}, &current); err != nil {
+	current, err := s.sharedVariables(ctx, "set_variables (read shared)", environmentID)
+	if err != nil {
 		return nil, nil, err
 	}
 
 	merged := map[string]string{}
-	for _, v := range current.SharedVariables {
-		merged[v.Key] = v.Value
+	for _, v := range current {
+		merged[v.Key] = v.literal()
 	}
+	var generated, kept []string
 	for _, entry := range input.Set {
-		merged[entry.Key] = entry.Value
+		switch {
+		case entry.Generate != 0 && merged[entry.Key] != "":
+			kept = append(kept, entry.Key)
+		case entry.Generate != 0:
+			merged[entry.Key] = randomSecret(entry.Generate)
+			generated = append(generated, entry.Key)
+		default:
+			merged[entry.Key] = *entry.Value
+		}
 	}
 	for _, key := range input.Unset {
 		delete(merged, key)
 	}
 
-	variables := make([]map[string]any, 0, len(merged))
-	for key, value := range merged {
-		variables = append(variables, map[string]any{"key": key, "value": value})
+	keys := slices.Sorted(maps.Keys(merged))
+	variables := make([]map[string]any, 0, len(keys))
+	views := make([]variableView, 0, len(keys))
+	for _, key := range keys {
+		variables = append(variables, map[string]any{"key": key, "value": merged[key]})
+		views = append(views, variableView{Key: key, Kind: "literal"})
 	}
 
 	const mutation = `mutation($environment: EnvironmentID!, $variables: [VariableInput!]!) { setSharedVariables(environment: $environment, variables: $variables) }`
@@ -286,17 +432,23 @@ func (s *server) setSharedVariables(ctx context.Context, input setVariablesInput
 		return nil, nil, err
 	}
 
-	var result struct {
-		SharedVariables any `json:"sharedVariables"`
+	return variablesResult("environment", views, generated, kept, "applied immediately: services in this environment roll out with their current images (no rebuild). Do NOT call deploy unless you changed source code.")
+}
+
+func variablesResult(scope string, views []variableView, generated, kept []string, note string) (*mcp.CallToolResult, any, error) {
+	result := map[string]any{
+		"scope":     scope,
+		"variables": views,
+		"note":      note,
 	}
-	if err := s.query(ctx, "set_variables (read shared)", readQuery, map[string]any{"environment": environmentID}, &result); err != nil {
-		return nil, nil, err
+	if len(generated) > 0 {
+		result["generated"] = generated
 	}
-	return jsonResult(map[string]any{
-		"scope":     "environment",
-		"variables": result.SharedVariables,
-		"note":      "applied immediately: services in this environment roll out with their current images (no rebuild). Do NOT call deploy unless you changed source code.",
-	})
+	if len(kept) > 0 {
+		result["kept"] = kept
+		result["note"] = note + " Keys under kept already had a value, so generate left them unchanged; to rotate one, unset it in one call and generate it in the next."
+	}
+	return jsonResult(result)
 }
 
 func (s *server) setServiceVariables(ctx context.Context, input setVariablesInput) (*mcp.CallToolResult, any, error) {
@@ -304,70 +456,58 @@ func (s *server) setServiceVariables(ctx context.Context, input setVariablesInpu
 	if err != nil {
 		return nil, nil, err
 	}
-	for _, entry := range input.Set {
-		if entry.Value != "" && entry.Ref != "" {
-			return nil, nil, fmt.Errorf("variable %q: set either value or ref, not both", entry.Key)
-		}
-	}
 
-	const readQuery = `query($service: ServiceID!) { serviceVariables(service: $service) { key value ref } }`
-	var current struct {
-		ServiceVariables []struct {
-			Key   string  `json:"key"`
-			Value *string `json:"value"`
-			Ref   *string `json:"ref"`
-		} `json:"serviceVariables"`
-	}
-	if err := s.query(ctx, "set_variables (read service)", readQuery, map[string]any{"service": serviceID}, &current); err != nil {
+	current, err := s.serviceVariables(ctx, "set_variables (read service)", serviceID)
+	if err != nil {
 		return nil, nil, err
 	}
 
-	type entry struct {
-		value *string
-		ref   *string
-	}
-	merged := map[string]entry{}
+	merged := map[string]variable{}
 	order := []string{}
-	seen := map[string]bool{}
-	appendKey := func(key string) {
-		if !seen[key] {
-			seen[key] = true
-			order = append(order, key)
-		}
-	}
-	for _, v := range current.ServiceVariables {
-		merged[v.Key] = entry{value: v.Value, ref: v.Ref}
-		appendKey(v.Key)
+	for _, v := range current {
+		merged[v.Key] = v
+		order = append(order, v.Key)
 	}
 	usedRef := false
-	for _, e := range input.Set {
-		if e.Ref != "" {
-			merged[e.Key] = entry{ref: ptr(e.Ref)}
+	var generated, kept []string
+	for _, entry := range input.Set {
+		existing, exists := merged[entry.Key]
+		switch {
+		case entry.Generate != 0 && exists && (existing.Ref != nil || existing.literal() != ""):
+			kept = append(kept, entry.Key)
+			continue
+		case entry.Generate != 0:
+			merged[entry.Key] = variable{Key: entry.Key, Value: ptr(randomSecret(entry.Generate))}
+			generated = append(generated, entry.Key)
+		case entry.Ref != "":
+			merged[entry.Key] = variable{Key: entry.Key, Ref: ptr(entry.Ref)}
 			usedRef = true
-		} else {
-			merged[e.Key] = entry{value: ptr(e.Value)}
+		default:
+			merged[entry.Key] = variable{Key: entry.Key, Value: entry.Value}
 		}
-		appendKey(e.Key)
+		if !exists {
+			order = append(order, entry.Key)
+		}
 	}
 	for _, key := range input.Unset {
 		delete(merged, key)
 	}
 
 	variables := make([]map[string]any, 0, len(merged))
+	views := make([]variableView, 0, len(merged))
 	for _, key := range order {
-		e, ok := merged[key]
+		v, ok := merged[key]
 		if !ok {
 			continue
 		}
 		item := map[string]any{"key": key}
-		if e.ref != nil {
-			item["ref"] = *e.ref
-		} else if e.value != nil {
-			item["value"] = *e.value
+		if v.Ref != nil {
+			item["ref"] = *v.Ref
 		} else {
-			item["value"] = ""
+			item["value"] = v.literal()
 		}
 		variables = append(variables, item)
+		views = append(views, v.view())
 	}
 
 	const mutation = `mutation($service: ServiceID!, $variables: [ServiceVariableInput!]!) { setServiceVariables(service: $service, variables: $variables) }`
@@ -378,17 +518,7 @@ func (s *server) setServiceVariables(ctx context.Context, input setVariablesInpu
 		return nil, nil, err
 	}
 
-	var result struct {
-		ServiceVariables any `json:"serviceVariables"`
-	}
-	if err := s.query(ctx, "set_variables (read service)", readQuery, map[string]any{"service": serviceID}, &result); err != nil {
-		return nil, nil, err
-	}
-	return jsonResult(map[string]any{
-		"scope":     "service",
-		"variables": result.ServiceVariables,
-		"note":      "applied immediately: the service rolls out with its current image (no rebuild). Poll get_deploy_status to watch the rollout. Do NOT call deploy unless you changed source code — deploy rebuilds from scratch.",
-	})
+	return variablesResult("service", views, generated, kept, "applied immediately: the service rolls out with its current image (no rebuild). Poll get_deploy_status to watch the rollout. Do NOT call deploy unless you changed source code — deploy rebuilds from scratch.")
 }
 
 type listVariablesInput struct {
@@ -403,7 +533,7 @@ func (s *server) listVariables(ctx context.Context, _ *mcp.CallToolRequest, inpu
 	environmentID := environmentOfService(serviceID)
 
 	const query = `query($service: ServiceID!, $environment: EnvironmentID!) {
-  serviceVariables(service: $service) { key value ref }
+  serviceVariables(service: $service) { key ref }
   availableVariables(environment: $environment) {
     id key
     source {
@@ -417,15 +547,104 @@ func (s *server) listVariables(ctx context.Context, _ *mcp.CallToolRequest, inpu
 }`
 
 	var out struct {
-		ServiceVariables   any `json:"serviceVariables"`
-		AvailableVariables any `json:"availableVariables"`
+		ServiceVariables   []variable `json:"serviceVariables"`
+		AvailableVariables any        `json:"availableVariables"`
 	}
 	if err := s.query(ctx, "list_variables", query, map[string]any{"service": serviceID, "environment": environmentID}, &out); err != nil {
 		return nil, nil, err
 	}
+
+	views := make([]variableView, 0, len(out.ServiceVariables))
+	for _, v := range out.ServiceVariables {
+		views = append(views, v.view())
+	}
 	return jsonResult(map[string]any{
-		"variables": out.ServiceVariables,
+		"variables": views,
 		"available": out.AvailableVariables,
-		"note":      "wire an available entry into the service with set_variables using its id as a ref",
+		"note":      "values are never returned: confirm one with check_variables, and wire an available entry into the service with set_variables using its id as a ref",
 	})
+}
+
+type variableCheck struct {
+	Key      string `json:"key" jsonschema:"variable name"`
+	Expected string `json:"expected" jsonschema:"the exact value you expect, compared case-sensitively; may be empty"`
+}
+
+type checkVariablesInput struct {
+	Service     string          `json:"service,omitempty" jsonschema:"service id to check service-scoped variables; exactly one of service/environment"`
+	Environment string          `json:"environment,omitempty" jsonschema:"environment id to check shared variables; exactly one of service/environment"`
+	Checks      []variableCheck `json:"checks" jsonschema:"variables to compare; each key at most once per call"`
+}
+
+type variableCheckResult struct {
+	Key    string `json:"key"`
+	Result string `json:"result"`
+	Ref    string `json:"ref,omitempty"`
+	Detail string `json:"detail,omitempty"`
+}
+
+func (s *server) checkVariables(ctx context.Context, _ *mcp.CallToolRequest, input checkVariablesInput) (*mcp.CallToolResult, any, error) {
+	if (input.Service == "") == (input.Environment == "") {
+		return nil, nil, fmt.Errorf("provide exactly one of service or environment")
+	}
+	if len(input.Checks) == 0 {
+		return nil, nil, fmt.Errorf("provide at least one check")
+	}
+	seen := make(map[string]bool, len(input.Checks))
+	for _, check := range input.Checks {
+		if seen[check.Key] {
+			return nil, nil, fmt.Errorf("variable %q appears more than once; check each key at most once per call", check.Key)
+		}
+		seen[check.Key] = true
+	}
+
+	var variables []variable
+	if input.Environment != "" {
+		environmentID, err := s.environmentID(input.Environment)
+		if err != nil {
+			return nil, nil, err
+		}
+		if variables, err = s.sharedVariables(ctx, "check_variables", environmentID); err != nil {
+			return nil, nil, err
+		}
+	} else {
+		serviceID, err := s.serviceID(input.Service)
+		if err != nil {
+			return nil, nil, err
+		}
+		if variables, err = s.serviceVariables(ctx, "check_variables", serviceID); err != nil {
+			return nil, nil, err
+		}
+	}
+
+	byKey := make(map[string]variable, len(variables))
+	for _, v := range variables {
+		byKey[v.Key] = v
+	}
+	results := make([]variableCheckResult, 0, len(input.Checks))
+	for _, check := range input.Checks {
+		results = append(results, compareVariable(byKey[check.Key], check))
+	}
+	return jsonResult(map[string]any{"results": results})
+}
+
+func compareVariable(current variable, check variableCheck) variableCheckResult {
+	result := variableCheckResult{Key: check.Key}
+	switch {
+	case current.Key == "":
+		result.Result = "missing"
+	case current.Ref != nil:
+		result.Result = "ref"
+		result.Ref = *current.Ref
+	case current.literal() == check.Expected:
+		result.Result = "match"
+	default:
+		result.Result = "mismatch"
+		if current.literal() == "" {
+			result.Detail = "empty"
+		} else if strings.TrimSpace(current.literal()) == strings.TrimSpace(check.Expected) {
+			result.Detail = "whitespace"
+		}
+	}
+	return result
 }

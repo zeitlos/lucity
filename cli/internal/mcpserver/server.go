@@ -58,9 +58,11 @@ func (s *server) instructions() string {
 
 	b.WriteString("All IDs are '/'-separated composite strings whose first segment is the workspace: project=workspace/project, environment=workspace/project/environment, service=workspace/project/environment/service. Pass these IDs verbatim; single-segment values (a bare project or service name) are resolved against the active workspace.\n\n")
 
-	b.WriteString("Canonical flow: create_project -> add_service -> set_variables/configure_service -> deploy -> get_deploy_status -> get_logs. Deploys are asynchronous: poll get_deploy_status and read get_logs when a phase fails.\n\n")
+	b.WriteString("Canonical flow: create_project -> add_service -> set_variables/configure_service -> get_deploy_status -> get_logs. add_service already starts a repository service's first build (an image service rolls out without one), so poll get_deploy_status with the release_id it returns instead of calling deploy. Deploys are asynchronous: poll get_deploy_status and read get_logs when a phase fails.\n\n")
 
-	b.WriteString("IMPORTANT — config changes do NOT need a rebuild. set_variables, configure_service (resources, port, scaling), start-command changes, and volume mounts each roll the service out automatically with its CURRENT image, applied in seconds. Only call deploy when the SOURCE CODE changed (deploy rebuilds from scratch, which takes minutes). So to fix an OOM, a missing env var, or a wrong start command: apply the change and poll get_deploy_status — do not deploy again.\n\n")
+	b.WriteString("IMPORTANT — config changes do NOT need a rebuild. set_variables, configure_service (resources, port, scaling), start-command changes, and volume mounts each roll the service out automatically with its CURRENT image, applied in seconds. Only call deploy when the SOURCE CODE or a build-time RAILPACK_* variable changed (deploy rebuilds from scratch, which takes minutes). So to fix an OOM, a missing env var, or a wrong start command: apply the change and poll get_deploy_status — do not deploy again.\n\n")
+
+	b.WriteString("Secret values never enter this conversation. list_variables shows keys and refs but never values, and check_variables tells you whether a variable holds the value you expect. set_variables with generate stores a random app secret (SECRET_KEY_BASE, a JWT secret) that you never see. Database, key-value store, and bucket credentials reach services only as refs, and runtime logs come back with known secrets redacted. Never ask the user to paste a secret here: they add third-party keys in the Lucity dashboard (the service's Variables tab), and you confirm the keys exist with list_variables. Bulk database dump imports need credentials, so the user runs them from their own terminal.\n\n")
 
 	b.WriteString("There is deliberately no delete tool. Removing projects, services, databases, or other resources happens in the Lucity dashboard.")
 
@@ -122,6 +124,9 @@ func wrapGraphQL(operation string, err error) error {
 		lower := strings.ToLower(message)
 		if strings.Contains(lower, "logto access token") || strings.Contains(lower, "github token") || strings.Contains(lower, "invalid_grant") {
 			return fmt.Errorf("%s failed: your GitHub session for Lucity has expired — run `lucity login` in a terminal, then retry. (This is separate from get_account, which stays valid.)", operation)
+		}
+		if strings.Contains(lower, "another operation (install/upgrade/rollback) is in progress") {
+			return fmt.Errorf("%s failed: %s — the environment is still applying another change, such as a build's rollout or an earlier config change; retry in a few seconds", operation, message)
 		}
 		if strings.Contains(lower, "not found") {
 			return fmt.Errorf("%s failed: %s — check the id and its format (list_projects / get_project to discover valid ids); the id's first segment must be your active workspace", operation, message)

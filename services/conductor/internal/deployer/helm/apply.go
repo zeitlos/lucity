@@ -41,7 +41,11 @@ func (c *Client) applyEnv(ctx context.Context, envID platform.EnvironmentID, mut
 	env.CommonLabels = values.CommonLabels(envID.Workspace, envID.Project, envID.Name)
 	env.SharedVariableLabels = values.SharedVariableLabels()
 	env.ImagePullSecrets = []values.PullSecret{{Name: kubernetes.PullSecretName}}
-	env.Gateway = values.Gateway{Name: c.gatewayName, Namespace: c.gatewayNamespace, HeaderMatches: c.headerMatches}
+	env.Gateway = values.Gateway{Name: c.gatewayName, Namespace: c.gatewayNamespace, HTTPSListener: c.gatewayHTTPSListener, HeaderMatches: c.headerMatches}
+	env.VerticalPodAutoscaler = values.VerticalPodAutoscaler{
+		Enabled:      resources.VerticalPodAutoscalerUpdateMode != "",
+		UpdatePolicy: values.UpdatePolicy{UpdateMode: resources.VerticalPodAutoscalerUpdateMode},
+	}
 
 	if c.backups.Enabled {
 		env.Databases.BackupStore = c.backupStore(envID)

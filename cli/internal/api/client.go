@@ -31,6 +31,15 @@ type Identity struct {
 	Workspaces []WorkspaceMembership `json:"workspaces"`
 }
 
+func (i *Identity) MemberOf(workspace string) bool {
+	for _, membership := range i.Workspaces {
+		if membership.Workspace == workspace {
+			return true
+		}
+	}
+	return false
+}
+
 type TokenSource interface {
 	Token(ctx context.Context) (string, error)
 }

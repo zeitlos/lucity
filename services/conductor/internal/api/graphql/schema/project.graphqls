@@ -5,18 +5,22 @@ type Project {
 }
 
 input CreateProjectInput {
-  """Human-readable project name (e.g. "My API")."""
+  """The display name of the project, such as `My API`."""
   name: String! @constraint(constraint: "min=1,max=128")
-  """Optional URL-safe slug. Auto-derived from name if omitted."""
+  """The project id. Derived from `name` when left out."""
   id: String @constraint(constraint: "resource_name,min=2,max=16")
 }
 
 extend type Query {
+  """The projects in the workspace."""
   projects: [Project!]! @hasRole(role: WORKSPACE_MEMBER)
+  """One project, with its environments."""
   project(id: ProjectID!): Project! @hasRole(role: WORKSPACE_MEMBER)
 }
 
 extend type Mutation {
+  """Creates a project with an empty `development` environment. Services and resources are added to the environment afterwards."""
   createProject(input: CreateProjectInput!): Project! @hasRole(role: WORKSPACE_MEMBER)
+  """Deletes a project. Every one of its environments has to be empty first."""
   deleteProject(id: ProjectID!): Boolean! @hasRole(role: WORKSPACE_MEMBER)
 }

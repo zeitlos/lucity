@@ -19,6 +19,7 @@ const (
 	podTemplateHashLabel    = apps.DefaultDeploymentUniqueLabelKey
 	resourceTierLabel       = "lucity.dev/resource-tier"
 	gitHubInstallationLabel = "lucity.dev/github-installation"
+	httpsRedirectLabel      = "lucity.dev/https-redirect"
 )
 
 const (

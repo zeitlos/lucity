@@ -1,7 +1,14 @@
 node_modules
 .nuxt
 .output
+.data
+.shots
+internal
 dist
 .git
 *.log
 tmp
+**/.env
+**/.env.local
+**/.env.*.local
+**/.DS_Store

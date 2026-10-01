@@ -52,7 +52,8 @@ On disagreement, or when detection is missing something, configure via the **thr
 3. **Custom start** — the service start command via `configure_service`.
 
 These are set as service variables. Build-time `RAILPACK_*` variables must exist **before the first
-build**, so pass them in the initial `add_service` variables (it accepts them). Consult
+build**, and `add_service` starts that build the moment it creates a repository service, so pass them
+in its initial variables. A `RAILPACK_*` variable set afterwards only reaches the next `deploy`. Consult
 `references/<provider>.md` for the exact variable names and gotchas. If a detected provider has no
 reference file, use the generic mechanisms above and https://railpack.com/languages/<provider>.
 
@@ -64,8 +65,10 @@ Every service must satisfy these (details in `references/lucity-platform.md`):
 - **Config via env only**: no config files baked with secrets; read everything from env vars.
 - **Ephemeral filesystem**: containers lose local writes on restart. Persistent data → a volume (`create_volume`, **10Gi minimum**, one service per volume, single replica) or a bucket (`create_bucket`, for anything that scales). Never assume local disk survives.
 - **Service-to-service links use the internal endpoint**: read the `type: INTERNAL` host from `get_project` (or the `add_service` result) plus the service `port`, and set it as a literal variable on the consumer (e.g. `API_URL=http://lucity-app-api.<namespace>.svc.cluster.local:3000`). Never build the hostname by hand (the namespace carries a hash) and never expect cross-environment reach: internal DNS only works within one environment.
-- **Env files are a config manifest, not a security task**: read a committed `.env`, `env.zip`, or `.env.example` for the KEYS it lists (which variables the app expects) so you know what to wire from platform resources and what to ask the user for. Never trust or copy the values. Do NOT hunt for or audit leaked secrets: the platform scans every release automatically (see §5) and flags them; duplicating that locally is wasted effort.
+- **Env files are a config manifest, not a security task**: read a committed `.env`, `env.zip`, or `.env.example` for the KEYS it lists (which variables the app expects) so you know what to wire from platform resources, what to generate, and what the user has to add. Never trust or copy the values. Do NOT hunt for or audit leaked secrets: the platform scans every release automatically (see §5) and flags them; duplicating that locally is wasted effort.
 - **Wire by reference**: after `create_database`/`create_kv_store`/`create_bucket`, read the generated credential variables with `list_variables` and reference them in `set_variables` (ref, not literal). Never copy a credential value into a literal string.
+- **Generate app-owned secrets**: a key the app only needs to be random (`SECRET_KEY_BASE`, `AUTH_SECRET`, a JWT secret) gets `generate` in `set_variables`, which stores a random value you never see. A key that already has a value keeps it, so repeating the call is safe.
+- **Secret values never reach you**: the tools return keys, refs, and `check_variables` results, never variable values or credentials. To confirm a value, pass the one you expect to `check_variables`. Don't route around this by running `lucity vars list` or `lucity db credentials` yourself or by asking the user to paste a secret into the chat.
 
 ## 5. Data dependencies scan
 
@@ -80,7 +83,9 @@ Provision what the platform offers: `create_database` (PostgreSQL), `create_kv_s
 
 **External managed dependencies the platform does NOT provide** (Azure Blob Storage, Google Cloud
 Storage, a hosted third-party API, SendGrid/Stripe/etc., an external database) need credentials you
-cannot create. **Ask the user to provide them** and set them with `set_variables`. Do NOT stub, fake,
+cannot create, and so do values that must match something elsewhere, like `RAILS_MASTER_KEY`. **Ask
+the user to add them** in the dashboard, in the service's **Variables** tab, instead of pasting them
+into the chat. Name the exact keys, then confirm they exist with `list_variables`. Do NOT stub, fake,
 or hack placeholder values to force the app past its boot checks — a half-broken deploy is worse than a
 clear "this app needs these credentials." Detect these from the dependency manifest (e.g.
 `azure-storage-blob`, `@google-cloud/storage`, `boto3` pointed at non-Lucity endpoints) and from env
@@ -90,8 +95,12 @@ usage, and surface them before you deploy.
 it** — do not silently deploy an empty database and call it done. To load it:
 - **Small schema / migrations**: `run_sql`. (It executes from the conductor; against a remote platform
   it works, but for anything large prefer the dump path below.)
-- **Bulk dumps**: `get_credentials` with `expose_publicly` for a temporary public endpoint, then a local
-  `psql`/`pg_restore` (needs `sslmode=require` and an SNI-capable client, libpq ≥ 14).
+- **Bulk dumps**: the credentials a local `psql`/`pg_restore` needs are never shown to you, so the user
+  runs the import from their own terminal. Hand them the steps with the database id filled in:
+  `lucity db expose <db>` (temporary public hostname), `lucity db credentials <db>` (its `PLATFORM`
+  entry's `uri` already has `sslmode=require`), the restore from a client with libpq ≥ 14 (it must
+  send SNI), then `lucity db unexpose <db>`. Never run `lucity db credentials` yourself or ask the user
+  to paste its output. Once they are done, spot-check the data with `run_sql`.
 
 Creating paid resources is a business question — ask before provisioning.
 
@@ -102,11 +111,14 @@ user; `get_logs kind=scan` is only a fallback for raw detail.
 
 ## 6. Deploy loop with self-heal
 
-Deploy, then poll and remediate. **Bound remediation to 3 iterations**, then report honestly instead of
-looping forever.
+Poll the first build, then remediate. **Bound remediation to 3 iterations**, then report honestly
+instead of looping forever.
 
-1. `deploy` the service (this triggers a Railpack build + rollout).
-2. Poll `get_deploy_status` every ~10s.
+1. `add_service` already started the first Railpack build + rollout (an image service rolls out
+   without a build). Do **not** call `deploy` now, which only builds a second time.
+2. Poll `get_deploy_status` every ~10s with the `release_id` that `add_service` returned. Config changes
+   made meanwhile create newer releases that would otherwise hide the build, and one issued while the
+   rollout runs can fail with "another operation ... is in progress", so retry it after a few seconds.
 3. On failure, classify by the **signal**, not the technology:
 
 > **`deploy` rebuilds from source (minutes). Config changes do not need it.** `set_variables`, `configure_service` (resources, port, start command), and volume mounts each roll the service out automatically with its **current image** in seconds. So every fix below that is config-only (a version pin for the *next* build aside) is applied and then you just poll `get_deploy_status` — **only call `deploy` again when you changed the source or a build-time `RAILPACK_*` variable.**
@@ -148,19 +160,21 @@ the platform; code lives in the repo.
 ## 8. Ask vs. decide
 
 - **Decide** anything evidenced in the repo (provider, versions, start command, which resources the code needs, what to pin) — and report it.
-- **Ask** only business questions: which repos form the product, whether it should be public, whether you may import a given data dump, whether you may create paid resources, and **any credentials for external managed services the platform does not provide** (Azure/GCS/third-party APIs) plus **any data dump the app needs that is not in the repo**. If a required external credential or dump is missing, stop and ask rather than shipping a broken deploy.
+- **Ask** only business questions: which repos form the product, whether it should be public, whether you may import a given data dump, whether you may create paid resources, and **any credentials for external managed services the platform does not provide** (Azure/GCS/third-party APIs, which the user adds in the dashboard, see §5) plus **any data dump the app needs that is not in the repo**. If a required external credential or dump is missing, stop and ask rather than shipping a broken deploy.
 
 ## MCP tools
 
 Account/projects: `get_account`, `list_projects`, `get_project`, `create_project` (auto-creates a
 `development` environment), `create_environment`.
 Detection/source: `detect_services`, `list_github_repos`.
-Services: `add_service` (accepts initial variables — put build-time `RAILPACK_*` pins here so the first
-build sees them; optional `cpu`/`memory` to size it), `configure_service` (start command, resources),
-`set_variables`, `list_variables`.
+Services: `add_service` (starts the first build right away and returns its `release_id`; put build-time
+`RAILPACK_*` pins in its initial variables so that build sees them; optional `cpu`/`memory` to size it),
+`configure_service` (start command, resources), `set_variables`, `list_variables`, `check_variables`
+(confirm a variable holds an expected value without revealing it).
 Resources: `create_database` (optional `cpu`/`memory`), `create_kv_store`, `create_bucket`,
-`create_volume` (10Gi to 1Ti; optional `mount_service` + `mount_path`), `get_credentials`, `run_sql`.
-Deploy: `deploy`, `get_deploy_status`, `get_logs`, `rollback`, `add_domain`.
+`create_volume` (10Gi to 1Ti; optional `mount_service` + `mount_path`), `run_sql`.
+Deploy: `deploy` (rebuild after a source or `RAILPACK_*` change), `get_deploy_status`, `get_logs`,
+`rollback`, `add_domain`.
 
 There are no delete tools — the user removes projects, services, and resources from the dashboard.
 

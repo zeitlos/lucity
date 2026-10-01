@@ -34,10 +34,11 @@ type DeployConfig struct {
 	ReleaseTrigger string `envconfig:"DEPLOY_RELEASE_TRIGGER" default:"manual"`
 	ReleaseActor   string `envconfig:"DEPLOY_RELEASE_ACTOR"`
 
-	RegistryPullURL  string `envconfig:"REGISTRY_PULL_URL" required:"true"`
-	GatewayName      string `envconfig:"GATEWAY_NAME" default:"lucity-gateway"`
-	GatewayNamespace string `envconfig:"GATEWAY_NAMESPACE" default:"lucity-system"`
-	ClusterIssuer    string `envconfig:"CUSTOM_DOMAIN_CLUSTER_ISSUER" default:"letsencrypt-http01"`
+	RegistryPullURL      string `envconfig:"REGISTRY_PULL_URL" required:"true"`
+	GatewayName          string `envconfig:"GATEWAY_NAME" default:"lucity-gateway"`
+	GatewayNamespace     string `envconfig:"GATEWAY_NAMESPACE" default:"lucity-system"`
+	GatewayHTTPSListener string `envconfig:"GATEWAY_HTTPS_LISTENER"`
+	ClusterIssuer        string `envconfig:"CUSTOM_DOMAIN_CLUSTER_ISSUER" default:"letsencrypt-http01"`
 
 	// This process runs the same values apply as the conductor, so it needs the
 	// same archive-store settings or it would strip archiving on every deploy.
@@ -132,7 +133,7 @@ func runDeploy() {
 		Enabled:  config.DatabaseBackupEnabled,
 		Endpoint: config.DatabaseBackupEndpoint,
 		Bucket:   config.DatabaseBackupBucket,
-	}, edgeHeaderOptions(config.EdgeHeaderEnforced)...)
+	}, append(edgeHeaderOptions(config.EdgeHeaderEnforced), helmDeployer.WithHTTPSListener(config.GatewayHTTPSListener))...)
 
 	if err != nil {
 		log.Error("deploy: failed to create deployer client", "error", err)

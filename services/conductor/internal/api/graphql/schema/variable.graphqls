@@ -37,27 +37,32 @@ type SharedVariable {
 }
 
 input VariableInput {
-  """Key of the variable. e.g. PORT or HOST"""
+  """The name of the variable, such as `PORT` or `HOST`."""
   key: String! @constraint(constraint: "min=1,max=128")
   value: String!
 }
 
 input ServiceVariableInput {
-  """Key of the variable. e.g. PORT or HOST"""
+  """The name of the variable, such as `PORT` or `HOST`."""
   key: String! @constraint(constraint: "min=1,max=128")
-  """Literal value. Required when no ref is set. Mutually exclusive with ref."""
+  """A literal value. Set either `value` or `ref`."""
   value: String
-  """Reference to an available variable. Required when no value is set. Mutually exclusive with value."""
+  """Links the variable to one from `availableVariables`. Set either `value` or `ref`."""
   ref: VariableID
 }
 
 extend type Query {
+  """Everything a service in the environment can link to, from its databases, key-value stores, buckets and shared variables."""
   availableVariables(environment: EnvironmentID!): [Variable!]! @hasRole(role: WORKSPACE_MEMBER)
+  """The shared variables of an environment."""
   sharedVariables(environment: EnvironmentID!): [SharedVariable!]! @hasRole(role: WORKSPACE_MEMBER)
+  """The variables of a service. Linked variables come back with their `ref` instead of a value."""
   serviceVariables(service: ServiceID!): [ServiceVariable!]! @hasRole(role: WORKSPACE_DEPLOYER)
 }
 
 extend type Mutation {
+  """Replaces all shared variables of an environment with the list given, so keys you leave out are removed. Services that link to a changed key roll out again."""
   setSharedVariables(environment: EnvironmentID!, variables: [VariableInput!]!): Boolean! @hasRole(role: WORKSPACE_MEMBER)
+  """Replaces all variables of a service with the list given, so keys you leave out are removed. The service rolls out again on the image it is already running."""
   setServiceVariables(service: ServiceID!, variables: [ServiceVariableInput!]!): Boolean! @hasRole(role: WORKSPACE_DEPLOYER)
 }

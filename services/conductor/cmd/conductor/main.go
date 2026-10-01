@@ -67,7 +67,6 @@ type Config struct {
 	OIDCIssuerURL    string `envconfig:"OIDC_ISSUER_URL" required:"true"`
 	OIDCDiscoveryURL string `envconfig:"OIDC_DISCOVERY_URL"`
 	OIDCClientID     string `envconfig:"OIDC_CLIENT_ID" required:"true"`
-	OIDCClientSecret string `envconfig:"OIDC_CLIENT_SECRET"`
 	OIDCCallbackURL  string `envconfig:"OIDC_CALLBACK_URL" default:"http://localhost:8080/auth/callback"`
 	OIDCAudience     string `envconfig:"OIDC_AUDIENCE"`
 	OIDCCLIClientID  string `envconfig:"OIDC_CLI_CLIENT_ID"`
@@ -89,9 +88,10 @@ type Config struct {
 	WebhookSecret string `envconfig:"WEBHOOK_SECRET" required:"true"`
 
 	// Cluster
-	GatewayName        string `envconfig:"GATEWAY_NAME" default:"lucity-gateway"`
-	GatewayNamespace   string `envconfig:"GATEWAY_NAMESPACE" default:"lucity-system"`
-	RegistryPullSecret string `envconfig:"REGISTRY_PULL_SECRET" default:"lucity-registry-pull"`
+	GatewayName          string `envconfig:"GATEWAY_NAME" default:"lucity-gateway"`
+	GatewayNamespace     string `envconfig:"GATEWAY_NAMESPACE" default:"lucity-system"`
+	GatewayHTTPSListener string `envconfig:"GATEWAY_HTTPS_LISTENER"`
+	RegistryPullSecret   string `envconfig:"REGISTRY_PULL_SECRET" default:"lucity-registry-pull"`
 
 	// Per-env NetworkPolicy needs the cluster's pod and service CIDRs to
 	// carve out "internet but not the cluster" egress. These are
@@ -132,12 +132,11 @@ type Config struct {
 	CISessionTTL          time.Duration `envconfig:"CI_SESSION_TTL" default:"1h"`
 
 	// GitHub App (for installation tokens + OAuth)
-	GitHubAppID            int64  `envconfig:"GITHUB_APP_ID" required:"true"`
-	GitHubPrivateKeyPath   string `envconfig:"GITHUB_PRIVATE_KEY_PATH" required:"true"`
-	GitHubClientID         string `envconfig:"GITHUB_CLIENT_ID" required:"true"`
-	GitHubClientSecret     string `envconfig:"GITHUB_CLIENT_SECRET" required:"true"`
-	GitHubOAuthCallbackURL string `envconfig:"GITHUB_OAUTH_CALLBACK_URL" required:"true"`
-	GitHubAppSlug          string `envconfig:"GITHUB_APP_SLUG" required:"true"`
+	GitHubAppID          int64  `envconfig:"GITHUB_APP_ID" required:"true"`
+	GitHubPrivateKeyPath string `envconfig:"GITHUB_PRIVATE_KEY_PATH" required:"true"`
+	GitHubClientID       string `envconfig:"GITHUB_CLIENT_ID" required:"true"`
+	GitHubClientSecret   string `envconfig:"GITHUB_CLIENT_SECRET" required:"true"`
+	GitHubAppSlug        string `envconfig:"GITHUB_APP_SLUG" required:"true"`
 
 	// Domains
 	WorkloadDomain            string `envconfig:"WORKLOAD_DOMAIN" required:"true"`
@@ -220,7 +219,6 @@ func main() {
 	oidcProvider := &oidc.Provider{
 		Endpoint:     strings.TrimSuffix(config.OIDCIssuerURL, "/oidc"),
 		ClientID:     config.OIDCClientID,
-		ClientSecret: config.OIDCClientSecret,
 		Audience:     apiAudience,
 		DirectSignIn: directSignIn,
 		Scopes:       loginScopes,
@@ -268,7 +266,7 @@ func main() {
 		slog.Info("cashier not configured — billing disabled")
 	}
 
-	githubApp, err := ghpkg.NewApp(config.GitHubAppID, config.GitHubClientID, config.GitHubClientSecret, "", config.GitHubOAuthCallbackURL, config.GitHubPrivateKeyPath)
+	githubApp, err := ghpkg.NewApp(config.GitHubAppID, config.GitHubClientID, config.GitHubClientSecret, config.GitHubPrivateKeyPath)
 
 	if err != nil {
 		slog.Error("failed to create github app", "error", err)
@@ -300,14 +298,15 @@ func main() {
 	jobsClient := buildjobK8s.New(k8sClient, config.BuildNamespace, config.RegistryPushURL, config.RegistryAuthSecret, config.BuildImage, config.BuildkitTLSSecret, config.BuildkitServerName)
 
 	deployJobsClient := deployjobK8s.New(k8sClient, deployjobK8s.Config{
-		Namespace:       config.SystemNamespace,
-		Image:           config.DeployImage,
-		ServiceAccount:  config.DeployServiceAccount,
-		BuildNamespace:  config.BuildNamespace,
-		RegistryPullURL: config.RegistryPullURL,
-		GatewayName:     config.GatewayName,
-		GatewayNS:       config.GatewayNamespace,
-		ClusterIssuer:   config.CustomDomainClusterIssuer,
+		Namespace:            config.SystemNamespace,
+		Image:                config.DeployImage,
+		ServiceAccount:       config.DeployServiceAccount,
+		BuildNamespace:       config.BuildNamespace,
+		RegistryPullURL:      config.RegistryPullURL,
+		GatewayName:          config.GatewayName,
+		GatewayNS:            config.GatewayNamespace,
+		GatewayHTTPSListener: config.GatewayHTTPSListener,
+		ClusterIssuer:        config.CustomDomainClusterIssuer,
 		Backups: deployjobK8s.BackupConfig{
 			Enabled:  config.DatabaseBackupEnabled,
 			Endpoint: config.DatabaseBackupEndpoint,
@@ -366,7 +365,7 @@ func main() {
 		Enabled:  config.DatabaseBackupEnabled,
 		Endpoint: config.DatabaseBackupEndpoint,
 		Bucket:   config.DatabaseBackupBucket,
-	}, edgeHeaderOptions(config.EdgeHeaderEnforced)...)
+	}, append(edgeHeaderOptions(config.EdgeHeaderEnforced), helmDeployer.WithHTTPSListener(config.GatewayHTTPSListener))...)
 
 	if err != nil {
 		slog.Error("failed to create deployer client", "error", err)

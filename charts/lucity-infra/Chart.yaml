@@ -46,3 +46,7 @@ dependencies:
     version: "4.28.0"
     repository: "https://promhippie.github.io/charts"
     condition: hcloud-exporter.enabled
+  - name: vertical-pod-autoscaler
+    version: "0.13.0"
+    repository: "https://kubernetes.github.io/autoscaler"
+    condition: vertical-pod-autoscaler.enabled

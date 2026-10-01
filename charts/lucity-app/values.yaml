@@ -93,6 +93,11 @@ fullnameOverride: ""
 # Scale every workload to zero, hibernate databases, and drop routes.
 suspended: false
 
+verticalPodAutoscaler:
+  enabled: false
+  updatePolicy:
+    updateMode: "Off"
+
 # Labels and annotations stamped onto every rendered resource. The packager sets
 # commonLabels to the workspace/project/environment identity; platform discovery
 # relies on those labels being present.
@@ -141,6 +146,8 @@ databases:
 volumes: {}
 
 # Gateway that this release's HTTPRoutes and ListenerSets attach to.
+# httpsListener pins routes without their own ListenerSet to that listener, so a
+# gateway that redirects plain HTTP keeps them off its HTTP listener.
 # headerMatches (optional): backend rules then only match requests carrying all
 # of these headers, so traffic must pass whatever sets them. Redirect rules stay
 # open. A value is either literal or read at render time from a Secret, which
@@ -148,6 +155,7 @@ volumes: {}
 gateway:
   name: lucity-gateway
   namespace: lucity-system
+  httpsListener: ""
   # headerMatches:
   #   - name: X-Lucity-Edge
   #     type: Exact            # or RegularExpression

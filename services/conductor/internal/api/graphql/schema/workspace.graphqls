@@ -28,7 +28,9 @@ input UpdateMemberRoleInput {
 }
 
 extend type Query {
+  """The workspace the token belongs to, with its members."""
   workspace: Workspace! @hasRole(role: WORKSPACE_MEMBER)
+  """Every workspace you belong to."""
   workspaces: [Workspace!]! @hasRole(role: AUTHENTICATED)
 }
 
@@ -43,11 +45,18 @@ type CheckoutSession {
 }
 
 extend type Mutation {
+  """Starts the checkout for a new workspace on a paid plan and returns the URL to complete it. The workspace is created once the checkout completes."""
   createWorkspaceCheckout(input: CreateWorkspaceCheckoutInput!): CheckoutSession! @hasRole(role: AUTHENTICATED)
+  """Completes a workspace checkout and returns the new workspace."""
   completeWorkspaceCheckout(sessionId: String!): Workspace! @hasRole(role: AUTHENTICATED)
+  """Renames the workspace. Its id stays the same."""
   updateWorkspace(input: UpdateWorkspaceInput!): Workspace! @allowSuspended @hasRole(role: WORKSPACE_ADMIN)
+  """Deletes the workspace. It can't have any projects left, and a personal workspace can't be deleted."""
   deleteWorkspace: Boolean! @allowSuspended @hasRole(role: WORKSPACE_ADMIN)
+  """Adds someone with an existing account to the workspace, by email and with a role."""
   inviteMember(input: InviteMemberInput!): WorkspaceMember! @hasRole(role: WORKSPACE_ADMIN)
+  """Removes a member from the workspace. You can't remove yourself."""
   removeMember(userId: ID!): Boolean! @hasRole(role: WORKSPACE_ADMIN)
+  """Changes the role of a member."""
   updateMemberRole(input: UpdateMemberRoleInput!): WorkspaceMember! @hasRole(role: WORKSPACE_ADMIN)
 }

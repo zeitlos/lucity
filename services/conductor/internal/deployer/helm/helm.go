@@ -9,16 +9,23 @@ import (
 )
 
 type Client struct {
-	chartVersion     semver.Version
-	chart            *chart.Chart
-	gatewayName      string
-	gatewayNamespace string
-	headerMatches    []values.HeaderMatch
-	clusterIssuer    string
-	backups          BackupConfig
+	chartVersion         semver.Version
+	chart                *chart.Chart
+	gatewayName          string
+	gatewayNamespace     string
+	gatewayHTTPSListener string
+	headerMatches        []values.HeaderMatch
+	clusterIssuer        string
+	backups              BackupConfig
 }
 
 type Option func(*Client)
+
+func WithHTTPSListener(name string) Option {
+	return func(c *Client) {
+		c.gatewayHTTPSListener = name
+	}
+}
 
 func WithHeaderMatches(matches ...values.HeaderMatch) Option {
 	return func(c *Client) {

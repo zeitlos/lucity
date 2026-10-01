@@ -1,15 +1,18 @@
 {
   "name": "lucity-docs",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "nuxt dev --extends docus",
     "build": "nuxt build --extends docus",
     "generate": "nuxt generate --extends docus",
-    "preview": "nuxt preview --extends docus"
+    "preview": "nuxt preview --extends docus",
+    "shots": "node scripts/capture-screenshots.mjs"
   },
   "dependencies": {
     "@nuxt/content": "^3.14.0",
     "@nuxt/ui": "^4.9.0",
+    "@nuxtjs/sitemap": "^8.5.1",
     "better-sqlite3": "^12.5.0",
     "docus": "latest",
     "flo-mat": "^4.1.0",
@@ -17,7 +20,8 @@
   },
   "devDependencies": {
     "@iconify-json/devicon": "^1.2.62",
-    "opentype.js": "^2.0.0"
+    "opentype.js": "^2.0.0",
+    "playwright": "^1.62.1"
   },
   "engines": {
     "node": ">=24"
