@@ -205,6 +205,7 @@ victoria-metrics-single:
       # Affects only OTLP-pushed metrics (host_metrics, kubelet_stats); prometheus-scraped
       # ones (KSM, Cilium) are already Prom-named. Lets us reuse community dashboards.
       "opentelemetry.usePrometheusNaming": "true"
+      "vmalert.proxyURL": "http://lucity-infra-victoria-metrics-alert-server:8880"
     resources:
       requests:
         cpu: 100m
@@ -511,6 +512,9 @@ victoria-metrics-alert:
                   summary: "Hetzner API requests failing for the {{ $labels.collector }} collector ({{ $value | humanize }} in 10m) — load balancer alerts are blind"
   alertmanager:
     enabled: false
+    podSecurityContext:
+      enabled: true
+      fsGroup: 65534
     extraVolumes:
       - name: telegram-token
         secret:
