@@ -4,7 +4,7 @@ description: How Lucity processes personal data on your behalf.
 ---
 
 **Effective date:** July 24, 2026
-**Last updated:** July 24, 2026
+**Last updated:** October 1, 2026
 
 This Data Processing Agreement ("DPA") forms part of the [Terms of Use](/legal/terms-of-use) between you ("Customer", "Controller") and the operator of Lucity ("Processor", "we", "us"):
 
@@ -31,7 +31,7 @@ Where you act as a processor for your own customers, references to "Controller" 
 |------|-------------|
 | **Subject matter** | Hosting and running the Customer's applications and their data on the platform |
 | **Duration** | For the term of the Customer's use of the service |
-| **Nature and purpose** | Building, deploying, storing, and executing the Customer's workloads, databases, key-value stores, and object storage |
+| **Nature and purpose** | Building, deploying, storing, backing up, and executing the Customer's workloads, databases, key-value stores, and object storage |
 | **Types of personal data** | Determined by the Customer. Any personal data the Customer's applications store or process on the platform |
 | **Categories of data subjects** | Determined by the Customer. Typically the Customer's own users and contacts |
 
@@ -42,6 +42,7 @@ We have no control over, and do not inspect, the categories of personal data or 
 We will:
 
 - **Process only on instructions.** Process personal data solely on your documented instructions, including regarding international transfers, unless required otherwise by applicable law, in which case we will inform you unless the law prohibits it.
+- **Unlawful instructions.** Inform you immediately if, in our opinion, an instruction infringes the GDPR, the FADP, or other applicable data protection law.
 - **Confidentiality.** Ensure that personnel authorized to process the data are bound by confidentiality.
 - **Security.** Implement appropriate technical and organizational measures as described in Annex 1.
 - **Sub-processors.** Use sub-processors only under the conditions in Section 4.
@@ -58,9 +59,9 @@ You provide general authorization for us to engage the sub-processors listed bel
 | Sub-processor | Purpose | Location |
 |---------------|---------|----------|
 | **Hetzner** | Core infrastructure hosting (compute, workloads, databases) | Germany (EU) |
-| **OVHcloud** | Object storage hosting | France (EU) |
+| **OVHcloud** | Object storage hosting and database backups | France (EU) |
 | **Bunny** | Content delivery for public buckets and custom-domain TLS | EU company; global edge network |
-| **Stripe** | Payment processing (account and billing data only) | EU and international, under Standard Contractual Clauses |
+| **Anthropic** | Internal operations and incident investigation: AI-assisted analysis of platform metadata and logs. Anthropic does not train models on this data | United States, under Standard Contractual Clauses |
 
 We will give you at least 30 days' notice, by email or platform notification, before adding or replacing a sub-processor. If you reasonably object on data-protection grounds, we will work with you in good faith to address the concern, and if we cannot, you may terminate the affected service.
 
@@ -70,7 +71,7 @@ On termination of the service, or on your request, we will delete the personal d
 
 ## 6. International Transfers
 
-Personal data processed on your behalf is stored in the European Union (see the [Privacy Policy](/legal/privacy-policy)). Where a sub-processor transfers personal data outside the EU or Switzerland, that transfer is covered by an appropriate safeguard, such as the EU Standard Contractual Clauses together with, for data subject to the FADP, the recognition of those clauses by the Swiss Federal Data Protection and Information Commissioner.
+Personal data processed on your behalf is hosted in the European Union (see the [Privacy Policy](/legal/privacy-policy)). Where a sub-processor transfers personal data outside the EU or Switzerland, that transfer is covered by an appropriate safeguard, such as the EU Standard Contractual Clauses together with, for data subject to the FADP, the recognition of those clauses by the Swiss Federal Data Protection and Information Commissioner.
 
 ## 7. Swiss FADP
 
@@ -90,11 +91,10 @@ For data-protection matters and to exercise controller rights under this DPA: pr
 
 We maintain measures appropriate to the risk, including:
 
-- **Encryption in transit** using TLS for all connections to and within the platform.
-- **Encryption at rest** for stored data, including databases and object storage.
+- **Encryption in transit** using TLS for connections to the platform and WireGuard for traffic between cluster nodes.
 - **Tenant isolation** through namespace-level separation of workspaces in Kubernetes, with network policies restricting cross-tenant access.
 - **Access control** on a least-privilege, role-based basis, with authentication through our self-hosted identity provider.
 - **Secrets handling** through Kubernetes secrets, kept separate from application code and logs.
-- **Resilience** through replicated databases and backups of managed database services.
+- **Resilience** through backups of managed databases, stored with a different provider than primary hosting, and replication for databases that run more than one instance.
 - **Monitoring and logging** of platform activity to detect and respond to security events.
 - **Self-hosted core services** (identity, container registry, deployment tooling) within our own cluster, limiting exposure to external processors.

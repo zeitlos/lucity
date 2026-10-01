@@ -4,7 +4,7 @@ description: How Lucity handles your data.
 ---
 
 **Effective date:** March 16, 2026
-**Last updated:** July 24, 2026
+**Last updated:** October 1, 2026
 
 This privacy policy explains how lucity.cloud ("Lucity", "we", "us") collects, uses, and protects your data.
 
@@ -24,6 +24,7 @@ Mattenhofstrasse 5, 3007 Bern, Switzerland
 When you sign up, we collect:
 
 - **Email address** and **display name** (via our authentication service)
+- **GitHub account details** (username, user ID, email address, avatar) when you sign in with GitHub, and access to the repositories you connect for builds
 - **Billing information** (name, billing address, payment method) processed by Stripe
 
 ### Usage Data
@@ -53,7 +54,7 @@ We use [Rybbit](https://rybbit.com) (self-hosted) for website analytics. Rybbit 
 
 ## 3. Data Processing and Storage
 
-The platform core, your workloads, and their databases run on **Hetzner Cloud** in Nuremberg, Germany. Object storage buckets are hosted on **OVHcloud** in Gravelines, France. Both are in the **European Union**.
+The platform core, your workloads, and their databases run on **Hetzner Cloud** in Nuremberg, Germany. Object storage buckets are hosted on **OVHcloud** in Gravelines, France, and database backups on OVHcloud in Paris, France. Both are in the **European Union**.
 
 Our infrastructure services (authentication, container registry, deployment tooling, analytics) are **self-hosted** within our own cluster. The third parties listed below are the only external processors that handle data on our behalf.
 
@@ -62,11 +63,12 @@ Our infrastructure services (authentication, container registry, deployment tool
 | Provider | Purpose | Data Shared | Privacy Info |
 |----------|---------|-------------|--------------|
 | **Stripe** | Payment processing | Name, email, billing address, payment method | [stripe.com/privacy](https://stripe.com/privacy) |
-| **Hetzner** | Core infrastructure hosting (EU) | Platform data, workloads, and databases (encrypted at rest) | [hetzner.com/privacy-policy](https://www.hetzner.com/privacy-policy/) |
-| **OVHcloud** | Object storage hosting (EU) | Files you store in buckets (encrypted at rest) | [ovhcloud.com/en/personal-data-protection](https://www.ovhcloud.com/en/personal-data-protection/) |
+| **Hetzner** | Core infrastructure hosting (EU) | Platform data, workloads, and databases | [hetzner.com/privacy-policy](https://www.hetzner.com/privacy-policy/) |
+| **OVHcloud** | Object storage and database backups (EU) | Files you store in buckets; backups of your databases | [ovhcloud.com/en/personal-data-protection](https://www.ovhcloud.com/en/personal-data-protection/) |
 | **Bunny** | Content delivery for public buckets and custom-domain TLS | Publicly served bucket content; request metadata (IP address, user agent) of visitors to public content | [bunny.net/privacy](https://bunny.net/privacy) |
+| **Anthropic** | Internal operations and incident investigation | Platform metadata and logs needed for an investigation, such as project names, resource usage, and service logs | [anthropic.com/legal/privacy](https://www.anthropic.com/legal/privacy) |
 
-Stripe may process data outside the EU and maintains EU Standard Contractual Clauses for international transfers. Bunny operates a global content-delivery network, so publicly served content and visitor request metadata may be cached at edge locations outside the EU. We do not share data with any other third parties.
+Stripe may process data outside the EU and maintains EU Standard Contractual Clauses for international transfers. Anthropic processes data in the United States under EU Standard Contractual Clauses and does not use it to train models. Bunny operates a global content-delivery network, so publicly served content and visitor request metadata may be cached at edge locations outside the EU. We do not share data with any other third parties.
 
 ### Data Your Applications Process
 
@@ -96,8 +98,8 @@ To exercise any of these rights, email privacy@lucity.cloud.
 
 We protect your data with:
 
-- TLS encryption for all data in transit
-- Encrypted storage at rest
+- TLS for connections to the platform and WireGuard encryption between cluster nodes
+- Database backups stored with a different provider than primary hosting
 - Role-based access control
 - Isolated tenant workspaces (namespace-level separation in Kubernetes)
 
