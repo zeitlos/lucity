@@ -135,12 +135,14 @@ to the chart being deployed:
 # platform (lucity)
 git diff "$FROM..$TO" -- charts/lucity/values.yaml charts/lucity/templates \
   charts/lucity-app/values.yaml services/conductor/internal/deployer/values \
-  deployments/lucity-prod/values.yaml deployments/lucity-prod/secrets.yaml.example
+  deployments/lucity-prod/values.yaml deployments/secrets.yaml.example \
+  deployments/lucity-prod/secrets.yaml.example
 
 # infra (lucity-infra)
 git diff "$FROM..$TO" -- charts/lucity-infra/Chart.yaml charts/lucity-infra/values.yaml \
   charts/lucity-infra/templates \
-  deployments/lucity-prod/infra-values.yaml deployments/lucity-prod/infra-secrets.yaml.example
+  deployments/lucity-prod/infra-values.yaml deployments/infra-secrets.yaml.example \
+  deployments/lucity-prod/infra-secrets.yaml.example
 ```
 
 ## Step 3 — classify: is anything needed before this is safe to apply?

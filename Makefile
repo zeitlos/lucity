@@ -125,7 +125,7 @@ PROD_CONTEXT ?= lucity-prod
 VERSION ?=
 
 deploy-prod-infra:
-	@test -f deployments/lucity-prod/infra-secrets.yaml || { echo "Error: deployments/lucity-prod/infra-secrets.yaml not found. Copy infra-secrets.yaml.example and fill in values."; exit 1; }
+	@test -f deployments/lucity-prod/infra-secrets.yaml || { echo "Error: deployments/lucity-prod/infra-secrets.yaml not found. Copy deployments/infra-secrets.yaml.example and fill in values."; exit 1; }
 	helm upgrade --install lucity-infra \
 		oci://ghcr.io/zeitlos/lucity/charts/lucity-infra \
 		$(if $(VERSION),--version $(VERSION)) \
@@ -136,7 +136,7 @@ deploy-prod-infra:
 		$(HELM_ARGS)
 
 deploy-prod:
-	@test -f deployments/lucity-prod/secrets.yaml || { echo "Error: deployments/lucity-prod/secrets.yaml not found. Copy secrets.yaml.example and fill in values."; exit 1; }
+	@test -f deployments/lucity-prod/secrets.yaml || { echo "Error: deployments/lucity-prod/secrets.yaml not found. Copy deployments/secrets.yaml.example and fill in values."; exit 1; }
 	helm upgrade --install lucity \
 		oci://ghcr.io/zeitlos/lucity/charts/lucity \
 		$(if $(VERSION),--version $(VERSION)) \
@@ -153,7 +153,7 @@ deploy-prod:
 DEV_CONTEXT ?= lucity-dev
 
 deploy-dev-infra:
-	@test -f deployments/lucity-dev/infra-secrets.yaml || { echo "Error: deployments/lucity-dev/infra-secrets.yaml not found. Copy infra-secrets.yaml.example and fill in values."; exit 1; }
+	@test -f deployments/lucity-dev/infra-secrets.yaml || { echo "Error: deployments/lucity-dev/infra-secrets.yaml not found. Copy deployments/infra-secrets.yaml.example and fill in values."; exit 1; }
 	helm upgrade --install lucity-infra \
 		oci://ghcr.io/zeitlos/lucity/charts/lucity-infra \
 		$(if $(VERSION),--version $(VERSION)) \
@@ -164,7 +164,7 @@ deploy-dev-infra:
 		$(HELM_ARGS)
 
 deploy-dev:
-	@test -f deployments/lucity-dev/secrets.yaml || { echo "Error: deployments/lucity-dev/secrets.yaml not found. Copy secrets.yaml.example and fill in values."; exit 1; }
+	@test -f deployments/lucity-dev/secrets.yaml || { echo "Error: deployments/lucity-dev/secrets.yaml not found. Copy deployments/secrets.yaml.example and fill in values."; exit 1; }
 	helm upgrade --install lucity \
 		oci://ghcr.io/zeitlos/lucity/charts/lucity \
 		$(if $(VERSION),--version $(VERSION)) \
