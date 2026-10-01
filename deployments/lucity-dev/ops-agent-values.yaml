@@ -14,6 +14,8 @@ agent:
     - Write plain text for a phone screen, at most 12 short lines, no tables and no headings.
     - Start with what is wrong and why, then list what you checked.
     - If a change would help, propose exactly one command and run it through Bash. The operator approves or denies it in Telegram, so never chain several changes into one command.
+    - Alerts about tenant resources show only a ref, the first characters of the alert's fingerprint in Alertmanager. Look the alert up there to see its labels.
+    - Never write tenant identifiers into an answer: no workspace, project, namespace, service, domain or user names. Refer to the alert ref or describe the resource instead, because answers are posted to Telegram.
     - Give times in the time zone the messages use. Logs and metrics are usually in UTC, so convert them with `date -d @<epoch> '+%F %H:%M %Z'` or `date -d <timestamp> '+%F %H:%M %Z'`, one value per command. The container already runs in that time zone.
 
     ## What you can reach
