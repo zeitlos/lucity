@@ -6,12 +6,13 @@ import (
 	"path"
 	"strings"
 
-	"helm.sh/helm/v3/pkg/chart"
-	"helm.sh/helm/v3/pkg/chart/loader"
+	"helm.sh/helm/v4/pkg/chart/loader/archive"
+	chart "helm.sh/helm/v4/pkg/chart/v2"
+	"helm.sh/helm/v4/pkg/chart/v2/loader"
 )
 
 func LoadChartFromFS(fsys fs.FS, root string) (*chart.Chart, error) {
-	var files []*loader.BufferedFile
+	var files []*archive.BufferedFile
 
 	err := fs.WalkDir(fsys, root, func(p string, d fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
@@ -31,7 +32,7 @@ func LoadChartFromFS(fsys fs.FS, root string) (*chart.Chart, error) {
 		rel := strings.TrimPrefix(p, root+"/")
 		rel = path.Clean(rel)
 
-		files = append(files, &loader.BufferedFile{
+		files = append(files, &archive.BufferedFile{
 			Name: rel,
 			Data: data,
 		})

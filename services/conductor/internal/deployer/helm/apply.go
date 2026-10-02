@@ -7,10 +7,12 @@ import (
 	"strconv"
 
 	"gopkg.in/yaml.v3"
-	"helm.sh/helm/v3/pkg/action"
-	helmchart "helm.sh/helm/v3/pkg/chart"
-	"helm.sh/helm/v3/pkg/release"
-	"helm.sh/helm/v3/pkg/storage/driver"
+	"helm.sh/helm/v4/pkg/action"
+	helmchart "helm.sh/helm/v4/pkg/chart/v2"
+	"helm.sh/helm/v4/pkg/kube"
+	"helm.sh/helm/v4/pkg/release"
+	"helm.sh/helm/v4/pkg/release/common"
+	"helm.sh/helm/v4/pkg/storage/driver"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 
 	"github.com/zeitlos/lucity/services/conductor/internal/deployer"
@@ -26,9 +28,9 @@ const releaseName = "lucity-app"
 func (c *Client) applyEnv(ctx context.Context, envID platform.EnvironmentID, mutate func(*values.Env) error) (deployer.RevisionID, error) {
 	namespace := envID.Namespace()
 
-	config := new(action.Configuration)
+	config := action.NewConfiguration()
 
-	if err := config.Init(restGetterFor(namespace), namespace, "secret", debugLog); err != nil {
+	if err := config.Init(restGetterFor(namespace), namespace, "secret"); err != nil {
 		return "", err
 	}
 
@@ -73,7 +75,13 @@ func (c *Client) applyEnv(ctx context.Context, envID platform.EnvironmentID, mut
 		return "", err
 	}
 
-	return deployer.RevisionID(strconv.Itoa(rel.Version)), nil
+	accessor, err := release.NewAccessor(rel)
+
+	if err != nil {
+		return "", err
+	}
+
+	return deployer.RevisionID(strconv.Itoa(accessor.Version())), nil
 }
 
 func (c *Client) backupStore(envID platform.EnvironmentID) values.BackupStore {
@@ -98,7 +106,7 @@ func (c *Client) backupStore(envID platform.EnvironmentID) values.BackupStore {
 // whether the release already exists. The helm SDK's Upgrade.Install field
 // is purely informational — it does NOT auto-install missing releases.
 // Callers must check history and route manually.
-func installOrUpgrade(ctx context.Context, config *action.Configuration, releaseName, namespace string, chart *helmchart.Chart, vals map[string]any) (*release.Release, error) {
+func installOrUpgrade(ctx context.Context, config *action.Configuration, releaseName, namespace string, chart *helmchart.Chart, vals map[string]any) (release.Releaser, error) {
 	exists, replace, err := releaseState(config, releaseName)
 
 	if err != nil {
@@ -110,6 +118,8 @@ func installOrUpgrade(ctx context.Context, config *action.Configuration, release
 		install.ReleaseName = releaseName
 		install.Namespace = namespace
 		install.Replace = replace
+		install.ServerSideApply = false
+		install.WaitStrategy = kube.HookOnlyStrategy
 
 		rel, err := install.RunWithContext(ctx, chart, vals)
 
@@ -122,6 +132,8 @@ func installOrUpgrade(ctx context.Context, config *action.Configuration, release
 
 	upgrade := action.NewUpgrade(config)
 	upgrade.Namespace = namespace
+	upgrade.ServerSideApply = "false"
+	upgrade.WaitStrategy = kube.HookOnlyStrategy
 
 	rel, err := upgrade.RunWithContext(ctx, releaseName, chart, vals)
 
@@ -152,7 +164,17 @@ func releaseState(config *action.Configuration, name string) (exists, replace bo
 		return false, false, err
 	}
 
-	if len(versions) > 0 && versions[len(versions)-1].Info.Status == release.StatusUninstalled {
+	if len(versions) == 0 {
+		return true, false, nil
+	}
+
+	latest, err := release.NewAccessor(versions[len(versions)-1])
+
+	if err != nil {
+		return false, false, err
+	}
+
+	if latest.Status() == common.StatusUninstalled.String() {
 		return false, true, nil
 	}
 
@@ -162,9 +184,9 @@ func releaseState(config *action.Configuration, name string) (exists, replace bo
 func (c *Client) loadEnv(_ context.Context, envID platform.EnvironmentID) (*values.Env, error) {
 	namespace := envID.Namespace()
 
-	cfg := new(action.Configuration)
+	cfg := action.NewConfiguration()
 
-	if err := cfg.Init(restGetterFor(namespace), namespace, "secret", debugLog); err != nil {
+	if err := cfg.Init(restGetterFor(namespace), namespace, "secret"); err != nil {
 		return nil, err
 	}
 
@@ -209,8 +231,6 @@ func envToMap(env *values.Env) (map[string]any, error) {
 
 	return out, nil
 }
-
-func debugLog(format string, v ...any) {}
 
 // restGetterFor returns a Helm RESTClientGetter scoped to namespace. Helm uses
 // the getter's namespace as the default for rendered resources that omit one in

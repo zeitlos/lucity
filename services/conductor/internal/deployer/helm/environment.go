@@ -10,8 +10,8 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/deployer"
 	"github.com/zeitlos/lucity/services/conductor/internal/deployer/values"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
-	"helm.sh/helm/v3/pkg/action"
-	"helm.sh/helm/v3/pkg/storage/driver"
+	"helm.sh/helm/v4/pkg/action"
+	"helm.sh/helm/v4/pkg/storage/driver"
 )
 
 type environmentClient struct {
@@ -49,9 +49,9 @@ func (e *environmentClient) Suspend(ctx context.Context, id platform.Environment
 func (e *environmentClient) Export(_ context.Context, id platform.EnvironmentID) ([]byte, error) {
 	namespace := id.Namespace()
 
-	config := new(action.Configuration)
+	config := action.NewConfiguration()
 
-	if err := config.Init(restGetterFor(namespace), namespace, "secret", debugLog); err != nil {
+	if err := config.Init(restGetterFor(namespace), namespace, "secret"); err != nil {
 		return nil, err
 	}
 
@@ -80,9 +80,9 @@ func (e *environmentClient) Export(_ context.Context, id platform.EnvironmentID)
 func (e *environmentClient) Reconcile(ctx context.Context, id platform.EnvironmentID) (deployer.RevisionID, error) {
 	namespace := id.Namespace()
 
-	config := new(action.Configuration)
+	config := action.NewConfiguration()
 
-	if err := config.Init(restGetterFor(namespace), namespace, "secret", debugLog); err != nil {
+	if err := config.Init(restGetterFor(namespace), namespace, "secret"); err != nil {
 		return "", err
 	}
 
