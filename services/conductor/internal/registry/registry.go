@@ -101,9 +101,11 @@ func (c *Client) fetch(ctx context.Context, imageRef string) (*v1.Config, error)
 
 	registry := ref.Context().RegistryStr()
 	auth := authn.Anonymous
+	var options []name.Option
 
 	if c.endpoint != "" && strings.EqualFold(registry, c.endpoint) {
 		registry = c.dialEndpoint
+		options = append(options, name.Insecure)
 
 		endpoint, err := name.NewRegistry(c.endpoint)
 		if err != nil {
@@ -118,7 +120,7 @@ func (c *Client) fetch(ctx context.Context, imageRef string) (*v1.Config, error)
 		}
 	}
 
-	repo, err := name.NewRepository(registry + "/" + ref.Context().RepositoryStr())
+	repo, err := name.NewRepository(registry+"/"+ref.Context().RepositoryStr(), options...)
 	if err != nil {
 		return nil, err
 	}
