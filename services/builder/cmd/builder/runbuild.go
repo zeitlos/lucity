@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -241,6 +242,21 @@ func normalizeTimestamps(repoPath string) error {
 	})
 }
 
+func railpackVersion() string {
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		return ""
+	}
+
+	for _, dep := range info.Deps {
+		if dep.Path == "github.com/railwayapp/railpack" {
+			return dep.Version
+		}
+	}
+
+	return ""
+}
+
 func generatePlan(buildDir string, buildVariables map[string]string) (*plan.BuildPlan, error) {
 	a, err := app.NewApp(buildDir)
 	if err != nil {
@@ -248,7 +264,7 @@ func generatePlan(buildDir string, buildVariables map[string]string) (*plan.Buil
 	}
 
 	env := app.NewEnvironment(&buildVariables)
-	result, err := core.GenerateBuildPlan(a, env, &core.GenerateBuildPlanOptions{})
+	result, err := core.GenerateBuildPlan(a, env, &core.GenerateBuildPlanOptions{RailpackVersion: railpackVersion()})
 	if err != nil {
 		return nil, fmt.Errorf("railpack plan generation failed: %w", err)
 	}
@@ -302,6 +318,7 @@ func buildWithBuildKit(ctx context.Context, cfg Config, buildDir, imageName, cac
 	llbState, image, err := rpbuildkit.ConvertPlanToLLB(buildPlan, rpbuildkit.ConvertPlanOptions{
 		BuildPlatform: buildPlatform,
 		SecretsHash:   hashMap(secretsMap),
+		CacheKey:      cfg.CacheKey,
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to convert plan to LLB: %w", err)
@@ -329,6 +346,7 @@ func buildWithBuildKit(ctx context.Context, cfg Config, buildDir, imageName, cac
 		"push":                  "true",
 		"containerimage.config": string(imageBytes),
 		"registry.insecure":     "true",
+		"oci-mediatypes":        "false",
 	}
 
 	// Cache import from registry (cache miss on first build is handled gracefully)

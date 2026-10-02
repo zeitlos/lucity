@@ -16,6 +16,7 @@ type Config struct {
 	GitRef       string   `envconfig:"BUILD_GIT_REF" required:"true"`
 	ContextPath  string   `envconfig:"BUILD_CONTEXT_PATH"`
 	TargetRefs   []string `envconfig:"BUILD_TARGET_REFS" required:"true"`
+	CacheKey     string   `envconfig:"BUILD_CACHE_KEY" required:"true"`
 	BuildkitAddr string   `envconfig:"BUILDKIT_ADDR" required:"true"`
 	GitHubToken  string   `envconfig:"GITHUB_TOKEN"`
 
