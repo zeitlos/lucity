@@ -2,7 +2,9 @@ package graceful
 
 import (
 	"context"
+	"errors"
 	"log/slog"
+	"net/http"
 	"os"
 	"os/signal"
 	"sync"
@@ -50,7 +52,7 @@ func Serve(ctx context.Context, servers ...Server) {
 		go func(srv Server) {
 			defer wg.Done()
 			slog.Info("starting server", "server", srv.Label())
-			if err := srv.Start(); err != nil {
+			if err := srv.Start(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 				slog.Error("server failed", "server", srv.Label(), "error", err)
 			}
 		}(s)
