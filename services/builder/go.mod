@@ -10,10 +10,10 @@ require (
 	github.com/google/go-containerregistry v0.22.1
 	github.com/joho/godotenv v1.5.1
 	github.com/kelseyhightower/envconfig v1.4.0
-	github.com/moby/buildkit v0.31.1
+	github.com/moby/buildkit v0.33.1
 	github.com/opencontainers/image-spec v1.1.1
-	github.com/railwayapp/railpack v0.30.0
-	github.com/tonistiigi/fsutil v0.0.0-20260630114638-b1eb15549b43
+	github.com/railwayapp/railpack v0.40.1
+	github.com/tonistiigi/fsutil v0.0.0-20260819142231-83cac42c1c52
 	github.com/zeitlos/lucity/pkg v0.0.0-20260706084318-3ef7184f18d8
 )
 
@@ -40,11 +40,12 @@ require (
 	github.com/cloudflare/circl v1.6.5 // indirect
 	github.com/containerd/console v1.0.5 // indirect
 	github.com/containerd/containerd/api v1.12.0 // indirect
-	github.com/containerd/containerd/v2 v2.3.2 // indirect
+	github.com/containerd/containerd/v2 v2.4.1 // indirect
 	github.com/containerd/continuity v0.5.0 // indirect
 	github.com/containerd/errdefs v1.0.0 // indirect
 	github.com/containerd/errdefs/pkg v0.3.0 // indirect
 	github.com/containerd/log v0.2.0 // indirect
+	github.com/containerd/log/otel v0.1.0 // indirect
 	github.com/containerd/platforms v1.0.0-rc.5 // indirect
 	github.com/containerd/ttrpc v1.2.10 // indirect
 	github.com/containerd/typeurl/v2 v2.3.0 // indirect
@@ -96,6 +97,7 @@ require (
 	github.com/skeema/knownhosts v1.3.3 // indirect
 	github.com/stretchr/objx v0.5.3 // indirect
 	github.com/tailscale/hujson v0.0.0-20260727124030-b80ff77dac4f // indirect
+	github.com/tidwall/pretty v1.2.2 // indirect
 	github.com/tonistiigi/go-csvvalue v0.0.0-20240814133006-030d3b2625d0 // indirect
 	github.com/tonistiigi/units v0.0.0-20180711220420-6950e57a87ea // indirect
 	github.com/tonistiigi/vt100 v0.0.0-20240514184818-90bafcd6abab // indirect

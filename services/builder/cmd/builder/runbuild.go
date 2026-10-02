@@ -248,7 +248,10 @@ func generatePlan(buildDir string, buildVariables map[string]string) (*plan.Buil
 	}
 
 	env := app.NewEnvironment(&buildVariables)
-	result := core.GenerateBuildPlan(a, env, &core.GenerateBuildPlanOptions{})
+	result, err := core.GenerateBuildPlan(a, env, &core.GenerateBuildPlanOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("railpack plan generation failed: %w", err)
+	}
 	if !result.Success || result.Plan == nil {
 		errMsg := "unknown error"
 		var errs []string
