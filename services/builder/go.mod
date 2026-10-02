@@ -1,29 +1,20 @@
 module github.com/zeitlos/lucity/services/builder
 
-go 1.26.3
+go 1.27.0
 
 replace github.com/zeitlos/lucity/pkg => ../../pkg
 
 require (
 	github.com/docker/cli v29.8.2+incompatible
 	github.com/go-git/go-git/v5 v5.19.2
+	github.com/google/go-containerregistry v0.22.1
+	github.com/joho/godotenv v1.5.1
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/moby/buildkit v0.31.1
 	github.com/opencontainers/image-spec v1.1.1
 	github.com/railwayapp/railpack v0.30.0
 	github.com/tonistiigi/fsutil v0.0.0-20260630114638-b1eb15549b43
 	github.com/zeitlos/lucity/pkg v0.0.0-20260706084318-3ef7184f18d8
-)
-
-require github.com/google/go-containerregistry v0.22.1
-
-require (
-	github.com/gkampitakis/go-snaps v0.5.15 // indirect
-	github.com/goccy/go-yaml v1.19.2 // indirect
-	github.com/onsi/gomega v1.43.0 // indirect
-	github.com/pb33f/go-yaml v0.1.1 // indirect
-	github.com/pb33f/ordered-map/v2 v2.3.2 // indirect
-	gotest.tools/v3 v3.5.2 // indirect
 )
 
 require (
@@ -62,11 +53,13 @@ require (
 	github.com/docker/docker-credential-helpers v0.9.9 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/felixge/httpsnoop v1.1.0 // indirect
+	github.com/gkampitakis/go-snaps v0.5.15 // indirect
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
 	github.com/go-git/go-billy/v5 v5.9.1 // indirect
 	github.com/go-logfmt/logfmt v0.6.1 // indirect
 	github.com/go-logr/logr v1.4.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
+	github.com/goccy/go-yaml v1.19.2 // indirect
 	github.com/gofrs/flock v0.13.1 // indirect
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
@@ -77,7 +70,6 @@ require (
 	github.com/in-toto/in-toto-golang v0.11.0 // indirect
 	github.com/invopop/jsonschema v0.14.0 // indirect
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
-	github.com/joho/godotenv v1.5.1
 	github.com/kevinburke/ssh_config v1.6.0 // indirect
 	github.com/klauspost/compress v1.20.1 // indirect
 	github.com/lmittmann/tint v1.2.0 // indirect
@@ -89,7 +81,10 @@ require (
 	github.com/moby/sys/signal v0.7.1 // indirect
 	github.com/morikuni/aec v1.1.0 // indirect
 	github.com/muesli/termenv v0.16.0 // indirect
+	github.com/onsi/gomega v1.43.1 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
+	github.com/pb33f/go-yaml v0.1.1 // indirect
+	github.com/pb33f/ordered-map/v2 v2.3.2 // indirect
 	github.com/pjbgf/sha1cd v0.7.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 // indirect
@@ -129,5 +124,6 @@ require (
 	google.golang.org/protobuf v1.36.12 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
+	gotest.tools/v3 v3.5.2 // indirect
 	mvdan.cc/sh/v3 v3.14.1 // indirect
 )

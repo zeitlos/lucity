@@ -16,7 +16,7 @@ Lucity is a single Go control-plane binary (**conductor**) plus a Vue 3 **dashbo
 
 ## Prerequisites
 
-- [Go 1.26+](https://go.dev/dl/)
+- [Go 1.27+](https://go.dev/dl/)
 - [Node.js 20+](https://nodejs.org/)
 - [Docker](https://docs.docker.com/get-docker/)
 - [Minikube](https://minikube.sigs.k8s.io/docs/start/)

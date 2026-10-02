@@ -23,7 +23,7 @@
     <img src="https://img.shields.io/github/license/zeitlos/lucity?color=blue" alt="License">
   </a>
   <a href="https://go.dev/">
-    <img src="https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white" alt="Go 1.26">
+    <img src="https://img.shields.io/badge/Go-1.27-00ADD8?logo=go&logoColor=white" alt="Go 1.27">
   </a>
 </p>
 

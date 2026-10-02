@@ -4,7 +4,7 @@ Open-source PaaS on Kubernetes with full ejectability. Monorepo with a single Go
 
 ## Project
 
-- **Go workspace**: `go.work` with multi-module layout (Go 1.26)
+- **Go workspace**: `go.work` with multi-module layout (Go 1.27)
 - **Module path**: `github.com/zeitlos/lucity`
 - **Monorepo**: `services/conductor` (control plane), `services/cashier` (billing), `services/dashboard` (Vue), `services/switchboard` (agent chat bridge, experimental), `pkg/` (shared Go), `charts/` (Helm)
 - **Platform images**: `ghcr.io/zeitlos/lucity/{conductor,cashier,dashboard,docs,switchboard}`
