@@ -76,7 +76,7 @@ conductor:
   # -- Registry host for BuildKit config (used in buildkitd.toml for build Jobs)
   registryHost: ""
   # -- BuildKit image (used by the persistent BuildKit Deployment)
-  buildkitImage: moby/buildkit:v0.28.0
+  buildkitImage: moby/buildkit:v0.33.1@sha256:cec9f139f45e93c5c69c60f8b07cfad9f43f4ef6b6a6cd917527fea5ff2e3dea
   # -- Registry credentials used by build Jobs to push images.
   registryUsername: ""
   # -- Build runner image: a separate small binary that runs inside
