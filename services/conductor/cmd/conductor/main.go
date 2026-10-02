@@ -474,18 +474,30 @@ func main() {
 
 	conductor := conductor.New(cashierClient, githubApp, logtoClient, directoryClient, platformClient, jobsClient, deployJobsClient, scanJobsClient, scanReportClient, vulnerabilitiesClient, pipelineClient, planner, source, hostnameClient, deployerClient, environmentClient, objectStorageClient, metricsProvider, edgeClient, conductorConfig)
 
-	go runAdmissionReconciler(ctx, pipelineClient)
-	slog.Info("release admission ready", "maxConcurrent", config.MaxConcurrentReleases, "maxQueuedPerWorkspace", config.MaxQueuedReleases)
+	var leaderDone <-chan struct{}
 
 	if config.ReconcileEnabled {
-		go runDomainReconciler(ctx, conductor)
-		go runServiceReconciler(ctx, conductor)
+		loops := []func(context.Context){
+			func(ctx context.Context) { runAdmissionReconciler(ctx, pipelineClient) },
+			func(ctx context.Context) { runDomainReconciler(ctx, conductor) },
+			func(ctx context.Context) { runServiceReconciler(ctx, conductor) },
+		}
 
 		if config.DatabaseBackupEnabled {
-			go runBackupReconciler(ctx, conductor)
+			loops = append(loops, func(ctx context.Context) { runBackupReconciler(ctx, conductor) })
 		}
+
+		done, err := runAsLeader(ctx, k8sClient, config.SystemNamespace, loops...)
+
+		if err != nil {
+			slog.Error("failed to start leader election", "error", err)
+			os.Exit(1)
+		}
+
+		leaderDone = done
+		slog.Info("release admission ready", "maxConcurrent", config.MaxConcurrentReleases, "maxQueuedPerWorkspace", config.MaxQueuedReleases)
 	} else {
-		slog.Warn("reconcilers disabled")
+		slog.Warn("background loops disabled: this conductor never admits queued builds or deploys")
 	}
 
 	components := []grpcComponent{}
@@ -530,6 +542,10 @@ func main() {
 	}
 
 	graceful.Serve(ctx, servers...)
+
+	if leaderDone != nil {
+		<-leaderDone
+	}
 }
 
 func buildKubeClients() (kubernetes.Interface, dynamic.Interface, error) {
