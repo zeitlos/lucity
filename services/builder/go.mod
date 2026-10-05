@@ -5,6 +5,7 @@ go 1.27.0
 replace github.com/zeitlos/lucity/pkg => ../../pkg
 
 require (
+	github.com/distribution/reference v0.6.0
 	github.com/docker/cli v29.8.2+incompatible
 	github.com/go-git/go-git/v5 v5.19.2
 	github.com/google/go-containerregistry v0.22.1
@@ -50,7 +51,6 @@ require (
 	github.com/containerd/ttrpc v1.2.10 // indirect
 	github.com/containerd/typeurl/v2 v2.3.0 // indirect
 	github.com/cyphar/filepath-securejoin v0.7.0 // indirect
-	github.com/distribution/reference v0.6.0 // indirect
 	github.com/docker/docker-credential-helpers v0.9.9 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/felixge/httpsnoop v1.1.0 // indirect

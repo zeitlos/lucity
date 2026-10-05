@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/distribution/reference"
 	dockerconfig "github.com/docker/cli/cli/config"
 	"github.com/go-git/go-git/v5"
 	"github.com/moby/buildkit/client"
@@ -32,6 +33,8 @@ import (
 	rplog "github.com/railwayapp/railpack/core/logger"
 	"github.com/railwayapp/railpack/core/plan"
 	"github.com/tonistiigi/fsutil"
+
+	"github.com/zeitlos/lucity/pkg/imageref"
 )
 
 func executeBuild(cfg Config, buildVars map[string]string) error {
@@ -313,6 +316,10 @@ func buildWithBuildKit(ctx context.Context, cfg Config, buildDir, imageName, cac
 		secretsMap[k] = []byte(v)
 	}
 
+	if err := validatePlanImages(buildPlan, imageName); err != nil {
+		return "", err
+	}
+
 	// Convert railpack plan to LLB
 	buildPlatform := specs.Platform{OS: "linux", Architecture: "amd64"}
 	llbState, image, err := rpbuildkit.ConvertPlanToLLB(buildPlan, rpbuildkit.ConvertPlanOptions{
@@ -426,6 +433,46 @@ func buildWithBuildKit(ctx context.Context, cfg Config, buildDir, imageName, cac
 
 	slog.Info("buildkit solve completed", "duration", time.Since(startTime).Round(time.Millisecond))
 	return resp.ExporterResponse["containerimage.digest"], nil
+}
+
+func validatePlanImages(buildPlan *plan.BuildPlan, target string) error {
+	named, err := reference.ParseNormalizedNamed(target)
+
+	if err != nil {
+		return fmt.Errorf("invalid build target %q: %w", target, err)
+	}
+
+	workspace, _, _ := strings.Cut(reference.Path(named), "/")
+
+	images := []string{buildPlan.Deploy.Base.Image}
+
+	for _, layer := range buildPlan.Deploy.Inputs {
+		images = append(images, layer.Image)
+	}
+
+	for _, step := range buildPlan.Steps {
+		for _, layer := range step.Inputs {
+			images = append(images, layer.Image)
+		}
+
+		for _, command := range step.Commands {
+			if copyCommand, ok := command.(plan.CopyCommand); ok {
+				images = append(images, copyCommand.Image)
+			}
+		}
+	}
+
+	for _, image := range images {
+		if image == "" {
+			continue
+		}
+
+		if err := imageref.Validate(image, workspace, reference.Domain(named)); err != nil {
+			return fmt.Errorf("build plan: %w", err)
+		}
+	}
+
+	return nil
 }
 
 func hashMap(vars map[string][]byte) string {
