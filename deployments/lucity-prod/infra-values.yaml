@@ -285,9 +285,6 @@ victoria-metrics-alert:
     # The full receivers[] list (with the real Telegram chat_id) is set in
     # infra-secrets.yaml so the bot_token + chat_id live together.
 
-opentelemetry-operator:
-  enabled: false
-
 otelCollector:
   daemonset:
     enabled: true

@@ -17,9 +17,6 @@ dependencies:
 - name: victoria-metrics-alert
   repository: https://victoriametrics.github.io/helm-charts/
   version: 0.50.0
-- name: opentelemetry-operator
-  repository: https://open-telemetry.github.io/opentelemetry-helm-charts
-  version: 0.117.0
 - name: grafana
   repository: https://grafana-community.github.io/helm-charts
   version: 12.10.2
@@ -32,5 +29,5 @@ dependencies:
 - name: vertical-pod-autoscaler
   repository: https://kubernetes.github.io/autoscaler
   version: 0.13.0
-digest: sha256:c13f9a1271c83da58d1fa1217035e2fb330fefde6c5cc5aa5ae775ce76f44a08
-generated: "2026-10-05T12:04:25.909705+02:00"
+digest: sha256:ae3a1c22146d0cf50f70e89459e46d8aeee8057158878eb317c6aa072ab90e02
+generated: "2026-10-05T12:57:03.146106+02:00"

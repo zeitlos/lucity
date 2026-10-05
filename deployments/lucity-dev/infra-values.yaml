@@ -259,9 +259,6 @@ victoria-logs-single:
       limits:
         memory: 512Mi
 
-opentelemetry-operator:
-  enabled: false
-
 otelCollector:
   daemonset:
     enabled: true

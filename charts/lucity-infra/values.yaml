@@ -597,13 +597,6 @@ victoria-metrics-alert:
               send_resolved: true
               message: '{{ template "lucity.telegram" . }}'
 
-# -- OpenTelemetry Operator (provides OpenTelemetryCollector + Instrumentation CRDs)
-opentelemetry-operator:
-  enabled: false
-  # Default collector image is the k8s distribution which includes every receiver
-  # we use (kubelet_stats, k8s_cluster, prometheus, file_log, k8s_events, k8s_attributes).
-  # cert-manager is required and already installed in lucity-prod via flex.plane.
-
 # -- OpenTelemetry Collector instances (rendered as OpenTelemetryCollector CRs)
 otelCollector:
   daemonset:
