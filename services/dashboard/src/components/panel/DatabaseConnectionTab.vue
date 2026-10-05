@@ -7,6 +7,8 @@ import { graphql } from '@/gql';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import DatabaseAllowRules from '@/components/panel/DatabaseAllowRules.vue';
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -24,7 +26,12 @@ const DatabasePublicDocument = graphql(`
     database(id: $database) {
       id
       public
+      allowRules {
+        range
+        description
+      }
     }
+    clientAddress
   }
 `);
 
@@ -51,6 +58,18 @@ const ExposeDatabaseDocument = graphql(`
   }
 `);
 
+const AllowOnExposeDocument = graphql(`
+  mutation AllowOnExpose($database: DatabaseID!, $rule: DatabaseAllowRuleInput!) {
+    addDatabaseAllowRule(database: $database, rule: $rule) {
+      id
+      allowRules {
+        range
+        description
+      }
+    }
+  }
+`);
+
 const UnexposeDatabaseDocument = graphql(`
   mutation UnexposeDatabase($database: DatabaseID!) {
     unexposeDatabase(database: $database) {
@@ -72,6 +91,8 @@ const { result: dbResult, refetch: refetchDatabase } = useQuery(
 );
 
 const isPublic = computed(() => dbResult.value?.database?.public ?? false);
+const allowRules = computed(() => dbResult.value?.database?.allowRules ?? []);
+const clientAddress = computed(() => dbResult.value?.clientAddress ?? null);
 
 const { result, loading, error, refetch: refetchCredentials } = useQuery(
   DatabaseCredentialsDocument,
@@ -89,12 +110,15 @@ const isProvisioning = computed(() => {
 
 const { mutate: exposeDatabase, loading: exposing } = useMutation(ExposeDatabaseDocument);
 const { mutate: unexposeDatabase, loading: unexposing } = useMutation(UnexposeDatabaseDocument);
-const toggling = computed(() => exposing.value || unexposing.value);
+const { mutate: allowOnExpose, loading: allowingOnExpose } = useMutation(AllowOnExposeDocument);
+const toggling = computed(() => exposing.value || unexposing.value || allowingOnExpose.value);
 
 const exposeDialogOpen = ref(false);
+const exposeAccess = ref<'client' | 'any' | 'none'>('none');
 
 function onToggle(next: boolean) {
   if (next) {
+    exposeAccess.value = clientAddress.value ? 'client' : 'none';
     exposeDialogOpen.value = true;
   } else {
     void setExposed(false);
@@ -105,6 +129,17 @@ async function setExposed(next: boolean) {
   try {
     if (next) {
       await exposeDatabase({ database: props.databaseId });
+      if (exposeAccess.value === 'client' && clientAddress.value) {
+        await allowOnExpose({
+          database: props.databaseId,
+          rule: { range: clientAddress.value, description: 'Added from the dashboard' },
+        });
+      } else if (exposeAccess.value === 'any') {
+        await allowOnExpose({
+          database: props.databaseId,
+          rule: { range: '0.0.0.0/0', description: 'Any address' },
+        });
+      }
     } else {
       await unexposeDatabase({ database: props.databaseId });
     }
@@ -175,7 +210,7 @@ const privateGroups = computed(() => groups.value.filter(g => g.type !== 'PLATFO
           <span class="text-sm font-medium text-foreground">Internet access</span>
           <p class="text-xs text-muted-foreground">
             {{ isPublic
-              ? 'Reachable from anywhere over TLS on port 5432.'
+              ? 'Reachable over TLS on port 5432 from the addresses you allow.'
               : 'Reachable only from your other services over the private network.' }}
           </p>
         </div>
@@ -183,6 +218,13 @@ const privateGroups = computed(() => groups.value.filter(g => g.type !== 'PLATFO
           :model-value="isPublic"
           :disabled="toggling"
           @update:model-value="onToggle"
+        />
+      </div>
+      <div v-if="isPublic" class="border-t px-4 py-3">
+        <DatabaseAllowRules
+          :database-id="databaseId"
+          :rules="allowRules"
+          :client-address="clientAddress"
         />
       </div>
       <div v-if="isPublic && publicGroup" class="space-y-1.5 border-t px-4 py-3">
@@ -295,15 +337,48 @@ const privateGroups = computed(() => groups.value.filter(g => g.type !== 'PLATFO
             Expose "{{ databaseName }}" to the internet?
           </AlertDialogTitle>
           <AlertDialogDescription>
-            This database will be reachable from anywhere on the internet on port 5432.
-            Connections stay encrypted end-to-end (TLS terminates at the database), but
-            anyone with the credentials can connect. Make sure a strong password is in place.
+            This database gets a public hostname on port 5432, and only the addresses you
+            allow can connect. Connections stay encrypted end-to-end (TLS terminates at the
+            database). You can change who is allowed at any time.
           </AlertDialogDescription>
         </AlertDialogHeader>
+        <RadioGroup v-model="exposeAccess" class="space-y-2">
+          <label
+            v-if="clientAddress"
+            class="flex cursor-pointer items-start gap-2 rounded-lg border p-3 transition-colors"
+            :class="exposeAccess === 'client' ? 'border-primary bg-primary/5' : 'border-border'"
+          >
+            <RadioGroupItem value="client" class="mt-0.5" />
+            <div class="space-y-0.5">
+              <span class="text-sm font-medium">Only this computer</span>
+              <p class="text-xs text-muted-foreground">Allow {{ clientAddress }}, the address you're using right now.</p>
+            </div>
+          </label>
+          <label
+            class="flex cursor-pointer items-start gap-2 rounded-lg border p-3 transition-colors"
+            :class="exposeAccess === 'any' ? 'border-primary bg-primary/5' : 'border-border'"
+          >
+            <RadioGroupItem value="any" class="mt-0.5" />
+            <div class="space-y-0.5">
+              <span class="text-sm font-medium">Anyone on the internet</span>
+              <p class="text-xs text-muted-foreground">Only the database password keeps others out.</p>
+            </div>
+          </label>
+          <label
+            class="flex cursor-pointer items-start gap-2 rounded-lg border p-3 transition-colors"
+            :class="exposeAccess === 'none' ? 'border-primary bg-primary/5' : 'border-border'"
+          >
+            <RadioGroupItem value="none" class="mt-0.5" />
+            <div class="space-y-0.5">
+              <span class="text-sm font-medium">Nobody yet</span>
+              <p class="text-xs text-muted-foreground">Add the addresses that may connect afterwards.</p>
+            </div>
+          </label>
+        </RadioGroup>
         <AlertDialogFooter>
-          <AlertDialogCancel :disabled="exposing">Cancel</AlertDialogCancel>
-          <Button :disabled="exposing" @click="setExposed(true)">
-            {{ exposing ? 'Exposing...' : 'Expose database' }}
+          <AlertDialogCancel :disabled="toggling">Cancel</AlertDialogCancel>
+          <Button :disabled="toggling" @click="setExposed(true)">
+            {{ toggling ? 'Exposing...' : 'Expose database' }}
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>

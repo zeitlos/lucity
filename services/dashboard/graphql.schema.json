@@ -1677,6 +1677,30 @@
         "isOneOf": null,
         "fields": [
           {
+            "name": "allowRules",
+            "description": "Address ranges allowed to connect over the public hostname. While the list is empty, nobody can.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": null,
+                "kind": "LIST",
+                "ofType": {
+                  "name": null,
+                  "kind": "NON_NULL",
+                  "ofType": {
+                    "name": "DatabaseAllowRule",
+                    "kind": "OBJECT",
+                    "ofType": null
+                  }
+                }
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "backups",
             "description": null,
             "args": [],
@@ -1851,6 +1875,94 @@
         ],
         "inputFields": null,
         "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "DatabaseAllowRule",
+        "description": null,
+        "isOneOf": null,
+        "fields": [
+          {
+            "name": "description",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "String",
+                "kind": "SCALAR",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "range",
+            "description": "An IPv4 range in CIDR notation, such as `203.0.113.7/32`. `0.0.0.0/0` allows any address.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "String",
+                "kind": "SCALAR",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "INPUT_OBJECT",
+        "name": "DatabaseAllowRuleInput",
+        "description": null,
+        "isOneOf": false,
+        "fields": null,
+        "inputFields": [
+          {
+            "name": "description",
+            "description": "A note on whose address this is, such as `Office`.",
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "String",
+                "kind": "SCALAR",
+                "ofType": null
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "range",
+            "description": "An IPv4 address, such as `203.0.113.7`, or a range in CIDR notation, such as `203.0.113.0/24`. `0.0.0.0/0` allows any address.",
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "String",
+                "kind": "SCALAR",
+                "ofType": null
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "interfaces": null,
         "enumValues": null,
         "possibleTypes": null
       },
@@ -4963,6 +5075,55 @@
             "deprecationReason": null
           },
           {
+            "name": "addDatabaseAllowRule",
+            "description": "Allows an address range to connect over the public hostname of an exposed database. Adding a range that is already allowed updates its description.",
+            "args": [
+              {
+                "name": "database",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "name": "DatabaseID",
+                    "kind": "SCALAR",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "rule",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "name": "DatabaseAllowRuleInput",
+                    "kind": "INPUT_OBJECT",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "Database",
+                "kind": "OBJECT",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "addService",
             "description": "Adds a service to an environment, either built from a GitHub `repository` such as `acme/api` or run from a container `image`. A repository build starts right away, and an image runs without one.",
             "args": [
@@ -5945,7 +6106,7 @@
           },
           {
             "name": "exposeDatabase",
-            "description": "Gives a database a public hostname on port 5432. Clients have to connect with TLS.",
+            "description": "Gives a database a public hostname on port 5432. Clients have to connect with TLS, and nobody can connect until you allow their address with `addDatabaseAllowRule`.",
             "args": [
               {
                 "name": "database",
@@ -6100,6 +6261,55 @@
               "name": null,
               "ofType": {
                 "name": "Volume",
+                "kind": "OBJECT",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "removeDatabaseAllowRule",
+            "description": "Stops allowing an address range. Removing a range that isn't allowed succeeds, and once the last range is gone, nobody can connect over the public hostname.",
+            "args": [
+              {
+                "name": "database",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "name": "DatabaseID",
+                    "kind": "SCALAR",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "range",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "name": "String",
+                    "kind": "SCALAR",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "Database",
                 "kind": "OBJECT",
                 "ofType": null
               }
@@ -7026,7 +7236,7 @@
           },
           {
             "name": "unexposeDatabase",
-            "description": "Removes the public hostname of a database.",
+            "description": "Removes the public hostname of a database, together with its allow rules.",
             "args": [
               {
                 "name": "database",
@@ -7555,6 +7765,18 @@
                 "kind": "OBJECT",
                 "ofType": null
               }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "clientAddress",
+            "description": "The public IPv4 address your requests reach the platform from, or null when it can't be told. Handy for allowing your own machine to connect to a database.",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
             },
             "isDeprecated": false,
             "deprecationReason": null
