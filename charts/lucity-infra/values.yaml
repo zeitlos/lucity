@@ -506,13 +506,21 @@ victoria-metrics-alert:
                 annotations:
                   summary: "Load balancer {{ $labels.name }} is at {{ $value | humanizePercentage }} of its connection ceiling — new connections are dropped at 100%"
               # Targets are nodes, TCP-checked on the NodePort every 15s with
-              # 3 retries; 5m rides out a plain reboot.
+              # 3 retries; 5m rides out a plain reboot. The Postgres LBs use
+              # externalTrafficPolicy: Local, so nodes without a Traefik pod
+              # are unhealthy by design and only zero healthy targets counts.
               - alert: LoadBalancerTargetUnhealthy
-                expr: hcloud_loadbalancer_targets_unhealthy > 0
+                expr: hcloud_loadbalancer_targets_unhealthy{name!~".*-postgres"} > 0
                 for: 5m
                 labels: { severity: warning }
                 annotations:
                   summary: "Load balancer {{ $labels.name }} has {{ $value }} unhealthy target(s)"
+              - alert: LoadBalancerNoHealthyTargets
+                expr: hcloud_loadbalancer_targets_healthy == 0 and hcloud_loadbalancer_targets > 0
+                for: 5m
+                labels: { severity: critical }
+                annotations:
+                  summary: "Load balancer {{ $labels.name }} has no healthy target, so every connection through it fails"
               # An API failure (bad token, outage) drops the hcloud_* series
               # silently instead of erroring. 5 = half the one-minute scrapes.
               - alert: HcloudApiRequestsFailing
