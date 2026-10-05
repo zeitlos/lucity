@@ -119,7 +119,7 @@ rybbit:
   backend:
     image:
       repository: ghcr.io/rybbit-io/rybbit-backend
-      tag: v2.6.1
+      tag: v2.9.1
       pullPolicy: IfNotPresent
     port: 3001
     baseUrl: ""
@@ -135,7 +135,7 @@ rybbit:
   client:
     image:
       repository: ghcr.io/rybbit-io/rybbit-client
-      tag: v2.6.1
+      tag: v2.9.1
       pullPolicy: IfNotPresent
     port: 3002
     resources:
@@ -149,7 +149,7 @@ rybbit:
   clickhouse:
     image:
       repository: clickhouse/clickhouse-server
-      tag: "25.4.2"
+      tag: "26.3.17.4"
       pullPolicy: IfNotPresent
     port: 8123
     database: analytics
@@ -174,7 +174,7 @@ rybbit:
     version: "17"
     database: analytics
 
-  # Session store and bot-detection cache. Unused by 2.6.x, required from 2.7.0 on:
+  # Session store and bot-detection cache, required since 2.7.0:
   # the client defaults to localhost:6379 and only error-loops when it can't connect,
   # so a missing Redis reads as healthy while sessions silently degrade.
   redis:
