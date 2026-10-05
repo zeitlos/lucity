@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	gh "github.com/google/go-github/v68/github"
+	gh "github.com/google/go-github/v92/github"
 )
 
 func (a *App) Branches(ctx context.Context, installationID int64, repository string) ([]string, error) {
@@ -21,7 +21,11 @@ func (a *App) Branches(ctx context.Context, installationID int64, repository str
 		return nil, err
 	}
 
-	client := gh.NewClient(nil).WithAuthToken(token)
+	client, err := gh.NewClient(gh.WithAuthToken(token))
+
+	if err != nil {
+		return nil, err
+	}
 
 	opts := &gh.BranchListOptions{ListOptions: gh.ListOptions{PerPage: 100}}
 

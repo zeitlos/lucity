@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
 import { useQuery, useMutation } from '@vue/apollo-composable';
-import { useNow } from '@vueuse/core';
+import { useIntervalFn, useNow } from '@vueuse/core';
 import { CalendarClock, MousePointerClick, Timer } from '@lucide/vue';
 import { graphql } from '@/gql';
 import { BackupStatus, BackupTrigger } from '@/gql/graphql';
@@ -69,7 +69,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{ (e: 'database-restored'): void }>();
 
-const now = useNow({ interval: 30_000 });
+const now = useNow({ scheduler: (cb) => useIntervalFn(cb, 30_000) });
 const polling = ref(false);
 
 const { result, loading, error, refetch } = useQuery(

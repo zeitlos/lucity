@@ -7,7 +7,7 @@ require (
 	github.com/coreos/go-oidc/v3 v3.21.0
 	github.com/distribution/reference v0.6.0
 	github.com/golang-jwt/jwt/v5 v5.3.1
-	github.com/google/go-github/v68 v68.0.0
+	github.com/google/go-github/v92 v92.0.0
 	github.com/lmittmann/tint v1.2.0
 	golang.org/x/oauth2 v0.37.0
 	google.golang.org/grpc v1.84.0

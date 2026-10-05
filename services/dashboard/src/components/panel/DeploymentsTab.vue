@@ -6,7 +6,7 @@ import {
   MoreVertical, ChevronDown, Clock, CircleSlash, TriangleAlert, EyeOff,
 } from '@lucide/vue';
 import Spinner from '@/components/LoadingSpinner.vue';
-import { useNow } from '@vueuse/core';
+import { useIntervalFn, useNow } from '@vueuse/core';
 import { useDeploy } from '@/composables/useDeploy';
 import { useBuildLogsPanel, type LogsPanelKind } from '@/composables/useBuildLogsPanel';
 import { DeploymentStatus, ReleaseStatus, RolloutReason, RolloutStatus, ScanStatus } from '@/gql/graphql';
@@ -321,7 +321,7 @@ function stepColor(status: StepStatus): string {
   }
 }
 
-const { now, pause: pauseNow, resume: resumeNow } = useNow({ interval: 1000, controls: true });
+const { now, pause: pauseNow, resume: resumeNow } = useNow({ scheduler: (cb) => useIntervalFn(cb, 1000), controls: true });
 
 function stepDuration(step: ReleaseStep): string | null {
   if (!step.startedAt) return null;

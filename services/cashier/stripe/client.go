@@ -8,16 +8,16 @@ import (
 	"strings"
 	"time"
 
-	gostripe "github.com/stripe/stripe-go/v82"
-	"github.com/stripe/stripe-go/v82/billing/creditbalancesummary"
-	"github.com/stripe/stripe-go/v82/billing/creditgrant"
-	"github.com/stripe/stripe-go/v82/billing/meterevent"
-	portalsession "github.com/stripe/stripe-go/v82/billingportal/session"
-	checkoutsession "github.com/stripe/stripe-go/v82/checkout/session"
-	"github.com/stripe/stripe-go/v82/customer"
-	"github.com/stripe/stripe-go/v82/invoice"
-	"github.com/stripe/stripe-go/v82/subscription"
-	"github.com/stripe/stripe-go/v82/subscriptionitem"
+	gostripe "github.com/stripe/stripe-go/v87"
+	"github.com/stripe/stripe-go/v87/billing/creditbalancesummary"
+	"github.com/stripe/stripe-go/v87/billing/creditgrant"
+	"github.com/stripe/stripe-go/v87/billing/meterevent"
+	portalsession "github.com/stripe/stripe-go/v87/billingportal/session"
+	checkoutsession "github.com/stripe/stripe-go/v87/checkout/session"
+	"github.com/stripe/stripe-go/v87/customer"
+	"github.com/stripe/stripe-go/v87/invoice"
+	"github.com/stripe/stripe-go/v87/subscription"
+	"github.com/stripe/stripe-go/v87/subscriptionitem"
 )
 
 // PriceConfig holds all Stripe Price IDs for the billing model.
@@ -34,9 +34,9 @@ type PriceConfig struct {
 
 // MeterConfig holds Billing Meter event names for usage-based billing.
 type MeterConfig struct {
-	EcoCPUEventName  string
-	EcoMemEventName  string
-	EcoDiskEventName string
+	EcoCPUEventName   string
+	EcoMemEventName   string
+	EcoDiskEventName  string
 	ProdCPUEventName  string
 	ProdMemEventName  string
 	ProdDiskEventName string
@@ -79,6 +79,9 @@ func (c *Client) CreateSubscription(ctx context.Context, customerID, workspace s
 	params := &gostripe.SubscriptionParams{
 		Customer:        gostripe.String(customerID),
 		PaymentBehavior: gostripe.String("allow_incomplete"),
+		BillingMode: &gostripe.SubscriptionBillingModeParams{
+			Type: gostripe.String(string(gostripe.SubscriptionBillingModeTypeClassic)),
+		},
 		Items: []*gostripe.SubscriptionItemsParams{
 			{Price: gostripe.String(c.Prices.EcoCPUPriceID)},
 			{Price: gostripe.String(c.Prices.EcoMemPriceID)},
@@ -196,9 +199,9 @@ func (c *Client) SetDefaultPaymentMethod(ctx context.Context, customerID, paymen
 // session metadata so it can be retrieved on completion.
 func (c *Client) CreateSetupCheckoutSession(ctx context.Context, customerID, planPriceID, planName, successURL, cancelURL string) (string, string, error) {
 	params := &gostripe.CheckoutSessionParams{
-		Mode:     gostripe.String(string(gostripe.CheckoutSessionModeSetup)),
-		Customer: gostripe.String(customerID),
-		Currency: gostripe.String(string(gostripe.CurrencyEUR)),
+		Mode:       gostripe.String(string(gostripe.CheckoutSessionModeSetup)),
+		Customer:   gostripe.String(customerID),
+		Currency:   gostripe.String(string(gostripe.CurrencyEUR)),
 		SuccessURL: gostripe.String(successURL),
 		CancelURL:  gostripe.String(cancelURL),
 		CustomText: &gostripe.CheckoutSessionCustomTextParams{
@@ -468,7 +471,6 @@ func (c *Client) CreateCreditGrantForPeriod(ctx context.Context, customerID stri
 	return nil
 }
 
-
 // ActiveSubscriptionForCustomer returns the ID of an active subscription
 // for the given customer that has the specified workspace in its metadata.
 // Returns empty string if no matching subscription exists.
@@ -543,6 +545,9 @@ func (c *Client) CreateCheckoutSession(ctx context.Context, workspace, name, pla
 			{Price: gostripe.String(c.Prices.ProdDiskPriceID)},
 		},
 		SubscriptionData: &gostripe.CheckoutSessionSubscriptionDataParams{
+			BillingMode: &gostripe.CheckoutSessionSubscriptionDataBillingModeParams{
+				Type: gostripe.String(string(gostripe.SubscriptionBillingModeTypeClassic)),
+			},
 			Metadata: map[string]string{
 				"workspace": workspace,
 			},

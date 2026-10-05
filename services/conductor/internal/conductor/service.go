@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	containername "github.com/google/go-containerregistry/pkg/name"
-	gh "github.com/google/go-github/v68/github"
+	gh "github.com/google/go-github/v92/github"
 	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/zeitlos/lucity/pkg/auth"
@@ -555,7 +555,12 @@ func (c *Client) resolveRepositoryURL(ctx context.Context, installationID int64,
 		return "", fmt.Errorf("authenticate with GitHub: %w", err)
 	}
 
-	client := gh.NewClient(nil).WithAuthToken(token)
+	client, err := gh.NewClient(gh.WithAuthToken(token))
+
+	if err != nil {
+		return "", err
+	}
+
 	ghRepo, _, err := client.Repositories.Get(ctx, owner, repo)
 
 	if err != nil {

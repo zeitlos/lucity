@@ -19,7 +19,7 @@ require (
 	github.com/go-playground/validator/v10 v10.30.5
 	github.com/google/go-containerregistry v0.22.1
 	github.com/google/go-containerregistry/pkg/authn/kubernetes v0.0.0-20260911193048-0c8bedb78437
-	github.com/google/go-github/v68 v68.0.0
+	github.com/google/go-github/v92 v92.0.0
 	github.com/jackc/pgx/v5 v5.11.0
 	github.com/joho/godotenv v1.5.1
 	github.com/kelseyhightower/envconfig v1.4.0

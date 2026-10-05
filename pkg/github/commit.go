@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	gh "github.com/google/go-github/v68/github"
+	gh "github.com/google/go-github/v92/github"
 )
 
 type Commit struct {
@@ -26,7 +26,11 @@ func (a *App) Commit(ctx context.Context, installationID int64, repository, ref 
 		return Commit{}, err
 	}
 
-	client := gh.NewClient(nil).WithAuthToken(token)
+	client, err := gh.NewClient(gh.WithAuthToken(token))
+
+	if err != nil {
+		return Commit{}, err
+	}
 
 	commit, _, err := client.Repositories.GetCommit(ctx, owner, repo, ref, nil)
 
