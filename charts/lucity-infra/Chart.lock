@@ -4,10 +4,10 @@ dependencies:
   version: 0.1.125
 - name: cloudnative-pg
   repository: https://cloudnative-pg.github.io/charts
-  version: 0.29.0
+  version: 0.29.1
 - name: plugin-barman-cloud
   repository: https://cloudnative-pg.github.io/charts
-  version: 0.7.1
+  version: 0.8.1
 - name: victoria-metrics-single
   repository: https://victoriametrics.github.io/helm-charts/
   version: 0.48.0
@@ -32,5 +32,5 @@ dependencies:
 - name: vertical-pod-autoscaler
   repository: https://kubernetes.github.io/autoscaler
   version: 0.13.0
-digest: sha256:4a0793cb0a2c8fadb7b6c716aa6e603a717ea413acbd2439c5e7b0da701ec074
-generated: "2026-10-05T11:40:54.20789+02:00"
+digest: sha256:c13f9a1271c83da58d1fa1217035e2fb330fefde6c5cc5aa5ae775ce76f44a08
+generated: "2026-10-05T12:04:25.909705+02:00"

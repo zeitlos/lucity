@@ -44,6 +44,11 @@ certificates: []
 # -- CloudNativePG Operator (PostgreSQL)
 cloudnative-pg:
   enabled: true
+  config:
+    data:
+      # -- Swap the instance manager inside running Postgres pods on operator
+      # upgrades instead of rolling every cluster.
+      ENABLE_INSTANCE_MANAGER_INPLACE_UPDATES: "true"
 
 # -- Barman Cloud plugin (CNPG-I) — WAL archiving and base backups for CNPG.
 plugin-barman-cloud:
