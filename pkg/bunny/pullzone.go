@@ -10,6 +10,7 @@ import (
 
 const (
 	ActionForceSSL         = 0
+	ActionOriginURL        = 2
 	ActionSetRequestHeader = 6
 	TriggerURL             = 0
 	MatchAny               = 0

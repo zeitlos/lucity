@@ -3,6 +3,7 @@ package edge
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/zeitlos/lucity/pkg/bunny"
 	"github.com/zeitlos/lucity/pkg/to"
@@ -88,6 +89,14 @@ func (c *Client) edgeRules() []bunny.EdgeRule {
 			Triggers:            matchAll,
 			TriggerMatchingType: bunny.MatchAny,
 			Description:         "lucity: force ssl",
+			Enabled:             true,
+		},
+		{
+			ActionType:          bunny.ActionOriginURL,
+			ActionParameter1:    strings.Replace(c.config.OriginURL, "https://", "http://", 1),
+			Triggers:            []bunny.EdgeRuleTrigger{{Type: bunny.TriggerURL, PatternMatches: []string{"*/.well-known/acme-challenge/*"}, PatternMatchingType: bunny.MatchAny}},
+			TriggerMatchingType: bunny.MatchAny,
+			Description:         "lucity: acme over http",
 			Enabled:             true,
 		},
 	}
