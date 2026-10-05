@@ -120,6 +120,7 @@ type Config struct {
 	ScanTrufflehogConcurrency int           `envconfig:"SCAN_TRUFFLEHOG_CONCURRENCY" default:"2"`
 
 	MaxConcurrentReleases int `envconfig:"MAX_CONCURRENT_RELEASES" default:"5"`
+	MaxConcurrentBuilds   int `envconfig:"MAX_CONCURRENT_BUILDS" default:"2"`
 	MaxQueuedReleases     int `envconfig:"MAX_QUEUED_RELEASES" default:"10"`
 
 	SystemNamespace string `envconfig:"SYSTEM_NAMESPACE" default:"lucity-system"`
@@ -315,7 +316,7 @@ func main() {
 		EdgeHeader: config.EdgeHeaderEnforced,
 	})
 
-	pipelineClient := pipeline.New(k8sClient, config.BuildNamespace, config.SystemNamespace, config.MaxConcurrentReleases)
+	pipelineClient := pipeline.New(k8sClient, config.BuildNamespace, config.SystemNamespace, config.MaxConcurrentReleases, config.MaxConcurrentBuilds)
 
 	scanJobsClient := scanjobK8s.New(k8sClient, scanjobK8s.Config{
 		Namespace:             config.BuildNamespace,
@@ -365,7 +366,7 @@ func main() {
 		Enabled:  config.DatabaseBackupEnabled,
 		Endpoint: config.DatabaseBackupEndpoint,
 		Bucket:   config.DatabaseBackupBucket,
-	}, append(edgeHeaderOptions(config.EdgeHeaderEnforced), helmDeployer.WithHTTPSListener(config.GatewayHTTPSListener))...)
+	}, config.RegistryPullURL, append(edgeHeaderOptions(config.EdgeHeaderEnforced), helmDeployer.WithHTTPSListener(config.GatewayHTTPSListener))...)
 
 	if err != nil {
 		slog.Error("failed to create deployer client", "error", err)
@@ -495,7 +496,7 @@ func main() {
 		}
 
 		leaderDone = done
-		slog.Info("release admission ready", "maxConcurrent", config.MaxConcurrentReleases, "maxQueuedPerWorkspace", config.MaxQueuedReleases)
+		slog.Info("release admission ready", "maxConcurrent", config.MaxConcurrentReleases, "maxConcurrentBuilds", config.MaxConcurrentBuilds, "maxQueuedPerWorkspace", config.MaxQueuedReleases)
 	} else {
 		slog.Warn("background loops disabled: this conductor never admits queued builds or deploys")
 	}

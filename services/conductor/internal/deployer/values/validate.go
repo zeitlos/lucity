@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/resource"
+
+	"github.com/zeitlos/lucity/pkg/imageref"
 )
 
 var (
@@ -39,8 +41,8 @@ var (
 
 // Validate checks every invariant of env as a whole, whether the state was
 // produced by a mutator, by Reconcile, or by hand. Mutators do not repeat
-// these checks.
-func Validate(env *Env) error {
+// these checks. Images on the platform registry must belong to workspace.
+func Validate(env *Env, workspace, registry string) error {
 	if err := validateLabels("commonLabels", env.CommonLabels); err != nil {
 		return err
 	}
@@ -103,6 +105,22 @@ func Validate(env *Env) error {
 		if err := validateAnnotationKeys(fmt.Sprintf("key-value store %q annotations", name), vk.Annotations); err != nil {
 			return err
 		}
+
+		if vk.Version != "" && !slices.Contains(keyValueStoreVersions, vk.Version) {
+			return fmt.Errorf("key-value store %q: unsupported version %q", name, vk.Version)
+		}
+
+		if vk.Size != "" {
+			size, err := resource.ParseQuantity(vk.Size)
+
+			if err != nil {
+				return fmt.Errorf("key-value store %q: invalid size %q: %w", name, vk.Size, err)
+			}
+
+			if size.Sign() <= 0 || size.Cmp(maxKeyValueStoreSize) > 0 {
+				return fmt.Errorf("key-value store %q: size must be greater than 0 and at most %s", name, maxKeyValueStoreSize.String())
+			}
+		}
 	}
 
 	for name, vol := range env.Volumes {
@@ -140,6 +158,12 @@ func Validate(env *Env) error {
 	for svcName, svc := range env.Services {
 		if err := validateImage(svcName, svc.Image); err != nil {
 			return err
+		}
+
+		if svc.Image.Repository != "" {
+			if err := imageref.Validate(svc.Image.Repository, workspace, registry); err != nil {
+				return fmt.Errorf("service %q: %w", svcName, err)
+			}
 		}
 
 		if err := validateLabels(fmt.Sprintf("service %q labels", svcName), svc.Labels); err != nil {

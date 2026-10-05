@@ -35,7 +35,11 @@ func (c *Client) Plan(ctx context.Context, repoURL, ref, token string) ([]planne
 	}
 
 	env := app.NewEnvironment(nil)
-	generated := core.GenerateBuildPlan(a, env, &core.GenerateBuildPlanOptions{})
+	generated, err := core.GenerateBuildPlan(a, env, &core.GenerateBuildPlanOptions{})
+
+	if err != nil {
+		return nil, fmt.Errorf("service detection failed: %w", err)
+	}
 
 	if !generated.Success || generated.Plan == nil {
 		errMsg := "unknown error"

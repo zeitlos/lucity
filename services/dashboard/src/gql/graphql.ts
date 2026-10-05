@@ -78,7 +78,6 @@ export type CreateKeyValueStoreInput = {
   environment: string;
   name: string;
   size?: string | null | undefined;
-  version?: string | null | undefined;
 };
 
 export type CreateProjectInput = {

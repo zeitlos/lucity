@@ -31,17 +31,12 @@ func (r *environmentResolver) KeyValueStores(ctx context.Context, obj *model.Env
 
 // CreateKeyValueStore is the resolver for the createKeyValueStore field.
 func (r *mutationResolver) CreateKeyValueStore(ctx context.Context, input model.CreateKeyValueStoreInput) (*model.KeyValueStore, error) {
-	version := ""
-	if input.Version != nil {
-		version = *input.Version
-	}
-
 	size := ""
 	if input.Size != nil {
 		size = *input.Size
 	}
 
-	store, err := r.Conductor.CreateKeyValueStore(ctx, input.Environment, input.Name, version, size)
+	store, err := r.Conductor.CreateKeyValueStore(ctx, input.Environment, input.Name, size)
 
 	if err != nil {
 		return nil, err

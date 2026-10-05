@@ -11,10 +11,11 @@ import (
 	"strings"
 
 	containername "github.com/google/go-containerregistry/pkg/name"
-	gh "github.com/google/go-github/v68/github"
+	gh "github.com/google/go-github/v92/github"
 	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/zeitlos/lucity/pkg/auth"
+	"github.com/zeitlos/lucity/pkg/imageref"
 	"github.com/zeitlos/lucity/services/conductor/internal/buildjob"
 	"github.com/zeitlos/lucity/services/conductor/internal/deployer"
 	"github.com/zeitlos/lucity/services/conductor/internal/metrics"
@@ -175,6 +176,10 @@ func (c *Client) AddService(ctx context.Context, environmentID platform.Environm
 	} else if externalImage != "" {
 		if _, err := containername.ParseReference(externalImage); err != nil {
 			return nil, fmt.Errorf("invalid image reference %q: %w", externalImage, err)
+		}
+
+		if err := imageref.Validate(externalImage, workspace, c.config.RegistryPullURL); err != nil {
+			return nil, err
 		}
 
 		spec.Image = ensureImageTag(externalImage)
@@ -550,7 +555,12 @@ func (c *Client) resolveRepositoryURL(ctx context.Context, installationID int64,
 		return "", fmt.Errorf("authenticate with GitHub: %w", err)
 	}
 
-	client := gh.NewClient(nil).WithAuthToken(token)
+	client, err := gh.NewClient(gh.WithAuthToken(token))
+
+	if err != nil {
+		return "", err
+	}
+
 	ghRepo, _, err := client.Repositories.Get(ctx, owner, repo)
 
 	if err != nil {

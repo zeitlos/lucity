@@ -1520,18 +1520,6 @@
             "defaultValue": null,
             "isDeprecated": false,
             "deprecationReason": null
-          },
-          {
-            "name": "version",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
           }
         ],
         "interfaces": null,
@@ -5354,7 +5342,7 @@
           },
           {
             "name": "createKeyValueStore",
-            "description": "Creates a key-value store in an environment. `version` defaults to `8` and `size` to `1Gi`.",
+            "description": "Creates a key-value store in an environment. `size` defaults to `1Gi`, up to 1Ti.",
             "args": [
               {
                 "name": "input",

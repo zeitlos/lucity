@@ -59,7 +59,7 @@ func (c *Client) applyEnv(ctx context.Context, envID platform.EnvironmentID, mut
 
 	values.EnsureBackupServerNames(env, namespace)
 
-	if err := values.Validate(env); err != nil {
+	if err := values.Validate(env, envID.Workspace, c.registry); err != nil {
 		return "", err
 	}
 
@@ -120,6 +120,8 @@ func installOrUpgrade(ctx context.Context, config *action.Configuration, release
 		install.Replace = replace
 		install.ServerSideApply = false
 		install.WaitStrategy = kube.HookOnlyStrategy
+		install.PostRenderer = releaseGuard{namespace: namespace}
+		install.PostRenderStrategy = action.PostRenderStrategyCombined
 
 		rel, err := install.RunWithContext(ctx, chart, vals)
 
@@ -134,6 +136,8 @@ func installOrUpgrade(ctx context.Context, config *action.Configuration, release
 	upgrade.Namespace = namespace
 	upgrade.ServerSideApply = "false"
 	upgrade.WaitStrategy = kube.HookOnlyStrategy
+	upgrade.PostRenderer = releaseGuard{namespace: namespace}
+	upgrade.PostRenderStrategy = action.PostRenderStrategyCombined
 
 	rel, err := upgrade.RunWithContext(ctx, releaseName, chart, vals)
 

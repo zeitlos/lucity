@@ -39,6 +39,8 @@ spec:
                 secretKeyRef:
                   name: {{ .Release.Name }}-rybbit
                   key: clickhouse-password
+            - name: CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT
+              value: "1"
           volumeMounts:
             - name: data
               mountPath: /var/lib/clickhouse

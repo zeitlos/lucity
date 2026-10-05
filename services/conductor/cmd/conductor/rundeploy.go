@@ -133,7 +133,7 @@ func runDeploy() {
 		Enabled:  config.DatabaseBackupEnabled,
 		Endpoint: config.DatabaseBackupEndpoint,
 		Bucket:   config.DatabaseBackupBucket,
-	}, append(edgeHeaderOptions(config.EdgeHeaderEnforced), helmDeployer.WithHTTPSListener(config.GatewayHTTPSListener))...)
+	}, config.RegistryPullURL, append(edgeHeaderOptions(config.EdgeHeaderEnforced), helmDeployer.WithHTTPSListener(config.GatewayHTTPSListener))...)
 
 	if err != nil {
 		log.Error("deploy: failed to create deployer client", "error", err)

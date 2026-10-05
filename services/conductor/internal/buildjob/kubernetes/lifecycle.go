@@ -2,6 +2,8 @@ package kubernetes
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"net/url"
 	"slices"
@@ -145,6 +147,11 @@ func isDone(job batch.Job) bool {
 	return slices.Contains(terminalStatuses, status)
 }
 
+func cacheKey(workspace string) string {
+	sum := sha256.Sum256([]byte(workspace))
+	return hex.EncodeToString(sum[:])
+}
+
 func (c *Client) newBuildJob(id string, opts buildjob.StartOptions, repoURL url.URL, tag, varsSecret string) *batch.Job {
 	targetImages := make([]string, len(opts.TargetImageNames))
 	targetRefs := make([]string, len(opts.TargetImageNames))
@@ -160,6 +167,7 @@ func (c *Client) newBuildJob(id string, opts buildjob.StartOptions, repoURL url.
 		{Name: "BUILD_GIT_REF", Value: opts.Commit},
 		{Name: "BUILD_CONTEXT_PATH", Value: opts.ContextPath},
 		{Name: "BUILD_TARGET_REFS", Value: strings.Join(targetRefs, ",")},
+		{Name: "BUILD_CACHE_KEY", Value: cacheKey(opts.Service.Workspace)},
 		{Name: "BUILDKIT_ADDR", Value: c.buildKitAddr},
 		{Name: "GITHUB_TOKEN", Value: opts.Token},
 		{Name: "DOCKER_CONFIG", Value: "/etc/registry-auth"},

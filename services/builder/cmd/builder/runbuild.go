@@ -12,9 +12,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"time"
 
+	"github.com/distribution/reference"
 	dockerconfig "github.com/docker/cli/cli/config"
 	"github.com/go-git/go-git/v5"
 	"github.com/moby/buildkit/client"
@@ -31,6 +33,8 @@ import (
 	rplog "github.com/railwayapp/railpack/core/logger"
 	"github.com/railwayapp/railpack/core/plan"
 	"github.com/tonistiigi/fsutil"
+
+	"github.com/zeitlos/lucity/pkg/imageref"
 )
 
 func executeBuild(cfg Config, buildVars map[string]string) error {
@@ -241,6 +245,21 @@ func normalizeTimestamps(repoPath string) error {
 	})
 }
 
+func railpackVersion() string {
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		return ""
+	}
+
+	for _, dep := range info.Deps {
+		if dep.Path == "github.com/railwayapp/railpack" {
+			return dep.Version
+		}
+	}
+
+	return ""
+}
+
 func generatePlan(buildDir string, buildVariables map[string]string) (*plan.BuildPlan, error) {
 	a, err := app.NewApp(buildDir)
 	if err != nil {
@@ -248,7 +267,10 @@ func generatePlan(buildDir string, buildVariables map[string]string) (*plan.Buil
 	}
 
 	env := app.NewEnvironment(&buildVariables)
-	result := core.GenerateBuildPlan(a, env, &core.GenerateBuildPlanOptions{})
+	result, err := core.GenerateBuildPlan(a, env, &core.GenerateBuildPlanOptions{RailpackVersion: railpackVersion()})
+	if err != nil {
+		return nil, fmt.Errorf("railpack plan generation failed: %w", err)
+	}
 	if !result.Success || result.Plan == nil {
 		errMsg := "unknown error"
 		var errs []string
@@ -294,11 +316,16 @@ func buildWithBuildKit(ctx context.Context, cfg Config, buildDir, imageName, cac
 		secretsMap[k] = []byte(v)
 	}
 
+	if err := validatePlanImages(buildPlan, imageName); err != nil {
+		return "", err
+	}
+
 	// Convert railpack plan to LLB
 	buildPlatform := specs.Platform{OS: "linux", Architecture: "amd64"}
 	llbState, image, err := rpbuildkit.ConvertPlanToLLB(buildPlan, rpbuildkit.ConvertPlanOptions{
 		BuildPlatform: buildPlatform,
 		SecretsHash:   hashMap(secretsMap),
+		CacheKey:      cfg.CacheKey,
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to convert plan to LLB: %w", err)
@@ -326,6 +353,7 @@ func buildWithBuildKit(ctx context.Context, cfg Config, buildDir, imageName, cac
 		"push":                  "true",
 		"containerimage.config": string(imageBytes),
 		"registry.insecure":     "true",
+		"oci-mediatypes":        "false",
 	}
 
 	// Cache import from registry (cache miss on first build is handled gracefully)
@@ -405,6 +433,46 @@ func buildWithBuildKit(ctx context.Context, cfg Config, buildDir, imageName, cac
 
 	slog.Info("buildkit solve completed", "duration", time.Since(startTime).Round(time.Millisecond))
 	return resp.ExporterResponse["containerimage.digest"], nil
+}
+
+func validatePlanImages(buildPlan *plan.BuildPlan, target string) error {
+	named, err := reference.ParseNormalizedNamed(target)
+
+	if err != nil {
+		return fmt.Errorf("invalid build target %q: %w", target, err)
+	}
+
+	workspace, _, _ := strings.Cut(reference.Path(named), "/")
+
+	images := []string{buildPlan.Deploy.Base.Image}
+
+	for _, layer := range buildPlan.Deploy.Inputs {
+		images = append(images, layer.Image)
+	}
+
+	for _, step := range buildPlan.Steps {
+		for _, layer := range step.Inputs {
+			images = append(images, layer.Image)
+		}
+
+		for _, command := range step.Commands {
+			if copyCommand, ok := command.(plan.CopyCommand); ok {
+				images = append(images, copyCommand.Image)
+			}
+		}
+	}
+
+	for _, image := range images {
+		if image == "" {
+			continue
+		}
+
+		if err := imageref.Validate(image, workspace, reference.Domain(named)); err != nil {
+			return fmt.Errorf("build plan: %w", err)
+		}
+	}
+
+	return nil
 }
 
 func hashMap(vars map[string][]byte) string {

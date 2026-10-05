@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"strings"
 
-	gh "github.com/google/go-github/v68/github"
+	gh "github.com/google/go-github/v92/github"
 	"golang.org/x/oauth2"
 
 	"github.com/zeitlos/lucity/pkg/auth"
@@ -83,7 +83,10 @@ func (c *Client) GitHubRepositories(ctx context.Context, account string) ([]GitH
 		return nil, fmt.Errorf("failed to mint installation token: %w", err)
 	}
 
-	client := gh.NewClient(nil).WithAuthToken(ghToken)
+	client, err := gh.NewClient(gh.WithAuthToken(ghToken))
+	if err != nil {
+		return nil, err
+	}
 
 	var result []GitHubRepository
 	opts := &gh.ListOptions{PerPage: 100}

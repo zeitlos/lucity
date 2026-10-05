@@ -30,10 +30,8 @@ func (c *Client) KeyValueStore(ctx context.Context, id KeyValueStoreID) (*KeyVal
 	return c.platform.KeyValueStore(ctx, id)
 }
 
-func (c *Client) CreateKeyValueStore(ctx context.Context, environment platform.EnvironmentID, name, version, size string) (*KeyValueStore, error) {
-	if version == "" {
-		version = "8"
-	}
+func (c *Client) CreateKeyValueStore(ctx context.Context, environment platform.EnvironmentID, name, size string) (*KeyValueStore, error) {
+	const version = "8"
 
 	if size == "" {
 		size = "1Gi"

@@ -21714,11 +21714,33 @@ func (ec *executionContext) unmarshalInputAddServiceInput(ctx context.Context, o
 			it.ContextPath = data
 		case "image":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("image"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
+			directive0 := func(ctx context.Context) (any, error) { return ec.unmarshalOString2ᚖstring(ctx, v) }
+
+			directive1 := func(ctx context.Context) (any, error) {
+				constraint, err := ec.unmarshalNString2string(ctx, "max=512")
+				if err != nil {
+					var zeroVal *string
+					return zeroVal, err
+				}
+				if ec.Directives.Constraint == nil {
+					var zeroVal *string
+					return zeroVal, errors.New("directive constraint is not implemented")
+				}
+				return ec.Directives.Constraint(ctx, obj, directive0, constraint)
 			}
-			it.Image = data
+
+			tmp, err := directive1(ctx)
+			if err != nil {
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
+			if data, ok := tmp.(*string); ok {
+				it.Image = data
+			} else if tmp == nil {
+				it.Image = nil
+			} else {
+				err := fmt.Errorf(`unexpected type %T from directive, should be *string`, tmp)
+				return it, graphql.ErrorOnPath(ctx, err)
+			}
 		case "variables":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("variables"))
 			data, err := ec.unmarshalOVariableInput2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐVariableInputᚄ(ctx, v)
@@ -22145,7 +22167,7 @@ func (ec *executionContext) unmarshalInputCreateKeyValueStoreInput(ctx context.C
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"environment", "name", "version", "size"}
+	fieldsInOrder := [...]string{"environment", "name", "size"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -22186,13 +22208,6 @@ func (ec *executionContext) unmarshalInputCreateKeyValueStoreInput(ctx context.C
 				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
 				return it, graphql.ErrorOnPath(ctx, err)
 			}
-		case "version":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("version"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Version = data
 		case "size":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("size"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)

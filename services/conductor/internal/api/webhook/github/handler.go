@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
-	gh "github.com/google/go-github/v68/github"
+	gh "github.com/google/go-github/v92/github"
 )
 
 // Event is a normalized representation of a GitHub webhook event.

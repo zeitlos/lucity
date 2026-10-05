@@ -27,14 +27,16 @@ type Client struct {
 	buildNamespace  string
 	deployNamespace string
 	maxConcurrent   int
+	maxBuilds       int
 }
 
-func New(kubernetes kubernetes.Interface, buildNamespace, deployNamespace string, maxConcurrent int) *Client {
+func New(kubernetes kubernetes.Interface, buildNamespace, deployNamespace string, maxConcurrent, maxBuilds int) *Client {
 	return &Client{
 		kubernetes:      kubernetes,
 		buildNamespace:  buildNamespace,
 		deployNamespace: deployNamespace,
 		maxConcurrent:   maxConcurrent,
+		maxBuilds:       maxBuilds,
 	}
 }
 
@@ -51,6 +53,7 @@ const (
 type job struct {
 	namespace string
 	name      string
+	build     bool
 	suspended bool
 	terminal  bool
 }
@@ -85,9 +88,21 @@ func (r run) state() runState {
 	return runTerminal
 }
 
+func (r run) building() bool {
+	for _, j := range r.jobs {
+		if j.build && !j.terminal {
+			return true
+		}
+	}
+
+	return false
+}
+
 // Reconcile admits queued release runs: at most one active run per environment
 // (the Helm-release boundary, so concurrent applies to the same release can't
-// race), oldest first, bounded by the global concurrency cap.
+// race), oldest first, bounded by the global concurrency cap. Runs that still
+// have to build are additionally bounded by the build cap, which leaves
+// deploy-only runs free to pass waiting builds.
 func (c *Client) Reconcile(ctx context.Context) error {
 	runs, err := c.runs(ctx)
 
@@ -96,6 +111,7 @@ func (c *Client) Reconcile(ctx context.Context) error {
 	}
 
 	active := 0
+	activeBuilds := 0
 	activeEnvironments := map[string]bool{}
 	queuedByEnvironment := map[string][]run{}
 
@@ -104,6 +120,10 @@ func (c *Client) Reconcile(ctx context.Context) error {
 		case runActive:
 			active++
 			activeEnvironments[r.environment] = true
+
+			if r.building() {
+				activeBuilds++
+			}
 
 			if err := c.resume(ctx, r); err != nil {
 				return fmt.Errorf("resume partially admitted run %q: %w", r.key, err)
@@ -134,11 +154,21 @@ func (c *Client) Reconcile(ctx context.Context) error {
 			break
 		}
 
+		building := candidate.building()
+
+		if building && c.maxBuilds > 0 && activeBuilds >= c.maxBuilds {
+			continue
+		}
+
 		if err := c.resume(ctx, candidate); err != nil {
 			return fmt.Errorf("admit run %q: %w", candidate.key, err)
 		}
 
 		active++
+
+		if building {
+			activeBuilds++
+		}
 	}
 
 	return nil
@@ -235,6 +265,7 @@ func (c *Client) runs(ctx context.Context) ([]run, error) {
 		group.jobs = append(group.jobs, job{
 			namespace: k8sJob.Namespace,
 			name:      k8sJob.Name,
+			build:     k8sJob.Labels[labelComponent] == "build",
 			suspended: k8sJob.Spec.Suspend != nil && *k8sJob.Spec.Suspend,
 			terminal:  jobTerminal(k8sJob),
 		})

@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/bradleyfalzon/ghinstallation/v2"
-	gh "github.com/google/go-github/v68/github"
+	gh "github.com/google/go-github/v92/github"
 	"golang.org/x/oauth2"
 )
 
@@ -15,7 +15,11 @@ import (
 // Uses the user's OAuth token to query their installations and returns the one
 // matching this App's ID.
 func (a *App) InstallationID(ctx context.Context, userToken *oauth2.Token) (int64, error) {
-	client := gh.NewClient(a.oauthConfig.Client(ctx, userToken))
+	client, err := gh.NewClient(gh.WithHTTPClient(a.oauthConfig.Client(ctx, userToken)))
+
+	if err != nil {
+		return 0, err
+	}
 
 	installations, _, err := client.Apps.ListUserInstallations(ctx, nil)
 	if err != nil {
@@ -84,7 +88,7 @@ func (a *App) appClient() (*gh.Client, error) {
 		return nil, fmt.Errorf("failed to create app transport: %w", err)
 	}
 
-	return gh.NewClient(&http.Client{Transport: transport}), nil
+	return gh.NewClient(gh.WithHTTPClient(&http.Client{Transport: transport}))
 }
 
 // Installations lists all installations of this GitHub App.
@@ -125,7 +129,11 @@ func (a *App) Installations(ctx context.Context) ([]Installation, error) {
 // UserInstallations returns all GitHub App installations accessible to the user.
 // Uses the user's OAuth token to query their installations.
 func (a *App) UserInstallations(ctx context.Context, userToken *oauth2.Token) ([]Installation, error) {
-	client := gh.NewClient(a.oauthConfig.Client(ctx, userToken))
+	client, err := gh.NewClient(gh.WithHTTPClient(a.oauthConfig.Client(ctx, userToken)))
+
+	if err != nil {
+		return nil, err
+	}
 
 	var result []Installation
 	opts := &gh.ListOptions{PerPage: 100}
@@ -190,7 +198,7 @@ func (a *App) FindInstallation(ctx context.Context, repository string) (int64, e
 		return 0, err
 	}
 
-	inst, _, err := client.Apps.FindRepositoryInstallation(ctx, owner, repo)
+	inst, _, err := client.Apps.GetRepositoryInstallation(ctx, owner, repo)
 
 	if err != nil {
 		return 0, fmt.Errorf("find installation for %s: %w", repository, err)

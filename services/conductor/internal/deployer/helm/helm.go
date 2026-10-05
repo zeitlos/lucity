@@ -17,6 +17,7 @@ type Client struct {
 	headerMatches        []values.HeaderMatch
 	clusterIssuer        string
 	backups              BackupConfig
+	registry             string
 }
 
 type Option func(*Client)
@@ -39,7 +40,7 @@ type BackupConfig struct {
 	Bucket   string
 }
 
-func New(chart *chart.Chart, gatewayName, gatewayNamespace, clusterIssuer string, backups BackupConfig, options ...Option) (*Client, error) {
+func New(chart *chart.Chart, gatewayName, gatewayNamespace, clusterIssuer string, backups BackupConfig, registry string, options ...Option) (*Client, error) {
 	chartVersion, err := semver.Parse(chart.Metadata.Version)
 
 	if err != nil {
@@ -53,6 +54,7 @@ func New(chart *chart.Chart, gatewayName, gatewayNamespace, clusterIssuer string
 		gatewayNamespace: gatewayNamespace,
 		clusterIssuer:    clusterIssuer,
 		backups:          backups,
+		registry:         registry,
 	}
 
 	for _, option := range options {

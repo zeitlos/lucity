@@ -5,8 +5,9 @@ go 1.27.0
 require (
 	github.com/bradleyfalzon/ghinstallation/v2 v2.19.0
 	github.com/coreos/go-oidc/v3 v3.21.0
+	github.com/distribution/reference v0.6.0
 	github.com/golang-jwt/jwt/v5 v5.3.1
-	github.com/google/go-github/v68 v68.0.0
+	github.com/google/go-github/v92 v92.0.0
 	github.com/lmittmann/tint v1.2.0
 	golang.org/x/oauth2 v0.37.0
 	google.golang.org/grpc v1.84.0
@@ -18,6 +19,7 @@ require (
 	github.com/golang-jwt/jwt/v4 v4.5.2 // indirect
 	github.com/google/go-github/v88 v88.0.0 // indirect
 	github.com/google/go-querystring v1.2.0 // indirect
+	github.com/opencontainers/go-digest v1.0.0 // indirect
 	golang.org/x/net v0.59.0 // indirect
 	golang.org/x/sys v0.48.0 // indirect
 	golang.org/x/text v0.42.0 // indirect

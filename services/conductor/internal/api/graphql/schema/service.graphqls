@@ -137,7 +137,7 @@ input AddServiceInput {
   name: String @constraint(constraint: "resource_name,min=2,max=16")
   repository: String @constraint(constraint: "min=3,max=200")
   contextPath: String
-  image: String
+  image: String @constraint(constraint: "max=512")
   variables: [VariableInput!]
   resources: ResourcesInput
   """The user id an image-based service runs as, which also owns its mounted volumes."""

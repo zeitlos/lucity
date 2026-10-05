@@ -5,8 +5,8 @@ import (
 	"log/slog"
 	"net/http"
 
-	gostripe "github.com/stripe/stripe-go/v82"
-	"github.com/stripe/stripe-go/v82/webhook"
+	gostripe "github.com/stripe/stripe-go/v87"
+	"github.com/stripe/stripe-go/v87/webhook"
 )
 
 // EventHandler processes Stripe webhook events that require side effects

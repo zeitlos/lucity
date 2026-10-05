@@ -54,10 +54,10 @@ spec:
           resources:
             requests:
               cpu: 1m
-              memory: 4Mi
+              memory: 32Mi
             limits:
               cpu: 1m
-              memory: 4Mi
+              memory: 32Mi
       tolerations:
         - operator: Exists
       volumes:

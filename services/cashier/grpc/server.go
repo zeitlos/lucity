@@ -7,7 +7,7 @@ import (
 	"log/slog"
 	"time"
 
-	gostripe "github.com/stripe/stripe-go/v82"
+	gostripe "github.com/stripe/stripe-go/v87"
 
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/cashier"
@@ -176,10 +176,10 @@ func (s *Server) UsageSummary(ctx context.Context, req *cashier.UsageSummaryRequ
 	inv, err := s.stripe.UpcomingInvoice(ctx, req.CustomerId, req.SubscriptionId)
 	if err == nil {
 		for _, line := range inv.Lines.Data {
-			if line.Pricing == nil || line.Pricing.PriceDetails == nil {
+			if line.Pricing == nil || line.Pricing.PriceDetails == nil || line.Pricing.PriceDetails.Price == nil {
 				continue
 			}
-			priceID := line.Pricing.PriceDetails.Price
+			priceID := line.Pricing.PriceDetails.Price.ID
 			if priceID == s.stripe.Prices.HobbyPriceID || priceID == s.stripe.Prices.ProPriceID {
 				planCost = line.Amount
 			} else {
