@@ -19,7 +19,7 @@ dependencies:
   version: 0.50.0
 - name: grafana
   repository: https://grafana-community.github.io/helm-charts
-  version: 12.10.2
+  version: 13.2.7
 - name: traefik
   repository: https://traefik.github.io/charts
   version: 41.6.1
@@ -29,5 +29,5 @@ dependencies:
 - name: vertical-pod-autoscaler
   repository: https://kubernetes.github.io/autoscaler
   version: 0.13.0
-digest: sha256:ae3a1c22146d0cf50f70e89459e46d8aeee8057158878eb317c6aa072ab90e02
-generated: "2026-10-05T12:57:03.146106+02:00"
+digest: sha256:ce67299f2a773c236e3e44be34bde06fea48d86fe035de0ebbd6fc5a1a8b32f0
+generated: "2026-10-05T13:04:02.859185+02:00"

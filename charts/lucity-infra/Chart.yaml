@@ -31,7 +31,7 @@ dependencies:
     repository: "https://victoriametrics.github.io/helm-charts/"
     condition: victoria-metrics-alert.enabled
   - name: grafana
-    version: "12.10.2"
+    version: "13.2.7"
     repository: "https://grafana-community.github.io/helm-charts"
     condition: grafana.enabled
   - name: traefik
