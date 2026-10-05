@@ -18,7 +18,6 @@ type KeyValueStoreCredentials {
 input CreateKeyValueStoreInput {
   environment: EnvironmentID!
   name: String! @constraint(constraint: "resource_name,min=2,max=16")
-  version: String
   size: String
 }
 
@@ -34,7 +33,7 @@ extend type Query {
 }
 
 extend type Mutation {
-  """Creates a key-value store in an environment. `version` defaults to `8` and `size` to `1Gi`."""
+  """Creates a key-value store in an environment. `size` defaults to `1Gi`, up to 1Ti."""
   createKeyValueStore(input: CreateKeyValueStoreInput!): KeyValueStore! @hasRole(role: WORKSPACE_MEMBER)
   """Deletes a key-value store and its data."""
   deleteKeyValueStore(keyValueStore: KeyValueStoreID!): Boolean! @hasRole(role: WORKSPACE_MEMBER)

@@ -41,7 +41,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: valkey
-          image: valkey/valkey:{{ $vk.version | default "8" }}-alpine
+          image: {{ printf "valkey/valkey:%s-alpine" ($vk.version | default "8") | quote }}
           imagePullPolicy: IfNotPresent
           command: ["sh", "-c"]
           args:
@@ -88,5 +88,5 @@ spec:
         accessModes: ["ReadWriteOnce"]
         resources:
           requests:
-            storage: {{ $vk.size | default "1Gi" }}
+            storage: {{ $vk.size | default "1Gi" | quote }}
 {{- end }}

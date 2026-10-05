@@ -22145,7 +22145,7 @@ func (ec *executionContext) unmarshalInputCreateKeyValueStoreInput(ctx context.C
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"environment", "name", "version", "size"}
+	fieldsInOrder := [...]string{"environment", "name", "size"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -22186,13 +22186,6 @@ func (ec *executionContext) unmarshalInputCreateKeyValueStoreInput(ctx context.C
 				err := fmt.Errorf(`unexpected type %T from directive, should be string`, tmp)
 				return it, graphql.ErrorOnPath(ctx, err)
 			}
-		case "version":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("version"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Version = data
 		case "size":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("size"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)

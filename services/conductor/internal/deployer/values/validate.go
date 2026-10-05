@@ -103,6 +103,22 @@ func Validate(env *Env) error {
 		if err := validateAnnotationKeys(fmt.Sprintf("key-value store %q annotations", name), vk.Annotations); err != nil {
 			return err
 		}
+
+		if vk.Version != "" && !slices.Contains(keyValueStoreVersions, vk.Version) {
+			return fmt.Errorf("key-value store %q: unsupported version %q", name, vk.Version)
+		}
+
+		if vk.Size != "" {
+			size, err := resource.ParseQuantity(vk.Size)
+
+			if err != nil {
+				return fmt.Errorf("key-value store %q: invalid size %q: %w", name, vk.Size, err)
+			}
+
+			if size.Sign() <= 0 || size.Cmp(maxKeyValueStoreSize) > 0 {
+				return fmt.Errorf("key-value store %q: size must be greater than 0 and at most %s", name, maxKeyValueStoreSize.String())
+			}
+		}
 	}
 
 	for name, vol := range env.Volumes {

@@ -6,6 +6,11 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
+var (
+	keyValueStoreVersions = []string{"8", "9"}
+	maxKeyValueStoreSize  = resource.MustParse("1Ti")
+)
+
 type Valkey struct {
 	Size        string            `yaml:"size,omitempty"`
 	Version     string            `yaml:"version,omitempty"`
