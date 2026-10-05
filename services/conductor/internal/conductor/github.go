@@ -10,7 +10,6 @@ import (
 	"golang.org/x/oauth2"
 
 	"github.com/zeitlos/lucity/pkg/auth"
-	ghpkg "github.com/zeitlos/lucity/pkg/github"
 )
 
 // GitHubInstallation represents a GitHub App installation on an account.
@@ -71,19 +70,22 @@ func (c *Client) GitHubSources(ctx context.Context) ([]GitHubInstallation, error
 	return result, nil
 }
 
+// GitHubRepositories lists the repositories of the account's App installation
+// that the user's own GitHub token can access.
 func (c *Client) GitHubRepositories(ctx context.Context, account string) ([]GitHubRepository, error) {
-	instID, err := c.installationForOwner(ctx, account)
+	userToken, err := c.userGitHubToken(ctx)
 
 	if err != nil {
 		return nil, err
 	}
 
-	ghToken, err := c.gitHubApp.InstallationToken(ctx, instID)
+	instID, err := c.installationForOwner(ctx, userToken, account)
+
 	if err != nil {
-		return nil, fmt.Errorf("failed to mint installation token: %w", err)
+		return nil, err
 	}
 
-	client, err := gh.NewClient(gh.WithAuthToken(ghToken))
+	client, err := gh.NewClient(gh.WithAuthToken(userToken))
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +94,7 @@ func (c *Client) GitHubRepositories(ctx context.Context, account string) ([]GitH
 	opts := &gh.ListOptions{PerPage: 100}
 
 	for {
-		repos, resp, err := client.Apps.ListRepos(ctx, opts)
+		repos, resp, err := client.Apps.ListUserRepos(ctx, instID, opts)
 		if err != nil {
 			return nil, fmt.Errorf("failed to list repositories: %w", err)
 		}
@@ -117,18 +119,8 @@ func (c *Client) GitHubRepositories(ctx context.Context, account string) ([]GitH
 	return result, nil
 }
 
-func (c *Client) userInstallations(ctx context.Context) ([]ghpkg.Installation, error) {
-	ghToken, err := c.userGitHubToken(ctx)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return c.gitHubApp.UserInstallations(ctx, &oauth2.Token{AccessToken: ghToken})
-}
-
-func (c *Client) installationForOwner(ctx context.Context, owner string) (int64, error) {
-	installations, err := c.userInstallations(ctx)
+func (c *Client) installationForOwner(ctx context.Context, userToken, owner string) (int64, error) {
+	installations, err := c.gitHubApp.UserInstallations(ctx, &oauth2.Token{AccessToken: userToken})
 
 	if err != nil {
 		return 0, err
@@ -143,14 +135,32 @@ func (c *Client) installationForOwner(ctx context.Context, owner string) (int64,
 	return 0, fmt.Errorf("no accessible GitHub App installation for %q", owner)
 }
 
-func (c *Client) installationForRepo(ctx context.Context, repository string) (int64, error) {
-	owner, _, ok := strings.Cut(repository, "/")
+// authorizeRepository returns the App installation that covers repository,
+// once the user's own GitHub token has proven it can read the repository.
+func (c *Client) authorizeRepository(ctx context.Context, repository string) (int64, error) {
+	owner, repo, err := validateRepository(repository)
 
-	if !ok || owner == "" {
-		return 0, fmt.Errorf("repository must be in owner/repo format, got %q", repository)
+	if err != nil {
+		return 0, err
 	}
 
-	return c.installationForOwner(ctx, owner)
+	userToken, err := c.userGitHubToken(ctx)
+
+	if err != nil {
+		return 0, err
+	}
+
+	client, err := gh.NewClient(gh.WithAuthToken(userToken))
+
+	if err != nil {
+		return 0, err
+	}
+
+	if _, _, err := client.Repositories.Get(ctx, owner, repo); err != nil {
+		return 0, fmt.Errorf("repository %q is not accessible with your GitHub account: %w", repository, err)
+	}
+
+	return c.installationForOwner(ctx, userToken, owner)
 }
 
 // userGitHubToken retrieves the user's GitHub OAuth token from Logto's Account API.
