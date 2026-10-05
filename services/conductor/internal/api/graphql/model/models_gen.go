@@ -182,12 +182,27 @@ type Database struct {
 	Instances int                 `json:"instances"`
 	Status    DatabaseStatus      `json:"status"`
 	// Why the database is in this state, when it is not healthy.
-	StatusReason *string          `json:"statusReason,omitempty"`
-	Size         string           `json:"size"`
-	Resources    *Resources       `json:"resources"`
-	CreatedAt    time.Time        `json:"createdAt"`
-	Public       bool             `json:"public"`
-	Backups      *DatabaseBackups `json:"backups"`
+	StatusReason *string    `json:"statusReason,omitempty"`
+	Size         string     `json:"size"`
+	Resources    *Resources `json:"resources"`
+	CreatedAt    time.Time  `json:"createdAt"`
+	Public       bool       `json:"public"`
+	// Address ranges allowed to connect over the public hostname. While the list is empty, nobody can.
+	AllowRules []DatabaseAllowRule `json:"allowRules"`
+	Backups    *DatabaseBackups    `json:"backups"`
+}
+
+type DatabaseAllowRule struct {
+	// An IPv4 range in CIDR notation, such as `203.0.113.7/32`. `0.0.0.0/0` allows any address.
+	Range       string `json:"range"`
+	Description string `json:"description"`
+}
+
+type DatabaseAllowRuleInput struct {
+	// An IPv4 address, such as `203.0.113.7`, or a range in CIDR notation, such as `203.0.113.0/24`. `0.0.0.0/0` allows any address.
+	Range string `json:"range"`
+	// A note on whose address this is, such as `Office`.
+	Description string `json:"description"`
 }
 
 type DatabaseBackup struct {

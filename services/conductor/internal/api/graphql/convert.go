@@ -704,6 +704,19 @@ func convertDatabase(d conductor.Database) model.Database {
 	return database
 }
 
+func convertDatabaseAllowRules(rules []conductor.DatabaseAllowRule) []model.DatabaseAllowRule {
+	result := make([]model.DatabaseAllowRule, 0, len(rules))
+
+	for _, rule := range rules {
+		result = append(result, model.DatabaseAllowRule{
+			Range:       rule.Range.String(),
+			Description: rule.Description,
+		})
+	}
+
+	return result
+}
+
 func convertDatabaseBackups(b platform.DatabaseBackups) model.DatabaseBackups {
 	backups := make([]model.DatabaseBackup, 0, len(b.Backups))
 

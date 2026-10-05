@@ -69,12 +69,15 @@ changing a pure runtime variable takes effect on the next rollout.
 ## Public database access (SNI + TLS)
 
 `lucity db expose <db>` gives a database a temporary public hostname (useful for importing a bulk dump
-with a local `psql`/`pg_restore`), `lucity db credentials <db>` lists its connection details as the
-`PLATFORM` entry, and `lucity db unexpose <db>` removes it again. The user runs these in their own
-terminal so the credentials never reach you. The endpoint requires:
+with a local `psql`/`pg_restore`) and allows only the address of the machine that ran it,
+`lucity db credentials <db>` lists its connection details as the `PLATFORM` entry, and
+`lucity db unexpose <db>` removes the hostname and its allowed addresses again. The user runs these in
+their own terminal so the credentials never reach you, and the restore has to run from that same
+machine. Other addresses are added in the dashboard (Connect tab, Allowed addresses). The endpoint requires:
 
 - `sslmode=require` (TLS is mandatory). The `PLATFORM` entry's `uri` already carries it.
 - An SNI-capable client — libpq ≥ 14. Older clients that do not send SNI get an "SSL EOF detected" style error because routing is by SNI.
+- An allowed address. A client from any other address gets the same "SSL EOF detected" error.
 
 Use it for one-off imports, then rely on in-cluster refs for the running app.
 

@@ -1,5 +1,27 @@
 {{- range $name, $pg := .Values.databases.postgres }}
-{{- if and $pg.publicHost (not $.Values.suspended) }}
+{{- $access := $pg.publicAccess | default dict }}
+{{- if and $access.host $access.allow (not $.Values.suspended) }}
+---
+apiVersion: traefik.io/v1alpha1
+kind: MiddlewareTCP
+metadata:
+  name: {{ include "lucity-app.fullname" $ }}-pg-{{ $name }}-allow
+  labels:
+    {{- include "lucity-app.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: postgres-{{ $name }}
+    {{- with $.Values.commonLabels }}{{- toYaml . | nindent 4 }}{{- end }}
+    {{- with $pg.labels }}{{- toYaml . | nindent 4 }}{{- end }}
+  {{- if or $.Values.commonAnnotations $pg.annotations }}
+  annotations:
+    {{- with $.Values.commonAnnotations }}{{- toYaml . | nindent 4 }}{{- end }}
+    {{- with $pg.annotations }}{{- toYaml . | nindent 4 }}{{- end }}
+  {{- end }}
+spec:
+  ipAllowList:
+    sourceRange:
+      {{- range $access.allow }}
+      - {{ .range | quote }}
+      {{- end }}
 ---
 apiVersion: traefik.io/v1alpha1
 kind: IngressRouteTCP
@@ -19,7 +41,9 @@ spec:
   entryPoints:
     - postgres
   routes:
-    - match: HostSNI(`{{ $pg.publicHost }}`)
+    - match: HostSNI(`{{ $access.host }}`)
+      middlewares:
+        - name: {{ include "lucity-app.fullname" $ }}-pg-{{ $name }}-allow
       services:
         - name: {{ include "lucity-app.fullname" $ }}-pg-{{ $name }}-rw
           port: 5432

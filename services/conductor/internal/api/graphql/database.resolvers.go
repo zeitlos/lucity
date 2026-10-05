@@ -13,6 +13,17 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 )
 
+// AllowRules is the resolver for the allowRules field.
+func (r *databaseResolver) AllowRules(ctx context.Context, obj *model.Database) ([]model.DatabaseAllowRule, error) {
+	result, err := r.Conductor.DatabaseAllowRules(ctx, obj.ID)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return convertDatabaseAllowRules(result), nil
+}
+
 // CreateDatabase is the resolver for the createDatabase field.
 func (r *mutationResolver) CreateDatabase(ctx context.Context, input model.CreateDatabaseInput) (*model.Database, error) {
 	var cpu string
@@ -87,6 +98,28 @@ func (r *mutationResolver) UnexposeDatabase(ctx context.Context, database platfo
 	return new(convertDatabase(*result)), nil
 }
 
+// AddDatabaseAllowRule is the resolver for the addDatabaseAllowRule field.
+func (r *mutationResolver) AddDatabaseAllowRule(ctx context.Context, database platform.DatabaseID, rule model.DatabaseAllowRuleInput) (*model.Database, error) {
+	result, err := r.Conductor.AddDatabaseAllowRule(ctx, database, rule.Range, rule.Description)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return new(convertDatabase(*result)), nil
+}
+
+// RemoveDatabaseAllowRule is the resolver for the removeDatabaseAllowRule field.
+func (r *mutationResolver) RemoveDatabaseAllowRule(ctx context.Context, database platform.DatabaseID, rangeArg string) (*model.Database, error) {
+	result, err := r.Conductor.RemoveDatabaseAllowRule(ctx, database, rangeArg)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return new(convertDatabase(*result)), nil
+}
+
 // Database is the resolver for the database field.
 func (r *queryResolver) Database(ctx context.Context, id platform.DatabaseID) (*model.Database, error) {
 	result, err := r.Conductor.Database(ctx, id)
@@ -143,6 +176,17 @@ func (r *queryResolver) DatabaseCredentials(ctx context.Context, database platfo
 		result = append(result, convertDatabaseCredentials(c))
 	}
 	return result, nil
+}
+
+// ClientAddress is the resolver for the clientAddress field.
+func (r *queryResolver) ClientAddress(ctx context.Context) (*string, error) {
+	address, ok := r.Conductor.ClientAddress(ctx)
+
+	if !ok {
+		return nil, nil
+	}
+
+	return new(address.String()), nil
 }
 
 // Database returns DatabaseResolver implementation.

@@ -60,6 +60,11 @@
 #       version: "16"
 #       labels: {}
 #       annotations: {}
+#       publicAccess:                          # reachable from the internet on :5432 by SNI
+#         host: main-production-k3j9x.db.lucity.app
+#         allow:                               # IPv4 ranges; while empty, nobody can connect
+#           - range: 203.0.113.7/32
+#             description: Office
 #       backup:
 #         serverName: <folder in the archive store, minted by the control plane>
 #       restore:                               # bootstrap from another database's archive

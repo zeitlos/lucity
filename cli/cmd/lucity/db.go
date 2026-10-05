@@ -10,6 +10,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/zeitlos/lucity/cli/internal/api"
 	"github.com/zeitlos/lucity/cli/internal/ids"
 )
 
@@ -27,8 +28,9 @@ Commands:
   create        Create a PostgreSQL database in an environment
   list          List the databases in an environment
   credentials   Print the connection details, password included
-  expose        Give the database a public hostname, reachable over TLS
-  unexpose      Remove the public hostname again
+  expose        Give the database a public hostname, reachable over TLS from
+                this machine's address only
+  unexpose      Remove the public hostname and its allowed addresses again
   delete        Delete the database and all of its data
 
 Arguments:
@@ -303,9 +305,16 @@ func setDatabaseExposure(ctx context.Context, args []string, public bool) error 
 	if err := client.GraphQL(ctx, mutation, map[string]any{"database": databaseID}, &out); err != nil {
 		return deployError(operation, err)
 	}
-	result := out[field]
+	result := exposureView{ID: out[field].ID, Public: out[field].Public}
 	if result.ID == "" {
 		result.ID = databaseID
+	}
+
+	if public {
+		result.Allowed, err = allowCaller(ctx, client, databaseID)
+		if err != nil {
+			return deployError(operation, err)
+		}
 	}
 
 	if *asJSON {
@@ -316,7 +325,39 @@ func setDatabaseExposure(ctx context.Context, args []string, public bool) error 
 		state = "public"
 	}
 	fmt.Printf("Database %s is now %s.\n", result.ID, state)
+	if public && result.Allowed != "" {
+		fmt.Printf("Only this machine (%s) can connect. Allow more addresses in the dashboard.\n", result.Allowed)
+	} else if public {
+		fmt.Println("Nobody can connect yet: this machine's address is unknown. Allow addresses in the dashboard.")
+	}
 	return nil
+}
+
+type exposureView struct {
+	ID      string `json:"id"`
+	Public  bool   `json:"public"`
+	Allowed string `json:"allowed,omitempty"`
+}
+
+func allowCaller(ctx context.Context, client *api.Client, databaseID string) (string, error) {
+	var out struct {
+		ClientAddress *string `json:"clientAddress"`
+	}
+	if err := client.GraphQL(ctx, `query { clientAddress }`, nil, &out); err != nil {
+		return "", err
+	}
+	if out.ClientAddress == nil {
+		return "", nil
+	}
+
+	const mutation = `mutation($database: DatabaseID!, $rule: DatabaseAllowRuleInput!) {
+  addDatabaseAllowRule(database: $database, rule: $rule) { id }
+}`
+	rule := map[string]any{"range": *out.ClientAddress, "description": "Added by lucity db expose"}
+	if err := client.GraphQL(ctx, mutation, map[string]any{"database": databaseID, "rule": rule}, nil); err != nil {
+		return "", err
+	}
+	return *out.ClientAddress, nil
 }
 
 func dbDelete(ctx context.Context, args []string) error {
