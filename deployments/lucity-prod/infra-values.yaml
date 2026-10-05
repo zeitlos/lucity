@@ -225,6 +225,11 @@ rybbit:
     persistence:
       storageClass: hcloud-volumes
       size: 10Gi
+    resources:
+      requests:
+        memory: 1Gi
+      limits:
+        memory: 2Gi
   postgres:
     storageClass: hcloud-volumes
   redis:
