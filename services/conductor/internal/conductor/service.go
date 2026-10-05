@@ -15,6 +15,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/zeitlos/lucity/pkg/auth"
+	"github.com/zeitlos/lucity/pkg/imageref"
 	"github.com/zeitlos/lucity/services/conductor/internal/buildjob"
 	"github.com/zeitlos/lucity/services/conductor/internal/deployer"
 	"github.com/zeitlos/lucity/services/conductor/internal/metrics"
@@ -175,6 +176,10 @@ func (c *Client) AddService(ctx context.Context, environmentID platform.Environm
 	} else if externalImage != "" {
 		if _, err := containername.ParseReference(externalImage); err != nil {
 			return nil, fmt.Errorf("invalid image reference %q: %w", externalImage, err)
+		}
+
+		if err := imageref.Validate(externalImage, workspace, c.config.RegistryPullURL); err != nil {
+			return nil, err
 		}
 
 		spec.Image = ensureImageTag(externalImage)

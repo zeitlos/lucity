@@ -66,7 +66,7 @@ func TestCreateKeyValueStoreInvalidName(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := Validate(env); err == nil {
+	if err := Validate(env, "", ""); err == nil {
 		t.Fatal("expected error for invalid key-value store name")
 	}
 }

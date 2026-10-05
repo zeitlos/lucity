@@ -59,7 +59,7 @@ func (c *Client) applyEnv(ctx context.Context, envID platform.EnvironmentID, mut
 
 	values.EnsureBackupServerNames(env, namespace)
 
-	if err := values.Validate(env); err != nil {
+	if err := values.Validate(env, envID.Workspace, c.registry); err != nil {
 		return "", err
 	}
 
