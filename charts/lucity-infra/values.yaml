@@ -771,7 +771,7 @@ logto:
   enabled: false
   image:
     repository: ghcr.io/logto-io/logto
-    tag: "1.37.1"
+    tag: "1.44.0"
     pullPolicy: IfNotPresent
   endpoint: ""              # public URL, e.g. https://id.lucity.cloud
   route:
