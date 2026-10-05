@@ -66,55 +66,61 @@ func (c *Client) Service(ctx context.Context, id ServiceID) (*Service, error) {
 }
 
 func (c *Client) DetectServices(ctx context.Context, repositoryURL string) ([]Plan, error) {
-	parsed, err := url.Parse(repositoryURL)
-
-	if err != nil {
-		return nil, fmt.Errorf("parse repository url %q: %w", repositoryURL, err)
-	}
-
-	repository := strings.TrimSuffix(strings.Trim(parsed.Path, "/"), ".git")
-
-	if !repositoryPattern.MatchString(repository) {
-		return nil, fmt.Errorf("invalid repository url %q: expected owner/repo path", repositoryURL)
-	}
-
-	if _, err := c.installationForRepo(ctx, repository); err != nil {
-		return nil, err
-	}
-
-	commit, err := c.source.Commit(ctx, repositoryURL, "")
+	repository, err := repositoryFromURL(repositoryURL)
 
 	if err != nil {
 		return nil, err
 	}
 
-	token, err := c.source.Token(ctx, repositoryURL)
+	installationID, err := c.authorizeRepository(ctx, repository)
 
 	if err != nil {
 		return nil, err
 	}
 
-	return c.planner.Plan(ctx, repositoryURL, commit.SHA, token)
+	sourceURL, err := c.resolveRepositoryURL(ctx, installationID, repository)
+
+	if err != nil {
+		return nil, err
+	}
+
+	commit, err := c.source.Commit(ctx, sourceURL, "")
+
+	if err != nil {
+		return nil, err
+	}
+
+	token, err := c.source.Token(ctx, sourceURL)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return c.planner.Plan(ctx, sourceURL, commit.SHA, token)
 }
 
 func (c *Client) RepositoryBranches(ctx context.Context, repositoryURL string) ([]string, error) {
-	parsed, err := url.Parse(repositoryURL)
+	repository, err := repositoryFromURL(repositoryURL)
 
 	if err != nil {
-		return nil, fmt.Errorf("parse repository url %q: %w", repositoryURL, err)
+		return nil, err
 	}
 
-	repository := strings.TrimSuffix(strings.Trim(parsed.Path, "/"), ".git")
-
-	if !repositoryPattern.MatchString(repository) {
-		return nil, fmt.Errorf("invalid repository url %q: expected owner/repo path", repositoryURL)
-	}
-
-	if _, err := c.installationForRepo(ctx, repository); err != nil {
+	if _, err := c.authorizeRepository(ctx, repository); err != nil {
 		return nil, err
 	}
 
 	return c.source.Branches(ctx, repositoryURL)
+}
+
+func repositoryFromURL(repositoryURL string) (string, error) {
+	parsed, err := url.Parse(repositoryURL)
+
+	if err != nil {
+		return "", fmt.Errorf("parse repository url %q: %w", repositoryURL, err)
+	}
+
+	return strings.TrimSuffix(strings.Trim(parsed.Path, "/"), ".git"), nil
 }
 
 func (c *Client) AddService(ctx context.Context, environmentID platform.EnvironmentID, name, repository, contextPath string, externalImage string, variables map[string]string, cpu, memory string, user *int64) (*Service, error) {
@@ -159,7 +165,7 @@ func (c *Client) AddService(ctx context.Context, environmentID platform.Environm
 		spec.Port = 8080
 		spec.AutoDeploy = environmentID.Name == defaultAutoDeployEnvironment
 
-		installationID, err := c.installationForRepo(ctx, repository)
+		installationID, err := c.authorizeRepository(ctx, repository)
 
 		if err != nil {
 			return nil, err
@@ -539,15 +545,12 @@ func validateRepository(repository string) (owner, repo string, err error) {
 	return parts[0], parts[1], nil
 }
 
-// resolveRepositoryURL validates a repository string, verifies it's accessible
-// through the given GitHub App installation, and returns the HTTPS clone URL.
-// The URL is constructed server-side from the verified owner/repo, never from user input.
+// resolveRepositoryURL verifies that repository, already authorized with
+// authorizeRepository, is accessible through the given GitHub App installation,
+// and returns the HTTPS clone URL. The URL is constructed server-side from the
+// verified owner/repo, never from user input.
 func (c *Client) resolveRepositoryURL(ctx context.Context, installationID int64, repository string) (string, error) {
-	owner, repo, err := validateRepository(repository)
-
-	if err != nil {
-		return "", err
-	}
+	owner, repo, _ := strings.Cut(repository, "/")
 
 	token, err := c.gitHubApp.InstallationToken(ctx, installationID)
 

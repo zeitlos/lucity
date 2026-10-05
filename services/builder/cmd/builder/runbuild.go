@@ -35,6 +35,7 @@ import (
 	"github.com/tonistiigi/fsutil"
 
 	"github.com/zeitlos/lucity/pkg/imageref"
+	"github.com/zeitlos/lucity/pkg/sourcetree"
 )
 
 func executeBuild(cfg Config, buildVars map[string]string) error {
@@ -67,6 +68,18 @@ func executeBuild(cfg Config, buildVars map[string]string) error {
 
 	defer os.RemoveAll(repoPath)
 
+	buildDir, err := contextDir(repoPath, cfg.ContextPath)
+
+	if err != nil {
+		return err
+	}
+
+	restoreSymlinks, err := sourcetree.HideEscapingSymlinks(repoPath)
+
+	if err != nil {
+		return fmt.Errorf("failed to hide symlinks: %w", err)
+	}
+
 	// 3. Normalize file timestamps to the commit time so BuildKit cache keys
 	// are deterministic for the same commit (git clone sets mtimes to "now").
 	if err := normalizeTimestamps(repoPath); err != nil {
@@ -79,18 +92,16 @@ func executeBuild(cfg Config, buildVars map[string]string) error {
 	os.RemoveAll(filepath.Join(repoPath, ".git"))
 
 	// 5. Generate railpack plan
-	buildDir := repoPath
-
-	if cfg.ContextPath != "" {
-		buildDir = filepath.Join(repoPath, cfg.ContextPath)
-	}
-
 	slog.Info("generating railpack plan", "dir", buildDir)
 
 	buildPlan, err := generatePlan(buildDir, buildVars)
 
 	if err != nil {
 		return err
+	}
+
+	if err := restoreSymlinks(); err != nil {
+		return fmt.Errorf("failed to restore symlinks: %w", err)
 	}
 
 	// 6. Build with BuildKit Go client (bypasses gateway frontend so cache import works).
@@ -172,6 +183,29 @@ func waitForBuildKit(addr string) error {
 	}
 
 	return fmt.Errorf("buildkit not available at %s after 60s", addr)
+}
+
+func contextDir(repoPath, contextPath string) (string, error) {
+	root, err := os.OpenRoot(repoPath)
+
+	if err != nil {
+		return "", err
+	}
+
+	defer root.Close()
+
+	path := filepath.Join(".", contextPath)
+	info, err := root.Stat(path)
+
+	if err != nil {
+		return "", fmt.Errorf("context path %q: %w", contextPath, err)
+	}
+
+	if !info.IsDir() {
+		return "", fmt.Errorf("context path %q is not a directory", contextPath)
+	}
+
+	return filepath.Join(repoPath, path), nil
 }
 
 func cloneForBuild(workDir, sourceURL, token string) (string, error) {

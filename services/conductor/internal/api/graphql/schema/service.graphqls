@@ -136,7 +136,7 @@ type DetectedService {
 input AddServiceInput {
   name: String @constraint(constraint: "resource_name,min=2,max=16")
   repository: String @constraint(constraint: "min=3,max=200")
-  contextPath: String
+  contextPath: String @constraint(constraint: "max=255")
   image: String @constraint(constraint: "max=512")
   variables: [VariableInput!]
   resources: ResourcesInput
@@ -176,9 +176,9 @@ extend type Query {
   """One service, with its configuration, endpoints and releases."""
   service(id: ServiceID!): Service! @hasRole(role: WORKSPACE_DEPLOYER)
   """Inspects the default branch of a repository, given as a URL such as `https://github.com/acme/api`, and suggests a service for it with the detected language, framework and start command. The Lucity GitHub App needs access to the repository."""
-  detectServices(repositoryUrl: String!): [DetectedService!]! @hasRole(role: WORKSPACE_MEMBER)
+  detectServices(repositoryUrl: String! @constraint(constraint: "min=3,max=300")): [DetectedService!]! @hasRole(role: WORKSPACE_MEMBER)
   """The branches of a repository, given as a URL such as `https://github.com/acme/api`. The Lucity GitHub App needs access to the repository."""
-  repositoryBranches(repositoryUrl: String!): [String!]! @hasRole(role: WORKSPACE_MEMBER)
+  repositoryBranches(repositoryUrl: String! @constraint(constraint: "min=3,max=300")): [String!]! @hasRole(role: WORKSPACE_MEMBER)
 }
 
 extend type Mutation {

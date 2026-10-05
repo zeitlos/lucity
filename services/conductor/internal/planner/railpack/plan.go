@@ -12,6 +12,8 @@ import (
 	"github.com/railwayapp/railpack/core"
 	"github.com/railwayapp/railpack/core/app"
 	"github.com/railwayapp/railpack/core/logger"
+
+	"github.com/zeitlos/lucity/pkg/sourcetree"
 	"github.com/zeitlos/lucity/services/conductor/internal/planner"
 )
 
@@ -26,6 +28,10 @@ func (c *Client) Plan(ctx context.Context, repoURL, ref, token string) ([]planne
 
 	if err := shallowFetch(ctx, tmpDir, repoURL, ref, token); err != nil {
 		return nil, err
+	}
+
+	if _, err := sourcetree.HideEscapingSymlinks(tmpDir); err != nil {
+		return nil, fmt.Errorf("hide symlinks: %w", err)
 	}
 
 	a, err := app.NewApp(tmpDir)
@@ -59,7 +65,7 @@ func (c *Client) Plan(ctx context.Context, repoURL, ref, token string) ([]planne
 	}
 
 	service := planner.Plan{
-		Name:         path.Base(repoURL), // TODO: Verify if this works as expected.
+		Name:         strings.TrimSuffix(path.Base(repoURL), ".git"),
 		Providers:    generated.DetectedProviders,
 		StartCommand: generated.Plan.Deploy.StartCmd,
 		ContextPath:  "/",
