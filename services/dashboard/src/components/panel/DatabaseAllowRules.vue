@@ -149,9 +149,9 @@ async function remove(range: string) {
       class="group flex items-center gap-2 rounded-md bg-muted/40 px-3 py-2"
     >
       <template v-if="rule.range === ANY_ADDRESS">
-        <ShieldAlert :size="12" class="shrink-0 text-amber-600 dark:text-amber-400" />
+        <ShieldAlert :size="12" class="shrink-0 text-muted-foreground" />
         <span class="font-mono text-xs text-foreground">{{ rule.range }}</span>
-        <span class="min-w-0 flex-1 truncate text-xs text-amber-600 dark:text-amber-400">
+        <span class="min-w-0 flex-1 truncate text-xs text-muted-foreground">
           Any address on the internet
         </span>
       </template>
