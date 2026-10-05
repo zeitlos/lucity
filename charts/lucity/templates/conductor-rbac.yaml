@@ -60,7 +60,7 @@ rules:
     resources: [httproutes, listenersets]
     verbs: [get, list, watch, create, update, patch, delete]
   - apiGroups: [traefik.io]
-    resources: [ingressroutetcps]
+    resources: [ingressroutetcps, middlewaretcps]
     verbs: [get, list, watch, create, update, patch, delete]
   - apiGroups: [gateway.networking.k8s.io]
     resources: [gateways]

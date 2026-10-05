@@ -158,11 +158,20 @@ gateway:
 
 traefik:
   enabled: true
+  ports:
+    postgres:
+      proxyProtocol:
+        trustedIPs: ["10.0.0.0/24"]
   service:
+    spec:
+      externalTrafficPolicy: Local
     annotations:
       flexplane.io/provider: hetzner
       load-balancer.hetzner.cloud/location: nbg1
       load-balancer.hetzner.cloud/name: flexplane-lucity-prod-postgres
+      load-balancer.hetzner.cloud/uses-proxyprotocol: "true"
+      load-balancer.hetzner.cloud/use-private-ip: "true"
+      load-balancer.hetzner.cloud/ipv6-disabled: "true"
       external-dns.kubernetes.io/hostname: "*.db.lucity.app"
 
 clusterIssuers:

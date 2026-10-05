@@ -2,6 +2,7 @@ package deployer
 
 import (
 	"context"
+	"net/netip"
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -55,6 +56,10 @@ type DatabaseClient interface {
 	SetStorage(ctx context.Context, id platform.DatabaseID, size resource.Quantity) (RevisionID, error)
 	Expose(ctx context.Context, id platform.DatabaseID, host string) error
 	Unexpose(ctx context.Context, id platform.DatabaseID) error
+
+	AllowRules(ctx context.Context, id platform.DatabaseID) ([]AllowRule, error)
+	AddAllowRule(ctx context.Context, id platform.DatabaseID, rule AllowRule) error
+	RemoveAllowRule(ctx context.Context, id platform.DatabaseID, ipRange netip.Prefix) error
 }
 
 type KeyValueStoreClient interface {
@@ -111,6 +116,12 @@ type DatabaseSpec struct {
 	Size         resource.Quantity
 	Resources    Resources
 	ResourceTier platform.ResourceTier
+}
+
+// AllowRule lets clients from Range connect to a database's public hostname.
+type AllowRule struct {
+	Range       netip.Prefix
+	Description string
 }
 
 type KeyValueStoreSpec struct {

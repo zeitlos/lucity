@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"net/netip"
+	"strings"
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -38,7 +40,10 @@ func (e *DatabaseProvisioningError) Error() string { return "database is provisi
 
 type DatabaseID = platform.DatabaseID
 type Database = platform.Database
+type DatabaseAllowRule = deployer.AllowRule
 type DatabaseStatus = platform.DatabaseStatus
+
+var anyAddress = netip.MustParsePrefix("0.0.0.0/0")
 
 type DatabaseTable struct {
 	Name          string
@@ -424,6 +429,83 @@ func (c *Client) UnexposeDatabase(ctx context.Context, id platform.DatabaseID) (
 	database.PublicHost = ""
 
 	return database, nil
+}
+
+func (c *Client) DatabaseAllowRules(ctx context.Context, id platform.DatabaseID) ([]DatabaseAllowRule, error) {
+	return c.deployer.Databases().AllowRules(ctx, id)
+}
+
+func (c *Client) AddDatabaseAllowRule(ctx context.Context, id platform.DatabaseID, ipRange, description string) (*Database, error) {
+	prefix, err := parseAllowRange(ipRange)
+
+	if err != nil {
+		return nil, err
+	}
+
+	database, err := c.platform.Database(ctx, id)
+
+	if err != nil {
+		return nil, err
+	}
+
+	rule := deployer.AllowRule{Range: prefix, Description: strings.TrimSpace(description)}
+
+	if err := c.deployer.Databases().AddAllowRule(ctx, id, rule); err != nil {
+		return nil, fmt.Errorf("add allow rule: %w", err)
+	}
+
+	return database, nil
+}
+
+func (c *Client) RemoveDatabaseAllowRule(ctx context.Context, id platform.DatabaseID, ipRange string) (*Database, error) {
+	prefix, err := parseAllowRange(ipRange)
+
+	if err != nil {
+		return nil, err
+	}
+
+	database, err := c.platform.Database(ctx, id)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if err := c.deployer.Databases().RemoveAllowRule(ctx, id, prefix); err != nil {
+		return nil, fmt.Errorf("remove allow rule: %w", err)
+	}
+
+	return database, nil
+}
+
+func parseAllowRange(value string) (netip.Prefix, error) {
+	value = strings.TrimSpace(value)
+	prefix, err := netip.ParsePrefix(value)
+
+	if err != nil {
+		address, addressErr := netip.ParseAddr(value)
+
+		if addressErr != nil {
+			return netip.Prefix{}, fmt.Errorf("%q is not an IPv4 address or range, such as 203.0.113.7 or 203.0.113.0/24", value)
+		}
+
+		prefix = netip.PrefixFrom(address, address.BitLen())
+	}
+
+	if !prefix.Addr().Is4() {
+		return netip.Prefix{}, errors.New("IPv6 ranges aren't supported yet, use an IPv4 address or range")
+	}
+
+	prefix = prefix.Masked()
+
+	if prefix == anyAddress {
+		return prefix, nil
+	}
+
+	if !isPublicAddress(prefix.Addr()) {
+		return netip.Prefix{}, fmt.Errorf("%s is not a public address range", prefix)
+	}
+
+	return prefix, nil
 }
 
 func (c *Client) DatabaseTables(ctx context.Context, database platform.DatabaseID) ([]DatabaseTable, error) {

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"reflect"
 	"strings"
@@ -336,10 +337,12 @@ func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvid
 	handler := rateLimitMiddleware(
 		corsHandler.Handler(
 			securityHeadersMiddleware(
-				authMiddleware(
-					issuerMiddleware(
-						tenant.Middleware(
-							tenant.AuthorizeMiddleware(mux),
+				clientAddressMiddleware(
+					authMiddleware(
+						issuerMiddleware(
+							tenant.Middleware(
+								tenant.AuthorizeMiddleware(mux),
+							),
 						),
 					),
 				),
@@ -419,6 +422,41 @@ func securityHeadersMiddleware(next http.Handler) http.Handler {
 		w.Header().Set("Strict-Transport-Security", "max-age=63072000; includeSubDomains")
 		next.ServeHTTP(w, r)
 	})
+}
+
+// clientAddressMiddleware records the address a request reached the platform
+// from: X-Real-IP when an edge in front of the gateway set it, otherwise the
+// rightmost X-Forwarded-For entry, which the gateway appends. Only the caller
+// is fooled by forging these, so the address must not be used for access
+// decisions.
+func clientAddressMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if address, ok := requestClientAddress(r); ok {
+			r = r.WithContext(conductor.WithClientAddress(r.Context(), address))
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+func requestClientAddress(r *http.Request) (netip.Addr, bool) {
+	if address, err := netip.ParseAddr(strings.TrimSpace(r.Header.Get("X-Real-IP"))); err == nil {
+		return address, true
+	}
+
+	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
+		entries := strings.Split(forwarded, ",")
+
+		if address, err := netip.ParseAddr(strings.TrimSpace(entries[len(entries)-1])); err == nil {
+			return address, true
+		}
+	}
+
+	if addressPort, err := netip.ParseAddrPort(r.RemoteAddr); err == nil {
+		return addressPort.Addr(), true
+	}
+
+	return netip.Addr{}, false
 }
 
 // rateLimitMiddleware implements a simple per-IP token bucket rate limiter.

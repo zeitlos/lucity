@@ -2,10 +2,13 @@ package values
 
 import (
 	"fmt"
+	"net/netip"
 	"regexp"
 	"slices"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"k8s.io/apimachinery/pkg/api/resource"
 
@@ -37,6 +40,9 @@ var (
 	maxBranchLen          = 250
 	maxHealthCheckPathLen = 255
 	maxServerNameLen      = 255
+
+	maxAllowRules              = 64
+	maxAllowRuleDescriptionLen = 64
 )
 
 // Validate checks every invariant of env as a whole, whether the state was
@@ -80,8 +86,8 @@ func Validate(env *Env, workspace, registry string) error {
 			return err
 		}
 
-		if pg.PublicHost != "" && !isValidHostname(pg.PublicHost) {
-			return fmt.Errorf("database %q: invalid public hostname %q", name, pg.PublicHost)
+		if err := validatePublicAccess(name, pg.PublicAccess); err != nil {
+			return err
 		}
 	}
 
@@ -351,6 +357,42 @@ func validateDatabaseBackup(name string, postgres Postgres) error {
 	if postgres.Restore.TargetTime != "" {
 		if _, err := time.Parse(time.RFC3339, postgres.Restore.TargetTime); err != nil {
 			return fmt.Errorf("database %q has an invalid restore target time %q", name, postgres.Restore.TargetTime)
+		}
+	}
+
+	return nil
+}
+
+func validatePublicAccess(name string, access *PublicAccess) error {
+	if access == nil {
+		return nil
+	}
+
+	if !isValidHostname(access.Host) {
+		return fmt.Errorf("database %q: invalid public hostname %q", name, access.Host)
+	}
+
+	if len(access.Allow) > maxAllowRules {
+		return fmt.Errorf("database %q: at most %d allow rules", name, maxAllowRules)
+	}
+
+	seen := make(map[string]bool, len(access.Allow))
+
+	for _, rule := range access.Allow {
+		prefix, err := netip.ParsePrefix(rule.Range)
+
+		if err != nil || !prefix.Addr().Is4() || prefix.Masked().String() != rule.Range {
+			return fmt.Errorf("database %q: invalid allow range %q", name, rule.Range)
+		}
+
+		if seen[rule.Range] {
+			return fmt.Errorf("database %q: duplicate allow range %q", name, rule.Range)
+		}
+
+		seen[rule.Range] = true
+
+		if utf8.RuneCountInString(rule.Description) > maxAllowRuleDescriptionLen || strings.ContainsFunc(rule.Description, unicode.IsControl) {
+			return fmt.Errorf("database %q: invalid description for allow range %q", name, rule.Range)
 		}
 	}
 

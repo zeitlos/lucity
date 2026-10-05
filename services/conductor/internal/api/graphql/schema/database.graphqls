@@ -10,6 +10,21 @@ type Database {
   resources: Resources!
   createdAt: Time!
   public: Boolean!
+  """Address ranges allowed to connect over the public hostname. While the list is empty, nobody can."""
+  allowRules: [DatabaseAllowRule!]! @goField(forceResolver: true)
+}
+
+type DatabaseAllowRule {
+  """An IPv4 range in CIDR notation, such as `203.0.113.7/32`. `0.0.0.0/0` allows any address."""
+  range: String!
+  description: String!
+}
+
+input DatabaseAllowRuleInput {
+  """An IPv4 address, such as `203.0.113.7`, or a range in CIDR notation, such as `203.0.113.0/24`. `0.0.0.0/0` allows any address."""
+  range: String! @constraint(constraint: "cidrv4|ipv4")
+  """A note on whose address this is, such as `Office`."""
+  description: String! @constraint(constraint: "max=64")
 }
 
 enum DatabaseStatus {
@@ -79,6 +94,8 @@ extend type Query {
   ): DatabaseTableData! @hasRole(role: WORKSPACE_MEMBER)
   """Connection details for a database, password included. There is always an entry for the private hostname inside the environment, and one for the public hostname while the database is exposed."""
   databaseCredentials(database: DatabaseID!): [DatabaseCredentials!]! @hasRole(role: WORKSPACE_MEMBER)
+  """The public IPv4 address your requests reach the platform from, or null when it can't be told. Handy for allowing your own machine to connect to a database."""
+  clientAddress: String @hasRole(role: WORKSPACE_MEMBER)
 }
 
 extend type Mutation {
@@ -92,8 +109,12 @@ extend type Mutation {
   deleteDatabase(database: DatabaseID!): Boolean! @hasRole(role: WORKSPACE_MEMBER)
   """Runs one SQL statement against a database, as the user from its credentials, and returns up to 1,000 rows with values as text. The statement commits right away and times out after 30 seconds."""
   executeQuery(database: DatabaseID!, query: String!): QueryResult! @hasRole(role: WORKSPACE_MEMBER)
-  """Gives a database a public hostname on port 5432. Clients have to connect with TLS."""
+  """Gives a database a public hostname on port 5432. Clients have to connect with TLS, and nobody can connect until you allow their address with `addDatabaseAllowRule`."""
   exposeDatabase(database: DatabaseID!): Database! @hasRole(role: WORKSPACE_MEMBER)
-  """Removes the public hostname of a database."""
+  """Removes the public hostname of a database, together with its allow rules."""
   unexposeDatabase(database: DatabaseID!): Database! @hasRole(role: WORKSPACE_MEMBER)
+  """Allows an address range to connect over the public hostname of an exposed database. Adding a range that is already allowed updates its description."""
+  addDatabaseAllowRule(database: DatabaseID!, rule: DatabaseAllowRuleInput!): Database! @hasRole(role: WORKSPACE_MEMBER)
+  """Stops allowing an address range. Removing a range that isn't allowed succeeds, and once the last range is gone, nobody can connect over the public hostname."""
+  removeDatabaseAllowRule(database: DatabaseID!, range: String! @constraint(constraint: "cidrv4|ipv4")): Database! @hasRole(role: WORKSPACE_MEMBER)
 }

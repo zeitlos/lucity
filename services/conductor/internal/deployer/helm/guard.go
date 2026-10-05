@@ -28,6 +28,7 @@ var releaseKinds = map[schema.GroupKind]bool{
 	{Group: "postgresql.cnpg.io", Kind: "ScheduledBackup"}:       true,
 	{Group: "barmancloud.cnpg.io", Kind: "ObjectStore"}:          true,
 	{Group: "traefik.io", Kind: "IngressRouteTCP"}:               true,
+	{Group: "traefik.io", Kind: "MiddlewareTCP"}:                 true,
 }
 
 // releaseGuard is a post-renderer that rejects a render containing a list,

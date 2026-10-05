@@ -97,9 +97,9 @@ it** — do not silently deploy an empty database and call it done. To load it:
   it works, but for anything large prefer the dump path below.)
 - **Bulk dumps**: the credentials a local `psql`/`pg_restore` needs are never shown to you, so the user
   runs the import from their own terminal. Hand them the steps with the database id filled in:
-  `lucity db expose <db>` (temporary public hostname), `lucity db credentials <db>` (its `PLATFORM`
-  entry's `uri` already has `sslmode=require`), the restore from a client with libpq ≥ 14 (it must
-  send SNI), then `lucity db unexpose <db>`. Never run `lucity db credentials` yourself or ask the user
+  `lucity db expose <db>` (temporary public hostname, open only to the machine that ran it),
+  `lucity db credentials <db>` (its `PLATFORM` entry's `uri` already has `sslmode=require`), the
+  restore from that same machine with libpq ≥ 14 (it must send SNI), then `lucity db unexpose <db>`. Never run `lucity db credentials` yourself or ask the user
   to paste its output. Once they are done, spot-check the data with `run_sql`.
 
 Creating paid resources is a business question — ask before provisioning.
