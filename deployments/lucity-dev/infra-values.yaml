@@ -17,16 +17,15 @@ zot:
           "gcInterval": "24h",
           "retention": {
             "dryRun": false,
-            "delay": "168h",
+            "delay": "24h",
             "policies": [
               {
                 "repositories": ["**"],
                 "deleteUntagged": true,
                 "deleteReferrers": false,
                 "keepTags": [
-                  { "patterns": ["^buildcache$"] },
-                  { "patterns": [".*"], "mostRecentlyPushedCount": 5 },
-                  { "patterns": [".*"], "pushedWithin": "72h" }
+                  { "patterns": ["^buildcache$", "^secrets-latest$"] },
+                  { "patterns": [".*"], "mostRecentlyPushedCount": 10, "mostRecentlyPulledCount": 5 }
                 ]
               }
             ]
