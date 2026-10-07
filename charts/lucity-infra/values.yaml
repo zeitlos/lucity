@@ -365,19 +365,19 @@ victoria-metrics-alert:
                 annotations:
                   summary: "Telemetry gateway is running below its desired replica count ({{ $value }} available)"
               - alert: TelemetryRefusing
-                expr: sum by (service_name) (rate_prometheus({__name__=~"otelcol_receiver_refused_(metric_points|log_records)_total"}[5m])) > 0
+                expr: sum by (k8s_pod_name) (rate_prometheus({__name__=~"otelcol_receiver_refused_(metric_points|log_records)_total"}[5m])) > 0
                 for: 10m
                 labels: { severity: warning }
                 annotations:
-                  summary: "{{ $labels.service_name }} is refusing telemetry: its memory limiter is shedding load"
+                  summary: "{{ $labels.k8s_pod_name }} is refusing telemetry: its memory limiter is shedding load"
               - alert: TelemetryExportFailing
-                expr: sum by (service_name, exporter) (rate_prometheus({__name__=~"otelcol_exporter_send_failed_(metric_points|log_records)_total"}[5m])) > 0
+                expr: sum by (k8s_pod_name, exporter) (rate_prometheus({__name__=~"otelcol_exporter_send_failed_(metric_points|log_records)_total"}[5m])) > 0
                 for: 10m
                 labels: { severity: warning }
                 annotations:
-                  summary: "{{ $labels.service_name }} exporter {{ $labels.exporter }} fails to deliver telemetry"
+                  summary: "{{ $labels.k8s_pod_name }} exporter {{ $labels.exporter }} fails to deliver telemetry"
               - alert: TelemetryQueueFilling
-                expr: max by (k8s_node_name, exporter) (otelcol_exporter_queue_size{service_name="otel-agent"} / otelcol_exporter_queue_capacity{service_name="otel-agent"}) > 0.5
+                expr: max by (k8s_node_name, exporter) (otelcol_exporter_queue_size / otelcol_exporter_queue_capacity) > 0.5
                 for: 5m
                 labels: { severity: warning }
                 annotations:
