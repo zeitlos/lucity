@@ -72,6 +72,8 @@ func (c *Client) CreateCustomer(ctx context.Context, workspace, name, email stri
 // TrialCreditCents is the fixed trial credit amount (EUR 5).
 const TrialCreditCents = 500
 
+const planCreditExpiryGrace = 24 * time.Hour
+
 // CreateSubscription creates a subscription with only metered resource line items.
 // No plan is included — the user adds a plan later via a setup checkout + AddPlan.
 // creditDays > 0 creates a promotional trial credit grant that expires after that many days.
@@ -455,7 +457,7 @@ func (c *Client) CreateCreditGrantForPeriod(ctx context.Context, customerID stri
 				PriceType: gostripe.String("metered"),
 			},
 		},
-		ExpiresAt: gostripe.Int64(periodEnd),
+		ExpiresAt: gostripe.Int64(periodEnd + int64(planCreditExpiryGrace.Seconds())),
 		Metadata: map[string]string{
 			"billing_period_start": fmt.Sprintf("%d", periodStart),
 		},
