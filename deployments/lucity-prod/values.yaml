@@ -107,7 +107,7 @@ cashier:
     LOGTO_M2M_APP_SECRET: LOGTO_M2M_APP_SECRET
 
 exporter:
-  enabled: false
+  enabled: true
   env:
     OVH_ENDPOINT: ovh-eu
     OVH_PROJECT_ID: "df349a670c8a4d3fbe69a87d4c2f25a9"
