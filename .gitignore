@@ -44,9 +44,11 @@ tmp/
 /conductor
 /builder
 /cashier
+/exporter
 services/*/conductor
 services/*/builder
 services/*/cashier
+services/*/exporter
 
 # Proto generated
 gen/
