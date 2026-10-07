@@ -15,7 +15,7 @@ const (
 	dnsAttemptTimeout = 3 * time.Second
 )
 
-func (c *Client) DNSStatus(ctx context.Context, workspace, host string) (DNSStatus, error) {
+func (c *Client) DNSStatus(ctx context.Context, workspace, host string, redirect bool) (DNSStatus, error) {
 	if c.IsPlatform(host) || c.IsInternal(host) {
 		return DNSValid, nil
 	}
@@ -62,7 +62,7 @@ func (c *Client) DNSStatus(ctx context.Context, workspace, host string) (DNSStat
 			return DNSError, err
 		}
 
-		routingOK, err = c.pointsAtTarget(lookupCtx, addrs)
+		routingOK, err = c.pointsAtTarget(lookupCtx, addrs, redirect)
 
 		if err != nil {
 			return DNSError, err
@@ -90,12 +90,14 @@ func (c *Client) DNSStatus(ctx context.Context, workspace, host string) (DNSStat
 	return DNSMisconfigured, nil
 }
 
-func (c *Client) pointsAtTarget(ctx context.Context, addrs []string) (bool, error) {
+func (c *Client) pointsAtTarget(ctx context.Context, addrs []string, redirect bool) (bool, error) {
 	if len(addrs) == 0 {
 		return false, nil
 	}
 
-	if slices.Contains(addrs, c.loadBalancerIP) {
+	direct := slices.Contains(addrs, c.loadBalancerIP)
+
+	if direct && redirect {
 		return true, nil
 	}
 
@@ -103,6 +105,10 @@ func (c *Client) pointsAtTarget(ctx context.Context, addrs []string) (bool, erro
 
 	if err != nil {
 		return false, err
+	}
+
+	if direct && len(targets) == 0 {
+		return true, nil
 	}
 
 	for _, addr := range addrs {

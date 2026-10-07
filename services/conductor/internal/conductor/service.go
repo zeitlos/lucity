@@ -454,7 +454,7 @@ func (c *Client) AddCustomDomain(ctx context.Context, serviceID platform.Service
 		return nil, err
 	}
 
-	verified, err := c.isDomainVerified(ctx, serviceID.Workspace, hostname)
+	verified, err := c.isDomainVerified(ctx, serviceID.Workspace, hostname, redirectTo != "")
 
 	if err != nil {
 		slog.WarnContext(ctx, "failed to verify domain", "error", err, "service", serviceID, "domain", hostname)

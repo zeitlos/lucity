@@ -41,7 +41,7 @@ func (c *Client) ResolveEndpoints(ctx context.Context, serviceID ServiceID, endp
 			RequiredDNSRecords: c.hostname.DNSRecords(serviceID.Workspace, endpoint.Host, endpoint.RedirectTo != ""),
 		}
 
-		resolved.DNSStatus, err = c.hostname.DNSStatus(ctx, serviceID.Workspace, endpoint.Host)
+		resolved.DNSStatus, err = c.hostname.DNSStatus(ctx, serviceID.Workspace, endpoint.Host, endpoint.RedirectTo != "")
 
 		if err != nil {
 			slog.ErrorContext(ctx, "failed to lookup dns status", "error", err, "service", serviceID.String(), "host", endpoint.Host)
@@ -129,7 +129,7 @@ func (c *Client) reconcileEnvironmentDomains(ctx context.Context, envID platform
 			enabled := endpoint.Enabled
 
 			if c.hostname.IsCustom(host) {
-				verified, err := c.isDomainVerified(ctx, envID.Workspace, host)
+				verified, err := c.isDomainVerified(ctx, envID.Workspace, host, endpoint.RedirectTo != "")
 
 				if err != nil {
 					slog.Warn("reconcile domains: dns lookup failed", "host", host, "error", err)
@@ -220,8 +220,8 @@ func (c *Client) unregisterEdge(ctx context.Context, workspaceID, host string) {
 	}
 }
 
-func (c *Client) isDomainVerified(ctx context.Context, workspaceID, host string) (bool, error) {
-	dnsStatus, err := c.hostname.DNSStatus(ctx, workspaceID, host)
+func (c *Client) isDomainVerified(ctx context.Context, workspaceID, host string, redirect bool) (bool, error) {
+	dnsStatus, err := c.hostname.DNSStatus(ctx, workspaceID, host, redirect)
 
 	if err != nil {
 		return false, err
