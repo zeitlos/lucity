@@ -348,6 +348,40 @@ victoria-metrics-alert:
                 labels: { severity: critical }
                 annotations:
                   summary: "No kube-state-metrics samples for 10m: the metrics pipeline is stalled and every other alert is blind"
+              - alert: TelemetryAgentSilent
+                expr: |-
+                  kube_node_info
+                    unless on (node) label_replace(k8s_node_cpu_time_seconds_total, "node", "$1", "k8s_node_name", "(.*)")
+                for: 10m
+                labels: { severity: warning }
+                annotations:
+                  summary: "No kubelet samples from {{ $labels.node }} for 10m: its telemetry agent is down or cannot reach the gateway"
+              - alert: TelemetryGatewayDegraded
+                expr: |-
+                  kube_deployment_status_replicas_available{namespace="lucity-system", deployment="lucity-infra-otel-gateway-collector"}
+                    < kube_deployment_spec_replicas{namespace="lucity-system", deployment="lucity-infra-otel-gateway-collector"}
+                for: 10m
+                labels: { severity: warning }
+                annotations:
+                  summary: "Telemetry gateway is running below its desired replica count ({{ $value }} available)"
+              - alert: TelemetryRefusing
+                expr: sum by (service_name) (rate_prometheus({__name__=~"otelcol_receiver_refused_(metric_points|log_records)_total"}[5m])) > 0
+                for: 10m
+                labels: { severity: warning }
+                annotations:
+                  summary: "{{ $labels.service_name }} is refusing telemetry: its memory limiter is shedding load"
+              - alert: TelemetryExportFailing
+                expr: sum by (service_name, exporter) (rate_prometheus({__name__=~"otelcol_exporter_send_failed_(metric_points|log_records)_total"}[5m])) > 0
+                for: 10m
+                labels: { severity: warning }
+                annotations:
+                  summary: "{{ $labels.service_name }} exporter {{ $labels.exporter }} fails to deliver telemetry"
+              - alert: TelemetryQueueFilling
+                expr: max by (k8s_node_name, exporter) (otelcol_exporter_queue_size{service_name="otel-agent"} / otelcol_exporter_queue_capacity{service_name="otel-agent"}) > 0.5
+                for: 5m
+                labels: { severity: warning }
+                annotations:
+                  summary: "Telemetry queue on {{ $labels.k8s_node_name }} is {{ $value | humanizePercentage }} full: samples are buffering on the node"
               - alert: PVCNearlyFull
                 expr: |-
                   label_replace(label_replace(label_replace(
@@ -609,18 +643,22 @@ victoria-metrics-alert:
 otelCollector:
   daemonset:
     enabled: false
+    queue:
+      bytes: 536870912
+      sizeLimit: 2Gi
     resources:
       requests:
         cpu: 50m
         memory: 128Mi
       limits:
-        memory: 512Mi
+        memory: 1Gi
   deployment:
     enabled: false
+    replicas: 2
     resources:
       requests:
         cpu: 50m
-        memory: 512Mi
+        memory: 256Mi
       limits:
         memory: 1Gi
 

@@ -1,4 +1,7 @@
 {{- if .Values.otelCollector.daemonset.enabled }}
+{{- if not .Values.otelCollector.deployment.enabled }}
+{{- fail "otelCollector.daemonset exports to the gateway: enable otelCollector.deployment too" }}
+{{- end }}
 apiVersion: opentelemetry.io/v1beta1
 kind: OpenTelemetryCollector
 metadata:
@@ -40,6 +43,9 @@ spec:
     - name: hostfs
       hostPath:
         path: /
+    - name: queue
+      emptyDir:
+        sizeLimit: {{ .Values.otelCollector.daemonset.queue.sizeLimit }}
   volumeMounts:
     - name: varlogpods
       mountPath: /var/log/pods
@@ -48,7 +54,15 @@ spec:
       mountPath: /hostfs
       readOnly: true
       mountPropagation: HostToContainer
+    - name: queue
+      mountPath: /var/lib/otelcol/queue
   config:
+    extensions:
+      file_storage:
+        directory: /var/lib/otelcol/queue
+        compaction:
+          on_rebound: true
+          directory: /var/lib/otelcol/queue
     receivers:
       kubelet_stats:
         collection_interval: 30s
@@ -83,6 +97,77 @@ spec:
           - type: container
             id: container-parser
             format: containerd
+      prometheus:
+        config:
+          scrape_configs:
+            - job_name: kube-state-metrics
+              scrape_interval: 30s
+              {{- include "lucity-infra.otel.nodeLocalPods" "kube-system" | nindent 14 }}
+              relabel_configs:
+                - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name, __meta_kubernetes_pod_container_port_name]
+                  regex: kube-state-metrics;http
+                  action: keep
+                - target_label: instance
+                  replacement: kube-state-metrics.kube-system.svc.cluster.local:8080
+            - job_name: cilium-agent
+              scrape_interval: 30s
+              {{- include "lucity-infra.otel.nodeLocalPods" "kube-system" | nindent 14 }}
+              relabel_configs:
+                - source_labels: [__meta_kubernetes_pod_label_k8s_app, __meta_kubernetes_pod_container_port_name]
+                  regex: cilium;prometheus
+                  action: keep
+            - job_name: cilium-envoy
+              scrape_interval: 30s
+              {{- include "lucity-infra.otel.nodeLocalPods" "kube-system" | nindent 14 }}
+              relabel_configs:
+                - source_labels: [__meta_kubernetes_pod_label_k8s_app, __meta_kubernetes_pod_container_port_name]
+                  regex: cilium-envoy;envoy-metrics
+                  action: keep
+            - job_name: hubble
+              scrape_interval: 30s
+              {{- include "lucity-infra.otel.nodeLocalPods" "kube-system" | nindent 14 }}
+              relabel_configs:
+                - source_labels: [__meta_kubernetes_pod_label_k8s_app, __meta_kubernetes_pod_container_port_name]
+                  regex: cilium;hubble-metrics
+                  action: keep
+            - job_name: cert-manager
+              scrape_interval: 60s
+              {{- include "lucity-infra.otel.nodeLocalPods" "cert-manager" | nindent 14 }}
+              relabel_configs:
+                - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name, __meta_kubernetes_pod_label_app_kubernetes_io_component, __meta_kubernetes_pod_container_port_name]
+                  regex: cert-manager;controller;http-metrics
+                  action: keep
+                - target_label: instance
+                  replacement: cert-manager.cert-manager.svc.cluster.local:9402
+            - job_name: victoria-metrics
+              scrape_interval: 30s
+              {{- include "lucity-infra.otel.nodeLocalPods" .Release.Namespace | nindent 14 }}
+              relabel_configs:
+                - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name, __meta_kubernetes_pod_container_port_name]
+                  regex: victoria-metrics-single;http
+                  action: keep
+                - target_label: instance
+                  replacement: {{ .Release.Name }}-victoria-metrics-single-server:8428
+            {{- if index .Values "hcloud-exporter" "enabled" }}
+            - job_name: hcloud-exporter
+              scrape_interval: 60s
+              {{- include "lucity-infra.otel.nodeLocalPods" .Release.Namespace | nindent 14 }}
+              relabel_configs:
+                - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name, __meta_kubernetes_pod_container_port_name]
+                  regex: hcloud-exporter;http
+                  action: keep
+                - target_label: instance
+                  replacement: {{ .Release.Name }}-hcloud-exporter:9501
+            {{- end }}
+            {{- if index .Values "vertical-pod-autoscaler" "enabled" }}
+            - job_name: vertical-pod-autoscaler
+              scrape_interval: 30s
+              {{- include "lucity-infra.otel.nodeLocalPods" .Release.Namespace | nindent 14 }}
+              relabel_configs:
+                - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name, __meta_kubernetes_pod_container_port_name]
+                  regex: vertical-pod-autoscaler;prometheus
+                  action: keep
+            {{- end }}
     processors:
       memory_limiter:
         check_interval: 1s
@@ -134,29 +219,40 @@ spec:
               - from: connection
       batch:
         send_batch_size: 8192
+        send_batch_max_size: 8192
         timeout: 5s
     exporters:
-      # k8s collector distribution doesn't ship prometheusremotewrite,
-      # so use VictoriaMetrics' native OTLP endpoint instead.
-      otlp_http/metrics:
-        metrics_endpoint: http://{{ .Release.Name }}-victoria-metrics-single-server:8428/opentelemetry/v1/metrics
+      otlp_grpc:
+        endpoint: dns:///{{ .Release.Name }}-otel-gateway-collector-headless.{{ .Release.Namespace }}.svc.cluster.local:4317
+        balancer_name: round_robin
         tls:
           insecure: true
-      otlp_http/logs:
-        logs_endpoint: http://{{ .Release.Name }}-victoria-logs-single-server:9428/insert/opentelemetry/v1/logs
-        tls:
-          insecure: true
+        timeout: 15s
+        sending_queue:
+          storage: file_storage
+          sizer: bytes
+          queue_size: {{ .Values.otelCollector.daemonset.queue.bytes | int64 }}
+        retry_on_failure:
+          max_elapsed_time: 0
     service:
+      extensions: [file_storage]
       telemetry:
         logs:
           level: info
+        resource:
+          attributes:
+            - name: service.name
+              value: otel-agent
+            - name: k8s.node.name
+              value: ${env:K8S_NODE_NAME}
+        {{- include "lucity-infra.otel.selfTelemetry" . | nindent 8 }}
       pipelines:
         metrics:
-          receivers: [host_metrics, kubelet_stats]
+          receivers: [host_metrics, kubelet_stats, prometheus]
           processors: [memory_limiter, k8s_attributes, resource, batch]
-          exporters: [otlp_http/metrics]
+          exporters: [otlp_grpc]
         logs:
           receivers: [file_log]
           processors: [memory_limiter, k8s_attributes, resource, batch]
-          exporters: [otlp_http/logs]
+          exporters: [otlp_grpc]
 {{- end }}
