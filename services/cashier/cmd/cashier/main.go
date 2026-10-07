@@ -52,6 +52,8 @@ type Config struct {
 	ProdCPUMeterEvent  string `envconfig:"STRIPE_PROD_CPU_METER_EVENT"`
 	ProdMemMeterEvent  string `envconfig:"STRIPE_PROD_MEM_METER_EVENT"`
 	ProdDiskMeterEvent string `envconfig:"STRIPE_PROD_DISK_METER_EVENT"`
+	StorageMeterEvent  string `envconfig:"STRIPE_STORAGE_METER_EVENT"`
+	EgressMeterEvent   string `envconfig:"STRIPE_EGRESS_METER_EVENT"`
 
 	MeteringInterval   time.Duration `envconfig:"METERING_INTERVAL" default:"1h"`
 	VictoriaMetricsURL string        `envconfig:"VICTORIA_METRICS_URL"`
@@ -112,6 +114,8 @@ func main() {
 		ProdCPUEventName:  config.ProdCPUMeterEvent,
 		ProdMemEventName:  config.ProdMemMeterEvent,
 		ProdDiskEventName: config.ProdDiskMeterEvent,
+		StorageEventName:  config.StorageMeterEvent,
+		EgressEventName:   config.EgressMeterEvent,
 	}
 	stripeClient := stripelib.NewClient(config.StripeSecretKey, prices, meters)
 

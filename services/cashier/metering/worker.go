@@ -221,9 +221,12 @@ func (w *Worker) billableWorkspaces(ctx context.Context) (map[string]*workspaceD
 type workspaceData struct {
 	customerID      string
 	subscriptionID  string
+	namespaces      []string
 	ecoNamespaces   []string
 	ecoAllocations  []allocEntry
 	prodAllocations []allocEntry
+	storageBytes    float64
+	egressBytes     float64
 }
 
 type allocEntry struct {
@@ -266,6 +269,7 @@ func (w *Worker) processWindow(ctx context.Context, windowStart, windowEnd time.
 		}
 
 		ns := alloc.Namespace
+		ws.namespaces = append(ws.namespaces, ns)
 		entry := allocEntry{
 			namespace: ns,
 			cpuMillis: alloc.CpuMillicores,
@@ -301,6 +305,23 @@ func (w *Worker) processWindow(ctx context.Context, windowStart, windowEnd time.
 		if err != nil {
 			slog.Error("metering: failed to query disk usage", "error", err)
 			diskByNs = make(map[string]float64)
+		}
+	}
+
+	storageByWorkspace, err := w.vm.StorageByWorkspace(ctx, windowStart, windowEnd)
+	if err != nil {
+		slog.Error("metering: failed to query storage usage", "error", err)
+	}
+
+	egressByNs, err := w.vm.EgressByNamespace(ctx, windowStart, windowEnd)
+	if err != nil {
+		slog.Error("metering: failed to query egress usage", "error", err)
+	}
+
+	for wsID, ws := range workspaces {
+		ws.storageBytes = storageByWorkspace[wsID]
+		for _, ns := range ws.namespaces {
+			ws.egressBytes += egressByNs[ns]
 		}
 	}
 
@@ -350,7 +371,7 @@ func (w *Worker) reportWorkspace(ctx context.Context, wsID string, ws *workspace
 		cpuMinutes := int64(math.Ceil(totalCPUSeconds / 60))
 		if cpuMinutes > 0 && w.stripe.Meters.EcoCPUEventName != "" {
 			id := meterEventID(wsID, w.stripe.Meters.EcoCPUEventName, windowStart)
-			if err := w.stripe.ReportMeterEvent(ctx, w.stripe.Meters.EcoCPUEventName, ws.customerID, cpuMinutes, timestamp, id); err != nil {
+			if err := w.stripe.ReportMeterEvent(ctx, w.stripe.Meters.EcoCPUEventName, ws.customerID, float64(cpuMinutes), timestamp, id); err != nil {
 				slog.Error("metering: eco CPU report failed", "workspace", wsID, "error", err)
 			}
 		}
@@ -359,7 +380,7 @@ func (w *Worker) reportWorkspace(ctx context.Context, wsID string, ws *workspace
 		gbMinutes := int64(math.Ceil(totalMemBytes / (1024 * 1024 * 1024) * intervalMinutes))
 		if gbMinutes > 0 && w.stripe.Meters.EcoMemEventName != "" {
 			id := meterEventID(wsID, w.stripe.Meters.EcoMemEventName, windowStart)
-			if err := w.stripe.ReportMeterEvent(ctx, w.stripe.Meters.EcoMemEventName, ws.customerID, gbMinutes, timestamp, id); err != nil {
+			if err := w.stripe.ReportMeterEvent(ctx, w.stripe.Meters.EcoMemEventName, ws.customerID, float64(gbMinutes), timestamp, id); err != nil {
 				slog.Error("metering: eco memory report failed", "workspace", wsID, "error", err)
 			}
 		}
@@ -368,7 +389,7 @@ func (w *Worker) reportWorkspace(ctx context.Context, wsID string, ws *workspace
 		diskGB := int64(math.Ceil(totalDiskBytes / (1024 * 1024 * 1024)))
 		if diskGB > 0 && w.stripe.Meters.EcoDiskEventName != "" {
 			id := meterEventID(wsID, w.stripe.Meters.EcoDiskEventName, windowStart)
-			if err := w.stripe.ReportMeterEvent(ctx, w.stripe.Meters.EcoDiskEventName, ws.customerID, diskGB, timestamp, id); err != nil {
+			if err := w.stripe.ReportMeterEvent(ctx, w.stripe.Meters.EcoDiskEventName, ws.customerID, float64(diskGB), timestamp, id); err != nil {
 				slog.Error("metering: eco disk report failed", "workspace", wsID, "error", err)
 			}
 		}
@@ -394,7 +415,7 @@ func (w *Worker) reportWorkspace(ctx context.Context, wsID string, ws *workspace
 		cpuMinutes := int64(math.Ceil(float64(totalCPUMillis) / 1000 * intervalMinutes))
 		if cpuMinutes > 0 && w.stripe.Meters.ProdCPUEventName != "" {
 			id := meterEventID(wsID, w.stripe.Meters.ProdCPUEventName, windowStart)
-			if err := w.stripe.ReportMeterEvent(ctx, w.stripe.Meters.ProdCPUEventName, ws.customerID, cpuMinutes, timestamp, id); err != nil {
+			if err := w.stripe.ReportMeterEvent(ctx, w.stripe.Meters.ProdCPUEventName, ws.customerID, float64(cpuMinutes), timestamp, id); err != nil {
 				slog.Error("metering: prod CPU report failed", "workspace", wsID, "error", err)
 			}
 		}
@@ -403,7 +424,7 @@ func (w *Worker) reportWorkspace(ctx context.Context, wsID string, ws *workspace
 		memGBMinutes := int64(math.Ceil(float64(totalMemMB) / 1024 * intervalMinutes))
 		if memGBMinutes > 0 && w.stripe.Meters.ProdMemEventName != "" {
 			id := meterEventID(wsID, w.stripe.Meters.ProdMemEventName, windowStart)
-			if err := w.stripe.ReportMeterEvent(ctx, w.stripe.Meters.ProdMemEventName, ws.customerID, memGBMinutes, timestamp, id); err != nil {
+			if err := w.stripe.ReportMeterEvent(ctx, w.stripe.Meters.ProdMemEventName, ws.customerID, float64(memGBMinutes), timestamp, id); err != nil {
 				slog.Error("metering: prod memory report failed", "workspace", wsID, "error", err)
 			}
 		}
@@ -412,7 +433,7 @@ func (w *Worker) reportWorkspace(ctx context.Context, wsID string, ws *workspace
 		diskGB := int64(math.Ceil(float64(totalDiskMB) / 1024))
 		if diskGB > 0 && w.stripe.Meters.ProdDiskEventName != "" {
 			id := meterEventID(wsID, w.stripe.Meters.ProdDiskEventName, windowStart)
-			if err := w.stripe.ReportMeterEvent(ctx, w.stripe.Meters.ProdDiskEventName, ws.customerID, diskGB, timestamp, id); err != nil {
+			if err := w.stripe.ReportMeterEvent(ctx, w.stripe.Meters.ProdDiskEventName, ws.customerID, float64(diskGB), timestamp, id); err != nil {
 				slog.Error("metering: prod disk report failed", "workspace", wsID, "error", err)
 			}
 		}
@@ -425,7 +446,35 @@ func (w *Worker) reportWorkspace(ctx context.Context, wsID string, ws *workspace
 		)
 	}
 
+	storageGBHours := roundUsage(ws.storageBytes / (1024 * 1024 * 1024) * windowEnd.Sub(windowStart).Hours())
+	if storageGBHours > 0 && w.stripe.Meters.StorageEventName != "" {
+		id := meterEventID(wsID, w.stripe.Meters.StorageEventName, windowStart)
+		if err := w.stripe.ReportMeterEvent(ctx, w.stripe.Meters.StorageEventName, ws.customerID, storageGBHours, timestamp, id); err != nil {
+			slog.Error("metering: storage report failed", "workspace", wsID, "error", err)
+		}
+	}
+
+	egressGB := roundUsage(ws.egressBytes / (1024 * 1024 * 1024))
+	if egressGB > 0 && w.stripe.Meters.EgressEventName != "" {
+		id := meterEventID(wsID, w.stripe.Meters.EgressEventName, windowStart)
+		if err := w.stripe.ReportMeterEvent(ctx, w.stripe.Meters.EgressEventName, ws.customerID, egressGB, timestamp, id); err != nil {
+			slog.Error("metering: egress report failed", "workspace", wsID, "error", err)
+		}
+	}
+
+	if storageGBHours > 0 || egressGB > 0 {
+		slog.Info("metering: storage and egress usage reported",
+			"workspace", wsID,
+			"storage_gb_hours", storageGBHours,
+			"egress_gb", egressGB,
+		)
+	}
+
 	return nil
+}
+
+func roundUsage(value float64) float64 {
+	return math.Round(value*1e6) / 1e6
 }
 
 // meterEventID returns a deterministic identifier for Stripe meter event deduplication.

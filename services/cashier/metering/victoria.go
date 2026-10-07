@@ -58,18 +58,34 @@ func (c *VMClient) MemoryByNamespace(ctx context.Context, namespaces []string, s
 	return c.queryByLabel(ctx, q, end, "k8s_namespace_name")
 }
 
-// DiskByNamespace returns total persistent volume capacity (bytes) per namespace.
-// Sourced from kube-state-metrics (PVCs only) — emptyDir, configMap, secret, and
-// projected volumes are correctly excluded.
+// DiskByNamespace returns the persistent volume capacity (bytes) per namespace,
+// averaged over the window. Sourced from kube-state-metrics (PVCs only) — emptyDir,
+// configMap, secret, and projected volumes are correctly excluded.
 func (c *VMClient) DiskByNamespace(ctx context.Context, namespaces []string, start, end time.Time) (map[string]float64, error) {
 	if len(namespaces) == 0 {
 		return nil, nil
 	}
 	q := fmt.Sprintf(
-		`sum by (namespace) (kube_persistentvolumeclaim_resource_requests_storage_bytes{namespace=~"%s"})`,
-		nsRegex(namespaces),
+		`sum by (namespace) (avg_over_time(kube_persistentvolumeclaim_resource_requests_storage_bytes{namespace=~"%s"}[%s]))`,
+		nsRegex(namespaces), promDuration(end.Sub(start)),
 	)
 	return c.queryByLabel(ctx, q, end, "namespace")
+}
+
+func (c *VMClient) EgressByNamespace(ctx context.Context, start, end time.Time) (map[string]float64, error) {
+	q := fmt.Sprintf(
+		`sum by (namespace) (label_replace(increase(envoy_cluster_upstream_cx_rx_bytes_total{envoy_cluster_name=~"lucity-system/cilium-gateway-.+"}[%s]), "namespace", "$1", "envoy_cluster_name", "lucity-system/cilium-gateway-[^/]+/([a-z0-9-]+)_.+"))`,
+		promDuration(end.Sub(start)),
+	)
+	return c.queryByLabel(ctx, q, end, "namespace")
+}
+
+func (c *VMClient) StorageByWorkspace(ctx context.Context, start, end time.Time) (map[string]float64, error) {
+	q := fmt.Sprintf(
+		`sum by (workspace) (avg_over_time(lucity_bucket_size_bytes[%s]))`,
+		promDuration(end.Sub(start)),
+	)
+	return c.queryByLabel(ctx, q, end, "workspace")
 }
 
 // queryByLabel runs an instant PromQL query at evalTime and returns a map keyed by
