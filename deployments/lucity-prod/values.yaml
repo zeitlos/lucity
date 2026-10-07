@@ -6,6 +6,11 @@ routes:
   enabled: true
   sectionName: platform-https
 
+banner:
+  message: "Object Storage is degraded: requests to buckets may fail with errors, and creating a bucket may time out. Services, databases and volumes are not affected."
+  severity: warn
+  dismissible: true
+
 conductor:
   registryHost: lucity-infra-zot.lucity-system.svc.cluster.local:5000
   registryUsername: builder
