@@ -192,7 +192,12 @@ backups:
   enabled: false
 
 rybbit:
-  enabled: false
+  enabled: true
+  hostname: p.lucity.dev
+  backend:
+    baseUrl: "https://p.lucity.dev"
+  redis:
+    size: 10Gi
 
 traefik:
   enabled: true
