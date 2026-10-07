@@ -79,7 +79,7 @@ cashier:
   enabled: false
 
 exporter:
-  enabled: false
+  enabled: true
   env:
     OVH_ENDPOINT: ovh-eu
     OVH_PROJECT_ID: "2eb456d1d19d4e30982a0d261743e2f3"
