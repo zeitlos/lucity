@@ -84,11 +84,6 @@ spec:
       telemetry:
         logs:
           level: info
-        resource:
-          attributes:
-            - name: service.name
-              value: otel-gateway
-        {{- include "lucity-infra.otel.selfTelemetry" . | nindent 8 }}
       pipelines:
         metrics:
           receivers: [otlp]

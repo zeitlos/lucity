@@ -159,6 +159,20 @@ spec:
                 - target_label: instance
                   replacement: {{ .Release.Name }}-hcloud-exporter:9501
             {{- end }}
+            - job_name: otel-agent
+              scrape_interval: 30s
+              {{- include "lucity-infra.otel.nodeLocalPods" .Release.Namespace | nindent 14 }}
+              relabel_configs:
+                - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name, __meta_kubernetes_pod_container_port_name]
+                  regex: otel-agent;metrics
+                  action: keep
+            - job_name: otel-gateway
+              scrape_interval: 30s
+              {{- include "lucity-infra.otel.nodeLocalPods" .Release.Namespace | nindent 14 }}
+              relabel_configs:
+                - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name, __meta_kubernetes_pod_container_port_name]
+                  regex: otel-gateway;metrics
+                  action: keep
             {{- if index .Values "vertical-pod-autoscaler" "enabled" }}
             - job_name: vertical-pod-autoscaler
               scrape_interval: 30s
@@ -239,13 +253,6 @@ spec:
       telemetry:
         logs:
           level: info
-        resource:
-          attributes:
-            - name: service.name
-              value: otel-agent
-            - name: k8s.node.name
-              value: ${env:K8S_NODE_NAME}
-        {{- include "lucity-infra.otel.selfTelemetry" . | nindent 8 }}
       pipelines:
         metrics:
           receivers: [host_metrics, kubelet_stats, prometheus]
