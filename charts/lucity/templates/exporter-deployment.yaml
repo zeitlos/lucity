@@ -1,0 +1,74 @@
+{{- if .Values.exporter.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "lucity.fullname" . }}-exporter
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+    app.kubernetes.io/component: exporter
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "lucity.selectorLabels" (dict "name" "exporter" "release" .Release.Name) | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/secrets: {{ include (print $.Template.BasePath "/secrets.yaml") . | sha256sum }}
+      labels:
+        {{- include "lucity.labels" . | nindent 8 }}
+        {{- include "lucity.selectorLabels" (dict "name" "exporter" "release" .Release.Name) | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        fsGroup: 65534
+      containers:
+        - name: exporter
+          image: "{{ .Values.exporter.image.repository }}:{{ .Values.exporter.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.exporter.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+            readOnlyRootFilesystem: true
+          ports:
+            - name: metrics
+              containerPort: {{ .Values.exporter.port }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: metrics
+            initialDelaySeconds: 5
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: metrics
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          env:
+            - name: PORT
+              value: {{ .Values.exporter.port | quote }}
+            {{- range $key, $value := .Values.exporter.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+            {{- range $key, $value := .Values.exporter.envSecret }}
+            - name: {{ $key }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "lucity.fullname" $ }}
+                  key: {{ $value }}
+            {{- end }}
+          resources:
+            {{- toYaml .Values.exporter.resources | nindent 12 }}
+{{- end }}

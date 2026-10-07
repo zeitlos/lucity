@@ -113,3 +113,27 @@ spec:
         - port: {{ .Values.cashier.webhookPort }}
           protocol: TCP
 {{- end }}
+{{- if .Values.exporter.enabled }}
+---
+# Exporter: metrics port from the otel agents only
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "lucity.fullname" . }}-exporter
+  labels:
+    {{- include "lucity.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "lucity.selectorLabels" (dict "name" "exporter" "release" .Release.Name) | nindent 6 }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: otel-agent
+      ports:
+        - port: {{ .Values.exporter.port }}
+          protocol: TCP
+{{- end }}
