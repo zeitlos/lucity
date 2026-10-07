@@ -159,6 +159,13 @@ spec:
                 - target_label: instance
                   replacement: {{ .Release.Name }}-hcloud-exporter:9501
             {{- end }}
+            - job_name: exporter
+              scrape_interval: 60s
+              {{- include "lucity-infra.otel.nodeLocalPods" .Release.Namespace | nindent 14 }}
+              relabel_configs:
+                - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name, __meta_kubernetes_pod_container_port_name]
+                  regex: exporter;metrics
+                  action: keep
             - job_name: otel-agent
               scrape_interval: 30s
               {{- include "lucity-infra.otel.nodeLocalPods" .Release.Namespace | nindent 14 }}

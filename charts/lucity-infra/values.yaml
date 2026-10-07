@@ -382,6 +382,12 @@ victoria-metrics-alert:
                 labels: { severity: warning }
                 annotations:
                   summary: "Telemetry queue on {{ $labels.k8s_node_name }} is {{ $value | humanizePercentage }} full: samples are buffering on the node"
+              - alert: UsageExporterStale
+                expr: time() - max by (source) (max_over_time(lucity_exporter_last_success_timestamp_seconds[2h])) > 1800
+                for: 5m
+                labels: { severity: warning }
+                annotations:
+                  summary: "Usage source {{ $labels.source }} last refreshed {{ $value | humanizeDuration }} ago: billable usage is not being recorded"
               - alert: PVCNearlyFull
                 expr: |-
                   label_replace(label_replace(label_replace(
