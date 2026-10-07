@@ -289,19 +289,19 @@ func (w *Worker) processWindow(ctx context.Context, windowStart, windowEnd time.
 	// 5. Query VictoriaMetrics for eco namespace usage.
 	var cpuByNs, memByNs, diskByNs map[string]float64
 	if len(allEcoNamespaces) > 0 {
-		cpuByNs, err = w.vm.CPUByNamespace(ctx, allEcoNamespaces, windowStart, windowEnd)
+		cpuByNs, err = w.vm.CPUByNamespace(ctx, windowStart, windowEnd)
 		if err != nil {
 			slog.Error("metering: failed to query CPU usage", "error", err)
 			cpuByNs = make(map[string]float64)
 		}
 
-		memByNs, err = w.vm.MemoryByNamespace(ctx, allEcoNamespaces, windowStart, windowEnd)
+		memByNs, err = w.vm.MemoryByNamespace(ctx, windowStart, windowEnd)
 		if err != nil {
 			slog.Error("metering: failed to query memory usage", "error", err)
 			memByNs = make(map[string]float64)
 		}
 
-		diskByNs, err = w.vm.DiskByNamespace(ctx, allEcoNamespaces, windowStart, windowEnd)
+		diskByNs, err = w.vm.DiskByNamespace(ctx, windowStart, windowEnd)
 		if err != nil {
 			slog.Error("metering: failed to query disk usage", "error", err)
 			diskByNs = make(map[string]float64)

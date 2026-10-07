@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/zeitlos/lucity/pkg/victoria"
@@ -33,13 +32,10 @@ func NewVMClient(vmURL string) (*VMClient, error) {
 // CPUByNamespace returns total CPU-seconds consumed per namespace over the given window.
 // Uses container_cpu_time_seconds_total (counter) with PromQL increase(), which handles
 // container restarts correctly.
-func (c *VMClient) CPUByNamespace(ctx context.Context, namespaces []string, start, end time.Time) (map[string]float64, error) {
-	if len(namespaces) == 0 {
-		return nil, nil
-	}
+func (c *VMClient) CPUByNamespace(ctx context.Context, start, end time.Time) (map[string]float64, error) {
 	q := fmt.Sprintf(
-		`sum by (k8s_namespace_name) (increase(container_cpu_time_seconds_total{k8s_namespace_name=~"%s"}[%s]))`,
-		nsRegex(namespaces), promDuration(end.Sub(start)),
+		`sum by (k8s_namespace_name) (increase(container_cpu_time_seconds_total[%s]))`,
+		promDuration(end.Sub(start)),
 	)
 	return c.queryByLabel(ctx, q, end, "k8s_namespace_name")
 }
@@ -47,13 +43,10 @@ func (c *VMClient) CPUByNamespace(ctx context.Context, namespaces []string, star
 // MemoryByNamespace returns total memory working_set bytes per namespace, computed as
 // the sum across containers of each container's per-window average. This correctly
 // reflects the bytes-resident the namespace consumed (multi-container pods sum, not avg).
-func (c *VMClient) MemoryByNamespace(ctx context.Context, namespaces []string, start, end time.Time) (map[string]float64, error) {
-	if len(namespaces) == 0 {
-		return nil, nil
-	}
+func (c *VMClient) MemoryByNamespace(ctx context.Context, start, end time.Time) (map[string]float64, error) {
 	q := fmt.Sprintf(
-		`sum by (k8s_namespace_name) (avg_over_time(container_memory_working_set_bytes{k8s_namespace_name=~"%s"}[%s]))`,
-		nsRegex(namespaces), promDuration(end.Sub(start)),
+		`sum by (k8s_namespace_name) (avg_over_time(container_memory_working_set_bytes[%s]))`,
+		promDuration(end.Sub(start)),
 	)
 	return c.queryByLabel(ctx, q, end, "k8s_namespace_name")
 }
@@ -61,13 +54,10 @@ func (c *VMClient) MemoryByNamespace(ctx context.Context, namespaces []string, s
 // DiskByNamespace returns the persistent volume capacity (bytes) per namespace,
 // averaged over the window. Sourced from kube-state-metrics (PVCs only) — emptyDir,
 // configMap, secret, and projected volumes are correctly excluded.
-func (c *VMClient) DiskByNamespace(ctx context.Context, namespaces []string, start, end time.Time) (map[string]float64, error) {
-	if len(namespaces) == 0 {
-		return nil, nil
-	}
+func (c *VMClient) DiskByNamespace(ctx context.Context, start, end time.Time) (map[string]float64, error) {
 	q := fmt.Sprintf(
-		`sum by (namespace) (avg_over_time(kube_persistentvolumeclaim_resource_requests_storage_bytes{namespace=~"%s"}[%s]))`,
-		nsRegex(namespaces), promDuration(end.Sub(start)),
+		`sum by (namespace) (avg_over_time(kube_persistentvolumeclaim_resource_requests_storage_bytes[%s]))`,
+		promDuration(end.Sub(start)),
 	)
 	return c.queryByLabel(ctx, q, end, "namespace")
 }
@@ -104,12 +94,6 @@ func (c *VMClient) queryByLabel(ctx context.Context, query string, evalTime time
 		out[key] = s.Value
 	}
 	return out, nil
-}
-
-// nsRegex builds an anchored alternation matcher: ^(ns1|ns2|...)$.
-// Namespaces are DNS labels ([a-z0-9-]) so no regex metachar escaping is needed.
-func nsRegex(namespaces []string) string {
-	return "^(" + strings.Join(namespaces, "|") + ")$"
 }
 
 // promDuration renders a Go duration as a Prometheus range vector duration.
