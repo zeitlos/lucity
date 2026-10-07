@@ -20,6 +20,8 @@ spec:
         app.kubernetes.io/name: rybbit-clickhouse
         app.kubernetes.io/instance: {{ .Release.Name }}
         app.kubernetes.io/component: analytics
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/rybbit-clickhouse-configmap.yaml") . | sha256sum }}
     spec:
       containers:
         - name: clickhouse
@@ -56,6 +58,9 @@ spec:
             - name: config
               mountPath: /etc/clickhouse-server/config.d/user_logging.xml
               subPath: user_logging.xml
+            - name: config
+              mountPath: /etc/clickhouse-server/config.d/low_memory.xml
+              subPath: low_memory.xml
           livenessProbe:
             httpGet:
               path: /ping
