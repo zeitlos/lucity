@@ -52,10 +52,12 @@ spec:
               - IsMatch(resource.attributes["service.name"], "^(kube-state-metrics|cert-manager|victoria-metrics|hcloud-exporter)$")
             statements:
               - delete_matching_keys(resource.attributes, "^k8s[.]")
-      filter/cilium-agent:
+      filter/cilium:
         error_mode: ignore
         metric_conditions:
           - resource.attributes["service.name"] == "cilium-agent" and not IsMatch(metric.name, "^(up|cilium_(drop_count|bpf_map_pressure|errors_warnings|endpoint_regenerations|unreachable_nodes|unreachable_health_endpoints)(_total)?)$")
+          - resource.attributes["service.name"] == "cilium-envoy" and not IsMatch(metric.name, "^(up|envoy_cluster_upstream_(cx_rx_bytes_total|cx_tx_bytes_total|cx_active|cx_connect_fail(_total)?|rq_total|rq_xx(_total)?|rq_timeout(_total)?|rq_time)|envoy_http_downstream_(cx_active|rq_total|rq_xx(_total)?)|envoy_listener_ssl_connection_error(_total)?)$")
+          - resource.attributes["service.name"] == "hubble" and not IsMatch(metric.name, "^(up|hubble_(drop|flows_processed|lost_events)(_total)?)$")
     exporters:
       # k8s collector distribution doesn't ship prometheusremotewrite,
       # so use VictoriaMetrics' native OTLP endpoint instead.
@@ -90,7 +92,7 @@ spec:
       pipelines:
         metrics:
           receivers: [otlp]
-          processors: [memory_limiter, transform/static-targets, filter/cilium-agent]
+          processors: [memory_limiter, transform/static-targets, filter/cilium]
           exporters: [otlp_http/metrics]
         logs:
           receivers: [otlp, k8s_events]
