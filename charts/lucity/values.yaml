@@ -96,6 +96,10 @@ conductor:
     tls:
       enabled: true
     storageSize: 20Gi
+    gc:
+      reservedSpace: 10%
+      maxUsedSpace: 60%
+      minFreeSpace: 40%
     resources:
       requests:
         cpu: 500m

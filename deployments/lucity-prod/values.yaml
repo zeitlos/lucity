@@ -11,7 +11,7 @@ conductor:
   registryUsername: builder
   buildkit:
     enabled: true
-    storageSize: 50Gi
+    storageSize: 100Gi
     resources:
       requests:
         memory: 6Gi
