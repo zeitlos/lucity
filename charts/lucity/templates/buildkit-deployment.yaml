@@ -20,7 +20,8 @@ spec:
       annotations:
         checksum/config: {{ (include (print $.Template.BasePath "/buildkit-configmap.yaml") . | fromYaml).data | toYaml | sha256sum }}
       labels:
-        {{- include "lucity.labels" . | nindent 8 }}
+        app.kubernetes.io/managed-by: {{ .Release.Service }}
+        app.kubernetes.io/part-of: lucity
         {{- include "lucity.selectorLabels" (dict "name" "buildkit" "release" .Release.Name) | nindent 8 }}
     spec:
       {{- if .Values.conductor.buildkit.userNamespaces }}
