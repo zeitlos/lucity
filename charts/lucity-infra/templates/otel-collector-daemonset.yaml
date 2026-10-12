@@ -63,6 +63,8 @@ spec:
         compaction:
           on_rebound: true
           directory: /var/lib/otelcol/queue
+      pprof:
+        endpoint: localhost:1777
     receivers:
       kubelet_stats:
         collection_interval: 30s
@@ -256,7 +258,7 @@ spec:
         retry_on_failure:
           max_elapsed_time: 0
     service:
-      extensions: [file_storage]
+      extensions: [file_storage, pprof]
       telemetry:
         logs:
           level: info
