@@ -2,7 +2,6 @@ package kubernetes
 
 import (
 	"context"
-	"fmt"
 	"sort"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -12,6 +11,7 @@ import (
 	"github.com/zeitlos/lucity/pkg/labels"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 	"github.com/zeitlos/lucity/services/conductor/internal/scanjob"
+	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 )
 
 func (c *Client) Get(ctx context.Context, id scanjob.ScanID) (*scanjob.Job, error) {
@@ -19,14 +19,14 @@ func (c *Client) Get(ctx context.Context, id scanjob.ScanID) (*scanjob.Job, erro
 
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			return nil, fmt.Errorf("scan %q not found", id.Name)
+			return nil, usererror.Errorf("scan %q not found", id.Name)
 		}
 
 		return nil, err
 	}
 
 	if job.Labels[labels.Workspace] != id.Workspace {
-		return nil, fmt.Errorf("scan %q not found", id.Name)
+		return nil, usererror.Errorf("scan %q not found", id.Name)
 	}
 
 	return new(c.toJob(ctx, *job)), nil

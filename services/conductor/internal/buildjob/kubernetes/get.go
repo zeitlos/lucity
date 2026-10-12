@@ -3,12 +3,12 @@ package kubernetes
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log/slog"
 
 	"github.com/zeitlos/lucity/pkg/labels"
 	"github.com/zeitlos/lucity/services/conductor/internal/buildjob"
 	"github.com/zeitlos/lucity/services/conductor/internal/jobs"
+	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 
 	"github.com/google/go-containerregistry/pkg/name"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -20,14 +20,14 @@ func (c *Client) Get(ctx context.Context, id buildjob.BuildID) (*buildjob.Job, e
 
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			return nil, fmt.Errorf("build %q not found", id.Name)
+			return nil, usererror.Errorf("build %q not found", id.Name)
 		}
 
 		return nil, err
 	}
 
 	if job.Labels[labels.Workspace] != id.Workspace {
-		return nil, fmt.Errorf("build %q not found", id.Name)
+		return nil, usererror.Errorf("build %q not found", id.Name)
 	}
 
 	result := toJob(*job)

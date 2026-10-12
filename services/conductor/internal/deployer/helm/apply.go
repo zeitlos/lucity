@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 	"helm.sh/helm/v4/pkg/action"
@@ -20,10 +21,13 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/environment/kubernetes"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 	"github.com/zeitlos/lucity/services/conductor/internal/resources"
+	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 )
 
 // Name releases the same as the chart to produce minimal resource names.
 const releaseName = "lucity-app"
+
+var errChangeInProgress = usererror.New("the environment is still applying another change, retry in a few seconds")
 
 func (c *Client) applyEnv(ctx context.Context, envID platform.EnvironmentID, mutate func(*values.Env) error) (deployer.RevisionID, error) {
 	namespace := envID.Namespace()
@@ -142,6 +146,10 @@ func installOrUpgrade(ctx context.Context, config *action.Configuration, release
 	rel, err := upgrade.RunWithContext(ctx, releaseName, chart, vals)
 
 	if err != nil {
+		if strings.Contains(err.Error(), "another operation (install/upgrade/rollback) is in progress") {
+			return nil, errChangeInProgress
+		}
+
 		return nil, err
 	}
 

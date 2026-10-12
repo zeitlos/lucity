@@ -10,6 +10,7 @@ import (
 	"github.com/zeitlos/lucity/pkg/to"
 	"github.com/zeitlos/lucity/services/conductor/internal/image"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
+	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 
 	apps "k8s.io/api/apps/v1"
 	autoscaling "k8s.io/api/autoscaling/v2"
@@ -241,7 +242,7 @@ func (c *Client) deploymentFor(ctx context.Context, serviceID platform.ServiceID
 	}
 
 	if len(deployments.Items) == 0 {
-		return nil, fmt.Errorf("service %q not found", serviceID)
+		return nil, usererror.Errorf("service %q not found", serviceID)
 	}
 
 	return &deployments.Items[0], nil
@@ -261,7 +262,7 @@ func (c *Client) secretFor(ctx context.Context, serviceID platform.ServiceID) (*
 	}
 
 	if len(secrets.Items) == 0 {
-		return nil, fmt.Errorf("variables for service %q not found", serviceID)
+		return nil, usererror.Errorf("variables for service %q not found", serviceID)
 	}
 
 	return &secrets.Items[0], nil

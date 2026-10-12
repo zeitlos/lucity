@@ -8,6 +8,7 @@ import (
 
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/tenant"
+	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 )
 
 const apiTokenKind = "api-token"
@@ -134,7 +135,7 @@ func (c *Client) RevokeAPIToken(ctx context.Context, id string) error {
 			return c.logto.DeleteApplication(ctx, id)
 		}
 	}
-	return fmt.Errorf("api token %q not found in workspace %q", id, workspace)
+	return usererror.Errorf("api token %q not found in workspace %q", id, workspace)
 }
 
 func (c *Client) apiTokenRoleID(ctx context.Context, role auth.WorkspaceRole) (string, error) {
@@ -145,7 +146,7 @@ func (c *Client) apiTokenRoleID(ctx context.Context, role auth.WorkspaceRole) (s
 	case auth.WorkspaceRoleUser:
 		name = "machine-member"
 	default:
-		return "", fmt.Errorf("unsupported api token role %q", role)
+		return "", usererror.Errorf("unsupported api token role %q", role)
 	}
 	roles, err := c.logto.OrganizationRoles(ctx)
 	if err != nil {

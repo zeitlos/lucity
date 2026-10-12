@@ -3,12 +3,13 @@ package platform
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
 	"io"
 	"strings"
 	"time"
 
 	"github.com/99designs/gqlgen/graphql"
+
+	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 )
 
 type Environment struct {
@@ -36,13 +37,13 @@ func ParseEnvironmentID(s string) (EnvironmentID, error) {
 	ws, rest, ok := strings.Cut(s, "/")
 
 	if !ok || ws == "" {
-		return EnvironmentID{}, fmt.Errorf("invalid environment id %q", s)
+		return EnvironmentID{}, usererror.Errorf("invalid environment id %q", s)
 	}
 
 	proj, name, ok := strings.Cut(rest, "/")
 
 	if !ok || proj == "" || name == "" {
-		return EnvironmentID{}, fmt.Errorf("invalid environment id %q", s)
+		return EnvironmentID{}, usererror.Errorf("invalid environment id %q", s)
 	}
 
 	return EnvironmentID{Workspace: ws, Project: proj, Name: name}, nil
@@ -72,7 +73,7 @@ func (e *EnvironmentID) UnmarshalGQL(val interface{}) error {
 	str, ok := val.(string)
 
 	if !ok {
-		return fmt.Errorf("EnvironmentID must be a string")
+		return usererror.New("EnvironmentID must be a string")
 	}
 
 	parsed, err := ParseEnvironmentID(str)

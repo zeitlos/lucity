@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
+	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 
 	"github.com/zeitlos/lucity/pkg/labels"
 
@@ -169,7 +170,7 @@ func (m *Manager) Create(ctx context.Context, environment platform.EnvironmentID
 	secretName := id.SecretName()
 
 	if _, err := m.kube.CoreV1().Secrets(namespace).Get(ctx, secretName, metav1.GetOptions{}); err == nil {
-		return nil, fmt.Errorf("bucket %q already exists", name)
+		return nil, usererror.Errorf("bucket %q already exists", name)
 	} else if !apierrors.IsNotFound(err) {
 		return nil, err
 	}
@@ -444,7 +445,7 @@ func (m *Manager) secret(ctx context.Context, id platform.BucketID) (*corev1.Sec
 	secret, err := m.kube.CoreV1().Secrets(id.Namespace()).Get(ctx, id.SecretName(), metav1.GetOptions{})
 
 	if apierrors.IsNotFound(err) {
-		return nil, fmt.Errorf("bucket %q not found", id)
+		return nil, usererror.Errorf("bucket %q not found", id)
 	}
 
 	if err != nil {

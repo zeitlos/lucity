@@ -11,6 +11,7 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/deployer"
 	"github.com/zeitlos/lucity/services/conductor/internal/deployer/values"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
+	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 )
 
 type databaseClient struct {
@@ -101,7 +102,7 @@ func (d *databaseClient) AllowRules(ctx context.Context, id platform.DatabaseID)
 	postgres, ok := env.Databases.Postgres[id.Name]
 
 	if !ok {
-		return nil, fmt.Errorf("database %q not found", id.Name)
+		return nil, usererror.Errorf("database %q not found", id.Name)
 	}
 
 	if postgres.PublicAccess == nil {

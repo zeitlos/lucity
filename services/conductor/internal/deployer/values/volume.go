@@ -4,6 +4,8 @@ import (
 	"fmt"
 
 	"k8s.io/apimachinery/pkg/api/resource"
+
+	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 )
 
 var (
@@ -38,7 +40,7 @@ func ExpandVolume(env *Env, name string, size resource.Quantity) error {
 	volume, ok := env.Volumes[name]
 
 	if !ok {
-		return fmt.Errorf("volume %q not found", name)
+		return usererror.Errorf("volume %q not found", name)
 	}
 
 	current, err := resource.ParseQuantity(volume.Size)
@@ -48,7 +50,7 @@ func ExpandVolume(env *Env, name string, size resource.Quantity) error {
 	}
 
 	if size.Cmp(current) < 0 {
-		return fmt.Errorf("volume storage can only be increased, not shrunk from %s to %s", current.String(), size.String())
+		return usererror.Errorf("volume storage can only be increased, not shrunk from %s to %s", current.String(), size.String())
 	}
 
 	volume.Size = size.String()
@@ -59,12 +61,12 @@ func ExpandVolume(env *Env, name string, size resource.Quantity) error {
 
 func DeleteVolume(env *Env, name string) error {
 	if _, ok := env.Volumes[name]; !ok {
-		return fmt.Errorf("volume %q not found", name)
+		return usererror.Errorf("volume %q not found", name)
 	}
 
 	for serviceName, svc := range env.Services {
 		if _, mounted := svc.VolumeMounts[name]; mounted {
-			return fmt.Errorf("volume %q is mounted by service %q; unmount it first", name, serviceName)
+			return usererror.Errorf("volume %q is mounted by service %q; unmount it first", name, serviceName)
 		}
 	}
 
@@ -77,7 +79,7 @@ func MountVolume(env *Env, volumeName, serviceName, path string) error {
 	svc, ok := env.Services[serviceName]
 
 	if !ok {
-		return fmt.Errorf("service %q not found", serviceName)
+		return usererror.Errorf("service %q not found", serviceName)
 	}
 
 	if existing, mounted := svc.VolumeMounts[volumeName]; mounted {
@@ -85,7 +87,7 @@ func MountVolume(env *Env, volumeName, serviceName, path string) error {
 			return nil
 		}
 
-		return fmt.Errorf("volume %q is already mounted on service %q at %q", volumeName, serviceName, existing)
+		return usererror.Errorf("volume %q is already mounted on service %q at %q", volumeName, serviceName, existing)
 	}
 
 	return mutateService(env, serviceName, func(s *Service) {
@@ -99,7 +101,7 @@ func MountVolume(env *Env, volumeName, serviceName, path string) error {
 
 func UnmountVolume(env *Env, volumeName string) error {
 	if _, ok := env.Volumes[volumeName]; !ok {
-		return fmt.Errorf("volume %q not found", volumeName)
+		return usererror.Errorf("volume %q not found", volumeName)
 	}
 
 	for serviceName, svc := range env.Services {

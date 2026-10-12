@@ -10,6 +10,7 @@ import (
 	"golang.org/x/oauth2"
 
 	"github.com/zeitlos/lucity/pkg/auth"
+	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 )
 
 // GitHubInstallation represents a GitHub App installation on an account.
@@ -132,7 +133,7 @@ func (c *Client) installationForOwner(ctx context.Context, userToken, owner stri
 		}
 	}
 
-	return 0, fmt.Errorf("no accessible GitHub App installation for %q", owner)
+	return 0, usererror.Errorf("no accessible GitHub App installation for %q", owner)
 }
 
 // authorizeRepository returns the App installation that covers repository,
@@ -157,23 +158,26 @@ func (c *Client) authorizeRepository(ctx context.Context, repository string) (in
 	}
 
 	if _, _, err := client.Repositories.Get(ctx, owner, repo); err != nil {
-		return 0, fmt.Errorf("repository %q is not accessible with your GitHub account: %w", repository, err)
+		return 0, usererror.Errorf("repository %q is not accessible with your GitHub account", repository)
 	}
 
 	return c.installationForOwner(ctx, userToken, owner)
 }
+
+var errGitHubSessionExpired = usererror.New("could not get a GitHub token for your account, sign in again")
 
 // userGitHubToken retrieves the user's GitHub OAuth token from Logto's Account API.
 // The user must have signed in via GitHub (social sign-in) for a token to be available.
 func (c *Client) userGitHubToken(ctx context.Context) (string, error) {
 	logtoToken := auth.TokenFrom(ctx)
 	if logtoToken == "" {
-		return "", fmt.Errorf("no Logto access token in context")
+		return "", errGitHubSessionExpired
 	}
 
 	token, err := c.logto.GitHubToken(ctx, logtoToken)
 	if err != nil {
-		return "", fmt.Errorf("failed to get github token: %w", err)
+		slog.DebugContext(ctx, "github token unavailable", "error", err)
+		return "", errGitHubSessionExpired
 	}
 	return token, nil
 }

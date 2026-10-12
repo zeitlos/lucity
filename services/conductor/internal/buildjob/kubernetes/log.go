@@ -2,7 +2,6 @@ package kubernetes
 
 import (
 	"context"
-	"fmt"
 	"io"
 
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -10,6 +9,7 @@ import (
 	"github.com/zeitlos/lucity/pkg/labels"
 	"github.com/zeitlos/lucity/services/conductor/internal/buildjob"
 	"github.com/zeitlos/lucity/services/conductor/internal/jobs"
+	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 )
 
 func (c *Client) Logs(ctx context.Context, id buildjob.BuildID) (io.ReadCloser, error) {
@@ -20,7 +20,7 @@ func (c *Client) Logs(ctx context.Context, id buildjob.BuildID) (io.ReadCloser, 
 	}
 
 	if job.Labels[labels.Workspace] != id.Workspace {
-		return nil, fmt.Errorf("build %q not found", id.Name)
+		return nil, usererror.Errorf("build %q not found", id.Name)
 	}
 
 	return jobs.StreamLogs(ctx, c.kubernetes, c.namespace, id.Name)

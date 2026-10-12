@@ -1,7 +1,6 @@
 package platform
 
 import (
-	"fmt"
 	"io"
 	"slices"
 	"strings"
@@ -9,6 +8,8 @@ import (
 
 	"github.com/99designs/gqlgen/graphql"
 	"k8s.io/apimachinery/pkg/api/resource"
+
+	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 )
 
 type Service struct {
@@ -120,7 +121,7 @@ func ParseServiceID(s string) (ServiceID, error) {
 	parts := strings.SplitN(s, "/", 4)
 
 	if len(parts) != 4 || slices.Contains(parts, "") {
-		return ServiceID{}, fmt.Errorf("invalid service id %q", s)
+		return ServiceID{}, usererror.Errorf("invalid service id %q", s)
 	}
 
 	return ServiceID{
@@ -153,7 +154,7 @@ func (s *ServiceID) UnmarshalGQL(val interface{}) error {
 	str, ok := val.(string)
 
 	if !ok {
-		return fmt.Errorf("ServiceID must be a string")
+		return usererror.New("ServiceID must be a string")
 	}
 
 	parsed, err := ParseServiceID(str)

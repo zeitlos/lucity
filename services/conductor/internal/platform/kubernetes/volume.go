@@ -2,10 +2,10 @@ package kubernetes
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
+	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 
 	apps "k8s.io/api/apps/v1"
 	core "k8s.io/api/core/v1"
@@ -68,7 +68,7 @@ func (c *Client) Volume(ctx context.Context, id platform.VolumeID) (*platform.Vo
 	}
 
 	if len(list.Items) == 0 {
-		return nil, fmt.Errorf("volume %q not found", id)
+		return nil, usererror.Errorf("volume %q not found", id)
 	}
 
 	volume := toVolume(list.Items[0], id.EnvironmentID())

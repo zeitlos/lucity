@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
+	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 
 	cnpgv1 "github.com/cloudnative-pg/cloudnative-pg/api/v1"
 	core "k8s.io/api/core/v1"
@@ -77,7 +78,7 @@ func (c *Client) cluster(ctx context.Context, id platform.DatabaseID) (*cnpgv1.C
 	}
 
 	if len(list.Items) == 0 {
-		return nil, fmt.Errorf("database %q not found", id)
+		return nil, usererror.Errorf("database %q not found", id)
 	}
 
 	return toCluster(list.Items[0])

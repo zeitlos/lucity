@@ -2,13 +2,13 @@ package kubernetes
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"sort"
 	"time"
 
 	pkglabels "github.com/zeitlos/lucity/pkg/labels"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
+	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 
 	cnpgv1 "github.com/cloudnative-pg/cloudnative-pg/api/v1"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -91,7 +91,7 @@ func (c *Client) CreateDatabaseBackup(ctx context.Context, id platform.DatabaseI
 	}
 
 	if len(cluster.Spec.Plugins) == 0 {
-		return nil, fmt.Errorf("database %q has no backups configured", id.Name)
+		return nil, usererror.Errorf("database %q has no backups configured", id.Name)
 	}
 
 	namespace := id.Namespace()

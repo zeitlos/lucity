@@ -2,9 +2,9 @@ package kubernetes
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
+	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 
 	core "k8s.io/api/core/v1"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -64,7 +64,7 @@ func (c *Client) Project(ctx context.Context, id platform.ProjectID) (*platform.
 	}
 
 	if len(list.Items) < 1 {
-		return nil, fmt.Errorf("project with id %q not found", id)
+		return nil, usererror.Errorf("project with id %q not found", id)
 	}
 
 	return new(toProject(list.Items[0], toEnvironments(list.Items))), nil

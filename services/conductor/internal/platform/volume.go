@@ -1,7 +1,6 @@
 package platform
 
 import (
-	"fmt"
 	"io"
 	"slices"
 	"strings"
@@ -9,6 +8,8 @@ import (
 
 	"github.com/99designs/gqlgen/graphql"
 	"k8s.io/apimachinery/pkg/api/resource"
+
+	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 )
 
 type VolumeID struct {
@@ -44,7 +45,7 @@ func ParseVolumeID(s string) (VolumeID, error) {
 	parts := strings.SplitN(s, "/", 4)
 
 	if len(parts) != 4 || slices.Contains(parts, "") {
-		return VolumeID{}, fmt.Errorf("invalid volume id %q", s)
+		return VolumeID{}, usererror.Errorf("invalid volume id %q", s)
 	}
 
 	return VolumeID{
@@ -73,7 +74,7 @@ func (v *VolumeID) UnmarshalGQL(val interface{}) error {
 	str, ok := val.(string)
 
 	if !ok {
-		return fmt.Errorf("VolumeID must be a string")
+		return usererror.New("VolumeID must be a string")
 	}
 
 	parsed, err := ParseVolumeID(str)

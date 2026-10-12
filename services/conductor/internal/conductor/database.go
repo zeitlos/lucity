@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/zeitlos/lucity/services/conductor/internal/dbquery"
@@ -17,6 +18,7 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/metrics"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 	"github.com/zeitlos/lucity/services/conductor/internal/resources"
+	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 )
 
 var (
@@ -321,11 +323,11 @@ func (c *Client) RestoreDatabase(ctx context.Context, source platform.DatabaseID
 	}
 
 	if !backups.Enabled {
-		return nil, fmt.Errorf("database %q has no backups to restore from", source.Name)
+		return nil, usererror.Errorf("database %q has no backups to restore from", source.Name)
 	}
 
 	if backups.EarliestRestorePoint == nil {
-		return nil, errors.New("no backup has completed yet, so there is nothing to restore to")
+		return nil, usererror.New("no backup has completed yet, so there is nothing to restore to")
 	}
 
 	// A nil target means the caller asked for the most recent state, which needs
@@ -335,12 +337,12 @@ func (c *Client) RestoreDatabase(ctx context.Context, source platform.DatabaseID
 
 	if targetTime != nil {
 		if targetTime.Before(*backups.EarliestRestorePoint) {
-			return nil, fmt.Errorf("cannot restore to %s: the earliest available point is %s",
+			return nil, usererror.Errorf("cannot restore to %s: the earliest available point is %s",
 				targetTime.UTC().Format(time.RFC3339), backups.EarliestRestorePoint.UTC().Format(time.RFC3339))
 		}
 
 		if targetTime.After(time.Now()) {
-			return nil, errors.New("cannot restore to a time in the future")
+			return nil, usererror.New("cannot restore to a time in the future")
 		}
 
 		// Recovery stops at the first commit after the target, so a target past
@@ -350,7 +352,7 @@ func (c *Client) RestoreDatabase(ctx context.Context, source platform.DatabaseID
 		// gap means lost writes, and quietly handing back older data hides that.
 		if latest := backups.LatestRestorePoint; latest != nil && targetTime.After(*latest) {
 			if !backups.ArchivingHealthy {
-				return nil, fmt.Errorf("cannot restore to %s: archiving is failing and nothing has reached the archive since %s",
+				return nil, usererror.Errorf("cannot restore to %s: archiving is failing and nothing has reached the archive since %s",
 					targetTime.UTC().Format(time.RFC3339), latest.UTC().Format(time.RFC3339))
 			}
 
@@ -418,11 +420,11 @@ func (c *Client) SetDatabaseStorage(ctx context.Context, database platform.Datab
 	parsedSize, err := resource.ParseQuantity(size)
 
 	if err != nil {
-		return nil, fmt.Errorf("invalid storage size %q: %w", size, err)
+		return nil, usererror.Errorf("invalid storage size %q", size)
 	}
 
 	if parsedSize.Cmp(resources.MaxDatabaseStorage) > 0 {
-		return nil, fmt.Errorf("storage exceeds the maximum of %s", resources.MaxDatabaseStorage.String())
+		return nil, usererror.Errorf("storage exceeds the maximum of %s", resources.MaxDatabaseStorage.String())
 	}
 
 	current, err := c.platform.Database(ctx, database)
@@ -432,7 +434,7 @@ func (c *Client) SetDatabaseStorage(ctx context.Context, database platform.Datab
 	}
 
 	if parsedSize.Cmp(current.Size) < 0 {
-		return nil, fmt.Errorf("storage can only be increased, not shrunk from %s to %s", current.Size.String(), parsedSize.String())
+		return nil, usererror.Errorf("storage can only be increased, not shrunk from %s to %s", current.Size.String(), parsedSize.String())
 	}
 
 	if _, err := c.deployer.Databases().SetStorage(ctx, database, parsedSize); err != nil {
@@ -542,14 +544,14 @@ func parseAllowRange(value string) (netip.Prefix, error) {
 		address, addressErr := netip.ParseAddr(value)
 
 		if addressErr != nil {
-			return netip.Prefix{}, fmt.Errorf("%q is not an IPv4 address or range, such as 203.0.113.7 or 203.0.113.0/24", value)
+			return netip.Prefix{}, usererror.Errorf("%q is not an IPv4 address or range, such as 203.0.113.7 or 203.0.113.0/24", value)
 		}
 
 		prefix = netip.PrefixFrom(address, address.BitLen())
 	}
 
 	if !prefix.Addr().Is4() {
-		return netip.Prefix{}, errors.New("IPv6 ranges aren't supported yet, use an IPv4 address or range")
+		return netip.Prefix{}, usererror.New("IPv6 ranges aren't supported yet, use an IPv4 address or range")
 	}
 
 	prefix = prefix.Masked()
@@ -559,7 +561,7 @@ func parseAllowRange(value string) (netip.Prefix, error) {
 	}
 
 	if !isPublicAddress(prefix.Addr()) {
-		return netip.Prefix{}, fmt.Errorf("%s is not a public address range", prefix)
+		return netip.Prefix{}, usererror.Errorf("%s is not a public address range", prefix)
 	}
 
 	return prefix, nil
@@ -630,6 +632,12 @@ func (c *Client) ExecuteQuery(ctx context.Context, database platform.DatabaseID,
 	}
 
 	result, err := query.Query(ctx, sql)
+
+	var pgErr *pgconn.PgError
+	var connectErr *pgconn.ConnectError
+	if errors.As(err, &pgErr) && !errors.As(err, &connectErr) {
+		return nil, usererror.New(pgErr.Error())
+	}
 
 	if err != nil {
 		return nil, fmt.Errorf("execute query: %w", err)

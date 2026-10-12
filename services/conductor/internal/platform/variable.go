@@ -1,12 +1,13 @@
 package platform
 
 import (
-	"fmt"
 	"io"
 	"slices"
 	"strings"
 
 	"github.com/99designs/gqlgen/graphql"
+
+	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 )
 
 type Variable struct {
@@ -34,7 +35,7 @@ func ParseVariableID(s string) (VariableID, error) {
 	parts := strings.SplitN(s, "/", 5)
 
 	if len(parts) != 5 || slices.Contains(parts, "") {
-		return VariableID{}, fmt.Errorf("invalid variable id %q", s)
+		return VariableID{}, usererror.Errorf("invalid variable id %q", s)
 	}
 
 	return VariableID{
@@ -62,7 +63,7 @@ func (v *VariableID) UnmarshalGQL(val interface{}) error {
 	str, ok := val.(string)
 
 	if !ok {
-		return fmt.Errorf("VariableID must be a string")
+		return usererror.New("VariableID must be a string")
 	}
 
 	parsed, err := ParseVariableID(str)

@@ -1,11 +1,12 @@
 package platform
 
 import (
-	"fmt"
 	"io"
 	"strings"
 
 	"github.com/99designs/gqlgen/graphql"
+
+	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 )
 
 type Project struct {
@@ -23,7 +24,7 @@ func ParseProjectID(s string) (ProjectID, error) {
 	ws, name, ok := strings.Cut(s, "/")
 
 	if !ok || ws == "" || name == "" {
-		return ProjectID{}, fmt.Errorf("invalid project id %q", s)
+		return ProjectID{}, usererror.Errorf("invalid project id %q", s)
 	}
 
 	return ProjectID{Workspace: ws, Name: name}, nil
@@ -41,7 +42,7 @@ func (p *ProjectID) UnmarshalGQL(val interface{}) error {
 	str, ok := val.(string)
 
 	if !ok {
-		return fmt.Errorf("ProjectID must be a string")
+		return usererror.New("ProjectID must be a string")
 	}
 
 	parsed, err := ParseProjectID(str)

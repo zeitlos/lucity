@@ -7,6 +7,8 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/rand"
+
+	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 )
 
 type Databases struct {
@@ -107,15 +109,15 @@ func RestoreDatabase(env *Env, source, name string, spec DatabaseSpec, targetTim
 	origin, ok := env.Databases.Postgres[source]
 
 	if !ok {
-		return fmt.Errorf("database %q not found", source)
+		return usererror.Errorf("database %q not found", source)
 	}
 
 	if origin.Backup == nil || origin.Backup.ServerName == "" {
-		return fmt.Errorf("database %q has no backups to restore from", source)
+		return usererror.Errorf("database %q has no backups to restore from", source)
 	}
 
 	if _, ok := env.Databases.Postgres[name]; ok {
-		return fmt.Errorf("database %q already exists", name)
+		return usererror.Errorf("database %q already exists", name)
 	}
 
 	spec.Restore = &PostgresRestore{
@@ -173,7 +175,7 @@ func SetDatabaseStorage(env *Env, name, size string) error {
 
 func DeleteDatabase(env *Env, name string) error {
 	if _, ok := env.Databases.Postgres[name]; !ok {
-		return fmt.Errorf("database %q not found", name)
+		return usererror.Errorf("database %q not found", name)
 	}
 
 	delete(env.Databases.Postgres, name)
@@ -208,11 +210,11 @@ func AddDatabaseAllowRule(env *Env, name string, rule AllowRule) error {
 	postgres, ok := env.Databases.Postgres[name]
 
 	if !ok {
-		return fmt.Errorf("database %q not found", name)
+		return usererror.Errorf("database %q not found", name)
 	}
 
 	if postgres.PublicAccess == nil {
-		return fmt.Errorf("database %q is not exposed", name)
+		return usererror.Errorf("database %q is not exposed", name)
 	}
 
 	access := postgres.PublicAccess
@@ -231,7 +233,7 @@ func RemoveDatabaseAllowRule(env *Env, name, ipRange string) error {
 	postgres, ok := env.Databases.Postgres[name]
 
 	if !ok {
-		return fmt.Errorf("database %q not found", name)
+		return usererror.Errorf("database %q not found", name)
 	}
 
 	if postgres.PublicAccess == nil {
@@ -265,7 +267,7 @@ func mutateDatabase(env *Env, name string, mutate func(*Postgres)) error {
 	postgres, ok := env.Databases.Postgres[name]
 
 	if !ok {
-		return fmt.Errorf("database %q not found", name)
+		return usererror.Errorf("database %q not found", name)
 	}
 
 	mutate(&postgres)

@@ -14,6 +14,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/zeitlos/lucity/pkg/labels"
 	"github.com/zeitlos/lucity/services/conductor/internal/buildjob"
+	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 
 	batch "k8s.io/api/batch/v1"
 	core "k8s.io/api/core/v1"
@@ -112,7 +113,7 @@ func (c *Client) Cancel(ctx context.Context, id buildjob.BuildID) (*buildjob.Job
 	}
 
 	if job.Labels[labels.Workspace] != id.Workspace {
-		return nil, errors.New("build not found")
+		return nil, usererror.New("build not found")
 	}
 
 	if isDone(*job) {

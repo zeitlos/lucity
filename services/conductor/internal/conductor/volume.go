@@ -8,6 +8,7 @@ import (
 
 	"github.com/zeitlos/lucity/services/conductor/internal/metrics"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
+	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 )
 
 type VolumeID = platform.VolumeID
@@ -53,7 +54,7 @@ func (c *Client) ExpandVolume(ctx context.Context, volume platform.VolumeID, siz
 	parsedSize, err := resource.ParseQuantity(size)
 
 	if err != nil {
-		return nil, fmt.Errorf("invalid storage size %q: %w", size, err)
+		return nil, usererror.Errorf("invalid storage size %q", size)
 	}
 
 	if _, err := c.deployer.Volumes().Expand(ctx, volume, parsedSize); err != nil {
@@ -73,7 +74,7 @@ func (c *Client) DeleteVolume(ctx context.Context, id platform.VolumeID) (bool, 
 
 func (c *Client) MountVolume(ctx context.Context, volume platform.VolumeID, service platform.ServiceID, path string) (*Volume, error) {
 	if volume.EnvironmentID() != service.EnvironmentID() {
-		return nil, fmt.Errorf("volume and service must be in the same environment")
+		return nil, usererror.New("volume and service must be in the same environment")
 	}
 
 	if _, err := c.deployer.Services().Mount(ctx, service, volume, path); err != nil {

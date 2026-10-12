@@ -28,6 +28,7 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/scanjob"
 	"github.com/zeitlos/lucity/services/conductor/internal/scanreport"
 	"github.com/zeitlos/lucity/services/conductor/internal/source"
+	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 	"github.com/zeitlos/lucity/services/conductor/internal/vulnerabilities"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -151,29 +152,29 @@ func validateResources(cpu, memory string, minCPU, maxCPU, minMemory, maxMemory 
 	cpuQuantity, err := resource.ParseQuantity(cpu)
 
 	if err != nil {
-		return deployer.Resources{}, fmt.Errorf("invalid cpu value %q: %w", cpu, err)
+		return deployer.Resources{}, usererror.Errorf("invalid cpu value %q", cpu)
 	}
 
 	memoryQuantity, err := resource.ParseQuantity(memory)
 
 	if err != nil {
-		return deployer.Resources{}, fmt.Errorf("invalid memory value %q: %w", memory, err)
+		return deployer.Resources{}, usererror.Errorf("invalid memory value %q", memory)
 	}
 
 	if cpuQuantity.Cmp(minCPU) < 0 {
-		return deployer.Resources{}, fmt.Errorf("cpu must be at least %s", minCPU.String())
+		return deployer.Resources{}, usererror.Errorf("cpu must be at least %s", minCPU.String())
 	}
 
 	if memoryQuantity.Cmp(minMemory) < 0 {
-		return deployer.Resources{}, fmt.Errorf("memory must be at least %s", minMemory.String())
+		return deployer.Resources{}, usererror.Errorf("memory must be at least %s", minMemory.String())
 	}
 
 	if cpuQuantity.Cmp(maxCPU) > 0 {
-		return deployer.Resources{}, fmt.Errorf("cpu exceeds the maximum of %s", maxCPU.String())
+		return deployer.Resources{}, usererror.Errorf("cpu exceeds the maximum of %s", maxCPU.String())
 	}
 
 	if memoryQuantity.Cmp(maxMemory) > 0 {
-		return deployer.Resources{}, fmt.Errorf("memory exceeds the maximum of %s", maxMemory.String())
+		return deployer.Resources{}, usererror.Errorf("memory exceeds the maximum of %s", maxMemory.String())
 	}
 
 	return deployer.Resources{

@@ -6,6 +6,7 @@ import (
 
 	"github.com/zeitlos/lucity/services/conductor/internal/objectstorage"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
+	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 )
 
 type BucketID = platform.BucketID
@@ -31,7 +32,7 @@ func (c *Client) CreateBucket(ctx context.Context, environment platform.Environm
 	}
 
 	if len(existing) >= maxBucketsPerEnvironment {
-		return nil, fmt.Errorf("bucket limit reached: %d per environment", maxBucketsPerEnvironment)
+		return nil, usererror.Errorf("bucket limit reached: %d per environment", maxBucketsPerEnvironment)
 	}
 
 	bucket, err := c.objectStorage.Create(ctx, environment, name)

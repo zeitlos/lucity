@@ -13,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/zeitlos/lucity/pkg/imageref"
+	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 )
 
 var (
@@ -65,13 +66,13 @@ func Validate(env *Env, workspace, registry string) error {
 
 	for name := range env.Services {
 		if !isValidName(name) {
-			return fmt.Errorf("invalid service name %q", name)
+			return usererror.Errorf("invalid service name %q", name)
 		}
 	}
 
 	for name, pg := range env.Databases.Postgres {
 		if !isValidName(name) {
-			return fmt.Errorf("invalid database name %q", name)
+			return usererror.Errorf("invalid database name %q", name)
 		}
 
 		if err := validateLabels(fmt.Sprintf("database %q labels", name), pg.Labels); err != nil {
@@ -101,7 +102,7 @@ func Validate(env *Env, workspace, registry string) error {
 
 	for name, vk := range env.Databases.Valkey {
 		if !isValidName(name) {
-			return fmt.Errorf("invalid key-value store name %q", name)
+			return usererror.Errorf("invalid key-value store name %q", name)
 		}
 
 		if err := validateLabels(fmt.Sprintf("key-value store %q labels", name), vk.Labels); err != nil {
@@ -113,25 +114,25 @@ func Validate(env *Env, workspace, registry string) error {
 		}
 
 		if vk.Version != "" && !slices.Contains(keyValueStoreVersions, vk.Version) {
-			return fmt.Errorf("key-value store %q: unsupported version %q", name, vk.Version)
+			return usererror.Errorf("key-value store %q: unsupported version %q", name, vk.Version)
 		}
 
 		if vk.Size != "" {
 			size, err := resource.ParseQuantity(vk.Size)
 
 			if err != nil {
-				return fmt.Errorf("key-value store %q: invalid size %q: %w", name, vk.Size, err)
+				return usererror.Errorf("key-value store %q: invalid size %q", name, vk.Size)
 			}
 
 			if size.Sign() <= 0 || size.Cmp(maxKeyValueStoreSize) > 0 {
-				return fmt.Errorf("key-value store %q: size must be greater than 0 and at most %s", name, maxKeyValueStoreSize.String())
+				return usererror.Errorf("key-value store %q: size must be greater than 0 and at most %s", name, maxKeyValueStoreSize.String())
 			}
 		}
 	}
 
 	for name, vol := range env.Volumes {
 		if !isValidName(name) {
-			return fmt.Errorf("invalid volume name %q", name)
+			return usererror.Errorf("invalid volume name %q", name)
 		}
 
 		if err := validateLabels(fmt.Sprintf("volume %q labels", name), vol.Labels); err != nil {
@@ -145,11 +146,11 @@ func Validate(env *Env, workspace, registry string) error {
 		size, err := resource.ParseQuantity(vol.Size)
 
 		if err != nil {
-			return fmt.Errorf("volume %q: invalid size %q: %w", name, vol.Size, err)
+			return usererror.Errorf("volume %q: invalid size %q", name, vol.Size)
 		}
 
 		if size.Cmp(minVolumeSize) < 0 || size.Cmp(maxVolumeSize) > 0 {
-			return fmt.Errorf("volume %q: size must be between %s and %s", name, minVolumeSize.String(), maxVolumeSize.String())
+			return usererror.Errorf("volume %q: size must be between %s and %s", name, minVolumeSize.String(), maxVolumeSize.String())
 		}
 	}
 
@@ -157,7 +158,7 @@ func Validate(env *Env, workspace, registry string) error {
 
 	for k := range env.SharedVariables {
 		if !isValidVarName(k) {
-			return fmt.Errorf("invalid shared variable name %q", k)
+			return usererror.Errorf("invalid shared variable name %q", k)
 		}
 	}
 
@@ -168,7 +169,7 @@ func Validate(env *Env, workspace, registry string) error {
 
 		if svc.Image.Repository != "" {
 			if err := imageref.Validate(svc.Image.Repository, workspace, registry); err != nil {
-				return fmt.Errorf("service %q: %w", svcName, err)
+				return usererror.Errorf("service %q: %v", svcName, err)
 			}
 		}
 
@@ -189,62 +190,62 @@ func Validate(env *Env, workspace, registry string) error {
 		}
 
 		if !isValidPort(svc.Port) {
-			return fmt.Errorf("service %q: port must be in [0, 65535]", svcName)
+			return usererror.Errorf("service %q: port must be in [0, 65535]", svcName)
 		}
 
 		if svc.Replicas < 0 {
-			return fmt.Errorf("service %q: replicas must be non-negative", svcName)
+			return usererror.Errorf("service %q: replicas must be non-negative", svcName)
 		}
 
 		if svc.Autoscaling != nil {
 			if svc.Autoscaling.MinReplicas < 0 || svc.Autoscaling.MaxReplicas < svc.Autoscaling.MinReplicas {
-				return fmt.Errorf("service %q: invalid autoscaling range: min=%d max=%d", svcName, svc.Autoscaling.MinReplicas, svc.Autoscaling.MaxReplicas)
+				return usererror.Errorf("service %q: invalid autoscaling range: min=%d max=%d", svcName, svc.Autoscaling.MinReplicas, svc.Autoscaling.MaxReplicas)
 			}
 
 			if svc.Autoscaling.TargetCPU <= 0 || svc.Autoscaling.TargetCPU > 100 {
-				return fmt.Errorf("service %q: targetCPU must be in (0, 100]", svcName)
+				return usererror.Errorf("service %q: targetCPU must be in (0, 100]", svcName)
 			}
 		}
 
 		if err := validateStartCommand(svc.Command); err != nil {
-			return fmt.Errorf("service %q: %w", svcName, err)
+			return usererror.Errorf("service %q: %v", svcName, err)
 		}
 
 		if err := validateBranch(svc.Annotations[annotationSourceBranch]); err != nil {
-			return fmt.Errorf("service %q: %w", svcName, err)
+			return usererror.Errorf("service %q: %v", svcName, err)
 		}
 
 		if svc.HealthCheck != nil {
 			if err := validateHealthCheck(*svc.HealthCheck); err != nil {
-				return fmt.Errorf("service %q: %w", svcName, err)
+				return usererror.Errorf("service %q: %v", svcName, err)
 			}
 		}
 
 		for k := range svc.Env {
 			if !isValidVarName(k) {
-				return fmt.Errorf("service %q: invalid variable name %q", svcName, k)
+				return usererror.Errorf("service %q: invalid variable name %q", svcName, k)
 			}
 		}
 
 		for _, domain := range svc.Domains {
 			if !isValidHostname(domain.Host) {
-				return fmt.Errorf("service %q: invalid hostname %q", svcName, domain.Host)
+				return usererror.Errorf("service %q: invalid hostname %q", svcName, domain.Host)
 			}
 
 			if domain.ListenerSet != nil && len(TLSSecretName(domain.Host)) > maxHostLen {
-				return fmt.Errorf("service %q: hostname %q is too long to get its own listener", svcName, domain.Host)
+				return usererror.Errorf("service %q: hostname %q is too long to get its own listener", svcName, domain.Host)
 			}
 
 			if domain.RedirectTo != "" {
 				if err := validateRedirect(domain.Host, domain.RedirectTo, svc.Domains); err != nil {
-					return fmt.Errorf("service %q: %w", svcName, err)
+					return usererror.Errorf("service %q: %v", svcName, err)
 				}
 			}
 		}
 
 		for envKey, ref := range svc.Refs {
 			if !isValidVarName(envKey) {
-				return fmt.Errorf("service %q: invalid ref env key %q", svcName, envKey)
+				return usererror.Errorf("service %q: invalid ref env key %q", svcName, envKey)
 			}
 
 			if ref.Secret == "" || ref.Key == "" {
@@ -254,11 +255,11 @@ func Validate(env *Env, workspace, registry string) error {
 
 		if len(svc.VolumeMounts) > 0 {
 			if svc.Replicas > 1 {
-				return fmt.Errorf("service %q mounts a volume and cannot scale beyond a single replica", svcName)
+				return usererror.Errorf("service %q mounts a volume and cannot scale beyond a single replica", svcName)
 			}
 
 			if svc.Autoscaling != nil && svc.Autoscaling.Enabled {
-				return fmt.Errorf("service %q mounts a volume and cannot use autoscaling", svcName)
+				return usererror.Errorf("service %q mounts a volume and cannot use autoscaling", svcName)
 			}
 		}
 
@@ -266,28 +267,28 @@ func Validate(env *Env, workspace, registry string) error {
 
 		for volName, path := range svc.VolumeMounts {
 			if _, ok := env.Volumes[volName]; !ok {
-				return fmt.Errorf("service %q: mounts unknown volume %q", svcName, volName)
+				return usererror.Errorf("service %q: mounts unknown volume %q", svcName, volName)
 			}
 
 			if !isValidMountPath(path) {
-				return fmt.Errorf("service %q: invalid mount path %q for volume %q", svcName, path, volName)
+				return usererror.Errorf("service %q: invalid mount path %q for volume %q", svcName, path, volName)
 			}
 
 			if other, ok := mountPaths[path]; ok {
-				return fmt.Errorf("service %q: volumes %q and %q share the mount path %q", svcName, other, volName, path)
+				return usererror.Errorf("service %q: volumes %q and %q share the mount path %q", svcName, other, volName, path)
 			}
 
 			mountPaths[path] = volName
 
 			if other, ok := mountedBy[volName]; ok && other != svcName {
-				return fmt.Errorf("volume %q is mounted by services %q and %q", volName, other, svcName)
+				return usererror.Errorf("volume %q is mounted by services %q and %q", volName, other, svcName)
 			}
 
 			mountedBy[volName] = svcName
 		}
 
 		if err := validateSecurityContext(svc.RunAsUser, svc.RunAsGroup, svc.FsGroup); err != nil {
-			return fmt.Errorf("service %q: %w", svcName, err)
+			return usererror.Errorf("service %q: %v", svcName, err)
 		}
 
 	}
@@ -373,7 +374,7 @@ func validatePublicAccess(name string, access *PublicAccess) error {
 	}
 
 	if len(access.Allow) > maxAllowRules {
-		return fmt.Errorf("database %q: at most %d allow rules", name, maxAllowRules)
+		return usererror.Errorf("database %q: at most %d allow rules", name, maxAllowRules)
 	}
 
 	seen := make(map[string]bool, len(access.Allow))
@@ -382,17 +383,17 @@ func validatePublicAccess(name string, access *PublicAccess) error {
 		prefix, err := netip.ParsePrefix(rule.Range)
 
 		if err != nil || !prefix.Addr().Is4() || prefix.Masked().String() != rule.Range {
-			return fmt.Errorf("database %q: invalid allow range %q", name, rule.Range)
+			return usererror.Errorf("database %q: invalid allow range %q", name, rule.Range)
 		}
 
 		if seen[rule.Range] {
-			return fmt.Errorf("database %q: duplicate allow range %q", name, rule.Range)
+			return usererror.Errorf("database %q: duplicate allow range %q", name, rule.Range)
 		}
 
 		seen[rule.Range] = true
 
 		if utf8.RuneCountInString(rule.Description) > maxAllowRuleDescriptionLen || strings.ContainsFunc(rule.Description, unicode.IsControl) {
-			return fmt.Errorf("database %q: invalid description for allow range %q", name, rule.Range)
+			return usererror.Errorf("database %q: invalid description for allow range %q", name, rule.Range)
 		}
 	}
 
@@ -558,15 +559,15 @@ func validateImage(svcName string, image ImageRef) error {
 	}
 
 	if len(image.Repository) > maxImageLen || !imageRepoRe.MatchString(image.Repository) {
-		return fmt.Errorf("service %q: invalid image repository %q", svcName, image.Repository)
+		return usererror.Errorf("service %q: invalid image repository %q", svcName, image.Repository)
 	}
 
 	if image.Tag != "" && (len(image.Tag) > maxTagLen || !imageTagRe.MatchString(image.Tag)) {
-		return fmt.Errorf("service %q: invalid image tag %q", svcName, image.Tag)
+		return usererror.Errorf("service %q: invalid image tag %q", svcName, image.Tag)
 	}
 
 	if image.Digest != "" && !imageDigestRe.MatchString(image.Digest) {
-		return fmt.Errorf("service %q: invalid image digest %q", svcName, image.Digest)
+		return usererror.Errorf("service %q: invalid image digest %q", svcName, image.Digest)
 	}
 
 	return nil

@@ -2,12 +2,12 @@ package helm
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/zeitlos/lucity/services/conductor/internal/deployer"
 	"github.com/zeitlos/lucity/services/conductor/internal/deployer/values"
 	"github.com/zeitlos/lucity/services/conductor/internal/image"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
+	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 )
 
 type serviceClient struct {
@@ -152,7 +152,7 @@ func (s *serviceClient) Variables(ctx context.Context, id platform.ServiceID) (d
 	svc, ok := env.Services[id.Name]
 
 	if !ok {
-		return deployer.ServiceVariablesSpec{}, fmt.Errorf("service %q not found", id.Name)
+		return deployer.ServiceVariablesSpec{}, usererror.Errorf("service %q not found", id.Name)
 	}
 
 	refs := make(map[string]deployer.VariableRef, len(svc.Refs))

@@ -1,12 +1,13 @@
 package platform
 
 import (
-	"fmt"
 	"io"
 	"slices"
 	"strings"
 
 	"github.com/99designs/gqlgen/graphql"
+
+	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 )
 
 type BucketID struct {
@@ -20,7 +21,7 @@ func ParseBucketID(s string) (BucketID, error) {
 	parts := strings.SplitN(s, "/", 4)
 
 	if len(parts) != 4 || slices.Contains(parts, "") {
-		return BucketID{}, fmt.Errorf("invalid bucket id %q", s)
+		return BucketID{}, usererror.Errorf("invalid bucket id %q", s)
 	}
 
 	return BucketID{
@@ -53,7 +54,7 @@ func (b *BucketID) UnmarshalGQL(val interface{}) error {
 	str, ok := val.(string)
 
 	if !ok {
-		return fmt.Errorf("BucketID must be a string")
+		return usererror.New("BucketID must be a string")
 	}
 
 	parsed, err := ParseBucketID(str)

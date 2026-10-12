@@ -16,6 +16,7 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 	"github.com/zeitlos/lucity/services/conductor/internal/scanjob"
 	"github.com/zeitlos/lucity/services/conductor/internal/scanreport"
+	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 	"github.com/zeitlos/lucity/services/conductor/internal/vulnerabilities"
 )
 
@@ -135,7 +136,7 @@ func (c *Client) deploy(ctx context.Context, serviceID ServiceID, gitRef string,
 		if err != nil {
 			slog.WarnContext(ctx, "queued release count failed", "error", err, "workspace", service.ID.Workspace)
 		} else if queued >= c.config.MaxQueuedReleases {
-			return nil, fmt.Errorf("deployment queue is full (%d queued) — wait for queued releases to finish", queued)
+			return nil, usererror.Errorf("deployment queue is full (%d queued) — wait for queued releases to finish", queued)
 		}
 	}
 

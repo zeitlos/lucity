@@ -1,7 +1,6 @@
 package platform
 
 import (
-	"fmt"
 	"io"
 	"slices"
 	"strings"
@@ -9,6 +8,8 @@ import (
 
 	"github.com/99designs/gqlgen/graphql"
 	"k8s.io/apimachinery/pkg/api/resource"
+
+	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 )
 
 // TODO: Rename to Postgres, PostgresDatabase or PostgresCluster
@@ -86,7 +87,7 @@ func ParseDatabaseID(s string) (DatabaseID, error) {
 	parts := strings.SplitN(s, "/", 4)
 
 	if len(parts) != 4 || slices.Contains(parts, "") {
-		return DatabaseID{}, fmt.Errorf("invalid database id %q", s)
+		return DatabaseID{}, usererror.Errorf("invalid database id %q", s)
 	}
 
 	return DatabaseID{
@@ -115,7 +116,7 @@ func (d *DatabaseID) UnmarshalGQL(val interface{}) error {
 	str, ok := val.(string)
 
 	if !ok {
-		return fmt.Errorf("DatabaseID must be a string")
+		return usererror.New("DatabaseID must be a string")
 	}
 
 	parsed, err := ParseDatabaseID(str)

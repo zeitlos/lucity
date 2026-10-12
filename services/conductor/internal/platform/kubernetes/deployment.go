@@ -9,6 +9,7 @@ import (
 	"github.com/zeitlos/lucity/pkg/to"
 	"github.com/zeitlos/lucity/services/conductor/internal/image"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
+	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 
 	apps "k8s.io/api/apps/v1"
 	core "k8s.io/api/core/v1"
@@ -62,7 +63,7 @@ func (c *Client) Deployment(ctx context.Context, id platform.DeploymentID) (*pla
 	}
 
 	if len(replicaSets.Items) == 0 {
-		return nil, fmt.Errorf("deployment %q not found", id)
+		return nil, usererror.Errorf("deployment %q not found", id)
 	}
 
 	deployment, err := c.deploymentFor(ctx, id.ServiceID())

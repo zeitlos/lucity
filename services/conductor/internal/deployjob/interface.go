@@ -2,7 +2,6 @@ package deployjob
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"strings"
 	"time"
@@ -10,6 +9,7 @@ import (
 	"github.com/99designs/gqlgen/graphql"
 
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
+	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 )
 
 type Interface interface {
@@ -56,7 +56,7 @@ func ParseDeployID(s string) (DeployID, error) {
 	workspace, name, ok := strings.Cut(s, "/")
 
 	if !ok || workspace == "" || name == "" {
-		return DeployID{}, fmt.Errorf("invalid deploy id %q", s)
+		return DeployID{}, usererror.Errorf("invalid deploy id %q", s)
 	}
 
 	return DeployID{Workspace: workspace, Name: name}, nil
@@ -74,7 +74,7 @@ func (d *DeployID) UnmarshalGQL(val interface{}) error {
 	str, ok := val.(string)
 
 	if !ok {
-		return fmt.Errorf("DeployID must be a string")
+		return usererror.New("DeployID must be a string")
 	}
 
 	parsed, err := ParseDeployID(str)

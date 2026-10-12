@@ -8,6 +8,7 @@ import (
 
 	"github.com/zeitlos/lucity/services/conductor/internal/deployer"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
+	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 )
 
 type Variable = platform.Variable
@@ -106,11 +107,11 @@ func (c *Client) SetServiceVariables(ctx context.Context, service platform.Servi
 
 		for key, id := range refs {
 			if id.EnvironmentID() != service.EnvironmentID() {
-				return false, fmt.Errorf("variable %q: reference must be in the same environment", key)
+				return false, usererror.Errorf("variable %q: reference must be in the same environment", key)
 			}
 
 			if _, ok := known[id.String()]; !ok {
-				return false, fmt.Errorf("variable %q: reference %q does not point to an available variable", key, id.String())
+				return false, usererror.Errorf("variable %q: reference %q does not point to an available variable", key, id.String())
 			}
 
 			specRefs[key] = deployer.VariableRef{Secret: id.Secret, Key: id.Name}

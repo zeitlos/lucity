@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
+	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/cashier"
@@ -64,7 +65,7 @@ func (c *Client) Subscription(ctx context.Context, ws string) (*BillingSubscript
 	}
 
 	if subscriptionID == "" {
-		return nil, fmt.Errorf("billing is not configured for this workspace")
+		return nil, usererror.New("billing is not configured for this workspace")
 	}
 
 	ctx = auth.OutgoingContext(ctx)
@@ -105,7 +106,7 @@ func (c *Client) ChangePlan(ctx context.Context, ws, plan string) (*BillingSubsc
 	}
 
 	if subscriptionID == "" {
-		return nil, fmt.Errorf("billing is not configured for this workspace")
+		return nil, usererror.New("billing is not configured for this workspace")
 	}
 
 	ctx = auth.OutgoingContext(ctx)
@@ -147,7 +148,7 @@ func (c *Client) BillingPortalURL(ctx context.Context, ws string) (string, error
 	}
 
 	if customerID == "" {
-		return "", fmt.Errorf("billing is not configured for this workspace")
+		return "", usererror.New("billing is not configured for this workspace")
 	}
 
 	ctx = auth.OutgoingContext(ctx)
@@ -177,7 +178,7 @@ func (c *Client) UsageSummary(ctx context.Context, ws string) (*UsageSummaryResu
 		return nil, err
 	}
 	if customerID == "" {
-		return nil, fmt.Errorf("billing is not configured for this workspace")
+		return nil, usererror.New("billing is not configured for this workspace")
 	}
 	ctx = auth.OutgoingContext(ctx)
 
@@ -228,7 +229,7 @@ func (c *Client) CreatePlanCheckout(ctx context.Context, ws, plan string) (strin
 		return "", err
 	}
 	if customerID == "" {
-		return "", fmt.Errorf("billing is not configured for this workspace")
+		return "", usererror.New("billing is not configured for this workspace")
 	}
 
 	successURL := fmt.Sprintf("%s/checkout/plan-success?session_id={CHECKOUT_SESSION_ID}", c.config.DashboardURL)
@@ -261,7 +262,7 @@ func (c *Client) CompletePlanCheckout(ctx context.Context, ws, sessionID string)
 	}
 
 	if customerID == "" || subscriptionID == "" {
-		return nil, fmt.Errorf("billing is not configured for this workspace")
+		return nil, usererror.New("billing is not configured for this workspace")
 	}
 
 	ctx = auth.OutgoingContext(ctx)

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
+	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 
 	apps "k8s.io/api/apps/v1"
 	core "k8s.io/api/core/v1"
@@ -55,7 +56,7 @@ func (c *Client) KeyValueStore(ctx context.Context, id platform.KeyValueStoreID)
 	}
 
 	if len(list.Items) == 0 {
-		return nil, fmt.Errorf("key-value store %q not found", id)
+		return nil, usererror.Errorf("key-value store %q not found", id)
 	}
 
 	return new(toKeyValueStore(list.Items[0], id.EnvironmentID())), nil

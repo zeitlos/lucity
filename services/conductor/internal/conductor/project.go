@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
+	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 )
 
 const grpcTimeout = 10 * time.Second
@@ -71,7 +72,7 @@ func (c *Client) CreateProject(ctx context.Context, ws, slug, displayName string
 	}
 
 	if !projectIDPattern.MatchString(slug) {
-		return nil, fmt.Errorf("invalid project ID %q: must be 3-63 lowercase alphanumeric characters or hyphens", slug)
+		return nil, usererror.Errorf("invalid project ID %q: must be 3-63 lowercase alphanumeric characters or hyphens", slug)
 	}
 
 	projectID := platform.ProjectID{

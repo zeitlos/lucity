@@ -10,6 +10,7 @@ import (
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/cashier"
 	"github.com/zeitlos/lucity/services/conductor/internal/directory"
+	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 )
 
 type Workspace = directory.Workspace
@@ -98,7 +99,7 @@ func (c *Client) DeleteWorkspace(ctx context.Context, id string) (bool, error) {
 	}
 
 	if len(projects) > 0 {
-		return false, fmt.Errorf("cannot delete workspace: %d projects still exist, delete them first", len(projects))
+		return false, usererror.Errorf("cannot delete workspace: %d projects still exist, delete them first", len(projects))
 	}
 
 	if err := c.directory.DeleteWorkspace(ctx, id); err != nil {
@@ -134,7 +135,7 @@ func (c *Client) RemoveMember(ctx context.Context, workspaceID, userID string) (
 	}
 
 	if claims.Subject == userID {
-		return false, fmt.Errorf("cannot remove yourself from workspace")
+		return false, usererror.New("cannot remove yourself from workspace")
 	}
 
 	if err := c.directory.RemoveMember(ctx, workspaceID, userID); err != nil {
@@ -390,12 +391,12 @@ func (c *Client) CreateWorkspaceCheckout(ctx context.Context, id, name, plan str
 	}
 
 	if !workspaceIDPattern.MatchString(id) {
-		return "", fmt.Errorf("invalid workspace ID: must be 3-63 lowercase alphanumeric characters or hyphens")
+		return "", usererror.New("invalid workspace ID: must be 3-63 lowercase alphanumeric characters or hyphens")
 	}
 
 	// Check if workspace ID is already taken.
 	if _, err = c.logto.OrganizationByName(ctx, id); err == nil {
-		return "", fmt.Errorf("workspace ID %q is already taken", id)
+		return "", usererror.Errorf("workspace ID %q is already taken", id)
 	}
 
 	// Build Stripe Checkout URLs.
@@ -450,12 +451,12 @@ func (c *Client) CompleteWorkspaceCheckout(ctx context.Context, sessionID string
 	}
 
 	if session.Status != "complete" {
-		return nil, fmt.Errorf("checkout session not complete (status: %s)", session.Status)
+		return nil, usererror.Errorf("checkout session not complete (status: %s)", session.Status)
 	}
 
 	// Verify the session belongs to the current user.
 	if session.UserId != claims.Subject {
-		return nil, fmt.Errorf("checkout session does not belong to current user")
+		return nil, usererror.New("checkout session does not belong to current user")
 	}
 
 	wsID := session.Workspace
@@ -469,7 +470,7 @@ func (c *Client) CompleteWorkspaceCheckout(ctx context.Context, sessionID string
 				return existing, nil
 			}
 		}
-		return nil, fmt.Errorf("workspace ID %q is already taken", wsID)
+		return nil, usererror.Errorf("workspace ID %q is already taken", wsID)
 	}
 
 	// Create the workspace, stamping Stripe IDs into the directory metadata.

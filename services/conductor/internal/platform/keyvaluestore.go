@@ -1,7 +1,6 @@
 package platform
 
 import (
-	"fmt"
 	"io"
 	"slices"
 	"strings"
@@ -9,6 +8,8 @@ import (
 
 	"github.com/99designs/gqlgen/graphql"
 	"k8s.io/apimachinery/pkg/api/resource"
+
+	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 )
 
 type KeyValueStore struct {
@@ -38,7 +39,7 @@ func ParseKeyValueStoreID(s string) (KeyValueStoreID, error) {
 	parts := strings.SplitN(s, "/", 4)
 
 	if len(parts) != 4 || slices.Contains(parts, "") {
-		return KeyValueStoreID{}, fmt.Errorf("invalid key-value store id %q", s)
+		return KeyValueStoreID{}, usererror.Errorf("invalid key-value store id %q", s)
 	}
 
 	return KeyValueStoreID{
@@ -67,7 +68,7 @@ func (k *KeyValueStoreID) UnmarshalGQL(val interface{}) error {
 	str, ok := val.(string)
 
 	if !ok {
-		return fmt.Errorf("KeyValueStoreID must be a string")
+		return usererror.New("KeyValueStoreID must be a string")
 	}
 
 	parsed, err := ParseKeyValueStoreID(str)

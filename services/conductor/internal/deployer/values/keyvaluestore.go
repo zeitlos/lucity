@@ -1,9 +1,9 @@
 package values
 
 import (
-	"fmt"
-
 	"k8s.io/apimachinery/pkg/api/resource"
+
+	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 )
 
 var (
@@ -48,7 +48,7 @@ func CreateKeyValueStore(env *Env, name string, spec KeyValueStoreSpec) error {
 
 func DeleteKeyValueStore(env *Env, name string) error {
 	if _, ok := env.Databases.Valkey[name]; !ok {
-		return fmt.Errorf("key-value store %q not found", name)
+		return usererror.Errorf("key-value store %q not found", name)
 	}
 
 	delete(env.Databases.Valkey, name)

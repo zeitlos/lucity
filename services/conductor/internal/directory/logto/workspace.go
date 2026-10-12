@@ -2,13 +2,13 @@ package logto
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"regexp"
 
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/logto"
 	"github.com/zeitlos/lucity/services/conductor/internal/directory"
+	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 )
 
 var workspaceIDPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$`)
@@ -59,11 +59,11 @@ func (c *Client) Workspace(ctx context.Context, id string) (*directory.Workspace
 
 func (c *Client) CreateWorkspace(ctx context.Context, id, name string, metadata map[string]any) (*directory.WorkspaceDetails, error) {
 	if !workspaceIDPattern.MatchString(id) {
-		return nil, fmt.Errorf("invalid workspace ID: must be 3-63 lowercase alphanumeric characters or hyphens")
+		return nil, usererror.New("invalid workspace ID: must be 3-63 lowercase alphanumeric characters or hyphens")
 	}
 
 	if _, err := c.api.OrganizationByName(ctx, id); err == nil {
-		return nil, fmt.Errorf("workspace ID %q is already taken", id)
+		return nil, usererror.Errorf("workspace ID %q is already taken", id)
 	}
 
 	org, err := c.api.CreateOrganization(ctx, id, name, metadata)
@@ -151,7 +151,7 @@ func (c *Client) DeleteWorkspace(ctx context.Context, id string) error {
 	}
 
 	if personal, _ := org.CustomData["personal"].(bool); personal {
-		return errors.New("cannot delete personal workspace")
+		return usererror.New("cannot delete personal workspace")
 	}
 
 	if err := c.api.DeleteOrganization(ctx, id); err != nil {
@@ -177,7 +177,7 @@ func (c *Client) InviteMember(ctx context.Context, workspaceID, email string, ro
 	}
 
 	if user == nil {
-		return nil, fmt.Errorf("user with email %q not found in identity provider", email)
+		return nil, usererror.Errorf("user with email %q not found in identity provider", email)
 	}
 
 	if err := c.api.AddOrganizationMember(ctx, orgID, user.ID); err != nil {

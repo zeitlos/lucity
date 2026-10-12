@@ -2,7 +2,6 @@ package graphql
 
 import (
 	"context"
-	"errors"
 	"net/url"
 	"strings"
 
@@ -10,6 +9,7 @@ import (
 	"github.com/zeitlos/lucity/pkg/tenant"
 	"github.com/zeitlos/lucity/services/conductor/internal/conductor"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
+	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 )
 
 func (r *Resolver) requireServiceDeployBinding(ctx context.Context, serviceID platform.ServiceID) error {
@@ -34,7 +34,7 @@ func (r *Resolver) requireServiceDeployBinding(ctx context.Context, serviceID pl
 	if !ok {
 		repository, ok = r.Conductor.CIDeployRepo(ctx, workspace, claims.Subject)
 		if !ok {
-			return errors.New("not found")
+			return usererror.New("not found")
 		}
 	}
 
@@ -45,7 +45,7 @@ func (r *Resolver) requireServiceDeployBinding(ctx context.Context, serviceID pl
 	}
 
 	if !service.CIDeploy || !sameGitHubRepo(service.SourceURL, repository) {
-		return errors.New("not found")
+		return usererror.New("not found")
 	}
 
 	return nil

@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
+	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 
 	core "k8s.io/api/core/v1"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -29,7 +30,7 @@ func (c *Client) Logs(ctx context.Context, id platform.ServiceID, tail int) (<-c
 	}
 
 	if len(pods.Items) == 0 {
-		return nil, fmt.Errorf("no pods found for service %q in %q", id.Name, namespace)
+		return nil, usererror.Errorf("no pods found for service %q", id.Name)
 	}
 
 	multiplePods := len(pods.Items) > 1

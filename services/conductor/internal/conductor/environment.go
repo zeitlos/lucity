@@ -2,10 +2,10 @@ package conductor
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
+	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 )
 
 type Environment = platform.Environment
@@ -31,7 +31,7 @@ func (c *Client) Environment(ctx context.Context, id EnvironmentID) (*Environmen
 // fromEnvironment.
 func (c *Client) CreateEnvironment(ctx context.Context, project ProjectID, name string, fromEnvironment *EnvironmentID, tier ResourceTier) (*Environment, error) {
 	if fromEnvironment != nil {
-		return nil, errors.New("creating an environment from a source is not yet supported")
+		return nil, usererror.New("creating an environment from a source is not yet supported")
 	}
 
 	envID := platform.EnvironmentID{
@@ -71,7 +71,7 @@ func (c *Client) checkEnvironmentEmpty(ctx context.Context, id platform.Environm
 	}
 
 	if len(services) > 0 {
-		return fmt.Errorf("environment %q has %d service(s); remove them first", id, len(services))
+		return usererror.Errorf("environment %q has %d service(s); remove them first", id, len(services))
 	}
 
 	databases, err := c.platform.Databases(ctx, id)
@@ -81,7 +81,7 @@ func (c *Client) checkEnvironmentEmpty(ctx context.Context, id platform.Environm
 	}
 
 	if len(databases) > 0 {
-		return fmt.Errorf("environment %q has %d database(s); remove them first", id, len(databases))
+		return usererror.Errorf("environment %q has %d database(s); remove them first", id, len(databases))
 	}
 
 	keyValueStores, err := c.platform.KeyValueStores(ctx, id)
@@ -91,7 +91,7 @@ func (c *Client) checkEnvironmentEmpty(ctx context.Context, id platform.Environm
 	}
 
 	if len(keyValueStores) > 0 {
-		return fmt.Errorf("environment %q has %d key-value store(s); remove them first", id, len(keyValueStores))
+		return usererror.Errorf("environment %q has %d key-value store(s); remove them first", id, len(keyValueStores))
 	}
 
 	volumes, err := c.platform.Volumes(ctx, id)
@@ -101,7 +101,7 @@ func (c *Client) checkEnvironmentEmpty(ctx context.Context, id platform.Environm
 	}
 
 	if len(volumes) > 0 {
-		return fmt.Errorf("environment %q has %d volume(s); remove them first", id, len(volumes))
+		return usererror.Errorf("environment %q has %d volume(s); remove them first", id, len(volumes))
 	}
 
 	buckets, err := c.objectStorage.Buckets(ctx, id)
@@ -111,7 +111,7 @@ func (c *Client) checkEnvironmentEmpty(ctx context.Context, id platform.Environm
 	}
 
 	if len(buckets) > 0 {
-		return fmt.Errorf("environment %q has %d bucket(s); remove them first", id, len(buckets))
+		return usererror.Errorf("environment %q has %d bucket(s); remove them first", id, len(buckets))
 	}
 
 	return nil
@@ -125,7 +125,7 @@ func (c *Client) checkNotLastEnvironment(ctx context.Context, id platform.Enviro
 	}
 
 	if len(envs) <= 1 {
-		return fmt.Errorf("cannot delete %q: a project must have at least one environment", id)
+		return usererror.Errorf("cannot delete %q: a project must have at least one environment", id)
 	}
 
 	return nil

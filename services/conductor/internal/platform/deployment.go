@@ -1,7 +1,6 @@
 package platform
 
 import (
-	"fmt"
 	"io"
 	"slices"
 	"strings"
@@ -10,6 +9,7 @@ import (
 	"github.com/99designs/gqlgen/graphql"
 
 	"github.com/zeitlos/lucity/services/conductor/internal/image"
+	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 )
 
 type Deployment struct {
@@ -90,7 +90,7 @@ func ParseDeploymentID(s string) (DeploymentID, error) {
 	parts := strings.SplitN(s, "/", 5)
 
 	if len(parts) != 5 || slices.Contains(parts, "") {
-		return DeploymentID{}, fmt.Errorf("invalid deployment id %q", s)
+		return DeploymentID{}, usererror.Errorf("invalid deployment id %q", s)
 	}
 
 	return DeploymentID{
@@ -127,7 +127,7 @@ func (d *DeploymentID) UnmarshalGQL(val interface{}) error {
 	str, ok := val.(string)
 
 	if !ok {
-		return fmt.Errorf("DeploymentID must be a string")
+		return usererror.New("DeploymentID must be a string")
 	}
 
 	parsed, err := ParseDeploymentID(str)

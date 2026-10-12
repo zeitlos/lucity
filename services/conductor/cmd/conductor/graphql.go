@@ -21,6 +21,7 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
 	"github.com/zeitlos/lucity/services/conductor/internal/conductor"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
+	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 
 	"github.com/zeitlos/lucity/pkg/auth"
 	"github.com/zeitlos/lucity/pkg/tenant"
@@ -70,7 +71,7 @@ func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvid
 				claims, err := auth.FromContext(ctx)
 
 				if err != nil {
-					return nil, err
+					return nil, usererror.New("unauthenticated")
 				}
 
 				if required == model.RoleAuthenticated {
@@ -86,11 +87,11 @@ func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvid
 				workspace, err := tenant.FromContext(ctx)
 
 				if err != nil {
-					return nil, err
+					return nil, usererror.New("workspace not specified")
 				}
 
 				if !claims.WorkspaceRoleIn(workspace).Satisfies(converted) {
-					return nil, fmt.Errorf("forbidden: insufficient role")
+					return nil, usererror.New("forbidden: insufficient role")
 				}
 
 				oc := gqlgen.GetOperationContext(ctx)
@@ -134,7 +135,7 @@ func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvid
 					if suspended {
 						slog.Warn("mutation blocked: workspace suspended", "workspace", workspace, "operation", oc.OperationName)
 
-						return nil, fmt.Errorf("workspace suspended: update your payment method to continue")
+						return nil, usererror.New("workspace suspended: update your payment method to continue")
 					}
 				}
 
@@ -226,13 +227,13 @@ func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvid
 				callerWorkspace, err := tenant.FromContext(ctx)
 
 				if err != nil {
-					return err
+					return usererror.New("workspace not specified")
 				}
 
 				if scoped.WorkspaceID() != callerWorkspace {
 					slog.WarnContext(ctx, "workspaces of id and header don't match", "id", scoped.WorkspaceID(), "header", callerWorkspace)
 
-					return errors.New("not found")
+					return usererror.New("not found")
 				}
 
 				return nil
@@ -255,9 +256,20 @@ func NewGraphQLServer(port string, conductorClient *conductor.Client, oidcProvid
 			}
 		}
 
-		slog.ErrorContext(ctx, "error during graphql operation", "error", err)
+		presented := gqlgen.DefaultErrorPresenter(ctx, err)
 
-		return gqlgen.DefaultErrorPresenter(ctx, err)
+		if presented.Err == nil {
+			return presented
+		}
+
+		var userErr *usererror.Error
+		if errors.As(err, &userErr) {
+			return &gqlerror.Error{Message: userErr.Error(), Path: presented.Path, Locations: presented.Locations}
+		}
+
+		slog.ErrorContext(ctx, "error during graphql operation", "path", presented.Path.String(), "error", err)
+
+		return &gqlerror.Error{Message: "an unexpected error occurred", Path: presented.Path, Locations: presented.Locations}
 	})
 
 	srv.AroundRootFields(func(ctx context.Context, next graphql.RootResolver) graphql.Marshaler {

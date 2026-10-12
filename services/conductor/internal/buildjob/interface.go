@@ -12,6 +12,7 @@ import (
 
 	"github.com/zeitlos/lucity/services/conductor/internal/image"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
+	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 )
 
 type Interface interface {
@@ -90,7 +91,7 @@ func ParseBuildID(s string) (BuildID, error) {
 	workspace, name, ok := strings.Cut(s, "/")
 
 	if !ok || workspace == "" || name == "" {
-		return BuildID{}, fmt.Errorf("invalid build id %q", s)
+		return BuildID{}, usererror.Errorf("invalid build id %q", s)
 	}
 
 	return BuildID{Workspace: workspace, Name: name}, nil
@@ -108,7 +109,7 @@ func (b *BuildID) UnmarshalGQL(val interface{}) error {
 	str, ok := val.(string)
 
 	if !ok {
-		return fmt.Errorf("BuildID must be a string")
+		return usererror.New("BuildID must be a string")
 	}
 
 	parsed, err := ParseBuildID(str)

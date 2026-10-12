@@ -2,7 +2,6 @@ package conductor
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"net/url"
 	"sort"
@@ -16,6 +15,7 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/deployer"
 	"github.com/zeitlos/lucity/services/conductor/internal/deployjob"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
+	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 )
 
 type ReleaseStatus string
@@ -373,7 +373,7 @@ func ParseReleaseID(s string) (ReleaseID, error) {
 	workspace, name, ok := strings.Cut(s, "/")
 
 	if !ok || workspace == "" || name == "" {
-		return ReleaseID{}, fmt.Errorf("invalid release id %q", s)
+		return ReleaseID{}, usererror.Errorf("invalid release id %q", s)
 	}
 
 	return ReleaseID{Workspace: workspace, Name: name}, nil
@@ -391,7 +391,7 @@ func (r *ReleaseID) UnmarshalGQL(val interface{}) error {
 	str, ok := val.(string)
 
 	if !ok {
-		return fmt.Errorf("ReleaseID must be a string")
+		return usererror.New("ReleaseID must be a string")
 	}
 
 	parsed, err := ParseReleaseID(str)

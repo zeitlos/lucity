@@ -7,10 +7,10 @@ package graphql
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/zeitlos/lucity/services/conductor/internal/api/graphql/model"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
+	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 )
 
 // SetSharedVariables is the resolver for the setSharedVariables field.
@@ -40,7 +40,7 @@ func (r *mutationResolver) SetServiceVariables(ctx context.Context, service plat
 		case v.Value != nil:
 			literals[v.Key] = *v.Value
 		default:
-			return false, fmt.Errorf("variable %q: set either value or ref", v.Key)
+			return false, usererror.Errorf("variable %q: set either value or ref", v.Key)
 		}
 	}
 

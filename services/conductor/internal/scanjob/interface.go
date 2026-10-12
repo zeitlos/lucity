@@ -2,7 +2,6 @@ package scanjob
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"strings"
 	"time"
@@ -10,6 +9,7 @@ import (
 	"github.com/99designs/gqlgen/graphql"
 
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
+	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 )
 
 type Interface interface {
@@ -59,7 +59,7 @@ func ParseScanID(s string) (ScanID, error) {
 	workspace, name, ok := strings.Cut(s, "/")
 
 	if !ok || workspace == "" || name == "" {
-		return ScanID{}, fmt.Errorf("invalid scan id %q", s)
+		return ScanID{}, usererror.Errorf("invalid scan id %q", s)
 	}
 
 	return ScanID{Workspace: workspace, Name: name}, nil
@@ -77,7 +77,7 @@ func (s *ScanID) UnmarshalGQL(val interface{}) error {
 	str, ok := val.(string)
 
 	if !ok {
-		return fmt.Errorf("ScanID must be a string")
+		return usererror.New("ScanID must be a string")
 	}
 
 	parsed, err := ParseScanID(str)

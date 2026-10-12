@@ -3,7 +3,6 @@ package conductor
 import (
 	"context"
 	"crypto/rand"
-	"errors"
 	"fmt"
 	"log/slog"
 	"net/url"
@@ -22,6 +21,7 @@ import (
 	"github.com/zeitlos/lucity/services/conductor/internal/planner"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 	"github.com/zeitlos/lucity/services/conductor/internal/resources"
+	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 )
 
 var (
@@ -181,11 +181,11 @@ func (c *Client) AddService(ctx context.Context, environmentID platform.Environm
 		spec.Image = c.config.RegistryPullURL + "/" + id.ImageRepository()
 	} else if externalImage != "" {
 		if _, err := containername.ParseReference(externalImage); err != nil {
-			return nil, fmt.Errorf("invalid image reference %q: %w", externalImage, err)
+			return nil, usererror.Errorf("invalid image reference %q: %v", externalImage, err)
 		}
 
 		if err := imageref.Validate(externalImage, workspace, c.config.RegistryPullURL); err != nil {
-			return nil, err
+			return nil, usererror.New(err.Error())
 		}
 
 		spec.Image = ensureImageTag(externalImage)
@@ -195,12 +195,12 @@ func (c *Client) AddService(ctx context.Context, environmentID platform.Environm
 			serviceName = deriveServiceName(externalImage)
 		}
 	} else {
-		return nil, errors.New("either repository or external image must be set to create a new service")
+		return nil, usererror.New("either repository or external image must be set to create a new service")
 	}
 
 	if user != nil {
 		if repository != "" {
-			return nil, errors.New("user can only be set on image-based services, not repository-built ones")
+			return nil, usererror.New("user can only be set on image-based services, not repository-built ones")
 		}
 
 		spec.SecurityContext = securityContextFor(user)
@@ -356,7 +356,7 @@ func (c *Client) SetServiceUser(ctx context.Context, serviceID platform.ServiceI
 	}
 
 	if service.SourceURL != "" {
-		return nil, errors.New("user can only be set on image-based services, not repository-built ones")
+		return nil, usererror.New("user can only be set on image-based services, not repository-built ones")
 	}
 
 	if _, err := c.deployer.Services().SetSecurityContext(ctx, serviceID, securityContextFor(user)); err != nil {
@@ -433,20 +433,20 @@ func (c *Client) AddCustomDomain(ctx context.Context, serviceID platform.Service
 	redirectTo = strings.ToLower(redirectTo)
 
 	if err := validateHostname(hostname); err != nil {
-		return nil, fmt.Errorf("invalid hostname: %w", err)
+		return nil, usererror.Errorf("invalid hostname: %v", err)
 	}
 
 	if c.hostname.IsPlatform(hostname) || c.hostname.IsInternal(hostname) {
-		return nil, fmt.Errorf("invalid domain")
+		return nil, usererror.New("invalid domain")
 	}
 
 	if redirectTo != "" {
 		if err := validateHostname(redirectTo); err != nil {
-			return nil, fmt.Errorf("invalid redirect target: %w", err)
+			return nil, usererror.Errorf("invalid redirect target: %v", err)
 		}
 
 		if redirectTo == hostname || c.hostname.IsInternal(redirectTo) {
-			return nil, fmt.Errorf("invalid redirect target")
+			return nil, usererror.New("invalid redirect target")
 		}
 	}
 
@@ -537,7 +537,7 @@ var repositoryPattern = regexp.MustCompile(`^[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+$`)
 
 func validateRepository(repository string) (owner, repo string, err error) {
 	if !repositoryPattern.MatchString(repository) {
-		return "", "", fmt.Errorf("repository must be in owner/repo format (e.g. \"acme/myapp\")")
+		return "", "", usererror.New("repository must be in owner/repo format (e.g. \"acme/myapp\")")
 	}
 
 	parts := strings.SplitN(repository, "/", 2)
@@ -567,7 +567,7 @@ func (c *Client) resolveRepositoryURL(ctx context.Context, installationID int64,
 	ghRepo, _, err := client.Repositories.Get(ctx, owner, repo)
 
 	if err != nil {
-		return "", fmt.Errorf("repository %q not accessible via this GitHub App installation: %w", repository, err)
+		return "", usererror.Errorf("repository %q not accessible via this GitHub App installation", repository)
 	}
 
 	cloneURL := ghRepo.GetCloneURL()

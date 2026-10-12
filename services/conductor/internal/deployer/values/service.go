@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/zeitlos/lucity/services/conductor/internal/image"
+	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 )
 
 type Service struct {
@@ -168,7 +169,7 @@ func CreateService(env *Env, name string, spec ServiceSpec) error {
 
 func DeleteService(env *Env, name string) error {
 	if _, ok := env.Services[name]; !ok {
-		return fmt.Errorf("service %q not found", name)
+		return usererror.Errorf("service %q not found", name)
 	}
 
 	delete(env.Services, name)
@@ -330,11 +331,11 @@ func RemoveServiceDomain(env *Env, name, host string) error {
 	svc, ok := env.Services[name]
 
 	if !ok {
-		return fmt.Errorf("service %q not found", name)
+		return usererror.Errorf("service %q not found", name)
 	}
 
 	if i := slices.IndexFunc(svc.Domains, func(d Domain) bool { return d.RedirectTo == host }); i >= 0 {
-		return fmt.Errorf("%s redirects to %s; remove %s first", svc.Domains[i].Host, host, svc.Domains[i].Host)
+		return usererror.Errorf("%s redirects to %s; remove %s first", svc.Domains[i].Host, host, svc.Domains[i].Host)
 	}
 
 	return mutateService(env, name, func(s *Service) {
@@ -358,7 +359,7 @@ func mutateService(env *Env, name string, mutate func(*Service)) error {
 	svc, ok := env.Services[name]
 
 	if !ok {
-		return fmt.Errorf("service %q not found", name)
+		return usererror.Errorf("service %q not found", name)
 	}
 
 	mutate(&svc)

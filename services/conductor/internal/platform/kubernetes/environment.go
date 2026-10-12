@@ -2,10 +2,10 @@ package kubernetes
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
+	"github.com/zeitlos/lucity/services/conductor/internal/usererror"
 
 	core "k8s.io/api/core/v1"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -55,7 +55,7 @@ func (c *Client) Environment(ctx context.Context, id platform.EnvironmentID) (*p
 	}
 
 	if len(list.Items) == 0 {
-		return nil, fmt.Errorf("environment %q not found", id)
+		return nil, usererror.Errorf("environment %q not found", id)
 	}
 
 	env := toEnvironment(list.Items[0])
