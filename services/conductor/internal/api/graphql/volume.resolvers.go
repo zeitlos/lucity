@@ -97,7 +97,7 @@ func (r *volumeResolver) Metrics(ctx context.Context, obj *model.Volume, metrics
 		return nil, err
 	}
 
-	return convertMetricSeries(series), nil
+	return convertMetricSeries(series)
 }
 
 // Volume returns VolumeResolver implementation.

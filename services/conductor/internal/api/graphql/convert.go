@@ -35,10 +35,26 @@ func convertMetricWindow(window model.MetricWindow) (metrics.Window, error) {
 	}
 }
 
-func convertMetricSeries(series []metrics.Series) []model.MetricSeries {
+var resourceMetrics = map[model.ResourceMetric]metrics.Kind{
+	model.ResourceMetricCPUUsage:    metrics.KindCPUUsage,
+	model.ResourceMetricMemoryUsage: metrics.KindMemoryUsage,
+	model.ResourceMetricStorageUsed: metrics.KindStorageUsed,
+}
+
+func convertMetricSeries(series []metrics.Series) ([]model.MetricSeries, error) {
 	out := make([]model.MetricSeries, 0, len(series))
 
 	for _, s := range series {
+		metric, ok := resourceMetricsByKind[s.Kind]
+		if !ok {
+			return nil, fmt.Errorf("metric kind %q has no resource metric", s.Kind)
+		}
+
+		unit, ok := metricUnits[s.Kind]
+		if !ok {
+			return nil, fmt.Errorf("metric kind %q has no unit", s.Kind)
+		}
+
 		var replica *string
 		if s.Replica != "" {
 			value := s.Replica
@@ -46,32 +62,14 @@ func convertMetricSeries(series []metrics.Series) []model.MetricSeries {
 		}
 
 		out = append(out, model.MetricSeries{
-			Metric:  metricKindToModel(s.Kind),
-			Unit:    metricUnit(s.Kind),
+			Metric:  metric,
+			Unit:    unit,
 			Replica: replica,
 			Points:  convertMetricPoints(s.Points),
 		})
 	}
 
-	return out
-}
-
-func metricKindToModel(kind metrics.Kind) model.ResourceMetric {
-	switch kind {
-	case metrics.KindCPUUsage:
-		return model.ResourceMetricCPUUsage
-	case metrics.KindMemoryUsage:
-		return model.ResourceMetricMemoryUsage
-	default:
-		return model.ResourceMetricStorageUsed
-	}
-}
-
-func metricUnit(kind metrics.Kind) model.MetricUnit {
-	if kind == metrics.KindCPUUsage {
-		return model.MetricUnitCores
-	}
-	return model.MetricUnitBytes
+	return out, nil
 }
 
 func serviceMetricKinds(requested []model.ResourceMetric) []metrics.Kind {
@@ -79,22 +77,11 @@ func serviceMetricKinds(requested []model.ResourceMetric) []metrics.Kind {
 
 	for _, metric := range requested {
 		if metric == model.ResourceMetricCPUUsage || metric == model.ResourceMetricMemoryUsage {
-			kinds = append(kinds, metricModelToKind(metric))
+			kinds = append(kinds, resourceMetrics[metric])
 		}
 	}
 
 	return kinds
-}
-
-func metricModelToKind(metric model.ResourceMetric) metrics.Kind {
-	switch metric {
-	case model.ResourceMetricCPUUsage:
-		return metrics.KindCPUUsage
-	case model.ResourceMetricMemoryUsage:
-		return metrics.KindMemoryUsage
-	default:
-		return metrics.KindStorageUsed
-	}
 }
 
 var databaseMetrics = map[model.DatabaseMetric]metrics.Kind{
@@ -110,7 +97,22 @@ var databaseMetrics = map[model.DatabaseMetric]metrics.Kind{
 	model.DatabaseMetricReplicationLag: metrics.KindReplicationLag,
 }
 
-var databaseMetricUnits = map[metrics.Kind]model.MetricUnit{
+var (
+	resourceMetricsByKind = metricsByKind(resourceMetrics)
+	databaseMetricsByKind = metricsByKind(databaseMetrics)
+)
+
+func metricsByKind[M comparable](kinds map[M]metrics.Kind) map[metrics.Kind]M {
+	byKind := make(map[metrics.Kind]M, len(kinds))
+
+	for metric, kind := range kinds {
+		byKind[kind] = metric
+	}
+
+	return byKind
+}
+
+var metricUnits = map[metrics.Kind]model.MetricUnit{
 	metrics.KindCPUUsage:       model.MetricUnitCores,
 	metrics.KindMemoryUsage:    model.MetricUnitBytes,
 	metrics.KindStorageUsed:    model.MetricUnitBytes,
@@ -135,19 +137,23 @@ func databaseMetricKinds(requested []model.DatabaseMetric) []metrics.Kind {
 	return kinds
 }
 
-func convertDatabaseMetricSeries(series []metrics.Series, primary string) []model.DatabaseMetricSeries {
-	metricsByKind := make(map[metrics.Kind]model.DatabaseMetric, len(databaseMetrics))
-
-	for metric, kind := range databaseMetrics {
-		metricsByKind[kind] = metric
-	}
-
+func convertDatabaseMetricSeries(series []metrics.Series, primary string) ([]model.DatabaseMetricSeries, error) {
 	out := make([]model.DatabaseMetricSeries, 0, len(series))
 
 	for _, s := range series {
+		metric, ok := databaseMetricsByKind[s.Kind]
+		if !ok {
+			return nil, fmt.Errorf("metric kind %q has no database metric", s.Kind)
+		}
+
+		unit, ok := metricUnits[s.Kind]
+		if !ok {
+			return nil, fmt.Errorf("metric kind %q has no unit", s.Kind)
+		}
+
 		result := model.DatabaseMetricSeries{
-			Metric: metricsByKind[s.Kind],
-			Unit:   databaseMetricUnits[s.Kind],
+			Metric: metric,
+			Unit:   unit,
 			Points: convertMetricPoints(s.Points),
 		}
 
@@ -166,7 +172,7 @@ func convertDatabaseMetricSeries(series []metrics.Series, primary string) []mode
 		out = append(out, result)
 	}
 
-	return out
+	return out, nil
 }
 
 func convertDatabaseQueryStatistics(statistics conductor.DatabaseQueryStatistics) model.DatabaseQueryStatistics {

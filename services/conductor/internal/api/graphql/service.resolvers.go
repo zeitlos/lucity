@@ -334,7 +334,7 @@ func (r *serviceResolver) Metrics(ctx context.Context, obj *model.Service, metri
 		return nil, err
 	}
 
-	return convertMetricSeries(series), nil
+	return convertMetricSeries(series)
 }
 
 // Service returns ServiceResolver implementation.

@@ -25,7 +25,7 @@ func (r *databaseResolver) Metrics(ctx context.Context, obj *model.Database, met
 		return nil, err
 	}
 
-	return convertDatabaseMetricSeries(series, obj.Primary), nil
+	return convertDatabaseMetricSeries(series, obj.Primary)
 }
 
 // ConnectionLimit is the resolver for the connectionLimit field.
