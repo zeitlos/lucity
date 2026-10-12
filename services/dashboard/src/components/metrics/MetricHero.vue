@@ -16,8 +16,9 @@ withDefaults(
     max: number | null;
     ticks: string[];
     markers?: MetricMarker[];
+    editLabel?: string;
   }>(),
-  { markers: () => [] },
+  { markers: () => [], editLabel: 'Edit limit' },
 );
 
 const emit = defineEmits<{
@@ -54,7 +55,7 @@ const cursor = defineModel<number | null>('cursor', { default: null });
         class="shrink-0 py-0.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
         @click="emit('edit')"
       >
-        Edit limit
+        {{ editLabel }}
       </button>
     </div>
 

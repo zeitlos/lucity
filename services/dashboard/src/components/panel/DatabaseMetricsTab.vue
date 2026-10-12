@@ -6,7 +6,30 @@ import { graphql } from '@/gql';
 import { DatabaseInstanceRole, DatabaseMetric, MetricGrouping, MetricWindow } from '@/gql/graphql';
 import { toast } from '@/components/ui/sonner';
 import { formatBytes, parseCpu, parseStorageSize, cn } from '@/lib/utils';
+import {
+  formatCoreLimit,
+  formatCores,
+  formatCount,
+  formatMetricTime,
+  formatMilliseconds,
+  formatRate,
+  formatRatio,
+  formatSeconds,
+  formatSize,
+  latestValue,
+  lineColors,
+  metricTicks,
+  nearestTime,
+  timeOf,
+  valueAt,
+  windowOf,
+  type MetricLine,
+  type MetricPoint,
+  type MetricReading,
+} from '@/lib/metrics';
+import MetricHero from '@/components/metrics/MetricHero.vue';
 import MetricLineChart from '@/components/metrics/MetricLineChart.vue';
+import MetricsToolbar from '@/components/metrics/MetricsToolbar.vue';
 
 const DatabaseMetricsDocument = graphql(`
   query DatabaseMetrics($id: DatabaseID!, $range: MetricsRange!, $grouping: MetricGrouping!) {
@@ -75,22 +98,6 @@ const emit = defineEmits<{
   (e: 'editResources'): void;
 }>();
 
-const windowOptions: { value: MetricWindow; label: string }[] = [
-  { value: MetricWindow.Last_1H, label: '1h' },
-  { value: MetricWindow.Last_6H, label: '6h' },
-  { value: MetricWindow.Last_24H, label: '24h' },
-  { value: MetricWindow.Last_7D, label: '7d' },
-  { value: MetricWindow.Last_30D, label: '30d' },
-];
-
-const windowMs: Record<MetricWindow, number> = {
-  [MetricWindow.Last_1H]: 3_600_000,
-  [MetricWindow.Last_6H]: 6 * 3_600_000,
-  [MetricWindow.Last_24H]: 24 * 3_600_000,
-  [MetricWindow.Last_7D]: 7 * 24 * 3_600_000,
-  [MetricWindow.Last_30D]: 30 * 24 * 3_600_000,
-};
-
 const selectedWindow = ref<MetricWindow>(MetricWindow.Last_24H);
 const perInstance = ref(false);
 const cursor = ref<number | null>(null);
@@ -111,21 +118,18 @@ const { result: statisticsResult, loading: statisticsLoading, error: statisticsE
 );
 
 const database = computed(() => result.value?.database);
+const period = computed(() => windowOf(selectedWindow.value));
+const short = computed(() => period.value.ms <= 24 * 3_600_000);
 
 const range = computed(() => {
   void result.value;
   const to = Date.now();
-  return { from: to - windowMs[selectedWindow.value], to };
+  return { from: to - period.value.ms, to };
 });
 
-const windowLabel = computed(() => windowOptions.find(o => o.value === selectedWindow.value)?.label ?? '');
-const shortWindow = computed(() => windowMs[selectedWindow.value] <= 24 * 3_600_000);
+const ticks = computed(() => metricTicks(range.value.from, range.value.to, short.value));
 
-type Point = { timestamp: string; value?: number | null };
-type Line = { key: string; label: string; role: DatabaseInstanceRole | null; color: string; points: Point[] };
-type Reading = { key: string; color: string; text: string };
-
-const replicaColors = ['var(--chart-5)', 'var(--chart-2)', 'var(--chart-4)'];
+type Line = MetricLine & { role: DatabaseInstanceRole | null };
 
 function instanceNumber(instance: string): string {
   return instance.split('-').pop() ?? instance;
@@ -149,47 +153,19 @@ function linesFor(metric: DatabaseMetric): Line[] {
       key: s.instance,
       label: `${instanceNumber(s.instance)} · ${primary ? 'primary' : 'replica'}`,
       role: s.role ?? null,
-      color: primary ? 'var(--chart-1)' : replicaColors[replicas++ % replicaColors.length]!,
+      color: primary ? lineColors[0]! : lineColors[1 + (replicas++ % (lineColors.length - 1))]!,
       points: s.points,
     };
   });
 }
 
-function timeOf(point: Point): number {
-  return new Date(point.timestamp).getTime();
-}
+const allPoints = computed<MetricPoint[]>(() => (database.value?.metrics ?? []).flatMap(s => s.points));
 
-const timestamps = computed(() => {
-  const times = new Set<number>();
-  for (const s of database.value?.metrics ?? []) {
-    for (const p of s.points) times.add(timeOf(p));
-  }
-  return [...times].sort((a, b) => a - b);
-});
+const focusTime = computed(() => (cursor.value == null ? null : nearestTime(allPoints.value, cursor.value)));
+const focusLabel = computed(() => (focusTime.value == null ? null : formatMetricTime(focusTime.value, short.value)));
 
-const focusTime = computed(() => {
-  if (cursor.value == null) return null;
-  let best: number | null = null;
-  for (const time of timestamps.value) {
-    if (best == null || Math.abs(time - cursor.value) < Math.abs(best - cursor.value)) best = time;
-  }
-  return best;
-});
-
-function latest(points: Point[]): number | null {
-  for (let i = points.length - 1; i >= 0; i--) {
-    const value = points[i]!.value;
-    if (value != null) return value;
-  }
-  return null;
-}
-
-function at(points: Point[], time: number): number | null {
-  return points.find(p => timeOf(p) === time)?.value ?? null;
-}
-
-function shown(points: Point[]): number | null {
-  return focusTime.value == null ? latest(points) : at(points, focusTime.value);
+function shown(points: MetricPoint[]): number | null {
+  return focusTime.value == null ? latestValue(points) : valueAt(points, focusTime.value);
 }
 
 function samples(lines: Line[]): { time: number; value: number }[] {
@@ -199,85 +175,18 @@ function samples(lines: Line[]): { time: number; value: number }[] {
 }
 
 function formatTime(time: number): string {
-  return new Date(time).toLocaleString(
-    undefined,
-    shortWindow.value
-      ? { hour: 'numeric', minute: '2-digit' }
-      : { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' },
-  );
-}
-
-const focusLabel = computed(() => (focusTime.value == null ? null : formatTime(focusTime.value)));
-
-const ticks = computed(() => {
-  const { from, to } = range.value;
-  return [0, 0.25, 0.5, 0.75, 1].map(fraction => {
-    if (fraction === 1) return 'now';
-    const time = from + (to - from) * fraction;
-    return new Date(time).toLocaleString(
-      undefined,
-      shortWindow.value ? { hour: 'numeric', minute: '2-digit' } : { month: 'short', day: 'numeric' },
-    );
-  });
-});
-
-function formatCores(value: number): string {
-  return value < 0.1 ? value.toFixed(3) : value.toFixed(2);
-}
-
-function formatCoreLimit(value: number): string {
-  const cores = Number(value.toFixed(2));
-  return `${cores} ${cores === 1 ? 'core' : 'cores'}`;
-}
-
-function formatSize(value: number): string {
-  return formatBytes(value).replace('.0 ', ' ');
-}
-
-function formatCount(value: number): string {
-  return Math.round(value).toLocaleString();
-}
-
-function formatRate(value: number): string {
-  if (value >= 1000) return `${Number((value / 1000).toFixed(1))}k`;
-  if (value >= 10) return String(Math.round(value));
-  return String(Number(value.toFixed(1)));
-}
-
-function formatRatio(value: number): string {
-  return `${(value * 100).toFixed(1)}%`;
-}
-
-function formatSeconds(value: number): string {
-  if (value < 1) return `${Math.round(value * 1000)} ms`;
-  if (value < 60) return `${Number(value.toFixed(1))} s`;
-  return `${Number((value / 60).toFixed(1))} min`;
-}
-
-function formatMilliseconds(value: number): string {
-  if (value < 1) return `${Number(value.toFixed(2))} ms`;
-  if (value < 1000) return `${Math.round(value)} ms`;
-  return formatSeconds(value / 1000);
+  return formatMetricTime(time, short.value);
 }
 
 const instanceCount = computed(() => Math.max(1, database.value?.instances ?? 1));
 const scale = computed(() => (perInstance.value ? 1 : instanceCount.value));
 
-function readings(lines: Line[], format: (value: number) => string): Reading[] {
+function readings(lines: Line[], format: (value: number) => string): MetricReading[] {
   return lines.map(l => {
     const value = shown(l.points);
     return { key: l.key, color: l.color, text: value == null ? '–' : format(value) };
   });
 }
-
-type Hero = {
-  metric: DatabaseMetric;
-  label: string;
-  lines: Line[];
-  readings: Reading[];
-  unit: string | null;
-  max: number | null;
-};
 
 function hero(
   metric: DatabaseMetric,
@@ -285,14 +194,14 @@ function hero(
   limit: number,
   format: (value: number) => string,
   formatLimit: (value: number) => string,
-): Hero {
+) {
   const lines = linesFor(metric);
   const max = limit > 0 ? limit * scale.value : null;
   const unit = max == null ? null : perInstance.value ? `of ${formatLimit(limit)} each` : `of ${formatLimit(max)}`;
   return { metric, label, lines, readings: readings(lines, format), unit, max };
 }
 
-const heroes = computed<Hero[]>(() => [
+const heroes = computed(() => [
   hero(DatabaseMetric.CpuUsage, 'CPU', parseCpu(database.value?.resources.cpu ?? ''), formatCores, formatCoreLimit),
   hero(
     DatabaseMetric.MemoryUsage,
@@ -307,7 +216,7 @@ type Cell = {
   metric: DatabaseMetric;
   label: string;
   lines: Line[];
-  readings: Reading[];
+  readings: MetricReading[];
   unit: string;
   context: string;
   min: number;
@@ -338,7 +247,6 @@ function cell(
   format: (value: number) => string,
   unit: string,
   context: (lines: Line[]) => string,
-  min = 0,
 ): Cell {
   const lines = linesFor(metric);
   return {
@@ -348,7 +256,7 @@ function cell(
     readings: readings(lines, format),
     unit,
     context: focusLabel.value ? `at ${focusLabel.value}` : context(lines),
-    min,
+    min: 0,
     max: null,
     area: true,
     fills: null,
@@ -364,11 +272,11 @@ const storageCell = computed<Cell>(() => {
   if (focusLabel.value) {
     context = `at ${focusLabel.value}`;
   } else if (capacity > 0 && lines.length) {
-    const used = lines.reduce((sum, l) => sum + (latest(l.points) ?? 0), 0);
+    const used = lines.reduce((sum, l) => sum + (latestValue(l.points) ?? 0), 0);
     const first = lines.reduce((sum, l) => sum + (l.points.find(p => p.value != null)?.value ?? 0), 0);
     const growth = used - first;
     const percent = Math.round((used / (size * instanceCount.value)) * 100);
-    context = `${percent}% · ${growth > 0 ? `+${formatBytes(growth)}` : 'no growth'} in ${windowLabel.value}`;
+    context = `${percent}% · ${growth > 0 ? `+${formatBytes(growth)}` : 'no growth'} in ${period.value.label}`;
   }
 
   return {
@@ -404,10 +312,10 @@ const deadlocksCell = computed<Cell>(() => {
     label: 'Deadlocks',
     lines,
     readings: lines.map(l => {
-      const value = focusTime.value == null ? total(l) : at(l.points, focusTime.value);
+      const value = focusTime.value == null ? total(l) : valueAt(l.points, focusTime.value);
       return { key: l.key, color: l.color, text: value == null ? '–' : formatCount(value) };
     }),
-    unit: focusTime.value == null ? `in ${windowLabel.value}` : '',
+    unit: focusTime.value == null ? `in ${period.value.label}` : '',
     context: focusLabel.value ? `at ${focusLabel.value}` : last == null ? 'none' : `last at ${formatTime(last)}`,
     min: 0,
     max: null,
@@ -461,7 +369,7 @@ const cells = computed<Cell[]>(() => {
 
 const legend = computed(() => (perInstance.value ? linesFor(DatabaseMetric.CpuUsage).filter(l => l.role) : []));
 
-const hasData = computed(() => (database.value?.metrics ?? []).some(s => s.points.some(p => p.value != null)));
+const hasData = computed(() => allPoints.value.some(p => p.value != null));
 
 const statistics = computed(() => statisticsResult.value?.database.queryStatistics);
 
@@ -503,115 +411,31 @@ function copyQuery(query: string) {
 
 <template>
   <div class="@container space-y-4">
-    <div class="flex flex-wrap items-center justify-between gap-3">
-      <div class="flex flex-wrap items-center gap-4">
-        <div class="inline-flex overflow-hidden rounded-md border text-xs">
-          <button
-            type="button"
-            :class="cn(
-              'px-2.5 py-1 text-muted-foreground transition-colors hover:text-foreground',
-              !perInstance && 'bg-muted font-medium text-foreground',
-            )"
-            @click="perInstance = false"
-          >
-            Total
-          </button>
-          <button
-            type="button"
-            :class="cn(
-              'border-l px-2.5 py-1 text-muted-foreground transition-colors hover:text-foreground',
-              perInstance && 'bg-muted font-medium text-foreground',
-            )"
-            @click="perInstance = true"
-          >
-            Per instance
-          </button>
-        </div>
-
-        <div v-if="legend.length" class="flex items-center gap-3.5 text-xs text-muted-foreground">
-          <span v-for="line in legend" :key="line.key" class="inline-flex items-center gap-1.5">
-            <span class="size-[7px] rounded-full" :style="{ background: line.color }" />
-            {{ line.label }}
-          </span>
-        </div>
-      </div>
-
-      <div class="inline-flex overflow-hidden rounded-md border text-xs">
-        <button
-          v-for="option in windowOptions"
-          :key="option.value"
-          type="button"
-          :class="cn(
-            'px-2.5 py-1 text-muted-foreground transition-colors not-first:border-l hover:text-foreground',
-            selectedWindow === option.value && 'bg-muted font-medium text-foreground',
-          )"
-          @click="selectedWindow = option.value"
-        >
-          {{ option.label }}
-        </button>
-      </div>
-    </div>
+    <MetricsToolbar
+      v-model:split="perInstance"
+      v-model:window="selectedWindow"
+      split-label="Per instance"
+      :legend="legend"
+    />
 
     <template v-if="hasData">
       <section class="grid gap-px overflow-hidden rounded-lg border bg-border @lg:grid-cols-2">
-        <div
+        <MetricHero
           v-for="item in heroes"
           :key="item.metric"
-          class="flex min-w-0 flex-col gap-3.5 bg-card px-4 pb-3 pt-4"
-        >
-          <div class="flex items-start justify-between gap-3">
-            <div class="min-w-0">
-              <div class="text-xs font-medium text-muted-foreground">{{ item.label }}</div>
-              <div class="mt-0.5 flex items-baseline gap-1.5 whitespace-nowrap">
-                <span class="inline-flex items-baseline gap-3.5">
-                  <span v-for="reading in item.readings" :key="reading.key" class="inline-flex items-baseline gap-1.5">
-                    <span
-                      v-if="perInstance"
-                      class="size-[7px] -translate-y-1 rounded-full"
-                      :style="{ background: reading.color }"
-                    />
-                    <span
-                      :class="cn(
-                        'font-semibold tabular-nums tracking-tight',
-                        perInstance ? 'text-2xl' : 'text-[28px] leading-9',
-                      )"
-                    >{{ reading.text }}</span>
-                  </span>
-                </span>
-                <span v-if="item.unit" class="text-[13px] text-muted-foreground">{{ item.unit }}</span>
-              </div>
-            </div>
-            <span
-              v-if="focusLabel"
-              class="shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-xs font-medium tabular-nums"
-            >{{ focusLabel }}</span>
-            <button
-              v-else
-              type="button"
-              class="shrink-0 py-0.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
-              @click="emit('editResources')"
-            >
-              Edit limit
-            </button>
-          </div>
-
-          <MetricLineChart
-            v-model:cursor="cursor"
-            :series="item.lines"
-            :from="range.from"
-            :to="range.to"
-            :max="item.max"
-            :height="150"
-            :stroke-width="2"
-            :area="item.lines.length === 1"
-            :limit="item.max != null"
-            grid
-          />
-
-          <div class="-mt-1.5 flex justify-between text-[10px] text-muted-foreground">
-            <span v-for="(tick, index) in ticks" :key="index">{{ tick }}</span>
-          </div>
-        </div>
+          v-model:cursor="cursor"
+          :label="item.label"
+          :readings="item.readings"
+          :unit="item.unit"
+          :split="perInstance"
+          :focus-label="focusLabel"
+          :lines="item.lines"
+          :from="range.from"
+          :to="range.to"
+          :max="item.max"
+          :ticks="ticks"
+          @edit="emit('editResources')"
+        />
       </section>
 
       <section class="grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border @xl:grid-cols-4">

@@ -3,8 +3,19 @@ import { computed, ref } from 'vue';
 import { useQuery } from '@vue/apollo-composable';
 import { graphql } from '@/gql';
 import { MetricWindow } from '@/gql/graphql';
-import { formatBytes, parseStorageSize, cn } from '@/lib/utils';
-import MetricAreaChart from '@/components/metrics/MetricAreaChart.vue';
+import { formatBytes, parseStorageSize } from '@/lib/utils';
+import {
+  formatMetricTime,
+  formatSize,
+  latestValue,
+  metricTicks,
+  nearestTime,
+  valueAt,
+  windowOf,
+  type MetricLine,
+} from '@/lib/metrics';
+import MetricHero from '@/components/metrics/MetricHero.vue';
+import MetricsToolbar from '@/components/metrics/MetricsToolbar.vue';
 
 const VolumeMetricsDocument = graphql(`
   query VolumeMetrics($id: VolumeID!, $range: MetricsRange!) {
@@ -30,23 +41,12 @@ const props = defineProps<{
   };
 }>();
 
-const windowOptions: { value: MetricWindow; label: string }[] = [
-  { value: MetricWindow.Last_1H, label: '1h' },
-  { value: MetricWindow.Last_6H, label: '6h' },
-  { value: MetricWindow.Last_24H, label: '24h' },
-  { value: MetricWindow.Last_7D, label: '7d' },
-  { value: MetricWindow.Last_30D, label: '30d' },
-];
+const emit = defineEmits<{
+  (e: 'grow'): void;
+}>();
 
 const selectedWindow = ref<MetricWindow>(MetricWindow.Last_24H);
-
-const windowMs: Record<MetricWindow, number> = {
-  [MetricWindow.Last_1H]: 3_600_000,
-  [MetricWindow.Last_6H]: 6 * 3_600_000,
-  [MetricWindow.Last_24H]: 24 * 3_600_000,
-  [MetricWindow.Last_7D]: 7 * 24 * 3_600_000,
-  [MetricWindow.Last_30D]: 30 * 24 * 3_600_000,
-};
+const cursor = ref<number | null>(null);
 
 const { result: metricsResult, loading: metricsLoading } = useQuery(
   VolumeMetricsDocument,
@@ -54,78 +54,74 @@ const { result: metricsResult, loading: metricsLoading } = useQuery(
   { pollInterval: 30000, fetchPolicy: 'cache-and-network' },
 );
 
-const capacityBytes = computed(() => parseStorageSize(props.volume.size));
-
-const points = computed(() => metricsResult.value?.volume.metrics[0]?.points ?? []);
+const period = computed(() => windowOf(selectedWindow.value));
+const short = computed(() => period.value.ms <= 24 * 3_600_000);
 
 const range = computed(() => {
   void metricsResult.value;
   const to = Date.now();
-  return { from: to - windowMs[selectedWindow.value], to };
+  return { from: to - period.value.ms, to };
 });
+
+const ticks = computed(() => metricTicks(range.value.from, range.value.to, short.value));
+
+const capacity = computed(() => parseStorageSize(props.volume.size));
+
+const points = computed(() => metricsResult.value?.volume.metrics[0]?.points ?? []);
+
+const lines = computed<MetricLine[]>(() => [{ key: 'used', label: '', color: 'var(--primary)', points: points.value }]);
 
 const hasData = computed(() => points.value.some(p => p.value != null));
 
-const currentUsage = computed(() => {
-  const withValues = points.value.filter(p => p.value != null);
-  const last = withValues[withValues.length - 1];
-  return last?.value ?? null;
-});
+const focusTime = computed(() => (cursor.value == null ? null : nearestTime(points.value, cursor.value)));
+const focusLabel = computed(() => (focusTime.value == null ? null : formatMetricTime(focusTime.value, short.value)));
 
-const usagePercent = computed(() => {
-  if (currentUsage.value == null || !capacityBytes.value) return null;
-  return Math.min(100, Math.round((currentUsage.value / capacityBytes.value) * 100));
+const used = computed(() =>
+  focusTime.value == null ? latestValue(points.value) : valueAt(points.value, focusTime.value),
+);
+
+const readings = computed(() => [
+  { key: 'used', color: 'var(--primary)', text: used.value == null ? '–' : formatBytes(used.value) },
+]);
+
+const unit = computed(() => {
+  if (!capacity.value) return null;
+  const percent = used.value == null ? null : Math.min(100, Math.round((used.value / capacity.value) * 100));
+  return `of ${formatSize(capacity.value)}${percent == null ? '' : ` · ${percent}%`}`;
 });
 </script>
 
 <template>
-  <div class="space-y-6">
-    <!-- Usage -->
-    <section class="space-y-3">
-      <div class="flex items-center justify-between gap-3 px-1">
-        <div class="flex items-baseline gap-2">
-          <span class="text-2xl font-semibold text-foreground">
-            {{ currentUsage != null ? formatBytes(currentUsage) : '—' }}
-          </span>
-          <span class="text-sm text-muted-foreground">
-            / {{ formatBytes(capacityBytes) }}
-            <template v-if="usagePercent != null">({{ usagePercent }}%)</template>
-          </span>
-        </div>
-        <div class="inline-flex overflow-hidden rounded-md border text-xs">
-          <button
-            v-for="option in windowOptions"
-            :key="option.value"
-            type="button"
-            :class="cn(
-              'px-2.5 py-1 text-muted-foreground transition-colors not-first:border-l hover:text-foreground',
-              selectedWindow === option.value && 'bg-muted font-medium text-foreground',
-            )"
-            @click="selectedWindow = option.value"
-          >
-            {{ option.label }}
-          </button>
-        </div>
-      </div>
+  <div class="@container space-y-4">
+    <MetricsToolbar v-model:window="selectedWindow" />
 
-      <MetricAreaChart
-        v-if="hasData"
-        :series="[{ points }]"
+    <section v-if="hasData" class="overflow-hidden rounded-lg border">
+      <MetricHero
+        v-model:cursor="cursor"
+        label="Used"
+        :readings="readings"
+        :unit="unit"
+        :split="false"
+        :focus-label="focusLabel"
+        :lines="lines"
         :from="range.from"
         :to="range.to"
-        :format-value="formatBytes"
+        :max="capacity || null"
+        :ticks="ticks"
+        edit-label="Grow volume"
+        @edit="emit('grow')"
       />
-
-      <div
-        v-else
-        class="flex h-[280px] items-center justify-center text-center text-sm text-muted-foreground"
-      >
-        <span v-if="metricsLoading">Loading usage…</span>
-        <span v-else-if="!volume.mount">
-          Mount this volume to a service to start collecting usage.
-        </span>
-        <span v-else>No usage data yet. Metrics appear within a minute or two.</span>
-      </div>
     </section>
+
+    <div
+      v-else
+      class="flex h-[280px] items-center justify-center text-center text-sm text-muted-foreground"
+    >
+      <span v-if="metricsLoading">Loading usage…</span>
+      <span v-else-if="!volume.mount">
+        Mount this volume to a service to start collecting usage.
+      </span>
+      <span v-else>No usage data yet. Metrics appear within a minute or two.</span>
+    </div>
   </div>
 </template>

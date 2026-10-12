@@ -3,19 +3,22 @@ import type { MetricWindow } from '@/gql/graphql';
 import { metricWindows } from '@/lib/metrics';
 import { cn } from '@/lib/utils';
 
-defineProps<{
-  splitLabel: string;
-  legend: { key: string; label: string; color: string }[];
-}>();
+withDefaults(
+  defineProps<{
+    splitLabel?: string;
+    legend?: { key: string; label: string; color: string }[];
+  }>(),
+  { splitLabel: undefined, legend: () => [] },
+);
 
-const split = defineModel<boolean>('split', { required: true });
+const split = defineModel<boolean>('split', { default: false });
 const selected = defineModel<MetricWindow>('window', { required: true });
 </script>
 
 <template>
   <div class="flex flex-wrap items-center justify-between gap-3">
     <div class="flex flex-wrap items-center gap-4">
-      <div class="inline-flex overflow-hidden rounded-md border text-xs">
+      <div v-if="splitLabel" class="inline-flex overflow-hidden rounded-md border text-xs">
         <button
           type="button"
           :class="cn(
