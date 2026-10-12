@@ -34,6 +34,7 @@
  *   SHOTS_USER_EMAIL  email to show in the dashboard header
  *   SHOTS_THEME       light | dark              (default light)
  *   SHOTS_BROWSER     installed browser channel, such as chrome (default: Playwright's Chromium)
+ *   SHOTS_METRICS_WINDOW range shown on the database metrics shot (default 24h)
  */
 
 import { execFileSync } from 'node:child_process';
@@ -84,6 +85,7 @@ const config = {
   repo: process.env.SHOTS_REPO || 'vouch',
   theme: process.env.SHOTS_THEME || option('theme', 'light'),
   browserChannel: process.env.SHOTS_BROWSER || undefined,
+  metricsWindow: process.env.SHOTS_METRICS_WINDOW || '24h',
   headed: flag('headed'),
   slowMo: Number(option('slow', '0')),
   updateDocs: !flag('no-update-docs'),
@@ -269,8 +271,11 @@ async function contentRect(page, locator, padding = 24) {
 
 // ── Shots ─────────────────────────────────────────────────────────────────
 
-const explorerCrop = { left: 110, top: 8, right: 10, bottom: 70 };
-const explorerRect = (page) => viewportRect(page, explorerCrop);
+// Panel shots keep the whole dashboard in frame at the default viewport, trimming
+// the empty canvas on the left and the strip below the panel: the panel on its own
+// reads as a floating card, and a tall crop eats vertical space in the docs.
+const dashboardCrop = { left: 110, top: 8, right: 10, bottom: 70 };
+const dashboardRect = (page) => viewportRect(page, dashboardCrop);
 
 const shots = [
   {
@@ -366,7 +371,7 @@ const shots = [
         await interesting.scrollIntoViewIfNeeded();
         await page.waitForTimeout(1_500);
       }
-      return {};
+      return { rect: dashboardRect(page) };
     },
   },
   {
@@ -379,24 +384,7 @@ const shots = [
       await heading.waitFor({ timeout: 15_000 });
       await heading.scrollIntoViewIfNeeded();
       await page.waitForTimeout(800);
-      // Frame whole cards around the domain section so no row is sliced.
-      const cardFor = (label) =>
-        page.getByText(label, { exact: true }).first().locator('xpath=ancestor::div[contains(@class,"rounded-lg")][1]');
-
-      const top = await cardFor('Health Check').boundingBox();
-      const bottom = await cardFor('Custom Domains').boundingBox();
-      const panelBox = await panel(page).boundingBox();
-      const viewportHeight = page.viewportSize().height;
-
-      const y = Math.max(0, top.y - 16);
-      return {
-        rect: {
-          x: panelBox.x,
-          y,
-          width: panelBox.width,
-          height: Math.min(bottom.y + bottom.height + 16 - y, viewportHeight - y),
-        },
-      };
+      return { rect: dashboardRect(page) };
     },
   },
   {
@@ -443,7 +431,7 @@ const shots = [
       await link.click();
       await page.getByPlaceholder('Search references...').waitFor({ timeout: 10_000 });
       await page.waitForTimeout(800);
-      return {};
+      return { rect: dashboardRect(page) };
     },
   },
   {
@@ -457,13 +445,9 @@ const shots = [
         await table.click();
         await page.waitForTimeout(2_000);
       }
-      return { rect: await contentRect(page, panel(page)) };
+      return { rect: dashboardRect(page) };
     },
   },
-  // Both explorer shots crop identically, trimming the empty canvas on the left
-  // and the strip below the panel while keeping the viewport's proportions.
-  // The explorer shots keep the whole dashboard in frame: the panel on its own
-  // reads as a floating card, and a tall crop eats vertical space in the docs.
   {
     name: 'explorer-tables',
     dir: 'postgres',
@@ -476,7 +460,7 @@ const shots = [
         await table.click();
         await page.waitForTimeout(2_000);
       }
-      return { rect: explorerRect(page) };
+      return { rect: dashboardRect(page) };
     },
   },
   {
@@ -491,7 +475,108 @@ const shots = [
       await editor.fill(config.query);
       await panel(page).getByRole('button', { name: 'Run Query' }).click();
       await page.waitForTimeout(3_000);
-      return { rect: explorerRect(page) };
+      return { rect: dashboardRect(page) };
+    },
+  },
+  {
+    name: 'top-queries',
+    dir: 'postgres',
+    description: 'Top queries on the database Metrics tab, first row opened',
+    async capture(page) {
+      await openPanel(page, config.database);
+      await openTab(page, 'Metrics');
+      const table = panel(page).locator('table').filter({ hasText: 'Top queries' }).first();
+      await table.waitFor({ timeout: 20_000 });
+      await table.getByRole('button', { name: 'Show details' }).first().click();
+      await page.waitForTimeout(800);
+      await table.evaluate((element, keep) => {
+        let statements = 0;
+        for (const row of element.querySelectorAll('tbody tr')) {
+          if (row.querySelector('button[aria-expanded]')) statements++;
+          if (statements > keep) row.remove();
+        }
+        element.scrollIntoView({ block: 'start' });
+      }, 6);
+      await page.waitForTimeout(1_000);
+      return { rect: dashboardRect(page) };
+    },
+  },
+  {
+    name: 'public-access',
+    dir: 'postgres',
+    description: 'Internet access card with allowed address ranges',
+    async capture(page) {
+      await answerGraphQL(page, {
+        DatabasePublic: {
+          database: {
+            __typename: 'Database',
+            id: `${environmentID()}/${config.database}`,
+            public: true,
+            allowRules: [
+              { __typename: 'DatabaseAllowRule', range: '203.0.113.0/24', description: 'Office' },
+              { __typename: 'DatabaseAllowRule', range: '198.51.100.7/32', description: 'CI runner' },
+            ],
+          },
+          clientAddress: '192.0.2.44',
+        },
+      });
+      await openPanel(page, config.database);
+      await openTab(page, 'Connect');
+      await panel(page).getByText('Office').waitFor({ timeout: 15_000 });
+      await page.waitForTimeout(800);
+      return { rect: dashboardRect(page) };
+    },
+  },
+  {
+    name: 'backups',
+    dir: 'postgres',
+    description: 'Backups tab with the restore window and recent base backups',
+    async capture(page) {
+      const backup = (started, trigger) => ({
+        __typename: 'DatabaseBackup',
+        id: `${config.database}-${started.toISOString().slice(0, 16)}`,
+        status: 'COMPLETED',
+        trigger,
+        createdAt: started.toISOString(),
+        startedAt: started.toISOString(),
+        finishedAt: new Date(started.getTime() + 47_000).toISOString(),
+        error: null,
+      });
+      const sunday = (weeksAgo) => {
+        const day = new Date();
+        day.setUTCDate(day.getUTCDate() - day.getUTCDay() - 7 * weeksAgo);
+        day.setUTCHours(2, 0, 0, 0);
+        return day;
+      };
+      const backups = [
+        backup(new Date(Date.now() - 3 * 3_600_000), 'MANUAL'),
+        backup(sunday(0), 'SCHEDULED'),
+        backup(sunday(1), 'SCHEDULED'),
+        backup(sunday(2), 'SCHEDULED'),
+      ];
+      await answerGraphQL(page, {
+        DatabaseBackups: {
+          database: {
+            __typename: 'Database',
+            id: `${environmentID()}/${config.database}`,
+            name: config.database,
+            backups: {
+              __typename: 'DatabaseBackups',
+              enabled: true,
+              retentionDays: 30,
+              earliestRestorePoint: daysFromNow(-18),
+              latestRestorePoint: new Date(Date.now() - 120_000).toISOString(),
+              lastBackupAt: backups[0].finishedAt,
+              backups,
+            },
+          },
+        },
+      });
+      await openPanel(page, config.database);
+      await openTab(page, 'Backups');
+      await panel(page).getByText('Base backups').waitFor({ timeout: 15_000 });
+      await page.waitForTimeout(1_000);
+      return { rect: dashboardRect(page) };
     },
   },
   {
@@ -509,7 +594,7 @@ const shots = [
         await prefix.click();
         await page.waitForTimeout(2_000);
       }
-      return { rect: explorerRect(page) };
+      return { rect: dashboardRect(page) };
     },
   },
   {
@@ -553,7 +638,7 @@ const shots = [
         await prefix.click();
         await page.waitForTimeout(2_000);
       }
-      return { rect: await contentRect(page, panel(page)) };
+      return { rect: dashboardRect(page) };
     },
   },
   {
@@ -689,32 +774,26 @@ const shots = [
     name: 'service-metrics',
     dir: 'metrics',
     description: 'Service panel on the Metrics tab',
-    viewport: { width: 1360, height: 820 },
     async capture(page) {
       await openPanel(page, config.service);
       await openTab(page, 'Metrics');
       await panel(page).getByRole('button', { name: '30d', exact: true }).click();
       await panel(page).locator('section').filter({ hasText: 'Memory' }).first().waitFor({ timeout: 20_000 });
       await page.waitForTimeout(2_500);
-      return { rect: await contentRect(page, panel(page), 40) };
+      return { rect: dashboardRect(page) };
     },
   },
   {
     name: 'database-metrics',
     dir: 'metrics',
-    description: 'Database panel on the Metrics tab, down to the activity grid',
-    viewport: { width: 1360, height: 1400 },
+    description: 'Database panel on the Metrics tab',
     async capture(page) {
       await openPanel(page, config.database);
       await openTab(page, 'Metrics');
-      await panel(page).getByRole('button', { name: '1h', exact: true }).click();
-      const grid = panel(page).locator('section').filter({ hasText: 'Connections' }).first();
-      await grid.waitFor({ timeout: 20_000 });
+      await panel(page).getByRole('button', { name: config.metricsWindow, exact: true }).click();
+      await panel(page).locator('section').filter({ hasText: 'Connections' }).first().waitFor({ timeout: 20_000 });
       await page.waitForTimeout(2_500);
-      const box = await panel(page).boundingBox();
-      const bottom = await grid.boundingBox();
-      if (!box || !bottom) throw new Error('metrics tab has no box to clip');
-      return { rect: { x: box.x, y: box.y, width: box.width, height: bottom.y + bottom.height + 20 - box.y } };
+      return { rect: dashboardRect(page) };
     },
   },
   {
@@ -753,17 +832,7 @@ const shots = [
           throw new Error(`the active deployment in ${config.productionEnvironment} is over a week old and its step logs are gone, deploy it again`);
         });
       await page.waitForTimeout(800);
-
-      const card = page.getByText('ACTIVE').first().locator('xpath=ancestor::div[contains(@class,"rounded-lg")][1]');
-      const [panelBox, cardBox] = [await panel(page).boundingBox(), await card.boundingBox()];
-      return {
-        rect: {
-          x: panelBox.x,
-          y: panelBox.y,
-          width: panelBox.width,
-          height: Math.min(cardBox.y + cardBox.height + 10 - panelBox.y, page.viewportSize().height - panelBox.y),
-        },
-      };
+      return { rect: dashboardRect(page) };
     },
   },
   {
@@ -837,10 +906,14 @@ const shots = [
 ];
 
 async function answerBilling(page, { subscription, usageSummary }) {
-  const answers = {
+  await answerGraphQL(page, {
     Subscription: { subscription: { __typename: 'BillingSubscription', ...subscription } },
     UsageSummary: { usageSummary: { __typename: 'UsageSummary', ...usageSummary } },
-  };
+  });
+}
+
+/** Answers the named GraphQL operations with fixed data and passes everything else through. */
+async function answerGraphQL(page, answers) {
   await page.route('**/graphql', async (route) => {
     let operation;
     try {
@@ -946,11 +1019,13 @@ const browser = await chromium.launch({
   headless: !config.headed,
   slowMo: config.slowMo,
   channel: config.browserChannel,
+  args: ['--lang=en-US'],
 });
 
 const authedContext = await browser.newContext({
   viewport,
   deviceScaleFactor,
+  locale: 'en-US',
   colorScheme: config.theme === 'dark' ? 'dark' : 'light',
   extraHTTPHeaders: {
     Authorization: `Bearer ${tokens.bearer}`,
@@ -964,6 +1039,11 @@ await authedContext.addInitScript(
     localStorage.setItem('lucity_workspace', workspace);
     localStorage.setItem('lucity-theme', theme);
     localStorage.setItem(`lucity_onboarding_${workspace}_dismissed`, 'true');
+    document.addEventListener('DOMContentLoaded', () => {
+      const style = document.createElement('style');
+      style.textContent = 'div.banner[role="status"] { display: none !important; }';
+      document.head.appendChild(style);
+    });
   },
   { workspace: config.workspace, theme: config.theme },
 );
@@ -986,6 +1066,7 @@ if (process.env.SHOTS_USER_NAME || process.env.SHOTS_USER_EMAIL) {
 const plainContext = await browser.newContext({
   viewport,
   deviceScaleFactor,
+  locale: 'en-US',
   colorScheme: config.theme === 'dark' ? 'dark' : 'light',
 });
 
