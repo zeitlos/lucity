@@ -87,6 +87,8 @@ export function formatCount(value: number): string {
 }
 
 export function formatRate(value: number): string {
+  if (value >= 999_500) return `${Number((value / 1_000_000).toFixed(1))}M`;
+  if (value >= 100_000) return `${Math.round(value / 1000)}k`;
   if (value >= 1000) return `${Number((value / 1000).toFixed(1))}k`;
   if (value >= 10) return String(Math.round(value));
   return String(Number(value.toFixed(1)));
