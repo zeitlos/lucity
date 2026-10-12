@@ -11,7 +11,7 @@ conductor:
   registryUsername: builder
   buildkit:
     enabled: true
-    storageSize: 50Gi
+    storageSize: 100Gi
     resources:
       requests:
         memory: 6Gi
@@ -97,9 +97,22 @@ cashier:
     STRIPE_PROD_CPU_METER_EVENT: prod_cpu_usage
     STRIPE_PROD_MEM_METER_EVENT: prod_memory_usage
     STRIPE_PROD_DISK_METER_EVENT: prod_disk_usage
+    STRIPE_STORAGE_METER_EVENT: object_storage_usage
+    STRIPE_EGRESS_METER_EVENT: egress_usage
     VICTORIA_METRICS_URL: http://lucity-infra-victoria-metrics-single-server.lucity-system.svc.cluster.local:8428
   envSecret:
     STRIPE_SECRET_KEY: STRIPE_SECRET_KEY
     STRIPE_WEBHOOK_SECRET: STRIPE_WEBHOOK_SECRET
     LOGTO_M2M_APP_ID: LOGTO_M2M_APP_ID
     LOGTO_M2M_APP_SECRET: LOGTO_M2M_APP_SECRET
+
+exporter:
+  enabled: true
+  env:
+    OVH_ENDPOINT: ovh-eu
+    OVH_PROJECT_ID: "df349a670c8a4d3fbe69a87d4c2f25a9"
+    OVH_REGION: GRA
+  envSecret:
+    OVH_APPLICATION_KEY: EXPORTER_OVH_APPLICATION_KEY
+    OVH_APPLICATION_SECRET: EXPORTER_OVH_APPLICATION_SECRET
+    OVH_CONSUMER_KEY: EXPORTER_OVH_CONSUMER_KEY

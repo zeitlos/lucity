@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"strings"
 	"time"
 
@@ -40,6 +41,8 @@ type MeterConfig struct {
 	ProdCPUEventName  string
 	ProdMemEventName  string
 	ProdDiskEventName string
+	StorageEventName  string
+	EgressEventName   string
 }
 
 // Client wraps the Stripe API for billing operations.
@@ -307,13 +310,13 @@ func (c *Client) UnpaidInvoiceTotal(ctx context.Context, subscriptionID string) 
 // ReportMeterEvent reports a billing meter event for usage-based billing.
 // eventName corresponds to a Billing Meter's event_name in Stripe.
 // identifier enables Stripe's 24-hour deduplication window — same identifier = rejected as duplicate.
-func (c *Client) ReportMeterEvent(ctx context.Context, eventName, customerID string, value int64, timestamp int64, identifier string) error {
+func (c *Client) ReportMeterEvent(ctx context.Context, eventName, customerID string, value float64, timestamp int64, identifier string) error {
 	params := &gostripe.BillingMeterEventParams{
 		EventName:  gostripe.String(eventName),
 		Identifier: gostripe.String(identifier),
 		Payload: map[string]string{
 			"stripe_customer_id": customerID,
-			"value":              fmt.Sprintf("%d", value),
+			"value":              strconv.FormatFloat(value, 'f', -1, 64),
 		},
 		Timestamp: gostripe.Int64(timestamp),
 	}

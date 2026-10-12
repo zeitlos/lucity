@@ -62,7 +62,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [conductor, builder, cashier, dashboard, docs, switchboard]
+        service: [conductor, builder, cashier, exporter, dashboard, docs, switchboard]
         include:
           - service: conductor
             dockerfile: services/conductor/Dockerfile
@@ -74,6 +74,9 @@ jobs:
             build-args: VERSION=${{ needs.version.outputs.version }}
           - service: cashier
             dockerfile: services/cashier/Dockerfile
+            context: .
+          - service: exporter
+            dockerfile: services/exporter/Dockerfile
             context: .
           - service: dashboard
             dockerfile: services/dashboard/Dockerfile

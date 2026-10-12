@@ -6,8 +6,8 @@ Open-source PaaS on Kubernetes with full ejectability. Monorepo with a single Go
 
 - **Go workspace**: `go.work` with multi-module layout (Go 1.27)
 - **Module path**: `github.com/zeitlos/lucity`
-- **Monorepo**: `services/conductor` (control plane), `services/cashier` (billing), `services/dashboard` (Vue), `services/switchboard` (agent chat bridge, experimental), `pkg/` (shared Go), `charts/` (Helm)
-- **Platform images**: `ghcr.io/zeitlos/lucity/{conductor,cashier,dashboard,docs,switchboard}`
+- **Monorepo**: `services/conductor` (control plane), `services/cashier` (billing), `services/exporter` (external usage metrics), `services/dashboard` (Vue), `services/switchboard` (agent chat bridge, experimental), `pkg/` (shared Go), `charts/` (Helm)
+- **Platform images**: `ghcr.io/zeitlos/lucity/{conductor,cashier,exporter,dashboard,docs,switchboard}`
 - **User workload images**: Zot (self-hosted OCI registry, `localhost:5000` in dev)
 - **Coding rules**: see `.claude/rules/` for architecture, Go, frontend, GraphQL, marketing, and working conventions
 
@@ -15,6 +15,7 @@ Open-source PaaS on Kubernetes with full ejectability. Monorepo with a single Go
 
 - **Conductor**: `go run ./cmd/conductor/...` from `services/conductor/`, or `make dev-conductor`
 - **Cashier**: `go run ./cmd/cashier/...` from `services/cashier/`, or `make dev-cashier`
+- **Exporter**: `go run ./cmd/exporter/...` from `services/exporter/` (needs the `OVH_*` env vars)
 - **Dashboard**: `npm run dev` from `services/dashboard/`
 - **Build all**: `make build`
 - **GraphQL codegen**: `go generate ./internal/api/graphql/resolver.go` from `services/conductor/`
@@ -47,6 +48,7 @@ Each Lucity instance supports multiple workspaces. A workspace is the tenant bou
 |---------|------|----------|---------|
 | Conductor | 8080 (HTTP), 9090 (gRPC), 9004 (webhook HTTP) | HTTP+gRPC | Unified control plane: GraphQL, Helm release management, build orchestration, custom-domain reconciliation, GitHub webhook receiver |
 | Cashier | 9005 (gRPC), 9006 (HTTP) | gRPC + HTTP | Stripe billing, metering, suspension callbacks |
+| Exporter | 9007 (HTTP) | Prometheus `/metrics` | Usage from external providers (object storage sizes) as metrics, scraped by the node-local otel agent |
 | Dashboard | 5173 | HTTP | Vue 3 SPA |
 | Switchboard | none, outbound only | Telegram Bot API + ACP | On-call agent bridge: Telegram topics to an ACP agent (`claude-agent-acp`), approvals as buttons. Deployed per agent with `charts/lucity-agent` |
 

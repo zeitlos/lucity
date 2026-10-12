@@ -96,6 +96,10 @@ conductor:
     tls:
       enabled: true
     storageSize: 20Gi
+    gc:
+      reservedSpace: 10%
+      maxUsedSpace: 60%
+      minFreeSpace: 40%
     resources:
       requests:
         cpu: 500m
@@ -134,6 +138,23 @@ cashier:
     limits:
       cpu: 500m
       memory: 256Mi
+
+# -- Exporter (usage from external providers as Prometheus metrics, scraped by the otel agents)
+exporter:
+  enabled: false
+  image:
+    repository: ghcr.io/zeitlos/lucity/exporter
+    tag: ""
+    pullPolicy: IfNotPresent
+  port: 9007
+  env: {}
+  envSecret: {}
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      memory: 128Mi
 
 # -- Dashboard (Vue SPA)
 dashboard:

@@ -49,7 +49,7 @@ spec:
         error_mode: ignore
         metric_statements:
           - conditions:
-              - IsMatch(resource.attributes["service.name"], "^(kube-state-metrics|cert-manager|victoria-metrics|hcloud-exporter)$")
+              - IsMatch(resource.attributes["service.name"], "^(kube-state-metrics|cert-manager|victoria-metrics|hcloud-exporter|exporter)$")
             statements:
               - delete_matching_keys(resource.attributes, "^k8s[.]")
       filter/cilium:

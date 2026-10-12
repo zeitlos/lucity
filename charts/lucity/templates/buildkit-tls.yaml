@@ -55,8 +55,8 @@ metadata:
     {{- include "lucity.labels" . | nindent 4 }}
 spec:
   secretName: {{ $fullname }}-buildkit-tls-server
-  duration: 8760h
-  renewBefore: 720h
+  duration: 87600h
+  renewBefore: 2160h
   privateKey:
     algorithm: ECDSA
     size: 256
