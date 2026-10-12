@@ -3,9 +3,25 @@ import { computed, ref } from 'vue';
 import { useQuery } from '@vue/apollo-composable';
 import { graphql } from '@/gql';
 import { MetricWindow, MetricGrouping, ResourceMetric } from '@/gql/graphql';
-import { Cpu, MemoryStick } from '@lucide/vue';
-import { formatBytes, parseCpu, parseStorageSize, cn } from '@/lib/utils';
-import MetricAreaChart from '@/components/metrics/MetricAreaChart.vue';
+import { formatBytes, parseCpu, parseStorageSize } from '@/lib/utils';
+import {
+  formatCoreLimit,
+  formatCores,
+  formatMetricTime,
+  formatSize,
+  latestValue,
+  lineColors,
+  metricTicks,
+  nearestTime,
+  valueAt,
+  windowOf,
+  type MetricLine,
+  type MetricMarker,
+  type MetricPoint,
+  type MetricReading,
+} from '@/lib/metrics';
+import MetricHero from '@/components/metrics/MetricHero.vue';
+import MetricsToolbar from '@/components/metrics/MetricsToolbar.vue';
 
 const ServiceMetricsDocument = graphql(`
   query ServiceMetrics($id: ServiceID!, $range: MetricsRange!, $grouping: MetricGrouping!) {
@@ -41,22 +57,6 @@ const emit = defineEmits<{
   (e: 'editResources'): void;
 }>();
 
-const windowOptions: { value: MetricWindow; label: string }[] = [
-  { value: MetricWindow.Last_1H, label: '1h' },
-  { value: MetricWindow.Last_6H, label: '6h' },
-  { value: MetricWindow.Last_24H, label: '24h' },
-  { value: MetricWindow.Last_7D, label: '7d' },
-  { value: MetricWindow.Last_30D, label: '30d' },
-];
-
-const windowMs: Record<MetricWindow, number> = {
-  [MetricWindow.Last_1H]: 3_600_000,
-  [MetricWindow.Last_6H]: 6 * 3_600_000,
-  [MetricWindow.Last_24H]: 24 * 3_600_000,
-  [MetricWindow.Last_7D]: 7 * 24 * 3_600_000,
-  [MetricWindow.Last_30D]: 30 * 24 * 3_600_000,
-};
-
 const selectedWindow = ref<MetricWindow>(MetricWindow.Last_24H);
 const perReplica = ref(false);
 const cursor = ref<number | null>(null);
@@ -69,168 +69,112 @@ const { result, loading } = useQuery(
   { pollInterval: 30000, fetchPolicy: 'cache-and-network' },
 );
 
+const service = computed(() => result.value?.service);
+const period = computed(() => windowOf(selectedWindow.value));
+const short = computed(() => period.value.ms <= 24 * 3_600_000);
+
 const range = computed(() => {
   void result.value;
   const to = Date.now();
-  return { from: to - windowMs[selectedWindow.value], to };
+  return { from: to - period.value.ms, to };
 });
 
-const markers = computed(() => {
-  const deployments = result.value?.service.deployments ?? [];
-  return deployments
-    .map(d => new Date(d.createdAt).getTime())
-    .filter(t => t >= range.value.from && t <= range.value.to);
-});
+const ticks = computed(() => metricTicks(range.value.from, range.value.to, short.value));
 
-function shortReplica(replica?: string | null): string | undefined {
-  if (!replica) return undefined;
-  const parts = replica.split('-');
-  return parts[parts.length - 1];
+function shortReplica(replica: string): string {
+  return replica.split('-').pop() ?? replica;
 }
 
-function seriesFor(metric: ResourceMetric) {
-  const all = result.value?.service.metrics ?? [];
-  return all
+function linesFor(metric: ResourceMetric): MetricLine[] {
+  return (service.value?.metrics ?? [])
     .filter(s => s.metric === metric)
-    .map(s => ({ label: shortReplica(s.replica), points: s.points }))
-    .sort((a, b) => (a.label ?? '').localeCompare(b.label ?? ''));
+    .sort((a, b) => (a.replica ?? '').localeCompare(b.replica ?? ''))
+    .map((s, index) =>
+      s.replica
+        ? { key: s.replica, label: shortReplica(s.replica), color: lineColors[index % lineColors.length]!, points: s.points }
+        : { key: 'total', label: '', color: 'var(--primary)', points: s.points },
+    );
 }
 
-const cpuSeries = computed(() => seriesFor(ResourceMetric.CpuUsage));
-const memorySeries = computed(() => seriesFor(ResourceMetric.MemoryUsage));
+const allPoints = computed<MetricPoint[]>(() => (service.value?.metrics ?? []).flatMap(s => s.points));
 
-const replicaCount = computed(() => Math.max(1, result.value?.service.replicas.desired ?? 1));
+const focusTime = computed(() => (cursor.value == null ? null : nearestTime(allPoints.value, cursor.value)));
+const focusLabel = computed(() => (focusTime.value == null ? null : formatMetricTime(focusTime.value, short.value)));
 
-const cpuMax = computed(() => {
-  const limit = parseCpu(result.value?.service.resources.cpu ?? '');
-  return limit > 0 ? limit * replicaCount.value : null;
-});
-
-const memoryMax = computed(() => {
-  const limit = parseStorageSize(result.value?.service.resources.memory ?? '');
-  return limit > 0 ? limit * replicaCount.value : null;
-});
-
-const cpuMaxLabel = computed(() => (cpuMax.value != null ? `${Number(cpuMax.value.toFixed(2))} cores` : null));
-const memoryMaxLabel = computed(() => (memoryMax.value != null ? formatBytes(memoryMax.value) : null));
-
-function hasData(series: { points: { value?: number | null }[] }[]): boolean {
-  return series.some(s => s.points.some(p => p.value != null));
+function readings(lines: MetricLine[], format: (value: number) => string): MetricReading[] {
+  return lines.map(line => {
+    const value = focusTime.value == null ? latestValue(line.points) : valueAt(line.points, focusTime.value);
+    return { key: line.key, color: line.color, text: value == null ? '–' : format(value) };
+  });
 }
 
-const hasAny = computed(() => hasData(cpuSeries.value) || hasData(memorySeries.value));
+const replicaCount = computed(() => Math.max(1, service.value?.replicas.desired ?? 1));
+const scale = computed(() => (perReplica.value ? 1 : replicaCount.value));
 
-function formatCpu(value: number): string {
-  if (value < 1) return `${Math.round(value * 1000)}m`;
-  return value.toFixed(2);
+function hero(
+  metric: ResourceMetric,
+  label: string,
+  limit: number,
+  format: (value: number) => string,
+  formatLimit: (value: number) => string,
+) {
+  const lines = linesFor(metric);
+  const max = limit > 0 ? limit * scale.value : null;
+  const unit = max == null ? null : perReplica.value ? `of ${formatLimit(limit)} each` : `of ${formatLimit(max)}`;
+  return { metric, label, lines, readings: readings(lines, format), unit, max };
 }
+
+const heroes = computed(() => [
+  hero(ResourceMetric.CpuUsage, 'CPU', parseCpu(service.value?.resources.cpu ?? ''), formatCores, formatCoreLimit),
+  hero(
+    ResourceMetric.MemoryUsage,
+    'Memory',
+    parseStorageSize(service.value?.resources.memory ?? ''),
+    formatBytes,
+    formatSize,
+  ),
+]);
+
+const markers = computed<MetricMarker[]>(() =>
+  (service.value?.deployments ?? []).map(d => {
+    const time = new Date(d.createdAt).getTime();
+    return { time, label: `Deployed ${formatMetricTime(time, short.value)}` };
+  }),
+);
+
+const legend = computed(() => (perReplica.value ? linesFor(ResourceMetric.CpuUsage).filter(l => l.label) : []));
+
+const hasData = computed(() => allPoints.value.some(p => p.value != null));
 </script>
 
 <template>
-  <div class="space-y-5">
-    <div class="flex items-center justify-between gap-3 px-1">
-      <div class="inline-flex overflow-hidden rounded-md border text-xs">
-        <button
-          type="button"
-          :class="cn(
-            'px-2.5 py-1 text-muted-foreground transition-colors hover:text-foreground',
-            !perReplica && 'bg-muted font-medium text-foreground',
-          )"
-          @click="perReplica = false"
-        >
-          Total
-        </button>
-        <button
-          type="button"
-          :class="cn(
-            'border-l px-2.5 py-1 text-muted-foreground transition-colors hover:text-foreground',
-            perReplica && 'bg-muted font-medium text-foreground',
-          )"
-          @click="perReplica = true"
-        >
-          Per replica
-        </button>
-      </div>
+  <div class="@container space-y-4">
+    <MetricsToolbar
+      v-model:split="perReplica"
+      v-model:window="selectedWindow"
+      split-label="Per replica"
+      :legend="legend"
+    />
 
-      <div class="inline-flex overflow-hidden rounded-md border text-xs">
-        <button
-          v-for="option in windowOptions"
-          :key="option.value"
-          type="button"
-          :class="cn(
-            'px-2.5 py-1 text-muted-foreground transition-colors not-first:border-l hover:text-foreground',
-            selectedWindow === option.value && 'bg-muted font-medium text-foreground',
-          )"
-          @click="selectedWindow = option.value"
-        >
-          {{ option.label }}
-        </button>
-      </div>
-    </div>
-
-    <div
-      v-if="hasAny"
-      class="grid gap-5"
-      style="grid-template-columns: repeat(auto-fit, minmax(320px, 1fr))"
-    >
-      <section class="group rounded-lg border p-4">
-        <div class="mb-3 flex items-center justify-between gap-2">
-          <div class="flex items-center gap-1.5 text-sm font-medium text-foreground">
-            <Cpu :size="15" class="text-muted-foreground" />
-            CPU
-          </div>
-          <div class="flex items-center gap-2 text-xs text-muted-foreground">
-            <span v-if="cpuMaxLabel">max {{ cpuMaxLabel }}</span>
-            <button
-              type="button"
-              class="text-primary opacity-0 transition-opacity hover:underline group-hover:opacity-100"
-              @click="emit('editResources')"
-            >
-              Edit
-            </button>
-          </div>
-        </div>
-        <MetricAreaChart
-          v-model:cursor="cursor"
-          :series="cpuSeries"
-          :from="range.from"
-          :to="range.to"
-          :markers="markers"
-          :max="cpuMax"
-          :stacked="perReplica"
-          :format-value="formatCpu"
-        />
-      </section>
-
-      <section class="group rounded-lg border p-4">
-        <div class="mb-3 flex items-center justify-between gap-2">
-          <div class="flex items-center gap-1.5 text-sm font-medium text-foreground">
-            <MemoryStick :size="15" class="text-muted-foreground" />
-            Memory
-          </div>
-          <div class="flex items-center gap-2 text-xs text-muted-foreground">
-            <span v-if="memoryMaxLabel">max {{ memoryMaxLabel }}</span>
-            <button
-              type="button"
-              class="text-primary opacity-0 transition-opacity hover:underline group-hover:opacity-100"
-              @click="emit('editResources')"
-            >
-              Edit
-            </button>
-          </div>
-        </div>
-        <MetricAreaChart
-          v-model:cursor="cursor"
-          :series="memorySeries"
-          :from="range.from"
-          :to="range.to"
-          :markers="markers"
-          :max="memoryMax"
-          :stacked="perReplica"
-          :format-value="formatBytes"
-        />
-      </section>
-    </div>
+    <section v-if="hasData" class="grid gap-px overflow-hidden rounded-lg border bg-border @lg:grid-cols-2">
+      <MetricHero
+        v-for="item in heroes"
+        :key="item.metric"
+        v-model:cursor="cursor"
+        :label="item.label"
+        :readings="item.readings"
+        :unit="item.unit"
+        :split="perReplica"
+        :focus-label="focusLabel"
+        :lines="item.lines"
+        :from="range.from"
+        :to="range.to"
+        :max="item.max"
+        :ticks="ticks"
+        :markers="markers"
+        @edit="emit('editResources')"
+      />
+    </section>
 
     <div
       v-else

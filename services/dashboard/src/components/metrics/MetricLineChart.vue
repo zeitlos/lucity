@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
+import type { MetricMarker } from '@/lib/metrics';
 
 type Point = { timestamp: string; value?: number | null };
 type Series = { color: string; points: Point[] };
@@ -17,6 +18,7 @@ const props = withDefaults(
     area?: boolean;
     limit?: boolean;
     grid?: boolean;
+    markers?: MetricMarker[];
   }>(),
   {
     min: 0,
@@ -26,8 +28,17 @@ const props = withDefaults(
     area: false,
     limit: false,
     grid: false,
+    markers: () => [],
   },
 );
+
+const hoveredMarker = ref<MetricMarker | null>(null);
+
+const visibleMarkers = computed(() => props.markers.filter(m => m.time >= props.from && m.time <= props.to));
+
+function percent(time: number): string {
+  return `${(x(time) / width) * 100}%`;
+}
 
 const cursor = defineModel<number | null>('cursor', { default: null });
 
@@ -204,5 +215,27 @@ function onLeave() {
         />
       </template>
     </svg>
+
+    <div
+      v-for="marker in visibleMarkers"
+      :key="marker.time"
+      class="absolute inset-y-0 w-2.5 -translate-x-1/2 cursor-default"
+      :style="{ left: percent(marker.time) }"
+      @mouseenter="hoveredMarker = marker"
+      @mouseleave="hoveredMarker = null"
+    >
+      <div class="pointer-events-none absolute inset-y-0 left-1/2 border-l border-dashed border-muted-foreground/40" />
+      <div
+        class="pointer-events-none absolute left-1/2 top-0 -translate-x-1/2 border-x-[3px] border-t-[5px] border-x-transparent border-t-muted-foreground/60"
+      />
+    </div>
+
+    <div
+      v-if="hoveredMarker"
+      class="pointer-events-none absolute -top-7 z-20 w-max -translate-x-1/2 whitespace-nowrap rounded-md border bg-popover px-2 py-1 text-xs text-muted-foreground shadow-sm"
+      :style="{ left: percent(hoveredMarker.time) }"
+    >
+      {{ hoveredMarker.label }}
+    </div>
   </div>
 </template>

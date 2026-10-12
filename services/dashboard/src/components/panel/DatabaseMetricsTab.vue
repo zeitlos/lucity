@@ -202,8 +202,8 @@ function formatTime(time: number): string {
   return new Date(time).toLocaleString(
     undefined,
     shortWindow.value
-      ? { hour: '2-digit', minute: '2-digit' }
-      : { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' },
+      ? { hour: 'numeric', minute: '2-digit' }
+      : { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' },
   );
 }
 
@@ -216,7 +216,7 @@ const ticks = computed(() => {
     const time = from + (to - from) * fraction;
     return new Date(time).toLocaleString(
       undefined,
-      shortWindow.value ? { hour: '2-digit', minute: '2-digit' } : { month: 'short', day: 'numeric' },
+      shortWindow.value ? { hour: 'numeric', minute: '2-digit' } : { month: 'short', day: 'numeric' },
     );
   });
 });
@@ -228,6 +228,10 @@ function formatCores(value: number): string {
 function formatCoreLimit(value: number): string {
   const cores = Number(value.toFixed(2));
   return `${cores} ${cores === 1 ? 'core' : 'cores'}`;
+}
+
+function formatSize(value: number): string {
+  return formatBytes(value).replace('.0 ', ' ');
 }
 
 function formatCount(value: number): string {
@@ -295,7 +299,7 @@ const heroes = computed<Hero[]>(() => [
     'Memory',
     parseStorageSize(database.value?.resources.memory ?? ''),
     formatBytes,
-    formatBytes,
+    formatSize,
   ),
 ]);
 
@@ -308,6 +312,7 @@ type Cell = {
   context: string;
   min: number;
   max: number | null;
+  area: boolean;
   fills: { key: string; color: string; percent: number }[] | null;
 };
 
@@ -345,6 +350,7 @@ function cell(
     context: focusLabel.value ? `at ${focusLabel.value}` : context(lines),
     min,
     max: null,
+    area: true,
     fills: null,
   };
 }
@@ -362,7 +368,7 @@ const storageCell = computed<Cell>(() => {
     const first = lines.reduce((sum, l) => sum + (l.points.find(p => p.value != null)?.value ?? 0), 0);
     const growth = used - first;
     const percent = Math.round((used / (size * instanceCount.value)) * 100);
-    context = `${percent}% used · ${growth > 0 ? `grew ${formatBytes(growth)}` : 'no growth'} in ${windowLabel.value}`;
+    context = `${percent}% · ${growth > 0 ? `+${formatBytes(growth)}` : 'no growth'} in ${windowLabel.value}`;
   }
 
   return {
@@ -370,10 +376,11 @@ const storageCell = computed<Cell>(() => {
     label: 'Storage',
     lines,
     readings: readings(lines, formatBytes),
-    unit: capacity > 0 ? (perInstance.value ? `of ${formatBytes(size)} each` : `of ${formatBytes(capacity)}`) : '',
+    unit: capacity > 0 ? (perInstance.value ? `of ${formatSize(size)} each` : `of ${formatSize(capacity)}`) : '',
     context,
     min: 0,
     max: null,
+    area: false,
     fills:
       capacity > 0
         ? lines.map(l => ({
@@ -404,6 +411,7 @@ const deadlocksCell = computed<Cell>(() => {
     context: focusLabel.value ? `at ${focusLabel.value}` : last == null ? 'none' : `last at ${formatTime(last)}`,
     min: 0,
     max: null,
+    area: true,
     fills: null,
   };
 });
@@ -431,6 +439,7 @@ const cells = computed<Cell[]>(() => {
       ),
       min: cacheMin,
       max: 1,
+      area: false,
     },
     cell(DatabaseMetric.RowsRead, 'Rows read', formatRate, '/s', lines => peakText(lines, formatRate, '/s')),
     cell(DatabaseMetric.RowsWritten, 'Rows written', formatRate, '/s', lines => peakText(lines, formatRate, '/s')),
@@ -439,9 +448,11 @@ const cells = computed<Cell[]>(() => {
 
   if (instanceCount.value > 1) {
     list.push(
-      cell(DatabaseMetric.ReplicationLag, 'Replication lag', formatSeconds, '', lines =>
-        extremeText(lines, 'peak', 'max', formatSeconds),
-      ),
+      cell(DatabaseMetric.ReplicationLag, 'Replication lag', formatSeconds, '', lines => {
+        const lag = samples(lines).map(s => s.value);
+        if (lag.length && Math.max(...lag) < 0.0005) return 'no lag';
+        return extremeText(lines, 'peak', 'max', formatSeconds);
+      }),
     );
   }
 
@@ -551,19 +562,21 @@ function copyQuery(query: string) {
           <div class="flex items-start justify-between gap-3">
             <div class="min-w-0">
               <div class="text-xs font-medium text-muted-foreground">{{ item.label }}</div>
-              <div class="mt-0.5 flex items-baseline gap-3.5 whitespace-nowrap">
-                <span v-for="reading in item.readings" :key="reading.key" class="inline-flex items-baseline gap-1.5">
-                  <span
-                    v-if="perInstance"
-                    class="size-[7px] -translate-y-1 rounded-full"
-                    :style="{ background: reading.color }"
-                  />
-                  <span
-                    :class="cn(
-                      'font-semibold tabular-nums tracking-tight',
-                      perInstance ? 'text-2xl' : 'text-[28px] leading-9',
-                    )"
-                  >{{ reading.text }}</span>
+              <div class="mt-0.5 flex items-baseline gap-1.5 whitespace-nowrap">
+                <span class="inline-flex items-baseline gap-3.5">
+                  <span v-for="reading in item.readings" :key="reading.key" class="inline-flex items-baseline gap-1.5">
+                    <span
+                      v-if="perInstance"
+                      class="size-[7px] -translate-y-1 rounded-full"
+                      :style="{ background: reading.color }"
+                    />
+                    <span
+                      :class="cn(
+                        'font-semibold tabular-nums tracking-tight',
+                        perInstance ? 'text-2xl' : 'text-[28px] leading-9',
+                      )"
+                    >{{ reading.text }}</span>
+                  </span>
                 </span>
                 <span v-if="item.unit" class="text-[13px] text-muted-foreground">{{ item.unit }}</span>
               </div>
@@ -575,7 +588,7 @@ function copyQuery(query: string) {
             <button
               v-else
               type="button"
-              class="shrink-0 py-0.5 text-xs text-primary hover:underline"
+              class="shrink-0 py-0.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
               @click="emit('editResources')"
             >
               Edit limit
@@ -608,19 +621,21 @@ function copyQuery(query: string) {
           class="flex min-w-0 flex-col gap-1.5 bg-card px-3.5 pb-3 pt-3.5"
         >
           <div class="text-xs font-medium text-muted-foreground">{{ item.label }}</div>
-          <div class="flex items-baseline gap-2.5 whitespace-nowrap">
-            <span v-for="reading in item.readings" :key="reading.key" class="inline-flex items-baseline gap-1.5">
-              <span
-                v-if="perInstance"
-                class="size-[7px] -translate-y-0.5 rounded-full"
-                :style="{ background: reading.color }"
-              />
-              <span
-                :class="cn(
-                  'font-semibold tabular-nums tracking-tight',
-                  perInstance ? 'text-[17px]' : 'text-xl',
-                )"
-              >{{ reading.text }}</span>
+          <div class="flex items-baseline gap-1 whitespace-nowrap">
+            <span class="inline-flex items-baseline gap-2.5">
+              <span v-for="reading in item.readings" :key="reading.key" class="inline-flex items-baseline gap-1.5">
+                <span
+                  v-if="perInstance"
+                  class="size-[7px] -translate-y-0.5 rounded-full"
+                  :style="{ background: reading.color }"
+                />
+                <span
+                  :class="cn(
+                    'font-semibold tabular-nums tracking-tight',
+                    perInstance ? 'text-[17px]' : 'text-xl',
+                  )"
+                >{{ reading.text }}</span>
+              </span>
             </span>
             <span v-if="item.unit" class="truncate text-xs text-muted-foreground">{{ item.unit }}</span>
           </div>
@@ -642,7 +657,7 @@ function copyQuery(query: string) {
             :to="range.to"
             :min="item.min"
             :max="item.max"
-            :area="item.lines.length === 1"
+            :area="item.area && item.lines.length === 1"
           />
 
           <div
