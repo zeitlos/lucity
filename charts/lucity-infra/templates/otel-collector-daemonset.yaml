@@ -182,6 +182,22 @@ spec:
                 - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name, __meta_kubernetes_pod_container_port_name]
                   regex: otel-gateway;metrics
                   action: keep
+            - job_name: postgres
+              scrape_interval: 30s
+              kubernetes_sd_configs:
+                - role: pod
+                  selectors:
+                    - role: pod
+                      field: spec.nodeName=${env:K8S_NODE_NAME}
+                      label: cnpg.io/podRole=instance
+              relabel_configs:
+                - source_labels: [__meta_kubernetes_pod_container_port_name]
+                  regex: metrics
+                  action: keep
+              metric_relabel_configs:
+                - source_labels: [__name__]
+                  regex: cnpg_(backends|backends_waiting|pg_database|pg_postmaster|pg_replication|pg_stat_archiver|pg_stat_database|pg_settings)_.+
+                  action: keep
             {{- if index .Values "vertical-pod-autoscaler" "enabled" }}
             - job_name: vertical-pod-autoscaler
               scrape_interval: 30s

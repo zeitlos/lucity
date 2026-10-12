@@ -104,6 +104,7 @@ func toDatabase(cluster cnpgv1.Cluster, environmentID platform.EnvironmentID) pl
 		},
 		CreatedAt:  cluster.GetCreationTimestamp().Time,
 		PublicHost: cluster.Annotations[annotationDatabaseHost],
+		Primary:    cluster.Status.CurrentPrimary,
 	}
 
 	// CNPG image: "ghcr.io/cloudnative-pg/postgresql:17-standard-bookworm"

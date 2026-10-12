@@ -97,6 +97,99 @@ func metricModelToKind(metric model.ResourceMetric) metrics.Kind {
 	}
 }
 
+var databaseMetrics = map[model.DatabaseMetric]metrics.Kind{
+	model.DatabaseMetricCPUUsage:       metrics.KindCPUUsage,
+	model.DatabaseMetricMemoryUsage:    metrics.KindMemoryUsage,
+	model.DatabaseMetricStorageUsed:    metrics.KindStorageUsed,
+	model.DatabaseMetricConnections:    metrics.KindConnections,
+	model.DatabaseMetricTransactions:   metrics.KindTransactions,
+	model.DatabaseMetricCacheHitRatio:  metrics.KindCacheHitRatio,
+	model.DatabaseMetricRowsRead:       metrics.KindRowsRead,
+	model.DatabaseMetricRowsWritten:    metrics.KindRowsWritten,
+	model.DatabaseMetricDeadlocks:      metrics.KindDeadlocks,
+	model.DatabaseMetricReplicationLag: metrics.KindReplicationLag,
+}
+
+var databaseMetricUnits = map[metrics.Kind]model.MetricUnit{
+	metrics.KindCPUUsage:       model.MetricUnitCores,
+	metrics.KindMemoryUsage:    model.MetricUnitBytes,
+	metrics.KindStorageUsed:    model.MetricUnitBytes,
+	metrics.KindConnections:    model.MetricUnitCount,
+	metrics.KindTransactions:   model.MetricUnitPerSecond,
+	metrics.KindCacheHitRatio:  model.MetricUnitRatio,
+	metrics.KindRowsRead:       model.MetricUnitPerSecond,
+	metrics.KindRowsWritten:    model.MetricUnitPerSecond,
+	metrics.KindDeadlocks:      model.MetricUnitCount,
+	metrics.KindReplicationLag: model.MetricUnitSeconds,
+}
+
+func databaseMetricKinds(requested []model.DatabaseMetric) []metrics.Kind {
+	kinds := make([]metrics.Kind, 0, len(requested))
+
+	for _, metric := range requested {
+		if kind, ok := databaseMetrics[metric]; ok {
+			kinds = append(kinds, kind)
+		}
+	}
+
+	return kinds
+}
+
+func convertDatabaseMetricSeries(series []metrics.Series, primary string) []model.DatabaseMetricSeries {
+	metricsByKind := make(map[metrics.Kind]model.DatabaseMetric, len(databaseMetrics))
+
+	for metric, kind := range databaseMetrics {
+		metricsByKind[kind] = metric
+	}
+
+	out := make([]model.DatabaseMetricSeries, 0, len(series))
+
+	for _, s := range series {
+		result := model.DatabaseMetricSeries{
+			Metric: metricsByKind[s.Kind],
+			Unit:   databaseMetricUnits[s.Kind],
+			Points: convertMetricPoints(s.Points),
+		}
+
+		if s.Replica != "" {
+			instance := s.Replica
+			role := model.DatabaseInstanceRoleReplica
+
+			if instance == primary {
+				role = model.DatabaseInstanceRolePrimary
+			}
+
+			result.Instance = &instance
+			result.Role = &role
+		}
+
+		out = append(out, result)
+	}
+
+	return out
+}
+
+func convertDatabaseQueryStatistics(statistics conductor.DatabaseQueryStatistics) model.DatabaseQueryStatistics {
+	queries := make([]model.DatabaseQueryStatistic, 0, len(statistics.Queries))
+
+	for _, q := range statistics.Queries {
+		queries = append(queries, model.DatabaseQueryStatistic{
+			Query:             q.Query,
+			Calls:             q.Calls,
+			Rows:              q.Rows,
+			TotalMilliseconds: q.TotalMilliseconds,
+			MeanMilliseconds:  q.MeanMilliseconds,
+			Share:             q.Share,
+		})
+	}
+
+	return model.DatabaseQueryStatistics{
+		Enabled: statistics.Enabled,
+		Since:   statistics.Since,
+		Queries: queries,
+	}
+}
+
 func convertMetricPoints(points []metrics.Point) []model.MetricPoint {
 	out := make([]model.MetricPoint, 0, len(points))
 
@@ -695,6 +788,7 @@ func convertDatabase(d conductor.Database) model.Database {
 		Resources: convertResources(d.Resources),
 		CreatedAt: d.CreatedAt,
 		Public:    d.PublicHost != "",
+		Primary:   d.Primary,
 	}
 
 	if d.StatusReason != "" {

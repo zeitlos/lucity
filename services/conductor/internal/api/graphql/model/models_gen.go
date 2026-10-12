@@ -190,6 +190,13 @@ type Database struct {
 	// Address ranges allowed to connect over the public hostname. While the list is empty, nobody can.
 	AllowRules []DatabaseAllowRule `json:"allowRules"`
 	Backups    *DatabaseBackups    `json:"backups"`
+	// Usage of the database over a time range. With grouping `PER_REPLICA` there is one series per instance, and replication lag only has series for replicas. With `TOTAL` the instances are added up, and replication lag is the largest of them.
+	Metrics []DatabaseMetricSeries `json:"metrics"`
+	// The most connections each instance accepts at once, or null while that isn't known.
+	ConnectionLimit *int `json:"connectionLimit,omitempty"`
+	// The statements that took the most time, read live from the primary.
+	QueryStatistics *DatabaseQueryStatistics `json:"queryStatistics"`
+	Primary         string                   `json:"-"`
 }
 
 type DatabaseAllowRule struct {
@@ -242,6 +249,38 @@ type DatabaseCredentials struct {
 	User     string       `json:"user"`
 	Password string       `json:"password"`
 	URI      string       `json:"uri"`
+}
+
+type DatabaseMetricSeries struct {
+	Metric DatabaseMetric `json:"metric"`
+	Unit   MetricUnit     `json:"unit"`
+	// The instance the series is about, or null when all instances are added up.
+	Instance *string `json:"instance,omitempty"`
+	// The role the instance has right now, or null when all instances are added up.
+	Role   *DatabaseInstanceRole `json:"role,omitempty"`
+	Points []MetricPoint         `json:"points"`
+}
+
+type DatabaseQueryStatistic struct {
+	// The statement, with its values replaced by placeholders such as `$1`.
+	Query string `json:"query"`
+	Calls int    `json:"calls"`
+	// Rows returned or changed by the statement, over all calls.
+	Rows              int     `json:"rows"`
+	TotalMilliseconds float64 `json:"totalMilliseconds"`
+	MeanMilliseconds  float64 `json:"meanMilliseconds"`
+	// The share of the time spent on all statements that went to this one, from 0 to 1.
+	Share float64 `json:"share"`
+}
+
+// How much time a database spent on each statement since `since`.
+type DatabaseQueryStatistics struct {
+	// False when the database doesn't collect statement statistics, which is the case for some databases created before they were collected by default.
+	Enabled bool `json:"enabled"`
+	// When counting started. Statistics start over when they are reset and when another instance becomes the primary.
+	Since *time.Time `json:"since,omitempty"`
+	// The statements that took the most time in total, at most 25.
+	Queries []DatabaseQueryStatistic `json:"queries"`
 }
 
 type DatabaseSource struct {
@@ -945,6 +984,145 @@ func (e BuildStatus) MarshalJSON() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+type DatabaseInstanceRole string
+
+const (
+	// The instance that serves writes.
+	DatabaseInstanceRolePrimary DatabaseInstanceRole = "PRIMARY"
+	// An instance that replicates from the primary and takes over if it fails.
+	DatabaseInstanceRoleReplica DatabaseInstanceRole = "REPLICA"
+)
+
+var AllDatabaseInstanceRole = []DatabaseInstanceRole{
+	DatabaseInstanceRolePrimary,
+	DatabaseInstanceRoleReplica,
+}
+
+func (e DatabaseInstanceRole) IsValid() bool {
+	switch e {
+	case DatabaseInstanceRolePrimary, DatabaseInstanceRoleReplica:
+		return true
+	}
+	return false
+}
+
+func (e DatabaseInstanceRole) String() string {
+	return string(e)
+}
+
+func (e *DatabaseInstanceRole) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = DatabaseInstanceRole(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid DatabaseInstanceRole", str)
+	}
+	return nil
+}
+
+func (e DatabaseInstanceRole) MarshalGQL(w io.Writer) {
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *DatabaseInstanceRole) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e DatabaseInstanceRole) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+// A measurement of a database that can be charted over time.
+type DatabaseMetric string
+
+const (
+	// CPU in use, in cores.
+	DatabaseMetricCPUUsage DatabaseMetric = "CPU_USAGE"
+	// Memory in use, in bytes.
+	DatabaseMetricMemoryUsage DatabaseMetric = "MEMORY_USAGE"
+	// Space taken on the storage of the database, in bytes.
+	DatabaseMetricStorageUsed DatabaseMetric = "STORAGE_USED"
+	// Open connections, idle ones included.
+	DatabaseMetricConnections DatabaseMetric = "CONNECTIONS"
+	// Transactions committed or rolled back per second.
+	DatabaseMetricTransactions DatabaseMetric = "TRANSACTIONS"
+	// The share of reads served from memory instead of disk, from 0 to 1.
+	DatabaseMetricCacheHitRatio DatabaseMetric = "CACHE_HIT_RATIO"
+	// Rows read by queries per second.
+	DatabaseMetricRowsRead DatabaseMetric = "ROWS_READ"
+	// Rows inserted, updated or deleted per second.
+	DatabaseMetricRowsWritten DatabaseMetric = "ROWS_WRITTEN"
+	// Deadlocks detected in each interval of the range.
+	DatabaseMetricDeadlocks DatabaseMetric = "DEADLOCKS"
+	// How far a replica trails the primary, in seconds.
+	DatabaseMetricReplicationLag DatabaseMetric = "REPLICATION_LAG"
+)
+
+var AllDatabaseMetric = []DatabaseMetric{
+	DatabaseMetricCPUUsage,
+	DatabaseMetricMemoryUsage,
+	DatabaseMetricStorageUsed,
+	DatabaseMetricConnections,
+	DatabaseMetricTransactions,
+	DatabaseMetricCacheHitRatio,
+	DatabaseMetricRowsRead,
+	DatabaseMetricRowsWritten,
+	DatabaseMetricDeadlocks,
+	DatabaseMetricReplicationLag,
+}
+
+func (e DatabaseMetric) IsValid() bool {
+	switch e {
+	case DatabaseMetricCPUUsage, DatabaseMetricMemoryUsage, DatabaseMetricStorageUsed, DatabaseMetricConnections, DatabaseMetricTransactions, DatabaseMetricCacheHitRatio, DatabaseMetricRowsRead, DatabaseMetricRowsWritten, DatabaseMetricDeadlocks, DatabaseMetricReplicationLag:
+		return true
+	}
+	return false
+}
+
+func (e DatabaseMetric) String() string {
+	return string(e)
+}
+
+func (e *DatabaseMetric) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = DatabaseMetric(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid DatabaseMetric", str)
+	}
+	return nil
+}
+
+func (e DatabaseMetric) MarshalGQL(w io.Writer) {
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *DatabaseMetric) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e DatabaseMetric) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
 type DatabaseStatus string
 
 const (
@@ -1416,18 +1594,26 @@ func (e MetricGrouping) MarshalJSON() ([]byte, error) {
 type MetricUnit string
 
 const (
-	MetricUnitBytes MetricUnit = "BYTES"
-	MetricUnitCores MetricUnit = "CORES"
+	MetricUnitBytes     MetricUnit = "BYTES"
+	MetricUnitCores     MetricUnit = "CORES"
+	MetricUnitCount     MetricUnit = "COUNT"
+	MetricUnitPerSecond MetricUnit = "PER_SECOND"
+	MetricUnitRatio     MetricUnit = "RATIO"
+	MetricUnitSeconds   MetricUnit = "SECONDS"
 )
 
 var AllMetricUnit = []MetricUnit{
 	MetricUnitBytes,
 	MetricUnitCores,
+	MetricUnitCount,
+	MetricUnitPerSecond,
+	MetricUnitRatio,
+	MetricUnitSeconds,
 }
 
 func (e MetricUnit) IsValid() bool {
 	switch e {
-	case MetricUnitBytes, MetricUnitCores:
+	case MetricUnitBytes, MetricUnitCores, MetricUnitCount, MetricUnitPerSecond, MetricUnitRatio, MetricUnitSeconds:
 		return true
 	}
 	return false

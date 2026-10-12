@@ -1,4 +1,5 @@
 import { execSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { fileURLToPath, URL } from 'node:url';
 
 import { defineConfig } from 'vite';
@@ -15,6 +16,11 @@ const appVersion = process.env.APP_VERSION || (() => {
   }
 })();
 
+const studioEntry = new URL('../../../ui-studio/src/vite.ts', import.meta.url);
+const studioPlugins = existsSync(studioEntry)
+  ? [(await import(studioEntry.href)).studioCanvasPlugin()]
+  : [];
+
 export default defineConfig({
   base: process.env.VITE_BASE_PATH || '/',
   define: {
@@ -24,6 +30,7 @@ export default defineConfig({
     vue(),
     vueDevTools(),
     tailwindcss(),
+    ...studioPlugins,
   ],
   build: {
     rollupOptions: {

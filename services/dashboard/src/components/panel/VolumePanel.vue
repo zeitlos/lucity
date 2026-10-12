@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ref } from 'vue';
 import { HardDrive, X } from '@lucide/vue';
 import { onKeyStroke } from '@vueuse/core';
 import { Button } from '@/components/ui/button';
@@ -24,6 +25,8 @@ const emit = defineEmits<{
   (e: 'mount'): void;
   (e: 'refetch'): void;
 }>();
+
+const activeTab = ref('usage');
 
 onKeyStroke('Escape', () => {
   emit('close');
@@ -51,7 +54,7 @@ onKeyStroke('Escape', () => {
 
     <!-- Tab Content -->
     <ScrollArea class="flex-1">
-      <Tabs default-value="usage" class="h-full">
+      <Tabs v-model="activeTab" class="h-full">
         <div class="px-4 pt-2">
           <TabsList class="w-full">
             <TabsTrigger value="usage">Usage</TabsTrigger>
@@ -63,6 +66,7 @@ onKeyStroke('Escape', () => {
           <VolumeUsageTab
             :volume-id="props.volume.id"
             :volume="props.volume"
+            @grow="activeTab = 'settings'"
           />
         </TabsContent>
 

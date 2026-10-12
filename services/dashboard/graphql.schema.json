@@ -1717,6 +1717,18 @@
             "deprecationReason": null
           },
           {
+            "name": "connectionLimit",
+            "description": "The most connections each instance accepts at once, or null while that isn't known.",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "createdAt",
             "description": null,
             "args": [],
@@ -1765,6 +1777,87 @@
             "deprecationReason": null
           },
           {
+            "name": "metrics",
+            "description": "Usage of the database over a time range. With grouping `PER_REPLICA` there is one series per instance, and replication lag only has series for replicas. With `TOTAL` the instances are added up, and replication lag is the largest of them.",
+            "args": [
+              {
+                "name": "grouping",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "name": "MetricGrouping",
+                    "kind": "ENUM",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": "TOTAL",
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "metrics",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "name": null,
+                    "kind": "LIST",
+                    "ofType": {
+                      "name": null,
+                      "kind": "NON_NULL",
+                      "ofType": {
+                        "name": "DatabaseMetric",
+                        "kind": "ENUM",
+                        "ofType": null
+                      }
+                    }
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "range",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "name": "MetricsRange",
+                    "kind": "INPUT_OBJECT",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": null,
+                "kind": "LIST",
+                "ofType": {
+                  "name": null,
+                  "kind": "NON_NULL",
+                  "ofType": {
+                    "name": "DatabaseMetricSeries",
+                    "kind": "OBJECT",
+                    "ofType": null
+                  }
+                }
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "name",
             "description": null,
             "args": [],
@@ -1790,6 +1883,22 @@
               "ofType": {
                 "name": "Boolean",
                 "kind": "SCALAR",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "queryStatistics",
+            "description": "The statements that took the most time, read live from the primary.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "DatabaseQueryStatistics",
+                "kind": "OBJECT",
                 "ofType": null
               }
             },
@@ -2406,6 +2515,366 @@
         "fields": null,
         "inputFields": null,
         "interfaces": null,
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "ENUM",
+        "name": "DatabaseInstanceRole",
+        "description": null,
+        "isOneOf": null,
+        "fields": null,
+        "inputFields": null,
+        "interfaces": null,
+        "enumValues": [
+          {
+            "name": "PRIMARY",
+            "description": "The instance that serves writes.",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "REPLICA",
+            "description": "An instance that replicates from the primary and takes over if it fails.",
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "possibleTypes": null
+      },
+      {
+        "kind": "ENUM",
+        "name": "DatabaseMetric",
+        "description": "A measurement of a database that can be charted over time.",
+        "isOneOf": null,
+        "fields": null,
+        "inputFields": null,
+        "interfaces": null,
+        "enumValues": [
+          {
+            "name": "CACHE_HIT_RATIO",
+            "description": "The share of reads served from memory instead of disk, from 0 to 1.",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "CONNECTIONS",
+            "description": "Open connections, idle ones included.",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "CPU_USAGE",
+            "description": "CPU in use, in cores.",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "DEADLOCKS",
+            "description": "Deadlocks detected in each interval of the range.",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "MEMORY_USAGE",
+            "description": "Memory in use, in bytes.",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "REPLICATION_LAG",
+            "description": "How far a replica trails the primary, in seconds.",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "ROWS_READ",
+            "description": "Rows read by queries per second.",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "ROWS_WRITTEN",
+            "description": "Rows inserted, updated or deleted per second.",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "STORAGE_USED",
+            "description": "Space taken on the storage of the database, in bytes.",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "TRANSACTIONS",
+            "description": "Transactions committed or rolled back per second.",
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "DatabaseMetricSeries",
+        "description": null,
+        "isOneOf": null,
+        "fields": [
+          {
+            "name": "instance",
+            "description": "The instance the series is about, or null when all instances are added up.",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "metric",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "DatabaseMetric",
+                "kind": "ENUM",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "points",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": null,
+                "kind": "LIST",
+                "ofType": {
+                  "name": null,
+                  "kind": "NON_NULL",
+                  "ofType": {
+                    "name": "MetricPoint",
+                    "kind": "OBJECT",
+                    "ofType": null
+                  }
+                }
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "role",
+            "description": "The role the instance has right now, or null when all instances are added up.",
+            "args": [],
+            "type": {
+              "kind": "ENUM",
+              "name": "DatabaseInstanceRole",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "unit",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "MetricUnit",
+                "kind": "ENUM",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "DatabaseQueryStatistic",
+        "description": null,
+        "isOneOf": null,
+        "fields": [
+          {
+            "name": "calls",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "Int",
+                "kind": "SCALAR",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "meanMilliseconds",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "Float",
+                "kind": "SCALAR",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "query",
+            "description": "The statement, with its values replaced by placeholders such as `$1`.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "String",
+                "kind": "SCALAR",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "rows",
+            "description": "Rows returned or changed by the statement, over all calls.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "Int",
+                "kind": "SCALAR",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "share",
+            "description": "The share of the time spent on all statements that went to this one, from 0 to 1.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "Float",
+                "kind": "SCALAR",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "totalMilliseconds",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "Float",
+                "kind": "SCALAR",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "DatabaseQueryStatistics",
+        "description": "How much time a database spent on each statement since `since`.",
+        "isOneOf": null,
+        "fields": [
+          {
+            "name": "enabled",
+            "description": "False when the database doesn't collect statement statistics, which is the case for some databases created before they were collected by default.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": "Boolean",
+                "kind": "SCALAR",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "queries",
+            "description": "The statements that took the most time in total, at most 25.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "name": null,
+                "kind": "LIST",
+                "ofType": {
+                  "name": null,
+                  "kind": "NON_NULL",
+                  "ofType": {
+                    "name": "DatabaseQueryStatistic",
+                    "kind": "OBJECT",
+                    "ofType": null
+                  }
+                }
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "since",
+            "description": "When counting started. Statistics start over when they are reset and when another instance becomes the primary.",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Time",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
         "enumValues": null,
         "possibleTypes": null
       },
@@ -4886,6 +5355,30 @@
           },
           {
             "name": "CORES",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "COUNT",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "PER_SECOND",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "RATIO",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "SECONDS",
             "description": null,
             "isDeprecated": false,
             "deprecationReason": null

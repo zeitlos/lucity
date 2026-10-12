@@ -14,6 +14,7 @@ import (
 
 	"github.com/zeitlos/lucity/services/conductor/internal/dbquery"
 	"github.com/zeitlos/lucity/services/conductor/internal/deployer"
+	"github.com/zeitlos/lucity/services/conductor/internal/metrics"
 	"github.com/zeitlos/lucity/services/conductor/internal/platform"
 	"github.com/zeitlos/lucity/services/conductor/internal/resources"
 )
@@ -71,6 +72,21 @@ type QueryResult struct {
 	AffectedRows int
 }
 
+type DatabaseQueryStatistics struct {
+	Enabled bool
+	Since   *time.Time
+	Queries []DatabaseQueryStatistic
+}
+
+type DatabaseQueryStatistic struct {
+	Query             string
+	Calls             int
+	Rows              int
+	TotalMilliseconds float64
+	MeanMilliseconds  float64
+	Share             float64
+}
+
 type DatabaseCredentials struct {
 	Type     EndpointType
 	Host     string
@@ -87,6 +103,47 @@ func (c *Client) Databases(ctx context.Context, environment EnvironmentID) ([]Da
 
 func (c *Client) Database(ctx context.Context, id DatabaseID) (*Database, error) {
 	return c.platform.Database(ctx, id)
+}
+
+func (c *Client) DatabaseUsage(ctx context.Context, id DatabaseID, kinds []metrics.Kind, window metrics.Window, perInstance bool) ([]metrics.Series, error) {
+	return c.metrics.DatabaseUsage(ctx, id.Namespace(), id.Name, kinds, window, perInstance)
+}
+
+func (c *Client) DatabaseConnectionLimit(ctx context.Context, id DatabaseID) (*int, error) {
+	return c.metrics.DatabaseConnectionLimit(ctx, id.Namespace(), id.Name)
+}
+
+func (c *Client) DatabaseQueryStatistics(ctx context.Context, id DatabaseID) (*DatabaseQueryStatistics, error) {
+	query, err := c.databaseQueryClient(ctx, id)
+
+	if err != nil {
+		return nil, err
+	}
+
+	statistics, err := query.Statements(ctx)
+
+	if err != nil {
+		return nil, fmt.Errorf("read query statistics: %w", err)
+	}
+
+	result := DatabaseQueryStatistics{
+		Enabled: statistics.Enabled,
+		Since:   statistics.Since,
+		Queries: make([]DatabaseQueryStatistic, 0, len(statistics.Statements)),
+	}
+
+	for _, s := range statistics.Statements {
+		result.Queries = append(result.Queries, DatabaseQueryStatistic{
+			Query:             s.Query,
+			Calls:             int(s.Calls),
+			Rows:              int(s.Rows),
+			TotalMilliseconds: s.TotalMilliseconds,
+			MeanMilliseconds:  s.MeanMilliseconds,
+			Share:             s.Share,
+		})
+	}
+
+	return &result, nil
 }
 
 func (c *Client) DatabaseBackups(ctx context.Context, id DatabaseID) (*platform.DatabaseBackups, error) {

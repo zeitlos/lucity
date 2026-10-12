@@ -23,6 +23,7 @@ type Database struct {
 	Resources    Resources
 	CreatedAt    time.Time
 	PublicHost   string
+	Primary      string
 }
 
 type DatabaseBackups struct {

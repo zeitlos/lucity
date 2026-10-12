@@ -1,4 +1,5 @@
-type Database {
+type Database
+@goExtraField(name: "Primary", type: "string"){
   id: DatabaseID!
   name: String!
   version: String!

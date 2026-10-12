@@ -1,0 +1,71 @@
+"""A measurement of a database that can be charted over time."""
+enum DatabaseMetric {
+  """CPU in use, in cores."""
+  CPU_USAGE
+  """Memory in use, in bytes."""
+  MEMORY_USAGE
+  """Space taken on the storage of the database, in bytes."""
+  STORAGE_USED
+  """Open connections, idle ones included."""
+  CONNECTIONS
+  """Transactions committed or rolled back per second."""
+  TRANSACTIONS
+  """The share of reads served from memory instead of disk, from 0 to 1."""
+  CACHE_HIT_RATIO
+  """Rows read by queries per second."""
+  ROWS_READ
+  """Rows inserted, updated or deleted per second."""
+  ROWS_WRITTEN
+  """Deadlocks detected in each interval of the range."""
+  DEADLOCKS
+  """How far a replica trails the primary, in seconds."""
+  REPLICATION_LAG
+}
+
+enum DatabaseInstanceRole {
+  """The instance that serves writes."""
+  PRIMARY
+  """An instance that replicates from the primary and takes over if it fails."""
+  REPLICA
+}
+
+type DatabaseMetricSeries {
+  metric: DatabaseMetric!
+  unit: MetricUnit!
+  """The instance the series is about, or null when all instances are added up."""
+  instance: String
+  """The role the instance has right now, or null when all instances are added up."""
+  role: DatabaseInstanceRole
+  points: [MetricPoint!]!
+}
+
+"""How much time a database spent on each statement since `since`."""
+type DatabaseQueryStatistics {
+  """False when the database doesn't collect statement statistics, which is the case for some databases created before they were collected by default."""
+  enabled: Boolean!
+  """When counting started. Statistics start over when they are reset and when another instance becomes the primary."""
+  since: Time
+  """The statements that took the most time in total, at most 25."""
+  queries: [DatabaseQueryStatistic!]!
+}
+
+type DatabaseQueryStatistic {
+  """The statement, with its values replaced by placeholders such as `$1`."""
+  query: String!
+  calls: Int!
+  """Rows returned or changed by the statement, over all calls."""
+  rows: Int!
+  totalMilliseconds: Float!
+  meanMilliseconds: Float!
+  """The share of the time spent on all statements that went to this one, from 0 to 1."""
+  share: Float!
+}
+
+extend type Database {
+  """Usage of the database over a time range. With grouping `PER_REPLICA` there is one series per instance, and replication lag only has series for replicas. With `TOTAL` the instances are added up, and replication lag is the largest of them."""
+  metrics(metrics: [DatabaseMetric!]!, range: MetricsRange!, grouping: MetricGrouping! = TOTAL): [DatabaseMetricSeries!]! @goField(forceResolver: true)
+  """The most connections each instance accepts at once, or null while that isn't known."""
+  connectionLimit: Int @goField(forceResolver: true)
+  """The statements that took the most time, read live from the primary."""
+  queryStatistics: DatabaseQueryStatistics! @goField(forceResolver: true)
+}
