@@ -39,16 +39,17 @@ const checkpointKey = "last_window_end"
 
 // Worker periodically queries resource usage and reports it to Stripe.
 type Worker struct {
-	stripe    *stripelib.Client
-	conductor conductor.ConductorServiceClient
-	logto     *logto.Client
-	vm        *VMClient
-	k8s       kubernetes.Interface // nil if K8s not available (no checkpoint/backfill)
-	namespace string
-	issuer    *auth.Issuer
-	interval  time.Duration
-	cancel    context.CancelFunc
-	done      chan struct{}
+	stripe     *stripelib.Client
+	conductor  conductor.ConductorServiceClient
+	logto      *logto.Client
+	vm         *VMClient
+	k8s        kubernetes.Interface // nil if K8s not available (no checkpoint/backfill)
+	namespace  string
+	issuer     *auth.Issuer
+	interval   time.Duration
+	checkpoint time.Time
+	cancel     context.CancelFunc
+	done       chan struct{}
 }
 
 // NewWorker creates a metering worker. k8sClient may be nil (disables checkpoint/backfill).
@@ -74,14 +75,7 @@ func (w *Worker) Start() error {
 
 	defer close(w.done)
 
-	// Backfill missed windows on startup.
-	caught := w.backfill(ctx)
-
-	// Only process the current window if backfill is caught up.
-	// Otherwise the checkpoint would jump ahead, skipping the gap.
-	if caught {
-		w.tick(ctx)
-	}
+	w.catchUp(ctx)
 
 	ticker := time.NewTicker(w.interval)
 	defer ticker.Stop()
@@ -93,7 +87,7 @@ func (w *Worker) Start() error {
 		case <-ctx.Done():
 			return nil
 		case <-ticker.C:
-			w.tick(ctx)
+			w.catchUp(ctx)
 			slog.Info("metering: next tick", "in", w.interval, "at", time.Now().Add(w.interval).Format(time.RFC3339))
 		}
 	}
@@ -120,66 +114,48 @@ func alignWindow(now time.Time) (start, end time.Time) {
 	return time.Unix(endUnix-windowSec, 0).UTC(), time.Unix(endUnix, 0).UTC()
 }
 
-// backfill processes all missed metering windows since the last checkpoint.
-// Returns true if backfill completed (caught up to the current window) or
-// was not needed. Returns false if interrupted (e.g. shutdown) before finishing.
-func (w *Worker) backfill(ctx context.Context) bool {
-	if w.k8s == nil {
-		return true
-	}
-
-	lastEnd := w.lastCheckpoint(ctx)
-	if lastEnd.IsZero() {
-		slog.Info("metering: no checkpoint found, skipping backfill")
-		return true
+func (w *Worker) catchUp(ctx context.Context) {
+	if w.checkpoint.IsZero() {
+		checkpoint, err := w.lastCheckpoint(ctx)
+		if err != nil {
+			slog.Error("metering: failed to read checkpoint, retrying next tick", "error", err)
+			return
+		}
+		w.checkpoint = checkpoint
 	}
 
 	_, currentEnd := alignWindow(time.Now().Add(-ingestionDelay))
 
-	// No gap — already caught up.
-	if !lastEnd.Before(currentEnd) {
-		return true
+	windowStart := w.checkpoint
+	if windowStart.IsZero() {
+		slog.Info("metering: no checkpoint found, starting at the current window")
+		windowStart = currentEnd.Add(-meterWindow)
 	}
 
-	// Cap backfill to Stripe's limit.
 	earliest := time.Now().Add(-maxBackfillDays * 24 * time.Hour)
-	if lastEnd.Before(earliest) {
+	if windowStart.Before(earliest) {
 		slog.Warn("metering: checkpoint older than 35 days, capping backfill",
-			"checkpoint", lastEnd, "capped_to", earliest)
-		// Re-align the capped time to a proper window boundary.
-		_, lastEnd = alignWindow(earliest)
+			"checkpoint", windowStart, "capped_to", earliest)
+		_, windowStart = alignWindow(earliest)
 	}
 
-	// Process each missed window in chronological order.
-	windowStart := lastEnd
-	var count int
-	for windowStart.Add(meterWindow).Before(currentEnd) || windowStart.Add(meterWindow).Equal(currentEnd) {
-		// Check for shutdown between windows.
-		select {
-		case <-ctx.Done():
-			slog.Info("metering: backfill interrupted", "completed", count)
-			return false
-		default:
+	for !windowStart.Add(meterWindow).After(currentEnd) {
+		if ctx.Err() != nil {
+			return
 		}
 
 		windowEnd := windowStart.Add(meterWindow)
-		count++
-		slog.Info("metering: backfilling window", "start", windowStart, "end", windowEnd, "window", count)
-		w.processWindow(ctx, windowStart, windowEnd)
+		slog.Info("metering tick", "window_start", windowStart, "window_end", windowEnd)
+		if err := w.processWindow(ctx, windowStart, windowEnd); err != nil {
+			slog.Error("metering: window failed, retrying next tick",
+				"window_start", windowStart, "window_end", windowEnd, "error", err)
+			return
+		}
+
+		w.checkpoint = windowEnd
+		w.saveCheckpointQuiet(ctx, windowEnd)
 		windowStart = windowEnd
 	}
-	if count > 0 {
-		slog.Info("metering: backfill complete", "windows", count)
-	}
-	return true
-}
-
-func (w *Worker) tick(ctx context.Context) {
-	// Delay window selection so VictoriaMetrics has time to fully ingest metrics.
-	// At 15:05 with 5min delay: alignWindow(15:00) → processes 14:00-15:00.
-	start, end := alignWindow(time.Now().Add(-ingestionDelay))
-	slog.Info("metering tick", "window_start", start, "window_end", end)
-	w.processWindow(ctx, start, end)
 }
 
 // conductorCtx creates a system-level auth context for calling conductor.
@@ -236,28 +212,25 @@ type allocEntry struct {
 	diskMB    int32
 }
 
-func (w *Worker) processWindow(ctx context.Context, windowStart, windowEnd time.Time) {
+func (w *Worker) processWindow(ctx context.Context, windowStart, windowEnd time.Time) error {
 	start := time.Now()
 	callCtx := w.conductorCtx(ctx)
 
 	// 1. List all billable workspaces from Logto.
 	workspaces, err := w.billableWorkspaces(ctx)
 	if err != nil {
-		slog.Error("metering: failed to list billable workspaces", "error", err)
-		return
+		return err
 	}
 
 	if len(workspaces) == 0 {
 		slog.Info("metering: no billable workspaces")
-		w.saveCheckpointQuiet(ctx, windowEnd)
-		return
+		return nil
 	}
 
 	// 3. List all resource allocations.
 	allocResp, err := w.conductor.ListResourceAllocations(callCtx, &conductor.ListResourceAllocationsRequest{})
 	if err != nil {
-		slog.Error("metering: failed to list resource allocations", "error", err)
-		return
+		return fmt.Errorf("failed to list resource allocations: %w", err)
 	}
 
 	// 4. Group allocations by workspace.
@@ -291,31 +264,28 @@ func (w *Worker) processWindow(ctx context.Context, windowStart, windowEnd time.
 	if len(allEcoNamespaces) > 0 {
 		cpuByNs, err = w.vm.CPUByNamespace(ctx, windowStart, windowEnd)
 		if err != nil {
-			slog.Error("metering: failed to query CPU usage", "error", err)
-			cpuByNs = make(map[string]float64)
+			return fmt.Errorf("failed to query CPU usage: %w", err)
 		}
 
 		memByNs, err = w.vm.MemoryByNamespace(ctx, windowStart, windowEnd)
 		if err != nil {
-			slog.Error("metering: failed to query memory usage", "error", err)
-			memByNs = make(map[string]float64)
+			return fmt.Errorf("failed to query memory usage: %w", err)
 		}
 
 		diskByNs, err = w.vm.DiskByNamespace(ctx, windowStart, windowEnd)
 		if err != nil {
-			slog.Error("metering: failed to query disk usage", "error", err)
-			diskByNs = make(map[string]float64)
+			return fmt.Errorf("failed to query disk usage: %w", err)
 		}
 	}
 
 	storageByWorkspace, err := w.vm.StorageByWorkspace(ctx, windowStart, windowEnd)
 	if err != nil {
-		slog.Error("metering: failed to query storage usage", "error", err)
+		return fmt.Errorf("failed to query storage usage: %w", err)
 	}
 
 	egressByNs, err := w.vm.EgressByNamespace(ctx, windowStart, windowEnd)
 	if err != nil {
-		slog.Error("metering: failed to query egress usage", "error", err)
+		return fmt.Errorf("failed to query egress usage: %w", err)
 	}
 
 	for wsID, ws := range workspaces {
@@ -326,24 +296,11 @@ func (w *Worker) processWindow(ctx context.Context, windowStart, windowEnd time.
 	}
 
 	// 6. Report to Stripe per workspace and ensure credit grants exist.
-	var anyError bool
 	for wsID, ws := range workspaces {
-		if err := w.reportWorkspace(ctx, wsID, ws, cpuByNs, memByNs, diskByNs, windowStart, windowEnd); err != nil {
-			slog.Error("metering: failed to report workspace", "workspace", wsID, "error", err)
-			anyError = true
-		}
+		w.reportWorkspace(ctx, wsID, ws, cpuByNs, memByNs, diskByNs, windowStart, windowEnd)
 
 		// Ensure a credit grant exists for the current billing period.
 		w.ensureCreditGrant(ctx, wsID, ws)
-	}
-
-	// Only checkpoint if all workspaces succeeded — failed windows will be retried,
-	// and Stripe's identifier dedup prevents double-counting for already-reported events.
-	if anyError {
-		slog.Warn("metering: skipping checkpoint due to errors, will retry next tick",
-			"window_start", windowStart, "window_end", windowEnd)
-	} else {
-		w.saveCheckpointQuiet(ctx, windowEnd)
 	}
 
 	slog.Info("metering tick completed",
@@ -352,9 +309,10 @@ func (w *Worker) processWindow(ctx context.Context, windowStart, windowEnd time.
 		"window_start", windowStart,
 		"window_end", windowEnd,
 	)
+	return nil
 }
 
-func (w *Worker) reportWorkspace(ctx context.Context, wsID string, ws *workspaceData, cpuByNs, memByNs, diskByNs map[string]float64, windowStart, windowEnd time.Time) error {
+func (w *Worker) reportWorkspace(ctx context.Context, wsID string, ws *workspaceData, cpuByNs, memByNs, diskByNs map[string]float64, windowStart, windowEnd time.Time) {
 	intervalMinutes := windowEnd.Sub(windowStart).Minutes()
 	timestamp := windowEnd.Unix()
 
@@ -469,8 +427,6 @@ func (w *Worker) reportWorkspace(ctx context.Context, wsID string, ws *workspace
 			"egress_gb", egressGB,
 		)
 	}
-
-	return nil
 }
 
 func roundUsage(value float64) float64 {
@@ -517,21 +473,24 @@ func (w *Worker) ensureCreditGrant(ctx context.Context, wsID string, ws *workspa
 
 // lastCheckpoint reads the last successfully completed window end time from K8s.
 // Returns zero time if no checkpoint exists (first run or lost state).
-func (w *Worker) lastCheckpoint(ctx context.Context) time.Time {
+func (w *Worker) lastCheckpoint(ctx context.Context) (time.Time, error) {
 	if w.k8s == nil {
-		return time.Time{}
+		return time.Time{}, nil
 	}
 
 	cm, err := w.k8s.CoreV1().ConfigMaps(w.namespace).Get(ctx, checkpointCMName, metav1.GetOptions{})
+	if errors.IsNotFound(err) {
+		return time.Time{}, nil
+	}
 	if err != nil {
-		return time.Time{}
+		return time.Time{}, fmt.Errorf("failed to get checkpoint configmap: %w", err)
 	}
 
 	ts, err := strconv.ParseInt(cm.Data[checkpointKey], 10, 64)
 	if err != nil {
-		return time.Time{}
+		return time.Time{}, fmt.Errorf("failed to parse checkpoint %q: %w", cm.Data[checkpointKey], err)
 	}
-	return time.Unix(ts, 0)
+	return time.Unix(ts, 0).UTC(), nil
 }
 
 // saveCheckpoint writes the window end time to the ConfigMap (create or update).
