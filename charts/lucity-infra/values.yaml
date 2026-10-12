@@ -390,6 +390,12 @@ victoria-metrics-alert:
                 labels: { severity: warning }
                 annotations:
                   summary: "Usage source {{ $labels.source }} last refreshed {{ $value | humanizeDuration }} ago: billable usage is not being recorded"
+              - alert: MeteringStalled
+                expr: changes(kube_configmap_metadata_resource_version{namespace="lucity-system", configmap="metering-checkpoint"}[3h]) == 0
+                for: 5m
+                labels: { severity: warning }
+                annotations:
+                  summary: "Metering has not completed a billing window in 3 hours: usage is not reaching Stripe, check the cashier logs for \"window failed\""
               - alert: PVCNearlyFull
                 expr: |-
                   label_replace(label_replace(label_replace(
