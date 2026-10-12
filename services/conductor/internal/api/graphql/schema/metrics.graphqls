@@ -7,6 +7,10 @@ enum ResourceMetric {
 enum MetricUnit {
   BYTES
   CORES
+  COUNT
+  PER_SECOND
+  RATIO
+  SECONDS
 }
 
 enum MetricWindow {

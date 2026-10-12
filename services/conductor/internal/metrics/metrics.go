@@ -3,6 +3,7 @@ package metrics
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strconv"
 	"time"
 
@@ -12,14 +13,25 @@ import (
 const (
 	podVolumePrefix         = "volume-"
 	serviceDeploymentPrefix = "lucity-app-"
+	databasePodPrefix       = "lucity-app-pg-"
+	databaseContainer       = "postgres"
+	databaseVolume          = "pgdata"
+	databaseSystemNames     = "postgres|template0|template1"
 )
 
 type Kind string
 
 const (
-	KindStorageUsed Kind = "storage_used"
-	KindCPUUsage    Kind = "cpu_usage"
-	KindMemoryUsage Kind = "memory_usage"
+	KindStorageUsed    Kind = "storage_used"
+	KindCPUUsage       Kind = "cpu_usage"
+	KindMemoryUsage    Kind = "memory_usage"
+	KindConnections    Kind = "connections"
+	KindTransactions   Kind = "transactions"
+	KindCacheHitRatio  Kind = "cache_hit_ratio"
+	KindRowsRead       Kind = "rows_read"
+	KindRowsWritten    Kind = "rows_written"
+	KindDeadlocks      Kind = "deadlocks"
+	KindReplicationLag Kind = "replication_lag"
 )
 
 type Window string
@@ -141,6 +153,108 @@ func serviceQuery(kind Kind, selector string, step time.Duration, perReplica boo
 		return fmt.Sprintf(`sum%s(rate(container_cpu_time_seconds_total{%s}[%s]))`, grouping, selector, promDuration(step))
 	case KindMemoryUsage:
 		return fmt.Sprintf(`sum%s(container_memory_working_set_bytes{%s})`, grouping, selector)
+	default:
+		return ""
+	}
+}
+
+func (p *Provider) DatabaseUsage(ctx context.Context, namespace, database string, kinds []Kind, window Window, perInstance bool) ([]Series, error) {
+	params, ok := windows[window]
+	if !ok {
+		return nil, fmt.Errorf("unknown window %q", window)
+	}
+
+	end := time.Now().UTC()
+	start := end.Add(-params.duration)
+
+	selector := databaseSelector(namespace, database)
+
+	var result []Series
+	for _, kind := range kinds {
+		query := databaseQuery(kind, selector, params.step, perInstance)
+		if query == "" {
+			continue
+		}
+
+		samples, err := p.vm.QueryRange(ctx, query, start, end, params.step)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, s := range samples {
+			result = append(result, Series{
+				Kind:    kind,
+				Replica: s.Labels["k8s_pod_name"],
+				Points:  toPoints(s.Points),
+			})
+		}
+	}
+
+	return result, nil
+}
+
+func (p *Provider) DatabaseConnectionLimit(ctx context.Context, namespace, database string) (*int, error) {
+	query := fmt.Sprintf(`max(cnpg_pg_settings_setting{%s,name="max_connections"})`, databaseSelector(namespace, database))
+
+	samples, err := p.vm.QueryVector(ctx, query, time.Now())
+	if err != nil {
+		return nil, err
+	}
+
+	if len(samples) == 0 {
+		return nil, nil
+	}
+
+	limit := int(samples[0].Value)
+	return &limit, nil
+}
+
+func databaseSelector(namespace, database string) string {
+	return fmt.Sprintf(`k8s_namespace_name=%q,k8s_pod_name=~%q`, namespace, databasePodPrefix+regexp.QuoteMeta(database)+`-[0-9]+`)
+}
+
+func databaseQuery(kind Kind, selector string, step time.Duration, perInstance bool) string {
+	grouping := ""
+	if perInstance {
+		grouping = " by (k8s_pod_name)"
+	}
+
+	window := promDuration(step)
+	databases := fmt.Sprintf(`%s,datname!~%q`, selector, databaseSystemNames)
+
+	rate := func(counter string) string {
+		return fmt.Sprintf(`sum%s(rate(%s_total{%s}[%s]))`, grouping, counter, databases, window)
+	}
+
+	switch kind {
+	case KindCPUUsage:
+		return fmt.Sprintf(`sum%s(rate(container_cpu_time_seconds_total{%s,k8s_container_name=%q}[%s]))`, grouping, selector, databaseContainer, window)
+	case KindMemoryUsage:
+		return fmt.Sprintf(`sum%s(container_memory_working_set_bytes{%s,k8s_container_name=%q})`, grouping, selector, databaseContainer)
+	case KindStorageUsed:
+		volume := fmt.Sprintf(`%s,k8s_volume_name=%q`, selector, databaseVolume)
+		return fmt.Sprintf(
+			`sum%[1]s(max by (k8s_pod_name) (k8s_volume_capacity_bytes{%[2]s}) - max by (k8s_pod_name) (k8s_volume_available_bytes{%[2]s}))`,
+			grouping, volume,
+		)
+	case KindConnections:
+		return fmt.Sprintf(`sum%s(cnpg_backends_total{%s})`, grouping, selector)
+	case KindTransactions:
+		return rate("cnpg_pg_stat_database_xact_commit") + " + " + rate("cnpg_pg_stat_database_xact_rollback")
+	case KindCacheHitRatio:
+		hits := rate("cnpg_pg_stat_database_blks_hit")
+		return fmt.Sprintf(`%[1]s / (%[1]s + %[2]s)`, hits, rate("cnpg_pg_stat_database_blks_read"))
+	case KindRowsRead:
+		return rate("cnpg_pg_stat_database_tup_returned")
+	case KindRowsWritten:
+		return rate("cnpg_pg_stat_database_tup_inserted") + " + " + rate("cnpg_pg_stat_database_tup_updated") + " + " + rate("cnpg_pg_stat_database_tup_deleted")
+	case KindDeadlocks:
+		return fmt.Sprintf(`sum%s(increase(cnpg_pg_stat_database_deadlocks_total{%s}[%s]))`, grouping, databases, window)
+	case KindReplicationLag:
+		return fmt.Sprintf(
+			`max%[1]s(max by (k8s_pod_name) (cnpg_pg_replication_lag{%[2]s}) and on (k8s_pod_name) (max by (k8s_pod_name) (cnpg_pg_replication_in_recovery{%[2]s}) == 1))`,
+			grouping, selector,
+		)
 	default:
 		return ""
 	}

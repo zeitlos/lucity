@@ -142,18 +142,21 @@ type ComplexityRoot struct {
 	}
 
 	Database struct {
-		AllowRules   func(childComplexity int) int
-		Backups      func(childComplexity int) int
-		CreatedAt    func(childComplexity int) int
-		ID           func(childComplexity int) int
-		Instances    func(childComplexity int) int
-		Name         func(childComplexity int) int
-		Public       func(childComplexity int) int
-		Resources    func(childComplexity int) int
-		Size         func(childComplexity int) int
-		Status       func(childComplexity int) int
-		StatusReason func(childComplexity int) int
-		Version      func(childComplexity int) int
+		AllowRules      func(childComplexity int) int
+		Backups         func(childComplexity int) int
+		ConnectionLimit func(childComplexity int) int
+		CreatedAt       func(childComplexity int) int
+		ID              func(childComplexity int) int
+		Instances       func(childComplexity int) int
+		Metrics         func(childComplexity int, metrics []model.DatabaseMetric, rangeArg model.MetricsRange, grouping model.MetricGrouping) int
+		Name            func(childComplexity int) int
+		Public          func(childComplexity int) int
+		QueryStatistics func(childComplexity int) int
+		Resources       func(childComplexity int) int
+		Size            func(childComplexity int) int
+		Status          func(childComplexity int) int
+		StatusReason    func(childComplexity int) int
+		Version         func(childComplexity int) int
 	}
 
 	DatabaseAllowRule struct {
@@ -196,6 +199,29 @@ type ComplexityRoot struct {
 		Type     func(childComplexity int) int
 		URI      func(childComplexity int) int
 		User     func(childComplexity int) int
+	}
+
+	DatabaseMetricSeries struct {
+		Instance func(childComplexity int) int
+		Metric   func(childComplexity int) int
+		Points   func(childComplexity int) int
+		Role     func(childComplexity int) int
+		Unit     func(childComplexity int) int
+	}
+
+	DatabaseQueryStatistic struct {
+		Calls             func(childComplexity int) int
+		MeanMilliseconds  func(childComplexity int) int
+		Query             func(childComplexity int) int
+		Rows              func(childComplexity int) int
+		Share             func(childComplexity int) int
+		TotalMilliseconds func(childComplexity int) int
+	}
+
+	DatabaseQueryStatistics struct {
+		Enabled func(childComplexity int) int
+		Queries func(childComplexity int) int
+		Since   func(childComplexity int) int
 	}
 
 	DatabaseSource struct {
@@ -690,6 +716,9 @@ type ComplexityRoot struct {
 type DatabaseResolver interface {
 	AllowRules(ctx context.Context, obj *model.Database) ([]model.DatabaseAllowRule, error)
 	Backups(ctx context.Context, obj *model.Database) (*model.DatabaseBackups, error)
+	Metrics(ctx context.Context, obj *model.Database, metrics []model.DatabaseMetric, rangeArg model.MetricsRange, grouping model.MetricGrouping) ([]model.DatabaseMetricSeries, error)
+	ConnectionLimit(ctx context.Context, obj *model.Database) (*int, error)
+	QueryStatistics(ctx context.Context, obj *model.Database) (*model.DatabaseQueryStatistics, error)
 }
 type EnvironmentResolver interface {
 	Services(ctx context.Context, obj *model.Environment) ([]model.Service, error)
@@ -1151,6 +1180,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Database.Backups(childComplexity), true
+	case "Database.connectionLimit":
+		if e.ComplexityRoot.Database.ConnectionLimit == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Database.ConnectionLimit(childComplexity), true
 	case "Database.createdAt":
 		if e.ComplexityRoot.Database.CreatedAt == nil {
 			break
@@ -1169,6 +1204,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Database.Instances(childComplexity), true
+	case "Database.metrics":
+		if e.ComplexityRoot.Database.Metrics == nil {
+			break
+		}
+
+		args, err := ec.field_Database_metrics_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Database.Metrics(childComplexity, args["metrics"].([]model.DatabaseMetric), args["range"].(model.MetricsRange), args["grouping"].(model.MetricGrouping)), true
 	case "Database.name":
 		if e.ComplexityRoot.Database.Name == nil {
 			break
@@ -1181,6 +1227,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Database.Public(childComplexity), true
+	case "Database.queryStatistics":
+		if e.ComplexityRoot.Database.QueryStatistics == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Database.QueryStatistics(childComplexity), true
 	case "Database.resources":
 		if e.ComplexityRoot.Database.Resources == nil {
 			break
@@ -1378,6 +1430,93 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.DatabaseCredentials.User(childComplexity), true
+
+	case "DatabaseMetricSeries.instance":
+		if e.ComplexityRoot.DatabaseMetricSeries.Instance == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DatabaseMetricSeries.Instance(childComplexity), true
+	case "DatabaseMetricSeries.metric":
+		if e.ComplexityRoot.DatabaseMetricSeries.Metric == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DatabaseMetricSeries.Metric(childComplexity), true
+	case "DatabaseMetricSeries.points":
+		if e.ComplexityRoot.DatabaseMetricSeries.Points == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DatabaseMetricSeries.Points(childComplexity), true
+	case "DatabaseMetricSeries.role":
+		if e.ComplexityRoot.DatabaseMetricSeries.Role == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DatabaseMetricSeries.Role(childComplexity), true
+	case "DatabaseMetricSeries.unit":
+		if e.ComplexityRoot.DatabaseMetricSeries.Unit == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DatabaseMetricSeries.Unit(childComplexity), true
+
+	case "DatabaseQueryStatistic.calls":
+		if e.ComplexityRoot.DatabaseQueryStatistic.Calls == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DatabaseQueryStatistic.Calls(childComplexity), true
+	case "DatabaseQueryStatistic.meanMilliseconds":
+		if e.ComplexityRoot.DatabaseQueryStatistic.MeanMilliseconds == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DatabaseQueryStatistic.MeanMilliseconds(childComplexity), true
+	case "DatabaseQueryStatistic.query":
+		if e.ComplexityRoot.DatabaseQueryStatistic.Query == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DatabaseQueryStatistic.Query(childComplexity), true
+	case "DatabaseQueryStatistic.rows":
+		if e.ComplexityRoot.DatabaseQueryStatistic.Rows == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DatabaseQueryStatistic.Rows(childComplexity), true
+	case "DatabaseQueryStatistic.share":
+		if e.ComplexityRoot.DatabaseQueryStatistic.Share == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DatabaseQueryStatistic.Share(childComplexity), true
+	case "DatabaseQueryStatistic.totalMilliseconds":
+		if e.ComplexityRoot.DatabaseQueryStatistic.TotalMilliseconds == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DatabaseQueryStatistic.TotalMilliseconds(childComplexity), true
+
+	case "DatabaseQueryStatistics.enabled":
+		if e.ComplexityRoot.DatabaseQueryStatistics.Enabled == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DatabaseQueryStatistics.Enabled(childComplexity), true
+	case "DatabaseQueryStatistics.queries":
+		if e.ComplexityRoot.DatabaseQueryStatistics.Queries == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DatabaseQueryStatistics.Queries(childComplexity), true
+	case "DatabaseQueryStatistics.since":
+		if e.ComplexityRoot.DatabaseQueryStatistics.Since == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DatabaseQueryStatistics.Since(childComplexity), true
 
 	case "DatabaseSource.id":
 		if e.ComplexityRoot.DatabaseSource.ID == nil {
@@ -3960,7 +4099,7 @@ func newExecutionContext(
 	}
 }
 
-//go:embed "schema/apitoken.graphqls" "schema/auth.graphqls" "schema/backup.graphqls" "schema/billing.graphqls" "schema/database.graphqls" "schema/eject.graphqls" "schema/environment.graphqls" "schema/github.graphqls" "schema/keyvaluestore.graphqls" "schema/logs.graphqls" "schema/metrics.graphqls" "schema/objectstorage.graphqls" "schema/project.graphqls" "schema/registry.graphqls" "schema/release.graphqls" "schema/scan.graphqls" "schema/schema.graphqls" "schema/service.graphqls" "schema/variable.graphqls" "schema/volume.graphqls" "schema/vulnerability.graphqls" "schema/workspace.graphqls"
+//go:embed "schema/apitoken.graphqls" "schema/auth.graphqls" "schema/backup.graphqls" "schema/billing.graphqls" "schema/database.graphqls" "schema/databasemetrics.graphqls" "schema/eject.graphqls" "schema/environment.graphqls" "schema/github.graphqls" "schema/keyvaluestore.graphqls" "schema/logs.graphqls" "schema/metrics.graphqls" "schema/objectstorage.graphqls" "schema/project.graphqls" "schema/registry.graphqls" "schema/release.graphqls" "schema/scan.graphqls" "schema/schema.graphqls" "schema/service.graphqls" "schema/variable.graphqls" "schema/volume.graphqls" "schema/vulnerability.graphqls" "schema/workspace.graphqls"
 var sourcesFS embed.FS
 
 func sourceData(filename string) string {
@@ -3977,6 +4116,7 @@ var sources = []*ast.Source{
 	{Name: "schema/backup.graphqls", Input: sourceData("schema/backup.graphqls"), BuiltIn: false},
 	{Name: "schema/billing.graphqls", Input: sourceData("schema/billing.graphqls"), BuiltIn: false},
 	{Name: "schema/database.graphqls", Input: sourceData("schema/database.graphqls"), BuiltIn: false},
+	{Name: "schema/databasemetrics.graphqls", Input: sourceData("schema/databasemetrics.graphqls"), BuiltIn: false},
 	{Name: "schema/eject.graphqls", Input: sourceData("schema/eject.graphqls"), BuiltIn: false},
 	{Name: "schema/environment.graphqls", Input: sourceData("schema/environment.graphqls"), BuiltIn: false},
 	{Name: "schema/github.graphqls", Input: sourceData("schema/github.graphqls"), BuiltIn: false},
@@ -4197,6 +4337,12 @@ func (ec *executionContext) childFields_Database(ctx context.Context, field grap
 		return ec.fieldContext_Database_allowRules(ctx, field)
 	case "backups":
 		return ec.fieldContext_Database_backups(ctx, field)
+	case "metrics":
+		return ec.fieldContext_Database_metrics(ctx, field)
+	case "connectionLimit":
+		return ec.fieldContext_Database_connectionLimit(ctx, field)
+	case "queryStatistics":
+		return ec.fieldContext_Database_queryStatistics(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type Database", field.Name)
 }
@@ -4283,6 +4429,52 @@ func (ec *executionContext) childFields_DatabaseCredentials(ctx context.Context,
 		return ec.fieldContext_DatabaseCredentials_uri(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type DatabaseCredentials", field.Name)
+}
+
+func (ec *executionContext) childFields_DatabaseMetricSeries(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "metric":
+		return ec.fieldContext_DatabaseMetricSeries_metric(ctx, field)
+	case "unit":
+		return ec.fieldContext_DatabaseMetricSeries_unit(ctx, field)
+	case "instance":
+		return ec.fieldContext_DatabaseMetricSeries_instance(ctx, field)
+	case "role":
+		return ec.fieldContext_DatabaseMetricSeries_role(ctx, field)
+	case "points":
+		return ec.fieldContext_DatabaseMetricSeries_points(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type DatabaseMetricSeries", field.Name)
+}
+
+func (ec *executionContext) childFields_DatabaseQueryStatistic(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "query":
+		return ec.fieldContext_DatabaseQueryStatistic_query(ctx, field)
+	case "calls":
+		return ec.fieldContext_DatabaseQueryStatistic_calls(ctx, field)
+	case "rows":
+		return ec.fieldContext_DatabaseQueryStatistic_rows(ctx, field)
+	case "totalMilliseconds":
+		return ec.fieldContext_DatabaseQueryStatistic_totalMilliseconds(ctx, field)
+	case "meanMilliseconds":
+		return ec.fieldContext_DatabaseQueryStatistic_meanMilliseconds(ctx, field)
+	case "share":
+		return ec.fieldContext_DatabaseQueryStatistic_share(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type DatabaseQueryStatistic", field.Name)
+}
+
+func (ec *executionContext) childFields_DatabaseQueryStatistics(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "enabled":
+		return ec.fieldContext_DatabaseQueryStatistics_enabled(ctx, field)
+	case "since":
+		return ec.fieldContext_DatabaseQueryStatistics_since(ctx, field)
+	case "queries":
+		return ec.fieldContext_DatabaseQueryStatistics_queries(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type DatabaseQueryStatistics", field.Name)
 }
 
 func (ec *executionContext) childFields_DatabaseTable(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
@@ -5152,6 +5344,36 @@ func (ec *executionContext) dir_hasRole_args(ctx context.Context, rawArgs map[st
 		return nil, err
 	}
 	args["role"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Database_metrics_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "metrics",
+		func(ctx context.Context, v any) ([]model.DatabaseMetric, error) {
+			return ec.unmarshalNDatabaseMetric2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabaseMetricᚄ(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["metrics"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "range",
+		func(ctx context.Context, v any) (model.MetricsRange, error) {
+			return ec.unmarshalNMetricsRange2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐMetricsRange(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["range"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "grouping",
+		func(ctx context.Context, v any) (model.MetricGrouping, error) {
+			return ec.unmarshalNMetricGrouping2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐMetricGrouping(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["grouping"] = arg2
 	return args, nil
 }
 
@@ -8708,6 +8930,105 @@ func (ec *executionContext) fieldContext_Database_backups(_ context.Context, fie
 	return fc, nil
 }
 
+func (ec *executionContext) _Database_metrics(ctx context.Context, field graphql.CollectedField, obj *model.Database) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Database_metrics(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Database().Metrics(ctx, obj, fc.Args["metrics"].([]model.DatabaseMetric), fc.Args["range"].(model.MetricsRange), fc.Args["grouping"].(model.MetricGrouping))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []model.DatabaseMetricSeries) graphql.Marshaler {
+			return ec.marshalNDatabaseMetricSeries2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabaseMetricSeriesᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Database_metrics(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Database",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_DatabaseMetricSeries(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Database_metrics_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Database_connectionLimit(ctx context.Context, field graphql.CollectedField, obj *model.Database) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Database_connectionLimit(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Database().ConnectionLimit(ctx, obj)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *int) graphql.Marshaler {
+			return ec.marshalOInt2ᚖint(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_Database_connectionLimit(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Database", field, true, true, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _Database_queryStatistics(ctx context.Context, field graphql.CollectedField, obj *model.Database) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Database_queryStatistics(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Database().QueryStatistics(ctx, obj)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.DatabaseQueryStatistics) graphql.Marshaler {
+			return ec.marshalNDatabaseQueryStatistics2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabaseQueryStatistics(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Database_queryStatistics(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Database",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_DatabaseQueryStatistics(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _DatabaseAllowRule_range(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseAllowRule) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -9336,6 +9657,346 @@ func (ec *executionContext) _DatabaseCredentials_uri(ctx context.Context, field 
 }
 func (ec *executionContext) fieldContext_DatabaseCredentials_uri(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("DatabaseCredentials", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _DatabaseMetricSeries_metric(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseMetricSeries) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DatabaseMetricSeries_metric(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Metric, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v model.DatabaseMetric) graphql.Marshaler {
+			return ec.marshalNDatabaseMetric2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabaseMetric(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DatabaseMetricSeries_metric(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DatabaseMetricSeries", field, false, false, errors.New("field of type DatabaseMetric does not have child fields"))
+}
+
+func (ec *executionContext) _DatabaseMetricSeries_unit(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseMetricSeries) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DatabaseMetricSeries_unit(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Unit, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v model.MetricUnit) graphql.Marshaler {
+			return ec.marshalNMetricUnit2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐMetricUnit(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DatabaseMetricSeries_unit(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DatabaseMetricSeries", field, false, false, errors.New("field of type MetricUnit does not have child fields"))
+}
+
+func (ec *executionContext) _DatabaseMetricSeries_instance(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseMetricSeries) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DatabaseMetricSeries_instance(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Instance, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_DatabaseMetricSeries_instance(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DatabaseMetricSeries", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _DatabaseMetricSeries_role(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseMetricSeries) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DatabaseMetricSeries_role(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Role, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.DatabaseInstanceRole) graphql.Marshaler {
+			return ec.marshalODatabaseInstanceRole2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabaseInstanceRole(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_DatabaseMetricSeries_role(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DatabaseMetricSeries", field, false, false, errors.New("field of type DatabaseInstanceRole does not have child fields"))
+}
+
+func (ec *executionContext) _DatabaseMetricSeries_points(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseMetricSeries) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DatabaseMetricSeries_points(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Points, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []model.MetricPoint) graphql.Marshaler {
+			return ec.marshalNMetricPoint2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐMetricPointᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DatabaseMetricSeries_points(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DatabaseMetricSeries",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_MetricPoint(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DatabaseQueryStatistic_query(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseQueryStatistic) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DatabaseQueryStatistic_query(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Query, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DatabaseQueryStatistic_query(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DatabaseQueryStatistic", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _DatabaseQueryStatistic_calls(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseQueryStatistic) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DatabaseQueryStatistic_calls(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Calls, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DatabaseQueryStatistic_calls(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DatabaseQueryStatistic", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _DatabaseQueryStatistic_rows(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseQueryStatistic) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DatabaseQueryStatistic_rows(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Rows, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DatabaseQueryStatistic_rows(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DatabaseQueryStatistic", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _DatabaseQueryStatistic_totalMilliseconds(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseQueryStatistic) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DatabaseQueryStatistic_totalMilliseconds(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.TotalMilliseconds, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v float64) graphql.Marshaler {
+			return ec.marshalNFloat2float64(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DatabaseQueryStatistic_totalMilliseconds(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DatabaseQueryStatistic", field, false, false, errors.New("field of type Float does not have child fields"))
+}
+
+func (ec *executionContext) _DatabaseQueryStatistic_meanMilliseconds(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseQueryStatistic) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DatabaseQueryStatistic_meanMilliseconds(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.MeanMilliseconds, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v float64) graphql.Marshaler {
+			return ec.marshalNFloat2float64(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DatabaseQueryStatistic_meanMilliseconds(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DatabaseQueryStatistic", field, false, false, errors.New("field of type Float does not have child fields"))
+}
+
+func (ec *executionContext) _DatabaseQueryStatistic_share(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseQueryStatistic) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DatabaseQueryStatistic_share(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Share, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v float64) graphql.Marshaler {
+			return ec.marshalNFloat2float64(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DatabaseQueryStatistic_share(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DatabaseQueryStatistic", field, false, false, errors.New("field of type Float does not have child fields"))
+}
+
+func (ec *executionContext) _DatabaseQueryStatistics_enabled(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseQueryStatistics) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DatabaseQueryStatistics_enabled(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Enabled, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DatabaseQueryStatistics_enabled(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DatabaseQueryStatistics", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
+func (ec *executionContext) _DatabaseQueryStatistics_since(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseQueryStatistics) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DatabaseQueryStatistics_since(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Since, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *time.Time) graphql.Marshaler {
+			return ec.marshalOTime2ᚖtimeᚐTime(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_DatabaseQueryStatistics_since(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DatabaseQueryStatistics", field, false, false, errors.New("field of type Time does not have child fields"))
+}
+
+func (ec *executionContext) _DatabaseQueryStatistics_queries(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseQueryStatistics) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DatabaseQueryStatistics_queries(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Queries, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []model.DatabaseQueryStatistic) graphql.Marshaler {
+			return ec.marshalNDatabaseQueryStatistic2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabaseQueryStatisticᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DatabaseQueryStatistics_queries(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DatabaseQueryStatistics",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_DatabaseQueryStatistic(ctx, field)
+		},
+	}
+	return fc, nil
 }
 
 func (ec *executionContext) _DatabaseSource_id(ctx context.Context, field graphql.CollectedField, obj *model.DatabaseSource) (ret graphql.Marshaler) {
@@ -24526,6 +25187,120 @@ func (ec *executionContext) _Database(ctx context.Context, sel ast.SelectionSet,
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "metrics":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Database_metrics(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.IsDeferred() {
+				deferredFieldSet.AddField(field)
+				fieldIndex := len(deferredFieldSet.Values) - 1
+				deferredFieldSet.Concurrently(fieldIndex, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, deferredFieldSet)
+				})
+
+				for _, deferrable := range field.Deferrables {
+					view, ok := deferLabelToView[deferrable.Label]
+					if !ok {
+						view = deferredFieldSet.NewView()
+						deferLabelToView[deferrable.Label] = view
+					}
+					view.AddIndices(fieldIndex)
+				}
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "connectionLimit":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Database_connectionLimit(ctx, field, obj)
+				if res == graphql.RequiredNull {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.IsDeferred() {
+				deferredFieldSet.AddField(field)
+				fieldIndex := len(deferredFieldSet.Values) - 1
+				deferredFieldSet.Concurrently(fieldIndex, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, deferredFieldSet)
+				})
+
+				for _, deferrable := range field.Deferrables {
+					view, ok := deferLabelToView[deferrable.Label]
+					if !ok {
+						view = deferredFieldSet.NewView()
+						deferLabelToView[deferrable.Label] = view
+					}
+					view.AddIndices(fieldIndex)
+				}
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "queryStatistics":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Database_queryStatistics(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.IsDeferred() {
+				deferredFieldSet.AddField(field)
+				fieldIndex := len(deferredFieldSet.Values) - 1
+				deferredFieldSet.Concurrently(fieldIndex, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, deferredFieldSet)
+				})
+
+				for _, deferrable := range field.Deferrables {
+					view, ok := deferLabelToView[deferrable.Label]
+					if !ok {
+						view = deferredFieldSet.NewView()
+						deferLabelToView[deferrable.Label] = view
+					}
+					view.AddIndices(fieldIndex)
+				}
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -24823,6 +25598,175 @@ func (ec *executionContext) _DatabaseCredentials(ctx context.Context, sel ast.Se
 			}
 		case "uri":
 			out.Values[i] = ec._DatabaseCredentials_uri(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var databaseMetricSeriesImplementors = []string{"DatabaseMetricSeries"}
+
+func (ec *executionContext) _DatabaseMetricSeries(ctx context.Context, sel ast.SelectionSet, obj *model.DatabaseMetricSeries) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, databaseMetricSeriesImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("DatabaseMetricSeries")
+		case "metric":
+			out.Values[i] = ec._DatabaseMetricSeries_metric(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "unit":
+			out.Values[i] = ec._DatabaseMetricSeries_unit(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "instance":
+			out.Values[i] = ec._DatabaseMetricSeries_instance(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "role":
+			out.Values[i] = ec._DatabaseMetricSeries_role(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "points":
+			out.Values[i] = ec._DatabaseMetricSeries_points(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var databaseQueryStatisticImplementors = []string{"DatabaseQueryStatistic"}
+
+func (ec *executionContext) _DatabaseQueryStatistic(ctx context.Context, sel ast.SelectionSet, obj *model.DatabaseQueryStatistic) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, databaseQueryStatisticImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("DatabaseQueryStatistic")
+		case "query":
+			out.Values[i] = ec._DatabaseQueryStatistic_query(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "calls":
+			out.Values[i] = ec._DatabaseQueryStatistic_calls(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "rows":
+			out.Values[i] = ec._DatabaseQueryStatistic_rows(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "totalMilliseconds":
+			out.Values[i] = ec._DatabaseQueryStatistic_totalMilliseconds(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "meanMilliseconds":
+			out.Values[i] = ec._DatabaseQueryStatistic_meanMilliseconds(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "share":
+			out.Values[i] = ec._DatabaseQueryStatistic_share(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var databaseQueryStatisticsImplementors = []string{"DatabaseQueryStatistics"}
+
+func (ec *executionContext) _DatabaseQueryStatistics(ctx context.Context, sel ast.SelectionSet, obj *model.DatabaseQueryStatistics) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, databaseQueryStatisticsImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("DatabaseQueryStatistics")
+		case "enabled":
+			out.Values[i] = ec._DatabaseQueryStatistics_enabled(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "since":
+			out.Values[i] = ec._DatabaseQueryStatistics_since(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "queries":
+			out.Values[i] = ec._DatabaseQueryStatistics_queries(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -30234,6 +31178,96 @@ func (ec *executionContext) marshalNDatabaseID2githubᚗcomᚋzeitlosᚋlucity�
 	return v
 }
 
+func (ec *executionContext) unmarshalNDatabaseMetric2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabaseMetric(ctx context.Context, v any) (model.DatabaseMetric, error) {
+	var res model.DatabaseMetric
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNDatabaseMetric2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabaseMetric(ctx context.Context, sel ast.SelectionSet, v model.DatabaseMetric) graphql.Marshaler {
+	return v
+}
+
+func (ec *executionContext) unmarshalNDatabaseMetric2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabaseMetricᚄ(ctx context.Context, v any) ([]model.DatabaseMetric, error) {
+	vSlice := graphql.CoerceList(v)
+	var err error
+	res := make([]model.DatabaseMetric, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNDatabaseMetric2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabaseMetric(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalNDatabaseMetric2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabaseMetricᚄ(ctx context.Context, sel ast.SelectionSet, v []model.DatabaseMetric) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNDatabaseMetric2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabaseMetric(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNDatabaseMetricSeries2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabaseMetricSeries(ctx context.Context, sel ast.SelectionSet, v model.DatabaseMetricSeries) graphql.Marshaler {
+	return ec._DatabaseMetricSeries(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNDatabaseMetricSeries2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabaseMetricSeriesᚄ(ctx context.Context, sel ast.SelectionSet, v []model.DatabaseMetricSeries) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNDatabaseMetricSeries2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabaseMetricSeries(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNDatabaseQueryStatistic2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabaseQueryStatistic(ctx context.Context, sel ast.SelectionSet, v model.DatabaseQueryStatistic) graphql.Marshaler {
+	return ec._DatabaseQueryStatistic(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNDatabaseQueryStatistic2ᚕgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabaseQueryStatisticᚄ(ctx context.Context, sel ast.SelectionSet, v []model.DatabaseQueryStatistic) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNDatabaseQueryStatistic2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabaseQueryStatistic(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNDatabaseQueryStatistics2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabaseQueryStatistics(ctx context.Context, sel ast.SelectionSet, v *model.DatabaseQueryStatistics) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._DatabaseQueryStatistics(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalNDatabaseStatus2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabaseStatus(ctx context.Context, v any) (model.DatabaseStatus, error) {
 	var res model.DatabaseStatus
 	err := res.UnmarshalGQL(v)
@@ -30492,6 +31526,22 @@ func (ec *executionContext) unmarshalNEnvironmentID2githubᚗcomᚋzeitlosᚋluc
 
 func (ec *executionContext) marshalNEnvironmentID2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋplatformᚐEnvironmentID(ctx context.Context, sel ast.SelectionSet, v platform.EnvironmentID) graphql.Marshaler {
 	return v
+}
+
+func (ec *executionContext) unmarshalNFloat2float64(ctx context.Context, v any) (float64, error) {
+	res, err := graphql.UnmarshalFloatContext(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNFloat2float64(ctx context.Context, sel ast.SelectionSet, v float64) graphql.Marshaler {
+	_ = sel
+	res := graphql.MarshalFloatContext(v)
+	if res == graphql.Null {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+	}
+	return graphql.WrapContextMarshaler(ctx, res)
 }
 
 func (ec *executionContext) unmarshalNGitHubAccountType2githubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐGitHubAccountType(ctx context.Context, v any) (model.GitHubAccountType, error) {
@@ -31745,6 +32795,22 @@ func (ec *executionContext) marshalOBuild2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋs
 		return graphql.Null
 	}
 	return ec._Build(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalODatabaseInstanceRole2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabaseInstanceRole(ctx context.Context, v any) (*model.DatabaseInstanceRole, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var res = new(model.DatabaseInstanceRole)
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalODatabaseInstanceRole2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDatabaseInstanceRole(ctx context.Context, sel ast.SelectionSet, v *model.DatabaseInstanceRole) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return v
 }
 
 func (ec *executionContext) marshalODeploy2ᚖgithubᚗcomᚋzeitlosᚋlucityᚋservicesᚋconductorᚋinternalᚋapiᚋgraphqlᚋmodelᚐDeploy(ctx context.Context, sel ast.SelectionSet, v *model.Deploy) graphql.Marshaler {
