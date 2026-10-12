@@ -15,6 +15,7 @@
  * Configuration (env, all optional):
  *   LUCITY_CLI        path to the lucity binary (default: lucity on PATH)
  *   LUCITY_URL        platform URL              (default https://lucity.cloud)
+ *   LUCITY_APP_PATH   dashboard path on it      (default /app, empty for a local dashboard)
  *   LUCITY_WORKSPACE  workspace slug            (default: `lucity workspace`)
  *   SHOTS_PROJECT     demo project              (default vouch)
  *   SHOTS_ENV         demo environment          (default development)
@@ -32,6 +33,7 @@
  *   SHOTS_USER_NAME   display name to show in the dashboard header
  *   SHOTS_USER_EMAIL  email to show in the dashboard header
  *   SHOTS_THEME       light | dark              (default light)
+ *   SHOTS_BROWSER     installed browser channel, such as chrome (default: Playwright's Chromium)
  */
 
 import { execFileSync } from 'node:child_process';
@@ -63,6 +65,7 @@ const option = (name, fallback) => {
 
 const config = {
   base: (process.env.LUCITY_URL || 'https://lucity.cloud').replace(/\/$/, ''),
+  appPath: (process.env.LUCITY_APP_PATH ?? '/app').replace(/\/$/, ''),
   workspace: process.env.LUCITY_WORKSPACE || '',
   project: process.env.SHOTS_PROJECT || 'vouch',
   environment: process.env.SHOTS_ENV || 'development',
@@ -80,6 +83,7 @@ const config = {
   repoOwner: process.env.SHOTS_REPO_OWNER || 'zeitlos',
   repo: process.env.SHOTS_REPO || 'vouch',
   theme: process.env.SHOTS_THEME || option('theme', 'light'),
+  browserChannel: process.env.SHOTS_BROWSER || undefined,
   headed: flag('headed'),
   slowMo: Number(option('slow', '0')),
   updateDocs: !flag('no-update-docs'),
@@ -107,7 +111,7 @@ function environmentID() {
 
 function environmentURL() {
   const project = encodeURIComponent(`${config.workspace}/${config.project}`);
-  return `${config.base}/app/projects/${project}/environments/${encodeURIComponent(environmentID())}`;
+  return `${config.base}${config.appPath}/projects/${project}/environments/${encodeURIComponent(environmentID())}`;
 }
 
 async function graphql(query, variables = {}) {
@@ -696,6 +700,24 @@ const shots = [
     },
   },
   {
+    name: 'database-metrics',
+    dir: 'metrics',
+    description: 'Database panel on the Metrics tab, down to the activity grid',
+    viewport: { width: 1360, height: 1400 },
+    async capture(page) {
+      await openPanel(page, config.database);
+      await openTab(page, 'Metrics');
+      await panel(page).getByRole('button', { name: '1h', exact: true }).click();
+      const grid = panel(page).locator('section').filter({ hasText: 'Connections' }).first();
+      await grid.waitFor({ timeout: 20_000 });
+      await page.waitForTimeout(2_500);
+      const box = await panel(page).boundingBox();
+      const bottom = await grid.boundingBox();
+      if (!box || !bottom) throw new Error('metrics tab has no box to clip');
+      return { rect: { x: box.x, y: box.y, width: box.width, height: bottom.y + bottom.height + 20 - box.y } };
+    },
+  },
+  {
     name: 'runtime-logs',
     dir: 'logs',
     description: 'Runtime logs streaming next to the service panel',
@@ -920,7 +942,11 @@ console.log(`workspace: ${config.workspace}`);
 console.log(`demo:      ${config.project}/${config.environment} (${config.service}, ${config.database}, ${config.bucket})`);
 console.log('');
 
-const browser = await chromium.launch({ headless: !config.headed, slowMo: config.slowMo });
+const browser = await chromium.launch({
+  headless: !config.headed,
+  slowMo: config.slowMo,
+  channel: config.browserChannel,
+});
 
 const authedContext = await browser.newContext({
   viewport,
