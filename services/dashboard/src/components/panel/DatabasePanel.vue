@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import { ref } from 'vue';
 import { X } from '@lucide/vue';
 import { onKeyStroke } from '@vueuse/core';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import DatabaseConnectionTab from './DatabaseConnectionTab.vue';
+import DatabaseMetricsTab from './DatabaseMetricsTab.vue';
 import DatabaseTablesTab from './DatabaseTablesTab.vue';
 import DatabaseQueryTab from './DatabaseQueryTab.vue';
 import DatabaseBackupsTab from './DatabaseBackupsTab.vue';
@@ -25,6 +27,8 @@ const emit = defineEmits<{
   (e: 'database-removed'): void;
   (e: 'database-restored'): void;
 }>();
+
+const activeTab = ref('connect');
 
 onKeyStroke('Escape', () => {
   emit('close');
@@ -58,10 +62,11 @@ onKeyStroke('Escape', () => {
 
     <!-- Tab Content -->
     <ScrollArea class="flex-1">
-      <Tabs default-value="connect" class="h-full">
+      <Tabs v-model="activeTab" class="h-full">
         <div class="px-4 pt-2">
           <TabsList class="w-full">
             <TabsTrigger value="connect">Connect</TabsTrigger>
+            <TabsTrigger value="metrics">Metrics</TabsTrigger>
             <TabsTrigger value="tables">Tables</TabsTrigger>
             <TabsTrigger value="query">Query</TabsTrigger>
             <TabsTrigger value="backups">Backups</TabsTrigger>
@@ -73,6 +78,13 @@ onKeyStroke('Escape', () => {
           <DatabaseConnectionTab
             :database-id="props.database.id"
             :database-name="props.database.name"
+          />
+        </TabsContent>
+
+        <TabsContent value="metrics" class="px-4 py-4">
+          <DatabaseMetricsTab
+            :database-id="props.database.id"
+            @edit-resources="activeTab = 'settings'"
           />
         </TabsContent>
 
