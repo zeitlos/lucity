@@ -56,7 +56,7 @@ conductor:
     PUBLIC_BUCKET_DOMAIN: storage.lucity.app
 
     EDGE_ORIGIN_URL: "https://46.225.47.40"
-    EDGE_HEADER_ENFORCED: "false"
+    EDGE_HEADER_ENFORCED: "true"
 
     DATABASE_BACKUP_ENABLED: "true"
     DATABASE_BACKUP_S3_ENDPOINT: https://s3.eu-west-par.io.cloud.ovh.net

@@ -60,7 +60,7 @@ conductor:
 
     EDGE_ORIGIN_URL: "https://46.225.44.63"
     EDGE_WILDCARD_TLS_SECRET: lucity-io-wildcard-tls
-    EDGE_HEADER_ENFORCED: "false"
+    EDGE_HEADER_ENFORCED: "true"
 
     DATABASE_BACKUP_ENABLED: "false"
   envSecret:
