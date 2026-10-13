@@ -464,7 +464,7 @@ func (c *Client) AddCustomDomain(ctx context.Context, serviceID platform.Service
 		if _, err := c.deployer.Services().AttachDomain(ctx, serviceID, hostname, verified); err != nil {
 			// This will be re-tried by the reconcile loop, therefore we don't surface the error.
 			slog.WarnContext(ctx, "failed to set domain to verified", "error", err, "service", serviceID, "domain", hostname)
-		} else {
+		} else if c.usesEdge(ctx, hostname, redirectTo != "") {
 			c.registerEdge(ctx, serviceID, hostname)
 		}
 	}

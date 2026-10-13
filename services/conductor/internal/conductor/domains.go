@@ -76,6 +76,7 @@ func (c *Client) ReconcileDomains(ctx context.Context) error {
 
 	wildcard := c.wildcardCertificate(ctx)
 	attached := map[string][]edge.Host{}
+	detached := map[string][]string{}
 
 	for _, workspace := range workspaces {
 		projects, err := c.platform.Projects(ctx, workspace.ID)
@@ -94,7 +95,9 @@ func (c *Client) ReconcileDomains(ctx context.Context) error {
 			}
 
 			for _, env := range environments {
-				attached[workspace.ID] = append(attached[workspace.ID], c.reconcileEnvironmentDomains(ctx, env.ID, wildcard)...)
+				hosts, direct := c.reconcileEnvironmentDomains(ctx, env.ID, wildcard)
+				attached[workspace.ID] = append(attached[workspace.ID], hosts...)
+				detached[workspace.ID] = append(detached[workspace.ID], direct...)
 			}
 		}
 	}
@@ -105,18 +108,21 @@ func (c *Client) ReconcileDomains(ctx context.Context) error {
 		routing = []edge.Host{{Name: "*." + c.config.WorkloadDomain, Certificate: wildcard}}
 	}
 
-	return c.edge.Sync(ctx, attached, routing)
+	return c.edge.Sync(ctx, attached, detached, routing)
 }
 
-func (c *Client) reconcileEnvironmentDomains(ctx context.Context, envID platform.EnvironmentID, wildcard *edge.Certificate) []edge.Host {
+func (c *Client) reconcileEnvironmentDomains(ctx context.Context, envID platform.EnvironmentID, wildcard *edge.Certificate) ([]edge.Host, []string) {
 	services, err := c.platform.Services(ctx, envID)
 
 	if err != nil {
 		slog.Warn("reconcile domains: list services failed", "env", envID, "error", err)
-		return nil
+		return nil, nil
 	}
 
-	var attached []edge.Host
+	var (
+		attached []edge.Host
+		detached []string
+	)
 
 	for _, service := range services {
 		for _, endpoint := range service.Endpoints {
@@ -147,13 +153,33 @@ func (c *Client) reconcileEnvironmentDomains(ctx context.Context, envID platform
 				continue
 			}
 
+			if !c.usesEdge(ctx, host, endpoint.RedirectTo != "") {
+				detached = append(detached, host)
+				continue
+			}
+
 			if edgeHost, ok := c.edgeHost(ctx, envID.Namespace(), host, wildcard); ok {
 				attached = append(attached, edgeHost)
 			}
 		}
 	}
 
-	return attached
+	return attached, detached
+}
+
+func (c *Client) usesEdge(ctx context.Context, host string, redirect bool) bool {
+	if !redirect {
+		return true
+	}
+
+	direct, err := c.hostname.DirectToLoadBalancer(ctx, host)
+
+	if err != nil {
+		slog.WarnContext(ctx, "edge: dns lookup failed", "host", host, "error", err)
+		return true
+	}
+
+	return !direct
 }
 
 func (c *Client) edgeHost(ctx context.Context, namespace, host string, wildcard *edge.Certificate) (edge.Host, bool) {

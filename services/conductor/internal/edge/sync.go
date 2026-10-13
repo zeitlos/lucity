@@ -3,11 +3,12 @@ package edge
 import (
 	"context"
 	"log/slog"
+	"slices"
 
 	"github.com/zeitlos/lucity/pkg/bunny"
 )
 
-func (c *Client) Sync(ctx context.Context, workspaces map[string][]Host, routing []Host) error {
+func (c *Client) Sync(ctx context.Context, workspaces map[string][]Host, detached map[string][]string, routing []Host) error {
 	zones, err := c.api.PullZones(ctx)
 
 	if err != nil {
@@ -18,6 +19,18 @@ func (c *Client) Sync(ctx context.Context, workspaces map[string][]Host, routing
 
 	for i := range zones {
 		byName[zones[i].Name] = &zones[i]
+	}
+
+	for workspaceID, names := range detached {
+		zone := byName[c.zoneName(workspaceID)]
+
+		if zone == nil {
+			continue
+		}
+
+		for _, name := range names {
+			c.removeHostLogged(ctx, zone, name)
+		}
 	}
 
 	for workspaceID, hosts := range workspaces {
@@ -76,4 +89,21 @@ func (c *Client) syncHost(ctx context.Context, zone *bunny.PullZone, host Host) 
 	}
 
 	return c.ensureUploaded(ctx, zone, host.Name, host.Certificate)
+}
+
+func (c *Client) removeHostLogged(ctx context.Context, zone *bunny.PullZone, name string) {
+	if hostnameOn(zone, name) == nil {
+		return
+	}
+
+	if err := c.api.RemoveHostname(ctx, zone.ID, name); err != nil && !bunny.IsNotFound(err) {
+		slog.WarnContext(ctx, "edge sync: host removal failed", "zone", zone.Name, "host", name, "error", err)
+		return
+	}
+
+	zone.Hostnames = slices.DeleteFunc(zone.Hostnames, func(hostname bunny.Hostname) bool {
+		return hostname.Value == name
+	})
+
+	slog.InfoContext(ctx, "edge sync: host detached", "zone", zone.Name, "host", name)
 }

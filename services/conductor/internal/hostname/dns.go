@@ -54,11 +54,9 @@ func (c *Client) DNSStatus(ctx context.Context, workspace, host string, redirect
 	var routingOK bool
 
 	if isApex(host) {
-		addrs, err := firstAnswer(lookupCtx, routeServers, func(ctx context.Context, resolver *net.Resolver) ([]string, error) {
-			return resolver.LookupHost(ctx, host)
-		})
+		addrs, err := lookupAddresses(lookupCtx, routeServers, host)
 
-		if err != nil && !isNotFound(err) {
+		if err != nil {
 			return DNSError, err
 		}
 
@@ -118,6 +116,57 @@ func (c *Client) pointsAtTarget(ctx context.Context, addrs []string, redirect bo
 	}
 
 	return false, nil
+}
+
+func (c *Client) DirectToLoadBalancer(ctx context.Context, host string) (bool, error) {
+	if !c.IsCustom(host) || !isApex(host) {
+		return false, nil
+	}
+
+	lookupCtx, cancel := context.WithTimeout(ctx, dnsLookupTimeout)
+	defer cancel()
+
+	servers, err := authoritativeServers(lookupCtx, host)
+
+	if err != nil {
+		return false, err
+	}
+
+	addrs, err := lookupAddresses(lookupCtx, servers, host)
+
+	if err != nil {
+		return false, err
+	}
+
+	if !slices.Contains(addrs, c.loadBalancerIP) {
+		return false, nil
+	}
+
+	targets, err := c.targetAddresses(lookupCtx)
+
+	if err != nil {
+		return false, err
+	}
+
+	for _, addr := range addrs {
+		if slices.Contains(targets, addr) {
+			return false, nil
+		}
+	}
+
+	return true, nil
+}
+
+func lookupAddresses(ctx context.Context, servers []string, host string) ([]string, error) {
+	addrs, err := firstAnswer(ctx, servers, func(ctx context.Context, resolver *net.Resolver) ([]string, error) {
+		return resolver.LookupHost(ctx, host)
+	})
+
+	if err != nil && !isNotFound(err) {
+		return nil, err
+	}
+
+	return addrs, nil
 }
 
 func firstAnswer[T any](ctx context.Context, servers []string, lookup func(context.Context, *net.Resolver) (T, error)) (T, error) {
