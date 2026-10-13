@@ -1,6 +1,22 @@
 @import 'tailwindcss';
 @import './patterns.css';
 
+@font-face {
+  font-family: 'Redaction 20';
+  src: url('/fonts/Redaction_20-Regular.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Redaction 35';
+  src: url('/fonts/Redaction_35-Regular.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 @layer base {
   :root {
     --background: oklch(0.95 0.02 80);
@@ -37,10 +53,12 @@
     --sidebar-accent-foreground: oklch(0.25 0.04 55);
     --sidebar-border: oklch(0.85 0.03 75);
     --sidebar-ring: oklch(0.75 0.18 160);
+    --brand-mark: #8843db;
 
     /* Typography */
     --font-sans: 'Sora', system-ui, sans-serif;
-    --font-serif: 'Instrument Serif', Georgia, serif;
+    --font-serif: 'Redaction 20', Georgia, serif;
+    --font-wordmark: 'Redaction 35', Georgia, serif;
     --font-mono: 'Fira Code', monospace;
 
     /* Radius — larger, softer containers */
@@ -115,6 +133,7 @@
     --sidebar-accent-foreground: oklch(0.90 0.03 80);
     --sidebar-border: oklch(0.26 0.025 55);
     --sidebar-ring: oklch(0.72 0.16 160);
+    --brand-mark: #a274ee;
 
     /* Status colors — slightly brighter for dark backgrounds */
     --status-ok: oklch(0.72 0.20 155);
@@ -195,7 +214,8 @@
   --color-sidebar-ring: var(--sidebar-ring);
   --font-sans: 'Sora', system-ui, sans-serif;
   --font-mono: 'Fira Code', monospace;
-  --font-serif: 'Instrument Serif', Georgia, serif;
+  --font-serif: 'Redaction 20', Georgia, serif;
+  --font-wordmark: 'Redaction 35', Georgia, serif;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);

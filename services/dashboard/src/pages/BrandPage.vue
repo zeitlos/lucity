@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, nextTick } from 'vue';
 import BaseLogo from '@/components/BaseLogo.vue';
+import { LOGO_HEIGHT, LOGO_PATH, LOGO_WIDTH } from '@/lib/logo';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -28,6 +29,7 @@ import octopusRiverImg from '../../assets/img/octopus_river.webp';
 import gopherShipImg from '../../assets/img/gopher_ship.webp';
 
 const colors = [
+  { name: 'Mark', var: '--brand-mark', fg: '--primary-foreground', desc: 'Logo purple' },
   { name: 'Primary', var: '--primary', fg: '--primary-foreground', desc: 'Brand teal' },
   { name: 'Secondary', var: '--secondary', fg: '--secondary-foreground', desc: 'Warm beige' },
   { name: 'Accent', var: '--accent', fg: '--accent-foreground', desc: 'Soft warm' },
@@ -63,8 +65,6 @@ const chartColors = [
 
 // --- Social Preview Canvas ---
 
-type PreviewPoint = [number, number];
-
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 const selectedWallpaper = ref(0);
 const previewHeadline = ref('The PaaS you can leave.');
@@ -98,106 +98,14 @@ function preloadWallpapers() {
   });
 }
 
-function isoProject(x: number, y: number): PreviewPoint {
-  const CELL = 20;
-  return [(x - y) * CELL * 0.866, (x + y) * CELL * 0.5];
-}
-
 function drawLogo(ctx: CanvasRenderingContext2D, cx: number, cy: number, logoHeight: number) {
-  const L_CELLS: PreviewPoint[] = [[0, 2], [1, 2], [2, 2], [2, 1]];
-  const TRI_VERTS: PreviewPoint[] = [[0, 1], [1, 0], [1, 1]];
-  const EXT = 0.4;
-
-  // Grid lines in raw isometric space
-  const gridLines: { x1: number; y1: number; x2: number; y2: number }[] = [];
-  for (let r = 0; r <= 3; r++) {
-    const [gx1, gy1] = isoProject(-EXT, r);
-    const [gx2, gy2] = isoProject(3 + EXT, r);
-    gridLines.push({ x1: gx1, y1: gy1, x2: gx2, y2: gy2 });
-  }
-  for (let c = 0; c <= 3; c++) {
-    const [gx1, gy1] = isoProject(c, -EXT);
-    const [gx2, gy2] = isoProject(c, 3 + EXT);
-    gridLines.push({ x1: gx1, y1: gy1, x2: gx2, y2: gy2 });
-  }
-
-  // Bounding box includes grid lines (matches BaseLogo viewBox)
-  const allPts: PreviewPoint[] = [];
-  for (const [c, r] of L_CELLS) {
-    allPts.push(isoProject(c, r), isoProject(c + 1, r), isoProject(c + 1, r + 1), isoProject(c, r + 1));
-  }
-  for (const [x, y] of TRI_VERTS) allPts.push(isoProject(x, y));
-  for (const line of gridLines) {
-    allPts.push([line.x1, line.y1], [line.x2, line.y2]);
-  }
-
-  const xs = allPts.map((p) => p[0]);
-  const ys = allPts.map((p) => p[1]);
-  const minX = Math.min(...xs);
-  const maxX = Math.max(...xs);
-  const minY = Math.min(...ys);
-  const maxY = Math.max(...ys);
-  const rawW = maxX - minX;
-  const rawH = maxY - minY;
-  const scale = logoHeight / rawH;
-
-  function project(x: number, y: number): PreviewPoint {
-    const [px, py] = isoProject(x, y);
-    return [cx + (px - minX - rawW / 2) * scale, cy + (py - minY - rawH / 2) * scale];
-  }
-
-  function projectRaw(px: number, py: number): PreviewPoint {
-    return [cx + (px - minX - rawW / 2) * scale, cy + (py - minY - rawH / 2) * scale];
-  }
-
-  // Grid lines with fade (drawn first, behind tiles)
-  ctx.lineWidth = Math.max(0.3, 0.35 * scale);
-  for (const line of gridLines) {
-    const [sx1, sy1] = projectRaw(line.x1, line.y1);
-    const [sx2, sy2] = projectRaw(line.x2, line.y2);
-    const grad = ctx.createLinearGradient(sx1, sy1, sx2, sy2);
-    grad.addColorStop(0, 'rgba(255,255,255,0)');
-    grad.addColorStop(0.15, 'rgba(255,255,255,0.25)');
-    grad.addColorStop(0.85, 'rgba(255,255,255,0.25)');
-    grad.addColorStop(1, 'rgba(255,255,255,0)');
-    ctx.strokeStyle = grad;
-    ctx.beginPath();
-    ctx.moveTo(sx1, sy1);
-    ctx.lineTo(sx2, sy2);
-    ctx.stroke();
-  }
-
-  // L-shape tiles — use exact brand OKLCH values
-  ctx.fillStyle = 'oklch(0.75 0.18 160)';
-  ctx.strokeStyle = 'oklch(0.75 0.18 160)';
-  ctx.lineWidth = Math.max(0.5, 0.5 * scale);
-  ctx.lineJoin = 'round';
-
-  for (const [c, r] of L_CELLS) {
-    const [x1, y1] = project(c, r);
-    const [x2, y2] = project(c + 1, r);
-    const [x3, y3] = project(c + 1, r + 1);
-    const [x4, y4] = project(c, r + 1);
-    ctx.beginPath();
-    ctx.moveTo(x1, y1);
-    ctx.lineTo(x2, y2);
-    ctx.lineTo(x3, y3);
-    ctx.lineTo(x4, y4);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-  }
-
-  // Triangle accent — warm beige from brand palette
-  ctx.fillStyle = 'oklch(0.92 0.02 75)';
-  ctx.beginPath();
-  TRI_VERTS.forEach((vert, i) => {
-    const [px, py] = project(vert[0], vert[1]);
-    if (i === 0) ctx.moveTo(px, py);
-    else ctx.lineTo(px, py);
-  });
-  ctx.closePath();
-  ctx.fill();
+  const scale = logoHeight / LOGO_HEIGHT;
+  ctx.save();
+  ctx.translate(cx - (LOGO_WIDTH * scale) / 2, cy - logoHeight / 2);
+  ctx.scale(scale, scale);
+  ctx.fillStyle = '#a274ee';
+  ctx.fill(new Path2D(LOGO_PATH));
+  ctx.restore();
 }
 
 function drawCanvas() {
@@ -245,14 +153,13 @@ function drawCanvas() {
   ctx.fillStyle = vig;
   ctx.fillRect(0, 0, W, H);
 
-  // Logo — smaller, upper portion (brand mark, not the star)
-  drawLogo(ctx, W / 2, H / 2 - 135, 100);
+  drawLogo(ctx, W / 2, H / 2 - 105, 84);
 
   // Headline — large enough to read at card size (~400px wide display)
   ctx.fillStyle = 'white';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
-  ctx.font = '88px "Instrument Serif", Georgia, serif';
+  ctx.font = '88px "Redaction 20", Georgia, serif';
   ctx.fillText(previewHeadline.value, W / 2, H / 2 + 5);
 
   // Tagline
@@ -275,6 +182,7 @@ watch([selectedWallpaper, previewHeadline, previewTagline], () => drawCanvas());
 
 onMounted(async () => {
   preloadWallpapers();
+  await document.fonts.load('88px "Redaction 20"');
   await document.fonts.ready;
   await nextTick();
   drawCanvas();
@@ -285,7 +193,7 @@ onMounted(async () => {
   <div class="min-h-screen bg-background">
     <div class="mx-auto max-w-5xl px-8 py-12">
       <div class="mb-4 flex items-center gap-4">
-        <BaseLogo :size="48" />
+        <BaseLogo :size="36" />
         <div>
           <h1 class="font-serif text-4xl text-foreground">
             Brand
@@ -304,85 +212,62 @@ onMounted(async () => {
           Logo
         </h2>
         <p class="mb-8 text-sm text-muted-foreground">
-          Isometric 3x3 grid with an L-shape in primary and an accent triangle.
+          A folded sheet with two bends, extruded unevenly so top and bottom never mirror each other. Purple on light, lilac on dark.
         </p>
 
         <div class="grid grid-cols-3 gap-8">
           <Card>
             <CardHeader>
-              <CardTitle>Construction</CardTitle>
-              <CardDescription>
-                Grid coordinates and geometry
-              </CardDescription>
-            </CardHeader>
-            <CardContent class="flex justify-center">
-              <BaseLogo :size="220" debug />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Clean</CardTitle>
-              <CardDescription>
-                Colored tiles and accent triangle
-              </CardDescription>
-            </CardHeader>
-            <CardContent class="flex justify-center">
-              <BaseLogo :size="220" />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
               <CardTitle>Mark</CardTitle>
               <CardDescription>
-                Knockout circle for compact use
+                Standalone, wherever space is tight
               </CardDescription>
             </CardHeader>
-            <CardContent class="flex items-center justify-center gap-6">
-              <BaseLogo :size="120" variant="mark" />
-              <BaseLogo :size="120" variant="mark" class="text-primary" />
-              <BaseLogo :size="120" variant="mark" debug />
+            <CardContent class="flex h-40 items-center justify-center">
+              <BaseLogo :size="96" />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Lockup</CardTitle>
+              <CardDescription>
+                Mark and wordmark in Redaction 35
+              </CardDescription>
+            </CardHeader>
+            <CardContent class="flex h-40 items-center justify-center gap-[30px]">
+              <BaseLogo :size="35" />
+              <span class="font-wordmark text-4xl leading-none text-foreground">Lucity</span>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>App icon</CardTitle>
+              <CardDescription>
+                Cream mark on a purple tile
+              </CardDescription>
+            </CardHeader>
+            <CardContent class="flex h-40 items-center justify-center">
+              <div class="app-icon flex size-28 items-center justify-center rounded-[22%]">
+                <BaseLogo :size="58" />
+              </div>
             </CardContent>
           </Card>
         </div>
 
-        <div class="mt-8 space-y-8">
-          <div>
-            <h3 class="mb-4 text-sm font-medium text-muted-foreground">
-              Optical sizes — Default
-            </h3>
-            <p class="mb-6 text-xs text-muted-foreground">
-              Small sizes show only the mark with an enlarged triangle. Grid lines and gradient fills appear at 96px+.
-            </p>
-            <div class="flex items-end gap-8">
-              <div
-                v-for="size in [24, 32, 48, 64, 96, 128]"
-                :key="size"
-                class="flex flex-col items-center gap-2"
-              >
-                <BaseLogo :size="size" />
-                <span class="font-mono text-xs text-muted-foreground">{{ size }}</span>
-                <span class="text-[10px] text-muted-foreground/60">
-                  {{ size >= 96 ? 'detail' : size <= 32 ? 'bold' : 'standard' }}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <h3 class="mb-4 text-sm font-medium text-muted-foreground">
-              Optical sizes — Mark
-            </h3>
-            <div class="flex items-end gap-8">
-              <div
-                v-for="size in [16, 24, 32, 48, 64]"
-                :key="'mark-' + size"
-                class="flex flex-col items-center gap-2"
-              >
-                <BaseLogo :size="size" variant="mark" />
-                <span class="font-mono text-xs text-muted-foreground">{{ size }}</span>
-              </div>
+        <div class="mt-8">
+          <h3 class="mb-4 text-sm font-medium text-muted-foreground">
+            Sizes
+          </h3>
+          <div class="flex items-end gap-8">
+            <div
+              v-for="size in [12, 16, 20, 24, 32, 48, 64]"
+              :key="size"
+              class="flex flex-col items-center gap-2"
+            >
+              <BaseLogo :size="size" />
+              <span class="font-mono text-xs text-muted-foreground">{{ size }}</span>
             </div>
           </div>
         </div>
@@ -403,7 +288,7 @@ onMounted(async () => {
             <h3 class="mb-4 text-sm font-medium text-muted-foreground">
               Brand
             </h3>
-            <div class="grid grid-cols-5 gap-4">
+            <div class="grid grid-cols-6 gap-4">
               <div
                 v-for="color in colors"
                 :key="color.var"
@@ -491,12 +376,13 @@ onMounted(async () => {
           Typography
         </h2>
         <p class="mb-8 text-sm text-muted-foreground">
-          Sora for headings and body. Instrument Serif for display. Fira Code for monospace.
+          Sora for headings and body. Redaction for display. Fira Code for monospace.
         </p>
 
         <Card>
           <CardContent class="space-y-6 pt-6">
             <div class="space-y-3">
+              <p class="font-serif text-5xl text-foreground">The PaaS you can leave.</p>
               <p class="text-3xl font-bold text-foreground">The quick brown fox</p>
               <p class="text-2xl font-semibold text-foreground">The quick brown fox</p>
               <p class="text-xl font-medium text-foreground">The quick brown fox</p>
@@ -836,3 +722,10 @@ onMounted(async () => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.app-icon {
+  --brand-mark: #f6ede0;
+  background: #8843db;
+}
+</style>

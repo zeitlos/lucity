@@ -67,7 +67,7 @@ async function handleLogout() {
             to="/"
             class="flex items-center transition-opacity hover:opacity-80"
           >
-            <BaseLogo :size="24" variant="mark" />
+            <BaseLogo :size="20" />
           </RouterLink>
 
           <template v-if="user">

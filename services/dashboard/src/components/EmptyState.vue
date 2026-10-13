@@ -38,7 +38,7 @@ const patternClass: Record<string, string> = {
       <div v-if="icon" class="relative mb-4 rounded-full bg-muted p-4">
         <component :is="icon" :size="32" class="text-muted-foreground" />
       </div>
-      <h2 class="relative font-serif text-[3.2rem] leading-[1.1] tracking-[-0.02em] text-foreground">
+      <h2 class="relative font-serif text-[2.5rem] leading-[1.1] tracking-[-0.02em] text-foreground">
         {{ title }}
       </h2>
       <p

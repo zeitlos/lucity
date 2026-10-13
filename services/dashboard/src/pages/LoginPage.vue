@@ -131,13 +131,13 @@ onUnmounted(() => {
           <!-- Logo -->
           <div class="flex justify-center">
             <BaseLogo
-              :size="128"
+              :size="72"
               :class="logoLoaded ? 'logo-breathing' : ''"
             />
           </div>
 
           <!-- Wordmark -->
-          <h1 class="text-center font-serif text-4xl tracking-tight text-foreground">
+          <h1 class="text-center font-wordmark text-4xl text-foreground">
             Lucity
           </h1>
 
@@ -249,11 +249,11 @@ onUnmounted(() => {
 @keyframes breathe {
   0%, 100% {
     transform: translateY(0);
-    filter: drop-shadow(0 4px 12px oklch(0.75 0.18 160 / 0.3));
+    filter: drop-shadow(0 4px 12px oklch(from var(--brand-mark) l c h / 0.3));
   }
   50% {
     transform: translateY(-4px);
-    filter: drop-shadow(0 8px 20px oklch(0.75 0.18 160 / 0.5));
+    filter: drop-shadow(0 8px 20px oklch(from var(--brand-mark) l c h / 0.5));
   }
 }
 </style>

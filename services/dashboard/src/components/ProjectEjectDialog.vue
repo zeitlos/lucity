@@ -108,7 +108,7 @@ async function handleEject() {
         </div>
 
         <DialogHeader class="relative space-y-2 text-center">
-          <DialogTitle class="font-serif text-6xl font-normal leading-tight tracking-[-0.01em]">
+          <DialogTitle class="font-serif text-5xl font-normal leading-tight tracking-[-0.01em]">
             Eject project
           </DialogTitle>
           <DialogDescription class="text-sm leading-relaxed text-muted-foreground">
