@@ -672,7 +672,7 @@ victoria-metrics-alert:
                   redacted: "A tenant volume is more than 95% full"
               - alert: CertExpiringSoon
                 expr: |-
-                  certmanager_certificate_expiration_timestamp_seconds - time() < 14 * 86400
+                  (certmanager_certificate_expiration_timestamp_seconds > 0) - time() < 14 * 86400
                     and on (namespace, name) certmanager_certificate_renewal_timestamp_seconds < time()
                 for: 1h
                 labels: { severity: warning }
